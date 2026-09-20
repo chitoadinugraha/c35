@@ -7,6 +7,7 @@ edition.workspace = true
 axum = { workspace = true }
 c35_ctx = { path = "../system/ctx", package = "c35_ctx" }
 c35_mod_identity = { path = "../mod_identity", package = "c35_mod_identity" }
+c35_wire_http = { path = "../wire_http", package = "c35_wire_http" }
 c35_proto = { path = "../proto", package = "c35_proto" }
 c35_wire = { path = "../wire", package = "c35_wire" }
 futures-util = { workspace = true }

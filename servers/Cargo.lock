@@ -238,6 +238,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "c35_mod_llm"
+version = "0.1.0"
+dependencies = [
+ "blake3",
+ "chrono",
+ "sqlx",
+]
+
+[[package]]
 name = "c35_mod_referral"
 version = "0.1.0"
 dependencies = [
@@ -306,6 +315,7 @@ dependencies = [
  "c35_mod_identity",
  "c35_proto",
  "c35_wire",
+ "c35_wire_http",
  "futures-util",
  "prost",
  "serde",

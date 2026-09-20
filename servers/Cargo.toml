@@ -11,6 +11,7 @@ members = [
     "crates/mod_identity",
     "crates/mod_billing",
     "crates/mod_referral",
+    "crates/mod_llm",
     "server_ai",
 ]
 

@@ -62,6 +62,15 @@ async fn dispatch(ctx: &Ctx, req: WsReq, q: &WsQuery) -> WsRes {
             },
             Err(e) => err_res(req_id, e),
         },
+        Some(ws_req::Body::Invoke(mut inv)) => {
+            inv.caller_iid = ctx.caller_iid;
+            WsRes {
+                req_id,
+                body: Some(ws_res::Body::Invoke(
+                    c35_wire_http::dispatch_invoke(&ctx.pool, inv).await,
+                )),
+            }
+        }
         _ => err_res(
             req_id,
             WireErr::client("not_implemented", "Request not supported yet"),
