@@ -15,18 +15,10 @@ pub async fn handle(mut socket: WebSocket, state: AppState, q: WsQuery) {
         }
     };
 
-    let claims = match c35_mod_identity::jwt_decode(token, &state.jwt_secret) {
-        Ok(c) => c,
-        Err(e) => {
-            let _ = send_err(&mut socket, "", e).await;
-            return;
-        }
-    };
-
-    let caller_iid = match c35_mod_identity::jwt_caller_iid(&claims) {
-        Ok(i) => i,
-        Err(e) => {
-            let _ = send_err(&mut socket, "", e).await;
+    let caller_iid = match c35_mod_identity::auth_session_resolve(&state.pool, token).await {
+        Ok(Some(i)) if i > 0 => i,
+        _ => {
+            let _ = send_err(&mut socket, "", WireErr::Unauthorized).await;
             return;
         }
     };

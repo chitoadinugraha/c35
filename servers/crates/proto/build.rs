@@ -14,6 +14,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "site.proto",
         "tx.proto",
         "sync.proto",
+        "referral.proto",
         "session.proto",
         "wire.proto",
     ];

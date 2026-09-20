@@ -12,19 +12,21 @@ import "c35/skill.proto";
 import "c35/consumption.proto";
 import "c35/site.proto";
 import "c35/tx.proto";
+import "c35/referral.proto";
 
 // HTTP invoke envelope (referral, admin, billing review, …)
 message InvokeReq {
   string req_id = 1;
-  int64 caller_iid = 2;
+  int64 caller_iid = 2;   // set by server from session; same as cs uid
 
   oneof body {
     ReqBillingTopupPut billing_topup_put = 10;
-    ReqSkillPut skill_put = 11;
-    ReqConsumptionPut consumption_put = 12;
-    ReqSiteDraftPut site_draft_put = 13;
-    ReqTxPut tx_put = 14;
-    // referral_*, identity_* added with mod_referral / mod_identity
+    ReqReferralShareSet referral_share_set = 62;
+    ReqReferralTreeGet referral_tree_get = 64;
+    ReqReferralCodeList referral_code_list = 65;
+    ReqReferralCodePut referral_code_put = 67;
+    ReqReferralCodeDelete referral_code_delete = 68;
+    ReqReferralUserStats referral_user_stats = 92;
   }
 }
 
@@ -35,10 +37,11 @@ message InvokeRes {
 
   oneof body {
     ResBillingTopupPut billing_topup_put = 10;
-    ResSkillPut skill_put = 11;
-    ResConsumptionPut consumption_put = 12;
-    ResSiteDraftPut site_draft_put = 13;
-    ResTxPut tx_put = 14;
+    ResReferralShareSet referral_share_set = 62;
+    ResReferralTreeGet referral_tree_get = 64;
+    ResReferralCodeList referral_code_list = 65;
+    ReferralCodeDoc referral_code_put = 67;
+    ResReferralUserStats referral_user_stats = 92;
   }
 }
 

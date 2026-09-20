@@ -1,0 +1,99 @@
+syntax = "proto3";
+
+package c35;
+
+// Port cs_agent referral.proto — field names kept for client compatibility.
+
+message ReferralCodeDoc {
+  string code = 1;
+  string type = 2;
+  string name = 3;
+  int64 issued_by = 4;
+  double price_usd = 5;
+  int32 duration_months = 6;
+  string base_plan_slug = 7;
+  int32 max_uses = 8;
+  int32 used_count = 9;
+  int64 expires_at_ms = 10;
+}
+
+message ReferralShareDoc {
+  int64 parent_uid = 1;
+  int64 child_uid = 2;
+  int32 share_percent = 3;
+}
+
+message ReferralTreeNode {
+  int64 identity_id = 1;
+  string name = 2;
+  string email = 3;
+  string avatar_url = 4;
+  string handle = 5;
+  int64 referred_by = 6;
+  int32 child_count = 7;
+  bool is_root = 8;
+  bool is_banned = 9;
+  repeated string global_roles = 10;
+}
+
+message ReferralTreeSlice {
+  repeated ReferralTreeNode nodes = 1;
+  repeated ReferralShareDoc branch_shares = 2;
+}
+
+message ReqReferralShareSet {
+  int64 parent_uid = 1;
+  int64 child_uid = 2;
+  int32 share_percent = 3;
+}
+
+message ResReferralShareSet {
+  bool success = 1;
+}
+
+message ReqReferralTreeGet {
+  int64 root_id = 1;
+  int32 depth = 2;
+}
+
+message ResReferralTreeGet {
+  ReferralTreeSlice slice = 1;
+}
+
+message ReqReferralCodeList {}
+
+message ResReferralCodeList {
+  repeated ReferralCodeDoc items = 1;
+}
+
+message ReqReferralCodePut {
+  ReferralCodeDoc code = 1;
+}
+
+message ReqReferralCodeDelete {
+  string code = 1;
+}
+
+message ReferralStatPeriod {
+  int64 from_ms = 1;
+  int64 to_ms = 2;
+}
+
+message ReferralUserStatColumn {
+  int32 referral_count = 1;
+  double commission_idr = 2;
+  double commission_usd = 3;
+  int64 tokens_alien = 4;
+  int64 tokens_api = 5;
+}
+
+message ReqReferralUserStats {
+  int64 subject_uid = 1;
+  ReferralStatPeriod col_a = 2;
+  ReferralStatPeriod col_b = 3;
+}
+
+message ResReferralUserStats {
+  ReferralUserStatColumn col_a = 1;
+  ReferralUserStatColumn col_b = 2;
+}
