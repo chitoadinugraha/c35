@@ -1,0 +1,9 @@
+.cache/
+**/target/
+.dart_tool/
+.packages
+build/
+*.iml
+.idea/
+.vscode/
+*.log

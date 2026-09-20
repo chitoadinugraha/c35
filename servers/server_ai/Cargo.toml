@@ -1,0 +1,22 @@
+[package]
+name = "server_ai"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "server_ai"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+axum = { workspace = true }
+c35_ctx = { path = "../crates/system/ctx", package = "c35_ctx" }
+c35_store = { path = "../crates/store", package = "c35_store" }
+c35_trace = { path = "../crates/system/trace", package = "c35_trace" }
+c35_wire_http = { path = "../crates/wire_http", package = "c35_wire_http" }
+c35_wire_ws = { path = "../crates/wire_ws", package = "c35_wire_ws" }
+dotenvy = { workspace = true }
+tokio = { workspace = true }
+tower-http = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }

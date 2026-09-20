@@ -1,0 +1,134 @@
+syntax = "proto3";
+
+package c35;
+
+// Mirrors ai.consumption / consumption_item / consumption_water.
+// See _/docs/consumption.md
+
+enum ConsumeMealType {
+  CONSUME_MEAL_TYPE_OTHER = 0;
+  CONSUME_MEAL_TYPE_BREAKFAST = 1;
+  CONSUME_MEAL_TYPE_LUNCH = 2;
+  CONSUME_MEAL_TYPE_DINNER = 3;
+  CONSUME_MEAL_TYPE_SNACK = 4;
+  CONSUME_MEAL_TYPE_DESSERT = 5;
+  CONSUME_MEAL_TYPE_LATE_NIGHT = 6;
+}
+
+message Nutrition {
+  int32 calories = 1;
+  int32 protein = 2;
+  int32 fat = 3;
+  int32 carbs = 4;
+  int32 fiber = 5;
+  int32 sugar = 6;
+  int32 sodium = 7;
+  int32 potassium = 8;
+  int32 vitamin_a = 9;
+  int32 vitamin_c = 10;
+  int32 vitamin_d = 11;
+  int32 vitamin_e = 12;
+  int32 vitamin_k = 13;
+  int32 calcium = 14;
+  int32 iron = 15;
+  int32 magnesium = 16;
+  int32 phosphorus = 17;
+  int32 zinc = 18;
+  int32 copper = 19;
+}
+
+message ConsumptionItem {
+  int32 idx = 1;
+  string name = 2;
+  string name_id = 3;
+  float qty = 4;
+  string pic = 5;
+  Nutrition nutrition = 6;
+}
+
+message Consumption {
+  int64 id = 1;
+  int64 owner_iid = 2;
+  string note = 3;
+  string photo_hash = 4;
+  string meal_fingerprint = 5;
+  ConsumeMealType meal_type = 6;
+  repeated string pics = 7;
+  int64 logged_ts_ms = 8;
+  bool is_archived = 9;
+  repeated ConsumptionItem items = 10;
+
+  int64 created_ts_ms = 20;
+  int64 updated_ts_ms = 21;
+  int64 deleted_ts_ms = 22;
+}
+
+message ConsumptionWater {
+  int64 owner_iid = 1;
+  string day_id = 2;
+  int32 ml = 3;
+  int32 goal_ml = 4;
+  int32 entry_count = 5;
+
+  int64 created_ts_ms = 10;
+  int64 updated_ts_ms = 11;
+  int64 deleted_ts_ms = 12;
+}
+
+message ConsumptionPrefs {
+  int64 owner_iid = 1;
+  int32 calorie_goal_kcal = 2;
+  int32 water_goal_ml = 3;
+  int64 updated_ts_ms = 4;
+}
+
+// ================================= API
+
+message ReqConsumptionList {
+  string day_id = 1;              // YYYY-MM-DD; empty = recent
+  int64 after_id = 2;
+  int32 limit = 3;
+}
+
+message ResConsumptionList {
+  repeated Consumption consumptions = 1;
+}
+
+message ReqConsumptionPut {
+  Consumption consumption = 1;
+}
+
+message ResConsumptionPut {
+  Consumption consumption = 1;
+}
+
+message ReqConsumptionWaterGet {
+  string day_id = 1;
+}
+
+message ResConsumptionWaterGet {
+  ConsumptionWater water = 1;
+}
+
+message ReqConsumptionWaterAdd {
+  string day_id = 1;
+  int32 ml = 2;
+}
+
+message ResConsumptionWaterAdd {
+  ConsumptionWater water = 1;
+}
+
+message ReqConsumptionPrefsGet {}
+
+message ResConsumptionPrefsGet {
+  ConsumptionPrefs prefs = 1;
+}
+
+message ReqConsumptionPrefsPut {
+  ConsumptionPrefs prefs = 1;
+}
+
+message ResConsumptionPrefsPut {
+  ConsumptionPrefs prefs = 1;
+}

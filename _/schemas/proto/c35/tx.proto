@@ -1,0 +1,387 @@
+syntax = "proto3";
+
+package c35;
+
+// Mirrors ai.tx + child tables. Port: id.alienai tx.proto.
+// site_iid replaces aid. See _/docs/tx.md
+
+enum TxInputSource {
+  TX_INPUT_SOURCE_UNSPECIFIED = 0;
+  TX_INPUT_SOURCE_MANUAL = 1;
+  TX_INPUT_SOURCE_WEB = 2;
+  TX_INPUT_SOURCE_AI = 3;
+  TX_INPUT_SOURCE_API = 4;
+}
+
+enum TxType {
+  TX_TYPE_UNSPECIFIED = 0;
+  TX_TYPE_SALE = 1;
+  TX_TYPE_PURCHASE = 2;
+  TX_TYPE_TRANSFER = 3;
+  TX_TYPE_ADJUSTMENT = 4;
+  TX_TYPE_RETURN_SALE = 5;
+  TX_TYPE_RETURN_PURCHASE = 6;
+  TX_TYPE_RESERVATION = 7;
+  TX_TYPE_SHIP = 8;
+  TX_TYPE_PAYMENT = 9;
+  TX_TYPE_RECEIPT = 10;
+  TX_TYPE_DEBT_PAYABLE = 11;
+  TX_TYPE_DEBT_RECEIVABLE = 12;
+  TX_TYPE_INVENTORY = 13;
+}
+
+enum TxState {
+  TX_STATE_OK = 0;
+  TX_STATE_DRAFT = 1;
+  TX_STATE_PENDING = 2;
+  TX_STATE_WAITING_PAYMENT = 3;
+  TX_STATE_CANCELLED = 99;
+}
+
+enum TxInputMode {
+  TX_INPUT_MODE_NORMAL = 0;
+  TX_INPUT_MODE_ACCOUNTING = 1;
+  TX_INPUT_MODE_SELL = 2;
+  TX_INPUT_MODE_PURCHASE = 3;
+}
+
+enum TxPaymentMethod {
+  TX_PAYMENT_METHOD_UNSPECIFIED = 0;
+  TX_PAYMENT_METHOD_CASH = 1;
+  TX_PAYMENT_METHOD_CARD = 2;
+  TX_PAYMENT_METHOD_TRANSFER = 3;
+  TX_PAYMENT_METHOD_QRIS = 4;
+  TX_PAYMENT_METHOD_DEBT = 5;
+  TX_PAYMENT_METHOD_WALLET = 6;
+}
+
+enum TxDebtPaymentMethod {
+  TX_DEBT_PAYMENT_METHOD_UNSPECIFIED = 0;
+  TX_DEBT_PAYMENT_METHOD_CASH = 1;
+  TX_DEBT_PAYMENT_METHOD_CARD = 2;
+  TX_DEBT_PAYMENT_METHOD_TRANSFER = 3;
+  TX_DEBT_PAYMENT_METHOD_QRIS = 4;
+  TX_DEBT_PAYMENT_METHOD_WALLET = 5;
+}
+
+enum TxAccSide {
+  TX_ACC_SIDE_UNSPECIFIED = 0;
+  TX_ACC_SIDE_DEBIT = 1;
+  TX_ACC_SIDE_CREDIT = 2;
+}
+
+enum TxItemFulfillmentState {
+  TX_ITEM_FULFILLMENT_UNSPECIFIED = 0;
+  TX_ITEM_FULFILLMENT_PENDING = 1;
+  TX_ITEM_FULFILLMENT_IN_PROGRESS = 2;
+  TX_ITEM_FULFILLMENT_DONE = 3;
+}
+
+enum TxOrderPayAt {
+  TX_ORDER_PAY_AT_UNSPECIFIED = 0;
+  TX_ORDER_PAY_AT_CASHIER = 1;
+  TX_ORDER_PAY_AT_TABLE = 2;
+}
+
+message TxData {
+  repeated string proofs = 1;
+  TxPrompt prompt = 2;
+  TxDelivery delivery = 3;
+  repeated TxPromo promos = 4;
+}
+
+message TxPrompt {
+  repeated string pics = 1;
+  string desc = 2;
+}
+
+message Tx {
+  int64 site_iid = 1;
+  int64 tx_id = 2;
+
+  TxType type = 3;
+  TxState state = 4;
+  TxInputMode input_mode = 5;
+  TxInputSource input_source = 6;
+
+  bool is_archived = 10;
+  string desc = 11;
+  int64 time_ts_ms = 12;
+  int64 created_by_iid = 13;
+  string cancel_reason = 14;
+
+  int64 subject_contact_id = 21;
+  string subject_name = 22;
+  string subject_phone = 23;
+  string subject_address = 24;
+  string cashier_name = 25;
+
+  int64 store_id = 31;
+  int64 store_tgt_id = 33;
+  string delivery_state = 34;
+  int64 obj_id = 41;
+  string promo_code = 53;
+
+  bool is_paid = 55;
+  bool is_task_assigned = 56;
+  TxOrderPayAt order_pay_at = 57;
+
+  int64 items_count = 121;
+  int64 items_qty = 122;
+  int64 items_total = 123;
+
+  int64 debt_total = 131;
+  int64 debt_paid = 132;
+  int64 debt_unpaid = 133;
+
+  int64 total_taxes = 141;
+  int64 total_discounts = 142;
+  int64 total_interest = 143;
+  int64 total_paid = 144;
+  int64 total_unpaid = 145;
+  int64 total = 200;
+
+  int32 stock_line_count = 151;
+  int32 stock_qty_in = 152;
+  int32 stock_qty_out = 153;
+
+  int32 acc_line_count = 161;
+  int64 acc_sum = 162;
+  bool acc_balanced = 163;
+  bool has_manual_lines = 164;
+
+  TxData tx_data = 100;
+
+  repeated TxItem items = 201;
+  repeated TxPayment payments = 202;
+  repeated TxAcc accs = 203;
+  repeated TxStock stocks = 204;
+  repeated TxTax taxes = 205;
+  repeated TxDiscount discounts = 206;
+
+  int64 created_ts_ms = 180;
+  int64 updated_ts_ms = 181;
+  int64 deleted_ts_ms = 182;
+}
+
+message TxItem {
+  int64 site_iid = 1;
+  int64 tx_id = 2;
+  int64 item_id = 3;
+
+  int64 product_id = 4;
+  int64 product_rev = 5;
+  int64 price = 11;
+  int32 qty = 13;
+  string note = 12;
+
+  string batch_number = 32;
+  string serial_number = 33;
+  TxItemFulfillmentState fulfillment_state = 37;
+
+  int32 total_qty = 101;
+  int64 total_price = 102;
+  int64 total_discount = 103;
+  int64 total_tax = 104;
+  int64 total_net = 105;
+  int64 total_paid = 202;
+  int64 total_unpaid = 201;
+
+  repeated TxItemReservation reservations = 21;
+  repeated TxItemSource sources = 31;
+}
+
+message TxItemReservation {
+  int64 res_id = 4;
+  int64 product_id = 5;
+  int32 qty = 10;
+  int32 duration_qty = 11;
+  string note = 12;
+  int64 start_ts_ms = 20;
+  int64 end_ts_ms = 21;
+  string state = 30;
+  bool is_no_show = 31;
+  bool is_unavailable = 32;
+}
+
+message TxItemSource {
+  int64 src_id = 4;
+  int64 obj_id = 10;
+  int64 product_id = 11;
+  int32 qty = 12;
+  string note = 13;
+}
+
+message TxDelivery {
+  int64 obj_id = 1;
+  int64 contact_id = 2;
+  int64 user_iid = 3;
+  TxDeliveryTo to = 11;
+  TxDeliveryService service = 12;
+  string state = 200;
+}
+
+message TxDeliveryTo {
+  string name = 1;
+  string phone = 2;
+  string address = 3;
+  string email = 4;
+}
+
+message TxDeliveryService {
+  string name = 1;
+  string tracking_number = 2;
+  string tracking_url = 3;
+  string note = 4;
+}
+
+message TxDiscount {
+  int64 discount_id = 3;
+  string discount_type = 10;
+  int64 amount = 11;
+  string note = 12;
+}
+
+message TxTax {
+  int64 tax_id = 3;
+  string tax_type = 10;
+  int64 amount = 11;
+  string note = 12;
+}
+
+message TxPromo {
+  string promo_id = 1;
+  string code = 2;
+  string name = 3;
+  int64 amount = 4;
+}
+
+message TxPayment {
+  int64 payment_id = 3;
+  TxPaymentMethod method = 10;
+  int64 ts_ms = 11;
+  int64 amount = 12;
+  string note = 13;
+  string from_wallet = 20;
+  string to_wallet = 21;
+  int64 debt_interest = 25;
+  string payment_json = 100;
+  repeated TxInstallment installments = 110;
+}
+
+message TxInstallment {
+  int64 inst_id = 4;
+  int64 due_ts_ms = 10;
+  int64 amount = 11;
+  string note = 12;
+  bool is_paid = 21;
+  bool is_overdue = 22;
+  repeated TxDebtPayment debt_payments = 30;
+}
+
+message TxDebtPayment {
+  int64 pay_id = 5;
+  int64 ts_ms = 10;
+  TxDebtPaymentMethod method = 11;
+  int64 amount = 12;
+  string note = 13;
+  int64 overdue_interest = 14;
+  string payment_json = 100;
+}
+
+message TxAcc {
+  int64 acc_id = 3;
+  string acc_code = 10;
+  int64 ts_ms = 11;
+  TxAccSide side = 12;
+  int64 amount = 13;
+  string note = 14;
+  bool is_tx_generated = 20;
+}
+
+message TxStock {
+  int64 stock_id = 3;
+  int64 product_id = 10;
+  int64 ts_ms = 11;
+  int64 obj_from_id = 20;
+  int64 obj_to_id = 21;
+  int32 qty = 30;
+  int32 qty_signed = 31;
+  string direction = 32;
+  string note = 33;
+}
+
+// ================================= API
+
+message ReqTxGet {
+  int64 site_iid = 1;
+  int64 tx_id = 2;
+}
+
+message ResTxGet {
+  Tx tx = 1;
+}
+
+message ReqTxList {
+  int64 site_iid = 1;
+  string q = 2;
+  int64 after_tx_id = 3;
+  int32 limit = 4;
+  bool include_archived = 5;
+  TxType type = 6;
+  TxState state = 7;
+  int64 subject_contact_id = 10;
+  int64 time_from_ms = 11;
+  int64 time_to_ms = 12;
+  bool open_only = 15;
+}
+
+message ResTxList {
+  repeated Tx txs = 1;
+}
+
+message ReqTxPut {
+  Tx tx = 1;
+}
+
+message ResTxPut {
+  Tx tx = 1;
+}
+
+message ReqTxPreview {
+  Tx tx = 1;
+}
+
+message ResTxPreview {
+  Tx tx = 1;
+  map<string, string> coa_name = 2;
+}
+
+message ReqTxDebtPay {
+  int64 site_iid = 1;
+  int64 tx_id = 2;
+  TxDebtPayment payment = 3;
+}
+
+message ResTxDebtPay {
+  Tx tx = 1;
+}
+
+// Guest checkout (public site — no staff grant)
+message ReqSiteGuestOrderPut {
+  int64 site_iid = 1;
+  Tx tx = 2;
+}
+
+message ResSiteGuestOrderPut {
+  Tx tx = 1;
+}
+
+message ReqSiteGuestOrderGet {
+  int64 site_iid = 1;
+  int64 tx_id = 2;
+}
+
+message ResSiteGuestOrderGet {
+  Tx tx = 1;
+}

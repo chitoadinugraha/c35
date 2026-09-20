@@ -1,0 +1,13 @@
+[package]
+name = "c35_store"
+version.workspace = true
+edition.workspace = true
+description = "c35 YugabyteDB pool and schema migration"
+
+[dependencies]
+anyhow = { workspace = true }
+sqlx = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+dotenvy = { workspace = true }
+urlencoding = { workspace = true }

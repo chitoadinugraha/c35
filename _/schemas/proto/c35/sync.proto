@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package c35;
+
+import "c35/chat.proto";
+import "c35/billing.proto";
+import "c35/log.proto";
+import "c35/skill.proto";
+import "c35/consumption.proto";
+import "c35/site.proto";
+import "c35/tx.proto";
+
+// Incremental sync by watermark. See _/docs/sync.md
+
+message SyncCollectionCursor {
+  string name = 1;               // chat | skill | consumption | site_* | tx | …
+  int64 max_updated_ts_ms = 2;
+  bool caught_up = 3;
+}
+
+message ReqSync {
+  int64 since_ms = 1;
+  repeated string collections = 2;  // empty = server default set for client
+  int32 limit_per_collection = 3;
+}
+
+message ResSync {
+  int64 since_ms = 1;            // echoed request watermark
+  int64 server_time_ms = 2;
+  repeated SyncCollectionCursor cursors = 3;
+
+  repeated Chat chats = 10;
+  repeated ChatMember chat_members = 11;
+  repeated ChatMsg chat_msgs = 12;
+  repeated BillingAccount billing_accounts = 13;
+  repeated Log logs = 14;
+
+  repeated Skill skills = 20;
+  repeated Consumption consumptions = 21;
+  repeated ConsumptionWater consumption_waters = 22;
+  repeated SiteDraft site_drafts = 23;
+  repeated SiteProduct site_products = 24;
+  repeated SiteContact site_contacts = 25;
+  repeated SiteObject site_objects = 26;
+  repeated Tx txs = 27;
+}
+
+// Unsolicited server push over WS after NATS / local mutation
+message SyncPush {
+  oneof body {
+    Chat chat = 1;
+    ChatMember chat_member = 2;
+    ChatMsg chat_msg = 3;
+    BillingAccount billing_account = 4;
+    Log log = 5;
+    Skill skill = 6;
+    Consumption consumption = 7;
+    ConsumptionWater consumption_water = 8;
+    SiteDraft site_draft = 9;
+    SiteProduct site_product = 10;
+    SiteContact site_contact = 11;
+    SiteObject site_object = 12;
+    Tx tx = 13;
+  }
+}

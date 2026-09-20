@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package c35;
+
+// Mirrors ai.log. See _/docs/log.md
+
+message Log {
+  int64 id = 1;
+  int64 owner_iid = 2;
+  string kind = 3;       // conn | error | system | llm | tool | task
+  string topic = 4;      // sign-in | prompt | connected | …
+  string dv = 5;
+
+  string req_id = 6;
+  int64 chat_id = 7;
+  int64 task_id = 8;
+  int64 device_iid = 9;
+
+  string text = 10;
+  string model = 11;
+  int32 tokens_in = 12;
+  int32 tokens_out = 13;
+  int32 duration_ms = 14;
+  double cost_usd = 15;
+
+  string meta_json = 16;
+  int64 created_ts_ms = 17;
+  int64 updated_ts_ms = 18;
+  int64 deleted_ts_ms = 19;
+}
+
+// NATS live tail: log.{iid}.{dv}.{topic}
+message LogPush {
+  Log row = 1;
+}

@@ -1,0 +1,102 @@
+syntax = "proto3";
+
+package c35;
+
+import "c35/types.proto";
+import "c35/session.proto";
+import "c35/sync.proto";
+import "c35/chat.proto";
+import "c35/billing.proto";
+import "c35/log.proto";
+import "c35/skill.proto";
+import "c35/consumption.proto";
+import "c35/site.proto";
+import "c35/tx.proto";
+
+// HTTP invoke envelope (referral, admin, billing review, …)
+message InvokeReq {
+  string req_id = 1;
+  int64 caller_iid = 2;
+
+  oneof body {
+    ReqBillingTopupPut billing_topup_put = 10;
+    ReqSkillPut skill_put = 11;
+    ReqConsumptionPut consumption_put = 12;
+    ReqSiteDraftPut site_draft_put = 13;
+    ReqTxPut tx_put = 14;
+    // referral_*, identity_* added with mod_referral / mod_identity
+  }
+}
+
+message InvokeRes {
+  string req_id = 1;
+  int32 status_code = 2;
+  string error_message = 3;
+
+  oneof body {
+    ResBillingTopupPut billing_topup_put = 10;
+    ResSkillPut skill_put = 11;
+    ResConsumptionPut consumption_put = 12;
+    ResSiteDraftPut site_draft_put = 13;
+    ResTxPut tx_put = 14;
+  }
+}
+
+// WebSocket client → server
+message WsReq {
+  string req_id = 1;
+
+  oneof body {
+    ReqSessionInit session_init = 2;
+    ReqSync sync = 3;
+    ReqInboxList inbox_list = 4;
+    ReqChatMsgList chat_msg_list = 5;
+    ReqPrompt prompt = 6;
+    ReqPromptAbort prompt_abort = 7;
+    ReqChatStop chat_stop = 8;
+    ReqChatSend chat_send = 9;
+    InvokeReq invoke = 10;
+
+    ReqSkillList skill_list = 20;
+    ReqConsumptionList consumption_list = 21;
+    ReqSiteList site_list = 22;
+    ReqTxList tx_list = 23;
+  }
+}
+
+// WebSocket server → client
+message WsRes {
+  string req_id = 1;
+
+  oneof body {
+    Err err = 2;
+
+    ResSessionInit session_init = 10;
+    ResSync sync = 11;
+    ResInboxList inbox_list = 12;
+    ResChatMsgList chat_msg_list = 13;
+
+    ResPromptStart prompt_start = 20;
+    ResPromptDelta prompt_delta = 21;
+    ResPromptEnd prompt_end = 22;
+    ResPromptFail prompt_fail = 23;
+
+    ResChatStop chat_stop = 30;
+    ResChatSend chat_send = 31;
+
+    InvokeRes invoke = 40;
+
+    ResSkillList skill_list = 80;
+    ResConsumptionList consumption_list = 81;
+    ResSiteList site_list = 82;
+    ResTxList tx_list = 83;
+
+    SyncPush sync_push = 50;
+
+    BillingPushBalance billing_balance = 60;
+    BillingPushQuota billing_quota = 61;
+    BillingPushCommission billing_commission = 62;
+
+    LogPush log_push = 70;
+  }
+}

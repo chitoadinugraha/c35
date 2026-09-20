@@ -1,0 +1,134 @@
+syntax = "proto3";
+
+package c35;
+
+// Mirrors ai.skill / skill_step. See _/docs/skill.md
+
+enum SkillScope {
+  SKILL_SCOPE_UNSPECIFIED = 0;
+  SKILL_SCOPE_USER = 1;
+  SKILL_SCOPE_DEVICE = 2;
+  SKILL_SCOPE_TEAM = 3;
+  SKILL_SCOPE_GLOBAL = 4;
+}
+
+enum SkillSource {
+  SKILL_SOURCE_UNSPECIFIED = 0;
+  SKILL_SOURCE_TAUGHT = 1;
+  SKILL_SOURCE_CATALOG = 2;
+  SKILL_SOURCE_IMPORT = 3;
+}
+
+message Skill {
+  int64 id = 1;
+  int64 owner_iid = 2;
+  SkillScope scope = 3;
+  int64 device_iid = 4;
+  int64 team_iid = 5;
+
+  string title = 6;
+  string hash_blake3 = 7;
+  string body_md = 8;
+  SkillSource source = 9;
+
+  int64 catalog_id = 10;
+  int64 catalog_variant_id = 11;
+  int64 catalog_release_id = 12;
+  string author_name = 13;
+
+  string tags_json = 14;
+  string phrases_json = 15;
+  bool auto_run = 16;
+  string surface = 17;
+  string target_app = 18;
+  string url_pattern = 19;
+
+  repeated SkillStep steps = 20;
+
+  int64 created_ts_ms = 30;
+  int64 updated_ts_ms = 31;
+  int64 deleted_ts_ms = 32;
+}
+
+message SkillStep {
+  int64 id = 1;
+  int64 skill_id = 2;
+  int64 owner_iid = 3;
+  int32 ord = 4;
+  string kind = 5;
+  string label = 6;
+  string ax_target_json = 7;
+  string screenshot_hash = 8;
+  string comment = 9;
+  int64 secret_id = 10;
+  string tape_local_only_json = 11;
+
+  int64 created_ts_ms = 20;
+  int64 updated_ts_ms = 21;
+  int64 deleted_ts_ms = 22;
+}
+
+message SkillCatalog {
+  int64 id = 1;
+  int64 author_iid = 2;
+  string author_name = 3;
+  string slug = 4;
+  string title = 5;
+  string summary = 6;
+  string body_md = 7;
+  string tags_json = 8;
+  int32 install_count = 9;
+  double rating = 10;
+  bool is_verified = 11;
+  string status = 12;
+}
+
+// ================================= API
+
+message ReqSkillList {
+  SkillScope scope = 1;
+  int64 device_iid = 2;
+  int64 team_iid = 3;
+  int64 since_ms = 4;
+}
+
+message ResSkillList {
+  repeated Skill skills = 1;
+}
+
+message ReqSkillGet {
+  int64 id = 1;
+}
+
+message ResSkillGet {
+  Skill skill = 1;
+}
+
+message ReqSkillPut {
+  Skill skill = 1;
+}
+
+message ResSkillPut {
+  Skill skill = 1;
+}
+
+message ReqSkillCatalogList {
+  string q = 1;
+  int32 limit = 2;
+}
+
+message ResSkillCatalogList {
+  repeated SkillCatalog catalogs = 1;
+}
+
+message ReqSkillCatalogInstall {
+  int64 catalog_id = 1;
+  int64 variant_id = 2;
+  int64 release_id = 3;
+  SkillScope scope = 4;
+  int64 device_iid = 5;
+}
+
+message ResSkillCatalogInstall {
+  Skill skill = 1;
+}

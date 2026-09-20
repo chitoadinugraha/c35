@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package c35;
+
+import "c35/identity.proto";
+import "c35/billing.proto";
+import "c35/chat.proto";
+import "c35/sync.proto";
+
+// Connect: /v1/ws?since=<ms>&jwt=...&locale=...&tz=...
+// First message after auth: ReqSessionInit → ResSessionInit (one round trip)
+
+message ReqSessionInit {
+  int64 since_ms = 1;            // client watermark (secure storage)
+  string locale = 2;
+  string tz = 3;
+  string dv = 4;                 // device id
+  string client_id = 5;
+  int32 platform = 6;
+  bool include_inbox = 7;        // default true — prompt chats only
+  bool include_billing = 8;      // default true
+}
+
+message ResSessionInit {
+  int64 server_time_ms = 1;
+  int64 since_ms = 2;            // echoed; client stores max updated as new watermark
+  string session_id = 3;
+
+  IdentityProfile profile = 4;
+  BillingAccount billing = 5;
+  NavCounts nav = 6;
+
+  // Settings blob (locale, theme, …) — same shape as cs_agent settings page
+  string settings_json = 7;
+
+  // Prompt inbox slice (not bot_peer, not direct)
+  repeated Chat inbox_chats = 8;
+  repeated ChatMember inbox_members = 9;
+
+  // Optional broader delta when since_ms > 0
+  ResSync sync = 10;
+}

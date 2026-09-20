@@ -1,0 +1,9 @@
+[build]
+target-dir = "../.cache/server"
+
+[profile.dev]
+debug = 1
+split-debuginfo = "unpacked"
+
+[target.x86_64-pc-windows-msvc]
+linker = "rust-lld.exe"

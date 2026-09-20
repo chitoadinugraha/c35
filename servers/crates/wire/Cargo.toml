@@ -1,0 +1,8 @@
+[package]
+name = "c35_wire"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+c35_proto = { path = "../proto", package = "c35_proto" }
+thiserror = { workspace = true }

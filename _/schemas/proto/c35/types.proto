@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package c35;
+
+// Common wire conventions (see _/docs/sync.md):
+//   int64 *_ms  — unix milliseconds (maps to TIMESTAMPTZ)
+//   int64 iid   — snowflake identity id
+//   deleted_ts: 0 = live row; >0 = tombstone ms
+
+message Empty {}
+
+message Err {
+  string code = 1;
+  string message = 2;  // human-friendly; never stack traces to client
+}

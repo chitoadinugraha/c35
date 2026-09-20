@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+package c35;
+
+// Mirrors ai.billing_* tables. See _/docs/billing.md
+
+message BillingAccount {
+  int64 id = 1;
+  int64 owner_iid = 2;
+  string name = 3;
+
+  double balance_usd = 4;
+  double balance_idr = 5;
+  string plan_tier = 6;
+
+  double alien_allow_5h_used = 7;
+  double alien_allow_5h_limit = 8;
+  double alien_allow_weekly_used = 9;
+  double alien_allow_weekly_limit = 10;
+  int64 window_5h_start_ms = 11;
+  int64 window_weekly_start_ms = 12;
+
+  string billing_currency = 13;
+  int64 fx_micro_per_usd = 14;
+
+  double commission_available_usd = 15;
+  double commission_earned_usd = 16;
+  double commission_available_idr = 17;
+  double commission_earned_idr = 18;
+
+  string meta_json = 19;
+  int64 created_ts_ms = 20;
+  int64 updated_ts_ms = 21;
+  int64 deleted_ts_ms = 22;
+}
+
+message BillingTopupRequest {
+  int64 id = 1;
+  int64 owner_iid = 2;
+  int64 billing_account_id = 3;
+  double amount_usd = 4;
+  double amount_idr = 5;
+  string provider = 6;
+  string payment_type = 7;
+  string external_order_id = 8;
+  string proof_url = 9;
+  string status = 10;
+  string reject_reason = 11;
+  int64 reviewed_by_iid = 12;
+  int64 settled_ts_ms = 13;
+  int64 created_ts_ms = 14;
+  int64 updated_ts_ms = 15;
+}
+
+// NATS push: c35.user.{iid}.balance | .quota | .commission
+message BillingPushBalance {
+  int64 billing_account_id = 1;
+  double balance_usd = 2;
+  double balance_idr = 3;
+  int64 updated_ts_ms = 4;
+}
+
+message BillingPushQuota {
+  double alien_allow_5h_used = 1;
+  double alien_allow_5h_limit = 2;
+  double alien_allow_weekly_used = 3;
+  double alien_allow_weekly_limit = 4;
+  int64 window_5h_start_ms = 5;
+  int64 window_weekly_start_ms = 6;
+}
+
+message BillingPushCommission {
+  double commission_available_usd = 1;
+  double commission_earned_usd = 2;
+  double commission_available_idr = 3;
+  double commission_earned_idr = 4;
+}
+
+// Invoke (HTTP or Ws invoke) — user submit top-up
+message ReqBillingTopupPut {
+  double amount_usd = 1;
+  double amount_idr = 2;
+  string provider = 3;
+  string payment_type = 4;
+  string proof_url = 5;
+}
+
+message ResBillingTopupPut {
+  BillingTopupRequest request = 1;
+}

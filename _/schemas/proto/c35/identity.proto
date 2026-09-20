@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package c35;
+
+// Profile slice for session + settings UI (full row lives in DB).
+
+message IdentityProfile {
+  int64 iid = 1;
+  string kind = 2;           // user | team | …
+  string type = 3;
+  string alien_id = 4;
+  string name = 5;
+  string pic = 6;
+  string locale = 7;
+  string tz = 8;
+  int64 billing_iid = 9;
+  bool is_root = 10;
+}
+
+message NavCounts {
+  int32 bots = 1;
+  int32 devices = 2;
+  int32 sites = 3;
+}
+
+message IdentityGrant {
+  int64 id = 1;
+  int64 resource_iid = 2;
+  int64 grantee_iid = 3;
+  string role = 4;
+  repeated string permissions = 5;
+  bool is_pinned = 6;
+  string meta_json = 7;
+  int64 created_ts_ms = 8;
+  int64 updated_ts_ms = 9;
+  int64 deleted_ts_ms = 10;
+}

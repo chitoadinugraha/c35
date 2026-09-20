@@ -1,0 +1,8 @@
+[package]
+name = "c35_wire_http"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+axum = { workspace = true }
+c35_ctx = { path = "../system/ctx", package = "c35_ctx" }
