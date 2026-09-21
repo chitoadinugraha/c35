@@ -8,6 +8,7 @@ use tokio::time::Duration;
 use crate::prompt::gemini::gemini_api_key;
 
 const IMAGE_MODELS: &[&str] = &[
+    "gemini-3.1-flash-image",
     "gemini-2.5-flash-image",
     "gemini-2.0-flash-preview-image-generation",
     "imagen-3.0-generate-002",
