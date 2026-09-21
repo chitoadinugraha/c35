@@ -24,7 +24,7 @@ Branch: main
 
 - Track 5: Flutter API wiring — **complete** ([Flutter API](3e7b68e5-59e0-4616-a77b-95f84689ef3e))
 
-## Wave 4 (in flight — inherit only)
+## Wave 4
 
-- Track 4.2–4.3: build, deploy, cluster smoke — in_progress
-- Track 6: E2E verify — queued after deploy
+- Track 4.2–4.3: deploy + smoke — **complete** ([Deploy](bddb300e-a2b7-4add-9e35-ba6cdf55611f))
+- Track 6: E2E verify — **automated complete** ([E2E verify](e0b7069b-d54f-40a8-8653-88bc5b26e7f0)); manual QR pair pending user

@@ -1,6 +1,7 @@
 use c35_proto::{IdentityListRow, IdentityRow, ReqDevicePair, ResDevicePair};
 use c35_store::snowflake_id;
 use chrono::{DateTime, Utc};
+use rand::RngCore;
 use serde_json::Value;
 use sqlx::{PgPool, Row};
 
@@ -15,7 +16,7 @@ pub async fn device_pair(
 
     let device = sqlx::query(
         r#"
-        SELECT id
+        SELECT id, owner_iid, (meta->>'pairing_expires_ms')::bigint AS exp_ms
         FROM ai.identity
         WHERE kind IN ('remote', 'iot')
           AND deleted_ts IS NULL
@@ -33,18 +34,33 @@ pub async fn device_pair(
         return Err("pairing code not found or expired".into());
     };
     let device_iid: i64 = device.get("id");
+    let owner_iid: Option<i64> = device.try_get("owner_iid").ok().flatten();
+    if !owner_unclaimed(owner_iid) {
+        return Err("pairing code already claimed".into());
+    }
+    let now_ms = Utc::now().timestamp_millis();
+    let exp_ms: Option<i64> = device.try_get("exp_ms").ok().flatten();
+    if exp_ms.map(|e| e < now_ms).unwrap_or(true) {
+        return Err("pairing code not found or expired".into());
+    }
+
+    let session_key = session_key_generate();
+    let claimed_ms = now_ms;
 
     sqlx::query(
         r#"
         UPDATE ai.identity
         SET owner_iid = $2,
-            meta = meta - 'pairing_code',
+            meta = (meta - 'pairing_code')
+                   || jsonb_build_object('session_key', $3::text, 'pairing_claimed_ms', $4::bigint),
             updated_ts = NOW()
         WHERE id = $1
         "#,
     )
     .bind(device_iid)
     .bind(caller_iid)
+    .bind(&session_key)
+    .bind(claimed_ms)
     .execute(&mut *tx)
     .await
     .map_err(|e| e.to_string())?;
@@ -88,6 +104,10 @@ pub async fn device_pair(
     Ok(ResDevicePair {
         device: Some(identity_list_row_from_sql(&row)),
     })
+}
+
+fn owner_unclaimed(owner_iid: Option<i64>) -> bool {
+    owner_iid.is_none() || owner_iid == Some(0)
 }
 
 fn pair_code_normalize(raw: &str) -> Result<String, String> {
@@ -144,4 +164,10 @@ fn identity_list_row_from_sql(row: &sqlx::postgres::PgRow) -> IdentityListRow {
 
 fn ts_to_ms(ts: DateTime<Utc>) -> i64 {
     ts.timestamp_millis()
+}
+
+fn session_key_generate() -> String {
+    let mut rng_bytes = [0u8; 32];
+    rand::rngs::OsRng.fill_bytes(&mut rng_bytes);
+    blake3::hash(&rng_bytes).to_hex().to_string()
 }

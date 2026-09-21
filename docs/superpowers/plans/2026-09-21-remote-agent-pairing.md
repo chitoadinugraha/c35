@@ -72,9 +72,9 @@ Flutter app: NO WORK for pairing v1 (claim dialog exists). Optional Track H: sho
 
 **Collision:** retry generate if `pairing_code` exists and not expired.
 
-- [ ] **Step 1:** Implement register handler + code generator
-- [ ] **Step 2:** `POST /v1/device/pair/register` JSON handler
-- [ ] **Step 3:** `cargo build -p server_ai`
+- [x] **Step 1:** Implement register handler + code generator
+- [x] **Step 2:** `POST /v1/device/pair/register` JSON handler
+- [x] **Step 3:** `cargo build -p server_ai`
 
 ---
 
@@ -102,9 +102,9 @@ WHERE meta->>'device_secret' = $1 AND deleted_ts IS NULL
 
 **Fix `device_pair` (claim):** after assign owner, set `meta.session_key` (new random), remove `pairing_code` + `device_secret`, set `pairing_claimed_ms`.
 
-- [ ] **Step 1:** Implement poll handler
-- [ ] **Step 2:** Update claim to write `session_key`
-- [ ] **Step 3:** `cargo build -p server_ai`
+- [x] **Step 1:** Implement poll handler
+- [x] **Step 2:** Update claim to write `session_key`
+- [x] **Step 3:** `cargo build -p server_ai`
 
 ---
 
@@ -121,8 +121,8 @@ WHERE meta->>'device_secret' = $1 AND deleted_ts IS NULL
 
 **`c_remote_windows` deps:** `c_remote_core`, `tray-icon`, `tao` (tray later)
 
-- [ ] **Step 1:** Workspace + empty crates compile
-- [ ] **Step 2:** `cd remotes && cargo build -p c_remote_windows`
+- [x] **Step 1:** Workspace + empty crates compile
+- [x] **Step 2:** `cd remotes && cargo build -p c_remote_windows`
 
 ---
 
@@ -146,9 +146,9 @@ WHERE meta->>'device_secret' = $1 AND deleted_ts IS NULL
 
 Env: `C35_SERVER_URL` or default from config.
 
-- [ ] **Step 1:** Implement HTTP client functions
-- [ ] **Step 2:** Unit test poll JSON parsing (no network)
-- [ ] **Step 3:** `cargo build -p c_remote_core`
+- [x] **Step 1:** Implement HTTP client functions
+- [x] **Step 2:** Unit test poll JSON parsing (no network)
+- [x] **Step 3:** `cargo build -p c_remote_core`
 
 ---
 
@@ -180,8 +180,8 @@ else → pair_loop::run()
 - Hint: `Enter this in Alien AI → Devices → Pair with Code`
 - Console fallback if Win32 fails
 
-- [ ] **Step 1:** Port `pair_window.rs` from cs_bots
-- [ ] **Step 2:** Wire `pair_loop.rs`
+- [x] **Step 1:** Port `pair_window.rs` from cs_bots
+- [x] **Step 2:** Wire `pair_loop.rs`
 - [ ] **Step 3:** Manual test: run agent → see code → app pairs → agent exits pair mode
 
 ---
@@ -199,17 +199,18 @@ else → pair_loop::run()
 
 If agent auth uses `session_key` as device token, add `mod_device::agent_auth` in a follow-up task.
 
-- [ ] **Step 1:** WS connect + presence
+- [x] **Step 1:** WS connect + presence (stub logs only — v1)
 - [ ] **Step 2:** Document agent auth wire in `_/docs/remote.md`
 
 ---
 
 ## Track G — E2E verification
 
-- [ ] Agent shows code on Windows
-- [ ] Flutter Devices → Add → enter code → device row appears
-- [ ] Agent poll returns claimed; config.json written
-- [ ] Agent reconnects without showing pair window
+- [x] E2E test: `cargo test -p c35_mod_device --test device_pair_e2e -- --ignored`
+- [ ] Manual: Agent shows code on Windows (`.\dev_agent.ps1` or `-Cli`)
+- [ ] Manual: Flutter Devices → Add → enter code → device row appears
+- [ ] Manual: Agent poll returns claimed; config.json written
+- [ ] Manual: Agent reconnects without showing pair window
 - [ ] Unpair (tray, follow-up) clears config and shows new code
 
 ---

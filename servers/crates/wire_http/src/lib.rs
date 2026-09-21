@@ -1,4 +1,5 @@
 mod catalog;
+mod device;
 mod invoke;
 mod version;
 
@@ -19,6 +20,7 @@ pub fn router(state: AppState) -> Router {
         .merge(file_router())
         .merge(channel_router())
         .merge(version::version_router())
+        .merge(device::device_router())
         .merge(catalog::catalog_router())
         .merge(invoke::invoke_router())
         .with_state(state)

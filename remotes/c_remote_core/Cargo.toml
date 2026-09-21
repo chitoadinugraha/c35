@@ -1,0 +1,14 @@
+[package]
+name = "c_remote_core"
+version.workspace = true
+edition.workspace = true
+description = "c35 remote agent core (pairing, session, tasks)"
+
+[dependencies]
+anyhow = { workspace = true }
+c35_proto = { path = "../../servers/crates/proto", package = "c35_proto" }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }

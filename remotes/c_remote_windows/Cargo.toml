@@ -1,0 +1,24 @@
+[package]
+name = "c_remote_windows"
+version.workspace = true
+edition.workspace = true
+description = "c35 remote agent for Windows"
+
+[[bin]]
+name = "c_remote_windows"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+c_remote_core = { path = "../c_remote_core" }
+hostname = "0.4"
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.58", features = [
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_Graphics_Gdi",
+] }

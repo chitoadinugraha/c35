@@ -516,11 +516,14 @@ name = "c35_mod_device"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "blake3",
  "c35_proto",
  "c35_store",
  "chrono",
+ "rand 0.8.8",
  "serde_json",
  "sqlx",
+ "tokio",
 ]
 
 [[package]]

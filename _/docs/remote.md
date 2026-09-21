@@ -57,6 +57,16 @@ Proto: [`../schemas/proto/c35/device.proto`](../schemas/proto/c35/device.proto) 
 
 Tray while paired: **Unpair** (clear config, show new code) · **Quit**.
 
+**Local dev:**
+
+```powershell
+.\dev_server.ps1          # server on :8080
+.\dev_agent.ps1           # Win32 pair window (default)
+.\dev_agent.ps1 -Cli      # pairing code in console (--cli)
+```
+
+`dev_agent.ps1` kills any running `c_remote_windows` before start. Env: `C35_SERVER_URL` (default `http://127.0.0.1:8080`).
+
 ## Computer use — task dispatch (NATS, not YB polling)
 
 Work is **pushed** over NATS JetStream. Server pods **never** poll YB for runnable tasks.
