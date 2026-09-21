@@ -1,13 +1,15 @@
+// This is a generated file - do not edit.
 //
-//  Generated code. Do not modify.
-//  source: c35/site.proto
-//
-// @dart = 2.12
+// Generated from c35/site.proto.
+
+// @dart = 3.3
 
 // ignore_for_file: annotate_overrides, camel_case_types, comment_references
-// ignore_for_file: constant_identifier_names, library_prefixes
-// ignore_for_file: non_constant_identifier_names, prefer_final_fields
-// ignore_for_file: unnecessary_import, unnecessary_this, unused_import
+// ignore_for_file: constant_identifier_names
+// ignore_for_file: curly_braces_in_flow_control_structures
+// ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
+// ignore_for_file: non_constant_identifier_names, prefer_relative_imports
+// ignore_for_file: unused_import
 
 import 'dart:convert' as $convert;
 import 'dart:core' as $core;
@@ -34,7 +36,14 @@ const SitePage$json = {
   '2': [
     {'1': 'path', '3': 1, '4': 1, '5': 9, '10': 'path'},
     {'1': 'title', '3': 2, '4': 1, '5': 9, '10': 'title'},
-    {'1': 'blocks', '3': 3, '4': 3, '5': 11, '6': '.c35.SiteBlock', '10': 'blocks'},
+    {
+      '1': 'blocks',
+      '3': 3,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.SiteBlock',
+      '10': 'blocks'
+    },
   ],
 };
 
@@ -47,7 +56,14 @@ final $typed_data.Uint8List sitePageDescriptor = $convert.base64Decode(
 const SiteDoc$json = {
   '1': 'SiteDoc',
   '2': [
-    {'1': 'pages', '3': 1, '4': 3, '5': 11, '6': '.c35.SitePage', '10': 'pages'},
+    {
+      '1': 'pages',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.SitePage',
+      '10': 'pages'
+    },
     {'1': 'theme_json', '3': 2, '4': 1, '5': 9, '10': 'themeJson'},
     {'1': 'meta_json', '3': 3, '4': 1, '5': 9, '10': 'metaJson'},
   ],
@@ -64,13 +80,49 @@ const SiteConfig$json = {
   '2': [
     {'1': 'site_iid', '3': 1, '4': 1, '5': 3, '10': 'siteIid'},
     {'1': 'owner_iid', '3': 2, '4': 1, '5': 3, '10': 'ownerIid'},
-    {'1': 'published_version_id', '3': 3, '4': 1, '5': 9, '10': 'publishedVersionId'},
-    {'1': 'inventory_costing_method', '3': 4, '4': 1, '5': 9, '10': 'inventoryCostingMethod'},
+    {
+      '1': 'published_version_id',
+      '3': 3,
+      '4': 1,
+      '5': 9,
+      '10': 'publishedVersionId'
+    },
+    {
+      '1': 'inventory_costing_method',
+      '3': 4,
+      '4': 1,
+      '5': 9,
+      '10': 'inventoryCostingMethod'
+    },
     {'1': 'tz', '3': 5, '4': 1, '5': 9, '10': 'tz'},
-    {'1': 'payroll_policy_json', '3': 6, '4': 1, '5': 9, '10': 'payrollPolicyJson'},
-    {'1': 'presence_policy_json', '3': 7, '4': 1, '5': 9, '10': 'presencePolicyJson'},
-    {'1': 'capabilities_json', '3': 8, '4': 1, '5': 9, '10': 'capabilitiesJson'},
-    {'1': 'alien_id_changed_ts_ms', '3': 9, '4': 1, '5': 3, '10': 'alienIdChangedTsMs'},
+    {
+      '1': 'payroll_policy_json',
+      '3': 6,
+      '4': 1,
+      '5': 9,
+      '10': 'payrollPolicyJson'
+    },
+    {
+      '1': 'presence_policy_json',
+      '3': 7,
+      '4': 1,
+      '5': 9,
+      '10': 'presencePolicyJson'
+    },
+    {
+      '1': 'capabilities_json',
+      '3': 8,
+      '4': 1,
+      '5': 9,
+      '10': 'capabilitiesJson'
+    },
+    {
+      '1': 'alien_id_changed_ts_ms',
+      '3': 9,
+      '4': 1,
+      '5': 3,
+      '10': 'alienIdChangedTsMs'
+    },
     {'1': 'created_ts_ms', '3': 20, '4': 1, '5': 3, '10': 'createdTsMs'},
     {'1': 'updated_ts_ms', '3': 21, '4': 1, '5': 3, '10': 'updatedTsMs'},
     {'1': 'deleted_ts_ms', '3': 22, '4': 1, '5': 3, '10': 'deletedTsMs'},
@@ -271,7 +323,13 @@ const SiteRow$json = {
     {'1': 'alien_id', '3': 2, '4': 1, '5': 9, '10': 'alienId'},
     {'1': 'name', '3': 3, '4': 1, '5': 9, '10': 'name'},
     {'1': 'pic', '3': 4, '4': 1, '5': 9, '10': 'pic'},
-    {'1': 'published_version_id', '3': 5, '4': 1, '5': 9, '10': 'publishedVersionId'},
+    {
+      '1': 'published_version_id',
+      '3': 5,
+      '4': 1,
+      '5': 9,
+      '10': 'publishedVersionId'
+    },
     {'1': 'updated_ts_ms', '3': 6, '4': 1, '5': 3, '10': 'updatedTsMs'},
     {'1': 'is_archived', '3': 7, '4': 1, '5': 8, '10': 'isArchived'},
   ],
@@ -293,8 +351,8 @@ const ReqSiteList$json = {
 };
 
 /// Descriptor for `ReqSiteList`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List reqSiteListDescriptor = $convert.base64Decode(
-    'CgtSZXFTaXRlTGlzdBIaCghhcmNoaXZlZBgBIAEoCFIIYXJjaGl2ZWQ=');
+final $typed_data.Uint8List reqSiteListDescriptor = $convert
+    .base64Decode('CgtSZXFTaXRlTGlzdBIaCghhcmNoaXZlZBgBIAEoCFIIYXJjaGl2ZWQ=');
 
 @$core.Deprecated('Use resSiteListDescriptor instead')
 const ResSiteList$json = {
@@ -326,8 +384,22 @@ final $typed_data.Uint8List reqSiteDraftGetDescriptor = $convert.base64Decode(
 const ResSiteDraftGet$json = {
   '1': 'ResSiteDraftGet',
   '2': [
-    {'1': 'draft', '3': 1, '4': 1, '5': 11, '6': '.c35.SiteDraft', '10': 'draft'},
-    {'1': 'config', '3': 2, '4': 1, '5': 11, '6': '.c35.SiteConfig', '10': 'config'},
+    {
+      '1': 'draft',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.SiteDraft',
+      '10': 'draft'
+    },
+    {
+      '1': 'config',
+      '3': 2,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.SiteConfig',
+      '10': 'config'
+    },
   ],
 };
 
@@ -340,7 +412,14 @@ final $typed_data.Uint8List resSiteDraftGetDescriptor = $convert.base64Decode(
 const ReqSiteDraftPut$json = {
   '1': 'ReqSiteDraftPut',
   '2': [
-    {'1': 'draft', '3': 1, '4': 1, '5': 11, '6': '.c35.SiteDraft', '10': 'draft'},
+    {
+      '1': 'draft',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.SiteDraft',
+      '10': 'draft'
+    },
     {'1': 'skip_publish', '3': 2, '4': 1, '5': 8, '10': 'skipPublish'},
   ],
 };
@@ -378,7 +457,14 @@ final $typed_data.Uint8List reqSitePublishDescriptor = $convert.base64Decode(
 const ResSitePublish$json = {
   '1': 'ResSitePublish',
   '2': [
-    {'1': 'publish', '3': 1, '4': 1, '5': 11, '6': '.c35.SitePublish', '10': 'publish'},
+    {
+      '1': 'publish',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.SitePublish',
+      '10': 'publish'
+    },
   ],
 };
 
@@ -396,14 +482,22 @@ const ReqSiteProductList$json = {
 };
 
 /// Descriptor for `ReqSiteProductList`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List reqSiteProductListDescriptor = $convert.base64Decode(
-    'ChJSZXFTaXRlUHJvZHVjdExpc3QSGQoIc2l0ZV9paWQYASABKANSB3NpdGVJaWQ=');
+final $typed_data.Uint8List reqSiteProductListDescriptor =
+    $convert.base64Decode(
+        'ChJSZXFTaXRlUHJvZHVjdExpc3QSGQoIc2l0ZV9paWQYASABKANSB3NpdGVJaWQ=');
 
 @$core.Deprecated('Use resSiteProductListDescriptor instead')
 const ResSiteProductList$json = {
   '1': 'ResSiteProductList',
   '2': [
-    {'1': 'products', '3': 1, '4': 3, '5': 11, '6': '.c35.SiteProduct', '10': 'products'},
+    {
+      '1': 'products',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.SiteProduct',
+      '10': 'products'
+    },
   ],
 };
 
@@ -417,7 +511,14 @@ const ReqSiteProductPut$json = {
   '1': 'ReqSiteProductPut',
   '2': [
     {'1': 'site_iid', '3': 1, '4': 1, '5': 3, '10': 'siteIid'},
-    {'1': 'product', '3': 2, '4': 1, '5': 11, '6': '.c35.SiteProduct', '10': 'product'},
+    {
+      '1': 'product',
+      '3': 2,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.SiteProduct',
+      '10': 'product'
+    },
   ],
 };
 
@@ -456,7 +557,14 @@ final $typed_data.Uint8List reqSiteContactListDescriptor = $convert.base64Decode
 const ResSiteContactList$json = {
   '1': 'ResSiteContactList',
   '2': [
-    {'1': 'contacts', '3': 1, '4': 3, '5': 11, '6': '.c35.SiteContact', '10': 'contacts'},
+    {
+      '1': 'contacts',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.SiteContact',
+      '10': 'contacts'
+    },
   ],
 };
 
@@ -470,7 +578,14 @@ const ReqSiteContactPut$json = {
   '1': 'ReqSiteContactPut',
   '2': [
     {'1': 'site_iid', '3': 1, '4': 1, '5': 3, '10': 'siteIid'},
-    {'1': 'contact', '3': 2, '4': 1, '5': 11, '6': '.c35.SiteContact', '10': 'contact'},
+    {
+      '1': 'contact',
+      '3': 2,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.SiteContact',
+      '10': 'contact'
+    },
   ],
 };
 
@@ -507,7 +622,14 @@ final $typed_data.Uint8List reqSiteObjectListDescriptor = $convert.base64Decode(
 const ResSiteObjectList$json = {
   '1': 'ResSiteObjectList',
   '2': [
-    {'1': 'objs', '3': 1, '4': 3, '5': 11, '6': '.c35.SiteObject', '10': 'objs'},
+    {
+      '1': 'objs',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.SiteObject',
+      '10': 'objs'
+    },
   ],
 };
 
@@ -539,6 +661,5 @@ const ResSiteObjectPut$json = {
 };
 
 /// Descriptor for `ResSiteObjectPut`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List resSiteObjectPutDescriptor = $convert.base64Decode(
-    'ChBSZXNTaXRlT2JqZWN0UHV0Eg4KAmlkGAEgASgDUgJpZA==');
-
+final $typed_data.Uint8List resSiteObjectPutDescriptor =
+    $convert.base64Decode('ChBSZXNTaXRlT2JqZWN0UHV0Eg4KAmlkGAEgASgDUgJpZA==');

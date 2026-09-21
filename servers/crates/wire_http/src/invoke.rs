@@ -6,12 +6,22 @@ use axum::{
     routing::post,
 };
 use c35_ctx::AppState;
+use c35_mod_admin::{admin_user_put, admin_user_search};
+use c35_mod_billing::{
+    billing_history, billing_notify_owner, billing_package_preview, billing_package_redeem, billing_plan_subscribe,
+    billing_summary, billing_topup_put, bot_usage_stats,
+};
+use c35_mod_channel::{channel_telegram_connect, channel_whatsapp_meta_connect};
+use c35_mod_consumption::consumption_put_rpc;
+use c35_mod_device::device_pair;
 use c35_mod_identity::auth_session_caller_iid;
 use c35_mod_referral::{
-    referral_code_delete, referral_code_list, referral_code_put, referral_share_set,
-    referral_tree_get, referral_user_stats,
+    referral_code_delete, referral_code_list, referral_code_put, referral_commission_simulate,
+    referral_share_set, referral_tree_get, referral_user_stats,
 };
-use c35_proto::{invoke_req, invoke_res, InvokeReq, InvokeRes, ResReferralShareSet, ResReferralTreeGet};
+use c35_proto::{
+    invoke_req, invoke_res, InvokeReq, InvokeRes, ResReferralShareSet, ResReferralTreeGet,
+};
 use prost::Message;
 
 pub fn invoke_router() -> axum::Router<AppState> {
@@ -32,10 +42,11 @@ async fn http_invoke_handler(
         _ => return invoke_unauthorized(&req.req_id),
     };
     req.caller_iid = iid;
-    protobuf_response(dispatch_invoke(&st.pool, req).await)
+    protobuf_response(dispatch_invoke(&st, req).await)
 }
 
-pub async fn dispatch_invoke(pool: &sqlx::PgPool, req: InvokeReq) -> InvokeRes {
+pub async fn dispatch_invoke(state: &AppState, req: InvokeReq) -> InvokeRes {
+    let pool = &state.pool;
     let req_id = req.req_id.clone();
     let iid = req.caller_iid;
     match req.body {
@@ -44,18 +55,24 @@ pub async fn dispatch_invoke(pool: &sqlx::PgPool, req: InvokeReq) -> InvokeRes {
             status_code: 200,
             error_message: String::new(),
             body: Some(invoke_res::Body::ReferralTreeGet(ResReferralTreeGet {
-                slice: Some(referral_tree_get(pool, iid, r.root_id, r.depth).await),
+                slice: Some(referral_tree_get(&state.pool, iid, r.root_id, r.depth).await),
             })),
         },
         Some(invoke_req::Body::ReferralShareSet(r)) => {
-            referral_share_set(pool, iid, r.parent_uid, r.child_uid, r.share_percent).await;
-            InvokeRes {
-                req_id,
-                status_code: 200,
-                error_message: String::new(),
-                body: Some(invoke_res::Body::ReferralShareSet(ResReferralShareSet {
-                    success: true,
-                })),
+            match referral_share_set(pool, iid, r.parent_uid, r.child_uid, r.share_percent).await {
+                Ok(()) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::ReferralShareSet(ResReferralShareSet {
+                        success: true,
+                    })),
+                },
+                Err(msg) => invoke_error(
+                    &req_id,
+                    if msg == "forbidden" { 403 } else { 400 },
+                    msg,
+                ),
             }
         }
         Some(invoke_req::Body::ReferralCodeList(_)) => InvokeRes {
@@ -106,6 +123,162 @@ pub async fn dispatch_invoke(pool: &sqlx::PgPool, req: InvokeReq) -> InvokeRes {
                 ),
             }
         }
+        Some(invoke_req::Body::ReferralCommissionSimulate(r)) => {
+            match referral_commission_simulate(pool, iid, r.subject_uid, r.purchase_amount).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::ReferralCommissionSimulate(res)),
+                },
+                Err(msg) => invoke_error(
+                    &req_id,
+                    if msg == "forbidden" { 403 } else { 400 },
+                    msg,
+                ),
+            }
+        }
+        Some(invoke_req::Body::BillingPackageRedeem(r)) => {
+            match billing_package_redeem(pool, iid, &r.code).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::BillingPackageRedeem(res)),
+                },
+                Err(msg) => invoke_error(&req_id, 400, msg),
+            }
+        }
+        Some(invoke_req::Body::BillingPackagePreview(r)) => {
+            match billing_package_preview(pool, iid, &r.code).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::BillingPackagePreview(res)),
+                },
+                Err(msg) => invoke_error(&req_id, 400, msg),
+            }
+        }
+        Some(invoke_req::Body::BotUsageStats(r)) => {
+            match bot_usage_stats(pool, iid, r.bot_iid).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::BotUsageStats(res)),
+                },
+                Err(msg) => invoke_error(
+                    &req_id,
+                    if msg == "forbidden" { 403 } else { 400 },
+                    msg,
+                ),
+            }
+        }
+        Some(invoke_req::Body::BillingSummary(r)) => InvokeRes {
+            req_id,
+            status_code: 200,
+            error_message: String::new(),
+            body: Some(invoke_res::Body::BillingSummary(
+                billing_summary(pool, iid, r.billing_account_id).await,
+            )),
+        },
+        Some(invoke_req::Body::BillingHistory(r)) => InvokeRes {
+            req_id,
+            status_code: 200,
+            error_message: String::new(),
+            body: Some(invoke_res::Body::BillingHistory(billing_history(pool, iid, r).await)),
+        },
+        Some(invoke_req::Body::BillingTopupPut(r)) => {
+            match billing_topup_put(pool, iid, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::BillingTopupPut(res)),
+                },
+                Err(msg) => invoke_error(&req_id, 400, msg),
+            }
+        }
+        Some(invoke_req::Body::BillingPlanSubscribe(r)) => {
+            match billing_plan_subscribe(pool, iid, r).await {
+                Ok(res) => {
+                    billing_notify_owner(pool, state.nats.as_ref(), iid, None).await;
+                    InvokeRes {
+                        req_id,
+                        status_code: 200,
+                        error_message: String::new(),
+                        body: Some(invoke_res::Body::BillingPlanSubscribe(res)),
+                    }
+                }
+                Err(msg) => invoke_error(&req_id, 400, msg),
+            }
+        }
+        Some(invoke_req::Body::AdminUserSearch(r)) => {
+            match admin_user_search(pool, iid, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::AdminUserSearch(res)),
+                },
+                Err(e) => invoke_error(&req_id, e.status_code, e.message),
+            }
+        }
+        Some(invoke_req::Body::AdminUserPut(r)) => {
+            match admin_user_put(pool, iid, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::AdminUserPut(res)),
+                },
+                Err(e) => invoke_error(&req_id, e.status_code, e.message),
+            }
+        }
+        Some(invoke_req::Body::ChannelTelegramConnect(r)) => {
+            match channel_telegram_connect(&state.pool, iid, &state.public_origin, r, state.nats.as_ref()).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::ChannelTelegramConnect(res)),
+                },
+                Err(msg) => invoke_error(&req_id, 400, msg),
+            }
+        }
+        Some(invoke_req::Body::ChannelWhatsappMetaConnect(r)) => {
+            match channel_whatsapp_meta_connect(&state.pool, iid, &state.public_origin, r, state.nats.as_ref()).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::ChannelWhatsappMetaConnect(res)),
+                },
+                Err(msg) => invoke_error(&req_id, 400, msg),
+            }
+        }
+        Some(invoke_req::Body::ConsumptionPut(r)) => {
+            let locale = "en";
+            match consumption_put_rpc(pool, iid, locale, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::ConsumptionPut(res)),
+                },
+                Err(msg) => invoke_error(&req_id, 400, msg),
+            }
+        }
+        Some(invoke_req::Body::DevicePair(r)) => match device_pair(pool, iid, r).await {
+            Ok(res) => InvokeRes {
+                req_id,
+                status_code: 200,
+                error_message: String::new(),
+                body: Some(invoke_res::Body::DevicePair(res)),
+            },
+            Err(msg) => invoke_error(&req_id, 400, msg),
+        },
         _ => invoke_error(&req_id, 404, "not implemented".into()),
     }
 }

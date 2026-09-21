@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: buildkit-config
+  namespace: build
+data:
+  buildkitd.toml: |
+    [worker.oci]
+      enabled = true
+      gc = true
+      [[worker.oci.gcpolicy]]
+        all = true
+        keepBytes = 48318382080

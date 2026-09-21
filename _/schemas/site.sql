@@ -124,7 +124,7 @@ CREATE TABLE IF NOT EXISTS ai.site_product (
 
     type                SMALLINT NOT NULL DEFAULT 0,
     name                TEXT NOT NULL DEFAULT '',
-    desc                TEXT NOT NULL DEFAULT '',
+    "desc"              TEXT NOT NULL DEFAULT '',
     unit                TEXT NOT NULL DEFAULT '',
     sku                 TEXT NOT NULL DEFAULT '',
     rev                 BIGINT NOT NULL DEFAULT 0,
@@ -235,7 +235,7 @@ CREATE TABLE IF NOT EXISTS ai.site_object (
     can_be_reserved     BOOLEAN NOT NULL DEFAULT FALSE,
     is_active           BOOLEAN NOT NULL DEFAULT TRUE,
     sort_order          INT NOT NULL DEFAULT 0,
-    desc                TEXT NOT NULL DEFAULT '',
+    "desc"              TEXT NOT NULL DEFAULT '',
     pic                 TEXT NOT NULL DEFAULT '',
     meta_json           JSONB NOT NULL DEFAULT '{}',
 

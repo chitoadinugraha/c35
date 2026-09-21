@@ -1,0 +1,9 @@
+[package]
+name = "c35_mod_admin"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+c35_proto = { path = "../proto", package = "c35_proto" }

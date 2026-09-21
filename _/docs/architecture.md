@@ -62,6 +62,7 @@ Server crates live under **`servers/crates/`** only — not at repo root. Remote
 | NATS | Pub/sub, scheduler, live log stream, user realtime (`balance`, `quota`, …) |
 | WebSocket | Client sync + prompt stream. Connect: `/v1/ws?since=…&jwt=…&locale=…&tz=…` |
 | Alien Beacon | IoT + remote device wire (paired agents) |
+| JetStream | Device task dispatch (`C35_DEVICE_TASK`) — no YB work polling |
 
 ## Core design principles
 
@@ -105,6 +106,7 @@ See [ui.md](ui.md).
 - Referral tree + settings: copy `cs_agent` exactly (adapt wire to new identity schema).
 - Bots + Sites: 3-pane master/detail (pattern from `csa_site_published` site editor).
 - Devices: combined remote + IoT list; tabs differ by `kind`.
+- Remote computer use: agent ↔ server session (WS / Beacon); human viewer uses WebRTC — see [remote.md](remote.md).
 
 ## Pairing
 

@@ -1,13 +1,15 @@
+// This is a generated file - do not edit.
 //
-//  Generated code. Do not modify.
-//  source: c35/identity.proto
-//
-// @dart = 2.12
+// Generated from c35/identity.proto.
+
+// @dart = 3.3
 
 // ignore_for_file: annotate_overrides, camel_case_types, comment_references
-// ignore_for_file: constant_identifier_names, library_prefixes
-// ignore_for_file: non_constant_identifier_names, prefer_final_fields
-// ignore_for_file: unnecessary_import, unnecessary_this, unused_import
+// ignore_for_file: constant_identifier_names
+// ignore_for_file: curly_braces_in_flow_control_structures
+// ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
+// ignore_for_file: non_constant_identifier_names, prefer_relative_imports
+// ignore_for_file: unused_import
 
 import 'dart:convert' as $convert;
 import 'dart:core' as $core;
@@ -79,3 +81,194 @@ final $typed_data.Uint8List identityGrantDescriptor = $convert.base64Decode(
     'X3RzX21zGAggASgDUgtjcmVhdGVkVHNNcxIiCg11cGRhdGVkX3RzX21zGAkgASgDUgt1cGRhdG'
     'VkVHNNcxIiCg1kZWxldGVkX3RzX21zGAogASgDUgtkZWxldGVkVHNNcw==');
 
+@$core.Deprecated('Use identityRowDescriptor instead')
+const IdentityRow$json = {
+  '1': 'IdentityRow',
+  '2': [
+    {'1': 'iid', '3': 1, '4': 1, '5': 3, '10': 'iid'},
+    {'1': 'kind', '3': 2, '4': 1, '5': 9, '10': 'kind'},
+    {'1': 'type', '3': 3, '4': 1, '5': 9, '10': 'type'},
+    {'1': 'alien_id', '3': 4, '4': 1, '5': 9, '10': 'alienId'},
+    {'1': 'name', '3': 5, '4': 1, '5': 9, '10': 'name'},
+    {'1': 'pic', '3': 6, '4': 1, '5': 9, '10': 'pic'},
+    {'1': 'meta_json', '3': 7, '4': 1, '5': 9, '10': 'metaJson'},
+    {'1': 'owner_iid', '3': 8, '4': 1, '5': 3, '10': 'ownerIid'},
+    {'1': 'updated_ts_ms', '3': 9, '4': 1, '5': 3, '10': 'updatedTsMs'},
+  ],
+};
+
+/// Descriptor for `IdentityRow`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List identityRowDescriptor = $convert.base64Decode(
+    'CgtJZGVudGl0eVJvdxIQCgNpaWQYASABKANSA2lpZBISCgRraW5kGAIgASgJUgRraW5kEhIKBH'
+    'R5cGUYAyABKAlSBHR5cGUSGQoIYWxpZW5faWQYBCABKAlSB2FsaWVuSWQSEgoEbmFtZRgFIAEo'
+    'CVIEbmFtZRIQCgNwaWMYBiABKAlSA3BpYxIbCgltZXRhX2pzb24YByABKAlSCG1ldGFKc29uEh'
+    'sKCW93bmVyX2lpZBgIIAEoA1IIb3duZXJJaWQSIgoNdXBkYXRlZF90c19tcxgJIAEoA1ILdXBk'
+    'YXRlZFRzTXM=');
+
+@$core.Deprecated('Use identityListRowDescriptor instead')
+const IdentityListRow$json = {
+  '1': 'IdentityListRow',
+  '2': [
+    {
+      '1': 'identity',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.IdentityRow',
+      '10': 'identity'
+    },
+    {'1': 'grant_role', '3': 2, '4': 1, '5': 9, '10': 'grantRole'},
+    {'1': 'is_pinned', '3': 3, '4': 1, '5': 8, '10': 'isPinned'},
+    {'1': 'sort_order', '3': 4, '4': 1, '5': 5, '10': 'sortOrder'},
+    {'1': 'archived_ts_ms', '3': 5, '4': 1, '5': 3, '10': 'archivedTsMs'},
+  ],
+};
+
+/// Descriptor for `IdentityListRow`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List identityListRowDescriptor = $convert.base64Decode(
+    'Cg9JZGVudGl0eUxpc3RSb3cSLAoIaWRlbnRpdHkYASABKAsyEC5jMzUuSWRlbnRpdHlSb3dSCG'
+    'lkZW50aXR5Eh0KCmdyYW50X3JvbGUYAiABKAlSCWdyYW50Um9sZRIbCglpc19waW5uZWQYAyAB'
+    'KAhSCGlzUGlubmVkEh0KCnNvcnRfb3JkZXIYBCABKAVSCXNvcnRPcmRlchIkCg5hcmNoaXZlZF'
+    '90c19tcxgFIAEoA1IMYXJjaGl2ZWRUc01z');
+
+@$core.Deprecated('Use reqIdentityListDescriptor instead')
+const ReqIdentityList$json = {
+  '1': 'ReqIdentityList',
+  '2': [
+    {'1': 'kinds', '3': 1, '4': 3, '5': 9, '10': 'kinds'},
+    {'1': 'include_archived', '3': 2, '4': 1, '5': 8, '10': 'includeArchived'},
+  ],
+};
+
+/// Descriptor for `ReqIdentityList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqIdentityListDescriptor = $convert.base64Decode(
+    'Cg9SZXFJZGVudGl0eUxpc3QSFAoFa2luZHMYASADKAlSBWtpbmRzEikKEGluY2x1ZGVfYXJjaG'
+    'l2ZWQYAiABKAhSD2luY2x1ZGVBcmNoaXZlZA==');
+
+@$core.Deprecated('Use resIdentityListDescriptor instead')
+const ResIdentityList$json = {
+  '1': 'ResIdentityList',
+  '2': [
+    {
+      '1': 'rows',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.IdentityListRow',
+      '10': 'rows'
+    },
+  ],
+};
+
+/// Descriptor for `ResIdentityList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resIdentityListDescriptor = $convert.base64Decode(
+    'Cg9SZXNJZGVudGl0eUxpc3QSKAoEcm93cxgBIAMoCzIULmMzNS5JZGVudGl0eUxpc3RSb3dSBH'
+    'Jvd3M=');
+
+@$core.Deprecated('Use reqIdentityGrantPatchDescriptor instead')
+const ReqIdentityGrantPatch$json = {
+  '1': 'ReqIdentityGrantPatch',
+  '2': [
+    {'1': 'resource_iid', '3': 1, '4': 1, '5': 3, '10': 'resourceIid'},
+    {
+      '1': 'is_pinned',
+      '3': 2,
+      '4': 1,
+      '5': 8,
+      '9': 0,
+      '10': 'isPinned',
+      '17': true
+    },
+    {
+      '1': 'sort_order',
+      '3': 3,
+      '4': 1,
+      '5': 5,
+      '9': 1,
+      '10': 'sortOrder',
+      '17': true
+    },
+    {
+      '1': 'archived',
+      '3': 4,
+      '4': 1,
+      '5': 8,
+      '9': 2,
+      '10': 'archived',
+      '17': true
+    },
+  ],
+  '8': [
+    {'1': '_is_pinned'},
+    {'1': '_sort_order'},
+    {'1': '_archived'},
+  ],
+};
+
+/// Descriptor for `ReqIdentityGrantPatch`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqIdentityGrantPatchDescriptor = $convert.base64Decode(
+    'ChVSZXFJZGVudGl0eUdyYW50UGF0Y2gSIQoMcmVzb3VyY2VfaWlkGAEgASgDUgtyZXNvdXJjZU'
+    'lpZBIgCglpc19waW5uZWQYAiABKAhIAFIIaXNQaW5uZWSIAQESIgoKc29ydF9vcmRlchgDIAEo'
+    'BUgBUglzb3J0T3JkZXKIAQESHwoIYXJjaGl2ZWQYBCABKAhIAlIIYXJjaGl2ZWSIAQFCDAoKX2'
+    'lzX3Bpbm5lZEINCgtfc29ydF9vcmRlckILCglfYXJjaGl2ZWQ=');
+
+@$core.Deprecated('Use resIdentityGrantPatchDescriptor instead')
+const ResIdentityGrantPatch$json = {
+  '1': 'ResIdentityGrantPatch',
+  '2': [
+    {
+      '1': 'row',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.IdentityListRow',
+      '10': 'row'
+    },
+  ],
+};
+
+/// Descriptor for `ResIdentityGrantPatch`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resIdentityGrantPatchDescriptor = $convert.base64Decode(
+    'ChVSZXNJZGVudGl0eUdyYW50UGF0Y2gSJgoDcm93GAEgASgLMhQuYzM1LklkZW50aXR5TGlzdF'
+    'Jvd1IDcm93');
+
+@$core.Deprecated('Use reqIdentityPutDescriptor instead')
+const ReqIdentityPut$json = {
+  '1': 'ReqIdentityPut',
+  '2': [
+    {'1': 'iid', '3': 1, '4': 1, '5': 3, '10': 'iid'},
+    {'1': 'kind', '3': 2, '4': 1, '5': 9, '10': 'kind'},
+    {'1': 'type', '3': 3, '4': 1, '5': 9, '10': 'type'},
+    {'1': 'name', '3': 4, '4': 1, '5': 9, '10': 'name'},
+    {'1': 'pic', '3': 5, '4': 1, '5': 9, '10': 'pic'},
+    {'1': 'alien_id', '3': 6, '4': 1, '5': 9, '10': 'alienId'},
+    {'1': 'meta_json', '3': 7, '4': 1, '5': 9, '10': 'metaJson'},
+  ],
+};
+
+/// Descriptor for `ReqIdentityPut`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqIdentityPutDescriptor = $convert.base64Decode(
+    'Cg5SZXFJZGVudGl0eVB1dBIQCgNpaWQYASABKANSA2lpZBISCgRraW5kGAIgASgJUgRraW5kEh'
+    'IKBHR5cGUYAyABKAlSBHR5cGUSEgoEbmFtZRgEIAEoCVIEbmFtZRIQCgNwaWMYBSABKAlSA3Bp'
+    'YxIZCghhbGllbl9pZBgGIAEoCVIHYWxpZW5JZBIbCgltZXRhX2pzb24YByABKAlSCG1ldGFKc2'
+    '9u');
+
+@$core.Deprecated('Use resIdentityPutDescriptor instead')
+const ResIdentityPut$json = {
+  '1': 'ResIdentityPut',
+  '2': [
+    {
+      '1': 'row',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.IdentityListRow',
+      '10': 'row'
+    },
+  ],
+};
+
+/// Descriptor for `ResIdentityPut`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resIdentityPutDescriptor = $convert.base64Decode(
+    'Cg5SZXNJZGVudGl0eVB1dBImCgNyb3cYASABKAsyFC5jMzUuSWRlbnRpdHlMaXN0Um93UgNyb3'
+    'c=');

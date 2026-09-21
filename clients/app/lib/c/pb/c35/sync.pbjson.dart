@@ -1,13 +1,15 @@
+// This is a generated file - do not edit.
 //
-//  Generated code. Do not modify.
-//  source: c35/sync.proto
-//
-// @dart = 2.12
+// Generated from c35/sync.proto.
+
+// @dart = 3.3
 
 // ignore_for_file: annotate_overrides, camel_case_types, comment_references
-// ignore_for_file: constant_identifier_names, library_prefixes
-// ignore_for_file: non_constant_identifier_names, prefer_final_fields
-// ignore_for_file: unnecessary_import, unnecessary_this, unused_import
+// ignore_for_file: constant_identifier_names
+// ignore_for_file: curly_braces_in_flow_control_structures
+// ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
+// ignore_for_file: non_constant_identifier_names, prefer_relative_imports
+// ignore_for_file: unused_import
 
 import 'dart:convert' as $convert;
 import 'dart:core' as $core;
@@ -35,7 +37,13 @@ const ReqSync$json = {
   '2': [
     {'1': 'since_ms', '3': 1, '4': 1, '5': 3, '10': 'sinceMs'},
     {'1': 'collections', '3': 2, '4': 3, '5': 9, '10': 'collections'},
-    {'1': 'limit_per_collection', '3': 3, '4': 1, '5': 5, '10': 'limitPerCollection'},
+    {
+      '1': 'limit_per_collection',
+      '3': 3,
+      '4': 1,
+      '5': 5,
+      '10': 'limitPerCollection'
+    },
   ],
 };
 
@@ -51,19 +59,96 @@ const ResSync$json = {
   '2': [
     {'1': 'since_ms', '3': 1, '4': 1, '5': 3, '10': 'sinceMs'},
     {'1': 'server_time_ms', '3': 2, '4': 1, '5': 3, '10': 'serverTimeMs'},
-    {'1': 'cursors', '3': 3, '4': 3, '5': 11, '6': '.c35.SyncCollectionCursor', '10': 'cursors'},
+    {
+      '1': 'cursors',
+      '3': 3,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.SyncCollectionCursor',
+      '10': 'cursors'
+    },
     {'1': 'chats', '3': 10, '4': 3, '5': 11, '6': '.c35.Chat', '10': 'chats'},
-    {'1': 'chat_members', '3': 11, '4': 3, '5': 11, '6': '.c35.ChatMember', '10': 'chatMembers'},
-    {'1': 'chat_msgs', '3': 12, '4': 3, '5': 11, '6': '.c35.ChatMsg', '10': 'chatMsgs'},
-    {'1': 'billing_accounts', '3': 13, '4': 3, '5': 11, '6': '.c35.BillingAccount', '10': 'billingAccounts'},
+    {
+      '1': 'chat_members',
+      '3': 11,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.ChatMember',
+      '10': 'chatMembers'
+    },
+    {
+      '1': 'chat_msgs',
+      '3': 12,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.ChatMsg',
+      '10': 'chatMsgs'
+    },
+    {
+      '1': 'billing_accounts',
+      '3': 13,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.BillingAccount',
+      '10': 'billingAccounts'
+    },
     {'1': 'logs', '3': 14, '4': 3, '5': 11, '6': '.c35.Log', '10': 'logs'},
-    {'1': 'skills', '3': 20, '4': 3, '5': 11, '6': '.c35.Skill', '10': 'skills'},
-    {'1': 'consumptions', '3': 21, '4': 3, '5': 11, '6': '.c35.Consumption', '10': 'consumptions'},
-    {'1': 'consumption_waters', '3': 22, '4': 3, '5': 11, '6': '.c35.ConsumptionWater', '10': 'consumptionWaters'},
-    {'1': 'site_drafts', '3': 23, '4': 3, '5': 11, '6': '.c35.SiteDraft', '10': 'siteDrafts'},
-    {'1': 'site_products', '3': 24, '4': 3, '5': 11, '6': '.c35.SiteProduct', '10': 'siteProducts'},
-    {'1': 'site_contacts', '3': 25, '4': 3, '5': 11, '6': '.c35.SiteContact', '10': 'siteContacts'},
-    {'1': 'site_objects', '3': 26, '4': 3, '5': 11, '6': '.c35.SiteObject', '10': 'siteObjects'},
+    {
+      '1': 'skills',
+      '3': 20,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.Skill',
+      '10': 'skills'
+    },
+    {
+      '1': 'consumptions',
+      '3': 21,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.Consumption',
+      '10': 'consumptions'
+    },
+    {
+      '1': 'consumption_waters',
+      '3': 22,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.ConsumptionWater',
+      '10': 'consumptionWaters'
+    },
+    {
+      '1': 'site_drafts',
+      '3': 23,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.SiteDraft',
+      '10': 'siteDrafts'
+    },
+    {
+      '1': 'site_products',
+      '3': 24,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.SiteProduct',
+      '10': 'siteProducts'
+    },
+    {
+      '1': 'site_contacts',
+      '3': 25,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.SiteContact',
+      '10': 'siteContacts'
+    },
+    {
+      '1': 'site_objects',
+      '3': 26,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.SiteObject',
+      '10': 'siteObjects'
+    },
     {'1': 'txs', '3': 27, '4': 3, '5': 11, '6': '.c35.Tx', '10': 'txs'},
   ],
 };
@@ -89,18 +174,106 @@ final $typed_data.Uint8List resSyncDescriptor = $convert.base64Decode(
 const SyncPush$json = {
   '1': 'SyncPush',
   '2': [
-    {'1': 'chat', '3': 1, '4': 1, '5': 11, '6': '.c35.Chat', '9': 0, '10': 'chat'},
-    {'1': 'chat_member', '3': 2, '4': 1, '5': 11, '6': '.c35.ChatMember', '9': 0, '10': 'chatMember'},
-    {'1': 'chat_msg', '3': 3, '4': 1, '5': 11, '6': '.c35.ChatMsg', '9': 0, '10': 'chatMsg'},
-    {'1': 'billing_account', '3': 4, '4': 1, '5': 11, '6': '.c35.BillingAccount', '9': 0, '10': 'billingAccount'},
+    {
+      '1': 'chat',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.Chat',
+      '9': 0,
+      '10': 'chat'
+    },
+    {
+      '1': 'chat_member',
+      '3': 2,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ChatMember',
+      '9': 0,
+      '10': 'chatMember'
+    },
+    {
+      '1': 'chat_msg',
+      '3': 3,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ChatMsg',
+      '9': 0,
+      '10': 'chatMsg'
+    },
+    {
+      '1': 'billing_account',
+      '3': 4,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.BillingAccount',
+      '9': 0,
+      '10': 'billingAccount'
+    },
     {'1': 'log', '3': 5, '4': 1, '5': 11, '6': '.c35.Log', '9': 0, '10': 'log'},
-    {'1': 'skill', '3': 6, '4': 1, '5': 11, '6': '.c35.Skill', '9': 0, '10': 'skill'},
-    {'1': 'consumption', '3': 7, '4': 1, '5': 11, '6': '.c35.Consumption', '9': 0, '10': 'consumption'},
-    {'1': 'consumption_water', '3': 8, '4': 1, '5': 11, '6': '.c35.ConsumptionWater', '9': 0, '10': 'consumptionWater'},
-    {'1': 'site_draft', '3': 9, '4': 1, '5': 11, '6': '.c35.SiteDraft', '9': 0, '10': 'siteDraft'},
-    {'1': 'site_product', '3': 10, '4': 1, '5': 11, '6': '.c35.SiteProduct', '9': 0, '10': 'siteProduct'},
-    {'1': 'site_contact', '3': 11, '4': 1, '5': 11, '6': '.c35.SiteContact', '9': 0, '10': 'siteContact'},
-    {'1': 'site_object', '3': 12, '4': 1, '5': 11, '6': '.c35.SiteObject', '9': 0, '10': 'siteObject'},
+    {
+      '1': 'skill',
+      '3': 6,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.Skill',
+      '9': 0,
+      '10': 'skill'
+    },
+    {
+      '1': 'consumption',
+      '3': 7,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.Consumption',
+      '9': 0,
+      '10': 'consumption'
+    },
+    {
+      '1': 'consumption_water',
+      '3': 8,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ConsumptionWater',
+      '9': 0,
+      '10': 'consumptionWater'
+    },
+    {
+      '1': 'site_draft',
+      '3': 9,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.SiteDraft',
+      '9': 0,
+      '10': 'siteDraft'
+    },
+    {
+      '1': 'site_product',
+      '3': 10,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.SiteProduct',
+      '9': 0,
+      '10': 'siteProduct'
+    },
+    {
+      '1': 'site_contact',
+      '3': 11,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.SiteContact',
+      '9': 0,
+      '10': 'siteContact'
+    },
+    {
+      '1': 'site_object',
+      '3': 12,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.SiteObject',
+      '9': 0,
+      '10': 'siteObject'
+    },
     {'1': 'tx', '3': 13, '4': 1, '5': 11, '6': '.c35.Tx', '9': 0, '10': 'tx'},
   ],
   '8': [
@@ -122,4 +295,3 @@ final $typed_data.Uint8List syncPushDescriptor = $convert.base64Decode(
     'xzaXRlX2NvbnRhY3QYCyABKAsyEC5jMzUuU2l0ZUNvbnRhY3RIAFILc2l0ZUNvbnRhY3QSMgoL'
     'c2l0ZV9vYmplY3QYDCABKAsyDy5jMzUuU2l0ZU9iamVjdEgAUgpzaXRlT2JqZWN0EhkKAnR4GA'
     '0gASgLMgcuYzM1LlR4SABSAnR4QgYKBGJvZHk=');
-

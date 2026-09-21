@@ -1,0 +1,31 @@
+[package]
+name = "c35_mod_chat"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+dashmap = { workspace = true }
+base64 = "0.22"
+blake3 = { workspace = true }
+chrono = { workspace = true }
+futures-util = { workspace = true }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+tokio = { workspace = true, features = ["process"] }
+tokio-util = "0.7"
+tracing = { workspace = true }
+urlencoding = { workspace = true }
+c35_ctx = { path = "../system/ctx", package = "c35_ctx" }
+c35_proto = { path = "../proto", package = "c35_proto" }
+c35_store = { path = "../store", package = "c35_store" }
+c35_mod_billing = { path = "../mod_billing", package = "c35_mod_billing" }
+c35_mod_log = { path = "../mod_log", package = "c35_mod_log" }
+async-nats = { workspace = true }
+c35_mod_file = { path = "../mod_file", package = "c35_mod_file" }
+c35_mod_consumption = { path = "../mod_consumption", package = "c35_mod_consumption" }
+c35_mod_llm = { path = "../mod_llm", package = "c35_mod_llm" }
+c35_wire = { path = "../wire", package = "c35_wire" }

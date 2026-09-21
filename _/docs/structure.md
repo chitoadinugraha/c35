@@ -16,7 +16,7 @@ c35/
   remotes/                    # Rust agent workspace → .cache/agent (Phase 6)
   clients/app/                # Flutter (Phase 2)
   .cache/                     # gitignored cargo targets
-  concept.md                  # index → _/docs/
+  spec.md                     # project spec — entry index → _/docs/
 ```
 
 **Rules**
@@ -28,7 +28,7 @@ c35/
 ## Schema apply order
 
 ```
-identity → billing → chat → log → embed → skill → consumption → site → tx → file (later)
+identity → billing → chat → log → embed → skill → task → consumption → site → tx → file (later)
 ```
 
 Boot: `store::migrate::apply_all()` when `C35_DB_MIGRATE=1`.
@@ -77,7 +77,7 @@ servers/
         identity_profile_get.rs
         identity_nav_counts.rs
         session_init.rs
-    mod_billing/              # billing_account_get
+    mod_billing/              # billing_profile_get, billing_wallet_get (legacy: billing_account_get)
       src/
         lib.rs
         billing_account_get.rs
@@ -144,12 +144,38 @@ clients/app/
 ```
 remotes/
   Cargo.toml
-  c_remote_core/
+  .cargo/config.toml
+  c_remote_core/                # all platforms
+    src/
+      lib.rs
+      config.rs                 # session_key path, server host
+      conn_ws.rs                # control plane to c35-server
+      conn_beacon.rs            # Alien Beacon fallback
+      pair.rs                   # register + poll HTTP client
+      session.rs                # server frame dispatch
+      task_run.rs               # ActDeviceTaskRun handler
+      task_report.rs            # EvDeviceTaskProgress / Done
+      presence.rs
   c_remote_windows/
+    src/
+      main.rs
+      tray.rs
+      pair_window.rs            # Win32 large code UI (port cs_bots desktop_node)
+      task_exec.rs
+      act.rs
+      shell.rs
+      webrtc_session.rs         # human remote only
+      capture.rs
+      input_dc.rs
   c_remote_android/
+    src/ …
 ```
 
-Proto: path-dep `../servers/crates/proto` or shared `_/scripts/protoc`.
+Agent UI is **Rust-only** (no Flutter on device). Pair window: port `cs_bots/agents/desktop_node/src/pair_window.rs`.
+
+Proto: path-dep `../servers/crates/proto` or `_/scripts/protoc.ps1`.
+
+Implementation plan: [`docs/superpowers/plans/2026-09-21-remote-agent-pairing.md`](../../docs/superpowers/plans/2026-09-21-remote-agent-pairing.md).
 
 ## Config & env
 

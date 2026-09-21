@@ -1,0 +1,22 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "alienai-agent",
+          "appId": "1:000000000000:android:0000000000000000000000",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "alienai-agent",
+          "configurations": {
+            "android": "1:000000000000:android:0000000000000000000000",
+            "windows": "1:000000000000:web:0000000000000000000000"
+          }
+        }
+      }
+    }
+  }
+}

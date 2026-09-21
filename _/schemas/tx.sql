@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS ai.tx (
     input_source        VARCHAR(32) NOT NULL DEFAULT 'manual',
 
     is_archived         BOOLEAN NOT NULL DEFAULT FALSE,
-    desc                TEXT NOT NULL DEFAULT '',
+    "desc"              TEXT NOT NULL DEFAULT '',
     time_ts             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_by_iid      BIGINT REFERENCES ai.identity(id),
     cancel_reason       TEXT,

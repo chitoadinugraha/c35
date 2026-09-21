@@ -1,10 +1,12 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 #[derive(Clone)]
 pub struct Config {
     pub listen: String,
     pub jwt_secret: String,
-    pub db_migrate: bool,
+    pub cas_secret: String,
+    pub cas_dir: PathBuf,
+    pub public_origin: String,
 }
 
 impl Config {
@@ -12,26 +14,22 @@ impl Config {
         Ok(Self {
             listen: std::env::var("LISTEN").unwrap_or_else(|_| "0.0.0.0:8080".into()),
             jwt_secret: std::env::var("C35_JWT_SECRET")
+                .or_else(|_| std::env::var("AGENT_SECRET_KEY"))
                 .unwrap_or_else(|_| "dev-change-me".into()),
-            db_migrate: std::env::var("C35_DB_MIGRATE").ok().as_deref() == Some("1"),
+            cas_secret: std::env::var("CAS_HMAC_SECRET")
+                .or_else(|_| std::env::var("C35_JWT_SECRET"))
+                .unwrap_or_else(|_| "dev-cas-hmac".into()),
+            cas_dir: std::env::var("CAS_DIR")
+                .map(PathBuf::from)
+                .unwrap_or_else(|_| c35_mod_file::cas_dir_default()),
+            public_origin: std::env::var("C35_PUBLIC_ORIGIN")
+                .or_else(|_| std::env::var("CS_PUBLIC_ORIGIN"))
+                .or_else(|_| std::env::var("CSAI_PUBLIC_ORIGIN"))
+                .unwrap_or_else(|_| "https://alienai.id".into()),
         })
     }
 }
 
 pub fn env_load() {
-    for p in env_files() {
-        let _ = dotenvy::from_path(&p);
-    }
-}
-
-fn env_files() -> Vec<PathBuf> {
-    let mut out = vec![
-        PathBuf::from("server_ai/.env.local"),
-        PathBuf::from("servers/server_ai/.env.local"),
-        PathBuf::from(".env.local"),
-    ];
-    if let Ok(man) = std::env::var("CARGO_MANIFEST_DIR") {
-        out.push(Path::new(&man).join(".env.local"));
-    }
-    out
+    c35_store::env_load();
 }

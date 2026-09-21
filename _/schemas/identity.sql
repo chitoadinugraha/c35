@@ -32,7 +32,8 @@ CREATE TABLE IF NOT EXISTS ai.identity (
 
     locale          VARCHAR(16) NOT NULL DEFAULT 'en_US',
     tz              VARCHAR(64) NOT NULL DEFAULT 'UTC',
-    billing_iid     BIGINT REFERENCES ai.identity(id),          -- wallet owner
+    billing_iid     BIGINT REFERENCES ai.identity(id),          -- LEGACY: wallet owner (use billing_profile_iid)
+    billing_profile_iid BIGINT,                                 -- billing_profile.id (v2)
 
     meta            JSONB NOT NULL DEFAULT '{}',
     is_active       BOOLEAN NOT NULL DEFAULT TRUE,
@@ -219,10 +220,13 @@ CREATE TABLE IF NOT EXISTS ai.referral_code (
     issued_by_iid   BIGINT NOT NULL REFERENCES ai.identity(id),
     used_count      INT NOT NULL DEFAULT 0,
     expires_at      TIMESTAMPTZ,
+    meta            JSONB NOT NULL DEFAULT '{}',
 
     created_ts      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_ts      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE ai.referral_code ADD COLUMN IF NOT EXISTS meta JSONB NOT NULL DEFAULT '{}';
 
 CREATE TABLE IF NOT EXISTS ai.referral_share (
     parent_iid      BIGINT NOT NULL REFERENCES ai.identity(id),

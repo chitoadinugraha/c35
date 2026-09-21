@@ -20,6 +20,9 @@ class UiAuthLogo extends StatefulWidget {
 }
 
 class _UiAuthLogoState extends State<UiAuthLogo> with SingleTickerProviderStateMixin {
+  static const _accent = Color(0xFFD4D4D8);
+  static const _accentBright = Colors.white;
+
   late final AnimationController _controller;
   late final Animation<double> _waveStrength;
   final _rng = math.Random();
@@ -95,9 +98,9 @@ class _UiAuthLogoState extends State<UiAuthLogo> with SingleTickerProviderStateM
     _controller.forward(from: _spikeStart);
   }
 
-  Widget _alienIcon(ColorScheme c, double s, double glow) {
+  Widget _alienIcon(double s, double glow) {
     final iconSize = s * 0.58;
-    final iconColor = Color.lerp(c.onSurface, c.primary, glow * 0.9)!;
+    final iconColor = Color.lerp(_accent, _accentBright, glow * 0.9)!;
 
     return UiAlienIcon(size: iconSize, color: iconColor);
   }
@@ -136,7 +139,7 @@ class _UiAuthLogoState extends State<UiAuthLogo> with SingleTickerProviderStateM
                   spikeScale: _spikeScale,
                   spikeReach: _spikeReach,
                   waveCount: _waveCount,
-                  color: c.primary,
+                  color: _accent,
                 ),
                 child: Center(
                   child: MouseRegion(
@@ -158,26 +161,26 @@ class _UiAuthLogoState extends State<UiAuthLogo> with SingleTickerProviderStateM
                           border: Border.all(
                             color: Color.lerp(
                               c.outlineVariant.withValues(alpha: 0.45),
-                              c.primary.withValues(alpha: 0.8),
+                              _accentBright.withValues(alpha: 0.8),
                               glow,
                             )!,
                             width: 1 + glow * 0.6,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: c.primary.withValues(alpha: 0.12 + strength * 0.16 * _spikeScale),
+                              color: _accentBright.withValues(alpha: 0.12 + strength * 0.16 * _spikeScale),
                               blurRadius: 24 + strength * 8 * _spikeScale,
                               spreadRadius: 1,
                             ),
                             if (glow > 0.01)
                               BoxShadow(
-                                color: c.primary.withValues(alpha: 0.28 * glow),
+                                color: _accentBright.withValues(alpha: 0.28 * glow),
                                 blurRadius: 20 * glow,
                                 spreadRadius: 3 * glow,
                               ),
                           ],
                         ),
-                        child: Center(child: _alienIcon(c, s, glow)),
+                        child: Center(child: _alienIcon(s, glow)),
                       ),
                     ),
                   ),

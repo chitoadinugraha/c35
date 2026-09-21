@@ -10,7 +10,7 @@ use axum::{
 };
 use c35_ctx::AppState;
 use c35_mod_billing::billing_signup_credit;
-use c35_store::snowflake_id;
+use c35_store::{db_retry, snowflake_id};
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -173,18 +173,22 @@ pub async fn sign_up(
         Err(e) => return err(format!("Password hashing failed: {e}")),
     };
     let meta = json!({ "email": email, "phone": phone, "signup_via": "password" });
-    if sqlx::query(
-        r#"
-        INSERT INTO ai.identity (id, kind, type, alien_id, name, owner_iid, billing_iid, meta, is_active)
-        VALUES ($1, 'user', '', $2, $3, $1, $1, $4, true)
-        ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, alien_id = EXCLUDED.alien_id
-        "#,
-    )
-    .bind(iid)
-    .bind(&alien_id)
-    .bind(name)
-    .bind(meta)
-    .execute(pool)
+    if db_retry(pool, || async {
+        sqlx::query(
+            r#"
+            INSERT INTO ai.identity (id, kind, type, alien_id, name, owner_iid, billing_iid, meta, is_active)
+            VALUES ($1, 'user', '', $2, $3, $1, $1, $4, true)
+            ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, alien_id = EXCLUDED.alien_id
+            "#,
+        )
+        .bind(iid)
+        .bind(&alien_id)
+        .bind(name)
+        .bind(meta.clone())
+        .execute(pool)
+        .await
+        .map(|_| ())
+    })
     .await
     .is_err()
     {
@@ -312,35 +316,37 @@ pub async fn sign_in(
     } else {
         login.clone()
     };
-    let row = sqlx::query(
-        r#"
-        SELECT ip.identity_iid, ip.secret_hash, i.name, i.alien_id, i.pic,
-               COALESCE(i.meta->>'email', ip.identifier) AS email,
-               COALESCE(b.balance_usd::float8, 0) AS balance_usd,
-               COALESCE(b.balance_idr::float8, 0) AS balance_idr
-        FROM ai.identity_provider ip
-        JOIN ai.identity i ON i.id = ip.identity_iid
-        LEFT JOIN ai.billing_account b ON b.owner_iid = i.id
-        WHERE ip.kind = 'password' AND ip.deleted_ts IS NULL AND i.deleted_ts IS NULL
-          AND (LOWER(ip.identifier) = LOWER($1)
-            OR LOWER(i.alien_id) = LOWER($2)
-            OR ($3 <> '' AND EXISTS (
-                SELECT 1 FROM ai.identity_provider p
-                WHERE p.identity_iid = ip.identity_iid AND p.kind = 'phone' AND p.identifier = $3
-            )))
-        LIMIT 1
-        "#,
-    )
-    .bind(&login)
-    .bind(&handle_q)
-    .bind(&phone)
-    .fetch_optional(pool)
+    let row = match db_retry(pool, || async {
+        sqlx::query(
+            r#"
+            SELECT ip.identity_iid, ip.secret_hash, i.name, i.alien_id, i.pic,
+                   COALESCE(i.meta->>'email', ip.identifier) AS email,
+                   COALESCE(b.balance_usd::float8, 0) AS balance_usd,
+                   COALESCE(b.balance_idr::float8, 0) AS balance_idr
+            FROM ai.identity_provider ip
+            JOIN ai.identity i ON i.id = ip.identity_iid
+            LEFT JOIN ai.billing_account b ON b.owner_iid = i.id
+            WHERE ip.kind = 'password' AND ip.deleted_ts IS NULL AND i.deleted_ts IS NULL
+              AND (LOWER(ip.identifier) = LOWER($1)
+                OR LOWER(i.alien_id) = LOWER($2)
+                OR ($3 <> '' AND EXISTS (
+                    SELECT 1 FROM ai.identity_provider p
+                    WHERE p.identity_iid = ip.identity_iid AND p.kind = 'phone' AND p.identifier = $3
+                )))
+            LIMIT 1
+            "#,
+        )
+        .bind(&login)
+        .bind(&handle_q)
+        .bind(&phone)
+        .fetch_optional(pool)
+        .await
+    })
     .await
-    .ok()
-    .flatten();
-    let row = match row {
-        Some(r) => r,
-        None => return unauthorized("Invalid username/email or password."),
+    {
+        Ok(Some(r)) => r,
+        Ok(None) => return unauthorized("Invalid username/email or password."),
+        Err(e) => return err(format!("Database error: {e}")),
     };
     let secret_hash: Option<String> = row.get("secret_hash");
     let secret_hash = match secret_hash.filter(|h| !h.is_empty()) {

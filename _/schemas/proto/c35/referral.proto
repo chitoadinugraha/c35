@@ -97,3 +97,26 @@ message ResReferralUserStats {
   ReferralUserStatColumn col_a = 1;
   ReferralUserStatColumn col_b = 2;
 }
+
+message ReferralCommissionLevel {
+  int64 identity_id = 1;
+  string name = 2;
+  string avatar_url = 3;
+  int32 percent = 4;
+  int64 earn_amount = 5;
+  double pool_share_percent = 6;
+}
+
+message ReqReferralCommissionSimulate {
+  int64 subject_uid = 1;
+  int64 purchase_amount = 2;
+}
+
+message ResReferralCommissionSimulate {
+  int64 purchase_amount = 1;
+  int64 pool_amount = 2;
+  double pool_rate = 3;
+  repeated ReferralCommissionLevel levels = 4;
+  int64 total_distributed = 5;
+  int64 undistributed = 6;
+}

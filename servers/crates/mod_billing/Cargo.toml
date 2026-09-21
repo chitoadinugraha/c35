@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+anyhow = { workspace = true }
 chrono = { workspace = true }
 sqlx = { workspace = true }
 serde_json = { workspace = true }
@@ -11,3 +12,10 @@ c35_proto = { path = "../proto", package = "c35_proto" }
 c35_ctx = { path = "../system/ctx", package = "c35_ctx" }
 c35_wire = { path = "../wire", package = "c35_wire" }
 c35_store = { path = "../store", package = "c35_store" }
+c35_mod_log = { path = "../mod_log", package = "c35_mod_log" }
+c35_mod_llm = { path = "../mod_llm", package = "c35_mod_llm" }
+c35_mod_referral = { path = "../mod_referral", package = "c35_mod_referral" }
+tracing = { workspace = true }
+async-nats = { workspace = true }
+prost = { workspace = true }
+tokio = { workspace = true }

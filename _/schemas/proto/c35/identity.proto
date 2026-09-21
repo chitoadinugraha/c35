@@ -35,3 +35,58 @@ message IdentityGrant {
   int64 updated_ts_ms = 9;
   int64 deleted_ts_ms = 10;
 }
+
+message IdentityRow {
+  int64 iid = 1;
+  string kind = 2;           // bot | remote | iot | site
+  string type = 3;
+  string alien_id = 4;
+  string name = 5;
+  string pic = 6;
+  string meta_json = 7;
+  int64 owner_iid = 8;
+  int64 updated_ts_ms = 9;
+}
+
+// Per-viewer list row: identity + grant prefs for caller
+message IdentityListRow {
+  IdentityRow identity = 1;
+  string grant_role = 2;       // admin | member | readonly | "" if owner-only implicit
+  bool is_pinned = 3;
+  int32 sort_order = 4;        // from grant.meta_json.sort_order, default 500
+  int64 archived_ts_ms = 5;    // from grant.meta_json.archived_ts_ms, 0 = not archived
+}
+
+message ReqIdentityList {
+  repeated string kinds = 1;   // e.g. ["bot"], ["remote","iot"]
+  bool include_archived = 2;
+}
+
+message ResIdentityList {
+  repeated IdentityListRow rows = 1;
+}
+
+message ReqIdentityGrantPatch {
+  int64 resource_iid = 1;
+  optional bool is_pinned = 2;
+  optional int32 sort_order = 3;
+  optional bool archived = 4;  // true = set archived_ts_ms=now, false = clear
+}
+
+message ResIdentityGrantPatch {
+  IdentityListRow row = 1;
+}
+
+message ReqIdentityPut {
+  int64 iid = 1;              // 0 = create
+  string kind = 2;            // bot
+  string type = 3;            // chat
+  string name = 4;
+  string pic = 5;
+  string alien_id = 6;        // optional
+  string meta_json = 7;       // { "inst_base": "...", "channels": [] }
+}
+
+message ResIdentityPut {
+  IdentityListRow row = 1;
+}

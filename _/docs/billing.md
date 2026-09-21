@@ -1,16 +1,56 @@
 # Billing (LOCKED)
 
-Status: **locked** 2026-09-20
+Status: **locked** 2026-09-21 (revised — multi-wallet)
 
 ## Overview
 
-Wallet + quota + commission for platform AI usage. Ported from `D:\cs_agent` billing model, adapted to c35 identity (`owner_iid`, `_ts` fields).
+Wallet + quota + commission for platform AI usage. Adapted from `D:\cs_agent`, extended for **multi-currency wallets** and **native per-currency catalog prices**.
 
-**Single meter:** `ai.billing_account` — balance, Alien allowance rings (5h / weekly), commission.
+**Three layers:**
 
-**Single audit ledger:** `ai.log` — see [log.md](log.md). Billable LLM rows set `cost_usd > 0`; client error rows stay `0`.
+| Layer | Table(s) | Purpose |
+|-------|----------|---------|
+| **Profile** | `billing_profile` | Personal plan tier, Alien/API allowance rings, default wallet currency |
+| **Wallets** | `billing_wallet` | Spendable balance per `(owner_iid, currency)` |
+| **Catalog** | `billing_plan` + `billing_plan_price` | Plan SKUs + **fixed native prices** per currency |
+
+**Scoped plans (device + chat bot):** separate SKUs — see [billing-plans.md](billing-plans.md).
+
+**Single audit ledger:** `ai.log` — see [log.md](log.md). Billable LLM rows set `cost_usd > 0` (internal COGS). Client error rows stay `0`.
 
 `ResSessionInit` returns billing snapshot in one round trip. Realtime pushes: `c35.user.{iid}.balance`, `.quota`, `.commission` over NATS.
+
+Implementation plan: [billing-implementation.md](billing-implementation.md).
+
+---
+
+## Design principles
+
+### Native balances, not converted display
+
+- Each wallet stores balance in **its own currency** (e.g. `49000.00` IDR, `12.50` USD).
+- UI shows **one amount** from the user's **default wallet** — balance does not move when FX rates change.
+- **Never** show `$X · Rp Y` dual-currency strings in user-facing UI.
+
+### Catalog vs metered FX
+
+| Flow | Pricing | FX |
+|------|---------|-----|
+| **Plan subscribe / direct purchase** | Fixed row in `billing_plan_price` (e.g. Rp 49.000) | None — charge exact listed amount |
+| **Wallet top-up** | User pays exact amount in chosen currency | None — credit wallet 1:1 |
+| **Metered LLM usage** | Internal `cost_usd` on `ai.log` | Convert at **deduct time** using `billing_fx_rate` (published, periodic) |
+
+Platform absorbs FX drift between rate updates on metered usage. Catalog and top-up have **zero FX risk**.
+
+### Direct purchase (no wallet credit)
+
+User may buy a plan or add-on **without** prefunding a wallet:
+
+```
+User selects plan + currency → payment provider → billing_purchase settled → activate subscription
+```
+
+Wallet top-up remains optional float for metered overage.
 
 ---
 
@@ -18,101 +58,181 @@ Wallet + quota + commission for platform AI usage. Ported from `D:\cs_agent` bil
 
 | Table | Purpose |
 |-------|---------|
-| `billing_account` | Wallet + quota windows + commission balances |
-| `billing_topup_request` | Manual / provider top-up requests (admin approve) |
+| `billing_profile` | One per user: plan tier, allowance rings, default wallet currency |
+| `billing_wallet` | Balance per `(owner_iid, currency)` |
+| `billing_plan` | Plan SKU catalog (scope, allowances, caps) |
+| `billing_plan_price` | Native list price per `(plan_slug, currency)` |
+| `billing_fx_rate` | Published USD→currency rate for **metered deduct only** |
+| `billing_purchase` | Direct plan purchase (provider checkout, no wallet credit) |
+| `billing_topup_request` | Manual / provider top-up → credit `billing_wallet` |
 | `billing_reservation` | Escrow hold during in-flight LLM turn (`req_id`) |
 | `billing_usage_dedupe` | Idempotent deduct per `(owner_iid, req_id)` |
-| `log` | Audit + billing trace (cost on row) |
+| `billing_subscription` | Scoped plan attachment (bot / device / user) |
+| `log` | Audit + billing trace (`cost_usd`) |
 
-Canonical DDL: [`../schemas/billing.sql`](../schemas/billing.sql), [`../schemas/log.sql`](../schemas/log.sql)
+Legacy (migrate away): `billing_account` — see [billing-implementation.md](billing-implementation.md) § Migration.
+
+Canonical DDL: [`../schemas/billing.sql`](../schemas/billing.sql)
 
 ---
 
-## `billing_account`
+## `billing_profile`
 
-One primary wallet per user (linked via `identity.billing_iid`).
+One row per **user** (`owner_iid` unique). Holds quota meters and preferences — **not** spendable balance.
 
 | Field | Purpose |
 |-------|---------|
-| `balance_usd`, `balance_idr` | Spendable balance |
 | `plan_tier` | `free` \| `plus` \| `pro` \| … |
-| `alien_allow_5h_used/limit` | 5-hour ring (UI quota circle) |
+| `default_wallet_currency` | ISO 4217 (`IDR`, `USD`, …) — from locale at signup, user-changeable |
+| `alien_allow_5h_used/limit` | 5-hour ring (pool accounting USD internally) |
 | `alien_allow_weekly_used/limit` | Weekly ring |
 | `window_5h_start`, `window_weekly_start` | Rolling window anchors |
-| `billing_currency` | Display default `IDR` \| `USD` |
-| `fx_micro_per_usd` | FX for IDR display |
-| `commission_*` | Referral commission available / earned |
+| `commission_*` | Referral balances (per-currency columns deferred → wallet or ledger) |
 
-Server-only writes to balances. Client reads via sync + NATS.
+Linked from `identity` via `billing_profile_iid` (replaces legacy `billing_iid` wallet pointer).
+
+---
+
+## `billing_wallet`
+
+Spendable balance. **Multiple wallets per user** — one per currency in use.
+
+| Field | Purpose |
+|-------|---------|
+| `owner_iid` | User |
+| `currency` | ISO 4217 (`IDR`, `USD`, `EUR`, …) |
+| `balance` | Native currency amount (NUMERIC) |
+| `is_default` | One `true` per owner — UI default; metered deduct targets this unless overridden |
+| `name` | Optional label (`Personal IDR`, `Business USD`) |
+
+**Unique:** `(owner_iid, currency)` where `deleted_ts IS NULL`.
+
+**Signup:** create wallet for locale currency (e.g. `IDR` for `id_ID`) with `is_default = true`. Additional wallets created on first top-up or explicit user action.
+
+**Multinational use:** user may hold IDR + USD wallets; switch default in settings.
+
+---
+
+## `billing_plan_price`
+
+Marketing-friendly native prices — **not** converted from USD at checkout.
+
+```sql
+-- Examples
+('plus',  'IDR', 49000,  'monthly')
+('plus',  'USD', 4.99,   'monthly')
+('bot.small', 'IDR', 60000, 'monthly')
+```
+
+Subscribe / direct purchase charges **exactly** `amount` in `currency`. No live FX.
+
+`billing_plan.price_usd` remains reference / fallback for admin; **checkout uses `billing_plan_price`**.
+
+---
+
+## `billing_fx_rate`
+
+Published rates for **metered usage deduct only**.
+
+| Field | Purpose |
+|-------|---------|
+| `currency` | Target currency |
+| `micro_per_usd` | Integer: local micro-units per 1 USD (same convention as legacy `fx_micro_per_usd`) |
+| `effective_from` | Rate valid from this timestamp |
+
+Server picks latest `effective_from <= NOW()` per currency. Update weekly (or daily for IDR volatility). Document rate in admin UI.
+
+**Deduct formula:**
+
+```
+deduct_native = cost_usd * (micro_per_usd / 1_000_000)
+```
+
+Store `cost_usd`, `deducted_amount`, `currency`, `fx_rate_id` on `billing_usage_dedupe` for audit.
 
 ---
 
 ## Top-up flow
 
 ```
-User submits billing_topup_request (proof, amount)
+User submits billing_topup_request (currency, amount, proof)
   → status: pending
-Admin approves
-  → credit billing_account + status: approved
+Admin / provider approves
+  → credit billing_wallet(owner, currency) + status: approved
 ```
 
+Single `amount` + `currency` — no dual USD/IDR columns.
+
 Providers: `manual` (Phase 1), later `midtrans`, `stripe`, etc.
+
+---
+
+## Direct purchase flow
+
+```
+User selects plan_slug + currency
+  → billing_purchase created (pending)
+  → Payment provider (Midtrans / Stripe / manual)
+  → On success: activate billing_subscription, purchase status = settled
+  → Optional: skip wallet credit entirely
+```
+
+`billing_purchase` records amount, currency, plan_slug, provider refs for reconciliation.
 
 ---
 
 ## Reservation + deduct (LLM turn)
 
 ```
-1. Prompt starts → billing_reservation(req_id, held_usd)  status=held
+1. Prompt starts → billing_reservation(req_id, wallet_id, held_native)  status=held
 2. Turn completes → log row with cost_usd
 3. billing_usage_dedupe insert (owner_iid, req_id) — idempotent
-4. Deduct billing_account; reservation status=settled
-5. On failure/abort → reservation status=refunded
+4. If allowance exhausted → deduct billing_wallet using billing_fx_rate
+5. reservation status=settled | refunded on abort
 ```
 
 Never double-charge: dedupe PK on `(owner_iid, req_id)`.
+
+**Wallet selection:** default wallet currency unless turn context specifies another funded wallet.
 
 ---
 
 ## Quota rings (Alien allowance)
 
-Separate from paid balance — free-tier / plan allowance consumed before balance.
+On **`billing_profile`** — separate from wallet balance. Free-tier / plan allowance consumed before wallet.
 
-- **`alien_allow_5h_*`** — short window meter (avatar menu 5h circle)
-- **`alien_allow_weekly_*`** — weekly cap (avatar menu weekly circle)
+- **`alien_allow_5h_*`** — short window (avatar menu 5h circle)
+- **`alien_allow_weekly_*`** — weekly cap
 
-Reset windows via `window_*_start` + server-side roll logic (port from cs_agent).
+Pool accounting stays USD-internal for allowance math; **wallet deduct** uses native currency via `billing_fx_rate`.
 
 ---
 
 ## Commission (referral)
 
-| Column | Meaning |
-|--------|---------|
-| `commission_available_*` | Withdrawable / usable |
-| `commission_earned_*` | Lifetime earned |
+Phase 1: keep on `billing_profile` (legacy dual columns) or `commission_ledger`.
 
-Tied to referral forest (`referral_share`). Payout flow deferred.
+Target: commission credit per `(owner_iid, currency)` wallet or ledger entry — same multi-wallet rules.
 
 ---
 
 ## Message renderer billing trace
 
-Assistant `chat_msg` rows carry `tokens_in`, `tokens_out`, `duration_ms` for UI (cs_agent `msg_trace_view`).
+Assistant `chat_msg` rows carry `tokens_in`, `tokens_out`, `duration_ms` for UI.
 
-Canonical cost lives on **`ai.log`** linked by `req_id` — same turn, same id.
+User-facing cost label: format `cost_usd` in **default wallet currency** using latest `billing_fx_rate` (display only; canonical `cost_usd` on `ai.log`).
 
 ---
 
 ## NATS subjects
 
 ```
-c35.user.{iid}.balance
-c35.user.{iid}.quota
+c35.user.{iid}.balance      -- payload includes wallet_id, currency, balance
+c35.user.{iid}.quota        -- billing_profile allowance
 c35.user.{iid}.commission
 ```
 
-Push after any `billing_account` mutation.
+Push after any `billing_wallet` or `billing_profile` mutation.
 
 ---
 
@@ -120,5 +240,18 @@ Push after any `billing_account` mutation.
 
 1. Client-origin `log` rows: **`cost_usd = 0`** always.
 2. Server rejects client attempts to set balance or cost.
-3. Parallel fetch billing + profile in **`ReqSessionInit`** — no separate balance HTTP call on app open.
-4. Index sync: `(owner_iid, updated_ts)` on `billing_account`.
+3. Parallel fetch billing + profile in **`ReqSessionInit`** — no separate balance HTTP on app open.
+4. Index sync: `(owner_iid, updated_ts)` on `billing_wallet` and `billing_profile`.
+5. UI displays **one currency** per context (default wallet); never dual-currency balance strings.
+6. Catalog checkout uses **`billing_plan_price`** — never live FX conversion.
+
+---
+
+## Locale → default currency (signup)
+
+| Locale prefix | Default wallet |
+|---------------|----------------|
+| `id` | `IDR` |
+| `en_US`, default | `USD` |
+
+Override in settings; creating a wallet in a new currency does not change default unless user selects it.

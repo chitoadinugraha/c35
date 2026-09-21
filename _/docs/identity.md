@@ -217,7 +217,8 @@ meta = { hostname, agent_version, last_seen, pairing_code, … }
 
 - Remote agent (`remotes/c_remote_*`) registers as this identity on pair.
 - Devices page: combined list of `kind IN ('remote', 'iot')` for owner.
-- Skills/tasks attach to device identity id.
+- Skills/tasks attach to device identity id (`device_iid`).
+- Computer use always flows through server session (WS / Alien Beacon) — see [remote.md](remote.md).
 
 ## IoT model
 
@@ -250,7 +251,9 @@ Business features (POS, reservation) are **site-scoped**, rendered in Sites 3-pa
 | `ai.identity_client` | Client installs per identity (was identity_device) |
 | `ai.identity_grant` | All access: team membership, site staff, resource share |
 | `ai.auth_session` | Login sessions |
-| `ai.billing_account` | Wallets (see [`../schemas/billing.sql`](../schemas/billing.sql)) |
+| `ai.billing_profile` | Plan tier + quota rings (one per user) |
+| `ai.billing_wallet` | Native balances per currency (see [`billing.md`](billing.md)) |
+| `ai.billing_account` | **Legacy** — dual USD/IDR wallet (migrate away) |
 
 Canonical DDL: [`../schemas/identity.sql`](../schemas/identity.sql)
 

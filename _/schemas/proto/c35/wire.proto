@@ -3,9 +3,11 @@ syntax = "proto3";
 package c35;
 
 import "c35/types.proto";
+import "c35/identity.proto";
 import "c35/session.proto";
 import "c35/sync.proto";
 import "c35/chat.proto";
+import "c35/device.proto";
 import "c35/billing.proto";
 import "c35/log.proto";
 import "c35/skill.proto";
@@ -13,6 +15,10 @@ import "c35/consumption.proto";
 import "c35/site.proto";
 import "c35/tx.proto";
 import "c35/referral.proto";
+import "c35/admin.proto";
+import "c35/channel.proto";
+import "c35/task.proto";
+import "c35/remote.proto";
 
 // HTTP invoke envelope (referral, admin, billing review, …)
 message InvokeReq {
@@ -21,12 +27,25 @@ message InvokeReq {
 
   oneof body {
     ReqBillingTopupPut billing_topup_put = 10;
+    ReqBillingPackageRedeem billing_package_redeem = 11;
+    ReqBillingPackagePreview billing_package_preview = 12;
+    ReqBotUsageStats bot_usage_stats = 13;
+    ReqBillingSummary billing_summary = 14;
+    ReqBillingPlanSubscribe billing_plan_subscribe = 15;
+    ReqBillingHistory billing_history = 17;
     ReqReferralShareSet referral_share_set = 62;
     ReqReferralTreeGet referral_tree_get = 64;
     ReqReferralCodeList referral_code_list = 65;
     ReqReferralCodePut referral_code_put = 67;
     ReqReferralCodeDelete referral_code_delete = 68;
+    ReqAdminUserSearch admin_user_search = 90;
+    ReqAdminUserPut admin_user_put = 91;
     ReqReferralUserStats referral_user_stats = 92;
+    ReqReferralCommissionSimulate referral_commission_simulate = 93;
+    ReqChannelTelegramConnect channel_telegram_connect = 100;
+    ReqChannelWhatsappMetaConnect channel_whatsapp_meta_connect = 101;
+    ReqDevicePair device_pair = 102;
+    ReqConsumptionPut consumption_put = 16;
   }
 }
 
@@ -37,11 +56,24 @@ message InvokeRes {
 
   oneof body {
     ResBillingTopupPut billing_topup_put = 10;
+    ResBillingPackageRedeem billing_package_redeem = 11;
+    ResBillingPackagePreview billing_package_preview = 12;
+    ResBotUsageStats bot_usage_stats = 13;
+    ResBillingSummary billing_summary = 14;
+    ResBillingPlanSubscribe billing_plan_subscribe = 15;
+    ResBillingHistory billing_history = 17;
     ResReferralShareSet referral_share_set = 62;
     ResReferralTreeGet referral_tree_get = 64;
     ResReferralCodeList referral_code_list = 65;
     ReferralCodeDoc referral_code_put = 67;
+    ResAdminUserSearch admin_user_search = 90;
+    ResAdminUserPut admin_user_put = 91;
     ResReferralUserStats referral_user_stats = 92;
+    ResReferralCommissionSimulate referral_commission_simulate = 93;
+    ResChannelTelegramConnect channel_telegram_connect = 100;
+    ResChannelWhatsappMetaConnect channel_whatsapp_meta_connect = 101;
+    ResDevicePair device_pair = 102;
+    ResConsumptionPut consumption_put = 16;
   }
 }
 
@@ -64,6 +96,29 @@ message WsReq {
     ReqConsumptionList consumption_list = 21;
     ReqSiteList site_list = 22;
     ReqTxList tx_list = 23;
+    ReqConsumptionPut consumption_put = 24;
+    ReqChatPatch chat_patch = 25;
+    ReqAssetTagList asset_tag_list = 26;
+    ReqIdentityList identity_list = 27;
+    ReqIdentityGrantPatch identity_grant_patch = 28;
+    ReqBotPeerList bot_peer_list = 29;
+    ReqLogList log_list = 30;
+    ReqIdentityPut identity_put = 31;
+    ReqChannelWhatsappPairStart channel_whatsapp_pair_start = 32;
+    ReqChannelWhatsappPairWatch channel_whatsapp_pair_watch = 33;
+    ReqChannelWhatsappPairAbort channel_whatsapp_pair_abort = 34;
+
+    ReqTaskList task_list = 35;
+    ReqTaskPut task_put = 36;
+    ReqTaskRunStart task_run_start = 37;
+    ReqTaskRunCancel task_run_cancel = 38;
+    ReqTaskRunList task_run_list = 39;
+
+    ReqRemoteSessionStart remote_session_start = 40;
+    RtcSignalOffer rtc_signal_offer = 41;
+    RtcSignalAnswer rtc_signal_answer = 42;
+    RtcSignalIce rtc_signal_ice = 43;
+    ReqRemoteSessionStop remote_session_stop = 44;
   }
 }
 
@@ -93,6 +148,13 @@ message WsRes {
     ResConsumptionList consumption_list = 81;
     ResSiteList site_list = 82;
     ResTxList tx_list = 83;
+    ResConsumptionPut consumption_put = 84;
+    ResChatPatch chat_patch = 85;
+    ResAssetTagList asset_tag_list = 86;
+    ResIdentityList identity_list = 27;
+    ResIdentityGrantPatch identity_grant_patch = 28;
+    ResBotPeerList bot_peer_list = 29;
+    ResLogList log_list = 87;
 
     SyncPush sync_push = 50;
 
@@ -101,5 +163,22 @@ message WsRes {
     BillingPushCommission billing_commission = 62;
 
     LogPush log_push = 70;
+    ChannelPairPush channel_pair_push = 71;
+
+    ResIdentityPut identity_put = 88;
+    ResChannelWhatsappPair channel_whatsapp_pair_start = 32;
+    ResChannelWhatsappPair channel_whatsapp_pair_watch = 33;
+    ResChannelWhatsappPair channel_whatsapp_pair_abort = 34;
+
+    ResTaskList task_list = 35;
+    ResTaskPut task_put = 36;
+    ResTaskRunStart task_run_start = 37;
+    ResTaskRunCancel task_run_cancel = 38;
+    ResTaskRunList task_run_list = 39;
+    TaskRunPush task_run_push = 45;
+
+    ResRemoteSessionStart remote_session_start = 90;
+    ResRemoteSessionStop remote_session_stop = 91;
+    RemoteSessionPush remote_session_push = 92;
   }
 }

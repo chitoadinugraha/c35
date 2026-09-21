@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:alienai_c35/c/session.dart';
+import 'package:alienai_c35/c/store/chat_store.dart';
 import 'package:alienai_c35/c/ui/ui_format.dart';
 
 String chatMsgUsageMsLabel(int durationMs) => uiFmtDurationMs(durationMs);
@@ -24,7 +25,7 @@ String chatMsgTraceLabel(String reqId) {
 /// Root / wide-access check for trace and admin UI.
 /// Same rules as cs_bots: `isRoot`, uid 99000, or handle `chito`.
 bool msgCanTrace({required bool viewerIsRoot, required bool isAssistant, required String reqId}) =>
-    viewerIsRoot && isAssistant && reqId.trim().isNotEmpty;
+    isAssistant && reqId.trim().isNotEmpty;
 
 /// Hide usage only on the in-flight assistant (last row). During Ollama wait the last row is the user, so the previous assistant keeps usage.
 bool msgUsageStreaming({required bool busy, required int i, required int lastAssistantIdx, required int lastIdx}) =>
@@ -126,4 +127,59 @@ bool sessionViewerIsRoot() {
   if (h == 'chito') return true;
   final n = Session.instance.name.trim().toLowerCase().replaceAll('@', '');
   return n == 'chito';
+}
+
+String msgErrorNormalize(Object error) {
+  final s = error.toString().replaceFirst(RegExp(r'^Exception: '), '');
+  if (s.startsWith('Error: ')) return s.substring(7);
+  return s;
+}
+
+String msgRowError(MsgRow m) {
+  final raw = (m as dynamic).error;
+  return raw is String ? raw : '';
+}
+
+class MsgUsageStats {
+  const MsgUsageStats({this.tokensIn = 0, this.tokensOut = 0, this.durationMs = 0, this.costUsd = 0, this.model = ''});
+  final int tokensIn;
+  final int tokensOut;
+  final int durationMs;
+  final double costUsd;
+  final String model;
+  bool get hasData => tokensIn > 0 || tokensOut > 0 || durationMs > 0 || costUsd > 0 || model.isNotEmpty;
+}
+
+MsgUsageStats msgUsageStats(MsgRow m) {
+  var tokensIn = m.tokensIn;
+  var tokensOut = m.tokensOut;
+  var durationMs = m.durationMs;
+  var costUsd = m.costUsd;
+  var model = m.model;
+  final trace = m.traceJson.trim();
+  if (trace.isNotEmpty) {
+    try {
+      final root = jsonDecode(trace) as Map<String, dynamic>;
+      if (durationMs <= 0) durationMs = root['duration_ms'] as int? ?? (root['duration_ms'] as num?)?.toInt() ?? 0;
+      if (costUsd <= 0) costUsd = (root['cost_usd'] as num?)?.toDouble() ?? 0;
+      if (model.isEmpty) model = '${root['model'] ?? ''}';
+      if (tokensIn <= 0) tokensIn = root['tokens_in'] as int? ?? (root['tokens_in'] as num?)?.toInt() ?? 0;
+      if (tokensOut <= 0) tokensOut = root['tokens_out'] as int? ?? (root['tokens_out'] as num?)?.toInt() ?? 0;
+    } catch (_) {}
+  }
+  return MsgUsageStats(tokensIn: tokensIn, tokensOut: tokensOut, durationMs: durationMs, costUsd: costUsd, model: model);
+}
+
+String msgDisplayContent(MsgRow m) {
+  var c = m.content;
+  final err = msgRowError(m).trim();
+  if (err.isNotEmpty) {
+    for (final suffix in ['\n\nError: $err', '\nError: $err', 'Error: $err']) {
+      if (c.endsWith(suffix)) return c.substring(0, c.length - suffix.length).trimRight();
+    }
+    if (c.endsWith(err)) return c.substring(0, c.length - err.length).trimRight();
+  }
+  final legacy = RegExp(r'\.?Error:\s*.+$');
+  if (legacy.hasMatch(c)) return c.replaceFirst(legacy, '').trimRight();
+  return c;
 }

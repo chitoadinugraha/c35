@@ -1,0 +1,810 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:alienai_c35/c/chat/chat_conn.dart';
+import 'package:alienai_c35/c/store/app_store.dart';
+import 'package:alienai_c35/c/llm/agent_model.dart';
+import 'package:alienai_c35/c/files/msg_attachment.dart';
+import 'package:alienai_c35/c/pb/c35/chat.pb.dart';
+import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
+import 'package:alienai_c35/c/pb/c35/session.pb.dart';
+import 'package:fixnum/fixnum.dart';
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+const _chatRowsKey = 'c35_chat_rows';
+String _chatMsgsKey(int chatId) => 'c35_chat_msgs_$chatId';
+
+bool msgHasBody(MsgRow m) =>
+    (m.role == 'user' && (m.content.trim().isNotEmpty || m.attachments.isNotEmpty)) ||
+    (m.role == 'assistant' && (m.content.trim().isNotEmpty || m.thought.trim().isNotEmpty || m.blocksJson.trim().isNotEmpty));
+
+String msgMergeText(String old, String incoming) {
+  if (incoming.isEmpty) return old;
+  if (old.isEmpty) return incoming;
+  if (old == incoming) return old;
+  if (incoming.startsWith(old)) return incoming;
+  if (old.startsWith(incoming)) return old;
+  return old.length >= incoming.length ? old : incoming;
+}
+
+class ChatRow {
+  ChatRow({required this.id, required this.title, List<String>? tags, this.pinnedAt = 0, this.archivedAt = 0, this.lastMsgPreview = '', this.lastMsgAt = 0, this.pending = false}) : tags = tags ?? const [];
+
+  final int id;
+  String title;
+  List<String> tags;
+  int pinnedAt;
+  int archivedAt;
+  String lastMsgPreview;
+  int lastMsgAt;
+  bool pending;
+
+  bool get pinned => pinnedAt > 0;
+  bool get archived => archivedAt > 0;
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        if (tags.isNotEmpty) 'tags': tags,
+        'pinnedAt': pinnedAt,
+        'archivedAt': archivedAt,
+        'lastMsgPreview': lastMsgPreview,
+        'lastMsgAt': lastMsgAt,
+        'pending': pending,
+      };
+
+  factory ChatRow.fromJson(Map<String, dynamic> j) => ChatRow(
+        id: j['id'] as int? ?? 0,
+        title: '${j['title'] ?? ''}',
+        tags: j['tags'] is List ? [for (final t in j['tags'] as List) '$t'] : ('${j['tag'] ?? ''}'.isEmpty ? const <String>[] : ['${j['tag']}']),
+        pinnedAt: j['pinnedAt'] as int? ?? 0,
+        archivedAt: j['archivedAt'] as int? ?? 0,
+        lastMsgPreview: '${j['lastMsgPreview'] ?? ''}',
+        lastMsgAt: j['lastMsgAt'] as int? ?? 0,
+        pending: j['pending'] as bool? ?? false,
+      );
+}
+
+class MsgRow {
+  MsgRow({
+    required this.id,
+    required this.chatId,
+    required this.role,
+    required this.content,
+    this.thought = '',
+    this.attachmentsJson = '[]',
+    this.blocksJson = '',
+    this.traceJson = '',
+    this.reqId = '',
+    this.tokensIn = 0,
+    this.tokensOut = 0,
+    this.durationMs = 0,
+    this.costUsd = 0,
+    this.model = '',
+    this.error = '',
+    this.createdAtMs = 0,
+    List<MsgAttachment>? attachments,
+  }) : attachments = attachments ?? const [];
+
+  final int id;
+  final int chatId;
+  final String role;
+  String content;
+  String thought;
+  String attachmentsJson;
+  String blocksJson;
+  String traceJson;
+  String reqId;
+  int tokensIn;
+  int tokensOut;
+  int durationMs;
+  double costUsd;
+  String model;
+  String error;
+  int createdAtMs;
+  List<MsgAttachment> attachments;
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'chatId': chatId,
+        'role': role,
+        'content': content,
+        'thought': thought,
+        'attachmentsJson': attachmentsJson.isNotEmpty ? attachmentsJson : MsgAttachment.encode(attachments),
+        'blocksJson': blocksJson,
+        'traceJson': traceJson,
+        'reqId': reqId,
+        'tokensIn': tokensIn,
+        'tokensOut': tokensOut,
+        'durationMs': durationMs,
+        'costUsd': costUsd,
+        if (model.isNotEmpty) 'model': model,
+        if (error.isNotEmpty) 'error': error,
+        'createdAtMs': createdAtMs,
+      };
+
+  factory MsgRow.fromJson(Map<String, dynamic> j) {
+    final attachmentsRaw = '${j['attachmentsJson'] ?? '[]'}';
+    return MsgRow(
+      id: j['id'] as int? ?? 0,
+      chatId: j['chatId'] as int? ?? 0,
+      role: '${j['role'] ?? ''}',
+      content: '${j['content'] ?? ''}',
+      thought: '${j['thought'] ?? ''}',
+      attachmentsJson: attachmentsRaw,
+      blocksJson: '${j['blocksJson'] ?? ''}',
+      traceJson: '${j['traceJson'] ?? ''}',
+      reqId: '${j['reqId'] ?? ''}',
+      tokensIn: j['tokensIn'] as int? ?? 0,
+      tokensOut: j['tokensOut'] as int? ?? 0,
+      durationMs: j['durationMs'] as int? ?? 0,
+      costUsd: (j['costUsd'] as num?)?.toDouble() ?? 0,
+      model: '${j['model'] ?? ''}',
+      error: '${j['error'] ?? ''}',
+      createdAtMs: j['createdAtMs'] as int? ?? 0,
+      attachments: MsgAttachment.decode(attachmentsRaw),
+    );
+  }
+
+  MsgRow copyWith({
+    int? id,
+    int? chatId,
+    String? role,
+    String? content,
+    String? thought,
+    String? attachmentsJson,
+    String? blocksJson,
+    String? traceJson,
+    String? reqId,
+    int? tokensIn,
+    int? tokensOut,
+    int? durationMs,
+    double? costUsd,
+    String? model,
+    String? error,
+    int? createdAtMs,
+    List<MsgAttachment>? attachments,
+  }) =>
+      MsgRow(
+        id: id ?? this.id,
+        chatId: chatId ?? this.chatId,
+        role: role ?? this.role,
+        content: content ?? this.content,
+        thought: thought ?? this.thought,
+        attachmentsJson: attachmentsJson ?? this.attachmentsJson,
+        blocksJson: blocksJson ?? this.blocksJson,
+        traceJson: traceJson ?? this.traceJson,
+        reqId: reqId ?? this.reqId,
+        tokensIn: tokensIn ?? this.tokensIn,
+        tokensOut: tokensOut ?? this.tokensOut,
+        durationMs: durationMs ?? this.durationMs,
+        costUsd: costUsd ?? this.costUsd,
+        model: model ?? this.model,
+        error: error ?? this.error,
+        createdAtMs: createdAtMs ?? this.createdAtMs,
+        attachments: attachments ?? this.attachments,
+      );
+}
+
+class ChatStore extends ChangeNotifier {
+  ChatStore() {
+    unawaited(load());
+  }
+
+  List<ChatRow> chats = [];
+  List<MsgRow> msgs = [];
+  List<AgentModel> models = List<AgentModel>.from(AgentModel.fallback);
+  NavCounts navCounts = NavCounts();
+  String search = '';
+  bool archivedOpen = false;
+  int? activeChatId;
+  bool promptBusy = false;
+  int? promptChatId;
+  int promptStartedAtMs = 0;
+  String? pendingPromptReqId;
+  final Set<int> _deletingChatIds = {};
+
+  bool promptBusyFor(int? chatId) => promptBusy && chatId != null && chatId == promptChatId;
+
+  bool chatDeletingFor(int id) => _deletingChatIds.contains(id);
+
+  void chatDeletingPut(int id, bool deleting) {
+    if (deleting) {
+      if (!_deletingChatIds.add(id)) return;
+    } else if (!_deletingChatIds.remove(id)) {
+      return;
+    }
+    notifyListeners();
+  }
+
+  int _nextLocalId = -1;
+  int msgNextLocalId() => _nextLocalId--;
+  SharedPreferences? _prefs;
+  var _loaded = false;
+
+  int _chatCmp(ChatRow a, ChatRow b) {
+    if (a.pinned != b.pinned) return a.pinned ? -1 : 1;
+    final t = b.lastMsgAt.compareTo(a.lastMsgAt);
+    return t != 0 ? t : b.id.compareTo(a.id);
+  }
+
+  bool _chatStarted(ChatRow c) => c.lastMsgPreview.trim().isNotEmpty || msgs.any((m) => m.chatId == c.id && msgHasBody(m));
+
+  bool _searchHit(ChatRow c, String q) {
+    if (q.isEmpty) return true;
+    final title = c.title.toLowerCase();
+    if (q.startsWith('#')) {
+      final tag = q.substring(1);
+      if (tag.isEmpty) return title.contains('#');
+      return title.contains(q) || c.tags.contains(tag) || title.contains('#$tag');
+    }
+    return title.contains(q) || c.tags.any((t) => t.contains(q));
+  }
+
+  List<ChatRow> get visibleChats {
+    final q = search.trim().toLowerCase();
+    final out = chats.where((c) => !c.archived && _chatStarted(c) && _searchHit(c, q)).toList();
+    out.sort(_chatCmp);
+    return out;
+  }
+
+  List<ChatRow> get archivedChats {
+    final q = search.trim().toLowerCase();
+    final out = chats.where((c) => c.archived && _chatStarted(c) && _searchHit(c, q)).toList();
+    out.sort((a, b) => b.lastMsgAt.compareTo(a.lastMsgAt));
+    return out;
+  }
+
+  List<MsgRow> get activeMsgs {
+    final id = activeChatId;
+    if (id == null) return const [];
+    return [for (final m in msgs) if (m.chatId == id) m];
+  }
+
+  Future<void> load() async {
+    _prefs ??= await SharedPreferences.getInstance();
+    final raw = _prefs!.getString(_chatRowsKey);
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final rows = jsonDecode(raw) as List;
+        chats = [for (final item in rows) if (item is Map) ChatRow.fromJson(Map<String, dynamic>.from(item))];
+      } catch (_) {}
+    }
+    final loadedMsgs = <MsgRow>[];
+    for (final c in chats) {
+      final key = _chatMsgsKey(c.id);
+      final msgRaw = _prefs!.getString(key);
+      if (msgRaw == null || msgRaw.isEmpty) continue;
+      try {
+        final rows = jsonDecode(msgRaw) as List;
+        loadedMsgs.addAll([for (final item in rows) if (item is Map) MsgRow.fromJson(Map<String, dynamic>.from(item))]);
+      } catch (_) {}
+    }
+    msgs = loadedMsgs;
+    _loaded = true;
+    notifyListeners();
+  }
+
+  Future<void> _persistChats() async {
+    if (!_loaded) return;
+    _prefs ??= await SharedPreferences.getInstance();
+    await _prefs!.setString(_chatRowsKey, jsonEncode(chats.map((c) => c.toJson()).toList()));
+  }
+
+  Future<void> _persistMsgs(int chatId) async {
+    if (!_loaded) return;
+    _prefs ??= await SharedPreferences.getInstance();
+    final rows = msgs.where((m) => m.chatId == chatId).map((m) => m.toJson()).toList();
+    await _prefs!.setString(_chatMsgsKey(chatId), jsonEncode(rows));
+  }
+
+  void _touch() {
+    unawaited(_persistChats());
+    notifyListeners();
+  }
+
+  void _touchMsgs(int chatId) {
+    unawaited(_persistMsgs(chatId));
+    notifyListeners();
+  }
+
+  void chatSelect(int id) {
+    activeChatId = id;
+    notifyListeners();
+  }
+
+  bool get _chatDraftEmpty {
+    final id = activeChatId;
+    if (id == null) return true;
+    return !msgs.any((m) => m.chatId == id && (m.role == 'user' || m.role == 'assistant') && m.content.trim().isNotEmpty);
+  }
+
+  void chatNew() {
+    if (_chatDraftEmpty) return;
+    activeChatId = null;
+    notifyListeners();
+  }
+
+  List<int> chatBelowIds(int pivotId) {
+    final vis = visibleChats;
+    final i = vis.indexWhere((c) => c.id == pivotId);
+    if (i < 0 || i >= vis.length - 1) return const [];
+    return [for (final c in vis.skip(i + 1)) c.id];
+  }
+
+  void chatPin(int id, {required bool pinned}) {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    for (final c in chats) {
+      if (c.id != id) continue;
+      c.pinnedAt = pinned ? now : 0;
+      if (pinned) c.archivedAt = 0;
+    }
+    _touch();
+  }
+
+  void chatArchive(List<int> ids, {required bool archived}) {
+    if (ids.isEmpty) return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    for (final c in chats) {
+      if (!ids.contains(c.id)) continue;
+      c.archivedAt = archived ? now : 0;
+      if (archived) c.pinnedAt = 0;
+    }
+    if (archived) archivedOpen = true;
+    if (activeChatId != null && archived && ids.contains(activeChatId)) {
+      activeChatId = visibleChats.isEmpty ? null : visibleChats.first.id;
+    }
+    _touch();
+  }
+
+  void chatTagsPut(int id, List<String> tags) {
+    for (final c in chats) {
+      if (c.id != id) continue;
+      c.tags = [...tags];
+    }
+    _touch();
+  }
+
+  void chatDelete(int id) {
+    chats.removeWhere((c) => c.id == id);
+    msgs.removeWhere((m) => m.chatId == id);
+    if (activeChatId == id) activeChatId = visibleChats.isEmpty ? null : visibleChats.first.id;
+    if (promptChatId == id) _promptClear();
+    unawaited(_prefs?.remove(_chatMsgsKey(id)));
+    _touch();
+  }
+
+  void chatPatchApply(ResChatPatch res) {
+    if (!res.hasChat() || !res.hasMember()) return;
+    final chat = res.chat;
+    final member = res.member;
+    if (chat.deletedTsMs > 0 || member.deletedTsMs > 0) {
+      chatDelete(chat.id.toInt());
+      return;
+    }
+    chatPutFromServer(chat, member);
+  }
+
+  Future<void> chatPinRemote(ChatConn conn, int id, {required bool pinned}) async {
+    chatPin(id, pinned: pinned);
+    if (id <= 0) return;
+    try {
+      chatPatchApply(await conn.chatPatch(chatId: Int64(id), pinned: pinned));
+    } catch (_) {}
+  }
+
+  Future<void> chatArchiveRemote(ChatConn conn, List<int> ids, {required bool archived}) async {
+    chatArchive(ids, archived: archived);
+    for (final id in ids) {
+      if (id <= 0) continue;
+      try {
+        chatPatchApply(await conn.chatPatch(chatId: Int64(id), archived: archived));
+      } catch (_) {}
+    }
+  }
+
+  Future<void> chatTagsRemote(ChatConn conn, int id, List<String> tags) async {
+    chatTagsPut(id, tags);
+    if (id <= 0) return;
+    try {
+      chatPatchApply(await conn.chatPatch(chatId: Int64(id), tags: tags));
+    } catch (_) {}
+  }
+
+  Future<void> chatDeleteRemote(ChatConn conn, int id) async {
+    if (id <= 0) {
+      chatDelete(id);
+      return;
+    }
+    chatDeletingPut(id, true);
+    if (activeChatId == id) {
+      activeChatId = visibleChats.where((c) => c.id != id).map((c) => c.id).firstOrNull;
+      notifyListeners();
+    }
+    try {
+      final res = await conn.chatPatch(chatId: Int64(id), deleted: true);
+      chatPatchApply(res);
+    } catch (_) {
+      chatDelete(id);
+    } finally {
+      chatDeletingPut(id, false);
+    }
+  }
+
+  void searchPut(String q) {
+    search = q;
+    notifyListeners();
+  }
+
+  void archivedOpenPut(bool v) {
+    archivedOpen = v;
+    notifyListeners();
+  }
+
+  void chatIdMigrate(int from, int to) {
+    if (from == to || from == 0 || to == 0) return;
+    msgs = [for (final m in msgs) m.chatId == from ? m.copyWith(chatId: to) : m];
+    chats.removeWhere((c) => c.id == from);
+    if (activeChatId == from) activeChatId = to;
+    if (promptChatId == from) promptChatId = to;
+    unawaited(_prefs?.remove(_chatMsgsKey(from)));
+    unawaited(_persistMsgs(to));
+    notifyListeners();
+  }
+
+  void chatPutFromServer(Chat chat, ChatMember member) {
+    final id = chat.id.toInt();
+    if (id == 0) return;
+    final preview = member.lastMsgPreview.isNotEmpty ? member.lastMsgPreview : chat.lastMsgPreview;
+    final lastAt = member.lastMsgTsMs.toInt() != 0 ? member.lastMsgTsMs.toInt() : chat.lastMsgTsMs.toInt();
+    final title = chat.title.isNotEmpty ? chat.title : chat.peerName;
+    final row = ChatRow(
+      id: id,
+      title: title.isNotEmpty ? title : 'Chat',
+      tags: [...chat.tags],
+      pinnedAt: member.pinnedTsMs.toInt(),
+      archivedAt: member.archivedTsMs.toInt(),
+      lastMsgPreview: preview,
+      lastMsgAt: lastAt,
+      pending: false,
+    );
+    final pendingIdx = chats.indexWhere((c) => c.pending && c.id != id);
+    if (pendingIdx >= 0) {
+      final old = chats[pendingIdx];
+      msgs = [for (final m in msgs) m.chatId == old.id ? m.copyWith(chatId: id) : m];
+      chats.removeAt(pendingIdx);
+      if (activeChatId == old.id) activeChatId = id;
+      if (promptChatId == old.id) promptChatId = id;
+      unawaited(_prefs?.remove(_chatMsgsKey(old.id)));
+      unawaited(_persistMsgs(id));
+    }
+    final i = chats.indexWhere((c) => c.id == id);
+    if (i >= 0) {
+      chats[i] = row;
+    } else {
+      chats.add(row);
+    }
+    _touch();
+  }
+
+  MsgRow? _turnAssistant({required int chatId, String reqId = ''}) {
+    for (var i = msgs.length - 1; i >= 0; i--) {
+      final m = msgs[i];
+      if (m.chatId != chatId || m.role != 'assistant') continue;
+      if (reqId.isNotEmpty && m.reqId.isNotEmpty && m.reqId != reqId) continue;
+      return m;
+    }
+    final i = msgs.lastIndexWhere((m) => m.chatId == chatId && m.role == 'assistant');
+    return i >= 0 ? msgs[i] : null;
+  }
+
+  void msgStreamStart({int? chatId, String reqId = '', String model = ''}) {
+    final cid = chatId ?? promptChatId;
+    if (cid == null) return;
+    final rid = reqId.isNotEmpty ? reqId : (pendingPromptReqId ?? '');
+    final m = _turnAssistant(chatId: cid, reqId: rid);
+    if (m == null) return;
+    if (rid.isNotEmpty) m.reqId = rid;
+    if (model.isNotEmpty) m.model = model;
+    _touchMsgs(cid);
+  }
+
+  MsgRow _msgMerge(MsgRow old, MsgRow row) => MsgRow(
+        id: row.id != 0 ? row.id : old.id,
+        chatId: row.chatId != 0 ? row.chatId : old.chatId,
+        role: row.role.isNotEmpty ? row.role : old.role,
+        content: msgMergeText(old.content, row.content),
+        thought: msgMergeText(old.thought, row.thought),
+        attachmentsJson: row.attachmentsJson.isNotEmpty ? row.attachmentsJson : old.attachmentsJson,
+        blocksJson: row.blocksJson.isNotEmpty ? row.blocksJson : old.blocksJson,
+        traceJson: row.traceJson.isNotEmpty ? row.traceJson : old.traceJson,
+        reqId: row.reqId.isNotEmpty ? row.reqId : old.reqId,
+        tokensIn: row.tokensIn > old.tokensIn ? row.tokensIn : old.tokensIn,
+        tokensOut: row.tokensOut > old.tokensOut ? row.tokensOut : old.tokensOut,
+        durationMs: row.durationMs > old.durationMs ? row.durationMs : old.durationMs,
+        costUsd: row.costUsd > old.costUsd ? row.costUsd : old.costUsd,
+        model: row.model.isNotEmpty ? row.model : old.model,
+        error: row.error.isNotEmpty ? row.error : old.error,
+        createdAtMs: row.createdAtMs > 0 ? row.createdAtMs : old.createdAtMs,
+        attachments: row.attachments.isNotEmpty ? row.attachments : old.attachments,
+      );
+
+  void _chatPreviewTouch(int chatId, String preview) {
+    for (final c in chats) {
+      if (c.id != chatId) continue;
+      c.lastMsgPreview = preview.trim().isEmpty ? c.lastMsgPreview : preview;
+      c.lastMsgAt = DateTime.now().millisecondsSinceEpoch;
+      c.pending = false;
+    }
+  }
+
+  void msgPut(MsgRow row, {bool notify = true}) {
+    if (row.chatId == 0) return;
+    if (row.reqId.isNotEmpty) {
+      final byReq = msgs.indexWhere((m) => m.reqId == row.reqId && m.role == row.role && m.chatId == row.chatId);
+      if (byReq >= 0) {
+        msgs[byReq] = _msgMerge(msgs[byReq], row);
+        _chatPreviewTouch(row.chatId, row.content);
+        if (notify) _touchMsgs(row.chatId);
+        return;
+      }
+    }
+    if (row.role == 'assistant') {
+      var localIdx = msgs.lastIndexWhere((m) => m.chatId == row.chatId && m.role == 'assistant' && m.id <= 0);
+      if (localIdx < 0 && row.id > 0 && promptBusyFor(row.chatId)) {
+        localIdx = msgs.lastIndexWhere((m) => m.chatId == row.chatId && m.role == 'assistant' && m.id != row.id);
+      }
+      if (localIdx >= 0) {
+        msgs[localIdx] = _msgMerge(msgs[localIdx], row);
+        _chatPreviewTouch(row.chatId, row.content);
+        if (notify) _touchMsgs(row.chatId);
+        return;
+      }
+    }
+    final i = msgs.indexWhere((m) => m.id == row.id && row.id != 0);
+    if (i >= 0) {
+      msgs[i] = _msgMerge(msgs[i], row);
+      _chatPreviewTouch(row.chatId, row.content);
+      if (notify) _touchMsgs(row.chatId);
+      return;
+    }
+    msgs.add(row);
+    _chatPreviewTouch(row.chatId, row.content);
+    if (notify) _touchMsgs(row.chatId);
+  }
+
+  void msgPutFromServer(ChatMsg m) {
+    final role = switch (m.role) {
+      ChatMsgRole.CHAT_MSG_ROLE_USER => 'user',
+      ChatMsgRole.CHAT_MSG_ROLE_ASSISTANT => 'assistant',
+      ChatMsgRole.CHAT_MSG_ROLE_SYSTEM => 'system',
+      _ => 'assistant',
+    };
+    msgPut(MsgRow(
+      id: m.id.toInt(),
+      chatId: m.chatId.toInt(),
+      role: role,
+      content: m.content,
+      thought: m.thought,
+      attachmentsJson: m.attachmentsJson,
+      blocksJson: m.blocksJson,
+      traceJson: '',
+      reqId: m.reqId,
+      tokensIn: m.tokensIn,
+      tokensOut: m.tokensOut,
+      durationMs: m.durationMs,
+      costUsd: m.costUsd,
+      error: m.hasErrorText() ? m.errorText : '',
+      createdAtMs: m.createdTsMs.toInt(),
+      attachments: MsgAttachment.decode(m.attachmentsJson),
+    ));
+  }
+
+  void msgUpdate({required int id, String? content, String? thought, String? blocksJson, String? traceJson, String? attachmentsJson, List<MsgAttachment>? attachments, int? tokensIn, int? tokensOut, int? durationMs, double? costUsd}) {
+    final i = msgs.indexWhere((m) => m.id == id);
+    if (i < 0) return;
+    final m = msgs[i];
+    msgs[i] = m.copyWith(
+      content: content ?? m.content,
+      thought: thought ?? m.thought,
+      blocksJson: blocksJson ?? m.blocksJson,
+      traceJson: traceJson ?? m.traceJson,
+      attachmentsJson: attachmentsJson ?? m.attachmentsJson,
+      attachments: attachments ?? m.attachments,
+      tokensIn: tokensIn ?? m.tokensIn,
+      tokensOut: tokensOut ?? m.tokensOut,
+      durationMs: durationMs ?? m.durationMs,
+      costUsd: costUsd ?? m.costUsd,
+    );
+    _chatPreviewTouch(m.chatId, msgs[i].content);
+    _touchMsgs(m.chatId);
+  }
+
+  void msgStreamContent(String text, {int? chatId, String reqId = ''}) {
+    if (text.isEmpty) return;
+    final cid = chatId ?? promptChatId;
+    if (cid == null) return;
+    final rid = reqId.isNotEmpty ? reqId : (pendingPromptReqId ?? '');
+    final m = _turnAssistant(chatId: cid, reqId: rid);
+    if (m != null) {
+      if (text.startsWith(m.content) && text.length > m.content.length) {
+        m.content = text;
+      } else if (!m.content.endsWith(text)) {
+        m.content = '${m.content}$text';
+      }
+    } else {
+      msgs.add(MsgRow(id: _nextLocalId--, chatId: cid, role: 'assistant', content: text, reqId: rid));
+    }
+    _chatPreviewTouch(cid, text);
+    _touchMsgs(cid);
+  }
+
+  void msgStreamThought(String text, {int? chatId, String reqId = ''}) {
+    if (text.isEmpty) return;
+    final cid = chatId ?? promptChatId;
+    if (cid == null) return;
+    final rid = reqId.isNotEmpty ? reqId : (pendingPromptReqId ?? '');
+    final m = _turnAssistant(chatId: cid, reqId: rid);
+    if (m != null) {
+      if (!m.thought.endsWith(text)) m.thought = '${m.thought}$text';
+    } else {
+      msgs.add(MsgRow(id: _nextLocalId--, chatId: cid, role: 'assistant', content: '', thought: text, reqId: rid));
+    }
+    _touchMsgs(cid);
+  }
+
+  void msgStreamBlocks(String blocksJson, {int? chatId, String reqId = ''}) {
+    if (blocksJson.trim().isEmpty) return;
+    final cid = chatId ?? promptChatId;
+    if (cid == null) return;
+    final rid = reqId.isNotEmpty ? reqId : (pendingPromptReqId ?? '');
+    final m = _turnAssistant(chatId: cid, reqId: rid);
+    if (m != null) {
+      m.blocksJson = blocksJson;
+    } else {
+      msgs.add(MsgRow(id: _nextLocalId--, chatId: cid, role: 'assistant', content: '', blocksJson: blocksJson, reqId: rid));
+    }
+    _touchMsgs(cid);
+  }
+
+  int? _assistantIdx(int chatId, {String reqId = ''}) {
+    final rid = reqId.trim();
+    for (var i = msgs.length - 1; i >= 0; i--) {
+      final m = msgs[i];
+      if (m.chatId != chatId || m.role != 'assistant') continue;
+      if (rid.isNotEmpty && m.reqId.isNotEmpty && m.reqId != rid) continue;
+      return i;
+    }
+    return msgs.lastIndexWhere((m) => m.chatId == chatId && m.role == 'assistant');
+  }
+
+  void msgStreamFail(String error, {int? chatId, int startedAtMs = 0}) {
+    final text = error.trim();
+    if (text.isEmpty) return;
+    final cid = chatId ?? promptChatId;
+    if (cid == null) return;
+    final rid = pendingPromptReqId ?? '';
+    final i = _assistantIdx(cid, reqId: rid);
+    if (i == null) return;
+    final m = msgs[i];
+    final started = startedAtMs > 0 ? startedAtMs : promptStartedAtMs;
+    final duration = m.durationMs > 0 ? m.durationMs : (started > 0 ? DateTime.now().millisecondsSinceEpoch - started : 0);
+    msgs[i] = m.copyWith(error: text, durationMs: duration > 0 ? duration : m.durationMs);
+    _promptClear();
+    _touchMsgs(cid);
+  }
+
+  void msgStreamFinalize({int? chatId, String model = '', int startedAtMs = 0}) {
+    final cid = chatId ?? promptChatId;
+    if (cid == null) return;
+    final i = msgs.lastIndexWhere((m) => m.chatId == cid && m.role == 'assistant');
+    if (i < 0) {
+      _promptClear();
+      return;
+    }
+    final m = msgs[i];
+    final started = startedAtMs > 0 ? startedAtMs : promptStartedAtMs;
+    final duration = m.durationMs > 0 ? m.durationMs : (started > 0 ? DateTime.now().millisecondsSinceEpoch - started : 0);
+    msgs[i] = m.copyWith(
+      durationMs: duration > 0 ? duration : m.durationMs,
+      model: m.model.isNotEmpty ? m.model : model,
+    );
+    _promptClear();
+    _touchMsgs(cid);
+  }
+
+  void msgStreamEnd({int? chatId, int msgId = 0, int tokensIn = 0, int tokensOut = 0, double costUsd = 0, int durationMs = 0, String traceJson = '', String reqId = '', String model = '', String error = ''}) {
+    final cid = chatId ?? promptChatId;
+    if (cid == null) return;
+    final rid = reqId.isNotEmpty ? reqId : (pendingPromptReqId ?? '');
+    final i = _assistantIdx(cid, reqId: rid);
+    if (i == null) return;
+    final m = msgs[i];
+    final err = error.trim();
+    final duration = durationMs > 0 ? durationMs : (promptStartedAtMs > 0 ? DateTime.now().millisecondsSinceEpoch - promptStartedAtMs : 0);
+    msgs[i] = m.copyWith(
+      id: msgId != 0 ? msgId : m.id,
+      tokensIn: tokensIn > 0 ? tokensIn : m.tokensIn,
+      tokensOut: tokensOut > 0 ? tokensOut : m.tokensOut,
+      costUsd: costUsd > 0 ? costUsd : m.costUsd,
+      durationMs: duration > 0 ? duration : m.durationMs,
+      traceJson: traceJson.isNotEmpty ? traceJson : m.traceJson,
+      reqId: rid.isNotEmpty ? rid : m.reqId,
+      model: model.isNotEmpty ? model : m.model,
+      error: err.isNotEmpty ? err : m.error,
+    );
+    if (promptChatId == cid) _promptClear();
+    _touchMsgs(cid);
+  }
+
+  void _promptClear() {
+    promptBusy = false;
+    promptChatId = null;
+    promptStartedAtMs = 0;
+    pendingPromptReqId = null;
+  }
+
+  int chatEnsurePending() {
+    final existing = activeChatId;
+    if (existing != null) {
+      for (final c in chats) {
+        if (c.id == existing) return c.pending ? 0 : existing;
+      }
+    }
+    final id = _nextLocalId--;
+    chats.insert(0, ChatRow(id: id, title: 'New chat', pending: true, lastMsgAt: DateTime.now().millisecondsSinceEpoch));
+    activeChatId = id;
+    _touch();
+    return 0;
+  }
+
+  void promptBusyPut(bool v, {int? chatId, String? reqId}) {
+    if (v) {
+      promptBusy = true;
+      promptChatId = chatId ?? promptChatId;
+      pendingPromptReqId = reqId;
+      promptStartedAtMs = DateTime.now().millisecondsSinceEpoch;
+    } else if (chatId == null || chatId == promptChatId) {
+      _promptClear();
+    }
+    notifyListeners();
+  }
+
+  void promptChatIdPut(int id) {
+    if (promptChatId != null) promptChatId = id;
+  }
+
+  void inboxMerge(ResInboxList res) {
+    final membersByChat = {for (final m in res.members) m.chatId.toInt(): m};
+    for (final chat in res.chats) {
+      chatPutFromServer(chat, membersByChat[chat.id.toInt()] ?? ChatMember(chatId: chat.id));
+    }
+  }
+
+  void navCountsPut(NavCounts nav) {
+    navCounts = nav;
+    notifyListeners();
+  }
+
+  void sessionInitMerge(ResSessionInit init) {
+    if (init.hasNav()) navCounts = init.nav;
+    if (init.hasBilling()) AppStore.instance.billingPut(init.billing);
+    if (init.models.isNotEmpty) models = agentModelsFromProto(init.models);
+    final membersByChat = {for (final m in init.inboxMembers) m.chatId.toInt(): m};
+    for (final chat in init.inboxChats) {
+      chatPutFromServer(chat, membersByChat[chat.id.toInt()] ?? ChatMember(chatId: chat.id));
+    }
+  }
+
+  Future<void> refreshFromConn(ChatConn conn, {String locale = 'en'}) async {
+    try {
+      final init = await conn.sessionInit(locale: locale, includeInbox: true);
+      sessionInitMerge(init);
+    } catch (_) {}
+    try {
+      inboxMerge(await conn.inboxList(includeArchived: true));
+    } catch (_) {}
+    notifyListeners();
+  }
+}

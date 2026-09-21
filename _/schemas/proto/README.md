@@ -13,6 +13,8 @@ proto/c35/
   billing.proto       — BillingAccount, top-up, NATS push shapes
   log.proto           — Log, LogPush
   skill.proto         — Skill, catalog, teach/automation
+  task.proto          — Task, task_run, NATS act/ev, TaskRunPush
+  remote.proto        — WebRTC signaling, RemoteInputEvent
   consumption.proto   — Meals, nutrition, water
   site.proto          — SiteDoc blocks, product, contact, object
   tx.proto            — POS transactions (id.alienai model)

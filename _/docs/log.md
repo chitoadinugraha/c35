@@ -63,7 +63,7 @@ Root UI subscribes with wildcard; filter by user, device, topic.
 Billable LLM turn:
 
 1. Insert `log` with `kind=llm`, `cost_usd`, `req_id`
-2. `billing_usage_dedupe` + deduct `billing_account` (same txn)
+2. `billing_usage_dedupe` + deduct `billing_wallet` (native amount via `billing_fx_rate`; same txn)
 3. Matching `chat_msg` carries same `req_id` + token fields for UI
 
 ---

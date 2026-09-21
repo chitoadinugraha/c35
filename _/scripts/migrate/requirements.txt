@@ -1,0 +1,3 @@
+# One-time CSA -> c35 user/referral import.
+# Prereq: pip install psycopg2-binary blake3
+# Usage: .\_\scripts\migrate\run_import.ps1

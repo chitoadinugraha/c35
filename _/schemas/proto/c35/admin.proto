@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package c35;
+
+message AdminUserHit {
+  int64 identity_id = 1;
+  string name = 2;
+  string email = 3;
+  string avatar_url = 4;
+  string handle = 5;
+}
+
+message ReqAdminUserSearch {
+  string query = 1;
+  int32 limit = 2;
+}
+
+message ResAdminUserSearch {
+  repeated AdminUserHit users = 1;
+}
+
+message ReqAdminUserPut {
+  int64 target_identity_id = 1;
+  optional string name = 2;
+  optional string avatar_url = 3;
+  optional int64 referred_by_uid = 4;
+  optional string handle = 5;
+  optional string auth_email = 6;
+}
+
+message ResAdminUserPut {}

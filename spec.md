@@ -1,6 +1,6 @@
 # c35 — Alien AI Platform
 
-> **Status:** Architecture locked (2026-09-20). See `_/docs/` for canonical specs.
+> **Status:** Architecture locked (2026-09-20). This file is the **project spec** entry point. Canonical module specs live in [`_/docs/`](_/docs/README.md).
 
 ## Goal
 
@@ -105,9 +105,11 @@ Full UI spec: [`_/docs/ui.md`](_/docs/ui.md)
 | [`_/docs/sync.md`](_/docs/sync.md) | `_ts` fields, since-delta, indexes, NATS |
 | [`_/docs/server.md`](_/docs/server.md) | Crate workspace layout |
 | [`_/docs/ui.md`](_/docs/ui.md) | Pages, navigation, components |
+| [`_/docs/remote.md`](_/docs/remote.md) | Remote computer use (server session) + WebRTC viewer |
 | [`_/schemas/identity.sql`](_/schemas/identity.sql) | Identity + grants DDL |
 | [`_/schemas/chat.sql`](_/schemas/chat.sql) | Chat + messages |
-| [`_/docs/billing.md`](_/docs/billing.md) | Wallet, quota, commission |
+| [`_/docs/billing.md`](_/docs/billing.md) | Multi-wallet billing, quota, commission |
+| [`_/docs/billing-implementation.md`](_/docs/billing-implementation.md) | Billing v2 rollout plan |
 | [`_/docs/log.md`](_/docs/log.md) | Audit log + billing trace |
 | [`_/schemas/billing.sql`](_/schemas/billing.sql) | Billing DDL |
 | [`_/schemas/log.sql`](_/schemas/log.sql) | Log DDL |

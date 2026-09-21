@@ -1,0 +1,33 @@
+[package]
+name = "c35_channel_whatsapp_device"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "channel_whatsapp_device"
+path = "src/main.rs"
+
+[dependencies]
+c35_mod_log = { path = "../crates/mod_log", package = "c35_mod_log" }
+anyhow = "1.0"
+async-nats = "0.38"
+axum = { version = "0.8", features = ["macros"] }
+base64 = "0.22"
+bytes = "1"
+chrono = { version = "0.4", features = ["serde"] }
+dashmap = "6"
+futures-util = "0.3"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "chrono", "json"] }
+tokio = { version = "1.40", features = ["rt-multi-thread", "macros", "net", "fs", "io-util", "time", "sync", "signal"] }
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+wa-rs = "0.2"
+wa-rs-core = "0.2"
+wa-rs-sqlite-storage = "0.2"
+wa-rs-tokio-transport = "0.2"
+wa-rs-ureq-http = "0.2"
+libsqlite3-sys = { version = "0.30", features = ["bundled"] }

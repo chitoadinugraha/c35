@@ -97,6 +97,8 @@ chat.ai_reply_enabled  -- stop toggles THIS conversation only
 
 List: `WHERE bot_iid = ? ORDER BY last_msg_ts DESC`.
 
+Bot LLM model is fixed on the **bot identity** (`identity.meta.model`), not per conversation. Billing: dedicated bot plan or fallback to owner personal quota — see [billing-plans.md](billing-plans.md).
+
 ### Stop (bot_peer only)
 
 **Scope:** one `chat.id` — not the bot, not the channel.

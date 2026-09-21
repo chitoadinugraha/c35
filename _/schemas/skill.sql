@@ -101,12 +101,6 @@ CREATE TABLE IF NOT EXISTS ai.skill_secret (
 CREATE INDEX IF NOT EXISTS idx_skill_secret_owner
     ON ai.skill_secret (owner_iid, updated_ts);
 
-ALTER TABLE ai.skill_step
-    DROP CONSTRAINT IF EXISTS skill_step_secret_id_fkey;
-ALTER TABLE ai.skill_step
-    ADD CONSTRAINT skill_step_secret_id_fkey
-    FOREIGN KEY (secret_id) REFERENCES ai.skill_secret(id);
-
 -- ------------------------------------------------------------------------------
 -- Skill catalog (marketplace registry — server-wide, not owner-synced)
 -- ------------------------------------------------------------------------------

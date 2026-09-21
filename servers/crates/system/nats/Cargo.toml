@@ -1,0 +1,10 @@
+[package]
+name = "c35_nats"
+version.workspace = true
+edition.workspace = true
+description = "c35 NATS client (cluster TLS)"
+
+[dependencies]
+async-nats = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }

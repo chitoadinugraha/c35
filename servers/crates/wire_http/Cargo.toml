@@ -5,9 +5,21 @@ edition.workspace = true
 
 [dependencies]
 axum = { workspace = true }
+chrono = { workspace = true }
 prost = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 sqlx = { workspace = true }
+tracing = { workspace = true }
+c35_store = { path = "../store", package = "c35_store" }
 c35_ctx = { path = "../system/ctx", package = "c35_ctx" }
+c35_mod_admin = { path = "../mod_admin", package = "c35_mod_admin" }
 c35_mod_identity = { path = "../mod_identity", package = "c35_mod_identity" }
+c35_mod_file = { path = "../mod_file", package = "c35_mod_file" }
+c35_mod_channel = { path = "../mod_channel", package = "c35_mod_channel" }
+c35_mod_chat = { path = "../mod_chat", package = "c35_mod_chat" }
 c35_mod_referral = { path = "../mod_referral", package = "c35_mod_referral" }
+c35_mod_billing = { path = "../mod_billing", package = "c35_mod_billing" }
+c35_mod_consumption = { path = "../mod_consumption", package = "c35_mod_consumption" }
+c35_mod_device = { path = "../mod_device", package = "c35_mod_device" }
 c35_proto = { path = "../proto", package = "c35_proto" }

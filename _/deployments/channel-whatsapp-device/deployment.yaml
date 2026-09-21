@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: channel-whatsapp-device
+  namespace: c35
+  labels:
+    app.kubernetes.io/name: channel-whatsapp-device
+    app.kubernetes.io/part-of: c35
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: channel-whatsapp-device
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: channel-whatsapp-device
+        app.kubernetes.io/part-of: c35
+    spec:
+      nodeSelector:
+        kubernetes.io/arch: arm64
+      imagePullSecrets:
+        - name: docker-registry-auth
+      containers:
+        - name: channel-whatsapp-device
+          image: hsg.ocir.io/axr8wqrrukgm/channel-whatsapp-device:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: c35-server-env
+          env:
+            - name: PORT
+              value: "8080"
+            - name: WA_SESSIONS_DIR
+              value: /app/sessions
+            - name: YB_DATABASE
+              value: c35
+            - name: YB_HOST
+              value: yb-tservers.yugabyte.svc.cluster.local
+            - name: YB_PORT
+              value: "5433"
+            - name: NATS_URL
+              value: tls://nats-client.nats.svc.cluster.local:4222
+            - name: NATS_CA
+              value: /nats-ca/ca.crt
+            - name: C35_PUBLIC_ORIGIN
+              value: "https://alienai.id"
+            - name: NO_PROXY
+              value: ".svc.cluster.local,.cluster.local,localhost,127.0.0.1"
+            - name: RUST_LOG
+              value: info,c35_channel_whatsapp_device=debug,whatsapp_rust=debug
+          volumeMounts:
+            - name: wa-session
+              mountPath: /app/sessions
+            - name: nats-ca
+              mountPath: /nats-ca
+              readOnly: true
+          startupProbe:
+            httpGet:
+              path: /livez
+              port: http
+            periodSeconds: 5
+            failureThreshold: 24
+            timeoutSeconds: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 5
+            failureThreshold: 3
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 5
+            timeoutSeconds: 3
+          resources:
+            limits:
+              cpu: "1"
+              memory: 512Mi
+            requests:
+              cpu: 50m
+              memory: 128Mi
+      volumes:
+        - name: wa-session
+          emptyDir: {}
+        - name: nats-ca
+          secret:
+            secretName: nats-ca

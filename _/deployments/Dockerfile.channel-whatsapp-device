@@ -1,0 +1,49 @@
+# syntax=docker/dockerfile:1.7
+# Build from c35 repo root:
+#   docker build --platform linux/arm64 -f _/deployments/Dockerfile.channel-whatsapp-device -t channel-whatsapp-device .
+
+FROM rust:1.89-bookworm AS rust-build
+
+WORKDIR /app
+
+COPY servers/Cargo.toml servers/Cargo.lock /app/servers/
+COPY servers/crates /app/servers/crates
+COPY servers/server_ai /app/servers/server_ai
+COPY servers/channel_whatsapp_device /app/servers/channel_whatsapp_device
+COPY _/schemas /app/_/schemas
+
+ENV CARGO_TARGET_DIR=/app/target
+ENV CARGO_BUILD_JOBS=1
+ENV CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1
+
+RUN --mount=type=cache,target=/usr/local/cargo/registry,id=c35-wa-device-cargo-registry,sharing=locked \
+    --mount=type=cache,target=/usr/local/cargo/git,id=c35-wa-device-cargo-git,sharing=locked \
+    --mount=type=cache,target=/app/target,id=c35-wa-device-rust-target,sharing=locked \
+    cargo build --release -p c35_channel_whatsapp_device --manifest-path servers/Cargo.toml \
+    && cp /app/target/release/channel_whatsapp_device /app/channel_whatsapp_device \
+    && sha256sum /app/channel_whatsapp_device > /app/channel_whatsapp_device.sha
+
+FROM debian:bookworm-slim AS runtime
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+ENV PORT=8080
+ENV WA_SESSIONS_DIR=/app/sessions
+ENV YB_DATABASE=c35
+ENV RUST_LOG=info,c35_channel_whatsapp_device=debug,whatsapp_rust=debug
+
+RUN mkdir -p /app/sessions
+
+COPY --from=rust-build /app/channel_whatsapp_device /app/channel_whatsapp_device
+COPY --from=rust-build /app/channel_whatsapp_device.sha /app/channel_whatsapp_device.sha
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD curl -fsS http://127.0.0.1:8080/healthz || exit 1
+
+ENTRYPOINT ["/app/channel_whatsapp_device"]

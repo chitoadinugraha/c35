@@ -128,10 +128,16 @@ cd remotes && cargo build -p c_remote_windows
 
 ## Cache cleanup
 
-`.cache/` is gitignored. Delete subdirs independently:
+`.cache/` is gitignored (see `servers/.cargo/config.toml` → `target-dir`).
 
-- `rm -rf .cache/server` — server build artifacts only
-- `rm -rf .cache/agent` — agent build artifacts only
+| Script | What it cleans |
+|--------|----------------|
+| `.\cleanup.ps1` | Rust cache + cluster buildkit (both) |
+| `.\_\scripts\dev\cleanup_rust_cache.ps1` | Local `.cache/server`, `.cache/agent`, `.cache/rust` |
+| `.\_\scripts\deploy\cleanup_buildkit.ps1` | Cluster buildkit Docker layer cache |
+
+Rust trim (default): stale artifacts older than 30 days (`cargo sweep` when installed, else file-age prune).  
+Full wipe: `.\cleanup.ps1 -Full` or `cargo clean` in `servers/` / `remotes/`.
 
 ## Crate responsibilities
 
@@ -240,6 +246,13 @@ Match existing Alien conventions:
 
 Remotes register as `identity(kind=remote, type=…)` on pair. Wire: Alien Beacon + WS to server.
 
+**Computer use** (tasks, skills, shell) runs over the agent control session only — never WebRTC. Full spec: [remote.md](remote.md).
+
+| Crate | Role |
+|-------|------|
+| `mod_device` | Pairing, agent session registry, presence |
+| `mod_task` | Task CRUD, JetStream dispatch, `TaskRunPush` fanout |
+
 ## Deployment
 
 Target cluster: `btm.alienai.id` (k3s-btm, **arm64**).
@@ -247,6 +260,59 @@ Target cluster: `btm.alienai.id` (k3s-btm, **arm64**).
 - Push arm64 images to `hsg.ocir.io`
 - Connect to cluster services via `.cluster.local` (Tailscale split DNS)
 - Secrets: plaintext in cluster OK (private registry)
+
+### Channel worker (`channel-whatsapp-device`)
+
+WhatsApp linked-device (QR pair) runs as a separate deployment in namespace `c35`.
+
+| Item | Value |
+|------|-------|
+| In-cluster DNS | `http://channel-whatsapp-device.c35.svc.cluster.local:8080` |
+| Server env | `WHATSAPP_WORKER_URL` — set on `c35-server` deployment; used by `mod_channel` pair start/abort to call worker HTTP (`/v1/channel/{channel_id}/restart`, `/stop`) |
+| Shared secret | `c35-server-env` — `NATS_URL`, `NATS_USER`, `NATS_PASS`, `YB_*` (bootstrap via `.\_\scripts\deploy\bootstrap_c35_secret.ps1`) |
+| NATS TLS CA | `nats-ca` secret mounted at `/nats-ca/ca.crt` (`NATS_CA` on both server and worker) |
+
+**Publish (arm64 → OCIR → rollout):**
+
+```powershell
+.\_\scripts\deploy\publish_channel_whatsapp_device.ps1
+.\_\scripts\deploy\publish_server.ps1
+```
+
+Worker first when pairing is needed; republish server after handler changes that consume `WHATSAPP_WORKER_URL`.
+
+**Expected worker startup logs** (`kubectl logs -n c35 deploy/channel-whatsapp-device --tail=80`):
+
+```
+[wa-device] Yugabyte connected
+[wa-device] NATS connected url=tls://nats-client.nats.svc.cluster.local:4222
+```
+
+If NATS auth or CA is wrong, startup shows `[wa-device] NATS unavailable: …` instead — pair and inbound message routing will not work.
+
+**NATS subjects (channel pair + messaging):**
+
+| Subject | Direction | Purpose |
+|---------|-----------|---------|
+| `c35.act.channel.whatsapp.device.pair` | server → worker | Start/restart QR pair (`ActChannelWhatsappPair`) |
+| `c35.ev.channel.{owner_iid}.{bot_iid}.{channel_id}.pair` | worker → server | Pair status push (`EvChannelPairUpdate`: pairing, connected, error, …) |
+| `c35.ev.channel.{owner_iid}.{bot_iid}.{channel_id}.msg.in` | worker → server | Inbound WhatsApp message |
+| `c35.act.channel.{owner_iid}.{bot_iid}.{channel_id}.msg.send` | server → worker | Outbound send |
+
+Server WS clients receive pair updates via NATS fanout → `ChannelPairPush` (see `mod_channel`).
+
+**NATS subjects (device task dispatch):**
+
+| Subject | Direction | Purpose |
+|---------|-----------|---------|
+| `c35.act.device.{device_iid}.task.run` | server → agent (JetStream workqueue) | `ActDeviceTaskRun` |
+| `c35.ev.device.{device_iid}.task.{run_id}` | agent → server | `EvDeviceTaskProgress` / `EvDeviceTaskDone` |
+| `c35.ev.device.{device_iid}.presence` | agent ↔ server | `EvDevicePresence` |
+| `c35.user.{owner_iid}.task_run` | server → client WS | `TaskRunPush` |
+
+JetStream stream `C35_DEVICE_TASK`, queue group `c35-task-dispatch`. No YB polling for runnable work — see [remote.md](remote.md).
+
+**Channel log topics** — worker and server write lifecycle rows to `ai.log` and publish `log.{owner_iid}.{dv}.{topic}` (see [log.md](log.md)). Canonical topic list: `pair_start`, `qr`, `connected`, `disconnected`, `pair_abort`, `pair_expired`, `error`, `msg_received`, `msg_sent`. Worker uses `dv = channel-wa-device`; server channel handlers use `dv = c35-server`. Full writer/when table: `docs/superpowers/plans/2026-09-21-bot-add-channels-deploy-log.md` (Log event catalog).
 
 ## What we copy from csa_site_published
 

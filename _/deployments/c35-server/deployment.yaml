@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: c35-server
+  namespace: c35
+  labels:
+    app.kubernetes.io/name: c35-server
+    app.kubernetes.io/part-of: c35
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: c35-server
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: c35-server
+        app.kubernetes.io/part-of: c35
+    spec:
+      nodeSelector:
+        kubernetes.io/arch: arm64
+      imagePullSecrets:
+        - name: docker-registry-auth
+      containers:
+        - name: c35-server
+          image: hsg.ocir.io/axr8wqrrukgm/c35-server:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: c35-server-env
+          env:
+            - name: LISTEN
+              value: "0.0.0.0:8080"
+            - name: C35_PUBLIC_ORIGIN
+              value: "https://alienai.id"
+            - name: YB_DATABASE
+              value: c35
+            - name: YB_HOST
+              value: yb-tservers.yugabyte.svc.cluster.local
+            - name: YB_PORT
+              value: "5433"
+            - name: CAS_DIR
+              value: /data/cas
+            - name: NATS_CA
+              value: /nats-ca/ca.crt
+            - name: NO_PROXY
+              value: ".svc.cluster.local,.cluster.local,localhost,127.0.0.1"
+            - name: WHATSAPP_WORKER_URL
+              value: "http://channel-whatsapp-device.c35.svc.cluster.local:8080"
+            - name: RUST_LOG
+              value: info,server_ai=debug
+          startupProbe:
+            httpGet:
+              path: /livez
+              port: http
+            periodSeconds: 5
+            failureThreshold: 24
+            timeoutSeconds: 3
+          readinessProbe:
+            httpGet:
+              path: /livez
+              port: http
+            periodSeconds: 5
+            failureThreshold: 3
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 5
+            timeoutSeconds: 3
+          resources:
+            limits:
+              cpu: "1"
+              memory: 512Mi
+            requests:
+              cpu: 50m
+              memory: 128Mi
+          volumeMounts:
+            - name: nats-ca
+              mountPath: /nats-ca
+              readOnly: true
+            - name: cas-data
+              mountPath: /data/cas
+      volumes:
+        - name: nats-ca
+          secret:
+            secretName: nats-ca
+        - name: cas-data
+          emptyDir: {}

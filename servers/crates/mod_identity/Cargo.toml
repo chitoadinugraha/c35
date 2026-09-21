@@ -6,16 +6,22 @@ edition.workspace = true
 [dependencies]
 anyhow = { workspace = true }
 argon2 = "0.5"
+async-nats = { workspace = true }
 axum = { workspace = true }
 blake3 = "1"
 chrono = { workspace = true }
+dashmap = { workspace = true }
 jsonwebtoken = { workspace = true }
 rand = "0.8"
+reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }
+tracing = { workspace = true }
+urlencoding = { workspace = true }
 c35_proto = { path = "../proto", package = "c35_proto" }
 c35_ctx = { path = "../system/ctx", package = "c35_ctx" }
 c35_store = { path = "../store", package = "c35_store" }
 c35_wire = { path = "../wire", package = "c35_wire" }
 c35_mod_billing = { path = "../mod_billing", package = "c35_mod_billing" }
+c35_mod_log = { path = "../mod_log", package = "c35_mod_log" }

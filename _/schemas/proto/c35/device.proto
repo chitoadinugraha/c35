@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package c35;
+
+import "c35/identity.proto";
+
+// Client submits pairing code from agent/IoT screen (XXXXX-XXXXX or raw 10 chars)
+message ReqDevicePair {
+  string code = 1;
+}
+
+message ResDevicePair {
+  IdentityListRow device = 1;
+}
+
+// ---------------------------------------------------------------------------
+// Agent bootstrap (HTTP /v1/device/pair/* — unauthenticated, before paired)
+// See _/docs/remote.md § Pairing
+// ---------------------------------------------------------------------------
+
+message ReqDevicePairRegister {
+  string device_name = 1;   // hostname
+  string device_type = 2;   // windows | android | …
+}
+
+message ResDevicePairRegister {
+  string code = 1;            // display XXXXX-XXXXX
+  string device_secret = 2; // agent polls with this
+  int64 expires_in_sec = 3;
+}
+
+message ReqDevicePairPoll {
+  string device_secret = 1;
+}
+
+message ResDevicePairPoll {
+  string status = 2;          // pending | claimed | expired
+  string session_key = 3;     // set when claimed
+  int64 device_iid = 4;
+}

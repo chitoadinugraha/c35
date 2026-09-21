@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: channel-whatsapp-device
+  namespace: c35
+  labels:
+    app.kubernetes.io/name: channel-whatsapp-device
+    app.kubernetes.io/part-of: c35
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: channel-whatsapp-device
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

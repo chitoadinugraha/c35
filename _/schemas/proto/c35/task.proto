@@ -1,0 +1,182 @@
+syntax = "proto3";
+
+package c35;
+
+// Mirrors ai.task / task_trigger / task_run. See _/docs/remote.md
+
+enum TaskTriggerKind {
+  TASK_TRIGGER_KIND_UNSPECIFIED = 0;
+  TASK_TRIGGER_KIND_ONCE = 1;
+  TASK_TRIGGER_KIND_CRON = 2;
+  TASK_TRIGGER_KIND_WEBHOOK = 3;
+}
+
+enum TaskRunStatus {
+  TASK_RUN_STATUS_UNSPECIFIED = 0;
+  TASK_RUN_STATUS_QUEUED = 1;
+  TASK_RUN_STATUS_LEASED = 2;
+  TASK_RUN_STATUS_RUNNING = 3;
+  TASK_RUN_STATUS_DONE = 4;
+  TASK_RUN_STATUS_FAILED = 5;
+  TASK_RUN_STATUS_CANCELLED = 6;
+}
+
+message TaskTrigger {
+  int64 id = 1;
+  int64 task_id = 2;
+  int64 owner_iid = 3;
+  TaskTriggerKind kind = 4;
+  string label = 5;
+  string cron_expr = 6;
+  string timezone = 7;
+  int64 run_at_ms = 8;
+  string webhook_secret = 9;
+  bool is_active = 10;
+  int64 created_ts_ms = 20;
+  int64 updated_ts_ms = 21;
+  int64 deleted_ts_ms = 22;
+}
+
+message Task {
+  int64 id = 1;
+  int64 owner_iid = 2;
+  int64 device_iid = 3;
+  string name = 4;
+  int64 skill_id = 5;
+  string prompt = 6;
+  string model = 7;
+  bool is_active = 8;
+  repeated TaskTrigger triggers = 9;
+  int64 created_ts_ms = 20;
+  int64 updated_ts_ms = 21;
+  int64 deleted_ts_ms = 22;
+}
+
+message TaskRun {
+  int64 id = 1;
+  int64 owner_iid = 2;
+  int64 device_iid = 3;
+  int64 task_id = 4;
+  int64 trigger_id = 5;
+  int64 chat_id = 6;
+  string req_id = 7;
+  TaskRunStatus status = 8;
+  string prompt = 9;
+  int64 skill_id = 10;
+  string model = 11;
+  int32 step_index = 12;
+  string summary = 13;
+  string error = 14;
+  string lease_pod = 15;
+  int64 lease_expires_ts_ms = 16;
+  int64 started_ts_ms = 17;
+  int64 finished_ts_ms = 18;
+  int64 created_ts_ms = 20;
+  int64 updated_ts_ms = 21;
+  int64 deleted_ts_ms = 22;
+}
+
+// ---------------------------------------------------------------------------
+// Client RPC (WS)
+// ---------------------------------------------------------------------------
+
+message ReqTaskList {
+  int64 device_iid = 1;
+  bool include_inactive = 2;
+}
+
+message ResTaskList {
+  repeated Task tasks = 1;
+}
+
+message ReqTaskPut {
+  Task task = 1;
+}
+
+message ResTaskPut {
+  Task task = 1;
+}
+
+message ReqTaskRunStart {
+  int64 device_iid = 1;
+  int64 task_id = 2;          // 0 = ad-hoc run using prompt/skill_id below
+  string prompt = 3;
+  int64 skill_id = 4;
+  string model = 5;
+  int64 chat_id = 6;          // optional correlation
+  string req_id = 7;          // client-supplied or server assigns
+}
+
+message ResTaskRunStart {
+  TaskRun run = 1;
+}
+
+message ReqTaskRunCancel {
+  int64 run_id = 1;
+}
+
+message ResTaskRunCancel {
+  TaskRun run = 1;
+}
+
+message ReqTaskRunList {
+  int64 device_iid = 1;
+  int64 since_ms = 2;
+  int32 limit = 3;
+}
+
+message ResTaskRunList {
+  repeated TaskRun runs = 1;
+}
+
+// Unsolicited WS push (NATS c35.user.{owner_iid}.task_run → fanout)
+message TaskRunPush {
+  TaskRun run = 1;
+}
+
+// ---------------------------------------------------------------------------
+// NATS act / ev (agent computer use — server session or NATS ev)
+// ---------------------------------------------------------------------------
+
+// JetStream: c35.act.device.{device_iid}.task.run
+message ActDeviceTaskRun {
+  int64 run_id = 1;
+  int64 device_iid = 2;
+  int64 owner_iid = 3;
+  int64 task_id = 4;
+  string req_id = 5;
+  string prompt = 6;
+  int64 skill_id = 7;
+  string model = 8;
+  int32 step_index = 9;       // resume point for retry
+  int64 chat_id = 10;
+}
+
+// Agent → server progress
+message EvDeviceTaskProgress {
+  int64 run_id = 1;
+  int64 device_iid = 2;
+  int32 step_index = 3;
+  string topic = 4;           // task_step | task_log
+  string text = 5;
+  string meta_json = 6;
+}
+
+// Agent → server terminal
+message EvDeviceTaskDone {
+  int64 run_id = 1;
+  int64 device_iid = 2;
+  TaskRunStatus status = 3;   // done | failed | cancelled
+  string summary = 4;
+  string error = 5;
+  int32 step_index = 6;
+}
+
+// Agent connect / disconnect
+message EvDevicePresence {
+  int64 device_iid = 1;
+  int64 owner_iid = 2;
+  bool online = 3;
+  string agent_version = 4;
+  string pod = 5;             // server pod holding session
+}

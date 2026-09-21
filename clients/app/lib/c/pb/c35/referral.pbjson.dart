@@ -1,13 +1,15 @@
+// This is a generated file - do not edit.
 //
-//  Generated code. Do not modify.
-//  source: c35/referral.proto
-//
-// @dart = 2.12
+// Generated from c35/referral.proto.
+
+// @dart = 3.3
 
 // ignore_for_file: annotate_overrides, camel_case_types, comment_references
-// ignore_for_file: constant_identifier_names, library_prefixes
-// ignore_for_file: non_constant_identifier_names, prefer_final_fields
-// ignore_for_file: unnecessary_import, unnecessary_this, unused_import
+// ignore_for_file: constant_identifier_names
+// ignore_for_file: curly_braces_in_flow_control_structures
+// ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
+// ignore_for_file: non_constant_identifier_names, prefer_relative_imports
+// ignore_for_file: unused_import
 
 import 'dart:convert' as $convert;
 import 'dart:core' as $core;
@@ -85,8 +87,22 @@ final $typed_data.Uint8List referralTreeNodeDescriptor = $convert.base64Decode(
 const ReferralTreeSlice$json = {
   '1': 'ReferralTreeSlice',
   '2': [
-    {'1': 'nodes', '3': 1, '4': 3, '5': 11, '6': '.c35.ReferralTreeNode', '10': 'nodes'},
-    {'1': 'branch_shares', '3': 2, '4': 3, '5': 11, '6': '.c35.ReferralShareDoc', '10': 'branchShares'},
+    {
+      '1': 'nodes',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.ReferralTreeNode',
+      '10': 'nodes'
+    },
+    {
+      '1': 'branch_shares',
+      '3': 2,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.ReferralShareDoc',
+      '10': 'branchShares'
+    },
   ],
 };
 
@@ -121,8 +137,9 @@ const ResReferralShareSet$json = {
 };
 
 /// Descriptor for `ResReferralShareSet`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List resReferralShareSetDescriptor = $convert.base64Decode(
-    'ChNSZXNSZWZlcnJhbFNoYXJlU2V0EhgKB3N1Y2Nlc3MYASABKAhSB3N1Y2Nlc3M=');
+final $typed_data.Uint8List resReferralShareSetDescriptor =
+    $convert.base64Decode(
+        'ChNSZXNSZWZlcnJhbFNoYXJlU2V0EhgKB3N1Y2Nlc3MYASABKAhSB3N1Y2Nlc3M=');
 
 @$core.Deprecated('Use reqReferralTreeGetDescriptor instead')
 const ReqReferralTreeGet$json = {
@@ -142,7 +159,14 @@ final $typed_data.Uint8List reqReferralTreeGetDescriptor = $convert.base64Decode
 const ResReferralTreeGet$json = {
   '1': 'ResReferralTreeGet',
   '2': [
-    {'1': 'slice', '3': 1, '4': 1, '5': 11, '6': '.c35.ReferralTreeSlice', '10': 'slice'},
+    {
+      '1': 'slice',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReferralTreeSlice',
+      '10': 'slice'
+    },
   ],
 };
 
@@ -157,14 +181,21 @@ const ReqReferralCodeList$json = {
 };
 
 /// Descriptor for `ReqReferralCodeList`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List reqReferralCodeListDescriptor = $convert.base64Decode(
-    'ChNSZXFSZWZlcnJhbENvZGVMaXN0');
+final $typed_data.Uint8List reqReferralCodeListDescriptor =
+    $convert.base64Decode('ChNSZXFSZWZlcnJhbENvZGVMaXN0');
 
 @$core.Deprecated('Use resReferralCodeListDescriptor instead')
 const ResReferralCodeList$json = {
   '1': 'ResReferralCodeList',
   '2': [
-    {'1': 'items', '3': 1, '4': 3, '5': 11, '6': '.c35.ReferralCodeDoc', '10': 'items'},
+    {
+      '1': 'items',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.ReferralCodeDoc',
+      '10': 'items'
+    },
   ],
 };
 
@@ -177,7 +208,14 @@ final $typed_data.Uint8List resReferralCodeListDescriptor = $convert.base64Decod
 const ReqReferralCodePut$json = {
   '1': 'ReqReferralCodePut',
   '2': [
-    {'1': 'code', '3': 1, '4': 1, '5': 11, '6': '.c35.ReferralCodeDoc', '10': 'code'},
+    {
+      '1': 'code',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReferralCodeDoc',
+      '10': 'code'
+    },
   ],
 };
 
@@ -195,8 +233,9 @@ const ReqReferralCodeDelete$json = {
 };
 
 /// Descriptor for `ReqReferralCodeDelete`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List reqReferralCodeDeleteDescriptor = $convert.base64Decode(
-    'ChVSZXFSZWZlcnJhbENvZGVEZWxldGUSEgoEY29kZRgBIAEoCVIEY29kZQ==');
+final $typed_data.Uint8List reqReferralCodeDeleteDescriptor =
+    $convert.base64Decode(
+        'ChVSZXFSZWZlcnJhbENvZGVEZWxldGUSEgoEY29kZRgBIAEoCVIEY29kZQ==');
 
 @$core.Deprecated('Use referralStatPeriodDescriptor instead')
 const ReferralStatPeriod$json = {
@@ -236,8 +275,22 @@ const ReqReferralUserStats$json = {
   '1': 'ReqReferralUserStats',
   '2': [
     {'1': 'subject_uid', '3': 1, '4': 1, '5': 3, '10': 'subjectUid'},
-    {'1': 'col_a', '3': 2, '4': 1, '5': 11, '6': '.c35.ReferralStatPeriod', '10': 'colA'},
-    {'1': 'col_b', '3': 3, '4': 1, '5': 11, '6': '.c35.ReferralStatPeriod', '10': 'colB'},
+    {
+      '1': 'col_a',
+      '3': 2,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReferralStatPeriod',
+      '10': 'colA'
+    },
+    {
+      '1': 'col_b',
+      '3': 3,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReferralStatPeriod',
+      '10': 'colB'
+    },
   ],
 };
 
@@ -251,8 +304,22 @@ final $typed_data.Uint8List reqReferralUserStatsDescriptor = $convert.base64Deco
 const ResReferralUserStats$json = {
   '1': 'ResReferralUserStats',
   '2': [
-    {'1': 'col_a', '3': 1, '4': 1, '5': 11, '6': '.c35.ReferralUserStatColumn', '10': 'colA'},
-    {'1': 'col_b', '3': 2, '4': 1, '5': 11, '6': '.c35.ReferralUserStatColumn', '10': 'colB'},
+    {
+      '1': 'col_a',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReferralUserStatColumn',
+      '10': 'colA'
+    },
+    {
+      '1': 'col_b',
+      '3': 2,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReferralUserStatColumn',
+      '10': 'colB'
+    },
   ],
 };
 
@@ -262,3 +329,77 @@ final $typed_data.Uint8List resReferralUserStatsDescriptor = $convert.base64Deco
     'JTdGF0Q29sdW1uUgRjb2xBEjAKBWNvbF9iGAIgASgLMhsuYzM1LlJlZmVycmFsVXNlclN0YXRD'
     'b2x1bW5SBGNvbEI=');
 
+@$core.Deprecated('Use referralCommissionLevelDescriptor instead')
+const ReferralCommissionLevel$json = {
+  '1': 'ReferralCommissionLevel',
+  '2': [
+    {'1': 'identity_id', '3': 1, '4': 1, '5': 3, '10': 'identityId'},
+    {'1': 'name', '3': 2, '4': 1, '5': 9, '10': 'name'},
+    {'1': 'avatar_url', '3': 3, '4': 1, '5': 9, '10': 'avatarUrl'},
+    {'1': 'percent', '3': 4, '4': 1, '5': 5, '10': 'percent'},
+    {'1': 'earn_amount', '3': 5, '4': 1, '5': 3, '10': 'earnAmount'},
+    {
+      '1': 'pool_share_percent',
+      '3': 6,
+      '4': 1,
+      '5': 1,
+      '10': 'poolSharePercent'
+    },
+  ],
+};
+
+/// Descriptor for `ReferralCommissionLevel`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List referralCommissionLevelDescriptor = $convert.base64Decode(
+    'ChdSZWZlcnJhbENvbW1pc3Npb25MZXZlbBIfCgtpZGVudGl0eV9pZBgBIAEoA1IKaWRlbnRpdH'
+    'lJZBISCgRuYW1lGAIgASgJUgRuYW1lEh0KCmF2YXRhcl91cmwYAyABKAlSCWF2YXRhclVybBIY'
+    'CgdwZXJjZW50GAQgASgFUgdwZXJjZW50Eh8KC2Vhcm5fYW1vdW50GAUgASgDUgplYXJuQW1vdW'
+    '50EiwKEnBvb2xfc2hhcmVfcGVyY2VudBgGIAEoAVIQcG9vbFNoYXJlUGVyY2VudA==');
+
+@$core.Deprecated('Use reqReferralCommissionSimulateDescriptor instead')
+const ReqReferralCommissionSimulate$json = {
+  '1': 'ReqReferralCommissionSimulate',
+  '2': [
+    {'1': 'subject_uid', '3': 1, '4': 1, '5': 3, '10': 'subjectUid'},
+    {'1': 'purchase_amount', '3': 2, '4': 1, '5': 3, '10': 'purchaseAmount'},
+  ],
+};
+
+/// Descriptor for `ReqReferralCommissionSimulate`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqReferralCommissionSimulateDescriptor =
+    $convert.base64Decode(
+        'Ch1SZXFSZWZlcnJhbENvbW1pc3Npb25TaW11bGF0ZRIfCgtzdWJqZWN0X3VpZBgBIAEoA1IKc3'
+        'ViamVjdFVpZBInCg9wdXJjaGFzZV9hbW91bnQYAiABKANSDnB1cmNoYXNlQW1vdW50');
+
+@$core.Deprecated('Use resReferralCommissionSimulateDescriptor instead')
+const ResReferralCommissionSimulate$json = {
+  '1': 'ResReferralCommissionSimulate',
+  '2': [
+    {'1': 'purchase_amount', '3': 1, '4': 1, '5': 3, '10': 'purchaseAmount'},
+    {'1': 'pool_amount', '3': 2, '4': 1, '5': 3, '10': 'poolAmount'},
+    {'1': 'pool_rate', '3': 3, '4': 1, '5': 1, '10': 'poolRate'},
+    {
+      '1': 'levels',
+      '3': 4,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.ReferralCommissionLevel',
+      '10': 'levels'
+    },
+    {
+      '1': 'total_distributed',
+      '3': 5,
+      '4': 1,
+      '5': 3,
+      '10': 'totalDistributed'
+    },
+    {'1': 'undistributed', '3': 6, '4': 1, '5': 3, '10': 'undistributed'},
+  ],
+};
+
+/// Descriptor for `ResReferralCommissionSimulate`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resReferralCommissionSimulateDescriptor = $convert.base64Decode(
+    'Ch1SZXNSZWZlcnJhbENvbW1pc3Npb25TaW11bGF0ZRInCg9wdXJjaGFzZV9hbW91bnQYASABKA'
+    'NSDnB1cmNoYXNlQW1vdW50Eh8KC3Bvb2xfYW1vdW50GAIgASgDUgpwb29sQW1vdW50EhsKCXBv'
+    'b2xfcmF0ZRgDIAEoAVIIcG9vbFJhdGUSNAoGbGV2ZWxzGAQgAygLMhwuYzM1LlJlZmVycmFsQ2'
+    '9tbWlzc2lvbkxldmVsUgZsZXZlbHMSKwoRdG90YWxfZGlzdHJpYnV0ZWQYBSABKANSEHRvdGFs'
+    'RGlzdHJpYnV0ZWQSJAoNdW5kaXN0cmlidXRlZBgGIAEoA1INdW5kaXN0cmlidXRlZA==');

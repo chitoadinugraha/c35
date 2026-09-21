@@ -1,0 +1,4 @@
+storeFile=upload_keystore.jks
+keyAlias=alien
+storePassword=
+keyPassword=

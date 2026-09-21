@@ -46,7 +46,11 @@ Sync collection name: `skill` (includes steps inline on full get).
 - Skill picker in prompt tools (match `phrases_json`, `url_pattern`, `target_app`).
 - Catalog browser (Phase 7+).
 
+## Task execution
+
+Skills attach to `ai.task` / `ai.task_run` (see [remote.md](remote.md)). A task may reference `skill_id`; dispatch is NATS JetStream → agent server session.
+
 ## Deferred
 
-- Task scheduler linking skill → cron (cs_agent `task` table — separate mod later).
 - Self-healing / auto-repair when UI changes.
+- Cron scheduler worker (`task_trigger.kind=cron`) — table ready; worker is follow-up.

@@ -9,13 +9,20 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow = { workspace = true }
+async-nats = { workspace = true }
 axum = { workspace = true }
 c35_ctx = { path = "../crates/system/ctx", package = "c35_ctx" }
+c35_nats = { path = "../crates/system/nats", package = "c35_nats" }
 c35_store = { path = "../crates/store", package = "c35_store" }
 c35_trace = { path = "../crates/system/trace", package = "c35_trace" }
 c35_wire_http = { path = "../crates/wire_http", package = "c35_wire_http" }
 c35_wire_ws = { path = "../crates/wire_ws", package = "c35_wire_ws" }
 dotenvy = { workspace = true }
+c35_mod_file = { path = "../crates/mod_file", package = "c35_mod_file" }
+c35_mod_channel = { path = "../crates/mod_channel", package = "c35_mod_channel" }
+c35_mod_device = { path = "../crates/mod_device", package = "c35_mod_device" }
+c35_mod_llm = { path = "../crates/mod_llm", package = "c35_mod_llm" }
+c35_mod_log = { path = "../crates/mod_log", package = "c35_mod_log" }
 tokio = { workspace = true }
 tower-http = { workspace = true }
 tracing = { workspace = true }

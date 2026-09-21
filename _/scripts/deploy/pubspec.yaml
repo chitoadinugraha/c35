@@ -1,0 +1,14 @@
+name: deploy
+description: c35 deploy scripts (app releases)
+publish_to: none
+
+environment:
+  sdk: ^3.5.0
+
+dependencies:
+  archive: ^4.0.2
+  googleapis: ^13.2.0
+  googleapis_auth: ^1.6.0
+  http: ^1.2.2
+  path: ^1.9.0
+  postgres: ^3.4.0

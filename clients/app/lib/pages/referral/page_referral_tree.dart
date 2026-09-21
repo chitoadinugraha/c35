@@ -1,13 +1,15 @@
 import 'package:alienai_c35/c/api/referral_conn.dart';
+import 'package:alienai_c35/c/conn/server_host.dart';
 import 'package:alienai_c35/c/pb/c35/wire.pb.dart';
 import 'package:alienai_c35/c/pb/c35/referral.pb.dart';
 import 'package:alienai_c35/c/referral/referral_forest.dart';
 import 'package:alienai_c35/c/referral/referral_shares.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
-import 'package:alienai_c35/widgets/referral/ui_referral_code_list.dart';
 import 'package:alienai_c35/widgets/referral/ui_referral_forest_chart.dart';
+import 'package:alienai_c35/widgets/referral/ui_referral_code_list.dart';
 import 'package:alienai_c35/widgets/referral/ui_referral_user_profile_dialog.dart';
 import 'package:alienai_c35/widgets/ui/ui_loading.dart';
+import 'package:alienai_c35/widgets/ui/ui_page.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/material.dart';
@@ -103,11 +105,25 @@ class _PageReferralTreeState extends State<PageReferralTree> {
   void initState() {
     super.initState();
     _searchCtrl.addListener(_onSearchChanged);
+    serverHostTick.addListener(_onServerHostChanged);
+    _load(rootId: _rootId);
+  }
+
+  void _onServerHostChanged() {
+    if (!mounted) return;
+    setState(() {
+      _nodes = [];
+      _percentages = {};
+      _error = null;
+      _loading = true;
+      _rootId = _initialRootId;
+    });
     _load(rootId: _rootId);
   }
 
   @override
   void dispose() {
+    serverHostTick.removeListener(_onServerHostChanged);
     _searchCtrl.removeListener(_onSearchChanged);
     _searchCtrl.dispose();
     _searchFocus.dispose();
@@ -188,6 +204,72 @@ class _PageReferralTreeState extends State<PageReferralTree> {
     });
   }
 
+  Widget _searchTitle() => DecoratedBox(
+        decoration: BoxDecoration(color: const Color(0xFF27272A), borderRadius: BorderRadius.circular(12)),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _searchCtrl,
+                focusNode: _searchFocus,
+                style: const TextStyle(color: Color(0xFFF4F4F5), fontSize: 15),
+                decoration: const InputDecoration(
+                  hintText: 'Search by name…',
+                  hintStyle: TextStyle(color: Color(0xFF71717A)),
+                  prefixIcon: Icon(Icons.search_rounded, color: Color(0xFF71717A), size: 22),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(vertical: 10),
+                ),
+              ),
+            ),
+            if (_searchQuery.isNotEmpty) ...[
+              _SearchNavButton(tooltip: 'Previous match', icon: Icons.chevron_left_rounded, onPressed: _searchMatchIds.length > 1 ? _searchPrev : null),
+              Text(
+                _searchMatchIds.isEmpty ? '0 / 0' : '${_searchMatchIndex + 1} / ${_searchMatchIds.length}',
+                style: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 12, fontWeight: FontWeight.w600, fontFeatures: [FontFeature.tabularFigures()]),
+              ),
+              _SearchNavButton(tooltip: 'Next match', icon: Icons.chevron_right_rounded, onPressed: _searchMatchIds.length > 1 ? _searchNext : null),
+            ],
+            uiIconButton(
+              tooltip: _searchQuery.isNotEmpty ? 'Clear' : 'Close search',
+              icon: const Icon(Icons.close_rounded, color: Color(0xFF71717A), size: 20),
+              onPressed: _searchQuery.isNotEmpty
+                  ? () {
+                      _searchCtrl.clear();
+                      _searchFocus.requestFocus();
+                    }
+                  : _closeSearch,
+            ),
+          ],
+        ),
+      );
+
+  Widget _pageTrailing(BuildContext context) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!_searchOpen) uiIconButton(tooltip: 'Search', onPressed: _openSearch, icon: const Icon(Icons.search_rounded)),
+          uiIconButton(
+            tooltip: 'Refresh',
+            onPressed: _loadBusy
+                ? null
+                : () {
+                    setState(() {
+                      _rootId = 0;
+                      _focusId = 0;
+                    });
+                    _load(rootId: 0);
+                  },
+            icon: _loadBusy
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _accent))
+                : const Icon(Icons.refresh),
+          ),
+          uiIconButton(tooltip: 'Referral codes', onPressed: () => referralCodeListDialog(context, conn: widget.conn), icon: const Icon(Icons.confirmation_number_outlined)),
+        ],
+      );
+
   Set<int>? get _searchMatchIdSet => _searchQuery.isEmpty ? null : _searchMatchIds.toSet();
 
   Future<void> _load({int? rootId}) async {
@@ -267,75 +349,12 @@ class _PageReferralTreeState extends State<PageReferralTree> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) => UiPage(
+        title: 'Referral tree',
+        onBack: () => Navigator.pop(context),
+        titleWidget: _searchOpen ? _searchTitle() : null,
+        trailing: _pageTrailing(context),
         backgroundColor: _bg,
-        appBar: AppBar(
-          backgroundColor: _bg,
-          title: _searchOpen
-              ? Padding(
-                  padding: const EdgeInsets.only(right: 4),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(color: const Color(0xFF27272A), borderRadius: BorderRadius.circular(12)),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _searchCtrl,
-                            focusNode: _searchFocus,
-                            style: const TextStyle(color: Color(0xFFF4F4F5), fontSize: 15),
-                            decoration: const InputDecoration(
-                              hintText: 'Search by name…',
-                              hintStyle: TextStyle(color: Color(0xFF71717A)),
-                              prefixIcon: Icon(Icons.search_rounded, color: Color(0xFF71717A), size: 22),
-                              border: InputBorder.none,
-                              enabledBorder: InputBorder.none,
-                              focusedBorder: InputBorder.none,
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(vertical: 10),
-                            ),
-                          ),
-                        ),
-                        if (_searchQuery.isNotEmpty) ...[
-                          _SearchNavButton(tooltip: 'Previous match', icon: Icons.chevron_left_rounded, onPressed: _searchMatchIds.length > 1 ? _searchPrev : null),
-                          Text(
-                            _searchMatchIds.isEmpty ? '0 / 0' : '${_searchMatchIndex + 1} / ${_searchMatchIds.length}',
-                            style: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 12, fontWeight: FontWeight.w600, fontFeatures: [FontFeature.tabularFigures()]),
-                          ),
-                          _SearchNavButton(tooltip: 'Next match', icon: Icons.chevron_right_rounded, onPressed: _searchMatchIds.length > 1 ? _searchNext : null),
-                        ],
-                        uiIconButton(tooltip: _searchQuery.isNotEmpty ? 'Clear' : 'Close search',
-                          icon: const Icon(Icons.close_rounded, color: Color(0xFF71717A), size: 20),
-                          onPressed: _searchQuery.isNotEmpty
-                              ? () {
-                                  _searchCtrl.clear();
-                                  _searchFocus.requestFocus();
-                                }
-                              : _closeSearch,
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : const Text('Referral tree'),
-          actions: [
-            uiIconButton(tooltip: 'Search', onPressed: _openSearch, icon: const Icon(Icons.search_rounded)),
-            uiIconButton(tooltip: 'Referral codes', onPressed: () => referralCodeListDialog(context, conn: widget.conn), icon: const Icon(Icons.confirmation_number_outlined)),
-            uiIconButton(tooltip: 'Refresh',
-              onPressed: _loadBusy
-                  ? null
-                  : () {
-                      setState(() {
-                        _rootId = 0;
-                        _focusId = 0;
-                      });
-                      _load(rootId: 0);
-                    },
-              icon: _loadBusy
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _accent))
-                  : const Icon(Icons.refresh),
-            ),
-          ],
-        ),
         body: Stack(
           children: [
             if (_loading && _nodes.isEmpty)

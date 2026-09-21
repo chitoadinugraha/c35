@@ -1,8 +1,18 @@
+mod codes;
+mod commission;
+mod stats;
+
+pub use codes::{referral_code_doc_from_row, referral_code_meta_from_doc, referral_package_get, ReferralPackage};
+pub use commission::{commission_accrue_on_purchase, commission_simulate, MARKETING_POOL_RATE};
+pub use stats::referral_user_stats;
+
+use c35_mod_admin::require_admin;
 use c35_proto::{
-    ReferralCodeDoc, ReferralShareDoc, ReferralStatPeriod, ReferralTreeNode, ReferralTreeSlice,
-    ReferralUserStatColumn, ReqReferralUserStats, ResReferralUserStats,
+    ReferralCodeDoc, ReferralShareDoc, ReferralTreeNode, ReferralTreeSlice,
 };
 use sqlx::{PgPool, Row};
+
+use codes::normalize_code;
 
 const REFERRAL_TREE_SELECT: &str = r#"
         SELECT DISTINCT ON (t.id) t.id, t.name, t.alien_id, t.pic,
@@ -36,17 +46,8 @@ fn alien_id_handle(alien_id: Option<String>) -> String {
     }
 }
 
-async fn identity_is_admin(pool: &PgPool, iid: i64) -> bool {
-    if iid == 99_000 {
-        return true;
-    }
-    sqlx::query_scalar::<_, bool>(
-        r#"SELECT COALESCE(meta->>'is_root', 'false') = 'true' FROM ai.identity WHERE id = $1 AND deleted_ts IS NULL"#,
-    )
-    .bind(iid)
-    .fetch_one(pool)
-    .await
-    .unwrap_or(false)
+async fn referral_wide_access(pool: &PgPool, viewer_iid: i64) -> bool {
+    require_admin(pool, viewer_iid).await.is_ok()
 }
 
 async fn referral_descends_from(pool: &PgPool, ancestor: i64, node: i64) -> bool {
@@ -199,7 +200,7 @@ pub async fn referral_tree_get(
     depth: i32,
 ) -> ReferralTreeSlice {
     let depth = if depth > 0 && depth <= 8 { depth } else { 2 };
-    let wide = identity_is_admin(pool, viewer_iid).await;
+    let wide = referral_wide_access(pool, viewer_iid).await;
     let forest = wide && root_id <= 0;
     let rows = if forest {
         referral_tree_rows_forest(pool, viewer_iid, depth).await
@@ -230,10 +231,25 @@ pub async fn referral_share_set(
     parent_uid: i64,
     child_uid: i64,
     percent: i32,
-) {
+) -> Result<(), String> {
     let parent = if parent_uid > 0 { parent_uid } else { iid };
+    if parent != iid {
+        require_admin(pool, iid).await.map_err(|_| "forbidden".to_string())?;
+    } else {
+        let ok: bool = sqlx::query_scalar(
+            "SELECT COALESCE(referred_by_iid, 0) = $1 FROM ai.identity WHERE id = $2 AND deleted_ts IS NULL",
+        )
+        .bind(parent)
+        .bind(child_uid)
+        .fetch_one(pool)
+        .await
+        .unwrap_or(false);
+        if !ok {
+            return Err("forbidden".into());
+        }
+    }
     let pct = percent.clamp(0, 35);
-    let _ = sqlx::query(
+    sqlx::query(
         r#"
         INSERT INTO ai.referral_share (parent_iid, child_iid, share_percent, updated_ts)
         VALUES ($1, $2, $3, NOW())
@@ -244,13 +260,17 @@ pub async fn referral_share_set(
     .bind(child_uid)
     .bind(pct)
     .execute(pool)
-    .await;
+    .await
+    .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 pub async fn referral_code_list(pool: &PgPool, iid: i64) -> Vec<ReferralCodeDoc> {
     sqlx::query(
         r#"
-        SELECT code, issued_by_iid, used_count, EXTRACT(EPOCH FROM expires_at) * 1000 AS expires_at_ms
+        SELECT code, issued_by_iid, used_count,
+               EXTRACT(EPOCH FROM expires_at) * 1000 AS expires_at_ms,
+               COALESCE(meta, '{}'::jsonb) AS meta
         FROM ai.referral_code
         WHERE issued_by_iid = $1
         ORDER BY created_ts DESC
@@ -262,17 +282,14 @@ pub async fn referral_code_list(pool: &PgPool, iid: i64) -> Vec<ReferralCodeDoc>
     .await
     .unwrap_or_default()
     .into_iter()
-    .map(|r| ReferralCodeDoc {
-        code: r.get("code"),
-        r#type: "referral".into(),
-        name: String::new(),
-        issued_by: r.get("issued_by_iid"),
-        price_usd: 0.0,
-        duration_months: 0,
-        base_plan_slug: String::new(),
-        max_uses: 0,
-        used_count: r.get("used_count"),
-        expires_at_ms: r.get::<Option<f64>, _>("expires_at_ms").unwrap_or(0.0) as i64,
+    .map(|r| {
+        referral_code_doc_from_row(
+            &r.get::<String, _>("code"),
+            r.get("issued_by_iid"),
+            r.get("used_count"),
+            r.get::<Option<f64>, _>("expires_at_ms").unwrap_or(0.0) as i64,
+            r.try_get("meta").unwrap_or(serde_json::json!({})),
+        )
     })
     .collect()
 }
@@ -294,30 +311,32 @@ pub async fn referral_code_put(
     } else {
         None
     };
+    let meta = referral_code_meta_from_doc(&doc);
     sqlx::query(
         r#"
-        INSERT INTO ai.referral_code (code, issued_by_iid, used_count, expires_at)
-        VALUES ($1, $2, COALESCE((SELECT used_count FROM ai.referral_code WHERE code = $1), 0), $3)
-        ON CONFLICT (code) DO UPDATE SET expires_at = EXCLUDED.expires_at
+        INSERT INTO ai.referral_code (code, issued_by_iid, used_count, expires_at, meta)
+        VALUES ($1, $2, COALESCE((SELECT used_count FROM ai.referral_code WHERE code = $1), 0), $3, $4::jsonb)
+        ON CONFLICT (code) DO UPDATE SET expires_at = EXCLUDED.expires_at, meta = EXCLUDED.meta, updated_ts = NOW()
         WHERE ai.referral_code.issued_by_iid = $2
         "#,
     )
     .bind(&code)
     .bind(iid)
     .bind(expires)
+    .bind(meta)
     .execute(pool)
     .await
     .map_err(|e| e.to_string())?;
     Ok(ReferralCodeDoc {
         code,
-        r#type: "referral".into(),
+        r#type: doc.r#type,
         name: doc.name,
         issued_by: iid,
-        price_usd: 0.0,
-        duration_months: 0,
-        base_plan_slug: String::new(),
-        max_uses: 0,
-        used_count: 0,
+        price_usd: doc.price_usd,
+        duration_months: doc.duration_months,
+        base_plan_slug: doc.base_plan_slug,
+        max_uses: doc.max_uses,
+        used_count: doc.used_count,
         expires_at_ms: doc.expires_at_ms,
     })
 }
@@ -339,69 +358,15 @@ pub async fn referral_code_delete(pool: &PgPool, iid: i64, code: &str) -> Result
     Ok(())
 }
 
-pub async fn referral_user_stats(
+pub async fn referral_commission_simulate(
     pool: &PgPool,
     viewer_iid: i64,
-    req: ReqReferralUserStats,
-) -> Result<ResReferralUserStats, String> {
-    let subject = if req.subject_uid > 0 {
-        req.subject_uid
-    } else {
-        viewer_iid
-    };
-    if viewer_iid != subject && !identity_is_admin(pool, viewer_iid).await {
+    subject_iid: i64,
+    purchase_amount: i64,
+) -> Result<c35_proto::ResReferralCommissionSimulate, String> {
+    if !referral_wide_access(pool, viewer_iid).await {
         return Err("forbidden".into());
     }
-    let col_a = referral_user_stat_column(pool, subject, req.col_a.as_ref()).await;
-    let col_b = referral_user_stat_column(pool, subject, req.col_b.as_ref()).await;
-    Ok(ResReferralUserStats {
-        col_a: Some(col_a),
-        col_b: Some(col_b),
-    })
-}
-
-async fn referral_user_stat_column(
-    pool: &PgPool,
-    iid: i64,
-    period: Option<&ReferralStatPeriod>,
-) -> ReferralUserStatColumn {
-    let Some(period) = period else {
-        return ReferralUserStatColumn::default();
-    };
-    let Some((from, to)) = period_bounds(period) else {
-        return ReferralUserStatColumn::default();
-    };
-    let count: i32 = sqlx::query_scalar(
-        r#"
-        SELECT COUNT(*)::bigint FROM ai.identity
-        WHERE referred_by_iid = $1 AND kind = 'user' AND deleted_ts IS NULL
-          AND created_ts >= $2 AND created_ts < $3
-        "#,
-    )
-    .bind(iid)
-    .bind(from)
-    .bind(to)
-    .fetch_one(pool)
-    .await
-    .unwrap_or(0) as i32;
-    ReferralUserStatColumn {
-        referral_count: count,
-        ..Default::default()
-    }
-}
-
-fn period_bounds(period: &ReferralStatPeriod) -> Option<(chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>)> {
-    if period.from_ms <= 0 || period.to_ms <= 0 || period.to_ms <= period.from_ms {
-        return None;
-    }
-    let from = chrono::DateTime::from_timestamp_millis(period.from_ms)?;
-    let to = chrono::DateTime::from_timestamp_millis(period.to_ms)?;
-    Some((from, to))
-}
-
-fn normalize_code(raw: &str) -> String {
-    raw.chars()
-        .filter(|c| c.is_ascii_alphanumeric())
-        .collect::<String>()
-        .to_uppercase()
+    let subject = if subject_iid > 0 { subject_iid } else { viewer_iid };
+    commission_simulate(pool, subject, purchase_amount).await
 }

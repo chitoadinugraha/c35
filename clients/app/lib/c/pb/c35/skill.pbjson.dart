@@ -1,13 +1,15 @@
+// This is a generated file - do not edit.
 //
-//  Generated code. Do not modify.
-//  source: c35/skill.proto
-//
-// @dart = 2.12
+// Generated from c35/skill.proto.
+
+// @dart = 3.3
 
 // ignore_for_file: annotate_overrides, camel_case_types, comment_references
-// ignore_for_file: constant_identifier_names, library_prefixes
-// ignore_for_file: non_constant_identifier_names, prefer_final_fields
-// ignore_for_file: unnecessary_import, unnecessary_this, unused_import
+// ignore_for_file: constant_identifier_names
+// ignore_for_file: curly_braces_in_flow_control_structures
+// ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
+// ignore_for_file: non_constant_identifier_names, prefer_relative_imports
+// ignore_for_file: unused_import
 
 import 'dart:convert' as $convert;
 import 'dart:core' as $core;
@@ -54,16 +56,42 @@ const Skill$json = {
   '2': [
     {'1': 'id', '3': 1, '4': 1, '5': 3, '10': 'id'},
     {'1': 'owner_iid', '3': 2, '4': 1, '5': 3, '10': 'ownerIid'},
-    {'1': 'scope', '3': 3, '4': 1, '5': 14, '6': '.c35.SkillScope', '10': 'scope'},
+    {
+      '1': 'scope',
+      '3': 3,
+      '4': 1,
+      '5': 14,
+      '6': '.c35.SkillScope',
+      '10': 'scope'
+    },
     {'1': 'device_iid', '3': 4, '4': 1, '5': 3, '10': 'deviceIid'},
     {'1': 'team_iid', '3': 5, '4': 1, '5': 3, '10': 'teamIid'},
     {'1': 'title', '3': 6, '4': 1, '5': 9, '10': 'title'},
     {'1': 'hash_blake3', '3': 7, '4': 1, '5': 9, '10': 'hashBlake3'},
     {'1': 'body_md', '3': 8, '4': 1, '5': 9, '10': 'bodyMd'},
-    {'1': 'source', '3': 9, '4': 1, '5': 14, '6': '.c35.SkillSource', '10': 'source'},
+    {
+      '1': 'source',
+      '3': 9,
+      '4': 1,
+      '5': 14,
+      '6': '.c35.SkillSource',
+      '10': 'source'
+    },
     {'1': 'catalog_id', '3': 10, '4': 1, '5': 3, '10': 'catalogId'},
-    {'1': 'catalog_variant_id', '3': 11, '4': 1, '5': 3, '10': 'catalogVariantId'},
-    {'1': 'catalog_release_id', '3': 12, '4': 1, '5': 3, '10': 'catalogReleaseId'},
+    {
+      '1': 'catalog_variant_id',
+      '3': 11,
+      '4': 1,
+      '5': 3,
+      '10': 'catalogVariantId'
+    },
+    {
+      '1': 'catalog_release_id',
+      '3': 12,
+      '4': 1,
+      '5': 3,
+      '10': 'catalogReleaseId'
+    },
     {'1': 'author_name', '3': 13, '4': 1, '5': 9, '10': 'authorName'},
     {'1': 'tags_json', '3': 14, '4': 1, '5': 9, '10': 'tagsJson'},
     {'1': 'phrases_json', '3': 15, '4': 1, '5': 9, '10': 'phrasesJson'},
@@ -71,7 +99,14 @@ const Skill$json = {
     {'1': 'surface', '3': 17, '4': 1, '5': 9, '10': 'surface'},
     {'1': 'target_app', '3': 18, '4': 1, '5': 9, '10': 'targetApp'},
     {'1': 'url_pattern', '3': 19, '4': 1, '5': 9, '10': 'urlPattern'},
-    {'1': 'steps', '3': 20, '4': 3, '5': 11, '6': '.c35.SkillStep', '10': 'steps'},
+    {
+      '1': 'steps',
+      '3': 20,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.SkillStep',
+      '10': 'steps'
+    },
     {'1': 'created_ts_ms', '3': 30, '4': 1, '5': 3, '10': 'createdTsMs'},
     {'1': 'updated_ts_ms', '3': 31, '4': 1, '5': 3, '10': 'updatedTsMs'},
     {'1': 'deleted_ts_ms', '3': 32, '4': 1, '5': 3, '10': 'deletedTsMs'},
@@ -109,7 +144,13 @@ const SkillStep$json = {
     {'1': 'screenshot_hash', '3': 8, '4': 1, '5': 9, '10': 'screenshotHash'},
     {'1': 'comment', '3': 9, '4': 1, '5': 9, '10': 'comment'},
     {'1': 'secret_id', '3': 10, '4': 1, '5': 3, '10': 'secretId'},
-    {'1': 'tape_local_only_json', '3': 11, '4': 1, '5': 9, '10': 'tapeLocalOnlyJson'},
+    {
+      '1': 'tape_local_only_json',
+      '3': 11,
+      '4': 1,
+      '5': 9,
+      '10': 'tapeLocalOnlyJson'
+    },
     {'1': 'created_ts_ms', '3': 20, '4': 1, '5': 3, '10': 'createdTsMs'},
     {'1': 'updated_ts_ms', '3': 21, '4': 1, '5': 3, '10': 'updatedTsMs'},
     {'1': 'deleted_ts_ms', '3': 22, '4': 1, '5': 3, '10': 'deletedTsMs'},
@@ -160,7 +201,14 @@ final $typed_data.Uint8List skillCatalogDescriptor = $convert.base64Decode(
 const ReqSkillList$json = {
   '1': 'ReqSkillList',
   '2': [
-    {'1': 'scope', '3': 1, '4': 1, '5': 14, '6': '.c35.SkillScope', '10': 'scope'},
+    {
+      '1': 'scope',
+      '3': 1,
+      '4': 1,
+      '5': 14,
+      '6': '.c35.SkillScope',
+      '10': 'scope'
+    },
     {'1': 'device_iid', '3': 2, '4': 1, '5': 3, '10': 'deviceIid'},
     {'1': 'team_iid', '3': 3, '4': 1, '5': 3, '10': 'teamIid'},
     {'1': 'since_ms', '3': 4, '4': 1, '5': 3, '10': 'sinceMs'},
@@ -194,8 +242,8 @@ const ReqSkillGet$json = {
 };
 
 /// Descriptor for `ReqSkillGet`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List reqSkillGetDescriptor = $convert.base64Decode(
-    'CgtSZXFTa2lsbEdldBIOCgJpZBgBIAEoA1ICaWQ=');
+final $typed_data.Uint8List reqSkillGetDescriptor =
+    $convert.base64Decode('CgtSZXFTa2lsbEdldBIOCgJpZBgBIAEoA1ICaWQ=');
 
 @$core.Deprecated('Use resSkillGetDescriptor instead')
 const ResSkillGet$json = {
@@ -251,7 +299,14 @@ final $typed_data.Uint8List reqSkillCatalogListDescriptor = $convert.base64Decod
 const ResSkillCatalogList$json = {
   '1': 'ResSkillCatalogList',
   '2': [
-    {'1': 'catalogs', '3': 1, '4': 3, '5': 11, '6': '.c35.SkillCatalog', '10': 'catalogs'},
+    {
+      '1': 'catalogs',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.SkillCatalog',
+      '10': 'catalogs'
+    },
   ],
 };
 
@@ -267,7 +322,14 @@ const ReqSkillCatalogInstall$json = {
     {'1': 'catalog_id', '3': 1, '4': 1, '5': 3, '10': 'catalogId'},
     {'1': 'variant_id', '3': 2, '4': 1, '5': 3, '10': 'variantId'},
     {'1': 'release_id', '3': 3, '4': 1, '5': 3, '10': 'releaseId'},
-    {'1': 'scope', '3': 4, '4': 1, '5': 14, '6': '.c35.SkillScope', '10': 'scope'},
+    {
+      '1': 'scope',
+      '3': 4,
+      '4': 1,
+      '5': 14,
+      '6': '.c35.SkillScope',
+      '10': 'scope'
+    },
     {'1': 'device_iid', '3': 5, '4': 1, '5': 3, '10': 'deviceIid'},
   ],
 };
@@ -288,7 +350,7 @@ const ResSkillCatalogInstall$json = {
 };
 
 /// Descriptor for `ResSkillCatalogInstall`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List resSkillCatalogInstallDescriptor = $convert.base64Decode(
-    'ChZSZXNTa2lsbENhdGFsb2dJbnN0YWxsEiAKBXNraWxsGAEgASgLMgouYzM1LlNraWxsUgVza2'
-    'lsbA==');
-
+final $typed_data.Uint8List resSkillCatalogInstallDescriptor =
+    $convert.base64Decode(
+        'ChZSZXNTa2lsbENhdGFsb2dJbnN0YWxsEiAKBXNraWxsGAEgASgLMgouYzM1LlNraWxsUgVza2'
+        'lsbA==');

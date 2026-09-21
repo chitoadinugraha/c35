@@ -1,13 +1,15 @@
+// This is a generated file - do not edit.
 //
-//  Generated code. Do not modify.
-//  source: c35/tx.proto
-//
-// @dart = 2.12
+// Generated from c35/tx.proto.
+
+// @dart = 3.3
 
 // ignore_for_file: annotate_overrides, camel_case_types, comment_references
-// ignore_for_file: constant_identifier_names, library_prefixes
-// ignore_for_file: non_constant_identifier_names, prefer_final_fields
-// ignore_for_file: unnecessary_import, unnecessary_this, unused_import
+// ignore_for_file: constant_identifier_names
+// ignore_for_file: curly_braces_in_flow_control_structures
+// ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
+// ignore_for_file: non_constant_identifier_names, prefer_relative_imports
+// ignore_for_file: unused_import
 
 import 'dart:convert' as $convert;
 import 'dart:core' as $core;
@@ -192,9 +194,30 @@ const TxData$json = {
   '1': 'TxData',
   '2': [
     {'1': 'proofs', '3': 1, '4': 3, '5': 9, '10': 'proofs'},
-    {'1': 'prompt', '3': 2, '4': 1, '5': 11, '6': '.c35.TxPrompt', '10': 'prompt'},
-    {'1': 'delivery', '3': 3, '4': 1, '5': 11, '6': '.c35.TxDelivery', '10': 'delivery'},
-    {'1': 'promos', '3': 4, '4': 3, '5': 11, '6': '.c35.TxPromo', '10': 'promos'},
+    {
+      '1': 'prompt',
+      '3': 2,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.TxPrompt',
+      '10': 'prompt'
+    },
+    {
+      '1': 'delivery',
+      '3': 3,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.TxDelivery',
+      '10': 'delivery'
+    },
+    {
+      '1': 'promos',
+      '3': 4,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.TxPromo',
+      '10': 'promos'
+    },
   ],
 };
 
@@ -225,14 +248,34 @@ const Tx$json = {
     {'1': 'tx_id', '3': 2, '4': 1, '5': 3, '10': 'txId'},
     {'1': 'type', '3': 3, '4': 1, '5': 14, '6': '.c35.TxType', '10': 'type'},
     {'1': 'state', '3': 4, '4': 1, '5': 14, '6': '.c35.TxState', '10': 'state'},
-    {'1': 'input_mode', '3': 5, '4': 1, '5': 14, '6': '.c35.TxInputMode', '10': 'inputMode'},
-    {'1': 'input_source', '3': 6, '4': 1, '5': 14, '6': '.c35.TxInputSource', '10': 'inputSource'},
+    {
+      '1': 'input_mode',
+      '3': 5,
+      '4': 1,
+      '5': 14,
+      '6': '.c35.TxInputMode',
+      '10': 'inputMode'
+    },
+    {
+      '1': 'input_source',
+      '3': 6,
+      '4': 1,
+      '5': 14,
+      '6': '.c35.TxInputSource',
+      '10': 'inputSource'
+    },
     {'1': 'is_archived', '3': 10, '4': 1, '5': 8, '10': 'isArchived'},
     {'1': 'desc', '3': 11, '4': 1, '5': 9, '10': 'desc'},
     {'1': 'time_ts_ms', '3': 12, '4': 1, '5': 3, '10': 'timeTsMs'},
     {'1': 'created_by_iid', '3': 13, '4': 1, '5': 3, '10': 'createdByIid'},
     {'1': 'cancel_reason', '3': 14, '4': 1, '5': 9, '10': 'cancelReason'},
-    {'1': 'subject_contact_id', '3': 21, '4': 1, '5': 3, '10': 'subjectContactId'},
+    {
+      '1': 'subject_contact_id',
+      '3': 21,
+      '4': 1,
+      '5': 3,
+      '10': 'subjectContactId'
+    },
     {'1': 'subject_name', '3': 22, '4': 1, '5': 9, '10': 'subjectName'},
     {'1': 'subject_phone', '3': 23, '4': 1, '5': 9, '10': 'subjectPhone'},
     {'1': 'subject_address', '3': 24, '4': 1, '5': 9, '10': 'subjectAddress'},
@@ -244,7 +287,14 @@ const Tx$json = {
     {'1': 'promo_code', '3': 53, '4': 1, '5': 9, '10': 'promoCode'},
     {'1': 'is_paid', '3': 55, '4': 1, '5': 8, '10': 'isPaid'},
     {'1': 'is_task_assigned', '3': 56, '4': 1, '5': 8, '10': 'isTaskAssigned'},
-    {'1': 'order_pay_at', '3': 57, '4': 1, '5': 14, '6': '.c35.TxOrderPayAt', '10': 'orderPayAt'},
+    {
+      '1': 'order_pay_at',
+      '3': 57,
+      '4': 1,
+      '5': 14,
+      '6': '.c35.TxOrderPayAt',
+      '10': 'orderPayAt'
+    },
     {'1': 'items_count', '3': 121, '4': 1, '5': 3, '10': 'itemsCount'},
     {'1': 'items_qty', '3': 122, '4': 1, '5': 3, '10': 'itemsQty'},
     {'1': 'items_total', '3': 123, '4': 1, '5': 3, '10': 'itemsTotal'},
@@ -264,13 +314,48 @@ const Tx$json = {
     {'1': 'acc_sum', '3': 162, '4': 1, '5': 3, '10': 'accSum'},
     {'1': 'acc_balanced', '3': 163, '4': 1, '5': 8, '10': 'accBalanced'},
     {'1': 'has_manual_lines', '3': 164, '4': 1, '5': 8, '10': 'hasManualLines'},
-    {'1': 'tx_data', '3': 100, '4': 1, '5': 11, '6': '.c35.TxData', '10': 'txData'},
-    {'1': 'items', '3': 201, '4': 3, '5': 11, '6': '.c35.TxItem', '10': 'items'},
-    {'1': 'payments', '3': 202, '4': 3, '5': 11, '6': '.c35.TxPayment', '10': 'payments'},
+    {
+      '1': 'tx_data',
+      '3': 100,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.TxData',
+      '10': 'txData'
+    },
+    {
+      '1': 'items',
+      '3': 201,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.TxItem',
+      '10': 'items'
+    },
+    {
+      '1': 'payments',
+      '3': 202,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.TxPayment',
+      '10': 'payments'
+    },
     {'1': 'accs', '3': 203, '4': 3, '5': 11, '6': '.c35.TxAcc', '10': 'accs'},
-    {'1': 'stocks', '3': 204, '4': 3, '5': 11, '6': '.c35.TxStock', '10': 'stocks'},
+    {
+      '1': 'stocks',
+      '3': 204,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.TxStock',
+      '10': 'stocks'
+    },
     {'1': 'taxes', '3': 205, '4': 3, '5': 11, '6': '.c35.TxTax', '10': 'taxes'},
-    {'1': 'discounts', '3': 206, '4': 3, '5': 11, '6': '.c35.TxDiscount', '10': 'discounts'},
+    {
+      '1': 'discounts',
+      '3': 206,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.TxDiscount',
+      '10': 'discounts'
+    },
     {'1': 'created_ts_ms', '3': 180, '4': 1, '5': 3, '10': 'createdTsMs'},
     {'1': 'updated_ts_ms', '3': 181, '4': 1, '5': 3, '10': 'updatedTsMs'},
     {'1': 'deleted_ts_ms', '3': 182, '4': 1, '5': 3, '10': 'deletedTsMs'},
@@ -329,7 +414,14 @@ const TxItem$json = {
     {'1': 'note', '3': 12, '4': 1, '5': 9, '10': 'note'},
     {'1': 'batch_number', '3': 32, '4': 1, '5': 9, '10': 'batchNumber'},
     {'1': 'serial_number', '3': 33, '4': 1, '5': 9, '10': 'serialNumber'},
-    {'1': 'fulfillment_state', '3': 37, '4': 1, '5': 14, '6': '.c35.TxItemFulfillmentState', '10': 'fulfillmentState'},
+    {
+      '1': 'fulfillment_state',
+      '3': 37,
+      '4': 1,
+      '5': 14,
+      '6': '.c35.TxItemFulfillmentState',
+      '10': 'fulfillmentState'
+    },
     {'1': 'total_qty', '3': 101, '4': 1, '5': 5, '10': 'totalQty'},
     {'1': 'total_price', '3': 102, '4': 1, '5': 3, '10': 'totalPrice'},
     {'1': 'total_discount', '3': 103, '4': 1, '5': 3, '10': 'totalDiscount'},
@@ -337,8 +429,22 @@ const TxItem$json = {
     {'1': 'total_net', '3': 105, '4': 1, '5': 3, '10': 'totalNet'},
     {'1': 'total_paid', '3': 202, '4': 1, '5': 3, '10': 'totalPaid'},
     {'1': 'total_unpaid', '3': 201, '4': 1, '5': 3, '10': 'totalUnpaid'},
-    {'1': 'reservations', '3': 21, '4': 3, '5': 11, '6': '.c35.TxItemReservation', '10': 'reservations'},
-    {'1': 'sources', '3': 31, '4': 3, '5': 11, '6': '.c35.TxItemSource', '10': 'sources'},
+    {
+      '1': 'reservations',
+      '3': 21,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.TxItemReservation',
+      '10': 'reservations'
+    },
+    {
+      '1': 'sources',
+      '3': 31,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.TxItemSource',
+      '10': 'sources'
+    },
   ],
 };
 
@@ -410,7 +516,14 @@ const TxDelivery$json = {
     {'1': 'contact_id', '3': 2, '4': 1, '5': 3, '10': 'contactId'},
     {'1': 'user_iid', '3': 3, '4': 1, '5': 3, '10': 'userIid'},
     {'1': 'to', '3': 11, '4': 1, '5': 11, '6': '.c35.TxDeliveryTo', '10': 'to'},
-    {'1': 'service', '3': 12, '4': 1, '5': 11, '6': '.c35.TxDeliveryService', '10': 'service'},
+    {
+      '1': 'service',
+      '3': 12,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.TxDeliveryService',
+      '10': 'service'
+    },
     {'1': 'state', '3': 200, '4': 1, '5': 9, '10': 'state'},
   ],
 };
@@ -509,7 +622,14 @@ const TxPayment$json = {
   '1': 'TxPayment',
   '2': [
     {'1': 'payment_id', '3': 3, '4': 1, '5': 3, '10': 'paymentId'},
-    {'1': 'method', '3': 10, '4': 1, '5': 14, '6': '.c35.TxPaymentMethod', '10': 'method'},
+    {
+      '1': 'method',
+      '3': 10,
+      '4': 1,
+      '5': 14,
+      '6': '.c35.TxPaymentMethod',
+      '10': 'method'
+    },
     {'1': 'ts_ms', '3': 11, '4': 1, '5': 3, '10': 'tsMs'},
     {'1': 'amount', '3': 12, '4': 1, '5': 3, '10': 'amount'},
     {'1': 'note', '3': 13, '4': 1, '5': 9, '10': 'note'},
@@ -517,7 +637,14 @@ const TxPayment$json = {
     {'1': 'to_wallet', '3': 21, '4': 1, '5': 9, '10': 'toWallet'},
     {'1': 'debt_interest', '3': 25, '4': 1, '5': 3, '10': 'debtInterest'},
     {'1': 'payment_json', '3': 100, '4': 1, '5': 9, '10': 'paymentJson'},
-    {'1': 'installments', '3': 110, '4': 3, '5': 11, '6': '.c35.TxInstallment', '10': 'installments'},
+    {
+      '1': 'installments',
+      '3': 110,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.TxInstallment',
+      '10': 'installments'
+    },
   ],
 };
 
@@ -541,7 +668,14 @@ const TxInstallment$json = {
     {'1': 'note', '3': 12, '4': 1, '5': 9, '10': 'note'},
     {'1': 'is_paid', '3': 21, '4': 1, '5': 8, '10': 'isPaid'},
     {'1': 'is_overdue', '3': 22, '4': 1, '5': 8, '10': 'isOverdue'},
-    {'1': 'debt_payments', '3': 30, '4': 3, '5': 11, '6': '.c35.TxDebtPayment', '10': 'debtPayments'},
+    {
+      '1': 'debt_payments',
+      '3': 30,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.TxDebtPayment',
+      '10': 'debtPayments'
+    },
   ],
 };
 
@@ -559,7 +693,14 @@ const TxDebtPayment$json = {
   '2': [
     {'1': 'pay_id', '3': 5, '4': 1, '5': 3, '10': 'payId'},
     {'1': 'ts_ms', '3': 10, '4': 1, '5': 3, '10': 'tsMs'},
-    {'1': 'method', '3': 11, '4': 1, '5': 14, '6': '.c35.TxDebtPaymentMethod', '10': 'method'},
+    {
+      '1': 'method',
+      '3': 11,
+      '4': 1,
+      '5': 14,
+      '6': '.c35.TxDebtPaymentMethod',
+      '10': 'method'
+    },
     {'1': 'amount', '3': 12, '4': 1, '5': 3, '10': 'amount'},
     {'1': 'note', '3': 13, '4': 1, '5': 9, '10': 'note'},
     {'1': 'overdue_interest', '3': 14, '4': 1, '5': 3, '10': 'overdueInterest'},
@@ -582,7 +723,14 @@ const TxAcc$json = {
     {'1': 'acc_id', '3': 3, '4': 1, '5': 3, '10': 'accId'},
     {'1': 'acc_code', '3': 10, '4': 1, '5': 9, '10': 'accCode'},
     {'1': 'ts_ms', '3': 11, '4': 1, '5': 3, '10': 'tsMs'},
-    {'1': 'side', '3': 12, '4': 1, '5': 14, '6': '.c35.TxAccSide', '10': 'side'},
+    {
+      '1': 'side',
+      '3': 12,
+      '4': 1,
+      '5': 14,
+      '6': '.c35.TxAccSide',
+      '10': 'side'
+    },
     {'1': 'amount', '3': 13, '4': 1, '5': 3, '10': 'amount'},
     {'1': 'note', '3': 14, '4': 1, '5': 9, '10': 'note'},
     {'1': 'is_tx_generated', '3': 20, '4': 1, '5': 8, '10': 'isTxGenerated'},
@@ -643,8 +791,8 @@ const ResTxGet$json = {
 };
 
 /// Descriptor for `ResTxGet`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List resTxGetDescriptor = $convert.base64Decode(
-    'CghSZXNUeEdldBIXCgJ0eBgBIAEoCzIHLmMzNS5UeFICdHg=');
+final $typed_data.Uint8List resTxGetDescriptor =
+    $convert.base64Decode('CghSZXNUeEdldBIXCgJ0eBgBIAEoCzIHLmMzNS5UeFICdHg=');
 
 @$core.Deprecated('Use reqTxListDescriptor instead')
 const ReqTxList$json = {
@@ -657,7 +805,13 @@ const ReqTxList$json = {
     {'1': 'include_archived', '3': 5, '4': 1, '5': 8, '10': 'includeArchived'},
     {'1': 'type', '3': 6, '4': 1, '5': 14, '6': '.c35.TxType', '10': 'type'},
     {'1': 'state', '3': 7, '4': 1, '5': 14, '6': '.c35.TxState', '10': 'state'},
-    {'1': 'subject_contact_id', '3': 10, '4': 1, '5': 3, '10': 'subjectContactId'},
+    {
+      '1': 'subject_contact_id',
+      '3': 10,
+      '4': 1,
+      '5': 3,
+      '10': 'subjectContactId'
+    },
     {'1': 'time_from_ms', '3': 11, '4': 1, '5': 3, '10': 'timeFromMs'},
     {'1': 'time_to_ms', '3': 12, '4': 1, '5': 3, '10': 'timeToMs'},
     {'1': 'open_only', '3': 15, '4': 1, '5': 8, '10': 'openOnly'},
@@ -683,8 +837,8 @@ const ResTxList$json = {
 };
 
 /// Descriptor for `ResTxList`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List resTxListDescriptor = $convert.base64Decode(
-    'CglSZXNUeExpc3QSGQoDdHhzGAEgAygLMgcuYzM1LlR4UgN0eHM=');
+final $typed_data.Uint8List resTxListDescriptor = $convert
+    .base64Decode('CglSZXNUeExpc3QSGQoDdHhzGAEgAygLMgcuYzM1LlR4UgN0eHM=');
 
 @$core.Deprecated('Use reqTxPutDescriptor instead')
 const ReqTxPut$json = {
@@ -695,8 +849,8 @@ const ReqTxPut$json = {
 };
 
 /// Descriptor for `ReqTxPut`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List reqTxPutDescriptor = $convert.base64Decode(
-    'CghSZXFUeFB1dBIXCgJ0eBgBIAEoCzIHLmMzNS5UeFICdHg=');
+final $typed_data.Uint8List reqTxPutDescriptor =
+    $convert.base64Decode('CghSZXFUeFB1dBIXCgJ0eBgBIAEoCzIHLmMzNS5UeFICdHg=');
 
 @$core.Deprecated('Use resTxPutDescriptor instead')
 const ResTxPut$json = {
@@ -707,8 +861,8 @@ const ResTxPut$json = {
 };
 
 /// Descriptor for `ResTxPut`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List resTxPutDescriptor = $convert.base64Decode(
-    'CghSZXNUeFB1dBIXCgJ0eBgBIAEoCzIHLmMzNS5UeFICdHg=');
+final $typed_data.Uint8List resTxPutDescriptor =
+    $convert.base64Decode('CghSZXNUeFB1dBIXCgJ0eBgBIAEoCzIHLmMzNS5UeFICdHg=');
 
 @$core.Deprecated('Use reqTxPreviewDescriptor instead')
 const ReqTxPreview$json = {
@@ -719,15 +873,22 @@ const ReqTxPreview$json = {
 };
 
 /// Descriptor for `ReqTxPreview`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List reqTxPreviewDescriptor = $convert.base64Decode(
-    'CgxSZXFUeFByZXZpZXcSFwoCdHgYASABKAsyBy5jMzUuVHhSAnR4');
+final $typed_data.Uint8List reqTxPreviewDescriptor = $convert
+    .base64Decode('CgxSZXFUeFByZXZpZXcSFwoCdHgYASABKAsyBy5jMzUuVHhSAnR4');
 
 @$core.Deprecated('Use resTxPreviewDescriptor instead')
 const ResTxPreview$json = {
   '1': 'ResTxPreview',
   '2': [
     {'1': 'tx', '3': 1, '4': 1, '5': 11, '6': '.c35.Tx', '10': 'tx'},
-    {'1': 'coa_name', '3': 2, '4': 3, '5': 11, '6': '.c35.ResTxPreview.CoaNameEntry', '10': 'coaName'},
+    {
+      '1': 'coa_name',
+      '3': 2,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.ResTxPreview.CoaNameEntry',
+      '10': 'coaName'
+    },
   ],
   '3': [ResTxPreview_CoaNameEntry$json],
 };
@@ -754,7 +915,14 @@ const ReqTxDebtPay$json = {
   '2': [
     {'1': 'site_iid', '3': 1, '4': 1, '5': 3, '10': 'siteIid'},
     {'1': 'tx_id', '3': 2, '4': 1, '5': 3, '10': 'txId'},
-    {'1': 'payment', '3': 3, '4': 1, '5': 11, '6': '.c35.TxDebtPayment', '10': 'payment'},
+    {
+      '1': 'payment',
+      '3': 3,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.TxDebtPayment',
+      '10': 'payment'
+    },
   ],
 };
 
@@ -772,8 +940,8 @@ const ResTxDebtPay$json = {
 };
 
 /// Descriptor for `ResTxDebtPay`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List resTxDebtPayDescriptor = $convert.base64Decode(
-    'CgxSZXNUeERlYnRQYXkSFwoCdHgYASABKAsyBy5jMzUuVHhSAnR4');
+final $typed_data.Uint8List resTxDebtPayDescriptor = $convert
+    .base64Decode('CgxSZXNUeERlYnRQYXkSFwoCdHgYASABKAsyBy5jMzUuVHhSAnR4');
 
 @$core.Deprecated('Use reqSiteGuestOrderPutDescriptor instead')
 const ReqSiteGuestOrderPut$json = {
@@ -798,8 +966,9 @@ const ResSiteGuestOrderPut$json = {
 };
 
 /// Descriptor for `ResSiteGuestOrderPut`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List resSiteGuestOrderPutDescriptor = $convert.base64Decode(
-    'ChRSZXNTaXRlR3Vlc3RPcmRlclB1dBIXCgJ0eBgBIAEoCzIHLmMzNS5UeFICdHg=');
+final $typed_data.Uint8List resSiteGuestOrderPutDescriptor =
+    $convert.base64Decode(
+        'ChRSZXNTaXRlR3Vlc3RPcmRlclB1dBIXCgJ0eBgBIAEoCzIHLmMzNS5UeFICdHg=');
 
 @$core.Deprecated('Use reqSiteGuestOrderGetDescriptor instead')
 const ReqSiteGuestOrderGet$json = {
@@ -824,6 +993,6 @@ const ResSiteGuestOrderGet$json = {
 };
 
 /// Descriptor for `ResSiteGuestOrderGet`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List resSiteGuestOrderGetDescriptor = $convert.base64Decode(
-    'ChRSZXNTaXRlR3Vlc3RPcmRlckdldBIXCgJ0eBgBIAEoCzIHLmMzNS5UeFICdHg=');
-
+final $typed_data.Uint8List resSiteGuestOrderGetDescriptor =
+    $convert.base64Decode(
+        'ChRSZXNTaXRlR3Vlc3RPcmRlckdldBIXCgJ0eBgBIAEoCzIHLmMzNS5UeFICdHg=');

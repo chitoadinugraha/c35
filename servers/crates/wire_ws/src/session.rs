@@ -1,10 +1,24 @@
 use axum::extract::ws::{Message, WebSocket};
 use c35_ctx::{AppState, Ctx};
-use c35_proto::{pb_encode, pb_decode, ReqSessionInit, WsReq, WsRes, ws_req, ws_res};
+use c35_mod_chat::{chat_ensure, chat_title_from_text, prompt_turn};
+use c35_mod_consumption::{consumption_list_rpc, consumption_put_rpc};
+use c35_proto::{
+    pb_decode, pb_encode, BillingPushBalance, BillingPushCommission, BillingPushQuota,
+    ReqChannelWhatsappPairAbort, ReqChannelWhatsappPairStart, ReqChannelWhatsappPairWatch,
+    ReqPromptAbort, ResChannelWhatsappPair, ResChatStop, ResPromptDelta, ResPromptEnd, ResPromptFail,
+    ResPromptStart, WsReq, WsRes, ws_req, ws_res,
+};
+use prost::Message as ProstMessage;
 use c35_wire::WireErr;
 use futures_util::StreamExt;
+use tokio::sync::mpsc;
+use tokio_util::sync::CancellationToken;
 
 use crate::router::WsQuery;
+
+struct PromptFlight {
+    cancel: CancellationToken,
+}
 
 pub async fn handle(mut socket: WebSocket, state: AppState, q: WsQuery) {
     let token = match q.jwt.as_deref() {
@@ -24,35 +38,179 @@ pub async fn handle(mut socket: WebSocket, state: AppState, q: WsQuery) {
     };
 
     let ctx = Ctx::from_state(&state, caller_iid);
+    let (out_tx, mut out_rx) = mpsc::unbounded_channel::<WsRes>();
+    let mut prompt_flight: Option<PromptFlight> = None;
+    if let Some(nats) = state.nats.clone() {
+        let fanout_tx = out_tx.clone();
+        tokio::spawn(async move {
+            billing_nats_fanout(nats, caller_iid, fanout_tx).await;
+        });
+    }
+    if let Some(nats) = state.nats.clone() {
+        let fanout_tx = out_tx.clone();
+        let pool = state.pool.clone();
+        tokio::spawn(async move {
+            c35_mod_channel::channel_pair_nats_fanout(pool, nats, caller_iid, fanout_tx).await;
+        });
+    }
 
-    while let Some(msg) = socket.next().await {
-        let Ok(msg) = msg else { break };
-        let Message::Binary(data) = msg else { continue };
-
-        let req: WsReq = match pb_decode(&data) {
-            Ok(r) => r,
-            Err(_) => {
-                let _ = send_err(&mut socket, "", WireErr::client("bad_request", "Invalid message")).await;
-                continue;
+    loop {
+        tokio::select! {
+            Some(res) = out_rx.recv() => {
+                if socket.send(Message::Binary(pb_encode(&res).into())).await.is_err() {
+                    break;
+                }
             }
-        };
-
-        let req_id = req.req_id.clone();
-        let res = dispatch(&ctx, req, &q).await;
-        if socket
-            .send(Message::Binary(pb_encode(&res).into()))
-            .await
-            .is_err()
-        {
-            break;
-        }
-        if matches!(res.body, Some(ws_res::Body::Err(_))) && req_id.is_empty() {
-            break;
+            incoming = socket.next() => {
+                match incoming {
+                    Some(Ok(Message::Binary(data))) => {
+                        let req: WsReq = match pb_decode(&data) {
+                            Ok(r) => r,
+                            Err(_) => {
+                                let _ = send_err(&mut socket, "", WireErr::client("bad_request", "Invalid message")).await;
+                                continue;
+                            }
+                        };
+                        let req_id = req.req_id.clone();
+                        match req.body {
+                            Some(ws_req::Body::Prompt(p)) => {
+                                prompt_req_put(&state, &ctx, &q, req_id, p, &out_tx, &mut prompt_flight);
+                            }
+                            Some(ws_req::Body::PromptAbort(ReqPromptAbort { chat_id })) => {
+                                prompt_abort(prompt_flight.as_ref());
+                                let _ = out_tx.send(WsRes {
+                                    req_id,
+                                    body: Some(ws_res::Body::ChatStop(ResChatStop {
+                                        chat_id,
+                                        ai_reply_enabled: false,
+                                    })),
+                                });
+                            }
+                            _ => {
+                                let res = dispatch(&state, &ctx, req, &q).await;
+                                if socket.send(Message::Binary(pb_encode(&res).into())).await.is_err() {
+                                    break;
+                                }
+                                if matches!(res.body, Some(ws_res::Body::Err(_))) && req_id.is_empty() {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    Some(Ok(Message::Close(_))) | None => break,
+                    Some(Ok(Message::Ping(p))) => { let _ = socket.send(Message::Pong(p)).await; }
+                    Some(Ok(_)) => {}
+                    Some(Err(_)) => break,
+                }
+            }
         }
     }
 }
 
-async fn dispatch(ctx: &Ctx, req: WsReq, q: &WsQuery) -> WsRes {
+fn prompt_abort(flight: Option<&PromptFlight>) {
+    if let Some(f) = flight {
+        f.cancel.cancel();
+    }
+}
+
+fn prompt_fail(req_id: &str, message: String) -> WsRes {
+    WsRes {
+        req_id: req_id.into(),
+        body: Some(ws_res::Body::PromptFail(ResPromptFail { message })),
+    }
+}
+
+fn prompt_req_put(
+    state: &AppState,
+    ctx: &Ctx,
+    q: &WsQuery,
+    req_id: String,
+    mut p: c35_proto::ReqPrompt,
+    out_tx: &mpsc::UnboundedSender<WsRes>,
+    prompt_flight: &mut Option<PromptFlight>,
+) {
+    let locale = q.locale.clone().unwrap_or_default();
+    let title = chat_title_from_text(&p.text);
+    let pool = state.pool.clone();
+    let nats = state.nats.clone();
+    let owner_iid = ctx.caller_iid;
+    let out_tx = out_tx.clone();
+    let req_id_spawn = req_id.clone();
+    let cancel = CancellationToken::new();
+    *prompt_flight = Some(PromptFlight { cancel: cancel.clone() });
+    tokio::spawn(async move {
+        let chat_id = match chat_ensure(&pool, owner_iid, p.chat_id, &title).await {
+            Ok(id) => id,
+            Err(e) => {
+                let _ = out_tx.send(prompt_fail(&req_id_spawn, e.to_string()));
+                return;
+            }
+        };
+        p.chat_id = chat_id;
+        let _ = out_tx.send(WsRes {
+            req_id: req_id_spawn.clone(),
+            body: Some(ws_res::Body::PromptStart(ResPromptStart {
+                chat_id,
+                msg_id: 0,
+                model: p.model.clone(),
+            })),
+        });
+        match prompt_turn(
+            &pool,
+            nats.as_ref(),
+            owner_iid,
+            &req_id_spawn,
+            p,
+            &locale,
+            |thought, d| {
+                let _ = out_tx.send(WsRes {
+                    req_id: req_id_spawn.clone(),
+                    body: Some(ws_res::Body::PromptDelta(ResPromptDelta {
+                        text: d,
+                        thought,
+                        blocks_json: String::new(),
+                    })),
+                });
+            },
+            |blocks_json| {
+                let _ = out_tx.send(WsRes {
+                    req_id: req_id_spawn.clone(),
+                    body: Some(ws_res::Body::PromptDelta(ResPromptDelta {
+                        text: String::new(),
+                        thought: false,
+                        blocks_json,
+                    })),
+                });
+            },
+            &cancel,
+        )
+        .await
+        {
+            Ok(turn) => {
+                let _ = out_tx.send(WsRes {
+                    req_id: req_id_spawn.clone(),
+                    body: Some(ws_res::Body::PromptEnd(ResPromptEnd {
+                        msg_id: turn.assistant_msg_id,
+                        tokens_in: turn.tokens_in,
+                        tokens_out: turn.tokens_out,
+                        cost_usd: turn.cost_usd,
+                        duration_ms: turn.duration_ms,
+                        model: turn.model,
+                        req_id: req_id_spawn.clone(),
+                        trace_json: String::new(),
+                        error_message: turn.error_text,
+                    })),
+                });
+                c35_mod_billing::billing_notify_owner(&pool, nats.as_ref(), owner_iid, Some(&out_tx)).await;
+            }
+            Err(e) => {
+                let _ = out_tx.send(prompt_fail(&req_id_spawn, e.to_string()));
+            }
+        }
+    });
+}
+
+async fn dispatch(state: &AppState, ctx: &Ctx, req: WsReq, q: &WsQuery) -> WsRes {
     let req_id = req.req_id;
     match req.body {
         Some(ws_req::Body::SessionInit(init)) => match session_init(ctx, init, q).await {
@@ -67,10 +225,121 @@ async fn dispatch(ctx: &Ctx, req: WsReq, q: &WsQuery) -> WsRes {
             WsRes {
                 req_id,
                 body: Some(ws_res::Body::Invoke(
-                    c35_wire_http::dispatch_invoke(&ctx.pool, inv).await,
+                    c35_wire_http::dispatch_invoke(state, inv).await,
                 )),
             }
         }
+        Some(ws_req::Body::ConsumptionList(r)) => {
+            let locale = q.locale.as_deref().unwrap_or("en");
+            WsRes {
+                req_id,
+                body: Some(ws_res::Body::ConsumptionList(
+                    consumption_list_rpc(&state.pool, ctx.caller_iid, locale, r).await,
+                )),
+            }
+        }
+        Some(ws_req::Body::ConsumptionPut(r)) => {
+            let locale = q.locale.as_deref().unwrap_or("en");
+            match consumption_put_rpc(&state.pool, ctx.caller_iid, locale, r).await {
+                Ok(res) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::ConsumptionPut(res)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("consumption_put_failed", e)),
+            }
+        }
+        Some(ws_req::Body::InboxList(r)) => match c35_mod_chat::inbox_list(&state.pool, ctx.caller_iid, r).await {
+            Ok(body) => WsRes {
+                req_id,
+                body: Some(ws_res::Body::InboxList(body)),
+            },
+            Err(e) => err_res(req_id, WireErr::client("inbox_list_failed", e.to_string())),
+        },
+        Some(ws_req::Body::ChatMsgList(r)) => match c35_mod_chat::chat_msg_list(&state.pool, ctx.caller_iid, r).await {
+            Ok(body) => WsRes {
+                req_id,
+                body: Some(ws_res::Body::ChatMsgList(body)),
+            },
+            Err(e) => err_res(req_id, WireErr::client("chat_msg_list_failed", e.to_string())),
+        },
+        Some(ws_req::Body::ChatPatch(r)) => match c35_mod_chat::chat_patch(&state.pool, ctx.caller_iid, r).await {
+            Ok(body) => WsRes {
+                req_id,
+                body: Some(ws_res::Body::ChatPatch(body)),
+            },
+            Err(e) => err_res(req_id, WireErr::client("chat_patch_failed", e.to_string())),
+        },
+        Some(ws_req::Body::AssetTagList(r)) => match c35_mod_chat::asset_tag_list(&state.pool, ctx.caller_iid, r).await {
+            Ok(body) => WsRes {
+                req_id,
+                body: Some(ws_res::Body::AssetTagList(body)),
+            },
+            Err(e) => err_res(req_id, WireErr::client("asset_tag_list_failed", e.to_string())),
+        },
+        Some(ws_req::Body::BotPeerList(r)) => match c35_mod_chat::bot_peer_list(&state.pool, ctx.caller_iid, r).await {
+            Ok(body) => WsRes {
+                req_id,
+                body: Some(ws_res::Body::BotPeerList(body)),
+            },
+            Err(e) => err_res(req_id, WireErr::client("bot_peer_list_failed", e.to_string())),
+        },
+        Some(ws_req::Body::ChatStop(r)) => match c35_mod_chat::chat_stop(&state.pool, ctx.caller_iid, r).await {
+            Ok(body) => WsRes {
+                req_id,
+                body: Some(ws_res::Body::ChatStop(body)),
+            },
+            Err(e) => err_res(req_id, WireErr::client("chat_stop_failed", e.to_string())),
+        },
+        Some(ws_req::Body::ChatSend(r)) => match c35_mod_chat::chat_send(&state.pool, ctx.caller_iid, r).await {
+            Ok(body) => WsRes {
+                req_id,
+                body: Some(ws_res::Body::ChatSend(body)),
+            },
+            Err(e) => err_res(req_id, WireErr::client("chat_send_failed", e.to_string())),
+        },
+        Some(ws_req::Body::LogList(r)) => match c35_mod_chat::log_list(&state.pool, ctx.caller_iid, r).await {
+            Ok(body) => WsRes {
+                req_id,
+                body: Some(ws_res::Body::LogList(body)),
+            },
+            Err(e) => err_res(req_id, WireErr::client("log_list_failed", e.to_string())),
+        },
+        Some(ws_req::Body::IdentityList(r)) => match c35_mod_identity::identity_list(&state.pool, ctx.caller_iid, r).await {
+            Ok(body) => WsRes {
+                req_id,
+                body: Some(ws_res::Body::IdentityList(body)),
+            },
+            Err(e) => err_res(req_id, WireErr::client("identity_list_failed", e.to_string())),
+        },
+        Some(ws_req::Body::IdentityGrantPatch(r)) => {
+            match c35_mod_identity::identity_grant_patch(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::IdentityGrantPatch(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("identity_grant_patch_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::IdentityPut(r)) => {
+            match c35_mod_identity::identity_put(
+                &state.pool,
+                state.nats.as_ref(),
+                ctx.caller_iid,
+                &req_id,
+                r,
+            )
+            .await
+            {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::IdentityPut(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("identity_put_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::ChannelWhatsappPairStart(r)) => pair_start_res(state, ctx, req_id, r).await,
+        Some(ws_req::Body::ChannelWhatsappPairWatch(r)) => pair_watch_res(ctx, req_id, r).await,
+        Some(ws_req::Body::ChannelWhatsappPairAbort(r)) => pair_abort_res(state, ctx, req_id, r).await,
         _ => err_res(
             req_id,
             WireErr::client("not_implemented", "Request not supported yet"),
@@ -80,7 +349,7 @@ async fn dispatch(ctx: &Ctx, req: WsReq, q: &WsQuery) -> WsRes {
 
 async fn session_init(
     ctx: &Ctx,
-    mut req: ReqSessionInit,
+    mut req: c35_proto::ReqSessionInit,
     q: &WsQuery,
 ) -> Result<c35_proto::ResSessionInit, WireErr> {
     if req.since_ms == 0 {
@@ -92,13 +361,70 @@ async fn session_init(
     if req.tz.is_empty() {
         req.tz = q.tz.clone().unwrap_or_default();
     }
-    c35_mod_identity::session_init(ctx, req).await
+    let include_inbox = req.include_inbox;
+    let mut res = c35_mod_identity::session_init(ctx, req).await?;
+    res.models = c35_mod_llm::prompt_models();
+    if include_inbox {
+        if let Ok(inbox) = c35_mod_chat::inbox_list(
+            &ctx.pool,
+            ctx.caller_iid,
+            c35_proto::ReqInboxList {
+                include_archived: false,
+                limit: 100,
+            },
+        )
+        .await
+        {
+            res.inbox_chats = inbox.chats;
+            res.inbox_members = inbox.members;
+        }
+    }
+    Ok(res)
 }
 
 fn err_res(req_id: String, err: WireErr) -> WsRes {
     WsRes {
         req_id,
         body: Some(ws_res::Body::Err(err.into_proto())),
+    }
+}
+
+async fn billing_nats_fanout(
+    nats: async_nats::Client,
+    owner_iid: i64,
+    out_tx: mpsc::UnboundedSender<WsRes>,
+) {
+    let subject = format!("c35.user.{owner_iid}.>");
+    let mut sub = match nats.subscribe(subject).await {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!("billing nats subscribe: {e}");
+            return;
+        }
+    };
+    while let Some(msg) = sub.next().await {
+        let subj = msg.subject.as_str();
+        let body = if subj.ends_with(".balance") {
+            BillingPushBalance::decode(msg.payload.as_ref())
+                .ok()
+                .map(ws_res::Body::BillingBalance)
+        } else if subj.ends_with(".quota") {
+            BillingPushQuota::decode(msg.payload.as_ref())
+                .ok()
+                .map(ws_res::Body::BillingQuota)
+        } else if subj.ends_with(".commission") {
+            BillingPushCommission::decode(msg.payload.as_ref())
+                .ok()
+                .map(ws_res::Body::BillingCommission)
+        } else {
+            None
+        };
+        if let Some(body) = body {
+            let _ = out_tx.send(WsRes {
+                req_id: String::new(),
+                body: Some(body),
+            });
+        }
     }
 }
 
@@ -111,4 +437,91 @@ async fn send_err(socket: &mut WebSocket, req_id: &str, err: WireErr) -> Result<
         .send(Message::Binary(pb_encode(&res).into()))
         .await
         .map_err(|_| ())
+}
+
+fn whatsapp_worker_url() -> String {
+    std::env::var("WHATSAPP_WORKER_URL").unwrap_or_default()
+}
+
+async fn pair_start_res(
+    state: &AppState,
+    ctx: &Ctx,
+    req_id: String,
+    r: ReqChannelWhatsappPairStart,
+) -> WsRes {
+    match c35_mod_channel::channel_whatsapp_pair_start(
+        &ctx.pool,
+        ctx.caller_iid,
+        r.bot_iid,
+        &r.channel_id,
+        state.nats.as_ref(),
+        &whatsapp_worker_url(),
+    )
+    .await
+    {
+        Ok(body) => WsRes {
+            req_id,
+            body: Some(ws_res::Body::ChannelWhatsappPairStart(body)),
+        },
+        Err(e) => WsRes {
+            req_id,
+            body: Some(ws_res::Body::ChannelWhatsappPairStart(
+                c35_mod_channel::pair_res_from_error(r.bot_iid, &e),
+            )),
+        },
+    }
+}
+
+async fn pair_watch_res(ctx: &Ctx, req_id: String, r: ReqChannelWhatsappPairWatch) -> WsRes {
+    match c35_mod_channel::channel_whatsapp_pair_watch(
+        &ctx.pool,
+        ctx.caller_iid,
+        r.bot_iid,
+        &r.channel_id,
+    )
+    .await
+    {
+        Ok(body) => WsRes {
+            req_id,
+            body: Some(ws_res::Body::ChannelWhatsappPairWatch(body)),
+        },
+        Err(e) => WsRes {
+            req_id,
+            body: Some(ws_res::Body::ChannelWhatsappPairWatch(
+                c35_mod_channel::pair_res_from_error(r.bot_iid, &e),
+            )),
+        },
+    }
+}
+
+async fn pair_abort_res(
+    state: &AppState,
+    ctx: &Ctx,
+    req_id: String,
+    r: ReqChannelWhatsappPairAbort,
+) -> WsRes {
+    let res = match c35_mod_channel::channel_whatsapp_pair_abort(
+        &ctx.pool,
+        ctx.caller_iid,
+        r.bot_iid,
+        &r.channel_id,
+        state.nats.as_ref(),
+        &whatsapp_worker_url(),
+    )
+    .await
+    {
+        Ok(()) => ResChannelWhatsappPair {
+            ok: true,
+            error: String::new(),
+            bot_iid: r.bot_iid,
+            channel: None,
+            qr_raw: String::new(),
+            phone: String::new(),
+        },
+        Err(e) => c35_mod_channel::pair_res_from_error(r.bot_iid, &e),
+    };
+    WsRes {
+        req_id,
+        body: Some(ws_res::Body::ChannelWhatsappPairAbort(res)),
+    }
 }

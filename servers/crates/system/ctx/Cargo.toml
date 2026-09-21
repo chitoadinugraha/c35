@@ -4,4 +4,8 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+async-nats = { workspace = true }
+chrono = { workspace = true }
+dashmap = { workspace = true }
+serde = { workspace = true }
 sqlx = { workspace = true }

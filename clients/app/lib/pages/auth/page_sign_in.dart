@@ -84,7 +84,7 @@ class _PageSignInState extends State<PageSignIn> {
       body: UiAuthShell(
         title: 'Welcome to Alien AI',
         subtitle: 'Intelligent, automated Pair & Bot assistant',
-        footer: UiAuthFooter(version: appVersionLabel()),
+        footer: UiAuthFooter(version: appVersionDetailLabel()),
         children: [
           UiBtnGoogleSignIn(onPressed: _anyBusy ? null : _signInGoogle, busy: isGoogleBusy),
           const SizedBox(height: 18),

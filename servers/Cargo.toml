@@ -7,11 +7,20 @@ members = [
     "crates/wire_ws",
     "crates/wire_http",
     "crates/system/ctx",
+    "crates/system/nats",
     "crates/system/trace",
     "crates/mod_identity",
     "crates/mod_billing",
     "crates/mod_referral",
+    "crates/mod_admin",
+    "crates/mod_file",
     "crates/mod_llm",
+    "crates/mod_chat",
+    "crates/mod_log",
+    "crates/mod_consumption",
+    "crates/mod_channel",
+    "crates/mod_device",
+    "channel_whatsapp_device",
     "server_ai",
 ]
 
@@ -22,6 +31,7 @@ authors = ["AlienAI"]
 
 [workspace.dependencies]
 anyhow = "1"
+async-nats = "0.38"
 async-trait = "0.1"
 axum = { version = "0.8", features = ["ws"] }
 bytes = "1"
@@ -42,6 +52,8 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "net
 tower-http = { version = "0.6", features = ["cors", "trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+dashmap = "6"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 urlencoding = "2"
 
 [profile.dev]

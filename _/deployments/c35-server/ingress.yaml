@@ -1,0 +1,65 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: c35-server
+  namespace: c35
+  labels:
+    app.kubernetes.io/name: c35-server
+    app.kubernetes.io/part-of: c35
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod-dns
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/redirect-entry-point: https
+    traefik.ingress.kubernetes.io/router.priority: "110"
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - alienai.id
+      secretName: alienai-id-tls
+  rules:
+    - host: alienai.id
+      http:
+        paths:
+          - path: /a
+            pathType: Prefix
+            backend:
+              service:
+                name: c35-server
+                port:
+                  name: http
+          - path: /v1
+            pathType: Prefix
+            backend:
+              service:
+                name: c35-server
+                port:
+                  name: http
+          - path: /ws
+            pathType: Prefix
+            backend:
+              service:
+                name: c35-server
+                port:
+                  name: http
+          - path: /health
+            pathType: Exact
+            backend:
+              service:
+                name: c35-server
+                port:
+                  name: http
+          - path: /livez
+            pathType: Exact
+            backend:
+              service:
+                name: c35-server
+                port:
+                  name: http
+          - path: /fs
+            pathType: Prefix
+            backend:
+              service:
+                name: c35-server
+                port:
+                  name: http

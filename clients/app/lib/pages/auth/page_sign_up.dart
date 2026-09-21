@@ -58,7 +58,7 @@ class _PageSignUpState extends State<PageSignUp> {
       body: UiAuthShell(
         title: 'Create account',
         subtitle: 'Alien AI',
-        footer: UiAuthFooter(version: appVersionLabel()),
+        footer: UiAuthFooter(version: appVersionDetailLabel()),
         children: [
           TextField(controller: _nameCtrl, enabled: !_anyBusy, decoration: UiInputDecoration.of(context, labelText: 'Name'), onChanged: (_) => setState(() {})),
           const SizedBox(height: 12),

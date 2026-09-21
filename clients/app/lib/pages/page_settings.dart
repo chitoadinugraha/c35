@@ -1,0 +1,620 @@
+import 'dart:async';
+
+import 'package:alienai_c35/c/account/account_api.dart';
+import 'package:alienai_c35/c/account/invoke_account.dart';
+import 'package:alienai_c35/c/api/settings_conn.dart';
+import 'package:alienai_c35/c/conn/server_host.dart';
+import 'package:alienai_c35/c/locale/app_locale.dart';
+import 'package:alienai_c35/c/parts/version_label.dart';
+import 'package:alienai_c35/c/update/app_release.dart';
+import 'package:alienai_c35/c/update/app_update_service.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:alienai_c35/c/profile/alien_id.dart';
+import 'package:alienai_c35/c/profile/profile_api.dart';
+import 'package:alienai_c35/c/profile/profile_handle.dart';
+import 'package:alienai_c35/c/session.dart';
+import 'package:alienai_c35/c/settings/prompt_usage_prefs.dart';
+import 'package:alienai_c35/c/ui/money_format.dart';
+import 'package:alienai_c35/c/settings/voice_prefs.dart';
+import 'package:alienai_c35/c/store/app_store.dart';
+import 'package:alienai_c35/c/stt/stt_mic_permission.dart';
+import 'package:alienai_c35/c/stt/stt_service.dart';
+import 'package:alienai_c35/c/tts/speech_lang.dart';
+import 'package:alienai_c35/c/tts/tts_service.dart';
+import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
+import 'package:alienai_c35/pages/page_allow_control.dart';
+import 'package:alienai_c35/widgets/ai/ui_bot_memories_sheet.dart';
+import 'package:alienai_c35/widgets/io/in_alien_id.dart';
+import 'package:alienai_c35/widgets/settings/ui_account_live_conns.dart';
+import 'package:alienai_c35/widgets/settings/ui_settings_password.dart';
+import 'package:alienai_c35/widgets/settings/ui_settings_pin.dart';
+import 'package:alienai_c35/widgets/settings/ui_settings_tile.dart';
+import 'package:alienai_c35/widgets/settings/ui_settings_unlock_mode.dart';
+import 'package:alienai_c35/widgets/ui/ui_img.dart';
+import 'package:alienai_c35/widgets/ui/ui_locale_picker_dialog.dart';
+import 'package:alienai_c35/widgets/ui/ui_page.dart';
+import 'package:alienai_c35/widgets/ui/ui_speak_toggle.dart' show UiAppToggle;
+import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
+import 'package:alienai_c35/widgets/ui/ui_user_avatar.dart';
+import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+
+class PageSettings extends StatefulWidget {
+  PageSettings({super.key, AppStore? store, this.conn, this.thisPcRegister, this.thisPcUnregister, this.profile, this.account}) : store = store ?? AppStore.instance;
+  final AppStore store;
+  final SettingsConn? conn;
+  final ThisPcRegister? thisPcRegister;
+  final Future<void> Function()? thisPcUnregister;
+  final ProfileApi? profile;
+  final AccountApi? account;
+
+  @override
+  State<PageSettings> createState() => _PageSettingsState();
+}
+
+class _PageSettingsState extends State<PageSettings> {
+  static const _bg = Color(0xFF08080A);
+  static const _border = Color(0xFF27272A);
+  static const _accent = Color(0xFF34D399);
+  static const _contentMaxWidth = 720.0;
+
+  late final ProfileApi? _profile = widget.profile ?? (widget.conn == null ? null : ProfileApi(invoke: widget.conn!.authInvoke));
+  late final AccountApi? _account = widget.account ?? (widget.conn == null ? null : AccountApi(invoke: widget.conn!.authInvoke, uid: Session.instance.uid));
+  late String _name = Session.instance.name;
+  late String _email = Session.instance.email;
+  late String _handle = Session.instance.handle;
+  late String _pic = Session.instance.pic;
+  var _busy = false;
+  var _hasPassword = false;
+  var _hasPin = false;
+  var _unlockMode = 'tap';
+  late String _serverLabel = '';
+  late String _speechLang = VoicePrefs.instance.speechLang;
+  late String _sttEngine = VoicePrefs.instance.sttEngine;
+  late String _ttsEngine = VoicePrefs.instance.ttsEngine;
+  late double _speechRate = VoicePrefs.instance.speechRate;
+  late double _speechPitch = VoicePrefs.instance.speechPitch;
+  late bool _showUsageStats = PromptUsagePrefs.instance.showUsageStats;
+  String _apkUrl = '';
+
+  @override
+  void initState() {
+    super.initState();
+    VoicePrefs.instance.addListener(_onVoiceChanged);
+    PromptUsagePrefs.instance.addListener(_onUsagePrefsChanged);
+    if (defaultTargetPlatform == TargetPlatform.windows) AppUpdateService.instance.state.addListener(_onUpdateChanged);
+    unawaited(_hydrate());
+  }
+
+  void _onUpdateChanged() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _hydrate() async {
+    final host = await serverHostFooterLabel();
+    var apkUrl = '';
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      final base = await serverHostActiveBase();
+      final release = await appReleaseGet(base, platform: 'android');
+      apkUrl = release?.apkUrl ?? '';
+    }
+    UserSettingsRes? settings;
+    try {
+      settings = await _account?.userSettingsGet();
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() {
+      _name = Session.instance.name;
+      _email = Session.instance.email;
+      _handle = Session.instance.handle;
+      _pic = Session.instance.pic;
+      _serverLabel = host;
+      _apkUrl = apkUrl;
+      if (settings != null) {
+        _hasPassword = settings.hasPassword;
+        _hasPin = settings.hasPin;
+        _unlockMode = settings.sessionUnlockMode;
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    VoicePrefs.instance.removeListener(_onVoiceChanged);
+    PromptUsagePrefs.instance.removeListener(_onUsagePrefsChanged);
+    if (defaultTargetPlatform == TargetPlatform.windows) AppUpdateService.instance.state.removeListener(_onUpdateChanged);
+    super.dispose();
+  }
+
+  void _onVoiceChanged() {
+    if (!mounted) return;
+    setState(() {
+      _speechLang = VoicePrefs.instance.speechLang;
+      _sttEngine = VoicePrefs.instance.sttEngine;
+      _ttsEngine = VoicePrefs.instance.ttsEngine;
+      _speechRate = VoicePrefs.instance.speechRate;
+      _speechPitch = VoicePrefs.instance.speechPitch;
+    });
+  }
+
+  void _onUsagePrefsChanged() {
+    if (!mounted) return;
+    setState(() => _showUsageStats = PromptUsagePrefs.instance.showUsageStats);
+  }
+
+  Future<void> _run(Future<void> Function() fn) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await fn();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _applyProfile({String? name, String? avatarUrl, String? handle, String? authEmail}) async {
+    final api = _profile;
+    if (api == null) return;
+    final res = await api.put(uid: Session.instance.uid, name: name, avatarUrl: avatarUrl, handle: handle, authEmail: authEmail);
+    if (!mounted) return;
+    setState(() {
+      _name = res.name.isNotEmpty ? res.name : _name;
+      _email = res.authEmail.isNotEmpty ? res.authEmail : _email;
+      _handle = res.handle.isNotEmpty ? res.handle : _handle;
+      _pic = res.avatarUrl.isNotEmpty ? res.avatarUrl : _pic;
+    });
+    await Session.instance.put(uid: Session.instance.uid, name: _name, handle: _handle, pic: _pic, email: _email);
+  }
+
+  Future<void> _editName() async {
+    final trimmed = await showDialog<String>(context: context, builder: (ctx) => _ProfileTextDialog(title: 'Change name', label: 'Name', initial: _name, onSubmit: (v) => v.trim().isNotEmpty ? v.trim() : null));
+    if (trimmed == null || trimmed == _name) return;
+    await _run(() => _applyProfile(name: trimmed));
+  }
+
+  Future<void> _editAlienId() async {
+    final api = _profile;
+    if (api == null) return;
+    final initial = alienIdNormalize(_handle);
+    final trimmed = await showDialog<String>(context: context, builder: (ctx) => _AlienIdDialog(profile: api, uid: Session.instance.uid, initial: initial));
+    if (trimmed == null || trimmed == initial) return;
+    await _run(() => _applyProfile(handle: trimmed));
+  }
+
+  Future<void> _languagePick() async {
+    final picked = await askAppLocale(context: context, value: context.locale);
+    if (picked == null || !mounted) return;
+    if (appLocaleSame(picked, context.locale)) return;
+    await context.setLocale(picked);
+  }
+
+  Future<void> _cycleHost() async {
+    if (!serverHostPickerVisible()) return;
+    final next = await serverHostCycle();
+    if (!mounted) return;
+    setState(() => _serverLabel = serverHostLabelFromUrl(next));
+  }
+
+  void _controlThisComputerTap() {
+    if (widget.store.thisPcOnRail) {
+      pageAllowControlRevoke(context, store: widget.store, thisPcUnregister: widget.thisPcUnregister);
+      return;
+    }
+    pageAllowControlShow(context, store: widget.store, thisPcRegister: widget.thisPcRegister, thisPcUnregister: widget.thisPcUnregister);
+  }
+
+  InputDecoration _fieldDecoration(String label) => InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: Color(0xFF71717A), fontSize: 13),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _border)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _border)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _accent)),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final alienHandle = profileAlienAddress(_handle);
+    final account = _account;
+    return UiPage(
+      title: 'settings.title'.tr(),
+      onBack: () => Navigator.pop(context),
+      backgroundColor: _bg,
+      overlay: _busy ? const Positioned(left: 0, right: 0, top: 0, child: LinearProgressIndicator(minHeight: 2, color: _accent, backgroundColor: Colors.transparent)) : null,
+      body: ListenableBuilder(
+              listenable: widget.store,
+              builder: (context, _) => SingleChildScrollView(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                        _SectionLabel('settings.sectionProfile'.tr()),
+                        const SizedBox(height: 8),
+                        _Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              UiUserAvatar(name: _name, email: _email, pic: _pic, size: 64),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  _ProfileTapRow(label: 'Name', onTap: _busy ? null : _editName, child: Text(_name.isEmpty ? 'Account' : _name, style: const TextStyle(color: Color(0xFFF4F4F5), fontSize: 16, fontWeight: FontWeight.bold))),
+                                  const SizedBox(height: 8),
+                                  _ProfileTapRow(label: 'Email', child: Text(_email.isEmpty ? '—' : _email, style: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 13))),
+                                  const SizedBox(height: 4),
+                                  _ProfileTapRow(label: 'Alien ID', onTap: _busy || _profile == null ? null : _editAlienId, child: Text(alienHandle, style: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 13))),
+                                ]),
+                              ),
+                            ]),
+                          ),
+                        ),
+                        const SizedBox(height: 28),
+                        _SectionLabel('Billing'),
+                        const SizedBox(height: 8),
+                        _Card(
+                          child: Column(children: [
+                            UiSettingsTile(
+                              icon: Icons.account_balance_wallet_outlined,
+                              title: 'settings.balance'.tr(),
+                              subtitle: moneyBalanceLabel(widget.store.wallet.balanceUsd, currency: widget.store.wallet.billingCurrency, fxMicroPerUsd: widget.store.wallet.fxMicroPerUsd),
+                            ),
+                            if (widget.store.wallet.allow5hLimit > 0) ...[
+                              uiSettingsDivider(),
+                              UiSettingsTile(
+                                icon: Icons.hourglass_top_outlined,
+                                title: 'Free allowance',
+                                subtitle: '${moneyAllowanceLabel((widget.store.wallet.allow5hLimit - widget.store.wallet.allow5hUsed).clamp(0.0, widget.store.wallet.allow5hLimit), currency: widget.store.wallet.billingCurrency, fxMicroPerUsd: widget.store.wallet.fxMicroPerUsd)} remaining of ${moneyAllowanceLabel(widget.store.wallet.allow5hLimit, currency: widget.store.wallet.billingCurrency, fxMicroPerUsd: widget.store.wallet.fxMicroPerUsd)} (5h)',
+                              ),
+                            ],
+                          ]),
+                        ),
+                        const SizedBox(height: 28),
+                        _SectionLabel('settings.sectionAi'.tr()),
+                        const SizedBox(height: 8),
+                        _Card(
+                          child: Column(children: [
+                            UiSettingsTile(
+                              key: const Key('settings-control-this-pc'),
+                              icon: Icons.desktop_windows_outlined,
+                              title: 'settings.controlThisComputer'.tr(),
+                              subtitle: widget.store.thisPcOnRail ? 'settings.controlThisComputerOn'.tr() : 'settings.controlThisComputerOff'.tr(),
+                              onTap: _controlThisComputerTap,
+                            ),
+                            uiSettingsDivider(),
+                            UiSettingsTile(
+                              icon: Icons.psychology_outlined,
+                              title: 'Learned Memories',
+                              subtitle: 'settings.learnedMemoriesSubtitle'.tr(),
+                              onTap: widget.conn == null ? null : () => UiBotMemoriesSheet.show(context, conn: widget.conn!),
+                            ),
+                            uiSettingsDivider(),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                              child: Row(children: [
+                                const Icon(Icons.data_usage_outlined, color: Color(0xFF71717A), size: 22),
+                                const SizedBox(width: 12),
+                                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('settings.showUsage'.tr(), style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 14, fontWeight: FontWeight.w500)), const SizedBox(height: 2), Text('settings.showUsageSubtitle'.tr(), style: const TextStyle(color: Color(0xFF71717A), fontSize: 12))])),
+                                UiAppToggle(value: _showUsageStats, onChanged: (v) { setState(() => _showUsageStats = v); PromptUsagePrefs.instance.setShowUsageStats(v); }),
+                              ]),
+                            ),
+                          ]),
+                        ),
+                        if (account != null) ...[
+                          const SizedBox(height: 28),
+                          _SectionLabel('settings.sectionSecurity'.tr()),
+                          const SizedBox(height: 8),
+                          _Card(
+                            child: Column(children: [
+                              UiSettingsPassword(account: account, hasPassword: _hasPassword, onPasswordChanged: (v) => setState(() => _hasPassword = v)),
+                              uiSettingsDivider(),
+                              UiSettingsPin(account: account, hasPin: _hasPin, onPinChanged: (v) => setState(() => _hasPin = v)),
+                              uiSettingsDivider(),
+                              UiSettingsUnlockMode(account: account, currentMode: _unlockMode, hasPin: _hasPin, onModeChanged: (v) => setState(() => _unlockMode = v)),
+                              uiSettingsDivider(),
+                              UiSettingsTile(icon: Icons.devices_other_outlined, title: 'settings.activeConnections'.tr(), subtitle: 'settings.activeConnectionsSubtitle'.tr(), onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageAccountLiveConns(account: account)))),
+                            ]),
+                          ),
+                        ],
+                        if (defaultTargetPlatform == TargetPlatform.windows || defaultTargetPlatform == TargetPlatform.android) ...[
+                          const SizedBox(height: 28),
+                          const _SectionLabel('App'),
+                          const SizedBox(height: 8),
+                          _Card(
+                            child: Column(children: [
+                              UiSettingsTile(
+                                icon: Icons.system_update_alt_outlined,
+                                title: 'Check for updates',
+                                subtitle: defaultTargetPlatform == TargetPlatform.windows && AppUpdateService.instance.statusLabel().isNotEmpty
+                                    ? AppUpdateService.instance.statusLabel()
+                                    : appVersionLabel(),
+                                onTap: () => AppUpdateService.instance.checkNow(),
+                              ),
+                              if (defaultTargetPlatform == TargetPlatform.android && _apkUrl.isNotEmpty) ...[
+                                uiSettingsDivider(),
+                                UiSettingsTile(
+                                  icon: Icons.android_outlined,
+                                  title: 'Download APK',
+                                  subtitle: 'Install without Google Play',
+                                  onTap: () => launchUrl(Uri.parse(_apkUrl), mode: LaunchMode.externalApplication),
+                                ),
+                              ],
+                            ]),
+                          ),
+                        ],
+                        const SizedBox(height: 28),
+                        _SectionLabel('settings.sectionAppearance'.tr()),
+                        const SizedBox(height: 8),
+                        _Card(
+                          child: UiSettingsTile(
+                            leading: UiImg(src: appLocaleMeta(context.locale).flag, width: 22, height: 22, recolor: false),
+                            title: 'settings.language'.tr(),
+                            subtitle: appLocaleLabel(context.locale),
+                            onTap: _languagePick,
+                          ),
+                        ),
+                        const SizedBox(height: 28),
+                        _SectionLabel('settings.sectionVoice'.tr()),
+                        const SizedBox(height: 8),
+                        _Card(
+                          child: Column(children: [
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                              child: DropdownButtonFormField<String>(
+                                key: ValueKey(_speechLang),
+                                initialValue: _speechLang,
+                                dropdownColor: const Color(0xFF18181B),
+                                style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 14),
+                                decoration: _fieldDecoration('Language'),
+                                selectedItemBuilder: (ctx) => speechLangOptions.map((lang) => _SpeechLangDropdownRow(lang: lang)).toList(),
+                                items: speechLangOptions.map((lang) => DropdownMenuItem(value: lang, child: _SpeechLangDropdownRow(lang: lang))).toList(),
+                                onChanged: (v) => v != null ? VoicePrefs.instance.setSpeechLang(v) : null,
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                              child: DropdownButtonFormField<String>(key: ValueKey(_sttEngine), initialValue: _sttEngine, dropdownColor: const Color(0xFF18181B), style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 14), decoration: _fieldDecoration('Speech to text'), items: const [DropdownMenuItem(value: 'web', child: Text('Web Speech API')), DropdownMenuItem(value: 'cloud', child: Text('Cloud'))], onChanged: (v) => v != null ? VoicePrefs.instance.setSttEngine(v) : null),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                              child: Row(children: [
+                                Expanded(child: DropdownButtonFormField<String>(key: ValueKey(_ttsEngine), initialValue: _ttsEngine, dropdownColor: const Color(0xFF18181B), style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 14), decoration: _fieldDecoration('Text to speech'), items: const [DropdownMenuItem(value: 'web', child: Text('Web Speech API')), DropdownMenuItem(value: 'cloud', child: Text('Cloud')), DropdownMenuItem(value: 'local', child: Text('Local'))], onChanged: (v) => v != null ? VoicePrefs.instance.setTtsEngine(v) : null)),
+                                const SizedBox(width: 8),
+                                uiIconButton(icon: const Icon(Icons.hearing_rounded, color: _accent), tooltip: 'Test speech to text', onPressed: () => showDialog<void>(context: context, builder: (ctx) => _SttTestDialog(speechLang: _speechLang))),
+                                uiIconButton(icon: const Icon(Icons.record_voice_over_rounded, color: _accent), tooltip: 'Test text to speech', onPressed: () => showDialog<void>(context: context, builder: (ctx) => _TtsTestDialog(speechLang: _speechLang))),
+                              ]),
+                            ),
+                            Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 4), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Speech speed', style: TextStyle(color: Color(0xFFE4E4E7), fontSize: 13, fontWeight: FontWeight.w500)), Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: const Color(0xFF18181B), borderRadius: BorderRadius.circular(6), border: Border.all(color: _border)), child: Text('${_speechRate.toStringAsFixed(2)}x', style: const TextStyle(color: _accent, fontSize: 12, fontFamily: 'monospace', fontWeight: FontWeight.w600)))])),
+                            SliderTheme(data: SliderTheme.of(context).copyWith(activeTrackColor: _accent, inactiveTrackColor: const Color(0xFF27272A), thumbColor: const Color(0xFFF4F4F5), trackHeight: 3), child: Slider(value: _speechRate.clamp(0.75, 2.0), min: 0.75, max: 2.0, divisions: 25, onChanged: VoicePrefs.instance.setSpeechRate)),
+                            Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 4), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Speech pitch', style: TextStyle(color: Color(0xFFE4E4E7), fontSize: 13, fontWeight: FontWeight.w500)), Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: const Color(0xFF18181B), borderRadius: BorderRadius.circular(6), border: Border.all(color: _border)), child: Text('${_speechPitch.toStringAsFixed(2)}x', style: const TextStyle(color: _accent, fontSize: 12, fontFamily: 'monospace', fontWeight: FontWeight.w600)))])),
+                            SliderTheme(data: SliderTheme.of(context).copyWith(activeTrackColor: _accent, inactiveTrackColor: const Color(0xFF27272A), thumbColor: const Color(0xFFF4F4F5), trackHeight: 3), child: Slider(value: _speechPitch.clamp(0.5, 1.5), min: 0.5, max: 1.5, divisions: 20, onChanged: VoicePrefs.instance.setSpeechPitch)),
+                            const SizedBox(height: 4),
+                          ]),
+                        ),
+                        const SizedBox(height: 24),
+                        Center(child: Text(appVersionLabel(), style: const TextStyle(color: Color(0xFF52525B), fontSize: 12))),
+                        const SizedBox(height: 4),
+                        Center(
+                          child: GestureDetector(
+                            onTap: serverHostPickerVisible() ? _cycleHost : null,
+                            child: Text(_serverLabel, style: const TextStyle(color: Color(0xFF3F3F46), fontSize: 11)),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                      ]),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+    );
+  }
+}
+
+class _ProfileTapRow extends StatelessWidget {
+  const _ProfileTapRow({required this.label, required this.child, this.onTap});
+  final String label;
+  final Widget child;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('$label: ', style: const TextStyle(color: Color(0xFF71717A), fontSize: 13)), Expanded(child: child)]),
+          ),
+        ),
+      );
+}
+
+class _ProfileTextDialog extends StatefulWidget {
+  const _ProfileTextDialog({required this.title, required this.label, required this.initial, required this.onSubmit});
+  final String title;
+  final String label;
+  final String initial;
+  final String? Function(String value) onSubmit;
+  @override
+  State<_ProfileTextDialog> createState() => _ProfileTextDialogState();
+}
+
+class _ProfileTextDialogState extends State<_ProfileTextDialog> {
+  late final TextEditingController _ctrl = TextEditingController(text: widget.initial);
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final value = widget.onSubmit(_ctrl.text);
+    if (value == null) return;
+    Navigator.pop(context, value);
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        backgroundColor: const Color(0xFF18181B),
+        title: Text(widget.title, style: const TextStyle(color: Color(0xFFF4F4F5), fontSize: 16, fontWeight: FontWeight.bold)),
+        content: TextField(controller: _ctrl, autofocus: true, style: const TextStyle(color: Color(0xFFF4F4F5)), decoration: InputDecoration(labelText: widget.label, labelStyle: const TextStyle(color: Color(0xFF71717A))), onSubmitted: (_) => _submit()),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')), FilledButton(onPressed: _submit, style: FilledButton.styleFrom(backgroundColor: const Color(0xFF34D399), foregroundColor: Colors.black), child: const Text('Save'))],
+      );
+}
+
+class _AlienIdDialog extends StatefulWidget {
+  const _AlienIdDialog({required this.profile, required this.uid, required this.initial});
+  final ProfileApi profile;
+  final int uid;
+  final String initial;
+  @override
+  State<_AlienIdDialog> createState() => _AlienIdDialogState();
+}
+
+class _AlienIdDialogState extends State<_AlienIdDialog> {
+  var _valid = false;
+  late String _value = widget.initial;
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        backgroundColor: const Color(0xFF18181B),
+        title: const Text('Change Alien ID', style: TextStyle(color: Color(0xFFF4F4F5), fontSize: 16, fontWeight: FontWeight.bold)),
+        content: SizedBox(width: 360, child: InAlienId(profile: widget.profile, uid: widget.uid, initial: widget.initial, onChanged: (v) => _value = v, onValidChanged: (v) => setState(() => _valid = v))),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          FilledButton(onPressed: _valid ? () => Navigator.pop(context, alienIdNormalize(_value)) : null, style: FilledButton.styleFrom(backgroundColor: const Color(0xFF34D399), foregroundColor: Colors.black), child: const Text('Save')),
+        ],
+      );
+}
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.label);
+  final String label;
+  @override
+  Widget build(BuildContext context) => Text(label, style: const TextStyle(color: Color(0xFF71717A), fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.8));
+}
+
+class _Card extends StatelessWidget {
+  const _Card({required this.child});
+  final Widget child;
+  @override
+  Widget build(BuildContext context) => Material(color: const Color(0xFF18181B), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFF27272A))), clipBehavior: Clip.antiAlias, child: child);
+}
+
+class _SpeechLangDropdownRow extends StatelessWidget {
+  const _SpeechLangDropdownRow({required this.lang});
+  final String lang;
+
+  @override
+  Widget build(BuildContext context) {
+    final flag = speechLangFlag(lang);
+    return Row(children: [
+      if (flag != null)
+        UiImg(src: flag, width: 18, height: 18, recolor: false)
+      else
+        const Icon(Icons.translate_rounded, size: 18, color: Color(0xFF71717A)),
+      const SizedBox(width: 10),
+      Text(speechLangLabel(lang), style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 14)),
+    ]);
+  }
+}
+
+class _TtsTestDialog extends StatefulWidget {
+  const _TtsTestDialog({required this.speechLang});
+  final String speechLang;
+  @override
+  State<_TtsTestDialog> createState() => _TtsTestDialogState();
+}
+
+class _TtsTestDialogState extends State<_TtsTestDialog> {
+  late final TextEditingController _ctrl = TextEditingController(text: 'Hello! This is a test of text to speech.');
+  var _playing = false;
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        backgroundColor: const Color(0xFF18181B),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Color(0xFF27272A))),
+        title: const Text('Test text to speech', style: TextStyle(color: Color(0xFFF4F4F5), fontSize: 16, fontWeight: FontWeight.bold)),
+        content: SizedBox(width: 360, child: TextField(controller: _ctrl, maxLines: 3, style: const TextStyle(color: Color(0xFFF4F4F5), fontSize: 14), decoration: InputDecoration(hintText: 'Enter text to read aloud…', hintStyle: const TextStyle(color: Color(0xFF71717A)), contentPadding: const EdgeInsets.all(12), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF27272A)))))),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: const Color(0xFF34D399), foregroundColor: Colors.black),
+              onPressed: _playing ? null : () async {
+                final txt = _ctrl.text.trim();
+                if (txt.isEmpty) return;
+                setState(() => _playing = true);
+                await TtsService.instance.speak(txt, lang: widget.speechLang == kSpeechLangAuto ? null : widget.speechLang);
+                if (mounted) setState(() => _playing = false);
+              },
+              child: Text(_playing ? 'Playing…' : 'Speak'),
+            ),
+          ),
+        ],
+      );
+}
+
+class _SttTestDialog extends StatefulWidget {
+  const _SttTestDialog({required this.speechLang});
+  final String speechLang;
+  @override
+  State<_SttTestDialog> createState() => _SttTestDialogState();
+}
+
+class _SttTestDialogState extends State<_SttTestDialog> {
+  var _recording = false;
+  String _transcript = '';
+  @override
+  void dispose() {
+    if (_recording || SttService.instance.isRecording.value) SttService.instance.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        backgroundColor: const Color(0xFF18181B),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Color(0xFF27272A))),
+        title: const Text('Test speech to text', style: TextStyle(color: Color(0xFFF4F4F5), fontSize: 16, fontWeight: FontWeight.bold)),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          GestureDetector(
+            onTap: () async {
+              if (_recording) {
+                final text = await SttService.instance.stopAndTranscribe(lang: widget.speechLang);
+                if (!mounted) return;
+                setState(() { _recording = false; _transcript = text ?? 'No transcript (${VoicePrefs.instance.sttEngine})'; });
+              } else {
+                final messenger = ScaffoldMessenger.maybeOf(context);
+                final ok = await SttService.instance.startRecording();
+                if (!mounted) return;
+                if (!ok) { messenger?.showSnackBar(SnackBar(content: Text(SttService.instance.lastStartError ?? sttMicErrorMessage()))); return; }
+                setState(() { _recording = true; _transcript = ''; });
+              }
+            },
+            child: Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(color: _recording ? const Color(0xFFEF4444).withValues(alpha: 0.15) : const Color(0xFF34D399).withValues(alpha: 0.15), shape: BoxShape.circle, border: Border.all(color: _recording ? const Color(0xFFEF4444) : const Color(0xFF34D399), width: 2)),
+              child: Icon(_recording ? Icons.stop_rounded : Icons.mic_rounded, color: _recording ? const Color(0xFFEF4444) : const Color(0xFF34D399), size: 32),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(_recording ? 'Listening… tap to stop' : 'Tap mic to record', style: TextStyle(color: _recording ? const Color(0xFFEF4444) : const Color(0xFF71717A), fontSize: 13)),
+          if (_transcript.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Container(width: double.infinity, padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: const Color(0xFF09090B), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFF27272A))), child: Text(_transcript, style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 13))),
+          ],
+        ]),
+      );
+}

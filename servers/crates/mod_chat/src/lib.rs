@@ -1,0 +1,34 @@
+mod asset_tag;
+mod bot_peer;
+mod catalog;
+mod chat_patch;
+mod channel_prompt_turn;
+mod inbox;
+mod log_list;
+pub mod compose;
+mod inst;
+pub mod inst_macro;
+mod mention;
+mod memory;
+mod prompt;
+mod prompt_turn;
+mod topic;
+pub mod tool_rag;
+pub mod tools;
+mod turn_tracer;
+
+pub use catalog::{mention_list, topic_list, translation_get, translation_rev, CatalogMentionRow, CatalogTopicRow};
+pub use mention::{mention_list_enabled, MentionRow};
+pub use tools::ToolDef;
+
+pub use asset_tag::asset_tag_list;
+pub use bot_peer::{bot_peer_list, chat_send, chat_stop};
+pub use chat_patch::chat_patch;
+pub use channel_prompt_turn::channel_prompt_turn;
+pub use inbox::{chat_msg_list, inbox_list};
+pub use log_list::log_list;
+pub use inst_macro::{InstMatchCtx, InstRow};
+pub use memory::{memory_prompt_merge, memory_put, memory_retrieve, MemoryRetrieveResult};
+pub use prompt::audio;
+pub use prompt::gemini::gemini_api_key;
+pub use prompt_turn::{chat_ensure, chat_title_from_text, prompt_turn, PromptTurn};

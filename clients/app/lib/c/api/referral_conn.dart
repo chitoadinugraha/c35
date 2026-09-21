@@ -24,6 +24,8 @@ class ReferralConn {
   final AuthInvokeFn _invoke;
   final int _uid;
 
+  int get uid => _uid;
+
   Future<InvokeRes> invoke(InvokeReq req, {Duration timeout = const Duration(seconds: 30)}) async {
     if (req.reqId.isEmpty) req.reqId = const Uuid().v4();
     if (req.callerIid == Int64.ZERO) req.callerIid = Int64(_uid);

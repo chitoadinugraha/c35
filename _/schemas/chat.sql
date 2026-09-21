@@ -147,6 +147,7 @@ CREATE TABLE IF NOT EXISTS ai.chat_msg (
     tokens_in           INT NOT NULL DEFAULT 0,
     tokens_out          INT NOT NULL DEFAULT 0,
     duration_ms         INT NOT NULL DEFAULT 0,
+    cost_usd            NUMERIC(12, 6) NOT NULL DEFAULT 0,
 
     status              VARCHAR(16) NOT NULL DEFAULT 'done',
 
@@ -171,3 +172,6 @@ CREATE INDEX IF NOT EXISTS idx_chat_msg_req
 
 CREATE INDEX IF NOT EXISTS idx_chat_msg_owner_sync
     ON ai.chat_msg (owner_iid, updated_ts);
+
+ALTER TABLE ai.chat_msg ADD COLUMN IF NOT EXISTS cost_usd NUMERIC(12, 6) NOT NULL DEFAULT 0;
+ALTER TABLE ai.chat_msg ADD COLUMN IF NOT EXISTS error_text TEXT NOT NULL DEFAULT '';

@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package c35;
+
+// One entry inside identity(kind=bot).meta.channels[]
+message BotChannelDoc {
+  string id = 1;
+  string platform = 2;       // telegram | whatsapp
+  string provider = 3;       // meta_api | linked_device (whatsapp only)
+  string status = 4;         // connected | pairing | error | disconnected
+  string bot_username = 5;
+  string phone = 6;
+  string error_message = 7;
+}
+
+message ReqChannelTelegramConnect {
+  int64 bot_iid = 1;
+  string bot_token = 2;
+}
+
+message ResChannelTelegramConnect {
+  int64 bot_iid = 1;
+  BotChannelDoc channel = 2;
+  string webhook_url = 3;
+}
+
+message ReqChannelWhatsappMetaConnect {
+  int64 bot_iid = 1;
+  string access_token = 2;
+  string phone_number_id = 3;
+}
+
+message ResChannelWhatsappMetaConnect {
+  int64 bot_iid = 1;
+  BotChannelDoc channel = 2;
+  string webhook_url = 3;
+  string verify_token = 4;
+}
+
+message ChannelWebhookRes {
+  string status = 1;
+  string message = 2;
+  int64 chat_id = 3;
+  int64 peer_iid = 4;
+}
+
+message ReqChannelWhatsappPairStart {
+  int64 bot_iid = 1;
+  string channel_id = 2;   // empty = server assigns new ULID
+}
+
+message ReqChannelWhatsappPairWatch {
+  int64 bot_iid = 1;
+  string channel_id = 2;
+}
+
+message ReqChannelWhatsappPairAbort {
+  int64 bot_iid = 1;
+  string channel_id = 2;
+}
+
+message ResChannelWhatsappPair {
+  bool ok = 1;
+  string error = 2;
+  int64 bot_iid = 3;
+  BotChannelDoc channel = 4;
+  string qr_raw = 5;
+  string phone = 6;
+}
+
+// Unsolicited WS push while pair dialog open (from NATS ev → WS fanout)
+message ChannelPairPush {
+  int64 bot_iid = 1;
+  string channel_id = 2;
+  string status = 3;         // pairing | connected | error | disconnected
+  string qr_raw = 4;
+  string phone = 5;
+  string error_message = 6;
+}

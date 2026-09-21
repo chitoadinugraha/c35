@@ -1,0 +1,86 @@
+syntax = "proto3";
+
+package c35;
+
+// Human remote viewer (WebRTC). Computer use uses task.proto over server session.
+// See _/docs/remote.md
+
+enum RemoteIceType {
+  REMOTE_ICE_TYPE_UNSPECIFIED = 0;
+  REMOTE_ICE_TYPE_HOST = 1;
+  REMOTE_ICE_TYPE_SRFLX = 2;
+  REMOTE_ICE_TYPE_RELAY = 3;
+}
+
+enum RemoteConnectionMode {
+  REMOTE_CONNECTION_MODE_UNSPECIFIED = 0;
+  REMOTE_CONNECTION_MODE_DIRECT = 1;   // host or srflx
+  REMOTE_CONNECTION_MODE_RELAY = 2;
+}
+
+// ---------------------------------------------------------------------------
+// WebRTC signaling (WS — server relays to agent session)
+// ---------------------------------------------------------------------------
+
+message ReqRemoteSessionStart {
+  int64 device_iid = 1;
+  string session_id = 2;      // client-generated ULID per viewer session
+}
+
+message ResRemoteSessionStart {
+  bool ok = 1;
+  string error = 2;
+  string session_id = 3;
+}
+
+message RtcSignalOffer {
+  int64 device_iid = 1;
+  string session_id = 2;
+  string sdp = 3;
+}
+
+message RtcSignalAnswer {
+  int64 device_iid = 1;
+  string session_id = 2;
+  string sdp = 3;
+}
+
+message RtcSignalIce {
+  int64 device_iid = 1;
+  string session_id = 2;
+  string candidate = 3;
+  string sdp_mid = 4;
+  uint32 sdp_mline_index = 5;
+}
+
+message ReqRemoteSessionStop {
+  int64 device_iid = 1;
+  string session_id = 2;
+}
+
+message ResRemoteSessionStop {
+  bool ok = 1;
+}
+
+// Unsolicited: connection stats for Direct / Relay badge
+message RemoteSessionPush {
+  int64 device_iid = 1;
+  string session_id = 2;
+  RemoteConnectionMode mode = 3;
+  RemoteIceType selected_ice = 4;
+  bool video_active = 5;
+}
+
+// ---------------------------------------------------------------------------
+// WebRTC data channel payloads (binary frame = protobuf encode)
+// ---------------------------------------------------------------------------
+
+message RemoteInputEvent {
+  string event_type = 1;      // mouse_move | mouse_down | mouse_up | mouse_click | wheel | key_down | key_up | type_text
+  double x = 2;               // normalized 0..1
+  double y = 3;
+  int32 button = 4;           // 0=left 1=middle 2=right
+  int32 key_code = 5;
+  string text = 6;
+  int32 delta_y = 7;          // wheel
+}

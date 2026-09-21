@@ -29,9 +29,14 @@ class Session {
   String pic = '';
   String email = '';
   List<String> globalRoles = const [];
+  String allowControl = 'no';
+  String thisPcName = '';
+  String modelId = '';
 
   bool get signedIn => uid > 0 && token.isNotEmpty;
+  bool get allowControlYes => allowControl == 'yes';
   bool get isRoot => globalRoles.contains('root');
+  bool get isTester => globalRoles.contains('tester');
 
   Future<void> restore() async {
     final p = await SharedPreferences.getInstance();
@@ -42,6 +47,30 @@ class Session {
     email = p.getString(C35AppId.sessionEmail) ?? '';
     token = p.getString(C35AppId.sessionToken) ?? '';
     globalRoles = sessionGlobalRolesParse(p.getString(C35AppId.sessionGlobalRoles));
+    allowControl = p.getString(C35AppId.allowControl) ?? 'no';
+    thisPcName = p.getString(C35AppId.thisPcName) ?? '';
+    modelId = p.getString(C35AppId.model) ?? '';
+    sessionTick.value++;
+  }
+
+  Future<void> modelPut(String id) async {
+    modelId = id;
+    final p = await SharedPreferences.getInstance();
+    await p.setString(C35AppId.model, id);
+    sessionTick.value++;
+  }
+
+  Future<void> allowControlPut(String value) async {
+    allowControl = value;
+    final p = await SharedPreferences.getInstance();
+    await p.setString(C35AppId.allowControl, value);
+    sessionTick.value++;
+  }
+
+  Future<void> thisPcNamePut(String value) async {
+    thisPcName = value;
+    final p = await SharedPreferences.getInstance();
+    await p.setString(C35AppId.thisPcName, value);
     sessionTick.value++;
   }
 
@@ -80,6 +109,9 @@ class Session {
     email = '';
     token = '';
     globalRoles = const [];
+    allowControl = 'no';
+    thisPcName = '';
+    modelId = '';
     if (clearStored) {
       final p = await SharedPreferences.getInstance();
       await p.remove(C35AppId.sessionUid);
@@ -89,6 +121,9 @@ class Session {
       await p.remove(C35AppId.sessionEmail);
       await p.remove(C35AppId.sessionToken);
       await p.remove(C35AppId.sessionGlobalRoles);
+      await p.remove(C35AppId.allowControl);
+      await p.remove(C35AppId.thisPcName);
+      await p.remove(C35AppId.model);
     }
     sessionTick.value++;
   }

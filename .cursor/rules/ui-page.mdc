@@ -1,0 +1,47 @@
+---
+description: Use UiPage for full-screen Flutter pages (consistent app bar chrome)
+globs: clients/app/lib/pages/**/*.dart,clients/app/lib/widgets/**/ui_account_live_conns.dart
+alwaysApply: false
+---
+
+# UiPage for full-screen pages
+
+Use `UiPage` from `widgets/ui/ui_page.dart` for every full-screen page with a title bar.
+
+Do **not** use raw `AppBar`, manual `Scaffold` + `UiPageBar`, or one-off top `Row` chrome in pages.
+
+## Standard pattern
+
+```dart
+import 'package:alienai_c35/widgets/ui/ui_page.dart';
+
+UiPage(
+  title: 'Devices',
+  subtitle: 'Coming soon', // optional
+  onBack: () => Navigator.pop(context),
+  trailing: myActions, // optional right-side actions
+  body: ...,
+)
+```
+
+## When to use what
+
+| Need | Use |
+|------|-----|
+| Title + optional subtitle | `title`, `subtitle` |
+| Custom title area (search field, etc.) | `titleWidget` |
+| Right-side icon buttons / actions | `trailing` |
+| Loading bar over page | `overlay` |
+| Back navigation | `onBack: () => Navigator.pop(context)` |
+
+## Exceptions (do not use UiPage)
+
+- **Home shell** — `page_ai_home.dart` (drawer / master-detail layout)
+- **Auth flows** — sign-in / sign-up (`UiAuthShell`)
+- **Session lock gate** — full-screen unlock, no back bar
+- **Boot / error splash** — `main.dart` loading states
+- **Bottom sheets / dialogs** — `showModalBottomSheet`, `AlertDialog`, etc.
+
+## Examples in repo
+
+- Settings, active connections, nav stubs (Bots / Devices / Sites), referral tree

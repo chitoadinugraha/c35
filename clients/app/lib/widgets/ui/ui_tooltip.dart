@@ -44,11 +44,14 @@ Size _tipBubbleSize(BuildContext ctx, String message) {
   return Size(tp.width + _tipPadH * 2, tp.height + _tipPadV * 2);
 }
 
-/// Pass to Material [IconButton]/[PopupMenuButton] `tooltip:` — null on desktop so only [uiTooltip] shows.
+/// Pass to Material [IconButton] `tooltip:` — null on desktop so only [uiTooltip] shows.
 String? uiTooltipText(String? message) =>
     uiTooltipEnabled && !uiDesktopEmbedder && message != null && message.isNotEmpty ? message : null;
 
-/// [PopupMenuButton.child] anchor when using `tooltip: uiTooltipText(label)` on desktop.
+/// [PopupMenuButton] defaults to "Show menu" when tooltip is null — use '' on desktop instead.
+String uiPopupMenuTooltipText(String message) => uiDesktopEmbedder ? '' : message;
+
+/// [PopupMenuButton.child] anchor when using `tooltip: uiPopupMenuTooltipText(label)` on desktop.
 Widget uiPopupMenuChild({required String tooltip, required Widget child}) =>
     tooltip.isEmpty ? child : uiTooltip(message: tooltip, child: child);
 

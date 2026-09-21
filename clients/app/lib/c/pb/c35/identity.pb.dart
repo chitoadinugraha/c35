@@ -1,18 +1,21 @@
+// This is a generated file - do not edit.
 //
-//  Generated code. Do not modify.
-//  source: c35/identity.proto
-//
-// @dart = 2.12
+// Generated from c35/identity.proto.
+
+// @dart = 3.3
 
 // ignore_for_file: annotate_overrides, camel_case_types, comment_references
-// ignore_for_file: constant_identifier_names, library_prefixes
-// ignore_for_file: non_constant_identifier_names, prefer_final_fields
-// ignore_for_file: unnecessary_import, unnecessary_this, unused_import
+// ignore_for_file: constant_identifier_names
+// ignore_for_file: curly_braces_in_flow_control_structures
+// ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
+// ignore_for_file: non_constant_identifier_names, prefer_relative_imports
 
 import 'dart:core' as $core;
 
 import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
+
+export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
 
 class IdentityProfile extends $pb.GeneratedMessage {
   factory IdentityProfile({
@@ -27,44 +30,33 @@ class IdentityProfile extends $pb.GeneratedMessage {
     $fixnum.Int64? billingIid,
     $core.bool? isRoot,
   }) {
-    final $result = create();
-    if (iid != null) {
-      $result.iid = iid;
-    }
-    if (kind != null) {
-      $result.kind = kind;
-    }
-    if (type != null) {
-      $result.type = type;
-    }
-    if (alienId != null) {
-      $result.alienId = alienId;
-    }
-    if (name != null) {
-      $result.name = name;
-    }
-    if (pic != null) {
-      $result.pic = pic;
-    }
-    if (locale != null) {
-      $result.locale = locale;
-    }
-    if (tz != null) {
-      $result.tz = tz;
-    }
-    if (billingIid != null) {
-      $result.billingIid = billingIid;
-    }
-    if (isRoot != null) {
-      $result.isRoot = isRoot;
-    }
-    return $result;
+    final result = IdentityProfile._();
+    if (iid != null) result.iid = iid;
+    if (kind != null) result.kind = kind;
+    if (type != null) result.type = type;
+    if (alienId != null) result.alienId = alienId;
+    if (name != null) result.name = name;
+    if (pic != null) result.pic = pic;
+    if (locale != null) result.locale = locale;
+    if (tz != null) result.tz = tz;
+    if (billingIid != null) result.billingIid = billingIid;
+    if (isRoot != null) result.isRoot = isRoot;
+    return result;
   }
-  IdentityProfile._() : super();
-  factory IdentityProfile.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
-  factory IdentityProfile.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
 
-  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'IdentityProfile', package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'), createEmptyInstance: create)
+  IdentityProfile._();
+
+  factory IdentityProfile.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      IdentityProfile()..mergeFromBuffer(data, registry);
+  factory IdentityProfile.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      IdentityProfile()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'IdentityProfile',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: IdentityProfile.$_createMessage)
     ..aInt64(1, _omitFieldNames ? '' : 'iid')
     ..aOS(2, _omitFieldNames ? '' : 'kind')
     ..aOS(3, _omitFieldNames ? '' : 'type')
@@ -75,119 +67,119 @@ class IdentityProfile extends $pb.GeneratedMessage {
     ..aOS(8, _omitFieldNames ? '' : 'tz')
     ..aInt64(9, _omitFieldNames ? '' : 'billingIid')
     ..aOB(10, _omitFieldNames ? '' : 'isRoot')
-    ..hasRequiredFields = false
-  ;
+    ..hasRequiredFields = false;
 
-  @$core.Deprecated(
-  'Using this can add significant overhead to your binary. '
-  'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
-  'Will be removed in next major version')
-  IdentityProfile clone() => IdentityProfile()..mergeFromMessage(this);
-  @$core.Deprecated(
-  'Using this can add significant overhead to your binary. '
-  'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
-  'Will be removed in next major version')
-  IdentityProfile copyWith(void Function(IdentityProfile) updates) => super.copyWith((message) => updates(message as IdentityProfile)) as IdentityProfile;
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  IdentityProfile clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  IdentityProfile copyWith(void Function(IdentityProfile) updates) =>
+      super.copyWith((message) => updates(message as IdentityProfile))
+          as IdentityProfile;
 
+  @$core.override
   $pb.BuilderInfo get info_ => _i;
 
   @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use IdentityProfile() / IdentityProfile.new instead')
   static IdentityProfile create() => IdentityProfile._();
-  IdentityProfile createEmptyInstance() => create();
-  static $pb.PbList<IdentityProfile> createRepeated() => $pb.PbList<IdentityProfile>();
+  static $pb.GeneratedMessage $_createMessage() => IdentityProfile._();
+  @$core.override
+  IdentityProfile createEmptyInstance() => IdentityProfile._();
   @$core.pragma('dart2js:noInline')
-  static IdentityProfile getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<IdentityProfile>(create);
+  static IdentityProfile getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<IdentityProfile>(
+          IdentityProfile.$_createMessage);
   static IdentityProfile? _defaultInstance;
 
   @$pb.TagNumber(1)
   $fixnum.Int64 get iid => $_getI64(0);
   @$pb.TagNumber(1)
-  set iid($fixnum.Int64 v) { $_setInt64(0, v); }
+  set iid($fixnum.Int64 value) => $_setInt64(0, value);
   @$pb.TagNumber(1)
   $core.bool hasIid() => $_has(0);
   @$pb.TagNumber(1)
-  void clearIid() => clearField(1);
+  void clearIid() => $_clearField(1);
 
   @$pb.TagNumber(2)
   $core.String get kind => $_getSZ(1);
   @$pb.TagNumber(2)
-  set kind($core.String v) { $_setString(1, v); }
+  set kind($core.String value) => $_setString(1, value);
   @$pb.TagNumber(2)
   $core.bool hasKind() => $_has(1);
   @$pb.TagNumber(2)
-  void clearKind() => clearField(2);
+  void clearKind() => $_clearField(2);
 
   @$pb.TagNumber(3)
   $core.String get type => $_getSZ(2);
   @$pb.TagNumber(3)
-  set type($core.String v) { $_setString(2, v); }
+  set type($core.String value) => $_setString(2, value);
   @$pb.TagNumber(3)
   $core.bool hasType() => $_has(2);
   @$pb.TagNumber(3)
-  void clearType() => clearField(3);
+  void clearType() => $_clearField(3);
 
   @$pb.TagNumber(4)
   $core.String get alienId => $_getSZ(3);
   @$pb.TagNumber(4)
-  set alienId($core.String v) { $_setString(3, v); }
+  set alienId($core.String value) => $_setString(3, value);
   @$pb.TagNumber(4)
   $core.bool hasAlienId() => $_has(3);
   @$pb.TagNumber(4)
-  void clearAlienId() => clearField(4);
+  void clearAlienId() => $_clearField(4);
 
   @$pb.TagNumber(5)
   $core.String get name => $_getSZ(4);
   @$pb.TagNumber(5)
-  set name($core.String v) { $_setString(4, v); }
+  set name($core.String value) => $_setString(4, value);
   @$pb.TagNumber(5)
   $core.bool hasName() => $_has(4);
   @$pb.TagNumber(5)
-  void clearName() => clearField(5);
+  void clearName() => $_clearField(5);
 
   @$pb.TagNumber(6)
   $core.String get pic => $_getSZ(5);
   @$pb.TagNumber(6)
-  set pic($core.String v) { $_setString(5, v); }
+  set pic($core.String value) => $_setString(5, value);
   @$pb.TagNumber(6)
   $core.bool hasPic() => $_has(5);
   @$pb.TagNumber(6)
-  void clearPic() => clearField(6);
+  void clearPic() => $_clearField(6);
 
   @$pb.TagNumber(7)
   $core.String get locale => $_getSZ(6);
   @$pb.TagNumber(7)
-  set locale($core.String v) { $_setString(6, v); }
+  set locale($core.String value) => $_setString(6, value);
   @$pb.TagNumber(7)
   $core.bool hasLocale() => $_has(6);
   @$pb.TagNumber(7)
-  void clearLocale() => clearField(7);
+  void clearLocale() => $_clearField(7);
 
   @$pb.TagNumber(8)
   $core.String get tz => $_getSZ(7);
   @$pb.TagNumber(8)
-  set tz($core.String v) { $_setString(7, v); }
+  set tz($core.String value) => $_setString(7, value);
   @$pb.TagNumber(8)
   $core.bool hasTz() => $_has(7);
   @$pb.TagNumber(8)
-  void clearTz() => clearField(8);
+  void clearTz() => $_clearField(8);
 
   @$pb.TagNumber(9)
   $fixnum.Int64 get billingIid => $_getI64(8);
   @$pb.TagNumber(9)
-  set billingIid($fixnum.Int64 v) { $_setInt64(8, v); }
+  set billingIid($fixnum.Int64 value) => $_setInt64(8, value);
   @$pb.TagNumber(9)
   $core.bool hasBillingIid() => $_has(8);
   @$pb.TagNumber(9)
-  void clearBillingIid() => clearField(9);
+  void clearBillingIid() => $_clearField(9);
 
   @$pb.TagNumber(10)
   $core.bool get isRoot => $_getBF(9);
   @$pb.TagNumber(10)
-  set isRoot($core.bool v) { $_setBool(9, v); }
+  set isRoot($core.bool value) => $_setBool(9, value);
   @$pb.TagNumber(10)
   $core.bool hasIsRoot() => $_has(9);
   @$pb.TagNumber(10)
-  void clearIsRoot() => clearField(10);
+  void clearIsRoot() => $_clearField(10);
 }
 
 class NavCounts extends $pb.GeneratedMessage {
@@ -196,76 +188,77 @@ class NavCounts extends $pb.GeneratedMessage {
     $core.int? devices,
     $core.int? sites,
   }) {
-    final $result = create();
-    if (bots != null) {
-      $result.bots = bots;
-    }
-    if (devices != null) {
-      $result.devices = devices;
-    }
-    if (sites != null) {
-      $result.sites = sites;
-    }
-    return $result;
+    final result = NavCounts._();
+    if (bots != null) result.bots = bots;
+    if (devices != null) result.devices = devices;
+    if (sites != null) result.sites = sites;
+    return result;
   }
-  NavCounts._() : super();
-  factory NavCounts.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
-  factory NavCounts.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
 
-  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'NavCounts', package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'), createEmptyInstance: create)
-    ..a<$core.int>(1, _omitFieldNames ? '' : 'bots', $pb.PbFieldType.O3)
-    ..a<$core.int>(2, _omitFieldNames ? '' : 'devices', $pb.PbFieldType.O3)
-    ..a<$core.int>(3, _omitFieldNames ? '' : 'sites', $pb.PbFieldType.O3)
-    ..hasRequiredFields = false
-  ;
+  NavCounts._();
 
-  @$core.Deprecated(
-  'Using this can add significant overhead to your binary. '
-  'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
-  'Will be removed in next major version')
-  NavCounts clone() => NavCounts()..mergeFromMessage(this);
-  @$core.Deprecated(
-  'Using this can add significant overhead to your binary. '
-  'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
-  'Will be removed in next major version')
-  NavCounts copyWith(void Function(NavCounts) updates) => super.copyWith((message) => updates(message as NavCounts)) as NavCounts;
+  factory NavCounts.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      NavCounts()..mergeFromBuffer(data, registry);
+  factory NavCounts.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      NavCounts()..mergeFromJson(json, registry);
 
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'NavCounts',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: NavCounts.$_createMessage)
+    ..aI(1, _omitFieldNames ? '' : 'bots')
+    ..aI(2, _omitFieldNames ? '' : 'devices')
+    ..aI(3, _omitFieldNames ? '' : 'sites')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  NavCounts clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  NavCounts copyWith(void Function(NavCounts) updates) =>
+      super.copyWith((message) => updates(message as NavCounts)) as NavCounts;
+
+  @$core.override
   $pb.BuilderInfo get info_ => _i;
 
   @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use NavCounts() / NavCounts.new instead')
   static NavCounts create() => NavCounts._();
-  NavCounts createEmptyInstance() => create();
-  static $pb.PbList<NavCounts> createRepeated() => $pb.PbList<NavCounts>();
+  static $pb.GeneratedMessage $_createMessage() => NavCounts._();
+  @$core.override
+  NavCounts createEmptyInstance() => NavCounts._();
   @$core.pragma('dart2js:noInline')
-  static NavCounts getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<NavCounts>(create);
+  static NavCounts getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<NavCounts>(NavCounts.$_createMessage);
   static NavCounts? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.int get bots => $_getIZ(0);
   @$pb.TagNumber(1)
-  set bots($core.int v) { $_setSignedInt32(0, v); }
+  set bots($core.int value) => $_setSignedInt32(0, value);
   @$pb.TagNumber(1)
   $core.bool hasBots() => $_has(0);
   @$pb.TagNumber(1)
-  void clearBots() => clearField(1);
+  void clearBots() => $_clearField(1);
 
   @$pb.TagNumber(2)
   $core.int get devices => $_getIZ(1);
   @$pb.TagNumber(2)
-  set devices($core.int v) { $_setSignedInt32(1, v); }
+  set devices($core.int value) => $_setSignedInt32(1, value);
   @$pb.TagNumber(2)
   $core.bool hasDevices() => $_has(1);
   @$pb.TagNumber(2)
-  void clearDevices() => clearField(2);
+  void clearDevices() => $_clearField(2);
 
   @$pb.TagNumber(3)
   $core.int get sites => $_getIZ(2);
   @$pb.TagNumber(3)
-  set sites($core.int v) { $_setSignedInt32(2, v); }
+  set sites($core.int value) => $_setSignedInt32(2, value);
   @$pb.TagNumber(3)
   $core.bool hasSites() => $_has(2);
   @$pb.TagNumber(3)
-  void clearSites() => clearField(3);
+  void clearSites() => $_clearField(3);
 }
 
 class IdentityGrant extends $pb.GeneratedMessage {
@@ -281,44 +274,33 @@ class IdentityGrant extends $pb.GeneratedMessage {
     $fixnum.Int64? updatedTsMs,
     $fixnum.Int64? deletedTsMs,
   }) {
-    final $result = create();
-    if (id != null) {
-      $result.id = id;
-    }
-    if (resourceIid != null) {
-      $result.resourceIid = resourceIid;
-    }
-    if (granteeIid != null) {
-      $result.granteeIid = granteeIid;
-    }
-    if (role != null) {
-      $result.role = role;
-    }
-    if (permissions != null) {
-      $result.permissions.addAll(permissions);
-    }
-    if (isPinned != null) {
-      $result.isPinned = isPinned;
-    }
-    if (metaJson != null) {
-      $result.metaJson = metaJson;
-    }
-    if (createdTsMs != null) {
-      $result.createdTsMs = createdTsMs;
-    }
-    if (updatedTsMs != null) {
-      $result.updatedTsMs = updatedTsMs;
-    }
-    if (deletedTsMs != null) {
-      $result.deletedTsMs = deletedTsMs;
-    }
-    return $result;
+    final result = IdentityGrant._();
+    if (id != null) result.id = id;
+    if (resourceIid != null) result.resourceIid = resourceIid;
+    if (granteeIid != null) result.granteeIid = granteeIid;
+    if (role != null) result.role = role;
+    if (permissions != null) result.permissions.addAll(permissions);
+    if (isPinned != null) result.isPinned = isPinned;
+    if (metaJson != null) result.metaJson = metaJson;
+    if (createdTsMs != null) result.createdTsMs = createdTsMs;
+    if (updatedTsMs != null) result.updatedTsMs = updatedTsMs;
+    if (deletedTsMs != null) result.deletedTsMs = deletedTsMs;
+    return result;
   }
-  IdentityGrant._() : super();
-  factory IdentityGrant.fromBuffer($core.List<$core.int> i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(i, r);
-  factory IdentityGrant.fromJson($core.String i, [$pb.ExtensionRegistry r = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(i, r);
 
-  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'IdentityGrant', package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'), createEmptyInstance: create)
+  IdentityGrant._();
+
+  factory IdentityGrant.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      IdentityGrant()..mergeFromBuffer(data, registry);
+  factory IdentityGrant.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      IdentityGrant()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'IdentityGrant',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: IdentityGrant.$_createMessage)
     ..aInt64(1, _omitFieldNames ? '' : 'id')
     ..aInt64(2, _omitFieldNames ? '' : 'resourceIid')
     ..aInt64(3, _omitFieldNames ? '' : 'granteeIid')
@@ -329,115 +311,839 @@ class IdentityGrant extends $pb.GeneratedMessage {
     ..aInt64(8, _omitFieldNames ? '' : 'createdTsMs')
     ..aInt64(9, _omitFieldNames ? '' : 'updatedTsMs')
     ..aInt64(10, _omitFieldNames ? '' : 'deletedTsMs')
-    ..hasRequiredFields = false
-  ;
+    ..hasRequiredFields = false;
 
-  @$core.Deprecated(
-  'Using this can add significant overhead to your binary. '
-  'Use [GeneratedMessageGenericExtensions.deepCopy] instead. '
-  'Will be removed in next major version')
-  IdentityGrant clone() => IdentityGrant()..mergeFromMessage(this);
-  @$core.Deprecated(
-  'Using this can add significant overhead to your binary. '
-  'Use [GeneratedMessageGenericExtensions.rebuild] instead. '
-  'Will be removed in next major version')
-  IdentityGrant copyWith(void Function(IdentityGrant) updates) => super.copyWith((message) => updates(message as IdentityGrant)) as IdentityGrant;
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  IdentityGrant clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  IdentityGrant copyWith(void Function(IdentityGrant) updates) =>
+      super.copyWith((message) => updates(message as IdentityGrant))
+          as IdentityGrant;
 
+  @$core.override
   $pb.BuilderInfo get info_ => _i;
 
   @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use IdentityGrant() / IdentityGrant.new instead')
   static IdentityGrant create() => IdentityGrant._();
-  IdentityGrant createEmptyInstance() => create();
-  static $pb.PbList<IdentityGrant> createRepeated() => $pb.PbList<IdentityGrant>();
+  static $pb.GeneratedMessage $_createMessage() => IdentityGrant._();
+  @$core.override
+  IdentityGrant createEmptyInstance() => IdentityGrant._();
   @$core.pragma('dart2js:noInline')
-  static IdentityGrant getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<IdentityGrant>(create);
+  static IdentityGrant getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<IdentityGrant>(
+          IdentityGrant.$_createMessage);
   static IdentityGrant? _defaultInstance;
 
   @$pb.TagNumber(1)
   $fixnum.Int64 get id => $_getI64(0);
   @$pb.TagNumber(1)
-  set id($fixnum.Int64 v) { $_setInt64(0, v); }
+  set id($fixnum.Int64 value) => $_setInt64(0, value);
   @$pb.TagNumber(1)
   $core.bool hasId() => $_has(0);
   @$pb.TagNumber(1)
-  void clearId() => clearField(1);
+  void clearId() => $_clearField(1);
 
   @$pb.TagNumber(2)
   $fixnum.Int64 get resourceIid => $_getI64(1);
   @$pb.TagNumber(2)
-  set resourceIid($fixnum.Int64 v) { $_setInt64(1, v); }
+  set resourceIid($fixnum.Int64 value) => $_setInt64(1, value);
   @$pb.TagNumber(2)
   $core.bool hasResourceIid() => $_has(1);
   @$pb.TagNumber(2)
-  void clearResourceIid() => clearField(2);
+  void clearResourceIid() => $_clearField(2);
 
   @$pb.TagNumber(3)
   $fixnum.Int64 get granteeIid => $_getI64(2);
   @$pb.TagNumber(3)
-  set granteeIid($fixnum.Int64 v) { $_setInt64(2, v); }
+  set granteeIid($fixnum.Int64 value) => $_setInt64(2, value);
   @$pb.TagNumber(3)
   $core.bool hasGranteeIid() => $_has(2);
   @$pb.TagNumber(3)
-  void clearGranteeIid() => clearField(3);
+  void clearGranteeIid() => $_clearField(3);
 
   @$pb.TagNumber(4)
   $core.String get role => $_getSZ(3);
   @$pb.TagNumber(4)
-  set role($core.String v) { $_setString(3, v); }
+  set role($core.String value) => $_setString(3, value);
   @$pb.TagNumber(4)
   $core.bool hasRole() => $_has(3);
   @$pb.TagNumber(4)
-  void clearRole() => clearField(4);
+  void clearRole() => $_clearField(4);
 
   @$pb.TagNumber(5)
-  $core.List<$core.String> get permissions => $_getList(4);
+  $pb.PbList<$core.String> get permissions => $_getList(4);
 
   @$pb.TagNumber(6)
   $core.bool get isPinned => $_getBF(5);
   @$pb.TagNumber(6)
-  set isPinned($core.bool v) { $_setBool(5, v); }
+  set isPinned($core.bool value) => $_setBool(5, value);
   @$pb.TagNumber(6)
   $core.bool hasIsPinned() => $_has(5);
   @$pb.TagNumber(6)
-  void clearIsPinned() => clearField(6);
+  void clearIsPinned() => $_clearField(6);
 
   @$pb.TagNumber(7)
   $core.String get metaJson => $_getSZ(6);
   @$pb.TagNumber(7)
-  set metaJson($core.String v) { $_setString(6, v); }
+  set metaJson($core.String value) => $_setString(6, value);
   @$pb.TagNumber(7)
   $core.bool hasMetaJson() => $_has(6);
   @$pb.TagNumber(7)
-  void clearMetaJson() => clearField(7);
+  void clearMetaJson() => $_clearField(7);
 
   @$pb.TagNumber(8)
   $fixnum.Int64 get createdTsMs => $_getI64(7);
   @$pb.TagNumber(8)
-  set createdTsMs($fixnum.Int64 v) { $_setInt64(7, v); }
+  set createdTsMs($fixnum.Int64 value) => $_setInt64(7, value);
   @$pb.TagNumber(8)
   $core.bool hasCreatedTsMs() => $_has(7);
   @$pb.TagNumber(8)
-  void clearCreatedTsMs() => clearField(8);
+  void clearCreatedTsMs() => $_clearField(8);
 
   @$pb.TagNumber(9)
   $fixnum.Int64 get updatedTsMs => $_getI64(8);
   @$pb.TagNumber(9)
-  set updatedTsMs($fixnum.Int64 v) { $_setInt64(8, v); }
+  set updatedTsMs($fixnum.Int64 value) => $_setInt64(8, value);
   @$pb.TagNumber(9)
   $core.bool hasUpdatedTsMs() => $_has(8);
   @$pb.TagNumber(9)
-  void clearUpdatedTsMs() => clearField(9);
+  void clearUpdatedTsMs() => $_clearField(9);
 
   @$pb.TagNumber(10)
   $fixnum.Int64 get deletedTsMs => $_getI64(9);
   @$pb.TagNumber(10)
-  set deletedTsMs($fixnum.Int64 v) { $_setInt64(9, v); }
+  set deletedTsMs($fixnum.Int64 value) => $_setInt64(9, value);
   @$pb.TagNumber(10)
   $core.bool hasDeletedTsMs() => $_has(9);
   @$pb.TagNumber(10)
-  void clearDeletedTsMs() => clearField(10);
+  void clearDeletedTsMs() => $_clearField(10);
 }
 
+class IdentityRow extends $pb.GeneratedMessage {
+  factory IdentityRow({
+    $fixnum.Int64? iid,
+    $core.String? kind,
+    $core.String? type,
+    $core.String? alienId,
+    $core.String? name,
+    $core.String? pic,
+    $core.String? metaJson,
+    $fixnum.Int64? ownerIid,
+    $fixnum.Int64? updatedTsMs,
+  }) {
+    final result = IdentityRow._();
+    if (iid != null) result.iid = iid;
+    if (kind != null) result.kind = kind;
+    if (type != null) result.type = type;
+    if (alienId != null) result.alienId = alienId;
+    if (name != null) result.name = name;
+    if (pic != null) result.pic = pic;
+    if (metaJson != null) result.metaJson = metaJson;
+    if (ownerIid != null) result.ownerIid = ownerIid;
+    if (updatedTsMs != null) result.updatedTsMs = updatedTsMs;
+    return result;
+  }
 
-const _omitFieldNames = $core.bool.fromEnvironment('protobuf.omit_field_names');
-const _omitMessageNames = $core.bool.fromEnvironment('protobuf.omit_message_names');
+  IdentityRow._();
+
+  factory IdentityRow.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      IdentityRow()..mergeFromBuffer(data, registry);
+  factory IdentityRow.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      IdentityRow()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'IdentityRow',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: IdentityRow.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'iid')
+    ..aOS(2, _omitFieldNames ? '' : 'kind')
+    ..aOS(3, _omitFieldNames ? '' : 'type')
+    ..aOS(4, _omitFieldNames ? '' : 'alienId')
+    ..aOS(5, _omitFieldNames ? '' : 'name')
+    ..aOS(6, _omitFieldNames ? '' : 'pic')
+    ..aOS(7, _omitFieldNames ? '' : 'metaJson')
+    ..aInt64(8, _omitFieldNames ? '' : 'ownerIid')
+    ..aInt64(9, _omitFieldNames ? '' : 'updatedTsMs')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  IdentityRow clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  IdentityRow copyWith(void Function(IdentityRow) updates) =>
+      super.copyWith((message) => updates(message as IdentityRow))
+          as IdentityRow;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use IdentityRow() / IdentityRow.new instead')
+  static IdentityRow create() => IdentityRow._();
+  static $pb.GeneratedMessage $_createMessage() => IdentityRow._();
+  @$core.override
+  IdentityRow createEmptyInstance() => IdentityRow._();
+  @$core.pragma('dart2js:noInline')
+  static IdentityRow getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<IdentityRow>(
+          IdentityRow.$_createMessage);
+  static IdentityRow? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get iid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set iid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get kind => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set kind($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasKind() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearKind() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get type => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set type($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasType() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearType() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get alienId => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set alienId($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasAlienId() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearAlienId() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get name => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set name($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasName() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearName() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get pic => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set pic($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasPic() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearPic() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.String get metaJson => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set metaJson($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasMetaJson() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearMetaJson() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $fixnum.Int64 get ownerIid => $_getI64(7);
+  @$pb.TagNumber(8)
+  set ownerIid($fixnum.Int64 value) => $_setInt64(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasOwnerIid() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearOwnerIid() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $fixnum.Int64 get updatedTsMs => $_getI64(8);
+  @$pb.TagNumber(9)
+  set updatedTsMs($fixnum.Int64 value) => $_setInt64(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasUpdatedTsMs() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearUpdatedTsMs() => $_clearField(9);
+}
+
+/// Per-viewer list row: identity + grant prefs for caller
+class IdentityListRow extends $pb.GeneratedMessage {
+  factory IdentityListRow({
+    IdentityRow? identity,
+    $core.String? grantRole,
+    $core.bool? isPinned,
+    $core.int? sortOrder,
+    $fixnum.Int64? archivedTsMs,
+  }) {
+    final result = IdentityListRow._();
+    if (identity != null) result.identity = identity;
+    if (grantRole != null) result.grantRole = grantRole;
+    if (isPinned != null) result.isPinned = isPinned;
+    if (sortOrder != null) result.sortOrder = sortOrder;
+    if (archivedTsMs != null) result.archivedTsMs = archivedTsMs;
+    return result;
+  }
+
+  IdentityListRow._();
+
+  factory IdentityListRow.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      IdentityListRow()..mergeFromBuffer(data, registry);
+  factory IdentityListRow.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      IdentityListRow()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'IdentityListRow',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: IdentityListRow.$_createMessage)
+    ..aOM<IdentityRow>(1, _omitFieldNames ? '' : 'identity',
+        subBuilder: IdentityRow.$_createMessage)
+    ..aOS(2, _omitFieldNames ? '' : 'grantRole')
+    ..aOB(3, _omitFieldNames ? '' : 'isPinned')
+    ..aI(4, _omitFieldNames ? '' : 'sortOrder')
+    ..aInt64(5, _omitFieldNames ? '' : 'archivedTsMs')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  IdentityListRow clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  IdentityListRow copyWith(void Function(IdentityListRow) updates) =>
+      super.copyWith((message) => updates(message as IdentityListRow))
+          as IdentityListRow;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use IdentityListRow() / IdentityListRow.new instead')
+  static IdentityListRow create() => IdentityListRow._();
+  static $pb.GeneratedMessage $_createMessage() => IdentityListRow._();
+  @$core.override
+  IdentityListRow createEmptyInstance() => IdentityListRow._();
+  @$core.pragma('dart2js:noInline')
+  static IdentityListRow getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<IdentityListRow>(
+          IdentityListRow.$_createMessage);
+  static IdentityListRow? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  IdentityRow get identity => $_getN(0);
+  @$pb.TagNumber(1)
+  set identity(IdentityRow value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasIdentity() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearIdentity() => $_clearField(1);
+  @$pb.TagNumber(1)
+  IdentityRow ensureIdentity() => $_ensure(0);
+
+  @$pb.TagNumber(2)
+  $core.String get grantRole => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set grantRole($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasGrantRole() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearGrantRole() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.bool get isPinned => $_getBF(2);
+  @$pb.TagNumber(3)
+  set isPinned($core.bool value) => $_setBool(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasIsPinned() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearIsPinned() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.int get sortOrder => $_getIZ(3);
+  @$pb.TagNumber(4)
+  set sortOrder($core.int value) => $_setSignedInt32(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasSortOrder() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearSortOrder() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $fixnum.Int64 get archivedTsMs => $_getI64(4);
+  @$pb.TagNumber(5)
+  set archivedTsMs($fixnum.Int64 value) => $_setInt64(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasArchivedTsMs() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearArchivedTsMs() => $_clearField(5);
+}
+
+class ReqIdentityList extends $pb.GeneratedMessage {
+  factory ReqIdentityList({
+    $core.Iterable<$core.String>? kinds,
+    $core.bool? includeArchived,
+  }) {
+    final result = ReqIdentityList._();
+    if (kinds != null) result.kinds.addAll(kinds);
+    if (includeArchived != null) result.includeArchived = includeArchived;
+    return result;
+  }
+
+  ReqIdentityList._();
+
+  factory ReqIdentityList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqIdentityList()..mergeFromBuffer(data, registry);
+  factory ReqIdentityList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqIdentityList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqIdentityList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqIdentityList.$_createMessage)
+    ..pPS(1, _omitFieldNames ? '' : 'kinds')
+    ..aOB(2, _omitFieldNames ? '' : 'includeArchived')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqIdentityList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqIdentityList copyWith(void Function(ReqIdentityList) updates) =>
+      super.copyWith((message) => updates(message as ReqIdentityList))
+          as ReqIdentityList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqIdentityList() / ReqIdentityList.new instead')
+  static ReqIdentityList create() => ReqIdentityList._();
+  static $pb.GeneratedMessage $_createMessage() => ReqIdentityList._();
+  @$core.override
+  ReqIdentityList createEmptyInstance() => ReqIdentityList._();
+  @$core.pragma('dart2js:noInline')
+  static ReqIdentityList getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ReqIdentityList>(
+          ReqIdentityList.$_createMessage);
+  static ReqIdentityList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<$core.String> get kinds => $_getList(0);
+
+  @$pb.TagNumber(2)
+  $core.bool get includeArchived => $_getBF(1);
+  @$pb.TagNumber(2)
+  set includeArchived($core.bool value) => $_setBool(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasIncludeArchived() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearIncludeArchived() => $_clearField(2);
+}
+
+class ResIdentityList extends $pb.GeneratedMessage {
+  factory ResIdentityList({
+    $core.Iterable<IdentityListRow>? rows,
+  }) {
+    final result = ResIdentityList._();
+    if (rows != null) result.rows.addAll(rows);
+    return result;
+  }
+
+  ResIdentityList._();
+
+  factory ResIdentityList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResIdentityList()..mergeFromBuffer(data, registry);
+  factory ResIdentityList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResIdentityList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResIdentityList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResIdentityList.$_createMessage)
+    ..pPM<IdentityListRow>(1, _omitFieldNames ? '' : 'rows',
+        subBuilder: IdentityListRow.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResIdentityList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResIdentityList copyWith(void Function(ResIdentityList) updates) =>
+      super.copyWith((message) => updates(message as ResIdentityList))
+          as ResIdentityList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResIdentityList() / ResIdentityList.new instead')
+  static ResIdentityList create() => ResIdentityList._();
+  static $pb.GeneratedMessage $_createMessage() => ResIdentityList._();
+  @$core.override
+  ResIdentityList createEmptyInstance() => ResIdentityList._();
+  @$core.pragma('dart2js:noInline')
+  static ResIdentityList getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ResIdentityList>(
+          ResIdentityList.$_createMessage);
+  static ResIdentityList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<IdentityListRow> get rows => $_getList(0);
+}
+
+class ReqIdentityGrantPatch extends $pb.GeneratedMessage {
+  factory ReqIdentityGrantPatch({
+    $fixnum.Int64? resourceIid,
+    $core.bool? isPinned,
+    $core.int? sortOrder,
+    $core.bool? archived,
+  }) {
+    final result = ReqIdentityGrantPatch._();
+    if (resourceIid != null) result.resourceIid = resourceIid;
+    if (isPinned != null) result.isPinned = isPinned;
+    if (sortOrder != null) result.sortOrder = sortOrder;
+    if (archived != null) result.archived = archived;
+    return result;
+  }
+
+  ReqIdentityGrantPatch._();
+
+  factory ReqIdentityGrantPatch.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqIdentityGrantPatch()..mergeFromBuffer(data, registry);
+  factory ReqIdentityGrantPatch.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqIdentityGrantPatch()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqIdentityGrantPatch',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqIdentityGrantPatch.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'resourceIid')
+    ..aOB(2, _omitFieldNames ? '' : 'isPinned')
+    ..aI(3, _omitFieldNames ? '' : 'sortOrder')
+    ..aOB(4, _omitFieldNames ? '' : 'archived')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqIdentityGrantPatch clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqIdentityGrantPatch copyWith(
+          void Function(ReqIdentityGrantPatch) updates) =>
+      super.copyWith((message) => updates(message as ReqIdentityGrantPatch))
+          as ReqIdentityGrantPatch;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqIdentityGrantPatch() / ReqIdentityGrantPatch.new instead')
+  static ReqIdentityGrantPatch create() => ReqIdentityGrantPatch._();
+  static $pb.GeneratedMessage $_createMessage() => ReqIdentityGrantPatch._();
+  @$core.override
+  ReqIdentityGrantPatch createEmptyInstance() => ReqIdentityGrantPatch._();
+  @$core.pragma('dart2js:noInline')
+  static ReqIdentityGrantPatch getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqIdentityGrantPatch>(
+          ReqIdentityGrantPatch.$_createMessage);
+  static ReqIdentityGrantPatch? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get resourceIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set resourceIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasResourceIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearResourceIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.bool get isPinned => $_getBF(1);
+  @$pb.TagNumber(2)
+  set isPinned($core.bool value) => $_setBool(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasIsPinned() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearIsPinned() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.int get sortOrder => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set sortOrder($core.int value) => $_setSignedInt32(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasSortOrder() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearSortOrder() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.bool get archived => $_getBF(3);
+  @$pb.TagNumber(4)
+  set archived($core.bool value) => $_setBool(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasArchived() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearArchived() => $_clearField(4);
+}
+
+class ResIdentityGrantPatch extends $pb.GeneratedMessage {
+  factory ResIdentityGrantPatch({
+    IdentityListRow? row,
+  }) {
+    final result = ResIdentityGrantPatch._();
+    if (row != null) result.row = row;
+    return result;
+  }
+
+  ResIdentityGrantPatch._();
+
+  factory ResIdentityGrantPatch.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResIdentityGrantPatch()..mergeFromBuffer(data, registry);
+  factory ResIdentityGrantPatch.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResIdentityGrantPatch()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResIdentityGrantPatch',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResIdentityGrantPatch.$_createMessage)
+    ..aOM<IdentityListRow>(1, _omitFieldNames ? '' : 'row',
+        subBuilder: IdentityListRow.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResIdentityGrantPatch clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResIdentityGrantPatch copyWith(
+          void Function(ResIdentityGrantPatch) updates) =>
+      super.copyWith((message) => updates(message as ResIdentityGrantPatch))
+          as ResIdentityGrantPatch;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResIdentityGrantPatch() / ResIdentityGrantPatch.new instead')
+  static ResIdentityGrantPatch create() => ResIdentityGrantPatch._();
+  static $pb.GeneratedMessage $_createMessage() => ResIdentityGrantPatch._();
+  @$core.override
+  ResIdentityGrantPatch createEmptyInstance() => ResIdentityGrantPatch._();
+  @$core.pragma('dart2js:noInline')
+  static ResIdentityGrantPatch getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResIdentityGrantPatch>(
+          ResIdentityGrantPatch.$_createMessage);
+  static ResIdentityGrantPatch? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  IdentityListRow get row => $_getN(0);
+  @$pb.TagNumber(1)
+  set row(IdentityListRow value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasRow() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearRow() => $_clearField(1);
+  @$pb.TagNumber(1)
+  IdentityListRow ensureRow() => $_ensure(0);
+}
+
+class ReqIdentityPut extends $pb.GeneratedMessage {
+  factory ReqIdentityPut({
+    $fixnum.Int64? iid,
+    $core.String? kind,
+    $core.String? type,
+    $core.String? name,
+    $core.String? pic,
+    $core.String? alienId,
+    $core.String? metaJson,
+  }) {
+    final result = ReqIdentityPut._();
+    if (iid != null) result.iid = iid;
+    if (kind != null) result.kind = kind;
+    if (type != null) result.type = type;
+    if (name != null) result.name = name;
+    if (pic != null) result.pic = pic;
+    if (alienId != null) result.alienId = alienId;
+    if (metaJson != null) result.metaJson = metaJson;
+    return result;
+  }
+
+  ReqIdentityPut._();
+
+  factory ReqIdentityPut.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqIdentityPut()..mergeFromBuffer(data, registry);
+  factory ReqIdentityPut.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqIdentityPut()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqIdentityPut',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqIdentityPut.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'iid')
+    ..aOS(2, _omitFieldNames ? '' : 'kind')
+    ..aOS(3, _omitFieldNames ? '' : 'type')
+    ..aOS(4, _omitFieldNames ? '' : 'name')
+    ..aOS(5, _omitFieldNames ? '' : 'pic')
+    ..aOS(6, _omitFieldNames ? '' : 'alienId')
+    ..aOS(7, _omitFieldNames ? '' : 'metaJson')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqIdentityPut clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqIdentityPut copyWith(void Function(ReqIdentityPut) updates) =>
+      super.copyWith((message) => updates(message as ReqIdentityPut))
+          as ReqIdentityPut;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqIdentityPut() / ReqIdentityPut.new instead')
+  static ReqIdentityPut create() => ReqIdentityPut._();
+  static $pb.GeneratedMessage $_createMessage() => ReqIdentityPut._();
+  @$core.override
+  ReqIdentityPut createEmptyInstance() => ReqIdentityPut._();
+  @$core.pragma('dart2js:noInline')
+  static ReqIdentityPut getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ReqIdentityPut>(
+          ReqIdentityPut.$_createMessage);
+  static ReqIdentityPut? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get iid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set iid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get kind => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set kind($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasKind() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearKind() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get type => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set type($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasType() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearType() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get name => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set name($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasName() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearName() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get pic => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set pic($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasPic() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearPic() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get alienId => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set alienId($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasAlienId() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearAlienId() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.String get metaJson => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set metaJson($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasMetaJson() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearMetaJson() => $_clearField(7);
+}
+
+class ResIdentityPut extends $pb.GeneratedMessage {
+  factory ResIdentityPut({
+    IdentityListRow? row,
+  }) {
+    final result = ResIdentityPut._();
+    if (row != null) result.row = row;
+    return result;
+  }
+
+  ResIdentityPut._();
+
+  factory ResIdentityPut.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResIdentityPut()..mergeFromBuffer(data, registry);
+  factory ResIdentityPut.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResIdentityPut()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResIdentityPut',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResIdentityPut.$_createMessage)
+    ..aOM<IdentityListRow>(1, _omitFieldNames ? '' : 'row',
+        subBuilder: IdentityListRow.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResIdentityPut clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResIdentityPut copyWith(void Function(ResIdentityPut) updates) =>
+      super.copyWith((message) => updates(message as ResIdentityPut))
+          as ResIdentityPut;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResIdentityPut() / ResIdentityPut.new instead')
+  static ResIdentityPut create() => ResIdentityPut._();
+  static $pb.GeneratedMessage $_createMessage() => ResIdentityPut._();
+  @$core.override
+  ResIdentityPut createEmptyInstance() => ResIdentityPut._();
+  @$core.pragma('dart2js:noInline')
+  static ResIdentityPut getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ResIdentityPut>(
+          ResIdentityPut.$_createMessage);
+  static ResIdentityPut? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  IdentityListRow get row => $_getN(0);
+  @$pb.TagNumber(1)
+  set row(IdentityListRow value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasRow() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearRow() => $_clearField(1);
+  @$pb.TagNumber(1)
+  IdentityListRow ensureRow() => $_ensure(0);
+}
+
+const $core.bool _omitFieldNames =
+    $core.bool.fromEnvironment('protobuf.omit_field_names');
+const $core.bool _omitMessageNames =
+    $core.bool.fromEnvironment('protobuf.omit_message_names');

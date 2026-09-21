@@ -4,8 +4,15 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+anyhow = { workspace = true }
 blake3 = { workspace = true }
 chrono = { workspace = true }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+serde_json = { workspace = true }
 sqlx = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+c35_proto = { path = "../proto", package = "c35_proto" }
+c35_store = { path = "../store", package = "c35_store" }
 
 [dev-dependencies]

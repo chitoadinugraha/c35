@@ -1,13 +1,15 @@
+// This is a generated file - do not edit.
 //
-//  Generated code. Do not modify.
-//  source: c35/consumption.proto
-//
-// @dart = 2.12
+// Generated from c35/consumption.proto.
+
+// @dart = 3.3
 
 // ignore_for_file: annotate_overrides, camel_case_types, comment_references
-// ignore_for_file: constant_identifier_names, library_prefixes
-// ignore_for_file: non_constant_identifier_names, prefer_final_fields
-// ignore_for_file: unnecessary_import, unnecessary_this, unused_import
+// ignore_for_file: constant_identifier_names
+// ignore_for_file: curly_braces_in_flow_control_structures
+// ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
+// ignore_for_file: non_constant_identifier_names, prefer_relative_imports
+// ignore_for_file: unused_import
 
 import 'dart:convert' as $convert;
 import 'dart:core' as $core;
@@ -83,7 +85,14 @@ const ConsumptionItem$json = {
     {'1': 'name_id', '3': 3, '4': 1, '5': 9, '10': 'nameId'},
     {'1': 'qty', '3': 4, '4': 1, '5': 2, '10': 'qty'},
     {'1': 'pic', '3': 5, '4': 1, '5': 9, '10': 'pic'},
-    {'1': 'nutrition', '3': 6, '4': 1, '5': 11, '6': '.c35.Nutrition', '10': 'nutrition'},
+    {
+      '1': 'nutrition',
+      '3': 6,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.Nutrition',
+      '10': 'nutrition'
+    },
   ],
 };
 
@@ -102,11 +111,25 @@ const Consumption$json = {
     {'1': 'note', '3': 3, '4': 1, '5': 9, '10': 'note'},
     {'1': 'photo_hash', '3': 4, '4': 1, '5': 9, '10': 'photoHash'},
     {'1': 'meal_fingerprint', '3': 5, '4': 1, '5': 9, '10': 'mealFingerprint'},
-    {'1': 'meal_type', '3': 6, '4': 1, '5': 14, '6': '.c35.ConsumeMealType', '10': 'mealType'},
+    {
+      '1': 'meal_type',
+      '3': 6,
+      '4': 1,
+      '5': 14,
+      '6': '.c35.ConsumeMealType',
+      '10': 'mealType'
+    },
     {'1': 'pics', '3': 7, '4': 3, '5': 9, '10': 'pics'},
     {'1': 'logged_ts_ms', '3': 8, '4': 1, '5': 3, '10': 'loggedTsMs'},
     {'1': 'is_archived', '3': 9, '4': 1, '5': 8, '10': 'isArchived'},
-    {'1': 'items', '3': 10, '4': 3, '5': 11, '6': '.c35.ConsumptionItem', '10': 'items'},
+    {
+      '1': 'items',
+      '3': 10,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.ConsumptionItem',
+      '10': 'items'
+    },
     {'1': 'created_ts_ms', '3': 20, '4': 1, '5': 3, '10': 'createdTsMs'},
     {'1': 'updated_ts_ms', '3': 21, '4': 1, '5': 3, '10': 'updatedTsMs'},
     {'1': 'deleted_ts_ms', '3': 22, '4': 1, '5': 3, '10': 'deletedTsMs'},
@@ -183,7 +206,14 @@ final $typed_data.Uint8List reqConsumptionListDescriptor = $convert.base64Decode
 const ResConsumptionList$json = {
   '1': 'ResConsumptionList',
   '2': [
-    {'1': 'consumptions', '3': 1, '4': 3, '5': 11, '6': '.c35.Consumption', '10': 'consumptions'},
+    {
+      '1': 'consumptions',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.Consumption',
+      '10': 'consumptions'
+    },
   ],
 };
 
@@ -196,7 +226,14 @@ final $typed_data.Uint8List resConsumptionListDescriptor = $convert.base64Decode
 const ReqConsumptionPut$json = {
   '1': 'ReqConsumptionPut',
   '2': [
-    {'1': 'consumption', '3': 1, '4': 1, '5': 11, '6': '.c35.Consumption', '10': 'consumption'},
+    {
+      '1': 'consumption',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.Consumption',
+      '10': 'consumption'
+    },
   ],
 };
 
@@ -209,14 +246,22 @@ final $typed_data.Uint8List reqConsumptionPutDescriptor = $convert.base64Decode(
 const ResConsumptionPut$json = {
   '1': 'ResConsumptionPut',
   '2': [
-    {'1': 'consumption', '3': 1, '4': 1, '5': 11, '6': '.c35.Consumption', '10': 'consumption'},
+    {
+      '1': 'consumption',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.Consumption',
+      '10': 'consumption'
+    },
+    {'1': 'blocks_json', '3': 2, '4': 1, '5': 9, '10': 'blocksJson'},
   ],
 };
 
 /// Descriptor for `ResConsumptionPut`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List resConsumptionPutDescriptor = $convert.base64Decode(
     'ChFSZXNDb25zdW1wdGlvblB1dBIyCgtjb25zdW1wdGlvbhgBIAEoCzIQLmMzNS5Db25zdW1wdG'
-    'lvblILY29uc3VtcHRpb24=');
+    'lvblILY29uc3VtcHRpb24SHwoLYmxvY2tzX2pzb24YAiABKAlSCmJsb2Nrc0pzb24=');
 
 @$core.Deprecated('Use reqConsumptionWaterGetDescriptor instead')
 const ReqConsumptionWaterGet$json = {
@@ -227,21 +272,30 @@ const ReqConsumptionWaterGet$json = {
 };
 
 /// Descriptor for `ReqConsumptionWaterGet`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List reqConsumptionWaterGetDescriptor = $convert.base64Decode(
-    'ChZSZXFDb25zdW1wdGlvbldhdGVyR2V0EhUKBmRheV9pZBgBIAEoCVIFZGF5SWQ=');
+final $typed_data.Uint8List reqConsumptionWaterGetDescriptor =
+    $convert.base64Decode(
+        'ChZSZXFDb25zdW1wdGlvbldhdGVyR2V0EhUKBmRheV9pZBgBIAEoCVIFZGF5SWQ=');
 
 @$core.Deprecated('Use resConsumptionWaterGetDescriptor instead')
 const ResConsumptionWaterGet$json = {
   '1': 'ResConsumptionWaterGet',
   '2': [
-    {'1': 'water', '3': 1, '4': 1, '5': 11, '6': '.c35.ConsumptionWater', '10': 'water'},
+    {
+      '1': 'water',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ConsumptionWater',
+      '10': 'water'
+    },
   ],
 };
 
 /// Descriptor for `ResConsumptionWaterGet`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List resConsumptionWaterGetDescriptor = $convert.base64Decode(
-    'ChZSZXNDb25zdW1wdGlvbldhdGVyR2V0EisKBXdhdGVyGAEgASgLMhUuYzM1LkNvbnN1bXB0aW'
-    '9uV2F0ZXJSBXdhdGVy');
+final $typed_data.Uint8List resConsumptionWaterGetDescriptor =
+    $convert.base64Decode(
+        'ChZSZXNDb25zdW1wdGlvbldhdGVyR2V0EisKBXdhdGVyGAEgASgLMhUuYzM1LkNvbnN1bXB0aW'
+        '9uV2F0ZXJSBXdhdGVy');
 
 @$core.Deprecated('Use reqConsumptionWaterAddDescriptor instead')
 const ReqConsumptionWaterAdd$json = {
@@ -253,22 +307,31 @@ const ReqConsumptionWaterAdd$json = {
 };
 
 /// Descriptor for `ReqConsumptionWaterAdd`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List reqConsumptionWaterAddDescriptor = $convert.base64Decode(
-    'ChZSZXFDb25zdW1wdGlvbldhdGVyQWRkEhUKBmRheV9pZBgBIAEoCVIFZGF5SWQSDgoCbWwYAi'
-    'ABKAVSAm1s');
+final $typed_data.Uint8List reqConsumptionWaterAddDescriptor =
+    $convert.base64Decode(
+        'ChZSZXFDb25zdW1wdGlvbldhdGVyQWRkEhUKBmRheV9pZBgBIAEoCVIFZGF5SWQSDgoCbWwYAi'
+        'ABKAVSAm1s');
 
 @$core.Deprecated('Use resConsumptionWaterAddDescriptor instead')
 const ResConsumptionWaterAdd$json = {
   '1': 'ResConsumptionWaterAdd',
   '2': [
-    {'1': 'water', '3': 1, '4': 1, '5': 11, '6': '.c35.ConsumptionWater', '10': 'water'},
+    {
+      '1': 'water',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ConsumptionWater',
+      '10': 'water'
+    },
   ],
 };
 
 /// Descriptor for `ResConsumptionWaterAdd`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List resConsumptionWaterAddDescriptor = $convert.base64Decode(
-    'ChZSZXNDb25zdW1wdGlvbldhdGVyQWRkEisKBXdhdGVyGAEgASgLMhUuYzM1LkNvbnN1bXB0aW'
-    '9uV2F0ZXJSBXdhdGVy');
+final $typed_data.Uint8List resConsumptionWaterAddDescriptor =
+    $convert.base64Decode(
+        'ChZSZXNDb25zdW1wdGlvbldhdGVyQWRkEisKBXdhdGVyGAEgASgLMhUuYzM1LkNvbnN1bXB0aW'
+        '9uV2F0ZXJSBXdhdGVy');
 
 @$core.Deprecated('Use reqConsumptionPrefsGetDescriptor instead')
 const ReqConsumptionPrefsGet$json = {
@@ -276,45 +339,68 @@ const ReqConsumptionPrefsGet$json = {
 };
 
 /// Descriptor for `ReqConsumptionPrefsGet`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List reqConsumptionPrefsGetDescriptor = $convert.base64Decode(
-    'ChZSZXFDb25zdW1wdGlvblByZWZzR2V0');
+final $typed_data.Uint8List reqConsumptionPrefsGetDescriptor =
+    $convert.base64Decode('ChZSZXFDb25zdW1wdGlvblByZWZzR2V0');
 
 @$core.Deprecated('Use resConsumptionPrefsGetDescriptor instead')
 const ResConsumptionPrefsGet$json = {
   '1': 'ResConsumptionPrefsGet',
   '2': [
-    {'1': 'prefs', '3': 1, '4': 1, '5': 11, '6': '.c35.ConsumptionPrefs', '10': 'prefs'},
+    {
+      '1': 'prefs',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ConsumptionPrefs',
+      '10': 'prefs'
+    },
   ],
 };
 
 /// Descriptor for `ResConsumptionPrefsGet`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List resConsumptionPrefsGetDescriptor = $convert.base64Decode(
-    'ChZSZXNDb25zdW1wdGlvblByZWZzR2V0EisKBXByZWZzGAEgASgLMhUuYzM1LkNvbnN1bXB0aW'
-    '9uUHJlZnNSBXByZWZz');
+final $typed_data.Uint8List resConsumptionPrefsGetDescriptor =
+    $convert.base64Decode(
+        'ChZSZXNDb25zdW1wdGlvblByZWZzR2V0EisKBXByZWZzGAEgASgLMhUuYzM1LkNvbnN1bXB0aW'
+        '9uUHJlZnNSBXByZWZz');
 
 @$core.Deprecated('Use reqConsumptionPrefsPutDescriptor instead')
 const ReqConsumptionPrefsPut$json = {
   '1': 'ReqConsumptionPrefsPut',
   '2': [
-    {'1': 'prefs', '3': 1, '4': 1, '5': 11, '6': '.c35.ConsumptionPrefs', '10': 'prefs'},
+    {
+      '1': 'prefs',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ConsumptionPrefs',
+      '10': 'prefs'
+    },
   ],
 };
 
 /// Descriptor for `ReqConsumptionPrefsPut`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List reqConsumptionPrefsPutDescriptor = $convert.base64Decode(
-    'ChZSZXFDb25zdW1wdGlvblByZWZzUHV0EisKBXByZWZzGAEgASgLMhUuYzM1LkNvbnN1bXB0aW'
-    '9uUHJlZnNSBXByZWZz');
+final $typed_data.Uint8List reqConsumptionPrefsPutDescriptor =
+    $convert.base64Decode(
+        'ChZSZXFDb25zdW1wdGlvblByZWZzUHV0EisKBXByZWZzGAEgASgLMhUuYzM1LkNvbnN1bXB0aW'
+        '9uUHJlZnNSBXByZWZz');
 
 @$core.Deprecated('Use resConsumptionPrefsPutDescriptor instead')
 const ResConsumptionPrefsPut$json = {
   '1': 'ResConsumptionPrefsPut',
   '2': [
-    {'1': 'prefs', '3': 1, '4': 1, '5': 11, '6': '.c35.ConsumptionPrefs', '10': 'prefs'},
+    {
+      '1': 'prefs',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ConsumptionPrefs',
+      '10': 'prefs'
+    },
   ],
 };
 
 /// Descriptor for `ResConsumptionPrefsPut`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List resConsumptionPrefsPutDescriptor = $convert.base64Decode(
-    'ChZSZXNDb25zdW1wdGlvblByZWZzUHV0EisKBXByZWZzGAEgASgLMhUuYzM1LkNvbnN1bXB0aW'
-    '9uUHJlZnNSBXByZWZz');
-
+final $typed_data.Uint8List resConsumptionPrefsPutDescriptor =
+    $convert.base64Decode(
+        'ChZSZXNDb25zdW1wdGlvblByZWZzUHV0EisKBXByZWZzGAEgASgLMhUuYzM1LkNvbnN1bXB0aW'
+        '9uUHJlZnNSBXByZWZz');

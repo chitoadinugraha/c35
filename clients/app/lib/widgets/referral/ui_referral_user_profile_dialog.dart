@@ -9,6 +9,7 @@ import 'package:alienai_c35/c/referral/referral_format.dart';
 import 'package:alienai_c35/c/referral/referral_period.dart';
 import 'package:alienai_c35/c/referral/referral_stats_api.dart';
 import 'package:alienai_c35/c/ui/ui_format.dart';
+import 'package:alienai_c35/widgets/referral/ui_referral_commission_breakdown.dart';
 import 'package:alienai_c35/widgets/referral/ui_referral_date_range_sheet.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/referral/ui_referral_admin_dialogs.dart';
@@ -232,7 +233,10 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
     await _run(() async {
       await _admin.userPut(targetId: _node.id, name: trimmed);
       if (!mounted) return;
-      setState(() => _node = _patchNode(_node, name: trimmed));
+      setState(() {
+        _reloadTree = true;
+        _node = _patchNode(_node, name: trimmed);
+      });
     });
   }
 
@@ -257,7 +261,10 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
       if (!ok) throw Exception('Email already registered');
       await _admin.userPut(targetId: _node.id, authEmail: trimmed);
       if (!mounted) return;
-      setState(() => _node = _patchNode(_node, email: trimmed));
+      setState(() {
+        _reloadTree = true;
+        _node = _patchNode(_node, email: trimmed);
+      });
     });
   }
 
@@ -285,7 +292,10 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
       if (!available) throw Exception('Handle already taken');
       await _admin.userPut(targetId: _node.id, handle: trimmed);
       if (!mounted) return;
-      setState(() => _node = _patchNode(_node, handle: trimmed.startsWith('@') ? trimmed : '@$trimmed'));
+      setState(() {
+        _reloadTree = true;
+        _node = _patchNode(_node, handle: trimmed.startsWith('@') ? trimmed : '@$trimmed');
+      });
     });
   }
 
@@ -299,7 +309,10 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
       if (res == null) throw Exception('Upload failed');
       await _admin.userPut(targetId: _node.id, avatarUrl: res.url);
       if (!mounted) return;
-      setState(() => _node = _patchNode(_node, avatarUrl: res.url));
+      setState(() {
+        _reloadTree = true;
+        _node = _patchNode(_node, avatarUrl: res.url);
+      });
     });
   }
 
@@ -429,7 +442,7 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
                         children: [
                           if (_canEdit)
                             PopupMenuButton<String>(
-                              tooltip: uiTooltipText('Edit user'),
+                              tooltip: uiPopupMenuTooltipText('Edit user'),
                               enabled: !_busy,
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
@@ -452,7 +465,22 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
                                 ],
                               ],
                             ),
-                          IconButton(
+                          if (widget.onFocus != null)
+                            uiIconButton(
+                              tooltip: 'Center in tree',
+                              visualDensity: VisualDensity.compact,
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                              onPressed: _busy
+                                  ? null
+                                  : () {
+                                      Navigator.pop(context, (node: _node, reloadTree: _reloadTree));
+                                      widget.onFocus!();
+                                    },
+                              icon: const Icon(Icons.my_location_rounded, size: 20, color: _ReferralPalette.muted),
+                            ),
+                          const SizedBox(width: 4),
+                          uiIconButton(
                             tooltip: 'Close',
                             visualDensity: VisualDensity.compact,
                             padding: EdgeInsets.zero,
@@ -506,17 +534,25 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
                           onColATap: () => _pickColumnRange(colA: true),
                           onColBTap: () => _pickColumnRange(colA: false),
                         ),
-                        if (widget.onFocus != null) ...[
-                          const SizedBox(height: 12),
-                          FilledButton.icon(
+                        if (widget.viewerIsRoot) ...[
+                          const SizedBox(height: 10),
+                          OutlinedButton.icon(
                             onPressed: _busy
                                 ? null
-                                : () {
-                                    Navigator.pop(context, (node: _node, reloadTree: _reloadTree));
-                                    widget.onFocus!();
-                                  },
-                            icon: const Icon(Icons.my_location_rounded, size: 18),
-                            label: const Text('Center in tree'),
+                                : () => referralCommissionSimulateDialog(
+                                      context,
+                                      conn: widget.conn,
+                                      subjectUid: _node.id,
+                                      subjectName: _node.name,
+                                      subjectPic: _node.avatarUrl,
+                                    ),
+                            icon: const Icon(Icons.calculate_outlined, size: 16),
+                            label: const Text('Simulate commission'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: _ReferralPalette.accent,
+                              side: const BorderSide(color: _ReferralPalette.border),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            ),
                           ),
                         ],
                         if (_busy)

@@ -1,7 +1,7 @@
 name: alienai_c35
-description: "c35 — Alien AI client (Phase 1 auth + referral)"
+description: "Alien AI — c35 client (auth + referral)"
 publish_to: 'none'
-version: 0.1.0+1
+version: 20.234.0+234
 
 environment:
   sdk: ^3.5.0
@@ -13,14 +13,73 @@ dependencies:
   http: ^1.2.2
   url_launcher: ^6.3.1
   uuid: ^4.5.1
-  protobuf: ^4.0.0
+  protobuf: ^6.1.0
   fixnum: ^1.1.1
   file_picker: ^8.1.6
+  flutter_svg: ^2.0.16
+  window_manager: ^0.4.3
+  path_provider: ^2.1.4
+  path: ^1.9.0
+  blake3_dart: ^1.0.0
+  archive: ^4.3.0
+  in_app_update: ^4.2.3
+  open_filex: ^4.7.0
+  web_socket_channel: ^3.0.1
+  scrollable_positioned_list: ^0.3.8
+  pasteboard: ^0.3.0
+  flutter_markdown_plus: ^1.0.5
+  record: ^6.0.0
+  permission_handler: ^11.3.1
+  easy_localization: ^3.0.7
+  flutter_tts: ^4.2.5
+  audioplayers: ^6.8.1
+  qr_flutter: ^4.1.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.3
+  flutter_native_splash: ^2.4.8
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icons/
+    - assets/translations/
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter.ttf
+
+flutter_launcher_icons:
+  image_path: "assets/icons/app_icon.png"
+  min_sdk_android: 23
+  adaptive_icon_background: "#000000"
+  adaptive_icon_foreground: "assets/icons/app_icon.png"
+  adaptive_icon_foreground_inset: 8
+  adaptive_icon_monochrome: "assets/icons/app_icon_monochrome.png"
+  android:
+    generate: true
+  ios:
+    generate: false
+  web:
+    generate: false
+  windows:
+    generate: true
+  macos:
+    generate: false
+
+flutter_native_splash:
+  color: "#000000"
+  color_dark: "#000000"
+  image: "assets/icons/alien_splash.png"
+  android: true
+  android_gravity: center
+  web: false
+  android_12:
+    color: "#000000"
+    color_dark: "#000000"
+    image: "assets/icons/alien_splash_android12.png"
+    icon_background_color: "#000000"
+    icon_background_color_dark: "#000000"

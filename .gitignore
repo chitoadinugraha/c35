@@ -7,3 +7,22 @@ build/
 .idea/
 .vscode/
 *.log
+**/.env.local
+
+# Docker build context tarballs
+c35-build-*.tar
+cs-agent-build-*.tar
+
+# Flutter / Dart
+clients/app/.flutter-plugins
+clients/app/.flutter-plugins-dependencies
+clients/app/.dart_tool/
+clients/app/build/
+
+# Rust
+servers/target/
+.cache/
+
+# OS
+Thumbs.db
+.DS_Store

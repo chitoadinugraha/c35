@@ -130,6 +130,24 @@ c35.user.{iid}.profile
 
 Client subscribes after WS auth. Payload: protobuf delta or full slice for that topic.
 
+### Device task runs (owner realtime)
+
+```
+c35.user.{iid}.task_run
+```
+
+Payload: `TaskRunPush` (protobuf). Published after `ai.task_run` mutation (start, progress, terminal).
+
+### Device task dispatch (JetStream — not client-subscribed)
+
+```
+c35.act.device.{device_iid}.task.run     # ActDeviceTaskRun (workqueue)
+c35.ev.device.{device_iid}.task.{run_id} # EvDeviceTaskProgress / EvDeviceTaskDone
+c35.ev.device.{device_iid}.presence      # EvDevicePresence
+```
+
+Server pods use queue group `c35-task-dispatch`. Agents receive work on server session (WS / Alien Beacon). See [remote.md](remote.md).
+
 ### Live log (admin/root)
 
 ```
@@ -170,6 +188,8 @@ Defined in [`../schemas/proto/c35/`](../schemas/proto/c35/). See [`../schemas/pr
 | `chat.proto` | `Chat`, `ChatMsg`, prompt, stop, send |
 | `billing.proto` | `BillingAccount`, top-up, push deltas |
 | `log.proto` | `Log`, `LogPush` |
+| `task.proto` | `Task`, `TaskRun`, `ActDeviceTaskRun`, `TaskRunPush` |
+| `remote.proto` | WebRTC signaling, `RemoteInputEvent` |
 
 All collections on wire mirror SQL rows; timestamps as `*_ms` int64.
 

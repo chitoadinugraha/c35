@@ -1,11 +1,16 @@
 import 'dart:convert';
 
+import 'package:alienai_c35/c/account/account_api.dart';
+import 'package:alienai_c35/c/api/settings_conn.dart';
+import 'package:alienai_c35/c/app_id.dart';
 import 'package:alienai_c35/c/config.dart';
 import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
+import 'package:uuid/uuid.dart';
 
 enum AuthSignInBusy { none, password, signUp, google }
 
@@ -50,11 +55,16 @@ List<String> authGlobalRolesFrom(Map<String, dynamic> data) {
 class AuthService extends ChangeNotifier {
   LoginResult? _login;
   AuthSignInBusy _busy = AuthSignInBusy.none;
+  var _sessionLocked = false;
+  var _manualLocked = false;
+  var _sessionUnlockMode = 'tap';
 
   LoginResult? get login => _login;
   bool get signedIn => _login != null || Session.instance.signedIn;
   AuthSignInBusy get busy => _busy;
   bool get anyBusy => _busy != AuthSignInBusy.none;
+  bool get sessionLocked => _sessionLocked || _manualLocked;
+  String get sessionUnlockMode => _sessionUnlockMode;
 
   Future<void> restore() async {
     await Session.instance.restore();
@@ -121,7 +131,63 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  Future<void> signInWithGoogle() async => throw ApiException('Google sign-in not configured for c35 Phase 1');
+  Future<LoginResult> signInWithGoogle() async {
+    if (anyBusy) throw ApiException('Busy');
+    _busy = AuthSignInBusy.google;
+    notifyListeners();
+    try {
+      final authBase = C35Config.providerAuthBase;
+      final clientId = const Uuid().v4();
+      final uri = Uri.parse('$authBase/a/auth/google').replace(queryParameters: {
+        'return': C35AppId.oauthReturn,
+        'public_origin': authBase,
+        'client_id': clientId,
+      });
+      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched) throw ApiException('Could not open browser for Google sign-in.');
+      for (var i = 0; i < 90; i++) {
+        if (i > 0) await Future<void>.delayed(const Duration(seconds: 1));
+        final poll = await _pollGoogle(clientId, authBase);
+        if (poll.$1 != null) throw ApiException(poll.$1!);
+        if (poll.$2 == null) continue;
+        return poll.$2!;
+      }
+      throw ApiException('Google sign-in timed out. Please try again.');
+    } finally {
+      _busy = AuthSignInBusy.none;
+      notifyListeners();
+    }
+  }
+
+  Future<(String?, LoginResult?)> _pollGoogle(String clientId, String authBase) async {
+    try {
+      final uri = Uri.parse('$authBase/a/auth/google/result').replace(queryParameters: {'client_id': clientId});
+      final res = await http.get(uri).timeout(const Duration(seconds: 8));
+      if (res.statusCode != 200) return (null, null);
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      if (body['ready'] != true) return (null, null);
+      if (body['ok'] != true) return ('Google sign-in was denied or cancelled', null);
+      final uid = int.tryParse('${body['uid']}');
+      final token = '${body['token'] ?? body['session_id'] ?? ''}'.trim();
+      if (uid == null || uid <= 0 || token.isEmpty) return ('Google sign-in failed', null);
+      return (
+        null,
+        await _store(
+          LoginResult(
+            uid: uid,
+            token: token,
+            name: '${body['name'] ?? ''}',
+            email: '${body['email'] ?? ''}',
+            handle: '${body['handle'] ?? '@${(body['email'] ?? 'user').toString().split('@').first}'}',
+            pic: authPicFrom(body),
+          ),
+          globalRoles: authGlobalRolesFrom(body),
+        ),
+      );
+    } catch (_) {
+      return (null, null);
+    }
+  }
 
   Future<LoginResult> _complete(Uri uri, Map<String, dynamic> body) async {
     final res = await http.post(uri, headers: {'Content-Type': 'application/json'}, body: jsonEncode(body)).timeout(const Duration(seconds: 15));
@@ -159,6 +225,40 @@ class AuthService extends ChangeNotifier {
     return _login!;
   }
 
+  Future<void> checkSessionStatus(SettingsConn conn) async {
+    if (!signedIn) return;
+    try {
+      final api = AccountApi(invoke: conn.authInvoke, uid: Session.instance.uid);
+      final status = await api.sessionStatus(clientId: await deviceInstallId());
+      _sessionUnlockMode = status.unlockMode.isEmpty ? 'tap' : status.unlockMode;
+      _sessionLocked = status.isLocked;
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  void lockSession() {
+    if (!signedIn) return;
+    _manualLocked = true;
+    notifyListeners();
+  }
+
+  Future<bool> unlockSession(SettingsConn conn, {String pin = ''}) async {
+    if (!signedIn) return false;
+    if (_manualLocked && !_sessionLocked && _sessionUnlockMode == 'tap' && pin.isEmpty) {
+      _manualLocked = false;
+      notifyListeners();
+      return true;
+    }
+    final api = AccountApi(invoke: conn.authInvoke, uid: Session.instance.uid);
+    final ok = await api.sessionUnlock(clientId: await deviceInstallId(), pin: pin);
+    if (ok) {
+      _sessionLocked = false;
+      _manualLocked = false;
+      notifyListeners();
+    }
+    return ok;
+  }
+
   Future<void> signOut({bool clearStored = true}) async {
     final token = sessionAuthToken();
     if (token.isNotEmpty) {
@@ -168,6 +268,8 @@ class AuthService extends ChangeNotifier {
     }
     await Session.instance.clear(clearStored: clearStored);
     _login = null;
+    _sessionLocked = false;
+    _manualLocked = false;
     notifyListeners();
   }
 }

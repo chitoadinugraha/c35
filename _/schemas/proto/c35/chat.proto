@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package c35;
 
+import "c35/log.proto";
+
 // Mirrors ai.chat / chat_member / chat_msg. See _/docs/chat.md
 // Home inbox: kind=prompt only. bot_peer on Bots page. direct deferred.
 
@@ -40,7 +42,7 @@ message Chat {
   ChatKind kind = 2;
   int64 owner_iid = 3;
   string title = 4;
-  string tag = 5;
+  repeated string tags = 5;
   string model = 6;
 
   int64 bot_iid = 7;
@@ -93,6 +95,7 @@ message ChatMsg {
   int64 created_ts_ms = 17;
   int64 updated_ts_ms = 18;
   int64 deleted_ts_ms = 19;
+  string error_text = 20;        // post-turn failure; not shown in content
 }
 
 // Home inbox (prompt only)
@@ -123,6 +126,9 @@ message ReqPrompt {
   string text = 3;
   string attachments_json = 4;
   string thinking = 5;
+  repeated string mention_ids = 6;
+  string topic_id = 7;
+  string tool_mode = 8;          // ask | agent
 }
 
 message ResPromptStart {
@@ -145,6 +151,8 @@ message ResPromptEnd {
   int32 duration_ms = 5;
   string model = 6;
   string req_id = 7;
+  string trace_json = 8;
+  string error_message = 9;      // post-turn failure; LLM reply may still be present
 }
 
 message ResPromptFail {
@@ -175,4 +183,56 @@ message ReqChatSend {
 
 message ResChatSend {
   ChatMsg message = 1;
+}
+
+// Home prompt chat: pin, archive, tags, soft-delete (per-user member row + chat metadata)
+message TagSet {
+  repeated string tags = 1;
+}
+
+message ReqChatPatch {
+  int64 chat_id = 1;
+  optional bool pinned = 2;
+  optional bool archived = 3;
+  optional TagSet tags = 4;
+  optional bool deleted = 5;
+}
+
+message ResChatPatch {
+  Chat chat = 1;
+  ChatMember member = 2;
+}
+
+message AssetTagHint {
+  string tag = 1;
+  int32 count = 2;
+}
+
+message ReqAssetTagList {
+  string kind = 1;
+  string prefix = 2;
+  int32 limit = 3;
+}
+
+message ResAssetTagList {
+  repeated AssetTagHint hints = 1;
+}
+
+message ReqLogList {
+  string req_id = 1;
+  int32 limit = 2;
+}
+
+message ResLogList {
+  repeated Log logs = 1;
+}
+
+message ReqBotPeerList {
+  int64 bot_iid = 1;
+  bool include_archived = 2;  // reserved; bot_peer uses chat row only for now
+  int32 limit = 3;
+}
+
+message ResBotPeerList {
+  repeated Chat chats = 1;
 }

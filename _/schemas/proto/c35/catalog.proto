@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package c35;
+
+// Platform catalog: topics, composer mentions, translation bundles.
+
+message TopicItem {
+  string id = 1;
+  string label_key = 2;
+  string inst = 3;
+  string extend = 4;
+  int32 sort = 5;
+  bool enabled = 6;
+}
+
+message MentionItem {
+  string id = 1;
+  string topic_id = 2;
+  string inst_id = 3;
+  string icon = 4;
+  string color = 5;
+  int32 sort = 6;
+  string label_key = 7;
+  string caption_key = 8;
+  repeated string search_terms = 9;
+  bool enabled = 10;
+}
+
+message ReqTopicList {}
+
+message ResTopicList {
+  repeated TopicItem topics = 1;
+}
+
+message ReqMentionList {}
+
+message ResMentionList {
+  repeated MentionItem mentions = 1;
+}
+
+message ReqTranslationGet {
+  string lang = 1;
+  repeated string categories = 2;
+  repeated string keys = 3;
+}
+
+message ResTranslationGet {
+  map<string, string> entries = 1;
+  int64 updated_ts_ms = 2;
+}

@@ -1,6 +1,8 @@
 mod boot;
 mod config;
+mod log;
 
+use std::time::Instant;
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
@@ -10,22 +12,62 @@ async fn main() -> anyhow::Result<()> {
         .with_target(false)
         .compact()
         .with_env_filter(
-            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("warn")),
         )
         .init();
 
     config::env_load();
     let cfg = config::Config::from_env()?;
-    c35_trace::L!("c35 server_ai starting");
+    let addr = cfg.listen.clone();
+    let nats_required = c35_nats::configured();
 
-    let pool = c35_store::pool_connect().await?;
-    if cfg.db_migrate {
-        c35_store::migrate_apply(&pool).await?;
+    let yb_t0 = Instant::now();
+    let nats_t0 = Instant::now();
+    let (pool, nats, listener) = tokio::join!(
+        c35_store::pool_connect(),
+        c35_nats::connect(),
+        async {
+            match tokio::net::TcpListener::bind(&addr).await {
+                Ok(l) => Ok(l),
+                Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
+                    log::port_in_use(addr.rsplit(':').next().unwrap_or("8080"));
+                    std::process::exit(1);
+                }
+                Err(e) => Err(anyhow::Error::from(e)),
+            }
+        }
+    );
+    let pool = pool?;
+    c35_store::migrate_boot(&pool).await?;
+    c35_mod_llm::runtime_config_init(&pool).await;
+    c35_mod_llm::llm_catalog_init(&pool).await?;
+    c35_mod_llm::runtime_config_watch(pool.clone());
+    let listener = listener?;
+    let yb_ms = yb_t0.elapsed().as_millis();
+    let nats_ms = nats.as_ref().map(|_| nats_t0.elapsed().as_millis());
+    log::store_connected(yb_ms, nats_ms, nats_required);
+
+    let mut names = feature_names();
+    if nats.is_some() {
+        names.push("nats");
     }
+    log::features(&names);
 
-    let app = boot::router(cfg.clone(), pool);
-    let listener = tokio::net::TcpListener::bind(&cfg.listen).await?;
-    c35_trace::L!(listen = %cfg.listen, "listening");
+    let app = boot::router(cfg, pool, nats);
+    log::listening(&[("HTTP", format!("http://{addr}"))]);
     axum::serve(listener, app).await?;
     Ok(())
+}
+
+fn feature_names() -> Vec<&'static str> {
+    vec![
+        "ws",
+        "auth",
+        "google",
+        "referral",
+        "admin",
+        "file_cas",
+        "billing",
+        "channel",
+    ]
 }

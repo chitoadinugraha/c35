@@ -1,8 +1,32 @@
+mod model_cost;
+mod embed_gemini;
+mod runtime_config;
+mod model_catalog;
+mod llm_catalog;
+mod cf_gateway;
+
 use chrono::Utc;
 use sqlx::PgPool;
 
+pub use cf_gateway::cf_chat_generate;
+pub use embed_gemini::embed_text;
+pub use model_catalog::{
+    model_chain_for_slug, model_is_alien, model_log_label, model_resolve_target, ModelTarget,
+};
+pub use llm_catalog::{catalog_price, llm_catalog_init, llm_catalog_reload, prompt_models};
+pub use model_cost::model_cost_usd;
+pub use runtime_config::{
+    alien_chain_default, alien_chain_models, alien_default_model, cf_gateway_config, cf_gateway_from_env,
+    cf_gateway_ready, model_is_flash_lite, runtime_config_init, runtime_config_reload,
+    runtime_config_watch, DEFAULT_GEMINI_MODEL, CfGatewayRuntime,
+};
+
 pub const EMBED_TASK_DOCUMENT: &str = "retrieval_document";
 pub const EMBED_TASK_QUERY: &str = "retrieval_query";
+
+pub async fn alien_chain_init(pool: &PgPool) {
+    runtime_config_init(pool).await;
+}
 
 pub fn embed_model_tag(model: &str, dimensions: i32) -> String {
     format!("{}@{}", model.trim(), dimensions)
