@@ -8,8 +8,10 @@ use axum::{
 use c35_ctx::AppState;
 use c35_mod_admin::{admin_user_put, admin_user_search};
 use c35_mod_billing::{
-    billing_history, billing_notify_owner, billing_package_preview, billing_package_redeem, billing_plan_subscribe,
-    billing_summary, billing_topup_put, bot_usage_stats,
+    billing_history, billing_notify_owner, billing_package_preview, billing_package_redeem,
+    billing_plan_subscribe, billing_promotion_claim, billing_promotion_create, billing_promotion_get,
+    billing_promotion_list_by_creator, billing_summary, billing_topup_put, bot_usage_stats,
+    PromotionCreateFields,
 };
 use c35_mod_channel::{channel_telegram_connect, channel_whatsapp_meta_connect};
 use c35_mod_consumption::consumption_put_rpc;
@@ -188,6 +190,74 @@ pub async fn dispatch_invoke(state: &AppState, req: InvokeReq) -> InvokeRes {
             status_code: 200,
             error_message: String::new(),
             body: Some(invoke_res::Body::BillingHistory(billing_history(pool, iid, r).await)),
+        },
+        Some(invoke_req::Body::BillingPromotionCreate(r)) => {
+            let code = r.code.clone();
+            let fields = PromotionCreateFields {
+                code: r.code,
+                promo_type: r.r#type,
+                audience: r.audience,
+                name: r.name,
+                base_plan_slug: r.base_plan_slug,
+                pool_multiplier: r.pool_multiplier,
+                alien_pool_idr: r.alien_pool_idr,
+                frontier_pool_idr: r.frontier_pool_idr,
+                duration_days: r.duration_days,
+                duration_minutes: r.duration_minutes,
+                max_claims_total: r.max_claims_total,
+                max_claims_per_email: r.max_claims_per_email,
+                valid_from_ms: r.valid_from_ms,
+                valid_to_ms: r.valid_to_ms,
+                scope: r.scope,
+                is_active: r.is_active,
+            };
+            match billing_promotion_create(pool, iid, fields).await {
+                Ok(promotion_id) => {
+                    let promotion = billing_promotion_get(pool, &code)
+                        .await
+                        .ok()
+                        .flatten();
+                    InvokeRes {
+                        req_id,
+                        status_code: 200,
+                        error_message: String::new(),
+                        body: Some(invoke_res::Body::BillingPromotionCreate(
+                            c35_proto::ResBillingPromotionCreate {
+                                promotion_id,
+                                promotion,
+                            },
+                        )),
+                    }
+                }
+                Err(msg) => invoke_error(
+                    &req_id,
+                    if msg == "forbidden" { 403 } else { 400 },
+                    msg,
+                ),
+            }
+        }
+        Some(invoke_req::Body::BillingPromotionClaim(r)) => {
+            match billing_promotion_claim(pool, iid, &r.email, &r.code).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::BillingPromotionClaim(res)),
+                },
+                Err(msg) => invoke_error(&req_id, 400, msg),
+            }
+        }
+        Some(invoke_req::Body::BillingPromotionList(_)) => InvokeRes {
+            req_id,
+            status_code: 200,
+            error_message: String::new(),
+            body: Some(invoke_res::Body::BillingPromotionList(
+                c35_proto::ResBillingPromotionList {
+                    items: billing_promotion_list_by_creator(pool, iid)
+                        .await
+                        .unwrap_or_default(),
+                },
+            )),
         },
         Some(invoke_req::Body::BillingTopupPut(r)) => {
             match billing_topup_put(pool, iid, r).await {

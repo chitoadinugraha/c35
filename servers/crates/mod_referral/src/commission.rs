@@ -27,7 +27,7 @@ async fn share_get(tx: &mut Transaction<'_, Postgres>, parent: i64, child: i64) 
 
 async fn earn_chain(tx: &mut Transaction<'_, Postgres>, subject_iid: i64) -> Result<Vec<EarnRow>, String> {
     let seller = sqlx::query(
-        r#"SELECT id, name, COALESCE(pic, ''), referred_by_iid FROM ai.identity
+        r#"SELECT id, name, COALESCE(pic, '') AS pic, referred_by_iid FROM ai.identity
            WHERE id = $1 AND kind = 'user' AND deleted_ts IS NULL"#,
     )
     .bind(subject_iid)
@@ -62,7 +62,7 @@ async fn earn_chain(tx: &mut Transaction<'_, Postgres>, subject_iid: i64) -> Res
     let mut current_parent = parent_uid;
     while current_parent > 0 {
         let parent = sqlx::query(
-            r#"SELECT id, name, COALESCE(pic, ''), referred_by_iid FROM ai.identity
+            r#"SELECT id, name, COALESCE(pic, '') AS pic, referred_by_iid FROM ai.identity
                WHERE id = $1 AND kind = 'user' AND deleted_ts IS NULL"#,
         )
         .bind(current_parent)

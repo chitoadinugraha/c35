@@ -24,9 +24,13 @@ pub async fn pool_connect() -> Result<PgPool> {
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(8);
+    let acquire_secs = std::env::var("PG_ACQUIRE_TIMEOUT_SECS")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(30);
     let pool = PgPoolOptions::new()
         .max_connections(max)
-        .acquire_timeout(Duration::from_secs(30))
+        .acquire_timeout(Duration::from_secs(acquire_secs))
         .connect_lazy(&url)
         .context("connect yugabyte")?;
     sqlx::query("SELECT 1")
@@ -177,25 +181,38 @@ fn schema_stmt_retry(err: &SqlxError) -> bool {
 fn sql_stmts(sql: &str) -> Vec<String> {
     let mut cur = String::new();
     let mut out = Vec::new();
+    let mut in_dollar_block = false;
     for raw in sql.lines() {
         let line = raw.trim();
         if line.is_empty() || line.starts_with("--") {
             continue;
         }
+        if !in_dollar_block && line.to_ascii_uppercase().starts_with("DO $$") {
+            in_dollar_block = true;
+        }
         cur.push_str(line);
         cur.push('\n');
-        if line.ends_with(';') {
-            let s = cur.trim().trim_end_matches(';').trim().to_string();
-            cur.clear();
-            if !s.is_empty() {
-                out.push(s);
+        if in_dollar_block {
+            if line.ends_with("$$;") || line.to_ascii_uppercase().ends_with("END $$;") {
+                in_dollar_block = false;
+                push_stmt(&mut out, &mut cur);
             }
+        } else if line.ends_with(';') {
+            push_stmt(&mut out, &mut cur);
         }
     }
     if !cur.trim().is_empty() {
-        out.push(cur.trim().trim_end_matches(';').trim().to_string());
+        push_stmt(&mut out, &mut cur);
     }
     out
+}
+
+fn push_stmt(out: &mut Vec<String>, cur: &mut String) {
+    let s = cur.trim().trim_end_matches(';').trim().to_string();
+    cur.clear();
+    if !s.is_empty() {
+        out.push(s);
+    }
 }
 
 pub fn env_load() {
@@ -274,4 +291,23 @@ mod tests {
         assert_eq!(stmts.len(), 2);
     }
 
+    #[test]
+    fn sql_stmts_splits_do_dollar_block_as_one_statement() {
+        let sql = r"
+        CREATE TABLE t (id INT);
+        DO $$
+        BEGIN
+            IF TRUE THEN
+                NULL;
+            END IF;
+        END $$;
+        INSERT INTO t VALUES (1);
+        ";
+        let stmts = super::sql_stmts(sql);
+        assert_eq!(stmts.len(), 3);
+        assert!(stmts[0].starts_with("CREATE TABLE"));
+        assert!(stmts[1].starts_with("DO $$"));
+        assert!(stmts[1].contains("END $$"));
+        assert!(stmts[2].starts_with("INSERT"));
+    }
 }

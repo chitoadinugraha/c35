@@ -81,7 +81,7 @@ pub async fn referral_package_get(pool: &PgPool, raw_code: &str) -> Result<Optio
     let row = sqlx::query(
         r#"
         SELECT code, issued_by_iid, used_count,
-               EXTRACT(EPOCH FROM expires_at) * 1000 AS expires_at_ms,
+               (EXTRACT(EPOCH FROM expires_at) * 1000)::float8 AS expires_at_ms,
                COALESCE(meta, '{}'::jsonb) AS meta
         FROM ai.referral_code
         WHERE code = $1

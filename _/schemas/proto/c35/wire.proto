@@ -13,6 +13,7 @@ import "c35/log.proto";
 import "c35/skill.proto";
 import "c35/consumption.proto";
 import "c35/site.proto";
+import "c35/collection.proto";
 import "c35/tx.proto";
 import "c35/referral.proto";
 import "c35/admin.proto";
@@ -33,6 +34,9 @@ message InvokeReq {
     ReqBillingSummary billing_summary = 14;
     ReqBillingPlanSubscribe billing_plan_subscribe = 15;
     ReqBillingHistory billing_history = 17;
+    ReqBillingPromotionCreate billing_promotion_create = 18;
+    ReqBillingPromotionClaim billing_promotion_claim = 19;
+    ReqBillingPromotionList billing_promotion_list = 20;
     ReqReferralShareSet referral_share_set = 62;
     ReqReferralTreeGet referral_tree_get = 64;
     ReqReferralCodeList referral_code_list = 65;
@@ -62,6 +66,9 @@ message InvokeRes {
     ResBillingSummary billing_summary = 14;
     ResBillingPlanSubscribe billing_plan_subscribe = 15;
     ResBillingHistory billing_history = 17;
+    ResBillingPromotionCreate billing_promotion_create = 18;
+    ResBillingPromotionClaim billing_promotion_claim = 19;
+    ResBillingPromotionList billing_promotion_list = 20;
     ResReferralShareSet referral_share_set = 62;
     ResReferralTreeGet referral_tree_get = 64;
     ResReferralCodeList referral_code_list = 65;
@@ -119,6 +126,30 @@ message WsReq {
     RtcSignalAnswer rtc_signal_answer = 42;
     RtcSignalIce rtc_signal_ice = 43;
     ReqRemoteSessionStop remote_session_stop = 44;
+    ReqChannelDisconnect channel_disconnect = 45;
+    ReqIdentityDelete identity_delete = 46;
+    ReqSkillPut skill_put = 47;
+    ReqSkillCatalogList skill_catalog_list = 48;
+    ReqSkillCatalogInstall skill_catalog_install = 49;
+    ReqRemoteIceConfig remote_ice_config = 50;
+    ReqCollectionDefList collection_def_list = 51;
+    ReqSiteDraftGet site_draft_get = 52;
+    ReqSiteDraftPut site_draft_put = 53;
+    ReqSitePublish site_publish = 54;
+    ReqSiteProductList site_product_list = 55;
+    ReqSiteProductPut site_product_put = 56;
+    ReqSiteContactList site_contact_list = 57;
+    ReqSiteContactPut site_contact_put = 58;
+    ReqSiteObjectList site_object_list = 59;
+    ReqSiteObjectPut site_object_put = 60;
+    ReqSiteDomainList site_domain_list = 61;
+    ReqSiteDomainPut site_domain_put = 62;
+
+    ReqSkillCatalogSearch skill_catalog_search = 63;
+    ReqSkillCatalogSubmit skill_catalog_submit = 64;
+    ReqSkillRunReport skill_run_report = 65;
+    ReqRemoteScreenshot req_remote_screenshot = 66;
+    ReqRemoteCommand req_remote_command = 67;
   }
 }
 
@@ -180,5 +211,33 @@ message WsRes {
     ResRemoteSessionStart remote_session_start = 90;
     ResRemoteSessionStop remote_session_stop = 91;
     RemoteSessionPush remote_session_push = 92;
+    ResChannelDisconnect channel_disconnect = 93;
+    ResIdentityDelete identity_delete = 94;
+    ResSkillPut skill_put = 95;
+    ResSkillCatalogList skill_catalog_list = 96;
+    ResSkillCatalogInstall skill_catalog_install = 97;
+    ResRemoteIceConfig remote_ice_config = 98;
+    ResCollectionDefList collection_def_list = 102;
+    ResSiteDraftGet site_draft_get = 103;
+    ResSiteDraftPut site_draft_put = 104;
+    ResSitePublish site_publish = 105;
+    ResSiteProductList site_product_list = 106;
+    ResSiteProductPut site_product_put = 107;
+    ResSiteContactList site_contact_list = 108;
+    ResSiteContactPut site_contact_put = 109;
+    ResSiteObjectList site_object_list = 110;
+    ResSiteObjectPut site_object_put = 111;
+    ResSiteDomainList site_domain_list = 112;
+    ResSiteDomainPut site_domain_put = 113;
+
+    ResSkillCatalogSearch skill_catalog_search = 114;
+    ResSkillCatalogSubmit skill_catalog_submit = 115;
+    ResSkillRunReport skill_run_report = 116;
+    ResRemoteScreenshot res_remote_screenshot = 117;
+    ResRemoteCommand res_remote_command = 118;
+
+    RtcSignalOffer rtc_signal_offer = 99;
+    RtcSignalAnswer rtc_signal_answer = 100;
+    RtcSignalIce rtc_signal_ice = 101;
   }
 }

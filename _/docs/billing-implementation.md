@@ -1,8 +1,8 @@
 # Billing — multi-wallet implementation plan
 
-Status: **active** 2026-09-21
+Status: **active** 2026-09-22
 
-Companion to [billing.md](billing.md) and [billing-plans.md](billing-plans.md).
+Companion to [billing.md](billing.md), [billing-plans.md](billing-plans.md), and [billing-pricing.md](billing-pricing.md).
 
 ---
 
@@ -174,7 +174,9 @@ mod_billing → mod_identity/session_init → wire_ws → wire_http/invoke
 | Path | Action |
 |------|--------|
 | `_/docs/billing.md` | ✅ Revised |
-| `_/docs/billing-plans.md` | ✅ Per-currency pricing |
+| `_/docs/billing-plans.md` | ✅ Lite–Ultra + promotions |
+| `_/docs/billing-pricing.md` | ✅ Alien $1.50/$7 pool |
+| `_/schemas/migrations/billing_pools_v3.sql` | Phase 4b |
 | `_/docs/billing-implementation.md` | ✅ This file |
 | `_/schemas/billing.sql` | ✅ New tables |
 | `_/schemas/migrations/billing_migrate_v2.sql` | Create in Phase 1 |
@@ -182,6 +184,146 @@ mod_billing → mod_identity/session_init → wire_ws → wire_http/invoke
 | `_/schemas/identity.sql` | `billing_profile_iid` (Phase 1) |
 | `servers/crates/mod_billing/**` | Phase 3 |
 | `clients/app/lib/c/billing/**` | Phase 4 |
+
+---
+
+## Phase 4b — IDR pools + promotions (2026-09-22)
+
+Schema and server changes for Lite–Ultra plans, dual Rp pools, and `billing_promotion`.
+
+### New tables
+
+#### `billing_promotion`
+
+Marketing / trial / custom package definitions.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | BIGINT PK | snowflake |
+| `code` | VARCHAR(64) UNIQUE | redeem slug (optional for auto-applied signup trial) |
+| `type` | VARCHAR(32) | `signup_trial` \| `demo_trial` \| `discount` \| `custom_package` |
+| `audience` | VARCHAR(16) | `single` \| `multi` |
+| `name` | VARCHAR(128) | admin label |
+| `base_plan_slug` | VARCHAR(32) FK | e.g. `lite` |
+| `pool_multiplier` | NUMERIC(8,4) | e.g. `0.25` for trial |
+| `alien_pool_idr` | NUMERIC(16,2) | fixed grant (overrides multiplier if > 0) |
+| `frontier_pool_idr` | NUMERIC(16,2) | fixed grant |
+| `duration_days` | INT | signup trial (7) |
+| `duration_minutes` | INT | demo trial (15–30) |
+| `max_claims_total` | INT | multi audience cap |
+| `max_claims_per_email` | INT | default 1 |
+| `valid_from` / `valid_to` | TIMESTAMPTZ | required for `multi` |
+| `scope` | VARCHAR(16) | `user` \| `bot` \| `device` |
+| `meta` | JSONB | discount %, feature flags |
+| `is_active` | BOOL | |
+| `created_ts` / `updated_ts` | TIMESTAMPTZ | |
+
+#### `billing_promotion_claim`
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | BIGINT PK | |
+| `promotion_id` | BIGINT FK | |
+| `owner_iid` | BIGINT FK | claimant |
+| `email` | VARCHAR(255) | verified email for 1× enforcement |
+| `expires_ts` | TIMESTAMPTZ | claim + duration |
+| `alien_pool_used_idr` | NUMERIC(16,2) | ephemeral for demo |
+| `frontier_pool_used_idr` | NUMERIC(16,2) | |
+| `meta` | JSONB | |
+| `created_ts` | TIMESTAMPTZ | |
+
+Unique: `(promotion_id, email)` where promotion has `max_claims_per_email = 1`.
+
+### Alter `billing_profile`
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `alien_pool_limit_idr` | NUMERIC(16,2) | monthly included Alien pool |
+| `alien_pool_used_idr` | NUMERIC(16,2) | |
+| `frontier_pool_limit_idr` | NUMERIC(16,2) | |
+| `frontier_pool_used_idr` | NUMERIC(16,2) | |
+| `pool_period_start` | TIMESTAMPTZ | monthly reset anchor |
+| `trial_expires_ts` | TIMESTAMPTZ | nullable |
+| `active_promotion_id` | BIGINT FK | nullable |
+
+Deprecate (keep dual-read, then drop): `alien_allow_5h_*`, `alien_allow_weekly_*`, `window_*`.
+
+### Alter `billing_subscription` (bot / device)
+
+Same pool columns as profile:
+
+- `alien_pool_limit_idr`, `alien_pool_used_idr`
+- `frontier_pool_limit_idr`, `frontier_pool_used_idr`
+- `pool_period_start`
+
+Add to `meta` or columns:
+
+- `borrow_owner_pool` BOOL — default true for bots without own plan
+
+Remove enforcement of `msgs_used` / `msgs_limit` when `msgs_limit = 0` (unlimited).
+
+### Alter `billing_plan`
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `alien_pool_idr_monthly` | NUMERIC(16,2) | template for 1× Lite = 100000 |
+| `frontier_pool_idr_monthly` | NUMERIC(16,2) | template 20000 |
+| `pool_multiplier` | NUMERIC(8,4) | 1, 4, 10, 40 |
+| `tier` | VARCHAR(16) | `lite` \| `plus` \| `pro` \| `ultra` |
+
+Update `caps_json` shape:
+
+```json
+{
+  "outbound_gap_ms": 10000,
+  "outbound_gap_slow_ms": 15000,
+  "slow_model": "alienai",
+  "priority_queue": false
+}
+```
+
+Reseed slugs: `lite`, `plus`, `pro`, `ultra`, `bot.lite`, `bot.small`, `device.light`, `device.medium`.
+
+### Alter `billing_plan_price`
+
+Already has `billing_period` — seed **`yearly`** and **`monthly`** rows per plan (IDR).
+
+### Alter `billing_reservation`
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `promotion_id` | BIGINT FK | demo trial — deduct promo pool only |
+| `pool` | VARCHAR(16) | `alien` \| `frontier` \| `wallet` |
+| `pool_deduct_idr` | NUMERIC(16,4) | audit |
+
+### Alter `billing_usage_dedupe` (optional)
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `pool` | VARCHAR(16) | which pool was charged |
+| `pool_deduct_idr` | NUMERIC(16,4) | |
+| `cost_wholesale_usd` | NUMERIC(12,6) | provider COGS |
+
+### Config / `llm_model`
+
+- `ai.config` key `billing.alien_pool_rate` → `{ "usd_in_per_1m": 1.50, "usd_out_per_1m": 7.00 }`
+- `alienai` row in `llm_model`: display rates for picker; billing uses pool rate not catalog wholesale
+
+### Proto (`billing.proto`)
+
+- `BillingProfile`: add `alien_pool_*_idr`, `frontier_pool_*_idr`, `trial_expires_ts`
+- `BillingPushQuota`: dual pool % + Rp remaining
+- `BillingPromotion`, `ResPromotionClaim`
+- Deprecate single-ring `alien_allow_*` in client after Phase 4b
+
+### Migration script
+
+`_/schemas/migrations/billing_pools_v3.sql`:
+
+1. Add columns (nullable defaults)
+2. Backfill `alien_pool_limit_idr` from legacy `alien_allow_weekly_*` × FX (best effort)
+3. Seed `billing_promotion` signup trial row
+4. Reseed `billing_plan` + `billing_plan_price`
 
 ---
 

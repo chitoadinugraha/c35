@@ -3,6 +3,9 @@ mod billing_cost;
 mod billing_history;
 mod billing_on_demand;
 mod billing_package;
+mod billing_pool;
+mod billing_profile;
+mod billing_promotion;
 mod billing_plan_subscribe;
 mod billing_push;
 mod billing_resolve;
@@ -14,8 +17,28 @@ mod billing_turn;
 mod bot_usage;
 
 pub use billing_account_get::billing_account_get;
-pub use billing_cost::{billing_cost_usd, billing_cost_wholesale_usd, billing_to_retail_usd, RETAIL_MARKUP};
+pub use billing_cost::{
+    billing_cost_usd, billing_cost_wholesale_usd, billing_to_retail_usd, billing_tool_cost_usd,
+    IMAGE_GEN_RETAIL_USD, IMAGE_GEN_WHOLESALE_USD, RETAIL_MARKUP,
+};
 pub use billing_package::{billing_package_preview, billing_package_redeem};
+pub use billing_pool::{
+    pool_alien_deduct_idr, pool_alien_deduct_usd, pool_apply_deduct, pool_deduct_apply,
+    pool_deduct_idr, pool_frontier_deduct_idr, pool_frontier_deduct_usd, pool_limits_from_multiplier,
+    pool_remaining_ok, pool_usd_to_idr, PoolDeductApplied, PoolSnapshot, ALIEN_POOL_USD_IN_PER_1M,
+    ALIEN_POOL_USD_OUT_PER_1M, LITE_ALIEN_POOL_IDR, LITE_FRONTIER_POOL_IDR, POOL_ALIEN,
+    POOL_FRONTIER, SIGNUP_TRIAL_ALIEN_IDR, SIGNUP_TRIAL_FRONTIER_IDR,
+};
+pub use billing_profile::{
+    billing_plan_pool_template, billing_profile_apply_plan_pools, billing_profile_deduct_turn,
+    billing_profile_ensure, billing_profile_fetch, billing_signup_trial_autoclaim,
+    model_uses_alien_pool, normalize_billing_period, profile_has_pools, profile_pool_remaining,
+    ProfilePoolRow,
+};
+pub use billing_promotion::{
+    billing_promotion_claim, billing_promotion_create, billing_promotion_get,
+    billing_promotion_list_by_creator, PromotionCreateFields,
+};
 pub use billing_plan_subscribe::billing_plan_subscribe;
 pub use billing_resolve::{billing_gate_scoped, billing_resolve, BillingContext, TurnBillingCtx};
 pub use billing_signup_credit::billing_signup_credit;
@@ -24,10 +47,12 @@ pub use billing_push::billing_notify_owner;
 pub use billing_summary::billing_summary;
 pub use billing_topup_put::billing_topup_put;
 pub use billing_on_demand::{
-    DEFAULT_HOLD_USD, allowance_remaining, gate_can_start, native_to_usd, on_demand_usd, usd_to_native,
+    DEFAULT_HOLD_USD, allowance_remaining, gate_can_start, native_to_usd, on_demand_usd,
+    quota_rejection_reason, usd_to_native,
 };
 pub use billing_reservation::{
-    billing_gate_with_hold, billing_held_totals, billing_reservation_hold, billing_reservation_refund,
+    billing_can_afford_tool, billing_gate_with_hold, billing_held_totals,
+    billing_held_totals_exec, billing_reservation_hold, billing_reservation_refund,
     billing_reservation_settle,
 };
 pub use billing_turn::{

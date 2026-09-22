@@ -100,6 +100,55 @@ const BillingProfile$json = {
       '10': 'commissionEarnedIdr'
     },
     {'1': 'updated_ts_ms', '3': 15, '4': 1, '5': 3, '10': 'updatedTsMs'},
+    {
+      '1': 'alien_pool_limit_idr',
+      '3': 16,
+      '4': 1,
+      '5': 1,
+      '10': 'alienPoolLimitIdr'
+    },
+    {
+      '1': 'alien_pool_used_idr',
+      '3': 17,
+      '4': 1,
+      '5': 1,
+      '10': 'alienPoolUsedIdr'
+    },
+    {
+      '1': 'frontier_pool_limit_idr',
+      '3': 18,
+      '4': 1,
+      '5': 1,
+      '10': 'frontierPoolLimitIdr'
+    },
+    {
+      '1': 'frontier_pool_used_idr',
+      '3': 19,
+      '4': 1,
+      '5': 1,
+      '10': 'frontierPoolUsedIdr'
+    },
+    {
+      '1': 'pool_period_start_ms',
+      '3': 20,
+      '4': 1,
+      '5': 3,
+      '10': 'poolPeriodStartMs'
+    },
+    {
+      '1': 'trial_expires_ts_ms',
+      '3': 21,
+      '4': 1,
+      '5': 3,
+      '10': 'trialExpiresTsMs'
+    },
+    {
+      '1': 'active_promotion_id',
+      '3': 22,
+      '4': 1,
+      '5': 3,
+      '10': 'activePromotionId'
+    },
   ],
 };
 
@@ -117,7 +166,14 @@ final $typed_data.Uint8List billingProfileDescriptor = $convert.base64Decode(
     'ZhaWxhYmxlVXNkEjIKFWNvbW1pc3Npb25fZWFybmVkX3VzZBgMIAEoAVITY29tbWlzc2lvbkVh'
     'cm5lZFVzZBI4Chhjb21taXNzaW9uX2F2YWlsYWJsZV9pZHIYDSABKAFSFmNvbW1pc3Npb25Bdm'
     'FpbGFibGVJZHISMgoVY29tbWlzc2lvbl9lYXJuZWRfaWRyGA4gASgBUhNjb21taXNzaW9uRWFy'
-    'bmVkSWRyEiIKDXVwZGF0ZWRfdHNfbXMYDyABKANSC3VwZGF0ZWRUc01z');
+    'bmVkSWRyEiIKDXVwZGF0ZWRfdHNfbXMYDyABKANSC3VwZGF0ZWRUc01zEi8KFGFsaWVuX3Bvb2'
+    'xfbGltaXRfaWRyGBAgASgBUhFhbGllblBvb2xMaW1pdElkchItChNhbGllbl9wb29sX3VzZWRf'
+    'aWRyGBEgASgBUhBhbGllblBvb2xVc2VkSWRyEjUKF2Zyb250aWVyX3Bvb2xfbGltaXRfaWRyGB'
+    'IgASgBUhRmcm9udGllclBvb2xMaW1pdElkchIzChZmcm9udGllcl9wb29sX3VzZWRfaWRyGBMg'
+    'ASgBUhNmcm9udGllclBvb2xVc2VkSWRyEi8KFHBvb2xfcGVyaW9kX3N0YXJ0X21zGBQgASgDUh'
+    'Fwb29sUGVyaW9kU3RhcnRNcxItChN0cmlhbF9leHBpcmVzX3RzX21zGBUgASgDUhB0cmlhbEV4'
+    'cGlyZXNUc01zEi4KE2FjdGl2ZV9wcm9tb3Rpb25faWQYFiABKANSEWFjdGl2ZVByb21vdGlvbk'
+    'lk');
 
 @$core.Deprecated('Use billingWalletDescriptor instead')
 const BillingWallet$json = {
@@ -453,6 +509,48 @@ const BillingPushQuota$json = {
       '5': 3,
       '10': 'windowWeeklyStartMs'
     },
+    {
+      '1': 'alien_pool_limit_idr',
+      '3': 7,
+      '4': 1,
+      '5': 1,
+      '10': 'alienPoolLimitIdr'
+    },
+    {
+      '1': 'alien_pool_used_idr',
+      '3': 8,
+      '4': 1,
+      '5': 1,
+      '10': 'alienPoolUsedIdr'
+    },
+    {
+      '1': 'frontier_pool_limit_idr',
+      '3': 9,
+      '4': 1,
+      '5': 1,
+      '10': 'frontierPoolLimitIdr'
+    },
+    {
+      '1': 'frontier_pool_used_idr',
+      '3': 10,
+      '4': 1,
+      '5': 1,
+      '10': 'frontierPoolUsedIdr'
+    },
+    {
+      '1': 'pool_period_start_ms',
+      '3': 11,
+      '4': 1,
+      '5': 3,
+      '10': 'poolPeriodStartMs'
+    },
+    {
+      '1': 'trial_expires_ts_ms',
+      '3': 12,
+      '4': 1,
+      '5': 3,
+      '10': 'trialExpiresTsMs'
+    },
   ],
 };
 
@@ -463,7 +561,13 @@ final $typed_data.Uint8List billingPushQuotaDescriptor = $convert.base64Decode(
     'bWl0EjUKF2FsaWVuX2FsbG93X3dlZWtseV91c2VkGAMgASgBUhRhbGllbkFsbG93V2Vla2x5VX'
     'NlZBI3ChhhbGllbl9hbGxvd193ZWVrbHlfbGltaXQYBCABKAFSFWFsaWVuQWxsb3dXZWVrbHlM'
     'aW1pdBIrChJ3aW5kb3dfNWhfc3RhcnRfbXMYBSABKANSD3dpbmRvdzVoU3RhcnRNcxIzChZ3aW'
-    '5kb3dfd2Vla2x5X3N0YXJ0X21zGAYgASgDUhN3aW5kb3dXZWVrbHlTdGFydE1z');
+    '5kb3dfd2Vla2x5X3N0YXJ0X21zGAYgASgDUhN3aW5kb3dXZWVrbHlTdGFydE1zEi8KFGFsaWVu'
+    'X3Bvb2xfbGltaXRfaWRyGAcgASgBUhFhbGllblBvb2xMaW1pdElkchItChNhbGllbl9wb29sX3'
+    'VzZWRfaWRyGAggASgBUhBhbGllblBvb2xVc2VkSWRyEjUKF2Zyb250aWVyX3Bvb2xfbGltaXRf'
+    'aWRyGAkgASgBUhRmcm9udGllclBvb2xMaW1pdElkchIzChZmcm9udGllcl9wb29sX3VzZWRfaW'
+    'RyGAogASgBUhNmcm9udGllclBvb2xVc2VkSWRyEi8KFHBvb2xfcGVyaW9kX3N0YXJ0X21zGAsg'
+    'ASgDUhFwb29sUGVyaW9kU3RhcnRNcxItChN0cmlhbF9leHBpcmVzX3RzX21zGAwgASgDUhB0cm'
+    'lhbEV4cGlyZXNUc01z');
 
 @$core.Deprecated('Use billingPushCommissionDescriptor instead')
 const BillingPushCommission$json = {
@@ -555,6 +659,7 @@ const ReqBillingPlanSubscribe$json = {
     {'1': 'currency', '3': 2, '4': 1, '5': 9, '10': 'currency'},
     {'1': 'wallet_id', '3': 3, '4': 1, '5': 3, '10': 'walletId'},
     {'1': 'direct_purchase', '3': 4, '4': 1, '5': 8, '10': 'directPurchase'},
+    {'1': 'billing_period', '3': 5, '4': 1, '5': 9, '10': 'billingPeriod'},
   ],
 };
 
@@ -562,7 +667,8 @@ const ReqBillingPlanSubscribe$json = {
 final $typed_data.Uint8List reqBillingPlanSubscribeDescriptor = $convert.base64Decode(
     'ChdSZXFCaWxsaW5nUGxhblN1YnNjcmliZRIbCglwbGFuX3NsdWcYASABKAlSCHBsYW5TbHVnEh'
     'oKCGN1cnJlbmN5GAIgASgJUghjdXJyZW5jeRIbCgl3YWxsZXRfaWQYAyABKANSCHdhbGxldElk'
-    'EicKD2RpcmVjdF9wdXJjaGFzZRgEIAEoCFIOZGlyZWN0UHVyY2hhc2U=');
+    'EicKD2RpcmVjdF9wdXJjaGFzZRgEIAEoCFIOZGlyZWN0UHVyY2hhc2USJQoOYmlsbGluZ19wZX'
+    'Jpb2QYBSABKAlSDWJpbGxpbmdQZXJpb2Q=');
 
 @$core.Deprecated('Use resBillingPlanSubscribeDescriptor instead')
 const ResBillingPlanSubscribe$json = {
@@ -847,6 +953,267 @@ const ResBillingHistory$json = {
 final $typed_data.Uint8List resBillingHistoryDescriptor = $convert.base64Decode(
     'ChFSZXNCaWxsaW5nSGlzdG9yeRIqCgRyb3dzGAEgAygLMhYuYzM1LkJpbGxpbmdIaXN0b3J5Um'
     '93UgRyb3dz');
+
+@$core.Deprecated('Use billingPromotionDescriptor instead')
+const BillingPromotion$json = {
+  '1': 'BillingPromotion',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 3, '10': 'id'},
+    {'1': 'code', '3': 2, '4': 1, '5': 9, '10': 'code'},
+    {'1': 'type', '3': 3, '4': 1, '5': 9, '10': 'type'},
+    {'1': 'audience', '3': 4, '4': 1, '5': 9, '10': 'audience'},
+    {'1': 'name', '3': 5, '4': 1, '5': 9, '10': 'name'},
+    {'1': 'base_plan_slug', '3': 6, '4': 1, '5': 9, '10': 'basePlanSlug'},
+    {'1': 'pool_multiplier', '3': 7, '4': 1, '5': 1, '10': 'poolMultiplier'},
+    {'1': 'alien_pool_idr', '3': 8, '4': 1, '5': 1, '10': 'alienPoolIdr'},
+    {'1': 'frontier_pool_idr', '3': 9, '4': 1, '5': 1, '10': 'frontierPoolIdr'},
+    {'1': 'duration_days', '3': 10, '4': 1, '5': 5, '10': 'durationDays'},
+    {'1': 'duration_minutes', '3': 11, '4': 1, '5': 5, '10': 'durationMinutes'},
+    {'1': 'max_claims_total', '3': 12, '4': 1, '5': 5, '10': 'maxClaimsTotal'},
+    {
+      '1': 'max_claims_per_email',
+      '3': 13,
+      '4': 1,
+      '5': 5,
+      '10': 'maxClaimsPerEmail'
+    },
+    {'1': 'valid_from_ms', '3': 14, '4': 1, '5': 3, '10': 'validFromMs'},
+    {'1': 'valid_to_ms', '3': 15, '4': 1, '5': 3, '10': 'validToMs'},
+    {'1': 'scope', '3': 16, '4': 1, '5': 9, '10': 'scope'},
+    {'1': 'is_active', '3': 17, '4': 1, '5': 8, '10': 'isActive'},
+    {'1': 'created_by_iid', '3': 18, '4': 1, '5': 3, '10': 'createdByIid'},
+    {'1': 'claims_count', '3': 19, '4': 1, '5': 5, '10': 'claimsCount'},
+    {'1': 'created_ts_ms', '3': 20, '4': 1, '5': 3, '10': 'createdTsMs'},
+    {'1': 'meta_json', '3': 21, '4': 1, '5': 9, '10': 'metaJson'},
+    {'1': 'updated_ts_ms', '3': 22, '4': 1, '5': 3, '10': 'updatedTsMs'},
+  ],
+};
+
+/// Descriptor for `BillingPromotion`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List billingPromotionDescriptor = $convert.base64Decode(
+    'ChBCaWxsaW5nUHJvbW90aW9uEg4KAmlkGAEgASgDUgJpZBISCgRjb2RlGAIgASgJUgRjb2RlEh'
+    'IKBHR5cGUYAyABKAlSBHR5cGUSGgoIYXVkaWVuY2UYBCABKAlSCGF1ZGllbmNlEhIKBG5hbWUY'
+    'BSABKAlSBG5hbWUSJAoOYmFzZV9wbGFuX3NsdWcYBiABKAlSDGJhc2VQbGFuU2x1ZxInCg9wb2'
+    '9sX211bHRpcGxpZXIYByABKAFSDnBvb2xNdWx0aXBsaWVyEiQKDmFsaWVuX3Bvb2xfaWRyGAgg'
+    'ASgBUgxhbGllblBvb2xJZHISKgoRZnJvbnRpZXJfcG9vbF9pZHIYCSABKAFSD2Zyb250aWVyUG'
+    '9vbElkchIjCg1kdXJhdGlvbl9kYXlzGAogASgFUgxkdXJhdGlvbkRheXMSKQoQZHVyYXRpb25f'
+    'bWludXRlcxgLIAEoBVIPZHVyYXRpb25NaW51dGVzEigKEG1heF9jbGFpbXNfdG90YWwYDCABKA'
+    'VSDm1heENsYWltc1RvdGFsEi8KFG1heF9jbGFpbXNfcGVyX2VtYWlsGA0gASgFUhFtYXhDbGFp'
+    'bXNQZXJFbWFpbBIiCg12YWxpZF9mcm9tX21zGA4gASgDUgt2YWxpZEZyb21NcxIeCgt2YWxpZF'
+    '90b19tcxgPIAEoA1IJdmFsaWRUb01zEhQKBXNjb3BlGBAgASgJUgVzY29wZRIbCglpc19hY3Rp'
+    'dmUYESABKAhSCGlzQWN0aXZlEiQKDmNyZWF0ZWRfYnlfaWlkGBIgASgDUgxjcmVhdGVkQnlJaW'
+    'QSIQoMY2xhaW1zX2NvdW50GBMgASgFUgtjbGFpbXNDb3VudBIiCg1jcmVhdGVkX3RzX21zGBQg'
+    'ASgDUgtjcmVhdGVkVHNNcxIbCgltZXRhX2pzb24YFSABKAlSCG1ldGFKc29uEiIKDXVwZGF0ZW'
+    'RfdHNfbXMYFiABKANSC3VwZGF0ZWRUc01z');
+
+@$core.Deprecated('Use billingPromotionClaimDescriptor instead')
+const BillingPromotionClaim$json = {
+  '1': 'BillingPromotionClaim',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 3, '10': 'id'},
+    {'1': 'promotion_id', '3': 2, '4': 1, '5': 3, '10': 'promotionId'},
+    {'1': 'owner_iid', '3': 3, '4': 1, '5': 3, '10': 'ownerIid'},
+    {'1': 'email', '3': 4, '4': 1, '5': 9, '10': 'email'},
+    {'1': 'expires_ts_ms', '3': 5, '4': 1, '5': 3, '10': 'expiresTsMs'},
+    {
+      '1': 'alien_pool_used_idr',
+      '3': 6,
+      '4': 1,
+      '5': 1,
+      '10': 'alienPoolUsedIdr'
+    },
+    {
+      '1': 'frontier_pool_used_idr',
+      '3': 7,
+      '4': 1,
+      '5': 1,
+      '10': 'frontierPoolUsedIdr'
+    },
+    {'1': 'meta_json', '3': 8, '4': 1, '5': 9, '10': 'metaJson'},
+    {'1': 'created_ts_ms', '3': 9, '4': 1, '5': 3, '10': 'createdTsMs'},
+  ],
+};
+
+/// Descriptor for `BillingPromotionClaim`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List billingPromotionClaimDescriptor = $convert.base64Decode(
+    'ChVCaWxsaW5nUHJvbW90aW9uQ2xhaW0SDgoCaWQYASABKANSAmlkEiEKDHByb21vdGlvbl9pZB'
+    'gCIAEoA1ILcHJvbW90aW9uSWQSGwoJb3duZXJfaWlkGAMgASgDUghvd25lcklpZBIUCgVlbWFp'
+    'bBgEIAEoCVIFZW1haWwSIgoNZXhwaXJlc190c19tcxgFIAEoA1ILZXhwaXJlc1RzTXMSLQoTYW'
+    'xpZW5fcG9vbF91c2VkX2lkchgGIAEoAVIQYWxpZW5Qb29sVXNlZElkchIzChZmcm9udGllcl9w'
+    'b29sX3VzZWRfaWRyGAcgASgBUhNmcm9udGllclBvb2xVc2VkSWRyEhsKCW1ldGFfanNvbhgIIA'
+    'EoCVIIbWV0YUpzb24SIgoNY3JlYXRlZF90c19tcxgJIAEoA1ILY3JlYXRlZFRzTXM=');
+
+@$core.Deprecated('Use reqBillingPromotionCreateDescriptor instead')
+const ReqBillingPromotionCreate$json = {
+  '1': 'ReqBillingPromotionCreate',
+  '2': [
+    {'1': 'code', '3': 1, '4': 1, '5': 9, '10': 'code'},
+    {'1': 'type', '3': 2, '4': 1, '5': 9, '10': 'type'},
+    {'1': 'audience', '3': 3, '4': 1, '5': 9, '10': 'audience'},
+    {'1': 'name', '3': 4, '4': 1, '5': 9, '10': 'name'},
+    {'1': 'base_plan_slug', '3': 5, '4': 1, '5': 9, '10': 'basePlanSlug'},
+    {'1': 'pool_multiplier', '3': 6, '4': 1, '5': 1, '10': 'poolMultiplier'},
+    {'1': 'alien_pool_idr', '3': 7, '4': 1, '5': 1, '10': 'alienPoolIdr'},
+    {'1': 'frontier_pool_idr', '3': 8, '4': 1, '5': 1, '10': 'frontierPoolIdr'},
+    {'1': 'duration_days', '3': 9, '4': 1, '5': 5, '10': 'durationDays'},
+    {'1': 'duration_minutes', '3': 10, '4': 1, '5': 5, '10': 'durationMinutes'},
+    {'1': 'max_claims_total', '3': 11, '4': 1, '5': 5, '10': 'maxClaimsTotal'},
+    {
+      '1': 'max_claims_per_email',
+      '3': 12,
+      '4': 1,
+      '5': 5,
+      '10': 'maxClaimsPerEmail'
+    },
+    {'1': 'valid_from_ms', '3': 13, '4': 1, '5': 3, '10': 'validFromMs'},
+    {'1': 'valid_to_ms', '3': 14, '4': 1, '5': 3, '10': 'validToMs'},
+    {'1': 'scope', '3': 15, '4': 1, '5': 9, '10': 'scope'},
+    {'1': 'is_active', '3': 16, '4': 1, '5': 8, '10': 'isActive'},
+  ],
+};
+
+/// Descriptor for `ReqBillingPromotionCreate`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqBillingPromotionCreateDescriptor = $convert.base64Decode(
+    'ChlSZXFCaWxsaW5nUHJvbW90aW9uQ3JlYXRlEhIKBGNvZGUYASABKAlSBGNvZGUSEgoEdHlwZR'
+    'gCIAEoCVIEdHlwZRIaCghhdWRpZW5jZRgDIAEoCVIIYXVkaWVuY2USEgoEbmFtZRgEIAEoCVIE'
+    'bmFtZRIkCg5iYXNlX3BsYW5fc2x1ZxgFIAEoCVIMYmFzZVBsYW5TbHVnEicKD3Bvb2xfbXVsdG'
+    'lwbGllchgGIAEoAVIOcG9vbE11bHRpcGxpZXISJAoOYWxpZW5fcG9vbF9pZHIYByABKAFSDGFs'
+    'aWVuUG9vbElkchIqChFmcm9udGllcl9wb29sX2lkchgIIAEoAVIPZnJvbnRpZXJQb29sSWRyEi'
+    'MKDWR1cmF0aW9uX2RheXMYCSABKAVSDGR1cmF0aW9uRGF5cxIpChBkdXJhdGlvbl9taW51dGVz'
+    'GAogASgFUg9kdXJhdGlvbk1pbnV0ZXMSKAoQbWF4X2NsYWltc190b3RhbBgLIAEoBVIObWF4Q2'
+    'xhaW1zVG90YWwSLwoUbWF4X2NsYWltc19wZXJfZW1haWwYDCABKAVSEW1heENsYWltc1BlckVt'
+    'YWlsEiIKDXZhbGlkX2Zyb21fbXMYDSABKANSC3ZhbGlkRnJvbU1zEh4KC3ZhbGlkX3RvX21zGA'
+    '4gASgDUgl2YWxpZFRvTXMSFAoFc2NvcGUYDyABKAlSBXNjb3BlEhsKCWlzX2FjdGl2ZRgQIAEo'
+    'CFIIaXNBY3RpdmU=');
+
+@$core.Deprecated('Use resBillingPromotionCreateDescriptor instead')
+const ResBillingPromotionCreate$json = {
+  '1': 'ResBillingPromotionCreate',
+  '2': [
+    {'1': 'promotion_id', '3': 1, '4': 1, '5': 3, '10': 'promotionId'},
+    {
+      '1': 'promotion',
+      '3': 2,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.BillingPromotion',
+      '10': 'promotion'
+    },
+  ],
+};
+
+/// Descriptor for `ResBillingPromotionCreate`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resBillingPromotionCreateDescriptor = $convert.base64Decode(
+    'ChlSZXNCaWxsaW5nUHJvbW90aW9uQ3JlYXRlEiEKDHByb21vdGlvbl9pZBgBIAEoA1ILcHJvbW'
+    '90aW9uSWQSMwoJcHJvbW90aW9uGAIgASgLMhUuYzM1LkJpbGxpbmdQcm9tb3Rpb25SCXByb21v'
+    'dGlvbg==');
+
+@$core.Deprecated('Use reqBillingPromotionClaimDescriptor instead')
+const ReqBillingPromotionClaim$json = {
+  '1': 'ReqBillingPromotionClaim',
+  '2': [
+    {'1': 'code', '3': 1, '4': 1, '5': 9, '10': 'code'},
+    {'1': 'email', '3': 2, '4': 1, '5': 9, '10': 'email'},
+    {'1': 'promotion_id', '3': 3, '4': 1, '5': 3, '10': 'promotionId'},
+  ],
+};
+
+/// Descriptor for `ReqBillingPromotionClaim`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqBillingPromotionClaimDescriptor =
+    $convert.base64Decode(
+        'ChhSZXFCaWxsaW5nUHJvbW90aW9uQ2xhaW0SEgoEY29kZRgBIAEoCVIEY29kZRIUCgVlbWFpbB'
+        'gCIAEoCVIFZW1haWwSIQoMcHJvbW90aW9uX2lkGAMgASgDUgtwcm9tb3Rpb25JZA==');
+
+@$core.Deprecated('Use resBillingPromotionClaimDescriptor instead')
+const ResBillingPromotionClaim$json = {
+  '1': 'ResBillingPromotionClaim',
+  '2': [
+    {'1': 'claim_id', '3': 1, '4': 1, '5': 3, '10': 'claimId'},
+    {'1': 'promotion_id', '3': 2, '4': 1, '5': 3, '10': 'promotionId'},
+    {
+      '1': 'alien_pool_limit_idr',
+      '3': 3,
+      '4': 1,
+      '5': 1,
+      '10': 'alienPoolLimitIdr'
+    },
+    {
+      '1': 'frontier_pool_limit_idr',
+      '3': 4,
+      '4': 1,
+      '5': 1,
+      '10': 'frontierPoolLimitIdr'
+    },
+    {'1': 'expires_ts_ms', '3': 5, '4': 1, '5': 3, '10': 'expiresTsMs'},
+    {'1': 'plan_tier', '3': 6, '4': 1, '5': 9, '10': 'planTier'},
+    {'1': 'promo_type', '3': 7, '4': 1, '5': 9, '10': 'promoType'},
+    {
+      '1': 'claim',
+      '3': 8,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.BillingPromotionClaim',
+      '10': 'claim'
+    },
+    {
+      '1': 'promotion',
+      '3': 9,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.BillingPromotion',
+      '10': 'promotion'
+    },
+    {
+      '1': 'profile',
+      '3': 10,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.BillingProfile',
+      '10': 'profile'
+    },
+  ],
+};
+
+/// Descriptor for `ResBillingPromotionClaim`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resBillingPromotionClaimDescriptor = $convert.base64Decode(
+    'ChhSZXNCaWxsaW5nUHJvbW90aW9uQ2xhaW0SGQoIY2xhaW1faWQYASABKANSB2NsYWltSWQSIQ'
+    'oMcHJvbW90aW9uX2lkGAIgASgDUgtwcm9tb3Rpb25JZBIvChRhbGllbl9wb29sX2xpbWl0X2lk'
+    'chgDIAEoAVIRYWxpZW5Qb29sTGltaXRJZHISNQoXZnJvbnRpZXJfcG9vbF9saW1pdF9pZHIYBC'
+    'ABKAFSFGZyb250aWVyUG9vbExpbWl0SWRyEiIKDWV4cGlyZXNfdHNfbXMYBSABKANSC2V4cGly'
+    'ZXNUc01zEhsKCXBsYW5fdGllchgGIAEoCVIIcGxhblRpZXISHQoKcHJvbW9fdHlwZRgHIAEoCV'
+    'IJcHJvbW9UeXBlEjAKBWNsYWltGAggASgLMhouYzM1LkJpbGxpbmdQcm9tb3Rpb25DbGFpbVIF'
+    'Y2xhaW0SMwoJcHJvbW90aW9uGAkgASgLMhUuYzM1LkJpbGxpbmdQcm9tb3Rpb25SCXByb21vdG'
+    'lvbhItCgdwcm9maWxlGAogASgLMhMuYzM1LkJpbGxpbmdQcm9maWxlUgdwcm9maWxl');
+
+@$core.Deprecated('Use reqBillingPromotionListDescriptor instead')
+const ReqBillingPromotionList$json = {
+  '1': 'ReqBillingPromotionList',
+};
+
+/// Descriptor for `ReqBillingPromotionList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqBillingPromotionListDescriptor =
+    $convert.base64Decode('ChdSZXFCaWxsaW5nUHJvbW90aW9uTGlzdA==');
+
+@$core.Deprecated('Use resBillingPromotionListDescriptor instead')
+const ResBillingPromotionList$json = {
+  '1': 'ResBillingPromotionList',
+  '2': [
+    {
+      '1': 'items',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.BillingPromotion',
+      '10': 'items'
+    },
+  ],
+};
+
+/// Descriptor for `ResBillingPromotionList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resBillingPromotionListDescriptor =
+    $convert.base64Decode(
+        'ChdSZXNCaWxsaW5nUHJvbW90aW9uTGlzdBIrCgVpdGVtcxgBIAMoCzIVLmMzNS5CaWxsaW5nUH'
+        'JvbW90aW9uUgVpdGVtcw==');
 
 @$core.Deprecated('Use resBillingSummaryDescriptor instead')
 const ResBillingSummary$json = {

@@ -1,7 +1,53 @@
-use c35_mod_referral::{commission_accrue_on_purchase, commission_simulate, referral_package_get};
+use c35_mod_referral::{commission_accrue_on_purchase, commission_simulate, normalize_code, referral_package_get};
 use c35_proto::{ResBillingPackagePreview, ResBillingPackageRedeem};
 use c35_store::snowflake_id;
+use serde_json::{json, Value};
 use sqlx::{PgPool, Row};
+
+fn meta_str(meta: &Value, key: &str) -> String {
+    meta.get(key)
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string()
+}
+
+fn meta_f64(meta: &Value, key: &str) -> f64 {
+    meta.get(key).and_then(|v| v.as_f64()).unwrap_or(0.0)
+}
+
+fn meta_i32(meta: &Value, key: &str) -> i32 {
+    meta.get(key).and_then(|v| v.as_i64()).unwrap_or(0) as i32
+}
+
+const FX_IDR_PER_USD: f64 = 17_630.0;
+
+fn package_from_locked_row(code: &str, row: &sqlx::postgres::PgRow) -> Result<c35_mod_referral::ReferralPackage, String> {
+    let meta: Value = row.try_get("meta").unwrap_or(json!({}));
+    let code_type = meta_str(&meta, "type");
+    if code_type != "package" {
+        return Err("package code not found or expired".into());
+    }
+    let expires_at_ms = row.get::<Option<f64>, _>("expires_at_ms").unwrap_or(0.0) as i64;
+    if expires_at_ms > 0 && expires_at_ms <= chrono::Utc::now().timestamp_millis() {
+        return Err("package code not found or expired".into());
+    }
+    let price_usd = meta_f64(&meta, "price_usd");
+    let price_idr = meta_f64(&meta, "price_idr");
+    let price_idr = if price_idr > 0.0 { price_idr } else { (price_usd * FX_IDR_PER_USD).round() };
+    Ok(c35_mod_referral::ReferralPackage {
+        code: code.to_string(),
+        issued_by_iid: row.get("issued_by_iid"),
+        name: meta_str(&meta, "name"),
+        price_usd,
+        price_idr,
+        duration_months: meta_i32(&meta, "duration_months"),
+        base_plan_slug: meta_str(&meta, "base_plan_slug"),
+        max_uses: meta_i32(&meta, "max_uses"),
+        used_count: row.get("used_count"),
+        expires_at_ms,
+    })
+}
 
 pub async fn billing_package_preview(
     pool: &PgPool,
@@ -30,9 +76,30 @@ pub async fn billing_package_redeem(
     buyer_iid: i64,
     raw_code: &str,
 ) -> Result<ResBillingPackageRedeem, String> {
-    let pkg = referral_package_get(pool, raw_code)
-        .await?
-        .ok_or_else(|| "package code not found or expired".to_string())?;
+    let code = normalize_code(raw_code);
+    if code.is_empty() {
+        return Err("package code not found or expired".into());
+    }
+
+    let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
+
+    let ref_row = sqlx::query(
+        r#"
+        SELECT code, issued_by_iid, used_count,
+               (EXTRACT(EPOCH FROM expires_at) * 1000)::float8 AS expires_at_ms,
+               COALESCE(meta, '{}'::jsonb) AS meta
+        FROM ai.referral_code
+        WHERE code = $1
+        FOR UPDATE
+        "#,
+    )
+    .bind(&code)
+    .fetch_optional(&mut *tx)
+    .await
+    .map_err(|e| e.to_string())?
+    .ok_or_else(|| "package code not found or expired".to_string())?;
+
+    let pkg = package_from_locked_row(&code, &ref_row)?;
     if pkg.max_uses > 0 && pkg.used_count >= pkg.max_uses {
         return Err("package code usage limit reached".into());
     }
@@ -40,9 +107,9 @@ pub async fn billing_package_redeem(
         return Err("invalid package price".into());
     }
 
-    let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
     let account = sqlx::query(
-        r#"SELECT id, balance_idr, balance_usd, plan_tier FROM ai.billing_account
+        r#"SELECT id, balance_idr::float8 AS balance_idr, balance_usd::float8 AS balance_usd, plan_tier
+           FROM ai.billing_account
            WHERE owner_iid = $1 AND deleted_ts IS NULL LIMIT 1 FOR UPDATE"#,
     )
     .bind(buyer_iid)
@@ -54,9 +121,13 @@ pub async fn billing_package_redeem(
     };
     let account_id: i64 = account.get("id");
     let balance_idr: f64 = account.get("balance_idr");
+    let (_held_usd, held_idr) = crate::billing_reservation::billing_held_totals_exec(&mut *tx, account_id)
+        .await
+        .map_err(|e| e.to_string())?;
+    let avail_idr = (balance_idr - held_idr).max(0.0);
     let charge_idr = pkg.price_idr.round();
-    if balance_idr + 0.001 < charge_idr {
-        return Err("insufficient balance".into());
+    if avail_idr + 0.001 < charge_idr {
+        return Err("insufficient unreserved balance".into());
     }
 
     let purchase_id = snowflake_id();

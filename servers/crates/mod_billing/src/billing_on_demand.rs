@@ -53,16 +53,14 @@ pub fn gate_can_start(
     held_native: f64,
     hold_native: f64,
 ) -> bool {
-    if allowance_rem > 0.0 {
-        return true;
-    }
     if hold_native <= 0.0 {
-        return balance_native > 0.0 || held_native > 0.0;
+        return allowance_rem > 0.0 || balance_native > 0.0 || held_native > 0.0;
     }
     wallet_available_native(balance_native, held_native) >= hold_native
 }
 
 /// After turn: wallet debit in native currency; returns (held_release_usd, held_release_idr).
+#[allow(dead_code)]
 pub fn settle_hold(
     held_usd: f64,
     held_idr: f64,
@@ -84,6 +82,26 @@ pub fn wallet_charge_native(
 ) -> (f64, f64) {
     let need_usd = on_demand_usd(cost_usd, allowance_rem);
     hold_amounts(need_usd, 0.0, currency, micro_per_usd)
+}
+
+pub fn quota_rejection_reason(
+    allow_5h_used: f64,
+    allow_5h_limit: f64,
+    allow_weekly_used: f64,
+    allow_weekly_limit: f64,
+    currency: &str,
+    _hold_native: f64,
+) -> String {
+    let r5 = (allow_5h_limit - allow_5h_used).max(0.0);
+    let rw = (allow_weekly_limit - allow_weekly_used).max(0.0);
+    let min_label = if currency.eq_ignore_ascii_case("IDR") { "Rp 1.000" } else { "$0.05" };
+    if r5 <= 0.0 && allow_5h_limit > 0.0 {
+        format!("quota exceeded: 5-hour allowance exhausted. Please top up at least {min_label} or wait for the 5-hour quota window to reset.")
+    } else if rw <= 0.0 && allow_weekly_limit > 0.0 {
+        format!("quota exceeded: weekly allowance exhausted. Please top up at least {min_label} or wait for the weekly quota window to reset.")
+    } else {
+        format!("quota exceeded: insufficient safe balance. Minimum {min_label} required to start turn.")
+    }
 }
 
 #[cfg(test)]
@@ -166,5 +184,27 @@ mod tests {
         assert!((avail_after_first - 30_000.0).abs() < 0.01);
         assert!(gate_can_start(0.0, balance, hold1, 15_000.0));
         assert!(!gate_can_start(0.0, balance, hold1 + hold2, 15_000.0));
+    }
+
+    #[test]
+    fn quota_rejection_reasons() {
+        let r5 = quota_rejection_reason(0.05, 0.05, 0.2, 1.0, "IDR", 1000.0);
+        assert!(r5.contains("5-hour allowance exhausted"));
+        assert!(r5.contains("Rp 1.000"));
+
+        let rw = quota_rejection_reason(0.01, 0.05, 1.0, 1.0, "USD", 0.05);
+        assert!(rw.contains("weekly allowance exhausted"));
+        assert!(rw.contains("$0.05"));
+
+        let r_bal = quota_rejection_reason(0.0, 0.0, 0.0, 0.0, "IDR", 1000.0);
+        assert!(r_bal.contains("insufficient safe balance"));
+    }
+
+    #[test]
+    fn gate_blocks_when_allowance_partial_and_wallet_insufficient() {
+        let (hold_usd, _) = hold_amounts(DEFAULT_HOLD_USD, 0.01, "USD", FX);
+        assert!((hold_usd - 0.04).abs() < 1e-9);
+        assert!(!gate_can_start(0.01, 0.0, 0.0, hold_usd));
+        assert!(gate_can_start(0.01, 0.05, 0.0, hold_usd));
     }
 }

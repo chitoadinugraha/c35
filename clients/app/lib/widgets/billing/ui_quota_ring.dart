@@ -22,8 +22,6 @@ double quotaRingRatio(num used, num limit) {
 
 int quotaRingRemainingPct(num used, num limit) => (quotaRingRatio(used, limit) * 100).round();
 
-String quotaAllowUsdLabel(num usd) => '\$${usd.toStringAsFixed(usd >= 1 ? 2 : 4)}';
-
 class _QuotaRingLayout {
   const _QuotaRingLayout({
     required this.outerStroke,
@@ -102,8 +100,6 @@ class UiQuotaDualRing extends StatelessWidget {
     const innerColor = quotaRingWeeklyColor;
     final pct5h = quotaRingRemainingPct(allow5hUsed, allow5hLimit);
     final pctWeekly = quotaRingRemainingPct(allowWeeklyUsed, allowWeeklyLimit);
-    final left5h = (allow5hLimit - allow5hUsed).clamp(0.0, allow5hLimit);
-    final leftWeekly = (allowWeeklyLimit - allowWeeklyUsed).clamp(0.0, allowWeeklyLimit);
     final layout = _QuotaRingLayout.dual(size);
     TextStyle pctStyle(Color color) => TextStyle(color: color, fontSize: 9, fontWeight: FontWeight.w600, height: 1.25);
     final ring = SizedBox(
@@ -147,7 +143,7 @@ class UiQuotaDualRing extends StatelessWidget {
       );
     }
     return uiTooltip(
-      message: '$title\n5 Hours · $pct5h% left (${quotaAllowUsdLabel(left5h)})\nWeekly · $pctWeekly% left (${quotaAllowUsdLabel(leftWeekly)})',
+      message: '$title\n5 Hours · $pct5h% left\nWeekly · $pctWeekly% left',
       preferBelow: false,
       child: child,
     );

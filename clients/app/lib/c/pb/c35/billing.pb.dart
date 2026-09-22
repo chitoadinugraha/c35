@@ -36,6 +36,13 @@ class BillingProfile extends $pb.GeneratedMessage {
     $core.double? commissionAvailableIdr,
     $core.double? commissionEarnedIdr,
     $fixnum.Int64? updatedTsMs,
+    $core.double? alienPoolLimitIdr,
+    $core.double? alienPoolUsedIdr,
+    $core.double? frontierPoolLimitIdr,
+    $core.double? frontierPoolUsedIdr,
+    $fixnum.Int64? poolPeriodStartMs,
+    $fixnum.Int64? trialExpiresTsMs,
+    $fixnum.Int64? activePromotionId,
   }) {
     final result = BillingProfile._();
     if (id != null) result.id = id;
@@ -61,6 +68,15 @@ class BillingProfile extends $pb.GeneratedMessage {
     if (commissionEarnedIdr != null)
       result.commissionEarnedIdr = commissionEarnedIdr;
     if (updatedTsMs != null) result.updatedTsMs = updatedTsMs;
+    if (alienPoolLimitIdr != null) result.alienPoolLimitIdr = alienPoolLimitIdr;
+    if (alienPoolUsedIdr != null) result.alienPoolUsedIdr = alienPoolUsedIdr;
+    if (frontierPoolLimitIdr != null)
+      result.frontierPoolLimitIdr = frontierPoolLimitIdr;
+    if (frontierPoolUsedIdr != null)
+      result.frontierPoolUsedIdr = frontierPoolUsedIdr;
+    if (poolPeriodStartMs != null) result.poolPeriodStartMs = poolPeriodStartMs;
+    if (trialExpiresTsMs != null) result.trialExpiresTsMs = trialExpiresTsMs;
+    if (activePromotionId != null) result.activePromotionId = activePromotionId;
     return result;
   }
 
@@ -95,6 +111,13 @@ class BillingProfile extends $pb.GeneratedMessage {
     ..aD(13, _omitFieldNames ? '' : 'commissionAvailableIdr')
     ..aD(14, _omitFieldNames ? '' : 'commissionEarnedIdr')
     ..aInt64(15, _omitFieldNames ? '' : 'updatedTsMs')
+    ..aD(16, _omitFieldNames ? '' : 'alienPoolLimitIdr')
+    ..aD(17, _omitFieldNames ? '' : 'alienPoolUsedIdr')
+    ..aD(18, _omitFieldNames ? '' : 'frontierPoolLimitIdr')
+    ..aD(19, _omitFieldNames ? '' : 'frontierPoolUsedIdr')
+    ..aInt64(20, _omitFieldNames ? '' : 'poolPeriodStartMs')
+    ..aInt64(21, _omitFieldNames ? '' : 'trialExpiresTsMs')
+    ..aInt64(22, _omitFieldNames ? '' : 'activePromotionId')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -253,6 +276,70 @@ class BillingProfile extends $pb.GeneratedMessage {
   $core.bool hasUpdatedTsMs() => $_has(14);
   @$pb.TagNumber(15)
   void clearUpdatedTsMs() => $_clearField(15);
+
+  /// v3 IDR pools (Phase 4b)
+  @$pb.TagNumber(16)
+  $core.double get alienPoolLimitIdr => $_getN(15);
+  @$pb.TagNumber(16)
+  set alienPoolLimitIdr($core.double value) => $_setDouble(15, value);
+  @$pb.TagNumber(16)
+  $core.bool hasAlienPoolLimitIdr() => $_has(15);
+  @$pb.TagNumber(16)
+  void clearAlienPoolLimitIdr() => $_clearField(16);
+
+  @$pb.TagNumber(17)
+  $core.double get alienPoolUsedIdr => $_getN(16);
+  @$pb.TagNumber(17)
+  set alienPoolUsedIdr($core.double value) => $_setDouble(16, value);
+  @$pb.TagNumber(17)
+  $core.bool hasAlienPoolUsedIdr() => $_has(16);
+  @$pb.TagNumber(17)
+  void clearAlienPoolUsedIdr() => $_clearField(17);
+
+  @$pb.TagNumber(18)
+  $core.double get frontierPoolLimitIdr => $_getN(17);
+  @$pb.TagNumber(18)
+  set frontierPoolLimitIdr($core.double value) => $_setDouble(17, value);
+  @$pb.TagNumber(18)
+  $core.bool hasFrontierPoolLimitIdr() => $_has(17);
+  @$pb.TagNumber(18)
+  void clearFrontierPoolLimitIdr() => $_clearField(18);
+
+  @$pb.TagNumber(19)
+  $core.double get frontierPoolUsedIdr => $_getN(18);
+  @$pb.TagNumber(19)
+  set frontierPoolUsedIdr($core.double value) => $_setDouble(18, value);
+  @$pb.TagNumber(19)
+  $core.bool hasFrontierPoolUsedIdr() => $_has(18);
+  @$pb.TagNumber(19)
+  void clearFrontierPoolUsedIdr() => $_clearField(19);
+
+  @$pb.TagNumber(20)
+  $fixnum.Int64 get poolPeriodStartMs => $_getI64(19);
+  @$pb.TagNumber(20)
+  set poolPeriodStartMs($fixnum.Int64 value) => $_setInt64(19, value);
+  @$pb.TagNumber(20)
+  $core.bool hasPoolPeriodStartMs() => $_has(19);
+  @$pb.TagNumber(20)
+  void clearPoolPeriodStartMs() => $_clearField(20);
+
+  @$pb.TagNumber(21)
+  $fixnum.Int64 get trialExpiresTsMs => $_getI64(20);
+  @$pb.TagNumber(21)
+  set trialExpiresTsMs($fixnum.Int64 value) => $_setInt64(20, value);
+  @$pb.TagNumber(21)
+  $core.bool hasTrialExpiresTsMs() => $_has(20);
+  @$pb.TagNumber(21)
+  void clearTrialExpiresTsMs() => $_clearField(21);
+
+  @$pb.TagNumber(22)
+  $fixnum.Int64 get activePromotionId => $_getI64(21);
+  @$pb.TagNumber(22)
+  set activePromotionId($fixnum.Int64 value) => $_setInt64(21, value);
+  @$pb.TagNumber(22)
+  $core.bool hasActivePromotionId() => $_has(21);
+  @$pb.TagNumber(22)
+  void clearActivePromotionId() => $_clearField(22);
 }
 
 class BillingWallet extends $pb.GeneratedMessage {
@@ -1499,6 +1586,12 @@ class BillingPushQuota extends $pb.GeneratedMessage {
     $core.double? alienAllowWeeklyLimit,
     $fixnum.Int64? window5hStartMs,
     $fixnum.Int64? windowWeeklyStartMs,
+    $core.double? alienPoolLimitIdr,
+    $core.double? alienPoolUsedIdr,
+    $core.double? frontierPoolLimitIdr,
+    $core.double? frontierPoolUsedIdr,
+    $fixnum.Int64? poolPeriodStartMs,
+    $fixnum.Int64? trialExpiresTsMs,
   }) {
     final result = BillingPushQuota._();
     if (alienAllow5hUsed != null) result.alienAllow5hUsed = alienAllow5hUsed;
@@ -1510,6 +1603,14 @@ class BillingPushQuota extends $pb.GeneratedMessage {
     if (window5hStartMs != null) result.window5hStartMs = window5hStartMs;
     if (windowWeeklyStartMs != null)
       result.windowWeeklyStartMs = windowWeeklyStartMs;
+    if (alienPoolLimitIdr != null) result.alienPoolLimitIdr = alienPoolLimitIdr;
+    if (alienPoolUsedIdr != null) result.alienPoolUsedIdr = alienPoolUsedIdr;
+    if (frontierPoolLimitIdr != null)
+      result.frontierPoolLimitIdr = frontierPoolLimitIdr;
+    if (frontierPoolUsedIdr != null)
+      result.frontierPoolUsedIdr = frontierPoolUsedIdr;
+    if (poolPeriodStartMs != null) result.poolPeriodStartMs = poolPeriodStartMs;
+    if (trialExpiresTsMs != null) result.trialExpiresTsMs = trialExpiresTsMs;
     return result;
   }
 
@@ -1535,6 +1636,12 @@ class BillingPushQuota extends $pb.GeneratedMessage {
     ..aInt64(5, _omitFieldNames ? '' : 'window5hStartMs',
         protoName: 'window_5h_start_ms')
     ..aInt64(6, _omitFieldNames ? '' : 'windowWeeklyStartMs')
+    ..aD(7, _omitFieldNames ? '' : 'alienPoolLimitIdr')
+    ..aD(8, _omitFieldNames ? '' : 'alienPoolUsedIdr')
+    ..aD(9, _omitFieldNames ? '' : 'frontierPoolLimitIdr')
+    ..aD(10, _omitFieldNames ? '' : 'frontierPoolUsedIdr')
+    ..aInt64(11, _omitFieldNames ? '' : 'poolPeriodStartMs')
+    ..aInt64(12, _omitFieldNames ? '' : 'trialExpiresTsMs')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1612,6 +1719,61 @@ class BillingPushQuota extends $pb.GeneratedMessage {
   $core.bool hasWindowWeeklyStartMs() => $_has(5);
   @$pb.TagNumber(6)
   void clearWindowWeeklyStartMs() => $_clearField(6);
+
+  /// v3 IDR pools (Phase 4b)
+  @$pb.TagNumber(7)
+  $core.double get alienPoolLimitIdr => $_getN(6);
+  @$pb.TagNumber(7)
+  set alienPoolLimitIdr($core.double value) => $_setDouble(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasAlienPoolLimitIdr() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearAlienPoolLimitIdr() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.double get alienPoolUsedIdr => $_getN(7);
+  @$pb.TagNumber(8)
+  set alienPoolUsedIdr($core.double value) => $_setDouble(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasAlienPoolUsedIdr() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearAlienPoolUsedIdr() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.double get frontierPoolLimitIdr => $_getN(8);
+  @$pb.TagNumber(9)
+  set frontierPoolLimitIdr($core.double value) => $_setDouble(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasFrontierPoolLimitIdr() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearFrontierPoolLimitIdr() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $core.double get frontierPoolUsedIdr => $_getN(9);
+  @$pb.TagNumber(10)
+  set frontierPoolUsedIdr($core.double value) => $_setDouble(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasFrontierPoolUsedIdr() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearFrontierPoolUsedIdr() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $fixnum.Int64 get poolPeriodStartMs => $_getI64(10);
+  @$pb.TagNumber(11)
+  set poolPeriodStartMs($fixnum.Int64 value) => $_setInt64(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasPoolPeriodStartMs() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearPoolPeriodStartMs() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  $fixnum.Int64 get trialExpiresTsMs => $_getI64(11);
+  @$pb.TagNumber(12)
+  set trialExpiresTsMs($fixnum.Int64 value) => $_setInt64(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasTrialExpiresTsMs() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearTrialExpiresTsMs() => $_clearField(12);
 }
 
 class BillingPushCommission extends $pb.GeneratedMessage {
@@ -1885,12 +2047,14 @@ class ReqBillingPlanSubscribe extends $pb.GeneratedMessage {
     $core.String? currency,
     $fixnum.Int64? walletId,
     $core.bool? directPurchase,
+    $core.String? billingPeriod,
   }) {
     final result = ReqBillingPlanSubscribe._();
     if (planSlug != null) result.planSlug = planSlug;
     if (currency != null) result.currency = currency;
     if (walletId != null) result.walletId = walletId;
     if (directPurchase != null) result.directPurchase = directPurchase;
+    if (billingPeriod != null) result.billingPeriod = billingPeriod;
     return result;
   }
 
@@ -1911,6 +2075,7 @@ class ReqBillingPlanSubscribe extends $pb.GeneratedMessage {
     ..aOS(2, _omitFieldNames ? '' : 'currency')
     ..aInt64(3, _omitFieldNames ? '' : 'walletId')
     ..aOB(4, _omitFieldNames ? '' : 'directPurchase')
+    ..aOS(5, _omitFieldNames ? '' : 'billingPeriod')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1972,6 +2137,15 @@ class ReqBillingPlanSubscribe extends $pb.GeneratedMessage {
   $core.bool hasDirectPurchase() => $_has(3);
   @$pb.TagNumber(4)
   void clearDirectPurchase() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get billingPeriod => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set billingPeriod($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasBillingPeriod() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearBillingPeriod() => $_clearField(5);
 }
 
 class ResBillingPlanSubscribe extends $pb.GeneratedMessage {
@@ -3240,6 +3414,1147 @@ class ResBillingHistory extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   $pb.PbList<BillingHistoryRow> get rows => $_getList(0);
+}
+
+class BillingPromotion extends $pb.GeneratedMessage {
+  factory BillingPromotion({
+    $fixnum.Int64? id,
+    $core.String? code,
+    $core.String? type,
+    $core.String? audience,
+    $core.String? name,
+    $core.String? basePlanSlug,
+    $core.double? poolMultiplier,
+    $core.double? alienPoolIdr,
+    $core.double? frontierPoolIdr,
+    $core.int? durationDays,
+    $core.int? durationMinutes,
+    $core.int? maxClaimsTotal,
+    $core.int? maxClaimsPerEmail,
+    $fixnum.Int64? validFromMs,
+    $fixnum.Int64? validToMs,
+    $core.String? scope,
+    $core.bool? isActive,
+    $fixnum.Int64? createdByIid,
+    $core.int? claimsCount,
+    $fixnum.Int64? createdTsMs,
+    $core.String? metaJson,
+    $fixnum.Int64? updatedTsMs,
+  }) {
+    final result = BillingPromotion._();
+    if (id != null) result.id = id;
+    if (code != null) result.code = code;
+    if (type != null) result.type = type;
+    if (audience != null) result.audience = audience;
+    if (name != null) result.name = name;
+    if (basePlanSlug != null) result.basePlanSlug = basePlanSlug;
+    if (poolMultiplier != null) result.poolMultiplier = poolMultiplier;
+    if (alienPoolIdr != null) result.alienPoolIdr = alienPoolIdr;
+    if (frontierPoolIdr != null) result.frontierPoolIdr = frontierPoolIdr;
+    if (durationDays != null) result.durationDays = durationDays;
+    if (durationMinutes != null) result.durationMinutes = durationMinutes;
+    if (maxClaimsTotal != null) result.maxClaimsTotal = maxClaimsTotal;
+    if (maxClaimsPerEmail != null) result.maxClaimsPerEmail = maxClaimsPerEmail;
+    if (validFromMs != null) result.validFromMs = validFromMs;
+    if (validToMs != null) result.validToMs = validToMs;
+    if (scope != null) result.scope = scope;
+    if (isActive != null) result.isActive = isActive;
+    if (createdByIid != null) result.createdByIid = createdByIid;
+    if (claimsCount != null) result.claimsCount = claimsCount;
+    if (createdTsMs != null) result.createdTsMs = createdTsMs;
+    if (metaJson != null) result.metaJson = metaJson;
+    if (updatedTsMs != null) result.updatedTsMs = updatedTsMs;
+    return result;
+  }
+
+  BillingPromotion._();
+
+  factory BillingPromotion.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      BillingPromotion()..mergeFromBuffer(data, registry);
+  factory BillingPromotion.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      BillingPromotion()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'BillingPromotion',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: BillingPromotion.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'id')
+    ..aOS(2, _omitFieldNames ? '' : 'code')
+    ..aOS(3, _omitFieldNames ? '' : 'type')
+    ..aOS(4, _omitFieldNames ? '' : 'audience')
+    ..aOS(5, _omitFieldNames ? '' : 'name')
+    ..aOS(6, _omitFieldNames ? '' : 'basePlanSlug')
+    ..aD(7, _omitFieldNames ? '' : 'poolMultiplier')
+    ..aD(8, _omitFieldNames ? '' : 'alienPoolIdr')
+    ..aD(9, _omitFieldNames ? '' : 'frontierPoolIdr')
+    ..aI(10, _omitFieldNames ? '' : 'durationDays')
+    ..aI(11, _omitFieldNames ? '' : 'durationMinutes')
+    ..aI(12, _omitFieldNames ? '' : 'maxClaimsTotal')
+    ..aI(13, _omitFieldNames ? '' : 'maxClaimsPerEmail')
+    ..aInt64(14, _omitFieldNames ? '' : 'validFromMs')
+    ..aInt64(15, _omitFieldNames ? '' : 'validToMs')
+    ..aOS(16, _omitFieldNames ? '' : 'scope')
+    ..aOB(17, _omitFieldNames ? '' : 'isActive')
+    ..aInt64(18, _omitFieldNames ? '' : 'createdByIid')
+    ..aI(19, _omitFieldNames ? '' : 'claimsCount')
+    ..aInt64(20, _omitFieldNames ? '' : 'createdTsMs')
+    ..aOS(21, _omitFieldNames ? '' : 'metaJson')
+    ..aInt64(22, _omitFieldNames ? '' : 'updatedTsMs')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  BillingPromotion clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  BillingPromotion copyWith(void Function(BillingPromotion) updates) =>
+      super.copyWith((message) => updates(message as BillingPromotion))
+          as BillingPromotion;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use BillingPromotion() / BillingPromotion.new instead')
+  static BillingPromotion create() => BillingPromotion._();
+  static $pb.GeneratedMessage $_createMessage() => BillingPromotion._();
+  @$core.override
+  BillingPromotion createEmptyInstance() => BillingPromotion._();
+  @$core.pragma('dart2js:noInline')
+  static BillingPromotion getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<BillingPromotion>(
+          BillingPromotion.$_createMessage);
+  static BillingPromotion? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get id => $_getI64(0);
+  @$pb.TagNumber(1)
+  set id($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get code => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set code($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasCode() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearCode() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get type => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set type($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasType() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearType() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get audience => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set audience($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasAudience() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearAudience() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get name => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set name($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasName() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearName() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get basePlanSlug => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set basePlanSlug($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasBasePlanSlug() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearBasePlanSlug() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.double get poolMultiplier => $_getN(6);
+  @$pb.TagNumber(7)
+  set poolMultiplier($core.double value) => $_setDouble(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasPoolMultiplier() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearPoolMultiplier() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.double get alienPoolIdr => $_getN(7);
+  @$pb.TagNumber(8)
+  set alienPoolIdr($core.double value) => $_setDouble(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasAlienPoolIdr() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearAlienPoolIdr() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.double get frontierPoolIdr => $_getN(8);
+  @$pb.TagNumber(9)
+  set frontierPoolIdr($core.double value) => $_setDouble(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasFrontierPoolIdr() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearFrontierPoolIdr() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $core.int get durationDays => $_getIZ(9);
+  @$pb.TagNumber(10)
+  set durationDays($core.int value) => $_setSignedInt32(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasDurationDays() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearDurationDays() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $core.int get durationMinutes => $_getIZ(10);
+  @$pb.TagNumber(11)
+  set durationMinutes($core.int value) => $_setSignedInt32(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasDurationMinutes() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearDurationMinutes() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  $core.int get maxClaimsTotal => $_getIZ(11);
+  @$pb.TagNumber(12)
+  set maxClaimsTotal($core.int value) => $_setSignedInt32(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasMaxClaimsTotal() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearMaxClaimsTotal() => $_clearField(12);
+
+  @$pb.TagNumber(13)
+  $core.int get maxClaimsPerEmail => $_getIZ(12);
+  @$pb.TagNumber(13)
+  set maxClaimsPerEmail($core.int value) => $_setSignedInt32(12, value);
+  @$pb.TagNumber(13)
+  $core.bool hasMaxClaimsPerEmail() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearMaxClaimsPerEmail() => $_clearField(13);
+
+  @$pb.TagNumber(14)
+  $fixnum.Int64 get validFromMs => $_getI64(13);
+  @$pb.TagNumber(14)
+  set validFromMs($fixnum.Int64 value) => $_setInt64(13, value);
+  @$pb.TagNumber(14)
+  $core.bool hasValidFromMs() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearValidFromMs() => $_clearField(14);
+
+  @$pb.TagNumber(15)
+  $fixnum.Int64 get validToMs => $_getI64(14);
+  @$pb.TagNumber(15)
+  set validToMs($fixnum.Int64 value) => $_setInt64(14, value);
+  @$pb.TagNumber(15)
+  $core.bool hasValidToMs() => $_has(14);
+  @$pb.TagNumber(15)
+  void clearValidToMs() => $_clearField(15);
+
+  @$pb.TagNumber(16)
+  $core.String get scope => $_getSZ(15);
+  @$pb.TagNumber(16)
+  set scope($core.String value) => $_setString(15, value);
+  @$pb.TagNumber(16)
+  $core.bool hasScope() => $_has(15);
+  @$pb.TagNumber(16)
+  void clearScope() => $_clearField(16);
+
+  @$pb.TagNumber(17)
+  $core.bool get isActive => $_getBF(16);
+  @$pb.TagNumber(17)
+  set isActive($core.bool value) => $_setBool(16, value);
+  @$pb.TagNumber(17)
+  $core.bool hasIsActive() => $_has(16);
+  @$pb.TagNumber(17)
+  void clearIsActive() => $_clearField(17);
+
+  @$pb.TagNumber(18)
+  $fixnum.Int64 get createdByIid => $_getI64(17);
+  @$pb.TagNumber(18)
+  set createdByIid($fixnum.Int64 value) => $_setInt64(17, value);
+  @$pb.TagNumber(18)
+  $core.bool hasCreatedByIid() => $_has(17);
+  @$pb.TagNumber(18)
+  void clearCreatedByIid() => $_clearField(18);
+
+  @$pb.TagNumber(19)
+  $core.int get claimsCount => $_getIZ(18);
+  @$pb.TagNumber(19)
+  set claimsCount($core.int value) => $_setSignedInt32(18, value);
+  @$pb.TagNumber(19)
+  $core.bool hasClaimsCount() => $_has(18);
+  @$pb.TagNumber(19)
+  void clearClaimsCount() => $_clearField(19);
+
+  @$pb.TagNumber(20)
+  $fixnum.Int64 get createdTsMs => $_getI64(19);
+  @$pb.TagNumber(20)
+  set createdTsMs($fixnum.Int64 value) => $_setInt64(19, value);
+  @$pb.TagNumber(20)
+  $core.bool hasCreatedTsMs() => $_has(19);
+  @$pb.TagNumber(20)
+  void clearCreatedTsMs() => $_clearField(20);
+
+  @$pb.TagNumber(21)
+  $core.String get metaJson => $_getSZ(20);
+  @$pb.TagNumber(21)
+  set metaJson($core.String value) => $_setString(20, value);
+  @$pb.TagNumber(21)
+  $core.bool hasMetaJson() => $_has(20);
+  @$pb.TagNumber(21)
+  void clearMetaJson() => $_clearField(21);
+
+  @$pb.TagNumber(22)
+  $fixnum.Int64 get updatedTsMs => $_getI64(21);
+  @$pb.TagNumber(22)
+  set updatedTsMs($fixnum.Int64 value) => $_setInt64(21, value);
+  @$pb.TagNumber(22)
+  $core.bool hasUpdatedTsMs() => $_has(21);
+  @$pb.TagNumber(22)
+  void clearUpdatedTsMs() => $_clearField(22);
+}
+
+class BillingPromotionClaim extends $pb.GeneratedMessage {
+  factory BillingPromotionClaim({
+    $fixnum.Int64? id,
+    $fixnum.Int64? promotionId,
+    $fixnum.Int64? ownerIid,
+    $core.String? email,
+    $fixnum.Int64? expiresTsMs,
+    $core.double? alienPoolUsedIdr,
+    $core.double? frontierPoolUsedIdr,
+    $core.String? metaJson,
+    $fixnum.Int64? createdTsMs,
+  }) {
+    final result = BillingPromotionClaim._();
+    if (id != null) result.id = id;
+    if (promotionId != null) result.promotionId = promotionId;
+    if (ownerIid != null) result.ownerIid = ownerIid;
+    if (email != null) result.email = email;
+    if (expiresTsMs != null) result.expiresTsMs = expiresTsMs;
+    if (alienPoolUsedIdr != null) result.alienPoolUsedIdr = alienPoolUsedIdr;
+    if (frontierPoolUsedIdr != null)
+      result.frontierPoolUsedIdr = frontierPoolUsedIdr;
+    if (metaJson != null) result.metaJson = metaJson;
+    if (createdTsMs != null) result.createdTsMs = createdTsMs;
+    return result;
+  }
+
+  BillingPromotionClaim._();
+
+  factory BillingPromotionClaim.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      BillingPromotionClaim()..mergeFromBuffer(data, registry);
+  factory BillingPromotionClaim.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      BillingPromotionClaim()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'BillingPromotionClaim',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: BillingPromotionClaim.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'id')
+    ..aInt64(2, _omitFieldNames ? '' : 'promotionId')
+    ..aInt64(3, _omitFieldNames ? '' : 'ownerIid')
+    ..aOS(4, _omitFieldNames ? '' : 'email')
+    ..aInt64(5, _omitFieldNames ? '' : 'expiresTsMs')
+    ..aD(6, _omitFieldNames ? '' : 'alienPoolUsedIdr')
+    ..aD(7, _omitFieldNames ? '' : 'frontierPoolUsedIdr')
+    ..aOS(8, _omitFieldNames ? '' : 'metaJson')
+    ..aInt64(9, _omitFieldNames ? '' : 'createdTsMs')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  BillingPromotionClaim clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  BillingPromotionClaim copyWith(
+          void Function(BillingPromotionClaim) updates) =>
+      super.copyWith((message) => updates(message as BillingPromotionClaim))
+          as BillingPromotionClaim;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use BillingPromotionClaim() / BillingPromotionClaim.new instead')
+  static BillingPromotionClaim create() => BillingPromotionClaim._();
+  static $pb.GeneratedMessage $_createMessage() => BillingPromotionClaim._();
+  @$core.override
+  BillingPromotionClaim createEmptyInstance() => BillingPromotionClaim._();
+  @$core.pragma('dart2js:noInline')
+  static BillingPromotionClaim getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<BillingPromotionClaim>(
+          BillingPromotionClaim.$_createMessage);
+  static BillingPromotionClaim? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get id => $_getI64(0);
+  @$pb.TagNumber(1)
+  set id($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get promotionId => $_getI64(1);
+  @$pb.TagNumber(2)
+  set promotionId($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasPromotionId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearPromotionId() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get ownerIid => $_getI64(2);
+  @$pb.TagNumber(3)
+  set ownerIid($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasOwnerIid() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearOwnerIid() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get email => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set email($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasEmail() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearEmail() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $fixnum.Int64 get expiresTsMs => $_getI64(4);
+  @$pb.TagNumber(5)
+  set expiresTsMs($fixnum.Int64 value) => $_setInt64(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasExpiresTsMs() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearExpiresTsMs() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.double get alienPoolUsedIdr => $_getN(5);
+  @$pb.TagNumber(6)
+  set alienPoolUsedIdr($core.double value) => $_setDouble(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasAlienPoolUsedIdr() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearAlienPoolUsedIdr() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.double get frontierPoolUsedIdr => $_getN(6);
+  @$pb.TagNumber(7)
+  set frontierPoolUsedIdr($core.double value) => $_setDouble(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasFrontierPoolUsedIdr() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearFrontierPoolUsedIdr() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.String get metaJson => $_getSZ(7);
+  @$pb.TagNumber(8)
+  set metaJson($core.String value) => $_setString(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasMetaJson() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearMetaJson() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $fixnum.Int64 get createdTsMs => $_getI64(8);
+  @$pb.TagNumber(9)
+  set createdTsMs($fixnum.Int64 value) => $_setInt64(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasCreatedTsMs() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearCreatedTsMs() => $_clearField(9);
+}
+
+class ReqBillingPromotionCreate extends $pb.GeneratedMessage {
+  factory ReqBillingPromotionCreate({
+    $core.String? code,
+    $core.String? type,
+    $core.String? audience,
+    $core.String? name,
+    $core.String? basePlanSlug,
+    $core.double? poolMultiplier,
+    $core.double? alienPoolIdr,
+    $core.double? frontierPoolIdr,
+    $core.int? durationDays,
+    $core.int? durationMinutes,
+    $core.int? maxClaimsTotal,
+    $core.int? maxClaimsPerEmail,
+    $fixnum.Int64? validFromMs,
+    $fixnum.Int64? validToMs,
+    $core.String? scope,
+    $core.bool? isActive,
+  }) {
+    final result = ReqBillingPromotionCreate._();
+    if (code != null) result.code = code;
+    if (type != null) result.type = type;
+    if (audience != null) result.audience = audience;
+    if (name != null) result.name = name;
+    if (basePlanSlug != null) result.basePlanSlug = basePlanSlug;
+    if (poolMultiplier != null) result.poolMultiplier = poolMultiplier;
+    if (alienPoolIdr != null) result.alienPoolIdr = alienPoolIdr;
+    if (frontierPoolIdr != null) result.frontierPoolIdr = frontierPoolIdr;
+    if (durationDays != null) result.durationDays = durationDays;
+    if (durationMinutes != null) result.durationMinutes = durationMinutes;
+    if (maxClaimsTotal != null) result.maxClaimsTotal = maxClaimsTotal;
+    if (maxClaimsPerEmail != null) result.maxClaimsPerEmail = maxClaimsPerEmail;
+    if (validFromMs != null) result.validFromMs = validFromMs;
+    if (validToMs != null) result.validToMs = validToMs;
+    if (scope != null) result.scope = scope;
+    if (isActive != null) result.isActive = isActive;
+    return result;
+  }
+
+  ReqBillingPromotionCreate._();
+
+  factory ReqBillingPromotionCreate.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingPromotionCreate()..mergeFromBuffer(data, registry);
+  factory ReqBillingPromotionCreate.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingPromotionCreate()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqBillingPromotionCreate',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqBillingPromotionCreate.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'code')
+    ..aOS(2, _omitFieldNames ? '' : 'type')
+    ..aOS(3, _omitFieldNames ? '' : 'audience')
+    ..aOS(4, _omitFieldNames ? '' : 'name')
+    ..aOS(5, _omitFieldNames ? '' : 'basePlanSlug')
+    ..aD(6, _omitFieldNames ? '' : 'poolMultiplier')
+    ..aD(7, _omitFieldNames ? '' : 'alienPoolIdr')
+    ..aD(8, _omitFieldNames ? '' : 'frontierPoolIdr')
+    ..aI(9, _omitFieldNames ? '' : 'durationDays')
+    ..aI(10, _omitFieldNames ? '' : 'durationMinutes')
+    ..aI(11, _omitFieldNames ? '' : 'maxClaimsTotal')
+    ..aI(12, _omitFieldNames ? '' : 'maxClaimsPerEmail')
+    ..aInt64(13, _omitFieldNames ? '' : 'validFromMs')
+    ..aInt64(14, _omitFieldNames ? '' : 'validToMs')
+    ..aOS(15, _omitFieldNames ? '' : 'scope')
+    ..aOB(16, _omitFieldNames ? '' : 'isActive')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingPromotionCreate clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingPromotionCreate copyWith(
+          void Function(ReqBillingPromotionCreate) updates) =>
+      super.copyWith((message) => updates(message as ReqBillingPromotionCreate))
+          as ReqBillingPromotionCreate;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqBillingPromotionCreate() / ReqBillingPromotionCreate.new instead')
+  static ReqBillingPromotionCreate create() => ReqBillingPromotionCreate._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ReqBillingPromotionCreate._();
+  @$core.override
+  ReqBillingPromotionCreate createEmptyInstance() =>
+      ReqBillingPromotionCreate._();
+  @$core.pragma('dart2js:noInline')
+  static ReqBillingPromotionCreate getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqBillingPromotionCreate>(
+          ReqBillingPromotionCreate.$_createMessage);
+  static ReqBillingPromotionCreate? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get code => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set code($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasCode() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearCode() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get type => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set type($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasType() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearType() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get audience => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set audience($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasAudience() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearAudience() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get name => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set name($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasName() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearName() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get basePlanSlug => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set basePlanSlug($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasBasePlanSlug() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearBasePlanSlug() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.double get poolMultiplier => $_getN(5);
+  @$pb.TagNumber(6)
+  set poolMultiplier($core.double value) => $_setDouble(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasPoolMultiplier() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearPoolMultiplier() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.double get alienPoolIdr => $_getN(6);
+  @$pb.TagNumber(7)
+  set alienPoolIdr($core.double value) => $_setDouble(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasAlienPoolIdr() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearAlienPoolIdr() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.double get frontierPoolIdr => $_getN(7);
+  @$pb.TagNumber(8)
+  set frontierPoolIdr($core.double value) => $_setDouble(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasFrontierPoolIdr() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearFrontierPoolIdr() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.int get durationDays => $_getIZ(8);
+  @$pb.TagNumber(9)
+  set durationDays($core.int value) => $_setSignedInt32(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasDurationDays() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearDurationDays() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $core.int get durationMinutes => $_getIZ(9);
+  @$pb.TagNumber(10)
+  set durationMinutes($core.int value) => $_setSignedInt32(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasDurationMinutes() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearDurationMinutes() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $core.int get maxClaimsTotal => $_getIZ(10);
+  @$pb.TagNumber(11)
+  set maxClaimsTotal($core.int value) => $_setSignedInt32(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasMaxClaimsTotal() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearMaxClaimsTotal() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  $core.int get maxClaimsPerEmail => $_getIZ(11);
+  @$pb.TagNumber(12)
+  set maxClaimsPerEmail($core.int value) => $_setSignedInt32(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasMaxClaimsPerEmail() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearMaxClaimsPerEmail() => $_clearField(12);
+
+  @$pb.TagNumber(13)
+  $fixnum.Int64 get validFromMs => $_getI64(12);
+  @$pb.TagNumber(13)
+  set validFromMs($fixnum.Int64 value) => $_setInt64(12, value);
+  @$pb.TagNumber(13)
+  $core.bool hasValidFromMs() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearValidFromMs() => $_clearField(13);
+
+  @$pb.TagNumber(14)
+  $fixnum.Int64 get validToMs => $_getI64(13);
+  @$pb.TagNumber(14)
+  set validToMs($fixnum.Int64 value) => $_setInt64(13, value);
+  @$pb.TagNumber(14)
+  $core.bool hasValidToMs() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearValidToMs() => $_clearField(14);
+
+  @$pb.TagNumber(15)
+  $core.String get scope => $_getSZ(14);
+  @$pb.TagNumber(15)
+  set scope($core.String value) => $_setString(14, value);
+  @$pb.TagNumber(15)
+  $core.bool hasScope() => $_has(14);
+  @$pb.TagNumber(15)
+  void clearScope() => $_clearField(15);
+
+  @$pb.TagNumber(16)
+  $core.bool get isActive => $_getBF(15);
+  @$pb.TagNumber(16)
+  set isActive($core.bool value) => $_setBool(15, value);
+  @$pb.TagNumber(16)
+  $core.bool hasIsActive() => $_has(15);
+  @$pb.TagNumber(16)
+  void clearIsActive() => $_clearField(16);
+}
+
+class ResBillingPromotionCreate extends $pb.GeneratedMessage {
+  factory ResBillingPromotionCreate({
+    $fixnum.Int64? promotionId,
+    BillingPromotion? promotion,
+  }) {
+    final result = ResBillingPromotionCreate._();
+    if (promotionId != null) result.promotionId = promotionId;
+    if (promotion != null) result.promotion = promotion;
+    return result;
+  }
+
+  ResBillingPromotionCreate._();
+
+  factory ResBillingPromotionCreate.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingPromotionCreate()..mergeFromBuffer(data, registry);
+  factory ResBillingPromotionCreate.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingPromotionCreate()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResBillingPromotionCreate',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResBillingPromotionCreate.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'promotionId')
+    ..aOM<BillingPromotion>(2, _omitFieldNames ? '' : 'promotion',
+        subBuilder: BillingPromotion.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingPromotionCreate clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingPromotionCreate copyWith(
+          void Function(ResBillingPromotionCreate) updates) =>
+      super.copyWith((message) => updates(message as ResBillingPromotionCreate))
+          as ResBillingPromotionCreate;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResBillingPromotionCreate() / ResBillingPromotionCreate.new instead')
+  static ResBillingPromotionCreate create() => ResBillingPromotionCreate._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ResBillingPromotionCreate._();
+  @$core.override
+  ResBillingPromotionCreate createEmptyInstance() =>
+      ResBillingPromotionCreate._();
+  @$core.pragma('dart2js:noInline')
+  static ResBillingPromotionCreate getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResBillingPromotionCreate>(
+          ResBillingPromotionCreate.$_createMessage);
+  static ResBillingPromotionCreate? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get promotionId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set promotionId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasPromotionId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearPromotionId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  BillingPromotion get promotion => $_getN(1);
+  @$pb.TagNumber(2)
+  set promotion(BillingPromotion value) => $_setField(2, value);
+  @$pb.TagNumber(2)
+  $core.bool hasPromotion() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearPromotion() => $_clearField(2);
+  @$pb.TagNumber(2)
+  BillingPromotion ensurePromotion() => $_ensure(1);
+}
+
+class ReqBillingPromotionClaim extends $pb.GeneratedMessage {
+  factory ReqBillingPromotionClaim({
+    $core.String? code,
+    $core.String? email,
+    $fixnum.Int64? promotionId,
+  }) {
+    final result = ReqBillingPromotionClaim._();
+    if (code != null) result.code = code;
+    if (email != null) result.email = email;
+    if (promotionId != null) result.promotionId = promotionId;
+    return result;
+  }
+
+  ReqBillingPromotionClaim._();
+
+  factory ReqBillingPromotionClaim.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingPromotionClaim()..mergeFromBuffer(data, registry);
+  factory ReqBillingPromotionClaim.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingPromotionClaim()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqBillingPromotionClaim',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqBillingPromotionClaim.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'code')
+    ..aOS(2, _omitFieldNames ? '' : 'email')
+    ..aInt64(3, _omitFieldNames ? '' : 'promotionId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingPromotionClaim clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingPromotionClaim copyWith(
+          void Function(ReqBillingPromotionClaim) updates) =>
+      super.copyWith((message) => updates(message as ReqBillingPromotionClaim))
+          as ReqBillingPromotionClaim;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqBillingPromotionClaim() / ReqBillingPromotionClaim.new instead')
+  static ReqBillingPromotionClaim create() => ReqBillingPromotionClaim._();
+  static $pb.GeneratedMessage $_createMessage() => ReqBillingPromotionClaim._();
+  @$core.override
+  ReqBillingPromotionClaim createEmptyInstance() =>
+      ReqBillingPromotionClaim._();
+  @$core.pragma('dart2js:noInline')
+  static ReqBillingPromotionClaim getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqBillingPromotionClaim>(
+          ReqBillingPromotionClaim.$_createMessage);
+  static ReqBillingPromotionClaim? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get code => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set code($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasCode() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearCode() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get email => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set email($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasEmail() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearEmail() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get promotionId => $_getI64(2);
+  @$pb.TagNumber(3)
+  set promotionId($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasPromotionId() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearPromotionId() => $_clearField(3);
+}
+
+class ResBillingPromotionClaim extends $pb.GeneratedMessage {
+  factory ResBillingPromotionClaim({
+    $fixnum.Int64? claimId,
+    $fixnum.Int64? promotionId,
+    $core.double? alienPoolLimitIdr,
+    $core.double? frontierPoolLimitIdr,
+    $fixnum.Int64? expiresTsMs,
+    $core.String? planTier,
+    $core.String? promoType,
+    BillingPromotionClaim? claim,
+    BillingPromotion? promotion,
+    BillingProfile? profile,
+  }) {
+    final result = ResBillingPromotionClaim._();
+    if (claimId != null) result.claimId = claimId;
+    if (promotionId != null) result.promotionId = promotionId;
+    if (alienPoolLimitIdr != null) result.alienPoolLimitIdr = alienPoolLimitIdr;
+    if (frontierPoolLimitIdr != null)
+      result.frontierPoolLimitIdr = frontierPoolLimitIdr;
+    if (expiresTsMs != null) result.expiresTsMs = expiresTsMs;
+    if (planTier != null) result.planTier = planTier;
+    if (promoType != null) result.promoType = promoType;
+    if (claim != null) result.claim = claim;
+    if (promotion != null) result.promotion = promotion;
+    if (profile != null) result.profile = profile;
+    return result;
+  }
+
+  ResBillingPromotionClaim._();
+
+  factory ResBillingPromotionClaim.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingPromotionClaim()..mergeFromBuffer(data, registry);
+  factory ResBillingPromotionClaim.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingPromotionClaim()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResBillingPromotionClaim',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResBillingPromotionClaim.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'claimId')
+    ..aInt64(2, _omitFieldNames ? '' : 'promotionId')
+    ..aD(3, _omitFieldNames ? '' : 'alienPoolLimitIdr')
+    ..aD(4, _omitFieldNames ? '' : 'frontierPoolLimitIdr')
+    ..aInt64(5, _omitFieldNames ? '' : 'expiresTsMs')
+    ..aOS(6, _omitFieldNames ? '' : 'planTier')
+    ..aOS(7, _omitFieldNames ? '' : 'promoType')
+    ..aOM<BillingPromotionClaim>(8, _omitFieldNames ? '' : 'claim',
+        subBuilder: BillingPromotionClaim.$_createMessage)
+    ..aOM<BillingPromotion>(9, _omitFieldNames ? '' : 'promotion',
+        subBuilder: BillingPromotion.$_createMessage)
+    ..aOM<BillingProfile>(10, _omitFieldNames ? '' : 'profile',
+        subBuilder: BillingProfile.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingPromotionClaim clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingPromotionClaim copyWith(
+          void Function(ResBillingPromotionClaim) updates) =>
+      super.copyWith((message) => updates(message as ResBillingPromotionClaim))
+          as ResBillingPromotionClaim;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResBillingPromotionClaim() / ResBillingPromotionClaim.new instead')
+  static ResBillingPromotionClaim create() => ResBillingPromotionClaim._();
+  static $pb.GeneratedMessage $_createMessage() => ResBillingPromotionClaim._();
+  @$core.override
+  ResBillingPromotionClaim createEmptyInstance() =>
+      ResBillingPromotionClaim._();
+  @$core.pragma('dart2js:noInline')
+  static ResBillingPromotionClaim getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResBillingPromotionClaim>(
+          ResBillingPromotionClaim.$_createMessage);
+  static ResBillingPromotionClaim? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get claimId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set claimId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasClaimId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearClaimId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get promotionId => $_getI64(1);
+  @$pb.TagNumber(2)
+  set promotionId($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasPromotionId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearPromotionId() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.double get alienPoolLimitIdr => $_getN(2);
+  @$pb.TagNumber(3)
+  set alienPoolLimitIdr($core.double value) => $_setDouble(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasAlienPoolLimitIdr() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearAlienPoolLimitIdr() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.double get frontierPoolLimitIdr => $_getN(3);
+  @$pb.TagNumber(4)
+  set frontierPoolLimitIdr($core.double value) => $_setDouble(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasFrontierPoolLimitIdr() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearFrontierPoolLimitIdr() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $fixnum.Int64 get expiresTsMs => $_getI64(4);
+  @$pb.TagNumber(5)
+  set expiresTsMs($fixnum.Int64 value) => $_setInt64(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasExpiresTsMs() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearExpiresTsMs() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get planTier => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set planTier($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasPlanTier() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearPlanTier() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.String get promoType => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set promoType($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasPromoType() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearPromoType() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  BillingPromotionClaim get claim => $_getN(7);
+  @$pb.TagNumber(8)
+  set claim(BillingPromotionClaim value) => $_setField(8, value);
+  @$pb.TagNumber(8)
+  $core.bool hasClaim() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearClaim() => $_clearField(8);
+  @$pb.TagNumber(8)
+  BillingPromotionClaim ensureClaim() => $_ensure(7);
+
+  @$pb.TagNumber(9)
+  BillingPromotion get promotion => $_getN(8);
+  @$pb.TagNumber(9)
+  set promotion(BillingPromotion value) => $_setField(9, value);
+  @$pb.TagNumber(9)
+  $core.bool hasPromotion() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearPromotion() => $_clearField(9);
+  @$pb.TagNumber(9)
+  BillingPromotion ensurePromotion() => $_ensure(8);
+
+  @$pb.TagNumber(10)
+  BillingProfile get profile => $_getN(9);
+  @$pb.TagNumber(10)
+  set profile(BillingProfile value) => $_setField(10, value);
+  @$pb.TagNumber(10)
+  $core.bool hasProfile() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearProfile() => $_clearField(10);
+  @$pb.TagNumber(10)
+  BillingProfile ensureProfile() => $_ensure(9);
+}
+
+class ReqBillingPromotionList extends $pb.GeneratedMessage {
+  factory ReqBillingPromotionList() => ReqBillingPromotionList._();
+
+  ReqBillingPromotionList._();
+
+  factory ReqBillingPromotionList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingPromotionList()..mergeFromBuffer(data, registry);
+  factory ReqBillingPromotionList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingPromotionList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqBillingPromotionList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqBillingPromotionList.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingPromotionList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingPromotionList copyWith(
+          void Function(ReqBillingPromotionList) updates) =>
+      super.copyWith((message) => updates(message as ReqBillingPromotionList))
+          as ReqBillingPromotionList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqBillingPromotionList() / ReqBillingPromotionList.new instead')
+  static ReqBillingPromotionList create() => ReqBillingPromotionList._();
+  static $pb.GeneratedMessage $_createMessage() => ReqBillingPromotionList._();
+  @$core.override
+  ReqBillingPromotionList createEmptyInstance() => ReqBillingPromotionList._();
+  @$core.pragma('dart2js:noInline')
+  static ReqBillingPromotionList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqBillingPromotionList>(
+          ReqBillingPromotionList.$_createMessage);
+  static ReqBillingPromotionList? _defaultInstance;
+}
+
+class ResBillingPromotionList extends $pb.GeneratedMessage {
+  factory ResBillingPromotionList({
+    $core.Iterable<BillingPromotion>? items,
+  }) {
+    final result = ResBillingPromotionList._();
+    if (items != null) result.items.addAll(items);
+    return result;
+  }
+
+  ResBillingPromotionList._();
+
+  factory ResBillingPromotionList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingPromotionList()..mergeFromBuffer(data, registry);
+  factory ResBillingPromotionList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingPromotionList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResBillingPromotionList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResBillingPromotionList.$_createMessage)
+    ..pPM<BillingPromotion>(1, _omitFieldNames ? '' : 'items',
+        subBuilder: BillingPromotion.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingPromotionList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingPromotionList copyWith(
+          void Function(ResBillingPromotionList) updates) =>
+      super.copyWith((message) => updates(message as ResBillingPromotionList))
+          as ResBillingPromotionList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResBillingPromotionList() / ResBillingPromotionList.new instead')
+  static ResBillingPromotionList create() => ResBillingPromotionList._();
+  static $pb.GeneratedMessage $_createMessage() => ResBillingPromotionList._();
+  @$core.override
+  ResBillingPromotionList createEmptyInstance() => ResBillingPromotionList._();
+  @$core.pragma('dart2js:noInline')
+  static ResBillingPromotionList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResBillingPromotionList>(
+          ResBillingPromotionList.$_createMessage);
+  static ResBillingPromotionList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<BillingPromotion> get items => $_getList(0);
 }
 
 class ResBillingSummary extends $pb.GeneratedMessage {

@@ -30,6 +30,15 @@ message BillingProfile {
   double commission_earned_idr = 14;
 
   int64 updated_ts_ms = 15;
+
+  // v3 IDR pools (Phase 4b)
+  double alien_pool_limit_idr = 16;
+  double alien_pool_used_idr = 17;
+  double frontier_pool_limit_idr = 18;
+  double frontier_pool_used_idr = 19;
+  int64 pool_period_start_ms = 20;
+  int64 trial_expires_ts_ms = 21;
+  int64 active_promotion_id = 22;
 }
 
 message BillingWallet {
@@ -147,6 +156,14 @@ message BillingPushQuota {
   double alien_allow_weekly_limit = 4;
   int64 window_5h_start_ms = 5;
   int64 window_weekly_start_ms = 6;
+
+  // v3 IDR pools (Phase 4b)
+  double alien_pool_limit_idr = 7;
+  double alien_pool_used_idr = 8;
+  double frontier_pool_limit_idr = 9;
+  double frontier_pool_used_idr = 10;
+  int64 pool_period_start_ms = 11;
+  int64 trial_expires_ts_ms = 12;
 }
 
 message BillingPushCommission {
@@ -174,6 +191,7 @@ message ReqBillingPlanSubscribe {
   string currency = 2;       // v2: checkout currency (default = profile.default_wallet_currency)
   int64 wallet_id = 3;       // v2: 0 = default wallet; debit wallet path
   bool direct_purchase = 4;  // v2: true = billing_purchase flow, skip wallet debit
+  string billing_period = 5; // monthly | yearly (default monthly)
 }
 
 message ResBillingPlanSubscribe {
@@ -269,6 +287,96 @@ message ReqBillingHistory {
 
 message ResBillingHistory {
   repeated BillingHistoryRow rows = 1;
+}
+
+// ------------------------------------------------------------------------------
+// Promotions (billing_promotion — Phase 4b)
+// ------------------------------------------------------------------------------
+
+message BillingPromotion {
+  int64 id = 1;
+  string code = 2;
+  string type = 3;
+  string audience = 4;
+  string name = 5;
+  string base_plan_slug = 6;
+  double pool_multiplier = 7;
+  double alien_pool_idr = 8;
+  double frontier_pool_idr = 9;
+  int32 duration_days = 10;
+  int32 duration_minutes = 11;
+  int32 max_claims_total = 12;
+  int32 max_claims_per_email = 13;
+  int64 valid_from_ms = 14;
+  int64 valid_to_ms = 15;
+  string scope = 16;
+  bool is_active = 17;
+  int64 created_by_iid = 18;
+  int32 claims_count = 19;
+  int64 created_ts_ms = 20;
+  string meta_json = 21;
+  int64 updated_ts_ms = 22;
+}
+
+message BillingPromotionClaim {
+  int64 id = 1;
+  int64 promotion_id = 2;
+  int64 owner_iid = 3;
+  string email = 4;
+  int64 expires_ts_ms = 5;
+  double alien_pool_used_idr = 6;
+  double frontier_pool_used_idr = 7;
+  string meta_json = 8;
+  int64 created_ts_ms = 9;
+}
+
+message ReqBillingPromotionCreate {
+  string code = 1;
+  string type = 2;
+  string audience = 3;
+  string name = 4;
+  string base_plan_slug = 5;
+  double pool_multiplier = 6;
+  double alien_pool_idr = 7;
+  double frontier_pool_idr = 8;
+  int32 duration_days = 9;
+  int32 duration_minutes = 10;
+  int32 max_claims_total = 11;
+  int32 max_claims_per_email = 12;
+  int64 valid_from_ms = 13;
+  int64 valid_to_ms = 14;
+  string scope = 15;
+  bool is_active = 16;
+}
+
+message ResBillingPromotionCreate {
+  int64 promotion_id = 1;
+  BillingPromotion promotion = 2;
+}
+
+message ReqBillingPromotionClaim {
+  string code = 1;
+  string email = 2;
+  int64 promotion_id = 3;
+}
+
+message ResBillingPromotionClaim {
+  int64 claim_id = 1;
+  int64 promotion_id = 2;
+  double alien_pool_limit_idr = 3;
+  double frontier_pool_limit_idr = 4;
+  int64 expires_ts_ms = 5;
+  string plan_tier = 6;
+  string promo_type = 7;
+  BillingPromotionClaim claim = 8;
+  BillingPromotion promotion = 9;
+  BillingProfile profile = 10;
+}
+
+message ReqBillingPromotionList {}
+
+message ResBillingPromotionList {
+  repeated BillingPromotion items = 1;
 }
 
 message ResBillingSummary {

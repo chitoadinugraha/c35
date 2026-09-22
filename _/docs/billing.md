@@ -10,7 +10,7 @@ Wallet + quota + commission for platform AI usage. Adapted from `D:\cs_agent`, e
 
 | Layer | Table(s) | Purpose |
 |-------|----------|---------|
-| **Profile** | `billing_profile` | Personal plan tier, Alien/API allowance rings, default wallet currency |
+| **Profile** | `billing_profile` | Personal plan tier, Alien + Frontier IDR pools, default wallet currency |
 | **Wallets** | `billing_wallet` | Spendable balance per `(owner_iid, currency)` |
 | **Catalog** | `billing_plan` + `billing_plan_price` | Plan SKUs + **fixed native prices** per currency |
 
@@ -197,14 +197,23 @@ Never double-charge: dedupe PK on `(owner_iid, req_id)`.
 
 ---
 
-## Quota rings (Alien allowance)
+## Included quota pools (Alien + Frontier)
 
-On **`billing_profile`** — separate from wallet balance. Free-tier / plan allowance consumed before wallet.
+On **`billing_profile`** (user) or **`billing_subscription`** (bot / device) — separate from wallet balance.
 
-- **`alien_allow_5h_*`** — short window (avatar menu 5h circle)
-- **`alien_allow_weekly_*`** — weekly cap
+Users see **two monthly pools in IDR**:
 
-Pool accounting stays USD-internal for allowance math; **wallet deduct** uses native currency via `billing_fx_rate`.
+| Pool | Models | Deduct rate |
+|------|--------|-------------|
+| **Alien AI** | `alienai` slug | **$1.50 / $7 per 1M** tokens (pool accounting) |
+| **Frontier** | Pinned Gemini, GPT, Claude, … | Catalog wholesale × **1.50** |
+
+See [billing-pricing.md](billing-pricing.md) for rates, margin, and debit order.  
+See [billing-plans.md](billing-plans.md) for per-tier pool amounts and caps.
+
+Legacy columns `alien_allow_5h_*` / `alien_allow_weekly_*` remain until migration to `alien_pool_*_idr` / `frontier_pool_*_idr` (Phase 4).
+
+**Wallet deduct** uses native currency via `billing_fx_rate` when pools empty and `overage_enabled`.
 
 ---
 

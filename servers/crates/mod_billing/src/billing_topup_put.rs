@@ -34,9 +34,8 @@ pub async fn billing_topup_put(
     .ok_or_else(|| "billing account not found".to_string())?;
     let account_id: i64 = account.get("id");
     let fx_micro: i64 = account.try_get("fx_micro_per_usd").unwrap_or(FX_MICRO_DEFAULT);
-    let fx = fx_micro as f64 / 1_000_000_000.0;
 
-    let (amount_idr, amount_usd) = topup_amounts_resolve(req.amount_usd, req.amount_idr, fx);
+    let (amount_idr, amount_usd) = topup_amounts_resolve(req.amount_usd, req.amount_idr, fx_micro);
     if amount_idr + 0.01 < MIN_TOPUP_IDR && amount_usd + 0.001 < MIN_TOPUP_USD {
         return Err(format!("minimum top-up is Rp {} or ${MIN_TOPUP_USD}", MIN_TOPUP_IDR as i64));
     }
@@ -88,13 +87,13 @@ pub async fn billing_topup_put(
     })
 }
 
-fn topup_amounts_resolve(amount_usd: f64, amount_idr: f64, fx: f64) -> (f64, f64) {
+fn topup_amounts_resolve(amount_usd: f64, amount_idr: f64, fx_micro: i64) -> (f64, f64) {
     if amount_idr > 0.0 {
         let idr = amount_idr.round();
-        let usd = if fx > 0.0 { idr / fx } else { amount_usd.max(0.0) };
+        let usd = crate::billing_on_demand::native_to_usd(idr, fx_micro);
         return (idr, usd);
     }
     let usd = amount_usd.max(0.0);
-    let idr = if fx > 0.0 { (usd * fx).round() } else { 0.0 };
+    let idr = crate::billing_on_demand::usd_to_native(usd, fx_micro).round();
     (idr, usd)
 }

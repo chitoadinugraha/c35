@@ -59,6 +59,12 @@ pub async fn billing_notify_owner(
         alien_allow_weekly_limit: row.get("alien_allow_weekly_limit"),
         window_5h_start_ms: w5.timestamp_millis(),
         window_weekly_start_ms: ww.timestamp_millis(),
+        alien_pool_limit_idr: 0.0,
+        alien_pool_used_idr: 0.0,
+        frontier_pool_limit_idr: 0.0,
+        frontier_pool_used_idr: 0.0,
+        pool_period_start_ms: 0,
+        trial_expires_ts_ms: 0,
     };
     let commission = BillingPushCommission {
         commission_available_usd: row.get("commission_available_usd"),

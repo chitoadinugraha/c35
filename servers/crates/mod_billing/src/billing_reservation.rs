@@ -3,7 +3,7 @@ use c35_store::snowflake_id;
 use sqlx::PgPool;
 
 use crate::billing_on_demand::{
-    allowance_remaining, gate_can_start, hold_amounts, settle_hold, wallet_charge_native,
+    allowance_remaining, gate_can_start, hold_amounts, wallet_charge_native,
     DEFAULT_HOLD_USD,
 };
 use crate::billing_turn::BillingRow;
@@ -32,6 +32,13 @@ where
 }
 
 pub async fn billing_held_totals(pool: &PgPool, billing_account_id: i64) -> Result<(f64, f64)> {
+    billing_held_totals_exec(pool, billing_account_id).await
+}
+
+pub async fn billing_held_totals_exec<'e, E>(executor: E, billing_account_id: i64) -> Result<(f64, f64)>
+where
+    E: sqlx::Executor<'e, Database = sqlx::Postgres>,
+{
     let row = sqlx::query_as::<_, (Option<String>, Option<String>)>(
         r#"
         SELECT COALESCE(SUM(held_usd)::text, '0'), COALESCE(SUM(held_idr)::text, '0')
@@ -40,7 +47,7 @@ pub async fn billing_held_totals(pool: &PgPool, billing_account_id: i64) -> Resu
         "#,
     )
     .bind(billing_account_id)
-    .fetch_one(pool)
+    .fetch_one(executor)
     .await?;
     Ok((f(row.0.unwrap_or_else(|| "0".into())), f(row.1.unwrap_or_else(|| "0".into()))))
 }
@@ -88,7 +95,15 @@ pub async fn billing_reservation_hold(
     let held_native = if cur.eq_ignore_ascii_case("IDR") { held_idr } else { held_usd };
     let hold_native = if cur.eq_ignore_ascii_case("IDR") { hold_idr } else { hold_usd };
     if !gate_can_start(allowance_rem, balance_native, held_native, hold_native) {
-        anyhow::bail!("quota exceeded");
+        let reason = crate::billing_on_demand::quota_rejection_reason(
+            row.alien_allow_5h_used,
+            row.alien_allow_5h_limit,
+            row.alien_allow_weekly_used,
+            row.alien_allow_weekly_limit,
+            &cur,
+            hold_native,
+        );
+        anyhow::bail!(reason);
     }
     let id = snowflake_id();
     let inserted = sqlx::query(
@@ -190,17 +205,13 @@ pub async fn billing_reservation_settle(
         return Ok(());
     }
 
-    let (res_id, held_usd_s, held_idr_s, status) = res_row.unwrap();
+    let (res_id, _held_usd_s, _held_idr_s, status) = res_row.unwrap();
     if status == "settled" || status == "refunded" {
         return Ok(());
     }
-    let held_usd = f(held_usd_s);
-    let held_idr = f(held_idr_s);
-    let (deduct_usd, deduct_idr, _rel_usd, _rel_idr) =
-        settle_hold(held_usd, held_idr, charge_usd, charge_idr);
 
     let mut tx = pool.begin().await?;
-    if deduct_usd > 0.0 || deduct_idr > 0.0 {
+    if charge_usd > 0.0 || charge_idr > 0.0 {
         sqlx::query(
             r#"
             UPDATE ai.billing_account SET
@@ -211,8 +222,8 @@ pub async fn billing_reservation_settle(
             "#,
         )
         .bind(row.id)
-        .bind(deduct_usd)
-        .bind(deduct_idr)
+        .bind(charge_usd)
+        .bind(charge_idr)
         .execute(&mut *tx)
         .await?;
     }
@@ -257,12 +268,59 @@ pub async fn billing_gate_with_hold(
     let balance_native = if currency.eq_ignore_ascii_case("IDR") { balance_idr } else { row.balance_usd };
     let (held_usd, held_idr) = billing_held_totals(pool, row.id).await?;
     let held_native = if currency.eq_ignore_ascii_case("IDR") { held_idr } else { held_usd };
-    let (_, hold_idr) = hold_amounts(DEFAULT_HOLD_USD, allowance_rem, &currency, fx);
-    let (_, hold_usd) = hold_amounts(DEFAULT_HOLD_USD, allowance_rem, "USD", fx);
+    let (hold_usd, hold_idr) = hold_amounts(DEFAULT_HOLD_USD, allowance_rem, &currency, fx);
     let hold_native = if currency.eq_ignore_ascii_case("IDR") { hold_idr } else { hold_usd };
     if !gate_can_start(allowance_rem, balance_native, held_native, hold_native) {
-        anyhow::bail!("quota exceeded");
+        let reason = crate::billing_on_demand::quota_rejection_reason(
+            row.alien_allow_5h_used,
+            row.alien_allow_5h_limit,
+            row.alien_allow_weekly_used,
+            row.alien_allow_weekly_limit,
+            &currency,
+            hold_native,
+        );
+        anyhow::bail!(reason);
     }
     billing_reservation_hold(pool, owner_iid, row, req_id, balance_idr, &currency, fx).await?;
     Ok(())
+}
+
+pub async fn billing_can_afford_tool(
+    pool: &PgPool,
+    owner_iid: i64,
+    tool_cost_usd: f64,
+) -> Result<bool> {
+    if tool_cost_usd <= 0.0 {
+        return Ok(true);
+    }
+    let row = crate::billing_turn::billing_account_ensure(pool, owner_iid).await?;
+    let allowance_rem = allowance_remaining(
+        row.alien_allow_5h_used,
+        row.alien_allow_5h_limit,
+        row.alien_allow_weekly_used,
+        row.alien_allow_weekly_limit,
+    );
+    if allowance_rem >= tool_cost_usd {
+        return Ok(true);
+    }
+    let on_demand = tool_cost_usd - allowance_rem;
+    let acct = sqlx::query_as::<_, (String, String, i64)>(
+        "SELECT balance_idr::text, billing_currency, fx_micro_per_usd FROM ai.billing_account WHERE id = $1",
+    )
+    .bind(row.id)
+    .fetch_one(pool)
+    .await?;
+    let balance_idr = f(acct.0);
+    let currency = acct.1;
+    let fx = acct.2;
+    let (held_usd, held_idr) = billing_held_totals(pool, row.id).await?;
+    let balance_native = if currency.eq_ignore_ascii_case("IDR") { balance_idr } else { row.balance_usd };
+    let held_native = if currency.eq_ignore_ascii_case("IDR") { held_idr } else { held_usd };
+    let available_native = crate::billing_on_demand::wallet_available_native(balance_native, held_native);
+    let needed_native = if currency.eq_ignore_ascii_case("IDR") {
+        crate::billing_on_demand::usd_to_native(on_demand, fx)
+    } else {
+        on_demand
+    };
+    Ok(available_native >= needed_native)
 }
