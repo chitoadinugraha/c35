@@ -1,5 +1,6 @@
 import 'package:alienai_c35/c/api/referral_conn.dart';
 import 'package:alienai_c35/c/profile/profile_handle.dart';
+import 'package:alienai_c35/c/referral/referral_format.dart';
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/widgets/billing/ui_quota_ring.dart';
@@ -110,6 +111,11 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
     return name.isNotEmpty ? name : 'Account';
   }
 
+  List<String> _accountBadgeLabels(Session s) => [
+        if (s.isRoot) referralGlobalRoleLabel('root'),
+        ...s.globalRoles.where((role) => role != 'root').map(referralGlobalRoleLabel),
+      ];
+
   @override
   Widget build(BuildContext context) {
     final screen = MediaQuery.sizeOf(context);
@@ -117,6 +123,7 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
     final top = (widget.origin.dy + widget.anchorSize.height - _menuOverlap).clamp(8.0, screen.height - 380);
     final s = Session.instance;
     final acts = widget.action;
+    final badgeLabels = _accountBadgeLabels(s);
     return Stack(
       children: [
         Positioned(
@@ -148,6 +155,11 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(_accountName(), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w600)),
+                                  if (badgeLabels.isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Wrap(spacing: 4, runSpacing: 4, children: badgeLabels.map((label) => _AccountRoleBadge(label: label)).toList()),
+                                  ],
+                                  const SizedBox(height: 2),
                                   Text(profileAlienAddress(s.handle), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _muted, fontSize: 12)),
                                 ],
                               ),
@@ -157,19 +169,6 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
                         ),
                       ),
                     ),
-                    if (s.isRoot) ...[
-                      const Divider(height: 1, color: _border),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.admin_panel_settings_outlined, size: 16, color: _muted),
-                            const SizedBox(width: 8),
-                            const Expanded(child: Text('Partner / Root', style: TextStyle(color: _text, fontSize: 13, fontWeight: FontWeight.w500))),
-                          ],
-                        ),
-                      ),
-                    ],
                     if (billing != null) ...[
                       const Divider(height: 1, color: _border),
                       Padding(
@@ -225,6 +224,19 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
   }
 
   bool _hasNavCounts(UiAccountMenuAction acts) => acts.onBots != null || acts.onDevices != null || acts.onSites != null;
+}
+
+class _AccountRoleBadge extends StatelessWidget {
+  const _AccountRoleBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(color: _hoverBg, borderRadius: BorderRadius.circular(999)),
+        child: Text(label, style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 10, fontWeight: FontWeight.w600)),
+      );
 }
 
 class _NavCountBtn extends StatelessWidget {
