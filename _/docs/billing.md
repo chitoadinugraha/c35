@@ -187,8 +187,9 @@ User selects plan_slug + currency
 1. Prompt starts → billing_reservation(req_id, wallet_id, held_native)  status=held
 2. Turn completes → log row with cost_usd
 3. billing_usage_dedupe insert (owner_iid, req_id) — idempotent
-4. If allowance exhausted → deduct billing_wallet using billing_fx_rate
-5. reservation status=settled | refunded on abort
+4. Personal scope: deduct billing_profile Alien/Frontier pools (IDR) when limits set
+5. Pool overflow or no profile pools → legacy allowance on billing_account, then wallet (native currency via billing_fx_rate)
+6. reservation status=settled | refunded on abort
 ```
 
 Never double-charge: dedupe PK on `(owner_iid, req_id)`.
@@ -211,9 +212,9 @@ Users see **two monthly pools in IDR**:
 See [billing-pricing.md](billing-pricing.md) for rates, margin, and debit order.  
 See [billing-plans.md](billing-plans.md) for per-tier pool amounts and caps.
 
-Legacy columns `alien_allow_5h_*` / `alien_allow_weekly_*` remain until migration to `alien_pool_*_idr` / `frontier_pool_*_idr` (Phase 4).
+**Server (shipped):** `billing_profile` pool columns are written on subscribe and signup-trial claim; `billing_usage_report` deducts pools first for personal turns. Legacy `billing_account` `alien_allow_*` columns still exist as fallback when profile pools are zero.
 
-**Wallet deduct** uses native currency via `billing_fx_rate` when pools empty and `overage_enabled`.
+**Wallet deduct** uses native currency via `billing_fx_rate` when pools are exhausted (overflow) and `overage_enabled` on the plan.
 
 ---
 

@@ -182,7 +182,7 @@ mod_billing → mod_identity/session_init → wire_ws → wire_http/invoke
 | `_/schemas/migrations/billing_migrate_v2.sql` | Create in Phase 1 |
 | `_/schemas/proto/c35/billing.proto` | Target types (Phase 2) |
 | `_/schemas/identity.sql` | `billing_profile_iid` (Phase 1) |
-| `servers/crates/mod_billing/**` | Phase 3 |
+| `servers/crates/mod_billing/**` | ✅ Phase 4b–4c (pools + promotions + turn deduct) |
 | `clients/app/lib/c/billing/**` | Phase 4 |
 
 ---
@@ -324,6 +324,79 @@ Already has `billing_period` — seed **`yearly`** and **`monthly`** rows per pl
 2. Backfill `alien_pool_limit_idr` from legacy `alien_allow_weekly_*` × FX (best effort)
 3. Seed `billing_promotion` signup trial row
 4. Reseed `billing_plan` + `billing_plan_price`
+
+---
+
+## Phase 4c — Server wiring (shipped 2026-09-22)
+
+Schema + promotions (Phase 4b) are **live on the server**. Personal usage deducts from `billing_profile` IDR pools when limits are set; legacy `billing_account` USD allowance remains as fallback.
+
+### Modules (`servers/crates/mod_billing/`)
+
+| Module | Role |
+|--------|------|
+| `billing_pool.rs` | Pure IDR math: Alien $1.50/$7 per 1M, Frontier wholesale × 1.50 → Rp via `billing_fx_rate` |
+| `billing_profile.rs` | `billing_profile_ensure`, apply plan pools, `billing_profile_deduct_turn` (`FOR UPDATE` tx), signup trial autoclaim |
+| `billing_promotion.rs` | Admin create (`created_by_iid`), claim, limits — all transactional |
+| `billing_plan_subscribe.rs` | Debit wallet at native `billing_plan_price` row; reset profile pools from plan template |
+| `billing_package.rs` | Package redeem — transactional `FOR UPDATE` on code + account |
+| `billing_turn.rs` | Gate + `billing_usage_report` — profile pool path for personal scope; wallet overflow in IDR |
+
+### Subscribe (`billing_plan_subscribe`)
+
+1. Resolve price from `billing_plan_price (plan_slug, currency, billing_period)` — default `billing_period = monthly` when empty.
+2. Debit `billing_account.balance_idr` (or USD fallback) inside a transaction with `FOR UPDATE` + held-total check.
+3. Upsert `billing_profile`: set `plan_tier`, `alien_pool_limit_idr` / `frontier_pool_limit_idr` from `billing_plan` template, zero `*_used_idr`, set `pool_period_start`.
+4. Still updates legacy `billing_account.plan_tier` + USD allowance columns (dual-write).
+
+**Proto:** `ReqBillingPlanSubscribe.billing_period` — `monthly` \| `yearly`.
+
+### Signup trial autoclaim
+
+On `billing_account_ensure` (every gate / turn):
+
+1. `billing_profile_ensure`
+2. If profile has **no pools yet** and user has `identity.meta.email` → `billing_promotion_claim(..., "signup_trial")`
+3. Skips silently when email missing or already claimed (warn-only on unexpected errors)
+
+Seeded promotion: code `signup_trial`, 0.25× Lite pools, 7 days, 1× per email.
+
+### LLM turn deduct (personal)
+
+```
+billing_usage_report
+  → billing_profile_deduct_turn (if personal scope)
+      → charge_idr from pool rate (alienai vs pinned model)
+      → UPDATE billing_profile *_used_idr (FOR UPDATE)
+      → wallet_overflow_idr debited from balance_idr when pool empty
+  → else legacy billing_deduct_allowance on billing_account
+```
+
+`billing_gate`: allow start when profile pools have remaining Rp ≥ hold estimate, else fall back to legacy allowance + wallet.
+
+**Not yet wired:** bot/device scoped pool deduct on `billing_subscription` (still legacy subscription USD allowance).
+
+### HTTP / wire (invoke fields 18–20)
+
+| Invoke | Handler |
+|--------|---------|
+| 18 | `billing_promotion_create` (admin) |
+| 19 | `billing_promotion_claim` |
+| 20 | `billing_promotion_list_by_creator` |
+
+### Tests
+
+| Suite | Run |
+|-------|-----|
+| Unit | `cargo test -p c35_mod_billing --lib` |
+| Pool math | `cargo test -p c35_mod_billing --test billing_pool_test` |
+| DB integration | `C35_TEST_DB=1 cargo test -p c35_mod_billing --test promotion_test --test package_redeem_test --test plan_subscribe_test --test profile_pool_deduct_test -- --ignored --test-threads=1` |
+
+### Still open (client / later server)
+
+- Flutter dual Rp pool rings + trial bar ([billing.md](billing.md) Phase 4)
+- `billing_subscription` pool deduct for bot/device scopes
+- Drop legacy `billing_account` dual-read
 
 ---
 
