@@ -65,6 +65,27 @@ pub fn pair_watch_until_ms(initial: bool) -> i64 {
         }
 }
 
+pub fn channel_external_key(ch: &ChannelDoc) -> String {
+    if ch.platform == "telegram" {
+        let username = ch.bot_username.trim().trim_start_matches('@').to_lowercase();
+        if !username.is_empty() {
+            return format!("telegram:{username}");
+        }
+    }
+    if ch.platform == "whatsapp" {
+        let phone = if ch.phone.is_empty() {
+            phone_jid_display(&ch.session.phone_jid)
+        } else {
+            ch.phone.clone()
+        };
+        let digits: String = phone.chars().filter(|c| c.is_ascii_digit()).collect();
+        if !digits.is_empty() {
+            return format!("whatsapp:{digits}");
+        }
+    }
+    format!("{}:{}", ch.platform, ch.id)
+}
+
 pub fn phone_jid_display(jid: &str) -> String {
     let bare = jid.split('@').next().unwrap_or(jid).trim();
     if bare.is_empty() {
@@ -215,6 +236,58 @@ pub async fn bot_channel_get_by_secret(
 ) -> Result<Option<ChannelDoc>> {
     let ch = bot_channel_get(pool, bot_iid, channel_id).await?;
     Ok(ch.filter(|c| c.webhook_secret == secret))
+}
+
+pub async fn bot_channel_external_taken(
+    pool: &PgPool,
+    bot_iid: i64,
+    key: &str,
+    exclude_id: &str,
+) -> Result<bool> {
+    if key.trim().is_empty() {
+        return Ok(false);
+    }
+    let row = sqlx::query("SELECT meta FROM ai.identity WHERE id = $1 AND kind = 'bot' AND deleted_ts IS NULL")
+        .bind(bot_iid)
+        .fetch_optional(pool)
+        .await?;
+    let channels = row
+        .map(|r| channels_from_meta(&r.get::<Value, _>("meta")))
+        .unwrap_or_default();
+    Ok(channels.iter().any(|c| {
+        c.id != exclude_id
+            && channel_external_key(c) == key
+            && (c.status == STATUS_CONNECTED || c.status == STATUS_PAIRING)
+    }))
+}
+
+pub async fn bot_channel_remove(
+    pool: &PgPool,
+    owner_iid: i64,
+    bot_iid: i64,
+    channel_id: &str,
+) -> Result<Option<ChannelDoc>> {
+    let row = sqlx::query("SELECT meta FROM ai.identity WHERE id = $1 AND owner_iid = $2 AND kind = 'bot' AND deleted_ts IS NULL")
+        .bind(bot_iid)
+        .bind(owner_iid)
+        .fetch_optional(pool)
+        .await?;
+    let Some(row) = row else {
+        return Err(anyhow!("bot not found"));
+    };
+    let mut channels = channels_from_meta(&row.get::<Value, _>("meta"));
+    let removed = channels.iter().position(|c| c.id == channel_id);
+    let removed = match removed {
+        Some(idx) => channels.remove(idx),
+        None => return Ok(None),
+    };
+    let meta = channels_to_meta(&channels);
+    sqlx::query("UPDATE ai.identity SET meta = $2, updated_ts = NOW() WHERE id = $1")
+        .bind(bot_iid)
+        .bind(meta)
+        .execute(pool)
+        .await?;
+    Ok(Some(removed))
 }
 
 pub async fn bot_channel_upsert(
@@ -383,6 +456,7 @@ pub async fn channel_whatsapp_deactivate_siblings(
     .bind(owner_iid)
     .fetch_all(pool)
     .await?;
+    let mut tx = pool.begin().await?;
     for row in rows {
         let bot_iid: i64 = row.get("id");
         let mut channels = channels_from_meta(&row.get::<Value, _>("meta"));
@@ -401,10 +475,15 @@ pub async fn channel_whatsapp_deactivate_siblings(
         }
         if changed {
             let meta = channels_to_meta(&channels);
-            bot_meta_put(pool, bot_iid, meta).await?;
-            let _ = keep_bot_iid;
+            sqlx::query("UPDATE ai.identity SET meta = $2, updated_ts = NOW() WHERE id = $1")
+                .bind(bot_iid)
+                .bind(meta)
+                .execute(&mut *tx)
+                .await?;
         }
     }
+    tx.commit().await?;
+    let _ = keep_bot_iid;
     Ok(())
 }
 

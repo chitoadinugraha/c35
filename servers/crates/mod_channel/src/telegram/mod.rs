@@ -1,7 +1,10 @@
 mod connect;
 
 pub use connect::channel_telegram_connect;
-pub use connect::{tg_api_base, tg_send_chat_action, tg_send_message};
+pub use connect::{
+    tg_api_base, tg_send_chat_action, tg_send_document_bytes, tg_send_message, tg_send_photo_url,
+    tg_send_voice_reply,
+};
 
 use crate::types::ChannelInboundAttachment;
 use anyhow::Result;
@@ -62,6 +65,30 @@ pub fn parse_telegram_payload(bytes: &[u8]) -> Result<crate::types::ChannelInbou
                     .and_then(|n| n.as_str())
                     .unwrap_or("audio.m4a"),
             ));
+        }
+    } else if let Some(photos) = msg.get("photo").and_then(|p| p.as_array()) {
+        if let Some(largest) = photos.last() {
+            if let Some(file_id) = largest.get("file_id").and_then(|f| f.as_str()) {
+                attachments.push(ChannelInboundAttachment {
+                    hash: String::new(),
+                    name: "photo.jpg".into(),
+                    mime: "image/jpeg".into(),
+                    media_id: file_id.to_string(),
+                    url: String::new(),
+                });
+            }
+        }
+    } else if let Some(doc) = msg.get("document") {
+        if let Some(file_id) = doc.get("file_id").and_then(|f| f.as_str()) {
+            let name = doc.get("file_name").and_then(|n| n.as_str()).unwrap_or("document");
+            let mime = doc.get("mime_type").and_then(|m| m.as_str()).unwrap_or("application/octet-stream");
+            attachments.push(ChannelInboundAttachment {
+                hash: String::new(),
+                name: name.to_string(),
+                mime: mime.to_string(),
+                media_id: file_id.to_string(),
+                url: String::new(),
+            });
         }
     }
 

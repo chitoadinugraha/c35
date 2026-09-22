@@ -8,10 +8,10 @@ use reqwest::Client;
 use crate::debounce::{debouncer_turn_finished, debouncer_turn_started};
 use crate::hub::channel_hub;
 use crate::limit::BOT_BUSY_REPLY;
-use crate::outbound::{channel_reply, channel_stub_reply, outbound_ctx_from_channel};
+use crate::outbound::{channel_reply_nats, channel_stub_reply, outbound_ctx_new, ChannelCasCtx};
 use crate::peer::chat_msg_assistant_put;
 use crate::store::ChannelDoc;
-use crate::typing::channel_typing_pulse;
+use crate::typing::channel_typing_start;
 use crate::types::ChannelInboundMessage;
 
 pub struct ChannelTurnJob {
@@ -33,9 +33,20 @@ pub async fn execute_channel_turn(state: Arc<AppState>, job: ChannelTurnJob) -> 
         Ok(g) => g,
         Err(()) => {
             let client = http_client();
-            let out_ctx = outbound_ctx_from_channel(&job.inbound.platform, &job.inbound.external_user_id, &job.channel);
+            let out_ctx = outbound_ctx_new(
+                &job.inbound.platform,
+                &job.inbound.external_user_id,
+                &job.channel,
+                job.owner_iid,
+                job.bot_iid,
+            );
             limiter.outbound_pace().await;
-            channel_reply(&client, &out_ctx, BOT_BUSY_REPLY, job.inbound.is_voice).await?;
+            let cas = ChannelCasCtx {
+                pool: &state.pool,
+                cas_dir: &state.cas_dir,
+                cas_secret: &state.cas_secret,
+            };
+            channel_reply_nats(&client, state.nats.as_ref(), Some(&cas), &out_ctx, BOT_BUSY_REPLY, job.inbound.is_voice).await?;
             chat_msg_assistant_put(&state.pool, job.chat_id, job.owner_iid, job.bot_iid, &job.req_id, BOT_BUSY_REPLY).await?;
             debouncer_turn_finished(state, job.chat_id).await;
             return Ok(());
@@ -43,8 +54,22 @@ pub async fn execute_channel_turn(state: Arc<AppState>, job: ChannelTurnJob) -> 
     };
 
     let client = http_client();
-    let out_ctx = outbound_ctx_from_channel(&job.inbound.platform, &job.inbound.external_user_id, &job.channel);
-    channel_typing_pulse(&client, &out_ctx, job.inbound.is_voice, true).await;
+    let out_ctx = outbound_ctx_new(
+        &job.inbound.platform,
+        &job.inbound.external_user_id,
+        &job.channel,
+        job.owner_iid,
+        job.bot_iid,
+    );
+
+    let _typing_guard = channel_typing_start(
+        client.clone(),
+        state.nats.clone(),
+        job.owner_iid,
+        job.bot_iid,
+        out_ctx.clone(),
+        job.inbound.is_voice,
+    );
 
     let reply = if gemini_api_key().is_empty() {
         channel_stub_reply(&job.message, job.inbound.is_voice)
@@ -71,7 +96,12 @@ pub async fn execute_channel_turn(state: Arc<AppState>, job: ChannelTurnJob) -> 
     };
 
     limiter.outbound_pace().await;
-    channel_reply(&client, &out_ctx, &reply, job.inbound.is_voice).await?;
+    let cas = ChannelCasCtx {
+        pool: &state.pool,
+        cas_dir: &state.cas_dir,
+        cas_secret: &state.cas_secret,
+    };
+    channel_reply_nats(&client, state.nats.as_ref(), Some(&cas), &out_ctx, &reply, job.inbound.is_voice).await?;
     chat_msg_assistant_put(&state.pool, job.chat_id, job.owner_iid, job.bot_iid, &job.req_id, &reply).await?;
     debouncer_turn_finished(state, job.chat_id).await;
     Ok(())

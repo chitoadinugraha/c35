@@ -132,6 +132,7 @@ pub async fn chat_msg_external_put(
     content: &str,
 ) -> Result<i64> {
     let msg_id = snowflake_id();
+    let mut tx = pool.begin().await?;
     sqlx::query(
         r#"
         INSERT INTO ai.chat_msg (
@@ -146,7 +147,7 @@ pub async fn chat_msg_external_put(
     .bind(req_id)
     .bind(peer_iid)
     .bind(content)
-    .execute(pool)
+    .execute(&mut *tx)
     .await?;
     let preview: String = content.chars().take(255).collect();
     sqlx::query(
@@ -156,8 +157,9 @@ pub async fn chat_msg_external_put(
     )
     .bind(chat_id)
     .bind(preview)
-    .execute(pool)
+    .execute(&mut *tx)
     .await?;
+    tx.commit().await?;
     Ok(msg_id)
 }
 
@@ -170,6 +172,7 @@ pub async fn chat_msg_assistant_put(
     content: &str,
 ) -> Result<i64> {
     let msg_id = snowflake_id();
+    let mut tx = pool.begin().await?;
     sqlx::query(
         r#"
         INSERT INTO ai.chat_msg (
@@ -184,7 +187,7 @@ pub async fn chat_msg_assistant_put(
     .bind(req_id)
     .bind(bot_iid)
     .bind(content)
-    .execute(pool)
+    .execute(&mut *tx)
     .await?;
     let preview: String = content.chars().take(255).collect();
     sqlx::query(
@@ -194,8 +197,9 @@ pub async fn chat_msg_assistant_put(
     )
     .bind(chat_id)
     .bind(preview)
-    .execute(pool)
+    .execute(&mut *tx)
     .await?;
+    tx.commit().await?;
     Ok(msg_id)
 }
 

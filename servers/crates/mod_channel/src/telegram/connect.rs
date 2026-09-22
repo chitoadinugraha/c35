@@ -5,8 +5,9 @@ use sqlx::PgPool;
 use tracing::{info, warn};
 
 use crate::store::{
-    bot_channel_find_telegram_token, bot_channel_upsert, bot_ensure, channel_secret_generate,
-    new_channel_id, telegram_webhook_url, ChannelDoc, ChannelSession,
+    bot_channel_external_taken, bot_channel_find_telegram_token, bot_channel_upsert, bot_ensure,
+    channel_external_key, channel_secret_generate, new_channel_id, telegram_webhook_url, ChannelDoc,
+    ChannelSession,
 };
 
 const TG_API: &str = "https://api.telegram.org";
@@ -57,6 +58,112 @@ pub async fn tg_send_message(
     let body: TgResponse<serde_json::Value> = res.json().await.map_err(|e| e.to_string())?;
     if !body.ok {
         return Err(body.description.unwrap_or_else(|| "sendMessage failed".into()));
+    }
+    Ok(())
+}
+
+pub async fn tg_send_voice_reply(
+    client: &reqwest::Client,
+    api_base: &str,
+    token: &str,
+    chat_id: &str,
+    audio: &[u8],
+    caption: &str,
+) -> Result<(), String> {
+    let voice_url = format!("{}/bot{token}/sendVoice", api_base.trim_end_matches('/'));
+    let part = reqwest::multipart::Part::bytes(audio.to_vec())
+        .file_name("voice.ogg")
+        .mime_str("audio/ogg")
+        .map_err(|e| e.to_string())?;
+    let mut form = reqwest::multipart::Form::new()
+        .text("chat_id", chat_id.to_string())
+        .part("voice", part);
+    if !caption.is_empty() {
+        form = form.text("caption", caption.to_string());
+    }
+    let res = client.post(&voice_url).multipart(form).send().await.map_err(|e| e.to_string())?;
+    let body: TgResponse<serde_json::Value> = res.json().await.map_err(|e| e.to_string())?;
+    if body.ok {
+        return Ok(());
+    }
+    let voice_err = body.description.unwrap_or_else(|| "sendVoice failed".into());
+
+    let audio_url = format!("{}/bot{token}/sendAudio", api_base.trim_end_matches('/'));
+    let part = reqwest::multipart::Part::bytes(audio.to_vec())
+        .file_name("reply.mp3")
+        .mime_str("audio/mpeg")
+        .map_err(|e| e.to_string())?;
+    let mut form = reqwest::multipart::Form::new()
+        .text("chat_id", chat_id.to_string())
+        .part("audio", part);
+    if !caption.is_empty() {
+        form = form.text("caption", caption.to_string());
+    }
+    let res = client.post(&audio_url).multipart(form).send().await.map_err(|e| e.to_string())?;
+    let body: TgResponse<serde_json::Value> = res.json().await.map_err(|e| e.to_string())?;
+    if !body.ok {
+        return Err(format!(
+            "{voice_err}; sendAudio: {}",
+            body.description.unwrap_or_else(|| "sendAudio failed".into())
+        ));
+    }
+    Ok(())
+}
+
+pub async fn tg_send_photo_url(
+    client: &reqwest::Client,
+    api_base: &str,
+    token: &str,
+    chat_id: &str,
+    photo_url: &str,
+    caption: &str,
+) -> Result<(), String> {
+    let url = format!("{}/bot{token}/sendPhoto", api_base.trim_end_matches('/'));
+    let mut payload = serde_json::json!({
+        "chat_id": chat_id,
+        "photo": photo_url
+    });
+    if !caption.is_empty() {
+        payload["caption"] = serde_json::json!(caption);
+    }
+    let res = client
+        .post(&url)
+        .json(&payload)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    let body: TgResponse<serde_json::Value> = res.json().await.map_err(|e| e.to_string())?;
+    if !body.ok {
+        return Err(body.description.unwrap_or_else(|| "sendPhoto failed".into()));
+    }
+    Ok(())
+}
+
+pub async fn tg_send_document_bytes(
+    client: &reqwest::Client,
+    api_base: &str,
+    token: &str,
+    chat_id: &str,
+    bytes: &[u8],
+    mime: &str,
+    name: &str,
+    caption: &str,
+) -> Result<(), String> {
+    let url = format!("{}/bot{token}/sendDocument", api_base.trim_end_matches('/'));
+    let part = reqwest::multipart::Part::bytes(bytes.to_vec())
+        .file_name(name.to_string())
+        .mime_str(mime)
+        .map_err(|e| e.to_string())?;
+    let mut form = reqwest::multipart::Form::new()
+        .text("chat_id", chat_id.to_string())
+        .part("document", part);
+    if !caption.is_empty() {
+        form = form.text("caption", caption.to_string());
+    }
+    let res = client.post(&url).multipart(form).send().await.map_err(|e| e.to_string())?;
+    let body: TgResponse<serde_json::Value> = res.json().await.map_err(|e| e.to_string())?;
+    if !body.ok {
+        return Err(body.description.unwrap_or_else(|| "sendDocument failed".into()));
     }
     Ok(())
 }
@@ -165,6 +272,14 @@ pub async fn channel_telegram_connect(
         error_message: String::new(),
         session: ChannelSession::default(),
     };
+    let ext_key = channel_external_key(&channel);
+    if bot_channel_external_taken(pool, bot_iid, &ext_key, "")
+        .await
+        .map_err(|e| e.to_string())?
+    {
+        return Err("this Telegram bot is already connected to this chat bot".into());
+    }
+
     bot_channel_upsert(pool, owner_iid, bot_iid, channel.clone())
         .await
         .map_err(|e| e.to_string())?;

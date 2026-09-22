@@ -49,6 +49,7 @@ pub async fn channel_inbound_handle(
             &state.pool,
             &state.cas_dir,
             &channel.bot_token,
+            &channel.access_token,
             &inbound.attachments,
         )
         .await;
@@ -136,7 +137,12 @@ pub async fn channel_inbound_handle(
         return Ok((chat_id, peer_iid));
     }
 
-    let attachments_json = serde_json::to_string(&inbound.attachments).unwrap_or_else(|_| "[]".into());
+    let mut attachments = inbound.attachments.clone();
+    if !attachments.is_empty() {
+        let client = http_client();
+        crate::media::resolve_inbound_attachments_cas(&client, state, channel, &mut attachments).await;
+    }
+    let attachments_json = serde_json::to_string(&attachments).unwrap_or_else(|_| "[]".into());
     let hub = channel_hub_init();
     let job = ChannelTurnJob {
         bot_iid,

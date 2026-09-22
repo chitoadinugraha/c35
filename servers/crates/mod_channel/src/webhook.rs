@@ -11,7 +11,7 @@ use serde::Serialize;
 use tracing::warn;
 
 use crate::inbound::channel_inbound_from_webhook;
-use crate::store::bot_channel_get;
+use crate::store::{bot_channel_get, STATUS_CONNECTED};
 use crate::telegram::parse_telegram_payload;
 use crate::whatsapp::parse_whatsapp_payload;
 
@@ -33,6 +33,18 @@ pub fn channel_router() -> Router<AppState> {
             "/v1/channels/whatsapp/webhook/{bot_iid}/{channel_id}",
             get(whatsapp_webhook_verify).post(whatsapp_webhook_scoped),
         )
+        .route(
+            "/v1/channels/whatsapp/webhook/{bot_iid}/{channel_id}/media",
+            post(whatsapp_media_upload),
+        )
+}
+
+#[derive(Serialize)]
+struct MediaUploadRes {
+    hash: String,
+    mime: String,
+    name: String,
+    size_bytes: i64,
 }
 
 async fn telegram_webhook_scoped(
@@ -93,6 +105,58 @@ async fn whatsapp_webhook_verify(
         return q.hub_challenge.unwrap_or_default().into_response();
     }
     StatusCode::FORBIDDEN.into_response()
+}
+
+async fn whatsapp_media_upload(
+    Path((bot_iid, channel_id)): Path<(i64, String)>,
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    if body.is_empty() {
+        return StatusCode::BAD_REQUEST.into_response();
+    }
+    let channel = match bot_channel_get(&state.pool, bot_iid, &channel_id).await {
+        Ok(Some(ch)) => ch,
+        Ok(None) => return StatusCode::NOT_FOUND.into_response(),
+        Err(e) => {
+            warn!("[c35:channel] media upload channel lookup failed: {e:#}");
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    };
+    if channel.status != STATUS_CONNECTED {
+        return StatusCode::SERVICE_UNAVAILABLE.into_response();
+    }
+    let mime = headers
+        .get("content-type")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("application/octet-stream")
+        .split(';')
+        .next()
+        .unwrap_or("application/octet-stream")
+        .trim()
+        .to_string();
+    let name = headers
+        .get("x-file-name")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .to_string();
+    match c35_mod_file::cas_put(&state.pool, &state.cas_dir, &state.cas_secret, &body, &mime).await {
+        Ok(put) => (
+            StatusCode::OK,
+            Json(MediaUploadRes {
+                hash: put.hash,
+                mime: put.mime_type,
+                name,
+                size_bytes: put.size_bytes,
+            }),
+        )
+            .into_response(),
+        Err(e) => {
+            warn!("[c35:channel] media upload cas_put failed: {e:#}");
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
+        }
+    }
 }
 
 async fn whatsapp_webhook_scoped(

@@ -5,8 +5,9 @@ use sqlx::PgPool;
 use tracing::info;
 
 use crate::store::{
-    bot_channel_upsert, bot_ensure, channel_secret_generate, channel_whatsapp_deactivate_siblings,
-    new_channel_id, whatsapp_webhook_url, ChannelDoc, ChannelSession,
+    bot_channel_external_taken, bot_channel_upsert, bot_ensure, channel_external_key,
+    channel_secret_generate, channel_whatsapp_deactivate_siblings, new_channel_id, whatsapp_webhook_url,
+    ChannelDoc, ChannelSession,
 };
 
 #[derive(Debug, Deserialize)]
@@ -101,6 +102,14 @@ pub async fn channel_whatsapp_meta_connect(
         error_message: String::new(),
         session: ChannelSession::default(),
     };
+    let ext_key = channel_external_key(&channel);
+    if bot_channel_external_taken(pool, bot_iid, &ext_key, "")
+        .await
+        .map_err(|e| e.to_string())?
+    {
+        return Err("this WhatsApp number is already connected to this chat bot".into());
+    }
+
     bot_channel_upsert(pool, owner_iid, bot_iid, channel.clone())
         .await
         .map_err(|e| e.to_string())?;

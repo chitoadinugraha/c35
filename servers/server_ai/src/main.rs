@@ -2,7 +2,9 @@ mod boot;
 mod config;
 mod log;
 
+use std::sync::Arc;
 use std::time::Instant;
+use c35_ctx::{AppState, OAuthStore};
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
@@ -39,9 +41,30 @@ async fn main() -> anyhow::Result<()> {
     );
     let pool = pool?;
     c35_store::migrate_boot(&pool).await?;
-    c35_mod_llm::runtime_config_init(&pool).await;
     c35_mod_llm::llm_catalog_init(&pool).await?;
+    c35_mod_llm::runtime_config_init(&pool).await;
+    c35_mod_llm::llm_catalog_spawn(pool.clone());
     c35_mod_llm::runtime_config_watch(pool.clone());
+    c35_mod_chat::inst_cache_init(&pool).await;
+    if let Some(nats_client) = nats.clone() {
+        c35_mod_chat::inst_cache_nats_subscribe(pool.clone(), nats_client.clone());
+        let cas_dir = cfg.cas_dir.clone();
+        let _ = std::fs::create_dir_all(&cas_dir);
+        let subscriber_state = Arc::new(AppState {
+            pool: pool.clone(),
+            nats: Some(nats_client),
+            jwt_secret: cfg.jwt_secret.clone(),
+            oauth: Arc::new(OAuthStore::default()),
+            cas_secret: cfg.cas_secret.clone(),
+            cas_dir,
+            public_origin: cfg.public_origin.clone(),
+        });
+        tokio::spawn(async move {
+            c35_mod_channel::start_channel_inbound_subscriber(subscriber_state).await;
+        });
+    } else if nats_required {
+        tracing::warn!("inst cache: NATS unavailable, invalidation disabled");
+    }
     let listener = listener?;
     let yb_ms = yb_t0.elapsed().as_millis();
     let nats_ms = nats.as_ref().map(|_| nats_t0.elapsed().as_millis());
@@ -69,5 +92,7 @@ fn feature_names() -> Vec<&'static str> {
         "file_cas",
         "billing",
         "channel",
+        "site",
+        "voice",
     ]
 }

@@ -46,7 +46,7 @@ fn pair_res_err(bot_iid: i64, message: &str) -> ResChannelWhatsappPair {
     }
 }
 
-async fn worker_post(worker_url: &str, path: &str) -> Result<(), String> {
+pub async fn worker_post(worker_url: &str, path: &str) -> Result<(), String> {
     let base = worker_url.trim().trim_end_matches('/');
     if base.is_empty() {
         warn!("[c35:whatsapp] WHATSAPP_WORKER_URL unset; skipping worker call {path}");

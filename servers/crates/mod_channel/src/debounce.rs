@@ -7,6 +7,9 @@ use c35_ctx::AppState;
 use crate::hub::channel_hub;
 use crate::turn::ChannelTurnJob;
 
+/// Sliding silence window before a channel turn runs (user rapid-fire messages coalesce).
+pub const CHANNEL_DEBOUNCE_MS: u64 = 1800;
+
 struct PendingTurn {
     job: ChannelTurnJob,
 }
@@ -35,7 +38,7 @@ impl ChatDebouncer {
             prev.abort();
         }
         let timer = tokio::spawn(async move {
-            tokio::time::sleep(Duration::from_millis(1200)).await;
+            tokio::time::sleep(Duration::from_millis(CHANNEL_DEBOUNCE_MS)).await;
             if let Err(e) = super::turn::execute_channel_turn(state, job).await {
                 tracing::error!("[c35:channel] turn failed chat_id={chat_id}: {e:#}");
             }
@@ -71,4 +74,14 @@ pub async fn debouncer_turn_started(chat_id: i64) {
 
 pub async fn debouncer_turn_finished(state: Arc<AppState>, chat_id: i64) {
     channel_hub().debouncer.lock().await.turn_finished(state, chat_id).await;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn debounce_window_is_1_8s() {
+        assert_eq!(CHANNEL_DEBOUNCE_MS, 1800);
+    }
 }

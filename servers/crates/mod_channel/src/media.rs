@@ -1,10 +1,12 @@
 use anyhow::{Context, Result};
+use c35_ctx::AppState;
 use c35_mod_chat::audio::{self, transcript_valid};
 use c35_mod_file::cas_bytes_get;
 use reqwest::Client;
 use sqlx::PgPool;
 use tracing::warn;
 
+use crate::store::ChannelDoc;
 use crate::telegram::tg_api_base;
 use crate::types::ChannelInboundAttachment;
 
@@ -63,15 +65,48 @@ pub async fn transcribe_telegram_voice(
     Ok(parts.join(" "))
 }
 
+pub async fn transcribe_whatsapp_voice(
+    client: &Client,
+    access_token: &str,
+    items: &[ChannelInboundAttachment],
+) -> Result<String> {
+    let mut parts = Vec::new();
+    for item in items {
+        if item.media_id.is_empty() || !item.mime.starts_with("audio/") {
+            continue;
+        }
+        let (bytes, dl_mime) = crate::whatsapp::fetch_meta_cloud_media(client, access_token, &item.media_id)
+            .await
+            .map_err(|e| anyhow::anyhow!("whatsapp media download failed: {e}"))?;
+        let mime = audio::audio_mime_resolve(&item.mime, &dl_mime, &bytes);
+        let transcript = audio::transcribe_audio(client, &bytes, &mime)
+            .await
+            .with_context(|| format!("transcribe whatsapp media_id={}", item.media_id))?;
+        let t = transcript.trim();
+        if transcript_valid(t) {
+            parts.push(t.to_string());
+        }
+    }
+    Ok(parts.join(" "))
+}
+
 pub async fn transcribe_voice_logged(
     client: &Client,
     pool: &PgPool,
     cas_dir: &std::path::Path,
     bot_token: &str,
+    access_token: &str,
     items: &[ChannelInboundAttachment],
 ) -> String {
     if !bot_token.is_empty() {
         if let Ok(t) = transcribe_telegram_voice(client, bot_token, items).await {
+            if !t.trim().is_empty() {
+                return t;
+            }
+        }
+    }
+    if !access_token.is_empty() {
+        if let Ok(t) = transcribe_whatsapp_voice(client, access_token, items).await {
             if !t.trim().is_empty() {
                 return t;
             }
@@ -86,7 +121,38 @@ pub async fn transcribe_voice_logged(
     }
 }
 
-async fn tg_file_download(client: &Client, bot_token: &str, file_id: &str) -> Result<(Vec<u8>, String)> {
+pub async fn resolve_inbound_attachments_cas(
+    client: &Client,
+    state: &AppState,
+    channel: &ChannelDoc,
+    items: &mut [ChannelInboundAttachment],
+) {
+    for item in items.iter_mut() {
+        if !item.hash.is_empty() || item.media_id.is_empty() {
+            continue;
+        }
+        let fetched = if channel.platform == "telegram" && !channel.bot_token.is_empty() {
+            tg_file_download(client, &channel.bot_token, &item.media_id).await.ok()
+        } else if channel.platform == "whatsapp" && !channel.access_token.is_empty() {
+            crate::whatsapp::fetch_meta_cloud_media(client, &channel.access_token, &item.media_id).await.ok()
+        } else {
+            None
+        };
+        if let Some((bytes, dl_mime)) = fetched {
+            let mime = if item.mime.is_empty() || item.mime == "application/octet-stream" {
+                dl_mime
+            } else {
+                item.mime.clone()
+            };
+            if let Ok(put) = c35_mod_file::cas_put(&state.pool, &state.cas_dir, &state.cas_secret, &bytes, &mime).await {
+                item.hash = put.hash;
+                item.mime = mime;
+            }
+        }
+    }
+}
+
+pub async fn tg_file_download(client: &Client, bot_token: &str, file_id: &str) -> Result<(Vec<u8>, String)> {
     let api_base = tg_api_base();
     let file_path = tg_file_path(client, &api_base, bot_token, file_id).await?;
     let url = format!("{api_base}/file/bot{bot_token}/{file_path}");
