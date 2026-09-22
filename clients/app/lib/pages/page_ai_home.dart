@@ -21,17 +21,21 @@ import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/c/settings/prompt_usage_prefs.dart';
+import 'package:alienai_c35/c/settings/voice_prefs.dart';
 import 'package:alienai_c35/c/store/chat_store.dart';
+import 'package:alienai_c35/c/stt/stt_service.dart';
+import 'package:alienai_c35/c/tts/tts_service.dart';
+import 'package:alienai_c35/c/voice/voice_api.dart';
 import 'package:alienai_c35/pages/page_bots.dart';
 import 'package:alienai_c35/pages/page_devices.dart';
-import 'package:alienai_c35/pages/page_nav_stub.dart';
+import 'package:alienai_c35/pages/page_sites.dart';
 import 'package:alienai_c35/pages/page_settings.dart';
 import 'package:alienai_c35/pages/referral/page_referral_tree.dart';
 import 'package:alienai_c35/widgets/ai/in_composer.dart';
 import 'package:alienai_c35/widgets/ai/msg_trace_view.dart';
 import 'package:alienai_c35/widgets/ai/ui_alien_icon.dart';
 import 'package:alienai_c35/c/tags/ask_tags.dart';
-import 'package:alienai_c35/widgets/ai/ui_msg_error_badge.dart';
+import 'package:alienai_c35/widgets/ai/ui_msg_error.dart';
 import 'package:alienai_c35/widgets/ai/ui_chat_history_sidebar.dart';
 import 'package:alienai_c35/widgets/ai/ui_chat_message_menu.dart';
 import 'package:alienai_c35/widgets/ai/ui_hints.dart';
@@ -69,23 +73,27 @@ class _PageAIHomeState extends State<PageAIHome> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _store = ChatStore();
   final _conn = ChatConn();
+  late final VoiceApi _voiceApi = VoiceApi(_conn);
   final _consumptionApi = ConsumptionApi();
   final _timeline = UiChatTimelineController();
   final _mentionIds = <String>{};
   var _toolMode = 'agent';
   var _model = AgentModel.alien;
-  var _mentions = <CatalogMention>[];
   var _catalogReady = false;
+  var _modelsReady = false;
   StreamSubscription? _syncSub;
   StreamSubscription? _billingBalanceSub;
   StreamSubscription? _billingQuotaSub;
   StreamSubscription? _billingCommissionSub;
   var _menuMsgIndex = 0;
+  var _retrying = false;
   String? _selectedPlain;
 
   @override
   void initState() {
     super.initState();
+    SttService.instance.bindVoiceApi(_voiceApi);
+    TtsService.instance.bindVoiceApi(_voiceApi);
     if (Session.instance.modelId.isNotEmpty) _model = AgentModel.of(Session.instance.modelId, _store.models);
     _timeline.attach();
     unawaited(_boot());
@@ -93,6 +101,8 @@ class _PageAIHomeState extends State<PageAIHome> {
 
   @override
   void dispose() {
+    SttService.instance.bindVoiceApi(null);
+    TtsService.instance.bindVoiceApi(null);
     _syncSub?.cancel();
     _billingBalanceSub?.cancel();
     _billingQuotaSub?.cancel();
@@ -106,7 +116,6 @@ class _PageAIHomeState extends State<PageAIHome> {
     try {
       await CatalogTranslationCache.instance.restore();
       await CatalogTranslationCache.instance.ensure('en');
-      _mentions = await catalogMentionsFetch();
     } catch (e) {
       lError('catalog load: $e');
     }
@@ -116,6 +125,13 @@ class _PageAIHomeState extends State<PageAIHome> {
       final locale = CatalogTranslationCache.instance.lang;
       await _conn.connect(locale: locale);
       await _store.refreshFromConn(_conn, locale: locale);
+      if (_store.mentionCatalog.mentions.isEmpty) {
+        try {
+          await _store.mentionCatalog.refresh(_conn);
+        } catch (e) {
+          lError('mention list: $e');
+        }
+      }
       if (mounted) _model = AgentModel.of(Session.instance.modelId, _store.models);
       _syncSub = _conn.onSyncPush.listen(_onSyncPush);
       _billingBalanceSub = _conn.onBillingBalance.listen(AppStore.instance.billingBalancePush);
@@ -123,6 +139,8 @@ class _PageAIHomeState extends State<PageAIHome> {
       _billingCommissionSub = _conn.onBillingCommission.listen(AppStore.instance.billingCommissionPush);
     } catch (e) {
       lError('chat boot: $e');
+    } finally {
+      if (mounted) setState(() => _modelsReady = true);
     }
   }
 
@@ -270,7 +288,7 @@ class _PageAIHomeState extends State<PageAIHome> {
   void _openSettings() => Navigator.push(
         context,
         MaterialPageRoute<void>(
-          builder: (_) => PageSettings(conn: SettingsConn()),
+          builder: (_) => PageSettings(conn: SettingsConn(), chatConn: _conn),
         ),
       );
 
@@ -285,7 +303,7 @@ class _PageAIHomeState extends State<PageAIHome> {
 
   void _openDevices() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageDevices(chatConn: _conn)));
 
-  void _openSites() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const PageNavStub(title: 'Sites', icon: Icons.language_outlined)));
+  void _openSites() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageSites(chatConn: _conn)));
 
   void _avatarMenu(BuildContext anchorCtx) => uiAccountMenuShow(
         anchorCtx,
@@ -308,6 +326,8 @@ class _PageAIHomeState extends State<PageAIHome> {
 
   void _mentionToggle(String id) => setState(() => _mentionIds.contains(id) ? _mentionIds.remove(id) : _mentionIds.add(id));
 
+  Future<List<CatalogMention>> _mentionSearch(String q) => _store.mentionCatalog.search(_conn, q: q);
+
   void _toolModeToggle() => setState(() => _toolMode = _toolMode == 'ask' ? 'agent' : 'ask');
 
   void _modelPut(AgentModel m) {
@@ -317,10 +337,11 @@ class _PageAIHomeState extends State<PageAIHome> {
 
   Future<void> _hintPick(SpaceHint hint) => hintRun(hint: hint, onSend: _composerSend);
 
-  Future<void> _composerSend(String text, List<MsgAttachment> attachments) async {
+  Future<void> _composerSend(String text, List<MsgAttachment> attachments, {bool retry = false}) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty && attachments.isEmpty) return;
-    if (_store.promptBusy) return;
+    if (_store.promptBusy && !retry) return;
+    unawaited(TtsService.instance.stop());
 
     var chatId = _store.activeChatId;
     if (chatId == null) {
@@ -331,17 +352,22 @@ class _PageAIHomeState extends State<PageAIHome> {
 
     final now = DateTime.now().millisecondsSinceEpoch;
     final reqId = const Uuid().v4();
-    final userMsg = MsgRow(
-      id: DateTime.now().microsecondsSinceEpoch,
-      chatId: chatId,
-      role: 'user',
-      content: trimmed,
-      attachments: attachments,
-      attachmentsJson: MsgAttachment.encode(attachments),
-      createdAtMs: now,
-      reqId: reqId,
-    );
-    _store.msgPut(userMsg);
+    if (retry && _store.msgs.isNotEmpty && _store.msgs.last.chatId == chatId && _store.msgs.last.role == 'user') {
+      final last = _store.msgs.last;
+      _store.msgPut(last.copyWith(content: trimmed, attachments: attachments, attachmentsJson: MsgAttachment.encode(attachments), reqId: reqId, createdAtMs: now, error: ''));
+    } else {
+      final userMsg = MsgRow(
+        id: DateTime.now().microsecondsSinceEpoch,
+        chatId: chatId,
+        role: 'user',
+        content: trimmed,
+        attachments: attachments,
+        attachmentsJson: MsgAttachment.encode(attachments),
+        createdAtMs: now,
+        reqId: reqId,
+      );
+      _store.msgPut(userMsg);
+    }
     _store.msgPut(MsgRow(
       id: _store.msgNextLocalId(),
       chatId: chatId,
@@ -400,6 +426,7 @@ class _PageAIHomeState extends State<PageAIHome> {
         }
         if (ev.kind == 'end' && ev.end != null) {
           final end = ev.end!;
+          final err = end.hasErrorMessage() ? end.errorMessage : '';
           _store.msgStreamEnd(
             chatId: streamChatId,
             msgId: end.msgId.toInt(),
@@ -409,8 +436,20 @@ class _PageAIHomeState extends State<PageAIHome> {
             durationMs: end.durationMs,
             reqId: end.reqId,
             model: end.model,
-            error: end.hasErrorMessage() ? end.errorMessage : '',
+            error: err,
           );
+          if (VoicePrefs.instance.speakEnabled && err.trim().isEmpty) {
+            final rid = end.reqId.isNotEmpty ? end.reqId : (_conn.lastPromptReqId ?? '');
+            MsgRow? spoken;
+            for (final row in _store.activeMsgs.reversed) {
+              if (row.role == 'assistant' && (rid.isEmpty || row.reqId == rid)) {
+                spoken = row;
+                break;
+              }
+            }
+            final assistantText = spoken != null ? msgDisplayContent(spoken).trim() : '';
+            if (assistantText.isNotEmpty) unawaited(_speak(assistantText));
+          }
           if (end.reqId.isNotEmpty) {
             unawaited(_conn.tracePrefetch(end.reqId).then((_) {
               if (mounted) setState(() {});
@@ -431,6 +470,14 @@ class _PageAIHomeState extends State<PageAIHome> {
         if (_store.promptBusyFor(cid)) _store.promptBusyPut(false, chatId: cid);
       }
       if (_store.activeChatId == streamChatId) _timeline.scrollToBottom(force: true);
+    }
+  }
+
+  Future<void> _speak(String text) async {
+    await TtsService.instance.speak(text);
+    final err = TtsService.instance.lastSpeakError;
+    if (err != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err), behavior: SnackBarBehavior.floating));
     }
   }
 
@@ -487,6 +534,12 @@ class _PageAIHomeState extends State<PageAIHome> {
       isAssistant: !isUser,
       reqId: m.reqId,
       msgId: m.id > 0 ? m.id : 0,
+      onSpeak: !isUser && plain.isNotEmpty
+          ? () {
+              ContextMenuController.removeAny();
+              unawaited(_speak(plain));
+            }
+          : null,
       showRetry: showRetry,
       onRetryLastTurn: showRetry ? _retryLastTurn : null,
       conn: _conn,
@@ -538,11 +591,13 @@ class _PageAIHomeState extends State<PageAIHome> {
             child: InComposer(
               model: _model,
               models: _store.models,
+              modelsLoading: !_modelsReady,
               onModel: _modelPut,
-              mentions: _mentions,
+              mentions: _store.mentionCatalog.mentions,
               selectedMentionIds: _mentionIds,
               toolMode: _toolMode,
               onMentionToggle: _mentionToggle,
+              onMentionSearch: _mentionSearch,
               onToolModeToggle: _toolModeToggle,
               onSend: _composerSend,
               onAbort: _store.promptBusyFor(_store.activeChatId) ? _abortPrompt : null,
@@ -552,12 +607,6 @@ class _PageAIHomeState extends State<PageAIHome> {
           ),
         ],
       );
-
-  Widget? _msgErrorBadge(MsgRow m) {
-    final err = msgRowError(m).trim();
-    if (!sessionViewerIsRoot() || err.isEmpty) return null;
-    return UiMsgErrorBadge(error: err);
-  }
 
   String _plainForMsg(MsgRow m) {
     final parts = <String>[];
@@ -580,10 +629,13 @@ class _PageAIHomeState extends State<PageAIHome> {
       body = UiUserBubble(content: m.content, copyPrefix: copyPrefix, attachments: m.attachments);
     } else {
       final content = msgDisplayContent(m);
-      final inThoughtPhase = promptingThis && content.trim().isEmpty;
+      final err = msgRowError(m).trim();
+      final hasError = err.isNotEmpty;
+      final inThoughtPhase = promptingThis && content.trim().isEmpty && !hasError;
       final thoughtView = msgThoughtView(thought: m.thought, content: content, thinking: inThoughtPhase);
       final blocks = ChatBlock.decodeList(m.blocksJson);
       final locale = CatalogTranslationCache.instance.lang;
+      final showRetry = hasError && !_store.promptBusyFor(m.chatId) && i == lastAssistantIdx;
       body = Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -594,7 +646,15 @@ class _PageAIHomeState extends State<PageAIHome> {
               thinking: inThoughtPhase,
               startedAtMs: promptingThis ? _store.promptStartedAtMs : null,
             ),
-          if (content.trim().isNotEmpty)
+          if (m.reqId.isNotEmpty) UiMsgTraceLoader(conn: _conn, reqId: m.reqId, live: promptingThis),
+          if (hasError)
+            UiMsgError(
+              message: msgPromptErrorMessage(err),
+              detail: sessionViewerIsRoot() ? err : null,
+              onRetry: showRetry ? _retryLastTurn : null,
+              retrying: _retrying,
+            )
+          else if (content.trim().isNotEmpty)
             MarkdownBody(
               data: content,
               selectable: false,
@@ -602,9 +662,7 @@ class _PageAIHomeState extends State<PageAIHome> {
                 p: const TextStyle(color: _text, fontSize: 15, height: 1.45),
                 code: const TextStyle(color: _text, fontSize: 13, fontFamily: 'Consolas', backgroundColor: Color(0xFF1A1A1D)),
               ),
-            )
-          else if (promptingThis && content.trim().isEmpty)
-            const Text('…', style: TextStyle(color: _muted, fontSize: 15)),
+            ),
           if (blocks.isNotEmpty)
             UiMsgBlocks(
               msgId: m.id,
@@ -613,26 +671,18 @@ class _PageAIHomeState extends State<PageAIHome> {
               locale: locale,
               onConsumptionSaved: _onConsumptionBlockSaved,
             ),
-          if (m.reqId.isNotEmpty) UiMsgTraceLoader(conn: _conn, reqId: m.reqId),
-          Builder(builder: (_) {
-            final badge = _msgErrorBadge(m);
-            final usageMsg = m.model.isNotEmpty || i != lastAssistantIdx
-                ? m
-                : m.copyWith(model: m.model.isNotEmpty ? m.model : _model.id);
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                UiMsgUsage(
-                  msg: usageMsg,
-                  streaming: usageStreaming,
-                  billingCurrency: AppStore.instance.wallet.billingCurrency,
-                  fxMicroPerUsd: AppStore.instance.wallet.fxMicroPerUsd,
-                ),
-                if (badge != null) badge,
-              ],
-            );
-          }),
+          if (!hasError)
+            Builder(builder: (_) {
+              final usageMsg = m.model.isNotEmpty || i != lastAssistantIdx
+                  ? m
+                  : m.copyWith(model: m.model.isNotEmpty ? m.model : _model.id);
+              return UiMsgUsage(
+                msg: usageMsg,
+                streaming: usageStreaming,
+                billingCurrency: AppStore.instance.wallet.billingCurrency,
+                fxMicroPerUsd: AppStore.instance.wallet.fxMicroPerUsd,
+              );
+            }),
         ],
       );
     }
@@ -653,17 +703,15 @@ class _PageAIHomeState extends State<PageAIHome> {
   }
 
   Future<void> _retryLastTurn() async {
-    final msgs = _store.activeMsgs;
-    if (msgs.isEmpty) return;
-    MsgRow? lastUser;
-    for (var i = msgs.length - 1; i >= 0; i--) {
-      if (msgs[i].role == 'user') {
-        lastUser = msgs[i];
-        break;
-      }
+    if (_retrying) return;
+    final turn = _store.retryLastTurnPrep();
+    if (turn == null) return;
+    setState(() => _retrying = true);
+    try {
+      await _composerSend(turn.text, turn.attachments, retry: true);
+    } finally {
+      if (mounted) setState(() => _retrying = false);
     }
-    if (lastUser == null) return;
-    await _composerSend(lastUser.content, lastUser.attachments);
   }
 
   Widget _threadHero() {

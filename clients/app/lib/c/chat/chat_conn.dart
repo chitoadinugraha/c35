@@ -3,10 +3,15 @@ import 'dart:async';
 import 'package:alienai_c35/c/config.dart';
 import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
+import 'package:alienai_c35/c/pb/c35/catalog.pb.dart';
 import 'package:alienai_c35/c/pb/c35/channel.pb.dart';
 import 'package:alienai_c35/c/pb/c35/chat.pb.dart';
+import 'package:alienai_c35/c/pb/c35/collection.pb.dart';
 import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
+import 'package:alienai_c35/c/pb/c35/remote.pb.dart';
 import 'package:alienai_c35/c/pb/c35/session.pb.dart';
+import 'package:alienai_c35/c/pb/c35/site.pb.dart';
+import 'package:alienai_c35/c/pb/c35/skill.pb.dart';
 import 'package:alienai_c35/c/pb/c35/sync.pb.dart';
 import 'package:alienai_c35/c/pb/c35/wire.pb.dart';
 import 'package:alienai_c35/c/trace/trace_log.dart';
@@ -73,10 +78,12 @@ class ChatConn {
   final _billingQuotaCtrl = StreamController<BillingPushQuota>.broadcast();
   final _billingCommissionCtrl = StreamController<BillingPushCommission>.broadcast();
   final _channelPairPushCtrl = StreamController<ChannelPairPush>.broadcast();
+  final _remoteSignalCtrl = StreamController<WsRes>.broadcast();
   final _traceCache = <String, List<TraceLogDoc>>{};
 
   Stream<SyncPush> get onSyncPush => _syncPushCtrl.stream;
   Stream<ChannelPairPush> get onChannelPairPush => _channelPairPushCtrl.stream;
+  Stream<WsRes> get onRemoteSignal => _remoteSignalCtrl.stream;
   Stream<BillingPushBalance> get onBillingBalance => _billingBalanceCtrl.stream;
   Stream<BillingPushQuota> get onBillingQuota => _billingQuotaCtrl.stream;
   Stream<BillingPushCommission> get onBillingCommission => _billingCommissionCtrl.stream;
@@ -163,6 +170,7 @@ class ChatConn {
     if (res.hasBillingQuota() && !_billingQuotaCtrl.isClosed) _billingQuotaCtrl.add(res.billingQuota);
     if (res.hasBillingCommission() && !_billingCommissionCtrl.isClosed) _billingCommissionCtrl.add(res.billingCommission);
     if (res.hasChannelPairPush() && !_channelPairPushCtrl.isClosed) _channelPairPushCtrl.add(res.channelPairPush);
+    if (_isRemoteSignal(res) && !_remoteSignalCtrl.isClosed) _remoteSignalCtrl.add(res);
 
     if (res.hasErr() && reqId.isNotEmpty) {
       final prompt = _promptPending[reqId];
@@ -342,6 +350,183 @@ class ChatConn {
         (res) => res.identityPut,
       );
 
+  Future<ResIdentityDelete> identityDelete(int iid) => _rpc<ResIdentityDelete>(
+        WsReq(identityDelete: ReqIdentityDelete(iid: Int64(iid))),
+        (res) => res.identityDelete,
+      );
+
+  Future<ResChannelDisconnect> channelDisconnect(int botIid, String channelId) => _rpc<ResChannelDisconnect>(
+        WsReq(channelDisconnect: ReqChannelDisconnect(botIid: Int64(botIid), channelId: channelId)),
+        (res) => res.channelDisconnect,
+      );
+
+  Future<ResSkillList> skillList({SkillScope scope = SkillScope.SKILL_SCOPE_USER, int deviceIid = 0, int teamIid = 0, int sinceMs = 0}) => _rpc<ResSkillList>(
+        WsReq(skillList: ReqSkillList(scope: scope, deviceIid: Int64(deviceIid), teamIid: Int64(teamIid), sinceMs: Int64(sinceMs))),
+        (res) => res.skillList,
+      );
+
+  Future<ResSkillPut> skillPut(Skill skill) => _rpc<ResSkillPut>(
+        WsReq(skillPut: ReqSkillPut(skill: skill)),
+        (res) => res.skillPut,
+      );
+
+  Future<ResSkillCatalogList> skillCatalogList({String q = '', int limit = 50}) => _rpc<ResSkillCatalogList>(
+        WsReq(skillCatalogList: ReqSkillCatalogList(q: q, limit: limit)),
+        (res) => res.skillCatalogList,
+      );
+
+  bool _isRemoteSignal(WsRes res) =>
+      res.hasRemoteSessionPush() || res.hasRtcSignalOffer() || res.hasRtcSignalAnswer() || res.hasRtcSignalIce();
+
+  Future<ResRemoteIceConfig> remoteIceConfig() => _rpc<ResRemoteIceConfig>(
+        WsReq(remoteIceConfig: ReqRemoteIceConfig()),
+        (res) => res.remoteIceConfig,
+      );
+
+  Future<ResRemoteSessionStart> remoteSessionStart(int deviceIid, String sessionId) => _rpc<ResRemoteSessionStart>(
+        WsReq(remoteSessionStart: ReqRemoteSessionStart(deviceIid: Int64(deviceIid), sessionId: sessionId)),
+        (res) => res.remoteSessionStart,
+      );
+
+  Future<ResRemoteSessionStop> remoteSessionStop(int deviceIid, String sessionId) => _rpc<ResRemoteSessionStop>(
+        WsReq(remoteSessionStop: ReqRemoteSessionStop(deviceIid: Int64(deviceIid), sessionId: sessionId)),
+        (res) => res.remoteSessionStop,
+      );
+
+  Future<void> rtcSignalOffer(RtcSignalOffer offer) => _rpc<void>(
+        WsReq(rtcSignalOffer: offer),
+        (_) {},
+      );
+
+  Future<void> rtcSignalAnswer(RtcSignalAnswer answer) => _rpc<void>(
+        WsReq(rtcSignalAnswer: answer),
+        (_) {},
+      );
+
+  Future<void> rtcSignalIce(RtcSignalIce ice) => _rpc<void>(
+        WsReq(rtcSignalIce: ice),
+        (_) {},
+      );
+
+  Future<ResSkillCatalogInstall> skillCatalogInstall({required int catalogId, SkillScope scope = SkillScope.SKILL_SCOPE_USER, int deviceIid = 0, int variantId = 0, int releaseId = 0}) => _rpc<ResSkillCatalogInstall>(
+        WsReq(
+          skillCatalogInstall: ReqSkillCatalogInstall(
+            catalogId: Int64(catalogId),
+            variantId: Int64(variantId),
+            releaseId: Int64(releaseId),
+            scope: scope,
+            deviceIid: Int64(deviceIid),
+          ),
+        ),
+        (res) => res.skillCatalogInstall,
+      );
+
+  Future<ResSkillCatalogSearch> skillCatalogSearch({String q = '', String tagsJson = '', int limit = 20, int offset = 0}) => _rpc<ResSkillCatalogSearch>(
+        WsReq(skillCatalogSearch: ReqSkillCatalogSearch(q: q, tagsJson: tagsJson, limit: limit, offset: offset)),
+        (res) => res.skillCatalogSearch,
+      );
+
+  Future<ResMentionList> mentionList() => _rpc<ResMentionList>(
+        WsReq(mentionList: ReqMentionList()),
+        (res) => res.mentionList,
+      );
+
+  Future<ResMentionSearch> mentionSearch({String q = '', List<String> kinds = const [], int limit = 20}) => _rpc<ResMentionSearch>(
+        WsReq(mentionSearch: ReqMentionSearch(q: q, kinds: kinds, limit: limit)),
+        (res) => res.mentionSearch,
+      );
+
+  Future<ResSkillCatalogSubmit> skillCatalogSubmit({required int skillId, String submitAction = 'new', int existingCatalogId = 0}) => _rpc<ResSkillCatalogSubmit>(
+        WsReq(skillCatalogSubmit: ReqSkillCatalogSubmit(skillId: Int64(skillId), submitAction: submitAction, existingCatalogId: Int64(existingCatalogId))),
+        (res) => res.skillCatalogSubmit,
+      );
+
+  Future<ResSkillRunReport> skillRunReport({required int skillId, bool success = true, int stepIndex = 0, String error = '', String patchMd = '', String detectedAppVersion = '', String metaJson = ''}) => _rpc<ResSkillRunReport>(
+        WsReq(
+          skillRunReport: ReqSkillRunReport(
+            skillId: Int64(skillId),
+            success: success,
+            stepIndex: stepIndex,
+            error: error,
+            patchMd: patchMd,
+            detectedAppVersion: detectedAppVersion,
+            metaJson: metaJson,
+          ),
+        ),
+        (res) => res.skillRunReport,
+      );
+
+  Future<ResSiteList> siteList({bool archived = false}) => _rpc<ResSiteList>(
+        WsReq(siteList: ReqSiteList(archived: archived)),
+        (res) => res.siteList,
+      );
+
+  Future<ResSiteDraftGet> siteDraftGet(int siteIid) => _rpc<ResSiteDraftGet>(
+        WsReq(siteDraftGet: ReqSiteDraftGet(siteIid: Int64(siteIid))),
+        (res) => res.siteDraftGet,
+      );
+
+  Future<ResSiteDraftPut> siteDraftPut(SiteDraft draft, {bool skipPublish = false}) => _rpc<ResSiteDraftPut>(
+        WsReq(siteDraftPut: ReqSiteDraftPut(draft: draft, skipPublish: skipPublish)),
+        (res) => res.siteDraftPut,
+      );
+
+  Future<ResSitePublish> sitePublish(int siteIid) => _rpc<ResSitePublish>(
+        WsReq(sitePublish: ReqSitePublish(siteIid: Int64(siteIid))),
+        (res) => res.sitePublish,
+      );
+
+  Future<ResSiteProductList> siteProductList(int siteIid) => _rpc<ResSiteProductList>(
+        WsReq(siteProductList: ReqSiteProductList(siteIid: Int64(siteIid))),
+        (res) => res.siteProductList,
+      );
+
+  Future<ResSiteProductPut> siteProductPut(int siteIid, SiteProduct product) => _rpc<ResSiteProductPut>(
+        WsReq(siteProductPut: ReqSiteProductPut(siteIid: Int64(siteIid), product: product)),
+        (res) => res.siteProductPut,
+      );
+
+  Future<ResSiteContactList> siteContactList(int siteIid) => _rpc<ResSiteContactList>(
+        WsReq(siteContactList: ReqSiteContactList(siteIid: Int64(siteIid))),
+        (res) => res.siteContactList,
+      );
+
+  Future<ResSiteContactPut> siteContactPut(int siteIid, SiteContact contact) => _rpc<ResSiteContactPut>(
+        WsReq(siteContactPut: ReqSiteContactPut(siteIid: Int64(siteIid), contact: contact)),
+        (res) => res.siteContactPut,
+      );
+
+  Future<ResSiteObjectList> siteObjectList(int siteIid) => _rpc<ResSiteObjectList>(
+        WsReq(siteObjectList: ReqSiteObjectList(siteIid: Int64(siteIid))),
+        (res) => res.siteObjectList,
+      );
+
+  Future<ResSiteObjectPut> siteObjectPut(int siteIid, SiteObject obj) => _rpc<ResSiteObjectPut>(
+        WsReq(siteObjectPut: ReqSiteObjectPut(siteIid: Int64(siteIid), obj: obj)),
+        (res) => res.siteObjectPut,
+      );
+
+  Future<ResSiteDomainList> siteDomainList(int siteIid) => _rpc<ResSiteDomainList>(
+        WsReq(siteDomainList: ReqSiteDomainList(siteIid: Int64(siteIid))),
+        (res) => res.siteDomainList,
+      );
+
+  Future<ResSiteDomainPut> siteDomainPut(int siteIid, SiteDomain domain) => _rpc<ResSiteDomainPut>(
+        WsReq(siteDomainPut: ReqSiteDomainPut(siteIid: Int64(siteIid), domain: domain)),
+        (res) => res.siteDomainPut,
+      );
+
+  Future<ResCollectionDefList> collectionDefList({int siteIid = 0}) => _rpc<ResCollectionDefList>(
+        WsReq(collectionDefList: ReqCollectionDefList(siteIid: Int64(siteIid))),
+        (res) => res.collectionDefList,
+      );
+
+  Future<ResSync> sync({Int64 sinceMs = Int64.ZERO, List<String> collections = const [], int limitPerCollection = 500}) =>
+      _rpc<ResSync>(
+        WsReq(sync: ReqSync(sinceMs: sinceMs, collections: collections, limitPerCollection: limitPerCollection)),
+        (res) => res.sync,
+      );
+
   Future<InvokeRes> invoke(InvokeReq req) async {
     if (req.reqId.isEmpty) req.reqId = const Uuid().v4();
     if (req.callerIid == Int64.ZERO) req.callerIid = Int64(Session.instance.uid);
@@ -394,6 +579,7 @@ class ChatConn {
     String attachmentsJson = '[]',
     String thinking = '',
     List<String> mentionIds = const [],
+    List<Int64> deviceIids = const [],
     String topicId = '',
     String toolMode = 'agent',
     String locale = 'en',
@@ -413,6 +599,7 @@ class ChatConn {
         attachmentsJson: attachmentsJson,
         thinking: thinking,
         mentionIds: mentionIds,
+        deviceIids: deviceIids,
         topicId: topicId,
         toolMode: toolMode,
       ),

@@ -144,6 +144,11 @@ class MentionItem extends $pb.GeneratedMessage {
     $core.String? captionKey,
     $core.Iterable<$core.String>? searchTerms,
     $core.bool? enabled,
+    $core.String? title,
+    $core.String? scopeLabel,
+    $core.String? label,
+    $core.String? scopeRef,
+    $core.String? kind,
   }) {
     final result = MentionItem._();
     if (id != null) result.id = id;
@@ -156,6 +161,11 @@ class MentionItem extends $pb.GeneratedMessage {
     if (captionKey != null) result.captionKey = captionKey;
     if (searchTerms != null) result.searchTerms.addAll(searchTerms);
     if (enabled != null) result.enabled = enabled;
+    if (title != null) result.title = title;
+    if (scopeLabel != null) result.scopeLabel = scopeLabel;
+    if (label != null) result.label = label;
+    if (scopeRef != null) result.scopeRef = scopeRef;
+    if (kind != null) result.kind = kind;
     return result;
   }
 
@@ -182,6 +192,11 @@ class MentionItem extends $pb.GeneratedMessage {
     ..aOS(8, _omitFieldNames ? '' : 'captionKey')
     ..pPS(9, _omitFieldNames ? '' : 'searchTerms')
     ..aOB(10, _omitFieldNames ? '' : 'enabled')
+    ..aOS(11, _omitFieldNames ? '' : 'title')
+    ..aOS(12, _omitFieldNames ? '' : 'scopeLabel')
+    ..aOS(13, _omitFieldNames ? '' : 'label')
+    ..aOS(14, _omitFieldNames ? '' : 'scopeRef')
+    ..aOS(15, _omitFieldNames ? '' : 'kind')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -289,6 +304,242 @@ class MentionItem extends $pb.GeneratedMessage {
   $core.bool hasEnabled() => $_has(9);
   @$pb.TagNumber(10)
   void clearEnabled() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $core.String get title => $_getSZ(10);
+  @$pb.TagNumber(11)
+  set title($core.String value) => $_setString(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasTitle() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearTitle() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  $core.String get scopeLabel => $_getSZ(11);
+  @$pb.TagNumber(12)
+  set scopeLabel($core.String value) => $_setString(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasScopeLabel() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearScopeLabel() => $_clearField(12);
+
+  @$pb.TagNumber(13)
+  $core.String get label => $_getSZ(12);
+  @$pb.TagNumber(13)
+  set label($core.String value) => $_setString(12, value);
+  @$pb.TagNumber(13)
+  $core.bool hasLabel() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearLabel() => $_clearField(13);
+
+  @$pb.TagNumber(14)
+  $core.String get scopeRef => $_getSZ(13);
+  @$pb.TagNumber(14)
+  set scopeRef($core.String value) => $_setString(13, value);
+  @$pb.TagNumber(14)
+  $core.bool hasScopeRef() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearScopeRef() => $_clearField(14);
+
+  @$pb.TagNumber(15)
+  $core.String get kind => $_getSZ(14);
+  @$pb.TagNumber(15)
+  set kind($core.String value) => $_setString(14, value);
+  @$pb.TagNumber(15)
+  $core.bool hasKind() => $_has(14);
+  @$pb.TagNumber(15)
+  void clearKind() => $_clearField(15);
+}
+
+class MentionCatalog extends $pb.GeneratedMessage {
+  factory MentionCatalog({
+    $fixnum.Int64? rev,
+    $core.Iterable<MentionItem>? items,
+  }) {
+    final result = MentionCatalog._();
+    if (rev != null) result.rev = rev;
+    if (items != null) result.items.addAll(items);
+    return result;
+  }
+
+  MentionCatalog._();
+
+  factory MentionCatalog.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      MentionCatalog()..mergeFromBuffer(data, registry);
+  factory MentionCatalog.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      MentionCatalog()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'MentionCatalog',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: MentionCatalog.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'rev')
+    ..pPM<MentionItem>(2, _omitFieldNames ? '' : 'items',
+        subBuilder: MentionItem.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  MentionCatalog clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  MentionCatalog copyWith(void Function(MentionCatalog) updates) =>
+      super.copyWith((message) => updates(message as MentionCatalog))
+          as MentionCatalog;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use MentionCatalog() / MentionCatalog.new instead')
+  static MentionCatalog create() => MentionCatalog._();
+  static $pb.GeneratedMessage $_createMessage() => MentionCatalog._();
+  @$core.override
+  MentionCatalog createEmptyInstance() => MentionCatalog._();
+  @$core.pragma('dart2js:noInline')
+  static MentionCatalog getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<MentionCatalog>(
+          MentionCatalog.$_createMessage);
+  static MentionCatalog? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get rev => $_getI64(0);
+  @$pb.TagNumber(1)
+  set rev($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasRev() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearRev() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $pb.PbList<MentionItem> get items => $_getList(1);
+}
+
+class ReqMentionSearch extends $pb.GeneratedMessage {
+  factory ReqMentionSearch({
+    $core.String? q,
+    $core.Iterable<$core.String>? kinds,
+    $core.int? limit,
+  }) {
+    final result = ReqMentionSearch._();
+    if (q != null) result.q = q;
+    if (kinds != null) result.kinds.addAll(kinds);
+    if (limit != null) result.limit = limit;
+    return result;
+  }
+
+  ReqMentionSearch._();
+
+  factory ReqMentionSearch.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqMentionSearch()..mergeFromBuffer(data, registry);
+  factory ReqMentionSearch.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqMentionSearch()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqMentionSearch',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqMentionSearch.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'q')
+    ..pPS(2, _omitFieldNames ? '' : 'kinds')
+    ..aI(3, _omitFieldNames ? '' : 'limit')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqMentionSearch clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqMentionSearch copyWith(void Function(ReqMentionSearch) updates) =>
+      super.copyWith((message) => updates(message as ReqMentionSearch))
+          as ReqMentionSearch;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqMentionSearch() / ReqMentionSearch.new instead')
+  static ReqMentionSearch create() => ReqMentionSearch._();
+  static $pb.GeneratedMessage $_createMessage() => ReqMentionSearch._();
+  @$core.override
+  ReqMentionSearch createEmptyInstance() => ReqMentionSearch._();
+  @$core.pragma('dart2js:noInline')
+  static ReqMentionSearch getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ReqMentionSearch>(
+          ReqMentionSearch.$_createMessage);
+  static ReqMentionSearch? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get q => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set q($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasQ() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearQ() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $pb.PbList<$core.String> get kinds => $_getList(1);
+
+  @$pb.TagNumber(3)
+  $core.int get limit => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set limit($core.int value) => $_setSignedInt32(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasLimit() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearLimit() => $_clearField(3);
+}
+
+class ResMentionSearch extends $pb.GeneratedMessage {
+  factory ResMentionSearch({
+    $core.Iterable<MentionItem>? mentions,
+  }) {
+    final result = ResMentionSearch._();
+    if (mentions != null) result.mentions.addAll(mentions);
+    return result;
+  }
+
+  ResMentionSearch._();
+
+  factory ResMentionSearch.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResMentionSearch()..mergeFromBuffer(data, registry);
+  factory ResMentionSearch.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResMentionSearch()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResMentionSearch',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResMentionSearch.$_createMessage)
+    ..pPM<MentionItem>(1, _omitFieldNames ? '' : 'mentions',
+        subBuilder: MentionItem.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResMentionSearch clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResMentionSearch copyWith(void Function(ResMentionSearch) updates) =>
+      super.copyWith((message) => updates(message as ResMentionSearch))
+          as ResMentionSearch;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResMentionSearch() / ResMentionSearch.new instead')
+  static ResMentionSearch create() => ResMentionSearch._();
+  static $pb.GeneratedMessage $_createMessage() => ResMentionSearch._();
+  @$core.override
+  ResMentionSearch createEmptyInstance() => ResMentionSearch._();
+  @$core.pragma('dart2js:noInline')
+  static ResMentionSearch getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ResMentionSearch>(
+          ResMentionSearch.$_createMessage);
+  static ResMentionSearch? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<MentionItem> get mentions => $_getList(0);
 }
 
 class ReqTopicList extends $pb.GeneratedMessage {
@@ -428,9 +679,11 @@ class ReqMentionList extends $pb.GeneratedMessage {
 class ResMentionList extends $pb.GeneratedMessage {
   factory ResMentionList({
     $core.Iterable<MentionItem>? mentions,
+    $fixnum.Int64? rev,
   }) {
     final result = ResMentionList._();
     if (mentions != null) result.mentions.addAll(mentions);
+    if (rev != null) result.rev = rev;
     return result;
   }
 
@@ -449,6 +702,7 @@ class ResMentionList extends $pb.GeneratedMessage {
       createEmptyInstance: ResMentionList.$_createMessage)
     ..pPM<MentionItem>(1, _omitFieldNames ? '' : 'mentions',
         subBuilder: MentionItem.$_createMessage)
+    ..aInt64(2, _omitFieldNames ? '' : 'rev')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -475,6 +729,15 @@ class ResMentionList extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   $pb.PbList<MentionItem> get mentions => $_getList(0);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get rev => $_getI64(1);
+  @$pb.TagNumber(2)
+  set rev($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasRev() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearRev() => $_clearField(2);
 }
 
 class ReqTranslationGet extends $pb.GeneratedMessage {

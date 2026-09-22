@@ -8,9 +8,15 @@ use sqlx::types::Json;
 use sqlx::PgPool;
 use tokio_util::sync::CancellationToken;
 
-use crate::compose::{compose_tools_and_inst, topic_resolve};
+use crate::compose::compose_tools_and_inst;
+use crate::mention_registry::{
+    mention_active_topic, mention_force_tools, mention_prompt_block, mention_ref_parse,
+    mention_resolve_all, MentionRef,
+};
+use crate::inst_macro::inst_scopes_home;
+use crate::site_resolve::{site_context_block, site_context_resolve, SiteContext};
 use crate::topic::topic_inst_block;
-use crate::inst::inst_list_enabled;
+use crate::inst_cache::inst_list_cached;
 use crate::mention::mention_list_enabled;
 use crate::memory::{memory_prompt_merge, memory_retrieve};
 use crate::prompt::thought::thinking_level;
@@ -91,6 +97,7 @@ pub async fn chat_ensure(pool: &PgPool, owner_iid: i64, chat_id: i64, title: &st
     }
     let id = snowflake_id();
     let t = if title.is_empty() { "Chat" } else { title };
+    let mut tx = pool.begin().await?;
     sqlx::query(
         r#"
         INSERT INTO ai.chat (id, kind, owner_iid, title, model, created_ts, updated_ts)
@@ -100,7 +107,7 @@ pub async fn chat_ensure(pool: &PgPool, owner_iid: i64, chat_id: i64, title: &st
     .bind(id)
     .bind(owner_iid)
     .bind(t)
-    .execute(pool)
+    .execute(&mut *tx)
     .await?;
     sqlx::query(
         r#"
@@ -111,8 +118,9 @@ pub async fn chat_ensure(pool: &PgPool, owner_iid: i64, chat_id: i64, title: &st
     )
     .bind(id)
     .bind(owner_iid)
-    .execute(pool)
+    .execute(&mut *tx)
     .await?;
+    tx.commit().await?;
     Ok(id)
 }
 
@@ -157,6 +165,7 @@ where
     .bind(chat_attachments_json(&req.attachments_json))
     .execute(pool)
     .await?;
+    let _ = chat_touch(pool, chat_id, owner_iid, &req.text, "streaming").await;
 
     let history_rows: Vec<(String, String)> = sqlx::query_as(
         r#"
@@ -180,22 +189,54 @@ where
 
     let model = if req.model.is_empty() { "alienai".to_string() } else { req.model.clone() };
     let user = attach_prompt(&req.text, &req.attachments_json);
-    let inst_rows = inst_list_enabled(pool).await;
+    let inst_rows = inst_list_cached();
     let mentions = mention_list_enabled(pool).await;
     let mention_ids: Vec<String> = req.mention_ids.clone();
     let explicit_topic = req.topic_id.clone();
+    let resolved = mention_resolve_all(pool, owner_iid, &mention_ids).await;
+    let inst_mention_ids: Vec<String> = mention_ids
+        .iter()
+        .filter_map(|raw| match mention_ref_parse(raw) {
+            Some(MentionRef::Catalog(id)) => Some(id),
+            _ if !raw.contains(':') && raw.parse::<i64>().is_err() => Some(raw.clone()),
+            _ => None,
+        })
+        .collect();
+    let force_tools = mention_force_tools(&resolved);
+    let active_topic = mention_active_topic(&resolved, &explicit_topic);
     let tool_mode = if req.tool_mode.trim().is_empty() { "agent" } else { req.tool_mode.trim() };
+    let inst_scopes = inst_scopes_home();
     let composed = compose_tools_and_inst(
         &inst_rows,
         &req.text,
         cluster_tools(),
-        &[],
-        &mention_ids,
-        &explicit_topic,
+        &force_tools,
+        &inst_mention_ids,
+        &active_topic,
         tool_mode,
         &mentions,
+        &inst_scopes,
     );
-    let topic_id = topic_resolve(&explicit_topic, &mention_ids, &mentions);
+    let topic_id = active_topic.clone();
+    let site_ctx = if let Some(r) = resolved.iter().find(|r| r.item.topic_id == "web.builder") {
+        r.identity_iid.map(|site_iid| SiteContext {
+            site_iid,
+            alien_id: r
+                .item
+                .search_terms
+                .iter()
+                .find(|t| t.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-'))
+                .cloned()
+                .unwrap_or_default(),
+            name: r.item.title.clone(),
+        })
+    } else {
+        site_context_resolve(pool, owner_iid, &req.text, &inst_mention_ids)
+            .await
+            .ok()
+            .flatten()
+    };
+    let site_iid = site_ctx.as_ref().map(|s| s.site_iid);
     let topic_block = topic_inst_block(pool, &topic_id).await;
     let tz = time_timezone_resolve(locale, &req.text);
     let time_block = time_prompt_block(tz);
@@ -205,6 +246,13 @@ where
     }
     if !composed.inst_block.is_empty() {
         system = format!("{system}\n\n{}", composed.inst_block);
+    }
+    if let Some(site) = &site_ctx {
+        system = format!("{system}\n\n{}", site_context_block(site));
+    }
+    let mention_block = mention_prompt_block(&resolved);
+    if !mention_block.is_empty() {
+        system = format!("{system}\n\n{mention_block}");
     }
     let http = http_client(std::time::Duration::from_secs(30));
     let memory = memory_retrieve(pool, &http, owner_iid, None, &req.text, 8).await;
@@ -232,8 +280,10 @@ where
     let attachments_json = req.attachments_json.as_str();
     let turn_ctx = TurnCtx {
         pool,
+        nats,
         owner_iid,
         chat_id,
+        site_iid,
         locale,
         attachments_json,
     };
@@ -274,6 +324,7 @@ where
             .execute(pool)
             .await;
             let _ = c35_mod_billing::billing_reservation_refund(pool, req_id).await;
+            let _ = chat_touch(pool, chat_id, owner_iid, &err_text, "error").await;
             return Err(e);
         }
     };
@@ -291,6 +342,7 @@ where
         res.tokens_out,
         duration_ms,
         Some(&bctx),
+        res.tools_cost_usd,
     )
     .await;
     let (cost_usd, status, error_text) = match billing {
@@ -322,7 +374,8 @@ where
     .bind(&error_text)
     .execute(pool)
     .await?;
-    chat_touch(pool, chat_id, owner_iid, &res.text).await?;
+    let final_status = if error_text.is_empty() { "done" } else { "error" };
+    chat_touch(pool, chat_id, owner_iid, &res.text, final_status).await?;
     if error_text.is_empty() {
         tracer.llm_turn(&res.model_used, res.tokens_in, res.tokens_out, duration_ms as i64, prepare_ms, cost_usd, &res.text).await;
     }
@@ -343,27 +396,36 @@ where
     })
 }
 
-async fn chat_touch(pool: &PgPool, chat_id: i64, owner_iid: i64, preview: &str) -> Result<()> {
+async fn chat_touch(pool: &PgPool, chat_id: i64, owner_iid: i64, preview: &str, status: &str) -> Result<()> {
     let p: String = preview.chars().take(255).collect();
-    sqlx::query(
+    let mut tx = match pool.begin().await {
+        Ok(t) => t,
+        Err(e) => {
+            tracing::warn!("[c35:chat] chat_touch begin tx failed: {e}");
+            return Ok(());
+        }
+    };
+    let _ = sqlx::query(
         r#"
         UPDATE ai.chat SET last_msg_ts = NOW(), last_msg_preview = $2, updated_ts = NOW() WHERE id = $1
         "#,
     )
     .bind(chat_id)
     .bind(&p)
-    .execute(pool)
-    .await?;
-    sqlx::query(
+    .execute(&mut *tx)
+    .await;
+    let _ = sqlx::query(
         r#"
-        UPDATE ai.chat_member SET last_msg_ts = NOW(), last_msg_preview = $2, updated_ts = NOW()
+        UPDATE ai.chat_member SET last_msg_ts = NOW(), last_msg_preview = $2, last_msg_status = $4, updated_ts = NOW()
         WHERE chat_id = $1 AND member_iid = $3
         "#,
     )
     .bind(chat_id)
     .bind(&p)
     .bind(owner_iid)
-    .execute(pool)
-    .await?;
+    .bind(status)
+    .execute(&mut *tx)
+    .await;
+    let _ = tx.commit().await;
     Ok(())
 }

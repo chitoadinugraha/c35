@@ -16,6 +16,7 @@ import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
 
 import 'billing.pb.dart' as $1;
+import 'catalog.pb.dart' as $4;
 import 'chat.pb.dart' as $2;
 import 'identity.pb.dart' as $0;
 import 'sync.pb.dart' as $3;
@@ -305,6 +306,7 @@ class ResSessionInit extends $pb.GeneratedMessage {
     $core.Iterable<$2.ChatMember>? inboxMembers,
     $3.ResSync? sync,
     $core.Iterable<PromptModelOption>? models,
+    $4.MentionCatalog? mentions,
   }) {
     final result = ResSessionInit._();
     if (serverTimeMs != null) result.serverTimeMs = serverTimeMs;
@@ -318,6 +320,7 @@ class ResSessionInit extends $pb.GeneratedMessage {
     if (inboxMembers != null) result.inboxMembers.addAll(inboxMembers);
     if (sync != null) result.sync = sync;
     if (models != null) result.models.addAll(models);
+    if (mentions != null) result.mentions = mentions;
     return result;
   }
 
@@ -352,6 +355,8 @@ class ResSessionInit extends $pb.GeneratedMessage {
         subBuilder: $3.ResSync.$_createMessage)
     ..pPM<PromptModelOption>(11, _omitFieldNames ? '' : 'models',
         subBuilder: PromptModelOption.$_createMessage)
+    ..aOM<$4.MentionCatalog>(12, _omitFieldNames ? '' : 'mentions',
+        subBuilder: $4.MentionCatalog.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -468,6 +473,18 @@ class ResSessionInit extends $pb.GeneratedMessage {
   /// LLM picker (from ai.llm_model)
   @$pb.TagNumber(11)
   $pb.PbList<PromptModelOption> get models => $_getList(10);
+
+  /// Composer mention snapshot (catalog + identities; products via mention_search)
+  @$pb.TagNumber(12)
+  $4.MentionCatalog get mentions => $_getN(11);
+  @$pb.TagNumber(12)
+  set mentions($4.MentionCatalog value) => $_setField(12, value);
+  @$pb.TagNumber(12)
+  $core.bool hasMentions() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearMentions() => $_clearField(12);
+  @$pb.TagNumber(12)
+  $4.MentionCatalog ensureMentions() => $_ensure(11);
 }
 
 const $core.bool _omitFieldNames =

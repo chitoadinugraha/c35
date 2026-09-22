@@ -14,16 +14,36 @@ message TopicItem {
 }
 
 message MentionItem {
-  string id = 1;
+  string id = 1;              // wire ref: catalog:{id} | iid:{snowflake} | coll:…
   string topic_id = 2;
   string inst_id = 3;
   string icon = 4;
   string color = 5;
   int32 sort = 6;
-  string label_key = 7;
+  string label_key = 7;       // display label (may contain spaces)
   string caption_key = 8;
   repeated string search_terms = 9;
   bool enabled = 10;
+  string title = 11;
+  string scope_label = 12;
+  string label = 13;          // precomputed badge, e.g. "Site 1: Nasi goreng"
+  string scope_ref = 14;
+  string kind = 15;           // catalog | identity | collection
+}
+
+message MentionCatalog {
+  int64 rev = 1;
+  repeated MentionItem items = 2;
+}
+
+message ReqMentionSearch {
+  string q = 1;
+  repeated string kinds = 2;
+  int32 limit = 3;
+}
+
+message ResMentionSearch {
+  repeated MentionItem mentions = 1;
 }
 
 message ReqTopicList {}
@@ -36,6 +56,7 @@ message ReqMentionList {}
 
 message ResMentionList {
   repeated MentionItem mentions = 1;
+  int64 rev = 2;
 }
 
 message ReqTranslationGet {

@@ -32,5 +32,6 @@ pub async fn session_init(ctx: &Ctx, req: ReqSessionInit) -> WireResult<ResSessi
             None
         },
         models: vec![],
+        mentions: None,
     })
 }

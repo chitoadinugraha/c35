@@ -20,6 +20,10 @@ import "c35/admin.proto";
 import "c35/channel.proto";
 import "c35/task.proto";
 import "c35/remote.proto";
+import "c35/inst.proto";
+import "c35/voice.proto";
+import "c35/stats.proto";
+import "c35/catalog.proto";
 
 // HTTP invoke envelope (referral, admin, billing review, …)
 message InvokeReq {
@@ -50,6 +54,13 @@ message InvokeReq {
     ReqChannelWhatsappMetaConnect channel_whatsapp_meta_connect = 101;
     ReqDevicePair device_pair = 102;
     ReqConsumptionPut consumption_put = 16;
+    ReqInstList inst_list = 103;
+    ReqInstGet inst_get = 104;
+    ReqInstPut inst_put = 105;
+    ReqInstDelete inst_delete = 106;
+    ReqVoiceStt voice_stt = 107;
+    ReqVoiceTts voice_tts = 108;
+    ReqAdminLogList admin_log_list = 109;
   }
 }
 
@@ -81,6 +92,13 @@ message InvokeRes {
     ResChannelWhatsappMetaConnect channel_whatsapp_meta_connect = 101;
     ResDevicePair device_pair = 102;
     ResConsumptionPut consumption_put = 16;
+    ResInstList inst_list = 103;
+    ResInstGet inst_get = 104;
+    ResInstPut inst_put = 105;
+    ResInstDelete inst_delete = 106;
+    ResVoiceStt voice_stt = 107;
+    ResVoiceTts voice_tts = 108;
+    ResAdminLogList admin_log_list = 109;
   }
 }
 
@@ -150,6 +168,15 @@ message WsReq {
     ReqSkillRunReport skill_run_report = 65;
     ReqRemoteScreenshot req_remote_screenshot = 66;
     ReqRemoteCommand req_remote_command = 67;
+    ReqVoiceStt voice_stt = 68;
+    ReqVoiceTts voice_tts = 69;
+    ReqStatsSubscribe stats_subscribe = 70;
+    ReqStatsUnsubscribe stats_unsubscribe = 71;
+    ReqLogSubscribe log_subscribe = 72;
+    ReqLogUnsubscribe log_unsubscribe = 73;
+
+    ReqMentionList mention_list = 74;
+    ReqMentionSearch mention_search = 75;
   }
 }
 
@@ -195,6 +222,7 @@ message WsRes {
 
     LogPush log_push = 70;
     ChannelPairPush channel_pair_push = 71;
+    StatsPush stats_push = 72;
 
     ResIdentityPut identity_put = 88;
     ResChannelWhatsappPair channel_whatsapp_pair_start = 32;
@@ -235,9 +263,14 @@ message WsRes {
     ResSkillRunReport skill_run_report = 116;
     ResRemoteScreenshot res_remote_screenshot = 117;
     ResRemoteCommand res_remote_command = 118;
+    ResVoiceStt voice_stt = 119;
+    ResVoiceTts voice_tts = 120;
 
     RtcSignalOffer rtc_signal_offer = 99;
     RtcSignalAnswer rtc_signal_answer = 100;
     RtcSignalIce rtc_signal_ice = 101;
+
+    ResMentionList mention_list = 121;
+    ResMentionSearch mention_search = 122;
   }
 }

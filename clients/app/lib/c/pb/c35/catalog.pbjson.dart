@@ -48,6 +48,11 @@ const MentionItem$json = {
     {'1': 'caption_key', '3': 8, '4': 1, '5': 9, '10': 'captionKey'},
     {'1': 'search_terms', '3': 9, '4': 3, '5': 9, '10': 'searchTerms'},
     {'1': 'enabled', '3': 10, '4': 1, '5': 8, '10': 'enabled'},
+    {'1': 'title', '3': 11, '4': 1, '5': 9, '10': 'title'},
+    {'1': 'scope_label', '3': 12, '4': 1, '5': 9, '10': 'scopeLabel'},
+    {'1': 'label', '3': 13, '4': 1, '5': 9, '10': 'label'},
+    {'1': 'scope_ref', '3': 14, '4': 1, '5': 9, '10': 'scopeRef'},
+    {'1': 'kind', '3': 15, '4': 1, '5': 9, '10': 'kind'},
   ],
 };
 
@@ -57,7 +62,66 @@ final $typed_data.Uint8List mentionItemDescriptor = $convert.base64Decode(
     'QSFwoHaW5zdF9pZBgDIAEoCVIGaW5zdElkEhIKBGljb24YBCABKAlSBGljb24SFAoFY29sb3IY'
     'BSABKAlSBWNvbG9yEhIKBHNvcnQYBiABKAVSBHNvcnQSGwoJbGFiZWxfa2V5GAcgASgJUghsYW'
     'JlbEtleRIfCgtjYXB0aW9uX2tleRgIIAEoCVIKY2FwdGlvbktleRIhCgxzZWFyY2hfdGVybXMY'
-    'CSADKAlSC3NlYXJjaFRlcm1zEhgKB2VuYWJsZWQYCiABKAhSB2VuYWJsZWQ=');
+    'CSADKAlSC3NlYXJjaFRlcm1zEhgKB2VuYWJsZWQYCiABKAhSB2VuYWJsZWQSFAoFdGl0bGUYCy'
+    'ABKAlSBXRpdGxlEh8KC3Njb3BlX2xhYmVsGAwgASgJUgpzY29wZUxhYmVsEhQKBWxhYmVsGA0g'
+    'ASgJUgVsYWJlbBIbCglzY29wZV9yZWYYDiABKAlSCHNjb3BlUmVmEhIKBGtpbmQYDyABKAlSBG'
+    'tpbmQ=');
+
+@$core.Deprecated('Use mentionCatalogDescriptor instead')
+const MentionCatalog$json = {
+  '1': 'MentionCatalog',
+  '2': [
+    {'1': 'rev', '3': 1, '4': 1, '5': 3, '10': 'rev'},
+    {
+      '1': 'items',
+      '3': 2,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.MentionItem',
+      '10': 'items'
+    },
+  ],
+};
+
+/// Descriptor for `MentionCatalog`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List mentionCatalogDescriptor = $convert.base64Decode(
+    'Cg5NZW50aW9uQ2F0YWxvZxIQCgNyZXYYASABKANSA3JldhImCgVpdGVtcxgCIAMoCzIQLmMzNS'
+    '5NZW50aW9uSXRlbVIFaXRlbXM=');
+
+@$core.Deprecated('Use reqMentionSearchDescriptor instead')
+const ReqMentionSearch$json = {
+  '1': 'ReqMentionSearch',
+  '2': [
+    {'1': 'q', '3': 1, '4': 1, '5': 9, '10': 'q'},
+    {'1': 'kinds', '3': 2, '4': 3, '5': 9, '10': 'kinds'},
+    {'1': 'limit', '3': 3, '4': 1, '5': 5, '10': 'limit'},
+  ],
+};
+
+/// Descriptor for `ReqMentionSearch`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqMentionSearchDescriptor = $convert.base64Decode(
+    'ChBSZXFNZW50aW9uU2VhcmNoEgwKAXEYASABKAlSAXESFAoFa2luZHMYAiADKAlSBWtpbmRzEh'
+    'QKBWxpbWl0GAMgASgFUgVsaW1pdA==');
+
+@$core.Deprecated('Use resMentionSearchDescriptor instead')
+const ResMentionSearch$json = {
+  '1': 'ResMentionSearch',
+  '2': [
+    {
+      '1': 'mentions',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.MentionItem',
+      '10': 'mentions'
+    },
+  ],
+};
+
+/// Descriptor for `ResMentionSearch`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resMentionSearchDescriptor = $convert.base64Decode(
+    'ChBSZXNNZW50aW9uU2VhcmNoEiwKCG1lbnRpb25zGAEgAygLMhAuYzM1Lk1lbnRpb25JdGVtUg'
+    'htZW50aW9ucw==');
 
 @$core.Deprecated('Use reqTopicListDescriptor instead')
 const ReqTopicList$json = {
@@ -108,13 +172,14 @@ const ResMentionList$json = {
       '6': '.c35.MentionItem',
       '10': 'mentions'
     },
+    {'1': 'rev', '3': 2, '4': 1, '5': 3, '10': 'rev'},
   ],
 };
 
 /// Descriptor for `ResMentionList`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List resMentionListDescriptor = $convert.base64Decode(
     'Cg5SZXNNZW50aW9uTGlzdBIsCghtZW50aW9ucxgBIAMoCzIQLmMzNS5NZW50aW9uSXRlbVIIbW'
-    'VudGlvbnM=');
+    'VudGlvbnMSEAoDcmV2GAIgASgDUgNyZXY=');
 
 @$core.Deprecated('Use reqTranslationGetDescriptor instead')
 const ReqTranslationGet$json = {

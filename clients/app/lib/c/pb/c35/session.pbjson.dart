@@ -116,6 +116,14 @@ const ResSessionInit$json = {
       '6': '.c35.PromptModelOption',
       '10': 'models'
     },
+    {
+      '1': 'mentions',
+      '3': 12,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.MentionCatalog',
+      '10': 'mentions'
+    },
   ],
 };
 
@@ -129,4 +137,5 @@ final $typed_data.Uint8List resSessionInitDescriptor = $convert.base64Decode(
     '4SKgoLaW5ib3hfY2hhdHMYCCADKAsyCS5jMzUuQ2hhdFIKaW5ib3hDaGF0cxI0Cg1pbmJveF9t'
     'ZW1iZXJzGAkgAygLMg8uYzM1LkNoYXRNZW1iZXJSDGluYm94TWVtYmVycxIgCgRzeW5jGAogAS'
     'gLMgwuYzM1LlJlc1N5bmNSBHN5bmMSLgoGbW9kZWxzGAsgAygLMhYuYzM1LlByb21wdE1vZGVs'
-    'T3B0aW9uUgZtb2RlbHM=');
+    'T3B0aW9uUgZtb2RlbHMSLwoIbWVudGlvbnMYDCABKAsyEy5jMzUuTWVudGlvbkNhdGFsb2dSCG'
+    '1lbnRpb25z');

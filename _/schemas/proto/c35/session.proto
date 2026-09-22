@@ -6,6 +6,7 @@ import "c35/identity.proto";
 import "c35/billing.proto";
 import "c35/chat.proto";
 import "c35/sync.proto";
+import "c35/catalog.proto";
 
 // Connect: /v1/ws?since=<ms>&jwt=...&locale=...&tz=...
 // First message after auth: ReqSessionInit → ResSessionInit (one round trip)
@@ -52,4 +53,7 @@ message ResSessionInit {
 
   // LLM picker (from ai.llm_model)
   repeated PromptModelOption models = 11;
+
+  // Composer mention snapshot (catalog + identities; products via mention_search)
+  MentionCatalog mentions = 12;
 }

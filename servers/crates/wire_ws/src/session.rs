@@ -4,7 +4,8 @@ use c35_mod_chat::{chat_ensure, chat_title_from_text, prompt_turn};
 use c35_mod_consumption::{consumption_list_rpc, consumption_put_rpc};
 use c35_proto::{
     pb_decode, pb_encode, BillingPushBalance, BillingPushCommission, BillingPushQuota,
-    ReqChannelWhatsappPairAbort, ReqChannelWhatsappPairStart, ReqChannelWhatsappPairWatch,
+    ReqChannelDisconnect, ReqChannelWhatsappPairAbort, ReqChannelWhatsappPairStart,
+    ReqChannelWhatsappPairWatch, ReqIdentityDelete,
     ReqPromptAbort, ResChannelWhatsappPair, ResChatStop, ResPromptDelta, ResPromptEnd, ResPromptFail,
     ResPromptStart, WsReq, WsRes, ws_req, ws_res,
 };
@@ -39,6 +40,8 @@ pub async fn handle(mut socket: WebSocket, state: AppState, q: WsQuery) {
 
     let ctx = Ctx::from_state(&state, caller_iid);
     let (out_tx, mut out_rx) = mpsc::unbounded_channel::<WsRes>();
+    let app_conn_id = c35_mod_device::remote_signaling_app_conn_register(out_tx.clone());
+    let admin_session_id = crate::admin_fanout::admin_session_id();
     let mut prompt_flight: Option<PromptFlight> = None;
     if let Some(nats) = state.nats.clone() {
         let fanout_tx = out_tx.clone();
@@ -87,7 +90,7 @@ pub async fn handle(mut socket: WebSocket, state: AppState, q: WsQuery) {
                                 });
                             }
                             _ => {
-                                let res = dispatch(&state, &ctx, req, &q).await;
+                                let res = dispatch(&state, &ctx, req, &q, app_conn_id, admin_session_id, &out_tx).await;
                                 if socket.send(Message::Binary(pb_encode(&res).into())).await.is_err() {
                                     break;
                                 }
@@ -105,6 +108,9 @@ pub async fn handle(mut socket: WebSocket, state: AppState, q: WsQuery) {
             }
         }
     }
+
+    c35_mod_device::remote_signaling_app_conn_unregister(app_conn_id);
+    crate::admin_fanout::admin_session_drop(admin_session_id).await;
 }
 
 fn prompt_abort(flight: Option<&PromptFlight>) {
@@ -210,7 +216,15 @@ fn prompt_req_put(
     });
 }
 
-async fn dispatch(state: &AppState, ctx: &Ctx, req: WsReq, q: &WsQuery) -> WsRes {
+async fn dispatch(
+    state: &AppState,
+    ctx: &Ctx,
+    req: WsReq,
+    q: &WsQuery,
+    app_conn_id: u64,
+    admin_session_id: u64,
+    out_tx: &mpsc::UnboundedSender<WsRes>,
+) -> WsRes {
     let req_id = req.req_id;
     match req.body {
         Some(ws_req::Body::SessionInit(init)) => match session_init(ctx, init, q).await {
@@ -340,10 +354,296 @@ async fn dispatch(state: &AppState, ctx: &Ctx, req: WsReq, q: &WsQuery) -> WsRes
         Some(ws_req::Body::ChannelWhatsappPairStart(r)) => pair_start_res(state, ctx, req_id, r).await,
         Some(ws_req::Body::ChannelWhatsappPairWatch(r)) => pair_watch_res(ctx, req_id, r).await,
         Some(ws_req::Body::ChannelWhatsappPairAbort(r)) => pair_abort_res(state, ctx, req_id, r).await,
+        Some(ws_req::Body::ChannelDisconnect(r)) => channel_disconnect_res(state, ctx, req_id, r).await,
+        Some(ws_req::Body::IdentityDelete(r)) => identity_delete_res(state, ctx, req_id, r).await,
+        Some(ws_req::Body::SkillList(r)) => WsRes {
+            req_id,
+            body: Some(ws_res::Body::SkillList(
+                c35_mod_skill::skill_list_rpc(&state.pool, ctx.caller_iid, r).await,
+            )),
+        },
+        Some(ws_req::Body::SkillPut(r)) => match c35_mod_skill::skill_put_rpc(&state.pool, ctx.caller_iid, r).await {
+            Ok(res) => WsRes {
+                req_id,
+                body: Some(ws_res::Body::SkillPut(res)),
+            },
+            Err(e) => err_res(req_id, WireErr::client("skill_put_failed", e)),
+        },
+        Some(ws_req::Body::SkillCatalogList(r)) => WsRes {
+            req_id,
+            body: Some(ws_res::Body::SkillCatalogList(
+                c35_mod_skill::skill_catalog_list_rpc(&state.pool, ctx.caller_iid, r).await,
+            )),
+        },
+        Some(ws_req::Body::SkillCatalogInstall(r)) => {
+            match c35_mod_skill::skill_catalog_install_rpc(&state.pool, ctx.caller_iid, r).await {
+                Ok(res) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SkillCatalogInstall(res)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("skill_catalog_install_failed", e)),
+            }
+        }
+        Some(ws_req::Body::SiteList(r)) => match c35_mod_site::site_list(&state.pool, ctx.caller_iid, r).await {
+            Ok(body) => WsRes {
+                req_id,
+                body: Some(ws_res::Body::SiteList(body)),
+            },
+            Err(e) => err_res(req_id, WireErr::client("site_list_failed", e.to_string())),
+        },
+        Some(ws_req::Body::SiteDraftGet(r)) => {
+            match c35_mod_site::site_draft_get(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteDraftGet(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_draft_get_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteDraftPut(r)) => {
+            match c35_mod_site::site_draft_put(&state.pool, ctx.caller_iid, r, Some(out_tx)).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteDraftPut(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_draft_put_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SitePublish(r)) => {
+            match c35_mod_site::site_publish(&state.pool, ctx.caller_iid, r, Some(out_tx)).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SitePublish(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_publish_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteProductList(r)) => {
+            match c35_mod_site::site_product_list(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteProductList(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_product_list_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteProductPut(r)) => {
+            match c35_mod_site::site_product_put(&state.pool, ctx.caller_iid, r, Some(out_tx)).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteProductPut(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_product_put_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteContactList(r)) => {
+            match c35_mod_site::site_contact_list(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteContactList(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_contact_list_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteContactPut(r)) => {
+            match c35_mod_site::site_contact_put(&state.pool, ctx.caller_iid, r, Some(out_tx)).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteContactPut(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_contact_put_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteObjectList(r)) => {
+            match c35_mod_site::site_object_list(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteObjectList(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_object_list_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteObjectPut(r)) => {
+            match c35_mod_site::site_object_put(&state.pool, ctx.caller_iid, r, Some(out_tx)).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteObjectPut(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_object_put_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteDomainList(r)) => {
+            match c35_mod_site::site_domain_list(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteDomainList(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_domain_list_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteDomainPut(r)) => {
+            match c35_mod_site::site_domain_put(&state.pool, ctx.caller_iid, r, Some(out_tx)).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteDomainPut(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_domain_put_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::CollectionDefList(r)) => WsRes {
+            req_id,
+            body: Some(ws_res::Body::CollectionDefList(
+                c35_mod_site::collection_def_list_rpc(&state.pool, ctx.caller_iid, r).await,
+            )),
+        },
+        Some(ws_req::Body::Sync(r)) => WsRes {
+            req_id,
+            body: Some(ws_res::Body::Sync(
+                c35_mod_site::sync_pull(&state.pool, ctx.caller_iid, r).await,
+            )),
+        },
+        Some(ws_req::Body::RemoteIceConfig(r)) => WsRes {
+            req_id,
+            body: Some(ws_res::Body::RemoteIceConfig(
+                c35_mod_device::remote_ice_config(ctx.caller_iid, r),
+            )),
+        },
+        Some(ws_req::Body::RemoteSessionStart(r)) => WsRes {
+            req_id,
+            body: Some(ws_res::Body::RemoteSessionStart(
+                c35_mod_device::remote_session_start(
+                    &state.pool,
+                    state.nats.as_ref(),
+                    ctx.caller_iid,
+                    app_conn_id,
+                    out_tx,
+                    r,
+                )
+                .await,
+            )),
+        },
+        Some(ws_req::Body::RemoteSessionStop(r)) => WsRes {
+            req_id,
+            body: Some(ws_res::Body::RemoteSessionStop(
+                c35_mod_device::remote_session_stop(
+                    &state.pool,
+                    state.nats.as_ref(),
+                    ctx.caller_iid,
+                    r,
+                )
+                .await,
+            )),
+        },
+        Some(ws_req::Body::RtcSignalOffer(r)) => {
+            match c35_mod_device::rtc_signal_offer_from_app(state.nats.as_ref(), ctx.caller_iid, r).await {
+                Ok(()) => WsRes { req_id, body: None },
+                Err(e) => err_res(req_id, WireErr::client("rtc_signal_offer_failed", e)),
+            }
+        }
+        Some(ws_req::Body::RtcSignalAnswer(r)) => {
+            match c35_mod_device::rtc_signal_answer_from_app(state.nats.as_ref(), ctx.caller_iid, r).await {
+                Ok(()) => WsRes { req_id, body: None },
+                Err(e) => err_res(req_id, WireErr::client("rtc_signal_answer_failed", e)),
+            }
+        }
+        Some(ws_req::Body::RtcSignalIce(r)) => {
+            match c35_mod_device::rtc_signal_ice_from_app(state.nats.as_ref(), ctx.caller_iid, r).await {
+                Ok(()) => WsRes { req_id, body: None },
+                Err(e) => err_res(req_id, WireErr::client("rtc_signal_ice_failed", e)),
+            }
+        },
+        Some(ws_req::Body::MentionList(_)) => {
+            let list = c35_mod_chat::mention_list_rpc(&state.pool, ctx.caller_iid).await;
+            WsRes {
+                req_id,
+                body: Some(ws_res::Body::MentionList(list)),
+            }
+        }
+        Some(ws_req::Body::MentionSearch(r)) => {
+            let search = c35_mod_chat::mention_search_rpc(&state.pool, ctx.caller_iid, r).await;
+            WsRes {
+                req_id,
+                body: Some(ws_res::Body::MentionSearch(search)),
+            }
+        }
+        Some(ws_req::Body::SkillCatalogSearch(r)) => WsRes {
+            req_id,
+            body: Some(ws_res::Body::SkillCatalogSearch(
+                c35_mod_skill::skill_catalog_search_rpc(&state.pool, ctx.caller_iid, r).await,
+            )),
+        },
+        Some(ws_req::Body::SkillCatalogSubmit(r)) => {
+            match c35_mod_skill::skill_catalog_submit_rpc(&state.pool, ctx.caller_iid, r).await {
+                Ok(res) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SkillCatalogSubmit(res)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("skill_catalog_submit_failed", e)),
+            }
+        }
+        Some(ws_req::Body::SkillRunReport(r)) => {
+            match c35_mod_skill::skill_run_report_rpc(&state.pool, ctx.caller_iid, r).await {
+                Ok(res) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SkillRunReport(res)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("skill_run_report_failed", e)),
+            }
+        }
+        Some(ws_req::Body::VoiceStt(r)) => WsRes {
+            req_id,
+            body: Some(ws_res::Body::VoiceStt(
+                c35_mod_voice::voice_stt_rpc(&state.pool, state.nats.as_ref(), ctx.caller_iid, r).await,
+            )),
+        },
+        Some(ws_req::Body::VoiceTts(r)) => WsRes {
+            req_id,
+            body: Some(ws_res::Body::VoiceTts(
+                c35_mod_voice::voice_tts_rpc(&state.pool, state.nats.as_ref(), ctx.caller_iid, r).await,
+            )),
+        },
+        Some(ws_req::Body::StatsSubscribe(_)) => {
+            match crate::admin_fanout::admin_stats_subscribe(
+                &state.pool,
+                state.nats.as_ref(),
+                ctx.caller_iid,
+                admin_session_id,
+                out_tx.clone(),
+            )
+            .await
+            {
+                Ok(()) => WsRes { req_id, body: None },
+                Err(e) => err_res(req_id, WireErr::client("stats_subscribe_failed", e.message)),
+            }
+        }
+        Some(ws_req::Body::StatsUnsubscribe(_)) => {
+            crate::admin_fanout::admin_stats_unsubscribe(admin_session_id).await;
+            WsRes { req_id, body: None }
+        }
+        Some(ws_req::Body::LogSubscribe(r)) => {
+            match crate::admin_fanout::admin_log_subscribe(
+                &state.pool,
+                state.nats.as_ref(),
+                ctx.caller_iid,
+                admin_session_id,
+                r.owner_iid,
+                out_tx.clone(),
+            )
+            .await
+            {
+                Ok(()) => WsRes { req_id, body: None },
+                Err(e) => err_res(req_id, WireErr::client("log_subscribe_failed", e.message)),
+            }
+        }
+        Some(ws_req::Body::LogUnsubscribe(_)) => {
+            crate::admin_fanout::admin_log_unsubscribe(admin_session_id).await;
+            WsRes { req_id, body: None }
+        }
         _ => err_res(
             req_id,
             WireErr::client("not_implemented", "Request not supported yet"),
         ),
+
     }
 }
 
@@ -379,6 +679,11 @@ async fn session_init(
             res.inbox_members = inbox.members;
         }
     }
+    let mention_list = c35_mod_chat::mention_list_rpc(&ctx.pool, ctx.caller_iid).await;
+    res.mentions = Some(c35_proto::MentionCatalog {
+        rev: mention_list.rev,
+        items: mention_list.mentions,
+    });
     Ok(res)
 }
 
@@ -523,5 +828,44 @@ async fn pair_abort_res(
     WsRes {
         req_id,
         body: Some(ws_res::Body::ChannelWhatsappPairAbort(res)),
+    }
+}
+
+async fn channel_disconnect_res(state: &AppState, ctx: &Ctx, req_id: String, r: ReqChannelDisconnect) -> WsRes {
+    let res = c35_mod_channel::channel_disconnect(
+        &ctx.pool,
+        ctx.caller_iid,
+        r,
+        state.nats.as_ref(),
+        &whatsapp_worker_url(),
+    )
+    .await;
+    WsRes {
+        req_id,
+        body: Some(ws_res::Body::ChannelDisconnect(res)),
+    }
+}
+
+async fn identity_delete_res(state: &AppState, ctx: &Ctx, req_id: String, r: ReqIdentityDelete) -> WsRes {
+    if r.iid > 0 {
+        if let Ok(kind) = c35_mod_identity::identity_kind_get(&ctx.pool, r.iid).await {
+            if kind == "bot" {
+                let _ = c35_mod_channel::bot_channels_disconnect_all(
+                    &ctx.pool,
+                    ctx.caller_iid,
+                    r.iid,
+                    state.nats.as_ref(),
+                    &whatsapp_worker_url(),
+                )
+                .await;
+            }
+        }
+    }
+    match c35_mod_identity::identity_delete(&ctx.pool, ctx.caller_iid, r).await {
+        Ok(body) => WsRes {
+            req_id,
+            body: Some(ws_res::Body::IdentityDelete(body)),
+        },
+        Err(e) => err_res(req_id, WireErr::client("identity_delete_failed", e.to_string())),
     }
 }

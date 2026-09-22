@@ -1,6 +1,8 @@
 import 'dart:convert';
 
+import 'package:alienai_c35/c/catalog/catalog_translation_cache.dart';
 import 'package:alienai_c35/c/config.dart';
+import 'package:alienai_c35/c/pb/c35/catalog.pb.dart';
 import 'package:alienai_c35/c/session.dart';
 import 'package:http/http.dart' as http;
 
@@ -12,6 +14,8 @@ class CatalogMention {
     required this.color,
     required this.labelKey,
     required this.captionKey,
+    this.label = '',
+    this.kind = '',
     this.sort = 0,
   });
 
@@ -22,6 +26,33 @@ class CatalogMention {
   final int sort;
   final String labelKey;
   final String captionKey;
+  final String label;
+  final String kind;
+
+  bool get isDevice => kind == 'identity' && topicId == 'device';
+
+  String get displayLabel {
+    if (label.isNotEmpty) return label;
+    if (labelKey.isEmpty) return id;
+    return labelKey.contains('.') ? catalogT(labelKey) : labelKey;
+  }
+
+  String get displayCaption {
+    if (captionKey.isEmpty) return '';
+    return captionKey.contains('.') ? catalogT(captionKey) : captionKey;
+  }
+
+  factory CatalogMention.fromMentionItem(MentionItem item) => CatalogMention(
+        id: item.id,
+        topicId: item.topicId,
+        icon: item.icon,
+        color: item.color,
+        sort: item.sort,
+        labelKey: item.labelKey,
+        captionKey: item.captionKey,
+        label: item.label.isNotEmpty ? item.label : item.title,
+        kind: item.kind,
+      );
 
   factory CatalogMention.fromJson(Map<String, dynamic> j) => CatalogMention(
         id: '${j['id'] ?? ''}',
@@ -31,6 +62,8 @@ class CatalogMention {
         sort: (j['sort'] as num?)?.toInt() ?? 0,
         labelKey: '${j['label_key'] ?? ''}',
         captionKey: '${j['caption_key'] ?? ''}',
+        label: '${j['label'] ?? ''}',
+        kind: '${j['kind'] ?? ''}',
       );
 }
 

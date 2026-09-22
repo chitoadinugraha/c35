@@ -29,7 +29,8 @@ class InComposer extends StatefulWidget {
     required this.onSend,
     required this.model,
     required this.onModel,
-    this.models = AgentModel.fallback,
+    this.models = const [AgentModel.alien],
+    this.modelsLoading = false,
     this.onAbort,
     this.hint = 'Message Alien AI…',
     this.enabled = true,
@@ -38,6 +39,7 @@ class InComposer extends StatefulWidget {
     this.selectedMentionIds = const {},
     this.toolMode,
     this.onMentionToggle,
+    this.onMentionSearch,
     this.onToolModeToggle,
   });
 
@@ -45,6 +47,7 @@ class InComposer extends StatefulWidget {
   final AgentModel model;
   final ValueChanged<AgentModel> onModel;
   final List<AgentModel> models;
+  final bool modelsLoading;
   final VoidCallback? onAbort;
   final String hint;
   final bool enabled;
@@ -53,6 +56,7 @@ class InComposer extends StatefulWidget {
   final Set<String> selectedMentionIds;
   final String? toolMode;
   final void Function(String id)? onMentionToggle;
+  final Future<List<CatalogMention>> Function(String q)? onMentionSearch;
   final VoidCallback? onToolModeToggle;
 
   @override
@@ -66,6 +70,9 @@ class _InComposerState extends State<InComposer> {
   var _focused = false;
   var _recording = false;
   var _submitting = false;
+  Timer? _mentionSearchDebounce;
+  List<CatalogMention> _mentionSearchResults = const [];
+  var _mentionSearching = false;
 
   bool get _hasText => _controller.text.trim().isNotEmpty || _attachments.isNotEmpty;
   bool get _canSubmit => widget.enabled && !widget.busy && !_submitting && !_recording && _hasText;
@@ -73,6 +80,31 @@ class _InComposerState extends State<InComposer> {
   bool get _askActive => widget.toolMode == 'ask';
   List<CatalogMention> get _composerMentions => widget.mentions.where((m) => m.id != 'image').toList(growable: false);
   bool get _hasSelectedMentions => widget.selectedMentionIds.any((id) => id != 'image');
+
+  String? get _activeMentionQuery {
+    final sel = _controller.selection;
+    if (!sel.isValid || sel.baseOffset < 0 || sel.baseOffset > _controller.text.length) return null;
+    final textBefore = _controller.text.substring(0, sel.baseOffset);
+    final match = RegExp(r'@([a-zA-Z0-9_\-\.]*)$').firstMatch(textBefore);
+    return match?.group(1);
+  }
+
+  void _pickMention(CatalogMention m) {
+    widget.onMentionToggle?.call(m.id);
+    final sel = _controller.selection;
+    if (sel.isValid && sel.baseOffset >= 0 && sel.baseOffset <= _controller.text.length) {
+      final textBefore = _controller.text.substring(0, sel.baseOffset);
+      final textAfter = _controller.text.substring(sel.baseOffset);
+      final atIndex = textBefore.lastIndexOf('@');
+      if (atIndex >= 0) {
+        final newText = textBefore.substring(0, atIndex) + textAfter;
+        _controller.text = newText;
+        _controller.selection = TextSelection.collapsed(offset: atIndex);
+      }
+    }
+    setState(() {});
+    _focus.requestFocus();
+  }
 
   @override
   void initState() {
@@ -83,10 +115,48 @@ class _InComposerState extends State<InComposer> {
 
   @override
   void dispose() {
+    _mentionSearchDebounce?.cancel();
     if (_recording || SttService.instance.isRecording.value) unawaited(SttService.instance.cancel());
     _controller.dispose();
     _focus.dispose();
     super.dispose();
+  }
+
+  void _scheduleMentionSearch(String? query) {
+    _mentionSearchDebounce?.cancel();
+    if (query == null || widget.onMentionSearch == null) {
+      if (_mentionSearchResults.isNotEmpty || _mentionSearching) {
+        setState(() {
+          _mentionSearchResults = const [];
+          _mentionSearching = false;
+        });
+      }
+      return;
+    }
+    final q = query;
+    if (q.isEmpty) {
+      if (_mentionSearchResults.isNotEmpty || _mentionSearching) {
+        setState(() {
+          _mentionSearchResults = const [];
+          _mentionSearching = false;
+        });
+      }
+      return;
+    }
+    _mentionSearchDebounce = Timer(const Duration(milliseconds: 200), () async {
+      if (!mounted) return;
+      setState(() => _mentionSearching = true);
+      try {
+        final results = await widget.onMentionSearch!(q);
+        if (!mounted) return;
+        setState(() {
+          _mentionSearchResults = results;
+          _mentionSearching = false;
+        });
+      } catch (_) {
+        if (mounted) setState(() => _mentionSearching = false);
+      }
+    });
   }
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
@@ -166,6 +236,8 @@ class _InComposerState extends State<InComposer> {
   }
 
   Future<void> _attach() async {
+    final tools = _composerMentions.where((m) => !m.isDevice).toList();
+    final devices = _composerMentions.where((m) => m.isDevice).toList();
     final action = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: const Color(0xFF18181B),
@@ -186,29 +258,56 @@ class _InComposerState extends State<InComposer> {
                   onTap: () => Navigator.pop(ctx, 'ask'),
                 ),
               if (widget.onMentionToggle != null && _composerMentions.isNotEmpty) ...[
-                const Divider(height: 1, color: Color(0xFF27272A)),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                  child: Align(alignment: Alignment.centerLeft, child: Text('Tools', style: const TextStyle(color: zinc500, fontSize: 12, fontWeight: FontWeight.w600))),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                  child: Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      for (final m in _composerMentions)
-                        _MentionChip(
-                          mention: m,
-                          selected: widget.selectedMentionIds.contains(m.id),
-                          onTap: () {
-                            widget.onMentionToggle!(m.id);
-                            setState(() {});
-                          },
-                        ),
-                    ],
+                if (tools.isNotEmpty) ...[
+                  const Divider(height: 1, color: Color(0xFF27272A)),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                    child: Align(alignment: Alignment.centerLeft, child: Text('Tools', style: const TextStyle(color: zinc500, fontSize: 12, fontWeight: FontWeight.w600))),
                   ),
-                ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final m in tools)
+                          _MentionChip(
+                            mention: m,
+                            selected: widget.selectedMentionIds.contains(m.id),
+                            onTap: () {
+                              widget.onMentionToggle!(m.id);
+                              setState(() {});
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+                if (devices.isNotEmpty) ...[
+                  const Divider(height: 1, color: Color(0xFF27272A)),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                    child: Align(alignment: Alignment.centerLeft, child: Text('Devices', style: const TextStyle(color: zinc500, fontSize: 12, fontWeight: FontWeight.w600))),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final m in devices)
+                          _MentionChip(
+                            mention: m,
+                            selected: widget.selectedMentionIds.contains(m.id),
+                            onTap: () {
+                              widget.onMentionToggle!(m.id);
+                              setState(() {});
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ],
           ),
@@ -275,7 +374,11 @@ class _InComposerState extends State<InComposer> {
     setState(() => _recording = false);
     final transcript = text?.trim() ?? '';
     if (transcript.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No speech detected'), behavior: SnackBarBehavior.floating));
+      final err = SttService.instance.lastTranscribeError;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(err ?? 'No speech detected'),
+        behavior: SnackBarBehavior.floating,
+      ));
       return;
     }
     final cur = _controller.text;
@@ -303,8 +406,75 @@ class _InComposerState extends State<InComposer> {
     if (kind == ComposerActionKind.mic) unawaited(_startMic());
   }
 
+  Widget _mentionSuggestionsBox() {
+    final query = _activeMentionQuery;
+    if (query == null || widget.onMentionToggle == null) return const SizedBox.shrink();
+    final q = query.toLowerCase();
+    final matches = (q.isNotEmpty && widget.onMentionSearch != null)
+        ? _mentionSearchResults
+        : _composerMentions.where((m) {
+            final label = m.displayLabel;
+            return m.id.toLowerCase().contains(q) || label.toLowerCase().contains(q);
+          }).take(6).toList(growable: false);
+    if (matches.isEmpty && !_mentionSearching) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF27272A),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF3F3F46)),
+      ),
+      constraints: const BoxConstraints(maxHeight: 180),
+      child: ListView.separated(
+        shrinkWrap: true,
+        padding: EdgeInsets.zero,
+        itemCount: matches.length + (_mentionSearching ? 1 : 0),
+        separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFF3F3F46)),
+        itemBuilder: (context, i) {
+          if (i >= matches.length) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Align(alignment: Alignment.centerLeft, child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))),
+            );
+          }
+          final m = matches[i];
+          final label = m.displayLabel;
+          final caption = m.displayCaption;
+          final isDev = m.isDevice;
+          final selected = widget.selectedMentionIds.contains(m.id);
+          return InkWell(
+            onTap: () => _pickMention(m),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                children: [
+                  Icon(
+                    isDev ? Icons.computer_rounded : Icons.alternate_email_rounded,
+                    size: 16,
+                    color: isDev ? const Color(0xFF38BDF8) : const Color(0xFFA1A1AA),
+                  ),
+                  const SizedBox(width: 8),
+                  Text('@$label', style: const TextStyle(color: zinc100, fontSize: 13, fontWeight: FontWeight.w500)),
+                  if (caption.isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    Text(caption, style: const TextStyle(color: zinc500, fontSize: 11)),
+                  ],
+                  const Spacer(),
+                  if (selected)
+                    const Icon(Icons.check_rounded, size: 16, color: Color(0xFF22C55E)),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   Widget _selectedMentionRow() {
-    if (!_hasSelectedMentions || widget.onMentionToggle == null) return const SizedBox.shrink();
+    if ((!_hasSelectedMentions && !_askActive) || widget.onMentionToggle == null) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
       child: ValueListenableBuilder<int>(
@@ -313,11 +483,128 @@ class _InComposerState extends State<InComposer> {
           spacing: 6,
           runSpacing: 6,
           children: [
+            if (_askActive)
+              _AskChip(
+                label: catalogT('composer.ask.label'),
+                caption: catalogT('composer.ask.caption'),
+                onTap: widget.onToolModeToggle,
+              ),
             for (final m in _composerMentions.where((m) => widget.selectedMentionIds.contains(m.id)))
               _MentionChip(mention: m, selected: true, onTap: () => widget.onMentionToggle!(m.id)),
           ],
         ),
       ),
+    );
+  }
+
+  static const _attachBtnWidth = 40.0;
+  static const _actionBtnWidth = 38.0;
+  static const _modelChipWidth = 150.0;
+  static const _inlineMinWidth = 300.0;
+
+  bool _shouldUseStackedLayout(BuildContext context, double totalWidth) {
+    if (totalWidth < _inlineMinWidth) return true;
+    if (_controller.text.contains('\n')) return true;
+    final textWidth = totalWidth - _attachBtnWidth - _modelChipWidth - _actionBtnWidth - 24;
+    if (textWidth <= 48) return true;
+    final painter = TextPainter(
+      text: TextSpan(
+        text: _controller.text.isEmpty ? ' ' : _controller.text,
+        style: const TextStyle(fontSize: 14, height: 1.35),
+      ),
+      textDirection: Directionality.of(context),
+      maxLines: 6,
+    );
+    painter.layout(maxWidth: textWidth);
+    return painter.computeLineMetrics().length > 1;
+  }
+
+  VoidCallback? _modelTap() => widget.enabled
+      ? () async {
+          final next = await agentModelPick(context, widget.model, widget.models, modelsLoading: widget.modelsLoading);
+          if (next != null) widget.onModel(next);
+        }
+      : null;
+
+  Widget _attachButton() => uiIconButton(
+        tooltip: 'Attach',
+        onPressed: widget.enabled && !widget.busy ? _attach : null,
+        icon: const Icon(Icons.attach_file_rounded, size: 20, color: zinc500),
+        style: IconButton.styleFrom(minimumSize: const Size(_attachBtnWidth, _attachBtnWidth), tapTargetSize: MaterialTapTargetSize.shrinkWrap, visualDensity: VisualDensity.compact),
+      );
+
+  Widget _modelChip() => UiAssistantModelChip(model: widget.model, onTap: _modelTap());
+
+  Widget _actionButton() => _ActionButton(kind: composerActionKind(streaming: widget.busy, recording: _recording, hasText: _hasText), onAction: _onAction);
+
+  Widget _textField({required bool stacked}) => TextField(
+        key: const ValueKey('composer_text_field'),
+        controller: _controller,
+        focusNode: _focus,
+        enabled: widget.enabled && !widget.busy && !_recording,
+        minLines: 1,
+        maxLines: 6,
+        keyboardType: TextInputType.multiline,
+        textInputAction: TextInputAction.newline,
+        style: const TextStyle(color: zinc100, fontSize: 14, height: 1.35),
+        cursorColor: zinc100,
+        onChanged: (_) {
+          final hadFocus = _focus.hasFocus;
+          _scheduleMentionSearch(_activeMentionQuery);
+          setState(() {});
+          if (hadFocus) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted && _focus.canRequestFocus) _focus.requestFocus();
+            });
+          }
+        },
+        decoration: InputDecoration(
+          hintText: _hintText,
+          hintStyle: const TextStyle(color: zinc500, fontSize: 14, height: 1.35),
+          isDense: true,
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          contentPadding: EdgeInsets.fromLTRB(4, 8, 4, stacked ? 4 : 8),
+        ),
+      );
+
+  Widget _inputArea(double maxWidth) {
+    final stacked = _shouldUseStackedLayout(context, maxWidth);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            if (!stacked) _attachButton(),
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(stacked ? 4 : 0, 0, stacked ? 4 : 0, 0),
+                child: _textField(stacked: stacked),
+              ),
+            ),
+            if (!stacked) ...[
+              _modelChip(),
+              const SizedBox(width: 4),
+              _actionButton(),
+            ],
+          ],
+        ),
+        if (stacked)
+          Padding(
+            padding: const EdgeInsets.only(top: 4, bottom: 2),
+            child: Row(
+              children: [
+                _attachButton(),
+                _modelChip(),
+                const Spacer(),
+                _actionButton(),
+              ],
+            ),
+          ),
+      ],
     );
   }
 
@@ -376,55 +663,12 @@ class _InComposerState extends State<InComposer> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          _mentionSuggestionsBox(),
           _selectedMentionRow(),
           _attachmentRow(),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                uiIconButton(
-                  tooltip: 'Attach',
-                  onPressed: widget.enabled && !widget.busy ? _attach : null,
-                  icon: const Icon(Icons.attach_file_rounded, size: 20, color: zinc500),
-                  style: IconButton.styleFrom(minimumSize: const Size(40, 40), tapTargetSize: MaterialTapTargetSize.shrinkWrap, visualDensity: VisualDensity.compact),
-                ),
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    focusNode: _focus,
-                    enabled: widget.enabled && !widget.busy && !_recording,
-                    minLines: 1,
-                    maxLines: 6,
-                    keyboardType: TextInputType.multiline,
-                    textInputAction: TextInputAction.newline,
-                    style: const TextStyle(color: zinc100, fontSize: 14, height: 1.35),
-                    cursorColor: zinc100,
-                    onChanged: (_) => setState(() {}),
-                    decoration: InputDecoration(
-                      hintText: _hintText,
-                      hintStyle: const TextStyle(color: zinc500, fontSize: 14, height: 1.35),
-                      isDense: true,
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                    ),
-                  ),
-                ),
-                UiAssistantModelChip(
-                  model: widget.model,
-                  onTap: widget.enabled
-                      ? () async {
-                          final next = await agentModelPick(context, widget.model, widget.models);
-                          if (next != null) widget.onModel(next);
-                        }
-                      : null,
-                ),
-                const SizedBox(width: 4),
-                _ActionButton(kind: composerActionKind(streaming: widget.busy, recording: _recording, hasText: _hasText), onAction: _onAction),
-              ],
-            ),
+            child: LayoutBuilder(builder: (context, constraints) => _inputArea(constraints.maxWidth)),
           ),
         ],
       ),
@@ -451,6 +695,29 @@ class _ActionButton extends StatelessWidget {
       );
 }
 
+class _AskChip extends StatelessWidget {
+  const _AskChip({required this.label, required this.caption, this.onTap});
+
+  final String label;
+  final String caption;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => FilterChip(
+        label: Text('@$label'),
+        tooltip: caption,
+        selected: true,
+        onSelected: (_) => onTap?.call(),
+        showCheckmark: false,
+        labelStyle: const TextStyle(color: Colors.black, fontSize: 12),
+        selectedColor: const Color(0xFF60A5FA),
+        backgroundColor: const Color(0xFF1A1A1D),
+        side: const BorderSide(color: Color(0xFF27272A)),
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        visualDensity: VisualDensity.compact,
+      );
+}
+
 class _MentionChip extends StatelessWidget {
   const _MentionChip({required this.mention, required this.selected, required this.onTap});
 
@@ -469,9 +736,22 @@ class _MentionChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = mention.labelKey.isNotEmpty ? catalogT(mention.labelKey) : mention.id;
-    final caption = mention.captionKey.isNotEmpty ? catalogT(mention.captionKey) : '';
+    final label = mention.displayLabel;
+    final caption = mention.displayCaption;
+    final isDevice = mention.isDevice;
+    Widget? avatar;
+    if (isDevice) {
+      avatar = Container(
+        width: 7,
+        height: 7,
+        decoration: BoxDecoration(
+          color: _chipColor,
+          shape: BoxShape.circle,
+        ),
+      );
+    }
     return FilterChip(
+      avatar: avatar,
       label: Text('@$label'),
       tooltip: caption.isNotEmpty ? caption : label,
       selected: selected,
