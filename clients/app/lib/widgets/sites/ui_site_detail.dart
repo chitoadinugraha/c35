@@ -1,14 +1,17 @@
-import 'package:alienai_c35/c/config.dart';
 import 'package:alienai_c35/c/pb/c35/collection.pb.dart';
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/site/collection_def.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
 import 'package:alienai_c35/c/site/site_table_rows.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
+import 'package:alienai_c35/c/pb/c35/tx.pb.dart';
+import 'package:alienai_c35/widgets/sites/tx/tx_api.dart';
+import 'package:alienai_c35/widgets/sites/tx/ui_site_tx_editor.dart';
+import 'package:alienai_c35/widgets/sites/ui_site_preview.dart';
 import 'package:alienai_c35/widgets/ui/ui_table.dart';
 import 'package:alienai_c35/widgets/ui/ui_window_bar.dart';
+import 'package:fixnum/fixnum.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 const _border = Color(0xFF27272A);
 const _muted = Color(0xFF71717A);
@@ -37,6 +40,8 @@ class _UiSiteDetailState extends State<UiSiteDetail> {
   List<TableDef> _defs = const [];
   var _defsLoading = true;
   var _publishing = false;
+  var _previewMode = SitePreviewMode.draft;
+  var _previewReloadNonce = 0;
 
   @override
   void initState() {
@@ -63,25 +68,15 @@ class _UiSiteDetailState extends State<UiSiteDetail> {
     }
   }
 
-  String get _guestUrl {
-    final base = C35Config.authApiBase.replaceAll(RegExp(r'/+$'), '');
-    final slug = widget.row.alienId.isNotEmpty ? widget.row.alienId : widget.row.siteIid.toString();
-    return '$base/$slug?draft=1';
-  }
-
-  Future<void> _openPreview() async {
-    final uri = Uri.parse(_guestUrl);
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open preview URL')));
-    }
-  }
-
   Future<void> _publish() async {
     if (_publishing) return;
     setState(() => _publishing = true);
     try {
       await widget.api.publish(_siteIid);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Site published'), behavior: SnackBarBehavior.floating));
+      if (mounted) {
+        setState(() => _previewReloadNonce++);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Site published'), behavior: SnackBarBehavior.floating));
+      }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating));
     } finally {
@@ -97,16 +92,17 @@ class _UiSiteDetailState extends State<UiSiteDetail> {
   }
 
   int _initialTabIndex() => switch (widget.initialTabRoute) {
-        'site.pos' || 'site.product' => 1,
-        'site.contact' => 2,
-        'site.object' => 3,
-        'site.settings' => 4,
+        'site.pos' => 1,
+        'site.product' => 2,
+        'site.contact' => 3,
+        'site.object' => 4,
+        'site.settings' => 5,
         _ => 0,
       };
 
   @override
   Widget build(BuildContext context) {
-    const tabs = ['Preview', 'Products', 'Contacts', 'Objects', 'Settings'];
+    const tabs = ['Preview', 'Orders', 'Products', 'Contacts', 'Objects', 'Settings'];
     return DefaultTabController(
       length: tabs.length,
       initialIndex: _initialTabIndex().clamp(0, tabs.length - 1),
@@ -122,7 +118,7 @@ class _UiSiteDetailState extends State<UiSiteDetail> {
                 return AnimatedBuilder(
                   animation: controller,
                   builder: (context, _) {
-                    final isCollection = controller.index >= 1 && controller.index <= 3;
+                    final isCollection = controller.index >= 1 && controller.index <= 4;
                     return Padding(
                       padding: const EdgeInsets.fromLTRB(8, 0, 4, 0),
                       child: Row(
@@ -159,6 +155,7 @@ class _UiSiteDetailState extends State<UiSiteDetail> {
               child: TabBarView(
                 children: [
                   _previewTab(),
+                  _ordersTab(),
                   _collectionTab('site.product'),
                   _collectionTab('site.contact'),
                   _collectionTab('site.object'),
@@ -210,24 +207,25 @@ class _UiSiteDetailState extends State<UiSiteDetail> {
       );
 
   Widget _previewTab() => Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Guest URL', style: TextStyle(color: _muted, fontSize: 12)),
-            const SizedBox(height: 6),
-            SelectableText(_guestUrl, style: const TextStyle(color: _text, fontSize: 15)),
-            const SizedBox(height: 20),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
+            Row(
               children: [
-                FilledButton.icon(
-                  onPressed: _openPreview,
-                  icon: const Icon(Icons.open_in_new, size: 18),
-                  label: const Text('Open preview'),
-                  style: FilledButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.black),
+                SegmentedButton<SitePreviewMode>(
+                  segments: const [
+                    ButtonSegment(value: SitePreviewMode.draft, label: Text('Draft'), icon: Icon(Icons.edit_note, size: 16)),
+                    ButtonSegment(value: SitePreviewMode.published, label: Text('Published'), icon: Icon(Icons.public, size: 16)),
+                  ],
+                  selected: {_previewMode},
+                  onSelectionChanged: (s) => setState(() => _previewMode = s.first),
+                  style: ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                    foregroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? _text : _muted),
+                  ),
                 ),
+                const Spacer(),
                 OutlinedButton.icon(
                   onPressed: _publishing ? null : _publish,
                   icon: _publishing ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.publish_outlined, size: 18),
@@ -235,34 +233,36 @@ class _UiSiteDetailState extends State<UiSiteDetail> {
                 ),
               ],
             ),
-            const SizedBox(height: 24),
-            const Text('Layout edits happen on Home via @mention + web.builder topic.', style: TextStyle(color: _muted, fontSize: 13)),
+            const SizedBox(height: 12),
+            Expanded(
+              child: UiSitePreview(
+                row: widget.row,
+                api: widget.api,
+                mode: _previewMode,
+                reloadNonce: _previewReloadNonce,
+              ),
+            ),
+            const SizedBox(height: 10),
+            const Text('Layout edits happen on Home via @mention + web.builder topic.', style: TextStyle(color: _muted, fontSize: 12)),
           ],
         ),
       );
 
-  Widget _settingsTab() => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _settingRow('Alien ID', widget.row.alienId),
-            _settingRow('Site ID', '${widget.row.siteIid}'),
-            _settingRow('Published', widget.row.publishedVersionId.isEmpty ? 'Draft only' : widget.row.publishedVersionId),
-          ],
-        ),
+  Widget _settingsTab() => _UiSiteSettingsTab(
+        row: widget.row,
+        api: widget.api,
+        siteIid: _siteIid,
+        defs: _defs,
+        onCapabilitiesSaved: _loadDefs,
       );
 
-  Widget _settingRow(String label, String value) => Padding(
-        padding: const EdgeInsets.only(bottom: 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: const TextStyle(color: _muted, fontSize: 12)),
-            const SizedBox(height: 4),
-            Text(value.isEmpty ? '—' : value, style: const TextStyle(color: _text, fontSize: 14)),
-          ],
-        ),
+  Widget _ordersTab() => UiSiteOrdersTab(
+        api: widget.api,
+        site: widget.row,
+        siteIid: _siteIid,
+        searchQuery: _tableSearch,
+        defs: _defs,
+        defsLoading: _defsLoading,
       );
 
   Widget _collectionTab(String collection) {
@@ -278,6 +278,104 @@ class _UiSiteDetailState extends State<UiSiteDetail> {
       siteIid: _siteIid,
       def: def,
       searchQuery: _tableSearch,
+    );
+  }
+}
+
+class UiSiteOrdersTab extends StatefulWidget {
+  const UiSiteOrdersTab({
+    super.key,
+    required this.api,
+    required this.site,
+    required this.siteIid,
+    required this.defs,
+    required this.defsLoading,
+    this.searchQuery = '',
+  });
+
+  final SiteApi api;
+  final SiteRow site;
+  final int siteIid;
+  final List<TableDef> defs;
+  final bool defsLoading;
+  final String searchQuery;
+
+  @override
+  State<UiSiteOrdersTab> createState() => _UiSiteOrdersTabState();
+}
+
+class _UiSiteOrdersTabState extends State<UiSiteOrdersTab> {
+  late final TxApi _txApi = TxApi(widget.api.conn);
+  var _loading = true;
+  var _busy = false;
+  List<Tx> _txs = const [];
+  final _byKey = <String, Tx>{};
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant UiSiteOrdersTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.siteIid != widget.siteIid) _load();
+  }
+
+  TableDef _def() =>
+      widget.api.tableDefFor(widget.defs, 'site.tx') ?? collectionDefForFallback('site.tx')!;
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      _txs = await _txApi.list(widget.siteIid);
+      final def = _def();
+      _byKey
+        ..clear()
+        ..addEntries(_txs.map((t) {
+          final cells = siteTxCells(t);
+          return MapEntry(siteRowKey(def, cells), t);
+        }));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _openEditor({Int64? txId}) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final saved = await Navigator.of(context).push<Tx>(
+        MaterialPageRoute(
+          builder: (_) => UiSiteTxEditor(siteIid: widget.siteIid, api: widget.api, site: widget.site, txId: txId, onSaved: (_) {}),
+        ),
+      );
+      if (saved != null) await _load();
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.defsLoading || _loading) {
+      return const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _muted)));
+    }
+    final def = _def();
+    final rows = _txs.map(siteTxCells).toList(growable: false);
+    return UiTable(
+      def: def,
+      rows: rows,
+      loading: _busy,
+      searchQuery: widget.searchQuery,
+      onAddRow: () => _openEditor(),
+      onRowTap: (key) {
+        final tx = _byKey[key];
+        if (tx != null) _openEditor(txId: tx.txId);
+      },
     );
   }
 }
@@ -427,6 +525,56 @@ class _UiSiteCollectionTableState extends State<UiSiteCollectionTable> {
     }
   }
 
+  List<SiteProductEmbed> _productEmbeds(Int64 productId) =>
+      _embeds.where((e) => e.productId == productId).toList(growable: false);
+
+  Future<void> _commitEmbed(String productRowKey, String embedRowKey, ColDef col, String value) async {
+    if (_busy) return;
+    final product = _products[productRowKey];
+    if (product == null) return;
+    setState(() => _busy = true);
+    try {
+      final embeds = _productEmbeds(product.productId);
+      final idx = embeds.indexWhere((e) => e.embedId.toString() == embedRowKey);
+      final base = idx >= 0 ? embeds[idx] : widget.api.productEmbedNew(widget.siteIid, product.productId);
+      final updated = siteProductEmbedApplyCell(base, col, value);
+      final next = [...embeds];
+      if (idx >= 0) {
+        next[idx] = updated;
+      } else {
+        next.add(updated);
+      }
+      await widget.api.productPut(widget.siteIid, product, embeds: next);
+      _embeds
+        ..clear()
+        ..addAll(await widget.api.productEmbedList(widget.siteIid));
+      if (mounted) setState(() {});
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _addEmbed(String productRowKey) async {
+    if (_busy) return;
+    final product = _products[productRowKey];
+    if (product == null) return;
+    setState(() => _busy = true);
+    try {
+      final next = [..._productEmbeds(product.productId), widget.api.productEmbedNew(widget.siteIid, product.productId)];
+      await widget.api.productPut(widget.siteIid, product, embeds: next);
+      _embeds
+        ..clear()
+        ..addAll(await widget.api.productEmbedList(widget.siteIid));
+      if (mounted) setState(() {});
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Widget _embedSubtable(String rowKey) {
     final product = _products[rowKey];
     if (product == null) return const SizedBox.shrink();
@@ -435,22 +583,20 @@ class _UiSiteCollectionTableState extends State<UiSiteCollectionTable> {
     if (sub == null || embedDef == null) {
       return Text('No subtable definition', style: const TextStyle(color: _muted, fontSize: 12));
     }
-    final pid = product.productId.toString();
-    final embedRows = _embeds
-        .where((e) => e.productId == product.productId)
-        .map(siteProductEmbedCells)
-        .toList(growable: false);
+    final embedRows = _productEmbeds(product.productId).map(siteProductEmbedCells).toList(growable: false);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(sub.label.isNotEmpty ? sub.label : 'Subtable', style: const TextStyle(color: _muted, fontSize: 12, fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
-        UiTable(def: embedDef, rows: embedRows, searchQuery: widget.searchQuery),
-        if (embedRows.isEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text('No alt labels for product $pid', style: const TextStyle(color: _muted, fontSize: 12)),
-          ),
+        UiTable(
+          def: embedDef,
+          rows: embedRows,
+          loading: _busy,
+          searchQuery: widget.searchQuery,
+          onCellCommit: (embedKey, col, value) => _commitEmbed(rowKey, embedKey, col, value),
+          onAddRow: () => _addEmbed(rowKey),
+        ),
       ],
     );
   }
@@ -465,4 +611,167 @@ class _UiSiteCollectionTableState extends State<UiSiteCollectionTable> {
         onAddRow: _addRow,
         expandedBuilder: widget.def.collection == 'site.product' && widget.def.subtables.isNotEmpty ? _embedSubtable : null,
       );
+}
+
+class _UiSiteSettingsTab extends StatefulWidget {
+  const _UiSiteSettingsTab({
+    required this.row,
+    required this.api,
+    required this.siteIid,
+    required this.defs,
+    required this.onCapabilitiesSaved,
+  });
+
+  final SiteRow row;
+  final SiteApi api;
+  final int siteIid;
+  final List<TableDef> defs;
+  final Future<void> Function() onCapabilitiesSaved;
+
+  @override
+  State<_UiSiteSettingsTab> createState() => _UiSiteSettingsTabState();
+}
+
+class _UiSiteSettingsTabState extends State<_UiSiteSettingsTab> {
+  var _loading = true;
+  var _savingCaps = false;
+  var _domainsBusy = false;
+  Map<String, bool> _caps = {for (final k in ['commerce', 'booking', 'queue']) k: true};
+  final _domains = <String, SiteDomain>{};
+  List<Map<String, String>> _domainRows = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  TableDef _domainDef() =>
+      widget.api.domainTableDef(widget.defs) ?? TableDef(collection: 'site.domain', primaryKey: 'site_iid,id');
+
+  void _setDomains(List<SiteDomain> items) {
+    final def = _domainDef();
+    _domains
+      ..clear()
+      ..addEntries(items.map((d) {
+        final cells = siteDomainCells(d);
+        return MapEntry(siteRowKey(def, cells), d);
+      }));
+    _domainRows = _domains.values.map(siteDomainCells).toList(growable: false);
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final config = await widget.api.configGet(widget.siteIid);
+      _caps = siteCapabilitiesParse(config.capabilitiesJson);
+      _setDomains(await widget.api.domainList(widget.siteIid));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _saveCapability(String key, bool value) async {
+    if (_savingCaps) return;
+    setState(() {
+      _savingCaps = true;
+      _caps = {..._caps, key: value};
+    });
+    try {
+      await widget.api.configPut(widget.siteIid, capabilitiesJson: siteCapabilitiesEncode(_caps));
+      await widget.onCapabilitiesSaved();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating));
+      await _load();
+    } finally {
+      if (mounted) setState(() => _savingCaps = false);
+    }
+  }
+
+  Future<void> _commitDomain(String rowKey, ColDef col, String value) async {
+    if (_domainsBusy) return;
+    setState(() => _domainsBusy = true);
+    try {
+      final base = _domains[rowKey] ?? widget.api.domainNew(widget.siteIid);
+      await widget.api.domainPut(widget.siteIid, siteDomainApplyCell(base, col, value));
+      _setDomains(await widget.api.domainList(widget.siteIid));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating));
+    } finally {
+      if (mounted) setState(() => _domainsBusy = false);
+    }
+  }
+
+  Future<void> _addDomain() async {
+    if (_domainsBusy) return;
+    setState(() => _domainsBusy = true);
+    try {
+      await widget.api.domainPut(widget.siteIid, widget.api.domainNew(widget.siteIid));
+      _setDomains(await widget.api.domainList(widget.siteIid));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating));
+    } finally {
+      if (mounted) setState(() => _domainsBusy = false);
+    }
+  }
+
+  Widget _infoRow(String label, String value) => Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: const TextStyle(color: _muted, fontSize: 12)),
+            const SizedBox(height: 4),
+            Text(value.isEmpty ? '—' : value, style: const TextStyle(color: _text, fontSize: 14)),
+          ],
+        ),
+      );
+
+  Widget _capToggle(String key, String label) => SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        title: Text(label, style: const TextStyle(color: _text, fontSize: 14)),
+        value: _caps[key] ?? true,
+        activeThumbColor: _accent,
+        onChanged: _savingCaps ? null : (v) => _saveCapability(key, v),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _muted)));
+    }
+    final domainDef = widget.api.domainTableDef(widget.defs);
+    return ListView(
+      padding: const EdgeInsets.all(24),
+      children: [
+        _infoRow('Alien ID', widget.row.alienId),
+        _infoRow('Site ID', '${widget.row.siteIid}'),
+        _infoRow('Published', widget.row.publishedVersionId.isEmpty ? 'Draft only' : widget.row.publishedVersionId),
+        const SizedBox(height: 20),
+        const Text('Capabilities', style: TextStyle(color: _text, fontSize: 15, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 4),
+        const Text('Enable backend features for this site.', style: TextStyle(color: _muted, fontSize: 12)),
+        _capToggle('commerce', 'Commerce (Orders & Products)'),
+        _capToggle('booking', 'Booking (Objects tab)'),
+        _capToggle('queue', 'Queue blocks'),
+        const SizedBox(height: 28),
+        const Text('Domains', style: TextStyle(color: _text, fontSize: 15, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 4),
+        const Text('CNAME to alienai.id', style: TextStyle(color: _muted, fontSize: 12)),
+        const SizedBox(height: 12),
+        if (domainDef == null)
+          const Text('No domain table definition', style: TextStyle(color: _muted))
+        else
+          UiTable(
+            def: domainDef,
+            rows: _domainRows,
+            loading: _domainsBusy,
+            onCellCommit: _commitDomain,
+            onAddRow: _addDomain,
+          ),
+      ],
+    );
+  }
 }

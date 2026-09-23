@@ -1,6 +1,6 @@
 use c35_mod_chat::{
-    mention_active_topic, mention_force_tools, mention_has_device, mention_ref_parse, MentionRef,
-    MentionResolved,
+    mention_active_topic, mention_active_topics, mention_force_tools, mention_has_device,
+    mention_ref_parse, MentionRef, MentionResolved,
 };
 
 #[test]
@@ -29,7 +29,6 @@ fn mention_ref_parse_catalog_and_iid() {
 
 #[test]
 fn mention_force_tools_includes_device_when_remote() {
-    use c35_proto::MentionItem;
     let resolved = vec![MentionResolved {
         item: c35_proto::MentionItem {
             id: "iid:99".into(),
@@ -57,4 +56,33 @@ fn mention_force_tools_includes_device_when_remote() {
     assert!(!tools.iter().any(|t| t == "device.input"));
     assert!(!tools.iter().any(|t| t == "device.command"));
     assert_eq!(mention_active_topic(&resolved, ""), "device");
+}
+
+#[test]
+fn mention_active_topics_adds_site_commerce_when_enabled() {
+    use c35_proto::MentionItem;
+    let resolved = vec![MentionResolved {
+        item: MentionItem {
+            id: "iid:111".into(),
+            topic_id: "web.builder".into(),
+            inst_id: String::new(),
+            icon: String::new(),
+            color: String::new(),
+            sort: 0,
+            label_key: "Warung A".into(),
+            caption_key: String::new(),
+            search_terms: vec![],
+            enabled: true,
+            title: "Warung A".into(),
+            scope_label: String::new(),
+            label: "Warung A".into(),
+            scope_ref: String::new(),
+            kind: "identity".into(),
+        },
+        identity_iid: Some(111),
+        identity_kind: Some("site".into()),
+    }];
+    let topics = mention_active_topics(&resolved, "", &[111]);
+    assert!(topics.iter().any(|t| t == "web.builder"));
+    assert!(topics.iter().any(|t| t == "site.commerce"));
 }

@@ -18,11 +18,15 @@ pub use context::ToolContext;
 pub use definition::{Tool, ToolDefinition, ToolUiKeys};
 pub use dispatcher::{tool_topic_eligible, ToolDispatcher};
 
+use crate::mention_context::MentionContext;
+
 use builtin::{
     ComputerUseDelegateTool, ConsumptionAddTool, ConsumptionTodayTool, ConsumptionUpdateTool,
     DelegateRunTool, DeviceCommandTool, DeviceInputTool, DeviceScreenshotTool, ImgGenerateTool,
     ReferralCodeDeleteTool, ReferralCodeListTool, ReferralCodePutTool, ReferralTreeGetTool,
-    SiteDraftPutTool, SiteProductPutTool, SitePublishTool, WebResearchTool, WebSearchTool,
+    SiteContactPutTool, SiteDraftPutTool, SiteObjectPutTool, SiteProductPutTool, SitePublishTool,
+    SiteQueryRunTool, SiteTxDebtPayTool, SiteTxListTool, SiteTxPreviewTool, SiteTxPutTool,
+    WebResearchTool, WebSearchTool,
     WebVisitTool,
 };
 
@@ -35,6 +39,8 @@ pub struct ToolDef {
     pub topics: Vec<String>,
     pub always: Vec<String>,
     pub readonly: bool,
+    pub requires_kinds: Vec<String>,
+    pub requires_capability: Option<String>,
 }
 
 impl ToolDef {
@@ -47,6 +53,8 @@ impl ToolDef {
             topics: vec![],
             always: vec![],
             readonly: false,
+            requires_kinds: vec![],
+            requires_capability: None,
         }
     }
 
@@ -59,6 +67,8 @@ impl ToolDef {
             topics: def.topics.clone(),
             always: def.always.clone(),
             readonly: def.readonly,
+            requires_kinds: def.requires_kinds.clone(),
+            requires_capability: def.requires_capability.clone(),
         }
     }
 }
@@ -69,6 +79,7 @@ pub struct TurnCtx<'a> {
     pub owner_iid: i64,
     pub chat_id: i64,
     pub site_iid: Option<i64>,
+    pub mention: MentionContext,
     pub locale: &'a str,
     pub attachments_json: &'a str,
     pub req_id: &'a str,
@@ -91,6 +102,13 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(SiteDraftPutTool));
     dispatcher.register(Arc::new(SitePublishTool));
     dispatcher.register(Arc::new(SiteProductPutTool));
+    dispatcher.register(Arc::new(SiteContactPutTool));
+    dispatcher.register(Arc::new(SiteObjectPutTool));
+    dispatcher.register(Arc::new(SiteQueryRunTool));
+    dispatcher.register(Arc::new(SiteTxPutTool));
+    dispatcher.register(Arc::new(SiteTxPreviewTool));
+    dispatcher.register(Arc::new(SiteTxDebtPayTool));
+    dispatcher.register(Arc::new(SiteTxListTool));
     dispatcher.register(Arc::new(ReferralCodePutTool));
     dispatcher.register(Arc::new(ReferralCodeListTool));
     dispatcher.register(Arc::new(ReferralCodeDeleteTool));
@@ -148,6 +166,7 @@ fn tool_context_from_turn(client: Client, turn: &TurnCtx<'_>) -> ToolContext {
         turn.owner_iid,
         turn.chat_id,
         turn.site_iid,
+        turn.mention.clone(),
         turn.locale,
         turn.attachments_json,
         turn.req_id,
@@ -170,6 +189,7 @@ pub async fn cluster_tool_exec(
             0,
             0,
             None,
+            MentionContext::empty(),
             "en",
             "",
             "",

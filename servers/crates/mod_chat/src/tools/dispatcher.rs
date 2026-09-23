@@ -130,6 +130,8 @@ mod tests {
             readonly: false,
             topics: topics.iter().map(|s| s.to_string()).collect(),
             always: always.iter().map(|s| s.to_string()).collect(),
+            requires_kinds: vec![],
+            requires_capability: None,
             ui_keys: None,
         }
     }

@@ -2,7 +2,7 @@ use c35_mod_chat::prompt_run::{prompt_run_is_terminal, prompt_run_kind_default, 
 use c35_mod_chat::tools::builtin::{delegate_child_row, delegate_result_json};
 use serde_json::json;
 use sqlx::types::Json;
-use c35_mod_chat::tools::ToolContext;
+use c35_mod_chat::{MentionContext, tools::ToolContext};
 use reqwest::Client;
 use sqlx::PgPool;
 
@@ -13,6 +13,7 @@ fn test_tool_ctx(pool: PgPool, req_id: &str) -> ToolContext {
         42,
         99,
         None,
+        MentionContext::empty(),
         "en",
         "[]",
         req_id,

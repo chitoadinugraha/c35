@@ -9,6 +9,8 @@ macro_rules! tool {
         description: $desc:expr,
         $(topics: [$($topic:expr),* $(,)?],)?
         $(always: [$($always_topic:expr),* $(,)?],)?
+        $(requires_kinds: [$($kind:expr),* $(,)?],)?
+        $(requires_capability: $capability:expr,)?
         $(ui_label_key: $ui_label:expr,)?
         $(ui_calling_key: $ui_calling:expr,)?
         $(ui_done_key: $ui_done:expr,)?
@@ -73,6 +75,16 @@ macro_rules! tool {
                 )*)?
 
                 #[allow(unused_mut)]
+                let mut requires_kinds: Vec<String> = Vec::new();
+                $($(
+                    requires_kinds.push($kind.to_string());
+                )*)?
+
+                #[allow(unused_mut)]
+                let mut requires_capability: Option<String> = None;
+                $(requires_capability = Some($capability.to_string());)?
+
+                #[allow(unused_mut)]
                 let mut ui_keys = $crate::tools::ToolUiKeys::default();
                 $(ui_keys.ui_label_key = Some($ui_label.to_string());)?
                 $(ui_keys.ui_calling_key = Some($ui_calling.to_string());)?
@@ -100,6 +112,8 @@ macro_rules! tool {
                     readonly,
                     topics,
                     always,
+                    requires_kinds,
+                    requires_capability,
                     ui_keys,
                 }
             }

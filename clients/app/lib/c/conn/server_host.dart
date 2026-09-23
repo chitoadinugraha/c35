@@ -41,7 +41,16 @@ String serverHostCanonicalize(String url) {
   return serverHostNormalize(uri.replace(host: 'alienai.id').toString());
 }
 
-void serverHostApply(String base) => C35Config.authApiBase = serverHostCanonicalize(base);
+void serverHostApplyGuestOrigin(String apiBase) {
+  C35Config.guestSiteOrigin =
+      serverHostNormalize(apiBase) == serverHostLocalUrl ? serverHostLocalUrl : 'https://alienai.id';
+}
+
+void serverHostApply(String base) {
+  final url = serverHostCanonicalize(base);
+  C35Config.authApiBase = url;
+  serverHostApplyGuestOrigin(url);
+}
 
 Future<String> serverHostActiveBase() async {
   String base;

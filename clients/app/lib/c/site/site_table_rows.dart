@@ -1,7 +1,30 @@
+import 'dart:convert';
+
 import 'package:alienai_c35/c/pb/c35/collection.pb.dart';
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
+import 'package:alienai_c35/c/pb/c35/tx.pb.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
+import 'package:alienai_c35/c/site/tx_format.dart';
 import 'package:fixnum/fixnum.dart';
+
+const _capabilityKeys = ['commerce', 'booking', 'queue'];
+
+Map<String, bool> siteCapabilitiesParse(String raw) {
+  if (raw.trim().isEmpty) return {for (final k in _capabilityKeys) k: true};
+  try {
+    final decoded = jsonDecode(raw);
+    if (decoded is! Map) return {for (final k in _capabilityKeys) k: true};
+    return {
+      for (final k in _capabilityKeys)
+        k: decoded[k] is bool ? decoded[k] as bool : true,
+    };
+  } catch (_) {
+    return {for (final k in _capabilityKeys) k: true};
+  }
+}
+
+String siteCapabilitiesEncode(Map<String, bool> caps) =>
+    jsonEncode({for (final k in _capabilityKeys) k: caps[k] ?? true});
 
 String siteRowKey(TableDef def, Map<String, String> cells) {
   final keys = def.primaryKey.split(',').map((k) => k.trim()).where((k) => k.isNotEmpty);
@@ -176,3 +199,46 @@ Map<String, String> siteProductEmbedCells(SiteProductEmbed e) => {
       'label': e.label,
       'updated_ts_ms': _fmtTs(e.updatedTsMs),
     };
+
+SiteProductEmbed siteProductEmbedApplyCell(SiteProductEmbed base, ColDef col, String value) {
+  final e = base.clone();
+  switch (col.key) {
+    case 'label':
+      e.label = value;
+  }
+  return e;
+}
+
+Map<String, String> siteDomainCells(SiteDomain d) => {
+      'site_iid': '${d.siteIid}',
+      'id': '${d.id}',
+      'hostname': d.hostname,
+      'is_primary': d.isPrimary ? 'yes' : 'no',
+      'tls_status': d.tlsStatus,
+      'verify_token': d.verifyToken,
+      'verified_ts_ms': _fmtTs(d.verifiedTsMs),
+      'updated_ts_ms': _fmtTs(d.updatedTsMs),
+    };
+
+Map<String, String> siteTxCells(Tx t) => {
+      'site_iid': '${t.siteIid}',
+      'tx_id': '${t.txId}',
+      'time_ts_ms': _fmtTs(t.timeTsMs),
+      'type': txTypeLabel(t.type),
+      'subject_name': t.subjectName,
+      'total': t.total <= Int64.ZERO ? '' : moneyFmtIdr(t.total.toInt()),
+      'state': txStateLabel(t.state),
+      'desc': t.desc,
+      'updated_ts_ms': _fmtTs(t.updatedTsMs),
+    };
+
+SiteDomain siteDomainApplyCell(SiteDomain base, ColDef col, String value) {
+  final d = base.clone();
+  switch (col.key) {
+    case 'hostname':
+      d.hostname = value;
+    case 'is_primary':
+      d.isPrimary = value.toLowerCase() == 'yes' || value == '1' || value.toLowerCase() == 'true';
+  }
+  return d;
+}

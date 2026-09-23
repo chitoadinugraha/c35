@@ -52,10 +52,27 @@ pub async fn site_product_put(
     } else {
         snowflake_id()
     };
-    let product_json: serde_json::Value = if product.product_json.is_empty() {
+    let product_json_raw: serde_json::Value = if product.product_json.is_empty() {
         serde_json::json!({})
     } else {
         serde_json::from_str(&product.product_json).unwrap_or(serde_json::json!({}))
+    };
+    let embeds = product_json_raw
+        .get("_embeds")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+    let product_json = if embeds.is_empty() {
+        product_json_raw.clone()
+    } else {
+        let stored = product_json_raw.clone();
+        if let Some(obj) = stored.as_object() {
+            let mut map = obj.clone();
+            map.remove("_embeds");
+            serde_json::Value::Object(map)
+        } else {
+            product_json_raw.clone()
+        }
     };
     let search_text = format!("{} {} {}", product.name, product.sku, product.desc);
     let mut tx = pool.begin().await?;
@@ -101,6 +118,31 @@ pub async fn site_product_put(
     .bind(product.is_archived)
     .execute(&mut *tx)
     .await?;
+    for embed in &embeds {
+        let embed_id = embed
+            .get("embed_id")
+            .and_then(|v| v.as_i64())
+            .filter(|i| *i > 0)
+            .unwrap_or_else(snowflake_id);
+        let label = embed.get("label").and_then(|v| v.as_str()).unwrap_or("").trim();
+        sqlx::query(
+            r#"
+            INSERT INTO site.product_embed (site_iid, embed_id, product_id, label, created_ts, updated_ts)
+            VALUES ($1, $2, $3, $4, NOW(), NOW())
+            ON CONFLICT (site_iid, embed_id) DO UPDATE SET
+                product_id = EXCLUDED.product_id,
+                label = EXCLUDED.label,
+                updated_ts = NOW(),
+                deleted_ts = NULL
+            "#,
+        )
+        .bind(site_iid)
+        .bind(embed_id)
+        .bind(product_id)
+        .bind(label)
+        .execute(&mut *tx)
+        .await?;
+    }
     tx.commit().await?;
     if let Some(tx) = out_tx {
         site_sync_push(

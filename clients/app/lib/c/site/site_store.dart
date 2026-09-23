@@ -1,7 +1,9 @@
 import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/log.dart';
+import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
+import 'package:fixnum/fixnum.dart';
 import 'package:flutter/foundation.dart';
 
 class SiteStore extends ChangeNotifier {
@@ -75,6 +77,60 @@ class SiteStore extends ChangeNotifier {
     } finally {
       _loading = false;
       notifyListeners();
+    }
+  }
+
+  Future<void> pinPut(String id, bool pinned) => _grantPatch(id, ReqIdentityGrantPatch(resourceIid: Int64.parseInt(id), isPinned: pinned));
+
+  Future<void> renamePut(String id, String name) async {
+    final row = rowById(id);
+    if (row == null) throw 'Site not found';
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) throw 'Name required';
+    try {
+      await ensureConnected();
+      final res = await _conn.identityPut(ReqIdentityPut(
+        iid: row.siteIid,
+        kind: 'site',
+        name: trimmed,
+        pic: row.pic,
+        alienId: row.alienId,
+      ));
+      if (!res.hasRow()) return;
+      final i = _rows.indexWhere((r) => r.siteIid.toString() == id);
+      if (i >= 0) {
+        _rows[i].name = res.row.identity.name;
+        notifyListeners();
+      }
+    } catch (e) {
+      lError('site rename put: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> _grantPatch(String id, ReqIdentityGrantPatch req) async {
+    try {
+      await ensureConnected();
+      final res = await _conn.identityGrantPatch(req);
+      if (!res.hasRow()) return;
+      final i = _rows.indexWhere((r) => r.siteIid.toString() == id);
+      if (i >= 0) {
+        _rows[i].isPinned = res.row.isPinned;
+        _rows[i].sortOrder = res.row.sortOrder;
+      } else {
+        return;
+      }
+      _rows.sort((a, b) {
+        final pin = (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0);
+        if (pin != 0) return pin;
+        final order = a.sortOrder.compareTo(b.sortOrder);
+        if (order != 0) return order;
+        return b.updatedTsMs.compareTo(a.updatedTsMs);
+      });
+      notifyListeners();
+    } catch (e) {
+      lError('site grant patch: $e');
+      rethrow;
     }
   }
 }

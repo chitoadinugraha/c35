@@ -59,10 +59,12 @@ pub async fn channel_prompt_turn(
         cluster_tools(),
         &[],
         &empty_mentions,
-        "general",
+        &["general".into()],
         "agent",
         &[],
         &inst_scopes,
+        &crate::mention_context::MentionContext::empty(),
+        &crate::site_capability::SiteCapabilityView::empty(),
     );
     let tz = time_timezone_resolve(locale, &prompt_text);
     let mut system = time_prompt_prepend(&time_prompt_block(tz), "");
@@ -113,6 +115,7 @@ pub async fn channel_prompt_turn(
         owner_iid,
         chat_id,
         site_iid: None,
+        mention: crate::mention_context::MentionContext::empty(),
         locale,
         attachments_json,
         req_id,

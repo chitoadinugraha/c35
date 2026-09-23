@@ -63,15 +63,26 @@ Sync collection: `tx` (header + children on full get).
 
 ## UI
 
-**id.alienai transaksi editor** inside Sites detail (Phase 9):
+**Port id.alienai transaksi editor** inside Sites detail (Phase 9) — **not** CSA `ui_staff_tx_board`.
 
-- **UITable** for tx list browse (date, type, contact, total, state)
-- **Ledger tabs** for edit: Items | Payments | Acc | Stock
-- AI input (`TxPrompt` in tx_data)
-- Debt / installment UI
-- Subject picker → `site.contact`
+Reference tree: `E:\Project Archive\id.alienai\client_app\lib\page_project\bisnis\transaksi\`
+
+| Surface | id.alienai source | c35 target |
+|---------|-------------------|------------|
+| Tx list browse | UITable / list patterns | Sites → **Orders** tab (`site.tx` collection) |
+| Tx editor | `page_transaksi_edit.dart` + ledger sections | Ledger tabs: **Items \| Payments \| Acc \| Stock** |
+| Receipt / print | `transaksi/receipt/` (`ui_receipt`, `receipt_pdf_generator`) | Same UX in Sites Orders flow |
+| Debt / installment | `payment/ask_transaksi_payment_debt.dart`, etc. | Port with `site_iid` |
+| AI tx input | `TxPrompt` in `tx_data` | Home prompt + `site.tx.put` tool |
 
 Sites shell = Devices-like tabs ([`ui.md`](ui.md)) — not CSA 3-pane design editor.
+
+Guest checkout UI stays on published SiteDoc blocks; staff POS is Flutter Sites detail only.
+
+### AI / reports on transactions
+
+- Staff chat: readonly **`site.query.run`** with catalog ids (`tx.sales_summary`, `tx.profit_summary`, …) — see [site-ai.md](site-ai.md).
+- Multi-site compare: pass all `site_iids` from `MentionContext`; do not add multi-site variants per write tool.
 
 ## Why id.alienai, not CSA site_tx?
 

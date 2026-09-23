@@ -89,6 +89,7 @@ TableDef _domainTable() => TableDef(
         _col('hostname', 'Hostname', ColType.COL_TYPE_TEXT, required: true),
         _col('is_primary', 'Primary', ColType.COL_TYPE_BOOL),
         _col('tls_status', 'TLS', ColType.COL_TYPE_TEXT, readonly: true, inlineEditable: false),
+        _col('verify_token', 'Verify token', ColType.COL_TYPE_TEXT, readonly: true, inlineEditable: false),
         _col('verified_ts_ms', 'Verified', ColType.COL_TYPE_TS, readonly: true, inlineEditable: false),
         _col('updated_ts_ms', 'Updated', ColType.COL_TYPE_TS, readonly: true, inlineEditable: false),
       ],
@@ -108,9 +109,28 @@ TableDef _productEmbedTable() => TableDef(
       ],
     );
 
-List<TableDef> collectionDefListFallback() => [_productTable(), _contactTable(), _objectTable(), _domainTable()];
+TableDef _txTable() => TableDef(
+      collection: 'site.tx',
+      label: 'Orders',
+      syncName: 'tx',
+      siteScoped: true,
+      primaryKey: 'site_iid,tx_id',
+      columns: [
+        _col('tx_id', 'ID', ColType.COL_TYPE_INT, readonly: true, required: true),
+        _col('time_ts_ms', 'Date', ColType.COL_TYPE_TS, readonly: true, inlineEditable: false),
+        _col('type', 'Type', ColType.COL_TYPE_TEXT, readonly: true, inlineEditable: false),
+        _col('subject_name', 'Contact', ColType.COL_TYPE_TEXT, readonly: true, inlineEditable: false),
+        _col('total', 'Total', ColType.COL_TYPE_MONEY, readonly: true, inlineEditable: false),
+        _col('state', 'State', ColType.COL_TYPE_TEXT, readonly: true, inlineEditable: false),
+        _col('desc', 'Note', ColType.COL_TYPE_TEXT, readonly: true, inlineEditable: false),
+        _col('updated_ts_ms', 'Updated', ColType.COL_TYPE_TS, readonly: true, inlineEditable: false),
+      ],
+    );
+
+List<TableDef> collectionDefListFallback() => [_txTable(), _productTable(), _contactTable(), _objectTable(), _domainTable()];
 
 TableDef? collectionDefEmbedFallback() => _productEmbedTable();
 
 TableDef? collectionDefForFallback(String collection) =>
-    collectionDefListFallback().where((t) => t.collection == collection).firstOrNull ?? (collection == 'site.product_embed' ? _productEmbedTable() : null);
+    collectionDefListFallback().where((t) => t.collection == collection).firstOrNull ??
+    (collection == 'site.product_embed' ? _productEmbedTable() : null);

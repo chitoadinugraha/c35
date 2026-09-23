@@ -4,6 +4,7 @@ const authApiLocalUrl = 'http://127.0.0.1:8080';
 
 class C35Config {
   static String authApiBase = authApiProductionUrl;
+  static String guestSiteOrigin = 'https://alienai.id';
   /// OAuth / provider sign-in always uses production (Google callback is registered there).
   static const providerAuthBase = authApiProductionUrl;
 }

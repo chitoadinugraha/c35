@@ -5,6 +5,7 @@ edition.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+async-trait = { workspace = true }
 axum = { workspace = true }
 blake3 = { workspace = true }
 chrono = { workspace = true }
@@ -18,6 +19,10 @@ c35_ctx = { path = "../system/ctx", package = "c35_ctx" }
 c35_proto = { path = "../proto", package = "c35_proto" }
 c35_store = { path = "../store", package = "c35_store" }
 c35_mod_hint = { path = "../mod_hint", package = "c35_mod_hint" }
+hex = "0.4"
+hmac = "0.12"
+sha2 = "0.10"
+subtle = "2"
 
 [dev-dependencies]
 tokio = { workspace = true }

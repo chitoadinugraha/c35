@@ -1719,6 +1719,8 @@ class SiteRow extends $pb.GeneratedMessage {
     $core.String? publishedVersionId,
     $fixnum.Int64? updatedTsMs,
     $core.bool? isArchived,
+    $core.bool? isPinned,
+    $core.int? sortOrder,
   }) {
     final result = SiteRow._();
     if (siteIid != null) result.siteIid = siteIid;
@@ -1729,6 +1731,8 @@ class SiteRow extends $pb.GeneratedMessage {
       result.publishedVersionId = publishedVersionId;
     if (updatedTsMs != null) result.updatedTsMs = updatedTsMs;
     if (isArchived != null) result.isArchived = isArchived;
+    if (isPinned != null) result.isPinned = isPinned;
+    if (sortOrder != null) result.sortOrder = sortOrder;
     return result;
   }
 
@@ -1752,6 +1756,8 @@ class SiteRow extends $pb.GeneratedMessage {
     ..aOS(5, _omitFieldNames ? '' : 'publishedVersionId')
     ..aInt64(6, _omitFieldNames ? '' : 'updatedTsMs')
     ..aOB(7, _omitFieldNames ? '' : 'isArchived')
+    ..aOB(8, _omitFieldNames ? '' : 'isPinned')
+    ..aI(9, _omitFieldNames ? '' : 'sortOrder')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1836,6 +1842,24 @@ class SiteRow extends $pb.GeneratedMessage {
   $core.bool hasIsArchived() => $_has(6);
   @$pb.TagNumber(7)
   void clearIsArchived() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.bool get isPinned => $_getBF(7);
+  @$pb.TagNumber(8)
+  set isPinned($core.bool value) => $_setBool(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasIsPinned() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearIsPinned() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.int get sortOrder => $_getIZ(8);
+  @$pb.TagNumber(9)
+  set sortOrder($core.int value) => $_setSignedInt32(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasSortOrder() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearSortOrder() => $_clearField(9);
 }
 
 class ReqSiteList extends $pb.GeneratedMessage {
@@ -3428,6 +3452,364 @@ class ResSiteDomainPut extends $pb.GeneratedMessage {
   $core.bool hasId() => $_has(0);
   @$pb.TagNumber(1)
   void clearId() => $_clearField(1);
+}
+
+class ReqSitePreviewToken extends $pb.GeneratedMessage {
+  factory ReqSitePreviewToken({
+    $fixnum.Int64? siteIid,
+    $core.int? ttlSecs,
+  }) {
+    final result = ReqSitePreviewToken._();
+    if (siteIid != null) result.siteIid = siteIid;
+    if (ttlSecs != null) result.ttlSecs = ttlSecs;
+    return result;
+  }
+
+  ReqSitePreviewToken._();
+
+  factory ReqSitePreviewToken.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSitePreviewToken()..mergeFromBuffer(data, registry);
+  factory ReqSitePreviewToken.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSitePreviewToken()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqSitePreviewToken',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqSitePreviewToken.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'siteIid')
+    ..aI(2, _omitFieldNames ? '' : 'ttlSecs')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSitePreviewToken clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSitePreviewToken copyWith(void Function(ReqSitePreviewToken) updates) =>
+      super.copyWith((message) => updates(message as ReqSitePreviewToken))
+          as ReqSitePreviewToken;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core
+      .Deprecated('Use ReqSitePreviewToken() / ReqSitePreviewToken.new instead')
+  static ReqSitePreviewToken create() => ReqSitePreviewToken._();
+  static $pb.GeneratedMessage $_createMessage() => ReqSitePreviewToken._();
+  @$core.override
+  ReqSitePreviewToken createEmptyInstance() => ReqSitePreviewToken._();
+  @$core.pragma('dart2js:noInline')
+  static ReqSitePreviewToken getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqSitePreviewToken>(
+          ReqSitePreviewToken.$_createMessage);
+  static ReqSitePreviewToken? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get siteIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set siteIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSiteIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSiteIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.int get ttlSecs => $_getIZ(1);
+  @$pb.TagNumber(2)
+  set ttlSecs($core.int value) => $_setSignedInt32(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasTtlSecs() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearTtlSecs() => $_clearField(2);
+}
+
+class ResSitePreviewToken extends $pb.GeneratedMessage {
+  factory ResSitePreviewToken({
+    $core.String? token,
+    $fixnum.Int64? expiresTsMs,
+  }) {
+    final result = ResSitePreviewToken._();
+    if (token != null) result.token = token;
+    if (expiresTsMs != null) result.expiresTsMs = expiresTsMs;
+    return result;
+  }
+
+  ResSitePreviewToken._();
+
+  factory ResSitePreviewToken.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSitePreviewToken()..mergeFromBuffer(data, registry);
+  factory ResSitePreviewToken.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSitePreviewToken()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResSitePreviewToken',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResSitePreviewToken.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'token')
+    ..aInt64(2, _omitFieldNames ? '' : 'expiresTsMs')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSitePreviewToken clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSitePreviewToken copyWith(void Function(ResSitePreviewToken) updates) =>
+      super.copyWith((message) => updates(message as ResSitePreviewToken))
+          as ResSitePreviewToken;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core
+      .Deprecated('Use ResSitePreviewToken() / ResSitePreviewToken.new instead')
+  static ResSitePreviewToken create() => ResSitePreviewToken._();
+  static $pb.GeneratedMessage $_createMessage() => ResSitePreviewToken._();
+  @$core.override
+  ResSitePreviewToken createEmptyInstance() => ResSitePreviewToken._();
+  @$core.pragma('dart2js:noInline')
+  static ResSitePreviewToken getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResSitePreviewToken>(
+          ResSitePreviewToken.$_createMessage);
+  static ResSitePreviewToken? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get token => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set token($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasToken() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearToken() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get expiresTsMs => $_getI64(1);
+  @$pb.TagNumber(2)
+  set expiresTsMs($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasExpiresTsMs() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearExpiresTsMs() => $_clearField(2);
+}
+
+class SiteQueryRow extends $pb.GeneratedMessage {
+  factory SiteQueryRow({
+    $fixnum.Int64? siteIid,
+    $core.String? siteName,
+    $core.Iterable<$core.MapEntry<$core.String, $core.String>>? cells,
+  }) {
+    final result = SiteQueryRow._();
+    if (siteIid != null) result.siteIid = siteIid;
+    if (siteName != null) result.siteName = siteName;
+    if (cells != null) result.cells.addEntries(cells);
+    return result;
+  }
+
+  SiteQueryRow._();
+
+  factory SiteQueryRow.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      SiteQueryRow()..mergeFromBuffer(data, registry);
+  factory SiteQueryRow.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      SiteQueryRow()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'SiteQueryRow',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: SiteQueryRow.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'siteIid')
+    ..aOS(2, _omitFieldNames ? '' : 'siteName')
+    ..m<$core.String, $core.String>(3, _omitFieldNames ? '' : 'cells',
+        entryClassName: 'SiteQueryRow.CellsEntry',
+        keyFieldType: $pb.PbFieldType.OS,
+        valueFieldType: $pb.PbFieldType.OS,
+        packageName: const $pb.PackageName('c35'))
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SiteQueryRow clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SiteQueryRow copyWith(void Function(SiteQueryRow) updates) =>
+      super.copyWith((message) => updates(message as SiteQueryRow))
+          as SiteQueryRow;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use SiteQueryRow() / SiteQueryRow.new instead')
+  static SiteQueryRow create() => SiteQueryRow._();
+  static $pb.GeneratedMessage $_createMessage() => SiteQueryRow._();
+  @$core.override
+  SiteQueryRow createEmptyInstance() => SiteQueryRow._();
+  @$core.pragma('dart2js:noInline')
+  static SiteQueryRow getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<SiteQueryRow>(
+          SiteQueryRow.$_createMessage);
+  static SiteQueryRow? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get siteIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set siteIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSiteIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSiteIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get siteName => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set siteName($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasSiteName() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearSiteName() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $pb.PbMap<$core.String, $core.String> get cells => $_getMap(2);
+}
+
+class ReqSiteQueryRun extends $pb.GeneratedMessage {
+  factory ReqSiteQueryRun({
+    $core.String? queryId,
+    $core.Iterable<$fixnum.Int64>? siteIids,
+    $core.String? paramsJson,
+  }) {
+    final result = ReqSiteQueryRun._();
+    if (queryId != null) result.queryId = queryId;
+    if (siteIids != null) result.siteIids.addAll(siteIids);
+    if (paramsJson != null) result.paramsJson = paramsJson;
+    return result;
+  }
+
+  ReqSiteQueryRun._();
+
+  factory ReqSiteQueryRun.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteQueryRun()..mergeFromBuffer(data, registry);
+  factory ReqSiteQueryRun.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteQueryRun()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqSiteQueryRun',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqSiteQueryRun.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'queryId')
+    ..p<$fixnum.Int64>(2, _omitFieldNames ? '' : 'siteIids', $pb.PbFieldType.K6)
+    ..aOS(3, _omitFieldNames ? '' : 'paramsJson')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteQueryRun clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteQueryRun copyWith(void Function(ReqSiteQueryRun) updates) =>
+      super.copyWith((message) => updates(message as ReqSiteQueryRun))
+          as ReqSiteQueryRun;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqSiteQueryRun() / ReqSiteQueryRun.new instead')
+  static ReqSiteQueryRun create() => ReqSiteQueryRun._();
+  static $pb.GeneratedMessage $_createMessage() => ReqSiteQueryRun._();
+  @$core.override
+  ReqSiteQueryRun createEmptyInstance() => ReqSiteQueryRun._();
+  @$core.pragma('dart2js:noInline')
+  static ReqSiteQueryRun getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ReqSiteQueryRun>(
+          ReqSiteQueryRun.$_createMessage);
+  static ReqSiteQueryRun? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get queryId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set queryId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasQueryId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearQueryId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $pb.PbList<$fixnum.Int64> get siteIids => $_getList(1);
+
+  @$pb.TagNumber(3)
+  $core.String get paramsJson => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set paramsJson($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasParamsJson() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearParamsJson() => $_clearField(3);
+}
+
+class ResSiteQueryRun extends $pb.GeneratedMessage {
+  factory ResSiteQueryRun({
+    $core.Iterable<SiteQueryRow>? rows,
+    $core.String? resultJson,
+  }) {
+    final result = ResSiteQueryRun._();
+    if (rows != null) result.rows.addAll(rows);
+    if (resultJson != null) result.resultJson = resultJson;
+    return result;
+  }
+
+  ResSiteQueryRun._();
+
+  factory ResSiteQueryRun.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteQueryRun()..mergeFromBuffer(data, registry);
+  factory ResSiteQueryRun.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteQueryRun()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResSiteQueryRun',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResSiteQueryRun.$_createMessage)
+    ..pPM<SiteQueryRow>(1, _omitFieldNames ? '' : 'rows',
+        subBuilder: SiteQueryRow.$_createMessage)
+    ..aOS(2, _omitFieldNames ? '' : 'resultJson')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteQueryRun clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteQueryRun copyWith(void Function(ResSiteQueryRun) updates) =>
+      super.copyWith((message) => updates(message as ResSiteQueryRun))
+          as ResSiteQueryRun;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResSiteQueryRun() / ResSiteQueryRun.new instead')
+  static ResSiteQueryRun create() => ResSiteQueryRun._();
+  static $pb.GeneratedMessage $_createMessage() => ResSiteQueryRun._();
+  @$core.override
+  ResSiteQueryRun createEmptyInstance() => ResSiteQueryRun._();
+  @$core.pragma('dart2js:noInline')
+  static ResSiteQueryRun getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ResSiteQueryRun>(
+          ResSiteQueryRun.$_createMessage);
+  static ResSiteQueryRun? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<SiteQueryRow> get rows => $_getList(0);
+
+  @$pb.TagNumber(2)
+  $core.String get resultJson => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set resultJson($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasResultJson() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearResultJson() => $_clearField(2);
 }
 
 const $core.bool _omitFieldNames =

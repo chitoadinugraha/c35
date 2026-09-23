@@ -85,6 +85,22 @@ chat_member: one row (member_iid = owner)
 - Billing trace on assistant turns (see [billing.md](billing.md)).
 - No `ai_reply_enabled` (abort in-flight turn only).
 
+### Mentions (composer `@`)
+
+`ReqPromptSend.mention_ids[]` — zero or more refs (`iid:{snowflake}`, `catalog:{id}`).
+
+Server resolves all refs → **`MentionContext`** (sites, devices, …). Prompt includes `[MENTION TARGETS]` and `[SITE CONTEXTS]` (multi-site). See [site-ai.md](site-ai.md).
+
+| Mention kind | `topic_id` | Force tools (baseline) |
+|--------------|------------|------------------------|
+| `site` identity | `web.builder` | `site.draft_put`, `site.publish`, `site.product_put` |
+| `remote` / `iot` | `device` | `device.screenshot` |
+| catalog `@research` | `research` | via `inst` |
+
+**Multi-site:** compare/report turns may mention 2+ sites; writes still require explicit `site_iid` when ambiguous. Reads use `site.query.run`.
+
+---
+
 ### Turn Execution Modes (`tool_mode`)
 
 Each `ReqPromptSend` specifies `tool_mode` to define tool boundary and safety:

@@ -240,7 +240,9 @@ INSERT INTO ai.inst (
     '[WEB.BUILDER] User is editing a site (layout, theme, blocks). Resolve site from @alien_id or site name. \
 Use site_draft_put to change SiteDoc blocks and theme_json only — validate block props against known types. \
 Use site_publish after substantive layout changes. For products/contacts/objects prefer site_product_put / site_contact_put or tell user to use Sites UITable. \
-Never invent checkout, prices, or stock — use tx API for money. Never mutate shared block catalog schemas.',
+Catalog and tx writes are single-site only: one site_iid per call — default when exactly one site in [SITE CONTEXTS]; require explicit site_iid when multiple sites are mentioned. \
+For sales reports, profit compare, or analytics across sites use site.query.run — not write tools. \
+Never invent checkout, prices, or stock — use site.tx.put for money/stock mutations. Never mutate shared block catalog schemas.',
     ARRAY[
         'site', 'website', 'toko', 'warung', 'landing', 'homepage',
         'background', 'theme', 'layout', 'hero', 'publish site', 'ubah tampilan'
@@ -254,7 +256,96 @@ Never invent checkout, prices, or stock — use tx API for money. Never mutate s
     120,
     'seed',
     NOW()
-) ON CONFLICT (id) DO NOTHING;
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    kind = EXCLUDED.kind,
+    topic_id = EXCLUDED.topic_id,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: site commerce / POS topic steering
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, priority, def_hash, updated_ts
+) VALUES (
+    'inst.site.commerce',
+    'global',
+    'topic',
+    'site.commerce',
+    '[SITE.COMMERCE] User is working with POS / transactions on a site. \
+Use site.tx.put for sales, purchases, and stock movements; site.tx.preview before finalize; site.tx.debt_pay for debt or installment payments. \
+Writes require exactly one site_iid per call — default from [SITE CONTEXTS] only when one site is mentioned; pass site_iid explicitly when multiple sites. \
+Never invent prices, stock, or totals — use tx tools only.',
+    ARRAY[]::TEXT[],
+    ARRAY[
+        'tool_include:site.tx.put',
+        'tool_include:site.tx.preview',
+        'tool_include:site.tx.debt_pay'
+    ],
+    118,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    kind = EXCLUDED.kind,
+    topic_id = EXCLUDED.topic_id,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: multi-site profit compare via query catalog
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, topics, inst, phrases, triggers, priority, def_hash, updated_ts
+) VALUES (
+    'inst.site.compare',
+    'global',
+    'task',
+    '',
+    ARRAY['web.builder', 'site.commerce'],
+    '[SITE.COMPARE] User wants to compare profitability or performance across mentioned sites. \
+Call site.query.run with query_id tx.profit_summary and pass ALL site_iids from [SITE CONTEXTS]. \
+Do not call write tools for compare — readonly query only. Summarize results side-by-side in the user language.',
+    ARRAY['compare', 'lebih untung', 'which is more profitable'],
+    ARRAY['tool_include:site.query.run'],
+    129,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    topics = EXCLUDED.topics,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    kind = EXCLUDED.kind,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: site sales / report phrases via query catalog
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, topics, inst, phrases, triggers, priority, def_hash, updated_ts
+) VALUES (
+    'inst.site.report',
+    'global',
+    'task',
+    '',
+    ARRAY['web.builder', 'site.commerce'],
+    '[SITE.REPORT] User wants sales or transaction reports. \
+Call site.query.run — use tx.sales_summary for revenue/sales, tx.profit_summary for profit. \
+Pass all site_iids from [SITE CONTEXTS] (or the single default site when only one is mentioned). Readonly — never use write tools for reports.',
+    ARRAY['laporan', 'report', 'sales today'],
+    ARRAY['tool_include:site.query.run'],
+    127,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    topics = EXCLUDED.topics,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    kind = EXCLUDED.kind,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
 
 -- Seed: referral code create / update via Home prompt
 INSERT INTO ai.inst (

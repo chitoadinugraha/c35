@@ -27,6 +27,7 @@ When code and docs disagree, fix the code to match these docs (or explicitly rev
 | [hint.md](hint.md) | Home hint chips — precompiled catalog, site shortcuts, SessionInit cache |
 | [consumption.md](consumption.md) | Personal food/water tracking |
 | [site.md](site.md) | Sites — `site.*` schema, UITable, prompt `web.builder`, guest path URLs |
+| [site-ai.md](site-ai.md) | Site mentions, multi-site context, query catalog, commerce tools |
 | [tx.md](tx.md) | POS / transactions (`site.tx_*`, id.alienai model) |
 | [channels.md](channels.md) | Messaging channels (Telegram, WhatsApp Cloud, WhatsApp Device) |
 | [voice.md](voice.md) | STT/TTS engines (web / local / cloud), billing, cs_bots parity |

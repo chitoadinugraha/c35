@@ -523,6 +523,8 @@ dependencies = [
  "c35_mod_llm",
  "c35_mod_log",
  "c35_mod_referral",
+ "c35_mod_site",
+ "c35_mod_tx",
  "c35_proto",
  "c35_store",
  "c35_wire",
@@ -696,6 +698,7 @@ name = "c35_mod_site"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "axum",
  "blake3",
  "c35_ctx",
@@ -703,10 +706,14 @@ dependencies = [
  "c35_proto",
  "c35_store",
  "chrono",
+ "hex",
+ "hmac",
  "rand 0.8.8",
  "serde",
  "serde_json",
+ "sha2",
  "sqlx",
+ "subtle",
  "tokio",
  "tracing",
 ]
@@ -721,6 +728,21 @@ dependencies = [
  "chrono",
  "serde_json",
  "sqlx",
+]
+
+[[package]]
+name = "c35_mod_tx"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "c35_mod_site",
+ "c35_proto",
+ "c35_store",
+ "chrono",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tokio",
 ]
 
 [[package]]
@@ -805,6 +827,7 @@ dependencies = [
  "c35_mod_identity",
  "c35_mod_referral",
  "c35_mod_site",
+ "c35_mod_tx",
  "c35_mod_voice",
  "c35_proto",
  "c35_store",
@@ -835,6 +858,7 @@ dependencies = [
  "c35_mod_llm",
  "c35_mod_site",
  "c35_mod_skill",
+ "c35_mod_tx",
  "c35_mod_voice",
  "c35_proto",
  "c35_wire",

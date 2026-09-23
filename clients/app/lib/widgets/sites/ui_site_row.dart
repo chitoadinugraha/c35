@@ -41,7 +41,14 @@ class UiSiteRow extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(row.name.isNotEmpty ? row.name : row.alienId, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w500)),
+                      Row(
+                        children: [
+                          if (row.isPinned) const Padding(padding: EdgeInsets.only(right: 4), child: Icon(Icons.push_pin, size: 12, color: _muted)),
+                          Expanded(
+                            child: Text(row.name.isNotEmpty ? row.name : row.alienId, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w500)),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 2),
                       Text(row.alienId.isNotEmpty ? row.alienId : '${row.siteIid}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _muted, fontSize: 12)),
                     ],

@@ -1,9 +1,10 @@
-use c35_mod_chat::compose::compose_tools_and_inst;
+use c35_mod_chat::compose::{compose_tools_and_inst, tool_mention_eligible};
 use c35_mod_chat::inst_macro::{inst_scopes_channel, inst_scopes_home, InstRow, SCOPE_GLOBAL};
 use c35_mod_chat::tool_rag::DEFAULT_TOOL_TOP_K;
-use c35_mod_chat::MentionRow;
+use c35_mod_chat::{MentionContext, MentionRow, SiteCapabilityView, SiteContext};
 use c35_mod_chat::tools::{cluster_tools, ToolDef};
 use serde_json::json;
+use std::collections::HashMap;
 
 fn compose_default(
     inst_rows: &[InstRow],
@@ -11,8 +12,30 @@ fn compose_default(
     tools: Vec<ToolDef>,
     skill_tools: &[String],
 ) -> c35_mod_chat::compose::ComposeOutput {
+    compose_with_mention(inst_rows, text, tools, skill_tools, &MentionContext::empty())
+}
+
+fn compose_with_mention(
+    inst_rows: &[InstRow],
+    text: &str,
+    tools: Vec<ToolDef>,
+    skill_tools: &[String],
+    mention: &MentionContext,
+) -> c35_mod_chat::compose::ComposeOutput {
     let scopes = inst_scopes_home();
-    compose_tools_and_inst(inst_rows, text, tools, skill_tools, &[], "general", "agent", &[], &scopes)
+    compose_tools_and_inst(
+        inst_rows,
+        text,
+        tools,
+        skill_tools,
+        &[],
+        &["general".into()],
+        "agent",
+        &[],
+        &scopes,
+        mention,
+        &SiteCapabilityView::empty(),
+    )
 }
 
 fn inst_core_assistant() -> InstRow {
@@ -97,6 +120,8 @@ fn health_catalog() -> Vec<ToolDef> {
             topics: vec![],
             always: vec![],
             readonly: false,
+            requires_kinds: vec![],
+            requires_capability: None,
         },
         ToolDef {
             name: "web.visit".into(),
@@ -106,6 +131,8 @@ fn health_catalog() -> Vec<ToolDef> {
             topics: vec![],
             always: vec![],
             readonly: false,
+            requires_kinds: vec![],
+            requires_capability: None,
         },
         ToolDef {
             name: "img.generate".into(),
@@ -115,6 +142,8 @@ fn health_catalog() -> Vec<ToolDef> {
             topics: vec!["image".into()],
             always: vec![],
             readonly: false,
+            requires_kinds: vec![],
+            requires_capability: None,
         },
         ToolDef {
             name: "consumption.add".into(),
@@ -124,6 +153,8 @@ fn health_catalog() -> Vec<ToolDef> {
             topics: vec!["health".into()],
             always: vec!["general".into(), "health".into()],
             readonly: false,
+            requires_kinds: vec![],
+            requires_capability: None,
         },
         ToolDef {
             name: "consumption.today".into(),
@@ -133,6 +164,8 @@ fn health_catalog() -> Vec<ToolDef> {
             topics: vec!["health".into()],
             always: vec!["general".into(), "health".into()],
             readonly: true,
+            requires_kinds: vec![],
+            requires_capability: None,
         },
         ToolDef {
             name: "web.research".into(),
@@ -142,6 +175,8 @@ fn health_catalog() -> Vec<ToolDef> {
             topics: vec![],
             always: vec![],
             readonly: false,
+            requires_kinds: vec![],
+            requires_capability: None,
         },
         ToolDef {
             name: "consumption.update".into(),
@@ -151,6 +186,8 @@ fn health_catalog() -> Vec<ToolDef> {
             topics: vec!["health".into()],
             always: vec!["general".into(), "health".into()],
             readonly: false,
+            requires_kinds: vec![],
+            requires_capability: None,
         },
     ]
 }
@@ -248,10 +285,12 @@ fn compose_scope_filters_personal_assistant_inst() {
         pa_catalog(),
         &[],
         &[],
-        "general",
+        &["general".into()],
         "agent",
         &[],
         &channel_scopes,
+        &MentionContext::empty(),
+        &SiteCapabilityView::empty(),
     );
     assert!(!out.matched_ids.contains(&"inst.consumption_add".into()));
     let home_scopes = inst_scopes_home();
@@ -261,10 +300,12 @@ fn compose_scope_filters_personal_assistant_inst() {
         pa_catalog(),
         &[],
         &[],
-        "general",
+        &["general".into()],
         "agent",
         &[],
         &home_scopes,
+        &MentionContext::empty(),
+        &SiteCapabilityView::empty(),
     );
     assert!(out_home.matched_ids.contains(&"inst.consumption_add".into()));
 }
@@ -272,7 +313,19 @@ fn compose_scope_filters_personal_assistant_inst() {
 #[test]
 fn compose_ask_mode_no_write_tools() {
     let scopes = inst_scopes_home();
-    let out = compose_tools_and_inst(&[], "hello", pa_catalog(), &[], &[], "general", "ask", &[], &scopes);
+    let out = compose_tools_and_inst(
+        &[],
+        "hello",
+        pa_catalog(),
+        &[],
+        &[],
+        &["general".into()],
+        "ask",
+        &[],
+        &scopes,
+        &MentionContext::empty(),
+        &SiteCapabilityView::empty(),
+    );
     assert!(out.tools.is_empty());
     assert_eq!(out.trace.rag_skip_reason, "ask_mode");
 }
@@ -288,9 +341,23 @@ fn compose_ask_mode_keeps_readonly_consumption_today() {
         topics: vec!["health".into()],
         always: vec!["general".into()],
         readonly: true,
+        requires_kinds: vec![],
+        requires_capability: None,
     });
     let scopes = inst_scopes_home();
-    let out = compose_tools_and_inst(&[], "how many calories today", catalog, &[], &[], "health", "ask", &[], &scopes);
+    let out = compose_tools_and_inst(
+        &[],
+        "how many calories today",
+        catalog,
+        &[],
+        &[],
+        &["health".into()],
+        "ask",
+        &[],
+        &scopes,
+        &MentionContext::empty(),
+        &SiteCapabilityView::empty(),
+    );
     assert!(out.tools.iter().any(|t| t.name == "consumption.today"));
     assert!(!out.tools.iter().any(|t| t.name == "consumption.add"));
 }
@@ -323,10 +390,12 @@ fn compose_research_mention_includes_web_research() {
         cluster_tools(),
         &[],
         &["research".into()],
-        "",
+        &["research".into()],
         "agent",
         &mentions,
         &scopes,
+        &MentionContext::empty(),
+        &SiteCapabilityView::empty(),
     );
     assert!(out.tools.iter().any(|t| t.name == "web.research"));
     assert!(out.tools.iter().any(|t| t.name == "web.search"));
@@ -414,4 +483,144 @@ fn compose_referral_list_forces_list_tool() {
 fn compose_referral_list_lexical_without_inst() {
     let out = compose_default(&[], "daftar kode referral saya", referral_catalog(), &[]);
     assert!(out.tools.iter().any(|t| t.name == "referral.code.list"));
+}
+
+fn site_mention_ctx(site_iid: i64) -> MentionContext {
+    MentionContext::from_site(SiteContext {
+        site_iid,
+        alien_id: "warung-a".into(),
+        name: "Warung A".into(),
+    })
+}
+
+fn site_catalog() -> Vec<ToolDef> {
+    vec![
+        ToolDef {
+            name: "site.product_put".into(),
+            description: "Upsert product".into(),
+            parameters: json!({}),
+            aliases: vec![],
+            topics: vec!["web.builder".into()],
+            always: vec![],
+            readonly: false,
+            requires_kinds: vec!["site".into()],
+            requires_capability: None,
+        },
+        ToolDef {
+            name: "web.search".into(),
+            description: "Search the web".into(),
+            parameters: json!({}),
+            aliases: vec![],
+            topics: vec![],
+            always: vec![],
+            readonly: false,
+            requires_kinds: vec![],
+            requires_capability: None,
+        },
+    ]
+}
+
+#[test]
+fn compose_requires_kinds_drops_site_tools_without_mention() {
+    let out = compose_default(&[], "add product nasi goreng", site_catalog(), &[]);
+    assert!(!out.tools.iter().any(|t| t.name == "site.product_put"));
+    assert!(out.tools.iter().any(|t| t.name == "web.search"));
+}
+
+#[test]
+fn compose_requires_kinds_keeps_site_tools_with_site_mention() {
+    let mention = site_mention_ctx(111);
+    let scopes = inst_scopes_home();
+    let out = compose_tools_and_inst(
+        &[],
+        "add product nasi goreng",
+        site_catalog(),
+        &[],
+        &[],
+        &["web.builder".into()],
+        "agent",
+        &[],
+        &scopes,
+        &mention,
+        &SiteCapabilityView::empty(),
+    );
+    assert!(out.tools.iter().any(|t| t.name == "site.product_put"));
+}
+
+#[test]
+fn tool_mention_eligible_requires_site_kind() {
+    let site_tool = site_catalog()[0].clone();
+    let caps = SiteCapabilityView::empty();
+    assert!(!tool_mention_eligible(&site_tool, &MentionContext::empty(), &caps));
+    assert!(tool_mention_eligible(&site_tool, &site_mention_ctx(111), &caps));
+}
+
+#[test]
+fn tool_mention_capability_read_needs_any_site() {
+    let tool = ToolDef {
+        name: "site.query.run".into(),
+        description: "Run site query".into(),
+        parameters: json!({}),
+        aliases: vec![],
+        topics: vec!["site.commerce".into()],
+        always: vec![],
+        readonly: true,
+        requires_kinds: vec!["site".into()],
+        requires_capability: Some("commerce".into()),
+    };
+    let caps = SiteCapabilityView::from_map(HashMap::from([
+        (111, json!({ "commerce": true })),
+        (222, json!({ "commerce": false })),
+    ]));
+    let two_sites = MentionContext {
+        sites: vec![
+            SiteContext {
+                site_iid: 111,
+                alien_id: "a".into(),
+                name: "A".into(),
+            },
+            SiteContext {
+                site_iid: 222,
+                alien_id: "b".into(),
+                name: "B".into(),
+            },
+        ],
+        devices: vec![],
+        default_site_iid: None,
+    };
+    assert!(tool_mention_eligible(&tool, &two_sites, &caps));
+}
+
+#[test]
+fn tool_mention_capability_write_needs_default_site() {
+    let tool = ToolDef {
+        name: "site.tx.put".into(),
+        description: "Write tx".into(),
+        parameters: json!({}),
+        aliases: vec![],
+        topics: vec!["site.commerce".into()],
+        always: vec![],
+        readonly: false,
+        requires_kinds: vec!["site".into()],
+        requires_capability: Some("commerce".into()),
+    };
+    let caps = SiteCapabilityView::from_map(HashMap::from([(111, json!({ "commerce": true }))]));
+    let multi_site = MentionContext {
+        sites: vec![
+            SiteContext {
+                site_iid: 111,
+                alien_id: "a".into(),
+                name: "A".into(),
+            },
+            SiteContext {
+                site_iid: 222,
+                alien_id: "b".into(),
+                name: "B".into(),
+            },
+        ],
+        devices: vec![],
+        default_site_iid: None,
+    };
+    assert!(!tool_mention_eligible(&tool, &multi_site, &caps));
+    assert!(tool_mention_eligible(&tool, &site_mention_ctx(111), &caps));
 }

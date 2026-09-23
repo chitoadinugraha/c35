@@ -160,6 +160,8 @@ message SiteRow {
   string published_version_id = 5;
   int64 updated_ts_ms = 6;
   bool is_archived = 7;
+  bool is_pinned = 8;
+  int32 sort_order = 9;
 }
 
 // ================================= API
@@ -275,4 +277,33 @@ message ReqSiteDomainPut {
 
 message ResSiteDomainPut {
   int64 id = 1;
+}
+
+message ReqSitePreviewToken {
+  int64 site_iid = 1;
+  int32 ttl_secs = 2; // default 300
+}
+
+message ResSitePreviewToken {
+  string token = 1;
+  int64 expires_ts_ms = 2;
+}
+
+// ================================= Query catalog (site.query.run)
+
+message SiteQueryRow {
+  int64 site_iid = 1;
+  string site_name = 2;
+  map<string, string> cells = 3;
+}
+
+message ReqSiteQueryRun {
+  string query_id = 1;
+  repeated int64 site_iids = 2;   // empty → all sites from MentionContext
+  string params_json = 3;         // validated per QueryDef
+}
+
+message ResSiteQueryRun {
+  repeated SiteQueryRow rows = 1;
+  string result_json = 2;         // optional structured blob
 }

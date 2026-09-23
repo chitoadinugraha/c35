@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use sqlx::{PgPool, Row};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SiteContext {
     pub site_iid: i64,
     pub alien_id: String,

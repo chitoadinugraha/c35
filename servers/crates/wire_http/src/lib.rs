@@ -1,6 +1,7 @@
 mod agent;
 mod catalog;
 mod device;
+mod guest_order;
 mod invoke;
 mod version;
 mod web;
@@ -33,5 +34,6 @@ pub fn router(state: AppState) -> Router {
         .merge(agent::agent_router())
         .merge(catalog::catalog_router())
         .merge(invoke::invoke_router())
+        .merge(guest_order::guest_order_router())
         .with_state(state)
 }

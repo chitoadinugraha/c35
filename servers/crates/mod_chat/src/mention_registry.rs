@@ -385,35 +385,56 @@ pub fn mention_has_device(resolved: &[MentionResolved]) -> bool {
     !mention_device_iids(resolved).is_empty()
 }
 
-pub fn mention_force_tools(resolved: &[MentionResolved]) -> Vec<String> {
-    let mut out = Vec::new();
-    if mention_has_device(resolved) {
-        out.push("device.screenshot".to_string());
+pub fn mention_active_topics(
+    resolved: &[MentionResolved],
+    explicit: &str,
+    commerce_site_iids: &[i64],
+) -> Vec<String> {
+    let explicit = explicit.trim();
+    if !explicit.is_empty() {
+        return vec![explicit.to_string()];
     }
+    if mention_has_device(resolved) {
+        return vec!["device".into()];
+    }
+    let mut topics = Vec::new();
     for r in resolved {
-        if r.item.topic_id == "web.builder" {
-            for t in ["site.draft_put", "site.publish", "site.product_put"] {
-                if !out.iter().any(|x| x == t) {
-                    out.push(t.to_string());
-                }
-            }
+        let tid = r.item.topic_id.trim();
+        if !tid.is_empty() && tid != "general" && !topics.iter().any(|t| t == tid) {
+            topics.push(tid.to_string());
         }
     }
-    out
+    if topics.is_empty() {
+        topics.push("general".into());
+    }
+    let site_iids: Vec<i64> = resolved
+        .iter()
+        .filter(|r| r.identity_kind.as_deref() == Some("site"))
+        .filter_map(|r| r.identity_iid)
+        .collect();
+    if site_iids.iter().any(|iid| commerce_site_iids.contains(iid))
+        && topics.iter().any(|t| t == "web.builder")
+        && !topics.iter().any(|t| t == "site.commerce")
+    {
+        topics.push("site.commerce".into());
+    }
+    topics
 }
 
 pub fn mention_active_topic(resolved: &[MentionResolved], explicit: &str) -> String {
-    let explicit = explicit.trim();
-    if !explicit.is_empty() {
-        return explicit.to_string();
-    }
-    if mention_has_device(resolved) {
-        return "device".into();
-    }
-    for r in resolved {
-        if !r.item.topic_id.is_empty() && r.item.topic_id != "general" {
-            return r.item.topic_id.clone();
-        }
-    }
-    "general".into()
+    mention_active_topics(resolved, explicit, &[])
+        .first()
+        .cloned()
+        .unwrap_or_else(|| "general".into())
+}
+
+pub fn mention_active_topic_with_commerce(
+    resolved: &[MentionResolved],
+    explicit: &str,
+    commerce_site_iids: &[i64],
+) -> String {
+    mention_active_topics(resolved, explicit, commerce_site_iids)
+        .first()
+        .cloned()
+        .unwrap_or_else(|| "general".into())
 }

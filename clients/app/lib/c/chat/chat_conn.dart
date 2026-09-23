@@ -16,6 +16,7 @@ import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/pb/c35/skill.pb.dart';
 import 'package:alienai_c35/c/pb/c35/stats.pb.dart';
 import 'package:alienai_c35/c/pb/c35/sync.pb.dart';
+import 'package:alienai_c35/c/pb/c35/tx.pb.dart';
 import 'package:alienai_c35/c/pb/c35/wire.pb.dart';
 import 'package:alienai_c35/c/trace/trace_log.dart';
 import 'package:alienai_c35/c/trace/trace_view.dart';
@@ -500,6 +501,11 @@ class ChatConn {
         (res) => res.sitePublish,
       );
 
+  Future<ResSitePreviewToken> sitePreviewToken(int siteIid, {int ttlSecs = 300}) => _rpc<ResSitePreviewToken>(
+        WsReq(sitePreviewToken: ReqSitePreviewToken(siteIid: Int64(siteIid), ttlSecs: ttlSecs)),
+        (res) => res.sitePreviewToken,
+      );
+
   Future<ResSiteProductList> siteProductList(int siteIid) => _rpc<ResSiteProductList>(
         WsReq(siteProductList: ReqSiteProductList(siteIid: Int64(siteIid))),
         (res) => res.siteProductList,
@@ -548,6 +554,26 @@ class ChatConn {
   Future<ResCollectionDefList> collectionDefList({int siteIid = 0}) => _rpc<ResCollectionDefList>(
         WsReq(collectionDefList: ReqCollectionDefList(siteIid: Int64(siteIid))),
         (res) => res.collectionDefList,
+      );
+
+  Future<ResTxGet> txGet(int siteIid, Int64 txId) => _rpc<ResTxGet>(
+        WsReq(txGet: ReqTxGet(siteIid: Int64(siteIid), txId: txId)),
+        (res) => res.txGet,
+      );
+
+  Future<ResTxList> txList(int siteIid, {String q = '', int limit = 100, bool includeArchived = false}) => _rpc<ResTxList>(
+        WsReq(txList: ReqTxList(siteIid: Int64(siteIid), q: q, limit: limit, includeArchived: includeArchived)),
+        (res) => res.txList,
+      );
+
+  Future<ResTxPut> txPut(Tx tx) => _rpc<ResTxPut>(
+        WsReq(txPut: ReqTxPut(tx: tx)),
+        (res) => res.txPut,
+      );
+
+  Future<ResTxPreview> txPreview(Tx tx) => _rpc<ResTxPreview>(
+        WsReq(txPreview: ReqTxPreview(tx: tx)),
+        (res) => res.txPreview,
       );
 
   Future<ResSync> sync({Int64 sinceMs = Int64.ZERO, List<String> collections = const [], int limitPerCollection = 500}) =>

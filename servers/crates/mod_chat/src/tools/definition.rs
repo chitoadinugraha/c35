@@ -37,6 +37,12 @@ pub struct ToolDefinition {
     /// Topic IDs where this tool is always included regardless of RAG selection.
     #[serde(default)]
     pub always: Vec<String>,
+    /// Mention kinds required (e.g. `site`, `device`); empty means no kind gate.
+    #[serde(default)]
+    pub requires_kinds: Vec<String>,
+    /// Site capability required when `site` is in scope (e.g. `commerce`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub requires_capability: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ui_keys: Option<ToolUiKeys>,
 }

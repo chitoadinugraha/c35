@@ -421,6 +421,13 @@ async fn dispatch(
             },
             Err(e) => err_res(req_id, WireErr::client("site_list_failed", e.to_string())),
         },
+        Some(ws_req::Body::TxList(r)) => match c35_mod_tx::tx_list(&state.pool, ctx.caller_iid, r).await {
+            Ok(body) => WsRes {
+                req_id,
+                body: Some(ws_res::Body::TxList(body)),
+            },
+            Err(e) => err_res(req_id, WireErr::client("tx_list_failed", e.to_string())),
+        },
         Some(ws_req::Body::SiteDraftGet(r)) => {
             match c35_mod_site::site_draft_get(&state.pool, ctx.caller_iid, r).await {
                 Ok(body) => WsRes {
@@ -676,6 +683,66 @@ async fn dispatch(
                     body: Some(ws_res::Body::SiteConfigPut(body)),
                 },
                 Err(e) => err_res(req_id, WireErr::client("site_config_put_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SitePreviewToken(r)) => {
+            match c35_mod_site::site_preview_token(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SitePreviewToken(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_preview_token_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::TxGet(r)) => match c35_mod_tx::tx_get(&state.pool, ctx.caller_iid, r).await {
+            Ok(body) => WsRes {
+                req_id,
+                body: Some(ws_res::Body::TxGet(body)),
+            },
+            Err(e) => err_res(req_id, WireErr::client("tx_get_failed", e.to_string())),
+        },
+        Some(ws_req::Body::TxPut(r)) => {
+            match c35_mod_tx::tx_put(&state.pool, ctx.caller_iid, r, Some(out_tx)).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::TxPut(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("tx_put_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::TxPreview(r)) => {
+            match c35_mod_tx::tx_preview(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::TxPreview(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("tx_preview_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::TxDebtPay(r)) => {
+            match c35_mod_tx::tx_debt_pay(&state.pool, ctx.caller_iid, r, Some(out_tx)).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::TxDebtPay(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("tx_debt_pay_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteQueryRun(r)) => {
+            match c35_mod_site::site_query_run(
+                &state.pool,
+                ctx.caller_iid,
+                r.site_iids,
+                &r.query_id,
+                &r.params_json,
+            )
+            .await
+            {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteQueryRun(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_query_run_failed", e.to_string())),
             }
         }
         Some(ws_req::Body::HintTouch(r)) => {

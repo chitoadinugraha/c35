@@ -35,15 +35,13 @@ pub async fn site_object_list(
     })
 }
 
-pub async fn site_object_put(
+pub async fn site_object_upsert(
     pool: &PgPool,
-    caller_iid: i64,
-    req: ReqSiteObjectPut,
+    owner_iid: i64,
+    site_iid: i64,
+    obj: &SiteObject,
     out_tx: Option<&mpsc::UnboundedSender<WsRes>>,
-) -> Result<ResSiteObjectPut> {
-    let obj = req.obj.ok_or_else(|| anyhow!("obj required"))?;
-    let site_iid = req.site_iid;
-    let owner_iid = site_grant_check(pool, caller_iid, site_iid, true).await?;
+) -> Result<i64> {
     let id = if obj.id > 0 { obj.id } else { snowflake_id() };
     let meta_json: serde_json::Value = if obj.meta_json.is_empty() {
         serde_json::json!({})
@@ -94,9 +92,22 @@ pub async fn site_object_put(
             sync_push::Body::SiteObject(SiteObject {
                 id,
                 site_iid,
-                ..obj
+                ..obj.clone()
             }),
         );
     }
+    Ok(id)
+}
+
+pub async fn site_object_put(
+    pool: &PgPool,
+    caller_iid: i64,
+    req: ReqSiteObjectPut,
+    out_tx: Option<&mpsc::UnboundedSender<WsRes>>,
+) -> Result<ResSiteObjectPut> {
+    let obj = req.obj.ok_or_else(|| anyhow!("obj required"))?;
+    let site_iid = req.site_iid;
+    let owner_iid = site_grant_check(pool, caller_iid, site_iid, true).await?;
+    let id = site_object_upsert(pool, owner_iid, site_iid, &obj, out_tx).await?;
     Ok(ResSiteObjectPut { id })
 }

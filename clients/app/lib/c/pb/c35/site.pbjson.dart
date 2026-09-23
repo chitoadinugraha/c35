@@ -355,6 +355,8 @@ const SiteRow$json = {
     },
     {'1': 'updated_ts_ms', '3': 6, '4': 1, '5': 3, '10': 'updatedTsMs'},
     {'1': 'is_archived', '3': 7, '4': 1, '5': 8, '10': 'isArchived'},
+    {'1': 'is_pinned', '3': 8, '4': 1, '5': 8, '10': 'isPinned'},
+    {'1': 'sort_order', '3': 9, '4': 1, '5': 5, '10': 'sortOrder'},
   ],
 };
 
@@ -363,7 +365,9 @@ final $typed_data.Uint8List siteRowDescriptor = $convert.base64Decode(
     'CgdTaXRlUm93EhkKCHNpdGVfaWlkGAEgASgDUgdzaXRlSWlkEhkKCGFsaWVuX2lkGAIgASgJUg'
     'dhbGllbklkEhIKBG5hbWUYAyABKAlSBG5hbWUSEAoDcGljGAQgASgJUgNwaWMSMAoUcHVibGlz'
     'aGVkX3ZlcnNpb25faWQYBSABKAlSEnB1Ymxpc2hlZFZlcnNpb25JZBIiCg11cGRhdGVkX3RzX2'
-    '1zGAYgASgDUgt1cGRhdGVkVHNNcxIfCgtpc19hcmNoaXZlZBgHIAEoCFIKaXNBcmNoaXZlZA==');
+    '1zGAYgASgDUgt1cGRhdGVkVHNNcxIfCgtpc19hcmNoaXZlZBgHIAEoCFIKaXNBcmNoaXZlZBIb'
+    'Cglpc19waW5uZWQYCCABKAhSCGlzUGlubmVkEh0KCnNvcnRfb3JkZXIYCSABKAVSCXNvcnRPcm'
+    'Rlcg==');
 
 @$core.Deprecated('Use reqSiteListDescriptor instead')
 const ReqSiteList$json = {
@@ -791,3 +795,102 @@ const ResSiteDomainPut$json = {
 /// Descriptor for `ResSiteDomainPut`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List resSiteDomainPutDescriptor =
     $convert.base64Decode('ChBSZXNTaXRlRG9tYWluUHV0Eg4KAmlkGAEgASgDUgJpZA==');
+
+@$core.Deprecated('Use reqSitePreviewTokenDescriptor instead')
+const ReqSitePreviewToken$json = {
+  '1': 'ReqSitePreviewToken',
+  '2': [
+    {'1': 'site_iid', '3': 1, '4': 1, '5': 3, '10': 'siteIid'},
+    {'1': 'ttl_secs', '3': 2, '4': 1, '5': 5, '10': 'ttlSecs'},
+  ],
+};
+
+/// Descriptor for `ReqSitePreviewToken`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqSitePreviewTokenDescriptor = $convert.base64Decode(
+    'ChNSZXFTaXRlUHJldmlld1Rva2VuEhkKCHNpdGVfaWlkGAEgASgDUgdzaXRlSWlkEhkKCHR0bF'
+    '9zZWNzGAIgASgFUgd0dGxTZWNz');
+
+@$core.Deprecated('Use resSitePreviewTokenDescriptor instead')
+const ResSitePreviewToken$json = {
+  '1': 'ResSitePreviewToken',
+  '2': [
+    {'1': 'token', '3': 1, '4': 1, '5': 9, '10': 'token'},
+    {'1': 'expires_ts_ms', '3': 2, '4': 1, '5': 3, '10': 'expiresTsMs'},
+  ],
+};
+
+/// Descriptor for `ResSitePreviewToken`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resSitePreviewTokenDescriptor = $convert.base64Decode(
+    'ChNSZXNTaXRlUHJldmlld1Rva2VuEhQKBXRva2VuGAEgASgJUgV0b2tlbhIiCg1leHBpcmVzX3'
+    'RzX21zGAIgASgDUgtleHBpcmVzVHNNcw==');
+
+@$core.Deprecated('Use siteQueryRowDescriptor instead')
+const SiteQueryRow$json = {
+  '1': 'SiteQueryRow',
+  '2': [
+    {'1': 'site_iid', '3': 1, '4': 1, '5': 3, '10': 'siteIid'},
+    {'1': 'site_name', '3': 2, '4': 1, '5': 9, '10': 'siteName'},
+    {
+      '1': 'cells',
+      '3': 3,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.SiteQueryRow.CellsEntry',
+      '10': 'cells'
+    },
+  ],
+  '3': [SiteQueryRow_CellsEntry$json],
+};
+
+@$core.Deprecated('Use siteQueryRowDescriptor instead')
+const SiteQueryRow_CellsEntry$json = {
+  '1': 'CellsEntry',
+  '2': [
+    {'1': 'key', '3': 1, '4': 1, '5': 9, '10': 'key'},
+    {'1': 'value', '3': 2, '4': 1, '5': 9, '10': 'value'},
+  ],
+  '7': {'7': true},
+};
+
+/// Descriptor for `SiteQueryRow`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List siteQueryRowDescriptor = $convert.base64Decode(
+    'CgxTaXRlUXVlcnlSb3cSGQoIc2l0ZV9paWQYASABKANSB3NpdGVJaWQSGwoJc2l0ZV9uYW1lGA'
+    'IgASgJUghzaXRlTmFtZRIyCgVjZWxscxgDIAMoCzIcLmMzNS5TaXRlUXVlcnlSb3cuQ2VsbHNF'
+    'bnRyeVIFY2VsbHMaOAoKQ2VsbHNFbnRyeRIQCgNrZXkYASABKAlSA2tleRIUCgV2YWx1ZRgCIA'
+    'EoCVIFdmFsdWU6AjgB');
+
+@$core.Deprecated('Use reqSiteQueryRunDescriptor instead')
+const ReqSiteQueryRun$json = {
+  '1': 'ReqSiteQueryRun',
+  '2': [
+    {'1': 'query_id', '3': 1, '4': 1, '5': 9, '10': 'queryId'},
+    {'1': 'site_iids', '3': 2, '4': 3, '5': 3, '10': 'siteIids'},
+    {'1': 'params_json', '3': 3, '4': 1, '5': 9, '10': 'paramsJson'},
+  ],
+};
+
+/// Descriptor for `ReqSiteQueryRun`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqSiteQueryRunDescriptor = $convert.base64Decode(
+    'Cg9SZXFTaXRlUXVlcnlSdW4SGQoIcXVlcnlfaWQYASABKAlSB3F1ZXJ5SWQSGwoJc2l0ZV9paW'
+    'RzGAIgAygDUghzaXRlSWlkcxIfCgtwYXJhbXNfanNvbhgDIAEoCVIKcGFyYW1zSnNvbg==');
+
+@$core.Deprecated('Use resSiteQueryRunDescriptor instead')
+const ResSiteQueryRun$json = {
+  '1': 'ResSiteQueryRun',
+  '2': [
+    {
+      '1': 'rows',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.SiteQueryRow',
+      '10': 'rows'
+    },
+    {'1': 'result_json', '3': 2, '4': 1, '5': 9, '10': 'resultJson'},
+  ],
+};
+
+/// Descriptor for `ResSiteQueryRun`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resSiteQueryRunDescriptor = $convert.base64Decode(
+    'Cg9SZXNTaXRlUXVlcnlSdW4SJQoEcm93cxgBIAMoCzIRLmMzNS5TaXRlUXVlcnlSb3dSBHJvd3'
+    'MSHwoLcmVzdWx0X2pzb24YAiABKAlSCnJlc3VsdEpzb24=');

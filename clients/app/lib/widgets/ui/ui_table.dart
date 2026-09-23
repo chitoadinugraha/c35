@@ -22,6 +22,7 @@ class UiTable extends StatefulWidget {
     this.searchQuery = '',
     this.onCellCommit,
     this.onAddRow,
+    this.onRowTap,
     this.expandedBuilder,
   });
 
@@ -31,6 +32,7 @@ class UiTable extends StatefulWidget {
   final String searchQuery;
   final UiTableCellCommit? onCellCommit;
   final VoidCallback? onAddRow;
+  final void Function(String rowKey)? onRowTap;
   final Widget Function(String rowKey)? expandedBuilder;
 
   @override
@@ -210,10 +212,13 @@ class _UiTableState extends State<UiTable> {
     final rowKey = siteRowKey(widget.def, row);
     final expanded = _expanded.contains(rowKey);
     return [
-      Container(
+      Material(
+        color: expanded ? _selected : Colors.transparent,
+        child: InkWell(
+          onTap: widget.onRowTap == null ? null : () => widget.onRowTap!(rowKey),
+          child: Container(
         decoration: BoxDecoration(
           border: Border(bottom: BorderSide(color: _border.withValues(alpha: 0.6))),
-          color: expanded ? _selected : null,
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -238,6 +243,8 @@ class _UiTableState extends State<UiTable> {
                 child: _cell(rowKey, col, row[col.key] ?? ''),
               ),
           ],
+        ),
+      ),
         ),
       ),
       if (expanded && widget.expandedBuilder != null)

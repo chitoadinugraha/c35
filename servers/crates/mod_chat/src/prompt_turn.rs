@@ -12,11 +12,15 @@ use tokio_util::sync::CancellationToken;
 use crate::compose::compose_tools_and_inst;
 use crate::prompt_run::prompt_run_get;
 use crate::mention_registry::{
-    mention_active_topic, mention_force_tools, mention_prompt_block, mention_ref_parse,
-    mention_resolve_all, MentionRef,
+    mention_active_topics, mention_prompt_block, mention_ref_parse, mention_resolve_all, MentionRef,
 };
+use crate::mention_tool_registry::mention_force_tools;
+use crate::site_capability::site_capability_view_for_mention;
 use crate::inst_macro::inst_scopes_home;
-use crate::site_resolve::{site_context_block, site_context_resolve, SiteContext};
+use crate::mention_context::{
+    mention_context_build, mention_context_sites_block, MentionContext,
+};
+use crate::site_resolve::site_context_resolve;
 use crate::topic::topic_inst_block;
 use crate::inst_cache::inst_list_cached;
 use crate::mention::mention_list_enabled;
@@ -226,7 +230,24 @@ where
         })
         .collect();
     let force_tools = mention_force_tools(&resolved);
-    let active_topic = mention_active_topic(&resolved, &explicit_topic);
+    let mention_ctx = mention_context_build(&resolved);
+    let mention_ctx = if mention_ctx.sites.is_empty() {
+        site_context_resolve(pool, owner_iid, &req.text, &inst_mention_ids)
+            .await
+            .ok()
+            .flatten()
+            .map(MentionContext::from_site)
+            .unwrap_or(mention_ctx)
+    } else {
+        mention_ctx
+    };
+    let caps = site_capability_view_for_mention(pool, &mention_ctx).await;
+    let commerce_site_iids = caps.commerce_site_iids(&mention_ctx.site_iids());
+    let active_topics = mention_active_topics(&resolved, &explicit_topic, &commerce_site_iids);
+    let topic_id = active_topics
+        .first()
+        .cloned()
+        .unwrap_or_else(|| explicit_topic.clone());
     let tool_mode = if req.tool_mode.trim().is_empty() { "agent" } else { req.tool_mode.trim() };
     let inst_scopes = inst_scopes_home();
     let composed = compose_tools_and_inst(
@@ -235,31 +256,14 @@ where
         cluster_tools(),
         &force_tools,
         &inst_mention_ids,
-        &active_topic,
+        &active_topics,
         tool_mode,
         &mentions,
         &inst_scopes,
+        &mention_ctx,
+        &caps,
     );
-    let topic_id = active_topic.clone();
-    let site_ctx = if let Some(r) = resolved.iter().find(|r| r.item.topic_id == "web.builder") {
-        r.identity_iid.map(|site_iid| SiteContext {
-            site_iid,
-            alien_id: r
-                .item
-                .search_terms
-                .iter()
-                .find(|t| t.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-'))
-                .cloned()
-                .unwrap_or_default(),
-            name: r.item.title.clone(),
-        })
-    } else {
-        site_context_resolve(pool, owner_iid, &req.text, &inst_mention_ids)
-            .await
-            .ok()
-            .flatten()
-    };
-    let site_iid = site_ctx.as_ref().map(|s| s.site_iid);
+    let site_iid = mention_ctx.default_site_iid;
     let topic_block = topic_inst_block(pool, &topic_id).await;
     let tz = time_timezone_resolve(locale, &req.text);
     let time_block = time_prompt_block(tz);
@@ -270,8 +274,9 @@ where
     if !composed.inst_block.is_empty() {
         system = format!("{system}\n\n{}", composed.inst_block);
     }
-    if let Some(site) = &site_ctx {
-        system = format!("{system}\n\n{}", site_context_block(site));
+    let sites_block = mention_context_sites_block(&mention_ctx);
+    if !sites_block.is_empty() {
+        system = format!("{system}\n\n{sites_block}");
     }
     let mention_block = mention_prompt_block(&resolved);
     if !mention_block.is_empty() {
@@ -307,6 +312,7 @@ where
         owner_iid,
         chat_id,
         site_iid,
+        mention: mention_ctx,
         locale,
         attachments_json,
         req_id,

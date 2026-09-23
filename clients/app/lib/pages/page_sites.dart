@@ -1,18 +1,20 @@
+import 'dart:async';
+
 import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/site/site_store.dart';
 import 'package:alienai_c35/widgets/sites/ui_site_detail.dart';
 import 'package:alienai_c35/widgets/sites/ui_site_row.dart';
+import 'package:alienai_c35/widgets/ui/ui_alert.dart';
 import 'package:alienai_c35/widgets/ui/ui_empty_state.dart';
 import 'package:alienai_c35/widgets/ui/ui_master_detail.dart';
 import 'package:alienai_c35/widgets/ui/ui_page.dart';
 import 'package:alienai_c35/widgets/ui/ui_page_bar.dart';
 import 'package:alienai_c35/widgets/ui/ui_search_toggle.dart';
 import 'package:alienai_c35/widgets/ui/ui_window_bar.dart';
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 const _muted = Color(0xFF71717A);
+const _icon = Color(0xFFA1A1AA);
 const _masterBg = Color(0xFF0C0C10);
 
 class PageSites extends StatefulWidget {
@@ -47,6 +49,57 @@ class _PageSitesState extends State<PageSites> {
     return row.name.isNotEmpty ? row.name : row.alienId;
   }
 
+  Future<String?> _renameAsk(String current) => showDialog<String>(
+        context: context,
+        builder: (ctx) => _SiteRenameDialog(initial: current),
+      );
+
+  Future<void> _rowMenu(String id, Offset pos) async {
+    final row = _store.rowById(id);
+    if (row == null) return;
+    final pinned = row.isPinned;
+    final currentName = row.name.isNotEmpty ? row.name : row.alienId;
+    final action = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(pos.dx, pos.dy, pos.dx, pos.dy),
+      color: const Color(0xFF18181B),
+      items: [
+        PopupMenuItem(
+          value: pinned ? 'unpin' : 'pin',
+          child: Row(
+            children: [
+              Icon(pinned ? Icons.push_pin : Icons.push_pin_outlined, size: 18, color: _icon),
+              const SizedBox(width: 10),
+              Text(pinned ? 'Unpin' : 'Pin'),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'rename',
+          child: Row(
+            children: [
+              Icon(Icons.edit_outlined, size: 18, color: _icon),
+              SizedBox(width: 10),
+              Text('Rename'),
+            ],
+          ),
+        ),
+      ],
+    );
+    if (action == null || !mounted) return;
+    try {
+      if (action == 'pin') await _store.pinPut(id, true);
+      if (action == 'unpin') await _store.pinPut(id, false);
+      if (action == 'rename') {
+        final name = await _renameAsk(currentName);
+        if (name == null || !mounted) return;
+        await _store.renamePut(id, name);
+      }
+    } catch (e) {
+      if (mounted) await uiAlertError(context, e);
+    }
+  }
+
   Widget _masterList() => ListenableBuilder(
         listenable: _store,
         builder: (context, _) => ColoredBox(
@@ -62,7 +115,11 @@ class _PageSitesState extends State<PageSites> {
                       itemBuilder: (context, i) {
                         final row = _store.filtered[i];
                         final sid = row.siteIid.toString();
-                        return UiSiteRow(row: row, selected: _store.selectedId == sid, onTap: () => _store.select(sid));
+                        return GestureDetector(
+                          onSecondaryTapDown: (d) => _rowMenu(sid, d.globalPosition),
+                          onLongPress: () => _rowMenu(sid, Offset(MediaQuery.sizeOf(context).width / 2, 200)),
+                          child: UiSiteRow(row: row, selected: _store.selectedId == sid, onTap: () => _store.select(sid)),
+                        );
                       },
                     ),
         ),
@@ -109,6 +166,48 @@ class _PageSitesState extends State<PageSites> {
             ),
           );
         },
+      );
+}
+
+class _SiteRenameDialog extends StatefulWidget {
+  const _SiteRenameDialog({required this.initial});
+
+  final String initial;
+
+  @override
+  State<_SiteRenameDialog> createState() => _SiteRenameDialogState();
+}
+
+class _SiteRenameDialogState extends State<_SiteRenameDialog> {
+  late final _ctrl = TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final name = _ctrl.text.trim();
+    if (name.isEmpty) return;
+    Navigator.pop(context, name);
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        backgroundColor: const Color(0xFF18181B),
+        title: const Text('Rename site', style: TextStyle(color: Color(0xFFF4F4F5), fontSize: 16, fontWeight: FontWeight.bold)),
+        content: TextField(
+          controller: _ctrl,
+          autofocus: true,
+          style: const TextStyle(color: Color(0xFFF4F4F5)),
+          decoration: const InputDecoration(labelText: 'Name', labelStyle: TextStyle(color: Color(0xFF71717A))),
+          onSubmitted: (_) => _submit(),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          FilledButton(onPressed: _submit, child: const Text('Save')),
+        ],
       );
 }
 

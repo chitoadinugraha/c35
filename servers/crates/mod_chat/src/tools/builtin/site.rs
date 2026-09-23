@@ -1,22 +1,22 @@
 use anyhow::{anyhow, bail, Result};
-use blake3;
+use c35_mod_site::{site_contact_upsert, site_object_upsert, site_publish_from_draft};
+use c35_proto::{SiteContact, SiteObject};
 use c35_store::snowflake_id;
 use serde_json::{json, Value};
 use sqlx::{Postgres, Transaction};
 
+use crate::mention_context::site_iid_resolve as mention_site_iid_resolve;
 use crate::site_resolve::site_grant_owner;
 use crate::site_validate::validate_sitedoc;
 use crate::tool;
 use crate::tools::ToolContext;
 
 fn site_iid_resolve(ctx: &ToolContext, args: &Value) -> Result<i64> {
-    let arg_iid = args.get("site_iid").and_then(|v| v.as_i64()).unwrap_or(0);
-    if arg_iid > 0 {
-        return Ok(arg_iid);
-    }
-    ctx.site_iid
-        .filter(|i| *i > 0)
-        .ok_or_else(|| anyhow!("site_iid is required — mention @alien_id or site name"))
+    mention_site_iid_resolve(
+        &ctx.mention,
+        ctx.site_iid,
+        args.get("site_iid").and_then(|v| v.as_i64()),
+    )
 }
 
 fn doc_json_parse(args: &Value) -> Result<Value> {
@@ -54,48 +54,8 @@ pub async fn site_draft_put_exec(ctx: &ToolContext, args: &Value) -> Result<Valu
     Ok(json!({ "ok": true, "site_iid": site_iid }))
 }
 
-fn render_page_html(page: &Value) -> String {
-    let title = page.get("title").and_then(|v| v.as_str()).unwrap_or("");
-    let mut body = String::new();
-    if let Some(blocks) = page.get("blocks").and_then(|v| v.as_array()) {
-        for block in blocks {
-            let block_type = block.get("type").and_then(|v| v.as_str()).unwrap_or("");
-            let props = block.get("props").cloned().unwrap_or(json!({}));
-            match block_type {
-                "hero" => {
-                    let t = props.get("title").and_then(|v| v.as_str()).unwrap_or("");
-                    let sub = props.get("subtitle").and_then(|v| v.as_str()).unwrap_or("");
-                    body.push_str(&format!("<section class=\"hero\"><h1>{t}</h1><p>{sub}</p></section>"));
-                }
-                "markdown" => {
-                    let c = props.get("content").and_then(|v| v.as_str()).unwrap_or("");
-                    body.push_str(&format!("<div class=\"markdown\">{c}</div>"));
-                }
-                "spacer" => body.push_str("<div class=\"spacer\"></div>"),
-                "product_grid" => body.push_str("<section class=\"product-grid\"></section>"),
-                _ => body.push_str(&format!("<section data-block=\"{block_type}\"></section>")),
-            }
-        }
-    }
-    format!("<!DOCTYPE html><html><head><title>{title}</title></head><body>{body}</body></html>")
-}
-
-fn render_doc_html(doc: &Value) -> String {
-    let pages = doc.get("pages").and_then(|v| v.as_array());
-    let Some(pages) = pages else {
-        return "<!DOCTYPE html><html><body></body></html>".into();
-    };
-    pages
-        .iter()
-        .find(|p| p.get("path").and_then(|v| v.as_str()) == Some("/"))
-        .or_else(|| pages.first())
-        .map(render_page_html)
-        .unwrap_or_else(|| "<!DOCTYPE html><html><body></body></html>".into())
-}
-
 pub async fn site_publish_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
     let site_iid = site_iid_resolve(ctx, args)?;
-    let owner_iid = site_grant_owner(&ctx.pool, ctx.owner_iid, site_iid).await?;
     let draft_row = sqlx::query_scalar::<_, Value>(
         "SELECT doc_json FROM site.draft WHERE site_iid = $1 AND deleted_ts IS NULL",
     )
@@ -104,67 +64,12 @@ pub async fn site_publish_exec(ctx: &ToolContext, args: &Value) -> Result<Value>
     .await?
     .ok_or_else(|| anyhow!("no draft for site"))?;
     validate_sitedoc(&draft_row)?;
-    let version_id = snowflake_id().to_string();
-    let doc_str = serde_json::to_string(&draft_row)?;
-    let html = render_doc_html(&draft_row);
-    let render_hash = blake3::hash(html.as_bytes()).to_hex().to_string();
-    let etag = render_hash.clone();
-    let mut tx = ctx.pool.begin().await?;
-    sqlx::query(
-        "UPDATE site.publish SET is_active = FALSE, updated_ts = NOW() WHERE site_iid = $1 AND is_active = TRUE",
-    )
-    .bind(site_iid)
-    .execute(&mut *tx)
-    .await?;
-    sqlx::query(
-        r#"
-        INSERT INTO site.publish (site_iid, version_id, owner_iid, doc_json, render_hash, published_ts, is_active, created_ts, updated_ts)
-        VALUES ($1, $2, $3, $4::jsonb, $5, NOW(), TRUE, NOW(), NOW())
-        "#,
-    )
-    .bind(site_iid)
-    .bind(&version_id)
-    .bind(owner_iid)
-    .bind(&doc_str)
-    .bind(&render_hash)
-    .execute(&mut *tx)
-    .await?;
-    sqlx::query(
-        r#"
-        INSERT INTO site.render (site_iid, render_key, content_type, body, etag, created_ts, updated_ts)
-        VALUES ($1, 'html:/', 'text/html; charset=utf-8', $2, $3, NOW(), NOW())
-        ON CONFLICT (site_iid, render_key) DO UPDATE SET
-            body = EXCLUDED.body,
-            etag = EXCLUDED.etag,
-            updated_ts = NOW()
-        "#,
-    )
-    .bind(site_iid)
-    .bind(html.as_bytes())
-    .bind(&etag)
-    .execute(&mut *tx)
-    .await?;
-    sqlx::query(
-        r#"
-        INSERT INTO site.config (site_iid, owner_iid, published_version_id, created_ts, updated_ts)
-        VALUES ($1, $2, $3, NOW(), NOW())
-        ON CONFLICT (site_iid) DO UPDATE SET
-            published_version_id = EXCLUDED.published_version_id,
-            updated_ts = NOW()
-        "#,
-    )
-    .bind(site_iid)
-    .bind(owner_iid)
-    .bind(&version_id)
-    .execute(&mut *tx)
-    .await?;
-    tx.commit().await?;
-    let _ = c35_mod_hint::hint_invalidate_for_asset(&ctx.pool, site_iid).await;
+    let result = site_publish_from_draft(&ctx.pool, ctx.owner_iid, site_iid).await?;
     Ok(json!({
         "ok": true,
         "site_iid": site_iid,
-        "version_id": version_id,
-        "render_hash": render_hash,
+        "version_id": result.version_id,
+        "render_hash": result.render_hash,
     }))
 }
 
@@ -245,7 +150,7 @@ pub async fn site_product_put_exec(ctx: &ToolContext, args: &Value) -> Result<Va
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb, $16, NOW(), NOW())
         ON CONFLICT (site_iid, product_id) DO UPDATE SET
             name = EXCLUDED.name,
-            "desc" = EXCLUDED."desc",
+            "desc" = EXCLUDED.desc,
             unit = EXCLUDED.unit,
             sku = EXCLUDED.sku,
             price = EXCLUDED.price,
@@ -286,12 +191,61 @@ pub async fn site_product_put_exec(ctx: &ToolContext, args: &Value) -> Result<Va
     Ok(json!({ "ok": true, "site_iid": site_iid, "product_id": product_id }))
 }
 
+pub async fn site_contact_put_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
+    let site_iid = site_iid_resolve(ctx, args)?;
+    let owner_iid = site_grant_owner(&ctx.pool, ctx.owner_iid, site_iid).await?;
+    let name = args.get("name").and_then(|v| v.as_str()).unwrap_or("").trim();
+    if name.is_empty() {
+        bail!("name is required");
+    }
+    let contact = SiteContact {
+        site_iid,
+        contact_id: args.get("contact_id").and_then(|v| v.as_i64()).unwrap_or(0),
+        name: name.to_string(),
+        phone: args.get("phone").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        email: args.get("email").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        address: args.get("address").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        note: args.get("note").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        is_archived: args.get("is_archived").and_then(|v| v.as_bool()).unwrap_or(false),
+        ..Default::default()
+    };
+    let contact_id = site_contact_upsert(&ctx.pool, owner_iid, site_iid, &contact, None).await?;
+    Ok(json!({ "ok": true, "site_iid": site_iid, "contact_id": contact_id }))
+}
+
+pub async fn site_object_put_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
+    let site_iid = site_iid_resolve(ctx, args)?;
+    let owner_iid = site_grant_owner(&ctx.pool, ctx.owner_iid, site_iid).await?;
+    let name = args.get("name").and_then(|v| v.as_str()).unwrap_or("").trim();
+    if name.is_empty() {
+        bail!("name is required");
+    }
+    let obj = SiteObject {
+        site_iid,
+        id: args.get("id").and_then(|v| v.as_i64()).unwrap_or(0),
+        client_id: args.get("client_id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        name: name.to_string(),
+        code: args.get("code").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        kind: args.get("kind").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        product_id: args.get("product_id").and_then(|v| v.as_i64()).unwrap_or(0),
+        can_order: args.get("can_order").and_then(|v| v.as_bool()).unwrap_or(false),
+        can_be_reserved: args.get("can_be_reserved").and_then(|v| v.as_bool()).unwrap_or(false),
+        is_active: args.get("is_active").and_then(|v| v.as_bool()).unwrap_or(true),
+        desc: args.get("desc").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        pic: args.get("pic").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        ..Default::default()
+    };
+    let id = site_object_upsert(&ctx.pool, owner_iid, site_iid, &obj, None).await?;
+    Ok(json!({ "ok": true, "site_iid": site_iid, "id": id }))
+}
+
 tool! {
     struct: SiteDraftPutTool,
     name: "site.draft_put",
     aliases: ["site_draft_put"],
     description: "Update a site's draft SiteDoc (pages, blocks, theme). Validates block types and props.",
     topics: ["web.builder"],
+    requires_kinds: ["site"],
     ui_calling_key: "tool.site.draft_put.calling",
     ui_done_key: "tool.site.draft_put.done",
     parameters: {
@@ -310,6 +264,7 @@ tool! {
     aliases: ["site_publish"],
     description: "Publish the current site draft — snapshot to site.publish and compile guest HTML.",
     topics: ["web.builder"],
+    requires_kinds: ["site"],
     ui_calling_key: "tool.site.publish.calling",
     ui_done_key: "tool.site.publish.done",
     parameters: {
@@ -326,6 +281,7 @@ tool! {
     aliases: ["site_product_put"],
     description: "Upsert a product row in site.product catalog (typed fields only — no checkout JSON).",
     topics: ["web.builder"],
+    requires_kinds: ["site"],
     ui_calling_key: "tool.site.product_put.calling",
     ui_done_key: "tool.site.product_put.done",
     parameters: {
@@ -346,5 +302,57 @@ tool! {
     },
     execute: |args, ctx| {
         site_product_put_exec(ctx, &args).await
+    }
+}
+
+tool! {
+    struct: SiteContactPutTool,
+    name: "site.contact_put",
+    aliases: ["site_contact_put"],
+    description: "Upsert a contact row in site.contact CRM table.",
+    topics: ["web.builder"],
+    requires_kinds: ["site"],
+    ui_calling_key: "tool.site.contact_put.calling",
+    ui_done_key: "tool.site.contact_put.done",
+    parameters: {
+        site_iid: (integer, "Site identity ID (resolved from @alien_id when omitted)", optional),
+        contact_id: (integer, "Existing contact ID; omit to create", optional),
+        name: (string, "Contact name", required),
+        phone: (string, "Phone number", optional),
+        email: (string, "Email address", optional),
+        address: (string, "Postal address", optional),
+        note: (string, "Internal note", optional),
+        is_archived: (boolean, "Archive contact", optional),
+    },
+    execute: |args, ctx| {
+        site_contact_put_exec(ctx, &args).await
+    }
+}
+
+tool! {
+    struct: SiteObjectPutTool,
+    name: "site.object_put",
+    aliases: ["site_object_put"],
+    description: "Upsert an object row in site.object (tables, rooms, units).",
+    topics: ["web.builder"],
+    requires_kinds: ["site"],
+    ui_calling_key: "tool.site.object_put.calling",
+    ui_done_key: "tool.site.object_put.done",
+    parameters: {
+        site_iid: (integer, "Site identity ID (resolved from @alien_id when omitted)", optional),
+        id: (integer, "Existing object ID; omit to create", optional),
+        client_id: (string, "Client-side reference id", optional),
+        name: (string, "Object name", required),
+        code: (string, "Short code", optional),
+        kind: (string, "Object kind (table, room, unit, …)", optional),
+        product_id: (integer, "Linked product ID", optional),
+        can_order: (boolean, "Allow guest orders", optional),
+        can_be_reserved: (boolean, "Allow reservations", optional),
+        is_active: (boolean, "Active flag", optional),
+        desc: (string, "Description", optional),
+        pic: (string, "Image URL or /fs/{hash}", optional),
+    },
+    execute: |args, ctx| {
+        site_object_put_exec(ctx, &args).await
     }
 }

@@ -10,6 +10,27 @@ use crate::grant::site_grant_check;
 use crate::sync_push::site_sync_push;
 use c35_proto::WsRes;
 
+pub fn site_capability_enabled(caps: &serde_json::Value, key: &str) -> bool {
+    caps.get(key).and_then(|v| v.as_bool()).unwrap_or(true)
+}
+
+pub async fn site_capabilities_get(pool: &PgPool, site_iid: i64) -> serde_json::Value {
+    sqlx::query_scalar::<_, serde_json::Value>(
+        "SELECT capabilities_json FROM site.config WHERE site_iid = $1 AND deleted_ts IS NULL",
+    )
+    .bind(site_iid)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten()
+    .unwrap_or_else(|| serde_json::json!({}))
+}
+
+pub async fn site_capability_check(pool: &PgPool, site_iid: i64, capability: &str) -> bool {
+    let caps = site_capabilities_get(pool, site_iid).await;
+    site_capability_enabled(&caps, capability)
+}
+
 fn ts_ms(t: Option<chrono::DateTime<Utc>>) -> i64 {
     t.map(|x| x.timestamp_millis()).unwrap_or(0)
 }

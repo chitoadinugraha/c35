@@ -15,7 +15,10 @@ mod site_resolve;
 mod site_validate;
 pub mod inst_macro;
 mod mention;
+pub mod mention_context;
 mod mention_registry;
+mod mention_tool_registry;
+mod site_capability;
 mod memory;
 pub mod prompt;
 mod prompt_turn;
@@ -26,11 +29,16 @@ mod turn_tracer;
 
 pub use catalog::{mention_list, topic_list, translation_get, translation_rev, CatalogMentionRow, CatalogTopicRow};
 pub use mention::{mention_list_enabled, MentionRow};
-pub use mention_registry::{
-    mention_active_topic, mention_device_iids, mention_force_tools, mention_has_device,
-    mention_list_rpc, mention_prompt_block, mention_ref_parse, mention_resolve_all,
-    mention_search_rpc, MentionRef, MentionResolved,
+pub use mention_context::{
+    mention_context_build, mention_context_sites_block, site_iid_resolve, MentionContext,
 };
+pub use mention_registry::{
+    mention_active_topic, mention_active_topic_with_commerce, mention_active_topics,
+    mention_device_iids, mention_has_device, mention_list_rpc, mention_prompt_block,
+    mention_ref_parse, mention_resolve_all, mention_search_rpc, MentionRef, MentionResolved,
+};
+pub use mention_tool_registry::mention_force_tools;
+pub use site_capability::{site_capability_view_for_mention, SiteCapabilityView};
 pub use tools::ToolDef;
 
 pub use asset_tag::asset_tag_list;

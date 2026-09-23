@@ -1286,6 +1286,60 @@ const WsReq$json = {
       '9': 0,
       '10': 'siteConfigPut'
     },
+    {
+      '1': 'site_preview_token',
+      '3': 78,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqSitePreviewToken',
+      '9': 0,
+      '10': 'sitePreviewToken'
+    },
+    {
+      '1': 'tx_get',
+      '3': 79,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqTxGet',
+      '9': 0,
+      '10': 'txGet'
+    },
+    {
+      '1': 'tx_put',
+      '3': 80,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqTxPut',
+      '9': 0,
+      '10': 'txPut'
+    },
+    {
+      '1': 'tx_preview',
+      '3': 81,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqTxPreview',
+      '9': 0,
+      '10': 'txPreview'
+    },
+    {
+      '1': 'tx_debt_pay',
+      '3': 82,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqTxDebtPay',
+      '9': 0,
+      '10': 'txDebtPay'
+    },
+    {
+      '1': 'site_query_run',
+      '3': 83,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqSiteQueryRun',
+      '9': 0,
+      '10': 'siteQueryRun'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -1371,7 +1425,13 @@ final $typed_data.Uint8List wsReqDescriptor = $convert.base64Decode(
     'bkxpc3RIAFILbWVudGlvbkxpc3QSPgoObWVudGlvbl9zZWFyY2gYSyABKAsyFS5jMzUuUmVxTW'
     'VudGlvblNlYXJjaEgAUg1tZW50aW9uU2VhcmNoEjIKCmhpbnRfdG91Y2gYTCABKAsyES5jMzUu'
     'UmVxSGludFRvdWNoSABSCWhpbnRUb3VjaBI/Cg9zaXRlX2NvbmZpZ19wdXQYTSABKAsyFS5jMz'
-    'UuUmVxU2l0ZUNvbmZpZ1B1dEgAUg1zaXRlQ29uZmlnUHV0QgYKBGJvZHk=');
+    'UuUmVxU2l0ZUNvbmZpZ1B1dEgAUg1zaXRlQ29uZmlnUHV0EkgKEnNpdGVfcHJldmlld190b2tl'
+    'bhhOIAEoCzIYLmMzNS5SZXFTaXRlUHJldmlld1Rva2VuSABSEHNpdGVQcmV2aWV3VG9rZW4SJg'
+    'oGdHhfZ2V0GE8gASgLMg0uYzM1LlJlcVR4R2V0SABSBXR4R2V0EiYKBnR4X3B1dBhQIAEoCzIN'
+    'LmMzNS5SZXFUeFB1dEgAUgV0eFB1dBIyCgp0eF9wcmV2aWV3GFEgASgLMhEuYzM1LlJlcVR4UH'
+    'Jldmlld0gAUgl0eFByZXZpZXcSMwoLdHhfZGVidF9wYXkYUiABKAsyES5jMzUuUmVxVHhEZWJ0'
+    'UGF5SABSCXR4RGVidFBheRI8Cg5zaXRlX3F1ZXJ5X3J1bhhTIAEoCzIULmMzNS5SZXFTaXRlUX'
+    'VlcnlSdW5IAFIMc2l0ZVF1ZXJ5UnVuQgYKBGJvZHk=');
 
 @$core.Deprecated('Use wsResDescriptor instead')
 const WsRes$json = {
@@ -2054,6 +2114,60 @@ const WsRes$json = {
       '9': 0,
       '10': 'siteConfigPut'
     },
+    {
+      '1': 'site_preview_token',
+      '3': 126,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResSitePreviewToken',
+      '9': 0,
+      '10': 'sitePreviewToken'
+    },
+    {
+      '1': 'tx_get',
+      '3': 127,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResTxGet',
+      '9': 0,
+      '10': 'txGet'
+    },
+    {
+      '1': 'tx_put',
+      '3': 128,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResTxPut',
+      '9': 0,
+      '10': 'txPut'
+    },
+    {
+      '1': 'tx_preview',
+      '3': 129,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResTxPreview',
+      '9': 0,
+      '10': 'txPreview'
+    },
+    {
+      '1': 'tx_debt_pay',
+      '3': 130,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResTxDebtPay',
+      '9': 0,
+      '10': 'txDebtPay'
+    },
+    {
+      '1': 'site_query_run',
+      '3': 131,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResSiteQueryRun',
+      '9': 0,
+      '10': 'siteQueryRun'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -2148,4 +2262,10 @@ final $typed_data.Uint8List wsResDescriptor = $convert.base64Decode(
     'oKaGludF90b3VjaBh7IAEoCzIRLmMzNS5SZXNIaW50VG91Y2hIAFIJaGludFRvdWNoEjwKD3By'
     'b21wdF9ydW5fcHVzaBh8IAEoCzISLmMzNS5Qcm9tcHRSdW5QdXNoSABSDXByb21wdFJ1blB1c2'
     'gSPwoPc2l0ZV9jb25maWdfcHV0GH0gASgLMhUuYzM1LlJlc1NpdGVDb25maWdQdXRIAFINc2l0'
-    'ZUNvbmZpZ1B1dEIGCgRib2R5');
+    'ZUNvbmZpZ1B1dBJIChJzaXRlX3ByZXZpZXdfdG9rZW4YfiABKAsyGC5jMzUuUmVzU2l0ZVByZX'
+    'ZpZXdUb2tlbkgAUhBzaXRlUHJldmlld1Rva2VuEiYKBnR4X2dldBh/IAEoCzINLmMzNS5SZXNU'
+    'eEdldEgAUgV0eEdldBInCgZ0eF9wdXQYgAEgASgLMg0uYzM1LlJlc1R4UHV0SABSBXR4UHV0Ej'
+    'MKCnR4X3ByZXZpZXcYgQEgASgLMhEuYzM1LlJlc1R4UHJldmlld0gAUgl0eFByZXZpZXcSNAoL'
+    'dHhfZGVidF9wYXkYggEgASgLMhEuYzM1LlJlc1R4RGVidFBheUgAUgl0eERlYnRQYXkSPQoOc2'
+    'l0ZV9xdWVyeV9ydW4YgwEgASgLMhQuYzM1LlJlc1NpdGVRdWVyeVJ1bkgAUgxzaXRlUXVlcnlS'
+    'dW5CBgoEYm9keQ==');

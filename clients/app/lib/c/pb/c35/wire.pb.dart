@@ -1563,6 +1563,12 @@ enum WsReq_Body {
   mentionSearch,
   hintTouch,
   siteConfigPut,
+  sitePreviewToken,
+  txGet,
+  txPut,
+  txPreview,
+  txDebtPay,
+  siteQueryRun,
   notSet
 }
 
@@ -1637,6 +1643,12 @@ class WsReq extends $pb.GeneratedMessage {
     $8.ReqMentionSearch? mentionSearch,
     $20.ReqHintTouch? hintTouch,
     $13.ReqSiteConfigPut? siteConfigPut,
+    $13.ReqSitePreviewToken? sitePreviewToken,
+    $14.ReqTxGet? txGet,
+    $14.ReqTxPut? txPut,
+    $14.ReqTxPreview? txPreview,
+    $14.ReqTxDebtPay? txDebtPay,
+    $13.ReqSiteQueryRun? siteQueryRun,
   }) {
     final result = WsReq._();
     if (reqId != null) result.reqId = reqId;
@@ -1716,6 +1728,12 @@ class WsReq extends $pb.GeneratedMessage {
     if (mentionSearch != null) result.mentionSearch = mentionSearch;
     if (hintTouch != null) result.hintTouch = hintTouch;
     if (siteConfigPut != null) result.siteConfigPut = siteConfigPut;
+    if (sitePreviewToken != null) result.sitePreviewToken = sitePreviewToken;
+    if (txGet != null) result.txGet = txGet;
+    if (txPut != null) result.txPut = txPut;
+    if (txPreview != null) result.txPreview = txPreview;
+    if (txDebtPay != null) result.txDebtPay = txDebtPay;
+    if (siteQueryRun != null) result.siteQueryRun = siteQueryRun;
     return result;
   }
 
@@ -1796,6 +1814,12 @@ class WsReq extends $pb.GeneratedMessage {
     75: WsReq_Body.mentionSearch,
     76: WsReq_Body.hintTouch,
     77: WsReq_Body.siteConfigPut,
+    78: WsReq_Body.sitePreviewToken,
+    79: WsReq_Body.txGet,
+    80: WsReq_Body.txPut,
+    81: WsReq_Body.txPreview,
+    82: WsReq_Body.txDebtPay,
+    83: WsReq_Body.siteQueryRun,
     0: WsReq_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -1869,7 +1893,13 @@ class WsReq extends $pb.GeneratedMessage {
       74,
       75,
       76,
-      77
+      77,
+      78,
+      79,
+      80,
+      81,
+      82,
+      83
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$9.ReqSessionInit>(2, _omitFieldNames ? '' : 'sessionInit',
@@ -2020,6 +2050,19 @@ class WsReq extends $pb.GeneratedMessage {
         subBuilder: $20.ReqHintTouch.$_createMessage)
     ..aOM<$13.ReqSiteConfigPut>(77, _omitFieldNames ? '' : 'siteConfigPut',
         subBuilder: $13.ReqSiteConfigPut.$_createMessage)
+    ..aOM<$13.ReqSitePreviewToken>(
+        78, _omitFieldNames ? '' : 'sitePreviewToken',
+        subBuilder: $13.ReqSitePreviewToken.$_createMessage)
+    ..aOM<$14.ReqTxGet>(79, _omitFieldNames ? '' : 'txGet',
+        subBuilder: $14.ReqTxGet.$_createMessage)
+    ..aOM<$14.ReqTxPut>(80, _omitFieldNames ? '' : 'txPut',
+        subBuilder: $14.ReqTxPut.$_createMessage)
+    ..aOM<$14.ReqTxPreview>(81, _omitFieldNames ? '' : 'txPreview',
+        subBuilder: $14.ReqTxPreview.$_createMessage)
+    ..aOM<$14.ReqTxDebtPay>(82, _omitFieldNames ? '' : 'txDebtPay',
+        subBuilder: $14.ReqTxDebtPay.$_createMessage)
+    ..aOM<$13.ReqSiteQueryRun>(83, _omitFieldNames ? '' : 'siteQueryRun',
+        subBuilder: $13.ReqSiteQueryRun.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -2109,6 +2152,12 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(75)
   @$pb.TagNumber(76)
   @$pb.TagNumber(77)
+  @$pb.TagNumber(78)
+  @$pb.TagNumber(79)
+  @$pb.TagNumber(80)
+  @$pb.TagNumber(81)
+  @$pb.TagNumber(82)
+  @$pb.TagNumber(83)
   WsReq_Body whichBody() => _WsReq_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(3)
@@ -2177,6 +2226,12 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(75)
   @$pb.TagNumber(76)
   @$pb.TagNumber(77)
+  @$pb.TagNumber(78)
+  @$pb.TagNumber(79)
+  @$pb.TagNumber(80)
+  @$pb.TagNumber(81)
+  @$pb.TagNumber(82)
+  @$pb.TagNumber(83)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -2938,6 +2993,72 @@ class WsReq extends $pb.GeneratedMessage {
   void clearSiteConfigPut() => $_clearField(77);
   @$pb.TagNumber(77)
   $13.ReqSiteConfigPut ensureSiteConfigPut() => $_ensure(67);
+
+  @$pb.TagNumber(78)
+  $13.ReqSitePreviewToken get sitePreviewToken => $_getN(68);
+  @$pb.TagNumber(78)
+  set sitePreviewToken($13.ReqSitePreviewToken value) => $_setField(78, value);
+  @$pb.TagNumber(78)
+  $core.bool hasSitePreviewToken() => $_has(68);
+  @$pb.TagNumber(78)
+  void clearSitePreviewToken() => $_clearField(78);
+  @$pb.TagNumber(78)
+  $13.ReqSitePreviewToken ensureSitePreviewToken() => $_ensure(68);
+
+  @$pb.TagNumber(79)
+  $14.ReqTxGet get txGet => $_getN(69);
+  @$pb.TagNumber(79)
+  set txGet($14.ReqTxGet value) => $_setField(79, value);
+  @$pb.TagNumber(79)
+  $core.bool hasTxGet() => $_has(69);
+  @$pb.TagNumber(79)
+  void clearTxGet() => $_clearField(79);
+  @$pb.TagNumber(79)
+  $14.ReqTxGet ensureTxGet() => $_ensure(69);
+
+  @$pb.TagNumber(80)
+  $14.ReqTxPut get txPut => $_getN(70);
+  @$pb.TagNumber(80)
+  set txPut($14.ReqTxPut value) => $_setField(80, value);
+  @$pb.TagNumber(80)
+  $core.bool hasTxPut() => $_has(70);
+  @$pb.TagNumber(80)
+  void clearTxPut() => $_clearField(80);
+  @$pb.TagNumber(80)
+  $14.ReqTxPut ensureTxPut() => $_ensure(70);
+
+  @$pb.TagNumber(81)
+  $14.ReqTxPreview get txPreview => $_getN(71);
+  @$pb.TagNumber(81)
+  set txPreview($14.ReqTxPreview value) => $_setField(81, value);
+  @$pb.TagNumber(81)
+  $core.bool hasTxPreview() => $_has(71);
+  @$pb.TagNumber(81)
+  void clearTxPreview() => $_clearField(81);
+  @$pb.TagNumber(81)
+  $14.ReqTxPreview ensureTxPreview() => $_ensure(71);
+
+  @$pb.TagNumber(82)
+  $14.ReqTxDebtPay get txDebtPay => $_getN(72);
+  @$pb.TagNumber(82)
+  set txDebtPay($14.ReqTxDebtPay value) => $_setField(82, value);
+  @$pb.TagNumber(82)
+  $core.bool hasTxDebtPay() => $_has(72);
+  @$pb.TagNumber(82)
+  void clearTxDebtPay() => $_clearField(82);
+  @$pb.TagNumber(82)
+  $14.ReqTxDebtPay ensureTxDebtPay() => $_ensure(72);
+
+  @$pb.TagNumber(83)
+  $13.ReqSiteQueryRun get siteQueryRun => $_getN(73);
+  @$pb.TagNumber(83)
+  set siteQueryRun($13.ReqSiteQueryRun value) => $_setField(83, value);
+  @$pb.TagNumber(83)
+  $core.bool hasSiteQueryRun() => $_has(73);
+  @$pb.TagNumber(83)
+  void clearSiteQueryRun() => $_clearField(83);
+  @$pb.TagNumber(83)
+  $13.ReqSiteQueryRun ensureSiteQueryRun() => $_ensure(73);
 }
 
 enum WsRes_Body {
@@ -3017,6 +3138,12 @@ enum WsRes_Body {
   hintTouch,
   promptRunPush,
   siteConfigPut,
+  sitePreviewToken,
+  txGet,
+  txPut,
+  txPreview,
+  txDebtPay,
+  siteQueryRun,
   notSet
 }
 
@@ -3100,6 +3227,12 @@ class WsRes extends $pb.GeneratedMessage {
     $20.ResHintTouch? hintTouch,
     $11.PromptRunPush? promptRunPush,
     $13.ResSiteConfigPut? siteConfigPut,
+    $13.ResSitePreviewToken? sitePreviewToken,
+    $14.ResTxGet? txGet,
+    $14.ResTxPut? txPut,
+    $14.ResTxPreview? txPreview,
+    $14.ResTxDebtPay? txDebtPay,
+    $13.ResSiteQueryRun? siteQueryRun,
   }) {
     final result = WsRes._();
     if (reqId != null) result.reqId = reqId;
@@ -3188,6 +3321,12 @@ class WsRes extends $pb.GeneratedMessage {
     if (hintTouch != null) result.hintTouch = hintTouch;
     if (promptRunPush != null) result.promptRunPush = promptRunPush;
     if (siteConfigPut != null) result.siteConfigPut = siteConfigPut;
+    if (sitePreviewToken != null) result.sitePreviewToken = sitePreviewToken;
+    if (txGet != null) result.txGet = txGet;
+    if (txPut != null) result.txPut = txPut;
+    if (txPreview != null) result.txPreview = txPreview;
+    if (txDebtPay != null) result.txDebtPay = txDebtPay;
+    if (siteQueryRun != null) result.siteQueryRun = siteQueryRun;
     return result;
   }
 
@@ -3277,6 +3416,12 @@ class WsRes extends $pb.GeneratedMessage {
     123: WsRes_Body.hintTouch,
     124: WsRes_Body.promptRunPush,
     125: WsRes_Body.siteConfigPut,
+    126: WsRes_Body.sitePreviewToken,
+    127: WsRes_Body.txGet,
+    128: WsRes_Body.txPut,
+    129: WsRes_Body.txPreview,
+    130: WsRes_Body.txDebtPay,
+    131: WsRes_Body.siteQueryRun,
     0: WsRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -3359,7 +3504,13 @@ class WsRes extends $pb.GeneratedMessage {
       122,
       123,
       124,
-      125
+      125,
+      126,
+      127,
+      128,
+      129,
+      130,
+      131
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$21.Err>(2, _omitFieldNames ? '' : 'err',
@@ -3528,6 +3679,19 @@ class WsRes extends $pb.GeneratedMessage {
         subBuilder: $11.PromptRunPush.$_createMessage)
     ..aOM<$13.ResSiteConfigPut>(125, _omitFieldNames ? '' : 'siteConfigPut',
         subBuilder: $13.ResSiteConfigPut.$_createMessage)
+    ..aOM<$13.ResSitePreviewToken>(
+        126, _omitFieldNames ? '' : 'sitePreviewToken',
+        subBuilder: $13.ResSitePreviewToken.$_createMessage)
+    ..aOM<$14.ResTxGet>(127, _omitFieldNames ? '' : 'txGet',
+        subBuilder: $14.ResTxGet.$_createMessage)
+    ..aOM<$14.ResTxPut>(128, _omitFieldNames ? '' : 'txPut',
+        subBuilder: $14.ResTxPut.$_createMessage)
+    ..aOM<$14.ResTxPreview>(129, _omitFieldNames ? '' : 'txPreview',
+        subBuilder: $14.ResTxPreview.$_createMessage)
+    ..aOM<$14.ResTxDebtPay>(130, _omitFieldNames ? '' : 'txDebtPay',
+        subBuilder: $14.ResTxDebtPay.$_createMessage)
+    ..aOM<$13.ResSiteQueryRun>(131, _omitFieldNames ? '' : 'siteQueryRun',
+        subBuilder: $13.ResSiteQueryRun.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -3626,6 +3790,12 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(123)
   @$pb.TagNumber(124)
   @$pb.TagNumber(125)
+  @$pb.TagNumber(126)
+  @$pb.TagNumber(127)
+  @$pb.TagNumber(128)
+  @$pb.TagNumber(129)
+  @$pb.TagNumber(130)
+  @$pb.TagNumber(131)
   WsRes_Body whichBody() => _WsRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(10)
@@ -3703,6 +3873,12 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(123)
   @$pb.TagNumber(124)
   @$pb.TagNumber(125)
+  @$pb.TagNumber(126)
+  @$pb.TagNumber(127)
+  @$pb.TagNumber(128)
+  @$pb.TagNumber(129)
+  @$pb.TagNumber(130)
+  @$pb.TagNumber(131)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -4561,6 +4737,72 @@ class WsRes extends $pb.GeneratedMessage {
   void clearSiteConfigPut() => $_clearField(125);
   @$pb.TagNumber(125)
   $13.ResSiteConfigPut ensureSiteConfigPut() => $_ensure(76);
+
+  @$pb.TagNumber(126)
+  $13.ResSitePreviewToken get sitePreviewToken => $_getN(77);
+  @$pb.TagNumber(126)
+  set sitePreviewToken($13.ResSitePreviewToken value) => $_setField(126, value);
+  @$pb.TagNumber(126)
+  $core.bool hasSitePreviewToken() => $_has(77);
+  @$pb.TagNumber(126)
+  void clearSitePreviewToken() => $_clearField(126);
+  @$pb.TagNumber(126)
+  $13.ResSitePreviewToken ensureSitePreviewToken() => $_ensure(77);
+
+  @$pb.TagNumber(127)
+  $14.ResTxGet get txGet => $_getN(78);
+  @$pb.TagNumber(127)
+  set txGet($14.ResTxGet value) => $_setField(127, value);
+  @$pb.TagNumber(127)
+  $core.bool hasTxGet() => $_has(78);
+  @$pb.TagNumber(127)
+  void clearTxGet() => $_clearField(127);
+  @$pb.TagNumber(127)
+  $14.ResTxGet ensureTxGet() => $_ensure(78);
+
+  @$pb.TagNumber(128)
+  $14.ResTxPut get txPut => $_getN(79);
+  @$pb.TagNumber(128)
+  set txPut($14.ResTxPut value) => $_setField(128, value);
+  @$pb.TagNumber(128)
+  $core.bool hasTxPut() => $_has(79);
+  @$pb.TagNumber(128)
+  void clearTxPut() => $_clearField(128);
+  @$pb.TagNumber(128)
+  $14.ResTxPut ensureTxPut() => $_ensure(79);
+
+  @$pb.TagNumber(129)
+  $14.ResTxPreview get txPreview => $_getN(80);
+  @$pb.TagNumber(129)
+  set txPreview($14.ResTxPreview value) => $_setField(129, value);
+  @$pb.TagNumber(129)
+  $core.bool hasTxPreview() => $_has(80);
+  @$pb.TagNumber(129)
+  void clearTxPreview() => $_clearField(129);
+  @$pb.TagNumber(129)
+  $14.ResTxPreview ensureTxPreview() => $_ensure(80);
+
+  @$pb.TagNumber(130)
+  $14.ResTxDebtPay get txDebtPay => $_getN(81);
+  @$pb.TagNumber(130)
+  set txDebtPay($14.ResTxDebtPay value) => $_setField(130, value);
+  @$pb.TagNumber(130)
+  $core.bool hasTxDebtPay() => $_has(81);
+  @$pb.TagNumber(130)
+  void clearTxDebtPay() => $_clearField(130);
+  @$pb.TagNumber(130)
+  $14.ResTxDebtPay ensureTxDebtPay() => $_ensure(81);
+
+  @$pb.TagNumber(131)
+  $13.ResSiteQueryRun get siteQueryRun => $_getN(82);
+  @$pb.TagNumber(131)
+  set siteQueryRun($13.ResSiteQueryRun value) => $_setField(131, value);
+  @$pb.TagNumber(131)
+  $core.bool hasSiteQueryRun() => $_has(82);
+  @$pb.TagNumber(131)
+  void clearSiteQueryRun() => $_clearField(131);
+  @$pb.TagNumber(131)
+  $13.ResSiteQueryRun ensureSiteQueryRun() => $_ensure(82);
 }
 
 const $core.bool _omitFieldNames =

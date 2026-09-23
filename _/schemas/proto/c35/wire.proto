@@ -182,6 +182,12 @@ message WsReq {
     ReqMentionSearch mention_search = 75;
     ReqHintTouch hint_touch = 76;
     ReqSiteConfigPut site_config_put = 77;
+    ReqSitePreviewToken site_preview_token = 78;
+    ReqTxGet tx_get = 79;
+    ReqTxPut tx_put = 80;
+    ReqTxPreview tx_preview = 81;
+    ReqTxDebtPay tx_debt_pay = 82;
+    ReqSiteQueryRun site_query_run = 83;
   }
 }
 
@@ -280,5 +286,11 @@ message WsRes {
     ResHintTouch hint_touch = 123;
     PromptRunPush prompt_run_push = 124;
     ResSiteConfigPut site_config_put = 125;
+    ResSitePreviewToken site_preview_token = 126;
+    ResTxGet tx_get = 127;
+    ResTxPut tx_put = 128;
+    ResTxPreview tx_preview = 129;
+    ResTxDebtPay tx_debt_pay = 130;
+    ResSiteQueryRun site_query_run = 131;
   }
 }

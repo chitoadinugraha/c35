@@ -1,17 +1,19 @@
 //! Guest site_render HTTP — `/{alien_id}` on primary hosts; Host-based `/` on custom domains.
 
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::{header, HeaderMap, StatusCode},
     response::{IntoResponse, Response},
     routing::get,
     Router,
 };
 use c35_ctx::AppState;
+use serde::Deserialize;
 use sqlx::Row;
 
 use crate::render::render_offline_html;
 use crate::site_domain::{domain_site_id_verified, normalize_hostname};
+use crate::site_preview::{site_draft_html_render, site_preview_token_verify};
 use crate::site_publish::{render_get, resolve_site_by_alien_id, site_published};
 
 const RESERVED: &[&str] = &[
@@ -30,6 +32,32 @@ const RESERVED: &[&str] = &[
     "v1",
     "api",
 ];
+
+#[derive(Debug, Deserialize)]
+struct GuestQuery {
+    draft: Option<String>,
+    ptoken: Option<String>,
+}
+
+fn is_draft_request(q: &GuestQuery) -> bool {
+    q.draft.as_deref() == Some("1")
+}
+
+fn preview_forbidden_page() -> Response {
+    (
+        StatusCode::FORBIDDEN,
+        [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
+        "<!DOCTYPE html><html><body><h1>Preview expired</h1></body></html>",
+    )
+        .into_response()
+}
+
+fn render_key_to_page_path(render_key: &str) -> &str {
+    render_key
+        .strip_prefix("html:")
+        .map(|p| if p.is_empty() { "/" } else { p })
+        .unwrap_or("/")
+}
 
 fn not_found_page() -> Response {
     (
@@ -95,24 +123,26 @@ pub async fn try_custom_domain_root(
         Ok(Some(id)) => id,
         _ => return Some(not_found_page()),
     };
-    Some(serve_render_site(&state.pool, site_id, "html:/", &headers).await)
+    Some(serve_render_site(&state.pool, site_id, "html:/", &headers, None).await)
 }
 
 async fn guest_site_root(
     State(state): State<AppState>,
     Path(alien_id): Path<String>,
+    Query(query): Query<GuestQuery>,
     headers: HeaderMap,
 ) -> Response {
     let host = request_host(&headers);
     if !host_is_primary(&host) {
         return not_found_page();
     }
-    serve_render_path(&state.pool, &alien_id, "html:/", &headers).await
+    serve_render_path(&state.pool, &alien_id, "html:/", &headers, Some(&query)).await
 }
 
 async fn guest_site_path(
     State(state): State<AppState>,
     Path((alien_id, path)): Path<(String, String)>,
+    Query(query): Query<GuestQuery>,
     headers: HeaderMap,
 ) -> Response {
     let host = request_host(&headers);
@@ -129,7 +159,7 @@ async fn guest_site_path(
     } else {
         format!("html:{}", page_path)
     };
-    serve_render_path(&state.pool, &alien_id, &render_key, &headers).await
+    serve_render_path(&state.pool, &alien_id, &render_key, &headers, Some(&query)).await
 }
 
 async fn serve_render_path(
@@ -137,13 +167,14 @@ async fn serve_render_path(
     alien_id: &str,
     render_key: &str,
     headers: &HeaderMap,
+    query: Option<&GuestQuery>,
 ) -> Response {
     let key = alien_id.trim();
     if key.is_empty() || RESERVED.iter().any(|r| r.eq_ignore_ascii_case(key)) {
         return not_found_page();
     }
     match resolve_site_by_alien_id(pool, key).await {
-        Ok(site_id) => serve_render_site(pool, site_id, render_key, headers).await,
+        Ok(site_id) => serve_render_site(pool, site_id, render_key, headers, query).await,
         Err(_) => not_found_page(),
     }
 }
@@ -153,7 +184,24 @@ async fn serve_render_site(
     site_id: i64,
     render_key: &str,
     headers: &HeaderMap,
+    query: Option<&GuestQuery>,
 ) -> Response {
+    if let Some(q) = query.filter(|q| is_draft_request(q)) {
+        let token = q.ptoken.as_deref().unwrap_or("").trim();
+        if token.is_empty() {
+            return preview_forbidden_page();
+        }
+        return match site_preview_token_verify(site_id, token) {
+            Ok(true) => {
+                let page_path = render_key_to_page_path(render_key);
+                match site_draft_html_render(pool, site_id, page_path).await {
+                    Ok((body, etag)) => draft_response(body, etag),
+                    Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+                }
+            }
+            Ok(false) | Err(_) => preview_forbidden_page(),
+        };
+    }
     if !site_published(pool, site_id).await.unwrap_or(false) {
         let name = sqlx::query(r#"SELECT name FROM ai.identity WHERE id = $1"#)
             .bind(site_id)
@@ -183,6 +231,25 @@ async fn serve_render_site(
         Ok(None) => not_found_page(),
         Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
     }
+}
+
+fn draft_response(body: Vec<u8>, etag: String) -> Response {
+    let mut res = (
+        StatusCode::OK,
+        [
+            (header::CONTENT_TYPE, "text/html; charset=utf-8"),
+            (header::CACHE_CONTROL, "private, no-store".into()),
+        ],
+        body,
+    )
+        .into_response();
+    let etag = etag.trim();
+    if !etag.is_empty() {
+        if let Ok(v) = format!("\"{etag}\"").parse() {
+            res.headers_mut().insert(header::ETAG, v);
+        }
+    }
+    res
 }
 
 fn render_response(body: Vec<u8>, etag: String, content_type: String, headers: &HeaderMap) -> Response {

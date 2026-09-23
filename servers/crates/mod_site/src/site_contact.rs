@@ -53,17 +53,13 @@ pub async fn site_contact_list(
     })
 }
 
-pub async fn site_contact_put(
+pub async fn site_contact_upsert(
     pool: &PgPool,
-    caller_iid: i64,
-    req: ReqSiteContactPut,
+    owner_iid: i64,
+    site_iid: i64,
+    contact: &SiteContact,
     out_tx: Option<&mpsc::UnboundedSender<WsRes>>,
-) -> Result<ResSiteContactPut> {
-    let contact = req
-        .contact
-        .ok_or_else(|| anyhow!("contact required"))?;
-    let site_iid = req.site_iid;
-    let owner_iid = site_grant_check(pool, caller_iid, site_iid, true).await?;
+) -> Result<i64> {
     let contact_id = if contact.contact_id > 0 {
         contact.contact_id
     } else {
@@ -106,9 +102,25 @@ pub async fn site_contact_put(
             sync_push::Body::SiteContact(SiteContact {
                 site_iid,
                 contact_id,
-                ..contact
+                ..contact.clone()
             }),
         );
     }
+    Ok(contact_id)
+}
+
+pub async fn site_contact_put(
+    pool: &PgPool,
+    caller_iid: i64,
+    req: ReqSiteContactPut,
+    out_tx: Option<&mpsc::UnboundedSender<WsRes>>,
+) -> Result<ResSiteContactPut> {
+    let contact = req
+        .contact
+        .ok_or_else(|| anyhow!("contact required"))?;
+    let site_iid = req.site_iid;
+    let owner_iid = site_grant_check(pool, caller_iid, site_iid, true).await?;
+    let contact_id =
+        site_contact_upsert(pool, owner_iid, site_iid, &contact, out_tx).await?;
     Ok(ResSiteContactPut { contact_id })
 }

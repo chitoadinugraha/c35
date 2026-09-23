@@ -12,13 +12,18 @@ use crate::sync_push::site_sync_push;
 use c35_proto::WsRes;
 use c35_store::snowflake_id;
 
-pub async fn site_publish(
+pub struct SitePublishFromDraftResult {
+    pub version_id: String,
+    pub render_hash: String,
+    pub doc_json: serde_json::Value,
+    pub owner_iid: i64,
+}
+
+pub async fn site_publish_from_draft(
     pool: &PgPool,
     caller_iid: i64,
-    req: ReqSitePublish,
-    out_tx: Option<&mpsc::UnboundedSender<WsRes>>,
-) -> Result<ResSitePublish> {
-    let site_iid = req.site_iid;
+    site_iid: i64,
+) -> Result<SitePublishFromDraftResult> {
     let owner_iid = site_grant_check(pool, caller_iid, site_iid, true).await?;
     let draft_row = sqlx::query(
         r#"
@@ -50,7 +55,6 @@ pub async fn site_publish(
         }
         hasher.finalize().to_hex().to_string()
     };
-    let doc = site_doc_from_json(&doc_json);
     let published_ts = Utc::now();
     let mut tx = pool.begin().await?;
     sqlx::query(
@@ -111,11 +115,29 @@ pub async fn site_publish(
     }
     tx.commit().await?;
     let _ = c35_mod_hint::hint_invalidate_for_asset(pool, site_iid).await;
+    Ok(SitePublishFromDraftResult {
+        version_id,
+        render_hash: bundle_hash,
+        doc_json,
+        owner_iid,
+    })
+}
+
+pub async fn site_publish(
+    pool: &PgPool,
+    caller_iid: i64,
+    req: ReqSitePublish,
+    out_tx: Option<&mpsc::UnboundedSender<WsRes>>,
+) -> Result<ResSitePublish> {
+    let site_iid = req.site_iid;
+    let result = site_publish_from_draft(pool, caller_iid, site_iid).await?;
+    let doc = site_doc_from_json(&result.doc_json);
+    let published_ts = Utc::now();
     let publish = SitePublish {
         site_iid,
-        version_id,
+        version_id: result.version_id.clone(),
         doc: Some(doc),
-        render_hash: bundle_hash,
+        render_hash: result.render_hash.clone(),
         published_ts_ms: published_ts.timestamp_millis(),
         is_active: true,
         ..Default::default()
@@ -123,7 +145,7 @@ pub async fn site_publish(
     if let Some(tx) = out_tx {
         site_sync_push(tx, sync_push::Body::SiteDraft(c35_proto::SiteDraft {
             site_iid,
-            owner_iid,
+            owner_iid: result.owner_iid,
             doc: publish.doc.clone(),
             updated_ts_ms: published_ts.timestamp_millis(),
             ..Default::default()

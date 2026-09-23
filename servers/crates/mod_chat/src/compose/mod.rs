@@ -1,5 +1,6 @@
 //! Compose inst match + lexical tool filter per turn.
 
+mod mention_gate;
 mod topic;
 mod tool_select;
 
@@ -8,8 +9,13 @@ use std::time::Instant;
 use super::inst_macro::{inst_matched_prompt, inst_pick, inst_tool_directives, InstMatchCtx, InstRow};
 use super::mention::MentionRow;
 use super::tool_rag::{tool_find_lexical, tool_select as rag_tool_select, ToolCandidate, DEFAULT_TOOL_SIM_GAP, DEFAULT_TOOL_TOP_K, TOOL_RAG_MIN};
+use crate::mention_context::MentionContext;
+use crate::site_capability::SiteCapabilityView;
 use crate::tools::ToolDef;
 
+pub use mention_gate::{
+    tool_mention_capability_eligible, tool_mention_eligible, tool_mention_kinds_eligible,
+};
 pub use topic::{tool_topic_eligible, topic_resolve};
 pub use tool_select::{tool_turn_eligible, tools_for_turn};
 
@@ -59,19 +65,27 @@ pub fn compose_tools_and_inst(
     eligible_tools: Vec<ToolDef>,
     skill_tools: &[String],
     mention_ids: &[String],
-    explicit_topic: &str,
+    active_topics: &[String],
     tool_mode: &str,
     mentions: &[MentionRow],
     scopes: &[String],
+    mention: &MentionContext,
+    caps: &SiteCapabilityView,
 ) -> ComposeOutput {
     let started = Instant::now();
-    let active_topic = topic_resolve(explicit_topic, mention_ids, mentions);
+    let topics: Vec<String> = if active_topics.is_empty() {
+        vec![topic_resolve("", mention_ids, mentions)]
+    } else {
+        active_topics.to_vec()
+    };
+    let topic_refs: Vec<&str> = topics.iter().map(|t| t.as_str()).collect();
+    let primary_topic = topic_refs.first().map(|t| *t).unwrap_or("general");
     let empty: [String; 0] = [];
     let matched = inst_pick(
         inst_rows,
         &InstMatchCtx {
             scopes,
-            topic_id: &active_topic,
+            topic_id: primary_topic,
             text,
             mention_ids,
             signals: &empty,
@@ -87,11 +101,11 @@ pub fn compose_tools_and_inst(
     }
 
     let ask_mode = tool_mode == "ask";
-    let eligible_tools: Vec<ToolDef> = if ask_mode {
-        eligible_tools.into_iter().filter(|t| t.readonly).collect()
-    } else {
-        eligible_tools
-    };
+    let eligible_tools: Vec<ToolDef> = eligible_tools
+        .into_iter()
+        .filter(|t| tool_mention_eligible(t, mention, caps))
+        .filter(|t| !ask_mode || t.readonly)
+        .collect();
     if ask_mode && eligible_tools.is_empty() {
         return ComposeOutput {
             inst_block,
@@ -109,7 +123,8 @@ pub fn compose_tools_and_inst(
         };
     }
 
-    let topic_filtered = tools_for_turn(&eligible_tools, &active_topic, &force_include, &tool_exclude, text);
+    let topic_filtered =
+        tools_for_turn(&eligible_tools, &topic_refs, &force_include, &tool_exclude, text);
     let selected_tools: Vec<String> = topic_filtered.iter().map(|t| t.name.clone()).collect();
 
     if eligible_tools.len() <= TOOL_RAG_MIN {
@@ -138,7 +153,7 @@ pub fn compose_tools_and_inst(
     let eligible: Vec<ToolDef> = eligible_tools
         .iter()
         .filter(|t| !exclude.iter().any(|x| x == &t.name))
-        .filter(|t| tool_turn_eligible(t, &active_topic))
+        .filter(|t| tool_turn_eligible(t, &topic_refs))
         .cloned()
         .collect();
     let force: Vec<String> = force.into_iter().filter(|id| eligible.iter().any(|t| &t.name == id)).collect();

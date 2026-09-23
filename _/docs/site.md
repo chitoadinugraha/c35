@@ -146,14 +146,23 @@ Topic **`web.builder`** on Home assistant when user mentions a site (`@alien_id`
 
 | Tool | Edits |
 |------|-------|
-| `site_draft_put` | SiteDoc blocks + theme |
-| `site_publish` | compile → `site.render` + activate `site.publish` |
-| `site_product_put` | catalog rows (prefer UITable for bulk) |
-| `site_contact_put` / `site_object_put` | data rows |
+| `site.draft_put` | SiteDoc blocks + theme |
+| `site.publish` | compile → `site.render` + activate `site.publish` |
+| `site.product_put` | catalog rows (prefer UITable for bulk) |
+| `site.contact_put` / `site.object_put` | data rows |
 
 Instruction seed: [`../schemas/inst.sql`](../schemas/inst.sql) → `inst.web.builder`.
 
 Layout changes → prompt. Bulk catalog edits → UITable. Money/stock → **tx API only** (never free-form LLM JSON).
+
+### Multi-site mentions
+
+Composer may attach **multiple** `@site` mentions in one turn (e.g. compare profitability). Server builds **`MentionContext`** with `sites: Vec<SiteContext>` — see [site-ai.md](site-ai.md).
+
+- **Writes** (`site.product_put`, `site.tx.put`, …): **one `site_iid` per call**; default only when exactly one site mentioned.
+- **Reads / compare / reports**: **`site.query.run`** with query catalog ids — not raw SQL, not multi-site write tools.
+
+Capability `commerce` gates POS tools and hint **POS** chip ([hint.md](hint.md)).
 
 ## Publish pipeline
 

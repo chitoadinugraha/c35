@@ -11,8 +11,10 @@ mod site_draft;
 mod site_ids;
 mod site_list;
 mod site_object;
+mod site_preview;
 mod site_product;
 mod site_publish;
+pub mod query;
 mod sync;
 mod sync_push;
 mod tls_sync;
@@ -20,13 +22,20 @@ mod ts;
 
 pub use collection_def::{collection_def_list, collection_def_list_rpc, collection_def_list_static};
 pub use http::{host_is_primary, site_render_router, try_custom_domain_root};
-pub use site_config::site_config_put;
-pub use site_contact::{site_contact_list, site_contact_put};
+pub use site_config::{
+    site_capability_check, site_capability_enabled, site_capabilities_get, site_config_put,
+};
+pub use site_contact::{site_contact_list, site_contact_put, site_contact_upsert};
 pub use site_domain::{site_domain_list, site_domain_put};
 pub use site_draft::{site_draft_get, site_draft_put};
 pub use site_list::site_list;
-pub use site_object::{site_object_list, site_object_put};
+pub use site_object::{site_object_list, site_object_put, site_object_upsert};
+pub use site_preview::{site_draft_html_render, site_preview_token, site_preview_token_issue, site_preview_token_verify};
+pub use query::site_query_run;
 pub use site_product::{site_product_list, site_product_put};
-pub use site_publish::site_publish;
+pub use site_publish::{
+    site_publish, site_publish_from_draft, site_published, SitePublishFromDraftResult,
+};
+pub use render::block_html_render;
 pub use sync::sync_pull;
 pub use sync_push::site_sync_push;

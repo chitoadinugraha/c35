@@ -100,7 +100,114 @@ fn pic_url(pic: &str) -> String {
     format!("/fs/{}?v=thumb", p)
 }
 
-fn block_html(block_type: &str, props: &Value, products: &[ProductRow]) -> String {
+async fn site_capabilities(pool: &PgPool, site_iid: i64) -> Value {
+    sqlx::query_scalar::<_, Value>(
+        "SELECT capabilities_json FROM site.config WHERE site_iid = $1 AND deleted_ts IS NULL",
+    )
+    .bind(site_iid)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten()
+    .unwrap_or_else(|| Value::Object(Default::default()))
+}
+
+fn capability_enabled(caps: &Value, key: &str) -> bool {
+    caps.get(key).and_then(|v| v.as_bool()).unwrap_or(true)
+}
+
+fn strip_script_tags(html: &str) -> String {
+    let lower = html.to_ascii_lowercase();
+    let mut out = String::with_capacity(html.len());
+    let mut i = 0;
+    while i < html.len() {
+        if lower[i..].starts_with("<script") {
+            if let Some(end) = lower[i..].find("</script>") {
+                i += end + "</script>".len();
+                continue;
+            }
+            break;
+        }
+        let ch = html[i..].chars().next().unwrap();
+        out.push(ch);
+        i += ch.len_utf8();
+    }
+    out
+}
+
+fn link_item_html(item: &Value) -> String {
+    let label = item
+        .get("label")
+        .or_else(|| item.get("title"))
+        .and_then(|x| x.as_str())
+        .unwrap_or("");
+    let url = item
+        .get("url")
+        .or_else(|| item.get("href"))
+        .and_then(|x| x.as_str())
+        .unwrap_or("#");
+    if label.is_empty() {
+        return String::new();
+    }
+    format!(
+        r#"<li><a href="{}" rel="noopener noreferrer">{}</a></li>"#,
+        esc(url),
+        esc(label)
+    )
+}
+
+fn contact_field_html(field: &Value) -> String {
+    let label = field
+        .get("label")
+        .or_else(|| field.get("name"))
+        .and_then(|x| x.as_str())
+        .unwrap_or("");
+    let name = field.get("name").and_then(|x| x.as_str()).unwrap_or(label);
+    let field_type = field.get("type").and_then(|x| x.as_str()).unwrap_or("text");
+    if label.is_empty() && name.is_empty() {
+        return String::new();
+    }
+    format!(
+        r#"<label><span>{}</span><input type="{}" name="{}" /></label>"#,
+        esc(label),
+        esc(field_type),
+        esc(name)
+    )
+}
+
+fn hours_row_html(row: &Value) -> String {
+    let day = row
+        .get("day")
+        .or_else(|| row.get("label"))
+        .and_then(|x| x.as_str())
+        .unwrap_or("");
+    let open = row
+        .get("open")
+        .or_else(|| row.get("from"))
+        .and_then(|x| x.as_str())
+        .unwrap_or("");
+    let close = row
+        .get("close")
+        .or_else(|| row.get("to"))
+        .and_then(|x| x.as_str())
+        .unwrap_or("");
+    if day.is_empty() {
+        return String::new();
+    }
+    format!(
+        r#"<tr><td>{}</td><td>{} – {}</td></tr>"#,
+        esc(day),
+        esc(open),
+        esc(close)
+    )
+}
+
+pub fn block_html_render(
+    block_type: &str,
+    props: &Value,
+    products: &[ProductRow],
+    caps: &Value,
+) -> String {
     match block_type {
         "hero" => {
             let title = props.get("title").and_then(|x| x.as_str()).unwrap_or("");
@@ -191,6 +298,174 @@ fn block_html(block_type: &str, props: &Value, products: &[ProductRow]) -> Strin
                 cards
             )
         }
+        "gallery" => {
+            let title = props.get("title").and_then(|x| x.as_str()).unwrap_or("");
+            let pics = props
+                .get("pics")
+                .and_then(|x| x.as_array())
+                .cloned()
+                .unwrap_or_default();
+            let imgs = pics
+                .iter()
+                .filter_map(|p| p.as_str())
+                .map(|pic| {
+                    format!(
+                        r#"<img src="{}" alt="" loading="lazy"/>"#,
+                        esc(&pic_url(pic))
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("");
+            let heading = if title.is_empty() {
+                String::new()
+            } else {
+                format!(r#"<h2>{}</h2>"#, esc(title))
+            };
+            format!(
+                r#"<section class="block gallery">{heading}<div class="gallery">{}</div></section>"#,
+                imgs
+            )
+        }
+        "links" => {
+            let title = props.get("title").and_then(|x| x.as_str()).unwrap_or("");
+            let items = props
+                .get("links")
+                .or_else(|| props.get("items"))
+                .and_then(|x| x.as_array())
+                .cloned()
+                .unwrap_or_default();
+            let lis = items
+                .iter()
+                .map(link_item_html)
+                .collect::<Vec<_>>()
+                .join("");
+            let heading = if title.is_empty() {
+                String::new()
+            } else {
+                format!(r#"<h2>{}</h2>"#, esc(title))
+            };
+            format!(
+                r#"<section class="block links">{heading}<ul class="links">{}</ul></section>"#,
+                lis
+            )
+        }
+        "contact_form" => {
+            let title = props.get("title").and_then(|x| x.as_str()).unwrap_or("");
+            let submit = props
+                .get("submit_label")
+                .and_then(|x| x.as_str())
+                .unwrap_or("Send");
+            let fields = props
+                .get("fields")
+                .and_then(|x| x.as_array())
+                .cloned()
+                .unwrap_or_default();
+            let inputs = fields
+                .iter()
+                .map(contact_field_html)
+                .collect::<Vec<_>>()
+                .join("");
+            let heading = if title.is_empty() {
+                String::new()
+            } else {
+                format!(r#"<h2>{}</h2>"#, esc(title))
+            };
+            format!(
+                r#"<section class="block contact-form">{heading}<form class="contact-form" action='#contact' method='post'>{inputs}<button type="submit">{}</button></form></section>"#,
+                esc(submit)
+            )
+        }
+        "map" => {
+            if !capability_enabled(caps, "booking") {
+                return String::new();
+            }
+            let lat = props.get("lat").and_then(|x| x.as_f64()).unwrap_or(0.0);
+            let lng = props.get("lng").and_then(|x| x.as_f64()).unwrap_or(0.0);
+            let address = props.get("address").and_then(|x| x.as_str()).unwrap_or("");
+            let zoom = props.get("zoom").and_then(|x| x.as_i64()).unwrap_or(14);
+            let map_url = format!("https://www.openstreetmap.org/?mlat={lat}&mlon={lng}#map={zoom}/{lat}/{lng}");
+            let label = if address.is_empty() {
+                format!("{lat}, {lng}")
+            } else {
+                address.to_string()
+            };
+            format!(
+                r#"<section class="block map"><div class="map"><a href="{}" rel="noopener noreferrer">{}</a></div></section>"#,
+                esc(&map_url),
+                esc(&label)
+            )
+        }
+        "hours" => {
+            if !capability_enabled(caps, "booking") {
+                return String::new();
+            }
+            let title = props.get("title").and_then(|x| x.as_str()).unwrap_or("");
+            let schedule = props
+                .get("hours")
+                .or_else(|| props.get("schedule"))
+                .and_then(|x| x.as_array())
+                .cloned()
+                .unwrap_or_default();
+            let rows = schedule
+                .iter()
+                .map(hours_row_html)
+                .collect::<Vec<_>>()
+                .join("");
+            let heading = if title.is_empty() {
+                String::new()
+            } else {
+                format!(r#"<h2>{}</h2>"#, esc(title))
+            };
+            format!(
+                r#"<section class="block hours">{heading}<table class="hours"><tbody>{}</tbody></table></section>"#,
+                rows
+            )
+        }
+        "queue" => {
+            if !capability_enabled(caps, "queue") {
+                return String::new();
+            }
+            let title = props
+                .get("title")
+                .or_else(|| props.get("label"))
+                .and_then(|x| x.as_str())
+                .unwrap_or("Queue");
+            let mode = props.get("mode").and_then(|x| x.as_str()).unwrap_or("");
+            let mode_html = if mode.is_empty() {
+                String::new()
+            } else {
+                format!(r#"<p class="queue-mode">{}</p>"#, esc(mode))
+            };
+            format!(
+                r#"<section class="block queue"><div class="queue"><h3>{}</h3>{}</div></section>"#,
+                esc(title),
+                mode_html
+            )
+        }
+        "embed" => {
+            let url = props.get("url").and_then(|x| x.as_str()).unwrap_or("");
+            if url.is_empty() {
+                return String::new();
+            }
+            let height = props.get("height").and_then(|x| x.as_i64()).unwrap_or(400);
+            let title = props.get("title").and_then(|x| x.as_str()).unwrap_or("");
+            let title_attr = if title.is_empty() {
+                String::new()
+            } else {
+                format!(r#" title="{}""#, esc(title))
+            };
+            format!(
+                r#"<section class="block embed"><iframe sandbox="" src="{}"{title_attr} style="height:{height}px;width:100%;border:0" loading="lazy"></iframe></section>"#,
+                esc(url),
+                title_attr = title_attr,
+                height = height
+            )
+        }
+        "custom_html" => {
+            let raw = props.get("html").and_then(|x| x.as_str()).unwrap_or("");
+            let safe = strip_script_tags(raw);
+            format!(r#"<section class="block custom-html"><div class="custom-html">{}</div></section>"#, safe)
+        }
         _ => String::new(),
     }
 }
@@ -217,6 +492,7 @@ pub async fn page_html_render(
         .get("accent")
         .and_then(|x| x.as_str())
         .unwrap_or("#2563eb");
+    let caps = site_capabilities(pool, site_iid).await;
     let mut body = String::new();
     for block in &page.blocks {
         let props: Value = if block.props_json.is_empty() {
@@ -232,7 +508,7 @@ pub async fn page_html_render(
         } else {
             vec![]
         };
-        body.push_str(&block_html(&block.r#type, &props, &products));
+        body.push_str(&block_html_render(&block.r#type, &props, &products, &caps));
     }
     Ok(format!(
         r#"<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>{} — {}</title><style>
@@ -247,6 +523,17 @@ body{{margin:0;font-family:system-ui,sans-serif;background:#fafafa;color:#111}}
 .product-card{{background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08)}}
 .product-card img{{width:100%;aspect-ratio:1;object-fit:cover;display:block}}
 .product-card a{{display:block;padding:12px;text-decoration:none;color:inherit}}
+.gallery{{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}}
+.gallery img{{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px}}
+.links{{list-style:none;padding:0;margin:0}}
+.links li{{margin:8px 0}}
+.contact-form label{{display:block;margin:0 0 12px}}
+.contact-form input{{width:100%;padding:8px;box-sizing:border-box}}
+.hours{{width:100%;border-collapse:collapse}}
+.hours td{{padding:6px 8px;border-bottom:1px solid #eee}}
+.map a{{color:var(--accent)}}
+.queue{{padding:16px;background:#fff;border-radius:8px}}
+.embed iframe{{display:block;border-radius:8px}}
 .md{{line-height:1.6}}
 </style></head><body><main class="wrap">{body}</main></body></html>"#,
         esc(&page.title),

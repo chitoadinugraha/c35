@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/pb/c35/collection.pb.dart';
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
@@ -29,6 +31,15 @@ class SiteApi {
 
   Future<ResSitePublish> publish(int siteIid) => conn.sitePublish(siteIid);
 
+  Future<ResSitePreviewToken> sitePreviewToken(int siteIid, {int ttlSecs = 300}) =>
+      conn.sitePreviewToken(siteIid, ttlSecs: ttlSecs);
+
+  Future<SiteConfig> configGet(int siteIid) async {
+    final res = await conn.siteDraftGet(siteIid);
+    if (!res.hasConfig()) throw 'site config not found';
+    return res.config;
+  }
+
   Future<SiteConfig> configPut(int siteIid, {required String capabilitiesJson}) async {
     final res = await conn.siteConfigPut(siteIid, capabilitiesJson: capabilitiesJson);
     if (!res.hasConfig()) throw 'site config put failed';
@@ -40,12 +51,30 @@ class SiteApi {
     return res.products;
   }
 
-  Future<SiteProduct> productPut(int siteIid, SiteProduct product) async {
-    final res = await conn.siteProductPut(siteIid, product);
+  Future<SiteProduct> productPut(int siteIid, SiteProduct product, {List<SiteProductEmbed>? embeds}) async {
+    final payload = product.clone();
+    if (embeds != null) {
+      final base = _productJsonMap(payload.productJson);
+      base['_embeds'] = embeds
+          .map((e) => {'embed_id': e.embedId.toInt(), 'label': e.label})
+          .toList(growable: false);
+      payload.productJson = jsonEncode(base);
+    }
+    final res = await conn.siteProductPut(siteIid, payload);
     final out = product.clone();
     if (res.hasProductId()) out.productId = res.productId;
     else if (out.productId <= Int64.ZERO) throw 'product put failed';
     return out;
+  }
+
+  Map<String, dynamic> _productJsonMap(String raw) {
+    if (raw.trim().isEmpty) return {};
+    try {
+      final decoded = jsonDecode(raw);
+      return decoded is Map<String, dynamic> ? decoded : {};
+    } catch (_) {
+      return {};
+    }
   }
 
   Future<List<SiteContact>> contactList(int siteIid) async {
@@ -95,4 +124,12 @@ class SiteApi {
   SiteContact contactNew(int siteIid) => SiteContact(siteIid: Int64(siteIid), name: 'New contact');
 
   SiteObject objectNew(int siteIid) => SiteObject(siteIid: Int64(siteIid), name: 'New object', isActive: true);
+
+  SiteDomain domainNew(int siteIid) => SiteDomain(siteIid: Int64(siteIid), hostname: 'example.com');
+
+  SiteProductEmbed productEmbedNew(int siteIid, Int64 productId) =>
+      SiteProductEmbed(siteIid: Int64(siteIid), productId: productId, label: 'New label');
+
+  TableDef? domainTableDef(List<TableDef> defs) =>
+      tableDefFor(defs, 'site.domain') ?? collectionDefForFallback('site.domain');
 }

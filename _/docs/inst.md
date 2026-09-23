@@ -76,6 +76,17 @@ Entries in `triggers[]`:
 
 Tool names use dot form: `consumption.add`, `web.search`.
 
+### Site / commerce (Phase 9)
+
+| `inst` id | `kind` | `topic_id` / phrases | `tool_include` |
+|-----------|--------|----------------------|----------------|
+| `inst.web.builder` | mention | `web.builder` | `site.draft_put`, `site.publish`, `site.product_put`, … |
+| `inst.site.commerce` | topic | `site.commerce` | `site.tx.put`, `site.tx.preview`, `site.tx.debt_pay` |
+| `inst.site.compare` | task | compare, lebih untung, which is more profitable | `site.query.run` |
+| `inst.site.report` | task | laporan, report, sales today | `site.query.run` |
+
+Steering detail: [site-ai.md](site-ai.md). Compare inst must instruct the model to pass **all** `site_iids` from `[SITE CONTEXTS]`.
+
 ---
 
 ## Compose pipeline (per prompt turn)
