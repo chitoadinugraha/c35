@@ -1,4 +1,5 @@
 mod agent;
+mod app_web;
 mod catalog;
 mod device;
 mod guest_order;
@@ -24,6 +25,7 @@ pub fn router(state: AppState) -> Router {
         .route("/health", get(|| async { "ok" }))
         .route("/livez", get(|| async { "ok" }))
         .merge(web::web_router())
+        .merge(app_web::app_web_router())
         .merge(c35_mod_site::site_render_router())
         .merge(auth_router())
         .merge(oauth_router())

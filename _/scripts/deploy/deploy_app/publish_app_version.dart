@@ -7,6 +7,7 @@ import '../deploy_lib.dart';
 import 'update_version.dart';
 
 const androidPlayStoreUrl = 'https://play.google.com/store/apps/details?id=id.alienai.agent';
+const webAppUrl = 'https://alienai.id/app/';
 const configKeyPrefix = 'app.release.c35.';
 
 SslMode _ybSslMode() {
@@ -117,17 +118,25 @@ Future<void> publishPlatformAppVersionWindows({required int version, required St
   stdout.writeln('✓ GET /version windows → $version ($versionName)');
 }
 
+Future<void> publishWebAppVersion(int versionCode) => publishPlatformAppVersion(
+  platform: 'web',
+  version: versionCode,
+  storeUrl: webAppUrl,
+);
+
 Future<void> publishAppReleaseProd({
   required int version,
   String apkHash = '',
   int apkSize = 0,
   String windowsHash = '',
   int windowsSize = 0,
+  bool includeWeb = false,
 }) async {
   await publishAndroidAppVersion(version, apkHash: apkHash, apkSize: apkSize);
   if (windowsHash.isNotEmpty && windowsSize > 0) {
     await publishWindowsAppVersion(version: version, hash: windowsHash, size: windowsSize);
   }
+  if (includeWeb) await publishWebAppVersion(version);
 }
 
 Future<void> publishAndroidAppVersion(int versionCode, {String apkHash = '', int apkSize = 0}) async {

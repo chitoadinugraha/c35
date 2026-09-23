@@ -6,6 +6,7 @@
 |-------|------|
 | `GET /version/{platform}` | Release source (`ai.config` → `app.release.c35.{platform}`) |
 | CAS `/fs/{hash}` | Immutable release zip / APK (blake3), served from `https://alienai.id` through Cloudflare edge cache |
+| S3 `app/web/current/` | Flutter web static assets at `https://alienai.id/app/` (not in Docker image) |
 | NATS `c35.release.{platform}` | Real-time broadcast triggering instant background download on connected agents |
 | Flutter `AppUpdateService` | Client app: poll, download, verify, stage, apply on restart |
 | `c_remote_core::update` | Remote agents: background download, Blake3 verify, activity-aware idle restart |
@@ -27,6 +28,7 @@
 ```
 
 - Android client adds `url` (Play Store) and optional `apkHash` / `apkSize` for direct APK download.
+- Web client (`app.release.c35.web`) adds `url: https://alienai.id/app/` — no hash/size (static tree on S3).
 - Signed CAS URL: `https://alienai.id/fs/{hash}?exp={exp}&sig={sig}`. Cloudflare orange cloud caches the immutable blob at edge PoPs globally.
 
 ---
@@ -109,7 +111,7 @@ $env:YB_PASSWORD = '<password>'
 dart run deploy_app/deploy_app_release.dart
 ```
 
-Partial flags: `--android-only`, `--windows-only`. Internal QA (AAB only, no `/version`):
+Partial flags: `--android-only`, `--windows-only`, `--web-only`. Web-only shortcut: `dart run deploy_app/push_web.dart` (requires `S3_*` + `YB_PASSWORD`; no `DEPLOY_AUTH_TOKEN`). Default prod orchestrator includes web. Internal QA (AAB only, no `/version`):
 
 ```powershell
 dart run deploy_app/play_store_upload_tester.dart
@@ -124,6 +126,8 @@ dart run deploy_app/windows_upload_prod.dart
 ```
 
 Apply `_/deployments/c35-server/ingress.yaml` `/version` route on `api.alienai.id` if client polls fail.
+
+**Web:** served at `https://alienai.id/app/` from S3 prefix `app/web/current/`. Landing link `/download/web` → `https://alienai.id/app/`. See [`app-release.md`](app-release.md) Flutter web publish section for S3 env and deploy commands.
 
 ### Remote Windows Agent
 ```powershell

@@ -60,6 +60,18 @@ String formatBytes(int bytes) {
   return '$bytes B';
 }
 
+int dirBytes(String path) {
+  final dir = Directory(path);
+  if (!dir.existsSync()) return 0;
+  var total = 0;
+  for (final e in dir.listSync(recursive: true, followLinks: false)) {
+    if (e is File) total += e.lengthSync();
+  }
+  return total;
+}
+
+String dirSizeLabel(String path) => formatBytes(dirBytes(path));
+
 DateTime? _deployStartedAt;
 
 void deployStart() => _deployStartedAt = DateTime.now();

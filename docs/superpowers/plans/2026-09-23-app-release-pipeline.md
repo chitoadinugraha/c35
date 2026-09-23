@@ -392,17 +392,18 @@ cargo build -p server_ai
 
 ---
 
-### Task 10: Flutter web publish (deferred wave)
+### Task 10: Flutter web publish
 
-**Scope:** Only after Windows ZIP + Android prod pipeline is stable. Do not implement in wave 1.
+**Implementation plan:** [`2026-09-23-flutter-web-app-path.md`](2026-09-23-flutter-web-app-path.md)
 
-**Target:**
-- `flutter build web` → upload static tree to CAS or object prefix
-- `ai.config` key `app.release.c35.web` with `url: https://app.alienai.id/`
-- Ingress/DNS for `app.alienai.id` (separate from `alienai.id` marketing site)
-- Update `/download/web` redirect in `web.rs`
+**Target (locked):**
+- Public URL: `https://alienai.id/app/` (not `app.alienai.id`)
+- `flutter build web --base-href /app/` → S3 `app/web/{N}/` + `app/web/current/` (not in Docker image)
+- `ai.config` key `app.release.c35.web` with `url: https://alienai.id/app/`
+- Server serves `GET /app/*` from S3; `/download/web` → `https://alienai.id/app/`
+- Deploy: `push_web.dart`, `deploy_app_release.dart` (default prod includes web), `--web-only`
 
-**Reference:** `csa_site_published/_/scripts/deploy/deploy_app/build_clients.dart`, `push_web.dart`, `oci_upload.dart` — adapt to CAS upload pattern, not OCI copy-paste.
+**Reference:** `csa_site_published/_/scripts/deploy/deploy_app/push_web.dart`, `oci_upload.dart` — adapted to c35 S3 sync + Yugabyte `ai.config`.
 
 ---
 

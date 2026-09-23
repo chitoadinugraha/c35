@@ -195,7 +195,7 @@ pub fn web_router() -> Router<AppState> {
         .route("/locales/{file}", get(locale_get))
         .route("/static/{*path}", get(static_get))
         .route("/download/web", get(|| async {
-            Redirect::temporary("https://ai.alienai.id/app/")
+            Redirect::temporary("https://alienai.id/app/")
         }))
         .route("/download/app.apk", get(download_app_apk))
         .route("/download/app.exe", get(download_app_exe))

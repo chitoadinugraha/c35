@@ -38,6 +38,11 @@ fn s3_client() -> Option<&'static BlobS3> {
         .as_ref()
 }
 
+pub async fn s3_get_object(key: &str) -> Result<(Vec<u8>, String), String> {
+    let s3 = s3_client().ok_or_else(|| "S3 not configured".to_string())?;
+    s3.get_key(key).await.map_err(|e| e.to_string())
+}
+
 fn cas_store_disk() -> bool {
     std::env::var("CAS_STORE")
         .map(|v| v.eq_ignore_ascii_case("disk"))

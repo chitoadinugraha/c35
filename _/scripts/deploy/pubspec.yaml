@@ -7,6 +7,7 @@ environment:
 
 dependencies:
   archive: ^4.0.2
+  crypto: ^3.0.6
   googleapis: ^13.2.0
   googleapis_auth: ^1.6.0
   http: ^1.2.2
