@@ -1,8 +1,5 @@
 use chrono::{Datelike, NaiveDate, TimeZone, Utc};
 
-const EPOCH_MS: i64 = 1_704_067_200_000;
-const SHIFT: i64 = 22;
-
 pub fn timezone_from_locale(locale: &str) -> &'static str {
     let l = locale.trim().to_ascii_lowercase();
     if l.starts_with("id") { "Asia/Jakarta" } else { "UTC" }
@@ -51,13 +48,7 @@ pub fn multi_day_bounds_ms(day_id: &str, days: i32, locale: &str) -> anyhow::Res
     Ok((start_ms, end_ms))
 }
 
-pub fn snowflake_min_at_ms(ms: i64) -> i64 {
-    ((ms.saturating_sub(EPOCH_MS)).max(0)) << SHIFT
-}
-
-pub fn snowflake_max_at_ms(ms: i64) -> i64 {
-    snowflake_min_at_ms(ms) | ((1_i64 << SHIFT) - 1)
-}
+pub use c35_store::{snowflake_max_at_ms, snowflake_min_at_ms};
 
 pub fn period_label(day_id: &str, locale: &str) -> String {
     let today = today_day_id(locale);

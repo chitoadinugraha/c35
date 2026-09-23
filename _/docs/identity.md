@@ -14,7 +14,7 @@ Every actor in c35 — human, team, bot, remote PC, IoT device, website — is o
 
 | Term | Meaning |
 |------|---------|
-| **iid** | `identity.id` — snowflake BIGINT, globally unique |
+| **iid** | `identity.id` — snowflake BIGINT, globally unique (see [snowflake.md](snowflake.md)) |
 | **alien_id** | Human-friendly globally unique slug (renamed from **handle**) |
 | **owner_iid** | Identity that owns this row (user or team) |
 | **team** | Business/org group (renamed from org/group) |

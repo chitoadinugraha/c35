@@ -9,6 +9,7 @@ When code and docs disagree, fix the code to match these docs (or explicitly rev
 | Document | Description |
 |----------|-------------|
 | [architecture.md](architecture.md) | System overview, build order, infra |
+| [snowflake.md](snowflake.md) | Snowflake bit layout, epoch, per-pod worker id |
 | [structure.md](structure.md) | Repo file tree, crate layout, conventions |
 | [identity.md](identity.md) | Identity model (`kind`, `type`, `alien_id`, grants) |
 | [chat.md](chat.md) | Chat kinds; Home inbox = prompt only |
@@ -26,6 +27,7 @@ When code and docs disagree, fix the code to match these docs (or explicitly rev
 | [skill.md](skill.md) | Skill scope, catalog, automation |
 | [remote.md](remote.md) | Remote device: agent control session + WebRTC data plane (files, screen, media) |
 | [inst.md](inst.md) | Instruction macros (`ai.inst`) — phrase steering + tool include/exclude |
+| [image.md](image.md) | Image gen/edit tiers, `@image-high`, billing |
 | [hint.md](hint.md) | Home hint chips — precompiled catalog, site shortcuts, SessionInit cache |
 | [consumption.md](consumption.md) | Personal food/water tracking |
 | [mcp-security.md](mcp-security.md) | **Security reminder** — MCP agent HTTP, secrets, owner lock |

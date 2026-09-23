@@ -64,6 +64,8 @@ Server crates live under **`servers/crates/`** only — not at repo root. Remote
 | WebSocket | Client sync + prompt stream. Connect: `/v1/ws?since=…&jwt=…&locale=…&tz=…` |
 | Alien Beacon | IoT + remote device wire (paired agents) |
 | JetStream | Device task dispatch (`C35_DEVICE_TASK`) — no YB work polling |
+| `c35-proxy-cf-warp` | Cloudflare WARP mesh forward proxy (residential egress for search & web scraping) |
+| SearXNG | Meta-search engine routed through CF WARP proxy (`searxng.searx.svc.cluster.local:8080`) |
 
 ## Core design principles
 
@@ -160,7 +162,7 @@ See [roadmap.md](roadmap.md) for full phase map.
 
 - Parallelize server work; prefer single IN query over loops.
 - One `ReqSessionInit` (or page-equivalent) per screen load.
-- Snowflake IDs; blake3 for hashing where applicable.
+- Snowflake IDs ([snowflake.md](snowflake.md)); blake3 for hashing where applicable.
 - Naming: `account_get`, `chat_list`, `identity_put` (contextual, lexical).
 - Server log: `ca.L()` / trace crate; client: `l()`, `lError()`, `lFatal()` — never `print`.
 - UI prefixes: `ui_`, `io_`, `in_`.

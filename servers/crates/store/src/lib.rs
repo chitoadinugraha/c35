@@ -8,5 +8,5 @@ pub use migrate::{
     schema_expected_tables, sql_stmts, MigrateAuditReport,
 };
 pub use pool::{pool_connect, pool_connect_url, pool_monitor_spawn, PoolConfig};
-pub use snowflake::snowflake_id;
+pub use snowflake::{snowflake_id, snowflake_max_at_ms, snowflake_min_at_ms, SNOWFLAKE_EPOCH_MS};
 pub use sqlx::PgPool;

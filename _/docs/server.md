@@ -272,6 +272,7 @@ Target cluster: `btm.alienai.id` (k3s-btm, **arm64**).
 | Replicas | **2** |
 | Rolling update | `maxUnavailable: 0`, `maxSurge: 1` — always at least one pod ready |
 | Pod identity | `NODE_NAME`, `POD_NAME` env from downward API (`spec.nodeName`, `metadata.name`) |
+| Snowflake worker | `POD_NAME` → FNV-1a hash → `C35_WORKER_ID` bits (override with env `C35_WORKER_ID`) — see [snowflake.md](snowflake.md) |
 | CAS storage | `emptyDir` at `/data/cas` — ephemeral per pod (stateless for ops) |
 
 Manifest: [`_/deployments/c35-server/deployment.yaml`](../deployments/c35-server/deployment.yaml).

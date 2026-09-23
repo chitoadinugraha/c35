@@ -23,7 +23,7 @@ c35/
 
 | Topic | Decision |
 |-------|----------|
-| Identity | Unified `ai.identity` table; every actor gets snowflake `id` (iid) |
+| Identity | Unified `ai.identity` table; every actor gets snowflake `id` (iid) — see [`_/docs/snowflake.md`](_/docs/snowflake.md) |
 | Kinds | `user` · `team` · `bot` · `remote` · `iot` · `site` |
 | Subtypes | `type` column (`windows`, `android`, `chat`, `switch`, `business`, …) |
 | Handle | Renamed to **`alien_id`** (globally unique, `[a-z0-9_-]`) |
