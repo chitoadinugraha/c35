@@ -38,10 +38,6 @@ class VoicePrefs extends ChangeNotifier {
     _speechLang = _prefs!.getString(_keyLang) ?? kSpeechLangDefault;
     _lastLang = _prefs!.getString(_keyLastLang) ?? '';
     _sttEngine = _prefs!.getString(_keyStt) ?? 'web';
-    if (_sttEngine == 'local') {
-      _sttEngine = 'web';
-      await _prefs!.setString(_keyStt, _sttEngine);
-    }
     _ttsEngine = _prefs!.getString(_keyTts) ?? 'web';
     _speakEnabled = _prefs!.getBool(_keySpeak) ?? speakEnabledDefault;
     _speechRate = _prefs!.getDouble(_keyRate) ?? 1.4;

@@ -7,6 +7,10 @@ pub struct Config {
     pub cas_secret: String,
     pub cas_dir: PathBuf,
     pub public_origin: String,
+    pub midtrans_server_key: String,
+    pub midtrans_client_key: String,
+    pub midtrans_is_production: bool,
+    pub midtrans_usd_idr: f64,
 }
 
 impl Config {
@@ -26,6 +30,16 @@ impl Config {
                 .or_else(|_| std::env::var("CS_PUBLIC_ORIGIN"))
                 .or_else(|_| std::env::var("CSAI_PUBLIC_ORIGIN"))
                 .unwrap_or_else(|_| "https://alienai.id".into()),
+            midtrans_server_key: c35_mod_billing::midtrans_active_key(
+                "MIDTRANS_SERVER_KEY",
+                "MIDTRANS_SANDBOX_SERVER_KEY",
+            ),
+            midtrans_client_key: c35_mod_billing::midtrans_active_key(
+                "MIDTRANS_CLIENT_KEY",
+                "MIDTRANS_SANDBOX_CLIENT_KEY",
+            ),
+            midtrans_is_production: c35_mod_billing::midtrans_is_production(),
+            midtrans_usd_idr: c35_mod_billing::midtrans_usd_idr_from_env(),
         })
     }
 }

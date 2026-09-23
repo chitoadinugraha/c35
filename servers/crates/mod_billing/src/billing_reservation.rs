@@ -27,8 +27,8 @@ where
     .bind(account_id)
     .fetch_optional(executor)
     .await?;
-    let (usd, idr, cur, fx) = row.ok_or_else(|| anyhow::anyhow!("billing account missing"))?;
-    Ok((f(usd), f(idr), cur, fx))
+    let (usd, idr, cur, _fx) = row.ok_or_else(|| anyhow::anyhow!("billing account missing"))?;
+    Ok((f(usd), f(idr), cur, crate::fx_live::fx_live_micro_per_usd()))
 }
 
 pub async fn billing_held_totals(pool: &PgPool, billing_account_id: i64) -> Result<(f64, f64)> {

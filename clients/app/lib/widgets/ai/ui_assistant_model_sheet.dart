@@ -28,6 +28,7 @@ class UiAssistantModelSheet extends StatefulWidget {
 
 class _UiAssistantModelSheetState extends State<UiAssistantModelSheet> {
   late final _searchCtrl = TextEditingController()..addListener(_onSearch);
+  late final _listScrollCtrl = ScrollController();
   var _query = '';
   var _provider = '';
 
@@ -37,6 +38,7 @@ class _UiAssistantModelSheetState extends State<UiAssistantModelSheet> {
   @override
   void dispose() {
     _searchCtrl.dispose();
+    _listScrollCtrl.dispose();
     super.dispose();
   }
 
@@ -75,11 +77,21 @@ class _UiAssistantModelSheetState extends State<UiAssistantModelSheet> {
                     child: Row(
                       children: [
                         Expanded(
-                          child: TextField(
-                            controller: _searchCtrl,
-                            autofocus: true,
-                            style: const TextStyle(color: Color(0xFFF4F4F5), fontSize: 14),
-                            decoration: UiInputDecoration.of(context, hintText: 'Search models…', prefixIcon: const Icon(Icons.search_rounded, size: 20)).copyWith(counter: null),
+                          child: SizedBox(
+                            height: 40,
+                            child: TextField(
+                              controller: _searchCtrl,
+                              autofocus: true,
+                              style: const TextStyle(color: Color(0xFFF4F4F5), fontSize: 14),
+                              decoration: UiInputDecoration.of(
+                                context,
+                                hintText: 'Search models…',
+                                isDense: true,
+                                prefixIcon: const Icon(Icons.search_rounded, size: 18),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                prefixIconConstraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                              ).copyWith(counter: null),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -98,8 +110,9 @@ class _UiAssistantModelSheetState extends State<UiAssistantModelSheet> {
                       child: ScrollConfiguration(
                         behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
                         child: Scrollbar(
+                          controller: _listScrollCtrl,
                           child: ListView.builder(
-                            shrinkWrap: true,
+                            controller: _listScrollCtrl,
                             padding: const EdgeInsets.only(right: 8),
                             itemCount: items.length,
                             itemBuilder: (_, i) => _tile(items[i]),
@@ -118,6 +131,7 @@ class _UiAssistantModelSheetState extends State<UiAssistantModelSheet> {
 
   Widget _providerFilter(List<String> providers) {
     final active = _provider.isNotEmpty;
+    final label = active ? agentModelProviderLabel(_provider) : 'All Models';
     return PopupMenuButton<String>(
       tooltip: uiPopupMenuTooltipText('Filter provider'),
       initialValue: _provider,
@@ -143,23 +157,21 @@ class _UiAssistantModelSheetState extends State<UiAssistantModelSheet> {
           ),
       ],
       child: Container(
-        height: 48,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        height: 40,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
           color: const Color(0xFF27272A),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(color: active ? const Color(0xFF38BDF8) : const Color(0xFF3F3F46)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.filter_list_rounded, size: 18, color: active ? const Color(0xFF38BDF8) : const Color(0xFFA1A1AA)),
-            if (active) ...[
-              const SizedBox(width: 6),
-              Text(agentModelProviderLabel(_provider), style: const TextStyle(color: Color(0xFFF4F4F5), fontSize: 12, fontWeight: FontWeight.w600)),
-            ],
+            Icon(Icons.filter_list_rounded, size: 16, color: active ? const Color(0xFF38BDF8) : const Color(0xFFA1A1AA)),
+            const SizedBox(width: 6),
+            Text(label, style: TextStyle(color: active ? const Color(0xFFF4F4F5) : const Color(0xFFA1A1AA), fontSize: 12, fontWeight: active ? FontWeight.w600 : FontWeight.w500)),
             const SizedBox(width: 2),
-            Icon(Icons.expand_more_rounded, size: 18, color: active ? const Color(0xFF38BDF8) : const Color(0xFFA1A1AA)),
+            Icon(Icons.expand_more_rounded, size: 16, color: active ? const Color(0xFF38BDF8) : const Color(0xFFA1A1AA)),
           ],
         ),
       ),

@@ -1,3 +1,4 @@
+import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:flutter/material.dart';
 
 const _border = Color(0xFF27272A);
@@ -86,7 +87,7 @@ class UiDeviceRow extends StatelessWidget {
     );
   }
 
-  Widget _dot(bool on, String tooltip) => Tooltip(
+  Widget _dot(bool on, String tooltip) => uiTooltip(
         message: tooltip,
         child: Container(
           width: 8,

@@ -140,7 +140,7 @@ class _UiSubagentRunCardState extends State<UiSubagentRunCard> {
                     ),
                   ),
                   if (live && widget.onStop != null)
-                    IconButton(
+                    uiIconButton(
                       tooltip: 'Stop subagent',
                       visualDensity: VisualDensity.compact,
                       padding: EdgeInsets.zero,

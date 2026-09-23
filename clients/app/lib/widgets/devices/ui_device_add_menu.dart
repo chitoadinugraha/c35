@@ -1,6 +1,7 @@
 import 'package:alienai_c35/c/device/device_store.dart';
 import 'package:alienai_c35/widgets/devices/in_device_pair.dart';
 import 'package:alienai_c35/widgets/ui/ui_alert.dart';
+import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:flutter/material.dart';
 
 class UiDeviceAddMenu extends StatelessWidget {
@@ -23,8 +24,7 @@ class UiDeviceAddMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => PopupMenuButton<String>(
-        icon: const Icon(Icons.add, color: Color(0xFFF4F4F5)),
-        tooltip: 'Add device',
+        tooltip: uiPopupMenuTooltipText('Add device'),
         onSelected: (v) => switch (v) {
           'pair' => _onAddPair(context),
           'flash' => _onFlashComingSoon(context),
@@ -48,5 +48,6 @@ class UiDeviceAddMenu extends StatelessWidget {
             ),
           ),
         ],
+        child: uiPopupMenuChild(tooltip: 'Add device', child: const Icon(Icons.add, color: Color(0xFFF4F4F5))),
       );
 }

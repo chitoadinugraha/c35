@@ -173,6 +173,22 @@ c35.stats.volume.{namespace}.{pvc_name}
 
 Published every ~2s per node. Root Flutter clients subscribe via WS `ReqStatsSubscribe`; `server_ai` relays `c35.stats.>` as `WsRes.stats_push` with per-subject snapshot cache.
 
+### Fetcher cache invalidation (server-internal)
+
+```
+c35.fetch.fx
+c35.fetch.llm_catalog
+```
+
+Published by `c35-fetcher` after YB persist when data changed. Payload: protobuf (`FetchFxPush`, `FetchLlmCatalogPush` — see `fetch.proto`).
+
+| Subject | Publisher | Consumer action |
+|---------|-----------|-----------------|
+| `c35.fetch.fx` | `c35-fetcher` | `mod_billing`: update in-memory `micro_per_usd` |
+| `c35.fetch.llm_catalog` | `c35-fetcher` | `mod_llm`: `llm_catalog_reload(pool)` |
+
+`server_ai` subscribes at boot (`c35.fetch.>`). Not client-visible. See [fetcher.md](fetcher.md).
+
 ### Live log (admin/root)
 
 ```

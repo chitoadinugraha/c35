@@ -125,7 +125,7 @@ class _UiReferralClaimDialogState extends State<UiReferralClaimDialog> {
       actions: [
         TextButton(
           onPressed: _busy ? null : _skip,
-          child: const Text("I don't have one", style: TextStyle(color: Color(0xFF71717A))),
+          child: const Text('Skip', style: TextStyle(color: Color(0xFF71717A))),
         ),
         FilledButton(
           style: FilledButton.styleFrom(

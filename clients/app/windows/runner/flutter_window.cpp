@@ -4,6 +4,30 @@
 
 #include "flutter/generated_plugin_registrant.h"
 
+namespace {
+
+// The engine's Windows accessibility bridge is constructed lazily on the first
+// WM_GETOBJECT. From then on every semantics update is mirrored into ui::AXTree,
+// which desyncs when overlays (dropdowns, tooltips) tear down or on resize.
+// Upstream: flutter/flutter#182444 (open). IDE / UIA probes on launch are enough
+// to trigger it — no screen reader required.
+//
+// Swallow WM_GETOBJECT on the Flutter view and top-level window so the bridge
+// is never built. Trade-off: screen readers cannot introspect Flutter content.
+WNDPROC g_original_view_proc = nullptr;
+
+LRESULT CALLBACK ViewWndProc(HWND hwnd,
+                             UINT message,
+                             WPARAM wparam,
+                             LPARAM lparam) {
+  if (message == WM_GETOBJECT) {
+    return 0;
+  }
+  return CallWindowProc(g_original_view_proc, hwnd, message, wparam, lparam);
+}
+
+}  // namespace
+
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
 
@@ -25,7 +49,12 @@ bool FlutterWindow::OnCreate() {
     return false;
   }
   RegisterPlugins(flutter_controller_->engine());
-  SetChildContent(flutter_controller_->view()->GetNativeWindow());
+
+  HWND view_window = flutter_controller_->view()->GetNativeWindow();
+  SetChildContent(view_window);
+
+  g_original_view_proc = reinterpret_cast<WNDPROC>(SetWindowLongPtr(
+      view_window, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(ViewWndProc)));
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
     this->Show();
@@ -51,6 +80,12 @@ LRESULT
 FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
                               WPARAM const wparam,
                               LPARAM const lparam) noexcept {
+  // Block on the view window too (see ViewWndProc). The engine also answers
+  // WM_GETOBJECT for the top-level window through HandleTopLevelWindowProc.
+  if (message == WM_GETOBJECT) {
+    return 0;
+  }
+
   // Give Flutter, including plugins, an opportunity to handle window messages.
   if (flutter_controller_) {
     std::optional<LRESULT> result =

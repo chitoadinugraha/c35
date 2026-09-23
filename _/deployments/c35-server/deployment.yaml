@@ -63,8 +63,18 @@ spec:
               value: ".svc.cluster.local,.cluster.local,localhost,127.0.0.1"
             - name: WHATSAPP_WORKER_URL
               value: "http://channel-whatsapp-device.c35.svc.cluster.local:8080"
+            - name: PG_MAX_CONNECTIONS
+              value: "24"
+            - name: PG_MIN_CONNECTIONS
+              value: "4"
+            - name: PG_SLOW_STATEMENT_MS
+              value: "1000"
+            - name: PG_SLOW_ACQUIRE_MS
+              value: "3000"
+            - name: EXTERNAL_FETCHER
+              value: "1"
             - name: RUST_LOG
-              value: info,server_ai=debug
+              value: info,server_ai=debug,sqlx::query=warn,sqlx::pool::acquire=warn
             # WebRTC TURN (coturn static-auth-secret). Empty/missing → STUN-only ICE config.
             - name: C35_TURN_SECRET
               valueFrom:

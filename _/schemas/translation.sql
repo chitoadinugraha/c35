@@ -94,7 +94,7 @@ INSERT INTO ai.translation (lang, key, category, text) VALUES
 ('id', 'topic.image.caption', 'topic', 'Pembuatan gambar'),
 ('id', 'composer.ask.label', 'catalog', 'Tanya'),
 ('id', 'composer.ask.caption', 'catalog', 'Jawab tanpa alat'),
-('id', 'hint.consumption_add.label', 'hint', 'Catat Konsumsi'),
+('id', 'hint.consumption_add.label', 'hint', 'Catat konsumsi makanan'),
 ('id', 'hint.consumption_add.send_text', 'hint', 'Catat konsumsi makanan'),
 ('id', 'hint.expense_add.label', 'hint', 'Catat Pengeluaran'),
 ('id', 'hint.expense_add.send_text', 'hint', 'Catat pengeluaran'),

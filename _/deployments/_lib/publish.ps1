@@ -238,6 +238,28 @@ function Publish-C35NodeStatsImage {
     Show-PublishDiskStatus -Label "disk after build (c35-node-stats)"
 }
 
+function Publish-C35FetcherImage {
+    param(
+        [string]$Tag = "latest",
+        [string]$RepoRoot,
+        [string]$Platform = "linux/arm64"
+    )
+    $imageRef = "hsg.ocir.io/axr8wqrrukgm/c35-fetcher:$Tag"
+    $dir = (Resolve-Path $RepoRoot).Path
+    Show-PublishDiskStatus -Label "disk before build (c35-fetcher)"
+    Write-Host "==> build $imageRef via cluster buildkit ($Platform) from $dir"
+    $buildSw = [System.Diagnostics.Stopwatch]::StartNew()
+    $tarPaths = @(
+        'servers/Cargo.toml', 'servers/Cargo.lock',
+        'servers/crates', 'servers/fetcher', 'servers/server_ai', 'servers/channel_whatsapp_device',
+        '_/schemas', '_/deployments/Dockerfile.c35-fetcher'
+    )
+    Invoke-ClusterBuildkitBuild -RepoRoot $dir -ImageRef $imageRef -Platform $Platform -TarPaths $tarPaths -DockerfileRel '_/deployments/Dockerfile.c35-fetcher'
+    $buildSw.Stop()
+    Write-Host "==> build finished in $(Format-PublishDuration $buildSw.Elapsed)"
+    Show-PublishDiskStatus -Label "disk after build (c35-fetcher)"
+}
+
 function Publish-C35ServerImage {
     param(
         [string]$Tag = "latest",
@@ -251,7 +273,7 @@ function Publish-C35ServerImage {
     $buildSw = [System.Diagnostics.Stopwatch]::StartNew()
     $tarPaths = @(
         'servers/Cargo.toml', 'servers/Cargo.lock',
-        'servers/crates', 'servers/server_ai', 'servers/channel_whatsapp_device',
+        'servers/crates', 'servers/fetcher', 'servers/server_ai', 'servers/channel_whatsapp_device',
         '_/schemas', '_/deployments/Dockerfile'
     )
     Invoke-ClusterBuildkitBuild -RepoRoot $dir -ImageRef $imageRef -Platform $Platform -TarPaths $tarPaths

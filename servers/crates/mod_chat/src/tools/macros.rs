@@ -80,9 +80,12 @@ macro_rules! tool {
                     requires_kinds.push($kind.to_string());
                 )*)?
 
-                #[allow(unused_mut)]
-                let mut requires_capability: Option<String> = None;
-                $(requires_capability = Some($capability.to_string());)?
+                let requires_capability: Option<String> = [
+                    $(Some($capability.to_string()),)?
+                ]
+                .first()
+                .cloned()
+                .flatten();
 
                 #[allow(unused_mut)]
                 let mut ui_keys = $crate::tools::ToolUiKeys::default();

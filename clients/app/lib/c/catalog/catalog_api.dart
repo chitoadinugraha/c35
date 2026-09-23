@@ -85,7 +85,7 @@ Map<String, String> _authHeaders() {
   };
 }
 
-Future<CatalogTranslationsRes> catalogTranslationsFetch(String lang, {String categories = 'tool,mention,topic'}) async {
+Future<CatalogTranslationsRes> catalogTranslationsFetch(String lang, {String categories = 'tool,mention,topic,hint'}) async {
   final uri = Uri.parse('${_catalogBase()}/v1/translations/$lang').replace(queryParameters: {'category': categories});
   final res = await http.get(uri, headers: _authHeaders()).timeout(const Duration(seconds: 20));
   if (res.statusCode != 200) throw 'translations fetch failed (${res.statusCode})';

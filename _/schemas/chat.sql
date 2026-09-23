@@ -178,3 +178,32 @@ CREATE INDEX IF NOT EXISTS idx_chat_msg_owner_sync
 
 ALTER TABLE ai.chat_msg ADD COLUMN IF NOT EXISTS cost_usd NUMERIC(12, 6) NOT NULL DEFAULT 0;
 ALTER TABLE ai.chat_msg ADD COLUMN IF NOT EXISTS error_text TEXT NOT NULL DEFAULT '';
+
+-- ------------------------------------------------------------------------------
+-- Context compaction (see _/docs/context-compaction.md)
+-- ------------------------------------------------------------------------------
+
+ALTER TABLE ai.chat ADD COLUMN IF NOT EXISTS context_summary TEXT NOT NULL DEFAULT '';
+ALTER TABLE ai.chat ADD COLUMN IF NOT EXISTS context_summary_upto_msg_id BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE ai.chat ADD COLUMN IF NOT EXISTS context_compact_ts TIMESTAMPTZ;
+ALTER TABLE ai.chat ADD COLUMN IF NOT EXISTS context_compact_req_id TEXT NOT NULL DEFAULT '';
+
+CREATE TABLE IF NOT EXISTS ai.chat_compact_log (
+    id                  BIGINT PRIMARY KEY,
+    chat_id             BIGINT NOT NULL REFERENCES ai.chat(id),
+    owner_iid           BIGINT NOT NULL REFERENCES ai.identity(id),
+    req_id              TEXT NOT NULL DEFAULT '',
+    trigger             TEXT NOT NULL DEFAULT 'threshold',
+    msgs_summarized     INT NOT NULL DEFAULT 0,
+    tokens_in           INT NOT NULL DEFAULT 0,
+    tokens_out          INT NOT NULL DEFAULT 0,
+    cost_usd            NUMERIC(12, 6) NOT NULL DEFAULT 0,
+    model               TEXT NOT NULL DEFAULT '',
+    summary_before_len  INT NOT NULL DEFAULT 0,
+    summary_after_len   INT NOT NULL DEFAULT 0,
+    memory_writes       INT NOT NULL DEFAULT 0,
+    created_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_compact_log_chat
+    ON ai.chat_compact_log (chat_id, created_ts DESC);

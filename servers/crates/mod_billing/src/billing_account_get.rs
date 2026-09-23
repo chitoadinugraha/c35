@@ -64,7 +64,7 @@ pub async fn billing_account_get(ctx: &Ctx, billing_iid: i64) -> WireResult<Bill
         window_5h_start_ms: w5.timestamp_millis(),
         window_weekly_start_ms: ww.timestamp_millis(),
         billing_currency: row.get("billing_currency"),
-        fx_micro_per_usd: row.get("fx_micro_per_usd"),
+        fx_micro_per_usd: crate::fx_live::fx_live_micro_per_usd(),
         commission_available_usd: row.get("commission_available_usd"),
         commission_earned_usd: row.get("commission_earned_usd"),
         commission_available_idr: row.get("commission_available_idr"),

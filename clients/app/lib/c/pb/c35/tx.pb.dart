@@ -830,6 +830,7 @@ class TxItem extends $pb.GeneratedMessage {
     $fixnum.Int64? itemId,
     $fixnum.Int64? productId,
     $fixnum.Int64? productRev,
+    $fixnum.Int64? ownerIid,
     $fixnum.Int64? price,
     $core.String? note,
     $core.int? qty,
@@ -838,6 +839,7 @@ class TxItem extends $pb.GeneratedMessage {
     $core.String? batchNumber,
     $core.String? serialNumber,
     TxItemFulfillmentState? fulfillmentState,
+    $fixnum.Int64? objId,
     $core.int? totalQty,
     $fixnum.Int64? totalPrice,
     $fixnum.Int64? totalDiscount,
@@ -852,6 +854,7 @@ class TxItem extends $pb.GeneratedMessage {
     if (itemId != null) result.itemId = itemId;
     if (productId != null) result.productId = productId;
     if (productRev != null) result.productRev = productRev;
+    if (ownerIid != null) result.ownerIid = ownerIid;
     if (price != null) result.price = price;
     if (note != null) result.note = note;
     if (qty != null) result.qty = qty;
@@ -860,6 +863,7 @@ class TxItem extends $pb.GeneratedMessage {
     if (batchNumber != null) result.batchNumber = batchNumber;
     if (serialNumber != null) result.serialNumber = serialNumber;
     if (fulfillmentState != null) result.fulfillmentState = fulfillmentState;
+    if (objId != null) result.objId = objId;
     if (totalQty != null) result.totalQty = totalQty;
     if (totalPrice != null) result.totalPrice = totalPrice;
     if (totalDiscount != null) result.totalDiscount = totalDiscount;
@@ -888,6 +892,7 @@ class TxItem extends $pb.GeneratedMessage {
     ..aInt64(3, _omitFieldNames ? '' : 'itemId')
     ..aInt64(4, _omitFieldNames ? '' : 'productId')
     ..aInt64(5, _omitFieldNames ? '' : 'productRev')
+    ..aInt64(6, _omitFieldNames ? '' : 'ownerIid')
     ..aInt64(11, _omitFieldNames ? '' : 'price')
     ..aOS(12, _omitFieldNames ? '' : 'note')
     ..aI(13, _omitFieldNames ? '' : 'qty')
@@ -899,6 +904,7 @@ class TxItem extends $pb.GeneratedMessage {
     ..aOS(33, _omitFieldNames ? '' : 'serialNumber')
     ..aE<TxItemFulfillmentState>(37, _omitFieldNames ? '' : 'fulfillmentState',
         enumValues: TxItemFulfillmentState.values)
+    ..aInt64(41, _omitFieldNames ? '' : 'objId')
     ..aI(101, _omitFieldNames ? '' : 'totalQty')
     ..aInt64(102, _omitFieldNames ? '' : 'totalPrice')
     ..aInt64(103, _omitFieldNames ? '' : 'totalDiscount')
@@ -973,126 +979,144 @@ class TxItem extends $pb.GeneratedMessage {
   @$pb.TagNumber(5)
   void clearProductRev() => $_clearField(5);
 
+  @$pb.TagNumber(6)
+  $fixnum.Int64 get ownerIid => $_getI64(5);
+  @$pb.TagNumber(6)
+  set ownerIid($fixnum.Int64 value) => $_setInt64(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasOwnerIid() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearOwnerIid() => $_clearField(6);
+
   @$pb.TagNumber(11)
-  $fixnum.Int64 get price => $_getI64(5);
+  $fixnum.Int64 get price => $_getI64(6);
   @$pb.TagNumber(11)
-  set price($fixnum.Int64 value) => $_setInt64(5, value);
+  set price($fixnum.Int64 value) => $_setInt64(6, value);
   @$pb.TagNumber(11)
-  $core.bool hasPrice() => $_has(5);
+  $core.bool hasPrice() => $_has(6);
   @$pb.TagNumber(11)
   void clearPrice() => $_clearField(11);
 
   @$pb.TagNumber(12)
-  $core.String get note => $_getSZ(6);
+  $core.String get note => $_getSZ(7);
   @$pb.TagNumber(12)
-  set note($core.String value) => $_setString(6, value);
+  set note($core.String value) => $_setString(7, value);
   @$pb.TagNumber(12)
-  $core.bool hasNote() => $_has(6);
+  $core.bool hasNote() => $_has(7);
   @$pb.TagNumber(12)
   void clearNote() => $_clearField(12);
 
   @$pb.TagNumber(13)
-  $core.int get qty => $_getIZ(7);
+  $core.int get qty => $_getIZ(8);
   @$pb.TagNumber(13)
-  set qty($core.int value) => $_setSignedInt32(7, value);
+  set qty($core.int value) => $_setSignedInt32(8, value);
   @$pb.TagNumber(13)
-  $core.bool hasQty() => $_has(7);
+  $core.bool hasQty() => $_has(8);
   @$pb.TagNumber(13)
   void clearQty() => $_clearField(13);
 
   @$pb.TagNumber(21)
-  $pb.PbList<TxItemReservation> get reservations => $_getList(8);
+  $pb.PbList<TxItemReservation> get reservations => $_getList(9);
 
   @$pb.TagNumber(31)
-  $pb.PbList<TxItemSource> get sources => $_getList(9);
+  $pb.PbList<TxItemSource> get sources => $_getList(10);
 
   @$pb.TagNumber(32)
-  $core.String get batchNumber => $_getSZ(10);
+  $core.String get batchNumber => $_getSZ(11);
   @$pb.TagNumber(32)
-  set batchNumber($core.String value) => $_setString(10, value);
+  set batchNumber($core.String value) => $_setString(11, value);
   @$pb.TagNumber(32)
-  $core.bool hasBatchNumber() => $_has(10);
+  $core.bool hasBatchNumber() => $_has(11);
   @$pb.TagNumber(32)
   void clearBatchNumber() => $_clearField(32);
 
   @$pb.TagNumber(33)
-  $core.String get serialNumber => $_getSZ(11);
+  $core.String get serialNumber => $_getSZ(12);
   @$pb.TagNumber(33)
-  set serialNumber($core.String value) => $_setString(11, value);
+  set serialNumber($core.String value) => $_setString(12, value);
   @$pb.TagNumber(33)
-  $core.bool hasSerialNumber() => $_has(11);
+  $core.bool hasSerialNumber() => $_has(12);
   @$pb.TagNumber(33)
   void clearSerialNumber() => $_clearField(33);
 
   @$pb.TagNumber(37)
-  TxItemFulfillmentState get fulfillmentState => $_getN(12);
+  TxItemFulfillmentState get fulfillmentState => $_getN(13);
   @$pb.TagNumber(37)
   set fulfillmentState(TxItemFulfillmentState value) => $_setField(37, value);
   @$pb.TagNumber(37)
-  $core.bool hasFulfillmentState() => $_has(12);
+  $core.bool hasFulfillmentState() => $_has(13);
   @$pb.TagNumber(37)
   void clearFulfillmentState() => $_clearField(37);
 
+  @$pb.TagNumber(41)
+  $fixnum.Int64 get objId => $_getI64(14);
+  @$pb.TagNumber(41)
+  set objId($fixnum.Int64 value) => $_setInt64(14, value);
+  @$pb.TagNumber(41)
+  $core.bool hasObjId() => $_has(14);
+  @$pb.TagNumber(41)
+  void clearObjId() => $_clearField(41);
+
   @$pb.TagNumber(101)
-  $core.int get totalQty => $_getIZ(13);
+  $core.int get totalQty => $_getIZ(15);
   @$pb.TagNumber(101)
-  set totalQty($core.int value) => $_setSignedInt32(13, value);
+  set totalQty($core.int value) => $_setSignedInt32(15, value);
   @$pb.TagNumber(101)
-  $core.bool hasTotalQty() => $_has(13);
+  $core.bool hasTotalQty() => $_has(15);
   @$pb.TagNumber(101)
   void clearTotalQty() => $_clearField(101);
 
   @$pb.TagNumber(102)
-  $fixnum.Int64 get totalPrice => $_getI64(14);
+  $fixnum.Int64 get totalPrice => $_getI64(16);
   @$pb.TagNumber(102)
-  set totalPrice($fixnum.Int64 value) => $_setInt64(14, value);
+  set totalPrice($fixnum.Int64 value) => $_setInt64(16, value);
   @$pb.TagNumber(102)
-  $core.bool hasTotalPrice() => $_has(14);
+  $core.bool hasTotalPrice() => $_has(16);
   @$pb.TagNumber(102)
   void clearTotalPrice() => $_clearField(102);
 
   @$pb.TagNumber(103)
-  $fixnum.Int64 get totalDiscount => $_getI64(15);
+  $fixnum.Int64 get totalDiscount => $_getI64(17);
   @$pb.TagNumber(103)
-  set totalDiscount($fixnum.Int64 value) => $_setInt64(15, value);
+  set totalDiscount($fixnum.Int64 value) => $_setInt64(17, value);
   @$pb.TagNumber(103)
-  $core.bool hasTotalDiscount() => $_has(15);
+  $core.bool hasTotalDiscount() => $_has(17);
   @$pb.TagNumber(103)
   void clearTotalDiscount() => $_clearField(103);
 
   @$pb.TagNumber(104)
-  $fixnum.Int64 get totalTax => $_getI64(16);
+  $fixnum.Int64 get totalTax => $_getI64(18);
   @$pb.TagNumber(104)
-  set totalTax($fixnum.Int64 value) => $_setInt64(16, value);
+  set totalTax($fixnum.Int64 value) => $_setInt64(18, value);
   @$pb.TagNumber(104)
-  $core.bool hasTotalTax() => $_has(16);
+  $core.bool hasTotalTax() => $_has(18);
   @$pb.TagNumber(104)
   void clearTotalTax() => $_clearField(104);
 
   @$pb.TagNumber(105)
-  $fixnum.Int64 get totalNet => $_getI64(17);
+  $fixnum.Int64 get totalNet => $_getI64(19);
   @$pb.TagNumber(105)
-  set totalNet($fixnum.Int64 value) => $_setInt64(17, value);
+  set totalNet($fixnum.Int64 value) => $_setInt64(19, value);
   @$pb.TagNumber(105)
-  $core.bool hasTotalNet() => $_has(17);
+  $core.bool hasTotalNet() => $_has(19);
   @$pb.TagNumber(105)
   void clearTotalNet() => $_clearField(105);
 
   @$pb.TagNumber(201)
-  $fixnum.Int64 get totalUnpaid => $_getI64(18);
+  $fixnum.Int64 get totalUnpaid => $_getI64(20);
   @$pb.TagNumber(201)
-  set totalUnpaid($fixnum.Int64 value) => $_setInt64(18, value);
+  set totalUnpaid($fixnum.Int64 value) => $_setInt64(20, value);
   @$pb.TagNumber(201)
-  $core.bool hasTotalUnpaid() => $_has(18);
+  $core.bool hasTotalUnpaid() => $_has(20);
   @$pb.TagNumber(201)
   void clearTotalUnpaid() => $_clearField(201);
 
   @$pb.TagNumber(202)
-  $fixnum.Int64 get totalPaid => $_getI64(19);
+  $fixnum.Int64 get totalPaid => $_getI64(21);
   @$pb.TagNumber(202)
-  set totalPaid($fixnum.Int64 value) => $_setInt64(19, value);
+  set totalPaid($fixnum.Int64 value) => $_setInt64(21, value);
   @$pb.TagNumber(202)
-  $core.bool hasTotalPaid() => $_has(19);
+  $core.bool hasTotalPaid() => $_has(21);
   @$pb.TagNumber(202)
   void clearTotalPaid() => $_clearField(202);
 }

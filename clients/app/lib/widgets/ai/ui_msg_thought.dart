@@ -73,7 +73,8 @@ class _UiMsgThoughtState extends State<UiMsgThought> {
   Widget build(BuildContext context) {
     if (widget.text.isEmpty && !_live) return const SizedBox.shrink();
     final previewMaxW = MediaQuery.sizeOf(context).width * 0.62;
-    return Padding(
+    return ExcludeSemantics(
+      child: Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -133,6 +134,7 @@ class _UiMsgThoughtState extends State<UiMsgThought> {
             ),
         ],
       ),
+    ),
     );
   }
 }

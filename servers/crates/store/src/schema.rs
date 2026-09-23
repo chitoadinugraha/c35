@@ -17,6 +17,7 @@ pub const MENTION_SQL: &str = include_str!("../../../../_/schemas/mention.sql");
 pub const TRANSLATION_SQL: &str = include_str!("../../../../_/schemas/translation.sql");
 pub const HINT_SQL: &str = include_str!("../../../../_/schemas/hint.sql");
 pub const MEMORY_SQL: &str = include_str!("../../../../_/schemas/memory.sql");
+pub const OBJECT_NORMALIZER_SQL: &str = include_str!("../../../../_/schemas/object_normalizer.sql");
 pub const CHANNEL_SQL: &str = include_str!("../../../../_/schemas/channel.sql");
 pub const CONFIG_SQL: &str = include_str!("../../../../_/schemas/config.sql");
 
@@ -37,6 +38,7 @@ pub const SCHEMA_APPLY_ORDER: &[(&str, &str)] = &[
     ("skill", SKILL_SQL),
     ("task", TASK_SQL),
     ("consumption", CONSUMPTION_SQL),
+    ("object_normalizer", OBJECT_NORMALIZER_SQL),
     ("site", SITE_SQL),
     ("tx", TX_SQL),
     ("file", FILE_SQL),

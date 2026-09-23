@@ -44,6 +44,7 @@ class ChatRow {
     this.pending = false,
     this.lastMsgStatus = 'done',
     this.unreadStatus = false,
+    this.contextSummaryPresent = false,
   }) : tags = tags ?? const [];
 
   final int id;
@@ -56,6 +57,7 @@ class ChatRow {
   bool pending;
   String lastMsgStatus;
   bool unreadStatus;
+  bool contextSummaryPresent;
 
   bool get pinned => pinnedAt > 0;
   bool get archived => archivedAt > 0;
@@ -71,6 +73,7 @@ class ChatRow {
         'pending': pending,
         'lastMsgStatus': lastMsgStatus,
         'unreadStatus': unreadStatus,
+        'contextSummaryPresent': contextSummaryPresent,
       };
 
   factory ChatRow.fromJson(Map<String, dynamic> j) => ChatRow(
@@ -84,7 +87,18 @@ class ChatRow {
         pending: j['pending'] as bool? ?? false,
         lastMsgStatus: '${j['lastMsgStatus'] ?? 'done'}',
         unreadStatus: j['unreadStatus'] as bool? ?? false,
+        contextSummaryPresent: j['contextSummaryPresent'] as bool? ?? false,
       );
+}
+
+bool chatMetaContextSummaryPresent(String metaJson) {
+  if (metaJson.isEmpty) return false;
+  try {
+    final m = jsonDecode(metaJson) as Map<String, dynamic>;
+    return m['context_summary_present'] == true;
+  } catch (_) {
+    return false;
+  }
 }
 
 class MsgRow {
@@ -642,6 +656,7 @@ class ChatStore extends ChangeNotifier {
       lastMsgAt: lastAt,
       pending: false,
       lastMsgStatus: status,
+      contextSummaryPresent: chatMetaContextSummaryPresent(chat.metaJson),
     );
     final pendingIdx = chats.indexWhere((c) => c.pending && c.id != id);
     if (pendingIdx >= 0) {
@@ -726,9 +741,10 @@ class ChatStore extends ChangeNotifier {
       }
     }
     if (row.role == 'assistant') {
-      var localIdx = msgs.lastIndexWhere((m) => m.chatId == row.chatId && m.role == 'assistant' && m.id <= 0);
+      bool sameTurn(MsgRow m) => row.reqId.isEmpty || m.reqId.isEmpty || m.reqId == row.reqId;
+      var localIdx = msgs.lastIndexWhere((m) => m.chatId == row.chatId && m.role == 'assistant' && m.id <= 0 && sameTurn(m));
       if (localIdx < 0 && row.id > 0 && promptBusyFor(row.chatId)) {
-        localIdx = msgs.lastIndexWhere((m) => m.chatId == row.chatId && m.role == 'assistant' && m.id != row.id);
+        localIdx = msgs.lastIndexWhere((m) => m.chatId == row.chatId && m.role == 'assistant' && m.id != row.id && sameTurn(m));
       }
       if (localIdx >= 0) {
         msgs[localIdx] = _msgMerge(msgs[localIdx], row);
@@ -962,23 +978,73 @@ class ChatStore extends ChangeNotifier {
     if (promptChatId != null) promptChatId = id;
   }
 
-  ({String text, List<MsgAttachment> attachments})? retryLastTurnPrep() {
+  ({String text, List<MsgAttachment> attachments})? retryLastTurnPrep({int? chatId}) {
     if (promptBusy) return null;
-    final cid = activeChatId;
+    final cid = chatId ?? activeChatId;
     if (cid == null) return null;
-    MsgRow? lastUser;
-    for (final m in activeMsgs.reversed) {
-      if (m.role == 'user' && (m.content.trim().isNotEmpty || m.attachments.isNotEmpty)) {
-        lastUser = m;
-        break;
+    final lastUserIdx = msgs.lastIndexWhere(
+      (m) => m.chatId == cid && m.role == 'user' && (m.content.trim().isNotEmpty || m.attachments.isNotEmpty),
+    );
+    if (lastUserIdx < 0) return null;
+    final lastUser = msgs[lastUserIdx];
+    for (var i = msgs.length - 1; i > lastUserIdx; i--) {
+      if (msgs[i].chatId == cid && msgs[i].role == 'assistant') {
+        msgs.removeAt(i);
       }
     }
-    if (lastUser == null) return null;
-    while (msgs.isNotEmpty && msgs.last.chatId == cid && msgs.last.role == 'assistant') {
-      msgs.removeLast();
-    }
+    _touchMsgs(cid);
     notifyListeners();
     return (text: lastUser.content, attachments: List<MsgAttachment>.from(lastUser.attachments));
+  }
+
+  void chatClearMsgs(int id) {
+    msgs.removeWhere((m) => m.chatId == id);
+    if (promptChatId == id) _promptClear();
+    for (final c in chats) {
+      if (c.id == id) {
+        c.lastMsgPreview = '';
+        c.lastMsgStatus = 'done';
+      }
+    }
+    unawaited(_prefs?.remove(_chatMsgsKey(id)));
+    _touchMsgs(id);
+    _touch();
+    notifyListeners();
+  }
+
+  void msgUserTurnRetry({
+    required int chatId,
+    required String content,
+    required List<MsgAttachment> attachments,
+    required String reqId,
+    required int createdAtMs,
+  }) {
+    final idx = msgs.lastIndexWhere((m) => m.chatId == chatId && m.role == 'user');
+    if (idx >= 0) {
+      final old = msgs[idx];
+      msgs[idx] = old.copyWith(
+        content: content,
+        attachments: attachments,
+        attachmentsJson: MsgAttachment.encode(attachments),
+        reqId: reqId,
+        createdAtMs: createdAtMs,
+        error: '',
+      );
+    } else {
+      msgs.add(MsgRow(
+        id: msgNextLocalId(),
+        chatId: chatId,
+        role: 'user',
+        content: content,
+        attachments: attachments,
+        attachmentsJson: MsgAttachment.encode(attachments),
+        createdAtMs: createdAtMs,
+        reqId: reqId,
+      ));
+    }
+    _chatPreviewTouch(chatId, content);
+    _touchMsgs(chatId);
+    notifyListeners();
   }
 
   void inboxMerge(ResInboxList res) {

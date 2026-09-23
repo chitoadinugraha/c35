@@ -8,6 +8,7 @@ WORKDIR /app
 
 COPY servers/Cargo.toml servers/Cargo.lock /app/servers/
 COPY servers/crates /app/servers/crates
+COPY servers/fetcher /app/servers/fetcher
 COPY servers/server_ai /app/servers/server_ai
 COPY servers/channel_whatsapp_device /app/servers/channel_whatsapp_device
 COPY _/schemas /app/_/schemas

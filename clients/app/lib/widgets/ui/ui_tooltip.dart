@@ -91,6 +91,8 @@ Widget uiIconButton({
 }
 
 /// Wrap app roots (or heavy canvases) to skip semantics on desktop embedders.
+/// On Windows the runner also blocks WM_GETOBJECT so the accessibility bridge
+/// is never constructed (flutter/flutter#182444).
 Widget uiSemanticsGuard(Widget child) => uiSemanticsEnabled ? child : ExcludeSemantics(child: child);
 
 enum _UiTipSide { below, above, right, left }
@@ -161,7 +163,6 @@ class _UiHoverTooltipState extends State<_UiHoverTooltip> {
     super.dispose();
   }
 
-  @override
   @override
   Widget build(BuildContext context) => MouseRegion(
         onEnter: (_) => _show(),

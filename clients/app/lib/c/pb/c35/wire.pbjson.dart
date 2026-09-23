@@ -300,6 +300,78 @@ const InvokeReq$json = {
       '9': 0,
       '10': 'translationPut'
     },
+    {
+      '1': 'billing_topup_list',
+      '3': 111,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqBillingTopupList',
+      '9': 0,
+      '10': 'billingTopupList'
+    },
+    {
+      '1': 'billing_topup_review',
+      '3': 112,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqBillingTopupReview',
+      '9': 0,
+      '10': 'billingTopupReview'
+    },
+    {
+      '1': 'commission_withdraw',
+      '3': 113,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqCommissionWithdraw',
+      '9': 0,
+      '10': 'commissionWithdraw'
+    },
+    {
+      '1': 'commission_withdraw_list',
+      '3': 114,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqCommissionWithdrawList',
+      '9': 0,
+      '10': 'commissionWithdrawList'
+    },
+    {
+      '1': 'commission_withdraw_review',
+      '3': 115,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqCommissionWithdrawReview',
+      '9': 0,
+      '10': 'commissionWithdrawReview'
+    },
+    {
+      '1': 'referral_ledger_list',
+      '3': 116,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqReferralLedgerList',
+      '9': 0,
+      '10': 'referralLedgerList'
+    },
+    {
+      '1': 'billing_receive_account_put',
+      '3': 117,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqBillingReceiveAccountPut',
+      '9': 0,
+      '10': 'billingReceiveAccountPut'
+    },
+    {
+      '1': 'billing_receive_account_list',
+      '3': 118,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqBillingReceiveAccountList',
+      '9': 0,
+      '10': 'billingReceiveAccountList'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -349,7 +421,20 @@ final $typed_data.Uint8List invokeReqDescriptor = $convert.base64Decode(
     'dHQSLwoJdm9pY2VfdHRzGGwgASgLMhAuYzM1LlJlcVZvaWNlVHRzSABSCHZvaWNlVHRzEjwKDm'
     'FkbWluX2xvZ19saXN0GG0gASgLMhQuYzM1LlJlcUFkbWluTG9nTGlzdEgAUgxhZG1pbkxvZ0xp'
     'c3QSQQoPdHJhbnNsYXRpb25fcHV0GG4gASgLMhYuYzM1LlJlcVRyYW5zbGF0aW9uUHV0SABSDn'
-    'RyYW5zbGF0aW9uUHV0QgYKBGJvZHk=');
+    'RyYW5zbGF0aW9uUHV0EkgKEmJpbGxpbmdfdG9wdXBfbGlzdBhvIAEoCzIYLmMzNS5SZXFCaWxs'
+    'aW5nVG9wdXBMaXN0SABSEGJpbGxpbmdUb3B1cExpc3QSTgoUYmlsbGluZ190b3B1cF9yZXZpZX'
+    'cYcCABKAsyGi5jMzUuUmVxQmlsbGluZ1RvcHVwUmV2aWV3SABSEmJpbGxpbmdUb3B1cFJldmll'
+    'dxJNChNjb21taXNzaW9uX3dpdGhkcmF3GHEgASgLMhouYzM1LlJlcUNvbW1pc3Npb25XaXRoZH'
+    'Jhd0gAUhJjb21taXNzaW9uV2l0aGRyYXcSWgoYY29tbWlzc2lvbl93aXRoZHJhd19saXN0GHIg'
+    'ASgLMh4uYzM1LlJlcUNvbW1pc3Npb25XaXRoZHJhd0xpc3RIAFIWY29tbWlzc2lvbldpdGhkcm'
+    'F3TGlzdBJgChpjb21taXNzaW9uX3dpdGhkcmF3X3JldmlldxhzIAEoCzIgLmMzNS5SZXFDb21t'
+    'aXNzaW9uV2l0aGRyYXdSZXZpZXdIAFIYY29tbWlzc2lvbldpdGhkcmF3UmV2aWV3Ek4KFHJlZm'
+    'VycmFsX2xlZGdlcl9saXN0GHQgASgLMhouYzM1LlJlcVJlZmVycmFsTGVkZ2VyTGlzdEgAUhJy'
+    'ZWZlcnJhbExlZGdlckxpc3QSYQobYmlsbGluZ19yZWNlaXZlX2FjY291bnRfcHV0GHUgASgLMi'
+    'AuYzM1LlJlcUJpbGxpbmdSZWNlaXZlQWNjb3VudFB1dEgAUhhiaWxsaW5nUmVjZWl2ZUFjY291'
+    'bnRQdXQSZAocYmlsbGluZ19yZWNlaXZlX2FjY291bnRfbGlzdBh2IAEoCzIhLmMzNS5SZXFCaW'
+    'xsaW5nUmVjZWl2ZUFjY291bnRMaXN0SABSGWJpbGxpbmdSZWNlaXZlQWNjb3VudExpc3RCBgoE'
+    'Ym9keQ==');
 
 @$core.Deprecated('Use invokeResDescriptor instead')
 const InvokeRes$json = {
@@ -628,6 +713,78 @@ const InvokeRes$json = {
       '9': 0,
       '10': 'translationPut'
     },
+    {
+      '1': 'billing_topup_list',
+      '3': 111,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResBillingTopupList',
+      '9': 0,
+      '10': 'billingTopupList'
+    },
+    {
+      '1': 'billing_topup_review',
+      '3': 112,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResBillingTopupReview',
+      '9': 0,
+      '10': 'billingTopupReview'
+    },
+    {
+      '1': 'commission_withdraw',
+      '3': 113,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResCommissionWithdraw',
+      '9': 0,
+      '10': 'commissionWithdraw'
+    },
+    {
+      '1': 'commission_withdraw_list',
+      '3': 114,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResCommissionWithdrawList',
+      '9': 0,
+      '10': 'commissionWithdrawList'
+    },
+    {
+      '1': 'commission_withdraw_review',
+      '3': 115,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResCommissionWithdrawReview',
+      '9': 0,
+      '10': 'commissionWithdrawReview'
+    },
+    {
+      '1': 'referral_ledger_list',
+      '3': 116,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResReferralLedgerList',
+      '9': 0,
+      '10': 'referralLedgerList'
+    },
+    {
+      '1': 'billing_receive_account_put',
+      '3': 117,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResBillingReceiveAccountPut',
+      '9': 0,
+      '10': 'billingReceiveAccountPut'
+    },
+    {
+      '1': 'billing_receive_account_list',
+      '3': 118,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResBillingReceiveAccountList',
+      '9': 0,
+      '10': 'billingReceiveAccountList'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -676,7 +833,20 @@ final $typed_data.Uint8List invokeResDescriptor = $convert.base64Decode(
     'R0SABSCHZvaWNlU3R0Ei8KCXZvaWNlX3R0cxhsIAEoCzIQLmMzNS5SZXNWb2ljZVR0c0gAUgh2'
     'b2ljZVR0cxI8Cg5hZG1pbl9sb2dfbGlzdBhtIAEoCzIULmMzNS5SZXNBZG1pbkxvZ0xpc3RIAF'
     'IMYWRtaW5Mb2dMaXN0EkEKD3RyYW5zbGF0aW9uX3B1dBhuIAEoCzIWLmMzNS5SZXNUcmFuc2xh'
-    'dGlvblB1dEgAUg50cmFuc2xhdGlvblB1dEIGCgRib2R5');
+    'dGlvblB1dEgAUg50cmFuc2xhdGlvblB1dBJIChJiaWxsaW5nX3RvcHVwX2xpc3QYbyABKAsyGC'
+    '5jMzUuUmVzQmlsbGluZ1RvcHVwTGlzdEgAUhBiaWxsaW5nVG9wdXBMaXN0Ek4KFGJpbGxpbmdf'
+    'dG9wdXBfcmV2aWV3GHAgASgLMhouYzM1LlJlc0JpbGxpbmdUb3B1cFJldmlld0gAUhJiaWxsaW'
+    '5nVG9wdXBSZXZpZXcSTQoTY29tbWlzc2lvbl93aXRoZHJhdxhxIAEoCzIaLmMzNS5SZXNDb21t'
+    'aXNzaW9uV2l0aGRyYXdIAFISY29tbWlzc2lvbldpdGhkcmF3EloKGGNvbW1pc3Npb25fd2l0aG'
+    'RyYXdfbGlzdBhyIAEoCzIeLmMzNS5SZXNDb21taXNzaW9uV2l0aGRyYXdMaXN0SABSFmNvbW1p'
+    'c3Npb25XaXRoZHJhd0xpc3QSYAoaY29tbWlzc2lvbl93aXRoZHJhd19yZXZpZXcYcyABKAsyIC'
+    '5jMzUuUmVzQ29tbWlzc2lvbldpdGhkcmF3UmV2aWV3SABSGGNvbW1pc3Npb25XaXRoZHJhd1Jl'
+    'dmlldxJOChRyZWZlcnJhbF9sZWRnZXJfbGlzdBh0IAEoCzIaLmMzNS5SZXNSZWZlcnJhbExlZG'
+    'dlckxpc3RIAFIScmVmZXJyYWxMZWRnZXJMaXN0EmEKG2JpbGxpbmdfcmVjZWl2ZV9hY2NvdW50'
+    'X3B1dBh1IAEoCzIgLmMzNS5SZXNCaWxsaW5nUmVjZWl2ZUFjY291bnRQdXRIAFIYYmlsbGluZ1'
+    'JlY2VpdmVBY2NvdW50UHV0EmQKHGJpbGxpbmdfcmVjZWl2ZV9hY2NvdW50X2xpc3QYdiABKAsy'
+    'IS5jMzUuUmVzQmlsbGluZ1JlY2VpdmVBY2NvdW50TGlzdEgAUhliaWxsaW5nUmVjZWl2ZUFjY2'
+    '91bnRMaXN0QgYKBGJvZHk=');
 
 @$core.Deprecated('Use wsReqDescriptor instead')
 const WsReq$json = {

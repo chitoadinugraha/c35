@@ -10,6 +10,26 @@ const androidPlayStoreUrl = 'https://play.google.com/store/apps/details?id=id.al
 const webAppUrl = 'https://alienai.id/app/';
 const configKeyPrefix = 'app.release.c35.';
 
+/// Minimum supported client build; raise on breaking wire/session/storage changes (see .cursor/rules/app-release-min.mdc).
+const appReleaseMinBuild = 235;
+
+int releaseMinResolve({int min = 0}) {
+  final env = int.tryParse(deployEnv('APP_RELEASE_MIN', '')) ?? 0;
+  final floor = env > 0 ? env : appReleaseMinBuild;
+  final requested = min > 0 ? min : floor;
+  return requested > floor ? requested : floor;
+}
+
+Future<int> releaseMinPublish(Connection conn, String configKey, int min) async {
+  final base = releaseMinResolve(min: min);
+  final rows = await conn.execute(
+    Sql.named(r"SELECT COALESCE((value->>'min')::bigint, 0) AS m FROM ai.config WHERE key = @key"),
+    parameters: {'key': configKey},
+  );
+  final existing = rows.isEmpty ? 0 : (rows.first[0] as int? ?? 0);
+  return base > existing ? base : existing;
+}
+
 SslMode _ybSslMode() {
   final raw = deployEnv('YB_SSLMODE', 'disable').toLowerCase();
   return (raw == 'disable' || raw == 'false' || raw == '0' || raw == 'no') ? SslMode.disable : SslMode.require;
@@ -34,6 +54,7 @@ Future<void> publishPlatformAppVersion({
   required String storeUrl,
   String apkHash = '',
   int apkSize = 0,
+  int min = 0,
 }) async {
   if (version <= 0) throw StateError('Invalid version for version publish: $version');
   final p = platform.trim();
@@ -41,21 +62,22 @@ Future<void> publishPlatformAppVersion({
   final (major, _) = versionReadPubspec(repoRoot());
   final versionName = '$major.$version.0';
   final configKey = '$configKeyPrefix$p';
-  final config = <String, Object>{
-    'version': version,
-    'versionName': versionName,
-    'min': 0,
-    'url': storeUrl.trim(),
-  };
   final apk = apkHash.trim().toLowerCase();
-  if (apk.isNotEmpty && apkSize > 0) {
-    config['apkHash'] = apk;
-    config['apkSize'] = apkSize;
-  }
-  final configValue = jsonEncode(config);
   await runStep('Publish $p version $version to ai.config', () async {
     final conn = await _openPg();
     try {
+      final minPublish = await releaseMinPublish(conn, configKey, min);
+      final config = <String, Object>{
+        'version': version,
+        'versionName': versionName,
+        'min': minPublish,
+        'url': storeUrl.trim(),
+      };
+      if (apk.isNotEmpty && apkSize > 0) {
+        config['apkHash'] = apk;
+        config['apkSize'] = apkSize;
+      }
+      final configValue = jsonEncode(config);
       await conn.execute(
         Sql.named('''
           INSERT INTO ai.config (key, value, updated_at)
@@ -70,7 +92,7 @@ Future<void> publishPlatformAppVersion({
       await conn.close();
     }
   });
-  stdout.writeln('✓ GET /version $p → $version ($versionName)');
+  stdout.writeln('✓ GET /version $p → $version ($versionName) min≥$appReleaseMinBuild');
 }
 
 Future<void> publishWindowsAppVersion({required int version, required String hash, required int size, int min = 0}) async {
@@ -97,10 +119,11 @@ Future<void> publishPlatformAppVersionWindows({required int version, required St
   final (major, _) = versionReadPubspec(repoRoot());
   final versionName = '$major.$version.0';
   final configKey = '${configKeyPrefix}windows';
-  final configValue = jsonEncode({'version': version, 'versionName': versionName, 'min': min, 'hash': hash, 'size': size});
   await runStep('Publish windows version $version to ai.config', () async {
     final conn = await _openPg();
     try {
+      final minPublish = await releaseMinPublish(conn, configKey, min);
+      final configValue = jsonEncode({'version': version, 'versionName': versionName, 'min': minPublish, 'hash': hash, 'size': size});
       await conn.execute(
         Sql.named('''
           INSERT INTO ai.config (key, value, updated_at)
@@ -115,7 +138,7 @@ Future<void> publishPlatformAppVersionWindows({required int version, required St
       await conn.close();
     }
   });
-  stdout.writeln('✓ GET /version windows → $version ($versionName)');
+  stdout.writeln('✓ GET /version windows → $version ($versionName) min≥$appReleaseMinBuild');
 }
 
 Future<void> publishWebAppVersion(int versionCode) => publishPlatformAppVersion(
@@ -139,13 +162,13 @@ Future<void> publishAppReleaseProd({
   if (includeWeb) await publishWebAppVersion(version);
 }
 
-Future<void> publishAndroidAppVersion(int versionCode, {String apkHash = '', int apkSize = 0}) async {
+Future<void> publishAndroidAppVersion(int versionCode, {String apkHash = '', int apkSize = 0, int min = 0}) async {
   if (deployEnv('PLATFORM_APP_VERSION_PUBLISH', '1') == '0') {
     stdout.writeln('[skip] PLATFORM_APP_VERSION_PUBLISH=0 — not publishing /version');
     return;
   }
   try {
-    await publishPlatformAppVersion(platform: 'android', version: versionCode, storeUrl: androidPlayStoreUrl, apkHash: apkHash, apkSize: apkSize);
+    await publishPlatformAppVersion(platform: 'android', version: versionCode, storeUrl: androidPlayStoreUrl, apkHash: apkHash, apkSize: apkSize, min: min);
   } on StateError catch (e) {
     if (e.message.contains('YB_PASSWORD')) {
       stdout.writeln('[skip] ${e.message}');

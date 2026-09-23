@@ -8,6 +8,7 @@ import 'package:alienai_c35/c/pb/c35/tx.pb.dart';
 import 'package:alienai_c35/widgets/sites/tx/tx_api.dart';
 import 'package:alienai_c35/widgets/sites/tx/ui_site_tx_editor.dart';
 import 'package:alienai_c35/widgets/sites/ui_site_preview.dart';
+import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:alienai_c35/widgets/ui/ui_table.dart';
 import 'package:alienai_c35/widgets/ui/ui_window_bar.dart';
 import 'package:fixnum/fixnum.dart';
@@ -138,7 +139,7 @@ class _UiSiteDetailState extends State<UiSiteDetail> {
                             if (_collectionSearchOpen)
                               SizedBox(width: 220, child: _searchBar())
                             else
-                              IconButton(
+                              uiIconButton(
                                 tooltip: 'Search table',
                                 onPressed: _openCollectionSearch,
                                 icon: const Icon(Icons.search, size: 20, color: _muted),

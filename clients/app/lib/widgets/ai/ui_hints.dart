@@ -1,3 +1,4 @@
+import 'package:alienai_c35/c/catalog/catalog_translation_cache.dart';
 import 'package:alienai_c35/c/chat/space_hints.dart';
 import 'package:alienai_c35/c/pb/c35/hint.pb.dart';
 import 'package:flutter/material.dart';
@@ -14,11 +15,14 @@ class UiHints extends StatelessWidget {
   final ValueChanged<HintItem> onPick;
 
   @override
-  Widget build(BuildContext context) => Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        alignment: WrapAlignment.center,
-        children: [for (final h in hints) _hintChip(context, h)],
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: catalogTranslationTick,
+        builder: (context, _) => Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          alignment: WrapAlignment.center,
+          children: [for (final h in hints) _hintChip(context, h)],
+        ),
       );
 
   Widget _hintChip(BuildContext context, HintItem item) {
@@ -79,7 +83,7 @@ class UiHints extends StatelessWidget {
         children: [
           Icon(hintMenuIcon(item), size: 15, color: const Color(0xFF71717A)),
           const SizedBox(width: 6),
-          Text(item.label, style: const TextStyle(color: _chipText, fontSize: 13)),
+          Text(hintItemLabel(item), style: const TextStyle(color: _chipText, fontSize: 13)),
           if (item.items.isNotEmpty) ...[
             const SizedBox(width: 4),
             const Icon(Icons.arrow_drop_down, size: 16, color: Color(0xFF71717A)),
@@ -91,7 +95,7 @@ class UiHints extends StatelessWidget {
         children: [
           Icon(hintMenuIcon(item), size: 18, color: _menuIcon),
           const SizedBox(width: 10),
-          Expanded(child: Text(item.label, style: const TextStyle(color: _chipText, fontSize: 13))),
+          Expanded(child: Text(hintItemLabel(item), style: const TextStyle(color: _chipText, fontSize: 13))),
         ],
       );
 }

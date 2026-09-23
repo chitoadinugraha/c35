@@ -42,6 +42,7 @@ c35/
       mod_site/                  # guest renderer + publish + site CRUD
       mod_tx/
     server_ai/                 # thin binary: boot, HTTP/WS, NATS subscribe
+    fetcher/                   # thin binary: periodic external sync → NATS (c35-fetcher)
   remotes/                     # agent-only Rust workspace
     .cargo/config.toml         # target-dir = "../.cache/c_remote"
     Cargo.toml

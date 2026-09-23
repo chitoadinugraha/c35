@@ -44,3 +44,43 @@ Future<ResBillingPackageRedeem> billingPackageRedeem(ReferralConn conn, {require
   if (!res.hasBillingPackageRedeem()) throw 'No package redeem data';
   return res.billingPackageRedeem;
 }
+
+Future<ResCommissionWithdraw> commissionWithdraw(
+  ReferralConn conn, {
+  required double amountIdr,
+  required String payoutMethod,
+  String currency = 'IDR',
+  String bankId = '',
+  String accountNumber = '',
+  String accountName = '',
+  double amountUsd = 0,
+}) async {
+  final res = await conn.invoke(
+    InvokeReq(
+      reqId: const Uuid().v4(),
+      commissionWithdraw: ReqCommissionWithdraw(
+        amountIdr: amountIdr,
+        amountUsd: amountUsd,
+        currency: currency,
+        payoutMethod: payoutMethod,
+        bankId: bankId,
+        accountNumber: accountNumber,
+        accountName: accountName,
+      ),
+    ),
+    timeout: const Duration(seconds: 20),
+  );
+  invokeResThrow(res, fallback: 'Withdraw failed');
+  if (!res.hasCommissionWithdraw()) throw 'No withdraw response';
+  return res.commissionWithdraw;
+}
+
+Future<ResReferralLedgerList> referralLedgerList(ReferralConn conn, {int limit = 50}) async {
+  final res = await conn.invoke(
+    InvokeReq(reqId: const Uuid().v4(), referralLedgerList: ReqReferralLedgerList(limit: limit)),
+    timeout: const Duration(seconds: 15),
+  );
+  invokeResThrow(res, fallback: 'Failed to load commission ledger');
+  if (!res.hasReferralLedgerList()) throw 'No ledger data';
+  return res.referralLedgerList;
+}

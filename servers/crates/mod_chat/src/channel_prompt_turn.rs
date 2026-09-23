@@ -8,7 +8,10 @@ use tokio_util::sync::CancellationToken;
 use crate::compose::compose_tools_and_inst;
 use crate::inst_macro::inst_scopes_channel;
 use crate::inst_cache::inst_list_cached;
+use crate::context_billing::ContextBillingExtra;
+use crate::context_compact::prepare_prompt_history;
 use crate::memory::{memory_prompt_merge, memory_retrieve};
+use crate::memory_extract::memory_extract_turn_gate;
 use crate::prompt::gemini::gemini_api_key;
 use crate::prompt::thought::thinking_level;
 use crate::prompt::time::{time_prompt_block, time_prompt_prepend, time_timezone_resolve};
@@ -82,24 +85,30 @@ pub async fn channel_prompt_turn(
     tracer.trace_prepare(&composed.trace, &prompt_text, 0, 0).await;
     tracer.trace_memory(&memory.trace).await;
 
-    let history_rows: Vec<(String, String)> = sqlx::query_as(
-        r#"
-        SELECT role, content FROM ai.chat_msg
-        WHERE chat_id = $1 AND deleted_ts IS NULL AND status <> 'error'
-        ORDER BY id DESC
-        LIMIT 20
-        "#,
+    let user_msg_id: i64 = sqlx::query_scalar(
+        "SELECT COALESCE(MAX(id), 0) FROM ai.chat_msg WHERE chat_id = $1 AND deleted_ts IS NULL",
     )
     .bind(chat_id)
-    .fetch_all(pool)
+    .fetch_one(pool)
     .await
-    .unwrap_or_default();
-    let history: Vec<crate::prompt::ChatHistoryMsg> = history_rows
-        .into_iter()
-        .rev()
-        .filter(|(_, content)| !content.trim().is_empty())
-        .map(|(role, content)| crate::prompt::ChatHistoryMsg { role, content })
-        .collect();
+    .unwrap_or(0);
+    let (history, mut context_billing) = prepare_prompt_history(
+        pool,
+        &http,
+        chat_id,
+        owner_iid,
+        user_msg_id + 1,
+        req_id,
+        &model,
+        &system,
+        &user,
+        Some(bot_iid),
+    )
+    .await
+    .unwrap_or_else(|e| {
+        tracing::warn!("[c35:context_prepare] bot chat_id={chat_id}: {e:#}");
+        (Vec::new(), ContextBillingExtra::default())
+    });
 
     let chat_req = ChatReq {
         model,
@@ -141,6 +150,16 @@ pub async fn channel_prompt_turn(
         }
     };
     let duration_ms = turn_started.elapsed().as_millis() as i32;
+    if let Ok((writes, tin, tout, cost)) =
+        memory_extract_turn_gate(pool, &http, owner_iid, Some(bot_iid), req_id, &prompt_text, &res.text).await
+    {
+        context_billing.memory_extract_writes += writes;
+        context_billing.memory_extract_cost_usd += cost;
+        context_billing.compaction_tokens_in += tin;
+        context_billing.compaction_tokens_out += tout;
+    }
+    let context_extra = context_billing.total_extra_usd();
+    let usage_meta = context_billing.to_log_meta();
     let cost_usd = billing_usage_report(
         pool,
         nats,
@@ -152,7 +171,8 @@ pub async fn channel_prompt_turn(
         res.tokens_out,
         duration_ms,
         Some(&bctx),
-        res.tools_cost_usd,
+        res.tools_cost_usd + context_extra,
+        if usage_meta.as_object().map(|o| !o.is_empty()).unwrap_or(false) { Some(usage_meta) } else { None },
     )
     .await?;
     tracer.llm_turn(&res.model_used, res.tokens_in, res.tokens_out, duration_ms as i64, 0, cost_usd, &res.text).await;

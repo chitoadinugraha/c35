@@ -88,9 +88,8 @@ class _UiChatHistorySidebarState extends State<UiChatHistorySidebar> {
                                     padding: EdgeInsets.all(9),
                                     child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.8, color: Color(0xFF71717A))),
                                   )
-                                : IconButton(
+                                : uiIconButton(
                                     tooltip: 'Refresh chat history',
-                                    splashRadius: 16,
                                     padding: EdgeInsets.zero,
                                     constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                                     icon: const Icon(Icons.refresh_rounded, size: 16, color: Color(0xFF71717A)),

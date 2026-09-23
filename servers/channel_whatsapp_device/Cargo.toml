@@ -9,6 +9,7 @@ path = "src/main.rs"
 
 [dependencies]
 c35_mod_log = { path = "../crates/mod_log", package = "c35_mod_log" }
+c35_store = { path = "../crates/store", package = "c35_store" }
 anyhow = "1.0"
 async-nats = "0.38"
 axum = { version = "0.8", features = ["macros"] }

@@ -1,0 +1,36 @@
+# syntax=docker/dockerfile:1.7
+# Build from c35 repo root:
+#   docker build --platform linux/arm64 -f _/deployments/Dockerfile.c35-fetcher -t c35-fetcher .
+
+FROM rust:1.89-bookworm AS rust-build
+
+WORKDIR /app
+
+COPY servers/Cargo.toml servers/Cargo.lock /app/servers/
+COPY servers/crates /app/servers/crates
+COPY servers/fetcher /app/servers/fetcher
+COPY servers/server_ai /app/servers/server_ai
+COPY servers/channel_whatsapp_device /app/servers/channel_whatsapp_device
+COPY _/schemas /app/_/schemas
+
+ENV CARGO_TARGET_DIR=/app/target
+ENV CARGO_BUILD_JOBS=1
+ENV CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1
+
+RUN --mount=type=cache,target=/usr/local/cargo/registry,id=c35-fetcher-cargo-registry,sharing=locked \
+    --mount=type=cache,target=/usr/local/cargo/git,id=c35-fetcher-cargo-git,sharing=locked \
+    --mount=type=cache,target=/app/target,id=c35-fetcher-rust-target,sharing=locked \
+    cargo build --release -p server_fetcher --manifest-path servers/Cargo.toml \
+    && cp /app/target/release/c35_fetcher /app/c35_fetcher \
+    && sha256sum /app/c35_fetcher > /app/c35_fetcher.sha
+
+FROM gcr.io/distroless/cc-debian12:nonroot AS runtime
+
+WORKDIR /app
+
+ENV RUST_LOG=info,server_fetcher=debug,c35_mod_fetch=debug,c35_mod_billing=info,c35_mod_llm=info
+
+COPY --from=rust-build /app/c35_fetcher /app/c35_fetcher
+COPY --from=rust-build /app/c35_fetcher.sha /app/c35_fetcher.sha
+
+ENTRYPOINT ["/app/c35_fetcher"]

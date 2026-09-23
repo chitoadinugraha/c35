@@ -21,7 +21,7 @@ pub async fn inbox_list(pool: &PgPool, member_iid: i64, req: ReqInboxList) -> Re
     };
     let sql = format!(
         r#"
-        SELECT c.id, c.kind, c.owner_iid, c.title, c.model, c.last_msg_ts, c.last_msg_preview,
+        SELECT c.id, c.kind, c.owner_iid, c.title, c.model, c.last_msg_ts, c.last_msg_preview, c.meta,
                c.created_ts, c.updated_ts, c.deleted_ts,
                m.last_read_msg_id, m.unread_count, m.last_msg_ts AS member_last_msg_ts, m.last_msg_preview AS member_preview,
                m.pinned_ts, m.archived_ts, m.created_ts AS member_created_ts, m.updated_ts AS member_updated_ts, m.deleted_ts AS member_deleted_ts,
@@ -47,6 +47,7 @@ pub async fn inbox_list(pool: &PgPool, member_iid: i64, req: ReqInboxList) -> Re
         let chat_id: i64 = r.get("id");
         let preview: String = r.get::<Option<String>, _>("member_preview").filter(|s| !s.is_empty()).unwrap_or_else(|| r.get("last_msg_preview"));
         let last_at = r.get::<Option<DateTime<Utc>>, _>("member_last_msg_ts").or_else(|| r.get("last_msg_ts"));
+        let meta: serde_json::Value = r.get::<serde_json::Value, _>("meta");
         chats.push(Chat {
             id: chat_id,
             kind: ChatKind::Prompt as i32,
@@ -56,6 +57,7 @@ pub async fn inbox_list(pool: &PgPool, member_iid: i64, req: ReqInboxList) -> Re
             model: r.get("model"),
             last_msg_ts_ms: ts_ms(last_at),
             last_msg_preview: preview.clone(),
+            meta_json: meta.to_string(),
             created_ts_ms: ts_ms(r.get("created_ts")),
             updated_ts_ms: ts_ms(r.get("updated_ts")),
             deleted_ts_ms: ts_ms(r.get("deleted_ts")),

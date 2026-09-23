@@ -4,7 +4,6 @@ import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/chat/chat_inbox.dart';
 import 'package:alienai_c35/widgets/ai/ui_chat_message_menu.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_trace_sheet.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 

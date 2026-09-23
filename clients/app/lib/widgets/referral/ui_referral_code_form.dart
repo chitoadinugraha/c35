@@ -114,7 +114,7 @@ class _ReferralCodeFormDialogState extends State<_ReferralCodeFormDialog> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: _type,
+                  initialValue: _type,
                   dropdownColor: _bg,
                   style: const TextStyle(color: _text),
                   decoration: UiInputDecoration.of(context, labelText: 'Type'),

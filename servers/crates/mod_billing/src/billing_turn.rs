@@ -104,7 +104,10 @@ pub async fn billing_gate(pool: &PgPool, owner_iid: i64) -> Result<BillingRow> {
     if let Ok(Some(profile)) = billing_profile_fetch(pool, owner_iid).await {
         if profile_has_pools(&profile) {
             let (alien_rem, frontier_rem) = profile_pool_remaining(&profile);
-            let min_hold = crate::billing_on_demand::usd_to_native(crate::billing_on_demand::DEFAULT_HOLD_USD, acct.2);
+            let min_hold = crate::billing_on_demand::usd_to_native(
+                crate::billing_on_demand::DEFAULT_HOLD_USD,
+                crate::fx_live::fx_live_micro_per_usd(),
+            );
             if alien_rem + frontier_rem >= min_hold {
                 return Ok(row);
             }
@@ -126,7 +129,7 @@ pub async fn billing_gate(pool: &PgPool, owner_iid: i64) -> Result<BillingRow> {
         crate::billing_on_demand::DEFAULT_HOLD_USD,
         allowance_rem,
         &acct.1,
-        acct.2,
+        crate::fx_live::fx_live_micro_per_usd(),
     );
     let hold_native = if acct.1.eq_ignore_ascii_case("IDR") { hold_idr } else { hold_usd };
     if !crate::billing_on_demand::gate_can_start(allowance_rem, balance_native, held_native, hold_native) {
@@ -177,6 +180,7 @@ pub async fn billing_usage_report(
     duration_ms: i32,
     bctx: Option<&crate::billing_resolve::BillingContext>,
     extra_cost_usd: f64,
+    usage_meta: Option<serde_json::Value>,
 ) -> Result<f64> {
     let req_id = req_id.trim();
     if req_id.is_empty() {
@@ -205,6 +209,13 @@ pub async fn billing_usage_report(
     if extra_cost_usd > 0.0 {
         meta["extra_cost_usd"] = serde_json::json!(extra_cost_usd);
         meta["llm_cost_usd"] = serde_json::json!(llm_cost);
+    }
+    if let Some(extra) = usage_meta {
+        if let Some(obj) = extra.as_object() {
+            for (k, v) in obj {
+                meta[k] = v.clone();
+            }
+        }
     }
     let log_id = log_put(
         pool,
@@ -251,10 +262,7 @@ pub async fn billing_usage_report(
         row.alien_allow_weekly_used,
         row.alien_allow_weekly_limit,
     );
-    let fx_micro: i64 = sqlx::query_scalar("SELECT fx_micro_per_usd FROM ai.billing_account WHERE id = $1")
-        .bind(row.id)
-        .fetch_one(pool)
-        .await?;
+    let fx_micro = crate::fx_live::fx_live_micro_per_usd();
     let personal_pool = bctx.map(|b| b.scope == "personal").unwrap_or(true);
     let pool_overflow = if personal_pool {
         billing_profile_deduct_turn(pool, owner_iid, model, tokens_in, tokens_out, fx_micro).await?

@@ -68,7 +68,6 @@ pub fn tx_input_mode_str(m: TxInputMode) -> &'static str {
         TxInputMode::Accounting => "accounting",
         TxInputMode::Sell => "sell",
         TxInputMode::Purchase => "purchase",
-        _ => "normal",
     }
 }
 

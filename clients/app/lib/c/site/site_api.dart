@@ -62,8 +62,11 @@ class SiteApi {
     }
     final res = await conn.siteProductPut(siteIid, payload);
     final out = product.clone();
-    if (res.hasProductId()) out.productId = res.productId;
-    else if (out.productId <= Int64.ZERO) throw 'product put failed';
+    if (res.hasProductId()) {
+      out.productId = res.productId;
+    } else if (out.productId <= Int64.ZERO) {
+      throw 'product put failed';
+    }
     return out;
   }
 
@@ -85,8 +88,11 @@ class SiteApi {
   Future<SiteContact> contactPut(int siteIid, SiteContact contact) async {
     final res = await conn.siteContactPut(siteIid, contact);
     final out = contact.clone();
-    if (res.hasContactId()) out.contactId = res.contactId;
-    else if (out.contactId <= Int64.ZERO) throw 'contact put failed';
+    if (res.hasContactId()) {
+      out.contactId = res.contactId;
+    } else if (out.contactId <= Int64.ZERO) {
+      throw 'contact put failed';
+    }
     return out;
   }
 
@@ -98,8 +104,11 @@ class SiteApi {
   Future<SiteObject> objectPut(int siteIid, SiteObject object) async {
     final res = await conn.siteObjectPut(siteIid, object);
     final out = object.clone();
-    if (res.hasId()) out.id = res.id;
-    else if (out.id <= Int64.ZERO) throw 'object put failed';
+    if (res.hasId()) {
+      out.id = res.id;
+    } else if (out.id <= Int64.ZERO) {
+      throw 'object put failed';
+    }
     return out;
   }
 
@@ -111,8 +120,11 @@ class SiteApi {
   Future<SiteDomain> domainPut(int siteIid, SiteDomain domain) async {
     final res = await conn.siteDomainPut(siteIid, domain);
     final out = domain.clone();
-    if (res.hasId()) out.id = res.id;
-    else if (out.id <= Int64.ZERO) throw 'domain put failed';
+    if (res.hasId()) {
+      out.id = res.id;
+    } else if (out.id <= Int64.ZERO) {
+      throw 'domain put failed';
+    }
     return out;
   }
 

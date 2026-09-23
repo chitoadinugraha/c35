@@ -81,23 +81,6 @@ impl BlobS3 {
         serde_json::json!({ "key": Self::object_key(hash) })
     }
 
-    pub async fn exists(&self, hash: &str) -> S3Result<bool> {
-        let key = Self::object_key(hash);
-        match self.bucket.head_object(&key).await {
-            Ok((_meta, status)) if status == 200 => Ok(true),
-            Ok((_meta, status)) if status == 404 => Ok(false),
-            Ok((_meta, status)) => Err(S3BlobError::Msg(format!("head_object {key}: HTTP {status}"))),
-            Err(e) => {
-                let msg = e.to_string();
-                if msg.contains("404") || msg.contains("Not Found") {
-                    Ok(false)
-                } else {
-                    Err(S3BlobError::Msg(msg))
-                }
-            }
-        }
-    }
-
     pub async fn put(&self, hash: &str, body: &[u8], mime: &str) -> S3Result<()> {
         let key = Self::object_key(hash);
         let response = self
@@ -110,10 +93,6 @@ impl BlobS3 {
             return Err(S3BlobError::Msg(format!("put_object {key}: HTTP {status}")));
         }
         Ok(())
-    }
-
-    pub async fn get(&self, hash: &str) -> S3Result<(Vec<u8>, String)> {
-        self.get_key(&Self::object_key(hash)).await
     }
 
     pub async fn get_key(&self, key: &str) -> S3Result<(Vec<u8>, String)> {

@@ -10,14 +10,16 @@ Future<void> billingTopupDialog(BuildContext context, {required ReferralConn con
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: Color(0xFF27272A))),
       title: Text('Top up · $currency', style: const TextStyle(color: Color(0xFFF4F4F5), fontSize: 16, fontWeight: FontWeight.w700)),
       content: SizedBox(
-        width: 360,
-        child: UiBillingTopupPanel(
-          conn: conn,
-          currency: currency,
-          onSubmitted: () {
-            Navigator.of(ctx).pop();
-            onSubmitted?.call();
-          },
+        width: 400,
+        child: SingleChildScrollView(
+          child: UiBillingTopupPanel(
+            conn: conn,
+            currency: currency,
+            onSubmitted: () {
+              Navigator.of(ctx).pop();
+              onSubmitted?.call();
+            },
+          ),
         ),
       ),
     ),

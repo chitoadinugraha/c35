@@ -1,0 +1,19 @@
+[package]
+name = "c35_mod_fetch"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+async-nats = { workspace = true }
+prost = { workspace = true }
+reqwest = { workspace = true }
+sqlx = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+c35_proto = { path = "../proto", package = "c35_proto" }
+c35_store = { path = "../store", package = "c35_store" }
+
+[dev-dependencies]
+tokio = { workspace = true }

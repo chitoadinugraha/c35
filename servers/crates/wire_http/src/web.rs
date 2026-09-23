@@ -191,6 +191,8 @@ pub fn web_router() -> Router<AppState> {
         .route("/privacy.html", get(|| page_get("privacy.html")))
         .route("/delete", get(|| page_get("delete.html")))
         .route("/delete.html", get(|| page_get("delete.html")))
+        .route("/tts", get(|| page_get("tts.html")))
+        .route("/tts.html", get(|| page_get("tts.html")))
         .route("/alien.svg", get(|| page_get("alien.svg")))
         .route("/locales/{file}", get(locale_get))
         .route("/static/{*path}", get(static_get))
@@ -216,6 +218,7 @@ mod tests {
         assert!(dir.join("terms.html").is_file(), "terms.html must exist");
         assert!(dir.join("privacy.html").is_file(), "privacy.html must exist");
         assert!(dir.join("delete.html").is_file(), "delete.html must exist");
+        assert!(dir.join("tts.html").is_file(), "tts.html must exist");
         assert!(dir.join("alien.svg").is_file(), "alien.svg must exist");
         assert!(dir.join("locales").join("en.json").is_file(), "locales/en.json must exist");
         assert!(dir.join("locales").join("id.json").is_file(), "locales/id.json must exist");

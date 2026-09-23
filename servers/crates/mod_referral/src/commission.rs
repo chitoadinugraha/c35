@@ -229,6 +229,46 @@ async fn commission_credit_in_tx(
     Ok(())
 }
 
+pub async fn commission_accrue_on_topup_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    payer_iid: i64,
+    amount: f64,
+    currency: &str,
+    order_id: &str,
+) -> Result<(), String> {
+    let amount_idr = if currency.eq_ignore_ascii_case("IDR") {
+        amount.round() as i64
+    } else {
+        (amount * 17_630.0).round() as i64
+    };
+    if amount_idr <= 0 || payer_iid <= 0 {
+        return Ok(());
+    }
+    let chain = earn_chain(tx, payer_iid).await?;
+    let pool_amount = ((amount_idr as f64) * MARKETING_POOL_RATE).floor() as i64;
+    let mut total_distributed = 0i64;
+    let mut levels: Vec<(i64, i64)> = Vec::new();
+    for row in chain {
+        let earn = (amount_idr * row.percent as i64) / 100;
+        if row.uid == payer_iid || earn <= 0 {
+            continue;
+        }
+        total_distributed += earn;
+        levels.push((row.uid, earn));
+    }
+    if total_distributed > pool_amount && total_distributed > 0 {
+        levels = levels
+            .into_iter()
+            .map(|(uid, earn)| (uid, (earn * pool_amount) / total_distributed))
+            .collect();
+    }
+    for (uid, earn) in levels {
+        let ref_id = format!("{order_id}:{uid}");
+        commission_credit_in_tx(tx, uid, earn as f64, payer_iid, "wallet_topup", &ref_id).await?;
+    }
+    Ok(())
+}
+
 pub async fn commission_accrue_on_purchase(
     pool: &PgPool,
     payer_iid: i64,

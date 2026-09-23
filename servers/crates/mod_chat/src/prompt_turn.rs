@@ -24,11 +24,14 @@ use crate::site_resolve::site_context_resolve;
 use crate::topic::topic_inst_block;
 use crate::inst_cache::inst_list_cached;
 use crate::mention::mention_list_enabled;
+use crate::context_billing::ContextBillingExtra;
+use crate::context_compact::prepare_prompt_history;
 use crate::memory::{memory_prompt_merge, memory_retrieve};
+use crate::memory_extract::memory_extract_turn_gate;
 use crate::prompt::thought::thinking_level;
 use crate::prompt::time::{time_prompt_block, time_prompt_prepend, time_timezone_resolve, user_asks_time};
 use crate::prompt::tool_loop::prompt_cluster_turn;
-use crate::prompt::{ChatHistoryMsg, ChatReq};
+use crate::prompt::ChatReq;
 use crate::tools::{cluster_tools, http_client, TurnCtx};
 use crate::turn_tracer::TurnTracer;
 
@@ -167,6 +170,63 @@ where
     let prepare_started = Instant::now();
     let title = chat_title_from_text(&req.text);
     let chat_id = chat_ensure(pool, owner_iid, req.chat_id, &title).await?;
+
+    if req.chat_id > 0 {
+        let last_msg: Option<(i64, String)> = sqlx::query_as(
+            r#"
+            SELECT id, status FROM ai.chat_msg
+            WHERE chat_id = $1 AND deleted_ts IS NULL
+            ORDER BY id DESC LIMIT 1
+            "#,
+        )
+        .bind(chat_id)
+        .fetch_optional(pool)
+        .await
+        .unwrap_or(None);
+
+        if let Some((last_id, status)) = last_msg {
+            if status == "error" || status == "interrupted" {
+                let last_user_id: Option<i64> = sqlx::query_scalar(
+                    r#"
+                    SELECT id FROM ai.chat_msg
+                    WHERE chat_id = $1 AND deleted_ts IS NULL AND role = 'user' AND id < $2
+                    ORDER BY id DESC LIMIT 1
+                    "#,
+                )
+                .bind(chat_id)
+                .bind(last_id)
+                .fetch_optional(pool)
+                .await
+                .unwrap_or(None);
+
+                if let Some(uid) = last_user_id {
+                    let _ = sqlx::query(
+                        r#"
+                        UPDATE ai.chat_msg SET deleted_ts = NOW()
+                        WHERE chat_id = $1 AND id IN ($2, $3)
+                        "#,
+                    )
+                    .bind(chat_id)
+                    .bind(last_id)
+                    .bind(uid)
+                    .execute(pool)
+                    .await;
+                } else {
+                    let _ = sqlx::query(
+                        r#"
+                        UPDATE ai.chat_msg SET deleted_ts = NOW()
+                        WHERE chat_id = $1 AND id = $2
+                        "#,
+                    )
+                    .bind(chat_id)
+                    .bind(last_id)
+                    .execute(pool)
+                    .await;
+                }
+            }
+        }
+    }
+
     let user_msg_id = snowflake_id();
     sqlx::query(
         r#"
@@ -183,26 +243,6 @@ where
     .execute(pool)
     .await?;
     let _ = chat_touch(pool, chat_id, owner_iid, &req.text, "streaming").await;
-
-    let history_rows: Vec<(String, String)> = sqlx::query_as(
-        r#"
-        SELECT role, content FROM ai.chat_msg
-        WHERE chat_id = $1 AND id < $2 AND deleted_ts IS NULL AND status <> 'error'
-        ORDER BY id DESC
-        LIMIT 20
-        "#,
-    )
-    .bind(chat_id)
-    .bind(user_msg_id)
-    .fetch_all(pool)
-    .await
-    .unwrap_or_default();
-    let history: Vec<ChatHistoryMsg> = history_rows
-        .into_iter()
-        .rev()
-        .filter(|(_, content)| !content.trim().is_empty())
-        .map(|(role, content)| ChatHistoryMsg { role, content })
-        .collect();
 
     let model = if req.model.is_empty() { "alienai".to_string() } else { req.model.clone() };
     let user = attach_prompt(&req.text, &req.attachments_json);
@@ -286,6 +326,14 @@ where
     let memory = memory_retrieve(pool, &http, owner_iid, None, &req.text, 8).await;
     system = memory_prompt_merge(&system, &memory.block);
 
+    let (history, mut context_billing) =
+        prepare_prompt_history(pool, &http, chat_id, owner_iid, user_msg_id, req_id, &model, &system, &user, None)
+            .await
+            .unwrap_or_else(|e| {
+                tracing::warn!("[c35:context_prepare] fail open chat_id={chat_id}: {e:#}");
+                (Vec::new(), ContextBillingExtra::default())
+            });
+
     let prepare_ms = prepare_started.elapsed().as_millis() as i64;
     let context_tokens_est = ((system.len() + user.len()) as f64 / 4.0).ceil() as i32;
     let tracer = TurnTracer::new(pool.clone(), nats.cloned(), owner_iid, chat_id, req_id);
@@ -364,6 +412,16 @@ where
     let duration_ms = turn_started.elapsed().as_millis() as i32;
     let assistant_msg_id = snowflake_id();
     let blocks_json = if res.blocks_json.is_empty() { "[]" } else { res.blocks_json.as_str() };
+    if let Ok((writes, tin, tout, cost)) =
+        memory_extract_turn_gate(pool, &http, owner_iid, None, req_id, &req.text, &res.text).await
+    {
+        context_billing.memory_extract_writes += writes;
+        context_billing.memory_extract_cost_usd += cost;
+        context_billing.compaction_tokens_in += tin;
+        context_billing.compaction_tokens_out += tout;
+    }
+    let context_extra = context_billing.total_extra_usd();
+    let usage_meta = context_billing.to_log_meta();
     let billing = billing_usage_report(
         pool,
         nats,
@@ -375,7 +433,8 @@ where
         res.tokens_out,
         duration_ms,
         Some(&bctx),
-        res.tools_cost_usd,
+        res.tools_cost_usd + context_extra,
+        if usage_meta.as_object().map(|o| !o.is_empty()).unwrap_or(false) { Some(usage_meta) } else { None },
     )
     .await;
     let (cost_usd, status, error_text) = match billing {

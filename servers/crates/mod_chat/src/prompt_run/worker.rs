@@ -30,8 +30,6 @@ use super::store::{
 #[derive(Debug, Deserialize)]
 struct PromptRunJobJson {
     req_id: String,
-    owner_iid: i64,
-    chat_id: i64,
 }
 
 pub struct PromptRunWorker {

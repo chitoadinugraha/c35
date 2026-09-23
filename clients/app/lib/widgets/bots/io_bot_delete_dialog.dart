@@ -4,6 +4,7 @@ import 'package:alienai_c35/c/bot/bot_store.dart';
 import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
 import 'package:alienai_c35/widgets/ui/ui_input_decoration.dart';
+import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:alienai_c35/widgets/ui/ui_slide_confirm.dart';
 import 'package:flutter/material.dart';
 
@@ -130,7 +131,7 @@ class _IoBotDeleteDialogState extends State<IoBotDeleteDialog> {
               style: TextStyle(color: _title, fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),
-          IconButton(
+          uiIconButton(
             tooltip: 'Close',
             visualDensity: VisualDensity.compact,
             onPressed: _busy ? null : () => Navigator.of(context).pop(false),

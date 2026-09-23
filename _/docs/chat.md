@@ -203,10 +203,25 @@ All multi-row operations across chats and messages execute within atomic databas
 
 ---
 
+## Context compaction (long threads)
+
+Prompt threads can exceed model context limits. Server-side **compaction** keeps prompts within budget without deleting UI history.
+
+| Layer | What |
+|-------|------|
+| Token packing | Newest messages fill a token budget (replaces hard `LIMIT 20`) |
+| Rolling summary | Older turns compressed into `ai.chat.context_summary` |
+| Memory | Durable facts extracted to `ai.memory` on compact + per-turn gate + idle backfill |
+
+Full spec: [context-compaction.md](context-compaction.md).
+
+---
+
 ## Related docs
 
 - Shell UI: [ui.md](ui.md)
 - Billing: [billing.md](billing.md)
+- Context compaction: [context-compaction.md](context-compaction.md)
 
 Canonical DDL: [`../schemas/chat.sql`](../schemas/chat.sql)
 

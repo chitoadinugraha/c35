@@ -29,6 +29,8 @@ import 'package:alienai_c35/c/store/prompt_run_store.dart';
 import 'package:alienai_c35/c/stt/stt_service.dart';
 import 'package:alienai_c35/c/tts/tts_service.dart';
 import 'package:alienai_c35/c/voice/voice_api.dart';
+import 'package:alienai_c35/pages/finance/page_finance_payments.dart';
+import 'package:alienai_c35/pages/finance/page_finance_receive_accounts.dart';
 import 'package:alienai_c35/pages/page_bots.dart';
 import 'package:alienai_c35/pages/page_devices.dart';
 import 'package:alienai_c35/pages/page_root_console.dart';
@@ -36,6 +38,7 @@ import 'package:alienai_c35/pages/page_sites.dart';
 import 'package:alienai_c35/pages/page_settings.dart';
 import 'package:alienai_c35/pages/referral/page_referral_tree.dart';
 import 'package:alienai_c35/widgets/referral/ui_referral_claim_dialog.dart';
+import 'package:alienai_c35/widgets/referral/ui_referral_commission_sheet.dart';
 import 'package:alienai_c35/widgets/ai/in_composer.dart';
 import 'package:alienai_c35/widgets/ai/msg_trace_view.dart';
 import 'package:alienai_c35/widgets/ai/ui_alien_icon.dart';
@@ -60,12 +63,10 @@ import 'package:alienai_c35/widgets/ui/ui_user_avatar.dart';
 import 'package:alienai_c35/c/store/canvas_store.dart';
 import 'package:alienai_c35/widgets/ai/ui_canvas_panel.dart';
 import 'package:alienai_c35/widgets/ai/ui_markdown_code_block.dart';
-import 'package:alienai_c35/widgets/ai/ui_msg_hover_actions.dart';
 import 'package:alienai_c35/widgets/ai/ui_context_meter.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
 class PageAIHome extends StatefulWidget {
@@ -104,6 +105,7 @@ class _PageAIHomeState extends State<PageAIHome> {
   var _menuMsgIndex = 0;
   var _retrying = false;
   String? _selectedPlain;
+  String? _uiLang;
 
   @override
   void initState() {
@@ -112,10 +114,30 @@ class _PageAIHomeState extends State<PageAIHome> {
     TtsService.instance.bindVoiceApi(_voiceApi);
     if (Session.instance.modelId.isNotEmpty) _model = AgentModel.of(Session.instance.modelId, _store.models);
     _timeline.attach();
-    unawaited(_boot());
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_boot());
       _checkReferralPrompt();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final lang = context.locale.languageCode;
+    if (_uiLang == lang) return;
+    final prev = _uiLang;
+    _uiLang = lang;
+    if (prev != null) unawaited(_onUiLocaleChanged(lang));
+  }
+
+  Future<void> _onUiLocaleChanged(String lang) async {
+    try {
+      await CatalogTranslationCache.instance.ensure(lang, force: true);
+      await _store.refreshFromConn(_conn, locale: CatalogTranslationCache.instance.lang);
+    } catch (e) {
+      lError('locale sync: $e');
+    }
+    if (mounted) setState(() {});
   }
 
   void _checkReferralPrompt() {
@@ -142,10 +164,12 @@ class _PageAIHomeState extends State<PageAIHome> {
   }
 
   Future<void> _boot() async {
+    if (!mounted) return;
+    _uiLang = context.locale.languageCode;
     try {
       await HintStore.instance.restore();
       await CatalogTranslationCache.instance.restore();
-      await CatalogTranslationCache.instance.ensure('en');
+      await CatalogTranslationCache.instance.ensure(_uiLang!);
     } catch (e) {
       lError('catalog load: $e');
     }
@@ -279,6 +303,24 @@ class _PageAIHomeState extends State<PageAIHome> {
     await _store.chatDeleteRemote(_conn, id);
   }
 
+  Future<void> _chatClear(int id) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF18181B),
+        title: const Text('Clear messages?', style: TextStyle(color: Color(0xFFF4F4F5), fontSize: 16)),
+        content: const Text('All messages in this chat will be cleared.', style: TextStyle(color: Color(0xFFA1A1AA))),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(style: FilledButton.styleFrom(backgroundColor: const Color(0xFFDC2626)), onPressed: () => Navigator.pop(ctx, true), child: const Text('Clear')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    _store.chatClearMsgs(id);
+    _timeline.scrollToBottom(force: true);
+  }
+
   void _chatMenu(int id, Offset global) {
     ChatRow? row;
     for (final c in _store.chats) {
@@ -314,6 +356,11 @@ class _PageAIHomeState extends State<PageAIHome> {
             icon: Icons.archive_outlined,
             onPressed: () => _store.chatArchiveRemote(_conn, below, archived: true),
           ),
+        ChatMessageMenuAction(
+          label: 'Clear messages',
+          icon: Icons.cleaning_services_outlined,
+          onPressed: () => _chatClear(id),
+        ),
         const ChatMessageMenuDivider(),
         ChatMessageMenuAction(
           label: 'Delete',
@@ -353,6 +400,24 @@ class _PageAIHomeState extends State<PageAIHome> {
 
   void _openRootConsole() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageRootConsole(chatConn: _conn)));
 
+  bool get _financeRole => Session.instance.isRoot || Session.instance.globalRoles.contains('finance');
+
+  bool get _receiveAccountRole => Session.instance.isRoot || Session.instance.globalRoles.any((r) => r == 'finance' || r == 'director');
+
+  void _openFinancePayments() => Navigator.push(
+        context,
+        MaterialPageRoute<void>(
+          builder: (_) => PageFinancePayments(conn: ReferralConn(uid: Session.instance.uid), canReview: _financeRole),
+        ),
+      );
+
+  void _openFinanceReceiveAccounts() => Navigator.push(
+        context,
+        MaterialPageRoute<void>(builder: (_) => PageFinanceReceiveAccounts(conn: ReferralConn(uid: Session.instance.uid))),
+      );
+
+  void _openCommissionSheet() => referralCommissionSheet(context, conn: ReferralConn(uid: Session.instance.uid));
+
   void _avatarMenu(BuildContext anchorCtx) => uiAccountMenuShow(
         anchorCtx,
         action: UiAccountMenuAction(
@@ -361,6 +426,9 @@ class _PageAIHomeState extends State<PageAIHome> {
           onReferralTree: _openReferralTree,
           onBalance: () => billingHistorySheet(context, conn: ReferralConn(uid: Session.instance.uid)),
           onPackage: () => billingPackageSheet(context, conn: ReferralConn(uid: Session.instance.uid)),
+          onCommissionTap: _openCommissionSheet,
+          onFinancePayments: _financeRole ? _openFinancePayments : null,
+          onFinanceReceiveAccounts: _receiveAccountRole ? _openFinanceReceiveAccounts : null,
           onLock: _lockSession,
           onSignOut: _signOut,
           onBots: _openBots,
@@ -423,12 +491,17 @@ class _PageAIHomeState extends State<PageAIHome> {
 
     final now = DateTime.now().millisecondsSinceEpoch;
     final reqId = const Uuid().v4();
-    if (retry && _store.msgs.isNotEmpty && _store.msgs.last.chatId == chatId && _store.msgs.last.role == 'user') {
-      final last = _store.msgs.last;
-      _store.msgPut(last.copyWith(content: trimmed, attachments: attachments, attachmentsJson: MsgAttachment.encode(attachments), reqId: reqId, createdAtMs: now, error: ''));
+    if (retry) {
+      _store.msgUserTurnRetry(
+        chatId: chatId,
+        content: trimmed,
+        attachments: attachments,
+        reqId: reqId,
+        createdAtMs: now,
+      );
     } else {
       final userMsg = MsgRow(
-        id: DateTime.now().microsecondsSinceEpoch,
+        id: _store.msgNextLocalId(),
         chatId: chatId,
         role: 'user',
         content: trimmed,
@@ -444,7 +517,7 @@ class _PageAIHomeState extends State<PageAIHome> {
       chatId: chatId,
       role: 'assistant',
       content: '',
-      createdAtMs: now,
+      createdAtMs: now + 1,
       reqId: reqId,
     ));
     _timeline.scrollToBottom(force: true);
@@ -623,14 +696,19 @@ class _PageAIHomeState extends State<PageAIHome> {
         onRefresh: () => _store.refreshFromConn(_conn, locale: CatalogTranslationCache.instance.lang),
       );
 
-  String _activeChatTitle() {
+  ChatRow? get _activeChat {
     final id = _store.activeChatId;
-    if (id == null) return '';
+    if (id == null) return null;
     for (final c in _store.chats) {
-      if (c.id != id) continue;
-      return chatTitleDisplay(c.title);
+      if (c.id == id) return c;
     }
-    return '';
+    return null;
+  }
+
+  String _activeChatTitle() {
+    final chat = _activeChat;
+    if (chat == null) return '';
+    return chatTitleDisplay(chat.title);
   }
 
   Widget _threadContextMenu(BuildContext ctx, SelectableRegionState state) {
@@ -710,6 +788,39 @@ class _PageAIHomeState extends State<PageAIHome> {
               ),
               const SizedBox(width: 4),
             ],
+            if ((Session.instance.isRoot || Session.instance.isTester) && _activeChat?.contextSummaryPresent == true)
+              Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: uiTooltip(
+                  message: 'Earlier messages summarized for context',
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF27272A),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFF3F3F46)),
+                    ),
+                    child: const Text('Summarized', style: TextStyle(color: Color(0xFFA1A1AA), fontSize: 11)),
+                  ),
+                ),
+              ),
+            if (Session.instance.isRoot || Session.instance.isTester)
+              ListenableBuilder(
+                listenable: PromptUsagePrefs.instance,
+                builder: (context, _) => PromptUsagePrefs.instance.showUsageStats
+                    ? Padding(
+                        padding: const EdgeInsets.only(right: 4),
+                        child: UiContextMeter(
+                          tokensIn: _threadTokensIn,
+                          tokensOut: _threadTokensOut,
+                          costUsd: _threadCostUsd,
+                          contextLimit: _model.gemini ? 1000000 : 128000,
+                          billingCurrency: AppStore.instance.wallet.billingCurrency,
+                          fxMicroPerUsd: AppStore.instance.wallet.fxMicroPerUsd,
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
             _accountAvatar(),
           ],
         ),
@@ -746,12 +857,6 @@ class _PageAIHomeState extends State<PageAIHome> {
               onToolModeToggle: _toolModeToggle,
               promptHistory: _store.recentUserPrompts,
               onNewChat: _newChat,
-              contextMeter: UiContextMeter(
-                tokensIn: _threadTokensIn,
-                tokensOut: _threadTokensOut,
-                costUsd: _threadCostUsd,
-                contextLimit: _model.gemini ? 1000000 : 128000,
-              ),
               onSend: (text, atts, {toolMode}) => _composerSend(text, atts, toolMode: toolMode),
               onAbort: _store.promptBusyFor(_store.activeChatId) ? _abortPrompt : null,
               busy: _store.promptBusyFor(_store.activeChatId),
@@ -853,21 +958,6 @@ class _PageAIHomeState extends State<PageAIHome> {
                 fxMicroPerUsd: AppStore.instance.wallet.fxMicroPerUsd,
               );
             }),
-          if (!hasError && content.trim().isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: UiMsgHoverActions(
-                isUser: false,
-                onCopy: () => Clipboard.setData(ClipboardData(text: content)),
-                onRetry: showRetry ? _retryLastTurn : null,
-                onFork: () {
-                  final forkedId = _store.chatFork(m.chatId, upToMsgId: m.id);
-                  _selectChat(forkedId);
-                },
-                onGood: () => l('msg good feedback chat=${m.chatId} msg=${m.id} req=${m.reqId}'),
-                onReportBad: (reason) => l('msg report bad ai chat=${m.chatId} msg=${m.id} req=${m.reqId} reason=$reason'),
-              ),
-            ),
         ],
       );
     }

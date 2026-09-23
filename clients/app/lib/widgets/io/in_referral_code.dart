@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:alienai_c35/c/config.dart';
 import 'package:alienai_c35/c/referral/referral_format.dart';
 import 'package:alienai_c35/widgets/ui/ui_input_decoration.dart';
+import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:alienai_c35/widgets/ui/ui_user_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -16,7 +17,7 @@ bool referralCodeReadyForCheck(String code) {
   final norm = referralCodeNorm(code);
   if (norm.isEmpty) return false;
   if (referralCodeIsSpecial(norm)) return true;
-  return norm.length >= 8;
+  return norm.length == referralCodeNormMaxLen;
 }
 
 int referralCodeDisplayMaxLen() => referralCodeNormMaxLen + (referralCodeNormMaxLen ~/ referralCodeGroupLen) - 1;
@@ -203,7 +204,7 @@ class InReferralCodeState extends State<InReferralCode> {
             hintText: referralCodeHint,
             suffixIcon: _codeCtrl.text.isEmpty
                 ? null
-                : IconButton(
+                : uiIconButton(
                     tooltip: 'Clear',
                     onPressed: clear,
                     icon: const Icon(Icons.clear, size: 18),

@@ -184,6 +184,9 @@ CREATE TABLE IF NOT EXISTS site.tx_item (
     FOREIGN KEY (site_iid, tx_id) REFERENCES site.tx (site_iid, tx_id) ON DELETE CASCADE
 );
 
+ALTER TABLE site.tx_item ADD COLUMN IF NOT EXISTS owner_iid BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE site.tx_item ADD COLUMN IF NOT EXISTS obj_id BIGINT NOT NULL DEFAULT 0;
+
 CREATE INDEX IF NOT EXISTS idx_tx_item_tx
     ON site.tx_item (site_iid, tx_id);
 CREATE INDEX IF NOT EXISTS idx_tx_item_owner_obj

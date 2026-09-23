@@ -76,7 +76,7 @@ pub async fn billing_plan_subscribe(
     let account_id: i64 = account.get("id");
     let balance_usd: f64 = account.get("balance_usd");
     let balance_idr: f64 = account.get("balance_idr");
-    let fx_micro: i64 = account.get("fx_micro_per_usd");
+    let fx_micro = crate::fx_live::fx_live_micro_per_usd();
     let billing_currency: String = account.get("billing_currency");
 
     let price_idr = catalog_price.unwrap_or_else(|| {
@@ -193,6 +193,21 @@ pub async fn billing_plan_subscribe(
     }
 
     tx.commit().await.map_err(|e| e.to_string())?;
+
+    let purchase_id = format!("plan:{owner_iid}:{slug}");
+    let commission_idr = if charge_idr {
+        price_idr.round() as i64
+    } else {
+        (price_usd * 17_630.0).round() as i64
+    };
+    let _ = c35_mod_referral::commission_accrue_on_purchase(
+        pool,
+        owner_iid,
+        commission_idr,
+        &purchase_id,
+        "plan_subscribe",
+    )
+    .await;
 
     Ok(ResBillingPlanSubscribe {
         plan_tier: slug,

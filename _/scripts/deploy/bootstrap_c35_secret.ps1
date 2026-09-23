@@ -41,6 +41,7 @@ $envMap = [ordered]@{
     CAS_HMAC_SECRET      = $jwtSecret
     GOOGLE_CLIENT_ID     = (Secret-Get $SourceNs csa-env GOOGLE_CLIENT_ID)
     GOOGLE_CLIENT_SECRET = (Secret-Get $SourceNs csa-env GOOGLE_CLIENT_SECRET)
+    GEMINI_API_KEY       = (Secret-Get $SourceNs csa-env GEMINI_API_KEY)
     YB_HOST              = (Secret-Get $SourceNs csa-env PG_HOST)
     YB_PORT              = (Secret-Get $SourceNs csa-env PG_PORT)
     YB_USER              = (Secret-Get $SourceNs csa-env PG_USER)

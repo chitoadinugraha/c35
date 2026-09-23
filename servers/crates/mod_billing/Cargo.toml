@@ -5,16 +5,24 @@ edition.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+axum = { workspace = true }
 chrono = { workspace = true }
 sqlx = { workspace = true }
+serde = { workspace = true }
 serde_json = { workspace = true }
+reqwest = { workspace = true }
+sha2 = "0.10"
 c35_proto = { path = "../proto", package = "c35_proto" }
 c35_ctx = { path = "../system/ctx", package = "c35_ctx" }
 c35_wire = { path = "../wire", package = "c35_wire" }
 c35_store = { path = "../store", package = "c35_store" }
 c35_mod_log = { path = "../mod_log", package = "c35_mod_log" }
 c35_mod_llm = { path = "../mod_llm", package = "c35_mod_llm" }
+c35_mod_fetch = { path = "../mod_fetch", package = "c35_mod_fetch" }
 c35_mod_referral = { path = "../mod_referral", package = "c35_mod_referral" }
+async-trait = { workspace = true }
+futures-util = { workspace = true }
+urlencoding = { workspace = true }
 c35_mod_admin = { path = "../mod_admin", package = "c35_mod_admin" }
 tracing = { workspace = true }
 async-nats = { workspace = true }

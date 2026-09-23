@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:alienai_c35/c/config.dart';
@@ -68,10 +67,11 @@ void shotZoomWheel(TransformationController xf, Offset viewportPoint, double scr
   final newScale = (currentScale * scaleChange).clamp(minScale, maxScale);
   if (newScale == currentScale) return;
   final focal = MatrixUtils.transformPoint(Matrix4.inverted(matrix), viewportPoint);
+  final scale = newScale / currentScale;
   matrix
-    ..translate(focal.dx, focal.dy)
-    ..scale(newScale / currentScale)
-    ..translate(-focal.dx, -focal.dy);
+    ..translateByDouble(focal.dx, focal.dy, 0, 1.0)
+    ..scaleByDouble(scale, scale, 1.0, 1.0)
+    ..translateByDouble(-focal.dx, -focal.dy, 0, 1.0);
   xf.value = matrix;
 }
 
@@ -289,8 +289,8 @@ class _ShotPreviewState extends State<_ShotPreview> {
     if (size == null || viewport.isEmpty) return;
     final scale = math.min(viewport.width / size.width, viewport.height / size.height).clamp(0.05, 1.0);
     _xf.value = Matrix4.identity()
-      ..translate(viewport.width / 2 - scale * size.width / 2, viewport.height / 2 - scale * size.height / 2)
-      ..scale(scale);
+      ..translateByDouble(viewport.width / 2 - scale * size.width / 2, viewport.height / 2 - scale * size.height / 2, 0, 1.0)
+      ..scaleByDouble(scale, scale, 1.0, 1.0);
   }
 
   void _ensureFit(Size viewport) {

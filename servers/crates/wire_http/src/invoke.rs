@@ -10,8 +10,9 @@ use c35_mod_admin::{admin_log_list, admin_user_put, admin_user_search};
 use c35_mod_billing::{
     billing_history, billing_notify_owner, billing_package_preview, billing_package_redeem,
     billing_plan_subscribe, billing_promotion_claim, billing_promotion_create, billing_promotion_get,
-    billing_promotion_list_by_creator, billing_summary, billing_topup_put, bot_usage_stats,
-    PromotionCreateFields,
+    billing_promotion_list_by_creator, billing_summary, billing_topup_list, billing_topup_put,
+    billing_topup_review, bot_usage_stats, commission_withdraw_list, commission_withdraw_review,
+    receive_account_list, receive_account_put, PromotionCreateFields,
 };
 use c35_mod_channel::{channel_telegram_connect, channel_whatsapp_meta_connect};
 use c35_mod_consumption::consumption_put_rpc;
@@ -20,8 +21,9 @@ use c35_mod_device::device_pair;
 use c35_mod_voice::{voice_stt_rpc, voice_tts_rpc};
 use c35_mod_identity::auth_session_caller_iid;
 use c35_mod_referral::{
-    referral_code_delete, referral_code_list, referral_code_put, referral_commission_simulate,
-    referral_share_set, referral_tree_get, referral_user_stats,
+    commission_withdraw, referral_code_delete, referral_code_list, referral_code_put,
+    referral_commission_simulate, referral_ledger_list, referral_share_set, referral_tree_get,
+    referral_user_stats,
 };
 use c35_proto::{
     invoke_req, invoke_res, InvokeReq, InvokeRes, ResReferralShareSet, ResReferralTreeGet,
@@ -429,6 +431,92 @@ pub async fn dispatch_invoke(state: &AppState, req: InvokeReq) -> InvokeRes {
                 status_code: status,
                 error_message: res.error.clone(),
                 body: Some(invoke_res::Body::VoiceTts(res)),
+            }
+        }
+        Some(invoke_req::Body::BillingTopupList(r)) => {
+            match billing_topup_list(pool, iid, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::BillingTopupList(res)),
+                },
+                Err(e) => invoke_error(&req_id, e.status_code, e.message),
+            }
+        }
+        Some(invoke_req::Body::BillingTopupReview(r)) => {
+            match billing_topup_review(pool, iid, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::BillingTopupReview(res)),
+                },
+                Err(e) => invoke_error(&req_id, e.status_code, e.message),
+            }
+        }
+        Some(invoke_req::Body::CommissionWithdraw(r)) => {
+            match commission_withdraw(pool, iid, r).await {
+                Ok(res) => {
+                    billing_notify_owner(pool, state.nats.as_ref(), iid, None).await;
+                    InvokeRes {
+                        req_id,
+                        status_code: 200,
+                        error_message: String::new(),
+                        body: Some(invoke_res::Body::CommissionWithdraw(res)),
+                    }
+                }
+                Err(msg) => invoke_error(&req_id, 400, msg),
+            }
+        }
+        Some(invoke_req::Body::CommissionWithdrawList(r)) => {
+            match commission_withdraw_list(pool, iid, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::CommissionWithdrawList(res)),
+                },
+                Err(e) => invoke_error(&req_id, e.status_code, e.message),
+            }
+        }
+        Some(invoke_req::Body::CommissionWithdrawReview(r)) => {
+            match commission_withdraw_review(pool, iid, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::CommissionWithdrawReview(res)),
+                },
+                Err(e) => invoke_error(&req_id, e.status_code, e.message),
+            }
+        }
+        Some(invoke_req::Body::ReferralLedgerList(r)) => InvokeRes {
+            req_id,
+            status_code: 200,
+            error_message: String::new(),
+            body: Some(invoke_res::Body::ReferralLedgerList(referral_ledger_list(pool, iid, r).await)),
+        },
+        Some(invoke_req::Body::BillingReceiveAccountPut(r)) => {
+            match receive_account_put(pool, iid, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::BillingReceiveAccountPut(res)),
+                },
+                Err(e) => invoke_error(&req_id, e.status_code, e.message),
+            }
+        }
+        Some(invoke_req::Body::BillingReceiveAccountList(r)) => {
+            match receive_account_list(pool, iid, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::BillingReceiveAccountList(res)),
+                },
+                Err(e) => invoke_error(&req_id, e.status_code, e.message),
             }
         }
         _ => invoke_error(&req_id, 404, "not implemented".into()),

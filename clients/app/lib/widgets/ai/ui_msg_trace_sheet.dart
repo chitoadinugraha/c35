@@ -4,6 +4,7 @@ import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/trace/trace_view.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/ui/ui_format.dart';
+import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:flutter/material.dart';
 
 Future<void> showMsgTraceSheet(BuildContext context, {required String reqId, required ChatConn conn}) => showModalBottomSheet<void>(
@@ -70,7 +71,7 @@ class _MsgTraceSheetState extends State<_MsgTraceSheet> {
               child: Row(
                 children: [
                   const Expanded(child: Text('Trace', style: TextStyle(color: Color(0xFFF4F4F5), fontSize: 16, fontWeight: FontWeight.w600))),
-                  IconButton(
+                  uiIconButton(
                     tooltip: 'Refresh',
                     onPressed: _loading ? null : _load,
                     icon: const Icon(Icons.refresh_rounded, color: Color(0xFF71717A), size: 20),

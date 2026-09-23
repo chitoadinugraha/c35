@@ -61,7 +61,6 @@ class InComposer extends StatefulWidget {
     this.onNewChat,
     this.controller,
     this.focusNode,
-    this.contextMeter,
   });
 
   final void Function(String text, List<MsgAttachment> attachments, {String? toolMode}) onSend;
@@ -83,7 +82,6 @@ class InComposer extends StatefulWidget {
   final VoidCallback? onNewChat;
   final TextEditingController? controller;
   final FocusNode? focusNode;
-  final Widget? contextMeter;
 
   @override
   State<InComposer> createState() => _InComposerState();
@@ -219,6 +217,7 @@ class _InComposerState extends State<InComposer> {
   @override
   void dispose() {
     _mentionSearchDebounce?.cancel();
+    SttService.instance.onAutoStop = null;
     if (_recording || SttService.instance.isRecording.value) unawaited(SttService.instance.cancel());
     _internalController?.dispose();
     _internalFocus?.dispose();
@@ -562,9 +561,13 @@ class _InComposerState extends State<InComposer> {
 
   Future<void> _startMic() async {
     if (!widget.enabled || widget.busy || _recording) return;
+    SttService.instance.onAutoStop = () {
+      if (mounted && _recording) unawaited(_stopMic());
+    };
     final ok = await SttService.instance.startRecording();
     if (!mounted) return;
     if (!ok) {
+      SttService.instance.onAutoStop = null;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(SttService.instance.lastStartError ?? sttMicErrorMessage()), behavior: SnackBarBehavior.floating));
       return;
     }
@@ -574,6 +577,7 @@ class _InComposerState extends State<InComposer> {
 
   Future<void> _stopMic() async {
     if (!_recording) return;
+    SttService.instance.onAutoStop = null;
     final text = await SttService.instance.stopAndTranscribe(lang: VoicePrefs.instance.speechLang);
     if (!mounted) return;
     setState(() => _recording = false);
@@ -596,6 +600,7 @@ class _InComposerState extends State<InComposer> {
 
   Future<void> _cancelMic() async {
     if (!_recording) return;
+    SttService.instance.onAutoStop = null;
     await SttService.instance.cancel();
     if (!mounted) return;
     setState(() => _recording = false);
@@ -757,10 +762,14 @@ class _InComposerState extends State<InComposer> {
   static const _modePillWidth = 64.0;
   static const _inlineMinWidth = 360.0;
 
+  bool get _modePillVisible => _askActive && widget.onToolModeToggle != null;
+
+  double get _modePillLayoutWidth => _modePillVisible ? _modePillWidth : 0;
+
   bool _shouldUseStackedLayout(BuildContext context, double totalWidth) {
     if (totalWidth < _inlineMinWidth) return true;
     if (_controller.text.contains('\n')) return true;
-    final textWidth = totalWidth - _attachBtnWidth - _modePillWidth - _modelChipWidth - _actionBtnWidth - 32;
+    final textWidth = totalWidth - _attachBtnWidth - _modePillLayoutWidth - _modelChipWidth - _actionBtnWidth - 32;
     if (textWidth <= 48) return true;
     final painter = TextPainter(
       text: TextSpan(
@@ -789,37 +798,25 @@ class _InComposerState extends State<InComposer> {
       );
 
   Widget _modePill() {
-    if (widget.onToolModeToggle == null) return const SizedBox.shrink();
-    final isAsk = _askActive;
-    return Tooltip(
-      message: isAsk ? 'Ask Mode: Direct reply without tools (fast)' : 'Agent Mode: Full AI agent with tools & devices',
+    if (!_modePillVisible) return const SizedBox.shrink();
+    return uiTooltip(
+      message: 'Ask Mode: Direct reply without tools (fast). Tap to switch back to Agent.',
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: widget.enabled && !widget.busy ? widget.onToolModeToggle : null,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
           decoration: BoxDecoration(
-            color: isAsk ? const Color(0xFF1E293B) : const Color(0xFF14241B),
+            color: const Color(0xFF1E293B),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: isAsk ? const Color(0xFF38BDF8) : const Color(0xFF22C55E), width: 0.8),
+            border: Border.all(color: const Color(0xFF38BDF8), width: 0.8),
           ),
-          child: Row(
+          child: const Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                isAsk ? Icons.chat_bubble_outline_rounded : Icons.bolt_rounded,
-                size: 13,
-                color: isAsk ? const Color(0xFF38BDF8) : const Color(0xFF4ADE80),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                isAsk ? 'Ask' : 'Agent',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: isAsk ? const Color(0xFF38BDF8) : const Color(0xFF4ADE80),
-                ),
-              ),
+              Icon(Icons.chat_bubble_outline_rounded, size: 13, color: Color(0xFF38BDF8)),
+              SizedBox(width: 4),
+              Text('Ask', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF38BDF8))),
             ],
           ),
         ),
@@ -859,7 +856,7 @@ class _InComposerState extends State<InComposer> {
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
-          contentPadding: EdgeInsets.fromLTRB(4, 8, 4, stacked ? 4 : 8),
+          contentPadding: const EdgeInsets.fromLTRB(4, 10, 4, 10),
         ),
       );
 
@@ -870,6 +867,10 @@ class _InComposerState extends State<InComposer> {
         child: UiAudioWaveform(
           recordingSeconds: SttService.instance.recordingSeconds,
           amplitude: SttService.instance.audioAmplitude,
+          amplitudeHistory: SttService.instance.amplitudeHistory,
+          liveTranscript: SttService.instance.liveTranscript,
+          isTranscribing: SttService.instance.isTranscribing,
+          engine: VoicePrefs.instance.sttEngine,
           onCancel: _cancelMic,
           onCommit: _stopMic,
         ),
@@ -881,7 +882,7 @@ class _InComposerState extends State<InComposer> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             if (!stacked) _attachButton(),
             Expanded(
@@ -891,13 +892,11 @@ class _InComposerState extends State<InComposer> {
               ),
             ),
             if (!stacked) ...[
-              _modePill(),
-              const SizedBox(width: 4),
-              _modelChip(),
-              if (widget.contextMeter != null) ...[
+              if (_modePillVisible) ...[
+                _modePill(),
                 const SizedBox(width: 4),
-                widget.contextMeter!,
               ],
+              _modelChip(),
               const SizedBox(width: 4),
               _actionButton(),
             ],
@@ -907,15 +906,14 @@ class _InComposerState extends State<InComposer> {
           Padding(
             padding: const EdgeInsets.only(top: 4, bottom: 2),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 _attachButton(),
-                _modePill(),
-                const SizedBox(width: 4),
-                _modelChip(),
-                if (widget.contextMeter != null) ...[
+                if (_modePillVisible) ...[
+                  _modePill(),
                   const SizedBox(width: 4),
-                  widget.contextMeter!,
                 ],
+                _modelChip(),
                 const Spacer(),
                 _actionButton(),
               ],
@@ -1087,10 +1085,13 @@ class _MentionChip extends StatelessWidget {
         ),
       );
     }
-    return FilterChip(
+    final tip = caption.isNotEmpty ? caption : label;
+    return uiTooltip(
+      message: tip,
+      child: FilterChip(
       avatar: avatar,
       label: Text('@$label'),
-      tooltip: caption.isNotEmpty ? caption : label,
+      tooltip: uiTooltipText(tip),
       selected: selected,
       onSelected: (_) => onTap(),
       showCheckmark: false,
@@ -1100,6 +1101,7 @@ class _MentionChip extends StatelessWidget {
       side: const BorderSide(color: Color(0xFF27272A)),
       padding: const EdgeInsets.symmetric(horizontal: 4),
       visualDensity: VisualDensity.compact,
+    ),
     );
   }
 }

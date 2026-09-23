@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:alienai_c35/c/app_id.dart';
+import 'package:alienai_c35/c/app_id_ensure.dart';
 import 'package:alienai_c35/c/profile/profile_handle.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -45,6 +46,7 @@ class Session {
   bool get needsReferralPrompt => signedIn && !hasReferrer && !referralDismissed;
 
   Future<void> restore() async {
+    await appIdEnsure();
     final p = await SharedPreferences.getInstance();
     uid = p.getInt(C35AppId.sessionUid) ?? 0;
     name = p.getString(C35AppId.sessionName) ?? '';

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:alienai_c35/c/catalog/catalog_translation_cache.dart';
 import 'package:alienai_c35/c/cas/cas_client.dart';
 import 'package:alienai_c35/c/files/msg_attachment.dart';
 import 'package:alienai_c35/c/media/ask_media.dart';
@@ -56,9 +57,45 @@ class SpaceHint {
       );
 }
 
-List<SpaceHint> hintsOfflineFallback() => const [
-      SpaceHint(syncId: 0, id: 'hint.consumption_add', scope: 'role:personal_assistant', sort: 10, label: 'Track Consumption', icon: 'mdi:restaurant', action: HintActionKind.pickImage, sendText: 'Track food consumption', instId: 'inst.consumption_add'),
-      SpaceHint(syncId: 0, id: 'hint.expense_add', scope: 'role:personal_assistant', sort: 20, label: 'Track Expense', icon: 'mdi:receipt', action: HintActionKind.sendText, sendText: 'Track expense', instId: 'inst.expense_add'),
+String hintCatalogText(String hintId, String suffix, String fallback) {
+  final key = '$hintId.$suffix';
+  final translated = catalogT(key);
+  return translated != key ? translated : fallback;
+}
+
+String hintItemLabel(hint_pb.HintItem item) => hintCatalogText(item.id, 'label', item.label);
+
+String hintItemSendText(hint_pb.HintItem item) {
+  if (!item.hasAction()) return hintItemLabel(item);
+  final localized = hintCatalogText(item.id, 'send_text', '');
+  if (localized.isNotEmpty && localized != '${item.id}.send_text') return localized;
+  final payload = hintPayloadParse(item.action.payloadJson);
+  return hintPayloadText(payload, fallback: hintItemLabel(item));
+}
+
+List<SpaceHint> hintsOfflineFallback() => [
+      SpaceHint(
+        syncId: 0,
+        id: 'hint.consumption_add',
+        scope: 'role:personal_assistant',
+        sort: 10,
+        label: hintCatalogText('hint.consumption_add', 'label', 'Track Consumption'),
+        icon: 'mdi:restaurant',
+        action: HintActionKind.pickImage,
+        sendText: hintCatalogText('hint.consumption_add', 'send_text', 'Track food consumption'),
+        instId: 'inst.consumption_add',
+      ),
+      SpaceHint(
+        syncId: 0,
+        id: 'hint.expense_add',
+        scope: 'role:personal_assistant',
+        sort: 20,
+        label: hintCatalogText('hint.expense_add', 'label', 'Track Expense'),
+        icon: 'mdi:receipt',
+        action: HintActionKind.sendText,
+        sendText: hintCatalogText('hint.expense_add', 'send_text', 'Track expense'),
+        instId: 'inst.expense_add',
+      ),
     ];
 
 String hintPayloadText(Map<String, dynamic> payload, {required String fallback}) {
@@ -131,7 +168,7 @@ Future<void> hintActionRunFromProto({
   final payload = hintPayloadParse(action.payloadJson);
   switch (kind) {
     case HintActionKind.sendText:
-      await onSend(hintPayloadText(payload, fallback: item.label), const []);
+      await onSend(hintItemSendText(item), const []);
     case HintActionKind.pickImage:
       final ask = askMediaFn ?? () => askMedia(types: const [MediaType.image], allowMultiple: false);
       final picked = await ask();
@@ -142,7 +179,7 @@ Future<void> hintActionRunFromProto({
         final res = await casUpload(bytes: media.bytes, mime: media.mime, name: media.name);
         hash = res?.hash ?? '';
       }
-      await onSend(hintPayloadText(payload, fallback: item.label), [MsgAttachment(hash: hash, name: media.name, mime: media.mime, localBytes: media.bytes.isNotEmpty ? media.bytes : null)]);
+      await onSend(hintItemSendText(item), [MsgAttachment(hash: hash, name: media.name, mime: media.mime, localBytes: media.bytes.isNotEmpty ? media.bytes : null)]);
     case HintActionKind.pickFile:
       final ask = askMediaFn ?? () => askMedia(types: const [MediaType.document, MediaType.any], allowMultiple: false);
       final picked = await ask();
@@ -153,7 +190,7 @@ Future<void> hintActionRunFromProto({
         final res = await casUpload(bytes: media.bytes, mime: media.mime, name: media.name);
         hash = res?.hash ?? '';
       }
-      await onSend(hintPayloadText(payload, fallback: item.label), [MsgAttachment(hash: hash, name: media.name, mime: media.mime, localBytes: media.bytes.isNotEmpty ? media.bytes : null)]);
+      await onSend(hintItemSendText(item), [MsgAttachment(hash: hash, name: media.name, mime: media.mime, localBytes: media.bytes.isNotEmpty ? media.bytes : null)]);
     case HintActionKind.openUrl:
       final url = '${payload['url'] ?? ''}'.trim();
       if (url.isEmpty) return;

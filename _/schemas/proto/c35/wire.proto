@@ -63,6 +63,14 @@ message InvokeReq {
     ReqVoiceTts voice_tts = 108;
     ReqAdminLogList admin_log_list = 109;
     ReqTranslationPut translation_put = 110;
+    ReqBillingTopupList billing_topup_list = 111;
+    ReqBillingTopupReview billing_topup_review = 112;
+    ReqCommissionWithdraw commission_withdraw = 113;
+    ReqCommissionWithdrawList commission_withdraw_list = 114;
+    ReqCommissionWithdrawReview commission_withdraw_review = 115;
+    ReqReferralLedgerList referral_ledger_list = 116;
+    ReqBillingReceiveAccountPut billing_receive_account_put = 117;
+    ReqBillingReceiveAccountList billing_receive_account_list = 118;
   }
 }
 
@@ -102,6 +110,14 @@ message InvokeRes {
     ResVoiceTts voice_tts = 108;
     ResAdminLogList admin_log_list = 109;
     ResTranslationPut translation_put = 110;
+    ResBillingTopupList billing_topup_list = 111;
+    ResBillingTopupReview billing_topup_review = 112;
+    ResCommissionWithdraw commission_withdraw = 113;
+    ResCommissionWithdrawList commission_withdraw_list = 114;
+    ResCommissionWithdrawReview commission_withdraw_review = 115;
+    ResReferralLedgerList referral_ledger_list = 116;
+    ResBillingReceiveAccountPut billing_receive_account_put = 117;
+    ResBillingReceiveAccountList billing_receive_account_list = 118;
   }
 }
 

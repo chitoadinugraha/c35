@@ -1,4 +1,5 @@
 import 'package:alienai_c35/c/bot/bot_store.dart';
+import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:flutter/material.dart';
 
 class UiBotAddMenu extends StatelessWidget {
@@ -14,8 +15,7 @@ class UiBotAddMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => PopupMenuButton<String>(
-        icon: const Icon(Icons.add, color: Color(0xFFF4F4F5)),
-        tooltip: 'Add bot',
+        tooltip: uiPopupMenuTooltipText('Add bot'),
         color: const Color(0xFF18181B),
         onSelected: (v) => switch (v) {
           'chat' => _onNewChatBot(context),
@@ -31,5 +31,6 @@ class UiBotAddMenu extends StatelessWidget {
             ),
           ),
         ],
+        child: uiPopupMenuChild(tooltip: 'Add bot', child: const Icon(Icons.add, color: Color(0xFFF4F4F5))),
       );
 }

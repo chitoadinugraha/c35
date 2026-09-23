@@ -49,7 +49,7 @@ class PageAllowControl extends StatelessWidget {
 
   Future<void> _allow(BuildContext context) async {
     await Session.instance.allowControlPut('yes');
-    if (Navigator.of(context).canPop()) Navigator.pop(context, true);
+    if (context.mounted && Navigator.of(context).canPop()) Navigator.pop(context, true);
   }
 
   Future<void> _notNow(BuildContext context) async {

@@ -37,6 +37,61 @@ void main() {
     expect(store.msgs.single.role, 'user');
   });
 
+  test('retryLastTurnPrep drops trailing assistant when other chat messages follow in msgs', () {
+    final store = ChatStore();
+    store.chats = [ChatRow(id: 1, title: 'A'), ChatRow(id: 2, title: 'B')];
+    store.activeChatId = 1;
+    store.msgs = [
+      MsgRow(id: 10, chatId: 1, role: 'user', content: 'hello chat 1'),
+      MsgRow(id: 11, chatId: 1, role: 'assistant', content: '', error: 'failed'),
+      MsgRow(id: 20, chatId: 2, role: 'user', content: 'hello chat 2'),
+    ];
+
+    final turn = store.retryLastTurnPrep();
+
+    expect(turn?.text, 'hello chat 1');
+    expect(store.msgs.where((m) => m.chatId == 1).length, 1);
+    expect(store.msgs.where((m) => m.chatId == 1).single.role, 'user');
+    // Ensure chat 2 was untouched
+    expect(store.msgs.where((m) => m.chatId == 2).length, 1);
+  });
+
+  test('msgUserTurnRetry updates user message in place without duplicating', () {
+    final store = ChatStore();
+    store.activeChatId = 1;
+    store.msgs = [
+      MsgRow(id: 10, chatId: 1, role: 'user', content: 'sekarang jam berapa?', reqId: 'r1'),
+      MsgRow(id: 20, chatId: 2, role: 'user', content: 'other chat', reqId: 'r2'),
+    ];
+
+    store.msgUserTurnRetry(
+      chatId: 1,
+      content: 'sekarang jam berapa?',
+      attachments: const [],
+      reqId: 'r3',
+      createdAtMs: 1234567,
+    );
+
+    final chat1Msgs = store.msgs.where((m) => m.chatId == 1).toList();
+    expect(chat1Msgs.length, 1);
+    expect(chat1Msgs.single.reqId, 'r3');
+    expect(chat1Msgs.single.createdAtMs, 1234567);
+  });
+
+  test('chatClearMsgs clears only target chat messages', () {
+    final store = ChatStore();
+    store.chats = [ChatRow(id: 1, title: 'A'), ChatRow(id: 2, title: 'B')];
+    store.msgs = [
+      MsgRow(id: 10, chatId: 1, role: 'user', content: 'msg 1'),
+      MsgRow(id: 20, chatId: 2, role: 'user', content: 'msg 2'),
+    ];
+
+    store.chatClearMsgs(1);
+
+    expect(store.msgs.where((m) => m.chatId == 1), isEmpty);
+    expect(store.msgs.where((m) => m.chatId == 2).length, 1);
+  });
+
   test('msgStreamFail stores error without changing content', () {
     final store = ChatStore();
     store.msgs = [MsgRow(id: 11, chatId: 1, role: 'assistant', content: 'Sekarang hari Senin.')];
@@ -355,6 +410,25 @@ void main() {
 
     store.searchPut('nonexistentquery123');
     expect(store.visibleChats, isEmpty);
+  });
+
+  test('msgPut adds new assistant row per turn when prior local assistant has different reqId', () {
+    final store = ChatStore();
+    store.chats = [ChatRow(id: 1, title: 'A')];
+    store.activeChatId = 1;
+    store.msgs = [
+      MsgRow(id: -1, chatId: 1, role: 'user', content: 'first', reqId: 'req-a'),
+      MsgRow(id: -2, chatId: 1, role: 'assistant', content: '', error: 'failed', reqId: 'req-a'),
+    ];
+
+    store.msgPut(MsgRow(id: -3, chatId: 1, role: 'user', content: 'second', reqId: 'req-b'));
+    store.msgPut(MsgRow(id: -4, chatId: 1, role: 'assistant', content: '', reqId: 'req-b'));
+
+    expect(store.msgs.length, 4);
+    expect(store.msgs[2].role, 'user');
+    expect(store.msgs[3].role, 'assistant');
+    expect(store.msgs[3].reqId, 'req-b');
+    expect(store.msgs[1].error, 'failed');
   });
 
   test('recentUserPrompts returns deduplicated user prompts in reverse order', () {

@@ -177,13 +177,125 @@ message BillingPushCommission {
 message ReqBillingTopupPut {
   double amount_usd = 1;
   double amount_idr = 2;
-  string provider = 3;
-  string payment_type = 4;
+  string provider = 3;       // default manual
+  string payment_type = 4;   // qris | bank_transfer | credit_card
   string proof_url = 5;
 }
 
 message ResBillingTopupPut {
   BillingTopupRequest request = 1;
+  string order_id = 2;
+  string payment_url = 3;
+  string qr_code_data = 4;
+  string instruction = 5;
+  string status = 6;         // pending | pending_review | portal
+}
+
+message BillingTopupQueueItem {
+  int64 request_id = 1;
+  int64 owner_iid = 2;
+  double amount_idr = 3;
+  double amount_usd = 4;
+  string proof_url = 5;
+  string status = 6;
+  int64 created_ts_ms = 7;
+  string user_name = 8;
+  string user_pic = 9;
+  string user_handle = 10;
+  string reject_reason = 11;
+  int64 reviewed_by_iid = 12;
+  string reviewer_name = 13;
+  string reviewer_pic = 14;
+}
+
+message ReqBillingTopupList {
+  string status = 1;
+  int32 limit = 2;
+}
+
+message ResBillingTopupList {
+  repeated BillingTopupQueueItem requests = 1;
+}
+
+message ReqBillingTopupReview {
+  int64 request_id = 1;
+  string action = 2;
+  string reason = 3;
+}
+
+message ResBillingTopupReview {}
+
+message CommissionWithdrawQueueItem {
+  int64 request_id = 1;
+  int64 owner_iid = 2;
+  double amount_usd = 3;
+  double amount_idr = 4;
+  string currency = 5;
+  string payout_method = 6;
+  string bank_id = 7;
+  string bank_short_name = 8;
+  string account_number = 9;
+  string account_name = 10;
+  string note = 11;
+  string transfer_proof_url = 12;
+  string status = 13;
+  int64 created_ts_ms = 14;
+  string user_name = 15;
+  string user_pic = 16;
+  string decline_reason = 17;
+  int64 reviewed_by_iid = 18;
+  string reviewer_name = 19;
+  string reviewer_pic = 20;
+}
+
+message ReqCommissionWithdrawList {
+  string status = 1;
+  int32 limit = 2;
+}
+
+message ResCommissionWithdrawList {
+  repeated CommissionWithdrawQueueItem requests = 1;
+}
+
+message ReqCommissionWithdrawReview {
+  int64 request_id = 1;
+  string action = 2;
+  string transfer_proof_url = 3;
+  string reason = 4;
+}
+
+message ResCommissionWithdrawReview {}
+
+message BillingReceiveAccount {
+  int64 id = 1;
+  string bank_id = 2;
+  string account_number = 3;
+  string account_name = 4;
+  string currency = 5;
+  bool is_active = 6;
+  bool is_default = 7;
+  string label = 8;
+  int64 created_by_iid = 9;
+  string meta_json = 10;
+  int64 created_ts_ms = 11;
+  int64 updated_ts_ms = 12;
+}
+
+message ReqBillingReceiveAccountPut {
+  BillingReceiveAccount account = 1;
+}
+
+message ResBillingReceiveAccountPut {
+  BillingReceiveAccount account = 1;
+}
+
+message ReqBillingReceiveAccountList {
+  string currency = 1;
+  bool active_only = 2;
+}
+
+message ResBillingReceiveAccountList {
+  repeated BillingReceiveAccount accounts = 1;
 }
 
 message ReqBillingPlanSubscribe {

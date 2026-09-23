@@ -1,0 +1,17 @@
+syntax = "proto3";
+package c35;
+
+// Published by c35-fetcher on c35.fetch.fx after billing_fx_rate insert.
+message FetchFxPush {
+  int64 fx_rate_id = 1;
+  int64 micro_per_usd = 2;
+  double raw_idr_per_usd = 3;
+  double published_idr_per_usd = 4;
+  int64 effective_ts_ms = 5;
+}
+
+// Published by c35-fetcher on c35.fetch.llm_catalog after llm_catalog_sync.
+message FetchLlmCatalogPush {
+  int64 sync_ts_ms = 1;
+  int32 model_count = 2;
+}

@@ -3,6 +3,7 @@ import 'package:alienai_c35/c/account/invoke_account.dart';
 import 'package:alienai_c35/c/app_id.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/ui/ui_loading.dart';
+import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:alienai_c35/widgets/ui/ui_page.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
@@ -180,7 +181,7 @@ class _ConnTile extends StatelessWidget {
               Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFF71717A), fontSize: 12)),
             ]),
           ),
-          if (onRename != null) IconButton(tooltip: 'settings.rename'.tr(), icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF71717A)), onPressed: onRename),
+          if (onRename != null) uiIconButton(tooltip: 'settings.rename'.tr(), icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF71717A)), onPressed: onRename),
           if (onRevoke != null) TextButton(onPressed: onRevoke, style: TextButton.styleFrom(foregroundColor: const Color(0xFFF87171), padding: const EdgeInsets.symmetric(horizontal: 10)), child: Text('settings.revoke'.tr())),
         ]),
       );

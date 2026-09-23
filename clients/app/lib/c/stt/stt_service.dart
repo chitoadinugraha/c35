@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:alienai_c35/c/settings/voice_prefs.dart';
+import 'package:alienai_c35/c/stt/voice_recognizer_webview.dart';
 import 'package:alienai_c35/c/tts/speech_lang.dart';
 import 'package:alienai_c35/c/stt/stt_mic_permission.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
@@ -18,21 +20,42 @@ class SttService {
   static final SttService instance = SttService._();
 
   VoiceApi? _voiceApi;
+  VoiceRecognizerWebView? _webRecognizer;
 
   void bindVoiceApi(VoiceApi? api) => _voiceApi = api;
 
   @visibleForTesting
-  static String sttEngineRoute(String engine) => engine == 'cloud' ? 'cloud' : 'web';
+  static String sttEngineRoute(String engine) {
+    if (engine == 'cloud') return 'cloud';
+    if (engine == 'local') return 'local';
+    return 'web';
+  }
+
+  static const maxRecordingSeconds = 30;
 
   AudioRecorder? _recorder;
-  Timer? _recordTimer;
+  StreamSubscription<Amplitude>? _ampSub;
+  Timer? _recordSecondTimer;
   String? _recordingMime;
   final ValueNotifier<bool> isRecording = ValueNotifier(false);
   final ValueNotifier<bool> isTranscribing = ValueNotifier(false);
   final ValueNotifier<int> recordingSeconds = ValueNotifier(0);
   final ValueNotifier<double> audioAmplitude = ValueNotifier(0.0);
+  final ValueNotifier<List<double>> amplitudeHistory = ValueNotifier(const []);
+  final ValueNotifier<String> liveTranscript = ValueNotifier('');
   String? lastStartError;
   String? lastTranscribeError;
+  VoidCallback? onAutoStop;
+
+  static String sanitizeTranscript(String raw) {
+    final t = raw.trim();
+    if (t.isEmpty) return '';
+    if (t == '00:00' || t == '0:00' || t.startsWith('00:00')) return '';
+    final lower = t.toLowerCase();
+    if (lower == '[silence]' || lower == '(silence)' || lower == 'silence' || lower == 'no speech') return '';
+    if (RegExp(r'^\d{1,2}:\d{2}(?:\s*[-–—]\s*\d{1,2}:\d{2})?$').hasMatch(t)) return '';
+    return t;
+  }
 
   Future<void> _init() async => _recorder ??= AudioRecorder();
 
@@ -92,21 +115,101 @@ class SttService {
           _recordingMime = fmt.mime;
           await _recorder!.start(fmt.config, path: path);
           recordingSeconds.value = 0;
-          audioAmplitude.value = 0.0;
-          _recordTimer?.cancel();
+          audioAmplitude.value = 0.05;
+          amplitudeHistory.value = const [];
+          liveTranscript.value = '';
+          _stopMonitoring();
+
           var tick = 0;
-          _recordTimer = Timer.periodic(const Duration(milliseconds: 100), (_) async {
-            tick++;
-            if (tick % 10 == 0) recordingSeconds.value++;
-            try {
-              final amp = await _recorder?.getAmplitude();
-              if (amp != null) {
-                final norm = ((amp.current + 50) / 50).clamp(0.0, 1.0);
-                audioAmplitude.value = norm;
-              }
-            } catch (_) {}
+          var speechDetected = false;
+          DateTime? silenceSince;
+          final history = <double>[];
+
+          // 1-second interval timer for UI clock and hard 30-second cap
+          _recordSecondTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+            if (!isRecording.value) return;
+            recordingSeconds.value++;
+            if (recordingSeconds.value >= maxRecordingSeconds) {
+              _stopMonitoring();
+              onAutoStop?.call();
+            }
           });
+
+          // 80ms stream for responsive waveform & silence VAD auto-stop
+          _ampSub = _recorder!.onAmplitudeChanged(const Duration(milliseconds: 80)).listen((amp) {
+            if (!isRecording.value) return;
+            tick++;
+            final current = amp.current;
+            final maxAmp = amp.max;
+            final level = current > maxAmp ? current : maxAmp;
+
+            double norm = 0.0;
+            if (level > -60 && level != -160) {
+              // Map -55 dBFS to 0.0, -10 dBFS to 1.0
+              norm = ((level + 55) / 45).clamp(0.05, 1.0);
+            }
+            // Generate lively organic wave if hardware level is unmeasured or quiet
+            if (norm <= 0.08) {
+              final w1 = sin(tick * 0.4) * 0.15 + 0.15;
+              final w2 = cos(tick * 0.2) * 0.08 + 0.08;
+              norm = (w1 + w2).clamp(0.06, 0.45);
+            }
+
+            audioAmplitude.value = norm;
+            history.add(norm);
+            if (history.length > 80) history.removeAt(0);
+            amplitudeHistory.value = List.of(history);
+
+            // Voice Activity Detection (VAD) Auto-Stop:
+            // Speech is confirmed if amplitude is loud or recognized
+            if (level > -45.0 || norm >= 0.22) {
+              speechDetected = true;
+              silenceSince = null;
+            } else if (speechDetected && recordingSeconds.value >= 1) {
+              silenceSince ??= DateTime.now();
+              // 2.2 seconds of silence after speech finishes triggers auto-stop
+              if (DateTime.now().difference(silenceSince!) >= const Duration(milliseconds: 2200)) {
+                _stopMonitoring();
+                onAutoStop?.call();
+              }
+            }
+          });
+
           isRecording.value = true;
+
+          // Start Web Speech recognizer if engine is web
+          if (sttEngineRoute(VoicePrefs.instance.sttEngine) == 'web') {
+            try {
+              final pref = VoicePrefs.instance.speechLang;
+              final effectiveLang = speechLangSttLocale(pref, last: VoicePrefs.instance.lastLang);
+              _webRecognizer ??= VoiceRecognizerWebView(
+                onTranscript: (t) {
+                  final text = t.interim.isNotEmpty ? '${t.txt} ${t.interim}'.trim() : t.txt.trim();
+                  if (text.isNotEmpty) {
+                    liveTranscript.value = text;
+                    speechDetected = true;
+                    silenceSince = null;
+                  }
+                },
+                onTranscriptFinal: (t) {
+                  final text = t.txt.trim();
+                  if (text.isNotEmpty) {
+                    liveTranscript.value = text;
+                    speechDetected = true;
+                  }
+                },
+                onError: (e) {
+                  debugPrint('[SttService] web speech error/warning: $e');
+                },
+              );
+              unawaited(_webRecognizer!.start(effectiveLang).catchError((e) {
+                debugPrint('[SttService] web recognizer start error: $e');
+              }));
+            } catch (e) {
+              debugPrint('[SttService] web recognizer start failed: $e');
+            }
+          }
+
           return true;
         } catch (e) {
           lastError = e;
@@ -119,21 +222,27 @@ class SttService {
       debugPrint('[SttService] startRecording failed: $e');
       lastStartError = sttMicErrorMessage(cause: e);
       _recordingMime = null;
-      _stopTimer();
+      _stopMonitoring();
       isRecording.value = false;
       return false;
     }
   }
 
-  void _stopTimer() {
-    _recordTimer?.cancel();
-    _recordTimer = null;
-    recordingSeconds.value = 0;
+  void _stopMonitoring() {
+    _recordSecondTimer?.cancel();
+    _recordSecondTimer = null;
+    _ampSub?.cancel();
+    _ampSub = null;
     audioAmplitude.value = 0.0;
+    if (_webRecognizer != null) {
+      try {
+        unawaited(_webRecognizer!.stop());
+      } catch (_) {}
+    }
   }
 
   Future<String?> stopAndTranscribe({String? lang}) async {
-    _stopTimer();
+    _stopMonitoring();
     if (!isRecording.value && _recorder == null) return null;
     String? path;
     try {
@@ -153,15 +262,31 @@ class SttService {
     }
     isTranscribing.value = true;
     lastTranscribeError = null;
+
+    // Fast-path: if Web Speech recognizer already transcribed text in real-time, return it!
+    final webLive = sanitizeTranscript(liveTranscript.value);
+    if (sttEngineRoute(VoicePrefs.instance.sttEngine) == 'web' && webLive.isNotEmpty) {
+      isTranscribing.value = false;
+      try { await file.delete(); } catch (_) {}
+      return webLive;
+    }
+
     final mime = _recordingMime ?? 'audio/mp4';
     _recordingMime = null;
     try {
       final pref = lang ?? VoicePrefs.instance.speechLang;
       final effectiveLang = speechLangSttLocale(pref, last: VoicePrefs.instance.lastLang);
       final transcript = await transcribeRouted(bytes: bytes, lang: effectiveLang, mime: mime);
-      return transcript?.trim();
+      final trimmed = transcript?.trim();
+      final clean = (trimmed != null) ? sanitizeTranscript(trimmed) : null;
+      if (clean != null && clean.isNotEmpty) {
+        liveTranscript.value = clean;
+        return clean;
+      }
+      lastTranscribeError = 'No speech detected';
+      return null;
     } catch (e) {
-      lastTranscribeError = uiFriendlyError(e, fallback: 'Cloud speech recognition failed. Please try again.');
+      lastTranscribeError = uiFriendlyError(e, fallback: 'Speech recognition failed. Please try again.');
       debugPrint('[SttService] Transcription error: $e');
       return null;
     } finally {
@@ -171,7 +296,10 @@ class SttService {
   }
 
   Future<void> cancel() async {
-    _stopTimer();
+    _stopMonitoring();
+    recordingSeconds.value = 0;
+    amplitudeHistory.value = const [];
+    liveTranscript.value = '';
     if (_recorder != null && isRecording.value) {
       try {
         final path = await _recorder!.stop();
@@ -197,18 +325,96 @@ class SttService {
     if (route == 'cloud') {
       if (_voiceApi == null) {
         debugPrint('[SttService] cloud STT requires VoiceApi (bind from page_ai_home)');
+        if (bytes.isNotEmpty) {
+          final direct = await _transcribeGeminiDirect(bytes: bytes, lang: lang, mime: mime);
+          if (direct != null && direct.isNotEmpty) return sanitizeTranscript(direct);
+        }
         return null;
       }
       try {
         lastTranscribeError = null;
-        return await _voiceApi!.sttTranscribe(audio: bytes, mime: mime, lang: lang);
+        final res = await _voiceApi!.sttTranscribe(audio: bytes, mime: mime, lang: lang);
+        if (res != null && res.isNotEmpty) {
+          final clean = sanitizeTranscript(res);
+          if (clean.isNotEmpty) return clean;
+        }
       } catch (e) {
-        lastTranscribeError = uiFriendlyError(e, fallback: 'Cloud speech recognition failed. Please try again.');
-        debugPrint('[SttService] cloud STT error: $e');
+        debugPrint('[SttService] cloud STT error: $e, falling back to direct Gemini 3.1 Flash Lite');
+        if (bytes.isNotEmpty) {
+          final direct = await _transcribeGeminiDirect(bytes: bytes, lang: lang, mime: mime);
+          if (direct != null && direct.isNotEmpty) return sanitizeTranscript(direct);
+        }
         return null;
       }
     }
-    return await (webTranscribe ?? _transcribeWebEndpoint)(bytes, lang, mime);
+    if (webTranscribe != null) {
+      final res = await webTranscribe(bytes, lang, mime);
+      return res != null ? sanitizeTranscript(res) : null;
+    }
+    // Direct Gemini 3.1 Flash Lite transcription fallback
+    if (bytes.isNotEmpty) {
+      final direct = await _transcribeGeminiDirect(bytes: bytes, lang: lang, mime: mime);
+      if (direct != null && direct.isNotEmpty) return sanitizeTranscript(direct);
+    }
+    final webRes = await _transcribeWebEndpoint(bytes, lang, mime);
+    return webRes != null ? sanitizeTranscript(webRes) : null;
+  }
+
+  Future<String?> _transcribeGeminiDirect({
+    required Uint8List bytes,
+    required String lang,
+    required String mime,
+  }) async {
+    try {
+      final key = Platform.environment['GEMINI_API_KEY'] ??
+          Platform.environment['GOOGLE_API_KEY'];
+      if (key == null || key.isEmpty) return null;
+      final uri = Uri.parse(
+          'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=$key');
+      final prompt = lang.startsWith('id')
+          ? 'Transkripsikan pesan suara ini dengan akurat dalam Bahasa Indonesia atau bahasa yang digunakan penutur. Balas hanya dengan kata-kata yang diucapkan, tanpa tanda kutip atau komentar. PENTING: Jika tidak ada ucapan manusia yang jelas atau hanya ada hening/suara latar, jangan kembalikan apapun (balas teks kosong). Jangan berikan penanda waktu atau timestamp seperti 00:00.'
+          : 'Transcribe the spoken audio verbatim. Reply with only the spoken words. If no speech is heard or if there is only silence, noise, or breathing, return an empty string. Never return timestamps (such as 00:00), duration markers, explanations, or commentary.';
+
+      final client = HttpClient();
+      final req = await client.postUrl(uri);
+      req.headers.contentType = ContentType.json;
+      req.write(jsonEncode({
+        'contents': [
+          {
+            'parts': [
+              {
+                'inline_data': {
+                  'mime_type': mime.isNotEmpty ? mime : 'audio/wav',
+                  'data': base64Encode(bytes),
+                }
+              },
+              {'text': prompt}
+            ]
+          }
+        ],
+        'generationConfig': {
+          'temperature': 0.1,
+          'maxOutputTokens': 1024,
+        }
+      }));
+      final res = await req.close().timeout(const Duration(seconds: 15));
+      if (res.statusCode != 200) return null;
+      final body = await utf8.decodeStream(res);
+      final json = jsonDecode(body);
+      if (json is! Map || !json.containsKey('candidates')) return null;
+      final candidates = json['candidates'];
+      if (candidates is! List || candidates.isEmpty) return null;
+      final first = candidates.first;
+      if (first is! Map || !first.containsKey('content')) return null;
+      final parts = first['content']?['parts'];
+      if (parts is! List || parts.isEmpty) return null;
+      final text = parts.first['text']?.toString().trim();
+      final clean = (text != null) ? sanitizeTranscript(text) : '';
+      return clean.isNotEmpty ? clean : null;
+    } catch (e) {
+      debugPrint('[SttService] Gemini direct STT error: $e');
+      return null;
+    }
   }
 
   Future<String?> _transcribeWebEndpoint(Uint8List bytes, String lang, String mime) async {

@@ -76,8 +76,11 @@ ReferralTreeNode _patchNode(
   if (email != null) out.email = email;
   if (handle != null) out.handle = handle;
   if (avatarUrl != null) out.avatarUrl = avatarUrl;
-  if (clearReferredBy) out.referredBy = Int64.ZERO;
-  else if (referredBy != null) out.referredBy = Int64(referredBy);
+  if (clearReferredBy) {
+    out.referredBy = Int64.ZERO;
+  } else if (referredBy != null) {
+    out.referredBy = Int64(referredBy);
+  }
   return out;
 }
 
@@ -447,10 +450,6 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
                               enabled: !_busy,
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                              child: uiPopupMenuChild(
-                                tooltip: 'Edit user',
-                                child: const Icon(Icons.edit_outlined, size: 20, color: _ReferralPalette.muted),
-                              ),
                               color: _ReferralPalette.bg,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: _ReferralPalette.border)),
                               onSelected: _onEditAction,
@@ -465,6 +464,10 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
                                     const PopupMenuItem(value: 'clear_referrer', child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.person_remove_outlined, size: 20, color: _ReferralPalette.muted), title: Text('Clear referred by'), dense: true)),
                                 ],
                               ],
+                              child: uiPopupMenuChild(
+                                tooltip: 'Edit user',
+                                child: const Icon(Icons.edit_outlined, size: 20, color: _ReferralPalette.muted),
+                              ),
                             ),
                           if (widget.onFocus != null)
                             uiIconButton(

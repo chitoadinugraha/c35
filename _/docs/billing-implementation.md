@@ -154,7 +154,8 @@ mod_billing → mod_identity/session_init → wire_ws → wire_http/invoke
 | Commission per currency wallet | Or unified ledger with currency column |
 | Drop `billing_account` table | After metrics show zero reads |
 | Drop legacy proto fields | `balance_usd` / `balance_idr` on wire |
-| Admin FX rate UI | Update `billing_fx_rate` weekly |
+| `c35-fetcher` FX task | Hourly Open Exchange Rates → `billing_fx_rate` + NATS `c35.fetch.fx` (see [fetcher.md](fetcher.md)) |
+| Admin FX rate UI | Manual override row in `billing_fx_rate` (optional; fetcher is primary) |
 
 ---
 

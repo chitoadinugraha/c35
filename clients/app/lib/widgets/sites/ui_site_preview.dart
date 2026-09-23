@@ -2,6 +2,7 @@ import 'package:alienai_c35/c/config.dart';
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
+import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -147,7 +148,7 @@ class _UiSitePreviewState extends State<UiSitePreview> {
               child: Material(
                 color: const Color(0xCC18181B),
                 borderRadius: BorderRadius.circular(6),
-                child: IconButton(
+                child: uiIconButton(
                   tooltip: 'Open in browser',
                   onPressed: _openExternal,
                   icon: const Icon(Icons.open_in_new, size: 16, color: _muted),

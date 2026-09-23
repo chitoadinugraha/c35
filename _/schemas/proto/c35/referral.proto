@@ -120,3 +120,43 @@ message ResReferralCommissionSimulate {
   int64 total_distributed = 5;
   int64 undistributed = 6;
 }
+
+message CommissionLedgerEntry {
+  int64 id = 1;
+  string entry_type = 2;
+  double amount_usd = 3;
+  double amount_idr = 4;
+  string currency = 5;
+  string status = 6;
+  int64 source_iid = 7;
+  string event_type = 8;
+  string reference_id = 9;
+  int64 created_ts_ms = 10;
+}
+
+message ReqCommissionWithdraw {
+  double amount_usd = 1;
+  string payout_method = 2;
+  double amount_idr = 3;
+  string currency = 4;
+  string bank_id = 5;
+  string account_number = 6;
+  string account_name = 7;
+}
+
+message ResCommissionWithdraw {
+  bool success = 1;
+  double commission_available_usd = 2;
+  double new_wallet_balance_usd = 3;
+  double commission_available_idr = 4;
+  double new_wallet_balance_idr = 5;
+  string currency = 6;
+}
+
+message ReqReferralLedgerList {
+  int32 limit = 1;
+}
+
+message ResReferralLedgerList {
+  repeated CommissionLedgerEntry items = 1;
+}

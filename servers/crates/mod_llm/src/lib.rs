@@ -2,6 +2,7 @@ mod catalog_price;
 mod catalog_rank;
 mod catalog_resolve;
 mod catalog_sync;
+mod fetch_catalog;
 mod catalog_types;
 mod cf_gateway;
 mod embed_gemini;
@@ -19,6 +20,7 @@ pub use model_catalog::{
     model_chain_for_slug, model_is_alien, model_log_label, model_resolve_target, ModelTarget,
 };
 pub use catalog_sync::llm_catalog_spawn;
+pub use fetch_catalog::{llm_catalog_nats_subscribe, LlmCatalogFetchTask};
 pub use catalog_resolve::{catalog_alien_chain_build, catalog_alien_chain_effective, catalog_alien_default, catalog_provider_model};
 pub use llm_catalog::{
     catalog_models, catalog_price, llm_catalog_init, llm_catalog_reload, prompt_models, provider_model_resolve, LlmModelRow,

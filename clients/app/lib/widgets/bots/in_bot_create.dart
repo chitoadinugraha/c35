@@ -16,6 +16,7 @@ import 'package:alienai_c35/widgets/ui/ui_input_decoration.dart';
 import 'package:alienai_c35/widgets/ui/ui_user_avatar.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:fixnum/fixnum.dart';
+import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:flutter/material.dart';
 
 const _border = Color(0xFF27272A);
@@ -411,7 +412,7 @@ class _InBotCreateState extends State<InBotCreate> {
                       Expanded(
                         child: Text(_stepTitle, style: const TextStyle(color: _title, fontSize: 16, fontWeight: FontWeight.w600)),
                       ),
-                      IconButton(
+                      uiIconButton(
                         tooltip: 'Cancel setup',
                         visualDensity: VisualDensity.compact,
                         onPressed: _saving ? null : _cancel,

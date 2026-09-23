@@ -25,6 +25,9 @@ class UiAccountMenuAction {
     this.onReferralTree,
     this.onBalance,
     this.onPackage,
+    this.onCommissionTap,
+    this.onFinancePayments,
+    this.onFinanceReceiveAccounts,
     this.onLock,
     this.onSignOut,
     this.onBots,
@@ -41,6 +44,9 @@ class UiAccountMenuAction {
   final VoidCallback? onReferralTree;
   final VoidCallback? onBalance;
   final VoidCallback? onPackage;
+  final VoidCallback? onCommissionTap;
+  final VoidCallback? onFinancePayments;
+  final VoidCallback? onFinanceReceiveAccounts;
   final VoidCallback? onLock;
   final VoidCallback? onSignOut;
   final VoidCallback? onBots;
@@ -159,6 +165,8 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(_accountName(), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w600)),
+                                  const SizedBox(height: 2),
+                                  Text(profileAlienAddress(s.handle), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _muted, fontSize: 12)),
                                   if (badgeLabels.isNotEmpty) ...[
                                     const SizedBox(height: 4),
                                     Wrap(
@@ -173,8 +181,6 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
                                       }).toList(),
                                     ),
                                   ],
-                                  const SizedBox(height: 2),
-                                  Text(profileAlienAddress(s.handle), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _muted, fontSize: 12)),
                                 ],
                               ),
                             ),
@@ -193,15 +199,56 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
                           onPackageTap: acts.onPackage == null ? null : () => _popThen(acts.onPackage),
                         ),
                       ),
+                      if (referralCommissionHasBalance(billing.commissionAvailableUsd, billing.commissionAvailableIdr) && acts.onCommissionTap != null) ...[
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                          child: Material(
+                            color: _hoverBg,
+                            borderRadius: BorderRadius.circular(8),
+                            child: InkWell(
+                              onTap: () => _popThen(acts.onCommissionTap),
+                              borderRadius: BorderRadius.circular(8),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.payments_outlined, size: 16, color: Color(0xFF60A5FA)),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          const Text('Commission', style: TextStyle(color: _muted, fontSize: 11)),
+                                          Text(
+                                            referralCommissionStripLabel(billing.commissionAvailableUsd, billing.commissionAvailableIdr),
+                                            style: const TextStyle(color: _text, fontSize: 13, fontWeight: FontWeight.w600),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const Icon(Icons.chevron_right_rounded, size: 18, color: _muted),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
-                    if (s.isRoot && acts.onRootConsole != null) ...[
+                    if (acts.onFinancePayments != null || acts.onFinanceReceiveAccounts != null) ...[
                       const Divider(height: 1, color: _border),
-                      ListTile(
-                        dense: true,
-                        leading: const Icon(Icons.admin_panel_settings_outlined, size: 18, color: Color(0xFFA1A1AA)),
-                        title: const Text('Admin', style: TextStyle(color: _text, fontSize: 13, fontWeight: FontWeight.w500)),
-                        trailing: const Icon(Icons.chevron_right_rounded, size: 18, color: _muted),
-                        onTap: () => _popThen(acts.onRootConsole),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                        child: Column(
+                          children: [
+                            if (acts.onFinancePayments != null)
+                              _FinanceNavBtn(icon: Icons.payments_outlined, label: 'Finance payments', onTap: () => _popThen(acts.onFinancePayments)),
+                            if (acts.onFinanceReceiveAccounts != null) ...[
+                              if (acts.onFinancePayments != null) const SizedBox(height: 6),
+                              _FinanceNavBtn(icon: Icons.account_balance_outlined, label: 'Receive accounts', onTap: () => _popThen(acts.onFinanceReceiveAccounts)),
+                            ],
+                          ],
+                        ),
                       ),
                     ],
                     if (_hasNavCounts(acts)) ...[
@@ -327,4 +374,33 @@ class _MenuIconBtn extends StatelessWidget {
       ),
     );
   }
+}
+
+class _FinanceNavBtn extends StatelessWidget {
+  const _FinanceNavBtn({required this.icon, required this.label, this.onTap});
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: _hoverBg,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            child: Row(
+              children: [
+                Icon(icon, size: 16, color: const Color(0xFFA1A1AA)),
+                const SizedBox(width: 8),
+                Expanded(child: Text(label, style: const TextStyle(color: _text, fontSize: 12, fontWeight: FontWeight.w500))),
+                const Icon(Icons.chevron_right_rounded, size: 18, color: _muted),
+              ],
+            ),
+          ),
+        ),
+      );
 }

@@ -101,8 +101,10 @@ class _UILoadingState extends State<UILoading> {
       height: 1.35,
       fontFeatures: const [FontFeature.tabularFigures()],
     );
-    final content = RepaintBoundary(
-      child: widget.compact ? _compact(muted) : _page(muted),
+    final content = ExcludeSemantics(
+      child: RepaintBoundary(
+        child: widget.compact ? _compact(muted) : _page(muted),
+      ),
     );
     if (widget.compact) return content;
     return Center(child: content);
@@ -199,32 +201,34 @@ class _UiThinkingDotsState extends State<UiThinkingDots> with SingleTickerProvid
   @override
   Widget build(BuildContext context) {
     final dotColor = widget.color ?? _loadingFg;
-    return AnimatedBuilder(
-      animation: _ctrl,
-      builder: (context, child) {
-        final t = _ctrl.value * 2 * math.pi;
-        return SizedBox(
-          height: 14,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: List.generate(3, (i) {
-              final y = math.sin(t + i * 0.9) * widget.bounceHeight;
-              return Padding(
-                padding: EdgeInsets.symmetric(horizontal: widget.spacing),
-                child: Transform.translate(
-                  offset: Offset(0, -y),
-                  child: Container(
-                    width: widget.size,
-                    height: widget.size,
-                    decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
+    return ExcludeSemantics(
+      child: AnimatedBuilder(
+        animation: _ctrl,
+        builder: (context, child) {
+          final t = _ctrl.value * 2 * math.pi;
+          return SizedBox(
+            height: 14,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: List.generate(3, (i) {
+                final y = math.sin(t + i * 0.9) * widget.bounceHeight;
+                return Padding(
+                  padding: EdgeInsets.symmetric(horizontal: widget.spacing),
+                  child: Transform.translate(
+                    offset: Offset(0, -y),
+                    child: Container(
+                      width: widget.size,
+                      height: widget.size,
+                      decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
+                    ),
                   ),
-                ),
-              );
-            }),
-          ),
-        );
-      },
+                );
+              }),
+            ),
+          );
+        },
+      ),
     );
   }
 }

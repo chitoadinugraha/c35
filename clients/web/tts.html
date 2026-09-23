@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Alien — Speech</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; }
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            font-size: 15px;
+            line-height: 1.5;
+            color: #e4e4e7;
+            background: #0c0c0e;
+            -webkit-font-smoothing: antialiased;
+        }
+        main {
+            width: 100%;
+            max-width: 360px;
+            padding: 28px 24px;
+            text-align: center;
+            background: #18181b;
+            border: 1px solid #27272a;
+            border-radius: 16px;
+        }
+        h1 {
+            font-size: 1rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            color: #fafafa;
+        }
+        p {
+            margin-top: 8px;
+            font-size: 0.8125rem;
+            color: #a1a1aa;
+        }
+        #status {
+            margin-top: 20px;
+            font-size: 0.75rem;
+            color: #71717a;
+            min-height: 1.25rem;
+        }
+        #status.live { color: #a78bfa; }
+        .actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        button {
+            cursor: pointer;
+            font: inherit;
+            font-size: 0.875rem;
+            font-weight: 500;
+            padding: 10px 18px;
+            border-radius: 10px;
+            border: 1px solid #3f3f46;
+            background: #27272a;
+            color: #fafafa;
+        }
+        button:hover { background: #3f3f46; }
+        button:active { transform: scale(0.98); }
+        button.primary {
+            border-color: #7c3aed;
+            background: #6d28d9;
+        }
+        button.primary:hover { background: #7c3aed; }
+    </style>
+</head>
+<body>
+    <main>
+        <h1>Speech recognition</h1>
+        <p>Used by the Alien app WebView. Open in a browser only to test the mic.</p>
+        <p id="status">Ready</p>
+        <div class="actions">
+            <button type="button" class="primary" onclick="tts_start('id-ID')">Start</button>
+            <button type="button" onclick="tts_stop()">Stop</button>
+        </div>
+    </main>
+
+    <script>
+        function sendEvent(type, data) {
+            try {
+                if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
+                    const payload = data !== null && data !== undefined ? JSON.stringify(data) : null;
+                    window.flutter_inappwebview.callHandler('i', type, payload);
+                } else {
+                    console.error('Flutter InAppWebView handler not available');
+                }
+            } catch (error) {
+                console.error('Error sending event:', error);
+            }
+        }
+
+        function statusSet(text, live) {
+            const el = document.getElementById('status');
+            if (!el) return;
+            el.textContent = text;
+            el.classList.toggle('live', !!live);
+        }
+
+        const SpeechRecognizer = window.webkitSpeechRecognition || window.SpeechRecognition;
+        if (!SpeechRecognizer) {
+            console.error('Speech Recognition API not available');
+            statusSet('Speech API not supported in this browser');
+            sendEvent('tts_error', { error: 'api_not_available', message: 'Speech Recognition API not supported' });
+        }
+        
+        const recognizer = SpeechRecognizer ? new SpeechRecognizer() : null;
+        let lang = 'id-ID';
+        let isInitialized = false;
+        let micStream = null;
+        let micPromise = null;
+        let transcriptFinal = '';
+        let startWatch = null;
+
+        if (recognizer) {
+            recognizer.continuous = true;
+            recognizer.interimResults = true;
+            recognizer.maxAlternatives = 1;
+        }
+
+        function clearStartWatch() {
+            if (startWatch) {
+                clearTimeout(startWatch);
+                startWatch = null;
+            }
+        }
+
+        function ensureMic() {
+            if (micStream && micStream.active) return Promise.resolve(micStream);
+            if (micPromise) return micPromise;
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                return Promise.reject(new Error('getUserMedia not available'));
+            }
+            micPromise = navigator.mediaDevices.getUserMedia({ audio: true })
+                .then((stream) => {
+                    micStream = stream;
+                    micPromise = null;
+                    return stream;
+                })
+                .catch((err) => {
+                    micPromise = null;
+                    throw err;
+                });
+            return micPromise;
+        }
+
+        window.tts_ensure_mic = () => ensureMic().then(() => true).catch((err) => {
+            statusSet('Microphone permission denied');
+            sendEvent('tts_error', {
+                error: err.name || 'not-allowed',
+                message: err.message || 'Microphone permission denied',
+            });
+            return false;
+        });
+
+        window.tts_start = async (_lang) => {
+            try {
+                if (!recognizer) {
+                    console.error('Recognizer not available');
+                    sendEvent('tts_error', { error: 'recognizer_not_available', message: 'Speech recognizer is not initialized' });
+                    return;
+                }
+                
+                if (!isInitialized) {
+                    console.error('Recognizer not initialized yet');
+                    sendEvent('tts_error', { error: 'not_initialized', message: 'Wait for initialization' });
+                    return;
+                }
+
+                const micOk = await window.tts_ensure_mic();
+                if (!micOk) return;
+                
+                lang = recognizer.lang = String(_lang || 'id-ID').replace(/_/g, '-');
+                transcriptFinal = '';
+                console.log('Starting speech', lang);
+                
+                try {
+                    recognizer.stop();
+                } catch (e) {
+                }
+                
+                setTimeout(() => {
+                    try {
+                        clearStartWatch();
+                        // WebView2 / Edge sometimes never fires onstart — surface a timeout.
+                        startWatch = setTimeout(() => {
+                            startWatch = null;
+                            statusSet('Speech did not start');
+                            try { recognizer.abort(); } catch (e) {}
+                            sendEvent('tts_error', {
+                                error: 'start_timeout',
+                                message: 'Speech recognition did not start',
+                            });
+                        }, 8000);
+                        recognizer.start();
+                        console.log('recognizer.start() called successfully');
+                    } catch (startError) {
+                        clearStartWatch();
+                        console.error('Error in recognizer.start():', startError);
+                        sendEvent('tts_error', { 
+                            error: startError.name || 'start_error', 
+                            message: startError.message || startError.toString() 
+                        });
+                    }
+                }, 50);
+            } catch (error) {
+                clearStartWatch();
+                console.error('Error starting speech recognition:', error);
+                sendEvent('tts_error', { error: error.name || 'error', message: error.message || error.toString() });
+            }
+        };
+
+        window.tts_stop = () => {
+            console.log('Stopping speech');
+            clearStartWatch();
+            if (recognizer) {
+                try {
+                    recognizer.abort();
+                } catch (e) {
+                    try {
+                        recognizer.stop();
+                    } catch (e2) {
+                        console.error('Error stopping recognizer:', e2);
+                    }
+                }
+            }
+        }
+
+        if (recognizer) {
+            recognizer.onresult = (event) => {
+                try {
+                    let interimText = '';
+                    let finalText = transcriptFinal;
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        const result = event.results[i];
+                        const speechResult = result[0];
+                        const piece = speechResult && speechResult.transcript ? speechResult.transcript : '';
+                        if (!piece) continue;
+                        if (result.isFinal) {
+                            finalText = finalText ? `${finalText} ${piece}` : piece;
+                        } else {
+                            interimText = interimText ? `${interimText} ${piece}` : piece;
+                        }
+                    }
+                    transcriptFinal = finalText.trim();
+                    finalText = transcriptFinal;
+                    interimText = interimText.trim();
+
+                    const lastResult = event.results[event.results.length - 1];
+                    const isFinal = lastResult && lastResult.isFinal;
+                    const lastSpeechResult = lastResult && lastResult[0];
+                    let finalConfidence = 0;
+                    if (lastSpeechResult && lastSpeechResult.confidence) {
+                        finalConfidence = lastSpeechResult.confidence;
+                    }
+
+                    const voiceTranscript = {
+                        lang: lang,
+                        txt: finalText,
+                        interim: interimText,
+                        confidence: finalConfidence || 0,
+                        isFinal: !!isFinal && !interimText,
+                    };
+                    console.log('Transcript received:', voiceTranscript);
+                    const display = interimText ? (finalText ? `${finalText} ${interimText}` : interimText) : finalText;
+                    if (display) {
+                        statusSet(display, !isFinal || !!interimText);
+                    }
+                    sendEvent('tts_transcript', voiceTranscript);
+                } catch (error) {
+                    console.error('Error processing transcript:', error);
+                    sendEvent('tts_error', { error: 'transcript_error', message: error.toString() });
+                }
+            };
+            
+            recognizer.onstart = () => {
+                clearStartWatch();
+                console.log('Speech recognition started');
+                statusSet('Listening…', true);
+                sendEvent('tts_start', null);
+            };
+            
+            recognizer.onend = () => {
+                clearStartWatch();
+                console.log('Speech recognition ended');
+                statusSet('Ready');
+                sendEvent('tts_end', null);
+            };
+            
+            recognizer.onerror = (event) => {
+                clearStartWatch();
+                if (event.error === 'aborted' || event.error === 'no-speech') {
+                    return;
+                }
+                const errorInfo = {
+                    error: event.error,
+                    message: event.message || 'Speech recognition error',
+                    type: event.type || 'error'
+                };
+                console.error('TTS ERROR: ', errorInfo);
+                statusSet(errorInfo.message || 'Error');
+                sendEvent('tts_error', errorInfo);
+            };
+        }
+        
+        setTimeout(() => {
+            isInitialized = true;
+            sendEvent('tts_init', null);
+        }, 100);
+
+        console.log('TTS loaded');
+
+    </script>
+</body>
+</html>

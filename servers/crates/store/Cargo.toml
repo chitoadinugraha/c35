@@ -12,3 +12,7 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 dotenvy = { workspace = true }
 urlencoding = { workspace = true }
+
+[[bin]]
+name = "c35_migrate"
+path = "src/bin/c35_migrate.rs"

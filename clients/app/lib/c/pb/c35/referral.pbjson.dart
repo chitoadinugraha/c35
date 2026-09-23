@@ -403,3 +403,130 @@ final $typed_data.Uint8List resReferralCommissionSimulateDescriptor = $convert.b
     'b2xfcmF0ZRgDIAEoAVIIcG9vbFJhdGUSNAoGbGV2ZWxzGAQgAygLMhwuYzM1LlJlZmVycmFsQ2'
     '9tbWlzc2lvbkxldmVsUgZsZXZlbHMSKwoRdG90YWxfZGlzdHJpYnV0ZWQYBSABKANSEHRvdGFs'
     'RGlzdHJpYnV0ZWQSJAoNdW5kaXN0cmlidXRlZBgGIAEoA1INdW5kaXN0cmlidXRlZA==');
+
+@$core.Deprecated('Use commissionLedgerEntryDescriptor instead')
+const CommissionLedgerEntry$json = {
+  '1': 'CommissionLedgerEntry',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 3, '10': 'id'},
+    {'1': 'entry_type', '3': 2, '4': 1, '5': 9, '10': 'entryType'},
+    {'1': 'amount_usd', '3': 3, '4': 1, '5': 1, '10': 'amountUsd'},
+    {'1': 'amount_idr', '3': 4, '4': 1, '5': 1, '10': 'amountIdr'},
+    {'1': 'currency', '3': 5, '4': 1, '5': 9, '10': 'currency'},
+    {'1': 'status', '3': 6, '4': 1, '5': 9, '10': 'status'},
+    {'1': 'source_iid', '3': 7, '4': 1, '5': 3, '10': 'sourceIid'},
+    {'1': 'event_type', '3': 8, '4': 1, '5': 9, '10': 'eventType'},
+    {'1': 'reference_id', '3': 9, '4': 1, '5': 9, '10': 'referenceId'},
+    {'1': 'created_ts_ms', '3': 10, '4': 1, '5': 3, '10': 'createdTsMs'},
+  ],
+};
+
+/// Descriptor for `CommissionLedgerEntry`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List commissionLedgerEntryDescriptor = $convert.base64Decode(
+    'ChVDb21taXNzaW9uTGVkZ2VyRW50cnkSDgoCaWQYASABKANSAmlkEh0KCmVudHJ5X3R5cGUYAi'
+    'ABKAlSCWVudHJ5VHlwZRIdCgphbW91bnRfdXNkGAMgASgBUglhbW91bnRVc2QSHQoKYW1vdW50'
+    'X2lkchgEIAEoAVIJYW1vdW50SWRyEhoKCGN1cnJlbmN5GAUgASgJUghjdXJyZW5jeRIWCgZzdG'
+    'F0dXMYBiABKAlSBnN0YXR1cxIdCgpzb3VyY2VfaWlkGAcgASgDUglzb3VyY2VJaWQSHQoKZXZl'
+    'bnRfdHlwZRgIIAEoCVIJZXZlbnRUeXBlEiEKDHJlZmVyZW5jZV9pZBgJIAEoCVILcmVmZXJlbm'
+    'NlSWQSIgoNY3JlYXRlZF90c19tcxgKIAEoA1ILY3JlYXRlZFRzTXM=');
+
+@$core.Deprecated('Use reqCommissionWithdrawDescriptor instead')
+const ReqCommissionWithdraw$json = {
+  '1': 'ReqCommissionWithdraw',
+  '2': [
+    {'1': 'amount_usd', '3': 1, '4': 1, '5': 1, '10': 'amountUsd'},
+    {'1': 'payout_method', '3': 2, '4': 1, '5': 9, '10': 'payoutMethod'},
+    {'1': 'amount_idr', '3': 3, '4': 1, '5': 1, '10': 'amountIdr'},
+    {'1': 'currency', '3': 4, '4': 1, '5': 9, '10': 'currency'},
+    {'1': 'bank_id', '3': 5, '4': 1, '5': 9, '10': 'bankId'},
+    {'1': 'account_number', '3': 6, '4': 1, '5': 9, '10': 'accountNumber'},
+    {'1': 'account_name', '3': 7, '4': 1, '5': 9, '10': 'accountName'},
+  ],
+};
+
+/// Descriptor for `ReqCommissionWithdraw`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqCommissionWithdrawDescriptor = $convert.base64Decode(
+    'ChVSZXFDb21taXNzaW9uV2l0aGRyYXcSHQoKYW1vdW50X3VzZBgBIAEoAVIJYW1vdW50VXNkEi'
+    'MKDXBheW91dF9tZXRob2QYAiABKAlSDHBheW91dE1ldGhvZBIdCgphbW91bnRfaWRyGAMgASgB'
+    'UglhbW91bnRJZHISGgoIY3VycmVuY3kYBCABKAlSCGN1cnJlbmN5EhcKB2JhbmtfaWQYBSABKA'
+    'lSBmJhbmtJZBIlCg5hY2NvdW50X251bWJlchgGIAEoCVINYWNjb3VudE51bWJlchIhCgxhY2Nv'
+    'dW50X25hbWUYByABKAlSC2FjY291bnROYW1l');
+
+@$core.Deprecated('Use resCommissionWithdrawDescriptor instead')
+const ResCommissionWithdraw$json = {
+  '1': 'ResCommissionWithdraw',
+  '2': [
+    {'1': 'success', '3': 1, '4': 1, '5': 8, '10': 'success'},
+    {
+      '1': 'commission_available_usd',
+      '3': 2,
+      '4': 1,
+      '5': 1,
+      '10': 'commissionAvailableUsd'
+    },
+    {
+      '1': 'new_wallet_balance_usd',
+      '3': 3,
+      '4': 1,
+      '5': 1,
+      '10': 'newWalletBalanceUsd'
+    },
+    {
+      '1': 'commission_available_idr',
+      '3': 4,
+      '4': 1,
+      '5': 1,
+      '10': 'commissionAvailableIdr'
+    },
+    {
+      '1': 'new_wallet_balance_idr',
+      '3': 5,
+      '4': 1,
+      '5': 1,
+      '10': 'newWalletBalanceIdr'
+    },
+    {'1': 'currency', '3': 6, '4': 1, '5': 9, '10': 'currency'},
+  ],
+};
+
+/// Descriptor for `ResCommissionWithdraw`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resCommissionWithdrawDescriptor = $convert.base64Decode(
+    'ChVSZXNDb21taXNzaW9uV2l0aGRyYXcSGAoHc3VjY2VzcxgBIAEoCFIHc3VjY2VzcxI4Chhjb2'
+    '1taXNzaW9uX2F2YWlsYWJsZV91c2QYAiABKAFSFmNvbW1pc3Npb25BdmFpbGFibGVVc2QSMwoW'
+    'bmV3X3dhbGxldF9iYWxhbmNlX3VzZBgDIAEoAVITbmV3V2FsbGV0QmFsYW5jZVVzZBI4Chhjb2'
+    '1taXNzaW9uX2F2YWlsYWJsZV9pZHIYBCABKAFSFmNvbW1pc3Npb25BdmFpbGFibGVJZHISMwoW'
+    'bmV3X3dhbGxldF9iYWxhbmNlX2lkchgFIAEoAVITbmV3V2FsbGV0QmFsYW5jZUlkchIaCghjdX'
+    'JyZW5jeRgGIAEoCVIIY3VycmVuY3k=');
+
+@$core.Deprecated('Use reqReferralLedgerListDescriptor instead')
+const ReqReferralLedgerList$json = {
+  '1': 'ReqReferralLedgerList',
+  '2': [
+    {'1': 'limit', '3': 1, '4': 1, '5': 5, '10': 'limit'},
+  ],
+};
+
+/// Descriptor for `ReqReferralLedgerList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqReferralLedgerListDescriptor =
+    $convert.base64Decode(
+        'ChVSZXFSZWZlcnJhbExlZGdlckxpc3QSFAoFbGltaXQYASABKAVSBWxpbWl0');
+
+@$core.Deprecated('Use resReferralLedgerListDescriptor instead')
+const ResReferralLedgerList$json = {
+  '1': 'ResReferralLedgerList',
+  '2': [
+    {
+      '1': 'items',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.CommissionLedgerEntry',
+      '10': 'items'
+    },
+  ],
+};
+
+/// Descriptor for `ResReferralLedgerList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resReferralLedgerListDescriptor = $convert.base64Decode(
+    'ChVSZXNSZWZlcnJhbExlZGdlckxpc3QSMAoFaXRlbXMYASADKAsyGi5jMzUuQ29tbWlzc2lvbk'
+    'xlZGdlckVudHJ5UgVpdGVtcw==');

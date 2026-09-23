@@ -2,7 +2,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 class C35AppId {
-  static const id = 'id.alienai.c35';
+  static const id = 'c35';
+  static const markerKey = 'c35.app_id';
+  static const serverHostKey = '$id.server_host';
   static const oauthReturn = 'id.alienai://oauth-callback';
   static const sessionUid = 'c35_session_uid';
   static const sessionName = 'c35_session_name';
@@ -22,9 +24,9 @@ class C35AppId {
 Future<String> deviceInstallId() async {
   final p = await SharedPreferences.getInstance();
   var id = p.getString(C35AppId.installId) ?? '';
-  if (id.isEmpty) {
-    id = const Uuid().v4();
-    await p.setString(C35AppId.installId, id);
-  }
+  if (id.isNotEmpty && id.startsWith('${C35AppId.id}-')) return id;
+  if (id.isNotEmpty) await p.remove(C35AppId.installId);
+  id = '${C35AppId.id}-${const Uuid().v4()}';
+  await p.setString(C35AppId.installId, id);
   return id;
 }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:alienai_c35/c/log.dart';
+import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:alienai_c35/c/pb/c35/remote.pb.dart';
 import 'package:alienai_c35/c/remote/remote_session.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -306,7 +307,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                 builder: (context, version, _) {
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
-                    child: Tooltip(
+                    child: uiTooltip(
                       message: version != null
                           ? 'Agent update v$version ready. Click to restart and apply now.'
                           : 'Update ready. Click to restart and apply.',
@@ -383,15 +384,14 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
 
             // Send text action
             if (controlEnabled) ...[
-              IconButton(
+              uiIconButton(
                 tooltip: 'Send Text',
                 icon: const Icon(Icons.keyboard_outlined, size: 18, color: _zinc400),
                 onPressed: _showSendTextDialog,
                 visualDensity: VisualDensity.compact,
               ),
               PopupMenuButton<String>(
-                tooltip: 'Special Keys & Shortcuts',
-                icon: const Icon(Icons.more_horiz_rounded, size: 18, color: _zinc400),
+                tooltip: uiPopupMenuTooltipText('Special Keys & Shortcuts'),
                 color: const Color(0xFF18181B),
                 itemBuilder: (_) => [
                   const PopupMenuItem(value: 'vk:13', child: Text('Enter (↵)', style: TextStyle(color: _zinc100, fontSize: 13))),
@@ -415,12 +415,16 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                     _sendShortcut(val.substring(6));
                   }
                 },
+                child: uiPopupMenuChild(
+                  tooltip: 'Special Keys & Shortcuts',
+                  child: const Icon(Icons.more_horiz_rounded, size: 18, color: _zinc400),
+                ),
               ),
             ],
           ],
 
           // Reconnect / Stop button
-          IconButton(
+          uiIconButton(
             tooltip: connected ? 'Stop Session' : 'Reconnect',
             icon: Icon(
               connected ? Icons.stop_circle_outlined : Icons.refresh_rounded,

@@ -12,7 +12,7 @@ use config::Config;
 use manager::ChannelManager;
 use nats::NatsService;
 use routes::router;
-use sqlx::postgres::PgPoolOptions;
+use c35_store::pool_connect_url;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tower_http::cors::CorsLayer;
@@ -46,10 +46,7 @@ async fn main() -> Result<()> {
 
     tokio::fs::create_dir_all(&cfg.sessions_dir).await?;
 
-    let pool = PgPoolOptions::new()
-        .max_connections(10)
-        .connect(&cfg.db_url())
-        .await?;
+    let pool = pool_connect_url(&cfg.db_url()).await?;
     info!("[wa-device] Yugabyte connected");
 
     let nats = match NatsService::connect(

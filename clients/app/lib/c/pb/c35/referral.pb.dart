@@ -1616,6 +1616,540 @@ class ResReferralCommissionSimulate extends $pb.GeneratedMessage {
   void clearUndistributed() => $_clearField(6);
 }
 
+class CommissionLedgerEntry extends $pb.GeneratedMessage {
+  factory CommissionLedgerEntry({
+    $fixnum.Int64? id,
+    $core.String? entryType,
+    $core.double? amountUsd,
+    $core.double? amountIdr,
+    $core.String? currency,
+    $core.String? status,
+    $fixnum.Int64? sourceIid,
+    $core.String? eventType,
+    $core.String? referenceId,
+    $fixnum.Int64? createdTsMs,
+  }) {
+    final result = CommissionLedgerEntry._();
+    if (id != null) result.id = id;
+    if (entryType != null) result.entryType = entryType;
+    if (amountUsd != null) result.amountUsd = amountUsd;
+    if (amountIdr != null) result.amountIdr = amountIdr;
+    if (currency != null) result.currency = currency;
+    if (status != null) result.status = status;
+    if (sourceIid != null) result.sourceIid = sourceIid;
+    if (eventType != null) result.eventType = eventType;
+    if (referenceId != null) result.referenceId = referenceId;
+    if (createdTsMs != null) result.createdTsMs = createdTsMs;
+    return result;
+  }
+
+  CommissionLedgerEntry._();
+
+  factory CommissionLedgerEntry.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      CommissionLedgerEntry()..mergeFromBuffer(data, registry);
+  factory CommissionLedgerEntry.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      CommissionLedgerEntry()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'CommissionLedgerEntry',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: CommissionLedgerEntry.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'id')
+    ..aOS(2, _omitFieldNames ? '' : 'entryType')
+    ..aD(3, _omitFieldNames ? '' : 'amountUsd')
+    ..aD(4, _omitFieldNames ? '' : 'amountIdr')
+    ..aOS(5, _omitFieldNames ? '' : 'currency')
+    ..aOS(6, _omitFieldNames ? '' : 'status')
+    ..aInt64(7, _omitFieldNames ? '' : 'sourceIid')
+    ..aOS(8, _omitFieldNames ? '' : 'eventType')
+    ..aOS(9, _omitFieldNames ? '' : 'referenceId')
+    ..aInt64(10, _omitFieldNames ? '' : 'createdTsMs')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  CommissionLedgerEntry clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  CommissionLedgerEntry copyWith(
+          void Function(CommissionLedgerEntry) updates) =>
+      super.copyWith((message) => updates(message as CommissionLedgerEntry))
+          as CommissionLedgerEntry;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use CommissionLedgerEntry() / CommissionLedgerEntry.new instead')
+  static CommissionLedgerEntry create() => CommissionLedgerEntry._();
+  static $pb.GeneratedMessage $_createMessage() => CommissionLedgerEntry._();
+  @$core.override
+  CommissionLedgerEntry createEmptyInstance() => CommissionLedgerEntry._();
+  @$core.pragma('dart2js:noInline')
+  static CommissionLedgerEntry getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<CommissionLedgerEntry>(
+          CommissionLedgerEntry.$_createMessage);
+  static CommissionLedgerEntry? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get id => $_getI64(0);
+  @$pb.TagNumber(1)
+  set id($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get entryType => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set entryType($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasEntryType() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearEntryType() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.double get amountUsd => $_getN(2);
+  @$pb.TagNumber(3)
+  set amountUsd($core.double value) => $_setDouble(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasAmountUsd() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearAmountUsd() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.double get amountIdr => $_getN(3);
+  @$pb.TagNumber(4)
+  set amountIdr($core.double value) => $_setDouble(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasAmountIdr() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearAmountIdr() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get currency => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set currency($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasCurrency() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearCurrency() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get status => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set status($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasStatus() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearStatus() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $fixnum.Int64 get sourceIid => $_getI64(6);
+  @$pb.TagNumber(7)
+  set sourceIid($fixnum.Int64 value) => $_setInt64(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasSourceIid() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearSourceIid() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.String get eventType => $_getSZ(7);
+  @$pb.TagNumber(8)
+  set eventType($core.String value) => $_setString(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasEventType() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearEventType() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.String get referenceId => $_getSZ(8);
+  @$pb.TagNumber(9)
+  set referenceId($core.String value) => $_setString(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasReferenceId() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearReferenceId() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $fixnum.Int64 get createdTsMs => $_getI64(9);
+  @$pb.TagNumber(10)
+  set createdTsMs($fixnum.Int64 value) => $_setInt64(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasCreatedTsMs() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearCreatedTsMs() => $_clearField(10);
+}
+
+class ReqCommissionWithdraw extends $pb.GeneratedMessage {
+  factory ReqCommissionWithdraw({
+    $core.double? amountUsd,
+    $core.String? payoutMethod,
+    $core.double? amountIdr,
+    $core.String? currency,
+    $core.String? bankId,
+    $core.String? accountNumber,
+    $core.String? accountName,
+  }) {
+    final result = ReqCommissionWithdraw._();
+    if (amountUsd != null) result.amountUsd = amountUsd;
+    if (payoutMethod != null) result.payoutMethod = payoutMethod;
+    if (amountIdr != null) result.amountIdr = amountIdr;
+    if (currency != null) result.currency = currency;
+    if (bankId != null) result.bankId = bankId;
+    if (accountNumber != null) result.accountNumber = accountNumber;
+    if (accountName != null) result.accountName = accountName;
+    return result;
+  }
+
+  ReqCommissionWithdraw._();
+
+  factory ReqCommissionWithdraw.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqCommissionWithdraw()..mergeFromBuffer(data, registry);
+  factory ReqCommissionWithdraw.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqCommissionWithdraw()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqCommissionWithdraw',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqCommissionWithdraw.$_createMessage)
+    ..aD(1, _omitFieldNames ? '' : 'amountUsd')
+    ..aOS(2, _omitFieldNames ? '' : 'payoutMethod')
+    ..aD(3, _omitFieldNames ? '' : 'amountIdr')
+    ..aOS(4, _omitFieldNames ? '' : 'currency')
+    ..aOS(5, _omitFieldNames ? '' : 'bankId')
+    ..aOS(6, _omitFieldNames ? '' : 'accountNumber')
+    ..aOS(7, _omitFieldNames ? '' : 'accountName')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqCommissionWithdraw clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqCommissionWithdraw copyWith(
+          void Function(ReqCommissionWithdraw) updates) =>
+      super.copyWith((message) => updates(message as ReqCommissionWithdraw))
+          as ReqCommissionWithdraw;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqCommissionWithdraw() / ReqCommissionWithdraw.new instead')
+  static ReqCommissionWithdraw create() => ReqCommissionWithdraw._();
+  static $pb.GeneratedMessage $_createMessage() => ReqCommissionWithdraw._();
+  @$core.override
+  ReqCommissionWithdraw createEmptyInstance() => ReqCommissionWithdraw._();
+  @$core.pragma('dart2js:noInline')
+  static ReqCommissionWithdraw getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqCommissionWithdraw>(
+          ReqCommissionWithdraw.$_createMessage);
+  static ReqCommissionWithdraw? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.double get amountUsd => $_getN(0);
+  @$pb.TagNumber(1)
+  set amountUsd($core.double value) => $_setDouble(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasAmountUsd() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearAmountUsd() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get payoutMethod => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set payoutMethod($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasPayoutMethod() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearPayoutMethod() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.double get amountIdr => $_getN(2);
+  @$pb.TagNumber(3)
+  set amountIdr($core.double value) => $_setDouble(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasAmountIdr() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearAmountIdr() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get currency => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set currency($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasCurrency() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearCurrency() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get bankId => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set bankId($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasBankId() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearBankId() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get accountNumber => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set accountNumber($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasAccountNumber() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearAccountNumber() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.String get accountName => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set accountName($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasAccountName() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearAccountName() => $_clearField(7);
+}
+
+class ResCommissionWithdraw extends $pb.GeneratedMessage {
+  factory ResCommissionWithdraw({
+    $core.bool? success,
+    $core.double? commissionAvailableUsd,
+    $core.double? newWalletBalanceUsd,
+    $core.double? commissionAvailableIdr,
+    $core.double? newWalletBalanceIdr,
+    $core.String? currency,
+  }) {
+    final result = ResCommissionWithdraw._();
+    if (success != null) result.success = success;
+    if (commissionAvailableUsd != null)
+      result.commissionAvailableUsd = commissionAvailableUsd;
+    if (newWalletBalanceUsd != null)
+      result.newWalletBalanceUsd = newWalletBalanceUsd;
+    if (commissionAvailableIdr != null)
+      result.commissionAvailableIdr = commissionAvailableIdr;
+    if (newWalletBalanceIdr != null)
+      result.newWalletBalanceIdr = newWalletBalanceIdr;
+    if (currency != null) result.currency = currency;
+    return result;
+  }
+
+  ResCommissionWithdraw._();
+
+  factory ResCommissionWithdraw.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResCommissionWithdraw()..mergeFromBuffer(data, registry);
+  factory ResCommissionWithdraw.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResCommissionWithdraw()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResCommissionWithdraw',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResCommissionWithdraw.$_createMessage)
+    ..aOB(1, _omitFieldNames ? '' : 'success')
+    ..aD(2, _omitFieldNames ? '' : 'commissionAvailableUsd')
+    ..aD(3, _omitFieldNames ? '' : 'newWalletBalanceUsd')
+    ..aD(4, _omitFieldNames ? '' : 'commissionAvailableIdr')
+    ..aD(5, _omitFieldNames ? '' : 'newWalletBalanceIdr')
+    ..aOS(6, _omitFieldNames ? '' : 'currency')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResCommissionWithdraw clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResCommissionWithdraw copyWith(
+          void Function(ResCommissionWithdraw) updates) =>
+      super.copyWith((message) => updates(message as ResCommissionWithdraw))
+          as ResCommissionWithdraw;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResCommissionWithdraw() / ResCommissionWithdraw.new instead')
+  static ResCommissionWithdraw create() => ResCommissionWithdraw._();
+  static $pb.GeneratedMessage $_createMessage() => ResCommissionWithdraw._();
+  @$core.override
+  ResCommissionWithdraw createEmptyInstance() => ResCommissionWithdraw._();
+  @$core.pragma('dart2js:noInline')
+  static ResCommissionWithdraw getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResCommissionWithdraw>(
+          ResCommissionWithdraw.$_createMessage);
+  static ResCommissionWithdraw? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get success => $_getBF(0);
+  @$pb.TagNumber(1)
+  set success($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSuccess() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSuccess() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.double get commissionAvailableUsd => $_getN(1);
+  @$pb.TagNumber(2)
+  set commissionAvailableUsd($core.double value) => $_setDouble(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasCommissionAvailableUsd() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearCommissionAvailableUsd() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.double get newWalletBalanceUsd => $_getN(2);
+  @$pb.TagNumber(3)
+  set newWalletBalanceUsd($core.double value) => $_setDouble(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasNewWalletBalanceUsd() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearNewWalletBalanceUsd() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.double get commissionAvailableIdr => $_getN(3);
+  @$pb.TagNumber(4)
+  set commissionAvailableIdr($core.double value) => $_setDouble(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasCommissionAvailableIdr() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearCommissionAvailableIdr() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.double get newWalletBalanceIdr => $_getN(4);
+  @$pb.TagNumber(5)
+  set newWalletBalanceIdr($core.double value) => $_setDouble(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasNewWalletBalanceIdr() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearNewWalletBalanceIdr() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get currency => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set currency($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasCurrency() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearCurrency() => $_clearField(6);
+}
+
+class ReqReferralLedgerList extends $pb.GeneratedMessage {
+  factory ReqReferralLedgerList({
+    $core.int? limit,
+  }) {
+    final result = ReqReferralLedgerList._();
+    if (limit != null) result.limit = limit;
+    return result;
+  }
+
+  ReqReferralLedgerList._();
+
+  factory ReqReferralLedgerList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqReferralLedgerList()..mergeFromBuffer(data, registry);
+  factory ReqReferralLedgerList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqReferralLedgerList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqReferralLedgerList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqReferralLedgerList.$_createMessage)
+    ..aI(1, _omitFieldNames ? '' : 'limit')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqReferralLedgerList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqReferralLedgerList copyWith(
+          void Function(ReqReferralLedgerList) updates) =>
+      super.copyWith((message) => updates(message as ReqReferralLedgerList))
+          as ReqReferralLedgerList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqReferralLedgerList() / ReqReferralLedgerList.new instead')
+  static ReqReferralLedgerList create() => ReqReferralLedgerList._();
+  static $pb.GeneratedMessage $_createMessage() => ReqReferralLedgerList._();
+  @$core.override
+  ReqReferralLedgerList createEmptyInstance() => ReqReferralLedgerList._();
+  @$core.pragma('dart2js:noInline')
+  static ReqReferralLedgerList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqReferralLedgerList>(
+          ReqReferralLedgerList.$_createMessage);
+  static ReqReferralLedgerList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.int get limit => $_getIZ(0);
+  @$pb.TagNumber(1)
+  set limit($core.int value) => $_setSignedInt32(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasLimit() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearLimit() => $_clearField(1);
+}
+
+class ResReferralLedgerList extends $pb.GeneratedMessage {
+  factory ResReferralLedgerList({
+    $core.Iterable<CommissionLedgerEntry>? items,
+  }) {
+    final result = ResReferralLedgerList._();
+    if (items != null) result.items.addAll(items);
+    return result;
+  }
+
+  ResReferralLedgerList._();
+
+  factory ResReferralLedgerList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResReferralLedgerList()..mergeFromBuffer(data, registry);
+  factory ResReferralLedgerList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResReferralLedgerList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResReferralLedgerList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResReferralLedgerList.$_createMessage)
+    ..pPM<CommissionLedgerEntry>(1, _omitFieldNames ? '' : 'items',
+        subBuilder: CommissionLedgerEntry.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResReferralLedgerList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResReferralLedgerList copyWith(
+          void Function(ResReferralLedgerList) updates) =>
+      super.copyWith((message) => updates(message as ResReferralLedgerList))
+          as ResReferralLedgerList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResReferralLedgerList() / ResReferralLedgerList.new instead')
+  static ResReferralLedgerList create() => ResReferralLedgerList._();
+  static $pb.GeneratedMessage $_createMessage() => ResReferralLedgerList._();
+  @$core.override
+  ResReferralLedgerList createEmptyInstance() => ResReferralLedgerList._();
+  @$core.pragma('dart2js:noInline')
+  static ResReferralLedgerList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResReferralLedgerList>(
+          ResReferralLedgerList.$_createMessage);
+  static ResReferralLedgerList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<CommissionLedgerEntry> get items => $_getList(0);
+}
+
 const $core.bool _omitFieldNames =
     $core.bool.fromEnvironment('protobuf.omit_field_names');
 const $core.bool _omitMessageNames =

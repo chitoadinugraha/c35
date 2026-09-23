@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: c35-fetcher
+  namespace: c35
+  labels:
+    app.kubernetes.io/name: c35-fetcher
+    app.kubernetes.io/part-of: c35
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: c35-fetcher
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: c35-fetcher
+        app.kubernetes.io/part-of: c35
+    spec:
+      nodeSelector:
+        kubernetes.io/arch: arm64
+      imagePullSecrets:
+        - name: docker-registry-auth
+      containers:
+        - name: c35-fetcher
+          image: hsg.ocir.io/axr8wqrrukgm/c35-fetcher:latest
+          imagePullPolicy: Always
+          envFrom:
+            - secretRef:
+                name: c35-server-env
+          env:
+            - name: YB_DATABASE
+              value: c35
+            - name: YB_HOST
+              value: yb-tservers.yugabyte.svc.cluster.local
+            - name: YB_PORT
+              value: "5433"
+            - name: NATS_URL
+              value: tls://nats-client.nats.svc.cluster.local:4222
+            - name: NATS_CA
+              value: /nats-ca/ca.crt
+            - name: FX_MARKUP_BPS
+              value: "1000"
+            - name: FX_CHANGE_THRESHOLD_BPS
+              value: "25"
+            - name: FX_FETCH_INTERVAL_SECS
+              value: "3600"
+            - name: OPENEXCHANGERATES_APP_ID
+              value: "bbfbc56fd1ab494dbbc4531e325e6b8b"
+            - name: EXTERNAL_FETCHER
+              value: "1"
+            - name: NO_PROXY
+              value: ".svc.cluster.local,.cluster.local,localhost,127.0.0.1"
+            - name: RUST_LOG
+              value: info,server_fetcher=debug,c35_mod_fetch=debug,c35_mod_billing=info,c35_mod_llm=info
+          resources:
+            limits:
+              cpu: 200m
+              memory: 256Mi
+            requests:
+              cpu: 20m
+              memory: 64Mi
+          volumeMounts:
+            - name: nats-ca
+              mountPath: /nats-ca
+              readOnly: true
+      volumes:
+        - name: nats-ca
+          secret:
+            secretName: nats-ca

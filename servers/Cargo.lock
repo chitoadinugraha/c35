@@ -410,6 +410,7 @@ dependencies = [
  "base64 0.22.1",
  "bytes",
  "c35_mod_log",
+ "c35_store",
  "chrono",
  "dashmap",
  "futures-util",
@@ -458,8 +459,11 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-nats",
+ "async-trait",
+ "axum",
  "c35_ctx",
  "c35_mod_admin",
+ "c35_mod_fetch",
  "c35_mod_llm",
  "c35_mod_log",
  "c35_mod_referral",
@@ -467,11 +471,16 @@ dependencies = [
  "c35_store",
  "c35_wire",
  "chrono",
+ "futures-util",
  "prost 0.13.5",
+ "reqwest",
+ "serde",
  "serde_json",
+ "sha2",
  "sqlx",
  "tokio",
  "tracing",
+ "urlencoding",
 ]
 
 [[package]]
@@ -518,6 +527,7 @@ dependencies = [
  "c35_mod_billing",
  "c35_mod_consumption",
  "c35_mod_device",
+ "c35_mod_fetch",
  "c35_mod_file",
  "c35_mod_hint",
  "c35_mod_llm",
@@ -580,6 +590,22 @@ dependencies = [
  "sha1",
  "sqlx",
  "tokio",
+]
+
+[[package]]
+name = "c35_mod_fetch"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-nats",
+ "async-trait",
+ "c35_proto",
+ "c35_store",
+ "prost 0.13.5",
+ "reqwest",
+ "sqlx",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -655,10 +681,15 @@ name = "c35_mod_llm"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-nats",
+ "async-trait",
  "blake3",
+ "c35_mod_fetch",
  "c35_proto",
  "c35_store",
  "chrono",
+ "futures-util",
+ "prost 0.13.5",
  "reqwest",
  "serde_json",
  "sqlx",
@@ -3680,6 +3711,7 @@ dependencies = [
  "async-nats",
  "axum",
  "c35_ctx",
+ "c35_mod_billing",
  "c35_mod_channel",
  "c35_mod_chat",
  "c35_mod_device",
@@ -3693,8 +3725,28 @@ dependencies = [
  "c35_wire_http",
  "c35_wire_ws",
  "dotenvy",
+ "reqwest",
  "tokio",
  "tower-http",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "server_fetcher"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "c35_mod_billing",
+ "c35_mod_chat",
+ "c35_mod_fetch",
+ "c35_mod_llm",
+ "c35_nats",
+ "c35_store",
+ "c35_trace",
+ "dotenvy",
+ "reqwest",
+ "tokio",
  "tracing",
  "tracing-subscriber",
 ]

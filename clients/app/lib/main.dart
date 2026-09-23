@@ -18,6 +18,7 @@ import 'package:alienai_c35/pages/auth/page_sign_in.dart';
 import 'package:alienai_c35/pages/auth/ui_session_lock_gate.dart';
 import 'package:alienai_c35/pages/page_ai_home.dart';
 import 'package:alienai_c35/widgets/ui/ui_error_fallback.dart';
+import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:alienai_c35/widgets/ui/ui_update_banner.dart';
 import 'package:alienai_c35/widgets/ui/ui_update_countdown_dialog.dart';
@@ -166,6 +167,7 @@ class _C35AppState extends State<C35App> {
             return MaterialApp(
               debugShowCheckedModeBanner: false,
               theme: ThemeData(brightness: Brightness.dark, scaffoldBackgroundColor: _bg),
+              builder: (context, child) => uiSemanticsGuard(child ?? const SizedBox.shrink()),
               home: UiErrorFallback(showChrome: true, onRetry: uiErrorClear),
             );
           }
@@ -182,13 +184,13 @@ class _C35AppState extends State<C35App> {
               colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF22C55E), brightness: Brightness.dark),
               useMaterial3: true,
             ),
-            builder: (context, child) => UiErrorHost(
+            builder: (context, child) => uiSemanticsGuard(UiErrorHost(
               child: Listener(
                 onPointerDown: (_) => AppUpdateService.instance.recordUserActivity(),
                 onPointerMove: (_) => AppUpdateService.instance.recordUserActivity(),
                 child: UiDesktopChrome(child: child ?? const SizedBox.shrink()),
               ),
-            ),
+            )),
             home: AppUpdateHost(
               appReady: _ready,
               child: !_ready

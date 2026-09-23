@@ -47,7 +47,11 @@ servers/
       main.rs
       config.rs
       boot.rs
+  fetcher/                    # thin binary — periodic external sync (c35-fetcher)
+    Cargo.toml
+    src/main.rs
   crates/
+    mod_fetch/                # FetchTask trait + runner + NATS publish helper
     proto/                    # prost codegen from _/schemas/proto
       build.rs
       src/lib.rs
@@ -99,11 +103,12 @@ servers/
 ### Dependency direction
 
 ```
-server_ai → wire_ws, wire_http → mod_identity, mod_billing → store, proto
-                              → system/ctx, system/trace
+server_ai    → wire_ws, wire_http → mod_identity, mod_billing → store, proto
+             → system/ctx, system/trace
+server_fetcher → mod_fetch → mod_billing, mod_llm → store, proto
 ```
 
-`mod_*` must not depend on `wire_ws` or `server_ai`.
+`mod_*` must not depend on `wire_ws`, `server_ai`, or `server_fetcher`.
 
 ### Inside a `mod_*` crate
 
@@ -185,6 +190,10 @@ Implementation plan: [`docs/superpowers/plans/2026-09-21-remote-agent-pairing.md
 | `LISTEN` | HTTP bind (default `0.0.0.0:8080`) |
 | `C35_DB_MIGRATE` | `1` = apply `_/schemas/*.sql` on boot |
 | `YB_*` / `POSTGRES_*` | Yugabyte connection |
+| `PG_MAX_CONNECTIONS` | SQLx pool size per process (default `24`) |
+| `PG_MIN_CONNECTIONS` | Warm idle connections (default `4`) |
+| `PG_SLOW_STATEMENT_MS` | Log SQL slower than this at `WARN` via `sqlx::query` (default `1000`) |
+| `PG_SLOW_ACQUIRE_MS` | Log pool acquire slower than this (default `3000`) |
 | `C35_JWT_SECRET` | WS `?jwt=` validation |
 | `NATS_URL` | optional Phase 5+ |
 

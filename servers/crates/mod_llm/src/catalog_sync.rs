@@ -7,14 +7,15 @@ use serde_json::Value;
 use sqlx::PgPool;
 
 use crate::catalog_price::{price_for_model_id, DEFAULT_INPUT_MICRO_PER_M, DEFAULT_OUTPUT_MICRO_PER_M};
-use crate::catalog_rank::{family_of, gemini_chat_eligible, model_list_sort_cmp, pick_default_provider, sort_order_for, version_rank_of};
+use crate::catalog_rank::{apply_gemini_enabled, family_of, gemini_chat_eligible, is_preview_id, model_list_sort_cmp, pick_default_provider, sort_order_for, version_rank_of};
+use crate::runtime_config::{cf_gateway_config, cf_gateway_ready};
 use crate::embed_gemini::gemini_api_key;
 use crate::catalog_types::LlmModelRow;
-use crate::llm_catalog::{llm_catalog_reload, sync_enabled, sync_unlock, try_sync_lock, upsert_model, SYNC_INTERVAL_SECS};
+use crate::llm_catalog::{llm_catalog_reload, sync_enabled, upsert_model, SYNC_INTERVAL_SECS};
 use crate::runtime_config::{runtime_config_reload, CONFIG_KEY_ALIEN_CHAIN};
 
 pub fn llm_catalog_spawn(pool: PgPool) {
-    if !sync_enabled() {
+    if crate::fetch_catalog::external_fetcher_enabled() || !sync_enabled() {
         return;
     }
     tokio::spawn(async move {
@@ -30,12 +31,16 @@ pub fn llm_catalog_spawn(pool: PgPool) {
 }
 
 pub async fn llm_catalog_sync(pool: &PgPool) -> Result<()> {
-    if !try_sync_lock(pool).await? {
-        tracing::debug!("llm_catalog sync: lock held by peer");
-        return Ok(());
-    }
+    let _ = llm_catalog_sync_force(pool).await?;
+    Ok(())
+}
+
+pub async fn llm_catalog_sync_force(pool: &PgPool) -> Result<usize> {
     let synced_at = Utc::now();
     let mut fetched = gemini_fetch().await?;
+    let cf = cf_models_fetch().await?;
+    prune_stale_cf(pool, &cf).await?;
+    fetched.extend(cf);
     for (idx, m) in fetched.iter_mut().enumerate() {
         m.sort_order = sort_order_for(m, idx as i32);
         upsert_model(pool, m, synced_at).await?;
@@ -56,9 +61,9 @@ pub async fn llm_catalog_sync(pool: &PgPool) -> Result<()> {
     }
     llm_catalog_reload(pool).await?;
     runtime_config_reload(pool).await;
-    sync_unlock(pool).await?;
-    tracing::info!(models = fetched.len(), "llm_catalog synced");
-    Ok(())
+    let n = fetched.len();
+    tracing::info!(models = n, "llm_catalog synced");
+    Ok(n)
 }
 
 pub fn pinned_models() -> Vec<LlmModelRow> {
@@ -158,7 +163,6 @@ async fn gemini_fetch() -> Result<Vec<LlmModelRow>> {
         .context("gemini models list json")?;
     let models = v["models"].as_array().cloned().unwrap_or_default();
     let mut out = Vec::new();
-    let mut seen_family: std::collections::HashMap<String, i32> = std::collections::HashMap::new();
     for raw in models {
         let name = raw["name"].as_str().unwrap_or("").trim();
         if name.is_empty() {
@@ -173,10 +177,6 @@ async fn gemini_fetch() -> Result<Vec<LlmModelRow>> {
             continue;
         }
         let family = family_of(&id);
-        let fam_idx = seen_family.entry(family.clone()).or_insert(0);
-        let idx = *fam_idx;
-        *fam_idx += 1;
-        let enabled = matches!(family.as_str(), "flash-lite" | "flash" | "pro") && idx < 3;
         let label = raw["displayName"].as_str().unwrap_or(&id).to_string();
         let (in_ppm, out_ppm) = price_for_model_id(&id).unwrap_or((DEFAULT_INPUT_MICRO_PER_M, DEFAULT_OUTPUT_MICRO_PER_M));
         let version_rank = version_rank_of(&id);
@@ -190,7 +190,7 @@ async fn gemini_fetch() -> Result<Vec<LlmModelRow>> {
             input_micro_per_m: in_ppm,
             output_micro_per_m: out_ppm,
             supports_thinking,
-            enabled,
+            enabled: false,
             is_default: false,
             sort_order: 0,
             family,
@@ -198,9 +198,125 @@ async fn gemini_fetch() -> Result<Vec<LlmModelRow>> {
             source: "api".into(),
         });
     }
+    apply_gemini_enabled(&mut out);
+    for (idx, m) in out.iter_mut().enumerate() {
+        m.sort_order = sort_order_for(m, idx as i32);
+    }
+    Ok(out)
+}
+
+async fn cf_models_fetch() -> Result<Vec<LlmModelRow>> {
+    if !cf_gateway_ready() {
+        return Ok(Vec::new());
+    }
+    let cfg = cf_gateway_config();
+    let url = format!(
+        "https://api.cloudflare.com/client/v4/accounts/{}/ai/models/search?format=openrouter&per_page=200&hide_experimental=true",
+        cfg.account_id
+    );
+    let v: Value = reqwest::Client::new()
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", cfg.api_token))
+        .timeout(Duration::from_secs(45))
+        .send()
+        .await
+        .context("cf models search")?
+        .error_for_status()
+        .context("cf models search status")?
+        .json()
+        .await
+        .context("cf models search json")?;
+    let rows = v["result"].as_array().cloned().unwrap_or_default();
+    let mut out = Vec::new();
+    for raw in rows {
+        let id = raw["id"].as_str().or_else(|| raw["name"].as_str()).unwrap_or("").trim().to_string();
+        if id.is_empty() || !cf_chat_eligible(&id) {
+            continue;
+        }
+        let (provider, slug) = cf_provider_slug(&id)?;
+        let label = raw["name"]
+            .as_str()
+            .or_else(|| raw["display_name"].as_str())
+            .unwrap_or(&slug)
+            .to_string();
+        let family = family_of(&slug);
+        let version_rank = version_rank_of(&slug);
+        let (in_ppm, out_ppm) = price_for_model_id(&slug).unwrap_or((DEFAULT_INPUT_MICRO_PER_M, DEFAULT_OUTPUT_MICRO_PER_M));
+        let thinks = slug.contains("gemini-3") || slug.contains("claude") || slug.contains("o1");
+        out.push(LlmModelRow {
+            id: slug,
+            provider,
+            label,
+            provider_model: id,
+            input_micro_per_m: in_ppm,
+            output_micro_per_m: out_ppm,
+            supports_thinking: thinks,
+            enabled: true,
+            is_default: false,
+            sort_order: 0,
+            family,
+            version_rank,
+            source: "cf_api".into(),
+        });
+    }
     out.sort_by(model_list_sort_cmp);
     for (idx, m) in out.iter_mut().enumerate() {
         m.sort_order = sort_order_for(m, idx as i32);
     }
     Ok(out)
+}
+
+fn cf_provider_slug(id: &str) -> Result<(String, String)> {
+    let lower = id.to_ascii_lowercase();
+    if lower.starts_with("openai/") {
+        return Ok(("openai".into(), lower.strip_prefix("openai/").unwrap_or(&lower).to_string()));
+    }
+    if lower.starts_with("anthropic/") {
+        return Ok(("anthropic".into(), lower.strip_prefix("anthropic/").unwrap_or(&lower).to_string()));
+    }
+    if lower.starts_with("deepseek/") {
+        return Ok(("deepseek".into(), lower.strip_prefix("deepseek/").unwrap_or(&lower).to_string()));
+    }
+    if lower.starts_with("google/") {
+        return Err(anyhow::anyhow!("skip google cf model"));
+    }
+    if lower.starts_with("@cf/") {
+        return Ok(("cloudflare".into(), lower.to_string()));
+    }
+    Err(anyhow::anyhow!("unsupported cf model id: {id}"))
+}
+
+fn cf_chat_eligible(id: &str) -> bool {
+    let m = id.to_ascii_lowercase();
+    if is_preview_id(&m) {
+        return false;
+    }
+    const SKIP: &[&str] = &[
+        "embed", "embedding", "whisper", "tts", "dall-e", "image", "moderation", "transcribe", "realtime",
+    ];
+    if SKIP.iter().any(|s| m.contains(s)) {
+        return false;
+    }
+    m.starts_with("openai/")
+        || m.starts_with("anthropic/")
+        || m.starts_with("deepseek/")
+        || m.starts_with("@cf/")
+}
+
+async fn prune_stale_cf(pool: &PgPool, fetched: &[LlmModelRow]) -> Result<()> {
+    if fetched.is_empty() {
+        return Ok(());
+    }
+    let ids: Vec<String> = fetched.iter().map(|m| m.id.clone()).collect();
+    db_retry(pool, || async {
+        sqlx::query(
+            "UPDATE ai.llm_model SET deleted_at = NOW(), enabled = false, updated_at = NOW() \
+             WHERE source = 'cf_api' AND deleted_at IS NULL AND NOT (id = ANY($1))",
+        )
+        .bind(&ids)
+        .execute(pool)
+        .await
+    })
+    .await?;
+    Ok(())
 }

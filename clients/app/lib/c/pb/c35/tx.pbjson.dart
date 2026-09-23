@@ -407,8 +407,10 @@ const TxItem$json = {
     {'1': 'site_iid', '3': 1, '4': 1, '5': 3, '10': 'siteIid'},
     {'1': 'tx_id', '3': 2, '4': 1, '5': 3, '10': 'txId'},
     {'1': 'item_id', '3': 3, '4': 1, '5': 3, '10': 'itemId'},
+    {'1': 'owner_iid', '3': 6, '4': 1, '5': 3, '10': 'ownerIid'},
     {'1': 'product_id', '3': 4, '4': 1, '5': 3, '10': 'productId'},
     {'1': 'product_rev', '3': 5, '4': 1, '5': 3, '10': 'productRev'},
+    {'1': 'obj_id', '3': 41, '4': 1, '5': 3, '10': 'objId'},
     {'1': 'price', '3': 11, '4': 1, '5': 3, '10': 'price'},
     {'1': 'qty', '3': 13, '4': 1, '5': 5, '10': 'qty'},
     {'1': 'note', '3': 12, '4': 1, '5': 9, '10': 'note'},
@@ -451,18 +453,19 @@ const TxItem$json = {
 /// Descriptor for `TxItem`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List txItemDescriptor = $convert.base64Decode(
     'CgZUeEl0ZW0SGQoIc2l0ZV9paWQYASABKANSB3NpdGVJaWQSEwoFdHhfaWQYAiABKANSBHR4SW'
-    'QSFwoHaXRlbV9pZBgDIAEoA1IGaXRlbUlkEh0KCnByb2R1Y3RfaWQYBCABKANSCXByb2R1Y3RJ'
-    'ZBIfCgtwcm9kdWN0X3JldhgFIAEoA1IKcHJvZHVjdFJldhIUCgVwcmljZRgLIAEoA1IFcHJpY2'
-    'USEAoDcXR5GA0gASgFUgNxdHkSEgoEbm90ZRgMIAEoCVIEbm90ZRIhCgxiYXRjaF9udW1iZXIY'
-    'ICABKAlSC2JhdGNoTnVtYmVyEiMKDXNlcmlhbF9udW1iZXIYISABKAlSDHNlcmlhbE51bWJlch'
-    'JIChFmdWxmaWxsbWVudF9zdGF0ZRglIAEoDjIbLmMzNS5UeEl0ZW1GdWxmaWxsbWVudFN0YXRl'
-    'UhBmdWxmaWxsbWVudFN0YXRlEhsKCXRvdGFsX3F0eRhlIAEoBVIIdG90YWxRdHkSHwoLdG90YW'
-    'xfcHJpY2UYZiABKANSCnRvdGFsUHJpY2USJQoOdG90YWxfZGlzY291bnQYZyABKANSDXRvdGFs'
-    'RGlzY291bnQSGwoJdG90YWxfdGF4GGggASgDUgh0b3RhbFRheBIbCgl0b3RhbF9uZXQYaSABKA'
-    'NSCHRvdGFsTmV0Eh4KCnRvdGFsX3BhaWQYygEgASgDUgl0b3RhbFBhaWQSIgoMdG90YWxfdW5w'
-    'YWlkGMkBIAEoA1ILdG90YWxVbnBhaWQSOgoMcmVzZXJ2YXRpb25zGBUgAygLMhYuYzM1LlR4SX'
-    'RlbVJlc2VydmF0aW9uUgxyZXNlcnZhdGlvbnMSKwoHc291cmNlcxgfIAMoCzIRLmMzNS5UeEl0'
-    'ZW1Tb3VyY2VSB3NvdXJjZXM=');
+    'QSFwoHaXRlbV9pZBgDIAEoA1IGaXRlbUlkEhsKCW93bmVyX2lpZBgGIAEoA1IIb3duZXJJaWQS'
+    'HQoKcHJvZHVjdF9pZBgEIAEoA1IJcHJvZHVjdElkEh8KC3Byb2R1Y3RfcmV2GAUgASgDUgpwcm'
+    '9kdWN0UmV2EhUKBm9ial9pZBgpIAEoA1IFb2JqSWQSFAoFcHJpY2UYCyABKANSBXByaWNlEhAK'
+    'A3F0eRgNIAEoBVIDcXR5EhIKBG5vdGUYDCABKAlSBG5vdGUSIQoMYmF0Y2hfbnVtYmVyGCAgAS'
+    'gJUgtiYXRjaE51bWJlchIjCg1zZXJpYWxfbnVtYmVyGCEgASgJUgxzZXJpYWxOdW1iZXISSAoR'
+    'ZnVsZmlsbG1lbnRfc3RhdGUYJSABKA4yGy5jMzUuVHhJdGVtRnVsZmlsbG1lbnRTdGF0ZVIQZn'
+    'VsZmlsbG1lbnRTdGF0ZRIbCgl0b3RhbF9xdHkYZSABKAVSCHRvdGFsUXR5Eh8KC3RvdGFsX3By'
+    'aWNlGGYgASgDUgp0b3RhbFByaWNlEiUKDnRvdGFsX2Rpc2NvdW50GGcgASgDUg10b3RhbERpc2'
+    'NvdW50EhsKCXRvdGFsX3RheBhoIAEoA1IIdG90YWxUYXgSGwoJdG90YWxfbmV0GGkgASgDUgh0'
+    'b3RhbE5ldBIeCgp0b3RhbF9wYWlkGMoBIAEoA1IJdG90YWxQYWlkEiIKDHRvdGFsX3VucGFpZB'
+    'jJASABKANSC3RvdGFsVW5wYWlkEjoKDHJlc2VydmF0aW9ucxgVIAMoCzIWLmMzNS5UeEl0ZW1S'
+    'ZXNlcnZhdGlvblIMcmVzZXJ2YXRpb25zEisKB3NvdXJjZXMYHyADKAsyES5jMzUuVHhJdGVtU2'
+    '91cmNlUgdzb3VyY2Vz');
 
 @$core.Deprecated('Use txItemReservationDescriptor instead')
 const TxItemReservation$json = {

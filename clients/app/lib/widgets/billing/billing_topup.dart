@@ -27,4 +27,17 @@ bool billingTopupAmountOk({required double amountUsd, double amountIdr = 0, bool
     usesIdr ? amountIdr >= billingTopupMinIdr : amountUsd >= billingTopupMinUsd;
 
 String billingManualTransferInstructions({required double amountIdr}) =>
-    'Transfer ${billingTopupIdrLabel(amountIdr)} ke $billingManualBank $billingManualAccount a.n. $billingManualAccountName, lalu paste link bukti transfer.';
+    billingManualTransferInstructionsFromAccount(
+      amountIdr: amountIdr,
+      bankId: billingManualBank,
+      accountNumber: billingManualAccount,
+      accountName: billingManualAccountName,
+    );
+
+String billingManualTransferInstructionsFromAccount({
+  required double amountIdr,
+  required String bankId,
+  required String accountNumber,
+  required String accountName,
+}) =>
+    'Transfer ${billingTopupIdrLabel(amountIdr)} ke $bankId $accountNumber a.n. $accountName, lalu upload bukti transfer.';

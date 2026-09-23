@@ -12,6 +12,7 @@ When code and docs disagree, fix the code to match these docs (or explicitly rev
 | [structure.md](structure.md) | Repo file tree, crate layout, conventions |
 | [identity.md](identity.md) | Identity model (`kind`, `type`, `alien_id`, grants) |
 | [chat.md](chat.md) | Chat kinds; Home inbox = prompt only |
+| [context-compaction.md](context-compaction.md) | Token packing, rolling summary, memory extraction, compaction billing |
 | [billing.md](billing.md) | Multi-wallet balances, quota, FX policy, top-up |
 | [billing-pricing.md](billing-pricing.md) | Alien / Frontier pool rates, model comparison, debit order |
 | [billing-plans.md](billing-plans.md) | Lite–Ultra plans, bot/device SKUs, promotions |
@@ -19,6 +20,7 @@ When code and docs disagree, fix the code to match these docs (or explicitly rev
 | [log.md](log.md) | Unified audit + billing log |
 | [sync.md](sync.md) | Incremental sync, `_ts` convention, NATS subjects |
 | [server.md](server.md) | Rust crate workspace layout |
+| [fetcher.md](fetcher.md) | `c35-fetcher` singleton — FX rate, LLM catalog, periodic external sync |
 | [ui.md](ui.md) | Flutter shell, pages, navigation |
 | [roadmap.md](roadmap.md) | Phase 0→9 start/end goals |
 | [skill.md](skill.md) | Skill scope, catalog, automation |

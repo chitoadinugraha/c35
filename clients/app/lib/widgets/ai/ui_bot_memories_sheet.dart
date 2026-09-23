@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:alienai_c35/c/api/settings_conn.dart';
 import 'package:alienai_c35/widgets/ui/ui_loading.dart';
+import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:flutter/material.dart';
 
 class MemoryRecord {
@@ -139,7 +140,7 @@ class _UiBotMemoriesSheetState extends State<UiBotMemoriesSheet> {
                                 Text(item.content, style: const TextStyle(color: Color(0xFFD4D4D8), fontSize: 13)),
                               ]),
                             ),
-                            IconButton(icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFF71717A)), tooltip: 'Forget memory', onPressed: () => _delete(item)),
+                            uiIconButton(icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFF71717A)), tooltip: 'Forget memory', onPressed: () => _delete(item)),
                           ]),
                         );
                       },

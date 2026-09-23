@@ -9,7 +9,7 @@ use tokio::sync::mpsc;
 use crate::grant::site_grant_check;
 use crate::rows::domain_from_row;
 use crate::sync_push::site_sync_push;
-use crate::tls_sync::domain_tls_ensure;
+use crate::tls_sync::{domain_tls_ensure, domain_tls_status_sync};
 use c35_proto::WsRes;
 use c35_store::snowflake_id;
 
@@ -122,7 +122,8 @@ pub async fn site_domain_put(
     .await?;
     tx.commit().await?;
     if verified_ts.is_some() {
-        let _ = domain_tls_ensure(&hostname).await;
+        let status = domain_tls_ensure(&hostname).await;
+        domain_tls_status_sync(pool, id, &status).await;
     }
     if let Some(tx) = out_tx {
         site_sync_push(

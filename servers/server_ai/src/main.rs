@@ -40,13 +40,18 @@ async fn main() -> anyhow::Result<()> {
         }
     );
     let pool = pool?;
+    c35_store::pool_monitor_spawn(pool.clone());
     c35_store::migrate_boot(&pool).await?;
+    c35_store::migrate_apply(&pool).await?;
+    c35_mod_billing::fx_live_init(&pool).await?;
     c35_mod_llm::llm_catalog_init(&pool).await?;
     c35_mod_llm::runtime_config_init(&pool).await;
     c35_mod_llm::llm_catalog_spawn(pool.clone());
     c35_mod_llm::runtime_config_watch(pool.clone());
     c35_mod_chat::inst_cache_init(&pool).await;
     if let Some(nats_client) = nats.clone() {
+        c35_mod_billing::fx_live_subscribe(pool.clone(), nats_client.clone());
+        c35_mod_llm::llm_catalog_nats_subscribe(pool.clone(), nats_client.clone());
         c35_mod_chat::inst_cache_nats_subscribe(pool.clone(), nats_client.clone());
         let cas_dir = cfg.cas_dir.clone();
         let _ = std::fs::create_dir_all(&cas_dir);

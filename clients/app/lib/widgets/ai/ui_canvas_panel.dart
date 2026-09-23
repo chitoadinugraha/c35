@@ -162,13 +162,15 @@ class _UiCanvasPanelState extends State<UiCanvasPanel> {
           ),
           if (versions.length > 1) ...[
             PopupMenuButton<int>(
-              tooltip: 'Version history',
+              tooltip: uiPopupMenuTooltipText('Version history'),
               initialValue: activeVerIdx,
               onSelected: (idx) {
                 widget.store.restoreVersion(idx);
                 _syncFromStore();
               },
-              child: Container(
+              child: uiPopupMenuChild(
+                tooltip: 'Version history',
+                child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: _panelBg,
@@ -189,6 +191,7 @@ class _UiCanvasPanelState extends State<UiCanvasPanel> {
                     const Icon(Icons.arrow_drop_down, color: _muted, size: 16),
                   ],
                 ),
+              ),
               ),
               itemBuilder: (ctx) => [
                 for (var i = 0; i < versions.length; i++)

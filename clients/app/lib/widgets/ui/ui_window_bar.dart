@@ -156,12 +156,16 @@ class _UiWindowBarState extends State<UiWindowBar> with WindowListener {
   }
 
   Future<void> _serverHostMenu() async {
-    if (_menuOpen) return;
+    final navCtx = c35NavigatorKey.currentContext;
+    if (navCtx == null) return;
+    if (_menuOpen) {
+      Navigator.of(navCtx).pop();
+      return;
+    }
     final closedAt = _menuClosedAt;
     if (closedAt != null && DateTime.now().difference(closedAt) < const Duration(milliseconds: 250)) return;
-    final navCtx = c35NavigatorKey.currentContext;
     final box = _titleKey.currentContext?.findRenderObject() as RenderBox?;
-    if (navCtx == null || box == null || !box.hasSize) return;
+    if (box == null || !box.hasSize) return;
     final origin = box.localToGlobal(Offset.zero);
     final top = origin.dy + box.size.height - 8;
     _menuOpen = true;
@@ -206,14 +210,8 @@ class _UiWindowBarState extends State<UiWindowBar> with WindowListener {
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         key: _titleKey,
-        behavior: HitTestBehavior.opaque,
         onTap: _serverHostMenu,
-        child: Row(
-          children: [
-            Expanded(child: _titleText()),
-            const Icon(Icons.arrow_drop_down, size: 16, color: Color(0xFF71717A)),
-          ],
-        ),
+        child: _titleText(),
       ),
     );
   }
@@ -238,7 +236,8 @@ class _UiWindowBarState extends State<UiWindowBar> with WindowListener {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Expanded(child: _title()),
+                      _title(),
+                      if (serverHostPickerVisible()) const Expanded(child: SizedBox.shrink()),
                       const UiUpdateChrome(),
                     ],
                   ),

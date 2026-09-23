@@ -1,3 +1,4 @@
+import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:flutter/material.dart';
 
 class UiMsgErrorBadge extends StatelessWidget {
@@ -20,7 +21,7 @@ class UiMsgErrorBadge extends StatelessWidget {
       );
 
   @override
-  Widget build(BuildContext context) => IconButton(
+  Widget build(BuildContext context) => uiIconButton(
         tooltip: 'View error',
         padding: EdgeInsets.zero,
         constraints: const BoxConstraints(minWidth: 28, minHeight: 28),

@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
-use sqlx::postgres::PgPoolOptions;
-use sqlx::{Error as SqlxError, PgPool};
+use sqlx::{Error as SqlxError, PgPool, Row};
+use std::collections::BTreeSet;
 use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -15,30 +15,13 @@ static SCHEMA_READY: OnceCell<()> = OnceCell::const_new();
 const BOOT_PATCH_SQL: &str = r"
 ALTER TABLE ai.chat_msg ADD COLUMN IF NOT EXISTS cost_usd NUMERIC(12, 6) NOT NULL DEFAULT 0;
 ALTER TABLE ai.chat_msg ADD COLUMN IF NOT EXISTS error_text TEXT NOT NULL DEFAULT '';
+ALTER TABLE ai.billing_account ADD COLUMN IF NOT EXISTS commission_pending_usd NUMERIC(12, 4) NOT NULL DEFAULT 0;
+ALTER TABLE ai.billing_account ADD COLUMN IF NOT EXISTS commission_pending_idr NUMERIC(14, 2) NOT NULL DEFAULT 0;
+ALTER TABLE ai.billing_topup_request DROP CONSTRAINT IF EXISTS chk_billing_topup_status;
+ALTER TABLE ai.billing_topup_request ADD CONSTRAINT chk_billing_topup_status CHECK (
+    status IN ('pending', 'pending_review', 'settled', 'rejected', 'cancelled', 'expired', 'failed')
+);
 ";
-
-pub async fn pool_connect() -> Result<PgPool> {
-    env_load();
-    let url = dsn()?;
-    let max = std::env::var("PG_MAX_CONNECTIONS")
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(8);
-    let acquire_secs = std::env::var("PG_ACQUIRE_TIMEOUT_SECS")
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(30);
-    let pool = PgPoolOptions::new()
-        .max_connections(max)
-        .acquire_timeout(Duration::from_secs(acquire_secs))
-        .connect_lazy(&url)
-        .context("connect yugabyte")?;
-    sqlx::query("SELECT 1")
-        .execute(&pool)
-        .await
-        .context("connect yugabyte")?;
-    Ok(pool)
-}
 
 pub fn missing_table(err: &SqlxError) -> bool {
     match err {
@@ -102,6 +85,83 @@ pub async fn migrate_apply(pool: &PgPool) -> Result<()> {
         migrate_locked(pool, label, sql).await?;
     }
     Ok(())
+}
+
+#[derive(Debug)]
+pub struct MigrateAuditReport {
+    pub expected: BTreeSet<String>,
+    pub present: BTreeSet<String>,
+    pub missing: Vec<String>,
+    pub extra: Vec<String>,
+}
+
+impl MigrateAuditReport {
+    pub fn print(&self) {
+        println!("migrate audit: {} expected, {} present", self.expected.len(), self.present.len());
+        if self.missing.is_empty() {
+            println!("missing: none");
+        } else {
+            println!("missing ({}):", self.missing.len());
+            for t in &self.missing {
+                println!("  - {t}");
+            }
+        }
+        if !self.extra.is_empty() {
+            println!("extra (not in schema files, {}):", self.extra.len());
+            for t in &self.extra {
+                println!("  + {t}");
+            }
+        }
+    }
+}
+
+pub fn schema_expected_tables() -> BTreeSet<String> {
+    let mut out = BTreeSet::new();
+    for (_, sql) in SCHEMA_APPLY_ORDER {
+        for line in sql.lines() {
+            let upper = line.to_uppercase();
+            if !upper.contains("CREATE TABLE") {
+                continue;
+            }
+            let Some(rest) = line.split("CREATE TABLE").nth(1) else {
+                continue;
+            };
+            let name = rest
+                .trim()
+                .trim_start_matches("IF NOT EXISTS")
+                .trim()
+                .split_whitespace()
+                .next()
+                .unwrap_or("")
+                .trim_end_matches('(')
+                .trim();
+            if name.contains('.') {
+                out.insert(name.to_string());
+            }
+        }
+    }
+    out
+}
+
+pub async fn migrate_audit(pool: &PgPool) -> Result<MigrateAuditReport> {
+    let expected = schema_expected_tables();
+    let rows = sqlx::query(
+        "SELECT table_schema, table_name FROM information_schema.tables WHERE table_schema IN ('ai', 'site') AND table_type = 'BASE TABLE' ORDER BY 1, 2",
+    )
+        .fetch_all(pool)
+        .await?;
+    let present = rows
+        .iter()
+        .map(|r| format!("{}.{}", r.get::<String, _>(0), r.get::<String, _>(1)))
+        .collect::<BTreeSet<_>>();
+    let missing = expected.difference(&present).cloned().collect::<Vec<_>>();
+    let extra = present.difference(&expected).cloned().collect::<Vec<_>>();
+    Ok(MigrateAuditReport {
+        expected,
+        present,
+        missing,
+        extra,
+    })
 }
 
 async fn migrate_locked(pool: &PgPool, label: &str, sql: &str) -> Result<()> {
@@ -187,13 +247,13 @@ fn sql_stmts(sql: &str) -> Vec<String> {
         if line.is_empty() || line.starts_with("--") {
             continue;
         }
-        if !in_dollar_block && line.to_ascii_uppercase().starts_with("DO $$") {
+        if !in_dollar_block && dollar_block_opens(line) {
             in_dollar_block = true;
         }
         cur.push_str(line);
         cur.push('\n');
         if in_dollar_block {
-            if line.ends_with("$$;") || line.to_ascii_uppercase().ends_with("END $$;") {
+            if dollar_block_closes(line) {
                 in_dollar_block = false;
                 push_stmt(&mut out, &mut cur);
             }
@@ -205,6 +265,21 @@ fn sql_stmts(sql: &str) -> Vec<String> {
         push_stmt(&mut out, &mut cur);
     }
     out
+}
+
+fn dollar_block_opens(line: &str) -> bool {
+    let upper = line.to_ascii_uppercase();
+    upper.starts_with("DO $$") || line.contains(" AS $$")
+}
+
+fn dollar_block_closes(line: &str) -> bool {
+    if !line.contains("$$") {
+        return false;
+    }
+    if dollar_block_opens(line) {
+        return false;
+    }
+    line.contains("$$ LANGUAGE") || line.ends_with("$$;") || line.to_ascii_uppercase().ends_with("END $$;")
 }
 
 fn push_stmt(out: &mut Vec<String>, cur: &mut String) {
@@ -262,7 +337,7 @@ fn env_first(keys: &[&str]) -> Option<String> {
         .filter(|s| !s.is_empty())
 }
 
-fn dsn() -> Result<String> {
+pub(crate) fn dsn() -> Result<String> {
     if let Some(url) = env_first(&["POSTGRES_URL", "DATABASE_URL"]) {
         return Ok(url);
     }
@@ -292,6 +367,15 @@ mod tests {
     }
 
     #[test]
+    fn schema_expected_tables_includes_prompt_run_and_hint() {
+        let tables = super::schema_expected_tables();
+        assert!(tables.contains("ai.prompt_run"));
+        assert!(tables.contains("ai.hint"));
+        assert!(tables.contains("ai.object_normalizer"));
+        assert!(tables.contains("site.render"));
+    }
+
+    #[test]
     fn sql_stmts_splits_do_dollar_block_as_one_statement() {
         let sql = r"
         CREATE TABLE t (id INT);
@@ -309,5 +393,22 @@ mod tests {
         assert!(stmts[1].starts_with("DO $$"));
         assert!(stmts[1].contains("END $$"));
         assert!(stmts[2].starts_with("INSERT"));
+    }
+
+    #[test]
+    fn sql_stmts_splits_create_function_dollar_block() {
+        let sql = r"
+        CREATE TABLE t (id INT);
+        CREATE OR REPLACE FUNCTION ai.slug_norm(raw TEXT) RETURNS TEXT AS $$
+        BEGIN
+            RETURN raw;
+        END;
+        $$ LANGUAGE plpgsql IMMUTABLE;
+        INSERT INTO t VALUES (1);
+        ";
+        let stmts = super::sql_stmts(sql);
+        assert_eq!(stmts.len(), 3);
+        assert!(stmts[1].starts_with("CREATE OR REPLACE FUNCTION"));
+        assert!(stmts[1].contains("$$ LANGUAGE"));
     }
 }

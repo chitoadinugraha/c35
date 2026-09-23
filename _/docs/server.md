@@ -45,7 +45,10 @@ servers/
       mod_consumption/           # Phase 7
       mod_site/                  # Phase 8
       mod_tx/                    # Phase 9
-  server_ai/                   # thin binary
+  fetcher/                     # thin binary (c35-fetcher Deployment)
+    src/main.rs
+    Cargo.toml
+  server_ai/                   # thin binary (c35-server Deployment)
     src/main.rs
     Cargo.toml
 ```
@@ -284,6 +287,24 @@ One reporter pod per k8s node; samples host CPU/RAM/net, OS mounts (`/`, `/var/l
 | Relay | `server_ai` WS `ReqStatsSubscribe` → root Flutter dashboard |
 | Manifests | [`_/deployments/c35-node-stats/`](../deployments/c35-node-stats/) |
 
+### `c35-fetcher` Deployment
+
+Singleton periodic external sync — FX rates, LLM model catalog, future fetch tasks.
+
+| Item | Value |
+|------|-------|
+| Replicas | **1** |
+| Binary | `c35_fetcher` (`servers/fetcher/`) |
+| Framework | `mod_fetch` — `FetchTask` trait + interval runner |
+| Tasks (initial) | `fx_rate` (hourly, Open Exchange Rates + markup), `llm_catalog` (30m, Gemini API) |
+| Persist | YB (`billing_fx_rate`, `llm_model`) |
+| Fanout | NATS `c35.fetch.fx`, `c35.fetch.llm_catalog` |
+| Consumers | `c35-server` pods subscribe at boot; in-memory FX + `llm_catalog_reload` |
+
+Full spec: [fetcher.md](fetcher.md). Manifest: [`_/deployments/c35-fetcher/`](../deployments/c35-fetcher/) (implementation pending).
+
+**Stateless:** no PVC. Same secrets as `c35-server` (YB, NATS, `OPENEXCHANGERATES_APP_ID`, `GEMINI_API_KEY`).
+
 ### Stateful inventory (cluster ops)
 
 | Monitor | Path / source | Stateful? | Action when high |
@@ -294,7 +315,7 @@ One reporter pod per k8s node; samples host CPU/RAM/net, OS mounts (`/`, `/var/l
 | NATS JetStream | PVC `/data/jetstream` (`nats-data-nats-0`) | **Yes** | expand PVC, prune streams |
 | c35 CAS | `emptyDir` per pod | Ephemeral | move to PVC later if needed |
 
-**Stateless (no volume row):** `c35-server`, `channel-whatsapp-device`, `coturn`.
+**Stateless (no volume row):** `c35-server`, `c35-fetcher`, `channel-whatsapp-device`, `coturn`.
 
 ### Channel worker (`channel-whatsapp-device`)
 

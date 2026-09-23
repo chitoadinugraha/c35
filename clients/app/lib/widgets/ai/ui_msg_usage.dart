@@ -17,6 +17,14 @@ class UiMsgUsage extends StatelessWidget {
   final int fxMicroPerUsd;
 
   static const _style = TextStyle(color: uiMsgUsageColor, fontSize: 11, height: 1, fontWeight: FontWeight.w500, fontFeatures: [FontFeature.tabularFigures()]);
+  static const _sepStyle = TextStyle(color: Color(0xFF52525B), fontSize: 10, height: 1, fontWeight: FontWeight.w500);
+
+  static Widget _sep() => const Padding(padding: EdgeInsets.symmetric(horizontal: 5), child: Text('·', style: _sepStyle));
+
+  static void _addPart(List<Widget> parts, Widget child) {
+    if (parts.isNotEmpty) parts.add(_sep());
+    parts.add(child);
+  }
 
   bool _show(MsgUsageStats stats) =>
       PromptUsagePrefs.instance.showUsageStats &&
@@ -42,57 +50,55 @@ class UiMsgUsage extends StatelessWidget {
             if (modelLabel.isNotEmpty) modelLabel,
           ];
           final tooltip = tooltipParts.join(' · ');
-          final hasUsageMeta = stats.tokensIn > 0 || stats.tokensOut > 0 || usageMs.isNotEmpty || price.isNotEmpty;
-          final row = Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                if (stats.model == 'local' && stats.tokensIn == 0 && stats.tokensOut == 0 && stats.costUsd == 0 && stats.durationMs > 0) ...[
-                  const Text('local · free', style: _style),
-                  const SizedBox(width: 6),
-                ],
-                if (stats.tokensIn > 0) ...[
+          final parts = <Widget>[];
+          if (stats.model == 'local' && stats.tokensIn == 0 && stats.tokensOut == 0 && stats.costUsd == 0 && stats.durationMs > 0) {
+            _addPart(parts, const Text('local · free', style: _style));
+          }
+          if (stats.tokensIn > 0) {
+            _addPart(
+              parts,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   const Icon(Icons.arrow_upward_rounded, size: 11, color: uiMsgUsageColor),
-                  const SizedBox(width: 1),
+                  const SizedBox(width: 2),
                   Text(uiFmtGroupedInt(stats.tokensIn), style: _style),
                 ],
-                if (stats.tokensIn > 0 && stats.tokensOut > 0) const SizedBox(width: 6),
-                if (stats.tokensOut > 0) ...[
+              ),
+            );
+          }
+          if (stats.tokensOut > 0) {
+            _addPart(
+              parts,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   const Icon(Icons.arrow_downward_rounded, size: 11, color: uiMsgUsageColor),
-                  const SizedBox(width: 1),
+                  const SizedBox(width: 2),
                   Text(uiFmtGroupedInt(stats.tokensOut), style: _style),
                 ],
-                if (usageMs.isNotEmpty) ...[
-                  if (stats.tokensIn > 0 || stats.tokensOut > 0) const SizedBox(width: 6),
-                  Text(usageMs, style: _style),
-                ],
-                if (price.isNotEmpty) ...[
-                  if (hasUsageMeta) const SizedBox(width: 6),
-                  Text(price, style: _style),
-                ],
-                if (modelLabel.isNotEmpty) ...[
-                  if (hasUsageMeta || price.isNotEmpty) const SizedBox(width: 6),
-                  Text(modelLabel, style: _style),
-                ],
-              ],
-            ),
+              ),
+            );
+          }
+          if (usageMs.isNotEmpty) _addPart(parts, Text(usageMs, style: _style));
+          if (price.isNotEmpty) _addPart(parts, Text(price, style: _style));
+          if (modelLabel.isNotEmpty) _addPart(parts, Text(modelLabel, style: _style));
+          final row = Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.center, children: parts),
           );
           final visibleParts = <String>[
             if (stats.model == 'local' && stats.tokensIn == 0 && stats.tokensOut == 0 && stats.costUsd == 0 && stats.durationMs > 0) 'local · free',
-            if (stats.tokensIn > 0) uiFmtGroupedInt(stats.tokensIn),
-            if (stats.tokensOut > 0) uiFmtGroupedInt(stats.tokensOut),
+            if (stats.tokensIn > 0) '${uiFmtGroupedInt(stats.tokensIn)} in',
+            if (stats.tokensOut > 0) '${uiFmtGroupedInt(stats.tokensOut)} out',
             if (usageMs.isNotEmpty) usageMs,
             if (price.isNotEmpty) price,
             if (modelLabel.isNotEmpty) modelLabel,
           ];
-          final visibleLabel = visibleParts.join(' ');
+          final visibleLabel = visibleParts.join(' · ');
           final showTip = tooltip.isNotEmpty && tooltip != visibleLabel && !(visibleParts.length == 1 && visibleParts.first == tooltip);
-          return Align(
-            alignment: Alignment.centerLeft,
-            child: showTip ? uiTooltip(message: tooltip, child: row) : row,
-          );
+          final child = showTip ? uiTooltip(message: tooltip, child: row) : row;
+          return Align(alignment: Alignment.centerLeft, child: ExcludeSemantics(child: child));
         },
       );
 }

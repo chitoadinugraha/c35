@@ -20,6 +20,11 @@ mod mention_registry;
 mod mention_tool_registry;
 mod site_capability;
 mod memory;
+mod context_billing;
+pub mod context_compact;
+mod context_idle;
+pub mod context_pack;
+mod memory_extract;
 pub mod prompt;
 mod prompt_turn;
 mod topic;
@@ -57,7 +62,12 @@ pub use inst_cache::{
     inst_list_cached, NATS_SUBJECT_WILDCARD,
 };
 pub use inst_macro::{InstMatchCtx, InstRow};
+pub use context_billing::ContextBillingExtra;
+pub use context_compact::{prepare_prompt_history, CONTEXT_COMPACT_MODEL};
+pub use context_idle::ContextIdleFetchTask;
+pub use context_pack::{model_context_limit, token_estimate};
 pub use memory::{memory_prompt_merge, memory_put, memory_retrieve, MemoryRetrieveResult};
+pub use memory_extract::memory_extract_turn_gate;
 pub use prompt::audio;
 pub use prompt::gemini::gemini_api_key;
 pub use prompt_run::{

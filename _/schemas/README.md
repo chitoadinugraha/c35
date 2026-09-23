@@ -4,18 +4,34 @@ SQL and protobuf sources for c35. Applied by `server_ai` on boot (idempotent).
 
 ## Apply order
 
+Applied by `c35_store::migrate_apply` on `server_ai` boot and via `.\_\scripts\dev\migrate_db.ps1`.
+
 ```
 1. identity.sql
 2. billing.sql
 3. chat.sql
-4. log.sql
-5. embed.sql
-6. skill.sql
-7. consumption.sql
-8. site.sql          ← creates YSQL schema site
-9. tx.sql            ← site.tx_* (requires site.sql)
-10. file.sql         (later)
+4. prompt_run.sql    ← durable AI prompt job queue (JetStream worker)
+5. asset_tag.sql
+6. log.sql
+7. embed.sql
+8. inst.sql
+9. topic.sql
+10. mention.sql
+11. translation.sql
+12. hint.sql
+13. memory.sql
+14. skill.sql
+15. task.sql
+16. consumption.sql
+17. object_normalizer.sql
+18. site.sql         ← creates YSQL schema site
+19. tx.sql           ← site.tx_* (requires site.sql)
+20. file.sql
+21. channel.sql
+22. config.sql
 ```
+
+One-time data migrations live in `_/schemas/migrations/` — run manually when upgrading legacy DBs (not on every boot).
 
 ## YSQL schema layout
 
@@ -38,7 +54,9 @@ Site **registry** stays in `ai.identity(kind=site)` — `site.*` tables FK to `a
 | [embed.sql](embed.sql) | **locked** | LLM embed dedupe cache (`ai.embed_cache`) |
 | [skill.sql](skill.sql) | **locked** | Skill, steps, secrets, catalog |
 | [consumption.sql](consumption.sql) | **locked** | Food log, nutrition items, water, prefs |
+| [prompt_run.sql](prompt_run.sql) | **locked** | Durable prompt turn jobs (queue, checkpoint, subagent runs) |
 | [hint.sql](hint.sql) | **locked** | Home hints: catalog, user_asset_touch, hint_bundle |
+| [object_normalizer.sql](object_normalizer.sql) | **locked** | Product/expense taxonomy DAG (normalizer nodes + aliases) |
 | [site.sql](site.sql) | **locked** | `site.*` — doc, publish, render, catalog, domain |
 | [tx.sql](tx.sql) | **locked** | `site.tx_*` — POS (id.alienai model) |
 | [file.sql](file.sql) | **locked** | CAS: inline + S3 + variants |

@@ -37,7 +37,31 @@ const _enFallback = <String, String>{
   'topic.image.caption': 'Image generation',
   'composer.ask.label': 'Ask',
   'composer.ask.caption': 'Answer without tools',
+  'hint.consumption_add.label': 'Track Consumption',
+  'hint.consumption_add.send_text': 'Track food consumption',
+  'hint.expense_add.label': 'Track Expense',
+  'hint.expense_add.send_text': 'Track expense',
 };
+
+const _idFallback = <String, String>{
+  'tool.consumption.add.calling': 'Mencatat makanan…',
+  'tool.consumption.add.done': 'Makanan tercatat',
+  'tool.consumption.today.calling': 'Mengecek makan hari ini…',
+  'tool.consumption.today.done': 'Makan hari ini dicek',
+  'hint.consumption_add.label': 'Catat konsumsi makanan',
+  'hint.consumption_add.send_text': 'Catat konsumsi makanan',
+  'hint.expense_add.label': 'Catat pengeluaran',
+  'hint.expense_add.send_text': 'Catat pengeluaran',
+};
+
+Map<String, String> catalogLocaleFallback(String lang) =>
+    catalogLocaleCode(lang) == 'id' ? {..._enFallback, ..._idFallback} : _enFallback;
+
+String catalogLocaleCode(String locale) {
+  final s = locale.trim().toLowerCase();
+  if (s.startsWith('id')) return 'id';
+  return 'en';
+}
 
 final catalogTranslationTick = ValueNotifier(0);
 
@@ -55,35 +79,35 @@ class CatalogTranslationCache {
   String t(String key) {
     final k = key.trim();
     if (k.isEmpty) return '';
-    return _map[k] ?? _enFallback[k] ?? k;
+    return _map[k] ?? catalogLocaleFallback(_lang)[k] ?? _enFallback[k] ?? k;
   }
 
   Future<void> restore() async {
     final p = await SharedPreferences.getInstance();
-    _lang = p.getString(_cacheLangKey) ?? 'en';
+    _lang = catalogLocaleCode(p.getString(_cacheLangKey) ?? 'en');
     _rev = p.getInt(_cacheRevKey) ?? 0;
     final raw = p.getString(_cacheJsonKey);
     if (raw != null && raw.isNotEmpty) {
       try {
         final decoded = jsonDecode(raw) as Map<String, dynamic>;
-        _map = {..._enFallback, ...decoded.map((k, v) => MapEntry(k, '$v'))};
+        _map = {...catalogLocaleFallback(_lang), ...decoded.map((k, v) => MapEntry(k, '$v'))};
       } catch (_) {
-        _map = Map<String, String>.from(_enFallback);
+        _map = Map<String, String>.from(catalogLocaleFallback(_lang));
       }
     } else {
-      _map = Map<String, String>.from(_enFallback);
+      _map = Map<String, String>.from(catalogLocaleFallback(_lang));
     }
     catalogTranslationTick.value++;
   }
 
   Future<void> ensure(String lang, {bool force = false}) async {
-    final locale = lang.trim().isEmpty ? 'en' : lang.trim();
+    final locale = catalogLocaleCode(lang);
     try {
       final remote = await catalogTranslationsFetch(locale);
       if (!force && locale == _lang && remote.rev > 0 && remote.rev == _rev) return;
       _lang = locale;
       _rev = remote.rev;
-      _map = {..._enFallback, ...remote.translations};
+      _map = {...catalogLocaleFallback(locale), ...remote.translations};
       final p = await SharedPreferences.getInstance();
       await p.setString(_cacheLangKey, _lang);
       await p.setInt(_cacheRevKey, _rev);
@@ -91,7 +115,7 @@ class CatalogTranslationCache {
       catalogTranslationTick.value++;
     } catch (e) {
       lError('catalog translation ensure: $e');
-      if (_map.isEmpty) _map = Map<String, String>.from(_enFallback);
+      if (_map.isEmpty) _map = Map<String, String>.from(catalogLocaleFallback(locale));
     }
   }
 }

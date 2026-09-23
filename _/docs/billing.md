@@ -134,7 +134,7 @@ Subscribe / direct purchase charges **exactly** `amount` in `currency`. No live 
 
 ## `billing_fx_rate`
 
-Published rates for **metered usage deduct only**.
+Published rates for **metered usage deduct** and top-up amount pairing (display/record only — wallet credit stays in paid currency).
 
 | Field | Purpose |
 |-------|---------|
@@ -142,7 +142,13 @@ Published rates for **metered usage deduct only**.
 | `micro_per_usd` | Integer: local micro-units per 1 USD (same convention as legacy `fx_micro_per_usd`) |
 | `effective_from` | Rate valid from this timestamp |
 
-Server picks latest `effective_from <= NOW()` per currency. Update weekly (or daily for IDR volatility). Document rate in admin UI.
+### How rates are updated
+
+`c35-fetcher` (singleton Deployment) fetches USD→IDR hourly from **Open Exchange Rates**, applies configurable markup (`FX_MARKUP_BPS`, default 10%), inserts a row when change exceeds threshold, and publishes `c35.fetch.fx` on NATS.
+
+`c35-server` pods keep the latest rate **in memory** (no per-deduct DB read). On boot: load latest `billing_fx_rate` row until first NATS push.
+
+See [fetcher.md](fetcher.md). **Not sourced from Midtrans.**
 
 **Deduct formula:**
 
@@ -228,11 +234,57 @@ Target: commission credit per `(owner_iid, currency)` wallet or ledger entry —
 
 ---
 
+## Context compaction billing (LOCKED)
+
+Context compaction and memory-extraction LLM calls are **metered** like any other LLM usage. Token packing and screenshot prune are **free** (no LLM).
+
+See [context-compaction.md](context-compaction.md) for full behavior.
+
+### Deduct rules
+
+| Event | `req_id` | Hold gate | Deduct path |
+|-------|----------|-----------|-------------|
+| User prompt turn | turn `req_id` | `billing_gate_with_hold` | `billing_usage_report` |
+| Compact on threshold (same turn) | **parent** turn `req_id` | Already held | `extra_cost_usd` on parent `billing_usage_report` |
+| Per-turn memory extract | **parent** turn `req_id` | Already held | `extra_cost_usd` on parent report |
+| Idle compact / extract | `compact-{chat_id}-{snowflake}` | **None** | `billing_usage_report` if affordable; **skip** job if not |
+| Memory retrieve (embed) | — | — | **Not billed** (platform COGS) |
+
+### Allowance → on-demand
+
+Same order as a normal turn: **quota pools / allowance first**, then wallet at `billing_fx_rate` deduct time.
+
+Compaction must **never block** a reply the user already passed the gate for. If compact LLM fails or wallet is empty on idle job, **fail open** (truncation only; no user-visible error).
+
+### Audit (`ai.log.meta`)
+
+Parent turn log row may include:
+
+```json
+{
+  "compaction_cost_usd": 0.002,
+  "compaction_tokens_in": 1200,
+  "compaction_tokens_out": 400,
+  "memory_extract_writes": 1,
+  "llm_cost_usd": 0.045
+}
+```
+
+`ai.chat_compact_log` stores per-compaction detail for support and margin analysis.
+
+### Model
+
+Compaction and extraction use **`gemini-2.0-flash`** (or current `CONTEXT_COMPACT_MODEL` in [context-compaction.md](context-compaction.md)) — cheap housekeeping, not the user's selected chat model.
+
+---
+
 ## Message renderer billing trace
 
 Assistant `chat_msg` rows carry `tokens_in`, `tokens_out`, `duration_ms` for UI.
 
 User-facing cost label: format `cost_usd` in **default wallet currency** using latest `billing_fx_rate` (display only; canonical `cost_usd` on `ai.log`).
+
+Compaction cost is included in the turn total when rolled into `extra_cost_usd`; optional UI line "includes ~X compaction" for tester/root usage stats.
 
 ---
 

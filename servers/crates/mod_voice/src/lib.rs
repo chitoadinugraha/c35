@@ -39,13 +39,28 @@ pub async fn voice_stt(
         anyhow::bail!("audio required");
     }
     let row = voice_billing_gate(pool, owner_iid, &req_id, VOICE_STT_HOLD).await?;
-    let text = match stt::google_stt(http_client(), audio, mime, lang).await {
+    let text_res = if std::env::var("GOOGLE_CLOUD_API_KEY").is_ok() {
+        match stt::google_stt(http_client(), audio, mime, lang).await {
+            Ok(t) => Ok(t),
+            Err(e) => {
+                tracing::warn!("google_stt failed, falling back to gemini 3.1 flash lite: {e}");
+                stt::gemini_stt(http_client(), audio, mime, lang).await
+            }
+        }
+    } else {
+        stt::gemini_stt(http_client(), audio, mime, lang).await
+    };
+    let text = match text_res {
         Ok(t) => t,
         Err(e) => {
             let _ = voice_billing_abort(pool, &req_id).await;
             return Err(e);
         }
     };
+    if text.trim().is_empty() {
+        let _ = voice_billing_abort(pool, &req_id).await;
+        anyhow::bail!("No speech detected");
+    }
     let wholesale = voice_stt_wholesale_usd(audio, mime);
     let duration_ms = started.elapsed().as_millis().min(i32::MAX as u128) as i32;
     let meta = serde_json::json!({
@@ -162,10 +177,10 @@ fn friendly_error(e: &anyhow::Error) -> String {
     if msg.contains("balance") || msg.contains("quota") || msg.contains("top up") {
         return "Not enough balance for cloud voice. Please top up or wait for quota reset.".into();
     }
-    if msg.contains("GOOGLE_CLOUD_API_KEY") {
+    if msg.contains("GOOGLE_CLOUD_API_KEY") || msg.contains("GEMINI_API_KEY") {
         return "Cloud voice is temporarily unavailable.".into();
     }
-    if msg.contains("audio required") || msg.contains("text required") || msg.contains("req_id") {
+    if msg.contains("audio required") || msg.contains("text required") || msg.contains("req_id") || msg.contains("No speech detected") {
         return msg;
     }
     tracing::warn!("voice rpc error: {msg}");

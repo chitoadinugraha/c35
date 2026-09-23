@@ -199,13 +199,20 @@ int agentModelSort(AgentModel a, AgentModel b) {
   if (band != 0) return band;
   final fam = agentModelFamilyPriority(a).compareTo(agentModelFamilyPriority(b));
   if (fam != 0) return fam;
+  final prev = (agentModelIsPreview(a) ? 1 : 0).compareTo(agentModelIsPreview(b) ? 1 : 0);
+  if (prev != 0) return prev;
   final ver = agentModelVersionRank(b).compareTo(agentModelVersionRank(a));
   if (ver != 0) return ver;
   return a.label.compareTo(b.label);
 }
 
+bool agentModelIsPreview(AgentModel m) {
+  final s = '${m.id} ${m.label}'.toLowerCase();
+  return s.contains('preview') || s.contains('experimental') || s.contains('-exp') || s.contains('beta');
+}
+
 String agentModelProviderLabel(String provider) => switch (provider) {
-      '' => 'All Providers',
+      '' => 'All Models',
       'alienai' => 'Alien AI',
       'google' => 'Gemini',
       'openai' => 'ChatGPT',

@@ -72,10 +72,20 @@ pub fn family_priority(family: &str) -> i32 {
     }
 }
 
+pub fn is_preview_id(id: &str) -> bool {
+    let m = id.to_ascii_lowercase();
+    m.contains("preview")
+        || m.contains("experimental")
+        || m.contains("-exp")
+        || m.contains("beta")
+        || m.ends_with("-preview")
+}
+
 pub fn model_list_sort_cmp(a: &LlmModelRow, b: &LlmModelRow) -> std::cmp::Ordering {
     provider_band(&a.provider)
         .cmp(&provider_band(&b.provider))
         .then_with(|| family_priority(&a.family).cmp(&family_priority(&b.family)))
+        .then_with(|| is_preview_id(&a.id).cmp(&is_preview_id(&b.id)))
         .then_with(|| b.version_rank.cmp(&a.version_rank))
         .then_with(|| a.label.cmp(&b.label))
 }
@@ -122,9 +132,31 @@ pub fn gemini_chat_eligible(id: &str, methods: &[String]) -> bool {
 pub fn pick_default_provider(models: &[LlmModelRow], provider: &str) -> Option<String> {
     models
         .iter()
-        .filter(|m| m.provider == provider && m.enabled && m.source != "pinned")
+        .filter(|m| m.provider == provider && m.enabled && m.source != "pinned" && !is_preview_id(&m.id))
         .max_by_key(|m| (m.version_rank, m.family == "flash-lite", m.family == "flash"))
         .map(|m| m.id.clone())
+}
+
+pub fn apply_gemini_enabled(models: &mut [LlmModelRow]) {
+    const FAMILIES: &[&str] = &["flash-lite", "flash", "pro"];
+    models.sort_by(model_list_sort_cmp);
+    let mut stable_n: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut preview_n: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    for m in models.iter_mut() {
+        if !FAMILIES.contains(&m.family.as_str()) {
+            m.enabled = false;
+            continue;
+        }
+        if is_preview_id(&m.id) {
+            let n = preview_n.entry(m.family.clone()).or_insert(0);
+            *n += 1;
+            m.enabled = *n <= 1;
+        } else {
+            let n = stable_n.entry(m.family.clone()).or_insert(0);
+            *n += 1;
+            m.enabled = *n <= 8;
+        }
+    }
 }
 
 #[cfg(test)]
@@ -147,6 +179,31 @@ mod tests {
             "gemini-3.5-transcribe",
             &["generateContent".into()]
         ));
+    }
+
+    #[test]
+    fn stable_sorts_before_preview() {
+        let stable = LlmModelRow {
+            id: "gemini-3.1-flash-lite".into(),
+            provider: "google".into(),
+            label: "Gemini 3.1 Flash Lite".into(),
+            provider_model: "gemini-3.1-flash-lite".into(),
+            input_micro_per_m: 0,
+            output_micro_per_m: 0,
+            supports_thinking: true,
+            enabled: true,
+            is_default: false,
+            sort_order: 0,
+            family: "flash-lite".into(),
+            version_rank: version_rank_of("gemini-3.1-flash-lite"),
+            source: "api".into(),
+        };
+        let preview = LlmModelRow {
+            id: "gemini-3.1-flash-lite-preview".into(),
+            label: "Gemini 3.1 Flash Lite Preview".into(),
+            ..stable.clone()
+        };
+        assert_eq!(model_list_sort_cmp(&stable, &preview), std::cmp::Ordering::Less);
     }
 
     #[test]

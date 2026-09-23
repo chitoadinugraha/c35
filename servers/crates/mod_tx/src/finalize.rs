@@ -22,7 +22,6 @@ const COA_SALES_DISCOUNT: &str = "4200";
 const COA_PURCHASE_DISC: &str = "4210";
 const COA_SALES_RETURNS: &str = "4300";
 const COA_ROUNDING: &str = "6200";
-const COA_UTILITIES: &str = "6400";
 const COA_INTEREST: &str = "7100";
 
 struct AccLedger {
@@ -654,13 +653,10 @@ fn tx_payment_acc_code(p: &TxPayment) -> String {
 
 fn tx_compute_acc_meta(tx: &mut Tx) {
     let mut sum = 0i64;
-    let mut generated = 0i32;
     let mut manual = 0i32;
     for acc in &tx.accs {
         sum += acc_signed_amount(acc);
-        if acc.is_tx_generated {
-            generated += 1;
-        } else {
+        if !acc.is_tx_generated {
             manual += 1;
         }
     }

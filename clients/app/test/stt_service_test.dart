@@ -31,9 +31,10 @@ void main() {
     SttService.instance.bindVoiceApi(null);
   });
 
-  test('sttEngineRoute maps web and local to web path', () {
+  test('sttEngineRoute maps engines correctly and defaults to web', () {
+    expect(VoicePrefs.instance.sttEngine, 'web');
     expect(SttService.sttEngineRoute('web'), 'web');
-    expect(SttService.sttEngineRoute('local'), 'web');
+    expect(SttService.sttEngineRoute('local'), 'local');
     expect(SttService.sttEngineRoute('cloud'), 'cloud');
   });
 
@@ -71,6 +72,28 @@ void main() {
       lang: 'en-US',
       mime: 'audio/wav',
       webTranscribe: (_, __, ___) async => 'web',
+    );
+    expect(result, isNull);
+  });
+
+  test('sanitizeTranscript filters out 00:00, timestamps, and silence tokens', () {
+    expect(SttService.sanitizeTranscript('00:00'), '');
+    expect(SttService.sanitizeTranscript('0:00'), '');
+    expect(SttService.sanitizeTranscript('00:00 - 00:03'), '');
+    expect(SttService.sanitizeTranscript('[silence]'), '');
+    expect(SttService.sanitizeTranscript('(silence)'), '');
+    expect(SttService.sanitizeTranscript('   '), '');
+    expect(SttService.sanitizeTranscript('Hello world'), 'Hello world');
+    expect(SttService.sanitizeTranscript('Halo apa kabar'), 'Halo apa kabar');
+  });
+
+  test('transcribeRouted filters out 00:00 hallucinated response from cloud STT', () async {
+    await VoicePrefs.instance.setSttEngine('cloud');
+    SttService.instance.bindVoiceApi(_FakeVoiceApi(sttResult: '00:00'));
+    final result = await SttService.instance.transcribeRouted(
+      bytes: Uint8List.fromList([4, 5]),
+      lang: 'id-ID',
+      mime: 'audio/wav',
     );
     expect(result, isNull);
   });
