@@ -7,7 +7,6 @@ import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/billing/ui_billing_topup_dialog.dart';
-import 'package:alienai_c35/widgets/ui/ui_input_decoration.dart';
 import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:flutter/material.dart';
 
@@ -37,17 +36,8 @@ class _BillingHistorySheetState extends State<_BillingHistorySheet> {
   static const _surface = Color(0xFF18181B);
   static const _accent = Color(0xFF34D399);
   static const _headerBtnH = 40.0;
+  static const _headerH = 40.0;
   static const _headerBtnRadius = 10.0;
-
-  ButtonStyle get _headerActionStyle => OutlinedButton.styleFrom(
-        minimumSize: const Size(_headerBtnH, _headerBtnH),
-        fixedSize: const Size(_headerBtnH, _headerBtnH),
-        padding: EdgeInsets.zero,
-        backgroundColor: _surface,
-        foregroundColor: _muted,
-        side: const BorderSide(color: _border),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(_headerBtnRadius)),
-      );
 
   ButtonStyle get _headerTopupStyle => FilledButton.styleFrom(
         minimumSize: const Size(0, _headerBtnH),
@@ -193,30 +183,39 @@ class _BillingHistorySheetState extends State<_BillingHistorySheet> {
     );
   }
 
-  Widget _buildSearchHeader() => Row(
+  Widget _buildSearchHeader() => SizedBox(
         key: const ValueKey('search'),
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _searchCtrl,
-              focusNode: _searchFocus,
-              style: const TextStyle(color: _text, fontSize: 14),
-              decoration: UiInputDecoration.of(context, hintText: 'Search transactions…', prefixIcon: const Icon(Icons.search_rounded, size: 20, color: _muted)).copyWith(
-                filled: true,
-                fillColor: _surface,
-                contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                isDense: true,
+        height: _headerH,
+        child: Row(
+          children: [
+            const Icon(Icons.search_rounded, size: 20, color: _muted),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: _searchCtrl,
+                focusNode: _searchFocus,
+                style: const TextStyle(color: _text, fontSize: 15, fontWeight: FontWeight.w500),
+                decoration: const InputDecoration(
+                  hintText: 'Search transactions…',
+                  hintStyle: TextStyle(color: _muted, fontSize: 15),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  filled: false,
+                  contentPadding: EdgeInsets.zero,
+                  isDense: true,
+                ),
+                onChanged: (v) => setState(() => _search = v),
               ),
-              onChanged: (v) => setState(() => _search = v),
             ),
-          ),
-          const SizedBox(width: 8),
-          OutlinedButton(
-            onPressed: _closeSearch,
-            style: _headerActionStyle,
-            child: const Icon(Icons.close_rounded, size: 20),
-          ),
-        ],
+            IconButton(
+              onPressed: _closeSearch,
+              icon: const Icon(Icons.close_rounded, size: 20, color: _muted),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: _headerBtnH, minHeight: _headerBtnH),
+            ),
+          ],
+        ),
       );
 
   Widget _buildBalanceHeader() => ListenableBuilder(
@@ -225,50 +224,51 @@ class _BillingHistorySheetState extends State<_BillingHistorySheet> {
         builder: (_, __) {
           final billing = AppStore.instance.billing;
           final balanceLabel = billingWalletBalanceLabel(billing, _currency);
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Builder(
-                  builder: (anchorCtx) => Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () => _showWalletMenu(anchorCtx, billing),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+          return SizedBox(
+            height: _headerH,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Builder(
+                    builder: (anchorCtx) => Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => _showWalletMenu(anchorCtx, billing),
+                        borderRadius: BorderRadius.circular(8),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Flexible(
                               child: Text(
                                 balanceLabel,
-                                style: const TextStyle(color: _text, fontSize: 26, fontWeight: FontWeight.w700, letterSpacing: -0.5),
+                                style: const TextStyle(color: _text, fontSize: 22, fontWeight: FontWeight.w700, letterSpacing: -0.5, height: 1),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            const SizedBox(width: 4),
-                            const Icon(Icons.keyboard_arrow_down_rounded, size: 22, color: _muted),
+                            const SizedBox(width: 2),
+                            const Icon(Icons.keyboard_arrow_down_rounded, size: 20, color: _muted),
                           ],
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              OutlinedButton(
-                onPressed: _openSearch,
-                style: _headerActionStyle,
-                child: const Icon(Icons.search_rounded, size: 20),
-              ),
-              const SizedBox(width: 8),
-              FilledButton.icon(
-                onPressed: () => billingTopupDialog(context, conn: widget.conn, currency: _currency, onSubmitted: _load),
-                style: _headerTopupStyle,
-                icon: const Icon(Icons.add_rounded, size: 18),
-                label: const Text('Top up', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-              ),
-            ],
+                IconButton(
+                  onPressed: _openSearch,
+                  icon: const Icon(Icons.search_rounded, size: 20, color: _muted),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: _headerBtnH, minHeight: _headerBtnH),
+                ),
+                const SizedBox(width: 4),
+                FilledButton.icon(
+                  onPressed: () => billingTopupDialog(context, conn: widget.conn, currency: _currency, onSubmitted: _load),
+                  style: _headerTopupStyle,
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: const Text('Top up', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                ),
+              ],
+            ),
           );
         },
       );

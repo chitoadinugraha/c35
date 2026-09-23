@@ -1989,6 +1989,9 @@ class ResBillingTopupPut extends $pb.GeneratedMessage {
     $core.String? qrCodeData,
     $core.String? instruction,
     $core.String? status,
+    $core.double? creditAmountIdr,
+    $core.double? feeAmountIdr,
+    $core.double? grossAmountIdr,
   }) {
     final result = ResBillingTopupPut._();
     if (request != null) result.request = request;
@@ -1997,6 +2000,9 @@ class ResBillingTopupPut extends $pb.GeneratedMessage {
     if (qrCodeData != null) result.qrCodeData = qrCodeData;
     if (instruction != null) result.instruction = instruction;
     if (status != null) result.status = status;
+    if (creditAmountIdr != null) result.creditAmountIdr = creditAmountIdr;
+    if (feeAmountIdr != null) result.feeAmountIdr = feeAmountIdr;
+    if (grossAmountIdr != null) result.grossAmountIdr = grossAmountIdr;
     return result;
   }
 
@@ -2020,6 +2026,9 @@ class ResBillingTopupPut extends $pb.GeneratedMessage {
     ..aOS(4, _omitFieldNames ? '' : 'qrCodeData')
     ..aOS(5, _omitFieldNames ? '' : 'instruction')
     ..aOS(6, _omitFieldNames ? '' : 'status')
+    ..aD(7, _omitFieldNames ? '' : 'creditAmountIdr')
+    ..aD(8, _omitFieldNames ? '' : 'feeAmountIdr')
+    ..aD(9, _omitFieldNames ? '' : 'grossAmountIdr')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -2099,6 +2108,407 @@ class ResBillingTopupPut extends $pb.GeneratedMessage {
   $core.bool hasStatus() => $_has(5);
   @$pb.TagNumber(6)
   void clearStatus() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.double get creditAmountIdr => $_getN(6);
+  @$pb.TagNumber(7)
+  set creditAmountIdr($core.double value) => $_setDouble(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasCreditAmountIdr() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearCreditAmountIdr() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.double get feeAmountIdr => $_getN(7);
+  @$pb.TagNumber(8)
+  set feeAmountIdr($core.double value) => $_setDouble(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasFeeAmountIdr() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearFeeAmountIdr() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.double get grossAmountIdr => $_getN(8);
+  @$pb.TagNumber(9)
+  set grossAmountIdr($core.double value) => $_setDouble(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasGrossAmountIdr() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearGrossAmountIdr() => $_clearField(9);
+}
+
+class BillingTopupMethodOption extends $pb.GeneratedMessage {
+  factory BillingTopupMethodOption({
+    $core.String? id,
+    $core.String? label,
+    $core.String? provider,
+    $core.String? paymentType,
+    $core.String? note,
+    $core.double? feeAmountIdr,
+    $core.bool? feeIsPercent,
+    $core.double? feeRateBps,
+  }) {
+    final result = BillingTopupMethodOption._();
+    if (id != null) result.id = id;
+    if (label != null) result.label = label;
+    if (provider != null) result.provider = provider;
+    if (paymentType != null) result.paymentType = paymentType;
+    if (note != null) result.note = note;
+    if (feeAmountIdr != null) result.feeAmountIdr = feeAmountIdr;
+    if (feeIsPercent != null) result.feeIsPercent = feeIsPercent;
+    if (feeRateBps != null) result.feeRateBps = feeRateBps;
+    return result;
+  }
+
+  BillingTopupMethodOption._();
+
+  factory BillingTopupMethodOption.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      BillingTopupMethodOption()..mergeFromBuffer(data, registry);
+  factory BillingTopupMethodOption.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      BillingTopupMethodOption()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'BillingTopupMethodOption',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: BillingTopupMethodOption.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'id')
+    ..aOS(2, _omitFieldNames ? '' : 'label')
+    ..aOS(3, _omitFieldNames ? '' : 'provider')
+    ..aOS(4, _omitFieldNames ? '' : 'paymentType')
+    ..aOS(5, _omitFieldNames ? '' : 'note')
+    ..aD(6, _omitFieldNames ? '' : 'feeAmountIdr')
+    ..aOB(7, _omitFieldNames ? '' : 'feeIsPercent')
+    ..aD(8, _omitFieldNames ? '' : 'feeRateBps')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  BillingTopupMethodOption clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  BillingTopupMethodOption copyWith(
+          void Function(BillingTopupMethodOption) updates) =>
+      super.copyWith((message) => updates(message as BillingTopupMethodOption))
+          as BillingTopupMethodOption;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use BillingTopupMethodOption() / BillingTopupMethodOption.new instead')
+  static BillingTopupMethodOption create() => BillingTopupMethodOption._();
+  static $pb.GeneratedMessage $_createMessage() => BillingTopupMethodOption._();
+  @$core.override
+  BillingTopupMethodOption createEmptyInstance() =>
+      BillingTopupMethodOption._();
+  @$core.pragma('dart2js:noInline')
+  static BillingTopupMethodOption getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<BillingTopupMethodOption>(
+          BillingTopupMethodOption.$_createMessage);
+  static BillingTopupMethodOption? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get id => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set id($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get label => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set label($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasLabel() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearLabel() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get provider => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set provider($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasProvider() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearProvider() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get paymentType => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set paymentType($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasPaymentType() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearPaymentType() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get note => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set note($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasNote() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearNote() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.double get feeAmountIdr => $_getN(5);
+  @$pb.TagNumber(6)
+  set feeAmountIdr($core.double value) => $_setDouble(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasFeeAmountIdr() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearFeeAmountIdr() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.bool get feeIsPercent => $_getBF(6);
+  @$pb.TagNumber(7)
+  set feeIsPercent($core.bool value) => $_setBool(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasFeeIsPercent() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearFeeIsPercent() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.double get feeRateBps => $_getN(7);
+  @$pb.TagNumber(8)
+  set feeRateBps($core.double value) => $_setDouble(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasFeeRateBps() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearFeeRateBps() => $_clearField(8);
+}
+
+class ReqBillingTopupMethods extends $pb.GeneratedMessage {
+  factory ReqBillingTopupMethods({
+    $core.double? sampleAmountIdr,
+  }) {
+    final result = ReqBillingTopupMethods._();
+    if (sampleAmountIdr != null) result.sampleAmountIdr = sampleAmountIdr;
+    return result;
+  }
+
+  ReqBillingTopupMethods._();
+
+  factory ReqBillingTopupMethods.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingTopupMethods()..mergeFromBuffer(data, registry);
+  factory ReqBillingTopupMethods.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingTopupMethods()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqBillingTopupMethods',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqBillingTopupMethods.$_createMessage)
+    ..aD(1, _omitFieldNames ? '' : 'sampleAmountIdr')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingTopupMethods clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingTopupMethods copyWith(
+          void Function(ReqBillingTopupMethods) updates) =>
+      super.copyWith((message) => updates(message as ReqBillingTopupMethods))
+          as ReqBillingTopupMethods;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqBillingTopupMethods() / ReqBillingTopupMethods.new instead')
+  static ReqBillingTopupMethods create() => ReqBillingTopupMethods._();
+  static $pb.GeneratedMessage $_createMessage() => ReqBillingTopupMethods._();
+  @$core.override
+  ReqBillingTopupMethods createEmptyInstance() => ReqBillingTopupMethods._();
+  @$core.pragma('dart2js:noInline')
+  static ReqBillingTopupMethods getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqBillingTopupMethods>(
+          ReqBillingTopupMethods.$_createMessage);
+  static ReqBillingTopupMethods? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.double get sampleAmountIdr => $_getN(0);
+  @$pb.TagNumber(1)
+  set sampleAmountIdr($core.double value) => $_setDouble(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSampleAmountIdr() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSampleAmountIdr() => $_clearField(1);
+}
+
+class ResBillingTopupMethods extends $pb.GeneratedMessage {
+  factory ResBillingTopupMethods({
+    $core.Iterable<BillingTopupMethodOption>? methods,
+  }) {
+    final result = ResBillingTopupMethods._();
+    if (methods != null) result.methods.addAll(methods);
+    return result;
+  }
+
+  ResBillingTopupMethods._();
+
+  factory ResBillingTopupMethods.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingTopupMethods()..mergeFromBuffer(data, registry);
+  factory ResBillingTopupMethods.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingTopupMethods()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResBillingTopupMethods',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResBillingTopupMethods.$_createMessage)
+    ..pPM<BillingTopupMethodOption>(1, _omitFieldNames ? '' : 'methods',
+        subBuilder: BillingTopupMethodOption.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingTopupMethods clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingTopupMethods copyWith(
+          void Function(ResBillingTopupMethods) updates) =>
+      super.copyWith((message) => updates(message as ResBillingTopupMethods))
+          as ResBillingTopupMethods;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResBillingTopupMethods() / ResBillingTopupMethods.new instead')
+  static ResBillingTopupMethods create() => ResBillingTopupMethods._();
+  static $pb.GeneratedMessage $_createMessage() => ResBillingTopupMethods._();
+  @$core.override
+  ResBillingTopupMethods createEmptyInstance() => ResBillingTopupMethods._();
+  @$core.pragma('dart2js:noInline')
+  static ResBillingTopupMethods getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResBillingTopupMethods>(
+          ResBillingTopupMethods.$_createMessage);
+  static ResBillingTopupMethods? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<BillingTopupMethodOption> get methods => $_getList(0);
+}
+
+class ReqBillingTopupGet extends $pb.GeneratedMessage {
+  factory ReqBillingTopupGet({
+    $core.String? orderId,
+  }) {
+    final result = ReqBillingTopupGet._();
+    if (orderId != null) result.orderId = orderId;
+    return result;
+  }
+
+  ReqBillingTopupGet._();
+
+  factory ReqBillingTopupGet.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingTopupGet()..mergeFromBuffer(data, registry);
+  factory ReqBillingTopupGet.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingTopupGet()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqBillingTopupGet',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqBillingTopupGet.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'orderId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingTopupGet clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingTopupGet copyWith(void Function(ReqBillingTopupGet) updates) =>
+      super.copyWith((message) => updates(message as ReqBillingTopupGet))
+          as ReqBillingTopupGet;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqBillingTopupGet() / ReqBillingTopupGet.new instead')
+  static ReqBillingTopupGet create() => ReqBillingTopupGet._();
+  static $pb.GeneratedMessage $_createMessage() => ReqBillingTopupGet._();
+  @$core.override
+  ReqBillingTopupGet createEmptyInstance() => ReqBillingTopupGet._();
+  @$core.pragma('dart2js:noInline')
+  static ReqBillingTopupGet getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqBillingTopupGet>(
+          ReqBillingTopupGet.$_createMessage);
+  static ReqBillingTopupGet? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get orderId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set orderId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasOrderId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOrderId() => $_clearField(1);
+}
+
+class ResBillingTopupGet extends $pb.GeneratedMessage {
+  factory ResBillingTopupGet({
+    BillingTopupRequest? request,
+  }) {
+    final result = ResBillingTopupGet._();
+    if (request != null) result.request = request;
+    return result;
+  }
+
+  ResBillingTopupGet._();
+
+  factory ResBillingTopupGet.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingTopupGet()..mergeFromBuffer(data, registry);
+  factory ResBillingTopupGet.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingTopupGet()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResBillingTopupGet',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResBillingTopupGet.$_createMessage)
+    ..aOM<BillingTopupRequest>(1, _omitFieldNames ? '' : 'request',
+        subBuilder: BillingTopupRequest.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingTopupGet clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingTopupGet copyWith(void Function(ResBillingTopupGet) updates) =>
+      super.copyWith((message) => updates(message as ResBillingTopupGet))
+          as ResBillingTopupGet;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResBillingTopupGet() / ResBillingTopupGet.new instead')
+  static ResBillingTopupGet create() => ResBillingTopupGet._();
+  static $pb.GeneratedMessage $_createMessage() => ResBillingTopupGet._();
+  @$core.override
+  ResBillingTopupGet createEmptyInstance() => ResBillingTopupGet._();
+  @$core.pragma('dart2js:noInline')
+  static ResBillingTopupGet getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResBillingTopupGet>(
+          ResBillingTopupGet.$_createMessage);
+  static ResBillingTopupGet? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  BillingTopupRequest get request => $_getN(0);
+  @$pb.TagNumber(1)
+  set request(BillingTopupRequest value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasRequest() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearRequest() => $_clearField(1);
+  @$pb.TagNumber(1)
+  BillingTopupRequest ensureRequest() => $_ensure(0);
 }
 
 class BillingTopupQueueItem extends $pb.GeneratedMessage {

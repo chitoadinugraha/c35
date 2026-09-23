@@ -85,6 +85,8 @@ enum InvokeReq_Body {
   objectAliasList,
   objectAliasPut,
   objectNormalizerList,
+  billingTopupMethods,
+  billingTopupGet,
   notSet
 }
 
@@ -135,6 +137,8 @@ class InvokeReq extends $pb.GeneratedMessage {
     $9.ReqObjectAliasList? objectAliasList,
     $9.ReqObjectAliasPut? objectAliasPut,
     $9.ReqObjectNormalizerList? objectNormalizerList,
+    $0.ReqBillingTopupMethods? billingTopupMethods,
+    $0.ReqBillingTopupGet? billingTopupGet,
   }) {
     final result = InvokeReq._();
     if (reqId != null) result.reqId = reqId;
@@ -199,6 +203,9 @@ class InvokeReq extends $pb.GeneratedMessage {
     if (objectAliasPut != null) result.objectAliasPut = objectAliasPut;
     if (objectNormalizerList != null)
       result.objectNormalizerList = objectNormalizerList;
+    if (billingTopupMethods != null)
+      result.billingTopupMethods = billingTopupMethods;
+    if (billingTopupGet != null) result.billingTopupGet = billingTopupGet;
     return result;
   }
 
@@ -254,6 +261,8 @@ class InvokeReq extends $pb.GeneratedMessage {
     119: InvokeReq_Body.objectAliasList,
     120: InvokeReq_Body.objectAliasPut,
     121: InvokeReq_Body.objectNormalizerList,
+    122: InvokeReq_Body.billingTopupMethods,
+    123: InvokeReq_Body.billingTopupGet,
     0: InvokeReq_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -302,7 +311,9 @@ class InvokeReq extends $pb.GeneratedMessage {
       118,
       119,
       120,
-      121
+      121,
+      122,
+      123
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aInt64(2, _omitFieldNames ? '' : 'callerIid')
@@ -410,6 +421,11 @@ class InvokeReq extends $pb.GeneratedMessage {
     ..aOM<$9.ReqObjectNormalizerList>(
         121, _omitFieldNames ? '' : 'objectNormalizerList',
         subBuilder: $9.ReqObjectNormalizerList.$_createMessage)
+    ..aOM<$0.ReqBillingTopupMethods>(
+        122, _omitFieldNames ? '' : 'billingTopupMethods',
+        subBuilder: $0.ReqBillingTopupMethods.$_createMessage)
+    ..aOM<$0.ReqBillingTopupGet>(123, _omitFieldNames ? '' : 'billingTopupGet',
+        subBuilder: $0.ReqBillingTopupGet.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -474,6 +490,8 @@ class InvokeReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(119)
   @$pb.TagNumber(120)
   @$pb.TagNumber(121)
+  @$pb.TagNumber(122)
+  @$pb.TagNumber(123)
   InvokeReq_Body whichBody() => _InvokeReq_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(10)
   @$pb.TagNumber(11)
@@ -517,6 +535,8 @@ class InvokeReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(119)
   @$pb.TagNumber(120)
   @$pb.TagNumber(121)
+  @$pb.TagNumber(122)
+  @$pb.TagNumber(123)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -1021,6 +1041,29 @@ class InvokeReq extends $pb.GeneratedMessage {
   void clearObjectNormalizerList() => $_clearField(121);
   @$pb.TagNumber(121)
   $9.ReqObjectNormalizerList ensureObjectNormalizerList() => $_ensure(43);
+
+  @$pb.TagNumber(122)
+  $0.ReqBillingTopupMethods get billingTopupMethods => $_getN(44);
+  @$pb.TagNumber(122)
+  set billingTopupMethods($0.ReqBillingTopupMethods value) =>
+      $_setField(122, value);
+  @$pb.TagNumber(122)
+  $core.bool hasBillingTopupMethods() => $_has(44);
+  @$pb.TagNumber(122)
+  void clearBillingTopupMethods() => $_clearField(122);
+  @$pb.TagNumber(122)
+  $0.ReqBillingTopupMethods ensureBillingTopupMethods() => $_ensure(44);
+
+  @$pb.TagNumber(123)
+  $0.ReqBillingTopupGet get billingTopupGet => $_getN(45);
+  @$pb.TagNumber(123)
+  set billingTopupGet($0.ReqBillingTopupGet value) => $_setField(123, value);
+  @$pb.TagNumber(123)
+  $core.bool hasBillingTopupGet() => $_has(45);
+  @$pb.TagNumber(123)
+  void clearBillingTopupGet() => $_clearField(123);
+  @$pb.TagNumber(123)
+  $0.ReqBillingTopupGet ensureBillingTopupGet() => $_ensure(45);
 }
 
 enum InvokeRes_Body {
@@ -1065,6 +1108,8 @@ enum InvokeRes_Body {
   objectAliasList,
   objectAliasPut,
   objectNormalizerList,
+  billingTopupMethods,
+  billingTopupGet,
   notSet
 }
 
@@ -1114,6 +1159,8 @@ class InvokeRes extends $pb.GeneratedMessage {
     $9.ResObjectAliasList? objectAliasList,
     $9.ResObjectAliasPut? objectAliasPut,
     $9.ResObjectNormalizerList? objectNormalizerList,
+    $0.ResBillingTopupMethods? billingTopupMethods,
+    $0.ResBillingTopupGet? billingTopupGet,
   }) {
     final result = InvokeRes._();
     if (reqId != null) result.reqId = reqId;
@@ -1177,6 +1224,9 @@ class InvokeRes extends $pb.GeneratedMessage {
     if (objectAliasPut != null) result.objectAliasPut = objectAliasPut;
     if (objectNormalizerList != null)
       result.objectNormalizerList = objectNormalizerList;
+    if (billingTopupMethods != null)
+      result.billingTopupMethods = billingTopupMethods;
+    if (billingTopupGet != null) result.billingTopupGet = billingTopupGet;
     return result;
   }
 
@@ -1231,6 +1281,8 @@ class InvokeRes extends $pb.GeneratedMessage {
     119: InvokeRes_Body.objectAliasList,
     120: InvokeRes_Body.objectAliasPut,
     121: InvokeRes_Body.objectNormalizerList,
+    122: InvokeRes_Body.billingTopupMethods,
+    123: InvokeRes_Body.billingTopupGet,
     0: InvokeRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -1278,7 +1330,9 @@ class InvokeRes extends $pb.GeneratedMessage {
       118,
       119,
       120,
-      121
+      121,
+      122,
+      123
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aI(2, _omitFieldNames ? '' : 'statusCode')
@@ -1384,6 +1438,11 @@ class InvokeRes extends $pb.GeneratedMessage {
     ..aOM<$9.ResObjectNormalizerList>(
         121, _omitFieldNames ? '' : 'objectNormalizerList',
         subBuilder: $9.ResObjectNormalizerList.$_createMessage)
+    ..aOM<$0.ResBillingTopupMethods>(
+        122, _omitFieldNames ? '' : 'billingTopupMethods',
+        subBuilder: $0.ResBillingTopupMethods.$_createMessage)
+    ..aOM<$0.ResBillingTopupGet>(123, _omitFieldNames ? '' : 'billingTopupGet',
+        subBuilder: $0.ResBillingTopupGet.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1447,6 +1506,8 @@ class InvokeRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(119)
   @$pb.TagNumber(120)
   @$pb.TagNumber(121)
+  @$pb.TagNumber(122)
+  @$pb.TagNumber(123)
   InvokeRes_Body whichBody() => _InvokeRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(10)
   @$pb.TagNumber(11)
@@ -1489,6 +1550,8 @@ class InvokeRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(119)
   @$pb.TagNumber(120)
   @$pb.TagNumber(121)
+  @$pb.TagNumber(122)
+  @$pb.TagNumber(123)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -1990,6 +2053,29 @@ class InvokeRes extends $pb.GeneratedMessage {
   void clearObjectNormalizerList() => $_clearField(121);
   @$pb.TagNumber(121)
   $9.ResObjectNormalizerList ensureObjectNormalizerList() => $_ensure(43);
+
+  @$pb.TagNumber(122)
+  $0.ResBillingTopupMethods get billingTopupMethods => $_getN(44);
+  @$pb.TagNumber(122)
+  set billingTopupMethods($0.ResBillingTopupMethods value) =>
+      $_setField(122, value);
+  @$pb.TagNumber(122)
+  $core.bool hasBillingTopupMethods() => $_has(44);
+  @$pb.TagNumber(122)
+  void clearBillingTopupMethods() => $_clearField(122);
+  @$pb.TagNumber(122)
+  $0.ResBillingTopupMethods ensureBillingTopupMethods() => $_ensure(44);
+
+  @$pb.TagNumber(123)
+  $0.ResBillingTopupGet get billingTopupGet => $_getN(45);
+  @$pb.TagNumber(123)
+  set billingTopupGet($0.ResBillingTopupGet value) => $_setField(123, value);
+  @$pb.TagNumber(123)
+  $core.bool hasBillingTopupGet() => $_has(45);
+  @$pb.TagNumber(123)
+  void clearBillingTopupGet() => $_clearField(123);
+  @$pb.TagNumber(123)
+  $0.ResBillingTopupGet ensureBillingTopupGet() => $_ensure(45);
 }
 
 enum WsReq_Body {

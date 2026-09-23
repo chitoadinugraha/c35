@@ -1,9 +1,16 @@
-use c35_proto::{BillingTopupRequest, ReqBillingTopupPut, ResBillingTopupPut};
+use c35_proto::{
+    BillingTopupMethodOption, BillingTopupRequest, ReqBillingTopupGet, ReqBillingTopupMethods,
+    ReqBillingTopupPut, ResBillingTopupGet, ResBillingTopupMethods, ResBillingTopupPut,
+};
 use c35_store::snowflake_id;
 use sqlx::{PgPool, Postgres, Row, Transaction};
 use tracing::{info, warn};
 
-use crate::billing_midtrans::{payment_create, resolve_topup_amounts, Notification, SettlePlan};
+use crate::billing_midtrans::{
+    midtrans_fee_idr, midtrans_fee_is_percent, midtrans_fee_rate_bps, payment_channel_label,
+    payment_create, resolve_topup_amounts, snap_merchant_payment_channels, Notification, SettlePlan,
+    TOPUP_MIN_IDR,
+};
 use crate::fx_live::fx_live_idr_per_usd;
 use crate::billing_receive_account::receive_account_default;
 use crate::billing_runtime::billing_runtime;
@@ -115,6 +122,115 @@ async fn billing_manual_topup_put(
         qr_code_data: String::new(),
         instruction,
         status: "pending_review".into(),
+        credit_amount_idr: amount_idr as f64,
+        fee_amount_idr: 0.0,
+        gross_amount_idr: amount_idr as f64,
+    })
+}
+
+pub async fn billing_topup_methods(
+    pool: &PgPool,
+    owner_iid: i64,
+    req: ReqBillingTopupMethods,
+) -> Result<ResBillingTopupMethods, String> {
+    if owner_iid <= 0 {
+        return Err("unauthorized".into());
+    }
+    let sample = if req.sample_amount_idr > 0.0 {
+        req.sample_amount_idr.round() as i64
+    } else {
+        TOPUP_MIN_IDR
+    };
+    let mut methods = vec![BillingTopupMethodOption {
+        id: "manual".into(),
+        label: "Manual transfer".into(),
+        provider: "manual".into(),
+        payment_type: "bank_transfer".into(),
+        note: "Must wait Admin approval".into(),
+        fee_amount_idr: 0.0,
+        fee_is_percent: false,
+        fee_rate_bps: 0.0,
+    }];
+    let rt = billing_runtime();
+    match snap_merchant_payment_channels(&rt.http, &rt.midtrans_server_key, rt.midtrans_is_production).await {
+        Ok(channels) => {
+            for ch in channels {
+                let fee = midtrans_fee_idr(&ch, sample) as f64;
+                methods.push(BillingTopupMethodOption {
+                    id: ch.clone(),
+                    label: payment_channel_label(&ch),
+                    provider: "midtrans".into(),
+                    payment_type: ch.clone(),
+                    note: "Fee added to total".into(),
+                    fee_amount_idr: fee,
+                    fee_is_percent: midtrans_fee_is_percent(&ch),
+                    fee_rate_bps: midtrans_fee_rate_bps(&ch),
+                });
+            }
+        }
+        Err(e) => {
+            warn!("[c35:billing] midtrans payment channels fallback: {e:#}");
+            for ch in ["qris", "bca_va", "bni_va", "gopay", "shopeepay"] {
+                let fee = midtrans_fee_idr(ch, sample) as f64;
+                methods.push(BillingTopupMethodOption {
+                    id: ch.into(),
+                    label: payment_channel_label(ch),
+                    provider: "midtrans".into(),
+                    payment_type: ch.into(),
+                    note: "Fee added to total".into(),
+                    fee_amount_idr: fee,
+                    fee_is_percent: midtrans_fee_is_percent(ch),
+                    fee_rate_bps: midtrans_fee_rate_bps(ch),
+                });
+            }
+        }
+    }
+    let _ = pool;
+    Ok(ResBillingTopupMethods { methods })
+}
+
+pub async fn billing_topup_get(pool: &PgPool, owner_iid: i64, req: ReqBillingTopupGet) -> Result<ResBillingTopupGet, String> {
+    if owner_iid <= 0 {
+        return Err("unauthorized".into());
+    }
+    let order_id = req.order_id.trim();
+    if order_id.is_empty() {
+        return Err("order_id required".into());
+    }
+    let row = sqlx::query(
+        r#"
+        SELECT id, owner_iid, billing_account_id, amount_usd, amount_idr, provider, payment_type,
+               external_order_id, proof_url, status, created_ts
+        FROM ai.billing_topup_request
+        WHERE owner_iid = $1 AND external_order_id = $2
+        LIMIT 1
+        "#,
+    )
+    .bind(owner_iid)
+    .bind(order_id)
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+    let r = row.ok_or_else(|| "top-up not found".to_string())?;
+    let created = r
+        .try_get::<chrono::DateTime<chrono::Utc>, _>("created_ts")
+        .map(|t| t.timestamp_millis())
+        .unwrap_or(0);
+    Ok(ResBillingTopupGet {
+        request: Some(BillingTopupRequest {
+            id: r.get("id"),
+            owner_iid: r.get("owner_iid"),
+            billing_account_id: r.get("billing_account_id"),
+            amount_usd: r.get("amount_usd"),
+            amount_idr: r.get("amount_idr"),
+            provider: r.get("provider"),
+            payment_type: r.get("payment_type"),
+            external_order_id: r.get("external_order_id"),
+            proof_url: r.get("proof_url"),
+            status: r.get("status"),
+            created_ts_ms: created,
+            ..Default::default()
+        }),
     })
 }
 
@@ -125,19 +241,21 @@ async fn billing_midtrans_topup_put(
 ) -> Result<ResBillingTopupPut, String> {
     let rt = billing_runtime();
     let usd_idr = topup_usd_idr_rate(rt.midtrans_usd_idr);
-    let (gross_idr, amount_usd) = resolve_topup_amounts(req.amount_usd, req.amount_idr, usd_idr)
+    let (credit_idr, amount_usd) = resolve_topup_amounts(req.amount_usd, req.amount_idr, usd_idr)
         .map_err(|e| e.to_string())?;
     let account = billing_account_row(pool, owner_iid).await?;
     let account_id: i64 = account.get("id");
-    let payment_type = if req.payment_type.trim().is_empty() {
+    let payment_method = if req.payment_type.trim().is_empty() {
         "qris".into()
     } else {
         req.payment_type.trim().to_string()
     };
+    let fee_idr = midtrans_fee_idr(&payment_method, credit_idr);
+    let charge_idr = credit_idr + fee_idr;
     let topup_id = snowflake_id();
     let order_id = format!("c35-{topup_id}");
     let item_name = if req.amount_idr > 0.0 {
-        format!("Alien AI wallet {}", wallet_idr_label(gross_idr))
+        format!("Alien AI wallet {}", wallet_idr_label(credit_idr))
     } else {
         format!("Alien AI wallet ${amount_usd:.2}")
     };
@@ -153,13 +271,15 @@ async fn billing_midtrans_topup_put(
     .bind(owner_iid)
     .bind(account_id)
     .bind(amount_usd)
-    .bind(gross_idr as f64)
-    .bind(&payment_type)
+    .bind(credit_idr as f64)
+    .bind(&payment_method)
     .bind(&order_id)
     .bind(serde_json::json!({
         "usd_idr": usd_idr,
         "owner_iid": owner_iid,
-        "amount_idr": gross_idr,
+        "credit_idr": credit_idr,
+        "fee_idr": fee_idr,
+        "gross_idr": charge_idr,
         "amount_usd": amount_usd,
     }))
     .execute(pool)
@@ -170,9 +290,9 @@ async fn billing_midtrans_topup_put(
         &rt.midtrans_server_key,
         rt.midtrans_is_production,
         &order_id,
-        gross_idr,
+        charge_idr,
         &item_name,
-        &payment_type,
+        &payment_method,
     )
     .await
     {
@@ -199,15 +319,18 @@ async fn billing_midtrans_topup_put(
     .execute(pool)
     .await;
     let now_ms = chrono::Utc::now().timestamp_millis();
+    let fee_f = fee_idr as f64;
+    let credit_f = credit_idr as f64;
+    let gross_f = charge_idr as f64;
     Ok(ResBillingTopupPut {
         request: Some(BillingTopupRequest {
             id: topup_id,
             owner_iid,
             billing_account_id: account_id,
             amount_usd,
-            amount_idr: gross_idr as f64,
+            amount_idr: credit_f,
             provider: "midtrans".into(),
-            payment_type,
+            payment_type: payment_method,
             external_order_id: created.order_id.clone(),
             status: "pending".into(),
             created_ts_ms: now_ms,
@@ -216,8 +339,20 @@ async fn billing_midtrans_topup_put(
         order_id: created.order_id,
         payment_url: created.payment_url,
         qr_code_data: created.qr_code_data,
-        instruction: String::new(),
+        instruction: if fee_idr > 0 {
+            format!(
+                "Pay {} total ({} credit + {} Midtrans fee)",
+                wallet_idr_label(charge_idr),
+                wallet_idr_label(credit_idr),
+                wallet_idr_label(fee_idr)
+            )
+        } else {
+            String::new()
+        },
         status: "pending".into(),
+        credit_amount_idr: credit_f,
+        fee_amount_idr: fee_f,
+        gross_amount_idr: gross_f,
     })
 }
 

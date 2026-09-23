@@ -68,8 +68,14 @@ pub fn api_host(is_production: bool) -> &'static str {
 }
 
 pub fn snap_payments(payment_type: &str) -> Vec<String> {
+    if payment_type.is_empty() {
+        return vec!["qris".into()];
+    }
+    if payment_type.contains('_') || payment_type == "echannel" || payment_type == "other_qris" {
+        return vec![payment_type.into()];
+    }
     match payment_type {
-        "qris" | "" => vec!["qris".into()],
+        "qris" => vec!["qris".into()],
         "bank_transfer" => vec![
             "bca_va".into(),
             "bni_va".into(),
@@ -78,15 +84,110 @@ pub fn snap_payments(payment_type: &str) -> Vec<String> {
             "echannel".into(),
         ],
         "credit_card" => vec!["credit_card".into()],
-        _ => vec![
-            "qris".into(),
-            "gopay".into(),
-            "shopeepay".into(),
-            "bca_va".into(),
-            "bni_va".into(),
-            "bri_va".into(),
-        ],
+        "gopay" | "shopeepay" => vec![payment_type.into()],
+        _ => vec![payment_type.into()],
     }
+}
+
+pub fn payment_channel_label(name: &str) -> String {
+    match name {
+        "qris" | "other_qris" => "QRIS".into(),
+        "bca_va" => "BCA Virtual Account".into(),
+        "bni_va" => "BNI Virtual Account".into(),
+        "bri_va" => "BRI Virtual Account".into(),
+        "permata_va" => "Permata VA".into(),
+        "other_va" => "Virtual Account".into(),
+        "cimb_va" => "CIMB VA".into(),
+        "echannel" => "Mandiri Bill".into(),
+        "gopay" => "GoPay".into(),
+        "shopeepay" => "ShopeePay".into(),
+        "credit_card" => "Credit Card".into(),
+        "indomaret" => "Indomaret".into(),
+        "alfamart" => "Alfamart".into(),
+        "akulaku" => "Akulaku".into(),
+        "kredivo" => "Kredivo".into(),
+        other => other.replace('_', " ").to_uppercase(),
+    }
+}
+
+pub fn midtrans_fee_idr(method_id: &str, credit_idr: i64) -> i64 {
+    if credit_idr <= 0 {
+        return 0;
+    }
+    match method_id {
+        "qris" | "other_qris" => ((credit_idr as f64) * 0.007).ceil() as i64,
+        "bca_va" | "bni_va" | "bri_va" | "permata_va" | "other_va" | "cimb_va" | "echannel" => 4_000,
+        "gopay" | "shopeepay" => ((credit_idr as f64) * 0.02).ceil() as i64,
+        "credit_card" => ((credit_idr as f64) * 0.029).ceil() as i64,
+        "indomaret" | "alfamart" => 5_000,
+        _ => ((credit_idr as f64) * 0.01).ceil() as i64,
+    }
+}
+
+pub fn midtrans_fee_is_percent(method_id: &str) -> bool {
+    !matches!(
+        method_id,
+        "bca_va" | "bni_va" | "bri_va" | "permata_va" | "other_va" | "cimb_va" | "echannel" | "indomaret" | "alfamart"
+    )
+}
+
+pub fn midtrans_fee_rate_bps(method_id: &str) -> f64 {
+    match method_id {
+        "qris" | "other_qris" => 70.0,
+        "gopay" | "shopeepay" => 200.0,
+        "credit_card" => 290.0,
+        _ => 100.0,
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct PaymentChannel {
+    name: String,
+    enabled: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct MerchantPreferences {
+    payment_channels: Option<Vec<PaymentChannel>>,
+    error_messages: Option<Vec<String>>,
+}
+
+pub async fn snap_merchant_payment_channels(
+    client: &reqwest::Client,
+    server_key: &str,
+    is_production: bool,
+) -> Result<Vec<String>> {
+    if server_key.is_empty() {
+        return Ok(vec!["qris".into(), "bca_va".into()]);
+    }
+    let url = format!("{}/snap/v3/merchant-preferences", snap_host(is_production));
+    let res = client
+        .get(&url)
+        .basic_auth(server_key, Some(""))
+        .header("Accept", "application/json")
+        .send()
+        .await?;
+    let status = res.status();
+    let text = res.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(anyhow!("Midtrans preferences HTTP {}: {}", status, text));
+    }
+    let parsed: MerchantPreferences =
+        serde_json::from_str(&text).map_err(|e| anyhow!("Midtrans preferences decode: {e}; body={text}"))?;
+    if let Some(errs) = parsed.error_messages.filter(|e| !e.is_empty()) {
+        return Err(anyhow!("Midtrans preferences: {}", errs.join("; ")));
+    }
+    let channels = parsed
+        .payment_channels
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|c| c.enabled && !c.name.is_empty())
+        .map(|c| c.name)
+        .collect::<Vec<_>>();
+    if channels.is_empty() {
+        return Ok(vec!["qris".into(), "bca_va".into()]);
+    }
+    Ok(channels)
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -314,16 +415,17 @@ pub async fn payment_create(
     order_id: &str,
     gross_idr: i64,
     item_name: &str,
-    payment_type: &str,
+    payment_method: &str,
 ) -> Result<PaymentCreated> {
-    let qris = payment_type.is_empty() || payment_type == "qris";
+    let method = if payment_method.is_empty() { "qris" } else { payment_method };
+    let qris = method == "qris" || method == "other_qris";
     if qris {
         match qris_charge(client, server_key, is_production, order_id, gross_idr).await {
             Ok(p) => return Ok(p),
             Err(e) => warn!("[c35:billing] QRIS charge failed, falling back to Snap: {e:#}"),
         }
     }
-    snap_create(client, server_key, is_production, order_id, gross_idr, item_name, payment_type).await
+    snap_create(client, server_key, is_production, order_id, gross_idr, item_name, method).await
 }
 
 #[cfg(test)]
@@ -374,6 +476,13 @@ mod tests {
         let (idr, usd) = resolve_topup_amounts(0.0, 100_000.0, USD_IDR_DEFAULT).unwrap();
         assert_eq!(idr, 100_000);
         assert!((usd - 6.25).abs() < 0.01);
+    }
+
+    #[test]
+    fn midtrans_fee_passed_to_customer() {
+        assert_eq!(midtrans_fee_idr("qris", 100_000), 700);
+        assert_eq!(midtrans_fee_idr("bca_va", 100_000), 4_000);
+        assert_eq!(midtrans_fee_idr("manual", 100_000), 1_000);
     }
 
     #[test]

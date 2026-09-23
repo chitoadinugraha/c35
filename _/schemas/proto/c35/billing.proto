@@ -188,7 +188,37 @@ message ResBillingTopupPut {
   string payment_url = 3;
   string qr_code_data = 4;
   string instruction = 5;
-  string status = 6;         // pending | pending_review | portal
+  string status = 6;         // pending | pending_review | settled | portal
+  double credit_amount_idr = 7;  // wallet credit (excludes fee)
+  double fee_amount_idr = 8;     // Midtrans fee passed to customer
+  double gross_amount_idr = 9;   // total charged (credit + fee)
+}
+
+message BillingTopupMethodOption {
+  string id = 1;             // qris | bca_va | manual | …
+  string label = 2;
+  string provider = 3;       // midtrans | manual
+  string payment_type = 4;   // wire payment_type for topup put
+  string note = 5;           // e.g. "Must wait Admin approval"
+  double fee_amount_idr = 6; // estimated fee for sample amount
+  bool fee_is_percent = 7;
+  double fee_rate_bps = 8;   // basis points when percent
+}
+
+message ReqBillingTopupMethods {
+  double sample_amount_idr = 1;
+}
+
+message ResBillingTopupMethods {
+  repeated BillingTopupMethodOption methods = 1;
+}
+
+message ReqBillingTopupGet {
+  string order_id = 1;
+}
+
+message ResBillingTopupGet {
+  BillingTopupRequest request = 1;
 }
 
 message BillingTopupQueueItem {

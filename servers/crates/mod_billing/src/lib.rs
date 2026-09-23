@@ -61,7 +61,7 @@ pub use billing_receive_account::{receive_account_list, receive_account_put};
 pub use fetch_fx::{fx_change_bps, fx_markup_apply, fx_micro_from_idr, FxRateFetchTask};
 pub use fx_live::{fx_live_idr_per_usd, fx_live_init, fx_live_micro_per_usd, fx_live_rate_id, fx_live_subscribe};
 pub use billing_runtime::{billing_runtime_init, midtrans_active_key, midtrans_is_production, midtrans_usd_idr_from_env, BillingRuntime};
-pub use billing_topup::{billing_topup_put, billing_topup_settle};
+pub use billing_topup::{billing_topup_get, billing_topup_methods, billing_topup_put, billing_topup_settle};
 pub use billing_webhook::billing_webhook_router;
 pub use billing_on_demand::{
     allowance_remaining, gate_can_start, native_to_usd, on_demand_usd, quota_rejection_reason,

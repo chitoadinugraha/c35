@@ -10,8 +10,9 @@ use c35_mod_admin::{admin_log_list, admin_user_put, admin_user_search};
 use c35_mod_billing::{
     billing_history, billing_notify_owner, billing_package_preview, billing_package_redeem,
     billing_plan_subscribe, billing_promotion_claim, billing_promotion_create, billing_promotion_get,
-    billing_promotion_list_by_creator, billing_summary, billing_topup_list, billing_topup_put,
-    billing_topup_review, bot_usage_stats, commission_withdraw_list, commission_withdraw_review,
+    billing_promotion_list_by_creator, billing_summary, billing_topup_get, billing_topup_list,
+    billing_topup_methods, billing_topup_put, billing_topup_review, bot_usage_stats,
+    commission_withdraw_list, commission_withdraw_review,
     receive_account_list, receive_account_put, PromotionCreateFields,
 };
 use c35_mod_channel::{channel_telegram_connect, channel_whatsapp_meta_connect};
@@ -273,6 +274,28 @@ pub async fn dispatch_invoke(state: &AppState, req: InvokeReq) -> InvokeRes {
                     status_code: 200,
                     error_message: String::new(),
                     body: Some(invoke_res::Body::BillingTopupPut(res)),
+                },
+                Err(msg) => invoke_error(&req_id, 400, msg),
+            }
+        }
+        Some(invoke_req::Body::BillingTopupMethods(r)) => {
+            match billing_topup_methods(pool, iid, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::BillingTopupMethods(res)),
+                },
+                Err(msg) => invoke_error(&req_id, 400, msg),
+            }
+        }
+        Some(invoke_req::Body::BillingTopupGet(r)) => {
+            match billing_topup_get(pool, iid, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::BillingTopupGet(res)),
                 },
                 Err(msg) => invoke_error(&req_id, 400, msg),
             }

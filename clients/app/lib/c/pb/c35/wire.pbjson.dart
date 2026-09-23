@@ -399,6 +399,24 @@ const InvokeReq$json = {
       '9': 0,
       '10': 'objectNormalizerList'
     },
+    {
+      '1': 'billing_topup_methods',
+      '3': 122,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqBillingTopupMethods',
+      '9': 0,
+      '10': 'billingTopupMethods'
+    },
+    {
+      '1': 'billing_topup_get',
+      '3': 123,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqBillingTopupGet',
+      '9': 0,
+      '10': 'billingTopupGet'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -464,8 +482,10 @@ final $typed_data.Uint8List invokeReqDescriptor = $convert.base64Decode(
     'b2JqZWN0X2FsaWFzX2xpc3QYdyABKAsyFy5jMzUuUmVxT2JqZWN0QWxpYXNMaXN0SABSD29iam'
     'VjdEFsaWFzTGlzdBJCChBvYmplY3RfYWxpYXNfcHV0GHggASgLMhYuYzM1LlJlcU9iamVjdEFs'
     'aWFzUHV0SABSDm9iamVjdEFsaWFzUHV0ElQKFm9iamVjdF9ub3JtYWxpemVyX2xpc3QYeSABKA'
-    'syHC5jMzUuUmVxT2JqZWN0Tm9ybWFsaXplckxpc3RIAFIUb2JqZWN0Tm9ybWFsaXplckxpc3RC'
-    'BgoEYm9keQ==');
+    'syHC5jMzUuUmVxT2JqZWN0Tm9ybWFsaXplckxpc3RIAFIUb2JqZWN0Tm9ybWFsaXplckxpc3QS'
+    'UQoVYmlsbGluZ190b3B1cF9tZXRob2RzGHogASgLMhsuYzM1LlJlcUJpbGxpbmdUb3B1cE1ldG'
+    'hvZHNIAFITYmlsbGluZ1RvcHVwTWV0aG9kcxJFChFiaWxsaW5nX3RvcHVwX2dldBh7IAEoCzIX'
+    'LmMzNS5SZXFCaWxsaW5nVG9wdXBHZXRIAFIPYmlsbGluZ1RvcHVwR2V0QgYKBGJvZHk=');
 
 @$core.Deprecated('Use invokeResDescriptor instead')
 const InvokeRes$json = {
@@ -843,6 +863,24 @@ const InvokeRes$json = {
       '9': 0,
       '10': 'objectNormalizerList'
     },
+    {
+      '1': 'billing_topup_methods',
+      '3': 122,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResBillingTopupMethods',
+      '9': 0,
+      '10': 'billingTopupMethods'
+    },
+    {
+      '1': 'billing_topup_get',
+      '3': 123,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResBillingTopupGet',
+      '9': 0,
+      '10': 'billingTopupGet'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -908,7 +946,10 @@ final $typed_data.Uint8List invokeResDescriptor = $convert.base64Decode(
     'TGlzdEgAUg9vYmplY3RBbGlhc0xpc3QSQgoQb2JqZWN0X2FsaWFzX3B1dBh4IAEoCzIWLmMzNS'
     '5SZXNPYmplY3RBbGlhc1B1dEgAUg5vYmplY3RBbGlhc1B1dBJUChZvYmplY3Rfbm9ybWFsaXpl'
     'cl9saXN0GHkgASgLMhwuYzM1LlJlc09iamVjdE5vcm1hbGl6ZXJMaXN0SABSFG9iamVjdE5vcm'
-    '1hbGl6ZXJMaXN0QgYKBGJvZHk=');
+    '1hbGl6ZXJMaXN0ElEKFWJpbGxpbmdfdG9wdXBfbWV0aG9kcxh6IAEoCzIbLmMzNS5SZXNCaWxs'
+    'aW5nVG9wdXBNZXRob2RzSABSE2JpbGxpbmdUb3B1cE1ldGhvZHMSRQoRYmlsbGluZ190b3B1cF'
+    '9nZXQYeyABKAsyFy5jMzUuUmVzQmlsbGluZ1RvcHVwR2V0SABSD2JpbGxpbmdUb3B1cEdldEIG'
+    'CgRib2R5');
 
 @$core.Deprecated('Use wsReqDescriptor instead')
 const WsReq$json = {

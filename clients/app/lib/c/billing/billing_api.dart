@@ -3,6 +3,32 @@ import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:alienai_c35/c/pb/c35/wire.pb.dart';
 import 'package:uuid/uuid.dart';
 
+Future<ResBillingTopupMethods> billingTopupMethods(ReferralConn conn, {double sampleAmountIdr = 0}) async {
+  final res = await conn.invoke(
+    InvokeReq(
+      reqId: const Uuid().v4(),
+      billingTopupMethods: ReqBillingTopupMethods(sampleAmountIdr: sampleAmountIdr),
+    ),
+    timeout: const Duration(seconds: 15),
+  );
+  invokeResThrow(res, fallback: 'Failed to load payment methods');
+  if (!res.hasBillingTopupMethods()) throw 'No payment methods response';
+  return res.billingTopupMethods;
+}
+
+Future<ResBillingTopupGet> billingTopupGet(ReferralConn conn, {required String orderId}) async {
+  final res = await conn.invoke(
+    InvokeReq(
+      reqId: const Uuid().v4(),
+      billingTopupGet: ReqBillingTopupGet(orderId: orderId),
+    ),
+    timeout: const Duration(seconds: 10),
+  );
+  invokeResThrow(res, fallback: 'Failed to check payment status');
+  if (!res.hasBillingTopupGet()) throw 'No top-up status response';
+  return res.billingTopupGet;
+}
+
 Future<ResBillingTopupPut> billingTopupPut(
   ReferralConn conn, {
   required double amountUsd,

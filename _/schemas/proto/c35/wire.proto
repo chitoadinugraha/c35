@@ -75,6 +75,8 @@ message InvokeReq {
     ReqObjectAliasList object_alias_list = 119;
     ReqObjectAliasPut object_alias_put = 120;
     ReqObjectNormalizerList object_normalizer_list = 121;
+    ReqBillingTopupMethods billing_topup_methods = 122;
+    ReqBillingTopupGet billing_topup_get = 123;
   }
 }
 
@@ -125,6 +127,8 @@ message InvokeRes {
     ResObjectAliasList object_alias_list = 119;
     ResObjectAliasPut object_alias_put = 120;
     ResObjectNormalizerList object_normalizer_list = 121;
+    ResBillingTopupMethods billing_topup_methods = 122;
+    ResBillingTopupGet billing_topup_get = 123;
   }
 }
 

@@ -15,8 +15,6 @@ import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-enum BillingTopupMethod { qris, virtualAccount, manualTransfer }
-
 class _WalletIdrInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
@@ -43,15 +41,20 @@ class _UiBillingTopupPanelState extends State<UiBillingTopupPanel> {
   static const _text = Color(0xFFE4E4E7);
   static const _muted = Color(0xFFA1A1AA);
   static const _accent = Color(0xFF34D399);
+  static const _border = Color(0xFF27272A);
 
   late final _amountCtrl = TextEditingController();
-  var _method = BillingTopupMethod.qris;
+  var _step = 0;
   var _busy = false;
   String? _error;
   ResBillingTopupPut? _result;
   Uint8List? _proofBytes;
   String? _proofMime;
+  List<BillingTopupMethodOption> _methods = const [];
+  BillingTopupMethodOption? _selectedMethod;
   BillingReceiveAccount? _receiveAccount;
+  Timer? _pollTimer;
+  String _pollStatus = '';
 
   bool get _usesIdr => widget.currency.toUpperCase() == 'IDR';
 
@@ -67,16 +70,21 @@ class _UiBillingTopupPanelState extends State<UiBillingTopupPanel> {
 
   bool get _amountOk => _usesIdr ? billingTopupAmountOk(amountUsd: 0, amountIdr: _amountIdr, usesIdr: true) : billingTopupAmountOk(amountUsd: _amountUsd, usesIdr: false);
 
+  bool get _isManual => _selectedMethod?.provider == 'manual';
+
+  double get _feeIdr => _isManual ? 0 : (_selectedMethod?.feeAmountIdr ?? 0);
+
+  double get _grossIdr => _amountIdr + _feeIdr;
+
+  bool get _isSettled => _pollStatus == 'settled';
+
+  bool get _isPendingReview => _pollStatus == 'pending_review';
+
   @override
   void initState() {
     super.initState();
+    unawaited(_loadMethods());
     unawaited(_loadReceiveAccounts());
-  }
-
-  @override
-  void dispose() {
-    _amountCtrl.dispose();
-    super.dispose();
   }
 
   Future<void> _loadReceiveAccounts() async {
@@ -84,15 +92,55 @@ class _UiBillingTopupPanelState extends State<UiBillingTopupPanel> {
       final accounts = await financeReceiveAccountList(widget.conn, currency: widget.currency);
       if (!mounted) return;
       setState(() {
-        _receiveAccount = accounts.isEmpty
-            ? null
-            : accounts.firstWhere((a) => a.isDefault, orElse: () => accounts.first);
+        _receiveAccount = accounts.isEmpty ? null : accounts.firstWhere((a) => a.isDefault, orElse: () => accounts.first);
+      });
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    _amountCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadMethods() async {
+    if (!_usesIdr) return;
+    try {
+      final res = await billingTopupMethods(widget.conn, sampleAmountIdr: _amountIdr > 0 ? _amountIdr : billingTopupMinIdr);
+      if (!mounted) return;
+      setState(() {
+        _methods = res.methods;
+        _selectedMethod = res.methods.isEmpty ? null : res.methods.first;
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _refreshMethodFees() async {
+    if (!_usesIdr || !_amountOk) return;
+    try {
+      final res = await billingTopupMethods(widget.conn, sampleAmountIdr: _amountIdr);
+      if (!mounted) return;
+      final prevId = _selectedMethod?.id;
+      BillingTopupMethodOption? next;
+      if (res.methods.isEmpty) {
+        next = null;
+      } else if (prevId == null) {
+        next = res.methods.first;
+      } else {
+        final match = res.methods.where((m) => m.id == prevId);
+        next = match.isEmpty ? res.methods.first : match.first;
+      }
+      setState(() {
+        _methods = res.methods;
+        _selectedMethod = next;
       });
     } catch (_) {}
   }
 
   void _setPack(double value) {
     _amountCtrl.text = _usesIdr ? moneyFmtIdrGrouped(value.round()) : value.toStringAsFixed(0);
+    unawaited(_refreshMethodFees());
     setState(() {});
   }
 
@@ -119,52 +167,60 @@ class _UiBillingTopupPanelState extends State<UiBillingTopupPanel> {
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
-  Future<void> _submit() async {
-    if (_busy || !_amountOk) {
+  void _startPolling(String orderId) {
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) => unawaited(_pollStatusOnce(orderId)));
+    unawaited(_pollStatusOnce(orderId));
+  }
+
+  Future<void> _pollStatusOnce(String orderId) async {
+    try {
+      final res = await billingTopupGet(widget.conn, orderId: orderId);
+      if (!mounted) return;
+      final status = res.request.status;
+      setState(() => _pollStatus = status);
+      if (status == 'settled' || status == 'failed' || status == 'expired' || status == 'rejected') {
+        _pollTimer?.cancel();
+        if (status == 'settled') widget.onSubmitted?.call();
+      }
+    } catch (_) {}
+  }
+
+  void _continueToPayment() {
+    if (!_amountOk) {
       setState(() => _error = _usesIdr ? 'Minimum top-up ${billingTopupIdrLabel(billingTopupMinIdr)}' : 'Minimum top-up ${billingTopupUsdLabel(billingTopupMinUsd)}');
       return;
     }
-    if (_method == BillingTopupMethod.manualTransfer && _proofBytes == null) {
-      setState(() => _error = 'Upload transfer proof to continue');
-      return;
-    }
+    setState(() {
+      _error = null;
+      _step = 1;
+    });
+    if (!_isManual) unawaited(_createMidtransPayment());
+  }
+
+  Future<void> _createMidtransPayment() async {
+    final method = _selectedMethod;
     setState(() {
       _busy = true;
       _error = null;
-      _result = null;
     });
     try {
-      final provider = _method == BillingTopupMethod.manualTransfer
-          ? 'manual'
-          : _usesIdr
-              ? 'midtrans'
-              : 'stripe';
-      final paymentType = switch (_method) {
-        BillingTopupMethod.virtualAccount => 'bank_transfer',
-        BillingTopupMethod.manualTransfer => 'bank_transfer',
-        _ => 'qris',
-      };
-      var proofUrl = '';
-      if (_method == BillingTopupMethod.manualTransfer) {
-        proofUrl = await _uploadProof() ?? '';
-        if (proofUrl.isEmpty) throw Exception('Proof upload failed');
-      }
+      final paymentType = method?.paymentType.isNotEmpty == true ? method!.paymentType : 'qris';
       final res = await billingTopupPut(
         widget.conn,
         amountUsd: _usesIdr ? 0 : _amountUsd,
         amountIdr: _usesIdr ? _amountIdr : 0,
-        proofUrl: proofUrl,
-        provider: provider,
+        proofUrl: '',
+        provider: _usesIdr ? 'midtrans' : 'stripe',
         paymentType: paymentType,
       );
       if (!mounted) return;
       setState(() {
         _busy = false;
         _result = res;
+        _pollStatus = res.status;
       });
-      if (_method == BillingTopupMethod.manualTransfer || res.status == 'pending_review') {
-        widget.onSubmitted?.call();
-      }
+      if (res.orderId.isNotEmpty) _startPolling(res.orderId);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -174,41 +230,74 @@ class _UiBillingTopupPanelState extends State<UiBillingTopupPanel> {
     }
   }
 
-  Widget _methodTile(BillingTopupMethod method, {bool compact = false}) {
-    final selected = _method == method;
-    final label = switch (method) {
-      BillingTopupMethod.qris => 'QRIS',
-      BillingTopupMethod.virtualAccount => 'Virtual Account',
-      BillingTopupMethod.manualTransfer => 'Manual transfer',
-    };
-    final icon = switch (method) {
-      BillingTopupMethod.qris => Icon(Icons.qr_code_2_rounded, size: 18, color: selected ? _accent : _muted),
-      BillingTopupMethod.virtualAccount => Icon(Icons.account_balance_rounded, size: 18, color: selected ? _accent : _muted),
-      BillingTopupMethod.manualTransfer => Icon(Icons.receipt_long_rounded, size: 18, color: selected ? _accent : _muted),
-    };
+  Future<void> _submitManual() async {
+    if (_proofBytes == null) {
+      setState(() => _error = 'Upload transfer proof to continue');
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final proofUrl = await _uploadProof() ?? '';
+      if (proofUrl.isEmpty) throw Exception('Proof upload failed');
+      final res = await billingTopupPut(
+        widget.conn,
+        amountUsd: 0,
+        amountIdr: _amountIdr,
+        proofUrl: proofUrl,
+        provider: 'manual',
+        paymentType: 'bank_transfer',
+      );
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _result = res;
+        _pollStatus = res.status;
+      });
+      if (res.orderId.isNotEmpty) _startPolling(res.orderId);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = uiReferralError(e, fallback: 'Top-up failed');
+      });
+    }
+  }
+
+  Widget _methodTile(BillingTopupMethodOption method) {
+    final selected = _selectedMethod?.id == method.id;
+    final isManual = method.provider == 'manual';
+    final icon = isManual
+        ? Icon(Icons.receipt_long_rounded, size: 18, color: selected ? _accent : _muted)
+        : (method.id.contains('qris')
+            ? Icon(Icons.qr_code_2_rounded, size: 18, color: selected ? _accent : _muted)
+            : Icon(Icons.account_balance_rounded, size: 18, color: selected ? _accent : _muted));
     return Material(
       color: selected ? const Color(0x1434D399) : const Color(0xFF1A1A1E),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(compact ? 10 : 12),
-        side: BorderSide(color: selected ? _accent : const Color(0xFF27272A)),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: selected ? _accent : _border)),
       child: InkWell(
-        onTap: _busy ? null : () => setState(() => _method = method),
-        borderRadius: BorderRadius.circular(compact ? 10 : 12),
+        onTap: _busy ? null : () => setState(() => _selectedMethod = method),
+        borderRadius: BorderRadius.circular(10),
         child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 14, vertical: compact ? 10 : 12),
-          child: compact
-              ? Column(mainAxisSize: MainAxisSize.min, children: [
-                  icon,
-                  const SizedBox(height: 6),
-                  Text(label, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: selected ? _accent : _text, fontSize: 10, fontWeight: selected ? FontWeight.w600 : FontWeight.w500)),
-                ])
-              : Row(children: [
-                  icon,
-                  const SizedBox(width: 12),
-                  Expanded(child: Text(label, style: TextStyle(color: selected ? _accent : _text, fontSize: 13, fontWeight: selected ? FontWeight.w600 : FontWeight.w500))),
-                  if (selected) const Icon(Icons.check_circle_rounded, size: 18, color: _accent),
-                ]),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              icon,
+              const SizedBox(height: 6),
+              Text(method.label, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: selected ? _accent : _text, fontSize: 10, fontWeight: selected ? FontWeight.w600 : FontWeight.w500)),
+              if (method.note.isNotEmpty) ...[
+                const SizedBox(height: 3),
+                Text(method.note, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: isManual ? const Color(0xFFFBBF24) : _muted, fontSize: 9)),
+              ],
+              if (!isManual && method.feeAmountIdr > 0) ...[
+                const SizedBox(height: 2),
+                Text('+${billingTopupIdrLabel(method.feeAmountIdr)} fee', style: const TextStyle(color: _muted, fontSize: 9)),
+              ],
+            ],
+          ),
         ),
       ),
     );
@@ -243,16 +332,92 @@ class _UiBillingTopupPanelState extends State<UiBillingTopupPanel> {
     );
   }
 
+  Widget _feeSummary() {
+    if (_isManual || _feeIdr <= 0) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: const Color(0xFF1A1A1E), borderRadius: BorderRadius.circular(10), border: Border.all(color: _border)),
+      child: Column(
+        children: [
+          _feeRow('Wallet credit', billingTopupIdrLabel(_amountIdr)),
+          const SizedBox(height: 4),
+          _feeRow('Payment fee', billingTopupIdrLabel(_feeIdr)),
+          const Divider(color: _border, height: 16),
+          _feeRow('You pay', billingTopupIdrLabel(_grossIdr), bold: true),
+        ],
+      ),
+    );
+  }
+
+  Widget _feeRow(String label, String value, {bool bold = false}) => Row(
+        children: [
+          Text(label, style: TextStyle(color: _muted, fontSize: 12, fontWeight: bold ? FontWeight.w600 : FontWeight.w400)),
+          const Spacer(),
+          Text(value, style: TextStyle(color: bold ? _text : _muted, fontSize: 12, fontWeight: bold ? FontWeight.w700 : FontWeight.w500)),
+        ],
+      );
+
+  Widget _statusBanner() {
+    if (_isSettled) {
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(color: const Color(0x1434D399), borderRadius: BorderRadius.circular(12), border: Border.all(color: _accent)),
+        child: const Row(children: [
+          Icon(Icons.check_circle_rounded, color: _accent, size: 22),
+          SizedBox(width: 10),
+          Expanded(child: Text('Payment verified — balance updated', style: TextStyle(color: _accent, fontWeight: FontWeight.w600, fontSize: 13))),
+        ]),
+      );
+    }
+    if (_isPendingReview) {
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(color: const Color(0x1FF59E0B), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0x66F59E0B))),
+        child: const Row(children: [
+          Icon(Icons.hourglass_top_rounded, color: Color(0xFFFBBF24), size: 22),
+          SizedBox(width: 10),
+          Expanded(child: Text('Submitted for review — balance updates after admin approval', style: TextStyle(color: Color(0xFFFBBF24), fontWeight: FontWeight.w600, fontSize: 12))),
+        ]),
+      );
+    }
+    if (_pollStatus == 'failed' || _pollStatus == 'expired' || _pollStatus == 'rejected') {
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(color: const Color(0x14F87171), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0x66F87171))),
+        child: Row(children: [
+          const Icon(Icons.error_outline_rounded, color: Color(0xFFF87171), size: 22),
+          const SizedBox(width: 10),
+          Expanded(child: Text('Payment ${_pollStatus.replaceAll('_', ' ')}', style: const TextStyle(color: Color(0xFFF87171), fontWeight: FontWeight.w600, fontSize: 13))),
+        ]),
+      );
+    }
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: const Color(0xFF1A1A1E), borderRadius: BorderRadius.circular(10), border: Border.all(color: _border)),
+      child: Row(children: [
+        if (!_isManual && !_isSettled) ...[
+          const SizedBox(width: 4, height: 4, child: CircularProgressIndicator(strokeWidth: 2, color: _muted)),
+          const SizedBox(width: 10),
+        ],
+        Expanded(child: Text(_isManual ? 'Waiting for admin approval' : 'Waiting for payment…', style: const TextStyle(color: _muted, fontSize: 12))),
+      ]),
+    );
+  }
+
   Widget _paymentResult(ResBillingTopupPut res) {
     final qr = res.qrCodeData;
     final url = res.paymentUrl;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (res.status.isNotEmpty) Text('Status: ${res.status}', style: const TextStyle(color: _muted, fontSize: 12)),
+        _statusBanner(),
         if (res.instruction.isNotEmpty) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text(res.instruction, style: const TextStyle(color: _text, fontSize: 12, height: 1.4)),
+        ],
+        if (_isManual) ...[
+          const SizedBox(height: 12),
+          _manualTransferBox(),
         ],
         if (qr.isNotEmpty) ...[
           const SizedBox(height: 12),
@@ -264,28 +429,21 @@ class _UiBillingTopupPanelState extends State<UiBillingTopupPanel> {
             ),
           ),
         ],
-        if (url.isNotEmpty) ...[
+        if (url.isNotEmpty && !_isSettled) ...[
           const SizedBox(height: 12),
           FilledButton.icon(
             onPressed: () => _openUrl(url),
             icon: const Icon(Icons.open_in_new, size: 16),
             label: Text(qr.isEmpty ? 'Open payment page' : 'Open payment URL'),
+            style: FilledButton.styleFrom(backgroundColor: _accent, foregroundColor: const Color(0xFF09090B)),
           ),
-        ],
-        if (res.status == 'pending_review') ...[
-          const SizedBox(height: 8),
-          const Text('Transfer proof submitted. Balance updates after review.', style: TextStyle(color: _muted, fontSize: 12)),
         ],
       ],
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildSetupStep() {
     final packs = _usesIdr ? billingTopupPacksIdr : billingTopupPacksUsd;
-    final result = _result;
-    final canSubmit = _amountOk && (_method != BillingTopupMethod.manualTransfer || _proofBytes != null) && !_busy && result == null;
-
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -294,7 +452,6 @@ class _UiBillingTopupPanelState extends State<UiBillingTopupPanel> {
         const SizedBox(height: 8),
         TextField(
           controller: _amountCtrl,
-          enabled: !_busy && result == null,
           keyboardType: TextInputType.number,
           inputFormatters: _usesIdr ? [_WalletIdrInputFormatter()] : [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
           style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
@@ -308,34 +465,82 @@ class _UiBillingTopupPanelState extends State<UiBillingTopupPanel> {
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           ),
-          onChanged: (_) => setState(() {}),
+          onChanged: (_) {
+            unawaited(_refreshMethodFees());
+            setState(() {});
+          },
         ),
         const SizedBox(height: 10),
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: packs.map((p) => ActionChip(
-                label: Text(_usesIdr ? billingTopupIdrLabel(p) : billingTopupUsdLabel(p)),
-                backgroundColor: const Color(0xFF1A1A1E),
-                labelStyle: const TextStyle(color: Color(0xFFD4D4D8), fontSize: 12),
-                side: const BorderSide(color: Color(0xFF27272A)),
-                onPressed: _busy || result != null ? null : () => _setPack(p),
-              )).toList(),
+          children: packs
+              .map((p) => ActionChip(
+                    label: Text(_usesIdr ? billingTopupIdrLabel(p) : billingTopupUsdLabel(p)),
+                    backgroundColor: const Color(0xFF1A1A1E),
+                    labelStyle: const TextStyle(color: Color(0xFFD4D4D8), fontSize: 12),
+                    side: const BorderSide(color: _border),
+                    onPressed: _busy ? null : () => _setPack(p),
+                  ))
+              .toList(),
         ),
-        if (_usesIdr) ...[
+        if (_usesIdr && _methods.isNotEmpty) ...[
           const SizedBox(height: 16),
           const Text('Payment method', style: TextStyle(color: _muted, fontSize: 12)),
           const SizedBox(height: 8),
-          Row(children: [
-            Expanded(child: _methodTile(BillingTopupMethod.qris, compact: true)),
-            const SizedBox(width: 8),
-            Expanded(child: _methodTile(BillingTopupMethod.virtualAccount, compact: true)),
-            const SizedBox(width: 8),
-            Expanded(child: _methodTile(BillingTopupMethod.manualTransfer, compact: true)),
-          ]),
+          GridView.count(
+            crossAxisCount: 3,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            childAspectRatio: 0.88,
+            children: _methods.map(_methodTile).toList(),
+          ),
         ],
-        if (_method == BillingTopupMethod.manualTransfer && _usesIdr) ...[
+        if (_amountOk && !_isManual) ...[
           const SizedBox(height: 12),
+          _feeSummary(),
+        ],
+        if (_error != null) ...[
+          const SizedBox(height: 8),
+          Text(_error!, style: const TextStyle(color: Color(0xFFF87171), fontSize: 12)),
+        ],
+        const SizedBox(height: 16),
+        FilledButton(
+          onPressed: !_amountOk ? null : _continueToPayment,
+          style: FilledButton.styleFrom(backgroundColor: _accent, foregroundColor: const Color(0xFF09090B), padding: const EdgeInsets.symmetric(vertical: 14)),
+          child: const Text('Continue'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPaymentStep() {
+    final res = _result;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            IconButton(
+              onPressed: _isSettled || _busy ? null : () => setState(() => _step = 0),
+              icon: const Icon(Icons.arrow_back_rounded, color: _muted, size: 20),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            ),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                _isSettled ? 'Payment complete' : (_isManual ? 'Transfer instructions' : 'Complete payment'),
+                style: const TextStyle(color: _text, fontWeight: FontWeight.w600, fontSize: 14),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (_isManual && res == null) ...[
           _manualTransferBox(),
           const SizedBox(height: 10),
           OutlinedButton.icon(
@@ -344,25 +549,33 @@ class _UiBillingTopupPanelState extends State<UiBillingTopupPanel> {
             label: Text(_proofBytes == null ? 'Upload transfer proof' : 'Proof selected', style: const TextStyle(color: _accent)),
             style: OutlinedButton.styleFrom(side: BorderSide(color: _accent.withValues(alpha: 0.6))),
           ),
-        ],
-        if (_error != null) ...[
-          const SizedBox(height: 8),
-          Text(_error!, style: const TextStyle(color: Color(0xFFF87171), fontSize: 12)),
-        ],
-        if (result != null) ...[
-          const SizedBox(height: 16),
-          _paymentResult(result),
-        ] else ...[
+          if (_error != null) ...[
+            const SizedBox(height: 8),
+            Text(_error!, style: const TextStyle(color: Color(0xFFF87171), fontSize: 12)),
+          ],
           const SizedBox(height: 16),
           FilledButton(
-            onPressed: canSubmit ? _submit : null,
+            onPressed: _busy || _proofBytes == null ? null : _submitManual,
             style: FilledButton.styleFrom(backgroundColor: _accent, foregroundColor: const Color(0xFF09090B), padding: const EdgeInsets.symmetric(vertical: 14)),
             child: _busy
                 ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF09090B)))
-                : Text(_method == BillingTopupMethod.manualTransfer ? 'Submit for review' : 'Continue to payment'),
+                : const Text('Submit for review'),
           ),
+        ] else if (_busy && res == null) ...[
+          const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator(strokeWidth: 2, color: _accent))),
+          const SizedBox(height: 8),
+          const Text('Creating payment…', textAlign: TextAlign.center, style: TextStyle(color: _muted, fontSize: 12)),
+        ] else if (res != null) ...[
+          _paymentResult(res),
+          if (_error != null) ...[
+            const SizedBox(height: 8),
+            Text(_error!, style: const TextStyle(color: Color(0xFFF87171), fontSize: 12)),
+          ],
         ],
       ],
     );
   }
+
+  @override
+  Widget build(BuildContext context) => _step == 0 ? _buildSetupStep() : _buildPaymentStep();
 }

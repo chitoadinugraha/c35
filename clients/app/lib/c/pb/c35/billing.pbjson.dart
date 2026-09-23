@@ -648,6 +648,9 @@ const ResBillingTopupPut$json = {
     {'1': 'qr_code_data', '3': 4, '4': 1, '5': 9, '10': 'qrCodeData'},
     {'1': 'instruction', '3': 5, '4': 1, '5': 9, '10': 'instruction'},
     {'1': 'status', '3': 6, '4': 1, '5': 9, '10': 'status'},
+    {'1': 'credit_amount_idr', '3': 7, '4': 1, '5': 1, '10': 'creditAmountIdr'},
+    {'1': 'fee_amount_idr', '3': 8, '4': 1, '5': 1, '10': 'feeAmountIdr'},
+    {'1': 'gross_amount_idr', '3': 9, '4': 1, '5': 1, '10': 'grossAmountIdr'},
   ],
 };
 
@@ -657,7 +660,100 @@ final $typed_data.Uint8List resBillingTopupPutDescriptor = $convert.base64Decode
     'BSZXF1ZXN0UgdyZXF1ZXN0EhkKCG9yZGVyX2lkGAIgASgJUgdvcmRlcklkEh8KC3BheW1lbnRf'
     'dXJsGAMgASgJUgpwYXltZW50VXJsEiAKDHFyX2NvZGVfZGF0YRgEIAEoCVIKcXJDb2RlRGF0YR'
     'IgCgtpbnN0cnVjdGlvbhgFIAEoCVILaW5zdHJ1Y3Rpb24SFgoGc3RhdHVzGAYgASgJUgZzdGF0'
-    'dXM=');
+    'dXMSKgoRY3JlZGl0X2Ftb3VudF9pZHIYByABKAFSD2NyZWRpdEFtb3VudElkchIkCg5mZWVfYW'
+    '1vdW50X2lkchgIIAEoAVIMZmVlQW1vdW50SWRyEigKEGdyb3NzX2Ftb3VudF9pZHIYCSABKAFS'
+    'Dmdyb3NzQW1vdW50SWRy');
+
+@$core.Deprecated('Use billingTopupMethodOptionDescriptor instead')
+const BillingTopupMethodOption$json = {
+  '1': 'BillingTopupMethodOption',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 9, '10': 'id'},
+    {'1': 'label', '3': 2, '4': 1, '5': 9, '10': 'label'},
+    {'1': 'provider', '3': 3, '4': 1, '5': 9, '10': 'provider'},
+    {'1': 'payment_type', '3': 4, '4': 1, '5': 9, '10': 'paymentType'},
+    {'1': 'note', '3': 5, '4': 1, '5': 9, '10': 'note'},
+    {'1': 'fee_amount_idr', '3': 6, '4': 1, '5': 1, '10': 'feeAmountIdr'},
+    {'1': 'fee_is_percent', '3': 7, '4': 1, '5': 8, '10': 'feeIsPercent'},
+    {'1': 'fee_rate_bps', '3': 8, '4': 1, '5': 1, '10': 'feeRateBps'},
+  ],
+};
+
+/// Descriptor for `BillingTopupMethodOption`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List billingTopupMethodOptionDescriptor = $convert.base64Decode(
+    'ChhCaWxsaW5nVG9wdXBNZXRob2RPcHRpb24SDgoCaWQYASABKAlSAmlkEhQKBWxhYmVsGAIgAS'
+    'gJUgVsYWJlbBIaCghwcm92aWRlchgDIAEoCVIIcHJvdmlkZXISIQoMcGF5bWVudF90eXBlGAQg'
+    'ASgJUgtwYXltZW50VHlwZRISCgRub3RlGAUgASgJUgRub3RlEiQKDmZlZV9hbW91bnRfaWRyGA'
+    'YgASgBUgxmZWVBbW91bnRJZHISJAoOZmVlX2lzX3BlcmNlbnQYByABKAhSDGZlZUlzUGVyY2Vu'
+    'dBIgCgxmZWVfcmF0ZV9icHMYCCABKAFSCmZlZVJhdGVCcHM=');
+
+@$core.Deprecated('Use reqBillingTopupMethodsDescriptor instead')
+const ReqBillingTopupMethods$json = {
+  '1': 'ReqBillingTopupMethods',
+  '2': [
+    {'1': 'sample_amount_idr', '3': 1, '4': 1, '5': 1, '10': 'sampleAmountIdr'},
+  ],
+};
+
+/// Descriptor for `ReqBillingTopupMethods`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqBillingTopupMethodsDescriptor =
+    $convert.base64Decode(
+        'ChZSZXFCaWxsaW5nVG9wdXBNZXRob2RzEioKEXNhbXBsZV9hbW91bnRfaWRyGAEgASgBUg9zYW'
+        '1wbGVBbW91bnRJZHI=');
+
+@$core.Deprecated('Use resBillingTopupMethodsDescriptor instead')
+const ResBillingTopupMethods$json = {
+  '1': 'ResBillingTopupMethods',
+  '2': [
+    {
+      '1': 'methods',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.BillingTopupMethodOption',
+      '10': 'methods'
+    },
+  ],
+};
+
+/// Descriptor for `ResBillingTopupMethods`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resBillingTopupMethodsDescriptor =
+    $convert.base64Decode(
+        'ChZSZXNCaWxsaW5nVG9wdXBNZXRob2RzEjcKB21ldGhvZHMYASADKAsyHS5jMzUuQmlsbGluZ1'
+        'RvcHVwTWV0aG9kT3B0aW9uUgdtZXRob2Rz');
+
+@$core.Deprecated('Use reqBillingTopupGetDescriptor instead')
+const ReqBillingTopupGet$json = {
+  '1': 'ReqBillingTopupGet',
+  '2': [
+    {'1': 'order_id', '3': 1, '4': 1, '5': 9, '10': 'orderId'},
+  ],
+};
+
+/// Descriptor for `ReqBillingTopupGet`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqBillingTopupGetDescriptor =
+    $convert.base64Decode(
+        'ChJSZXFCaWxsaW5nVG9wdXBHZXQSGQoIb3JkZXJfaWQYASABKAlSB29yZGVySWQ=');
+
+@$core.Deprecated('Use resBillingTopupGetDescriptor instead')
+const ResBillingTopupGet$json = {
+  '1': 'ResBillingTopupGet',
+  '2': [
+    {
+      '1': 'request',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.BillingTopupRequest',
+      '10': 'request'
+    },
+  ],
+};
+
+/// Descriptor for `ResBillingTopupGet`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resBillingTopupGetDescriptor = $convert.base64Decode(
+    'ChJSZXNCaWxsaW5nVG9wdXBHZXQSMgoHcmVxdWVzdBgBIAEoCzIYLmMzNS5CaWxsaW5nVG9wdX'
+    'BSZXF1ZXN0UgdyZXF1ZXN0');
 
 @$core.Deprecated('Use billingTopupQueueItemDescriptor instead')
 const BillingTopupQueueItem$json = {

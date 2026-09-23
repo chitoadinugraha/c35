@@ -15,10 +15,7 @@ Future<void> billingTopupDialog(BuildContext context, {required ReferralConn con
           child: UiBillingTopupPanel(
             conn: conn,
             currency: currency,
-            onSubmitted: () {
-              Navigator.of(ctx).pop();
-              onSubmitted?.call();
-            },
+            onSubmitted: onSubmitted,
           ),
         ),
       ),
