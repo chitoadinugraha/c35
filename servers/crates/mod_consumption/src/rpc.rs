@@ -62,6 +62,13 @@ pub async fn consumption_put_rpc(pool: &PgPool, owner_iid: i64, locale: &str, re
     if id == 0 {
         return Err("consumption.id required".into());
     }
+    if doc.deleted_ts_ms > 0 {
+        crate::food_delete(pool, owner_iid, id).await?;
+        return Ok(ResConsumptionPut {
+            consumption: Some(doc),
+            blocks_json: "[]".into(),
+        });
+    }
     let items: Vec<ConsumptionItem> = doc
         .items
         .iter()

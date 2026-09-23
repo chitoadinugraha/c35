@@ -4,6 +4,7 @@ mod catalog;
 mod device;
 mod guest_order;
 mod invoke;
+mod mcp_agent;
 mod version;
 mod web;
 
@@ -18,6 +19,14 @@ use c35_mod_identity::{auth_router, oauth_router};
 
 pub use invoke::dispatch_invoke;
 pub use web::web_root_dir;
+
+fn mcp_agent_router() -> Router<AppState> {
+    if mcp_agent::mcp_agent_enabled() {
+        mcp_agent::mcp_agent_router()
+    } else {
+        Router::new()
+    }
+}
 
 pub fn router(state: AppState) -> Router {
     Router::new()
@@ -34,6 +43,7 @@ pub fn router(state: AppState) -> Router {
         .merge(version::version_router())
         .merge(device::device_router())
         .merge(agent::agent_router())
+        .merge(mcp_agent_router())
         .merge(catalog::catalog_router())
         .merge(invoke::invoke_router())
         .merge(c35_mod_billing::billing_webhook_router())

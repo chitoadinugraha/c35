@@ -25,6 +25,7 @@ import "c35/voice.proto";
 import "c35/stats.proto";
 import "c35/catalog.proto";
 import "c35/hint.proto";
+import "c35/object.proto";
 
 // HTTP invoke envelope (referral, admin, billing review, …)
 message InvokeReq {
@@ -71,6 +72,9 @@ message InvokeReq {
     ReqReferralLedgerList referral_ledger_list = 116;
     ReqBillingReceiveAccountPut billing_receive_account_put = 117;
     ReqBillingReceiveAccountList billing_receive_account_list = 118;
+    ReqObjectAliasList object_alias_list = 119;
+    ReqObjectAliasPut object_alias_put = 120;
+    ReqObjectNormalizerList object_normalizer_list = 121;
   }
 }
 
@@ -118,6 +122,9 @@ message InvokeRes {
     ResReferralLedgerList referral_ledger_list = 116;
     ResBillingReceiveAccountPut billing_receive_account_put = 117;
     ResBillingReceiveAccountList billing_receive_account_list = 118;
+    ResObjectAliasList object_alias_list = 119;
+    ResObjectAliasPut object_alias_put = 120;
+    ResObjectNormalizerList object_normalizer_list = 121;
   }
 }
 

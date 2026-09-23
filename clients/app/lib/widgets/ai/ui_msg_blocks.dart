@@ -2,8 +2,12 @@ import 'package:alienai_c35/c/chat/chat_block.dart';
 import 'package:alienai_c35/c/consumption/consumption_api.dart';
 import 'package:alienai_c35/c/consumption/consumption_food.dart';
 import 'package:alienai_c35/c/consumption/consumption_glance.dart';
+import 'package:alienai_c35/c/expense/expense_glance.dart';
+import 'package:alienai_c35/c/expense/expense_receipt.dart';
 import 'package:alienai_c35/widgets/ai/ui_consumption_food_card.dart';
 import 'package:alienai_c35/widgets/ai/ui_consumption_glance_card.dart';
+import 'package:alienai_c35/widgets/ai/ui_expense_glance_card.dart';
+import 'package:alienai_c35/widgets/ai/ui_expense_receipt_card.dart';
 import 'package:flutter/material.dart';
 
 typedef ConsumptionBlockSaved = void Function(int msgId, ChatBlock block);
@@ -45,6 +49,13 @@ class UiMsgBlocks extends StatelessWidget {
                     }
                   }
                 : null,
+            onDelete: card.editable && consumptionApi != null
+                ? () async {
+                    final id = int.tryParse(card.consumptionId) ?? 0;
+                    if (id == 0) return;
+                    await consumptionApi!.delete(consumptionId: id);
+                  }
+                : null,
           ),
         );
       case 'consumption.glance':
@@ -52,6 +63,24 @@ class UiMsgBlocks extends StatelessWidget {
           padding: const EdgeInsets.only(top: 8),
           child: UiConsumptionGlanceCard(
             card: ConsumptionGlanceCard.fromBlockBody(b.body),
+            collapsed: b.collapsed,
+            locale: locale,
+          ),
+        );
+      case 'expense.receipt':
+        return Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: UiExpenseReceiptCard(
+            card: ExpenseReceiptCard.fromBlockBody(b.body),
+            collapsed: b.collapsed && !primary,
+            locale: locale,
+          ),
+        );
+      case 'expense.glance':
+        return Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: UiExpenseGlanceCard(
+            card: ExpenseGlanceCard.fromBlockBody(b.body),
             collapsed: b.collapsed,
             locale: locale,
           ),

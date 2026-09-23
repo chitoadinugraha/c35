@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:flutter/material.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
@@ -119,15 +120,17 @@ class UiChatTimeline extends StatelessWidget {
   final IndexedWidgetBuilder? separatorBuilder;
 
   @override
-  Widget build(BuildContext context) => ScrollablePositionedList.separated(
-        itemScrollController: controller.itemScroll,
-        itemPositionsListener: controller.itemPositions,
-        scrollOffsetListener: controller.scrollOffset,
-        reverse: true,
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: padding,
-        itemCount: itemCount,
-        separatorBuilder: separatorBuilder ?? (c, i) => const SizedBox.shrink(),
-        itemBuilder: (context, i) => itemBuilder(context, itemCount - 1 - i),
+  Widget build(BuildContext context) => uiSemanticsGuard(
+        ScrollablePositionedList.separated(
+          itemScrollController: controller.itemScroll,
+          itemPositionsListener: controller.itemPositions,
+          scrollOffsetListener: controller.scrollOffset,
+          reverse: true,
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: padding,
+          itemCount: itemCount,
+          separatorBuilder: separatorBuilder ?? (c, i) => const SizedBox.shrink(),
+          itemBuilder: (context, i) => itemBuilder(context, itemCount - 1 - i),
+        ),
       );
 }

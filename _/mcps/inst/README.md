@@ -1,14 +1,20 @@
-# c35-inst MCP server
+# c35 MCP server
 
-Admin CRUD for `ai.inst` instruction macros. Publishes NATS `c35.inst.{id}` after put/delete so `InstCache` reloads.
+Debug toolkit for c35: `ai.inst` CRUD, log/msg trace queries, and server_ai agent HTTP helpers.
+
+**Security:** [`_/docs/mcp-security.md`](../../docs/mcp-security.md)
 
 ## Env
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `DATABASE_URL` | yes | Postgres/Yugabyte connection string (`ai` schema) |
-| `NATS_URL` | no | NATS server URL for cache invalidation |
-| `NATS_USER` / `NATS_PASS` | no | NATS credentials |
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `DATABASE_URL` | yes | — | Postgres/Yugabyte connection string (`ai` schema) — do not commit |
+| `NATS_URL` | no | — | NATS server URL for inst cache invalidation |
+| `NATS_USER` / `NATS_PASS` | no | — | NATS credentials |
+| `C35_DEBUG_OWNER_IID` | no | `99000` | Default owner for log/msg inspection |
+| `C35_TEST_OWNER_IID` | no | `33000` | Owner for agent HTTP (server-enforced) |
+| `C35_SERVER_URL` | no | `http://127.0.0.1:8080` | server_ai base URL |
+| `C35_MCP_AGENT_KEY` | **yes** | — | Agent HTTP auth header; must match server |
 
 ## Setup
 
@@ -20,26 +26,15 @@ npm run build
 
 ## Cursor MCP config
 
-```json
-{
-  "mcpServers": {
-    "c35-inst": {
-      "command": "node",
-      "args": ["D:/c35/_/mcps/inst/dist/index.js"],
-      "env": {
-        "DATABASE_URL": "postgresql://csa:...@yb-tservers.yugabyte.svc.cluster.local:5433/csa",
-        "NATS_URL": "nats://nats.c35.svc.cluster.local:4222"
-      }
-    }
-  }
-}
-```
+See `.agents/plugins/c35/mcp_config.json` (canonical) and run `sync_mcp_config.ps1` for Cursor.
 
-## Tools
+## Source layout
 
-- `inst_list` — list/filter rows
-- `inst_get` — get by id
-- `inst_put` — upsert (id + inst body required)
-- `inst_delete` — soft-delete
+| Module | Tools |
+|--------|-------|
+| `src/inst.ts` | `inst_list`, `inst_get`, `inst_put`, `inst_delete` |
+| `src/log.ts` | `log_tail`, `trace_get` |
+| `src/msg.ts` | `msg_get`, `msg_find` |
+| `src/agent_http.ts` | `tool_exec`, `prompt_compose`, `prompt_run` |
 
-Server-side RPC equivalents live in `c35_mod_chat::inst_admin` via HTTP `/v1/invoke` (protobuf `ReqInst*`).
+Server-side RPC equivalents for inst live in `c35_mod_chat::inst_admin` via HTTP `/v1/invoke`.

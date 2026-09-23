@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "c35": {
+      "command": "node",
+      "args": ["D:/c35/_/mcps/inst/dist/index.js"],
+      "env": {
+        "DATABASE_URL": "postgresql://csa:mNLo6VrdKzJnEl7TOQvAHc9Cx1hktUwuIgSy3R25@yb-tservers.yugabyte.svc.cluster.local:5433/c35",
+        "NATS_URL": "nats://nats.c35.svc.cluster.local:4222",
+        "C35_DEBUG_OWNER_IID": "99000",
+        "C35_TEST_OWNER_IID": "33000",
+        "C35_SERVER_URL": "http://127.0.0.1:8080",
+        "C35_MCP_AGENT_KEY": "fc9d6de552bfcff1d86c0a54c559a061d072c3f7232db29aaddd5a861b215727"
+      }
+    }
+  }
+}

@@ -161,7 +161,7 @@ After `inst_put` / `inst_delete`, publish NATS `c35.inst.{inst_id}` (payload: in
 ```json
 {
   "mcpServers": {
-    "c35-inst": {
+    "c35": {
       "command": "node",
       "args": ["<repo>/_/mcps/inst/dist/index.js"],
       "env": {

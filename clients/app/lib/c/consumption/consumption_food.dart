@@ -3,6 +3,7 @@ class ConsumptionItemRow {
     required this.name,
     this.nameId = '',
     this.qty = 1,
+    this.objId = 0,
     this.calories = 0,
     this.protein = 0,
     this.fat = 0,
@@ -15,6 +16,7 @@ class ConsumptionItemRow {
   String name;
   String nameId;
   double qty;
+  int objId;
   int calories;
   int protein;
   int fat;
@@ -26,15 +28,19 @@ class ConsumptionItemRow {
   int kcalScaled() => (calories * qty).round();
 
   String label(String locale) {
-    final id = locale.toLowerCase().startsWith('id');
-    final n = name.trim().isNotEmpty ? name.trim() : nameId.trim();
-    return n.isEmpty ? (id ? 'Item' : 'Item') : n;
+    final isId = locale.toLowerCase().startsWith('id');
+    if (isId && nameId.trim().isNotEmpty) return nameId.trim();
+    if (!isId && name.trim().isNotEmpty) return name.trim();
+    if (nameId.trim().isNotEmpty) return nameId.trim();
+    if (name.trim().isNotEmpty) return name.trim();
+    return isId ? 'Makanan' : 'Food item';
   }
 
   factory ConsumptionItemRow.fromJson(Map<String, dynamic> j) => ConsumptionItemRow(
         name: j['name']?.toString() ?? '',
         nameId: j['name_id']?.toString() ?? '',
         qty: (j['qty'] as num?)?.toDouble() ?? 1,
+        objId: (j['obj_id'] as num?)?.toInt() ?? 0,
         calories: (j['calories'] as num?)?.round() ?? 0,
         protein: (j['protein'] as num?)?.round() ?? 0,
         fat: (j['fat'] as num?)?.round() ?? 0,
@@ -48,6 +54,7 @@ class ConsumptionItemRow {
         'name': name,
         'name_id': nameId,
         'qty': qty,
+        'obj_id': objId,
         'calories': calories,
         'protein': protein,
         'fat': fat,

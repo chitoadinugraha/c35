@@ -6,6 +6,8 @@ alwaysApply: false
 
 # Inst (instruction macros)
 
+Always-on model: [`prompt-steering.mdc`](prompt-steering.mdc) (Antigravity: `.agents/rules/prompt-steering.md`).
+
 Read [`_/docs/inst.md`](../../_/docs/inst.md) before changing prompt steering.
 
 ## Rules

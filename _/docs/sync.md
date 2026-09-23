@@ -163,13 +163,13 @@ Server pods subscribe to `c35.inst.>` and reload or evict that row from the in-m
 
 ```
 c35.stats.node.{node_name}
-c35.stats.volume.{namespace}.{pvc_name}
+c35.stats.volume.{node_name}.{namespace}.{pvc_name}
 ```
 
 | Subject | Publisher | Payload |
 |---------|-----------|---------|
 | `c35.stats.node.{node_name}` | `c35-node-stats` DaemonSet | `StatsPush` (`node` body) |
-| `c35.stats.volume.{namespace}.{pvc_name}` | `c35-node-stats` DaemonSet | `StatsPush` (`volume` body) |
+| `c35.stats.volume.{node_name}.{namespace}.{pvc_name}` | `c35-node-stats` DaemonSet | `StatsPush` (`volume` body) |
 
 Published every ~2s per node. Root Flutter clients subscribe via WS `ReqStatsSubscribe`; `server_ai` relays `c35.stats.>` as `WsRes.stats_push` with per-subject snapshot cache.
 

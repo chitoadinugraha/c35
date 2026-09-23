@@ -29,9 +29,21 @@ Future<ResBillingTopupPut> billingTopupPut(
   return res.billingTopupPut;
 }
 
-Future<ResBillingPlanSubscribe> billingPlanSubscribe(ReferralConn conn, {required String planSlug}) async {
+Future<ResBillingPlanSubscribe> billingPlanSubscribe(
+  ReferralConn conn, {
+  required String planSlug,
+  String billingPeriod = 'monthly',
+  String currency = 'IDR',
+}) async {
   final res = await conn.invoke(
-    InvokeReq(reqId: const Uuid().v4(), billingPlanSubscribe: ReqBillingPlanSubscribe(planSlug: planSlug)),
+    InvokeReq(
+      reqId: const Uuid().v4(),
+      billingPlanSubscribe: ReqBillingPlanSubscribe(
+        planSlug: planSlug,
+        billingPeriod: billingPeriod,
+        currency: currency,
+      ),
+    ),
     timeout: const Duration(seconds: 20),
   );
   invokeResThrow(res, fallback: 'Failed to subscribe');

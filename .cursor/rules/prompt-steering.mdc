@@ -1,0 +1,64 @@
+---
+description: Topic / tool / inst steering — confine with topic, steer with inst, fix wrong tools in order
+alwaysApply: true
+---
+
+# Prompt steering (topic · tool · inst)
+
+Mirrored for Antigravity: [`.agents/rules/prompt-steering.md`](../../.agents/rules/prompt-steering.md)
+
+Read before changing prompt behavior:
+
+- [`_/docs/inst.md`](../../_/docs/inst.md) — inst rows, triggers, compose pipeline
+- [`_/docs/site-ai.md`](../../_/docs/site-ai.md) — tool metadata, multi-site context
+- [`_/schemas/topic.sql`](../../_/schemas/topic.sql) — topic seeds + persona chain
+
+## Three layers
+
+| Layer | Store | Role |
+|-------|-------|------|
+| **Topic** | `ai.topic` | **Confine** — persona + tool eligibility |
+| **Tool** | Rust `ToolDefinition` | **Capability** — what the model *can* call |
+| **Inst** | `ai.inst` | **Steer** — how the model should behave this turn |
+
+Inst tells the LLM *how*; tools tell it *what* it can call.
+
+## Per-turn pipeline
+
+```
+ReqPrompt → topic_resolve → inst_pick → inst_block + tool_include/exclude → compose_tools_and_inst
+```
+
+Code: `servers/crates/mod_chat` — `compose/mod.rs`, `inst_macro.rs`, `prompt_turn.rs`.
+
+## Topic (confine)
+
+- Active topic: explicit `topic_id`, `@mention`, or default `general`.
+- Tools gated by `topics`, `always`, `requires_kinds`, `requires_capability`.
+- Topic persona: `ai.topic.inst` + `extend` chain — **not** merged into `ai.inst`.
+
+## Inst (steer)
+
+Kinds: `task` (phrases), `mention`, `topic`, `trigger` (`always`, `tool_include:`, `tool_exclude:`).
+
+Pair inst body (what to do) with triggers (force/drop tools). Seeds: [`_/schemas/inst.sql`](../../_/schemas/inst.sql). Type B only — no new hardcoded steering in Rust.
+
+## Wrong tool? Fix in order
+
+1. **Topic** — should this tool be possible here? Adjust topic mapping or tool `topics`.
+2. **Tool metadata** — registered? `readonly`, `requires_kinds`, `requires_capability`, `always`?
+3. **Inst** — right tools available but model picks wrong? Add/refine inst + `tool_include` / `tool_exclude`.
+
+Do not jump to inst when the tool was never eligible.
+
+## Separate layers (do not merge)
+
+| Store | Purpose |
+|-------|---------|
+| `ai.topic.inst` | Topic persona chain |
+| `ai.inst` | Phrase/context steering |
+| `identity.meta_json.inst_base` | Bot personality |
+
+## File-specific inst work
+
+When editing inst seeds or compose code, also follow `.cursor/rules/inst.mdc` / `.agents/rules/inst.md`.

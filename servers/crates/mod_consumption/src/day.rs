@@ -79,9 +79,15 @@ pub fn resolve_day_id(day_id: &str, locale: &str) -> String {
 }
 
 pub fn day_bounds_ms(day_id: &str, locale: &str) -> anyhow::Result<(i64, i64)> {
+    multi_day_bounds_ms(day_id, 1, locale)
+}
+
+pub fn multi_day_bounds_ms(day_id: &str, days: i32, locale: &str) -> anyhow::Result<(i64, i64)> {
     let naive = NaiveDate::parse_from_str(day_id, "%Y-%m-%d")?;
     let off = offset_hours(timezone_from_locale(locale));
-    let start = naive.and_hms_opt(0, 0, 0).unwrap();
+    let days_clamped = days.clamp(1, 14);
+    let start_date = naive - chrono::Duration::days((days_clamped - 1) as i64);
+    let start = start_date.and_hms_opt(0, 0, 0).unwrap();
     let end = naive.and_hms_opt(23, 59, 59).unwrap();
     let start_ms = Utc.from_utc_datetime(&start).timestamp_millis() - off as i64 * 3_600_000;
     let end_ms = Utc.from_utc_datetime(&end).timestamp_millis() - off as i64 * 3_600_000 + 999;

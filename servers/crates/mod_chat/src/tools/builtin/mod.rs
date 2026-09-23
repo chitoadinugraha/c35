@@ -1,4 +1,5 @@
 mod consumption;
+mod expense;
 mod delegate;
 mod device;
 mod img_generate;
@@ -11,6 +12,7 @@ mod web_search;
 mod web_visit;
 
 pub use consumption::{ConsumptionAddTool, ConsumptionDeleteTool, ConsumptionTodayTool, ConsumptionUpdateTool};
+pub use expense::{ExpenseAddTool, ExpenseDeleteTool, ExpenseSummaryTool};
 pub use delegate::{
     delegate_child_row, delegate_result_json, ComputerUseDelegateTool, DelegateRunTool,
 };

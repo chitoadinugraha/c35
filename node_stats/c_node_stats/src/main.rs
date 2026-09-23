@@ -1,3 +1,4 @@
+mod device;
 mod host;
 mod node;
 mod sample;
@@ -56,7 +57,7 @@ async fn publish_volumes(nats: &Client, volumes: &[volume::VolumeConfig], node_n
         let Some(stat) = sample_volume(cfg, node_name) else {
             continue;
         };
-        let subject = volume_subject(&stat.namespace, &stat.pvc_name);
+        let subject = volume_subject(node_name, &stat.namespace, &stat.pvc_name);
         let payload = volume_push(stat).encode_to_vec();
         if let Err(e) = nats.publish(subject.clone(), payload.into()).await {
             warn!(subject = %subject, error = %e, "volume stats publish failed");

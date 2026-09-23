@@ -56,6 +56,19 @@ CREATE INDEX IF NOT EXISTS idx_log_live_tail
     ON ai.log (owner_iid, dv, topic, created_ts DESC)
     WHERE deleted_ts IS NULL;
 
+-- MCP log tail / trace (created_ts DESC)
+CREATE INDEX IF NOT EXISTS idx_log_owner_created_desc
+    ON ai.log (owner_iid, created_ts DESC, id DESC)
+    WHERE deleted_ts IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_log_created_desc
+    ON ai.log (created_ts DESC, id DESC)
+    WHERE deleted_ts IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_log_owner_req_created
+    ON ai.log (owner_iid, req_id, created_ts DESC)
+    WHERE deleted_ts IS NULL AND req_id <> '';
+
 ALTER TABLE ai.billing_usage_dedupe DROP CONSTRAINT IF EXISTS fk_billing_usage_dedupe_log;
 ALTER TABLE ai.billing_usage_dedupe
     ADD CONSTRAINT fk_billing_usage_dedupe_log

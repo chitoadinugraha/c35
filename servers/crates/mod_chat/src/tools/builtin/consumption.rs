@@ -3,8 +3,8 @@ use anyhow::{anyhow, Result};
 use c35_mod_consumption::{
     consumption_compact_for_llm, consumption_food_block, consumption_glance_block, consumption_today,
     day_bounds_ms, detect_pic, detect_text, food_delete, food_duplicate_today, food_get,
-    food_get_latest_today, food_put, food_update, food_with_items, infer_meal_type, items_from_json,
-    items_matching_query, matched_items_kcal, meal_fingerprint, meal_kcal_total, nutrition_sum_day,
+    food_get_latest_today, food_list_day, food_put, food_update, food_with_items, infer_meal_type, items_from_json,
+    items_matching_query, local_hour, matched_items_kcal, meal_fingerprint, meal_kcal_total, multi_day_bounds_ms, nutrition_sum_day,
     prefs_calorie_goal, resolve_day_id, today_compact_for_llm, today_day_id, today_recap_coach,
 };
 use c35_mod_file::{cas_bytes_get, cas_dir_default};
@@ -151,15 +151,67 @@ pub async fn consumption_add_exec(ctx: &ToolContext, args: &Value) -> Result<Val
         goal,
         meals_logged,
     );
+
+    let day_meals = food_list_day(&ctx.pool, ctx.owner_iid, start, end)
+        .await
+        .unwrap_or_default();
+    let primary_item = food.items.first();
+    let primary_name = primary_item
+        .map(|i| {
+            if locale.to_lowercase().starts_with("id") && !i.name_id.is_empty() {
+                i.name_id.as_str()
+            } else {
+                i.name.as_str()
+            }
+        })
+        .unwrap_or("Makanan");
+    let primary_norm = primary_item.map(|i| i.name.to_lowercase()).unwrap_or_default();
+    let primary_obj = primary_item.map(|i| i.obj_id).unwrap_or(0);
+    let mut repeat_count: usize = 0;
+    for m in &day_meals {
+        for it in &m.items {
+            if (!primary_norm.is_empty() && it.name.to_lowercase() == primary_norm)
+                || (primary_obj > 0 && it.obj_id == primary_obj)
+            {
+                repeat_count += 1;
+            }
+        }
+    }
+    let repeat_food_today = repeat_count > 1;
+    let last_meal_name = day_meals
+        .iter()
+        .filter(|m| m.id != food.id)
+        .last()
+        .and_then(|m| {
+            m.items.first().map(|i| {
+                if locale.to_lowercase().starts_with("id") && !i.name_id.is_empty() {
+                    i.name_id.clone()
+                } else {
+                    i.name.clone()
+                }
+            })
+        })
+        .unwrap_or_default();
+    let pct_of_goal = if goal > 0 {
+        (after as f32 / goal as f32 * 100.0).round() as i32
+    } else {
+        0
+    };
+
     let full = json!({
         "ok": true,
         "saved": true,
         "duplicate": dup.is_some(),
         "duplicate_reason": dup_reason,
         "consumption_id": id.to_string(),
+        "meal_name": primary_name,
         "meal_kcal": meal_kcal,
         "headline": block["body"]["headline"],
         "coach": block["body"]["coach"],
+        "repeat_food_today": repeat_food_today,
+        "repeat_count_today": repeat_count,
+        "last_meal_name": last_meal_name,
+        "pct_of_goal": pct_of_goal,
         "items": food.items,
         "photo_hash": photo_hash,
         "today": { "so_far": so_far, "after": after, "goal": goal, "meals_logged": meals_logged },
@@ -171,6 +223,7 @@ pub async fn consumption_add_exec(ctx: &ToolContext, args: &Value) -> Result<Val
 
 pub async fn consumption_today_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
     let day_id = args.get("day_id").and_then(|v| v.as_str());
+    let days = args.get("days").and_then(|v| v.as_i64()).unwrap_or(1).clamp(1, 14) as i32;
     let item_query = args
         .get("item_query")
         .and_then(|v| v.as_str())
@@ -207,6 +260,44 @@ pub async fn consumption_today_exec(ctx: &ToolContext, args: &Value) -> Result<V
     });
     let mut compact = today_compact_for_llm(&full);
     compact["coach"] = json!(coach);
+
+    // Contextual nutrition analysis for meal recommendations
+    let current_meal_slot = infer_meal_type("", &ctx.locale);
+    let current_hour = local_hour(&ctx.locale);
+    compact["current_meal_slot"] = json!(current_meal_slot);
+    compact["current_hour"] = json!(current_hour);
+    compact["calories_remaining"] = json!(today.glance.calories_remaining);
+    let protein_target_g = ((today.glance.calorie_goal as f32 * 0.20) / 4.0).round() as i32;
+    compact["protein_deficit_g"] = json!((protein_target_g - today.glance.protein).max(0));
+
+    // Multi-day frequency inspection
+    if days > 1 {
+        if let Ok((start_ms, end_ms)) = multi_day_bounds_ms(&today.day_id, days, &ctx.locale) {
+            if let Ok(recent_meals) = food_list_day(&ctx.pool, ctx.owner_iid, start_ms, end_ms).await {
+                use std::collections::HashMap;
+                let mut freq: HashMap<String, usize> = HashMap::new();
+                for m in &recent_meals {
+                    for it in &m.items {
+                        let label = if ctx.locale.to_lowercase().starts_with("id") && !it.name_id.is_empty() {
+                            it.name_id.clone()
+                        } else {
+                            it.name.clone()
+                        };
+                        if !label.trim().is_empty() {
+                            *freq.entry(label).or_insert(0) += 1;
+                        }
+                    }
+                }
+                let mut sorted_freq: Vec<_> = freq.into_iter().collect();
+                sorted_freq.sort_by(|a, b| b.1.cmp(&a.1));
+                compact["days_inspected"] = json!(days);
+                compact["recent_frequent_foods"] = json!(sorted_freq.into_iter().take(5).map(|(name, count)| {
+                    json!({ "name": name, "count": count })
+                }).collect::<Vec<_>>());
+            }
+        }
+    }
+
     if !matched.is_empty() {
         compact["matched_items"] = serde_json::to_value(&matched).unwrap_or(json!([]));
         compact["matched_kcal"] = json!(matched_kcal);
@@ -336,6 +427,7 @@ tool! {
     readonly: true,
     parameters: {
         day_id: (string, "YYYY-MM-DD, today, or yesterday", optional, default = "today"),
+        days: (integer, "Number of past days to inspect for multi-day history, food variety, or meal recommendations (1 to 7, default = 1)", optional, default = 1),
         item_query: (string, "Optional food name filter to sum matching items across meals", optional),
     },
     execute: |args, ctx| consumption_today_exec(ctx, &args).await

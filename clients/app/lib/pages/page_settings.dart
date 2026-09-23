@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:alienai_c35/c/account/account_api.dart';
 import 'package:alienai_c35/c/account/invoke_account.dart';
+import 'package:alienai_c35/c/api/referral_conn.dart';
 import 'package:alienai_c35/c/api/settings_conn.dart';
 import 'package:alienai_c35/c/conn/server_host.dart';
 import 'package:alienai_c35/c/locale/app_locale.dart';
@@ -21,7 +22,10 @@ import 'package:alienai_c35/c/tts/speech_lang.dart';
 import 'package:alienai_c35/c/tts/tts_service.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/c/chat/chat_conn.dart';
+import 'package:alienai_c35/pages/finance/page_finance_payments.dart';
+import 'package:alienai_c35/pages/finance/page_finance_receive_accounts.dart';
 import 'package:alienai_c35/pages/page_allow_control.dart' show ThisPcRegister;
+import 'package:alienai_c35/pages/page_root_console.dart';
 import 'package:alienai_c35/c/auth/auth_service.dart';
 import 'package:alienai_c35/widgets/ai/ui_bot_memories_sheet.dart';
 import 'package:alienai_c35/widgets/skill/ui_skill_master_detail.dart';
@@ -31,6 +35,7 @@ import 'package:alienai_c35/widgets/settings/ui_settings_password.dart';
 import 'package:alienai_c35/widgets/settings/ui_settings_pin.dart';
 import 'package:alienai_c35/widgets/settings/ui_settings_tile.dart';
 import 'package:alienai_c35/widgets/settings/ui_settings_unlock_mode.dart';
+import 'package:alienai_c35/widgets/ui/ui_account_role_badges.dart';
 import 'package:alienai_c35/widgets/ui/ui_img.dart';
 import 'package:alienai_c35/widgets/ui/ui_locale_picker_dialog.dart';
 import 'package:alienai_c35/widgets/ui/ui_page.dart';
@@ -222,6 +227,34 @@ class _PageSettingsState extends State<PageSettings> {
     Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageSkills(conn: conn, ownerIid: Session.instance.uid)));
   }
 
+  bool get _financeRole => Session.instance.isRoot || Session.instance.globalRoles.contains('finance');
+
+  bool get _receiveAccountRole => Session.instance.isRoot || Session.instance.globalRoles.any((r) => r == 'finance' || r == 'director');
+
+  void _openRootConsole() {
+    final conn = widget.chatConn;
+    if (conn == null) return;
+    Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageRootConsole(chatConn: conn)));
+  }
+
+  void _openFinancePayments() => Navigator.push(
+        context,
+        MaterialPageRoute<void>(
+          builder: (_) => PageFinancePayments(conn: ReferralConn(uid: Session.instance.uid), canReview: _financeRole),
+        ),
+      );
+
+  void _openFinanceReceiveAccounts() => Navigator.push(
+        context,
+        MaterialPageRoute<void>(builder: (_) => PageFinanceReceiveAccounts(conn: ReferralConn(uid: Session.instance.uid))),
+      );
+
+  UiAccountRoleBadgesAction get _badgeAction => UiAccountRoleBadgesAction(
+        onRootConsole: Session.instance.isRoot && widget.chatConn != null ? _openRootConsole : null,
+        onFinancePayments: _financeRole ? _openFinancePayments : null,
+        onFinanceReceiveAccounts: _receiveAccountRole ? _openFinanceReceiveAccounts : null,
+      );
+
   InputDecoration _fieldDecoration(String label) => InputDecoration(
         labelText: label,
         labelStyle: const TextStyle(color: Color(0xFF71717A), fontSize: 13),
@@ -275,6 +308,8 @@ class _PageSettingsState extends State<PageSettings> {
                                       ),
                                     ),
                                   ),
+                                  const SizedBox(height: 10),
+                                  UiAccountRoleBadges(action: _badgeAction, size: UiAccountRoleBadgeSize.page),
                                 ]),
                               ),
                             ]),

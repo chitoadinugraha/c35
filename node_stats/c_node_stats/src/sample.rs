@@ -17,12 +17,23 @@ pub struct NetSample {
 pub struct SampleSnapshot {
     pub at: Instant,
     pub disks: HashMap<String, IoSample>,
+    pub device_io: HashMap<String, IoSample>,
     pub net: NetSample,
 }
 
 impl SampleSnapshot {
-    pub fn new(at: Instant, disks: HashMap<String, IoSample>, net: NetSample) -> Self {
-        Self { at, disks, net }
+    pub fn new(
+        at: Instant,
+        disks: HashMap<String, IoSample>,
+        device_io: HashMap<String, IoSample>,
+        net: NetSample,
+    ) -> Self {
+        Self {
+            at,
+            disks,
+            device_io,
+            net,
+        }
     }
 
     pub fn elapsed(&self, prev: &Self) -> Duration {

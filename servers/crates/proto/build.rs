@@ -27,6 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "session.proto",
         "voice.proto",
         "stats.proto",
+        "object.proto",
         "fetch.proto",
         "wire.proto",
     ];

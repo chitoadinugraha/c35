@@ -27,3 +27,4 @@ c35_mod_site = { path = "../mod_site", package = "c35_mod_site" }
 c35_mod_tx = { path = "../mod_tx", package = "c35_mod_tx" }
 c35_mod_voice = { path = "../mod_voice", package = "c35_mod_voice" }
 c35_proto = { path = "../proto", package = "c35_proto" }
+subtle = "2"

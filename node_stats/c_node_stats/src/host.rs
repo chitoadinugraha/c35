@@ -1,8 +1,11 @@
 use std::collections::HashMap;
-use std::fs;
 use std::path::Path;
 
-use anyhow::{Context, Result};
+#[cfg(target_os = "linux")]
+use std::fs;
+use anyhow::Result;
+#[cfg(target_os = "linux")]
+use anyhow::Context;
 
 use crate::sample::{IoSample, NetSample};
 
@@ -32,6 +35,26 @@ fn stat_bytes_unix(path: &str) -> Result<(u64, u64)> {
     let total = st.f_blocks as u64 * block_size;
     let free = st.f_bfree as u64 * block_size;
     Ok((total.saturating_sub(free), total))
+}
+
+pub fn disk_io_by_device(host_prefix: &str, device_names: &[String]) -> HashMap<String, IoSample> {
+    #[cfg(target_os = "linux")]
+    {
+        let diskstats = format!("{host_prefix}/proc/diskstats");
+        let io_by_name = parse_diskstats_by_name(&diskstats).unwrap_or_default();
+        device_names
+            .iter()
+            .map(|name| {
+                let io = io_by_name.get(name).cloned().unwrap_or_default();
+                (name.clone(), io)
+            })
+            .collect()
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (host_prefix, device_names);
+        HashMap::new()
+    }
 }
 
 pub fn disk_io_by_mount(host_prefix: &str, mounts: &[String]) -> HashMap<String, IoSample> {
@@ -66,8 +89,12 @@ fn disk_io_linux(host_prefix: &str, mounts: &[String]) -> HashMap<String, IoSamp
 }
 
 #[cfg(target_os = "linux")]
-fn parse_mount_devices(path: &str) -> Result<HashMap<String, (u64, u64)>> {
+pub fn parse_mount_devices(path: &str) -> Result<HashMap<String, (u64, u64)>> {
     let text = fs::read_to_string(path).with_context(|| format!("read {path}"))?;
+    Ok(parse_mount_devices_text(&text))
+}
+
+pub fn parse_mount_devices_text(text: &str) -> HashMap<String, (u64, u64)> {
     let mut out = HashMap::new();
     for line in text.lines() {
         let left = line.split(" - ").next().unwrap_or(line);
@@ -80,10 +107,9 @@ fn parse_mount_devices(path: &str) -> Result<HashMap<String, (u64, u64)>> {
         };
         out.insert(parts[4].to_string(), (maj, min));
     }
-    Ok(out)
+    out
 }
 
-#[cfg(target_os = "linux")]
 fn parse_dev(raw: &str) -> Option<(u64, u64)> {
     let (maj, min) = raw.split_once(':')?;
     Some((maj.parse().ok()?, min.parse().ok()?))
@@ -92,6 +118,34 @@ fn parse_dev(raw: &str) -> Option<(u64, u64)> {
 #[cfg(target_os = "linux")]
 fn parse_diskstats(path: &str) -> Result<HashMap<(u64, u64), IoSample>> {
     let text = fs::read_to_string(path).with_context(|| format!("read {path}"))?;
+    Ok(parse_diskstats_text(&text))
+}
+
+#[cfg(target_os = "linux")]
+fn parse_diskstats_by_name(path: &str) -> Result<HashMap<String, IoSample>> {
+    let text = fs::read_to_string(path).with_context(|| format!("read {path}"))?;
+    let mut out = HashMap::new();
+    for line in text.lines() {
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() < 14 {
+            continue;
+        }
+        let name = parts[2].to_string();
+        let sectors_read: u64 = parts[5].parse().unwrap_or(0);
+        let sectors_written: u64 = parts[9].parse().unwrap_or(0);
+        out.insert(
+            name,
+            IoSample {
+                read_bytes: sectors_read * 512,
+                write_bytes: sectors_written * 512,
+            },
+        );
+    }
+    Ok(out)
+}
+
+#[cfg(target_os = "linux")]
+fn parse_diskstats_text(text: &str) -> HashMap<(u64, u64), IoSample> {
     let mut out = HashMap::new();
     for line in text.lines() {
         let parts: Vec<&str> = line.split_whitespace().collect();
@@ -110,7 +164,7 @@ fn parse_diskstats(path: &str) -> Result<HashMap<(u64, u64), IoSample>> {
             },
         );
     }
-    Ok(out)
+    out
 }
 
 #[derive(Clone, Copy, Debug, Default)]

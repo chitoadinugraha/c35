@@ -35,6 +35,29 @@ final $typed_data.Uint8List diskMountStatDescriptor = $convert.base64Decode(
     'Ugp0b3RhbEJ5dGVzEhkKCHJlYWRfYnBzGAUgASgBUgdyZWFkQnBzEhsKCXdyaXRlX2JwcxgGIA'
     'EoAVIId3JpdGVCcHM=');
 
+@$core.Deprecated('Use diskDeviceStatDescriptor instead')
+const DiskDeviceStat$json = {
+  '1': 'DiskDeviceStat',
+  '2': [
+    {'1': 'device', '3': 1, '4': 1, '5': 9, '10': 'device'},
+    {'1': 'mount', '3': 2, '4': 1, '5': 9, '10': 'mount'},
+    {'1': 'label', '3': 3, '4': 1, '5': 9, '10': 'label'},
+    {'1': 'is_boot', '3': 4, '4': 1, '5': 8, '10': 'isBoot'},
+    {'1': 'used_bytes', '3': 5, '4': 1, '5': 4, '10': 'usedBytes'},
+    {'1': 'total_bytes', '3': 6, '4': 1, '5': 4, '10': 'totalBytes'},
+    {'1': 'read_bps', '3': 7, '4': 1, '5': 1, '10': 'readBps'},
+    {'1': 'write_bps', '3': 8, '4': 1, '5': 1, '10': 'writeBps'},
+  ],
+};
+
+/// Descriptor for `DiskDeviceStat`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List diskDeviceStatDescriptor = $convert.base64Decode(
+    'Cg5EaXNrRGV2aWNlU3RhdBIWCgZkZXZpY2UYASABKAlSBmRldmljZRIUCgVtb3VudBgCIAEoCV'
+    'IFbW91bnQSFAoFbGFiZWwYAyABKAlSBWxhYmVsEhcKB2lzX2Jvb3QYBCABKAhSBmlzQm9vdBId'
+    'Cgp1c2VkX2J5dGVzGAUgASgEUgl1c2VkQnl0ZXMSHwoLdG90YWxfYnl0ZXMYBiABKARSCnRvdG'
+    'FsQnl0ZXMSGQoIcmVhZF9icHMYByABKAFSB3JlYWRCcHMSGwoJd3JpdGVfYnBzGAggASgBUgh3'
+    'cml0ZUJwcw==');
+
 @$core.Deprecated('Use volumeStatDescriptor instead')
 const VolumeStat$json = {
   '1': 'VolumeStat',
@@ -46,6 +69,7 @@ const VolumeStat$json = {
     {'1': 'used_bytes', '3': 5, '4': 1, '5': 4, '10': 'usedBytes'},
     {'1': 'capacity_bytes', '3': 6, '4': 1, '5': 4, '10': 'capacityBytes'},
     {'1': 'storage_class', '3': 7, '4': 1, '5': 9, '10': 'storageClass'},
+    {'1': 'label', '3': 8, '4': 1, '5': 9, '10': 'label'},
   ],
 };
 
@@ -55,7 +79,7 @@ final $typed_data.Uint8List volumeStatDescriptor = $convert.base64Decode(
     'IgASgJUgdwdmNOYW1lEhkKCHBvZF9uYW1lGAMgASgJUgdwb2ROYW1lEhsKCW5vZGVfbmFtZRgE'
     'IAEoCVIIbm9kZU5hbWUSHQoKdXNlZF9ieXRlcxgFIAEoBFIJdXNlZEJ5dGVzEiUKDmNhcGFjaX'
     'R5X2J5dGVzGAYgASgEUg1jYXBhY2l0eUJ5dGVzEiMKDXN0b3JhZ2VfY2xhc3MYByABKAlSDHN0'
-    'b3JhZ2VDbGFzcw==');
+    'b3JhZ2VDbGFzcxIUCgVsYWJlbBgIIAEoCVIFbGFiZWw=');
 
 @$core.Deprecated('Use nodeStatDescriptor instead')
 const NodeStat$json = {
@@ -77,6 +101,14 @@ const NodeStat$json = {
     {'1': 'net_in_bps', '3': 7, '4': 1, '5': 1, '10': 'netInBps'},
     {'1': 'net_out_bps', '3': 8, '4': 1, '5': 1, '10': 'netOutBps'},
     {'1': 'ts_ms', '3': 9, '4': 1, '5': 3, '10': 'tsMs'},
+    {
+      '1': 'devices',
+      '3': 10,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.DiskDeviceStat',
+      '10': 'devices'
+    },
   ],
 };
 
@@ -87,7 +119,8 @@ final $typed_data.Uint8List nodeStatDescriptor = $convert.base64Decode(
     'GAQgASgEUgxtZW1Vc2VkQnl0ZXMSJgoPbWVtX3RvdGFsX2J5dGVzGAUgASgEUg1tZW1Ub3RhbE'
     'J5dGVzEioKBm1vdW50cxgGIAMoCzISLmMzNS5EaXNrTW91bnRTdGF0UgZtb3VudHMSHAoKbmV0'
     'X2luX2JwcxgHIAEoAVIIbmV0SW5CcHMSHgoLbmV0X291dF9icHMYCCABKAFSCW5ldE91dEJwcx'
-    'ITCgV0c19tcxgJIAEoA1IEdHNNcw==');
+    'ITCgV0c19tcxgJIAEoA1IEdHNNcxItCgdkZXZpY2VzGAogAygLMhMuYzM1LkRpc2tEZXZpY2VT'
+    'dGF0UgdkZXZpY2Vz');
 
 @$core.Deprecated('Use statsPushDescriptor instead')
 const StatsPush$json = {

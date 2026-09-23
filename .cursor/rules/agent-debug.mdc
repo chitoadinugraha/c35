@@ -1,0 +1,69 @@
+---
+description: Which iid to use for automated tests vs inspecting your real chats/messages
+alwaysApply: true
+---
+
+# Agent debug — identities and message lookup
+
+Mirrored for Antigravity: [`.agents/rules/agent-debug.md`](../../.agents/rules/agent-debug.md)
+
+## Two identities — do not mix them up
+
+| Use | iid | alien_id | When |
+|-----|-----|----------|------|
+| **Automated tests** | **33000** | `automated-tester` | MCP prompt/tool tests, seeds, fixtures — see `automated-tester.mdc` |
+| **Your real account (Chito)** | **99000** | `chito` | Inspecting production-like chats, billing, consumption you logged in the app |
+
+Default **message / trace inspection** for “what did I see in the app?” → **`owner_iid = 99000`**.
+
+Default **automated regression** → **`owner_iid = 33000`**.
+
+## Inspecting a turn today (no dedicated MCP yet)
+
+Trace is **not** returned by a prompt MCP tool yet. It is stored server-side:
+
+| Store | Key | Contents |
+|-------|-----|----------|
+| `ai.chat_msg` | `id` (msg id), `req_id`, `chat_id` | `content`, `blocks_json`, tokens, cost |
+| `ai.log` | `req_id`, `owner_iid` | `trace_tool_filter`, `trace_prepare`, `llm_call`, `tool`, … with `meta` JSON |
+
+**Best workflow:**
+
+1. **You have a message id** (from UI / copy) → query that row + same `req_id` log lines.
+2. **You have req_id** (from usage detail / tester UI) → join `chat_msg` + `log`.
+3. **Search by text** → `owner_iid = 99000`, `content ILIKE`, recent first, then drill into `req_id`.
+
+Example (via global `yb` MCP, `database=c35`):
+
+```sql
+-- By message id
+SELECT id, chat_id, req_id, role, content, blocks_json, cost_usd, created_ts
+FROM ai.chat_msg WHERE owner_iid = 99000 AND id = $msg_id AND deleted_ts IS NULL;
+
+-- Trace for that turn
+SELECT kind, topic, text, model, tokens_in, tokens_out, duration_ms, cost_usd, meta, created_ts
+FROM ai.log WHERE owner_iid = 99000 AND req_id = $req_id ORDER BY created_ts;
+
+-- Recent search (last 7 days)
+SELECT id, chat_id, req_id, role, left(content, 120) AS preview, created_ts
+FROM ai.chat_msg
+WHERE owner_iid = 99000 AND deleted_ts IS NULL AND content ILIKE '%what do I eat%'
+ORDER BY created_ts DESC LIMIT 20;
+```
+
+## `c35` MCP tools (shipped)
+
+| Tool | Purpose |
+|------|---------|
+| `log_tail` | Tail `ai.log` **DESC** by `created_ts`; default owner **99000**; `global=true` for all owners; optional `q` grep |
+| `trace_get` | Full turn trace from `ai.log` by `req_id` (ASC) |
+| `msg_get` | `{ msg_id }` or `{ req_id }` → message + blocks + trace |
+| `msg_find` | Search messages (default `owner_iid=99000`) |
+| `tool_exec` | Cluster tool via server HTTP — **owner locked to 33000**; see [`_/docs/mcp-security.md`](../../_/docs/mcp-security.md) |
+| `prompt_compose` | Inst + tool selection preview + compose trace — owner **33000** only |
+| `prompt_run` | Full prompt turn as **33000** (requires `C35_MCP_AGENT_ENABLED` + strong `C35_MCP_AGENT_KEY`) |
+| `inst_*` | CRUD on `ai.inst` |
+
+Global **`yb`** MCP still useful for ad-hoc SQL and `meta` joins.
+
+Prefer **msg id** when you have it (exact). Use **text search** only to discover ids.

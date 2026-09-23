@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS ai.consumption_item (
     name_id             TEXT NOT NULL DEFAULT '',
     qty                 REAL NOT NULL DEFAULT 1,
     pic                 TEXT NOT NULL DEFAULT '',
+    obj_id              BIGINT NOT NULL DEFAULT 0,              -- references ai.object_normalizer(id)
 
     calories            INT NOT NULL DEFAULT 0,                  -- kcal
     protein             INT NOT NULL DEFAULT 0,                  -- g
@@ -89,8 +90,13 @@ CREATE TABLE IF NOT EXISTS ai.consumption_item (
     PRIMARY KEY (consumption_id, idx)
 );
 
+ALTER TABLE ai.consumption_item ADD COLUMN IF NOT EXISTS obj_id BIGINT NOT NULL DEFAULT 0;
+
 CREATE INDEX IF NOT EXISTS idx_consumption_item_owner
     ON ai.consumption_item (owner_iid, consumption_id);
+CREATE INDEX IF NOT EXISTS idx_consumption_item_obj
+    ON ai.consumption_item (owner_iid, obj_id)
+    WHERE obj_id > 0 AND deleted_ts IS NULL;
 
 -- ------------------------------------------------------------------------------
 -- Water intake (daily rollup)
@@ -126,3 +132,12 @@ CREATE TABLE IF NOT EXISTS ai.consumption_prefs (
     updated_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_ts          TIMESTAMPTZ
 );
+
+-- Seed: prefs for automated tester (owner_iid 33000)
+INSERT INTO ai.consumption_prefs (owner_iid, calorie_goal_kcal, water_goal_ml, updated_ts)
+VALUES (33000, 2000, 2000, NOW())
+ON CONFLICT (owner_iid) DO UPDATE SET
+    calorie_goal_kcal = EXCLUDED.calorie_goal_kcal,
+    water_goal_ml = EXCLUDED.water_goal_ml,
+    updated_ts = NOW(),
+    deleted_ts = NULL;

@@ -1,10 +1,11 @@
 use std::time::Instant;
 
-use c35_proto::{DiskMountStat, NodeStat, StatsPush};
+use c35_proto::{DiskDeviceStat, DiskMountStat, NodeStat, StatsPush};
 
+use crate::device::block_devices;
 use crate::host::{
-    cpu_cores, cpu_pct as cpu_usage_pct, cpu_sample, disk_io_by_mount, exists, host_path, mem_bytes,
-    net_totals, stat_bytes, CpuSample,
+    cpu_cores, cpu_pct as cpu_usage_pct, cpu_sample, disk_io_by_device, disk_io_by_mount, exists,
+    host_path, mem_bytes, net_totals, stat_bytes, CpuSample,
 };
 use crate::sample::{self, SampleSnapshot};
 
@@ -37,9 +38,12 @@ impl NodeSampler {
     pub fn sample(&mut self) -> NodeStat {
         let now = Instant::now();
         let mount_keys: Vec<String> = self.mounts.iter().map(|m| m.mount.clone()).collect();
+        let block_devs = block_devices(HOST_PREFIX);
+        let device_names: Vec<String> = block_devs.iter().map(|d| d.name.clone()).collect();
         let disk_io = disk_io_by_mount(HOST_PREFIX, &mount_keys);
+        let device_disk_io = disk_io_by_device(HOST_PREFIX, &device_names);
         let net = net_totals(HOST_PREFIX);
-        let cur = SampleSnapshot::new(now, disk_io, net);
+        let cur = SampleSnapshot::new(now, disk_io, device_disk_io, net);
 
         let (net_in_bps, net_out_bps) = self
             .prev
@@ -60,6 +64,10 @@ impl NodeSampler {
             .iter()
             .filter_map(|m| self.mount_stat(m, &cur))
             .collect();
+        let devices = block_devs
+            .into_iter()
+            .map(|d| self.device_stat(d, &cur))
+            .collect();
 
         self.prev = Some(cur);
 
@@ -73,6 +81,29 @@ impl NodeSampler {
             net_in_bps,
             net_out_bps,
             ts_ms: crate::host::now_ms(),
+            devices,
+        }
+    }
+
+    fn device_stat(&self, d: crate::device::BlockDevice, cur: &SampleSnapshot) -> DiskDeviceStat {
+        let (read_bps, write_bps) = self
+            .prev
+            .as_ref()
+            .and_then(|p| {
+                let prev_io = p.device_io.get(&d.name)?;
+                let cur_io = cur.device_io.get(&d.name)?;
+                Some(sample::disk_bps(prev_io, cur_io, cur.elapsed(p)))
+            })
+            .unwrap_or((0.0, 0.0));
+        DiskDeviceStat {
+            device: d.name,
+            mount: d.mount,
+            label: d.label,
+            is_boot: d.is_boot,
+            used_bytes: d.used_bytes,
+            total_bytes: d.total_bytes,
+            read_bps,
+            write_bps,
         }
     }
 

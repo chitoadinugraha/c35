@@ -372,6 +372,33 @@ const InvokeReq$json = {
       '9': 0,
       '10': 'billingReceiveAccountList'
     },
+    {
+      '1': 'object_alias_list',
+      '3': 119,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqObjectAliasList',
+      '9': 0,
+      '10': 'objectAliasList'
+    },
+    {
+      '1': 'object_alias_put',
+      '3': 120,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqObjectAliasPut',
+      '9': 0,
+      '10': 'objectAliasPut'
+    },
+    {
+      '1': 'object_normalizer_list',
+      '3': 121,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqObjectNormalizerList',
+      '9': 0,
+      '10': 'objectNormalizerList'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -433,8 +460,12 @@ final $typed_data.Uint8List invokeReqDescriptor = $convert.base64Decode(
     'ZWZlcnJhbExlZGdlckxpc3QSYQobYmlsbGluZ19yZWNlaXZlX2FjY291bnRfcHV0GHUgASgLMi'
     'AuYzM1LlJlcUJpbGxpbmdSZWNlaXZlQWNjb3VudFB1dEgAUhhiaWxsaW5nUmVjZWl2ZUFjY291'
     'bnRQdXQSZAocYmlsbGluZ19yZWNlaXZlX2FjY291bnRfbGlzdBh2IAEoCzIhLmMzNS5SZXFCaW'
-    'xsaW5nUmVjZWl2ZUFjY291bnRMaXN0SABSGWJpbGxpbmdSZWNlaXZlQWNjb3VudExpc3RCBgoE'
-    'Ym9keQ==');
+    'xsaW5nUmVjZWl2ZUFjY291bnRMaXN0SABSGWJpbGxpbmdSZWNlaXZlQWNjb3VudExpc3QSRQoR'
+    'b2JqZWN0X2FsaWFzX2xpc3QYdyABKAsyFy5jMzUuUmVxT2JqZWN0QWxpYXNMaXN0SABSD29iam'
+    'VjdEFsaWFzTGlzdBJCChBvYmplY3RfYWxpYXNfcHV0GHggASgLMhYuYzM1LlJlcU9iamVjdEFs'
+    'aWFzUHV0SABSDm9iamVjdEFsaWFzUHV0ElQKFm9iamVjdF9ub3JtYWxpemVyX2xpc3QYeSABKA'
+    'syHC5jMzUuUmVxT2JqZWN0Tm9ybWFsaXplckxpc3RIAFIUb2JqZWN0Tm9ybWFsaXplckxpc3RC'
+    'BgoEYm9keQ==');
 
 @$core.Deprecated('Use invokeResDescriptor instead')
 const InvokeRes$json = {
@@ -785,6 +816,33 @@ const InvokeRes$json = {
       '9': 0,
       '10': 'billingReceiveAccountList'
     },
+    {
+      '1': 'object_alias_list',
+      '3': 119,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResObjectAliasList',
+      '9': 0,
+      '10': 'objectAliasList'
+    },
+    {
+      '1': 'object_alias_put',
+      '3': 120,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResObjectAliasPut',
+      '9': 0,
+      '10': 'objectAliasPut'
+    },
+    {
+      '1': 'object_normalizer_list',
+      '3': 121,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResObjectNormalizerList',
+      '9': 0,
+      '10': 'objectNormalizerList'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -846,7 +904,11 @@ final $typed_data.Uint8List invokeResDescriptor = $convert.base64Decode(
     'X3B1dBh1IAEoCzIgLmMzNS5SZXNCaWxsaW5nUmVjZWl2ZUFjY291bnRQdXRIAFIYYmlsbGluZ1'
     'JlY2VpdmVBY2NvdW50UHV0EmQKHGJpbGxpbmdfcmVjZWl2ZV9hY2NvdW50X2xpc3QYdiABKAsy'
     'IS5jMzUuUmVzQmlsbGluZ1JlY2VpdmVBY2NvdW50TGlzdEgAUhliaWxsaW5nUmVjZWl2ZUFjY2'
-    '91bnRMaXN0QgYKBGJvZHk=');
+    '91bnRMaXN0EkUKEW9iamVjdF9hbGlhc19saXN0GHcgASgLMhcuYzM1LlJlc09iamVjdEFsaWFz'
+    'TGlzdEgAUg9vYmplY3RBbGlhc0xpc3QSQgoQb2JqZWN0X2FsaWFzX3B1dBh4IAEoCzIWLmMzNS'
+    '5SZXNPYmplY3RBbGlhc1B1dEgAUg5vYmplY3RBbGlhc1B1dBJUChZvYmplY3Rfbm9ybWFsaXpl'
+    'cl9saXN0GHkgASgLMhwuYzM1LlJlc09iamVjdE5vcm1hbGl6ZXJMaXN0SABSFG9iamVjdE5vcm'
+    '1hbGl6ZXJMaXN0QgYKBGJvZHk=');
 
 @$core.Deprecated('Use wsReqDescriptor instead')
 const WsReq$json = {

@@ -225,13 +225,28 @@ async fn food_item_replace_tx(
         .await
         .map_err(|e| e.to_string())?;
     for (idx, it) in items.iter().enumerate() {
+        let obj_id = if it.obj_id > 0 {
+            it.obj_id
+        } else {
+            let n1 = it.name.trim().to_ascii_lowercase();
+            let n2 = it.name_id.trim().to_ascii_lowercase();
+            sqlx::query_scalar::<_, i64>(
+                "SELECT obj_id FROM ai.object_alias WHERE name_norm = $1 OR name_norm = $2 LIMIT 1"
+            )
+            .bind(&n1)
+            .bind(&n2)
+            .fetch_optional(&mut **tx)
+            .await
+            .unwrap_or(None)
+            .unwrap_or(0)
+        };
         sqlx::query(
             "INSERT INTO ai.consumption_item
-             (consumption_id, owner_iid, idx, name, name_id, qty, pic,
+             (consumption_id, owner_iid, idx, name, name_id, qty, pic, obj_id,
               calories, protein, fat, carbs, fiber, sugar, sodium,
               potassium, vitamin_a, vitamin_c, vitamin_d, vitamin_e, vitamin_k,
               calcium, iron, magnesium, phosphorus, zinc, copper)
-             VALUES ($1,$2,$3,$4,$5,$6,'',$7,$8,$9,$10,$11,$12,$13,
+             VALUES ($1,$2,$3,$4,$5,$6,'',$7,$8,$9,$10,$11,$12,$13,$14,
                      0,0,0,0,0,0,0,0,0,0,0,0)",
         )
         .bind(consumption_id)
@@ -240,6 +255,7 @@ async fn food_item_replace_tx(
         .bind(&it.name)
         .bind(&it.name_id)
         .bind(it.qty)
+        .bind(obj_id)
         .bind(it.calories)
         .bind(it.protein)
         .bind(it.fat)
@@ -314,8 +330,8 @@ pub async fn food_list_day(
 }
 
 async fn food_items_load(pool: &PgPool, owner_iid: i64, consumption_id: i64) -> Result<Vec<ConsumptionItem>, String> {
-    let rows = sqlx::query_as::<_, (String, String, f32, i32, i32, i32, i32, i32, i32, i32)>(
-        "SELECT name, name_id, qty, calories, protein, fat, carbs, fiber, sugar, sodium
+    let rows = sqlx::query_as::<_, (String, String, f32, i32, i32, i32, i32, i32, i32, i32, i64)>(
+        "SELECT name, name_id, qty, calories, protein, fat, carbs, fiber, sugar, sodium, COALESCE(obj_id, 0)
          FROM ai.consumption_item
          WHERE consumption_id = $1 AND owner_iid = $2 AND deleted_ts IS NULL
          ORDER BY idx ASC",
@@ -327,10 +343,11 @@ async fn food_items_load(pool: &PgPool, owner_iid: i64, consumption_id: i64) -> 
     .map_err(|e| e.to_string())?;
     Ok(rows
         .into_iter()
-        .map(|(name, name_id, qty, calories, protein, fat, carbs, fiber, sugar, sodium)| ConsumptionItem {
+        .map(|(name, name_id, qty, calories, protein, fat, carbs, fiber, sugar, sodium, obj_id)| ConsumptionItem {
             name,
             name_id,
             qty,
+            obj_id,
             calories,
             protein,
             fat,

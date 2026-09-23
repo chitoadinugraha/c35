@@ -51,13 +51,7 @@ fn parse_volume_entry(entry: &str) -> Option<VolumeConfig> {
 }
 
 fn default_volume_label(pvc_name: &str) -> String {
-    if pvc_name.contains("yb") {
-        "YB data".into()
-    } else if pvc_name.contains("nats") {
-        "NATS JetStream".into()
-    } else {
-        pvc_name.into()
-    }
+    pvc_name.into()
 }
 
 pub fn sample_volume(cfg: &VolumeConfig, node_name: &str) -> Option<VolumeStat> {
@@ -79,6 +73,7 @@ pub fn sample_volume(cfg: &VolumeConfig, node_name: &str) -> Option<VolumeStat> 
         used_bytes: used,
         capacity_bytes: capacity,
         storage_class: cfg.storage_class.clone(),
+        label: cfg.label.clone(),
     })
 }
 
@@ -88,6 +83,6 @@ pub fn volume_push(stat: VolumeStat) -> StatsPush {
     }
 }
 
-pub fn volume_subject(namespace: &str, pvc_name: &str) -> String {
-    format!("c35.stats.volume.{namespace}.{pvc_name}")
+pub fn volume_subject(node_name: &str, namespace: &str, pvc_name: &str) -> String {
+    format!("c35.stats.volume.{node_name}.{namespace}.{pvc_name}")
 }

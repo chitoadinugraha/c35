@@ -75,9 +75,11 @@ Future<String> serverHostActiveBase() async {
   return base;
 }
 
-Future<void> serverHostWaitReady({Duration maxWait = const Duration(seconds: 30)}) async {
+Future<void> serverHostWaitReady({Duration? maxWait}) async {
   final base = C35Config.authApiBase;
-  final deadline = DateTime.now().add(maxWait);
+  // Local dev_server waits on remote YB/NATS (~30–45s cold start) plus cargo-watch rebuilds.
+  final wait = maxWait ?? (serverHostNormalize(base) == serverHostLocalUrl ? const Duration(seconds: 90) : const Duration(seconds: 30));
+  final deadline = DateTime.now().add(wait);
   while (DateTime.now().isBefore(deadline)) {
     try {
       final res = await http.get(Uri.parse('$base/livez')).timeout(const Duration(seconds: 2));
@@ -85,7 +87,7 @@ Future<void> serverHostWaitReady({Duration maxWait = const Duration(seconds: 30)
     } catch (_) {}
     await Future<void>.delayed(const Duration(milliseconds: 500));
   }
-  lError('Local server not ready at $base after ${maxWait.inSeconds}s');
+  lError('Local server not ready at $base after ${wait.inSeconds}s');
 }
 
 Future<void> serverHostInit() async {

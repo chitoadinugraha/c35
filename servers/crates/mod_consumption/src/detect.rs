@@ -8,11 +8,11 @@ use super::types::ConsumptionItem;
 const PROMPT_TEXT: &str = r#"You are a nutrition expert. Extract food items from the description.
 Output JSON ARRAY only:
 [{"name":"","name_id":"","qty":1,"calories":0,"protein":0,"fat":0,"carbs":0,"fiber":0,"sugar":0,"sodium":0}]
-Detect fractional portions: qty 0.5 for half/setengah, 0.25 for quarter. Nutrition per one full serving; qty scales consumption.
+Default qty to 1 for standard serving. Only use clean culinary portions (0.25, 0.33, 0.5, 0.75, 1, 1.5, 2), never arbitrary continuous floats.
 Use reasonable estimates. name_id in Bahasa Indonesia Title Case."#;
 
 const PROMPT_PIC: &str = r#"You are a nutrition expert. You are given a picture of food or drinks.
-Estimate portions (half plate → qty 0.5). Extract every distinct item. Output JSON ARRAY only:
+Estimate portions (default qty to 1 for full standard portion/plate/bowl). Use clean fractions (0.25, 0.33, 0.5, 0.75, 1, 1.5, 2), never arbitrary floats. Extract every distinct item. Output JSON ARRAY only:
 [{"name":"","name_id":"","qty":1,"calories":0,"protein":0,"fat":0,"carbs":0,"fiber":0,"sugar":0,"sodium":0}]
 Use reasonable estimates. name_id in Bahasa Indonesia Title Case."#;
 
@@ -217,6 +217,7 @@ fn parse_items(raw: &str) -> Result<Vec<ConsumptionItem>, String> {
                 name: name.to_string(),
                 name_id: if i.name_id.trim().is_empty() { name.to_string() } else { i.name_id.trim().to_string() },
                 qty: i.qty as f32,
+                obj_id: 0,
                 calories: i.calories.round() as i32,
                 protein: i.protein.round() as i32,
                 fat: i.fat.round() as i32,
@@ -241,6 +242,7 @@ pub fn items_from_json(v: &serde_json::Value) -> Result<Vec<ConsumptionItem>, St
             name: name.to_string(),
             name_id: item.get("name_id").and_then(|x| x.as_str()).unwrap_or(name).to_string(),
             qty: item.get("qty").and_then(|x| x.as_f64()).unwrap_or(1.0) as f32,
+            obj_id: item.get("obj_id").and_then(|x| x.as_i64()).unwrap_or(0),
             calories: item.get("calories").and_then(|x| x.as_i64()).unwrap_or(0) as i32,
             protein: item.get("protein").and_then(|x| x.as_i64()).unwrap_or(0) as i32,
             fat: item.get("fat").and_then(|x| x.as_i64()).unwrap_or(0) as i32,

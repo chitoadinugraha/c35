@@ -8,4 +8,7 @@ metadata:
     app.kubernetes.io/part-of: c35
 data:
   C35_NODE_MOUNTS: "/,/var/log"
-  C35_VOLUME_PATHS: "yugabyte:yb-tserver:/host/var/lib/alienai/yb-tserver:oci-bv:YB data"
+  C35_VOLUME_PATHS: >-
+    yugabyte:yb-tserver:/host/var/lib/alienai/yb-tserver:oci-bv:yb-tserver,
+    yugabyte:yb-master:/host/var/lib/alienai/yb-master:oci-bv:yb-master,
+    nats:nats-data:/host/var/lib/alienai/nats:oci-bv:nats

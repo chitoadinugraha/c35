@@ -167,6 +167,11 @@ LRESULT CALLBACK Win32Window::WndProc(HWND const window,
     EnableFullDpiSupportIfAvailable(window);
     that->window_handle_ = window;
   } else if (Win32Window* that = GetThisFromHandle(window)) {
+    // Block before MessageHandler — IDE / UIA probes must not build the Flutter
+    // accessibility bridge (flutter/flutter#182444).
+    if (message == WM_GETOBJECT) {
+      return 0;
+    }
     return that->MessageHandler(window, message, wparam, lparam);
   }
 

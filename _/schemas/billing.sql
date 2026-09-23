@@ -387,10 +387,10 @@ INSERT INTO ai.billing_plan (
      '{"outbound_gap_ms":10000,"outbound_gap_slow_ms":15000,"slow_model":"alienai","priority_queue":false}',
      TRUE, TRUE, 400000, 80000, 4, 'plus'),
     ('pro', 'Pro', 'user', 30, 20.00, 1, 1.00, 20.00, 0, 3, 0,
-     '{"outbound_gap_ms":10000,"outbound_gap_slow_ms":15000,"slow_model":"alienai","priority_queue":false}',
+     '{"outbound_gap_ms":10000,"outbound_gap_slow_ms":15000,"slow_model":"alienai","priority_queue":false,"queue_priority_multiplier":5}',
      TRUE, TRUE, 1000000, 200000, 10, 'pro'),
     ('ultra', 'Ultra', 'user', 40, 65.00, 1, 4.00, 80.00, 0, 5, 0,
-     '{"outbound_gap_ms":8000,"outbound_gap_slow_ms":15000,"slow_model":"alienai","priority_queue":true}',
+     '{"outbound_gap_ms":8000,"outbound_gap_slow_ms":15000,"slow_model":"alienai","priority_queue":true,"queue_priority_multiplier":30}',
      TRUE, TRUE, 4000000, 800000, 40, 'ultra'),
     ('bot.lite', 'Bot Lite', 'bot', 50, 2.50, 1, 0, 0, 0, 1, 3,
      '{"outbound_gap_ms":10000,"outbound_gap_slow_ms":15000,"slow_model":"alienai","priority_queue":false}',
@@ -821,3 +821,34 @@ ON CONFLICT (id) DO UPDATE SET
 -- billing_usage_dedupe.wallet_id, deducted_amount, currency, fx_rate_id
 -- ------------------------------------------------------------------------------
 
+-- Seed: billing wallet for automated tester (owner_iid 33000)
+INSERT INTO ai.billing_account (
+    id, owner_iid, name, balance_usd, balance_idr, plan_tier,
+    alien_allow_5h_limit, alien_allow_weekly_limit, updated_ts
+) VALUES (
+    330000000000000001,
+    33000,
+    'Personal',
+    100,
+    10000000,
+    'pro',
+    1.0,
+    10.0,
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    owner_iid = EXCLUDED.owner_iid,
+    balance_usd = GREATEST(ai.billing_account.balance_usd, EXCLUDED.balance_usd),
+    balance_idr = GREATEST(ai.billing_account.balance_idr, EXCLUDED.balance_idr),
+    alien_allow_5h_limit = GREATEST(ai.billing_account.alien_allow_5h_limit, EXCLUDED.alien_allow_5h_limit),
+    alien_allow_weekly_limit = GREATEST(ai.billing_account.alien_allow_weekly_limit, EXCLUDED.alien_allow_weekly_limit),
+    updated_ts = NOW(),
+    deleted_ts = NULL;
+
+UPDATE ai.billing_account SET
+    balance_usd = GREATEST(balance_usd, 100),
+    balance_idr = GREATEST(balance_idr, 10000000),
+    alien_allow_5h_limit = GREATEST(alien_allow_5h_limit, 1.0),
+    alien_allow_weekly_limit = GREATEST(alien_allow_weekly_limit, 10.0),
+    updated_ts = NOW(),
+    deleted_ts = NULL
+WHERE owner_iid = 33000;

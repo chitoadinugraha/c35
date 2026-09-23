@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package c35;
+
+// Root admin CRUD for ai.object_normalizer + ai.object_alias — see _/docs/tx.md
+
+message ObjectNormalizerDoc {
+  int64 id = 1;
+  string slug = 2;
+  int64 parent_id = 3;
+  string path = 4;
+  int32 depth = 5;
+  string kind = 6;
+}
+
+message ObjectAliasDoc {
+  int64 id = 1;
+  int64 obj_id = 2;
+  string lang = 3;
+  string name = 4;
+  string name_norm = 5;
+  bool is_canonical = 6;
+  bool verified = 7;
+  string obj_path = 8;
+}
+
+message ReqObjectAliasList {
+  optional bool verified = 1;
+  optional string lang = 2;
+  optional string q = 3;
+  int32 limit = 4;
+}
+
+message ResObjectAliasList {
+  repeated ObjectAliasDoc items = 1;
+}
+
+message ReqObjectAliasPut {
+  ObjectAliasDoc doc = 1;
+}
+
+message ResObjectAliasPut {
+  ObjectAliasDoc doc = 1;
+}
+
+message ReqObjectNormalizerList {
+  optional string q = 1;
+  int32 limit = 2;
+}
+
+message ResObjectNormalizerList {
+  repeated ObjectNormalizerDoc items = 1;
+}

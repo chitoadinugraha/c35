@@ -7,6 +7,8 @@ pub struct ConsumptionItem {
     pub name: String,
     pub name_id: String,
     pub qty: f32,
+    #[serde(default)]
+    pub obj_id: i64,
     pub calories: i32,
     pub protein: i32,
     pub fat: i32,

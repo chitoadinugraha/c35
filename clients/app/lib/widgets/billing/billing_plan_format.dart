@@ -1,36 +1,145 @@
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
+import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:flutter/material.dart';
 
-bool billingPlanIsFree(String slug) => slug.trim().toLowerCase() == 'free';
+bool billingPlanIsFree(String slug) {
+  final s = slug.trim().toLowerCase();
+  return s.isEmpty || s == 'free';
+}
 
 bool billingPlanIsRecommended(String slug) => slug.trim().toLowerCase() == 'pro';
 
 String billingPlanTierLabel(String tier) => switch (tier.trim().toLowerCase()) {
+      'ultra' => 'Ultra',
       'pro' => 'Pro',
       'plus' => 'Plus',
-      'free' => 'Free',
-      _ => tier.trim().isEmpty ? 'Free' : tier.trim(),
+      'lite' => 'Lite',
+      'free' => 'Trial',
+      _ => tier.trim().isEmpty ? 'Trial' : tier.trim(),
     };
 
 Color billingPlanAccentColor(String slug) => switch (slug.trim().toLowerCase()) {
-      'plus' => const Color(0xFF34D399),
+      'ultra' => const Color(0xFFFBBF24),
       'pro' => const Color(0xFF60A5FA),
+      'plus' => const Color(0xFF34D399),
+      'lite' => const Color(0xFFA1A1AA),
       _ => const Color(0xFF71717A),
     };
 
-String billingPlanPriceLabel(BillingPlanDoc plan) {
-  if (billingPlanIsFree(plan.slug)) return 'Free';
-  if (plan.priceUsd <= 0) return 'Free';
-  return '\$${plan.priceUsd.toStringAsFixed(plan.priceUsd >= 10 ? 0 : 2)}/mo';
+String billingFmtRp(num amount, {bool compact = false}) {
+  final n = amount.round();
+  if (compact && n >= 1000000) return 'Rp ${(n / 1000000).toStringAsFixed(n % 1000000 == 0 ? 0 : 1)}jt';
+  if (compact && n >= 1000) return 'Rp ${(n / 1000).round()}k';
+  return 'Rp ${moneyFmtIdrGrouped(n)}';
 }
 
-String billingPlanAllowLabel(BillingPlanDoc plan) =>
+double billingPlanPriceAmount(BillingPlanDoc plan, {required String currency, required bool yearly}) {
+  final cur = currency.toUpperCase();
+  if (cur == 'IDR') {
+    final idr = yearly ? plan.priceIdrYearly : plan.priceIdrMonthly;
+    if (idr > 0) return idr;
+  }
+  return plan.priceUsd > 0 ? plan.priceUsd : 0;
+}
+
+String billingPlanPriceLabel(BillingPlanDoc plan, {String currency = 'IDR', bool yearly = false}) {
+  if (billingPlanIsFree(plan.slug)) return 'Trial';
+  final amount = billingPlanPriceAmount(plan, currency: currency, yearly: yearly);
+  if (amount <= 0) return '—';
+  if (currency.toUpperCase() == 'IDR') return '${billingFmtRp(amount)}/mo';
+  return '\$${amount.toStringAsFixed(amount >= 10 ? 0 : 2)}/mo';
+}
+
+String? billingPlanPriceSubLabel(BillingPlanDoc plan, {String currency = 'IDR', required bool yearly}) {
+  if (billingPlanIsFree(plan.slug) || !yearly || currency.toUpperCase() != 'IDR') return null;
+  if (plan.priceIdrYearly <= 0) return null;
+  final yearlyTotal = (plan.priceIdrYearly * 12).round();
+  return 'Rp ${moneyFmtIdrGrouped(yearlyTotal)} billed yearly';
+}
+
+int billingPlanQuotaMultiplier(BillingPlanDoc plan) {
+  if (plan.poolMultiplier >= 1) return plan.poolMultiplier.round();
+  return switch (plan.slug.trim().toLowerCase()) {
+    'plus' => 4,
+    'pro' => 10,
+    'ultra' => 40,
+    _ => 1,
+  };
+}
+
+String billingPlanQuotaBadge(BillingPlanDoc plan) {
+  final mult = billingPlanQuotaMultiplier(plan);
+  return mult <= 1 ? '1× quota' : '$mult× quota';
+}
+
+int billingPlanQueuePriority(BillingPlanDoc plan) {
+  if (plan.queuePriorityMultiplier > 0) return plan.queuePriorityMultiplier;
+  return switch (plan.slug.trim().toLowerCase()) {
+    'pro' => 5,
+    'ultra' => 30,
+    _ => 0,
+  };
+}
+
+String? billingPlanPriorityBadge(BillingPlanDoc plan) {
+  final mult = billingPlanQueuePriority(plan);
+  if (mult <= 1) return plan.priorityQueue ? 'Priority queue' : null;
+  return '$mult× priority';
+}
+
+String billingPlanPoolsLabel(BillingPlanDoc plan) {
+  final alien = plan.alienPoolIdrMonthly;
+  final frontier = plan.frontierPoolIdrMonthly;
+  if (alien > 0 || frontier > 0) {
+    return 'Alien AI ${billingFmtRp(alien > 0 ? alien : 0, compact: true)} · Frontier ${billingFmtRp(frontier > 0 ? frontier : 0, compact: true)} /mo';
+  }
+  return billingPlanAllowLabelLegacy(plan);
+}
+
+String billingPlanAllowLabelLegacy(BillingPlanDoc plan) =>
     '\$${plan.alienAllow5hUsd.toStringAsFixed(2)}/5h · \$${plan.alienAllowWeeklyUsd.toStringAsFixed(0)}/wk';
 
-List<BillingPlanDoc> billingPlanCatalogNormalize(Iterable<BillingPlanDoc> plans) => plans.toList();
+String billingPlanAllowLabel(BillingPlanDoc plan) => billingPlanPoolsLabel(plan);
+
+String? billingPlanChannelsBadge(BillingPlanDoc plan) =>
+    plan.channelsLimit > 0 ? '${plan.channelsLimit} channel${plan.channelsLimit == 1 ? '' : 's'}' : null;
+
+List<BillingPlanDoc> billingPlanCatalogNormalize(Iterable<BillingPlanDoc> plans) =>
+    plans.where((p) => !billingPlanIsFree(p.slug)).toList()..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+
+BillingPlanDoc _plan({
+  required String slug,
+  required String name,
+  required int sortOrder,
+  required double priceIdrMonthly,
+  required double priceIdrYearly,
+  required double alienPool,
+  required double frontierPool,
+  required int poolMultiplier,
+  required int channels,
+  bool overage = false,
+  int queuePriority = 0,
+  bool priorityQueue = false,
+}) =>
+    BillingPlanDoc(
+      slug: slug,
+      name: name,
+      sortOrder: sortOrder,
+      priceIdrMonthly: priceIdrMonthly,
+      priceIdrYearly: priceIdrYearly,
+      alienPoolIdrMonthly: alienPool,
+      frontierPoolIdrMonthly: frontierPool,
+      poolMultiplier: poolMultiplier.toDouble(),
+      tier: slug,
+      channelsLimit: channels,
+      overageEnabled: overage,
+      queuePriorityMultiplier: queuePriority,
+      priorityQueue: priorityQueue,
+    );
 
 List<BillingPlanDoc> billingPlanCatalogFallback() => [
-      BillingPlanDoc(slug: 'free', name: 'Free', sortOrder: 10, alienAllow5hUsd: 0.05, alienAllowWeeklyUsd: 1),
-      BillingPlanDoc(slug: 'plus', name: 'Plus', sortOrder: 20, priceUsd: 9.99, durationMonths: 1, alienAllow5hUsd: 0.25, alienAllowWeeklyUsd: 5, overageEnabled: true),
-      BillingPlanDoc(slug: 'pro', name: 'Pro', sortOrder: 30, priceUsd: 29.99, durationMonths: 1, alienAllow5hUsd: 1, alienAllowWeeklyUsd: 20, overageEnabled: true),
+      _plan(slug: 'lite', name: 'Lite', sortOrder: 10, priceIdrMonthly: 59000, priceIdrYearly: 49000, alienPool: 100000, frontierPool: 20000, poolMultiplier: 1, channels: 2),
+      _plan(slug: 'plus', name: 'Plus', sortOrder: 20, priceIdrMonthly: 109000, priceIdrYearly: 99000, alienPool: 400000, frontierPool: 80000, poolMultiplier: 4, channels: 2, overage: true),
+      _plan(slug: 'pro', name: 'Pro', sortOrder: 30, priceIdrMonthly: 349000, priceIdrYearly: 309000, alienPool: 1000000, frontierPool: 200000, poolMultiplier: 10, channels: 3, overage: true, queuePriority: 5),
+      _plan(slug: 'ultra', name: 'Ultra', sortOrder: 40, priceIdrMonthly: 1200000, priceIdrYearly: 1000000, alienPool: 4000000, frontierPool: 800000, poolMultiplier: 40, channels: 5, overage: true, queuePriority: 30, priorityQueue: true),
     ];

@@ -107,51 +107,104 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 
 -- ------------------------------------------------------------------------------
 -- 5. Starter Seeds: Core Domains, Categories, Word Replacements & Aliases
+-- ID space: Google Product Taxonomy uses 1..~6000; c35 overlay uses 9000000+.
 -- ------------------------------------------------------------------------------
+
+-- Drop legacy c35 overlay nodes that previously occupied Google taxonomy IDs.
+-- Match by path prefix (not numeric id) so Google nodes at the same id are kept.
+DELETE FROM ai.object_normalizer
+WHERE id < 9000000
+  AND depth = 4
+  AND (path = 'consumable' OR path LIKE 'consumable.%' OR path = 'service' OR path LIKE 'service.%' OR path = 'goods');
+DELETE FROM ai.object_normalizer
+WHERE id < 9000000
+  AND depth = 3
+  AND (path = 'consumable' OR path LIKE 'consumable.%' OR path = 'service' OR path LIKE 'service.%' OR path = 'goods');
+DELETE FROM ai.object_normalizer
+WHERE id < 9000000
+  AND depth = 2
+  AND (path = 'consumable' OR path LIKE 'consumable.%' OR path = 'service' OR path LIKE 'service.%' OR path = 'goods');
+DELETE FROM ai.object_normalizer
+WHERE id < 9000000
+  AND depth = 1
+  AND (path = 'consumable' OR path LIKE 'consumable.%' OR path = 'service' OR path LIKE 'service.%' OR path = 'goods');
+DELETE FROM ai.object_normalizer
+WHERE id < 9000000
+  AND depth = 0
+  AND (path = 'consumable' OR path = 'service' OR path = 'goods');
 
 -- Root Domains (Depth 0)
 INSERT INTO ai.object_normalizer (id, slug, parent_id, path, depth, kind) VALUES
-    (1000, 'consumable', NULL, 'consumable', 0, 'domain'),
-    (2000, 'service',    NULL, 'service',    0, 'domain'),
-    (3000, 'goods',      NULL, 'goods',      0, 'domain')
+    (9001000, 'consumable', NULL, 'consumable', 0, 'domain'),
+    (9002000, 'service',    NULL, 'service',    0, 'domain'),
+    (9003000, 'goods',      NULL, 'goods',      0, 'domain')
 ON CONFLICT (id) DO NOTHING;
 
 -- L1 Categories (Depth 1)
 INSERT INTO ai.object_normalizer (id, slug, parent_id, path, depth, l1_category_id, kind) VALUES
-    (1100, 'drink',     1000, 'consumable.drink',     1, 1100, 'category'),
-    (1200, 'food',      1000, 'consumable.food',      1, 1200, 'category'),
-    (2100, 'utility',   2000, 'service.utility',      1, 2100, 'category'),
-    (2200, 'transport', 2000, 'service.transport',    1, 2200, 'category')
+    (9001100, 'drink',     9001000, 'consumable.drink',     1, 9001100, 'category'),
+    (9001200, 'food',      9001000, 'consumable.food',      1, 9001200, 'category'),
+    (9002100, 'utility',   9002000, 'service.utility',      1, 9002100, 'category'),
+    (9002200, 'transport', 9002000, 'service.transport',    1, 9002200, 'category')
 ON CONFLICT (id) DO NOTHING;
 
--- L2 Subcategories (Depth 2)
+-- L2 Subcategories & Leaf Nodes (Depth 2 & 3)
 INSERT INTO ai.object_normalizer (id, slug, parent_id, path, depth, l1_category_id, l2_category_id, kind) VALUES
-    (1110, 'milk',        1100, 'consumable.drink.milk',           2, 1100, 1110, 'category'),
-    (1120, 'coffee',      1100, 'consumable.drink.coffee',         2, 1100, 1120, 'category'),
-    (2110, 'internet',    2100, 'service.utility.internet',        2, 2100, 2110, 'category'),
-    (2120, 'electricity', 2100, 'service.utility.electricity',   2, 2100, 2120, 'category')
+    (9001110, 'milk',           9001100, 'consumable.drink.milk',                              2, 9001100, 9001110, 'category'),
+    (9001120, 'coffee',         9001100, 'consumable.drink.coffee',                            2, 9001100, 9001120, 'category'),
+    (9001210, 'staple',         9001200, 'consumable.food.staple',                             2, 9001200, 9001210, 'category'),
+    (9001211, 'staple_rice',    9001210, 'consumable.food.staple.rice',                        3, 9001200, 9001210, 'category'),
+    (9001212, 'fried_rice',     9001211, 'consumable.food.staple.rice.fried_rice',               4, 9001200, 9001210, 'item'),
+    (9001213, 'white_rice',     9001211, 'consumable.food.staple.rice.white_rice',             4, 9001200, 9001210, 'item'),
+    (9001220, 'staple_noodle',  9001210, 'consumable.food.staple.noodle',                        3, 9001200, 9001210, 'category'),
+    (9001221, 'instant_noodle', 9001220, 'consumable.food.staple.noodle.instant_noodle',         4, 9001200, 9001210, 'item'),
+    (9002110, 'internet',       9002100, 'service.utility.internet',                             2, 9002100, 9002110, 'category'),
+    (9002120, 'electricity',    9002100, 'service.utility.electricity',                          2, 9002100, 9002120, 'category')
 ON CONFLICT (id) DO NOTHING;
 
 -- Multilingual Aliases (EN & ID)
 INSERT INTO ai.object_alias (id, obj_id, lang, name, name_norm, is_canonical, verified) VALUES
     -- Consumable / Drink / Milk
-    (100001, 1100, 'en', 'Drink',     'drink',     TRUE, TRUE),
-    (100002, 1100, 'id', 'Minuman',   'minuman',   TRUE, TRUE),
-    (100003, 1110, 'en', 'Milk',      'milk',      TRUE, TRUE),
-    (100004, 1110, 'id', 'Susu',      'susu',      TRUE, TRUE),
+    (100001, 9001100, 'en', 'Drink',     'drink',     TRUE, TRUE),
+    (100002, 9001100, 'id', 'Minuman',   'minuman',   TRUE, TRUE),
+    (100003, 9001110, 'en', 'Milk',      'milk',      TRUE, TRUE),
+    (100004, 9001110, 'id', 'Susu',      'susu',      TRUE, TRUE),
+    -- Consumable / Food / Rice & Noodles
+    (120001, 9001200, 'en', 'Food',       'food',       TRUE, TRUE),
+    (120002, 9001200, 'id', 'Makanan',    'makanan',    TRUE, TRUE),
+    (121001, 9001210, 'en', 'Staple',     'staple',     TRUE, TRUE),
+    (121002, 9001210, 'id', 'Makanan Pokok', 'makanan pokok', TRUE, TRUE),
+    (121101, 9001211, 'en', 'Rice',       'rice',       TRUE, TRUE),
+    (121102, 9001211, 'id', 'Nasi',       'nasi',       TRUE, TRUE),
+    (121201, 9001212, 'en', 'Fried Rice', 'fried_rice', TRUE, TRUE),
+    (121202, 9001212, 'id', 'Nasi Goreng', 'nasi goreng', TRUE, TRUE),
+    (121203, 9001212, 'raw', 'NASGOR',    'nasgor',     FALSE, TRUE),
+    (121301, 9001213, 'en', 'White Rice', 'white_rice', TRUE, TRUE),
+    (121302, 9001213, 'id', 'Nasi Putih', 'nasi putih', TRUE, TRUE),
+    (122001, 9001220, 'en', 'Noodle',     'noodle',     TRUE, TRUE),
+    (122002, 9001220, 'id', 'Mie',        'mie',        TRUE, TRUE),
+    (122101, 9001221, 'en', 'Instant Noodle', 'instant_noodle', TRUE, TRUE),
+    (122102, 9001221, 'id', 'Indomie',    'indomie',    TRUE, TRUE),
+    (122103, 9001221, 'raw', 'MIE INSTAN', 'mie instan', FALSE, TRUE),
     -- Service / Utility / Internet
-    (200001, 2100, 'en', 'Utility',   'utility',   TRUE, TRUE),
-    (200002, 2100, 'id', 'Utilitas',  'utilitas',  TRUE, TRUE),
-    (200003, 2110, 'en', 'Internet',  'internet',  TRUE, TRUE),
-    (200004, 2110, 'id', 'Internet',  'internet',  TRUE, TRUE),
-    (200005, 2120, 'en', 'Electricity', 'electricity', TRUE, TRUE),
-    (200006, 2120, 'id', 'Listrik',   'listrik',   TRUE, TRUE),
+    (200001, 9002100, 'en', 'Utility',   'utility',   TRUE, TRUE),
+    (200002, 9002100, 'id', 'Utilitas',  'utilitas',  TRUE, TRUE),
+    (200003, 9002110, 'en', 'Internet',  'internet',  TRUE, TRUE),
+    (200004, 9002110, 'id', 'Internet',  'internet',  TRUE, TRUE),
+    (200005, 9002120, 'en', 'Electricity', 'electricity', TRUE, TRUE),
+    (200006, 9002120, 'id', 'Listrik',   'listrik',   TRUE, TRUE),
     -- Common Indonesian raw receipt / provider aliases
-    (300001, 2110, 'raw', 'BIZNET',   'biznet',    FALSE, TRUE),
-    (300002, 2110, 'raw', 'INDIHOME', 'indihome',  FALSE, TRUE),
-    (300003, 2120, 'raw', 'PLN',      'pln',       FALSE, TRUE),
-    (300004, 2120, 'raw', 'TOKEN LISTRIK', 'token listrik', FALSE, TRUE)
-ON CONFLICT (id) DO NOTHING;
+    (300001, 9002110, 'raw', 'BIZNET',   'biznet',    FALSE, TRUE),
+    (300002, 9002110, 'raw', 'INDIHOME', 'indihome',  FALSE, TRUE),
+    (300003, 9002120, 'raw', 'PLN',      'pln',       FALSE, TRUE),
+    (300004, 9002120, 'raw', 'TOKEN LISTRIK', 'token listrik', FALSE, TRUE)
+ON CONFLICT (id) DO UPDATE SET
+    obj_id = EXCLUDED.obj_id,
+    lang = EXCLUDED.lang,
+    name = EXCLUDED.name,
+    name_norm = EXCLUDED.name_norm,
+    is_canonical = EXCLUDED.is_canonical,
+    verified = EXCLUDED.verified;
 
 -- Word Normalizer Seeds (ID & EN)
 INSERT INTO ai.word_normalizer (lang, term, replacement, category) VALUES

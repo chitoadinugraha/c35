@@ -52,4 +52,20 @@ class ConsumptionApi {
     if (block is Map<String, dynamic>) return {'block': block};
     return {'block': Map<String, dynamic>.from(block as Map)};
   }
+
+  Future<bool> delete({required int consumptionId}) async {
+    final res = await _conn.invoke(
+      InvokeReq(
+        reqId: const Uuid().v4(),
+        consumptionPut: ReqConsumptionPut(
+          consumption: Consumption(
+            id: Int64(consumptionId),
+            deletedTsMs: Int64(DateTime.now().millisecondsSinceEpoch),
+          ),
+        ),
+      ),
+    );
+    invokeResThrow(res, fallback: 'consumption delete failed');
+    return true;
+  }
 }

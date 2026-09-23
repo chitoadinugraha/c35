@@ -16,7 +16,10 @@ use c35_mod_billing::{
 };
 use c35_mod_channel::{channel_telegram_connect, channel_whatsapp_meta_connect};
 use c35_mod_consumption::consumption_put_rpc;
-use c35_mod_chat::{inst_delete, inst_get, inst_list, inst_put, translation_put};
+use c35_mod_chat::{
+    inst_delete, inst_get, inst_list, inst_put, object_alias_list, object_alias_put,
+    object_normalizer_list, translation_put,
+};
 use c35_mod_device::device_pair;
 use c35_mod_voice::{voice_stt_rpc, voice_tts_rpc};
 use c35_mod_identity::auth_session_caller_iid;
@@ -409,6 +412,39 @@ pub async fn dispatch_invoke(state: &AppState, req: InvokeReq) -> InvokeRes {
                     status_code: 200,
                     error_message: String::new(),
                     body: Some(invoke_res::Body::TranslationPut(res)),
+                },
+                Err(e) => invoke_error(&req_id, e.status_code, e.message),
+            }
+        }
+        Some(invoke_req::Body::ObjectAliasList(r)) => {
+            match object_alias_list(pool, iid, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::ObjectAliasList(res)),
+                },
+                Err(e) => invoke_error(&req_id, e.status_code, e.message),
+            }
+        }
+        Some(invoke_req::Body::ObjectAliasPut(r)) => {
+            match object_alias_put(pool, iid, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::ObjectAliasPut(res)),
+                },
+                Err(e) => invoke_error(&req_id, e.status_code, e.message),
+            }
+        }
+        Some(invoke_req::Body::ObjectNormalizerList(r)) => {
+            match object_normalizer_list(pool, iid, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::ObjectNormalizerList(res)),
                 },
                 Err(e) => invoke_error(&req_id, e.status_code, e.message),
             }

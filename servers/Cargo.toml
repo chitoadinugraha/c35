@@ -18,6 +18,7 @@ members = [
     "crates/mod_chat",
     "crates/mod_log",
     "crates/mod_consumption",
+    "crates/mod_expense",
     "crates/mod_channel",
     "crates/mod_device",
     "crates/mod_skill",

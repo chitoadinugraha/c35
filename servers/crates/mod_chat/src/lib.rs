@@ -9,6 +9,8 @@ pub mod compose;
 mod inst;
 pub mod prompt_run;
 mod inst_admin;
+mod object_admin;
+mod mcp_agent;
 mod translation_admin;
 mod inst_cache;
 mod site_resolve;
@@ -55,6 +57,13 @@ pub use log_list::log_list;
 pub use inst_admin::{
     inst_delete, inst_get, inst_list, inst_publish_invalidation, inst_put, InstAdminError,
     NATS_SUBJECT_PREFIX,
+};
+pub use mcp_agent::{
+    mcp_agent_owner_allowed, mcp_prompt_compose, mcp_prompt_run, mcp_tool_exec,
+    DEFAULT_DEBUG_OWNER_IID, DEFAULT_TEST_OWNER_IID,
+};
+pub use object_admin::{
+    object_alias_list, object_alias_put, object_normalizer_list, ObjectAdminError,
 };
 pub use translation_admin::{translation_put, TranslationAdminError};
 pub use inst_cache::{

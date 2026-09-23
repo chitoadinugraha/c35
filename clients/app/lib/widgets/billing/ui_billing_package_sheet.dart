@@ -2,12 +2,12 @@ import 'dart:async';
 
 import 'package:alienai_c35/c/api/referral_conn.dart';
 import 'package:alienai_c35/c/billing/billing_api.dart';
+import 'package:alienai_c35/c/billing/billing_format.dart';
 import 'package:alienai_c35/c/billing/billing_summary_api.dart';
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/billing/billing_plan_format.dart';
-import 'package:alienai_c35/widgets/billing/ui_quota_ring.dart';
 import 'package:alienai_c35/widgets/referral/ui_billing_package_redeem.dart';
 import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:flutter/material.dart';
@@ -38,10 +38,11 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
 
   var _loading = true;
   var _subscribing = false;
+  var _yearly = false;
   String? _error;
   String? _success;
   ResBillingSummary? _summary;
-  var _selectedSlug = 'free';
+  String? _selectedSlug;
 
   @override
   void initState() {
@@ -59,7 +60,6 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
       if (!mounted) return;
       setState(() {
         _summary = summary;
-        _selectedSlug = summary.planTier.isNotEmpty ? summary.planTier : 'free';
         _loading = false;
       });
     } catch (e) {
@@ -76,23 +76,43 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
     return billingPlanCatalogNormalize(raw.isNotEmpty ? raw : billingPlanCatalogFallback());
   }
 
+  String get _currentTier {
+    final tier = _summary?.planTier ?? AppStore.instance.planTier;
+    return billingPlanIsFree(tier) ? 'lite' : tier.trim().toLowerCase();
+  }
+
+  String get _currency => AppStore.instance.wallet.billingCurrency;
+
   BillingPlanDoc? get _selectedPlan {
+    final slug = _selectedSlug;
+    if (slug == null) return null;
     for (final p in _plans) {
-      if (p.slug == _selectedSlug) return p;
+      if (p.slug == slug) return p;
     }
     return null;
   }
 
+  bool get _selectedIsCurrent {
+    final plan = _selectedPlan;
+    if (plan == null) return false;
+    return plan.slug.trim().toLowerCase() == _currentTier;
+  }
+
   Future<void> _subscribe() async {
     final plan = _selectedPlan;
-    if (plan == null || billingPlanIsFree(plan.slug) || _subscribing) return;
+    if (plan == null || _selectedIsCurrent || _subscribing) return;
     setState(() {
       _subscribing = true;
       _error = null;
       _success = null;
     });
     try {
-      await billingPlanSubscribe(widget.conn, planSlug: plan.slug);
+      await billingPlanSubscribe(
+        widget.conn,
+        planSlug: plan.slug,
+        billingPeriod: _yearly ? 'yearly' : 'monthly',
+        currency: _currency,
+      );
       if (!mounted) return;
       setState(() => _success = 'Subscribed to ${plan.name}');
       await _load();
@@ -108,6 +128,11 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
   Widget build(BuildContext context) {
     final billing = AppStore.instance.billing;
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
+    final balanceLabel = billing != null
+        ? billingWalletBalanceLabel(billing, _currency)
+        : _summary != null
+            ? billingBalanceLabel(BillingAccount(balanceUsd: _summary!.balanceUsd, balanceIdr: _summary!.balanceIdr, billingCurrency: _currency))
+            : '';
     return Padding(
       padding: EdgeInsets.fromLTRB(16, 12, 16, 16 + bottom),
       child: Column(
@@ -117,6 +142,8 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
           Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: _border, borderRadius: BorderRadius.circular(99)))),
           const SizedBox(height: 16),
           const Text('Plans', style: TextStyle(color: _text, fontSize: 18, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 4),
+          const Text('Monthly included Alien AI + Frontier pools in IDR', style: TextStyle(color: _muted, fontSize: 12)),
           const SizedBox(height: 12),
           if (_loading)
             const Padding(padding: EdgeInsets.all(24), child: UILoading())
@@ -130,55 +157,50 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
               ]),
             )
           else ...[
-            if (billing != null)
-              uiQuotaPackagePanelFromAccount(billing)
-            else if (_summary != null)
-              uiQuotaPackagePanelFromSummary(_summary!),
+            SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(value: false, label: Text('Monthly')),
+                ButtonSegment(value: true, label: Text('Yearly')),
+              ],
+              selected: {_yearly},
+              onSelectionChanged: (s) => setState(() => _yearly = s.first),
+              style: ButtonStyle(
+                visualDensity: VisualDensity.compact,
+                foregroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? _text : _muted),
+              ),
+            ),
             const SizedBox(height: 12),
             if (_success != null) Text(_success!, style: const TextStyle(color: Color(0xFF34D399), fontSize: 12)),
             if (_error != null && _summary != null) Text(_error!, style: const TextStyle(color: Color(0xFFF87171), fontSize: 12)),
-            ..._plans.map((plan) {
-              final selected = plan.slug == _selectedSlug;
-              final accent = billingPlanAccentColor(plan.slug);
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
+            ..._plans.map((plan) => _BillingPlanCard(
+                  plan: plan,
+                  currency: _currency,
+                  yearly: _yearly,
+                  selected: plan.slug == _selectedSlug,
+                  isCurrent: plan.slug.trim().toLowerCase() == _currentTier,
+                  recommended: billingPlanIsRecommended(plan.slug),
                   onTap: () => setState(() => _selectedSlug = plan.slug),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: selected ? accent : _border, width: selected ? 1.5 : 1),
-                      color: const Color(0xFF18181B),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(14),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(plan.name, style: const TextStyle(color: _text, fontWeight: FontWeight.w700)),
-                                const SizedBox(height: 4),
-                                Text(billingPlanAllowLabel(plan), style: const TextStyle(color: _muted, fontSize: 12)),
-                              ],
-                            ),
-                          ),
-                          Text(billingPlanPriceLabel(plan), style: TextStyle(color: accent, fontWeight: FontWeight.w700)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }),
-            const SizedBox(height: 8),
+                )),
+            if (balanceLabel.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(Icons.account_balance_wallet_outlined, size: 14, color: _muted),
+                  const SizedBox(width: 6),
+                  Text('Balance $balanceLabel', style: const TextStyle(color: _muted, fontSize: 11)),
+                ],
+              ),
+            ],
+            const SizedBox(height: 12),
             FilledButton(
-              onPressed: _subscribing || billingPlanIsFree(_selectedSlug) ? null : _subscribe,
+              onPressed: _subscribing || _selectedPlan == null || _selectedIsCurrent ? null : _subscribe,
               child: _subscribing
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : Text(billingPlanIsFree(_selectedSlug) ? 'Current free plan' : 'Subscribe with balance'),
+                  : Text(_selectedPlan == null
+                      ? 'Choose a plan'
+                      : _selectedIsCurrent
+                          ? 'Current plan'
+                          : 'Subscribe with balance'),
             ),
             const SizedBox(height: 8),
             OutlinedButton.icon(
@@ -191,6 +213,125 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _BillingPlanCard extends StatelessWidget {
+  const _BillingPlanCard({
+    required this.plan,
+    required this.currency,
+    required this.yearly,
+    required this.selected,
+    required this.isCurrent,
+    required this.recommended,
+    required this.onTap,
+  });
+
+  final BillingPlanDoc plan;
+  final String currency;
+  final bool yearly;
+  final bool selected;
+  final bool isCurrent;
+  final bool recommended;
+  final VoidCallback onTap;
+
+  static const _text = Color(0xFFE4E4E7);
+  static const _muted = Color(0xFFA1A1AA);
+  static const _border = Color(0xFF27272A);
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = billingPlanAccentColor(plan.slug);
+    final price = billingPlanPriceLabel(plan, currency: currency, yearly: yearly);
+    final priceSub = billingPlanPriceSubLabel(plan, currency: currency, yearly: yearly);
+    final priority = billingPlanPriorityBadge(plan);
+    final channels = billingPlanChannelsBadge(plan);
+    final badges = <String>[
+      billingPlanQuotaBadge(plan),
+      if (priority != null) priority,
+      if (channels != null) channels,
+    ];
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: selected ? accent : _border, width: selected ? 1.5 : 1),
+              color: selected ? accent.withValues(alpha: 0.06) : const Color(0xFF18181B),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(plan.name, style: TextStyle(color: accent, fontWeight: FontWeight.w800, fontSize: 16)),
+                                if (recommended) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                    decoration: BoxDecoration(color: accent.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(99)),
+                                    child: Text('Popular', style: TextStyle(color: accent, fontSize: 10, fontWeight: FontWeight.w700)),
+                                  ),
+                                ],
+                                if (isCurrent) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                    decoration: BoxDecoration(color: const Color(0xFF27272A), borderRadius: BorderRadius.circular(99)),
+                                    child: const Text('Current', style: TextStyle(color: _text, fontSize: 10, fontWeight: FontWeight.w600)),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(price, style: const TextStyle(color: _text, fontWeight: FontWeight.w700, fontSize: 15)),
+                            if (priceSub != null) Text(priceSub, style: const TextStyle(color: _muted, fontSize: 11)),
+                          ],
+                        ),
+                      ),
+                      Icon(selected ? Icons.radio_button_checked : Icons.radio_button_off, color: selected ? accent : _muted, size: 20),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: badges
+                        .map((b) => Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF27272A),
+                                borderRadius: BorderRadius.circular(99),
+                                border: Border.all(color: b.contains('priority') ? accent.withValues(alpha: 0.35) : _border),
+                              ),
+                              child: Text(b, style: TextStyle(color: b.contains('priority') ? accent : _text, fontSize: 10, fontWeight: FontWeight.w600)),
+                            ))
+                        .toList(),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(billingPlanPoolsLabel(plan), style: const TextStyle(color: _muted, fontSize: 11, height: 1.35)),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

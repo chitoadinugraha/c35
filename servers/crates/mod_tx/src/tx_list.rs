@@ -1,5 +1,5 @@
 use anyhow::Result;
-use c35_mod_site::grant::site_grant_check;
+use crate::tx_owner_resolve::tx_owner_resolve;
 use c35_proto::{ReqTxList, ResTxList, TxState, TxType};
 use sqlx::PgPool;
 
@@ -8,7 +8,7 @@ use crate::rows::tx_header_from_row;
 use crate::ts::ts_from_ms;
 
 pub async fn tx_list(pool: &PgPool, caller_iid: i64, req: ReqTxList) -> Result<ResTxList> {
-    let _ = site_grant_check(pool, caller_iid, req.site_iid, false).await?;
+    let _ = tx_owner_resolve(pool, caller_iid, req.site_iid, false).await?;
     let limit = if req.limit > 0 { req.limit.min(200) } else { 50 };
     let mut q = String::from(
         r#"

@@ -379,6 +379,14 @@ message BillingPlanDoc {
   int32 channels_limit = 9;
   int32 concurrent_limit = 10;
   bool overage_enabled = 11;
+  double price_idr_monthly = 12;
+  double price_idr_yearly = 13;
+  double alien_pool_idr_monthly = 14;
+  double frontier_pool_idr_monthly = 15;
+  double pool_multiplier = 16;
+  string tier = 17;
+  int32 queue_priority_multiplier = 18;
+  bool priority_queue = 19;
 }
 
 message BillingHistoryRow {

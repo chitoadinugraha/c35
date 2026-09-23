@@ -40,6 +40,15 @@ INSERT INTO ai.translation (lang, key, category, text) VALUES
 -- tool.consumption.today.*
 ('en', 'tool.consumption.today.calling', 'tool', 'Checking meals today…'),
 ('en', 'tool.consumption.today.done', 'tool', 'Checked meals today'),
+-- tool.expense.add.*
+('en', 'tool.expense.add.calling', 'tool', 'Logging expense…'),
+('en', 'tool.expense.add.done', 'tool', 'Logged expense'),
+-- tool.expense.summary.*
+('en', 'tool.expense.summary.calling', 'tool', 'Checking spending…'),
+('en', 'tool.expense.summary.done', 'tool', 'Checked spending'),
+-- tool.expense.delete.*
+('en', 'tool.expense.delete.calling', 'tool', 'Removing expense…'),
+('en', 'tool.expense.delete.done', 'tool', 'Removed expense'),
 -- mention.research.*
 ('en', 'mention.research.label', 'mention', 'Research'),
 ('en', 'mention.research.caption', 'mention', 'Deep web research'),
@@ -80,6 +89,12 @@ INSERT INTO ai.translation (lang, key, category, text) VALUES
 ('id', 'tool.consumption.add.done', 'tool', 'Makanan tercatat'),
 ('id', 'tool.consumption.today.calling', 'tool', 'Mengecek makan hari ini…'),
 ('id', 'tool.consumption.today.done', 'tool', 'Makan hari ini dicek'),
+('id', 'tool.expense.add.calling', 'tool', 'Mencatat pengeluaran…'),
+('id', 'tool.expense.add.done', 'tool', 'Pengeluaran tercatat'),
+('id', 'tool.expense.summary.calling', 'tool', 'Mengecek pengeluaran…'),
+('id', 'tool.expense.summary.done', 'tool', 'Pengeluaran dicek'),
+('id', 'tool.expense.delete.calling', 'tool', 'Menghapus pengeluaran…'),
+('id', 'tool.expense.delete.done', 'tool', 'Pengeluaran dihapus'),
 ('id', 'mention.research.label', 'mention', 'Riset'),
 ('id', 'mention.research.caption', 'mention', 'Riset web mendalam'),
 ('id', 'mention.image.label', 'mention', 'Image'),

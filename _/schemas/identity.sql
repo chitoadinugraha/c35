@@ -238,3 +238,36 @@ CREATE TABLE IF NOT EXISTS ai.referral_share (
 
     PRIMARY KEY (parent_iid, child_iid)
 );
+
+-- ------------------------------------------------------------------------------
+-- Seed: automated tester (agents, MCP prompt/tool tests, integration tests)
+-- Fixed iid 33000 — do not reassign. "uid 33000" in docs means this owner_iid.
+-- ------------------------------------------------------------------------------
+
+INSERT INTO ai.identity (
+    id, kind, type, alien_id, name, owner_iid, locale, tz, meta, is_active, created_ts, updated_ts
+) VALUES (
+    33000,
+    'user',
+    '',
+    'automated-tester',
+    'Alien AI Automated Tester',
+    33000,
+    'en_US',
+    'Asia/Jakarta',
+    '{"global_roles":["tester"],"is_automated_tester":true}'::jsonb,
+    TRUE,
+    NOW(),
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    kind = EXCLUDED.kind,
+    type = EXCLUDED.type,
+    alien_id = EXCLUDED.alien_id,
+    name = EXCLUDED.name,
+    owner_iid = EXCLUDED.owner_iid,
+    locale = EXCLUDED.locale,
+    tz = EXCLUDED.tz,
+    meta = EXCLUDED.meta,
+    is_active = EXCLUDED.is_active,
+    updated_ts = NOW(),
+    deleted_ts = NULL;

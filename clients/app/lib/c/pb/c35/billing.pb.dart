@@ -4534,6 +4534,14 @@ class BillingPlanDoc extends $pb.GeneratedMessage {
     $core.int? channelsLimit,
     $core.int? concurrentLimit,
     $core.bool? overageEnabled,
+    $core.double? priceIdrMonthly,
+    $core.double? priceIdrYearly,
+    $core.double? alienPoolIdrMonthly,
+    $core.double? frontierPoolIdrMonthly,
+    $core.double? poolMultiplier,
+    $core.String? tier,
+    $core.int? queuePriorityMultiplier,
+    $core.bool? priorityQueue,
   }) {
     final result = BillingPlanDoc._();
     if (slug != null) result.slug = slug;
@@ -4548,6 +4556,17 @@ class BillingPlanDoc extends $pb.GeneratedMessage {
     if (channelsLimit != null) result.channelsLimit = channelsLimit;
     if (concurrentLimit != null) result.concurrentLimit = concurrentLimit;
     if (overageEnabled != null) result.overageEnabled = overageEnabled;
+    if (priceIdrMonthly != null) result.priceIdrMonthly = priceIdrMonthly;
+    if (priceIdrYearly != null) result.priceIdrYearly = priceIdrYearly;
+    if (alienPoolIdrMonthly != null)
+      result.alienPoolIdrMonthly = alienPoolIdrMonthly;
+    if (frontierPoolIdrMonthly != null)
+      result.frontierPoolIdrMonthly = frontierPoolIdrMonthly;
+    if (poolMultiplier != null) result.poolMultiplier = poolMultiplier;
+    if (tier != null) result.tier = tier;
+    if (queuePriorityMultiplier != null)
+      result.queuePriorityMultiplier = queuePriorityMultiplier;
+    if (priorityQueue != null) result.priorityQueue = priorityQueue;
     return result;
   }
 
@@ -4576,6 +4595,14 @@ class BillingPlanDoc extends $pb.GeneratedMessage {
     ..aI(9, _omitFieldNames ? '' : 'channelsLimit')
     ..aI(10, _omitFieldNames ? '' : 'concurrentLimit')
     ..aOB(11, _omitFieldNames ? '' : 'overageEnabled')
+    ..aD(12, _omitFieldNames ? '' : 'priceIdrMonthly')
+    ..aD(13, _omitFieldNames ? '' : 'priceIdrYearly')
+    ..aD(14, _omitFieldNames ? '' : 'alienPoolIdrMonthly')
+    ..aD(15, _omitFieldNames ? '' : 'frontierPoolIdrMonthly')
+    ..aD(16, _omitFieldNames ? '' : 'poolMultiplier')
+    ..aOS(17, _omitFieldNames ? '' : 'tier')
+    ..aI(18, _omitFieldNames ? '' : 'queuePriorityMultiplier')
+    ..aOB(19, _omitFieldNames ? '' : 'priorityQueue')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -4698,6 +4725,78 @@ class BillingPlanDoc extends $pb.GeneratedMessage {
   $core.bool hasOverageEnabled() => $_has(10);
   @$pb.TagNumber(11)
   void clearOverageEnabled() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  $core.double get priceIdrMonthly => $_getN(11);
+  @$pb.TagNumber(12)
+  set priceIdrMonthly($core.double value) => $_setDouble(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasPriceIdrMonthly() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearPriceIdrMonthly() => $_clearField(12);
+
+  @$pb.TagNumber(13)
+  $core.double get priceIdrYearly => $_getN(12);
+  @$pb.TagNumber(13)
+  set priceIdrYearly($core.double value) => $_setDouble(12, value);
+  @$pb.TagNumber(13)
+  $core.bool hasPriceIdrYearly() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearPriceIdrYearly() => $_clearField(13);
+
+  @$pb.TagNumber(14)
+  $core.double get alienPoolIdrMonthly => $_getN(13);
+  @$pb.TagNumber(14)
+  set alienPoolIdrMonthly($core.double value) => $_setDouble(13, value);
+  @$pb.TagNumber(14)
+  $core.bool hasAlienPoolIdrMonthly() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearAlienPoolIdrMonthly() => $_clearField(14);
+
+  @$pb.TagNumber(15)
+  $core.double get frontierPoolIdrMonthly => $_getN(14);
+  @$pb.TagNumber(15)
+  set frontierPoolIdrMonthly($core.double value) => $_setDouble(14, value);
+  @$pb.TagNumber(15)
+  $core.bool hasFrontierPoolIdrMonthly() => $_has(14);
+  @$pb.TagNumber(15)
+  void clearFrontierPoolIdrMonthly() => $_clearField(15);
+
+  @$pb.TagNumber(16)
+  $core.double get poolMultiplier => $_getN(15);
+  @$pb.TagNumber(16)
+  set poolMultiplier($core.double value) => $_setDouble(15, value);
+  @$pb.TagNumber(16)
+  $core.bool hasPoolMultiplier() => $_has(15);
+  @$pb.TagNumber(16)
+  void clearPoolMultiplier() => $_clearField(16);
+
+  @$pb.TagNumber(17)
+  $core.String get tier => $_getSZ(16);
+  @$pb.TagNumber(17)
+  set tier($core.String value) => $_setString(16, value);
+  @$pb.TagNumber(17)
+  $core.bool hasTier() => $_has(16);
+  @$pb.TagNumber(17)
+  void clearTier() => $_clearField(17);
+
+  @$pb.TagNumber(18)
+  $core.int get queuePriorityMultiplier => $_getIZ(17);
+  @$pb.TagNumber(18)
+  set queuePriorityMultiplier($core.int value) => $_setSignedInt32(17, value);
+  @$pb.TagNumber(18)
+  $core.bool hasQueuePriorityMultiplier() => $_has(17);
+  @$pb.TagNumber(18)
+  void clearQueuePriorityMultiplier() => $_clearField(18);
+
+  @$pb.TagNumber(19)
+  $core.bool get priorityQueue => $_getBF(18);
+  @$pb.TagNumber(19)
+  set priorityQueue($core.bool value) => $_setBool(18, value);
+  @$pb.TagNumber(19)
+  $core.bool hasPriorityQueue() => $_has(18);
+  @$pb.TagNumber(19)
+  void clearPriorityQueue() => $_clearField(19);
 }
 
 class BillingHistoryRow extends $pb.GeneratedMessage {

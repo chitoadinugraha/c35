@@ -13,6 +13,8 @@ mod tx_get;
 mod tx_json;
 mod tx_list;
 mod tx_preview;
+mod tx_delete;
+mod tx_owner_resolve;
 mod tx_put;
 
 pub use finalize::{acc_signed_amount, tx_finalize, tx_preview_coa_names};
@@ -22,4 +24,6 @@ pub use tx_debt_pay::tx_debt_pay;
 pub use tx_get::tx_get;
 pub use tx_list::tx_list;
 pub use tx_preview::tx_preview;
+pub use tx_delete::tx_delete;
+pub use tx_owner_resolve::tx_owner_resolve;
 pub use tx_put::tx_put;

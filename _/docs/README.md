@@ -28,6 +28,7 @@ When code and docs disagree, fix the code to match these docs (or explicitly rev
 | [inst.md](inst.md) | Instruction macros (`ai.inst`) — phrase steering + tool include/exclude |
 | [hint.md](hint.md) | Home hint chips — precompiled catalog, site shortcuts, SessionInit cache |
 | [consumption.md](consumption.md) | Personal food/water tracking |
+| [mcp-security.md](mcp-security.md) | **Security reminder** — MCP agent HTTP, secrets, owner lock |
 | [site.md](site.md) | Sites — `site.*` schema, UITable, prompt `web.builder`, guest path URLs |
 | [site-ai.md](site-ai.md) | Site mentions, multi-site context, query catalog, commerce tools |
 | [tx.md](tx.md) | POS / transactions (`site.tx_*`, id.alienai model) |

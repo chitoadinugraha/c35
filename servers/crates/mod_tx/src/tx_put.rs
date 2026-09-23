@@ -1,11 +1,12 @@
 use anyhow::{anyhow, Result};
-use c35_mod_site::{grant::site_grant_check, site_sync_push};
+use c35_mod_site::site_sync_push;
 use c35_proto::{sync_push, ReqTxPut, ResTxPut, TxState, WsRes};
 use c35_store::snowflake_id;
 use sqlx::PgPool;
 use tokio::sync::mpsc;
 
 use crate::finalize::tx_finalize;
+use crate::tx_owner_resolve::tx_owner_resolve;
 use crate::load::{tx_load, tx_stocks_load};
 use crate::persist::{tx_acc_counts, tx_children_del, tx_children_put, tx_header_put};
 use crate::stock_apply::product_stock_apply;
@@ -22,7 +23,7 @@ pub async fn tx_put(
     } else {
         return Err(anyhow!("site_iid required"));
     };
-    let owner_iid = site_grant_check(pool, caller_iid, site_iid, true).await?;
+    let owner_iid = tx_owner_resolve(pool, caller_iid, site_iid, true).await?;
     let old_stocks = if tx.tx_id > 0 {
         tx_stocks_load(pool, site_iid, tx.tx_id).await?
     } else {

@@ -1208,6 +1208,38 @@ const BillingPlanDoc$json = {
     {'1': 'channels_limit', '3': 9, '4': 1, '5': 5, '10': 'channelsLimit'},
     {'1': 'concurrent_limit', '3': 10, '4': 1, '5': 5, '10': 'concurrentLimit'},
     {'1': 'overage_enabled', '3': 11, '4': 1, '5': 8, '10': 'overageEnabled'},
+    {
+      '1': 'price_idr_monthly',
+      '3': 12,
+      '4': 1,
+      '5': 1,
+      '10': 'priceIdrMonthly'
+    },
+    {'1': 'price_idr_yearly', '3': 13, '4': 1, '5': 1, '10': 'priceIdrYearly'},
+    {
+      '1': 'alien_pool_idr_monthly',
+      '3': 14,
+      '4': 1,
+      '5': 1,
+      '10': 'alienPoolIdrMonthly'
+    },
+    {
+      '1': 'frontier_pool_idr_monthly',
+      '3': 15,
+      '4': 1,
+      '5': 1,
+      '10': 'frontierPoolIdrMonthly'
+    },
+    {'1': 'pool_multiplier', '3': 16, '4': 1, '5': 1, '10': 'poolMultiplier'},
+    {'1': 'tier', '3': 17, '4': 1, '5': 9, '10': 'tier'},
+    {
+      '1': 'queue_priority_multiplier',
+      '3': 18,
+      '4': 1,
+      '5': 5,
+      '10': 'queuePriorityMultiplier'
+    },
+    {'1': 'priority_queue', '3': 19, '4': 1, '5': 8, '10': 'priorityQueue'},
   ],
 };
 
@@ -1220,7 +1252,13 @@ final $typed_data.Uint8List billingPlanDocDescriptor = $convert.base64Decode(
     'bHlfdXNkGAcgASgBUhNhbGllbkFsbG93V2Vla2x5VXNkEh0KCm1zZ3NfbGltaXQYCCABKAVSCW'
     '1zZ3NMaW1pdBIlCg5jaGFubmVsc19saW1pdBgJIAEoBVINY2hhbm5lbHNMaW1pdBIpChBjb25j'
     'dXJyZW50X2xpbWl0GAogASgFUg9jb25jdXJyZW50TGltaXQSJwoPb3ZlcmFnZV9lbmFibGVkGA'
-    'sgASgIUg5vdmVyYWdlRW5hYmxlZA==');
+    'sgASgIUg5vdmVyYWdlRW5hYmxlZBIqChFwcmljZV9pZHJfbW9udGhseRgMIAEoAVIPcHJpY2VJ'
+    'ZHJNb250aGx5EigKEHByaWNlX2lkcl95ZWFybHkYDSABKAFSDnByaWNlSWRyWWVhcmx5EjMKFm'
+    'FsaWVuX3Bvb2xfaWRyX21vbnRobHkYDiABKAFSE2FsaWVuUG9vbElkck1vbnRobHkSOQoZZnJv'
+    'bnRpZXJfcG9vbF9pZHJfbW9udGhseRgPIAEoAVIWZnJvbnRpZXJQb29sSWRyTW9udGhseRInCg'
+    '9wb29sX211bHRpcGxpZXIYECABKAFSDnBvb2xNdWx0aXBsaWVyEhIKBHRpZXIYESABKAlSBHRp'
+    'ZXISOgoZcXVldWVfcHJpb3JpdHlfbXVsdGlwbGllchgSIAEoBVIXcXVldWVQcmlvcml0eU11bH'
+    'RpcGxpZXISJQoOcHJpb3JpdHlfcXVldWUYEyABKAhSDXByaW9yaXR5UXVldWU=');
 
 @$core.Deprecated('Use billingHistoryRowDescriptor instead')
 const BillingHistoryRow$json = {

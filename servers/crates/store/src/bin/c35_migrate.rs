@@ -23,7 +23,26 @@ async fn main() -> Result<()> {
                 std::process::exit(1);
             }
         }
-        other => anyhow::bail!("unknown command {other} (use: apply | audit)"),
+        "seed" => {
+            let sql_path = std::path::Path::new("../_/schemas/object_normalizer_seeds.sql");
+            if sql_path.exists() {
+                let sql = std::fs::read_to_string(sql_path)?;
+                println!("seeding object_normalizer from {}", sql_path.display());
+                for stmt in c35_store::sql_stmts(&sql) {
+                    if !stmt.trim().is_empty() {
+                        sqlx::query(&stmt).execute(&pool).await?;
+                    }
+                }
+                println!("seed: successfully applied object_normalizer_seeds.sql");
+            } else {
+                println!("seed file {} not found", sql_path.display());
+            }
+            let count_norm: (i64,) = sqlx::query_as("SELECT count(*) FROM ai.object_normalizer").fetch_one(&pool).await?;
+            let count_alias: (i64,) = sqlx::query_as("SELECT count(*) FROM ai.object_alias").fetch_one(&pool).await?;
+            let count_word: (i64,) = sqlx::query_as("SELECT count(*) FROM ai.word_normalizer").fetch_one(&pool).await?;
+            println!("counts in DB: object_normalizer = {}, object_alias = {}, word_normalizer = {}", count_norm.0, count_alias.0, count_word.0);
+        }
+        other => anyhow::bail!("unknown command {other} (use: apply | audit | seed)"),
     }
     Ok(())
 }

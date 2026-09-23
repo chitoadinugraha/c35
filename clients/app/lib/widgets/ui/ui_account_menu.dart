@@ -2,6 +2,7 @@ import 'package:alienai_c35/c/api/referral_conn.dart';
 import 'package:alienai_c35/c/profile/profile_handle.dart';
 import 'package:alienai_c35/c/referral/referral_format.dart';
 import 'package:alienai_c35/c/session.dart';
+import 'package:alienai_c35/widgets/ui/ui_account_role_badges.dart';
 import 'package:alienai_c35/c/settings/voice_prefs.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/widgets/billing/ui_quota_ring.dart';
@@ -66,7 +67,7 @@ Future<void> uiAccountMenuShow(BuildContext anchorCtx, {UiAccountMenuAction? act
   await showDialog<void>(
     context: anchorCtx,
     barrierColor: Colors.black26,
-    builder: (dctx) => _UiAccountMenuDialog(origin: origin, anchorSize: box.size, action: acts),
+    builder: (dctx) => uiSemanticsGuard(_UiAccountMenuDialog(origin: origin, anchorSize: box.size, action: acts)),
   );
 }
 
@@ -121,10 +122,11 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
     return name.isNotEmpty ? name : 'Account';
   }
 
-  List<String> _accountBadgeLabels(Session s) => [
-        if (s.isRoot) referralGlobalRoleLabel('root'),
-        ...s.globalRoles.where((role) => role != 'root').map(referralGlobalRoleLabel),
-      ];
+  UiAccountRoleBadgesAction _badgeAction(UiAccountMenuAction acts) => UiAccountRoleBadgesAction(
+        onRootConsole: acts.onRootConsole == null ? null : () => _popThen(acts.onRootConsole),
+        onFinancePayments: acts.onFinancePayments == null ? null : () => _popThen(acts.onFinancePayments),
+        onFinanceReceiveAccounts: acts.onFinanceReceiveAccounts == null ? null : () => _popThen(acts.onFinanceReceiveAccounts),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -133,7 +135,7 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
     final top = (widget.origin.dy + widget.anchorSize.height - _menuOverlap).clamp(8.0, screen.height - 380);
     final s = Session.instance;
     final acts = widget.action;
-    final badgeLabels = _accountBadgeLabels(s);
+    final badgeAction = _badgeAction(acts);
     return Stack(
       children: [
         Positioned(
@@ -167,20 +169,8 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
                                   Text(_accountName(), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w600)),
                                   const SizedBox(height: 2),
                                   Text(profileAlienAddress(s.handle), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _muted, fontSize: 12)),
-                                  if (badgeLabels.isNotEmpty) ...[
-                                    const SizedBox(height: 4),
-                                    Wrap(
-                                      spacing: 4,
-                                      runSpacing: 4,
-                                      children: badgeLabels.map((label) {
-                                        final isRoot = label == referralGlobalRoleLabel('root');
-                                        return _AccountRoleBadge(
-                                          label: label,
-                                          onTap: isRoot ? acts.onRootConsole == null ? null : () => _popThen(acts.onRootConsole) : null,
-                                        );
-                                      }).toList(),
-                                    ),
-                                  ],
+                                  const SizedBox(height: 4),
+                                  UiAccountRoleBadges(action: badgeAction),
                                 ],
                               ),
                             ),
@@ -234,22 +224,6 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
                           ),
                         ),
                       ],
-                    ],
-                    if (acts.onFinancePayments != null || acts.onFinanceReceiveAccounts != null) ...[
-                      const Divider(height: 1, color: _border),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                        child: Column(
-                          children: [
-                            if (acts.onFinancePayments != null)
-                              _FinanceNavBtn(icon: Icons.payments_outlined, label: 'Finance payments', onTap: () => _popThen(acts.onFinancePayments)),
-                            if (acts.onFinanceReceiveAccounts != null) ...[
-                              if (acts.onFinancePayments != null) const SizedBox(height: 6),
-                              _FinanceNavBtn(icon: Icons.account_balance_outlined, label: 'Receive accounts', onTap: () => _popThen(acts.onFinanceReceiveAccounts)),
-                            ],
-                          ],
-                        ),
-                      ),
                     ],
                     if (_hasNavCounts(acts)) ...[
                       const Divider(height: 1, color: _border),
@@ -305,24 +279,6 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
   bool _hasNavCounts(UiAccountMenuAction acts) => acts.onBots != null || acts.onDevices != null || acts.onSites != null;
 }
 
-class _AccountRoleBadge extends StatelessWidget {
-  const _AccountRoleBadge({required this.label, this.onTap});
-
-  final String label;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final child = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(color: _hoverBg, borderRadius: BorderRadius.circular(999)),
-      child: Text(label, style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 10, fontWeight: FontWeight.w600)),
-    );
-    if (onTap == null) return child;
-    return InkWell(onTap: onTap, borderRadius: BorderRadius.circular(999), child: child);
-  }
-}
-
 class _NavCountBtn extends StatelessWidget {
   const _NavCountBtn({required this.icon, required this.count, required this.label, this.onTap});
 
@@ -376,31 +332,3 @@ class _MenuIconBtn extends StatelessWidget {
   }
 }
 
-class _FinanceNavBtn extends StatelessWidget {
-  const _FinanceNavBtn({required this.icon, required this.label, this.onTap});
-
-  final IconData icon;
-  final String label;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) => Material(
-        color: _hoverBg,
-        borderRadius: BorderRadius.circular(8),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(8),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-            child: Row(
-              children: [
-                Icon(icon, size: 16, color: const Color(0xFFA1A1AA)),
-                const SizedBox(width: 8),
-                Expanded(child: Text(label, style: const TextStyle(color: _text, fontSize: 12, fontWeight: FontWeight.w500))),
-                const Icon(Icons.chevron_right_rounded, size: 18, color: _muted),
-              ],
-            ),
-          ),
-        ),
-      );
-}

@@ -176,6 +176,15 @@ CREATE INDEX IF NOT EXISTS idx_chat_msg_req
 CREATE INDEX IF NOT EXISTS idx_chat_msg_owner_sync
     ON ai.chat_msg (owner_iid, updated_ts);
 
+-- MCP message search / req_id lookup
+CREATE INDEX IF NOT EXISTS idx_chat_msg_owner_created_desc
+    ON ai.chat_msg (owner_iid, created_ts DESC, id DESC)
+    WHERE deleted_ts IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_chat_msg_owner_req
+    ON ai.chat_msg (owner_iid, req_id)
+    WHERE deleted_ts IS NULL AND req_id <> '';
+
 ALTER TABLE ai.chat_msg ADD COLUMN IF NOT EXISTS cost_usd NUMERIC(12, 6) NOT NULL DEFAULT 0;
 ALTER TABLE ai.chat_msg ADD COLUMN IF NOT EXISTS error_text TEXT NOT NULL DEFAULT '';
 

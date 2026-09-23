@@ -88,13 +88,34 @@ pub async fn billing_summary(pool: &PgPool, caller_iid: i64, billing_account_id:
 async fn billing_plan_list(pool: &PgPool) -> Result<Vec<BillingPlanDoc>, sqlx::Error> {
     let rows = sqlx::query(
         r#"
-        SELECT slug, name, sort_order, price_usd::float8 AS price_usd, duration_months,
-               alien_allow_5h_usd::float8 AS alien_allow_5h_usd,
-               alien_allow_weekly_usd::float8 AS alien_allow_weekly_usd,
-               msgs_limit, channels_limit, concurrent_limit, overage_enabled
-        FROM ai.billing_plan
-        WHERE is_active = TRUE AND scope = 'user'
-        ORDER BY sort_order ASC, slug ASC
+        SELECT p.slug, p.name, p.sort_order, p.price_usd::float8 AS price_usd, p.duration_months,
+               p.alien_allow_5h_usd::float8 AS alien_allow_5h_usd,
+               p.alien_allow_weekly_usd::float8 AS alien_allow_weekly_usd,
+               p.msgs_limit, p.channels_limit, p.concurrent_limit, p.overage_enabled,
+               COALESCE(p.alien_pool_idr_monthly::float8, 0.0) AS alien_pool_idr_monthly,
+               COALESCE(p.frontier_pool_idr_monthly::float8, 0.0) AS frontier_pool_idr_monthly,
+               COALESCE(p.pool_multiplier::float8, 1.0) AS pool_multiplier,
+               COALESCE(p.tier, '') AS tier,
+               COALESCE((p.caps_json->>'priority_queue')::boolean, FALSE) AS priority_queue,
+               COALESCE(
+                   NULLIF((p.caps_json->>'queue_priority_multiplier')::int, 0),
+                   CASE p.slug WHEN 'pro' THEN 5 WHEN 'ultra' THEN 30 ELSE 0 END
+               ) AS queue_priority_multiplier,
+               COALESCE(
+                   (SELECT amount::float8 FROM ai.billing_plan_price
+                    WHERE plan_slug = p.slug AND currency = 'IDR' AND billing_period = 'monthly' AND is_active = TRUE
+                    LIMIT 1),
+                   0.0
+               ) AS price_idr_monthly,
+               COALESCE(
+                   (SELECT amount::float8 FROM ai.billing_plan_price
+                    WHERE plan_slug = p.slug AND currency = 'IDR' AND billing_period = 'yearly' AND is_active = TRUE
+                    LIMIT 1),
+                   0.0
+               ) AS price_idr_yearly
+        FROM ai.billing_plan p
+        WHERE p.is_active = TRUE AND p.scope = 'user'
+        ORDER BY p.sort_order ASC, p.slug ASC
         "#,
     )
     .fetch_all(pool)
@@ -114,6 +135,14 @@ async fn billing_plan_list(pool: &PgPool) -> Result<Vec<BillingPlanDoc>, sqlx::E
             channels_limit: r.get("channels_limit"),
             concurrent_limit: r.get("concurrent_limit"),
             overage_enabled: r.get("overage_enabled"),
+            price_idr_monthly: r.get("price_idr_monthly"),
+            price_idr_yearly: r.get("price_idr_yearly"),
+            alien_pool_idr_monthly: r.get("alien_pool_idr_monthly"),
+            frontier_pool_idr_monthly: r.get("frontier_pool_idr_monthly"),
+            pool_multiplier: r.get("pool_multiplier"),
+            tier: r.get("tier"),
+            queue_priority_multiplier: r.get("queue_priority_multiplier"),
+            priority_queue: r.get("priority_queue"),
         })
         .collect())
 }

@@ -171,7 +171,11 @@ INSERT INTO ai.inst (
     '',
     '[FOOD] User wants to log food consumption. Call consumption.add when a photo or description is available. \
 When the user asks how many calories are in an attached food photo, call consumption.add with photo_hash (or answer from the attached image) — never img.generate. \
-The meal card shows headline, coach, and macros — reply with at most one short sentence; do not repeat numbers or tables.',
+The meal card displays structured details. As personal companion, reply warmly and naturally in 1-2 conversational sentences: \
+- NEVER use robotic confirmations like "Konsumsi ... Anda telah berhasil dicatat". \
+- If repeat_food_today is true: playfully notice the repeat (e.g. "Makan Indomie lagi nih? Piring kedua hari ini ya 😄 Jangan lupa air putih ya!"). \
+- If pct_of_goal > 85% or over budget: praise the food but give a gentle friendly nudge about today''s calories (e.g. "Nasi gorengnya kelihatan lezat! Tapi hati-hati hari ini sudah masuk sekian kalori, nanti malam cari yang enteng ya."). \
+- If well within budget: give an encouraging, cheerful reaction praising the meal.',
     ARRAY[
         'catat konsumsi', 'catat makanan', 'catat konsumsi makanan',
         'track food', 'log meal', 'track food consumption',
@@ -191,11 +195,19 @@ INSERT INTO ai.inst (
     'role:personal_assistant',
     'task',
     '',
-    '[NUTRITION] For food recommendations, daily recap, or "how much X did I eat", call consumption.today first. \
-Use day_id yesterday for past days. Pass item_query for specific foods (e.g. mie, noodle). \
-Give warm, concise coaching in the user language — praise good balance, gently nudge when over goal. \
+    '[NUTRITION COACH & RECOMMENDATIONS] \
+When the user asks for food recommendations (e.g. "enaknya makan apa", "rekomendasi makan", "what should I eat", "makan apa ya"), daily recap, or historical nutrition queries: \
+1. Always call consumption.today first. For meal recommendations, pass days: 3 to inspect recent multi-day eating patterns. \
+2. Structure 2-3 tailored meal recommendations based on: \
+   - current_meal_slot (breakfast / lunch / dinner / snack) \
+   - calories_remaining (ensure recommended options comfortably fit within today''s remaining calorie budget) \
+   - protein_deficit_g and macro balance (if carbs/fat are high and protein is low, prioritize high-protein, fresh options) \
+   - recent_frequent_foods (avoid recommending items the user has already eaten frequently in the past few days; suggest complementary variety like vegetables/soup). \
+3. Deliver the recommendation warmly in the user language with conversational wit, specifying estimated calories, protein, and why it fits today. \
 Do not call img.generate for nutrition questions.',
     ARRAY[
+        'enaknya makan apa', 'makan apa ya', 'mau makan apa', 'saran makan',
+        'makan malam apa', 'sarapan apa', 'makan siang apa', 'rekomendasi makanan',
         'rekomendasi makan', 'food recommendation', 'what should i eat', 'apa yang harus dimakan',
         'nutrition recap', 'ringkasan nutrisi',
         'berapa banyak', 'how much', 'kemarin', 'yesterday', 'mie', 'noodle', 'nasi'
@@ -208,7 +220,7 @@ Do not call img.generate for nutrition questions.',
 
 -- Keep live DB in sync with tightened food / image tool steering.
 UPDATE ai.inst SET
-    inst = '[FOOD] User wants to log food consumption. Call consumption.add when a photo or description is available. When the user asks how many calories are in an attached food photo, call consumption.add with photo_hash (or answer from the attached image) — never img.generate. The meal card shows headline, coach, and macros — reply with at most one short sentence; do not repeat numbers or tables.',
+    inst = '[FOOD] User wants to log food consumption. Call consumption.add when a photo or description is available. When the user asks how many calories are in an attached food photo, call consumption.add with photo_hash (or answer from the attached image) — never img.generate. The meal card displays structured details. As personal companion, reply warmly and naturally in 1-2 conversational sentences: NEVER use robotic confirmations like "Konsumsi ... Anda telah berhasil dicatat". If repeat_food_today is true: playfully notice the repeat (e.g. "Makan Indomie lagi nih? Piring kedua hari ini ya 😄 Jangan lupa air putih ya!"). If pct_of_goal > 85% or over budget: praise the food but give a gentle friendly nudge about today''s calories (e.g. "Nasi gorengnya kelihatan lezat! Tapi hati-hati hari ini sudah masuk sekian kalori, nanti malam cari yang enteng ya."). If well within budget: give an encouraging, cheerful reaction praising the meal.',
     phrases = ARRAY[
         'catat konsumsi', 'catat makanan', 'catat konsumsi makanan',
         'track food', 'log meal', 'track food consumption',
@@ -219,8 +231,10 @@ UPDATE ai.inst SET
 WHERE id = 'inst.consumption_add';
 
 UPDATE ai.inst SET
-    inst = '[NUTRITION] For food recommendations, daily recap, or "how much X did I eat", call consumption.today first. Use day_id yesterday for past days. Pass item_query for specific foods (e.g. mie, noodle). Give warm, concise coaching in the user language — praise good balance, gently nudge when over goal. Do not call img.generate for nutrition questions.',
+    inst = '[NUTRITION COACH & RECOMMENDATIONS] When the user asks for food recommendations (e.g. "enaknya makan apa", "rekomendasi makan", "what should I eat", "makan apa ya"), daily recap, or historical nutrition queries: 1. Always call consumption.today first. For meal recommendations, pass days: 3 to inspect recent multi-day eating patterns. 2. Structure 2-3 tailored meal recommendations based on: current_meal_slot (breakfast / lunch / dinner / snack), calories_remaining (ensure recommended options comfortably fit within today''s remaining calorie budget), protein_deficit_g and macro balance (if carbs/fat are high and protein is low, prioritize high-protein, fresh options), and recent_frequent_foods (avoid recommending items the user has already eaten frequently in the past few days; suggest complementary variety like vegetables/soup). 3. Deliver the recommendation warmly in the user language with conversational wit, specifying estimated calories, protein, and why it fits today. Do not call img.generate for nutrition questions.',
     phrases = ARRAY[
+        'enaknya makan apa', 'makan apa ya', 'mau makan apa', 'saran makan',
+        'makan malam apa', 'sarapan apa', 'makan siang apa', 'rekomendasi makanan',
         'rekomendasi makan', 'food recommendation', 'what should i eat', 'apa yang harus dimakan',
         'nutrition recap', 'ringkasan nutrisi',
         'berapa banyak', 'how much', 'kemarin', 'yesterday', 'mie', 'noodle', 'nasi'
@@ -256,15 +270,45 @@ INSERT INTO ai.inst (
     'role:personal_assistant',
     'task',
     '',
-    '[EXPENSE] User wants to log an expense or purchase. Parse line items, quantity, and amount into site.tx.put (with site_iid=owner_iid for personal expenses). \
+    '[EXPENSE] User wants to log an expense or purchase. Call expense.add with line items, quantity, and amount (personal ledger: owner_iid = caller). \
 [AMOUNT INFERENCE] Infer realistic IDR major units: small numbers for food/daily items mean thousands (18 → 18000, 6.5 → 6500), while electronics/rent mean millions (18 → 18000000, 2.5 → 2500000). Suffixes k/rb = ×1,000, jt/m = ×1,000,000. \
 Reply briefly with recorded item, amount, and category — never invent prices.',
     ARRAY[
         'catat pengeluaran', 'track expense', 'beli ', 'bayar ', 'catat struk',
         'log expense', 'tambah pengeluaran', 'catat pembelian', 'pengeluaran baru'
     ],
-    ARRAY['tool_include:site.tx.put', 'tool_exclude:img.generate'],
+    ARRAY['tool_include:expense.add', 'tool_exclude:img.generate'],
     138,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: expense spending queries (personal assistant)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, priority, def_hash, updated_ts
+) VALUES (
+    'inst.expense_query',
+    'role:personal_assistant',
+    'task',
+    '',
+    '[EXPENSE QUERY] User asks about spending, purchases, or expense totals. Call expense.summary. \
+For today use day_id: today; for yesterday use day_id: yesterday; for a specific date use YYYY-MM-DD. \
+For multi-day ranges (e.g. last week, past 7 days) pass days (1-30). \
+For category filters (food, transport, groceries) pass category_path as taxonomy prefix (e.g. consumable.food for food/makanan). \
+For item-specific searches pass item_query. Reply with totals and a brief warm summary — never invent amounts. Do not call img.generate.',
+    ARRAY[
+        'berapa pengeluaran', 'how much did i spend', 'pengeluaran hari ini', 'spend on food',
+        'pengeluaran minggu lalu', 'total belanja', 'spending today', 'yesterday spending',
+        'pengeluaran kemarin', 'how much on transport', 'pengeluaran makanan', 'belanja berapa',
+        'expense summary', 'total pengeluaran', 'berapa belanja', 'how much did i spend on'
+    ],
+    ARRAY['tool_include:expense.summary', 'tool_exclude:img.generate'],
+    137,
     'seed',
     NOW()
 ) ON CONFLICT (id) DO UPDATE SET

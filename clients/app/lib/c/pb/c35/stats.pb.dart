@@ -138,6 +138,151 @@ class DiskMountStat extends $pb.GeneratedMessage {
   void clearWriteBps() => $_clearField(6);
 }
 
+class DiskDeviceStat extends $pb.GeneratedMessage {
+  factory DiskDeviceStat({
+    $core.String? device,
+    $core.String? mount,
+    $core.String? label,
+    $core.bool? isBoot,
+    $fixnum.Int64? usedBytes,
+    $fixnum.Int64? totalBytes,
+    $core.double? readBps,
+    $core.double? writeBps,
+  }) {
+    final result = DiskDeviceStat._();
+    if (device != null) result.device = device;
+    if (mount != null) result.mount = mount;
+    if (label != null) result.label = label;
+    if (isBoot != null) result.isBoot = isBoot;
+    if (usedBytes != null) result.usedBytes = usedBytes;
+    if (totalBytes != null) result.totalBytes = totalBytes;
+    if (readBps != null) result.readBps = readBps;
+    if (writeBps != null) result.writeBps = writeBps;
+    return result;
+  }
+
+  DiskDeviceStat._();
+
+  factory DiskDeviceStat.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      DiskDeviceStat()..mergeFromBuffer(data, registry);
+  factory DiskDeviceStat.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      DiskDeviceStat()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'DiskDeviceStat',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: DiskDeviceStat.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'device')
+    ..aOS(2, _omitFieldNames ? '' : 'mount')
+    ..aOS(3, _omitFieldNames ? '' : 'label')
+    ..aOB(4, _omitFieldNames ? '' : 'isBoot')
+    ..a<$fixnum.Int64>(
+        5, _omitFieldNames ? '' : 'usedBytes', $pb.PbFieldType.OU6,
+        defaultOrMaker: $fixnum.Int64.ZERO)
+    ..a<$fixnum.Int64>(
+        6, _omitFieldNames ? '' : 'totalBytes', $pb.PbFieldType.OU6,
+        defaultOrMaker: $fixnum.Int64.ZERO)
+    ..aD(7, _omitFieldNames ? '' : 'readBps')
+    ..aD(8, _omitFieldNames ? '' : 'writeBps')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  DiskDeviceStat clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  DiskDeviceStat copyWith(void Function(DiskDeviceStat) updates) =>
+      super.copyWith((message) => updates(message as DiskDeviceStat))
+          as DiskDeviceStat;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use DiskDeviceStat() / DiskDeviceStat.new instead')
+  static DiskDeviceStat create() => DiskDeviceStat._();
+  static $pb.GeneratedMessage $_createMessage() => DiskDeviceStat._();
+  @$core.override
+  DiskDeviceStat createEmptyInstance() => DiskDeviceStat._();
+  @$core.pragma('dart2js:noInline')
+  static DiskDeviceStat getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<DiskDeviceStat>(
+          DiskDeviceStat.$_createMessage);
+  static DiskDeviceStat? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get device => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set device($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasDevice() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearDevice() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get mount => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set mount($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasMount() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearMount() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get label => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set label($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasLabel() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearLabel() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.bool get isBoot => $_getBF(3);
+  @$pb.TagNumber(4)
+  set isBoot($core.bool value) => $_setBool(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasIsBoot() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearIsBoot() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $fixnum.Int64 get usedBytes => $_getI64(4);
+  @$pb.TagNumber(5)
+  set usedBytes($fixnum.Int64 value) => $_setInt64(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasUsedBytes() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearUsedBytes() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $fixnum.Int64 get totalBytes => $_getI64(5);
+  @$pb.TagNumber(6)
+  set totalBytes($fixnum.Int64 value) => $_setInt64(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasTotalBytes() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearTotalBytes() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.double get readBps => $_getN(6);
+  @$pb.TagNumber(7)
+  set readBps($core.double value) => $_setDouble(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasReadBps() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearReadBps() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.double get writeBps => $_getN(7);
+  @$pb.TagNumber(8)
+  set writeBps($core.double value) => $_setDouble(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasWriteBps() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearWriteBps() => $_clearField(8);
+}
+
 class VolumeStat extends $pb.GeneratedMessage {
   factory VolumeStat({
     $core.String? namespace,
@@ -147,6 +292,7 @@ class VolumeStat extends $pb.GeneratedMessage {
     $fixnum.Int64? usedBytes,
     $fixnum.Int64? capacityBytes,
     $core.String? storageClass,
+    $core.String? label,
   }) {
     final result = VolumeStat._();
     if (namespace != null) result.namespace = namespace;
@@ -156,6 +302,7 @@ class VolumeStat extends $pb.GeneratedMessage {
     if (usedBytes != null) result.usedBytes = usedBytes;
     if (capacityBytes != null) result.capacityBytes = capacityBytes;
     if (storageClass != null) result.storageClass = storageClass;
+    if (label != null) result.label = label;
     return result;
   }
 
@@ -183,6 +330,7 @@ class VolumeStat extends $pb.GeneratedMessage {
         6, _omitFieldNames ? '' : 'capacityBytes', $pb.PbFieldType.OU6,
         defaultOrMaker: $fixnum.Int64.ZERO)
     ..aOS(7, _omitFieldNames ? '' : 'storageClass')
+    ..aOS(8, _omitFieldNames ? '' : 'label')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -267,6 +415,15 @@ class VolumeStat extends $pb.GeneratedMessage {
   $core.bool hasStorageClass() => $_has(6);
   @$pb.TagNumber(7)
   void clearStorageClass() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.String get label => $_getSZ(7);
+  @$pb.TagNumber(8)
+  set label($core.String value) => $_setString(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasLabel() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearLabel() => $_clearField(8);
 }
 
 class NodeStat extends $pb.GeneratedMessage {
@@ -280,6 +437,7 @@ class NodeStat extends $pb.GeneratedMessage {
     $core.double? netInBps,
     $core.double? netOutBps,
     $fixnum.Int64? tsMs,
+    $core.Iterable<DiskDeviceStat>? devices,
   }) {
     final result = NodeStat._();
     if (nodeName != null) result.nodeName = nodeName;
@@ -291,6 +449,7 @@ class NodeStat extends $pb.GeneratedMessage {
     if (netInBps != null) result.netInBps = netInBps;
     if (netOutBps != null) result.netOutBps = netOutBps;
     if (tsMs != null) result.tsMs = tsMs;
+    if (devices != null) result.devices.addAll(devices);
     return result;
   }
 
@@ -321,6 +480,8 @@ class NodeStat extends $pb.GeneratedMessage {
     ..aD(7, _omitFieldNames ? '' : 'netInBps')
     ..aD(8, _omitFieldNames ? '' : 'netOutBps')
     ..aInt64(9, _omitFieldNames ? '' : 'tsMs')
+    ..pPM<DiskDeviceStat>(10, _omitFieldNames ? '' : 'devices',
+        subBuilder: DiskDeviceStat.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -417,6 +578,9 @@ class NodeStat extends $pb.GeneratedMessage {
   $core.bool hasTsMs() => $_has(8);
   @$pb.TagNumber(9)
   void clearTsMs() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $pb.PbList<DiskDeviceStat> get devices => $_getList(9);
 }
 
 enum StatsPush_Body { node, volume, notSet }

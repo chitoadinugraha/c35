@@ -3,6 +3,7 @@ import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/pb/c35/admin.pb.dart';
 import 'package:alienai_c35/c/pb/c35/inst.pb.dart';
 import 'package:alienai_c35/c/pb/c35/log.pb.dart';
+import 'package:alienai_c35/c/pb/c35/object.pb.dart';
 import 'package:alienai_c35/c/pb/c35/wire.pb.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:uuid/uuid.dart';
@@ -104,6 +105,24 @@ class AdminApi {
   Future<void> instDelete(String id) async {
     final res = await _invoke(InvokeReq(reqId: const Uuid().v4(), instDelete: ReqInstDelete(id: id)));
     invokeResThrow(res, fallback: 'Failed to delete inst');
+  }
+
+  Future<List<ObjectAliasDoc>> objectAliasList({bool? verified, String? lang, String? q, int limit = 200}) async {
+    final req = ReqObjectAliasList(limit: limit);
+    if (verified != null) req.verified = verified;
+    if (lang != null) req.lang = lang;
+    if (q != null && q.isNotEmpty) req.q = q;
+    final res = await _invoke(InvokeReq(reqId: const Uuid().v4(), objectAliasList: req));
+    invokeResThrow(res, fallback: 'Failed to load object aliases');
+    if (!res.hasObjectAliasList()) return [];
+    return res.objectAliasList.items;
+  }
+
+  Future<ObjectAliasDoc> objectAliasPut(ObjectAliasDoc doc) async {
+    final res = await _invoke(InvokeReq(reqId: const Uuid().v4(), objectAliasPut: ReqObjectAliasPut(doc: doc)));
+    invokeResThrow(res, fallback: 'Failed to save object alias');
+    if (!res.hasObjectAliasPut() || !res.objectAliasPut.hasDoc()) throw 'Failed to save object alias';
+    return res.objectAliasPut.doc;
   }
 
   Future<void> statsSubscribe() => chatConn.statsSubscribe();

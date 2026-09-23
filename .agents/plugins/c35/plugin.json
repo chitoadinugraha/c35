@@ -1,0 +1,8 @@
+{
+  "name": "c35",
+  "displayName": "c35",
+  "description": "Alien AI c35 — rules, inst steering, MCP (c35-yb, c35-inst)",
+  "version": "0.1.0",
+  "rules": "../../rules/",
+  "mcp": "mcp_config.json"
+}

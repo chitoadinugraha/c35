@@ -21,6 +21,19 @@ ALTER TABLE ai.billing_topup_request DROP CONSTRAINT IF EXISTS chk_billing_topup
 ALTER TABLE ai.billing_topup_request ADD CONSTRAINT chk_billing_topup_status CHECK (
     status IN ('pending', 'pending_review', 'settled', 'rejected', 'cancelled', 'expired', 'failed')
 );
+ALTER TABLE site.tx_item ADD COLUMN IF NOT EXISTS owner_iid BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE site.tx_item ADD COLUMN IF NOT EXISTS obj_id BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE site.product ADD COLUMN IF NOT EXISTS obj_id BIGINT NOT NULL DEFAULT 0;
+CREATE INDEX IF NOT EXISTS idx_tx_owner_time_ok ON site.tx (owner_iid, time_ts DESC) WHERE deleted_ts IS NULL AND state = 'ok';
+CREATE INDEX IF NOT EXISTS idx_tx_item_owner_obj ON site.tx_item (owner_iid, obj_id) WHERE deleted_ts IS NULL;
+CREATE INDEX IF NOT EXISTS idx_tx_item_obj ON site.tx_item (obj_id) WHERE obj_id > 0 AND deleted_ts IS NULL;
+ALTER TABLE ai.consumption_item ADD COLUMN IF NOT EXISTS obj_id BIGINT NOT NULL DEFAULT 0;
+CREATE INDEX IF NOT EXISTS idx_consumption_item_obj ON ai.consumption_item (owner_iid, obj_id) WHERE obj_id > 0 AND deleted_ts IS NULL;
+CREATE INDEX IF NOT EXISTS idx_log_owner_created_desc ON ai.log (owner_iid, created_ts DESC, id DESC) WHERE deleted_ts IS NULL;
+CREATE INDEX IF NOT EXISTS idx_log_created_desc ON ai.log (created_ts DESC, id DESC) WHERE deleted_ts IS NULL;
+CREATE INDEX IF NOT EXISTS idx_log_owner_req_created ON ai.log (owner_iid, req_id, created_ts DESC) WHERE deleted_ts IS NULL AND req_id <> '';
+CREATE INDEX IF NOT EXISTS idx_chat_msg_owner_created_desc ON ai.chat_msg (owner_iid, created_ts DESC, id DESC) WHERE deleted_ts IS NULL;
+CREATE INDEX IF NOT EXISTS idx_chat_msg_owner_req ON ai.chat_msg (owner_iid, req_id) WHERE deleted_ts IS NULL AND req_id <> '';
 ";
 
 pub fn missing_table(err: &SqlxError) -> bool {
@@ -238,7 +251,7 @@ fn schema_stmt_retry(err: &SqlxError) -> bool {
     }
 }
 
-fn sql_stmts(sql: &str) -> Vec<String> {
+pub fn sql_stmts(sql: &str) -> Vec<String> {
     let mut cur = String::new();
     let mut out = Vec::new();
     let mut in_dollar_block = false;

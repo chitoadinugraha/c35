@@ -7,7 +7,7 @@ One pod per Kubernetes node publishes host CPU/RAM/network, OS disk mounts, and 
 | Subject | Payload |
 |---------|---------|
 | `c35.stats.node.{NODE_NAME}` | `StatsPush` with `node` body |
-| `c35.stats.volume.{namespace}.{pvc_name}` | `StatsPush` with `volume` body |
+| `c35.stats.volume.{NODE_NAME}.{namespace}.{pvc_name}` | `StatsPush` with `volume` body |
 
 ## Configuration
 
@@ -20,21 +20,19 @@ One pod per Kubernetes node publishes host CPU/RAM/network, OS disk mounts, and 
 | `C35_NODE_MOUNTS` | ConfigMap | Comma-separated host mounts (`/`, `/var/log`) |
 | `C35_VOLUME_PATHS` | ConfigMap | `namespace:pvc:path[:storage_class][:label]` per entry |
 
-Default volume entry monitors Yugabyte hostPath data:
+Default volume entries monitor Yugabyte and NATS hostPath data:
 
 ```
-yugabyte:yb-tserver:/host/var/lib/alienai/yb-tserver:oci-bv:YB data
+yugabyte:yb-tserver:/host/var/lib/alienai/yb-tserver:oci-bv:yb-tserver
+yugabyte:yb-master:/host/var/lib/alienai/yb-master:oci-bv:yb-master
+nats:nats-data:/host/var/lib/alienai/nats:oci-bv:nats
 ```
 
-### NATS JetStream (optional)
+> Before apply, verify host paths on cluster:
+> `kubectl exec -n c35 -l app=c35-node-stats -- ls /host/var/lib/alienai/`
+> Adjust `yb-master` and `nats` paths to match actual host layout.
 
-NATS JetStream PVC data is node-local. After locating the host path (often under k3s local storage on the NATS node), add an entry:
-
-```
-nats:nats-data:/host/var/lib/rancher/k3s/storage/pvc-xxx:oci-bv:NATS JetStream
-```
-
-Only the DaemonSet pod on that node will publish non-zero stats; other nodes skip missing paths.
+Only the DaemonSet pod on a node with the path present will publish non-zero stats; other nodes skip missing paths.
 
 ## Host access
 

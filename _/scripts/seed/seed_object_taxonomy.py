@@ -71,12 +71,22 @@ def build_taxonomy_tree(
         slug_parts = [slug_norm(c) for c in crumbs]
         raw_slug = slug_parts[-1]
 
-        # Handle duplicate leaf slugs across branches (e.g. Milk under Food vs Baby)
-        if raw_slug in seen_slugs and seen_slugs[raw_slug] != cat_id:
-            slug = f"{slug_parts[-2]}_{raw_slug}" if len(slug_parts) > 1 else f"{raw_slug}_{cat_id}"
-        else:
-            slug = raw_slug
-            seen_slugs[raw_slug] = cat_id
+        # Ensure slug is unique and within VARCHAR(64)
+        candidate = raw_slug
+        if candidate in seen_slugs or candidate in {
+            'consumable', 'service', 'goods', 'drink', 'food', 'utility', 'transport',
+            'milk', 'coffee', 'internet', 'electricity', 'staple', 'staple_rice',
+            'staple_noodle', 'fried_rice', 'white_rice', 'instant_noodle',
+        }:
+            candidate = f"{slug_parts[-2]}_{raw_slug}" if len(slug_parts) > 1 else f"{raw_slug}_{cat_id}"
+        if candidate in seen_slugs:
+            candidate = f"{raw_slug}_{cat_id}"
+        if len(candidate) > 60:
+            candidate = candidate[:60].rstrip("_")
+        if candidate in seen_slugs:
+            candidate = f"{candidate[:50]}_{cat_id}"
+        slug = candidate
+        seen_slugs[slug] = cat_id
 
         path = ".".join(slug_parts)
         depth = len(crumbs) - 1
@@ -147,42 +157,52 @@ def generate_sql(nodes: List[dict], aliases: List[dict]) -> str:
         "",
     ]
 
-    # Batch insert nodes
-    lines.append("INSERT INTO ai.object_normalizer (id, slug, parent_id, path, depth, l1_category_id, l2_category_id, kind) VALUES")
-    node_tuples = []
-    for n in nodes:
-        parent_sql = str(n["parent_id"]) if n["parent_id"] is not None else "NULL"
-        l1_sql = str(n["l1_category_id"]) if n["l1_category_id"] is not None else "NULL"
-        l2_sql = str(n["l2_category_id"]) if n["l2_category_id"] is not None else "NULL"
-        slug_esc = n["slug"].replace("'", "''")
-        path_esc = n["path"].replace("'", "''")
-        node_tuples.append(
-            f"    ({n['id']}, '{slug_esc}', {parent_sql}, '{path_esc}', {n['depth']}, {l1_sql}, {l2_sql}, '{n['kind']}')"
-        )
-    lines.append(",\n".join(node_tuples))
-    lines.append("ON CONFLICT (id) DO NOTHING;\n")
+    # Batch insert nodes in chunks of 500 to keep statements reasonable
+    chunk_size = 500
+    for i in range(0, len(nodes), chunk_size):
+        chunk = nodes[i : i + chunk_size]
+        lines.append("INSERT INTO ai.object_normalizer (id, slug, parent_id, path, depth, l1_category_id, l2_category_id, kind) VALUES")
+        node_tuples = []
+        for n in chunk:
+            parent_sql = str(n["parent_id"]) if n["parent_id"] is not None else "NULL"
+            l1_sql = str(n["l1_category_id"]) if n["l1_category_id"] is not None else "NULL"
+            l2_sql = str(n["l2_category_id"]) if n["l2_category_id"] is not None else "NULL"
+            slug_esc = n["slug"].replace("'", "''")
+            path_esc = n["path"].replace("'", "''")
+            node_tuples.append(
+                f"    ({n['id']}, '{slug_esc}', {parent_sql}, '{path_esc}', {n['depth']}, {l1_sql}, {l2_sql}, '{n['kind']}')"
+            )
+        lines.append(",\n".join(node_tuples))
+        lines.append("ON CONFLICT DO NOTHING;\n")
 
-    # Batch insert aliases (using snowflake IDs or sequential hashes)
-    lines.append("INSERT INTO ai.object_alias (id, obj_id, lang, name, name_norm, is_canonical, verified) VALUES")
-    alias_tuples = []
-    for idx, a in enumerate(aliases, start=1000000):
-        name_esc = a["name"].replace("'", "''")
-        norm_esc = a["name_norm"].replace("'", "''")
-        canon_sql = "TRUE" if a["is_canonical"] else "FALSE"
-        alias_tuples.append(
-            f"    ({idx}, {a['obj_id']}, '{a['lang']}', '{name_esc}', '{norm_esc}', {canon_sql}, TRUE)"
-        )
-    lines.append(",\n".join(alias_tuples))
-    lines.append("ON CONFLICT (id) DO NOTHING;\n")
+    # Batch insert aliases in chunks of 500
+    for i in range(0, len(aliases), chunk_size):
+        chunk = aliases[i : i + chunk_size]
+        lines.append("INSERT INTO ai.object_alias (id, obj_id, lang, name, name_norm, is_canonical, verified) VALUES")
+        alias_tuples = []
+        for idx_offset, a in enumerate(chunk):
+            real_idx = 1000000 + i + idx_offset
+            name_esc = a["name"].replace("'", "''")
+            norm_esc = a["name_norm"].replace("'", "''")
+            canon_sql = "TRUE" if a["is_canonical"] else "FALSE"
+            alias_tuples.append(
+                f"    ({real_idx}, {a['obj_id']}, '{a['lang']}', '{name_esc}', '{norm_esc}', {canon_sql}, TRUE)"
+            )
+        lines.append(",\n".join(alias_tuples))
+        lines.append("ON CONFLICT DO NOTHING;\n")
 
     return "\n".join(lines)
 
 
-def fetch_url(url: str) -> str:
+def fetch_url(url: str) -> Optional[str]:
     print(f"Fetching {url}...")
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        return resp.read().decode("utf-8")
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return resp.read().decode("utf-8")
+    except Exception as e:
+        print(f"Notice: could not fetch {url}: {e}", file=sys.stderr)
+        return None
 
 
 def main():
@@ -190,16 +210,15 @@ def main():
     parser.add_argument("--emit-sql", help="Path to write compiled SQL", default=None)
     args = parser.parse_args()
 
-    try:
-        en_content = fetch_url(GPT_EN_URL)
-        id_content = fetch_url(GPT_ID_URL)
-    except Exception as e:
-        print(f"Warning: could not download taxonomy online: {e}", file=sys.stderr)
-        print("Using built-in offline seeds.", file=sys.stderr)
+    en_content = fetch_url(GPT_EN_URL)
+    if not en_content:
+        print("Error: could not fetch primary English taxonomy.", file=sys.stderr)
         return
 
+    id_content = fetch_url(GPT_ID_URL) or ""
+
     en_cats = parse_taxonomy_file(en_content)
-    id_cats = parse_taxonomy_file(id_content)
+    id_cats = parse_taxonomy_file(id_content) if id_content else {}
 
     print(f"Loaded {len(en_cats)} EN categories, {len(id_cats)} ID categories.")
     nodes, aliases = build_taxonomy_tree(en_cats, id_cats)
