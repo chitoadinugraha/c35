@@ -89,6 +89,9 @@ class RemoteSession {
   var _retryCount = 0;
   var _manualStop = false;
 
+  bool get isLinking =>
+      status.value == RemoteSessionStatus.connecting || status.value == RemoteSessionStatus.reconnecting;
+
   // -------------------------------------------------------------------------
   // Registry
   // -------------------------------------------------------------------------
@@ -144,6 +147,10 @@ class RemoteSession {
     l('scheduling remote reconnect attempt $_retryCount in ${delay.inSeconds}s');
     _reconnectTimer?.cancel();
     _reconnectTimer = Timer(delay, () {
+      if (!conn.connected) {
+        status.value = RemoteSessionStatus.disconnected;
+        return;
+      }
       if (!_manualStop && status.value != RemoteSessionStatus.pausedIdle && !connected.value) {
         start();
       }
@@ -158,6 +165,11 @@ class RemoteSession {
     if (kIsWeb) throw UnsupportedError('WebRTC remote session is not supported on web');
     if (_starting) return;
     if (connected.value) return;
+    if (!conn.connected) {
+      l('remote session start skipped: server ws not connected');
+      status.value = RemoteSessionStatus.disconnected;
+      return;
+    }
     _manualStop = false;
     _starting = true;
     status.value = RemoteSessionStatus.connecting;

@@ -24,6 +24,7 @@ class UiRemoteDevice extends StatefulWidget {
     this.session,
     this.deviceName = 'Remote Device',
     this.online = false,
+    this.compact = false,
     this.trackpad = false,
     this.softKeyboard = false,
   });
@@ -31,6 +32,7 @@ class UiRemoteDevice extends StatefulWidget {
   final RemoteSession? session;
   final String deviceName;
   final bool online;
+  final bool compact;
   final bool trackpad;
   final bool softKeyboard;
 
@@ -66,6 +68,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
   Future<void> _connect() async {
     final sess = widget.session;
     if (sess == null) return;
+    if (!sess.conn.connected) return;
     if (sess.connected.value || _connecting) return;
     setState(() {
       _connecting = true;
@@ -205,7 +208,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
         valueListenable: sess.isControlEnabled,
         builder: (context, controlEnabled, _) => Column(
           children: [
-            _buildToolbar(sess, connected, controlEnabled),
+            if (!widget.compact || connected) _buildToolbar(sess, connected, controlEnabled),
             if (!controlEnabled && connected) _buildViewOnlyNotice(sess),
             Expanded(
               child: Padding(
@@ -229,57 +232,6 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
       ),
       child: Row(
         children: [
-          // Connection status dot + label
-          ValueListenableBuilder<RemoteSessionStatus>(
-            valueListenable: sess.status,
-            builder: (context, status, _) {
-              Color dotColor;
-              String label;
-              switch (status) {
-                case RemoteSessionStatus.connected:
-                  dotColor = _emerald;
-                  label = 'P2P Direct';
-                  break;
-                case RemoteSessionStatus.connecting:
-                  dotColor = _amber;
-                  label = 'Connecting…';
-                  break;
-                case RemoteSessionStatus.reconnecting:
-                  dotColor = _amber;
-                  label = 'Reconnecting…';
-                  break;
-                case RemoteSessionStatus.pausedIdle:
-                  dotColor = _amber;
-                  label = 'Paused (1m Idle)';
-                  break;
-                case RemoteSessionStatus.failed:
-                  dotColor = _red;
-                  label = 'Connection Failed';
-                  break;
-                case RemoteSessionStatus.disconnected:
-                  dotColor = _zinc500;
-                  label = 'Disconnected';
-                  break;
-              }
-              return Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    label,
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: dotColor),
-                  ),
-                ],
-              );
-            },
-          ),
-          const SizedBox(width: 12),
-
           // Resolution / FPS
           ValueListenableBuilder<RemoteScreenFrame?>(
             valueListenable: sess.screenFrame,
@@ -532,6 +484,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                 valueListenable: sess.screenFrame,
                 builder: (context, frame, _) {
                   if (!connected || (!hasVideoTrack && frame == null)) {
+                    final linking = sess.conn.connected && (sess.isLinking || _connecting);
                     return Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -539,15 +492,19 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                           Icon(
                             Icons.desktop_windows_outlined,
                             size: 56,
-                            color: _connecting ? _amber : const Color(0xFF3F3F46),
+                            color: linking ? _amber : const Color(0xFF3F3F46),
                           ),
                           const SizedBox(height: 12),
                           Text(
                             _error != null
                                 ? 'Connection Error: $_error'
-                                : (_connecting
-                                    ? 'Connecting to ${widget.deviceName}…'
-                                    : 'Screen stream idle. Click Reconnect above to start.'),
+                                : (!sess.conn.connected
+                                    ? 'Server offline. Reconnect when signed in.'
+                                    : linking
+                                        ? 'Connecting to ${widget.deviceName}…'
+                                        : widget.compact
+                                            ? 'Screen stream idle. Tap Reconnect beside the status badge.'
+                                            : 'Screen stream idle. Click Reconnect above to start.'),
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 13,

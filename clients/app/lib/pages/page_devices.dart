@@ -126,7 +126,7 @@ class _PageDevicesState extends State<PageDevices> {
                           onSecondaryTapDown: (d) => _rowMenu(sid, d.globalPosition),
                           onLongPress: () => _rowMenu(sid, Offset(MediaQuery.sizeOf(context).width / 2, 200)),
                           child: ListenableBuilder(
-                            listenable: session.connected,
+                            listenable: Listenable.merge([session.connected, session.status]),
                             builder: (context, _) => UiDeviceRow(
                               name: id.name.isNotEmpty ? id.name : id.type,
                               kind: id.kind,
@@ -134,6 +134,7 @@ class _PageDevicesState extends State<PageDevices> {
                               pinned: row.isPinned,
                               clusterOnline: deviceOnlineFromMeta(id.metaJson),
                               webrtcConnected: session.connected.value,
+                              webrtcConnecting: session.isLinking,
                               selected: _store.selectedId == sid,
                               onTap: () => _store.select(sid),
                             ),

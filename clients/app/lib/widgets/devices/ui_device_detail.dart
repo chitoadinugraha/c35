@@ -54,7 +54,7 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> {
     super.initState();
     _session = RemoteSession.of(widget.chatConn, widget.row.identity.iid.toInt());
     _filesSearchCtrl.addListener(() => setState(() => _filesSearchQuery = _filesSearchCtrl.text));
-    if (widget.row.identity.kind.toLowerCase() == 'remote' && !_session.connected.value) {
+    if (widget.row.identity.kind.toLowerCase() == 'remote' && widget.chatConn.connected && !_session.connected.value) {
       _session.start().catchError((e) {
         lError('device detail auto-connect failed: $e');
       });
@@ -130,8 +130,25 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> {
                             ),
                           if (isRemote) ...[
                             ListenableBuilder(
-                              listenable: Listenable.merge([_session.connected, _session.mode]),
-                              builder: (context, _) => _remoteBadge(online, _session),
+                              listenable: Listenable.merge([_session.connected, _session.mode, _session.status]),
+                              builder: (context, _) {
+                                final badge = _remoteBadge(online, _session);
+                                if (mobile && !_session.connected.value && widget.chatConn.connected) {
+                                  return Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      badge,
+                                      const SizedBox(width: 6),
+                                      _toolBtn(
+                                        icon: Icons.refresh_rounded,
+                                        tooltip: 'Reconnect',
+                                        onPressed: () => _session.start().catchError((e) => lError('device reconnect: $e')),
+                                      ),
+                                    ],
+                                  );
+                                }
+                                return badge;
+                              },
                             ),
                             const SizedBox(width: 12),
                             _toolBtn(
@@ -210,6 +227,7 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> {
         session: _session,
         deviceName: widget.row.identity.name,
         online: online,
+        compact: _isMobile(context),
         trackpad: _trackpad,
         softKeyboard: _softKeyboard,
       );
@@ -282,6 +300,9 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> {
       );
 
   Widget _remoteBadge(bool clusterOnline, RemoteSession session) {
+    if (!widget.chatConn.connected) {
+      return _pillBadge('Offline', fg: _muted, bg: const Color(0xFF27272A), border: const Color(0xFF3F3F46));
+    }
     if (session.connected.value) {
       final relay = session.mode.value == RemoteConnectionMode.REMOTE_CONNECTION_MODE_RELAY;
       final label = relay ? 'Relay' : 'Direct';
@@ -289,6 +310,9 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> {
       final bg = relay ? const Color(0xFF422006) : const Color(0xFF14532D);
       final border = relay ? const Color(0xFFF59E0B) : const Color(0xFF22C55E);
       return _pillBadge(label, fg: fg, bg: bg, border: border);
+    }
+    if (session.isLinking) {
+      return _pillBadge('Connecting…', fg: const Color(0xFFFDE68A), bg: const Color(0xFF422006), border: const Color(0xFFF59E0B));
     }
     return _pillBadge(clusterOnline ? 'Online' : 'Offline', fg: clusterOnline ? const Color(0xFF86EFAC) : _muted, bg: clusterOnline ? const Color(0xFF14532D) : const Color(0xFF27272A), border: clusterOnline ? const Color(0xFF22C55E) : const Color(0xFF3F3F46));
   }

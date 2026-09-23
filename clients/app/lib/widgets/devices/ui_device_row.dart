@@ -13,6 +13,7 @@ class UiDeviceRow extends StatelessWidget {
     this.pinned = false,
     this.clusterOnline = false,
     this.webrtcConnected = false,
+    this.webrtcConnecting = false,
     this.selected = false,
     this.onTap,
   });
@@ -25,6 +26,7 @@ class UiDeviceRow extends StatelessWidget {
   final bool clusterOnline;
   /// WebRTC data plane: app ↔ device (screen, files, media — P2P or TURN).
   final bool webrtcConnected;
+  final bool webrtcConnecting;
   final bool selected;
   final VoidCallback? onTap;
 
@@ -80,10 +82,26 @@ class UiDeviceRow extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _dot(webrtcConnected, 'Direct link (WebRTC)'),
+        _webrtcDot(),
         const SizedBox(width: 5),
         _dot(clusterOnline, 'Agent (cluster)'),
       ],
+    );
+  }
+
+  Widget _webrtcDot() {
+    final (color, border, tooltip) = webrtcConnected
+        ? (const Color(0xFF22C55E), const Color(0xFF14532D), 'Direct link (WebRTC)')
+        : webrtcConnecting
+            ? (const Color(0xFFF59E0B), const Color(0xFF78350F), 'Connecting (WebRTC)')
+            : (const Color(0xFF3F3F46), const Color(0xFF27272A), 'Direct link (WebRTC)');
+    return uiTooltip(
+      message: tooltip,
+      child: Container(
+        width: 8,
+        height: 8,
+        decoration: BoxDecoration(shape: BoxShape.circle, color: color, border: Border.all(color: border)),
+      ),
     );
   }
 
