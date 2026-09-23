@@ -94,6 +94,22 @@ pub async fn receive_account_put_access(pool: &PgPool, viewer_iid: i64) -> Resul
     }
 }
 
+pub async fn billing_admin_adjust_access(pool: &PgPool, viewer_iid: i64) -> Result<(), FinanceError> {
+    if viewer_iid == 99_000 {
+        return Ok(());
+    }
+    let meta = viewer_meta(pool, viewer_iid).await?;
+    if meta.get("is_root").and_then(|v| v.as_bool()).unwrap_or(false) {
+        return Ok(());
+    }
+    let roles = global_roles(&meta);
+    if roles.contains("director") || roles.contains("root") {
+        Ok(())
+    } else {
+        Err(FinanceError::forbidden())
+    }
+}
+
 fn ts_ms(dt: Option<chrono::DateTime<chrono::Utc>>) -> i64 {
     dt.map(|t| t.timestamp_millis()).unwrap_or(0)
 }

@@ -93,9 +93,18 @@ message ReqReferralUserStats {
   ReferralStatPeriod col_b = 3;
 }
 
+message ReferralUserWalletSnapshot {
+  double balance_idr = 1;
+  double balance_usd = 2;
+  double commission_available_idr = 3;
+  double commission_available_usd = 4;
+  string billing_currency = 5;
+}
+
 message ResReferralUserStats {
   ReferralUserStatColumn col_a = 1;
   ReferralUserStatColumn col_b = 2;
+  ReferralUserWalletSnapshot wallet = 3;
 }
 
 message ReferralCommissionLevel {

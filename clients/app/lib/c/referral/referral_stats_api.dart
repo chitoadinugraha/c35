@@ -5,7 +5,11 @@ import 'package:alienai_c35/c/referral/referral_period.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:uuid/uuid.dart';
 
-typedef ReferralUserStatsRow = ({ReferralUserStatColumn colA, ReferralUserStatColumn colB});
+typedef ReferralUserStatsRow = ({
+  ReferralUserStatColumn colA,
+  ReferralUserStatColumn colB,
+  ReferralUserWalletSnapshot? wallet,
+});
 
 // ignore: unintended_html_in_doc_comment
 /// Fetches referral + token stats for two date columns in one RPC round-trip.
@@ -33,5 +37,6 @@ Future<ReferralUserStatsRow> referralUserStatsGet(
   return (
     colA: body.hasColA() ? body.colA : ReferralUserStatColumn(),
     colB: body.hasColB() ? body.colB : ReferralUserStatColumn(),
+    wallet: body.hasWallet() ? body.wallet : null,
   );
 }

@@ -77,6 +77,8 @@ message InvokeReq {
     ReqObjectNormalizerList object_normalizer_list = 121;
     ReqBillingTopupMethods billing_topup_methods = 122;
     ReqBillingTopupGet billing_topup_get = 123;
+    ReqBillingAdminAdjust billing_admin_adjust = 124;
+    ReqBillingAdminAdjustList billing_admin_adjust_list = 125;
   }
 }
 
@@ -129,6 +131,8 @@ message InvokeRes {
     ResObjectNormalizerList object_normalizer_list = 121;
     ResBillingTopupMethods billing_topup_methods = 122;
     ResBillingTopupGet billing_topup_get = 123;
+    ResBillingAdminAdjust billing_admin_adjust = 124;
+    ResBillingAdminAdjustList billing_admin_adjust_list = 125;
   }
 }
 

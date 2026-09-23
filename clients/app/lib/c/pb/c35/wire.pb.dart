@@ -87,6 +87,8 @@ enum InvokeReq_Body {
   objectNormalizerList,
   billingTopupMethods,
   billingTopupGet,
+  billingAdminAdjust,
+  billingAdminAdjustList,
   notSet
 }
 
@@ -139,6 +141,8 @@ class InvokeReq extends $pb.GeneratedMessage {
     $9.ReqObjectNormalizerList? objectNormalizerList,
     $0.ReqBillingTopupMethods? billingTopupMethods,
     $0.ReqBillingTopupGet? billingTopupGet,
+    $0.ReqBillingAdminAdjust? billingAdminAdjust,
+    $0.ReqBillingAdminAdjustList? billingAdminAdjustList,
   }) {
     final result = InvokeReq._();
     if (reqId != null) result.reqId = reqId;
@@ -206,6 +210,10 @@ class InvokeReq extends $pb.GeneratedMessage {
     if (billingTopupMethods != null)
       result.billingTopupMethods = billingTopupMethods;
     if (billingTopupGet != null) result.billingTopupGet = billingTopupGet;
+    if (billingAdminAdjust != null)
+      result.billingAdminAdjust = billingAdminAdjust;
+    if (billingAdminAdjustList != null)
+      result.billingAdminAdjustList = billingAdminAdjustList;
     return result;
   }
 
@@ -263,6 +271,8 @@ class InvokeReq extends $pb.GeneratedMessage {
     121: InvokeReq_Body.objectNormalizerList,
     122: InvokeReq_Body.billingTopupMethods,
     123: InvokeReq_Body.billingTopupGet,
+    124: InvokeReq_Body.billingAdminAdjust,
+    125: InvokeReq_Body.billingAdminAdjustList,
     0: InvokeReq_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -313,7 +323,9 @@ class InvokeReq extends $pb.GeneratedMessage {
       120,
       121,
       122,
-      123
+      123,
+      124,
+      125
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aInt64(2, _omitFieldNames ? '' : 'callerIid')
@@ -426,6 +438,12 @@ class InvokeReq extends $pb.GeneratedMessage {
         subBuilder: $0.ReqBillingTopupMethods.$_createMessage)
     ..aOM<$0.ReqBillingTopupGet>(123, _omitFieldNames ? '' : 'billingTopupGet',
         subBuilder: $0.ReqBillingTopupGet.$_createMessage)
+    ..aOM<$0.ReqBillingAdminAdjust>(
+        124, _omitFieldNames ? '' : 'billingAdminAdjust',
+        subBuilder: $0.ReqBillingAdminAdjust.$_createMessage)
+    ..aOM<$0.ReqBillingAdminAdjustList>(
+        125, _omitFieldNames ? '' : 'billingAdminAdjustList',
+        subBuilder: $0.ReqBillingAdminAdjustList.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -492,6 +510,8 @@ class InvokeReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(121)
   @$pb.TagNumber(122)
   @$pb.TagNumber(123)
+  @$pb.TagNumber(124)
+  @$pb.TagNumber(125)
   InvokeReq_Body whichBody() => _InvokeReq_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(10)
   @$pb.TagNumber(11)
@@ -537,6 +557,8 @@ class InvokeReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(121)
   @$pb.TagNumber(122)
   @$pb.TagNumber(123)
+  @$pb.TagNumber(124)
+  @$pb.TagNumber(125)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -1064,6 +1086,30 @@ class InvokeReq extends $pb.GeneratedMessage {
   void clearBillingTopupGet() => $_clearField(123);
   @$pb.TagNumber(123)
   $0.ReqBillingTopupGet ensureBillingTopupGet() => $_ensure(45);
+
+  @$pb.TagNumber(124)
+  $0.ReqBillingAdminAdjust get billingAdminAdjust => $_getN(46);
+  @$pb.TagNumber(124)
+  set billingAdminAdjust($0.ReqBillingAdminAdjust value) =>
+      $_setField(124, value);
+  @$pb.TagNumber(124)
+  $core.bool hasBillingAdminAdjust() => $_has(46);
+  @$pb.TagNumber(124)
+  void clearBillingAdminAdjust() => $_clearField(124);
+  @$pb.TagNumber(124)
+  $0.ReqBillingAdminAdjust ensureBillingAdminAdjust() => $_ensure(46);
+
+  @$pb.TagNumber(125)
+  $0.ReqBillingAdminAdjustList get billingAdminAdjustList => $_getN(47);
+  @$pb.TagNumber(125)
+  set billingAdminAdjustList($0.ReqBillingAdminAdjustList value) =>
+      $_setField(125, value);
+  @$pb.TagNumber(125)
+  $core.bool hasBillingAdminAdjustList() => $_has(47);
+  @$pb.TagNumber(125)
+  void clearBillingAdminAdjustList() => $_clearField(125);
+  @$pb.TagNumber(125)
+  $0.ReqBillingAdminAdjustList ensureBillingAdminAdjustList() => $_ensure(47);
 }
 
 enum InvokeRes_Body {
@@ -1110,6 +1156,8 @@ enum InvokeRes_Body {
   objectNormalizerList,
   billingTopupMethods,
   billingTopupGet,
+  billingAdminAdjust,
+  billingAdminAdjustList,
   notSet
 }
 
@@ -1161,6 +1209,8 @@ class InvokeRes extends $pb.GeneratedMessage {
     $9.ResObjectNormalizerList? objectNormalizerList,
     $0.ResBillingTopupMethods? billingTopupMethods,
     $0.ResBillingTopupGet? billingTopupGet,
+    $0.ResBillingAdminAdjust? billingAdminAdjust,
+    $0.ResBillingAdminAdjustList? billingAdminAdjustList,
   }) {
     final result = InvokeRes._();
     if (reqId != null) result.reqId = reqId;
@@ -1227,6 +1277,10 @@ class InvokeRes extends $pb.GeneratedMessage {
     if (billingTopupMethods != null)
       result.billingTopupMethods = billingTopupMethods;
     if (billingTopupGet != null) result.billingTopupGet = billingTopupGet;
+    if (billingAdminAdjust != null)
+      result.billingAdminAdjust = billingAdminAdjust;
+    if (billingAdminAdjustList != null)
+      result.billingAdminAdjustList = billingAdminAdjustList;
     return result;
   }
 
@@ -1283,6 +1337,8 @@ class InvokeRes extends $pb.GeneratedMessage {
     121: InvokeRes_Body.objectNormalizerList,
     122: InvokeRes_Body.billingTopupMethods,
     123: InvokeRes_Body.billingTopupGet,
+    124: InvokeRes_Body.billingAdminAdjust,
+    125: InvokeRes_Body.billingAdminAdjustList,
     0: InvokeRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -1332,7 +1388,9 @@ class InvokeRes extends $pb.GeneratedMessage {
       120,
       121,
       122,
-      123
+      123,
+      124,
+      125
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aI(2, _omitFieldNames ? '' : 'statusCode')
@@ -1443,6 +1501,12 @@ class InvokeRes extends $pb.GeneratedMessage {
         subBuilder: $0.ResBillingTopupMethods.$_createMessage)
     ..aOM<$0.ResBillingTopupGet>(123, _omitFieldNames ? '' : 'billingTopupGet',
         subBuilder: $0.ResBillingTopupGet.$_createMessage)
+    ..aOM<$0.ResBillingAdminAdjust>(
+        124, _omitFieldNames ? '' : 'billingAdminAdjust',
+        subBuilder: $0.ResBillingAdminAdjust.$_createMessage)
+    ..aOM<$0.ResBillingAdminAdjustList>(
+        125, _omitFieldNames ? '' : 'billingAdminAdjustList',
+        subBuilder: $0.ResBillingAdminAdjustList.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1508,6 +1572,8 @@ class InvokeRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(121)
   @$pb.TagNumber(122)
   @$pb.TagNumber(123)
+  @$pb.TagNumber(124)
+  @$pb.TagNumber(125)
   InvokeRes_Body whichBody() => _InvokeRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(10)
   @$pb.TagNumber(11)
@@ -1552,6 +1618,8 @@ class InvokeRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(121)
   @$pb.TagNumber(122)
   @$pb.TagNumber(123)
+  @$pb.TagNumber(124)
+  @$pb.TagNumber(125)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -2076,6 +2144,30 @@ class InvokeRes extends $pb.GeneratedMessage {
   void clearBillingTopupGet() => $_clearField(123);
   @$pb.TagNumber(123)
   $0.ResBillingTopupGet ensureBillingTopupGet() => $_ensure(45);
+
+  @$pb.TagNumber(124)
+  $0.ResBillingAdminAdjust get billingAdminAdjust => $_getN(46);
+  @$pb.TagNumber(124)
+  set billingAdminAdjust($0.ResBillingAdminAdjust value) =>
+      $_setField(124, value);
+  @$pb.TagNumber(124)
+  $core.bool hasBillingAdminAdjust() => $_has(46);
+  @$pb.TagNumber(124)
+  void clearBillingAdminAdjust() => $_clearField(124);
+  @$pb.TagNumber(124)
+  $0.ResBillingAdminAdjust ensureBillingAdminAdjust() => $_ensure(46);
+
+  @$pb.TagNumber(125)
+  $0.ResBillingAdminAdjustList get billingAdminAdjustList => $_getN(47);
+  @$pb.TagNumber(125)
+  set billingAdminAdjustList($0.ResBillingAdminAdjustList value) =>
+      $_setField(125, value);
+  @$pb.TagNumber(125)
+  $core.bool hasBillingAdminAdjustList() => $_has(47);
+  @$pb.TagNumber(125)
+  void clearBillingAdminAdjustList() => $_clearField(125);
+  @$pb.TagNumber(125)
+  $0.ResBillingAdminAdjustList ensureBillingAdminAdjustList() => $_ensure(47);
 }
 
 enum WsReq_Body {

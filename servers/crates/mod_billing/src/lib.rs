@@ -1,3 +1,4 @@
+mod billing_admin_adjust;
 mod billing_account_get;
 mod billing_cost;
 mod fetch_fx;
@@ -26,6 +27,7 @@ mod bot_usage;
 pub use billing_account_get::billing_account_get;
 pub use billing_cost::{
     billing_cost_usd, billing_cost_wholesale_usd, billing_to_retail_usd, billing_tool_cost_usd,
+    image_tool_retail_usd, image_tool_wholesale_usd,
     IMAGE_GEN_RETAIL_USD, IMAGE_GEN_WHOLESALE_USD, RETAIL_MARKUP, VOICE_STT_HOLD_USD,
     VOICE_STT_USD_PER_MIN, VOICE_TTS_HOLD_USD, VOICE_TTS_USD_PER_1K_CHARS,
 };
@@ -54,8 +56,11 @@ pub use billing_history::billing_history;
 pub use billing_push::billing_notify_owner;
 pub use billing_summary::billing_summary;
 pub use billing_finance::{
-    billing_topup_list, billing_topup_review, commission_withdraw_list, commission_withdraw_review,
-    FinanceError,
+    billing_admin_adjust_access, billing_topup_list, billing_topup_review, commission_withdraw_list,
+    commission_withdraw_review, FinanceError,
+};
+pub use billing_admin_adjust::{
+    billing_admin_adjust, billing_admin_adjust_list, ADMIN_ADJUST_REASONS,
 };
 pub use billing_receive_account::{receive_account_list, receive_account_put};
 pub use fetch_fx::{fx_change_bps, fx_markup_apply, fx_micro_from_idr, FxRateFetchTask};

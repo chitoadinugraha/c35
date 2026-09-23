@@ -1228,14 +1228,128 @@ class ReqReferralUserStats extends $pb.GeneratedMessage {
   ReferralStatPeriod ensureColB() => $_ensure(2);
 }
 
+class ReferralUserWalletSnapshot extends $pb.GeneratedMessage {
+  factory ReferralUserWalletSnapshot({
+    $core.double? balanceIdr,
+    $core.double? balanceUsd,
+    $core.double? commissionAvailableIdr,
+    $core.double? commissionAvailableUsd,
+    $core.String? billingCurrency,
+  }) {
+    final result = ReferralUserWalletSnapshot._();
+    if (balanceIdr != null) result.balanceIdr = balanceIdr;
+    if (balanceUsd != null) result.balanceUsd = balanceUsd;
+    if (commissionAvailableIdr != null)
+      result.commissionAvailableIdr = commissionAvailableIdr;
+    if (commissionAvailableUsd != null)
+      result.commissionAvailableUsd = commissionAvailableUsd;
+    if (billingCurrency != null) result.billingCurrency = billingCurrency;
+    return result;
+  }
+
+  ReferralUserWalletSnapshot._();
+
+  factory ReferralUserWalletSnapshot.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReferralUserWalletSnapshot()..mergeFromBuffer(data, registry);
+  factory ReferralUserWalletSnapshot.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReferralUserWalletSnapshot()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReferralUserWalletSnapshot',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReferralUserWalletSnapshot.$_createMessage)
+    ..aD(1, _omitFieldNames ? '' : 'balanceIdr')
+    ..aD(2, _omitFieldNames ? '' : 'balanceUsd')
+    ..aD(3, _omitFieldNames ? '' : 'commissionAvailableIdr')
+    ..aD(4, _omitFieldNames ? '' : 'commissionAvailableUsd')
+    ..aOS(5, _omitFieldNames ? '' : 'billingCurrency')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReferralUserWalletSnapshot clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReferralUserWalletSnapshot copyWith(
+          void Function(ReferralUserWalletSnapshot) updates) =>
+      super.copyWith(
+              (message) => updates(message as ReferralUserWalletSnapshot))
+          as ReferralUserWalletSnapshot;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReferralUserWalletSnapshot() / ReferralUserWalletSnapshot.new instead')
+  static ReferralUserWalletSnapshot create() => ReferralUserWalletSnapshot._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ReferralUserWalletSnapshot._();
+  @$core.override
+  ReferralUserWalletSnapshot createEmptyInstance() =>
+      ReferralUserWalletSnapshot._();
+  @$core.pragma('dart2js:noInline')
+  static ReferralUserWalletSnapshot getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReferralUserWalletSnapshot>(
+          ReferralUserWalletSnapshot.$_createMessage);
+  static ReferralUserWalletSnapshot? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.double get balanceIdr => $_getN(0);
+  @$pb.TagNumber(1)
+  set balanceIdr($core.double value) => $_setDouble(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasBalanceIdr() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearBalanceIdr() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.double get balanceUsd => $_getN(1);
+  @$pb.TagNumber(2)
+  set balanceUsd($core.double value) => $_setDouble(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasBalanceUsd() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearBalanceUsd() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.double get commissionAvailableIdr => $_getN(2);
+  @$pb.TagNumber(3)
+  set commissionAvailableIdr($core.double value) => $_setDouble(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasCommissionAvailableIdr() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearCommissionAvailableIdr() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.double get commissionAvailableUsd => $_getN(3);
+  @$pb.TagNumber(4)
+  set commissionAvailableUsd($core.double value) => $_setDouble(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasCommissionAvailableUsd() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearCommissionAvailableUsd() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get billingCurrency => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set billingCurrency($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasBillingCurrency() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearBillingCurrency() => $_clearField(5);
+}
+
 class ResReferralUserStats extends $pb.GeneratedMessage {
   factory ResReferralUserStats({
     ReferralUserStatColumn? colA,
     ReferralUserStatColumn? colB,
+    ReferralUserWalletSnapshot? wallet,
   }) {
     final result = ResReferralUserStats._();
     if (colA != null) result.colA = colA;
     if (colB != null) result.colB = colB;
+    if (wallet != null) result.wallet = wallet;
     return result;
   }
 
@@ -1256,6 +1370,8 @@ class ResReferralUserStats extends $pb.GeneratedMessage {
         subBuilder: ReferralUserStatColumn.$_createMessage)
     ..aOM<ReferralUserStatColumn>(2, _omitFieldNames ? '' : 'colB',
         subBuilder: ReferralUserStatColumn.$_createMessage)
+    ..aOM<ReferralUserWalletSnapshot>(3, _omitFieldNames ? '' : 'wallet',
+        subBuilder: ReferralUserWalletSnapshot.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1302,6 +1418,17 @@ class ResReferralUserStats extends $pb.GeneratedMessage {
   void clearColB() => $_clearField(2);
   @$pb.TagNumber(2)
   ReferralUserStatColumn ensureColB() => $_ensure(1);
+
+  @$pb.TagNumber(3)
+  ReferralUserWalletSnapshot get wallet => $_getN(2);
+  @$pb.TagNumber(3)
+  set wallet(ReferralUserWalletSnapshot value) => $_setField(3, value);
+  @$pb.TagNumber(3)
+  $core.bool hasWallet() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearWallet() => $_clearField(3);
+  @$pb.TagNumber(3)
+  ReferralUserWalletSnapshot ensureWallet() => $_ensure(2);
 }
 
 class ReferralCommissionLevel extends $pb.GeneratedMessage {

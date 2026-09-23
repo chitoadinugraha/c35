@@ -300,6 +300,38 @@ final $typed_data.Uint8List reqReferralUserStatsDescriptor = $convert.base64Deco
     'IsCgVjb2xfYRgCIAEoCzIXLmMzNS5SZWZlcnJhbFN0YXRQZXJpb2RSBGNvbEESLAoFY29sX2IY'
     'AyABKAsyFy5jMzUuUmVmZXJyYWxTdGF0UGVyaW9kUgRjb2xC');
 
+@$core.Deprecated('Use referralUserWalletSnapshotDescriptor instead')
+const ReferralUserWalletSnapshot$json = {
+  '1': 'ReferralUserWalletSnapshot',
+  '2': [
+    {'1': 'balance_idr', '3': 1, '4': 1, '5': 1, '10': 'balanceIdr'},
+    {'1': 'balance_usd', '3': 2, '4': 1, '5': 1, '10': 'balanceUsd'},
+    {
+      '1': 'commission_available_idr',
+      '3': 3,
+      '4': 1,
+      '5': 1,
+      '10': 'commissionAvailableIdr'
+    },
+    {
+      '1': 'commission_available_usd',
+      '3': 4,
+      '4': 1,
+      '5': 1,
+      '10': 'commissionAvailableUsd'
+    },
+    {'1': 'billing_currency', '3': 5, '4': 1, '5': 9, '10': 'billingCurrency'},
+  ],
+};
+
+/// Descriptor for `ReferralUserWalletSnapshot`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List referralUserWalletSnapshotDescriptor = $convert.base64Decode(
+    'ChpSZWZlcnJhbFVzZXJXYWxsZXRTbmFwc2hvdBIfCgtiYWxhbmNlX2lkchgBIAEoAVIKYmFsYW'
+    '5jZUlkchIfCgtiYWxhbmNlX3VzZBgCIAEoAVIKYmFsYW5jZVVzZBI4Chhjb21taXNzaW9uX2F2'
+    'YWlsYWJsZV9pZHIYAyABKAFSFmNvbW1pc3Npb25BdmFpbGFibGVJZHISOAoYY29tbWlzc2lvbl'
+    '9hdmFpbGFibGVfdXNkGAQgASgBUhZjb21taXNzaW9uQXZhaWxhYmxlVXNkEikKEGJpbGxpbmdf'
+    'Y3VycmVuY3kYBSABKAlSD2JpbGxpbmdDdXJyZW5jeQ==');
+
 @$core.Deprecated('Use resReferralUserStatsDescriptor instead')
 const ResReferralUserStats$json = {
   '1': 'ResReferralUserStats',
@@ -320,6 +352,14 @@ const ResReferralUserStats$json = {
       '6': '.c35.ReferralUserStatColumn',
       '10': 'colB'
     },
+    {
+      '1': 'wallet',
+      '3': 3,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReferralUserWalletSnapshot',
+      '10': 'wallet'
+    },
   ],
 };
 
@@ -327,7 +367,8 @@ const ResReferralUserStats$json = {
 final $typed_data.Uint8List resReferralUserStatsDescriptor = $convert.base64Decode(
     'ChRSZXNSZWZlcnJhbFVzZXJTdGF0cxIwCgVjb2xfYRgBIAEoCzIbLmMzNS5SZWZlcnJhbFVzZX'
     'JTdGF0Q29sdW1uUgRjb2xBEjAKBWNvbF9iGAIgASgLMhsuYzM1LlJlZmVycmFsVXNlclN0YXRD'
-    'b2x1bW5SBGNvbEI=');
+    'b2x1bW5SBGNvbEISNwoGd2FsbGV0GAMgASgLMh8uYzM1LlJlZmVycmFsVXNlcldhbGxldFNuYX'
+    'BzaG90UgZ3YWxsZXQ=');
 
 @$core.Deprecated('Use referralCommissionLevelDescriptor instead')
 const ReferralCommissionLevel$json = {

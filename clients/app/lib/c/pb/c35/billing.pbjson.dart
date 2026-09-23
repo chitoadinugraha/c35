@@ -1673,6 +1673,159 @@ final $typed_data.Uint8List resBillingPromotionListDescriptor =
         'ChdSZXNCaWxsaW5nUHJvbW90aW9uTGlzdBIrCgVpdGVtcxgBIAMoCzIVLmMzNS5CaWxsaW5nUH'
         'JvbW90aW9uUgVpdGVtcw==');
 
+@$core.Deprecated('Use billingAdminAdjustReasonTotalDescriptor instead')
+const BillingAdminAdjustReasonTotal$json = {
+  '1': 'BillingAdminAdjustReasonTotal',
+  '2': [
+    {'1': 'reason', '3': 1, '4': 1, '5': 9, '10': 'reason'},
+    {'1': 'amount_idr', '3': 2, '4': 1, '5': 1, '10': 'amountIdr'},
+    {'1': 'amount_usd', '3': 3, '4': 1, '5': 1, '10': 'amountUsd'},
+    {'1': 'count', '3': 4, '4': 1, '5': 5, '10': 'count'},
+  ],
+};
+
+/// Descriptor for `BillingAdminAdjustReasonTotal`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List billingAdminAdjustReasonTotalDescriptor =
+    $convert.base64Decode(
+        'Ch1CaWxsaW5nQWRtaW5BZGp1c3RSZWFzb25Ub3RhbBIWCgZyZWFzb24YASABKAlSBnJlYXNvbh'
+        'IdCgphbW91bnRfaWRyGAIgASgBUglhbW91bnRJZHISHQoKYW1vdW50X3VzZBgDIAEoAVIJYW1v'
+        'dW50VXNkEhQKBWNvdW50GAQgASgFUgVjb3VudA==');
+
+@$core.Deprecated('Use billingAdminAdjustEntryDescriptor instead')
+const BillingAdminAdjustEntry$json = {
+  '1': 'BillingAdminAdjustEntry',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 3, '10': 'id'},
+    {'1': 'owner_iid', '3': 2, '4': 1, '5': 3, '10': 'ownerIid'},
+    {'1': 'kind', '3': 3, '4': 1, '5': 9, '10': 'kind'},
+    {'1': 'amount_usd', '3': 4, '4': 1, '5': 1, '10': 'amountUsd'},
+    {'1': 'amount_idr', '3': 5, '4': 1, '5': 1, '10': 'amountIdr'},
+    {'1': 'currency', '3': 6, '4': 1, '5': 9, '10': 'currency'},
+    {'1': 'direction', '3': 7, '4': 1, '5': 9, '10': 'direction'},
+    {'1': 'reason', '3': 8, '4': 1, '5': 9, '10': 'reason'},
+    {'1': 'note', '3': 9, '4': 1, '5': 9, '10': 'note'},
+    {'1': 'adjusted_by_iid', '3': 10, '4': 1, '5': 3, '10': 'adjustedByIid'},
+    {'1': 'adjusted_by_name', '3': 11, '4': 1, '5': 9, '10': 'adjustedByName'},
+    {'1': 'created_ts_ms', '3': 12, '4': 1, '5': 3, '10': 'createdTsMs'},
+    {'1': 'owner_name', '3': 13, '4': 1, '5': 9, '10': 'ownerName'},
+  ],
+};
+
+/// Descriptor for `BillingAdminAdjustEntry`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List billingAdminAdjustEntryDescriptor = $convert.base64Decode(
+    'ChdCaWxsaW5nQWRtaW5BZGp1c3RFbnRyeRIOCgJpZBgBIAEoA1ICaWQSGwoJb3duZXJfaWlkGA'
+    'IgASgDUghvd25lcklpZBISCgRraW5kGAMgASgJUgRraW5kEh0KCmFtb3VudF91c2QYBCABKAFS'
+    'CWFtb3VudFVzZBIdCgphbW91bnRfaWRyGAUgASgBUglhbW91bnRJZHISGgoIY3VycmVuY3kYBi'
+    'ABKAlSCGN1cnJlbmN5EhwKCWRpcmVjdGlvbhgHIAEoCVIJZGlyZWN0aW9uEhYKBnJlYXNvbhgI'
+    'IAEoCVIGcmVhc29uEhIKBG5vdGUYCSABKAlSBG5vdGUSJgoPYWRqdXN0ZWRfYnlfaWlkGAogAS'
+    'gDUg1hZGp1c3RlZEJ5SWlkEigKEGFkanVzdGVkX2J5X25hbWUYCyABKAlSDmFkanVzdGVkQnlO'
+    'YW1lEiIKDWNyZWF0ZWRfdHNfbXMYDCABKANSC2NyZWF0ZWRUc01zEh0KCm93bmVyX25hbWUYDS'
+    'ABKAlSCW93bmVyTmFtZQ==');
+
+@$core.Deprecated('Use reqBillingAdminAdjustDescriptor instead')
+const ReqBillingAdminAdjust$json = {
+  '1': 'ReqBillingAdminAdjust',
+  '2': [
+    {'1': 'subject_uid', '3': 1, '4': 1, '5': 3, '10': 'subjectUid'},
+    {'1': 'kind', '3': 2, '4': 1, '5': 9, '10': 'kind'},
+    {'1': 'direction', '3': 3, '4': 1, '5': 9, '10': 'direction'},
+    {'1': 'amount_idr', '3': 4, '4': 1, '5': 1, '10': 'amountIdr'},
+    {'1': 'amount_usd', '3': 5, '4': 1, '5': 1, '10': 'amountUsd'},
+    {'1': 'currency', '3': 6, '4': 1, '5': 9, '10': 'currency'},
+    {'1': 'reason', '3': 7, '4': 1, '5': 9, '10': 'reason'},
+    {'1': 'note', '3': 8, '4': 1, '5': 9, '10': 'note'},
+  ],
+};
+
+/// Descriptor for `ReqBillingAdminAdjust`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqBillingAdminAdjustDescriptor = $convert.base64Decode(
+    'ChVSZXFCaWxsaW5nQWRtaW5BZGp1c3QSHwoLc3ViamVjdF91aWQYASABKANSCnN1YmplY3RVaW'
+    'QSEgoEa2luZBgCIAEoCVIEa2luZBIcCglkaXJlY3Rpb24YAyABKAlSCWRpcmVjdGlvbhIdCgph'
+    'bW91bnRfaWRyGAQgASgBUglhbW91bnRJZHISHQoKYW1vdW50X3VzZBgFIAEoAVIJYW1vdW50VX'
+    'NkEhoKCGN1cnJlbmN5GAYgASgJUghjdXJyZW5jeRIWCgZyZWFzb24YByABKAlSBnJlYXNvbhIS'
+    'CgRub3RlGAggASgJUgRub3Rl');
+
+@$core.Deprecated('Use resBillingAdminAdjustDescriptor instead')
+const ResBillingAdminAdjust$json = {
+  '1': 'ResBillingAdminAdjust',
+  '2': [
+    {'1': 'balance_idr', '3': 1, '4': 1, '5': 1, '10': 'balanceIdr'},
+    {'1': 'balance_usd', '3': 2, '4': 1, '5': 1, '10': 'balanceUsd'},
+    {
+      '1': 'commission_available_idr',
+      '3': 3,
+      '4': 1,
+      '5': 1,
+      '10': 'commissionAvailableIdr'
+    },
+    {
+      '1': 'commission_available_usd',
+      '3': 4,
+      '4': 1,
+      '5': 1,
+      '10': 'commissionAvailableUsd'
+    },
+    {'1': 'currency', '3': 5, '4': 1, '5': 9, '10': 'currency'},
+  ],
+};
+
+/// Descriptor for `ResBillingAdminAdjust`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resBillingAdminAdjustDescriptor = $convert.base64Decode(
+    'ChVSZXNCaWxsaW5nQWRtaW5BZGp1c3QSHwoLYmFsYW5jZV9pZHIYASABKAFSCmJhbGFuY2VJZH'
+    'ISHwoLYmFsYW5jZV91c2QYAiABKAFSCmJhbGFuY2VVc2QSOAoYY29tbWlzc2lvbl9hdmFpbGFi'
+    'bGVfaWRyGAMgASgBUhZjb21taXNzaW9uQXZhaWxhYmxlSWRyEjgKGGNvbW1pc3Npb25fYXZhaW'
+    'xhYmxlX3VzZBgEIAEoAVIWY29tbWlzc2lvbkF2YWlsYWJsZVVzZBIaCghjdXJyZW5jeRgFIAEo'
+    'CVIIY3VycmVuY3k=');
+
+@$core.Deprecated('Use reqBillingAdminAdjustListDescriptor instead')
+const ReqBillingAdminAdjustList$json = {
+  '1': 'ReqBillingAdminAdjustList',
+  '2': [
+    {'1': 'subject_uid', '3': 1, '4': 1, '5': 3, '10': 'subjectUid'},
+    {'1': 'kind', '3': 2, '4': 1, '5': 9, '10': 'kind'},
+    {'1': 'reason', '3': 3, '4': 1, '5': 9, '10': 'reason'},
+    {'1': 'from_ms', '3': 4, '4': 1, '5': 3, '10': 'fromMs'},
+    {'1': 'to_ms', '3': 5, '4': 1, '5': 3, '10': 'toMs'},
+    {'1': 'limit', '3': 6, '4': 1, '5': 5, '10': 'limit'},
+  ],
+};
+
+/// Descriptor for `ReqBillingAdminAdjustList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqBillingAdminAdjustListDescriptor = $convert.base64Decode(
+    'ChlSZXFCaWxsaW5nQWRtaW5BZGp1c3RMaXN0Eh8KC3N1YmplY3RfdWlkGAEgASgDUgpzdWJqZW'
+    'N0VWlkEhIKBGtpbmQYAiABKAlSBGtpbmQSFgoGcmVhc29uGAMgASgJUgZyZWFzb24SFwoHZnJv'
+    'bV9tcxgEIAEoA1IGZnJvbU1zEhMKBXRvX21zGAUgASgDUgR0b01zEhQKBWxpbWl0GAYgASgFUg'
+    'VsaW1pdA==');
+
+@$core.Deprecated('Use resBillingAdminAdjustListDescriptor instead')
+const ResBillingAdminAdjustList$json = {
+  '1': 'ResBillingAdminAdjustList',
+  '2': [
+    {
+      '1': 'items',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.BillingAdminAdjustEntry',
+      '10': 'items'
+    },
+    {
+      '1': 'totals',
+      '3': 2,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.BillingAdminAdjustReasonTotal',
+      '10': 'totals'
+    },
+  ],
+};
+
+/// Descriptor for `ResBillingAdminAdjustList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resBillingAdminAdjustListDescriptor = $convert.base64Decode(
+    'ChlSZXNCaWxsaW5nQWRtaW5BZGp1c3RMaXN0EjIKBWl0ZW1zGAEgAygLMhwuYzM1LkJpbGxpbm'
+    'dBZG1pbkFkanVzdEVudHJ5UgVpdGVtcxI6CgZ0b3RhbHMYAiADKAsyIi5jMzUuQmlsbGluZ0Fk'
+    'bWluQWRqdXN0UmVhc29uVG90YWxSBnRvdGFscw==');
+
 @$core.Deprecated('Use resBillingSummaryDescriptor instead')
 const ResBillingSummary$json = {
   '1': 'ResBillingSummary',

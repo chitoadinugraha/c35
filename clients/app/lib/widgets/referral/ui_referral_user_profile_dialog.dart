@@ -1,4 +1,6 @@
+import 'package:alienai_c35/c/billing/billing_admin_adjust.dart';
 import 'package:alienai_c35/c/admin/admin_api.dart';
+import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/api/referral_conn.dart';
 import 'package:alienai_c35/c/cas/cas_client.dart';
 import 'package:alienai_c35/c/media/ask_media.dart';
@@ -13,7 +15,9 @@ import 'package:alienai_c35/c/ui/ui_format.dart';
 import 'package:alienai_c35/widgets/referral/ui_referral_commission_breakdown.dart';
 import 'package:alienai_c35/widgets/referral/ui_referral_date_range_sheet.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
+import 'package:alienai_c35/widgets/referral/ui_referral_admin_adjust_history_sheet.dart';
 import 'package:alienai_c35/widgets/referral/ui_referral_admin_dialogs.dart';
+import 'package:alienai_c35/widgets/referral/ui_referral_wallet_adjust_dialog.dart';
 import 'package:alienai_c35/widgets/ui/ui_input_decoration.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:alienai_c35/widgets/ui/ui_user_avatar.dart';
@@ -123,6 +127,7 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
   var _reloadTree = false;
   var _statsBusy = false;
   ReferralUserStatsRow? _stats;
+  ReferralUserWalletSnapshot? _wallet;
   late ReferralPeriodRange _colARange = referralPeriodRange(ReferralPeriodPreset.mtd);
   late ReferralPeriodRange _colBRange = referralPeriodRange(ReferralPeriodPreset.lastMonth);
   late String _colALabel = 'This Month';
@@ -148,13 +153,61 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
         colB: _colBRange,
       );
       if (!mounted) return;
-      setState(() => _stats = stats);
+      setState(() {
+        _stats = stats;
+        _wallet = stats.wallet;
+      });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _stats = null);
+      setState(() {
+        _stats = null;
+        _wallet = null;
+      });
     } finally {
       if (mounted) setState(() => _statsBusy = false);
     }
+  }
+
+  Future<void> _adjustWallet({required String kind, required bool credit}) async {
+    if (!_canAdjust) return;
+    final currency = _wallet?.billingCurrency.isNotEmpty == true ? _wallet!.billingCurrency : 'IDR';
+    final res = await referralWalletAdjustDialog(
+      context,
+      conn: widget.conn,
+      subjectUid: _node.id.toInt(),
+      subjectName: _node.name,
+      kind: kind,
+      credit: credit,
+      currency: currency,
+    );
+    if (res == null || !mounted) return;
+    setState(() {
+      _wallet = ReferralUserWalletSnapshot(
+        balanceIdr: res.balanceIdr,
+        balanceUsd: res.balanceUsd,
+        commissionAvailableIdr: res.commissionAvailableIdr,
+        commissionAvailableUsd: res.commissionAvailableUsd,
+        billingCurrency: res.currency,
+      );
+    });
+    await _loadStats();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${credit ? 'Added' : 'Removed'} ${kind == billingAdminAdjustKindCommission ? 'commission' : 'balance'}'), behavior: SnackBarBehavior.floating),
+    );
+  }
+
+  Future<void> _openAdjustHistory() async {
+    if (!_canAdjust) return;
+    await referralAdminAdjustHistorySheet(context, conn: widget.conn, subjectUid: _node.id.toInt());
+  }
+
+  String _walletAmountLabel({required bool commission}) {
+    final w = _wallet;
+    if (w == null) return _statsBusy ? '…' : '—';
+    final cur = w.billingCurrency.isNotEmpty ? w.billingCurrency : 'IDR';
+    if (commission) return referralCommissionAmountLabel(cur, w.commissionAvailableUsd, w.commissionAvailableIdr);
+    return referralCommissionAmountLabel(cur, w.balanceUsd, w.balanceIdr);
   }
 
   Future<void> _pickColumnRange({required bool colA}) async {
@@ -174,6 +227,7 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
   }
 
   bool get _canEdit => widget.viewerIsRoot && !_busy;
+  bool get _canAdjust => (Session.instance.isRoot || Session.instance.globalRoles.contains('director')) && !_busy;
   bool get _canEditReferrer => _canEdit && !referralNodeIsRoot(_node);
   bool get _showFullContact => widget.isSelf || widget.viewerIsRoot;
 
@@ -528,6 +582,18 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
                           ),
                           const SizedBox(height: 10),
                         ],
+                        if (_wallet != null || _statsBusy) ...[
+                          _ProfileWalletSection(
+                            balanceLabel: _walletAmountLabel(commission: false),
+                            commissionLabel: _walletAmountLabel(commission: true),
+                            loading: _statsBusy,
+                            canAdjust: _canAdjust,
+                            onAdjustBalance: (credit) => _adjustWallet(kind: billingAdminAdjustKindBalance, credit: credit),
+                            onAdjustCommission: (credit) => _adjustWallet(kind: billingAdminAdjustKindCommission, credit: credit),
+                            onHistory: _canAdjust ? _openAdjustHistory : null,
+                          ),
+                          const SizedBox(height: 10),
+                        ],
                         _ProfileStatsSection(
                           totalReferrals: _node.childCount,
                           colALabel: _colALabel,
@@ -610,6 +676,92 @@ class _ProfileSection extends StatelessWidget {
     if (onTap == null) return body;
     return Material(color: Colors.transparent, child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(10), child: body));
   }
+}
+
+class _ProfileWalletSection extends StatelessWidget {
+  const _ProfileWalletSection({
+    required this.balanceLabel,
+    required this.commissionLabel,
+    required this.loading,
+    required this.canAdjust,
+    required this.onAdjustBalance,
+    required this.onAdjustCommission,
+    this.onHistory,
+  });
+
+  final String balanceLabel;
+  final String commissionLabel;
+  final bool loading;
+  final bool canAdjust;
+  final ValueChanged<bool> onAdjustBalance;
+  final ValueChanged<bool> onAdjustCommission;
+  final VoidCallback? onHistory;
+
+  Widget _adjustButtons(ValueChanged<bool> onTap) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          uiIconButton(
+            tooltip: 'Remove',
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            onPressed: loading ? null : () => onTap(false),
+            icon: const Icon(Icons.remove_circle_outline, size: 18, color: _ReferralPalette.error),
+          ),
+          const SizedBox(width: 2),
+          uiIconButton(
+            tooltip: 'Add',
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            onPressed: loading ? null : () => onTap(true),
+            icon: const Icon(Icons.add_circle_outline, size: 18, color: _ReferralPalette.accent),
+          ),
+        ],
+      );
+
+  @override
+  Widget build(BuildContext context) => _StatsCard(
+        title: 'Wallet',
+        icon: Icons.account_balance_wallet_outlined,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(
+                children: [
+                  const Expanded(flex: 4, child: Text('Balance', style: TextStyle(color: _ReferralPalette.muted, fontSize: 12, fontWeight: FontWeight.w500))),
+                  Expanded(
+                    flex: 3,
+                    child: Text(balanceLabel, textAlign: TextAlign.right, style: const TextStyle(color: _ReferralPalette.text, fontSize: 12, fontWeight: FontWeight.w600, fontFeatures: [FontFeature.tabularFigures()])),
+                  ),
+                  Expanded(flex: 3, child: Align(alignment: Alignment.centerRight, child: canAdjust ? _adjustButtons(onAdjustBalance) : const SizedBox.shrink())),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(
+                children: [
+                  const Expanded(flex: 4, child: Text('Commission', style: TextStyle(color: _ReferralPalette.muted, fontSize: 12, fontWeight: FontWeight.w500))),
+                  Expanded(
+                    flex: 3,
+                    child: Text(commissionLabel, textAlign: TextAlign.right, style: const TextStyle(color: _ReferralPalette.text, fontSize: 12, fontWeight: FontWeight.w600, fontFeatures: [FontFeature.tabularFigures()])),
+                  ),
+                  Expanded(flex: 3, child: Align(alignment: Alignment.centerRight, child: canAdjust ? _adjustButtons(onAdjustCommission) : const SizedBox.shrink())),
+                ],
+              ),
+            ),
+            if (onHistory != null) ...[
+              const SizedBox(height: 6),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(onPressed: loading ? null : onHistory, child: const Text('Adjustment history')),
+              ),
+            ],
+          ],
+        ),
+      );
 }
 
 class _ProfileStatsSection extends StatelessWidget {

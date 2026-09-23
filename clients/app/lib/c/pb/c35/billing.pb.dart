@@ -6612,6 +6612,744 @@ class ResBillingPromotionList extends $pb.GeneratedMessage {
   $pb.PbList<BillingPromotion> get items => $_getList(0);
 }
 
+class BillingAdminAdjustReasonTotal extends $pb.GeneratedMessage {
+  factory BillingAdminAdjustReasonTotal({
+    $core.String? reason,
+    $core.double? amountIdr,
+    $core.double? amountUsd,
+    $core.int? count,
+  }) {
+    final result = BillingAdminAdjustReasonTotal._();
+    if (reason != null) result.reason = reason;
+    if (amountIdr != null) result.amountIdr = amountIdr;
+    if (amountUsd != null) result.amountUsd = amountUsd;
+    if (count != null) result.count = count;
+    return result;
+  }
+
+  BillingAdminAdjustReasonTotal._();
+
+  factory BillingAdminAdjustReasonTotal.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      BillingAdminAdjustReasonTotal()..mergeFromBuffer(data, registry);
+  factory BillingAdminAdjustReasonTotal.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      BillingAdminAdjustReasonTotal()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'BillingAdminAdjustReasonTotal',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: BillingAdminAdjustReasonTotal.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'reason')
+    ..aD(2, _omitFieldNames ? '' : 'amountIdr')
+    ..aD(3, _omitFieldNames ? '' : 'amountUsd')
+    ..aI(4, _omitFieldNames ? '' : 'count')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  BillingAdminAdjustReasonTotal clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  BillingAdminAdjustReasonTotal copyWith(
+          void Function(BillingAdminAdjustReasonTotal) updates) =>
+      super.copyWith(
+              (message) => updates(message as BillingAdminAdjustReasonTotal))
+          as BillingAdminAdjustReasonTotal;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use BillingAdminAdjustReasonTotal() / BillingAdminAdjustReasonTotal.new instead')
+  static BillingAdminAdjustReasonTotal create() =>
+      BillingAdminAdjustReasonTotal._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      BillingAdminAdjustReasonTotal._();
+  @$core.override
+  BillingAdminAdjustReasonTotal createEmptyInstance() =>
+      BillingAdminAdjustReasonTotal._();
+  @$core.pragma('dart2js:noInline')
+  static BillingAdminAdjustReasonTotal getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<BillingAdminAdjustReasonTotal>(
+          BillingAdminAdjustReasonTotal.$_createMessage);
+  static BillingAdminAdjustReasonTotal? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get reason => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set reason($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasReason() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearReason() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.double get amountIdr => $_getN(1);
+  @$pb.TagNumber(2)
+  set amountIdr($core.double value) => $_setDouble(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasAmountIdr() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearAmountIdr() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.double get amountUsd => $_getN(2);
+  @$pb.TagNumber(3)
+  set amountUsd($core.double value) => $_setDouble(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasAmountUsd() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearAmountUsd() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.int get count => $_getIZ(3);
+  @$pb.TagNumber(4)
+  set count($core.int value) => $_setSignedInt32(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasCount() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearCount() => $_clearField(4);
+}
+
+class BillingAdminAdjustEntry extends $pb.GeneratedMessage {
+  factory BillingAdminAdjustEntry({
+    $fixnum.Int64? id,
+    $fixnum.Int64? ownerIid,
+    $core.String? kind,
+    $core.double? amountUsd,
+    $core.double? amountIdr,
+    $core.String? currency,
+    $core.String? direction,
+    $core.String? reason,
+    $core.String? note,
+    $fixnum.Int64? adjustedByIid,
+    $core.String? adjustedByName,
+    $fixnum.Int64? createdTsMs,
+    $core.String? ownerName,
+  }) {
+    final result = BillingAdminAdjustEntry._();
+    if (id != null) result.id = id;
+    if (ownerIid != null) result.ownerIid = ownerIid;
+    if (kind != null) result.kind = kind;
+    if (amountUsd != null) result.amountUsd = amountUsd;
+    if (amountIdr != null) result.amountIdr = amountIdr;
+    if (currency != null) result.currency = currency;
+    if (direction != null) result.direction = direction;
+    if (reason != null) result.reason = reason;
+    if (note != null) result.note = note;
+    if (adjustedByIid != null) result.adjustedByIid = adjustedByIid;
+    if (adjustedByName != null) result.adjustedByName = adjustedByName;
+    if (createdTsMs != null) result.createdTsMs = createdTsMs;
+    if (ownerName != null) result.ownerName = ownerName;
+    return result;
+  }
+
+  BillingAdminAdjustEntry._();
+
+  factory BillingAdminAdjustEntry.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      BillingAdminAdjustEntry()..mergeFromBuffer(data, registry);
+  factory BillingAdminAdjustEntry.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      BillingAdminAdjustEntry()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'BillingAdminAdjustEntry',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: BillingAdminAdjustEntry.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'id')
+    ..aInt64(2, _omitFieldNames ? '' : 'ownerIid')
+    ..aOS(3, _omitFieldNames ? '' : 'kind')
+    ..aD(4, _omitFieldNames ? '' : 'amountUsd')
+    ..aD(5, _omitFieldNames ? '' : 'amountIdr')
+    ..aOS(6, _omitFieldNames ? '' : 'currency')
+    ..aOS(7, _omitFieldNames ? '' : 'direction')
+    ..aOS(8, _omitFieldNames ? '' : 'reason')
+    ..aOS(9, _omitFieldNames ? '' : 'note')
+    ..aInt64(10, _omitFieldNames ? '' : 'adjustedByIid')
+    ..aOS(11, _omitFieldNames ? '' : 'adjustedByName')
+    ..aInt64(12, _omitFieldNames ? '' : 'createdTsMs')
+    ..aOS(13, _omitFieldNames ? '' : 'ownerName')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  BillingAdminAdjustEntry clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  BillingAdminAdjustEntry copyWith(
+          void Function(BillingAdminAdjustEntry) updates) =>
+      super.copyWith((message) => updates(message as BillingAdminAdjustEntry))
+          as BillingAdminAdjustEntry;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use BillingAdminAdjustEntry() / BillingAdminAdjustEntry.new instead')
+  static BillingAdminAdjustEntry create() => BillingAdminAdjustEntry._();
+  static $pb.GeneratedMessage $_createMessage() => BillingAdminAdjustEntry._();
+  @$core.override
+  BillingAdminAdjustEntry createEmptyInstance() => BillingAdminAdjustEntry._();
+  @$core.pragma('dart2js:noInline')
+  static BillingAdminAdjustEntry getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<BillingAdminAdjustEntry>(
+          BillingAdminAdjustEntry.$_createMessage);
+  static BillingAdminAdjustEntry? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get id => $_getI64(0);
+  @$pb.TagNumber(1)
+  set id($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get ownerIid => $_getI64(1);
+  @$pb.TagNumber(2)
+  set ownerIid($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasOwnerIid() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearOwnerIid() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get kind => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set kind($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasKind() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearKind() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.double get amountUsd => $_getN(3);
+  @$pb.TagNumber(4)
+  set amountUsd($core.double value) => $_setDouble(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasAmountUsd() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearAmountUsd() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.double get amountIdr => $_getN(4);
+  @$pb.TagNumber(5)
+  set amountIdr($core.double value) => $_setDouble(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasAmountIdr() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearAmountIdr() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get currency => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set currency($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasCurrency() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearCurrency() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.String get direction => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set direction($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasDirection() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearDirection() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.String get reason => $_getSZ(7);
+  @$pb.TagNumber(8)
+  set reason($core.String value) => $_setString(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasReason() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearReason() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.String get note => $_getSZ(8);
+  @$pb.TagNumber(9)
+  set note($core.String value) => $_setString(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasNote() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearNote() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $fixnum.Int64 get adjustedByIid => $_getI64(9);
+  @$pb.TagNumber(10)
+  set adjustedByIid($fixnum.Int64 value) => $_setInt64(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasAdjustedByIid() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearAdjustedByIid() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $core.String get adjustedByName => $_getSZ(10);
+  @$pb.TagNumber(11)
+  set adjustedByName($core.String value) => $_setString(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasAdjustedByName() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearAdjustedByName() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  $fixnum.Int64 get createdTsMs => $_getI64(11);
+  @$pb.TagNumber(12)
+  set createdTsMs($fixnum.Int64 value) => $_setInt64(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasCreatedTsMs() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearCreatedTsMs() => $_clearField(12);
+
+  @$pb.TagNumber(13)
+  $core.String get ownerName => $_getSZ(12);
+  @$pb.TagNumber(13)
+  set ownerName($core.String value) => $_setString(12, value);
+  @$pb.TagNumber(13)
+  $core.bool hasOwnerName() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearOwnerName() => $_clearField(13);
+}
+
+class ReqBillingAdminAdjust extends $pb.GeneratedMessage {
+  factory ReqBillingAdminAdjust({
+    $fixnum.Int64? subjectUid,
+    $core.String? kind,
+    $core.String? direction,
+    $core.double? amountIdr,
+    $core.double? amountUsd,
+    $core.String? currency,
+    $core.String? reason,
+    $core.String? note,
+  }) {
+    final result = ReqBillingAdminAdjust._();
+    if (subjectUid != null) result.subjectUid = subjectUid;
+    if (kind != null) result.kind = kind;
+    if (direction != null) result.direction = direction;
+    if (amountIdr != null) result.amountIdr = amountIdr;
+    if (amountUsd != null) result.amountUsd = amountUsd;
+    if (currency != null) result.currency = currency;
+    if (reason != null) result.reason = reason;
+    if (note != null) result.note = note;
+    return result;
+  }
+
+  ReqBillingAdminAdjust._();
+
+  factory ReqBillingAdminAdjust.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingAdminAdjust()..mergeFromBuffer(data, registry);
+  factory ReqBillingAdminAdjust.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingAdminAdjust()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqBillingAdminAdjust',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqBillingAdminAdjust.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'subjectUid')
+    ..aOS(2, _omitFieldNames ? '' : 'kind')
+    ..aOS(3, _omitFieldNames ? '' : 'direction')
+    ..aD(4, _omitFieldNames ? '' : 'amountIdr')
+    ..aD(5, _omitFieldNames ? '' : 'amountUsd')
+    ..aOS(6, _omitFieldNames ? '' : 'currency')
+    ..aOS(7, _omitFieldNames ? '' : 'reason')
+    ..aOS(8, _omitFieldNames ? '' : 'note')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingAdminAdjust clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingAdminAdjust copyWith(
+          void Function(ReqBillingAdminAdjust) updates) =>
+      super.copyWith((message) => updates(message as ReqBillingAdminAdjust))
+          as ReqBillingAdminAdjust;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqBillingAdminAdjust() / ReqBillingAdminAdjust.new instead')
+  static ReqBillingAdminAdjust create() => ReqBillingAdminAdjust._();
+  static $pb.GeneratedMessage $_createMessage() => ReqBillingAdminAdjust._();
+  @$core.override
+  ReqBillingAdminAdjust createEmptyInstance() => ReqBillingAdminAdjust._();
+  @$core.pragma('dart2js:noInline')
+  static ReqBillingAdminAdjust getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqBillingAdminAdjust>(
+          ReqBillingAdminAdjust.$_createMessage);
+  static ReqBillingAdminAdjust? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get subjectUid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set subjectUid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSubjectUid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSubjectUid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get kind => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set kind($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasKind() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearKind() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get direction => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set direction($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasDirection() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearDirection() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.double get amountIdr => $_getN(3);
+  @$pb.TagNumber(4)
+  set amountIdr($core.double value) => $_setDouble(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasAmountIdr() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearAmountIdr() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.double get amountUsd => $_getN(4);
+  @$pb.TagNumber(5)
+  set amountUsd($core.double value) => $_setDouble(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasAmountUsd() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearAmountUsd() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get currency => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set currency($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasCurrency() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearCurrency() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.String get reason => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set reason($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasReason() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearReason() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.String get note => $_getSZ(7);
+  @$pb.TagNumber(8)
+  set note($core.String value) => $_setString(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasNote() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearNote() => $_clearField(8);
+}
+
+class ResBillingAdminAdjust extends $pb.GeneratedMessage {
+  factory ResBillingAdminAdjust({
+    $core.double? balanceIdr,
+    $core.double? balanceUsd,
+    $core.double? commissionAvailableIdr,
+    $core.double? commissionAvailableUsd,
+    $core.String? currency,
+  }) {
+    final result = ResBillingAdminAdjust._();
+    if (balanceIdr != null) result.balanceIdr = balanceIdr;
+    if (balanceUsd != null) result.balanceUsd = balanceUsd;
+    if (commissionAvailableIdr != null)
+      result.commissionAvailableIdr = commissionAvailableIdr;
+    if (commissionAvailableUsd != null)
+      result.commissionAvailableUsd = commissionAvailableUsd;
+    if (currency != null) result.currency = currency;
+    return result;
+  }
+
+  ResBillingAdminAdjust._();
+
+  factory ResBillingAdminAdjust.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingAdminAdjust()..mergeFromBuffer(data, registry);
+  factory ResBillingAdminAdjust.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingAdminAdjust()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResBillingAdminAdjust',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResBillingAdminAdjust.$_createMessage)
+    ..aD(1, _omitFieldNames ? '' : 'balanceIdr')
+    ..aD(2, _omitFieldNames ? '' : 'balanceUsd')
+    ..aD(3, _omitFieldNames ? '' : 'commissionAvailableIdr')
+    ..aD(4, _omitFieldNames ? '' : 'commissionAvailableUsd')
+    ..aOS(5, _omitFieldNames ? '' : 'currency')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingAdminAdjust clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingAdminAdjust copyWith(
+          void Function(ResBillingAdminAdjust) updates) =>
+      super.copyWith((message) => updates(message as ResBillingAdminAdjust))
+          as ResBillingAdminAdjust;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResBillingAdminAdjust() / ResBillingAdminAdjust.new instead')
+  static ResBillingAdminAdjust create() => ResBillingAdminAdjust._();
+  static $pb.GeneratedMessage $_createMessage() => ResBillingAdminAdjust._();
+  @$core.override
+  ResBillingAdminAdjust createEmptyInstance() => ResBillingAdminAdjust._();
+  @$core.pragma('dart2js:noInline')
+  static ResBillingAdminAdjust getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResBillingAdminAdjust>(
+          ResBillingAdminAdjust.$_createMessage);
+  static ResBillingAdminAdjust? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.double get balanceIdr => $_getN(0);
+  @$pb.TagNumber(1)
+  set balanceIdr($core.double value) => $_setDouble(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasBalanceIdr() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearBalanceIdr() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.double get balanceUsd => $_getN(1);
+  @$pb.TagNumber(2)
+  set balanceUsd($core.double value) => $_setDouble(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasBalanceUsd() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearBalanceUsd() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.double get commissionAvailableIdr => $_getN(2);
+  @$pb.TagNumber(3)
+  set commissionAvailableIdr($core.double value) => $_setDouble(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasCommissionAvailableIdr() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearCommissionAvailableIdr() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.double get commissionAvailableUsd => $_getN(3);
+  @$pb.TagNumber(4)
+  set commissionAvailableUsd($core.double value) => $_setDouble(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasCommissionAvailableUsd() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearCommissionAvailableUsd() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get currency => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set currency($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasCurrency() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearCurrency() => $_clearField(5);
+}
+
+class ReqBillingAdminAdjustList extends $pb.GeneratedMessage {
+  factory ReqBillingAdminAdjustList({
+    $fixnum.Int64? subjectUid,
+    $core.String? kind,
+    $core.String? reason,
+    $fixnum.Int64? fromMs,
+    $fixnum.Int64? toMs,
+    $core.int? limit,
+  }) {
+    final result = ReqBillingAdminAdjustList._();
+    if (subjectUid != null) result.subjectUid = subjectUid;
+    if (kind != null) result.kind = kind;
+    if (reason != null) result.reason = reason;
+    if (fromMs != null) result.fromMs = fromMs;
+    if (toMs != null) result.toMs = toMs;
+    if (limit != null) result.limit = limit;
+    return result;
+  }
+
+  ReqBillingAdminAdjustList._();
+
+  factory ReqBillingAdminAdjustList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingAdminAdjustList()..mergeFromBuffer(data, registry);
+  factory ReqBillingAdminAdjustList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingAdminAdjustList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqBillingAdminAdjustList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqBillingAdminAdjustList.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'subjectUid')
+    ..aOS(2, _omitFieldNames ? '' : 'kind')
+    ..aOS(3, _omitFieldNames ? '' : 'reason')
+    ..aInt64(4, _omitFieldNames ? '' : 'fromMs')
+    ..aInt64(5, _omitFieldNames ? '' : 'toMs')
+    ..aI(6, _omitFieldNames ? '' : 'limit')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingAdminAdjustList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingAdminAdjustList copyWith(
+          void Function(ReqBillingAdminAdjustList) updates) =>
+      super.copyWith((message) => updates(message as ReqBillingAdminAdjustList))
+          as ReqBillingAdminAdjustList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqBillingAdminAdjustList() / ReqBillingAdminAdjustList.new instead')
+  static ReqBillingAdminAdjustList create() => ReqBillingAdminAdjustList._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ReqBillingAdminAdjustList._();
+  @$core.override
+  ReqBillingAdminAdjustList createEmptyInstance() =>
+      ReqBillingAdminAdjustList._();
+  @$core.pragma('dart2js:noInline')
+  static ReqBillingAdminAdjustList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqBillingAdminAdjustList>(
+          ReqBillingAdminAdjustList.$_createMessage);
+  static ReqBillingAdminAdjustList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get subjectUid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set subjectUid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSubjectUid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSubjectUid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get kind => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set kind($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasKind() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearKind() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get reason => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set reason($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasReason() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearReason() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $fixnum.Int64 get fromMs => $_getI64(3);
+  @$pb.TagNumber(4)
+  set fromMs($fixnum.Int64 value) => $_setInt64(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasFromMs() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearFromMs() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $fixnum.Int64 get toMs => $_getI64(4);
+  @$pb.TagNumber(5)
+  set toMs($fixnum.Int64 value) => $_setInt64(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasToMs() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearToMs() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.int get limit => $_getIZ(5);
+  @$pb.TagNumber(6)
+  set limit($core.int value) => $_setSignedInt32(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasLimit() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearLimit() => $_clearField(6);
+}
+
+class ResBillingAdminAdjustList extends $pb.GeneratedMessage {
+  factory ResBillingAdminAdjustList({
+    $core.Iterable<BillingAdminAdjustEntry>? items,
+    $core.Iterable<BillingAdminAdjustReasonTotal>? totals,
+  }) {
+    final result = ResBillingAdminAdjustList._();
+    if (items != null) result.items.addAll(items);
+    if (totals != null) result.totals.addAll(totals);
+    return result;
+  }
+
+  ResBillingAdminAdjustList._();
+
+  factory ResBillingAdminAdjustList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingAdminAdjustList()..mergeFromBuffer(data, registry);
+  factory ResBillingAdminAdjustList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingAdminAdjustList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResBillingAdminAdjustList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResBillingAdminAdjustList.$_createMessage)
+    ..pPM<BillingAdminAdjustEntry>(1, _omitFieldNames ? '' : 'items',
+        subBuilder: BillingAdminAdjustEntry.$_createMessage)
+    ..pPM<BillingAdminAdjustReasonTotal>(2, _omitFieldNames ? '' : 'totals',
+        subBuilder: BillingAdminAdjustReasonTotal.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingAdminAdjustList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingAdminAdjustList copyWith(
+          void Function(ResBillingAdminAdjustList) updates) =>
+      super.copyWith((message) => updates(message as ResBillingAdminAdjustList))
+          as ResBillingAdminAdjustList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResBillingAdminAdjustList() / ResBillingAdminAdjustList.new instead')
+  static ResBillingAdminAdjustList create() => ResBillingAdminAdjustList._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ResBillingAdminAdjustList._();
+  @$core.override
+  ResBillingAdminAdjustList createEmptyInstance() =>
+      ResBillingAdminAdjustList._();
+  @$core.pragma('dart2js:noInline')
+  static ResBillingAdminAdjustList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResBillingAdminAdjustList>(
+          ResBillingAdminAdjustList.$_createMessage);
+  static ResBillingAdminAdjustList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<BillingAdminAdjustEntry> get items => $_getList(0);
+
+  @$pb.TagNumber(2)
+  $pb.PbList<BillingAdminAdjustReasonTotal> get totals => $_getList(1);
+}
+
 class ResBillingSummary extends $pb.GeneratedMessage {
   factory ResBillingSummary({
     $core.double? balanceUsd,
