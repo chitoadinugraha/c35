@@ -24,6 +24,7 @@ Rules:
 ## Rust (`servers/**/*.rs`)
 
 ```powershell
+cd servers
 cargo build -p server_ai
 ```
 

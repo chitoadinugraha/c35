@@ -1,4 +1,4 @@
-# Prune local Rust build artifacts under .cache/ (servers, remotes, tools).
+# Prune local Rust build artifacts under .cache/ (servers, remotes, node_stats, tools).
 # Usage:
 #   .\_\scripts\dev\cleanup_rust_cache.ps1              # trim stale artifacts (default)
 #   .\_\scripts\dev\cleanup_rust_cache.ps1 -Full       # cargo clean (full rebuild next time)
@@ -13,6 +13,19 @@ $ErrorActionPreference = 'Stop'
 $Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 $CacheRoot = Join-Path $Root '.cache'
 
+$RustWorkspaces = @(
+    @{ WorkDir = 'servers'; Label = 'server'; CacheDir = 'server' },
+    @{ WorkDir = 'remotes'; Label = 'c_remote'; CacheDir = 'c_remote' },
+    @{ WorkDir = 'node_stats'; Label = 'node_stats'; CacheDir = 'node_stats' }
+)
+
+$LegacyTargetDirs = @(
+    (Join-Path $Root 'servers\target'),
+    (Join-Path $Root 'remotes\target'),
+    (Join-Path $Root 'node_stats\target'),
+    (Join-Path $CacheRoot 'agent')
+)
+
 function Format-CacheSize([string]$Path) {
     if (-not (Test-Path $Path)) { return '0 MB (missing)' }
     $bytes = (Get-ChildItem $Path -Recurse -File -ErrorAction SilentlyContinue | Measure-Object Length -Sum).Sum
@@ -20,11 +33,20 @@ function Format-CacheSize([string]$Path) {
     return ('{0:N1} MB' -f ($bytes / 1MB))
 }
 
-function Show-CacheStatus([string]$Label) {
-    Write-Host "    server : $(Format-CacheSize (Join-Path $CacheRoot 'server'))"
-    Write-Host "    agent  : $(Format-CacheSize (Join-Path $CacheRoot 'agent'))"
-    Write-Host "    rust   : $(Format-CacheSize (Join-Path $CacheRoot 'rust'))"
-    Write-Host "    total  : $(Format-CacheSize $CacheRoot)"
+function Show-CacheStatus {
+    foreach ($ws in $RustWorkspaces) {
+        Write-Host ('    {0,-12}: {1}' -f $ws.Label, (Format-CacheSize (Join-Path $CacheRoot $ws.CacheDir)))
+    }
+    Write-Host "    rust        : $(Format-CacheSize (Join-Path $CacheRoot 'rust'))"
+    Write-Host "    total       : $(Format-CacheSize $CacheRoot)"
+}
+
+function Remove-LegacyTargetDirs {
+    foreach ($dir in $LegacyTargetDirs) {
+        if (-not (Test-Path $dir)) { continue }
+        Write-Host "==> remove legacy $dir"
+        Remove-Item $dir -Recurse -Force
+    }
 }
 
 function Invoke-CargoClean([string]$WorkDir, [string]$Label) {
@@ -91,7 +113,7 @@ function Invoke-PruneEmptyDirs([string]$Dir) {
 }
 
 Write-Host '========================================'
-Write-Host ' cleanup: rust cache (.cache/server, agent, rust)'
+Write-Host ' cleanup: rust cache (.cache/server, c_remote, node_stats, rust)'
 Write-Host '========================================'
 Write-Host '==> before'
 Show-CacheStatus
@@ -99,19 +121,20 @@ Show-CacheStatus
 $hasSweep = Test-CargoSweep
 
 if ($Full) {
-    Write-Host '==> mode: full (cargo clean)'
-    Invoke-CargoClean (Join-Path $Root 'servers') 'server'
-    Invoke-CargoClean (Join-Path $Root 'remotes') 'agent'
+    Write-Host '==> mode: full (cargo clean + legacy target removal)'
+    foreach ($ws in $RustWorkspaces) {
+        Invoke-CargoClean (Join-Path $Root $ws.WorkDir) $ws.Label
+    }
     $hashTool = Join-Path $Root '_\scripts\deploy\tools\hash_blake3'
     if (Test-Path (Join-Path $hashTool 'Cargo.toml')) {
-        $env:CARGO_TARGET_DIR = Join-Path $CacheRoot 'rust\hash_blake3'
         Invoke-CargoClean $hashTool 'hash_blake3'
-        Remove-Item Env:CARGO_TARGET_DIR -ErrorAction SilentlyContinue
     }
+    Remove-LegacyTargetDirs
 } elseif ($hasSweep) {
     Write-Host "==> mode: trim (cargo sweep, keep last $Days days)"
-    Invoke-CargoSweep (Join-Path $Root 'servers') 'server' ''
-    Invoke-CargoSweep (Join-Path $Root 'remotes') 'agent' ''
+    foreach ($ws in $RustWorkspaces) {
+        Invoke-CargoSweep (Join-Path $Root $ws.WorkDir) $ws.Label ''
+    }
     $hashTool = Join-Path $Root '_\scripts\deploy\tools\hash_blake3'
     if (Test-Path (Join-Path $hashTool 'Cargo.toml')) {
         Invoke-CargoSweep $hashTool 'hash_blake3' (Join-Path $CacheRoot 'rust\hash_blake3')
@@ -120,8 +143,9 @@ if ($Full) {
     Write-Host "==> mode: trim (file age > $Days days; cargo-sweep not installed)"
     Write-Host '    tip: cargo install cargo-sweep  (better trim, keeps current deps)'
     $removed = 0
-    $removed += Invoke-PruneOldFiles (Join-Path $CacheRoot 'server') $Days
-    $removed += Invoke-PruneOldFiles (Join-Path $CacheRoot 'agent') $Days
+    foreach ($ws in $RustWorkspaces) {
+        $removed += Invoke-PruneOldFiles (Join-Path $CacheRoot $ws.CacheDir) $Days
+    }
     $removed += Invoke-PruneOldFiles (Join-Path $CacheRoot 'rust') $Days
     Invoke-PruneEmptyDirs $CacheRoot
     Write-Host "    removed $removed stale files"

@@ -37,7 +37,7 @@ c35/
 | Server | Multi-crate workspace under `servers/` (not repo root) |
 | Bot | `kind=bot`, `type=chat`; one bot, many channels in `meta.channels[]` |
 | Home inbox | **`prompt` AI chats only** — direct user↔user deferred |
-| Build cache | `.cache/server` (server), `.cache/agent` (remotes) |
+| Build cache | `.cache/server`, `.cache/c_remote`, `.cache/node_stats` |
 
 Full detail: [`_/docs/architecture.md`](_/docs/architecture.md)
 

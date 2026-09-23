@@ -1,5 +1,5 @@
 [build]
-target-dir = "../.cache/c_remote"
+target-dir = "../../../../../.cache/rust/hash_blake3"
 
 [profile.dev]
 debug = 1

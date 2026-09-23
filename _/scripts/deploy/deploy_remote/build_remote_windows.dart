@@ -16,7 +16,7 @@ class RemoteWindowsBuildResult {
   final int size;
 }
 
-String remoteCacheDir(String root) => p.join(root, '.cache', 'agent', 'remote-windows');
+String remoteCacheDir(String root) => p.join(root, '.cache', 'c_remote', 'remote-windows');
 
 String remoteZipPath(String root, int version) => p.join(remoteCacheDir(root), 'c_remote_windows-$version.zip');
 
@@ -35,7 +35,7 @@ RemoteWindowsBuildResult buildRemoteWindowsRelease() {
   stderr.write(proc.stderr);
   if (proc.exitCode != 0) throw StateError('cargo build c_remote_windows failed (exit ${proc.exitCode})');
 
-  final exe = File(p.join(root, '.cache', 'agent', 'release', 'c_remote_windows.exe'));
+  final exe = File(p.join(root, '.cache', 'c_remote', 'release', 'c_remote_windows.exe'));
   if (!exe.existsSync()) throw StateError('release exe not found: ${exe.path}');
 
   final cache = Directory(remoteCacheDir(root));

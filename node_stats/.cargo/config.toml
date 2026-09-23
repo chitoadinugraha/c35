@@ -1,5 +1,5 @@
 [build]
-target-dir = "../.cache/c_remote"
+target-dir = "../.cache/node_stats"
 
 [profile.dev]
 debug = 1

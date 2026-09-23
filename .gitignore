@@ -23,8 +23,10 @@ clients/app/.flutter-plugins-dependencies
 clients/app/.dart_tool/
 clients/app/build/
 
-# Rust
+# Rust (canonical output: .cache/* via workspace .cargo/config.toml)
 servers/target/
+remotes/target/
+node_stats/target/
 .cache/
 
 # OS

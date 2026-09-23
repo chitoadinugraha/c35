@@ -13,7 +13,8 @@ c35/
     schemas/                  # *.sql + proto/c35/*.proto
     scripts/                  # protoc, deploy helpers
   servers/                    # Rust server workspace → .cache/server
-  remotes/                    # Rust agent workspace → .cache/agent (Phase 6)
+  remotes/                    # Rust agent workspace → .cache/c_remote (Phase 6)
+  node_stats/                 # Node metrics daemon → .cache/node_stats
   clients/app/                # Flutter (Phase 2)
   .cache/                     # gitignored cargo targets
   spec.md                     # project spec — entry index → _/docs/

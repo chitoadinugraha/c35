@@ -43,7 +43,7 @@ c35/
       mod_tx/
     server_ai/                 # thin binary: boot, HTTP/WS, NATS subscribe
   remotes/                     # agent-only Rust workspace
-    .cargo/config.toml         # target-dir = "../.cache/agent"
+    .cargo/config.toml         # target-dir = "../.cache/c_remote"
     Cargo.toml
     c_remote_core/
     c_remote_windows/
@@ -73,7 +73,7 @@ Server crates live under **`servers/crates/`** only — not at repo root. Remote
 5. **One round trip per page init** — `ReqSessionInit` / parallel IN queries; never N+1 on page load.
 6. **Human-friendly UI** — no technical errors on screen; full detail in server `log` table + NATS live stream for root/admin.
 7. **Multi-crate server** — workspace under `servers/` (like `csa_site_published` pattern); `server_ai` stays thin; domain in `servers/crates/mod_*`.
-8. **Separate build caches** — `.cache/server` for server workspace, `.cache/agent` for remotes workspace.
+8. **Separate build caches** — `.cache/server`, `.cache/c_remote`, `.cache/node_stats` (see `.cursor/rules/rust-cache.mdc`).
 
 ## Identity (summary)
 

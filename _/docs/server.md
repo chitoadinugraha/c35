@@ -15,7 +15,8 @@ c35 follows the **csa workspace pattern**, but crates live under **`servers/`** 
 | Workspace | Path | Cache dir |
 |-----------|------|-----------|
 | Server | `servers/` | `.cache/server` |
-| Remote agents | `remotes/` | `.cache/agent` |
+| Remote agents | `remotes/` | `.cache/c_remote` |
+| Node stats | `node_stats/` | `.cache/node_stats` |
 
 Each workspace has its own `Cargo.toml` and `.cargo/config.toml`.
 
@@ -110,7 +111,7 @@ remotes/
 
 ```toml
 [build]
-target-dir = "../.cache/agent"
+target-dir = "../.cache/c_remote"
 
 [profile.dev]
 debug = 1
@@ -133,7 +134,7 @@ cd remotes && cargo build -p c_remote_windows
 | Script | What it cleans |
 |--------|----------------|
 | `.\cleanup.ps1` | Rust cache + cluster buildkit (both) |
-| `.\_\scripts\dev\cleanup_rust_cache.ps1` | Local `.cache/server`, `.cache/agent`, `.cache/rust` |
+| `.\_\scripts\dev\cleanup_rust_cache.ps1` | Local `.cache/server`, `.cache/c_remote`, `.cache/node_stats`, `.cache/rust` |
 | `.\_\scripts\deploy\cleanup_buildkit.ps1` | Cluster buildkit Docker layer cache |
 
 Rust trim (default): stale artifacts older than 30 days (`cargo sweep` when installed, else file-age prune).  
