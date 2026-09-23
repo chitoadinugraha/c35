@@ -168,9 +168,11 @@ message TxItem {
   int64 site_iid = 1;
   int64 tx_id = 2;
   int64 item_id = 3;
+  int64 owner_iid = 6;
 
   int64 product_id = 4;
   int64 product_rev = 5;
+  int64 obj_id = 41;
   int64 price = 11;
   int32 qty = 13;
   string note = 12;

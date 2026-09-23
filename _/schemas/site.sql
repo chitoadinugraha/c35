@@ -161,6 +161,7 @@ CREATE TABLE IF NOT EXISTS site.product (
     price               BIGINT NOT NULL DEFAULT 0,
     pic                 TEXT NOT NULL DEFAULT '',
     category            TEXT NOT NULL DEFAULT '',
+    obj_id              BIGINT NOT NULL DEFAULT 0,              -- references ai.object_normalizer(id)
     product_json        JSONB NOT NULL DEFAULT '{}',
     search_text         TEXT NOT NULL DEFAULT '',
     sort_order          INT NOT NULL DEFAULT 0,

@@ -21,12 +21,12 @@ pub use dispatcher::{tool_topic_eligible, ToolDispatcher};
 use crate::mention_context::MentionContext;
 
 use builtin::{
-    ComputerUseDelegateTool, ConsumptionAddTool, ConsumptionTodayTool, ConsumptionUpdateTool,
-    DelegateRunTool, DeviceCommandTool, DeviceInputTool, DeviceScreenshotTool, ImgGenerateTool,
-    ReferralCodeDeleteTool, ReferralCodeListTool, ReferralCodePutTool, ReferralTreeGetTool,
-    SiteContactPutTool, SiteDraftPutTool, SiteObjectPutTool, SiteProductPutTool, SitePublishTool,
-    SiteQueryRunTool, SiteTxDebtPayTool, SiteTxListTool, SiteTxPreviewTool, SiteTxPutTool,
-    WebResearchTool, WebSearchTool,
+    ComputerUseDelegateTool, ConsumptionAddTool, ConsumptionDeleteTool, ConsumptionTodayTool,
+    ConsumptionUpdateTool, DelegateRunTool, DeviceCommandTool, DeviceInputTool, DeviceScreenshotTool,
+    ImgGenerateTool, ReferralCodeDeleteTool, ReferralCodeListTool, ReferralCodePutTool,
+    ReferralTreeGetTool, SiteContactPutTool, SiteDraftPutTool, SiteObjectPutTool, SiteProductPutTool,
+    SitePublishTool, SiteQueryRunTool, SiteTxDebtPayTool, SiteTxListTool, SiteTxPreviewTool,
+    SiteTxPutTool, WebResearchTool, WebSearchTool,
     WebVisitTool,
 };
 
@@ -96,6 +96,7 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(ConsumptionAddTool));
     dispatcher.register(Arc::new(ConsumptionTodayTool));
     dispatcher.register(Arc::new(ConsumptionUpdateTool));
+    dispatcher.register(Arc::new(ConsumptionDeleteTool));
     dispatcher.register(Arc::new(DeviceCommandTool));
     dispatcher.register(Arc::new(DeviceInputTool));
     dispatcher.register(Arc::new(DeviceScreenshotTool));

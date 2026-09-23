@@ -47,7 +47,7 @@ pub async fn tx_children_attach(
 ) -> Result<()> {
     let items = sqlx::query(
         r#"
-        SELECT site_iid, tx_id, item_id, product_id, product_rev, price, qty, note,
+        SELECT site_iid, tx_id, item_id, owner_iid, obj_id, product_id, product_rev, price, qty, note,
                batch_number, serial_number, fulfillment_state,
                total_qty, total_price, total_discount, total_tax, total_net,
                total_paid, total_unpaid

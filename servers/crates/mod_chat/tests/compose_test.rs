@@ -110,11 +110,41 @@ fn inst_consumption() -> InstRow {
     }
 }
 
+fn inst_consumption_delete() -> InstRow {
+    InstRow {
+        id: "inst.consumption_delete".into(),
+        scope: "role:personal_assistant".into(),
+        kind: "task".into(),
+        topic_id: "".into(),
+        topics: vec![],
+        inst: "delete meal".into(),
+        phrases: vec![
+            "hapus catatan makan".into(),
+            "hapus makanan".into(),
+            "delete meal".into(),
+            "cancel meal".into(),
+        ],
+        triggers: vec!["tool_include:consumption.delete".into(), "tool_exclude:img.generate".into()],
+        priority: 140,
+    }
+}
+
 fn health_catalog() -> Vec<ToolDef> {
     vec![
         ToolDef {
             name: "web.search".into(),
-            description: "Search the live web".into(),
+            description: "Search web".into(),
+            parameters: json!({}),
+            aliases: vec![],
+            topics: vec![],
+            always: vec![],
+            readonly: true,
+            requires_kinds: vec![],
+            requires_capability: None,
+        },
+        ToolDef {
+            name: "img.generate".into(),
+            description: "Generate images".into(),
             parameters: json!({}),
             aliases: vec![],
             topics: vec![],
@@ -129,17 +159,6 @@ fn health_catalog() -> Vec<ToolDef> {
             parameters: json!({}),
             aliases: vec![],
             topics: vec![],
-            always: vec![],
-            readonly: false,
-            requires_kinds: vec![],
-            requires_capability: None,
-        },
-        ToolDef {
-            name: "img.generate".into(),
-            description: "Generate images".into(),
-            parameters: json!({}),
-            aliases: vec![],
-            topics: vec!["image".into()],
             always: vec![],
             readonly: false,
             requires_kinds: vec![],
@@ -189,7 +208,31 @@ fn health_catalog() -> Vec<ToolDef> {
             requires_kinds: vec![],
             requires_capability: None,
         },
+        ToolDef {
+            name: "consumption.delete".into(),
+            description: "Delete meal".into(),
+            parameters: json!({}),
+            aliases: vec![],
+            topics: vec!["health".into()],
+            always: vec!["general".into(), "health".into()],
+            readonly: false,
+            requires_kinds: vec![],
+            requires_capability: None,
+        },
     ]
+}
+
+#[test]
+fn compose_food_delete_forces_consumption_delete() {
+    let out = compose_default(
+        &[inst_consumption_delete()],
+        "hapus catatan makan tadi",
+        health_catalog(),
+        &[],
+    );
+    assert!(out.matched_ids.contains(&"inst.consumption_delete".into()));
+    assert!(out.tools.iter().any(|t| t.name == "consumption.delete"));
+    assert!(!out.tools.iter().any(|t| t.name == "img.generate"));
 }
 
 #[test]

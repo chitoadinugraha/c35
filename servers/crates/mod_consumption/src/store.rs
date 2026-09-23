@@ -102,25 +102,31 @@ pub async fn food_put(
     owner_iid: i64,
     note: &str,
     photo_hash: &str,
+    pics: &[String],
     meal_fingerprint: &str,
     meal_type: &str,
     items: &[ConsumptionItem],
 ) -> Result<i64, String> {
     let id = snowflake_id();
+    let pics_json = serde_json::to_value(pics).unwrap_or_else(|_| serde_json::json!([]));
+    let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
     sqlx::query(
-        "INSERT INTO ai.consumption (id, owner_iid, note, photo_hash, meal_fingerprint, meal_type, logged_ts, updated_ts)
-         VALUES ($1,$2,$3,$4,$5,$6,NOW(),NOW())",
+        "INSERT INTO ai.consumption (id, owner_iid, note, photo_hash, pics_json, meal_fingerprint, meal_type, logged_ts, updated_ts)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,NOW(),NOW())",
     )
     .bind(id)
     .bind(owner_iid)
     .bind(note)
     .bind(photo_hash)
+    .bind(&pics_json)
     .bind(meal_fingerprint)
     .bind(meal_type)
-    .execute(pool)
+    .execute(&mut *tx)
     .await
     .map_err(|e| e.to_string())?;
-    food_item_replace(pool, owner_iid, id, items).await?;
+
+    food_item_replace_tx(&mut tx, owner_iid, id, items).await?;
+    tx.commit().await.map_err(|e| e.to_string())?;
     Ok(id)
 }
 
@@ -131,6 +137,7 @@ pub async fn food_update(
     items: &[ConsumptionItem],
     meal_fingerprint: &str,
 ) -> Result<(), String> {
+    let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
     let n = sqlx::query(
         "UPDATE ai.consumption SET meal_fingerprint = $3, updated_ts = NOW()
          WHERE id = $1 AND owner_iid = $2 AND deleted_ts IS NULL",
@@ -138,22 +145,83 @@ pub async fn food_update(
     .bind(consumption_id)
     .bind(owner_iid)
     .bind(meal_fingerprint)
-    .execute(pool)
+    .execute(&mut *tx)
     .await
     .map_err(|e| e.to_string())?
     .rows_affected();
     if n == 0 {
         return Err("consumption not found".into());
     }
-    food_item_replace(pool, owner_iid, consumption_id, items).await?;
+    food_item_replace_tx(&mut tx, owner_iid, consumption_id, items).await?;
+    tx.commit().await.map_err(|e| e.to_string())?;
     Ok(())
 }
 
-async fn food_item_replace(pool: &PgPool, owner_iid: i64, consumption_id: i64, items: &[ConsumptionItem]) -> Result<(), String> {
+pub async fn food_delete(pool: &PgPool, owner_iid: i64, consumption_id: i64) -> Result<bool, String> {
+    let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
+    let n = sqlx::query(
+        "UPDATE ai.consumption SET deleted_ts = NOW(), updated_ts = NOW()
+         WHERE id = $1 AND owner_iid = $2 AND deleted_ts IS NULL",
+    )
+    .bind(consumption_id)
+    .bind(owner_iid)
+    .execute(&mut *tx)
+    .await
+    .map_err(|e| e.to_string())?
+    .rows_affected();
+    if n == 0 {
+        return Ok(false);
+    }
+    sqlx::query(
+        "UPDATE ai.consumption_item SET deleted_ts = NOW(), updated_ts = NOW()
+         WHERE consumption_id = $1 AND owner_iid = $2 AND deleted_ts IS NULL",
+    )
+    .bind(consumption_id)
+    .bind(owner_iid)
+    .execute(&mut *tx)
+    .await
+    .map_err(|e| e.to_string())?;
+    tx.commit().await.map_err(|e| e.to_string())?;
+    Ok(true)
+}
+
+pub async fn food_get_latest_today(
+    pool: &PgPool,
+    owner_iid: i64,
+    day_start_ms: i64,
+    day_end_ms: i64,
+) -> Result<Option<ConsumptionFood>, String> {
+    let id_min = snowflake_min_at_ms(day_start_ms);
+    let id_max = snowflake_max_at_ms(day_end_ms);
+    let row = sqlx::query_scalar::<_, i64>(
+        "SELECT id FROM ai.consumption
+         WHERE owner_iid = $1 AND is_archived = false AND deleted_ts IS NULL
+           AND id >= $2 AND id <= $3
+         ORDER BY id DESC LIMIT 1",
+    )
+    .bind(owner_iid)
+    .bind(id_min)
+    .bind(id_max)
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    if let Some(id) = row {
+        return food_get(pool, owner_iid, id).await;
+    }
+    Ok(None)
+}
+
+async fn food_item_replace_tx(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    owner_iid: i64,
+    consumption_id: i64,
+    items: &[ConsumptionItem],
+) -> Result<(), String> {
     sqlx::query("DELETE FROM ai.consumption_item WHERE consumption_id = $1 AND owner_iid = $2")
         .bind(consumption_id)
         .bind(owner_iid)
-        .execute(pool)
+        .execute(&mut **tx)
         .await
         .map_err(|e| e.to_string())?;
     for (idx, it) in items.iter().enumerate() {
@@ -179,7 +247,7 @@ async fn food_item_replace(pool: &PgPool, owner_iid: i64, consumption_id: i64, i
         .bind(it.fiber)
         .bind(it.sugar)
         .bind(it.sodium)
-        .execute(pool)
+        .execute(&mut **tx)
         .await
         .map_err(|e| e.to_string())?;
     }

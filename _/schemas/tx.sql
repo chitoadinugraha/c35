@@ -137,6 +137,10 @@ CREATE INDEX IF NOT EXISTS idx_tx_site_state
 CREATE INDEX IF NOT EXISTS idx_tx_site_debt_open
     ON site.tx (site_iid, ty)
     WHERE debt_unpaid > 0 AND deleted_ts IS NULL;
+CREATE INDEX IF NOT EXISTS idx_tx_owner_time_ok
+    ON site.tx (owner_iid, time_ts DESC)
+    INCLUDE (total)
+    WHERE deleted_ts IS NULL AND state = 'ok';
 
 -- ------------------------------------------------------------------------------
 -- Tx item
@@ -146,6 +150,8 @@ CREATE TABLE IF NOT EXISTS site.tx_item (
     site_iid            BIGINT NOT NULL,
     tx_id               BIGINT NOT NULL,
     item_id             BIGINT NOT NULL,
+    owner_iid           BIGINT NOT NULL REFERENCES ai.identity(id),
+    obj_id              BIGINT NOT NULL DEFAULT 0,              -- references ai.object_normalizer(id)
 
     product_id          BIGINT NOT NULL DEFAULT 0,
     product_rev         BIGINT NOT NULL DEFAULT 0,
@@ -180,6 +186,13 @@ CREATE TABLE IF NOT EXISTS site.tx_item (
 
 CREATE INDEX IF NOT EXISTS idx_tx_item_tx
     ON site.tx_item (site_iid, tx_id);
+CREATE INDEX IF NOT EXISTS idx_tx_item_owner_obj
+    ON site.tx_item (owner_iid, obj_id)
+    INCLUDE (qty, total_price)
+    WHERE deleted_ts IS NULL;
+CREATE INDEX IF NOT EXISTS idx_tx_item_obj
+    ON site.tx_item (obj_id)
+    WHERE obj_id > 0 AND deleted_ts IS NULL;
 
 -- ------------------------------------------------------------------------------
 -- Tx item reservation (booking lines)

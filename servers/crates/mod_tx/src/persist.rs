@@ -175,24 +175,27 @@ pub async fn tx_children_put(conn: &mut PgConnection, tx: &mut Tx) -> Result<()>
     for item in &tx.items {
         let fulfillment = c35_proto::TxItemFulfillmentState::try_from(item.fulfillment_state)
             .unwrap_or(c35_proto::TxItemFulfillmentState::TxItemFulfillmentUnspecified);
+        let item_owner_iid = if item.owner_iid > 0 { item.owner_iid } else { site_iid };
         sqlx::query(
             r#"
             INSERT INTO site.tx_item (
-                site_iid, tx_id, item_id, product_id, product_rev, price, qty, note,
+                site_iid, tx_id, item_id, owner_iid, obj_id, product_id, product_rev, price, qty, note,
                 batch_number, serial_number, fulfillment_state,
                 total_qty, total_price, total_discount, total_tax, total_net,
                 total_paid, total_unpaid, created_ts, updated_ts
             ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8,
-                $9, $10, $11,
-                $12, $13, $14, $15, $16,
-                $17, $18, NOW(), NOW()
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+                $11, $12, $13,
+                $14, $15, $16, $17, $18,
+                $19, $20, NOW(), NOW()
             )
             "#,
         )
         .bind(site_iid)
         .bind(tx_id)
         .bind(item.item_id)
+        .bind(item_owner_iid)
+        .bind(item.obj_id)
         .bind(item.product_id)
         .bind(item.product_rev)
         .bind(item.price)

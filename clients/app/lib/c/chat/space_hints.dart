@@ -58,7 +58,7 @@ class SpaceHint {
 
 List<SpaceHint> hintsOfflineFallback() => const [
       SpaceHint(syncId: 0, id: 'hint.consumption_add', scope: 'role:personal_assistant', sort: 10, label: 'Track Consumption', icon: 'mdi:restaurant', action: HintActionKind.pickImage, sendText: 'Track food consumption', instId: 'inst.consumption_add'),
-      SpaceHint(syncId: 0, id: 'hint.expense_add', scope: 'role:personal_assistant', sort: 20, label: 'Track Expense', icon: 'mdi:receipt', action: HintActionKind.sendText, sendText: 'Track expense', instId: ''),
+      SpaceHint(syncId: 0, id: 'hint.expense_add', scope: 'role:personal_assistant', sort: 20, label: 'Track Expense', icon: 'mdi:receipt', action: HintActionKind.sendText, sendText: 'Track expense', instId: 'inst.expense_add'),
     ];
 
 String hintPayloadText(Map<String, dynamic> payload, {required String fallback}) {

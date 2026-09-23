@@ -10,7 +10,7 @@ mod web_research;
 mod web_search;
 mod web_visit;
 
-pub use consumption::{ConsumptionAddTool, ConsumptionTodayTool, ConsumptionUpdateTool};
+pub use consumption::{ConsumptionAddTool, ConsumptionDeleteTool, ConsumptionTodayTool, ConsumptionUpdateTool};
 pub use delegate::{
     delegate_child_row, delegate_result_json, ComputerUseDelegateTool, DelegateRunTool,
 };

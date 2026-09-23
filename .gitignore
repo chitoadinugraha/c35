@@ -9,6 +9,10 @@ build/
 *.log
 **/.env.local
 
+# Deploy credentials (keep local; GitHub push protection blocks service account JSON)
+_/certs/google-play-upload-service-account.json
+_/certs/windows-msix-store.pfx
+
 # Docker build context tarballs
 c35-build-*.tar
 cs-agent-build-*.tar

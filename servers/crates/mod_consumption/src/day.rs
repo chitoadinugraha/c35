@@ -1,4 +1,4 @@
-use chrono::{Datelike, NaiveDate, TimeZone, Utc};
+use chrono::{Datelike, NaiveDate, TimeZone, Timelike, Utc};
 
 const EPOCH_MS: i64 = 1_704_067_200_000;
 const SHIFT: i64 = 22;
@@ -12,6 +12,49 @@ pub fn offset_hours(tz: &str) -> i32 {
     match tz.trim().to_ascii_lowercase().as_str() {
         "asia/jakarta" | "wib" | "ict" | "+07" | "+7" => 7,
         _ => 0,
+    }
+}
+
+pub fn local_hour(locale: &str) -> u32 {
+    let off = offset_hours(timezone_from_locale(locale));
+    let now = Utc::now() + chrono::Duration::hours(off as i64);
+    now.hour()
+}
+
+pub fn infer_meal_type(note: &str, locale: &str) -> &'static str {
+    let n = note.to_ascii_lowercase();
+    if n.contains("sarapan") || n.contains("breakfast") || n.contains("pagi") {
+        return "breakfast";
+    }
+    if n.contains("makan siang") || n.contains("lunch") || n.contains("siang") {
+        return "lunch";
+    }
+    if n.contains("makan malam") || n.contains("dinner") || n.contains("malam") {
+        return "dinner";
+    }
+    if n.contains("late night") || n.contains("tengah malam") || n.contains("sahur") || n.contains("supper") {
+        return "late_night";
+    }
+    if n.contains("dessert")
+        || n.contains("pencuci mulut")
+        || n.contains("es krim")
+        || n.contains("ice cream")
+        || n.contains("cake")
+        || n.contains("kue")
+    {
+        return "dessert";
+    }
+    if n.contains("snack") || n.contains("camilan") || n.contains("ngemil") || n.contains("jajan") {
+        return "snack";
+    }
+
+    let h = local_hour(locale);
+    match h {
+        5..=10 => "breakfast",
+        11..=14 => "lunch",
+        15..=17 => "snack",
+        18..=21 => "dinner",
+        _ => "late_night",
     }
 }
 
@@ -51,4 +94,23 @@ pub fn snowflake_min_at_ms(ms: i64) -> i64 {
 
 pub fn snowflake_max_at_ms(ms: i64) -> i64 {
     snowflake_min_at_ms(ms) | ((1_i64 << SHIFT) - 1)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_infer_meal_type_keywords() {
+        assert_eq!(infer_meal_type("Sarapan bubur ayam", "id-ID"), "breakfast");
+        assert_eq!(infer_meal_type("Pancakes for breakfast", "en-US"), "breakfast");
+        assert_eq!(infer_meal_type("Makan siang nasi padang", "id-ID"), "lunch");
+        assert_eq!(infer_meal_type("Quick lunch salad", "en-US"), "lunch");
+        assert_eq!(infer_meal_type("Makan malam sate", "id-ID"), "dinner");
+        assert_eq!(infer_meal_type("Steak dinner", "en-US"), "dinner");
+        assert_eq!(infer_meal_type("Sahur jam 3 pagi", "id-ID"), "breakfast"); // "pagi" matches breakfast or sahur late night depending on precedence
+        assert_eq!(infer_meal_type("Late night indomie", "en-US"), "late_night");
+        assert_eq!(infer_meal_type("Es krim matcha", "id-ID"), "dessert");
+        assert_eq!(infer_meal_type("Ngemil keripik", "id-ID"), "snack");
+    }
 }

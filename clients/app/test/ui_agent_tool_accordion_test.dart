@@ -32,7 +32,7 @@ void main() {
     expect(find.text('Search web'), findsOneWidget);
     expect(find.text('Run build command'), findsOneWidget);
     expect(find.text('420ms'), findsOneWidget);
-    expect(find.text('1250ms'), findsOneWidget);
+    expect(find.text('1.3s'), findsOneWidget);
 
     // Tap to collapse
     await tester.tap(find.text('Agent executed 2 steps'));

@@ -1,4 +1,5 @@
 pub mod enum_map;
+pub mod normalizer;
 mod finalize;
 mod load;
 mod persist;

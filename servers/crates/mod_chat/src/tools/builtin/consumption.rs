@@ -2,10 +2,10 @@ use crate::tool;
 use anyhow::{anyhow, Result};
 use c35_mod_consumption::{
     consumption_compact_for_llm, consumption_food_block, consumption_glance_block, consumption_today,
-    day_bounds_ms, detect_pic, detect_text, food_duplicate_today, food_get, food_put, food_update,
-    food_with_items, items_from_json, items_matching_query, matched_items_kcal, meal_fingerprint,
-    meal_kcal_total, nutrition_sum_day, prefs_calorie_goal, resolve_day_id, today_compact_for_llm,
-    today_day_id, today_recap_coach,
+    day_bounds_ms, detect_pic, detect_text, food_delete, food_duplicate_today, food_get,
+    food_get_latest_today, food_put, food_update, food_with_items, infer_meal_type, items_from_json,
+    items_matching_query, matched_items_kcal, meal_fingerprint, meal_kcal_total, nutrition_sum_day,
+    prefs_calorie_goal, resolve_day_id, today_compact_for_llm, today_day_id, today_recap_coach,
 };
 use c35_mod_file::{cas_bytes_get, cas_dir_default};
 use serde_json::{json, Value};
@@ -13,18 +13,19 @@ use sqlx::PgPool;
 
 use crate::tools::ToolContext;
 
-fn photo_hash_from_attachments(attachments_json: &str) -> String {
+fn photo_hashes_from_attachments(attachments_json: &str) -> Vec<String> {
     let Ok(v) = serde_json::from_str::<Vec<serde_json::Value>>(attachments_json) else {
-        return String::new();
+        return vec![];
     };
-    for a in v.iter().rev() {
+    let mut out = Vec::new();
+    for a in v.iter() {
         let mime = a.get("mime").and_then(|x| x.as_str()).unwrap_or("");
         let hash = a.get("hash").and_then(|x| x.as_str()).unwrap_or("");
-        if mime.starts_with("image/") && !hash.is_empty() {
-            return hash.to_string();
+        if mime.starts_with("image/") && !hash.is_empty() && !out.contains(&hash.to_string()) {
+            out.push(hash.to_string());
         }
     }
-    String::new()
+    out
 }
 
 async fn load_photo(pool: &PgPool, hash: &str) -> Result<(Vec<u8>, String)> {
@@ -40,8 +41,13 @@ pub async fn consumption_add_exec(ctx: &ToolContext, args: &Value) -> Result<Val
     let note = args.get("note").and_then(|v| v.as_str()).unwrap_or("").trim();
     let force = args.get("force").and_then(|v| v.as_bool()).unwrap_or(false);
     let mut photo_hash = args.get("photo_hash").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
+    let attached_pics = photo_hashes_from_attachments(&ctx.attachments_json);
     if photo_hash.is_empty() {
-        photo_hash = photo_hash_from_attachments(&ctx.attachments_json);
+        photo_hash = attached_pics.first().cloned().unwrap_or_default();
+    }
+    let mut pics = attached_pics;
+    if !photo_hash.is_empty() && !pics.contains(&photo_hash) {
+        pics.insert(0, photo_hash.clone());
     }
 
     let items = if !photo_hash.is_empty() {
@@ -106,13 +112,21 @@ pub async fn consumption_add_exec(ctx: &ToolContext, args: &Value) -> Result<Val
     }
 
     let meal_note = if note.is_empty() { "Meal" } else { note };
+    let explicit_meal_type = args.get("meal_type").and_then(|v| v.as_str()).unwrap_or("").trim();
+    let meal_type = if !explicit_meal_type.is_empty() && explicit_meal_type != "other" {
+        explicit_meal_type
+    } else {
+        infer_meal_type(note, locale)
+    };
+
     let id = match food_put(
         &ctx.pool,
         ctx.owner_iid,
         meal_note,
         &photo_hash,
+        &pics,
         &fingerprint,
-        "other",
+        meal_type,
         &items,
     )
     .await
@@ -232,6 +246,66 @@ pub async fn consumption_update_exec(ctx: &ToolContext, args: &Value) -> Result<
     Ok(json!({ "ok": true, "block": block, "consumption_id": id.to_string() }))
 }
 
+pub async fn consumption_delete_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
+    let id_s = args.get("consumption_id").and_then(|v| v.as_str()).unwrap_or("").trim();
+    let locale = ctx.locale.as_str();
+    let day = today_day_id(locale);
+    let (start, end) = day_bounds_ms(&day, locale).unwrap_or((0, i64::MAX));
+
+    let (id, target_food) = if !id_s.is_empty() {
+        let parsed = id_s.parse::<i64>().unwrap_or(0);
+        if parsed == 0 {
+            return Ok(json!({ "ok": false, "error": "invalid consumption_id" }));
+        }
+        let food = food_get(&ctx.pool, ctx.owner_iid, parsed).await.unwrap_or(None);
+        (parsed, food)
+    } else {
+        match food_get_latest_today(&ctx.pool, ctx.owner_iid, start, end).await {
+            Ok(Some(f)) => {
+                let pid = f.id.parse::<i64>().unwrap_or(0);
+                (pid, Some(f))
+            }
+            Ok(None) => {
+                let id_msg = if locale.to_lowercase().starts_with("id") {
+                    "Tidak ada catatan makan yang ditemukan untuk dihapus hari ini."
+                } else {
+                    "No meals found to delete today."
+                };
+                return Ok(json!({ "ok": false, "error": id_msg }));
+            }
+            Err(e) => return Ok(json!({ "ok": false, "error": e })),
+        }
+    };
+
+    if id == 0 {
+        return Ok(json!({ "ok": false, "error": "consumption not found" }));
+    }
+
+    match food_delete(&ctx.pool, ctx.owner_iid, id).await {
+        Ok(true) => {
+            let (so_far, _, _, _, meals_logged) = nutrition_sum_day(&ctx.pool, ctx.owner_iid, start, end)
+                .await
+                .unwrap_or((0, 0, 0, 0, 0));
+            let goal = prefs_calorie_goal(&ctx.pool, ctx.owner_iid).await.unwrap_or(2000);
+            let msg = if locale.to_lowercase().starts_with("id") {
+                format!("Catatan makan berhasil dihapus. Total hari ini: {} / {} kcal ({} kali makan).", so_far, goal, meals_logged)
+            } else {
+                format!("Meal deleted. Remaining today: {} / {} kcal ({} meals).", so_far, goal, meals_logged)
+            };
+            Ok(json!({
+                "ok": true,
+                "deleted": true,
+                "consumption_id": id.to_string(),
+                "meal": target_food,
+                "message": msg,
+                "today": { "so_far": so_far, "goal": goal, "meals_logged": meals_logged }
+            }))
+        }
+        Ok(false) => Ok(json!({ "ok": false, "error": "meal not found or already deleted" })),
+        Err(e) => Ok(json!({ "ok": false, "error": e })),
+    }
+}
+
 tool! {
     struct: ConsumptionAddTool,
     name: "consumption.add",
@@ -242,6 +316,7 @@ tool! {
     parameters: {
         note: (string, "Meal note or user caption", optional),
         photo_hash: (string, "CAS image hash from attachment", optional),
+        meal_type: (string, "Meal type: breakfast, lunch, dinner, snack, dessert, late_night (optional, auto-inferred if omitted)", optional),
         force: (boolean, "Save even if duplicate detected today", optional, default = false),
     },
     execute: |args, ctx| consumption_add_exec(ctx, &args).await
@@ -276,4 +351,17 @@ tool! {
         items_json: (array, "Updated item array with name, qty, calories, macros", required),
     },
     execute: |args, ctx| consumption_update_exec(ctx, &args).await
+}
+
+tool! {
+    struct: ConsumptionDeleteTool,
+    name: "consumption.delete",
+    aliases: ["consumption_delete"],
+    description: "Delete or cancel a logged food consumption entry. If consumption_id is omitted, deletes the most recent meal logged today.",
+    topics: ["health"],
+    always: ["general", "health"],
+    parameters: {
+        consumption_id: (string, "Consumption snowflake id to delete (optional, defaults to last meal today)", optional),
+    },
+    execute: |args, ctx| consumption_delete_exec(ctx, &args).await
 }

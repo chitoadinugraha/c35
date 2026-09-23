@@ -73,7 +73,9 @@ INSERT INTO ai.hint (id, scope, label_key, icon, action, send_text_key, inst_id,
     'mdi:receipt',
     'send_text',
     'hint.expense_add.send_text',
-    '',
+    'inst.expense_add',
     20
 )
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+    inst_id = EXCLUDED.inst_id,
+    action = EXCLUDED.action;

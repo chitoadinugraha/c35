@@ -229,6 +229,51 @@ UPDATE ai.inst SET
     updated_ts = NOW()
 WHERE id = 'inst.consumption_coach';
 
+-- Seed: food consumption deletion / cancel
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, priority, def_hash, updated_ts
+) VALUES (
+    'inst.consumption_delete',
+    'role:personal_assistant',
+    'task',
+    '',
+    '[FOOD] User wants to delete or cancel a logged food consumption entry. Call consumption.delete with consumption_id if known, or without arguments to cancel the most recent meal today. Do not call img.generate.',
+    ARRAY[
+        'hapus catatan makan', 'hapus makanan', 'batal catat makan', 'hapus log makan',
+        'delete meal', 'cancel meal', 'remove food log', 'delete food'
+    ],
+    ARRAY['tool_include:consumption.delete', 'tool_exclude:img.generate'],
+    140,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO NOTHING;
+
+-- Seed: expense tracking & amount normalization (personal assistant)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, priority, def_hash, updated_ts
+) VALUES (
+    'inst.expense_add',
+    'role:personal_assistant',
+    'task',
+    '',
+    '[EXPENSE] User wants to log an expense or purchase. Parse line items, quantity, and amount into site.tx.put (with site_iid=owner_iid for personal expenses). \
+[AMOUNT INFERENCE] Infer realistic IDR major units: small numbers for food/daily items mean thousands (18 → 18000, 6.5 → 6500), while electronics/rent mean millions (18 → 18000000, 2.5 → 2500000). Suffixes k/rb = ×1,000, jt/m = ×1,000,000. \
+Reply briefly with recorded item, amount, and category — never invent prices.',
+    ARRAY[
+        'catat pengeluaran', 'track expense', 'beli ', 'bayar ', 'catat struk',
+        'log expense', 'tambah pengeluaran', 'catat pembelian', 'pengeluaran baru'
+    ],
+    ARRAY['tool_include:site.tx.put', 'tool_exclude:img.generate'],
+    138,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
 -- Seed: site layout / theme editing via Home prompt
 INSERT INTO ai.inst (
     id, scope, kind, topic_id, inst, phrases, triggers, priority, def_hash, updated_ts
