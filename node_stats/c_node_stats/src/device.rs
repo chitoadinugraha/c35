@@ -2,6 +2,8 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
+use anyhow::Result;
+
 use crate::host::{exists, host_path, parse_mount_devices_text, stat_bytes};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
