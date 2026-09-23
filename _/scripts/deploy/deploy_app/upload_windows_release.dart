@@ -35,7 +35,11 @@ Future<void> uploadWindowsZipToCas({required String zipPath, required int versio
   stdout.writeln('✓ CAS upload hash=$hash size=${body['size_bytes'] ?? bytes.length}');
 }
 
+Future<void> uploadWindowsReleaseOnly(WindowsBuildResult build) async {
+  await uploadWindowsZipToCas(zipPath: build.zipPath, version: build.version, localHash: build.hash);
+}
+
 Future<void> uploadAndPublishWindowsRelease(WindowsBuildResult build) async {
-  await runStep('Upload Windows zip to CAS', () => uploadWindowsZipToCas(zipPath: build.zipPath, version: build.version, localHash: build.hash));
+  await runStep('Upload Windows zip to CAS', () => uploadWindowsReleaseOnly(build));
   await publishWindowsAppVersion(version: build.version, hash: build.hash, size: build.size);
 }

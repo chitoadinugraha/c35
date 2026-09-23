@@ -17,7 +17,7 @@ Future<void> main(List<String> args) async {
     await uploadAndroidApkRelease(apk);
     await publishAndroidAppVersion(versionCode, apkHash: apk.hash, apkSize: apk.size);
     await maybePruneAppArtifactsAfterPublish();
-    deployAppBumpVersion();
+    deployAppBumpVersionUnlessSkipped();
     stdout.writeln('Build and upload complete!');
     final version = await playStoreShowDeployedStatus();
     deployDone(version: version, detail: 'AAB ${aabBundleSizeLabel()}');

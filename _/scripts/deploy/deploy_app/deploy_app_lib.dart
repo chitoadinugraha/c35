@@ -11,6 +11,16 @@ void deployAppBumpVersion() {
   stdout.writeln('✓ Version bumped to $version for next deploy');
 }
 
+bool deployAppShouldBumpVersion() => deployEnv('DEPLOY_SKIP_VERSION_BUMP', '0') != '1';
+
+void deployAppBumpVersionUnlessSkipped() {
+  if (!deployAppShouldBumpVersion()) {
+    stdout.writeln('[skip] DEPLOY_SKIP_VERSION_BUMP=1 — version not bumped');
+    return;
+  }
+  deployAppBumpVersion();
+}
+
 const playStorePackageName = 'id.alienai.agent';
 
 String playStoreCredentialsPath() => p.join(repoRoot(), '_', 'certs', 'google-play-upload-service-account.json');

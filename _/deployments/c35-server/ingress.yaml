@@ -64,6 +64,13 @@ spec:
                 name: c35-server
                 port:
                   name: http
+          - path: /version
+            pathType: Prefix
+            backend:
+              service:
+                name: c35-server
+                port:
+                  name: http
     - host: alienai.id
       http:
         paths:

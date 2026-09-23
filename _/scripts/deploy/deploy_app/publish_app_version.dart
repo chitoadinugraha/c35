@@ -117,6 +117,19 @@ Future<void> publishPlatformAppVersionWindows({required int version, required St
   stdout.writeln('✓ GET /version windows → $version ($versionName)');
 }
 
+Future<void> publishAppReleaseProd({
+  required int version,
+  String apkHash = '',
+  int apkSize = 0,
+  String windowsHash = '',
+  int windowsSize = 0,
+}) async {
+  await publishAndroidAppVersion(version, apkHash: apkHash, apkSize: apkSize);
+  if (windowsHash.isNotEmpty && windowsSize > 0) {
+    await publishWindowsAppVersion(version: version, hash: windowsHash, size: windowsSize);
+  }
+}
+
 Future<void> publishAndroidAppVersion(int versionCode, {String apkHash = '', int apkSize = 0}) async {
   if (deployEnv('PLATFORM_APP_VERSION_PUBLISH', '1') == '0') {
     stdout.writeln('[skip] PLATFORM_APP_VERSION_PUBLISH=0 — not publishing /version');

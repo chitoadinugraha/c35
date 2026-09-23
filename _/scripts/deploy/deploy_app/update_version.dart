@@ -59,6 +59,20 @@ String versionStampSync(String repoRoot) {
   return version;
 }
 
+String versionSetPubspecBuild(String repoRoot, int build) {
+  if (build <= 0) throw StateError('Invalid build number: $build');
+  final (major, _) = versionReadPubspec(repoRoot);
+  versionWritePubspec(repoRoot, major, build);
+  final version = '$build';
+  versionStampWrite(repoRoot, version);
+  return version;
+}
+
+String versionMsixManifest(String repoRoot) {
+  final match = _pubspecMatch(repoRoot);
+  return '${match.group(1)}.${match.group(2)}.${match.group(3)}.0';
+}
+
 String versionStampBump(String repoRoot) {
   final (major, build) = versionReadPubspec(repoRoot);
   final newBuild = build + 1;

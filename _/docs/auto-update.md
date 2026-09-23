@@ -95,15 +95,35 @@ In every platform's `main.rs`:
 
 ## Deployment Commands
 
+See [`app-release.md`](app-release.md) for credentials, script matrix, and csa vs c35 differences.
+
 ### Flutter App
+
+**Primary:** coordinated prod release (single pubspec bump):
+
 ```powershell
 cd _\scripts\deploy
 dart pub get
 $env:DEPLOY_AUTH_TOKEN = '<jwt>'
 $env:YB_PASSWORD = '<password>'
-dart run deploy_app/windows_upload_prod.dart
-dart run deploy_app/play_store_upload_prod.dart
+dart run deploy_app/deploy_app_release.dart
 ```
+
+Partial flags: `--android-only`, `--windows-only`. Internal QA (AAB only, no `/version`):
+
+```powershell
+dart run deploy_app/play_store_upload_tester.dart
+# or: dart run deploy_app/deploy_app_release.dart --tester
+```
+
+Standalone platform scripts (each bumps pubspec — avoid running both for one release):
+
+```powershell
+dart run deploy_app/play_store_upload_prod.dart
+dart run deploy_app/windows_upload_prod.dart
+```
+
+Apply `_/deployments/c35-server/ingress.yaml` `/version` route on `api.alienai.id` if client polls fail.
 
 ### Remote Windows Agent
 ```powershell

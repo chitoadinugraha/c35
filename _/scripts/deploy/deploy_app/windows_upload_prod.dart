@@ -11,7 +11,7 @@ Future<void> main(List<String> args) async {
     deployLoadEnvLocal();
     final build = buildWindowsRelease();
     await uploadAndPublishWindowsRelease(build);
-    deployAppBumpVersion();
+    deployAppBumpVersionUnlessSkipped();
     stdout.writeln('Windows build and upload complete!');
     deployDone(version: 'v${build.version}', detail: 'zip ${formatBytes(build.size)}');
   } catch (e) {

@@ -65,6 +65,54 @@ pub fn version_router() -> Router<AppState> {
         .route("/version/{platform}", get(version_get))
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DownloadKind {
+    Apk,
+    WindowsZip,
+    WindowsMsix,
+}
+
+pub fn version_download_url(release: &VersionRes, stored: &Value, kind: DownloadKind) -> Option<String> {
+    match kind {
+        DownloadKind::Apk => release.apk_url.clone(),
+        DownloadKind::WindowsZip => release.hash.as_deref().map(|_| release.url.clone()),
+        DownloadKind::WindowsMsix => version_store_msix_url(stored),
+    }
+}
+
+fn version_store_msix_url(stored: &Value) -> Option<String> {
+    for key in ["storeUrl", "store_url"] {
+        if let Some(url) = stored
+            .get(key)
+            .and_then(|v| v.as_str())
+            .filter(|s| s.contains(".msix"))
+        {
+            return Some(url.to_string());
+        }
+    }
+    stored
+        .get("url")
+        .and_then(|v| v.as_str())
+        .filter(|s| s.contains(".msix"))
+        .map(str::to_string)
+}
+
+pub async fn version_download_resolve(
+    pool: &sqlx::PgPool,
+    cas_secret: &str,
+    public_origin: &str,
+    platform: &str,
+    kind: DownloadKind,
+) -> Result<Option<String>, sqlx::Error> {
+    let Some(stored) = version_config_get(pool, platform).await? else {
+        return Ok(None);
+    };
+    let Some(release) = version_release_build(&stored, cas_secret, public_origin, CAS_URL_TTL) else {
+        return Ok(None);
+    };
+    Ok(version_download_url(&release, &stored, kind))
+}
+
 pub fn version_release_build(stored: &Value, secret: &str, origin: &str, ttl: Duration) -> Option<VersionRes> {
     let version = stored.get("version").and_then(json_i64)?;
     if version <= 0 {
@@ -244,5 +292,42 @@ mod tests {
         let out = version_release_build(&stored, "dev-cas-hmac", "https://alienai.id", Duration::from_secs(3600)).unwrap();
         assert_eq!(out.apk_hash.as_deref(), Some("abc123"));
         assert!(out.apk_url.as_ref().unwrap().contains("/fs/abc123?"));
+    }
+
+    #[test]
+    fn version_download_url_apk_windows_and_msix() {
+        let android = json!({
+            "version": 234,
+            "url": "https://play.google.com/store/apps/details?id=id.alienai.agent",
+            "apkHash": "apkhash",
+            "apkSize": 4096
+        });
+        let android_release = version_release_build(&android, "dev-cas-hmac", "https://alienai.id", Duration::from_secs(3600)).unwrap();
+        assert!(version_download_url(&android_release, &android, DownloadKind::Apk)
+            .unwrap()
+            .contains("/fs/apkhash?"));
+
+        let windows = json!({
+            "version": 235,
+            "hash": "winhash",
+            "size": 1024
+        });
+        let windows_release = version_release_build(&windows, "dev-cas-hmac", "https://alienai.id", Duration::from_secs(3600)).unwrap();
+        assert!(version_download_url(&windows_release, &windows, DownloadKind::WindowsZip)
+            .unwrap()
+            .contains("/fs/winhash?"));
+        assert!(version_download_url(&windows_release, &windows, DownloadKind::WindowsMsix).is_none());
+
+        let msix = json!({
+            "version": 236,
+            "hash": "winhash",
+            "size": 1024,
+            "storeUrl": "https://apps.microsoft.com/store/detail/alienai/9NABCDEF.msix"
+        });
+        let msix_release = version_release_build(&msix, "dev-cas-hmac", "https://alienai.id", Duration::from_secs(3600)).unwrap();
+        assert_eq!(
+            version_download_url(&msix_release, &msix, DownloadKind::WindowsMsix).as_deref(),
+            Some("https://apps.microsoft.com/store/detail/alienai/9NABCDEF.msix")
+        );
     }
 }

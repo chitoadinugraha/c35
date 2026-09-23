@@ -2,11 +2,15 @@ use std::path::{Path as StdPath, PathBuf};
 use axum::{
     extract::{Path, State},
     http::{header, HeaderMap, StatusCode},
-    response::{IntoResponse, Response},
+    response::{IntoResponse, Redirect, Response},
     routing::get,
     Router,
 };
 use c35_ctx::AppState;
+
+use crate::version::{DownloadKind, version_download_resolve};
+
+const MSIX_NOT_PUBLISHED: &str = "MSIX not published; use auto-update ZIP";
 
 pub fn web_root_dir() -> PathBuf {
     if let Ok(dir) = std::env::var("WEB_ROOT_DIR") {
@@ -129,6 +133,56 @@ pub async fn static_get(Path(path): Path<String>) -> Response {
     (StatusCode::NOT_FOUND, "static asset not found").into_response()
 }
 
+async fn download_redirect(st: AppState, platform: &'static str, kind: DownloadKind) -> Response {
+    match version_download_resolve(&st.pool, &st.cas_secret, &st.public_origin, platform, kind).await {
+        Ok(Some(url)) => Redirect::temporary(&url).into_response(),
+        Ok(None) => (StatusCode::NOT_FOUND, "download not found").into_response(),
+        Err(e) => {
+            tracing::warn!(error = %e, platform, "download redirect lookup failed");
+            (StatusCode::INTERNAL_SERVER_ERROR, "download lookup failed").into_response()
+        }
+    }
+}
+
+async fn download_msix_redirect(st: AppState, platform: &'static str) -> Response {
+    match version_download_resolve(
+        &st.pool,
+        &st.cas_secret,
+        &st.public_origin,
+        platform,
+        DownloadKind::WindowsMsix,
+    )
+    .await
+    {
+        Ok(Some(url)) => Redirect::temporary(&url).into_response(),
+        Ok(None) => (StatusCode::NOT_FOUND, MSIX_NOT_PUBLISHED).into_response(),
+        Err(e) => {
+            tracing::warn!(error = %e, platform, "download msix redirect lookup failed");
+            (StatusCode::INTERNAL_SERVER_ERROR, "download lookup failed").into_response()
+        }
+    }
+}
+
+async fn download_app_apk(State(st): State<AppState>) -> Response {
+    download_redirect(st, "android", DownloadKind::Apk).await
+}
+
+async fn download_app_exe(State(st): State<AppState>) -> Response {
+    download_redirect(st, "windows", DownloadKind::WindowsZip).await
+}
+
+async fn download_app_msi(State(st): State<AppState>) -> Response {
+    download_msix_redirect(st, "windows").await
+}
+
+async fn download_agent_exe(State(st): State<AppState>) -> Response {
+    download_redirect(st, "remote-windows", DownloadKind::WindowsZip).await
+}
+
+async fn download_agent_msi(State(st): State<AppState>) -> Response {
+    download_msix_redirect(st, "remote-windows").await
+}
+
 pub fn web_router() -> Router<AppState> {
     Router::new()
         .route("/terms", get(|| page_get("terms.html")))
@@ -141,8 +195,13 @@ pub fn web_router() -> Router<AppState> {
         .route("/locales/{file}", get(locale_get))
         .route("/static/{*path}", get(static_get))
         .route("/download/web", get(|| async {
-            axum::response::Redirect::temporary("https://ai.alienai.id/app/")
+            Redirect::temporary("https://ai.alienai.id/app/")
         }))
+        .route("/download/app.apk", get(download_app_apk))
+        .route("/download/app.exe", get(download_app_exe))
+        .route("/download/app.msi", get(download_app_msi))
+        .route("/download/agent.exe", get(download_agent_exe))
+        .route("/download/agent.msi", get(download_agent_msi))
 }
 
 #[cfg(test)]
