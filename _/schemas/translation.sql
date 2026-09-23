@@ -34,6 +34,12 @@ INSERT INTO ai.translation (lang, key, category, text) VALUES
 -- tool.img.generate.*
 ('en', 'tool.img.generate.calling', 'tool', 'Generating image…'),
 ('en', 'tool.img.generate.done', 'tool', 'Generated image'),
+-- tool.consumption.add.*
+('en', 'tool.consumption.add.calling', 'tool', 'Logging food…'),
+('en', 'tool.consumption.add.done', 'tool', 'Logged food'),
+-- tool.consumption.today.*
+('en', 'tool.consumption.today.calling', 'tool', 'Checking meals today…'),
+('en', 'tool.consumption.today.done', 'tool', 'Checked meals today'),
 -- mention.research.*
 ('en', 'mention.research.label', 'mention', 'Research'),
 ('en', 'mention.research.caption', 'mention', 'Deep web research'),
@@ -70,6 +76,10 @@ INSERT INTO ai.translation (lang, key, category, text) VALUES
 ('id', 'tool.web.research.done', 'tool', 'Teliti'),
 ('id', 'tool.img.generate.calling', 'tool', 'Membuat gambar…'),
 ('id', 'tool.img.generate.done', 'tool', 'Gambar dibuat'),
+('id', 'tool.consumption.add.calling', 'tool', 'Mencatat makanan…'),
+('id', 'tool.consumption.add.done', 'tool', 'Makanan tercatat'),
+('id', 'tool.consumption.today.calling', 'tool', 'Mengecek makan hari ini…'),
+('id', 'tool.consumption.today.done', 'tool', 'Makan hari ini dicek'),
 ('id', 'mention.research.label', 'mention', 'Riset'),
 ('id', 'mention.research.caption', 'mention', 'Riset web mendalam'),
 ('id', 'mention.image.label', 'mention', 'Image'),

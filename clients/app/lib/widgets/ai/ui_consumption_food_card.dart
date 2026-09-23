@@ -40,6 +40,7 @@ class _UiConsumptionFoodCardState extends State<UiConsumptionFoodCard> {
   Color get _coachColor {
     if (widget.card.duplicate && !widget.card.saved) return const Color(0xFF9CA3AF);
     if (widget.card.coach.isEmpty) return const Color(0xFF9CA3AF);
+    if (widget.card.after > widget.card.goal) return const Color(0xFFF59E0B);
     return const Color(0xFF6EE7B7);
   }
 

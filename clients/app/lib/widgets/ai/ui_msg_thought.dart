@@ -2,9 +2,7 @@ import 'dart:async';
 
 import 'package:alienai_c35/c/chat/chat_inbox.dart';
 import 'package:alienai_c35/widgets/ui/ui_loading.dart';
-import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
 const uiMsgThoughtColor = Color(0xFF6BA8C8);
@@ -71,76 +69,62 @@ class _UiMsgThoughtState extends State<UiMsgThought> {
         blockquoteDecoration: const BoxDecoration(border: Border(left: BorderSide(color: Color(0xFF3F6378), width: 3))),
       );
 
-  void _copyThought(BuildContext context) {
-    Clipboard.setData(ClipboardData(text: widget.text));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Thought copied'), behavior: SnackBarBehavior.floating, duration: Duration(seconds: 1)),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     if (widget.text.isEmpty && !_live) return const SizedBox.shrink();
+    final previewMaxW = MediaQuery.sizeOf(context).width * 0.62;
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () => setState(() => _open = !_open),
-                    borderRadius: BorderRadius.circular(8),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Row(
-                        children: [
-                          Icon(
-                            _expanded ? Icons.expand_less_rounded : Icons.psychology_alt_rounded,
-                            size: 16,
-                            color: uiMsgThoughtColor,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            _headerLabel,
-                            style: const TextStyle(color: uiMsgThoughtColor, fontSize: 12, fontWeight: FontWeight.w600, height: 1.2),
-                          ),
-                          if (_live) ...[
-                            const SizedBox(width: 4),
-                            const UiThinkingDots(color: uiMsgThoughtColor),
-                          ],
-                          if (_live && widget.startedAtMs != null) ...[
-                            const SizedBox(width: 8),
-                            _ThoughtElapsed(startedAtMs: widget.startedAtMs!),
-                          ],
-                          if (!_expanded && _hasBody) ...[
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                widget.text.replaceAll('\n', ' ').trim(),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(color: Color(0xFF71717A), fontSize: 12, fontStyle: FontStyle.italic, height: 1.2),
-                              ),
-                            ),
-                          ],
-                        ],
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: _hasBody || _live ? () => setState(() => _open = !_open) : null,
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _expanded ? Icons.expand_less_rounded : Icons.psychology_alt_rounded,
+                        size: 16,
+                        color: uiMsgThoughtColor,
                       ),
-                    ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _headerLabel,
+                        style: const TextStyle(color: uiMsgThoughtColor, fontSize: 12, fontWeight: FontWeight.w600, height: 1.2),
+                      ),
+                      if (_live) ...[
+                        const SizedBox(width: 4),
+                        const UiThinkingDots(color: uiMsgThoughtColor),
+                      ],
+                      if (_live && widget.startedAtMs != null) ...[
+                        const SizedBox(width: 8),
+                        _ThoughtElapsed(startedAtMs: widget.startedAtMs!),
+                      ],
+                      if (!_expanded && _hasBody) ...[
+                        const SizedBox(width: 8),
+                        ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: previewMaxW),
+                          child: Text(
+                            widget.text.replaceAll('\n', ' ').trim(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: Color(0xFF71717A), fontSize: 12, fontStyle: FontStyle.italic, height: 1.2),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ),
-              if (_hasBody)
-                uiIconButton(
-                  tooltip: 'Copy thought',
-                  visualDensity: VisualDensity.compact,
-                  onPressed: () => _copyThought(context),
-                  icon: const Icon(Icons.content_copy_rounded, size: 15, color: Color(0xFF71717A)),
-                ),
-            ],
+            ),
           ),
           if (_expanded && _hasBody)
             Padding(

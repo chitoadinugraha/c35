@@ -121,14 +121,12 @@ String traceModelLabel(String model) {
 }
 
 String traceToolLabel(String toolId) {
-  final id = toolId.replaceAll('_', '.');
-  return switch (id) {
-    'web.search' => catalogT('tool.web.search.calling').replaceAll('…', ''),
-    'web.visit' => catalogT('tool.web.visit.calling').replaceAll('…', ''),
-    'web.research' => catalogT('tool.web.research.calling').replaceAll('…', ''),
-    'img.generate' => catalogT('tool.img.generate.calling').replaceAll('…', ''),
-    _ => id.isEmpty ? 'Tool' : id,
-  };
+  final id = toolId.replaceAll('_', '.').trim();
+  if (id.isEmpty) return 'Tool';
+  final key = 'tool.$id.calling';
+  final translated = catalogT(key).replaceAll('…', '').trim();
+  if (translated.isNotEmpty && translated != key) return translated;
+  return id;
 }
 
 TraceBranch _branchFromLog(TraceLogDoc log) {

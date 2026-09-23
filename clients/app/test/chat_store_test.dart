@@ -75,6 +75,27 @@ void main() {
     expect(store.promptBusy, isTrue);
   });
 
+  test('chatStatusStaleClear resets orphaned streaming status', () {
+    final store = ChatStore();
+    store.chats = [ChatRow(id: 1, title: 'A', lastMsgStatus: 'streaming')];
+
+    store.chatStatusStaleClear();
+
+    expect(store.chats.single.lastMsgStatus, 'done');
+  });
+
+  test('chatPutFromServer ignores stale streaming when not prompting', () {
+    final store = ChatStore();
+    store.chats = [ChatRow(id: 1, title: 'A')];
+
+    store.chatPutFromServer(
+      Chat(id: Int64(1), title: 'Track food consumption'),
+      ChatMember(chatId: Int64(1), lastMsgStatus: 'streaming', lastMsgPreview: 'Track food consumption'),
+    );
+
+    expect(store.chats.single.lastMsgStatus, 'done');
+  });
+
   test('pending chat id migrates promptChatId on server assign', () {
     final store = ChatStore();
     store.chats = [ChatRow(id: -1, title: 'New chat', pending: true)];

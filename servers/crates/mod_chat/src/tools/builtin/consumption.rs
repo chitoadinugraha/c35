@@ -313,6 +313,8 @@ tool! {
     description: "Log food consumption from a photo hash and/or meal description. Returns a meal card for the user.",
     topics: ["health"],
     always: ["general", "health"],
+    ui_calling_key: "tool.consumption.add.calling",
+    ui_done_key: "tool.consumption.add.done",
     parameters: {
         note: (string, "Meal note or user caption", optional),
         photo_hash: (string, "CAS image hash from attachment", optional),

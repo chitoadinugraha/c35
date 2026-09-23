@@ -247,7 +247,7 @@ class _UiChatHistorySidebarState extends State<UiChatHistorySidebar> {
   Widget _chatTile(ChatRow c, {required bool archived, String subtitle = ''}) {
     final selected = c.id == widget.store.activeChatId && !archived;
     final deleting = widget.store.chatDeletingFor(c.id);
-    final isStreaming = widget.store.promptBusyFor(c.id) || c.lastMsgStatus == 'streaming';
+    final isStreaming = widget.store.promptBusyFor(c.id);
     return _ChatTile(
       title: c.title.trim().isEmpty || c.title == 'New chat' ? c.title : chatTitleDisplay(c.title),
       subtitle: subtitle,

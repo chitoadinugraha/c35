@@ -37,7 +37,13 @@ bool msgThoughtIsPlaceholder(String raw) {
   return t == 'thinking' || t == 'capturing screen';
 }
 
-String msgThoughtStripPlaceholders(String raw) => raw.split('\n').where((line) => !msgThoughtIsPlaceholder(line)).join('\n').trim();
+bool msgThoughtIsToolCallingLine(String raw) {
+  final t = raw.trim().replaceAll('...', '…').replaceAll(RegExp(r'…+$'), '…');
+  return RegExp(r'^Using [\w.]+(…)?$', caseSensitive: false).hasMatch(t);
+}
+
+String msgThoughtStripPlaceholders(String raw) =>
+    raw.split('\n').where((line) => !msgThoughtIsPlaceholder(line) && !msgThoughtIsToolCallingLine(line)).join('\n').trim();
 
 String pcToolErrorText(Object error) {
   final s = error.toString().replaceFirst(RegExp(r'^Exception: '), '');

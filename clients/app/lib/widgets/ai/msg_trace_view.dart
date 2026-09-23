@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/trace/trace_view.dart';
-import 'package:alienai_c35/widgets/ai/ui_agent_tool_accordion.dart';
+import 'package:alienai_c35/c/ui/ui_format.dart';
 import 'package:flutter/material.dart';
 
 class MsgTraceView {
@@ -92,9 +92,48 @@ class UiMsgTraceView extends StatelessWidget {
   final bool compact;
   final bool live;
 
+  static const _muted = Color(0xFF71717A);
+  static const _text = Color(0xFFA1A1AA);
+  static const _border = Color(0xFF27272A);
+
   @override
   Widget build(BuildContext context) {
-    if (view.isEmpty && !live) return const SizedBox.shrink();
-    return UiAgentToolAccordion(chips: view.chips, live: live);
+    if (view.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: view.chips.map((t) => _ToolChip(chip: t, compact: compact)).toList(),
+      ),
+    );
+  }
+}
+
+class _ToolChip extends StatelessWidget {
+  const _ToolChip({required this.chip, required this.compact});
+  final MsgTraceToolChip chip;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final ms = uiFmtDurationMs(chip.durationMs);
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 10, vertical: compact ? 4 : 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1D),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: UiMsgTraceView._border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(chip.ok ? Icons.check_circle_outline : Icons.error_outline, size: 14, color: chip.ok ? const Color(0xFF22C55E) : Colors.orange),
+          const SizedBox(width: 6),
+          Text(chip.label, style: const TextStyle(color: UiMsgTraceView._text, fontSize: 12)),
+          if (ms.isNotEmpty) ...[const SizedBox(width: 6), Text(ms, style: const TextStyle(color: UiMsgTraceView._muted, fontSize: 11))],
+        ],
+      ),
+    );
   }
 }

@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:alienai_c35/widgets/ai/ui_chat_message_menu.dart';
+import 'package:alienai_c35/widgets/ai/ui_msg_bad_ai_report.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:flutter/material.dart';
 
@@ -11,6 +13,8 @@ class UiMsgHoverActions extends StatefulWidget {
     this.onEdit,
     this.onRetry,
     this.onFork,
+    this.onGood,
+    this.onReportBad,
   });
 
   final bool isUser;
@@ -18,6 +22,8 @@ class UiMsgHoverActions extends StatefulWidget {
   final VoidCallback? onEdit;
   final VoidCallback? onRetry;
   final VoidCallback? onFork;
+  final VoidCallback? onGood;
+  final void Function(String reason)? onReportBad;
 
   @override
   State<UiMsgHoverActions> createState() => _UiMsgHoverActionsState();
@@ -28,8 +34,7 @@ class _UiMsgHoverActionsState extends State<UiMsgHoverActions> {
   static const _accent = Color(0xFF06B6D4);
 
   var _copied = false;
-  var _thumbsUp = false;
-  var _thumbsDown = false;
+  var _good = false;
   Timer? _copyTimer;
 
   @override
@@ -62,6 +67,54 @@ class _UiMsgHoverActionsState extends State<UiMsgHoverActions> {
     );
   }
 
+  bool get _hasMoreMenu =>
+      (!widget.isUser && (widget.onRetry != null || widget.onFork != null || widget.onGood != null || widget.onReportBad != null)) ||
+      (widget.isUser && widget.onEdit != null);
+
+  Future<void> _openMoreMenu() async {
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
+    final global = box.localToGlobal(Offset(box.size.width - 8, box.size.height));
+    final items = <ChatMessageMenuItem>[
+      if (widget.isUser && widget.onEdit != null)
+        ChatMessageMenuAction(label: 'Edit prompt', icon: Icons.edit_outlined, onPressed: widget.onEdit!),
+      if (!widget.isUser && widget.onRetry != null)
+        ChatMessageMenuAction(label: 'Regenerate response', icon: Icons.refresh_rounded, onPressed: widget.onRetry!),
+      if (!widget.isUser && widget.onFork != null)
+        ChatMessageMenuAction(label: 'Fork chat from here', icon: Icons.alt_route_rounded, onPressed: widget.onFork!),
+      if (!widget.isUser && widget.onGood != null) ...[
+        if (widget.onRetry != null || widget.onFork != null) const ChatMessageMenuDivider(),
+        ChatMessageMenuAction(
+          label: 'Good response',
+          icon: _good ? Icons.thumb_up_rounded : Icons.thumb_up_outlined,
+          onPressed: () {
+            setState(() => _good = true);
+            widget.onGood?.call();
+          },
+        ),
+      ],
+      if (!widget.isUser && widget.onReportBad != null) ...[
+        if (widget.onRetry != null || widget.onFork != null || widget.onGood != null) const ChatMessageMenuDivider(),
+        ChatMessageMenuAction(
+          label: 'Report Bad AI',
+          icon: Icons.flag_outlined,
+          onPressed: () => unawaited(_reportBadAi(global)),
+        ),
+      ],
+    ];
+    if (items.isEmpty) return;
+    await showChatListMenu(context: context, global: global, items: items);
+  }
+
+  Future<void> _reportBadAi(Offset anchor) async {
+    final reason = await showMsgBadAiReportReasonMenu(context: context, global: anchor);
+    if (!mounted || reason == null || reason.isEmpty) return;
+    widget.onReportBad?.call(reason);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Thanks for the report'), behavior: SnackBarBehavior.floating, duration: Duration(seconds: 2)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -80,54 +133,12 @@ class _UiMsgHoverActionsState extends State<UiMsgHoverActions> {
             color: _copied ? _accent : null,
             onPressed: _copy,
           ),
-          if (widget.isUser && widget.onEdit != null) ...[
+          if (_hasMoreMenu) ...[
             const SizedBox(width: 2),
             _actionBtn(
-              tooltip: 'Edit prompt',
-              icon: Icons.edit_outlined,
-              onPressed: widget.onEdit,
-            ),
-          ],
-          if (!widget.isUser) ...[
-            if (widget.onRetry != null) ...[
-              const SizedBox(width: 2),
-              _actionBtn(
-                tooltip: 'Regenerate response',
-                icon: Icons.refresh_rounded,
-                onPressed: widget.onRetry,
-              ),
-            ],
-            if (widget.onFork != null) ...[
-              const SizedBox(width: 2),
-              _actionBtn(
-                tooltip: 'Fork chat from here',
-                icon: Icons.alt_route_rounded,
-                onPressed: widget.onFork,
-              ),
-            ],
-            const SizedBox(width: 2),
-            _actionBtn(
-              tooltip: 'Good response',
-              icon: _thumbsUp ? Icons.thumb_up_rounded : Icons.thumb_up_outlined,
-              color: _thumbsUp ? _accent : null,
-              onPressed: () {
-                setState(() {
-                  _thumbsUp = !_thumbsUp;
-                  if (_thumbsUp) _thumbsDown = false;
-                });
-              },
-            ),
-            const SizedBox(width: 2),
-            _actionBtn(
-              tooltip: 'Bad response',
-              icon: _thumbsDown ? Icons.thumb_down_rounded : Icons.thumb_down_outlined,
-              color: _thumbsDown ? const Color(0xFFEF4444) : null,
-              onPressed: () {
-                setState(() {
-                  _thumbsDown = !_thumbsDown;
-                  if (_thumbsDown) _thumbsUp = false;
-                });
-              },
+              tooltip: 'More actions',
+              icon: Icons.more_horiz_rounded,
+              onPressed: _openMoreMenu,
             ),
           ],
         ],

@@ -210,8 +210,12 @@ class _PageAIHomeState extends State<PageAIHome> {
       final m = push.chatMsg;
       _store.msgPutFromServer(m);
       final cid = m.chatId.toInt();
-      if (m.role == ChatMsgRole.CHAT_MSG_ROLE_ASSISTANT && _store.promptBusyFor(cid) && m.content.trim().isNotEmpty) {
-        _store.promptBusyPut(false, chatId: cid);
+      if (m.role == ChatMsgRole.CHAT_MSG_ROLE_ASSISTANT) {
+        if (_store.promptBusyFor(cid) && m.content.trim().isNotEmpty) {
+          _store.promptBusyPut(false, chatId: cid);
+        } else {
+          _store.chatStatusStaleClear(chatId: cid);
+        }
       }
     }
   }
@@ -775,24 +779,7 @@ class _PageAIHomeState extends State<PageAIHome> {
 
     Widget body;
     if (isUser) {
-      body = Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          UiUserBubble(content: m.content, copyPrefix: copyPrefix, attachments: m.attachments),
-          Padding(
-            padding: const EdgeInsets.only(top: 2),
-            child: UiMsgHoverActions(
-              isUser: true,
-              onCopy: () => Clipboard.setData(ClipboardData(text: m.content)),
-              onEdit: () {
-                _composerCtrl.text = m.content;
-                _composerCtrl.selection = TextSelection.collapsed(offset: m.content.length);
-                _composerFocus.requestFocus();
-              },
-            ),
-          ),
-        ],
-      );
+      body = UiUserBubble(content: m.content, copyPrefix: copyPrefix, attachments: m.attachments);
     } else {
       final content = msgDisplayContent(m);
       final err = msgRowError(m).trim();
@@ -851,6 +838,7 @@ class _PageAIHomeState extends State<PageAIHome> {
               blocks: blocks,
               consumptionApi: _consumptionApi,
               locale: locale,
+              primary: content.trim().isEmpty && !hasError,
               onConsumptionSaved: _onConsumptionBlockSaved,
             ),
           if (!hasError)
@@ -876,6 +864,8 @@ class _PageAIHomeState extends State<PageAIHome> {
                   final forkedId = _store.chatFork(m.chatId, upToMsgId: m.id);
                   _selectChat(forkedId);
                 },
+                onGood: () => l('msg good feedback chat=${m.chatId} msg=${m.id} req=${m.reqId}'),
+                onReportBad: (reason) => l('msg report bad ai chat=${m.chatId} msg=${m.id} req=${m.reqId} reason=$reason'),
               ),
             ),
         ],

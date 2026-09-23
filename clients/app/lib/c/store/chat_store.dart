@@ -337,6 +337,7 @@ class ChatStore extends ChangeNotifier {
       } catch (_) {}
     }
     msgs = loadedMsgs;
+    chatStatusStaleClear();
     _loaded = true;
     notifyListeners();
   }
@@ -422,6 +423,18 @@ class ChatStore extends ChangeNotifier {
       _touch();
       return;
     }
+  }
+
+  void chatStatusStaleClear({int? chatId}) {
+    var changed = false;
+    for (final c in chats) {
+      if (chatId != null && c.id != chatId) continue;
+      if (c.lastMsgStatus == 'streaming' && !promptBusyFor(c.id)) {
+        c.lastMsgStatus = 'done';
+        changed = true;
+      }
+    }
+    if (changed) _touch();
   }
 
   bool get _chatDraftEmpty {
@@ -616,7 +629,8 @@ class ChatStore extends ChangeNotifier {
     if (id == 0) return;
     final preview = member.lastMsgPreview.isNotEmpty ? member.lastMsgPreview : chat.lastMsgPreview;
     final lastAt = member.lastMsgTsMs.toInt() != 0 ? member.lastMsgTsMs.toInt() : chat.lastMsgTsMs.toInt();
-    final status = member.lastMsgStatus.isNotEmpty ? member.lastMsgStatus : 'done';
+    var status = member.lastMsgStatus.isNotEmpty ? member.lastMsgStatus : 'done';
+    if (status == 'streaming' && !promptBusyFor(id)) status = 'done';
     final title = chat.title.isNotEmpty ? chat.title : chat.peerName;
     final row = ChatRow(
       id: id,
@@ -936,8 +950,10 @@ class ChatStore extends ChangeNotifier {
       promptChatId = chatId ?? promptChatId;
       pendingPromptReqId = reqId;
       promptStartedAtMs = DateTime.now().millisecondsSinceEpoch;
-    } else if (chatId == null || chatId == promptChatId) {
-      _promptClear();
+    } else {
+      final id = chatId ?? promptChatId;
+      if (id != null) chatStatusStaleClear(chatId: id);
+      if (chatId == null || chatId == promptChatId) _promptClear();
     }
     notifyListeners();
   }
@@ -1018,6 +1034,7 @@ class ChatStore extends ChangeNotifier {
     try {
       inboxMerge(await conn.inboxList(includeArchived: true));
     } catch (_) {}
+    chatStatusStaleClear();
     notifyListeners();
   }
 
