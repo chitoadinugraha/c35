@@ -20,17 +20,14 @@ One pod per Kubernetes node publishes host CPU/RAM/network, OS disk mounts, and 
 | `C35_NODE_MOUNTS` | ConfigMap | Comma-separated host mounts (`/`, `/var/log`) |
 | `C35_VOLUME_PATHS` | ConfigMap | `namespace:pvc:path[:storage_class][:label]` per entry |
 
-Default volume entries monitor Yugabyte and NATS hostPath data:
+Default `C35_VOLUME_PATHS` is empty — PVC-backed volumes are not on stable host paths:
 
 ```
-yugabyte:yb-tserver:/host/var/lib/alienai/yb-tserver:oci-bv:yb-tserver
-yugabyte:yb-master:/host/var/lib/alienai/yb-master:oci-bv:yb-master
-nats:nats-data:/host/var/lib/alienai/nats:oci-bv:nats
+# YB: PVC yb-data (yugabyte ns) — monitor via k8s volume stats API when wired.
+# NATS: deprecated — JetStream uses emptyDir (no nats-data-nats-0 PVC).
 ```
 
-> Before apply, verify host paths on cluster:
-> `kubectl exec -n c35 -l app=c35-node-stats -- ls /host/var/lib/alienai/`
-> Adjust `yb-master` and `nats` paths to match actual host layout.
+> **NATS PVC monitor deprecated:** NATS JetStream moved to ephemeral `emptyDir` ([`../nats/README.md`](../nats/README.md)). Do not add `nats` to `C35_VOLUME_PATHS`.
 
 Only the DaemonSet pod on a node with the path present will publish non-zero stats; other nodes skip missing paths.
 

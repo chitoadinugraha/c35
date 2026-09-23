@@ -20,6 +20,7 @@ When code and docs disagree, fix the code to match these docs (or explicitly rev
 | [billing-implementation.md](billing-implementation.md) | Phased rollout plan (schema → server → client) |
 | [log.md](log.md) | Unified audit + billing log |
 | [sync.md](sync.md) | Incremental sync, `_ts` convention, NATS subjects |
+| [nats.md](nats.md) | NATS layers, JetStream streams, cron schedules, YB hydrate |
 | [server.md](server.md) | Rust crate workspace layout |
 | [fetcher.md](fetcher.md) | `c35-fetcher` singleton — FX rate, LLM catalog, periodic external sync |
 | [ui.md](ui.md) | Flutter shell, pages, navigation |

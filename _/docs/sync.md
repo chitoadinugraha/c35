@@ -149,6 +149,24 @@ c35.ev.device.{device_iid}.presence      # EvDevicePresence
 
 Server pods use queue group `c35-task-dispatch`. Agents receive work on server session (WS / Alien Beacon). See [remote.md](remote.md).
 
+### Prompt run dispatch (JetStream)
+
+```
+c35.prompt.run                    # PromptRunJob (workqueue)
+c35.user.{owner_iid}.chat.{chat_id}  # live WsRes fanout (core NATS)
+```
+
+Stream `C35_CHAT_PROMPT`, queue group `c35-prompt-dispatch`. State in `ai.prompt_run` (YB). Hydrate republishes `queued` rows after NATS recovery — [nats.md](nats.md).
+
+### Task cron schedules (JetStream)
+
+```
+c35.schedule.task.{trigger_id}    # schedule config (rollup per subject)
+c35.task.fire.{trigger_id}        # fired tick → create task_run
+```
+
+Stream `C35_TASK_SCHEDULE` (`allow_msg_schedules`). Trigger definition in `ai.task_trigger` (YB). See [nats.md](nats.md).
+
 ### Inst cache invalidation (server-internal)
 
 ```

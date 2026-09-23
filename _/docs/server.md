@@ -312,8 +312,8 @@ Full spec: [fetcher.md](fetcher.md). Manifest: [`_/deployments/c35-fetcher/`](..
 |---------|---------------|-----------|------------------|
 | Node boot disk | `/` on host | — | cleanup logs, resize node disk |
 | Node logs | `/var/log` | — | rotate, truncate |
-| YB data | hostPath `/var/lib/alienai/yb-tserver` or PVC | **Yes** | expand disk, add tserver |
-| NATS JetStream | PVC `/data/jetstream` (`nats-data-nats-0`) | **Yes** | expand PVC, prune streams |
+| YB data | PVC `yb-data` (`oci-bv`, Retain) | **Yes** | expand disk, add tserver |
+| NATS JetStream | `emptyDir` on `nats-0` | **No** | hydrate from YB via `c35-server` |
 | c35 CAS | `emptyDir` per pod | Ephemeral | move to PVC later if needed |
 
 **Stateless (no volume row):** `c35-server`, `c35-fetcher`, `channel-whatsapp-device`, `coturn`.
@@ -368,9 +368,9 @@ Server WS clients receive pair updates via NATS fanout → `ChannelPairPush` (se
 | `c35.ev.device.{device_iid}.presence` | agent ↔ server | `EvDevicePresence` |
 | `c35.user.{owner_iid}.task_run` | server → client WS | `TaskRunPush` |
 
-JetStream stream `C35_DEVICE_TASK`, queue group `c35-task-dispatch`. No YB polling for runnable work — see [remote.md](remote.md).
+JetStream streams `C35_CHAT_PROMPT`, `C35_DEVICE_TASK`, `C35_TASK_SCHEDULE`. Queue groups `c35-prompt-dispatch`, `c35-task-dispatch`. No YB dispatch polling — see [remote.md](remote.md), [nats.md](nats.md).
 
-**NATS JetStream persistence** — store dir `/data/jetstream` on PVC `nats-data-nats-0` (20Gi `oci-bv`, namespace `nats`). Survives pod restart; required before relying on JetStream for durable task triggers. Deploy manifests and migration steps: [`_/deployments/nats/`](../deployments/nats/README.md).
+**NATS** — server **2.15**, JetStream on **`emptyDir`** (no PVC). YB is source of truth; `c35_nats` + `nats_boot.rs` hydrate on connect/reconnect. Upgrade: [`_/scripts/deploy/nats_ephemeral_upgrade.ps1`](../scripts/deploy/nats_ephemeral_upgrade.ps1). Crate: `servers/crates/system/nats/`.
 
 **Channel log topics** — worker and server write lifecycle rows to `ai.log` and publish `log.{owner_iid}.{dv}.{topic}` (see [log.md](log.md)). Canonical topic list: `pair_start`, `qr`, `connected`, `disconnected`, `pair_abort`, `pair_expired`, `error`, `msg_received`, `msg_sent`. Worker uses `dv = channel-wa-device`; server channel handlers use `dv = c35-server`. Full writer/when table: `docs/superpowers/plans/2026-09-21-bot-add-channels-deploy-log.md` (Log event catalog).
 

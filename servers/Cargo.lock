@@ -703,6 +703,7 @@ dependencies = [
  "anyhow",
  "async-nats",
  "async-trait",
+ "base64 0.22.1",
  "blake3",
  "c35_mod_fetch",
  "c35_proto",
@@ -819,7 +820,13 @@ dependencies = [
 name = "c35_nats"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-nats",
+ "chrono",
+ "futures-util",
+ "serde",
+ "serde_json",
+ "sqlx",
  "tokio",
  "tracing",
 ]
@@ -874,6 +881,7 @@ dependencies = [
  "c35_mod_chat",
  "c35_mod_consumption",
  "c35_mod_device",
+ "c35_mod_expense",
  "c35_mod_file",
  "c35_mod_identity",
  "c35_mod_referral",
@@ -905,6 +913,7 @@ dependencies = [
  "c35_mod_chat",
  "c35_mod_consumption",
  "c35_mod_device",
+ "c35_mod_expense",
  "c35_mod_hint",
  "c35_mod_identity",
  "c35_mod_llm",

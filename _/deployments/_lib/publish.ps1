@@ -8,7 +8,7 @@ $script:PublishNodeStatsImage = "$script:PublishRegistry/c35-node-stats"
 $script:PublishBuildkitNs = "build"
 $script:PublishBuildkitSvc = "buildkit"
 $script:PublishBuildkitPort = 1234
-$script:PublishBuildkitCacheHostPath = "/var/lib/buildkit (PVC buildkit-cache)"
+$script:PublishBuildkitCacheHostPath = "/var/lib/alienai/buildkit (boot disk)"
 $script:PublishBuildkitDir = Join-Path $PSScriptRoot "..\buildkit"
 
 function Require-Command([string]$Name) {
@@ -79,8 +79,66 @@ function Show-PublishDiskStatus {
     Write-Host ""
 }
 
+function Ensure-SingleBuilder {
+    Require-Command kubectl
+    Write-Host "==> disable legacy ci/buildkitd (single builder: build/buildkit)"
+    kubectl scale deployment/buildkitd -n ci --replicas=0 2>$null | Out-Null
+}
+
+function Acquire-BuildLease {
+    param([string]$Holder, [int]$DurationSec = 7200)
+    Require-Command kubectl
+    $ns = $script:PublishBuildkitNs
+    $name = 'c35-build'
+    $deadline = (Get-Date).AddSeconds($DurationSec)
+    while ((Get-Date) -lt $deadline) {
+        $prevEap = $ErrorActionPreference
+        $ErrorActionPreference = 'SilentlyContinue'
+        $existing = (kubectl get lease $name -n $ns -o jsonpath='{.spec.holderIdentity}' 2>$null)
+        $ErrorActionPreference = $prevEap
+        if (-not $existing) {
+            $yaml = @"
+apiVersion: coordination.k8s.io/v1
+kind: Lease
+metadata:
+  name: $name
+  namespace: $ns
+spec:
+  holderIdentity: $Holder
+  leaseDurationSeconds: 60
+"@
+            $yaml | kubectl apply -f - 2>$null | Out-Null
+            if ($LASTEXITCODE -eq 0) { return }
+        } elseif ($existing -eq $Holder) {
+            kubectl patch lease $name -n $ns --type=merge -p "{`"spec`":{`"holderIdentity`":`"$Holder`",`"leaseDurationSeconds`":60}}" 2>$null | Out-Null
+            return
+        }
+        Write-Host "==> waiting for build lease (held by $existing)..."
+        Start-Sleep -Seconds 5
+        $ErrorActionPreference = 'SilentlyContinue'
+        $existing = (kubectl get lease $name -n $ns -o jsonpath='{.spec.holderIdentity}' 2>$null)
+        $renew = (kubectl get lease $name -n $ns -o jsonpath='{.spec.renewTime}' 2>$null)
+        $ErrorActionPreference = $prevEap
+        if ($existing -and $existing -ne $Holder -and -not $renew) {
+            kubectl delete lease $name -n $ns 2>$null | Out-Null
+        }
+    }
+    throw "timed out waiting for build lease"
+}
+
+function Release-BuildLease {
+    param([string]$Holder)
+    $ns = $script:PublishBuildkitNs
+    $name = 'c35-build'
+    $existing = kubectl get lease $name -n $ns -o jsonpath='{.spec.holderIdentity}' 2>$null
+    if ($existing -eq $Holder) {
+        kubectl delete lease $name -n $ns 2>$null | Out-Null
+    }
+}
+
 function Ensure-Buildkit {
     Require-Command kubectl
+    Ensure-SingleBuilder
     Write-Host "==> ensure buildkit ($script:PublishBuildkitNs)"
     kubectl apply -f $script:PublishBuildkitDir | Out-Null
     kubectl scale deployment/$script:PublishBuildkitSvc -n $script:PublishBuildkitNs --replicas=1 | Out-Null
@@ -156,7 +214,10 @@ function Invoke-ClusterBuildkitBuild {
     )
     Require-Command kubectl
     Require-Command tar
-    Ensure-Buildkit
+    $holder = "$env:COMPUTERNAME-$(Get-Date -Format 'HHmmss')"
+    Acquire-BuildLease -Holder $holder
+    try {
+        Ensure-Buildkit
     $pod = Get-BuildkitPodName
     if (-not $pod) { throw "buildkit pod not found" }
     $ctxId = [Guid]::NewGuid().ToString('n')
@@ -190,6 +251,9 @@ function Invoke-ClusterBuildkitBuild {
         --output "type=image,name=$ImageRef,push=true"
     if ($LASTEXITCODE -ne 0) { throw "buildctl failed" }
     kubectl exec -n $script:PublishBuildkitNs $pod -- rm -rf $remote | Out-Null
+    } finally {
+        Release-BuildLease -Holder $holder
+    }
 }
 
 function Publish-C35ChannelWhatsappDeviceImage {
@@ -274,7 +338,7 @@ function Publish-C35ServerImage {
     $tarPaths = @(
         'servers/Cargo.toml', 'servers/Cargo.lock',
         'servers/crates', 'servers/fetcher', 'servers/server_ai', 'servers/channel_whatsapp_device',
-        '_/schemas', '_/deployments/Dockerfile'
+        'clients/web', '_/schemas', '_/deployments/Dockerfile'
     )
     Invoke-ClusterBuildkitBuild -RepoRoot $dir -ImageRef $imageRef -Platform $Platform -TarPaths $tarPaths
     $buildSw.Stop()

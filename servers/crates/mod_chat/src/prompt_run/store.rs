@@ -449,6 +449,20 @@ pub async fn prompt_run_summary(pool: &PgPool, req_id: &str) -> Result<String> {
     Ok(msg.flatten().unwrap_or_default())
 }
 
+pub async fn prompt_run_list_queued(pool: &PgPool) -> Result<Vec<(String, i64, i64)>> {
+    let rows = sqlx::query_as::<_, (String, i64, i64)>(
+        r#"
+        SELECT req_id, owner_iid, chat_id
+        FROM ai.prompt_run
+        WHERE status = 'queued'
+        ORDER BY created_ts
+        "#,
+    )
+    .fetch_all(pool)
+    .await?;
+    Ok(rows)
+}
+
 pub async fn prompt_run_wait_terminal(
     pool: &PgPool,
     req_id: &str,

@@ -1,5 +1,6 @@
 mod checkpoint;
 mod fanout;
+mod hydrate;
 mod jetstream;
 mod store;
 mod worker;
@@ -22,11 +23,12 @@ pub use jetstream::{
     prompt_jetstream_consumer, prompt_jetstream_ensure, prompt_run_job_publish, CONSUMER_NAME,
     QUEUE_GROUP, STREAM_NAME, SUBJECT_WORK,
 };
+pub use hydrate::prompt_run_hydrate_replay;
 pub use store::{
     prompt_run_cancel_children, prompt_run_cancel_request, prompt_run_checkpoint_save,
     prompt_run_delivery_inc, prompt_run_finish, prompt_run_get, prompt_run_insert,
     prompt_run_is_cancelled, prompt_run_is_terminal, prompt_run_kind_default, prompt_run_lease_touch,
-    prompt_run_over_max_deliver, prompt_run_row_new, prompt_run_status_set, prompt_run_summary,
-    prompt_run_wait_terminal, PromptRunRow,
+    prompt_run_list_queued, prompt_run_over_max_deliver, prompt_run_row_new, prompt_run_status_set,
+    prompt_run_summary, prompt_run_wait_terminal, PromptRunRow,
 };
 pub use worker::{prompt_run_enqueue, prompt_run_worker_start, PromptRunWorker};

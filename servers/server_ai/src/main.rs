@@ -1,6 +1,7 @@
 mod boot;
 mod config;
 mod log;
+mod nats_boot;
 
 use std::sync::Arc;
 use std::time::Instant;
@@ -25,9 +26,15 @@ async fn main() -> anyhow::Result<()> {
 
     let yb_t0 = Instant::now();
     let nats_t0 = Instant::now();
-    let (pool, nats, listener) = tokio::join!(
+    let (pool, nats_supervised, listener) = tokio::join!(
         c35_store::pool_connect(),
-        c35_nats::connect(),
+        async {
+            if nats_required {
+                c35_nats::connect_supervised().await
+            } else {
+                None
+            }
+        },
         async {
             match tokio::net::TcpListener::bind(&addr).await {
                 Ok(l) => Ok(l),
@@ -40,6 +47,10 @@ async fn main() -> anyhow::Result<()> {
         }
     );
     let pool = pool?;
+    let (nats, nats_events) = match nats_supervised {
+        Some((client, events)) => (Some(client), Some(events)),
+        None => (None, None),
+    };
     c35_store::pool_monitor_spawn(pool.clone());
     c35_store::migrate_boot(&pool).await?;
     c35_store::migrate_apply(&pool).await?;
@@ -49,6 +60,10 @@ async fn main() -> anyhow::Result<()> {
     c35_mod_llm::llm_catalog_spawn(pool.clone());
     c35_mod_llm::runtime_config_watch(pool.clone());
     c35_mod_chat::inst_cache_init(&pool).await;
+    if let (Some(nats_client), Some(events)) = (nats.clone(), nats_events) {
+        nats_boot::nats_post_connect(pool.clone(), nats_client.clone()).await;
+        nats_boot::nats_supervise_reconnect(pool.clone(), nats_client.clone(), events);
+    }
     if let Some(nats_client) = nats.clone() {
         c35_mod_billing::fx_live_subscribe(pool.clone(), nats_client.clone());
         c35_mod_llm::llm_catalog_nats_subscribe(pool.clone(), nats_client.clone());
@@ -83,6 +98,7 @@ async fn main() -> anyhow::Result<()> {
     if nats.is_some() {
         names.push("nats");
         names.push("prompt_run");
+        names.push("nats_hydrate");
     }
     log::features(&names);
 

@@ -18,11 +18,13 @@ ENV CARGO_BUILD_JOBS=1
 ENV RUSTFLAGS="-C debuginfo=0"
 ENV CARGO_PROFILE_RELEASE_LTO=false
 ENV CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16
+ARG CACHEBUST=1
 
 RUN --mount=type=cache,target=/usr/local/cargo/registry,id=c35-server-cargo-registry,sharing=locked \
     --mount=type=cache,target=/usr/local/cargo/git,id=c35-server-cargo-git,sharing=locked \
     --mount=type=cache,target=/app/target,id=c35-server-rust-target,sharing=locked \
-    cargo build --release -p server_ai --manifest-path servers/Cargo.toml \
+    echo "cachebust=$CACHEBUST" \
+    && cargo build --release -p server_ai --manifest-path servers/Cargo.toml \
     && cp /app/target/release/server_ai /app/server_ai \
     && sha256sum /app/server_ai > /app/server_ai.sha
 
@@ -43,6 +45,7 @@ RUN mkdir -p /data/cas
 
 COPY --from=rust-build /app/server_ai /app/server_ai
 COPY --from=rust-build /app/server_ai.sha /app/server_ai.sha
+COPY clients/web /app/clients/web
 
 EXPOSE 8080
 

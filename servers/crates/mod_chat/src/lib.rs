@@ -81,10 +81,11 @@ pub use prompt::audio;
 pub use prompt::gemini::gemini_api_key;
 pub use prompt_run::{
     checkpoint_fatal_fail_class, prompt_run_cancel_children, prompt_run_cancel_request,
-    prompt_run_checkpoint_save, prompt_run_enqueue, prompt_run_get, prompt_run_insert,
-    prompt_run_is_cancelled, prompt_run_is_terminal, prompt_run_kind_default, prompt_run_lease_touch,
-    prompt_run_row_new, prompt_run_should_stop, prompt_run_status_set, prompt_run_summary,
-    prompt_run_wait_terminal, prompt_run_worker_start, PromptRunRow, PromptRunWorker,
+    prompt_run_checkpoint_save, prompt_run_enqueue, prompt_run_get, prompt_run_hydrate_replay,
+    prompt_run_insert, prompt_run_is_cancelled, prompt_run_is_terminal, prompt_run_kind_default,
+    prompt_run_lease_touch, prompt_run_row_new, prompt_run_should_stop, prompt_run_status_set,
+    prompt_run_summary, prompt_run_wait_terminal, prompt_run_worker_start, PromptRunRow,
+    PromptRunWorker,
 };
 pub use prompt_turn::{chat_ensure, chat_title_from_text, prompt_turn, PromptHopCheckpoint, PromptTurn, PromptTurnHooks};
 pub use site_resolve::{site_at_tokens, site_context_block, site_context_resolve, SiteContext};

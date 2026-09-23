@@ -44,7 +44,7 @@ Full detail: [`_/docs/architecture.md`](_/docs/architecture.md)
 ## Infrastructure
 
 - **YB** — primary store (`ai` platform + `site` payload + file CAS in `ai.file_blob_*`)
-- **NATS** — pub/sub, scheduler, live log fanout
+- **NATS** — core pub/sub + JetStream (ephemeral); YB hydrate on recovery — [`_/docs/nats.md`](_/docs/nats.md)
 - **WS / Alien Beacon** — client + device wire protocol
 - **Protobuf** — all RPC / sync messages
 

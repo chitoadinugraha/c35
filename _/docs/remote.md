@@ -151,18 +151,30 @@ queued → leased → running → done
 | Agent session | One WS/Beacon session per `device_iid`; pod registers route on connect |
 | Dispatch | JetStream **queue group** `c35-task-dispatch` — only pod with live agent session should ack |
 | No agent online | Message not acked → JetStream redelivers after `ack_wait` |
-| Server rolling deploy | Client WS reconnects to any pod; agent reconnects to any pod; JetStream retains unacked work |
+| Server rolling deploy | Client WS reconnects to any pod; agent reconnects to any pod; unacked work redelivered or YB hydrate after NATS outage |
 | Lease timeout | `lease_expires_ts` + agent heartbeat → stale `leased`/`running` → republish same `run_id` (idempotent) |
 
 ### Recovery (not background polling)
 
 | Event | Action |
 |-------|--------|
+| `c35-server` boot or NATS reconnect | **Hydrate** — one pod (`pg_try_advisory_lock`) republishes schedules + queued rows from YB; see [nats.md](nats.md) |
 | Agent connects | Pod subscribes `c35.act.device.{device_iid}.task.*`; JetStream delivers backlog |
 | Publish failed after INSERT | `task_run_replay` RPC or agent `EvDeviceAgentHello` triggers **one** republish query: `status=queued AND device_iid=$1` |
 | Duplicate delivery | Agent dedupes by `run_id`; ignore if already terminal |
 
-**Forbidden:** periodic `SELECT … WHERE status='queued'` sweeper on a timer.
+**Forbidden:** periodic `SELECT … WHERE status='queued'` sweeper on a timer. Hydrate on NATS recovery is **not** a sweeper — it runs once per outage.
+
+### Cron triggers (NATS schedules)
+
+`task_trigger.kind=cron|once` — schedule stored in YB; **timer** in NATS `C35_TASK_SCHEDULE` stream (server 2.15). No YB `next_run_at` poller.
+
+```text
+task_trigger PUT (YB) → c35.schedule.task.{trigger_id}
+NATS fires           → c35.task.fire.{trigger_id} → INSERT task_run → C35_DEVICE_TASK
+```
+
+After NATS data loss, hydrate republishes all active triggers from YB. Full spec: [nats.md](nats.md).
 
 ## NATS subjects
 
@@ -171,6 +183,7 @@ queued → leased → running → done
 | Stream | Subjects | Retention |
 |--------|----------|-----------|
 | `C35_DEVICE_TASK` | `c35.act.device.*.task.run` | workqueue, `ack_wait` 60s, max_deliver 10 |
+| `C35_TASK_SCHEDULE` | `c35.schedule.task.>`, `c35.task.fire.>` | `allow_msg_schedules` — cron / once |
 
 ### Core pub/sub
 

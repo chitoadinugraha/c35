@@ -60,10 +60,10 @@ Server crates live under **`servers/crates/`** only — not at repo root. Remote
 | Component | Role |
 |-----------|------|
 | YugabyteDB | Primary store. Schemas: `ai` (platform), `file` (CAS blobs) |
-| NATS | Pub/sub, scheduler, live log stream, user realtime (`balance`, `quota`, …) |
+| NATS | Core pub/sub (live fanout) + JetStream (work queues, cron schedules). **Ephemeral** — YB hydrate on recovery. See [nats.md](nats.md) |
 | WebSocket | Client sync + prompt stream. Connect: `/v1/ws?since=…&jwt=…&locale=…&tz=…` |
 | Alien Beacon | IoT + remote device wire (paired agents) |
-| JetStream | Device task dispatch (`C35_DEVICE_TASK`) — no YB work polling |
+| JetStream | `C35_CHAT_PROMPT`, `C35_DEVICE_TASK`, `C35_TASK_SCHEDULE` — dispatch + NATS cron; no YB dispatch polling |
 | `c35-proxy-cf-warp` | Cloudflare WARP mesh forward proxy (residential egress for search & web scraping) |
 | SearXNG | Meta-search engine routed through CF WARP proxy (`searxng.searx.svc.cluster.local:8080`) |
 
