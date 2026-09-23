@@ -1,7 +1,8 @@
 import 'package:alienai_c35/c/admin/admin_api.dart';
 import 'package:alienai_c35/c/api/referral_conn.dart';
 import 'package:alienai_c35/c/cas/cas_client.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:alienai_c35/c/media/ask_media.dart';
+import 'package:alienai_c35/c/media/media_types.dart';
 import 'package:alienai_c35/c/pb/c35/referral.pb.dart';
 import 'package:alienai_c35/c/profile/profile_handle.dart';
 import 'package:alienai_c35/c/referral/referral_forest.dart';
@@ -301,11 +302,11 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
 
   Future<void> _changePic() async {
     if (!_canEdit) return;
-    final picked = await FilePicker.platform.pickFiles(type: FileType.image, withData: true);
-    final file = picked?.files.firstOrNull;
-    if (file == null || file.bytes == null) return;
+    final picked = await askMedia(context: context, types: const [MediaType.image], allowMultiple: false);
+    final file = picked?.firstOrNull;
+    if (file == null) return;
     await _run(() async {
-      final res = await casUpload(bytes: file.bytes!, mime: file.extension == null ? 'image/jpeg' : 'image/${file.extension}', name: file.name);
+      final res = await casUpload(bytes: file.bytes, mime: file.mime, name: file.name);
       if (res == null) throw Exception('Upload failed');
       await _admin.userPut(targetId: _node.id, avatarUrl: res.url);
       if (!mounted) return;

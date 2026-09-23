@@ -414,12 +414,12 @@ class _InComposerState extends State<InComposer> {
   }
 
   Future<void> _attachImage() async {
-    final picked = await askMedia(types: const [MediaType.image], allowMultiple: true);
+    final picked = await askMedia(context: context, types: const [MediaType.image], allowMultiple: true);
     if (picked != null) _stageItems(picked.map((m) => m.copyWith(uploadProgress: 0.05)).toList());
   }
 
   Future<void> _attachFile() async {
-    final picked = await askMedia(types: const [MediaType.document, MediaType.any], allowMultiple: true);
+    final picked = await askMedia(context: context, types: const [MediaType.document, MediaType.any], allowMultiple: true);
     if (picked != null) _stageItems(picked.map((m) => m.copyWith(uploadProgress: 0.05)).toList());
   }
 

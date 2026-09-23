@@ -60,7 +60,7 @@ Standalone scripts bump once each. Set `DEPLOY_SKIP_VERSION_BUMP=1` to skip (orc
 | `YB_USER` | No | `csa` |
 | `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | Play upload | Inline JSON (alternative to file) |
 | `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH` | Play upload | Path to service account JSON |
-| `PLAY_STORE_PACKAGE_NAME` | No | `id.alienai.agent` |
+| `PLAY_STORE_PACKAGE_NAME` | No | `id.alienai` |
 | `DEPLOY_SKIP_VERSION_BUMP` | No | `1` skips pubspec bump |
 | `PLATFORM_APP_VERSION_PUBLISH` | No | `0` skips `/version` publish (debug) |
 | `S3_ENDPOINT` | Web upload + server read | OCI S3 endpoint (same bucket as CAS via `mod_file`) |
@@ -94,7 +94,7 @@ Play credentials resolution order: `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` → `GOOGL
 
 | Concern | csa | c35 |
 |---------|-----|-----|
-| Play package | `id.alienai` | **`id.alienai.agent`** |
+| Play package | `id.alienai` | **`id.alienai`** (same listing; c35 continues version) |
 | Version store | Postgres `platform_app_version` | Yugabyte **`ai.config`** |
 | Release blobs | OCI object storage | **CAS** `/v1/file/upload` → `https://alienai.id/fs/{hash}`; **web** → S3 `app/web/current/` |
 | Config key prefix | csa-specific | **`app.release.c35.{platform}`** |

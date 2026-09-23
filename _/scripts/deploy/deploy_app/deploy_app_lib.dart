@@ -21,7 +21,7 @@ void deployAppBumpVersionUnlessSkipped() {
   deployAppBumpVersion();
 }
 
-const playStorePackageName = 'id.alienai.agent';
+const playStorePackageName = 'id.alienai';
 
 String playStoreCredentialsPath() => p.join(repoRoot(), '_', 'certs', 'google-play-upload-service-account.json');
 

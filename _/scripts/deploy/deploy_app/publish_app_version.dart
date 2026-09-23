@@ -6,7 +6,7 @@ import 'package:postgres/postgres.dart';
 import '../deploy_lib.dart';
 import 'update_version.dart';
 
-const androidPlayStoreUrl = 'https://play.google.com/store/apps/details?id=id.alienai.agent';
+const androidPlayStoreUrl = 'https://play.google.com/store/apps/details?id=id.alienai';
 const webAppUrl = 'https://alienai.id/app/';
 const configKeyPrefix = 'app.release.c35.';
 

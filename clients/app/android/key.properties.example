@@ -1,5 +1,5 @@
 # Copy to clients/app/android/key.properties (gitignored).
-# Release signing for Play package id.alienai.agent (applicationId in app/build.gradle.kts).
+# Release signing for Play package id.alienai (applicationId in app/build.gradle.kts).
 # Keystore path is relative to clients/app/android/app/
 storeFile=upload_keystore.jks
 keyAlias=alien
