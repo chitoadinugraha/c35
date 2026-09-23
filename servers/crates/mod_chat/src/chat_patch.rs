@@ -86,7 +86,8 @@ async fn chat_patch_get(pool: &PgPool, member_iid: i64, chat_id: i64, deleted: b
         SELECT c.id, c.kind, c.owner_iid, c.title, c.model, c.last_msg_ts, c.last_msg_preview,
                c.created_ts, c.updated_ts, c.deleted_ts,
                m.last_read_msg_id, m.unread_count, m.last_msg_ts AS member_last_msg_ts, m.last_msg_preview AS member_preview,
-               m.pinned_ts, m.archived_ts, m.created_ts AS member_created_ts, m.updated_ts AS member_updated_ts, m.deleted_ts AS member_deleted_ts
+               m.pinned_ts, m.archived_ts, m.created_ts AS member_created_ts, m.updated_ts AS member_updated_ts, m.deleted_ts AS member_deleted_ts,
+               COALESCE(m.last_msg_status, 'done') AS last_msg_status
         FROM ai.chat c
         JOIN ai.chat_member m ON m.chat_id = c.id
         WHERE c.id = $1 AND m.member_iid = $2
@@ -137,6 +138,7 @@ async fn chat_patch_get(pool: &PgPool, member_iid: i64, chat_id: i64, deleted: b
         } else {
             ts_ms(row.get("member_deleted_ts"))
         },
+        last_msg_status: row.get::<String, _>("last_msg_status"),
     };
     Ok(ResChatPatch { chat: Some(chat), member: Some(member) })
 }

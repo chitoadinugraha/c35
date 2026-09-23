@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::time::Instant;
 
 use anyhow::Result;
@@ -9,6 +10,7 @@ use sqlx::PgPool;
 use tokio_util::sync::CancellationToken;
 
 use crate::compose::compose_tools_and_inst;
+use crate::prompt_run::prompt_run_get;
 use crate::mention_registry::{
     mention_active_topic, mention_force_tools, mention_prompt_block, mention_ref_parse,
     mention_resolve_all, MentionRef,
@@ -39,6 +41,14 @@ pub struct PromptTurn {
     pub model: String,
     pub duration_ms: i32,
     pub error_text: String,
+}
+
+pub use crate::prompt::hooks::PromptHopCheckpoint;
+
+#[derive(Default, Clone)]
+pub struct PromptTurnHooks {
+    pub skip_billing_gate: bool,
+    pub on_hop: Option<Arc<dyn Fn(PromptHopCheckpoint) + Send + Sync>>,
 }
 
 pub fn chat_title_from_text(text: &str) -> String {
@@ -134,6 +144,7 @@ pub async fn prompt_turn<F, G>(
     mut on_delta: F,
     mut on_blocks: G,
     cancel: &CancellationToken,
+    hooks: PromptTurnHooks,
 ) -> Result<PromptTurn>
 where
     F: FnMut(bool, String) + Send,
@@ -146,7 +157,9 @@ where
     )
     .await?;
     let brow = c35_mod_billing::billing_gate_scoped(pool, &bctx).await?;
-    c35_mod_billing::billing_gate_with_hold(pool, owner_iid, &brow, req_id).await?;
+    if !hooks.skip_billing_gate {
+        c35_mod_billing::billing_gate_with_hold(pool, owner_iid, &brow, req_id).await?;
+    }
     let prepare_started = Instant::now();
     let title = chat_title_from_text(&req.text);
     let chat_id = chat_ensure(pool, owner_iid, req.chat_id, &title).await?;
@@ -192,7 +205,17 @@ where
     let inst_rows = inst_list_cached();
     let mentions = mention_list_enabled(pool).await;
     let mention_ids: Vec<String> = req.mention_ids.clone();
-    let explicit_topic = req.topic_id.clone();
+    let prompt_run = prompt_run_get(pool, req_id).await.ok().flatten();
+    let run_kind = prompt_run.as_ref().map(|r| r.kind.as_str()).unwrap_or("main");
+    let mut checkpoint = prompt_run
+        .as_ref()
+        .map(|r| r.checkpoint_json.0.clone())
+        .unwrap_or_else(|| serde_json::json!({}));
+    let explicit_topic = if run_kind == "computer_use" {
+        "computer_use".to_string()
+    } else {
+        req.topic_id.clone()
+    };
     let resolved = mention_resolve_all(pool, owner_iid, &mention_ids).await;
     let inst_mention_ids: Vec<String> = mention_ids
         .iter()
@@ -278,7 +301,7 @@ where
         history,
     };
     let attachments_json = req.attachments_json.as_str();
-    let turn_ctx = TurnCtx {
+    let mut turn_ctx = TurnCtx {
         pool,
         nats,
         owner_iid,
@@ -286,6 +309,9 @@ where
         site_iid,
         locale,
         attachments_json,
+        req_id,
+        run_kind,
+        checkpoint: Some(&mut checkpoint),
     };
     let res = match prompt_cluster_turn(
         &chat_req,
@@ -293,7 +319,8 @@ where
         &mut on_blocks,
         cancel,
         Some(&tracer),
-        Some(turn_ctx),
+        Some(&mut turn_ctx),
+        hooks.on_hop.clone(),
     )
     .await
     {

@@ -2,7 +2,10 @@ mod codes;
 mod commission;
 mod stats;
 
-pub use codes::{referral_code_doc_from_row, referral_code_meta_from_doc, referral_package_get, ReferralPackage};
+pub use codes::{
+    normalize_code, referral_code_doc_from_row, referral_code_meta_from_doc, referral_package_get,
+    ReferralPackage,
+};
 pub use commission::{commission_accrue_on_purchase, commission_simulate, MARKETING_POOL_RATE};
 pub use stats::referral_user_stats;
 
@@ -11,8 +14,6 @@ use c35_proto::{
     ReferralCodeDoc, ReferralShareDoc, ReferralTreeNode, ReferralTreeSlice,
 };
 use sqlx::{PgPool, Row};
-
-use codes::normalize_code;
 
 const REFERRAL_TREE_SELECT: &str = r#"
         SELECT DISTINCT ON (t.id) t.id, t.name, t.alien_id, t.pic,
@@ -269,7 +270,7 @@ pub async fn referral_code_list(pool: &PgPool, iid: i64) -> Vec<ReferralCodeDoc>
     sqlx::query(
         r#"
         SELECT code, issued_by_iid, used_count,
-               EXTRACT(EPOCH FROM expires_at) * 1000 AS expires_at_ms,
+               (EXTRACT(EPOCH FROM expires_at) * 1000)::float8 AS expires_at_ms,
                COALESCE(meta, '{}'::jsonb) AS meta
         FROM ai.referral_code
         WHERE issued_by_iid = $1

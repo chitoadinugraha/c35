@@ -91,6 +91,7 @@ impl TurnTracer {
             obj.insert("rag_skipped".into(), serde_json::json!(trace.rag_skipped));
             obj.insert("rag_skip_reason".into(), serde_json::json!(trace.rag_skip_reason));
             obj.insert("candidates".into(), serde_json::json!(trace.candidates));
+            obj.insert("dropped_gap".into(), serde_json::json!(trace.dropped_gap));
             obj.insert("duration_ms".into(), serde_json::json!(trace.duration_ms));
         }
         self.put(

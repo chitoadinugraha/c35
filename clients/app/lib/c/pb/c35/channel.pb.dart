@@ -937,6 +937,170 @@ class ResChannelWhatsappPair extends $pb.GeneratedMessage {
   void clearPhone() => $_clearField(6);
 }
 
+class ReqChannelDisconnect extends $pb.GeneratedMessage {
+  factory ReqChannelDisconnect({
+    $fixnum.Int64? botIid,
+    $core.String? channelId,
+  }) {
+    final result = ReqChannelDisconnect._();
+    if (botIid != null) result.botIid = botIid;
+    if (channelId != null) result.channelId = channelId;
+    return result;
+  }
+
+  ReqChannelDisconnect._();
+
+  factory ReqChannelDisconnect.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqChannelDisconnect()..mergeFromBuffer(data, registry);
+  factory ReqChannelDisconnect.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqChannelDisconnect()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqChannelDisconnect',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqChannelDisconnect.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'botIid')
+    ..aOS(2, _omitFieldNames ? '' : 'channelId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqChannelDisconnect clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqChannelDisconnect copyWith(void Function(ReqChannelDisconnect) updates) =>
+      super.copyWith((message) => updates(message as ReqChannelDisconnect))
+          as ReqChannelDisconnect;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqChannelDisconnect() / ReqChannelDisconnect.new instead')
+  static ReqChannelDisconnect create() => ReqChannelDisconnect._();
+  static $pb.GeneratedMessage $_createMessage() => ReqChannelDisconnect._();
+  @$core.override
+  ReqChannelDisconnect createEmptyInstance() => ReqChannelDisconnect._();
+  @$core.pragma('dart2js:noInline')
+  static ReqChannelDisconnect getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqChannelDisconnect>(
+          ReqChannelDisconnect.$_createMessage);
+  static ReqChannelDisconnect? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get botIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set botIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasBotIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearBotIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get channelId => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set channelId($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasChannelId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearChannelId() => $_clearField(2);
+}
+
+class ResChannelDisconnect extends $pb.GeneratedMessage {
+  factory ResChannelDisconnect({
+    $core.bool? ok,
+    $core.String? error,
+    $fixnum.Int64? botIid,
+    $core.String? channelId,
+  }) {
+    final result = ResChannelDisconnect._();
+    if (ok != null) result.ok = ok;
+    if (error != null) result.error = error;
+    if (botIid != null) result.botIid = botIid;
+    if (channelId != null) result.channelId = channelId;
+    return result;
+  }
+
+  ResChannelDisconnect._();
+
+  factory ResChannelDisconnect.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResChannelDisconnect()..mergeFromBuffer(data, registry);
+  factory ResChannelDisconnect.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResChannelDisconnect()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResChannelDisconnect',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResChannelDisconnect.$_createMessage)
+    ..aOB(1, _omitFieldNames ? '' : 'ok')
+    ..aOS(2, _omitFieldNames ? '' : 'error')
+    ..aInt64(3, _omitFieldNames ? '' : 'botIid')
+    ..aOS(4, _omitFieldNames ? '' : 'channelId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResChannelDisconnect clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResChannelDisconnect copyWith(void Function(ResChannelDisconnect) updates) =>
+      super.copyWith((message) => updates(message as ResChannelDisconnect))
+          as ResChannelDisconnect;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResChannelDisconnect() / ResChannelDisconnect.new instead')
+  static ResChannelDisconnect create() => ResChannelDisconnect._();
+  static $pb.GeneratedMessage $_createMessage() => ResChannelDisconnect._();
+  @$core.override
+  ResChannelDisconnect createEmptyInstance() => ResChannelDisconnect._();
+  @$core.pragma('dart2js:noInline')
+  static ResChannelDisconnect getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResChannelDisconnect>(
+          ResChannelDisconnect.$_createMessage);
+  static ResChannelDisconnect? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get ok => $_getBF(0);
+  @$pb.TagNumber(1)
+  set ok($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasOk() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOk() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get error => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set error($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasError() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearError() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get botIid => $_getI64(2);
+  @$pb.TagNumber(3)
+  set botIid($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasBotIid() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearBotIid() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get channelId => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set channelId($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasChannelId() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearChannelId() => $_clearField(4);
+}
+
 /// Unsolicited WS push while pair dialog open (from NATS ev → WS fanout)
 class ChannelPairPush extends $pb.GeneratedMessage {
   factory ChannelPairPush({

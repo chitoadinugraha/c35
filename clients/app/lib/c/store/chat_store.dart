@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:alienai_c35/c/chat/chat_block.dart';
 import 'package:alienai_c35/c/chat/chat_conn.dart';
+import 'package:alienai_c35/c/hint/hint_store.dart';
 import 'package:alienai_c35/c/mention/mention_catalog.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/c/llm/agent_model.dart';
@@ -259,7 +260,41 @@ class ChatStore extends ChangeNotifier {
       if (tag.isEmpty) return title.contains('#');
       return title.contains(q) || c.tags.contains(tag) || title.contains('#$tag');
     }
-    return title.contains(q) || c.tags.any((t) => t.contains(q));
+    if (title.contains(q) || c.tags.any((t) => t.contains(q))) return true;
+    if (c.lastMsgPreview.toLowerCase().contains(q)) return true;
+    return msgs.any((m) => m.chatId == c.id && m.content.toLowerCase().contains(q));
+  }
+
+  String searchSnippetFor(int chatId, String query) {
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return '';
+    for (final m in msgs.reversed) {
+      if (m.chatId != chatId) continue;
+      final lower = m.content.toLowerCase();
+      final idx = lower.indexOf(q);
+      if (idx >= 0) {
+        final start = (idx - 20).clamp(0, m.content.length);
+        final end = (idx + q.length + 40).clamp(0, m.content.length);
+        final prefix = start > 0 ? '…' : '';
+        final suffix = end < m.content.length ? '…' : '';
+        return '$prefix${m.content.substring(start, end).replaceAll('\n', ' ')}$suffix';
+      }
+    }
+    return '';
+  }
+
+  List<String> get recentUserPrompts {
+    final seen = <String>{};
+    final result = <String>[];
+    for (final m in msgs.reversed) {
+      if (m.role != 'user') continue;
+      final text = m.content.trim();
+      if (text.isNotEmpty && seen.add(text)) {
+        result.add(text);
+        if (result.length >= 50) break;
+      }
+    }
+    return result;
   }
 
   List<ChatRow> get visibleChats {
@@ -399,6 +434,54 @@ class ChatStore extends ChangeNotifier {
     if (_chatDraftEmpty) return;
     activeChatId = null;
     notifyListeners();
+  }
+
+  int chatFork(int sourceChatId, {int? upToMsgId}) {
+    ChatRow? sourceChat;
+    for (final c in chats) {
+      if (c.id == sourceChatId) {
+        sourceChat = c;
+        break;
+      }
+    }
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final newId = DateTime.now().microsecondsSinceEpoch;
+    final baseTitle = sourceChat != null && sourceChat.title.isNotEmpty ? sourceChat.title : 'Forked chat';
+    final forkTitle = '$baseTitle (fork)';
+
+    final newChat = ChatRow(
+      id: newId,
+      title: forkTitle,
+      pinnedAt: 0,
+      archivedAt: 0,
+      lastMsgPreview: sourceChat?.lastMsgPreview ?? '',
+      lastMsgAt: now,
+      lastMsgStatus: 'done',
+      pending: false,
+    );
+    chats.insert(0, newChat);
+
+    final sourceMsgs = msgs.where((m) => m.chatId == sourceChatId).toList();
+    final pivotIdx = upToMsgId != null
+        ? sourceMsgs.indexWhere((m) => m.id == upToMsgId)
+        : sourceMsgs.length - 1;
+    final copyRange = pivotIdx >= 0
+        ? sourceMsgs.sublist(0, pivotIdx + 1)
+        : sourceMsgs;
+
+    for (final m in copyRange) {
+      final copyMsg = m.copyWith(
+        id: msgNextLocalId(),
+        chatId: newId,
+        createdAtMs: m.createdAtMs,
+      );
+      msgs.add(copyMsg);
+    }
+
+    activeChatId = newId;
+    _touch();
+    _touchMsgs(newId);
+    return newId;
   }
 
   List<int> chatBelowIds(int pivotId) {
@@ -915,11 +998,21 @@ class ChatStore extends ChangeNotifier {
     for (final chat in init.inboxChats) {
       chatPutFromServer(chat, membersByChat[chat.id.toInt()] ?? ChatMember(chatId: chat.id));
     }
+    if (init.hasHints()) {
+      unawaited(HintStore.instance.merge(init.hints, sinceMs: HintStore.instance.rev));
+    }
+  }
+
+  Future<void> hintTouch(ChatConn conn, {required int assetIid, required String assetKind}) async {
+    if (assetIid <= 0 || assetKind.trim().isEmpty) return;
+    try {
+      await conn.hintTouch(assetIid: Int64(assetIid), assetKind: assetKind);
+    } catch (_) {}
   }
 
   Future<void> refreshFromConn(ChatConn conn, {String locale = 'en'}) async {
     try {
-      final init = await conn.sessionInit(locale: locale, includeInbox: true);
+      final init = await conn.sessionInit(locale: locale, includeInbox: true, hintsSinceMs: Int64(HintStore.instance.rev));
       sessionInitMerge(init);
     } catch (_) {}
     try {

@@ -10,6 +10,7 @@ prost = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }
+tokio = { workspace = true }
 tracing = { workspace = true }
 c35_store = { path = "../store", package = "c35_store" }
 c35_ctx = { path = "../system/ctx", package = "c35_ctx" }
@@ -23,4 +24,5 @@ c35_mod_billing = { path = "../mod_billing", package = "c35_mod_billing" }
 c35_mod_consumption = { path = "../mod_consumption", package = "c35_mod_consumption" }
 c35_mod_device = { path = "../mod_device", package = "c35_mod_device" }
 c35_mod_site = { path = "../mod_site", package = "c35_mod_site" }
+c35_mod_voice = { path = "../mod_voice", package = "c35_mod_voice" }
 c35_proto = { path = "../proto", package = "c35_proto" }

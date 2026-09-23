@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Delete Account — Alien AI</title>
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      margin: 0; min-height: 100vh; display: grid; place-items: center;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: #0b0b0f; color: #f2f2f7;
+    }
+    #stars { position: fixed; inset: 0; z-index: 0; display: block; }
+    .card {
+      position: relative; z-index: 1;
+      width: min(92vw, 26rem); padding: 1.75rem; border-radius: 1rem;
+      background: rgba(21, 21, 28, 0.85); border: 1px solid #2a2a35; text-align: center;
+      backdrop-filter: blur(12px);
+    }
+    h1 { margin: 0 0 .5rem; font-size: 1.25rem; font-weight: 600; }
+    p { margin: .5rem 0; color: #a1a1aa; line-height: 1.5; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: .55rem;
+      margin-top: 1rem; padding: .65rem 1rem;
+      border-radius: .65rem; background: #f2f2f7; color: #0b0b0f;
+      text-decoration: none; font-weight: 600; border: none; cursor: pointer;
+      font-size: 1rem;
+    }
+    .btn svg { width: 1.15rem; height: 1.15rem; flex-shrink: 0; }
+    .btn-danger { background: #ef4444; color: #fff; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .hidden { display: none; }
+    .err { color: #fca5a5; }
+    .logo { width: 3rem; height: 3rem; margin: 0 auto .25rem; display: block; }
+    .divider { height: 1px; background: #2a2a35; margin: 1.25rem 0; }
+    a.link { color: #93c5fd; }
+  </style>
+</head>
+<body>
+  <canvas id="stars" aria-hidden="true"></canvas>
+  <div class="card">
+    <img class="logo" src="/alien.svg" alt="" aria-hidden="true">
+    <h1>Alien AI</h1>
+
+    <div id="delete_log_in">
+      <p>Please <strong>sign in</strong> before deleting your account.</p>
+      <div class="divider"></div>
+      <a class="btn" id="sign-in" href="#">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+        </svg>
+        Sign in with Google
+      </a>
+    </div>
+
+    <div id="delete_confirmation" class="hidden">
+      <p><strong>Are you sure you want to delete your account?</strong></p>
+      <p>Your account will be deleted within 30 days.</p>
+      <p>Account deletion will be canceled if you sign in again.</p>
+      <div class="divider"></div>
+      <button class="btn btn-danger" id="confirm-delete" type="button">Confirm Delete Account</button>
+    </div>
+
+    <div id="delete_confirm" class="hidden">
+      <p><strong>Your account will be deleted.</strong></p>
+      <p>Sign-in has been disabled. Data removal completes within 30 days unless you sign in again.</p>
+      <div class="divider"></div>
+      <a class="link" href="/privacy.html">Privacy Policy</a>
+    </div>
+
+    <div id="delete_error" class="hidden">
+      <p class="err" id="error-msg"></p>
+      <div class="divider"></div>
+      <a class="link" id="retry" href="#">Try again</a>
+    </div>
+  </div>
+
+  <script>
+(function () {
+  const apiOrigin = location.origin;
+  const publicOrigin = location.origin;
+  const returnPath = '/delete.html';
+  const oauthStart =
+    apiOrigin + '/a/auth/google?return=' + encodeURIComponent(returnPath) +
+    '&public_origin=' + encodeURIComponent(publicOrigin);
+
+  const q = new URLSearchParams(location.search);
+  const auth = q.get('google_auth');
+  const reason = (q.get('reason') || '').trim();
+
+  function stripQuery() {
+    history.replaceState(null, '', returnPath);
+  }
+
+  function show(id) {
+    ['delete_log_in', 'delete_confirmation', 'delete_confirm', 'delete_error'].forEach(function (el) {
+      document.getElementById(el).classList.add('hidden');
+    });
+    document.getElementById(id).classList.remove('hidden');
+  }
+
+  function showError(msg) {
+    document.getElementById('error-msg').textContent = msg;
+    show('delete_error');
+  }
+
+  document.getElementById('sign-in').href = oauthStart;
+  document.getElementById('retry').href = oauthStart;
+
+  if (auth === 'ok') {
+    stripQuery();
+    show('delete_confirmation');
+  } else if (auth === 'error') {
+    stripQuery();
+    showError(reason || 'Sign in failed');
+  }
+
+  document.getElementById('confirm-delete').addEventListener('click', async function () {
+    const btn = document.getElementById('confirm-delete');
+    btn.disabled = true;
+    try {
+      const res = await fetch(apiOrigin + '/a/account/delete', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || ('HTTP ' + res.status));
+      }
+      show('delete_confirm');
+    } catch (ex) {
+      btn.disabled = false;
+      showError(ex.message || 'Delete account failed');
+    }
+  });
+})();
+  </script>
+  <script src="/static/starry-night.js"></script>
+</body>
+</html>

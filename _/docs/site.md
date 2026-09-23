@@ -1,33 +1,66 @@
 # Site (LOCKED)
 
-Status: **locked** 2026-09-20
+Status: **locked** 2026-09-21 (revised from 2026-09-20)
 
-Prompt-built websites and business storefronts. Registry = **`identity(kind=site)`**; this module adds satellite tables only.
+Prompt-built websites and business storefronts.
+
+- **Registry + ACL** → `ai.identity(kind=site)` + `ai.identity_grant`
+- **All site payload** → YSQL schema **`site`** (does not bloat `ai`)
+- **Primary editor** → Home prompt (`@alien_id` / site name); topic **`web.builder`**
+- **Admin UI** → Devices-like page + generic **`UITable`** (Airtable-style grids)
+- **Guest URLs** → path only: `https://alienai.id/{alien_id}/…` — **never** `{alien_id}.alienai.id`
 
 ## Reference
 
 | Project | Borrow |
 |---------|--------|
-| `E:\Project Archive\csa_site_published` | Sites 3-pane shell, publish flow |
-| id.alienai | Product catalog shape, embed columns |
-| c35 identity | Staff = `identity_grant` |
+| `D:\csa_site_published` | Publish/render pipeline, guest HTTP router, custom domain + CNAME |
+| `E:\Project Archive\id.alienai` | Product catalog shape, POS / tx model |
+| c35 Devices page | Master/detail + tabs shell |
 
-## Model
+## Schema split
 
 ```
-identity(kind=site)
-  └── site_config       capabilities, tz, costing
-  └── site_draft        SiteDoc (block tree — free layout)
-  └── site_publish      frozen doc + render_hash
-  └── site_domain       custom hostname
-  └── site_product      catalog data (POS + product_grid blocks)
-  └── site_contact      CRM / tx subject
-  └── site_object       tables, rooms, units
+ai.identity(kind=site)     name, alien_id, pic, owner_iid
+ai.identity_grant          staff | manage | owner on site_iid
+
+site.config                capabilities, tz, costing
+site.draft                 SiteDoc JSON (presentation)
+site.publish               immutable snapshots + render_hash
+site.render                compiled HTML bytes (guest serve)
+site.domain                custom hostname + tls_status
+site.product               catalog (+ site.product_embed sub-rows)
+site.contact               CRM / tx subject
+site.object                tables, rooms, units
+site.parent_link           hub → child tenant
+
+site.tx … site.tx_*        POS (id.alienai model — see tx.md)
 ```
 
-**Presentation ≠ data.** Guest pages are composed from blocks in `doc_json`. Products/contacts/objects are admin **data** tables — blocks reference them (`product_grid`, `contact_card`), not embedded sections.
+**Presentation ≠ data.** Guest layout = blocks in `site.draft.doc_json`. Products/contacts/objects live in normalized **`site.*`** tables — blocks and POS reference IDs only.
+
+## Guest routing
+
+| Host | Path | Resolves to |
+|------|------|-------------|
+| `alienai.id` | `/{alien_id}` | site by `identity.alien_id` |
+| `alienai.id` | `/{alien_id}/about` | page inside SiteDoc |
+| custom domain (verified) | `/` | site by `site.domain.hostname` (Host header) |
+
+Custom domain: user CNAMEs to `alienai.id` (CF orange cloud OK). TLS cert stored in CF / cert-manager — DB holds **`tls_status`** only.
+
+**API split (implemented):**
+
+| Host | Routes | Purpose |
+|------|--------|---------|
+| `alienai.id` | `/`, `/{alien_id}/…` | Guest HTML + static (CF proxied) |
+| `api.alienai.id` | `/v1`, `/a`, `/ws`, `/fs`, `/livez` | Flutter app WS + invoke + guest HTTP (cart, order) |
+
+Flutter production host: `https://api.alienai.id` (`server_host.dart`, `config.dart`). Server treats `api.alienai.id` as non-guest — never resolves as `alien_id`.
 
 ## SiteDoc (block tree)
+
+Stored in `site.draft.doc_json` (v1). Prompt + publish tools edit this JSON. Optional v2: normalize to `site.page` / `site.block` tables for UITable power users.
 
 ```json
 {
@@ -37,8 +70,7 @@ identity(kind=site)
       "title": "Home",
       "blocks": [
         { "id": "b1", "type": "hero", "props": { "title": "…", "pic": "…" } },
-        { "id": "b2", "type": "markdown", "props": { "md": "…" } },
-        { "id": "b3", "type": "product_grid", "props": { "filter": "recommended" } }
+        { "id": "b2", "type": "product_grid", "props": { "filter": "recommended" } }
       ]
     }
   ],
@@ -55,63 +87,124 @@ identity(kind=site)
 | `markdown` | Rich text |
 | `image` / `gallery` | Media |
 | `links` | Link list / social |
-| `product_grid` | Pulls from `site_product` |
+| `product_grid` | Pulls from `site.product` |
 | `contact_form` | Guest lead capture |
-| `map` / `hours` / `queue` | Optional capability blocks |
+| `map` / `hours` / `queue` | Capability-gated |
 | `embed` | iframe / external |
 | `spacer` | Layout rhythm |
-| `custom_html` | Escape hatch (sandboxed render) |
+| `custom_html` | Sandboxed escape hatch |
 
-Capabilities in `site_config.capabilities_json` gate backend features (`commerce`, `booking`, `queue`) — not fixed page sections.
+Capabilities in `site.config.capabilities_json` gate backend features (`commerce`, `booking`, `queue`).
+
+### Block catalog rules
+
+- Platform **block types** and **effect presets** are versioned catalog entries — **immutable** once published.
+- Site instances set **`type` + `props` within schema** only; LLM must not extend shared schemas.
+- Visual tweaks → `theme` tokens (Tailwind-like) or new catalog version — not per-site schema mutation.
 
 ## Tables
 
 See [`../schemas/site.sql`](../schemas/site.sql).
 
-| Table | Synced | Notes |
-|-------|--------|-------|
-| `site_config` | yes | 1:1 site_iid |
-| `site_draft` | yes | `doc_json` |
-| `site_publish` | partial | Guest read |
-| `site_domain` | yes | DNS + TLS |
-| `site_product` | yes | + `ehash_search` for embed regen |
-| `site_product_embed` | yes | Per-label search vectors (metadata) |
-| `site_contact` | yes | Tx subject |
-| `site_object` | yes | Deep links |
+| Table | Synced | UITable tab | Notes |
+|-------|--------|-------------|-------|
+| `site.config` | yes | Settings | 1:1 site_iid |
+| `site.draft` | yes | — | prompt-primary |
+| `site.publish` | partial | — | guest read |
+| `site.render` | no | — | server compile output |
+| `site.domain` | yes | Settings | DNS + TLS status |
+| `site.product` | yes | Products | + embed subtable |
+| `site.product_embed` | yes | (subtable) | alt labels |
+| `site.contact` | yes | Contacts | tx subject |
+| `site.object` | yes | Objects | rooms / tables |
 
 Staff: `identity_grant(resource_iid=site_iid, role=staff|manage|owner)`.
 
+## UITable (generic admin grids)
+
+Flutter widget **`UITable`** — collection-driven, like Files detail list view but for sync rows.
+
+```
+TableDef (collection.proto)
+  → columns (ColDef: key, label, type, readonly, …)
+  → subtables (SubTableDef: fk_keys → nested grid on row expand)
+```
+
+| Tab | `TableDef.collection` | Subtable |
+|-----|-------------------------|----------|
+| Products | `site.product` | `site.product_embed` |
+| Contacts | `site.contact` | — |
+| Objects | `site.object` | — |
+| Domains | `site.domain` | — |
+| Orders (Phase 9) | `site.tx` | `site.tx_item`, `site.tx_payment` (browse); edit uses tx ledger UI |
+
+Prompt and UITable both call the same RPC/sync puts — one normalized source of truth in YB.
+
+## Prompt editor (`web.builder`)
+
+Topic **`web.builder`** on Home assistant when user mentions a site (`@alien_id`, site name).
+
+| Tool | Edits |
+|------|-------|
+| `site_draft_put` | SiteDoc blocks + theme |
+| `site_publish` | compile → `site.render` + activate `site.publish` |
+| `site_product_put` | catalog rows (prefer UITable for bulk) |
+| `site_contact_put` / `site_object_put` | data rows |
+
+Instruction seed: [`../schemas/inst.sql`](../schemas/inst.sql) → `inst.web.builder`.
+
+Layout changes → prompt. Bulk catalog edits → UITable. Money/stock → **tx API only** (never free-form LLM JSON).
+
+## Publish pipeline
+
+```
+site.draft.doc_json
+  → ReqSitePublish
+  → site.publish (immutable snapshot, render_hash)
+  → server render job
+  → site.render[html:/, …]   (+ blake3 etag)
+  → guest HTTP serve (CF cache)
+```
+
+Port compile/serve from `csa_site_published` `mod_site` (`publish_render`, `site_render_router`).
+
 ## Wire
 
-Proto: [`../schemas/proto/c35/site.proto`](../schemas/proto/c35/site.proto)
+| Proto | Purpose |
+|-------|---------|
+| [`site.proto`](../schemas/proto/c35/site.proto) | SiteDoc, draft, publish, product, contact, object RPC |
+| [`collection.proto`](../schemas/proto/c35/collection.proto) | `TableDef` / `ReqCollectionDefList` for UITable |
+| [`tx.proto`](../schemas/proto/c35/tx.proto) | POS + guest checkout |
 
-- `ReqSiteList` — Sites page master
-- `ReqSiteDraftGet/Put` — prompt edits `SiteDoc`
+RPC summary:
+
+- `ReqSiteList` — Sites nav list
+- `ReqSiteDraftGet/Put` — prompt edits SiteDoc
 - `ReqSitePublish` — render + activate
-- `ReqSiteProduct*` / `ReqSiteContact*` / `ReqSiteObject*` — data admin
+- `ReqSiteProduct*` / `ReqSiteContact*` / `ReqSiteObject*` — data CRUD
+- `ReqCollectionDefList` — UITable column metadata
 
-Sync collections: `site_draft`, `site_product`, `site_contact`, `site_object`.
+Sync collections: `site_draft`, `site_product`, `site_product_embed`, `site_contact`, `site_object`, `site_domain`, `site_config`.
 
-Guest checkout: `ReqSiteGuestOrderPut` in `tx.proto`.
+Guest checkout: `ReqSiteGuestOrderPut` in `tx.proto` (HTTP on api host).
 
-## UI (future)
+## UI
 
-Sites 3-pane:
+Sites page = **Devices pattern** (see [`ui.md`](ui.md)):
 
-1. **Master** — site list
-2. **Design** — prompt + preview iframe (edits blocks)
-3. **Data** — products, contacts, objects (fixed admin forms OK)
-4. **POS** — tx editor (Phase 9)
+- Nav: site list (pin, rename, alien_id)
+- Detail tabs: **Preview** | **Products** | **Contacts** | **Objects** | **Settings** | **Orders** (Phase 9)
+- No CSA-style visual hub editor
 
 ## Embeddings
 
-- **`ai.embed_cache`** — LLM API dedupe ([`../schemas/embed.sql`](../schemas/embed.sql))
-- **`site_product.ehash_search`** — invalidates entity embed on name/SKU change
-- **`site_product_embed`** — alt labels / aliases for semantic product search
-- Vector BYTEA / pgvector HNSW — add when `mod_llm` ships (Phase 1+)
+- `ai.embed_cache` — LLM API dedupe
+- `site.product.ehash_search` — regen on name/SKU change
+- `site.product_embed` — alt labels for semantic search
 
 ## Deferred
 
+- Normalized `site.page` / `site.block` tables (UITable for layout structure)
+- `render_hash` → `file` schema CAS
 - Site subscription billing
 - HR / payroll / presence modules
-- Static bundle CAS (`render_hash` → `file` schema)

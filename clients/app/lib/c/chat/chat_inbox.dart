@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/store/chat_store.dart';
+import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/c/ui/ui_format.dart';
 
 String chatMsgUsageMsLabel(int durationMs) => uiFmtDurationMs(durationMs);
@@ -139,6 +140,8 @@ String msgRowError(MsgRow m) {
   final raw = (m as dynamic).error;
   return raw is String ? raw : '';
 }
+
+String msgPromptErrorMessage(String raw) => uiPromptErrorMessage(raw);
 
 class MsgUsageStats {
   const MsgUsageStats({this.tokensIn = 0, this.tokensOut = 0, this.durationMs = 0, this.costUsd = 0, this.model = ''});

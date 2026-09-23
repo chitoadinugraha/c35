@@ -1,9 +1,14 @@
-mod model_cost;
-mod embed_gemini;
-mod runtime_config;
-mod model_catalog;
-mod llm_catalog;
+mod catalog_price;
+mod catalog_rank;
+mod catalog_resolve;
+mod catalog_sync;
+mod catalog_types;
 mod cf_gateway;
+mod embed_gemini;
+mod llm_catalog;
+mod model_catalog;
+mod model_cost;
+mod runtime_config;
 
 use chrono::Utc;
 use sqlx::PgPool;
@@ -13,12 +18,16 @@ pub use embed_gemini::embed_text;
 pub use model_catalog::{
     model_chain_for_slug, model_is_alien, model_log_label, model_resolve_target, ModelTarget,
 };
-pub use llm_catalog::{catalog_price, llm_catalog_init, llm_catalog_reload, prompt_models};
+pub use catalog_sync::llm_catalog_spawn;
+pub use catalog_resolve::{catalog_alien_chain_build, catalog_alien_chain_effective, catalog_alien_default, catalog_provider_model};
+pub use llm_catalog::{
+    catalog_models, catalog_price, llm_catalog_init, llm_catalog_reload, prompt_models, provider_model_resolve, LlmModelRow,
+};
 pub use model_cost::model_cost_usd;
 pub use runtime_config::{
     alien_chain_default, alien_chain_models, alien_default_model, cf_gateway_config, cf_gateway_from_env,
     cf_gateway_ready, model_is_flash_lite, runtime_config_init, runtime_config_reload,
-    runtime_config_watch, DEFAULT_GEMINI_MODEL, CfGatewayRuntime,
+    runtime_config_watch, CfGatewayRuntime,
 };
 
 pub const EMBED_TASK_DOCUMENT: &str = "retrieval_document";

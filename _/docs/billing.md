@@ -42,6 +42,8 @@ Implementation plan: [billing-implementation.md](billing-implementation.md).
 
 Platform absorbs FX drift between rate updates on metered usage. Catalog and top-up have **zero FX risk**.
 
+**Voice metered SKU (cloud STT/TTS):** When the client uses engine mode `cloud`, `mod_voice` reserves a small USD hold (`VOICE_STT_HOLD_USD` / `VOICE_TTS_HOLD_USD`), calls Google Cloud Speech or Text-to-Speech, then settles against the user's balance at retail rates (`VOICE_STT_USD_PER_MIN`, `VOICE_TTS_USD_PER_1K_CHARS` in `billing_cost.rs`) with the same FX-at-deduct-time policy as LLM metered usage. Rows land in `ai.log` with `kind` `voice_stt` or `voice_tts`. Web and local engines never touch billing. See [voice.md](voice.md).
+
 ### Direct purchase (no wallet credit)
 
 User may buy a plan or add-on **without** prefunding a wallet:

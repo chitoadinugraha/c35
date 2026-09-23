@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS ai.skill (
     hash_blake3         VARCHAR(64) NOT NULL DEFAULT '',
     body_md             TEXT NOT NULL DEFAULT '',
 
-    source              VARCHAR(32) NOT NULL DEFAULT 'taught',   -- taught | catalog | import
+    source              VARCHAR(32) NOT NULL DEFAULT 'taught',   -- taught | ai_explore | catalog | import
     catalog_id          BIGINT NOT NULL DEFAULT 0,
     catalog_variant_id  BIGINT NOT NULL DEFAULT 0,
     catalog_release_id  BIGINT NOT NULL DEFAULT 0,
@@ -123,6 +123,9 @@ CREATE TABLE IF NOT EXISTS ai.skill_catalog (
     is_verified         BOOLEAN NOT NULL DEFAULT FALSE,
     status              VARCHAR(16) NOT NULL DEFAULT 'published',
     default_variant_key VARCHAR(64) NOT NULL DEFAULT 'default',
+    price_usd           NUMERIC(12, 4) NOT NULL DEFAULT 0,
+    price_idr           NUMERIC(14, 2) NOT NULL DEFAULT 0,
+    billing_period      VARCHAR(16) NOT NULL DEFAULT 'free',
 
     created_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -186,3 +189,43 @@ CREATE TABLE IF NOT EXISTS ai.skill_catalog_rating (
     updated_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (catalog_id, rater_iid)
 );
+
+-- ==============================================================================
+-- Phase 7: Self-Learning Skill System + Alien AI Public Skill Library
+-- ==============================================================================
+
+-- Self-learning circuit breaker fields
+ALTER TABLE ai.skill ADD COLUMN IF NOT EXISTS patch_epoch          INT NOT NULL DEFAULT 0;
+ALTER TABLE ai.skill ADD COLUMN IF NOT EXISTS patch_count          INT NOT NULL DEFAULT 0;
+ALTER TABLE ai.skill ADD COLUMN IF NOT EXISTS last_patched_ts      TIMESTAMPTZ;
+ALTER TABLE ai.skill ADD COLUMN IF NOT EXISTS consecutive_ok       INT NOT NULL DEFAULT 0;
+ALTER TABLE ai.skill ADD COLUMN IF NOT EXISTS detected_app_version VARCHAR(32) NOT NULL DEFAULT '';
+ALTER TABLE ai.skill ADD COLUMN IF NOT EXISTS auto_submit          BOOLEAN NOT NULL DEFAULT FALSE;
+-- auto_submit default: TRUE for source='ai_explore', FALSE for source='taught'|'catalog'|'import'
+
+-- Version range for catalog variants
+ALTER TABLE ai.skill_catalog_variant
+    ADD COLUMN IF NOT EXISTS target_app_version_min VARCHAR(32) NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS target_app_version_max VARCHAR(32) NOT NULL DEFAULT '';
+
+-- Success metrics for ranking
+ALTER TABLE ai.skill_catalog_release
+    ADD COLUMN IF NOT EXISTS success_count INT NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS fail_count    INT NOT NULL DEFAULT 0;
+
+-- Contributor tracking + pending_review state for Alien AI Public Skill Library
+ALTER TABLE ai.skill_catalog
+    ADD COLUMN IF NOT EXISTS contributor_iids_json JSONB NOT NULL DEFAULT '[]';
+-- status column already exists as VARCHAR(16); extend allowed values to include 'pending_review' | 'rejected'
+-- No constraint change needed as there is no CHECK on status currently
+
+CREATE INDEX IF NOT EXISTS idx_skill_auto_submit
+    ON ai.skill (owner_iid, consecutive_ok, auto_submit)
+    WHERE deleted_ts IS NULL AND auto_submit = TRUE;
+
+-- Self-learning source values:
+--   taught     = manually recorded by user in teach mode
+--   ai_explore = AI explored first-time and auto-recorded (auto_submit defaults TRUE)
+--   catalog    = installed from Alien AI Public Skill Library
+--   import     = imported from file
+

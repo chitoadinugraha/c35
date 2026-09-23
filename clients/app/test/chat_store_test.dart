@@ -1,3 +1,4 @@
+import 'package:alienai_c35/c/chat/chat_block.dart';
 import 'package:alienai_c35/c/chat/chat_inbox.dart';
 import 'package:alienai_c35/c/pb/c35/chat.pb.dart';
 import 'package:alienai_c35/c/store/chat_store.dart';
@@ -18,6 +19,22 @@ void main() {
       error: 'billing failed',
     );
     expect(msgDisplayContent(m), 'Sekarang hari Senin.');
+  });
+
+  test('retryLastTurnPrep drops trailing assistant only', () {
+    final store = ChatStore();
+    store.chats = [ChatRow(id: 1, title: 'A')];
+    store.activeChatId = 1;
+    store.msgs = [
+      MsgRow(id: 10, chatId: 1, role: 'user', content: 'hi'),
+      MsgRow(id: 11, chatId: 1, role: 'assistant', content: '', error: 'failed'),
+    ];
+
+    final turn = store.retryLastTurnPrep();
+
+    expect(turn?.text, 'hi');
+    expect(store.msgs.length, 1);
+    expect(store.msgs.single.role, 'user');
   });
 
   test('msgStreamFail stores error without changing content', () {
@@ -193,6 +210,25 @@ void main() {
     expect(store.msgs.single.model, 'alienai');
   });
 
+  test('msgPutFromServer does not bump chat lastMsgAt', () {
+    final store = ChatStore();
+    final oldAt = DateTime(2024, 1, 1).millisecondsSinceEpoch;
+    store.chats = [ChatRow(id: 5, title: 'A', lastMsgPreview: 'prev', lastMsgAt: oldAt)];
+
+    store.msgPutFromServer(
+      ChatMsg(
+        id: Int64(1),
+        chatId: Int64(5),
+        role: ChatMsgRole.CHAT_MSG_ROLE_USER,
+        content: 'hello',
+        createdTsMs: Int64(DateTime(2024, 6, 1).millisecondsSinceEpoch),
+      ),
+    );
+
+    expect(store.chats.single.lastMsgAt, oldAt);
+    expect(store.chats.single.lastMsgPreview, 'prev');
+  });
+
   test('msgPut merges optimistic user message by reqId on server fetch', () {
     final store = ChatStore();
     final localUserMsg = MsgRow(
@@ -216,5 +252,101 @@ void main() {
     expect(store.msgs.length, 1);
     expect(store.msgs.single.id, 100000000001);
     expect(store.msgs.single.reqId, 'uuid-1234');
+  });
+
+  test('msgStreamContent preserves repeated tokens such as indentation and punctuation', () {
+    final store = ChatStore();
+    store.msgs = [MsgRow(id: 11, chatId: 1, role: 'assistant', content: '')];
+    store.promptBusyPut(true, chatId: 1);
+
+    store.msgStreamContent('    ', chatId: 1);
+    store.msgStreamContent('    ', chatId: 1);
+    store.msgStreamContent('def foo():\n', chatId: 1);
+    store.msgStreamContent('...', chatId: 1);
+    store.msgStreamContent('...', chatId: 1);
+
+    expect(store.msgs.single.content, '        def foo():\n......');
+  });
+
+  test('msgStreamThought preserves repeated tokens', () {
+    final store = ChatStore();
+    store.msgs = [MsgRow(id: 11, chatId: 1, role: 'assistant', content: '')];
+    store.promptBusyPut(true, chatId: 1);
+
+    store.msgStreamThought('thinking...', chatId: 1);
+    store.msgStreamThought('...', chatId: 1);
+
+    expect(store.msgs.single.thought, 'thinking......');
+  });
+
+  test('msgBlockCollapsedPut toggles block collapsed state', () {
+    final store = ChatStore();
+    final initialBlocks = [
+      ChatBlock(kind: 'consumption.food', collapsed: true, body: {'consumption_id': 'c1'}),
+      ChatBlock(kind: 'consumption.glance', collapsed: false, body: {'calories': 500}),
+    ];
+    store.msgs = [
+      MsgRow(
+        id: 11,
+        chatId: 1,
+        role: 'assistant',
+        content: 'Meal saved',
+        blocksJson: ChatBlock.encodeList(initialBlocks),
+      ),
+    ];
+
+    store.msgBlockCollapsedPut(msgId: 11, blockIndex: 0, collapsed: false);
+
+    final updated = ChatBlock.decodeList(store.msgs.single.blocksJson);
+    expect(updated[0].collapsed, isFalse);
+    expect(updated[1].collapsed, isFalse);
+
+    store.msgBlockCollapsedPut(msgId: 11, blockIndex: 1, collapsed: true);
+    final updated2 = ChatBlock.decodeList(store.msgs.single.blocksJson);
+    expect(updated2[1].collapsed, isTrue);
+  });
+
+  test('deep search matches message body and produces snippet', () {
+    final store = ChatStore();
+    final chat = ChatRow(id: 1, title: 'Project Discussion', lastMsgAt: 1000);
+    store.chats = [chat];
+    store.msgs = [
+      MsgRow(
+        id: 101,
+        chatId: 1,
+        role: 'user',
+        content: 'We need to integrate WebRTC peer connections into flutter client.',
+      ),
+      MsgRow(
+        id: 102,
+        chatId: 1,
+        role: 'assistant',
+        content: 'Understood. Setting up coturn stun/turn credentials.',
+      ),
+    ];
+
+    store.searchPut('WebRTC');
+    expect(store.visibleChats.length, 1);
+    expect(store.visibleChats.first.id, 1);
+
+    final snippet = store.searchSnippetFor(1, 'WebRTC');
+    expect(snippet, contains('WebRTC peer connections'));
+
+    store.searchPut('nonexistentquery123');
+    expect(store.visibleChats, isEmpty);
+  });
+
+  test('recentUserPrompts returns deduplicated user prompts in reverse order', () {
+    final store = ChatStore();
+    store.msgs = [
+      MsgRow(id: 1, chatId: 1, role: 'user', content: 'first prompt'),
+      MsgRow(id: 2, chatId: 1, role: 'assistant', content: 'first answer'),
+      MsgRow(id: 3, chatId: 1, role: 'user', content: 'second prompt'),
+      MsgRow(id: 4, chatId: 2, role: 'user', content: 'first prompt'), // duplicate
+      MsgRow(id: 5, chatId: 2, role: 'user', content: 'third prompt'),
+    ];
+
+    final history = store.recentUserPrompts;
+    expect(history, ['third prompt', 'first prompt', 'second prompt']);
   });
 }

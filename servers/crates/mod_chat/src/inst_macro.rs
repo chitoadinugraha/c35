@@ -13,7 +13,19 @@ pub struct InstRow {
     pub priority: i32,
 }
 
+pub const SCOPE_GLOBAL: &str = "global";
+pub const SCOPE_ROLE_PERSONAL_ASSISTANT: &str = "role:personal_assistant";
+
+pub fn inst_scopes_home() -> Vec<String> {
+    vec![SCOPE_GLOBAL.into(), SCOPE_ROLE_PERSONAL_ASSISTANT.into()]
+}
+
+pub fn inst_scopes_channel() -> Vec<String> {
+    vec![SCOPE_GLOBAL.into()]
+}
+
 pub struct InstMatchCtx<'a> {
+    pub scopes: &'a [String],
     pub topic_id: &'a str,
     pub text: &'a str,
     pub mention_ids: &'a [String],
@@ -58,7 +70,17 @@ pub fn inst_matched_prompt(matched: &[InstRow]) -> String {
         .join("\n\n")
 }
 
+fn scope_applies(row_scope: &str, active: &[String]) -> bool {
+    if row_scope == SCOPE_GLOBAL {
+        return true;
+    }
+    active.iter().any(|s| s == row_scope)
+}
+
 fn inst_applies(row: &InstRow, ctx: &InstMatchCtx<'_>) -> bool {
+    if !scope_applies(&row.scope, ctx.scopes) {
+        return false;
+    }
     match row.kind.as_str() {
         "topic" => row.topic_id == ctx.topic_id,
         "mention" => {
@@ -119,7 +141,74 @@ mod tests {
     fn inst_pick_web_phrases() {
         let rows = vec![row("inst.web_search", &["search the web", "cari"])];
         let empty: [String; 0] = [];
-        let ctx = InstMatchCtx { topic_id: "general", text: "cari info rust", mention_ids: &empty, signals: &empty };
+        let scopes = vec![SCOPE_GLOBAL.into()];
+        let ctx = InstMatchCtx {
+            scopes: &scopes,
+            topic_id: "general",
+            text: "cari info rust",
+            mention_ids: &empty,
+            signals: &empty,
+        };
         assert_eq!(inst_pick(&rows, &ctx).len(), 1);
+    }
+
+    #[test]
+    fn inst_scope_role_requires_active_scope() {
+        let rows = vec![InstRow {
+            id: "inst.consumption_add".into(),
+            scope: SCOPE_ROLE_PERSONAL_ASSISTANT.into(),
+            kind: "task".into(),
+            topic_id: "".into(),
+            topics: vec![],
+            inst: "food".into(),
+            phrases: vec!["track food".into()],
+            triggers: vec![],
+            priority: 140,
+        }];
+        let empty: [String; 0] = [];
+        let global_only = vec![SCOPE_GLOBAL.into()];
+        let home = inst_scopes_home();
+        let ctx_global = InstMatchCtx {
+            scopes: &global_only,
+            topic_id: "general",
+            text: "track food",
+            mention_ids: &empty,
+            signals: &empty,
+        };
+        let ctx_home = InstMatchCtx {
+            scopes: &home,
+            topic_id: "general",
+            text: "track food",
+            mention_ids: &empty,
+            signals: &empty,
+        };
+        assert!(inst_pick(&rows, &ctx_global).is_empty());
+        assert_eq!(inst_pick(&rows, &ctx_home).len(), 1);
+    }
+
+    #[test]
+    fn inst_always_trigger_applies() {
+        let rows = vec![InstRow {
+            id: "inst.core.assistant".into(),
+            scope: SCOPE_GLOBAL.into(),
+            kind: "trigger".into(),
+            topic_id: "".into(),
+            topics: vec![],
+            inst: "baseline".into(),
+            phrases: vec![],
+            triggers: vec!["always".into()],
+            priority: 200,
+        }];
+        let empty: [String; 0] = [];
+        let scopes = vec![SCOPE_GLOBAL.into()];
+        let ctx = InstMatchCtx {
+            scopes: &scopes,
+            topic_id: "general",
+            text: "hello",
+            mention_ids: &empty,
+            signals: &empty,
+        };
+        assert_eq!(inst_pick(&rows, &ctx).len(), 1);
+        assert_eq!(inst_pick(&rows, &ctx)[0].id, "inst.core.assistant");
     }
 }

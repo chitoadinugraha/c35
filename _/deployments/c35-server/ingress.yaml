@@ -16,9 +16,10 @@ spec:
   tls:
     - hosts:
         - alienai.id
+        - api.alienai.id
       secretName: alienai-id-tls
   rules:
-    - host: alienai.id
+    - host: api.alienai.id
       http:
         paths:
           - path: /a
@@ -57,6 +58,16 @@ spec:
                 port:
                   name: http
           - path: /fs
+            pathType: Prefix
+            backend:
+              service:
+                name: c35-server
+                port:
+                  name: http
+    - host: alienai.id
+      http:
+        paths:
+          - path: /
             pathType: Prefix
             backend:
               service:

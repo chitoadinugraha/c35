@@ -61,6 +61,29 @@ pub async fn billing_reservation_hold(
     billing_currency: &str,
     fx_micro_per_usd: i64,
 ) -> Result<()> {
+    billing_reservation_hold_custom(
+        pool,
+        owner_iid,
+        row,
+        req_id,
+        DEFAULT_HOLD_USD,
+        balance_idr,
+        billing_currency,
+        fx_micro_per_usd,
+    )
+    .await
+}
+
+pub async fn billing_reservation_hold_custom(
+    pool: &PgPool,
+    owner_iid: i64,
+    row: &BillingRow,
+    req_id: &str,
+    hold_usd: f64,
+    balance_idr: f64,
+    billing_currency: &str,
+    fx_micro_per_usd: i64,
+) -> Result<()> {
     let req_id = req_id.trim();
     if req_id.is_empty() {
         anyhow::bail!("req_id required");
@@ -83,7 +106,7 @@ pub async fn billing_reservation_hold(
         row.alien_allow_weekly_used,
         row.alien_allow_weekly_limit,
     );
-    let (hold_usd, hold_idr) = hold_amounts(DEFAULT_HOLD_USD, allowance_rem, billing_currency, fx_micro_per_usd);
+    let (hold_usd, hold_idr) = hold_amounts(hold_usd, allowance_rem, billing_currency, fx_micro_per_usd);
     if hold_usd <= 0.0 && hold_idr <= 0.0 {
         return Ok(());
     }
@@ -247,6 +270,16 @@ pub async fn billing_gate_with_hold(
     row: &BillingRow,
     req_id: &str,
 ) -> Result<()> {
+    billing_gate_with_hold_custom(pool, owner_iid, row, req_id, DEFAULT_HOLD_USD).await
+}
+
+pub async fn billing_gate_with_hold_custom(
+    pool: &PgPool,
+    owner_iid: i64,
+    row: &BillingRow,
+    req_id: &str,
+    hold_usd: f64,
+) -> Result<()> {
     let extra = sqlx::query_as::<_, (String, String, i64)>(
         r#"
         SELECT balance_idr::text, billing_currency, fx_micro_per_usd
@@ -268,8 +301,8 @@ pub async fn billing_gate_with_hold(
     let balance_native = if currency.eq_ignore_ascii_case("IDR") { balance_idr } else { row.balance_usd };
     let (held_usd, held_idr) = billing_held_totals(pool, row.id).await?;
     let held_native = if currency.eq_ignore_ascii_case("IDR") { held_idr } else { held_usd };
-    let (hold_usd, hold_idr) = hold_amounts(DEFAULT_HOLD_USD, allowance_rem, &currency, fx);
-    let hold_native = if currency.eq_ignore_ascii_case("IDR") { hold_idr } else { hold_usd };
+    let (hold_usd_amt, hold_idr) = hold_amounts(hold_usd, allowance_rem, &currency, fx);
+    let hold_native = if currency.eq_ignore_ascii_case("IDR") { hold_idr } else { hold_usd_amt };
     if !gate_can_start(allowance_rem, balance_native, held_native, hold_native) {
         let reason = crate::billing_on_demand::quota_rejection_reason(
             row.alien_allow_5h_used,
@@ -281,7 +314,7 @@ pub async fn billing_gate_with_hold(
         );
         anyhow::bail!(reason);
     }
-    billing_reservation_hold(pool, owner_iid, row, req_id, balance_idr, &currency, fx).await?;
+    billing_reservation_hold_custom(pool, owner_iid, row, req_id, hold_usd, balance_idr, &currency, fx).await?;
     Ok(())
 }
 

@@ -1,0 +1,207 @@
+# NATS StatefulSet with JetStream PVC (oci-bv 20Gi).
+# Apply after scale-down + delete of emptyDir-based StatefulSet — see README.md.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nats
+  namespace: nats
+  labels:
+    app: nats
+spec:
+  replicas: 1
+  serviceName: nats
+  selector:
+    matchLabels:
+      app: nats
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  podManagementPolicy: OrderedReady
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      partition: 0
+  volumeClaimTemplates:
+    - metadata:
+        name: nats-data
+        labels:
+          app: nats
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: oci-bv
+        resources:
+          requests:
+            storage: 20Gi
+  template:
+    metadata:
+      labels:
+        app: nats
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: 10.0.91.240
+      securityContext:
+        fsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+      initContainers:
+        - name: cert-setup
+          image: busybox:latest
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              test -f /certs/ca.crt
+              test -f /certs/${POD_NAME}.crt
+              test -f /certs/${POD_NAME}.key
+              cp /certs/ca.crt /etc/nats/tls/ca.crt
+              cp /certs/${POD_NAME}.crt /etc/nats/tls/nats.crt
+              cp /certs/${POD_NAME}.key /etc/nats/tls/nats.key
+              chown -R 1000:1000 /etc/nats/tls
+              chmod 644 /etc/nats/tls/*.crt
+              chmod 600 /etc/nats/tls/*.key
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          securityContext:
+            runAsNonRoot: false
+            runAsUser: 0
+          volumeMounts:
+            - name: nats-tls
+              mountPath: /etc/nats/tls
+            - name: nats-tls-certs
+              mountPath: /certs
+              readOnly: true
+      containers:
+        - name: nats
+          image: nats:2.12-alpine
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - |
+              test -f /etc/nats/tls/nats.crt
+              exec /usr/local/bin/nats-server -c /etc/nats/nats.conf
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NATS_CSA_SITE_USER
+              valueFrom:
+                secretKeyRef:
+                  name: nats-credentials
+                  key: csa_site_user
+            - name: NATS_CSA_SITE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nats-credentials
+                  key: csa_site_password
+            - name: NATS_SYS_USER
+              valueFrom:
+                secretKeyRef:
+                  name: nats-credentials
+                  key: sys_user
+            - name: NATS_SYS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nats-credentials
+                  key: sys_password
+            - name: CSA_SERVICE_AI_USER
+              valueFrom:
+                secretKeyRef:
+                  name: nats-credentials
+                  key: csa_service_ai_user
+            - name: CSA_SERVICE_AI_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nats-credentials
+                  key: csa_service_ai_password
+            - name: CSA_AI_MODEL_FETCH_USER
+              valueFrom:
+                secretKeyRef:
+                  name: nats-credentials
+                  key: csa_ai_model_fetch_user
+            - name: CSA_AI_MODEL_FETCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nats-credentials
+                  key: csa_ai_model_fetch_password
+            - name: CSA_HUB_CLIENT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: nats-credentials
+                  key: csa_hub_client_user
+            - name: CSA_HUB_CLIENT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nats-credentials
+                  key: csa_hub_client_password
+            - name: CSA_SERVICE_APP_USER
+              valueFrom:
+                secretKeyRef:
+                  name: nats-credentials
+                  key: csa_service_app_user
+            - name: CSA_SERVICE_APP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nats-credentials
+                  key: csa_service_app_password
+          ports:
+            - name: client
+              containerPort: 4222
+            - name: cluster
+              containerPort: 6222
+            - name: http
+              containerPort: 8222
+            - name: websocket
+              containerPort: 8080
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 50m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /varz
+              port: 8222
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /varz
+              port: 8222
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            runAsUser: 1000
+          volumeMounts:
+            - name: nats-data
+              mountPath: /data/jetstream
+            - name: nats-config
+              mountPath: /etc/nats/nats.conf
+              subPath: nats.conf
+            - name: nats-tls
+              mountPath: /etc/nats/tls
+      volumes:
+        - name: nats-config
+          configMap:
+            name: nats-config
+        - name: nats-tls
+          emptyDir: {}
+        - name: nats-tls-certs
+          secret:
+            secretName: nats-tls-certs

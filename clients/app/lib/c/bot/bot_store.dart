@@ -37,6 +37,7 @@ class BotStore extends ChangeNotifier {
   var _loadingPeers = false;
   var _loadingMsgs = false;
   var _sending = false;
+  var _search = '';
   final _bots = <IdentityListRow>[];
   final _peers = <Chat>[];
   final _msgs = <int, List<MsgRow>>{};
@@ -47,7 +48,32 @@ class BotStore extends ChangeNotifier {
   bool get loadingPeers => _loadingPeers;
   bool get loadingMsgs => _loadingMsgs;
   bool get sending => _sending;
+  String get search => _search;
   List<IdentityListRow> get bots => List.unmodifiable(_bots);
+
+  List<IdentityListRow> get filtered {
+    final q = _search.trim().toLowerCase();
+    return _bots.where((r) {
+      if (r.archivedTsMs.toInt() > 0) return false;
+      if (q.isEmpty) return true;
+      final id = r.identity;
+      return id.name.toLowerCase().contains(q) || id.alienId.toLowerCase().contains(q);
+    }).toList(growable: false);
+  }
+
+  void searchPut(String value) {
+    if (_search == value) return;
+    _search = value;
+    notifyListeners();
+  }
+
+  void _sortBots() => _bots.sort((a, b) {
+        final pin = (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0);
+        if (pin != 0) return pin;
+        final order = a.sortOrder.compareTo(b.sortOrder);
+        if (order != 0) return order;
+        return b.identity.updatedTsMs.compareTo(a.identity.updatedTsMs);
+      });
   List<Chat> get peers => List.unmodifiable(_peers);
   String? get selectedBotId => _selectedBotId;
   String? get selectedChatId => _selectedChatId;
@@ -87,7 +113,18 @@ class BotStore extends ChangeNotifier {
     if (push.hasChatMsg()) {
       final m = push.chatMsg;
       final cid = m.chatId.toInt();
-      if (_selectedChatId == cid.toString()) _msgPut(m);
+      if (_selectedChatId == cid.toString()) {
+        _msgPut(m);
+      } else if (_selectedBotId != null) {
+        final peer = peerById(cid.toString());
+        if (peer != null) {
+          if (m.content.isNotEmpty) peer.lastMsgPreview = m.content.length > 120 ? '${m.content.substring(0, 120)}…' : m.content;
+          if (m.createdTsMs.toInt() > 0) peer.lastMsgTsMs = m.createdTsMs;
+          notifyListeners();
+        } else {
+          unawaited(refreshPeers());
+        }
+      }
     }
     if (push.hasChatMember()) {
       final m = push.chatMember;
@@ -160,10 +197,11 @@ class BotStore extends ChangeNotifier {
     notifyListeners();
     try {
       await ensureConnected();
-      final res = await _conn.identityList(const ['bot']);
+      final res = await identityList(_conn, const ['bot']);
       _bots
         ..clear()
         ..addAll(res.rows);
+      _sortBots();
       if (_selectedBotId != null && botById(_selectedBotId) == null) _selectedBotId = null;
       if (_selectedBotId == null && _bots.isNotEmpty) _selectedBotId = _bots.first.identity.iid.toString();
       if (_selectedBotId != null) await refreshPeers();
@@ -294,6 +332,72 @@ class BotStore extends ChangeNotifier {
     } finally {
       _sending = false;
       notifyListeners();
+    }
+  }
+
+  Future<void> archivePut(String id, bool archived) => _grantPatch(id, ReqIdentityGrantPatch(resourceIid: Int64.parseInt(id), archived: archived));
+
+  Future<void> reorderPut(int oldIndex, int newIndex) async {
+    if (oldIndex == newIndex || oldIndex < 0 || newIndex < 0 || oldIndex >= _bots.length || newIndex >= _bots.length) return;
+    final item = _bots.removeAt(oldIndex);
+    _bots.insert(newIndex, item);
+    notifyListeners();
+    try {
+      for (var i = 0; i < _bots.length; i++) {
+        final row = _bots[i];
+        final botId = row.identity.iid.toString();
+        await _grantPatch(botId, ReqIdentityGrantPatch(resourceIid: row.identity.iid, sortOrder: (i + 1) * 10), notify: i == _bots.length - 1);
+      }
+    } catch (e) {
+      lError('bot reorder: $e');
+      await refreshBots();
+      rethrow;
+    }
+  }
+
+  Future<void> botDelete(String id) async {
+    final iid = int.tryParse(id) ?? 0;
+    if (iid <= 0) return;
+    try {
+      await ensureConnected();
+      await identityDelete(_conn, iid);
+      _bots.removeWhere((b) => b.identity.iid.toString() == id);
+      if (_selectedBotId == id) {
+        _selectedBotId = _bots.isNotEmpty ? _bots.first.identity.iid.toString() : null;
+        _selectedChatId = null;
+        _peers.clear();
+        if (_selectedBotId != null) await refreshPeers();
+      }
+      notifyListeners();
+    } catch (e) {
+      lError('bot delete: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> _grantPatch(String id, ReqIdentityGrantPatch req, {bool notify = true}) async {
+    try {
+      await ensureConnected();
+      final res = await identityGrantPatch(_conn, req);
+      final i = _bots.indexWhere((r) => r.identity.iid.toString() == id);
+      if (i >= 0) {
+        _bots[i] = res.row;
+      } else {
+        _bots.add(res.row);
+      }
+      if (req.hasArchived() && req.archived) {
+        _bots.removeWhere((r) => r.identity.iid.toString() == id);
+        if (_selectedBotId == id) {
+          _selectedBotId = _bots.isNotEmpty ? _bots.first.identity.iid.toString() : null;
+          _selectedChatId = null;
+          _peers.clear();
+        }
+      }
+      _sortBots();
+      if (notify) notifyListeners();
+    } catch (e) {
+      lError('bot grant patch: $e');
+      rethrow;
     }
   }
 }

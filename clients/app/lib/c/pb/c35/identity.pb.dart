@@ -1143,6 +1143,132 @@ class ResIdentityPut extends $pb.GeneratedMessage {
   IdentityListRow ensureRow() => $_ensure(0);
 }
 
+class ReqIdentityDelete extends $pb.GeneratedMessage {
+  factory ReqIdentityDelete({
+    $fixnum.Int64? iid,
+  }) {
+    final result = ReqIdentityDelete._();
+    if (iid != null) result.iid = iid;
+    return result;
+  }
+
+  ReqIdentityDelete._();
+
+  factory ReqIdentityDelete.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqIdentityDelete()..mergeFromBuffer(data, registry);
+  factory ReqIdentityDelete.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqIdentityDelete()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqIdentityDelete',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqIdentityDelete.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'iid')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqIdentityDelete clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqIdentityDelete copyWith(void Function(ReqIdentityDelete) updates) =>
+      super.copyWith((message) => updates(message as ReqIdentityDelete))
+          as ReqIdentityDelete;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqIdentityDelete() / ReqIdentityDelete.new instead')
+  static ReqIdentityDelete create() => ReqIdentityDelete._();
+  static $pb.GeneratedMessage $_createMessage() => ReqIdentityDelete._();
+  @$core.override
+  ReqIdentityDelete createEmptyInstance() => ReqIdentityDelete._();
+  @$core.pragma('dart2js:noInline')
+  static ReqIdentityDelete getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ReqIdentityDelete>(
+          ReqIdentityDelete.$_createMessage);
+  static ReqIdentityDelete? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get iid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set iid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearIid() => $_clearField(1);
+}
+
+class ResIdentityDelete extends $pb.GeneratedMessage {
+  factory ResIdentityDelete({
+    $core.bool? ok,
+    $core.String? error,
+  }) {
+    final result = ResIdentityDelete._();
+    if (ok != null) result.ok = ok;
+    if (error != null) result.error = error;
+    return result;
+  }
+
+  ResIdentityDelete._();
+
+  factory ResIdentityDelete.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResIdentityDelete()..mergeFromBuffer(data, registry);
+  factory ResIdentityDelete.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResIdentityDelete()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResIdentityDelete',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResIdentityDelete.$_createMessage)
+    ..aOB(1, _omitFieldNames ? '' : 'ok')
+    ..aOS(2, _omitFieldNames ? '' : 'error')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResIdentityDelete clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResIdentityDelete copyWith(void Function(ResIdentityDelete) updates) =>
+      super.copyWith((message) => updates(message as ResIdentityDelete))
+          as ResIdentityDelete;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResIdentityDelete() / ResIdentityDelete.new instead')
+  static ResIdentityDelete create() => ResIdentityDelete._();
+  static $pb.GeneratedMessage $_createMessage() => ResIdentityDelete._();
+  @$core.override
+  ResIdentityDelete createEmptyInstance() => ResIdentityDelete._();
+  @$core.pragma('dart2js:noInline')
+  static ResIdentityDelete getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ResIdentityDelete>(
+          ResIdentityDelete.$_createMessage);
+  static ResIdentityDelete? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get ok => $_getBF(0);
+  @$pb.TagNumber(1)
+  set ok($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasOk() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOk() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get error => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set error($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasError() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearError() => $_clearField(2);
+}
+
 const $core.bool _omitFieldNames =
     $core.bool.fromEnvironment('protobuf.omit_field_names');
 const $core.bool _omitMessageNames =

@@ -167,6 +167,16 @@ pub async fn google_callback(
             return (StatusCode::INTERNAL_SERVER_ERROR, "Database identity error").into_response();
         }
     };
+    let handle: String = sqlx::query_scalar(
+        "SELECT alien_id FROM ai.identity WHERE id = $1 LIMIT 1",
+    )
+    .bind(iid)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten()
+    .flatten()
+    .unwrap_or_default();
     let ip = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok());
     let ua = headers.get(header::USER_AGENT).and_then(|v| v.to_str().ok());
     let token = match auth_session_create(pool, iid, ip, ua).await {
@@ -187,6 +197,7 @@ pub async fn google_callback(
             name: Some(profile.name.clone()),
             email: Some(profile.email.clone()),
             pic: Some(profile.picture.clone()),
+            handle: Some(handle.clone()),
             expires_at: exp,
         },
     );
@@ -222,6 +233,8 @@ pub struct GoogleResultOut {
     pub email: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pic: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub handle: Option<String>,
 }
 
 pub async fn google_result(
@@ -238,6 +251,7 @@ pub async fn google_result(
         name: None,
         email: None,
         pic: None,
+        handle: None,
     };
     if client_id.is_empty() {
         return Json(out);
@@ -252,6 +266,7 @@ pub async fn google_result(
             out.name = r.name;
             out.email = r.email;
             out.pic = r.pic;
+            out.handle = r.handle;
         }
     }
     Json(out)
@@ -360,33 +375,14 @@ async fn get_or_create_google_identity(pool: &sqlx::PgPool, profile: &GoogleProf
         return Ok(iid);
     }
     let iid = snowflake_id();
-    let base = email.split('@').next().unwrap_or("user");
-    let base_handle: String = base
-        .chars()
-        .filter(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '-')
-        .collect();
-    let mut alien_id = base_handle.clone();
-    let mut counter = 1;
-    while sqlx::query(
-        "SELECT 1 FROM ai.identity WHERE LOWER(alien_id) = LOWER($1) AND deleted_ts IS NULL LIMIT 1",
-    )
-    .bind(&alien_id)
-    .fetch_optional(pool)
-    .await?
-    .is_some()
-    {
-        alien_id = format!("{base_handle}_{counter}");
-        counter += 1;
-    }
     let meta = json!({ "email": email, "google_sub": sub, "signup_via": "google" });
     sqlx::query(
         r#"
         INSERT INTO ai.identity (id, kind, type, alien_id, name, owner_iid, billing_iid, pic, meta, is_active)
-        VALUES ($1, 'user', '', $2, $3, $1, $1, $4, $5, true)
+        VALUES ($1, 'user', '', NULL, $2, $1, $1, $3, $4, true)
         "#,
     )
     .bind(iid)
-    .bind(&alien_id)
     .bind(&profile.name)
     .bind(&profile.picture)
     .bind(meta)

@@ -54,6 +54,13 @@ INSERT INTO ai.translation (lang, key, category, text) VALUES
 ('en', 'topic.image.caption', 'topic', 'Image generation'),
 ('en', 'composer.ask.label', 'catalog', 'Ask'),
 ('en', 'composer.ask.caption', 'catalog', 'Answer without tools'),
+('en', 'hint.consumption_add.label', 'hint', 'Track Consumption'),
+('en', 'hint.consumption_add.send_text', 'hint', 'Track food consumption'),
+('en', 'hint.expense_add.label', 'hint', 'Track Expense'),
+('en', 'hint.expense_add.send_text', 'hint', 'Track expense'),
+('en', 'hint.sites.more.label', 'hint', 'More'),
+('en', 'hint.site.visit.label', 'hint', 'Visit'),
+('en', 'hint.site.pos.label', 'hint', 'POS'),
 -- Seed Indonesian ('id') catalog translations
 ('id', 'tool.web.search.calling', 'tool', 'Mencari di web…'),
 ('id', 'tool.web.search.done', 'tool', 'Telusuri web'),
@@ -76,5 +83,12 @@ INSERT INTO ai.translation (lang, key, category, text) VALUES
 ('id', 'topic.image.label', 'topic', 'Gambar'),
 ('id', 'topic.image.caption', 'topic', 'Pembuatan gambar'),
 ('id', 'composer.ask.label', 'catalog', 'Tanya'),
-('id', 'composer.ask.caption', 'catalog', 'Jawab tanpa alat')
+('id', 'composer.ask.caption', 'catalog', 'Jawab tanpa alat'),
+('id', 'hint.consumption_add.label', 'hint', 'Catat Konsumsi'),
+('id', 'hint.consumption_add.send_text', 'hint', 'Catat konsumsi makanan'),
+('id', 'hint.expense_add.label', 'hint', 'Catat Pengeluaran'),
+('id', 'hint.expense_add.send_text', 'hint', 'Catat pengeluaran'),
+('id', 'hint.sites.more.label', 'hint', 'Lainnya'),
+('id', 'hint.site.visit.label', 'hint', 'Kunjungi'),
+('id', 'hint.site.pos.label', 'hint', 'POS')
 ON CONFLICT (lang, key) DO NOTHING;

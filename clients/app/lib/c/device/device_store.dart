@@ -112,6 +112,32 @@ class DeviceStore extends ChangeNotifier {
 
   Future<void> archivePut(String id, bool archived) => _grantPatch(id, ReqIdentityGrantPatch(resourceIid: Int64.parseInt(id), archived: archived));
 
+  Future<void> namePut(String id, String name) async {
+    final row = rowById(id);
+    if (row == null) throw 'Device not found';
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) throw 'Name required';
+    final identity = row.identity;
+    try {
+      await ensureConnected();
+      final res = await identityPut(
+        _conn,
+        ReqIdentityPut(iid: identity.iid, kind: identity.kind, type: identity.type, name: trimmed, metaJson: identity.metaJson),
+      );
+      if (!res.hasRow()) return;
+      final i = _rows.indexWhere((r) => r.identity.iid.toString() == id);
+      if (i >= 0) {
+        _rows[i] = res.row;
+      } else {
+        _rows.add(res.row);
+      }
+      notifyListeners();
+    } catch (e) {
+      lError('device name put: $e');
+      rethrow;
+    }
+  }
+
   Future<void> _grantPatch(String id, ReqIdentityGrantPatch req) async {
     try {
       await ensureConnected();

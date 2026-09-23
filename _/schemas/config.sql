@@ -8,10 +8,10 @@ CREATE TABLE IF NOT EXISTS ai.config (
 );
 
 -- Alien AI escalation chain: flash-lite family only (same billing tier).
--- Edit models[] to add/remove entries (e.g. gemini-3.8-flash-lite when available).
+-- Populated automatically from provider catalog sync (empty = auto).
 INSERT INTO ai.config (key, value) VALUES (
     'llm.alien_chain',
-    '{"models":["gemini-3.1-flash-lite","gemini-3.5-flash-lite","gemini-3.8-flash-lite"]}'::jsonb
+    '{"models":[]}'::jsonb
 )
 ON CONFLICT (key) DO UPDATE SET
     value = EXCLUDED.value,
@@ -34,6 +34,13 @@ INSERT INTO ai.config (key, value) VALUES (
 ON CONFLICT (key) DO UPDATE SET
     value = EXCLUDED.value,
     updated_at = NOW();
+
+-- Remote agent releases (OTA via GET /version/remote-windows). Bump on deploy.
+INSERT INTO ai.config (key, value) VALUES (
+    'app.release.c35.remote-windows',
+    '{"version":1,"versionName":"0.1.0","min":0,"hash":"","size":0}'::jsonb
+)
+ON CONFLICT (key) DO NOTHING;
 
 -- LLM catalog (platform). Prices in micro-USD per million tokens (µUSD/M).
 CREATE TABLE IF NOT EXISTS ai.llm_model (
@@ -58,8 +65,7 @@ CREATE TABLE IF NOT EXISTS ai.llm_model (
 CREATE INDEX IF NOT EXISTS idx_ai_llm_model_list ON ai.llm_model (sort_order) WHERE deleted_at IS NULL AND enabled = true;
 
 INSERT INTO ai.llm_model (id, provider, label, provider_model, input_micro_per_m, output_micro_per_m, supports_thinking, enabled, is_default, sort_order, family, version_rank, source) VALUES
-    ('alienai', 'alienai', 'Alien AI', 'gemini-3.1-flash-lite', 75000, 300000, true, true, true, 0, 'flash-lite', 310, 'pinned'),
-    ('gemini-3.1-flash-lite', 'google', 'Gemini 3.1 Flash Lite', 'gemini-3.1-flash-lite', 75000, 300000, true, true, false, 100, 'flash-lite', 310, 'seed'),
+    ('alienai', 'alienai', 'Alien AI', '', 75000, 300000, true, true, true, 0, 'flash-lite', 0, 'pinned'),
     ('gpt-4o', 'openai', 'GPT-4o', 'gpt-4o', 250000, 1000000, false, true, false, 200, 'gpt-4o', 0, 'seed'),
     ('claude-sonnet-4-5', 'anthropic', 'Claude Sonnet 4.5', 'anthropic/claude-sonnet-4-5', 300000, 1500000, false, true, false, 300, 'claude', 45, 'seed')
 ON CONFLICT (id) DO UPDATE SET

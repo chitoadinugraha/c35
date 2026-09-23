@@ -26,6 +26,29 @@ CREATE INDEX IF NOT EXISTS idx_inst_enabled
     ON ai.inst (enabled, priority DESC)
     WHERE deleted_ts IS NULL;
 
+-- Seed: platform baseline assistant (every turn)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, priority, def_hash, updated_ts
+) VALUES (
+    'inst.core.assistant',
+    'global',
+    'trigger',
+    '',
+    'You are Alien AI, a personal cloud assistant. Use web_search for live lookups via SearXNG. Answer concisely in the user''s language. Never claim you searched unless the tool returned ok=true. Only call a tool when it clearly matches the user''s request. Never call img.generate unless the user explicitly asks to create, draw, or generate a new image — never to analyze, estimate, or describe an attached photo. For food photos or calorie questions, use consumption.add with photo_hash or answer from the attached image directly; do not generate images.',
+    ARRAY[]::TEXT[],
+    ARRAY['always'],
+    200,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO NOTHING;
+
+UPDATE ai.inst SET
+    inst = 'You are Alien AI, a personal cloud assistant. Use web_search for live lookups via SearXNG. Answer concisely in the user''s language. Never claim you searched unless the tool returned ok=true. Only call a tool when it clearly matches the user''s request. Never call img.generate unless the user explicitly asks to create, draw, or generate a new image — never to analyze, estimate, or describe an attached photo. For food photos or calorie questions, use consumption.add with photo_hash or answer from the attached image directly; do not generate images.',
+    triggers = ARRAY['always'],
+    priority = 200,
+    updated_ts = NOW()
+WHERE id = 'inst.core.assistant';
+
 -- Seed: web search steering (global)
 INSERT INTO ai.inst (
     id, scope, kind, topic_id, inst, phrases, triggers, priority, def_hash, updated_ts
@@ -50,10 +73,55 @@ INSERT INTO ai.inst (
     'global',
     'mention',
     'research',
-    '[MENTION: @research] Deep research mode: use web.search to discover sources, web.visit to read key pages, and web.research to synthesize a thorough answer with citations.',
+    '[MENTION: @research] Deep research mode: use web.search to discover sources, web.visit to read key pages, and web.research to synthesize a thorough answer with citations. For multi-part questions (compare, multi-region, or several independent sub-questions), call delegate.run with topic_id=research once per sub-question so children can run in parallel.',
     ARRAY[]::TEXT[],
-    ARRAY['tool_include:web.research', 'tool_include:web.visit', 'tool_include:web.search'],
+    ARRAY['tool_include:web.research', 'tool_include:web.visit', 'tool_include:web.search', 'tool_include:delegate.run'],
     125,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO NOTHING;
+
+-- Seed: device read-only screen queries (screenshot only, no input/command)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, priority, def_hash, updated_ts
+) VALUES (
+    'inst.mention.device_read',
+    'global',
+    'task',
+    'device',
+    '[DEVICE READ] User wants to see what is on a remote device screen. Call device.screenshot only — do not send input or run shell commands.',
+    ARRAY[
+        'what''s on screen', 'whats on screen', 'what is on screen', 'show screen',
+        'show me the screen', 'lihat layar', 'tampilkan layar', 'apa di layar'
+    ],
+    ARRAY['tool_include:device.screenshot', 'tool_exclude:device.input', 'tool_exclude:device.command'],
+    128,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO NOTHING;
+
+UPDATE ai.inst SET
+    inst = '[MENTION: @research] Deep research mode: use web.search to discover sources, web.visit to read key pages, and web.research to synthesize a thorough answer with citations. For multi-part questions (compare, multi-region, or several independent sub-questions), call delegate.run with topic_id=research once per sub-question so children can run in parallel.',
+    triggers = ARRAY['tool_include:web.research', 'tool_include:web.visit', 'tool_include:web.search', 'tool_include:delegate.run'],
+    updated_ts = NOW()
+WHERE id = 'inst.mention.research';
+
+-- Seed: research multitask via delegate.run
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, priority, def_hash, updated_ts
+) VALUES (
+    'inst.task.delegate_research',
+    'global',
+    'task',
+    'research',
+    '[RESEARCH MULTITASK] When the user asks to compare options, cover multiple regions, or answer several independent research questions in one message, spawn one delegate.run child per sub-question with topic_id=research and a focused goal. Synthesize the child summaries into one answer with citations.',
+    ARRAY[
+        'compare', 'vs', 'versus', 'bandingkan', 'perbandingan',
+        'multi region', 'multi-region', 'beberapa kota', 'several cities',
+        'rust vs go', 'jakarta', 'singapore', 'tokyo'
+    ],
+    ARRAY['tool_include:delegate.run'],
+    128,
     'seed',
     NOW()
 ) ON CONFLICT (id) DO NOTHING;
@@ -102,12 +170,14 @@ INSERT INTO ai.inst (
     'task',
     '',
     '[FOOD] User wants to log food consumption. Call consumption.add when a photo or description is available. \
+When the user asks how many calories are in an attached food photo, call consumption.add with photo_hash (or answer from the attached image) — never img.generate. \
 The meal card shows headline, coach, and macros — reply with at most one short sentence; do not repeat numbers or tables.',
     ARRAY[
         'catat konsumsi', 'catat makanan', 'catat konsumsi makanan',
-        'track food', 'log meal', 'track food consumption'
+        'track food', 'log meal', 'track food consumption',
+        'berapa kalori', 'how many calories', 'kalori makanan', 'kalori makanan ini', 'calories in this'
     ],
-    ARRAY['tool_include:consumption.add'],
+    ARRAY['tool_include:consumption.add', 'tool_exclude:img.generate'],
     140,
     'seed',
     NOW()
@@ -123,14 +193,128 @@ INSERT INTO ai.inst (
     '',
     '[NUTRITION] For food recommendations, daily recap, or "how much X did I eat", call consumption.today first. \
 Use day_id yesterday for past days. Pass item_query for specific foods (e.g. mie, noodle). \
-Give warm, concise coaching in the user language — praise good balance, gently nudge when over goal.',
+Give warm, concise coaching in the user language — praise good balance, gently nudge when over goal. \
+Do not call img.generate for nutrition questions.',
     ARRAY[
         'rekomendasi makan', 'food recommendation', 'what should i eat', 'apa yang harus dimakan',
-        'berapa kalori', 'how many calories', 'nutrition recap', 'ringkasan nutrisi',
+        'nutrition recap', 'ringkasan nutrisi',
         'berapa banyak', 'how much', 'kemarin', 'yesterday', 'mie', 'noodle', 'nasi'
     ],
-    ARRAY['tool_include:consumption.today'],
+    ARRAY['tool_include:consumption.today', 'tool_exclude:img.generate'],
     135,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO NOTHING;
+
+-- Keep live DB in sync with tightened food / image tool steering.
+UPDATE ai.inst SET
+    inst = '[FOOD] User wants to log food consumption. Call consumption.add when a photo or description is available. When the user asks how many calories are in an attached food photo, call consumption.add with photo_hash (or answer from the attached image) — never img.generate. The meal card shows headline, coach, and macros — reply with at most one short sentence; do not repeat numbers or tables.',
+    phrases = ARRAY[
+        'catat konsumsi', 'catat makanan', 'catat konsumsi makanan',
+        'track food', 'log meal', 'track food consumption',
+        'berapa kalori', 'how many calories', 'kalori makanan', 'kalori makanan ini', 'calories in this'
+    ],
+    triggers = ARRAY['tool_include:consumption.add', 'tool_exclude:img.generate'],
+    updated_ts = NOW()
+WHERE id = 'inst.consumption_add';
+
+UPDATE ai.inst SET
+    inst = '[NUTRITION] For food recommendations, daily recap, or "how much X did I eat", call consumption.today first. Use day_id yesterday for past days. Pass item_query for specific foods (e.g. mie, noodle). Give warm, concise coaching in the user language — praise good balance, gently nudge when over goal. Do not call img.generate for nutrition questions.',
+    phrases = ARRAY[
+        'rekomendasi makan', 'food recommendation', 'what should i eat', 'apa yang harus dimakan',
+        'nutrition recap', 'ringkasan nutrisi',
+        'berapa banyak', 'how much', 'kemarin', 'yesterday', 'mie', 'noodle', 'nasi'
+    ],
+    triggers = ARRAY['tool_include:consumption.today', 'tool_exclude:img.generate'],
+    updated_ts = NOW()
+WHERE id = 'inst.consumption_coach';
+
+-- Seed: site layout / theme editing via Home prompt
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, priority, def_hash, updated_ts
+) VALUES (
+    'inst.web.builder',
+    'global',
+    'mention',
+    'web.builder',
+    '[WEB.BUILDER] User is editing a site (layout, theme, blocks). Resolve site from @alien_id or site name. \
+Use site_draft_put to change SiteDoc blocks and theme_json only — validate block props against known types. \
+Use site_publish after substantive layout changes. For products/contacts/objects prefer site_product_put / site_contact_put or tell user to use Sites UITable. \
+Never invent checkout, prices, or stock — use tx API for money. Never mutate shared block catalog schemas.',
+    ARRAY[
+        'site', 'website', 'toko', 'warung', 'landing', 'homepage',
+        'background', 'theme', 'layout', 'hero', 'publish site', 'ubah tampilan'
+    ],
+    ARRAY[
+        'tool_include:site.draft_put',
+        'tool_include:site.publish',
+        'tool_include:site.product_put',
+        'tool_include:site.contact_put'
+    ],
+    120,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO NOTHING;
+
+-- Seed: referral code create / update via Home prompt
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, priority, def_hash, updated_ts
+) VALUES (
+    'inst.referral_put',
+    'global',
+    'task',
+    '',
+    '[REFERRAL] User wants to create or update a referral or package code. Call referral.code.put with name as the label (e.g. Chito). \
+Derive code from name when the user does not specify one. For package codes set type=package plus price_usd / duration_months / max_uses as needed. \
+Reply briefly with the saved code and name — do not invent codes the tool did not return.',
+    ARRAY[
+        'buat referral code', 'buat kode referral', 'buatkan referral code',
+        'create referral code', 'new referral code', 'referral code untuk',
+        'kode referral untuk', 'referral code for', 'signup code untuk'
+    ],
+    ARRAY['tool_include:referral.code.put'],
+    130,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO NOTHING;
+
+-- Seed: list / search referral codes via Home prompt
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, priority, def_hash, updated_ts
+) VALUES (
+    'inst.referral_list',
+    'global',
+    'task',
+    '',
+    '[REFERRAL] User wants to see their referral or package codes. Call referral.code.list first. \
+Pass query when they filter by name or code substring. Summarize as a short list (code, name, used_count) in the user language.',
+    ARRAY[
+        'daftar referral code', 'daftar kode referral', 'list referral code',
+        'list referral codes', 'lihat referral code', 'lihat kode referral',
+        'referral codes saya', 'my referral codes', 'kode referral saya'
+    ],
+    ARRAY['tool_include:referral.code.list'],
+    125,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO NOTHING;
+
+-- Seed: referral downline tree via Home prompt
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, priority, def_hash, updated_ts
+) VALUES (
+    'inst.referral_tree',
+    'global',
+    'task',
+    '',
+    '[REFERRAL] User asks about downline, referral tree, or who they referred. Call referral.tree.get. \
+Use depth 2 unless they ask for deeper. Summarize node names and child_count — do not dump raw JSON.',
+    ARRAY[
+        'downline', 'referral tree', 'pohon referral', 'lihat downline',
+        'siapa yang saya refer', 'my referrals', 'referral saya'
+    ],
+    ARRAY['tool_include:referral.tree.get'],
+    120,
     'seed',
     NOW()
 ) ON CONFLICT (id) DO NOTHING;

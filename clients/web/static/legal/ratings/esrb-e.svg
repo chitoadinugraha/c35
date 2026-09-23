@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 68 68" role="img" aria-label="ESRB Everyone">
+  <rect x="2" y="2" width="64" height="64" fill="#fff" stroke="#000" stroke-width="3"/>
+  <text x="34" y="40" text-anchor="middle" fill="#000" font-family="Arial Black, Arial, sans-serif" font-size="34" font-weight="700">E</text>
+  <text x="34" y="56" text-anchor="middle" fill="#000" font-family="Arial, sans-serif" font-size="7.5" font-weight="700" letter-spacing="0.5">EVERYONE</text>
+</svg>

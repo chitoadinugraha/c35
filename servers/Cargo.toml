@@ -20,6 +20,10 @@ members = [
     "crates/mod_consumption",
     "crates/mod_channel",
     "crates/mod_device",
+    "crates/mod_skill",
+    "crates/mod_site",
+    "crates/mod_voice",
+    "crates/mod_hint",
     "channel_whatsapp_device",
     "server_ai",
 ]

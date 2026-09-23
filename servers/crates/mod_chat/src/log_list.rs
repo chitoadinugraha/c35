@@ -11,7 +11,7 @@ pub async fn log_list(pool: &PgPool, owner_iid: i64, req: ReqLogList) -> Result<
     let rows = sqlx::query(
         r#"
         SELECT id, owner_iid, kind, topic, dv, req_id, chat_id, task_id, device_iid,
-               text, model, tokens_in, tokens_out, duration_ms, cost_usd, meta, created_ts, updated_ts, deleted_ts
+               text, model, tokens_in, tokens_out, duration_ms, cost_usd::float8 AS cost_usd, meta, created_ts, updated_ts, deleted_ts
         FROM ai.log
         WHERE owner_iid = $1 AND req_id = $2 AND deleted_ts IS NULL
         ORDER BY id ASC

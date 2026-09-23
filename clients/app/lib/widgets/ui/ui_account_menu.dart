@@ -2,8 +2,10 @@ import 'package:alienai_c35/c/api/referral_conn.dart';
 import 'package:alienai_c35/c/profile/profile_handle.dart';
 import 'package:alienai_c35/c/referral/referral_format.dart';
 import 'package:alienai_c35/c/session.dart';
+import 'package:alienai_c35/c/settings/voice_prefs.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/widgets/billing/ui_quota_ring.dart';
+import 'package:alienai_c35/widgets/ui/ui_speak_toggle.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:alienai_c35/widgets/ui/ui_user_avatar.dart';
 import 'package:flutter/material.dart';
@@ -28,6 +30,7 @@ class UiAccountMenuAction {
     this.onBots,
     this.onDevices,
     this.onSites,
+    this.onRootConsole,
     this.botsCount,
     this.devicesCount,
     this.sitesCount,
@@ -43,6 +46,7 @@ class UiAccountMenuAction {
   final VoidCallback? onBots;
   final VoidCallback? onDevices;
   final VoidCallback? onSites;
+  final VoidCallback? onRootConsole;
   final int? botsCount;
   final int? devicesCount;
   final int? sitesCount;
@@ -157,7 +161,17 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
                                   Text(_accountName(), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w600)),
                                   if (badgeLabels.isNotEmpty) ...[
                                     const SizedBox(height: 4),
-                                    Wrap(spacing: 4, runSpacing: 4, children: badgeLabels.map((label) => _AccountRoleBadge(label: label)).toList()),
+                                    Wrap(
+                                      spacing: 4,
+                                      runSpacing: 4,
+                                      children: badgeLabels.map((label) {
+                                        final isRoot = label == referralGlobalRoleLabel('root');
+                                        return _AccountRoleBadge(
+                                          label: label,
+                                          onTap: isRoot ? acts.onRootConsole == null ? null : () => _popThen(acts.onRootConsole) : null,
+                                        );
+                                      }).toList(),
+                                    ),
                                   ],
                                   const SizedBox(height: 2),
                                   Text(profileAlienAddress(s.handle), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _muted, fontSize: 12)),
@@ -180,6 +194,16 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
                         ),
                       ),
                     ],
+                    if (s.isRoot && acts.onRootConsole != null) ...[
+                      const Divider(height: 1, color: _border),
+                      ListTile(
+                        dense: true,
+                        leading: const Icon(Icons.admin_panel_settings_outlined, size: 18, color: Color(0xFFA1A1AA)),
+                        title: const Text('Admin', style: TextStyle(color: _text, fontSize: 13, fontWeight: FontWeight.w500)),
+                        trailing: const Icon(Icons.chevron_right_rounded, size: 18, color: _muted),
+                        onTap: () => _popThen(acts.onRootConsole),
+                      ),
+                    ],
                     if (_hasNavCounts(acts)) ...[
                       const Divider(height: 1, color: _border),
                       Padding(
@@ -193,6 +217,14 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
                         ),
                       ),
                     ],
+                    const Divider(height: 1, color: _border),
+                    ListenableBuilder(
+                      listenable: VoicePrefs.instance,
+                      builder: (context, _) => UiSpeakToggleRow(
+                        enabled: VoicePrefs.instance.speakEnabled,
+                        onChanged: (v) => VoicePrefs.instance.setSpeakEnabled(v),
+                      ),
+                    ),
                     if (acts.onReferralTree != null || acts.onLock != null || acts.onSignOut != null) ...[
                       const Divider(height: 1, color: _border),
                       Padding(
@@ -227,16 +259,21 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
 }
 
 class _AccountRoleBadge extends StatelessWidget {
-  const _AccountRoleBadge({required this.label});
+  const _AccountRoleBadge({required this.label, this.onTap});
 
   final String label;
+  final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(color: _hoverBg, borderRadius: BorderRadius.circular(999)),
-        child: Text(label, style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 10, fontWeight: FontWeight.w600)),
-      );
+  Widget build(BuildContext context) {
+    final child = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(color: _hoverBg, borderRadius: BorderRadius.circular(999)),
+      child: Text(label, style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 10, fontWeight: FontWeight.w600)),
+    );
+    if (onTap == null) return child;
+    return InkWell(onTap: onTap, borderRadius: BorderRadius.circular(999), child: child);
+  }
 }
 
 class _NavCountBtn extends StatelessWidget {

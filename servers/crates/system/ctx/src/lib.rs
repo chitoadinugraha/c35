@@ -22,6 +22,7 @@ pub struct OAuthResult {
     pub name: Option<String>,
     pub email: Option<String>,
     pub pic: Option<String>,
+    pub handle: Option<String>,
     pub expires_at: DateTime<Utc>,
 }
 

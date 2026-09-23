@@ -34,16 +34,22 @@ const moneyDefaultFxMicroPerUsd = 17630000000;
 
 double moneyUsdToLocal(double usd, int fxMicroPerUsd) => usd * fxMicroPerUsd / moneyUsdMicro;
 
+int moneyIdrDetailDecimals(double amount) {
+  final abs = amount.abs();
+  if (abs < 0.01) return 4;
+  if (abs < 1) return 3;
+  if (abs < 100) return 2;
+  return 0;
+}
+
+String moneyFmtIdrDetail(num n) => moneyFmtIdr(n, decimals: moneyIdrDetailDecimals(n.toDouble()));
+
 String moneyCostLabel(double costUsd, {String currency = moneyDefaultCurrency, int fxMicroPerUsd = moneyDefaultFxMicroPerUsd}) {
   if (costUsd <= 0) return '';
   final cur = currency.toUpperCase();
   if (cur == 'USD') return uiFmtUsd(costUsd);
   final local = moneyUsdToLocal(costUsd, fxMicroPerUsd);
-  if (cur == 'IDR') {
-    if (local < 0.01) return moneyFmtIdr(local, decimals: 4);
-    if (local < 1) return moneyFmtIdr(local, decimals: 2);
-    return moneyFmtIdr(local);
-  }
+  if (cur == 'IDR') return moneyFmtIdrDetail(local);
   return '$cur ${local.toStringAsFixed(4)}';
 }
 

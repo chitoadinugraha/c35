@@ -74,11 +74,11 @@ class AgentModel {
         _ => const Color(0xFFA1A1AA),
       };
 
-  static const alien = AgentModel(id: 'auto', chip: 'Alien AI', label: 'Alien AI', provider: 'alienai', providerModel: 'auto', isDefault: true, supportsThinking: true);
+  static const alien = AgentModel(id: 'auto', chip: 'Alien AI', label: 'Alien AI', provider: 'alienai', providerModel: 'auto', isDefault: true, supportsThinking: true, usdInPer1m: 0.075, usdOutPer1m: 0.3);
   static const gemini31 = AgentModel(id: 'gemini-3.1-flash-lite', chip: 'Gemini 3.1', label: 'Gemini 3.1 Flash Lite', provider: 'google', providerModel: 'gemini-3.1-flash-lite', supportsThinking: true, usdInPer1m: 75000, usdOutPer1m: 300000);
   static const gpt4o = AgentModel(id: 'gpt-4o', chip: 'GPT-4o', label: 'GPT-4o', provider: 'openai', providerModel: 'gpt-4o');
   static const claude = AgentModel(id: 'claude-sonnet-4-5', chip: 'Claude', label: 'Claude Sonnet 4.5', provider: 'anthropic', providerModel: 'anthropic/claude-sonnet-4-5');
-  static const fallback = [alien, gemini31, gpt4o, claude];
+  static const fallback = [alien];
 
   factory AgentModel.fromProto(PromptModelOption m) {
     final slug = m.id == 'alienai' ? 'auto' : m.id;
@@ -153,18 +153,99 @@ String agentModelPriceLabel(double usdInPer1m, double usdOutPer1m) {
   return '$inLabel / $outLabel per 1M';
 }
 
-List<AgentModel> agentModelsFromProto(List<PromptModelOption> rows) =>
-    rows.isEmpty ? List<AgentModel>.from(AgentModel.fallback) : [for (final m in rows) AgentModel.fromProto(m)];
+bool agentModelChatEligible(AgentModel m) {
+  if (m.provider != 'google') return true;
+  final s = m.id.toLowerCase();
+  const skip = ['transcribe', 'computer-use', 'robotics', 'deep-research', 'lyria', 'nano-banana', 'omni', 'customtools'];
+  if (skip.any(s.contains)) return false;
+  if (s.contains('latest')) return s.contains('flash') || s.contains('pro');
+  return s.contains('flash') || s.contains('pro');
+}
 
-List<AgentModel> agentModelFilter(List<AgentModel> models, String query) {
+List<AgentModel> agentModelsFromProto(List<PromptModelOption> rows) {
+  if (rows.isEmpty) return const [AgentModel.alien];
+  final out = rows.map(AgentModel.fromProto).where(agentModelChatEligible).toList()..sort(agentModelSort);
+  return out.isEmpty ? const [AgentModel.alien] : out;
+}
+
+int agentModelProviderBand(String provider) => switch (provider) {
+      'alienai' => 0,
+      'google' => 100,
+      'openai' => 200,
+      'anthropic' => 300,
+      'deepseek' => 400,
+      _ => 900,
+    };
+
+int agentModelFamilyPriority(AgentModel m) {
+  final s = '${m.id} ${m.label}'.toLowerCase();
+  if (s.contains('flash-lite') || s.contains('flash_lite')) return 0;
+  if (s.contains('flash')) return 10;
+  if (s.contains('pro')) return 20;
+  return 90;
+}
+
+int agentModelVersionRank(AgentModel m) {
+  final nums = RegExp(r'\d+').allMatches('${m.id} ${m.label}').map((m) => int.tryParse(m.group(0) ?? '') ?? 0).toList();
+  if (nums.isEmpty) return 0;
+  final major = nums[0];
+  final minor = nums.length > 1 ? nums[1] : 0;
+  final patch = nums.length > 2 ? nums[2] : 0;
+  return major * 1000000 + minor * 1000 + patch;
+}
+
+int agentModelSort(AgentModel a, AgentModel b) {
+  final band = agentModelProviderBand(a.provider).compareTo(agentModelProviderBand(b.provider));
+  if (band != 0) return band;
+  final fam = agentModelFamilyPriority(a).compareTo(agentModelFamilyPriority(b));
+  if (fam != 0) return fam;
+  final ver = agentModelVersionRank(b).compareTo(agentModelVersionRank(a));
+  if (ver != 0) return ver;
+  return a.label.compareTo(b.label);
+}
+
+String agentModelProviderLabel(String provider) => switch (provider) {
+      '' => 'All Providers',
+      'alienai' => 'Alien AI',
+      'google' => 'Gemini',
+      'openai' => 'ChatGPT',
+      'anthropic' => 'Claude',
+      'deepseek' => 'Deepseek',
+      _ => provider,
+    };
+
+const _agentModelProviderOrder = ['alienai', 'google', 'openai', 'anthropic', 'deepseek'];
+
+List<String> agentModelProviders(List<AgentModel> models) {
+  final seen = <String>{};
+  final out = <String>[''];
+  for (final m in models) {
+    if (seen.add(m.provider)) out.add(m.provider);
+  }
+  out.sort((a, b) {
+    if (a.isEmpty) return -1;
+    if (b.isEmpty) return 1;
+    final ai = _agentModelProviderOrder.indexOf(a);
+    final bi = _agentModelProviderOrder.indexOf(b);
+    if (ai >= 0 && bi >= 0) return ai.compareTo(bi);
+    if (ai >= 0) return -1;
+    if (bi >= 0) return 1;
+    return a.compareTo(b);
+  });
+  return out;
+}
+
+List<AgentModel> agentModelFilter(List<AgentModel> models, String query, {String provider = ''}) {
   final q = query.trim().toLowerCase();
-  if (q.isEmpty) return models;
-  return models
-      .where((o) =>
-          o.label.toLowerCase().contains(q) ||
-          o.id.toLowerCase().contains(q) ||
-          o.provider.toLowerCase().contains(q) ||
-          o.tier.toLowerCase().contains(q) ||
-          o.version.toLowerCase().contains(q))
-      .toList();
+  final p = provider.trim();
+  return models.where((o) {
+    if (p.isNotEmpty && o.provider != p) return false;
+    if (q.isEmpty) return true;
+    return o.label.toLowerCase().contains(q) ||
+        o.id.toLowerCase().contains(q) ||
+        o.provider.toLowerCase().contains(q) ||
+        agentModelProviderLabel(o.provider).toLowerCase().contains(q) ||
+        o.tier.toLowerCase().contains(q) ||
+        o.version.toLowerCase().contains(q);
+  }).toList();
 }

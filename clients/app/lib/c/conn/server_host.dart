@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-const serverHostProductionUrl = 'https://alienai.id';
+const serverHostProductionUrl = 'https://api.alienai.id';
 const serverHostLocalUrl = 'http://127.0.0.1:8080';
 const serverHostTailscaleUrl = 'http://100.100.1.10:8080';
 const serverHostCompile = String.fromEnvironment('C35_SERVER', defaultValue: '');

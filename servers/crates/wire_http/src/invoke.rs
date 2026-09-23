@@ -6,7 +6,7 @@ use axum::{
     routing::post,
 };
 use c35_ctx::AppState;
-use c35_mod_admin::{admin_user_put, admin_user_search};
+use c35_mod_admin::{admin_log_list, admin_user_put, admin_user_search};
 use c35_mod_billing::{
     billing_history, billing_notify_owner, billing_package_preview, billing_package_redeem,
     billing_plan_subscribe, billing_promotion_claim, billing_promotion_create, billing_promotion_get,
@@ -15,7 +15,9 @@ use c35_mod_billing::{
 };
 use c35_mod_channel::{channel_telegram_connect, channel_whatsapp_meta_connect};
 use c35_mod_consumption::consumption_put_rpc;
+use c35_mod_chat::{inst_delete, inst_get, inst_list, inst_put, translation_put};
 use c35_mod_device::device_pair;
+use c35_mod_voice::{voice_stt_rpc, voice_tts_rpc};
 use c35_mod_identity::auth_session_caller_iid;
 use c35_mod_referral::{
     referral_code_delete, referral_code_list, referral_code_put, referral_commission_simulate,
@@ -306,6 +308,17 @@ pub async fn dispatch_invoke(state: &AppState, req: InvokeReq) -> InvokeRes {
                 Err(e) => invoke_error(&req_id, e.status_code, e.message),
             }
         }
+        Some(invoke_req::Body::AdminLogList(r)) => {
+            match admin_log_list(pool, iid, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::AdminLogList(res)),
+                },
+                Err(e) => invoke_error(&req_id, e.status_code, e.message),
+            }
+        }
         Some(invoke_req::Body::ChannelTelegramConnect(r)) => {
             match channel_telegram_connect(&state.pool, iid, &state.public_origin, r, state.nats.as_ref()).await {
                 Ok(res) => InvokeRes {
@@ -349,6 +362,75 @@ pub async fn dispatch_invoke(state: &AppState, req: InvokeReq) -> InvokeRes {
             },
             Err(msg) => invoke_error(&req_id, 400, msg),
         },
+        Some(invoke_req::Body::InstList(r)) => match inst_list(pool, iid, r).await {
+            Ok(res) => InvokeRes {
+                req_id,
+                status_code: 200,
+                error_message: String::new(),
+                body: Some(invoke_res::Body::InstList(res)),
+            },
+            Err(e) => invoke_error(&req_id, e.status_code, e.message),
+        },
+        Some(invoke_req::Body::InstGet(r)) => match inst_get(pool, iid, r).await {
+            Ok(res) => InvokeRes {
+                req_id,
+                status_code: 200,
+                error_message: String::new(),
+                body: Some(invoke_res::Body::InstGet(res)),
+            },
+            Err(e) => invoke_error(&req_id, e.status_code, e.message),
+        },
+        Some(invoke_req::Body::InstPut(r)) => match inst_put(pool, state.nats.as_ref(), iid, r).await {
+            Ok(res) => InvokeRes {
+                req_id,
+                status_code: 200,
+                error_message: String::new(),
+                body: Some(invoke_res::Body::InstPut(res)),
+            },
+            Err(e) => invoke_error(&req_id, e.status_code, e.message),
+        },
+        Some(invoke_req::Body::InstDelete(r)) => {
+            match inst_delete(pool, state.nats.as_ref(), iid, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::InstDelete(res)),
+                },
+                Err(e) => invoke_error(&req_id, e.status_code, e.message),
+            }
+        }
+        Some(invoke_req::Body::TranslationPut(r)) => {
+            match translation_put(pool, iid, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::TranslationPut(res)),
+                },
+                Err(e) => invoke_error(&req_id, e.status_code, e.message),
+            }
+        }
+        Some(invoke_req::Body::VoiceStt(r)) => {
+            let res = voice_stt_rpc(pool, state.nats.as_ref(), iid, r).await;
+            let status = if res.error.is_empty() { 200 } else { 400 };
+            InvokeRes {
+                req_id,
+                status_code: status,
+                error_message: res.error.clone(),
+                body: Some(invoke_res::Body::VoiceStt(res)),
+            }
+        }
+        Some(invoke_req::Body::VoiceTts(r)) => {
+            let res = voice_tts_rpc(pool, state.nats.as_ref(), iid, r).await;
+            let status = if res.error.is_empty() { 200 } else { 400 };
+            InvokeRes {
+                req_id,
+                status_code: status,
+                error_message: res.error.clone(),
+                body: Some(invoke_res::Body::VoiceTts(res)),
+            }
+        }
         _ => invoke_error(&req_id, 404, "not implemented".into()),
     }
 }

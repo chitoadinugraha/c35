@@ -6,7 +6,7 @@ use crate::EMBED_TASK_DOCUMENT;
 
 pub const EMBED_MODEL: &str = "gemini-embedding-2";
 
-fn gemini_api_key() -> String {
+pub(crate) fn gemini_api_key() -> String {
     ["GEMINI_API_KEY", "GOOGLE_API_KEY"]
         .iter()
         .find_map(|k| std::env::var(k).ok())

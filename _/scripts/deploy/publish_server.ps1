@@ -58,7 +58,7 @@ Require-Command kubectl
 
 Write-Host "========================================"
 Write-Host " publish: c35-server -> $Namespace ($imageRef)"
-Write-Host " host: https://alienai.id"
+Write-Host " host: https://api.alienai.id"
 Write-Host "========================================"
 
 try {
@@ -104,17 +104,17 @@ try {
 
     Publish-Rollout -Deployment c35-server -Namespace $Namespace
 
-    Write-Host "==> smoke test https://alienai.id/livez"
+    Write-Host "==> smoke test https://api.alienai.id/livez"
     try {
-        $health = Invoke-RestMethod -Uri "https://alienai.id/livez" -TimeoutSec 20
-        Write-Host "    alienai.id/livez: $health"
+        $health = Invoke-RestMethod -Uri "https://api.alienai.id/livez" -TimeoutSec 20
+        Write-Host "    api.alienai.id/livez: $health"
     } catch {
         Write-Warning "health check failed: $_"
     }
 
-    Write-Host "==> smoke test https://alienai.id/a/auth/google (expect redirect)"
+    Write-Host "==> smoke test https://api.alienai.id/a/auth/google (expect redirect)"
     try {
-        $authOut = curl.exe -sS -D - -o NUL --max-redirs 0 --max-time 20 "https://alienai.id/a/auth/google" 2>&1 | Out-String
+        $authOut = curl.exe -sS -D - -o NUL --max-redirs 0 --max-time 20 "https://api.alienai.id/a/auth/google" 2>&1 | Out-String
         $authStatus = if ($authOut -match 'HTTP/\S+\s+(\d+)') { $Matches[1] } else { '?' }
         $authLocation = if ($authOut -match '(?im)^location:\s*(.+)$') { $Matches[1].Trim() } else { '' }
         Write-Host "    auth/google status=$authStatus location=$authLocation"

@@ -1,16 +1,20 @@
 # Transaction / POS (LOCKED)
 
-Status: **locked** 2026-09-20
+Status: **locked** 2026-09-21 (revised from 2026-09-20)
 
-Business transactions for sites — sales, purchases, debt, GL, stock. **Domain model follows id.alienai**, not csa `site_tx` wholesale.
+Business transactions for sites — sales, purchases, debt, GL, stock.
+
+**Domain model follows `E:\Project Archive\id.alienai`**, not CSA `mod_site_tx` wholesale.
+
+**Storage:** all tx tables live in YSQL schema **`site`** (`site.tx`, `site.tx_item`, …). Registry stays in `ai.identity`; ACL via `identity_grant`.
 
 ## Reference
 
 | Project | Borrow |
 |---------|--------|
-| `E:\Project Archive\id.alienai` | **`tx.proto`** — enums, header totals, child tables, debt/installments |
-| `E:\Project Archive\csa_site_published` | Sites 3-pane shell; COA category seed slugs |
-| c35 site | `site_product`, `site_contact`, `site_object` |
+| `E:\Project Archive\id.alienai` | **`tx.proto`**, transaksi editor UX, child tables, debt flows |
+| `D:\csa_site_published` | Guest order HTTP/finalizer patterns; **`tx_coa_category` seed slugs**; report query ideas |
+| c35 site | `site.product`, `site.contact`, `site.object` |
 
 ## Key mapping
 
@@ -19,7 +23,7 @@ Business transactions for sites — sales, purchases, debt, GL, stock. **Domain 
 | `aid` | `site_iid` |
 | `uid` / `created_by_uid` | `*_iid` (identity snowflake) |
 | `(aid, tx_id)` PK | `(site_iid, tx_id)` PK |
-| `p_product` | `site_product` |
+| `p_product` | `site.product` |
 
 Money: **BIGINT minor units** (same as id.alienai int64 amounts).
 
@@ -37,14 +41,14 @@ See [`../schemas/tx.sql`](../schemas/tx.sql).
 
 | Table | Notes |
 |-------|-------|
-| `tx` | Header + denormalized totals + `tx_data_json` |
-| `tx_item` | Lines; optional reservations + sources |
-| `tx_payment` | Cash, card, QRIS, debt, wallet |
-| `tx_installment` / `tx_debt_payment` | Hutang / piutang schedules |
-| `tx_acc` | GL lines (debit/credit) |
-| `tx_stock` | Inventory movement |
-| `tx_tax` / `tx_discount` | Line adjustments |
-| `tx_coa_category` | Platform seed → default account codes |
+| `site.tx_coa_category` | Platform seed → default account codes |
+| `site.tx` | Header + denormalized totals + `tx_data_json` |
+| `site.tx_item` | Lines; reservations + sources |
+| `site.tx_payment` | Cash, card, QRIS, debt, wallet |
+| `site.tx_installment` / `site.tx_debt_payment` | Hutang / piutang |
+| `site.tx_acc` | GL lines |
+| `site.tx_stock` | Inventory movement |
+| `site.tx_tax` / `site.tx_discount` | Adjustments |
 
 ## Wire
 
@@ -53,30 +57,34 @@ Proto: [`../schemas/proto/c35/tx.proto`](../schemas/proto/c35/tx.proto)
 - `ReqTxGet` / `ReqTxList` / `ReqTxPut` — staff POS
 - `ReqTxPreview` — dry-run totals + COA names
 - `ReqTxDebtPay` — installment payment
-- `ReqSiteGuestOrderPut` / `ReqSiteGuestOrderGet` — guest checkout
+- `ReqSiteGuestOrderPut` / `ReqSiteGuestOrderGet` — guest checkout (HTTP on api host)
 
 Sync collection: `tx` (header + children on full get).
 
-## UI (future)
+## UI
 
-**id.alienai staff transaksi editor** inside Sites detail pane:
+**id.alienai transaksi editor** inside Sites detail (Phase 9):
 
-- Ledger tabs (items | payments | acc | stock)
+- **UITable** for tx list browse (date, type, contact, total, state)
+- **Ledger tabs** for edit: Items | Payments | Acc | Stock
 - AI input (`TxPrompt` in tx_data)
 - Debt / installment UI
-- Subject picker → `site_contact`
+- Subject picker → `site.contact`
 
-Shell navigation from **csa Sites 3-pane** — not id.alienai app shell.
+Sites shell = Devices-like tabs ([`ui.md`](ui.md)) — not CSA 3-pane design editor.
 
-## Why not csa site_tx?
+## Why id.alienai, not CSA site_tx?
 
-csa `site_tx` is simpler and site-commerce focused. id.alienai has richer accounting modes, debt flows, and the editor UX you prefer. We took:
+| | CSA `mod_site_tx` | id.alienai | c35 |
+|--|-------------------|------------|-----|
+| Scope | Guest orders + shop reports | Full POS / accounting | **id.alienai** |
+| Migration target | — | Your existing POS | **Port id.alienai UI + logic** |
+| Guest checkout | Good patterns | — | **Borrow CSA HTTP glue** on id.alienai schema |
 
-- **COA category slugs** from csa (seed table)
-- **Everything else** from id.alienai tx model
+We take **COA seed slugs + guest order flow** from CSA; **everything else** from id.alienai.
 
 ## Deferred
 
-- Per-site COA chart table (preview returns `coa_name` map; chart mod later)
-- Tx parse / AI subject match (`ReqTxParse` from id.alienai — add in mod_tx)
-- Stock delivery denorm table (`TxStockDelivery` — derived query OK for v1)
+- Per-site COA chart table
+- `ReqTxParse` (AI subject match)
+- Stock delivery denorm table

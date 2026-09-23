@@ -19,8 +19,11 @@ pub use definition::{Tool, ToolDefinition, ToolUiKeys};
 pub use dispatcher::{tool_topic_eligible, ToolDispatcher};
 
 use builtin::{
-    ConsumptionAddTool, ConsumptionTodayTool, ConsumptionUpdateTool, ImgGenerateTool, WebResearchTool,
-    WebSearchTool, WebVisitTool,
+    ComputerUseDelegateTool, ConsumptionAddTool, ConsumptionTodayTool, ConsumptionUpdateTool,
+    DelegateRunTool, DeviceCommandTool, DeviceInputTool, DeviceScreenshotTool, ImgGenerateTool,
+    ReferralCodeDeleteTool, ReferralCodeListTool, ReferralCodePutTool, ReferralTreeGetTool,
+    SiteDraftPutTool, SiteProductPutTool, SitePublishTool, WebResearchTool, WebSearchTool,
+    WebVisitTool,
 };
 
 #[derive(Debug, Clone)]
@@ -62,10 +65,15 @@ impl ToolDef {
 
 pub struct TurnCtx<'a> {
     pub pool: &'a PgPool,
+    pub nats: Option<&'a async_nats::Client>,
     pub owner_iid: i64,
     pub chat_id: i64,
+    pub site_iid: Option<i64>,
     pub locale: &'a str,
     pub attachments_json: &'a str,
+    pub req_id: &'a str,
+    pub run_kind: &'a str,
+    pub checkpoint: Option<&'a mut serde_json::Value>,
 }
 
 fn build_default_dispatcher() -> ToolDispatcher {
@@ -77,6 +85,18 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(ConsumptionAddTool));
     dispatcher.register(Arc::new(ConsumptionTodayTool));
     dispatcher.register(Arc::new(ConsumptionUpdateTool));
+    dispatcher.register(Arc::new(DeviceCommandTool));
+    dispatcher.register(Arc::new(DeviceInputTool));
+    dispatcher.register(Arc::new(DeviceScreenshotTool));
+    dispatcher.register(Arc::new(SiteDraftPutTool));
+    dispatcher.register(Arc::new(SitePublishTool));
+    dispatcher.register(Arc::new(SiteProductPutTool));
+    dispatcher.register(Arc::new(ReferralCodePutTool));
+    dispatcher.register(Arc::new(ReferralCodeListTool));
+    dispatcher.register(Arc::new(ReferralCodeDeleteTool));
+    dispatcher.register(Arc::new(ReferralTreeGetTool));
+    dispatcher.register(Arc::new(DelegateRunTool));
+    dispatcher.register(Arc::new(ComputerUseDelegateTool));
     dispatcher
 }
 
@@ -124,10 +144,13 @@ pub fn http_client(timeout: Duration) -> Client {
 fn tool_context_from_turn(client: Client, turn: &TurnCtx<'_>) -> ToolContext {
     ToolContext::new(
         turn.pool.clone(),
+        turn.nats.cloned(),
         turn.owner_iid,
         turn.chat_id,
+        turn.site_iid,
         turn.locale,
         turn.attachments_json,
+        turn.req_id,
         client,
     )
 }
@@ -137,15 +160,18 @@ pub async fn cluster_tool_exec(
     name: &str,
     args: &Value,
     ctx: Option<&TurnCtx<'_>>,
-) -> Value {
+) -> (Value, f64) {
     let dispatcher = default_dispatcher();
     let tool_ctx = match ctx {
         Some(turn) => tool_context_from_turn(client.clone(), turn),
         None => ToolContext::new(
             PgPool::connect_lazy("postgres://unused").expect("lazy pool"),
+            None,
             0,
             0,
+            None,
             "en",
+            "",
             "",
             client.clone(),
         ),

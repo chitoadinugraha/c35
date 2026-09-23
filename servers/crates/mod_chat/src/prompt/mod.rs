@@ -1,5 +1,6 @@
 pub mod gemini;
 pub mod audio;
+pub mod hooks;
 pub mod llm_route;
 pub mod thought;
 pub mod time;
@@ -31,4 +32,5 @@ pub struct ChatRes {
     pub tokens_in: i32,
     pub tokens_out: i32,
     pub model_used: String,
+    pub tools_cost_usd: f64,
 }

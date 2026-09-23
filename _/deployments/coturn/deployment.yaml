@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coturn
+  labels:
+    app: coturn
+    app.kubernetes.io/part-of: c35
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: coturn
+  template:
+    metadata:
+      labels:
+        app: coturn
+        app.kubernetes.io/part-of: c35
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      nodeSelector:
+        kubernetes.io/arch: arm64
+      containers:
+        - name: coturn
+          image: coturn/coturn:4.6.3
+          imagePullPolicy: IfNotPresent
+          args:
+            - -c
+            - /etc/coturn/turnserver.conf
+          ports:
+            - name: stun-udp
+              containerPort: 3479
+              protocol: UDP
+            - name: stun-tcp
+              containerPort: 3479
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 250m
+              memory: 256Mi
+            requests:
+              cpu: 25m
+              memory: 64Mi
+          volumeMounts:
+            - name: config
+              mountPath: /etc/coturn/turnserver.conf
+              subPath: turnserver.conf
+              readOnly: true
+            - name: secret
+              mountPath: /etc/coturn/secret
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: coturn-config
+        - name: secret
+          secret:
+            secretName: coturn-secret

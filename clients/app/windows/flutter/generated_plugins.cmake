@@ -4,7 +4,9 @@
 
 list(APPEND FLUTTER_PLUGIN_LIST
   audioplayers_windows
+  desktop_drop
   flutter_tts
+  flutter_webrtc
   pasteboard
   permission_handler_windows
   record_windows

@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package c35;
+
+// Generic UITable metadata — drives Airtable-like site admin grids.
+// Server returns static defs per collection; rows come from site.* sync / RPC.
+// See _/docs/site.md § UITable
+
+enum ColType {
+  COL_TYPE_UNSPECIFIED = 0;
+  COL_TYPE_TEXT = 1;
+  COL_TYPE_INT = 2;
+  COL_TYPE_MONEY = 3;
+  COL_TYPE_BOOL = 4;
+  COL_TYPE_PIC = 5;
+  COL_TYPE_JSON = 6;
+  COL_TYPE_REF = 7;
+  COL_TYPE_TS = 8;
+}
+
+message ColDef {
+  string key = 1;
+  string label = 2;
+  ColType type = 3;
+  bool readonly = 4;
+  bool required = 5;
+  string ref_collection = 6;       // when type = REF (e.g. site.contact)
+  bool inline_editable = 7;
+}
+
+message SubTableDef {
+  string collection = 1;           // e.g. site.product_embed
+  string label = 2;
+  repeated string fk_keys = 3;     // parent column keys, e.g. site_iid, product_id
+  string sync_name = 4;
+}
+
+message TableDef {
+  string collection = 1;           // SQL collection id, e.g. site.product
+  string label = 2;
+  repeated ColDef columns = 3;
+  repeated SubTableDef subtables = 4;
+  string sync_name = 5;            // delta sync collection name
+  bool site_scoped = 6;            // requires site_iid filter
+  string primary_key = 7;          // comma-separated column keys for row identity
+}
+
+message ReqCollectionDefList {
+  int64 site_iid = 1;              // 0 = all defs; non-zero = filter capability-gated tabs
+}
+
+message ResCollectionDefList {
+  repeated TableDef tables = 1;
+}

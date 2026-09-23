@@ -10,7 +10,13 @@ c35_mod_chat = { path = "../mod_chat", package = "c35_mod_chat" }
 c35_mod_consumption = { path = "../mod_consumption", package = "c35_mod_consumption" }
 c35_mod_billing = { path = "../mod_billing", package = "c35_mod_billing" }
 c35_mod_channel = { path = "../mod_channel", package = "c35_mod_channel" }
+c35_mod_device = { path = "../mod_device", package = "c35_mod_device" }
+c35_mod_skill = { path = "../mod_skill", package = "c35_mod_skill" }
+c35_mod_site = { path = "../mod_site", package = "c35_mod_site" }
+c35_mod_voice = { path = "../mod_voice", package = "c35_mod_voice" }
 c35_mod_identity = { path = "../mod_identity", package = "c35_mod_identity" }
+c35_mod_hint = { path = "../mod_hint", package = "c35_mod_hint" }
+c35_mod_admin = { path = "../mod_admin", package = "c35_mod_admin" }
 async-nats = { workspace = true }
 c35_mod_llm = { path = "../mod_llm", package = "c35_mod_llm" }
 tokio-util = "0.7"
@@ -20,5 +26,6 @@ c35_wire = { path = "../wire", package = "c35_wire" }
 futures-util = { workspace = true }
 prost = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+sqlx = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }

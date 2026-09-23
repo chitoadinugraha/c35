@@ -1,3 +1,11 @@
+pub mod audio_capture;
+pub mod dxgi_capture;
+pub mod icon;
+pub mod input_exec;
 pub mod pair_loop;
 pub mod pair_ui;
 pub mod pair_window;
+pub mod screen_capture;
+pub mod startup;
+pub mod tray;
+pub mod uia;

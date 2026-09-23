@@ -1,5 +1,5 @@
 /// Default API base — override at runtime via [serverHostInit] / [C35Config.authApiBase].
-const authApiProductionUrl = 'https://alienai.id';
+const authApiProductionUrl = 'https://api.alienai.id';
 const authApiLocalUrl = 'http://127.0.0.1:8080';
 
 class C35Config {

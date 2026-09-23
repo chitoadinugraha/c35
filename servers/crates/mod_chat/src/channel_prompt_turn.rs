@@ -6,7 +6,8 @@ use sqlx::PgPool;
 use tokio_util::sync::CancellationToken;
 
 use crate::compose::compose_tools_and_inst;
-use crate::inst::inst_list_enabled;
+use crate::inst_macro::inst_scopes_channel;
+use crate::inst_cache::inst_list_cached;
 use crate::memory::{memory_prompt_merge, memory_retrieve};
 use crate::prompt::gemini::gemini_api_key;
 use crate::prompt::thought::thinking_level;
@@ -49,8 +50,9 @@ pub async fn channel_prompt_turn(
     let user = attach_prompt(&prompt_text, attachments_json);
     let locale = "";
 
-    let inst_rows = inst_list_enabled(pool).await;
+    let inst_rows = inst_list_cached();
     let empty_mentions: [String; 0] = [];
+    let inst_scopes = inst_scopes_channel();
     let composed = compose_tools_and_inst(
         &inst_rows,
         &prompt_text,
@@ -60,6 +62,7 @@ pub async fn channel_prompt_turn(
         "general",
         "agent",
         &[],
+        &inst_scopes,
     );
     let tz = time_timezone_resolve(locale, &prompt_text);
     let mut system = time_prompt_prepend(&time_prompt_block(tz), "");
@@ -104,23 +107,36 @@ pub async fn channel_prompt_turn(
         tools: composed.tools,
         history,
     };
-    let turn_ctx = TurnCtx {
+    let mut turn_ctx = TurnCtx {
         pool,
+        nats: None,
         owner_iid,
         chat_id,
+        site_iid: None,
         locale,
         attachments_json,
+        req_id,
+        run_kind: "main",
+        checkpoint: None,
     };
     let cancel = CancellationToken::new();
-    let res = prompt_cluster_turn(
+    let res = match prompt_cluster_turn(
         &chat_req,
         &mut |_thought, _delta| {},
         &mut |_blocks| {},
         &cancel,
         Some(&tracer),
-        Some(turn_ctx),
+        Some(&mut turn_ctx),
+        None,
     )
-    .await?;
+    .await
+    {
+        Ok(r) => r,
+        Err(e) => {
+            let _ = c35_mod_billing::billing_reservation_refund(pool, req_id).await;
+            return Err(e);
+        }
+    };
     let duration_ms = turn_started.elapsed().as_millis() as i32;
     let cost_usd = billing_usage_report(
         pool,
@@ -133,6 +149,7 @@ pub async fn channel_prompt_turn(
         res.tokens_out,
         duration_ms,
         Some(&bctx),
+        res.tools_cost_usd,
     )
     .await?;
     tracer.llm_turn(&res.model_used, res.tokens_in, res.tokens_out, duration_ms as i64, 0, cost_usd, &res.text).await;

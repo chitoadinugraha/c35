@@ -89,6 +89,7 @@ class _UiBotConversationState extends State<UiBotConversation> {
               children: [
                 UiMsgCopyPrefix(text: copyPrefix),
                 if (thoughtView.thought != null) UiMsgThought(text: thoughtView.thought!, thinking: false),
+                if (m.reqId.isNotEmpty) UiMsgTraceLoader(conn: widget.store.conn, reqId: m.reqId),
                 if (m.content.trim().isNotEmpty)
                   MarkdownBody(
                     data: m.content,
@@ -106,7 +107,6 @@ class _UiBotConversationState extends State<UiBotConversation> {
                     locale: 'en',
                     onConsumptionSaved: (_, __) {},
                   ),
-                if (m.reqId.isNotEmpty) UiMsgTraceLoader(conn: widget.store.conn, reqId: m.reqId),
                 UiMsgUsage(msg: m, streaming: false),
               ],
             ),

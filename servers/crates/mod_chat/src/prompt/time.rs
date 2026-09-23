@@ -75,3 +75,29 @@ pub fn time_prompt_prepend(block: &str, base: &str) -> String {
     }
     format!("{block}\n\n{base}")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn user_asks_time_matches_indonesian_day_question() {
+        assert!(user_asks_time("sekarang hari apa ?"));
+        assert!(user_asks_time("Sekarang jam berapa?"));
+        assert!(user_asks_time("what day is it today?"));
+        assert!(!user_asks_time("buatkan gambar kucing"));
+    }
+
+    #[test]
+    fn time_prompt_block_includes_now_line() {
+        let block = time_prompt_block("Asia/Jakarta");
+        assert!(block.contains(TIME_INST));
+        assert!(block.contains("Now:"));
+        assert!(block.contains("Asia/Jakarta"));
+    }
+
+    #[test]
+    fn time_timezone_resolve_prefers_indonesian_user_text() {
+        assert_eq!(time_timezone_resolve("en", "sekarang hari apa ?"), "Asia/Jakarta");
+    }
+}

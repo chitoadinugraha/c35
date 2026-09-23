@@ -20,7 +20,7 @@ class UiMasterDetail extends StatelessWidget {
     this.emptyDetail,
     this.collapseWhenEmpty = false,
     this.listEmpty = false,
-    this.emptyCollapsed,
+    this.masterBar,
   });
 
   final Widget? nav;
@@ -35,7 +35,7 @@ class UiMasterDetail extends StatelessWidget {
   final Widget? emptyDetail;
   final bool collapseWhenEmpty;
   final bool listEmpty;
-  final Widget? emptyCollapsed;
+  final Widget? masterBar;
 
   @override
   Widget build(BuildContext context) {
@@ -43,19 +43,8 @@ class UiMasterDetail extends StatelessWidget {
     final hasSelection = selectedId != null;
 
     if (wide && collapseWhenEmpty && listEmpty) {
-      final pane = nav ?? master;
-      return ColoredBox(
-        color: uiPageBg,
-        child: emptyCollapsed != null
-            ? Stack(
-                fit: StackFit.expand,
-                children: [
-                  _pane(pane, bg: _masterBg),
-                  Center(child: emptyCollapsed!),
-                ],
-              )
-            : _pane(pane, bg: _masterBg),
-      );
+      final pane = _masterPane(nav ?? master);
+      return ColoredBox(color: uiPageBg, child: _pane(pane, bg: _masterBg));
     }
 
     if (wide) {
@@ -68,7 +57,7 @@ class UiMasterDetail extends StatelessWidget {
               SizedBox(width: navWidth, child: _pane(nav!, bg: _masterBg)),
               const VerticalDivider(width: 1, color: _border),
             ],
-            SizedBox(width: masterWidth, child: _pane(master, bg: _masterBg)),
+            SizedBox(width: masterWidth, child: _pane(_masterPane(master), bg: _masterBg)),
             const VerticalDivider(width: 1, color: _border),
             Expanded(child: _detailPane(hasSelection)),
           ],
@@ -76,19 +65,18 @@ class UiMasterDetail extends StatelessWidget {
       );
     }
 
-    if (!hasSelection) return nav ?? master;
+    if (!hasSelection) return _masterPane(nav ?? master);
 
-    return ColoredBox(
-      color: uiPageBg,
-      child: Column(
+    return ColoredBox(color: uiPageBg, child: detailBuilder(selectedId));
+  }
+
+  Widget _masterPane(Widget list) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (onDrillBack != null) _narrowBackBar(),
-          Expanded(child: detailBuilder(selectedId)),
+          if (masterBar != null) masterBar!,
+          Expanded(child: list),
         ],
-      ),
-    );
-  }
+      );
 
   Widget _pane(Widget child, {Color bg = uiPageBg}) => ColoredBox(color: bg, child: child);
 
@@ -101,24 +89,4 @@ class UiMasterDetail extends StatelessWidget {
     }
     return detailBuilder(selectedId);
   }
-
-  Widget _narrowBackBar() => Material(
-        color: _masterBg,
-        child: SafeArea(
-          bottom: false,
-          child: InkWell(
-            onTap: onDrillBack,
-            child: const Padding(
-              padding: EdgeInsets.fromLTRB(8, 10, 8, 10),
-              child: Row(
-                children: [
-                  Icon(Icons.arrow_back_rounded, size: 20, color: _muted),
-                  SizedBox(width: 8),
-                  Text('Back', style: TextStyle(color: _muted, fontSize: 14)),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
 }

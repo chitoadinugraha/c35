@@ -50,12 +50,24 @@ On new message: update `chat.last_msg_ts` + preview, then the owner's `chat_memb
 
 ### Per-user list UX
 
-| Field | Table | Scope |
-|-------|-------|-------|
-| Pin | `chat_member.pinned_ts` | per user |
-| Archive | `chat_member.archived_ts` | per user |
-| Unread | `chat_member.unread_count` | per user |
-| `#tag`, title | `chat` | thread metadata |
+| Field | Table | Scope | UI Indicator |
+|-------|-------|-------|--------------|
+| Pin | `chat_member.pinned_ts` | per user | Pinned icon at top |
+| Archive | `chat_member.archived_ts` | per user | Archived section |
+| Unread | `chat_member.unread_count` | per user | Unread badge |
+| Status | `chat_member.last_msg_status` | per user | Spinner (`streaming`), Blue dot (`done`), Red dot (`error`) |
+| Relative Time | `chat_member.last_msg_ts` | per user | `now`, `5m ago`, `2h ago`, or Date |
+| `#tag`, title | `chat` | thread metadata | Title |
+
+Clicking a chat clears the unread dot (`unread_count = 0`, dot dismissed).
+
+### Prompt Execution Resilience (NATS JetStream)
+
+Prompt turns are submitted via `ReqPrompt` and enqueued onto NATS JetStream stream `C35_CHAT_PROMPT`:
+1. Worker leases the job with `ack_wait = 60s` (heartbeat).
+2. Worker publishes deltas to `c35.user.{owner_iid}.chat.{chat_id}`.
+3. Client WebSocket on any server pod subscribes to the user subject and delivers frames to app.
+4. **Crash recovery:** If a server pod restarts or crashes during a turn, JetStream redelivers unacknowledged prompt jobs to another surviving pod. The client reconnects, re-subscribes, and resumes without losing state.
 
 ---
 
@@ -72,6 +84,21 @@ chat_member: one row (member_iid = owner)
 - Canvas / UI blocks on assistant messages (`blocks_json`).
 - Billing trace on assistant turns (see [billing.md](billing.md)).
 - No `ai_reply_enabled` (abort in-flight turn only).
+
+### Turn Execution Modes (`tool_mode`)
+
+Each `ReqPromptSend` specifies `tool_mode` to define tool boundary and safety:
+
+- **`tool_mode = "agent"` (Default)**:
+  - Full tool orchestration.
+  - Matches cluster tools, device control skills, and Tool RAG retrieval.
+  - Model can invoke modifying operations (file writes, shell execution, device control).
+
+- **`tool_mode = "ask"`**:
+  - Pure conversational or read-only advisory mode.
+  - Invoked persistently via the mode pill or one-shot via the `/ask <query>` slash command.
+  - Filters `eligible_tools` strictly to `readonly = true` or `vec![]`.
+  - Tool RAG is bypassed (`rag_skipped = true, reason = "ask_mode"`), reducing latency, GPU overhead, and token cost.
 
 ---
 
@@ -150,9 +177,20 @@ See [`../schemas/proto/c35/chat.proto`](../schemas/proto/c35/chat.proto).
 
 ---
 
+## Transactional Safety & Multi-Row Consistency
+
+All multi-row operations across chats and messages execute within atomic database transactions (`pool.begin()`):
+1. **Chat Creation (`chat_ensure`)**: Atomic creation of `ai.chat` and initial `ai.chat_member` row prevents dangling unlinked chat threads.
+2. **Chat Activity Touch (`chat_touch`)**: Atomically updates both the master thread (`ai.chat.last_msg_ts`, `ai.chat.last_msg_preview`) and user inbox member state (`ai.chat_member.last_msg_ts`, `ai.chat_member.last_msg_preview`, `ai.chat_member.last_msg_status`).
+3. **Bot Peer Staff Send (`chat_send`)**: Inserts into `ai.chat_msg` and updates `ai.chat` preview/timestamp in a single transaction.
+4. **Channel Message Ingestion (`chat_msg_external_put` / `chat_msg_assistant_put`)**: Message insertion and conversation preview updates are committed together, guaranteeing thread list and message history never fall out of sync.
+
+---
+
 ## Related docs
 
 - Shell UI: [ui.md](ui.md)
 - Billing: [billing.md](billing.md)
 
 Canonical DDL: [`../schemas/chat.sql`](../schemas/chat.sql)
+

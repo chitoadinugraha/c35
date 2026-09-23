@@ -9,7 +9,7 @@ void main() {
       'min': 200,
       'hash': 'abc123',
       'size': 1024,
-      'url': 'https://alienai.id/fs/abc123?exp=1&sig=x',
+      'url': 'https://api.alienai.id/fs/abc123?exp=1&sig=x',
     });
     expect(r?.version, 235);
     expect(r?.min, 200);

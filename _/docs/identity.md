@@ -23,8 +23,9 @@ Every actor in c35 — human, team, bot, remote PC, IoT device, website — is o
 
 - Characters: `[a-z0-9_-]` only
 - Globally unique across all identities
-- Optional until user sets it
-- Stored lowercase; unique index on `LOWER(alien_id)`
+- Defaults to `NULL` on signup and Google OAuth (never auto-derived from email)
+- Unique partial index on `LOWER(alien_id) WHERE alien_id IS NOT NULL AND alien_id <> ''`
+- User sets/claims alien_id in settings via `InAlienIdSignup` (min 7 chars unless unlocked by referral code)
 
 ## kind + type (not compound kind)
 
@@ -238,7 +239,7 @@ type = business | personal | …
 owner_iid = user or team
 ```
 
-Business features (POS, reservation) are **site-scoped**, rendered in Sites 3-pane page. Mock first, implement later.
+Business features (POS, reservation) are **site-scoped**, rendered in Sites page (Devices-like tabs + UITable). Layout via Home prompt.
 
 ## Related tables
 
@@ -275,3 +276,21 @@ Canonical DDL: [`../schemas/identity.sql`](../schemas/identity.sql)
 | `agent.space` (prompt/windows/chat_bot) | Removed; use `identity` kinds |
 | Space picker | Removed; page-based navigation |
 | cs_agent local replica | Removed; server delta sync only |
+
+---
+
+## Identity deletion & resource teardown
+
+When an identity is deleted via `identity_delete` (`wire_ws`):
+1. **Kind-Specific Teardown**:
+   - **`bot`**: Calls `bot_channels_disconnect_all` before dropping records:
+     - Telegram: Deletes remote webhooks from Telegram servers via `/deleteWebhook`.
+     - WhatsApp Device: Calls worker `/v1/channel/{bot_iid}/{channel_id}/stop` with `wipe_session: true`, disconnecting the client and deleting SQLite session files.
+     - Channels: Unlinks and removes all associated `c35_channel` rows.
+2. **Database Cascade (Atomic Transaction)**:
+   - Soft-deletes the identity in `ai.identity`.
+   - Soft-deletes all associated access grants in `ai.identity_grant` (`resource_iid = $1`).
+   - If `kind == "bot"`, soft-deletes all bot conversation threads in `ai.chat` (`bot_iid = $1`).
+   - All three updates are executed within an atomic database transaction (`pool.begin()`).
+
+

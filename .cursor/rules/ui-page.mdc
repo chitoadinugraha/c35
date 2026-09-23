@@ -20,19 +20,63 @@ UiPage(
   subtitle: 'Coming soon', // optional
   onBack: () => Navigator.pop(context),
   trailing: myActions, // optional right-side actions
+  onSearch: store.searchPut, // optional — adds search icon to actions
+  searchHint: 'Search devices', // optional hint when onSearch is set
   body: ...,
 )
 ```
+
+## Search
+
+Use built-in `onSearch` for list/filter search — do **not** embed a `TextField` in the page body or build a custom search bar in `titleWidget`.
+
+When `onSearch` is set:
+- A search icon appears in the page bar actions (before `trailing`)
+- Tapping it replaces the title and actions with a compact search field + close button
+- `onSearch` is called on every text change; clearing/closing resets the query via `onSearch('')`
+
+```dart
+UiPage(
+  title: 'Devices',
+  onBack: () => Navigator.pop(context),
+  onSearch: _store.searchPut,
+  searchHint: 'Search devices',
+  trailing: UiDeviceAddMenu(store: _store),
+  body: ...,
+)
+```
+
+For advanced in-bar search (match navigation, extra controls inside the search field), use `titleWidget` — see `page_referral_tree.dart`.
 
 ## When to use what
 
 | Need | Use |
 |------|-----|
 | Title + optional subtitle | `title`, `subtitle` |
-| Custom title area (search field, etc.) | `titleWidget` |
+| List/filter search | `onSearch`, `searchHint` |
+| Custom title area (advanced search, etc.) | `titleWidget` |
 | Right-side icon buttons / actions | `trailing` |
 | Loading bar over page | `overlay` |
 | Back navigation | `onBack: () => Navigator.pop(context)` |
+| Master-detail owns its own header | `hideBar: true` — render `UiPageBar` inside master pane |
+
+## Master-detail pages
+
+When the master pane owns the page chrome (title, back, search, add):
+
+```dart
+UiPage(
+  hideBar: true,
+  title: 'Devices',
+  body: UiMasterDetail(
+    masterBar: _DeviceMasterBar(...),
+    master: deviceList,
+    detailBuilder: ...,
+  ),
+)
+```
+
+Put search and trailing actions in the master bar, not the global `UiPage` bar.
 
 ## Exceptions (do not use UiPage)
 

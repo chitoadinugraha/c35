@@ -278,12 +278,13 @@ fn build_media_message(item: &ActChannelMediaItem, upload: UploadResponse) -> wa
 }
 
 async fn fs_download(http: &reqwest::Client, hash: &str) -> anyhow::Result<Vec<u8>> {
-    let base = std::env::var("CS_PUBLIC_ORIGIN")
+    let base = std::env::var("C35_PUBLIC_ORIGIN")
+        .or_else(|_| std::env::var("CS_PUBLIC_ORIGIN"))
         .or_else(|_| std::env::var("WHATSAPP_MEDIA_UPLOAD_BASE"))
         .ok()
         .map(|s| s.trim().trim_end_matches('/').to_string())
         .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| "http://cs-server.cs-bots.svc.cluster.local:8080".to_string());
+        .unwrap_or_else(|| "http://c35-server.c35.svc.cluster.local:8080".to_string());
     let url = format!("{base}/fs/{hash}");
     let res = http.get(url).send().await?;
     Ok(res.error_for_status()?.bytes().await?.to_vec())

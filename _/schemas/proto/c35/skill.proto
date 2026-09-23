@@ -17,6 +17,7 @@ enum SkillSource {
   SKILL_SOURCE_TAUGHT = 1;
   SKILL_SOURCE_CATALOG = 2;
   SKILL_SOURCE_IMPORT = 3;
+  SKILL_SOURCE_AI_EXPLORE = 4;
 }
 
 message Skill {
@@ -44,6 +45,13 @@ message Skill {
   string url_pattern = 19;
 
   repeated SkillStep steps = 20;
+
+  int32 patch_epoch = 21;
+  int32 patch_count = 22;
+  int32 consecutive_ok = 23;
+  string detected_app_version = 24;
+  bool auto_submit = 25;
+  int64 last_patched_ts_ms = 26;
 
   int64 created_ts_ms = 30;
   int64 updated_ts_ms = 31;
@@ -81,6 +89,9 @@ message SkillCatalog {
   double rating = 10;
   bool is_verified = 11;
   string status = 12;
+  double price_usd = 13;
+  double price_idr = 14;
+  string billing_period = 15; // free | one_time | monthly | yearly
 }
 
 // ================================= API
@@ -131,4 +142,47 @@ message ReqSkillCatalogInstall {
 
 message ResSkillCatalogInstall {
   Skill skill = 1;
+}
+
+// Phase 7: full-text + tag search of the public skill catalog
+message ReqSkillCatalogSearch {
+  string q = 1;
+  string tags_json = 2;
+  int32 limit = 3;
+  int32 offset = 4;
+}
+
+message ResSkillCatalogSearch {
+  repeated SkillCatalog catalogs = 1;
+  int32 total = 2;
+}
+
+// Phase 7: agent submits a local skill to the public catalog for review
+message ReqSkillCatalogSubmit {
+  int64 skill_id = 1;
+  string submit_action = 2;      // "new" | "new_version" | "improvement"
+  int64 existing_catalog_id = 3; // required for new_version / improvement
+}
+
+message ResSkillCatalogSubmit {
+  int64 catalog_id = 1;
+  string status = 2;   // "pending_review" | "already_published" | "skipped_duplicate"
+  string message = 3;
+}
+
+// Phase 7: agent reports the outcome of running a skill (self-learning feedback)
+message ReqSkillRunReport {
+  int64 run_id = 1;
+  int64 skill_id = 2;
+  bool success = 3;
+  int32 step_index = 4;   // step that failed (0 = full success)
+  string error = 5;
+  string patch_md = 6;    // suggested patch from agent self-learning
+  string detected_app_version = 7;
+  string meta_json = 8;
+}
+
+message ResSkillRunReport {
+  bool accepted = 1;
+  string message = 2;
 }

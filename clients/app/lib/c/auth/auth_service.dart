@@ -94,13 +94,99 @@ class AuthService extends ChangeNotifier {
         Uri.parse('${C35Config.authApiBase}/v1/auth/me'),
         headers: {'Authorization': 'Bearer $token'},
       ).timeout(const Duration(seconds: 8));
-      if (res.statusCode == 200) return null;
+      if (res.statusCode == 200) {
+        await _identityMergeFromAuthBody(jsonDecode(res.body) as Map<String, dynamic>);
+        return null;
+      }
       if (res.statusCode == 401) return 'Invalid session';
       return null;
     } catch (e) {
       lError('Session check failed: $e');
       return null;
     }
+  }
+
+  Future<void> _identityMergeFromAuthBody(Map<String, dynamic> data) async {
+    final id = data['identity'] is Map<String, dynamic> ? data['identity'] as Map<String, dynamic> : const <String, dynamic>{};
+    final roles = sessionGlobalRolesParse(data['global_roles'] ?? data['roles'] ?? id['global_roles'] ?? id['roles'] ?? id['is_root']);
+    final refBy = int.tryParse('${id['referred_by_iid'] ?? data['referred_by_iid'] ?? ''}') ?? 0;
+    final dismissed = id['referral_prompt_dismissed'] == true || data['referral_prompt_dismissed'] == true;
+    await Session.instance.identityMerge(
+      name: '${id['name'] ?? ''}',
+      alienId: '${id['alien_id'] ?? id['handle'] ?? ''}',
+      pic: authPicFrom(data),
+      email: '${id['email'] ?? ''}',
+      globalRoles: roles.isEmpty ? null : roles,
+      referredByIid: refBy > 0 ? refBy : null,
+      referralDismissed: dismissed ? true : null,
+    );
+    final handle = Session.instance.handle;
+    if (_login != null) {
+      _login = LoginResult(
+        uid: _login!.uid,
+        token: _login!.token,
+        name: Session.instance.name,
+        email: Session.instance.email,
+        handle: handle,
+        pic: Session.instance.pic,
+      );
+      notifyListeners();
+    }
+  }
+
+  Future<Map<String, dynamic>> claimReferral(String code) async {
+    final token = sessionAuthToken();
+    if (token.isEmpty) throw ApiException('Not signed in');
+    final base = C35Config.authApiBase.replaceAll(RegExp(r'/+$'), '');
+    final uri = Uri.parse('$base/v1/auth/referral/claim');
+    final res = await http.post(
+      uri,
+      headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+      body: jsonEncode({'code': code}),
+    ).timeout(const Duration(seconds: 10));
+    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    if (res.statusCode != 200 || data['ok'] != true) {
+      throw ApiException(data['error'] as String? ?? 'Referral claim failed');
+    }
+    await Session.instance.referralDismissedPut();
+    await validateSessionForServer();
+    return data;
+  }
+
+  Future<void> dismissReferralPrompt() async {
+    await Session.instance.referralDismissedPut();
+    final token = sessionAuthToken();
+    if (token.isEmpty) return;
+    try {
+      final base = C35Config.authApiBase.replaceAll(RegExp(r'/+$'), '');
+      await http.post(
+        Uri.parse('$base/v1/auth/referral/dismiss'),
+        headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+      ).timeout(const Duration(seconds: 5));
+    } catch (_) {}
+  }
+
+  Future<String> claimAlienId({required String alienId, String? referralCode}) async {
+    final token = sessionAuthToken();
+    if (token.isEmpty) throw ApiException('Not signed in');
+    final base = C35Config.authApiBase.replaceAll(RegExp(r'/+$'), '');
+    final uri = Uri.parse('$base/v1/auth/alien_id/claim');
+    final res = await http.post(
+      uri,
+      headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'alien_id': alienId,
+        if (referralCode != null && referralCode.isNotEmpty) 'referral_code': referralCode,
+      }),
+    ).timeout(const Duration(seconds: 10));
+    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    if (res.statusCode != 200 || data['ok'] != true) {
+      throw ApiException(data['error'] as String? ?? 'Failed to set Alien ID');
+    }
+    final claimed = '${data['alien_id'] ?? alienId}';
+    await Session.instance.identityMerge(alienId: claimed);
+    await validateSessionForServer();
+    return claimed;
   }
 
   Future<LoginResult> signInWithPassword({required String identifier, required String password}) async {
@@ -170,20 +256,19 @@ class AuthService extends ChangeNotifier {
       final uid = int.tryParse('${body['uid']}');
       final token = '${body['token'] ?? body['session_id'] ?? ''}'.trim();
       if (uid == null || uid <= 0 || token.isEmpty) return ('Google sign-in failed', null);
-      return (
-        null,
-        await _store(
-          LoginResult(
-            uid: uid,
-            token: token,
-            name: '${body['name'] ?? ''}',
-            email: '${body['email'] ?? ''}',
-            handle: '${body['handle'] ?? '@${(body['email'] ?? 'user').toString().split('@').first}'}',
-            pic: authPicFrom(body),
-          ),
-          globalRoles: authGlobalRolesFrom(body),
+      final stored = await _store(
+        LoginResult(
+          uid: uid,
+          token: token,
+          name: '${body['name'] ?? ''}',
+          email: '${body['email'] ?? ''}',
+          handle: '${body['handle'] ?? ''}',
+          pic: authPicFrom(body),
         ),
+        globalRoles: authGlobalRolesFrom(body),
       );
+      await validateSessionForServer();
+      return (null, _login ?? stored);
     } catch (_) {
       return (null, null);
     }

@@ -16,7 +16,22 @@ Estimate portions (half plate → qty 0.5). Extract every distinct item. Output 
 [{"name":"","name_id":"","qty":1,"calories":0,"protein":0,"fat":0,"carbs":0,"fiber":0,"sugar":0,"sodium":0}]
 Use reasonable estimates. name_id in Bahasa Indonesia Title Case."#;
 
-const DETECT_MODEL: &str = "gemini-2.5-flash";
+
+fn detect_model() -> Result<String, String> {
+    if let Ok(raw) = std::env::var("GEMINI_MODEL") {
+        let key = raw.trim();
+        if key.is_empty() {
+            return Err("GEMINI_MODEL empty".into());
+        }
+        return c35_mod_llm::catalog_provider_model(key)
+            .ok_or_else(|| format!("unknown GEMINI_MODEL {key}"));
+    }
+    let model = c35_mod_llm::alien_default_model();
+    if model.is_empty() {
+        return Err("no catalog model for consumption detect".into());
+    }
+    Ok(model)
+}
 
 fn gemini_api_key() -> String {
     ["GEMINI_API_KEY", "GOOGLE_API_KEY"]
@@ -97,7 +112,7 @@ async fn run_gemini_text(pool: &PgPool, owner_iid: i64, prompt: &str) -> Result<
     if key.is_empty() {
         return Err("GEMINI_API_KEY missing".into());
     }
-    let model = std::env::var("GEMINI_MODEL").unwrap_or_else(|_| DETECT_MODEL.into());
+    let model = detect_model()?;
     let url = format!("https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}");
     let body = serde_json::json!({
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
@@ -123,7 +138,7 @@ async fn run_gemini_vision(
     if key.is_empty() {
         return Err("GEMINI_API_KEY missing".into());
     }
-    let model = std::env::var("GEMINI_MODEL").unwrap_or_else(|_| DETECT_MODEL.into());
+    let model = detect_model()?;
     let url = format!("https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}");
     let body = serde_json::json!({
         "contents": [{

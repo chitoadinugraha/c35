@@ -134,3 +134,61 @@ const ResAdminUserPut$json = {
 /// Descriptor for `ResAdminUserPut`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List resAdminUserPutDescriptor =
     $convert.base64Decode('Cg9SZXNBZG1pblVzZXJQdXQ=');
+
+@$core.Deprecated('Use reqAdminLogListDescriptor instead')
+const ReqAdminLogList$json = {
+  '1': 'ReqAdminLogList',
+  '2': [
+    {
+      '1': 'owner_iid',
+      '3': 1,
+      '4': 1,
+      '5': 3,
+      '9': 0,
+      '10': 'ownerIid',
+      '17': true
+    },
+    {'1': 'since_ms', '3': 2, '4': 1, '5': 3, '10': 'sinceMs'},
+    {'1': 'until_ms', '3': 3, '4': 1, '5': 3, '10': 'untilMs'},
+    {'1': 'text', '3': 4, '4': 1, '5': 9, '10': 'text'},
+    {'1': 'kind', '3': 5, '4': 1, '5': 9, '9': 1, '10': 'kind', '17': true},
+    {'1': 'topic', '3': 6, '4': 1, '5': 9, '9': 2, '10': 'topic', '17': true},
+    {'1': 'limit', '3': 7, '4': 1, '5': 5, '10': 'limit'},
+    {
+      '1': 'before_id',
+      '3': 8,
+      '4': 1,
+      '5': 3,
+      '9': 3,
+      '10': 'beforeId',
+      '17': true
+    },
+  ],
+  '8': [
+    {'1': '_owner_iid'},
+    {'1': '_kind'},
+    {'1': '_topic'},
+    {'1': '_before_id'},
+  ],
+};
+
+/// Descriptor for `ReqAdminLogList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqAdminLogListDescriptor = $convert.base64Decode(
+    'Cg9SZXFBZG1pbkxvZ0xpc3QSIAoJb3duZXJfaWlkGAEgASgDSABSCG93bmVySWlkiAEBEhkKCH'
+    'NpbmNlX21zGAIgASgDUgdzaW5jZU1zEhkKCHVudGlsX21zGAMgASgDUgd1bnRpbE1zEhIKBHRl'
+    'eHQYBCABKAlSBHRleHQSFwoEa2luZBgFIAEoCUgBUgRraW5kiAEBEhkKBXRvcGljGAYgASgJSA'
+    'JSBXRvcGljiAEBEhQKBWxpbWl0GAcgASgFUgVsaW1pdBIgCgliZWZvcmVfaWQYCCABKANIA1II'
+    'YmVmb3JlSWSIAQFCDAoKX293bmVyX2lpZEIHCgVfa2luZEIICgZfdG9waWNCDAoKX2JlZm9yZV'
+    '9pZA==');
+
+@$core.Deprecated('Use resAdminLogListDescriptor instead')
+const ResAdminLogList$json = {
+  '1': 'ResAdminLogList',
+  '2': [
+    {'1': 'logs', '3': 1, '4': 3, '5': 11, '6': '.c35.Log', '10': 'logs'},
+  ],
+};
+
+/// Descriptor for `ResAdminLogList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resAdminLogListDescriptor = $convert.base64Decode(
+    'Cg9SZXNBZG1pbkxvZ0xpc3QSHAoEbG9ncxgBIAMoCzIILmMzNS5Mb2dSBGxvZ3M=');

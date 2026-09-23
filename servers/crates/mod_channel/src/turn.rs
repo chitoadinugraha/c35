@@ -8,7 +8,7 @@ use reqwest::Client;
 use crate::debounce::{debouncer_turn_finished, debouncer_turn_started};
 use crate::hub::channel_hub;
 use crate::limit::BOT_BUSY_REPLY;
-use crate::outbound::{channel_reply_nats, channel_stub_reply, outbound_ctx_new, ChannelCasCtx};
+use crate::outbound::{channel_reply_nats, channel_stub_reply, outbound_ctx_with_msg, ChannelCasCtx};
 use crate::peer::chat_msg_assistant_put;
 use crate::store::ChannelDoc;
 use crate::typing::channel_typing_start;
@@ -33,12 +33,13 @@ pub async fn execute_channel_turn(state: Arc<AppState>, job: ChannelTurnJob) -> 
         Ok(g) => g,
         Err(()) => {
             let client = http_client();
-            let out_ctx = outbound_ctx_new(
+            let out_ctx = outbound_ctx_with_msg(
                 &job.inbound.platform,
                 &job.inbound.external_user_id,
                 &job.channel,
                 job.owner_iid,
                 job.bot_iid,
+                job.inbound.external_msg_id.clone(),
             );
             limiter.outbound_pace().await;
             let cas = ChannelCasCtx {
@@ -54,12 +55,13 @@ pub async fn execute_channel_turn(state: Arc<AppState>, job: ChannelTurnJob) -> 
     };
 
     let client = http_client();
-    let out_ctx = outbound_ctx_new(
+    let out_ctx = outbound_ctx_with_msg(
         &job.inbound.platform,
         &job.inbound.external_user_id,
         &job.channel,
         job.owner_iid,
         job.bot_iid,
+        job.inbound.external_msg_id.clone(),
     );
 
     let _typing_guard = channel_typing_start(

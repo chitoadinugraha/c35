@@ -14,7 +14,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 const _tbIcon = 20.0;
-const _tbSize = 32.0;
+const _tbSize = 28.0;
+const _tbGap = 10.0;
 const _tbPad = EdgeInsets.zero;
 const _tbConstraints = BoxConstraints(minWidth: _tbSize, minHeight: _tbSize, maxWidth: _tbSize, maxHeight: _tbSize);
 final _tbStyle = IconButton.styleFrom(padding: _tbPad, minimumSize: const Size(_tbSize, _tbSize), maximumSize: const Size(_tbSize, _tbSize), tapTargetSize: MaterialTapTargetSize.shrinkWrap, visualDensity: VisualDensity.compact);
@@ -287,9 +288,9 @@ class _ShotPreviewState extends State<_ShotPreview> {
     final size = _imageSize;
     if (size == null || viewport.isEmpty) return;
     final scale = math.min(viewport.width / size.width, viewport.height / size.height).clamp(0.05, 1.0);
-    final dx = (viewport.width - size.width * scale) / 2;
-    final dy = (viewport.height - size.height * scale) / 2;
-    _xf.value = Matrix4.identity()..translate(dx, dy)..scale(scale);
+    _xf.value = Matrix4.identity()
+      ..translate(viewport.width / 2 - scale * size.width / 2, viewport.height / 2 - scale * size.height / 2)
+      ..scale(scale);
   }
 
   void _ensureFit(Size viewport) {
@@ -340,24 +341,21 @@ class _ShotPreviewState extends State<_ShotPreview> {
     shotZoomWheel(_xf, event.localPosition, event.scrollDelta.dy);
   }
 
-  Offset? _scenePoint(Offset viewportLocal) {
-    final size = _imageSize;
-    if (size == null) return null;
-    final p = _xf.toScene(viewportLocal);
-    return shotInImage(p, size) ? p : null;
-  }
-
   void _paintDown(PointerDownEvent e) {
-    final p = _scenePoint(e.localPosition);
-    if (p == null) return;
+    final size = _imageSize;
+    if (size == null) return;
+    final p = e.localPosition;
+    if (!shotInImage(p, size)) return;
     _drawing = true;
     setState(() => _hist.begin(p));
   }
 
   void _paintMove(PointerMoveEvent e) {
     if (!_drawing) return;
-    final p = _scenePoint(e.localPosition);
-    if (p == null) return;
+    final size = _imageSize;
+    if (size == null) return;
+    final p = e.localPosition;
+    if (!shotInImage(p, size)) return;
     setState(() => _hist.append(p));
   }
 
@@ -381,7 +379,7 @@ class _ShotPreviewState extends State<_ShotPreview> {
       child: Focus(
         autofocus: true,
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(16, 8, 8, 12),
           child: Column(
             children: [
               SizedBox(
@@ -400,13 +398,16 @@ class _ShotPreviewState extends State<_ShotPreview> {
                         constraints: _tbConstraints,
                         style: _tbStyle,
                       ),
-                      uiIconButton(tooltip: 'Undo', onPressed: _hist.canUndo ? _undo : null, icon: const Icon(Icons.undo_rounded, color: zinc100, size: _tbIcon), iconSize: _tbIcon, padding: _tbPad, constraints: _tbConstraints, style: _tbStyle),
-                      uiIconButton(tooltip: 'Redo', onPressed: _hist.canRedo ? _redo : null, icon: const Icon(Icons.redo_rounded, color: zinc100, size: _tbIcon), iconSize: _tbIcon, padding: _tbPad, constraints: _tbConstraints, style: _tbStyle),
-                      uiIconButton(tooltip: 'Clear drawings', onPressed: _hist.strokes.isEmpty ? null : _clear, icon: const Icon(Icons.format_color_reset_outlined, color: zinc100, size: _tbIcon), iconSize: _tbIcon, padding: _tbPad, constraints: _tbConstraints, style: _tbStyle),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: _tbGap),
+                      uiIconButton(tooltip: 'Undo', onPressed: _hist.canUndo ? _undo : null, icon: Icon(Icons.undo_rounded, color: _hist.canUndo ? zinc100 : zinc500, size: _tbIcon), iconSize: _tbIcon, padding: _tbPad, constraints: _tbConstraints, style: _tbStyle),
+                      const SizedBox(width: _tbGap),
+                      uiIconButton(tooltip: 'Redo', onPressed: _hist.canRedo ? _redo : null, icon: Icon(Icons.redo_rounded, color: _hist.canRedo ? zinc100 : zinc500, size: _tbIcon), iconSize: _tbIcon, padding: _tbPad, constraints: _tbConstraints, style: _tbStyle),
+                      const SizedBox(width: _tbGap),
+                      uiIconButton(tooltip: 'Clear drawings', onPressed: _hist.strokes.isEmpty ? null : _clear, icon: Icon(Icons.format_color_reset_outlined, color: _hist.strokes.isEmpty ? zinc500 : zinc100, size: _tbIcon), iconSize: _tbIcon, padding: _tbPad, constraints: _tbConstraints, style: _tbStyle),
+                      const SizedBox(width: _tbGap),
                       TextButton(
                         onPressed: _done,
-                        style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0), minimumSize: const Size(0, _tbSize), tapTargetSize: MaterialTapTargetSize.shrinkWrap, visualDensity: VisualDensity.compact),
+                        style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0), minimumSize: const Size(0, _tbSize), tapTargetSize: MaterialTapTargetSize.shrinkWrap, visualDensity: VisualDensity.compact),
                         child: Text(_hist.strokes.isEmpty ? 'Done' : 'Save', style: const TextStyle(color: zinc100, fontWeight: FontWeight.w600, fontSize: 13)),
                       ),
                     ] else
@@ -426,34 +427,30 @@ class _ShotPreviewState extends State<_ShotPreview> {
                         borderRadius: BorderRadius.circular(12),
                         child: imageSize == null
                             ? const UILoading()
-                            : Stack(
-                                children: [
-                                  Listener(
-                                    onPointerSignal: _onPointerSignal,
-                                    child: InteractiveViewer(
-                                      transformationController: _xf,
-                                      constrained: false,
-                                      alignment: Alignment.center,
-                                      boundaryMargin: const EdgeInsets.all(80),
-                                      panEnabled: !editable || !_annotate,
-                                      scaleEnabled: !editable || !_annotate,
-                                      minScale: 0.05,
-                                      maxScale: 6,
-                                      child: _ShotCanvas(bytes: widget.bytes, servePath: widget.servePath, imageSize: imageSize, strokes: editable ? _hist.strokes : const []),
-                                    ),
+                            : Listener(
+                                onPointerSignal: _onPointerSignal,
+                                child: InteractiveViewer(
+                                  transformationController: _xf,
+                                  constrained: false,
+                                  alignment: Alignment.topLeft,
+                                  clipBehavior: Clip.hardEdge,
+                                  boundaryMargin: const EdgeInsets.all(double.infinity),
+                                  panEnabled: !editable || !_annotate,
+                                  scaleEnabled: !editable || !_annotate,
+                                  minScale: 0.05,
+                                  maxScale: 6,
+                                  child: _ShotCanvas(
+                                    bytes: widget.bytes,
+                                    servePath: widget.servePath,
+                                    imageSize: imageSize,
+                                    strokes: editable ? _hist.strokes : const [],
+                                    annotate: editable && _annotate,
+                                    onPointerDown: _paintDown,
+                                    onPointerMove: _paintMove,
+                                    onPointerUp: (_) => _paintEnd(),
+                                    onPointerCancel: (_) => _paintEnd(),
                                   ),
-                                  if (editable && _annotate)
-                                    Positioned.fill(
-                                      child: Listener(
-                                        behavior: HitTestBehavior.opaque,
-                                        onPointerDown: _paintDown,
-                                        onPointerMove: _paintMove,
-                                        onPointerUp: (_) => _paintEnd(),
-                                        onPointerCancel: (_) => _paintEnd(),
-                                        child: MouseRegion(cursor: SystemMouseCursors.precise, child: const SizedBox.expand()),
-                                      ),
-                                    ),
-                                ],
+                                ),
                               ),
                       ),
                     );
@@ -469,12 +466,27 @@ class _ShotPreviewState extends State<_ShotPreview> {
 }
 
 class _ShotCanvas extends StatelessWidget {
-  const _ShotCanvas({required this.bytes, required this.servePath, required this.imageSize, required this.strokes});
+  const _ShotCanvas({
+    required this.bytes,
+    required this.servePath,
+    required this.imageSize,
+    required this.strokes,
+    this.annotate = false,
+    this.onPointerDown,
+    this.onPointerMove,
+    this.onPointerUp,
+    this.onPointerCancel,
+  });
 
   final Uint8List bytes;
   final String servePath;
   final Size imageSize;
   final List<List<Offset>> strokes;
+  final bool annotate;
+  final PointerDownEventListener? onPointerDown;
+  final PointerMoveEventListener? onPointerMove;
+  final PointerUpEventListener? onPointerUp;
+  final PointerCancelEventListener? onPointerCancel;
 
   @override
   Widget build(BuildContext context) => SizedBox(
@@ -488,6 +500,17 @@ class _ShotCanvas extends StatelessWidget {
                   : UiServeImage(path: servePath, fit: BoxFit.contain, errorBuilder: (_) => const Center(child: Icon(Icons.broken_image_rounded, color: Color(0xFF71717A), size: 28))),
             ),
             if (strokes.isNotEmpty) Positioned.fill(child: CustomPaint(painter: _StrokePainter(strokes: strokes, imageSize: imageSize))),
+            if (annotate)
+              Positioned.fill(
+                child: Listener(
+                  behavior: HitTestBehavior.opaque,
+                  onPointerDown: onPointerDown,
+                  onPointerMove: onPointerMove,
+                  onPointerUp: onPointerUp,
+                  onPointerCancel: onPointerCancel,
+                  child: MouseRegion(cursor: SystemMouseCursors.precise, child: const SizedBox.expand()),
+                ),
+              ),
           ],
         ),
       );

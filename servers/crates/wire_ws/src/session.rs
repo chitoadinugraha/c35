@@ -1,10 +1,13 @@
 use axum::extract::ws::{Message, WebSocket};
 use c35_ctx::{AppState, Ctx};
-use c35_mod_chat::{chat_ensure, chat_title_from_text, prompt_turn};
+use c35_mod_chat::{
+    chat_ensure, chat_title_from_text, prompt_run_cancel_children, prompt_run_cancel_request,
+    prompt_run_enqueue, prompt_run_insert, prompt_run_row_new, prompt_turn, PromptTurnHooks,
+};
 use c35_mod_consumption::{consumption_list_rpc, consumption_put_rpc};
 use c35_proto::{
     pb_decode, pb_encode, BillingPushBalance, BillingPushCommission, BillingPushQuota,
-    ReqChannelDisconnect, ReqChannelWhatsappPairAbort, ReqChannelWhatsappPairStart,
+    PromptRunJob, ReqChannelDisconnect, ReqChannelWhatsappPairAbort, ReqChannelWhatsappPairStart,
     ReqChannelWhatsappPairWatch, ReqIdentityDelete,
     ReqPromptAbort, ResChannelWhatsappPair, ResChatStop, ResPromptDelta, ResPromptEnd, ResPromptFail,
     ResPromptStart, WsReq, WsRes, ws_req, ws_res,
@@ -79,8 +82,18 @@ pub async fn handle(mut socket: WebSocket, state: AppState, q: WsQuery) {
                             Some(ws_req::Body::Prompt(p)) => {
                                 prompt_req_put(&state, &ctx, &q, req_id, p, &out_tx, &mut prompt_flight);
                             }
-                            Some(ws_req::Body::PromptAbort(ReqPromptAbort { chat_id })) => {
-                                prompt_abort(prompt_flight.as_ref());
+                            Some(ws_req::Body::PromptAbort(ReqPromptAbort { chat_id, req_id: abort_req_id })) => {
+                                if abort_req_id.is_empty() {
+                                    prompt_abort(prompt_flight.as_ref());
+                                } else {
+                                    let pool = state.pool.clone();
+                                    let rid = abort_req_id.clone();
+                                    tokio::spawn(async move {
+                                        let _ = prompt_run_cancel_request(&pool, &rid).await;
+                                        let _ = prompt_run_cancel_children(&pool, &rid).await;
+                                    });
+                                    prompt_abort(prompt_flight.as_ref());
+                                }
                                 let _ = out_tx.send(WsRes {
                                     req_id,
                                     body: Some(ws_res::Body::ChatStop(ResChatStop {
@@ -153,6 +166,11 @@ fn prompt_req_put(
             }
         };
         p.chat_id = chat_id;
+        let row = prompt_run_row_new(&req_id_spawn, owner_iid, chat_id, &p, &locale);
+        if let Err(e) = prompt_run_insert(&pool, &row).await {
+            let _ = out_tx.send(prompt_fail(&req_id_spawn, e.to_string()));
+            return;
+        }
         let _ = out_tx.send(WsRes {
             req_id: req_id_spawn.clone(),
             body: Some(ws_res::Body::PromptStart(ResPromptStart {
@@ -161,6 +179,17 @@ fn prompt_req_put(
                 model: p.model.clone(),
             })),
         });
+        if let Some(nats_client) = nats.clone() {
+            let job = PromptRunJob {
+                req_id: req_id_spawn.clone(),
+                owner_iid,
+                chat_id,
+            };
+            if prompt_run_enqueue(&nats_client, &job).await.is_ok() {
+                return;
+            }
+            tracing::warn!("[c35:prompt_run] JetStream enqueue failed, falling back to inline turn");
+        }
         match prompt_turn(
             &pool,
             nats.as_ref(),
@@ -189,6 +218,7 @@ fn prompt_req_put(
                 });
             },
             &cancel,
+            PromptTurnHooks::default(),
         )
         .await
         {
@@ -639,6 +669,24 @@ async fn dispatch(
             crate::admin_fanout::admin_log_unsubscribe(admin_session_id).await;
             WsRes { req_id, body: None }
         }
+        Some(ws_req::Body::SiteConfigPut(r)) => {
+            match c35_mod_site::site_config_put(&state.pool, ctx.caller_iid, r, Some(out_tx)).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteConfigPut(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_config_put_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::HintTouch(r)) => {
+            match c35_mod_hint::hint_touch(&state.pool, ctx.caller_iid, r.asset_iid, &r.asset_kind).await {
+                Ok(()) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::HintTouch(c35_proto::ResHintTouch { ok: true })),
+                },
+                Err(e) => err_res(req_id, WireErr::client("hint_touch_failed", e.to_string())),
+            }
+        }
         _ => err_res(
             req_id,
             WireErr::client("not_implemented", "Request not supported yet"),
@@ -661,6 +709,12 @@ async fn session_init(
     if req.tz.is_empty() {
         req.tz = q.tz.clone().unwrap_or_default();
     }
+    let hints_since_ms = req.hints_since_ms;
+    let locale = if req.locale.is_empty() {
+        q.locale.as_deref().unwrap_or("en").to_string()
+    } else {
+        req.locale.clone()
+    };
     let include_inbox = req.include_inbox;
     let mut res = c35_mod_identity::session_init(ctx, req).await?;
     res.models = c35_mod_llm::prompt_models();
@@ -684,6 +738,10 @@ async fn session_init(
         rev: mention_list.rev,
         items: mention_list.mentions,
     });
+    let locale = locale.as_str();
+    if let Ok(hints) = c35_mod_hint::hint_bundle_get(&ctx.pool, ctx.caller_iid, locale, hints_since_ms).await {
+        res.hints = Some(hints);
+    }
     Ok(res)
 }
 
@@ -721,14 +779,20 @@ async fn billing_nats_fanout(
             BillingPushCommission::decode(msg.payload.as_ref())
                 .ok()
                 .map(ws_res::Body::BillingCommission)
+        } else if subj.contains(".chat.") {
+            WsRes::decode(msg.payload.as_ref()).ok().and_then(|ws| ws.body)
         } else {
             None
         };
         if let Some(body) = body {
-            let _ = out_tx.send(WsRes {
-                req_id: String::new(),
-                body: Some(body),
-            });
+            let req_id = if subj.contains(".chat.") {
+                WsRes::decode(msg.payload.as_ref())
+                    .map(|ws| ws.req_id)
+                    .unwrap_or_default()
+            } else {
+                String::new()
+            };
+            let _ = out_tx.send(WsRes { req_id, body: Some(body) });
         }
     }
 }

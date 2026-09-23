@@ -1,0 +1,35 @@
+# syntax=docker/dockerfile:1.7
+# Build from c35 repo root:
+#   docker build --platform linux/arm64 -f _/deployments/Dockerfile.c35-node-stats -t c35-node-stats .
+
+FROM rust:1.89-bookworm AS rust-build
+
+WORKDIR /app
+
+COPY node_stats/Cargo.toml node_stats/Cargo.lock /app/node_stats/
+COPY node_stats/c_node_stats /app/node_stats/c_node_stats
+COPY servers/Cargo.toml servers/Cargo.lock /app/servers/
+COPY servers/crates/proto /app/servers/crates/proto
+COPY _/schemas /app/_/schemas
+
+ENV CARGO_TARGET_DIR=/app/target
+ENV CARGO_BUILD_JOBS=1
+ENV CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1
+
+RUN --mount=type=cache,target=/usr/local/cargo/registry,id=c35-node-stats-cargo-registry,sharing=locked \
+    --mount=type=cache,target=/usr/local/cargo/git,id=c35-node-stats-cargo-git,sharing=locked \
+    --mount=type=cache,target=/app/target,id=c35-node-stats-rust-target,sharing=locked \
+    cargo build --release -p c_node_stats --manifest-path node_stats/Cargo.toml \
+    && cp /app/target/release/c_node_stats /app/c_node_stats \
+    && sha256sum /app/c_node_stats > /app/c_node_stats.sha
+
+FROM gcr.io/distroless/cc-debian12:nonroot AS runtime
+
+WORKDIR /app
+
+ENV RUST_LOG=info,c_node_stats=debug
+
+COPY --from=rust-build /app/c_node_stats /app/c_node_stats
+COPY --from=rust-build /app/c_node_stats.sha /app/c_node_stats.sha
+
+ENTRYPOINT ["/app/c_node_stats"]

@@ -7,10 +7,18 @@ edition.workspace = true
 axum = { workspace = true }
 blake3 = { workspace = true }
 chrono = { workspace = true }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "gif"] }
+rust-s3 = { version = "0.37", default-features = false, features = ["tokio", "with-tokio"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }
+thiserror = { workspace = true }
 tokio = { workspace = true }
+tracing = { workspace = true }
 urlencoding = { workspace = true }
+webp = "0.3"
 c35_ctx = { path = "../system/ctx", package = "c35_ctx" }
 c35_mod_identity = { path = "../mod_identity", package = "c35_mod_identity" }
+
+[dev-dependencies]
+dotenvy = { workspace = true }

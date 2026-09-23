@@ -14,7 +14,7 @@ pub async fn identity_grant_patch(pool: &PgPool, caller_iid: i64, req: ReqIdenti
 
     let row = sqlx::query(
         r#"
-        SELECT i.owner_iid,
+        SELECT i.owner_iid, i.kind,
                g.id AS grant_id, g.role, g.is_pinned, g.meta AS grant_meta
         FROM ai.identity i
         LEFT JOIN ai.identity_grant g
@@ -29,6 +29,7 @@ pub async fn identity_grant_patch(pool: &PgPool, caller_iid: i64, req: ReqIdenti
     .ok_or_else(|| anyhow!("identity not found"))?;
 
     let owner_iid: i64 = row.get("owner_iid");
+    let kind: String = row.get("kind");
     let grant_id: Option<i64> = row.try_get("grant_id").ok();
     if owner_iid != caller_iid && grant_id.is_none() {
         return Err(anyhow!("identity not found"));
@@ -80,6 +81,10 @@ pub async fn identity_grant_patch(pool: &PgPool, caller_iid: i64, req: ReqIdenti
     .bind(&grant_meta)
     .execute(pool)
     .await?;
+
+    if kind == "site" {
+        let _ = c35_mod_hint::hint_invalidate(pool, caller_iid).await;
+    }
 
     let row = identity_list_row_get(pool, caller_iid, resource_iid).await?;
     Ok(ResIdentityGrantPatch { row: Some(row) })

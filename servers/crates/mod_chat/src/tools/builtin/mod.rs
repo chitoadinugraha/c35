@@ -1,11 +1,23 @@
 mod consumption;
+mod delegate;
+mod device;
 mod img_generate;
+mod referral;
+mod site;
 mod web_research;
 mod web_search;
 mod web_visit;
 
 pub use consumption::{ConsumptionAddTool, ConsumptionTodayTool, ConsumptionUpdateTool};
+pub use delegate::{
+    delegate_child_row, delegate_result_json, ComputerUseDelegateTool, DelegateRunTool,
+};
+pub use device::{DeviceCommandTool, DeviceInputTool, DeviceScreenshotTool};
 pub use img_generate::ImgGenerateTool;
+pub use referral::{
+    ReferralCodeDeleteTool, ReferralCodeListTool, ReferralCodePutTool, ReferralTreeGetTool,
+};
+pub use site::{SiteDraftPutTool, SiteProductPutTool, SitePublishTool};
 pub use web_research::WebResearchTool;
 pub use web_search::WebSearchTool;
 pub use web_visit::WebVisitTool;

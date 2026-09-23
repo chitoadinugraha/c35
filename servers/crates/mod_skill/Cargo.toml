@@ -1,0 +1,12 @@
+[package]
+name = "c35_mod_skill"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+blake3 = { workspace = true }
+chrono = { workspace = true }
+c35_proto = { path = "../proto", package = "c35_proto" }
+c35_store = { path = "../store", package = "c35_store" }
+serde_json = { workspace = true }
+sqlx = { workspace = true }

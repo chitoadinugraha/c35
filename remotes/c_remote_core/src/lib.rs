@@ -1,7 +1,21 @@
 pub mod config;
 pub mod conn_ws;
+pub mod log_local;
+pub mod log_push;
 pub mod pair;
 pub mod presence;
 pub mod session;
+pub mod skill_api;
+pub mod skill_dispatch;
+pub mod skill_explore;
+pub mod skill_heal;
+pub mod skill_store;
+pub mod skill_submit;
+pub mod skill_tape;
 pub mod task_report;
 pub mod task_run;
+pub mod update;
+pub mod version;
+pub mod webrtc;
+
+pub use c35_proto;

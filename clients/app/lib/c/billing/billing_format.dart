@@ -36,11 +36,11 @@ String billingHistoryAmountLabel(BillingHistoryRow row) {
   if (row.hasCurrency() && row.currency.isNotEmpty) {
     final cur = row.currency.toUpperCase();
     final amt = row.hasAmount() ? row.amount.abs() : 0.0;
-    if (cur == 'IDR') return moneyFmtIdr(amt);
+    if (cur == 'IDR') return moneyFmtIdrDetail(amt);
     if (cur == 'USD') return moneyFmtUsd(amt, decimals: 4);
     return '$cur ${uiFmtGroupedInt(amt.round())}';
   }
-  if (row.amountIdr.abs() > 0) return moneyFmtIdr(row.amountIdr.abs());
+  if (row.amountIdr.abs() > 0) return moneyFmtIdrDetail(row.amountIdr.abs());
   return moneyFmtUsd(row.amountUsd.abs(), decimals: 4);
 }
 

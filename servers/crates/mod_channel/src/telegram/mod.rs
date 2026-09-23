@@ -90,6 +90,50 @@ pub fn parse_telegram_payload(bytes: &[u8]) -> Result<crate::types::ChannelInbou
                 url: String::new(),
             });
         }
+    } else if let Some(vid) = msg.get("video") {
+        if let Some(file_id) = vid.get("file_id").and_then(|f| f.as_str()) {
+            let name = vid.get("file_name").and_then(|n| n.as_str()).unwrap_or("video.mp4");
+            let mime = vid.get("mime_type").and_then(|m| m.as_str()).unwrap_or("video/mp4");
+            attachments.push(ChannelInboundAttachment {
+                hash: String::new(),
+                name: name.to_string(),
+                mime: mime.to_string(),
+                media_id: file_id.to_string(),
+                url: String::new(),
+            });
+        }
+    } else if let Some(vnote) = msg.get("video_note") {
+        if let Some(file_id) = vnote.get("file_id").and_then(|f| f.as_str()) {
+            attachments.push(ChannelInboundAttachment {
+                hash: String::new(),
+                name: "video_note.mp4".into(),
+                mime: "video/mp4".into(),
+                media_id: file_id.to_string(),
+                url: String::new(),
+            });
+        }
+    } else if let Some(anim) = msg.get("animation") {
+        if let Some(file_id) = anim.get("file_id").and_then(|f| f.as_str()) {
+            let name = anim.get("file_name").and_then(|n| n.as_str()).unwrap_or("animation.mp4");
+            let mime = anim.get("mime_type").and_then(|m| m.as_str()).unwrap_or("video/mp4");
+            attachments.push(ChannelInboundAttachment {
+                hash: String::new(),
+                name: name.to_string(),
+                mime: mime.to_string(),
+                media_id: file_id.to_string(),
+                url: String::new(),
+            });
+        }
+    } else if let Some(sticker) = msg.get("sticker") {
+        if let Some(file_id) = sticker.get("file_id").and_then(|f| f.as_str()) {
+            attachments.push(ChannelInboundAttachment {
+                hash: String::new(),
+                name: "sticker.webp".into(),
+                mime: "image/webp".into(),
+                media_id: file_id.to_string(),
+                url: String::new(),
+            });
+        }
     }
 
     Ok(crate::types::ChannelInboundMessage {

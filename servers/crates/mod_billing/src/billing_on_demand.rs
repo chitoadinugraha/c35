@@ -1,5 +1,9 @@
 /// Pure on-demand billing math (allowance vs wallet, FX, holds). Unit-tested.
 pub const DEFAULT_HOLD_USD: f64 = 0.05;
+pub const CHILD_HOLD_USD: f64 = 0.05;
+pub const COMPUTER_USE_HOLD_USD: f64 = 0.10;
+pub const MAIN_BUDGET_USD: f64 = 0.50;
+pub const CHILD_BUDGET_USD: f64 = 0.20;
 
 pub fn usd_to_native(cost_usd: f64, micro_per_usd: i64) -> f64 {
     if cost_usd <= 0.0 || micro_per_usd <= 0 {

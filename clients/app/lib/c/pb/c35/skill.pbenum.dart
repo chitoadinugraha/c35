@@ -51,16 +51,19 @@ class SkillSource extends $pb.ProtobufEnum {
       SkillSource._(2, _omitEnumNames ? '' : 'SKILL_SOURCE_CATALOG');
   static const SkillSource SKILL_SOURCE_IMPORT =
       SkillSource._(3, _omitEnumNames ? '' : 'SKILL_SOURCE_IMPORT');
+  static const SkillSource SKILL_SOURCE_AI_EXPLORE =
+      SkillSource._(4, _omitEnumNames ? '' : 'SKILL_SOURCE_AI_EXPLORE');
 
   static const $core.List<SkillSource> values = <SkillSource>[
     SKILL_SOURCE_UNSPECIFIED,
     SKILL_SOURCE_TAUGHT,
     SKILL_SOURCE_CATALOG,
     SKILL_SOURCE_IMPORT,
+    SKILL_SOURCE_AI_EXPLORE,
   ];
 
   static final $core.List<SkillSource?> _byValue =
-      $pb.ProtobufEnum.$_initByValueList(values, 3);
+      $pb.ProtobufEnum.$_initByValueList(values, 4);
   static SkillSource? valueOf($core.int value) =>
       value < 0 || value >= _byValue.length ? null : _byValue[value];
 

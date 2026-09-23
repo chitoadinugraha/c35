@@ -229,3 +229,32 @@ final $typed_data.Uint8List resTranslationGetDescriptor = $convert.base64Decode(
     '9uR2V0LkVudHJpZXNFbnRyeVIHZW50cmllcxIiCg11cGRhdGVkX3RzX21zGAIgASgDUgt1cGRh'
     'dGVkVHNNcxo6CgxFbnRyaWVzRW50cnkSEAoDa2V5GAEgASgJUgNrZXkSFAoFdmFsdWUYAiABKA'
     'lSBXZhbHVlOgI4AQ==');
+
+@$core.Deprecated('Use reqTranslationPutDescriptor instead')
+const ReqTranslationPut$json = {
+  '1': 'ReqTranslationPut',
+  '2': [
+    {'1': 'lang', '3': 1, '4': 1, '5': 9, '10': 'lang'},
+    {'1': 'key', '3': 2, '4': 1, '5': 9, '10': 'key'},
+    {'1': 'category', '3': 3, '4': 1, '5': 9, '10': 'category'},
+    {'1': 'text', '3': 4, '4': 1, '5': 9, '10': 'text'},
+  ],
+};
+
+/// Descriptor for `ReqTranslationPut`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqTranslationPutDescriptor = $convert.base64Decode(
+    'ChFSZXFUcmFuc2xhdGlvblB1dBISCgRsYW5nGAEgASgJUgRsYW5nEhAKA2tleRgCIAEoCVIDa2'
+    'V5EhoKCGNhdGVnb3J5GAMgASgJUghjYXRlZ29yeRISCgR0ZXh0GAQgASgJUgR0ZXh0');
+
+@$core.Deprecated('Use resTranslationPutDescriptor instead')
+const ResTranslationPut$json = {
+  '1': 'ResTranslationPut',
+  '2': [
+    {'1': 'updated_ts_ms', '3': 1, '4': 1, '5': 3, '10': 'updatedTsMs'},
+  ],
+};
+
+/// Descriptor for `ResTranslationPut`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resTranslationPutDescriptor = $convert.base64Decode(
+    'ChFSZXNUcmFuc2xhdGlvblB1dBIiCg11cGRhdGVkX3RzX21zGAEgASgDUgt1cGRhdGVkVHNNcw'
+    '==');

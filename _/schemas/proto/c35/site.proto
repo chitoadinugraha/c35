@@ -2,8 +2,8 @@ syntax = "proto3";
 
 package c35;
 
-// Site = identity(kind=site) + ai.site_* satellites.
-// Guest layout = block-composed SiteDoc. See _/docs/site.md
+// Site = identity(kind=site) + site.* payload tables (YSQL schema site).
+// Guest layout = block-composed SiteDoc. Admin = UITable + prompt. See _/docs/site.md
 
 // ================================= Doc (presentation — not fixed CSA sections)
 
@@ -50,6 +50,7 @@ message SiteDomain {
   bool is_primary = 4;
   string tls_status = 5;
   int64 verified_ts_ms = 6;
+  string verify_token = 7;
 
   int64 created_ts_ms = 20;
   int64 updated_ts_ms = 21;
@@ -98,6 +99,17 @@ message SiteProduct {
   string category = 15;
   string product_json = 16;
   bool is_archived = 17;
+
+  int64 created_ts_ms = 20;
+  int64 updated_ts_ms = 21;
+  int64 deleted_ts_ms = 22;
+}
+
+message SiteProductEmbed {
+  int64 site_iid = 1;
+  int64 embed_id = 2;
+  int64 product_id = 3;
+  string label = 4;
 
   int64 created_ts_ms = 20;
   int64 updated_ts_ms = 21;
@@ -179,6 +191,15 @@ message ResSiteDraftPut {
   int64 site_iid = 1;
 }
 
+message ReqSiteConfigPut {
+  int64 site_iid = 1;
+  string capabilities_json = 2;
+}
+
+message ResSiteConfigPut {
+  SiteConfig config = 1;
+}
+
 message ReqSitePublish {
   int64 site_iid = 1;
 }
@@ -236,5 +257,22 @@ message ReqSiteObjectPut {
 }
 
 message ResSiteObjectPut {
+  int64 id = 1;
+}
+
+message ReqSiteDomainList {
+  int64 site_iid = 1;
+}
+
+message ResSiteDomainList {
+  repeated SiteDomain domains = 1;
+}
+
+message ReqSiteDomainPut {
+  int64 site_iid = 1;
+  SiteDomain domain = 2;
+}
+
+message ResSiteDomainPut {
   int64 id = 1;
 }

@@ -41,6 +41,7 @@ const SkillSource$json = {
     {'1': 'SKILL_SOURCE_TAUGHT', '2': 1},
     {'1': 'SKILL_SOURCE_CATALOG', '2': 2},
     {'1': 'SKILL_SOURCE_IMPORT', '2': 3},
+    {'1': 'SKILL_SOURCE_AI_EXPLORE', '2': 4},
   ],
 };
 
@@ -48,7 +49,7 @@ const SkillSource$json = {
 final $typed_data.Uint8List skillSourceDescriptor = $convert.base64Decode(
     'CgtTa2lsbFNvdXJjZRIcChhTS0lMTF9TT1VSQ0VfVU5TUEVDSUZJRUQQABIXChNTS0lMTF9TT1'
     'VSQ0VfVEFVR0hUEAESGAoUU0tJTExfU09VUkNFX0NBVEFMT0cQAhIXChNTS0lMTF9TT1VSQ0Vf'
-    'SU1QT1JUEAM=');
+    'SU1QT1JUEAMSGwoXU0tJTExfU09VUkNFX0FJX0VYUExPUkUQBA==');
 
 @$core.Deprecated('Use skillDescriptor instead')
 const Skill$json = {
@@ -107,6 +108,24 @@ const Skill$json = {
       '6': '.c35.SkillStep',
       '10': 'steps'
     },
+    {'1': 'patch_epoch', '3': 21, '4': 1, '5': 5, '10': 'patchEpoch'},
+    {'1': 'patch_count', '3': 22, '4': 1, '5': 5, '10': 'patchCount'},
+    {'1': 'consecutive_ok', '3': 23, '4': 1, '5': 5, '10': 'consecutiveOk'},
+    {
+      '1': 'detected_app_version',
+      '3': 24,
+      '4': 1,
+      '5': 9,
+      '10': 'detectedAppVersion'
+    },
+    {'1': 'auto_submit', '3': 25, '4': 1, '5': 8, '10': 'autoSubmit'},
+    {
+      '1': 'last_patched_ts_ms',
+      '3': 26,
+      '4': 1,
+      '5': 3,
+      '10': 'lastPatchedTsMs'
+    },
     {'1': 'created_ts_ms', '3': 30, '4': 1, '5': 3, '10': 'createdTsMs'},
     {'1': 'updated_ts_ms', '3': 31, '4': 1, '5': 3, '10': 'updatedTsMs'},
     {'1': 'deleted_ts_ms', '3': 32, '4': 1, '5': 3, '10': 'deletedTsMs'},
@@ -126,9 +145,13 @@ final $typed_data.Uint8List skillDescriptor = $convert.base64Decode(
     'KAlSCHRhZ3NKc29uEiEKDHBocmFzZXNfanNvbhgPIAEoCVILcGhyYXNlc0pzb24SGQoIYXV0b1'
     '9ydW4YECABKAhSB2F1dG9SdW4SGAoHc3VyZmFjZRgRIAEoCVIHc3VyZmFjZRIdCgp0YXJnZXRf'
     'YXBwGBIgASgJUgl0YXJnZXRBcHASHwoLdXJsX3BhdHRlcm4YEyABKAlSCnVybFBhdHRlcm4SJA'
-    'oFc3RlcHMYFCADKAsyDi5jMzUuU2tpbGxTdGVwUgVzdGVwcxIiCg1jcmVhdGVkX3RzX21zGB4g'
-    'ASgDUgtjcmVhdGVkVHNNcxIiCg11cGRhdGVkX3RzX21zGB8gASgDUgt1cGRhdGVkVHNNcxIiCg'
-    '1kZWxldGVkX3RzX21zGCAgASgDUgtkZWxldGVkVHNNcw==');
+    'oFc3RlcHMYFCADKAsyDi5jMzUuU2tpbGxTdGVwUgVzdGVwcxIfCgtwYXRjaF9lcG9jaBgVIAEo'
+    'BVIKcGF0Y2hFcG9jaBIfCgtwYXRjaF9jb3VudBgWIAEoBVIKcGF0Y2hDb3VudBIlCg5jb25zZW'
+    'N1dGl2ZV9vaxgXIAEoBVINY29uc2VjdXRpdmVPaxIwChRkZXRlY3RlZF9hcHBfdmVyc2lvbhgY'
+    'IAEoCVISZGV0ZWN0ZWRBcHBWZXJzaW9uEh8KC2F1dG9fc3VibWl0GBkgASgIUgphdXRvU3VibW'
+    'l0EisKEmxhc3RfcGF0Y2hlZF90c19tcxgaIAEoA1IPbGFzdFBhdGNoZWRUc01zEiIKDWNyZWF0'
+    'ZWRfdHNfbXMYHiABKANSC2NyZWF0ZWRUc01zEiIKDXVwZGF0ZWRfdHNfbXMYHyABKANSC3VwZG'
+    'F0ZWRUc01zEiIKDWRlbGV0ZWRfdHNfbXMYICABKANSC2RlbGV0ZWRUc01z');
 
 @$core.Deprecated('Use skillStepDescriptor instead')
 const SkillStep$json = {
@@ -184,6 +207,9 @@ const SkillCatalog$json = {
     {'1': 'rating', '3': 10, '4': 1, '5': 1, '10': 'rating'},
     {'1': 'is_verified', '3': 11, '4': 1, '5': 8, '10': 'isVerified'},
     {'1': 'status', '3': 12, '4': 1, '5': 9, '10': 'status'},
+    {'1': 'price_usd', '3': 13, '4': 1, '5': 1, '10': 'priceUsd'},
+    {'1': 'price_idr', '3': 14, '4': 1, '5': 1, '10': 'priceIdr'},
+    {'1': 'billing_period', '3': 15, '4': 1, '5': 9, '10': 'billingPeriod'},
   ],
 };
 
@@ -195,7 +221,8 @@ final $typed_data.Uint8List skillCatalogDescriptor = $convert.base64Decode(
     'JvZHlfbWQYByABKAlSBmJvZHlNZBIbCgl0YWdzX2pzb24YCCABKAlSCHRhZ3NKc29uEiMKDWlu'
     'c3RhbGxfY291bnQYCSABKAVSDGluc3RhbGxDb3VudBIWCgZyYXRpbmcYCiABKAFSBnJhdGluZx'
     'IfCgtpc192ZXJpZmllZBgLIAEoCFIKaXNWZXJpZmllZBIWCgZzdGF0dXMYDCABKAlSBnN0YXR1'
-    'cw==');
+    'cxIbCglwcmljZV91c2QYDSABKAFSCHByaWNlVXNkEhsKCXByaWNlX2lkchgOIAEoAVIIcHJpY2'
+    'VJZHISJQoOYmlsbGluZ19wZXJpb2QYDyABKAlSDWJpbGxpbmdQZXJpb2Q=');
 
 @$core.Deprecated('Use reqSkillListDescriptor instead')
 const ReqSkillList$json = {
@@ -354,3 +381,121 @@ final $typed_data.Uint8List resSkillCatalogInstallDescriptor =
     $convert.base64Decode(
         'ChZSZXNTa2lsbENhdGFsb2dJbnN0YWxsEiAKBXNraWxsGAEgASgLMgouYzM1LlNraWxsUgVza2'
         'lsbA==');
+
+@$core.Deprecated('Use reqSkillCatalogSearchDescriptor instead')
+const ReqSkillCatalogSearch$json = {
+  '1': 'ReqSkillCatalogSearch',
+  '2': [
+    {'1': 'q', '3': 1, '4': 1, '5': 9, '10': 'q'},
+    {'1': 'tags_json', '3': 2, '4': 1, '5': 9, '10': 'tagsJson'},
+    {'1': 'limit', '3': 3, '4': 1, '5': 5, '10': 'limit'},
+    {'1': 'offset', '3': 4, '4': 1, '5': 5, '10': 'offset'},
+  ],
+};
+
+/// Descriptor for `ReqSkillCatalogSearch`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqSkillCatalogSearchDescriptor = $convert.base64Decode(
+    'ChVSZXFTa2lsbENhdGFsb2dTZWFyY2gSDAoBcRgBIAEoCVIBcRIbCgl0YWdzX2pzb24YAiABKA'
+    'lSCHRhZ3NKc29uEhQKBWxpbWl0GAMgASgFUgVsaW1pdBIWCgZvZmZzZXQYBCABKAVSBm9mZnNl'
+    'dA==');
+
+@$core.Deprecated('Use resSkillCatalogSearchDescriptor instead')
+const ResSkillCatalogSearch$json = {
+  '1': 'ResSkillCatalogSearch',
+  '2': [
+    {
+      '1': 'catalogs',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.SkillCatalog',
+      '10': 'catalogs'
+    },
+    {'1': 'total', '3': 2, '4': 1, '5': 5, '10': 'total'},
+  ],
+};
+
+/// Descriptor for `ResSkillCatalogSearch`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resSkillCatalogSearchDescriptor = $convert.base64Decode(
+    'ChVSZXNTa2lsbENhdGFsb2dTZWFyY2gSLQoIY2F0YWxvZ3MYASADKAsyES5jMzUuU2tpbGxDYX'
+    'RhbG9nUghjYXRhbG9ncxIUCgV0b3RhbBgCIAEoBVIFdG90YWw=');
+
+@$core.Deprecated('Use reqSkillCatalogSubmitDescriptor instead')
+const ReqSkillCatalogSubmit$json = {
+  '1': 'ReqSkillCatalogSubmit',
+  '2': [
+    {'1': 'skill_id', '3': 1, '4': 1, '5': 3, '10': 'skillId'},
+    {'1': 'submit_action', '3': 2, '4': 1, '5': 9, '10': 'submitAction'},
+    {
+      '1': 'existing_catalog_id',
+      '3': 3,
+      '4': 1,
+      '5': 3,
+      '10': 'existingCatalogId'
+    },
+  ],
+};
+
+/// Descriptor for `ReqSkillCatalogSubmit`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqSkillCatalogSubmitDescriptor = $convert.base64Decode(
+    'ChVSZXFTa2lsbENhdGFsb2dTdWJtaXQSGQoIc2tpbGxfaWQYASABKANSB3NraWxsSWQSIwoNc3'
+    'VibWl0X2FjdGlvbhgCIAEoCVIMc3VibWl0QWN0aW9uEi4KE2V4aXN0aW5nX2NhdGFsb2dfaWQY'
+    'AyABKANSEWV4aXN0aW5nQ2F0YWxvZ0lk');
+
+@$core.Deprecated('Use resSkillCatalogSubmitDescriptor instead')
+const ResSkillCatalogSubmit$json = {
+  '1': 'ResSkillCatalogSubmit',
+  '2': [
+    {'1': 'catalog_id', '3': 1, '4': 1, '5': 3, '10': 'catalogId'},
+    {'1': 'status', '3': 2, '4': 1, '5': 9, '10': 'status'},
+    {'1': 'message', '3': 3, '4': 1, '5': 9, '10': 'message'},
+  ],
+};
+
+/// Descriptor for `ResSkillCatalogSubmit`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resSkillCatalogSubmitDescriptor = $convert.base64Decode(
+    'ChVSZXNTa2lsbENhdGFsb2dTdWJtaXQSHQoKY2F0YWxvZ19pZBgBIAEoA1IJY2F0YWxvZ0lkEh'
+    'YKBnN0YXR1cxgCIAEoCVIGc3RhdHVzEhgKB21lc3NhZ2UYAyABKAlSB21lc3NhZ2U=');
+
+@$core.Deprecated('Use reqSkillRunReportDescriptor instead')
+const ReqSkillRunReport$json = {
+  '1': 'ReqSkillRunReport',
+  '2': [
+    {'1': 'run_id', '3': 1, '4': 1, '5': 3, '10': 'runId'},
+    {'1': 'skill_id', '3': 2, '4': 1, '5': 3, '10': 'skillId'},
+    {'1': 'success', '3': 3, '4': 1, '5': 8, '10': 'success'},
+    {'1': 'step_index', '3': 4, '4': 1, '5': 5, '10': 'stepIndex'},
+    {'1': 'error', '3': 5, '4': 1, '5': 9, '10': 'error'},
+    {'1': 'patch_md', '3': 6, '4': 1, '5': 9, '10': 'patchMd'},
+    {
+      '1': 'detected_app_version',
+      '3': 7,
+      '4': 1,
+      '5': 9,
+      '10': 'detectedAppVersion'
+    },
+    {'1': 'meta_json', '3': 8, '4': 1, '5': 9, '10': 'metaJson'},
+  ],
+};
+
+/// Descriptor for `ReqSkillRunReport`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqSkillRunReportDescriptor = $convert.base64Decode(
+    'ChFSZXFTa2lsbFJ1blJlcG9ydBIVCgZydW5faWQYASABKANSBXJ1bklkEhkKCHNraWxsX2lkGA'
+    'IgASgDUgdza2lsbElkEhgKB3N1Y2Nlc3MYAyABKAhSB3N1Y2Nlc3MSHQoKc3RlcF9pbmRleBgE'
+    'IAEoBVIJc3RlcEluZGV4EhQKBWVycm9yGAUgASgJUgVlcnJvchIZCghwYXRjaF9tZBgGIAEoCV'
+    'IHcGF0Y2hNZBIwChRkZXRlY3RlZF9hcHBfdmVyc2lvbhgHIAEoCVISZGV0ZWN0ZWRBcHBWZXJz'
+    'aW9uEhsKCW1ldGFfanNvbhgIIAEoCVIIbWV0YUpzb24=');
+
+@$core.Deprecated('Use resSkillRunReportDescriptor instead')
+const ResSkillRunReport$json = {
+  '1': 'ResSkillRunReport',
+  '2': [
+    {'1': 'accepted', '3': 1, '4': 1, '5': 8, '10': 'accepted'},
+    {'1': 'message', '3': 2, '4': 1, '5': 9, '10': 'message'},
+  ],
+};
+
+/// Descriptor for `ResSkillRunReport`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resSkillRunReportDescriptor = $convert.base64Decode(
+    'ChFSZXNTa2lsbFJ1blJlcG9ydBIaCghhY2NlcHRlZBgBIAEoCFIIYWNjZXB0ZWQSGAoHbWVzc2'
+    'FnZRgCIAEoCVIHbWVzc2FnZQ==');

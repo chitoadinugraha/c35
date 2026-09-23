@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: c35-node-stats
+  namespace: c35
+  labels:
+    app: c35-node-stats
+    app.kubernetes.io/part-of: c35

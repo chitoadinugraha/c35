@@ -1,4 +1,9 @@
 {
+  "home": {
+    "heroTitle": "Ada yang bisa dibantu?",
+    "heroSubtitle": "Mulai obrolan baru atau pilih dari riwayat.",
+    "heroLoading": "Memuat katalog…"
+  },
   "common": {
     "cancel": "Batal",
     "save": "Simpan",

@@ -24,7 +24,8 @@ pub async fn inbox_list(pool: &PgPool, member_iid: i64, req: ReqInboxList) -> Re
         SELECT c.id, c.kind, c.owner_iid, c.title, c.model, c.last_msg_ts, c.last_msg_preview,
                c.created_ts, c.updated_ts, c.deleted_ts,
                m.last_read_msg_id, m.unread_count, m.last_msg_ts AS member_last_msg_ts, m.last_msg_preview AS member_preview,
-               m.pinned_ts, m.archived_ts, m.created_ts AS member_created_ts, m.updated_ts AS member_updated_ts, m.deleted_ts AS member_deleted_ts
+               m.pinned_ts, m.archived_ts, m.created_ts AS member_created_ts, m.updated_ts AS member_updated_ts, m.deleted_ts AS member_deleted_ts,
+               COALESCE(m.last_msg_status, 'done') AS last_msg_status
         FROM ai.chat_member m
         JOIN ai.chat c ON c.id = m.chat_id
         WHERE m.member_iid = $1
@@ -72,6 +73,7 @@ pub async fn inbox_list(pool: &PgPool, member_iid: i64, req: ReqInboxList) -> Re
             created_ts_ms: ts_ms(r.get("member_created_ts")),
             updated_ts_ms: ts_ms(r.get("member_updated_ts")),
             deleted_ts_ms: ts_ms(r.get("member_deleted_ts")),
+            last_msg_status: r.get::<String, _>("last_msg_status"),
         });
     }
     Ok(ResInboxList { chats, members })
@@ -94,7 +96,7 @@ pub async fn chat_msg_list(pool: &PgPool, member_iid: i64, req: ReqChatMsgList) 
     .fetch_optional(pool)
     .await?;
     if allowed.is_none() {
-        return Err(anyhow!("chat not found"));
+        return crate::bot_peer::bot_peer_msg_list(pool, member_iid, req).await;
     }
     let limit = if req.limit <= 0 { 100 } else { req.limit.min(500) };
     let before = req.before_id;
@@ -102,7 +104,7 @@ pub async fn chat_msg_list(pool: &PgPool, member_iid: i64, req: ReqChatMsgList) 
         sqlx::query(
             r#"
             SELECT id, chat_id, owner_iid, req_id, sender_iid, role, source, content, thought, attachments, blocks_json,
-                   tokens_in, tokens_out, duration_ms, status, cost_usd, error_text, created_ts, updated_ts, deleted_ts
+                   tokens_in, tokens_out, duration_ms, status, cost_usd::float8 AS cost_usd, error_text, created_ts, updated_ts, deleted_ts
             FROM ai.chat_msg
             WHERE chat_id = $1 AND deleted_ts IS NULL AND id < $2
             ORDER BY id DESC
@@ -118,7 +120,7 @@ pub async fn chat_msg_list(pool: &PgPool, member_iid: i64, req: ReqChatMsgList) 
         sqlx::query(
             r#"
             SELECT id, chat_id, owner_iid, req_id, sender_iid, role, source, content, thought, attachments, blocks_json,
-                   tokens_in, tokens_out, duration_ms, status, cost_usd, error_text, created_ts, updated_ts, deleted_ts
+                   tokens_in, tokens_out, duration_ms, status, cost_usd::float8 AS cost_usd, error_text, created_ts, updated_ts, deleted_ts
             FROM ai.chat_msg
             WHERE chat_id = $1 AND deleted_ts IS NULL
             ORDER BY id DESC

@@ -4,22 +4,23 @@ import 'package:alienai_c35/widgets/ui/ui_input_decoration.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:flutter/material.dart';
 
-Future<AgentModel?> agentModelPick(BuildContext context, AgentModel current, List<AgentModel> models) {
-  final rows = models.isEmpty ? AgentModel.fallback : models;
+Future<AgentModel?> agentModelPick(BuildContext context, AgentModel current, List<AgentModel> models, {bool modelsLoading = false}) {
+  final rows = models.isEmpty ? const [AgentModel.alien] : models;
   return showModalBottomSheet<AgentModel>(
     context: context,
     isScrollControlled: true,
     backgroundColor: const Color(0xFF18181B),
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-    builder: (ctx) => UiAssistantModelSheet(current: current, models: rows),
+    builder: (ctx) => UiAssistantModelSheet(current: current, models: rows, modelsLoading: modelsLoading),
   );
 }
 
 class UiAssistantModelSheet extends StatefulWidget {
-  const UiAssistantModelSheet({super.key, required this.current, required this.models});
+  const UiAssistantModelSheet({super.key, required this.current, required this.models, this.modelsLoading = false});
 
   final AgentModel current;
   final List<AgentModel> models;
+  final bool modelsLoading;
 
   @override
   State<UiAssistantModelSheet> createState() => _UiAssistantModelSheetState();
@@ -28,6 +29,7 @@ class UiAssistantModelSheet extends StatefulWidget {
 class _UiAssistantModelSheetState extends State<UiAssistantModelSheet> {
   late final _searchCtrl = TextEditingController()..addListener(_onSearch);
   var _query = '';
+  var _provider = '';
 
   void _onSearch() => setState(() => _query = _searchCtrl.text);
   void _pick(AgentModel m, [AgentThinking? thinking]) => Navigator.of(context).pop(thinking == null ? m : m.copyWith(thinking: thinking));
@@ -40,7 +42,8 @@ class _UiAssistantModelSheetState extends State<UiAssistantModelSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final items = agentModelFilter(widget.models, _query);
+    final providers = agentModelProviders(widget.models);
+    final items = agentModelFilter(widget.models, _query, provider: _provider);
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: SafeArea(
@@ -54,38 +57,110 @@ class _UiAssistantModelSheetState extends State<UiAssistantModelSheet> {
               children: [
                 Center(child: Container(width: 36, height: 4, decoration: BoxDecoration(color: const Color(0xFF3F3F46), borderRadius: BorderRadius.circular(2)))),
                 const SizedBox(height: 12),
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: TextField(
-                    controller: _searchCtrl,
-                    autofocus: true,
-                    style: const TextStyle(color: Color(0xFFF4F4F5), fontSize: 14),
-                    decoration: UiInputDecoration.of(context, hintText: 'Search models…', prefixIcon: const Icon(Icons.search_rounded, size: 20)).copyWith(counter: null),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                if (items.isEmpty)
+                if (widget.modelsLoading)
                   const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
-                    child: Text('No models found', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF52525B))),
+                    padding: EdgeInsets.symmetric(vertical: 48),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFA1A1AA)),
+                        SizedBox(height: 16),
+                        Text('Loading models…', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF71717A), fontSize: 14)),
+                      ],
+                    ),
                   )
-                else
-                  Flexible(
-                    child: ScrollConfiguration(
-                      behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
-                      child: Scrollbar(
-                        child: ListView.builder(
-                          shrinkWrap: true,
-                          padding: const EdgeInsets.only(right: 8),
-                          itemCount: items.length,
-                          itemBuilder: (_, i) => _tile(items[i]),
+                else ...[
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _searchCtrl,
+                            autofocus: true,
+                            style: const TextStyle(color: Color(0xFFF4F4F5), fontSize: 14),
+                            decoration: UiInputDecoration.of(context, hintText: 'Search models…', prefixIcon: const Icon(Icons.search_rounded, size: 20)).copyWith(counter: null),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _providerFilter(providers),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  if (items.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: Text('No models found', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF52525B))),
+                    )
+                  else
+                    Flexible(
+                      child: ScrollConfiguration(
+                        behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+                        child: Scrollbar(
+                          child: ListView.builder(
+                            shrinkWrap: true,
+                            padding: const EdgeInsets.only(right: 8),
+                            itemCount: items.length,
+                            itemBuilder: (_, i) => _tile(items[i]),
+                          ),
                         ),
                       ),
                     ),
-                  ),
+                ],
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _providerFilter(List<String> providers) {
+    final active = _provider.isNotEmpty;
+    return PopupMenuButton<String>(
+      tooltip: uiPopupMenuTooltipText('Filter provider'),
+      initialValue: _provider,
+      color: const Color(0xFF18181B),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: const BorderSide(color: Color(0xFF3F3F46))),
+      onSelected: (v) => setState(() => _provider = v),
+      itemBuilder: (_) => [
+        for (final p in providers)
+          PopupMenuItem<String>(
+            value: p,
+            height: 44,
+            child: Row(
+              children: [
+                if (p.isEmpty)
+                  const Icon(Icons.apps_rounded, size: 18, color: Color(0xFFA1A1AA))
+                else
+                  UiAssistantProviderIcon(provider: p, size: 18),
+                const SizedBox(width: 10),
+                Expanded(child: Text(agentModelProviderLabel(p), style: TextStyle(color: _provider == p ? const Color(0xFFF4F4F5) : const Color(0xFFA1A1AA), fontWeight: _provider == p ? FontWeight.w600 : FontWeight.w500))),
+                if (_provider == p) const Icon(Icons.check_rounded, size: 16, color: Color(0xFF38BDF8)),
+              ],
+            ),
+          ),
+      ],
+      child: Container(
+        height: 48,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF27272A),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: active ? const Color(0xFF38BDF8) : const Color(0xFF3F3F46)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.filter_list_rounded, size: 18, color: active ? const Color(0xFF38BDF8) : const Color(0xFFA1A1AA)),
+            if (active) ...[
+              const SizedBox(width: 6),
+              Text(agentModelProviderLabel(_provider), style: const TextStyle(color: Color(0xFFF4F4F5), fontSize: 12, fontWeight: FontWeight.w600)),
+            ],
+            const SizedBox(width: 2),
+            Icon(Icons.expand_more_rounded, size: 18, color: active ? const Color(0xFF38BDF8) : const Color(0xFFA1A1AA)),
+          ],
         ),
       ),
     );

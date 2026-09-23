@@ -6,7 +6,7 @@ fn tool_def_topics(t: &ToolDef) -> Vec<String> {
     if !t.topics.is_empty() {
         return t.topics.clone();
     }
-    if t.name.starts_with("web.") || t.name == "img.generate" {
+    if t.name.starts_with("web.") {
         return vec!["*".into()];
     }
     vec![]
@@ -14,6 +14,10 @@ fn tool_def_topics(t: &ToolDef) -> Vec<String> {
 
 fn tool_def_always(t: &ToolDef, active_topic: &str) -> bool {
     t.always.iter().any(|x| x == "*" || x == active_topic)
+}
+
+pub fn tool_turn_eligible(t: &ToolDef, active_topic: &str) -> bool {
+    tool_topic_eligible(&tool_def_topics(t), active_topic) || tool_def_always(t, active_topic)
 }
 
 pub fn tools_for_turn(
@@ -25,7 +29,7 @@ pub fn tools_for_turn(
 ) -> Vec<ToolDef> {
     let eligible: Vec<ToolDef> = defs
         .iter()
-        .filter(|t| tool_topic_eligible(&tool_def_topics(t), active_topic))
+        .filter(|t| tool_turn_eligible(t, active_topic))
         .filter(|t| !exclude.iter().any(|x| x == &t.name))
         .cloned()
         .collect();

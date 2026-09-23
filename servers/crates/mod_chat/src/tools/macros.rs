@@ -40,6 +40,9 @@ macro_rules! tool {
                     $(
                         prop["default"] = serde_json::json!($def);
                     )?
+                    if stringify!($param_type) == "array" {
+                        prop["items"] = serde_json::json!({ "type": "object" });
+                    }
                     properties.insert(stringify!($param_name).to_string(), prop);
 
                     $crate::tool_param_req!(required, stringify!($param_name) $(, $req)?);

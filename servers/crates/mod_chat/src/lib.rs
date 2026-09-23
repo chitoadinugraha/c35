@@ -7,7 +7,9 @@ mod inbox;
 mod log_list;
 pub mod compose;
 mod inst;
+pub mod prompt_run;
 mod inst_admin;
+mod translation_admin;
 mod inst_cache;
 mod site_resolve;
 mod site_validate;
@@ -41,6 +43,7 @@ pub use inst_admin::{
     inst_delete, inst_get, inst_list, inst_publish_invalidation, inst_put, InstAdminError,
     NATS_SUBJECT_PREFIX,
 };
+pub use translation_admin::{translation_put, TranslationAdminError};
 pub use inst_cache::{
     inst_cache_init, inst_cache_nats_subscribe, inst_cache_reload_all, inst_cache_reload_one,
     inst_list_cached, NATS_SUBJECT_WILDCARD,
@@ -49,7 +52,14 @@ pub use inst_macro::{InstMatchCtx, InstRow};
 pub use memory::{memory_prompt_merge, memory_put, memory_retrieve, MemoryRetrieveResult};
 pub use prompt::audio;
 pub use prompt::gemini::gemini_api_key;
-pub use prompt_turn::{chat_ensure, chat_title_from_text, prompt_turn, PromptTurn};
+pub use prompt_run::{
+    checkpoint_fatal_fail_class, prompt_run_cancel_children, prompt_run_cancel_request,
+    prompt_run_checkpoint_save, prompt_run_enqueue, prompt_run_get, prompt_run_insert,
+    prompt_run_is_cancelled, prompt_run_is_terminal, prompt_run_kind_default, prompt_run_lease_touch,
+    prompt_run_row_new, prompt_run_should_stop, prompt_run_status_set, prompt_run_summary,
+    prompt_run_wait_terminal, prompt_run_worker_start, PromptRunRow, PromptRunWorker,
+};
+pub use prompt_turn::{chat_ensure, chat_title_from_text, prompt_turn, PromptHopCheckpoint, PromptTurn, PromptTurnHooks};
 pub use site_resolve::{site_at_tokens, site_context_block, site_context_resolve, SiteContext};
 pub use site_validate::{
     block_props_allowed, validate_block, validate_object_keys, validate_sitedoc, BLOCK_TYPES, META_KEYS,

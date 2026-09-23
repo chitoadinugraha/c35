@@ -13,15 +13,31 @@ import 'package:alienai_c35/c/stt/stt_mic_permission.dart';
 import 'package:alienai_c35/c/stt/stt_service.dart';
 import 'package:alienai_c35/widgets/ai/composer_action.dart';
 import 'package:alienai_c35/widgets/ai/ui_assistant_model_chip.dart';
+import 'package:alienai_c35/widgets/ai/ui_audio_waveform.dart';
 import 'package:alienai_c35/widgets/ai/ui_staged_shot.dart';
 import 'package:alienai_c35/widgets/media/in_media.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pasteboard/pasteboard.dart';
 
 const zinc100 = Color(0xFFF4F4F5);
 const zinc500 = Color(0xFF71717A);
+
+class SlashCommand {
+  const SlashCommand({
+    required this.id,
+    required this.label,
+    required this.description,
+    required this.icon,
+  });
+
+  final String id;
+  final String label;
+  final String description;
+  final IconData icon;
+}
 
 class InComposer extends StatefulWidget {
   const InComposer({
@@ -41,9 +57,14 @@ class InComposer extends StatefulWidget {
     this.onMentionToggle,
     this.onMentionSearch,
     this.onToolModeToggle,
+    this.promptHistory = const [],
+    this.onNewChat,
+    this.controller,
+    this.focusNode,
+    this.contextMeter,
   });
 
-  final void Function(String text, List<MsgAttachment> attachments) onSend;
+  final void Function(String text, List<MsgAttachment> attachments, {String? toolMode}) onSend;
   final AgentModel model;
   final ValueChanged<AgentModel> onModel;
   final List<AgentModel> models;
@@ -58,21 +79,55 @@ class InComposer extends StatefulWidget {
   final void Function(String id)? onMentionToggle;
   final Future<List<CatalogMention>> Function(String q)? onMentionSearch;
   final VoidCallback? onToolModeToggle;
+  final List<String> promptHistory;
+  final VoidCallback? onNewChat;
+  final TextEditingController? controller;
+  final FocusNode? focusNode;
+  final Widget? contextMeter;
 
   @override
   State<InComposer> createState() => _InComposerState();
 }
 
 class _InComposerState extends State<InComposer> {
-  final _controller = TextEditingController();
-  final _focus = FocusNode();
+  TextEditingController? _internalController;
+  TextEditingController get _controller => widget.controller ?? (_internalController ??= TextEditingController());
+
+  FocusNode? _internalFocus;
+  FocusNode get _focus => widget.focusNode ?? (_internalFocus ??= FocusNode());
   final _attachments = <StagedMedia>[];
   var _focused = false;
   var _recording = false;
   var _submitting = false;
+  var _isDragging = false;
+  var _historyIndex = -1;
+  var _draftText = '';
+  var _highlightedMentionIndex = 0;
+  var _highlightedSlashIndex = 0;
   Timer? _mentionSearchDebounce;
   List<CatalogMention> _mentionSearchResults = const [];
   var _mentionSearching = false;
+
+  static const _slashCommands = [
+    SlashCommand(
+      id: 'ask',
+      label: '/ask',
+      description: 'Ask directly without tool execution',
+      icon: Icons.chat_bubble_outline_rounded,
+    ),
+    SlashCommand(
+      id: 'model',
+      label: '/model',
+      description: 'Switch AI assistant model',
+      icon: Icons.tune_rounded,
+    ),
+    SlashCommand(
+      id: 'clear',
+      label: '/clear',
+      description: 'Start a new conversation',
+      icon: Icons.add_comment_outlined,
+    ),
+  ];
 
   bool get _hasText => _controller.text.trim().isNotEmpty || _attachments.isNotEmpty;
   bool get _canSubmit => widget.enabled && !widget.busy && !_submitting && !_recording && _hasText;
@@ -89,6 +144,50 @@ class _InComposerState extends State<InComposer> {
     return match?.group(1);
   }
 
+  String? get _activeSlashQuery {
+    final sel = _controller.selection;
+    if (!sel.isValid || sel.baseOffset < 1 || sel.baseOffset > _controller.text.length) return null;
+    final textBefore = _controller.text.substring(0, sel.baseOffset);
+    if (!textBefore.startsWith('/')) return null;
+    if (textBefore.contains(' ')) return null;
+    return textBefore.substring(1).toLowerCase();
+  }
+
+  List<SlashCommand> get _slashMatches {
+    final q = _activeSlashQuery;
+    if (q == null) return const [];
+    if (q.isEmpty) return _slashCommands;
+    return _slashCommands.where((c) => c.id.startsWith(q) || c.label.startsWith('/$q')).toList();
+  }
+
+  void _pickSlash(SlashCommand cmd) {
+    if (cmd.id == 'ask') {
+      _controller.text = '/ask ';
+      _controller.selection = const TextSelection.collapsed(offset: 5);
+    } else if (cmd.id == 'model') {
+      _controller.clear();
+      _modelTap()?.call();
+    } else if (cmd.id == 'clear') {
+      _controller.clear();
+      widget.onNewChat?.call();
+    }
+    _highlightedSlashIndex = 0;
+    setState(() {});
+    _focus.requestFocus();
+  }
+
+  List<CatalogMention> get _mentionMatches {
+    final query = _activeMentionQuery;
+    if (query == null || widget.onMentionToggle == null) return const [];
+    final q = query.toLowerCase();
+    return (q.isNotEmpty && widget.onMentionSearch != null)
+        ? _mentionSearchResults
+        : _composerMentions.where((m) {
+            final label = m.displayLabel;
+            return m.id.toLowerCase().contains(q) || label.toLowerCase().contains(q);
+          }).take(6).toList(growable: false);
+  }
+
   void _pickMention(CatalogMention m) {
     widget.onMentionToggle?.call(m.id);
     final sel = _controller.selection;
@@ -97,11 +196,15 @@ class _InComposerState extends State<InComposer> {
       final textAfter = _controller.text.substring(sel.baseOffset);
       final atIndex = textBefore.lastIndexOf('@');
       if (atIndex >= 0) {
-        final newText = textBefore.substring(0, atIndex) + textAfter;
+        final replacement = '@${m.displayLabel} ';
+        final newText = textBefore.substring(0, atIndex) + replacement + textAfter;
         _controller.text = newText;
-        _controller.selection = TextSelection.collapsed(offset: atIndex);
+        _controller.selection = TextSelection.collapsed(offset: atIndex + replacement.length);
       }
     }
+    _highlightedMentionIndex = 0;
+    _mentionSearchResults = const [];
+    _mentionSearching = false;
     setState(() {});
     _focus.requestFocus();
   }
@@ -117,8 +220,8 @@ class _InComposerState extends State<InComposer> {
   void dispose() {
     _mentionSearchDebounce?.cancel();
     if (_recording || SttService.instance.isRecording.value) unawaited(SttService.instance.cancel());
-    _controller.dispose();
-    _focus.dispose();
+    _internalController?.dispose();
+    _internalFocus?.dispose();
     super.dispose();
   }
 
@@ -161,6 +264,91 @@ class _InComposerState extends State<InComposer> {
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
+
+    final slashMatches = _slashMatches;
+    if (slashMatches.isNotEmpty) {
+      if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+        setState(() {
+          _highlightedSlashIndex = (_highlightedSlashIndex + 1) % slashMatches.length;
+        });
+        return KeyEventResult.handled;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+        setState(() {
+          _highlightedSlashIndex = (_highlightedSlashIndex - 1 + slashMatches.length) % slashMatches.length;
+        });
+        return KeyEventResult.handled;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.enter || event.logicalKey == LogicalKeyboardKey.tab) {
+        final target = slashMatches[_highlightedSlashIndex.clamp(0, slashMatches.length - 1)];
+        _pickSlash(target);
+        return KeyEventResult.handled;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.escape) {
+        _controller.clear();
+        setState(() {});
+        return KeyEventResult.handled;
+      }
+    }
+
+    final matches = _mentionMatches;
+    if (matches.isNotEmpty) {
+      if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+        setState(() {
+          _highlightedMentionIndex = (_highlightedMentionIndex + 1) % matches.length;
+        });
+        return KeyEventResult.handled;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+        setState(() {
+          _highlightedMentionIndex = (_highlightedMentionIndex - 1 + matches.length) % matches.length;
+        });
+        return KeyEventResult.handled;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.enter || event.logicalKey == LogicalKeyboardKey.tab) {
+        final target = matches[_highlightedMentionIndex.clamp(0, matches.length - 1)];
+        _pickMention(target);
+        return KeyEventResult.handled;
+      }
+      if (event.logicalKey == LogicalKeyboardKey.escape) {
+        _scheduleMentionSearch(null);
+        setState(() {
+          _mentionSearchResults = const [];
+          _mentionSearching = false;
+        });
+        return KeyEventResult.handled;
+      }
+    }
+
+    if (event.logicalKey == LogicalKeyboardKey.arrowUp && widget.promptHistory.isNotEmpty) {
+      final sel = _controller.selection;
+      if (!sel.isValid || sel.baseOffset == 0 || _controller.text.isEmpty) {
+        if (_historyIndex == -1) _draftText = _controller.text;
+        if (_historyIndex + 1 < widget.promptHistory.length) {
+          _historyIndex++;
+          final prompt = widget.promptHistory[_historyIndex];
+          _controller.text = prompt;
+          _controller.selection = TextSelection.collapsed(offset: prompt.length);
+          setState(() {});
+          return KeyEventResult.handled;
+        }
+      }
+    }
+
+    if (event.logicalKey == LogicalKeyboardKey.arrowDown && _historyIndex >= 0) {
+      _historyIndex--;
+      if (_historyIndex == -1) {
+        _controller.text = _draftText;
+        _controller.selection = TextSelection.collapsed(offset: _draftText.length);
+      } else {
+        final prompt = widget.promptHistory[_historyIndex];
+        _controller.text = prompt;
+        _controller.selection = TextSelection.collapsed(offset: prompt.length);
+      }
+      setState(() {});
+      return KeyEventResult.handled;
+    }
+
     if (event.logicalKey == LogicalKeyboardKey.enter && !HardwareKeyboard.instance.isShiftPressed && _canSubmit) {
       unawaited(_submit());
       return KeyEventResult.handled;
@@ -250,13 +438,6 @@ class _InComposerState extends State<InComposer> {
             children: [
               ListTile(leading: const Icon(Icons.image_outlined, color: zinc100), title: const Text('Image', style: TextStyle(color: zinc100)), onTap: () => Navigator.pop(ctx, 'image')),
               ListTile(leading: const Icon(Icons.attach_file_rounded, color: zinc100), title: const Text('File', style: TextStyle(color: zinc100)), onTap: () => Navigator.pop(ctx, 'file')),
-              if (widget.onToolModeToggle != null)
-                ListTile(
-                  leading: Icon(_askActive ? Icons.chat_bubble_outline : Icons.question_answer_outlined, color: zinc100),
-                  title: Text(_askActive ? 'Disable ${catalogT('composer.ask.label')}' : catalogT('composer.ask.label'), style: const TextStyle(color: zinc100)),
-                  subtitle: Text(catalogT('composer.ask.caption'), style: const TextStyle(color: zinc500, fontSize: 12)),
-                  onTap: () => Navigator.pop(ctx, 'ask'),
-                ),
               if (widget.onMentionToggle != null && _composerMentions.isNotEmpty) ...[
                 if (tools.isNotEmpty) ...[
                   const Divider(height: 1, color: Color(0xFF27272A)),
@@ -316,14 +497,38 @@ class _InComposerState extends State<InComposer> {
     );
     if (action == 'image') await _attachImage();
     if (action == 'file') await _attachFile();
-    if (action == 'ask') widget.onToolModeToggle?.call();
   }
 
   Future<void> _submit() async {
     if (!_canSubmit || _submitting) return;
     _submitting = true;
 
+    _historyIndex = -1;
+    _draftText = '';
+
     final text = _controller.text.trim();
+    if (text == '/clear') {
+      _controller.clear();
+      _attachments.clear();
+      setState(() => _submitting = false);
+      widget.onNewChat?.call();
+      return;
+    }
+    if (text == '/model') {
+      _controller.clear();
+      _attachments.clear();
+      setState(() => _submitting = false);
+      _modelTap()?.call();
+      return;
+    }
+
+    String? turnToolMode;
+    String submitText = text;
+    if (text.startsWith('/ask ') || text == '/ask') {
+      turnToolMode = 'ask';
+      submitText = text.length > 4 ? text.substring(4).trim() : '';
+    }
+
     final atts = <MsgAttachment>[];
     for (var item in _attachments) {
       if ((item.hash == null || item.hash!.isEmpty) && item.bytes.isNotEmpty) {
@@ -335,7 +540,7 @@ class _InComposerState extends State<InComposer> {
       }
     }
 
-    if (text.isEmpty && atts.isEmpty) {
+    if (submitText.isEmpty && atts.isEmpty) {
       _submitting = false;
       return;
     }
@@ -345,7 +550,7 @@ class _InComposerState extends State<InComposer> {
     setState(() {});
 
     try {
-      widget.onSend(text, atts);
+      widget.onSend(submitText, atts, toolMode: turnToolMode);
     } finally {
       if (mounted) {
         setState(() => _submitting = false);
@@ -389,6 +594,14 @@ class _InComposerState extends State<InComposer> {
     _focus.requestFocus();
   }
 
+  Future<void> _cancelMic() async {
+    if (!_recording) return;
+    await SttService.instance.cancel();
+    if (!mounted) return;
+    setState(() => _recording = false);
+    _focus.requestFocus();
+  }
+
   void _onAction() {
     final kind = composerActionKind(streaming: widget.busy, recording: _recording, hasText: _hasText);
     if (kind == ComposerActionKind.abort) {
@@ -406,16 +619,56 @@ class _InComposerState extends State<InComposer> {
     if (kind == ComposerActionKind.mic) unawaited(_startMic());
   }
 
+  Widget _slashSuggestionsBox() {
+    final matches = _slashMatches;
+    if (matches.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF27272A),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF3F3F46)),
+      ),
+      constraints: const BoxConstraints(maxHeight: 180),
+      child: ListView.separated(
+        shrinkWrap: true,
+        padding: EdgeInsets.zero,
+        itemCount: matches.length,
+        separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFF3F3F46)),
+        itemBuilder: (context, i) {
+          final cmd = matches[i];
+          final isHighlighted = i == _highlightedSlashIndex;
+          return InkWell(
+            onTap: () => _pickSlash(cmd),
+            child: Container(
+              color: isHighlighted ? const Color(0xFF3F3F46) : Colors.transparent,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                children: [
+                  Icon(cmd.icon, size: 16, color: const Color(0xFF38BDF8)),
+                  const SizedBox(width: 8),
+                  Text(cmd.label, style: const TextStyle(color: zinc100, fontSize: 13, fontWeight: FontWeight.w600)),
+                  const SizedBox(width: 8),
+                  Text(cmd.description, style: const TextStyle(color: zinc500, fontSize: 11)),
+                  const Spacer(),
+                  if (isHighlighted)
+                    const Padding(
+                      padding: EdgeInsets.only(right: 6),
+                      child: Text('↵', style: TextStyle(color: zinc500, fontSize: 12)),
+                    ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   Widget _mentionSuggestionsBox() {
-    final query = _activeMentionQuery;
-    if (query == null || widget.onMentionToggle == null) return const SizedBox.shrink();
-    final q = query.toLowerCase();
-    final matches = (q.isNotEmpty && widget.onMentionSearch != null)
-        ? _mentionSearchResults
-        : _composerMentions.where((m) {
-            final label = m.displayLabel;
-            return m.id.toLowerCase().contains(q) || label.toLowerCase().contains(q);
-          }).take(6).toList(growable: false);
+    final matches = _mentionMatches;
     if (matches.isEmpty && !_mentionSearching) return const SizedBox.shrink();
 
     return Container(
@@ -444,9 +697,11 @@ class _InComposerState extends State<InComposer> {
           final caption = m.displayCaption;
           final isDev = m.isDevice;
           final selected = widget.selectedMentionIds.contains(m.id);
+          final isHighlighted = i == _highlightedMentionIndex;
           return InkWell(
             onTap: () => _pickMention(m),
-            child: Padding(
+            child: Container(
+              color: isHighlighted ? const Color(0xFF3F3F46) : Colors.transparent,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Row(
                 children: [
@@ -462,6 +717,11 @@ class _InComposerState extends State<InComposer> {
                     Text(caption, style: const TextStyle(color: zinc500, fontSize: 11)),
                   ],
                   const Spacer(),
+                  if (isHighlighted)
+                    const Padding(
+                      padding: EdgeInsets.only(right: 6),
+                      child: Text('↵', style: TextStyle(color: zinc500, fontSize: 12)),
+                    ),
                   if (selected)
                     const Icon(Icons.check_rounded, size: 16, color: Color(0xFF22C55E)),
                 ],
@@ -474,7 +734,7 @@ class _InComposerState extends State<InComposer> {
   }
 
   Widget _selectedMentionRow() {
-    if ((!_hasSelectedMentions && !_askActive) || widget.onMentionToggle == null) return const SizedBox.shrink();
+    if (!_hasSelectedMentions || widget.onMentionToggle == null) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
       child: ValueListenableBuilder<int>(
@@ -483,12 +743,6 @@ class _InComposerState extends State<InComposer> {
           spacing: 6,
           runSpacing: 6,
           children: [
-            if (_askActive)
-              _AskChip(
-                label: catalogT('composer.ask.label'),
-                caption: catalogT('composer.ask.caption'),
-                onTap: widget.onToolModeToggle,
-              ),
             for (final m in _composerMentions.where((m) => widget.selectedMentionIds.contains(m.id)))
               _MentionChip(mention: m, selected: true, onTap: () => widget.onMentionToggle!(m.id)),
           ],
@@ -500,12 +754,13 @@ class _InComposerState extends State<InComposer> {
   static const _attachBtnWidth = 40.0;
   static const _actionBtnWidth = 38.0;
   static const _modelChipWidth = 150.0;
-  static const _inlineMinWidth = 300.0;
+  static const _modePillWidth = 64.0;
+  static const _inlineMinWidth = 360.0;
 
   bool _shouldUseStackedLayout(BuildContext context, double totalWidth) {
     if (totalWidth < _inlineMinWidth) return true;
     if (_controller.text.contains('\n')) return true;
-    final textWidth = totalWidth - _attachBtnWidth - _modelChipWidth - _actionBtnWidth - 24;
+    final textWidth = totalWidth - _attachBtnWidth - _modePillWidth - _modelChipWidth - _actionBtnWidth - 32;
     if (textWidth <= 48) return true;
     final painter = TextPainter(
       text: TextSpan(
@@ -532,6 +787,45 @@ class _InComposerState extends State<InComposer> {
         icon: const Icon(Icons.attach_file_rounded, size: 20, color: zinc500),
         style: IconButton.styleFrom(minimumSize: const Size(_attachBtnWidth, _attachBtnWidth), tapTargetSize: MaterialTapTargetSize.shrinkWrap, visualDensity: VisualDensity.compact),
       );
+
+  Widget _modePill() {
+    if (widget.onToolModeToggle == null) return const SizedBox.shrink();
+    final isAsk = _askActive;
+    return Tooltip(
+      message: isAsk ? 'Ask Mode: Direct reply without tools (fast)' : 'Agent Mode: Full AI agent with tools & devices',
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: widget.enabled && !widget.busy ? widget.onToolModeToggle : null,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          decoration: BoxDecoration(
+            color: isAsk ? const Color(0xFF1E293B) : const Color(0xFF14241B),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: isAsk ? const Color(0xFF38BDF8) : const Color(0xFF22C55E), width: 0.8),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isAsk ? Icons.chat_bubble_outline_rounded : Icons.bolt_rounded,
+                size: 13,
+                color: isAsk ? const Color(0xFF38BDF8) : const Color(0xFF4ADE80),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                isAsk ? 'Ask' : 'Agent',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: isAsk ? const Color(0xFF38BDF8) : const Color(0xFF4ADE80),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _modelChip() => UiAssistantModelChip(model: widget.model, onTap: _modelTap());
 
@@ -570,6 +864,17 @@ class _InComposerState extends State<InComposer> {
       );
 
   Widget _inputArea(double maxWidth) {
+    if (_recording) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        child: UiAudioWaveform(
+          recordingSeconds: SttService.instance.recordingSeconds,
+          amplitude: SttService.instance.audioAmplitude,
+          onCancel: _cancelMic,
+          onCommit: _stopMic,
+        ),
+      );
+    }
     final stacked = _shouldUseStackedLayout(context, maxWidth);
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -586,7 +891,13 @@ class _InComposerState extends State<InComposer> {
               ),
             ),
             if (!stacked) ...[
+              _modePill(),
+              const SizedBox(width: 4),
               _modelChip(),
+              if (widget.contextMeter != null) ...[
+                const SizedBox(width: 4),
+                widget.contextMeter!,
+              ],
               const SizedBox(width: 4),
               _actionButton(),
             ],
@@ -598,7 +909,13 @@ class _InComposerState extends State<InComposer> {
             child: Row(
               children: [
                 _attachButton(),
+                _modePill(),
+                const SizedBox(width: 4),
                 _modelChip(),
+                if (widget.contextMeter != null) ...[
+                  const SizedBox(width: 4),
+                  widget.contextMeter!,
+                ],
                 const Spacer(),
                 _actionButton(),
               ],
@@ -655,22 +972,65 @@ class _InComposerState extends State<InComposer> {
 
   @override
   Widget build(BuildContext context) {
-    final border = _focused ? const Color(0xFF3F3F46) : const Color(0xFF27272A);
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 120),
-      decoration: BoxDecoration(color: const Color(0xFF18181B), borderRadius: BorderRadius.circular(16), border: Border.all(color: border)),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _mentionSuggestionsBox(),
-          _selectedMentionRow(),
-          _attachmentRow(),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            child: LayoutBuilder(builder: (context, constraints) => _inputArea(constraints.maxWidth)),
-          ),
-        ],
+    final border = _isDragging
+        ? const Color(0xFF38BDF8)
+        : (_focused ? const Color(0xFF3F3F46) : const Color(0xFF27272A));
+    return DropTarget(
+      onDragEntered: (_) => setState(() => _isDragging = true),
+      onDragExited: (_) => setState(() => _isDragging = false),
+      onDragDone: (detail) async {
+        setState(() => _isDragging = false);
+        if (!widget.enabled || widget.busy) return;
+        final staged = <StagedMedia>[];
+        for (final xFile in detail.files.take(defaultMaxMediaFiles - _attachments.length)) {
+          try {
+            final bytes = await xFile.readAsBytes();
+            if (bytes.isEmpty) continue;
+            final name = xFile.name;
+            final mime = mimeForFilename(name);
+            staged.add(StagedMedia(name: name, bytes: bytes, mime: mime, type: mediaTypeForMime(mime), size: bytes.length, uploadProgress: 0.05));
+          } catch (_) {}
+        }
+        if (staged.isNotEmpty) _stageItems(staged);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        decoration: BoxDecoration(
+          color: _isDragging ? const Color(0xFF0F172A) : const Color(0xFF18181B),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: border, width: _isDragging ? 1.5 : 1.0),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (_isDragging)
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1E293B),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.file_download_outlined, size: 16, color: Color(0xFF38BDF8)),
+                    SizedBox(width: 6),
+                    Text('Drop files to attach', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 12, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+            _slashSuggestionsBox(),
+            _mentionSuggestionsBox(),
+            _selectedMentionRow(),
+            _attachmentRow(),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: LayoutBuilder(builder: (context, constraints) => _inputArea(constraints.maxWidth)),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -692,29 +1052,6 @@ class _ActionButton extends StatelessWidget {
           ComposerActionKind.send => GestureDetector(onTap: onAction, child: Container(width: _size, height: _size, alignment: Alignment.center, decoration: const BoxDecoration(color: Color(0xFFF4F4F5), shape: BoxShape.circle), child: const Icon(Icons.arrow_upward_rounded, color: Color(0xFF18181B), size: 17))),
           ComposerActionKind.mic => IconButton(icon: const Icon(Icons.mic_rounded), color: const Color(0xFF9CA3AF), iconSize: 20, padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: _size, minHeight: _size), onPressed: onAction),
         },
-      );
-}
-
-class _AskChip extends StatelessWidget {
-  const _AskChip({required this.label, required this.caption, this.onTap});
-
-  final String label;
-  final String caption;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) => FilterChip(
-        label: Text('@$label'),
-        tooltip: caption,
-        selected: true,
-        onSelected: (_) => onTap?.call(),
-        showCheckmark: false,
-        labelStyle: const TextStyle(color: Colors.black, fontSize: 12),
-        selectedColor: const Color(0xFF60A5FA),
-        backgroundColor: const Color(0xFF1A1A1D),
-        side: const BorderSide(color: Color(0xFF27272A)),
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        visualDensity: VisualDensity.compact,
       );
 }
 

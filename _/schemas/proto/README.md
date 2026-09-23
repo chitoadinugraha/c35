@@ -16,8 +16,10 @@ proto/c35/
   task.proto          — Task, task_run, NATS act/ev, TaskRunPush
   remote.proto        — WebRTC signaling, RemoteInputEvent
   consumption.proto   — Meals, nutrition, water
-  site.proto          — SiteDoc blocks, product, contact, object
-  tx.proto            — POS transactions (id.alienai model)
+  hint.proto          — HintItem, HintCatalog, ReqHintTouch (Home empty-state chips)
+  site.proto          — SiteDoc blocks, draft, publish, product, contact, object
+  collection.proto    — TableDef, ReqCollectionDefList (UITable metadata)
+  tx.proto            — POS transactions (id.alienai → site.tx_* tables)
   sync.proto          — ReqSync, ResSync, SyncPush
   wire.proto          — WsReq, WsRes, InvokeReq, InvokeRes
 ```
@@ -38,7 +40,8 @@ protoc -I _/schemas/proto --dart_out=clients/app/lib/c/pb _/schemas/proto/c35/*.
 | `int64 iid` | `BIGINT` snowflake |
 | `deleted_ts_ms = 0` | `deleted_ts IS NULL` |
 | `*_json` string fields | `JSONB` columns |
-| `SiteDoc` / `SiteBlock` | `site_draft.doc_json` |
+| `SiteDoc` / `SiteBlock` | `site.draft.doc_json` |
+| `TableDef.collection` | `site.product`, `site.contact`, … |
 
 ## Connect flow
 
@@ -52,4 +55,5 @@ WS /v1/ws?since=<ms>&jwt=...&locale=...&tz=...
 
 - [site.md](../../docs/site.md)
 - [tx.md](../../docs/tx.md)
+- [ui.md](../../docs/ui.md)
 - [roadmap.md](../../docs/roadmap.md)

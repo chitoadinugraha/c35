@@ -42,6 +42,7 @@ After WS auth, client sends **`ReqSessionInit`**. Server responds **`ResSessionI
 - billing balance, commission
 - quota (5h ring, weekly ring)
 - device/client registry snapshot
+- **home hints** (`HintCatalog` — see [hint.md](hint.md); client sends `hints_since_ms`)
 - any other page-zero data
 
 **Rule:** never fetch balance, quota, profile as separate HTTP calls on app open.
@@ -148,6 +149,30 @@ c35.ev.device.{device_iid}.presence      # EvDevicePresence
 
 Server pods use queue group `c35-task-dispatch`. Agents receive work on server session (WS / Alien Beacon). See [remote.md](remote.md).
 
+### Inst cache invalidation (server-internal)
+
+```
+c35.inst.{inst_id}
+```
+
+Published after `ai.inst` mutation (`inst_put`, `inst_delete`, SQL migration). Payload: `inst_id` (plain text) or empty (subject suffix is enough).
+
+Server pods subscribe to `c35.inst.>` and reload or evict that row from the in-memory inst cache. Clients do not subscribe.
+
+### Node stats (root console relay)
+
+```
+c35.stats.node.{node_name}
+c35.stats.volume.{namespace}.{pvc_name}
+```
+
+| Subject | Publisher | Payload |
+|---------|-----------|---------|
+| `c35.stats.node.{node_name}` | `c35-node-stats` DaemonSet | `StatsPush` (`node` body) |
+| `c35.stats.volume.{namespace}.{pvc_name}` | `c35-node-stats` DaemonSet | `StatsPush` (`volume` body) |
+
+Published every ~2s per node. Root Flutter clients subscribe via WS `ReqStatsSubscribe`; `server_ai` relays `c35.stats.>` as `WsRes.stats_push` with per-subject snapshot cache.
+
 ### Live log (admin/root)
 
 ```
@@ -160,7 +185,7 @@ log.{iid}.{dv}.{topic}
 | `dv` | Device/client id (DV) |
 | `topic` | `sign-in`, `sign-out`, `prompt`, `connected`, `disconnected`, `error`, … |
 
-Root/admin UI subscribes with wildcard filter; table-backed `ai.log` is canonical store.
+Root/admin UI subscribes with wildcard filter; table-backed `ai.log` is canonical store. WS `ReqLogSubscribe` (root only) relays `log.>` (or filtered by `owner_iid`) as `WsRes.log_push`. Historical search uses invoke `admin_log_list` (root only).
 
 ## Log table
 
@@ -188,6 +213,7 @@ Defined in [`../schemas/proto/c35/`](../schemas/proto/c35/). See [`../schemas/pr
 | `chat.proto` | `Chat`, `ChatMsg`, prompt, stop, send |
 | `billing.proto` | `BillingAccount`, top-up, push deltas |
 | `log.proto` | `Log`, `LogPush` |
+| `stats.proto` | `StatsPush`, admin WS subscribe |
 | `task.proto` | `Task`, `TaskRun`, `ActDeviceTaskRun`, `TaskRunPush` |
 | `remote.proto` | WebRTC signaling, `RemoteInputEvent` |
 

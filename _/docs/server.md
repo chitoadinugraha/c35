@@ -261,6 +261,40 @@ Target cluster: `btm.alienai.id` (k3s-btm, **arm64**).
 - Connect to cluster services via `.cluster.local` (Tailscale split DNS)
 - Secrets: plaintext in cluster OK (private registry)
 
+### `c35-server` HA
+
+| Item | Value |
+|------|-------|
+| Replicas | **2** |
+| Rolling update | `maxUnavailable: 0`, `maxSurge: 1` — always at least one pod ready |
+| Pod identity | `NODE_NAME`, `POD_NAME` env from downward API (`spec.nodeName`, `metadata.name`) |
+| CAS storage | `emptyDir` at `/data/cas` — ephemeral per pod (stateless for ops) |
+
+Manifest: [`_/deployments/c35-server/deployment.yaml`](../deployments/c35-server/deployment.yaml).
+
+### `c35-node-stats` DaemonSet
+
+One reporter pod per k8s node; samples host CPU/RAM/net, OS mounts (`/`, `/var/log`), and PVC usage (YB + NATS), publishes protobuf `StatsPush` on NATS every ~2s.
+
+| Item | Value |
+|------|-------|
+| Namespace | `c35` (or cluster default for ops) |
+| Subjects | `c35.stats.node.{node_name}`, `c35.stats.volume.{namespace}.{pvc_name}` |
+| Relay | `server_ai` WS `ReqStatsSubscribe` → root Flutter dashboard |
+| Manifests | [`_/deployments/c35-node-stats/`](../deployments/c35-node-stats/) |
+
+### Stateful inventory (cluster ops)
+
+| Monitor | Path / source | Stateful? | Action when high |
+|---------|---------------|-----------|------------------|
+| Node boot disk | `/` on host | — | cleanup logs, resize node disk |
+| Node logs | `/var/log` | — | rotate, truncate |
+| YB data | hostPath `/var/lib/alienai/yb-tserver` or PVC | **Yes** | expand disk, add tserver |
+| NATS JetStream | PVC `/data/jetstream` (`nats-data-nats-0`) | **Yes** | expand PVC, prune streams |
+| c35 CAS | `emptyDir` per pod | Ephemeral | move to PVC later if needed |
+
+**Stateless (no volume row):** `c35-server`, `channel-whatsapp-device`, `coturn`.
+
 ### Channel worker (`channel-whatsapp-device`)
 
 WhatsApp linked-device (QR pair) runs as a separate deployment in namespace `c35`.
@@ -298,8 +332,9 @@ If NATS auth or CA is wrong, startup shows `[wa-device] NATS unavailable: …` i
 | `c35.ev.channel.{owner_iid}.{bot_iid}.{channel_id}.pair` | worker → server | Pair status push (`EvChannelPairUpdate`: pairing, connected, error, …) |
 | `c35.ev.channel.{owner_iid}.{bot_iid}.{channel_id}.msg.in` | worker → server | Inbound WhatsApp message |
 | `c35.act.channel.{owner_iid}.{bot_iid}.{channel_id}.msg.send` | server → worker | Outbound send |
+| `c35.act.channel.{owner_iid}.{bot_iid}.{channel_id}.msg.typing` | server → worker | Outbound typing / voice recording state (`ActChannelMsgTyping`) |
 
-Server WS clients receive pair updates via NATS fanout → `ChannelPairPush` (see `mod_channel`).
+Server WS clients receive pair updates via NATS fanout → `ChannelPairPush` (see `mod_channel` and [channels.md](channels.md)).
 
 **NATS subjects (device task dispatch):**
 
@@ -311,6 +346,8 @@ Server WS clients receive pair updates via NATS fanout → `ChannelPairPush` (se
 | `c35.user.{owner_iid}.task_run` | server → client WS | `TaskRunPush` |
 
 JetStream stream `C35_DEVICE_TASK`, queue group `c35-task-dispatch`. No YB polling for runnable work — see [remote.md](remote.md).
+
+**NATS JetStream persistence** — store dir `/data/jetstream` on PVC `nats-data-nats-0` (20Gi `oci-bv`, namespace `nats`). Survives pod restart; required before relying on JetStream for durable task triggers. Deploy manifests and migration steps: [`_/deployments/nats/`](../deployments/nats/README.md).
 
 **Channel log topics** — worker and server write lifecycle rows to `ai.log` and publish `log.{owner_iid}.{dv}.{topic}` (see [log.md](log.md)). Canonical topic list: `pair_start`, `qr`, `connected`, `disconnected`, `pair_abort`, `pair_expired`, `error`, `msg_received`, `msg_sent`. Worker uses `dv = channel-wa-device`; server channel handlers use `dv = c35-server`. Full writer/when table: `docs/superpowers/plans/2026-09-21-bot-add-channels-deploy-log.md` (Log event catalog).
 

@@ -90,3 +90,12 @@ message ReqIdentityPut {
 message ResIdentityPut {
   IdentityListRow row = 1;
 }
+
+message ReqIdentityDelete {
+  int64 iid = 1;
+}
+
+message ResIdentityDelete {
+  bool ok = 1;
+  string error = 2;
+}

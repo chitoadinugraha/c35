@@ -1,0 +1,9 @@
+use chrono::{DateTime, Utc};
+
+pub(crate) fn ts_ms(t: DateTime<Utc>) -> i64 {
+    t.timestamp_millis()
+}
+
+pub(crate) fn ts_ms_opt(t: Option<DateTime<Utc>>) -> i64 {
+    t.map(|x| x.timestamp_millis()).unwrap_or(0)
+}

@@ -55,6 +55,7 @@ const ReqSessionInit$json = {
     {'1': 'platform', '3': 6, '4': 1, '5': 5, '10': 'platform'},
     {'1': 'include_inbox', '3': 7, '4': 1, '5': 8, '10': 'includeInbox'},
     {'1': 'include_billing', '3': 8, '4': 1, '5': 8, '10': 'includeBilling'},
+    {'1': 'hints_since_ms', '3': 9, '4': 1, '5': 3, '10': 'hintsSinceMs'},
   ],
 };
 
@@ -64,7 +65,7 @@ final $typed_data.Uint8List reqSessionInitDescriptor = $convert.base64Decode(
     'ABKAlSBmxvY2FsZRIOCgJ0ehgDIAEoCVICdHoSDgoCZHYYBCABKAlSAmR2EhsKCWNsaWVudF9p'
     'ZBgFIAEoCVIIY2xpZW50SWQSGgoIcGxhdGZvcm0YBiABKAVSCHBsYXRmb3JtEiMKDWluY2x1ZG'
     'VfaW5ib3gYByABKAhSDGluY2x1ZGVJbmJveBInCg9pbmNsdWRlX2JpbGxpbmcYCCABKAhSDmlu'
-    'Y2x1ZGVCaWxsaW5n');
+    'Y2x1ZGVCaWxsaW5nEiQKDmhpbnRzX3NpbmNlX21zGAkgASgDUgxoaW50c1NpbmNlTXM=');
 
 @$core.Deprecated('Use resSessionInitDescriptor instead')
 const ResSessionInit$json = {
@@ -124,6 +125,14 @@ const ResSessionInit$json = {
       '6': '.c35.MentionCatalog',
       '10': 'mentions'
     },
+    {
+      '1': 'hints',
+      '3': 13,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.HintCatalog',
+      '10': 'hints'
+    },
   ],
 };
 
@@ -138,4 +147,4 @@ final $typed_data.Uint8List resSessionInitDescriptor = $convert.base64Decode(
     'ZW1iZXJzGAkgAygLMg8uYzM1LkNoYXRNZW1iZXJSDGluYm94TWVtYmVycxIgCgRzeW5jGAogAS'
     'gLMgwuYzM1LlJlc1N5bmNSBHN5bmMSLgoGbW9kZWxzGAsgAygLMhYuYzM1LlByb21wdE1vZGVs'
     'T3B0aW9uUgZtb2RlbHMSLwoIbWVudGlvbnMYDCABKAsyEy5jMzUuTWVudGlvbkNhdGFsb2dSCG'
-    '1lbnRpb25z');
+    '1lbnRpb25zEiYKBWhpbnRzGA0gASgLMhAuYzM1LkhpbnRDYXRhbG9nUgVoaW50cw==');

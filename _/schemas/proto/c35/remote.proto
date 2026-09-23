@@ -69,6 +69,66 @@ message RemoteSessionPush {
   RemoteConnectionMode mode = 3;
   RemoteIceType selected_ice = 4;
   bool video_active = 5;
+  bool webrtc_connected = 6;    // data plane up (Files / Remote tabs)
+  bool update_ready = 7;        // true if background download is finished and staged
+  int64 update_version = 8;     // target version build number
+}
+
+// ---------------------------------------------------------------------------
+// ICE / TURN config (WS — server mints ephemeral credentials)
+// ---------------------------------------------------------------------------
+
+message IceServer {
+  repeated string urls = 1;
+  string username = 2;
+  string credential = 3;
+}
+
+message ReqRemoteIceConfig {}
+
+message ResRemoteIceConfig {
+  repeated IceServer ice_servers = 1;
+  uint32 ttl_sec = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Remote screenshot capture (Agent control session RPC)
+// ---------------------------------------------------------------------------
+
+message ReqRemoteScreenshot {
+  int64 device_iid = 1;
+  uint32 max_width = 2; // e.g. 1280 or 1920 (0 = default 1280)
+  uint32 quality = 3;   // e.g. 72 (0 = default 72)
+  double marker_x = 4;  // normalized 0..1 (if > 0, draw red action marker at click point)
+  double marker_y = 5;  // normalized 0..1
+  bool som = 6;         // if true, overlays Set-of-Mark (@1, @2, ...) bounding boxes and returns axtree_text
+}
+
+message ResRemoteScreenshot {
+  bool ok = 1;
+  string error = 2;
+  uint32 width = 3;
+  uint32 height = 4;
+  bytes jpeg_bytes = 5;
+  string axtree_text = 6; // list of actionable UI elements with exact coordinates
+}
+
+// ---------------------------------------------------------------------------
+// Remote command execution RPC
+// ---------------------------------------------------------------------------
+
+message ReqRemoteCommand {
+  int64 device_iid = 1;
+  string command = 2;
+  uint32 timeout_sec = 3;
+}
+
+message ResRemoteCommand {
+  bool ok = 1;
+  string error = 2;
+  int32 exit_code = 3;
+  string stdout = 4;
+  string stderr = 5;
 }
 
 // ---------------------------------------------------------------------------
@@ -83,4 +143,50 @@ message RemoteInputEvent {
   int32 key_code = 5;
   string text = 6;
   int32 delta_y = 7;          // wheel
+}
+
+// ---------------------------------------------------------------------------
+// WebRTC data channel `remote-fs` (binary frame = protobuf encode)
+// ---------------------------------------------------------------------------
+
+message RemoteFsEntry {
+  string name = 1;
+  string path = 2;
+  bool is_dir = 3;
+  int64 size = 4;
+  int64 modified_ms = 5;
+}
+
+message RemoteFsListReq {
+  string path = 1;
+}
+
+message RemoteFsListRes {
+  repeated RemoteFsEntry entries = 1;
+  string error = 2;
+}
+
+message RemoteFsReadReq {
+  string path = 1;
+  int64 offset = 2;
+  int32 length = 3;
+}
+
+message RemoteFsReadRes {
+  bytes data = 1;
+  bool eof = 2;
+  string mime = 3;
+  string error = 4;
+}
+
+message RemoteFsWriteReq {
+  string path = 1;
+  int64 offset = 2;
+  bytes data = 3;
+  bool finalize = 4;
+}
+
+message RemoteFsWriteRes {
+  int64 bytes_written = 1;
+  string error = 2;
 }

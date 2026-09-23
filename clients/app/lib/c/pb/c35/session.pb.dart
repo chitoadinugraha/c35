@@ -18,6 +18,7 @@ import 'package:protobuf/protobuf.dart' as $pb;
 import 'billing.pb.dart' as $1;
 import 'catalog.pb.dart' as $4;
 import 'chat.pb.dart' as $2;
+import 'hint.pb.dart' as $5;
 import 'identity.pb.dart' as $0;
 import 'sync.pb.dart' as $3;
 
@@ -162,6 +163,7 @@ class ReqSessionInit extends $pb.GeneratedMessage {
     $core.int? platform,
     $core.bool? includeInbox,
     $core.bool? includeBilling,
+    $fixnum.Int64? hintsSinceMs,
   }) {
     final result = ReqSessionInit._();
     if (sinceMs != null) result.sinceMs = sinceMs;
@@ -172,6 +174,7 @@ class ReqSessionInit extends $pb.GeneratedMessage {
     if (platform != null) result.platform = platform;
     if (includeInbox != null) result.includeInbox = includeInbox;
     if (includeBilling != null) result.includeBilling = includeBilling;
+    if (hintsSinceMs != null) result.hintsSinceMs = hintsSinceMs;
     return result;
   }
 
@@ -196,6 +199,7 @@ class ReqSessionInit extends $pb.GeneratedMessage {
     ..aI(6, _omitFieldNames ? '' : 'platform')
     ..aOB(7, _omitFieldNames ? '' : 'includeInbox')
     ..aOB(8, _omitFieldNames ? '' : 'includeBilling')
+    ..aInt64(9, _omitFieldNames ? '' : 'hintsSinceMs')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -291,6 +295,15 @@ class ReqSessionInit extends $pb.GeneratedMessage {
   $core.bool hasIncludeBilling() => $_has(7);
   @$pb.TagNumber(8)
   void clearIncludeBilling() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $fixnum.Int64 get hintsSinceMs => $_getI64(8);
+  @$pb.TagNumber(9)
+  set hintsSinceMs($fixnum.Int64 value) => $_setInt64(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasHintsSinceMs() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearHintsSinceMs() => $_clearField(9);
 }
 
 class ResSessionInit extends $pb.GeneratedMessage {
@@ -307,6 +320,7 @@ class ResSessionInit extends $pb.GeneratedMessage {
     $3.ResSync? sync,
     $core.Iterable<PromptModelOption>? models,
     $4.MentionCatalog? mentions,
+    $5.HintCatalog? hints,
   }) {
     final result = ResSessionInit._();
     if (serverTimeMs != null) result.serverTimeMs = serverTimeMs;
@@ -321,6 +335,7 @@ class ResSessionInit extends $pb.GeneratedMessage {
     if (sync != null) result.sync = sync;
     if (models != null) result.models.addAll(models);
     if (mentions != null) result.mentions = mentions;
+    if (hints != null) result.hints = hints;
     return result;
   }
 
@@ -357,6 +372,8 @@ class ResSessionInit extends $pb.GeneratedMessage {
         subBuilder: PromptModelOption.$_createMessage)
     ..aOM<$4.MentionCatalog>(12, _omitFieldNames ? '' : 'mentions',
         subBuilder: $4.MentionCatalog.$_createMessage)
+    ..aOM<$5.HintCatalog>(13, _omitFieldNames ? '' : 'hints',
+        subBuilder: $5.HintCatalog.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -485,6 +502,18 @@ class ResSessionInit extends $pb.GeneratedMessage {
   void clearMentions() => $_clearField(12);
   @$pb.TagNumber(12)
   $4.MentionCatalog ensureMentions() => $_ensure(11);
+
+  /// Precompiled home hints (ai.hint_bundle)
+  @$pb.TagNumber(13)
+  $5.HintCatalog get hints => $_getN(12);
+  @$pb.TagNumber(13)
+  set hints($5.HintCatalog value) => $_setField(13, value);
+  @$pb.TagNumber(13)
+  $core.bool hasHints() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearHints() => $_clearField(13);
+  @$pb.TagNumber(13)
+  $5.HintCatalog ensureHints() => $_ensure(12);
 }
 
 const $core.bool _omitFieldNames =

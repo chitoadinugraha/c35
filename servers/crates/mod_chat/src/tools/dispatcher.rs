@@ -71,27 +71,45 @@ impl ToolDispatcher {
         self.tools.iter().map(|item| item.value().definition()).collect()
     }
 
-    pub async fn execute(&self, name: &str, args: Value, ctx: &ToolContext) -> Value {
+    pub async fn execute(&self, name: &str, args: Value, ctx: &ToolContext) -> (Value, f64) {
         let tool = match self.get(name) {
             Some(t) => t,
             None => {
-                return json!({
-                    "ok": false,
-                    "runner": "cluster",
-                    "error": format!("unknown cluster tool: {}", name),
-                });
+                return (
+                    json!({
+                        "ok": false,
+                        "runner": "cluster",
+                        "error": format!("unknown cluster tool: {}", name),
+                    }),
+                    0.0,
+                );
             }
         };
 
         let def = tool.definition();
         match tool.execute(args, ctx).await {
-            Ok(output) => output,
-            Err(e) => json!({
-                "ok": false,
-                "runner": "cluster",
-                "tool": def.name,
-                "error": e.to_string(),
-            }),
+            Ok(output) => {
+                let ok = output.get("ok").and_then(|v| v.as_bool()).unwrap_or(true);
+                let cost_usd = if ok {
+                    if def.cost_wholesale > 0.0 {
+                        c35_mod_billing::billing_to_retail_usd(def.cost_wholesale)
+                    } else {
+                        c35_mod_billing::billing_tool_cost_usd(&def.name, true)
+                    }
+                } else {
+                    0.0
+                };
+                (output, cost_usd)
+            }
+            Err(e) => (
+                json!({
+                    "ok": false,
+                    "runner": "cluster",
+                    "tool": def.name,
+                    "error": e.to_string(),
+                }),
+                0.0,
+            ),
         }
     }
 }

@@ -7,9 +7,10 @@ use c35_store::db_retry;
 use sqlx::PgPool;
 use tracing::{info, warn};
 
+use crate::catalog_resolve::catalog_alien_chain_effective;
+
 pub const CONFIG_KEY_ALIEN_CHAIN: &str = "llm.alien_chain";
 pub const CONFIG_KEY_CF_GATEWAY: &str = "llm.cf_gateway";
-pub const DEFAULT_GEMINI_MODEL: &str = "gemini-3.1-flash-lite";
 
 #[derive(Clone, Debug, Default)]
 pub struct CfGatewayRuntime {
@@ -27,18 +28,14 @@ struct RuntimeState {
 
 impl Default for RuntimeState {
     fn default() -> Self {
-        Self { alien_models: alien_chain_default(), cf: cf_gateway_from_env() }
+        Self { alien_models: Vec::new(), cf: cf_gateway_from_env() }
     }
 }
 
 static RUNTIME: LazyLock<RwLock<RuntimeState>> = LazyLock::new(|| RwLock::new(RuntimeState::default()));
 
 pub fn alien_chain_default() -> Vec<String> {
-    vec![
-        "gemini-3.1-flash-lite".into(),
-        "gemini-3.5-flash-lite".into(),
-        "gemini-3.8-flash-lite".into(),
-    ]
+    Vec::new()
 }
 
 pub fn model_is_flash_lite(model: &str) -> bool {
@@ -126,8 +123,8 @@ async fn alien_chain_load(pool: &PgPool) -> Result<Vec<String>, sqlx::Error> {
                 .collect::<Vec<_>>()
         })
     });
-    let chain = alien_chain_normalize(parsed.as_deref().unwrap_or(&[]));
-    Ok(if chain.is_empty() { alien_chain_default() } else { chain })
+    let configured = alien_chain_normalize(parsed.as_deref().unwrap_or(&[]));
+    Ok(catalog_alien_chain_effective(&configured))
 }
 
 async fn cf_gateway_load(pool: &PgPool) -> Result<CfGatewayRuntime, sqlx::Error> {
@@ -152,7 +149,7 @@ pub async fn runtime_config_reload(pool: &PgPool) {
         Ok(m) => m,
         Err(e) => {
             warn!("[c35:runtime] alien chain load failed: {e:#}");
-            alien_chain_default()
+            catalog_alien_chain_effective(&[])
         }
     };
     let cf = match cf_gateway_load(pool).await {
@@ -221,10 +218,12 @@ pub fn alien_chain_models() -> Vec<String> {
 }
 
 pub fn alien_default_model() -> String {
+    use crate::catalog_resolve::catalog_alien_default;
     alien_chain_models()
         .first()
         .cloned()
-        .unwrap_or_else(|| DEFAULT_GEMINI_MODEL.into())
+        .or_else(catalog_alien_default)
+        .unwrap_or_default()
 }
 
 pub fn cf_gateway_config() -> CfGatewayRuntime {

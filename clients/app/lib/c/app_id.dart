@@ -15,6 +15,8 @@ class C35AppId {
   static const thisPcName = 'c35_this_pc_name';
   static const installId = 'c35_install_id';
   static const model = 'c35_agent_model';
+  static const sessionReferredBy = 'c35_session_referred_by';
+  static const sessionReferralDismissed = 'c35_session_referral_dismissed';
 }
 
 Future<String> deviceInstallId() async {

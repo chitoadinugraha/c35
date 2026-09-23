@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:alienai_c35/c/app_id.dart';
+import 'package:alienai_c35/c/profile/profile_handle.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -32,11 +33,16 @@ class Session {
   String allowControl = 'no';
   String thisPcName = '';
   String modelId = '';
+  int referredByIid = 0;
+  bool referralDismissed = false;
 
   bool get signedIn => uid > 0 && token.isNotEmpty;
   bool get allowControlYes => allowControl == 'yes';
   bool get isRoot => globalRoles.contains('root');
   bool get isTester => globalRoles.contains('tester');
+  bool get hasReferrer => referredByIid > 0;
+  bool get hasAlienId => handle.isNotEmpty && handle != 'user' && !handle.startsWith('@user');
+  bool get needsReferralPrompt => signedIn && !hasReferrer && !referralDismissed;
 
   Future<void> restore() async {
     final p = await SharedPreferences.getInstance();
@@ -50,6 +56,8 @@ class Session {
     allowControl = p.getString(C35AppId.allowControl) ?? 'no';
     thisPcName = p.getString(C35AppId.thisPcName) ?? '';
     modelId = p.getString(C35AppId.model) ?? '';
+    referredByIid = p.getInt(C35AppId.sessionReferredBy) ?? 0;
+    referralDismissed = p.getBool(C35AppId.sessionReferralDismissed) ?? false;
     sessionTick.value++;
   }
 
@@ -74,6 +82,83 @@ class Session {
     sessionTick.value++;
   }
 
+  Future<void> identityMerge({
+    String? name,
+    String? alienId,
+    String? pic,
+    String? email,
+    List<String>? globalRoles,
+    int? referredByIid,
+    bool? referralDismissed,
+  }) async {
+    var dirty = false;
+    if (name != null && name.isNotEmpty && name != this.name) {
+      this.name = name;
+      dirty = true;
+    }
+    if (alienId != null) {
+      final next = alienId.trim().isEmpty ? '' : profileHandleDisplay(alienId);
+      if (next != handle) {
+        handle = next;
+        dirty = true;
+      }
+    }
+    if (pic != null && pic.isNotEmpty && pic != this.pic) {
+      this.pic = pic;
+      dirty = true;
+    }
+    if (email != null && email.isNotEmpty && email != this.email) {
+      this.email = email;
+      dirty = true;
+    }
+    if (globalRoles != null && !_sameRoles(globalRoles, this.globalRoles)) {
+      this.globalRoles = globalRoles;
+      dirty = true;
+    }
+    if (referredByIid != null && referredByIid > 0 && this.referredByIid != referredByIid) {
+      this.referredByIid = referredByIid;
+      dirty = true;
+    }
+    if (referralDismissed != null && this.referralDismissed != referralDismissed) {
+      this.referralDismissed = referralDismissed;
+      dirty = true;
+    }
+    if (!dirty) return;
+    final p = await SharedPreferences.getInstance();
+    await p.setString(C35AppId.sessionName, this.name);
+    await p.setString(C35AppId.sessionHandle, handle);
+    await p.setString(C35AppId.sessionPic, this.pic);
+    await p.setString(C35AppId.sessionEmail, this.email);
+    await p.setString(C35AppId.sessionGlobalRoles, jsonEncode(this.globalRoles));
+    await p.setInt(C35AppId.sessionReferredBy, this.referredByIid);
+    await p.setBool(C35AppId.sessionReferralDismissed, this.referralDismissed);
+    sessionTick.value++;
+  }
+
+  Future<void> referralDismissedPut() async {
+    referralDismissed = true;
+    final p = await SharedPreferences.getInstance();
+    await p.setBool(C35AppId.sessionReferralDismissed, true);
+    sessionTick.value++;
+  }
+
+  Future<void> referredByPut(int parentUid) async {
+    referredByIid = parentUid;
+    referralDismissed = true;
+    final p = await SharedPreferences.getInstance();
+    await p.setInt(C35AppId.sessionReferredBy, parentUid);
+    await p.setBool(C35AppId.sessionReferralDismissed, true);
+    sessionTick.value++;
+  }
+
+  bool _sameRoles(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
   Future<void> put({
     required int uid,
     required String name,
@@ -82,6 +167,8 @@ class Session {
     String? email,
     String token = '',
     List<String> globalRoles = const [],
+    int referredByIid = 0,
+    bool referralDismissed = false,
   }) async {
     this.uid = uid;
     this.name = name;
@@ -90,6 +177,8 @@ class Session {
     if (email != null) this.email = email;
     this.token = token;
     this.globalRoles = globalRoles;
+    this.referredByIid = referredByIid;
+    this.referralDismissed = referralDismissed;
     final p = await SharedPreferences.getInstance();
     await p.setInt(C35AppId.sessionUid, uid);
     await p.setString(C35AppId.sessionName, name);
@@ -98,6 +187,8 @@ class Session {
     await p.setString(C35AppId.sessionEmail, this.email);
     await p.setString(C35AppId.sessionToken, token);
     await p.setString(C35AppId.sessionGlobalRoles, jsonEncode(globalRoles));
+    await p.setInt(C35AppId.sessionReferredBy, referredByIid);
+    await p.setBool(C35AppId.sessionReferralDismissed, referralDismissed);
     sessionTick.value++;
   }
 
@@ -112,6 +203,8 @@ class Session {
     allowControl = 'no';
     thisPcName = '';
     modelId = '';
+    referredByIid = 0;
+    referralDismissed = false;
     if (clearStored) {
       final p = await SharedPreferences.getInstance();
       await p.remove(C35AppId.sessionUid);
@@ -121,6 +214,8 @@ class Session {
       await p.remove(C35AppId.sessionEmail);
       await p.remove(C35AppId.sessionToken);
       await p.remove(C35AppId.sessionGlobalRoles);
+      await p.remove(C35AppId.sessionReferredBy);
+      await p.remove(C35AppId.sessionReferralDismissed);
       await p.remove(C35AppId.allowControl);
       await p.remove(C35AppId.thisPcName);
       await p.remove(C35AppId.model);

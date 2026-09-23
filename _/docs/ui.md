@@ -75,6 +75,7 @@ On avatar tap:
 - Master/detail chat list + conversation
 - Inbox lists **`prompt`** AI threads only via `chat_member`, sorted by `last_msg_ts`
 - Features: pinned, archived, `#tag` search
+- **Empty-state hints** — server-precompiled chips (Track Consumption, Track Expense, recent sites with Visit/POS); cached in `SessionInit` — see [hint.md](hint.md)
 - Message renderer: input/output tokens, duration, cost (copy cs_agent `msg_trace_view`)
 - Custom **UI blocks** renderable inside messages
 - Canvas: document/slide editor when AI produces canvas content
@@ -86,6 +87,54 @@ On avatar tap:
 - Pin
 - Archive
 - Archive Below (when messages exist below)
+
+### Composer Controls: Mentions & Slash Commands
+
+The prompt composer supports dual-channel intent modifiers:
+
+1. **Entity Mentions (`@`)**:
+   - **Trigger**: Typing `@` opens an auto-complete suggestion box of tools, remote devices, and builder sites.
+   - **Behavior**: Inserts `@displayLabel ` in-line into the prompt, preserving natural grammatical context, while activating the corresponding entity context in the backend turn.
+   - **Keyboard Navigation**: `ArrowDown`/`ArrowUp` to cycle, `Tab` or `Enter` to select, `Escape` to dismiss.
+
+2. **Slash Commands (`/`)**:
+   - **Trigger**: Typing `/` at the start of the composer opens the command palette.
+   - **Available commands**:
+     - `/ask <query>`: One-shot query executed with `tool_mode = 'ask'` (read-only conversational answering without tool mutations). Composer remains in default `Agent` mode for subsequent turns.
+     - `/model`: Opens the model selection picker.
+     - `/clear`: Resets the input draft and opens a new chat thread.
+   - **Keyboard Navigation**: `ArrowDown`/`ArrowUp` to cycle, `Tab` or `Enter` to select, `Escape` to dismiss.
+
+3. **Persistent Mode Pill**:
+   - Located on the composer action bar: `⚡ Agent` (default, full tools & devices) ↔ `💬 Ask` (read-only, fast).
+   - Tapping toggles `tool_mode` for persistent multi-turn conversations.
+
+## Canvas Sidecar Workspace
+
+Canvas transforms the chat from an ephemeral timeline into a dual-pane collaborative workspace for living documents, multi-file code, and reports.
+
+### Trigger & Discovery
+1. **Explicit Code Block Promotion**: Any code block rendered in assistant messages displays an `"Open in Canvas"` action in its header alongside the copy button.
+2. **AI Canvas Artifacts**: When an AI turn produces structured canvas blocks (`kind: 'canvas.artifact'`), the sidecar automatically stages the artifact.
+3. **Canvas Header Toggle**: The `[canvas]` button in the top title bar becomes active and displays a badge whenever an artifact is active in the current conversation.
+
+### Layout & Responsiveness
+- **Desktop (Large Breakpoint >= 720px)**:
+  - 3-column split layout: `[chat list: 280px] | [chat detail: flex] | [canvas side panel: 440px-540px]`.
+  - Resizable / collapsible side panel with smooth slide-in transition.
+- **Mobile (Small Breakpoint < 720px)**:
+  - Canvas opens inside a dedicated `endDrawer` with safe-area padding.
+
+### Features & Capabilities
+1. **Header Bar**:
+   - Artifact title & file/language badge (e.g. `Dart`, `Python`, `Markdown`, `JSON`).
+   - Version scrubber / dropdown (e.g. `v1`, `v2`, `v3`) with timestamps and restore capability.
+   - One-click copy, download/export, and close button.
+2. **Dual-Mode Viewer / Editor**:
+   - **Editor / Code Tab**: Monospace editor with line numbering and direct bidirectional editing. Changes can be saved locally to form a new version snapshot.
+   - **Preview Tab**: Formatted live preview for Markdown, HTML previews, or rich visual documents.
+3. **Iterative AI Prompting**:
+   - Quick action pill in the canvas footer: *"Iterate with AI"* opens the composer with an active context reference to the canvas artifact.
 
 ## Referral tree
 
@@ -109,6 +158,18 @@ Pattern: `csa_site_published` site editor.
 ### Nav — bot list
 
 Lists `identity(kind=bot, type=chat)` for current owner. Each row = one bot identity (may run Telegram + WhatsApp + … via `meta.channels[]`).
+
+#### Bot Creation Wizard (`InBotCreate`)
+- 3-step wizard: Basic info (name, instructions, avatar) → Connect channels (Telegram, WhatsApp Meta, WhatsApp Device) → Assets.
+- **Draft Cancellation**: If setup is cancelled or dismissed after channels have been added, the client automatically triggers draft cleanup (`_cleanupDraft`), disconnecting all channels (deleting Telegram webhooks and terminating WhatsApp sessions) and deleting the draft identity to prevent orphaned sessions.
+
+#### Bot Deletion Dialog (`IoBotDeleteDialog`)
+Bot deletion uses the high-safety confirmation pattern (matching site deletion):
+1. **Name Matching**: User must type the bot name or handle.
+2. **Slide to Confirm (`UiSlideConfirm`)**: Unlocks once the name matches; user drags thumb across track.
+3. **Countdown Timeout**: 3-second countdown (`3... 2... 1...`) with tabular figures.
+4. **Action & Session Wipe**: Red "Permanently Delete Bot" button initiates deletion, halting workers, wiping disk sessions, removing webhooks, and deleting DB records.
+
 
 ### Master — conversation list
 
@@ -141,6 +202,17 @@ See [chat.md](chat.md) for full chat kinds and stop scope.
 
 Master/detail list of **`kind IN ('remote', 'iot')`** for owner. Supports order, pin, archive.
 
+### Device row (remote)
+
+Each remote row shows name + type subtitle (e.g. `CHITO` / `windows`) and **two trailing dots**:
+
+| Dot | Meaning |
+|-----|---------|
+| Left (WebRTC) | App ↔ device data plane — files, screen, media |
+| Right (cluster) | Agent ↔ server — presence, tasks |
+
+IoT rows keep a single online dot.
+
 ### IoT device (`kind=iot`)
 
 Tabs:
@@ -156,24 +228,48 @@ Tabs:
 
 | Tab | Content |
 |-----|---------|
-| Remote | `UIRemoteDevice` — mouse, keyboard, screen |
+| Remote | `UIRemoteDevice` — WebRTC screen + input |
+| Files | Master/detail file browser — tree + list + preview (wide). WebRTC `remote-fs`; requires data-plane dot |
 | Task | Scheduled/one-shot tasks |
 | Skill | Manual + automatic (self-learned) skills; Teach button |
 | Settings | Name, instructions, device config |
 
+Files tab search icon sits trailing on the tab bar row. Small screens: drill-in tree → list → preview.
+
 Remote agent attaches skills/tasks to device **identity id**.
 
-## Sites page (3-pane) — Phase 8
+## Sites page — Phase 8
 
-Same 3-pane pattern as Bots. POS lives in detail pane (Phase 9).
+Same shell pattern as **Devices** (master/detail + tabs). Layout editing is **prompt-primary** on Home; this page is operational admin.
 
 ```
-nav: site list → master: Design | Data tabs → detail: preview / product admin / POS
+nav: site list → detail tabs: Preview | Products | Contacts | Objects | Settings | Orders (Phase 9)
 ```
 
-- **Design** — prompt edits `SiteDoc` blocks; live preview iframe
-- **Data** — products, contacts, objects (fixed admin forms)
-- **POS** — id.alienai tx editor (Phase 9)
+| Tab | UI | Editor |
+|-----|-----|--------|
+| **Preview** | iframe → `alienai.id/{alien_id}` | prompt + publish |
+| **Products** | `UITable` (`site.product` + embed subtable) | table + prompt |
+| **Contacts** | `UITable` (`site.contact`) | table + prompt |
+| **Objects** | `UITable` (`site.object`) | table |
+| **Settings** | fields: alien_id, domains, capabilities, publish | form |
+| **Orders** | `UITable` list + tx ledger editor | id.alienai POS (Phase 9) |
+
+### UITable
+
+Generic Airtable-like grid driven by `TableDef` from [`collection.proto`](../schemas/proto/c35/collection.proto):
+
+- Sort, filter, inline edit, add row
+- Expand row → **subtable** (linked records, e.g. `site.product_embed`)
+- Same normalized rows as prompt tools / sync
+
+Widget: `widgets/ui/ui_table.dart` (new). Pattern reference: Devices **Files** tab (list + detail).
+
+### Prompt editor
+
+User edits layout on **Home**: *"@warung-siti make background more red"* → topic **`web.builder`** → `site_draft_put` / `site_publish`.
+
+No CSA-style visual hub / card-style / effects panels as primary UI.
 
 ## Error handling
 
@@ -200,6 +296,22 @@ UI reference: `D:\cs_agent\clients\app\lib\widgets\ai\msg_trace_view.dart`
 - Subscribes NATS `log.{iid}.{dv}.{topic}`
 - Filterable table, live tail
 - Topics: `sign-in`, `sign-out`, `prompt`, `connected`, `disconnected`, `error`, …
+
+## Root console (root-only)
+
+**Root console** = ops screen inside the Flutter app — **not** a public page on `alienai.id`. Visible only when the signed-in user has the **Root** badge (avatar menu → Partner/Root row).
+
+| Section | UI | Purpose |
+|---------|-----|---------|
+| **Stats dashboard** | Default view on open | Node CPU/RAM/disk IO, YB PVC, NATS JetStream PVC — passive NATS relay via WS `ReqStatsSubscribe` (`c35.stats.>`) |
+| **Logs** | Action button → `page_root_logs` | Search/tail `ai.log` by user, date range, text; live via WS `ReqLogSubscribe` |
+| **Inst** | Action button → `page_root_inst` | Edit `ai.inst` rows in `UITable` (prompt steering) without MCP |
+
+Audience: **root admin only**. Regular users never see the menu row or pages.
+
+Pages: `page_root_console.dart`, `page_root_logs.dart`, `page_root_inst.dart`. Widgets under `widgets/admin/`. API: `c/admin/admin_api.dart`, `admin_stats_stream.dart`, `admin_log_stream.dart`.
+
+See [sync.md](sync.md) for NATS subjects and [inst.md](inst.md) for inst schema.
 
 ## Flutter project
 

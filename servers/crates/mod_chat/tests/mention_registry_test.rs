@@ -54,5 +54,7 @@ fn mention_force_tools_includes_device_when_remote() {
     assert!(mention_has_device(&resolved));
     let tools = mention_force_tools(&resolved);
     assert!(tools.iter().any(|t| t == "device.screenshot"));
+    assert!(!tools.iter().any(|t| t == "device.input"));
+    assert!(!tools.iter().any(|t| t == "device.command"));
     assert_eq!(mention_active_topic(&resolved, ""), "device");
 }

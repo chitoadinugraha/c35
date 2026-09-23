@@ -93,7 +93,8 @@ pub async fn upload_channel_media(
 }
 
 fn media_upload_base() -> String {
-    std::env::var("CS_PUBLIC_ORIGIN")
+    std::env::var("C35_PUBLIC_ORIGIN")
+        .or_else(|_| std::env::var("CS_PUBLIC_ORIGIN"))
         .or_else(|_| std::env::var("WHATSAPP_MEDIA_UPLOAD_BASE"))
         .ok()
         .map(|s| s.trim().trim_end_matches('/').to_string())

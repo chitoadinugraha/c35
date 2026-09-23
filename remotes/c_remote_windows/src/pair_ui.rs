@@ -14,6 +14,13 @@ impl PairUi {
         }
     }
 
+    pub fn set_connecting(&self) {
+        match self {
+            Self::Window(w) => w.set_connecting(),
+            Self::Cli => println!(">>> Connecting…"),
+        }
+    }
+
     pub fn set_code(&self, code: &str, expires_in_sec: i64) {
         match self {
             Self::Window(w) => w.set_code(code, expires_in_sec),
@@ -40,6 +47,6 @@ fn print_code(code: &str, expires_in_sec: i64) {
     println!("============================================================");
     println!(">>> Alien AI Remote Agent - Pairing Required");
     println!(">>> Enter this in Alien AI -> Devices -> Pair with Code");
-    println!(">>> [ {} ]  (expires in {}s)", code, expires_in_sec);
+    println!(">>> [ {} ]  (refresh in {}s)", code, expires_in_sec);
     println!("============================================================");
 }

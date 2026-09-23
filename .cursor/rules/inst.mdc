@@ -1,0 +1,31 @@
+---
+description: Instruction macros (ai.inst) — DB-only prompt steering; seeds, phrases, MCP
+globs: _/schemas/inst.sql,servers/crates/mod_chat/src/inst*.rs,servers/crates/mod_chat/src/compose/**,servers/crates/mod_chat/src/prompt_turn.rs,servers/crates/mod_chat/src/channel_prompt_turn.rs,servers/crates/mod_chat/src/prompt/tool_loop.rs
+alwaysApply: false
+---
+
+# Inst (instruction macros)
+
+Read [`_/docs/inst.md`](../../_/docs/inst.md) before changing prompt steering.
+
+## Rules
+
+1. **Type B only** — all platform steering in `ai.inst`. No new hardcoded steering strings in Rust (migrate to seeds).
+2. **Seed first** — add/change rows in [`_/schemas/inst.sql`](../../_/schemas/inst.sql); use `ON CONFLICT` + `UPDATE` for live wording fixes.
+3. **Phrases = real user text** — ID + EN substrings (`enaknya makan apa`, not only English).
+4. **Pair tools** — `inst` body says *what to do*; `triggers` use `tool_include:` / `tool_exclude:`.
+5. **Scope** — set `scope` (`global`, `role:personal_assistant`, `partner:<pid>`); filter in `inst_pick`.
+6. **Baseline** — platform defaults use `kind=trigger` + `triggers=['always']` (e.g. `inst.core.assistant`), not `CLUSTER_SYSTEM` constants.
+7. **Runtime** — use in-memory inst cache; invalidate via NATS `c35.inst.{inst_id}` after MCP/SQL writes.
+8. **Do not merge** — keep `ai.topic.inst` and bot `meta.inst_base` separate from `ai.inst`.
+
+## ID naming
+
+`inst.<domain>.<action>` — e.g. `inst.consumption_coach`, `inst.web_search`.
+
+## Checklist (new feature steering)
+
+- [ ] Seed row in `inst.sql` with `inst`, `phrases`, `triggers`, `scope`, `priority`
+- [ ] Tool exists and is registered in `mod_chat` tools
+- [ ] Compose test in `mod_chat/tests/compose_test.rs` if phrase/tool pairing is non-obvious
+- [ ] No duplicate steering in `tool_loop.rs` system string

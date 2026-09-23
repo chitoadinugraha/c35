@@ -9,6 +9,7 @@ import 'package:alienai_c35/c/locale/app_locale.dart';
 import 'package:alienai_c35/c/nav.dart';
 import 'package:alienai_c35/c/parts/version_label.dart';
 import 'package:alienai_c35/c/settings/settings_bootstrap.dart';
+import 'package:alienai_c35/c/hint/hint_store.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/c/update/app_release.dart';
 import 'package:alienai_c35/c/update/app_update_host.dart';
@@ -98,6 +99,7 @@ class _C35AppState extends State<C35App> {
     try {
       await serverHostInit();
       await _auth.restore();
+      await HintStore.instance.restore();
       await settingsBootstrap();
       if (Session.instance.allowControlYes) AppStore.instance.thisPcAllow(name: Session.instance.thisPcName);
       if (mounted) {

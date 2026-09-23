@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en" class="dark scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alien AI — AI That Works On Its Own</title>
+  
+  <!-- Primary Meta Tags -->
+  <meta name="title" content="Alien AI — AI That Works On Its Own">
+  <meta name="description" content="Autonomous multi-bot agent ecosystem combining computer use, cloud browser automation, omnichannel WhatsApp & Telegram auto-reply, and remote control.">
+  <meta name="keywords" content="Alien AI, AI agent, computer use, remote control agent, WhatsApp AI bot, Telegram AI, automated tasks, personal AI">
+  <meta name="author" content="AlienAI">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://alienai.id/">
+  <link rel="icon" type="image/svg+xml" href="/alien.svg">
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://alienai.id/">
+  <meta property="og:title" content="Alien AI — AI That Works On Its Own">
+  <meta property="og:description" content="Reclaim your time. Let AlienAI handle daily repetitive tasks, answer customer chats, organize your files, and connect your devices.">
+  <meta property="og:image" content="https://alienai.id/alien.svg">
+  <meta property="og:site_name" content="Alien AI">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:locale:alternate" content="id_ID">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:url" content="https://alienai.id/">
+  <meta name="twitter:title" content="Alien AI — AI That Works On Its Own">
+  <meta name="twitter:description" content="Autonomous multi-bot agent ecosystem combining computer use, cloud browser automation, omnichannel auto-reply, and automated IoT.">
+  <meta name="twitter:image" content="https://alienai.id/alien.svg">
+
+  <!-- Structured Data (JSON-LD) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Alien AI",
+    "operatingSystem": "Windows, Android, Web",
+    "applicationCategory": "BusinessApplication, UtilitiesApplication",
+    "description": "Autonomous multi-bot agent ecosystem combining computer use, cloud browser automation, omnichannel auto-reply, and automated IoT.",
+    "url": "https://alienai.id/",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  }
+  </script>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              300: '#5df2be',
+              400: '#22ec9e',
+              500: '#00e599',
+              600: '#00b87a',
+            },
+            dark: {
+              bg: '#0f1014',
+              surface: '#15161e',
+              card: '#181924',
+              border: '#262838',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Fira Code', 'Courier New', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    #stars {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      display: block;
+    }
+    .lang-pill.active {
+      background-color: #ffffff;
+      color: #000000;
+      font-weight: 700;
+    }
+    .hero-glow {
+      background: radial-gradient(circle at 50% 35%, rgba(0, 229, 153, 0.06) 0%, transparent 65%);
+    }
+  </style>
+</head>
+<body class="bg-dark-bg text-slate-200 font-sans antialiased selection:bg-brand-500 selection:text-black min-h-screen flex flex-col relative">
+
+  <!-- Shared Starry Night 2D Canvas -->
+  <canvas id="stars" aria-hidden="true"></canvas>
+
+  <!-- Header -->
+  <header class="sticky top-0 z-50 backdrop-blur-xl bg-dark-bg/80 border-b border-white/5">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      
+      <!-- Brand Logo -->
+      <a href="/" class="flex items-center gap-3 group z-20">
+        <div class="w-9 h-9 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center group-hover:border-white/40 transition duration-300">
+          <img src="/alien.svg" alt="Alien AI" class="w-5 h-5">
+        </div>
+        <span class="text-xl font-bold tracking-tight text-white">Alien<span class="text-white font-black">AI</span></span>
+      </a>
+
+      <!-- Right controls: Status + Language switcher -->
+      <div class="flex items-center gap-5 z-20">
+        <a href="/status" class="text-xs sm:text-sm font-medium text-slate-400 hover:text-white transition duration-200" data-i18n="nav.status">Status</a>
+
+        <!-- Multilingual Toggle -->
+        <div class="inline-flex items-center rounded-lg bg-dark-surface border border-white/10 p-0.5 text-xs font-mono">
+          <button onclick="changeLanguage('en')" id="btnLangEn" class="lang-pill px-2.5 py-1 rounded-md transition duration-150 active">EN</button>
+          <button onclick="changeLanguage('id')" id="btnLangId" class="lang-pill px-2.5 py-1 rounded-md text-slate-400 hover:text-white transition duration-150">ID</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <main class="flex-grow relative z-10">
+    <section class="relative min-h-[80vh] flex items-center justify-center overflow-hidden hero-glow">
+      <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
+        
+        <!-- Tagline Badge -->
+        <div class="inline-flex items-center gap-2.5 px-5 py-2 rounded-full border border-emerald-400/30 bg-emerald-500/10 text-white text-xs sm:text-sm font-semibold tracking-wide mb-6 backdrop-blur-xl shadow-lg shadow-emerald-500/10">
+          <span class="w-2 h-2 shrink-0 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span data-i18n="hero.badge" class="text-emerald-100">AI That Works On Its Own</span>
+        </div>
+
+        <!-- Main Title -->
+        <h1 class="text-5xl sm:text-7xl lg:text-8xl font-black tracking-tight text-white mb-6 leading-none select-none">
+          <span data-i18n="hero.titlePrefix">Alien</span> <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-200 to-white" data-i18n="hero.titleHighlight">AI</span>
+        </h1>
+
+        <!-- Friendly Subtitle -->
+        <p class="text-base sm:text-xl text-slate-300 max-w-2xl mx-auto mb-10 leading-relaxed font-normal" data-i18n="hero.subtitle">
+          Reclaim your time. Let AlienAI handle daily repetitive tasks, answer customer chats, organize your files, and connect your devices — smoothly and effortlessly.
+        </p>
+
+        <!-- Dual Action Cards: Download App & Remote Control -->
+        <div id="hero-actions" class="flex flex-col md:flex-row items-stretch justify-center gap-5 max-w-3xl mx-auto mb-6">
+          
+          <!-- Card 1: Download App (Desktop & Mobile) -->
+          <div class="flex-1 p-6 rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-xl hover:border-emerald-400/30 transition duration-300 flex flex-col justify-between text-left">
+            <div>
+              <div class="flex items-center gap-3 mb-2 flex-wrap">
+                <h2 class="text-xl sm:text-2xl font-bold text-white" data-i18n="hero.downloadApp">Download App</h2>
+                <span id="heroAppVersion" class="hidden inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-emerald-500/25 bg-emerald-500/[0.08] text-[11px] leading-none">
+                  <span data-i18n="hero.versionLabel" class="text-slate-400 font-medium">Version:</span>
+                  <span id="heroAppVersionNum" class="text-emerald-300 font-mono font-semibold tabular-nums"></span>
+                </span>
+              </div>
+              <p class="text-xs text-slate-400 mb-6 leading-relaxed" data-i18n="hero.appDesc">
+                Your primary interactive workspace for chats, routines, and smart bot management.
+              </p>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-2.5">
+              <!-- Windows Dropdown -->
+              <div class="relative inline-block text-left">
+                <button type="button" onclick="toggleDropdown('winAppDropdown', event)" class="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs transition flex items-center gap-2 border border-white/10">
+                  <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.901-1.8"/></svg>
+                  <span>Windows</span>
+                  <svg class="w-3 h-3 text-slate-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd" /></svg>
+                </button>
+                <div id="winAppDropdown" class="dropdown-panel hidden absolute left-0 bottom-full mb-2 sm:bottom-auto sm:top-full sm:mt-2 w-52 rounded-xl bg-[#12131b] border border-white/15 shadow-2xl p-1.5 z-40 backdrop-blur-2xl">
+                  <a href="https://apps.microsoft.com/detail/9ns65bjd9pfb" target="_blank" rel="noopener" class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-white hover:bg-white/10 transition font-medium">
+                    <span class="text-sm">🪟</span>
+                    <div>
+                      <div class="font-semibold" data-i18n="dl.app.win.store">Microsoft Store</div>
+                      <div class="text-[10px] text-slate-400" data-i18n="dl.app.win.storeDesc">Official verified store</div>
+                    </div>
+                  </a>
+                  <a href="/download/app.exe" class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-white hover:bg-white/10 transition font-medium">
+                    <span class="text-sm">⚡</span>
+                    <div>
+                      <div class="font-semibold" data-i18n="dl.app.win.directExe">Download .EXE</div>
+                      <div class="text-[10px] text-slate-400" data-i18n="dl.app.win.directExeDesc">Direct installer</div>
+                    </div>
+                  </a>
+                  <a href="/download/app.msi" class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-white hover:bg-white/10 transition font-medium">
+                    <span class="text-sm">📦</span>
+                    <div>
+                      <div class="font-semibold" data-i18n="dl.app.win.directMsi">Download .MSI</div>
+                      <div class="text-[10px] text-slate-400" data-i18n="dl.app.win.directMsiDesc">Windows Installer package</div>
+                    </div>
+                  </a>
+                </div>
+              </div>
+
+              <!-- Android Dropdown -->
+              <div class="relative inline-block text-left">
+                <button type="button" onclick="toggleDropdown('androidAppDropdown', event)" class="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs transition flex items-center gap-2 border border-white/10">
+                  <svg class="w-3.5 h-3.5 text-emerald-400" viewBox="0 0 24 24" fill="currentColor"><path d="M3.609 1.814L13.792 12 3.61 22.186a2.38 2.38 0 0 1-.61-.924V2.738c.15-.36.368-.68.609-.924zm11.24 11.24l2.583 2.584-11.89 6.862 9.307-9.446zm0-2.108L5.542 1.5l11.89 6.863-2.583 2.583zm1.488 1.054l3.963 2.29a1.64 1.64 0 0 1 0 2.82l-3.963 2.29-2.274-2.274 2.274-2.274z"/></svg>
+                  <span>Android</span>
+                  <svg class="w-3 h-3 text-slate-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd" /></svg>
+                </button>
+                <div id="androidAppDropdown" class="dropdown-panel hidden absolute left-0 bottom-full mb-2 sm:bottom-auto sm:top-full sm:mt-2 w-48 rounded-xl bg-[#12131b] border border-white/15 shadow-2xl p-1.5 z-40 backdrop-blur-2xl">
+                  <a href="https://play.google.com/store/apps/details?id=id.alienai" target="_blank" rel="noopener" class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-white hover:bg-white/10 transition font-medium">
+                    <span class="text-sm">▶️</span>
+                    <div>
+                      <div class="font-semibold" data-i18n="dl.app.android.play">Google Play</div>
+                      <div class="text-[10px] text-slate-400" data-i18n="dl.app.android.playDesc">Official Play Store</div>
+                    </div>
+                  </a>
+                  <a href="/download/app.apk" class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-white hover:bg-white/10 transition font-medium">
+                    <span class="text-sm">⬇️</span>
+                    <div>
+                      <div class="font-semibold" data-i18n="dl.app.android.directApk">Download APK</div>
+                      <div class="text-[10px] text-slate-400" data-i18n="dl.app.android.directApkDesc">Direct APK install</div>
+                    </div>
+                  </a>
+                </div>
+              </div>
+
+              <!-- Web App -->
+              <a href="/download/web" class="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs transition flex items-center gap-1.5 border border-white/10">
+                <span>🌐</span>
+                <span data-i18n="dl.app.web.title">Web App</span>
+              </a>
+            </div>
+          </div>
+
+          <!-- Card 2: Remote Control (Background Node) -->
+          <div class="flex-1 p-6 rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-xl hover:border-emerald-400/30 transition duration-300 flex flex-col justify-between text-left">
+            <div>
+              <h2 class="text-xl sm:text-2xl font-bold text-white mb-2" data-i18n="hero.downloadAgent">Remote Control</h2>
+              <p class="text-xs text-slate-400 mb-6 leading-relaxed" data-i18n="hero.agentDesc">
+                Background node enabling hands-free PC clicks, typing, WebRTC screen streaming, and virtual drive.
+              </p>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-2.5">
+              <!-- Windows Remote Control Dropdown -->
+              <div class="relative inline-block text-left">
+                <button type="button" onclick="toggleDropdown('winRemoteDropdown', event)" class="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs transition flex items-center gap-2 border border-white/10 shadow-sm">
+                  <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.901-1.8"/></svg>
+                  <span data-i18n="hero.winRemoteControl">Windows</span>
+                  <svg class="w-3 h-3 text-slate-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd" /></svg>
+                </button>
+                <div id="winRemoteDropdown" class="dropdown-panel hidden absolute left-0 bottom-full mb-2 sm:bottom-auto sm:top-full sm:mt-2 w-72 sm:w-80 rounded-xl bg-[#12131b] border border-white/15 shadow-2xl p-2 z-40 backdrop-blur-2xl">
+                  <a href="/download/agent.exe" class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-white hover:bg-white/10 transition font-medium">
+                    <span class="text-sm">⚡</span>
+                    <div>
+                      <div class="font-semibold" data-i18n="dl.agent.win.directExe">Download .EXE</div>
+                      <div class="text-[10px] text-slate-400" data-i18n="dl.agent.win.directExeDesc">Direct background node installer</div>
+                    </div>
+                  </a>
+                  <a href="/download/agent.msi" class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-white hover:bg-white/10 transition font-medium">
+                    <span class="text-sm">📦</span>
+                    <div>
+                      <div class="font-semibold" data-i18n="dl.agent.win.directMsi">Download .MSI</div>
+                      <div class="text-[10px] text-slate-400" data-i18n="dl.agent.win.directMsiDesc">Enterprise MSI package</div>
+                    </div>
+                  </a>
+                  <button type="button" onclick="copyPs1Command(event)" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-white hover:bg-white/10 transition font-medium text-left group">
+                    <span class="text-sm">💻</span>
+                    <div class="flex-1 min-w-0">
+                      <div class="font-semibold flex items-center justify-between gap-1">
+                        <span data-i18n="dl.agent.win.ps1Title">PowerShell Command</span>
+                        <span id="ps1CopyBadge" class="text-[10px] px-2 py-0.5 rounded bg-white/10 text-emerald-400 font-mono transition group-hover:bg-brand-500 group-hover:text-black" data-i18n="hero.copy">Copy</span>
+                      </div>
+                      <div class="text-[10px] text-slate-400" data-i18n="dl.agent.win.ps1Desc">1-line automatic install</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Browser Remote Control -->
+              <button type="button" class="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs transition flex items-center gap-1.5 border border-white/10">
+                <span>🌐</span>
+                <span data-i18n="hero.browser">Browser Remote Control</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- Compact Headlines Section: The 3 Core Superpowers -->
+    <section id="features" class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20 border-t border-white/5">
+      <div class="text-center mb-14">
+        <h2 class="text-3xl sm:text-4xl font-extrabold text-white mb-3 tracking-tight" data-i18n="feat.title">
+          Simple. Helpful. Delightfully Fast.
+        </h2>
+        <p class="text-slate-400 max-w-xl mx-auto text-sm sm:text-base leading-relaxed" data-i18n="feat.subtitle">
+          Designed to give you hours back every single day without complicated configurations.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- 1. Remote PC Automation -->
+        <div class="p-6 rounded-2xl bg-dark-card/60 border border-white/5 hover:border-white/15 transition flex flex-col justify-between">
+          <div>
+            <div class="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-xl mb-4">
+              ⚡
+            </div>
+            <h3 class="text-lg font-bold text-white mb-2" data-i18n="feat.computerUse.title">Smart Computer Assistance</h3>
+            <p class="text-slate-400 text-xs sm:text-sm leading-relaxed" data-i18n="feat.computerUse.desc">
+              Let your AI assistant help you browse websites, fill forms, and handle repetitive clicks on your computer — just like a helpful coworker.
+            </p>
+          </div>
+          <div class="mt-4 pt-3 border-t border-white/5 text-[11px] font-mono text-emerald-400">
+            <span data-i18n="feat.computerUse.badge">✦ Effortless PC Agent</span>
+          </div>
+        </div>
+
+        <!-- 2. Omnichannel Assistant -->
+        <div class="p-6 rounded-2xl bg-dark-card/60 border border-white/5 hover:border-white/15 transition flex flex-col justify-between">
+          <div>
+            <div class="flex items-center gap-2 mb-4">
+              <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0" title="WhatsApp">
+                <svg class="w-5 h-5 text-emerald-400 fill-current" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.435 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                </svg>
+              </div>
+              <div class="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center shrink-0" title="Telegram">
+                <svg class="w-5 h-5 text-sky-400 fill-current" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                </svg>
+              </div>
+              <div class="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 text-lg" title="Chat">
+                💬
+              </div>
+            </div>
+            <h3 class="text-lg font-bold text-white mb-2" data-i18n="feat.autoReply.title">Instant 24/7 Auto-Reply</h3>
+            <p class="text-slate-400 text-xs sm:text-sm leading-relaxed" data-i18n="feat.autoReply.desc">
+              Never leave customers waiting. AlienAI answers common questions, takes orders, and greets visitors on WhatsApp and Telegram right away.
+            </p>
+          </div>
+          <div class="mt-4 pt-3 border-t border-white/5 text-[11px] font-mono text-emerald-400">
+            <span data-i18n="feat.autoReply.badge">✦ WhatsApp &amp; Telegram Ready</span>
+          </div>
+        </div>
+
+        <!-- 3. 100% Private & Safe -->
+        <div class="p-6 rounded-2xl bg-dark-card/60 border border-white/5 hover:border-white/15 transition flex flex-col justify-between">
+          <div>
+            <div class="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-xl mb-4">
+              🛡️
+            </div>
+            <h3 class="text-lg font-bold text-white mb-2" data-i18n="feat.swarms.title">Private, Safe &amp; Under Your Control</h3>
+            <p class="text-slate-400 text-xs sm:text-sm leading-relaxed" data-i18n="feat.swarms.desc">
+              Your conversations and personal documents belong solely to you. Protected with bank-grade encryption with zero third-party tracking.
+            </p>
+          </div>
+          <div class="mt-4 pt-3 border-t border-white/5 text-[11px] font-mono text-emerald-400">
+            <span data-i18n="feat.swarms.badge">✦ 100% Private &amp; Encrypted</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Intelligence strip -->
+    <section id="intelligence" class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
+      <div class="border-y border-white/10 bg-gradient-to-r from-white/[0.04] via-transparent to-white/[0.02]">
+        <article class="px-5 sm:px-10 py-10 sm:py-12 border-b border-white/5 flex flex-col sm:flex-row gap-3 sm:gap-12">
+          <p class="text-[11px] font-mono uppercase tracking-[0.22em] text-slate-500 shrink-0 sm:w-40 sm:pt-1" data-i18n="feat.learn.label">Self Learning</p>
+          <p class="text-sm sm:text-base text-slate-400 leading-relaxed max-w-2xl">
+            <span data-i18n="feat.learn.descPrefix">Teach AI using everyday human language—including </span><span class="text-white font-semibold" data-i18n="feat.learn.localeName">English</span><span data-i18n="feat.learn.descSuffix">. Just explain what you want.</span>
+          </p>
+        </article>
+        <article class="px-5 sm:px-10 py-10 sm:py-12 flex flex-col sm:flex-row gap-3 sm:gap-12">
+          <p class="text-[11px] font-mono uppercase tracking-[0.22em] text-slate-500 shrink-0 sm:w-40 sm:pt-1" data-i18n="feat.memory.label">Memory</p>
+          <p class="text-sm sm:text-base text-slate-400 leading-relaxed max-w-2xl" data-i18n="feat.memory.desc">
+            Alien AI knows you better the more you use it—remembering preferences, important events, and personal context. Ask anything and get answers that feel truly yours.
+          </p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-white/5 py-10 bg-dark-bg/90 text-slate-500 text-xs relative z-10">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-6">
+      <div class="flex items-center gap-3">
+        <img src="/alien.svg" alt="Alien AI" class="w-5 h-5">
+        <span class="font-bold text-white text-sm tracking-tight">AlienAI</span>
+        <span class="text-slate-600" data-i18n="footer.rights">© 2026 AlienAI. All rights reserved.</span>
+      </div>
+      <div class="flex flex-wrap items-center gap-6 text-slate-400">
+        <a href="/status" class="hover:text-white transition" data-i18n="footer.status">Status</a>
+        <a href="/terms.html" class="hover:text-white transition" data-i18n="footer.terms">Terms</a>
+        <a href="/privacy.html" class="hover:text-white transition" data-i18n="footer.privacy">Privacy</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Starry Night Animation Script -->
+  <script src="/static/starry-night.js"></script>
+
+  <!-- Multilingual Locale Loader (Option B) -->
+  <script>
+    const localeCache = {};
+    let currentLang = 'en';
+
+    async function loadLocale(lang) {
+      if (localeCache[lang]) return localeCache[lang];
+      try {
+        const res = await fetch('/locales/' + lang + '.json');
+        if (!res.ok) return null;
+        const data = await res.json();
+        localeCache[lang] = data;
+        return data;
+      } catch (e) {
+        console.warn('Failed to load locale:', lang, e);
+        return null;
+      }
+    }
+
+    async function changeLanguage(lang) {
+      currentLang = lang;
+      document.documentElement.lang = lang;
+      localStorage.setItem('alienai_lang', lang);
+      document.cookie = 'alienai_lang=' + lang + '; path=/; max-age=31536000; SameSite=Lax';
+
+      // Update switcher pills
+      document.getElementById('btnLangEn').classList.toggle('active', lang === 'en');
+      document.getElementById('btnLangEn').classList.toggle('text-slate-400', lang !== 'en');
+      document.getElementById('btnLangId').classList.toggle('active', lang === 'id');
+      document.getElementById('btnLangId').classList.toggle('text-slate-400', lang !== 'id');
+
+      const dict = await loadLocale(lang);
+      if (!dict) return;
+
+      document.querySelectorAll('[data-i18n]').forEach((el) => {
+        const key = el.getAttribute('data-i18n');
+        if (dict[key]) {
+          el.innerText = dict[key];
+        }
+      });
+    }
+
+    // Auto-detect on boot
+    (function initLang() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlLang = urlParams.get('lang');
+      const savedLang = localStorage.getItem('alienai_lang');
+      const cookieLang = (document.cookie.match(/alienai_lang=([^;]+)/) || [])[1];
+      const initial = urlLang || savedLang || cookieLang || 'en';
+      if (initial !== 'en') {
+        changeLanguage(initial === 'id' ? 'id' : 'en');
+      }
+    })();
+
+    // Dropdown toggling logic for download action cards
+    function toggleDropdown(id, event) {
+      if (event) event.stopPropagation();
+      const target = document.getElementById(id);
+      if (!target) return;
+      const isHidden = target.classList.contains('hidden');
+      document.querySelectorAll('.dropdown-panel').forEach(el => el.classList.add('hidden'));
+      if (isHidden) {
+        target.classList.remove('hidden');
+      }
+    }
+
+    // Close dropdowns when clicking outside
+    window.addEventListener('click', function(e) {
+      if (!e.target.closest('.dropdown-panel') && !e.target.closest('button[onclick*="toggleDropdown"]')) {
+        document.querySelectorAll('.dropdown-panel').forEach(el => el.classList.add('hidden'));
+      }
+    });
+
+    // Latest app version badge (GET /version)
+    async function loadHeroAppVersion() {
+      const wrap = document.getElementById('heroAppVersion');
+      const num = document.getElementById('heroAppVersionNum');
+      if (!wrap || !num) return;
+      try {
+        const res = await fetch('/version');
+        if (!res.ok) return;
+        const data = await res.json();
+        const platforms = data.platforms || {};
+        let latest = null;
+        for (const body of Object.values(platforms)) {
+          if (!body?.version) continue;
+          if (!latest || body.version > latest.version) latest = body;
+        }
+        if (!latest?.version) return;
+        num.textContent = String(latest.version);
+        wrap.classList.remove('hidden');
+      } catch (_) {}
+    }
+    loadHeroAppVersion();
+
+    // Copy PowerShell 1-Liner command for Windows Remote Control
+    function copyPs1Command(event) {
+      if (event) event.stopPropagation();
+      const cmd = "irm https://alienai.id/install.ps1 | iex";
+      navigator.clipboard.writeText(cmd).then(() => {
+        const badge = document.getElementById('ps1CopyBadge');
+        if (badge) {
+          const orig = badge.innerText;
+          badge.innerText = currentLang === 'id' ? "Tersalin!" : "Copied!";
+          badge.classList.remove('bg-white/10', 'text-emerald-400');
+          badge.classList.add('bg-brand-500', 'text-black', 'font-bold');
+          setTimeout(() => {
+            badge.innerText = orig;
+            badge.classList.remove('bg-brand-500', 'text-black', 'font-bold');
+            badge.classList.add('bg-white/10', 'text-emerald-400');
+          }, 2000);
+        }
+      });
+    }
+  </script>
+</body>
+</html>

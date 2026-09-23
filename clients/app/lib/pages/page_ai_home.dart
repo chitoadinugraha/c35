@@ -12,6 +12,8 @@ import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/chat/chat_inbox.dart';
 import 'package:alienai_c35/c/chat/chat_title.dart';
 import 'package:alienai_c35/c/chat/space_hints.dart';
+import 'package:alienai_c35/c/hint/hint_store.dart';
+import 'package:alienai_c35/c/pb/c35/hint.pb.dart';
 import 'package:alienai_c35/c/consumption/consumption_api.dart';
 import 'package:alienai_c35/c/files/msg_attachment.dart';
 import 'package:alienai_c35/c/llm/agent_model.dart';
@@ -23,14 +25,17 @@ import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/c/settings/prompt_usage_prefs.dart';
 import 'package:alienai_c35/c/settings/voice_prefs.dart';
 import 'package:alienai_c35/c/store/chat_store.dart';
+import 'package:alienai_c35/c/store/prompt_run_store.dart';
 import 'package:alienai_c35/c/stt/stt_service.dart';
 import 'package:alienai_c35/c/tts/tts_service.dart';
 import 'package:alienai_c35/c/voice/voice_api.dart';
 import 'package:alienai_c35/pages/page_bots.dart';
 import 'package:alienai_c35/pages/page_devices.dart';
+import 'package:alienai_c35/pages/page_root_console.dart';
 import 'package:alienai_c35/pages/page_sites.dart';
 import 'package:alienai_c35/pages/page_settings.dart';
 import 'package:alienai_c35/pages/referral/page_referral_tree.dart';
+import 'package:alienai_c35/widgets/referral/ui_referral_claim_dialog.dart';
 import 'package:alienai_c35/widgets/ai/in_composer.dart';
 import 'package:alienai_c35/widgets/ai/msg_trace_view.dart';
 import 'package:alienai_c35/widgets/ai/ui_alien_icon.dart';
@@ -44,6 +49,7 @@ import 'package:alienai_c35/widgets/ai/ui_msg_copy_prefix.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_blocks.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_thought.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_usage.dart';
+import 'package:alienai_c35/widgets/ai/ui_subagent_run_card.dart';
 import 'package:alienai_c35/widgets/ai/ui_user_bubble.dart';
 import 'package:alienai_c35/widgets/billing/ui_billing_history_sheet.dart';
 import 'package:alienai_c35/widgets/billing/ui_billing_package_sheet.dart';
@@ -51,8 +57,15 @@ import 'package:alienai_c35/widgets/chat/ui_chat_timeline.dart';
 import 'package:alienai_c35/widgets/ui/ui_account_menu.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:alienai_c35/widgets/ui/ui_user_avatar.dart';
+import 'package:alienai_c35/c/store/canvas_store.dart';
+import 'package:alienai_c35/widgets/ai/ui_canvas_panel.dart';
+import 'package:alienai_c35/widgets/ai/ui_markdown_code_block.dart';
+import 'package:alienai_c35/widgets/ai/ui_msg_hover_actions.dart';
+import 'package:alienai_c35/widgets/ai/ui_context_meter.dart';
 import 'package:fixnum/fixnum.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
 class PageAIHome extends StatefulWidget {
@@ -72,6 +85,9 @@ class _PageAIHomeState extends State<PageAIHome> {
 
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _store = ChatStore();
+  final _canvasStore = CanvasStore();
+  final _composerCtrl = TextEditingController();
+  final _composerFocus = FocusNode();
   final _conn = ChatConn();
   late final VoiceApi _voiceApi = VoiceApi(_conn);
   final _consumptionApi = ConsumptionApi();
@@ -97,6 +113,16 @@ class _PageAIHomeState extends State<PageAIHome> {
     if (Session.instance.modelId.isNotEmpty) _model = AgentModel.of(Session.instance.modelId, _store.models);
     _timeline.attach();
     unawaited(_boot());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkReferralPrompt();
+    });
+  }
+
+  void _checkReferralPrompt() {
+    if (!mounted) return;
+    if (Session.instance.needsReferralPrompt) {
+      UiReferralClaimDialog.show(context, auth: widget.auth);
+    }
   }
 
   @override
@@ -109,11 +135,15 @@ class _PageAIHomeState extends State<PageAIHome> {
     _billingCommissionSub?.cancel();
     _timeline.dispose();
     _conn.disconnect();
+    _canvasStore.dispose();
+    _composerCtrl.dispose();
+    _composerFocus.dispose();
     super.dispose();
   }
 
   Future<void> _boot() async {
     try {
+      await HintStore.instance.restore();
       await CatalogTranslationCache.instance.restore();
       await CatalogTranslationCache.instance.ensure('en');
     } catch (e) {
@@ -188,12 +218,24 @@ class _PageAIHomeState extends State<PageAIHome> {
 
   void _newChat() {
     _store.chatNew();
+    _canvasStore.close();
     _timeline.scrollToBottom(force: true);
     if (MediaQuery.sizeOf(context).width < 720) _scaffoldKey.currentState?.closeDrawer();
   }
 
+  void _onCanvasIterate(CanvasArtifact artifact) {
+    if (MediaQuery.sizeOf(context).width < 720 && (_scaffoldKey.currentState?.isEndDrawerOpen ?? false)) {
+      Navigator.of(context).pop();
+    }
+    final snippet = artifact.title.isNotEmpty ? artifact.title : 'Canvas document';
+    _composerCtrl.text = 'Regarding "$snippet":\n';
+    _composerCtrl.selection = TextSelection.collapsed(offset: _composerCtrl.text.length);
+    _composerFocus.requestFocus();
+  }
+
   Future<void> _selectChat(int id) async {
     _store.chatSelect(id);
+    _canvasStore.close();
     try {
       final res = await _conn.chatMsgList(chatId: Int64(id));
       for (final m in res.messages) {
@@ -288,7 +330,7 @@ class _PageAIHomeState extends State<PageAIHome> {
   void _openSettings() => Navigator.push(
         context,
         MaterialPageRoute<void>(
-          builder: (_) => PageSettings(conn: SettingsConn(), chatConn: _conn),
+          builder: (_) => PageSettings(conn: SettingsConn(), chatConn: _conn, auth: widget.auth),
         ),
       );
 
@@ -305,6 +347,8 @@ class _PageAIHomeState extends State<PageAIHome> {
 
   void _openSites() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageSites(chatConn: _conn)));
 
+  void _openRootConsole() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageRootConsole(chatConn: _conn)));
+
   void _avatarMenu(BuildContext anchorCtx) => uiAccountMenuShow(
         anchorCtx,
         action: UiAccountMenuAction(
@@ -318,6 +362,7 @@ class _PageAIHomeState extends State<PageAIHome> {
           onBots: _openBots,
           onDevices: _openDevices,
           onSites: _openSites,
+          onRootConsole: Session.instance.isRoot ? _openRootConsole : null,
           botsCount: _store.navCounts.bots,
           devicesCount: _store.navCounts.devices,
           sitesCount: _store.navCounts.sites,
@@ -335,9 +380,31 @@ class _PageAIHomeState extends State<PageAIHome> {
     unawaited(Session.instance.modelPut(m.id));
   }
 
-  Future<void> _hintPick(SpaceHint hint) => hintRun(hint: hint, onSend: _composerSend);
+  Future<void> _hintPick(HintItem hint) async {
+    final assetIid = hintTouchAssetIid(hint);
+    if (assetIid != null) {
+      unawaited(_store.hintTouch(_conn, assetIid: assetIid, assetKind: hintTouchAssetKind(hint)));
+    }
+    await hintActionRunFromProto(
+      item: hint,
+      onSend: _composerSend,
+      onNavigate: _hintNavigate,
+    );
+  }
 
-  Future<void> _composerSend(String text, List<MsgAttachment> attachments, {bool retry = false}) async {
+  Future<void> _hintNavigate(String route, Map<String, dynamic> payload) async {
+    if (route != 'site.pos' || !mounted) return;
+    final siteIid = '${payload['site_iid'] ?? ''}'.trim();
+    if (siteIid.isEmpty) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => PageSites(chatConn: _conn, initialSiteIid: siteIid, initialTabRoute: route),
+      ),
+    );
+  }
+
+  Future<void> _composerSend(String text, List<MsgAttachment> attachments, {bool retry = false, String? toolMode}) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty && attachments.isEmpty) return;
     if (_store.promptBusy && !retry) return;
@@ -381,6 +448,7 @@ class _PageAIHomeState extends State<PageAIHome> {
     final localChatId = chatId;
     var streamChatId = chatId;
     final serverChatId = chatId > 0 ? Int64(chatId) : Int64.ZERO;
+    final turnToolMode = toolMode ?? _toolMode;
     final promptStream = _conn.promptSend(
         text: trimmed,
         chatId: serverChatId,
@@ -388,7 +456,7 @@ class _PageAIHomeState extends State<PageAIHome> {
         mentionIds: _mentionIds.toList(),
         model: _model.id,
         thinking: _model.thinking.wire,
-        toolMode: _toolMode,
+        toolMode: turnToolMode,
         locale: CatalogTranslationCache.instance.lang,
         reqId: reqId,
       );
@@ -421,7 +489,13 @@ class _PageAIHomeState extends State<PageAIHome> {
           } else {
             _store.msgStreamContent(ev.text, chatId: streamChatId);
           }
-          if (_store.activeChatId == streamChatId) _timeline.scrollToBottom();
+          if (_store.activeChatId == streamChatId) {
+            if (_timeline.stickToBottom) {
+              _timeline.scrollToBottom();
+            } else {
+              _timeline.notifyStreamChunk();
+            }
+          }
           continue;
         }
         if (ev.kind == 'end' && ev.end != null) {
@@ -483,10 +557,50 @@ class _PageAIHomeState extends State<PageAIHome> {
 
   Future<void> _abortPrompt() async {
     final id = _store.promptChatId ?? _store.activeChatId;
+    final reqId = _store.pendingPromptReqId ?? '';
     try {
-      await _conn.promptAbort(chatId: id != null && id > 0 ? Int64(id) : Int64.ZERO);
+      await _conn.promptAbort(
+        chatId: id != null && id > 0 ? Int64(id) : Int64.ZERO,
+        reqId: reqId,
+      );
     } catch (_) {}
     if (id != null) _store.promptBusyPut(false, chatId: id);
+  }
+
+  Future<void> _abortChildRun(int chatId, String reqId) async {
+    if (reqId.trim().isEmpty) return;
+    try {
+      await _conn.promptAbort(
+        chatId: chatId > 0 ? Int64(chatId) : Int64.ZERO,
+        reqId: reqId,
+      );
+    } catch (e) {
+      lError('subagent abort: $e');
+    }
+  }
+
+  Widget _subagentRunCards(MsgRow m) {
+    final parentReqId = m.reqId.trim();
+    if (parentReqId.isEmpty) return const SizedBox.shrink();
+    return ListenableBuilder(
+      listenable: PromptRunStore.instance,
+      builder: (_, __) {
+        final children = PromptRunStore.instance.childrenFor(parentReqId);
+        if (children.isEmpty) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final child in children)
+              UiSubagentRunCard(
+                conn: _conn,
+                push: child,
+                chatId: m.chatId,
+                onStop: promptRunStatusLive(child.status) ? () => unawaited(_abortChildRun(m.chatId, child.reqId)) : null,
+              ),
+          ],
+        );
+      },
+    );
   }
 
   Widget _accountAvatar() => Builder(
@@ -571,6 +685,27 @@ class _PageAIHomeState extends State<PageAIHome> {
                   ? const SizedBox.shrink()
                   : Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _text, fontSize: 15, fontWeight: FontWeight.w600)),
             ),
+            if (_canvasStore.hasArtifact) ...[
+              uiIconButton(
+                tooltip: _canvasStore.isOpen ? 'Hide canvas' : 'Open canvas',
+                icon: Icon(
+                  Icons.view_sidebar_rounded,
+                  color: _canvasStore.isOpen ? const Color(0xFF06B6D4) : _muted,
+                ),
+                onPressed: () {
+                  if (wide) {
+                    _canvasStore.toggleOpen();
+                  } else {
+                    if (_scaffoldKey.currentState?.isEndDrawerOpen ?? false) {
+                      Navigator.of(context).pop();
+                    } else {
+                      _scaffoldKey.currentState?.openEndDrawer();
+                    }
+                  }
+                },
+              ),
+              const SizedBox(width: 4),
+            ],
             _accountAvatar(),
           ],
         ),
@@ -582,6 +717,10 @@ class _PageAIHomeState extends State<PageAIHome> {
     );
   }
 
+  int get _threadTokensIn => _store.activeMsgs.fold(0, (acc, m) => acc + m.tokensIn);
+  int get _threadTokensOut => _store.activeMsgs.fold(0, (acc, m) => acc + m.tokensOut);
+  double get _threadCostUsd => _store.activeMsgs.fold(0.0, (acc, m) => acc + m.costUsd);
+
   Widget _chatColumn({required bool wide}) => Column(
         children: [
           _chatHeader(wide: wide),
@@ -589,6 +728,8 @@ class _PageAIHomeState extends State<PageAIHome> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: InComposer(
+              controller: _composerCtrl,
+              focusNode: _composerFocus,
               model: _model,
               models: _store.models,
               modelsLoading: !_modelsReady,
@@ -599,7 +740,15 @@ class _PageAIHomeState extends State<PageAIHome> {
               onMentionToggle: _mentionToggle,
               onMentionSearch: _mentionSearch,
               onToolModeToggle: _toolModeToggle,
-              onSend: _composerSend,
+              promptHistory: _store.recentUserPrompts,
+              onNewChat: _newChat,
+              contextMeter: UiContextMeter(
+                tokensIn: _threadTokensIn,
+                tokensOut: _threadTokensOut,
+                costUsd: _threadCostUsd,
+                contextLimit: _model.gemini ? 1000000 : 128000,
+              ),
+              onSend: (text, atts, {toolMode}) => _composerSend(text, atts, toolMode: toolMode),
               onAbort: _store.promptBusyFor(_store.activeChatId) ? _abortPrompt : null,
               busy: _store.promptBusyFor(_store.activeChatId),
               enabled: _catalogReady,
@@ -626,7 +775,24 @@ class _PageAIHomeState extends State<PageAIHome> {
 
     Widget body;
     if (isUser) {
-      body = UiUserBubble(content: m.content, copyPrefix: copyPrefix, attachments: m.attachments);
+      body = Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          UiUserBubble(content: m.content, copyPrefix: copyPrefix, attachments: m.attachments),
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: UiMsgHoverActions(
+              isUser: true,
+              onCopy: () => Clipboard.setData(ClipboardData(text: m.content)),
+              onEdit: () {
+                _composerCtrl.text = m.content;
+                _composerCtrl.selection = TextSelection.collapsed(offset: m.content.length);
+                _composerFocus.requestFocus();
+              },
+            ),
+          ),
+        ],
+      );
     } else {
       final content = msgDisplayContent(m);
       final err = msgRowError(m).trim();
@@ -647,6 +813,7 @@ class _PageAIHomeState extends State<PageAIHome> {
               startedAtMs: promptingThis ? _store.promptStartedAtMs : null,
             ),
           if (m.reqId.isNotEmpty) UiMsgTraceLoader(conn: _conn, reqId: m.reqId, live: promptingThis),
+          _subagentRunCards(m),
           if (hasError)
             UiMsgError(
               message: msgPromptErrorMessage(err),
@@ -658,6 +825,21 @@ class _PageAIHomeState extends State<PageAIHome> {
             MarkdownBody(
               data: content,
               selectable: false,
+              builders: {
+                'code': UiMarkdownCodeBlockBuilder(
+                  onOpenInCanvas: (title, code, language) {
+                    _canvasStore.openCode(
+                      title: title,
+                      code: code,
+                      language: language,
+                      open: true,
+                    );
+                    if (MediaQuery.sizeOf(context).width < 720) {
+                      _scaffoldKey.currentState?.openEndDrawer();
+                    }
+                  },
+                ),
+              },
               styleSheet: MarkdownStyleSheet(
                 p: const TextStyle(color: _text, fontSize: 15, height: 1.45),
                 code: const TextStyle(color: _text, fontSize: 13, fontFamily: 'Consolas', backgroundColor: Color(0xFF1A1A1D)),
@@ -683,6 +865,19 @@ class _PageAIHomeState extends State<PageAIHome> {
                 fxMicroPerUsd: AppStore.instance.wallet.fxMicroPerUsd,
               );
             }),
+          if (!hasError && content.trim().isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: UiMsgHoverActions(
+                isUser: false,
+                onCopy: () => Clipboard.setData(ClipboardData(text: content)),
+                onRetry: showRetry ? _retryLastTurn : null,
+                onFork: () {
+                  final forkedId = _store.chatFork(m.chatId, upToMsgId: m.id);
+                  _selectChat(forkedId);
+                },
+              ),
+            ),
         ],
       );
     }
@@ -714,52 +909,106 @@ class _PageAIHomeState extends State<PageAIHome> {
     }
   }
 
-  Widget _threadHero() {
-    final hints = hintsOfflineFallback();
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const UiAlienIcon(size: 48, color: _text),
-            const SizedBox(height: 16),
-            const Text('What can I help with?', style: TextStyle(color: _text, fontSize: 20, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            Text(_catalogReady ? 'Start a new chat or pick one from history.' : 'Loading catalog…', textAlign: TextAlign.center, style: const TextStyle(color: _muted, fontSize: 14)),
-            if (hints.isNotEmpty) ...[
-              const SizedBox(height: 20),
-              UiHints(hints: hints, onPick: _hintPick),
-            ],
-          ],
+  Widget _threadHero() => ListenableBuilder(
+        listenable: HintStore.instance,
+        builder: (context, _) {
+          final hints = HintStore.instance.items.isNotEmpty ? HintStore.instance.items : hintsOfflineFallbackItems();
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const UiAlienIcon(size: 48, color: _text),
+                  const SizedBox(height: 16),
+                  Text('home.heroTitle'.tr(), style: const TextStyle(color: _text, fontSize: 20, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Text(_catalogReady ? 'home.heroSubtitle'.tr() : 'home.heroLoading'.tr(), textAlign: TextAlign.center, style: const TextStyle(color: _muted, fontSize: 14)),
+                  if (hints.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    UiHints(hints: hints, onPick: _hintPick),
+                  ],
+                ],
+              ),
+            ),
+          );
+        },
+      );
+
+  Widget _jumpToLatestPill(int unread) => Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _timeline.scrollToBottom(force: true, animate: true),
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: BoxDecoration(
+              color: const Color(0xFF18181C).withValues(alpha: 0.95),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFF3F3F46)),
+              boxShadow: const [
+                BoxShadow(color: Colors.black45, blurRadius: 8, offset: Offset(0, 3)),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.arrow_downward_rounded, size: 14, color: Color(0xFF06B6D4)),
+                const SizedBox(width: 6),
+                Text(
+                  unread > 0 ? '$unread new message${unread > 1 ? 's' : ''}' : 'Jump to latest',
+                  style: const TextStyle(
+                    color: Color(0xFFF4F4F5),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
-      ),
-    );
-  }
+      );
 
   Widget _threadBody() {
     final msgs = _store.activeMsgs;
     if (_store.activeChatId == null && msgs.isEmpty) return _threadHero();
     if (msgs.isEmpty) return _threadHero();
-    return SelectionArea(
-      onSelectionChanged: (c) => _selectedPlain = c?.plainText,
-      contextMenuBuilder: _threadContextMenu,
-      child: UiChatTimeline(
-        controller: _timeline,
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-        itemCount: msgs.length,
-        itemBuilder: (context, i) => ListenableBuilder(
-          listenable: _store,
-          builder: (_, __) {
-            final rows = _store.activeMsgs;
-            if (i >= rows.length) return const SizedBox.shrink();
-            return Listener(
-              onPointerDown: (_) => _menuMsgIndex = i,
-              child: _msgTile(rows[i], i: i, count: rows.length),
-            );
-          },
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: SelectionArea(
+            onSelectionChanged: (c) => _selectedPlain = c?.plainText,
+            contextMenuBuilder: _threadContextMenu,
+            child: UiChatTimeline(
+              controller: _timeline,
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              itemCount: msgs.length,
+              itemBuilder: (context, i) => ListenableBuilder(
+                listenable: _store,
+                builder: (_, __) {
+                  final rows = _store.activeMsgs;
+                  if (i >= rows.length) return const SizedBox.shrink();
+                  return Listener(
+                    onPointerDown: (_) => _menuMsgIndex = i,
+                    child: _msgTile(rows[i], i: i, count: rows.length),
+                  );
+                },
+              ),
+            ),
+          ),
         ),
-      ),
+        Positioned(
+          bottom: 12,
+          right: 20,
+          child: ListenableBuilder(
+            listenable: Listenable.merge([_timeline.isAtBottom, _timeline.unreadStreamCount]),
+            builder: (ctx, _) {
+              if (_timeline.isAtBottom.value) return const SizedBox.shrink();
+              return _jumpToLatestPill(_timeline.unreadStreamCount.value);
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -767,12 +1016,24 @@ class _PageAIHomeState extends State<PageAIHome> {
   Widget build(BuildContext context) {
     final wide = MediaQuery.sizeOf(context).width >= 720;
     return ListenableBuilder(
-      listenable: _store,
+      listenable: Listenable.merge([_store, _canvasStore]),
       builder: (context, _) {
         return Scaffold(
           key: _scaffoldKey,
           backgroundColor: _bg,
           drawer: wide ? null : Drawer(backgroundColor: _bg, child: SafeArea(child: _historySidebar())),
+          endDrawer: wide || !_canvasStore.hasArtifact
+              ? null
+              : Drawer(
+                  backgroundColor: _bg,
+                  child: SafeArea(
+                    child: UiCanvasPanel(
+                      store: _canvasStore,
+                      onPromptIterate: _onCanvasIterate,
+                      onClose: () => Navigator.of(context).pop(),
+                    ),
+                  ),
+                ),
           body: wide
               ? SafeArea(
                   child: Row(
@@ -785,6 +1046,14 @@ class _PageAIHomeState extends State<PageAIHome> {
                         ),
                       ),
                       Expanded(child: _chatColumn(wide: true)),
+                      if (_canvasStore.isOpen && _canvasStore.hasArtifact)
+                        SizedBox(
+                          width: 480,
+                          child: UiCanvasPanel(
+                            store: _canvasStore,
+                            onPromptIterate: _onCanvasIterate,
+                          ),
+                        ),
                     ],
                   ),
                 )

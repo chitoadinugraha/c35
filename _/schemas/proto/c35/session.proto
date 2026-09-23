@@ -7,6 +7,7 @@ import "c35/billing.proto";
 import "c35/chat.proto";
 import "c35/sync.proto";
 import "c35/catalog.proto";
+import "c35/hint.proto";
 
 // Connect: /v1/ws?since=<ms>&jwt=...&locale=...&tz=...
 // First message after auth: ReqSessionInit → ResSessionInit (one round trip)
@@ -30,6 +31,7 @@ message ReqSessionInit {
   int32 platform = 6;
   bool include_inbox = 7;        // default true — prompt chats only
   bool include_billing = 8;      // default true
+  int64 hints_since_ms = 9;
 }
 
 message ResSessionInit {
@@ -56,4 +58,7 @@ message ResSessionInit {
 
   // Composer mention snapshot (catalog + identities; products via mention_search)
   MentionCatalog mentions = 12;
+
+  // Precompiled home hints (ai.hint_bundle)
+  HintCatalog hints = 13;
 }

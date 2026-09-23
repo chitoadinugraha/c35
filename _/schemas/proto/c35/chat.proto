@@ -73,6 +73,7 @@ message ChatMember {
   int64 created_ts_ms = 9;
   int64 updated_ts_ms = 10;
   int64 deleted_ts_ms = 11;
+  string last_msg_status = 12;
 }
 
 message ChatMsg {
@@ -129,6 +130,7 @@ message ReqPrompt {
   repeated string mention_ids = 6;
   string topic_id = 7;
   string tool_mode = 8;          // ask | agent
+  repeated int64 device_iids = 9;
 }
 
 message ResPromptStart {
@@ -161,6 +163,30 @@ message ResPromptFail {
 
 message ReqPromptAbort {
   int64 chat_id = 1;
+  string req_id = 2;   // empty = legacy chat-level abort
+}
+
+message PromptRunPush {
+  string req_id = 1;
+  string parent_req_id = 2;
+  string kind = 3;
+  int64 device_iid = 4;
+  string status = 5;
+  string label = 6;
+  string topic_id = 7;
+  int32 turn_count = 8;
+  int32 tokens_in = 9;
+  int32 tokens_out = 10;
+  double cost_usd = 11;
+  int32 duration_ms = 12;
+  string fail_class = 13;
+  string fail_reason = 14;
+}
+
+message PromptRunJob {
+  string req_id = 1;
+  int64 owner_iid = 2;
+  int64 chat_id = 3;
 }
 
 // bot_peer: stop AI for ONE conversation (not bot / channel)

@@ -12,6 +12,7 @@ class UiPageBar extends StatelessWidget {
     this.titleWidget,
     this.onBack,
     this.trailing,
+    this.searchWidget,
   });
 
   final String title;
@@ -19,6 +20,7 @@ class UiPageBar extends StatelessWidget {
   final Widget? titleWidget;
   final VoidCallback? onBack;
   final Widget? trailing;
+  final Widget? searchWidget;
 
   bool get _hasSubtitle => subtitle != null && subtitle!.isNotEmpty;
 
@@ -59,8 +61,8 @@ class UiPageBar extends StatelessWidget {
                   style: _backBtnStyle,
                 ),
               if (onBack != null) const SizedBox(width: 8),
-              Expanded(child: _titleArea()),
-              if (trailing != null) trailing!,
+              Expanded(child: searchWidget ?? _titleArea()),
+              if (searchWidget == null && trailing != null) trailing!,
             ],
           ),
         ),

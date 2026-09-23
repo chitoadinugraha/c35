@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package c35;
+
+// Home empty-state hint chips. Precompiled per user in ai.hint_bundle.
+
+message HintAction {
+  string kind = 1;           // send_text | pick_image | pick_file | open_url | navigate
+  string payload_json = 2;
+}
+
+message HintItem {
+  string id = 1;
+  string label = 2;
+  string icon = 3;
+  int32 sort = 4;
+  HintAction action = 5;
+  repeated HintItem items = 6;
+}
+
+message HintCatalog {
+  int64 updated_ts_ms = 1;
+  repeated HintItem items = 2;
+}
+
+message ReqHintTouch {
+  int64 asset_iid = 1;
+  string asset_kind = 2;     // site | device
+}
+
+message ResHintTouch {
+  bool ok = 1;
+}

@@ -84,14 +84,20 @@ pub async fn start_channel_inbound_subscriber(state: Arc<AppState>) {
             return;
         }
     };
-    let mut sub = match nats.subscribe(SUBJ_MSG_IN_WILDCARD).await {
+    let mut sub = match nats
+        .queue_subscribe(
+            SUBJ_MSG_IN_WILDCARD.to_string(),
+            "c35-server-channel-inbound".to_string(),
+        )
+        .await
+    {
         Ok(s) => s,
         Err(e) => {
-            warn!("[c35:channel] NATS subscribe {SUBJ_MSG_IN_WILDCARD}: {e}");
+            warn!("[c35:channel] NATS queue_subscribe {SUBJ_MSG_IN_WILDCARD}: {e}");
             return;
         }
     };
-    info!("[c35:channel] NATS subscribed subject={SUBJ_MSG_IN_WILDCARD}");
+    info!("[c35:channel] NATS queue_subscribed subject={SUBJ_MSG_IN_WILDCARD} queue=c35-server-channel-inbound");
 
     while let Some(msg) = sub.next().await {
         let ev = match serde_json::from_slice::<EvChannelMsgIn>(&msg.payload) {

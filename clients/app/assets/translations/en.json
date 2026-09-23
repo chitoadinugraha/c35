@@ -1,4 +1,9 @@
 {
+  "home": {
+    "heroTitle": "What can I help with?",
+    "heroSubtitle": "Start a new chat or pick one from history.",
+    "heroLoading": "Loading catalog…"
+  },
   "common": {
     "cancel": "Cancel",
     "save": "Save",

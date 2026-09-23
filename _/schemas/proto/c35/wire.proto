@@ -24,6 +24,7 @@ import "c35/inst.proto";
 import "c35/voice.proto";
 import "c35/stats.proto";
 import "c35/catalog.proto";
+import "c35/hint.proto";
 
 // HTTP invoke envelope (referral, admin, billing review, …)
 message InvokeReq {
@@ -61,6 +62,7 @@ message InvokeReq {
     ReqVoiceStt voice_stt = 107;
     ReqVoiceTts voice_tts = 108;
     ReqAdminLogList admin_log_list = 109;
+    ReqTranslationPut translation_put = 110;
   }
 }
 
@@ -99,6 +101,7 @@ message InvokeRes {
     ResVoiceStt voice_stt = 107;
     ResVoiceTts voice_tts = 108;
     ResAdminLogList admin_log_list = 109;
+    ResTranslationPut translation_put = 110;
   }
 }
 
@@ -177,6 +180,8 @@ message WsReq {
 
     ReqMentionList mention_list = 74;
     ReqMentionSearch mention_search = 75;
+    ReqHintTouch hint_touch = 76;
+    ReqSiteConfigPut site_config_put = 77;
   }
 }
 
@@ -272,5 +277,8 @@ message WsRes {
 
     ResMentionList mention_list = 121;
     ResMentionSearch mention_search = 122;
+    ResHintTouch hint_touch = 123;
+    PromptRunPush prompt_run_push = 124;
+    ResSiteConfigPut site_config_put = 125;
   }
 }

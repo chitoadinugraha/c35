@@ -3,6 +3,15 @@ use c35_mod_llm::model_cost_usd;
 /// 50% retail markup over wholesale provider rates.
 pub const RETAIL_MARKUP: f64 = 1.50;
 
+/// Escrow hold while cloud STT is in flight.
+pub const VOICE_STT_HOLD_USD: f64 = 0.01;
+/// Escrow hold while cloud TTS is in flight.
+pub const VOICE_TTS_HOLD_USD: f64 = 0.01;
+/// Retail STT rate ($/minute of audio).
+pub const VOICE_STT_USD_PER_MIN: f64 = 0.006;
+/// Retail TTS rate ($/1k characters).
+pub const VOICE_TTS_USD_PER_1K_CHARS: f64 = 0.004;
+
 /// Standard image generation wholesale cost per image ($0.035).
 pub const IMAGE_GEN_WHOLESALE_USD: f64 = 0.035;
 /// Standard image generation retail cost ($0.0525).

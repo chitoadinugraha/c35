@@ -68,6 +68,18 @@ message ResChannelWhatsappPair {
   string phone = 6;
 }
 
+message ReqChannelDisconnect {
+  int64 bot_iid = 1;
+  string channel_id = 2;
+}
+
+message ResChannelDisconnect {
+  bool ok = 1;
+  string error = 2;
+  int64 bot_iid = 3;
+  string channel_id = 4;
+}
+
 // Unsolicited WS push while pair dialog open (from NATS ev → WS fanout)
 message ChannelPairPush {
   int64 bot_iid = 1;

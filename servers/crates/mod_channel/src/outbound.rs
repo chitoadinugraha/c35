@@ -8,7 +8,7 @@ use sqlx::PgPool;
 use crate::format::channel_text_format;
 use crate::render::{fs_public_url, media_mime_resolve, outbound_payload_parse, OutboundMediaKind, OutboundPayload};
 use crate::speech::{is_ogg_audio, speech_lang_tts_code, speech_text_clean, web_tts_logged};
-use crate::store::{ChannelDoc, PROVIDER_LINKED};
+use crate::store::{is_linked_provider, ChannelDoc};
 use crate::telegram::{tg_api_base, tg_send_document_bytes, tg_send_message, tg_send_photo_url, tg_send_voice_reply};
 use crate::whatsapp::{wa_cloud_send_audio, wa_cloud_send_media};
 
@@ -25,6 +25,7 @@ pub struct OutboundCtx {
     pub channel: ChannelDoc,
     pub owner_iid: i64,
     pub bot_iid: i64,
+    pub msg_id: Option<String>,
 }
 
 pub fn outbound_ctx_from_channel(platform: &str, peer_id: &str, channel: &ChannelDoc) -> OutboundCtx {
@@ -34,6 +35,7 @@ pub fn outbound_ctx_from_channel(platform: &str, peer_id: &str, channel: &Channe
         channel: channel.clone(),
         owner_iid: 0,
         bot_iid: 0,
+        msg_id: None,
     }
 }
 
@@ -50,6 +52,25 @@ pub fn outbound_ctx_new(
         channel: channel.clone(),
         owner_iid,
         bot_iid,
+        msg_id: None,
+    }
+}
+
+pub fn outbound_ctx_with_msg(
+    platform: &str,
+    peer_id: &str,
+    channel: &ChannelDoc,
+    owner_iid: i64,
+    bot_iid: i64,
+    msg_id: Option<String>,
+) -> OutboundCtx {
+    OutboundCtx {
+        platform: platform.to_string(),
+        peer_id: peer_id.to_string(),
+        channel: channel.clone(),
+        owner_iid,
+        bot_iid,
+        msg_id,
     }
 }
 
@@ -218,7 +239,7 @@ async fn deliver_whatsapp(
     plain: &str,
     speak: bool,
 ) -> Result<()> {
-    if ctx.channel.provider == PROVIDER_LINKED {
+    if is_linked_provider(&ctx.channel.provider) {
         return deliver_whatsapp_device(client, nats, cas, ctx, payload, formatted, plain, speak).await;
     }
     deliver_whatsapp_meta(client, cas, ctx, payload, formatted, plain, speak).await

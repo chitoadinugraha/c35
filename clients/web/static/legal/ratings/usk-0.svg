@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 68 68" role="img" aria-label="USK 0">
+  <polygon points="34,4 64,34 34,64 4,34" fill="#fff" stroke="#000" stroke-width="2.5"/>
+  <text x="34" y="30" text-anchor="middle" fill="#000" font-family="Arial, sans-serif" font-size="9" font-weight="700">USK</text>
+  <text x="34" y="48" text-anchor="middle" fill="#000" font-family="Arial Black, Arial, sans-serif" font-size="22" font-weight="700">0</text>
+</svg>

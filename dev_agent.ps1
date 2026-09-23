@@ -33,6 +33,10 @@ try {
     if ($CargoArgs) { $runArgs += $CargoArgs }
     if ($Cli) { $runArgs += '--', '--cli' }
     & cargo @runArgs
+    $code = $LASTEXITCODE
+    # Ctrl+C / broken pipe — exit cleanly without cargo error noise
+    if ($code -eq 130 -or $code -eq -1073741510) { exit 0 }
+    exit $code
 } finally {
     Pop-Location
 }

@@ -69,3 +69,15 @@ message ResTranslationGet {
   map<string, string> entries = 1;
   int64 updated_ts_ms = 2;
 }
+
+// Root admin — upsert ai.translation (invalidates hint bundles when category/key affects hints)
+message ReqTranslationPut {
+  string lang = 1;
+  string key = 2;
+  string category = 3;
+  string text = 4;
+}
+
+message ResTranslationPut {
+  int64 updated_ts_ms = 1;
+}

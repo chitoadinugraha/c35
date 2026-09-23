@@ -57,3 +57,16 @@ INSERT INTO ai.topic (
     'seed',
     NOW()
 ) ON CONFLICT (id) DO NOTHING;
+
+-- Seed: computer use topic (desktop automation subagent)
+INSERT INTO ai.topic (
+    id, label_key, inst, extend, sort, def_hash, updated_ts
+) VALUES (
+    'computer_use',
+    'topic.computer_use.label',
+    'Desktop automation: always screenshot first, use SoM when stuck, verify each action, stop after 2 identical errors. Coordinates for device.input are normalized from 0.0 to 1.0 (top-left is 0.0, 0.0) across the desktop span. Use event_type=''double_click'' to open desktop apps or files. Use event_type=''shortcut'' with text (e.g. ''win+r'', ''ctrl+c'', ''alt+tab'') for hotkeys. Always verify outcomes with device.screenshot or screenshot_after=true.',
+    'general',
+    30,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO NOTHING;

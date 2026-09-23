@@ -1,7 +1,14 @@
+import 'package:alienai_c35/c/profile/alien_id.dart';
+
 const profileAlienDomain = 'alienai.id';
 const _alienSuffix = '@$profileAlienDomain';
 
 enum AuthLoginKind { alienId, email, phone }
+
+String profileHandleDisplay(String alienId) {
+  final id = alienIdNormalize(alienId.trim().replaceFirst(RegExp(r'^@+'), ''));
+  return id.isEmpty ? '@user' : '@$id';
+}
 
 String profileAlienAddress(String handle) {
   var id = handle.trim();

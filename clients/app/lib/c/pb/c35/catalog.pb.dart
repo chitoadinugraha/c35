@@ -876,6 +876,157 @@ class ResTranslationGet extends $pb.GeneratedMessage {
   void clearUpdatedTsMs() => $_clearField(2);
 }
 
+/// Root admin — upsert ai.translation (invalidates hint bundles when category/key affects hints)
+class ReqTranslationPut extends $pb.GeneratedMessage {
+  factory ReqTranslationPut({
+    $core.String? lang,
+    $core.String? key,
+    $core.String? category,
+    $core.String? text,
+  }) {
+    final result = ReqTranslationPut._();
+    if (lang != null) result.lang = lang;
+    if (key != null) result.key = key;
+    if (category != null) result.category = category;
+    if (text != null) result.text = text;
+    return result;
+  }
+
+  ReqTranslationPut._();
+
+  factory ReqTranslationPut.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqTranslationPut()..mergeFromBuffer(data, registry);
+  factory ReqTranslationPut.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqTranslationPut()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqTranslationPut',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqTranslationPut.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'lang')
+    ..aOS(2, _omitFieldNames ? '' : 'key')
+    ..aOS(3, _omitFieldNames ? '' : 'category')
+    ..aOS(4, _omitFieldNames ? '' : 'text')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqTranslationPut clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqTranslationPut copyWith(void Function(ReqTranslationPut) updates) =>
+      super.copyWith((message) => updates(message as ReqTranslationPut))
+          as ReqTranslationPut;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqTranslationPut() / ReqTranslationPut.new instead')
+  static ReqTranslationPut create() => ReqTranslationPut._();
+  static $pb.GeneratedMessage $_createMessage() => ReqTranslationPut._();
+  @$core.override
+  ReqTranslationPut createEmptyInstance() => ReqTranslationPut._();
+  @$core.pragma('dart2js:noInline')
+  static ReqTranslationPut getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ReqTranslationPut>(
+          ReqTranslationPut.$_createMessage);
+  static ReqTranslationPut? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get lang => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set lang($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasLang() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearLang() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get key => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set key($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasKey() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearKey() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get category => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set category($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasCategory() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearCategory() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get text => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set text($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasText() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearText() => $_clearField(4);
+}
+
+class ResTranslationPut extends $pb.GeneratedMessage {
+  factory ResTranslationPut({
+    $fixnum.Int64? updatedTsMs,
+  }) {
+    final result = ResTranslationPut._();
+    if (updatedTsMs != null) result.updatedTsMs = updatedTsMs;
+    return result;
+  }
+
+  ResTranslationPut._();
+
+  factory ResTranslationPut.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResTranslationPut()..mergeFromBuffer(data, registry);
+  factory ResTranslationPut.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResTranslationPut()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResTranslationPut',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResTranslationPut.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'updatedTsMs')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResTranslationPut clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResTranslationPut copyWith(void Function(ResTranslationPut) updates) =>
+      super.copyWith((message) => updates(message as ResTranslationPut))
+          as ResTranslationPut;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResTranslationPut() / ResTranslationPut.new instead')
+  static ResTranslationPut create() => ResTranslationPut._();
+  static $pb.GeneratedMessage $_createMessage() => ResTranslationPut._();
+  @$core.override
+  ResTranslationPut createEmptyInstance() => ResTranslationPut._();
+  @$core.pragma('dart2js:noInline')
+  static ResTranslationPut getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ResTranslationPut>(
+          ResTranslationPut.$_createMessage);
+  static ResTranslationPut? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get updatedTsMs => $_getI64(0);
+  @$pb.TagNumber(1)
+  set updatedTsMs($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasUpdatedTsMs() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearUpdatedTsMs() => $_clearField(1);
+}
+
 const $core.bool _omitFieldNames =
     $core.bool.fromEnvironment('protobuf.omit_field_names');
 const $core.bool _omitMessageNames =

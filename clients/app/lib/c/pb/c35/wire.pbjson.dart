@@ -291,6 +291,15 @@ const InvokeReq$json = {
       '9': 0,
       '10': 'adminLogList'
     },
+    {
+      '1': 'translation_put',
+      '3': 110,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqTranslationPut',
+      '9': 0,
+      '10': 'translationPut'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -339,7 +348,8 @@ final $typed_data.Uint8List invokeReqDescriptor = $convert.base64Decode(
     '5zdERlbGV0ZRIvCgl2b2ljZV9zdHQYayABKAsyEC5jMzUuUmVxVm9pY2VTdHRIAFIIdm9pY2VT'
     'dHQSLwoJdm9pY2VfdHRzGGwgASgLMhAuYzM1LlJlcVZvaWNlVHRzSABSCHZvaWNlVHRzEjwKDm'
     'FkbWluX2xvZ19saXN0GG0gASgLMhQuYzM1LlJlcUFkbWluTG9nTGlzdEgAUgxhZG1pbkxvZ0xp'
-    'c3RCBgoEYm9keQ==');
+    'c3QSQQoPdHJhbnNsYXRpb25fcHV0GG4gASgLMhYuYzM1LlJlcVRyYW5zbGF0aW9uUHV0SABSDn'
+    'RyYW5zbGF0aW9uUHV0QgYKBGJvZHk=');
 
 @$core.Deprecated('Use invokeResDescriptor instead')
 const InvokeRes$json = {
@@ -609,6 +619,15 @@ const InvokeRes$json = {
       '9': 0,
       '10': 'adminLogList'
     },
+    {
+      '1': 'translation_put',
+      '3': 110,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResTranslationPut',
+      '9': 0,
+      '10': 'translationPut'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -656,7 +675,8 @@ final $typed_data.Uint8List invokeResDescriptor = $convert.base64Decode(
     'RGVsZXRlSABSCmluc3REZWxldGUSLwoJdm9pY2Vfc3R0GGsgASgLMhAuYzM1LlJlc1ZvaWNlU3'
     'R0SABSCHZvaWNlU3R0Ei8KCXZvaWNlX3R0cxhsIAEoCzIQLmMzNS5SZXNWb2ljZVR0c0gAUgh2'
     'b2ljZVR0cxI8Cg5hZG1pbl9sb2dfbGlzdBhtIAEoCzIULmMzNS5SZXNBZG1pbkxvZ0xpc3RIAF'
-    'IMYWRtaW5Mb2dMaXN0QgYKBGJvZHk=');
+    'IMYWRtaW5Mb2dMaXN0EkEKD3RyYW5zbGF0aW9uX3B1dBhuIAEoCzIWLmMzNS5SZXNUcmFuc2xh'
+    'dGlvblB1dEgAUg50cmFuc2xhdGlvblB1dEIGCgRib2R5');
 
 @$core.Deprecated('Use wsReqDescriptor instead')
 const WsReq$json = {
@@ -1248,6 +1268,24 @@ const WsReq$json = {
       '9': 0,
       '10': 'mentionSearch'
     },
+    {
+      '1': 'hint_touch',
+      '3': 76,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqHintTouch',
+      '9': 0,
+      '10': 'hintTouch'
+    },
+    {
+      '1': 'site_config_put',
+      '3': 77,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqSiteConfigPut',
+      '9': 0,
+      '10': 'siteConfigPut'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -1331,7 +1369,9 @@ final $typed_data.Uint8List wsReqDescriptor = $convert.base64Decode(
     'c2NyaWJlEkEKD2xvZ191bnN1YnNjcmliZRhJIAEoCzIWLmMzNS5SZXFMb2dVbnN1YnNjcmliZU'
     'gAUg5sb2dVbnN1YnNjcmliZRI4CgxtZW50aW9uX2xpc3QYSiABKAsyEy5jMzUuUmVxTWVudGlv'
     'bkxpc3RIAFILbWVudGlvbkxpc3QSPgoObWVudGlvbl9zZWFyY2gYSyABKAsyFS5jMzUuUmVxTW'
-    'VudGlvblNlYXJjaEgAUg1tZW50aW9uU2VhcmNoQgYKBGJvZHk=');
+    'VudGlvblNlYXJjaEgAUg1tZW50aW9uU2VhcmNoEjIKCmhpbnRfdG91Y2gYTCABKAsyES5jMzUu'
+    'UmVxSGludFRvdWNoSABSCWhpbnRUb3VjaBI/Cg9zaXRlX2NvbmZpZ19wdXQYTSABKAsyFS5jMz'
+    'UuUmVxU2l0ZUNvbmZpZ1B1dEgAUg1zaXRlQ29uZmlnUHV0QgYKBGJvZHk=');
 
 @$core.Deprecated('Use wsResDescriptor instead')
 const WsRes$json = {
@@ -1987,6 +2027,33 @@ const WsRes$json = {
       '9': 0,
       '10': 'mentionSearch'
     },
+    {
+      '1': 'hint_touch',
+      '3': 123,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResHintTouch',
+      '9': 0,
+      '10': 'hintTouch'
+    },
+    {
+      '1': 'prompt_run_push',
+      '3': 124,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.PromptRunPush',
+      '9': 0,
+      '10': 'promptRunPush'
+    },
+    {
+      '1': 'site_config_put',
+      '3': 125,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResSiteConfigPut',
+      '9': 0,
+      '10': 'siteConfigPut'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -2077,5 +2144,8 @@ final $typed_data.Uint8List wsResDescriptor = $convert.base64Decode(
     '5jMzUuUnRjU2lnbmFsQW5zd2VySABSD3J0Y1NpZ25hbEFuc3dlchI5Cg5ydGNfc2lnbmFsX2lj'
     'ZRhlIAEoCzIRLmMzNS5SdGNTaWduYWxJY2VIAFIMcnRjU2lnbmFsSWNlEjgKDG1lbnRpb25fbG'
     'lzdBh5IAEoCzITLmMzNS5SZXNNZW50aW9uTGlzdEgAUgttZW50aW9uTGlzdBI+Cg5tZW50aW9u'
-    'X3NlYXJjaBh6IAEoCzIVLmMzNS5SZXNNZW50aW9uU2VhcmNoSABSDW1lbnRpb25TZWFyY2hCBg'
-    'oEYm9keQ==');
+    'X3NlYXJjaBh6IAEoCzIVLmMzNS5SZXNNZW50aW9uU2VhcmNoSABSDW1lbnRpb25TZWFyY2gSMg'
+    'oKaGludF90b3VjaBh7IAEoCzIRLmMzNS5SZXNIaW50VG91Y2hIAFIJaGludFRvdWNoEjwKD3By'
+    'b21wdF9ydW5fcHVzaBh8IAEoCzISLmMzNS5Qcm9tcHRSdW5QdXNoSABSDXByb21wdFJ1blB1c2'
+    'gSPwoPc2l0ZV9jb25maWdfcHV0GH0gASgLMhUuYzM1LlJlc1NpdGVDb25maWdQdXRIAFINc2l0'
+    'ZUNvbmZpZ1B1dEIGCgRib2R5');

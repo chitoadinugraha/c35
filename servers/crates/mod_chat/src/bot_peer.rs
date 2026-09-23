@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use c35_proto::{
-    Chat, ChatKind, ChatMsg, ChatMsgRole, ChatMsgSource, ChatMsgStatus, ReqBotPeerList, ReqChatSend,
-    ReqChatStop, ResBotPeerList, ResChatSend, ResChatStop,
+    Chat, ChatKind, ChatMsg, ChatMsgRole, ChatMsgSource, ChatMsgStatus, ReqBotPeerList, ReqChatMsgList,
+    ReqChatSend, ReqChatStop, ResBotPeerList, ResChatMsgList, ResChatSend, ResChatStop,
 };
 use c35_store::snowflake_id;
 use sqlx::{PgPool, Row};
@@ -40,16 +40,56 @@ async fn bot_peer_chat_verify(pool: &PgPool, caller_iid: i64, chat_id: i64) -> R
     let row = sqlx::query(
         r#"
         SELECT owner_iid, bot_iid FROM ai.chat
-        WHERE id = $1 AND kind = 'bot_peer' AND deleted_ts IS NULL AND owner_iid = $2
+        WHERE id = $1 AND kind = 'bot_peer' AND deleted_ts IS NULL
         "#,
     )
     .bind(chat_id)
-    .bind(caller_iid)
     .fetch_optional(pool)
     .await?;
     let row = row.ok_or_else(|| anyhow!("chat not found"))?;
     bot_access_verify(pool, caller_iid, row.get("bot_iid")).await?;
     Ok(row.get("owner_iid"))
+}
+
+pub async fn bot_peer_msg_list(pool: &PgPool, caller_iid: i64, req: ReqChatMsgList) -> Result<ResChatMsgList> {
+    let chat_id = req.chat_id;
+    bot_peer_chat_verify(pool, caller_iid, chat_id).await?;
+    let limit = if req.limit <= 0 { 100 } else { req.limit.min(500) };
+    let before = req.before_id;
+    let rows = if before > 0 {
+        sqlx::query(
+            r#"
+            SELECT id, chat_id, owner_iid, req_id, sender_iid, role, source, content, thought, attachments, blocks_json,
+                   tokens_in, tokens_out, duration_ms, status, cost_usd::float8 AS cost_usd, error_text, created_ts, updated_ts, deleted_ts
+            FROM ai.chat_msg
+            WHERE chat_id = $1 AND deleted_ts IS NULL AND id < $2
+            ORDER BY id DESC
+            LIMIT $3
+            "#,
+        )
+        .bind(chat_id)
+        .bind(before)
+        .bind(limit)
+        .fetch_all(pool)
+        .await?
+    } else {
+        sqlx::query(
+            r#"
+            SELECT id, chat_id, owner_iid, req_id, sender_iid, role, source, content, thought, attachments, blocks_json,
+                   tokens_in, tokens_out, duration_ms, status, cost_usd::float8 AS cost_usd, error_text, created_ts, updated_ts, deleted_ts
+            FROM ai.chat_msg
+            WHERE chat_id = $1 AND deleted_ts IS NULL
+            ORDER BY id DESC
+            LIMIT $2
+            "#,
+        )
+        .bind(chat_id)
+        .bind(limit)
+        .fetch_all(pool)
+        .await?
+    };
+    let messages = rows.into_iter().map(row_to_msg).collect();
+    Ok(ResChatMsgList { messages })
 }
 
 pub async fn bot_peer_list(pool: &PgPool, caller_iid: i64, req: ReqBotPeerList) -> Result<ResBotPeerList> {
@@ -60,13 +100,12 @@ pub async fn bot_peer_list(pool: &PgPool, caller_iid: i64, req: ReqBotPeerList) 
         SELECT id, kind, owner_iid, title, model, bot_iid, channel_id, peer_key, peer_name, peer_pic,
                ai_reply_enabled, last_msg_ts, last_msg_preview, meta, created_ts, updated_ts, deleted_ts
         FROM ai.chat
-        WHERE kind = 'bot_peer' AND bot_iid = $1 AND deleted_ts IS NULL AND owner_iid = $2
+        WHERE kind = 'bot_peer' AND bot_iid = $1 AND deleted_ts IS NULL
         ORDER BY last_msg_ts DESC
-        LIMIT $3
+        LIMIT $2
         "#,
     )
     .bind(req.bot_iid)
-    .bind(caller_iid)
     .bind(limit)
     .fetch_all(pool)
     .await?;
@@ -105,6 +144,7 @@ pub async fn chat_send(pool: &PgPool, caller_iid: i64, req: ReqChatSend) -> Resu
         return Err(anyhow!("text required"));
     }
     let msg_id = snowflake_id();
+    let mut tx = pool.begin().await?;
     sqlx::query(
         r#"
         INSERT INTO ai.chat_msg (
@@ -119,7 +159,7 @@ pub async fn chat_send(pool: &PgPool, caller_iid: i64, req: ReqChatSend) -> Resu
     .bind(caller_iid)
     .bind(text)
     .bind(attachments.clone())
-    .execute(pool)
+    .execute(&mut *tx)
     .await?;
     let preview: String = text.chars().take(255).collect();
     sqlx::query(
@@ -129,12 +169,13 @@ pub async fn chat_send(pool: &PgPool, caller_iid: i64, req: ReqChatSend) -> Resu
     )
     .bind(chat_id)
     .bind(&preview)
-    .execute(pool)
+    .execute(&mut *tx)
     .await?;
+    tx.commit().await?;
     let row = sqlx::query(
         r#"
         SELECT id, chat_id, owner_iid, req_id, sender_iid, role, source, content, thought, attachments, blocks_json,
-               tokens_in, tokens_out, duration_ms, status, cost_usd, error_text, created_ts, updated_ts, deleted_ts
+               tokens_in, tokens_out, duration_ms, status, cost_usd::float8 AS cost_usd, error_text, created_ts, updated_ts, deleted_ts
         FROM ai.chat_msg WHERE id = $1
         "#,
     )

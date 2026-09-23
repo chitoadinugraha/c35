@@ -7,11 +7,11 @@ use std::time::Instant;
 
 use super::inst_macro::{inst_matched_prompt, inst_pick, inst_tool_directives, InstMatchCtx, InstRow};
 use super::mention::MentionRow;
-use super::tool_rag::{tool_find_lexical, tool_select as rag_tool_select, ToolCandidate, DEFAULT_TOOL_TOP_K, TOOL_RAG_MIN};
+use super::tool_rag::{tool_find_lexical, tool_select as rag_tool_select, ToolCandidate, DEFAULT_TOOL_SIM_GAP, DEFAULT_TOOL_TOP_K, TOOL_RAG_MIN};
 use crate::tools::ToolDef;
 
 pub use topic::{tool_topic_eligible, topic_resolve};
-pub use tool_select::tools_for_turn;
+pub use tool_select::{tool_turn_eligible, tools_for_turn};
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ComposeTraceCandidate {
@@ -25,9 +25,25 @@ pub struct ComposeTrace {
     pub duration_ms: i64,
     pub inst_ids: Vec<String>,
     pub candidates: Vec<ComposeTraceCandidate>,
+    pub dropped_gap: Vec<ComposeTraceCandidate>,
     pub selected_tools: Vec<String>,
     pub rag_skipped: bool,
     pub rag_skip_reason: String,
+}
+
+fn trace_dropped_gap(candidates: &[ComposeTraceCandidate]) -> Vec<ComposeTraceCandidate> {
+    let min_fed = candidates
+        .iter()
+        .filter(|c| c.fed)
+        .map(|c| c.sim)
+        .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    candidates
+        .iter()
+        .filter(|c| !c.fed && c.sim > 0.0)
+        .filter(|c| min_fed.map(|m| m - c.sim <= DEFAULT_TOOL_SIM_GAP + 0.001).unwrap_or(true))
+        .take(3)
+        .cloned()
+        .collect()
 }
 
 pub struct ComposeOutput {
@@ -46,6 +62,7 @@ pub fn compose_tools_and_inst(
     explicit_topic: &str,
     tool_mode: &str,
     mentions: &[MentionRow],
+    scopes: &[String],
 ) -> ComposeOutput {
     let started = Instant::now();
     let active_topic = topic_resolve(explicit_topic, mention_ids, mentions);
@@ -53,6 +70,7 @@ pub fn compose_tools_and_inst(
     let matched = inst_pick(
         inst_rows,
         &InstMatchCtx {
+            scopes,
             topic_id: &active_topic,
             text,
             mention_ids,
@@ -83,6 +101,7 @@ pub fn compose_tools_and_inst(
                 duration_ms: started.elapsed().as_millis() as i64,
                 inst_ids: matched_ids,
                 candidates: vec![],
+                dropped_gap: vec![],
                 selected_tools: vec![],
                 rag_skipped: true,
                 rag_skip_reason: "ask_mode".into(),
@@ -94,7 +113,7 @@ pub fn compose_tools_and_inst(
     let selected_tools: Vec<String> = topic_filtered.iter().map(|t| t.name.clone()).collect();
 
     if eligible_tools.len() <= TOOL_RAG_MIN {
-        let candidates = selected_tools
+        let candidates: Vec<ComposeTraceCandidate> = selected_tools
             .iter()
             .map(|id| ComposeTraceCandidate { tool_id: id.clone(), sim: 1.0, fed: true })
             .collect();
@@ -105,7 +124,8 @@ pub fn compose_tools_and_inst(
             trace: ComposeTrace {
                 duration_ms: started.elapsed().as_millis() as i64,
                 inst_ids: matched_ids,
-                candidates,
+                candidates: candidates.clone(),
+                dropped_gap: trace_dropped_gap(&candidates),
                 selected_tools,
                 rag_skipped: true,
                 rag_skip_reason: "few_tools".into(),
@@ -118,7 +138,7 @@ pub fn compose_tools_and_inst(
     let eligible: Vec<ToolDef> = eligible_tools
         .iter()
         .filter(|t| !exclude.iter().any(|x| x == &t.name))
-        .filter(|t| tool_topic_eligible(&tool_def_topics(t), &active_topic))
+        .filter(|t| tool_turn_eligible(t, &active_topic))
         .cloned()
         .collect();
     let force: Vec<String> = force.into_iter().filter(|id| eligible.iter().any(|t| &t.name == id)).collect();
@@ -136,7 +156,7 @@ pub fn compose_tools_and_inst(
         all_candidates.push(ToolCandidate { tool_id: t.name.clone(), sim: 0.0 });
     }
     all_candidates.sort_by(|a, b| b.sim.partial_cmp(&a.sim).unwrap_or(std::cmp::Ordering::Equal));
-    let candidates = all_candidates
+    let candidates: Vec<ComposeTraceCandidate> = all_candidates
         .iter()
         .map(|c| ComposeTraceCandidate {
             tool_id: c.tool_id.clone(),
@@ -152,20 +172,11 @@ pub fn compose_tools_and_inst(
         trace: ComposeTrace {
             duration_ms: started.elapsed().as_millis() as i64,
             inst_ids: matched_ids,
-            candidates,
+            candidates: candidates.clone(),
+            dropped_gap: trace_dropped_gap(&candidates),
             selected_tools,
             rag_skipped: false,
             rag_skip_reason: String::new(),
         },
     }
-}
-
-fn tool_def_topics(t: &ToolDef) -> Vec<String> {
-    if !t.topics.is_empty() {
-        return t.topics.clone();
-    }
-    if t.name.starts_with("web.") || t.name == "img.generate" {
-        return vec!["*".into()];
-    }
-    vec![]
 }

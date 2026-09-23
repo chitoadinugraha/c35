@@ -50,7 +50,7 @@ class _UiMsgThoughtState extends State<UiMsgThought> {
   void didUpdateWidget(covariant UiMsgThought old) {
     super.didUpdateWidget(old);
     if (!old.thinking && widget.thinking) _open = true;
-    if (old.thinking && !widget.thinking && !_hasBody) _open = false;
+    if (old.thinking && !widget.thinking) _open = false;
   }
 
   bool get _expanded => _open;

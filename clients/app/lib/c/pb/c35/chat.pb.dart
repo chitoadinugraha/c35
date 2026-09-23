@@ -289,6 +289,7 @@ class ChatMember extends $pb.GeneratedMessage {
     $fixnum.Int64? createdTsMs,
     $fixnum.Int64? updatedTsMs,
     $fixnum.Int64? deletedTsMs,
+    $core.String? lastMsgStatus,
   }) {
     final result = ChatMember._();
     if (chatId != null) result.chatId = chatId;
@@ -302,6 +303,7 @@ class ChatMember extends $pb.GeneratedMessage {
     if (createdTsMs != null) result.createdTsMs = createdTsMs;
     if (updatedTsMs != null) result.updatedTsMs = updatedTsMs;
     if (deletedTsMs != null) result.deletedTsMs = deletedTsMs;
+    if (lastMsgStatus != null) result.lastMsgStatus = lastMsgStatus;
     return result;
   }
 
@@ -329,6 +331,7 @@ class ChatMember extends $pb.GeneratedMessage {
     ..aInt64(9, _omitFieldNames ? '' : 'createdTsMs')
     ..aInt64(10, _omitFieldNames ? '' : 'updatedTsMs')
     ..aInt64(11, _omitFieldNames ? '' : 'deletedTsMs')
+    ..aOS(12, _omitFieldNames ? '' : 'lastMsgStatus')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -449,6 +452,15 @@ class ChatMember extends $pb.GeneratedMessage {
   $core.bool hasDeletedTsMs() => $_has(10);
   @$pb.TagNumber(11)
   void clearDeletedTsMs() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  $core.String get lastMsgStatus => $_getSZ(11);
+  @$pb.TagNumber(12)
+  set lastMsgStatus($core.String value) => $_setString(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasLastMsgStatus() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearLastMsgStatus() => $_clearField(12);
 }
 
 class ChatMsg extends $pb.GeneratedMessage {
@@ -1010,6 +1022,7 @@ class ReqPrompt extends $pb.GeneratedMessage {
     $core.Iterable<$core.String>? mentionIds,
     $core.String? topicId,
     $core.String? toolMode,
+    $core.Iterable<$fixnum.Int64>? deviceIids,
   }) {
     final result = ReqPrompt._();
     if (chatId != null) result.chatId = chatId;
@@ -1020,6 +1033,7 @@ class ReqPrompt extends $pb.GeneratedMessage {
     if (mentionIds != null) result.mentionIds.addAll(mentionIds);
     if (topicId != null) result.topicId = topicId;
     if (toolMode != null) result.toolMode = toolMode;
+    if (deviceIids != null) result.deviceIids.addAll(deviceIids);
     return result;
   }
 
@@ -1044,6 +1058,8 @@ class ReqPrompt extends $pb.GeneratedMessage {
     ..pPS(6, _omitFieldNames ? '' : 'mentionIds')
     ..aOS(7, _omitFieldNames ? '' : 'topicId')
     ..aOS(8, _omitFieldNames ? '' : 'toolMode')
+    ..p<$fixnum.Int64>(
+        9, _omitFieldNames ? '' : 'deviceIids', $pb.PbFieldType.K6)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1131,6 +1147,9 @@ class ReqPrompt extends $pb.GeneratedMessage {
   $core.bool hasToolMode() => $_has(7);
   @$pb.TagNumber(8)
   void clearToolMode() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $pb.PbList<$fixnum.Int64> get deviceIids => $_getList(8);
 }
 
 class ResPromptStart extends $pb.GeneratedMessage {
@@ -1508,9 +1527,11 @@ class ResPromptFail extends $pb.GeneratedMessage {
 class ReqPromptAbort extends $pb.GeneratedMessage {
   factory ReqPromptAbort({
     $fixnum.Int64? chatId,
+    $core.String? reqId,
   }) {
     final result = ReqPromptAbort._();
     if (chatId != null) result.chatId = chatId;
+    if (reqId != null) result.reqId = reqId;
     return result;
   }
 
@@ -1528,6 +1549,7 @@ class ReqPromptAbort extends $pb.GeneratedMessage {
       package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
       createEmptyInstance: ReqPromptAbort.$_createMessage)
     ..aInt64(1, _omitFieldNames ? '' : 'chatId')
+    ..aOS(2, _omitFieldNames ? '' : 'reqId')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1560,6 +1582,309 @@ class ReqPromptAbort extends $pb.GeneratedMessage {
   $core.bool hasChatId() => $_has(0);
   @$pb.TagNumber(1)
   void clearChatId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get reqId => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set reqId($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasReqId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearReqId() => $_clearField(2);
+}
+
+class PromptRunPush extends $pb.GeneratedMessage {
+  factory PromptRunPush({
+    $core.String? reqId,
+    $core.String? parentReqId,
+    $core.String? kind,
+    $fixnum.Int64? deviceIid,
+    $core.String? status,
+    $core.String? label,
+    $core.String? topicId,
+    $core.int? turnCount,
+    $core.int? tokensIn,
+    $core.int? tokensOut,
+    $core.double? costUsd,
+    $core.int? durationMs,
+    $core.String? failClass,
+    $core.String? failReason,
+  }) {
+    final result = PromptRunPush._();
+    if (reqId != null) result.reqId = reqId;
+    if (parentReqId != null) result.parentReqId = parentReqId;
+    if (kind != null) result.kind = kind;
+    if (deviceIid != null) result.deviceIid = deviceIid;
+    if (status != null) result.status = status;
+    if (label != null) result.label = label;
+    if (topicId != null) result.topicId = topicId;
+    if (turnCount != null) result.turnCount = turnCount;
+    if (tokensIn != null) result.tokensIn = tokensIn;
+    if (tokensOut != null) result.tokensOut = tokensOut;
+    if (costUsd != null) result.costUsd = costUsd;
+    if (durationMs != null) result.durationMs = durationMs;
+    if (failClass != null) result.failClass = failClass;
+    if (failReason != null) result.failReason = failReason;
+    return result;
+  }
+
+  PromptRunPush._();
+
+  factory PromptRunPush.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      PromptRunPush()..mergeFromBuffer(data, registry);
+  factory PromptRunPush.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      PromptRunPush()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'PromptRunPush',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: PromptRunPush.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'reqId')
+    ..aOS(2, _omitFieldNames ? '' : 'parentReqId')
+    ..aOS(3, _omitFieldNames ? '' : 'kind')
+    ..aInt64(4, _omitFieldNames ? '' : 'deviceIid')
+    ..aOS(5, _omitFieldNames ? '' : 'status')
+    ..aOS(6, _omitFieldNames ? '' : 'label')
+    ..aOS(7, _omitFieldNames ? '' : 'topicId')
+    ..aI(8, _omitFieldNames ? '' : 'turnCount')
+    ..aI(9, _omitFieldNames ? '' : 'tokensIn')
+    ..aI(10, _omitFieldNames ? '' : 'tokensOut')
+    ..aD(11, _omitFieldNames ? '' : 'costUsd')
+    ..aI(12, _omitFieldNames ? '' : 'durationMs')
+    ..aOS(13, _omitFieldNames ? '' : 'failClass')
+    ..aOS(14, _omitFieldNames ? '' : 'failReason')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  PromptRunPush clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  PromptRunPush copyWith(void Function(PromptRunPush) updates) =>
+      super.copyWith((message) => updates(message as PromptRunPush))
+          as PromptRunPush;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use PromptRunPush() / PromptRunPush.new instead')
+  static PromptRunPush create() => PromptRunPush._();
+  static $pb.GeneratedMessage $_createMessage() => PromptRunPush._();
+  @$core.override
+  PromptRunPush createEmptyInstance() => PromptRunPush._();
+  @$core.pragma('dart2js:noInline')
+  static PromptRunPush getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<PromptRunPush>(
+          PromptRunPush.$_createMessage);
+  static PromptRunPush? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get reqId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set reqId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasReqId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearReqId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get parentReqId => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set parentReqId($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasParentReqId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearParentReqId() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get kind => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set kind($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasKind() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearKind() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $fixnum.Int64 get deviceIid => $_getI64(3);
+  @$pb.TagNumber(4)
+  set deviceIid($fixnum.Int64 value) => $_setInt64(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasDeviceIid() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearDeviceIid() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get status => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set status($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasStatus() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearStatus() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get label => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set label($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasLabel() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearLabel() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.String get topicId => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set topicId($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasTopicId() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearTopicId() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.int get turnCount => $_getIZ(7);
+  @$pb.TagNumber(8)
+  set turnCount($core.int value) => $_setSignedInt32(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasTurnCount() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearTurnCount() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.int get tokensIn => $_getIZ(8);
+  @$pb.TagNumber(9)
+  set tokensIn($core.int value) => $_setSignedInt32(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasTokensIn() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearTokensIn() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $core.int get tokensOut => $_getIZ(9);
+  @$pb.TagNumber(10)
+  set tokensOut($core.int value) => $_setSignedInt32(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasTokensOut() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearTokensOut() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $core.double get costUsd => $_getN(10);
+  @$pb.TagNumber(11)
+  set costUsd($core.double value) => $_setDouble(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasCostUsd() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearCostUsd() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  $core.int get durationMs => $_getIZ(11);
+  @$pb.TagNumber(12)
+  set durationMs($core.int value) => $_setSignedInt32(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasDurationMs() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearDurationMs() => $_clearField(12);
+
+  @$pb.TagNumber(13)
+  $core.String get failClass => $_getSZ(12);
+  @$pb.TagNumber(13)
+  set failClass($core.String value) => $_setString(12, value);
+  @$pb.TagNumber(13)
+  $core.bool hasFailClass() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearFailClass() => $_clearField(13);
+
+  @$pb.TagNumber(14)
+  $core.String get failReason => $_getSZ(13);
+  @$pb.TagNumber(14)
+  set failReason($core.String value) => $_setString(13, value);
+  @$pb.TagNumber(14)
+  $core.bool hasFailReason() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearFailReason() => $_clearField(14);
+}
+
+class PromptRunJob extends $pb.GeneratedMessage {
+  factory PromptRunJob({
+    $core.String? reqId,
+    $fixnum.Int64? ownerIid,
+    $fixnum.Int64? chatId,
+  }) {
+    final result = PromptRunJob._();
+    if (reqId != null) result.reqId = reqId;
+    if (ownerIid != null) result.ownerIid = ownerIid;
+    if (chatId != null) result.chatId = chatId;
+    return result;
+  }
+
+  PromptRunJob._();
+
+  factory PromptRunJob.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      PromptRunJob()..mergeFromBuffer(data, registry);
+  factory PromptRunJob.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      PromptRunJob()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'PromptRunJob',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: PromptRunJob.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'reqId')
+    ..aInt64(2, _omitFieldNames ? '' : 'ownerIid')
+    ..aInt64(3, _omitFieldNames ? '' : 'chatId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  PromptRunJob clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  PromptRunJob copyWith(void Function(PromptRunJob) updates) =>
+      super.copyWith((message) => updates(message as PromptRunJob))
+          as PromptRunJob;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use PromptRunJob() / PromptRunJob.new instead')
+  static PromptRunJob create() => PromptRunJob._();
+  static $pb.GeneratedMessage $_createMessage() => PromptRunJob._();
+  @$core.override
+  PromptRunJob createEmptyInstance() => PromptRunJob._();
+  @$core.pragma('dart2js:noInline')
+  static PromptRunJob getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<PromptRunJob>(
+          PromptRunJob.$_createMessage);
+  static PromptRunJob? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get reqId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set reqId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasReqId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearReqId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get ownerIid => $_getI64(1);
+  @$pb.TagNumber(2)
+  set ownerIid($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasOwnerIid() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearOwnerIid() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get chatId => $_getI64(2);
+  @$pb.TagNumber(3)
+  set chatId($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasChatId() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearChatId() => $_clearField(3);
 }
 
 /// bot_peer: stop AI for ONE conversation (not bot / channel)

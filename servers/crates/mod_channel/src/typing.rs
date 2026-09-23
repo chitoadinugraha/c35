@@ -3,7 +3,7 @@ use serde::Serialize;
 use tokio::sync::watch;
 
 use crate::outbound::OutboundCtx;
-use crate::store::PROVIDER_LINKED;
+use crate::store::is_linked_provider;
 use crate::telegram::{tg_api_base, tg_send_chat_action};
 
 #[derive(Clone, Debug, Serialize)]
@@ -58,7 +58,7 @@ pub fn channel_typing_start(
                 }
             }
         }
-        if ctx_clone.platform == "whatsapp" && ctx_clone.channel.provider == PROVIDER_LINKED {
+        if ctx_clone.platform == "whatsapp" && is_linked_provider(&ctx_clone.channel.provider) {
             channel_typing_pulse(&client_clone, nats_clone.as_ref(), owner_iid, bot_iid, &ctx_clone, speak, false).await;
         }
     });
@@ -94,11 +94,16 @@ pub async fn channel_typing_pulse(
             if !active || ctx.channel.phone_number_id.is_empty() || ctx.channel.access_token.is_empty() {
                 return;
             }
-            let to = ctx.peer_id.split('@').next().unwrap_or(&ctx.peer_id);
-            let _ = wa_cloud_send_typing(client, &ctx.channel.phone_number_id, &ctx.channel.access_token, to).await;
+            let _ = wa_cloud_send_typing(
+                client,
+                &ctx.channel.phone_number_id,
+                &ctx.channel.access_token,
+                ctx.msg_id.as_deref(),
+            )
+            .await;
             return;
         }
-        if ctx.channel.provider == PROVIDER_LINKED {
+        if is_linked_provider(&ctx.channel.provider) {
             if let Some(nats_client) = nats {
                 let act = ActChannelMsgTyping {
                     bot_iid,
@@ -120,8 +125,11 @@ pub async fn wa_cloud_send_typing(
     client: &Client,
     phone_number_id: &str,
     access_token: &str,
-    to: &str,
+    msg_id: Option<&str>,
 ) -> Result<(), String> {
+    let Some(id) = msg_id.filter(|s| !s.trim().is_empty()) else {
+        return Ok(());
+    };
     let graph = std::env::var("META_GRAPH_API_BASE")
         .ok()
         .filter(|s| !s.trim().is_empty())
@@ -134,7 +142,8 @@ pub async fn wa_cloud_send_typing(
         .header("Authorization", format!("Bearer {access_token}"))
         .json(&serde_json::json!({
             "messaging_product": "whatsapp",
-            "to": to,
+            "status": "read",
+            "message_id": id,
             "typing_indicator": { "type": "text" }
         }))
         .send()

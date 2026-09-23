@@ -199,6 +199,9 @@ class ResSync extends $pb.GeneratedMessage {
     $core.Iterable<$5.SiteContact>? siteContacts,
     $core.Iterable<$5.SiteObject>? siteObjects,
     $core.Iterable<$6.Tx>? txs,
+    $core.Iterable<$5.SiteConfig>? siteConfigs,
+    $core.Iterable<$5.SiteDomain>? siteDomains,
+    $core.Iterable<$5.SiteProductEmbed>? siteProductEmbeds,
   }) {
     final result = ResSync._();
     if (sinceMs != null) result.sinceMs = sinceMs;
@@ -218,6 +221,10 @@ class ResSync extends $pb.GeneratedMessage {
     if (siteContacts != null) result.siteContacts.addAll(siteContacts);
     if (siteObjects != null) result.siteObjects.addAll(siteObjects);
     if (txs != null) result.txs.addAll(txs);
+    if (siteConfigs != null) result.siteConfigs.addAll(siteConfigs);
+    if (siteDomains != null) result.siteDomains.addAll(siteDomains);
+    if (siteProductEmbeds != null)
+      result.siteProductEmbeds.addAll(siteProductEmbeds);
     return result;
   }
 
@@ -264,6 +271,12 @@ class ResSync extends $pb.GeneratedMessage {
         subBuilder: $5.SiteObject.$_createMessage)
     ..pPM<$6.Tx>(27, _omitFieldNames ? '' : 'txs',
         subBuilder: $6.Tx.$_createMessage)
+    ..pPM<$5.SiteConfig>(28, _omitFieldNames ? '' : 'siteConfigs',
+        subBuilder: $5.SiteConfig.$_createMessage)
+    ..pPM<$5.SiteDomain>(29, _omitFieldNames ? '' : 'siteDomains',
+        subBuilder: $5.SiteDomain.$_createMessage)
+    ..pPM<$5.SiteProductEmbed>(30, _omitFieldNames ? '' : 'siteProductEmbeds',
+        subBuilder: $5.SiteProductEmbed.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -345,6 +358,15 @@ class ResSync extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(27)
   $pb.PbList<$6.Tx> get txs => $_getList(15);
+
+  @$pb.TagNumber(28)
+  $pb.PbList<$5.SiteConfig> get siteConfigs => $_getList(16);
+
+  @$pb.TagNumber(29)
+  $pb.PbList<$5.SiteDomain> get siteDomains => $_getList(17);
+
+  @$pb.TagNumber(30)
+  $pb.PbList<$5.SiteProductEmbed> get siteProductEmbeds => $_getList(18);
 }
 
 enum SyncPush_Body {
@@ -361,6 +383,9 @@ enum SyncPush_Body {
   siteContact,
   siteObject,
   tx,
+  siteConfig,
+  siteDomain,
+  siteProductEmbed,
   notSet
 }
 
@@ -380,6 +405,9 @@ class SyncPush extends $pb.GeneratedMessage {
     $5.SiteContact? siteContact,
     $5.SiteObject? siteObject,
     $6.Tx? tx,
+    $5.SiteConfig? siteConfig,
+    $5.SiteDomain? siteDomain,
+    $5.SiteProductEmbed? siteProductEmbed,
   }) {
     final result = SyncPush._();
     if (chat != null) result.chat = chat;
@@ -395,6 +423,9 @@ class SyncPush extends $pb.GeneratedMessage {
     if (siteContact != null) result.siteContact = siteContact;
     if (siteObject != null) result.siteObject = siteObject;
     if (tx != null) result.tx = tx;
+    if (siteConfig != null) result.siteConfig = siteConfig;
+    if (siteDomain != null) result.siteDomain = siteDomain;
+    if (siteProductEmbed != null) result.siteProductEmbed = siteProductEmbed;
     return result;
   }
 
@@ -421,13 +452,16 @@ class SyncPush extends $pb.GeneratedMessage {
     11: SyncPush_Body.siteContact,
     12: SyncPush_Body.siteObject,
     13: SyncPush_Body.tx,
+    14: SyncPush_Body.siteConfig,
+    15: SyncPush_Body.siteDomain,
+    16: SyncPush_Body.siteProductEmbed,
     0: SyncPush_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
       _omitMessageNames ? '' : 'SyncPush',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
       createEmptyInstance: SyncPush.$_createMessage)
-    ..oo(0, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13])
+    ..oo(0, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16])
     ..aOM<$0.Chat>(1, _omitFieldNames ? '' : 'chat',
         subBuilder: $0.Chat.$_createMessage)
     ..aOM<$0.ChatMember>(2, _omitFieldNames ? '' : 'chatMember',
@@ -454,6 +488,12 @@ class SyncPush extends $pb.GeneratedMessage {
         subBuilder: $5.SiteObject.$_createMessage)
     ..aOM<$6.Tx>(13, _omitFieldNames ? '' : 'tx',
         subBuilder: $6.Tx.$_createMessage)
+    ..aOM<$5.SiteConfig>(14, _omitFieldNames ? '' : 'siteConfig',
+        subBuilder: $5.SiteConfig.$_createMessage)
+    ..aOM<$5.SiteDomain>(15, _omitFieldNames ? '' : 'siteDomain',
+        subBuilder: $5.SiteDomain.$_createMessage)
+    ..aOM<$5.SiteProductEmbed>(16, _omitFieldNames ? '' : 'siteProductEmbed',
+        subBuilder: $5.SiteProductEmbed.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -489,6 +529,9 @@ class SyncPush extends $pb.GeneratedMessage {
   @$pb.TagNumber(11)
   @$pb.TagNumber(12)
   @$pb.TagNumber(13)
+  @$pb.TagNumber(14)
+  @$pb.TagNumber(15)
+  @$pb.TagNumber(16)
   SyncPush_Body whichBody() => _SyncPush_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(1)
   @$pb.TagNumber(2)
@@ -503,6 +546,9 @@ class SyncPush extends $pb.GeneratedMessage {
   @$pb.TagNumber(11)
   @$pb.TagNumber(12)
   @$pb.TagNumber(13)
+  @$pb.TagNumber(14)
+  @$pb.TagNumber(15)
+  @$pb.TagNumber(16)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -647,6 +693,39 @@ class SyncPush extends $pb.GeneratedMessage {
   void clearTx() => $_clearField(13);
   @$pb.TagNumber(13)
   $6.Tx ensureTx() => $_ensure(12);
+
+  @$pb.TagNumber(14)
+  $5.SiteConfig get siteConfig => $_getN(13);
+  @$pb.TagNumber(14)
+  set siteConfig($5.SiteConfig value) => $_setField(14, value);
+  @$pb.TagNumber(14)
+  $core.bool hasSiteConfig() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearSiteConfig() => $_clearField(14);
+  @$pb.TagNumber(14)
+  $5.SiteConfig ensureSiteConfig() => $_ensure(13);
+
+  @$pb.TagNumber(15)
+  $5.SiteDomain get siteDomain => $_getN(14);
+  @$pb.TagNumber(15)
+  set siteDomain($5.SiteDomain value) => $_setField(15, value);
+  @$pb.TagNumber(15)
+  $core.bool hasSiteDomain() => $_has(14);
+  @$pb.TagNumber(15)
+  void clearSiteDomain() => $_clearField(15);
+  @$pb.TagNumber(15)
+  $5.SiteDomain ensureSiteDomain() => $_ensure(14);
+
+  @$pb.TagNumber(16)
+  $5.SiteProductEmbed get siteProductEmbed => $_getN(15);
+  @$pb.TagNumber(16)
+  set siteProductEmbed($5.SiteProductEmbed value) => $_setField(16, value);
+  @$pb.TagNumber(16)
+  $core.bool hasSiteProductEmbed() => $_has(15);
+  @$pb.TagNumber(16)
+  void clearSiteProductEmbed() => $_clearField(16);
+  @$pb.TagNumber(16)
+  $5.SiteProductEmbed ensureSiteProductEmbed() => $_ensure(15);
 }
 
 const $core.bool _omitFieldNames =

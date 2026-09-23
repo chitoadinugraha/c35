@@ -47,8 +47,26 @@ String uiFriendlyError(Object error, {String fallback = 'Something went wrong. P
   if (lower.contains('no response from agent')) {
     return 'No response from Alien AI. Try again.';
   }
+  if (lower.contains('empty response')) {
+    return "Alien AI didn't return an answer. Please try again.";
+  }
+  if (lower.contains('gemini_api_key missing') || lower.contains('api key missing')) {
+    return 'Alien AI is not configured yet. Please try again later.';
+  }
   if (lower.contains('unauthorized') || lower.contains('invalid session')) {
     return 'Your session expired. Sign out and sign in again.';
+  }
+  if (lower.contains('5-hour allowance exhausted') || lower.contains('5h quota')) {
+    return "You've reached your 5-hour quota allowance. Please top up your wallet balance or wait for the 5-hour window to reset.";
+  }
+  if (lower.contains('weekly allowance exhausted') || lower.contains('weekly quota')) {
+    return "You've reached your weekly quota allowance. Please top up your wallet balance or wait for next week's quota reset.";
+  }
+  if (lower.contains('insufficient safe balance') || lower.contains('not enough balance or quota')) {
+    return "Not enough balance or quota. Please top up your wallet balance to continue.";
+  }
+  if (lower.contains('quota exceeded')) {
+    return "Quota limit reached. Please top up your wallet balance or wait for your quota to reset.";
   }
   if (RegExp(r'https?://|\d{1,3}(?:\.\d{1,3}){3}|localhost|status=\d|errno|socketexception').hasMatch(lower)) {
     if (lower.contains('timeout') || lower.contains('timed out')) return 'Request timed out. Check your internet and try again.';

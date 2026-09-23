@@ -15,6 +15,8 @@ import 'dart:core' as $core;
 import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
 
+import 'log.pb.dart' as $0;
+
 export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
 
 class AdminUserHit extends $pb.GeneratedMessage {
@@ -399,6 +401,199 @@ class ResAdminUserPut extends $pb.GeneratedMessage {
       _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ResAdminUserPut>(
           ResAdminUserPut.$_createMessage);
   static ResAdminUserPut? _defaultInstance;
+}
+
+class ReqAdminLogList extends $pb.GeneratedMessage {
+  factory ReqAdminLogList({
+    $fixnum.Int64? ownerIid,
+    $fixnum.Int64? sinceMs,
+    $fixnum.Int64? untilMs,
+    $core.String? text,
+    $core.String? kind,
+    $core.String? topic,
+    $core.int? limit,
+    $fixnum.Int64? beforeId,
+  }) {
+    final result = ReqAdminLogList._();
+    if (ownerIid != null) result.ownerIid = ownerIid;
+    if (sinceMs != null) result.sinceMs = sinceMs;
+    if (untilMs != null) result.untilMs = untilMs;
+    if (text != null) result.text = text;
+    if (kind != null) result.kind = kind;
+    if (topic != null) result.topic = topic;
+    if (limit != null) result.limit = limit;
+    if (beforeId != null) result.beforeId = beforeId;
+    return result;
+  }
+
+  ReqAdminLogList._();
+
+  factory ReqAdminLogList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqAdminLogList()..mergeFromBuffer(data, registry);
+  factory ReqAdminLogList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqAdminLogList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqAdminLogList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqAdminLogList.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'ownerIid')
+    ..aInt64(2, _omitFieldNames ? '' : 'sinceMs')
+    ..aInt64(3, _omitFieldNames ? '' : 'untilMs')
+    ..aOS(4, _omitFieldNames ? '' : 'text')
+    ..aOS(5, _omitFieldNames ? '' : 'kind')
+    ..aOS(6, _omitFieldNames ? '' : 'topic')
+    ..aI(7, _omitFieldNames ? '' : 'limit')
+    ..aInt64(8, _omitFieldNames ? '' : 'beforeId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqAdminLogList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqAdminLogList copyWith(void Function(ReqAdminLogList) updates) =>
+      super.copyWith((message) => updates(message as ReqAdminLogList))
+          as ReqAdminLogList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqAdminLogList() / ReqAdminLogList.new instead')
+  static ReqAdminLogList create() => ReqAdminLogList._();
+  static $pb.GeneratedMessage $_createMessage() => ReqAdminLogList._();
+  @$core.override
+  ReqAdminLogList createEmptyInstance() => ReqAdminLogList._();
+  @$core.pragma('dart2js:noInline')
+  static ReqAdminLogList getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ReqAdminLogList>(
+          ReqAdminLogList.$_createMessage);
+  static ReqAdminLogList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get ownerIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set ownerIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasOwnerIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOwnerIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get sinceMs => $_getI64(1);
+  @$pb.TagNumber(2)
+  set sinceMs($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasSinceMs() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearSinceMs() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get untilMs => $_getI64(2);
+  @$pb.TagNumber(3)
+  set untilMs($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasUntilMs() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearUntilMs() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get text => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set text($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasText() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearText() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get kind => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set kind($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasKind() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearKind() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get topic => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set topic($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasTopic() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearTopic() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.int get limit => $_getIZ(6);
+  @$pb.TagNumber(7)
+  set limit($core.int value) => $_setSignedInt32(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasLimit() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearLimit() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $fixnum.Int64 get beforeId => $_getI64(7);
+  @$pb.TagNumber(8)
+  set beforeId($fixnum.Int64 value) => $_setInt64(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasBeforeId() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearBeforeId() => $_clearField(8);
+}
+
+class ResAdminLogList extends $pb.GeneratedMessage {
+  factory ResAdminLogList({
+    $core.Iterable<$0.Log>? logs,
+  }) {
+    final result = ResAdminLogList._();
+    if (logs != null) result.logs.addAll(logs);
+    return result;
+  }
+
+  ResAdminLogList._();
+
+  factory ResAdminLogList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResAdminLogList()..mergeFromBuffer(data, registry);
+  factory ResAdminLogList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResAdminLogList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResAdminLogList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResAdminLogList.$_createMessage)
+    ..pPM<$0.Log>(1, _omitFieldNames ? '' : 'logs',
+        subBuilder: $0.Log.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResAdminLogList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResAdminLogList copyWith(void Function(ResAdminLogList) updates) =>
+      super.copyWith((message) => updates(message as ResAdminLogList))
+          as ResAdminLogList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResAdminLogList() / ResAdminLogList.new instead')
+  static ResAdminLogList create() => ResAdminLogList._();
+  static $pb.GeneratedMessage $_createMessage() => ResAdminLogList._();
+  @$core.override
+  ResAdminLogList createEmptyInstance() => ResAdminLogList._();
+  @$core.pragma('dart2js:noInline')
+  static ResAdminLogList getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ResAdminLogList>(
+          ResAdminLogList.$_createMessage);
+  static ResAdminLogList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<$0.Log> get logs => $_getList(0);
 }
 
 const $core.bool _omitFieldNames =

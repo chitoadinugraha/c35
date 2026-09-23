@@ -1,0 +1,38 @@
+# NATS JetStream volume: emptyDir -> PVC
+#
+# Kubernetes cannot add volumeClaimTemplates to an existing StatefulSet.
+# See README.md for scale-down / recreate migration steps.
+#
+# After migration, spec.template.spec.volumes must NOT include nats-data emptyDir.
+# JetStream mounts nats-data via volumeClaimTemplates instead.
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nats
+  namespace: nats
+spec:
+  volumeClaimTemplates:
+    - metadata:
+        name: nats-data
+        labels:
+          app: nats
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: oci-bv
+        resources:
+          requests:
+            storage: 20Gi
+  template:
+    spec:
+      volumes:
+        # nats-data removed here — provided by volumeClaimTemplates above
+        - name: nats-config
+          configMap:
+            name: nats-config
+        - name: nats-tls
+          emptyDir: {}
+        - name: nats-tls-certs
+          secret:
+            secretName: nats-tls-certs

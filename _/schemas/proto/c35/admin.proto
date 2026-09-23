@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package c35;
 
+import "c35/log.proto";
+
 message AdminUserHit {
   int64 identity_id = 1;
   string name = 2;
@@ -29,3 +31,18 @@ message ReqAdminUserPut {
 }
 
 message ResAdminUserPut {}
+
+message ReqAdminLogList {
+  optional int64 owner_iid = 1;
+  int64 since_ms = 2;
+  int64 until_ms = 3;
+  string text = 4;
+  optional string kind = 5;
+  optional string topic = 6;
+  int32 limit = 7;
+  optional int64 before_id = 8;
+}
+
+message ResAdminLogList {
+  repeated Log logs = 1;
+}

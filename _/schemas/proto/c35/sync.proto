@@ -39,7 +39,10 @@ message ResSync {
   repeated Consumption consumptions = 21;
   repeated ConsumptionWater consumption_waters = 22;
   repeated SiteDraft site_drafts = 23;
+  repeated SiteConfig site_configs = 28;
+  repeated SiteDomain site_domains = 29;
   repeated SiteProduct site_products = 24;
+  repeated SiteProductEmbed site_product_embeds = 30;
   repeated SiteContact site_contacts = 25;
   repeated SiteObject site_objects = 26;
   repeated Tx txs = 27;
@@ -57,7 +60,10 @@ message SyncPush {
     Consumption consumption = 7;
     ConsumptionWater consumption_water = 8;
     SiteDraft site_draft = 9;
+    SiteConfig site_config = 14;
+    SiteDomain site_domain = 15;
     SiteProduct site_product = 10;
+    SiteProductEmbed site_product_embed = 16;
     SiteContact site_contact = 11;
     SiteObject site_object = 12;
     Tx tx = 13;

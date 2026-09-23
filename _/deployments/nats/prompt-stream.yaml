@@ -1,0 +1,12 @@
+# Reference manifest for JetStream stream C35_CHAT_PROMPT.
+# The server bootstraps this stream via get_or_create_stream; apply manually only if needed.
+stream: C35_CHAT_PROMPT
+subjects:
+  - c35.prompt.run
+retention: workqueue
+consumer:
+  name: c35-prompt-dispatch
+  ack_wait: 60s
+  max_deliver: 3
+  ack_policy: explicit
+fanout_subject: "c35.user.{owner_iid}.chat.{chat_id}"

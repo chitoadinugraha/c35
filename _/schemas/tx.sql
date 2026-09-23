@@ -1,22 +1,19 @@
 -- ==============================================================================
--- c35 — Transaction / POS schema (LOCKED 2026-09-20)
+-- c35 — Transaction / POS schema (LOCKED 2026-09-21)
 -- Database: c35 (YugabyteDB YSQL)
--- Schema: ai
+-- Schema: site
 --
 -- Port: id.alienai tx.proto (normalized child tables).
 -- site_iid replaces aid. Money = BIGINT minor units.
--- UI reference: id.alienai staff transaksi editor.
--- Shell reference: csa_site_published Sites 3-pane.
--- Apply after: identity.sql, site.sql
+-- UI: id.alienai transaksi editor; Sites page UITable list + ledger detail.
+-- Apply after: identity.sql, site.sql (site schema must exist)
 -- ==============================================================================
-
-CREATE SCHEMA IF NOT EXISTS ai;
 
 -- ------------------------------------------------------------------------------
 -- COA category seed (platform catalog → default account codes per site)
 -- ------------------------------------------------------------------------------
 
-CREATE TABLE IF NOT EXISTS ai.tx_coa_category (
+CREATE TABLE IF NOT EXISTS site.tx_coa_category (
     slug            VARCHAR(32) PRIMARY KEY,
     label_id        TEXT NOT NULL,
     label_en        TEXT,
@@ -28,7 +25,7 @@ CREATE TABLE IF NOT EXISTS ai.tx_coa_category (
     CONSTRAINT chk_tx_coa_acc_group CHECK (acc_group IN ('revenue', 'expense'))
 );
 
-INSERT INTO ai.tx_coa_category (slug, label_id, label_en, acc_group, account_code, sort_order) VALUES
+INSERT INTO site.tx_coa_category (slug, label_id, label_en, acc_group, account_code, sort_order) VALUES
     ('service',         'Jasa',                   'Service income',       'revenue',  '4201', 10),
     ('other_income',    'Pemasukan lain',         'Other income',         'revenue',  '4202', 20),
     ('interest_income', 'Bunga',                  'Interest income',      'revenue',  '4203', 30),
@@ -47,7 +44,7 @@ ON CONFLICT (slug) DO NOTHING;
 -- Tx header — PK (site_iid, tx_id) like id.alienai (aid, tx_id)
 -- ------------------------------------------------------------------------------
 
-CREATE TABLE IF NOT EXISTS ai.tx (
+CREATE TABLE IF NOT EXISTS site.tx (
     site_iid            BIGINT NOT NULL REFERENCES ai.identity(id),
     tx_id               BIGINT NOT NULL,
     owner_iid           BIGINT NOT NULL REFERENCES ai.identity(id),
@@ -130,22 +127,22 @@ CREATE TABLE IF NOT EXISTS ai.tx (
 );
 
 CREATE INDEX IF NOT EXISTS idx_tx_site_sync
-    ON ai.tx (site_iid, updated_ts);
+    ON site.tx (site_iid, updated_ts);
 CREATE INDEX IF NOT EXISTS idx_tx_site_time
-    ON ai.tx (site_iid, time_ts DESC)
+    ON site.tx (site_iid, time_ts DESC)
     WHERE deleted_ts IS NULL;
 CREATE INDEX IF NOT EXISTS idx_tx_site_state
-    ON ai.tx (site_iid, state)
+    ON site.tx (site_iid, state)
     WHERE deleted_ts IS NULL;
 CREATE INDEX IF NOT EXISTS idx_tx_site_debt_open
-    ON ai.tx (site_iid, ty)
+    ON site.tx (site_iid, ty)
     WHERE debt_unpaid > 0 AND deleted_ts IS NULL;
 
 -- ------------------------------------------------------------------------------
 -- Tx item
 -- ------------------------------------------------------------------------------
 
-CREATE TABLE IF NOT EXISTS ai.tx_item (
+CREATE TABLE IF NOT EXISTS site.tx_item (
     site_iid            BIGINT NOT NULL,
     tx_id               BIGINT NOT NULL,
     item_id             BIGINT NOT NULL,
@@ -178,17 +175,17 @@ CREATE TABLE IF NOT EXISTS ai.tx_item (
     deleted_ts          TIMESTAMPTZ,
 
     PRIMARY KEY (site_iid, tx_id, item_id),
-    FOREIGN KEY (site_iid, tx_id) REFERENCES ai.tx (site_iid, tx_id) ON DELETE CASCADE
+    FOREIGN KEY (site_iid, tx_id) REFERENCES site.tx (site_iid, tx_id) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_tx_item_tx
-    ON ai.tx_item (site_iid, tx_id);
+    ON site.tx_item (site_iid, tx_id);
 
 -- ------------------------------------------------------------------------------
 -- Tx item reservation (booking lines)
 -- ------------------------------------------------------------------------------
 
-CREATE TABLE IF NOT EXISTS ai.tx_item_reservation (
+CREATE TABLE IF NOT EXISTS site.tx_item_reservation (
     site_iid            BIGINT NOT NULL,
     tx_id               BIGINT NOT NULL,
     item_id             BIGINT NOT NULL,
@@ -210,14 +207,14 @@ CREATE TABLE IF NOT EXISTS ai.tx_item_reservation (
 
     PRIMARY KEY (site_iid, tx_id, item_id, res_id),
     FOREIGN KEY (site_iid, tx_id, item_id)
-        REFERENCES ai.tx_item (site_iid, tx_id, item_id) ON DELETE CASCADE
+        REFERENCES site.tx_item (site_iid, tx_id, item_id) ON DELETE CASCADE
 );
 
 -- ------------------------------------------------------------------------------
 -- Tx item source (stock allocation / BOM)
 -- ------------------------------------------------------------------------------
 
-CREATE TABLE IF NOT EXISTS ai.tx_item_source (
+CREATE TABLE IF NOT EXISTS site.tx_item_source (
     site_iid            BIGINT NOT NULL,
     tx_id               BIGINT NOT NULL,
     item_id             BIGINT NOT NULL,
@@ -234,14 +231,14 @@ CREATE TABLE IF NOT EXISTS ai.tx_item_source (
 
     PRIMARY KEY (site_iid, tx_id, item_id, src_id),
     FOREIGN KEY (site_iid, tx_id, item_id)
-        REFERENCES ai.tx_item (site_iid, tx_id, item_id) ON DELETE CASCADE
+        REFERENCES site.tx_item (site_iid, tx_id, item_id) ON DELETE CASCADE
 );
 
 -- ------------------------------------------------------------------------------
 -- Tx payment
 -- ------------------------------------------------------------------------------
 
-CREATE TABLE IF NOT EXISTS ai.tx_payment (
+CREATE TABLE IF NOT EXISTS site.tx_payment (
     site_iid            BIGINT NOT NULL,
     tx_id               BIGINT NOT NULL,
     payment_id          BIGINT NOT NULL,
@@ -260,7 +257,7 @@ CREATE TABLE IF NOT EXISTS ai.tx_payment (
     deleted_ts          TIMESTAMPTZ,
 
     PRIMARY KEY (site_iid, tx_id, payment_id),
-    FOREIGN KEY (site_iid, tx_id) REFERENCES ai.tx (site_iid, tx_id) ON DELETE CASCADE,
+    FOREIGN KEY (site_iid, tx_id) REFERENCES site.tx (site_iid, tx_id) ON DELETE CASCADE,
 
     CONSTRAINT chk_tx_payment_method CHECK (method IN (
         'cash', 'card', 'transfer', 'qris', 'debt', 'wallet'
@@ -271,7 +268,7 @@ CREATE TABLE IF NOT EXISTS ai.tx_payment (
 -- Tx installment + debt payment
 -- ------------------------------------------------------------------------------
 
-CREATE TABLE IF NOT EXISTS ai.tx_installment (
+CREATE TABLE IF NOT EXISTS site.tx_installment (
     site_iid            BIGINT NOT NULL,
     tx_id               BIGINT NOT NULL,
     payment_id          BIGINT NOT NULL,
@@ -289,10 +286,10 @@ CREATE TABLE IF NOT EXISTS ai.tx_installment (
 
     PRIMARY KEY (site_iid, tx_id, payment_id, inst_id),
     FOREIGN KEY (site_iid, tx_id, payment_id)
-        REFERENCES ai.tx_payment (site_iid, tx_id, payment_id) ON DELETE CASCADE
+        REFERENCES site.tx_payment (site_iid, tx_id, payment_id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS ai.tx_debt_payment (
+CREATE TABLE IF NOT EXISTS site.tx_debt_payment (
     site_iid            BIGINT NOT NULL,
     tx_id               BIGINT NOT NULL,
     payment_id          BIGINT NOT NULL,
@@ -314,14 +311,14 @@ CREATE TABLE IF NOT EXISTS ai.tx_debt_payment (
 
     PRIMARY KEY (site_iid, tx_id, payment_id, inst_id, pay_id),
     FOREIGN KEY (site_iid, tx_id, payment_id, inst_id)
-        REFERENCES ai.tx_installment (site_iid, tx_id, payment_id, inst_id) ON DELETE CASCADE
+        REFERENCES site.tx_installment (site_iid, tx_id, payment_id, inst_id) ON DELETE CASCADE
 );
 
 -- ------------------------------------------------------------------------------
 -- Tx accounting lines (GL)
 -- ------------------------------------------------------------------------------
 
-CREATE TABLE IF NOT EXISTS ai.tx_acc (
+CREATE TABLE IF NOT EXISTS site.tx_acc (
     site_iid            BIGINT NOT NULL,
     tx_id               BIGINT NOT NULL,
     acc_id              BIGINT NOT NULL,
@@ -338,7 +335,7 @@ CREATE TABLE IF NOT EXISTS ai.tx_acc (
     deleted_ts          TIMESTAMPTZ,
 
     PRIMARY KEY (site_iid, tx_id, acc_id),
-    FOREIGN KEY (site_iid, tx_id) REFERENCES ai.tx (site_iid, tx_id) ON DELETE CASCADE,
+    FOREIGN KEY (site_iid, tx_id) REFERENCES site.tx (site_iid, tx_id) ON DELETE CASCADE,
     CONSTRAINT chk_tx_acc_side CHECK (side IN ('debit', 'credit'))
 );
 
@@ -346,7 +343,7 @@ CREATE TABLE IF NOT EXISTS ai.tx_acc (
 -- Tx stock movement
 -- ------------------------------------------------------------------------------
 
-CREATE TABLE IF NOT EXISTS ai.tx_stock (
+CREATE TABLE IF NOT EXISTS site.tx_stock (
     site_iid            BIGINT NOT NULL,
     tx_id               BIGINT NOT NULL,
     stock_id            BIGINT NOT NULL,
@@ -365,14 +362,14 @@ CREATE TABLE IF NOT EXISTS ai.tx_stock (
     deleted_ts          TIMESTAMPTZ,
 
     PRIMARY KEY (site_iid, tx_id, stock_id),
-    FOREIGN KEY (site_iid, tx_id) REFERENCES ai.tx (site_iid, tx_id) ON DELETE CASCADE
+    FOREIGN KEY (site_iid, tx_id) REFERENCES site.tx (site_iid, tx_id) ON DELETE CASCADE
 );
 
 -- ------------------------------------------------------------------------------
 -- Tx tax / discount lines
 -- ------------------------------------------------------------------------------
 
-CREATE TABLE IF NOT EXISTS ai.tx_tax (
+CREATE TABLE IF NOT EXISTS site.tx_tax (
     site_iid            BIGINT NOT NULL,
     tx_id               BIGINT NOT NULL,
     tax_id              BIGINT NOT NULL,
@@ -386,10 +383,10 @@ CREATE TABLE IF NOT EXISTS ai.tx_tax (
     deleted_ts          TIMESTAMPTZ,
 
     PRIMARY KEY (site_iid, tx_id, tax_id),
-    FOREIGN KEY (site_iid, tx_id) REFERENCES ai.tx (site_iid, tx_id) ON DELETE CASCADE
+    FOREIGN KEY (site_iid, tx_id) REFERENCES site.tx (site_iid, tx_id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS ai.tx_discount (
+CREATE TABLE IF NOT EXISTS site.tx_discount (
     site_iid            BIGINT NOT NULL,
     tx_id               BIGINT NOT NULL,
     discount_id         BIGINT NOT NULL,
@@ -403,5 +400,5 @@ CREATE TABLE IF NOT EXISTS ai.tx_discount (
     deleted_ts          TIMESTAMPTZ,
 
     PRIMARY KEY (site_iid, tx_id, discount_id),
-    FOREIGN KEY (site_iid, tx_id) REFERENCES ai.tx (site_iid, tx_id) ON DELETE CASCADE
+    FOREIGN KEY (site_iid, tx_id) REFERENCES site.tx (site_iid, tx_id) ON DELETE CASCADE
 );

@@ -137,6 +137,7 @@ const ChatMember$json = {
     {'1': 'created_ts_ms', '3': 9, '4': 1, '5': 3, '10': 'createdTsMs'},
     {'1': 'updated_ts_ms', '3': 10, '4': 1, '5': 3, '10': 'updatedTsMs'},
     {'1': 'deleted_ts_ms', '3': 11, '4': 1, '5': 3, '10': 'deletedTsMs'},
+    {'1': 'last_msg_status', '3': 12, '4': 1, '5': 9, '10': 'lastMsgStatus'},
   ],
 };
 
@@ -149,7 +150,7 @@ final $typed_data.Uint8List chatMemberDescriptor = $convert.base64Decode(
     'dxIgCgxwaW5uZWRfdHNfbXMYByABKANSCnBpbm5lZFRzTXMSJAoOYXJjaGl2ZWRfdHNfbXMYCC'
     'ABKANSDGFyY2hpdmVkVHNNcxIiCg1jcmVhdGVkX3RzX21zGAkgASgDUgtjcmVhdGVkVHNNcxIi'
     'Cg11cGRhdGVkX3RzX21zGAogASgDUgt1cGRhdGVkVHNNcxIiCg1kZWxldGVkX3RzX21zGAsgAS'
-    'gDUgtkZWxldGVkVHNNcw==');
+    'gDUgtkZWxldGVkVHNNcxImCg9sYXN0X21zZ19zdGF0dXMYDCABKAlSDWxhc3RNc2dTdGF0dXM=');
 
 @$core.Deprecated('Use chatMsgDescriptor instead')
 const ChatMsg$json = {
@@ -296,6 +297,7 @@ const ReqPrompt$json = {
     {'1': 'mention_ids', '3': 6, '4': 3, '5': 9, '10': 'mentionIds'},
     {'1': 'topic_id', '3': 7, '4': 1, '5': 9, '10': 'topicId'},
     {'1': 'tool_mode', '3': 8, '4': 1, '5': 9, '10': 'toolMode'},
+    {'1': 'device_iids', '3': 9, '4': 3, '5': 3, '10': 'deviceIids'},
   ],
 };
 
@@ -305,7 +307,7 @@ final $typed_data.Uint8List reqPromptDescriptor = $convert.base64Decode(
     'RlbBISCgR0ZXh0GAMgASgJUgR0ZXh0EikKEGF0dGFjaG1lbnRzX2pzb24YBCABKAlSD2F0dGFj'
     'aG1lbnRzSnNvbhIaCgh0aGlua2luZxgFIAEoCVIIdGhpbmtpbmcSHwoLbWVudGlvbl9pZHMYBi'
     'ADKAlSCm1lbnRpb25JZHMSGQoIdG9waWNfaWQYByABKAlSB3RvcGljSWQSGwoJdG9vbF9tb2Rl'
-    'GAggASgJUgh0b29sTW9kZQ==');
+    'GAggASgJUgh0b29sTW9kZRIfCgtkZXZpY2VfaWlkcxgJIAMoA1IKZGV2aWNlSWlkcw==');
 
 @$core.Deprecated('Use resPromptStartDescriptor instead')
 const ResPromptStart$json = {
@@ -378,12 +380,61 @@ const ReqPromptAbort$json = {
   '1': 'ReqPromptAbort',
   '2': [
     {'1': 'chat_id', '3': 1, '4': 1, '5': 3, '10': 'chatId'},
+    {'1': 'req_id', '3': 2, '4': 1, '5': 9, '10': 'reqId'},
   ],
 };
 
 /// Descriptor for `ReqPromptAbort`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List reqPromptAbortDescriptor = $convert
-    .base64Decode('Cg5SZXFQcm9tcHRBYm9ydBIXCgdjaGF0X2lkGAEgASgDUgZjaGF0SWQ=');
+final $typed_data.Uint8List reqPromptAbortDescriptor = $convert.base64Decode(
+    'Cg5SZXFQcm9tcHRBYm9ydBIXCgdjaGF0X2lkGAEgASgDUgZjaGF0SWQSFQoGcmVxX2lkGAIgAS'
+    'gJUgVyZXFJZA==');
+
+@$core.Deprecated('Use promptRunPushDescriptor instead')
+const PromptRunPush$json = {
+  '1': 'PromptRunPush',
+  '2': [
+    {'1': 'req_id', '3': 1, '4': 1, '5': 9, '10': 'reqId'},
+    {'1': 'parent_req_id', '3': 2, '4': 1, '5': 9, '10': 'parentReqId'},
+    {'1': 'kind', '3': 3, '4': 1, '5': 9, '10': 'kind'},
+    {'1': 'device_iid', '3': 4, '4': 1, '5': 3, '10': 'deviceIid'},
+    {'1': 'status', '3': 5, '4': 1, '5': 9, '10': 'status'},
+    {'1': 'label', '3': 6, '4': 1, '5': 9, '10': 'label'},
+    {'1': 'topic_id', '3': 7, '4': 1, '5': 9, '10': 'topicId'},
+    {'1': 'turn_count', '3': 8, '4': 1, '5': 5, '10': 'turnCount'},
+    {'1': 'tokens_in', '3': 9, '4': 1, '5': 5, '10': 'tokensIn'},
+    {'1': 'tokens_out', '3': 10, '4': 1, '5': 5, '10': 'tokensOut'},
+    {'1': 'cost_usd', '3': 11, '4': 1, '5': 1, '10': 'costUsd'},
+    {'1': 'duration_ms', '3': 12, '4': 1, '5': 5, '10': 'durationMs'},
+    {'1': 'fail_class', '3': 13, '4': 1, '5': 9, '10': 'failClass'},
+    {'1': 'fail_reason', '3': 14, '4': 1, '5': 9, '10': 'failReason'},
+  ],
+};
+
+/// Descriptor for `PromptRunPush`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List promptRunPushDescriptor = $convert.base64Decode(
+    'Cg1Qcm9tcHRSdW5QdXNoEhUKBnJlcV9pZBgBIAEoCVIFcmVxSWQSIgoNcGFyZW50X3JlcV9pZB'
+    'gCIAEoCVILcGFyZW50UmVxSWQSEgoEa2luZBgDIAEoCVIEa2luZBIdCgpkZXZpY2VfaWlkGAQg'
+    'ASgDUglkZXZpY2VJaWQSFgoGc3RhdHVzGAUgASgJUgZzdGF0dXMSFAoFbGFiZWwYBiABKAlSBW'
+    'xhYmVsEhkKCHRvcGljX2lkGAcgASgJUgd0b3BpY0lkEh0KCnR1cm5fY291bnQYCCABKAVSCXR1'
+    'cm5Db3VudBIbCgl0b2tlbnNfaW4YCSABKAVSCHRva2Vuc0luEh0KCnRva2Vuc19vdXQYCiABKA'
+    'VSCXRva2Vuc091dBIZCghjb3N0X3VzZBgLIAEoAVIHY29zdFVzZBIfCgtkdXJhdGlvbl9tcxgM'
+    'IAEoBVIKZHVyYXRpb25NcxIdCgpmYWlsX2NsYXNzGA0gASgJUglmYWlsQ2xhc3MSHwoLZmFpbF'
+    '9yZWFzb24YDiABKAlSCmZhaWxSZWFzb24=');
+
+@$core.Deprecated('Use promptRunJobDescriptor instead')
+const PromptRunJob$json = {
+  '1': 'PromptRunJob',
+  '2': [
+    {'1': 'req_id', '3': 1, '4': 1, '5': 9, '10': 'reqId'},
+    {'1': 'owner_iid', '3': 2, '4': 1, '5': 3, '10': 'ownerIid'},
+    {'1': 'chat_id', '3': 3, '4': 1, '5': 3, '10': 'chatId'},
+  ],
+};
+
+/// Descriptor for `PromptRunJob`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List promptRunJobDescriptor = $convert.base64Decode(
+    'CgxQcm9tcHRSdW5Kb2ISFQoGcmVxX2lkGAEgASgJUgVyZXFJZBIbCglvd25lcl9paWQYAiABKA'
+    'NSCG93bmVySWlkEhcKB2NoYXRfaWQYAyABKANSBmNoYXRJZA==');
 
 @$core.Deprecated('Use reqChatStopDescriptor instead')
 const ReqChatStop$json = {

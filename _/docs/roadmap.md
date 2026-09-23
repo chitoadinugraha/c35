@@ -47,8 +47,8 @@ Phase 4  mod_chat + message renderer (tokens, cost, duration)
 Phase 5  mod_log + NATS live log viewer (root)
 Phase 6  mod_device + remotes pairing + Devices page
 Phase 7  mod_skill + mod_consumption (personal tools on Home assistant)
-Phase 8  mod_site + Sites page (Design / Data panes, block renderer)
-Phase 9  mod_tx + POS editor (id.alienai UI on Sites detail)
+Phase 8  mod_site + Sites page (UITable tabs, prompt web.builder, guest render)
+Phase 9  mod_tx + POS editor (id.alienai UI; site.tx_* schema)
 ```
 
 ## Module boundaries
@@ -57,26 +57,30 @@ Phase 9  mod_tx + POS editor (id.alienai UI on Sites detail)
 |--------|-------------|------------|-----------|
 | Skill | user, device, team, global | — | cs_agent |
 | Consumption | user only | — | id.alienai + cs_agent |
-| Site | site_iid | doc, publish, product, contact, object | csa shell + block doc |
-| Tx / POS | site_iid | sale, debt, GL, stock | id.alienai tx.proto |
+| Site | site_iid | `site.*` doc, product, contact, object | prompt + UITable |
+| Tx / POS | site_iid | `site.tx_*` sale, debt, GL, stock | id.alienai tx.proto |
 
 ### Key decisions (locked)
 
-- **Site registry** = `identity(kind=site)` — no duplicate `site` table.
-- **Guest layout** = `site_draft.doc_json` block tree — not CSA fixed sections.
+- **Site registry** = `identity(kind=site)` — no duplicate site registry table.
+- **Site payload** = YSQL schema **`site`** (not `ai.site_*`).
+- **Guest URLs** = `alienai.id/{alien_id}` path only; custom domain via CNAME + Host header.
+- **Guest layout** = `site.draft.doc_json` block tree — not CSA fixed hub sections.
+- **Site admin UI** = Devices-like tabs + **UITable**; layout via Home prompt (`web.builder`).
 - **Staff access** = `identity_grant` on site_iid.
-- **POS** follows id.alienai tx (`site_iid` replaces `aid`).
-- **Products** in `site_product`; tx + `product_grid` blocks reference `product_id`.
+- **POS** follows id.alienai tx (`site_iid` replaces `aid`); tables in **`site.tx_*`**.
+- **Products** in `site.product`; blocks + POS reference `product_id`.
 - **Embed dedupe** = `ai.embed_cache`; entity `ehash_search` on product/contact.
 
 ## Deferred past Phase 9
 
 | Feature | Notes |
 |---------|-------|
-| pgvector HNSW on product embeds | `site_product_embed` metadata ready |
+| pgvector HNSW on product embeds | `site.product_embed` metadata ready |
 | Skill marketplace payments | Catalog schema ready |
-| File CAS | `file.sql` — render bundles, photos |
-| HR / payroll / presence | site_config policy JSON only |
+| Normalized layout tables | `site.page` / `site.block` for UITable layout editing |
+| File CAS | `file.sql` — render bundles; `site.publish.render_hash` |
+| HR / payroll / presence | `site.config` policy JSON only |
 
 ## Next step (Phase 1)
 

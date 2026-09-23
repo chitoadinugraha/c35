@@ -197,7 +197,7 @@ class _UiWindowBarState extends State<UiWindowBar> with WindowListener {
 
   Widget _titleText() => DefaultTextStyle(
         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFFA1A1AA), decoration: TextDecoration.none),
-        child: Text(_displayTitle),
+        child: Text(_displayTitle, maxLines: 1, overflow: TextOverflow.ellipsis),
       );
 
   Widget _title() {
@@ -209,9 +209,8 @@ class _UiWindowBarState extends State<UiWindowBar> with WindowListener {
         behavior: HitTestBehavior.opaque,
         onTap: _serverHostMenu,
         child: Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            _titleText(),
+            Expanded(child: _titleText()),
             const Icon(Icons.arrow_drop_down, size: 16, color: Color(0xFF71717A)),
           ],
         ),
@@ -224,27 +223,25 @@ class _UiWindowBarState extends State<UiWindowBar> with WindowListener {
         color: const Color(0xFF08080A),
         child: Row(
           children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 10),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: Image.asset('assets/icons/app_icon.png', width: 16, height: 16, filterQuality: FilterQuality.medium),
-                  ),
-                  const SizedBox(width: 8),
-                  _title(),
-                ],
-              ),
-            ),
-            const UiUpdateChrome(),
             Expanded(
               child: DragToMoveArea(
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onDoubleTap: _toggleMaximize,
-                  child: const SizedBox(height: double.infinity),
+                  child: Row(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(left: 10),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: Image.asset('assets/icons/app_icon.png', width: 16, height: 16, filterQuality: FilterQuality.medium),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(child: _title()),
+                      const UiUpdateChrome(),
+                    ],
+                  ),
                 ),
               ),
             ),

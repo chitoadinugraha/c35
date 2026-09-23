@@ -1,0 +1,23 @@
+[package]
+name = "c35_mod_site"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+axum = { workspace = true }
+blake3 = { workspace = true }
+chrono = { workspace = true }
+rand = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+c35_ctx = { path = "../system/ctx", package = "c35_ctx" }
+c35_proto = { path = "../proto", package = "c35_proto" }
+c35_store = { path = "../store", package = "c35_store" }
+c35_mod_hint = { path = "../mod_hint", package = "c35_mod_hint" }
+
+[dev-dependencies]
+tokio = { workspace = true }

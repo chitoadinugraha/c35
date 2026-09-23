@@ -272,3 +272,29 @@ const ResIdentityPut$json = {
 final $typed_data.Uint8List resIdentityPutDescriptor = $convert.base64Decode(
     'Cg5SZXNJZGVudGl0eVB1dBImCgNyb3cYASABKAsyFC5jMzUuSWRlbnRpdHlMaXN0Um93UgNyb3'
     'c=');
+
+@$core.Deprecated('Use reqIdentityDeleteDescriptor instead')
+const ReqIdentityDelete$json = {
+  '1': 'ReqIdentityDelete',
+  '2': [
+    {'1': 'iid', '3': 1, '4': 1, '5': 3, '10': 'iid'},
+  ],
+};
+
+/// Descriptor for `ReqIdentityDelete`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqIdentityDeleteDescriptor = $convert
+    .base64Decode('ChFSZXFJZGVudGl0eURlbGV0ZRIQCgNpaWQYASABKANSA2lpZA==');
+
+@$core.Deprecated('Use resIdentityDeleteDescriptor instead')
+const ResIdentityDelete$json = {
+  '1': 'ResIdentityDelete',
+  '2': [
+    {'1': 'ok', '3': 1, '4': 1, '5': 8, '10': 'ok'},
+    {'1': 'error', '3': 2, '4': 1, '5': 9, '10': 'error'},
+  ],
+};
+
+/// Descriptor for `ResIdentityDelete`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resIdentityDeleteDescriptor = $convert.base64Decode(
+    'ChFSZXNJZGVudGl0eURlbGV0ZRIOCgJvaxgBIAEoCFICb2sSFAoFZXJyb3IYAiABKAlSBWVycm'
+    '9y');

@@ -1,4 +1,6 @@
-use crate::runtime_config::{alien_chain_models, alien_default_model};
+use crate::catalog_resolve::{catalog_provider_model, catalog_row_by_provider_model};
+use crate::llm_catalog::catalog_row_resolve;
+use crate::runtime_config::alien_chain_models;
 
 #[derive(Debug, Clone)]
 pub struct ModelTarget {
@@ -22,42 +24,36 @@ pub fn model_chain_for_slug(slug: &str) -> Vec<ModelTarget> {
     if model_is_alien(slug) {
         return alien_chain_models()
             .into_iter()
-            .map(|m| ModelTarget { provider: "google".into(), provider_model: m })
+            .filter_map(|m| {
+                catalog_provider_model(&m).map(|provider_model| ModelTarget {
+                    provider: "google".into(),
+                    provider_model,
+                })
+            })
             .collect();
     }
-    vec![model_resolve_target(slug)]
+    model_resolve_target(slug).into_iter().collect()
 }
 
-pub fn model_resolve_target(slug: &str) -> ModelTarget {
+pub fn model_resolve_target(slug: &str) -> Option<ModelTarget> {
     let s = slug.trim();
     if model_is_alien(s) {
-        return ModelTarget {
-            provider: "google".into(),
-            provider_model: alien_default_model(),
-        };
+        return catalog_row_resolve("alienai").map(|row| ModelTarget {
+            provider: row.provider,
+            provider_model: row.provider_model,
+        });
     }
-    if s.starts_with("gemini-") || s.starts_with("models/gemini-") {
-        return ModelTarget {
-            provider: "google".into(),
-            provider_model: s.strip_prefix("models/").unwrap_or(s).to_string(),
-        };
+    if let Some(row) = catalog_row_resolve(s) {
+        return Some(ModelTarget {
+            provider: row.provider,
+            provider_model: row.provider_model,
+        });
     }
-    for (slug_key, provider, model) in MODEL_SEEDS {
-        if s.eq_ignore_ascii_case(slug_key) {
-            return ModelTarget { provider: (*provider).into(), provider_model: (*model).into() };
-        }
-    }
-    ModelTarget {
-        provider: "google".into(),
-        provider_model: alien_default_model(),
-    }
+    catalog_row_by_provider_model(s).map(|row| ModelTarget {
+        provider: row.provider,
+        provider_model: row.provider_model,
+    })
 }
-
-const MODEL_SEEDS: &[(&str, &str, &str)] = &[
-    ("gpt-4o", "openai", "gpt-4o"),
-    ("claude-sonnet-4-5", "openrouter", "anthropic/claude-sonnet-4-5"),
-    ("hermes-3-70b", "openrouter", "nousresearch/hermes-3-llama-3.1-70b"),
-];
 
 #[cfg(test)]
 mod tests {
@@ -65,12 +61,15 @@ mod tests {
     use crate::runtime_config::model_is_flash_lite;
 
     #[test]
-    fn alien_chain_stays_flash_lite_family() {
-        let chain = model_chain_for_slug("alienai");
-        assert!(chain.len() >= 2);
-        for t in &chain {
-            assert!(model_is_flash_lite(&t.provider_model), "{}", t.provider_model);
-        }
-        assert_eq!(chain[0].provider_model, DEFAULT_GEMINI_MODEL);
+    fn alien_slug_is_detected() {
+        assert!(model_is_alien("alienai"));
+        assert!(model_is_alien("auto"));
+        assert!(!model_is_alien("gemini-2.5-flash-lite"));
+    }
+
+    #[test]
+    fn flash_lite_family_guard() {
+        assert!(model_is_flash_lite("gemini-3.1-flash-lite"));
+        assert!(!model_is_flash_lite("gemini-2.5-pro"));
     }
 }

@@ -33,7 +33,7 @@ c35/
 | Sync | cs_bots-like server YB; incremental delta by `since` |
 | Timestamps | All syncable rows: `created_ts`, `updated_ts`, `deleted_ts` |
 | Navigation | **No space picker** — Home / Bots / Devices / Sites pages |
-| Business/POS | Under **Sites** page (3-pane), mock later |
+| Business/POS | Under **Sites** page (Devices-like tabs + UITable); prompt builds layout |
 | Server | Multi-crate workspace under `servers/` (not repo root) |
 | Bot | `kind=bot`, `type=chat`; one bot, many channels in `meta.channels[]` |
 | Home inbox | **`prompt` AI chats only** — direct user↔user deferred |
@@ -43,7 +43,7 @@ Full detail: [`_/docs/architecture.md`](_/docs/architecture.md)
 
 ## Infrastructure
 
-- **YB** — primary store (`ai` + `file` schemas)
+- **YB** — primary store (`ai` platform + `site` payload + file CAS in `ai.file_blob_*`)
 - **NATS** — pub/sub, scheduler, live log fanout
 - **WS / Alien Beacon** — client + device wire protocol
 - **Protobuf** — all RPC / sync messages
@@ -57,11 +57,11 @@ Full detail: [`_/docs/architecture.md`](_/docs/architecture.md)
 5. Live log over NATS (root/admin viewer)
 6. Devices page (remote + IoT)
 7. Bots page (3-pane)
-8. Sites page stub (POS/business later)
+8. Sites page (UITable admin + prompt-built guest sites; POS later)
 
 ## Later (vision, not Phase 1)
 
-Self-learning skills, IoT firmware + Alien Beacon, MCP tools, skill marketplace, health tracker, prompt-built websites, channels (Telegram/WhatsApp), incremental backup (512k inline blob strategy TBD).
+Self-learning skills, IoT firmware + Alien Beacon, MCP tools, skill marketplace, health tracker, prompt-built websites, channels (Telegram/WhatsApp).
 
 ## UI shell (summary)
 
@@ -93,7 +93,7 @@ Full UI spec: [`_/docs/ui.md`](_/docs/ui.md)
 | `D:\cs_agent` | Referral, settings, msg renderer, billing trace, error handling |
 | `D:\alienai_proto` | Shell layout, master/detail, canvas |
 | `D:\cs_bots` | Identity model, sync pattern |
-| `E:\Project Archive\csa_site_published` | Server crate layout, site 3-pane pattern |
+| `E:\Project Archive\csa_site_published` | Publish/render, guest HTTP, custom domain; not CSA site editor UI |
 
 ## Docs index
 
@@ -102,10 +102,12 @@ Full UI spec: [`_/docs/ui.md`](_/docs/ui.md)
 | [`_/docs/architecture.md`](_/docs/architecture.md) | Locked system design |
 | [`_/docs/identity.md`](_/docs/identity.md) | Identity kinds, grants, alien_id |
 | [`_/docs/chat.md`](_/docs/chat.md) | Chat; Home inbox = prompt only |
+| [`_/docs/inst.md`](_/docs/inst.md) | Instruction macros (`ai.inst`) — LLM prompt steering |
 | [`_/docs/sync.md`](_/docs/sync.md) | `_ts` fields, since-delta, indexes, NATS |
 | [`_/docs/server.md`](_/docs/server.md) | Crate workspace layout |
 | [`_/docs/ui.md`](_/docs/ui.md) | Pages, navigation, components |
-| [`_/docs/remote.md`](_/docs/remote.md) | Remote computer use (server session) + WebRTC viewer |
+| [`_/docs/remote.md`](_/docs/remote.md) | Remote: agent control session + WebRTC data plane (screen, files, media) |
+| [`_/docs/remote-agent.md`](_/docs/remote-agent.md) | Remote agent architecture, multi-platform porting, OTA & watchdog spec |
 | [`_/schemas/identity.sql`](_/schemas/identity.sql) | Identity + grants DDL |
 | [`_/schemas/chat.sql`](_/schemas/chat.sql) | Chat + messages |
 | [`_/docs/billing.md`](_/docs/billing.md) | Multi-wallet billing, quota, commission |
@@ -113,4 +115,8 @@ Full UI spec: [`_/docs/ui.md`](_/docs/ui.md)
 | [`_/docs/log.md`](_/docs/log.md) | Audit log + billing trace |
 | [`_/schemas/billing.sql`](_/schemas/billing.sql) | Billing DDL |
 | [`_/schemas/log.sql`](_/schemas/log.sql) | Log DDL |
+| [`_/docs/site.md`](_/docs/site.md) | Sites — `site.*` schema, UITable, guest URLs |
+| [`_/docs/tx.md`](_/docs/tx.md) | POS — `site.tx_*`, id.alienai model |
+| [`_/schemas/site.sql`](_/schemas/site.sql) | Site DDL (`site` schema) |
+| [`_/schemas/tx.sql`](_/schemas/tx.sql) | POS DDL (`site.tx_*`) |
 | [`_/schemas/proto/`](_/schemas/proto/) | Protobuf wire (`c35/*.proto`) |

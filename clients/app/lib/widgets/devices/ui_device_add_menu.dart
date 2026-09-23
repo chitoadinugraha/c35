@@ -1,5 +1,6 @@
 import 'package:alienai_c35/c/device/device_store.dart';
 import 'package:alienai_c35/widgets/devices/in_device_pair.dart';
+import 'package:alienai_c35/widgets/ui/ui_alert.dart';
 import 'package:flutter/material.dart';
 
 class UiDeviceAddMenu extends StatelessWidget {
@@ -12,17 +13,13 @@ class UiDeviceAddMenu extends StatelessWidget {
     if (code == null || !context.mounted) return;
     try {
       await store.pair(code);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Device paired')));
-      }
+      if (context.mounted) await uiAlertInfo(context, title: 'Device paired', message: 'The device is now linked to your account.');
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
-      }
+      if (context.mounted) await uiAlertError(context, e);
     }
   }
 
-  void _onFlashComingSoon(BuildContext context) => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Flash device — coming soon')));
+  Future<void> _onFlashComingSoon(BuildContext context) => uiAlertInfo(context, title: 'Coming soon', message: 'Flash device is not available yet.');
 
   @override
   Widget build(BuildContext context) => PopupMenuButton<String>(

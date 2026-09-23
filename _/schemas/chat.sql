@@ -102,6 +102,7 @@ CREATE TABLE IF NOT EXISTS ai.chat_member (
 
     last_msg_ts         TIMESTAMPTZ NOT NULL DEFAULT NOW(),           -- denorm from chat; inbox sort
     last_msg_preview    VARCHAR(255) NOT NULL DEFAULT '',
+    last_msg_status     VARCHAR(16) NOT NULL DEFAULT 'done',          -- streaming | done | error
 
     pinned_ts           TIMESTAMPTZ,
     archived_ts         TIMESTAMPTZ,
@@ -112,6 +113,8 @@ CREATE TABLE IF NOT EXISTS ai.chat_member (
 
     PRIMARY KEY (chat_id, member_iid)
 );
+
+ALTER TABLE ai.chat_member ADD COLUMN IF NOT EXISTS last_msg_status VARCHAR(16) NOT NULL DEFAULT 'done';
 
 -- Home inbox: prompt threads only (direct deferred)
 CREATE INDEX IF NOT EXISTS idx_chat_member_inbox

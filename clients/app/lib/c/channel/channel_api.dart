@@ -101,3 +101,14 @@ ChannelWhatsappPairWatchFn channelWhatsappPairWatchFn(ChatConn conn) =>
 
 ChannelWhatsappPairAbortFn channelWhatsappPairAbortFn(ChatConn conn) =>
     ({required int botIid, required String channelId}) => whatsappPairAbort(conn, botIid, channelId);
+
+typedef ChannelDisconnectFn = Future<void> Function({required int botIid, required String channelId});
+
+Future<ResChannelDisconnect> channelDisconnect(ChatConn conn, int botIid, String channelId) async {
+  final res = await conn.channelDisconnect(botIid, channelId);
+  if (!res.ok) throw res.error.isNotEmpty ? res.error : 'Disconnect failed';
+  return res;
+}
+
+ChannelDisconnectFn channelDisconnectFn(ChatConn conn) =>
+    ({required int botIid, required String channelId}) => channelDisconnect(conn, botIid, channelId);

@@ -12,10 +12,20 @@ SQL and protobuf sources for c35. Applied by `server_ai` on boot (idempotent).
 5. embed.sql
 6. skill.sql
 7. consumption.sql
-8. site.sql
-9. tx.sql
+8. site.sql          ← creates YSQL schema site
+9. tx.sql            ← site.tx_* (requires site.sql)
 10. file.sql         (later)
 ```
+
+## YSQL schema layout
+
+| Schema | Contents |
+|--------|----------|
+| **`ai`** | Platform: identity, grants, chat, billing, log, skill, … |
+| **`site`** | Site payload + POS: config, draft, product, tx, … |
+| **`file`** | CAS blobs (later) |
+
+Site **registry** stays in `ai.identity(kind=site)` — `site.*` tables FK to `ai.identity(id)`.
 
 ## Files
 
@@ -28,9 +38,10 @@ SQL and protobuf sources for c35. Applied by `server_ai` on boot (idempotent).
 | [embed.sql](embed.sql) | **locked** | LLM embed dedupe cache (`ai.embed_cache`) |
 | [skill.sql](skill.sql) | **locked** | Skill, steps, secrets, catalog |
 | [consumption.sql](consumption.sql) | **locked** | Food log, nutrition items, water, prefs |
-| [site.sql](site.sql) | **locked** | Site satellites (doc, publish, product, contact, object) |
-| [tx.sql](tx.sql) | **locked** | POS / transactions (id.alienai model, site_iid) |
-| `file.sql` | planned | CAS blob_meta / blob_inline |
+| [hint.sql](hint.sql) | **locked** | Home hints: catalog, user_asset_touch, hint_bundle |
+| [site.sql](site.sql) | **locked** | `site.*` — doc, publish, render, catalog, domain |
+| [tx.sql](tx.sql) | **locked** | `site.tx_*` — POS (id.alienai model) |
+| [file.sql](file.sql) | **locked** | CAS: inline + S3 + variants |
 | [`proto/`](proto/) | **locked** | Protobuf wire contracts (`c35/*.proto`) |
 
 ## Conventions (LOCKED)
@@ -50,13 +61,14 @@ deleted_ts  TIMESTAMPTZ          -- NULL = live; set = tombstone
 Owner-scoped collections:
 
 ```sql
-CREATE INDEX idx_{table}_sync ON ai.{table} (owner_iid, updated_ts);
+CREATE INDEX idx_{table}_owner_sync ON site.{table} (owner_iid, updated_ts);
+-- or ai.{table} for platform tables
 ```
 
 Site-scoped collections:
 
 ```sql
-CREATE INDEX idx_{table}_site_sync ON ai.{table} (site_iid, updated_ts);
+CREATE INDEX idx_{table}_site_sync ON site.{table} (site_iid, updated_ts);
 ```
 
 ### Identity
@@ -72,7 +84,8 @@ CREATE INDEX idx_{table}_site_sync ON ai.{table} (site_iid, updated_ts);
 
 ### Site layout
 
-- Guest pages = block-composed **`site_draft.doc_json`** (SiteDoc)
-- Catalog/CRM = **`site_product`**, **`site_contact`**, **`site_object`** (data, not layout)
+- Guest pages = block-composed **`site.draft.doc_json`** (SiteDoc)
+- Catalog/CRM = **`site.product`**, **`site.contact`**, **`site.object`**
+- Admin UI = **UITable** driven by [`collection.proto`](proto/c35/collection.proto)
 
 See [`../docs/roadmap.md`](../docs/roadmap.md), [`../docs/site.md`](../docs/site.md).

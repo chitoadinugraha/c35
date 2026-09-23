@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package c35;
+
+message DiskMountStat {
+  string label = 1;
+  string mount = 2;
+  uint64 used_bytes = 3;
+  uint64 total_bytes = 4;
+  double read_bps = 5;
+  double write_bps = 6;
+}
+
+message VolumeStat {
+  string namespace = 1;
+  string pvc_name = 2;
+  string pod_name = 3;
+  string node_name = 4;
+  uint64 used_bytes = 5;
+  uint64 capacity_bytes = 6;
+  string storage_class = 7;
+}
+
+message NodeStat {
+  string node_name = 1;
+  int32 cpu_cores = 2;
+  double cpu_pct = 3;
+  uint64 mem_used_bytes = 4;
+  uint64 mem_total_bytes = 5;
+  repeated DiskMountStat mounts = 6;
+  double net_in_bps = 7;
+  double net_out_bps = 8;
+  int64 ts_ms = 9;
+}
+
+message StatsPush {
+  oneof body {
+    NodeStat node = 1;
+    VolumeStat volume = 2;
+  }
+}
+
+message ReqStatsSubscribe {}
+message ReqStatsUnsubscribe {}
+
+message ReqLogSubscribe {
+  optional int64 owner_iid = 1;
+}
+
+message ReqLogUnsubscribe {}

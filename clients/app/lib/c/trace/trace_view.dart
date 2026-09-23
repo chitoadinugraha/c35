@@ -3,8 +3,27 @@ import 'package:alienai_c35/c/trace/trace_log.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/ui/ui_format.dart';
 
+class TraceToolFilterCandidate {
+  const TraceToolFilterCandidate({required this.toolId, this.sim = 0, this.fed = false});
+  final String toolId;
+  final double sim;
+  final bool fed;
+}
+
 class TraceBranch {
-  const TraceBranch({required this.label, this.durationMs = 0, this.costUsd = 0, this.tokensIn = 0, this.tokensOut = 0, this.ok = true, this.detail = ''});
+  const TraceBranch({
+    required this.label,
+    this.durationMs = 0,
+    this.costUsd = 0,
+    this.tokensIn = 0,
+    this.tokensOut = 0,
+    this.ok = true,
+    this.detail = '',
+    this.toolCandidates = const [],
+    this.droppedGap = const [],
+    this.ragSkipped = false,
+    this.ragSkipReason = '',
+  });
   final String label;
   final int durationMs;
   final double costUsd;
@@ -12,6 +31,12 @@ class TraceBranch {
   final int tokensOut;
   final bool ok;
   final String detail;
+  final List<TraceToolFilterCandidate> toolCandidates;
+  final List<TraceToolFilterCandidate> droppedGap;
+  final bool ragSkipped;
+  final String ragSkipReason;
+
+  bool get hasToolFilterDetail => toolCandidates.isNotEmpty || droppedGap.isNotEmpty;
 }
 
 class TraceStep {
@@ -70,7 +95,32 @@ double _asDouble(dynamic v) {
 
 String _asStr(dynamic v) => v == null ? '' : '$v'.trim();
 
-String _toolLabel(String toolId) {
+double _asFloat(dynamic v) {
+  if (v is double) return v;
+  if (v is num) return v.toDouble();
+  if (v is String) return double.tryParse(v) ?? 0;
+  return 0;
+}
+
+List<TraceToolFilterCandidate> _toolCandidatesFromMeta(dynamic raw) {
+  if (raw is! List) return const [];
+  final out = <TraceToolFilterCandidate>[];
+  for (final row in raw) {
+    if (row is! Map) continue;
+    final toolId = _asStr(row['tool_id']).isNotEmpty ? _asStr(row['tool_id']) : _asStr(row['toolId']);
+    if (toolId.isEmpty) continue;
+    out.add(TraceToolFilterCandidate(toolId: toolId, sim: _asFloat(row['sim']), fed: row['fed'] == true));
+  }
+  return out;
+}
+
+String traceModelLabel(String model) {
+  final m = model.trim().toLowerCase();
+  if (m.isEmpty || m == 'auto' || m == 'alien' || m == 'alienai' || m == 'cloud') return 'alienai';
+  return model.trim();
+}
+
+String traceToolLabel(String toolId) {
   final id = toolId.replaceAll('_', '.');
   return switch (id) {
     'web.search' => catalogT('tool.web.search.calling').replaceAll('…', ''),
@@ -85,7 +135,7 @@ TraceBranch _branchFromLog(TraceLogDoc log) {
   final meta = log.meta;
   final tool = _asStr(meta['tool']);
   final branch = _asStr(meta['branch']);
-  final label = tool.isNotEmpty ? _toolLabel(tool) : branch.isNotEmpty ? branch : log.text.split('\n').first;
+  final label = tool.isNotEmpty ? traceToolLabel(tool) : branch.isNotEmpty ? branch : log.text.split('\n').first;
   return TraceBranch(
     label: label,
     durationMs: log.durationMs > 0 ? log.durationMs : _asInt(meta['duration_ms']),
@@ -110,7 +160,7 @@ TraceView buildTraceView(List<TraceLogDoc> logs) {
         tokensOut: _asInt(meta['completion_tokens']).clamp(0, 1 << 30) > 0 ? _asInt(meta['completion_tokens']) : log.tokensOut,
         durationMs: _asInt(meta['duration_ms']) > 0 ? _asInt(meta['duration_ms']) : log.durationMs,
         costUsd: _asDouble(meta['cost_retail_usd']) > 0 ? _asDouble(meta['cost_retail_usd']) : log.costUsd,
-        model: log.model,
+        model: traceModelLabel(log.model),
       );
       continue;
     }
@@ -121,27 +171,28 @@ TraceView buildTraceView(List<TraceLogDoc> logs) {
 
   final steps = <TraceStep>[];
   final keys = byStep.keys.where((k) => k != 9999).toList()..sort();
-  var display = 0;
+  var llmHop = 0;
   for (final stepNum in keys) {
     final rows = byStep[stepNum]!;
-    display++;
     final main = rows.firstWhere((r) => r.topic == 'llm_call' || (r.kind == 'llm' && r.meta['hop'] != null), orElse: () => rows.first);
     final branches = <TraceBranch>[];
     final TraceStep hopStep;
     if (main.topic == 'llm_call' || main.kind == 'llm') {
+      llmHop++;
       final meta = main.meta;
+      final hop = _asInt(meta['hop']) > 0 ? _asInt(meta['hop']) : llmHop;
       final branchRows = rows.where((r) => r.topic == 'tool_result' || r.topic == 'tool_error' || (r.kind == 'tool'));
       for (final b in branchRows) {
         branches.add(_branchFromLog(b));
       }
       hopStep = TraceStep(
-        index: display,
-        title: 'LLM hop ${_asInt(meta['hop']) > 0 ? _asInt(meta['hop']) : display}',
+        index: hop,
+        title: 'LLM hop $hop',
         durationMs: main.durationMs > 0 ? main.durationMs : _asInt(meta['duration_ms']),
         costUsd: main.costUsd > 0 ? main.costUsd : _asDouble(meta['cost_retail_usd']),
         tokensIn: main.tokensIn > 0 ? main.tokensIn : _asInt(meta['prompt_tokens']),
         tokensOut: main.tokensOut > 0 ? main.tokensOut : _asInt(meta['completion_tokens']),
-        model: main.model,
+        model: traceModelLabel(main.model),
         branches: branches,
       );
     } else {
@@ -153,10 +204,19 @@ TraceView buildTraceView(List<TraceLogDoc> logs) {
           'trace_prepare' => 'Compose',
           _ => branch.isNotEmpty ? branch : r.topic,
         };
-        branches.add(TraceBranch(label: label, durationMs: r.durationMs, costUsd: r.costUsd, detail: r.text.split('\n').first));
+        branches.add(TraceBranch(
+          label: label,
+          durationMs: r.durationMs,
+          costUsd: r.costUsd,
+          detail: r.text.split('\n').first,
+          toolCandidates: r.topic == 'trace_tool_filter' ? _toolCandidatesFromMeta(r.meta['candidates']) : const [],
+          droppedGap: r.topic == 'trace_tool_filter' ? _toolCandidatesFromMeta(r.meta['dropped_gap']) : const [],
+          ragSkipped: r.topic == 'trace_tool_filter' && r.meta['rag_skipped'] == true,
+          ragSkipReason: r.topic == 'trace_tool_filter' ? _asStr(r.meta['rag_skip_reason']) : '',
+        ));
       }
       hopStep = TraceStep(
-        index: display,
+        index: 0,
         title: 'Prepare',
         durationMs: branches.fold(0, (a, b) => a + b.durationMs),
         costUsd: branches.fold(0.0, (a, b) => a + b.costUsd),
@@ -172,20 +232,23 @@ TraceView buildTraceView(List<TraceLogDoc> logs) {
       tokensOut: steps.fold(0, (a, s) => a + s.tokensOut),
       durationMs: steps.fold(0, (a, s) => a + s.durationMs),
       costUsd: steps.fold(0.0, (a, s) => a + s.costUsd),
-      model: totals.model.isNotEmpty ? totals.model : steps.last.model,
+      model: totals.model.isNotEmpty ? totals.model : traceModelLabel(steps.last.model),
     );
   }
 
   return TraceView(steps: steps, totals: totals);
 }
 
+String traceSimLabel(double sim) => sim <= 0 ? '—' : sim.toStringAsFixed(2);
+
 String traceStepUsageLine(TraceStep step, {String currency = moneyDefaultCurrency, int fxMicroPerUsd = moneyDefaultFxMicroPerUsd}) {
+  final model = traceModelLabel(step.model);
   final parts = <String>[
     if (step.tokensIn > 0) '${uiFmtGroupedInt(step.tokensIn)}↑',
     if (step.tokensOut > 0) '${uiFmtGroupedInt(step.tokensOut)}↓',
     if (step.durationMs > 0) uiFmtDurationMs(step.durationMs),
     if (step.costUsd > 0) moneyCostLabel(step.costUsd, currency: currency, fxMicroPerUsd: fxMicroPerUsd),
-    if (step.model.isNotEmpty) step.model,
+    if (model.isNotEmpty) model,
   ];
   return parts.join('  ');
 }
@@ -199,6 +262,8 @@ String traceTotalsLine(TraceTotals totals, {String currency = moneyDefaultCurren
 List<MsgTraceToolChip> traceToolChipsFromView(TraceView view) {
   final out = <MsgTraceToolChip>[];
   for (final step in view.steps) {
+    // Prepare traces (tool filter, compose, memory) are for the trace sheet only.
+    if (step.title == 'Prepare') continue;
     for (final b in step.branches) {
       if (b.label.isEmpty) continue;
       out.add(MsgTraceToolChip(label: b.label, ok: b.ok, durationMs: b.durationMs));

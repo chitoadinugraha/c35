@@ -43,6 +43,12 @@ class Skill extends $pb.GeneratedMessage {
     $core.String? targetApp,
     $core.String? urlPattern,
     $core.Iterable<SkillStep>? steps,
+    $core.int? patchEpoch,
+    $core.int? patchCount,
+    $core.int? consecutiveOk,
+    $core.String? detectedAppVersion,
+    $core.bool? autoSubmit,
+    $fixnum.Int64? lastPatchedTsMs,
     $fixnum.Int64? createdTsMs,
     $fixnum.Int64? updatedTsMs,
     $fixnum.Int64? deletedTsMs,
@@ -68,6 +74,13 @@ class Skill extends $pb.GeneratedMessage {
     if (targetApp != null) result.targetApp = targetApp;
     if (urlPattern != null) result.urlPattern = urlPattern;
     if (steps != null) result.steps.addAll(steps);
+    if (patchEpoch != null) result.patchEpoch = patchEpoch;
+    if (patchCount != null) result.patchCount = patchCount;
+    if (consecutiveOk != null) result.consecutiveOk = consecutiveOk;
+    if (detectedAppVersion != null)
+      result.detectedAppVersion = detectedAppVersion;
+    if (autoSubmit != null) result.autoSubmit = autoSubmit;
+    if (lastPatchedTsMs != null) result.lastPatchedTsMs = lastPatchedTsMs;
     if (createdTsMs != null) result.createdTsMs = createdTsMs;
     if (updatedTsMs != null) result.updatedTsMs = updatedTsMs;
     if (deletedTsMs != null) result.deletedTsMs = deletedTsMs;
@@ -110,6 +123,12 @@ class Skill extends $pb.GeneratedMessage {
     ..aOS(19, _omitFieldNames ? '' : 'urlPattern')
     ..pPM<SkillStep>(20, _omitFieldNames ? '' : 'steps',
         subBuilder: SkillStep.$_createMessage)
+    ..aI(21, _omitFieldNames ? '' : 'patchEpoch')
+    ..aI(22, _omitFieldNames ? '' : 'patchCount')
+    ..aI(23, _omitFieldNames ? '' : 'consecutiveOk')
+    ..aOS(24, _omitFieldNames ? '' : 'detectedAppVersion')
+    ..aOB(25, _omitFieldNames ? '' : 'autoSubmit')
+    ..aInt64(26, _omitFieldNames ? '' : 'lastPatchedTsMs')
     ..aInt64(30, _omitFieldNames ? '' : 'createdTsMs')
     ..aInt64(31, _omitFieldNames ? '' : 'updatedTsMs')
     ..aInt64(32, _omitFieldNames ? '' : 'deletedTsMs')
@@ -309,30 +328,84 @@ class Skill extends $pb.GeneratedMessage {
   @$pb.TagNumber(20)
   $pb.PbList<SkillStep> get steps => $_getList(19);
 
+  @$pb.TagNumber(21)
+  $core.int get patchEpoch => $_getIZ(20);
+  @$pb.TagNumber(21)
+  set patchEpoch($core.int value) => $_setSignedInt32(20, value);
+  @$pb.TagNumber(21)
+  $core.bool hasPatchEpoch() => $_has(20);
+  @$pb.TagNumber(21)
+  void clearPatchEpoch() => $_clearField(21);
+
+  @$pb.TagNumber(22)
+  $core.int get patchCount => $_getIZ(21);
+  @$pb.TagNumber(22)
+  set patchCount($core.int value) => $_setSignedInt32(21, value);
+  @$pb.TagNumber(22)
+  $core.bool hasPatchCount() => $_has(21);
+  @$pb.TagNumber(22)
+  void clearPatchCount() => $_clearField(22);
+
+  @$pb.TagNumber(23)
+  $core.int get consecutiveOk => $_getIZ(22);
+  @$pb.TagNumber(23)
+  set consecutiveOk($core.int value) => $_setSignedInt32(22, value);
+  @$pb.TagNumber(23)
+  $core.bool hasConsecutiveOk() => $_has(22);
+  @$pb.TagNumber(23)
+  void clearConsecutiveOk() => $_clearField(23);
+
+  @$pb.TagNumber(24)
+  $core.String get detectedAppVersion => $_getSZ(23);
+  @$pb.TagNumber(24)
+  set detectedAppVersion($core.String value) => $_setString(23, value);
+  @$pb.TagNumber(24)
+  $core.bool hasDetectedAppVersion() => $_has(23);
+  @$pb.TagNumber(24)
+  void clearDetectedAppVersion() => $_clearField(24);
+
+  @$pb.TagNumber(25)
+  $core.bool get autoSubmit => $_getBF(24);
+  @$pb.TagNumber(25)
+  set autoSubmit($core.bool value) => $_setBool(24, value);
+  @$pb.TagNumber(25)
+  $core.bool hasAutoSubmit() => $_has(24);
+  @$pb.TagNumber(25)
+  void clearAutoSubmit() => $_clearField(25);
+
+  @$pb.TagNumber(26)
+  $fixnum.Int64 get lastPatchedTsMs => $_getI64(25);
+  @$pb.TagNumber(26)
+  set lastPatchedTsMs($fixnum.Int64 value) => $_setInt64(25, value);
+  @$pb.TagNumber(26)
+  $core.bool hasLastPatchedTsMs() => $_has(25);
+  @$pb.TagNumber(26)
+  void clearLastPatchedTsMs() => $_clearField(26);
+
   @$pb.TagNumber(30)
-  $fixnum.Int64 get createdTsMs => $_getI64(20);
+  $fixnum.Int64 get createdTsMs => $_getI64(26);
   @$pb.TagNumber(30)
-  set createdTsMs($fixnum.Int64 value) => $_setInt64(20, value);
+  set createdTsMs($fixnum.Int64 value) => $_setInt64(26, value);
   @$pb.TagNumber(30)
-  $core.bool hasCreatedTsMs() => $_has(20);
+  $core.bool hasCreatedTsMs() => $_has(26);
   @$pb.TagNumber(30)
   void clearCreatedTsMs() => $_clearField(30);
 
   @$pb.TagNumber(31)
-  $fixnum.Int64 get updatedTsMs => $_getI64(21);
+  $fixnum.Int64 get updatedTsMs => $_getI64(27);
   @$pb.TagNumber(31)
-  set updatedTsMs($fixnum.Int64 value) => $_setInt64(21, value);
+  set updatedTsMs($fixnum.Int64 value) => $_setInt64(27, value);
   @$pb.TagNumber(31)
-  $core.bool hasUpdatedTsMs() => $_has(21);
+  $core.bool hasUpdatedTsMs() => $_has(27);
   @$pb.TagNumber(31)
   void clearUpdatedTsMs() => $_clearField(31);
 
   @$pb.TagNumber(32)
-  $fixnum.Int64 get deletedTsMs => $_getI64(22);
+  $fixnum.Int64 get deletedTsMs => $_getI64(28);
   @$pb.TagNumber(32)
-  set deletedTsMs($fixnum.Int64 value) => $_setInt64(22, value);
+  set deletedTsMs($fixnum.Int64 value) => $_setInt64(28, value);
   @$pb.TagNumber(32)
-  $core.bool hasDeletedTsMs() => $_has(22);
+  $core.bool hasDeletedTsMs() => $_has(28);
   @$pb.TagNumber(32)
   void clearDeletedTsMs() => $_clearField(32);
 }
@@ -562,6 +635,9 @@ class SkillCatalog extends $pb.GeneratedMessage {
     $core.double? rating,
     $core.bool? isVerified,
     $core.String? status,
+    $core.double? priceUsd,
+    $core.double? priceIdr,
+    $core.String? billingPeriod,
   }) {
     final result = SkillCatalog._();
     if (id != null) result.id = id;
@@ -576,6 +652,9 @@ class SkillCatalog extends $pb.GeneratedMessage {
     if (rating != null) result.rating = rating;
     if (isVerified != null) result.isVerified = isVerified;
     if (status != null) result.status = status;
+    if (priceUsd != null) result.priceUsd = priceUsd;
+    if (priceIdr != null) result.priceIdr = priceIdr;
+    if (billingPeriod != null) result.billingPeriod = billingPeriod;
     return result;
   }
 
@@ -604,6 +683,9 @@ class SkillCatalog extends $pb.GeneratedMessage {
     ..aD(10, _omitFieldNames ? '' : 'rating')
     ..aOB(11, _omitFieldNames ? '' : 'isVerified')
     ..aOS(12, _omitFieldNames ? '' : 'status')
+    ..aD(13, _omitFieldNames ? '' : 'priceUsd')
+    ..aD(14, _omitFieldNames ? '' : 'priceIdr')
+    ..aOS(15, _omitFieldNames ? '' : 'billingPeriod')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -735,6 +817,33 @@ class SkillCatalog extends $pb.GeneratedMessage {
   $core.bool hasStatus() => $_has(11);
   @$pb.TagNumber(12)
   void clearStatus() => $_clearField(12);
+
+  @$pb.TagNumber(13)
+  $core.double get priceUsd => $_getN(12);
+  @$pb.TagNumber(13)
+  set priceUsd($core.double value) => $_setDouble(12, value);
+  @$pb.TagNumber(13)
+  $core.bool hasPriceUsd() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearPriceUsd() => $_clearField(13);
+
+  @$pb.TagNumber(14)
+  $core.double get priceIdr => $_getN(13);
+  @$pb.TagNumber(14)
+  set priceIdr($core.double value) => $_setDouble(13, value);
+  @$pb.TagNumber(14)
+  $core.bool hasPriceIdr() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearPriceIdr() => $_clearField(14);
+
+  @$pb.TagNumber(15)
+  $core.String get billingPeriod => $_getSZ(14);
+  @$pb.TagNumber(15)
+  set billingPeriod($core.String value) => $_setString(14, value);
+  @$pb.TagNumber(15)
+  $core.bool hasBillingPeriod() => $_has(14);
+  @$pb.TagNumber(15)
+  void clearBillingPeriod() => $_clearField(15);
 }
 
 class ReqSkillList extends $pb.GeneratedMessage {
@@ -1411,6 +1520,547 @@ class ResSkillCatalogInstall extends $pb.GeneratedMessage {
   void clearSkill() => $_clearField(1);
   @$pb.TagNumber(1)
   Skill ensureSkill() => $_ensure(0);
+}
+
+/// Phase 7: full-text + tag search of the public skill catalog
+class ReqSkillCatalogSearch extends $pb.GeneratedMessage {
+  factory ReqSkillCatalogSearch({
+    $core.String? q,
+    $core.String? tagsJson,
+    $core.int? limit,
+    $core.int? offset,
+  }) {
+    final result = ReqSkillCatalogSearch._();
+    if (q != null) result.q = q;
+    if (tagsJson != null) result.tagsJson = tagsJson;
+    if (limit != null) result.limit = limit;
+    if (offset != null) result.offset = offset;
+    return result;
+  }
+
+  ReqSkillCatalogSearch._();
+
+  factory ReqSkillCatalogSearch.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSkillCatalogSearch()..mergeFromBuffer(data, registry);
+  factory ReqSkillCatalogSearch.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSkillCatalogSearch()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqSkillCatalogSearch',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqSkillCatalogSearch.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'q')
+    ..aOS(2, _omitFieldNames ? '' : 'tagsJson')
+    ..aI(3, _omitFieldNames ? '' : 'limit')
+    ..aI(4, _omitFieldNames ? '' : 'offset')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSkillCatalogSearch clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSkillCatalogSearch copyWith(
+          void Function(ReqSkillCatalogSearch) updates) =>
+      super.copyWith((message) => updates(message as ReqSkillCatalogSearch))
+          as ReqSkillCatalogSearch;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqSkillCatalogSearch() / ReqSkillCatalogSearch.new instead')
+  static ReqSkillCatalogSearch create() => ReqSkillCatalogSearch._();
+  static $pb.GeneratedMessage $_createMessage() => ReqSkillCatalogSearch._();
+  @$core.override
+  ReqSkillCatalogSearch createEmptyInstance() => ReqSkillCatalogSearch._();
+  @$core.pragma('dart2js:noInline')
+  static ReqSkillCatalogSearch getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqSkillCatalogSearch>(
+          ReqSkillCatalogSearch.$_createMessage);
+  static ReqSkillCatalogSearch? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get q => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set q($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasQ() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearQ() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get tagsJson => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set tagsJson($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasTagsJson() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearTagsJson() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.int get limit => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set limit($core.int value) => $_setSignedInt32(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasLimit() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearLimit() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.int get offset => $_getIZ(3);
+  @$pb.TagNumber(4)
+  set offset($core.int value) => $_setSignedInt32(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasOffset() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearOffset() => $_clearField(4);
+}
+
+class ResSkillCatalogSearch extends $pb.GeneratedMessage {
+  factory ResSkillCatalogSearch({
+    $core.Iterable<SkillCatalog>? catalogs,
+    $core.int? total,
+  }) {
+    final result = ResSkillCatalogSearch._();
+    if (catalogs != null) result.catalogs.addAll(catalogs);
+    if (total != null) result.total = total;
+    return result;
+  }
+
+  ResSkillCatalogSearch._();
+
+  factory ResSkillCatalogSearch.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSkillCatalogSearch()..mergeFromBuffer(data, registry);
+  factory ResSkillCatalogSearch.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSkillCatalogSearch()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResSkillCatalogSearch',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResSkillCatalogSearch.$_createMessage)
+    ..pPM<SkillCatalog>(1, _omitFieldNames ? '' : 'catalogs',
+        subBuilder: SkillCatalog.$_createMessage)
+    ..aI(2, _omitFieldNames ? '' : 'total')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSkillCatalogSearch clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSkillCatalogSearch copyWith(
+          void Function(ResSkillCatalogSearch) updates) =>
+      super.copyWith((message) => updates(message as ResSkillCatalogSearch))
+          as ResSkillCatalogSearch;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResSkillCatalogSearch() / ResSkillCatalogSearch.new instead')
+  static ResSkillCatalogSearch create() => ResSkillCatalogSearch._();
+  static $pb.GeneratedMessage $_createMessage() => ResSkillCatalogSearch._();
+  @$core.override
+  ResSkillCatalogSearch createEmptyInstance() => ResSkillCatalogSearch._();
+  @$core.pragma('dart2js:noInline')
+  static ResSkillCatalogSearch getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResSkillCatalogSearch>(
+          ResSkillCatalogSearch.$_createMessage);
+  static ResSkillCatalogSearch? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<SkillCatalog> get catalogs => $_getList(0);
+
+  @$pb.TagNumber(2)
+  $core.int get total => $_getIZ(1);
+  @$pb.TagNumber(2)
+  set total($core.int value) => $_setSignedInt32(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasTotal() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearTotal() => $_clearField(2);
+}
+
+/// Phase 7: agent submits a local skill to the public catalog for review
+class ReqSkillCatalogSubmit extends $pb.GeneratedMessage {
+  factory ReqSkillCatalogSubmit({
+    $fixnum.Int64? skillId,
+    $core.String? submitAction,
+    $fixnum.Int64? existingCatalogId,
+  }) {
+    final result = ReqSkillCatalogSubmit._();
+    if (skillId != null) result.skillId = skillId;
+    if (submitAction != null) result.submitAction = submitAction;
+    if (existingCatalogId != null) result.existingCatalogId = existingCatalogId;
+    return result;
+  }
+
+  ReqSkillCatalogSubmit._();
+
+  factory ReqSkillCatalogSubmit.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSkillCatalogSubmit()..mergeFromBuffer(data, registry);
+  factory ReqSkillCatalogSubmit.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSkillCatalogSubmit()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqSkillCatalogSubmit',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqSkillCatalogSubmit.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'skillId')
+    ..aOS(2, _omitFieldNames ? '' : 'submitAction')
+    ..aInt64(3, _omitFieldNames ? '' : 'existingCatalogId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSkillCatalogSubmit clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSkillCatalogSubmit copyWith(
+          void Function(ReqSkillCatalogSubmit) updates) =>
+      super.copyWith((message) => updates(message as ReqSkillCatalogSubmit))
+          as ReqSkillCatalogSubmit;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqSkillCatalogSubmit() / ReqSkillCatalogSubmit.new instead')
+  static ReqSkillCatalogSubmit create() => ReqSkillCatalogSubmit._();
+  static $pb.GeneratedMessage $_createMessage() => ReqSkillCatalogSubmit._();
+  @$core.override
+  ReqSkillCatalogSubmit createEmptyInstance() => ReqSkillCatalogSubmit._();
+  @$core.pragma('dart2js:noInline')
+  static ReqSkillCatalogSubmit getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqSkillCatalogSubmit>(
+          ReqSkillCatalogSubmit.$_createMessage);
+  static ReqSkillCatalogSubmit? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get skillId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set skillId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSkillId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSkillId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get submitAction => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set submitAction($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasSubmitAction() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearSubmitAction() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get existingCatalogId => $_getI64(2);
+  @$pb.TagNumber(3)
+  set existingCatalogId($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasExistingCatalogId() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearExistingCatalogId() => $_clearField(3);
+}
+
+class ResSkillCatalogSubmit extends $pb.GeneratedMessage {
+  factory ResSkillCatalogSubmit({
+    $fixnum.Int64? catalogId,
+    $core.String? status,
+    $core.String? message,
+  }) {
+    final result = ResSkillCatalogSubmit._();
+    if (catalogId != null) result.catalogId = catalogId;
+    if (status != null) result.status = status;
+    if (message != null) result.message = message;
+    return result;
+  }
+
+  ResSkillCatalogSubmit._();
+
+  factory ResSkillCatalogSubmit.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSkillCatalogSubmit()..mergeFromBuffer(data, registry);
+  factory ResSkillCatalogSubmit.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSkillCatalogSubmit()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResSkillCatalogSubmit',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResSkillCatalogSubmit.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'catalogId')
+    ..aOS(2, _omitFieldNames ? '' : 'status')
+    ..aOS(3, _omitFieldNames ? '' : 'message')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSkillCatalogSubmit clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSkillCatalogSubmit copyWith(
+          void Function(ResSkillCatalogSubmit) updates) =>
+      super.copyWith((message) => updates(message as ResSkillCatalogSubmit))
+          as ResSkillCatalogSubmit;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResSkillCatalogSubmit() / ResSkillCatalogSubmit.new instead')
+  static ResSkillCatalogSubmit create() => ResSkillCatalogSubmit._();
+  static $pb.GeneratedMessage $_createMessage() => ResSkillCatalogSubmit._();
+  @$core.override
+  ResSkillCatalogSubmit createEmptyInstance() => ResSkillCatalogSubmit._();
+  @$core.pragma('dart2js:noInline')
+  static ResSkillCatalogSubmit getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResSkillCatalogSubmit>(
+          ResSkillCatalogSubmit.$_createMessage);
+  static ResSkillCatalogSubmit? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get catalogId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set catalogId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasCatalogId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearCatalogId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get status => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set status($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasStatus() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearStatus() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get message => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set message($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasMessage() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearMessage() => $_clearField(3);
+}
+
+/// Phase 7: agent reports the outcome of running a skill (self-learning feedback)
+class ReqSkillRunReport extends $pb.GeneratedMessage {
+  factory ReqSkillRunReport({
+    $fixnum.Int64? runId,
+    $fixnum.Int64? skillId,
+    $core.bool? success,
+    $core.int? stepIndex,
+    $core.String? error,
+    $core.String? patchMd,
+    $core.String? detectedAppVersion,
+    $core.String? metaJson,
+  }) {
+    final result = ReqSkillRunReport._();
+    if (runId != null) result.runId = runId;
+    if (skillId != null) result.skillId = skillId;
+    if (success != null) result.success = success;
+    if (stepIndex != null) result.stepIndex = stepIndex;
+    if (error != null) result.error = error;
+    if (patchMd != null) result.patchMd = patchMd;
+    if (detectedAppVersion != null)
+      result.detectedAppVersion = detectedAppVersion;
+    if (metaJson != null) result.metaJson = metaJson;
+    return result;
+  }
+
+  ReqSkillRunReport._();
+
+  factory ReqSkillRunReport.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSkillRunReport()..mergeFromBuffer(data, registry);
+  factory ReqSkillRunReport.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSkillRunReport()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqSkillRunReport',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqSkillRunReport.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'runId')
+    ..aInt64(2, _omitFieldNames ? '' : 'skillId')
+    ..aOB(3, _omitFieldNames ? '' : 'success')
+    ..aI(4, _omitFieldNames ? '' : 'stepIndex')
+    ..aOS(5, _omitFieldNames ? '' : 'error')
+    ..aOS(6, _omitFieldNames ? '' : 'patchMd')
+    ..aOS(7, _omitFieldNames ? '' : 'detectedAppVersion')
+    ..aOS(8, _omitFieldNames ? '' : 'metaJson')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSkillRunReport clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSkillRunReport copyWith(void Function(ReqSkillRunReport) updates) =>
+      super.copyWith((message) => updates(message as ReqSkillRunReport))
+          as ReqSkillRunReport;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqSkillRunReport() / ReqSkillRunReport.new instead')
+  static ReqSkillRunReport create() => ReqSkillRunReport._();
+  static $pb.GeneratedMessage $_createMessage() => ReqSkillRunReport._();
+  @$core.override
+  ReqSkillRunReport createEmptyInstance() => ReqSkillRunReport._();
+  @$core.pragma('dart2js:noInline')
+  static ReqSkillRunReport getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ReqSkillRunReport>(
+          ReqSkillRunReport.$_createMessage);
+  static ReqSkillRunReport? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get runId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set runId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasRunId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearRunId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get skillId => $_getI64(1);
+  @$pb.TagNumber(2)
+  set skillId($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasSkillId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearSkillId() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.bool get success => $_getBF(2);
+  @$pb.TagNumber(3)
+  set success($core.bool value) => $_setBool(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasSuccess() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearSuccess() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.int get stepIndex => $_getIZ(3);
+  @$pb.TagNumber(4)
+  set stepIndex($core.int value) => $_setSignedInt32(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasStepIndex() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearStepIndex() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get error => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set error($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasError() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearError() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get patchMd => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set patchMd($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasPatchMd() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearPatchMd() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.String get detectedAppVersion => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set detectedAppVersion($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasDetectedAppVersion() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearDetectedAppVersion() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.String get metaJson => $_getSZ(7);
+  @$pb.TagNumber(8)
+  set metaJson($core.String value) => $_setString(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasMetaJson() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearMetaJson() => $_clearField(8);
+}
+
+class ResSkillRunReport extends $pb.GeneratedMessage {
+  factory ResSkillRunReport({
+    $core.bool? accepted,
+    $core.String? message,
+  }) {
+    final result = ResSkillRunReport._();
+    if (accepted != null) result.accepted = accepted;
+    if (message != null) result.message = message;
+    return result;
+  }
+
+  ResSkillRunReport._();
+
+  factory ResSkillRunReport.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSkillRunReport()..mergeFromBuffer(data, registry);
+  factory ResSkillRunReport.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSkillRunReport()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResSkillRunReport',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResSkillRunReport.$_createMessage)
+    ..aOB(1, _omitFieldNames ? '' : 'accepted')
+    ..aOS(2, _omitFieldNames ? '' : 'message')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSkillRunReport clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSkillRunReport copyWith(void Function(ResSkillRunReport) updates) =>
+      super.copyWith((message) => updates(message as ResSkillRunReport))
+          as ResSkillRunReport;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResSkillRunReport() / ResSkillRunReport.new instead')
+  static ResSkillRunReport create() => ResSkillRunReport._();
+  static $pb.GeneratedMessage $_createMessage() => ResSkillRunReport._();
+  @$core.override
+  ResSkillRunReport createEmptyInstance() => ResSkillRunReport._();
+  @$core.pragma('dart2js:noInline')
+  static ResSkillRunReport getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ResSkillRunReport>(
+          ResSkillRunReport.$_createMessage);
+  static ResSkillRunReport? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get accepted => $_getBF(0);
+  @$pb.TagNumber(1)
+  set accepted($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasAccepted() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearAccepted() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get message => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set message($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasMessage() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearMessage() => $_clearField(2);
 }
 
 const $core.bool _omitFieldNames =

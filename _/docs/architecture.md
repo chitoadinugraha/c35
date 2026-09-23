@@ -104,9 +104,10 @@ See [ui.md](ui.md).
 
 - Shell from `alienai_proto`; appbar/error handling from `cs_agent`.
 - Referral tree + settings: copy `cs_agent` exactly (adapt wire to new identity schema).
-- Bots + Sites: 3-pane master/detail (pattern from `csa_site_published` site editor).
+- Bots: 3-pane master/detail.
+- Sites: Devices-like master/detail + tabs; prompt-primary layout editor ([`site.md`](site.md)).
 - Devices: combined remote + IoT list; tabs differ by `kind`.
-- Remote computer use: agent ↔ server session (WS / Beacon); human viewer uses WebRTC — see [remote.md](remote.md).
+- Remote: control plane = agent ↔ server session; data plane = WebRTC (screen, files, media) — see [remote.md](remote.md).
 
 ## Pairing
 
@@ -130,8 +131,8 @@ See [roadmap.md](roadmap.md) for full phase map.
 | 5 | `mod_log` + NATS live log viewer (root) |
 | 6 | `mod_device` + remotes pairing + Devices page |
 | 7 | `mod_skill` + `mod_consumption` (personal tools) |
-| 8 | `mod_site` + Sites page (Design / Data / POS panes) |
-| 9 | `mod_tx` + POS editor (id.alienai UX on Sites detail) |
+| 8 | `mod_site` + Sites page (UITable tabs, prompt `web.builder`, guest render) |
+| 9 | `mod_tx` + POS editor (id.alienai UX; `site.tx_*` tables) |
 
 ## Deferred (vision)
 
@@ -152,7 +153,7 @@ See [roadmap.md](roadmap.md) for full phase map.
 | `D:\cs_agent` | Referral, settings, msg trace UI, friendly errors, billing display |
 | `D:\alienai_proto` | Shell, master/detail, canvas, avatar menu layout |
 | `D:\cs_bots` | Identity table shape, server sync model |
-| `E:\Project Archive\csa_site_published` | Crate workspace, 3-pane site editor, `mod_*` pattern |
+| `E:\Project Archive\csa_site_published` | Publish/render pipeline, guest HTTP router, custom domain |
 
 ## Coding rules (from prior projects)
 

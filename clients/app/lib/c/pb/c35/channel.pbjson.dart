@@ -205,6 +205,37 @@ final $typed_data.Uint8List resChannelWhatsappPairDescriptor = $convert.base64De
     'Qm90Q2hhbm5lbERvY1IHY2hhbm5lbBIVCgZxcl9yYXcYBSABKAlSBXFyUmF3EhQKBXBob25lGA'
     'YgASgJUgVwaG9uZQ==');
 
+@$core.Deprecated('Use reqChannelDisconnectDescriptor instead')
+const ReqChannelDisconnect$json = {
+  '1': 'ReqChannelDisconnect',
+  '2': [
+    {'1': 'bot_iid', '3': 1, '4': 1, '5': 3, '10': 'botIid'},
+    {'1': 'channel_id', '3': 2, '4': 1, '5': 9, '10': 'channelId'},
+  ],
+};
+
+/// Descriptor for `ReqChannelDisconnect`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqChannelDisconnectDescriptor = $convert.base64Decode(
+    'ChRSZXFDaGFubmVsRGlzY29ubmVjdBIXCgdib3RfaWlkGAEgASgDUgZib3RJaWQSHQoKY2hhbm'
+    '5lbF9pZBgCIAEoCVIJY2hhbm5lbElk');
+
+@$core.Deprecated('Use resChannelDisconnectDescriptor instead')
+const ResChannelDisconnect$json = {
+  '1': 'ResChannelDisconnect',
+  '2': [
+    {'1': 'ok', '3': 1, '4': 1, '5': 8, '10': 'ok'},
+    {'1': 'error', '3': 2, '4': 1, '5': 9, '10': 'error'},
+    {'1': 'bot_iid', '3': 3, '4': 1, '5': 3, '10': 'botIid'},
+    {'1': 'channel_id', '3': 4, '4': 1, '5': 9, '10': 'channelId'},
+  ],
+};
+
+/// Descriptor for `ResChannelDisconnect`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resChannelDisconnectDescriptor = $convert.base64Decode(
+    'ChRSZXNDaGFubmVsRGlzY29ubmVjdBIOCgJvaxgBIAEoCFICb2sSFAoFZXJyb3IYAiABKAlSBW'
+    'Vycm9yEhcKB2JvdF9paWQYAyABKANSBmJvdElpZBIdCgpjaGFubmVsX2lkGAQgASgJUgljaGFu'
+    'bmVsSWQ=');
+
 @$core.Deprecated('Use channelPairPushDescriptor instead')
 const ChannelPairPush$json = {
   '1': 'ChannelPairPush',

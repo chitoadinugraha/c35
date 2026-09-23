@@ -10,7 +10,8 @@ class UiDeviceRow extends StatelessWidget {
     this.kind = 'remote',
     this.type = '',
     this.pinned = false,
-    this.online = false,
+    this.clusterOnline = false,
+    this.webrtcConnected = false,
     this.selected = false,
     this.onTap,
   });
@@ -19,7 +20,10 @@ class UiDeviceRow extends StatelessWidget {
   final String kind;
   final String type;
   final bool pinned;
-  final bool online;
+  /// Agent session: device ↔ cluster (control plane, presence, tasks).
+  final bool clusterOnline;
+  /// WebRTC data plane: app ↔ device (screen, files, media — P2P or TURN).
+  final bool webrtcConnected;
   final bool selected;
   final VoidCallback? onTap;
 
@@ -39,12 +43,14 @@ class UiDeviceRow extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               _kindIcon(),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Row(
                       children: [
@@ -59,8 +65,8 @@ class UiDeviceRow extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              _onlineDot(online),
+              const SizedBox(width: 10),
+              SizedBox(height: 36, child: Center(child: _connectionDots())),
             ],
           ),
         ),
@@ -68,21 +74,36 @@ class UiDeviceRow extends StatelessWidget {
     );
   }
 
+  Widget _connectionDots() {
+    if (kind.toLowerCase() != 'remote') return _dot(clusterOnline, 'Online');
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _dot(webrtcConnected, 'Direct link (WebRTC)'),
+        const SizedBox(width: 5),
+        _dot(clusterOnline, 'Agent (cluster)'),
+      ],
+    );
+  }
+
+  Widget _dot(bool on, String tooltip) => Tooltip(
+        message: tooltip,
+        child: Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: on ? const Color(0xFF22C55E) : const Color(0xFF3F3F46),
+            border: Border.all(color: on ? const Color(0xFF14532D) : const Color(0xFF27272A)),
+          ),
+        ),
+      );
+
   Widget _kindIcon() => Container(
         width: 36,
         height: 36,
         decoration: BoxDecoration(color: const Color(0xFF18181B), borderRadius: BorderRadius.circular(8), border: Border.all(color: _border)),
         child: Icon(_iconForKind(kind), size: 18, color: const Color(0xFFA1A1AA)),
-      );
-
-  Widget _onlineDot(bool online) => Container(
-        width: 8,
-        height: 8,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: online ? const Color(0xFF22C55E) : const Color(0xFF3F3F46),
-          border: Border.all(color: online ? const Color(0xFF14532D) : const Color(0xFF27272A)),
-        ),
       );
 
   IconData _iconForKind(String k) => switch (k.toLowerCase()) {

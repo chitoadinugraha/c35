@@ -1,6 +1,7 @@
 import 'package:alienai_c35/c/chat/chat_inbox.dart';
 import 'package:alienai_c35/c/settings/prompt_usage_prefs.dart';
 import 'package:alienai_c35/c/store/chat_store.dart';
+import 'package:alienai_c35/c/trace/trace_view.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/ui/ui_format.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
@@ -32,14 +33,16 @@ class UiMsgUsage extends StatelessWidget {
           if (!_show(stats)) return const SizedBox.shrink();
           final usageMs = uiFmtDurationMs(stats.durationMs);
           final price = moneyCostLabel(stats.costUsd, currency: billingCurrency, fxMicroPerUsd: fxMicroPerUsd);
+          final modelLabel = stats.model.isNotEmpty && stats.model != 'local' ? traceModelLabel(stats.model) : '';
           final tooltipParts = <String>[
             if (stats.tokensIn > 0) '${uiFmtGroupedInt(stats.tokensIn)} in',
             if (stats.tokensOut > 0) '${uiFmtGroupedInt(stats.tokensOut)} out',
             if (usageMs.isNotEmpty) usageMs,
             if (price.isNotEmpty) price,
-            if (stats.model.isNotEmpty && stats.model != 'local') stats.model,
+            if (modelLabel.isNotEmpty) modelLabel,
           ];
           final tooltip = tooltipParts.join(' · ');
+          final hasUsageMeta = stats.tokensIn > 0 || stats.tokensOut > 0 || usageMs.isNotEmpty || price.isNotEmpty;
           final row = Padding(
             padding: const EdgeInsets.only(top: 6),
             child: Row(
@@ -66,11 +69,12 @@ class UiMsgUsage extends StatelessWidget {
                   Text(usageMs, style: _style),
                 ],
                 if (price.isNotEmpty) ...[
-                  if (stats.tokensIn > 0 || stats.tokensOut > 0 || usageMs.isNotEmpty) const SizedBox(width: 6),
+                  if (hasUsageMeta) const SizedBox(width: 6),
                   Text(price, style: _style),
                 ],
-                if (stats.model.isNotEmpty && stats.model != 'local' && stats.tokensIn == 0 && stats.tokensOut == 0 && usageMs.isEmpty && price.isEmpty) ...[
-                  Text(stats.model, style: _style),
+                if (modelLabel.isNotEmpty) ...[
+                  if (hasUsageMeta || price.isNotEmpty) const SizedBox(width: 6),
+                  Text(modelLabel, style: _style),
                 ],
               ],
             ),
@@ -81,6 +85,7 @@ class UiMsgUsage extends StatelessWidget {
             if (stats.tokensOut > 0) uiFmtGroupedInt(stats.tokensOut),
             if (usageMs.isNotEmpty) usageMs,
             if (price.isNotEmpty) price,
+            if (modelLabel.isNotEmpty) modelLabel,
           ];
           final visibleLabel = visibleParts.join(' ');
           final showTip = tooltip.isNotEmpty && tooltip != visibleLabel && !(visibleParts.length == 1 && visibleParts.first == tooltip);

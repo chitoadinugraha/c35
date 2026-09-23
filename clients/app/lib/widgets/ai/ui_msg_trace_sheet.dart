@@ -5,7 +5,6 @@ import 'package:alienai_c35/c/trace/trace_view.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/ui/ui_format.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 Future<void> showMsgTraceSheet(BuildContext context, {required String reqId, required ChatConn conn}) => showModalBottomSheet<void>(
       context: context,
@@ -130,7 +129,8 @@ class _StepTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    for (final b in step.branches) _BranchRow(branch: b),
+                    for (final b in step.branches)
+                      b.hasToolFilterDetail ? _ToolFilterBranchRow(branch: b) : _BranchRow(branch: b),
                   ],
                 ),
               ),
@@ -161,6 +161,102 @@ class _BranchRow extends StatelessWidget {
               style: TextStyle(color: branch.ok ? const Color(0xFFA1A1AA) : Colors.orange, fontSize: 12, height: 1.35),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ToolFilterBranchRow extends StatefulWidget {
+  const _ToolFilterBranchRow({required this.branch});
+  final TraceBranch branch;
+
+  @override
+  State<_ToolFilterBranchRow> createState() => _ToolFilterBranchRowState();
+}
+
+class _ToolFilterBranchRowState extends State<_ToolFilterBranchRow> {
+  var _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final branch = widget.branch;
+    final ms = uiFmtDurationMs(branch.durationMs);
+    final fed = branch.toolCandidates.where((c) => c.fed).length;
+    final total = branch.toolCandidates.length;
+    final summary = [
+      if (fed > 0) '$fed fed',
+      if (total > 0) '$total ranked',
+      if (branch.ragSkipped && branch.ragSkipReason.isNotEmpty) branch.ragSkipReason,
+      if (ms.isNotEmpty) ms,
+    ].join(' · ');
+    final dropped = branch.droppedGap.isNotEmpty
+        ? branch.droppedGap
+        : branch.toolCandidates.where((c) => !c.fed && c.sim > 0).take(3).toList();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: () => setState(() => _expanded = !_expanded),
+            borderRadius: BorderRadius.circular(4),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('|-', style: const TextStyle(color: Color(0xFF52525B), fontSize: 12, fontFamily: 'Consolas')),
+                  const SizedBox(width: 6),
+                  Icon(_expanded ? Icons.expand_more_rounded : Icons.chevron_right_rounded, size: 14, color: const Color(0xFF71717A)),
+                  const SizedBox(width: 2),
+                  Expanded(
+                    child: Text(
+                      '${branch.label}${summary.isNotEmpty ? ' · $summary' : ''}',
+                      style: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 12, height: 1.35),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_expanded) ...[
+            const SizedBox(height: 4),
+            for (final c in branch.toolCandidates) _ToolFilterCandidateRow(candidate: c),
+            if (dropped.isNotEmpty) ...[
+              const Padding(
+                padding: EdgeInsets.only(left: 28, top: 6, bottom: 2),
+                child: Text('Dropped (similarity gap)', style: TextStyle(color: Color(0xFF71717A), fontSize: 11, fontWeight: FontWeight.w600)),
+              ),
+              for (final c in dropped) _ToolFilterCandidateRow(candidate: c, dropped: true),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ToolFilterCandidateRow extends StatelessWidget {
+  const _ToolFilterCandidateRow({required this.candidate, this.dropped = false});
+  final TraceToolFilterCandidate candidate;
+  final bool dropped;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = traceToolLabel(candidate.toolId);
+    final sim = traceSimLabel(candidate.sim);
+    final color = dropped
+        ? const Color(0xFF71717A)
+        : candidate.fed
+            ? const Color(0xFF22C55E)
+            : const Color(0xFFA1A1AA);
+    return Padding(
+      padding: const EdgeInsets.only(left: 28, bottom: 2),
+      child: Row(
+        children: [
+          Expanded(child: Text(label, style: TextStyle(color: color, fontSize: 11, height: 1.3))),
+          Text(sim, style: TextStyle(color: dropped ? const Color(0xFF52525B) : const Color(0xFF71717A), fontSize: 11, fontFeatures: const [FontFeature.tabularFigures()])),
         ],
       ),
     );

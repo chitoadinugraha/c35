@@ -1,6 +1,5 @@
 import 'package:alienai_c35/c/bot/bot_store.dart';
 import 'package:alienai_c35/c/chat/chat_conn.dart';
-import 'package:alienai_c35/widgets/bots/ui_bot_add_menu.dart';
 import 'package:alienai_c35/widgets/bots/ui_bot_conversation.dart';
 import 'package:alienai_c35/widgets/bots/ui_bot_nav_list.dart';
 import 'package:alienai_c35/widgets/bots/ui_bot_peer_list.dart';
@@ -9,7 +8,6 @@ import 'package:alienai_c35/widgets/ui/ui_page.dart';
 import 'package:flutter/material.dart';
 
 const _muted = Color(0xFF71717A);
-const _botsEmptyCollapsed = Text('No bots yet\nTap + to add', textAlign: TextAlign.center, style: TextStyle(color: _muted, fontSize: 13));
 
 class PageBots extends StatefulWidget {
   const PageBots({super.key, required this.chatConn});
@@ -48,14 +46,13 @@ class _PageBotsState extends State<PageBots> {
     return UiPage(
       title: 'Bots',
       onBack: () => Navigator.pop(context),
-      trailing: UiBotAddMenu(store: _store),
       body: ListenableBuilder(
         listenable: _store,
         builder: (context, _) {
           final listEmpty = _store.bots.isEmpty && !_store.loadingBots;
           if (wide) {
             return UiMasterDetail(
-              nav: UiBotNavList(store: _store, selectedBotId: _store.selectedBotId, onSelect: _store.botSelect, hideEmptyMessage: listEmpty),
+              nav: UiBotNavList(store: _store, selectedBotId: _store.selectedBotId, onSelect: _store.botSelect),
               master: UiBotPeerList(store: _store, selectedChatId: _store.selectedChatId, onSelect: _store.chatSelect),
               selectedId: _store.selectedChatId,
               onSelectedIdChanged: _store.chatSelect,
@@ -63,7 +60,6 @@ class _PageBotsState extends State<PageBots> {
               emptyDetail: const Center(child: Text('Select a conversation', style: TextStyle(color: _muted, fontSize: 13))),
               collapseWhenEmpty: true,
               listEmpty: listEmpty,
-              emptyCollapsed: _botsEmptyCollapsed,
             );
           }
           if (_store.selectedChatId != null) {
@@ -87,7 +83,6 @@ class _PageBotsState extends State<PageBots> {
             store: _store,
             selectedBotId: _store.selectedBotId,
             onSelect: _store.botSelect,
-            emptyMessage: 'No bots yet\nTap + to add',
           );
         },
       ),

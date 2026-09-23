@@ -4,6 +4,7 @@
 $script:PublishRegistry = "hsg.ocir.io/axr8wqrrukgm"
 $script:PublishImage = "$script:PublishRegistry/c35-server"
 $script:PublishChannelWhatsappDeviceImage = "$script:PublishRegistry/channel-whatsapp-device"
+$script:PublishNodeStatsImage = "$script:PublishRegistry/c35-node-stats"
 $script:PublishBuildkitNs = "build"
 $script:PublishBuildkitSvc = "buildkit"
 $script:PublishBuildkitPort = 1234
@@ -211,6 +212,30 @@ function Publish-C35ChannelWhatsappDeviceImage {
     $buildSw.Stop()
     Write-Host "==> build finished in $(Format-PublishDuration $buildSw.Elapsed)"
     Show-PublishDiskStatus -Label "disk after build (channel-whatsapp-device)"
+}
+
+function Publish-C35NodeStatsImage {
+    param(
+        [string]$Tag = "latest",
+        [string]$RepoRoot,
+        [string]$Platform = "linux/arm64"
+    )
+    $imageRef = "$($script:PublishNodeStatsImage):$Tag"
+    $dir = (Resolve-Path $RepoRoot).Path
+    Show-PublishDiskStatus -Label "disk before build (c35-node-stats)"
+    Write-Host "==> build $imageRef via cluster buildkit ($Platform) from $dir"
+    $buildSw = [System.Diagnostics.Stopwatch]::StartNew()
+    $tarPaths = @(
+        'node_stats/Cargo.toml', 'node_stats/Cargo.lock',
+        'node_stats/c_node_stats',
+        'servers/Cargo.toml', 'servers/Cargo.lock',
+        'servers/crates/proto', '_/schemas',
+        '_/deployments/Dockerfile.c35-node-stats'
+    )
+    Invoke-ClusterBuildkitBuild -RepoRoot $dir -ImageRef $imageRef -Platform $Platform -TarPaths $tarPaths -DockerfileRel '_/deployments/Dockerfile.c35-node-stats'
+    $buildSw.Stop()
+    Write-Host "==> build finished in $(Format-PublishDuration $buildSw.Elapsed)"
+    Show-PublishDiskStatus -Label "disk after build (c35-node-stats)"
 }
 
 function Publish-C35ServerImage {

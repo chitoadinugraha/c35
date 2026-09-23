@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: c35-node-stats-config
+  namespace: c35
+  labels:
+    app: c35-node-stats
+    app.kubernetes.io/part-of: c35
+data:
+  C35_NODE_MOUNTS: "/,/var/log"
+  C35_VOLUME_PATHS: "yugabyte:yb-tserver:/host/var/lib/alienai/yb-tserver:oci-bv:YB data"

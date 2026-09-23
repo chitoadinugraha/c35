@@ -7,9 +7,7 @@ import 'package:alienai_c35/c/conn/server_host.dart';
 import 'package:alienai_c35/c/locale/app_locale.dart';
 import 'package:alienai_c35/c/parts/version_label.dart';
 import 'package:alienai_c35/c/update/app_release.dart';
-import 'package:alienai_c35/c/update/app_update_service.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:alienai_c35/c/profile/alien_id.dart';
 import 'package:alienai_c35/c/profile/profile_api.dart';
 import 'package:alienai_c35/c/profile/profile_handle.dart';
 import 'package:alienai_c35/c/session.dart';
@@ -22,9 +20,12 @@ import 'package:alienai_c35/c/stt/stt_service.dart';
 import 'package:alienai_c35/c/tts/speech_lang.dart';
 import 'package:alienai_c35/c/tts/tts_service.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
-import 'package:alienai_c35/pages/page_allow_control.dart';
+import 'package:alienai_c35/c/chat/chat_conn.dart';
+import 'package:alienai_c35/pages/page_allow_control.dart' show ThisPcRegister;
+import 'package:alienai_c35/c/auth/auth_service.dart';
 import 'package:alienai_c35/widgets/ai/ui_bot_memories_sheet.dart';
-import 'package:alienai_c35/widgets/io/in_alien_id.dart';
+import 'package:alienai_c35/widgets/skill/ui_skill_master_detail.dart';
+import 'package:alienai_c35/widgets/io/in_alien_id_signup.dart';
 import 'package:alienai_c35/widgets/settings/ui_account_live_conns.dart';
 import 'package:alienai_c35/widgets/settings/ui_settings_password.dart';
 import 'package:alienai_c35/widgets/settings/ui_settings_pin.dart';
@@ -41,13 +42,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class PageSettings extends StatefulWidget {
-  PageSettings({super.key, AppStore? store, this.conn, this.thisPcRegister, this.thisPcUnregister, this.profile, this.account}) : store = store ?? AppStore.instance;
+  PageSettings({super.key, AppStore? store, this.conn, this.chatConn, this.thisPcRegister, this.thisPcUnregister, this.profile, this.account, this.auth}) : store = store ?? AppStore.instance;
   final AppStore store;
   final SettingsConn? conn;
+  final ChatConn? chatConn;
   final ThisPcRegister? thisPcRegister;
   final Future<void> Function()? thisPcUnregister;
   final ProfileApi? profile;
   final AccountApi? account;
+  final AuthService? auth;
 
   @override
   State<PageSettings> createState() => _PageSettingsState();
@@ -61,6 +64,7 @@ class _PageSettingsState extends State<PageSettings> {
 
   late final ProfileApi? _profile = widget.profile ?? (widget.conn == null ? null : ProfileApi(invoke: widget.conn!.authInvoke));
   late final AccountApi? _account = widget.account ?? (widget.conn == null ? null : AccountApi(invoke: widget.conn!.authInvoke, uid: Session.instance.uid));
+  late final AuthService _auth = widget.auth ?? AuthService();
   late String _name = Session.instance.name;
   late String _email = Session.instance.email;
   late String _handle = Session.instance.handle;
@@ -81,14 +85,10 @@ class _PageSettingsState extends State<PageSettings> {
   @override
   void initState() {
     super.initState();
+    sessionTick.addListener(_onSessionTick);
     VoicePrefs.instance.addListener(_onVoiceChanged);
     PromptUsagePrefs.instance.addListener(_onUsagePrefsChanged);
-    if (defaultTargetPlatform == TargetPlatform.windows) AppUpdateService.instance.state.addListener(_onUpdateChanged);
     unawaited(_hydrate());
-  }
-
-  void _onUpdateChanged() {
-    if (mounted) setState(() {});
   }
 
   Future<void> _hydrate() async {
@@ -121,10 +121,20 @@ class _PageSettingsState extends State<PageSettings> {
 
   @override
   void dispose() {
+    sessionTick.removeListener(_onSessionTick);
     VoicePrefs.instance.removeListener(_onVoiceChanged);
     PromptUsagePrefs.instance.removeListener(_onUsagePrefsChanged);
-    if (defaultTargetPlatform == TargetPlatform.windows) AppUpdateService.instance.state.removeListener(_onUpdateChanged);
     super.dispose();
+  }
+
+  void _onSessionTick() {
+    if (!mounted) return;
+    setState(() {
+      _name = Session.instance.name;
+      _email = Session.instance.email;
+      _handle = Session.instance.handle;
+      _pic = Session.instance.pic;
+    });
   }
 
   void _onVoiceChanged() {
@@ -177,12 +187,19 @@ class _PageSettingsState extends State<PageSettings> {
   }
 
   Future<void> _editAlienId() async {
-    final api = _profile;
-    if (api == null) return;
-    final initial = alienIdNormalize(_handle);
-    final trimmed = await showDialog<String>(context: context, builder: (ctx) => _AlienIdDialog(profile: api, uid: Session.instance.uid, initial: initial));
+    final initial = alienIdSignupNorm(_handle);
+    final trimmed = await showDialog<String>(context: context, builder: (ctx) => _AlienIdDialog(initial: initial));
     if (trimmed == null || trimmed == initial) return;
-    await _run(() => _applyProfile(handle: trimmed));
+    await _run(() async {
+      final claimed = await _auth.claimAlienId(alienId: trimmed);
+      if (!mounted) return;
+      setState(() {
+        _handle = '@$claimed';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Alien ID set to @$claimed'), behavior: SnackBarBehavior.floating),
+      );
+    });
   }
 
   Future<void> _languagePick() async {
@@ -199,12 +216,10 @@ class _PageSettingsState extends State<PageSettings> {
     setState(() => _serverLabel = serverHostLabelFromUrl(next));
   }
 
-  void _controlThisComputerTap() {
-    if (widget.store.thisPcOnRail) {
-      pageAllowControlRevoke(context, store: widget.store, thisPcUnregister: widget.thisPcUnregister);
-      return;
-    }
-    pageAllowControlShow(context, store: widget.store, thisPcRegister: widget.thisPcRegister, thisPcUnregister: widget.thisPcUnregister);
+  void _openSkills() {
+    final conn = widget.chatConn;
+    if (conn == null) return;
+    Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageSkills(conn: conn, ownerIid: Session.instance.uid)));
   }
 
   InputDecoration _fieldDecoration(String label) => InputDecoration(
@@ -248,7 +263,18 @@ class _PageSettingsState extends State<PageSettings> {
                                   const SizedBox(height: 8),
                                   _ProfileTapRow(label: 'Email', child: Text(_email.isEmpty ? '—' : _email, style: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 13))),
                                   const SizedBox(height: 4),
-                                  _ProfileTapRow(label: 'Alien ID', onTap: _busy || _profile == null ? null : _editAlienId, child: Text(alienHandle, style: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 13))),
+                                  _ProfileTapRow(
+                                    label: 'Alien ID',
+                                    onTap: _busy ? null : _editAlienId,
+                                    child: Text(
+                                      _handle.isEmpty ? 'Not set (Tap to claim Alien ID)' : alienHandle,
+                                      style: TextStyle(
+                                        color: _handle.isEmpty ? const Color(0xFF34D399) : const Color(0xFFA1A1AA),
+                                        fontSize: 13,
+                                        fontWeight: _handle.isEmpty ? FontWeight.w500 : FontWeight.normal,
+                                      ),
+                                    ),
+                                  ),
                                 ]),
                               ),
                             ]),
@@ -279,12 +305,14 @@ class _PageSettingsState extends State<PageSettings> {
                         const SizedBox(height: 8),
                         _Card(
                           child: Column(children: [
-                            UiSettingsTile(
-                              key: const Key('settings-control-this-pc'),
-                              icon: Icons.desktop_windows_outlined,
-                              title: 'settings.controlThisComputer'.tr(),
-                              subtitle: widget.store.thisPcOnRail ? 'settings.controlThisComputerOn'.tr() : 'settings.controlThisComputerOff'.tr(),
-                              onTap: _controlThisComputerTap,
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                              child: Row(children: [
+                                const Icon(Icons.data_usage_outlined, color: Color(0xFF71717A), size: 22),
+                                const SizedBox(width: 12),
+                                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('settings.showUsage'.tr(), style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 14, fontWeight: FontWeight.w500)), const SizedBox(height: 2), Text('settings.showUsageSubtitle'.tr(), style: const TextStyle(color: Color(0xFF71717A), fontSize: 12))])),
+                                UiAppToggle(value: _showUsageStats, onChanged: (v) { setState(() => _showUsageStats = v); PromptUsagePrefs.instance.setShowUsageStats(v); }),
+                              ]),
                             ),
                             uiSettingsDivider(),
                             UiSettingsTile(
@@ -294,14 +322,11 @@ class _PageSettingsState extends State<PageSettings> {
                               onTap: widget.conn == null ? null : () => UiBotMemoriesSheet.show(context, conn: widget.conn!),
                             ),
                             uiSettingsDivider(),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                              child: Row(children: [
-                                const Icon(Icons.data_usage_outlined, color: Color(0xFF71717A), size: 22),
-                                const SizedBox(width: 12),
-                                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('settings.showUsage'.tr(), style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 14, fontWeight: FontWeight.w500)), const SizedBox(height: 2), Text('settings.showUsageSubtitle'.tr(), style: const TextStyle(color: Color(0xFF71717A), fontSize: 12))])),
-                                UiAppToggle(value: _showUsageStats, onChanged: (v) { setState(() => _showUsageStats = v); PromptUsagePrefs.instance.setShowUsageStats(v); }),
-                              ]),
+                            UiSettingsTile(
+                              icon: Icons.auto_awesome_outlined,
+                              title: 'Skills',
+                              subtitle: 'Installed skills for your personal assistant',
+                              onTap: widget.chatConn == null ? null : _openSkills,
                             ),
                           ]),
                         ),
@@ -321,30 +346,17 @@ class _PageSettingsState extends State<PageSettings> {
                             ]),
                           ),
                         ],
-                        if (defaultTargetPlatform == TargetPlatform.windows || defaultTargetPlatform == TargetPlatform.android) ...[
+                        if (defaultTargetPlatform == TargetPlatform.android && _apkUrl.isNotEmpty) ...[
                           const SizedBox(height: 28),
                           const _SectionLabel('App'),
                           const SizedBox(height: 8),
                           _Card(
-                            child: Column(children: [
-                              UiSettingsTile(
-                                icon: Icons.system_update_alt_outlined,
-                                title: 'Check for updates',
-                                subtitle: defaultTargetPlatform == TargetPlatform.windows && AppUpdateService.instance.statusLabel().isNotEmpty
-                                    ? AppUpdateService.instance.statusLabel()
-                                    : appVersionLabel(),
-                                onTap: () => AppUpdateService.instance.checkNow(),
-                              ),
-                              if (defaultTargetPlatform == TargetPlatform.android && _apkUrl.isNotEmpty) ...[
-                                uiSettingsDivider(),
-                                UiSettingsTile(
-                                  icon: Icons.android_outlined,
-                                  title: 'Download APK',
-                                  subtitle: 'Install without Google Play',
-                                  onTap: () => launchUrl(Uri.parse(_apkUrl), mode: LaunchMode.externalApplication),
-                                ),
-                              ],
-                            ]),
+                            child: UiSettingsTile(
+                              icon: Icons.android_outlined,
+                              title: 'Download APK',
+                              subtitle: 'Install without Google Play',
+                              onTap: () => launchUrl(Uri.parse(_apkUrl), mode: LaunchMode.externalApplication),
+                            ),
                           ),
                         ],
                         const SizedBox(height: 28),
@@ -378,17 +390,53 @@ class _PageSettingsState extends State<PageSettings> {
                             ),
                             Padding(
                               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                              child: DropdownButtonFormField<String>(key: ValueKey(_sttEngine), initialValue: _sttEngine, dropdownColor: const Color(0xFF18181B), style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 14), decoration: _fieldDecoration('Speech to text'), items: const [DropdownMenuItem(value: 'web', child: Text('Web Speech API')), DropdownMenuItem(value: 'cloud', child: Text('Cloud'))], onChanged: (v) => v != null ? VoicePrefs.instance.setSttEngine(v) : null),
+                              child: DropdownButtonFormField<String>(
+                                key: ValueKey(_sttEngine),
+                                initialValue: _sttEngine,
+                                dropdownColor: const Color(0xFF18181B),
+                                style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 14),
+                                decoration: _fieldDecoration('Speech to text'),
+                                items: const [
+                                  DropdownMenuItem(value: 'web', child: Text('Web')),
+                                  DropdownMenuItem(value: 'local', child: Text('Local')),
+                                  DropdownMenuItem(value: 'cloud', child: Text('Cloud')),
+                                ],
+                                onChanged: (v) => v != null ? VoicePrefs.instance.setSttEngine(v) : null,
+                              ),
                             ),
+                            if (_sttEngine == 'cloud')
+                              const Padding(
+                                padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                                child: Text('Uses Alien AI cloud voice — charged to your balance.', style: TextStyle(color: Color(0xFF71717A), fontSize: 12)),
+                              ),
                             Padding(
                               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                               child: Row(children: [
-                                Expanded(child: DropdownButtonFormField<String>(key: ValueKey(_ttsEngine), initialValue: _ttsEngine, dropdownColor: const Color(0xFF18181B), style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 14), decoration: _fieldDecoration('Text to speech'), items: const [DropdownMenuItem(value: 'web', child: Text('Web Speech API')), DropdownMenuItem(value: 'cloud', child: Text('Cloud')), DropdownMenuItem(value: 'local', child: Text('Local'))], onChanged: (v) => v != null ? VoicePrefs.instance.setTtsEngine(v) : null)),
+                                Expanded(
+                                  child: DropdownButtonFormField<String>(
+                                    key: ValueKey(_ttsEngine),
+                                    initialValue: _ttsEngine,
+                                    dropdownColor: const Color(0xFF18181B),
+                                    style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 14),
+                                    decoration: _fieldDecoration('Text to speech'),
+                                    items: const [
+                                      DropdownMenuItem(value: 'web', child: Text('Web')),
+                                      DropdownMenuItem(value: 'local', child: Text('Local')),
+                                      DropdownMenuItem(value: 'cloud', child: Text('Cloud')),
+                                    ],
+                                    onChanged: (v) => v != null ? VoicePrefs.instance.setTtsEngine(v) : null,
+                                  ),
+                                ),
                                 const SizedBox(width: 8),
                                 uiIconButton(icon: const Icon(Icons.hearing_rounded, color: _accent), tooltip: 'Test speech to text', onPressed: () => showDialog<void>(context: context, builder: (ctx) => _SttTestDialog(speechLang: _speechLang))),
                                 uiIconButton(icon: const Icon(Icons.record_voice_over_rounded, color: _accent), tooltip: 'Test text to speech', onPressed: () => showDialog<void>(context: context, builder: (ctx) => _TtsTestDialog(speechLang: _speechLang))),
                               ]),
                             ),
+                            if (_ttsEngine == 'cloud')
+                              const Padding(
+                                padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                                child: Text('Uses Alien AI cloud voice — charged to your balance.', style: TextStyle(color: Color(0xFF71717A), fontSize: 12)),
+                              ),
                             Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 4), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Speech speed', style: TextStyle(color: Color(0xFFE4E4E7), fontSize: 13, fontWeight: FontWeight.w500)), Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: const Color(0xFF18181B), borderRadius: BorderRadius.circular(6), border: Border.all(color: _border)), child: Text('${_speechRate.toStringAsFixed(2)}x', style: const TextStyle(color: _accent, fontSize: 12, fontFamily: 'monospace', fontWeight: FontWeight.w600)))])),
                             SliderTheme(data: SliderTheme.of(context).copyWith(activeTrackColor: _accent, inactiveTrackColor: const Color(0xFF27272A), thumbColor: const Color(0xFFF4F4F5), trackHeight: 3), child: Slider(value: _speechRate.clamp(0.75, 2.0), min: 0.75, max: 2.0, divisions: 25, onChanged: VoicePrefs.instance.setSpeechRate)),
                             Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 4), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Speech pitch', style: TextStyle(color: Color(0xFFE4E4E7), fontSize: 13, fontWeight: FontWeight.w500)), Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: const Color(0xFF18181B), borderRadius: BorderRadius.circular(6), border: Border.all(color: _border)), child: Text('${_speechPitch.toStringAsFixed(2)}x', style: const TextStyle(color: _accent, fontSize: 12, fontFamily: 'monospace', fontWeight: FontWeight.w600)))])),
@@ -470,9 +518,7 @@ class _ProfileTextDialogState extends State<_ProfileTextDialog> {
 }
 
 class _AlienIdDialog extends StatefulWidget {
-  const _AlienIdDialog({required this.profile, required this.uid, required this.initial});
-  final ProfileApi profile;
-  final int uid;
+  const _AlienIdDialog({required this.initial});
   final String initial;
   @override
   State<_AlienIdDialog> createState() => _AlienIdDialogState();
@@ -484,11 +530,23 @@ class _AlienIdDialogState extends State<_AlienIdDialog> {
   @override
   Widget build(BuildContext context) => AlertDialog(
         backgroundColor: const Color(0xFF18181B),
-        title: const Text('Change Alien ID', style: TextStyle(color: Color(0xFFF4F4F5), fontSize: 16, fontWeight: FontWeight.bold)),
-        content: SizedBox(width: 360, child: InAlienId(profile: widget.profile, uid: widget.uid, initial: widget.initial, onChanged: (v) => _value = v, onValidChanged: (v) => setState(() => _valid = v))),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFF27272A))),
+        title: Text(widget.initial.isEmpty ? 'Set Alien ID' : 'Change Alien ID', style: const TextStyle(color: Color(0xFFF4F4F5), fontSize: 16, fontWeight: FontWeight.bold)),
+        content: SizedBox(
+          width: 360,
+          child: InAlienIdSignup(
+            initial: widget.initial,
+            onChanged: (v) => _value = v,
+            onValidChanged: (v) => setState(() => _valid = v),
+          ),
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          FilledButton(onPressed: _valid ? () => Navigator.pop(context, alienIdNormalize(_value)) : null, style: FilledButton.styleFrom(backgroundColor: const Color(0xFF34D399), foregroundColor: Colors.black), child: const Text('Save')),
+          FilledButton(
+            onPressed: _valid ? () => Navigator.pop(context, alienIdSignupNorm(_value)) : null,
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFF34D399), foregroundColor: Colors.black),
+            child: const Text('Save'),
+          ),
         ],
       );
 }

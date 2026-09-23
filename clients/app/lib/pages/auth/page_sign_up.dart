@@ -1,13 +1,12 @@
 import 'package:alienai_c35/c/auth/auth_service.dart';
 import 'package:alienai_c35/c/parts/version_label.dart';
 import 'package:alienai_c35/c/profile/profile_handle.dart';
-import 'package:alienai_c35/c/referral/referral_format.dart';
 import 'package:alienai_c35/widgets/auth/ui_auth_action_btn.dart';
 import 'package:alienai_c35/widgets/auth/ui_auth_footer.dart';
 import 'package:alienai_c35/widgets/auth/ui_auth_shell.dart';
+import 'package:alienai_c35/widgets/io/in_referral_code.dart';
 import 'package:alienai_c35/widgets/ui/ui_input_decoration.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 class PageSignUp extends StatefulWidget {
   const PageSignUp({super.key, required this.auth, required this.onSignedUp});
@@ -22,12 +21,21 @@ class _PageSignUpState extends State<PageSignUp> {
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
-  final _referralCtrl = TextEditingController();
+  var _referralCode = '';
+  var _referralValid = false;
   var _obscurePassword = true;
   var _obscureConfirm = true;
   String? _error;
+
   bool get _anyBusy => widget.auth.anyBusy;
-  bool get _canSubmit => !_anyBusy && _nameCtrl.text.trim().isNotEmpty && authLoginIsEmailOrPhone(_emailCtrl.text) && _passwordCtrl.text.length >= 8 && _passwordCtrl.text == _confirmCtrl.text;
+  bool get _referralOk => _referralCode.isEmpty || _referralValid;
+  bool get _canSubmit =>
+      !_anyBusy &&
+      _nameCtrl.text.trim().isNotEmpty &&
+      authLoginIsEmailOrPhone(_emailCtrl.text) &&
+      _passwordCtrl.text.length >= 8 &&
+      _passwordCtrl.text == _confirmCtrl.text &&
+      _referralOk;
 
   @override
   void dispose() {
@@ -35,15 +43,27 @@ class _PageSignUpState extends State<PageSignUp> {
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmCtrl.dispose();
-    _referralCtrl.dispose();
     super.dispose();
+  }
+
+  void _onReferralChanged(InReferralCodeState s) {
+    setState(() {
+      _referralCode = s.codeNorm;
+      _referralValid = s.codeValid;
+      _error = null;
+    });
   }
 
   Future<void> _submit() async {
     if (!_canSubmit) return;
     setState(() => _error = null);
     try {
-      await widget.auth.signUp(name: _nameCtrl.text, email: authLoginNormalize(_emailCtrl.text), password: _passwordCtrl.text, referralCode: _referralCtrl.text);
+      await widget.auth.signUp(
+        name: _nameCtrl.text,
+        email: authLoginNormalize(_emailCtrl.text),
+        password: _passwordCtrl.text,
+        referralCode: _referralCode.isNotEmpty ? _referralCode : null,
+      );
       widget.onSignedUp();
     } catch (e) {
       if (mounted) setState(() => _error = uiAuthError(e));
@@ -80,11 +100,9 @@ class _PageSignUpState extends State<PageSignUp> {
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 12),
-          TextField(
-            controller: _referralCtrl,
-            enabled: !_anyBusy,
-            inputFormatters: [TextInputFormatter.withFunction((o, n) => TextEditingValue(text: referralCodeInputFormat(n.text), selection: TextSelection.collapsed(offset: referralCodeInputFormat(n.text).length)))],
-            decoration: UiInputDecoration.of(context, labelText: 'Referral (optional)'),
+          InReferralCode(
+            labelText: 'Referral Code (optional)',
+            onChanged: _onReferralChanged,
           ),
           if (_error != null) ...[
             const SizedBox(height: 12),

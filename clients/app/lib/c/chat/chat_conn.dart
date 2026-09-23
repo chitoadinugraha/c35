@@ -7,16 +7,20 @@ import 'package:alienai_c35/c/pb/c35/catalog.pb.dart';
 import 'package:alienai_c35/c/pb/c35/channel.pb.dart';
 import 'package:alienai_c35/c/pb/c35/chat.pb.dart';
 import 'package:alienai_c35/c/pb/c35/collection.pb.dart';
+import 'package:alienai_c35/c/pb/c35/hint.pb.dart';
 import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
 import 'package:alienai_c35/c/pb/c35/remote.pb.dart';
 import 'package:alienai_c35/c/pb/c35/session.pb.dart';
+import 'package:alienai_c35/c/pb/c35/log.pb.dart';
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/pb/c35/skill.pb.dart';
+import 'package:alienai_c35/c/pb/c35/stats.pb.dart';
 import 'package:alienai_c35/c/pb/c35/sync.pb.dart';
 import 'package:alienai_c35/c/pb/c35/wire.pb.dart';
 import 'package:alienai_c35/c/trace/trace_log.dart';
 import 'package:alienai_c35/c/trace/trace_view.dart';
 import 'package:alienai_c35/c/session.dart';
+import 'package:alienai_c35/c/store/prompt_run_store.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:uuid/uuid.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -79,6 +83,9 @@ class ChatConn {
   final _billingCommissionCtrl = StreamController<BillingPushCommission>.broadcast();
   final _channelPairPushCtrl = StreamController<ChannelPairPush>.broadcast();
   final _remoteSignalCtrl = StreamController<WsRes>.broadcast();
+  final _statsPushCtrl = StreamController<StatsPush>.broadcast();
+  final _logPushCtrl = StreamController<LogPush>.broadcast();
+  final _promptRunPushCtrl = StreamController<PromptRunPush>.broadcast();
   final _traceCache = <String, List<TraceLogDoc>>{};
 
   Stream<SyncPush> get onSyncPush => _syncPushCtrl.stream;
@@ -87,6 +94,9 @@ class ChatConn {
   Stream<BillingPushBalance> get onBillingBalance => _billingBalanceCtrl.stream;
   Stream<BillingPushQuota> get onBillingQuota => _billingQuotaCtrl.stream;
   Stream<BillingPushCommission> get onBillingCommission => _billingCommissionCtrl.stream;
+  Stream<StatsPush> get onStatsPush => _statsPushCtrl.stream;
+  Stream<LogPush> get onLogPush => _logPushCtrl.stream;
+  Stream<PromptRunPush> get onPromptRunPush => _promptRunPushCtrl.stream;
 
   bool get connected => _ch != null;
 
@@ -170,6 +180,13 @@ class ChatConn {
     if (res.hasBillingQuota() && !_billingQuotaCtrl.isClosed) _billingQuotaCtrl.add(res.billingQuota);
     if (res.hasBillingCommission() && !_billingCommissionCtrl.isClosed) _billingCommissionCtrl.add(res.billingCommission);
     if (res.hasChannelPairPush() && !_channelPairPushCtrl.isClosed) _channelPairPushCtrl.add(res.channelPairPush);
+    if (res.hasStatsPush() && !_statsPushCtrl.isClosed) _statsPushCtrl.add(res.statsPush);
+    if (res.hasLogPush() && !_logPushCtrl.isClosed) _logPushCtrl.add(res.logPush);
+    if (res.hasPromptRunPush()) {
+      final push = res.promptRunPush;
+      PromptRunStore.instance.put(push);
+      if (!_promptRunPushCtrl.isClosed) _promptRunPushCtrl.add(push);
+    }
     if (_isRemoteSignal(res) && !_remoteSignalCtrl.isClosed) _remoteSignalCtrl.add(res);
 
     if (res.hasErr() && reqId.isNotEmpty) {
@@ -248,6 +265,7 @@ class ChatConn {
     int platform = 0,
     bool includeInbox = true,
     bool includeBilling = false,
+    Int64 hintsSinceMs = Int64.ZERO,
   }) =>
       _rpc<ResSessionInit>(
         WsReq(
@@ -260,9 +278,15 @@ class ChatConn {
             platform: platform,
             includeInbox: includeInbox,
             includeBilling: includeBilling,
+            hintsSinceMs: hintsSinceMs,
           ),
         ),
         (res) => res.sessionInit,
+      );
+
+  Future<ResHintTouch> hintTouch({required Int64 assetIid, required String assetKind}) => _rpc<ResHintTouch>(
+        WsReq(hintTouch: ReqHintTouch(assetIid: assetIid, assetKind: assetKind)),
+        (res) => res.hintTouch,
       );
 
   Future<ResInboxList> inboxList({bool includeArchived = false, int limit = 100}) => _rpc<ResInboxList>(
@@ -516,6 +540,11 @@ class ChatConn {
         (res) => res.siteDomainPut,
       );
 
+  Future<ResSiteConfigPut> siteConfigPut(int siteIid, {required String capabilitiesJson}) => _rpc<ResSiteConfigPut>(
+        WsReq(siteConfigPut: ReqSiteConfigPut(siteIid: Int64(siteIid), capabilitiesJson: capabilitiesJson)),
+        (res) => res.siteConfigPut,
+      );
+
   Future<ResCollectionDefList> collectionDefList({int siteIid = 0}) => _rpc<ResCollectionDefList>(
         WsReq(collectionDefList: ReqCollectionDefList(siteIid: Int64(siteIid))),
         (res) => res.collectionDefList,
@@ -532,6 +561,30 @@ class ChatConn {
     if (req.callerIid == Int64.ZERO) req.callerIid = Int64(Session.instance.uid);
     return _rpc<InvokeRes>(WsReq(invoke: req), (res) => res.invoke);
   }
+
+  Future<void> statsSubscribe() => _rpc<void>(
+        WsReq(statsSubscribe: ReqStatsSubscribe()),
+        (_) {},
+      );
+
+  Future<void> statsUnsubscribe() => _rpc<void>(
+        WsReq(statsUnsubscribe: ReqStatsUnsubscribe()),
+        (_) {},
+      );
+
+  Future<void> logSubscribe({int? ownerIid}) => _rpc<void>(
+        WsReq(
+          logSubscribe: ReqLogSubscribe(
+            ownerIid: ownerIid == null ? null : Int64(ownerIid),
+          ),
+        ),
+        (_) {},
+      );
+
+  Future<void> logUnsubscribe() => _rpc<void>(
+        WsReq(logUnsubscribe: ReqLogUnsubscribe()),
+        (_) {},
+      );
 
   Future<ResChannelWhatsappPair> channelWhatsappPairStart(int botIid, {String channelId = ''}) => _rpc<ResChannelWhatsappPair>(
         WsReq(channelWhatsappPairStart: ReqChannelWhatsappPairStart(botIid: Int64(botIid), channelId: channelId)),
@@ -563,9 +616,11 @@ class ChatConn {
         (res) => res.chatSend,
       );
 
-  Future<void> promptAbort({Int64 chatId = Int64.ZERO}) async {
+  Future<void> promptAbort({Int64 chatId = Int64.ZERO, String reqId = ''}) async {
+    final req = ReqPromptAbort(chatId: chatId);
+    if (reqId.isNotEmpty) req.reqId = reqId;
     await _rpc<ResChatStop>(
-      WsReq(promptAbort: ReqPromptAbort(chatId: chatId)),
+      WsReq(promptAbort: req),
       (res) => res.hasChatStop() ? res.chatStop : ResChatStop(),
     );
   }

@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package c35;
+
+// Admin CRUD for ai.inst — see _/docs/inst.md
+
+message InstDoc {
+  string id = 1;
+  string scope = 2;
+  string kind = 3;
+  string topic_id = 4;
+  repeated string topics = 5;
+  string inst = 6;
+  repeated string phrases = 7;
+  repeated string triggers = 8;
+  int32 priority = 9;
+  optional bool enabled = 10;
+  string def_hash = 11;
+  int64 created_ts_ms = 12;
+  int64 updated_ts_ms = 13;
+  optional int64 deleted_ts_ms = 14;
+}
+
+message ReqInstList {
+  optional string scope = 1;
+  optional string kind = 2;
+  optional bool enabled = 3;
+  bool include_deleted = 4;
+}
+
+message ResInstList {
+  repeated InstDoc items = 1;
+}
+
+message ReqInstGet {
+  string id = 1;
+}
+
+message ResInstGet {
+  InstDoc item = 1;
+}
+
+message ReqInstPut {
+  InstDoc doc = 1;
+}
+
+message ResInstPut {
+  InstDoc doc = 1;
+}
+
+message ReqInstDelete {
+  string id = 1;
+}
+
+message ResInstDelete {}

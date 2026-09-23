@@ -119,7 +119,7 @@ pub fn thought_push(dst: &mut String, piece: &str) {
     dst.push_str(p);
 }
 
-fn part_thought_text(part: &Value) -> Option<&str> {
+pub fn part_thought_text(part: &Value) -> Option<&str> {
     if !part_is_thought(part) { return None; }
     if let Some(t) = part["text"].as_str().filter(|s| !s.is_empty()) { return Some(t); }
     part.get("thought").and_then(|t| t.as_str()).filter(|s| !s.is_empty())

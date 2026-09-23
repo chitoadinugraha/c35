@@ -70,16 +70,46 @@ async fn main() -> anyhow::Result<()> {
     let nats_ms = nats.as_ref().map(|_| nats_t0.elapsed().as_millis());
     log::store_connected(yb_ms, nats_ms, nats_required);
 
+    let prompt_worker = nats.clone().map(|nats_client| {
+        c35_mod_chat::prompt_run_worker_start(pool.clone(), nats_client)
+    });
+
     let mut names = feature_names();
     if nats.is_some() {
         names.push("nats");
+        names.push("prompt_run");
     }
     log::features(&names);
 
     let app = boot::router(cfg, pool, nats);
     log::listening(&[("HTTP", format!("http://{addr}"))]);
-    axum::serve(listener, app).await?;
+    axum::serve(listener, app)
+        .with_graceful_shutdown(async move {
+            shutdown_signal().await;
+            if let Some(worker) = prompt_worker {
+                worker.drain().await;
+            }
+        })
+        .await?;
     Ok(())
+}
+
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        let _ = tokio::signal::ctrl_c().await;
+    };
+    #[cfg(unix)]
+    let terminate = async {
+        let mut sig =
+            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).expect("SIGTERM handler");
+        sig.recv().await;
+    };
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
 }
 
 fn feature_names() -> Vec<&'static str> {

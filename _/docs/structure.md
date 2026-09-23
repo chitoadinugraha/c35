@@ -134,7 +134,7 @@ clients/app/
       page_devices.dart
       page_sites.dart
     widgets/
-      ui/                     # ui_appbar, ui_master_detail, …
+      ui/                     # ui_appbar, ui_master_detail, ui_table, …
       io/
       in/
 ```

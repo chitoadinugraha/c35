@@ -1,8 +1,12 @@
 use c35_proto::{
     AdminUserHit, ReqAdminUserPut, ReqAdminUserSearch, ResAdminUserPut, ResAdminUserSearch,
 };
-use sqlx::{PgPool, Row};
 use std::collections::HashSet;
+
+mod log_admin;
+
+pub use log_admin::admin_log_list;
+use sqlx::{PgPool, Row};
 
 #[derive(Debug)]
 pub struct AdminError {
@@ -11,14 +15,14 @@ pub struct AdminError {
 }
 
 impl AdminError {
-    fn bad(msg: impl Into<String>) -> Self {
+    pub fn bad(msg: impl Into<String>) -> Self {
         Self {
             status_code: 400,
             message: msg.into(),
         }
     }
 
-    fn forbidden() -> Self {
+    pub fn forbidden() -> Self {
         Self {
             status_code: 403,
             message: "forbidden".to_string(),

@@ -388,9 +388,7 @@ pub fn mention_has_device(resolved: &[MentionResolved]) -> bool {
 pub fn mention_force_tools(resolved: &[MentionResolved]) -> Vec<String> {
     let mut out = Vec::new();
     if mention_has_device(resolved) {
-        for t in ["device.screenshot", "device.input", "device.command"] {
-            out.push(t.to_string());
-        }
+        out.push("device.screenshot".to_string());
     }
     for r in resolved {
         if r.item.topic_id == "web.builder" {

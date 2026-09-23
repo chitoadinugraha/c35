@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package c35;
+
+message ReqVoiceStt {
+  bytes audio = 1;
+  string mime = 2;
+  string lang = 3;
+  string req_id = 4;
+}
+
+message ResVoiceStt {
+  string text = 1;
+  string error = 2;
+}
+
+message ReqVoiceTts {
+  string text = 1;
+  string lang = 2;
+  string req_id = 3;
+}
+
+message ResVoiceTts {
+  bytes audio = 1;
+  string mime = 2;
+  string error = 3;
+}

@@ -7,15 +7,15 @@ metadata:
     app.kubernetes.io/name: c35-server
     app.kubernetes.io/part-of: c35
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app.kubernetes.io/name: c35-server
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxSurge: 0
-      maxUnavailable: 1
+      maxSurge: 1
+      maxUnavailable: 0
   template:
     metadata:
       labels:
@@ -37,6 +37,14 @@ spec:
             - secretRef:
                 name: c35-server-env
           env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
             - name: LISTEN
               value: "0.0.0.0:8080"
             - name: C35_PUBLIC_ORIGIN
@@ -57,6 +65,13 @@ spec:
               value: "http://channel-whatsapp-device.c35.svc.cluster.local:8080"
             - name: RUST_LOG
               value: info,server_ai=debug
+            # WebRTC TURN (coturn static-auth-secret). Empty/missing → STUN-only ICE config.
+            - name: C35_TURN_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: coturn-secret
+                  key: static-auth-secret
+                  optional: true
           startupProbe:
             httpGet:
               path: /livez

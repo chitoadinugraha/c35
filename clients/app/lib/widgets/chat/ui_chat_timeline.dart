@@ -13,16 +13,53 @@ class UiChatTimelineController {
   var _scrollOffset = 0.0;
   StreamSubscription<double>? _offsetSub;
 
-  void attach() => _offsetSub = scrollOffset.changes.listen((delta) {
-        _scrollOffset += delta;
-        if (_scrollOffset < 0) _scrollOffset = 0;
-        stickToBottom = _scrollOffset < 120;
-      });
+  final ValueNotifier<bool> isAtBottom = ValueNotifier<bool>(true);
+  final ValueNotifier<int> unreadStreamCount = ValueNotifier<int>(0);
 
-  void dispose() => _offsetSub?.cancel();
+  void attach() {
+    _offsetSub = scrollOffset.changes.listen((delta) {
+      _scrollOffset += delta;
+      if (_scrollOffset < 0) _scrollOffset = 0;
+      final atBot = _scrollOffset < 96;
+      stickToBottom = atBot;
+      if (isAtBottom.value != atBot) {
+        isAtBottom.value = atBot;
+        if (atBot) unreadStreamCount.value = 0;
+      }
+    });
+    itemPositions.itemPositions.addListener(_onPositionsChanged);
+  }
+
+  void _onPositionsChanged() {
+    final pos = itemPositions.itemPositions.value;
+    if (pos.isEmpty) return;
+    final atBot = pos.any((p) => p.index == 0 && p.itemLeadingEdge >= -0.05);
+    stickToBottom = atBot;
+    if (isAtBottom.value != atBot) {
+      isAtBottom.value = atBot;
+      if (atBot) unreadStreamCount.value = 0;
+    }
+  }
+
+  void notifyStreamChunk() {
+    if (!isAtBottom.value) {
+      unreadStreamCount.value++;
+    }
+  }
+
+  void dispose() {
+    _offsetSub?.cancel();
+    itemPositions.itemPositions.removeListener(_onPositionsChanged);
+    isAtBottom.dispose();
+    unreadStreamCount.dispose();
+  }
 
   void scrollToBottom({bool force = false, bool animate = false}) {
-    if (force) stickToBottom = true;
+    if (force) {
+      stickToBottom = true;
+      isAtBottom.value = true;
+      unreadStreamCount.value = 0;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom(force: force, animate: animate));
   }
 
@@ -90,7 +127,7 @@ class UiChatTimeline extends StatelessWidget {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: padding,
         itemCount: itemCount,
-        separatorBuilder: separatorBuilder ?? (_c, _i) => const SizedBox.shrink(),
+        separatorBuilder: separatorBuilder ?? (c, i) => const SizedBox.shrink(),
         itemBuilder: (context, i) => itemBuilder(context, itemCount - 1 - i),
       );
 }

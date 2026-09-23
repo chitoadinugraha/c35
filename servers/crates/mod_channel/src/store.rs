@@ -48,6 +48,10 @@ pub struct ChannelDoc {
 }
 
 pub const PROVIDER_LINKED: &str = "linked_device";
+
+pub fn is_linked_provider(provider: &str) -> bool {
+    matches!(provider, PROVIDER_LINKED | "linked")
+}
 pub const STATUS_PAIRING: &str = "pairing";
 pub const STATUS_CONNECTED: &str = "connected";
 pub const STATUS_ERROR: &str = "error";

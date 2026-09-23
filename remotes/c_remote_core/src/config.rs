@@ -19,14 +19,24 @@ pub fn config_path() -> PathBuf {
     p
 }
 
-pub fn session_key_load() -> Option<String> {
+pub fn config_load() -> Option<serde_json::Value> {
     let content = std::fs::read_to_string(config_path()).ok()?;
-    let json: serde_json::Value = serde_json::from_str(&content).ok()?;
+    serde_json::from_str(&content).ok()
+}
+
+pub fn session_key_load() -> Option<String> {
+    let json = config_load()?;
     let tok = json.get("session_key").and_then(|v| v.as_str())?.trim();
     if tok.is_empty() {
         return None;
     }
     Some(tok.to_string())
+}
+
+pub fn device_iid_load() -> Option<i64> {
+    config_load()
+        .and_then(|j| j.get("device_iid").and_then(|v| v.as_i64()))
+        .filter(|id| *id > 0)
 }
 
 pub fn session_key_save(session_key: &str, device_iid: i64) -> anyhow::Result<()> {

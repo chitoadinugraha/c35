@@ -65,8 +65,16 @@ pub fn parse_meta_cloud_payload(v: &serde_json::Value) -> Result<crate::types::C
     } else if let Some(sticker) = msg.get("sticker") {
         text = "[sticker]".to_string();
         attachments.push(meta_media_attachment(sticker, "sticker.webp", sticker.get("mime_type").and_then(|c| c.as_str()).unwrap_or("image/webp")));
+    } else if let Some(location) = msg.get("location") {
+        let lat = location.get("latitude").and_then(|v| v.as_f64()).unwrap_or_default();
+        let long = location.get("longitude").and_then(|v| v.as_f64()).unwrap_or_default();
+        let name = location.get("name").and_then(|v| v.as_str()).unwrap_or("");
+        text = format!("[location: {lat}, {long} {name}]").trim().to_string();
+    } else if let Some(reaction) = msg.get("reaction") {
+        let emoji = reaction.get("emoji").and_then(|v| v.as_str()).unwrap_or("");
+        text = format!("[reaction: {emoji}]");
     } else {
-        anyhow::bail!("meta cloud unsupported message type");
+        text = "[unsupported message]".to_string();
     }
     let quoted_msg_id = msg
         .get("context")

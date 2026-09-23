@@ -1,29 +1,41 @@
 use std::time::Duration;
 
 use c_remote_core::config::{session_key_load, session_key_save, server_url};
-use c_remote_core::conn_ws::conn_ws_run;
 use c_remote_core::pair::{pair_poll, pair_register, pair_should_reroll, PairPoll};
-use tracing::info;
-
 use crate::pair_ui::PairUi;
+use crate::tray::TrayAction;
 
-pub async fn pair_loop_run(cli: bool) -> anyhow::Result<()> {
-    let base_url = server_url();
-
-    if let Some(session_key) = session_key_load() {
-        info!("already paired; starting conn_ws");
-        return conn_ws_run(&base_url, &session_key).await;
+pub async fn pair_until_claimed(
+    cli: bool,
+    tray_rx: &mut tokio::sync::mpsc::UnboundedReceiver<TrayAction>,
+) -> anyhow::Result<()> {
+    if session_key_load().is_some() {
+        return Ok(());
     }
 
+    let base_url = server_url();
     let ui = PairUi::spawn(cli);
-    ui.set_status("Requesting a pairing code…");
+    ui.set_connecting();
     let device_name = device_name();
 
     loop {
-        let pending = match pair_register(&base_url, &device_name, "windows").await {
-            Ok(p) => p,
-            Err(e) => {
+        let register = tokio::spawn({
+            let base_url = base_url.clone();
+            let device_name = device_name.clone();
+            async move { pair_register(&base_url, &device_name, "windows").await }
+        });
+        let pending = match register.await {
+            Ok(Ok(p)) => p,
+            Ok(Err(e)) => {
                 tracing::warn!("pair_register failed: {e}");
+                ui.set_connecting();
+                ui.set_status("Can't reach Alien AI right now. Retrying…");
+                tokio::time::sleep(Duration::from_secs(3)).await;
+                continue;
+            }
+            Err(e) => {
+                tracing::warn!("pair_register task failed: {e}");
+                ui.set_connecting();
                 ui.set_status("Can't reach Alien AI right now. Retrying…");
                 tokio::time::sleep(Duration::from_secs(3)).await;
                 continue;
@@ -34,7 +46,16 @@ pub async fn pair_loop_run(cli: bool) -> anyhow::Result<()> {
         let deadline = pending.deadline();
 
         loop {
-            tokio::time::sleep(Duration::from_secs(2)).await;
+            tokio::select! {
+                _ = tokio::time::sleep(Duration::from_secs(2)) => {}
+                action = tray_rx.recv() => match action {
+                    Some(TrayAction::Quit) => {
+                        ui.close();
+                        return Ok(());
+                    }
+                    Some(TrayAction::Unpair) | None => {}
+                }
+            }
 
             let poll = match pair_poll(&base_url, &pending.secret).await {
                 Ok(p) => p,
@@ -52,12 +73,14 @@ pub async fn pair_loop_run(cli: bool) -> anyhow::Result<()> {
             {
                 ui.set_status("Device paired. Starting remote session…");
                 session_key_save(&session_key, device_iid)?;
+                let _ = crate::startup::set_autostart_enabled(true);
                 ui.close();
-                return conn_ws_run(&base_url, &session_key).await;
+                return Ok(());
             }
 
             if pair_should_reroll(&poll, deadline, std::time::Instant::now()) {
-                ui.set_status("Code expired. Requesting a new one…");
+                ui.set_connecting();
+                ui.set_status("Code expired. Connecting for a new code…");
                 break;
             }
         }

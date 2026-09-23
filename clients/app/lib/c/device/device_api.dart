@@ -10,6 +10,8 @@ Future<ResIdentityList> identityList(ChatConn conn, List<String> kinds, {bool in
 
 Future<ResIdentityGrantPatch> identityGrantPatch(ChatConn conn, ReqIdentityGrantPatch req) => conn.identityGrantPatch(req);
 
+Future<ResIdentityPut> identityPut(ChatConn conn, ReqIdentityPut req) => conn.identityPut(req);
+
 Future<ResDevicePair> devicePair(ReferralConn conn, String code) async {
   final res = await conn.invoke(
     InvokeReq(reqId: const Uuid().v4(), devicePair: ReqDevicePair(code: code)),

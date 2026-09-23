@@ -195,6 +195,9 @@ pub async fn identity_put(
             name,
         )
         .await;
+        if kind == "site" {
+            let _ = c35_mod_hint::hint_invalidate_for_asset(pool, id).await;
+        }
         let row = identity_list_row_get(pool, caller_iid, id).await?;
         return Ok(ResIdentityPut { row: Some(row) });
     }
@@ -239,6 +242,13 @@ pub async fn identity_put(
         name,
     )
     .await;
+    let kind: String = sqlx::query_scalar("SELECT kind FROM ai.identity WHERE id = $1 AND deleted_ts IS NULL")
+        .bind(iid)
+        .fetch_one(pool)
+        .await?;
+    if kind == "site" {
+        let _ = c35_mod_hint::hint_invalidate_for_asset(pool, iid).await;
+    }
     let row = identity_list_row_get(pool, caller_iid, iid).await?;
     Ok(ResIdentityPut { row: Some(row) })
 }

@@ -17,7 +17,9 @@ CREATE SCHEMA IF NOT EXISTS ai;
 CREATE TABLE IF NOT EXISTS ai.task (
     id                  BIGINT PRIMARY KEY,
     owner_iid           BIGINT NOT NULL REFERENCES ai.identity(id),
-    device_iid          BIGINT NOT NULL REFERENCES ai.identity(id),
+    device_iid          BIGINT NOT NULL DEFAULT 0,
+    bot_iid             BIGINT NOT NULL DEFAULT 0,
+    scope               VARCHAR(16) NOT NULL DEFAULT 'device',
 
     name                VARCHAR(128) NOT NULL DEFAULT '',
     skill_id            BIGINT NOT NULL DEFAULT 0,
@@ -27,8 +29,13 @@ CREATE TABLE IF NOT EXISTS ai.task (
 
     created_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    deleted_ts          TIMESTAMPTZ
+    deleted_ts          TIMESTAMPTZ,
+
+    CONSTRAINT chk_task_scope CHECK (scope IN ('user', 'device', 'bot', 'team'))
 );
+
+ALTER TABLE ai.task ADD COLUMN IF NOT EXISTS scope VARCHAR(16) NOT NULL DEFAULT 'device';
+ALTER TABLE ai.task ADD COLUMN IF NOT EXISTS bot_iid BIGINT NOT NULL DEFAULT 0;
 
 CREATE INDEX IF NOT EXISTS idx_task_owner_sync
     ON ai.task (owner_iid, updated_ts);
