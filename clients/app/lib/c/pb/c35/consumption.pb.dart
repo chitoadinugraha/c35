@@ -42,6 +42,8 @@ class Nutrition extends $pb.GeneratedMessage {
     $core.int? phosphorus,
     $core.int? zinc,
     $core.int? copper,
+    $core.int? cholesterol,
+    $core.int? purines,
   }) {
     final result = Nutrition._();
     if (calories != null) result.calories = calories;
@@ -63,6 +65,8 @@ class Nutrition extends $pb.GeneratedMessage {
     if (phosphorus != null) result.phosphorus = phosphorus;
     if (zinc != null) result.zinc = zinc;
     if (copper != null) result.copper = copper;
+    if (cholesterol != null) result.cholesterol = cholesterol;
+    if (purines != null) result.purines = purines;
     return result;
   }
 
@@ -98,6 +102,8 @@ class Nutrition extends $pb.GeneratedMessage {
     ..aI(17, _omitFieldNames ? '' : 'phosphorus')
     ..aI(18, _omitFieldNames ? '' : 'zinc')
     ..aI(19, _omitFieldNames ? '' : 'copper')
+    ..aI(20, _omitFieldNames ? '' : 'cholesterol')
+    ..aI(21, _omitFieldNames ? '' : 'purines')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -290,6 +296,24 @@ class Nutrition extends $pb.GeneratedMessage {
   $core.bool hasCopper() => $_has(18);
   @$pb.TagNumber(19)
   void clearCopper() => $_clearField(19);
+
+  @$pb.TagNumber(20)
+  $core.int get cholesterol => $_getIZ(19);
+  @$pb.TagNumber(20)
+  set cholesterol($core.int value) => $_setSignedInt32(19, value);
+  @$pb.TagNumber(20)
+  $core.bool hasCholesterol() => $_has(19);
+  @$pb.TagNumber(20)
+  void clearCholesterol() => $_clearField(20);
+
+  @$pb.TagNumber(21)
+  $core.int get purines => $_getIZ(20);
+  @$pb.TagNumber(21)
+  set purines($core.int value) => $_setSignedInt32(20, value);
+  @$pb.TagNumber(21)
+  $core.bool hasPurines() => $_has(20);
+  @$pb.TagNumber(21)
+  void clearPurines() => $_clearField(21);
 }
 
 class ConsumptionItem extends $pb.GeneratedMessage {

@@ -35,6 +35,8 @@ message Nutrition {
   int32 phosphorus = 17;
   int32 zinc = 18;
   int32 copper = 19;
+  int32 cholesterol = 20;          // mg
+  int32 purines = 21;              // mg — food purines (uric-acid / gout relevance)
 }
 
 message ConsumptionItem {

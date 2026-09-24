@@ -60,6 +60,8 @@ const Nutrition$json = {
     {'1': 'phosphorus', '3': 17, '4': 1, '5': 5, '10': 'phosphorus'},
     {'1': 'zinc', '3': 18, '4': 1, '5': 5, '10': 'zinc'},
     {'1': 'copper', '3': 19, '4': 1, '5': 5, '10': 'copper'},
+    {'1': 'cholesterol', '3': 20, '4': 1, '5': 5, '10': 'cholesterol'},
+    {'1': 'purines', '3': 21, '4': 1, '5': 5, '10': 'purines'},
   ],
 };
 
@@ -74,7 +76,8 @@ final $typed_data.Uint8List nutritionDescriptor = $convert.base64Decode(
     'DSABKAVSCHZpdGFtaW5LEhgKB2NhbGNpdW0YDiABKAVSB2NhbGNpdW0SEgoEaXJvbhgPIAEoBV'
     'IEaXJvbhIcCgltYWduZXNpdW0YECABKAVSCW1hZ25lc2l1bRIeCgpwaG9zcGhvcnVzGBEgASgF'
     'UgpwaG9zcGhvcnVzEhIKBHppbmMYEiABKAVSBHppbmMSFgoGY29wcGVyGBMgASgFUgZjb3BwZX'
-    'I=');
+    'ISIAoLY2hvbGVzdGVyb2wYFCABKAVSC2Nob2xlc3Rlcm9sEhgKB3B1cmluZXMYFSABKAVSB3B1'
+    'cmluZXM=');
 
 @$core.Deprecated('Use consumptionItemDescriptor instead')
 const ConsumptionItem$json = {

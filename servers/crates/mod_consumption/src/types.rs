@@ -2,6 +2,18 @@ use serde::{Deserialize, Serialize};
 
 pub const DEFAULT_CALORIE_GOAL: i32 = 2000;
 
+#[derive(Debug, Clone, Default)]
+pub struct NutritionSummary {
+    pub calories: i32,
+    pub protein: i32,
+    pub fat: i32,
+    pub carbs: i32,
+    pub fiber: i32,
+    pub sugar: i32,
+    pub sodium: i32,
+    pub meals_logged: i32,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ConsumptionItem {
     pub name: String,
@@ -16,6 +28,14 @@ pub struct ConsumptionItem {
     pub fiber: i32,
     pub sugar: i32,
     pub sodium: i32,
+    #[serde(default)]
+    pub potassium: i32,
+    #[serde(default)]
+    pub iron: i32,
+    #[serde(default)]
+    pub cholesterol: i32,
+    #[serde(default)]
+    pub purines: i32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

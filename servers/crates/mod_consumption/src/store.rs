@@ -3,7 +3,7 @@ use sqlx::PgPool;
 use c35_store::snowflake_id;
 
 use super::day::{snowflake_max_at_ms, snowflake_min_at_ms};
-use super::types::{ConsumptionFood, ConsumptionItem, DEFAULT_CALORIE_GOAL};
+use super::types::{ConsumptionFood, ConsumptionItem, DEFAULT_CALORIE_GOAL, NutritionSummary};
 
 pub async fn prefs_calorie_goal(pool: &PgPool, owner_iid: i64) -> Result<i32, String> {
     let row = sqlx::query_scalar::<_, i32>(
@@ -22,14 +22,27 @@ pub async fn nutrition_sum_day(
     day_start_ms: i64,
     day_end_ms: i64,
 ) -> Result<(i32, i32, i32, i32, i32), String> {
-    let id_min = snowflake_min_at_ms(day_start_ms);
-    let id_max = snowflake_max_at_ms(day_end_ms);
-    let row = sqlx::query_as::<_, (i64, i64, i64, i64, i64)>(
+    let s = nutrition_sum_range(pool, owner_iid, day_start_ms, day_end_ms).await?;
+    Ok((s.calories, s.protein, s.fat, s.carbs, s.meals_logged))
+}
+
+pub async fn nutrition_sum_range(
+    pool: &PgPool,
+    owner_iid: i64,
+    range_start_ms: i64,
+    range_end_ms: i64,
+) -> Result<NutritionSummary, String> {
+    let id_min = snowflake_min_at_ms(range_start_ms);
+    let id_max = snowflake_max_at_ms(range_end_ms);
+    let row = sqlx::query_as::<_, (i64, i64, i64, i64, i64, i64, i64, i64)>(
         "SELECT
            COALESCE(SUM((ci.calories * ci.qty)::int), 0),
            COALESCE(SUM((ci.protein * ci.qty)::int), 0),
            COALESCE(SUM((ci.fat * ci.qty)::int), 0),
            COALESCE(SUM((ci.carbs * ci.qty)::int), 0),
+           COALESCE(SUM((ci.fiber * ci.qty)::int), 0),
+           COALESCE(SUM((ci.sugar * ci.qty)::int), 0),
+           COALESCE(SUM((ci.sodium * ci.qty)::int), 0),
            COUNT(DISTINCT ci.consumption_id)
          FROM ai.consumption_item ci
          JOIN ai.consumption c ON c.id = ci.consumption_id AND c.owner_iid = ci.owner_iid
@@ -42,7 +55,16 @@ pub async fn nutrition_sum_day(
     .fetch_one(pool)
     .await
     .map_err(|e| e.to_string())?;
-    Ok((row.0 as i32, row.1 as i32, row.2 as i32, row.3 as i32, row.4 as i32))
+    Ok(NutritionSummary {
+        calories: row.0 as i32,
+        protein: row.1 as i32,
+        fat: row.2 as i32,
+        carbs: row.3 as i32,
+        fiber: row.4 as i32,
+        sugar: row.5 as i32,
+        sodium: row.6 as i32,
+        meals_logged: row.7 as i32,
+    })
 }
 
 pub async fn food_duplicate_today(
@@ -245,9 +267,9 @@ async fn food_item_replace_tx(
              (consumption_id, owner_iid, idx, name, name_id, qty, pic, obj_id,
               calories, protein, fat, carbs, fiber, sugar, sodium,
               potassium, vitamin_a, vitamin_c, vitamin_d, vitamin_e, vitamin_k,
-              calcium, iron, magnesium, phosphorus, zinc, copper)
+              calcium, iron, magnesium, phosphorus, zinc, copper, cholesterol, purines)
              VALUES ($1,$2,$3,$4,$5,$6,'',$7,$8,$9,$10,$11,$12,$13,$14,
-                     0,0,0,0,0,0,0,0,0,0,0,0)",
+                     $15,0,0,0,0,0,0,$16,0,0,0,0,$17,$18)",
         )
         .bind(consumption_id)
         .bind(owner_iid)
@@ -263,6 +285,10 @@ async fn food_item_replace_tx(
         .bind(it.fiber)
         .bind(it.sugar)
         .bind(it.sodium)
+        .bind(it.potassium)
+        .bind(it.iron)
+        .bind(it.cholesterol)
+        .bind(it.purines)
         .execute(&mut **tx)
         .await
         .map_err(|e| e.to_string())?;
@@ -330,8 +356,10 @@ pub async fn food_list_day(
 }
 
 async fn food_items_load(pool: &PgPool, owner_iid: i64, consumption_id: i64) -> Result<Vec<ConsumptionItem>, String> {
-    let rows = sqlx::query_as::<_, (String, String, f32, i32, i32, i32, i32, i32, i32, i32, i64)>(
-        "SELECT name, name_id, qty, calories, protein, fat, carbs, fiber, sugar, sodium, COALESCE(obj_id, 0)
+    let rows = sqlx::query_as::<_, (String, String, f32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i64)>(
+        "SELECT name, name_id, qty, calories, protein, fat, carbs, fiber, sugar, sodium,
+                COALESCE(potassium, 0), COALESCE(iron, 0), COALESCE(cholesterol, 0),
+                COALESCE(purines, 0), COALESCE(obj_id, 0)
          FROM ai.consumption_item
          WHERE consumption_id = $1 AND owner_iid = $2 AND deleted_ts IS NULL
          ORDER BY idx ASC",
@@ -343,18 +371,24 @@ async fn food_items_load(pool: &PgPool, owner_iid: i64, consumption_id: i64) -> 
     .map_err(|e| e.to_string())?;
     Ok(rows
         .into_iter()
-        .map(|(name, name_id, qty, calories, protein, fat, carbs, fiber, sugar, sodium, obj_id)| ConsumptionItem {
-            name,
-            name_id,
-            qty,
-            obj_id,
-            calories,
-            protein,
-            fat,
-            carbs,
-            fiber,
-            sugar,
-            sodium,
+        .map(|(name, name_id, qty, calories, protein, fat, carbs, fiber, sugar, sodium, potassium, iron, cholesterol, purines, obj_id)| {
+            ConsumptionItem {
+                name,
+                name_id,
+                qty,
+                obj_id,
+                calories,
+                protein,
+                fat,
+                carbs,
+                fiber,
+                sugar,
+                sodium,
+                potassium,
+                iron,
+                cholesterol,
+                purines,
+            }
         })
         .collect())
 }

@@ -11,6 +11,10 @@ class ConsumptionItemRow {
     this.fiber = 0,
     this.sugar = 0,
     this.sodium = 0,
+    this.potassium = 0,
+    this.iron = 0,
+    this.cholesterol = 0,
+    this.purines = 0,
   });
 
   String name;
@@ -24,6 +28,10 @@ class ConsumptionItemRow {
   int fiber;
   int sugar;
   int sodium;
+  int potassium;
+  int iron;
+  int cholesterol;
+  int purines;
 
   int kcalScaled() => (calories * qty).round();
 
@@ -48,6 +56,10 @@ class ConsumptionItemRow {
         fiber: (j['fiber'] as num?)?.round() ?? 0,
         sugar: (j['sugar'] as num?)?.round() ?? 0,
         sodium: (j['sodium'] as num?)?.round() ?? 0,
+        potassium: (j['potassium'] as num?)?.round() ?? 0,
+        iron: (j['iron'] as num?)?.round() ?? 0,
+        cholesterol: (j['cholesterol'] as num?)?.round() ?? 0,
+        purines: (j['purines'] as num?)?.round() ?? 0,
       );
 
   Map<String, dynamic> toJson() => {
@@ -62,6 +74,10 @@ class ConsumptionItemRow {
         'fiber': fiber,
         'sugar': sugar,
         'sodium': sodium,
+        'potassium': potassium,
+        'iron': iron,
+        'cholesterol': cholesterol,
+        'purines': purines,
       };
 }
 

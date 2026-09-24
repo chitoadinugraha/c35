@@ -22,6 +22,10 @@ fn item_to_pb(i: &ConsumptionItem, idx: i32) -> PbItem {
             fiber: i.fiber,
             sugar: i.sugar,
             sodium: i.sodium,
+            potassium: i.potassium,
+            iron: i.iron,
+            cholesterol: i.cholesterol,
+            purines: i.purines,
             ..Default::default()
         }),
     }
@@ -85,6 +89,10 @@ pub async fn consumption_put_rpc(pool: &PgPool, owner_iid: i64, locale: &str, re
                 fiber: n.fiber,
                 sugar: n.sugar,
                 sodium: n.sodium,
+                potassium: n.potassium,
+                iron: n.iron,
+                cholesterol: n.cholesterol,
+                purines: n.purines,
                 ..Default::default()
             }
         })
@@ -99,7 +107,7 @@ pub async fn consumption_put_rpc(pool: &PgPool, owner_iid: i64, locale: &str, re
     let (start, end) = day_bounds_ms(&day, locale).unwrap_or((0, i64::MAX));
     let goal = prefs_calorie_goal(pool, owner_iid).await.unwrap_or(2000);
     let (so_far, _, _, _, meals_logged) = nutrition_sum_day(pool, owner_iid, start, end).await.unwrap_or((0, 0, 0, 0, 0));
-    let block = consumption_food_block(&food, locale, true, false, "", so_far, so_far, goal, meals_logged);
+    let block = consumption_food_block(&food, locale, true, false, "", so_far, so_far, goal, meals_logged, "");
     Ok(ResConsumptionPut {
         consumption: Some(food_to_pb(&food)),
         blocks_json: serde_json::to_string(&json!([block])).unwrap_or_else(|_| "[]".into()),

@@ -7,14 +7,14 @@ use super::types::ConsumptionItem;
 
 const PROMPT_TEXT: &str = r#"You are a nutrition expert. Extract food items from the description.
 Output JSON ARRAY only:
-[{"name":"","name_id":"","qty":1,"calories":0,"protein":0,"fat":0,"carbs":0,"fiber":0,"sugar":0,"sodium":0}]
+[{"name":"","name_id":"","qty":1,"calories":0,"protein":0,"fat":0,"carbs":0,"fiber":0,"sugar":0,"sodium":0,"potassium":0,"iron":0,"cholesterol":0,"purines":0}]
 Default qty to 1 for standard serving. Only use clean culinary portions (0.25, 0.33, 0.5, 0.75, 1, 1.5, 2), never arbitrary continuous floats.
-Use reasonable estimates. name_id in Bahasa Indonesia Title Case."#;
+Use reasonable estimates. name_id in Bahasa Indonesia Title Case. potassium/iron/cholesterol/purines in mg. purines: organ meats, seafood, legumes, broths higher."#;
 
 const PROMPT_PIC: &str = r#"You are a nutrition expert. You are given a picture of food or drinks.
 Estimate portions (default qty to 1 for full standard portion/plate/bowl). Use clean fractions (0.25, 0.33, 0.5, 0.75, 1, 1.5, 2), never arbitrary floats. Extract every distinct item. Output JSON ARRAY only:
-[{"name":"","name_id":"","qty":1,"calories":0,"protein":0,"fat":0,"carbs":0,"fiber":0,"sugar":0,"sodium":0}]
-Use reasonable estimates. name_id in Bahasa Indonesia Title Case."#;
+[{"name":"","name_id":"","qty":1,"calories":0,"protein":0,"fat":0,"carbs":0,"fiber":0,"sugar":0,"sodium":0,"potassium":0,"iron":0,"cholesterol":0,"purines":0}]
+Use reasonable estimates. name_id in Bahasa Indonesia Title Case. potassium/iron/cholesterol/purines in mg. purines: organ meats, seafood, legumes, broths higher."#;
 
 
 fn detect_model() -> Result<String, String> {
@@ -64,6 +64,14 @@ struct LlmItem {
     sugar: f64,
     #[serde(default)]
     sodium: f64,
+    #[serde(default)]
+    potassium: f64,
+    #[serde(default)]
+    iron: f64,
+    #[serde(default)]
+    cholesterol: f64,
+    #[serde(default)]
+    purines: f64,
 }
 
 pub async fn detect_text(pool: &PgPool, owner_iid: i64, text: &str) -> Result<Vec<ConsumptionItem>, String> {
@@ -117,16 +125,21 @@ fn detect_http_client() -> &'static reqwest::Client {
     })
 }
 
-async fn run_gemini_text(pool: &PgPool, owner_iid: i64, prompt: &str) -> Result<Vec<ConsumptionItem>, String> {
+async fn gemini_generate(pool: &PgPool, owner_iid: i64, prompt: &str, temperature: f32, json_mode: bool) -> Result<String, String> {
     let key = gemini_api_key();
     if key.is_empty() {
         return Err("GEMINI_API_KEY missing".into());
     }
     let model = detect_model()?;
     let url = format!("https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}");
+    let generation_config = if json_mode {
+        serde_json::json!({"temperature": temperature, "responseMimeType": "application/json"})
+    } else {
+        serde_json::json!({"temperature": temperature})
+    };
     let body = serde_json::json!({
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.2, "responseMimeType": "application/json"}
+        "generationConfig": generation_config,
     });
     let client = detect_http_client();
     let resp = client.post(&url).json(&body).send().await.map_err(|e| e.to_string())?;
@@ -149,8 +162,16 @@ async fn run_gemini_text(pool: &PgPool, owner_iid: i64, prompt: &str) -> Result<
         }
         return Err("Gemini returned empty candidates".into());
     }
-    let text_out = v["candidates"][0]["content"]["parts"][0]["text"].as_str().unwrap_or("[]");
-    parse_items(text_out)
+    Ok(v["candidates"][0]["content"]["parts"][0]["text"].as_str().unwrap_or("").trim().to_string())
+}
+
+pub(crate) async fn gemini_plain_text(pool: &PgPool, owner_iid: i64, prompt: &str, temperature: f32) -> Result<String, String> {
+    gemini_generate(pool, owner_iid, prompt, temperature, false).await
+}
+
+async fn run_gemini_text(pool: &PgPool, owner_iid: i64, prompt: &str) -> Result<Vec<ConsumptionItem>, String> {
+    let text_out = gemini_generate(pool, owner_iid, prompt, 0.2, true).await?;
+    parse_items(if text_out.is_empty() { "[]" } else { &text_out })
 }
 
 async fn run_gemini_vision(
@@ -225,6 +246,10 @@ fn parse_items(raw: &str) -> Result<Vec<ConsumptionItem>, String> {
                 fiber: i.fiber.round() as i32,
                 sugar: i.sugar.round() as i32,
                 sodium: i.sodium.round() as i32,
+                potassium: i.potassium.round() as i32,
+                iron: i.iron.round() as i32,
+                cholesterol: i.cholesterol.round() as i32,
+                purines: i.purines.round() as i32,
             })
         })
         .collect())
@@ -250,6 +275,10 @@ pub fn items_from_json(v: &serde_json::Value) -> Result<Vec<ConsumptionItem>, St
             fiber: item.get("fiber").and_then(|x| x.as_i64()).unwrap_or(0) as i32,
             sugar: item.get("sugar").and_then(|x| x.as_i64()).unwrap_or(0) as i32,
             sodium: item.get("sodium").and_then(|x| x.as_i64()).unwrap_or(0) as i32,
+            potassium: item.get("potassium").and_then(|x| x.as_i64()).unwrap_or(0) as i32,
+            iron: item.get("iron").and_then(|x| x.as_i64()).unwrap_or(0) as i32,
+            cholesterol: item.get("cholesterol").and_then(|x| x.as_i64()).unwrap_or(0) as i32,
+            purines: item.get("purines").and_then(|x| x.as_i64()).unwrap_or(0) as i32,
         });
     }
     if out.is_empty() {

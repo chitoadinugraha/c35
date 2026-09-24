@@ -15,6 +15,7 @@ import 'package:alienai_c35/c/chat/space_hints.dart';
 import 'package:alienai_c35/c/hint/hint_store.dart';
 import 'package:alienai_c35/c/pb/c35/hint.pb.dart';
 import 'package:alienai_c35/c/consumption/consumption_api.dart';
+import 'package:alienai_c35/c/expense/expense_api.dart';
 import 'package:alienai_c35/c/files/msg_attachment.dart';
 import 'package:alienai_c35/c/llm/agent_model.dart';
 import 'package:alienai_c35/c/pb/c35/chat.pb.dart';
@@ -58,6 +59,7 @@ import 'package:alienai_c35/widgets/billing/ui_billing_history_sheet.dart';
 import 'package:alienai_c35/widgets/billing/ui_billing_package_sheet.dart';
 import 'package:alienai_c35/widgets/chat/ui_chat_timeline.dart';
 import 'package:alienai_c35/widgets/ui/ui_account_menu.dart';
+import 'package:alienai_c35/widgets/ui/ui_conn_wifi.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:alienai_c35/widgets/ui/ui_user_avatar.dart';
 import 'package:alienai_c35/c/store/canvas_store.dart';
@@ -92,6 +94,7 @@ class _PageAIHomeState extends State<PageAIHome> {
   final _conn = ChatConn();
   late final VoiceApi _voiceApi = VoiceApi(_conn);
   final _consumptionApi = ConsumptionApi();
+  final _expenseApi = ExpenseApi();
   final _timeline = UiChatTimelineController();
   final _mentionIds = <String>{};
   var _toolMode = 'agent';
@@ -102,8 +105,10 @@ class _PageAIHomeState extends State<PageAIHome> {
   StreamSubscription? _billingBalanceSub;
   StreamSubscription? _billingQuotaSub;
   StreamSubscription? _billingCommissionSub;
+  StreamSubscription? _reconnectedSub;
   var _menuMsgIndex = 0;
   var _retrying = false;
+  var _hintRunning = false;
   String? _selectedPlain;
   String? _uiLang;
 
@@ -114,6 +119,10 @@ class _PageAIHomeState extends State<PageAIHome> {
     TtsService.instance.bindVoiceApi(_voiceApi);
     if (Session.instance.modelId.isNotEmpty) _model = AgentModel.of(Session.instance.modelId, _store.models);
     _timeline.attach();
+    _reconnectedSub = _conn.onReconnected.listen((_) {
+      unawaited(_store.refreshFromConn(_conn, locale: CatalogTranslationCache.instance.lang));
+      if (mounted) setState(() {});
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_boot());
       _checkReferralPrompt();
@@ -155,6 +164,7 @@ class _PageAIHomeState extends State<PageAIHome> {
     _billingBalanceSub?.cancel();
     _billingQuotaSub?.cancel();
     _billingCommissionSub?.cancel();
+    _reconnectedSub?.cancel();
     _timeline.dispose();
     _conn.disconnect();
     _canvasStore.dispose();
@@ -213,6 +223,21 @@ class _PageAIHomeState extends State<PageAIHome> {
     _store.msgUpdate(id: msgId, blocksJson: ChatBlock.encodeList(blocks));
   }
 
+  void _onExpenseBlockSaved(int msgId, ChatBlock block) {
+    final rows = _store.activeMsgs;
+    final i = rows.indexWhere((m) => m.id == msgId);
+    if (i < 0) return;
+    final blocks = ChatBlock.decodeList(rows[i].blocksJson);
+    final txId = block.body['tx_id']?.toString() ?? '';
+    final p = blocks.indexWhere((b) => b.kind == 'expense.receipt' && (b.body['tx_id']?.toString() ?? '') == txId);
+    if (p >= 0) {
+      blocks[p] = block;
+    } else {
+      blocks.add(block);
+    }
+    _store.msgUpdate(id: msgId, blocksJson: ChatBlock.encodeList(blocks));
+  }
+
   void _onSyncPush(SyncPush push) {
     if (push.hasChatMember()) {
       final m = push.chatMember;
@@ -244,8 +269,14 @@ class _PageAIHomeState extends State<PageAIHome> {
     }
   }
 
+  void _composerReset() {
+    _composerCtrl.clear();
+    _composerFocus.unfocus();
+  }
+
   void _newChat() {
     _store.chatNew();
+    _composerReset();
     _canvasStore.close();
     _timeline.scrollToBottom(force: true);
     if (MediaQuery.sizeOf(context).width < 720) _scaffoldKey.currentState?.closeDrawer();
@@ -263,12 +294,11 @@ class _PageAIHomeState extends State<PageAIHome> {
 
   Future<void> _selectChat(int id) async {
     _store.chatSelect(id);
+    _composerReset();
     _canvasStore.close();
     try {
       final res = await _conn.chatMsgList(chatId: Int64(id));
-      for (final m in res.messages) {
-        _store.msgPutFromServer(m);
-      }
+      _store.msgsReloadFromServer(id, res.messages);
     } catch (_) {}
     _timeline.scrollToBottom(force: true);
     if (!mounted) return;
@@ -453,15 +483,23 @@ class _PageAIHomeState extends State<PageAIHome> {
   }
 
   Future<void> _hintPick(HintItem hint) async {
-    final assetIid = hintTouchAssetIid(hint);
-    if (assetIid != null) {
-      unawaited(_store.hintTouch(_conn, assetIid: assetIid, assetKind: hintTouchAssetKind(hint)));
+    if (_store.promptBusy || _hintRunning) return;
+    _hintRunning = true;
+    try {
+      final assetIid = hintTouchAssetIid(hint);
+      if (assetIid != null) {
+        unawaited(_store.hintTouch(_conn, assetIid: assetIid, assetKind: hintTouchAssetKind(hint)));
+      }
+      await hintActionRunFromProto(
+        item: hint,
+        onSend: _composerSend,
+        onNavigate: _hintNavigate,
+        context: context,
+      );
+      if (mounted) _composerReset();
+    } finally {
+      _hintRunning = false;
     }
-    await hintActionRunFromProto(
-      item: hint,
-      onSend: _composerSend,
-      onNavigate: _hintNavigate,
-    );
   }
 
   Future<void> _hintNavigate(String route, Map<String, dynamic> payload) async {
@@ -491,7 +529,9 @@ class _PageAIHomeState extends State<PageAIHome> {
 
     final now = DateTime.now().millisecondsSinceEpoch;
     final reqId = const Uuid().v4();
-    if (retry) {
+    final replaceFailedTurn = !retry && _store.msgCanReplaceFailedTurn(chatId);
+    if (replaceFailedTurn) _store.msgReplaceFailedTurnPrep(chatId);
+    if (retry || replaceFailedTurn) {
       _store.msgUserTurnRetry(
         chatId: chatId,
         content: trimmed,
@@ -681,10 +721,16 @@ class _PageAIHomeState extends State<PageAIHome> {
   }
 
   Widget _accountAvatar() => Builder(
-        builder: (ctx) => UiAccountBtn(
-          tooltip: 'Account',
-          onTap: () => _avatarMenu(ctx),
-          child: UiUserAvatar(name: Session.instance.name, email: Session.instance.email, handle: Session.instance.handle, pic: Session.instance.pic, size: 28),
+        builder: (ctx) => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            UiConnWifi(conn: _conn),
+            UiAccountBtn(
+              tooltip: 'Account',
+              onTap: () => _avatarMenu(ctx),
+              child: UiUserAvatar(name: Session.instance.name, email: Session.instance.email, handle: Session.instance.handle, pic: Session.instance.pic, size: 28),
+            ),
+          ],
         ),
       );
 
@@ -753,12 +799,14 @@ class _PageAIHomeState extends State<PageAIHome> {
             if (!wide) ...[
               uiIconButton(
                 tooltip: 'Chats',
-                icon: const Icon(Icons.menu_rounded, color: _muted),
+                color: _muted,
+                icon: const Icon(Icons.menu_rounded),
                 onPressed: () => _scaffoldKey.currentState?.openDrawer(),
               ),
               uiIconButton(
                 tooltip: 'New chat',
-                icon: const Icon(Icons.add_rounded, color: _text),
+                color: _muted,
+                icon: const Icon(Icons.add_rounded),
                 onPressed: _newChat,
               ),
             ],
@@ -843,6 +891,7 @@ class _PageAIHomeState extends State<PageAIHome> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: InComposer(
+              key: ValueKey(_store.activeChatId ?? 'new'),
               controller: _composerCtrl,
               focusNode: _composerFocus,
               model: _model,
@@ -910,6 +959,7 @@ class _PageAIHomeState extends State<PageAIHome> {
             UiMsgError(
               message: msgPromptErrorMessage(err),
               detail: sessionViewerIsRoot() ? err : null,
+              messageId: m.reqId,
               onRetry: showRetry ? _retryLastTurn : null,
               retrying: _retrying,
             )
@@ -937,14 +987,18 @@ class _PageAIHomeState extends State<PageAIHome> {
                 code: const TextStyle(color: _text, fontSize: 13, fontFamily: 'Consolas', backgroundColor: Color(0xFF1A1A1D)),
               ),
             ),
-          if (blocks.isNotEmpty)
+          if (!hasError && blocks.isNotEmpty)
             UiMsgBlocks(
               msgId: m.id,
               blocks: blocks,
               consumptionApi: _consumptionApi,
+              expenseApi: _expenseApi,
               locale: locale,
               primary: content.trim().isEmpty && !hasError,
               onConsumptionSaved: _onConsumptionBlockSaved,
+              onExpenseSaved: _onExpenseBlockSaved,
+              onBlockCollapsedChanged: (msgId, blockIndex, collapsed) =>
+                  _store.msgBlockCollapsedPut(msgId: msgId, blockIndex: blockIndex, collapsed: collapsed),
             ),
           if (!hasError)
             Builder(builder: (_) {
@@ -1060,6 +1114,7 @@ class _PageAIHomeState extends State<PageAIHome> {
             onSelectionChanged: (c) => _selectedPlain = c?.plainText,
             contextMenuBuilder: _threadContextMenu,
             child: UiChatTimeline(
+              key: ValueKey(_store.activeChatId ?? 'hero'),
               controller: _timeline,
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               itemCount: msgs.length,
@@ -1068,9 +1123,13 @@ class _PageAIHomeState extends State<PageAIHome> {
                 builder: (_, __) {
                   final rows = _store.activeMsgs;
                   if (i >= rows.length) return const SizedBox.shrink();
+                  final m = rows[i];
                   return Listener(
                     onPointerDown: (_) => _menuMsgIndex = i,
-                    child: _msgTile(rows[i], i: i, count: rows.length),
+                    child: KeyedSubtree(
+                      key: ValueKey('${m.chatId}:${m.id}:${m.reqId}:${m.role}'),
+                      child: _msgTile(m, i: i, count: rows.length),
+                    ),
                   );
                 },
               ),

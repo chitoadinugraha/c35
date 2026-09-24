@@ -33,6 +33,10 @@ class ConsumptionApi {
                       fiber: e.fiber,
                       sugar: e.sugar,
                       sodium: e.sodium,
+                      potassium: e.potassium,
+                      iron: e.iron,
+                      cholesterol: e.cholesterol,
+                      purines: e.purines,
                     ),
                   ),
                 )

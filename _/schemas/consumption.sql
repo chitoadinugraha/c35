@@ -91,6 +91,9 @@ CREATE TABLE IF NOT EXISTS ai.consumption_item (
 );
 
 ALTER TABLE ai.consumption_item ADD COLUMN IF NOT EXISTS obj_id BIGINT NOT NULL DEFAULT 0;
+-- cholesterol, purines: mg per serving
+ALTER TABLE ai.consumption_item ADD COLUMN IF NOT EXISTS cholesterol INT NOT NULL DEFAULT 0;
+ALTER TABLE ai.consumption_item ADD COLUMN IF NOT EXISTS purines INT NOT NULL DEFAULT 0;
 
 CREATE INDEX IF NOT EXISTS idx_consumption_item_owner
     ON ai.consumption_item (owner_iid, consumption_id);
