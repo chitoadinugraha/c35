@@ -324,6 +324,13 @@ async fn dispatch(
             },
             Err(e) => err_res(req_id, WireErr::client("chat_patch_failed", e.to_string())),
         },
+        Some(ws_req::Body::ChatHistoryClear(r)) => match c35_mod_chat::chat_history_clear(&state.pool, ctx.caller_iid, r).await {
+            Ok(body) => WsRes {
+                req_id,
+                body: Some(ws_res::Body::ChatHistoryClear(body)),
+            },
+            Err(e) => err_res(req_id, WireErr::client("chat_history_clear_failed", e.to_string())),
+        },
         Some(ws_req::Body::AssetTagList(r)) => match c35_mod_chat::asset_tag_list(&state.pool, ctx.caller_iid, r).await {
             Ok(body) => WsRes {
                 req_id,

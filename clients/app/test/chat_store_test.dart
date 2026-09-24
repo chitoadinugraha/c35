@@ -136,6 +136,23 @@ void main() {
     expect(store.msgs.where((m) => m.chatId == 2).length, 1);
   });
 
+  test('chatHistoryClearAll clears all messages and previews', () {
+    final store = ChatStore();
+    store.chats = [
+      ChatRow(id: 1, title: 'A', lastMsgPreview: 'hi', lastMsgAt: 100),
+      ChatRow(id: 2, title: 'B', lastMsgPreview: 'bye', lastMsgAt: 200),
+    ];
+    store.msgs = [
+      MsgRow(id: 10, chatId: 1, role: 'user', content: 'msg 1'),
+      MsgRow(id: 20, chatId: 2, role: 'user', content: 'msg 2'),
+    ];
+
+    store.chatHistoryClearAll();
+
+    expect(store.msgs, isEmpty);
+    expect(store.chats.every((c) => c.lastMsgPreview.isEmpty && c.lastMsgAt == 0), isTrue);
+  });
+
   test('msgStreamFail stores error without changing content', () {
     final store = ChatStore();
     store.msgs = [MsgRow(id: 11, chatId: 1, role: 'assistant', content: 'Sekarang hari Senin.')];

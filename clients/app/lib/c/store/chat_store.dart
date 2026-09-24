@@ -1181,6 +1181,24 @@ class ChatStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  void chatHistoryClearAll() {
+    msgs.clear();
+    _promptClear();
+    for (final c in chats) {
+      c.lastMsgPreview = '';
+      c.lastMsgAt = 0;
+      c.lastMsgStatus = 'done';
+      unawaited(_prefs?.remove(_chatMsgsKey(c.id)));
+    }
+    _touch();
+    notifyListeners();
+  }
+
+  Future<void> chatHistoryClearRemote(ChatConn conn) async {
+    await conn.chatHistoryClear();
+    chatHistoryClearAll();
+  }
+
   void msgUserTurnRetry({
     required int chatId,
     required String content,

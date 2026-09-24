@@ -229,6 +229,16 @@ message ResChatPatch {
   ChatMember member = 2;
 }
 
+// Home prompt: clear all chat messages for caller (dry_run returns counts only)
+message ReqChatHistoryClear {
+  bool dry_run = 1;
+}
+
+message ResChatHistoryClear {
+  int32 msgs_deleted = 1;
+  int32 chats_affected = 2;
+}
+
 message AssetTagHint {
   string tag = 1;
   int32 count = 2;

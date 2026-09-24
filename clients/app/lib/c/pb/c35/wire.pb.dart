@@ -2326,6 +2326,7 @@ enum WsReq_Body {
   txDebtPay,
   siteQueryRun,
   expensePut,
+  chatHistoryClear,
   notSet
 }
 
@@ -2407,6 +2408,7 @@ class WsReq extends $pb.GeneratedMessage {
     $11.ReqTxDebtPay? txDebtPay,
     $16.ReqSiteQueryRun? siteQueryRun,
     $11.ReqExpensePut? expensePut,
+    $14.ReqChatHistoryClear? chatHistoryClear,
   }) {
     final result = WsReq._();
     if (reqId != null) result.reqId = reqId;
@@ -2493,6 +2495,7 @@ class WsReq extends $pb.GeneratedMessage {
     if (txDebtPay != null) result.txDebtPay = txDebtPay;
     if (siteQueryRun != null) result.siteQueryRun = siteQueryRun;
     if (expensePut != null) result.expensePut = expensePut;
+    if (chatHistoryClear != null) result.chatHistoryClear = chatHistoryClear;
     return result;
   }
 
@@ -2580,6 +2583,7 @@ class WsReq extends $pb.GeneratedMessage {
     82: WsReq_Body.txDebtPay,
     83: WsReq_Body.siteQueryRun,
     84: WsReq_Body.expensePut,
+    85: WsReq_Body.chatHistoryClear,
     0: WsReq_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -2660,7 +2664,8 @@ class WsReq extends $pb.GeneratedMessage {
       81,
       82,
       83,
-      84
+      84,
+      85
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$12.ReqSessionInit>(2, _omitFieldNames ? '' : 'sessionInit',
@@ -2826,6 +2831,9 @@ class WsReq extends $pb.GeneratedMessage {
         subBuilder: $16.ReqSiteQueryRun.$_createMessage)
     ..aOM<$11.ReqExpensePut>(84, _omitFieldNames ? '' : 'expensePut',
         subBuilder: $11.ReqExpensePut.$_createMessage)
+    ..aOM<$14.ReqChatHistoryClear>(
+        85, _omitFieldNames ? '' : 'chatHistoryClear',
+        subBuilder: $14.ReqChatHistoryClear.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -2922,6 +2930,7 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(82)
   @$pb.TagNumber(83)
   @$pb.TagNumber(84)
+  @$pb.TagNumber(85)
   WsReq_Body whichBody() => _WsReq_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(3)
@@ -2997,6 +3006,7 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(82)
   @$pb.TagNumber(83)
   @$pb.TagNumber(84)
+  @$pb.TagNumber(85)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -3835,6 +3845,17 @@ class WsReq extends $pb.GeneratedMessage {
   void clearExpensePut() => $_clearField(84);
   @$pb.TagNumber(84)
   $11.ReqExpensePut ensureExpensePut() => $_ensure(74);
+
+  @$pb.TagNumber(85)
+  $14.ReqChatHistoryClear get chatHistoryClear => $_getN(75);
+  @$pb.TagNumber(85)
+  set chatHistoryClear($14.ReqChatHistoryClear value) => $_setField(85, value);
+  @$pb.TagNumber(85)
+  $core.bool hasChatHistoryClear() => $_has(75);
+  @$pb.TagNumber(85)
+  void clearChatHistoryClear() => $_clearField(85);
+  @$pb.TagNumber(85)
+  $14.ReqChatHistoryClear ensureChatHistoryClear() => $_ensure(75);
 }
 
 enum WsRes_Body {
@@ -3921,6 +3942,7 @@ enum WsRes_Body {
   txDebtPay,
   siteQueryRun,
   expensePut,
+  chatHistoryClear,
   notSet
 }
 
@@ -4011,6 +4033,7 @@ class WsRes extends $pb.GeneratedMessage {
     $11.ResTxDebtPay? txDebtPay,
     $16.ResSiteQueryRun? siteQueryRun,
     $11.ResExpensePut? expensePut,
+    $14.ResChatHistoryClear? chatHistoryClear,
   }) {
     final result = WsRes._();
     if (reqId != null) result.reqId = reqId;
@@ -4106,6 +4129,7 @@ class WsRes extends $pb.GeneratedMessage {
     if (txDebtPay != null) result.txDebtPay = txDebtPay;
     if (siteQueryRun != null) result.siteQueryRun = siteQueryRun;
     if (expensePut != null) result.expensePut = expensePut;
+    if (chatHistoryClear != null) result.chatHistoryClear = chatHistoryClear;
     return result;
   }
 
@@ -4202,6 +4226,7 @@ class WsRes extends $pb.GeneratedMessage {
     130: WsRes_Body.txDebtPay,
     131: WsRes_Body.siteQueryRun,
     132: WsRes_Body.expensePut,
+    133: WsRes_Body.chatHistoryClear,
     0: WsRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -4291,7 +4316,8 @@ class WsRes extends $pb.GeneratedMessage {
       129,
       130,
       131,
-      132
+      132,
+      133
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$23.Err>(2, _omitFieldNames ? '' : 'err',
@@ -4475,6 +4501,9 @@ class WsRes extends $pb.GeneratedMessage {
         subBuilder: $16.ResSiteQueryRun.$_createMessage)
     ..aOM<$11.ResExpensePut>(132, _omitFieldNames ? '' : 'expensePut',
         subBuilder: $11.ResExpensePut.$_createMessage)
+    ..aOM<$14.ResChatHistoryClear>(
+        133, _omitFieldNames ? '' : 'chatHistoryClear',
+        subBuilder: $14.ResChatHistoryClear.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -4580,6 +4609,7 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(130)
   @$pb.TagNumber(131)
   @$pb.TagNumber(132)
+  @$pb.TagNumber(133)
   WsRes_Body whichBody() => _WsRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(10)
@@ -4664,6 +4694,7 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(130)
   @$pb.TagNumber(131)
   @$pb.TagNumber(132)
+  @$pb.TagNumber(133)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -5599,6 +5630,17 @@ class WsRes extends $pb.GeneratedMessage {
   void clearExpensePut() => $_clearField(132);
   @$pb.TagNumber(132)
   $11.ResExpensePut ensureExpensePut() => $_ensure(83);
+
+  @$pb.TagNumber(133)
+  $14.ResChatHistoryClear get chatHistoryClear => $_getN(84);
+  @$pb.TagNumber(133)
+  set chatHistoryClear($14.ResChatHistoryClear value) => $_setField(133, value);
+  @$pb.TagNumber(133)
+  $core.bool hasChatHistoryClear() => $_has(84);
+  @$pb.TagNumber(133)
+  void clearChatHistoryClear() => $_clearField(133);
+  @$pb.TagNumber(133)
+  $14.ResChatHistoryClear ensureChatHistoryClear() => $_ensure(84);
 }
 
 const $core.bool _omitFieldNames =

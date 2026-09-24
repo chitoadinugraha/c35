@@ -2401,6 +2401,135 @@ class ResChatPatch extends $pb.GeneratedMessage {
   ChatMember ensureMember() => $_ensure(1);
 }
 
+/// Home prompt: clear all chat messages for caller (dry_run returns counts only)
+class ReqChatHistoryClear extends $pb.GeneratedMessage {
+  factory ReqChatHistoryClear({
+    $core.bool? dryRun,
+  }) {
+    final result = ReqChatHistoryClear._();
+    if (dryRun != null) result.dryRun = dryRun;
+    return result;
+  }
+
+  ReqChatHistoryClear._();
+
+  factory ReqChatHistoryClear.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqChatHistoryClear()..mergeFromBuffer(data, registry);
+  factory ReqChatHistoryClear.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqChatHistoryClear()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqChatHistoryClear',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqChatHistoryClear.$_createMessage)
+    ..aOB(1, _omitFieldNames ? '' : 'dryRun')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqChatHistoryClear clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqChatHistoryClear copyWith(void Function(ReqChatHistoryClear) updates) =>
+      super.copyWith((message) => updates(message as ReqChatHistoryClear))
+          as ReqChatHistoryClear;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core
+      .Deprecated('Use ReqChatHistoryClear() / ReqChatHistoryClear.new instead')
+  static ReqChatHistoryClear create() => ReqChatHistoryClear._();
+  static $pb.GeneratedMessage $_createMessage() => ReqChatHistoryClear._();
+  @$core.override
+  ReqChatHistoryClear createEmptyInstance() => ReqChatHistoryClear._();
+  @$core.pragma('dart2js:noInline')
+  static ReqChatHistoryClear getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqChatHistoryClear>(
+          ReqChatHistoryClear.$_createMessage);
+  static ReqChatHistoryClear? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get dryRun => $_getBF(0);
+  @$pb.TagNumber(1)
+  set dryRun($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasDryRun() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearDryRun() => $_clearField(1);
+}
+
+class ResChatHistoryClear extends $pb.GeneratedMessage {
+  factory ResChatHistoryClear({
+    $core.int? msgsDeleted,
+    $core.int? chatsAffected,
+  }) {
+    final result = ResChatHistoryClear._();
+    if (msgsDeleted != null) result.msgsDeleted = msgsDeleted;
+    if (chatsAffected != null) result.chatsAffected = chatsAffected;
+    return result;
+  }
+
+  ResChatHistoryClear._();
+
+  factory ResChatHistoryClear.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResChatHistoryClear()..mergeFromBuffer(data, registry);
+  factory ResChatHistoryClear.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResChatHistoryClear()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResChatHistoryClear',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResChatHistoryClear.$_createMessage)
+    ..aI(1, _omitFieldNames ? '' : 'msgsDeleted')
+    ..aI(2, _omitFieldNames ? '' : 'chatsAffected')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResChatHistoryClear clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResChatHistoryClear copyWith(void Function(ResChatHistoryClear) updates) =>
+      super.copyWith((message) => updates(message as ResChatHistoryClear))
+          as ResChatHistoryClear;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core
+      .Deprecated('Use ResChatHistoryClear() / ResChatHistoryClear.new instead')
+  static ResChatHistoryClear create() => ResChatHistoryClear._();
+  static $pb.GeneratedMessage $_createMessage() => ResChatHistoryClear._();
+  @$core.override
+  ResChatHistoryClear createEmptyInstance() => ResChatHistoryClear._();
+  @$core.pragma('dart2js:noInline')
+  static ResChatHistoryClear getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResChatHistoryClear>(
+          ResChatHistoryClear.$_createMessage);
+  static ResChatHistoryClear? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.int get msgsDeleted => $_getIZ(0);
+  @$pb.TagNumber(1)
+  set msgsDeleted($core.int value) => $_setSignedInt32(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasMsgsDeleted() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearMsgsDeleted() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.int get chatsAffected => $_getIZ(1);
+  @$pb.TagNumber(2)
+  set chatsAffected($core.int value) => $_setSignedInt32(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasChatsAffected() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearChatsAffected() => $_clearField(2);
+}
+
 class AssetTagHint extends $pb.GeneratedMessage {
   factory AssetTagHint({
     $core.String? tag,

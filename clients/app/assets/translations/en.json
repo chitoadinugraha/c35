@@ -74,7 +74,22 @@
     "revokeOthers": "Revoke others",
     "revokeOthersTitle": "Revoke other sessions?",
     "revokeOthersBody": "Sign out every other device and keep only this one active.",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "clearChatHistory": "Clear chat history",
+    "clearChatHistorySubtitle": "Delete all messages across every chat",
+    "clearChatHistoryTitle": "Clear chat history?",
+    "clearChatHistoryWarning": "All messages in your AI chats will be permanently deleted. This cannot be undone.",
+    "clearChatHistoryEmpty": "You have no chat messages to delete.",
+    "clearChatHistoryMsgOne": "1 message",
+    "clearChatHistoryMsgMany": "{} messages",
+    "clearChatHistoryChatOne": "1 chat",
+    "clearChatHistoryChatMany": "{} chats",
+    "clearChatHistoryCount": "{} across {} will be permanently deleted.",
+    "clearChatHistorySlide": "Slide to confirm",
+    "clearChatHistorySlideDone": "Confirmed",
+    "clearChatHistoryCountdown": "Clearing in…",
+    "clearChatHistoryConfirm": "Clear chat history",
+    "clearChatHistoryDone": "Chat history cleared"
   },
   "sessionLock": {
     "title": "This device is locked",

@@ -225,6 +225,7 @@ message WsReq {
     ReqTxDebtPay tx_debt_pay = 82;
     ReqSiteQueryRun site_query_run = 83;
     ReqExpensePut expense_put = 84;
+    ReqChatHistoryClear chat_history_clear = 85;
   }
 }
 
@@ -330,5 +331,6 @@ message WsRes {
     ResTxDebtPay tx_debt_pay = 130;
     ResSiteQueryRun site_query_run = 131;
     ResExpensePut expense_put = 132;
+    ResChatHistoryClear chat_history_clear = 133;
   }
 }

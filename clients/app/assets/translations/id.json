@@ -74,7 +74,22 @@
     "revokeOthers": "Cabut lainnya",
     "revokeOthersTitle": "Cabut sesi lain?",
     "revokeOthersBody": "Keluar dari semua perangkat lain dan biarkan hanya perangkat ini yang aktif.",
-    "signOut": "Keluar"
+    "signOut": "Keluar",
+    "clearChatHistory": "Hapus riwayat chat",
+    "clearChatHistorySubtitle": "Hapus semua pesan di setiap chat",
+    "clearChatHistoryTitle": "Hapus riwayat chat?",
+    "clearChatHistoryWarning": "Semua pesan di chat AI Anda akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.",
+    "clearChatHistoryEmpty": "Tidak ada pesan chat untuk dihapus.",
+    "clearChatHistoryMsgOne": "1 pesan",
+    "clearChatHistoryMsgMany": "{} pesan",
+    "clearChatHistoryChatOne": "1 chat",
+    "clearChatHistoryChatMany": "{} chat",
+    "clearChatHistoryCount": "{} di {} akan dihapus permanen.",
+    "clearChatHistorySlide": "Geser untuk konfirmasi",
+    "clearChatHistorySlideDone": "Terkonfirmasi",
+    "clearChatHistoryCountdown": "Menghapus dalam…",
+    "clearChatHistoryConfirm": "Hapus riwayat chat",
+    "clearChatHistoryDone": "Riwayat chat dihapus"
   },
   "sessionLock": {
     "title": "Perangkat ini terkunci",

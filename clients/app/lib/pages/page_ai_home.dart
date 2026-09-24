@@ -417,7 +417,7 @@ class _PageAIHomeState extends State<PageAIHome> {
   void _openSettings() => Navigator.push(
         context,
         MaterialPageRoute<void>(
-          builder: (_) => PageSettings(conn: SettingsConn(), chatConn: _conn, auth: widget.auth),
+          builder: (_) => PageSettings(conn: SettingsConn(), chatConn: _conn, chatStore: _store, auth: widget.auth),
         ),
       );
 

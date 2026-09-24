@@ -374,6 +374,11 @@ class ChatConn {
         (res) => res.chatMsgList,
       );
 
+  Future<ResChatHistoryClear> chatHistoryClear({bool dryRun = false}) => _rpc<ResChatHistoryClear>(
+        WsReq(chatHistoryClear: ReqChatHistoryClear(dryRun: dryRun)),
+        (res) => res.chatHistoryClear,
+      );
+
   Future<ResChatPatch> chatPatch({
     required Int64 chatId,
     bool? pinned,

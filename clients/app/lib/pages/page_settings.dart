@@ -16,6 +16,7 @@ import 'package:alienai_c35/c/settings/prompt_usage_prefs.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/settings/voice_prefs.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
+import 'package:alienai_c35/c/store/chat_store.dart';
 import 'package:alienai_c35/c/stt/stt_mic_permission.dart';
 import 'package:alienai_c35/c/stt/stt_service.dart';
 import 'package:alienai_c35/c/tts/speech_lang.dart';
@@ -34,6 +35,7 @@ import 'package:alienai_c35/widgets/io/in_referral_code.dart';
 import 'package:alienai_c35/widgets/settings/ui_account_live_conns.dart';
 import 'package:alienai_c35/widgets/settings/ui_settings_password.dart';
 import 'package:alienai_c35/widgets/settings/ui_settings_pin.dart';
+import 'package:alienai_c35/widgets/settings/io_chat_history_clear_dialog.dart';
 import 'package:alienai_c35/widgets/settings/ui_settings_tile.dart';
 import 'package:alienai_c35/widgets/settings/ui_settings_unlock_mode.dart';
 import 'package:alienai_c35/widgets/ui/ui_account_role_badges.dart';
@@ -48,10 +50,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class PageSettings extends StatefulWidget {
-  PageSettings({super.key, AppStore? store, this.conn, this.chatConn, this.thisPcRegister, this.thisPcUnregister, this.profile, this.account, this.auth}) : store = store ?? AppStore.instance;
+  PageSettings({super.key, AppStore? store, this.conn, this.chatConn, this.chatStore, this.thisPcRegister, this.thisPcUnregister, this.profile, this.account, this.auth}) : store = store ?? AppStore.instance;
   final AppStore store;
   final SettingsConn? conn;
   final ChatConn? chatConn;
+  final ChatStore? chatStore;
   final ThisPcRegister? thisPcRegister;
   final Future<void> Function()? thisPcUnregister;
   final ProfileApi? profile;
@@ -234,6 +237,18 @@ class _PageSettingsState extends State<PageSettings> {
     Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageSkills(conn: conn, ownerIid: Session.instance.uid)));
   }
 
+  Future<void> _clearChatHistory() async {
+    final conn = widget.chatConn;
+    final store = widget.chatStore;
+    if (conn == null || store == null) return;
+    final ok = await chatHistoryClearConfirmShow(context, conn: conn, store: store);
+    if (ok == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('settings.clearChatHistoryDone'.tr()), behavior: SnackBarBehavior.floating),
+      );
+    }
+  }
+
   bool get _financeRole => Session.instance.isRoot || Session.instance.globalRoles.contains('finance');
 
   bool get _receiveAccountRole => Session.instance.isRoot || Session.instance.globalRoles.any((r) => r == 'finance' || r == 'director');
@@ -380,6 +395,13 @@ class _PageSettingsState extends State<PageSettings> {
                               title: 'Skills',
                               subtitle: 'Installed skills for your personal assistant',
                               onTap: widget.chatConn == null ? null : _openSkills,
+                            ),
+                            uiSettingsDivider(),
+                            UiSettingsTile(
+                              icon: Icons.delete_sweep_outlined,
+                              title: 'settings.clearChatHistory'.tr(),
+                              subtitle: 'settings.clearChatHistorySubtitle'.tr(),
+                              onTap: widget.chatConn == null || widget.chatStore == null ? null : _clearChatHistory,
                             ),
                           ]),
                         ),

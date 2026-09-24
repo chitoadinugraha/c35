@@ -581,6 +581,33 @@ final $typed_data.Uint8List resChatPatchDescriptor = $convert.base64Decode(
     'CgxSZXNDaGF0UGF0Y2gSHQoEY2hhdBgBIAEoCzIJLmMzNS5DaGF0UgRjaGF0EicKBm1lbWJlch'
     'gCIAEoCzIPLmMzNS5DaGF0TWVtYmVyUgZtZW1iZXI=');
 
+@$core.Deprecated('Use reqChatHistoryClearDescriptor instead')
+const ReqChatHistoryClear$json = {
+  '1': 'ReqChatHistoryClear',
+  '2': [
+    {'1': 'dry_run', '3': 1, '4': 1, '5': 8, '10': 'dryRun'},
+  ],
+};
+
+/// Descriptor for `ReqChatHistoryClear`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqChatHistoryClearDescriptor =
+    $convert.base64Decode(
+        'ChNSZXFDaGF0SGlzdG9yeUNsZWFyEhcKB2RyeV9ydW4YASABKAhSBmRyeVJ1bg==');
+
+@$core.Deprecated('Use resChatHistoryClearDescriptor instead')
+const ResChatHistoryClear$json = {
+  '1': 'ResChatHistoryClear',
+  '2': [
+    {'1': 'msgs_deleted', '3': 1, '4': 1, '5': 5, '10': 'msgsDeleted'},
+    {'1': 'chats_affected', '3': 2, '4': 1, '5': 5, '10': 'chatsAffected'},
+  ],
+};
+
+/// Descriptor for `ResChatHistoryClear`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resChatHistoryClearDescriptor = $convert.base64Decode(
+    'ChNSZXNDaGF0SGlzdG9yeUNsZWFyEiEKDG1zZ3NfZGVsZXRlZBgBIAEoBVILbXNnc0RlbGV0ZW'
+    'QSJQoOY2hhdHNfYWZmZWN0ZWQYAiABKAVSDWNoYXRzQWZmZWN0ZWQ=');
+
 @$core.Deprecated('Use assetTagHintDescriptor instead')
 const AssetTagHint$json = {
   '1': 'AssetTagHint',

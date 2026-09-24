@@ -1705,6 +1705,15 @@ const WsReq$json = {
       '9': 0,
       '10': 'expensePut'
     },
+    {
+      '1': 'chat_history_clear',
+      '3': 85,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqChatHistoryClear',
+      '9': 0,
+      '10': 'chatHistoryClear'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -1797,7 +1806,8 @@ final $typed_data.Uint8List wsReqDescriptor = $convert.base64Decode(
     'Jldmlld0gAUgl0eFByZXZpZXcSMwoLdHhfZGVidF9wYXkYUiABKAsyES5jMzUuUmVxVHhEZWJ0'
     'UGF5SABSCXR4RGVidFBheRI8Cg5zaXRlX3F1ZXJ5X3J1bhhTIAEoCzIULmMzNS5SZXFTaXRlUX'
     'VlcnlSdW5IAFIMc2l0ZVF1ZXJ5UnVuEjUKC2V4cGVuc2VfcHV0GFQgASgLMhIuYzM1LlJlcUV4'
-    'cGVuc2VQdXRIAFIKZXhwZW5zZVB1dEIGCgRib2R5');
+    'cGVuc2VQdXRIAFIKZXhwZW5zZVB1dBJIChJjaGF0X2hpc3RvcnlfY2xlYXIYVSABKAsyGC5jMz'
+    'UuUmVxQ2hhdEhpc3RvcnlDbGVhckgAUhBjaGF0SGlzdG9yeUNsZWFyQgYKBGJvZHk=');
 
 @$core.Deprecated('Use wsResDescriptor instead')
 const WsRes$json = {
@@ -2543,6 +2553,15 @@ const WsRes$json = {
       '9': 0,
       '10': 'expensePut'
     },
+    {
+      '1': 'chat_history_clear',
+      '3': 133,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResChatHistoryClear',
+      '9': 0,
+      '10': 'chatHistoryClear'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -2644,4 +2663,5 @@ final $typed_data.Uint8List wsResDescriptor = $convert.base64Decode(
     'dHhfZGVidF9wYXkYggEgASgLMhEuYzM1LlJlc1R4RGVidFBheUgAUgl0eERlYnRQYXkSPQoOc2'
     'l0ZV9xdWVyeV9ydW4YgwEgASgLMhQuYzM1LlJlc1NpdGVRdWVyeVJ1bkgAUgxzaXRlUXVlcnlS'
     'dW4SNgoLZXhwZW5zZV9wdXQYhAEgASgLMhIuYzM1LlJlc0V4cGVuc2VQdXRIAFIKZXhwZW5zZV'
-    'B1dEIGCgRib2R5');
+    'B1dBJJChJjaGF0X2hpc3RvcnlfY2xlYXIYhQEgASgLMhguYzM1LlJlc0NoYXRIaXN0b3J5Q2xl'
+    'YXJIAFIQY2hhdEhpc3RvcnlDbGVhckIGCgRib2R5');
