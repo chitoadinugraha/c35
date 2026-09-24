@@ -91,7 +91,7 @@ class _UiBotConversationState extends State<UiBotConversation> {
               children: [
                 UiMsgCopyPrefix(text: copyPrefix),
                 if (thoughtView.thought != null) UiMsgThought(text: thoughtView.thought!, thinking: false),
-                if (m.reqId.isNotEmpty) UiMsgTraceLoader(conn: widget.store.conn, reqId: m.reqId),
+                if (m.reqId.isNotEmpty) UiMsgTraceLoader(conn: widget.store.conn, reqId: m.reqId, part: MsgTracePart.chips),
                 if (m.content.trim().isNotEmpty)
                   MarkdownBody(
                     data: m.content,
@@ -101,6 +101,7 @@ class _UiBotConversationState extends State<UiBotConversation> {
                       code: const TextStyle(color: _text, fontSize: 13, fontFamily: 'Consolas', backgroundColor: Color(0xFF1A1A1D)),
                     ),
                   ),
+                if (m.reqId.isNotEmpty) UiMsgTraceLoader(conn: widget.store.conn, reqId: m.reqId, part: MsgTracePart.citations),
                 if (blocks.isNotEmpty)
                   UiMsgBlocks(
                     msgId: m.id,

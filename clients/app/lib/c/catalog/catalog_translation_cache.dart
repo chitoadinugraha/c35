@@ -11,12 +11,14 @@ const _cacheJsonKey = 'c35.catalog.translation.json';
 
 /// English fallback bundled with the client (server `ai.translation` is authoritative per locale).
 const _enFallback = <String, String>{
-  'tool.web.search.calling': 'Searching web…',
-  'tool.web.search.done': 'Searched web',
-  'tool.web.visit.calling': 'Reading source…',
-  'tool.web.visit.done': 'Read source',
-  'tool.web.research.calling': 'Researching…',
-  'tool.web.research.done': 'Researched',
+  'tool.var.source': 'source',
+  'tool.var.query': 'web',
+  'tool.web.search.calling': 'Searching {{query}}…',
+  'tool.web.search.done': 'Searched {{query}}',
+  'tool.web.visit.calling': 'Reading {{source}}…',
+  'tool.web.visit.done': 'Read {{source}}',
+  'tool.web.research.calling': 'Researching {{query}}…',
+  'tool.web.research.done': 'Researched {{query}}',
   'tool.img.generate.calling': 'Generating image…',
   'tool.img.generate.done': 'Generated image',
   'tool.img.edit.calling': 'Editing image…',
@@ -54,6 +56,14 @@ const _enFallback = <String, String>{
 };
 
 const _idFallback = <String, String>{
+  'tool.var.source': 'sumber',
+  'tool.var.query': 'web',
+  'tool.web.search.calling': 'Mencari {{query}}…',
+  'tool.web.search.done': 'Telusuri {{query}}',
+  'tool.web.visit.calling': 'Membaca {{source}}…',
+  'tool.web.visit.done': 'Baca {{source}}',
+  'tool.web.research.calling': 'Meneliti {{query}}…',
+  'tool.web.research.done': 'Teliti {{query}}',
   'tool.consumption.add.calling': 'Mencatat makanan…',
   'tool.consumption.add.done': 'Makanan tercatat',
   'tool.consumption.today.calling': 'Mengecek makan hari ini…',

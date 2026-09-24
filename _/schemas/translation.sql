@@ -22,15 +22,18 @@ CREATE INDEX IF NOT EXISTS idx_translation_category
 
 -- Seed English ('en') catalog translations
 INSERT INTO ai.translation (lang, key, category, text) VALUES
+-- tool.var.* (template fallbacks)
+('en', 'tool.var.source', 'tool', 'source'),
+('en', 'tool.var.query', 'tool', 'web'),
 -- tool.web.search.*
-('en', 'tool.web.search.calling', 'tool', 'Searching web…'),
-('en', 'tool.web.search.done', 'tool', 'Searched web'),
+('en', 'tool.web.search.calling', 'tool', 'Searching {{query}}…'),
+('en', 'tool.web.search.done', 'tool', 'Searched {{query}}'),
 -- tool.web.visit.*
-('en', 'tool.web.visit.calling', 'tool', 'Reading source…'),
-('en', 'tool.web.visit.done', 'tool', 'Read source'),
+('en', 'tool.web.visit.calling', 'tool', 'Reading {{source}}…'),
+('en', 'tool.web.visit.done', 'tool', 'Read {{source}}'),
 -- tool.web.research.*
-('en', 'tool.web.research.calling', 'tool', 'Researching…'),
-('en', 'tool.web.research.done', 'tool', 'Researched'),
+('en', 'tool.web.research.calling', 'tool', 'Researching {{query}}…'),
+('en', 'tool.web.research.done', 'tool', 'Researched {{query}}'),
 -- tool.img.generate.*
 ('en', 'tool.img.generate.calling', 'tool', 'Generating image…'),
 ('en', 'tool.img.generate.done', 'tool', 'Generated image'),
@@ -81,12 +84,14 @@ INSERT INTO ai.translation (lang, key, category, text) VALUES
 ('en', 'hint.site.visit.label', 'hint', 'Visit'),
 ('en', 'hint.site.pos.label', 'hint', 'POS'),
 -- Seed Indonesian ('id') catalog translations
-('id', 'tool.web.search.calling', 'tool', 'Mencari di web…'),
-('id', 'tool.web.search.done', 'tool', 'Telusuri web'),
-('id', 'tool.web.visit.calling', 'tool', 'Membaca sumber…'),
-('id', 'tool.web.visit.done', 'tool', 'Baca sumber'),
-('id', 'tool.web.research.calling', 'tool', 'Meneliti…'),
-('id', 'tool.web.research.done', 'tool', 'Teliti'),
+('id', 'tool.var.source', 'tool', 'sumber'),
+('id', 'tool.var.query', 'tool', 'web'),
+('id', 'tool.web.search.calling', 'tool', 'Mencari {{query}}…'),
+('id', 'tool.web.search.done', 'tool', 'Telusuri {{query}}'),
+('id', 'tool.web.visit.calling', 'tool', 'Membaca {{source}}…'),
+('id', 'tool.web.visit.done', 'tool', 'Baca {{source}}'),
+('id', 'tool.web.research.calling', 'tool', 'Meneliti {{query}}…'),
+('id', 'tool.web.research.done', 'tool', 'Teliti {{query}}'),
 ('id', 'tool.img.generate.calling', 'tool', 'Membuat gambar…'),
 ('id', 'tool.img.generate.done', 'tool', 'Gambar dibuat'),
 ('id', 'tool.img.edit.calling', 'tool', 'Mengedit gambar…'),
@@ -125,3 +130,23 @@ INSERT INTO ai.translation (lang, key, category, text) VALUES
 ('id', 'hint.site.visit.label', 'hint', 'Kunjungi'),
 ('id', 'hint.site.pos.label', 'hint', 'POS')
 ON CONFLICT (lang, key) DO NOTHING;
+
+-- Web tool label templates (refresh on deploy)
+INSERT INTO ai.translation (lang, key, category, text) VALUES
+('en', 'tool.var.source', 'tool', 'source'),
+('en', 'tool.var.query', 'tool', 'web'),
+('en', 'tool.web.search.calling', 'tool', 'Searching {{query}}…'),
+('en', 'tool.web.search.done', 'tool', 'Searched {{query}}'),
+('en', 'tool.web.visit.calling', 'tool', 'Reading {{source}}…'),
+('en', 'tool.web.visit.done', 'tool', 'Read {{source}}'),
+('en', 'tool.web.research.calling', 'tool', 'Researching {{query}}…'),
+('en', 'tool.web.research.done', 'tool', 'Researched {{query}}'),
+('id', 'tool.var.source', 'tool', 'sumber'),
+('id', 'tool.var.query', 'tool', 'web'),
+('id', 'tool.web.search.calling', 'tool', 'Mencari {{query}}…'),
+('id', 'tool.web.search.done', 'tool', 'Telusuri {{query}}'),
+('id', 'tool.web.visit.calling', 'tool', 'Membaca {{source}}…'),
+('id', 'tool.web.visit.done', 'tool', 'Baca {{source}}'),
+('id', 'tool.web.research.calling', 'tool', 'Meneliti {{query}}…'),
+('id', 'tool.web.research.done', 'tool', 'Teliti {{query}}')
+ON CONFLICT (lang, key) DO UPDATE SET text = EXCLUDED.text, updated_ts = NOW();

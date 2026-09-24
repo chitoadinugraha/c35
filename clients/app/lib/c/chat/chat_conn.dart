@@ -97,8 +97,10 @@ class ChatConn {
   final _logPushCtrl = StreamController<LogPush>.broadcast();
   final _promptRunPushCtrl = StreamController<PromptRunPush>.broadcast();
   final _traceCache = <String, List<TraceLogDoc>>{};
+  final _traceCacheCtrl = StreamController<String>.broadcast();
 
   Stream<SyncPush> get onSyncPush => _syncPushCtrl.stream;
+  Stream<String> get onTraceCachePut => _traceCacheCtrl.stream;
   Stream<ChannelPairPush> get onChannelPairPush => _channelPairPushCtrl.stream;
   Stream<WsRes> get onRemoteSignal => _remoteSignalCtrl.stream;
   Stream<BillingPushBalance> get onBillingBalance => _billingBalanceCtrl.stream;
@@ -400,6 +402,7 @@ class ChatConn {
   void traceCachePut(String reqId, List<TraceLogDoc> logs) {
     if (reqId.isEmpty || logs.isEmpty) return;
     _traceCache[reqId] = logs;
+    if (!_traceCacheCtrl.isClosed) _traceCacheCtrl.add(reqId);
   }
 
   Future<void> tracePrefetch(String reqId) async {

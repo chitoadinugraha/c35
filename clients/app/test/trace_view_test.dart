@@ -103,7 +103,27 @@ void main() {
     ]);
     final chips = traceToolChipsFromView(view);
     expect(chips, hasLength(1));
-    expect(chips.first.label, 'Searching web');
+    expect(chips.first.label, 'Searched web');
     expect(chips.first.ok, isTrue);
+  });
+
+  test('traceToolLabelFromLog uses source host for web.visit', () {
+    final log = TraceLogDoc(
+      kind: 'tool',
+      topic: 'tool_result',
+      text: '{"ok":true,"url":"https://jadwalnonton.com/bioskop/di-malang/"}',
+      metaJson: jsonEncode({
+        'tool': 'web.visit',
+        'args': {'url': 'https://jadwalnonton.com/bioskop/di-malang/'},
+      }),
+    );
+    expect(traceToolLabelFromLog(log), 'Read jadwalnonton.com');
+  });
+
+  test('toolLabelFromTemplate substitutes source host', () {
+    expect(
+      toolLabelFromTemplate('Read {{source}}', {'source': 'jadwalnonton.com'}),
+      'Read jadwalnonton.com',
+    );
   });
 }

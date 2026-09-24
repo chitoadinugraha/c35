@@ -959,7 +959,7 @@ class _PageAIHomeState extends State<PageAIHome> {
               thinking: inThoughtPhase,
               startedAtMs: promptingThis ? _store.promptStartedAtMs : null,
             ),
-          if (m.reqId.isNotEmpty) UiMsgTraceLoader(conn: _conn, reqId: m.reqId, live: promptingThis),
+          if (m.reqId.isNotEmpty) UiMsgTraceLoader(conn: _conn, reqId: m.reqId, live: promptingThis, part: MsgTracePart.chips),
           _subagentRunCards(m),
           if (hasError)
             UiMsgError(
@@ -1006,6 +1006,8 @@ class _PageAIHomeState extends State<PageAIHome> {
               onBlockCollapsedChanged: (msgId, blockIndex, collapsed) =>
                   _store.msgBlockCollapsedPut(msgId: msgId, blockIndex: blockIndex, collapsed: collapsed),
             ),
+          if (!hasError && m.reqId.isNotEmpty)
+            UiMsgTraceLoader(conn: _conn, reqId: m.reqId, part: MsgTracePart.citations),
           if (!hasError)
             Builder(builder: (_) {
               final usageMsg = m.model.isNotEmpty || i != lastAssistantIdx

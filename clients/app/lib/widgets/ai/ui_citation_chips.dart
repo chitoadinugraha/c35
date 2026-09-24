@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class UiCitationChips extends StatelessWidget {
-  const UiCitationChips({super.key, required this.citations});
+  const UiCitationChips({super.key, required this.citations, this.marginTop = 6});
 
   final List<Citation> citations;
+  final double marginTop;
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +22,7 @@ class UiCitationChips extends StatelessWidget {
     if (uniqueCitations.isEmpty) return const SizedBox.shrink();
 
     return Padding(
-      padding: const EdgeInsets.only(top: 6, bottom: 2),
+      padding: EdgeInsets.only(top: marginTop, bottom: 2),
       child: Wrap(
         spacing: 6,
         runSpacing: 4,

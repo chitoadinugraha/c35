@@ -122,20 +122,87 @@ String traceModelLabel(String model) {
   return model.trim();
 }
 
+Map<String, dynamic>? traceToolJsonFromLog(TraceLogDoc log) {
+  final preview = _asStr(log.meta['output_preview']);
+  final text = log.text.trim();
+  final jsonStr = preview.isNotEmpty ? preview : text;
+  if (jsonStr.isEmpty) return null;
+  try {
+    final raw = jsonDecode(jsonStr);
+    if (raw is Map) return raw.map((k, v) => MapEntry('$k', v));
+  } catch (_) {
+    if (jsonStr.endsWith('…')) {
+      try {
+        final raw = jsonDecode(jsonStr.substring(0, jsonStr.length - 1));
+        if (raw is Map) return raw.map((k, v) => MapEntry('$k', v));
+      } catch (_) {}
+    }
+  }
+  return null;
+}
+
+Map<String, String> traceToolVarsFromLog(TraceLogDoc log) {
+  final vars = <String, String>{'source': '', 'query': '', 'url': ''};
+  final args = log.meta['args'];
+  if (args is Map) {
+    final url = _asStr(args['url']);
+    vars['url'] = url;
+    vars['source'] = citationHost(url);
+    vars['query'] = _asStr(args['query']).isNotEmpty ? _asStr(args['query']) : _asStr(args['q']);
+  }
+  final raw = traceToolJsonFromLog(log);
+  if (raw != null) {
+    final url = _asStr(raw['url']);
+    if (url.isNotEmpty) {
+      vars['url'] = url;
+      vars['source'] = citationHost(url);
+    }
+    final query = _asStr(raw['query']);
+    if (query.isNotEmpty) vars['query'] = query;
+    if (raw['results'] is List && (vars['query']?.isEmpty ?? true)) {
+      for (final item in raw['results'] as List) {
+        if (item is! Map) continue;
+        final title = _asStr(item['title']);
+        if (title.isNotEmpty) {
+          vars['query'] = title;
+          break;
+        }
+      }
+    }
+  }
+  return vars;
+}
+
+String toolLabelFromTemplate(String template, Map<String, String> vars) {
+  var out = template.trim();
+  if (out.isEmpty) return '';
+  final source = (vars['source'] ?? '').trim().isNotEmpty ? vars['source']!.trim() : catalogT('tool.var.source');
+  final query = (vars['query'] ?? '').trim().isNotEmpty ? vars['query']!.trim() : catalogT('tool.var.query');
+  final url = (vars['url'] ?? '').trim();
+  out = out.replaceAll('{{source}}', source).replaceAll('{{query}}', query).replaceAll('{{url}}', url);
+  return out.replaceAll('…', '').trim();
+}
+
+String traceToolLabelFromLog(TraceLogDoc log, {bool done = true}) {
+  final tool = _asStr(log.meta['tool']).replaceAll('_', '.').trim();
+  if (tool.isEmpty) return 'Tool';
+  final key = 'tool.$tool.${done ? 'done' : 'calling'}';
+  final template = catalogT(key);
+  if (template == key) return tool;
+  return toolLabelFromTemplate(template, traceToolVarsFromLog(log));
+}
+
 String traceToolLabel(String toolId) {
   final id = toolId.replaceAll('_', '.').trim();
   if (id.isEmpty) return 'Tool';
-  final key = 'tool.$id.calling';
-  final translated = catalogT(key).replaceAll('…', '').trim();
-  if (translated.isNotEmpty && translated != key) return translated;
-  return id;
+  return toolLabelFromTemplate(catalogT('tool.$id.done'), const {});
 }
 
 TraceBranch _branchFromLog(TraceLogDoc log) {
   final meta = log.meta;
   final tool = _asStr(meta['tool']);
   final branch = _asStr(meta['branch']);
-  final label = tool.isNotEmpty ? traceToolLabel(tool) : branch.isNotEmpty ? branch : log.text.split('\n').first;
+  final label = tool.isNotEmpty ? traceToolLabelFromLog(log) : branch.isNotEmpty ? branch : log.text.split('\n').first;
   return TraceBranch(
     label: label,
     durationMs: log.durationMs > 0 ? log.durationMs : _asInt(meta['duration_ms']),
@@ -325,24 +392,9 @@ List<Citation> citationsFromTraceLogs(List<TraceLogDoc> logs) {
       continue;
     }
 
-    dynamic rawJson;
-    final preview = (log.meta['output_preview'] ?? '').toString().trim();
-    final text = log.text.trim();
-    final jsonStr = preview.isNotEmpty ? preview : text;
-    if (jsonStr.isNotEmpty) {
-      try {
-        rawJson = jsonDecode(jsonStr);
-      } catch (_) {
-        if (jsonStr.endsWith('…')) {
-          final trimmed = jsonStr.substring(0, jsonStr.length - 1);
-          try {
-            rawJson = jsonDecode(trimmed);
-          } catch (_) {}
-        }
-      }
-    }
+    final rawJson = traceToolJsonFromLog(log);
 
-    if (rawJson is Map) {
+    if (rawJson != null) {
       if (rawJson['results'] is List) {
         for (final item in rawJson['results'] as List) {
           if (item is Map) {
