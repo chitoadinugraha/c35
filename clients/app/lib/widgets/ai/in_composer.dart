@@ -105,6 +105,8 @@ class _InComposerState extends State<InComposer> {
   Timer? _mentionSearchDebounce;
   List<CatalogMention> _mentionSearchResults = const [];
   var _mentionSearching = false;
+  var _wasStacked = false;
+  double _inputAreaWidth = 0;
 
   static const _slashCommands = [
     SlashCommand(
@@ -207,10 +209,15 @@ class _InComposerState extends State<InComposer> {
     _focus.requestFocus();
   }
 
+  void _onFocusChange() {
+    if (!mounted) return;
+    setState(() => _focused = _focus.hasFocus);
+  }
+
   @override
   void initState() {
     super.initState();
-    _focus.addListener(() => setState(() => _focused = _focus.hasFocus));
+    _focus.addListener(_onFocusChange);
     _focus.onKeyEvent = _onKeyEvent;
   }
 
@@ -219,6 +226,8 @@ class _InComposerState extends State<InComposer> {
     _mentionSearchDebounce?.cancel();
     SttService.instance.onAutoStop = null;
     if (_recording || SttService.instance.isRecording.value) unawaited(SttService.instance.cancel());
+    _focus.removeListener(_onFocusChange);
+    if (_internalFocus != null) _focus.onKeyEvent = null;
     _internalController?.dispose();
     _internalFocus?.dispose();
     super.dispose();
@@ -319,7 +328,7 @@ class _InComposerState extends State<InComposer> {
       }
     }
 
-    if (event.logicalKey == LogicalKeyboardKey.arrowUp && widget.promptHistory.isNotEmpty) {
+    if (event.logicalKey == LogicalKeyboardKey.arrowUp && widget.promptHistory.isNotEmpty && _attachments.isEmpty) {
       final sel = _controller.selection;
       if (!sel.isValid || sel.baseOffset == 0 || _controller.text.isEmpty) {
         if (_historyIndex == -1) _draftText = _controller.text;
@@ -382,7 +391,11 @@ class _InComposerState extends State<InComposer> {
 
   void _stageItems(List<StagedMedia> items) {
     if (!mounted || items.isEmpty) return;
-    setState(() => _attachments.addAll(items));
+    setState(() {
+      _historyIndex = -1;
+      _draftText = '';
+      _attachments.addAll(items);
+    });
     for (final item in items) {
       unawaited(_uploadItem(item));
     }
@@ -783,6 +796,15 @@ class _InComposerState extends State<InComposer> {
     return painter.computeLineMetrics().length > 1;
   }
 
+  void _restoreComposerFocus([TextSelection? selection]) {
+    final sel = selection ?? _controller.selection;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_focus.canRequestFocus) return;
+      _focus.requestFocus();
+      if (sel.isValid) _controller.selection = sel;
+    });
+  }
+
   VoidCallback? _modelTap() => widget.enabled
       ? () async {
           final next = await agentModelPick(context, widget.model, widget.models, modelsLoading: widget.modelsLoading);
@@ -841,13 +863,13 @@ class _InComposerState extends State<InComposer> {
         cursorColor: zinc100,
         onChanged: (_) {
           final hadFocus = _focus.hasFocus;
+          final sel = _controller.selection;
+          final prevStacked = _wasStacked;
           _scheduleMentionSearch(_activeMentionQuery);
           setState(() {});
-          if (hadFocus) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted && _focus.canRequestFocus) _focus.requestFocus();
-            });
-          }
+          final nextStacked = _shouldUseStackedLayout(context, _inputAreaWidth);
+          _wasStacked = nextStacked;
+          if (prevStacked != nextStacked && hadFocus) _restoreComposerFocus(sel);
         },
         decoration: InputDecoration(
           hintText: _hintText,
@@ -856,7 +878,7 @@ class _InComposerState extends State<InComposer> {
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.fromLTRB(4, 10, 4, 10),
+          contentPadding: EdgeInsets.fromLTRB(4, stacked ? 10 : 8, 4, stacked ? 10 : 6),
         ),
       );
 
@@ -876,18 +898,22 @@ class _InComposerState extends State<InComposer> {
         ),
       );
     }
+    _inputAreaWidth = maxWidth;
     final stacked = _shouldUseStackedLayout(context, maxWidth);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          crossAxisAlignment: stacked ? CrossAxisAlignment.end : CrossAxisAlignment.center,
           children: [
-            if (!stacked) _attachButton(),
+            SizedBox(
+              width: stacked ? 0 : _attachBtnWidth,
+              child: stacked ? null : _attachButton(),
+            ),
             Expanded(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(stacked ? 4 : 0, 0, stacked ? 4 : 0, 0),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: _textField(stacked: stacked),
               ),
             ),
@@ -913,8 +939,9 @@ class _InComposerState extends State<InComposer> {
                   _modePill(),
                   const SizedBox(width: 4),
                 ],
-                _modelChip(),
                 const Spacer(),
+                _modelChip(),
+                const SizedBox(width: 4),
                 _actionButton(),
               ],
             ),
