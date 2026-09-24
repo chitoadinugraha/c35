@@ -111,7 +111,7 @@ pub fn today_recap_coach(glance: &ConsumptionGlance, locale: &str) -> String {
     let id = locale.to_lowercase().starts_with("id");
     if glance.meals_logged == 0 {
         return if id {
-            "Belum ada catatan makan hari ini — mulai log biar gampang pantau.".into()
+            "Belum ada catatan makan hari ini — Mulai mencatat untuk lebih mudah meantau.".into()
         } else {
             "No meals logged yet today — start tracking to stay on top of it.".into()
         };
