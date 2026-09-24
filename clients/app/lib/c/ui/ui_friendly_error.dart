@@ -6,6 +6,7 @@ class ApiException implements Exception {
 }
 
 const uiConnectionProblem = 'Connection Problem';
+const uiCannotConnectToAlienAi = 'Cannot connect to Alien AI';
 
 bool uiIsConnectionError(String raw) {
   final lower = raw.trim().toLowerCase();
@@ -18,9 +19,12 @@ bool uiIsConnectionError(String raw) {
       lower.contains('request timed out') ||
       lower.contains('timeoutexception') ||
       lower.contains('connection refused') ||
+      lower.contains('connection closed') ||
       lower.contains('failed host lookup') ||
       lower.contains('socketexception') ||
-      lower.contains('network is unreachable');
+      lower.contains('websocket') ||
+      lower.contains('network is unreachable') ||
+      lower == 'disconnected';
 }
 
 String uiReferralError(Object error, {required String fallback}) {
@@ -38,6 +42,12 @@ String uiFriendlyError(Object error, {String fallback = 'Something went wrong. P
   s = s.trim();
   if (s.isEmpty) return fallback;
   final lower = s.toLowerCase();
+  if (lower.contains('websocketchannel') ||
+      lower.contains('websocket') ||
+      lower.contains('connection closed before full header') ||
+      lower.contains('connection closed')) {
+    return uiCannotConnectToAlienAi;
+  }
   if (lower.contains('cluster offline') || lower.contains('space offline')) {
     return "Can't reach Alien AI right now. Check your internet connection and try again.";
   }

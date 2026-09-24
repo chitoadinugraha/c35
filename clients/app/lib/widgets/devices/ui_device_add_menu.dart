@@ -23,31 +23,36 @@ class UiDeviceAddMenu extends StatelessWidget {
   Future<void> _onFlashComingSoon(BuildContext context) => uiAlertInfo(context, title: 'Coming soon', message: 'Flash device is not available yet.');
 
   @override
-  Widget build(BuildContext context) => PopupMenuButton<String>(
-        tooltip: uiPopupMenuTooltipText('Add device'),
-        onSelected: (v) => switch (v) {
-          'pair' => _onAddPair(context),
-          'flash' => _onFlashComingSoon(context),
-          _ => null,
-        },
-        itemBuilder: (_) => const [
-          PopupMenuItem(
-            value: 'pair',
-            child: ListTile(
-              leading: Icon(Icons.link),
-              title: Text('Add device'),
-              subtitle: Text('Enter pairing code'),
+  Widget build(BuildContext context) => uiPopupMenuTooltipWrap(
+        tooltip: 'Add device',
+        menu: PopupMenuButton<String>(
+          tooltip: uiPopupMenuTooltipText('Add device'),
+          padding: EdgeInsets.zero,
+          icon: uiPopupMenuIcon(Icons.add),
+          iconSize: 18,
+          onSelected: (v) => switch (v) {
+            'pair' => _onAddPair(context),
+            'flash' => _onFlashComingSoon(context),
+            _ => null,
+          },
+          itemBuilder: (_) => const [
+            PopupMenuItem(
+              value: 'pair',
+              child: ListTile(
+                leading: Icon(Icons.link),
+                title: Text('Add device'),
+                subtitle: Text('Enter pairing code'),
+              ),
             ),
-          ),
-          PopupMenuItem(
-            value: 'flash',
-            child: ListTile(
-              leading: Icon(Icons.usb),
-              title: Text('Flash device'),
-              subtitle: Text('Coming soon'),
+            PopupMenuItem(
+              value: 'flash',
+              child: ListTile(
+                leading: Icon(Icons.usb),
+                title: Text('Flash device'),
+                subtitle: Text('Coming soon'),
+              ),
             ),
-          ),
-        ],
-        child: uiPopupMenuChild(tooltip: 'Add device', child: const Icon(Icons.add, color: Color(0xFFF4F4F5))),
+          ],
+        ),
       );
 }

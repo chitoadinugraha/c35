@@ -51,7 +51,6 @@ async fn main() -> anyhow::Result<()> {
         Some((client, events)) => (Some(client), Some(events)),
         None => (None, None),
     };
-    c35_store::pool_monitor_spawn(pool.clone());
     c35_store::migrate_boot(&pool).await?;
     c35_store::migrate_apply(&pool).await?;
     c35_mod_billing::fx_live_init(&pool).await?;
@@ -60,6 +59,10 @@ async fn main() -> anyhow::Result<()> {
     c35_mod_llm::llm_catalog_spawn(pool.clone());
     c35_mod_llm::runtime_config_watch(pool.clone());
     c35_mod_chat::inst_cache_init(&pool).await;
+    let pool_cfg = c35_store::PoolConfig::from_env();
+    c35_store::pool_monitor_spawn(pool.clone(), pool_cfg.clone());
+    c35_mod_chat::prompt_run_pool_diag_spawn(pool.clone(), pool_cfg.max_connections);
+    c35_wire_http::status_probe_spawn(pool.clone(), nats.clone());
     if let (Some(nats_client), Some(events)) = (nats.clone(), nats_events) {
         nats_boot::nats_post_connect(pool.clone(), nats_client.clone()).await;
         nats_boot::nats_supervise_reconnect(pool.clone(), nats_client.clone(), events);

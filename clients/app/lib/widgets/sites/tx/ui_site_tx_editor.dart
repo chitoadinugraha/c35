@@ -6,6 +6,7 @@ import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/sites/tx/section_tx_items.dart';
 import 'package:alienai_c35/widgets/sites/tx/tx_api.dart';
 import 'package:alienai_c35/c/site/tx_format.dart';
+import 'package:alienai_c35/widgets/sites/tx/payment/ask_transaksi_payment_method.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/ui_receipt.dart';
 import 'package:alienai_c35/widgets/sites/tx/ui_tx_save_menu.dart';
 import 'package:fixnum/fixnum.dart';
@@ -15,6 +16,7 @@ const _border = Color(0xFF27272A);
 const _muted = Color(0xFF71717A);
 const _text = Color(0xFFF4F4F5);
 const _bg = Color(0xFF08080A);
+const _accent = Color(0xFF34D399);
 
 class UiSiteTxEditor extends StatefulWidget {
   const UiSiteTxEditor({
@@ -165,6 +167,46 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with SingleTickerProvid
     _txChanged(next);
   }
 
+  Future<void> _addPayment() async {
+    final nominal = txItemsNominal(_tx);
+    final paid = txPaymentsTotal(_tx);
+    final remaining = (nominal - paid).toInt();
+    if (remaining <= 0) return;
+    final payment = await askTransaksiPaymentMethod(context: context, totalDue: remaining);
+    if (payment != null && mounted) {
+      final next = _tx.clone();
+      next.payments.add(payment);
+      _txChanged(next);
+    }
+  }
+
+  void _removePayment(int index) {
+    if (index >= 0 && index < _tx.payments.length) {
+      final next = _tx.clone();
+      next.payments.removeAt(index);
+      _txChanged(next);
+    }
+  }
+
+  Future<void> _checkoutTap() async {
+    final nominal = txItemsNominal(_tx);
+    final paid = txPaymentsTotal(_tx);
+    final remaining = (nominal - paid).toInt();
+    if (remaining > 0) {
+      final payment = await askTransaksiPaymentMethod(context: context, totalDue: remaining);
+      if (payment != null && mounted) {
+        final next = _tx.clone();
+        next.payments.add(payment);
+        _txChanged(next);
+        if (txPaymentsTotal(next) >= txItemsNominal(next)) {
+          await _save();
+        }
+      }
+    } else {
+      await _save();
+    }
+  }
+
   SiteContact? _selectedContact() =>
       _contacts.where((c) => c.contactId == _tx.subjectContactId).firstOrNull;
 
@@ -239,7 +281,12 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with SingleTickerProvid
             child: TabBarView(
               controller: _tabs,
               children: [
-                SectionTxItems(items: _tx.items, products: _products, onChanged: _itemsChanged),
+                SectionTxItems(
+                  items: _tx.items,
+                  products: _products,
+                  onChanged: _itemsChanged,
+                  onCheckout: _checkoutTap,
+                ),
                 _paymentsTab(nominal, paid),
                 _ledgerTab('Accounting', previewTx.accs, (a) => '${a.accCode} ${a.note} ${moneyFmtIdr(a.amount.toInt())}'),
                 _ledgerTab('Stock', previewTx.stocks, (s) => '${s.productId} qty ${s.qty} ${s.note}'),
@@ -284,42 +331,135 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with SingleTickerProvid
         ),
       );
 
-  Widget _paymentsTab(Int64 nominal, Int64 paid) => Padding(
-        padding: const EdgeInsets.all(24),
+  Widget _paymentsTab(Int64 nominal, Int64 paid) {
+    final remaining = nominal - paid;
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _statCard('Total Tagihan', moneyFmtIdr(nominal.toInt()), _text),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _statCard('Sudah Dibayar', moneyFmtIdr(paid.toInt()), _accent),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _statCard(
+                remaining <= 0 ? 'Lunas' : 'Sisa Tagihan',
+                remaining <= 0 ? 'Rp 0' : moneyFmtIdr(remaining.toInt()),
+                remaining <= 0 ? _accent : Colors.orangeAccent,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        Row(
+          children: [
+            Expanded(
+              child: FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: _accent,
+                  foregroundColor: const Color(0xFF052E1B),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: remaining <= 0 ? null : _addPayment,
+                icon: const Icon(Icons.add_card, size: 18),
+                label: const Text('Terima Pembayaran', style: TextStyle(fontWeight: FontWeight.w600)),
+              ),
+            ),
+            const SizedBox(width: 10),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: _border),
+                foregroundColor: _text,
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: nominal <= Int64.ZERO ? null : () => _paymentAmountChanged(nominal),
+              icon: const Icon(Icons.payments_outlined, size: 18, color: _muted),
+              label: const Text('Uang Pas (Tunai)'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        const Text('Daftar Pembayaran', style: TextStyle(color: _muted, fontSize: 13, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        if (_tx.payments.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: const Color(0xFF141417),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _border),
+            ),
+            child: const Center(
+              child: Text('Belum ada pembayaran ditambahkan', style: TextStyle(color: _muted, fontSize: 13)),
+            ),
+          )
+        else
+          for (var i = 0; i < _tx.payments.length; i++) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF141417),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: _border),
+              ),
+              child: ListTile(
+                dense: true,
+                leading: Icon(_paymentIcon(_tx.payments[i].method), color: _accent, size: 22),
+                title: Text(txPaymentMethodLabel(_tx.payments[i].method), style: const TextStyle(color: _text, fontWeight: FontWeight.w600)),
+                subtitle: _tx.payments[i].note.isNotEmpty ? Text(_tx.payments[i].note, style: const TextStyle(color: _muted, fontSize: 11)) : null,
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      moneyFmtIdr(_tx.payments[i].amount.toInt()),
+                      style: const TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
+                      onPressed: () => _removePayment(i),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+      ],
+    );
+  }
+
+  Widget _statCard(String label, String value, Color valColor) => Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF141417),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: _border),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Total: ${moneyFmtIdr(nominal.toInt())}', style: const TextStyle(color: _text, fontSize: 15)),
-            const SizedBox(height: 8),
-            Text('Paid: ${moneyFmtIdr(paid.toInt())}', style: const TextStyle(color: _muted, fontSize: 13)),
-            const SizedBox(height: 16),
-            if (_tx.payments.isEmpty)
-              const Text('No payments yet', style: TextStyle(color: _muted))
-            else
-              ..._tx.payments.map(
-                (p) => ListTile(
-                  dense: true,
-                  title: Text(txPaymentMethodLabel(p.method), style: const TextStyle(color: _text)),
-                  trailing: Text(moneyFmtIdr(p.amount.toInt()), style: const TextStyle(color: _text)),
-                ),
-              ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: nominal <= Int64.ZERO ? null : () => _paymentAmountChanged(nominal),
-              icon: const Icon(Icons.payments_outlined, size: 18),
-              label: const Text('Set cash payment to total'),
-            ),
-            if (paid != nominal && nominal > Int64.ZERO)
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: Text(
-                  'Remaining ${moneyFmtIdr((nominal - paid).toInt())}',
-                  style: const TextStyle(color: Colors.orangeAccent, fontSize: 13),
-                ),
-              ),
+            Text(label, style: const TextStyle(color: _muted, fontSize: 11)),
+            const SizedBox(height: 4),
+            Text(value, style: TextStyle(color: valColor, fontSize: 15, fontWeight: FontWeight.bold)),
           ],
         ),
       );
+
+  IconData _paymentIcon(TxPaymentMethod method) => switch (method) {
+        TxPaymentMethod.TX_PAYMENT_METHOD_CASH => Icons.payments_outlined,
+        TxPaymentMethod.TX_PAYMENT_METHOD_QRIS => Icons.qr_code_2_outlined,
+        TxPaymentMethod.TX_PAYMENT_METHOD_TRANSFER => Icons.account_balance_outlined,
+        TxPaymentMethod.TX_PAYMENT_METHOD_CARD => Icons.credit_card_outlined,
+        TxPaymentMethod.TX_PAYMENT_METHOD_DEBT => Icons.assignment_late_outlined,
+        _ => Icons.payment_outlined,
+      };
 
   Widget _ledgerTab<T>(String title, List<T> rows, String Function(T) label) => rows.isEmpty
       ? Center(child: Text('No $title lines yet', style: const TextStyle(color: _muted)))

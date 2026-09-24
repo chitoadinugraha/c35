@@ -313,4 +313,4 @@ Verify: `cargo test -p mod_chat`; `cargo build -p server_ai`; `flutter analyze`.
 - [remote.md](remote.md) — screenshot prune (computer use)
 - [log.md](log.md) — `ai.log` audit rows
 
-Implementation plan: [`../../docs/superpowers/plans/2026-09-23-context-compaction-multitask.md`](../../docs/superpowers/plans/2026-09-23-context-compaction-multitask.md)
+Implementation plan: [`plans/2026-09-23-context-compaction-multitask.md`](plans/2026-09-23-context-compaction-multitask.md)

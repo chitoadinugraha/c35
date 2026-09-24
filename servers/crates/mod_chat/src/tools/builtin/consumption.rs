@@ -1,11 +1,13 @@
 use crate::tool;
 use anyhow::{anyhow, Result};
 use c35_mod_consumption::{
-    consumption_compact_for_llm, consumption_food_block, consumption_glance_block, consumption_today,
-    day_bounds_ms, detect_pic, detect_text, food_delete, food_duplicate_today, food_get,
-    food_get_latest_today, food_list_day, food_put, food_update, food_with_items, infer_meal_type, items_from_json,
-    items_matching_query, local_hour, matched_items_kcal, meal_fingerprint, meal_kcal_total, multi_day_bounds_ms, nutrition_sum_day,
-    prefs_calorie_goal, resolve_day_id, today_compact_for_llm, today_day_id, today_recap_coach,
+    build_food_coach_ctx, consumption_compact_for_llm, consumption_food_block, consumption_glance_block,
+    consumption_today, day_bounds_ms, detect_pic, detect_text, food_delete, food_duplicate_today, food_get,
+    food_get_latest_today, food_list_day, food_put, food_update, food_with_items, infer_meal_type,
+    items_compact_for_llm, items_from_json, items_matching_query, local_hour, matched_items_kcal, meal_fingerprint,
+    meal_hints_json,
+    meal_kcal_total, multi_day_bounds_ms, nutrition_sum_day, nutrition_summary_json, prefs_calorie_goal, resolve_day_id,
+    today_compact_for_llm, today_day_id, today_recap_coach,
 };
 use c35_mod_file::{cas_bytes_get, cas_dir_default};
 use serde_json::{json, Value};
@@ -84,6 +86,19 @@ pub async fn consumption_add_exec(ctx: &ToolContext, args: &Value) -> Result<Val
     if dup.is_some() && !force {
         let food = food_with_items(0, note, &photo_hash, &fingerprint, items.clone());
         let after = so_far_before;
+        let coach_ctx = build_food_coach_ctx(
+            &ctx.pool,
+            ctx.owner_iid,
+            locale,
+            &food,
+            meal_kcal,
+            goal,
+            false,
+            true,
+            start,
+            end,
+        )
+        .await;
         let block = consumption_food_block(
             &food,
             locale,
@@ -94,7 +109,13 @@ pub async fn consumption_add_exec(ctx: &ToolContext, args: &Value) -> Result<Val
             after,
             goal,
             meals_before,
+            "",
         );
+        let pct_of_goal = if goal > 0 {
+            (after as f32 / goal as f32 * 100.0).round() as i32
+        } else {
+            0
+        };
         let full = json!({
             "ok": true,
             "saved": false,
@@ -102,13 +123,21 @@ pub async fn consumption_add_exec(ctx: &ToolContext, args: &Value) -> Result<Val
             "duplicate_reason": dup.map(|(_, r)| r).unwrap_or_default(),
             "consumption_id": "",
             "meal_kcal": meal_kcal,
+            "meal_name": coach_ctx.meal_name,
             "headline": block["body"]["headline"],
-            "items": food.items,
+            "repeat_food_today": coach_ctx.repeat_count_today > 1,
+            "repeat_count_today": coach_ctx.repeat_count_today,
+            "recent_meal_names": coach_ctx.recent_meal_names,
+            "pct_of_goal": pct_of_goal,
+            "items_compact": items_compact_for_llm(&food.items, locale),
+            "meal_hints": meal_hints_json(&food.items),
+            "daily": nutrition_summary_json(&coach_ctx.daily),
+            "weekly": nutrition_summary_json(&coach_ctx.weekly),
             "today": { "so_far": so_far_before, "after": after, "goal": goal, "meals_logged": meals_before },
             "block": block,
-            "llm": consumption_compact_for_llm(&json!({ "ok": true, "saved": false, "duplicate": true })),
         });
-        return Ok(full);
+        let compact = consumption_compact_for_llm(&full);
+        return Ok(json!({ "ok": true, "runner": "cluster", "tool": "consumption.add", "llm": compact, "block": block, "saved": false }));
     }
 
     let meal_note = if note.is_empty() { "Meal" } else { note };
@@ -140,6 +169,23 @@ pub async fn consumption_add_exec(ctx: &ToolContext, args: &Value) -> Result<Val
     let after = so_far;
     let dup_reason = if dup.is_some() { "meal" } else { "" };
     let food = food_with_items(id, meal_note, &photo_hash, &fingerprint, items);
+
+    let coach_ctx = build_food_coach_ctx(
+        &ctx.pool,
+        ctx.owner_iid,
+        locale,
+        &food,
+        meal_kcal,
+        goal,
+        true,
+        dup.is_some(),
+        start,
+        end,
+    )
+    .await;
+    let repeat_count = coach_ctx.repeat_count_today;
+    let repeat_food_today = repeat_count > 1;
+    let primary_name = if coach_ctx.meal_name.is_empty() { "Makanan" } else { coach_ctx.meal_name.as_str() };
     let block = consumption_food_block(
         &food,
         locale,
@@ -150,48 +196,8 @@ pub async fn consumption_add_exec(ctx: &ToolContext, args: &Value) -> Result<Val
         after,
         goal,
         meals_logged,
+        "",
     );
-
-    let day_meals = food_list_day(&ctx.pool, ctx.owner_iid, start, end)
-        .await
-        .unwrap_or_default();
-    let primary_item = food.items.first();
-    let primary_name = primary_item
-        .map(|i| {
-            if locale.to_lowercase().starts_with("id") && !i.name_id.is_empty() {
-                i.name_id.as_str()
-            } else {
-                i.name.as_str()
-            }
-        })
-        .unwrap_or("Makanan");
-    let primary_norm = primary_item.map(|i| i.name.to_lowercase()).unwrap_or_default();
-    let primary_obj = primary_item.map(|i| i.obj_id).unwrap_or(0);
-    let mut repeat_count: usize = 0;
-    for m in &day_meals {
-        for it in &m.items {
-            if (!primary_norm.is_empty() && it.name.to_lowercase() == primary_norm)
-                || (primary_obj > 0 && it.obj_id == primary_obj)
-            {
-                repeat_count += 1;
-            }
-        }
-    }
-    let repeat_food_today = repeat_count > 1;
-    let last_meal_name = day_meals
-        .iter()
-        .filter(|m| m.id != food.id)
-        .last()
-        .and_then(|m| {
-            m.items.first().map(|i| {
-                if locale.to_lowercase().starts_with("id") && !i.name_id.is_empty() {
-                    i.name_id.clone()
-                } else {
-                    i.name.clone()
-                }
-            })
-        })
-        .unwrap_or_default();
     let pct_of_goal = if goal > 0 {
         (after as f32 / goal as f32 * 100.0).round() as i32
     } else {
@@ -207,12 +213,14 @@ pub async fn consumption_add_exec(ctx: &ToolContext, args: &Value) -> Result<Val
         "meal_name": primary_name,
         "meal_kcal": meal_kcal,
         "headline": block["body"]["headline"],
-        "coach": block["body"]["coach"],
         "repeat_food_today": repeat_food_today,
         "repeat_count_today": repeat_count,
-        "last_meal_name": last_meal_name,
+        "recent_meal_names": coach_ctx.recent_meal_names,
         "pct_of_goal": pct_of_goal,
-        "items": food.items,
+        "items_compact": items_compact_for_llm(&food.items, locale),
+        "meal_hints": meal_hints_json(&food.items),
+        "daily": nutrition_summary_json(&coach_ctx.daily),
+        "weekly": nutrition_summary_json(&coach_ctx.weekly),
         "photo_hash": photo_hash,
         "today": { "so_far": so_far, "after": after, "goal": goal, "meals_logged": meals_logged },
         "block": block,
@@ -333,7 +341,7 @@ pub async fn consumption_update_exec(ctx: &ToolContext, args: &Value) -> Result<
     let (so_far, _, _, _, meals_logged) = nutrition_sum_day(&ctx.pool, ctx.owner_iid, start, end)
         .await
         .unwrap_or((0, 0, 0, 0, 0));
-    let block = consumption_food_block(&food, locale, true, false, "", so_far, so_far, goal, meals_logged);
+    let block = consumption_food_block(&food, locale, true, false, "", so_far, so_far, goal, meals_logged, "");
     Ok(json!({ "ok": true, "block": block, "consumption_id": id.to_string() }))
 }
 

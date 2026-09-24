@@ -323,7 +323,7 @@ Future<void> main(List<String> args) async {
 **Files:**
 - Modify: `_/docs/app-release.md`
 - Modify: `_/docs/auto-update.md`
-- Modify: `docs/superpowers/plans/2026-09-23-app-release-pipeline.md` — mark Task 10 done / link here
+- Modify: `2026-09-23-app-release-pipeline.md` — mark Task 10 done / link here
 
 **Content:**
 - Web URL `https://alienai.id/app/`

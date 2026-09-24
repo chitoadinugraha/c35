@@ -76,7 +76,7 @@ Server crates live under **`servers/crates/`** only — not at repo root. Remote
 5. **One round trip per page init** — `ReqSessionInit` / parallel IN queries; never N+1 on page load.
 6. **Human-friendly UI** — no technical errors on screen; full detail in server `log` table + NATS live stream for root/admin.
 7. **Multi-crate server** — workspace under `servers/` (like `csa_site_published` pattern); `server_ai` stays thin; domain in `servers/crates/mod_*`.
-8. **Separate build caches** — `.cache/server`, `.cache/c_remote`, `.cache/node_stats` (see `.cursor/rules/rust-cache.mdc`).
+8. **Separate build caches** — `.cache/server`, `.cache/c_remote` (see `.cursor/rules/rust-cache.mdc`).
 
 ## Identity (summary)
 

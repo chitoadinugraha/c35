@@ -999,3 +999,60 @@ const ResSiteGuestOrderGet$json = {
 final $typed_data.Uint8List resSiteGuestOrderGetDescriptor =
     $convert.base64Decode(
         'ChRSZXNTaXRlR3Vlc3RPcmRlckdldBIXCgJ0eBgBIAEoCzIHLmMzNS5UeFICdHg=');
+
+@$core.Deprecated('Use expenseItemInputDescriptor instead')
+const ExpenseItemInput$json = {
+  '1': 'ExpenseItemInput',
+  '2': [
+    {'1': 'name', '3': 1, '4': 1, '5': 9, '10': 'name'},
+    {'1': 'name_id', '3': 2, '4': 1, '5': 9, '10': 'nameId'},
+    {'1': 'qty', '3': 3, '4': 1, '5': 2, '10': 'qty'},
+    {'1': 'price_minor', '3': 4, '4': 1, '5': 3, '10': 'priceMinor'},
+    {'1': 'total_minor', '3': 5, '4': 1, '5': 3, '10': 'totalMinor'},
+    {'1': 'obj_id', '3': 6, '4': 1, '5': 3, '10': 'objId'},
+  ],
+};
+
+/// Descriptor for `ExpenseItemInput`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List expenseItemInputDescriptor = $convert.base64Decode(
+    'ChBFeHBlbnNlSXRlbUlucHV0EhIKBG5hbWUYASABKAlSBG5hbWUSFwoHbmFtZV9pZBgCIAEoCV'
+    'IGbmFtZUlkEhAKA3F0eRgDIAEoAlIDcXR5Eh8KC3ByaWNlX21pbm9yGAQgASgDUgpwcmljZU1p'
+    'bm9yEh8KC3RvdGFsX21pbm9yGAUgASgDUgp0b3RhbE1pbm9yEhUKBm9ial9pZBgGIAEoA1IFb2'
+    'JqSWQ=');
+
+@$core.Deprecated('Use reqExpensePutDescriptor instead')
+const ReqExpensePut$json = {
+  '1': 'ReqExpensePut',
+  '2': [
+    {'1': 'tx_id', '3': 1, '4': 1, '5': 3, '10': 'txId'},
+    {
+      '1': 'items',
+      '3': 2,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.ExpenseItemInput',
+      '10': 'items'
+    },
+    {'1': 'deleted_ts_ms', '3': 3, '4': 1, '5': 3, '10': 'deletedTsMs'},
+  ],
+};
+
+/// Descriptor for `ReqExpensePut`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqExpensePutDescriptor = $convert.base64Decode(
+    'Cg1SZXFFeHBlbnNlUHV0EhMKBXR4X2lkGAEgASgDUgR0eElkEisKBWl0ZW1zGAIgAygLMhUuYz'
+    'M1LkV4cGVuc2VJdGVtSW5wdXRSBWl0ZW1zEiIKDWRlbGV0ZWRfdHNfbXMYAyABKANSC2RlbGV0'
+    'ZWRUc01z');
+
+@$core.Deprecated('Use resExpensePutDescriptor instead')
+const ResExpensePut$json = {
+  '1': 'ResExpensePut',
+  '2': [
+    {'1': 'tx_id', '3': 1, '4': 1, '5': 3, '10': 'txId'},
+    {'1': 'blocks_json', '3': 2, '4': 1, '5': 9, '10': 'blocksJson'},
+  ],
+};
+
+/// Descriptor for `ResExpensePut`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resExpensePutDescriptor = $convert.base64Decode(
+    'Cg1SZXNFeHBlbnNlUHV0EhMKBXR4X2lkGAEgASgDUgR0eElkEh8KC2Jsb2Nrc19qc29uGAIgAS'
+    'gJUgpibG9ja3NKc29u');

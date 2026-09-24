@@ -44,6 +44,8 @@ message NodeStat {
   double net_out_bps = 8;
   int64 ts_ms = 9;
   repeated DiskDeviceStat devices = 10;
+  uint64 swap_used_bytes = 11;
+  uint64 swap_total_bytes = 12;
 }
 
 message StatsPush {

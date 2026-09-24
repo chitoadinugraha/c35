@@ -1,6 +1,7 @@
 import 'package:alienai_c35/c/bot/bot_store.dart';
 import 'package:alienai_c35/c/chat/chat_block.dart';
 import 'package:alienai_c35/c/consumption/consumption_api.dart';
+import 'package:alienai_c35/c/expense/expense_api.dart';
 import 'package:alienai_c35/c/store/chat_store.dart';
 import 'package:alienai_c35/widgets/ai/msg_trace_view.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_blocks.dart';
@@ -35,6 +36,7 @@ class _UiBotConversationState extends State<UiBotConversation> {
   late final _composer = TextEditingController();
   late final _timeline = UiChatTimelineController();
   final _consumptionApi = ConsumptionApi();
+  final _expenseApi = ExpenseApi();
 
   @override
   void initState() {
@@ -104,6 +106,7 @@ class _UiBotConversationState extends State<UiBotConversation> {
                     msgId: m.id,
                     blocks: blocks,
                     consumptionApi: _consumptionApi,
+                    expenseApi: _expenseApi,
                     locale: 'en',
                     onConsumptionSaved: (_, __) {},
                   ),

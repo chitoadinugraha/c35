@@ -5,6 +5,7 @@ use c35_mod_chat::{
     prompt_run_enqueue, prompt_run_insert, prompt_run_row_new, prompt_turn, PromptTurnHooks,
 };
 use c35_mod_consumption::{consumption_list_rpc, consumption_put_rpc};
+use c35_mod_expense::expense_put_rpc;
 use c35_proto::{
     pb_decode, pb_encode, BillingPushBalance, BillingPushCommission, BillingPushQuota,
     PromptRunJob, ReqChannelDisconnect, ReqChannelWhatsappPairAbort, ReqChannelWhatsappPairStart,
@@ -290,6 +291,16 @@ async fn dispatch(
                     body: Some(ws_res::Body::ConsumptionPut(res)),
                 },
                 Err(e) => err_res(req_id, WireErr::client("consumption_put_failed", e)),
+            }
+        }
+        Some(ws_req::Body::ExpensePut(r)) => {
+            let locale = q.locale.as_deref().unwrap_or("id");
+            match expense_put_rpc(&state.pool, ctx.caller_iid, locale, r).await {
+                Ok(res) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::ExpensePut(res)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("expense_put_failed", e)),
             }
         }
         Some(ws_req::Body::InboxList(r)) => match c35_mod_chat::inbox_list(&state.pool, ctx.caller_iid, r).await {
@@ -978,25 +989,32 @@ async fn channel_disconnect_res(state: &AppState, ctx: &Ctx, req_id: String, r: 
 }
 
 async fn identity_delete_res(state: &AppState, ctx: &Ctx, req_id: String, r: ReqIdentityDelete) -> WsRes {
-    if r.iid > 0 {
-        if let Ok(kind) = c35_mod_identity::identity_kind_get(&ctx.pool, r.iid).await {
-            if kind == "bot" {
-                let _ = c35_mod_channel::bot_channels_disconnect_all(
-                    &ctx.pool,
-                    ctx.caller_iid,
-                    r.iid,
-                    state.nats.as_ref(),
-                    &whatsapp_worker_url(),
-                )
-                .await;
-            }
-        }
+    let iid = r.iid;
+    let kind = if iid > 0 {
+        c35_mod_identity::identity_kind_get(&ctx.pool, iid).await.ok()
+    } else {
+        None
+    };
+    if kind.as_deref() == Some("bot") {
+        let _ = c35_mod_channel::bot_channels_disconnect_all(
+            &ctx.pool,
+            ctx.caller_iid,
+            iid,
+            state.nats.as_ref(),
+            &whatsapp_worker_url(),
+        )
+        .await;
     }
     match c35_mod_identity::identity_delete(&ctx.pool, ctx.caller_iid, r).await {
-        Ok(body) => WsRes {
-            req_id,
-            body: Some(ws_res::Body::IdentityDelete(body)),
-        },
+        Ok(body) => {
+            if body.ok && matches!(kind.as_deref(), Some("remote") | Some("iot")) {
+                let _ = c35_mod_device::device_unpair_notify(state.nats.as_ref(), iid).await;
+            }
+            WsRes {
+                req_id,
+                body: Some(ws_res::Body::IdentityDelete(body)),
+            }
+        }
         Err(e) => err_res(req_id, WireErr::client("identity_delete_failed", e.to_string())),
     }
 }

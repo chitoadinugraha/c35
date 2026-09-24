@@ -3,19 +3,16 @@ import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/widgets/bots/channel_util.dart';
 import 'package:alienai_c35/widgets/bots/io_bot_delete_dialog.dart';
-import 'package:alienai_c35/widgets/bots/ui_bot_add_menu.dart';
 import 'package:alienai_c35/widgets/ui/ui_alert.dart';
 import 'package:alienai_c35/widgets/ui/ui_empty_state.dart';
-import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:alienai_c35/widgets/ui/ui_user_avatar.dart';
 import 'package:flutter/material.dart';
 
 const _border = Color(0xFF27272A);
 const _muted = Color(0xFF71717A);
-const _icon = Color(0xFFA1A1AA);
 const _bg = Color(0xFF0C0C10);
 
-class UiBotNavList extends StatefulWidget {
+class UiBotNavList extends StatelessWidget {
   const UiBotNavList({
     super.key,
     required this.store,
@@ -27,49 +24,14 @@ class UiBotNavList extends StatefulWidget {
   final String? selectedBotId;
   final ValueChanged<String?> onSelect;
 
-  @override
-  State<UiBotNavList> createState() => _UiBotNavListState();
-}
-
-class _UiBotNavListState extends State<UiBotNavList> {
-  var _searchOpen = false;
-  late final _searchCtrl = TextEditingController();
-  late final _searchFocus = FocusNode();
-
-  @override
-  void initState() {
-    super.initState();
-    _searchCtrl.addListener(() => widget.store.searchPut(_searchCtrl.text));
-  }
-
-  @override
-  void dispose() {
-    _searchCtrl.dispose();
-    _searchFocus.dispose();
-    super.dispose();
-  }
-
-  void _openSearch() {
-    setState(() => _searchOpen = true);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _searchFocus.requestFocus();
-    });
-  }
-
-  void _closeSearch() {
-    _searchCtrl.clear();
-    _searchFocus.unfocus();
-    setState(() => _searchOpen = false);
-  }
-
   bool _canDelete(IdentityListRow row) => row.identity.ownerIid.toInt() == Session.instance.uid;
 
-  Future<void> _deleteBot(IdentityListRow row) async {
-    await botDeleteConfirmShow(context, store: widget.store, bot: row);
+  Future<void> _deleteBot(BuildContext context, IdentityListRow row) async {
+    await botDeleteConfirmShow(context, store: store, bot: row);
   }
 
-  Future<void> _rowMenu(String id, Offset pos) async {
-    final row = widget.store.botById(id);
+  Future<void> _rowMenu(BuildContext context, String id, Offset pos) async {
+    final row = store.botById(id);
     if (row == null) return;
     final canDelete = _canDelete(row);
     final action = await showMenu<String>(
@@ -81,7 +43,7 @@ class _UiBotNavListState extends State<UiBotNavList> {
           value: 'archive',
           child: Row(
             children: [
-              Icon(Icons.archive_outlined, size: 18, color: _icon),
+              Icon(Icons.archive_outlined, size: 18, color: Color(0xFFA1A1AA)),
               SizedBox(width: 10),
               Text('Archive'),
             ],
@@ -100,76 +62,23 @@ class _UiBotNavListState extends State<UiBotNavList> {
           ),
       ],
     );
-    if (action == null || !mounted) return;
+    if (action == null || !context.mounted) return;
     try {
-      if (action == 'archive') await widget.store.archivePut(id, true);
-      if (action == 'delete') await _deleteBot(row);
+      if (action == 'archive') await store.archivePut(id, true);
+      if (action == 'delete' && context.mounted) await _deleteBot(context, row);
     } catch (e) {
-      if (mounted) await uiAlertError(context, e);
+      if (context.mounted) await uiAlertError(context, e);
     }
   }
 
   void _onReorder(int oldIndex, int newIndex) {
-    if (widget.store.search.trim().isNotEmpty) return;
-    widget.store.reorderPut(oldIndex, newIndex);
-  }
-
-  Widget _header() {
-    if (_searchOpen) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(8, 8, 4, 4),
-        child: Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _searchCtrl,
-                focusNode: _searchFocus,
-                style: const TextStyle(fontSize: 13, color: Color(0xFFF4F4F5)),
-                decoration: InputDecoration(
-                  hintText: 'Search bots',
-                  hintStyle: const TextStyle(color: _muted, fontSize: 13),
-                  prefixIcon: const Icon(Icons.search, size: 16, color: _muted),
-                  prefixIconConstraints: const BoxConstraints(minWidth: 36, minHeight: 32),
-                  isDense: true,
-                  filled: true,
-                  fillColor: const Color(0xFF18181B),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-                ),
-              ),
-            ),
-            uiIconButton(
-              tooltip: _searchCtrl.text.isNotEmpty ? 'Clear' : 'Close search',
-              icon: const Icon(Icons.close, size: 18, color: _icon),
-              onPressed: _searchCtrl.text.isNotEmpty
-                  ? () {
-                      _searchCtrl.clear();
-                      _searchFocus.requestFocus();
-                      setState(() {});
-                    }
-                  : _closeSearch,
-            ),
-          ],
-        ),
-      );
-    }
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 8, 4, 4),
-      child: Row(
-        children: [
-          const Expanded(
-            child: Text('Bots', style: TextStyle(color: Color(0xFFF4F4F5), fontSize: 13, fontWeight: FontWeight.w600)),
-          ),
-          uiIconButton(tooltip: 'Search', onPressed: _openSearch, icon: const Icon(Icons.search, size: 18, color: _icon)),
-          UiBotAddMenu(store: widget.store),
-        ],
-      ),
-    );
+    if (store.search.trim().isNotEmpty) return;
+    store.reorderPut(oldIndex, newIndex);
   }
 
   Widget _rowTile(IdentityListRow row, {Key? key}) {
     final id = row.identity.iid.toString();
-    final selected = widget.selectedBotId == id;
+    final selected = selectedBotId == id;
     final label = row.identity.name.isNotEmpty ? row.identity.name : row.identity.alienId;
     final icons = botChannelIcons(row.identity.metaJson);
     return Material(
@@ -181,7 +90,7 @@ class _UiBotNavListState extends State<UiBotNavList> {
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
-        onTap: () => widget.onSelect(id),
+        onTap: () => onSelect(id),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
           child: Row(
@@ -225,14 +134,14 @@ class _UiBotNavListState extends State<UiBotNavList> {
     );
   }
 
-  Widget _list(List<IdentityListRow> bots) {
-    final canReorder = widget.store.search.trim().isEmpty;
+  Widget _list(BuildContext context, List<IdentityListRow> bots) {
+    final canReorder = store.search.trim().isEmpty;
     if (canReorder) {
       return ReorderableListView.builder(
-        padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+        padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
         buildDefaultDragHandles: false,
         itemCount: bots.length,
-        onReorderItem: (oldIndex, newIndex) => _onReorder(oldIndex, newIndex),
+        onReorderItem: _onReorder,
         proxyDecorator: (child, _, __) => Material(color: Colors.transparent, elevation: 4, borderRadius: BorderRadius.circular(8), child: child),
         itemBuilder: (context, i) {
           final row = bots[i];
@@ -241,8 +150,8 @@ class _UiBotNavListState extends State<UiBotNavList> {
             key: ValueKey(id),
             index: i,
             child: GestureDetector(
-              onSecondaryTapDown: (d) => _rowMenu(id, d.globalPosition),
-              onLongPress: () => _rowMenu(id, Offset(MediaQuery.sizeOf(context).width / 2, 200)),
+              onSecondaryTapDown: (d) => _rowMenu(context, id, d.globalPosition),
+              onLongPress: () => _rowMenu(context, id, Offset(MediaQuery.sizeOf(context).width / 2, 200)),
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 4),
                 child: _rowTile(row),
@@ -253,15 +162,15 @@ class _UiBotNavListState extends State<UiBotNavList> {
       );
     }
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
       itemCount: bots.length,
       separatorBuilder: (_, __) => const SizedBox(height: 4),
       itemBuilder: (context, i) {
         final row = bots[i];
         final id = row.identity.iid.toString();
         return GestureDetector(
-          onSecondaryTapDown: (d) => _rowMenu(id, d.globalPosition),
-          onLongPress: () => _rowMenu(id, Offset(MediaQuery.sizeOf(context).width / 2, 200)),
+          onSecondaryTapDown: (d) => _rowMenu(context, id, d.globalPosition),
+          onLongPress: () => _rowMenu(context, id, Offset(MediaQuery.sizeOf(context).width / 2, 200)),
           child: _rowTile(row),
         );
       },
@@ -270,23 +179,16 @@ class _UiBotNavListState extends State<UiBotNavList> {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-        listenable: widget.store,
+        listenable: store,
         builder: (context, _) {
-          final bots = widget.store.filtered;
+          final bots = store.filtered;
           return ColoredBox(
             color: _bg,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _header(),
-                if (widget.store.loadingBots)
-                  const Expanded(child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _muted))))
-                else if (bots.isEmpty)
-                  Expanded(child: widget.store.bots.isEmpty ? UiEmptyState.bots() : UiEmptyState.noMatches('bots'))
-                else
-                  Expanded(child: _list(bots)),
-              ],
-            ),
+            child: store.loadingBots
+                ? const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _muted)))
+                : bots.isEmpty
+                    ? (store.bots.isEmpty ? UiEmptyState.bots() : UiEmptyState.noMatches('bots'))
+                    : _list(context, bots),
           );
         },
       );

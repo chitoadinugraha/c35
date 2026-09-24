@@ -71,7 +71,7 @@ INSERT INTO ai.hint (id, scope, label_key, icon, action, send_text_key, inst_id,
     'role:personal_assistant',
     'hint.expense_add.label',
     'mdi:receipt',
-    'send_text',
+    'pick_image',
     'hint.expense_add.send_text',
     'inst.expense_add',
     20

@@ -435,6 +435,24 @@ const InvokeReq$json = {
       '9': 0,
       '10': 'billingAdminAdjustList'
     },
+    {
+      '1': 'admin_log_report',
+      '3': 126,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqAdminLogReport',
+      '9': 0,
+      '10': 'adminLogReport'
+    },
+    {
+      '1': 'expense_put',
+      '3': 127,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqExpensePut',
+      '9': 0,
+      '10': 'expensePut'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -506,8 +524,10 @@ final $typed_data.Uint8List invokeReqDescriptor = $convert.base64Decode(
     'LmMzNS5SZXFCaWxsaW5nVG9wdXBHZXRIAFIPYmlsbGluZ1RvcHVwR2V0Ek4KFGJpbGxpbmdfYW'
     'RtaW5fYWRqdXN0GHwgASgLMhouYzM1LlJlcUJpbGxpbmdBZG1pbkFkanVzdEgAUhJiaWxsaW5n'
     'QWRtaW5BZGp1c3QSWwoZYmlsbGluZ19hZG1pbl9hZGp1c3RfbGlzdBh9IAEoCzIeLmMzNS5SZX'
-    'FCaWxsaW5nQWRtaW5BZGp1c3RMaXN0SABSFmJpbGxpbmdBZG1pbkFkanVzdExpc3RCBgoEYm9k'
-    'eQ==');
+    'FCaWxsaW5nQWRtaW5BZGp1c3RMaXN0SABSFmJpbGxpbmdBZG1pbkFkanVzdExpc3QSQgoQYWRt'
+    'aW5fbG9nX3JlcG9ydBh+IAEoCzIWLmMzNS5SZXFBZG1pbkxvZ1JlcG9ydEgAUg5hZG1pbkxvZ1'
+    'JlcG9ydBI1CgtleHBlbnNlX3B1dBh/IAEoCzISLmMzNS5SZXFFeHBlbnNlUHV0SABSCmV4cGVu'
+    'c2VQdXRCBgoEYm9keQ==');
 
 @$core.Deprecated('Use invokeResDescriptor instead')
 const InvokeRes$json = {
@@ -921,6 +941,24 @@ const InvokeRes$json = {
       '9': 0,
       '10': 'billingAdminAdjustList'
     },
+    {
+      '1': 'admin_log_report',
+      '3': 126,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResAdminLogReport',
+      '9': 0,
+      '10': 'adminLogReport'
+    },
+    {
+      '1': 'expense_put',
+      '3': 127,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResExpensePut',
+      '9': 0,
+      '10': 'expensePut'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -992,7 +1030,9 @@ final $typed_data.Uint8List invokeResDescriptor = $convert.base64Decode(
     'ChRiaWxsaW5nX2FkbWluX2FkanVzdBh8IAEoCzIaLmMzNS5SZXNCaWxsaW5nQWRtaW5BZGp1c3'
     'RIAFISYmlsbGluZ0FkbWluQWRqdXN0ElsKGWJpbGxpbmdfYWRtaW5fYWRqdXN0X2xpc3QYfSAB'
     'KAsyHi5jMzUuUmVzQmlsbGluZ0FkbWluQWRqdXN0TGlzdEgAUhZiaWxsaW5nQWRtaW5BZGp1c3'
-    'RMaXN0QgYKBGJvZHk=');
+    'RMaXN0EkIKEGFkbWluX2xvZ19yZXBvcnQYfiABKAsyFi5jMzUuUmVzQWRtaW5Mb2dSZXBvcnRI'
+    'AFIOYWRtaW5Mb2dSZXBvcnQSNQoLZXhwZW5zZV9wdXQYfyABKAsyEi5jMzUuUmVzRXhwZW5zZV'
+    'B1dEgAUgpleHBlbnNlUHV0QgYKBGJvZHk=');
 
 @$core.Deprecated('Use wsReqDescriptor instead')
 const WsReq$json = {
@@ -1656,6 +1696,15 @@ const WsReq$json = {
       '9': 0,
       '10': 'siteQueryRun'
     },
+    {
+      '1': 'expense_put',
+      '3': 84,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqExpensePut',
+      '9': 0,
+      '10': 'expensePut'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -1747,7 +1796,8 @@ final $typed_data.Uint8List wsReqDescriptor = $convert.base64Decode(
     'LmMzNS5SZXFUeFB1dEgAUgV0eFB1dBIyCgp0eF9wcmV2aWV3GFEgASgLMhEuYzM1LlJlcVR4UH'
     'Jldmlld0gAUgl0eFByZXZpZXcSMwoLdHhfZGVidF9wYXkYUiABKAsyES5jMzUuUmVxVHhEZWJ0'
     'UGF5SABSCXR4RGVidFBheRI8Cg5zaXRlX3F1ZXJ5X3J1bhhTIAEoCzIULmMzNS5SZXFTaXRlUX'
-    'VlcnlSdW5IAFIMc2l0ZVF1ZXJ5UnVuQgYKBGJvZHk=');
+    'VlcnlSdW5IAFIMc2l0ZVF1ZXJ5UnVuEjUKC2V4cGVuc2VfcHV0GFQgASgLMhIuYzM1LlJlcUV4'
+    'cGVuc2VQdXRIAFIKZXhwZW5zZVB1dEIGCgRib2R5');
 
 @$core.Deprecated('Use wsResDescriptor instead')
 const WsRes$json = {
@@ -2484,6 +2534,15 @@ const WsRes$json = {
       '9': 0,
       '10': 'siteQueryRun'
     },
+    {
+      '1': 'expense_put',
+      '3': 132,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResExpensePut',
+      '9': 0,
+      '10': 'expensePut'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -2584,4 +2643,5 @@ final $typed_data.Uint8List wsResDescriptor = $convert.base64Decode(
     'MKCnR4X3ByZXZpZXcYgQEgASgLMhEuYzM1LlJlc1R4UHJldmlld0gAUgl0eFByZXZpZXcSNAoL'
     'dHhfZGVidF9wYXkYggEgASgLMhEuYzM1LlJlc1R4RGVidFBheUgAUgl0eERlYnRQYXkSPQoOc2'
     'l0ZV9xdWVyeV9ydW4YgwEgASgLMhQuYzM1LlJlc1NpdGVRdWVyeVJ1bkgAUgxzaXRlUXVlcnlS'
-    'dW5CBgoEYm9keQ==');
+    'dW4SNgoLZXhwZW5zZV9wdXQYhAEgASgLMhIuYzM1LlJlc0V4cGVuc2VQdXRIAFIKZXhwZW5zZV'
+    'B1dEIGCgRib2R5');

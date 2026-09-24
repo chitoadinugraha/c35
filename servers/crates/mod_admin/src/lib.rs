@@ -4,8 +4,10 @@ use c35_proto::{
 use std::collections::HashSet;
 
 mod log_admin;
+mod log_report;
 
 pub use log_admin::admin_log_list;
+pub use log_report::admin_log_report;
 use sqlx::{PgPool, Row};
 
 #[derive(Debug)]

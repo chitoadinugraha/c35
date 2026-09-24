@@ -68,7 +68,23 @@ After pairing, the agent connects with `meta.session_key` (stored in `%LOCALAPPD
 
 Server resolves `identity(kind=remote)` where `meta.session_key` matches and `owner_iid` is set (`mod_device::agent_session_resolve`).
 
-Tray while paired: **Show Log** · **Unpair** (clear config, show new code) · **Quit**.
+Tray while paired: **Show Log** · **Unpair** · **Quit** — see [Unpair (locked)](#unpair-locked) below.
+
+### Unpair (locked)
+
+Symmetric unpair: app delete and agent tray both revoke server session state and push `c35.unpair` over NATS so the agent drops WS and shows pairing UI without waiting for reconnect.
+
+| Initiator | Server | NATS push | Agent |
+|-----------|--------|-----------|-------|
+| App delete device (`identity_delete`) | Soft-delete identity + grants | `c35.unpair` on `c35.signal.device.{iid}` | Clear config, pairing UI |
+| Agent tray Unpair | `POST /v1/device/unpair` (same DB effect) | same push (redundant if agent initiated) | HTTP then clear config |
+| Server push only | — | `c35.unpair` | Clear config, drop WS |
+
+**HTTP (agent tray):** `POST /v1/device/unpair` — header `X-Device-Session: {session_key}`, body `{}`. Response `200 { "ok": true }` or `401 invalid session`.
+
+Payload: UTF-8 `c35.unpair` (no proto, no trailing newline). Same subject as signaling relay (`c35.signal.device.{device_iid}`).
+
+Idempotent: if identity already soft-deleted, server still sends NATS push (agent may hold stale local config).
 
 ### Agent logging (locked)
 

@@ -188,6 +188,14 @@ class _NodeStatsBody extends StatelessWidget {
           detail: '${adminFmtBytes(node.memUsedBytes)} / ${adminFmtBytes(node.memTotalBytes)}',
           pct: adminPct(node.memUsedBytes, node.memTotalBytes),
         ),
+        if (node.swapTotalBytes > 0)
+          UiAdminStatBar(
+            label: 'Swap',
+            detail: '${adminFmtBytes(node.swapUsedBytes)} / ${adminFmtBytes(node.swapTotalBytes)}',
+            pct: adminPct(node.swapUsedBytes, node.swapTotalBytes),
+            warnPct: 50,
+            critPct: 80,
+          ),
         UiAdminNetworkRow(
           inBps: node.netInBps,
           outBps: node.netOutBps,

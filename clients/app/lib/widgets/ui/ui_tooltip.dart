@@ -55,6 +55,16 @@ String uiPopupMenuTooltipText(String message) => uiDesktopEmbedder ? '' : messag
 Widget uiPopupMenuChild({required String tooltip, required Widget child}) =>
     tooltip.isEmpty ? child : uiTooltip(message: tooltip, child: child);
 
+const uiToolbarIconColor = Color(0xFFA1A1AA);
+
+/// [PopupMenuButton.icon] anchor — same size and color as [uiIconButton].
+Widget uiPopupMenuIcon(IconData icon, {double size = 18, Color? color}) =>
+    Icon(icon, size: size, color: color ?? uiToolbarIconColor);
+
+/// Wrap [PopupMenuButton] for desktop hover tooltip (matches [uiIconButton]).
+Widget uiPopupMenuTooltipWrap({required String tooltip, required Widget menu}) =>
+    uiDesktopEmbedder && tooltip.isNotEmpty ? uiTooltip(message: tooltip, child: menu) : menu;
+
 Widget uiTooltip({required String message, required Widget child, bool preferBelow = true, bool preferRight = false}) {
   if (!uiTooltipEnabled || message.isEmpty) return child;
   if (uiDesktopEmbedder) return _UiHoverTooltip(message: message, preferBelow: preferBelow, preferRight: preferRight, child: child);

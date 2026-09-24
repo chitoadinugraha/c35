@@ -91,7 +91,7 @@ pub fn host_is_primary(host: &str) -> bool {
     if matches!(h.as_str(), "localhost" | "127.0.0.1" | "::1" | "0.0.0.0") {
         return true;
     }
-    let mut hosts = vec!["alienai.id".to_string()];
+    let mut hosts = vec!["alienai.id".to_string(), "www.alienai.id".to_string()];
     if let Ok(raw) = std::env::var("C35_PRIMARY_HOSTS") {
         for part in raw.split(',') {
             let p = normalize_hostname(part);

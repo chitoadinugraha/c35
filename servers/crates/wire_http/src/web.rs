@@ -42,6 +42,7 @@ fn mime_type(path: &StdPath) -> &'static str {
         "ico" => "image/x-icon",
         "woff2" => "font/woff2",
         "txt" => "text/plain; charset=utf-8",
+        "xml" => "application/xml; charset=utf-8",
         _ => "application/octet-stream",
     }
 }
@@ -193,7 +194,15 @@ pub fn web_router() -> Router<AppState> {
         .route("/delete.html", get(|| page_get("delete.html")))
         .route("/tts", get(|| page_get("tts.html")))
         .route("/tts.html", get(|| page_get("tts.html")))
+        .route("/status", get(|| page_get("status.html")))
+        .route("/status.html", get(|| page_get("status.html")))
         .route("/alien.svg", get(|| page_get("alien.svg")))
+        .route("/favicon.ico", get(|| page_get("favicon.ico")))
+        .route("/favicon-32x32.png", get(|| page_get("favicon-32x32.png")))
+        .route("/favicon-48x48.png", get(|| page_get("favicon-48x48.png")))
+        .route("/apple-touch-icon.png", get(|| page_get("apple-touch-icon.png")))
+        .route("/robots.txt", get(|| page_get("robots.txt")))
+        .route("/sitemap.xml", get(|| page_get("sitemap.xml")))
         .route("/locales/{file}", get(locale_get))
         .route("/static/{*path}", get(static_get))
         .route("/download/web", get(|| async {
@@ -219,7 +228,14 @@ mod tests {
         assert!(dir.join("privacy.html").is_file(), "privacy.html must exist");
         assert!(dir.join("delete.html").is_file(), "delete.html must exist");
         assert!(dir.join("tts.html").is_file(), "tts.html must exist");
+        assert!(dir.join("status.html").is_file(), "status.html must exist");
         assert!(dir.join("alien.svg").is_file(), "alien.svg must exist");
+        assert!(dir.join("favicon.ico").is_file(), "favicon.ico must exist");
+        assert!(dir.join("favicon-32x32.png").is_file(), "favicon-32x32.png must exist");
+        assert!(dir.join("favicon-48x48.png").is_file(), "favicon-48x48.png must exist");
+        assert!(dir.join("apple-touch-icon.png").is_file(), "apple-touch-icon.png must exist");
+        assert!(dir.join("robots.txt").is_file(), "robots.txt must exist");
+        assert!(dir.join("sitemap.xml").is_file(), "sitemap.xml must exist");
         assert!(dir.join("locales").join("en.json").is_file(), "locales/en.json must exist");
         assert!(dir.join("locales").join("id.json").is_file(), "locales/id.json must exist");
         assert!(dir.join("static").join("starry-night.js").is_file(), "static/starry-night.js must exist");
@@ -232,6 +248,8 @@ mod tests {
         assert_eq!(mime_type(StdPath::new("starry-night.js")), "text/javascript; charset=utf-8");
         assert_eq!(mime_type(StdPath::new("alien.svg")), "image/svg+xml");
         assert_eq!(mime_type(StdPath::new("en.json")), "application/json; charset=utf-8");
+        assert_eq!(mime_type(StdPath::new("sitemap.xml")), "application/xml; charset=utf-8");
+        assert_eq!(mime_type(StdPath::new("robots.txt")), "text/plain; charset=utf-8");
     }
 }
 

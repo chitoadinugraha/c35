@@ -188,4 +188,4 @@ User: `compare @warung-a @warung-b which is more profitable?`
 
 ## Implementation map
 
-Multitask plan: [`../../docs/superpowers/plans/2026-09-23-site-commerce-multitask.md`](../../docs/superpowers/plans/2026-09-23-site-commerce-multitask.md).
+Multitask plan: [`plans/2026-09-23-site-commerce-multitask.md`](plans/2026-09-23-site-commerce-multitask.md).

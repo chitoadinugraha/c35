@@ -4,6 +4,7 @@ mod agent_presence;
 mod device_pair;
 mod device_pair_poll;
 mod device_pair_register;
+mod device_unpair;
 mod remote_ice_config;
 mod remote_signaling;
 
@@ -13,6 +14,7 @@ pub use agent_presence::{agent_meta_get, agent_presence_put};
 pub use device_pair::device_pair;
 pub use device_pair_poll::device_pair_poll;
 pub use device_pair_register::device_pair_register;
+pub use device_unpair::{device_unpair, device_unpair_notify, DEVICE_UNPAIR_PUSH};
 pub use remote_ice_config::remote_ice_config;
 pub use remote_signaling::{
     remote_agent_send_raw, remote_device_command_run, remote_device_input_send,

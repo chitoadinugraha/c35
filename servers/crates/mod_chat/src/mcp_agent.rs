@@ -50,6 +50,8 @@ pub async fn mcp_tool_exec(
         0,
         None,
         MentionContext::empty(),
+        vec![],
+        "",
         locale,
         "[]",
         req_id,

@@ -1,4 +1,5 @@
 pub mod config;
+pub mod conn_exit;
 pub mod conn_ws;
 pub mod log_local;
 pub mod log_push;
@@ -18,4 +19,5 @@ pub mod update;
 pub mod version;
 pub mod webrtc;
 
+pub use conn_exit::ConnExit;
 pub use c35_proto;

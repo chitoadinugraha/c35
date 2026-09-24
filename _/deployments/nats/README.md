@@ -126,4 +126,4 @@ Do **not** rely on NATS disk for durability. See [`storage.md`](../storage.md).
 
 - Cluster storage layout: [`../storage.md`](../storage.md)
 - Upgrade script: [`../../scripts/deploy/nats_ephemeral_upgrade.ps1`](../../scripts/deploy/nats_ephemeral_upgrade.ps1)
-- Hydrate plan: [`docs/superpowers/plans/2026-09-23-nats-scheduler-hydrate-multitask.md`](../../../docs/superpowers/plans/2026-09-23-nats-scheduler-hydrate-multitask.md)
+- Hydrate plan: [`../docs/plans/2026-09-23-nats-scheduler-hydrate-multitask.md`](../docs/plans/2026-09-23-nats-scheduler-hydrate-multitask.md)

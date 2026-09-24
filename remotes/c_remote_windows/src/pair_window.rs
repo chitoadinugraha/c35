@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
 
@@ -40,8 +41,11 @@ impl Default for PairUiState {
 
 pub struct PairWindow {
     inner: Arc<Mutex<PairUiState>>,
+    user_quit: Arc<AtomicBool>,
     #[cfg(target_os = "windows")]
     hwnd: Arc<Mutex<isize>>,
+    #[cfg(target_os = "windows")]
+    programmatic_close: Arc<AtomicBool>,
     #[cfg(target_os = "windows")]
     ready: Arc<(Mutex<bool>, Condvar)>,
 }
@@ -49,28 +53,42 @@ pub struct PairWindow {
 impl PairWindow {
     pub fn spawn() -> Self {
         let inner = Arc::new(Mutex::new(PairUiState::default()));
+        let user_quit = Arc::new(AtomicBool::new(false));
         #[cfg(target_os = "windows")]
         {
             let hwnd = Arc::new(Mutex::new(0isize));
+            let programmatic_close = Arc::new(AtomicBool::new(false));
             let ready = Arc::new((Mutex::new(false), Condvar::new()));
             let inner_t = inner.clone();
             let hwnd_t = hwnd.clone();
             let ready_t = ready.clone();
+            let user_quit_t = user_quit.clone();
+            let programmatic_close_t = programmatic_close.clone();
             let _ = std::thread::Builder::new()
                 .name("c35-pair-ui".into())
                 .spawn(move || {
-                    if let Err(e) = run_pair_window(inner_t, hwnd_t, ready_t) {
+                    if let Err(e) = run_pair_window(inner_t, hwnd_t, ready_t, user_quit_t, programmatic_close_t) {
                         warn!("Pairing window failed ({e}); code will also print to the console.");
                     }
                 });
-            let window = Self { inner, hwnd, ready };
+            let window = Self {
+                inner,
+                user_quit,
+                hwnd,
+                programmatic_close,
+                ready,
+            };
             window.wait_ready();
             window
         }
         #[cfg(not(target_os = "windows"))]
         {
-            Self { inner }
+            Self { inner, user_quit }
         }
+    }
+
+    pub fn user_requested_quit(&self) -> bool {
+        self.user_quit.load(Ordering::Relaxed)
     }
 
     #[cfg(target_os = "windows")]
@@ -125,6 +143,7 @@ impl PairWindow {
         unsafe {
             use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
             use windows::Win32::UI::WindowsAndMessaging::{PostMessageW, WM_CLOSE};
+            self.programmatic_close.store(true, Ordering::Relaxed);
             let hwnd = *self.hwnd.lock().unwrap();
             if hwnd != 0 {
                 let _ = PostMessageW(HWND(hwnd as *mut core::ffi::c_void), WM_CLOSE, WPARAM(0), LPARAM(0));
@@ -168,6 +187,8 @@ fn run_pair_window(
     state: Arc<Mutex<PairUiState>>,
     hwnd_slot: Arc<Mutex<isize>>,
     ready: Arc<(Mutex<bool>, Condvar)>,
+    user_quit: Arc<AtomicBool>,
+    programmatic_close: Arc<AtomicBool>,
 ) -> anyhow::Result<()> {
     use windows::core::w;
     use windows::Win32::Foundation::{COLORREF, HANDLE, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM};
@@ -188,7 +209,8 @@ fn run_pair_window(
         GetSystemMetrics, GetWindowLongPtrW, KillTimer, LoadCursorW, PostQuitMessage,
         RegisterClassExW, SetTimer, SetWindowLongPtrW, SetWindowPos, ShowWindow, TranslateMessage,
         CS_HREDRAW, CS_VREDRAW, GWLP_USERDATA, HMENU, HWND_TOPMOST, IDC_ARROW, MSG, SM_CXSCREEN,
-        SM_CYSCREEN, SWP_NOMOVE, SWP_NOSIZE, SW_SHOW, WM_CLOSE, WM_DESTROY, WM_ERASEBKGND, WM_LBUTTONDOWN,
+        SM_CYSCREEN, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SW_SHOW, WM_CLOSE, WM_DESTROY,
+        WM_DPICHANGED, WM_ERASEBKGND, WM_LBUTTONDOWN,
         WM_MOUSEMOVE, WM_NCHITTEST, WM_PAINT, WM_TIMER, WM_USER, WNDCLASSEXW, WS_EX_APPWINDOW,
         WS_EX_TOPMOST, WS_POPUP, WS_VISIBLE, HTCAPTION, HTCLIENT,
     };
@@ -196,11 +218,37 @@ fn run_pair_window(
     const WM_REFRESH: u32 = WM_USER + 201;
     const WM_TIMER_SPIN: usize = 1;
     const WM_TIMER_TICK: usize = 2;
-    const TITLE_H: i32 = 36;
-    const FOOTER_H: i32 = 26;
-    const CLOSE_SZ: i32 = 36;
-    const WIN_W: i32 = 460;
-    const WIN_H: i32 = 268;
+    const TITLE_H_BASE: i32 = 36;
+    const FOOTER_H_BASE: i32 = 26;
+    const CLOSE_SZ_BASE: i32 = 36;
+    const WIN_W_BASE: i32 = 460;
+    const WIN_H_BASE: i32 = 268;
+
+    struct UiScale {
+        dpi: u32,
+    }
+
+    impl UiScale {
+        fn from_dpi(dpi: u32) -> Self {
+            Self { dpi: dpi.max(96) }
+        }
+
+        fn px(&self, logical: i32) -> i32 {
+            ((logical as i64 * self.dpi as i64 + 48) / 96) as i32
+        }
+    }
+
+    unsafe fn system_dpi() -> u32 {
+        use windows::Win32::UI::HiDpi::GetDpiForSystem;
+        let dpi = GetDpiForSystem();
+        if dpi == 0 { 96 } else { dpi }
+    }
+
+    unsafe fn window_dpi(hwnd: HWND) -> u32 {
+        use windows::Win32::UI::HiDpi::GetDpiForWindow;
+        let dpi = GetDpiForWindow(hwnd);
+        if dpi == 0 { system_dpi() } else { dpi }
+    }
 
     const CLR_BG: u32 = 0x000A0A08;
     const CLR_TITLE: u32 = 0x00141412;
@@ -229,12 +277,12 @@ fn run_pair_window(
     }
 
     impl Fonts {
-        unsafe fn create() -> Self {
+        unsafe fn create(scale: &UiScale) -> Self {
             Self {
-                title: create_font(-15, FW_SEMIBOLD, w!("Segoe UI")),
-                code: create_font(-24, FW_BOLD, w!("Consolas")),
-                body: create_font(-12, FW_NORMAL, w!("Segoe UI")),
-                small: create_font(-11, FW_NORMAL, w!("Segoe UI")),
+                title: create_font(-scale.px(15), FW_SEMIBOLD, w!("Segoe UI")),
+                code: create_font(-scale.px(24), FW_BOLD, w!("Consolas")),
+                body: create_font(-scale.px(12), FW_NORMAL, w!("Segoe UI")),
+                small: create_font(-scale.px(11), FW_NORMAL, w!("Segoe UI")),
             }
         }
 
@@ -272,7 +320,10 @@ fn run_pair_window(
 
     struct Ctx {
         state: Arc<Mutex<PairUiState>>,
+        scale: UiScale,
         fonts: Fonts,
+        user_quit: Arc<AtomicBool>,
+        programmatic_close: Arc<AtomicBool>,
         close_hover: bool,
         copy_hover: bool,
         link_hover: bool,
@@ -281,26 +332,44 @@ fn run_pair_window(
         last_bar_px: i32,
     }
 
-    fn footer_link_rect(rc: &RECT) -> RECT {
+    impl Ctx {
+        unsafe fn apply_dpi(&mut self, dpi: u32) {
+            self.fonts.drop();
+            self.scale = UiScale::from_dpi(dpi);
+            self.fonts = Fonts::create(&self.scale);
+        }
+    }
+
+    fn footer_h(scale: &UiScale) -> i32 {
+        scale.px(FOOTER_H_BASE)
+    }
+
+    fn title_h(scale: &UiScale) -> i32 {
+        scale.px(TITLE_H_BASE)
+    }
+
+    fn footer_link_rect(scale: &UiScale, rc: &RECT) -> RECT {
+        let footer_h = footer_h(scale);
         RECT {
-            left: 8,
-            top: rc.bottom - FOOTER_H,
-            right: 120,
+            left: scale.px(8),
+            top: rc.bottom - footer_h,
+            right: scale.px(120),
             bottom: rc.bottom,
         }
     }
 
-    fn progress_area_rect(rc: &RECT) -> RECT {
+    fn progress_area_rect(scale: &UiScale, rc: &RECT) -> RECT {
+        let footer_h = footer_h(scale);
         RECT {
             left: 0,
-            top: rc.bottom - FOOTER_H - 40,
+            top: rc.bottom - footer_h - scale.px(40),
             right: rc.right,
-            bottom: rc.bottom - FOOTER_H,
+            bottom: rc.bottom - footer_h,
         }
     }
 
-    fn progress_inner_width(rc: &RECT) -> i32 {
-        rc.right - 56
+    fn progress_inner_width(scale: &UiScale, rc: &RECT) -> i32 {
+        rc.right - scale.px(56)
     }
 
     unsafe fn open_url(url: &str) {
@@ -320,48 +389,54 @@ fn run_pair_window(
         }
     }
 
-    fn close_rect(rc: &RECT) -> RECT {
+    fn close_rect(scale: &UiScale, rc: &RECT) -> RECT {
+        let close_sz = scale.px(CLOSE_SZ_BASE);
+        let title_h = title_h(scale);
         RECT {
-            left: rc.right - CLOSE_SZ,
+            left: rc.right - close_sz,
             top: 0,
             right: rc.right,
-            bottom: TITLE_H,
+            bottom: title_h,
         }
     }
 
-    fn copy_rect(rc: &RECT) -> RECT {
-        let w = 76i32;
-        let h = 28i32;
+    fn copy_rect(scale: &UiScale, rc: &RECT) -> RECT {
+        let w = scale.px(76);
+        let h = scale.px(28);
+        let top = scale.px(124);
         RECT {
             left: (rc.right - w) / 2,
-            top: 124,
+            top,
             right: (rc.right + w) / 2,
-            bottom: 124 + h,
+            bottom: top + h,
         }
     }
 
-    fn spinner_rect(rc: &RECT) -> RECT {
+    fn spinner_rect(scale: &UiScale, rc: &RECT) -> RECT {
+        let half = scale.px(40);
         RECT {
-            left: rc.right / 2 - 40,
-            top: 52,
-            right: rc.right / 2 + 40,
-            bottom: 132,
+            left: rc.right / 2 - half,
+            top: scale.px(52),
+            right: rc.right / 2 + half,
+            bottom: scale.px(132),
         }
     }
 
-    fn bottom_rect(rc: &RECT) -> RECT {
+    fn bottom_rect(scale: &UiScale, rc: &RECT) -> RECT {
+        let footer_h = footer_h(scale);
         RECT {
             left: 0,
-            top: rc.bottom - FOOTER_H - 44,
+            top: rc.bottom - footer_h - scale.px(44),
             right: rc.right,
             bottom: rc.bottom,
         }
     }
 
-    fn footer_rect(rc: &RECT) -> RECT {
+    fn footer_rect(scale: &UiScale, rc: &RECT) -> RECT {
+        let footer_h = footer_h(scale);
         RECT {
             left: 0,
-            top: rc.bottom - FOOTER_H,
+            top: rc.bottom - footer_h,
             right: rc.right,
             bottom: rc.bottom,
         }
@@ -393,20 +468,21 @@ fn run_pair_window(
         SelectObject(hdc, old_font);
     }
 
-    unsafe fn draw_round_btn(hdc: HDC, rc: &RECT, hover: bool, _label: &str) {
+    unsafe fn draw_round_btn(hdc: HDC, scale: &UiScale, rc: &RECT, hover: bool, _label: &str) {
+        let radius = scale.px(6);
         let pen = CreatePen(PS_SOLID, 1, COLORREF(CLR_BTN_BORDER));
         let brush = CreateSolidBrush(COLORREF(if hover { CLR_BTN_HOVER } else { CLR_BTN_BG }));
         let old_pen = SelectObject(hdc, HGDIOBJ(pen.0));
         let old_brush = SelectObject(hdc, HGDIOBJ(brush.0));
-        let _ = RoundRect(hdc, rc.left, rc.top, rc.right, rc.bottom, 6, 6);
+        let _ = RoundRect(hdc, rc.left, rc.top, rc.right, rc.bottom, radius, radius);
         SelectObject(hdc, old_brush);
         SelectObject(hdc, old_pen);
         let _ = DeleteObject(HGDIOBJ(brush.0));
         let _ = DeleteObject(HGDIOBJ(pen.0));
     }
 
-    unsafe fn draw_spinner(hdc: HDC, cx: i32, cy: i32, r: i32, frame: u8) {
-        let pen = CreatePen(PS_SOLID, 2, COLORREF(CLR_ACCENT));
+    unsafe fn draw_spinner(hdc: HDC, scale: &UiScale, cx: i32, cy: i32, r: i32, frame: u8) {
+        let pen = CreatePen(PS_SOLID, scale.px(2).max(1), COLORREF(CLR_ACCENT));
         let hollow = SelectObject(hdc, GetStockObject(NULL_BRUSH));
         let old_pen = SelectObject(hdc, HGDIOBJ(pen.0));
         let _ = Ellipse(hdc, cx - r, cy - r, cx + r, cy + r);
@@ -416,7 +492,7 @@ fn run_pair_window(
         let y1 = cy + (r as f32 * rad.sin()) as i32;
         let x2 = cx + (r as f32 * (rad + 1.2).cos()) as i32;
         let y2 = cy + (r as f32 * (rad + 1.2).sin()) as i32;
-        let accent_pen = CreatePen(PS_SOLID, 3, COLORREF(CLR_TEXT));
+        let accent_pen = CreatePen(PS_SOLID, scale.px(3).max(1), COLORREF(CLR_TEXT));
         SelectObject(hdc, HGDIOBJ(accent_pen.0));
         let mut pt = POINT::default();
         let _ = MoveToEx(hdc, x1, y1, Some(&mut pt));
@@ -427,21 +503,22 @@ fn run_pair_window(
         let _ = DeleteObject(HGDIOBJ(accent_pen.0));
     }
 
-    unsafe fn draw_pin_boxes(hdc: HDC, font: HFONT, rc: &RECT, code: &str) {
+    unsafe fn draw_pin_boxes(hdc: HDC, scale: &UiScale, font: HFONT, rc: &RECT, code: &str) {
         if !code_is_pin(code) {
             return;
         }
         let parts: Vec<&str> = code.split('-').collect();
-        let box_w = 34i32;
-        let box_h = 42i32;
-        let gap = 5i32;
-        let group_gap = 14i32;
+        let box_w = scale.px(34);
+        let box_h = scale.px(42);
+        let gap = scale.px(5);
+        let group_gap = scale.px(14);
+        let radius = scale.px(6);
         let chars1: Vec<char> = parts[0].chars().collect();
         let chars2: Vec<char> = parts[1].chars().collect();
         let count = (chars1.len() + chars2.len()) as i32;
         let total_w = count * box_w + (count - 1) * gap + group_gap;
         let mut x = (rc.right - total_w) / 2;
-        let y = 48i32;
+        let y = scale.px(48);
 
         let pen = CreatePen(PS_SOLID, 1, COLORREF(CLR_PIN_BORDER));
         let brush = CreateSolidBrush(COLORREF(CLR_PIN_BG));
@@ -458,7 +535,7 @@ fn run_pair_window(
                 right: x + box_w,
                 bottom: y + box_h,
             };
-            let _ = RoundRect(hdc, box_rc.left, box_rc.top, box_rc.right, box_rc.bottom, 6, 6);
+            let _ = RoundRect(hdc, box_rc.left, box_rc.top, box_rc.right, box_rc.bottom, radius, radius);
             draw_text(
                 hdc,
                 font,
@@ -476,10 +553,10 @@ fn run_pair_window(
         let _ = DeleteObject(HGDIOBJ(pen.0));
     }
 
-    unsafe fn draw_progress(hdc: HDC, rc: &RECT, remain: Duration, total: Duration) {
-        let margin = 28i32;
-        let bar_h = 4i32;
-        let y = rc.bottom - FOOTER_H - 16;
+    unsafe fn draw_progress(hdc: HDC, scale: &UiScale, rc: &RECT, remain: Duration, total: Duration) {
+        let margin = scale.px(28);
+        let bar_h = scale.px(4).max(2);
+        let y = rc.bottom - footer_h(scale) - scale.px(16);
         let bar_rc = RECT {
             left: margin,
             top: y,
@@ -553,17 +630,21 @@ fn run_pair_window(
         let _ = FillRect(hdc, &rc, bg);
         let _ = DeleteObject(HGDIOBJ(bg.0));
 
+        let scale = &ctx.scale;
+        let title_h = title_h(scale);
+        let close_sz = scale.px(CLOSE_SZ_BASE);
+
         let title_bg = CreateSolidBrush(COLORREF(CLR_TITLE));
-        let title_rc = RECT { left: 0, top: 0, right: rc.right, bottom: TITLE_H };
+        let title_rc = RECT { left: 0, top: 0, right: rc.right, bottom: title_h };
         let _ = FillRect(hdc, &title_rc, title_bg);
         let _ = DeleteObject(HGDIOBJ(title_bg.0));
 
         let footer_bg = CreateSolidBrush(COLORREF(CLR_FOOTER));
-        let ftr = footer_rect(&rc);
+        let ftr = footer_rect(scale, &rc);
         let _ = FillRect(hdc, &ftr, footer_bg);
         let _ = DeleteObject(HGDIOBJ(footer_bg.0));
 
-        let close = close_rect(&rc);
+        let close = close_rect(scale, &rc);
         if ctx.close_hover {
             let hover = CreateSolidBrush(COLORREF(CLR_CLOSE_BG_HOVER));
             let _ = FillRect(hdc, &close, hover);
@@ -584,10 +665,10 @@ fn run_pair_window(
             CLR_TEXT,
             WINDOW_TITLE,
             RECT {
-                left: 14,
+                left: scale.px(14),
                 top: 0,
-                right: rc.right - CLOSE_SZ,
-                bottom: TITLE_H,
+                right: rc.right - close_sz,
+                bottom: title_h,
             },
             DT_SINGLELINE | DT_VCENTER,
         );
@@ -597,7 +678,7 @@ fn run_pair_window(
             ctx.fonts.small,
             if ctx.link_hover { CLR_LINK_HOVER } else { CLR_LINK },
             "alienai.id",
-            footer_link_rect(&rc),
+            footer_link_rect(scale, &rc),
             DT_SINGLELINE | DT_VCENTER,
         );
         let ver = agent_version_label();
@@ -609,24 +690,24 @@ fn run_pair_window(
             RECT {
                 left: rc.right / 2,
                 top: ftr.top,
-                right: rc.right - 14,
+                right: rc.right - scale.px(14),
                 bottom: ftr.bottom,
             },
             DRAW_TEXT_FORMAT(DT_RIGHT.0 | DT_SINGLELINE.0 | DT_VCENTER.0),
         );
 
         if snap.phase == PairPhase::Connecting {
-            draw_spinner(hdc, rc.right / 2, 88, 18, snap.spinner);
+            draw_spinner(hdc, scale, rc.right / 2, scale.px(88), scale.px(18), snap.spinner);
             draw_text(
                 hdc,
                 ctx.fonts.body,
                 CLR_MUTED,
                 &snap.status,
                 RECT {
-                    left: 24,
-                    top: 112,
-                    right: rc.right - 24,
-                    bottom: 156,
+                    left: scale.px(24),
+                    top: scale.px(112),
+                    right: rc.right - scale.px(24),
+                    bottom: scale.px(156),
                 },
                 DT_CENTER | DT_WORDBREAK,
             );
@@ -634,14 +715,14 @@ fn run_pair_window(
         }
 
         if snap.phase == PairPhase::Code {
-            draw_pin_boxes(hdc, ctx.fonts.code, &rc, &snap.code);
+            draw_pin_boxes(hdc, scale, ctx.fonts.code, &rc, &snap.code);
         }
 
         if snap.phase == PairPhase::Code && code_is_pin(&snap.code) {
-            let copy = copy_rect(&rc);
+            let copy = copy_rect(scale, &rc);
             let copied = ctx.copied_until.is_some_and(|t| t > Instant::now());
             let label = if copied { "Copied!" } else { "Copy" };
-            draw_round_btn(hdc, &copy, ctx.copy_hover || copied, label);
+            draw_round_btn(hdc, scale, &copy, ctx.copy_hover || copied, label);
             draw_text(
                 hdc,
                 ctx.fonts.body,
@@ -658,10 +739,10 @@ fn run_pair_window(
             CLR_MUTED,
             &snap.status,
             RECT {
-                left: 24,
-                top: 94,
-                right: rc.right - 24,
-                bottom: 122,
+                left: scale.px(24),
+                top: scale.px(94),
+                right: rc.right - scale.px(24),
+                bottom: scale.px(122),
             },
             DT_CENTER | DT_WORDBREAK,
         );
@@ -672,6 +753,7 @@ fn run_pair_window(
             .unwrap_or(Duration::ZERO);
         let secs = remain.as_secs();
         if snap.deadline.is_some() {
+            let footer_h = footer_h(scale);
             let expire = format!("Code Refresh in {}:{:02}", secs / 60, secs % 60);
             draw_text(
                 hdc,
@@ -679,14 +761,14 @@ fn run_pair_window(
                 CLR_MUTED,
                 &expire,
                 RECT {
-                    left: 24,
-                    top: rc.bottom - FOOTER_H - 36,
-                    right: rc.right - 24,
-                    bottom: rc.bottom - FOOTER_H - 20,
+                    left: scale.px(24),
+                    top: rc.bottom - footer_h - scale.px(36),
+                    right: rc.right - scale.px(24),
+                    bottom: rc.bottom - footer_h - scale.px(20),
                 },
                 DT_CENTER | DT_SINGLELINE,
             );
-            draw_progress(hdc, &rc, remain, snap.expires_total);
+            draw_progress(hdc, scale, &rc, remain, snap.expires_total);
         }
     }
 
@@ -697,10 +779,10 @@ fn run_pair_window(
                 let full = wparam.0 != 0;
                 if full {
                     invalidate(hwnd, None);
-                } else {
+                } else if let Some(ctx) = ctx_get(hwnd) {
                     let mut rc = RECT::default();
                     let _ = GetClientRect(hwnd, &mut rc);
-                    invalidate(hwnd, Some(bottom_rect(&rc)));
+                    invalidate(hwnd, Some(bottom_rect(&ctx.scale, &rc)));
                 }
                 LRESULT(0)
             }
@@ -718,7 +800,7 @@ fn run_pair_window(
                         g.spinner = (g.spinner + 1) % 8;
                         let mut rc = RECT::default();
                         let _ = GetClientRect(hwnd, &mut rc);
-                        invalidate(hwnd, Some(spinner_rect(&rc)));
+                        invalidate(hwnd, Some(spinner_rect(&ctx.scale, &rc)));
                     }
                 }
                 LRESULT(0)
@@ -729,7 +811,7 @@ fn run_pair_window(
                         ctx.copied_until = None;
                         let mut rc = RECT::default();
                         let _ = GetClientRect(hwnd, &mut rc);
-                        invalidate(hwnd, Some(copy_rect(&rc)));
+                        invalidate(hwnd, Some(copy_rect(&ctx.scale, &rc)));
                     }
                     let snap = ctx.state.lock().unwrap().clone();
                     if snap.phase == PairPhase::Code {
@@ -739,18 +821,36 @@ fn run_pair_window(
                             let total = snap.expires_total.as_secs().max(1);
                             let mut rc = RECT::default();
                             let _ = GetClientRect(hwnd, &mut rc);
-                            let inner = progress_inner_width(&rc);
+                            let inner = progress_inner_width(&ctx.scale, &rc);
                             let fill_w = ((inner as f32) * (remain.as_secs_f32() / total as f32)).clamp(0.0, inner as f32) as i32;
                             if secs != ctx.last_expire_secs || fill_w != ctx.last_bar_px {
                                 ctx.last_expire_secs = secs;
                                 ctx.last_bar_px = fill_w;
                                 let mut rc = RECT::default();
                                 let _ = GetClientRect(hwnd, &mut rc);
-                                invalidate(hwnd, Some(progress_area_rect(&rc)));
+                                invalidate(hwnd, Some(progress_area_rect(&ctx.scale, &rc)));
                             }
                         }
                     }
                 }
+                LRESULT(0)
+            }
+            WM_DPICHANGED => {
+                let new_dpi = (wparam.0 & 0xFFFF) as u32;
+                let suggested = *(lparam.0 as *const RECT);
+                if let Some(ctx) = ctx_get(hwnd) {
+                    ctx.apply_dpi(new_dpi);
+                }
+                let _ = SetWindowPos(
+                    hwnd,
+                    HWND_TOPMOST,
+                    suggested.left,
+                    suggested.top,
+                    suggested.right - suggested.left,
+                    suggested.bottom - suggested.top,
+                    SWP_NOZORDER | SWP_NOACTIVATE,
+                );
+                invalidate(hwnd, None);
                 LRESULT(0)
             }
             WM_NCHITTEST => {
@@ -761,11 +861,13 @@ fn run_pair_window(
                     y: ((lparam.0 >> 16) & 0xFFFF) as i16 as i32,
                 };
                 let _ = ScreenToClient(hwnd, &mut pt);
-                if in_rect(pt, &close_rect(&rc)) {
-                    return LRESULT(HTCLIENT as isize);
-                }
-                if pt.y < TITLE_H {
-                    return LRESULT(HTCAPTION as isize);
+                if let Some(ctx) = ctx_get(hwnd) {
+                    if in_rect(pt, &close_rect(&ctx.scale, &rc)) {
+                        return LRESULT(HTCLIENT as isize);
+                    }
+                    if pt.y < title_h(&ctx.scale) {
+                        return LRESULT(HTCAPTION as isize);
+                    }
                 }
                 LRESULT(HTCLIENT as isize)
             }
@@ -777,20 +879,20 @@ fn run_pair_window(
                     y: ((lparam.0 >> 16) & 0xFFFF) as i16 as i32,
                 };
                 if let Some(ctx) = ctx_get(hwnd) {
-                    let close_hover = in_rect(pt, &close_rect(&rc));
-                    let copy_hover = in_rect(pt, &copy_rect(&rc));
-                    let link_hover = in_rect(pt, &footer_link_rect(&rc));
+                    let close_hover = in_rect(pt, &close_rect(&ctx.scale, &rc));
+                    let copy_hover = in_rect(pt, &copy_rect(&ctx.scale, &rc));
+                    let link_hover = in_rect(pt, &footer_link_rect(&ctx.scale, &rc));
                     if ctx.close_hover != close_hover {
                         ctx.close_hover = close_hover;
-                        invalidate(hwnd, Some(close_rect(&rc)));
+                        invalidate(hwnd, Some(close_rect(&ctx.scale, &rc)));
                     }
                     if ctx.copy_hover != copy_hover {
                         ctx.copy_hover = copy_hover;
-                        invalidate(hwnd, Some(copy_rect(&rc)));
+                        invalidate(hwnd, Some(copy_rect(&ctx.scale, &rc)));
                     }
                     if ctx.link_hover != link_hover {
                         ctx.link_hover = link_hover;
-                        invalidate(hwnd, Some(footer_rect(&rc)));
+                        invalidate(hwnd, Some(footer_rect(&ctx.scale, &rc)));
                     }
                 }
                 LRESULT(0)
@@ -802,25 +904,33 @@ fn run_pair_window(
                     x: (lparam.0 & 0xFFFF) as i16 as i32,
                     y: ((lparam.0 >> 16) & 0xFFFF) as i16 as i32,
                 };
-                if in_rect(pt, &close_rect(&rc)) {
-                    let _ = PostQuitMessage(0);
-                    return LRESULT(0);
-                }
-                if in_rect(pt, &copy_rect(&rc)) {
-                    if let Some(ctx) = ctx_get(hwnd) {
+                if let Some(ctx) = ctx_get(hwnd) {
+                    if in_rect(pt, &close_rect(&ctx.scale, &rc)) {
+                        use windows::Win32::Foundation::{LPARAM, WPARAM};
+                        use windows::Win32::UI::WindowsAndMessaging::{PostMessageW, WM_CLOSE};
+                        let _ = PostMessageW(hwnd, WM_CLOSE, WPARAM(0), LPARAM(0));
+                        return LRESULT(0);
+                    }
+                    if in_rect(pt, &copy_rect(&ctx.scale, &rc)) {
                         let code = ctx.state.lock().unwrap().code.clone();
                         if code_is_pin(&code) && copy_code_to_clipboard(hwnd, &code) {
                             ctx.copied_until = Some(Instant::now() + Duration::from_secs(2));
-                            invalidate(hwnd, Some(copy_rect(&rc)));
+                            invalidate(hwnd, Some(copy_rect(&ctx.scale, &rc)));
                         }
                     }
-                }
-                if in_rect(pt, &footer_link_rect(&rc)) {
-                    open_url(SITE_URL);
+                    if in_rect(pt, &footer_link_rect(&ctx.scale, &rc)) {
+                        open_url(SITE_URL);
+                    }
                 }
                 LRESULT(0)
             }
             WM_CLOSE => {
+                if let Some(ctx) = ctx_get(hwnd) {
+                    if !ctx.programmatic_close.load(Ordering::Relaxed) {
+                        ctx.user_quit.store(true, Ordering::Relaxed);
+                    }
+                    ctx.programmatic_close.store(false, Ordering::Relaxed);
+                }
                 let _ = KillTimer(hwnd, WM_TIMER_SPIN);
                 let _ = KillTimer(hwnd, WM_TIMER_TICK);
                 let _ = DestroyWindow(hwnd);
@@ -856,6 +966,9 @@ fn run_pair_window(
         };
         let _ = RegisterClassExW(&wnd_class);
 
+        let initial_scale = UiScale::from_dpi(system_dpi());
+        let win_w = initial_scale.px(WIN_W_BASE);
+        let win_h = initial_scale.px(WIN_H_BASE);
         let cw = GetSystemMetrics(SM_CXSCREEN);
         let ch = GetSystemMetrics(SM_CYSCREEN);
         let hwnd = CreateWindowExW(
@@ -863,19 +976,25 @@ fn run_pair_window(
             class_name,
             w!("Alien AI - Pair Device"),
             WS_POPUP | WS_VISIBLE,
-            (cw - WIN_W) / 2,
-            (ch - WIN_H) / 2,
-            WIN_W,
-            WIN_H,
+            (cw - win_w) / 2,
+            (ch - win_h) / 2,
+            win_w,
+            win_h,
             HWND::default(),
             HMENU::default(),
             hinstance,
             None,
         )?;
 
+        let dpi = window_dpi(hwnd);
+        let scale = UiScale::from_dpi(dpi);
+        let fonts = Fonts::create(&scale);
         let ctx = Box::new(Ctx {
             state: state.clone(),
-            fonts: Fonts::create(),
+            scale,
+            fonts,
+            user_quit: user_quit.clone(),
+            programmatic_close: programmatic_close.clone(),
             close_hover: false,
             copy_hover: false,
             link_hover: false,

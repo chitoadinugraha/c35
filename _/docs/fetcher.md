@@ -4,7 +4,7 @@ Status: **locked** 2026-09-23
 
 Cluster singleton that periodically fetches external data, persists to YB, and publishes updates on NATS so `c35-server` pods keep hot in-memory caches without duplicate API calls.
 
-Implementation plan: [`docs/superpowers/plans/2026-09-23-c35-fetcher-multitask.md`](../../docs/superpowers/plans/2026-09-23-c35-fetcher-multitask.md).
+Implementation plan: [`plans/2026-09-23-c35-fetcher-multitask.md`](plans/2026-09-23-c35-fetcher-multitask.md).
 
 ---
 
@@ -19,7 +19,7 @@ Implementation plan: [`docs/superpowers/plans/2026-09-23-c35-fetcher-multitask.m
 | K8s Deployment | `c35-fetcher` (`replicas: 1`) |
 | Docker image | `hsg.ocir.io/.../c35-fetcher:latest` |
 
-Same pattern as `server_ai` → `c35-server` and `node_stats` → `c35-node-stats`.
+Same pattern as `server_ai` → `c35-server` and `node_stats` → `c35-node-stats` (`servers/node_stats/`).
 
 ---
 

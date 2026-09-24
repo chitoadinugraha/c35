@@ -76,6 +76,24 @@ pub async fn pair_register(
     pair_pending_from_json(&res)
 }
 
+pub async fn pair_unpair(base_url: &str, session_key: &str) -> anyhow::Result<()> {
+    let url = format!("{}/v1/device/unpair", base_url.trim_end_matches('/'));
+    let res = reqwest::Client::new()
+        .post(url)
+        .header("X-Device-Session", session_key)
+        .json(&serde_json::json!({}))
+        .send()
+        .await?;
+    if res.status() == reqwest::StatusCode::UNAUTHORIZED {
+        anyhow::bail!("invalid session");
+    }
+    if !res.status().is_success() {
+        let body = res.text().await.unwrap_or_default();
+        anyhow::bail!("unpair failed: {}", body);
+    }
+    Ok(())
+}
+
 pub async fn pair_poll(base_url: &str, secret: &str) -> anyhow::Result<PairPoll> {
     let client = reqwest::Client::new();
     let url = format!("{}/v1/device/pair/poll", base_url.trim_end_matches('/'));

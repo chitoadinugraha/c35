@@ -12,7 +12,7 @@
 
 - Root RBAC: `require_root` on all admin invoke + subscribe handlers.
 - Naming: `ui_` widgets, `io_` inputs; contextual API names (`objectAliasList`, `adminStatsStream`).
-- Verify: `cd servers && cargo build -p server_ai`; `cd clients/app && flutter analyze`; `cd node_stats && cargo build -p c_node_stats`.
+- Verify: `cd servers && cargo build -p server_ai`; `cd clients/app && flutter analyze`; `cd servers && cargo build -p c_node_stats`.
 - Rust cache under `.cache/` — always `cd` into workspace before `cargo build`.
 - Do not commit secrets; ConfigMap paths are host paths only.
 - Cluster: `k3s-btm` arm64 — `publish_node_stats.ps1` for image deploy.
@@ -46,7 +46,7 @@ Wave 3            Task 10 — Docs + integration verify
 | Area | Create | Modify |
 |------|--------|--------|
 | Proto | — | `_/schemas/proto/c35/stats.proto`, `object.proto`, `wire.proto` |
-| Collector | `node_stats/c_node_stats/src/device.rs` | `node.rs`, `host.rs`, `main.rs`, `volume.rs` |
+| Collector | `servers/node_stats/src/device.rs` | `node.rs`, `host.rs`, `main.rs`, `volume.rs` |
 | Deploy | — | `_/deployments/c35-node-stats/configmap.yaml`, `README.md` |
 | Server | `servers/crates/mod_chat/src/object_admin.rs` | `lib.rs`, `wire_http/src/invoke.rs` |
 | Flutter pages | `page_root_objects.dart` | `page_root_console.dart` |
@@ -177,9 +177,9 @@ cd ../clients/app && flutter analyze
 ### Task 2: Block device enumeration (Wave 1)
 
 **Files:**
-- Create: `node_stats/c_node_stats/src/device.rs`
-- Modify: `node_stats/c_node_stats/src/node.rs`, `host.rs`, `main.rs`
-- Test: `node_stats/c_node_stats/src/device.rs` (unit tests with fixture mountinfo)
+- Create: `servers/node_stats/src/device.rs`
+- Modify: `servers/node_stats/src/node.rs`, `host.rs`, `main.rs`
+- Test: `servers/node_stats/src/device.rs` (unit tests with fixture mountinfo)
 
 **Interfaces:**
 - Consumes: `DiskDeviceStat` from proto
@@ -244,7 +244,7 @@ fn boot_device_marked() {
 - [ ] **Step 4: Build**
 
 ```powershell
-cd node_stats
+cd servers
 cargo test -p c_node_stats
 cargo build --release -p c_node_stats
 ```
@@ -254,7 +254,7 @@ cargo build --release -p c_node_stats
 ### Task 3: Volume subjects + ConfigMap (Wave 1)
 
 **Files:**
-- Modify: `node_stats/c_node_stats/src/volume.rs`, `main.rs`
+- Modify: `servers/node_stats/src/volume.rs`, `main.rs`
 - Modify: `_/deployments/c35-node-stats/configmap.yaml`, `README.md`
 - Modify: `_/docs/sync.md`
 
@@ -302,7 +302,7 @@ c35.stats.volume.{node_name}.{namespace}.{pvc_name}
 - [ ] **Step 5: Build**
 
 ```powershell
-cd node_stats && cargo build -p c_node_stats
+cd servers && cargo build -p c_node_stats
 ```
 
 ---
@@ -645,7 +645,7 @@ Expected subjects:
 
 ```powershell
 cd servers && cargo build -p server_ai
-cd ../node_stats && cargo test -p c_node_stats
+cd servers && cargo test -p c_node_stats
 cd ../clients/app && flutter analyze
 ```
 

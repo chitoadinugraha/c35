@@ -4,6 +4,7 @@ mod copy;
 mod day;
 mod detect;
 mod fingerprint;
+mod rpc;
 mod store;
 mod summary;
 mod types;
@@ -16,9 +17,10 @@ pub use day::{
 };
 pub use detect::{detect_pic, detect_text};
 pub use fingerprint::{expense_fingerprint, expense_total_minor, item_name_label};
+pub use rpc::expense_put_rpc;
 pub use store::{
     expense_delete, expense_duplicate_today, expense_get, expense_get_latest_today, expense_list_day,
-    expense_put, receipt_from_detect, spending_sum_day,
+    expense_put, expense_update, receipt_from_detect, spending_sum_day,
 };
 pub use summary::{expense_summary, glance_coach_with_match};
 pub use types::{

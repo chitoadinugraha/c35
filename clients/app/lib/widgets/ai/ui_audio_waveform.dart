@@ -69,6 +69,8 @@ class _UiAudioWaveformState extends State<UiAudioWaveform> with SingleTickerProv
       _ => Icons.language_outlined,
     };
 
+    final transcribingListenable = widget.isTranscribing ?? ValueNotifier(false);
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -76,7 +78,7 @@ class _UiAudioWaveformState extends State<UiAudioWaveform> with SingleTickerProv
         // Live transcript or recognizing status preview row
         if (widget.liveTranscript != null || widget.isTranscribing != null)
           ValueListenableBuilder<bool>(
-            valueListenable: widget.isTranscribing ?? ValueNotifier(false),
+            valueListenable: transcribingListenable,
             builder: (ctx, transcribing, _) {
               return ValueListenableBuilder<String>(
                 valueListenable: widget.liveTranscript ?? ValueNotifier(''),
@@ -86,7 +88,7 @@ class _UiAudioWaveformState extends State<UiAudioWaveform> with SingleTickerProv
                   }
                   return Container(
                     margin: const EdgeInsets.only(bottom: 6),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                     decoration: BoxDecoration(
                       color: const Color(0xFF27272A).withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(8),
@@ -94,17 +96,19 @@ class _UiAudioWaveformState extends State<UiAudioWaveform> with SingleTickerProv
                     child: Row(
                       children: [
                         if (transcribing) ...[
-                          const SizedBox(
-                            width: 12,
-                            height: 12,
-                            child: CircularProgressIndicator(strokeWidth: 1.5, color: _zinc400),
-                          ),
-                          const SizedBox(width: 8),
                           Icon(engineIcon, size: 14, color: _zinc400),
-                          const SizedBox(width: 5),
+                          const SizedBox(width: 6),
                           const Text(
                             'Recognizing…',
                             style: TextStyle(color: _zinc400, fontSize: 12, fontStyle: FontStyle.italic),
+                          ),
+                          const Spacer(),
+                          uiIconButton(
+                            tooltip: 'Cancel recording',
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                            icon: const Icon(Icons.close_rounded, size: 16, color: _red),
+                            onPressed: widget.onCancel,
                           ),
                         ] else ...[
                           const Icon(Icons.record_voice_over_rounded, size: 13, color: _zinc400),
@@ -139,13 +143,23 @@ class _UiAudioWaveformState extends State<UiAudioWaveform> with SingleTickerProv
           ),
           child: Row(
             children: [
-              // Cancel / Delete button
-              uiIconButton(
-                tooltip: 'Cancel recording',
-                icon: const Icon(Icons.close_rounded, size: 18, color: _red),
-                onPressed: widget.onCancel,
+              ValueListenableBuilder<bool>(
+                valueListenable: transcribingListenable,
+                builder: (ctx, transcribing, _) {
+                  if (transcribing) return const SizedBox.shrink();
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      uiIconButton(
+                        tooltip: 'Cancel recording',
+                        icon: const Icon(Icons.close_rounded, size: 18, color: _red),
+                        onPressed: widget.onCancel,
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                  );
+                },
               ),
-              const SizedBox(width: 8),
 
               // Pulsing recording dot & Monospace timer (00:03 / 00:30)
               ValueListenableBuilder<int>(
@@ -216,7 +230,7 @@ class _UiAudioWaveformState extends State<UiAudioWaveform> with SingleTickerProv
 
               // Stop & Send action button (matching chat send button)
               ValueListenableBuilder<bool>(
-                valueListenable: widget.isTranscribing ?? ValueNotifier(false),
+                valueListenable: transcribingListenable,
                 builder: (ctx, transcribing, _) {
                   if (transcribing) {
                     return Container(

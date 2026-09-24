@@ -22,7 +22,7 @@ For **multitask** work (2+ independent tracks, parallel waves, implementation pl
 
 | Trigger | Action |
 |---------|--------|
-| Plan with tracks (e.g. `docs/superpowers/plans/*.md`) | One `Task` per task; parallel wave = multiple `Task` in one turn |
+| Plan with tracks (e.g. `_/docs/plans/*.md`) | One `Task` per task; parallel wave = multiple `Task` in one turn |
 | User says multitask / parallel tracks | Dispatch immediately |
 | Plan handoff after writing | Start wave 1 — no execution-mode question |
 

@@ -5,16 +5,21 @@ import 'package:alienai_c35/c/trace/trace_view.dart';
 import 'package:alienai_c35/c/ui/ui_format.dart';
 import 'package:flutter/material.dart';
 
+import 'package:alienai_c35/widgets/ai/ui_citation_chips.dart';
+
 class MsgTraceView {
-  const MsgTraceView({this.chips = const [], this.view = const TraceView()});
+  const MsgTraceView({this.chips = const [], this.view = const TraceView(), this.citations = const []});
   final List<MsgTraceToolChip> chips;
   final TraceView view;
-  bool get isEmpty => chips.isEmpty;
+  final List<Citation> citations;
+  bool get isEmpty => chips.isEmpty && citations.isEmpty;
 }
 
 MsgTraceView msgTraceViewForReq(ChatConn conn, {required String reqId}) {
-  final view = buildTraceView(conn.traceCacheGet(reqId));
-  return MsgTraceView(chips: traceToolChipsFromView(view), view: view);
+  final logs = conn.traceCacheGet(reqId);
+  final view = buildTraceView(logs);
+  final citations = citationsFromTraceLogs(logs);
+  return MsgTraceView(chips: traceToolChipsFromView(view), view: view, citations: citations);
 }
 
 class UiMsgTraceLoader extends StatefulWidget {
@@ -99,13 +104,22 @@ class UiMsgTraceView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (view.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(top: 6),
-      child: Wrap(
-        spacing: 6,
-        runSpacing: 6,
-        children: view.chips.map((t) => _ToolChip(chip: t, compact: compact)).toList(),
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (view.chips.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: view.chips.map((t) => _ToolChip(chip: t, compact: compact)).toList(),
+            ),
+          ),
+        if (view.citations.isNotEmpty)
+          UiCitationChips(citations: view.citations),
+      ],
     );
   }
 }

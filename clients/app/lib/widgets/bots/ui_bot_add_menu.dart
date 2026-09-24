@@ -14,23 +14,28 @@ class UiBotAddMenu extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => PopupMenuButton<String>(
-        tooltip: uiPopupMenuTooltipText('Add bot'),
-        color: const Color(0xFF18181B),
-        onSelected: (v) => switch (v) {
-          'chat' => _onNewChatBot(context),
-          _ => null,
-        },
-        itemBuilder: (_) => const [
-          PopupMenuItem(
-            value: 'chat',
-            child: ListTile(
-              leading: Icon(Icons.smart_toy_outlined, color: Color(0xFFF4F4F5)),
-              title: Text('New Chat Bot'),
-              subtitle: Text('Telegram, WhatsApp, and more'),
+  Widget build(BuildContext context) => uiPopupMenuTooltipWrap(
+        tooltip: 'Add bot',
+        menu: PopupMenuButton<String>(
+          tooltip: uiPopupMenuTooltipText('Add bot'),
+          padding: EdgeInsets.zero,
+          icon: uiPopupMenuIcon(Icons.add),
+          iconSize: 18,
+          color: const Color(0xFF18181B),
+          onSelected: (v) => switch (v) {
+            'chat' => _onNewChatBot(context),
+            _ => null,
+          },
+          itemBuilder: (_) => const [
+            PopupMenuItem(
+              value: 'chat',
+              child: ListTile(
+                leading: Icon(Icons.smart_toy_outlined, color: Color(0xFFF4F4F5)),
+                title: Text('New Chat Bot'),
+                subtitle: Text('Telegram, WhatsApp, and more'),
+              ),
             ),
-          ),
-        ],
-        child: uiPopupMenuChild(tooltip: 'Add bot', child: const Icon(Icons.add, color: Color(0xFFF4F4F5))),
+          ],
+        ),
       );
 }

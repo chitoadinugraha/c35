@@ -3,7 +3,7 @@ use c35_mod_site::{site_contact_upsert, site_object_upsert, site_publish_from_dr
 use c35_proto::{SiteContact, SiteObject};
 use c35_store::snowflake_id;
 use serde_json::{json, Value};
-use sqlx::{Postgres, Transaction};
+use sqlx::{Postgres, Row, Transaction};
 
 use crate::mention_context::site_iid_resolve as mention_site_iid_resolve;
 use crate::site_resolve::site_grant_owner;
@@ -356,3 +356,132 @@ tool! {
         site_object_put_exec(ctx, &args).await
     }
 }
+
+pub async fn site_product_patch_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
+    let site_iid = site_iid_resolve(ctx, args)?;
+    let _owner_iid = site_grant_owner(&ctx.pool, ctx.owner_iid, site_iid).await?;
+    let product_id_opt = args.get("product_id").and_then(|v| v.as_i64()).filter(|i| *i > 0);
+    let name_opt = args.get("name").and_then(|v| v.as_str()).map(str::trim).filter(|s| !s.is_empty());
+
+    if product_id_opt.is_none() && name_opt.is_none() {
+        bail!("product_id or name is required to identify the product to update");
+    }
+
+    let target_product_id: i64 = match product_id_opt {
+        Some(id) => id,
+        None => {
+            let name_query = name_opt.unwrap();
+            let row = sqlx::query_scalar::<_, i64>(
+                r#"
+                SELECT product_id
+                FROM site.product
+                WHERE site_iid = $1 AND deleted_ts IS NULL AND is_archived = false
+                  AND (name ILIKE $2 OR sku ILIKE $2)
+                ORDER BY CASE WHEN name ILIKE $2 THEN 0 ELSE 1 END, sort_order, product_id
+                LIMIT 1
+                "#,
+            )
+            .bind(site_iid)
+            .bind(name_query)
+            .fetch_optional(&ctx.pool)
+            .await?
+            .ok_or_else(|| anyhow!("product '{name_query}' not found at site {site_iid}"))?;
+            row
+        }
+    };
+
+    let price = args.get("price").and_then(|v| v.as_i64());
+    let cost_price = args.get("cost_price").and_then(|v| v.as_i64());
+    let stock_qty = args.get("stock_qty").and_then(|v| v.as_i64()).map(|n| n as i32);
+    let stock_delta = args.get("stock_delta").and_then(|v| v.as_i64()).map(|n| n as i32);
+    let track_stock = args.get("track_stock").and_then(|v| v.as_bool());
+    let can_sell = args.get("can_sell").and_then(|v| v.as_bool());
+    let can_reserve = args.get("can_reserve").and_then(|v| v.as_bool());
+    let is_archived = args.get("is_archived").and_then(|v| v.as_bool());
+    let new_name = args.get("new_name").and_then(|v| v.as_str()).map(str::trim).filter(|s| !s.is_empty());
+
+    let row = sqlx::query(
+        r#"
+        UPDATE site.product SET
+            name = COALESCE($3, name),
+            price = COALESCE($4, price),
+            cost_price = COALESCE($5, cost_price),
+            stock_qty = CASE
+                WHEN $6::int IS NOT NULL THEN stock_qty + $6
+                WHEN $7::int IS NOT NULL THEN $7
+                ELSE stock_qty
+            END,
+            track_stock = COALESCE($8, track_stock),
+            can_sell = COALESCE($9, can_sell),
+            can_reserve = COALESCE($10, can_reserve),
+            is_archived = COALESCE($11, is_archived),
+            updated_ts = NOW()
+        WHERE site_iid = $1 AND product_id = $2
+        RETURNING product_id, name, price, cost_price, stock_qty, track_stock, can_sell, can_reserve
+        "#,
+    )
+    .bind(site_iid)
+    .bind(target_product_id)
+    .bind(new_name)
+    .bind(price)
+    .bind(cost_price)
+    .bind(stock_delta)
+    .bind(stock_qty)
+    .bind(track_stock)
+    .bind(can_sell)
+    .bind(can_reserve)
+    .bind(is_archived)
+    .fetch_one(&ctx.pool)
+    .await?;
+
+    let p_id: i64 = row.get("product_id");
+    let p_name: String = row.get("name");
+    let p_price: i64 = row.get("price");
+    let p_cost_price: i64 = row.get("cost_price");
+    let p_stock_qty: i32 = row.get("stock_qty");
+    let p_track_stock: bool = row.get("track_stock");
+    let p_can_sell: bool = row.get("can_sell");
+    let p_can_reserve: bool = row.get("can_reserve");
+
+    Ok(json!({
+        "ok": true,
+        "site_iid": site_iid,
+        "product_id": p_id,
+        "name": p_name,
+        "price": p_price,
+        "cost_price": p_cost_price,
+        "stock_qty": p_stock_qty,
+        "track_stock": p_track_stock,
+        "can_sell": p_can_sell,
+        "can_reserve": p_can_reserve,
+    }))
+}
+
+tool! {
+    struct: SiteProductPatchTool,
+    name: "site.product.patch",
+    aliases: ["site_product_patch", "site.product_patch"],
+    description: "Safely update specific product fields (price, cost_price, stock_qty, stock_delta, can_sell) without overwriting other catalog details. Lookup by product_id or name.",
+    topics: ["site.commerce", "web.builder", "general"],
+    requires_kinds: ["site"],
+    ui_calling_key: "tool.site.product.patch.calling",
+    ui_done_key: "tool.site.product.patch.done",
+    parameters: {
+        site_iid: (integer, "Site identity ID (resolved from @alien_id when omitted)", optional),
+        product_id: (integer, "Product ID; if omitted, resolved from name", optional),
+        name: (string, "Product name to look up if product_id is not passed", optional),
+        new_name: (string, "Rename product to new name", optional),
+        price: (integer, "New retail price in minor units (e.g. 54000 for 54k IDR)", optional),
+        cost_price: (integer, "New cost/purchase price (for margin tracking)", optional),
+        stock_qty: (integer, "Set absolute stock quantity", optional),
+        stock_delta: (integer, "Add/subtract stock quantity (e.g. +10 or -5)", optional),
+        track_stock: (boolean, "Enable/disable stock tracking", optional),
+        can_sell: (boolean, "Available for sale", optional),
+        can_reserve: (boolean, "Allow reservation/booking", optional),
+        is_archived: (boolean, "Archive/unarchive product", optional),
+    },
+    execute: |args, ctx| {
+        site_product_patch_exec(ctx, &args).await
+    }
+}
+

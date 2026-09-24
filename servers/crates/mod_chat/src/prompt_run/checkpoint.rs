@@ -5,6 +5,15 @@ use super::store::PromptRunRow;
 
 pub const PROMPT_RUN_MAX_TURNS_DEFAULT: i32 = 100;
 pub const PROMPT_RUN_MAX_DELIVER: i32 = 3;
+pub const PROMPT_RUN_MAX_CONCURRENT_DEFAULT: usize = 8;
+
+pub fn prompt_run_max_concurrent() -> usize {
+    std::env::var("PROMPT_RUN_MAX_CONCURRENT")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .filter(|n| *n >= 1)
+        .unwrap_or(PROMPT_RUN_MAX_CONCURRENT_DEFAULT)
+}
 
 pub const CK_ERROR_FINGERPRINT: &str = "error_fingerprint";
 pub const CK_ERROR_COUNT: &str = "error_count";

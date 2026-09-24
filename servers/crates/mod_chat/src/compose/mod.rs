@@ -8,7 +8,10 @@ use std::time::Instant;
 
 use super::inst_macro::{inst_matched_prompt, inst_pick, inst_tool_directives, InstMatchCtx, InstRow};
 use super::mention::MentionRow;
-use super::tool_rag::{tool_find_lexical, tool_select as rag_tool_select, ToolCandidate, DEFAULT_TOOL_SIM_GAP, DEFAULT_TOOL_TOP_K, TOOL_RAG_MIN};
+use super::tool_rag::{
+    tool_find_lexical, tool_select as rag_tool_select, tool_trim_ranked, ToolCandidate, DEFAULT_TOOL_SIM_GAP,
+    DEFAULT_TOOL_SIM_THRESHOLD, DEFAULT_TOOL_TOP_K, TOOL_RAG_MIN,
+};
 use crate::mention_context::MentionContext;
 use crate::site_capability::SiteCapabilityView;
 use crate::tools::ToolDef;
@@ -37,18 +40,17 @@ pub struct ComposeTrace {
     pub rag_skip_reason: String,
 }
 
-fn trace_dropped_gap(candidates: &[ComposeTraceCandidate]) -> Vec<ComposeTraceCandidate> {
-    let min_fed = candidates
+fn trace_dropped_gap(ranked: &[ToolCandidate], trimmed: &[ToolCandidate]) -> Vec<ComposeTraceCandidate> {
+    let kept: std::collections::HashSet<&str> = trimmed.iter().map(|c| c.tool_id.as_str()).collect();
+    ranked
         .iter()
-        .filter(|c| c.fed)
-        .map(|c| c.sim)
-        .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-    candidates
-        .iter()
-        .filter(|c| !c.fed && c.sim > 0.0)
-        .filter(|c| min_fed.map(|m| m - c.sim <= DEFAULT_TOOL_SIM_GAP + 0.001).unwrap_or(true))
-        .take(3)
-        .cloned()
+        .filter(|c| !kept.contains(c.tool_id.as_str()))
+        .take(8)
+        .map(|c| ComposeTraceCandidate {
+            tool_id: c.tool_id.clone(),
+            sim: c.sim,
+            fed: false,
+        })
         .collect()
 }
 
@@ -123,31 +125,6 @@ pub fn compose_tools_and_inst(
         };
     }
 
-    let topic_filtered =
-        tools_for_turn(&eligible_tools, &topic_refs, &force_include, &tool_exclude, text);
-    let selected_tools: Vec<String> = topic_filtered.iter().map(|t| t.name.clone()).collect();
-
-    if eligible_tools.len() <= TOOL_RAG_MIN {
-        let candidates: Vec<ComposeTraceCandidate> = selected_tools
-            .iter()
-            .map(|id| ComposeTraceCandidate { tool_id: id.clone(), sim: 1.0, fed: true })
-            .collect();
-        return ComposeOutput {
-            inst_block,
-            matched_ids: matched_ids.clone(),
-            tools: topic_filtered,
-            trace: ComposeTrace {
-                duration_ms: started.elapsed().as_millis() as i64,
-                inst_ids: matched_ids,
-                candidates: candidates.clone(),
-                dropped_gap: trace_dropped_gap(&candidates),
-                selected_tools,
-                rag_skipped: true,
-                rag_skip_reason: "few_tools".into(),
-            },
-        };
-    }
-
     let force = super::tool_rag::canonicalize_tool_ids(&eligible_tools, &force_include);
     let exclude = super::tool_rag::canonicalize_tool_ids(&eligible_tools, &tool_exclude);
     let eligible: Vec<ToolDef> = eligible_tools
@@ -158,9 +135,20 @@ pub fn compose_tools_and_inst(
         .collect();
     let force: Vec<String> = force.into_iter().filter(|id| eligible.iter().any(|t| &t.name == id)).collect();
 
-    let ranked = tool_find_lexical(text, &eligible, &force, &exclude, DEFAULT_TOOL_TOP_K);
-    let ranked_ids: Vec<String> = ranked.iter().map(|c| c.tool_id.clone()).collect();
-    let tools = rag_tool_select(&eligible, &ranked_ids, &force);
+    let rag_skipped = eligible.len() <= TOOL_RAG_MIN;
+    let (ranked, trimmed, tools) = if rag_skipped {
+        let all = eligible
+            .iter()
+            .map(|t| ToolCandidate { tool_id: t.name.clone(), sim: 1.0 })
+            .collect::<Vec<_>>();
+        (all.clone(), all, eligible.clone())
+    } else {
+        let ranked = tool_find_lexical(text, &eligible, &force, &exclude, DEFAULT_TOOL_TOP_K);
+        let trimmed = tool_trim_ranked(&ranked, &force, DEFAULT_TOOL_SIM_THRESHOLD, DEFAULT_TOOL_SIM_GAP);
+        let ranked_ids: Vec<String> = trimmed.iter().map(|c| c.tool_id.clone()).collect();
+        let tools = rag_tool_select(&eligible, &ranked_ids, &force);
+        (ranked, trimmed, tools)
+    };
     let selected_tools: Vec<String> = tools.iter().map(|t| t.name.clone()).collect();
     let selected_set: std::collections::HashSet<&str> = selected_tools.iter().map(|s| s.as_str()).collect();
     let mut all_candidates = ranked.clone();
@@ -188,10 +176,10 @@ pub fn compose_tools_and_inst(
             duration_ms: started.elapsed().as_millis() as i64,
             inst_ids: matched_ids,
             candidates: candidates.clone(),
-            dropped_gap: trace_dropped_gap(&candidates),
+            dropped_gap: trace_dropped_gap(&ranked, &trimmed),
             selected_tools,
-            rag_skipped: false,
-            rag_skip_reason: String::new(),
+            rag_skipped,
+            rag_skip_reason: if rag_skipped { "few_tools".into() } else { String::new() },
         },
     }
 }

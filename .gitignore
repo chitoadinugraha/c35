@@ -26,7 +26,6 @@ clients/app/build/
 # Rust (canonical output: .cache/* via workspace .cargo/config.toml)
 servers/target/
 remotes/target/
-node_stats/target/
 .cache/
 
 # OS

@@ -449,6 +449,43 @@ pub async fn prompt_run_summary(pool: &PgPool, req_id: &str) -> Result<String> {
     Ok(msg.flatten().unwrap_or_default())
 }
 
+#[derive(Debug, Clone)]
+pub struct PromptRunActiveDiag {
+    pub req_id: String,
+    pub owner_iid: i64,
+    pub status: String,
+    pub lease_pod: Option<String>,
+    pub turn_count: i32,
+    pub prompt_preview: String,
+}
+
+pub async fn prompt_run_list_active(pool: &PgPool) -> Result<Vec<PromptRunActiveDiag>> {
+    let rows = sqlx::query_as::<_, (String, i64, String, Option<String>, i32, String)>(
+        r#"
+        SELECT req_id, owner_iid, status, lease_pod, turn_count, left(text, 200)
+        FROM ai.prompt_run
+        WHERE status IN ('queued', 'running', 'waiting_child')
+        ORDER BY updated_ts DESC
+        LIMIT 32
+        "#,
+    )
+    .fetch_all(pool)
+    .await?;
+    Ok(rows
+        .into_iter()
+        .map(
+            |(req_id, owner_iid, status, lease_pod, turn_count, prompt_preview)| PromptRunActiveDiag {
+                req_id,
+                owner_iid,
+                status,
+                lease_pod,
+                turn_count,
+                prompt_preview,
+            },
+        )
+        .collect())
+}
+
 pub async fn prompt_run_list_queued(pool: &PgPool) -> Result<Vec<(String, i64, i64)>> {
     let rows = sqlx::query_as::<_, (String, i64, i64)>(
         r#"

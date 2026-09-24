@@ -1,3 +1,4 @@
+use crate::catalog_rank::alien_chain_sort_cmp;
 use crate::catalog_types::LlmModelRow;
 use crate::llm_catalog::catalog_models;
 
@@ -22,11 +23,7 @@ pub fn catalog_alien_chain_build() -> Vec<String> {
         .iter()
         .filter(|m| m.enabled && m.provider == "google" && m.family == "flash-lite")
         .collect();
-    rows.sort_by(|a, b| {
-        b.version_rank
-            .cmp(&a.version_rank)
-            .then_with(|| a.sort_order.cmp(&b.sort_order))
-    });
+    rows.sort_by(|a, b| alien_chain_sort_cmp(&a.provider_model, &b.provider_model));
     rows.into_iter().map(|m| m.provider_model.clone()).collect()
 }
 
@@ -46,6 +43,7 @@ pub fn catalog_alien_chain_filter(raw: &[String]) -> Vec<String> {
         }
         out.push(valid);
     }
+    out.sort_by(|a, b| alien_chain_sort_cmp(a, b));
     out
 }
 
@@ -54,7 +52,15 @@ pub fn catalog_alien_chain_effective(configured: &[String]) -> Vec<String> {
     if !filtered.is_empty() {
         return filtered;
     }
-    catalog_alien_chain_build()
+    let built = catalog_alien_chain_build();
+    if !built.is_empty() {
+        return built;
+    }
+    catalog_models()
+        .into_iter()
+        .find(|m| m.enabled && m.id == "alienai" && !m.provider_model.is_empty())
+        .map(|m| vec![m.provider_model])
+        .unwrap_or_default()
 }
 
 #[cfg(test)]

@@ -8,14 +8,11 @@ use sqlx::PgPool;
 use tokio::time::Duration;
 
 use crate::prompt::gemini::gemini_api_key;
-
-const IMAGE_MODELS: &[&str] = &[
-    "gemini-3.1-flash-image",
-    "imagen-3.0-generate-002",
-];
+use crate::tools::image_tier::{image_tier_resolve, ImageTier, MODEL_IMAGEN};
 
 #[derive(Debug, Clone)]
 pub struct ImageRunMeta {
+    pub image_tier: String,
     pub provider_model: String,
     pub image_size: String,
     pub wholesale_usd: f64,
@@ -260,7 +257,7 @@ async fn gemini_image_run(
     client: &reqwest::Client,
     prompt: &str,
     aspect_ratio: &str,
-    quality: &str,
+    tier: &ImageTier,
     source: Option<(Vec<u8>, String)>,
 ) -> Result<(Vec<u8>, ImageRunMeta)> {
     let key = gemini_api_key();
@@ -268,23 +265,23 @@ async fn gemini_image_run(
         bail!("GEMINI_API_KEY not configured");
     }
     let refined = enhance_prompt(prompt);
-    let image_size = image_size_for_quality(quality);
     let ar = if aspect_ratio.trim().is_empty() {
         "1:1"
     } else {
         aspect_ratio.trim()
     };
     let mut last_err = String::new();
-    for model in IMAGE_MODELS {
-        let size = if model.contains("imagen") { "1K" } else { image_size };
+    for model in tier.models() {
+        let size = if model == MODEL_IMAGEN { "1K" } else { tier.image_size };
         match gemini_interactions_run(client, &key, model, &refined, ar, size, source.clone()).await {
             Ok(bytes) => {
                 return Ok((
                     bytes,
                     ImageRunMeta {
+                        image_tier: tier.id.to_string(),
                         provider_model: model.to_string(),
                         image_size: size.to_string(),
-                        wholesale_usd: image_tool_wholesale_usd(quality, model),
+                        wholesale_usd: image_tool_wholesale_usd(tier.quality, model),
                     },
                 ));
             }
@@ -296,9 +293,10 @@ async fn gemini_image_run(
                 return Ok((
                     bytes,
                     ImageRunMeta {
+                        image_tier: tier.id.to_string(),
                         provider_model: model.to_string(),
                         image_size: size.to_string(),
-                        wholesale_usd: image_tool_wholesale_usd(quality, model),
+                        wholesale_usd: image_tool_wholesale_usd(tier.quality, model),
                     },
                 ));
             }
@@ -312,25 +310,29 @@ async fn image_run(
     client: &reqwest::Client,
     prompt: &str,
     aspect_ratio: &str,
-    quality: &str,
+    tier: &ImageTier,
     source: Option<(Vec<u8>, String)>,
 ) -> Result<(Vec<u8>, ImageRunMeta)> {
-    if cf_image_provider_enabled() && !quality.eq_ignore_ascii_case("hd") {
-        match cf_grok_image_run(client, prompt, aspect_ratio, quality, source.clone()).await {
+    if tier.id == "lite_draft"
+        && cf_image_provider_enabled()
+        && source.is_none()
+    {
+        match cf_grok_image_run(client, prompt, aspect_ratio, tier.quality, None).await {
             Ok((bytes, model)) => {
                 return Ok((
                     bytes,
                     ImageRunMeta {
+                        image_tier: "grok_draft".into(),
                         provider_model: model.clone(),
-                        image_size: image_size_for_quality(quality).to_string(),
-                        wholesale_usd: image_tool_wholesale_usd(quality, &model),
+                        image_size: tier.image_size.to_string(),
+                        wholesale_usd: image_tool_wholesale_usd(tier.quality, &model),
                     },
                 ));
             }
             Err(e) => tracing::warn!(error = %e, "grok image failed; falling back to gemini"),
         }
     }
-    gemini_image_run(client, prompt, aspect_ratio, quality, source).await
+    gemini_image_run(client, prompt, aspect_ratio, tier, source).await
 }
 
 fn img_tool_response(
@@ -352,6 +354,7 @@ fn img_tool_response(
         "prompt": prompt,
         "aspect_ratio": aspect_ratio,
         "quality": quality,
+        "image_tier": meta.image_tier,
         "provider_model": meta.provider_model,
         "image_size": meta.image_size,
         "wholesale_usd": meta.wholesale_usd,
@@ -376,6 +379,8 @@ pub async fn img_generate_exec(
     prompt: &str,
     aspect_ratio: &str,
     quality: &str,
+    mention_ids: &[String],
+    user_text: &str,
 ) -> Result<Value> {
     let prompt = prompt.trim();
     if prompt.is_empty() {
@@ -387,11 +392,20 @@ pub async fn img_generate_exec(
         aspect_ratio.trim()
     };
     let q = if quality.trim().is_empty() { "draft" } else { quality.trim() };
-    let (bytes, meta) = image_run(client, prompt, ar, q, None).await?;
+    let tier = image_tier_resolve(mention_ids, user_text, prompt, q, false);
+    let (bytes, meta) = image_run(client, prompt, ar, &tier, None).await?;
     let mime = infer_mime(&bytes);
     let secret = cas_secret_from_env();
     let put = cas_put(pool, &cas_dir_default(), &secret, &bytes, mime).await?;
-    Ok(img_tool_response("img.generate", &put, prompt, "", ar, q, &meta))
+    Ok(img_tool_response(
+        "img.generate",
+        &put,
+        prompt,
+        "",
+        ar,
+        tier.quality,
+        &meta,
+    ))
 }
 
 pub async fn img_edit_exec(
@@ -403,6 +417,8 @@ pub async fn img_edit_exec(
     attachments_json: &str,
     aspect_ratio: &str,
     quality: &str,
+    mention_ids: &[String],
+    user_text: &str,
 ) -> Result<Value> {
     let prompt = prompt.trim();
     if prompt.is_empty() {
@@ -424,17 +440,26 @@ pub async fn img_edit_exec(
         aspect_ratio.trim()
     };
     let q = if quality.trim().is_empty() { "draft" } else { quality.trim() };
+    let tier = image_tier_resolve(mention_ids, user_text, prompt, q, true);
     let (source_bytes, source_mime) = img_load_cas(pool, &hash).await?;
     let (bytes, meta) = image_run(
         client,
         prompt,
         ar,
-        q,
+        &tier,
         Some((source_bytes, source_mime)),
     )
     .await?;
     let mime = infer_mime(&bytes);
     let secret = cas_secret_from_env();
     let put = cas_put(pool, &cas_dir_default(), &secret, &bytes, mime).await?;
-    Ok(img_tool_response("img.edit", &put, prompt, &hash, ar, q, &meta))
+    Ok(img_tool_response(
+        "img.edit",
+        &put,
+        prompt,
+        &hash,
+        ar,
+        tier.quality,
+        &meta,
+    ))
 }

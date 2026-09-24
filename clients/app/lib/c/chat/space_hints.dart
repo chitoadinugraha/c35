@@ -92,7 +92,7 @@ List<SpaceHint> hintsOfflineFallback() => [
         sort: 20,
         label: hintCatalogText('hint.expense_add', 'label', 'Track Expense'),
         icon: 'mdi:receipt',
-        action: HintActionKind.sendText,
+        action: HintActionKind.pickImage,
         sendText: hintCatalogText('hint.expense_add', 'send_text', 'Track expense'),
         instId: 'inst.expense_add',
       ),
@@ -161,6 +161,7 @@ Future<void> hintActionRunFromProto({
   Future<void> Function(String route, Map<String, dynamic> payload)? onNavigate,
   Future<void> Function(String url)? onOpenUrl,
   Future<List<StagedMedia>?> Function()? askMediaFn,
+  BuildContext? context,
 }) async {
   if (item.items.isNotEmpty || !item.hasAction()) return;
   final action = item.action;
@@ -170,7 +171,7 @@ Future<void> hintActionRunFromProto({
     case HintActionKind.sendText:
       await onSend(hintItemSendText(item), const []);
     case HintActionKind.pickImage:
-      final ask = askMediaFn ?? () => askMedia(types: const [MediaType.image], allowMultiple: false);
+      final ask = askMediaFn ?? () => askMedia(context: context, types: const [MediaType.image], allowMultiple: false);
       final picked = await ask();
       if (picked == null || picked.isEmpty) return;
       final media = picked.first;
@@ -181,7 +182,7 @@ Future<void> hintActionRunFromProto({
       }
       await onSend(hintItemSendText(item), [MsgAttachment(hash: hash, name: media.name, mime: media.mime, localBytes: media.bytes.isNotEmpty ? media.bytes : null)]);
     case HintActionKind.pickFile:
-      final ask = askMediaFn ?? () => askMedia(types: const [MediaType.document, MediaType.any], allowMultiple: false);
+      final ask = askMediaFn ?? () => askMedia(context: context, types: const [MediaType.document, MediaType.any], allowMultiple: false);
       final picked = await ask();
       if (picked == null || picked.isEmpty) return;
       final media = picked.first;

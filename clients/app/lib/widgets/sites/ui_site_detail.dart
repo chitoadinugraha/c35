@@ -8,6 +8,7 @@ import 'package:alienai_c35/c/pb/c35/tx.pb.dart';
 import 'package:alienai_c35/widgets/sites/tx/tx_api.dart';
 import 'package:alienai_c35/widgets/sites/tx/ui_site_tx_editor.dart';
 import 'package:alienai_c35/widgets/sites/ui_site_preview.dart';
+import 'package:alienai_c35/widgets/ui/ui_col_cell.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:alienai_c35/widgets/ui/ui_table.dart';
 import 'package:alienai_c35/widgets/ui/ui_window_bar.dart';
@@ -405,8 +406,47 @@ class _UiSiteCollectionTableState extends State<UiSiteCollectionTable> {
   List<Map<String, String>> _rows = const [];
   final _products = <String, SiteProduct>{};
   final _contacts = <String, SiteContact>{};
+  final _productsById = <String, SiteProduct>{};
+  final _contactsById = <String, SiteContact>{};
   final _objects = <String, SiteObject>{};
   final _embeds = <SiteProductEmbed>[];
+
+  UiColCellHost get _colCellHost => UiColCellHost(
+        siteIid: widget.siteIid,
+        products: _productsById,
+        contacts: _contactsById,
+      );
+
+  void _syncProducts(List<SiteProduct> items) {
+    _products
+      ..clear()
+      ..addEntries(items.map((p) {
+        final cells = siteProductCells(p);
+        return MapEntry(siteRowKey(widget.def, cells), p);
+      }));
+    _productsById
+      ..clear()
+      ..addEntries(items.map((p) => MapEntry('${p.productId}', p)));
+  }
+
+  void _syncContacts(List<SiteContact> items) {
+    _contacts
+      ..clear()
+      ..addEntries(items.map((c) {
+        final cells = siteContactCells(c);
+        return MapEntry(siteRowKey(widget.def, cells), c);
+      }));
+    _contactsById
+      ..clear()
+      ..addEntries(items.map((c) => MapEntry('${c.contactId}', c)));
+  }
+
+  Future<void> _loadRefProducts() async {
+    final items = await widget.api.productList(widget.siteIid);
+    _productsById
+      ..clear()
+      ..addEntries(items.map((p) => MapEntry('${p.productId}', p)));
+  }
 
   @override
   void initState() {
@@ -429,24 +469,15 @@ class _UiSiteCollectionTableState extends State<UiSiteCollectionTable> {
           _embeds
             ..clear()
             ..addAll(await widget.api.productEmbedList(widget.siteIid));
-          _products
-            ..clear()
-            ..addEntries(items.map((p) {
-              final cells = siteProductCells(p);
-              return MapEntry(siteRowKey(widget.def, cells), p);
-            }));
+          _syncProducts(items);
           _rows = _products.values.map(siteProductCells).toList(growable: false);
         case 'site.contact':
           final items = await widget.api.contactList(widget.siteIid);
-          _contacts
-            ..clear()
-            ..addEntries(items.map((c) {
-              final cells = siteContactCells(c);
-              return MapEntry(siteRowKey(widget.def, cells), c);
-            }));
+          _syncContacts(items);
           _rows = _contacts.values.map(siteContactCells).toList(growable: false);
         case 'site.object':
           final items = await widget.api.objectList(widget.siteIid);
+          await _loadRefProducts();
           _objects
             ..clear()
             ..addEntries(items.map((o) {
@@ -595,6 +626,7 @@ class _UiSiteCollectionTableState extends State<UiSiteCollectionTable> {
           rows: embedRows,
           loading: _busy,
           searchQuery: widget.searchQuery,
+          colCellHost: _colCellHost,
           onCellCommit: (embedKey, col, value) => _commitEmbed(rowKey, embedKey, col, value),
           onAddRow: () => _addEmbed(rowKey),
         ),
@@ -608,6 +640,7 @@ class _UiSiteCollectionTableState extends State<UiSiteCollectionTable> {
         rows: _rows,
         loading: _loading || _busy,
         searchQuery: widget.searchQuery,
+        colCellHost: _colCellHost,
         onCellCommit: _commit,
         onAddRow: _addRow,
         expandedBuilder: widget.def.collection == 'site.product' && widget.def.subtables.isNotEmpty ? _embedSubtable : null,

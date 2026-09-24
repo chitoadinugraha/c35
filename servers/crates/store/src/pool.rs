@@ -73,22 +73,67 @@ pub async fn pool_connect_url(url: &str) -> Result<PgPool> {
 }
 
 /// Warn when every pooled connection is checked out (helps diagnose slow acquires).
-pub fn pool_monitor_spawn(pool: PgPool) {
+pub fn pool_monitor_spawn(pool: PgPool, cfg: PoolConfig) {
+    let max_connections = cfg.max_connections;
+    let slow_secs = cfg.slow_statement.as_secs_f64().max(0.001);
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(15));
         loop {
             interval.tick().await;
             let size = pool.size();
             let idle = pool.num_idle();
-            if size > 0 && idle == 0 {
+            if size > 0 && idle == 0 && size >= max_connections {
                 tracing::warn!(
                     pool_size = size,
                     pool_idle = idle,
+                    pool_max = max_connections,
                     "db pool saturated — all connections in use; check sqlx::query slow statement logs"
                 );
+                pool_slow_queries_log(&pool, slow_secs).await;
             }
         }
     });
+}
+
+async fn pool_slow_queries_log(pool: &PgPool, min_secs: f64) {
+    let rows = sqlx::query_as::<_, (i32, String, String, f64)>(
+        r#"
+        SELECT pid,
+               state,
+               left(query, 300),
+               EXTRACT(EPOCH FROM (now() - query_start))::float8 AS age_secs
+        FROM pg_stat_activity
+        WHERE datname = current_database()
+          AND pid <> pg_backend_pid()
+          AND state <> 'idle'
+          AND query NOT ILIKE '%pg_stat_activity%'
+          AND now() - query_start > make_interval(secs => $1::double precision)
+        ORDER BY query_start
+        LIMIT 20
+        "#,
+    )
+    .bind(min_secs)
+    .fetch_all(pool)
+    .await;
+    match rows {
+        Ok(rows) if rows.is_empty() => {
+            tracing::warn!("db pool saturated — no in-flight queries over {min_secs}s in pg_stat_activity");
+        }
+        Ok(rows) => {
+            for (pid, state, query, age_secs) in rows {
+                tracing::warn!(
+                    pid,
+                    state,
+                    age_secs,
+                    query,
+                    "db pool saturated — slow in-flight query (pg_stat_activity)"
+                );
+            }
+        }
+        Err(e) => {
+            tracing::warn!(error = %e, "db pool saturated — pg_stat_activity query failed");
+        }
+    }
 }
 
 fn env_u32(key: &str, default: u32) -> u32 {

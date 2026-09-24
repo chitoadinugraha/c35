@@ -1,11 +1,11 @@
-use c35_mod_tx::{tx_delete, tx_put};
+use c35_mod_tx::{tx_delete, tx_load, tx_put};
 use c35_proto::{
     ReqTxPut, Tx, TxData, TxInputSource, TxItem, TxPayment, TxPaymentMethod, TxPrompt, TxState,
     TxType,
 };
 use sqlx::PgPool;
 
-use super::day::{snowflake_max_at_ms, snowflake_min_at_ms};
+use super::day::{day_bounds_ms, snowflake_max_at_ms, snowflake_min_at_ms, today_day_id};
 use super::fingerprint::{expense_total_minor, item_name_label};
 use super::types::{ExpenseDetectResult, ExpenseItem, ExpenseReceipt, ExpenseTodaySummary, DEFAULT_CURRENCY};
 
@@ -171,6 +171,71 @@ pub async fn expense_put(
         .await
         .map_err(|e| e.to_string())?;
     Ok(res.tx.map(|t| t.tx_id).unwrap_or(0))
+}
+
+pub async fn expense_update(
+    pool: &PgPool,
+    owner_iid: i64,
+    tx_id: i64,
+    items: &[ExpenseItem],
+    locale: &str,
+) -> Result<ExpenseReceipt, String> {
+    let mut tx = tx_load(pool, owner_iid, tx_id)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "expense not found".to_string())?;
+
+    if tx.site_iid != owner_iid {
+        return Err("permission denied".into());
+    }
+
+    let total = expense_total_minor(items);
+    let headline = item_name_label(items, locale);
+    tx.desc = headline;
+    tx.items = items
+        .iter()
+        .map(|i| TxItem {
+            site_iid: owner_iid,
+            owner_iid,
+            obj_id: i.obj_id,
+            price: i.price_minor,
+            qty: i.qty.round() as i32,
+            note: i.name.clone(),
+            total_price: i.total_minor,
+            total_net: i.total_minor,
+            ..Default::default()
+        })
+        .collect();
+
+    if let Some(p) = tx.payments.first_mut() {
+        p.amount = total;
+    } else {
+        tx.payments = vec![TxPayment {
+            method: i32::from(TxPaymentMethod::Cash),
+            amount: total,
+            ..Default::default()
+        }];
+    }
+
+    tx_put(pool, owner_iid, ReqTxPut { tx: Some(tx) }, None)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let day = today_day_id(locale);
+    let (start, end) = day_bounds_ms(&day, locale).unwrap_or((0, i64::MAX));
+    let (so_far, tx_count) = spending_sum_day(pool, owner_iid, start, end)
+        .await
+        .unwrap_or((0, 0));
+
+    let mut receipt = expense_get(pool, owner_iid, tx_id)
+        .await?
+        .ok_or_else(|| "failed to reload expense".to_string())?;
+    receipt.today = ExpenseTodaySummary {
+        so_far_minor: so_far,
+        after_minor: so_far,
+        tx_count,
+    };
+    Ok(receipt)
 }
 
 pub async fn expense_delete(pool: &PgPool, caller_iid: i64, tx_id: i64) -> Result<bool, String> {

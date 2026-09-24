@@ -79,7 +79,7 @@ See [sync.md](sync.md) — `c35.user.{iid}.*`, `log.{iid}.{dv}.{topic}`, `c35.st
 
 On `task_trigger` deactivate or delete → cancel schedule subject (`c35.schedule.task.{id}.stop` or purge).
 
-**Implementation:** `c35_nats::hydrate_task_schedules` + `mod_task` fire handler (see [remote.md](remote.md), plan `docs/superpowers/plans/2026-09-23-nats-scheduler-hydrate-multitask.md`).
+**Implementation:** `c35_nats::hydrate_task_schedules` + `mod_task` fire handler (see [remote.md](remote.md), plan [`plans/2026-09-23-nats-scheduler-hydrate-multitask.md`](plans/2026-09-23-nats-scheduler-hydrate-multitask.md)).
 
 ---
 

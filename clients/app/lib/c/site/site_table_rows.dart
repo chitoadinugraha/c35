@@ -101,6 +101,7 @@ Map<String, String> siteObjectCells(SiteObject o) => {
       'name': o.name,
       'code': o.code,
       'kind': o.kind,
+      'product_id': o.productId <= Int64.ZERO ? '' : '${o.productId}',
       'can_order': o.canOrder ? 'yes' : 'no',
       'can_be_reserved': o.canBeReserved ? 'yes' : 'no',
       'is_active': o.isActive ? 'yes' : 'no',
@@ -176,6 +177,8 @@ SiteObject siteObjectApplyCell(SiteObject base, ColDef col, String value) {
       o.code = value;
     case 'kind':
       o.kind = value;
+    case 'product_id':
+      o.productId = Int64(int.tryParse(value) ?? 0);
     case 'desc':
       o.desc = value;
     case 'pic':

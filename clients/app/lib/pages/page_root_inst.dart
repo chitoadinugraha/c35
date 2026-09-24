@@ -1,11 +1,13 @@
 import 'dart:async';
 
 import 'package:alienai_c35/c/admin/admin_api.dart';
-import 'package:alienai_c35/c/pb/c35/collection.pb.dart';
+import 'package:alienai_c35/c/admin/inst_fields.dart';
 import 'package:alienai_c35/c/admin/inst_table.dart';
 import 'package:alienai_c35/c/chat/chat_conn.dart';
+import 'package:alienai_c35/c/pb/c35/collection.pb.dart';
 import 'package:alienai_c35/c/pb/c35/inst.pb.dart';
 import 'package:alienai_c35/c/session.dart';
+import 'package:alienai_c35/widgets/ui/ui_field_filter.dart';
 import 'package:alienai_c35/widgets/ui/ui_page.dart';
 import 'package:alienai_c35/widgets/ui/ui_search_toggle.dart';
 import 'package:alienai_c35/widgets/ui/ui_table.dart';
@@ -29,9 +31,7 @@ class _PageRootInstState extends State<PageRootInst> {
   final _docs = <String, InstDoc>{};
   var _loading = false;
   var _search = '';
-  String? _scope;
-
-  static const _scopes = ['', 'global', 'role:personal_assistant'];
+  final _filterValues = <String, String>{};
 
   @override
   void initState() {
@@ -42,7 +42,7 @@ class _PageRootInstState extends State<PageRootInst> {
   Future<void> _reload() async {
     setState(() => _loading = true);
     try {
-      final items = await _api.instList(scope: _scope?.isEmpty == true ? null : _scope);
+      final items = await _api.instList();
       _docs
         ..clear()
         ..addEntries(items.map((d) => MapEntry(d.id, d)));
@@ -51,7 +51,7 @@ class _PageRootInstState extends State<PageRootInst> {
     }
   }
 
-  List<Map<String, String>> get _rows => _docs.values.map(instCells).toList(growable: false);
+  List<Map<String, String>> get _rows => instApplyFilters(_docs.values.map(instCells).toList(growable: false), _filterValues);
 
   Future<void> _onCellCommit(String rowKey, ColDef col, String value) async {
     final base = _docs[rowKey];
@@ -64,7 +64,8 @@ class _PageRootInstState extends State<PageRootInst> {
 
   Future<void> _onAddRow() async {
     final id = 'inst.new.${DateTime.now().millisecondsSinceEpoch}';
-    final doc = InstDoc(id: id, scope: _scope ?? 'global', kind: 'task', inst: '', enabled: true, priority: 50);
+    final scope = _filterValues['scope']?.trim();
+    final doc = InstDoc(id: id, scope: scope?.isNotEmpty == true ? scope! : 'global', kind: 'task', inst: '', enabled: true, priority: 50);
     final saved = await _api.instPut(doc);
     _docs[saved.id] = saved;
     setState(() {});
@@ -88,41 +89,43 @@ class _PageRootInstState extends State<PageRootInst> {
     return UiPage(
       title: 'Inst',
       onBack: () => Navigator.pop(context),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
+      trailing: UiSearchToggle(onSearch: (q) => setState(() => _search = q)),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          DropdownButton<String>(
-            value: _scope ?? '',
-            dropdownColor: const Color(0xFF18181B),
-            style: const TextStyle(color: _text, fontSize: 12),
-            underline: const SizedBox.shrink(),
-            items: _scopes
-                .map((s) => DropdownMenuItem(value: s, child: Text(s.isEmpty ? 'All scopes' : s, style: const TextStyle(fontSize: 12))))
-                .toList(),
-            onChanged: (v) {
-              setState(() => _scope = v);
-              unawaited(_reload());
-            },
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+            child: UiFieldFilter(
+              fields: instFilterFields(),
+              values: _filterValues,
+              onChanged: (v) => setState(() {
+                _filterValues
+                  ..clear()
+                  ..addAll(v);
+              }),
+            ),
           ),
-          UiSearchToggle(onSearch: (q) => setState(() => _search = q)),
+          const Divider(height: 1, color: _border),
+          Expanded(
+            child: UiTable(
+              def: instTableDef(),
+              rows: _rows,
+              loading: _loading,
+              searchQuery: _search,
+              onCellCommit: _onCellCommit,
+              onAddRow: _onAddRow,
+              expandedBuilder: (rowKey) => _InstExpanded(
+                doc: _docs[rowKey],
+                onSave: (doc) async {
+                  final saved = await _api.instPut(doc);
+                  _docs[saved.id] = saved;
+                  setState(() {});
+                },
+                onDelete: () => unawaited(_onDelete(rowKey)),
+              ),
+            ),
+          ),
         ],
-      ),
-      body: UiTable(
-        def: instTableDef(),
-        rows: _rows,
-        loading: _loading,
-        searchQuery: _search,
-        onCellCommit: _onCellCommit,
-        onAddRow: _onAddRow,
-        expandedBuilder: (rowKey) => _InstExpanded(
-          doc: _docs[rowKey],
-          onSave: (doc) async {
-            final saved = await _api.instPut(doc);
-            _docs[saved.id] = saved;
-            setState(() {});
-          },
-          onDelete: () => unawaited(_onDelete(rowKey)),
-        ),
       ),
     );
   }

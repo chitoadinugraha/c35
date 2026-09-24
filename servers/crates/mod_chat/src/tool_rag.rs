@@ -2,7 +2,7 @@
 
 use crate::tools::ToolDef;
 
-pub const TOOL_RAG_MIN: usize = 5;
+pub const TOOL_RAG_MIN: usize = 2;
 pub const DEFAULT_TOOL_TOP_K: usize = 5;
 pub const DEFAULT_TOOL_SIM_THRESHOLD: f32 = 0.6;
 pub const DEFAULT_TOOL_SIM_GAP: f32 = 0.05;
@@ -116,6 +116,48 @@ pub fn tool_find_lexical(
     let remain = top_k.saturating_sub(forced.len());
     let mut out = forced;
     out.extend(scored.into_iter().take(remain));
+    out
+}
+
+/// Keep forced tools plus scores within [threshold, top−gap] of the best match.
+pub fn tool_trim_ranked(
+    candidates: &[ToolCandidate],
+    force_include: &[String],
+    threshold: f32,
+    gap: f32,
+) -> Vec<ToolCandidate> {
+    if candidates.is_empty() {
+        return vec![];
+    }
+    let force: std::collections::HashSet<&str> = force_include.iter().map(|s| s.as_str()).collect();
+    let mut sorted: Vec<ToolCandidate> = candidates.to_vec();
+    sorted.sort_by(|a, b| b.sim.partial_cmp(&a.sim).unwrap_or(std::cmp::Ordering::Equal));
+    let mut out: Vec<ToolCandidate> = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for c in &sorted {
+        if force.contains(c.tool_id.as_str()) && seen.insert(c.tool_id.clone()) {
+            out.push(c.clone());
+        }
+    }
+    let anchor = sorted[0].sim;
+    for c in &sorted {
+        if seen.contains(&c.tool_id) {
+            continue;
+        }
+        if c.sim < threshold {
+            continue;
+        }
+        if anchor - c.sim > gap + 0.001 {
+            continue;
+        }
+        if seen.insert(c.tool_id.clone()) {
+            out.push(c.clone());
+        }
+    }
+    if out.is_empty() {
+        out.push(sorted[0].clone());
+    }
+    out.sort_by(|a, b| b.sim.partial_cmp(&a.sim).unwrap_or(std::cmp::Ordering::Equal));
     out
 }
 

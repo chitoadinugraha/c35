@@ -160,49 +160,36 @@ class _C35AppState extends State<C35App> {
   }
 
   @override
-  Widget build(BuildContext context) => ValueListenableBuilder<Object?>(
-        valueListenable: uiError,
-        builder: (_, err, __) {
-          if (err != null) {
-            return MaterialApp(
-              debugShowCheckedModeBanner: false,
-              theme: ThemeData(brightness: Brightness.dark, scaffoldBackgroundColor: _bg),
-              builder: (context, child) => uiSemanticsGuard(child ?? const SizedBox.shrink()),
-              home: UiErrorFallback(showChrome: true, onRetry: uiErrorClear),
-            );
-          }
-          return MaterialApp(
-            navigatorKey: c35NavigatorKey,
-            title: 'Alien AI',
-            locale: context.locale,
-            supportedLocales: context.supportedLocales,
-            localizationsDelegates: context.localizationDelegates,
-            debugShowCheckedModeBanner: false,
-            theme: ThemeData(
-              brightness: Brightness.dark,
-              scaffoldBackgroundColor: _bg,
-              colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF22C55E), brightness: Brightness.dark),
-              useMaterial3: true,
-            ),
-            builder: (context, child) => uiSemanticsGuard(UiErrorHost(
-              child: Listener(
-                onPointerDown: (_) => AppUpdateService.instance.recordUserActivity(),
-                onPointerMove: (_) => AppUpdateService.instance.recordUserActivity(),
-                child: UiDesktopChrome(child: child ?? const SizedBox.shrink()),
-              ),
-            )),
-            home: AppUpdateHost(
-              appReady: _ready,
-              child: !_ready
-                  ? const Scaffold(backgroundColor: _bg, body: UILoading())
-                  : _bootError.isNotEmpty
-                      ? Scaffold(backgroundColor: _bg, body: UiErrorFallback(onRetry: _bootRetry))
-                      : _auth.signedIn
-                          ? _HomeShell(auth: _auth)
-                          : PageSignIn(auth: _auth, onSignedIn: () => setState(() {})),
-            ),
-          );
-        },
+  Widget build(BuildContext context) => MaterialApp(
+        navigatorKey: c35NavigatorKey,
+        title: 'Alien AI',
+        locale: context.locale,
+        supportedLocales: context.supportedLocales,
+        localizationsDelegates: context.localizationDelegates,
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          brightness: Brightness.dark,
+          scaffoldBackgroundColor: _bg,
+          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF22C55E), brightness: Brightness.dark),
+          useMaterial3: true,
+        ),
+        builder: (context, child) => uiSemanticsGuard(UiErrorHost(
+          child: Listener(
+            onPointerDown: (_) => AppUpdateService.instance.recordUserActivity(),
+            onPointerMove: (_) => AppUpdateService.instance.recordUserActivity(),
+            child: UiDesktopChrome(child: child ?? const SizedBox.shrink()),
+          ),
+        )),
+        home: AppUpdateHost(
+          appReady: _ready,
+          child: !_ready
+              ? const Scaffold(backgroundColor: _bg, body: UILoading())
+              : _bootError.isNotEmpty
+                  ? Scaffold(backgroundColor: _bg, body: UiErrorFallback(error: _bootError, onRetry: _bootRetry))
+                  : _auth.signedIn
+                      ? _HomeShell(auth: _auth)
+                      : PageSignIn(auth: _auth, onSignedIn: () => setState(() {})),
+        ),
       );
 }
 

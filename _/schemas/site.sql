@@ -159,6 +159,7 @@ CREATE TABLE IF NOT EXISTS site.product (
     stock_qty           INT NOT NULL DEFAULT 0,
 
     price               BIGINT NOT NULL DEFAULT 0,
+    cost_price          BIGINT NOT NULL DEFAULT 0,
     pic                 TEXT NOT NULL DEFAULT '',
     category            TEXT NOT NULL DEFAULT '',
     obj_id              BIGINT NOT NULL DEFAULT 0,              -- references ai.object_normalizer(id)

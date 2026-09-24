@@ -11,6 +11,7 @@ COPY servers/crates /app/servers/crates
 COPY servers/fetcher /app/servers/fetcher
 COPY servers/server_ai /app/servers/server_ai
 COPY servers/channel_whatsapp_device /app/servers/channel_whatsapp_device
+COPY servers/node_stats /app/servers/node_stats
 COPY _/schemas /app/_/schemas
 
 ENV CARGO_TARGET_DIR=/app/target

@@ -4,6 +4,7 @@ import 'package:alienai_c35/c/pb/c35/admin.pb.dart';
 import 'package:alienai_c35/c/pb/c35/inst.pb.dart';
 import 'package:alienai_c35/c/pb/c35/log.pb.dart';
 import 'package:alienai_c35/c/pb/c35/object.pb.dart';
+import 'package:alienai_c35/c/pb/c35/report.pb.dart';
 import 'package:alienai_c35/c/pb/c35/wire.pb.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:uuid/uuid.dart';
@@ -82,6 +83,20 @@ class AdminApi {
     invokeResThrow(res, fallback: 'Failed to load logs');
     if (!res.hasAdminLogList()) return [];
     return res.adminLogList.logs;
+  }
+
+  Future<List<UiWidget>> adminLogReport({
+    int? ownerIid,
+    required Int64 sinceMs,
+    required Int64 untilMs,
+    int limit = 10,
+  }) async {
+    final req = ReqAdminLogReport(sinceMs: sinceMs, untilMs: untilMs, limit: limit);
+    if (ownerIid != null) req.ownerIid = Int64(ownerIid);
+    final res = await _invoke(InvokeReq(reqId: const Uuid().v4(), adminLogReport: req));
+    invokeResThrow(res, fallback: 'Failed to load log report');
+    if (!res.hasAdminLogReport()) return [];
+    return res.adminLogReport.widgets;
   }
 
   Future<List<InstDoc>> instList({String? scope, String? kind, bool? enabled, bool includeDeleted = false}) async {

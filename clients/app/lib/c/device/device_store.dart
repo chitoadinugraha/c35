@@ -4,6 +4,7 @@ import 'package:alienai_c35/c/api/referral_conn.dart';
 import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/device/device_api.dart';
 import 'package:alienai_c35/c/log.dart';
+import 'package:alienai_c35/c/remote/remote_session.dart';
 import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/foundation.dart';
@@ -111,6 +112,27 @@ class DeviceStore extends ChangeNotifier {
   Future<void> pinPut(String id, bool pinned) => _grantPatch(id, ReqIdentityGrantPatch(resourceIid: Int64.parseInt(id), isPinned: pinned));
 
   Future<void> archivePut(String id, bool archived) => _grantPatch(id, ReqIdentityGrantPatch(resourceIid: Int64.parseInt(id), archived: archived));
+
+  Future<void> deletePut(String id) async {
+    final row = rowById(id);
+    if (row == null) throw 'Device not found';
+    final iid = row.identity.iid.toInt();
+    try {
+      await ensureConnected();
+      await identityDelete(_conn, iid);
+      if (row.identity.kind.toLowerCase() == 'remote') {
+        await RemoteSession.dispose(iid);
+      }
+      _rows.removeWhere((r) => r.identity.iid.toString() == id);
+      if (_selectedId == id) {
+        _selectedId = _rows.isEmpty ? null : _rows.first.identity.iid.toString();
+      }
+      notifyListeners();
+    } catch (e) {
+      lError('device delete: $e');
+      rethrow;
+    }
+  }
 
   Future<void> namePut(String id, String name) async {
     final row = rowById(id);

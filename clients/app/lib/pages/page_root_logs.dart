@@ -4,11 +4,13 @@ import 'package:alienai_c35/c/admin/admin_api.dart';
 import 'package:alienai_c35/c/admin/admin_log_stream.dart';
 import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/pb/c35/admin.pb.dart';
+import 'package:alienai_c35/c/pb/c35/report.pb.dart';
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/widgets/admin/io_admin_user_pick.dart';
 import 'package:alienai_c35/widgets/admin/ui_admin_log_table.dart';
 import 'package:alienai_c35/widgets/ui/ui_date_range_chip.dart';
 import 'package:alienai_c35/widgets/ui/ui_page.dart';
+import 'package:alienai_c35/widgets/ui/ui_report_widget.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/material.dart';
 
@@ -33,6 +35,9 @@ class _PageRootLogsState extends State<PageRootLogs> {
   AdminUserHit? _user;
   late DateRange _range = dateRangePreset(DateRangePreset.today);
   Timer? _debounce;
+  List<UiWidget> _reportWidgets = const [];
+  var _reportLoading = false;
+  String? _reportError;
 
   @override
   void initState() {
@@ -55,7 +60,34 @@ class _PageRootLogsState extends State<PageRootLogs> {
         text: _searchCtrl.text,
       );
 
-  Future<void> _reload() => _stream.refresh(_filters());
+  Future<void> _reload() async {
+    final filters = _filters();
+    await Future.wait([_stream.refresh(filters), _loadReport(filters)]);
+  }
+
+  Future<void> _loadReport(AdminLogFilters filters) async {
+    setState(() {
+      _reportLoading = true;
+      _reportError = null;
+    });
+    try {
+      final widgets = await _api.adminLogReport(
+        ownerIid: filters.ownerIid,
+        sinceMs: filters.sinceMs,
+        untilMs: filters.untilMs,
+      );
+      if (!mounted) return;
+      setState(() => _reportWidgets = widgets);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _reportWidgets = const [];
+        _reportError = '$e';
+      });
+    } finally {
+      if (mounted) setState(() => _reportLoading = false);
+    }
+  }
 
   void _scheduleReload() {
     _debounce?.cancel();
@@ -127,6 +159,21 @@ class _PageRootLogsState extends State<PageRootLogs> {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Text(_stream.error!, style: const TextStyle(color: Color(0xFFF87171), fontSize: 12)),
             ),
+          if (_reportError != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+              child: Text(_reportError!, style: const TextStyle(color: Color(0xFFF87171), fontSize: 12)),
+            ),
+          if (_reportLoading)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(12, 0, 12, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: _muted)),
+              ),
+            )
+          else
+            UiReportWidgetView(widgets: _reportWidgets),
           Expanded(
             child: ListenableBuilder(
               listenable: _stream,

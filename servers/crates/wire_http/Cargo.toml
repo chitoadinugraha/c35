@@ -4,6 +4,8 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+anyhow = { workspace = true }
+async-nats = { workspace = true }
 axum = { workspace = true }
 chrono = { workspace = true }
 prost = { workspace = true }
@@ -22,6 +24,7 @@ c35_mod_chat = { path = "../mod_chat", package = "c35_mod_chat" }
 c35_mod_referral = { path = "../mod_referral", package = "c35_mod_referral" }
 c35_mod_billing = { path = "../mod_billing", package = "c35_mod_billing" }
 c35_mod_consumption = { path = "../mod_consumption", package = "c35_mod_consumption" }
+c35_mod_expense = { path = "../mod_expense", package = "c35_mod_expense" }
 c35_mod_device = { path = "../mod_device", package = "c35_mod_device" }
 c35_mod_site = { path = "../mod_site", package = "c35_mod_site" }
 c35_mod_tx = { path = "../mod_tx", package = "c35_mod_tx" }

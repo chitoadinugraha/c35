@@ -29,8 +29,21 @@ void main() {
       ),
     ));
     expect(find.text("Alien AI didn't return an answer. Please try again."), findsOneWidget);
+    expect(find.text('Root only'), findsOneWidget);
     expect(find.text('empty response from gemini-3.5-flash-lite'), findsOneWidget);
     expect(find.byType(SelectableText), findsOneWidget);
+  });
+
+  testWidgets('UiMsgError shows message id for reporting', (tester) async {
+    await tester.pumpWidget(const MaterialApp(
+      home: Scaffold(
+        body: UiMsgError(
+          message: 'Cannot connect to Alien AI',
+          messageId: 'req-abc-123',
+        ),
+      ),
+    ));
+    expect(find.text('Message ID: req-abc-123'), findsOneWidget);
   });
 
   testWidgets('UiMsgError hides detail when null', (tester) async {

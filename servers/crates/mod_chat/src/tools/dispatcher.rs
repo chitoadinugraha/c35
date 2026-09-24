@@ -91,11 +91,17 @@ impl ToolDispatcher {
             Ok(output) => {
                 let ok = output.get("ok").and_then(|v| v.as_bool()).unwrap_or(true);
                 let cost_usd = if ok {
-                    if def.cost_wholesale > 0.0 {
-                        c35_mod_billing::billing_to_retail_usd(def.cost_wholesale)
-                    } else {
-                        c35_mod_billing::billing_tool_cost_usd(&def.name, true)
-                    }
+                    output
+                        .get("wholesale_usd")
+                        .and_then(|v| v.as_f64())
+                        .map(c35_mod_billing::billing_to_retail_usd)
+                        .unwrap_or_else(|| {
+                            if def.cost_wholesale > 0.0 {
+                                c35_mod_billing::billing_to_retail_usd(def.cost_wholesale)
+                            } else {
+                                c35_mod_billing::billing_tool_cost_usd(&def.name, true)
+                            }
+                        })
                 } else {
                     0.0
                 };

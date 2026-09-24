@@ -1,0 +1,108 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: c35-proxy-cf-warp
+  namespace: c35
+  labels:
+    app.kubernetes.io/name: c35-proxy-cf-warp
+    app.kubernetes.io/part-of: c35
+    app.kubernetes.io/component: egress
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: c35-proxy-cf-warp
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: c35-proxy-cf-warp
+        app.kubernetes.io/part-of: c35
+        app.kubernetes.io/component: egress
+    spec:
+      nodeSelector:
+        kubernetes.io/arch: arm64
+      imagePullSecrets:
+        - name: docker-registry-auth
+      containers:
+        - name: proxy-cf
+          image: hsg.ocir.io/axr8wqrrukgm/cs_service_proxy_cf:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: CS_PROXY_CF_ADDR
+              value: "0.0.0.0:8080"
+            - name: C35_PROXY_CF_ADDR
+              value: "0.0.0.0:8080"
+            - name: RUST_LOG
+              value: info,c35_proxy_cf_warp=info,cs_service_proxy_cf=info
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 24
+            timeoutSeconds: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 3
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            failureThreshold: 5
+            timeoutSeconds: 3
+          resources:
+            limits:
+              cpu: "500m"
+              memory: 256Mi
+            requests:
+              cpu: 50m
+              memory: 64Mi
+        - name: mesh
+          image: hsg.ocir.io/axr8wqrrukgm/cloudflare-mesh:latest-arm64
+          imagePullPolicy: Always
+          env:
+            - name: MESH_NODE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: c35-proxy-cf-warp
+                  key: MESH_NODE_TOKEN
+            - name: SRCNAT_ENABLED
+              value: "true"
+          securityContext:
+            capabilities:
+              add:
+                - NET_ADMIN
+                - NET_RAW
+          volumeMounts:
+            - name: warp-data
+              mountPath: /var/lib/cloudflare-warp
+            - name: dev-net-tun
+              mountPath: /dev/net/tun
+          resources:
+            limits:
+              cpu: "500m"
+              memory: 512Mi
+            requests:
+              cpu: 50m
+              memory: 128Mi
+      volumes:
+        - name: dev-net-tun
+          hostPath:
+            path: /dev/net/tun
+            type: CharDevice
+        - name: warp-data
+          emptyDir: {}

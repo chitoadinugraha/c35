@@ -20,7 +20,14 @@ pub async fn task_run_handle(
 
     // Release notification or legacy raw text command
     if let Ok(cmd_str) = std::str::from_utf8(payload) {
-        let cmd = cmd_str.trim().to_string();
+        let cmd = cmd_str.trim();
+        if cmd == "c35.unpair" {
+            info!("Received c35.unpair over agent session; clearing local pairing");
+            crate::conn_exit::request_unpair();
+            let _ = crate::config::session_key_clear();
+            return Ok(());
+        }
+        let cmd = cmd.to_string();
         if cmd.starts_with("c35.release:") || cmd.starts_with("{\"platform\":\"remote-windows\"") {
             info!("Received release notification over agent session; triggering immediate background update");
             crate::update::trigger_background_update(dispatch_ctx.server_url.clone());

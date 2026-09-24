@@ -7,8 +7,8 @@ async fn main() -> Result<()> {
     let pool = pool_connect().await?;
     match cmd.as_str() {
         "apply" => {
-            migrate_boot(&pool).await?;
             migrate_apply(&pool).await?;
+            migrate_boot(&pool).await?;
             println!("migrate: applied all schemas");
             let report = migrate_audit(&pool).await?;
             report.print();

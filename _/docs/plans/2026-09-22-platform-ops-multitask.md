@@ -123,7 +123,7 @@ kubectl exec -n nats nats-0 -- du -sh /data/jetstream
 ### New files
 
 ```
-node_stats/c_node_stats/          # Rust binary
+servers/node_stats/               # Rust binary (was node_stats/c_node_stats/)
 _/deployments/c35-node-stats/
   daemonset.yaml
   rbac.yaml

@@ -7,7 +7,7 @@ use serde_json::Value;
 use sqlx::PgPool;
 
 use crate::catalog_price::{price_for_model_id, DEFAULT_INPUT_MICRO_PER_M, DEFAULT_OUTPUT_MICRO_PER_M};
-use crate::catalog_rank::{apply_gemini_enabled, family_of, gemini_chat_eligible, is_preview_id, model_list_sort_cmp, pick_default_provider, sort_order_for, version_rank_of};
+use crate::catalog_rank::{alien_chain_sort_cmp, apply_gemini_enabled, family_of, gemini_chat_eligible, is_preview_id, model_list_sort_cmp, pick_default_provider, sort_order_for, version_rank_of};
 use crate::runtime_config::{cf_gateway_config, cf_gateway_ready};
 use crate::embed_gemini::gemini_api_key;
 use crate::catalog_types::LlmModelRow;
@@ -108,7 +108,7 @@ async fn sync_alien_meta(pool: &PgPool, fetched: &[LlmModelRow]) -> Result<()> {
         .filter(|m| m.enabled && m.provider == "google" && m.family == "flash-lite")
         .map(|m| m.provider_model.clone())
         .collect();
-    chain.sort_by(|a, b| version_rank_of(b).cmp(&version_rank_of(a)));
+    chain.sort_by(|a, b| alien_chain_sort_cmp(a, b));
     chain.dedup();
     if chain.is_empty() {
         tracing::warn!("llm_catalog sync: no flash-lite models from provider");

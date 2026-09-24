@@ -19,25 +19,26 @@ import 'admin.pb.dart' as $3;
 import 'billing.pb.dart' as $0;
 import 'catalog.pb.dart' as $8;
 import 'channel.pb.dart' as $4;
-import 'chat.pb.dart' as $12;
-import 'collection.pb.dart' as $19;
+import 'chat.pb.dart' as $14;
+import 'collection.pb.dart' as $20;
 import 'consumption.pb.dart' as $1;
 import 'device.pb.dart' as $5;
-import 'hint.pb.dart' as $21;
-import 'identity.pb.dart' as $16;
+import 'hint.pb.dart' as $22;
+import 'identity.pb.dart' as $17;
 import 'inst.pb.dart' as $6;
-import 'log.pb.dart' as $23;
+import 'log.pb.dart' as $24;
 import 'object.pb.dart' as $9;
 import 'referral.pb.dart' as $2;
-import 'remote.pb.dart' as $18;
-import 'session.pb.dart' as $10;
-import 'site.pb.dart' as $14;
-import 'skill.pb.dart' as $13;
-import 'stats.pb.dart' as $20;
-import 'sync.pb.dart' as $11;
-import 'task.pb.dart' as $17;
-import 'tx.pb.dart' as $15;
-import 'types.pb.dart' as $22;
+import 'remote.pb.dart' as $19;
+import 'report.pb.dart' as $10;
+import 'session.pb.dart' as $12;
+import 'site.pb.dart' as $16;
+import 'skill.pb.dart' as $15;
+import 'stats.pb.dart' as $21;
+import 'sync.pb.dart' as $13;
+import 'task.pb.dart' as $18;
+import 'tx.pb.dart' as $11;
+import 'types.pb.dart' as $23;
 import 'voice.pb.dart' as $7;
 
 export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
@@ -89,6 +90,8 @@ enum InvokeReq_Body {
   billingTopupGet,
   billingAdminAdjust,
   billingAdminAdjustList,
+  adminLogReport,
+  expensePut,
   notSet
 }
 
@@ -143,6 +146,8 @@ class InvokeReq extends $pb.GeneratedMessage {
     $0.ReqBillingTopupGet? billingTopupGet,
     $0.ReqBillingAdminAdjust? billingAdminAdjust,
     $0.ReqBillingAdminAdjustList? billingAdminAdjustList,
+    $10.ReqAdminLogReport? adminLogReport,
+    $11.ReqExpensePut? expensePut,
   }) {
     final result = InvokeReq._();
     if (reqId != null) result.reqId = reqId;
@@ -214,6 +219,8 @@ class InvokeReq extends $pb.GeneratedMessage {
       result.billingAdminAdjust = billingAdminAdjust;
     if (billingAdminAdjustList != null)
       result.billingAdminAdjustList = billingAdminAdjustList;
+    if (adminLogReport != null) result.adminLogReport = adminLogReport;
+    if (expensePut != null) result.expensePut = expensePut;
     return result;
   }
 
@@ -273,6 +280,8 @@ class InvokeReq extends $pb.GeneratedMessage {
     123: InvokeReq_Body.billingTopupGet,
     124: InvokeReq_Body.billingAdminAdjust,
     125: InvokeReq_Body.billingAdminAdjustList,
+    126: InvokeReq_Body.adminLogReport,
+    127: InvokeReq_Body.expensePut,
     0: InvokeReq_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -325,7 +334,9 @@ class InvokeReq extends $pb.GeneratedMessage {
       122,
       123,
       124,
-      125
+      125,
+      126,
+      127
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aInt64(2, _omitFieldNames ? '' : 'callerIid')
@@ -444,6 +455,10 @@ class InvokeReq extends $pb.GeneratedMessage {
     ..aOM<$0.ReqBillingAdminAdjustList>(
         125, _omitFieldNames ? '' : 'billingAdminAdjustList',
         subBuilder: $0.ReqBillingAdminAdjustList.$_createMessage)
+    ..aOM<$10.ReqAdminLogReport>(126, _omitFieldNames ? '' : 'adminLogReport',
+        subBuilder: $10.ReqAdminLogReport.$_createMessage)
+    ..aOM<$11.ReqExpensePut>(127, _omitFieldNames ? '' : 'expensePut',
+        subBuilder: $11.ReqExpensePut.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -512,6 +527,8 @@ class InvokeReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(123)
   @$pb.TagNumber(124)
   @$pb.TagNumber(125)
+  @$pb.TagNumber(126)
+  @$pb.TagNumber(127)
   InvokeReq_Body whichBody() => _InvokeReq_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(10)
   @$pb.TagNumber(11)
@@ -559,6 +576,8 @@ class InvokeReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(123)
   @$pb.TagNumber(124)
   @$pb.TagNumber(125)
+  @$pb.TagNumber(126)
+  @$pb.TagNumber(127)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -1110,6 +1129,28 @@ class InvokeReq extends $pb.GeneratedMessage {
   void clearBillingAdminAdjustList() => $_clearField(125);
   @$pb.TagNumber(125)
   $0.ReqBillingAdminAdjustList ensureBillingAdminAdjustList() => $_ensure(47);
+
+  @$pb.TagNumber(126)
+  $10.ReqAdminLogReport get adminLogReport => $_getN(48);
+  @$pb.TagNumber(126)
+  set adminLogReport($10.ReqAdminLogReport value) => $_setField(126, value);
+  @$pb.TagNumber(126)
+  $core.bool hasAdminLogReport() => $_has(48);
+  @$pb.TagNumber(126)
+  void clearAdminLogReport() => $_clearField(126);
+  @$pb.TagNumber(126)
+  $10.ReqAdminLogReport ensureAdminLogReport() => $_ensure(48);
+
+  @$pb.TagNumber(127)
+  $11.ReqExpensePut get expensePut => $_getN(49);
+  @$pb.TagNumber(127)
+  set expensePut($11.ReqExpensePut value) => $_setField(127, value);
+  @$pb.TagNumber(127)
+  $core.bool hasExpensePut() => $_has(49);
+  @$pb.TagNumber(127)
+  void clearExpensePut() => $_clearField(127);
+  @$pb.TagNumber(127)
+  $11.ReqExpensePut ensureExpensePut() => $_ensure(49);
 }
 
 enum InvokeRes_Body {
@@ -1158,6 +1199,8 @@ enum InvokeRes_Body {
   billingTopupGet,
   billingAdminAdjust,
   billingAdminAdjustList,
+  adminLogReport,
+  expensePut,
   notSet
 }
 
@@ -1211,6 +1254,8 @@ class InvokeRes extends $pb.GeneratedMessage {
     $0.ResBillingTopupGet? billingTopupGet,
     $0.ResBillingAdminAdjust? billingAdminAdjust,
     $0.ResBillingAdminAdjustList? billingAdminAdjustList,
+    $10.ResAdminLogReport? adminLogReport,
+    $11.ResExpensePut? expensePut,
   }) {
     final result = InvokeRes._();
     if (reqId != null) result.reqId = reqId;
@@ -1281,6 +1326,8 @@ class InvokeRes extends $pb.GeneratedMessage {
       result.billingAdminAdjust = billingAdminAdjust;
     if (billingAdminAdjustList != null)
       result.billingAdminAdjustList = billingAdminAdjustList;
+    if (adminLogReport != null) result.adminLogReport = adminLogReport;
+    if (expensePut != null) result.expensePut = expensePut;
     return result;
   }
 
@@ -1339,6 +1386,8 @@ class InvokeRes extends $pb.GeneratedMessage {
     123: InvokeRes_Body.billingTopupGet,
     124: InvokeRes_Body.billingAdminAdjust,
     125: InvokeRes_Body.billingAdminAdjustList,
+    126: InvokeRes_Body.adminLogReport,
+    127: InvokeRes_Body.expensePut,
     0: InvokeRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -1390,7 +1439,9 @@ class InvokeRes extends $pb.GeneratedMessage {
       122,
       123,
       124,
-      125
+      125,
+      126,
+      127
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aI(2, _omitFieldNames ? '' : 'statusCode')
@@ -1507,6 +1558,10 @@ class InvokeRes extends $pb.GeneratedMessage {
     ..aOM<$0.ResBillingAdminAdjustList>(
         125, _omitFieldNames ? '' : 'billingAdminAdjustList',
         subBuilder: $0.ResBillingAdminAdjustList.$_createMessage)
+    ..aOM<$10.ResAdminLogReport>(126, _omitFieldNames ? '' : 'adminLogReport',
+        subBuilder: $10.ResAdminLogReport.$_createMessage)
+    ..aOM<$11.ResExpensePut>(127, _omitFieldNames ? '' : 'expensePut',
+        subBuilder: $11.ResExpensePut.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1574,6 +1629,8 @@ class InvokeRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(123)
   @$pb.TagNumber(124)
   @$pb.TagNumber(125)
+  @$pb.TagNumber(126)
+  @$pb.TagNumber(127)
   InvokeRes_Body whichBody() => _InvokeRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(10)
   @$pb.TagNumber(11)
@@ -1620,6 +1677,8 @@ class InvokeRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(123)
   @$pb.TagNumber(124)
   @$pb.TagNumber(125)
+  @$pb.TagNumber(126)
+  @$pb.TagNumber(127)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -2168,6 +2227,28 @@ class InvokeRes extends $pb.GeneratedMessage {
   void clearBillingAdminAdjustList() => $_clearField(125);
   @$pb.TagNumber(125)
   $0.ResBillingAdminAdjustList ensureBillingAdminAdjustList() => $_ensure(47);
+
+  @$pb.TagNumber(126)
+  $10.ResAdminLogReport get adminLogReport => $_getN(48);
+  @$pb.TagNumber(126)
+  set adminLogReport($10.ResAdminLogReport value) => $_setField(126, value);
+  @$pb.TagNumber(126)
+  $core.bool hasAdminLogReport() => $_has(48);
+  @$pb.TagNumber(126)
+  void clearAdminLogReport() => $_clearField(126);
+  @$pb.TagNumber(126)
+  $10.ResAdminLogReport ensureAdminLogReport() => $_ensure(48);
+
+  @$pb.TagNumber(127)
+  $11.ResExpensePut get expensePut => $_getN(49);
+  @$pb.TagNumber(127)
+  set expensePut($11.ResExpensePut value) => $_setField(127, value);
+  @$pb.TagNumber(127)
+  $core.bool hasExpensePut() => $_has(49);
+  @$pb.TagNumber(127)
+  void clearExpensePut() => $_clearField(127);
+  @$pb.TagNumber(127)
+  $11.ResExpensePut ensureExpensePut() => $_ensure(49);
 }
 
 enum WsReq_Body {
@@ -2244,6 +2325,7 @@ enum WsReq_Body {
   txPreview,
   txDebtPay,
   siteQueryRun,
+  expensePut,
   notSet
 }
 
@@ -2251,79 +2333,80 @@ enum WsReq_Body {
 class WsReq extends $pb.GeneratedMessage {
   factory WsReq({
     $core.String? reqId,
-    $10.ReqSessionInit? sessionInit,
-    $11.ReqSync? sync,
-    $12.ReqInboxList? inboxList,
-    $12.ReqChatMsgList? chatMsgList,
-    $12.ReqPrompt? prompt,
-    $12.ReqPromptAbort? promptAbort,
-    $12.ReqChatStop? chatStop,
-    $12.ReqChatSend? chatSend,
+    $12.ReqSessionInit? sessionInit,
+    $13.ReqSync? sync,
+    $14.ReqInboxList? inboxList,
+    $14.ReqChatMsgList? chatMsgList,
+    $14.ReqPrompt? prompt,
+    $14.ReqPromptAbort? promptAbort,
+    $14.ReqChatStop? chatStop,
+    $14.ReqChatSend? chatSend,
     InvokeReq? invoke,
-    $13.ReqSkillList? skillList,
+    $15.ReqSkillList? skillList,
     $1.ReqConsumptionList? consumptionList,
-    $14.ReqSiteList? siteList,
-    $15.ReqTxList? txList,
+    $16.ReqSiteList? siteList,
+    $11.ReqTxList? txList,
     $1.ReqConsumptionPut? consumptionPut,
-    $12.ReqChatPatch? chatPatch,
-    $12.ReqAssetTagList? assetTagList,
-    $16.ReqIdentityList? identityList,
-    $16.ReqIdentityGrantPatch? identityGrantPatch,
-    $12.ReqBotPeerList? botPeerList,
-    $12.ReqLogList? logList,
-    $16.ReqIdentityPut? identityPut,
+    $14.ReqChatPatch? chatPatch,
+    $14.ReqAssetTagList? assetTagList,
+    $17.ReqIdentityList? identityList,
+    $17.ReqIdentityGrantPatch? identityGrantPatch,
+    $14.ReqBotPeerList? botPeerList,
+    $14.ReqLogList? logList,
+    $17.ReqIdentityPut? identityPut,
     $4.ReqChannelWhatsappPairStart? channelWhatsappPairStart,
     $4.ReqChannelWhatsappPairWatch? channelWhatsappPairWatch,
     $4.ReqChannelWhatsappPairAbort? channelWhatsappPairAbort,
-    $17.ReqTaskList? taskList,
-    $17.ReqTaskPut? taskPut,
-    $17.ReqTaskRunStart? taskRunStart,
-    $17.ReqTaskRunCancel? taskRunCancel,
-    $17.ReqTaskRunList? taskRunList,
-    $18.ReqRemoteSessionStart? remoteSessionStart,
-    $18.RtcSignalOffer? rtcSignalOffer,
-    $18.RtcSignalAnswer? rtcSignalAnswer,
-    $18.RtcSignalIce? rtcSignalIce,
-    $18.ReqRemoteSessionStop? remoteSessionStop,
+    $18.ReqTaskList? taskList,
+    $18.ReqTaskPut? taskPut,
+    $18.ReqTaskRunStart? taskRunStart,
+    $18.ReqTaskRunCancel? taskRunCancel,
+    $18.ReqTaskRunList? taskRunList,
+    $19.ReqRemoteSessionStart? remoteSessionStart,
+    $19.RtcSignalOffer? rtcSignalOffer,
+    $19.RtcSignalAnswer? rtcSignalAnswer,
+    $19.RtcSignalIce? rtcSignalIce,
+    $19.ReqRemoteSessionStop? remoteSessionStop,
     $4.ReqChannelDisconnect? channelDisconnect,
-    $16.ReqIdentityDelete? identityDelete,
-    $13.ReqSkillPut? skillPut,
-    $13.ReqSkillCatalogList? skillCatalogList,
-    $13.ReqSkillCatalogInstall? skillCatalogInstall,
-    $18.ReqRemoteIceConfig? remoteIceConfig,
-    $19.ReqCollectionDefList? collectionDefList,
-    $14.ReqSiteDraftGet? siteDraftGet,
-    $14.ReqSiteDraftPut? siteDraftPut,
-    $14.ReqSitePublish? sitePublish,
-    $14.ReqSiteProductList? siteProductList,
-    $14.ReqSiteProductPut? siteProductPut,
-    $14.ReqSiteContactList? siteContactList,
-    $14.ReqSiteContactPut? siteContactPut,
-    $14.ReqSiteObjectList? siteObjectList,
-    $14.ReqSiteObjectPut? siteObjectPut,
-    $14.ReqSiteDomainList? siteDomainList,
-    $14.ReqSiteDomainPut? siteDomainPut,
-    $13.ReqSkillCatalogSearch? skillCatalogSearch,
-    $13.ReqSkillCatalogSubmit? skillCatalogSubmit,
-    $13.ReqSkillRunReport? skillRunReport,
-    $18.ReqRemoteScreenshot? reqRemoteScreenshot,
-    $18.ReqRemoteCommand? reqRemoteCommand,
+    $17.ReqIdentityDelete? identityDelete,
+    $15.ReqSkillPut? skillPut,
+    $15.ReqSkillCatalogList? skillCatalogList,
+    $15.ReqSkillCatalogInstall? skillCatalogInstall,
+    $19.ReqRemoteIceConfig? remoteIceConfig,
+    $20.ReqCollectionDefList? collectionDefList,
+    $16.ReqSiteDraftGet? siteDraftGet,
+    $16.ReqSiteDraftPut? siteDraftPut,
+    $16.ReqSitePublish? sitePublish,
+    $16.ReqSiteProductList? siteProductList,
+    $16.ReqSiteProductPut? siteProductPut,
+    $16.ReqSiteContactList? siteContactList,
+    $16.ReqSiteContactPut? siteContactPut,
+    $16.ReqSiteObjectList? siteObjectList,
+    $16.ReqSiteObjectPut? siteObjectPut,
+    $16.ReqSiteDomainList? siteDomainList,
+    $16.ReqSiteDomainPut? siteDomainPut,
+    $15.ReqSkillCatalogSearch? skillCatalogSearch,
+    $15.ReqSkillCatalogSubmit? skillCatalogSubmit,
+    $15.ReqSkillRunReport? skillRunReport,
+    $19.ReqRemoteScreenshot? reqRemoteScreenshot,
+    $19.ReqRemoteCommand? reqRemoteCommand,
     $7.ReqVoiceStt? voiceStt,
     $7.ReqVoiceTts? voiceTts,
-    $20.ReqStatsSubscribe? statsSubscribe,
-    $20.ReqStatsUnsubscribe? statsUnsubscribe,
-    $20.ReqLogSubscribe? logSubscribe,
-    $20.ReqLogUnsubscribe? logUnsubscribe,
+    $21.ReqStatsSubscribe? statsSubscribe,
+    $21.ReqStatsUnsubscribe? statsUnsubscribe,
+    $21.ReqLogSubscribe? logSubscribe,
+    $21.ReqLogUnsubscribe? logUnsubscribe,
     $8.ReqMentionList? mentionList,
     $8.ReqMentionSearch? mentionSearch,
-    $21.ReqHintTouch? hintTouch,
-    $14.ReqSiteConfigPut? siteConfigPut,
-    $14.ReqSitePreviewToken? sitePreviewToken,
-    $15.ReqTxGet? txGet,
-    $15.ReqTxPut? txPut,
-    $15.ReqTxPreview? txPreview,
-    $15.ReqTxDebtPay? txDebtPay,
-    $14.ReqSiteQueryRun? siteQueryRun,
+    $22.ReqHintTouch? hintTouch,
+    $16.ReqSiteConfigPut? siteConfigPut,
+    $16.ReqSitePreviewToken? sitePreviewToken,
+    $11.ReqTxGet? txGet,
+    $11.ReqTxPut? txPut,
+    $11.ReqTxPreview? txPreview,
+    $11.ReqTxDebtPay? txDebtPay,
+    $16.ReqSiteQueryRun? siteQueryRun,
+    $11.ReqExpensePut? expensePut,
   }) {
     final result = WsReq._();
     if (reqId != null) result.reqId = reqId;
@@ -2409,6 +2492,7 @@ class WsReq extends $pb.GeneratedMessage {
     if (txPreview != null) result.txPreview = txPreview;
     if (txDebtPay != null) result.txDebtPay = txDebtPay;
     if (siteQueryRun != null) result.siteQueryRun = siteQueryRun;
+    if (expensePut != null) result.expensePut = expensePut;
     return result;
   }
 
@@ -2495,6 +2579,7 @@ class WsReq extends $pb.GeneratedMessage {
     81: WsReq_Body.txPreview,
     82: WsReq_Body.txDebtPay,
     83: WsReq_Body.siteQueryRun,
+    84: WsReq_Body.expensePut,
     0: WsReq_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -2574,52 +2659,53 @@ class WsReq extends $pb.GeneratedMessage {
       80,
       81,
       82,
-      83
+      83,
+      84
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
-    ..aOM<$10.ReqSessionInit>(2, _omitFieldNames ? '' : 'sessionInit',
-        subBuilder: $10.ReqSessionInit.$_createMessage)
-    ..aOM<$11.ReqSync>(3, _omitFieldNames ? '' : 'sync',
-        subBuilder: $11.ReqSync.$_createMessage)
-    ..aOM<$12.ReqInboxList>(4, _omitFieldNames ? '' : 'inboxList',
-        subBuilder: $12.ReqInboxList.$_createMessage)
-    ..aOM<$12.ReqChatMsgList>(5, _omitFieldNames ? '' : 'chatMsgList',
-        subBuilder: $12.ReqChatMsgList.$_createMessage)
-    ..aOM<$12.ReqPrompt>(6, _omitFieldNames ? '' : 'prompt',
-        subBuilder: $12.ReqPrompt.$_createMessage)
-    ..aOM<$12.ReqPromptAbort>(7, _omitFieldNames ? '' : 'promptAbort',
-        subBuilder: $12.ReqPromptAbort.$_createMessage)
-    ..aOM<$12.ReqChatStop>(8, _omitFieldNames ? '' : 'chatStop',
-        subBuilder: $12.ReqChatStop.$_createMessage)
-    ..aOM<$12.ReqChatSend>(9, _omitFieldNames ? '' : 'chatSend',
-        subBuilder: $12.ReqChatSend.$_createMessage)
+    ..aOM<$12.ReqSessionInit>(2, _omitFieldNames ? '' : 'sessionInit',
+        subBuilder: $12.ReqSessionInit.$_createMessage)
+    ..aOM<$13.ReqSync>(3, _omitFieldNames ? '' : 'sync',
+        subBuilder: $13.ReqSync.$_createMessage)
+    ..aOM<$14.ReqInboxList>(4, _omitFieldNames ? '' : 'inboxList',
+        subBuilder: $14.ReqInboxList.$_createMessage)
+    ..aOM<$14.ReqChatMsgList>(5, _omitFieldNames ? '' : 'chatMsgList',
+        subBuilder: $14.ReqChatMsgList.$_createMessage)
+    ..aOM<$14.ReqPrompt>(6, _omitFieldNames ? '' : 'prompt',
+        subBuilder: $14.ReqPrompt.$_createMessage)
+    ..aOM<$14.ReqPromptAbort>(7, _omitFieldNames ? '' : 'promptAbort',
+        subBuilder: $14.ReqPromptAbort.$_createMessage)
+    ..aOM<$14.ReqChatStop>(8, _omitFieldNames ? '' : 'chatStop',
+        subBuilder: $14.ReqChatStop.$_createMessage)
+    ..aOM<$14.ReqChatSend>(9, _omitFieldNames ? '' : 'chatSend',
+        subBuilder: $14.ReqChatSend.$_createMessage)
     ..aOM<InvokeReq>(10, _omitFieldNames ? '' : 'invoke',
         subBuilder: InvokeReq.$_createMessage)
-    ..aOM<$13.ReqSkillList>(20, _omitFieldNames ? '' : 'skillList',
-        subBuilder: $13.ReqSkillList.$_createMessage)
+    ..aOM<$15.ReqSkillList>(20, _omitFieldNames ? '' : 'skillList',
+        subBuilder: $15.ReqSkillList.$_createMessage)
     ..aOM<$1.ReqConsumptionList>(21, _omitFieldNames ? '' : 'consumptionList',
         subBuilder: $1.ReqConsumptionList.$_createMessage)
-    ..aOM<$14.ReqSiteList>(22, _omitFieldNames ? '' : 'siteList',
-        subBuilder: $14.ReqSiteList.$_createMessage)
-    ..aOM<$15.ReqTxList>(23, _omitFieldNames ? '' : 'txList',
-        subBuilder: $15.ReqTxList.$_createMessage)
+    ..aOM<$16.ReqSiteList>(22, _omitFieldNames ? '' : 'siteList',
+        subBuilder: $16.ReqSiteList.$_createMessage)
+    ..aOM<$11.ReqTxList>(23, _omitFieldNames ? '' : 'txList',
+        subBuilder: $11.ReqTxList.$_createMessage)
     ..aOM<$1.ReqConsumptionPut>(24, _omitFieldNames ? '' : 'consumptionPut',
         subBuilder: $1.ReqConsumptionPut.$_createMessage)
-    ..aOM<$12.ReqChatPatch>(25, _omitFieldNames ? '' : 'chatPatch',
-        subBuilder: $12.ReqChatPatch.$_createMessage)
-    ..aOM<$12.ReqAssetTagList>(26, _omitFieldNames ? '' : 'assetTagList',
-        subBuilder: $12.ReqAssetTagList.$_createMessage)
-    ..aOM<$16.ReqIdentityList>(27, _omitFieldNames ? '' : 'identityList',
-        subBuilder: $16.ReqIdentityList.$_createMessage)
-    ..aOM<$16.ReqIdentityGrantPatch>(
+    ..aOM<$14.ReqChatPatch>(25, _omitFieldNames ? '' : 'chatPatch',
+        subBuilder: $14.ReqChatPatch.$_createMessage)
+    ..aOM<$14.ReqAssetTagList>(26, _omitFieldNames ? '' : 'assetTagList',
+        subBuilder: $14.ReqAssetTagList.$_createMessage)
+    ..aOM<$17.ReqIdentityList>(27, _omitFieldNames ? '' : 'identityList',
+        subBuilder: $17.ReqIdentityList.$_createMessage)
+    ..aOM<$17.ReqIdentityGrantPatch>(
         28, _omitFieldNames ? '' : 'identityGrantPatch',
-        subBuilder: $16.ReqIdentityGrantPatch.$_createMessage)
-    ..aOM<$12.ReqBotPeerList>(29, _omitFieldNames ? '' : 'botPeerList',
-        subBuilder: $12.ReqBotPeerList.$_createMessage)
-    ..aOM<$12.ReqLogList>(30, _omitFieldNames ? '' : 'logList',
-        subBuilder: $12.ReqLogList.$_createMessage)
-    ..aOM<$16.ReqIdentityPut>(31, _omitFieldNames ? '' : 'identityPut',
-        subBuilder: $16.ReqIdentityPut.$_createMessage)
+        subBuilder: $17.ReqIdentityGrantPatch.$_createMessage)
+    ..aOM<$14.ReqBotPeerList>(29, _omitFieldNames ? '' : 'botPeerList',
+        subBuilder: $14.ReqBotPeerList.$_createMessage)
+    ..aOM<$14.ReqLogList>(30, _omitFieldNames ? '' : 'logList',
+        subBuilder: $14.ReqLogList.$_createMessage)
+    ..aOM<$17.ReqIdentityPut>(31, _omitFieldNames ? '' : 'identityPut',
+        subBuilder: $17.ReqIdentityPut.$_createMessage)
     ..aOM<$4.ReqChannelWhatsappPairStart>(
         32, _omitFieldNames ? '' : 'channelWhatsappPairStart',
         subBuilder: $4.ReqChannelWhatsappPairStart.$_createMessage)
@@ -2629,115 +2715,117 @@ class WsReq extends $pb.GeneratedMessage {
     ..aOM<$4.ReqChannelWhatsappPairAbort>(
         34, _omitFieldNames ? '' : 'channelWhatsappPairAbort',
         subBuilder: $4.ReqChannelWhatsappPairAbort.$_createMessage)
-    ..aOM<$17.ReqTaskList>(35, _omitFieldNames ? '' : 'taskList',
-        subBuilder: $17.ReqTaskList.$_createMessage)
-    ..aOM<$17.ReqTaskPut>(36, _omitFieldNames ? '' : 'taskPut',
-        subBuilder: $17.ReqTaskPut.$_createMessage)
-    ..aOM<$17.ReqTaskRunStart>(37, _omitFieldNames ? '' : 'taskRunStart',
-        subBuilder: $17.ReqTaskRunStart.$_createMessage)
-    ..aOM<$17.ReqTaskRunCancel>(38, _omitFieldNames ? '' : 'taskRunCancel',
-        subBuilder: $17.ReqTaskRunCancel.$_createMessage)
-    ..aOM<$17.ReqTaskRunList>(39, _omitFieldNames ? '' : 'taskRunList',
-        subBuilder: $17.ReqTaskRunList.$_createMessage)
-    ..aOM<$18.ReqRemoteSessionStart>(
+    ..aOM<$18.ReqTaskList>(35, _omitFieldNames ? '' : 'taskList',
+        subBuilder: $18.ReqTaskList.$_createMessage)
+    ..aOM<$18.ReqTaskPut>(36, _omitFieldNames ? '' : 'taskPut',
+        subBuilder: $18.ReqTaskPut.$_createMessage)
+    ..aOM<$18.ReqTaskRunStart>(37, _omitFieldNames ? '' : 'taskRunStart',
+        subBuilder: $18.ReqTaskRunStart.$_createMessage)
+    ..aOM<$18.ReqTaskRunCancel>(38, _omitFieldNames ? '' : 'taskRunCancel',
+        subBuilder: $18.ReqTaskRunCancel.$_createMessage)
+    ..aOM<$18.ReqTaskRunList>(39, _omitFieldNames ? '' : 'taskRunList',
+        subBuilder: $18.ReqTaskRunList.$_createMessage)
+    ..aOM<$19.ReqRemoteSessionStart>(
         40, _omitFieldNames ? '' : 'remoteSessionStart',
-        subBuilder: $18.ReqRemoteSessionStart.$_createMessage)
-    ..aOM<$18.RtcSignalOffer>(41, _omitFieldNames ? '' : 'rtcSignalOffer',
-        subBuilder: $18.RtcSignalOffer.$_createMessage)
-    ..aOM<$18.RtcSignalAnswer>(42, _omitFieldNames ? '' : 'rtcSignalAnswer',
-        subBuilder: $18.RtcSignalAnswer.$_createMessage)
-    ..aOM<$18.RtcSignalIce>(43, _omitFieldNames ? '' : 'rtcSignalIce',
-        subBuilder: $18.RtcSignalIce.$_createMessage)
-    ..aOM<$18.ReqRemoteSessionStop>(
+        subBuilder: $19.ReqRemoteSessionStart.$_createMessage)
+    ..aOM<$19.RtcSignalOffer>(41, _omitFieldNames ? '' : 'rtcSignalOffer',
+        subBuilder: $19.RtcSignalOffer.$_createMessage)
+    ..aOM<$19.RtcSignalAnswer>(42, _omitFieldNames ? '' : 'rtcSignalAnswer',
+        subBuilder: $19.RtcSignalAnswer.$_createMessage)
+    ..aOM<$19.RtcSignalIce>(43, _omitFieldNames ? '' : 'rtcSignalIce',
+        subBuilder: $19.RtcSignalIce.$_createMessage)
+    ..aOM<$19.ReqRemoteSessionStop>(
         44, _omitFieldNames ? '' : 'remoteSessionStop',
-        subBuilder: $18.ReqRemoteSessionStop.$_createMessage)
+        subBuilder: $19.ReqRemoteSessionStop.$_createMessage)
     ..aOM<$4.ReqChannelDisconnect>(
         45, _omitFieldNames ? '' : 'channelDisconnect',
         subBuilder: $4.ReqChannelDisconnect.$_createMessage)
-    ..aOM<$16.ReqIdentityDelete>(46, _omitFieldNames ? '' : 'identityDelete',
-        subBuilder: $16.ReqIdentityDelete.$_createMessage)
-    ..aOM<$13.ReqSkillPut>(47, _omitFieldNames ? '' : 'skillPut',
-        subBuilder: $13.ReqSkillPut.$_createMessage)
-    ..aOM<$13.ReqSkillCatalogList>(
+    ..aOM<$17.ReqIdentityDelete>(46, _omitFieldNames ? '' : 'identityDelete',
+        subBuilder: $17.ReqIdentityDelete.$_createMessage)
+    ..aOM<$15.ReqSkillPut>(47, _omitFieldNames ? '' : 'skillPut',
+        subBuilder: $15.ReqSkillPut.$_createMessage)
+    ..aOM<$15.ReqSkillCatalogList>(
         48, _omitFieldNames ? '' : 'skillCatalogList',
-        subBuilder: $13.ReqSkillCatalogList.$_createMessage)
-    ..aOM<$13.ReqSkillCatalogInstall>(
+        subBuilder: $15.ReqSkillCatalogList.$_createMessage)
+    ..aOM<$15.ReqSkillCatalogInstall>(
         49, _omitFieldNames ? '' : 'skillCatalogInstall',
-        subBuilder: $13.ReqSkillCatalogInstall.$_createMessage)
-    ..aOM<$18.ReqRemoteIceConfig>(50, _omitFieldNames ? '' : 'remoteIceConfig',
-        subBuilder: $18.ReqRemoteIceConfig.$_createMessage)
-    ..aOM<$19.ReqCollectionDefList>(
+        subBuilder: $15.ReqSkillCatalogInstall.$_createMessage)
+    ..aOM<$19.ReqRemoteIceConfig>(50, _omitFieldNames ? '' : 'remoteIceConfig',
+        subBuilder: $19.ReqRemoteIceConfig.$_createMessage)
+    ..aOM<$20.ReqCollectionDefList>(
         51, _omitFieldNames ? '' : 'collectionDefList',
-        subBuilder: $19.ReqCollectionDefList.$_createMessage)
-    ..aOM<$14.ReqSiteDraftGet>(52, _omitFieldNames ? '' : 'siteDraftGet',
-        subBuilder: $14.ReqSiteDraftGet.$_createMessage)
-    ..aOM<$14.ReqSiteDraftPut>(53, _omitFieldNames ? '' : 'siteDraftPut',
-        subBuilder: $14.ReqSiteDraftPut.$_createMessage)
-    ..aOM<$14.ReqSitePublish>(54, _omitFieldNames ? '' : 'sitePublish',
-        subBuilder: $14.ReqSitePublish.$_createMessage)
-    ..aOM<$14.ReqSiteProductList>(55, _omitFieldNames ? '' : 'siteProductList',
-        subBuilder: $14.ReqSiteProductList.$_createMessage)
-    ..aOM<$14.ReqSiteProductPut>(56, _omitFieldNames ? '' : 'siteProductPut',
-        subBuilder: $14.ReqSiteProductPut.$_createMessage)
-    ..aOM<$14.ReqSiteContactList>(57, _omitFieldNames ? '' : 'siteContactList',
-        subBuilder: $14.ReqSiteContactList.$_createMessage)
-    ..aOM<$14.ReqSiteContactPut>(58, _omitFieldNames ? '' : 'siteContactPut',
-        subBuilder: $14.ReqSiteContactPut.$_createMessage)
-    ..aOM<$14.ReqSiteObjectList>(59, _omitFieldNames ? '' : 'siteObjectList',
-        subBuilder: $14.ReqSiteObjectList.$_createMessage)
-    ..aOM<$14.ReqSiteObjectPut>(60, _omitFieldNames ? '' : 'siteObjectPut',
-        subBuilder: $14.ReqSiteObjectPut.$_createMessage)
-    ..aOM<$14.ReqSiteDomainList>(61, _omitFieldNames ? '' : 'siteDomainList',
-        subBuilder: $14.ReqSiteDomainList.$_createMessage)
-    ..aOM<$14.ReqSiteDomainPut>(62, _omitFieldNames ? '' : 'siteDomainPut',
-        subBuilder: $14.ReqSiteDomainPut.$_createMessage)
-    ..aOM<$13.ReqSkillCatalogSearch>(
+        subBuilder: $20.ReqCollectionDefList.$_createMessage)
+    ..aOM<$16.ReqSiteDraftGet>(52, _omitFieldNames ? '' : 'siteDraftGet',
+        subBuilder: $16.ReqSiteDraftGet.$_createMessage)
+    ..aOM<$16.ReqSiteDraftPut>(53, _omitFieldNames ? '' : 'siteDraftPut',
+        subBuilder: $16.ReqSiteDraftPut.$_createMessage)
+    ..aOM<$16.ReqSitePublish>(54, _omitFieldNames ? '' : 'sitePublish',
+        subBuilder: $16.ReqSitePublish.$_createMessage)
+    ..aOM<$16.ReqSiteProductList>(55, _omitFieldNames ? '' : 'siteProductList',
+        subBuilder: $16.ReqSiteProductList.$_createMessage)
+    ..aOM<$16.ReqSiteProductPut>(56, _omitFieldNames ? '' : 'siteProductPut',
+        subBuilder: $16.ReqSiteProductPut.$_createMessage)
+    ..aOM<$16.ReqSiteContactList>(57, _omitFieldNames ? '' : 'siteContactList',
+        subBuilder: $16.ReqSiteContactList.$_createMessage)
+    ..aOM<$16.ReqSiteContactPut>(58, _omitFieldNames ? '' : 'siteContactPut',
+        subBuilder: $16.ReqSiteContactPut.$_createMessage)
+    ..aOM<$16.ReqSiteObjectList>(59, _omitFieldNames ? '' : 'siteObjectList',
+        subBuilder: $16.ReqSiteObjectList.$_createMessage)
+    ..aOM<$16.ReqSiteObjectPut>(60, _omitFieldNames ? '' : 'siteObjectPut',
+        subBuilder: $16.ReqSiteObjectPut.$_createMessage)
+    ..aOM<$16.ReqSiteDomainList>(61, _omitFieldNames ? '' : 'siteDomainList',
+        subBuilder: $16.ReqSiteDomainList.$_createMessage)
+    ..aOM<$16.ReqSiteDomainPut>(62, _omitFieldNames ? '' : 'siteDomainPut',
+        subBuilder: $16.ReqSiteDomainPut.$_createMessage)
+    ..aOM<$15.ReqSkillCatalogSearch>(
         63, _omitFieldNames ? '' : 'skillCatalogSearch',
-        subBuilder: $13.ReqSkillCatalogSearch.$_createMessage)
-    ..aOM<$13.ReqSkillCatalogSubmit>(
+        subBuilder: $15.ReqSkillCatalogSearch.$_createMessage)
+    ..aOM<$15.ReqSkillCatalogSubmit>(
         64, _omitFieldNames ? '' : 'skillCatalogSubmit',
-        subBuilder: $13.ReqSkillCatalogSubmit.$_createMessage)
-    ..aOM<$13.ReqSkillRunReport>(65, _omitFieldNames ? '' : 'skillRunReport',
-        subBuilder: $13.ReqSkillRunReport.$_createMessage)
-    ..aOM<$18.ReqRemoteScreenshot>(
+        subBuilder: $15.ReqSkillCatalogSubmit.$_createMessage)
+    ..aOM<$15.ReqSkillRunReport>(65, _omitFieldNames ? '' : 'skillRunReport',
+        subBuilder: $15.ReqSkillRunReport.$_createMessage)
+    ..aOM<$19.ReqRemoteScreenshot>(
         66, _omitFieldNames ? '' : 'reqRemoteScreenshot',
-        subBuilder: $18.ReqRemoteScreenshot.$_createMessage)
-    ..aOM<$18.ReqRemoteCommand>(67, _omitFieldNames ? '' : 'reqRemoteCommand',
-        subBuilder: $18.ReqRemoteCommand.$_createMessage)
+        subBuilder: $19.ReqRemoteScreenshot.$_createMessage)
+    ..aOM<$19.ReqRemoteCommand>(67, _omitFieldNames ? '' : 'reqRemoteCommand',
+        subBuilder: $19.ReqRemoteCommand.$_createMessage)
     ..aOM<$7.ReqVoiceStt>(68, _omitFieldNames ? '' : 'voiceStt',
         subBuilder: $7.ReqVoiceStt.$_createMessage)
     ..aOM<$7.ReqVoiceTts>(69, _omitFieldNames ? '' : 'voiceTts',
         subBuilder: $7.ReqVoiceTts.$_createMessage)
-    ..aOM<$20.ReqStatsSubscribe>(70, _omitFieldNames ? '' : 'statsSubscribe',
-        subBuilder: $20.ReqStatsSubscribe.$_createMessage)
-    ..aOM<$20.ReqStatsUnsubscribe>(
+    ..aOM<$21.ReqStatsSubscribe>(70, _omitFieldNames ? '' : 'statsSubscribe',
+        subBuilder: $21.ReqStatsSubscribe.$_createMessage)
+    ..aOM<$21.ReqStatsUnsubscribe>(
         71, _omitFieldNames ? '' : 'statsUnsubscribe',
-        subBuilder: $20.ReqStatsUnsubscribe.$_createMessage)
-    ..aOM<$20.ReqLogSubscribe>(72, _omitFieldNames ? '' : 'logSubscribe',
-        subBuilder: $20.ReqLogSubscribe.$_createMessage)
-    ..aOM<$20.ReqLogUnsubscribe>(73, _omitFieldNames ? '' : 'logUnsubscribe',
-        subBuilder: $20.ReqLogUnsubscribe.$_createMessage)
+        subBuilder: $21.ReqStatsUnsubscribe.$_createMessage)
+    ..aOM<$21.ReqLogSubscribe>(72, _omitFieldNames ? '' : 'logSubscribe',
+        subBuilder: $21.ReqLogSubscribe.$_createMessage)
+    ..aOM<$21.ReqLogUnsubscribe>(73, _omitFieldNames ? '' : 'logUnsubscribe',
+        subBuilder: $21.ReqLogUnsubscribe.$_createMessage)
     ..aOM<$8.ReqMentionList>(74, _omitFieldNames ? '' : 'mentionList',
         subBuilder: $8.ReqMentionList.$_createMessage)
     ..aOM<$8.ReqMentionSearch>(75, _omitFieldNames ? '' : 'mentionSearch',
         subBuilder: $8.ReqMentionSearch.$_createMessage)
-    ..aOM<$21.ReqHintTouch>(76, _omitFieldNames ? '' : 'hintTouch',
-        subBuilder: $21.ReqHintTouch.$_createMessage)
-    ..aOM<$14.ReqSiteConfigPut>(77, _omitFieldNames ? '' : 'siteConfigPut',
-        subBuilder: $14.ReqSiteConfigPut.$_createMessage)
-    ..aOM<$14.ReqSitePreviewToken>(
+    ..aOM<$22.ReqHintTouch>(76, _omitFieldNames ? '' : 'hintTouch',
+        subBuilder: $22.ReqHintTouch.$_createMessage)
+    ..aOM<$16.ReqSiteConfigPut>(77, _omitFieldNames ? '' : 'siteConfigPut',
+        subBuilder: $16.ReqSiteConfigPut.$_createMessage)
+    ..aOM<$16.ReqSitePreviewToken>(
         78, _omitFieldNames ? '' : 'sitePreviewToken',
-        subBuilder: $14.ReqSitePreviewToken.$_createMessage)
-    ..aOM<$15.ReqTxGet>(79, _omitFieldNames ? '' : 'txGet',
-        subBuilder: $15.ReqTxGet.$_createMessage)
-    ..aOM<$15.ReqTxPut>(80, _omitFieldNames ? '' : 'txPut',
-        subBuilder: $15.ReqTxPut.$_createMessage)
-    ..aOM<$15.ReqTxPreview>(81, _omitFieldNames ? '' : 'txPreview',
-        subBuilder: $15.ReqTxPreview.$_createMessage)
-    ..aOM<$15.ReqTxDebtPay>(82, _omitFieldNames ? '' : 'txDebtPay',
-        subBuilder: $15.ReqTxDebtPay.$_createMessage)
-    ..aOM<$14.ReqSiteQueryRun>(83, _omitFieldNames ? '' : 'siteQueryRun',
-        subBuilder: $14.ReqSiteQueryRun.$_createMessage)
+        subBuilder: $16.ReqSitePreviewToken.$_createMessage)
+    ..aOM<$11.ReqTxGet>(79, _omitFieldNames ? '' : 'txGet',
+        subBuilder: $11.ReqTxGet.$_createMessage)
+    ..aOM<$11.ReqTxPut>(80, _omitFieldNames ? '' : 'txPut',
+        subBuilder: $11.ReqTxPut.$_createMessage)
+    ..aOM<$11.ReqTxPreview>(81, _omitFieldNames ? '' : 'txPreview',
+        subBuilder: $11.ReqTxPreview.$_createMessage)
+    ..aOM<$11.ReqTxDebtPay>(82, _omitFieldNames ? '' : 'txDebtPay',
+        subBuilder: $11.ReqTxDebtPay.$_createMessage)
+    ..aOM<$16.ReqSiteQueryRun>(83, _omitFieldNames ? '' : 'siteQueryRun',
+        subBuilder: $16.ReqSiteQueryRun.$_createMessage)
+    ..aOM<$11.ReqExpensePut>(84, _omitFieldNames ? '' : 'expensePut',
+        subBuilder: $11.ReqExpensePut.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -2833,6 +2921,7 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(81)
   @$pb.TagNumber(82)
   @$pb.TagNumber(83)
+  @$pb.TagNumber(84)
   WsReq_Body whichBody() => _WsReq_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(3)
@@ -2907,6 +2996,7 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(81)
   @$pb.TagNumber(82)
   @$pb.TagNumber(83)
+  @$pb.TagNumber(84)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -2919,92 +3009,92 @@ class WsReq extends $pb.GeneratedMessage {
   void clearReqId() => $_clearField(1);
 
   @$pb.TagNumber(2)
-  $10.ReqSessionInit get sessionInit => $_getN(1);
+  $12.ReqSessionInit get sessionInit => $_getN(1);
   @$pb.TagNumber(2)
-  set sessionInit($10.ReqSessionInit value) => $_setField(2, value);
+  set sessionInit($12.ReqSessionInit value) => $_setField(2, value);
   @$pb.TagNumber(2)
   $core.bool hasSessionInit() => $_has(1);
   @$pb.TagNumber(2)
   void clearSessionInit() => $_clearField(2);
   @$pb.TagNumber(2)
-  $10.ReqSessionInit ensureSessionInit() => $_ensure(1);
+  $12.ReqSessionInit ensureSessionInit() => $_ensure(1);
 
   @$pb.TagNumber(3)
-  $11.ReqSync get sync => $_getN(2);
+  $13.ReqSync get sync => $_getN(2);
   @$pb.TagNumber(3)
-  set sync($11.ReqSync value) => $_setField(3, value);
+  set sync($13.ReqSync value) => $_setField(3, value);
   @$pb.TagNumber(3)
   $core.bool hasSync() => $_has(2);
   @$pb.TagNumber(3)
   void clearSync() => $_clearField(3);
   @$pb.TagNumber(3)
-  $11.ReqSync ensureSync() => $_ensure(2);
+  $13.ReqSync ensureSync() => $_ensure(2);
 
   @$pb.TagNumber(4)
-  $12.ReqInboxList get inboxList => $_getN(3);
+  $14.ReqInboxList get inboxList => $_getN(3);
   @$pb.TagNumber(4)
-  set inboxList($12.ReqInboxList value) => $_setField(4, value);
+  set inboxList($14.ReqInboxList value) => $_setField(4, value);
   @$pb.TagNumber(4)
   $core.bool hasInboxList() => $_has(3);
   @$pb.TagNumber(4)
   void clearInboxList() => $_clearField(4);
   @$pb.TagNumber(4)
-  $12.ReqInboxList ensureInboxList() => $_ensure(3);
+  $14.ReqInboxList ensureInboxList() => $_ensure(3);
 
   @$pb.TagNumber(5)
-  $12.ReqChatMsgList get chatMsgList => $_getN(4);
+  $14.ReqChatMsgList get chatMsgList => $_getN(4);
   @$pb.TagNumber(5)
-  set chatMsgList($12.ReqChatMsgList value) => $_setField(5, value);
+  set chatMsgList($14.ReqChatMsgList value) => $_setField(5, value);
   @$pb.TagNumber(5)
   $core.bool hasChatMsgList() => $_has(4);
   @$pb.TagNumber(5)
   void clearChatMsgList() => $_clearField(5);
   @$pb.TagNumber(5)
-  $12.ReqChatMsgList ensureChatMsgList() => $_ensure(4);
+  $14.ReqChatMsgList ensureChatMsgList() => $_ensure(4);
 
   @$pb.TagNumber(6)
-  $12.ReqPrompt get prompt => $_getN(5);
+  $14.ReqPrompt get prompt => $_getN(5);
   @$pb.TagNumber(6)
-  set prompt($12.ReqPrompt value) => $_setField(6, value);
+  set prompt($14.ReqPrompt value) => $_setField(6, value);
   @$pb.TagNumber(6)
   $core.bool hasPrompt() => $_has(5);
   @$pb.TagNumber(6)
   void clearPrompt() => $_clearField(6);
   @$pb.TagNumber(6)
-  $12.ReqPrompt ensurePrompt() => $_ensure(5);
+  $14.ReqPrompt ensurePrompt() => $_ensure(5);
 
   @$pb.TagNumber(7)
-  $12.ReqPromptAbort get promptAbort => $_getN(6);
+  $14.ReqPromptAbort get promptAbort => $_getN(6);
   @$pb.TagNumber(7)
-  set promptAbort($12.ReqPromptAbort value) => $_setField(7, value);
+  set promptAbort($14.ReqPromptAbort value) => $_setField(7, value);
   @$pb.TagNumber(7)
   $core.bool hasPromptAbort() => $_has(6);
   @$pb.TagNumber(7)
   void clearPromptAbort() => $_clearField(7);
   @$pb.TagNumber(7)
-  $12.ReqPromptAbort ensurePromptAbort() => $_ensure(6);
+  $14.ReqPromptAbort ensurePromptAbort() => $_ensure(6);
 
   @$pb.TagNumber(8)
-  $12.ReqChatStop get chatStop => $_getN(7);
+  $14.ReqChatStop get chatStop => $_getN(7);
   @$pb.TagNumber(8)
-  set chatStop($12.ReqChatStop value) => $_setField(8, value);
+  set chatStop($14.ReqChatStop value) => $_setField(8, value);
   @$pb.TagNumber(8)
   $core.bool hasChatStop() => $_has(7);
   @$pb.TagNumber(8)
   void clearChatStop() => $_clearField(8);
   @$pb.TagNumber(8)
-  $12.ReqChatStop ensureChatStop() => $_ensure(7);
+  $14.ReqChatStop ensureChatStop() => $_ensure(7);
 
   @$pb.TagNumber(9)
-  $12.ReqChatSend get chatSend => $_getN(8);
+  $14.ReqChatSend get chatSend => $_getN(8);
   @$pb.TagNumber(9)
-  set chatSend($12.ReqChatSend value) => $_setField(9, value);
+  set chatSend($14.ReqChatSend value) => $_setField(9, value);
   @$pb.TagNumber(9)
   $core.bool hasChatSend() => $_has(8);
   @$pb.TagNumber(9)
   void clearChatSend() => $_clearField(9);
   @$pb.TagNumber(9)
-  $12.ReqChatSend ensureChatSend() => $_ensure(8);
+  $14.ReqChatSend ensureChatSend() => $_ensure(8);
 
   @$pb.TagNumber(10)
   InvokeReq get invoke => $_getN(9);
@@ -3018,15 +3108,15 @@ class WsReq extends $pb.GeneratedMessage {
   InvokeReq ensureInvoke() => $_ensure(9);
 
   @$pb.TagNumber(20)
-  $13.ReqSkillList get skillList => $_getN(10);
+  $15.ReqSkillList get skillList => $_getN(10);
   @$pb.TagNumber(20)
-  set skillList($13.ReqSkillList value) => $_setField(20, value);
+  set skillList($15.ReqSkillList value) => $_setField(20, value);
   @$pb.TagNumber(20)
   $core.bool hasSkillList() => $_has(10);
   @$pb.TagNumber(20)
   void clearSkillList() => $_clearField(20);
   @$pb.TagNumber(20)
-  $13.ReqSkillList ensureSkillList() => $_ensure(10);
+  $15.ReqSkillList ensureSkillList() => $_ensure(10);
 
   @$pb.TagNumber(21)
   $1.ReqConsumptionList get consumptionList => $_getN(11);
@@ -3040,26 +3130,26 @@ class WsReq extends $pb.GeneratedMessage {
   $1.ReqConsumptionList ensureConsumptionList() => $_ensure(11);
 
   @$pb.TagNumber(22)
-  $14.ReqSiteList get siteList => $_getN(12);
+  $16.ReqSiteList get siteList => $_getN(12);
   @$pb.TagNumber(22)
-  set siteList($14.ReqSiteList value) => $_setField(22, value);
+  set siteList($16.ReqSiteList value) => $_setField(22, value);
   @$pb.TagNumber(22)
   $core.bool hasSiteList() => $_has(12);
   @$pb.TagNumber(22)
   void clearSiteList() => $_clearField(22);
   @$pb.TagNumber(22)
-  $14.ReqSiteList ensureSiteList() => $_ensure(12);
+  $16.ReqSiteList ensureSiteList() => $_ensure(12);
 
   @$pb.TagNumber(23)
-  $15.ReqTxList get txList => $_getN(13);
+  $11.ReqTxList get txList => $_getN(13);
   @$pb.TagNumber(23)
-  set txList($15.ReqTxList value) => $_setField(23, value);
+  set txList($11.ReqTxList value) => $_setField(23, value);
   @$pb.TagNumber(23)
   $core.bool hasTxList() => $_has(13);
   @$pb.TagNumber(23)
   void clearTxList() => $_clearField(23);
   @$pb.TagNumber(23)
-  $15.ReqTxList ensureTxList() => $_ensure(13);
+  $11.ReqTxList ensureTxList() => $_ensure(13);
 
   @$pb.TagNumber(24)
   $1.ReqConsumptionPut get consumptionPut => $_getN(14);
@@ -3073,82 +3163,82 @@ class WsReq extends $pb.GeneratedMessage {
   $1.ReqConsumptionPut ensureConsumptionPut() => $_ensure(14);
 
   @$pb.TagNumber(25)
-  $12.ReqChatPatch get chatPatch => $_getN(15);
+  $14.ReqChatPatch get chatPatch => $_getN(15);
   @$pb.TagNumber(25)
-  set chatPatch($12.ReqChatPatch value) => $_setField(25, value);
+  set chatPatch($14.ReqChatPatch value) => $_setField(25, value);
   @$pb.TagNumber(25)
   $core.bool hasChatPatch() => $_has(15);
   @$pb.TagNumber(25)
   void clearChatPatch() => $_clearField(25);
   @$pb.TagNumber(25)
-  $12.ReqChatPatch ensureChatPatch() => $_ensure(15);
+  $14.ReqChatPatch ensureChatPatch() => $_ensure(15);
 
   @$pb.TagNumber(26)
-  $12.ReqAssetTagList get assetTagList => $_getN(16);
+  $14.ReqAssetTagList get assetTagList => $_getN(16);
   @$pb.TagNumber(26)
-  set assetTagList($12.ReqAssetTagList value) => $_setField(26, value);
+  set assetTagList($14.ReqAssetTagList value) => $_setField(26, value);
   @$pb.TagNumber(26)
   $core.bool hasAssetTagList() => $_has(16);
   @$pb.TagNumber(26)
   void clearAssetTagList() => $_clearField(26);
   @$pb.TagNumber(26)
-  $12.ReqAssetTagList ensureAssetTagList() => $_ensure(16);
+  $14.ReqAssetTagList ensureAssetTagList() => $_ensure(16);
 
   @$pb.TagNumber(27)
-  $16.ReqIdentityList get identityList => $_getN(17);
+  $17.ReqIdentityList get identityList => $_getN(17);
   @$pb.TagNumber(27)
-  set identityList($16.ReqIdentityList value) => $_setField(27, value);
+  set identityList($17.ReqIdentityList value) => $_setField(27, value);
   @$pb.TagNumber(27)
   $core.bool hasIdentityList() => $_has(17);
   @$pb.TagNumber(27)
   void clearIdentityList() => $_clearField(27);
   @$pb.TagNumber(27)
-  $16.ReqIdentityList ensureIdentityList() => $_ensure(17);
+  $17.ReqIdentityList ensureIdentityList() => $_ensure(17);
 
   @$pb.TagNumber(28)
-  $16.ReqIdentityGrantPatch get identityGrantPatch => $_getN(18);
+  $17.ReqIdentityGrantPatch get identityGrantPatch => $_getN(18);
   @$pb.TagNumber(28)
-  set identityGrantPatch($16.ReqIdentityGrantPatch value) =>
+  set identityGrantPatch($17.ReqIdentityGrantPatch value) =>
       $_setField(28, value);
   @$pb.TagNumber(28)
   $core.bool hasIdentityGrantPatch() => $_has(18);
   @$pb.TagNumber(28)
   void clearIdentityGrantPatch() => $_clearField(28);
   @$pb.TagNumber(28)
-  $16.ReqIdentityGrantPatch ensureIdentityGrantPatch() => $_ensure(18);
+  $17.ReqIdentityGrantPatch ensureIdentityGrantPatch() => $_ensure(18);
 
   @$pb.TagNumber(29)
-  $12.ReqBotPeerList get botPeerList => $_getN(19);
+  $14.ReqBotPeerList get botPeerList => $_getN(19);
   @$pb.TagNumber(29)
-  set botPeerList($12.ReqBotPeerList value) => $_setField(29, value);
+  set botPeerList($14.ReqBotPeerList value) => $_setField(29, value);
   @$pb.TagNumber(29)
   $core.bool hasBotPeerList() => $_has(19);
   @$pb.TagNumber(29)
   void clearBotPeerList() => $_clearField(29);
   @$pb.TagNumber(29)
-  $12.ReqBotPeerList ensureBotPeerList() => $_ensure(19);
+  $14.ReqBotPeerList ensureBotPeerList() => $_ensure(19);
 
   @$pb.TagNumber(30)
-  $12.ReqLogList get logList => $_getN(20);
+  $14.ReqLogList get logList => $_getN(20);
   @$pb.TagNumber(30)
-  set logList($12.ReqLogList value) => $_setField(30, value);
+  set logList($14.ReqLogList value) => $_setField(30, value);
   @$pb.TagNumber(30)
   $core.bool hasLogList() => $_has(20);
   @$pb.TagNumber(30)
   void clearLogList() => $_clearField(30);
   @$pb.TagNumber(30)
-  $12.ReqLogList ensureLogList() => $_ensure(20);
+  $14.ReqLogList ensureLogList() => $_ensure(20);
 
   @$pb.TagNumber(31)
-  $16.ReqIdentityPut get identityPut => $_getN(21);
+  $17.ReqIdentityPut get identityPut => $_getN(21);
   @$pb.TagNumber(31)
-  set identityPut($16.ReqIdentityPut value) => $_setField(31, value);
+  set identityPut($17.ReqIdentityPut value) => $_setField(31, value);
   @$pb.TagNumber(31)
   $core.bool hasIdentityPut() => $_has(21);
   @$pb.TagNumber(31)
   void clearIdentityPut() => $_clearField(31);
   @$pb.TagNumber(31)
-  $16.ReqIdentityPut ensureIdentityPut() => $_ensure(21);
+  $17.ReqIdentityPut ensureIdentityPut() => $_ensure(21);
 
   @$pb.TagNumber(32)
   $4.ReqChannelWhatsappPairStart get channelWhatsappPairStart => $_getN(22);
@@ -3190,116 +3280,116 @@ class WsReq extends $pb.GeneratedMessage {
       $_ensure(24);
 
   @$pb.TagNumber(35)
-  $17.ReqTaskList get taskList => $_getN(25);
+  $18.ReqTaskList get taskList => $_getN(25);
   @$pb.TagNumber(35)
-  set taskList($17.ReqTaskList value) => $_setField(35, value);
+  set taskList($18.ReqTaskList value) => $_setField(35, value);
   @$pb.TagNumber(35)
   $core.bool hasTaskList() => $_has(25);
   @$pb.TagNumber(35)
   void clearTaskList() => $_clearField(35);
   @$pb.TagNumber(35)
-  $17.ReqTaskList ensureTaskList() => $_ensure(25);
+  $18.ReqTaskList ensureTaskList() => $_ensure(25);
 
   @$pb.TagNumber(36)
-  $17.ReqTaskPut get taskPut => $_getN(26);
+  $18.ReqTaskPut get taskPut => $_getN(26);
   @$pb.TagNumber(36)
-  set taskPut($17.ReqTaskPut value) => $_setField(36, value);
+  set taskPut($18.ReqTaskPut value) => $_setField(36, value);
   @$pb.TagNumber(36)
   $core.bool hasTaskPut() => $_has(26);
   @$pb.TagNumber(36)
   void clearTaskPut() => $_clearField(36);
   @$pb.TagNumber(36)
-  $17.ReqTaskPut ensureTaskPut() => $_ensure(26);
+  $18.ReqTaskPut ensureTaskPut() => $_ensure(26);
 
   @$pb.TagNumber(37)
-  $17.ReqTaskRunStart get taskRunStart => $_getN(27);
+  $18.ReqTaskRunStart get taskRunStart => $_getN(27);
   @$pb.TagNumber(37)
-  set taskRunStart($17.ReqTaskRunStart value) => $_setField(37, value);
+  set taskRunStart($18.ReqTaskRunStart value) => $_setField(37, value);
   @$pb.TagNumber(37)
   $core.bool hasTaskRunStart() => $_has(27);
   @$pb.TagNumber(37)
   void clearTaskRunStart() => $_clearField(37);
   @$pb.TagNumber(37)
-  $17.ReqTaskRunStart ensureTaskRunStart() => $_ensure(27);
+  $18.ReqTaskRunStart ensureTaskRunStart() => $_ensure(27);
 
   @$pb.TagNumber(38)
-  $17.ReqTaskRunCancel get taskRunCancel => $_getN(28);
+  $18.ReqTaskRunCancel get taskRunCancel => $_getN(28);
   @$pb.TagNumber(38)
-  set taskRunCancel($17.ReqTaskRunCancel value) => $_setField(38, value);
+  set taskRunCancel($18.ReqTaskRunCancel value) => $_setField(38, value);
   @$pb.TagNumber(38)
   $core.bool hasTaskRunCancel() => $_has(28);
   @$pb.TagNumber(38)
   void clearTaskRunCancel() => $_clearField(38);
   @$pb.TagNumber(38)
-  $17.ReqTaskRunCancel ensureTaskRunCancel() => $_ensure(28);
+  $18.ReqTaskRunCancel ensureTaskRunCancel() => $_ensure(28);
 
   @$pb.TagNumber(39)
-  $17.ReqTaskRunList get taskRunList => $_getN(29);
+  $18.ReqTaskRunList get taskRunList => $_getN(29);
   @$pb.TagNumber(39)
-  set taskRunList($17.ReqTaskRunList value) => $_setField(39, value);
+  set taskRunList($18.ReqTaskRunList value) => $_setField(39, value);
   @$pb.TagNumber(39)
   $core.bool hasTaskRunList() => $_has(29);
   @$pb.TagNumber(39)
   void clearTaskRunList() => $_clearField(39);
   @$pb.TagNumber(39)
-  $17.ReqTaskRunList ensureTaskRunList() => $_ensure(29);
+  $18.ReqTaskRunList ensureTaskRunList() => $_ensure(29);
 
   @$pb.TagNumber(40)
-  $18.ReqRemoteSessionStart get remoteSessionStart => $_getN(30);
+  $19.ReqRemoteSessionStart get remoteSessionStart => $_getN(30);
   @$pb.TagNumber(40)
-  set remoteSessionStart($18.ReqRemoteSessionStart value) =>
+  set remoteSessionStart($19.ReqRemoteSessionStart value) =>
       $_setField(40, value);
   @$pb.TagNumber(40)
   $core.bool hasRemoteSessionStart() => $_has(30);
   @$pb.TagNumber(40)
   void clearRemoteSessionStart() => $_clearField(40);
   @$pb.TagNumber(40)
-  $18.ReqRemoteSessionStart ensureRemoteSessionStart() => $_ensure(30);
+  $19.ReqRemoteSessionStart ensureRemoteSessionStart() => $_ensure(30);
 
   @$pb.TagNumber(41)
-  $18.RtcSignalOffer get rtcSignalOffer => $_getN(31);
+  $19.RtcSignalOffer get rtcSignalOffer => $_getN(31);
   @$pb.TagNumber(41)
-  set rtcSignalOffer($18.RtcSignalOffer value) => $_setField(41, value);
+  set rtcSignalOffer($19.RtcSignalOffer value) => $_setField(41, value);
   @$pb.TagNumber(41)
   $core.bool hasRtcSignalOffer() => $_has(31);
   @$pb.TagNumber(41)
   void clearRtcSignalOffer() => $_clearField(41);
   @$pb.TagNumber(41)
-  $18.RtcSignalOffer ensureRtcSignalOffer() => $_ensure(31);
+  $19.RtcSignalOffer ensureRtcSignalOffer() => $_ensure(31);
 
   @$pb.TagNumber(42)
-  $18.RtcSignalAnswer get rtcSignalAnswer => $_getN(32);
+  $19.RtcSignalAnswer get rtcSignalAnswer => $_getN(32);
   @$pb.TagNumber(42)
-  set rtcSignalAnswer($18.RtcSignalAnswer value) => $_setField(42, value);
+  set rtcSignalAnswer($19.RtcSignalAnswer value) => $_setField(42, value);
   @$pb.TagNumber(42)
   $core.bool hasRtcSignalAnswer() => $_has(32);
   @$pb.TagNumber(42)
   void clearRtcSignalAnswer() => $_clearField(42);
   @$pb.TagNumber(42)
-  $18.RtcSignalAnswer ensureRtcSignalAnswer() => $_ensure(32);
+  $19.RtcSignalAnswer ensureRtcSignalAnswer() => $_ensure(32);
 
   @$pb.TagNumber(43)
-  $18.RtcSignalIce get rtcSignalIce => $_getN(33);
+  $19.RtcSignalIce get rtcSignalIce => $_getN(33);
   @$pb.TagNumber(43)
-  set rtcSignalIce($18.RtcSignalIce value) => $_setField(43, value);
+  set rtcSignalIce($19.RtcSignalIce value) => $_setField(43, value);
   @$pb.TagNumber(43)
   $core.bool hasRtcSignalIce() => $_has(33);
   @$pb.TagNumber(43)
   void clearRtcSignalIce() => $_clearField(43);
   @$pb.TagNumber(43)
-  $18.RtcSignalIce ensureRtcSignalIce() => $_ensure(33);
+  $19.RtcSignalIce ensureRtcSignalIce() => $_ensure(33);
 
   @$pb.TagNumber(44)
-  $18.ReqRemoteSessionStop get remoteSessionStop => $_getN(34);
+  $19.ReqRemoteSessionStop get remoteSessionStop => $_getN(34);
   @$pb.TagNumber(44)
-  set remoteSessionStop($18.ReqRemoteSessionStop value) =>
+  set remoteSessionStop($19.ReqRemoteSessionStop value) =>
       $_setField(44, value);
   @$pb.TagNumber(44)
   $core.bool hasRemoteSessionStop() => $_has(34);
   @$pb.TagNumber(44)
   void clearRemoteSessionStop() => $_clearField(44);
   @$pb.TagNumber(44)
-  $18.ReqRemoteSessionStop ensureRemoteSessionStop() => $_ensure(34);
+  $19.ReqRemoteSessionStop ensureRemoteSessionStop() => $_ensure(34);
 
   @$pb.TagNumber(45)
   $4.ReqChannelDisconnect get channelDisconnect => $_getN(35);
@@ -3313,251 +3403,251 @@ class WsReq extends $pb.GeneratedMessage {
   $4.ReqChannelDisconnect ensureChannelDisconnect() => $_ensure(35);
 
   @$pb.TagNumber(46)
-  $16.ReqIdentityDelete get identityDelete => $_getN(36);
+  $17.ReqIdentityDelete get identityDelete => $_getN(36);
   @$pb.TagNumber(46)
-  set identityDelete($16.ReqIdentityDelete value) => $_setField(46, value);
+  set identityDelete($17.ReqIdentityDelete value) => $_setField(46, value);
   @$pb.TagNumber(46)
   $core.bool hasIdentityDelete() => $_has(36);
   @$pb.TagNumber(46)
   void clearIdentityDelete() => $_clearField(46);
   @$pb.TagNumber(46)
-  $16.ReqIdentityDelete ensureIdentityDelete() => $_ensure(36);
+  $17.ReqIdentityDelete ensureIdentityDelete() => $_ensure(36);
 
   @$pb.TagNumber(47)
-  $13.ReqSkillPut get skillPut => $_getN(37);
+  $15.ReqSkillPut get skillPut => $_getN(37);
   @$pb.TagNumber(47)
-  set skillPut($13.ReqSkillPut value) => $_setField(47, value);
+  set skillPut($15.ReqSkillPut value) => $_setField(47, value);
   @$pb.TagNumber(47)
   $core.bool hasSkillPut() => $_has(37);
   @$pb.TagNumber(47)
   void clearSkillPut() => $_clearField(47);
   @$pb.TagNumber(47)
-  $13.ReqSkillPut ensureSkillPut() => $_ensure(37);
+  $15.ReqSkillPut ensureSkillPut() => $_ensure(37);
 
   @$pb.TagNumber(48)
-  $13.ReqSkillCatalogList get skillCatalogList => $_getN(38);
+  $15.ReqSkillCatalogList get skillCatalogList => $_getN(38);
   @$pb.TagNumber(48)
-  set skillCatalogList($13.ReqSkillCatalogList value) => $_setField(48, value);
+  set skillCatalogList($15.ReqSkillCatalogList value) => $_setField(48, value);
   @$pb.TagNumber(48)
   $core.bool hasSkillCatalogList() => $_has(38);
   @$pb.TagNumber(48)
   void clearSkillCatalogList() => $_clearField(48);
   @$pb.TagNumber(48)
-  $13.ReqSkillCatalogList ensureSkillCatalogList() => $_ensure(38);
+  $15.ReqSkillCatalogList ensureSkillCatalogList() => $_ensure(38);
 
   @$pb.TagNumber(49)
-  $13.ReqSkillCatalogInstall get skillCatalogInstall => $_getN(39);
+  $15.ReqSkillCatalogInstall get skillCatalogInstall => $_getN(39);
   @$pb.TagNumber(49)
-  set skillCatalogInstall($13.ReqSkillCatalogInstall value) =>
+  set skillCatalogInstall($15.ReqSkillCatalogInstall value) =>
       $_setField(49, value);
   @$pb.TagNumber(49)
   $core.bool hasSkillCatalogInstall() => $_has(39);
   @$pb.TagNumber(49)
   void clearSkillCatalogInstall() => $_clearField(49);
   @$pb.TagNumber(49)
-  $13.ReqSkillCatalogInstall ensureSkillCatalogInstall() => $_ensure(39);
+  $15.ReqSkillCatalogInstall ensureSkillCatalogInstall() => $_ensure(39);
 
   @$pb.TagNumber(50)
-  $18.ReqRemoteIceConfig get remoteIceConfig => $_getN(40);
+  $19.ReqRemoteIceConfig get remoteIceConfig => $_getN(40);
   @$pb.TagNumber(50)
-  set remoteIceConfig($18.ReqRemoteIceConfig value) => $_setField(50, value);
+  set remoteIceConfig($19.ReqRemoteIceConfig value) => $_setField(50, value);
   @$pb.TagNumber(50)
   $core.bool hasRemoteIceConfig() => $_has(40);
   @$pb.TagNumber(50)
   void clearRemoteIceConfig() => $_clearField(50);
   @$pb.TagNumber(50)
-  $18.ReqRemoteIceConfig ensureRemoteIceConfig() => $_ensure(40);
+  $19.ReqRemoteIceConfig ensureRemoteIceConfig() => $_ensure(40);
 
   @$pb.TagNumber(51)
-  $19.ReqCollectionDefList get collectionDefList => $_getN(41);
+  $20.ReqCollectionDefList get collectionDefList => $_getN(41);
   @$pb.TagNumber(51)
-  set collectionDefList($19.ReqCollectionDefList value) =>
+  set collectionDefList($20.ReqCollectionDefList value) =>
       $_setField(51, value);
   @$pb.TagNumber(51)
   $core.bool hasCollectionDefList() => $_has(41);
   @$pb.TagNumber(51)
   void clearCollectionDefList() => $_clearField(51);
   @$pb.TagNumber(51)
-  $19.ReqCollectionDefList ensureCollectionDefList() => $_ensure(41);
+  $20.ReqCollectionDefList ensureCollectionDefList() => $_ensure(41);
 
   @$pb.TagNumber(52)
-  $14.ReqSiteDraftGet get siteDraftGet => $_getN(42);
+  $16.ReqSiteDraftGet get siteDraftGet => $_getN(42);
   @$pb.TagNumber(52)
-  set siteDraftGet($14.ReqSiteDraftGet value) => $_setField(52, value);
+  set siteDraftGet($16.ReqSiteDraftGet value) => $_setField(52, value);
   @$pb.TagNumber(52)
   $core.bool hasSiteDraftGet() => $_has(42);
   @$pb.TagNumber(52)
   void clearSiteDraftGet() => $_clearField(52);
   @$pb.TagNumber(52)
-  $14.ReqSiteDraftGet ensureSiteDraftGet() => $_ensure(42);
+  $16.ReqSiteDraftGet ensureSiteDraftGet() => $_ensure(42);
 
   @$pb.TagNumber(53)
-  $14.ReqSiteDraftPut get siteDraftPut => $_getN(43);
+  $16.ReqSiteDraftPut get siteDraftPut => $_getN(43);
   @$pb.TagNumber(53)
-  set siteDraftPut($14.ReqSiteDraftPut value) => $_setField(53, value);
+  set siteDraftPut($16.ReqSiteDraftPut value) => $_setField(53, value);
   @$pb.TagNumber(53)
   $core.bool hasSiteDraftPut() => $_has(43);
   @$pb.TagNumber(53)
   void clearSiteDraftPut() => $_clearField(53);
   @$pb.TagNumber(53)
-  $14.ReqSiteDraftPut ensureSiteDraftPut() => $_ensure(43);
+  $16.ReqSiteDraftPut ensureSiteDraftPut() => $_ensure(43);
 
   @$pb.TagNumber(54)
-  $14.ReqSitePublish get sitePublish => $_getN(44);
+  $16.ReqSitePublish get sitePublish => $_getN(44);
   @$pb.TagNumber(54)
-  set sitePublish($14.ReqSitePublish value) => $_setField(54, value);
+  set sitePublish($16.ReqSitePublish value) => $_setField(54, value);
   @$pb.TagNumber(54)
   $core.bool hasSitePublish() => $_has(44);
   @$pb.TagNumber(54)
   void clearSitePublish() => $_clearField(54);
   @$pb.TagNumber(54)
-  $14.ReqSitePublish ensureSitePublish() => $_ensure(44);
+  $16.ReqSitePublish ensureSitePublish() => $_ensure(44);
 
   @$pb.TagNumber(55)
-  $14.ReqSiteProductList get siteProductList => $_getN(45);
+  $16.ReqSiteProductList get siteProductList => $_getN(45);
   @$pb.TagNumber(55)
-  set siteProductList($14.ReqSiteProductList value) => $_setField(55, value);
+  set siteProductList($16.ReqSiteProductList value) => $_setField(55, value);
   @$pb.TagNumber(55)
   $core.bool hasSiteProductList() => $_has(45);
   @$pb.TagNumber(55)
   void clearSiteProductList() => $_clearField(55);
   @$pb.TagNumber(55)
-  $14.ReqSiteProductList ensureSiteProductList() => $_ensure(45);
+  $16.ReqSiteProductList ensureSiteProductList() => $_ensure(45);
 
   @$pb.TagNumber(56)
-  $14.ReqSiteProductPut get siteProductPut => $_getN(46);
+  $16.ReqSiteProductPut get siteProductPut => $_getN(46);
   @$pb.TagNumber(56)
-  set siteProductPut($14.ReqSiteProductPut value) => $_setField(56, value);
+  set siteProductPut($16.ReqSiteProductPut value) => $_setField(56, value);
   @$pb.TagNumber(56)
   $core.bool hasSiteProductPut() => $_has(46);
   @$pb.TagNumber(56)
   void clearSiteProductPut() => $_clearField(56);
   @$pb.TagNumber(56)
-  $14.ReqSiteProductPut ensureSiteProductPut() => $_ensure(46);
+  $16.ReqSiteProductPut ensureSiteProductPut() => $_ensure(46);
 
   @$pb.TagNumber(57)
-  $14.ReqSiteContactList get siteContactList => $_getN(47);
+  $16.ReqSiteContactList get siteContactList => $_getN(47);
   @$pb.TagNumber(57)
-  set siteContactList($14.ReqSiteContactList value) => $_setField(57, value);
+  set siteContactList($16.ReqSiteContactList value) => $_setField(57, value);
   @$pb.TagNumber(57)
   $core.bool hasSiteContactList() => $_has(47);
   @$pb.TagNumber(57)
   void clearSiteContactList() => $_clearField(57);
   @$pb.TagNumber(57)
-  $14.ReqSiteContactList ensureSiteContactList() => $_ensure(47);
+  $16.ReqSiteContactList ensureSiteContactList() => $_ensure(47);
 
   @$pb.TagNumber(58)
-  $14.ReqSiteContactPut get siteContactPut => $_getN(48);
+  $16.ReqSiteContactPut get siteContactPut => $_getN(48);
   @$pb.TagNumber(58)
-  set siteContactPut($14.ReqSiteContactPut value) => $_setField(58, value);
+  set siteContactPut($16.ReqSiteContactPut value) => $_setField(58, value);
   @$pb.TagNumber(58)
   $core.bool hasSiteContactPut() => $_has(48);
   @$pb.TagNumber(58)
   void clearSiteContactPut() => $_clearField(58);
   @$pb.TagNumber(58)
-  $14.ReqSiteContactPut ensureSiteContactPut() => $_ensure(48);
+  $16.ReqSiteContactPut ensureSiteContactPut() => $_ensure(48);
 
   @$pb.TagNumber(59)
-  $14.ReqSiteObjectList get siteObjectList => $_getN(49);
+  $16.ReqSiteObjectList get siteObjectList => $_getN(49);
   @$pb.TagNumber(59)
-  set siteObjectList($14.ReqSiteObjectList value) => $_setField(59, value);
+  set siteObjectList($16.ReqSiteObjectList value) => $_setField(59, value);
   @$pb.TagNumber(59)
   $core.bool hasSiteObjectList() => $_has(49);
   @$pb.TagNumber(59)
   void clearSiteObjectList() => $_clearField(59);
   @$pb.TagNumber(59)
-  $14.ReqSiteObjectList ensureSiteObjectList() => $_ensure(49);
+  $16.ReqSiteObjectList ensureSiteObjectList() => $_ensure(49);
 
   @$pb.TagNumber(60)
-  $14.ReqSiteObjectPut get siteObjectPut => $_getN(50);
+  $16.ReqSiteObjectPut get siteObjectPut => $_getN(50);
   @$pb.TagNumber(60)
-  set siteObjectPut($14.ReqSiteObjectPut value) => $_setField(60, value);
+  set siteObjectPut($16.ReqSiteObjectPut value) => $_setField(60, value);
   @$pb.TagNumber(60)
   $core.bool hasSiteObjectPut() => $_has(50);
   @$pb.TagNumber(60)
   void clearSiteObjectPut() => $_clearField(60);
   @$pb.TagNumber(60)
-  $14.ReqSiteObjectPut ensureSiteObjectPut() => $_ensure(50);
+  $16.ReqSiteObjectPut ensureSiteObjectPut() => $_ensure(50);
 
   @$pb.TagNumber(61)
-  $14.ReqSiteDomainList get siteDomainList => $_getN(51);
+  $16.ReqSiteDomainList get siteDomainList => $_getN(51);
   @$pb.TagNumber(61)
-  set siteDomainList($14.ReqSiteDomainList value) => $_setField(61, value);
+  set siteDomainList($16.ReqSiteDomainList value) => $_setField(61, value);
   @$pb.TagNumber(61)
   $core.bool hasSiteDomainList() => $_has(51);
   @$pb.TagNumber(61)
   void clearSiteDomainList() => $_clearField(61);
   @$pb.TagNumber(61)
-  $14.ReqSiteDomainList ensureSiteDomainList() => $_ensure(51);
+  $16.ReqSiteDomainList ensureSiteDomainList() => $_ensure(51);
 
   @$pb.TagNumber(62)
-  $14.ReqSiteDomainPut get siteDomainPut => $_getN(52);
+  $16.ReqSiteDomainPut get siteDomainPut => $_getN(52);
   @$pb.TagNumber(62)
-  set siteDomainPut($14.ReqSiteDomainPut value) => $_setField(62, value);
+  set siteDomainPut($16.ReqSiteDomainPut value) => $_setField(62, value);
   @$pb.TagNumber(62)
   $core.bool hasSiteDomainPut() => $_has(52);
   @$pb.TagNumber(62)
   void clearSiteDomainPut() => $_clearField(62);
   @$pb.TagNumber(62)
-  $14.ReqSiteDomainPut ensureSiteDomainPut() => $_ensure(52);
+  $16.ReqSiteDomainPut ensureSiteDomainPut() => $_ensure(52);
 
   @$pb.TagNumber(63)
-  $13.ReqSkillCatalogSearch get skillCatalogSearch => $_getN(53);
+  $15.ReqSkillCatalogSearch get skillCatalogSearch => $_getN(53);
   @$pb.TagNumber(63)
-  set skillCatalogSearch($13.ReqSkillCatalogSearch value) =>
+  set skillCatalogSearch($15.ReqSkillCatalogSearch value) =>
       $_setField(63, value);
   @$pb.TagNumber(63)
   $core.bool hasSkillCatalogSearch() => $_has(53);
   @$pb.TagNumber(63)
   void clearSkillCatalogSearch() => $_clearField(63);
   @$pb.TagNumber(63)
-  $13.ReqSkillCatalogSearch ensureSkillCatalogSearch() => $_ensure(53);
+  $15.ReqSkillCatalogSearch ensureSkillCatalogSearch() => $_ensure(53);
 
   @$pb.TagNumber(64)
-  $13.ReqSkillCatalogSubmit get skillCatalogSubmit => $_getN(54);
+  $15.ReqSkillCatalogSubmit get skillCatalogSubmit => $_getN(54);
   @$pb.TagNumber(64)
-  set skillCatalogSubmit($13.ReqSkillCatalogSubmit value) =>
+  set skillCatalogSubmit($15.ReqSkillCatalogSubmit value) =>
       $_setField(64, value);
   @$pb.TagNumber(64)
   $core.bool hasSkillCatalogSubmit() => $_has(54);
   @$pb.TagNumber(64)
   void clearSkillCatalogSubmit() => $_clearField(64);
   @$pb.TagNumber(64)
-  $13.ReqSkillCatalogSubmit ensureSkillCatalogSubmit() => $_ensure(54);
+  $15.ReqSkillCatalogSubmit ensureSkillCatalogSubmit() => $_ensure(54);
 
   @$pb.TagNumber(65)
-  $13.ReqSkillRunReport get skillRunReport => $_getN(55);
+  $15.ReqSkillRunReport get skillRunReport => $_getN(55);
   @$pb.TagNumber(65)
-  set skillRunReport($13.ReqSkillRunReport value) => $_setField(65, value);
+  set skillRunReport($15.ReqSkillRunReport value) => $_setField(65, value);
   @$pb.TagNumber(65)
   $core.bool hasSkillRunReport() => $_has(55);
   @$pb.TagNumber(65)
   void clearSkillRunReport() => $_clearField(65);
   @$pb.TagNumber(65)
-  $13.ReqSkillRunReport ensureSkillRunReport() => $_ensure(55);
+  $15.ReqSkillRunReport ensureSkillRunReport() => $_ensure(55);
 
   @$pb.TagNumber(66)
-  $18.ReqRemoteScreenshot get reqRemoteScreenshot => $_getN(56);
+  $19.ReqRemoteScreenshot get reqRemoteScreenshot => $_getN(56);
   @$pb.TagNumber(66)
-  set reqRemoteScreenshot($18.ReqRemoteScreenshot value) =>
+  set reqRemoteScreenshot($19.ReqRemoteScreenshot value) =>
       $_setField(66, value);
   @$pb.TagNumber(66)
   $core.bool hasReqRemoteScreenshot() => $_has(56);
   @$pb.TagNumber(66)
   void clearReqRemoteScreenshot() => $_clearField(66);
   @$pb.TagNumber(66)
-  $18.ReqRemoteScreenshot ensureReqRemoteScreenshot() => $_ensure(56);
+  $19.ReqRemoteScreenshot ensureReqRemoteScreenshot() => $_ensure(56);
 
   @$pb.TagNumber(67)
-  $18.ReqRemoteCommand get reqRemoteCommand => $_getN(57);
+  $19.ReqRemoteCommand get reqRemoteCommand => $_getN(57);
   @$pb.TagNumber(67)
-  set reqRemoteCommand($18.ReqRemoteCommand value) => $_setField(67, value);
+  set reqRemoteCommand($19.ReqRemoteCommand value) => $_setField(67, value);
   @$pb.TagNumber(67)
   $core.bool hasReqRemoteCommand() => $_has(57);
   @$pb.TagNumber(67)
   void clearReqRemoteCommand() => $_clearField(67);
   @$pb.TagNumber(67)
-  $18.ReqRemoteCommand ensureReqRemoteCommand() => $_ensure(57);
+  $19.ReqRemoteCommand ensureReqRemoteCommand() => $_ensure(57);
 
   @$pb.TagNumber(68)
   $7.ReqVoiceStt get voiceStt => $_getN(58);
@@ -3582,48 +3672,48 @@ class WsReq extends $pb.GeneratedMessage {
   $7.ReqVoiceTts ensureVoiceTts() => $_ensure(59);
 
   @$pb.TagNumber(70)
-  $20.ReqStatsSubscribe get statsSubscribe => $_getN(60);
+  $21.ReqStatsSubscribe get statsSubscribe => $_getN(60);
   @$pb.TagNumber(70)
-  set statsSubscribe($20.ReqStatsSubscribe value) => $_setField(70, value);
+  set statsSubscribe($21.ReqStatsSubscribe value) => $_setField(70, value);
   @$pb.TagNumber(70)
   $core.bool hasStatsSubscribe() => $_has(60);
   @$pb.TagNumber(70)
   void clearStatsSubscribe() => $_clearField(70);
   @$pb.TagNumber(70)
-  $20.ReqStatsSubscribe ensureStatsSubscribe() => $_ensure(60);
+  $21.ReqStatsSubscribe ensureStatsSubscribe() => $_ensure(60);
 
   @$pb.TagNumber(71)
-  $20.ReqStatsUnsubscribe get statsUnsubscribe => $_getN(61);
+  $21.ReqStatsUnsubscribe get statsUnsubscribe => $_getN(61);
   @$pb.TagNumber(71)
-  set statsUnsubscribe($20.ReqStatsUnsubscribe value) => $_setField(71, value);
+  set statsUnsubscribe($21.ReqStatsUnsubscribe value) => $_setField(71, value);
   @$pb.TagNumber(71)
   $core.bool hasStatsUnsubscribe() => $_has(61);
   @$pb.TagNumber(71)
   void clearStatsUnsubscribe() => $_clearField(71);
   @$pb.TagNumber(71)
-  $20.ReqStatsUnsubscribe ensureStatsUnsubscribe() => $_ensure(61);
+  $21.ReqStatsUnsubscribe ensureStatsUnsubscribe() => $_ensure(61);
 
   @$pb.TagNumber(72)
-  $20.ReqLogSubscribe get logSubscribe => $_getN(62);
+  $21.ReqLogSubscribe get logSubscribe => $_getN(62);
   @$pb.TagNumber(72)
-  set logSubscribe($20.ReqLogSubscribe value) => $_setField(72, value);
+  set logSubscribe($21.ReqLogSubscribe value) => $_setField(72, value);
   @$pb.TagNumber(72)
   $core.bool hasLogSubscribe() => $_has(62);
   @$pb.TagNumber(72)
   void clearLogSubscribe() => $_clearField(72);
   @$pb.TagNumber(72)
-  $20.ReqLogSubscribe ensureLogSubscribe() => $_ensure(62);
+  $21.ReqLogSubscribe ensureLogSubscribe() => $_ensure(62);
 
   @$pb.TagNumber(73)
-  $20.ReqLogUnsubscribe get logUnsubscribe => $_getN(63);
+  $21.ReqLogUnsubscribe get logUnsubscribe => $_getN(63);
   @$pb.TagNumber(73)
-  set logUnsubscribe($20.ReqLogUnsubscribe value) => $_setField(73, value);
+  set logUnsubscribe($21.ReqLogUnsubscribe value) => $_setField(73, value);
   @$pb.TagNumber(73)
   $core.bool hasLogUnsubscribe() => $_has(63);
   @$pb.TagNumber(73)
   void clearLogUnsubscribe() => $_clearField(73);
   @$pb.TagNumber(73)
-  $20.ReqLogUnsubscribe ensureLogUnsubscribe() => $_ensure(63);
+  $21.ReqLogUnsubscribe ensureLogUnsubscribe() => $_ensure(63);
 
   @$pb.TagNumber(74)
   $8.ReqMentionList get mentionList => $_getN(64);
@@ -3648,92 +3738,103 @@ class WsReq extends $pb.GeneratedMessage {
   $8.ReqMentionSearch ensureMentionSearch() => $_ensure(65);
 
   @$pb.TagNumber(76)
-  $21.ReqHintTouch get hintTouch => $_getN(66);
+  $22.ReqHintTouch get hintTouch => $_getN(66);
   @$pb.TagNumber(76)
-  set hintTouch($21.ReqHintTouch value) => $_setField(76, value);
+  set hintTouch($22.ReqHintTouch value) => $_setField(76, value);
   @$pb.TagNumber(76)
   $core.bool hasHintTouch() => $_has(66);
   @$pb.TagNumber(76)
   void clearHintTouch() => $_clearField(76);
   @$pb.TagNumber(76)
-  $21.ReqHintTouch ensureHintTouch() => $_ensure(66);
+  $22.ReqHintTouch ensureHintTouch() => $_ensure(66);
 
   @$pb.TagNumber(77)
-  $14.ReqSiteConfigPut get siteConfigPut => $_getN(67);
+  $16.ReqSiteConfigPut get siteConfigPut => $_getN(67);
   @$pb.TagNumber(77)
-  set siteConfigPut($14.ReqSiteConfigPut value) => $_setField(77, value);
+  set siteConfigPut($16.ReqSiteConfigPut value) => $_setField(77, value);
   @$pb.TagNumber(77)
   $core.bool hasSiteConfigPut() => $_has(67);
   @$pb.TagNumber(77)
   void clearSiteConfigPut() => $_clearField(77);
   @$pb.TagNumber(77)
-  $14.ReqSiteConfigPut ensureSiteConfigPut() => $_ensure(67);
+  $16.ReqSiteConfigPut ensureSiteConfigPut() => $_ensure(67);
 
   @$pb.TagNumber(78)
-  $14.ReqSitePreviewToken get sitePreviewToken => $_getN(68);
+  $16.ReqSitePreviewToken get sitePreviewToken => $_getN(68);
   @$pb.TagNumber(78)
-  set sitePreviewToken($14.ReqSitePreviewToken value) => $_setField(78, value);
+  set sitePreviewToken($16.ReqSitePreviewToken value) => $_setField(78, value);
   @$pb.TagNumber(78)
   $core.bool hasSitePreviewToken() => $_has(68);
   @$pb.TagNumber(78)
   void clearSitePreviewToken() => $_clearField(78);
   @$pb.TagNumber(78)
-  $14.ReqSitePreviewToken ensureSitePreviewToken() => $_ensure(68);
+  $16.ReqSitePreviewToken ensureSitePreviewToken() => $_ensure(68);
 
   @$pb.TagNumber(79)
-  $15.ReqTxGet get txGet => $_getN(69);
+  $11.ReqTxGet get txGet => $_getN(69);
   @$pb.TagNumber(79)
-  set txGet($15.ReqTxGet value) => $_setField(79, value);
+  set txGet($11.ReqTxGet value) => $_setField(79, value);
   @$pb.TagNumber(79)
   $core.bool hasTxGet() => $_has(69);
   @$pb.TagNumber(79)
   void clearTxGet() => $_clearField(79);
   @$pb.TagNumber(79)
-  $15.ReqTxGet ensureTxGet() => $_ensure(69);
+  $11.ReqTxGet ensureTxGet() => $_ensure(69);
 
   @$pb.TagNumber(80)
-  $15.ReqTxPut get txPut => $_getN(70);
+  $11.ReqTxPut get txPut => $_getN(70);
   @$pb.TagNumber(80)
-  set txPut($15.ReqTxPut value) => $_setField(80, value);
+  set txPut($11.ReqTxPut value) => $_setField(80, value);
   @$pb.TagNumber(80)
   $core.bool hasTxPut() => $_has(70);
   @$pb.TagNumber(80)
   void clearTxPut() => $_clearField(80);
   @$pb.TagNumber(80)
-  $15.ReqTxPut ensureTxPut() => $_ensure(70);
+  $11.ReqTxPut ensureTxPut() => $_ensure(70);
 
   @$pb.TagNumber(81)
-  $15.ReqTxPreview get txPreview => $_getN(71);
+  $11.ReqTxPreview get txPreview => $_getN(71);
   @$pb.TagNumber(81)
-  set txPreview($15.ReqTxPreview value) => $_setField(81, value);
+  set txPreview($11.ReqTxPreview value) => $_setField(81, value);
   @$pb.TagNumber(81)
   $core.bool hasTxPreview() => $_has(71);
   @$pb.TagNumber(81)
   void clearTxPreview() => $_clearField(81);
   @$pb.TagNumber(81)
-  $15.ReqTxPreview ensureTxPreview() => $_ensure(71);
+  $11.ReqTxPreview ensureTxPreview() => $_ensure(71);
 
   @$pb.TagNumber(82)
-  $15.ReqTxDebtPay get txDebtPay => $_getN(72);
+  $11.ReqTxDebtPay get txDebtPay => $_getN(72);
   @$pb.TagNumber(82)
-  set txDebtPay($15.ReqTxDebtPay value) => $_setField(82, value);
+  set txDebtPay($11.ReqTxDebtPay value) => $_setField(82, value);
   @$pb.TagNumber(82)
   $core.bool hasTxDebtPay() => $_has(72);
   @$pb.TagNumber(82)
   void clearTxDebtPay() => $_clearField(82);
   @$pb.TagNumber(82)
-  $15.ReqTxDebtPay ensureTxDebtPay() => $_ensure(72);
+  $11.ReqTxDebtPay ensureTxDebtPay() => $_ensure(72);
 
   @$pb.TagNumber(83)
-  $14.ReqSiteQueryRun get siteQueryRun => $_getN(73);
+  $16.ReqSiteQueryRun get siteQueryRun => $_getN(73);
   @$pb.TagNumber(83)
-  set siteQueryRun($14.ReqSiteQueryRun value) => $_setField(83, value);
+  set siteQueryRun($16.ReqSiteQueryRun value) => $_setField(83, value);
   @$pb.TagNumber(83)
   $core.bool hasSiteQueryRun() => $_has(73);
   @$pb.TagNumber(83)
   void clearSiteQueryRun() => $_clearField(83);
   @$pb.TagNumber(83)
-  $14.ReqSiteQueryRun ensureSiteQueryRun() => $_ensure(73);
+  $16.ReqSiteQueryRun ensureSiteQueryRun() => $_ensure(73);
+
+  @$pb.TagNumber(84)
+  $11.ReqExpensePut get expensePut => $_getN(74);
+  @$pb.TagNumber(84)
+  set expensePut($11.ReqExpensePut value) => $_setField(84, value);
+  @$pb.TagNumber(84)
+  $core.bool hasExpensePut() => $_has(74);
+  @$pb.TagNumber(84)
+  void clearExpensePut() => $_clearField(84);
+  @$pb.TagNumber(84)
+  $11.ReqExpensePut ensureExpensePut() => $_ensure(74);
 }
 
 enum WsRes_Body {
@@ -3819,6 +3920,7 @@ enum WsRes_Body {
   txPreview,
   txDebtPay,
   siteQueryRun,
+  expensePut,
   notSet
 }
 
@@ -3826,88 +3928,89 @@ enum WsRes_Body {
 class WsRes extends $pb.GeneratedMessage {
   factory WsRes({
     $core.String? reqId,
-    $22.Err? err,
-    $10.ResSessionInit? sessionInit,
-    $11.ResSync? sync,
-    $12.ResInboxList? inboxList,
-    $12.ResChatMsgList? chatMsgList,
-    $12.ResPromptStart? promptStart,
-    $12.ResPromptDelta? promptDelta,
-    $12.ResPromptEnd? promptEnd,
-    $12.ResPromptFail? promptFail,
-    $16.ResIdentityList? identityList,
-    $16.ResIdentityGrantPatch? identityGrantPatch,
-    $12.ResBotPeerList? botPeerList,
-    $12.ResChatStop? chatStop,
-    $12.ResChatSend? chatSend,
+    $23.Err? err,
+    $12.ResSessionInit? sessionInit,
+    $13.ResSync? sync,
+    $14.ResInboxList? inboxList,
+    $14.ResChatMsgList? chatMsgList,
+    $14.ResPromptStart? promptStart,
+    $14.ResPromptDelta? promptDelta,
+    $14.ResPromptEnd? promptEnd,
+    $14.ResPromptFail? promptFail,
+    $17.ResIdentityList? identityList,
+    $17.ResIdentityGrantPatch? identityGrantPatch,
+    $14.ResBotPeerList? botPeerList,
+    $14.ResChatStop? chatStop,
+    $14.ResChatSend? chatSend,
     $4.ResChannelWhatsappPair? channelWhatsappPairStart,
     $4.ResChannelWhatsappPair? channelWhatsappPairWatch,
     $4.ResChannelWhatsappPair? channelWhatsappPairAbort,
-    $17.ResTaskList? taskList,
-    $17.ResTaskPut? taskPut,
-    $17.ResTaskRunStart? taskRunStart,
-    $17.ResTaskRunCancel? taskRunCancel,
-    $17.ResTaskRunList? taskRunList,
+    $18.ResTaskList? taskList,
+    $18.ResTaskPut? taskPut,
+    $18.ResTaskRunStart? taskRunStart,
+    $18.ResTaskRunCancel? taskRunCancel,
+    $18.ResTaskRunList? taskRunList,
     InvokeRes? invoke,
-    $17.TaskRunPush? taskRunPush,
-    $11.SyncPush? syncPush,
+    $18.TaskRunPush? taskRunPush,
+    $13.SyncPush? syncPush,
     $0.BillingPushBalance? billingBalance,
     $0.BillingPushQuota? billingQuota,
     $0.BillingPushCommission? billingCommission,
-    $23.LogPush? logPush,
+    $24.LogPush? logPush,
     $4.ChannelPairPush? channelPairPush,
-    $20.StatsPush? statsPush,
-    $13.ResSkillList? skillList,
+    $21.StatsPush? statsPush,
+    $15.ResSkillList? skillList,
     $1.ResConsumptionList? consumptionList,
-    $14.ResSiteList? siteList,
-    $15.ResTxList? txList,
+    $16.ResSiteList? siteList,
+    $11.ResTxList? txList,
     $1.ResConsumptionPut? consumptionPut,
-    $12.ResChatPatch? chatPatch,
-    $12.ResAssetTagList? assetTagList,
-    $12.ResLogList? logList,
-    $16.ResIdentityPut? identityPut,
-    $18.ResRemoteSessionStart? remoteSessionStart,
-    $18.ResRemoteSessionStop? remoteSessionStop,
-    $18.RemoteSessionPush? remoteSessionPush,
+    $14.ResChatPatch? chatPatch,
+    $14.ResAssetTagList? assetTagList,
+    $14.ResLogList? logList,
+    $17.ResIdentityPut? identityPut,
+    $19.ResRemoteSessionStart? remoteSessionStart,
+    $19.ResRemoteSessionStop? remoteSessionStop,
+    $19.RemoteSessionPush? remoteSessionPush,
     $4.ResChannelDisconnect? channelDisconnect,
-    $16.ResIdentityDelete? identityDelete,
-    $13.ResSkillPut? skillPut,
-    $13.ResSkillCatalogList? skillCatalogList,
-    $13.ResSkillCatalogInstall? skillCatalogInstall,
-    $18.ResRemoteIceConfig? remoteIceConfig,
-    $18.RtcSignalOffer? rtcSignalOffer,
-    $18.RtcSignalAnswer? rtcSignalAnswer,
-    $18.RtcSignalIce? rtcSignalIce,
-    $19.ResCollectionDefList? collectionDefList,
-    $14.ResSiteDraftGet? siteDraftGet,
-    $14.ResSiteDraftPut? siteDraftPut,
-    $14.ResSitePublish? sitePublish,
-    $14.ResSiteProductList? siteProductList,
-    $14.ResSiteProductPut? siteProductPut,
-    $14.ResSiteContactList? siteContactList,
-    $14.ResSiteContactPut? siteContactPut,
-    $14.ResSiteObjectList? siteObjectList,
-    $14.ResSiteObjectPut? siteObjectPut,
-    $14.ResSiteDomainList? siteDomainList,
-    $14.ResSiteDomainPut? siteDomainPut,
-    $13.ResSkillCatalogSearch? skillCatalogSearch,
-    $13.ResSkillCatalogSubmit? skillCatalogSubmit,
-    $13.ResSkillRunReport? skillRunReport,
-    $18.ResRemoteScreenshot? resRemoteScreenshot,
-    $18.ResRemoteCommand? resRemoteCommand,
+    $17.ResIdentityDelete? identityDelete,
+    $15.ResSkillPut? skillPut,
+    $15.ResSkillCatalogList? skillCatalogList,
+    $15.ResSkillCatalogInstall? skillCatalogInstall,
+    $19.ResRemoteIceConfig? remoteIceConfig,
+    $19.RtcSignalOffer? rtcSignalOffer,
+    $19.RtcSignalAnswer? rtcSignalAnswer,
+    $19.RtcSignalIce? rtcSignalIce,
+    $20.ResCollectionDefList? collectionDefList,
+    $16.ResSiteDraftGet? siteDraftGet,
+    $16.ResSiteDraftPut? siteDraftPut,
+    $16.ResSitePublish? sitePublish,
+    $16.ResSiteProductList? siteProductList,
+    $16.ResSiteProductPut? siteProductPut,
+    $16.ResSiteContactList? siteContactList,
+    $16.ResSiteContactPut? siteContactPut,
+    $16.ResSiteObjectList? siteObjectList,
+    $16.ResSiteObjectPut? siteObjectPut,
+    $16.ResSiteDomainList? siteDomainList,
+    $16.ResSiteDomainPut? siteDomainPut,
+    $15.ResSkillCatalogSearch? skillCatalogSearch,
+    $15.ResSkillCatalogSubmit? skillCatalogSubmit,
+    $15.ResSkillRunReport? skillRunReport,
+    $19.ResRemoteScreenshot? resRemoteScreenshot,
+    $19.ResRemoteCommand? resRemoteCommand,
     $7.ResVoiceStt? voiceStt,
     $7.ResVoiceTts? voiceTts,
     $8.ResMentionList? mentionList,
     $8.ResMentionSearch? mentionSearch,
-    $21.ResHintTouch? hintTouch,
-    $12.PromptRunPush? promptRunPush,
-    $14.ResSiteConfigPut? siteConfigPut,
-    $14.ResSitePreviewToken? sitePreviewToken,
-    $15.ResTxGet? txGet,
-    $15.ResTxPut? txPut,
-    $15.ResTxPreview? txPreview,
-    $15.ResTxDebtPay? txDebtPay,
-    $14.ResSiteQueryRun? siteQueryRun,
+    $22.ResHintTouch? hintTouch,
+    $14.PromptRunPush? promptRunPush,
+    $16.ResSiteConfigPut? siteConfigPut,
+    $16.ResSitePreviewToken? sitePreviewToken,
+    $11.ResTxGet? txGet,
+    $11.ResTxPut? txPut,
+    $11.ResTxPreview? txPreview,
+    $11.ResTxDebtPay? txDebtPay,
+    $16.ResSiteQueryRun? siteQueryRun,
+    $11.ResExpensePut? expensePut,
   }) {
     final result = WsRes._();
     if (reqId != null) result.reqId = reqId;
@@ -4002,6 +4105,7 @@ class WsRes extends $pb.GeneratedMessage {
     if (txPreview != null) result.txPreview = txPreview;
     if (txDebtPay != null) result.txDebtPay = txDebtPay;
     if (siteQueryRun != null) result.siteQueryRun = siteQueryRun;
+    if (expensePut != null) result.expensePut = expensePut;
     return result;
   }
 
@@ -4097,6 +4201,7 @@ class WsRes extends $pb.GeneratedMessage {
     129: WsRes_Body.txPreview,
     130: WsRes_Body.txDebtPay,
     131: WsRes_Body.siteQueryRun,
+    132: WsRes_Body.expensePut,
     0: WsRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -4185,38 +4290,39 @@ class WsRes extends $pb.GeneratedMessage {
       128,
       129,
       130,
-      131
+      131,
+      132
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
-    ..aOM<$22.Err>(2, _omitFieldNames ? '' : 'err',
-        subBuilder: $22.Err.$_createMessage)
-    ..aOM<$10.ResSessionInit>(10, _omitFieldNames ? '' : 'sessionInit',
-        subBuilder: $10.ResSessionInit.$_createMessage)
-    ..aOM<$11.ResSync>(11, _omitFieldNames ? '' : 'sync',
-        subBuilder: $11.ResSync.$_createMessage)
-    ..aOM<$12.ResInboxList>(12, _omitFieldNames ? '' : 'inboxList',
-        subBuilder: $12.ResInboxList.$_createMessage)
-    ..aOM<$12.ResChatMsgList>(13, _omitFieldNames ? '' : 'chatMsgList',
-        subBuilder: $12.ResChatMsgList.$_createMessage)
-    ..aOM<$12.ResPromptStart>(20, _omitFieldNames ? '' : 'promptStart',
-        subBuilder: $12.ResPromptStart.$_createMessage)
-    ..aOM<$12.ResPromptDelta>(21, _omitFieldNames ? '' : 'promptDelta',
-        subBuilder: $12.ResPromptDelta.$_createMessage)
-    ..aOM<$12.ResPromptEnd>(22, _omitFieldNames ? '' : 'promptEnd',
-        subBuilder: $12.ResPromptEnd.$_createMessage)
-    ..aOM<$12.ResPromptFail>(23, _omitFieldNames ? '' : 'promptFail',
-        subBuilder: $12.ResPromptFail.$_createMessage)
-    ..aOM<$16.ResIdentityList>(27, _omitFieldNames ? '' : 'identityList',
-        subBuilder: $16.ResIdentityList.$_createMessage)
-    ..aOM<$16.ResIdentityGrantPatch>(
+    ..aOM<$23.Err>(2, _omitFieldNames ? '' : 'err',
+        subBuilder: $23.Err.$_createMessage)
+    ..aOM<$12.ResSessionInit>(10, _omitFieldNames ? '' : 'sessionInit',
+        subBuilder: $12.ResSessionInit.$_createMessage)
+    ..aOM<$13.ResSync>(11, _omitFieldNames ? '' : 'sync',
+        subBuilder: $13.ResSync.$_createMessage)
+    ..aOM<$14.ResInboxList>(12, _omitFieldNames ? '' : 'inboxList',
+        subBuilder: $14.ResInboxList.$_createMessage)
+    ..aOM<$14.ResChatMsgList>(13, _omitFieldNames ? '' : 'chatMsgList',
+        subBuilder: $14.ResChatMsgList.$_createMessage)
+    ..aOM<$14.ResPromptStart>(20, _omitFieldNames ? '' : 'promptStart',
+        subBuilder: $14.ResPromptStart.$_createMessage)
+    ..aOM<$14.ResPromptDelta>(21, _omitFieldNames ? '' : 'promptDelta',
+        subBuilder: $14.ResPromptDelta.$_createMessage)
+    ..aOM<$14.ResPromptEnd>(22, _omitFieldNames ? '' : 'promptEnd',
+        subBuilder: $14.ResPromptEnd.$_createMessage)
+    ..aOM<$14.ResPromptFail>(23, _omitFieldNames ? '' : 'promptFail',
+        subBuilder: $14.ResPromptFail.$_createMessage)
+    ..aOM<$17.ResIdentityList>(27, _omitFieldNames ? '' : 'identityList',
+        subBuilder: $17.ResIdentityList.$_createMessage)
+    ..aOM<$17.ResIdentityGrantPatch>(
         28, _omitFieldNames ? '' : 'identityGrantPatch',
-        subBuilder: $16.ResIdentityGrantPatch.$_createMessage)
-    ..aOM<$12.ResBotPeerList>(29, _omitFieldNames ? '' : 'botPeerList',
-        subBuilder: $12.ResBotPeerList.$_createMessage)
-    ..aOM<$12.ResChatStop>(30, _omitFieldNames ? '' : 'chatStop',
-        subBuilder: $12.ResChatStop.$_createMessage)
-    ..aOM<$12.ResChatSend>(31, _omitFieldNames ? '' : 'chatSend',
-        subBuilder: $12.ResChatSend.$_createMessage)
+        subBuilder: $17.ResIdentityGrantPatch.$_createMessage)
+    ..aOM<$14.ResBotPeerList>(29, _omitFieldNames ? '' : 'botPeerList',
+        subBuilder: $14.ResBotPeerList.$_createMessage)
+    ..aOM<$14.ResChatStop>(30, _omitFieldNames ? '' : 'chatStop',
+        subBuilder: $14.ResChatStop.$_createMessage)
+    ..aOM<$14.ResChatSend>(31, _omitFieldNames ? '' : 'chatSend',
+        subBuilder: $14.ResChatSend.$_createMessage)
     ..aOM<$4.ResChannelWhatsappPair>(
         32, _omitFieldNames ? '' : 'channelWhatsappPairStart',
         subBuilder: $4.ResChannelWhatsappPair.$_createMessage)
@@ -4226,22 +4332,22 @@ class WsRes extends $pb.GeneratedMessage {
     ..aOM<$4.ResChannelWhatsappPair>(
         34, _omitFieldNames ? '' : 'channelWhatsappPairAbort',
         subBuilder: $4.ResChannelWhatsappPair.$_createMessage)
-    ..aOM<$17.ResTaskList>(35, _omitFieldNames ? '' : 'taskList',
-        subBuilder: $17.ResTaskList.$_createMessage)
-    ..aOM<$17.ResTaskPut>(36, _omitFieldNames ? '' : 'taskPut',
-        subBuilder: $17.ResTaskPut.$_createMessage)
-    ..aOM<$17.ResTaskRunStart>(37, _omitFieldNames ? '' : 'taskRunStart',
-        subBuilder: $17.ResTaskRunStart.$_createMessage)
-    ..aOM<$17.ResTaskRunCancel>(38, _omitFieldNames ? '' : 'taskRunCancel',
-        subBuilder: $17.ResTaskRunCancel.$_createMessage)
-    ..aOM<$17.ResTaskRunList>(39, _omitFieldNames ? '' : 'taskRunList',
-        subBuilder: $17.ResTaskRunList.$_createMessage)
+    ..aOM<$18.ResTaskList>(35, _omitFieldNames ? '' : 'taskList',
+        subBuilder: $18.ResTaskList.$_createMessage)
+    ..aOM<$18.ResTaskPut>(36, _omitFieldNames ? '' : 'taskPut',
+        subBuilder: $18.ResTaskPut.$_createMessage)
+    ..aOM<$18.ResTaskRunStart>(37, _omitFieldNames ? '' : 'taskRunStart',
+        subBuilder: $18.ResTaskRunStart.$_createMessage)
+    ..aOM<$18.ResTaskRunCancel>(38, _omitFieldNames ? '' : 'taskRunCancel',
+        subBuilder: $18.ResTaskRunCancel.$_createMessage)
+    ..aOM<$18.ResTaskRunList>(39, _omitFieldNames ? '' : 'taskRunList',
+        subBuilder: $18.ResTaskRunList.$_createMessage)
     ..aOM<InvokeRes>(40, _omitFieldNames ? '' : 'invoke',
         subBuilder: InvokeRes.$_createMessage)
-    ..aOM<$17.TaskRunPush>(45, _omitFieldNames ? '' : 'taskRunPush',
-        subBuilder: $17.TaskRunPush.$_createMessage)
-    ..aOM<$11.SyncPush>(50, _omitFieldNames ? '' : 'syncPush',
-        subBuilder: $11.SyncPush.$_createMessage)
+    ..aOM<$18.TaskRunPush>(45, _omitFieldNames ? '' : 'taskRunPush',
+        subBuilder: $18.TaskRunPush.$_createMessage)
+    ..aOM<$13.SyncPush>(50, _omitFieldNames ? '' : 'syncPush',
+        subBuilder: $13.SyncPush.$_createMessage)
     ..aOM<$0.BillingPushBalance>(60, _omitFieldNames ? '' : 'billingBalance',
         subBuilder: $0.BillingPushBalance.$_createMessage)
     ..aOM<$0.BillingPushQuota>(61, _omitFieldNames ? '' : 'billingQuota',
@@ -4249,97 +4355,97 @@ class WsRes extends $pb.GeneratedMessage {
     ..aOM<$0.BillingPushCommission>(
         62, _omitFieldNames ? '' : 'billingCommission',
         subBuilder: $0.BillingPushCommission.$_createMessage)
-    ..aOM<$23.LogPush>(70, _omitFieldNames ? '' : 'logPush',
-        subBuilder: $23.LogPush.$_createMessage)
+    ..aOM<$24.LogPush>(70, _omitFieldNames ? '' : 'logPush',
+        subBuilder: $24.LogPush.$_createMessage)
     ..aOM<$4.ChannelPairPush>(71, _omitFieldNames ? '' : 'channelPairPush',
         subBuilder: $4.ChannelPairPush.$_createMessage)
-    ..aOM<$20.StatsPush>(72, _omitFieldNames ? '' : 'statsPush',
-        subBuilder: $20.StatsPush.$_createMessage)
-    ..aOM<$13.ResSkillList>(80, _omitFieldNames ? '' : 'skillList',
-        subBuilder: $13.ResSkillList.$_createMessage)
+    ..aOM<$21.StatsPush>(72, _omitFieldNames ? '' : 'statsPush',
+        subBuilder: $21.StatsPush.$_createMessage)
+    ..aOM<$15.ResSkillList>(80, _omitFieldNames ? '' : 'skillList',
+        subBuilder: $15.ResSkillList.$_createMessage)
     ..aOM<$1.ResConsumptionList>(81, _omitFieldNames ? '' : 'consumptionList',
         subBuilder: $1.ResConsumptionList.$_createMessage)
-    ..aOM<$14.ResSiteList>(82, _omitFieldNames ? '' : 'siteList',
-        subBuilder: $14.ResSiteList.$_createMessage)
-    ..aOM<$15.ResTxList>(83, _omitFieldNames ? '' : 'txList',
-        subBuilder: $15.ResTxList.$_createMessage)
+    ..aOM<$16.ResSiteList>(82, _omitFieldNames ? '' : 'siteList',
+        subBuilder: $16.ResSiteList.$_createMessage)
+    ..aOM<$11.ResTxList>(83, _omitFieldNames ? '' : 'txList',
+        subBuilder: $11.ResTxList.$_createMessage)
     ..aOM<$1.ResConsumptionPut>(84, _omitFieldNames ? '' : 'consumptionPut',
         subBuilder: $1.ResConsumptionPut.$_createMessage)
-    ..aOM<$12.ResChatPatch>(85, _omitFieldNames ? '' : 'chatPatch',
-        subBuilder: $12.ResChatPatch.$_createMessage)
-    ..aOM<$12.ResAssetTagList>(86, _omitFieldNames ? '' : 'assetTagList',
-        subBuilder: $12.ResAssetTagList.$_createMessage)
-    ..aOM<$12.ResLogList>(87, _omitFieldNames ? '' : 'logList',
-        subBuilder: $12.ResLogList.$_createMessage)
-    ..aOM<$16.ResIdentityPut>(88, _omitFieldNames ? '' : 'identityPut',
-        subBuilder: $16.ResIdentityPut.$_createMessage)
-    ..aOM<$18.ResRemoteSessionStart>(
+    ..aOM<$14.ResChatPatch>(85, _omitFieldNames ? '' : 'chatPatch',
+        subBuilder: $14.ResChatPatch.$_createMessage)
+    ..aOM<$14.ResAssetTagList>(86, _omitFieldNames ? '' : 'assetTagList',
+        subBuilder: $14.ResAssetTagList.$_createMessage)
+    ..aOM<$14.ResLogList>(87, _omitFieldNames ? '' : 'logList',
+        subBuilder: $14.ResLogList.$_createMessage)
+    ..aOM<$17.ResIdentityPut>(88, _omitFieldNames ? '' : 'identityPut',
+        subBuilder: $17.ResIdentityPut.$_createMessage)
+    ..aOM<$19.ResRemoteSessionStart>(
         90, _omitFieldNames ? '' : 'remoteSessionStart',
-        subBuilder: $18.ResRemoteSessionStart.$_createMessage)
-    ..aOM<$18.ResRemoteSessionStop>(
+        subBuilder: $19.ResRemoteSessionStart.$_createMessage)
+    ..aOM<$19.ResRemoteSessionStop>(
         91, _omitFieldNames ? '' : 'remoteSessionStop',
-        subBuilder: $18.ResRemoteSessionStop.$_createMessage)
-    ..aOM<$18.RemoteSessionPush>(92, _omitFieldNames ? '' : 'remoteSessionPush',
-        subBuilder: $18.RemoteSessionPush.$_createMessage)
+        subBuilder: $19.ResRemoteSessionStop.$_createMessage)
+    ..aOM<$19.RemoteSessionPush>(92, _omitFieldNames ? '' : 'remoteSessionPush',
+        subBuilder: $19.RemoteSessionPush.$_createMessage)
     ..aOM<$4.ResChannelDisconnect>(
         93, _omitFieldNames ? '' : 'channelDisconnect',
         subBuilder: $4.ResChannelDisconnect.$_createMessage)
-    ..aOM<$16.ResIdentityDelete>(94, _omitFieldNames ? '' : 'identityDelete',
-        subBuilder: $16.ResIdentityDelete.$_createMessage)
-    ..aOM<$13.ResSkillPut>(95, _omitFieldNames ? '' : 'skillPut',
-        subBuilder: $13.ResSkillPut.$_createMessage)
-    ..aOM<$13.ResSkillCatalogList>(
+    ..aOM<$17.ResIdentityDelete>(94, _omitFieldNames ? '' : 'identityDelete',
+        subBuilder: $17.ResIdentityDelete.$_createMessage)
+    ..aOM<$15.ResSkillPut>(95, _omitFieldNames ? '' : 'skillPut',
+        subBuilder: $15.ResSkillPut.$_createMessage)
+    ..aOM<$15.ResSkillCatalogList>(
         96, _omitFieldNames ? '' : 'skillCatalogList',
-        subBuilder: $13.ResSkillCatalogList.$_createMessage)
-    ..aOM<$13.ResSkillCatalogInstall>(
+        subBuilder: $15.ResSkillCatalogList.$_createMessage)
+    ..aOM<$15.ResSkillCatalogInstall>(
         97, _omitFieldNames ? '' : 'skillCatalogInstall',
-        subBuilder: $13.ResSkillCatalogInstall.$_createMessage)
-    ..aOM<$18.ResRemoteIceConfig>(98, _omitFieldNames ? '' : 'remoteIceConfig',
-        subBuilder: $18.ResRemoteIceConfig.$_createMessage)
-    ..aOM<$18.RtcSignalOffer>(99, _omitFieldNames ? '' : 'rtcSignalOffer',
-        subBuilder: $18.RtcSignalOffer.$_createMessage)
-    ..aOM<$18.RtcSignalAnswer>(100, _omitFieldNames ? '' : 'rtcSignalAnswer',
-        subBuilder: $18.RtcSignalAnswer.$_createMessage)
-    ..aOM<$18.RtcSignalIce>(101, _omitFieldNames ? '' : 'rtcSignalIce',
-        subBuilder: $18.RtcSignalIce.$_createMessage)
-    ..aOM<$19.ResCollectionDefList>(
+        subBuilder: $15.ResSkillCatalogInstall.$_createMessage)
+    ..aOM<$19.ResRemoteIceConfig>(98, _omitFieldNames ? '' : 'remoteIceConfig',
+        subBuilder: $19.ResRemoteIceConfig.$_createMessage)
+    ..aOM<$19.RtcSignalOffer>(99, _omitFieldNames ? '' : 'rtcSignalOffer',
+        subBuilder: $19.RtcSignalOffer.$_createMessage)
+    ..aOM<$19.RtcSignalAnswer>(100, _omitFieldNames ? '' : 'rtcSignalAnswer',
+        subBuilder: $19.RtcSignalAnswer.$_createMessage)
+    ..aOM<$19.RtcSignalIce>(101, _omitFieldNames ? '' : 'rtcSignalIce',
+        subBuilder: $19.RtcSignalIce.$_createMessage)
+    ..aOM<$20.ResCollectionDefList>(
         102, _omitFieldNames ? '' : 'collectionDefList',
-        subBuilder: $19.ResCollectionDefList.$_createMessage)
-    ..aOM<$14.ResSiteDraftGet>(103, _omitFieldNames ? '' : 'siteDraftGet',
-        subBuilder: $14.ResSiteDraftGet.$_createMessage)
-    ..aOM<$14.ResSiteDraftPut>(104, _omitFieldNames ? '' : 'siteDraftPut',
-        subBuilder: $14.ResSiteDraftPut.$_createMessage)
-    ..aOM<$14.ResSitePublish>(105, _omitFieldNames ? '' : 'sitePublish',
-        subBuilder: $14.ResSitePublish.$_createMessage)
-    ..aOM<$14.ResSiteProductList>(106, _omitFieldNames ? '' : 'siteProductList',
-        subBuilder: $14.ResSiteProductList.$_createMessage)
-    ..aOM<$14.ResSiteProductPut>(107, _omitFieldNames ? '' : 'siteProductPut',
-        subBuilder: $14.ResSiteProductPut.$_createMessage)
-    ..aOM<$14.ResSiteContactList>(108, _omitFieldNames ? '' : 'siteContactList',
-        subBuilder: $14.ResSiteContactList.$_createMessage)
-    ..aOM<$14.ResSiteContactPut>(109, _omitFieldNames ? '' : 'siteContactPut',
-        subBuilder: $14.ResSiteContactPut.$_createMessage)
-    ..aOM<$14.ResSiteObjectList>(110, _omitFieldNames ? '' : 'siteObjectList',
-        subBuilder: $14.ResSiteObjectList.$_createMessage)
-    ..aOM<$14.ResSiteObjectPut>(111, _omitFieldNames ? '' : 'siteObjectPut',
-        subBuilder: $14.ResSiteObjectPut.$_createMessage)
-    ..aOM<$14.ResSiteDomainList>(112, _omitFieldNames ? '' : 'siteDomainList',
-        subBuilder: $14.ResSiteDomainList.$_createMessage)
-    ..aOM<$14.ResSiteDomainPut>(113, _omitFieldNames ? '' : 'siteDomainPut',
-        subBuilder: $14.ResSiteDomainPut.$_createMessage)
-    ..aOM<$13.ResSkillCatalogSearch>(
+        subBuilder: $20.ResCollectionDefList.$_createMessage)
+    ..aOM<$16.ResSiteDraftGet>(103, _omitFieldNames ? '' : 'siteDraftGet',
+        subBuilder: $16.ResSiteDraftGet.$_createMessage)
+    ..aOM<$16.ResSiteDraftPut>(104, _omitFieldNames ? '' : 'siteDraftPut',
+        subBuilder: $16.ResSiteDraftPut.$_createMessage)
+    ..aOM<$16.ResSitePublish>(105, _omitFieldNames ? '' : 'sitePublish',
+        subBuilder: $16.ResSitePublish.$_createMessage)
+    ..aOM<$16.ResSiteProductList>(106, _omitFieldNames ? '' : 'siteProductList',
+        subBuilder: $16.ResSiteProductList.$_createMessage)
+    ..aOM<$16.ResSiteProductPut>(107, _omitFieldNames ? '' : 'siteProductPut',
+        subBuilder: $16.ResSiteProductPut.$_createMessage)
+    ..aOM<$16.ResSiteContactList>(108, _omitFieldNames ? '' : 'siteContactList',
+        subBuilder: $16.ResSiteContactList.$_createMessage)
+    ..aOM<$16.ResSiteContactPut>(109, _omitFieldNames ? '' : 'siteContactPut',
+        subBuilder: $16.ResSiteContactPut.$_createMessage)
+    ..aOM<$16.ResSiteObjectList>(110, _omitFieldNames ? '' : 'siteObjectList',
+        subBuilder: $16.ResSiteObjectList.$_createMessage)
+    ..aOM<$16.ResSiteObjectPut>(111, _omitFieldNames ? '' : 'siteObjectPut',
+        subBuilder: $16.ResSiteObjectPut.$_createMessage)
+    ..aOM<$16.ResSiteDomainList>(112, _omitFieldNames ? '' : 'siteDomainList',
+        subBuilder: $16.ResSiteDomainList.$_createMessage)
+    ..aOM<$16.ResSiteDomainPut>(113, _omitFieldNames ? '' : 'siteDomainPut',
+        subBuilder: $16.ResSiteDomainPut.$_createMessage)
+    ..aOM<$15.ResSkillCatalogSearch>(
         114, _omitFieldNames ? '' : 'skillCatalogSearch',
-        subBuilder: $13.ResSkillCatalogSearch.$_createMessage)
-    ..aOM<$13.ResSkillCatalogSubmit>(
+        subBuilder: $15.ResSkillCatalogSearch.$_createMessage)
+    ..aOM<$15.ResSkillCatalogSubmit>(
         115, _omitFieldNames ? '' : 'skillCatalogSubmit',
-        subBuilder: $13.ResSkillCatalogSubmit.$_createMessage)
-    ..aOM<$13.ResSkillRunReport>(116, _omitFieldNames ? '' : 'skillRunReport',
-        subBuilder: $13.ResSkillRunReport.$_createMessage)
-    ..aOM<$18.ResRemoteScreenshot>(
+        subBuilder: $15.ResSkillCatalogSubmit.$_createMessage)
+    ..aOM<$15.ResSkillRunReport>(116, _omitFieldNames ? '' : 'skillRunReport',
+        subBuilder: $15.ResSkillRunReport.$_createMessage)
+    ..aOM<$19.ResRemoteScreenshot>(
         117, _omitFieldNames ? '' : 'resRemoteScreenshot',
-        subBuilder: $18.ResRemoteScreenshot.$_createMessage)
-    ..aOM<$18.ResRemoteCommand>(118, _omitFieldNames ? '' : 'resRemoteCommand',
-        subBuilder: $18.ResRemoteCommand.$_createMessage)
+        subBuilder: $19.ResRemoteScreenshot.$_createMessage)
+    ..aOM<$19.ResRemoteCommand>(118, _omitFieldNames ? '' : 'resRemoteCommand',
+        subBuilder: $19.ResRemoteCommand.$_createMessage)
     ..aOM<$7.ResVoiceStt>(119, _omitFieldNames ? '' : 'voiceStt',
         subBuilder: $7.ResVoiceStt.$_createMessage)
     ..aOM<$7.ResVoiceTts>(120, _omitFieldNames ? '' : 'voiceTts',
@@ -4348,25 +4454,27 @@ class WsRes extends $pb.GeneratedMessage {
         subBuilder: $8.ResMentionList.$_createMessage)
     ..aOM<$8.ResMentionSearch>(122, _omitFieldNames ? '' : 'mentionSearch',
         subBuilder: $8.ResMentionSearch.$_createMessage)
-    ..aOM<$21.ResHintTouch>(123, _omitFieldNames ? '' : 'hintTouch',
-        subBuilder: $21.ResHintTouch.$_createMessage)
-    ..aOM<$12.PromptRunPush>(124, _omitFieldNames ? '' : 'promptRunPush',
-        subBuilder: $12.PromptRunPush.$_createMessage)
-    ..aOM<$14.ResSiteConfigPut>(125, _omitFieldNames ? '' : 'siteConfigPut',
-        subBuilder: $14.ResSiteConfigPut.$_createMessage)
-    ..aOM<$14.ResSitePreviewToken>(
+    ..aOM<$22.ResHintTouch>(123, _omitFieldNames ? '' : 'hintTouch',
+        subBuilder: $22.ResHintTouch.$_createMessage)
+    ..aOM<$14.PromptRunPush>(124, _omitFieldNames ? '' : 'promptRunPush',
+        subBuilder: $14.PromptRunPush.$_createMessage)
+    ..aOM<$16.ResSiteConfigPut>(125, _omitFieldNames ? '' : 'siteConfigPut',
+        subBuilder: $16.ResSiteConfigPut.$_createMessage)
+    ..aOM<$16.ResSitePreviewToken>(
         126, _omitFieldNames ? '' : 'sitePreviewToken',
-        subBuilder: $14.ResSitePreviewToken.$_createMessage)
-    ..aOM<$15.ResTxGet>(127, _omitFieldNames ? '' : 'txGet',
-        subBuilder: $15.ResTxGet.$_createMessage)
-    ..aOM<$15.ResTxPut>(128, _omitFieldNames ? '' : 'txPut',
-        subBuilder: $15.ResTxPut.$_createMessage)
-    ..aOM<$15.ResTxPreview>(129, _omitFieldNames ? '' : 'txPreview',
-        subBuilder: $15.ResTxPreview.$_createMessage)
-    ..aOM<$15.ResTxDebtPay>(130, _omitFieldNames ? '' : 'txDebtPay',
-        subBuilder: $15.ResTxDebtPay.$_createMessage)
-    ..aOM<$14.ResSiteQueryRun>(131, _omitFieldNames ? '' : 'siteQueryRun',
-        subBuilder: $14.ResSiteQueryRun.$_createMessage)
+        subBuilder: $16.ResSitePreviewToken.$_createMessage)
+    ..aOM<$11.ResTxGet>(127, _omitFieldNames ? '' : 'txGet',
+        subBuilder: $11.ResTxGet.$_createMessage)
+    ..aOM<$11.ResTxPut>(128, _omitFieldNames ? '' : 'txPut',
+        subBuilder: $11.ResTxPut.$_createMessage)
+    ..aOM<$11.ResTxPreview>(129, _omitFieldNames ? '' : 'txPreview',
+        subBuilder: $11.ResTxPreview.$_createMessage)
+    ..aOM<$11.ResTxDebtPay>(130, _omitFieldNames ? '' : 'txDebtPay',
+        subBuilder: $11.ResTxDebtPay.$_createMessage)
+    ..aOM<$16.ResSiteQueryRun>(131, _omitFieldNames ? '' : 'siteQueryRun',
+        subBuilder: $16.ResSiteQueryRun.$_createMessage)
+    ..aOM<$11.ResExpensePut>(132, _omitFieldNames ? '' : 'expensePut',
+        subBuilder: $11.ResExpensePut.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -4471,6 +4579,7 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(129)
   @$pb.TagNumber(130)
   @$pb.TagNumber(131)
+  @$pb.TagNumber(132)
   WsRes_Body whichBody() => _WsRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(10)
@@ -4554,6 +4663,7 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(129)
   @$pb.TagNumber(130)
   @$pb.TagNumber(131)
+  @$pb.TagNumber(132)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -4566,159 +4676,159 @@ class WsRes extends $pb.GeneratedMessage {
   void clearReqId() => $_clearField(1);
 
   @$pb.TagNumber(2)
-  $22.Err get err => $_getN(1);
+  $23.Err get err => $_getN(1);
   @$pb.TagNumber(2)
-  set err($22.Err value) => $_setField(2, value);
+  set err($23.Err value) => $_setField(2, value);
   @$pb.TagNumber(2)
   $core.bool hasErr() => $_has(1);
   @$pb.TagNumber(2)
   void clearErr() => $_clearField(2);
   @$pb.TagNumber(2)
-  $22.Err ensureErr() => $_ensure(1);
+  $23.Err ensureErr() => $_ensure(1);
 
   @$pb.TagNumber(10)
-  $10.ResSessionInit get sessionInit => $_getN(2);
+  $12.ResSessionInit get sessionInit => $_getN(2);
   @$pb.TagNumber(10)
-  set sessionInit($10.ResSessionInit value) => $_setField(10, value);
+  set sessionInit($12.ResSessionInit value) => $_setField(10, value);
   @$pb.TagNumber(10)
   $core.bool hasSessionInit() => $_has(2);
   @$pb.TagNumber(10)
   void clearSessionInit() => $_clearField(10);
   @$pb.TagNumber(10)
-  $10.ResSessionInit ensureSessionInit() => $_ensure(2);
+  $12.ResSessionInit ensureSessionInit() => $_ensure(2);
 
   @$pb.TagNumber(11)
-  $11.ResSync get sync => $_getN(3);
+  $13.ResSync get sync => $_getN(3);
   @$pb.TagNumber(11)
-  set sync($11.ResSync value) => $_setField(11, value);
+  set sync($13.ResSync value) => $_setField(11, value);
   @$pb.TagNumber(11)
   $core.bool hasSync() => $_has(3);
   @$pb.TagNumber(11)
   void clearSync() => $_clearField(11);
   @$pb.TagNumber(11)
-  $11.ResSync ensureSync() => $_ensure(3);
+  $13.ResSync ensureSync() => $_ensure(3);
 
   @$pb.TagNumber(12)
-  $12.ResInboxList get inboxList => $_getN(4);
+  $14.ResInboxList get inboxList => $_getN(4);
   @$pb.TagNumber(12)
-  set inboxList($12.ResInboxList value) => $_setField(12, value);
+  set inboxList($14.ResInboxList value) => $_setField(12, value);
   @$pb.TagNumber(12)
   $core.bool hasInboxList() => $_has(4);
   @$pb.TagNumber(12)
   void clearInboxList() => $_clearField(12);
   @$pb.TagNumber(12)
-  $12.ResInboxList ensureInboxList() => $_ensure(4);
+  $14.ResInboxList ensureInboxList() => $_ensure(4);
 
   @$pb.TagNumber(13)
-  $12.ResChatMsgList get chatMsgList => $_getN(5);
+  $14.ResChatMsgList get chatMsgList => $_getN(5);
   @$pb.TagNumber(13)
-  set chatMsgList($12.ResChatMsgList value) => $_setField(13, value);
+  set chatMsgList($14.ResChatMsgList value) => $_setField(13, value);
   @$pb.TagNumber(13)
   $core.bool hasChatMsgList() => $_has(5);
   @$pb.TagNumber(13)
   void clearChatMsgList() => $_clearField(13);
   @$pb.TagNumber(13)
-  $12.ResChatMsgList ensureChatMsgList() => $_ensure(5);
+  $14.ResChatMsgList ensureChatMsgList() => $_ensure(5);
 
   @$pb.TagNumber(20)
-  $12.ResPromptStart get promptStart => $_getN(6);
+  $14.ResPromptStart get promptStart => $_getN(6);
   @$pb.TagNumber(20)
-  set promptStart($12.ResPromptStart value) => $_setField(20, value);
+  set promptStart($14.ResPromptStart value) => $_setField(20, value);
   @$pb.TagNumber(20)
   $core.bool hasPromptStart() => $_has(6);
   @$pb.TagNumber(20)
   void clearPromptStart() => $_clearField(20);
   @$pb.TagNumber(20)
-  $12.ResPromptStart ensurePromptStart() => $_ensure(6);
+  $14.ResPromptStart ensurePromptStart() => $_ensure(6);
 
   @$pb.TagNumber(21)
-  $12.ResPromptDelta get promptDelta => $_getN(7);
+  $14.ResPromptDelta get promptDelta => $_getN(7);
   @$pb.TagNumber(21)
-  set promptDelta($12.ResPromptDelta value) => $_setField(21, value);
+  set promptDelta($14.ResPromptDelta value) => $_setField(21, value);
   @$pb.TagNumber(21)
   $core.bool hasPromptDelta() => $_has(7);
   @$pb.TagNumber(21)
   void clearPromptDelta() => $_clearField(21);
   @$pb.TagNumber(21)
-  $12.ResPromptDelta ensurePromptDelta() => $_ensure(7);
+  $14.ResPromptDelta ensurePromptDelta() => $_ensure(7);
 
   @$pb.TagNumber(22)
-  $12.ResPromptEnd get promptEnd => $_getN(8);
+  $14.ResPromptEnd get promptEnd => $_getN(8);
   @$pb.TagNumber(22)
-  set promptEnd($12.ResPromptEnd value) => $_setField(22, value);
+  set promptEnd($14.ResPromptEnd value) => $_setField(22, value);
   @$pb.TagNumber(22)
   $core.bool hasPromptEnd() => $_has(8);
   @$pb.TagNumber(22)
   void clearPromptEnd() => $_clearField(22);
   @$pb.TagNumber(22)
-  $12.ResPromptEnd ensurePromptEnd() => $_ensure(8);
+  $14.ResPromptEnd ensurePromptEnd() => $_ensure(8);
 
   @$pb.TagNumber(23)
-  $12.ResPromptFail get promptFail => $_getN(9);
+  $14.ResPromptFail get promptFail => $_getN(9);
   @$pb.TagNumber(23)
-  set promptFail($12.ResPromptFail value) => $_setField(23, value);
+  set promptFail($14.ResPromptFail value) => $_setField(23, value);
   @$pb.TagNumber(23)
   $core.bool hasPromptFail() => $_has(9);
   @$pb.TagNumber(23)
   void clearPromptFail() => $_clearField(23);
   @$pb.TagNumber(23)
-  $12.ResPromptFail ensurePromptFail() => $_ensure(9);
+  $14.ResPromptFail ensurePromptFail() => $_ensure(9);
 
   @$pb.TagNumber(27)
-  $16.ResIdentityList get identityList => $_getN(10);
+  $17.ResIdentityList get identityList => $_getN(10);
   @$pb.TagNumber(27)
-  set identityList($16.ResIdentityList value) => $_setField(27, value);
+  set identityList($17.ResIdentityList value) => $_setField(27, value);
   @$pb.TagNumber(27)
   $core.bool hasIdentityList() => $_has(10);
   @$pb.TagNumber(27)
   void clearIdentityList() => $_clearField(27);
   @$pb.TagNumber(27)
-  $16.ResIdentityList ensureIdentityList() => $_ensure(10);
+  $17.ResIdentityList ensureIdentityList() => $_ensure(10);
 
   @$pb.TagNumber(28)
-  $16.ResIdentityGrantPatch get identityGrantPatch => $_getN(11);
+  $17.ResIdentityGrantPatch get identityGrantPatch => $_getN(11);
   @$pb.TagNumber(28)
-  set identityGrantPatch($16.ResIdentityGrantPatch value) =>
+  set identityGrantPatch($17.ResIdentityGrantPatch value) =>
       $_setField(28, value);
   @$pb.TagNumber(28)
   $core.bool hasIdentityGrantPatch() => $_has(11);
   @$pb.TagNumber(28)
   void clearIdentityGrantPatch() => $_clearField(28);
   @$pb.TagNumber(28)
-  $16.ResIdentityGrantPatch ensureIdentityGrantPatch() => $_ensure(11);
+  $17.ResIdentityGrantPatch ensureIdentityGrantPatch() => $_ensure(11);
 
   @$pb.TagNumber(29)
-  $12.ResBotPeerList get botPeerList => $_getN(12);
+  $14.ResBotPeerList get botPeerList => $_getN(12);
   @$pb.TagNumber(29)
-  set botPeerList($12.ResBotPeerList value) => $_setField(29, value);
+  set botPeerList($14.ResBotPeerList value) => $_setField(29, value);
   @$pb.TagNumber(29)
   $core.bool hasBotPeerList() => $_has(12);
   @$pb.TagNumber(29)
   void clearBotPeerList() => $_clearField(29);
   @$pb.TagNumber(29)
-  $12.ResBotPeerList ensureBotPeerList() => $_ensure(12);
+  $14.ResBotPeerList ensureBotPeerList() => $_ensure(12);
 
   @$pb.TagNumber(30)
-  $12.ResChatStop get chatStop => $_getN(13);
+  $14.ResChatStop get chatStop => $_getN(13);
   @$pb.TagNumber(30)
-  set chatStop($12.ResChatStop value) => $_setField(30, value);
+  set chatStop($14.ResChatStop value) => $_setField(30, value);
   @$pb.TagNumber(30)
   $core.bool hasChatStop() => $_has(13);
   @$pb.TagNumber(30)
   void clearChatStop() => $_clearField(30);
   @$pb.TagNumber(30)
-  $12.ResChatStop ensureChatStop() => $_ensure(13);
+  $14.ResChatStop ensureChatStop() => $_ensure(13);
 
   @$pb.TagNumber(31)
-  $12.ResChatSend get chatSend => $_getN(14);
+  $14.ResChatSend get chatSend => $_getN(14);
   @$pb.TagNumber(31)
-  set chatSend($12.ResChatSend value) => $_setField(31, value);
+  set chatSend($14.ResChatSend value) => $_setField(31, value);
   @$pb.TagNumber(31)
   $core.bool hasChatSend() => $_has(14);
   @$pb.TagNumber(31)
   void clearChatSend() => $_clearField(31);
   @$pb.TagNumber(31)
-  $12.ResChatSend ensureChatSend() => $_ensure(14);
+  $14.ResChatSend ensureChatSend() => $_ensure(14);
 
   @$pb.TagNumber(32)
   $4.ResChannelWhatsappPair get channelWhatsappPairStart => $_getN(15);
@@ -4757,59 +4867,59 @@ class WsRes extends $pb.GeneratedMessage {
   $4.ResChannelWhatsappPair ensureChannelWhatsappPairAbort() => $_ensure(17);
 
   @$pb.TagNumber(35)
-  $17.ResTaskList get taskList => $_getN(18);
+  $18.ResTaskList get taskList => $_getN(18);
   @$pb.TagNumber(35)
-  set taskList($17.ResTaskList value) => $_setField(35, value);
+  set taskList($18.ResTaskList value) => $_setField(35, value);
   @$pb.TagNumber(35)
   $core.bool hasTaskList() => $_has(18);
   @$pb.TagNumber(35)
   void clearTaskList() => $_clearField(35);
   @$pb.TagNumber(35)
-  $17.ResTaskList ensureTaskList() => $_ensure(18);
+  $18.ResTaskList ensureTaskList() => $_ensure(18);
 
   @$pb.TagNumber(36)
-  $17.ResTaskPut get taskPut => $_getN(19);
+  $18.ResTaskPut get taskPut => $_getN(19);
   @$pb.TagNumber(36)
-  set taskPut($17.ResTaskPut value) => $_setField(36, value);
+  set taskPut($18.ResTaskPut value) => $_setField(36, value);
   @$pb.TagNumber(36)
   $core.bool hasTaskPut() => $_has(19);
   @$pb.TagNumber(36)
   void clearTaskPut() => $_clearField(36);
   @$pb.TagNumber(36)
-  $17.ResTaskPut ensureTaskPut() => $_ensure(19);
+  $18.ResTaskPut ensureTaskPut() => $_ensure(19);
 
   @$pb.TagNumber(37)
-  $17.ResTaskRunStart get taskRunStart => $_getN(20);
+  $18.ResTaskRunStart get taskRunStart => $_getN(20);
   @$pb.TagNumber(37)
-  set taskRunStart($17.ResTaskRunStart value) => $_setField(37, value);
+  set taskRunStart($18.ResTaskRunStart value) => $_setField(37, value);
   @$pb.TagNumber(37)
   $core.bool hasTaskRunStart() => $_has(20);
   @$pb.TagNumber(37)
   void clearTaskRunStart() => $_clearField(37);
   @$pb.TagNumber(37)
-  $17.ResTaskRunStart ensureTaskRunStart() => $_ensure(20);
+  $18.ResTaskRunStart ensureTaskRunStart() => $_ensure(20);
 
   @$pb.TagNumber(38)
-  $17.ResTaskRunCancel get taskRunCancel => $_getN(21);
+  $18.ResTaskRunCancel get taskRunCancel => $_getN(21);
   @$pb.TagNumber(38)
-  set taskRunCancel($17.ResTaskRunCancel value) => $_setField(38, value);
+  set taskRunCancel($18.ResTaskRunCancel value) => $_setField(38, value);
   @$pb.TagNumber(38)
   $core.bool hasTaskRunCancel() => $_has(21);
   @$pb.TagNumber(38)
   void clearTaskRunCancel() => $_clearField(38);
   @$pb.TagNumber(38)
-  $17.ResTaskRunCancel ensureTaskRunCancel() => $_ensure(21);
+  $18.ResTaskRunCancel ensureTaskRunCancel() => $_ensure(21);
 
   @$pb.TagNumber(39)
-  $17.ResTaskRunList get taskRunList => $_getN(22);
+  $18.ResTaskRunList get taskRunList => $_getN(22);
   @$pb.TagNumber(39)
-  set taskRunList($17.ResTaskRunList value) => $_setField(39, value);
+  set taskRunList($18.ResTaskRunList value) => $_setField(39, value);
   @$pb.TagNumber(39)
   $core.bool hasTaskRunList() => $_has(22);
   @$pb.TagNumber(39)
   void clearTaskRunList() => $_clearField(39);
   @$pb.TagNumber(39)
-  $17.ResTaskRunList ensureTaskRunList() => $_ensure(22);
+  $18.ResTaskRunList ensureTaskRunList() => $_ensure(22);
 
   @$pb.TagNumber(40)
   InvokeRes get invoke => $_getN(23);
@@ -4823,26 +4933,26 @@ class WsRes extends $pb.GeneratedMessage {
   InvokeRes ensureInvoke() => $_ensure(23);
 
   @$pb.TagNumber(45)
-  $17.TaskRunPush get taskRunPush => $_getN(24);
+  $18.TaskRunPush get taskRunPush => $_getN(24);
   @$pb.TagNumber(45)
-  set taskRunPush($17.TaskRunPush value) => $_setField(45, value);
+  set taskRunPush($18.TaskRunPush value) => $_setField(45, value);
   @$pb.TagNumber(45)
   $core.bool hasTaskRunPush() => $_has(24);
   @$pb.TagNumber(45)
   void clearTaskRunPush() => $_clearField(45);
   @$pb.TagNumber(45)
-  $17.TaskRunPush ensureTaskRunPush() => $_ensure(24);
+  $18.TaskRunPush ensureTaskRunPush() => $_ensure(24);
 
   @$pb.TagNumber(50)
-  $11.SyncPush get syncPush => $_getN(25);
+  $13.SyncPush get syncPush => $_getN(25);
   @$pb.TagNumber(50)
-  set syncPush($11.SyncPush value) => $_setField(50, value);
+  set syncPush($13.SyncPush value) => $_setField(50, value);
   @$pb.TagNumber(50)
   $core.bool hasSyncPush() => $_has(25);
   @$pb.TagNumber(50)
   void clearSyncPush() => $_clearField(50);
   @$pb.TagNumber(50)
-  $11.SyncPush ensureSyncPush() => $_ensure(25);
+  $13.SyncPush ensureSyncPush() => $_ensure(25);
 
   @$pb.TagNumber(60)
   $0.BillingPushBalance get billingBalance => $_getN(26);
@@ -4879,15 +4989,15 @@ class WsRes extends $pb.GeneratedMessage {
   $0.BillingPushCommission ensureBillingCommission() => $_ensure(28);
 
   @$pb.TagNumber(70)
-  $23.LogPush get logPush => $_getN(29);
+  $24.LogPush get logPush => $_getN(29);
   @$pb.TagNumber(70)
-  set logPush($23.LogPush value) => $_setField(70, value);
+  set logPush($24.LogPush value) => $_setField(70, value);
   @$pb.TagNumber(70)
   $core.bool hasLogPush() => $_has(29);
   @$pb.TagNumber(70)
   void clearLogPush() => $_clearField(70);
   @$pb.TagNumber(70)
-  $23.LogPush ensureLogPush() => $_ensure(29);
+  $24.LogPush ensureLogPush() => $_ensure(29);
 
   @$pb.TagNumber(71)
   $4.ChannelPairPush get channelPairPush => $_getN(30);
@@ -4901,26 +5011,26 @@ class WsRes extends $pb.GeneratedMessage {
   $4.ChannelPairPush ensureChannelPairPush() => $_ensure(30);
 
   @$pb.TagNumber(72)
-  $20.StatsPush get statsPush => $_getN(31);
+  $21.StatsPush get statsPush => $_getN(31);
   @$pb.TagNumber(72)
-  set statsPush($20.StatsPush value) => $_setField(72, value);
+  set statsPush($21.StatsPush value) => $_setField(72, value);
   @$pb.TagNumber(72)
   $core.bool hasStatsPush() => $_has(31);
   @$pb.TagNumber(72)
   void clearStatsPush() => $_clearField(72);
   @$pb.TagNumber(72)
-  $20.StatsPush ensureStatsPush() => $_ensure(31);
+  $21.StatsPush ensureStatsPush() => $_ensure(31);
 
   @$pb.TagNumber(80)
-  $13.ResSkillList get skillList => $_getN(32);
+  $15.ResSkillList get skillList => $_getN(32);
   @$pb.TagNumber(80)
-  set skillList($13.ResSkillList value) => $_setField(80, value);
+  set skillList($15.ResSkillList value) => $_setField(80, value);
   @$pb.TagNumber(80)
   $core.bool hasSkillList() => $_has(32);
   @$pb.TagNumber(80)
   void clearSkillList() => $_clearField(80);
   @$pb.TagNumber(80)
-  $13.ResSkillList ensureSkillList() => $_ensure(32);
+  $15.ResSkillList ensureSkillList() => $_ensure(32);
 
   @$pb.TagNumber(81)
   $1.ResConsumptionList get consumptionList => $_getN(33);
@@ -4934,26 +5044,26 @@ class WsRes extends $pb.GeneratedMessage {
   $1.ResConsumptionList ensureConsumptionList() => $_ensure(33);
 
   @$pb.TagNumber(82)
-  $14.ResSiteList get siteList => $_getN(34);
+  $16.ResSiteList get siteList => $_getN(34);
   @$pb.TagNumber(82)
-  set siteList($14.ResSiteList value) => $_setField(82, value);
+  set siteList($16.ResSiteList value) => $_setField(82, value);
   @$pb.TagNumber(82)
   $core.bool hasSiteList() => $_has(34);
   @$pb.TagNumber(82)
   void clearSiteList() => $_clearField(82);
   @$pb.TagNumber(82)
-  $14.ResSiteList ensureSiteList() => $_ensure(34);
+  $16.ResSiteList ensureSiteList() => $_ensure(34);
 
   @$pb.TagNumber(83)
-  $15.ResTxList get txList => $_getN(35);
+  $11.ResTxList get txList => $_getN(35);
   @$pb.TagNumber(83)
-  set txList($15.ResTxList value) => $_setField(83, value);
+  set txList($11.ResTxList value) => $_setField(83, value);
   @$pb.TagNumber(83)
   $core.bool hasTxList() => $_has(35);
   @$pb.TagNumber(83)
   void clearTxList() => $_clearField(83);
   @$pb.TagNumber(83)
-  $15.ResTxList ensureTxList() => $_ensure(35);
+  $11.ResTxList ensureTxList() => $_ensure(35);
 
   @$pb.TagNumber(84)
   $1.ResConsumptionPut get consumptionPut => $_getN(36);
@@ -4967,83 +5077,83 @@ class WsRes extends $pb.GeneratedMessage {
   $1.ResConsumptionPut ensureConsumptionPut() => $_ensure(36);
 
   @$pb.TagNumber(85)
-  $12.ResChatPatch get chatPatch => $_getN(37);
+  $14.ResChatPatch get chatPatch => $_getN(37);
   @$pb.TagNumber(85)
-  set chatPatch($12.ResChatPatch value) => $_setField(85, value);
+  set chatPatch($14.ResChatPatch value) => $_setField(85, value);
   @$pb.TagNumber(85)
   $core.bool hasChatPatch() => $_has(37);
   @$pb.TagNumber(85)
   void clearChatPatch() => $_clearField(85);
   @$pb.TagNumber(85)
-  $12.ResChatPatch ensureChatPatch() => $_ensure(37);
+  $14.ResChatPatch ensureChatPatch() => $_ensure(37);
 
   @$pb.TagNumber(86)
-  $12.ResAssetTagList get assetTagList => $_getN(38);
+  $14.ResAssetTagList get assetTagList => $_getN(38);
   @$pb.TagNumber(86)
-  set assetTagList($12.ResAssetTagList value) => $_setField(86, value);
+  set assetTagList($14.ResAssetTagList value) => $_setField(86, value);
   @$pb.TagNumber(86)
   $core.bool hasAssetTagList() => $_has(38);
   @$pb.TagNumber(86)
   void clearAssetTagList() => $_clearField(86);
   @$pb.TagNumber(86)
-  $12.ResAssetTagList ensureAssetTagList() => $_ensure(38);
+  $14.ResAssetTagList ensureAssetTagList() => $_ensure(38);
 
   @$pb.TagNumber(87)
-  $12.ResLogList get logList => $_getN(39);
+  $14.ResLogList get logList => $_getN(39);
   @$pb.TagNumber(87)
-  set logList($12.ResLogList value) => $_setField(87, value);
+  set logList($14.ResLogList value) => $_setField(87, value);
   @$pb.TagNumber(87)
   $core.bool hasLogList() => $_has(39);
   @$pb.TagNumber(87)
   void clearLogList() => $_clearField(87);
   @$pb.TagNumber(87)
-  $12.ResLogList ensureLogList() => $_ensure(39);
+  $14.ResLogList ensureLogList() => $_ensure(39);
 
   @$pb.TagNumber(88)
-  $16.ResIdentityPut get identityPut => $_getN(40);
+  $17.ResIdentityPut get identityPut => $_getN(40);
   @$pb.TagNumber(88)
-  set identityPut($16.ResIdentityPut value) => $_setField(88, value);
+  set identityPut($17.ResIdentityPut value) => $_setField(88, value);
   @$pb.TagNumber(88)
   $core.bool hasIdentityPut() => $_has(40);
   @$pb.TagNumber(88)
   void clearIdentityPut() => $_clearField(88);
   @$pb.TagNumber(88)
-  $16.ResIdentityPut ensureIdentityPut() => $_ensure(40);
+  $17.ResIdentityPut ensureIdentityPut() => $_ensure(40);
 
   @$pb.TagNumber(90)
-  $18.ResRemoteSessionStart get remoteSessionStart => $_getN(41);
+  $19.ResRemoteSessionStart get remoteSessionStart => $_getN(41);
   @$pb.TagNumber(90)
-  set remoteSessionStart($18.ResRemoteSessionStart value) =>
+  set remoteSessionStart($19.ResRemoteSessionStart value) =>
       $_setField(90, value);
   @$pb.TagNumber(90)
   $core.bool hasRemoteSessionStart() => $_has(41);
   @$pb.TagNumber(90)
   void clearRemoteSessionStart() => $_clearField(90);
   @$pb.TagNumber(90)
-  $18.ResRemoteSessionStart ensureRemoteSessionStart() => $_ensure(41);
+  $19.ResRemoteSessionStart ensureRemoteSessionStart() => $_ensure(41);
 
   @$pb.TagNumber(91)
-  $18.ResRemoteSessionStop get remoteSessionStop => $_getN(42);
+  $19.ResRemoteSessionStop get remoteSessionStop => $_getN(42);
   @$pb.TagNumber(91)
-  set remoteSessionStop($18.ResRemoteSessionStop value) =>
+  set remoteSessionStop($19.ResRemoteSessionStop value) =>
       $_setField(91, value);
   @$pb.TagNumber(91)
   $core.bool hasRemoteSessionStop() => $_has(42);
   @$pb.TagNumber(91)
   void clearRemoteSessionStop() => $_clearField(91);
   @$pb.TagNumber(91)
-  $18.ResRemoteSessionStop ensureRemoteSessionStop() => $_ensure(42);
+  $19.ResRemoteSessionStop ensureRemoteSessionStop() => $_ensure(42);
 
   @$pb.TagNumber(92)
-  $18.RemoteSessionPush get remoteSessionPush => $_getN(43);
+  $19.RemoteSessionPush get remoteSessionPush => $_getN(43);
   @$pb.TagNumber(92)
-  set remoteSessionPush($18.RemoteSessionPush value) => $_setField(92, value);
+  set remoteSessionPush($19.RemoteSessionPush value) => $_setField(92, value);
   @$pb.TagNumber(92)
   $core.bool hasRemoteSessionPush() => $_has(43);
   @$pb.TagNumber(92)
   void clearRemoteSessionPush() => $_clearField(92);
   @$pb.TagNumber(92)
-  $18.RemoteSessionPush ensureRemoteSessionPush() => $_ensure(43);
+  $19.RemoteSessionPush ensureRemoteSessionPush() => $_ensure(43);
 
   @$pb.TagNumber(93)
   $4.ResChannelDisconnect get channelDisconnect => $_getN(44);
@@ -5057,284 +5167,284 @@ class WsRes extends $pb.GeneratedMessage {
   $4.ResChannelDisconnect ensureChannelDisconnect() => $_ensure(44);
 
   @$pb.TagNumber(94)
-  $16.ResIdentityDelete get identityDelete => $_getN(45);
+  $17.ResIdentityDelete get identityDelete => $_getN(45);
   @$pb.TagNumber(94)
-  set identityDelete($16.ResIdentityDelete value) => $_setField(94, value);
+  set identityDelete($17.ResIdentityDelete value) => $_setField(94, value);
   @$pb.TagNumber(94)
   $core.bool hasIdentityDelete() => $_has(45);
   @$pb.TagNumber(94)
   void clearIdentityDelete() => $_clearField(94);
   @$pb.TagNumber(94)
-  $16.ResIdentityDelete ensureIdentityDelete() => $_ensure(45);
+  $17.ResIdentityDelete ensureIdentityDelete() => $_ensure(45);
 
   @$pb.TagNumber(95)
-  $13.ResSkillPut get skillPut => $_getN(46);
+  $15.ResSkillPut get skillPut => $_getN(46);
   @$pb.TagNumber(95)
-  set skillPut($13.ResSkillPut value) => $_setField(95, value);
+  set skillPut($15.ResSkillPut value) => $_setField(95, value);
   @$pb.TagNumber(95)
   $core.bool hasSkillPut() => $_has(46);
   @$pb.TagNumber(95)
   void clearSkillPut() => $_clearField(95);
   @$pb.TagNumber(95)
-  $13.ResSkillPut ensureSkillPut() => $_ensure(46);
+  $15.ResSkillPut ensureSkillPut() => $_ensure(46);
 
   @$pb.TagNumber(96)
-  $13.ResSkillCatalogList get skillCatalogList => $_getN(47);
+  $15.ResSkillCatalogList get skillCatalogList => $_getN(47);
   @$pb.TagNumber(96)
-  set skillCatalogList($13.ResSkillCatalogList value) => $_setField(96, value);
+  set skillCatalogList($15.ResSkillCatalogList value) => $_setField(96, value);
   @$pb.TagNumber(96)
   $core.bool hasSkillCatalogList() => $_has(47);
   @$pb.TagNumber(96)
   void clearSkillCatalogList() => $_clearField(96);
   @$pb.TagNumber(96)
-  $13.ResSkillCatalogList ensureSkillCatalogList() => $_ensure(47);
+  $15.ResSkillCatalogList ensureSkillCatalogList() => $_ensure(47);
 
   @$pb.TagNumber(97)
-  $13.ResSkillCatalogInstall get skillCatalogInstall => $_getN(48);
+  $15.ResSkillCatalogInstall get skillCatalogInstall => $_getN(48);
   @$pb.TagNumber(97)
-  set skillCatalogInstall($13.ResSkillCatalogInstall value) =>
+  set skillCatalogInstall($15.ResSkillCatalogInstall value) =>
       $_setField(97, value);
   @$pb.TagNumber(97)
   $core.bool hasSkillCatalogInstall() => $_has(48);
   @$pb.TagNumber(97)
   void clearSkillCatalogInstall() => $_clearField(97);
   @$pb.TagNumber(97)
-  $13.ResSkillCatalogInstall ensureSkillCatalogInstall() => $_ensure(48);
+  $15.ResSkillCatalogInstall ensureSkillCatalogInstall() => $_ensure(48);
 
   @$pb.TagNumber(98)
-  $18.ResRemoteIceConfig get remoteIceConfig => $_getN(49);
+  $19.ResRemoteIceConfig get remoteIceConfig => $_getN(49);
   @$pb.TagNumber(98)
-  set remoteIceConfig($18.ResRemoteIceConfig value) => $_setField(98, value);
+  set remoteIceConfig($19.ResRemoteIceConfig value) => $_setField(98, value);
   @$pb.TagNumber(98)
   $core.bool hasRemoteIceConfig() => $_has(49);
   @$pb.TagNumber(98)
   void clearRemoteIceConfig() => $_clearField(98);
   @$pb.TagNumber(98)
-  $18.ResRemoteIceConfig ensureRemoteIceConfig() => $_ensure(49);
+  $19.ResRemoteIceConfig ensureRemoteIceConfig() => $_ensure(49);
 
   @$pb.TagNumber(99)
-  $18.RtcSignalOffer get rtcSignalOffer => $_getN(50);
+  $19.RtcSignalOffer get rtcSignalOffer => $_getN(50);
   @$pb.TagNumber(99)
-  set rtcSignalOffer($18.RtcSignalOffer value) => $_setField(99, value);
+  set rtcSignalOffer($19.RtcSignalOffer value) => $_setField(99, value);
   @$pb.TagNumber(99)
   $core.bool hasRtcSignalOffer() => $_has(50);
   @$pb.TagNumber(99)
   void clearRtcSignalOffer() => $_clearField(99);
   @$pb.TagNumber(99)
-  $18.RtcSignalOffer ensureRtcSignalOffer() => $_ensure(50);
+  $19.RtcSignalOffer ensureRtcSignalOffer() => $_ensure(50);
 
   @$pb.TagNumber(100)
-  $18.RtcSignalAnswer get rtcSignalAnswer => $_getN(51);
+  $19.RtcSignalAnswer get rtcSignalAnswer => $_getN(51);
   @$pb.TagNumber(100)
-  set rtcSignalAnswer($18.RtcSignalAnswer value) => $_setField(100, value);
+  set rtcSignalAnswer($19.RtcSignalAnswer value) => $_setField(100, value);
   @$pb.TagNumber(100)
   $core.bool hasRtcSignalAnswer() => $_has(51);
   @$pb.TagNumber(100)
   void clearRtcSignalAnswer() => $_clearField(100);
   @$pb.TagNumber(100)
-  $18.RtcSignalAnswer ensureRtcSignalAnswer() => $_ensure(51);
+  $19.RtcSignalAnswer ensureRtcSignalAnswer() => $_ensure(51);
 
   @$pb.TagNumber(101)
-  $18.RtcSignalIce get rtcSignalIce => $_getN(52);
+  $19.RtcSignalIce get rtcSignalIce => $_getN(52);
   @$pb.TagNumber(101)
-  set rtcSignalIce($18.RtcSignalIce value) => $_setField(101, value);
+  set rtcSignalIce($19.RtcSignalIce value) => $_setField(101, value);
   @$pb.TagNumber(101)
   $core.bool hasRtcSignalIce() => $_has(52);
   @$pb.TagNumber(101)
   void clearRtcSignalIce() => $_clearField(101);
   @$pb.TagNumber(101)
-  $18.RtcSignalIce ensureRtcSignalIce() => $_ensure(52);
+  $19.RtcSignalIce ensureRtcSignalIce() => $_ensure(52);
 
   @$pb.TagNumber(102)
-  $19.ResCollectionDefList get collectionDefList => $_getN(53);
+  $20.ResCollectionDefList get collectionDefList => $_getN(53);
   @$pb.TagNumber(102)
-  set collectionDefList($19.ResCollectionDefList value) =>
+  set collectionDefList($20.ResCollectionDefList value) =>
       $_setField(102, value);
   @$pb.TagNumber(102)
   $core.bool hasCollectionDefList() => $_has(53);
   @$pb.TagNumber(102)
   void clearCollectionDefList() => $_clearField(102);
   @$pb.TagNumber(102)
-  $19.ResCollectionDefList ensureCollectionDefList() => $_ensure(53);
+  $20.ResCollectionDefList ensureCollectionDefList() => $_ensure(53);
 
   @$pb.TagNumber(103)
-  $14.ResSiteDraftGet get siteDraftGet => $_getN(54);
+  $16.ResSiteDraftGet get siteDraftGet => $_getN(54);
   @$pb.TagNumber(103)
-  set siteDraftGet($14.ResSiteDraftGet value) => $_setField(103, value);
+  set siteDraftGet($16.ResSiteDraftGet value) => $_setField(103, value);
   @$pb.TagNumber(103)
   $core.bool hasSiteDraftGet() => $_has(54);
   @$pb.TagNumber(103)
   void clearSiteDraftGet() => $_clearField(103);
   @$pb.TagNumber(103)
-  $14.ResSiteDraftGet ensureSiteDraftGet() => $_ensure(54);
+  $16.ResSiteDraftGet ensureSiteDraftGet() => $_ensure(54);
 
   @$pb.TagNumber(104)
-  $14.ResSiteDraftPut get siteDraftPut => $_getN(55);
+  $16.ResSiteDraftPut get siteDraftPut => $_getN(55);
   @$pb.TagNumber(104)
-  set siteDraftPut($14.ResSiteDraftPut value) => $_setField(104, value);
+  set siteDraftPut($16.ResSiteDraftPut value) => $_setField(104, value);
   @$pb.TagNumber(104)
   $core.bool hasSiteDraftPut() => $_has(55);
   @$pb.TagNumber(104)
   void clearSiteDraftPut() => $_clearField(104);
   @$pb.TagNumber(104)
-  $14.ResSiteDraftPut ensureSiteDraftPut() => $_ensure(55);
+  $16.ResSiteDraftPut ensureSiteDraftPut() => $_ensure(55);
 
   @$pb.TagNumber(105)
-  $14.ResSitePublish get sitePublish => $_getN(56);
+  $16.ResSitePublish get sitePublish => $_getN(56);
   @$pb.TagNumber(105)
-  set sitePublish($14.ResSitePublish value) => $_setField(105, value);
+  set sitePublish($16.ResSitePublish value) => $_setField(105, value);
   @$pb.TagNumber(105)
   $core.bool hasSitePublish() => $_has(56);
   @$pb.TagNumber(105)
   void clearSitePublish() => $_clearField(105);
   @$pb.TagNumber(105)
-  $14.ResSitePublish ensureSitePublish() => $_ensure(56);
+  $16.ResSitePublish ensureSitePublish() => $_ensure(56);
 
   @$pb.TagNumber(106)
-  $14.ResSiteProductList get siteProductList => $_getN(57);
+  $16.ResSiteProductList get siteProductList => $_getN(57);
   @$pb.TagNumber(106)
-  set siteProductList($14.ResSiteProductList value) => $_setField(106, value);
+  set siteProductList($16.ResSiteProductList value) => $_setField(106, value);
   @$pb.TagNumber(106)
   $core.bool hasSiteProductList() => $_has(57);
   @$pb.TagNumber(106)
   void clearSiteProductList() => $_clearField(106);
   @$pb.TagNumber(106)
-  $14.ResSiteProductList ensureSiteProductList() => $_ensure(57);
+  $16.ResSiteProductList ensureSiteProductList() => $_ensure(57);
 
   @$pb.TagNumber(107)
-  $14.ResSiteProductPut get siteProductPut => $_getN(58);
+  $16.ResSiteProductPut get siteProductPut => $_getN(58);
   @$pb.TagNumber(107)
-  set siteProductPut($14.ResSiteProductPut value) => $_setField(107, value);
+  set siteProductPut($16.ResSiteProductPut value) => $_setField(107, value);
   @$pb.TagNumber(107)
   $core.bool hasSiteProductPut() => $_has(58);
   @$pb.TagNumber(107)
   void clearSiteProductPut() => $_clearField(107);
   @$pb.TagNumber(107)
-  $14.ResSiteProductPut ensureSiteProductPut() => $_ensure(58);
+  $16.ResSiteProductPut ensureSiteProductPut() => $_ensure(58);
 
   @$pb.TagNumber(108)
-  $14.ResSiteContactList get siteContactList => $_getN(59);
+  $16.ResSiteContactList get siteContactList => $_getN(59);
   @$pb.TagNumber(108)
-  set siteContactList($14.ResSiteContactList value) => $_setField(108, value);
+  set siteContactList($16.ResSiteContactList value) => $_setField(108, value);
   @$pb.TagNumber(108)
   $core.bool hasSiteContactList() => $_has(59);
   @$pb.TagNumber(108)
   void clearSiteContactList() => $_clearField(108);
   @$pb.TagNumber(108)
-  $14.ResSiteContactList ensureSiteContactList() => $_ensure(59);
+  $16.ResSiteContactList ensureSiteContactList() => $_ensure(59);
 
   @$pb.TagNumber(109)
-  $14.ResSiteContactPut get siteContactPut => $_getN(60);
+  $16.ResSiteContactPut get siteContactPut => $_getN(60);
   @$pb.TagNumber(109)
-  set siteContactPut($14.ResSiteContactPut value) => $_setField(109, value);
+  set siteContactPut($16.ResSiteContactPut value) => $_setField(109, value);
   @$pb.TagNumber(109)
   $core.bool hasSiteContactPut() => $_has(60);
   @$pb.TagNumber(109)
   void clearSiteContactPut() => $_clearField(109);
   @$pb.TagNumber(109)
-  $14.ResSiteContactPut ensureSiteContactPut() => $_ensure(60);
+  $16.ResSiteContactPut ensureSiteContactPut() => $_ensure(60);
 
   @$pb.TagNumber(110)
-  $14.ResSiteObjectList get siteObjectList => $_getN(61);
+  $16.ResSiteObjectList get siteObjectList => $_getN(61);
   @$pb.TagNumber(110)
-  set siteObjectList($14.ResSiteObjectList value) => $_setField(110, value);
+  set siteObjectList($16.ResSiteObjectList value) => $_setField(110, value);
   @$pb.TagNumber(110)
   $core.bool hasSiteObjectList() => $_has(61);
   @$pb.TagNumber(110)
   void clearSiteObjectList() => $_clearField(110);
   @$pb.TagNumber(110)
-  $14.ResSiteObjectList ensureSiteObjectList() => $_ensure(61);
+  $16.ResSiteObjectList ensureSiteObjectList() => $_ensure(61);
 
   @$pb.TagNumber(111)
-  $14.ResSiteObjectPut get siteObjectPut => $_getN(62);
+  $16.ResSiteObjectPut get siteObjectPut => $_getN(62);
   @$pb.TagNumber(111)
-  set siteObjectPut($14.ResSiteObjectPut value) => $_setField(111, value);
+  set siteObjectPut($16.ResSiteObjectPut value) => $_setField(111, value);
   @$pb.TagNumber(111)
   $core.bool hasSiteObjectPut() => $_has(62);
   @$pb.TagNumber(111)
   void clearSiteObjectPut() => $_clearField(111);
   @$pb.TagNumber(111)
-  $14.ResSiteObjectPut ensureSiteObjectPut() => $_ensure(62);
+  $16.ResSiteObjectPut ensureSiteObjectPut() => $_ensure(62);
 
   @$pb.TagNumber(112)
-  $14.ResSiteDomainList get siteDomainList => $_getN(63);
+  $16.ResSiteDomainList get siteDomainList => $_getN(63);
   @$pb.TagNumber(112)
-  set siteDomainList($14.ResSiteDomainList value) => $_setField(112, value);
+  set siteDomainList($16.ResSiteDomainList value) => $_setField(112, value);
   @$pb.TagNumber(112)
   $core.bool hasSiteDomainList() => $_has(63);
   @$pb.TagNumber(112)
   void clearSiteDomainList() => $_clearField(112);
   @$pb.TagNumber(112)
-  $14.ResSiteDomainList ensureSiteDomainList() => $_ensure(63);
+  $16.ResSiteDomainList ensureSiteDomainList() => $_ensure(63);
 
   @$pb.TagNumber(113)
-  $14.ResSiteDomainPut get siteDomainPut => $_getN(64);
+  $16.ResSiteDomainPut get siteDomainPut => $_getN(64);
   @$pb.TagNumber(113)
-  set siteDomainPut($14.ResSiteDomainPut value) => $_setField(113, value);
+  set siteDomainPut($16.ResSiteDomainPut value) => $_setField(113, value);
   @$pb.TagNumber(113)
   $core.bool hasSiteDomainPut() => $_has(64);
   @$pb.TagNumber(113)
   void clearSiteDomainPut() => $_clearField(113);
   @$pb.TagNumber(113)
-  $14.ResSiteDomainPut ensureSiteDomainPut() => $_ensure(64);
+  $16.ResSiteDomainPut ensureSiteDomainPut() => $_ensure(64);
 
   @$pb.TagNumber(114)
-  $13.ResSkillCatalogSearch get skillCatalogSearch => $_getN(65);
+  $15.ResSkillCatalogSearch get skillCatalogSearch => $_getN(65);
   @$pb.TagNumber(114)
-  set skillCatalogSearch($13.ResSkillCatalogSearch value) =>
+  set skillCatalogSearch($15.ResSkillCatalogSearch value) =>
       $_setField(114, value);
   @$pb.TagNumber(114)
   $core.bool hasSkillCatalogSearch() => $_has(65);
   @$pb.TagNumber(114)
   void clearSkillCatalogSearch() => $_clearField(114);
   @$pb.TagNumber(114)
-  $13.ResSkillCatalogSearch ensureSkillCatalogSearch() => $_ensure(65);
+  $15.ResSkillCatalogSearch ensureSkillCatalogSearch() => $_ensure(65);
 
   @$pb.TagNumber(115)
-  $13.ResSkillCatalogSubmit get skillCatalogSubmit => $_getN(66);
+  $15.ResSkillCatalogSubmit get skillCatalogSubmit => $_getN(66);
   @$pb.TagNumber(115)
-  set skillCatalogSubmit($13.ResSkillCatalogSubmit value) =>
+  set skillCatalogSubmit($15.ResSkillCatalogSubmit value) =>
       $_setField(115, value);
   @$pb.TagNumber(115)
   $core.bool hasSkillCatalogSubmit() => $_has(66);
   @$pb.TagNumber(115)
   void clearSkillCatalogSubmit() => $_clearField(115);
   @$pb.TagNumber(115)
-  $13.ResSkillCatalogSubmit ensureSkillCatalogSubmit() => $_ensure(66);
+  $15.ResSkillCatalogSubmit ensureSkillCatalogSubmit() => $_ensure(66);
 
   @$pb.TagNumber(116)
-  $13.ResSkillRunReport get skillRunReport => $_getN(67);
+  $15.ResSkillRunReport get skillRunReport => $_getN(67);
   @$pb.TagNumber(116)
-  set skillRunReport($13.ResSkillRunReport value) => $_setField(116, value);
+  set skillRunReport($15.ResSkillRunReport value) => $_setField(116, value);
   @$pb.TagNumber(116)
   $core.bool hasSkillRunReport() => $_has(67);
   @$pb.TagNumber(116)
   void clearSkillRunReport() => $_clearField(116);
   @$pb.TagNumber(116)
-  $13.ResSkillRunReport ensureSkillRunReport() => $_ensure(67);
+  $15.ResSkillRunReport ensureSkillRunReport() => $_ensure(67);
 
   @$pb.TagNumber(117)
-  $18.ResRemoteScreenshot get resRemoteScreenshot => $_getN(68);
+  $19.ResRemoteScreenshot get resRemoteScreenshot => $_getN(68);
   @$pb.TagNumber(117)
-  set resRemoteScreenshot($18.ResRemoteScreenshot value) =>
+  set resRemoteScreenshot($19.ResRemoteScreenshot value) =>
       $_setField(117, value);
   @$pb.TagNumber(117)
   $core.bool hasResRemoteScreenshot() => $_has(68);
   @$pb.TagNumber(117)
   void clearResRemoteScreenshot() => $_clearField(117);
   @$pb.TagNumber(117)
-  $18.ResRemoteScreenshot ensureResRemoteScreenshot() => $_ensure(68);
+  $19.ResRemoteScreenshot ensureResRemoteScreenshot() => $_ensure(68);
 
   @$pb.TagNumber(118)
-  $18.ResRemoteCommand get resRemoteCommand => $_getN(69);
+  $19.ResRemoteCommand get resRemoteCommand => $_getN(69);
   @$pb.TagNumber(118)
-  set resRemoteCommand($18.ResRemoteCommand value) => $_setField(118, value);
+  set resRemoteCommand($19.ResRemoteCommand value) => $_setField(118, value);
   @$pb.TagNumber(118)
   $core.bool hasResRemoteCommand() => $_has(69);
   @$pb.TagNumber(118)
   void clearResRemoteCommand() => $_clearField(118);
   @$pb.TagNumber(118)
-  $18.ResRemoteCommand ensureResRemoteCommand() => $_ensure(69);
+  $19.ResRemoteCommand ensureResRemoteCommand() => $_ensure(69);
 
   @$pb.TagNumber(119)
   $7.ResVoiceStt get voiceStt => $_getN(70);
@@ -5381,103 +5491,114 @@ class WsRes extends $pb.GeneratedMessage {
   $8.ResMentionSearch ensureMentionSearch() => $_ensure(73);
 
   @$pb.TagNumber(123)
-  $21.ResHintTouch get hintTouch => $_getN(74);
+  $22.ResHintTouch get hintTouch => $_getN(74);
   @$pb.TagNumber(123)
-  set hintTouch($21.ResHintTouch value) => $_setField(123, value);
+  set hintTouch($22.ResHintTouch value) => $_setField(123, value);
   @$pb.TagNumber(123)
   $core.bool hasHintTouch() => $_has(74);
   @$pb.TagNumber(123)
   void clearHintTouch() => $_clearField(123);
   @$pb.TagNumber(123)
-  $21.ResHintTouch ensureHintTouch() => $_ensure(74);
+  $22.ResHintTouch ensureHintTouch() => $_ensure(74);
 
   @$pb.TagNumber(124)
-  $12.PromptRunPush get promptRunPush => $_getN(75);
+  $14.PromptRunPush get promptRunPush => $_getN(75);
   @$pb.TagNumber(124)
-  set promptRunPush($12.PromptRunPush value) => $_setField(124, value);
+  set promptRunPush($14.PromptRunPush value) => $_setField(124, value);
   @$pb.TagNumber(124)
   $core.bool hasPromptRunPush() => $_has(75);
   @$pb.TagNumber(124)
   void clearPromptRunPush() => $_clearField(124);
   @$pb.TagNumber(124)
-  $12.PromptRunPush ensurePromptRunPush() => $_ensure(75);
+  $14.PromptRunPush ensurePromptRunPush() => $_ensure(75);
 
   @$pb.TagNumber(125)
-  $14.ResSiteConfigPut get siteConfigPut => $_getN(76);
+  $16.ResSiteConfigPut get siteConfigPut => $_getN(76);
   @$pb.TagNumber(125)
-  set siteConfigPut($14.ResSiteConfigPut value) => $_setField(125, value);
+  set siteConfigPut($16.ResSiteConfigPut value) => $_setField(125, value);
   @$pb.TagNumber(125)
   $core.bool hasSiteConfigPut() => $_has(76);
   @$pb.TagNumber(125)
   void clearSiteConfigPut() => $_clearField(125);
   @$pb.TagNumber(125)
-  $14.ResSiteConfigPut ensureSiteConfigPut() => $_ensure(76);
+  $16.ResSiteConfigPut ensureSiteConfigPut() => $_ensure(76);
 
   @$pb.TagNumber(126)
-  $14.ResSitePreviewToken get sitePreviewToken => $_getN(77);
+  $16.ResSitePreviewToken get sitePreviewToken => $_getN(77);
   @$pb.TagNumber(126)
-  set sitePreviewToken($14.ResSitePreviewToken value) => $_setField(126, value);
+  set sitePreviewToken($16.ResSitePreviewToken value) => $_setField(126, value);
   @$pb.TagNumber(126)
   $core.bool hasSitePreviewToken() => $_has(77);
   @$pb.TagNumber(126)
   void clearSitePreviewToken() => $_clearField(126);
   @$pb.TagNumber(126)
-  $14.ResSitePreviewToken ensureSitePreviewToken() => $_ensure(77);
+  $16.ResSitePreviewToken ensureSitePreviewToken() => $_ensure(77);
 
   @$pb.TagNumber(127)
-  $15.ResTxGet get txGet => $_getN(78);
+  $11.ResTxGet get txGet => $_getN(78);
   @$pb.TagNumber(127)
-  set txGet($15.ResTxGet value) => $_setField(127, value);
+  set txGet($11.ResTxGet value) => $_setField(127, value);
   @$pb.TagNumber(127)
   $core.bool hasTxGet() => $_has(78);
   @$pb.TagNumber(127)
   void clearTxGet() => $_clearField(127);
   @$pb.TagNumber(127)
-  $15.ResTxGet ensureTxGet() => $_ensure(78);
+  $11.ResTxGet ensureTxGet() => $_ensure(78);
 
   @$pb.TagNumber(128)
-  $15.ResTxPut get txPut => $_getN(79);
+  $11.ResTxPut get txPut => $_getN(79);
   @$pb.TagNumber(128)
-  set txPut($15.ResTxPut value) => $_setField(128, value);
+  set txPut($11.ResTxPut value) => $_setField(128, value);
   @$pb.TagNumber(128)
   $core.bool hasTxPut() => $_has(79);
   @$pb.TagNumber(128)
   void clearTxPut() => $_clearField(128);
   @$pb.TagNumber(128)
-  $15.ResTxPut ensureTxPut() => $_ensure(79);
+  $11.ResTxPut ensureTxPut() => $_ensure(79);
 
   @$pb.TagNumber(129)
-  $15.ResTxPreview get txPreview => $_getN(80);
+  $11.ResTxPreview get txPreview => $_getN(80);
   @$pb.TagNumber(129)
-  set txPreview($15.ResTxPreview value) => $_setField(129, value);
+  set txPreview($11.ResTxPreview value) => $_setField(129, value);
   @$pb.TagNumber(129)
   $core.bool hasTxPreview() => $_has(80);
   @$pb.TagNumber(129)
   void clearTxPreview() => $_clearField(129);
   @$pb.TagNumber(129)
-  $15.ResTxPreview ensureTxPreview() => $_ensure(80);
+  $11.ResTxPreview ensureTxPreview() => $_ensure(80);
 
   @$pb.TagNumber(130)
-  $15.ResTxDebtPay get txDebtPay => $_getN(81);
+  $11.ResTxDebtPay get txDebtPay => $_getN(81);
   @$pb.TagNumber(130)
-  set txDebtPay($15.ResTxDebtPay value) => $_setField(130, value);
+  set txDebtPay($11.ResTxDebtPay value) => $_setField(130, value);
   @$pb.TagNumber(130)
   $core.bool hasTxDebtPay() => $_has(81);
   @$pb.TagNumber(130)
   void clearTxDebtPay() => $_clearField(130);
   @$pb.TagNumber(130)
-  $15.ResTxDebtPay ensureTxDebtPay() => $_ensure(81);
+  $11.ResTxDebtPay ensureTxDebtPay() => $_ensure(81);
 
   @$pb.TagNumber(131)
-  $14.ResSiteQueryRun get siteQueryRun => $_getN(82);
+  $16.ResSiteQueryRun get siteQueryRun => $_getN(82);
   @$pb.TagNumber(131)
-  set siteQueryRun($14.ResSiteQueryRun value) => $_setField(131, value);
+  set siteQueryRun($16.ResSiteQueryRun value) => $_setField(131, value);
   @$pb.TagNumber(131)
   $core.bool hasSiteQueryRun() => $_has(82);
   @$pb.TagNumber(131)
   void clearSiteQueryRun() => $_clearField(131);
   @$pb.TagNumber(131)
-  $14.ResSiteQueryRun ensureSiteQueryRun() => $_ensure(82);
+  $16.ResSiteQueryRun ensureSiteQueryRun() => $_ensure(82);
+
+  @$pb.TagNumber(132)
+  $11.ResExpensePut get expensePut => $_getN(83);
+  @$pb.TagNumber(132)
+  set expensePut($11.ResExpensePut value) => $_setField(132, value);
+  @$pb.TagNumber(132)
+  $core.bool hasExpensePut() => $_has(83);
+  @$pb.TagNumber(132)
+  void clearExpensePut() => $_clearField(132);
+  @$pb.TagNumber(132)
+  $11.ResExpensePut ensureExpensePut() => $_ensure(83);
 }
 
 const $core.bool _omitFieldNames =

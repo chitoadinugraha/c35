@@ -78,6 +78,11 @@ class ExpenseReceiptCard {
     this.paymentMethod = '',
     this.items = const [],
     this.today = const ExpenseTodaySummary(),
+    this.editable = true,
+    this.canEditName = true,
+    this.canEditQty = true,
+    this.canEditPrice = true,
+    this.qtyMode = 'stepper',
   });
 
   final String txId;
@@ -93,6 +98,11 @@ class ExpenseReceiptCard {
   final String paymentMethod;
   final List<ExpenseItemRow> items;
   final ExpenseTodaySummary today;
+  final bool editable;
+  final bool canEditName;
+  final bool canEditQty;
+  final bool canEditPrice;
+  final String qtyMode;
 
   String amountLabel() => expenseFmtIdr(totalMinor);
 
@@ -113,6 +123,11 @@ class ExpenseReceiptCard {
       paymentMethod: body['payment_method']?.toString() ?? '',
       items: rawItems.map((e) => ExpenseItemRow.fromJson(Map<String, dynamic>.from(e as Map))).toList(),
       today: ExpenseTodaySummary.fromJson(today),
+      editable: body['editable'] != false,
+      canEditName: body['can_edit_name'] != false,
+      canEditQty: body['can_edit_qty'] != false,
+      canEditPrice: body['can_edit_price'] != false,
+      qtyMode: body['qty_mode']?.toString() ?? 'stepper',
     );
   }
 }

@@ -16,9 +16,8 @@ c35 follows the **csa workspace pattern**, but crates live under **`servers/`** 
 |-----------|------|-----------|
 | Server | `servers/` | `.cache/server` |
 | Remote agents | `remotes/` | `.cache/c_remote` |
-| Node stats | `node_stats/` | `.cache/node_stats` |
 
-Each workspace has its own `Cargo.toml` and `.cargo/config.toml`.
+Each workspace has its own `Cargo.toml` and `.cargo/config.toml`. Cluster binaries (`server_ai`, `fetcher`, `node_stats`) live in the server workspace.
 
 ## Server workspace
 
@@ -46,6 +45,9 @@ servers/
       mod_site/                  # Phase 8
       mod_tx/                    # Phase 9
   fetcher/                     # thin binary (c35-fetcher Deployment)
+    src/main.rs
+    Cargo.toml
+  node_stats/                  # thin binary (c35-node-stats DaemonSet)
     src/main.rs
     Cargo.toml
   server_ai/                   # thin binary (c35-server Deployment)
@@ -137,7 +139,7 @@ cd remotes && cargo build -p c_remote_windows
 | Script | What it cleans |
 |--------|----------------|
 | `.\cleanup.ps1` | Rust cache + cluster buildkit (both) |
-| `.\_\scripts\dev\cleanup_rust_cache.ps1` | Local `.cache/server`, `.cache/c_remote`, `.cache/node_stats`, `.cache/rust` |
+| `.\_\scripts\dev\cleanup_rust_cache.ps1` | Local `.cache/server`, `.cache/c_remote`, `.cache/rust` |
 | `.\_\scripts\deploy\cleanup_buildkit.ps1` | Cluster buildkit Docker layer cache |
 
 Rust trim (default): stale artifacts older than 30 days (`cargo sweep` when installed, else file-age prune).  
@@ -284,6 +286,7 @@ One reporter pod per k8s node; samples host CPU/RAM/net, OS mounts (`/`, `/var/l
 | Item | Value |
 |------|-------|
 | Namespace | `c35` (or cluster default for ops) |
+| Binary | `c_node_stats` (`servers/node_stats/`) |
 | Subjects | `c35.stats.node.{node_name}`, `c35.stats.volume.{namespace}.{pvc_name}` |
 | Relay | `server_ai` WS `ReqStatsSubscribe` → root Flutter dashboard |
 | Manifests | [`_/deployments/c35-node-stats/`](../deployments/c35-node-stats/) |
@@ -372,7 +375,7 @@ JetStream streams `C35_CHAT_PROMPT`, `C35_DEVICE_TASK`, `C35_TASK_SCHEDULE`. Que
 
 **NATS** — server **2.15**, JetStream on **`emptyDir`** (no PVC). YB is source of truth; `c35_nats` + `nats_boot.rs` hydrate on connect/reconnect. Upgrade: [`_/scripts/deploy/nats_ephemeral_upgrade.ps1`](../scripts/deploy/nats_ephemeral_upgrade.ps1). Crate: `servers/crates/system/nats/`.
 
-**Channel log topics** — worker and server write lifecycle rows to `ai.log` and publish `log.{owner_iid}.{dv}.{topic}` (see [log.md](log.md)). Canonical topic list: `pair_start`, `qr`, `connected`, `disconnected`, `pair_abort`, `pair_expired`, `error`, `msg_received`, `msg_sent`. Worker uses `dv = channel-wa-device`; server channel handlers use `dv = c35-server`. Full writer/when table: `docs/superpowers/plans/2026-09-21-bot-add-channels-deploy-log.md` (Log event catalog).
+**Channel log topics** — worker and server write lifecycle rows to `ai.log` and publish `log.{owner_iid}.{dv}.{topic}` (see [log.md](log.md)). Canonical topic list: `pair_start`, `qr`, `connected`, `disconnected`, `pair_abort`, `pair_expired`, `error`, `msg_received`, `msg_sent`. Worker uses `dv = channel-wa-device`; server channel handlers use `dv = c35-server`. Full writer/when table: `plans/2026-09-21-bot-add-channels-deploy-log.md` (Log event catalog).
 
 ## What we copy from csa_site_published
 

@@ -26,6 +26,7 @@ import "c35/stats.proto";
 import "c35/catalog.proto";
 import "c35/hint.proto";
 import "c35/object.proto";
+import "c35/report.proto";
 
 // HTTP invoke envelope (referral, admin, billing review, …)
 message InvokeReq {
@@ -79,6 +80,8 @@ message InvokeReq {
     ReqBillingTopupGet billing_topup_get = 123;
     ReqBillingAdminAdjust billing_admin_adjust = 124;
     ReqBillingAdminAdjustList billing_admin_adjust_list = 125;
+    ReqAdminLogReport admin_log_report = 126;
+    ReqExpensePut expense_put = 127;
   }
 }
 
@@ -133,6 +136,8 @@ message InvokeRes {
     ResBillingTopupGet billing_topup_get = 123;
     ResBillingAdminAdjust billing_admin_adjust = 124;
     ResBillingAdminAdjustList billing_admin_adjust_list = 125;
+    ResAdminLogReport admin_log_report = 126;
+    ResExpensePut expense_put = 127;
   }
 }
 
@@ -219,6 +224,7 @@ message WsReq {
     ReqTxPreview tx_preview = 81;
     ReqTxDebtPay tx_debt_pay = 82;
     ReqSiteQueryRun site_query_run = 83;
+    ReqExpensePut expense_put = 84;
   }
 }
 
@@ -323,5 +329,6 @@ message WsRes {
     ResTxPreview tx_preview = 129;
     ResTxDebtPay tx_debt_pay = 130;
     ResSiteQueryRun site_query_run = 131;
+    ResExpensePut expense_put = 132;
   }
 }

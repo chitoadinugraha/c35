@@ -11,7 +11,6 @@ use crate::runtime_config::runtime_config_reload;
 pub use crate::catalog_types::LlmModelRow;
 
 pub const SYNC_INTERVAL_SECS: u64 = 30 * 60;
-const ADVISORY_LOCK_KEY: i64 = 842_001;
 
 struct CatalogCache {
     models: Vec<LlmModelRow>,
@@ -28,10 +27,9 @@ pub async fn llm_catalog_init(pool: &PgPool) -> Result<()> {
     llm_catalog_seed(pool).await?;
     if sync_enabled() {
         let _ = crate::catalog_sync::llm_catalog_sync(pool).await;
-    } else {
-        llm_catalog_reload(pool).await?;
-        runtime_config_reload(pool).await;
     }
+    llm_catalog_reload(pool).await?;
+    runtime_config_reload(pool).await;
     Ok(())
 }
 
@@ -221,28 +219,6 @@ fn fallback_models() -> Vec<PromptModelOption> {
         usd_out_per_1m: 0.0,
         supports_thinking: true,
     }]
-}
-
-pub(crate) async fn try_sync_lock(pool: &PgPool) -> Result<bool> {
-    let row: (bool,) = db_retry(pool, || async {
-        sqlx::query_as("SELECT pg_try_advisory_lock($1)")
-            .bind(ADVISORY_LOCK_KEY)
-            .fetch_one(pool)
-            .await
-    })
-    .await?;
-    Ok(row.0)
-}
-
-pub(crate) async fn sync_unlock(pool: &PgPool) -> Result<()> {
-    db_retry(pool, || async {
-        sqlx::query("SELECT pg_advisory_unlock($1)")
-            .bind(ADVISORY_LOCK_KEY)
-            .execute(pool)
-            .await
-    })
-    .await?;
-    Ok(())
 }
 
 pub(crate) async fn upsert_model(pool: &PgPool, m: &LlmModelRow, synced_at: DateTime<Utc>) -> Result<()> {

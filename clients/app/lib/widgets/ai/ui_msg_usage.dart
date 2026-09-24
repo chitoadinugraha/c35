@@ -43,17 +43,18 @@ class UiMsgUsage extends StatelessWidget {
           final price = moneyCostLabel(stats.costUsd, currency: billingCurrency, fxMicroPerUsd: fxMicroPerUsd);
           final modelLabel = stats.model.isNotEmpty && stats.model != 'local' ? traceModelLabel(stats.model) : '';
           final tooltipParts = <String>[
+            if (modelLabel.isNotEmpty) modelLabel,
             if (stats.tokensIn > 0) '${uiFmtGroupedInt(stats.tokensIn)} in',
             if (stats.tokensOut > 0) '${uiFmtGroupedInt(stats.tokensOut)} out',
             if (usageMs.isNotEmpty) usageMs,
             if (price.isNotEmpty) price,
-            if (modelLabel.isNotEmpty) modelLabel,
           ];
           final tooltip = tooltipParts.join(' · ');
           final parts = <Widget>[];
           if (stats.model == 'local' && stats.tokensIn == 0 && stats.tokensOut == 0 && stats.costUsd == 0 && stats.durationMs > 0) {
             _addPart(parts, const Text('local · free', style: _style));
           }
+          if (modelLabel.isNotEmpty) _addPart(parts, Text(modelLabel, style: _style));
           if (stats.tokensIn > 0) {
             _addPart(
               parts,
@@ -82,18 +83,17 @@ class UiMsgUsage extends StatelessWidget {
           }
           if (usageMs.isNotEmpty) _addPart(parts, Text(usageMs, style: _style));
           if (price.isNotEmpty) _addPart(parts, Text(price, style: _style));
-          if (modelLabel.isNotEmpty) _addPart(parts, Text(modelLabel, style: _style));
           final row = Padding(
             padding: const EdgeInsets.only(top: 6),
             child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.center, children: parts),
           );
           final visibleParts = <String>[
             if (stats.model == 'local' && stats.tokensIn == 0 && stats.tokensOut == 0 && stats.costUsd == 0 && stats.durationMs > 0) 'local · free',
+            if (modelLabel.isNotEmpty) modelLabel,
             if (stats.tokensIn > 0) '${uiFmtGroupedInt(stats.tokensIn)} in',
             if (stats.tokensOut > 0) '${uiFmtGroupedInt(stats.tokensOut)} out',
             if (usageMs.isNotEmpty) usageMs,
             if (price.isNotEmpty) price,
-            if (modelLabel.isNotEmpty) modelLabel,
           ];
           final visibleLabel = visibleParts.join(' · ');
           final showTip = tooltip.isNotEmpty && tooltip != visibleLabel && !(visibleParts.length == 1 && visibleParts.first == tooltip);

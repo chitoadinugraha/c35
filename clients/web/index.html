@@ -12,6 +12,10 @@
   <meta name="author" content="AlienAI">
   <meta name="robots" content="index, follow">
   <link rel="canonical" href="https://alienai.id/">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
   <link rel="icon" type="image/svg+xml" href="/alien.svg">
 
   <!-- Open Graph / Facebook -->
@@ -19,7 +23,7 @@
   <meta property="og:url" content="https://alienai.id/">
   <meta property="og:title" content="Alien AI — AI That Works On Its Own">
   <meta property="og:description" content="Reclaim your time. Let AlienAI handle daily repetitive tasks, answer customer chats, organize your files, and connect your devices.">
-  <meta property="og:image" content="https://alienai.id/alien.svg">
+  <meta property="og:image" content="https://alienai.id/apple-touch-icon.png">
   <meta property="og:site_name" content="Alien AI">
   <meta property="og:locale" content="en_US">
   <meta property="og:locale:alternate" content="id_ID">
@@ -29,7 +33,7 @@
   <meta name="twitter:url" content="https://alienai.id/">
   <meta name="twitter:title" content="Alien AI — AI That Works On Its Own">
   <meta name="twitter:description" content="Autonomous multi-bot agent ecosystem combining computer use, cloud browser automation, omnichannel auto-reply, and automated IoT.">
-  <meta name="twitter:image" content="https://alienai.id/alien.svg">
+  <meta name="twitter:image" content="https://alienai.id/apple-touch-icon.png">
 
   <!-- Structured Data (JSON-LD) -->
   <script type="application/ld+json">
@@ -155,10 +159,10 @@
           <div class="flex-1 p-6 rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-xl hover:border-emerald-400/30 transition duration-300 flex flex-col justify-between text-left">
             <div>
               <div class="flex items-center gap-3 mb-2 flex-wrap">
-                <h2 class="text-xl sm:text-2xl font-bold text-white" data-i18n="hero.downloadApp">Download App</h2>
-                <span id="heroAppVersion" class="hidden inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-emerald-500/25 bg-emerald-500/[0.08] text-[11px] leading-none">
-                  <span data-i18n="hero.versionLabel" class="text-slate-400 font-medium">Version:</span>
-                  <span id="heroAppVersionNum" class="text-emerald-300 font-mono font-semibold tabular-nums"></span>
+                <h2 class="text-xl sm:text-2xl font-bold text-white leading-tight" data-i18n="hero.downloadApp">Download App</h2>
+                <span id="heroAppVersion" class="hidden inline-flex items-baseline gap-1 px-2.5 py-1 rounded-lg border border-emerald-500/25 bg-emerald-500/[0.08] text-[11px] leading-none">
+                  <span data-i18n="hero.versionLabel" class="text-slate-400 font-medium leading-none">Version:</span>
+                  <span id="heroAppVersionNum" class="text-emerald-300 font-semibold tabular-nums leading-none"></span>
                 </span>
               </div>
               <p class="text-xs text-slate-400 mb-6 leading-relaxed" data-i18n="hero.appDesc">
@@ -277,10 +281,10 @@
                 </div>
               </div>
 
-              <!-- Browser Remote Control -->
-              <button type="button" class="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs transition flex items-center gap-1.5 border border-white/10">
+              <!-- Automated Web Browser -->
+              <button type="button" onclick="showComingSoon(event)" class="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs transition flex items-center gap-1.5 border border-white/10">
                 <span>🌐</span>
-                <span data-i18n="hero.browser">Browser Remote Control</span>
+                <span id="autoWebBrowserLabel" data-i18n="hero.browser">Automated Web Browser</span>
               </button>
             </div>
           </div>
@@ -443,16 +447,21 @@
       });
     }
 
-    // Auto-detect on boot
-    (function initLang() {
+    // Auto-detect on boot (saved pref > cookie > geo IP > default en)
+    (async function initLang() {
       const urlParams = new URLSearchParams(window.location.search);
       const urlLang = urlParams.get('lang');
       const savedLang = localStorage.getItem('alienai_lang');
       const cookieLang = (document.cookie.match(/alienai_lang=([^;]+)/) || [])[1];
-      const initial = urlLang || savedLang || cookieLang || 'en';
-      if (initial !== 'en') {
-        changeLanguage(initial === 'id' ? 'id' : 'en');
+      let initial = urlLang || savedLang || cookieLang;
+      if (!initial) {
+        try {
+          const res = await fetch('/locale/detect');
+          if (res.ok) { const d = await res.json(); initial = d.lang; }
+        } catch (_) {}
       }
+      const lang = initial === 'id' ? 'id' : 'en';
+      if (lang !== 'en') changeLanguage(lang);
     })();
 
     // Dropdown toggling logic for download action cards
@@ -495,6 +504,16 @@
       } catch (_) {}
     }
     loadHeroAppVersion();
+
+    function showComingSoon(event) {
+      if (event) event.stopPropagation();
+      const label = document.getElementById('autoWebBrowserLabel');
+      if (!label) return;
+      const dict = localeCache[currentLang] || {};
+      const orig = dict['hero.browser'] || label.innerText;
+      label.innerText = dict['hero.comingSoon'] || 'Coming Soon';
+      setTimeout(() => { label.innerText = orig; }, 2000);
+    }
 
     // Copy PowerShell 1-Liner command for Windows Remote Control
     function copyPs1Command(event) {

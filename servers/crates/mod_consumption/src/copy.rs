@@ -25,13 +25,54 @@ pub fn food_log_headline(saved: bool, duplicate: bool, items: &[ConsumptionItem]
     }
 }
 
-pub fn food_log_coach(after: i32, goal: i32, duplicate_logged_again: bool, locale: &str) -> String {
+fn food_observation(items: &[ConsumptionItem], locale: &str) -> String {
     let id = locale.to_lowercase().starts_with("id");
+    let name = food_name_label(items, locale);
+    let fat: i32 = items.iter().map(|i| ((i.fat as f32) * i.qty).round() as i32).sum();
+    let protein: i32 = items.iter().map(|i| ((i.protein as f32) * i.qty).round() as i32).sum();
+    if items.len() > 1 {
+        return if id {
+            format!("{name} — beberapa item terlihat enak. Total lemak sekitar {fat}g.")
+        } else {
+            format!("{name} — a few tasty-looking items. About {fat}g fat total.")
+        };
+    }
+    if fat <= 10 {
+        return if id {
+            format!("{name} kelihatan enak, lemaknya juga terlihat ringan ({fat}g).")
+        } else {
+            format!("{name} looks tasty, and the fat seems pretty light ({fat}g).")
+        };
+    }
+    if fat >= 25 {
+        return if id {
+            format!("{name} kelihatan menggoda — lemaknya agak tinggi ({fat}g), nikmati secukupnya ya.")
+        } else {
+            format!("{name} looks indulgent — fat's a bit high ({fat}g), enjoy in moderation.")
+        };
+    }
+    if protein >= 20 {
+        return if id {
+            format!("{name} kelihatan enak dan proteinnya lumayan ({protein}g) — bagus buat kenyang.")
+        } else {
+            format!("{name} looks good and packs decent protein ({protein}g) — should keep you full.")
+        };
+    }
+    if id {
+        format!("{name} kelihatan enak — porsinya pas untuk sekali makan.")
+    } else {
+        format!("{name} looks tasty — a reasonable portion for one meal.")
+    }
+}
+
+pub fn food_log_coach(items: &[ConsumptionItem], after: i32, goal: i32, duplicate_logged_again: bool, locale: &str) -> String {
+    let id = locale.to_lowercase().starts_with("id");
+    let observation = food_observation(items, locale);
     if duplicate_logged_again {
         return if id {
-            "Catatan kedua hari ini — jangan lupa hitung total kalorinya ya.".into()
+            format!("{observation} Catatan kedua hari ini — jangan lupa hitung total kalorinya ya.")
         } else {
-            "Logged again today — keep an eye on your running total.".into()
+            format!("{observation} Logged again today — keep an eye on your running total.")
         };
     }
     let pct = if goal > 0 {
@@ -41,23 +82,19 @@ pub fn food_log_coach(after: i32, goal: i32, duplicate_logged_again: bool, local
     };
     if after > goal {
         return if id {
-            format!("Enak banget — tapi hari ini sudah {pct}% dari target kalori. Pelan-pelan ya.")
+            format!("{observation} Hari ini sudah {pct}% dari target kalori — pelan-pelan ya.")
         } else {
-            format!("Looks great — you're at {pct}% of today's calorie goal. Easy does it.")
+            format!("{observation} You're at {pct}% of today's calorie goal — easy does it.")
         };
     }
     if pct >= 85 {
         return if id {
-            "Hampir mentok target hari ini — sisanya pilih yang ringan ya.".into()
+            format!("{observation} Hampir mentok target hari ini — sisanya pilih yang ringan ya.")
         } else {
-            "You're close to today's goal — keep the rest of the day light.".into()
+            format!("{observation} You're close to today's goal — keep the rest of the day light.")
         };
     }
-    if id {
-        "Mantap! Porsi ini masih masuk akal buat hari ini.".into()
-    } else {
-        "Nice — this portion still fits your day pretty well.".into()
-    }
+    observation
 }
 
 pub fn today_recap_coach(glance: &ConsumptionGlance, locale: &str) -> String {

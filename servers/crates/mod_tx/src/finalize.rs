@@ -101,8 +101,17 @@ fn tx_time_ms(tx: &Tx) -> i64 {
 
 fn tx_compute_items(tx: &mut Tx) {
     for item in &mut tx.items {
-        let gross = item.price * item.qty as i64;
-        item.total_qty = item.qty;
+        let duration_multiplier: i64 = if !item.reservations.is_empty() {
+            item.reservations
+                .iter()
+                .map(|r| r.duration_qty.max(1) as i64)
+                .sum::<i64>()
+                .max(1)
+        } else {
+            1
+        };
+        let gross = item.price * (item.qty as i64) * duration_multiplier;
+        item.total_qty = item.qty * (duration_multiplier as i32);
         item.total_price = gross;
         if item.total_discount == 0 && item.total_tax == 0 {
             item.total_net = gross;

@@ -23,7 +23,11 @@ class InFraction extends StatelessWidget {
     super.key,
     required this.value,
     this.onChanged,
+    this.onDelete,
+    this.deleting = false,
+    this.deleteTooltip,
     this.labelText = 'Porsi',
+    this.compact = false,
     this.decoration,
     this.maxNum = 30,
     this.maxDen = 12,
@@ -31,7 +35,11 @@ class InFraction extends StatelessWidget {
 
   final double value;
   final ValueChanged<double>? onChanged;
+  final VoidCallback? onDelete;
+  final bool deleting;
+  final String? deleteTooltip;
   final String? labelText;
+  final bool compact;
   final InputDecoration? decoration;
   final int maxNum;
   final int maxDen;
@@ -60,14 +68,38 @@ class InFraction extends StatelessWidget {
         onTap: onChanged == null ? null : () => _open(context),
         borderRadius: BorderRadius.circular(UiInputDecoration.kRadius),
         child: InputDecorator(
-          decoration: decoration ?? UiInputDecoration.of(context, labelText: labelText),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: onChanged == null ? cs.onSurface.withValues(alpha: 0.55) : null,
-            ),
+          decoration: decoration ??
+              UiInputDecoration.of(
+                context,
+                labelText: compact ? null : labelText,
+                isDense: compact,
+                contentPadding: compact ? const EdgeInsets.symmetric(horizontal: 6, vertical: 4) : null,
+              ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: onChanged == null ? cs.onSurface.withValues(alpha: 0.55) : null,
+                  ),
+                ),
+              ),
+              if (onDelete != null)
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                  tooltip: deleteTooltip,
+                  icon: deleting
+                      ? SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: cs.error))
+                      : Icon(Icons.delete_outline_rounded, size: 15, color: cs.onSurface.withValues(alpha: 0.55)),
+                  onPressed: deleting ? null : onDelete,
+                ),
+            ],
           ),
         ),
       ),
@@ -229,7 +261,7 @@ class _QtyFracChips extends StatelessWidget {
   final void Function(int num, int den) onSelected;
 
   static const _common = <(int, int, String)>[
-    (0, 1, 'Bulat'),
+    (0, 1, '1'),
     (1, 2, '½'),
     (1, 4, '¼'),
     (3, 4, '¾'),

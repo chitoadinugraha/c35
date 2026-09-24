@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package c35;
+
+import "c35/collection.proto";
+
+enum FieldType {
+  FIELD_TYPE_UNSPECIFIED = 0;
+  FIELD_TYPE_TEXT = 1;
+  FIELD_TYPE_INT = 2;
+  FIELD_TYPE_MONEY = 3;
+  FIELD_TYPE_BOOL = 4;
+  FIELD_TYPE_PIC = 5;
+  FIELD_TYPE_JSON = 6;
+  FIELD_TYPE_REF = 7;
+  FIELD_TYPE_TS = 8;
+}
+
+message Field {
+  string key = 1;
+  string label = 2;
+  string desc = 3;
+  FieldType type = 4;
+  bool optional = 5;
+  string def = 6;
+  string ref_collection = 7;
+  string group = 8;
+}

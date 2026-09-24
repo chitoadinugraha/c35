@@ -387,3 +387,23 @@ message ReqSiteGuestOrderGet {
 message ResSiteGuestOrderGet {
   Tx tx = 1;
 }
+
+message ExpenseItemInput {
+  string name = 1;
+  string name_id = 2;
+  float qty = 3;
+  int64 price_minor = 4;
+  int64 total_minor = 5;
+  int64 obj_id = 6;
+}
+
+message ReqExpensePut {
+  int64 tx_id = 1;
+  repeated ExpenseItemInput items = 2;
+  int64 deleted_ts_ms = 3;
+}
+
+message ResExpensePut {
+  int64 tx_id = 1;
+  string blocks_json = 2;
+}

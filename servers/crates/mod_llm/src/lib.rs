@@ -5,6 +5,7 @@ mod catalog_sync;
 mod fetch_catalog;
 mod catalog_types;
 mod cf_gateway;
+mod cf_image;
 mod embed_gemini;
 mod llm_catalog;
 mod model_catalog;
@@ -15,6 +16,7 @@ use chrono::Utc;
 use sqlx::PgPool;
 
 pub use cf_gateway::cf_chat_generate;
+pub use cf_image::{cf_grok_image_run, cf_image_provider_enabled};
 pub use embed_gemini::embed_text;
 pub use model_catalog::{
     model_chain_for_slug, model_is_alien, model_log_label, model_resolve_target, ModelTarget,

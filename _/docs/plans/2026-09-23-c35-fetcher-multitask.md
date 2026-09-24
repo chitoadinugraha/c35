@@ -103,7 +103,7 @@ message FetchLlmCatalogPush {
 **Interfaces — consumes:** `fetcher_run`, `FetchCtx` from Track A.
 
 - [ ] **Step 1:** `fetcher/Cargo.toml` — package `server_fetcher`, bin `c35_fetcher`, deps: `mod_fetch`, `c35_store`, `c35_nats`, `c35_trace`, `tokio`, `dotenvy`
-- [ ] **Step 2:** `main.rs` — load env, connect pool + NATS (copy pattern from `node_stats/c_node_stats/src/main.rs` + `server_ai/src/boot.rs`), build `FetchCtx`, call `fetcher_run(ctx, vec![])` 
+- [ ] **Step 2:** `main.rs` — load env, connect pool + NATS (copy pattern from `servers/node_stats/src/main.rs` + `server_ai/src/boot.rs`), build `FetchCtx`, call `fetcher_run(ctx, vec![])` 
 - [ ] **Step 3:** `.env.example` — `YB_*`, `NATS_*`, `OPENEXCHANGERATES_APP_ID`, `FX_MARKUP_BPS=1000`, `GEMINI_API_KEY`, `RUST_LOG=info`
 - [ ] **Step 4:** `cd servers && cargo build -p server_fetcher`
 

@@ -3,8 +3,11 @@ use super::{query_def_get, query_def_list};
 const SEED_QUERY_IDS: &[&str] = &[
     "product.list",
     "product.stock_status",
+    "product.stock",
     "tx.sales_summary",
     "tx.profit_summary",
+    "tx.top_products",
+    "tx.product_compare",
 ];
 
 #[test]

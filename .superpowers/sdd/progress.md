@@ -1,6 +1,6 @@
 # SDD Progress — bot-add-channels-deploy-log
 
-Plan: docs/superpowers/plans/2026-09-21-bot-add-channels-deploy-log.md
+Plan: _/docs/plans/2026-09-21-bot-add-channels-deploy-log.md
 Base: 9a6cdb0fb9335cc1e7bd2d857ee60541c48eac6d
 Branch: main
 

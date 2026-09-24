@@ -19,6 +19,10 @@ pub async fn pair_until_claimed(
     let device_name = device_name();
 
     loop {
+        if ui.user_requested_quit() {
+            return Ok(());
+        }
+
         let register = tokio::spawn({
             let base_url = base_url.clone();
             let device_name = device_name.clone();
@@ -43,9 +47,19 @@ pub async fn pair_until_claimed(
         };
 
         ui.set_code(&pending.display_code, pending.expires_in_sec);
+        tracing::info!(
+            code = %pending.display_code,
+            expires_sec = pending.expires_in_sec,
+            "==> [PAIRING REQUIRED] Enter code '{}' in Alien AI -> Devices -> Pair with Code",
+            pending.display_code
+        );
         let deadline = pending.deadline();
 
         loop {
+            if ui.user_requested_quit() {
+                return Ok(());
+            }
+
             tokio::select! {
                 _ = tokio::time::sleep(Duration::from_secs(2)) => {}
                 action = tray_rx.recv() => match action {
@@ -55,6 +69,10 @@ pub async fn pair_until_claimed(
                     }
                     Some(TrayAction::Unpair) | None => {}
                 }
+            }
+
+            if ui.user_requested_quit() {
+                return Ok(());
             }
 
             let poll = match pair_poll(&base_url, &pending.secret).await {
@@ -72,6 +90,10 @@ pub async fn pair_until_claimed(
             } = poll
             {
                 ui.set_status("Device paired. Starting remote session…");
+                tracing::info!(
+                    device_iid = device_iid,
+                    "==> [PAIRED SUCCESSFULLY] Device claimed! Encrypting credentials and starting remote session"
+                );
                 session_key_save(&session_key, device_iid)?;
                 let _ = crate::startup::set_autostart_enabled(true);
                 ui.close();
@@ -79,6 +101,7 @@ pub async fn pair_until_claimed(
             }
 
             if pair_should_reroll(&poll, deadline, std::time::Instant::now()) {
+                tracing::info!("==> [PAIRING CODE EXPIRED] Requesting a new pairing code…");
                 ui.set_connecting();
                 ui.set_status("Code expired. Connecting for a new code…");
                 break;
@@ -87,7 +110,7 @@ pub async fn pair_until_claimed(
     }
 }
 
-fn device_name() -> String {
+pub fn device_name() -> String {
     #[cfg(target_os = "windows")]
     {
         if let Ok(name) = std::env::var("COMPUTERNAME") {

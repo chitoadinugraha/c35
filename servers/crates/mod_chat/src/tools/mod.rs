@@ -4,6 +4,7 @@ pub mod definition;
 pub mod dispatcher;
 pub mod egress_http;
 pub mod img;
+pub mod image_tier;
 pub mod macros;
 pub mod web;
 
@@ -23,9 +24,9 @@ use crate::mention_context::MentionContext;
 use builtin::{
     ComputerUseDelegateTool, ConsumptionAddTool, ConsumptionDeleteTool, ConsumptionTodayTool,
     ConsumptionUpdateTool, DelegateRunTool, DeviceCommandTool, DeviceInputTool, DeviceScreenshotTool,
-    ExpenseAddTool, ExpenseDeleteTool, ExpenseSummaryTool, ImgGenerateTool, ReferralCodeDeleteTool,
+    ExpenseAddTool, ExpenseDeleteTool, ExpenseSummaryTool, ImgEditTool, ImgGenerateTool, ReferralCodeDeleteTool,
     ReferralCodeListTool, ReferralCodePutTool, ReferralTreeGetTool, SiteContactPutTool,
-    SiteDraftPutTool, SiteObjectPutTool, SiteProductPutTool, SitePublishTool, SiteQueryRunTool,
+    SiteDraftPutTool, SiteObjectPutTool, SiteProductPatchTool, SiteProductPutTool, SitePublishTool, SiteQueryRunTool,
     SiteTxDebtPayTool, SiteTxListTool, SiteTxPreviewTool, SiteTxPutTool, WebResearchTool,
     WebSearchTool, WebVisitTool,
 };
@@ -80,6 +81,8 @@ pub struct TurnCtx<'a> {
     pub chat_id: i64,
     pub site_iid: Option<i64>,
     pub mention: MentionContext,
+    pub mention_ids: &'a [String],
+    pub user_text: &'a str,
     pub locale: &'a str,
     pub attachments_json: &'a str,
     pub req_id: &'a str,
@@ -93,6 +96,7 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(WebVisitTool));
     dispatcher.register(Arc::new(WebResearchTool));
     dispatcher.register(Arc::new(ImgGenerateTool));
+    dispatcher.register(Arc::new(ImgEditTool));
     dispatcher.register(Arc::new(ConsumptionAddTool));
     dispatcher.register(Arc::new(ConsumptionTodayTool));
     dispatcher.register(Arc::new(ConsumptionUpdateTool));
@@ -106,6 +110,7 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(SiteDraftPutTool));
     dispatcher.register(Arc::new(SitePublishTool));
     dispatcher.register(Arc::new(SiteProductPutTool));
+    dispatcher.register(Arc::new(SiteProductPatchTool));
     dispatcher.register(Arc::new(SiteContactPutTool));
     dispatcher.register(Arc::new(SiteObjectPutTool));
     dispatcher.register(Arc::new(SiteQueryRunTool));
@@ -171,6 +176,8 @@ fn tool_context_from_turn(client: Client, turn: &TurnCtx<'_>) -> ToolContext {
         turn.chat_id,
         turn.site_iid,
         turn.mention.clone(),
+        turn.mention_ids.to_vec(),
+        turn.user_text,
         turn.locale,
         turn.attachments_json,
         turn.req_id,
@@ -194,6 +201,8 @@ pub async fn cluster_tool_exec(
             0,
             None,
             MentionContext::empty(),
+            vec![],
+            "",
             "en",
             "",
             "",

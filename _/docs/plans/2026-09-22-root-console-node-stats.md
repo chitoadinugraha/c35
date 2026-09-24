@@ -123,7 +123,9 @@ Wire into `wire.proto` `WsReq` / `WsRes` + `InvokeReq` for `ReqAdminLogList` onl
 
 ## File map
 
-### New — Rust workspace `node_stats/`
+> **Note (2026-09-24):** `c_node_stats` now lives in `servers/node_stats/` (server workspace member), not a root `node_stats/` workspace.
+
+### New — `servers/node_stats/`
 
 ```
 node_stats/
@@ -357,7 +359,7 @@ Network  In 10 MB/s  Out 90 MB/s
 
 ```powershell
 cd servers && cargo build -p server_ai && cargo test -p c35_mod_admin
-cd node_stats && cargo build
+cd servers && cargo build
 cd clients/app && flutter analyze
 # cluster: kubectl apply -f _/deployments/c35-node-stats/
 # nats sub 'c35.stats.>' --count=5

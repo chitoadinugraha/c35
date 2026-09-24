@@ -1,3 +1,5 @@
+import 'package:alienai_c35/c/session.dart';
+import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/ui/ui_error_fallback.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -30,6 +32,17 @@ void main() {
     }
   });
 
+  testWidgets('connection errors do not block the app overlay', (tester) async {
+    uiErrorClear();
+    addTearDown(uiErrorClear);
+    await tester.pumpWidget(const MaterialApp(home: UiErrorHost(child: Text('alive'))));
+    uiErrorPut('connection closed');
+    await tester.pump();
+    expect(uiError.value, isNull);
+    expect(find.text('Something went wrong'), findsNothing);
+    expect(find.text('alive'), findsOneWidget);
+  });
+
   testWidgets('retry clears platform error overlay', (tester) async {
     uiErrorClear();
     addTearDown(uiErrorClear);
@@ -41,6 +54,21 @@ void main() {
     await tester.pump();
     expect(find.text('Something went wrong'), findsNothing);
     expect(find.text('alive'), findsOneWidget);
+  });
+
+  testWidgets('fallback maps websocket errors to cannot connect copy', (tester) async {
+    const raw = 'WebSocketChannelException: Connection closed before full header was received';
+    await tester.pumpWidget(MaterialApp(home: UiErrorFallback(error: raw)));
+    expect(find.text(uiCannotConnectToAlienAi), findsOneWidget);
+    expect(find.textContaining('WebSocketChannelException'), findsNothing);
+  });
+
+  testWidgets('fallback shows root detail code block', (tester) async {
+    Session.instance.globalRoles = const ['root'];
+    addTearDown(() => Session.instance.globalRoles = const []);
+    await tester.pumpWidget(MaterialApp(home: UiErrorFallback(error: StateError('boom'))));
+    expect(find.text('Root only'), findsOneWidget);
+    expect(find.textContaining('boom'), findsOneWidget);
   });
 
   testWidgets('error host overlays fallback without removing the app', (tester) async {

@@ -873,6 +873,8 @@ dependencies = [
 name = "c35_wire_http"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "async-nats",
  "axum",
  "c35_ctx",
  "c35_mod_admin",
@@ -931,6 +933,20 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
+]
+
+[[package]]
+name = "c_node_stats"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-nats",
+ "c35_proto",
+ "libc",
+ "prost 0.13.5",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

@@ -1,0 +1,15 @@
+# Shared YB data volume (master + tserver subPaths). OCI oci-bv minimum 50Gi.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: yb-data
+  namespace: yugabyte
+  labels:
+    app.kubernetes.io/part-of: yugabyte
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: oci-bv
+  resources:
+    requests:
+      storage: 50Gi

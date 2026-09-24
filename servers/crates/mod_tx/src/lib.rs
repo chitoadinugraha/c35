@@ -23,6 +23,7 @@ pub use tx_json::{tx_debt_payment_json_parse, tx_json_parse, tx_result_json, tx_
 pub use tx_debt_pay::tx_debt_pay;
 pub use tx_get::tx_get;
 pub use tx_list::tx_list;
+pub use load::tx_load;
 pub use tx_preview::tx_preview;
 pub use tx_delete::tx_delete;
 pub use tx_owner_resolve::tx_owner_resolve;

@@ -248,6 +248,34 @@ fn mem_bytes_linux(host_prefix: &str) -> Result<(u64, u64)> {
     Ok((total.saturating_sub(available), total))
 }
 
+pub fn swap_bytes(host_prefix: &str) -> (u64, u64) {
+    #[cfg(target_os = "linux")]
+    {
+        swap_bytes_linux(host_prefix).unwrap_or((0, 0))
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = host_prefix;
+        (0, 0)
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn swap_bytes_linux(host_prefix: &str) -> Result<(u64, u64)> {
+    let path = format!("{host_prefix}/proc/meminfo");
+    let text = fs::read_to_string(&path).with_context(|| format!("read {path}"))?;
+    let mut total = 0u64;
+    let mut free = 0u64;
+    for line in text.lines() {
+        if let Some(v) = line.strip_prefix("SwapTotal:") {
+            total = parse_kib(v)?;
+        } else if let Some(v) = line.strip_prefix("SwapFree:") {
+            free = parse_kib(v)?;
+        }
+    }
+    Ok((total.saturating_sub(free), total))
+}
+
 #[cfg(target_os = "linux")]
 fn parse_kib(raw: &str) -> Result<u64> {
     let kb: u64 = raw

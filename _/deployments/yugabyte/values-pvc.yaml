@@ -1,0 +1,71 @@
+# Helm values for yb release — shared PVC yb-data (subPath master / tserver).
+# Apply: helm upgrade yb yugabyte/yugabyte --version 2026.1.1 -n yugabyte -f values-pvc.yaml
+authCredentials:
+  ysql:
+    passwordSecretName: yb-ysql-auth
+enableLoadBalancer: false
+nodeSelector:
+  kubernetes.io/hostname: 10.0.91.240
+partition:
+  master: 0
+  tserver: 0
+replicas:
+  master: 1
+  tserver: 1
+resource:
+  master:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 100m
+      memory: 384Mi
+  tserver:
+    limits:
+      cpu: 2000m
+      memory: 6Gi
+    requests:
+      cpu: 500m
+      memory: 3Gi
+service:
+  endpoints:
+    - name: ysql
+      port: 5433
+      type: ClusterIP
+storage:
+  ephemeral: true
+  master:
+    count: 1
+    size: 10Gi
+  tserver:
+    count: 1
+    size: 20Gi
+master:
+  extraVolumeMounts:
+    - mountPath: /mnt/disk0
+      name: datadir0
+      subPath: master
+  extraVolumes:
+    - name: datadir0
+      persistentVolumeClaim:
+        claimName: yb-data
+  tolerations:
+    - effect: NoSchedule
+      key: node.kubernetes.io/disk-pressure
+      operator: Exists
+tserver:
+  extraEnv:
+    - name: YSQL_DB
+      value: yugabyte
+  extraVolumeMounts:
+    - mountPath: /mnt/disk0
+      name: datadir0
+      subPath: tserver
+  extraVolumes:
+    - name: datadir0
+      persistentVolumeClaim:
+        claimName: yb-data
+  tolerations:
+    - effect: NoSchedule
+      key: node.kubernetes.io/disk-pressure
+      operator: Exists

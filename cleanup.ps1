@@ -9,7 +9,7 @@ param(
     [switch]$SkipRust,
     [switch]$SkipBuildkit,
     [switch]$Full,
-    [int]$Days = 30
+    [int]$Days = 1
 )
 
 $ErrorActionPreference = 'Stop'

@@ -4,6 +4,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{fmt, EnvFilter};
 
 static LOG_SESSION: OnceLock<PathBuf> = OnceLock::new();
@@ -91,13 +93,24 @@ pub fn init() {
     let path = log_session_path();
     let filter = EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| EnvFilter::new("info,c_remote_core=debug,c_remote_windows=debug"));
+
+    let stdout_layer = fmt::layer()
+        .with_writer(std::io::stdout)
+        .with_target(false)
+        .compact();
+
     match OpenOptions::new().create(true).append(true).open(&path) {
         Ok(file) => {
-            fmt()
-                .with_env_filter(filter)
+            let file_layer = fmt::layer()
                 .with_writer(Mutex::new(file))
-                .with_ansi(false)
+                .with_ansi(false);
+
+            tracing_subscriber::registry()
+                .with(filter)
+                .with(stdout_layer)
+                .with(file_layer)
                 .init();
+
             tracing::info!(
                 path = %path.display(),
                 pid = std::process::id(),
@@ -105,8 +118,11 @@ pub fn init() {
             );
         }
         Err(e) => {
-            fmt().with_env_filter(filter).init();
-            tracing::warn!(error = %e, path = %path.display(), "remote agent log file");
+            tracing_subscriber::registry()
+                .with(filter)
+                .with(stdout_layer)
+                .init();
+            tracing::warn!(error = %e, path = %path.display(), "remote agent log file unavailable, using stdout only");
         }
     }
 }

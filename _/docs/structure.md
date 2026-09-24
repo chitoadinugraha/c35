@@ -14,7 +14,6 @@ c35/
     scripts/                  # protoc, deploy helpers
   servers/                    # Rust server workspace → .cache/server
   remotes/                    # Rust agent workspace → .cache/c_remote (Phase 6)
-  node_stats/                 # Node metrics daemon → .cache/node_stats
   clients/app/                # Flutter (Phase 2)
   .cache/                     # gitignored cargo targets
   spec.md                     # project spec — entry index → _/docs/
@@ -48,6 +47,9 @@ servers/
       config.rs
       boot.rs
   fetcher/                    # thin binary — periodic external sync (c35-fetcher)
+    Cargo.toml
+    src/main.rs
+  node_stats/                 # thin binary — node metrics DaemonSet (c35-node-stats)
     Cargo.toml
     src/main.rs
   crates/
@@ -181,7 +183,7 @@ Agent UI is **Rust-only** (no Flutter on device). Pair window: port `cs_bots/age
 
 Proto: path-dep `../servers/crates/proto` or `_/scripts/protoc.ps1`.
 
-Implementation plan: [`docs/superpowers/plans/2026-09-21-remote-agent-pairing.md`](../../docs/superpowers/plans/2026-09-21-remote-agent-pairing.md).
+Implementation plan: [`plans/2026-09-21-remote-agent-pairing.md`](plans/2026-09-21-remote-agent-pairing.md).
 
 ## Config & env
 
@@ -194,7 +196,10 @@ Implementation plan: [`docs/superpowers/plans/2026-09-21-remote-agent-pairing.md
 | `PG_MIN_CONNECTIONS` | Warm idle connections (default `4`) |
 | `PG_SLOW_STATEMENT_MS` | Log SQL slower than this at `WARN` via `sqlx::query` (default `1000`) |
 | `PG_SLOW_ACQUIRE_MS` | Log pool acquire slower than this (default `3000`) |
+| `PROMPT_RUN_MAX_CONCURRENT` | Max parallel JetStream prompt jobs per `server_ai` pod (default `8`) |
 | `C35_JWT_SECRET` | WS `?jwt=` validation |
+
+**Slow SQL:** app logs via `sqlx::query` when `duration >= PG_SLOW_STATEMENT_MS`. On pool saturation, `server_ai` also dumps `pg_stat_activity` in-flight queries and active `ai.prompt_run` rows (req_id + prompt preview). Yugabyte YSQL (Postgres-compatible) also supports cluster-side `log_min_duration_statement` and the `pg_stat_statements` extension — see [Yugabyte slow queries](https://docs.yugabyte.com/preview/explore/observability/pg-stat-statements/).
 | `NATS_URL` | optional Phase 5+ |
 
 See `servers/server_ai/.env.example`.

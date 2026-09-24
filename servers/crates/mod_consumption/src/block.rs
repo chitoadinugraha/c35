@@ -1,6 +1,6 @@
 use serde_json::{json, Value};
 
-use super::copy::{food_log_coach, food_log_headline};
+use super::copy::food_log_headline;
 use super::fingerprint::meal_kcal_total;
 use super::types::{ConsumptionCardBody, ConsumptionFood, ConsumptionItem, ConsumptionTodaySummary};
 
@@ -14,14 +14,11 @@ pub fn consumption_food_block(
     after: i32,
     goal: i32,
     meals_logged: i32,
+    coach: &str,
 ) -> Value {
     let meal_kcal = meal_kcal_total(&food.items);
     let headline = food_log_headline(saved, duplicate && !saved, &food.items, meal_kcal, locale);
-    let coach = if saved {
-        food_log_coach(after, goal, duplicate && saved, locale)
-    } else {
-        String::new()
-    };
+    let coach = coach.trim().to_string();
     let body = ConsumptionCardBody {
         consumption_id: food.id.clone(),
         headline,

@@ -217,6 +217,26 @@ Full spec: [context-compaction.md](context-compaction.md).
 
 ---
 
+## Web Grounding & Citations
+
+Ground factual queries using live web search and deep content scraping:
+
+| Tool | Implementation | Role |
+|------|----------------|------|
+| `web.search` | [`tools/web.rs`](../servers/crates/mod_chat/src/tools/web.rs) | Live meta-search via SearXNG (`format=json`), routed through `c35-proxy-cf-warp` |
+| `web.visit` | [`tools/builtin/web_visit.rs`](../servers/crates/mod_chat/src/tools/builtin/web_visit.rs) | Fetch HTTP/HTTPS URL, strip HTML tags/scripts, extract clean readable text |
+| `web.research` | [`tools/builtin/web_research.rs`](../servers/crates/mod_chat/src/tools/builtin/web_research.rs) | Combined deep research: queries SearXNG, deep-reads top pages via `web.visit`, synthesizes dossier |
+
+### Citation Chips (`UiCitationChips`)
+
+Following the principle *"No schema migration. Tools and citations reconstruct from `ai.log` by `req_id`"*:
+1. Tool executions (`web.search`, `web.visit`, `web.research`) log structured JSON payloads to `ai.log` (`topic = tool_result`).
+2. The client fetches traces via `tracePrefetch(reqId)` (polled live during prompt turn, pre-fetched for historical messages).
+3. [`citationsFromTraceLogs`](../clients/app/lib/c/trace/trace_view.dart) extracts URLs, titles, and snippets, deduplicating by domain host.
+4. [`UiCitationChips`](../clients/app/lib/widgets/ai/ui_citation_chips.dart) renders interactive source chips featuring Google S2 Favicon integration and external URL launching.
+
+---
+
 ## Related docs
 
 - Shell UI: [ui.md](ui.md)

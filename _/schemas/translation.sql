@@ -34,6 +34,8 @@ INSERT INTO ai.translation (lang, key, category, text) VALUES
 -- tool.img.generate.*
 ('en', 'tool.img.generate.calling', 'tool', 'Generating image…'),
 ('en', 'tool.img.generate.done', 'tool', 'Generated image'),
+('en', 'tool.img.edit.calling', 'tool', 'Editing image…'),
+('en', 'tool.img.edit.done', 'tool', 'Edited image'),
 -- tool.consumption.add.*
 ('en', 'tool.consumption.add.calling', 'tool', 'Logging food…'),
 ('en', 'tool.consumption.add.done', 'tool', 'Logged food'),
@@ -52,6 +54,8 @@ INSERT INTO ai.translation (lang, key, category, text) VALUES
 -- mention.research.*
 ('en', 'mention.research.label', 'mention', 'Research'),
 ('en', 'mention.research.caption', 'mention', 'Deep web research'),
+('en', 'mention.image_high.label', 'mention', 'Image HD'),
+('en', 'mention.image_high.caption', 'mention', 'Pro Flash Image (2K)'),
 -- mention.image.*
 ('en', 'mention.image.label', 'mention', 'Image'),
 ('en', 'mention.image.caption', 'mention', 'Generate an image'),
@@ -85,6 +89,8 @@ INSERT INTO ai.translation (lang, key, category, text) VALUES
 ('id', 'tool.web.research.done', 'tool', 'Teliti'),
 ('id', 'tool.img.generate.calling', 'tool', 'Membuat gambar…'),
 ('id', 'tool.img.generate.done', 'tool', 'Gambar dibuat'),
+('id', 'tool.img.edit.calling', 'tool', 'Mengedit gambar…'),
+('id', 'tool.img.edit.done', 'tool', 'Gambar diedit'),
 ('id', 'tool.consumption.add.calling', 'tool', 'Mencatat makanan…'),
 ('id', 'tool.consumption.add.done', 'tool', 'Makanan tercatat'),
 ('id', 'tool.consumption.today.calling', 'tool', 'Mengecek makan hari ini…'),
@@ -97,6 +103,8 @@ INSERT INTO ai.translation (lang, key, category, text) VALUES
 ('id', 'tool.expense.delete.done', 'tool', 'Pengeluaran dihapus'),
 ('id', 'mention.research.label', 'mention', 'Riset'),
 ('id', 'mention.research.caption', 'mention', 'Riset web mendalam'),
+('id', 'mention.image_high.label', 'mention', 'Gambar HD'),
+('id', 'mention.image_high.caption', 'mention', 'Flash Image pro (2K)'),
 ('id', 'mention.image.label', 'mention', 'Image'),
 ('id', 'mention.image.caption', 'mention', 'Buat gambar'),
 ('id', 'mention.memorize.label', 'mention', 'Ingat'),

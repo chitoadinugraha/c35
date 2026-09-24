@@ -177,7 +177,7 @@ pub async fn update_download(_base_url: &str, rel: &ReleaseRes) -> Result<(), an
     }
     std::fs::create_dir_all(&staging)?;
 
-    info!(version = rel.version, url = %rel.url, "downloading agent update in background");
+    info!(version = rel.version, url = %rel.url, "==> [AUTO-UPDATE DOWNLOADING] Fetching update bundle in background");
     let bytes = reqwest::Client::new().get(&rel.url).send().await?.bytes().await?;
     if let Some(sz) = rel.size {
         if sz > 0 && bytes.len() as i64 != sz {
@@ -195,7 +195,7 @@ pub async fn update_download(_base_url: &str, rel: &ReleaseRes) -> Result<(), an
     extract_zip(&zip_path, &staging)?;
     let _ = std::fs::remove_file(&zip_path);
     std::fs::write(ready_marker(rel.version), b"ok")?;
-    info!(version = rel.version, "agent update staged and verified");
+    info!(version = rel.version, "==> [AUTO-UPDATE STAGED] Package verified with Blake3; ready to apply");
     Ok(())
 }
 
@@ -275,7 +275,7 @@ exit 0
 
     #[cfg(target_os = "windows")]
     {
-        info!(version, "Spawning update apply script and exiting process");
+        info!(version, "==> [AUTO-UPDATE APPLYING] Spawning update apply script and restarting");
         Command::new("powershell")
             .args([
                 "-NoProfile",

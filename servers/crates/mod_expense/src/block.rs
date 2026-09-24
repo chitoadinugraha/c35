@@ -39,6 +39,11 @@ pub fn expense_receipt_block(receipt: &ExpenseReceipt, locale: &str) -> Value {
             "payment_method": receipt.payment_method,
             "items": receipt.items,
             "today": receipt.today,
+            "editable": true,
+            "can_edit_name": true,
+            "can_edit_qty": true,
+            "can_edit_price": true,
+            "qty_mode": "stepper",
         },
     })
 }

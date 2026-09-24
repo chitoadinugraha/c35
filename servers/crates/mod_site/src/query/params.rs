@@ -32,6 +32,34 @@ pub fn query_param_bool(params: &Value, key: &str, default: bool) -> bool {
         .unwrap_or(default)
 }
 
+pub fn query_param_str<'a>(params: &'a Value, key: &str, default: &'a str) -> &'a str {
+    params
+        .get(key)
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .unwrap_or(default)
+}
+
+pub fn query_param_str_vec(params: &Value, key: &str) -> Vec<String> {
+    if let Some(arr) = params.get(key).and_then(|v| v.as_array()) {
+        return arr
+            .iter()
+            .filter_map(|v| v.as_str())
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(String::from)
+            .collect();
+    }
+    if let Some(single) = params.get(key).and_then(|v| v.as_str()) {
+        let s = single.trim();
+        if !s.is_empty() {
+            return vec![s.to_string()];
+        }
+    }
+    Vec::new()
+}
+
+
 pub fn query_time_range(params: &Value) -> Result<(Option<DateTime<Utc>>, Option<DateTime<Utc>>)> {
     let from_ms = query_param_i64(params, "time_from_ms", 0);
     let to_ms = query_param_i64(params, "time_to_ms", 0);

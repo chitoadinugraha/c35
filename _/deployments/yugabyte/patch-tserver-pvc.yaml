@@ -1,0 +1,15 @@
+# Strategic merge patch: switch yb-tserver datadir0 hostPath -> yb-data PVC subPath.
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: yb-tserver
+          volumeMounts:
+            - mountPath: /mnt/disk0
+              name: datadir0
+              subPath: tserver
+      volumes:
+        - name: datadir0
+          persistentVolumeClaim:
+            claimName: yb-data

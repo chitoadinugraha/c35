@@ -12,6 +12,11 @@ Future<ResIdentityGrantPatch> identityGrantPatch(ChatConn conn, ReqIdentityGrant
 
 Future<ResIdentityPut> identityPut(ChatConn conn, ReqIdentityPut req) => conn.identityPut(req);
 
+Future<void> identityDelete(ChatConn conn, int iid) async {
+  final res = await conn.identityDelete(iid);
+  if (!res.ok) throw res.error.isNotEmpty ? res.error : 'Delete failed';
+}
+
 Future<ResDevicePair> devicePair(ReferralConn conn, String code) async {
   final res = await conn.invoke(
     InvokeReq(reqId: const Uuid().v4(), devicePair: ReqDevicePair(code: code)),

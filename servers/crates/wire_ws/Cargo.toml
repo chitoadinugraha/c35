@@ -8,6 +8,7 @@ axum = { workspace = true }
 c35_ctx = { path = "../system/ctx", package = "c35_ctx" }
 c35_mod_chat = { path = "../mod_chat", package = "c35_mod_chat" }
 c35_mod_consumption = { path = "../mod_consumption", package = "c35_mod_consumption" }
+c35_mod_expense = { path = "../mod_expense", package = "c35_mod_expense" }
 c35_mod_billing = { path = "../mod_billing", package = "c35_mod_billing" }
 c35_mod_channel = { path = "../mod_channel", package = "c35_mod_channel" }
 c35_mod_device = { path = "../mod_device", package = "c35_mod_device" }

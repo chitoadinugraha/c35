@@ -1,6 +1,6 @@
 use c35_mod_chat::compose::{compose_tools_and_inst, tool_mention_eligible};
 use c35_mod_chat::inst_macro::{inst_scopes_channel, inst_scopes_home, InstRow, SCOPE_GLOBAL};
-use c35_mod_chat::tool_rag::DEFAULT_TOOL_TOP_K;
+use c35_mod_chat::tool_rag::{tool_trim_ranked, ToolCandidate, DEFAULT_TOOL_SIM_GAP, DEFAULT_TOOL_SIM_THRESHOLD, DEFAULT_TOOL_TOP_K};
 use c35_mod_chat::{MentionContext, MentionRow, SiteCapabilityView, SiteContext};
 use c35_mod_chat::tools::{cluster_tools, ToolDef};
 use serde_json::json;
@@ -243,9 +243,9 @@ fn compose_search_query_includes_web_search() {
 
 #[test]
 fn compose_small_catalog_skips_rag() {
-    let small = pa_catalog().into_iter().take(3).collect::<Vec<_>>();
+    let small = pa_catalog().into_iter().take(2).collect::<Vec<_>>();
     let out = compose_default(&[], "hello", small, &[]);
-    assert_eq!(out.tools.len(), 3);
+    assert_eq!(out.tools.len(), 2);
     assert!(out.trace.rag_skipped);
     assert_eq!(out.trace.rag_skip_reason, "few_tools");
 }
@@ -666,4 +666,79 @@ fn tool_mention_capability_write_needs_default_site() {
     };
     assert!(!tool_mention_eligible(&tool, &multi_site, &caps));
     assert!(tool_mention_eligible(&tool, &site_mention_ctx(111), &caps));
+}
+
+fn inst_img_edit() -> InstRow {
+    InstRow {
+        id: "inst.task.img_edit".into(),
+        scope: "global".into(),
+        kind: "task".into(),
+        topic_id: "".into(),
+        topics: vec![],
+        inst: "edit".into(),
+        phrases: vec!["remove background".into(), "edit gambar".into()],
+        triggers: vec!["tool_include:img.edit".into(), "tool_exclude:img.generate".into()],
+        priority: 145,
+    }
+}
+
+fn inst_mention_image_high() -> InstRow {
+    InstRow {
+        id: "inst.mention.image_high".into(),
+        scope: "global".into(),
+        kind: "mention".into(),
+        topic_id: "image_high".into(),
+        topics: vec![],
+        inst: "hd".into(),
+        phrases: vec![],
+        triggers: vec!["tool_include:img.generate".into()],
+        priority: 130,
+    }
+}
+
+fn image_catalog() -> Vec<ToolDef> {
+    vec![
+        ToolDef::new("img.generate".into(), "Generate images".into(), json!({})),
+        ToolDef::new("img.edit".into(), "Edit images".into(), json!({})),
+    ]
+}
+
+#[test]
+fn compose_img_edit_phrase_includes_edit_tool() {
+    let out = compose_default(&[inst_img_edit()], "edit gambar hapus background", image_catalog(), &[]);
+    assert!(out.matched_ids.contains(&"inst.task.img_edit".into()));
+    assert!(out.tools.iter().any(|t| t.name == "img.edit"));
+    assert!(!out.tools.iter().any(|t| t.name == "img.generate"));
+}
+
+#[test]
+fn compose_mention_image_high_matched() {
+    let mention = MentionContext::empty();
+    let out = compose_tools_and_inst(
+        &[inst_mention_image_high()],
+        "buat logo minimarket",
+        image_catalog(),
+        &[],
+        &["image_high".into()],
+        &["image".into()],
+        "agent",
+        &[],
+        &inst_scopes_home(),
+        &mention,
+        &SiteCapabilityView::empty(),
+    );
+    assert!(out.matched_ids.contains(&"inst.mention.image_high".into()));
+    assert!(out.tools.iter().any(|t| t.name == "img.generate"));
+}
+
+#[test]
+fn tool_trim_ranked_drops_low_sim_gap() {
+    let ranked = vec![
+        ToolCandidate { tool_id: "consumption.add".into(), sim: 0.95 },
+        ToolCandidate { tool_id: "expense.add".into(), sim: 0.33 },
+        ToolCandidate { tool_id: "web.search".into(), sim: 0.33 },
+    ];
+    let trimmed = tool_trim_ranked(&ranked, &[], DEFAULT_TOOL_SIM_THRESHOLD, DEFAULT_TOOL_SIM_GAP);
+    assert_eq!(trimmed.len(), 1);
+    assert_eq!(trimmed[0].tool_id, "consumption.add");
 }

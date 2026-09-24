@@ -438,6 +438,8 @@ class NodeStat extends $pb.GeneratedMessage {
     $core.double? netOutBps,
     $fixnum.Int64? tsMs,
     $core.Iterable<DiskDeviceStat>? devices,
+    $fixnum.Int64? swapUsedBytes,
+    $fixnum.Int64? swapTotalBytes,
   }) {
     final result = NodeStat._();
     if (nodeName != null) result.nodeName = nodeName;
@@ -450,6 +452,8 @@ class NodeStat extends $pb.GeneratedMessage {
     if (netOutBps != null) result.netOutBps = netOutBps;
     if (tsMs != null) result.tsMs = tsMs;
     if (devices != null) result.devices.addAll(devices);
+    if (swapUsedBytes != null) result.swapUsedBytes = swapUsedBytes;
+    if (swapTotalBytes != null) result.swapTotalBytes = swapTotalBytes;
     return result;
   }
 
@@ -482,6 +486,12 @@ class NodeStat extends $pb.GeneratedMessage {
     ..aInt64(9, _omitFieldNames ? '' : 'tsMs')
     ..pPM<DiskDeviceStat>(10, _omitFieldNames ? '' : 'devices',
         subBuilder: DiskDeviceStat.$_createMessage)
+    ..a<$fixnum.Int64>(
+        11, _omitFieldNames ? '' : 'swapUsedBytes', $pb.PbFieldType.OU6,
+        defaultOrMaker: $fixnum.Int64.ZERO)
+    ..a<$fixnum.Int64>(
+        12, _omitFieldNames ? '' : 'swapTotalBytes', $pb.PbFieldType.OU6,
+        defaultOrMaker: $fixnum.Int64.ZERO)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -581,6 +591,24 @@ class NodeStat extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(10)
   $pb.PbList<DiskDeviceStat> get devices => $_getList(9);
+
+  @$pb.TagNumber(11)
+  $fixnum.Int64 get swapUsedBytes => $_getI64(10);
+  @$pb.TagNumber(11)
+  set swapUsedBytes($fixnum.Int64 value) => $_setInt64(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasSwapUsedBytes() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearSwapUsedBytes() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  $fixnum.Int64 get swapTotalBytes => $_getI64(11);
+  @$pb.TagNumber(12)
+  set swapTotalBytes($fixnum.Int64 value) => $_setInt64(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasSwapTotalBytes() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearSwapTotalBytes() => $_clearField(12);
 }
 
 enum StatsPush_Body { node, volume, notSet }

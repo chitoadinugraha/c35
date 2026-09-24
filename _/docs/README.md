@@ -39,3 +39,7 @@ When code and docs disagree, fix the code to match these docs (or explicitly rev
 | [voice.md](voice.md) | STT/TTS engines (web / local / cloud), billing, cs_bots parity |
 
 Schemas live in [`../schemas/`](../schemas/).
+
+## Implementation plans
+
+Working multitask / implementation plans live in [`plans/`](plans/). These are ephemeral execution docs — not locked specs. Update or archive when work completes.

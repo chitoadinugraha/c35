@@ -319,6 +319,7 @@ name = "c_remote_core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
  "blake3",
  "bytes",
  "c35_proto",
@@ -332,6 +333,7 @@ dependencies = [
  "tracing-subscriber",
  "urlencoding",
  "webrtc",
+ "windows 0.58.0",
  "zip",
 ]
 
@@ -347,6 +349,7 @@ dependencies = [
  "hostname",
  "jpeg-encoder",
  "serde",
+ "serde_json",
  "tokio",
  "tracing",
  "tracing-subscriber",

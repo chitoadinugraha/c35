@@ -129,6 +129,28 @@ pub fn gemini_chat_eligible(id: &str, methods: &[String]) -> bool {
     m.contains("gemini") && (m.contains("flash") || m.contains("pro"))
 }
 
+const ALIEN_CHAIN_PRIMARY: &[&str] = &["gemini-3.1-flash-lite", "gemini-3.5-flash-lite"];
+
+pub fn alien_chain_sort_key(id: &str) -> (i32, i32) {
+    let m = id.to_ascii_lowercase();
+    for (i, p) in ALIEN_CHAIN_PRIMARY.iter().enumerate() {
+        if m == *p {
+            return (0, i as i32);
+        }
+    }
+    if is_preview_id(&m) {
+        return (3, -version_rank_of(&m));
+    }
+    if m.contains("latest") {
+        return (2, -version_rank_of(&m));
+    }
+    (1, -version_rank_of(&m))
+}
+
+pub fn alien_chain_sort_cmp(a: &str, b: &str) -> std::cmp::Ordering {
+    alien_chain_sort_key(a).cmp(&alien_chain_sort_key(b))
+}
+
 pub fn pick_default_provider(models: &[LlmModelRow], provider: &str) -> Option<String> {
     models
         .iter()
@@ -204,6 +226,26 @@ mod tests {
             ..stable.clone()
         };
         assert_eq!(model_list_sort_cmp(&stable, &preview), std::cmp::Ordering::Less);
+    }
+
+    #[test]
+    fn alien_chain_prefers_31_then_35() {
+        let mut chain = vec![
+            "gemini-3.5-flash-lite".to_string(),
+            "gemini-2.5-flash-lite".to_string(),
+            "gemini-3.1-flash-lite".to_string(),
+            "gemini-flash-lite-latest".to_string(),
+        ];
+        chain.sort_by(|a, b| alien_chain_sort_cmp(a, b));
+        assert_eq!(
+            chain,
+            vec![
+                "gemini-3.1-flash-lite".to_string(),
+                "gemini-3.5-flash-lite".to_string(),
+                "gemini-2.5-flash-lite".to_string(),
+                "gemini-flash-lite-latest".to_string(),
+            ]
+        );
     }
 
     #[test]

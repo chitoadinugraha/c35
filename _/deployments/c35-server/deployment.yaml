@@ -49,6 +49,8 @@ spec:
               value: "0.0.0.0:8080"
             - name: C35_PUBLIC_ORIGIN
               value: "https://alienai.id"
+            - name: C35_PRIMARY_HOSTS
+              value: "www.alienai.id"
             - name: YB_DATABASE
               value: c35
             - name: YB_HOST
@@ -71,6 +73,8 @@ spec:
               value: "1000"
             - name: PG_SLOW_ACQUIRE_MS
               value: "3000"
+            - name: PROMPT_RUN_MAX_CONCURRENT
+              value: "8"
             - name: EXTERNAL_FETCHER
               value: "1"
             - name: RUST_LOG

@@ -37,7 +37,16 @@ String txPaymentMethodLabel(TxPaymentMethod method) => switch (method) {
       _ => '—',
     };
 
-Int64 txItemsNominal(Tx tx) => tx.items.fold(Int64.ZERO, (sum, item) => sum + Int64(item.qty) * item.price);
+Int64 txItemLineNominal(TxItem item) {
+  var multiplier = 1;
+  if (item.reservations.isNotEmpty) {
+    multiplier = item.reservations.fold(0, (sum, r) => sum + (r.durationQty > 0 ? r.durationQty : 1));
+    if (multiplier <= 0) multiplier = 1;
+  }
+  return Int64(item.qty) * item.price * Int64(multiplier);
+}
+
+Int64 txItemsNominal(Tx tx) => tx.items.fold(Int64.ZERO, (sum, item) => sum + txItemLineNominal(item));
 
 Int64 txPaymentsTotal(Tx tx) => tx.payments.fold(Int64.ZERO, (sum, p) => sum + p.amount);
 

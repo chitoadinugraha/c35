@@ -3659,6 +3659,268 @@ class ResSiteGuestOrderGet extends $pb.GeneratedMessage {
   Tx ensureTx() => $_ensure(0);
 }
 
+class ExpenseItemInput extends $pb.GeneratedMessage {
+  factory ExpenseItemInput({
+    $core.String? name,
+    $core.String? nameId,
+    $core.double? qty,
+    $fixnum.Int64? priceMinor,
+    $fixnum.Int64? totalMinor,
+    $fixnum.Int64? objId,
+  }) {
+    final result = ExpenseItemInput._();
+    if (name != null) result.name = name;
+    if (nameId != null) result.nameId = nameId;
+    if (qty != null) result.qty = qty;
+    if (priceMinor != null) result.priceMinor = priceMinor;
+    if (totalMinor != null) result.totalMinor = totalMinor;
+    if (objId != null) result.objId = objId;
+    return result;
+  }
+
+  ExpenseItemInput._();
+
+  factory ExpenseItemInput.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ExpenseItemInput()..mergeFromBuffer(data, registry);
+  factory ExpenseItemInput.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ExpenseItemInput()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ExpenseItemInput',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ExpenseItemInput.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'name')
+    ..aOS(2, _omitFieldNames ? '' : 'nameId')
+    ..aD(3, _omitFieldNames ? '' : 'qty', fieldType: $pb.PbFieldType.OF)
+    ..aInt64(4, _omitFieldNames ? '' : 'priceMinor')
+    ..aInt64(5, _omitFieldNames ? '' : 'totalMinor')
+    ..aInt64(6, _omitFieldNames ? '' : 'objId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ExpenseItemInput clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ExpenseItemInput copyWith(void Function(ExpenseItemInput) updates) =>
+      super.copyWith((message) => updates(message as ExpenseItemInput))
+          as ExpenseItemInput;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ExpenseItemInput() / ExpenseItemInput.new instead')
+  static ExpenseItemInput create() => ExpenseItemInput._();
+  static $pb.GeneratedMessage $_createMessage() => ExpenseItemInput._();
+  @$core.override
+  ExpenseItemInput createEmptyInstance() => ExpenseItemInput._();
+  @$core.pragma('dart2js:noInline')
+  static ExpenseItemInput getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ExpenseItemInput>(
+          ExpenseItemInput.$_createMessage);
+  static ExpenseItemInput? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get name => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set name($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasName() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearName() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get nameId => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set nameId($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasNameId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearNameId() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.double get qty => $_getN(2);
+  @$pb.TagNumber(3)
+  set qty($core.double value) => $_setFloat(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasQty() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearQty() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $fixnum.Int64 get priceMinor => $_getI64(3);
+  @$pb.TagNumber(4)
+  set priceMinor($fixnum.Int64 value) => $_setInt64(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasPriceMinor() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearPriceMinor() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $fixnum.Int64 get totalMinor => $_getI64(4);
+  @$pb.TagNumber(5)
+  set totalMinor($fixnum.Int64 value) => $_setInt64(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasTotalMinor() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearTotalMinor() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $fixnum.Int64 get objId => $_getI64(5);
+  @$pb.TagNumber(6)
+  set objId($fixnum.Int64 value) => $_setInt64(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasObjId() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearObjId() => $_clearField(6);
+}
+
+class ReqExpensePut extends $pb.GeneratedMessage {
+  factory ReqExpensePut({
+    $fixnum.Int64? txId,
+    $core.Iterable<ExpenseItemInput>? items,
+    $fixnum.Int64? deletedTsMs,
+  }) {
+    final result = ReqExpensePut._();
+    if (txId != null) result.txId = txId;
+    if (items != null) result.items.addAll(items);
+    if (deletedTsMs != null) result.deletedTsMs = deletedTsMs;
+    return result;
+  }
+
+  ReqExpensePut._();
+
+  factory ReqExpensePut.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqExpensePut()..mergeFromBuffer(data, registry);
+  factory ReqExpensePut.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqExpensePut()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqExpensePut',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqExpensePut.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'txId')
+    ..pPM<ExpenseItemInput>(2, _omitFieldNames ? '' : 'items',
+        subBuilder: ExpenseItemInput.$_createMessage)
+    ..aInt64(3, _omitFieldNames ? '' : 'deletedTsMs')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqExpensePut clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqExpensePut copyWith(void Function(ReqExpensePut) updates) =>
+      super.copyWith((message) => updates(message as ReqExpensePut))
+          as ReqExpensePut;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqExpensePut() / ReqExpensePut.new instead')
+  static ReqExpensePut create() => ReqExpensePut._();
+  static $pb.GeneratedMessage $_createMessage() => ReqExpensePut._();
+  @$core.override
+  ReqExpensePut createEmptyInstance() => ReqExpensePut._();
+  @$core.pragma('dart2js:noInline')
+  static ReqExpensePut getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ReqExpensePut>(
+          ReqExpensePut.$_createMessage);
+  static ReqExpensePut? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get txId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set txId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasTxId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearTxId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $pb.PbList<ExpenseItemInput> get items => $_getList(1);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get deletedTsMs => $_getI64(2);
+  @$pb.TagNumber(3)
+  set deletedTsMs($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasDeletedTsMs() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearDeletedTsMs() => $_clearField(3);
+}
+
+class ResExpensePut extends $pb.GeneratedMessage {
+  factory ResExpensePut({
+    $fixnum.Int64? txId,
+    $core.String? blocksJson,
+  }) {
+    final result = ResExpensePut._();
+    if (txId != null) result.txId = txId;
+    if (blocksJson != null) result.blocksJson = blocksJson;
+    return result;
+  }
+
+  ResExpensePut._();
+
+  factory ResExpensePut.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResExpensePut()..mergeFromBuffer(data, registry);
+  factory ResExpensePut.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResExpensePut()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResExpensePut',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResExpensePut.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'txId')
+    ..aOS(2, _omitFieldNames ? '' : 'blocksJson')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResExpensePut clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResExpensePut copyWith(void Function(ResExpensePut) updates) =>
+      super.copyWith((message) => updates(message as ResExpensePut))
+          as ResExpensePut;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResExpensePut() / ResExpensePut.new instead')
+  static ResExpensePut create() => ResExpensePut._();
+  static $pb.GeneratedMessage $_createMessage() => ResExpensePut._();
+  @$core.override
+  ResExpensePut createEmptyInstance() => ResExpensePut._();
+  @$core.pragma('dart2js:noInline')
+  static ResExpensePut getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ResExpensePut>(
+          ResExpensePut.$_createMessage);
+  static ResExpensePut? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get txId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set txId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasTxId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearTxId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get blocksJson => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set blocksJson($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasBlocksJson() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearBlocksJson() => $_clearField(2);
+}
+
 const $core.bool _omitFieldNames =
     $core.bool.fromEnvironment('protobuf.omit_field_names');
 const $core.bool _omitMessageNames =

@@ -51,7 +51,7 @@ INSERT INTO ai.topic (
 ) VALUES (
     'image',
     'topic.image.label',
-    'Image mode: when the user wants visuals, call img.generate with a rich English prompt and suitable aspect ratio.',
+    'Image mode: when the user wants new visuals, call img.generate with a rich English prompt and suitable aspect ratio. When the user attaches an image to edit, call img.edit instead.',
     'general',
     20,
     'seed',

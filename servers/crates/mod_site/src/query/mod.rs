@@ -40,8 +40,11 @@ fn query_registry() -> &'static Vec<Arc<dyn QueryDef>> {
         vec![
             Arc::new(product::ProductListQuery),
             Arc::new(product::ProductStockStatusQuery),
+            Arc::new(product::ProductStockQuery),
             Arc::new(tx::SalesSummaryQuery),
             Arc::new(tx::ProfitSummaryQuery),
+            Arc::new(tx::TopProductsQuery),
+            Arc::new(tx::ProductCompareQuery),
         ]
     })
 }

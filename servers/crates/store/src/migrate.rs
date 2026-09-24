@@ -28,6 +28,8 @@ CREATE INDEX IF NOT EXISTS idx_tx_owner_time_ok ON site.tx (owner_iid, time_ts D
 CREATE INDEX IF NOT EXISTS idx_tx_item_owner_obj ON site.tx_item (owner_iid, obj_id) WHERE deleted_ts IS NULL;
 CREATE INDEX IF NOT EXISTS idx_tx_item_obj ON site.tx_item (obj_id) WHERE obj_id > 0 AND deleted_ts IS NULL;
 ALTER TABLE ai.consumption_item ADD COLUMN IF NOT EXISTS obj_id BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE ai.consumption_item ADD COLUMN IF NOT EXISTS cholesterol INT NOT NULL DEFAULT 0;
+ALTER TABLE ai.consumption_item ADD COLUMN IF NOT EXISTS purines INT NOT NULL DEFAULT 0;
 CREATE INDEX IF NOT EXISTS idx_consumption_item_obj ON ai.consumption_item (owner_iid, obj_id) WHERE obj_id > 0 AND deleted_ts IS NULL;
 CREATE INDEX IF NOT EXISTS idx_log_owner_created_desc ON ai.log (owner_iid, created_ts DESC, id DESC) WHERE deleted_ts IS NULL;
 CREATE INDEX IF NOT EXISTS idx_log_created_desc ON ai.log (created_ts DESC, id DESC) WHERE deleted_ts IS NULL;
@@ -256,8 +258,8 @@ pub fn sql_stmts(sql: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut in_dollar_block = false;
     for raw in sql.lines() {
-        let line = raw.trim();
-        if line.is_empty() || line.starts_with("--") {
+        let line = strip_line_comment(raw).trim();
+        if line.is_empty() {
             continue;
         }
         if !in_dollar_block && dollar_block_opens(line) {
@@ -278,6 +280,13 @@ pub fn sql_stmts(sql: &str) -> Vec<String> {
         push_stmt(&mut out, &mut cur);
     }
     out
+}
+
+fn strip_line_comment(line: &str) -> &str {
+    match line.find("--") {
+        Some(pos) => line[..pos].trim_end(),
+        None => line,
+    }
 }
 
 fn dollar_block_opens(line: &str) -> bool {
@@ -377,6 +386,18 @@ mod tests {
     fn sql_stmts_splits() {
         let stmts = super::sql_stmts("CREATE TABLE a (id int);\nCREATE TABLE b (id int);");
         assert_eq!(stmts.len(), 2);
+    }
+
+    #[test]
+    fn sql_stmts_splits_inline_comment_after_semicolon() {
+        let sql = r"
+        ALTER TABLE t ADD COLUMN IF NOT EXISTS a INT NOT NULL DEFAULT 0; -- mg
+        ALTER TABLE t ADD COLUMN IF NOT EXISTS b INT NOT NULL DEFAULT 0; -- mg
+        ";
+        let stmts = super::sql_stmts(sql);
+        assert_eq!(stmts.len(), 2);
+        assert!(stmts[0].contains("a INT"));
+        assert!(stmts[1].contains("b INT"));
     }
 
     #[test]

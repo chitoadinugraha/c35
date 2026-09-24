@@ -40,6 +40,13 @@ impl PairUi {
             w.close();
         }
     }
+
+    pub fn user_requested_quit(&self) -> bool {
+        match self {
+            Self::Window(w) => w.user_requested_quit(),
+            Self::Cli => false,
+        }
+    }
 }
 
 fn print_code(code: &str, expires_in_sec: i64) {

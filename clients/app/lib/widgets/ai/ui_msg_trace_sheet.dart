@@ -29,6 +29,8 @@ class _MsgTraceSheetState extends State<_MsgTraceSheet> {
   var _loading = true;
   String? _error;
   TraceView _view = const TraceView();
+  Timer? _poll;
+  var _pollTicks = 0;
 
   @override
   void initState() {
@@ -36,11 +38,38 @@ class _MsgTraceSheetState extends State<_MsgTraceSheet> {
     unawaited(_load());
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
+  }
+
+  bool _traceLooksComplete(TraceView view) =>
+      view.steps.any((s) => s.index > 0) || view.totals.durationMs > 0;
+
+  void _syncPoll() {
+    if (_traceLooksComplete(_view)) {
+      _poll?.cancel();
+      _poll = null;
+      return;
+    }
+    _poll ??= Timer.periodic(const Duration(seconds: 1), (_) {
+      if (++_pollTicks > 25) {
+        _poll?.cancel();
+        _poll = null;
+        return;
+      }
+      unawaited(_load(silent: true));
     });
+  }
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final view = await widget.conn.traceViewFetch(widget.reqId);
       if (!mounted) return;
@@ -48,6 +77,7 @@ class _MsgTraceSheetState extends State<_MsgTraceSheet> {
         _loading = false;
         _view = view;
       });
+      _syncPoll();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -177,6 +207,7 @@ class _ToolFilterBranchRow extends StatefulWidget {
 }
 
 class _ToolFilterBranchRowState extends State<_ToolFilterBranchRow> {
+  static const _droppedMax = 5;
   var _expanded = false;
 
   @override
@@ -184,16 +215,22 @@ class _ToolFilterBranchRowState extends State<_ToolFilterBranchRow> {
     final branch = widget.branch;
     final ms = uiFmtDurationMs(branch.durationMs);
     final fed = branch.toolCandidates.where((c) => c.fed).length;
-    final total = branch.toolCandidates.length;
+    final scored = branch.toolCandidates.where((c) => c.sim > 0).length;
+    final eligible = branch.toolCandidates.length;
+    final fedTools = branch.toolCandidates.where((c) => c.fed).toList();
+    final otherEligible = branch.toolCandidates.where((c) => !c.fed && c.sim <= 0).toList();
     final summary = [
       if (fed > 0) '$fed fed',
-      if (total > 0) '$total ranked',
+      if (scored > 0) '$scored scored',
+      if (eligible > scored) '${eligible - scored} other',
       if (branch.ragSkipped && branch.ragSkipReason.isNotEmpty) branch.ragSkipReason,
       if (ms.isNotEmpty) ms,
     ].join(' · ');
-    final dropped = branch.droppedGap.isNotEmpty
-        ? branch.droppedGap
-        : branch.toolCandidates.where((c) => !c.fed && c.sim > 0).take(3).toList();
+    final dropped = (branch.droppedGap.isNotEmpty
+            ? branch.droppedGap
+            : branch.toolCandidates.where((c) => !c.fed && c.sim > 0))
+        .take(_droppedMax)
+        .toList();
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Column(
@@ -223,13 +260,23 @@ class _ToolFilterBranchRowState extends State<_ToolFilterBranchRow> {
           ),
           if (_expanded) ...[
             const SizedBox(height: 4),
-            for (final c in branch.toolCandidates) _ToolFilterCandidateRow(candidate: c),
+            for (final c in fedTools) _ToolFilterCandidateRow(candidate: c),
             if (dropped.isNotEmpty) ...[
               const Padding(
                 padding: EdgeInsets.only(left: 28, top: 6, bottom: 2),
                 child: Text('Dropped (similarity gap)', style: TextStyle(color: Color(0xFF71717A), fontSize: 11, fontWeight: FontWeight.w600)),
               ),
               for (final c in dropped) _ToolFilterCandidateRow(candidate: c, dropped: true),
+            ],
+            if (otherEligible.isNotEmpty) ...[
+              Padding(
+                padding: EdgeInsets.only(left: 28, top: dropped.isNotEmpty ? 6 : 2, bottom: 2),
+                child: Text(
+                  'Other eligible (${otherEligible.length})',
+                  style: const TextStyle(color: Color(0xFF71717A), fontSize: 11, fontWeight: FontWeight.w600),
+                ),
+              ),
+              for (final c in otherEligible) _ToolFilterCandidateRow(candidate: c),
             ],
           ],
         ],
@@ -247,17 +294,23 @@ class _ToolFilterCandidateRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final label = traceToolLabel(candidate.toolId);
     final sim = traceSimLabel(candidate.sim);
+    final fed = !dropped && candidate.fed;
     final color = dropped
         ? const Color(0xFF71717A)
-        : candidate.fed
+        : fed
             ? const Color(0xFF22C55E)
             : const Color(0xFFA1A1AA);
+    final simColor = dropped
+        ? const Color(0xFF52525B)
+        : fed
+            ? const Color(0xFF22C55E)
+            : const Color(0xFF71717A);
     return Padding(
       padding: const EdgeInsets.only(left: 28, bottom: 2),
       child: Row(
         children: [
           Expanded(child: Text(label, style: TextStyle(color: color, fontSize: 11, height: 1.3))),
-          Text(sim, style: TextStyle(color: dropped ? const Color(0xFF52525B) : const Color(0xFF71717A), fontSize: 11, fontFeatures: const [FontFeature.tabularFigures()])),
+          Text(sim, style: TextStyle(color: simColor, fontSize: 11, fontFeatures: const [FontFeature.tabularFigures()])),
         ],
       ),
     );

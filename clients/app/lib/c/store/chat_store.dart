@@ -23,6 +23,59 @@ bool msgHasBody(MsgRow m) =>
     (m.role == 'user' && (m.content.trim().isNotEmpty || m.attachments.isNotEmpty)) ||
     (m.role == 'assistant' && (m.content.trim().isNotEmpty || m.thought.trim().isNotEmpty || m.blocksJson.trim().isNotEmpty));
 
+MsgRow _bestAssistantForTurn(List<MsgRow> assistants) {
+  for (var i = assistants.length - 1; i >= 0; i--) {
+    final m = assistants[i];
+    if (m.error.trim().isEmpty && msgHasBody(m)) return m;
+  }
+  return assistants.last;
+}
+
+int _msgRoleOrder(String role) => switch (role) {
+      'user' => 0,
+      'assistant' => 1,
+      _ => 2,
+    };
+
+/// Chronological order for one chat: time, then snowflake id, then user before assistant.
+int msgOrderCompare(MsgRow a, MsgRow b) {
+  final ta = a.createdAtMs;
+  final tb = b.createdAtMs;
+  if (ta > 0 && tb > 0) {
+    final byTime = ta.compareTo(tb);
+    if (byTime != 0) return byTime;
+  }
+  final byId = (a.id < 0 && b.id < 0) ? b.id.compareTo(a.id) : a.id.compareTo(b.id);
+  if (byId != 0) return byId;
+  return _msgRoleOrder(a.role).compareTo(_msgRoleOrder(b.role));
+}
+
+List<MsgRow> msgsCollapseRetriedAssistants(List<MsgRow> chatMsgs) {
+  final out = <MsgRow>[];
+  var i = 0;
+  while (i < chatMsgs.length) {
+    final m = chatMsgs[i];
+    if (m.role == 'user') {
+      out.add(m);
+      i++;
+      final assistants = <MsgRow>[];
+      while (i < chatMsgs.length && chatMsgs[i].role != 'user') {
+        final row = chatMsgs[i++];
+        if (row.role == 'assistant') {
+          assistants.add(row);
+        } else {
+          out.add(row);
+        }
+      }
+      if (assistants.isNotEmpty) out.add(_bestAssistantForTurn(assistants));
+      continue;
+    }
+    out.add(m);
+    i++;
+  }
+  return out;
+}
+
 String msgMergeText(String old, String incoming) {
   if (incoming.isEmpty) return old;
   if (old.isEmpty) return incoming;
@@ -328,8 +381,12 @@ class ChatStore extends ChangeNotifier {
   List<MsgRow> get activeMsgs {
     final id = activeChatId;
     if (id == null) return const [];
-    return [for (final m in msgs) if (m.chatId == id) m];
+    final chatMsgs = [for (final m in msgs) if (m.chatId == id) m];
+    chatMsgs.sort(msgOrderCompare);
+    return msgsCollapseRetriedAssistants(chatMsgs);
   }
+
+  final Set<int> _tombstonedMsgIds = {};
 
   Future<void> load() async {
     _prefs ??= await SharedPreferences.getInstance();
@@ -351,6 +408,9 @@ class ChatStore extends ChangeNotifier {
       } catch (_) {}
     }
     msgs = loadedMsgs;
+    for (final cid in loadedMsgs.map((m) => m.chatId).toSet()) {
+      _msgsSortChat(cid);
+    }
     chatStatusStaleClear();
     _loaded = true;
     notifyListeners();
@@ -394,7 +454,20 @@ class ChatStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  void _msgsSortChat(int chatId) {
+    final indices = <int>[];
+    for (var i = 0; i < msgs.length; i++) {
+      if (msgs[i].chatId == chatId) indices.add(i);
+    }
+    if (indices.length < 2) return;
+    final sorted = indices.map((i) => msgs[i]).toList()..sort(msgOrderCompare);
+    for (var j = 0; j < indices.length; j++) {
+      msgs[indices[j]] = sorted[j];
+    }
+  }
+
   void _touchMsgs(int chatId, {bool debounce = false}) {
+    _msgsSortChat(chatId);
     if (debounce) {
       _debouncePersistMsgs(chatId);
     } else {
@@ -682,12 +755,14 @@ class ChatStore extends ChangeNotifier {
   }
 
   MsgRow? _turnAssistant({required int chatId, String reqId = ''}) {
+    final rid = reqId.trim();
     for (var i = msgs.length - 1; i >= 0; i--) {
       final m = msgs[i];
       if (m.chatId != chatId || m.role != 'assistant') continue;
-      if (reqId.isNotEmpty && m.reqId.isNotEmpty && m.reqId != reqId) continue;
+      if (rid.isNotEmpty && m.reqId.isNotEmpty && m.reqId != rid) continue;
       return m;
     }
+    if (rid.isNotEmpty) return null;
     final i = msgs.lastIndexWhere((m) => m.chatId == chatId && m.role == 'assistant');
     return i >= 0 ? msgs[i] : null;
   }
@@ -704,13 +779,36 @@ class ChatStore extends ChangeNotifier {
     _touchMsgs(cid);
   }
 
+  bool _attachmentsExplicitEmpty(MsgRow row) => row.attachments.isEmpty && (row.attachmentsJson == '[]' || row.attachmentsJson.trim().isEmpty);
+
+  List<MsgAttachment> _mergeAttachments(MsgRow old, MsgRow row) {
+    if (row.id > 0) return row.attachments;
+    if (row.attachments.isNotEmpty) return row.attachments;
+    if (_attachmentsExplicitEmpty(row) && row.reqId.isNotEmpty && row.reqId == old.reqId) return const [];
+    if (_attachmentsExplicitEmpty(row) && row.content.trim().isNotEmpty && row.content != old.content) return const [];
+    return old.attachments;
+  }
+
+  String _mergeAttachmentsJson(MsgRow old, MsgRow row) {
+    final merged = _mergeAttachments(old, row);
+    if (merged.isEmpty) return '[]';
+    if (row.attachmentsJson.isNotEmpty && merged.length == row.attachments.length) return row.attachmentsJson;
+    return MsgAttachment.encode(merged);
+  }
+
+  String _mergeContent(MsgRow old, MsgRow row) {
+    if (row.id > 0 && row.content.trim().isNotEmpty) return row.content;
+    if (row.content.trim().isNotEmpty && row.reqId.isNotEmpty && row.reqId == old.reqId && row.content != old.content) return row.content;
+    return msgMergeText(old.content, row.content);
+  }
+
   MsgRow _msgMerge(MsgRow old, MsgRow row) => MsgRow(
         id: row.id != 0 ? row.id : old.id,
         chatId: row.chatId != 0 ? row.chatId : old.chatId,
         role: row.role.isNotEmpty ? row.role : old.role,
-        content: msgMergeText(old.content, row.content),
+        content: _mergeContent(old, row),
         thought: msgMergeText(old.thought, row.thought),
-        attachmentsJson: row.attachmentsJson.isNotEmpty ? row.attachmentsJson : old.attachmentsJson,
+        attachmentsJson: _mergeAttachmentsJson(old, row),
         blocksJson: row.blocksJson.isNotEmpty ? row.blocksJson : old.blocksJson,
         traceJson: row.traceJson.isNotEmpty ? row.traceJson : old.traceJson,
         reqId: row.reqId.isNotEmpty ? row.reqId : old.reqId,
@@ -721,25 +819,33 @@ class ChatStore extends ChangeNotifier {
         model: row.model.isNotEmpty ? row.model : old.model,
         error: row.error.isNotEmpty ? row.error : old.error,
         createdAtMs: row.createdAtMs > 0 ? row.createdAtMs : old.createdAtMs,
-        attachments: row.attachments.isNotEmpty ? row.attachments : old.attachments,
+        attachments: _mergeAttachments(old, row),
       );
 
-  void _chatPreviewTouch(int chatId, String preview) {
+  void _chatPreviewTouch(int chatId, String preview, {int? atMs}) {
     for (final c in chats) {
       if (c.id != chatId) continue;
       c.lastMsgPreview = preview.trim().isEmpty ? c.lastMsgPreview : preview;
-      c.lastMsgAt = DateTime.now().millisecondsSinceEpoch;
+      final ts = atMs ?? 0;
+      if (ts > 0) c.lastMsgAt = ts;
       c.pending = false;
     }
   }
 
   void msgPut(MsgRow row, {bool notify = true, bool touchPreview = true}) {
     if (row.chatId == 0) return;
+    if (row.id > 0 && _tombstonedMsgIds.contains(row.id)) return;
     if (row.reqId.isNotEmpty) {
       final byReq = msgs.indexWhere((m) => m.reqId == row.reqId && m.role == row.role && m.chatId == row.chatId);
       if (byReq >= 0) {
         msgs[byReq] = _msgMerge(msgs[byReq], row);
-        if (touchPreview) _chatPreviewTouch(row.chatId, row.content);
+        if (touchPreview) {
+          _chatPreviewTouch(
+            row.chatId,
+            row.content,
+            atMs: row.createdAtMs > 0 ? row.createdAtMs : DateTime.now().millisecondsSinceEpoch,
+          );
+        }
         if (notify) _touchMsgs(row.chatId);
         return;
       }
@@ -752,7 +858,13 @@ class ChatStore extends ChangeNotifier {
       }
       if (localIdx >= 0) {
         msgs[localIdx] = _msgMerge(msgs[localIdx], row);
-        if (touchPreview) _chatPreviewTouch(row.chatId, row.content);
+        if (touchPreview) {
+          _chatPreviewTouch(
+            row.chatId,
+            row.content,
+            atMs: row.createdAtMs > 0 ? row.createdAtMs : DateTime.now().millisecondsSinceEpoch,
+          );
+        }
         if (notify) _touchMsgs(row.chatId);
         return;
       }
@@ -760,12 +872,24 @@ class ChatStore extends ChangeNotifier {
     final i = msgs.indexWhere((m) => m.id == row.id && row.id != 0);
     if (i >= 0) {
       msgs[i] = _msgMerge(msgs[i], row);
-      if (touchPreview) _chatPreviewTouch(row.chatId, row.content);
+      if (touchPreview) {
+        _chatPreviewTouch(
+          row.chatId,
+          row.content,
+          atMs: row.createdAtMs > 0 ? row.createdAtMs : DateTime.now().millisecondsSinceEpoch,
+        );
+      }
       if (notify) _touchMsgs(row.chatId);
       return;
     }
     msgs.add(row);
-    if (touchPreview) _chatPreviewTouch(row.chatId, row.content);
+    if (touchPreview) {
+      _chatPreviewTouch(
+        row.chatId,
+        row.content,
+        atMs: row.createdAtMs > 0 ? row.createdAtMs : DateTime.now().millisecondsSinceEpoch,
+      );
+    }
     if (notify) _touchMsgs(row.chatId);
   }
 
@@ -815,7 +939,7 @@ class ChatStore extends ChangeNotifier {
       durationMs: durationMs ?? m.durationMs,
       costUsd: costUsd ?? m.costUsd,
     );
-    _chatPreviewTouch(m.chatId, msgs[i].content);
+    _chatPreviewTouch(m.chatId, msgs[i].content, atMs: msgs[i].createdAtMs > 0 ? msgs[i].createdAtMs : DateTime.now().millisecondsSinceEpoch);
     _touchMsgs(m.chatId);
   }
 
@@ -834,7 +958,7 @@ class ChatStore extends ChangeNotifier {
     } else {
       msgs.add(MsgRow(id: _nextLocalId--, chatId: cid, role: 'assistant', content: text, reqId: rid));
     }
-    _chatPreviewTouch(cid, m?.content ?? text);
+    _chatPreviewTouch(cid, m?.content ?? text, atMs: DateTime.now().millisecondsSinceEpoch);
     _touchMsgs(cid, debounce: true);
   }
 
@@ -860,6 +984,7 @@ class ChatStore extends ChangeNotifier {
     final m = _turnAssistant(chatId: cid, reqId: rid);
     if (m != null) {
       m.blocksJson = blocksJson;
+      if (m.error.isNotEmpty) m.error = '';
     } else {
       msgs.add(MsgRow(id: _nextLocalId--, chatId: cid, role: 'assistant', content: '', blocksJson: blocksJson, reqId: rid));
     }
@@ -874,7 +999,9 @@ class ChatStore extends ChangeNotifier {
       if (rid.isNotEmpty && m.reqId.isNotEmpty && m.reqId != rid) continue;
       return i;
     }
-    return msgs.lastIndexWhere((m) => m.chatId == chatId && m.role == 'assistant');
+    if (rid.isNotEmpty) return null;
+    final i = msgs.lastIndexWhere((m) => m.chatId == chatId && m.role == 'assistant');
+    return i >= 0 ? i : null;
   }
 
   void msgStreamFail(String error, {int? chatId, int startedAtMs = 0}) {
@@ -936,7 +1063,7 @@ class ChatStore extends ChangeNotifier {
       traceJson: traceJson.isNotEmpty ? traceJson : m.traceJson,
       reqId: rid.isNotEmpty ? rid : m.reqId,
       model: model.isNotEmpty ? model : m.model,
-      error: err.isNotEmpty ? err : m.error,
+      error: err.isNotEmpty ? err : '',
     );
     if (promptChatId == cid) _promptClear();
     _flushDirtyMsgs();
@@ -982,6 +1109,38 @@ class ChatStore extends ChangeNotifier {
     if (promptChatId != null) promptChatId = id;
   }
 
+  bool msgCanReplaceFailedTurn(int chatId) {
+    if (promptBusyFor(chatId)) return false;
+    final lastUserIdx = msgs.lastIndexWhere(
+      (m) => m.chatId == chatId && m.role == 'user' && (m.content.trim().isNotEmpty || m.attachments.isNotEmpty),
+    );
+    if (lastUserIdx < 0) return false;
+    for (var i = msgs.length - 1; i > lastUserIdx; i--) {
+      final m = msgs[i];
+      if (m.chatId != chatId || m.role != 'assistant') continue;
+      return m.error.trim().isNotEmpty;
+    }
+    return false;
+  }
+
+  void _tombstoneAssistantsAfterUser(int chatId, int lastUserIdx) {
+    for (var i = msgs.length - 1; i > lastUserIdx; i--) {
+      if (msgs[i].chatId != chatId || msgs[i].role != 'assistant') continue;
+      if (msgs[i].id > 0) _tombstonedMsgIds.add(msgs[i].id);
+      msgs.removeAt(i);
+    }
+  }
+
+  void msgReplaceFailedTurnPrep(int chatId) {
+    final lastUserIdx = msgs.lastIndexWhere(
+      (m) => m.chatId == chatId && m.role == 'user' && (m.content.trim().isNotEmpty || m.attachments.isNotEmpty),
+    );
+    if (lastUserIdx < 0) return;
+    _tombstoneAssistantsAfterUser(chatId, lastUserIdx);
+    _touchMsgs(chatId);
+    notifyListeners();
+  }
+
   ({String text, List<MsgAttachment> attachments})? retryLastTurnPrep({int? chatId}) {
     if (promptBusy) return null;
     final cid = chatId ?? activeChatId;
@@ -991,11 +1150,7 @@ class ChatStore extends ChangeNotifier {
     );
     if (lastUserIdx < 0) return null;
     final lastUser = msgs[lastUserIdx];
-    for (var i = msgs.length - 1; i > lastUserIdx; i--) {
-      if (msgs[i].chatId == cid && msgs[i].role == 'assistant') {
-        msgs.removeAt(i);
-      }
-    }
+    _tombstoneAssistantsAfterUser(cid, lastUserIdx);
     _touchMsgs(cid);
     notifyListeners();
     return (text: lastUser.content, attachments: List<MsgAttachment>.from(lastUser.attachments));
@@ -1046,9 +1201,27 @@ class ChatStore extends ChangeNotifier {
         reqId: reqId,
       ));
     }
-    _chatPreviewTouch(chatId, content);
+    _chatPreviewTouch(chatId, content, atMs: createdAtMs);
     _touchMsgs(chatId);
     notifyListeners();
+  }
+
+  void msgsReloadFromServer(int chatId, List<ChatMsg> serverMsgs) {
+    if (chatId <= 0 || promptBusyFor(chatId)) return;
+    msgs.removeWhere((m) => m.chatId == chatId);
+    final sorted = [...serverMsgs]..sort((a, b) => a.id.compareTo(b.id));
+    var newestPreview = '';
+    var newestAt = 0;
+    for (final m in sorted) {
+      final at = m.createdTsMs.toInt();
+      if (at >= newestAt) {
+        newestAt = at;
+        newestPreview = m.content;
+      }
+      msgPutFromServer(m);
+    }
+    if (newestAt > 0) _chatPreviewTouch(chatId, newestPreview, atMs: newestAt);
+    _touchMsgs(chatId);
   }
 
   void inboxMerge(ResInboxList res) {

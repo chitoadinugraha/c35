@@ -4,8 +4,7 @@ use c35_proto::SiteQueryRow;
 use serde_json::json;
 use sqlx::Row;
 
-use super::params::query_param_bool;
-use super::params::query_param_i32;
+use super::params::{query_param_bool, query_param_i32, query_param_i64, query_param_str};
 use super::{query_register, site_query_rows_with_names, QueryResult};
 
 query_register! {
@@ -145,3 +144,86 @@ query_register! {
         })
     }
 }
+
+query_register! {
+    struct: ProductStockQuery,
+    id: "product.stock",
+    label: "Product stock lookup",
+    run: |pool, _caller_iid, site_iids, params| {
+        if site_iids.is_empty() {
+            return Ok(QueryResult {
+                rows: vec![],
+                result_json: "{}".into(),
+            });
+        }
+        let q = query_param_str(params, "q", "");
+        let product_id = query_param_i64(params, "product_id", 0);
+        let rows = sqlx::query(
+            r#"
+            SELECT site_iid, product_id, name, sku, price, COALESCE(cost_price, 0) AS cost_price,
+                   stock_qty, track_stock, can_sell, can_reserve, category
+            FROM site.product
+            WHERE site_iid = ANY($1)
+              AND deleted_ts IS NULL
+              AND is_archived = false
+              AND (
+                ($2::bigint > 0 AND product_id = $2)
+                OR ($2::bigint = 0 AND $3 = '')
+                OR ($2::bigint = 0 AND $3 <> '' AND (name ILIKE ('%' || $3 || '%') OR sku ILIKE ('%' || $3 || '%') OR category ILIKE ('%' || $3 || '%')))
+              )
+            ORDER BY site_iid, sort_order, product_id
+            LIMIT 50
+            "#,
+        )
+        .bind(site_iids)
+        .bind(product_id)
+        .bind(q)
+        .fetch_all(pool)
+        .await?;
+        let mut out: Vec<SiteQueryRow> = rows
+            .into_iter()
+            .map(|r| {
+                let site_iid: i64 = r.get("site_iid");
+                let product_id: i64 = r.get("product_id");
+                let name: String = r.get("name");
+                let sku: String = r.get("sku");
+                let price: i64 = r.get("price");
+                let cost_price: i64 = r.get("cost_price");
+                let stock_qty: i32 = r.get("stock_qty");
+                let track_stock: bool = r.get("track_stock");
+                let can_sell: bool = r.get("can_sell");
+                let can_reserve: bool = r.get("can_reserve");
+                let category: String = r.get("category");
+                let mut cells = HashMap::new();
+                cells.insert("product_id".into(), product_id.to_string());
+                cells.insert("name".into(), name);
+                cells.insert("sku".into(), sku);
+                cells.insert("price".into(), price.to_string());
+                cells.insert("cost_price".into(), cost_price.to_string());
+                cells.insert("stock_qty".into(), stock_qty.to_string());
+                cells.insert("track_stock".into(), track_stock.to_string());
+                cells.insert("can_sell".into(), can_sell.to_string());
+                cells.insert("can_reserve".into(), can_reserve.to_string());
+                cells.insert("category".into(), category);
+                SiteQueryRow {
+                    site_iid,
+                    site_name: String::new(),
+                    cells,
+                }
+            })
+            .collect();
+        out = site_query_rows_with_names(pool, site_iids, out).await?;
+        let count = out.len();
+        Ok(QueryResult {
+            rows: out,
+            result_json: json!({
+                "query_id": "product.stock",
+                "count": count,
+                "q": q,
+                "product_id": product_id,
+            })
+            .to_string(),
+        })
+    }
+}
+

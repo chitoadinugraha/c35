@@ -1,5 +1,6 @@
 import 'package:alienai_c35/c/chat/chat_block.dart';
 import 'package:alienai_c35/c/chat/chat_inbox.dart';
+import 'package:alienai_c35/c/files/msg_attachment.dart';
 import 'package:alienai_c35/c/pb/c35/chat.pb.dart';
 import 'package:alienai_c35/c/store/chat_store.dart';
 import 'package:fixnum/fixnum.dart';
@@ -54,6 +55,49 @@ void main() {
     expect(store.msgs.where((m) => m.chatId == 1).single.role, 'user');
     // Ensure chat 2 was untouched
     expect(store.msgs.where((m) => m.chatId == 2).length, 1);
+  });
+
+  test('msgCanReplaceFailedTurn is true when last assistant errored', () {
+    final store = ChatStore();
+    store.msgs = [
+      MsgRow(id: 10, chatId: 1, role: 'user', content: 'old prompt'),
+      MsgRow(id: 11, chatId: 1, role: 'assistant', content: '', error: 'ws failed'),
+    ];
+    expect(store.msgCanReplaceFailedTurn(1), isTrue);
+  });
+
+  test('msgReplaceFailedTurnPrep drops failed assistant after last user', () {
+    final store = ChatStore();
+    store.msgs = [
+      MsgRow(id: 10, chatId: 1, role: 'user', content: 'old prompt'),
+      MsgRow(id: 11, chatId: 1, role: 'assistant', content: '', error: 'ws failed'),
+    ];
+    store.msgReplaceFailedTurnPrep(1);
+    expect(store.msgs.length, 1);
+    expect(store.msgs.single.content, 'old prompt');
+  });
+
+  test('msgsCollapseRetriedAssistants keeps latest successful assistant per user turn', () {
+    final rows = [
+      MsgRow(id: 10, chatId: 1, role: 'user', content: 'log food'),
+      MsgRow(id: 11, chatId: 1, role: 'assistant', content: '', error: 'connection closed'),
+      MsgRow(id: 12, chatId: 1, role: 'assistant', content: '', blocksJson: '[{"kind":"consumption.food"}]'),
+    ];
+    final out = msgsCollapseRetriedAssistants(rows);
+    expect(out.length, 2);
+    expect(out.last.id, 12);
+    expect(out.last.error, isEmpty);
+  });
+
+  test('msgsCollapseRetriedAssistants keeps latest failed assistant when all attempts fail', () {
+    final rows = [
+      MsgRow(id: 10, chatId: 1, role: 'user', content: 'log food'),
+      MsgRow(id: 11, chatId: 1, role: 'assistant', content: '', error: 'first'),
+      MsgRow(id: 12, chatId: 1, role: 'assistant', content: '', error: 'second'),
+    ];
+    final out = msgsCollapseRetriedAssistants(rows);
+    expect(out.length, 2);
+    expect(out.last.error, 'second');
   });
 
   test('msgUserTurnRetry updates user message in place without duplicating', () {
@@ -330,6 +374,105 @@ void main() {
     expect(store.chats.single.lastMsgPreview, 'prev');
   });
 
+  test('msgPut merge clears stale attachments when user turn is replaced', () {
+    final store = ChatStore();
+    store.msgs = [
+      MsgRow(
+        id: 10,
+        chatId: 1,
+        role: 'user',
+        content: 'Catat konsumsi makanan',
+        reqId: 'r1',
+        attachments: [MsgAttachment(hash: 'abc', name: 'food.jpg', mime: 'image/jpeg')],
+        attachmentsJson: '[{"hash":"abc","name":"food.jpg","mime":"image/jpeg"}]',
+      ),
+    ];
+
+    store.msgPut(MsgRow(
+      id: 10,
+      chatId: 1,
+      role: 'user',
+      content: 'Catat pengeluaran',
+      reqId: 'r1',
+      attachments: const [],
+      attachmentsJson: '[]',
+    ));
+
+    expect(store.msgs.single.content, 'Catat pengeluaran');
+    expect(store.msgs.single.attachments, isEmpty);
+  });
+
+  test('activeMsgs sorts by time and keeps user before assistant in a turn', () {
+    final store = ChatStore();
+    store.chats = [ChatRow(id: 1, title: 'A')];
+    store.activeChatId = 1;
+    store.msgs = [
+      MsgRow(id: 12, chatId: 1, role: 'assistant', content: 'answer', createdAtMs: 2000, reqId: 'r1'),
+      MsgRow(id: 11, chatId: 1, role: 'user', content: 'question', createdAtMs: 2000, reqId: 'r1'),
+    ];
+
+    final out = store.activeMsgs;
+    expect(out.map((m) => m.role).toList(), ['user', 'assistant']);
+    expect(out.first.content, 'question');
+  });
+
+  test('msgsReloadFromServer sorts descending server payload ascending', () {
+    final store = ChatStore();
+    store.chats = [ChatRow(id: 5, title: 'A', lastMsgAt: 1000)];
+
+    store.msgsReloadFromServer(5, [
+      ChatMsg(
+        id: Int64(12),
+        chatId: Int64(5),
+        role: ChatMsgRole.CHAT_MSG_ROLE_ASSISTANT,
+        content: 'server answer',
+        createdTsMs: Int64(2100),
+      ),
+      ChatMsg(
+        id: Int64(11),
+        chatId: Int64(5),
+        role: ChatMsgRole.CHAT_MSG_ROLE_USER,
+        content: 'server user',
+        createdTsMs: Int64(2000),
+      ),
+    ]);
+
+    expect(store.msgs.where((m) => m.chatId == 5).map((m) => m.content).toList(), ['server user', 'server answer']);
+    store.activeChatId = 5;
+    expect(store.activeMsgs.map((m) => m.role).toList(), ['user', 'assistant']);
+  });
+
+  test('msgsReloadFromServer replaces local rows for chat', () {
+    final store = ChatStore();
+    store.chats = [ChatRow(id: 5, title: 'A', lastMsgAt: 1000)];
+    store.msgs = [
+      MsgRow(id: 1, chatId: 5, role: 'user', content: 'stale local'),
+      MsgRow(id: 2, chatId: 5, role: 'assistant', content: 'stale answer'),
+      MsgRow(id: 3, chatId: 9, role: 'user', content: 'other chat'),
+    ];
+
+    store.msgsReloadFromServer(5, [
+      ChatMsg(
+        id: Int64(11),
+        chatId: Int64(5),
+        role: ChatMsgRole.CHAT_MSG_ROLE_USER,
+        content: 'server user',
+        createdTsMs: Int64(2000),
+      ),
+      ChatMsg(
+        id: Int64(12),
+        chatId: Int64(5),
+        role: ChatMsgRole.CHAT_MSG_ROLE_ASSISTANT,
+        content: 'server answer',
+        createdTsMs: Int64(2100),
+      ),
+    ]);
+
+    expect(store.msgs.where((m) => m.chatId == 5).map((m) => m.content).toList(), ['server user', 'server answer']);
+    expect(store.msgs.where((m) => m.chatId == 9).length, 1);
+    expect(store.chats.single.lastMsgAt, 2100);
+  });
+
   test('msgPut merges optimistic user message by reqId on server fetch', () {
     final store = ChatStore();
     final localUserMsg = MsgRow(
@@ -446,14 +589,13 @@ void main() {
       MsgRow(id: -2, chatId: 1, role: 'assistant', content: '', error: 'failed', reqId: 'req-a'),
     ];
 
-    store.msgPut(MsgRow(id: -3, chatId: 1, role: 'user', content: 'second', reqId: 'req-b'));
-    store.msgPut(MsgRow(id: -4, chatId: 1, role: 'assistant', content: '', reqId: 'req-b'));
+    store.msgPut(MsgRow(id: -3, chatId: 1, role: 'user', content: 'second', reqId: 'req-b', createdAtMs: 3000));
+    store.msgPut(MsgRow(id: -4, chatId: 1, role: 'assistant', content: '', reqId: 'req-b', createdAtMs: 3001));
 
     expect(store.msgs.length, 4);
-    expect(store.msgs[2].role, 'user');
-    expect(store.msgs[3].role, 'assistant');
-    expect(store.msgs[3].reqId, 'req-b');
-    expect(store.msgs[1].error, 'failed');
+    expect(store.activeMsgs.map((m) => m.role).toList(), ['user', 'assistant', 'user', 'assistant']);
+    expect(store.activeMsgs.last.reqId, 'req-b');
+    expect(store.msgs.where((m) => m.reqId == 'req-a' && m.role == 'assistant').single.error, 'failed');
   });
 
   test('recentUserPrompts returns deduplicated user prompts in reverse order', () {

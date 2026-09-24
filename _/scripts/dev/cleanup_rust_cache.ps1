@@ -1,12 +1,12 @@
-# Prune local Rust build artifacts under .cache/ (servers, remotes, node_stats, tools).
+# Prune local Rust build artifacts under .cache/ (servers, remotes, tools).
 # Usage:
 #   .\_\scripts\dev\cleanup_rust_cache.ps1              # trim stale artifacts (default)
 #   .\_\scripts\dev\cleanup_rust_cache.ps1 -Full       # cargo clean (full rebuild next time)
-#   .\_\scripts\dev\cleanup_rust_cache.ps1 -Days 14    # keep artifacts newer than 14 days
+#   .\_\scripts\dev\cleanup_rust_cache.ps1 -Days 7     # keep artifacts newer than 7 days
 
 param(
     [switch]$Full,
-    [int]$Days = 30
+    [int]$Days = 1
 )
 
 $ErrorActionPreference = 'Stop'
@@ -15,14 +15,14 @@ $CacheRoot = Join-Path $Root '.cache'
 
 $RustWorkspaces = @(
     @{ WorkDir = 'servers'; Label = 'server'; CacheDir = 'server' },
-    @{ WorkDir = 'remotes'; Label = 'c_remote'; CacheDir = 'c_remote' },
-    @{ WorkDir = 'node_stats'; Label = 'node_stats'; CacheDir = 'node_stats' }
+    @{ WorkDir = 'remotes'; Label = 'c_remote'; CacheDir = 'c_remote' }
 )
 
 $LegacyTargetDirs = @(
     (Join-Path $Root 'servers\target'),
     (Join-Path $Root 'remotes\target'),
     (Join-Path $Root 'node_stats\target'),
+    (Join-Path $CacheRoot 'node_stats'),
     (Join-Path $CacheRoot 'agent')
 )
 
@@ -113,7 +113,7 @@ function Invoke-PruneEmptyDirs([string]$Dir) {
 }
 
 Write-Host '========================================'
-Write-Host ' cleanup: rust cache (.cache/server, c_remote, node_stats, rust)'
+Write-Host ' cleanup: rust cache (.cache/server, c_remote, rust)'
 Write-Host '========================================'
 Write-Host '==> before'
 Show-CacheStatus

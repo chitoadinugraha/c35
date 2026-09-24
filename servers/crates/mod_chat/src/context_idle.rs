@@ -97,13 +97,14 @@ pub async fn context_idle_scan(pool: &PgPool) -> Result<i32> {
         r#"
         SELECT c.id, c.owner_iid FROM ai.chat c
         WHERE c.kind = 'prompt' AND c.deleted_ts IS NULL
-          AND c.last_msg_ts < NOW() - INTERVAL '45 minutes'
+          AND c.last_msg_ts < NOW() - ($2 * INTERVAL '1 minute')
           AND (c.context_compact_ts IS NULL OR c.context_compact_ts < c.last_msg_ts)
           AND (SELECT COUNT(*) FROM ai.chat_msg m WHERE m.chat_id = c.id AND m.deleted_ts IS NULL) >= $1
         LIMIT 50
         "#,
     )
     .bind(CONTEXT_IDLE_MIN_MSGS)
+    .bind(CONTEXT_IDLE_MINUTES)
     .fetch_all(pool)
     .await?;
     let mut n = 0i32;

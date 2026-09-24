@@ -1,0 +1,19 @@
+[package]
+name = "c_node_stats"
+version.workspace = true
+edition.workspace = true
+description = "c35 node stats DaemonSet agent (NATS publisher)"
+
+[[bin]]
+name = "c_node_stats"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+async-nats = { workspace = true }
+c35_proto = { path = "../crates/proto", package = "c35_proto" }
+libc = { workspace = true }
+prost = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }

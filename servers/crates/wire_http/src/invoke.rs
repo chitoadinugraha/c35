@@ -6,7 +6,7 @@ use axum::{
     routing::post,
 };
 use c35_ctx::AppState;
-use c35_mod_admin::{admin_log_list, admin_user_put, admin_user_search};
+use c35_mod_admin::{admin_log_list, admin_log_report, admin_user_put, admin_user_search};
 use c35_mod_billing::{
     billing_admin_adjust, billing_admin_adjust_list, billing_history, billing_notify_owner,
     billing_package_preview, billing_package_redeem, billing_plan_subscribe, billing_promotion_claim,
@@ -17,6 +17,7 @@ use c35_mod_billing::{
 };
 use c35_mod_channel::{channel_telegram_connect, channel_whatsapp_meta_connect};
 use c35_mod_consumption::consumption_put_rpc;
+use c35_mod_expense::expense_put_rpc;
 use c35_mod_chat::{
     inst_delete, inst_get, inst_list, inst_put, object_alias_list, object_alias_put,
     object_normalizer_list, translation_put,
@@ -347,6 +348,17 @@ pub async fn dispatch_invoke(state: &AppState, req: InvokeReq) -> InvokeRes {
                 Err(e) => invoke_error(&req_id, e.status_code, e.message),
             }
         }
+        Some(invoke_req::Body::AdminLogReport(r)) => {
+            match admin_log_report(pool, iid, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::AdminLogReport(res)),
+                },
+                Err(e) => invoke_error(&req_id, e.status_code, e.message),
+            }
+        }
         Some(invoke_req::Body::ChannelTelegramConnect(r)) => {
             match channel_telegram_connect(&state.pool, iid, &state.public_origin, r, state.nats.as_ref()).await {
                 Ok(res) => InvokeRes {
@@ -377,6 +389,18 @@ pub async fn dispatch_invoke(state: &AppState, req: InvokeReq) -> InvokeRes {
                     status_code: 200,
                     error_message: String::new(),
                     body: Some(invoke_res::Body::ConsumptionPut(res)),
+                },
+                Err(msg) => invoke_error(&req_id, 400, msg),
+            }
+        }
+        Some(invoke_req::Body::ExpensePut(r)) => {
+            let locale = "id";
+            match expense_put_rpc(pool, iid, locale, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::ExpensePut(res)),
                 },
                 Err(msg) => invoke_error(&req_id, 400, msg),
             }

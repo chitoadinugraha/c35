@@ -6,6 +6,7 @@ use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::{info, warn};
 
+use crate::conn_exit::ConnExit;
 use crate::log_push;
 use crate::webrtc::WebrtcHub;
 
@@ -34,9 +35,9 @@ pub async fn conn_ws_run(
     server_url: &str,
     session_key: &str,
     device_iid: i64,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<ConnExit> {
     let url = agent_ws_url(server_url, session_key);
-    info!(device_iid, url = %url, "connecting agent ws");
+    info!(device_iid, url = %url, "==> [WS CONNECTING] Opening agent control socket");
 
     let (ws, _) = connect_async(&url).await?;
     let (mut write, mut read) = ws.split();
@@ -50,6 +51,7 @@ pub async fn conn_ws_run(
     });
     let webrtc = WebrtcHub::new(device_iid, out_tx, dispatch_ctx);
 
+    info!(device_iid, "==> [WS CONNECTED] Agent online & control socket ready");
     log_push::log_push(
         server_url,
         session_key,
@@ -85,14 +87,18 @@ pub async fn conn_ws_run(
                     Some(Ok(Message::Pong(_))) => {}
                     Some(Ok(Message::Binary(data))) => {
                         webrtc.handle_frame(&data).await;
+                        if crate::conn_exit::unpair_requested() {
+                            crate::conn_exit::reset_unpair_flag();
+                            return Ok(ConnExit::Unpaired);
+                        }
                     }
                     Some(Ok(Message::Close(frame))) => {
-                        info!(?frame, "agent ws closed by server");
+                        info!(?frame, "==> [WS CLOSED] Server closed control socket");
                         break;
                     }
                     Some(Ok(_)) => {}
                     Some(Err(e)) => {
-                        warn!("agent ws read error: {e}");
+                        warn!("==> [WS READ ERROR] {e}");
                         break;
                     }
                     None => break,
@@ -101,6 +107,7 @@ pub async fn conn_ws_run(
         }
     }
 
+    warn!(device_iid, "==> [WS DISCONNECTED] Agent control socket disconnected");
     log_push::log_push(
         server_url,
         session_key,
@@ -111,21 +118,22 @@ pub async fn conn_ws_run(
     )
     .await;
 
-    Ok(())
+    Ok(ConnExit::Completed)
 }
 
 pub async fn conn_ws_run_reconnect(
     server_url: &str,
     session_key: &str,
     device_iid: i64,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<ConnExit> {
     let mut backoff = Duration::from_secs(2);
     loop {
         match conn_ws_run(server_url, session_key, device_iid).await {
-            Ok(()) => backoff = Duration::from_secs(2),
+            Ok(ConnExit::Unpaired) => return Ok(ConnExit::Unpaired),
+            Ok(ConnExit::Completed) => backoff = Duration::from_secs(2),
             Err(e) if is_invalid_session(&e) => return Err(e),
             Err(e) => {
-                warn!("agent ws error: {e}; retry in {backoff:?}");
+                warn!("==> [WS RETRY] Agent error: {e}; retrying in {backoff:?}");
                 log_push::log_push(
                     server_url,
                     session_key,

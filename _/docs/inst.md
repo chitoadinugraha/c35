@@ -211,6 +211,7 @@ kind = 'task'
 |-----|------|
 | Consumption tools | [consumption.md](consumption.md) |
 | Composer @mentions | [`../schemas/mention.sql`](../schemas/mention.sql) |
+| Image gen / edit tiers | [`image.md`](image.md) |
 | Topics | [`../schemas/topic.sql`](../schemas/topic.sql) (if present) / catalog proto |
 | Chat turn | [chat.md](chat.md) |
 | NATS conventions | [sync.md](sync.md) |

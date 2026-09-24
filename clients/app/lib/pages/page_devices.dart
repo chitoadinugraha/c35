@@ -1,5 +1,7 @@
 import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/device/device_store.dart';
+import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
+import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/remote/remote_session.dart';
 import 'package:alienai_c35/widgets/devices/ui_device_add_menu.dart';
 import 'package:alienai_c35/widgets/devices/ui_device_detail.dart';
@@ -47,10 +49,39 @@ class _PageDevicesState extends State<PageDevices> {
         builder: (ctx) => _DeviceRenameDialog(initial: current),
       );
 
+  bool _canRemove(IdentityListRow row) => row.identity.ownerIid.toInt() == Session.instance.uid;
+
+  Future<bool> _removeConfirm(String name, String kind) async {
+    final remote = kind.toLowerCase() == 'remote';
+    return await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: const Color(0xFF18181B),
+            title: const Text('Remove device?', style: TextStyle(color: Color(0xFFF4F4F5), fontSize: 16, fontWeight: FontWeight.bold)),
+            content: Text(
+              remote
+                  ? 'Remove "$name" from your account? The remote agent will be unpaired immediately.'
+                  : 'Remove "$name" from your account? This cannot be undone.',
+              style: const TextStyle(color: Color(0xFFA1A1AA)),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: FilledButton.styleFrom(backgroundColor: const Color(0xFFEF4444), foregroundColor: Colors.white),
+                child: const Text('Remove'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
   Future<void> _rowMenu(String id, Offset pos) async {
     final row = _store.rowById(id);
     if (row == null) return;
     final pinned = row.isPinned;
+    final canRemove = _canRemove(row);
     final currentName = row.identity.name.isNotEmpty ? row.identity.name : row.identity.type;
     final action = await showMenu<String>(
       context: context,
@@ -87,6 +118,19 @@ class _PageDevicesState extends State<PageDevices> {
             ],
           ),
         ),
+        if (canRemove) ...[
+          const PopupMenuDivider(),
+          const PopupMenuItem(
+            value: 'remove',
+            child: Row(
+              children: [
+                Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)),
+                SizedBox(width: 10),
+                Text('Remove', style: TextStyle(color: Color(0xFFEF4444))),
+              ],
+            ),
+          ),
+        ],
       ],
     );
     if (action == null || !mounted) return;
@@ -99,6 +143,10 @@ class _PageDevicesState extends State<PageDevices> {
         await _store.namePut(id, name);
       }
       if (action == 'archive') await _store.archivePut(id, true);
+      if (action == 'remove') {
+        if (!await _removeConfirm(currentName, row.identity.kind)) return;
+        await _store.deletePut(id);
+      }
     } catch (e) {
       if (mounted) await uiAlertError(context, e);
     }

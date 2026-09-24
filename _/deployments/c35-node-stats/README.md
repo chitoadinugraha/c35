@@ -54,7 +54,7 @@ nats sub 'c35.stats.>' --count=5
 ## Build locally
 
 ```powershell
-cd node_stats
+cd servers
 cargo build --release -p c_node_stats
 ```
 

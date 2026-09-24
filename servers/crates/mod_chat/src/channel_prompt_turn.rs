@@ -125,6 +125,8 @@ pub async fn channel_prompt_turn(
         chat_id,
         site_iid: None,
         mention: crate::mention_context::MentionContext::empty(),
+        mention_ids: &[],
+        user_text: &prompt_text,
         locale,
         attachments_json,
         req_id,
@@ -150,13 +152,14 @@ pub async fn channel_prompt_turn(
         }
     };
     let duration_ms = turn_started.elapsed().as_millis() as i32;
-    if let Ok((writes, tin, tout, cost)) =
-        memory_extract_turn_gate(pool, &http, owner_iid, Some(bot_iid), req_id, &prompt_text, &res.text).await
-    {
-        context_billing.memory_extract_writes += writes;
-        context_billing.memory_extract_cost_usd += cost;
-        context_billing.compaction_tokens_in += tin;
-        context_billing.compaction_tokens_out += tout;
+    match memory_extract_turn_gate(pool, &http, owner_iid, Some(bot_iid), req_id, &prompt_text, &res.text).await {
+        Ok((writes, tin, tout, cost)) => {
+            context_billing.memory_extract_writes += writes;
+            context_billing.memory_extract_cost_usd += cost;
+            context_billing.compaction_tokens_in += tin;
+            context_billing.compaction_tokens_out += tout;
+        }
+        Err(e) => crate::memory_extract::memory_extract_log_err(&e),
     }
     let context_extra = context_billing.total_extra_usd();
     let usage_meta = context_billing.to_log_meta();

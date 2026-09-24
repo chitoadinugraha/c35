@@ -23,8 +23,11 @@ import 'package:alienai_c35/c/trace/trace_view.dart';
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/store/prompt_run_store.dart';
 import 'package:fixnum/fixnum.dart';
+import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+
+enum ChatConnStatus { disconnected, connecting, connected, reconnecting }
 
 class PromptStreamEvent {
   const PromptStreamEvent._({
@@ -76,6 +79,12 @@ class PromptStreamEvent {
 class ChatConn {
   WebSocketChannel? _ch;
   StreamSubscription? _sub;
+  Timer? _reconnectTimer;
+  var _manualDisconnect = false;
+  var _retryCount = 0;
+  var _locale = 'en';
+  final status = ValueNotifier<ChatConnStatus>(ChatConnStatus.disconnected);
+  final _reconnectedCtrl = StreamController<void>.broadcast();
   final _promptPending = <String, StreamController<PromptStreamEvent>>{};
   final _rpcPending = <String, Completer<WsRes>>{};
   final _syncPushCtrl = StreamController<SyncPush>.broadcast();
@@ -98,6 +107,7 @@ class ChatConn {
   Stream<StatsPush> get onStatsPush => _statsPushCtrl.stream;
   Stream<LogPush> get onLogPush => _logPushCtrl.stream;
   Stream<PromptRunPush> get onPromptRunPush => _promptRunPushCtrl.stream;
+  Stream<void> get onReconnected => _reconnectedCtrl.stream;
 
   bool get connected => _ch != null;
 
@@ -119,21 +129,34 @@ class ChatConn {
   }
 
   Future<void> connect({String locale = 'en'}) async {
-    await disconnect();
-    final token = Session.instance.token.trim();
-    if (token.isEmpty) throw 'not signed in';
-    _ch = WebSocketChannel.connect(Uri.parse(_wsUrl(locale: locale)));
-    _sub = _ch!.stream.listen(_onData, onError: (e) {
-      lError('chat ws: $e');
-      _failAll('$e');
-    }, onDone: () => _failAll('connection closed'));
+    _manualDisconnect = false;
+    _locale = locale;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    _retryCount = 0;
+    status.value = ChatConnStatus.connecting;
+    await _tearDownSocket(failPending: true);
+    _attachSocket(locale: locale);
+    status.value = ChatConnStatus.connected;
   }
 
   Future<void> disconnect() async {
+    _manualDisconnect = true;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    _retryCount = 0;
+    await _tearDownSocket(failPending: true);
+    status.value = ChatConnStatus.disconnected;
+  }
+
+  Future<void> _tearDownSocket({required bool failPending}) async {
     await _sub?.cancel();
     _sub = null;
-    await _ch?.sink.close();
+    try {
+      await _ch?.sink.close();
+    } catch (_) {}
     _ch = null;
+    if (!failPending) return;
     for (final c in _promptPending.values) {
       if (!c.isClosed) c.add(PromptStreamEvent.fail('disconnected'));
       await c.close();
@@ -143,6 +166,55 @@ class ChatConn {
       if (!c.isCompleted) c.completeError('disconnected');
     }
     _rpcPending.clear();
+  }
+
+  void _attachSocket({required String locale}) {
+    final token = Session.instance.token.trim();
+    if (token.isEmpty) throw 'not signed in';
+    _ch = WebSocketChannel.connect(Uri.parse(_wsUrl(locale: locale)));
+    _sub = _ch!.stream.listen(_onData, onError: _onWsError, onDone: _onWsDone);
+  }
+
+  void _onWsError(Object e) {
+    lError('chat ws: $e');
+    _failAll('$e');
+    _scheduleReconnectIfNeeded();
+  }
+
+  void _onWsDone() {
+    _failAll('connection closed');
+    _scheduleReconnectIfNeeded();
+  }
+
+  void _scheduleReconnectIfNeeded() {
+    if (_manualDisconnect) {
+      status.value = ChatConnStatus.disconnected;
+      return;
+    }
+    if (_reconnectTimer != null) return;
+    status.value = ChatConnStatus.reconnecting;
+    _retryCount++;
+    if (_retryCount > 12) {
+      status.value = ChatConnStatus.disconnected;
+      return;
+    }
+    final delay = Duration(seconds: (1 << (_retryCount - 1).clamp(0, 4)).clamp(1, 16));
+    l('chat ws reconnect attempt $_retryCount in ${delay.inSeconds}s');
+    _reconnectTimer = Timer(delay, () async {
+      _reconnectTimer = null;
+      if (_manualDisconnect) return;
+      try {
+        status.value = ChatConnStatus.connecting;
+        await _tearDownSocket(failPending: false);
+        _attachSocket(locale: _locale);
+        _retryCount = 0;
+        status.value = ChatConnStatus.connected;
+        if (!_reconnectedCtrl.isClosed) _reconnectedCtrl.add(null);
+      } catch (e) {
+        lError('chat ws reconnect: $e');
+        _scheduleReconnectIfNeeded();
+      }
+    });
   }
 
   void _send(WsReq req) => _ch!.sink.add(req.writeToBuffer());
@@ -346,12 +418,9 @@ class ChatConn {
   }
 
   Future<TraceView> traceViewFetch(String reqId) async {
-    var logs = traceCacheGet(reqId);
-    if (logs.isEmpty) {
-      final res = await logList(reqId: reqId);
-      logs = res.logs.map(TraceLogDoc.fromLog).toList();
-      traceCachePut(reqId, logs);
-    }
+    final res = await logList(reqId: reqId);
+    final logs = res.logs.map(TraceLogDoc.fromLog).toList();
+    if (logs.isNotEmpty) traceCachePut(reqId, logs);
     return buildTraceView(logs);
   }
 

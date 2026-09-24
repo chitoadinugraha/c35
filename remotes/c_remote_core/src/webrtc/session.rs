@@ -261,7 +261,15 @@ impl WebrtcHub {
         .await
         {
             Ok(sess) => {
-                info!(session_id = %session_id, "webrtc session created");
+                info!(session_id = %session_id, "==> [WEBRTC SESSION CREATED] Peer session initialized for viewer");
+                crate::log_push::spawn_log_push(
+                    self.dispatch_ctx.server_url.clone(),
+                    self.dispatch_ctx.session_key.clone(),
+                    "conn".into(),
+                    "agent.webrtc".into(),
+                    format!("webrtc session started sid={session_id}"),
+                    Some(serde_json::json!({ "session_id": session_id, "device_iid": self.device_iid })),
+                );
                 let count = {
                     let mut w = self.sessions.write().await;
                     w.insert(session_id, Arc::new(sess));
@@ -269,7 +277,17 @@ impl WebrtcHub {
                 };
                 crate::update::active_sessions_set(count);
             }
-            Err(e) => warn!(session_id = %session_id, "webrtc session create failed: {e}"),
+            Err(e) => {
+                warn!(session_id = %session_id, "==> [WEBRTC SESSION FAILED] Create error: {e}");
+                crate::log_push::spawn_log_push(
+                    self.dispatch_ctx.server_url.clone(),
+                    self.dispatch_ctx.session_key.clone(),
+                    "error".into(),
+                    "agent.webrtc".into(),
+                    format!("webrtc session create failed: {e}"),
+                    Some(serde_json::json!({ "session_id": session_id, "device_iid": self.device_iid, "error": e.to_string() })),
+                );
+            }
         }
     }
 
@@ -283,6 +301,15 @@ impl WebrtcHub {
             if let Some(sess) = w.remove(sid) {
                 sess.close().await;
                 push_connected(&self.out_tx, self.device_iid, sid, false, None);
+                info!(session_id = %sid, "==> [WEBRTC SESSION STOPPED] Viewer disconnected");
+                crate::log_push::spawn_log_push(
+                    self.dispatch_ctx.server_url.clone(),
+                    self.dispatch_ctx.session_key.clone(),
+                    "conn".into(),
+                    "agent.webrtc".into(),
+                    format!("webrtc session stopped sid={sid}"),
+                    Some(serde_json::json!({ "session_id": sid, "device_iid": self.device_iid })),
+                );
             }
             w.len()
         };
@@ -400,11 +427,12 @@ impl WebrtcSession {
             let v_track = Arc::clone(&v_track);
             let a_track = Arc::clone(&a_track);
             Box::pin(async move {
-                info!(session_id = %sid, ?state, "webrtc pc state");
+                info!(session_id = %sid, ?state, "==> [WEBRTC STATE] PC state changed: {:?}", state);
                 if state == RTCPeerConnectionState::Connected {
                     let already = *pushed.read().await;
                     if !already {
                         *pushed.write().await = true;
+                        info!(session_id = %sid, "==> [WEBRTC CONNECTED] Remote viewer is streaming desktop live");
                         push_connected(&out, dev, &sid, true, Some(RemoteConnectionMode::Direct));
                         dispatch_media_tracks(v_track, Some(a_track));
                     }
@@ -413,6 +441,7 @@ impl WebrtcSession {
                     || state == RTCPeerConnectionState::Disconnected
                 {
                     *pushed.write().await = false;
+                    warn!(session_id = %sid, ?state, "==> [WEBRTC DISCONNECTED] Peer connection ended");
                     push_connected(&out, dev, &sid, false, None);
                 }
             })
@@ -443,7 +472,7 @@ impl WebrtcSession {
         let sid_dc = session_id.clone();
         pc.on_data_channel(Box::new(move |dc| {
             let label = dc.label();
-            info!(session_id = %sid_dc, label = %label, "data channel opened");
+            info!(session_id = %sid_dc, label = %label, "==> [WEBRTC DATA CHANNEL OPENED] Channel '{}' ready", label);
             if label == "remote-fs" {
                 wire_fs_channel(dc);
             } else if label == "remote-input" {

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:alienai_c35/c/catalog/catalog_translation_cache.dart';
 import 'package:alienai_c35/c/trace/trace_log.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
@@ -183,9 +185,15 @@ TraceView buildTraceView(List<TraceLogDoc> logs) {
       for (final b in branchRows) {
         branches.add(_branchFromLog(b));
       }
+      final toolBranches = branches.where((b) => b.label.isNotEmpty).map((b) => b.label).toList();
+      final hopTitle = toolBranches.isNotEmpty && hop == 1
+          ? 'Tool run · ${toolBranches.join(', ')}'
+          : toolBranches.isNotEmpty && hop > 1
+              ? 'Reply'
+              : 'LLM hop $hop';
       hopStep = TraceStep(
         index: hop,
-        title: 'LLM hop $hop',
+        title: hopTitle,
         durationMs: main.durationMs > 0 ? main.durationMs : _asInt(meta['duration_ms']),
         costUsd: main.costUsd > 0 ? main.costUsd : _asDouble(meta['cost_retail_usd']),
         tokensIn: main.tokensIn > 0 ? main.tokensIn : _asInt(meta['prompt_tokens']),
@@ -276,3 +284,98 @@ class MsgTraceToolChip {
   final bool ok;
   final int durationMs;
 }
+
+class Citation {
+  const Citation({required this.url, required this.title, this.snippet = ''});
+  final String url;
+  final String title;
+  final String snippet;
+}
+
+String citationHost(String url) {
+  final h = Uri.tryParse(url)?.host ?? '';
+  return h.startsWith('www.') ? h.substring(4) : h;
+}
+
+String citationFaviconUrl(String url) =>
+    'https://www.google.com/s2/favicons?domain=${Uri.encodeQueryComponent(citationHost(url))}&sz=32';
+
+List<Citation> citationsFromTraceLogs(List<TraceLogDoc> logs) {
+  final out = <Citation>[];
+  final seenHosts = <String>{};
+
+  void push(String url, String title, String snippet) {
+    final cleanUrl = url.trim();
+    if (cleanUrl.isEmpty || !cleanUrl.startsWith('http')) return;
+    final host = citationHost(cleanUrl);
+    if (host.isEmpty || !seenHosts.add(host)) return;
+    final cleanTitle = title.trim().isNotEmpty ? title.trim() : host;
+    out.add(Citation(url: cleanUrl, title: cleanTitle, snippet: snippet.trim()));
+  }
+
+  for (final log in logs) {
+    if (log.topic != 'tool_result' && log.topic != 'tool') continue;
+    final tool = (log.meta['tool'] ?? log.meta['branch'] ?? '').toString();
+    if (tool != 'web.search' &&
+        tool != 'web.visit' &&
+        tool != 'web.research' &&
+        tool != 'web_search' &&
+        tool != 'web_visit' &&
+        tool != 'web_research') {
+      continue;
+    }
+
+    dynamic rawJson;
+    final preview = (log.meta['output_preview'] ?? '').toString().trim();
+    final text = log.text.trim();
+    final jsonStr = preview.isNotEmpty ? preview : text;
+    if (jsonStr.isNotEmpty) {
+      try {
+        rawJson = jsonDecode(jsonStr);
+      } catch (_) {
+        if (jsonStr.endsWith('…')) {
+          final trimmed = jsonStr.substring(0, jsonStr.length - 1);
+          try {
+            rawJson = jsonDecode(trimmed);
+          } catch (_) {}
+        }
+      }
+    }
+
+    if (rawJson is Map) {
+      if (rawJson['results'] is List) {
+        for (final item in rawJson['results'] as List) {
+          if (item is Map) {
+            push(
+              (item['url'] ?? '').toString(),
+              (item['title'] ?? '').toString(),
+              (item['snippet'] ?? item['content'] ?? '').toString(),
+            );
+          }
+        }
+      }
+      if (rawJson['dossier'] is List) {
+        for (final item in rawJson['dossier'] as List) {
+          if (item is Map) {
+            push(
+              (item['url'] ?? '').toString(),
+              (item['title'] ?? '').toString(),
+              (item['summary'] ?? '').toString(),
+            );
+          }
+        }
+      }
+      if (rawJson.containsKey('url')) {
+        push(
+          (rawJson['url'] ?? '').toString(),
+          (rawJson['title'] ?? '').toString(),
+          (rawJson['description'] ?? rawJson['content'] ?? '').toString(),
+        );
+      }
+    }
+
+    if (out.length >= 6) break;
+  }
+  return out;
+}
+

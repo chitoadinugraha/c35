@@ -42,6 +42,21 @@ INSERT INTO ai.mention (
 -- Image generation is automatic (attachments + img.generate tool) — not a composer mention.
 UPDATE ai.mention SET enabled = false WHERE id = 'image';
 
+-- Seed: @image-high (pro Flash Image tier)
+INSERT INTO ai.mention (
+    id, topic_id, inst_id, icon, color, sort, label_key, caption_key, search_terms
+) VALUES (
+    'image_high',
+    'image',
+    'inst.mention.image_high',
+    'iconify://mdi:image-filter-hdr',
+    '#A855F7',
+    15,
+    'mention.image_high.label',
+    'mention.image_high.caption',
+    ARRAY['image high', 'pro image', 'hd image', 'flash image', 'logo', 'poster', 'high quality']
+) ON CONFLICT (id) DO NOTHING;
+
 -- Seed: @memorize
 INSERT INTO ai.mention (
     id, topic_id, inst_id, icon, color, sort, label_key, caption_key, search_terms

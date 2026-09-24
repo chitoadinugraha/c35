@@ -1,10 +1,12 @@
 use axum::extract::{Query, State};
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use c35_ctx::AppState;
-use c35_mod_device::{device_pair_poll, device_pair_register};
+use c35_mod_device::{
+    agent_session_resolve, device_pair_poll, device_pair_register, device_unpair,
+};
 use c35_proto::{ReqDevicePairPoll, ReqDevicePairRegister};
 use serde::{Deserialize, Serialize};
 
@@ -44,6 +46,32 @@ pub fn device_router() -> Router<AppState> {
     Router::new()
         .route("/v1/device/pair/register", post(pair_register))
         .route("/v1/device/pair/poll", get(pair_poll))
+        .route("/v1/device/unpair", post(device_unpair_handler))
+}
+
+fn session_key_from_headers(headers: &HeaderMap) -> Option<&str> {
+    headers
+        .get("X-Device-Session")
+        .or_else(|| headers.get("x-device-session"))
+        .and_then(|v| v.to_str().ok())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+}
+
+async fn device_unpair_handler(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+) -> impl IntoResponse {
+    let session_key = session_key_from_headers(&headers).unwrap_or("");
+    let session = match agent_session_resolve(&st.pool, session_key).await {
+        Ok(Some(s)) => s,
+        Ok(None) => return (StatusCode::UNAUTHORIZED, "invalid session").into_response(),
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
+    };
+    match device_unpair(&st.pool, st.nats.as_ref(), session.device_iid).await {
+        Ok(()) => (StatusCode::OK, Json(serde_json::json!({ "ok": true }))).into_response(),
+        Err(e) => (StatusCode::BAD_REQUEST, e).into_response(),
+    }
 }
 
 async fn pair_register(

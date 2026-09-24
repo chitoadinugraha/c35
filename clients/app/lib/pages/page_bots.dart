@@ -1,5 +1,6 @@
 import 'package:alienai_c35/c/bot/bot_store.dart';
 import 'package:alienai_c35/c/chat/chat_conn.dart';
+import 'package:alienai_c35/widgets/bots/ui_bot_add_menu.dart';
 import 'package:alienai_c35/widgets/bots/ui_bot_conversation.dart';
 import 'package:alienai_c35/widgets/bots/ui_bot_nav_list.dart';
 import 'package:alienai_c35/widgets/bots/ui_bot_peer_list.dart';
@@ -46,6 +47,9 @@ class _PageBotsState extends State<PageBots> {
     return UiPage(
       title: 'Bots',
       onBack: () => Navigator.pop(context),
+      onSearch: _store.searchPut,
+      searchHint: 'Search bots',
+      trailing: UiBotAddMenu(store: _store),
       body: ListenableBuilder(
         listenable: _store,
         builder: (context, _) {

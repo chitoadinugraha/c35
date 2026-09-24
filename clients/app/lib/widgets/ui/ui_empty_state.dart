@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 const _muted = Color(0xFF71717A);
 const _text = Color(0xFFA1A1AA);
 const _title = Color(0xFFF4F4F5);
-const _accent = Color(0xFF34D399);
 
 class UiEmptyState extends StatelessWidget {
   const UiEmptyState({
@@ -12,14 +11,13 @@ class UiEmptyState extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.actionHint,
-    this.actionIcon = Icons.add_circle_outline,
   });
 
   factory UiEmptyState.devices() => const UiEmptyState(
         icon: Icons.devices_outlined,
         title: 'No devices yet',
         subtitle: 'Pair a remote PC, phone, or IoT device to control it from here.',
-        actionHint: 'Tap + to add',
+        actionHint: 'Tap + to add new',
       );
 
   factory UiEmptyState.sites() => const UiEmptyState(
@@ -32,8 +30,7 @@ class UiEmptyState extends StatelessWidget {
         icon: Icons.smart_toy_outlined,
         title: 'No bots yet',
         subtitle: 'Create a chat bot and connect Telegram or WhatsApp.',
-        actionHint: 'Tap + in the sidebar',
-        actionIcon: Icons.add,
+        actionHint: 'Tap + to add',
       );
 
   factory UiEmptyState.noMatches(String noun) => UiEmptyState(
@@ -46,7 +43,6 @@ class UiEmptyState extends StatelessWidget {
   final String title;
   final String? subtitle;
   final String? actionHint;
-  final IconData? actionIcon;
 
   @override
   Widget build(BuildContext context) => Center(
@@ -75,14 +71,7 @@ class UiEmptyState extends StatelessWidget {
                 ],
                 if (actionHint != null) ...[
                   const SizedBox(height: 14),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (actionIcon != null) ...[Icon(actionIcon, size: 16, color: _accent), const SizedBox(width: 6)],
-                      Text(actionHint!, style: const TextStyle(color: _accent, fontSize: 12, fontWeight: FontWeight.w500)),
-                    ],
-                  ),
+                  Text(actionHint!, textAlign: TextAlign.center, style: const TextStyle(color: _text, fontSize: 12, fontWeight: FontWeight.w500)),
                 ],
               ],
             ),

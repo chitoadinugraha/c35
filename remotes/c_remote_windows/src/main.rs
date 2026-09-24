@@ -1,5 +1,6 @@
 use c_remote_core::config::{device_iid_load, server_url, session_key_clear, session_key_load};
 use c_remote_core::conn_ws::{conn_ws_run_reconnect, is_invalid_session};
+use c_remote_core::ConnExit;
 use c_remote_core::update::{is_dev_mode, is_idle, update_apply, update_check_on_start, update_run_loop, update_staged_version};
 use c_remote_core::version::agent_version_label;
 use c_remote_windows::pair_loop::pair_until_claimed;
@@ -8,7 +9,34 @@ use tracing::info;
 
 async fn run() -> anyhow::Result<()> {
     let cli = std::env::args().any(|a| a == "--cli");
-    info!("{} cli={} dev={}", agent_version_label(), cli, is_dev_mode());
+    let dev = is_dev_mode();
+    let dev_name = c_remote_windows::pair_loop::device_name();
+    let base_url = server_url();
+    let paired = session_key_load().is_some();
+
+    println!(
+        "\n\
+        +--------------------------------------------------------------+\n\
+        |  AlienAI Remote Agent (Windows) {:<28}|\n\
+        |  Device: {:<18} Paired: {:<5} Dev: {:<5} |\n\
+        |  Server: {:<52}|\n\
+        +--------------------------------------------------------------+\n",
+        agent_version_label(),
+        dev_name,
+        paired,
+        dev,
+        base_url,
+    );
+
+    info!(
+        version = agent_version_label(),
+        device = %dev_name,
+        cli,
+        dev,
+        paired,
+        server = %base_url,
+        "==> [AGENT READY] Windows Remote Agent initialized"
+    );
 
     c_remote_windows::startup::prevent_sleep();
 
@@ -60,7 +88,11 @@ async fn run() -> anyhow::Result<()> {
             tokio::select! {
                 r = &mut conn => {
                     match r {
-                        Ok(Ok(())) => tracing::warn!("conn_ws exited unexpectedly"),
+                        Ok(Ok(ConnExit::Unpaired)) => {
+                            info!("unpaired via server push");
+                            session_key_clear()?;
+                        }
+                        Ok(Ok(ConnExit::Completed)) => tracing::warn!("conn_ws exited unexpectedly"),
                         Ok(Err(e)) if is_invalid_session(&e) => {
                             info!("session invalid; clearing config and re-pairing");
                             session_key_clear()?;
@@ -74,6 +106,12 @@ async fn run() -> anyhow::Result<()> {
                     Some(TrayAction::Unpair) => {
                         info!("Unpairing this PC…");
                         conn.abort();
+                        if let Some(key) = session_key_load() {
+                            let url = base_url.clone();
+                            if let Err(e) = c_remote_core::pair::pair_unpair(&url, &key).await {
+                                tracing::warn!("server unpair failed (clearing local anyway): {e}");
+                            }
+                        }
                         session_key_clear()?;
                         break;
                     }
@@ -104,9 +142,11 @@ async fn main() {
                     tracing::error!("{e}");
                     std::process::exit(1);
                 }
+                std::process::exit(0);
             }
             _ = tokio::signal::ctrl_c() => {
                 info!("shutdown");
+                std::process::exit(0);
             }
         }
     } else {
@@ -136,7 +176,7 @@ async fn main() {
             match res {
                 Ok(()) => {
                     info!("c_remote_windows exited cleanly");
-                    break;
+                    std::process::exit(0);
                 }
                 Err(e) => {
                     let now = std::time::Instant::now();
@@ -148,12 +188,28 @@ async fn main() {
                     last_crash = now;
 
                     let delay_secs = if crash_count >= 5 {
-                        tracing::error!(crash_count, "frequent crashes detected; backing off 30s");
+                        tracing::error!(crash_count, "==> [WATCHDOG CRITICAL] Frequent crashes detected; backing off 30s");
                         30
                     } else {
-                        tracing::warn!(crash_count, error = %e, "agent crashed; supervisor restarting in 3s");
+                        tracing::warn!(crash_count, error = %e, "==> [WATCHDOG RECOVERING] Agent crashed ({e}); supervisor restarting in 3s");
                         3
                     };
+
+                    if let Some(key) = session_key_load() {
+                        c_remote_core::log_push::spawn_log_push(
+                            server_url(),
+                            key,
+                            "error".into(),
+                            "agent.supervisor".into(),
+                            format!("agent crash #{crash_count}: {e}"),
+                            Some(serde_json::json!({
+                                "crash_count": crash_count,
+                                "delay_secs": delay_secs,
+                                "error": e.to_string(),
+                            })),
+                        );
+                    }
+
                     tokio::time::sleep(std::time::Duration::from_secs(delay_secs)).await;
                 }
             }

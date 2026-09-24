@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package c35;
+
+message UiMetricsCard {
+  string title = 1;
+  string value = 2;
+  string subtitle = 3;
+}
+
+message UiReportTable {
+  repeated string headers = 1;
+  repeated UiReportTableRow rows = 2;
+}
+
+message UiReportTableRow {
+  repeated string cells = 1;
+}
+
+message UiWidget {
+  oneof element {
+    UiMetricsCard metrics_card = 1;
+    UiReportTable table = 2;
+  }
+}
+
+message ReqAdminLogReport {
+  optional int64 owner_iid = 1;
+  int64 since_ms = 2;
+  int64 until_ms = 3;
+  int32 limit = 4;
+}
+
+message ResAdminLogReport {
+  repeated UiWidget widgets = 1;
+}

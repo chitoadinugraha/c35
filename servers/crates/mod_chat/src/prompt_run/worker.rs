@@ -10,13 +10,14 @@ use c35_proto::{PromptRunJob, ResPromptEnd, ResPromptFail};
 use futures_util::StreamExt;
 use serde::Deserialize;
 use sqlx::PgPool;
+use tokio::sync::Semaphore;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
-use tracing::{error, info, warn};
+use tracing::{error, info, warn, Instrument};
 
 use crate::prompt_turn::{prompt_turn, PromptTurnHooks};
 
-use super::checkpoint::prompt_run_should_stop;
+use super::checkpoint::{prompt_run_max_concurrent, prompt_run_should_stop};
 use super::fanout::{
     prompt_run_fanout_delta, prompt_run_fanout_end, prompt_run_fanout_fail, prompt_run_fanout_publish,
     prompt_run_push_from_row,
@@ -58,7 +59,10 @@ pub fn prompt_run_worker_start(pool: PgPool, nats: Client) -> PromptRunWorker {
 async fn prompt_run_worker_loop(pool: PgPool, nats: Client, draining: Arc<AtomicBool>) -> Result<()> {
     let js = prompt_jetstream_ensure(&nats).await?;
     let consumer = prompt_jetstream_consumer(&js).await?;
+    let max_concurrent = prompt_run_max_concurrent();
+    let sem = Arc::new(Semaphore::new(max_concurrent));
     info!(
+        max_concurrent,
         "[c35:prompt_run] JetStream consumer ready stream={} subject={}",
         super::jetstream::STREAM_NAME,
         super::jetstream::SUBJECT_WORK
@@ -74,10 +78,16 @@ async fn prompt_run_worker_loop(pool: PgPool, nats: Client, draining: Arc<Atomic
         };
         let Some(msg) = msg else { break };
         let msg = msg.context("jetstream message")?;
+        let permit = sem
+            .clone()
+            .acquire_owned()
+            .await
+            .context("prompt_run concurrency semaphore closed")?;
         let pool = pool.clone();
         let nats = nats.clone();
         let draining = draining.clone();
         tokio::spawn(async move {
+            let _permit = permit;
             if let Err(e) = process_prompt_job(pool, nats, msg, draining).await {
                 warn!("[c35:prompt_run] job failed: {e:#}");
             }
@@ -101,7 +111,16 @@ async fn process_prompt_job(
         let _ = msg.ack_with(AckKind::Term).await;
         return Ok(());
     };
+    let prompt_preview: String = row.text.chars().take(200).collect();
+    let span = tracing::info_span!(
+        "prompt_run",
+        req_id = %req_id,
+        owner_iid = row.owner_iid,
+        chat_id = row.chat_id,
+        prompt = %prompt_preview
+    );
 
+    async {
     if matches!(row.status.as_str(), "done" | "failed" | "cancelled") {
         let _ = msg.ack().await;
         return Ok(());
@@ -364,6 +383,9 @@ async fn process_prompt_job(
     }
 
     Ok(())
+    }
+    .instrument(span)
+    .await
 }
 
 pub async fn prompt_run_enqueue(
