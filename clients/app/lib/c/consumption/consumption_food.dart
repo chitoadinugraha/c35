@@ -81,6 +81,18 @@ class ConsumptionItemRow {
       };
 }
 
+String consumptionFoodHeadlineLabel(String headline, String locale) {
+  final isId = locale.toLowerCase().startsWith('id');
+  if (!isId || headline.isEmpty) return headline;
+  final logged = RegExp(r'^(.+?) logged\.$');
+  final m = logged.firstMatch(headline);
+  if (m != null) return '${m.group(1)}, berhasil dicatat.';
+  final oldId = RegExp(r'^Konsumsi (.+?) sudah tercatat\.$');
+  final m2 = oldId.firstMatch(headline);
+  if (m2 != null) return '${m2.group(1)}, berhasil dicatat.';
+  return headline;
+}
+
 class ConsumptionFoodCard {
   ConsumptionFoodCard({
     required this.consumptionId,

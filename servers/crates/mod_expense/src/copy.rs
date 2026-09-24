@@ -14,6 +14,16 @@ pub fn format_idr_minor(amount: i64) -> String {
     format!("Rp {out}")
 }
 
+pub fn expense_chat_title(items: &[ExpenseItem], locale: &str) -> String {
+    let id = locale.to_lowercase().starts_with("id");
+    let name = item_name_label(items, locale);
+    if id {
+        format!("🧾 Belanja: {name}")
+    } else {
+        format!("🧾 Expense: {name}")
+    }
+}
+
 pub fn expense_log_headline(saved: bool, duplicate: bool, items: &[ExpenseItem], total: i64, locale: &str) -> String {
     let id = locale.to_lowercase().starts_with("id");
     let name = item_name_label(items, locale);

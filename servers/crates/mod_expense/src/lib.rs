@@ -11,7 +11,7 @@ mod types;
 
 pub use block::{expense_glance_block, expense_receipt_block, receipt_with_items};
 pub use compact::{expense_compact_for_llm, summary_compact_for_llm};
-pub use copy::{expense_log_coach, expense_log_headline, expense_summary_coach, format_idr_minor};
+pub use copy::{expense_chat_title, expense_log_coach, expense_log_headline, expense_summary_coach, format_idr_minor};
 pub use day::{
     day_bounds_ms, multi_day_bounds_ms, period_label, resolve_day_id, today_day_id,
 };

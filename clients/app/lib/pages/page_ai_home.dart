@@ -239,6 +239,12 @@ class _PageAIHomeState extends State<PageAIHome> {
   }
 
   void _onSyncPush(SyncPush push) {
+    if (push.hasChat()) {
+      final c = push.chat;
+      if (c.id.toInt() > 0 && c.title.trim().isNotEmpty) {
+        _store.chatTitlePut(c.id.toInt(), c.title);
+      }
+    }
     if (push.hasChatMember()) {
       final m = push.chatMember;
       ChatRow? chat;

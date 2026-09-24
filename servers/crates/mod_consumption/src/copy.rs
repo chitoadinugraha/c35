@@ -1,6 +1,16 @@
 use super::fingerprint::food_name_label;
 use super::types::{ConsumptionGlance, ConsumptionItem};
 
+pub fn food_chat_title(items: &[ConsumptionItem], locale: &str) -> String {
+    let id = locale.to_lowercase().starts_with("id");
+    let name = food_name_label(items, locale);
+    if id {
+        format!("🍴 Makan: {name}")
+    } else {
+        format!("🍽️ Meal: {name}")
+    }
+}
+
 pub fn food_log_headline(saved: bool, duplicate: bool, items: &[ConsumptionItem], kcal: i32, locale: &str) -> String {
     let id = locale.to_lowercase().starts_with("id");
     let name = food_name_label(items, locale);
@@ -13,7 +23,7 @@ pub fn food_log_headline(saved: bool, duplicate: bool, items: &[ConsumptionItem]
     }
     if saved {
         return if id {
-            format!("Konsumsi {name} sudah tercatat.")
+            format!("{name}, berhasil dicatat.")
         } else {
             format!("{name} logged.")
         };

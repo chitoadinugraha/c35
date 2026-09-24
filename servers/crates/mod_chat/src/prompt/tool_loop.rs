@@ -14,6 +14,7 @@ use crate::prompt::hooks::PromptHopCheckpoint;
 use crate::prompt_run::{
     chat_tool_rounds_max, checkpoint_record_tool, checkpoint_set_fatal, checkpoint_tool_should_stop,
 };
+use crate::chat_title_set;
 use crate::tools::{cluster_tool_exec, http_client, tool_decls, TurnCtx};
 use crate::turn_tracer::TurnTracer;
 
@@ -163,6 +164,12 @@ pub async fn prompt_cluster_turn(
             contents.push(out.model_content);
             let tool_started = Instant::now();
             let (result, tool_cost) = cluster_tool_exec(&client, &name, &args, turn_ctx.as_deref()).await;
+            if let Some(ctx) = turn_ctx.as_ref() {
+                let title = ctx.title_slot.lock().ok().and_then(|g| g.clone());
+                if let Some(title) = title {
+                    let _ = chat_title_set(ctx.pool, ctx.nats, ctx.owner_iid, ctx.chat_id, &title).await;
+                }
+            }
             tools_cost_usd += tool_cost;
             let tool_ms = tool_started.elapsed().as_millis() as i64;
             let ok = result.get("ok").and_then(|v| v.as_bool()).unwrap_or(true);

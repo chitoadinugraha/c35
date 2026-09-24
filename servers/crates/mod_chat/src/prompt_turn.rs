@@ -368,6 +368,7 @@ where
         req_id,
         run_kind,
         checkpoint: Some(&mut checkpoint),
+        title_slot: std::sync::Arc::new(std::sync::Mutex::new(None)),
     };
     let res = match prompt_cluster_turn(
         &chat_req,

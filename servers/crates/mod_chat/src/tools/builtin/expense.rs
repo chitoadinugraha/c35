@@ -3,7 +3,7 @@ use anyhow::Result;
 use c35_mod_expense::{
     day_bounds_ms, detect_pic, detect_text, expense_compact_for_llm, expense_delete,
     expense_duplicate_today, expense_fingerprint, expense_get, expense_get_latest_today,
-    expense_glance_block, expense_log_coach, expense_put, expense_receipt_block, expense_summary,
+    expense_chat_title, expense_glance_block, expense_log_coach, expense_put, expense_receipt_block, expense_summary,
     expense_total_minor, glance_coach_with_match,     receipt_from_detect,
     spending_sum_day, summary_compact_for_llm, today_day_id,
 };
@@ -158,6 +158,7 @@ pub async fn expense_add_exec(ctx: &ToolContext, args: &Value) -> Result<Value> 
         "today": &today,
         "block": block,
     });
+    ctx.set_title(expense_chat_title(&detect.items, locale));
     let compact = expense_compact_for_llm(&full);
     Ok(json!({
         "ok": true,

@@ -700,6 +700,16 @@ class ChatStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  void chatTitlePut(int id, String title) {
+    if (id == 0) return;
+    final t = title.trim();
+    if (t.isEmpty) return;
+    final i = chats.indexWhere((c) => c.id == id);
+    if (i < 0) return;
+    chats[i].title = t;
+    _touch();
+  }
+
   void chatIdMigrate(int from, int to) {
     if (from == to || from == 0 || to == 0) return;
     msgs = [for (final m in msgs) m.chatId == from ? m.copyWith(chatId: to) : m];

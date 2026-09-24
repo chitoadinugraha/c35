@@ -132,6 +132,7 @@ pub async fn channel_prompt_turn(
         req_id,
         run_kind: "main",
         checkpoint: None,
+        title_slot: std::sync::Arc::new(std::sync::Mutex::new(None)),
     };
     let cancel = CancellationToken::new();
     let res = match prompt_cluster_turn(

@@ -8,7 +8,7 @@ pub mod image_tier;
 pub mod macros;
 pub mod web;
 
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 use reqwest::Client;
@@ -88,6 +88,7 @@ pub struct TurnCtx<'a> {
     pub req_id: &'a str,
     pub run_kind: &'a str,
     pub checkpoint: Option<&'a mut serde_json::Value>,
+    pub title_slot: Arc<Mutex<Option<String>>>,
 }
 
 fn build_default_dispatcher() -> ToolDispatcher {
@@ -183,6 +184,7 @@ fn tool_context_from_turn(client: Client, turn: &TurnCtx<'_>) -> ToolContext {
         turn.req_id,
         client,
     )
+    .with_title_slot(turn.title_slot.clone())
 }
 
 pub async fn cluster_tool_exec(

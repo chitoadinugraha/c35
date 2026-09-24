@@ -1,7 +1,7 @@
 use crate::tool;
 use anyhow::{anyhow, Result};
 use c35_mod_consumption::{
-    build_food_coach_ctx, consumption_compact_for_llm, consumption_food_block, consumption_glance_block,
+    build_food_coach_ctx, consumption_compact_for_llm, consumption_food_block, consumption_glance_block, food_chat_title,
     consumption_today, day_bounds_ms, detect_pic, detect_text, food_delete, food_duplicate_today, food_get,
     food_get_latest_today, food_list_day, food_put, food_update, food_with_items, infer_meal_type,
     items_compact_for_llm, items_from_json, items_matching_query, local_hour, matched_items_kcal, meal_fingerprint,
@@ -225,6 +225,7 @@ pub async fn consumption_add_exec(ctx: &ToolContext, args: &Value) -> Result<Val
         "today": { "so_far": so_far, "after": after, "goal": goal, "meals_logged": meals_logged },
         "block": block,
     });
+    ctx.set_title(food_chat_title(&food.items, locale));
     let compact = consumption_compact_for_llm(&full);
     Ok(json!({ "ok": true, "runner": "cluster", "tool": "consumption.add", "llm": compact, "block": block, "saved": true }))
 }

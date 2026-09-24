@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 use reqwest::Client;
 use sqlx::PgPool;
 
@@ -18,6 +20,7 @@ pub struct ToolContext {
     pub attachments_json: String,
     pub req_id: String,
     pub http_client: Client,
+    title_slot: Option<Arc<Mutex<Option<String>>>>,
 }
 
 impl ToolContext {
@@ -48,6 +51,24 @@ impl ToolContext {
             attachments_json: attachments_json.into(),
             req_id: req_id.into(),
             http_client,
+            title_slot: None,
+        }
+    }
+
+    pub fn with_title_slot(mut self, slot: Arc<Mutex<Option<String>>>) -> Self {
+        self.title_slot = Some(slot);
+        self
+    }
+
+    pub fn set_title(&self, title: impl Into<String>) {
+        let t = title.into().trim().to_string();
+        if t.is_empty() || self.chat_id == 0 {
+            return;
+        }
+        if let Some(slot) = &self.title_slot {
+            if let Ok(mut g) = slot.lock() {
+                *g = Some(t);
+            }
         }
     }
 }

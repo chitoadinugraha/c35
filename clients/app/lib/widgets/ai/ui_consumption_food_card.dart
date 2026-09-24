@@ -64,8 +64,10 @@ class _UiConsumptionFoodCardState extends State<UiConsumptionFoodCard> {
     if (!widget.collapsed && !_ctrl.isExpanded) _ctrl.expand();
   }
 
+  String get _headlineLabel => consumptionFoodHeadlineLabel(widget.card.headline, widget.locale);
+
   String get _primaryLabel {
-    if (_items.isEmpty) return widget.card.headline;
+    if (_items.isEmpty) return _headlineLabel;
     return _items.first.label(widget.locale);
   }
 
@@ -369,7 +371,7 @@ class _UiConsumptionFoodCardState extends State<UiConsumptionFoodCard> {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      widget.card.headline,
+                      _headlineLabel,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500, color: Color(0xFFD4D4D8)),
