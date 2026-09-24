@@ -38,7 +38,12 @@ pub async fn voice_stt(
     if audio.is_empty() {
         anyhow::bail!("audio required");
     }
-    let row = voice_billing_gate(pool, owner_iid, &req_id, VOICE_STT_HOLD).await?;
+    let is_interim = req_id.contains("interim");
+    let row = if is_interim {
+        None
+    } else {
+        Some(voice_billing_gate(pool, owner_iid, &req_id, VOICE_STT_HOLD).await?)
+    };
     let text_res = if std::env::var("GOOGLE_CLOUD_API_KEY").is_ok() {
         match stt::google_stt(http_client(), audio, mime, lang).await {
             Ok(t) => Ok(t),
@@ -53,37 +58,43 @@ pub async fn voice_stt(
     let text = match text_res {
         Ok(t) => t,
         Err(e) => {
-            let _ = voice_billing_abort(pool, &req_id).await;
+            if row.is_some() {
+                let _ = voice_billing_abort(pool, &req_id).await;
+            }
             return Err(e);
         }
     };
     if text.trim().is_empty() {
-        let _ = voice_billing_abort(pool, &req_id).await;
+        if row.is_some() {
+            let _ = voice_billing_abort(pool, &req_id).await;
+        }
         anyhow::bail!("No speech detected");
     }
-    let wholesale = voice_stt_wholesale_usd(audio, mime);
-    let duration_ms = started.elapsed().as_millis().min(i32::MAX as u128) as i32;
-    let meta = serde_json::json!({
-        "sku": "voice_stt",
-        "mime": mime,
-        "lang": lang,
-        "audio_bytes": audio.len(),
-        "wholesale_usd": wholesale,
-    });
-    voice_billing_settle(
-        pool,
-        nats,
-        owner_iid,
-        &row,
-        &req_id,
-        wholesale,
-        "voice_stt",
-        &text,
-        "google.speech",
-        duration_ms,
-        meta,
-    )
-    .await?;
+    if let Some(row) = row {
+        let wholesale = voice_stt_wholesale_usd(audio, mime);
+        let duration_ms = started.elapsed().as_millis().min(i32::MAX as u128) as i32;
+        let meta = serde_json::json!({
+            "sku": "voice_stt",
+            "mime": mime,
+            "lang": lang,
+            "audio_bytes": audio.len(),
+            "wholesale_usd": wholesale,
+        });
+        voice_billing_settle(
+            pool,
+            nats,
+            owner_iid,
+            &row,
+            &req_id,
+            wholesale,
+            "voice_stt",
+            &text,
+            "google.speech",
+            duration_ms,
+            meta,
+        )
+        .await?;
+    }
     Ok(text)
 }
 

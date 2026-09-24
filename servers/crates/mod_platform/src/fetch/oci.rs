@@ -188,6 +188,11 @@ fn env_var(key: &str) -> Option<String> {
 }
 
 fn load_private_key_pem() -> Option<String> {
+    if let Some(path) = env_var("OCI_PRIVATE_KEY_PATH") {
+        if let Ok(pem) = std::fs::read_to_string(&path) {
+            return Some(normalize_pem(&pem));
+        }
+    }
     if let Some(pem) = env_var("OCI_PRIVATE_KEY") {
         return Some(normalize_pem(&pem));
     }

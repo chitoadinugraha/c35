@@ -472,9 +472,9 @@ class _PageSettingsState extends State<PageSettings> {
                                 style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 14),
                                 decoration: _fieldDecoration('Speech to text'),
                                 items: const [
-                                  DropdownMenuItem(value: 'web', child: Text('Web')),
-                                  DropdownMenuItem(value: 'local', child: Text('Local')),
+                                  if (kIsWeb) DropdownMenuItem(value: 'web', child: Text('Web')),
                                   DropdownMenuItem(value: 'cloud', child: Text('Cloud')),
+                                  DropdownMenuItem(value: 'local', child: Text('Local')),
                                 ],
                                 onChanged: (v) => v != null ? VoicePrefs.instance.setSttEngine(v) : null,
                               ),

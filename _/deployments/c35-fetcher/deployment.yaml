@@ -68,42 +68,8 @@ spec:
               value: Asia/Jakarta
             - name: OCI_VENDOR_BILL_ENABLED
               value: "1"
-            - name: OCI_TENANCY_OCID
-              valueFrom:
-                secretKeyRef:
-                  name: c35-server-env
-                  key: OCI_TENANCY_OCID
-                  optional: true
-            - name: OCI_USER_OCID
-              valueFrom:
-                secretKeyRef:
-                  name: c35-server-env
-                  key: OCI_USER_OCID
-                  optional: true
-            - name: OCI_FINGERPRINT
-              valueFrom:
-                secretKeyRef:
-                  name: c35-server-env
-                  key: OCI_FINGERPRINT
-                  optional: true
-            - name: OCI_COMPARTMENT_OCID
-              valueFrom:
-                secretKeyRef:
-                  name: c35-server-env
-                  key: OCI_COMPARTMENT_OCID
-                  optional: true
-            - name: OCI_REGION
-              valueFrom:
-                secretKeyRef:
-                  name: c35-server-env
-                  key: OCI_REGION
-                  optional: true
-            - name: OCI_PRIVATE_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: c35-server-env
-                  key: OCI_PRIVATE_KEY
-                  optional: true
+            - name: OCI_PRIVATE_KEY_PATH
+              value: /etc/oci/private_key.pem
             - name: GCP_VENDOR_BILL_ENABLED
               valueFrom:
                 secretKeyRef:
@@ -187,7 +153,14 @@ spec:
             - name: nats-ca
               mountPath: /nats-ca
               readOnly: true
+            - name: oci-key
+              mountPath: /etc/oci
+              readOnly: true
       volumes:
         - name: nats-ca
           secret:
             secretName: nats-ca
+        - name: oci-key
+          secret:
+            secretName: oci-api-key
+            defaultMode: 0644

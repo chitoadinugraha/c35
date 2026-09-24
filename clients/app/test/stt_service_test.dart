@@ -11,6 +11,7 @@ class _FakeVoiceApi extends VoiceApi {
   _FakeVoiceApi({this.sttResult}) : super(ChatConn());
 
   final String? sttResult;
+  String? lastReqId;
 
   @override
   Future<String?> sttTranscribe({
@@ -18,8 +19,10 @@ class _FakeVoiceApi extends VoiceApi {
     required String mime,
     String? lang,
     String? reqId,
-  }) async =>
-      sttResult;
+  }) async {
+    lastReqId = reqId;
+    return sttResult;
+  }
 }
 
 void main() {
@@ -65,6 +68,21 @@ void main() {
     expect(result, 'cloud transcript');
   });
 
+  test('transcribeRouted forwards interim reqId to VoiceApi', () async {
+    await VoicePrefs.instance.setSttEngine('cloud');
+    final fake = _FakeVoiceApi(sttResult: 'interim text');
+    SttService.instance.bindVoiceApi(fake);
+    final result = await SttService.instance.transcribeRouted(
+      bytes: Uint8List.fromList([10, 20]),
+      lang: 'id-ID',
+      mime: 'audio/wav',
+      isInterim: true,
+      reqId: 'interim_test_123',
+    );
+    expect(result, 'interim text');
+    expect(fake.lastReqId, 'interim_test_123');
+  });
+
   test('transcribeRouted returns null for cloud without VoiceApi', () async {
     await VoicePrefs.instance.setSttEngine('cloud');
     final result = await SttService.instance.transcribeRouted(
@@ -85,6 +103,38 @@ void main() {
     expect(SttService.sanitizeTranscript('   '), '');
     expect(SttService.sanitizeTranscript('Hello world'), 'Hello world');
     expect(SttService.sanitizeTranscript('Halo apa kabar'), 'Halo apa kabar');
+  });
+
+  test('pcmToWav generates valid WAV header matching PCM payload length and sample rate', () {
+    final fakePcm = Uint8List(16000 * 2); // 1 second of 16kHz 16-bit mono PCM
+    final wav = SttService.pcmToWav(fakePcm, sampleRate: 16000, channels: 1);
+    expect(wav.length, 44 + fakePcm.length);
+    // "RIFF"
+    expect(String.fromCharCodes(wav.sublist(0, 4)), 'RIFF');
+    // "WAVE"
+    expect(String.fromCharCodes(wav.sublist(8, 12)), 'WAVE');
+    // "fmt "
+    expect(String.fromCharCodes(wav.sublist(12, 16)), 'fmt ');
+    // "data"
+    expect(String.fromCharCodes(wav.sublist(36, 40)), 'data');
+    // Sample rate at offset 24 (little-endian uint32)
+    final byteData = ByteData.sublistView(wav);
+    expect(byteData.getUint32(24, Endian.little), 16000);
+    // Payload matches
+    expect(wav.sublist(44), fakePcm);
+  });
+
+  test('pcmAmplitude computes correct level and norm for silence and peak signal', () {
+    final silence = Uint8List(100);
+    final silenceAmp = SttService.pcmAmplitude(silence);
+    expect(silenceAmp.norm, 0.0);
+    expect(silenceAmp.levelDb, -100.0);
+
+    // Peak signal (32767 = 0xFF, 0x7F)
+    final peak = Uint8List.fromList([0xFF, 0x7F]);
+    final peakAmp = SttService.pcmAmplitude(peak);
+    expect(peakAmp.norm, closeTo(1.0, 0.01));
+    expect(peakAmp.levelDb, closeTo(0.0, 0.1));
   });
 
   test('transcribeRouted does not fall back to Gemini for web engine', () async {

@@ -11,7 +11,6 @@ import 'package:alienai_c35/c/media/media_types.dart';
 import 'package:alienai_c35/c/settings/voice_prefs.dart';
 import 'package:alienai_c35/c/stt/stt_mic_permission.dart';
 import 'package:alienai_c35/c/stt/stt_service.dart';
-import 'package:alienai_c35/c/stt/stt_speech_input.dart' show SttSpeechInput;
 import 'package:alienai_c35/widgets/ai/composer_action.dart';
 import 'package:alienai_c35/widgets/ai/ui_assistant_model_chip.dart';
 import 'package:alienai_c35/widgets/ai/ui_audio_waveform.dart';
@@ -92,11 +91,20 @@ class InComposer extends StatefulWidget {
 }
 
 class _InComposerState extends State<InComposer> {
-  final _webSpeech = SttSpeechInput();
   TextEditingController? _internalController;
   TextEditingController get _controller => widget.controller ?? (_internalController ??= TextEditingController());
 
-  bool get _useWebSpeech => VoicePrefs.instance.sttEngine == 'web';
+  String _preRecordingDraft = '';
+
+  void _onLiveTranscript() {
+    if (!mounted || !_recording) return;
+    final live = SttService.instance.liveTranscript.value.trim();
+    if (live.isEmpty) return;
+    final prefix = _preRecordingDraft.trim();
+    final newText = prefix.isEmpty ? live : '$prefix $live';
+    _controller.text = newText;
+    _controller.selection = TextSelection.collapsed(offset: newText.length);
+  }
 
   FocusNode? _internalFocus;
   FocusNode get _focus => widget.focusNode ?? (_internalFocus ??= FocusNode());
@@ -232,9 +240,8 @@ class _InComposerState extends State<InComposer> {
   void dispose() {
     _mentionSearchDebounce?.cancel();
     SttService.instance.onAutoStop = null;
-    if (_webSpeech.isActive) unawaited(_webSpeech.cancel());
-    _webSpeech.dispose();
-    if (!_useWebSpeech && (_recording || SttService.instance.isRecording.value)) {
+    SttService.instance.liveTranscript.removeListener(_onLiveTranscript);
+    if (_recording || SttService.instance.isRecording.value) {
       unawaited(SttService.instance.cancel());
     }
     _focus.removeListener(_onFocusChange);
@@ -585,49 +592,19 @@ class _InComposerState extends State<InComposer> {
 
   Future<void> _startMic() async {
     if (!widget.enabled || widget.busy || _recording) return;
-    if (_useWebSpeech) {
-      try {
-        await _webSpeech.toggle(
-          controller: _controller,
-          onStateChanged: () {
-            if (!mounted) return;
-            setState(() => _recording = _webSpeech.isActive);
-          },
-          onError: (e) {
-            if (!mounted) return;
-            debugPrint('[InComposer] Web Speech error ($e), falling back to Cloud STT');
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Web Speech unavailable in WebView. Using Cloud speech recognition.'),
-                behavior: SnackBarBehavior.floating,
-                duration: Duration(seconds: 3),
-              ),
-            );
-            unawaited(VoicePrefs.instance.setSttEngine('cloud'));
-            unawaited(_startNativeMic());
-          },
-        );
-      } catch (_) {
-        if (!mounted) return;
-        unawaited(VoicePrefs.instance.setSttEngine('cloud'));
-        unawaited(_startNativeMic());
-      }
-      if (!mounted) return;
-      setState(() => _recording = _webSpeech.isActive);
-      _focus.requestFocus();
-      return;
-    }
-    await _startNativeMic();
-  }
 
-  Future<void> _startNativeMic() async {
+    _preRecordingDraft = _controller.text;
+    SttService.instance.liveTranscript.removeListener(_onLiveTranscript);
+    SttService.instance.liveTranscript.addListener(_onLiveTranscript);
     SttService.instance.onAutoStop = () {
       if (mounted && _recording) unawaited(_stopMic());
     };
+
     final ok = await SttService.instance.startRecording();
     if (!mounted) return;
     if (!ok) {
       SttService.instance.onAutoStop = null;
+      SttService.instance.liveTranscript.removeListener(_onLiveTranscript);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(SttService.instance.lastStartError ?? sttMicErrorMessage()),
@@ -642,30 +619,14 @@ class _InComposerState extends State<InComposer> {
 
   Future<void> _stopMic() async {
     if (!_recording) return;
-    if (_useWebSpeech) {
-      await _webSpeech.toggle(
-        controller: _controller,
-        onStateChanged: () {
-          if (!mounted) return;
-          setState(() => _recording = _webSpeech.isActive);
-        },
-      );
-      if (!mounted) return;
-      setState(() => _recording = false);
-      if (_controller.text.trim().isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('No speech detected'),
-          behavior: SnackBarBehavior.floating,
-        ));
-      }
-      _focus.requestFocus();
-      return;
-    }
     SttService.instance.onAutoStop = null;
+    SttService.instance.liveTranscript.removeListener(_onLiveTranscript);
+
     final text = await SttService.instance.stopAndTranscribe(lang: VoicePrefs.instance.speechLang);
     if (!mounted) return;
     setState(() => _recording = false);
-    final transcript = text?.trim() ?? '';
+
+    final transcript = (text ?? SttService.instance.liveTranscript.value).trim();
     if (transcript.isEmpty) {
       final err = SttService.instance.lastTranscribeError;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -674,26 +635,22 @@ class _InComposerState extends State<InComposer> {
       ));
       return;
     }
-    final cur = _controller.text;
-    final sep = cur.isEmpty || cur.endsWith(' ') || cur.endsWith('\n') ? '' : ' ';
-    _controller.text = '$cur$sep$transcript';
-    _controller.selection = TextSelection.collapsed(offset: _controller.text.length);
+    final prefix = _preRecordingDraft.trim();
+    final newText = prefix.isEmpty ? transcript : '$prefix $transcript';
+    _controller.text = newText;
+    _controller.selection = TextSelection.collapsed(offset: newText.length);
     setState(() {});
     _focus.requestFocus();
   }
 
   Future<void> _cancelMic() async {
     if (!_recording) return;
-    if (_useWebSpeech) {
-      await _webSpeech.cancel();
-      if (!mounted) return;
-      setState(() => _recording = false);
-      _focus.requestFocus();
-      return;
-    }
     SttService.instance.onAutoStop = null;
+    SttService.instance.liveTranscript.removeListener(_onLiveTranscript);
     await SttService.instance.cancel();
     if (!mounted) return;
+    _controller.text = _preRecordingDraft;
+    _controller.selection = TextSelection.collapsed(offset: _controller.text.length);
     setState(() => _recording = false);
     _focus.requestFocus();
   }
@@ -962,16 +919,14 @@ class _InComposerState extends State<InComposer> {
 
   Widget _inputArea(double maxWidth) {
     if (_recording) {
-      final speech = _useWebSpeech ? _webSpeech : null;
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
         child: UiAudioWaveform(
-          recordingSeconds: speech?.recordingSeconds ?? SttService.instance.recordingSeconds,
+          recordingSeconds: SttService.instance.recordingSeconds,
           amplitude: SttService.instance.audioAmplitude,
-          amplitudeHistory: speech != null ? null : SttService.instance.amplitudeHistory,
-          liveTranscript: speech?.liveTranscript ?? SttService.instance.liveTranscript,
-          isTranscribing: speech != null ? null : SttService.instance.isTranscribing,
-          isPreparing: speech?.isPreparing,
+          amplitudeHistory: SttService.instance.amplitudeHistory,
+          liveTranscript: SttService.instance.liveTranscript,
+          isTranscribing: SttService.instance.isTranscribing,
           engine: VoicePrefs.instance.sttEngine,
           onCancel: _cancelMic,
           onCommit: _stopMic,

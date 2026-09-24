@@ -2,7 +2,7 @@ use c35_mod_billing::FxRateFetchTask;
 use c35_mod_chat::ContextIdleFetchTask;
 use c35_mod_fetch::{fetcher_run, FetchCtx, FetchTask};
 use c35_mod_llm::LlmCatalogFetchTask;
-use c35_mod_platform::{cf_vendor_from_env, gcp_from_env, oci_from_env, wasabi_from_env};
+use c35_mod_platform::{cf_vendor_from_env, env_enabled, gcp_from_env, oci_from_env, wasabi_from_env};
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
@@ -21,6 +21,9 @@ async fn main() -> anyhow::Result<()> {
     tasks.push(Box::new(FxRateFetchTask::from_env()));
     tasks.push(Box::new(LlmCatalogFetchTask));
     tasks.push(Box::new(ContextIdleFetchTask));
+    if oci_from_env().is_none() && env_enabled("OCI_VENDOR_BILL_ENABLED") {
+        tracing::warn!("vendor_bill_oci skipped: check OCI_* env and OCI_PRIVATE_KEY_PATH");
+    }
     for task in [
         oci_from_env(),
         gcp_from_env(),
