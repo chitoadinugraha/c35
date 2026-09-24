@@ -646,6 +646,9 @@ class ChatStore extends ChangeNotifier {
     var status = member.lastMsgStatus.isNotEmpty ? member.lastMsgStatus : 'done';
     if (status == 'streaming' && !promptBusyFor(id)) status = 'done';
     final title = chat.title.isNotEmpty ? chat.title : chat.peerName;
+    final existingIdx = chats.indexWhere((c) => c.id == id);
+    final prevUnread = existingIdx >= 0 ? chats[existingIdx].unreadStatus : false;
+    final unread = member.unreadCount > 0 || (prevUnread && id != activeChatId);
     final row = ChatRow(
       id: id,
       title: title.isNotEmpty ? title : 'Chat',
@@ -656,6 +659,7 @@ class ChatStore extends ChangeNotifier {
       lastMsgAt: lastAt,
       pending: false,
       lastMsgStatus: status,
+      unreadStatus: unread,
       contextSummaryPresent: chatMetaContextSummaryPresent(chat.metaJson),
     );
     final pendingIdx = chats.indexWhere((c) => c.pending && c.id != id);

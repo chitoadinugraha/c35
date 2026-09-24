@@ -32,14 +32,21 @@ class CatalogMention {
   bool get isDevice => kind == 'identity' && topicId == 'device';
 
   String get displayLabel {
-    if (label.isNotEmpty) return label;
-    if (labelKey.isEmpty) return id;
-    return labelKey.contains('.') ? catalogT(labelKey) : labelKey;
+    final key = labelKey.trim();
+    if (key.isNotEmpty) {
+      if (key.contains('.')) return catalogT(key);
+      if (label.trim().isNotEmpty) return label.trim();
+      return key;
+    }
+    final human = label.trim();
+    if (human.isEmpty) return id;
+    return human.contains('.') ? catalogT(human) : human;
   }
 
   String get displayCaption {
-    if (captionKey.isEmpty) return '';
-    return captionKey.contains('.') ? catalogT(captionKey) : captionKey;
+    final key = captionKey.trim();
+    if (key.isEmpty) return '';
+    return key.contains('.') ? catalogT(key) : key;
   }
 
   factory CatalogMention.fromMentionItem(MentionItem item) => CatalogMention(

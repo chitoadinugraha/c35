@@ -151,6 +151,31 @@ void main() {
     expect(store.chats.single.lastMsgStatus, 'done');
   });
 
+  test('chatPutFromServer preserves unread until chat is opened', () {
+    final store = ChatStore();
+    store.chats = [ChatRow(id: 1, title: 'A', unreadStatus: true)];
+    store.activeChatId = 2;
+
+    store.chatPutFromServer(Chat(id: Int64(1), title: 'A'), ChatMember(chatId: Int64(1), lastMsgPreview: 'hi'));
+
+    expect(store.chats.single.unreadStatus, isTrue);
+
+    store.chatSelect(1);
+
+    expect(store.chats.single.unreadStatus, isFalse);
+  });
+
+  test('chatPutFromServer reads unread_count from server member', () {
+    final store = ChatStore();
+
+    store.chatPutFromServer(
+      Chat(id: Int64(1), title: 'A'),
+      ChatMember(chatId: Int64(1), unreadCount: 2, lastMsgPreview: 'hi'),
+    );
+
+    expect(store.chats.single.unreadStatus, isTrue);
+  });
+
   test('pending chat id migrates promptChatId on server assign', () {
     final store = ChatStore();
     store.chats = [ChatRow(id: -1, title: 'New chat', pending: true)];

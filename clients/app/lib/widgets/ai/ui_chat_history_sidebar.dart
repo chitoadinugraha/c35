@@ -105,7 +105,7 @@ class _UiChatHistorySidebarState extends State<UiChatHistorySidebar> {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      uiIconButton(tooltip: 'New chat', onPressed: widget.onNewChat, icon: const Icon(Icons.add_rounded, size: 20, color: Color(0xFFE4E4E7))),
+                      uiIconButton(tooltip: 'New chat', color: const Color(0xFF71717A), onPressed: widget.onNewChat, icon: const Icon(Icons.add_rounded, size: 20)),
                     ],
                   ),
                 ),
@@ -246,7 +246,7 @@ class _UiChatHistorySidebarState extends State<UiChatHistorySidebar> {
   Widget _chatTile(ChatRow c, {required bool archived, String subtitle = ''}) {
     final selected = c.id == widget.store.activeChatId && !archived;
     final deleting = widget.store.chatDeletingFor(c.id);
-    final isStreaming = widget.store.promptBusyFor(c.id);
+    final isStreaming = widget.store.promptBusyFor(c.id) || c.lastMsgStatus == 'streaming';
     return _ChatTile(
       title: c.title.trim().isEmpty || c.title == 'New chat' ? c.title : chatTitleDisplay(c.title),
       subtitle: subtitle,
@@ -256,7 +256,7 @@ class _UiChatHistorySidebarState extends State<UiChatHistorySidebar> {
       deleting: deleting,
       isStreaming: isStreaming,
       status: c.lastMsgStatus,
-      unread: c.unreadStatus,
+      unread: c.unreadStatus && !selected,
       lastMsgAt: c.lastMsgAt,
       onTap: deleting ? null : () => widget.onChatSelect(c.id),
       onMenu: deleting ? null : (ctx, global) => widget.onChatMenu(c.id, global),
@@ -314,7 +314,41 @@ class _ChatTile extends StatefulWidget {
 }
 
 class _ChatTileState extends State<_ChatTile> {
-  var _hover = false;
+  Widget _trailingIndicator() {
+    const pad = EdgeInsets.only(left: 4, right: 2);
+    if (widget.deleting) {
+      return const Padding(
+        padding: pad,
+        child: SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5, color: Color(0xFFFCA5A5))),
+      );
+    }
+    if (widget.isStreaming) {
+      return const Padding(
+        padding: pad,
+        child: SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5, color: Color(0xFF60A5FA))),
+      );
+    }
+    if (widget.unread) {
+      return Padding(
+        padding: pad,
+        child: Container(
+          width: 6,
+          height: 6,
+          decoration: BoxDecoration(
+            color: widget.status == 'error' ? const Color(0xFFEF4444) : const Color(0xFF3B82F6),
+            shape: BoxShape.circle,
+          ),
+        ),
+      );
+    }
+    if (widget.lastMsgAt > 0) {
+      return Padding(
+        padding: pad,
+        child: Text(_formatRelativeTime(widget.lastMsgAt), style: const TextStyle(fontSize: 10, color: Color(0xFF52525B))),
+      );
+    }
+    return const SizedBox.shrink();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -331,14 +365,11 @@ class _ChatTileState extends State<_ChatTile> {
             : Colors.transparent;
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
-      child: MouseRegion(
-        onEnter: (_) => setState(() => _hover = true),
-        onExit: (_) => setState(() => _hover = false),
-        child: Material(
+      child: Material(
           color: bg,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
-            side: deleting ? const BorderSide(color: Color(0xFF7F1D1D)) : BorderSide.none,
+            side: BorderSide(color: deleting ? const Color(0xFF7F1D1D) : Colors.transparent),
           ),
           child: InkWell(
               borderRadius: BorderRadius.circular(8),
@@ -356,90 +387,54 @@ class _ChatTileState extends State<_ChatTile> {
                       widget.onMenu!(context, box.localToGlobal(Offset(box.size.width - 8, box.size.height / 2)));
                     },
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 6, 4, 6),
+                padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
                 child: Row(
                   children: [
-                    if (widget.pinned && !deleting) const Padding(padding: EdgeInsets.only(right: 6), child: Icon(Icons.push_pin, size: 12, color: Color(0xFFA1A1AA))),
+                    if (widget.pinned)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: Opacity(
+                          opacity: deleting ? 0 : 1,
+                          child: const Icon(Icons.push_pin, size: 12, color: Color(0xFFA1A1AA)),
+                        ),
+                      ),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(deleting ? 'Deleting…' : widget.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: color)),
-                          if (widget.subtitle.isNotEmpty && !deleting)
+                          if (widget.subtitle.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 2),
-                              child: Text(
-                                widget.subtitle,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 11, color: Color(0xFF71717A)),
+                              child: Opacity(
+                                opacity: deleting ? 0 : 1,
+                                child: Text(
+                                  widget.subtitle,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 11, color: Color(0xFF71717A)),
+                                ),
                               ),
                             ),
                         ],
                       ),
                     ),
-                    if (!deleting) ...[
-                      if (widget.isStreaming)
-                        const Padding(
-                          padding: EdgeInsets.only(left: 4, right: 2),
-                          child: SizedBox(
-                            width: 10,
-                            height: 10,
-                            child: CircularProgressIndicator(strokeWidth: 1.5, color: Color(0xFF60A5FA)),
-                          ),
-                        )
-                      else if (widget.unread)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 4, right: 2),
-                          child: Container(
-                            width: 6,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              color: widget.status == 'error' ? const Color(0xFFEF4444) : const Color(0xFF3B82F6),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
-                      if (widget.lastMsgAt > 0)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 4, right: 2),
-                          child: Text(
-                            _formatRelativeTime(widget.lastMsgAt),
-                            style: const TextStyle(fontSize: 10, color: Color(0xFF52525B)),
-                          ),
-                        ),
-                    ],
                     SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: deleting
-                          ? const Center(child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.8, color: Color(0xFFFCA5A5))))
-                          : Opacity(
-                              opacity: _hover ? 1 : 0,
-                              child: IgnorePointer(
-                                ignoring: !_hover,
-                                child: uiIconButton(
-                                  tooltip: 'Chat actions',
-                                  onPressed: () {
-                                    final box = context.findRenderObject() as RenderBox?;
-                                    if (box == null || !box.hasSize) return;
-                                    widget.onMenu!(context, box.localToGlobal(Offset(box.size.width - 8, box.size.height / 2)));
-                                  },
-                                  icon: const Icon(Icons.more_horiz, size: 16, color: Color(0xFFA1A1AA)),
-                                  visualDensity: VisualDensity.compact,
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                                ),
-                              ),
-                            ),
+                      height: 14,
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(minWidth: 22),
+                          child: _trailingIndicator(),
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
         ),
-      ),
     );
   }
 }
