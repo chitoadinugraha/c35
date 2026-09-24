@@ -34,6 +34,22 @@ pub async fn billing_notify_owner(
 
     let Some(row) = row else { return };
 
+    let freemium = crate::billing_freemium::billing_freemium_wire(pool, owner_iid).await;
+    let profile_ts = sqlx::query_as::<_, (Option<chrono::DateTime<chrono::Utc>>, Option<chrono::DateTime<chrono::Utc>>)>(
+        r#"
+        SELECT trial_expires_ts, plan_expires_ts
+        FROM ai.billing_profile
+        WHERE owner_iid = $1 AND deleted_ts IS NULL
+        LIMIT 1
+        "#,
+    )
+    .bind(owner_iid)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten()
+    .unwrap_or((None, None));
+
     let account_id: i64 = row.get("id");
     let updated: chrono::DateTime<chrono::Utc> = row.get("updated_ts");
     let w5: chrono::DateTime<chrono::Utc> = row.get("window_5h_start");
@@ -64,7 +80,13 @@ pub async fn billing_notify_owner(
         frontier_pool_limit_idr: 0.0,
         frontier_pool_used_idr: 0.0,
         pool_period_start_ms: 0,
-        trial_expires_ts_ms: 0,
+        trial_expires_ts_ms: profile_ts.0.map(|t| t.timestamp_millis()).unwrap_or(0),
+        freemium_active: freemium.active,
+        freemium_msgs_used: freemium.msgs_used,
+        freemium_msgs_limit: freemium.msgs_limit,
+        freemium_tokens_used: freemium.tokens_used,
+        freemium_tokens_limit: freemium.tokens_limit,
+        plan_expires_ts_ms: profile_ts.1.map(|t| t.timestamp_millis()).unwrap_or(0),
     };
     let commission = BillingPushCommission {
         commission_available_usd: row.get("commission_available_usd"),

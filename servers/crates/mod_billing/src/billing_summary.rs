@@ -62,6 +62,25 @@ pub async fn billing_summary(pool: &PgPool, caller_iid: i64, billing_account_id:
     let window_5h_start: chrono::DateTime<chrono::Utc> = row.get("window_5h_start");
     let window_weekly_start: chrono::DateTime<chrono::Utc> = row.get("window_weekly_start");
 
+    let _ = crate::billing_freemium::billing_plan_lapse_if_expired(pool, caller_iid).await.ok();
+    let freemium = crate::billing_freemium::billing_freemium_snapshot(pool, caller_iid)
+        .await
+        .unwrap_or_default();
+    let profile_ts = sqlx::query_as::<_, (Option<chrono::DateTime<chrono::Utc>>, Option<chrono::DateTime<chrono::Utc>>)>(
+        r#"
+        SELECT trial_expires_ts, plan_expires_ts
+        FROM ai.billing_profile
+        WHERE owner_iid = $1 AND deleted_ts IS NULL
+        LIMIT 1
+        "#,
+    )
+    .bind(caller_iid)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten()
+    .unwrap_or((None, None));
+
     ResBillingSummary {
         balance_usd: row.get("balance_usd"),
         plan_tier: row.get("plan_tier"),
@@ -82,6 +101,13 @@ pub async fn billing_summary(pool: &PgPool, caller_iid: i64, billing_account_id:
         alien_allow_weekly_limit: alien_week_limit,
         plans,
         overage_enabled: row.get("overage_enabled"),
+        freemium_active: freemium.active,
+        freemium_msgs_used: freemium.msgs_used,
+        freemium_msgs_limit: freemium.msgs_limit,
+        freemium_tokens_used: freemium.tokens_used,
+        freemium_tokens_limit: freemium.tokens_limit,
+        plan_expires_ts_ms: profile_ts.1.map(|t| t.timestamp_millis()).unwrap_or(0),
+        trial_expires_ts_ms: profile_ts.0.map(|t| t.timestamp_millis()).unwrap_or(0),
     }
 }
 
@@ -190,5 +216,12 @@ fn billing_summary_default(plans: Vec<BillingPlanDoc>) -> ResBillingSummary {
         alien_allow_weekly_limit: 1.0,
         plans,
         overage_enabled: false,
+        freemium_active: true,
+        freemium_msgs_used: 0,
+        freemium_msgs_limit: crate::billing_freemium::FREEMIUM_MSGS_PER_DAY,
+        freemium_tokens_used: 0,
+        freemium_tokens_limit: crate::billing_freemium::FREEMIUM_TOKENS_PER_DAY,
+        plan_expires_ts_ms: 0,
+        trial_expires_ts_ms: 0,
     }
 }

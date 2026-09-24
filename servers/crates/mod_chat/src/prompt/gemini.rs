@@ -173,6 +173,7 @@ fn gemini_stream_finalize(last: &Value, acc_text: &str, acc_thought: &str) -> su
         text: if acc_text.is_empty() { parsed.text } else { acc_text.to_string() },
         thought: if acc_thought.is_empty() { parsed.thought } else { acc_thought.to_string() },
         function_call: parsed.function_call,
+        function_calls: parsed.function_calls,
         in_tok: parsed.in_tok,
         out_tok: parsed.out_tok,
         model_content: parsed.model_content,

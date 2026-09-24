@@ -31,8 +31,8 @@ void main() {
     SttService.instance.bindVoiceApi(null);
   });
 
-  test('sttEngineRoute maps engines correctly and defaults to web', () {
-    expect(VoicePrefs.instance.sttEngine, 'web');
+  test('sttEngineRoute maps engines correctly and defaults appropriately', () {
+    expect(VoicePrefs.instance.sttEngine, VoicePrefs.defaultSttEngine);
     expect(SttService.sttEngineRoute('web'), 'web');
     expect(SttService.sttEngineRoute('local'), 'local');
     expect(SttService.sttEngineRoute('cloud'), 'cloud');
@@ -85,6 +85,16 @@ void main() {
     expect(SttService.sanitizeTranscript('   '), '');
     expect(SttService.sanitizeTranscript('Hello world'), 'Hello world');
     expect(SttService.sanitizeTranscript('Halo apa kabar'), 'Halo apa kabar');
+  });
+
+  test('transcribeRouted does not fall back to Gemini for web engine', () async {
+    await VoicePrefs.instance.setSttEngine('web');
+    final result = await SttService.instance.transcribeRouted(
+      bytes: Uint8List.fromList([1, 2, 3]),
+      lang: 'id-ID',
+      mime: 'audio/wav',
+    );
+    expect(result, isNull);
   });
 
   test('transcribeRouted filters out 00:00 hallucinated response from cloud STT', () async {

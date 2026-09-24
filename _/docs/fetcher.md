@@ -100,6 +100,13 @@ Domain logic stays in `mod_billing` / `mod_llm` — they own API contracts and D
 |------|----------|--------|---------|--------------|
 | `fx_rate` | 1h (`:05` past hour) | [Open Exchange Rates](https://openexchangerates.org/) `latest.json?symbols=IDR` | `ai.billing_fx_rate` | `c35.fetch.fx` |
 | `llm_catalog` | 30m | Google Gemini models API (existing `gemini_fetch`) | `ai.llm_model` upsert/prune | `c35.fetch.llm_catalog` |
+| `context_idle` | 5m | `mod_chat` idle context sweep | `ai.chat_context` prune | — |
+| `vendor_bill_oci` | 24h (stagger +0m) | OCI Usage API | `ai.platform_vendor_cost` | — |
+| `vendor_bill_gcp` | 24h (stagger +15m) | GCP BigQuery billing export | `ai.platform_vendor_cost` | — |
+| `vendor_bill_cf` | 24h (stagger +30m) | Cloudflare GraphQL (+ CSV import for close) | `ai.platform_vendor_cost` | — |
+| `vendor_bill_wasabi` | 24h (stagger +45m) | Wasabi account billing API | `ai.platform_vendor_cost` | — |
+
+Vendor bill tasks register only when `*_VENDOR_BILL_ENABLED=1` and required credentials are present (`mod_platform` factories in `fetcher/src/main.rs`). MTD daily + month-close finalize on days `1,3,7,14` — no NATS push (cold admin data). Canonical spec: [`platform.md`](platform.md). See `servers/fetcher/.env.example`.
 
 Future tasks register in `servers/fetcher/src/main.rs` only — no changes to `server_ai` boot per task.
 
@@ -173,6 +180,15 @@ Optional later: JetStream on `c35.fetch.>` with `max_msgs_per_subject: 1` so lat
 | `FX_CHANGE_THRESHOLD_BPS` | fetcher | `25` |
 | `GEMINI_API_KEY` | fetcher | required for catalog task |
 | `LLM_CATALOG_SYNC` | fetcher | `1` (disable with `0`) |
+| `VENDOR_BILL_FETCH_INTERVAL_SECS` | fetcher | `86400` |
+| `VENDOR_BILL_MTD_ENABLED` | fetcher | `1` |
+| `VENDOR_BILL_FINALIZE_DAYS` | fetcher | `1,3,7,14` |
+| `VENDOR_BILL_STAGGER_MINS` | fetcher | `0,15,30,45` (oci,gcp,cf,wasabi) |
+| `VENDOR_BILL_TZ` | fetcher | `Asia/Jakarta` |
+| `OCI_VENDOR_BILL_ENABLED` + `OCI_*` | fetcher | OCI Usage API credentials — see `.env.example` |
+| `GCP_VENDOR_BILL_ENABLED` + `GCP_BILLING_*`, `GOOGLE_APPLICATION_CREDENTIALS_JSON` | fetcher | BigQuery billing export |
+| `CF_VENDOR_BILL_ENABLED` + `CLOUDFLARE_*` | fetcher | CF GraphQL estimated usage |
+| `WASABI_VENDOR_BILL_ENABLED` + `WASABI_*` | fetcher | Wasabi billing API |
 | `EXTERNAL_FETCHER` | server_ai | `1` in cluster — skip `llm_catalog_spawn` |
 | `NATS_URL`, `NATS_USER`, `NATS_PASS` | both | same as `c35-server` |
 | `YB_*` | fetcher | same as `c35-server` |
@@ -194,7 +210,7 @@ Secrets: reuse `c35-server-env` or dedicated `c35-fetcher-env` with YB + NATS + 
 ## Dependency direction
 
 ```
-server_fetcher → mod_fetch → (mod_billing, mod_llm) → store, proto
+server_fetcher → mod_fetch → (mod_billing, mod_llm, mod_platform) → store, proto
 server_ai      → mod_billing, mod_llm (NATS subscribers only; no fetch)
 ```
 

@@ -16,10 +16,12 @@ class VoicePrefs extends ChangeNotifier {
   static const _keyRate = 'voice_speech_rate';
   static const _keyPitch = 'voice_speech_pitch';
 
+  static String get defaultSttEngine => kIsWeb ? 'web' : 'cloud';
+
   SharedPreferences? _prefs;
   var _speechLang = kSpeechLangDefault;
   var _lastLang = '';
-  var _sttEngine = 'web';
+  var _sttEngine = defaultSttEngine;
   var _ttsEngine = 'web';
   var _speakEnabled = speakEnabledDefault;
   var _speechRate = 1.4;
@@ -37,7 +39,8 @@ class VoicePrefs extends ChangeNotifier {
     _prefs ??= await SharedPreferences.getInstance();
     _speechLang = _prefs!.getString(_keyLang) ?? kSpeechLangDefault;
     _lastLang = _prefs!.getString(_keyLastLang) ?? '';
-    _sttEngine = _prefs!.getString(_keyStt) ?? 'web';
+    final savedStt = _prefs!.getString(_keyStt);
+    _sttEngine = (savedStt == null || (!kIsWeb && savedStt == 'web')) ? defaultSttEngine : savedStt;
     _ttsEngine = _prefs!.getString(_keyTts) ?? 'web';
     _speakEnabled = _prefs!.getBool(_keySpeak) ?? speakEnabledDefault;
     _speechRate = _prefs!.getDouble(_keyRate) ?? 1.4;

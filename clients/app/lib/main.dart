@@ -83,7 +83,7 @@ class C35App extends StatefulWidget {
 
 class _C35AppState extends State<C35App> {
   final _auth = AuthService();
-  var _ready = false;
+  final _bootReady = ValueNotifier(false);
   var _bootError = '';
 
   @override
@@ -96,6 +96,14 @@ class _C35AppState extends State<C35App> {
     _boot();
   }
 
+  void _markBootDone({String error = ''}) {
+    _bootError = error;
+    _bootReady.value = true;
+    if (defaultTargetPlatform == TargetPlatform.windows && error.isEmpty) {
+      AppUpdateService.instance.start();
+    }
+  }
+
   Future<void> _boot() async {
     try {
       await serverHostInit();
@@ -103,33 +111,21 @@ class _C35AppState extends State<C35App> {
       await HintStore.instance.restore();
       await settingsBootstrap();
       if (Session.instance.allowControlYes) AppStore.instance.thisPcAllow(name: Session.instance.thisPcName);
-      if (mounted) {
-        setState(() {
-          _ready = true;
-          _bootError = '';
-        });
-        if (defaultTargetPlatform == TargetPlatform.windows) AppUpdateService.instance.start();
-      }
+      if (mounted) _markBootDone();
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _ready = true;
-          _bootError = e.toString();
-        });
-      }
+      if (mounted) _markBootDone(error: e.toString());
     }
   }
 
   Future<void> _bootRetry() async {
-    setState(() {
-      _ready = false;
-      _bootError = '';
-    });
+    _bootReady.value = false;
+    _bootError = '';
     await _boot();
   }
 
   @override
   void dispose() {
+    _bootReady.dispose();
     if (defaultTargetPlatform == TargetPlatform.windows) {
       AppUpdateService.instance.registerAutoUpdatePrompt(null);
       AppUpdateService.instance.dispose();
@@ -180,15 +176,18 @@ class _C35AppState extends State<C35App> {
             child: UiDesktopChrome(child: child ?? const SizedBox.shrink()),
           ),
         )),
-        home: AppUpdateHost(
-          appReady: _ready,
-          child: !_ready
-              ? const Scaffold(backgroundColor: _bg, body: UILoading())
-              : _bootError.isNotEmpty
-                  ? Scaffold(backgroundColor: _bg, body: UiErrorFallback(error: _bootError, onRetry: _bootRetry))
-                  : _auth.signedIn
-                      ? _HomeShell(auth: _auth)
-                      : PageSignIn(auth: _auth, onSignedIn: () => setState(() {})),
+        home: ValueListenableBuilder<bool>(
+          valueListenable: _bootReady,
+          builder: (context, ready, _) => AppUpdateHost(
+            appReady: ready,
+            child: !ready
+                ? const Scaffold(backgroundColor: _bg, body: UILoading())
+                : _bootError.isNotEmpty
+                    ? Scaffold(backgroundColor: _bg, body: UiErrorFallback(error: _bootError, onRetry: _bootRetry))
+                    : _auth.signedIn
+                        ? _HomeShell(auth: _auth)
+                        : PageSignIn(auth: _auth, onSignedIn: () => setState(() {})),
+          ),
         ),
       );
 }

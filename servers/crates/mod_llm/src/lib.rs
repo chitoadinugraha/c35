@@ -6,18 +6,22 @@ mod fetch_catalog;
 mod catalog_types;
 mod cf_gateway;
 mod cf_image;
+mod embed_cache;
 mod embed_gemini;
 mod llm_catalog;
 mod model_catalog;
 mod model_cost;
 mod runtime_config;
 
-use chrono::Utc;
 use sqlx::PgPool;
 
 pub use cf_gateway::cf_chat_generate;
 pub use cf_image::{cf_grok_image_run, cf_image_provider_enabled};
-pub use embed_gemini::embed_text;
+pub use embed_cache::{
+    embed_cache_evict_spawn, embed_cache_evict_stale, embed_cache_get_many_touch, embed_cache_get_touch,
+    embed_cache_put, embed_cached, EmbedCacheResult, EMBED_CACHE_RETENTION_DAYS, EMBED_DIMENSIONS_DEFAULT,
+};
+pub use embed_gemini::{embed_text, EMBED_MODEL};
 pub use model_catalog::{
     model_chain_for_slug, model_is_alien, model_log_label, model_resolve_target, ModelTarget,
 };
@@ -70,54 +74,9 @@ pub fn embed_bytes_to_vec(bytes: &[u8]) -> Option<Vec<f32>> {
     )
 }
 
-pub async fn embed_cache_get(
-    pool: &PgPool,
-    model: &str,
-    key: &str,
-) -> Result<Option<Vec<f32>>, sqlx::Error> {
-    let row = sqlx::query_scalar::<_, Option<Vec<u8>>>(
-        "SELECT embedding FROM ai.embed_cache WHERE model = $1 AND key = $2 LIMIT 1",
-    )
-    .bind(model)
-    .bind(key)
-    .fetch_optional(pool)
-    .await?;
-    Ok(row.flatten().and_then(|b| embed_bytes_to_vec(&b)))
-}
-
-pub async fn embed_cache_put(
-    pool: &PgPool,
-    model: &str,
-    key: &str,
-    text: &str,
-    task: &str,
-    embedding: &[f32],
-    token_in: i32,
-) -> Result<(), sqlx::Error> {
-    let ts_ms = Utc::now().timestamp_millis();
-    let bytes = embed_vec_to_bytes(embedding);
-    sqlx::query(
-        r#"
-        INSERT INTO ai.embed_cache (model, key, text, embedding, task, token_in, ts_ms)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        ON CONFLICT (model, key) DO UPDATE SET
-            text = EXCLUDED.text,
-            embedding = EXCLUDED.embedding,
-            task = EXCLUDED.task,
-            token_in = EXCLUDED.token_in,
-            ts_ms = EXCLUDED.ts_ms
-        "#,
-    )
-    .bind(model)
-    .bind(key)
-    .bind(text)
-    .bind(bytes)
-    .bind(task)
-    .bind(token_in)
-    .bind(ts_ms)
-    .execute(pool)
-    .await?;
-    Ok(())
+/// Legacy alias — prefer `embed_cache_get_touch` (updates sliding access window).
+pub async fn embed_cache_get(pool: &PgPool, model: &str, key: &str) -> Result<Option<Vec<f32>>, sqlx::Error> {
+    embed_cache_get_touch(pool, model, key).await
 }
 
 #[cfg(test)]
@@ -130,6 +89,15 @@ mod tests {
         let b = embed_cache_key("hello", EMBED_TASK_QUERY, 768);
         assert_eq!(a, b);
         assert_eq!(a.len(), 64);
+    }
+
+    #[test]
+    fn embed_cache_key_differs_by_task_and_dims() {
+        let q = embed_cache_key("hello", EMBED_TASK_QUERY, 768);
+        let d = embed_cache_key("hello", EMBED_TASK_DOCUMENT, 768);
+        let d2 = embed_cache_key("hello", EMBED_TASK_DOCUMENT, 512);
+        assert_ne!(q, d);
+        assert_ne!(d, d2);
     }
 
     #[test]

@@ -87,6 +87,22 @@ impl ToolDispatcher {
         };
 
         let def = tool.definition();
+        if ctx.owner_iid > 0
+            && c35_mod_billing::billing_freemium_applies(&ctx.pool, ctx.owner_iid)
+                .await
+                .unwrap_or(false)
+            && !c35_mod_billing::freemium_tool_allowed(&def.name)
+        {
+            return (
+                json!({
+                    "ok": false,
+                    "runner": "cluster",
+                    "tool": def.name,
+                    "error": "This tool requires a paid plan. Subscribe to Lite or above, or use Alien AI chat only on the free tier.",
+                }),
+                0.0,
+            );
+        }
         match tool.execute(args, ctx).await {
             Ok(output) => {
                 let ok = output.get("ok").and_then(|v| v.as_bool()).unwrap_or(true);
@@ -136,6 +152,7 @@ mod tests {
             readonly: false,
             topics: topics.iter().map(|s| s.to_string()).collect(),
             always: always.iter().map(|s| s.to_string()).collect(),
+            rag_phrases: vec![],
             requires_kinds: vec![],
             requires_capability: None,
             ui_keys: None,

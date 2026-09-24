@@ -145,10 +145,6 @@ class UiMsgTraceView extends StatelessWidget {
   final bool live;
   final MsgTracePart part;
 
-  static const _muted = Color(0xFF71717A);
-  static const _text = Color(0xFFA1A1AA);
-  static const _border = Color(0xFF27272A);
-
   @override
   Widget build(BuildContext context) {
     final showChips = part == MsgTracePart.chips || part == MsgTracePart.all;
@@ -164,7 +160,7 @@ class UiMsgTraceView extends StatelessWidget {
             child: Wrap(
               spacing: 6,
               runSpacing: 6,
-              children: view.chips.map((t) => _ToolChip(chip: t, compact: compact)).toList(),
+              children: view.chips.map((t) => UiMsgTraceToolChip(chip: t, compact: compact)).toList(),
             ),
           ),
         if (showCitations && view.citations.isNotEmpty)
@@ -177,30 +173,67 @@ class UiMsgTraceView extends StatelessWidget {
   }
 }
 
-class _ToolChip extends StatelessWidget {
-  const _ToolChip({required this.chip, required this.compact});
+class UiMsgTraceToolChip extends StatelessWidget {
+  const UiMsgTraceToolChip({super.key, required this.chip, this.compact = true});
+
   final MsgTraceToolChip chip;
   final bool compact;
+
+  static const _muted = Color(0xFF71717A);
+  static const _text = Color(0xFFA1A1AA);
+  static const _border = Color(0xFF27272A);
+  static const _error = Color(0xFFEF4444);
 
   @override
   Widget build(BuildContext context) {
     final ms = uiFmtDurationMs(chip.durationMs);
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 10, vertical: compact ? 4 : 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1D),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: UiMsgTraceView._border),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(chip.ok ? Icons.check_circle_outline : Icons.error_outline, size: 14, color: chip.ok ? const Color(0xFF22C55E) : Colors.orange),
-          const SizedBox(width: 6),
-          Text(chip.label, style: const TextStyle(color: UiMsgTraceView._text, fontSize: 12)),
-          if (ms.isNotEmpty) ...[const SizedBox(width: 6), Text(ms, style: const TextStyle(color: UiMsgTraceView._muted, fontSize: 11))],
-        ],
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: compact ? 240 : 280),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 10, vertical: compact ? 4 : 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1A1D),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: _border),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            _chipIcon(),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                chip.label,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+                style: const TextStyle(color: _text, fontSize: 12, height: 1.2),
+              ),
+            ),
+            if (ms.isNotEmpty) ...[
+              const SizedBox(width: 6),
+              Text(ms, style: const TextStyle(color: _muted, fontSize: 12, height: 1.2)),
+            ],
+          ],
+        ),
       ),
     );
+  }
+
+  Widget _chipIcon() {
+    if (!chip.ok) return const Icon(Icons.error_outline, size: 14, color: _error);
+    if (chip.iconUrl.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(3),
+        child: Image.network(
+          chip.iconUrl,
+          width: 14,
+          height: 14,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => const Icon(Icons.public, size: 14, color: _muted),
+        ),
+      );
+    }
+    return const Icon(Icons.check_circle_outline, size: 14, color: _muted);
   }
 }

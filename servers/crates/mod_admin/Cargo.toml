@@ -8,6 +8,7 @@ serde_json = { workspace = true }
 sqlx = { workspace = true }
 chrono = { workspace = true }
 c35_proto = { path = "../proto", package = "c35_proto" }
+c35_mod_platform = { path = "../mod_platform", package = "c35_mod_platform" }
 
 [dev-dependencies]
 c35_store = { path = "../store", package = "c35_store" }

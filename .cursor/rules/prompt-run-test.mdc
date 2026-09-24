@@ -1,0 +1,62 @@
+---
+description: Use MCP prompt_run to verify prompt/tool behavior before claiming a fix works
+alwaysApply: true
+---
+
+# Prompt run testing (MCP)
+
+Mirrored for Antigravity: [`.agents/rules/prompt-run-test.md`](../../.agents/rules/prompt-run-test.md)
+
+After changing **inst**, **tool selection**, **consumption/expense tools**, or **compose/RAG** behavior, verify with the **`c35` MCP `prompt_run`** tool (not just reading code).
+
+## When to run
+
+- Fixed wrong tool fed / missing tool call
+- Added or changed `inst` phrases / triggers
+- Changed tool descriptions, `rag_phrases`, or vector index
+- User reports "AI should have called X but didn't"
+
+## How to run
+
+```
+prompt_run {
+  text: "<exact user phrase>",
+  locale: "id-ID",
+  owner_iid: 99000   // chito — real consumption/expense data
+}
+```
+
+| owner_iid | Use |
+|-----------|-----|
+| **33000** (default) | Automated regression, seeds, no production side effects |
+| **99000** (`uid` alias ok) | Chito's real data — consumption, billing, app-like behavior |
+
+`prompt_compose` — faster check for **inst + tool filter only** (no LLM). Use first when iterating on RAG.
+
+## Read the response
+
+`prompt_run` returns:
+
+| Field | Check |
+|-------|--------|
+| `text` | Assistant reply — correct tone, no hallucinated "no data" when tool ran |
+| `blocks_json` | UI blocks (meal cards, expense receipts) |
+| `thought` | Which tool the model chose |
+| `trace.lines` | Compact turn log (tool filter, prepare, llm_call, tool exec) |
+| `trace.trace[].meta` | `trace_tool_filter` candidates (`fed`, `sim`, `ranker`), compose inst_ids |
+
+**Assert:**
+
+1. `trace` contains `system/trace_tool_filter` with expected tool **fed: true**
+2. If answer needs data, `trace` contains `tool/` or `llm` hop after tool call — not LLM-only on first hop
+3. `text` matches tool result (empty history → "belum ada catatan", not "saya tidak bisa akses")
+
+## If prompt_run fails
+
+- `404` / unauthorized → `C35_MCP_AGENT_ENABLED=1`, `C35_MCP_AGENT_KEY` on server_ai; reload MCP
+- Wrong owner → only **33000** and **99000** allowed on `/v1/mcp/agent`
+- Still wrong tool → `prompt_compose` same text → inspect `trace.ranker`, `trace.candidates`, `selected_tools`
+
+## Do not skip
+
+Do not claim "fixed" or "should work now" for prompt/tool bugs without at least **`prompt_compose`** on the failing phrase. Prefer **`prompt_run`** when the bug is "model didn't call tool" or wrong answer text.

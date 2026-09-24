@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS ai.inst (
     inst            TEXT NOT NULL,
     phrases         TEXT[] NOT NULL DEFAULT '{}',
     triggers        TEXT[] NOT NULL DEFAULT '{}',
+    include_tools   TEXT[] NOT NULL DEFAULT '{}',
+    exclude_tools   TEXT[] NOT NULL DEFAULT '{}',
     priority        INT NOT NULL DEFAULT 0,
     enabled         BOOLEAN NOT NULL DEFAULT TRUE,
     def_hash        TEXT NOT NULL DEFAULT '',
@@ -25,6 +27,9 @@ CREATE TABLE IF NOT EXISTS ai.inst (
 CREATE INDEX IF NOT EXISTS idx_inst_enabled
     ON ai.inst (enabled, priority DESC)
     WHERE deleted_ts IS NULL;
+
+ALTER TABLE ai.inst ADD COLUMN IF NOT EXISTS include_tools TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE ai.inst ADD COLUMN IF NOT EXISTS exclude_tools TEXT[] NOT NULL DEFAULT '{}';
 
 -- Seed: platform baseline assistant (every turn)
 INSERT INTO ai.inst (
@@ -278,22 +283,58 @@ UPDATE ai.inst SET
         'track food', 'log meal', 'track food consumption',
         'berapa kalori', 'how many calories', 'kalori makanan', 'kalori makanan ini', 'calories in this'
     ],
-    triggers = ARRAY['tool_include:consumption.add', 'tool_exclude:img.generate'],
+    include_tools = ARRAY['consumption.add'],
+    exclude_tools = ARRAY['img.generate'],
+    triggers = '{}',
     updated_ts = NOW()
 WHERE id = 'inst.consumption_add';
 
 UPDATE ai.inst SET
-    inst = '[NUTRITION COACH & RECOMMENDATIONS] When the user asks for food recommendations (e.g. "enaknya makan apa", "rekomendasi makan", "what should I eat", "makan apa ya"), daily recap, or historical nutrition queries: 1. Always call consumption.today first. For meal recommendations, pass days: 3 to inspect recent multi-day eating patterns. 2. Structure 2-3 tailored meal recommendations based on: current_meal_slot (breakfast / lunch / dinner / snack), calories_remaining (ensure recommended options comfortably fit within today''s remaining calorie budget), protein_deficit_g and macro balance (if carbs/fat are high and protein is low, prioritize high-protein, fresh options), and recent_frequent_foods (avoid recommending items the user has already eaten frequently in the past few days; suggest complementary variety like vegetables/soup). 3. Deliver the recommendation warmly in the user language with conversational wit, specifying estimated calories, protein, and why it fits today. Do not call img.generate for nutrition questions.',
+    inst = '[NUTRITION COACH & RECOMMENDATIONS] When the user asks what they ate (food history / recap: "apa aja yang aku makan", hari ini, kemarin, minggu lalu, riwayat makan, what did I eat): MUST call consumption.today first — never claim you lack access without calling the tool. For meal recommendations (e.g. "enaknya makan apa", "rekomendasi makan", "what should I eat"): call consumption.today first with days: 3 to inspect recent patterns, then give 2-3 tailored suggestions using current_meal_slot, calories_remaining, protein_deficit_g, and recent_frequent_foods. Reply warmly in the user language. Do not call img.generate for nutrition questions.',
     phrases = ARRAY[
+        'apa aja yang aku makan', 'apa yang aku makan', 'makan hari ini', 'riwayat makan',
+        'minggu lalu', 'what did i eat', 'food history', 'meal recap',
         'enaknya makan apa', 'makan apa ya', 'mau makan apa', 'saran makan',
         'makan malam apa', 'sarapan apa', 'makan siang apa', 'rekomendasi makanan',
         'rekomendasi makan', 'food recommendation', 'what should i eat', 'apa yang harus dimakan',
         'nutrition recap', 'ringkasan nutrisi',
         'berapa banyak', 'how much', 'kemarin', 'yesterday', 'mie', 'noodle', 'nasi'
     ],
-    triggers = ARRAY['tool_include:consumption.today', 'tool_exclude:img.generate'],
+    include_tools = ARRAY['consumption.today'],
+    exclude_tools = ARRAY['img.generate'],
+    triggers = '{}',
     updated_ts = NOW()
 WHERE id = 'inst.consumption_coach';
+
+-- Backfill include_tools / exclude_tools from legacy tool_include:/tool_exclude: triggers
+UPDATE ai.inst SET
+    include_tools = COALESCE(
+        (SELECT array_agg(substring(t FROM 14) ORDER BY t)
+         FROM unnest(triggers) AS t WHERE t LIKE 'tool_include:%'),
+        '{}'::text[]
+    ),
+    exclude_tools = COALESCE(
+        (SELECT array_agg(substring(t FROM 14) ORDER BY t)
+         FROM unnest(triggers) AS t WHERE t LIKE 'tool_exclude:%'),
+        '{}'::text[]
+    )
+WHERE cardinality(include_tools) = 0
+  AND cardinality(exclude_tools) = 0
+  AND EXISTS (
+      SELECT 1 FROM unnest(triggers) AS t
+      WHERE t LIKE 'tool_include:%' OR t LIKE 'tool_exclude:%'
+  );
+
+UPDATE ai.inst SET triggers = COALESCE(
+    (SELECT array_agg(t ORDER BY t)
+     FROM unnest(triggers) AS t
+     WHERE t NOT LIKE 'tool_include:%' AND t NOT LIKE 'tool_exclude:%'),
+    '{}'::text[]
+)
+WHERE EXISTS (
+    SELECT 1 FROM unnest(triggers) AS t
+    WHERE t LIKE 'tool_include:%' OR t LIKE 'tool_exclude:%'
+);
 
 -- Seed: food consumption deletion / cancel
 INSERT INTO ai.inst (

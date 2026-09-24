@@ -4,6 +4,7 @@ pub struct ParseOut {
     pub text: String,
     pub thought: String,
     pub function_call: Option<(String, Value)>,
+    pub function_calls: Vec<(String, Value)>,
     pub in_tok: i32,
     pub out_tok: i32,
     pub model_content: Value,
@@ -51,7 +52,7 @@ pub fn parse_candidate(v: &Value) -> ParseOut {
     let parts = content["parts"].as_array().cloned().unwrap_or_default();
     let mut text = String::new();
     let mut thought = String::new();
-    let mut function_call = None;
+    let mut function_calls = Vec::new();
     for part in &parts {
         if let Some(t) = part_thought_text(part) {
             let (th, vis) = thought_split(t);
@@ -65,14 +66,13 @@ pub fn parse_candidate(v: &Value) -> ParseOut {
             text.push_str(&vis);
         }
         if let Some(fc) = part.get("functionCall") {
-            if function_call.is_none() {
-                let name = fc.get("name").and_then(|n| n.as_str()).unwrap_or("").replace('_', ".");
-                let args = fc.get("args").cloned().unwrap_or(json!({}));
-                function_call = Some((name, args));
-            }
+            let name = fc.get("name").and_then(|n| n.as_str()).unwrap_or("").replace('_', ".");
+            let args = fc.get("args").cloned().unwrap_or(json!({}));
+            function_calls.push((name, args));
         }
     }
-    ParseOut { text, thought, function_call, in_tok, out_tok, model_content: content }
+    let function_call = function_calls.first().cloned();
+    ParseOut { text, thought, function_call, function_calls, in_tok, out_tok, model_content: content }
 }
 
 pub fn thought_split(raw: &str) -> (String, String) {
@@ -160,4 +160,71 @@ fn thought_clean(raw: &str) -> String { visible_clean(raw) }
 
 fn visible_clean(raw: &str) -> String {
     raw.chars().filter(|c| !is_junk_control(*c)).collect::<String>().trim().to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn parse_candidate_multiple_function_calls() {
+        let v = json!({
+            "candidates": [{
+                "content": {
+                    "role": "model",
+                    "parts": [
+                        { "text": "I will execute two tools in parallel." },
+                        {
+                            "functionCall": {
+                                "name": "web_search",
+                                "args": { "query": "rust async" }
+                            }
+                        },
+                        {
+                            "functionCall": {
+                                "name": "delegate_run",
+                                "args": { "topic_id": "research", "goal": "benchmarks" }
+                            }
+                        }
+                    ]
+                }
+            }],
+            "usageMetadata": {
+                "promptTokenCount": 42,
+                "candidatesTokenCount": 18
+            }
+        });
+
+        let out = parse_candidate(&v);
+        assert_eq!(out.in_tok, 42);
+        assert_eq!(out.out_tok, 18);
+        assert_eq!(out.text, "I will execute two tools in parallel.");
+        assert_eq!(out.function_calls.len(), 2);
+        assert_eq!(out.function_calls[0].0, "web.search");
+        assert_eq!(out.function_calls[0].1["query"], "rust async");
+        assert_eq!(out.function_calls[1].0, "delegate.run");
+        assert_eq!(out.function_calls[1].1["topic_id"], "research");
+        // Check backward compatibility
+        assert_eq!(out.function_call, Some(out.function_calls[0].clone()));
+    }
+
+    #[test]
+    fn parse_candidate_empty_function_calls() {
+        let v = json!({
+            "candidates": [{
+                "content": {
+                    "role": "model",
+                    "parts": [
+                        { "text": "Just plain text response." }
+                    ]
+                }
+            }]
+        });
+
+        let out = parse_candidate(&v);
+        assert_eq!(out.text, "Just plain text response.");
+        assert!(out.function_calls.is_empty());
+        assert!(out.function_call.is_none());
+    }
 }

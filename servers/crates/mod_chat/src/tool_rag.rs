@@ -6,6 +6,8 @@ pub const TOOL_RAG_MIN: usize = 2;
 pub const DEFAULT_TOOL_TOP_K: usize = 5;
 pub const DEFAULT_TOOL_SIM_THRESHOLD: f32 = 0.6;
 pub const DEFAULT_TOOL_SIM_GAP: f32 = 0.05;
+/// Lexical token-overlap scores live on a lower scale than cosine — do not reuse vector threshold.
+pub const LEXICAL_SIM_THRESHOLD: f32 = 0.12;
 
 #[derive(Debug, Clone)]
 pub struct ToolAct {

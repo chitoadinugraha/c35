@@ -280,6 +280,10 @@ pub async fn billing_gate_with_hold_custom(
     req_id: &str,
     hold_usd: f64,
 ) -> Result<()> {
+    if crate::billing_freemium::billing_freemium_applies(pool, owner_iid).await? {
+        crate::billing_freemium::billing_freemium_reserve_turn(pool, owner_iid).await?;
+        return Ok(());
+    }
     let extra = sqlx::query_as::<_, (String, String, i64)>(
         r#"
         SELECT balance_idr::text, billing_currency, fx_micro_per_usd

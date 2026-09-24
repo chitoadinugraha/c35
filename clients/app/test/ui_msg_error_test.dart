@@ -1,5 +1,6 @@
 import 'package:alienai_c35/widgets/ai/ui_msg_error.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -44,6 +45,30 @@ void main() {
       ),
     ));
     expect(find.text('Message ID: req-abc-123'), findsOneWidget);
+  });
+
+  testWidgets('UiMsgError copies message id on tap', (tester) async {
+    const msgId = 'req-abc-123';
+    final binding = TestDefaultBinaryMessengerBinding.instance;
+    binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') {
+        expect(call.arguments['text'], msgId);
+        return null;
+      }
+      return null;
+    });
+    await tester.pumpWidget(const MaterialApp(
+      home: Scaffold(
+        body: UiMsgError(
+          message: 'Cannot connect to Alien AI',
+          messageId: msgId,
+        ),
+      ),
+    ));
+    await tester.tap(find.text('Message ID: $msgId'));
+    await tester.pump();
+    expect(find.text('Message ID copied: $msgId'), findsOneWidget);
+    binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null);
   });
 
   testWidgets('UiMsgError hides detail when null', (tester) async {

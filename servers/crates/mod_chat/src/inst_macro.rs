@@ -10,6 +10,8 @@ pub struct InstRow {
     pub inst: String,
     pub phrases: Vec<String>,
     pub triggers: Vec<String>,
+    pub include_tools: Vec<String>,
+    pub exclude_tools: Vec<String>,
     pub priority: i32,
 }
 
@@ -43,6 +45,16 @@ pub fn inst_tool_directives(rows: &[InstRow]) -> (Vec<String>, Vec<String>) {
     let mut include = Vec::new();
     let mut exclude = Vec::new();
     for row in rows {
+        for t in &row.include_tools {
+            if !t.is_empty() {
+                include.push(t.clone());
+            }
+        }
+        for t in &row.exclude_tools {
+            if !t.is_empty() {
+                exclude.push(t.clone());
+            }
+        }
         for t in &row.triggers {
             if let Some(rest) = t.strip_prefix("tool_include:") {
                 if !rest.is_empty() {
@@ -132,9 +144,31 @@ mod tests {
             topics: vec![],
             inst: format!("body:{id}"),
             phrases: phrases.iter().map(|s| (*s).to_string()).collect(),
-            triggers: vec!["tool_include:web.search".into()],
+            triggers: vec![],
+            include_tools: vec!["web.search".into()],
+            exclude_tools: vec![],
             priority: 100,
         }
+    }
+
+    #[test]
+    fn inst_tool_directives_include_tools_column() {
+        let rows = vec![InstRow {
+            id: "inst.test".into(),
+            scope: "global".into(),
+            kind: "task".into(),
+            topic_id: "".into(),
+            topics: vec![],
+            inst: "x".into(),
+            phrases: vec![],
+            triggers: vec![],
+            include_tools: vec!["consumption.today".into()],
+            exclude_tools: vec!["img.generate".into()],
+            priority: 1,
+        }];
+        let (inc, exc) = inst_tool_directives(&rows);
+        assert_eq!(inc, vec!["consumption.today"]);
+        assert_eq!(exc, vec!["img.generate"]);
     }
 
     #[test]
@@ -163,6 +197,8 @@ mod tests {
             inst: "food".into(),
             phrases: vec!["track food".into()],
             triggers: vec![],
+            include_tools: vec![],
+            exclude_tools: vec![],
             priority: 140,
         }];
         let empty: [String; 0] = [];
@@ -197,6 +233,8 @@ mod tests {
             inst: "baseline".into(),
             phrases: vec![],
             triggers: vec!["always".into()],
+            include_tools: vec![],
+            exclude_tools: vec![],
             priority: 200,
         }];
         let empty: [String; 0] = [];

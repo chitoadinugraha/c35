@@ -37,7 +37,9 @@ ai.inst (
   topics      TEXT[],                -- optional topic filter for kind=task
   inst        TEXT NOT NULL,         -- instruction body (injected into system prompt)
   phrases     TEXT[],                -- substring match (kind=task)
-  triggers    TEXT[],                -- tool_include/exclude + signal triggers
+  triggers    TEXT[],                -- signal triggers (always, mention:, topic:)
+  include_tools TEXT[],              -- force tool into turn when inst matches
+  exclude_tools TEXT[],              -- drop tool when inst matches
   priority    INT,
   enabled     BOOLEAN,
   def_hash    TEXT,                  -- seed provenance
@@ -62,19 +64,21 @@ Multiple rows can match one turn. Higher `priority` wins ordering; all matched `
 
 ---
 
-## Triggers (tool steering)
+## Tool steering (`include_tools` / `exclude_tools`)
+
+When an inst row matches, `include_tools[]` forces tools into the turn catalog; `exclude_tools[]` drops them. Tool names use dot form: `consumption.add`, `web.search`.
+
+Legacy `tool_include:` / `tool_exclude:` entries in `triggers[]` are still read for backward compatibility; prefer the dedicated columns in new seeds.
+
+## Triggers (match signals)
 
 Entries in `triggers[]`:
 
 | Prefix | Effect |
 |--------|--------|
-| `tool_include:<name>` | Force tool into turn catalog (e.g. `consumption.add`) |
-| `tool_exclude:<name>` | Drop tool (e.g. `img.generate` on food photos) |
 | `always` | `kind=trigger` — applies every turn (platform baseline) |
 | `mention:<id>` | Match when mention id present |
 | `topic:<id>` | Match when topic id active |
-
-Tool names use dot form: `consumption.add`, `web.search`.
 
 ### Site / commerce (Phase 9)
 

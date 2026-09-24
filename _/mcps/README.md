@@ -54,9 +54,9 @@ Use the **same** key in MCP config env. Restart `dev_server.ps1` after server or
 | `trace_get` | Full trace for one `req_id` (ASC) |
 | `msg_get` | Message + trace by `msg_id` or `req_id` |
 | `msg_find` | Search messages by content |
-| `tool_exec` | Cluster tool via HTTP — **owner locked to 33000** |
-| `prompt_compose` | Inst + tool pick preview — **owner locked to 33000** |
-| `prompt_run` | Full prompt turn — **owner locked to 33000** |
+| `tool_exec` | Cluster tool via HTTP — default **33000**, **99000** (`owner_iid` / `uid`) |
+| `prompt_compose` | Inst + tool pick preview + compose trace |
+| `prompt_run` | Full prompt turn + inline **trace** (`trace.lines`, `trace.trace`) |
 | `inst_list` / `inst_get` / `inst_put` / `inst_delete` | `ai.inst` CRUD |
 
 ## Indexes (fast tail)

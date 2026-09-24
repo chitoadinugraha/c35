@@ -54,7 +54,128 @@ spec:
             - name: NO_PROXY
               value: ".svc.cluster.local,.cluster.local,localhost,127.0.0.1"
             - name: RUST_LOG
-              value: info,server_fetcher=debug,c35_mod_fetch=debug,c35_mod_billing=info,c35_mod_llm=info
+              value: info,server_fetcher=debug,c35_mod_fetch=debug,c35_mod_billing=info,c35_mod_llm=info,c35_mod_platform=info
+            # Platform vendor billing — keys in c35-server-env (envFrom also loads them)
+            - name: VENDOR_BILL_FETCH_INTERVAL_SECS
+              value: "86400"
+            - name: VENDOR_BILL_MTD_ENABLED
+              value: "1"
+            - name: VENDOR_BILL_FINALIZE_DAYS
+              value: "1,3,7,14"
+            - name: VENDOR_BILL_STAGGER_MINS
+              value: "0,15,30,45"
+            - name: VENDOR_BILL_TZ
+              value: Asia/Jakarta
+            - name: OCI_VENDOR_BILL_ENABLED
+              value: "1"
+            - name: OCI_TENANCY_OCID
+              valueFrom:
+                secretKeyRef:
+                  name: c35-server-env
+                  key: OCI_TENANCY_OCID
+                  optional: true
+            - name: OCI_USER_OCID
+              valueFrom:
+                secretKeyRef:
+                  name: c35-server-env
+                  key: OCI_USER_OCID
+                  optional: true
+            - name: OCI_FINGERPRINT
+              valueFrom:
+                secretKeyRef:
+                  name: c35-server-env
+                  key: OCI_FINGERPRINT
+                  optional: true
+            - name: OCI_COMPARTMENT_OCID
+              valueFrom:
+                secretKeyRef:
+                  name: c35-server-env
+                  key: OCI_COMPARTMENT_OCID
+                  optional: true
+            - name: OCI_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: c35-server-env
+                  key: OCI_REGION
+                  optional: true
+            - name: OCI_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: c35-server-env
+                  key: OCI_PRIVATE_KEY
+                  optional: true
+            - name: GCP_VENDOR_BILL_ENABLED
+              valueFrom:
+                secretKeyRef:
+                  name: c35-server-env
+                  key: GCP_VENDOR_BILL_ENABLED
+                  optional: true
+            - name: GCP_BILLING_PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: c35-server-env
+                  key: GCP_BILLING_PROJECT_ID
+                  optional: true
+            - name: GCP_BILLING_DATASET
+              valueFrom:
+                secretKeyRef:
+                  name: c35-server-env
+                  key: GCP_BILLING_DATASET
+                  optional: true
+            - name: GCP_BILLING_TABLE
+              valueFrom:
+                secretKeyRef:
+                  name: c35-server-env
+                  key: GCP_BILLING_TABLE
+                  optional: true
+            - name: GOOGLE_APPLICATION_CREDENTIALS_JSON
+              valueFrom:
+                secretKeyRef:
+                  name: c35-server-env
+                  key: GOOGLE_APPLICATION_CREDENTIALS_JSON
+                  optional: true
+            - name: CF_VENDOR_BILL_ENABLED
+              valueFrom:
+                secretKeyRef:
+                  name: c35-server-env
+                  key: CF_VENDOR_BILL_ENABLED
+                  optional: true
+            - name: CLOUDFLARE_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: c35-server-env
+                  key: CLOUDFLARE_API_TOKEN
+                  optional: true
+            - name: CLOUDFLARE_ACCOUNT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: c35-server-env
+                  key: CLOUDFLARE_ACCOUNT_ID
+                  optional: true
+            - name: WASABI_VENDOR_BILL_ENABLED
+              valueFrom:
+                secretKeyRef:
+                  name: c35-server-env
+                  key: WASABI_VENDOR_BILL_ENABLED
+                  optional: true
+            - name: WASABI_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: c35-server-env
+                  key: WASABI_ACCESS_KEY
+                  optional: true
+            - name: WASABI_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: c35-server-env
+                  key: WASABI_SECRET_KEY
+                  optional: true
+            - name: WASABI_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: c35-server-env
+                  key: WASABI_REGION
+                  optional: true
           resources:
             limits:
               cpu: 200m

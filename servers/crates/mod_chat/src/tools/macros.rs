@@ -9,6 +9,7 @@ macro_rules! tool {
         description: $desc:expr,
         $(topics: [$($topic:expr),* $(,)?],)?
         $(always: [$($always_topic:expr),* $(,)?],)?
+        $(rag_phrases: [$($rag_phrase:expr),* $(,)?],)?
         $(requires_kinds: [$($kind:expr),* $(,)?],)?
         $(requires_capability: $capability:expr,)?
         $(ui_label_key: $ui_label:expr,)?
@@ -75,6 +76,12 @@ macro_rules! tool {
                 )*)?
 
                 #[allow(unused_mut)]
+                let mut rag_phrases: Vec<String> = Vec::new();
+                $($(
+                    rag_phrases.push($rag_phrase.to_string());
+                )*)?
+
+                #[allow(unused_mut)]
                 let mut requires_kinds: Vec<String> = Vec::new();
                 $($(
                     requires_kinds.push($kind.to_string());
@@ -115,6 +122,7 @@ macro_rules! tool {
                     readonly,
                     topics,
                     always,
+                    rag_phrases,
                     requires_kinds,
                     requires_capability,
                     ui_keys,

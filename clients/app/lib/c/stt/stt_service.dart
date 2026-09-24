@@ -4,13 +4,11 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:alienai_c35/c/settings/voice_prefs.dart';
-import 'package:alienai_c35/c/stt/voice_recognizer_webview.dart';
 import 'package:alienai_c35/c/tts/speech_lang.dart';
 import 'package:alienai_c35/c/stt/stt_mic_permission.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/c/voice/voice_api.dart';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
@@ -20,7 +18,6 @@ class SttService {
   static final SttService instance = SttService._();
 
   VoiceApi? _voiceApi;
-  VoiceRecognizerWebView? _webRecognizer;
 
   void bindVoiceApi(VoiceApi? api) => _voiceApi = api;
 
@@ -93,10 +90,23 @@ class SttService {
     return formats;
   }
 
+  void _startRecordingTimers() {
+    _stopTimers();
+    _recordSecondTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!isRecording.value) return;
+      recordingSeconds.value++;
+      if (recordingSeconds.value >= maxRecordingSeconds) {
+        _stopTimers();
+        onAutoStop?.call();
+      }
+    });
+  }
+
   Future<bool> startRecording() async {
-    await _init();
     lastStartError = null;
     if (isRecording.value) return true;
+
+    await _init();
     try {
       if (!kIsWeb && !await sttMicPermissionEnsure()) {
         lastStartError = sttMicErrorMessage();
@@ -118,41 +128,24 @@ class SttService {
           audioAmplitude.value = 0.05;
           amplitudeHistory.value = const [];
           liveTranscript.value = '';
-          _stopMonitoring();
+          _stopTimers();
 
-          var tick = 0;
           var speechDetected = false;
           DateTime? silenceSince;
           final history = <double>[];
 
-          // 1-second interval timer for UI clock and hard 30-second cap
-          _recordSecondTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-            if (!isRecording.value) return;
-            recordingSeconds.value++;
-            if (recordingSeconds.value >= maxRecordingSeconds) {
-              _stopMonitoring();
-              onAutoStop?.call();
-            }
-          });
+          _startRecordingTimers();
 
-          // 80ms stream for responsive waveform & silence VAD auto-stop
           _ampSub = _recorder!.onAmplitudeChanged(const Duration(milliseconds: 80)).listen((amp) {
             if (!isRecording.value) return;
-            tick++;
             final current = amp.current;
             final maxAmp = amp.max;
             final level = current > maxAmp ? current : maxAmp;
 
-            double norm = 0.0;
-            if (level > -60 && level != -160) {
-              // Map -55 dBFS to 0.0, -10 dBFS to 1.0
-              norm = ((level + 55) / 45).clamp(0.05, 1.0);
-            }
-            // Generate lively organic wave if hardware level is unmeasured or quiet
-            if (norm <= 0.08) {
-              final w1 = sin(tick * 0.4) * 0.15 + 0.15;
-              final w2 = cos(tick * 0.2) * 0.08 + 0.08;
-              norm = (w1 + w2).clamp(0.06, 0.45);
+            var norm = 0.0;
+            if (level > -55 && level != -160) {
+              final linear = ((level + 50) / 40).clamp(0.0, 1.0);
+              norm = pow(linear, 2.4).toDouble();
             }
 
             audioAmplitude.value = norm;
@@ -160,56 +153,19 @@ class SttService {
             if (history.length > 80) history.removeAt(0);
             amplitudeHistory.value = List.of(history);
 
-            // Voice Activity Detection (VAD) Auto-Stop:
-            // Speech is confirmed if amplitude is loud or recognized
-            if (level > -45.0 || norm >= 0.22) {
+            if (level > -38.0 || norm >= 0.35) {
               speechDetected = true;
               silenceSince = null;
             } else if (speechDetected && recordingSeconds.value >= 1) {
               silenceSince ??= DateTime.now();
-              // 2.2 seconds of silence after speech finishes triggers auto-stop
               if (DateTime.now().difference(silenceSince!) >= const Duration(milliseconds: 2200)) {
-                _stopMonitoring();
+                _stopTimers();
                 onAutoStop?.call();
               }
             }
           });
 
           isRecording.value = true;
-
-          // Start Web Speech recognizer if engine is web
-          if (sttEngineRoute(VoicePrefs.instance.sttEngine) == 'web') {
-            try {
-              final pref = VoicePrefs.instance.speechLang;
-              final effectiveLang = speechLangSttLocale(pref, last: VoicePrefs.instance.lastLang);
-              _webRecognizer ??= VoiceRecognizerWebView(
-                onTranscript: (t) {
-                  final text = t.interim.isNotEmpty ? '${t.txt} ${t.interim}'.trim() : t.txt.trim();
-                  if (text.isNotEmpty) {
-                    liveTranscript.value = text;
-                    speechDetected = true;
-                    silenceSince = null;
-                  }
-                },
-                onTranscriptFinal: (t) {
-                  final text = t.txt.trim();
-                  if (text.isNotEmpty) {
-                    liveTranscript.value = text;
-                    speechDetected = true;
-                  }
-                },
-                onError: (e) {
-                  debugPrint('[SttService] web speech error/warning: $e');
-                },
-              );
-              unawaited(_webRecognizer!.start(effectiveLang).catchError((e) {
-                debugPrint('[SttService] web recognizer start error: $e');
-              }));
-            } catch (e) {
-              debugPrint('[SttService] web recognizer start failed: $e');
-            }
-          }
-
           return true;
         } catch (e) {
           lastError = e;
@@ -222,27 +178,22 @@ class SttService {
       debugPrint('[SttService] startRecording failed: $e');
       lastStartError = sttMicErrorMessage(cause: e);
       _recordingMime = null;
-      _stopMonitoring();
+      _stopTimers();
       isRecording.value = false;
       return false;
     }
   }
 
-  void _stopMonitoring() {
+  void _stopTimers() {
     _recordSecondTimer?.cancel();
     _recordSecondTimer = null;
     _ampSub?.cancel();
     _ampSub = null;
     audioAmplitude.value = 0.0;
-    if (_webRecognizer != null) {
-      try {
-        unawaited(_webRecognizer!.stop());
-      } catch (_) {}
-    }
   }
 
   Future<String?> stopAndTranscribe({String? lang}) async {
-    _stopMonitoring();
+    _stopTimers();
     if (!isRecording.value && _recorder == null) return null;
     String? path;
     try {
@@ -262,14 +213,6 @@ class SttService {
     }
     isTranscribing.value = true;
     lastTranscribeError = null;
-
-    // Fast-path: if Web Speech recognizer already transcribed text in real-time, return it!
-    final webLive = sanitizeTranscript(liveTranscript.value);
-    if (sttEngineRoute(VoicePrefs.instance.sttEngine) == 'web' && webLive.isNotEmpty) {
-      isTranscribing.value = false;
-      try { await file.delete(); } catch (_) {}
-      return webLive;
-    }
 
     final mime = _recordingMime ?? 'audio/mp4';
     _recordingMime = null;
@@ -296,7 +239,7 @@ class SttService {
   }
 
   Future<void> cancel() async {
-    _stopMonitoring();
+    _stopTimers();
     recordingSeconds.value = 0;
     amplitudeHistory.value = const [];
     liveTranscript.value = '';
@@ -322,6 +265,13 @@ class SttService {
     Future<String?> Function(Uint8List bytes, String lang, String mime)? webTranscribe,
   }) async {
     final route = sttEngineRoute(VoicePrefs.instance.sttEngine);
+    if (route == 'web') {
+      if (webTranscribe != null) {
+        final res = await webTranscribe(bytes, lang, mime);
+        return res != null ? sanitizeTranscript(res) : null;
+      }
+      return null;
+    }
     if (route == 'cloud') {
       if (_voiceApi == null) {
         debugPrint('[SttService] cloud STT requires VoiceApi (bind from page_ai_home)');
@@ -351,13 +301,11 @@ class SttService {
       final res = await webTranscribe(bytes, lang, mime);
       return res != null ? sanitizeTranscript(res) : null;
     }
-    // Direct Gemini 3.1 Flash Lite transcription fallback
     if (bytes.isNotEmpty) {
       final direct = await _transcribeGeminiDirect(bytes: bytes, lang: lang, mime: mime);
       if (direct != null && direct.isNotEmpty) return sanitizeTranscript(direct);
     }
-    final webRes = await _transcribeWebEndpoint(bytes, lang, mime);
-    return webRes != null ? sanitizeTranscript(webRes) : null;
+    return null;
   }
 
   Future<String?> _transcribeGeminiDirect({
@@ -415,34 +363,5 @@ class SttService {
       debugPrint('[SttService] Gemini direct STT error: $e');
       return null;
     }
-  }
-
-  Future<String?> _transcribeWebEndpoint(Uint8List bytes, String lang, String mime) async {
-    try {
-      final url = Uri.parse('https://www.google.com/speech-api/v2/recognize?output=json&lang=$lang&client=chromium');
-      final res = await http.post(url, headers: {
-        'Content-Type': mime,
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36',
-      }, body: bytes).timeout(const Duration(seconds: 10));
-      if (res.statusCode != 200) return null;
-      for (final line in res.body.split('\n')) {
-        if (line.trim().isEmpty) continue;
-        try {
-          final json = jsonDecode(line);
-          if (json is! Map || !json.containsKey('result')) continue;
-          final result = json['result'];
-          if (result is! List || result.isEmpty) continue;
-          final first = result.first;
-          if (first is! Map || !first.containsKey('alternative')) continue;
-          final alt = first['alternative'];
-          if (alt is! List || alt.isEmpty) continue;
-          final text = alt.first['transcript']?.toString();
-          if (text != null && text.isNotEmpty) return text;
-        } catch (_) {}
-      }
-    } catch (e) {
-      debugPrint('[SttService] _transcribeWebEndpoint error: $e');
-    }
-    return null;
   }
 }

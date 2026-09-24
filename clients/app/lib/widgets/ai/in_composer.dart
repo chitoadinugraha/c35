@@ -11,9 +11,11 @@ import 'package:alienai_c35/c/media/media_types.dart';
 import 'package:alienai_c35/c/settings/voice_prefs.dart';
 import 'package:alienai_c35/c/stt/stt_mic_permission.dart';
 import 'package:alienai_c35/c/stt/stt_service.dart';
+import 'package:alienai_c35/c/stt/stt_speech_input.dart' show SttSpeechInput;
 import 'package:alienai_c35/widgets/ai/composer_action.dart';
 import 'package:alienai_c35/widgets/ai/ui_assistant_model_chip.dart';
 import 'package:alienai_c35/widgets/ai/ui_audio_waveform.dart';
+import 'package:alienai_c35/widgets/ai/ui_speak_indicator.dart';
 import 'package:alienai_c35/widgets/ai/ui_staged_shot.dart';
 import 'package:alienai_c35/widgets/media/in_media.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
@@ -61,6 +63,7 @@ class InComposer extends StatefulWidget {
     this.onNewChat,
     this.controller,
     this.focusNode,
+    this.showSpeakIndicator = true,
   });
 
   final void Function(String text, List<MsgAttachment> attachments, {String? toolMode}) onSend;
@@ -82,14 +85,18 @@ class InComposer extends StatefulWidget {
   final VoidCallback? onNewChat;
   final TextEditingController? controller;
   final FocusNode? focusNode;
+  final bool showSpeakIndicator;
 
   @override
   State<InComposer> createState() => _InComposerState();
 }
 
 class _InComposerState extends State<InComposer> {
+  final _webSpeech = SttSpeechInput();
   TextEditingController? _internalController;
   TextEditingController get _controller => widget.controller ?? (_internalController ??= TextEditingController());
+
+  bool get _useWebSpeech => VoicePrefs.instance.sttEngine == 'web';
 
   FocusNode? _internalFocus;
   FocusNode get _focus => widget.focusNode ?? (_internalFocus ??= FocusNode());
@@ -225,7 +232,11 @@ class _InComposerState extends State<InComposer> {
   void dispose() {
     _mentionSearchDebounce?.cancel();
     SttService.instance.onAutoStop = null;
-    if (_recording || SttService.instance.isRecording.value) unawaited(SttService.instance.cancel());
+    if (_webSpeech.isActive) unawaited(_webSpeech.cancel());
+    _webSpeech.dispose();
+    if (!_useWebSpeech && (_recording || SttService.instance.isRecording.value)) {
+      unawaited(SttService.instance.cancel());
+    }
     _focus.removeListener(_onFocusChange);
     if (_internalFocus != null) _focus.onKeyEvent = null;
     _internalController?.dispose();
@@ -574,6 +585,42 @@ class _InComposerState extends State<InComposer> {
 
   Future<void> _startMic() async {
     if (!widget.enabled || widget.busy || _recording) return;
+    if (_useWebSpeech) {
+      try {
+        await _webSpeech.toggle(
+          controller: _controller,
+          onStateChanged: () {
+            if (!mounted) return;
+            setState(() => _recording = _webSpeech.isActive);
+          },
+          onError: (e) {
+            if (!mounted) return;
+            debugPrint('[InComposer] Web Speech error ($e), falling back to Cloud STT');
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Web Speech unavailable in WebView. Using Cloud speech recognition.'),
+                behavior: SnackBarBehavior.floating,
+                duration: Duration(seconds: 3),
+              ),
+            );
+            unawaited(VoicePrefs.instance.setSttEngine('cloud'));
+            unawaited(_startNativeMic());
+          },
+        );
+      } catch (_) {
+        if (!mounted) return;
+        unawaited(VoicePrefs.instance.setSttEngine('cloud'));
+        unawaited(_startNativeMic());
+      }
+      if (!mounted) return;
+      setState(() => _recording = _webSpeech.isActive);
+      _focus.requestFocus();
+      return;
+    }
+    await _startNativeMic();
+  }
+
+  Future<void> _startNativeMic() async {
     SttService.instance.onAutoStop = () {
       if (mounted && _recording) unawaited(_stopMic());
     };
@@ -581,7 +628,12 @@ class _InComposerState extends State<InComposer> {
     if (!mounted) return;
     if (!ok) {
       SttService.instance.onAutoStop = null;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(SttService.instance.lastStartError ?? sttMicErrorMessage()), behavior: SnackBarBehavior.floating));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(SttService.instance.lastStartError ?? sttMicErrorMessage()),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
       return;
     }
     setState(() => _recording = true);
@@ -590,6 +642,25 @@ class _InComposerState extends State<InComposer> {
 
   Future<void> _stopMic() async {
     if (!_recording) return;
+    if (_useWebSpeech) {
+      await _webSpeech.toggle(
+        controller: _controller,
+        onStateChanged: () {
+          if (!mounted) return;
+          setState(() => _recording = _webSpeech.isActive);
+        },
+      );
+      if (!mounted) return;
+      setState(() => _recording = false);
+      if (_controller.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('No speech detected'),
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+      _focus.requestFocus();
+      return;
+    }
     SttService.instance.onAutoStop = null;
     final text = await SttService.instance.stopAndTranscribe(lang: VoicePrefs.instance.speechLang);
     if (!mounted) return;
@@ -613,6 +684,13 @@ class _InComposerState extends State<InComposer> {
 
   Future<void> _cancelMic() async {
     if (!_recording) return;
+    if (_useWebSpeech) {
+      await _webSpeech.cancel();
+      if (!mounted) return;
+      setState(() => _recording = false);
+      _focus.requestFocus();
+      return;
+    }
     SttService.instance.onAutoStop = null;
     await SttService.instance.cancel();
     if (!mounted) return;
@@ -884,14 +962,16 @@ class _InComposerState extends State<InComposer> {
 
   Widget _inputArea(double maxWidth) {
     if (_recording) {
+      final speech = _useWebSpeech ? _webSpeech : null;
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
         child: UiAudioWaveform(
-          recordingSeconds: SttService.instance.recordingSeconds,
+          recordingSeconds: speech?.recordingSeconds ?? SttService.instance.recordingSeconds,
           amplitude: SttService.instance.audioAmplitude,
-          amplitudeHistory: SttService.instance.amplitudeHistory,
-          liveTranscript: SttService.instance.liveTranscript,
-          isTranscribing: SttService.instance.isTranscribing,
+          amplitudeHistory: speech != null ? null : SttService.instance.amplitudeHistory,
+          liveTranscript: speech?.liveTranscript ?? SttService.instance.liveTranscript,
+          isTranscribing: speech != null ? null : SttService.instance.isTranscribing,
+          isPreparing: speech?.isPreparing,
           engine: VoicePrefs.instance.sttEngine,
           onCancel: _cancelMic,
           onCommit: _stopMic,
@@ -1000,7 +1080,12 @@ class _InComposerState extends State<InComposer> {
     final border = _isDragging
         ? const Color(0xFF38BDF8)
         : (_focused ? const Color(0xFF3F3F46) : const Color(0xFF27272A));
-    return DropTarget(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (widget.showSpeakIndicator) const Align(alignment: Alignment.centerLeft, child: UiSpeakIndicator()),
+        DropTarget(
       onDragEntered: (_) => setState(() => _isDragging = true),
       onDragExited: (_) => setState(() => _isDragging = false),
       onDragDone: (detail) async {
@@ -1057,6 +1142,8 @@ class _InComposerState extends State<InComposer> {
           ],
         ),
       ),
+    ),
+      ],
     );
   }
 }

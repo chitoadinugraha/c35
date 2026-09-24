@@ -160,7 +160,24 @@ Claims tracked in `billing_promotion_claim` — not overloaded into `referral_co
 | Pools | **0.25× Lite** → Alien Rp 25.000, Frontier Rp 5.000 |
 | Limit | **1× per verified email** |
 | UI | Progress bar in avatar dropdown (days left + pool %) |
-| After expiry | Subscribe or read-only / blocked per product policy |
+| After expiry | **Freemium** (see below) or subscribe |
+
+---
+
+## Freemium (no paid plan)
+
+When the user has **no active paid subscription** (`lite` / `plus` / `pro` / `ultra`) and **no active signup trial** (`trial_expires_ts` in the future):
+
+| Rule | Value |
+|------|-------|
+| Model | **Alien AI only** (`alienai`) |
+| Daily cap | **30 messages** or **30,000 tokens** (input+output) per UTC calendar day — **whichever exhausts first** |
+| Paid tools | Blocked (`img.*`, `delegate.run`, `computer_use.delegate`, `device.*` remote control) |
+| Billing | No pool / wallet deduct — platform COGS only |
+
+Paid plan or active signup trial uses normal pool + billing paths instead of freemium counters.
+
+Store: `billing_profile.freemium_day`, `freemium_msgs_used`, `freemium_tokens_used`.
 
 ---
 

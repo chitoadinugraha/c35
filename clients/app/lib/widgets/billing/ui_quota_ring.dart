@@ -150,6 +150,80 @@ class UiQuotaDualRing extends StatelessWidget {
   }
 }
 
+class UiFreemiumQuotaPanel extends StatelessWidget {
+  const UiFreemiumQuotaPanel({
+    super.key,
+    required this.msgsUsed,
+    required this.msgsLimit,
+    required this.tokensUsed,
+    required this.tokensLimit,
+    required this.meterState,
+    this.onSubscribeTap,
+  });
+
+  final int msgsUsed;
+  final int msgsLimit;
+  final int tokensUsed;
+  final int tokensLimit;
+  final String meterState;
+  final VoidCallback? onSubscribeTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = quotaRingColor(meterState);
+    final msgRatio = msgsLimit > 0 ? (msgsUsed / msgsLimit).clamp(0.0, 1.0) : 0.0;
+    final tokRatio = tokensLimit > 0 ? (tokensUsed / tokensLimit).clamp(0.0, 1.0) : 0.0;
+    Widget bar(String label, double ratio) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Text(label, style: const TextStyle(color: Color(0xFF71717A), fontSize: 10, fontWeight: FontWeight.w500)),
+                const Spacer(),
+                Text('${(ratio * 100).round()}%', style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600)),
+              ],
+            ),
+            const SizedBox(height: 4),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(value: ratio, minHeight: 5, backgroundColor: color.withValues(alpha: 0.14), valueColor: AlwaysStoppedAnimation(color)),
+            ),
+          ],
+        );
+    return uiTooltip(
+      message: 'Free daily limit\nSubscribe for full access',
+      preferBelow: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(0, 6, 0, 2),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const UiAlienIcon(size: 14),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text('Free daily', style: TextStyle(color: Color(0xFFF4F4F5), fontSize: 11, fontWeight: FontWeight.w700)),
+                ),
+                if (onSubscribeTap != null)
+                  TextButton(
+                    onPressed: onSubscribeTap,
+                    style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8), minimumSize: Size.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                    child: const Text('Subscribe', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 11, fontWeight: FontWeight.w600)),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            bar('$msgsUsed/$msgsLimit msgs', msgRatio),
+            const SizedBox(height: 8),
+            bar('${billingFreemiumTokensShort(tokensUsed)}/${billingFreemiumTokensShort(tokensLimit)} tokens', tokRatio),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class UiQuotaPackagePanel extends StatelessWidget {
   const UiQuotaPackagePanel({
     super.key,
@@ -167,6 +241,11 @@ class UiQuotaPackagePanel extends StatelessWidget {
     this.balanceLabel = '',
     this.onBalanceTap,
     this.onPackageTap,
+    this.freemiumActive = false,
+    this.freemiumMsgsUsed = 0,
+    this.freemiumMsgsLimit = billingFreemiumMsgsLimit,
+    this.freemiumTokensUsed = 0,
+    this.freemiumTokensLimit = billingFreemiumTokensLimit,
   });
 
   final String planTier;
@@ -183,6 +262,11 @@ class UiQuotaPackagePanel extends StatelessWidget {
   final String balanceLabel;
   final VoidCallback? onBalanceTap;
   final VoidCallback? onPackageTap;
+  final bool freemiumActive;
+  final int freemiumMsgsUsed;
+  final int freemiumMsgsLimit;
+  final int freemiumTokensUsed;
+  final int freemiumTokensLimit;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -235,47 +319,57 @@ class UiQuotaPackagePanel extends StatelessWidget {
             ),
           ),
           const Divider(height: 1, color: Color(0xFF27272A)),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(0, 6, 0, 2),
-            child: IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: Center(
-                      child: UiQuotaDualRing(
-                        size: 38,
-                        title: 'Alien AI',
-                        titleColor: const Color(0xFFF4F4F5),
-                        centerIcon: const UiAlienIcon(size: 14),
-                        allow5hUsed: alien5hUsed,
-                        allow5hLimit: alien5hLimit,
-                        allowWeeklyUsed: alienWeeklyUsed,
-                        allowWeeklyLimit: alienWeeklyLimit,
-                        meterState: meterState,
+          if (freemiumActive)
+            UiFreemiumQuotaPanel(
+              msgsUsed: freemiumMsgsUsed,
+              msgsLimit: freemiumMsgsLimit,
+              tokensUsed: freemiumTokensUsed,
+              tokensLimit: freemiumTokensLimit,
+              meterState: meterState,
+              onSubscribeTap: onPackageTap,
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.fromLTRB(0, 6, 0, 2),
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: Center(
+                        child: UiQuotaDualRing(
+                          size: 38,
+                          title: 'Alien AI',
+                          titleColor: const Color(0xFFF4F4F5),
+                          centerIcon: const UiAlienIcon(size: 14),
+                          allow5hUsed: alien5hUsed,
+                          allow5hLimit: alien5hLimit,
+                          allowWeeklyUsed: alienWeeklyUsed,
+                          allowWeeklyLimit: alienWeeklyLimit,
+                          meterState: meterState,
+                        ),
                       ),
                     ),
-                  ),
-                  const VerticalDivider(width: 1, color: Color(0xFF27272A)),
-                  Expanded(
-                    child: Center(
-                      child: UiQuotaDualRing(
-                        size: 38,
-                        title: 'API',
-                        titleColor: const Color(0xFFF4F4F5),
-                        centerIcon: const Icon(Icons.api, size: 14, color: Color(0xFFF4F4F5)),
-                        allow5hUsed: api5hUsed,
-                        allow5hLimit: api5hLimit,
-                        allowWeeklyUsed: apiWeeklyUsed,
-                        allowWeeklyLimit: apiWeeklyLimit,
-                        meterState: meterState,
+                    const VerticalDivider(width: 1, color: Color(0xFF27272A)),
+                    Expanded(
+                      child: Center(
+                        child: UiQuotaDualRing(
+                          size: 38,
+                          title: 'API',
+                          titleColor: const Color(0xFFF4F4F5),
+                          centerIcon: const Icon(Icons.api, size: 14, color: Color(0xFFF4F4F5)),
+                          allow5hUsed: api5hUsed,
+                          allow5hLimit: api5hLimit,
+                          allowWeeklyUsed: apiWeeklyUsed,
+                          allowWeeklyLimit: apiWeeklyLimit,
+                          meterState: meterState,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
         ],
       );
 }
@@ -297,10 +391,22 @@ UiQuotaPackagePanel uiQuotaPackagePanelFromSummary(
       api5hLimit: billingApiAllow5hDefault,
       apiWeeklyUsed: 0,
       apiWeeklyLimit: billingApiAllowWeeklyDefault,
-      meterState: summary.meterState,
+      meterState: summary.freemiumActive
+          ? billingMeterStateFreemium(BillingAccount(
+              freemiumMsgsUsed: summary.freemiumMsgsUsed,
+              freemiumMsgsLimit: summary.freemiumMsgsLimit,
+              freemiumTokensUsed: summary.freemiumTokensUsed,
+              freemiumTokensLimit: summary.freemiumTokensLimit,
+            ))
+          : summary.meterState,
       balanceLabel: billingBalanceLabel(BillingAccount(balanceUsd: summary.balanceUsd, balanceIdr: summary.balanceIdr, billingCurrency: summary.balanceIdr > 0 ? 'IDR' : 'USD')),
       onBalanceTap: onBalanceTap,
       onPackageTap: onPackageTap,
+      freemiumActive: summary.freemiumActive,
+      freemiumMsgsUsed: summary.freemiumMsgsUsed,
+      freemiumMsgsLimit: summary.freemiumMsgsLimit > 0 ? summary.freemiumMsgsLimit : billingFreemiumMsgsLimit,
+      freemiumTokensUsed: summary.freemiumTokensUsed,
+      freemiumTokensLimit: summary.freemiumTokensLimit > 0 ? summary.freemiumTokensLimit : billingFreemiumTokensLimit,
     );
 
 UiQuotaPackagePanel uiQuotaPackagePanelFromAccount(
@@ -320,8 +426,13 @@ UiQuotaPackagePanel uiQuotaPackagePanelFromAccount(
       api5hLimit: billingApiAllow5hDefault,
       apiWeeklyUsed: 0,
       apiWeeklyLimit: billingApiAllowWeeklyDefault,
-      meterState: billingMeterState(account.alienAllow5hUsed, account.alienAllow5hLimit),
+      meterState: billingFreemiumActive(account) ? billingMeterStateFreemium(account) : billingMeterState(account.alienAllow5hUsed, account.alienAllow5hLimit),
       balanceLabel: billingWalletBalanceLabel(account, billingPrimaryCurrency(account)),
       onBalanceTap: onBalanceTap,
       onPackageTap: onPackageTap,
+      freemiumActive: billingFreemiumActive(account),
+      freemiumMsgsUsed: account.freemiumMsgsUsed,
+      freemiumMsgsLimit: account.freemiumMsgsLimit > 0 ? account.freemiumMsgsLimit : billingFreemiumMsgsLimit,
+      freemiumTokensUsed: account.freemiumTokensUsed,
+      freemiumTokensLimit: account.freemiumTokensLimit > 0 ? account.freemiumTokensLimit : billingFreemiumTokensLimit,
     );

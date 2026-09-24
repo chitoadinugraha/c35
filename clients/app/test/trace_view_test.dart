@@ -45,7 +45,7 @@ void main() {
     ]);
     expect(view.steps, hasLength(1));
     expect(view.steps.first.index, 1);
-    expect(view.steps.first.title, 'LLM hop 1');
+    expect(view.steps.first.title, 'Reply');
     expect(view.steps.first.model, 'alienai');
     expect(view.totals.model, 'alienai');
   });
@@ -107,6 +107,20 @@ void main() {
     expect(chips.first.ok, isTrue);
   });
 
+  test('traceToolIconUrlFromLog uses visit url favicon', () {
+    final log = TraceLogDoc(
+      kind: 'tool',
+      topic: 'tool_result',
+      text: '{"ok":true,"url":"https://jadwalnonton.com/bioskop/di-malang/"}',
+      metaJson: jsonEncode({
+        'tool': 'web.visit',
+        'args': {'url': 'https://jadwalnonton.com/bioskop/di-malang/'},
+      }),
+    );
+    expect(traceToolIconUrlFromLog(log), contains('google.com/s2/favicons'));
+    expect(traceToolIconUrlFromLog(log), contains('jadwalnonton.com'));
+  });
+
   test('traceToolLabelFromLog uses source host for web.visit', () {
     final log = TraceLogDoc(
       kind: 'tool',
@@ -125,5 +139,59 @@ void main() {
       toolLabelFromTemplate('Read {{source}}', {'source': 'jadwalnonton.com'}),
       'Read jadwalnonton.com',
     );
+  });
+
+  test('buildTraceView labels multi-hop tool loop and final reply', () {
+    final view = buildTraceView([
+      TraceLogDoc(
+        kind: 'llm',
+        topic: 'llm_call',
+        text: '',
+        durationMs: 1200,
+        metaJson: jsonEncode({'step': 2, 'hop': 1, 'prompt_tokens': 355, 'completion_tokens': 32}),
+      ),
+      TraceLogDoc(
+        kind: 'tool',
+        topic: 'tool_result',
+        text: '{"ok":true,"url":"https://jadwalnonton.com/bioskop/di-malang/"}',
+        durationMs: 2500,
+        metaJson: jsonEncode({'step': 2, 'hop': 1, 'tool': 'web.visit', 'args': {'url': 'https://jadwalnonton.com/bioskop/di-malang/'}, 'ok': true}),
+      ),
+      TraceLogDoc(
+        kind: 'llm',
+        topic: 'llm_call',
+        text: '',
+        durationMs: 1300,
+        metaJson: jsonEncode({'step': 3, 'hop': 2, 'prompt_tokens': 1196, 'completion_tokens': 28}),
+      ),
+      TraceLogDoc(
+        kind: 'tool',
+        topic: 'tool_result',
+        text: '{"ok":true,"url":"https://jadwalnonton.com/now-playing/"}',
+        durationMs: 360,
+        metaJson: jsonEncode({'step': 3, 'hop': 2, 'tool': 'web.visit', 'args': {'url': 'https://jadwalnonton.com/now-playing/'}, 'ok': true}),
+      ),
+      TraceLogDoc(
+        kind: 'llm',
+        topic: 'llm_call',
+        text: 'Saat ini beberapa film sedang tayang di bioskop Malang.',
+        durationMs: 2000,
+        metaJson: jsonEncode({'step': 4, 'hop': 3, 'prompt_tokens': 2127, 'completion_tokens': 274}),
+      ),
+      TraceLogDoc(
+        kind: 'llm',
+        topic: 'llm_turn',
+        text: 'done',
+        metaJson: jsonEncode({'prompt_tokens': 3678, 'completion_tokens': 334, 'duration_ms': 7972}),
+      ),
+    ]);
+    expect(view.steps, hasLength(3));
+    expect(view.steps[0].title, 'Tool run · Read jadwalnonton.com');
+    expect(view.steps[1].title, 'Tool run · Read jadwalnonton.com');
+    expect(view.steps[2].title, 'Reply');
+    expect(view.steps[2].branches, isEmpty);
+    final chips = traceToolChipsFromView(view);
+    expect(chips, hasLength(2));
+    expect(chips.every((c) => c.label.contains('jadwalnonton.com')), isTrue);
   });
 }

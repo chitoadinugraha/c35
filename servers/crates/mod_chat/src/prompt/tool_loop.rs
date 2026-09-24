@@ -4,6 +4,7 @@ use std::time::Instant;
 use anyhow::Result;
 use c35_mod_billing::billing_cost_usd;
 use c35_store::snowflake_id;
+use futures_util::future::join_all;
 use serde_json::{json, Value};
 use tokio_util::sync::CancellationToken;
 
@@ -30,6 +31,10 @@ pub fn chat_tool_rounds_done(round: u8, run_kind: &str) -> bool {
 
 pub fn tool_call_dup(prev: &Option<(String, Value)>, name: &str, args: &Value) -> bool {
     prev.as_ref().map(|(n, a)| n == name && a == args).unwrap_or(false)
+}
+
+pub fn tool_calls_dup(prev: &[(String, Value)], current: &[(String, Value)]) -> bool {
+    !prev.is_empty() && prev == current
 }
 
 fn append_block(blocks_json: &str, block: Value) -> String {
@@ -117,7 +122,7 @@ pub async fn prompt_cluster_turn(
         return Ok(ChatRes { text, thought, blocks_json, tokens_in, tokens_out, model_used, tools_cost_usd: 0.0 });
     }
 
-    let mut prev_call: Option<(String, Value)> = None;
+    let mut prev_calls: Vec<(String, Value)> = Vec::new();
     let mut used_tool = false;
     for round in 0..rounds_max {
         if cancel.is_cancelled() { anyhow::bail!("aborted"); }
@@ -139,8 +144,8 @@ pub async fn prompt_cluster_turn(
         }
         hop_checkpoint(turn_ctx.as_deref(), &on_hop, hop as i32, hop as i32, tokens_in, tokens_out, tools_cost_usd, &blocks_json, "");
         emit_thought(on_delta, &mut thought, &out.thought);
-        if let Some((name, args)) = out.function_call {
-            if wrap || tool_call_dup(&prev_call, &name, &args) {
+        if !out.function_calls.is_empty() {
+            if wrap || tool_calls_dup(&prev_calls, &out.function_calls) {
                 return wrap_up(
                     &requested_model,
                     contents,
@@ -159,82 +164,110 @@ pub async fn prompt_cluster_turn(
                 )
                 .await;
             }
-            let label = format!("Using {name}…\n");
-            emit_thought(on_delta, &mut thought, &label);
-            contents.push(out.model_content);
-            let tool_started = Instant::now();
-            let (result, tool_cost) = cluster_tool_exec(&client, &name, &args, turn_ctx.as_deref()).await;
+            for (name, _) in &out.function_calls {
+                let label = format!("Using {name}…\n");
+                emit_thought(on_delta, &mut thought, &label);
+            }
+
+            let executions = join_all(out.function_calls.iter().map(|(name, args)| {
+                let client = &client;
+                let turn_ctx_ref = turn_ctx.as_deref();
+                async move {
+                    let tool_started = Instant::now();
+                    let (result, tool_cost) = cluster_tool_exec(client, name, args, turn_ctx_ref).await;
+                    let tool_ms = tool_started.elapsed().as_millis() as i64;
+                    (name.clone(), args.clone(), result, tool_cost, tool_ms)
+                }
+            }))
+            .await;
+
             if let Some(ctx) = turn_ctx.as_ref() {
                 let title = ctx.title_slot.lock().ok().and_then(|g| g.clone());
                 if let Some(title) = title {
                     let _ = chat_title_set(ctx.pool, ctx.nats, ctx.owner_iid, ctx.chat_id, &title).await;
                 }
             }
-            tools_cost_usd += tool_cost;
-            let tool_ms = tool_started.elapsed().as_millis() as i64;
-            let ok = result.get("ok").and_then(|v| v.as_bool()).unwrap_or(true);
-            if let Some(tr) = tracer {
-                tr.tool_result(&name, &snowflake_id().to_string(), &args, &result, ok, tool_ms).await;
-            }
-            if let Some(block) = result.get("block") {
-                blocks_json = append_block(&blocks_json, block.clone());
-                on_blocks(blocks_json.clone());
-            }
-            let fail_class = result.get("fail_class").and_then(|v| v.as_str()).unwrap_or("");
-            let circuit_stop = if let Some(ctx) = turn_ctx.as_mut() {
-                if let Some(cp) = ctx.checkpoint.as_deref_mut() {
-                    checkpoint_record_tool(cp, &name, &result);
-                    if let Some((fc, reason)) = checkpoint_tool_should_stop(cp, ctx.run_kind) {
-                        checkpoint_set_fatal(cp, fc, reason);
-                        Some((fc, reason))
+
+            let mut function_parts = Vec::with_capacity(executions.len());
+            let mut latest_img_b64 = None;
+
+            for (name, args, result, tool_cost, tool_ms) in executions {
+                tools_cost_usd += tool_cost;
+                let ok = result.get("ok").and_then(|v| v.as_bool()).unwrap_or(true);
+                if let Some(tr) = tracer {
+                    tr.tool_result(&name, &snowflake_id().to_string(), &args, &result, ok, tool_ms).await;
+                }
+                if let Some(block) = result.get("block") {
+                    blocks_json = append_block(&blocks_json, block.clone());
+                    on_blocks(blocks_json.clone());
+                }
+                let fail_class = result.get("fail_class").and_then(|v| v.as_str()).unwrap_or("");
+                let circuit_stop = if let Some(ctx) = turn_ctx.as_mut() {
+                    if let Some(cp) = ctx.checkpoint.as_deref_mut() {
+                        checkpoint_record_tool(cp, &name, &result);
+                        if let Some((fc, reason)) = checkpoint_tool_should_stop(cp, ctx.run_kind) {
+                            checkpoint_set_fatal(cp, fc, reason);
+                            Some((fc, reason))
+                        } else {
+                            None
+                        }
                     } else {
                         None
                     }
                 } else {
                     None
+                };
+                if let Some((fc, reason)) = circuit_stop {
+                    hop_checkpoint_with_json(
+                        &on_hop,
+                        hop as i32,
+                        hop as i32,
+                        tokens_in,
+                        tokens_out,
+                        tools_cost_usd,
+                        &blocks_json,
+                        fc,
+                        turn_ctx
+                            .as_ref()
+                            .and_then(|t| t.checkpoint.as_ref())
+                            .map(|v| v.to_string())
+                            .unwrap_or_else(|| "{}".into()),
+                    );
+                    anyhow::bail!(reason);
                 }
-            } else {
-                None
-            };
-            if let Some((fc, reason)) = circuit_stop {
-                hop_checkpoint_with_json(
-                    &on_hop,
-                    hop as i32,
-                    hop as i32,
-                    tokens_in,
-                    tokens_out,
-                    tools_cost_usd,
-                    &blocks_json,
-                    fc,
-                    turn_ctx
-                        .as_ref()
-                        .and_then(|t| t.checkpoint.as_ref())
-                        .map(|v| v.to_string())
-                        .unwrap_or_else(|| "{}".into()),
-                );
-                anyhow::bail!(reason);
+                if fail_class.starts_with("fatal_") {
+                    hop_checkpoint(turn_ctx.as_deref(), &on_hop, hop as i32, hop as i32, tokens_in, tokens_out, tools_cost_usd, &blocks_json, fail_class);
+                    let err = result
+                        .get("error")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("device fatal error")
+                        .to_string();
+                    anyhow::bail!(err);
+                }
+                let mut llm_result = result.get("llm").cloned().unwrap_or(result.clone());
+                let maybe_img = llm_result.as_object_mut().and_then(|obj| {
+                    obj.remove("image_base64").and_then(|v| v.as_str().map(|s| s.to_string()))
+                });
+                if let Some(img_b64) = maybe_img {
+                    latest_img_b64 = Some(img_b64);
+                }
+
+                function_parts.push(json!({
+                    "functionResponse": {
+                        "name": name.replace('.', "_"),
+                        "response": llm_result
+                    }
+                }));
             }
-            if fail_class.starts_with("fatal_") {
-                hop_checkpoint(turn_ctx.as_deref(), &on_hop, hop as i32, hop as i32, tokens_in, tokens_out, tools_cost_usd, &blocks_json, fail_class);
-                let err = result
-                    .get("error")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("device fatal error")
-                    .to_string();
-                anyhow::bail!(err);
-            }
-            let mut llm_result = result.get("llm").cloned().unwrap_or(result.clone());
-            let maybe_img = llm_result.as_object_mut().and_then(|obj| {
-                obj.remove("image_base64").and_then(|v| v.as_str().map(|s| s.to_string()))
-            });
 
             used_tool = true;
+            contents.push(out.model_content);
             contents.push(json!({
                 "role": "function",
-                "parts": [{ "functionResponse": { "name": name.replace('.', "_"), "response": llm_result } }]
+                "parts": function_parts
             }));
 
-            if let Some(img_b64) = maybe_img {
+            if let Some(img_b64) = latest_img_b64 {
                 // Optimize context window: prune older screenshots so only the latest desktop state is in context
                 prune_previous_screenshots(&mut contents);
                 contents.push(json!({
@@ -251,13 +284,43 @@ pub async fn prompt_cluster_turn(
                 }));
             }
 
-            prev_call = Some((name, args));
+            prev_calls = out.function_calls;
             continue;
         }
-        if !out.text.is_empty() {
-            emit_thought(on_delta, &mut thought, &out.thought);
-            emit_text(on_delta, &mut text, &out.text);
-            return Ok(ChatRes { text, thought, blocks_json, tokens_in, tokens_out, model_used, tools_cost_usd });
+        if round == 0
+            && !used_tool
+            && user_wants_consumption_recap(&req.user)
+            && tools.iter().any(|t| t.name == "consumption.today")
+        {
+            let locale = turn_ctx.as_ref().map(|t| t.locale).unwrap_or("id-ID");
+            let args = consumption_recap_args_from_user(&req.user, locale);
+            emit_thought(on_delta, &mut thought, "Using consumption.today…\n");
+            let tool_started = Instant::now();
+            let (result, tool_cost) =
+                cluster_tool_exec(&client, "consumption.today", &args, turn_ctx.as_deref()).await;
+            tools_cost_usd += tool_cost;
+            let tool_ms = tool_started.elapsed().as_millis() as i64;
+            let ok = result.get("ok").and_then(|v| v.as_bool()).unwrap_or(true);
+            if let Some(tr) = tracer {
+                tr.tool_result("consumption.today", &snowflake_id().to_string(), &args, &result, ok, tool_ms).await;
+            }
+            if let Some(block) = result.get("block") {
+                blocks_json = append_block(&blocks_json, block.clone());
+                on_blocks(blocks_json.clone());
+            }
+            used_tool = true;
+            let day_id = args.get("day_id").and_then(|v| v.as_str()).unwrap_or("today");
+            contents.push(json!({
+                "role": "model",
+                "parts": [{ "functionCall": { "name": "consumption_today", "args": { "day_id": day_id } } }]
+            }));
+            let llm_result = result.get("llm").cloned().unwrap_or(result.clone());
+            contents.push(json!({
+                "role": "function",
+                "parts": [{ "functionResponse": { "name": "consumption_today", "response": llm_result } }]
+            }));
+            prev_calls = vec![("consumption.today".into(), args)];
+            continue;
         }
         if round == 0 && !used_tool && user_wants_search(&req.user) && tools.iter().any(|t| t.name == "web.search") {
             let q = search_query_from_user(&req.user);
@@ -277,8 +340,13 @@ pub async fn prompt_cluster_turn(
                 "role": "function",
                 "parts": [{ "functionResponse": { "name": "web_search", "response": result } }]
             }));
-            prev_call = Some(("web.search".into(), args));
+            prev_calls = vec![("web.search".into(), args)];
             continue;
+        }
+        if !out.text.is_empty() {
+            emit_thought(on_delta, &mut thought, &out.thought);
+            emit_text(on_delta, &mut text, &out.text);
+            return Ok(ChatRes { text, thought, blocks_json, tokens_in, tokens_out, model_used, tools_cost_usd });
         }
         break;
     }
@@ -425,4 +493,41 @@ pub fn search_query_from_user(text: &str) -> String {
         }
     }
     text.trim().to_string()
+}
+
+pub fn user_wants_consumption_recap(text: &str) -> bool {
+    let t = text.trim().to_ascii_lowercase();
+    if t.is_empty() {
+        return false;
+    }
+    if ["catat ", "track food", "log meal", "log food", "hapus ", "delete meal", "berapa kalori"]
+        .iter()
+        .any(|k| t.contains(k))
+    {
+        return false;
+    }
+    [
+        "apa aja yang aku makan",
+        "apa yang aku makan",
+        "riwayat makan",
+        "makan hari ini",
+        "makan kemarin",
+        "what did i eat",
+        "food history",
+        "meal recap",
+        "nutrition recap",
+        "ringkasan nutrisi",
+        "cek makanan",
+        "konsumsi makanan",
+        "minggu lalu",
+        "minggu ini",
+    ]
+    .iter()
+    .any(|k| t.contains(k))
+        || (t.contains("makan") && (t.contains("hari ini") || t.contains("kemarin") || t.contains("yesterday")))
+}
+
+pub fn consumption_recap_args_from_user(text: &str, locale: &str) -> Value {
+    let day_id = c35_mod_consumption::day_id_from_query(text, locale);
+    json!({ "day_id": day_id, "days": 1 })
 }

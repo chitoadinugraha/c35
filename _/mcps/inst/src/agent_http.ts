@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { jsonContent, testOwnerIid } from "./util.js";
+import { jsonContent, resolveOwnerIid } from "./util.js";
 
 const serverUrl = () => (process.env.C35_SERVER_URL ?? "http://127.0.0.1:8080").replace(/\/$/, "");
 
@@ -17,7 +17,19 @@ type AgentResponse = {
   [key: string]: unknown;
 };
 
-const agentPost = async (action: string, body: Record<string, unknown>): Promise<AgentResponse> => {
+const ownerSchema = {
+  owner_iid: z
+    .number()
+    .optional()
+    .describe("Owner iid (default 33000). Allowed: 33000 tester, 99000 chito."),
+  uid: z.number().optional().describe("Alias for owner_iid"),
+};
+
+const agentPost = async (
+  action: string,
+  body: Record<string, unknown>,
+  ownerIid: number,
+): Promise<AgentResponse> => {
   const url = `${serverUrl()}/v1/mcp/agent`;
   let res: Response;
   try {
@@ -27,7 +39,7 @@ const agentPost = async (action: string, body: Record<string, unknown>): Promise
         "Content-Type": "application/json",
         "X-C35-Mcp-Key": mcpAgentKey(),
       },
-      body: JSON.stringify({ action, owner_iid: testOwnerIid(), ...body }),
+      body: JSON.stringify({ action, owner_iid: ownerIid, ...body }),
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -75,21 +87,26 @@ export const registerAgentTools = (server: McpServer) => {
     "tool_exec",
     {
       description:
-        "Execute a cluster tool via server_ai /v1/mcp/agent (owner locked to automated tester 33000).",
+        "Execute a cluster tool via server_ai /v1/mcp/agent. Default owner 33000; pass owner_iid/uid 99000 for chito data.",
       inputSchema: {
         tool: z.string().describe("Tool name (e.g. consumption.today)"),
         args: z.record(z.unknown()).optional().describe("Tool arguments object"),
         locale: z.string().optional().describe("Locale (default en-US)"),
+        ...ownerSchema,
       },
     },
-    async ({ tool, args, locale }) => {
+    async ({ tool, args, locale, owner_iid, uid }) => {
       const name = tool.trim();
       if (!name) throw new Error("tool required");
-      const result = await agentPost("tool_exec", {
-        tool_name: name,
-        args_json: args ?? {},
-        locale: locale ?? "en-US",
-      });
+      const result = await agentPost(
+        "tool_exec",
+        {
+          tool_name: name,
+          args_json: args ?? {},
+          locale: locale ?? "en-US",
+        },
+        resolveOwnerIid(owner_iid, uid),
+      );
       return jsonContent(result);
     },
   );
@@ -97,19 +114,25 @@ export const registerAgentTools = (server: McpServer) => {
   server.registerTool(
     "prompt_compose",
     {
-      description: "Compose prompt (inst + tools) via server_ai /v1/mcp/agent without running LLM.",
+      description:
+        "Compose prompt (inst + tools) via server_ai without running LLM. Returns compose trace (tool filter, ranker, sim).",
       inputSchema: {
         text: z.string().describe("User prompt text"),
         locale: z.string().optional().describe("Locale (default en-US)"),
+        ...ownerSchema,
       },
     },
-    async ({ text, locale }) => {
+    async ({ text, locale, owner_iid, uid }) => {
       const prompt = text.trim();
       if (!prompt) throw new Error("text required");
-      const result = await agentPost("prompt_compose", {
-        text: prompt,
-        locale: locale ?? "en-US",
-      });
+      const result = await agentPost(
+        "prompt_compose",
+        {
+          text: prompt,
+          locale: locale ?? "en-US",
+        },
+        resolveOwnerIid(owner_iid, uid),
+      );
       return jsonContent(result);
     },
   );
@@ -118,19 +141,24 @@ export const registerAgentTools = (server: McpServer) => {
     "prompt_run",
     {
       description:
-        "Run full prompt turn via server_ai /v1/mcp/agent (owner locked to automated tester 33000).",
+        "Run full prompt turn via server_ai. Returns assistant text, blocks, and full ai.log trace. Default owner 33000; use owner_iid/uid 99000 to test with chito consumption data.",
       inputSchema: {
         text: z.string().describe("User prompt text"),
-        locale: z.string().optional().describe("Locale (default en-US)"),
+        locale: z.string().optional().describe("Locale (default id-ID or en-US)"),
+        ...ownerSchema,
       },
     },
-    async ({ text, locale }) => {
+    async ({ text, locale, owner_iid, uid }) => {
       const prompt = text.trim();
       if (!prompt) throw new Error("text required");
-      const result = await agentPost("prompt_run", {
-        text: prompt,
-        locale: locale ?? "en-US",
-      });
+      const result = await agentPost(
+        "prompt_run",
+        {
+          text: prompt,
+          locale: locale ?? "en-US",
+        },
+        resolveOwnerIid(owner_iid, uid),
+      );
       if (result.ok === false && (result.status === 404 || String(result.error ?? "").includes("not found"))) {
         return jsonContent({
           ok: false,

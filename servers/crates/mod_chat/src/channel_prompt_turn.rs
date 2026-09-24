@@ -5,7 +5,7 @@ use c35_mod_billing::{billing_resolve, billing_usage_report, TurnBillingCtx};
 use sqlx::PgPool;
 use tokio_util::sync::CancellationToken;
 
-use crate::compose::compose_tools_and_inst;
+use crate::compose::compose_tools_and_inst_async;
 use crate::inst_macro::inst_scopes_channel;
 use crate::inst_cache::inst_list_cached;
 use crate::context_billing::ContextBillingExtra;
@@ -17,7 +17,7 @@ use crate::prompt::thought::thinking_level;
 use crate::prompt::time::{time_prompt_block, time_prompt_prepend, time_timezone_resolve};
 use crate::prompt::tool_loop::prompt_cluster_turn;
 use crate::prompt::ChatReq;
-use crate::tools::{cluster_tools, http_client, TurnCtx};
+use crate::tools::{cluster_tools, TurnCtx};
 use crate::turn_tracer::TurnTracer;
 
 pub async fn channel_prompt_turn(
@@ -56,7 +56,10 @@ pub async fn channel_prompt_turn(
     let inst_rows = inst_list_cached();
     let empty_mentions: [String; 0] = [];
     let inst_scopes = inst_scopes_channel();
-    let composed = compose_tools_and_inst(
+    let http = crate::tools::http_client(std::time::Duration::from_secs(30));
+    let composed = compose_tools_and_inst_async(
+        pool,
+        &http,
         &inst_rows,
         &prompt_text,
         cluster_tools(),
@@ -68,7 +71,8 @@ pub async fn channel_prompt_turn(
         &inst_scopes,
         &crate::mention_context::MentionContext::empty(),
         &crate::site_capability::SiteCapabilityView::empty(),
-    );
+    )
+    .await;
     let tz = time_timezone_resolve(locale, &prompt_text);
     let mut system = time_prompt_prepend(&time_prompt_block(tz), "");
     if let Some(inst_base) = bot_inst_base(pool, bot_iid).await {
@@ -77,7 +81,6 @@ pub async fn channel_prompt_turn(
     if !composed.inst_block.is_empty() {
         system = format!("{system}\n\n{}", composed.inst_block);
     }
-    let http = http_client(std::time::Duration::from_secs(30));
     let memory = memory_retrieve(pool, &http, owner_iid, Some(bot_iid), &prompt_text, 8).await;
     system = memory_prompt_merge(&system, &memory.block);
 

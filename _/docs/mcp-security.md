@@ -35,10 +35,14 @@ Key comparison uses constant-time equality (`subtle`).
 
 ### Owner lock (all actions)
 
-Every action (`tool_exec`, `prompt_compose`, `prompt_run`) runs **only** as **`owner_iid = 33000`** (Automated Tester).  
-Requests with any other `owner_iid` return **403 Forbidden**.
+Every action (`tool_exec`, `prompt_compose`, `prompt_run`) accepts **`owner_iid`** or **`uid`** (default **33000**).
 
-This prevents MCP key holders from impersonating real users (99000, etc.).
+| owner_iid | Identity | Use |
+|-----------|----------|-----|
+| **33000** | Automated Tester | Default regression — no production side effects |
+| **99000** | Chito | Test with real consumption / billing / chat data |
+
+Any other `owner_iid` returns **403 Forbidden**. This blocks arbitrary user impersonation while allowing the two known debug identities.
 
 ### Production checklist
 
@@ -76,7 +80,8 @@ Use **`owner_iid=33000`** for automated tests; use **99000** only when intention
 
 - `C35_MCP_AGENT_KEY` — **required** (no fallback in code)
 - `tool_exec` sends `tool_name` + `args_json` (server contract)
-- Owner is always test **33000** from the client; server enforces the same
+- `owner_iid` / `uid` default **33000**; **99000** allowed for chito data tests; server enforces allowlist
+- `prompt_run` returns inline **`trace`** (`ai.log` lines + meta) for the turn `req_id`
 
 ---
 

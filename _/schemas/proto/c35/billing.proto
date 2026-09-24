@@ -39,6 +39,14 @@ message BillingProfile {
   int64 pool_period_start_ms = 20;
   int64 trial_expires_ts_ms = 21;
   int64 active_promotion_id = 22;
+
+  // Freemium (no paid plan)
+  bool freemium_active = 23;
+  int32 freemium_msgs_used = 24;
+  int32 freemium_msgs_limit = 25;
+  int32 freemium_tokens_used = 26;
+  int32 freemium_tokens_limit = 27;
+  int64 plan_expires_ts_ms = 28;
 }
 
 message BillingWallet {
@@ -117,6 +125,15 @@ message BillingAccount {
   int64 created_ts_ms = 20;
   int64 updated_ts_ms = 21;
   int64 deleted_ts_ms = 22;
+
+  // Freemium (no paid plan)
+  bool freemium_active = 23;
+  int32 freemium_msgs_used = 24;
+  int32 freemium_msgs_limit = 25;
+  int32 freemium_tokens_used = 26;
+  int32 freemium_tokens_limit = 27;
+  int64 plan_expires_ts_ms = 28;
+  int64 trial_expires_ts_ms = 29;
 }
 
 message BillingTopupRequest {
@@ -164,6 +181,13 @@ message BillingPushQuota {
   double frontier_pool_used_idr = 10;
   int64 pool_period_start_ms = 11;
   int64 trial_expires_ts_ms = 12;
+
+  bool freemium_active = 13;
+  int32 freemium_msgs_used = 14;
+  int32 freemium_msgs_limit = 15;
+  int32 freemium_tokens_used = 16;
+  int32 freemium_tokens_limit = 17;
+  int64 plan_expires_ts_ms = 18;
 }
 
 message BillingPushCommission {
@@ -605,4 +629,12 @@ message ResBillingSummary {
   double alien_allow_weekly_limit = 17;
   repeated BillingPlanDoc plans = 18;
   bool overage_enabled = 19;
+
+  bool freemium_active = 20;
+  int32 freemium_msgs_used = 21;
+  int32 freemium_msgs_limit = 22;
+  int32 freemium_tokens_used = 23;
+  int32 freemium_tokens_limit = 24;
+  int64 plan_expires_ts_ms = 25;
+  int64 trial_expires_ts_ms = 26;
 }

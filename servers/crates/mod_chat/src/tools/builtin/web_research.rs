@@ -77,12 +77,12 @@ tool! {
         visit_top: (integer, "Number of top pages to deep-read (1-4)", optional, default = 2),
     },
     execute: |args, ctx| {
-        let query = args["query"].as_str().unwrap_or_default();
+        let query = web::search_query_from_args(&args);
         let search_limit = args["search_limit"].as_u64().unwrap_or(5) as u32;
         let visit_top = args["visit_top"].as_u64().unwrap_or(2) as u32;
-        if query.trim().is_empty() {
+        if query.is_empty() {
             bail!("Search query cannot be empty");
         }
-        web_research_exec(&ctx.http_client, query, search_limit, visit_top).await
+        web_research_exec(&ctx.http_client, &query, search_limit, visit_top).await
     }
 }

@@ -13,6 +13,8 @@ message InstDoc {
   string inst = 6;
   repeated string phrases = 7;
   repeated string triggers = 8;
+  repeated string include_tools = 15;
+  repeated string exclude_tools = 16;
   int32 priority = 9;
   optional bool enabled = 10;
   string def_hash = 11;

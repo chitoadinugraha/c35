@@ -158,11 +158,57 @@ class _UiSubagentRunCardState extends State<UiSubagentRunCard> {
               ),
             ),
           ),
-          if (_expanded && reqId.isNotEmpty)
+          if (_expanded && reqId.isNotEmpty) ...[
+            ListenableBuilder(
+              listenable: PromptRunStore.instance,
+              builder: (context, _) {
+                final thought = PromptRunStore.instance.liveThought(reqId);
+                final text = PromptRunStore.instance.liveText(reqId);
+                if (thought.isEmpty && text.isEmpty) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (thought.isNotEmpty)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(8),
+                          margin: const EdgeInsets.only(bottom: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF18181B),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: const Color(0xFF27272A)),
+                          ),
+                          child: Text(
+                            thought,
+                            style: const TextStyle(
+                              color: Color(0xFFA1A1AA),
+                              fontSize: 11,
+                              fontStyle: FontStyle.italic,
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                      if (text.isNotEmpty)
+                        Text(
+                          text,
+                          style: const TextStyle(
+                            color: _text,
+                            fontSize: 12,
+                            height: 1.4,
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
               child: UiMsgTraceLoader(conn: widget.conn, reqId: reqId, live: live),
             ),
+          ],
           ListenableBuilder(
             listenable: PromptUsagePrefs.instance,
             builder: (context, _) => UiMsgUsage(

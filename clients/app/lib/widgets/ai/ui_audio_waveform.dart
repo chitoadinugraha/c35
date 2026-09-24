@@ -13,6 +13,7 @@ class UiAudioWaveform extends StatefulWidget {
     this.amplitudeHistory,
     this.liveTranscript,
     this.isTranscribing,
+    this.isPreparing,
     this.engine,
     required this.onCancel,
     required this.onCommit,
@@ -23,6 +24,7 @@ class UiAudioWaveform extends StatefulWidget {
   final ValueListenable<List<double>>? amplitudeHistory;
   final ValueListenable<String>? liveTranscript;
   final ValueListenable<bool>? isTranscribing;
+  final ValueListenable<bool>? isPreparing;
   final String? engine;
   final VoidCallback onCancel;
   final VoidCallback onCommit;
@@ -60,6 +62,11 @@ class _UiAudioWaveformState extends State<UiAudioWaveform> with SingleTickerProv
     return '$m:$s';
   }
 
+  bool get _useDecorativeWave {
+    final engine = widget.engine ?? VoicePrefs.instance.sttEngine;
+    return engine == 'web';
+  }
+
   @override
   Widget build(BuildContext context) {
     final engine = widget.engine ?? VoicePrefs.instance.sttEngine;
@@ -70,206 +77,291 @@ class _UiAudioWaveformState extends State<UiAudioWaveform> with SingleTickerProv
     };
 
     final transcribingListenable = widget.isTranscribing ?? ValueNotifier(false);
+    final preparingListenable = widget.isPreparing ?? ValueNotifier(false);
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Live transcript or recognizing status preview row
-        if (widget.liveTranscript != null || widget.isTranscribing != null)
-          ValueListenableBuilder<bool>(
-            valueListenable: transcribingListenable,
-            builder: (ctx, transcribing, _) {
-              return ValueListenableBuilder<String>(
-                valueListenable: widget.liveTranscript ?? ValueNotifier(''),
-                builder: (ctx, transcript, _) {
-                  if (!transcribing && transcript.trim().isEmpty) {
-                    return const SizedBox.shrink();
-                  }
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 6),
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF27272A).withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        if (transcribing) ...[
-                          Icon(engineIcon, size: 14, color: _zinc400),
-                          const SizedBox(width: 6),
-                          const Text(
-                            'Recognizing…',
-                            style: TextStyle(color: _zinc400, fontSize: 12, fontStyle: FontStyle.italic),
-                          ),
-                          const Spacer(),
-                          uiIconButton(
-                            tooltip: 'Cancel recording',
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                            icon: const Icon(Icons.close_rounded, size: 16, color: _red),
-                            onPressed: widget.onCancel,
-                          ),
-                        ] else ...[
-                          const Icon(Icons.record_voice_over_rounded, size: 13, color: _zinc400),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              transcript,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: _zinc100,
-                                fontSize: 13,
-                                height: 1.25,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  );
-                },
-              );
-            },
-          ),
-
-        // Main recording row
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          decoration: BoxDecoration(
-            color: const Color(0xFF18181B),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
+    return ValueListenableBuilder<bool>(
+      valueListenable: preparingListenable,
+      builder: (ctx, preparing, _) {
+        if (preparing) {
+          return _preparingPanel(engineIcon);
+        }
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (widget.liveTranscript != null || widget.isTranscribing != null)
               ValueListenableBuilder<bool>(
                 valueListenable: transcribingListenable,
                 builder: (ctx, transcribing, _) {
-                  if (transcribing) return const SizedBox.shrink();
-                  return Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      uiIconButton(
-                        tooltip: 'Cancel recording',
-                        icon: const Icon(Icons.close_rounded, size: 18, color: _red),
-                        onPressed: widget.onCancel,
-                      ),
-                      const SizedBox(width: 8),
-                    ],
-                  );
-                },
-              ),
-
-              // Pulsing recording dot & Monospace timer (00:03 / 00:30)
-              ValueListenableBuilder<int>(
-                valueListenable: widget.recordingSeconds,
-                builder: (ctx, sec, _) => Row(
-                  children: [
-                    FadeTransition(
-                      opacity: Tween<double>(begin: 0.35, end: 1.0).animate(_animCtrl),
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          color: _red,
-                          shape: BoxShape.circle,
+                  return ValueListenableBuilder<String>(
+                    valueListenable: widget.liveTranscript ?? ValueNotifier(''),
+                    builder: (ctx, transcript, _) {
+                      final hasText = transcript.trim().isNotEmpty;
+                      if (!transcribing && !hasText) {
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF27272A).withValues(alpha: 0.5),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(engineIcon, size: 14, color: _zinc400),
+                              const SizedBox(width: 6),
+                              const Expanded(
+                                child: Text(
+                                  'Speak now…',
+                                  style: TextStyle(color: _zinc400, fontSize: 12, fontStyle: FontStyle.italic),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF27272A).withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      _formatDuration(sec),
-                      style: const TextStyle(
-                        fontFamily: 'Consolas',
-                        color: _zinc100,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(width: 2),
-                    const Text(
-                      '/ 00:30',
-                      style: TextStyle(
-                        fontFamily: 'Consolas',
-                        color: _zinc500,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-
-              // Dynamic animated scrolling waveform (WhatsApp / Telegram style)
-              Expanded(
-                child: SizedBox(
-                  height: 28,
-                  child: AnimatedBuilder(
-                    animation: _animCtrl,
-                    builder: (ctx, _) {
-                      return ValueListenableBuilder<List<double>>(
-                        valueListenable: widget.amplitudeHistory ?? ValueNotifier(const []),
-                        builder: (ctx, history, _) {
-                          return CustomPaint(
-                            painter: _TelegramWaveformPainter(
-                              samples: history,
-                              currentAmplitude: widget.amplitude.value,
-                              animValue: _animCtrl.value,
-                            ),
-                            size: Size.infinite,
-                          );
-                        },
+                        child: Row(
+                          children: [
+                            if (transcribing) ...[
+                              Icon(engineIcon, size: 14, color: _zinc400),
+                              const SizedBox(width: 6),
+                              const Text(
+                                'Recognizing…',
+                                style: TextStyle(color: _zinc400, fontSize: 12, fontStyle: FontStyle.italic),
+                              ),
+                              const Spacer(),
+                              uiIconButton(
+                                tooltip: 'Cancel recording',
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                icon: const Icon(Icons.close_rounded, size: 16, color: _red),
+                                onPressed: widget.onCancel,
+                              ),
+                            ] else ...[
+                              const Icon(Icons.record_voice_over_rounded, size: 13, color: _zinc400),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  transcript,
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: _zinc100,
+                                    fontSize: 13,
+                                    height: 1.25,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                       );
                     },
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-
-              // Stop & Send action button (matching chat send button)
-              ValueListenableBuilder<bool>(
-                valueListenable: transcribingListenable,
-                builder: (ctx, transcribing, _) {
-                  if (transcribing) {
-                    return Container(
-                      width: 32,
-                      height: 32,
-                      padding: const EdgeInsets.all(8),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF27272A),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const CircularProgressIndicator(strokeWidth: 2, color: _zinc400),
-                    );
-                  }
-                  return uiTooltip(
-                    message: 'Finish recording',
-                    child: Material(
-                      color: _zinc100,
-                      shape: const CircleBorder(),
-                      child: InkWell(
-                        customBorder: const CircleBorder(),
-                        onTap: widget.onCommit,
-                        child: const Padding(
-                          padding: EdgeInsets.all(7),
-                          child: Icon(Icons.arrow_upward_rounded, size: 17, color: Color(0xFF18181B)),
-                        ),
-                      ),
-                    ),
                   );
                 },
               ),
-            ],
-          ),
-        ),
-      ],
+            _recordingRow(transcribingListenable),
+          ],
+        );
+      },
     );
   }
+
+  Widget _preparingPanel(IconData engineIcon) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        decoration: BoxDecoration(
+          color: const Color(0xFF18181B),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            uiIconButton(
+              tooltip: 'Cancel',
+              icon: const Icon(Icons.close_rounded, size: 18, color: _red),
+              onPressed: widget.onCancel,
+            ),
+            const SizedBox(width: 10),
+            Icon(engineIcon, size: 16, color: _zinc400),
+            const SizedBox(width: 8),
+            const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(strokeWidth: 2, color: _zinc400),
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'Preparing…',
+              style: TextStyle(color: _zinc400, fontSize: 13, fontStyle: FontStyle.italic),
+            ),
+          ],
+        ),
+      );
+
+  Widget _recordingRow(ValueListenable<bool> transcribingListenable) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFF18181B),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            ValueListenableBuilder<bool>(
+              valueListenable: transcribingListenable,
+              builder: (ctx, transcribing, _) {
+                if (transcribing) return const SizedBox.shrink();
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    uiIconButton(
+                      tooltip: 'Cancel recording',
+                      icon: const Icon(Icons.close_rounded, size: 18, color: _red),
+                      onPressed: widget.onCancel,
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                );
+              },
+            ),
+            ValueListenableBuilder<int>(
+              valueListenable: widget.recordingSeconds,
+              builder: (ctx, sec, _) => Row(
+                children: [
+                  FadeTransition(
+                    opacity: Tween<double>(begin: 0.35, end: 1.0).animate(_animCtrl),
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: _red,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    _formatDuration(sec),
+                    style: const TextStyle(
+                      fontFamily: 'Consolas',
+                      color: _zinc100,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  const Text(
+                    '/ 00:30',
+                    style: TextStyle(
+                      fontFamily: 'Consolas',
+                      color: _zinc500,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: SizedBox(
+                height: 28,
+                child: _useDecorativeWave
+                    ? _DecorativeWave(anim: _animCtrl)
+                    : AnimatedBuilder(
+                        animation: _animCtrl,
+                        builder: (ctx, _) {
+                          return ValueListenableBuilder<List<double>>(
+                            valueListenable: widget.amplitudeHistory ?? ValueNotifier(const []),
+                            builder: (ctx, history, _) {
+                              return CustomPaint(
+                                painter: _TelegramWaveformPainter(
+                                  samples: history,
+                                  currentAmplitude: widget.amplitude.value,
+                                  animValue: _animCtrl.value,
+                                ),
+                                size: Size.infinite,
+                              );
+                            },
+                          );
+                        },
+                      ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            ValueListenableBuilder<bool>(
+              valueListenable: transcribingListenable,
+              builder: (ctx, transcribing, _) {
+                if (transcribing) {
+                  return Container(
+                    width: 32,
+                    height: 32,
+                    padding: const EdgeInsets.all(8),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF27272A),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const CircularProgressIndicator(strokeWidth: 2, color: _zinc400),
+                  );
+                }
+                return uiTooltip(
+                  message: 'Finish recording',
+                  child: Material(
+                    color: _zinc100,
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: widget.onCommit,
+                      child: const Padding(
+                        padding: EdgeInsets.all(7),
+                        child: Icon(Icons.arrow_upward_rounded, size: 17, color: Color(0xFF18181B)),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      );
 }
 
-/// Dynamic scrolling waveform painter modeled after WhatsApp & Telegram voice messages.
+/// CSA-style decorative bars — not tied to mic amplitude (Web Speech has no level API).
+class _DecorativeWave extends StatelessWidget {
+  const _DecorativeWave({required this.anim});
+
+  final Animation<double> anim;
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+        animation: anim,
+        builder: (ctx, _) => Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: List.generate(12, (i) {
+            final t = (sin((i * 0.55) + (anim.value * 2 * pi)) * 0.5 + 0.5);
+            final h = 4 + t * 16;
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 1.5),
+              child: Container(
+                width: 3,
+                height: h,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(999),
+                  color: Color.lerp(const Color(0xFFA1A1AA), const Color(0xFFF4F4F5), t),
+                ),
+              ),
+            );
+          }),
+        ),
+      );
+}
+
+/// Dynamic scrolling waveform — exponential scaling suppresses static noise.
 class _TelegramWaveformPainter extends CustomPainter {
   _TelegramWaveformPainter({
     required this.samples,
@@ -283,8 +375,15 @@ class _TelegramWaveformPainter extends CustomPainter {
 
   static const double barWidth = 3.0;
   static const double barGap = 2.0;
-  static const double minBarHeight = 4.0;
+  static const double minBarHeight = 3.0;
   static const double maxBarHeight = 24.0;
+  static const double noiseFloor = 0.18;
+
+  static double _shapeAmplitude(double amp) {
+    final clamped = amp.clamp(0.0, 1.0);
+    if (clamped < noiseFloor) return 0.0;
+    return pow((clamped - noiseFloor) / (1.0 - noiseFloor), 2.2).toDouble();
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -306,20 +405,19 @@ class _TelegramWaveformPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     for (var i = 0; i < maxBars; i++) {
-      var amp = activeSlice[i].clamp(0.0, 1.0);
-      // If audio is quiet or silence, generate subtle breathing wave so bars are always visibly moving
-      if (amp < 0.1) {
-        final wave = sin((i * 0.35) + (animValue * 2 * pi)) * 0.5 + 0.5;
-        amp = (wave * 0.18).clamp(0.04, 0.22);
-      }
-      final h = (minBarHeight + (amp * (maxBarHeight - minBarHeight))).clamp(minBarHeight, maxBarHeight);
+      final amp = _shapeAmplitude(activeSlice[i]);
+      final h = amp <= 0
+          ? minBarHeight
+          : (minBarHeight + (amp * (maxBarHeight - minBarHeight))).clamp(minBarHeight, maxBarHeight);
       final x = i * totalBarStep;
       final top = centerY - (h / 2);
 
       final progressFromLeft = i / maxBars;
       final alpha = (progressFromLeft < 0.15 ? (progressFromLeft / 0.15) : 1.0).clamp(0.25, 1.0);
 
-      final colorVal = Color.lerp(const Color(0xFFA1A1AA), const Color(0xFFF4F4F5), amp)!;
+      final colorVal = amp <= 0
+          ? const Color(0xFF3F3F46)
+          : Color.lerp(const Color(0xFFA1A1AA), const Color(0xFFF4F4F5), amp)!;
       paint.color = colorVal.withValues(alpha: alpha);
 
       final rect = RRect.fromRectAndRadius(

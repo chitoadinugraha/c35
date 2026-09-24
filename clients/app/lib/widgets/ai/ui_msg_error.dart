@@ -1,5 +1,6 @@
 import 'package:alienai_c35/widgets/ui/ui_root_error_detail.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class UiMsgError extends StatelessWidget {
   const UiMsgError({super.key, required this.message, this.detail, this.messageId, this.onRetry, this.retrying = false});
@@ -31,9 +32,21 @@ class UiMsgError extends StatelessWidget {
                   Text(message, style: const TextStyle(fontSize: 14, height: 1.45, color: Color(0xFFF4F4F5))),
                   if (id.isNotEmpty) ...[
                     const SizedBox(height: 6),
-                    SelectableText(
-                      'Message ID: $id',
-                      style: const TextStyle(fontSize: 12, height: 1.4, color: Color(0xFF71717A), fontFamily: 'Consolas'),
+                    InkWell(
+                      onTap: () {
+                        Clipboard.setData(ClipboardData(text: id));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Message ID copied: $id'), behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 1)),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(4),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Text(
+                          'Message ID: $id',
+                          style: const TextStyle(fontSize: 12, height: 1.4, color: Color(0xFF71717A), fontFamily: 'Consolas', decoration: TextDecoration.underline, decorationColor: Color(0xFF52525B)),
+                        ),
+                      ),
                     ),
                   ],
                   if (detail != null && detail!.trim().isNotEmpty) ...[

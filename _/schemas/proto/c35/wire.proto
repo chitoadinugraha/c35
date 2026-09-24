@@ -82,6 +82,7 @@ message InvokeReq {
     ReqBillingAdminAdjustList billing_admin_adjust_list = 125;
     ReqAdminLogReport admin_log_report = 126;
     ReqExpensePut expense_put = 127;
+    ReqAdminPlatformPnl admin_platform_pnl = 128;
   }
 }
 
@@ -138,6 +139,7 @@ message InvokeRes {
     ResBillingAdminAdjustList billing_admin_adjust_list = 125;
     ResAdminLogReport admin_log_report = 126;
     ResExpensePut expense_put = 127;
+    ResAdminPlatformPnl admin_platform_pnl = 128;
   }
 }
 

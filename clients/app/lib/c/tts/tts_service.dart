@@ -72,7 +72,7 @@ class TtsService {
     final localePref = (lang != null && lang != kSpeechLangAuto) ? lang : prefs.speechLang;
     final effectiveLang = (lang != null && lang != kSpeechLangAuto)
         ? lang
-        : speechLangResolve(clean, last: prefs.lastLang, locale: localePref);
+        : speechLangResolve(spoken, last: prefs.lastLang, locale: localePref);
     unawaited(prefs.setLastLang(effectiveLang));
     lastSpeakError = null;
     await stop();

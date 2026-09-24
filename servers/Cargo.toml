@@ -27,6 +27,7 @@ members = [
     "crates/mod_voice",
     "crates/mod_hint",
     "crates/mod_fetch",
+    "crates/mod_platform",
     "channel_whatsapp_device",
     "server_ai",
     "fetcher",

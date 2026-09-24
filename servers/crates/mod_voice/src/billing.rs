@@ -131,14 +131,15 @@ pub async fn voice_billing_settle(
     .await?;
     let inserted = sqlx::query(
         r#"
-        INSERT INTO ai.billing_usage_dedupe (owner_iid, req_id, cost_usd, billing_account_id, log_id)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO ai.billing_usage_dedupe (owner_iid, req_id, cost_usd, cost_wholesale_usd, billing_account_id, log_id)
+        VALUES ($1, $2, $3, $4, $5, $6)
         ON CONFLICT (owner_iid, req_id) DO NOTHING
         "#,
     )
     .bind(owner_iid)
     .bind(req_id)
     .bind(cost_usd)
+    .bind(wholesale_usd)
     .bind(row.id)
     .bind(log_id)
     .execute(pool)

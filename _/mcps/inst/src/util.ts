@@ -6,6 +6,10 @@ export const debugOwnerIid = () => Number(process.env.C35_DEBUG_OWNER_IID ?? "99
 
 export const testOwnerIid = () => Number(process.env.C35_TEST_OWNER_IID ?? "33000");
 
+/** Resolve MCP agent owner: uid alias, owner_iid, or default tester 33000. */
+export const resolveOwnerIid = (owner_iid?: number, uid?: number) =>
+  owner_iid ?? uid ?? testOwnerIid();
+
 export const clampLimit = (limit: number | undefined, def: number, max: number) =>
   Math.min(Math.max(limit ?? def, 1), max);
 

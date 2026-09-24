@@ -1,0 +1,50 @@
+{
+  "data": {
+    "viewer": {
+      "accounts": [
+        {
+          "workersAiInferenceAdaptiveGroups": [
+            {
+              "dimensions": {
+                "datetime": "2026-09-01T00:00:00Z",
+                "model": "@cf/meta/llama-3-8b"
+              },
+              "sum": { "neurons": 100000 }
+            },
+            {
+              "dimensions": {
+                "datetime": "2026-09-02T00:00:00Z",
+                "model": "@cf/meta/llama-3-8b"
+              },
+              "sum": { "neurons": 50000 }
+            }
+          ],
+          "aiGatewayRequestsAdaptiveGroups": [
+            {
+              "dimensions": { "datetime": "2026-09-01T00:00:00Z" },
+              "sum": { "requests": 1200 }
+            }
+          ],
+          "billingMetricsAdaptiveGroups": [
+            {
+              "dimensions": {
+                "datetime": "2026-09-01T00:00:00Z",
+                "metricName": "dns_queries",
+                "product": "DNS"
+              },
+              "sum": { "cost": 4.5 }
+            },
+            {
+              "dimensions": {
+                "datetime": "2026-09-02T00:00:00Z",
+                "metricName": "workers_ai_usage",
+                "product": "Workers AI"
+              },
+              "sum": { "cost": 1.25 }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

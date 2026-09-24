@@ -2,6 +2,31 @@ import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/ui/ui_format.dart';
 
+const billingFreemiumMsgsLimit = 30;
+const billingFreemiumTokensLimit = 30000;
+
+bool billingFreemiumActive(BillingAccount? account) => account?.freemiumActive == true;
+
+String billingFreemiumTokensShort(int tokens) {
+  if (tokens >= 1000) return '${(tokens / 1000).round()}k';
+  return '$tokens';
+}
+
+String billingFreemiumUsageLabel(BillingAccount account) {
+  final msgLimit = account.freemiumMsgsLimit > 0 ? account.freemiumMsgsLimit : billingFreemiumMsgsLimit;
+  final tokLimit = account.freemiumTokensLimit > 0 ? account.freemiumTokensLimit : billingFreemiumTokensLimit;
+  return '${account.freemiumMsgsUsed}/$msgLimit msgs · ${billingFreemiumTokensShort(account.freemiumTokensUsed)}/${billingFreemiumTokensShort(tokLimit)} tokens';
+}
+
+String billingMeterStateFreemium(BillingAccount account) {
+  final msgLimit = account.freemiumMsgsLimit > 0 ? account.freemiumMsgsLimit : billingFreemiumMsgsLimit;
+  final tokLimit = account.freemiumTokensLimit > 0 ? account.freemiumTokensLimit : billingFreemiumTokensLimit;
+  final msgPct = msgLimit > 0 ? account.freemiumMsgsUsed / msgLimit : 0.0;
+  final tokPct = tokLimit > 0 ? account.freemiumTokensUsed / tokLimit : 0.0;
+  final pct = msgPct > tokPct ? msgPct : tokPct;
+  return billingMeterState(pct, 1);
+}
+
 String billingPrimaryCurrency(BillingAccount account) =>
     account.billingCurrency.isNotEmpty ? account.billingCurrency.toUpperCase() : moneyDefaultCurrency;
 
@@ -67,6 +92,13 @@ BillingAccount billingAccountMerge(BillingAccount base, {BillingPushBalance? bal
     out.alienAllowWeeklyLimit = quota.alienAllowWeeklyLimit;
     if (quota.hasWindow5hStartMs()) out.window5hStartMs = quota.window5hStartMs;
     if (quota.hasWindowWeeklyStartMs()) out.windowWeeklyStartMs = quota.windowWeeklyStartMs;
+    out.freemiumActive = quota.freemiumActive;
+    out.freemiumMsgsUsed = quota.freemiumMsgsUsed;
+    out.freemiumMsgsLimit = quota.freemiumMsgsLimit;
+    out.freemiumTokensUsed = quota.freemiumTokensUsed;
+    out.freemiumTokensLimit = quota.freemiumTokensLimit;
+    if (quota.hasPlanExpiresTsMs()) out.planExpiresTsMs = quota.planExpiresTsMs;
+    if (quota.hasTrialExpiresTsMs()) out.trialExpiresTsMs = quota.trialExpiresTsMs;
   }
   if (commission != null) {
     out.commissionAvailableUsd = commission.commissionAvailableUsd;

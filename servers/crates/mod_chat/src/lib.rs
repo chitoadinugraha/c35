@@ -32,6 +32,7 @@ mod memory_extract;
 pub mod prompt;
 mod prompt_turn;
 mod topic;
+mod tool_index;
 pub mod tool_rag;
 pub mod tools;
 mod turn_tracer;
@@ -63,8 +64,8 @@ pub use inst_admin::{
     NATS_SUBJECT_PREFIX,
 };
 pub use mcp_agent::{
-    mcp_agent_owner_allowed, mcp_prompt_compose, mcp_prompt_run, mcp_tool_exec,
-    DEFAULT_DEBUG_OWNER_IID, DEFAULT_TEST_OWNER_IID,
+    mcp_agent_allowed_owners, mcp_agent_owner_allowed, mcp_prompt_compose, mcp_prompt_run,
+    mcp_tool_exec, DEFAULT_DEBUG_OWNER_IID, DEFAULT_TEST_OWNER_IID,
 };
 pub use object_admin::{
     object_alias_list, object_alias_put, object_normalizer_list, ObjectAdminError,
@@ -98,3 +99,4 @@ pub use site_validate::{
     block_props_allowed, validate_block, validate_object_keys, validate_sitedoc, BLOCK_TYPES, META_KEYS,
     THEME_KEYS,
 };
+pub use tool_index::tool_index_init;

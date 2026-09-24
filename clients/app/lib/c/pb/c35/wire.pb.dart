@@ -92,6 +92,7 @@ enum InvokeReq_Body {
   billingAdminAdjustList,
   adminLogReport,
   expensePut,
+  adminPlatformPnl,
   notSet
 }
 
@@ -148,6 +149,7 @@ class InvokeReq extends $pb.GeneratedMessage {
     $0.ReqBillingAdminAdjustList? billingAdminAdjustList,
     $10.ReqAdminLogReport? adminLogReport,
     $11.ReqExpensePut? expensePut,
+    $10.ReqAdminPlatformPnl? adminPlatformPnl,
   }) {
     final result = InvokeReq._();
     if (reqId != null) result.reqId = reqId;
@@ -221,6 +223,7 @@ class InvokeReq extends $pb.GeneratedMessage {
       result.billingAdminAdjustList = billingAdminAdjustList;
     if (adminLogReport != null) result.adminLogReport = adminLogReport;
     if (expensePut != null) result.expensePut = expensePut;
+    if (adminPlatformPnl != null) result.adminPlatformPnl = adminPlatformPnl;
     return result;
   }
 
@@ -282,6 +285,7 @@ class InvokeReq extends $pb.GeneratedMessage {
     125: InvokeReq_Body.billingAdminAdjustList,
     126: InvokeReq_Body.adminLogReport,
     127: InvokeReq_Body.expensePut,
+    128: InvokeReq_Body.adminPlatformPnl,
     0: InvokeReq_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -336,7 +340,8 @@ class InvokeReq extends $pb.GeneratedMessage {
       124,
       125,
       126,
-      127
+      127,
+      128
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aInt64(2, _omitFieldNames ? '' : 'callerIid')
@@ -459,6 +464,9 @@ class InvokeReq extends $pb.GeneratedMessage {
         subBuilder: $10.ReqAdminLogReport.$_createMessage)
     ..aOM<$11.ReqExpensePut>(127, _omitFieldNames ? '' : 'expensePut',
         subBuilder: $11.ReqExpensePut.$_createMessage)
+    ..aOM<$10.ReqAdminPlatformPnl>(
+        128, _omitFieldNames ? '' : 'adminPlatformPnl',
+        subBuilder: $10.ReqAdminPlatformPnl.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -529,6 +537,7 @@ class InvokeReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(125)
   @$pb.TagNumber(126)
   @$pb.TagNumber(127)
+  @$pb.TagNumber(128)
   InvokeReq_Body whichBody() => _InvokeReq_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(10)
   @$pb.TagNumber(11)
@@ -578,6 +587,7 @@ class InvokeReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(125)
   @$pb.TagNumber(126)
   @$pb.TagNumber(127)
+  @$pb.TagNumber(128)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -1151,6 +1161,17 @@ class InvokeReq extends $pb.GeneratedMessage {
   void clearExpensePut() => $_clearField(127);
   @$pb.TagNumber(127)
   $11.ReqExpensePut ensureExpensePut() => $_ensure(49);
+
+  @$pb.TagNumber(128)
+  $10.ReqAdminPlatformPnl get adminPlatformPnl => $_getN(50);
+  @$pb.TagNumber(128)
+  set adminPlatformPnl($10.ReqAdminPlatformPnl value) => $_setField(128, value);
+  @$pb.TagNumber(128)
+  $core.bool hasAdminPlatformPnl() => $_has(50);
+  @$pb.TagNumber(128)
+  void clearAdminPlatformPnl() => $_clearField(128);
+  @$pb.TagNumber(128)
+  $10.ReqAdminPlatformPnl ensureAdminPlatformPnl() => $_ensure(50);
 }
 
 enum InvokeRes_Body {
@@ -1201,6 +1222,7 @@ enum InvokeRes_Body {
   billingAdminAdjustList,
   adminLogReport,
   expensePut,
+  adminPlatformPnl,
   notSet
 }
 
@@ -1256,6 +1278,7 @@ class InvokeRes extends $pb.GeneratedMessage {
     $0.ResBillingAdminAdjustList? billingAdminAdjustList,
     $10.ResAdminLogReport? adminLogReport,
     $11.ResExpensePut? expensePut,
+    $10.ResAdminPlatformPnl? adminPlatformPnl,
   }) {
     final result = InvokeRes._();
     if (reqId != null) result.reqId = reqId;
@@ -1328,6 +1351,7 @@ class InvokeRes extends $pb.GeneratedMessage {
       result.billingAdminAdjustList = billingAdminAdjustList;
     if (adminLogReport != null) result.adminLogReport = adminLogReport;
     if (expensePut != null) result.expensePut = expensePut;
+    if (adminPlatformPnl != null) result.adminPlatformPnl = adminPlatformPnl;
     return result;
   }
 
@@ -1388,6 +1412,7 @@ class InvokeRes extends $pb.GeneratedMessage {
     125: InvokeRes_Body.billingAdminAdjustList,
     126: InvokeRes_Body.adminLogReport,
     127: InvokeRes_Body.expensePut,
+    128: InvokeRes_Body.adminPlatformPnl,
     0: InvokeRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -1441,7 +1466,8 @@ class InvokeRes extends $pb.GeneratedMessage {
       124,
       125,
       126,
-      127
+      127,
+      128
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aI(2, _omitFieldNames ? '' : 'statusCode')
@@ -1562,6 +1588,9 @@ class InvokeRes extends $pb.GeneratedMessage {
         subBuilder: $10.ResAdminLogReport.$_createMessage)
     ..aOM<$11.ResExpensePut>(127, _omitFieldNames ? '' : 'expensePut',
         subBuilder: $11.ResExpensePut.$_createMessage)
+    ..aOM<$10.ResAdminPlatformPnl>(
+        128, _omitFieldNames ? '' : 'adminPlatformPnl',
+        subBuilder: $10.ResAdminPlatformPnl.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1631,6 +1660,7 @@ class InvokeRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(125)
   @$pb.TagNumber(126)
   @$pb.TagNumber(127)
+  @$pb.TagNumber(128)
   InvokeRes_Body whichBody() => _InvokeRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(10)
   @$pb.TagNumber(11)
@@ -1679,6 +1709,7 @@ class InvokeRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(125)
   @$pb.TagNumber(126)
   @$pb.TagNumber(127)
+  @$pb.TagNumber(128)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -2249,6 +2280,17 @@ class InvokeRes extends $pb.GeneratedMessage {
   void clearExpensePut() => $_clearField(127);
   @$pb.TagNumber(127)
   $11.ResExpensePut ensureExpensePut() => $_ensure(49);
+
+  @$pb.TagNumber(128)
+  $10.ResAdminPlatformPnl get adminPlatformPnl => $_getN(50);
+  @$pb.TagNumber(128)
+  set adminPlatformPnl($10.ResAdminPlatformPnl value) => $_setField(128, value);
+  @$pb.TagNumber(128)
+  $core.bool hasAdminPlatformPnl() => $_has(50);
+  @$pb.TagNumber(128)
+  void clearAdminPlatformPnl() => $_clearField(128);
+  @$pb.TagNumber(128)
+  $10.ResAdminPlatformPnl ensureAdminPlatformPnl() => $_ensure(50);
 }
 
 enum WsReq_Body {

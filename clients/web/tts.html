@@ -233,7 +233,7 @@
                     }
                 }
             }
-        }
+        };
 
         if (recognizer) {
             recognizer.onresult = (event) => {
@@ -312,13 +312,17 @@
             };
         }
         
-        setTimeout(() => {
-            isInitialized = true;
-            sendEvent('tts_init', null);
-        }, 100);
+        function notifyInit() {
+            if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
+                isInitialized = true;
+                sendEvent('tts_init', null);
+            } else {
+                setTimeout(notifyInit, 50);
+            }
+        }
+        setTimeout(notifyInit, 50);
 
         console.log('TTS loaded');
-
     </script>
 </body>
 </html>

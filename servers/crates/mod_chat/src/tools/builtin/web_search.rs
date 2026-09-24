@@ -17,11 +17,11 @@ tool! {
         limit: (integer, "Max results (1-12)", optional, default = 6),
     },
     execute: |args, ctx| {
-        let query = args["query"].as_str().unwrap_or_default();
+        let query = web::search_query_from_args(&args);
         let limit = args["limit"].as_u64().unwrap_or(6) as u32;
-        if query.trim().is_empty() {
+        if query.is_empty() {
             bail!("Search query cannot be empty");
         }
-        web::web_search_exec(&ctx.http_client, query, limit).await
+        web::web_search_exec(&ctx.http_client, &query, limit).await
     }
 }

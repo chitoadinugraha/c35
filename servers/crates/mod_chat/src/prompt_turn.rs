@@ -9,7 +9,7 @@ use sqlx::types::Json;
 use sqlx::PgPool;
 use tokio_util::sync::CancellationToken;
 
-use crate::compose::compose_tools_and_inst;
+use crate::compose::compose_tools_and_inst_async;
 use crate::prompt_run::prompt_run_get;
 use crate::mention_registry::{
     mention_active_topics, mention_prompt_block, mention_ref_parse, mention_resolve_all, MentionRef,
@@ -163,6 +163,7 @@ where
         TurnBillingCtx { owner_iid, bot_iid: None, device_iid: None },
     )
     .await?;
+    let freemium = c35_mod_billing::billing_freemium_applies(pool, owner_iid).await.unwrap_or(false);
     let brow = c35_mod_billing::billing_gate_scoped(pool, &bctx).await?;
     if !hooks.skip_billing_gate {
         c35_mod_billing::billing_gate_with_hold(pool, owner_iid, &brow, req_id).await?;
@@ -244,7 +245,13 @@ where
     .await?;
     let _ = chat_touch(pool, chat_id, owner_iid, &req.text, "streaming").await;
 
-    let model = if req.model.is_empty() { "alienai".to_string() } else { req.model.clone() };
+    let model = if freemium {
+        c35_mod_billing::FREEMIUM_MODEL.to_string()
+    } else if req.model.is_empty() {
+        "alienai".to_string()
+    } else {
+        req.model.clone()
+    };
     let user = attach_prompt(&req.text, &req.attachments_json);
     let inst_rows = inst_list_cached();
     let mentions = mention_list_enabled(pool).await;
@@ -290,7 +297,10 @@ where
         .unwrap_or_else(|| explicit_topic.clone());
     let tool_mode = if req.tool_mode.trim().is_empty() { "agent" } else { req.tool_mode.trim() };
     let inst_scopes = inst_scopes_home();
-    let composed = compose_tools_and_inst(
+    let http = http_client(std::time::Duration::from_secs(30));
+    let composed = compose_tools_and_inst_async(
+        pool,
+        &http,
         &inst_rows,
         &req.text,
         cluster_tools(),
@@ -302,7 +312,8 @@ where
         &inst_scopes,
         &mention_ctx,
         &caps,
-    );
+    )
+    .await;
     let site_iid = mention_ctx.default_site_iid;
     let topic_block = topic_inst_block(pool, &topic_id).await;
     let tz = time_timezone_resolve(locale, &req.text);
@@ -322,7 +333,6 @@ where
     if !mention_block.is_empty() {
         system = format!("{system}\n\n{mention_block}");
     }
-    let http = http_client(std::time::Duration::from_secs(30));
     let memory = memory_retrieve(pool, &http, owner_iid, None, &req.text, 8).await;
     system = memory_prompt_merge(&system, &memory.block);
 
@@ -344,6 +354,9 @@ where
         vec![]
     } else {
         composed.tools
+            .into_iter()
+            .filter(|t| !freemium || c35_mod_billing::freemium_tool_allowed(&t.name))
+            .collect()
     };
     let chat_req = ChatReq {
         model: model.clone(),

@@ -42,6 +42,7 @@ pub struct ToolDef {
     pub readonly: bool,
     pub requires_kinds: Vec<String>,
     pub requires_capability: Option<String>,
+    pub rag_phrases: Vec<String>,
 }
 
 impl ToolDef {
@@ -56,10 +57,11 @@ impl ToolDef {
             readonly: false,
             requires_kinds: vec![],
             requires_capability: None,
+            rag_phrases: vec![],
         }
     }
 
-    fn from_definition(def: &ToolDefinition) -> Self {
+    pub fn from_definition(def: &ToolDefinition) -> Self {
         Self {
             name: def.name.clone(),
             description: def.description.clone(),
@@ -70,6 +72,7 @@ impl ToolDef {
             readonly: def.readonly,
             requires_kinds: def.requires_kinds.clone(),
             requires_capability: def.requires_capability.clone(),
+            rag_phrases: def.rag_phrases.clone(),
         }
     }
 }

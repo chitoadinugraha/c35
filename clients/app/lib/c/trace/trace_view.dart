@@ -15,6 +15,8 @@ class TraceToolFilterCandidate {
 class TraceBranch {
   const TraceBranch({
     required this.label,
+    this.isTool = false,
+    this.iconUrl = '',
     this.durationMs = 0,
     this.costUsd = 0,
     this.tokensIn = 0,
@@ -27,6 +29,8 @@ class TraceBranch {
     this.ragSkipReason = '',
   });
   final String label;
+  final bool isTool;
+  final String iconUrl;
   final int durationMs;
   final double costUsd;
   final int tokensIn;
@@ -173,6 +177,31 @@ Map<String, String> traceToolVarsFromLog(TraceLogDoc log) {
   return vars;
 }
 
+bool traceToolUsesFavicon(String toolId) {
+  final tool = toolId.replaceAll('_', '.').trim();
+  return tool == 'web.visit' || tool == 'web.search' || tool == 'web.research';
+}
+
+String traceToolIconUrlFromLog(TraceLogDoc log) {
+  final tool = _asStr(log.meta['tool']);
+  if (!traceToolUsesFavicon(tool)) return '';
+  var url = traceToolVarsFromLog(log)['url'] ?? '';
+  if (url.isEmpty) {
+    final raw = traceToolJsonFromLog(log);
+    if (raw?['results'] is List) {
+      for (final item in raw!['results'] as List) {
+        if (item is! Map) continue;
+        final u = _asStr(item['url']);
+        if (u.isNotEmpty) {
+          url = u;
+          break;
+        }
+      }
+    }
+  }
+  return url.isNotEmpty ? citationFaviconUrl(url) : '';
+}
+
 String toolLabelFromTemplate(String template, Map<String, String> vars) {
   var out = template.trim();
   if (out.isEmpty) return '';
@@ -198,13 +227,22 @@ String traceToolLabel(String toolId) {
   return toolLabelFromTemplate(catalogT('tool.$id.done'), const {});
 }
 
+String traceHopTitle(int hop, List<String> toolBranches, {required bool hasReplyText}) {
+  if (toolBranches.isNotEmpty) return 'Tool run · ${toolBranches.join(', ')}';
+  if (hasReplyText || hop >= 99) return 'Reply';
+  return 'Planning';
+}
+
 TraceBranch _branchFromLog(TraceLogDoc log) {
   final meta = log.meta;
   final tool = _asStr(meta['tool']);
   final branch = _asStr(meta['branch']);
   final label = tool.isNotEmpty ? traceToolLabelFromLog(log) : branch.isNotEmpty ? branch : log.text.split('\n').first;
+  final isTool = tool.isNotEmpty || log.topic == 'tool_result' || log.topic == 'tool_error' || log.kind == 'tool';
   return TraceBranch(
     label: label,
+    isTool: isTool,
+    iconUrl: isTool ? traceToolIconUrlFromLog(log) : '',
     durationMs: log.durationMs > 0 ? log.durationMs : _asInt(meta['duration_ms']),
     costUsd: log.costUsd > 0 ? log.costUsd : _asDouble(meta['cost_retail_usd']),
     tokensIn: log.tokensIn,
@@ -252,12 +290,9 @@ TraceView buildTraceView(List<TraceLogDoc> logs) {
       for (final b in branchRows) {
         branches.add(_branchFromLog(b));
       }
-      final toolBranches = branches.where((b) => b.label.isNotEmpty).map((b) => b.label).toList();
-      final hopTitle = toolBranches.isNotEmpty && hop == 1
-          ? 'Tool run · ${toolBranches.join(', ')}'
-          : toolBranches.isNotEmpty && hop > 1
-              ? 'Reply'
-              : 'LLM hop $hop';
+      final toolBranches = branches.where((b) => b.isTool && b.label.isNotEmpty).map((b) => b.label).toList();
+      final replyText = main.text.trim();
+      final hopTitle = traceHopTitle(hop, toolBranches, hasReplyText: replyText.isNotEmpty);
       hopStep = TraceStep(
         index: hop,
         title: hopTitle,
@@ -338,18 +373,19 @@ List<MsgTraceToolChip> traceToolChipsFromView(TraceView view) {
     // Prepare traces (tool filter, compose, memory) are for the trace sheet only.
     if (step.title == 'Prepare') continue;
     for (final b in step.branches) {
-      if (b.label.isEmpty) continue;
-      out.add(MsgTraceToolChip(label: b.label, ok: b.ok, durationMs: b.durationMs));
+      if (!b.isTool || b.label.isEmpty) continue;
+      out.add(MsgTraceToolChip(label: b.label, ok: b.ok, durationMs: b.durationMs, iconUrl: b.iconUrl));
     }
   }
   return out;
 }
 
 class MsgTraceToolChip {
-  const MsgTraceToolChip({required this.label, this.ok = true, this.durationMs = 0});
+  const MsgTraceToolChip({required this.label, this.ok = true, this.durationMs = 0, this.iconUrl = ''});
   final String label;
   final bool ok;
   final int durationMs;
+  final String iconUrl;
 }
 
 class Citation {

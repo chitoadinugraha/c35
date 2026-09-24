@@ -43,6 +43,12 @@ class BillingProfile extends $pb.GeneratedMessage {
     $fixnum.Int64? poolPeriodStartMs,
     $fixnum.Int64? trialExpiresTsMs,
     $fixnum.Int64? activePromotionId,
+    $core.bool? freemiumActive,
+    $core.int? freemiumMsgsUsed,
+    $core.int? freemiumMsgsLimit,
+    $core.int? freemiumTokensUsed,
+    $core.int? freemiumTokensLimit,
+    $fixnum.Int64? planExpiresTsMs,
   }) {
     final result = BillingProfile._();
     if (id != null) result.id = id;
@@ -77,6 +83,14 @@ class BillingProfile extends $pb.GeneratedMessage {
     if (poolPeriodStartMs != null) result.poolPeriodStartMs = poolPeriodStartMs;
     if (trialExpiresTsMs != null) result.trialExpiresTsMs = trialExpiresTsMs;
     if (activePromotionId != null) result.activePromotionId = activePromotionId;
+    if (freemiumActive != null) result.freemiumActive = freemiumActive;
+    if (freemiumMsgsUsed != null) result.freemiumMsgsUsed = freemiumMsgsUsed;
+    if (freemiumMsgsLimit != null) result.freemiumMsgsLimit = freemiumMsgsLimit;
+    if (freemiumTokensUsed != null)
+      result.freemiumTokensUsed = freemiumTokensUsed;
+    if (freemiumTokensLimit != null)
+      result.freemiumTokensLimit = freemiumTokensLimit;
+    if (planExpiresTsMs != null) result.planExpiresTsMs = planExpiresTsMs;
     return result;
   }
 
@@ -118,6 +132,12 @@ class BillingProfile extends $pb.GeneratedMessage {
     ..aInt64(20, _omitFieldNames ? '' : 'poolPeriodStartMs')
     ..aInt64(21, _omitFieldNames ? '' : 'trialExpiresTsMs')
     ..aInt64(22, _omitFieldNames ? '' : 'activePromotionId')
+    ..aOB(23, _omitFieldNames ? '' : 'freemiumActive')
+    ..aI(24, _omitFieldNames ? '' : 'freemiumMsgsUsed')
+    ..aI(25, _omitFieldNames ? '' : 'freemiumMsgsLimit')
+    ..aI(26, _omitFieldNames ? '' : 'freemiumTokensUsed')
+    ..aI(27, _omitFieldNames ? '' : 'freemiumTokensLimit')
+    ..aInt64(28, _omitFieldNames ? '' : 'planExpiresTsMs')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -340,6 +360,61 @@ class BillingProfile extends $pb.GeneratedMessage {
   $core.bool hasActivePromotionId() => $_has(21);
   @$pb.TagNumber(22)
   void clearActivePromotionId() => $_clearField(22);
+
+  /// Freemium (no paid plan)
+  @$pb.TagNumber(23)
+  $core.bool get freemiumActive => $_getBF(22);
+  @$pb.TagNumber(23)
+  set freemiumActive($core.bool value) => $_setBool(22, value);
+  @$pb.TagNumber(23)
+  $core.bool hasFreemiumActive() => $_has(22);
+  @$pb.TagNumber(23)
+  void clearFreemiumActive() => $_clearField(23);
+
+  @$pb.TagNumber(24)
+  $core.int get freemiumMsgsUsed => $_getIZ(23);
+  @$pb.TagNumber(24)
+  set freemiumMsgsUsed($core.int value) => $_setSignedInt32(23, value);
+  @$pb.TagNumber(24)
+  $core.bool hasFreemiumMsgsUsed() => $_has(23);
+  @$pb.TagNumber(24)
+  void clearFreemiumMsgsUsed() => $_clearField(24);
+
+  @$pb.TagNumber(25)
+  $core.int get freemiumMsgsLimit => $_getIZ(24);
+  @$pb.TagNumber(25)
+  set freemiumMsgsLimit($core.int value) => $_setSignedInt32(24, value);
+  @$pb.TagNumber(25)
+  $core.bool hasFreemiumMsgsLimit() => $_has(24);
+  @$pb.TagNumber(25)
+  void clearFreemiumMsgsLimit() => $_clearField(25);
+
+  @$pb.TagNumber(26)
+  $core.int get freemiumTokensUsed => $_getIZ(25);
+  @$pb.TagNumber(26)
+  set freemiumTokensUsed($core.int value) => $_setSignedInt32(25, value);
+  @$pb.TagNumber(26)
+  $core.bool hasFreemiumTokensUsed() => $_has(25);
+  @$pb.TagNumber(26)
+  void clearFreemiumTokensUsed() => $_clearField(26);
+
+  @$pb.TagNumber(27)
+  $core.int get freemiumTokensLimit => $_getIZ(26);
+  @$pb.TagNumber(27)
+  set freemiumTokensLimit($core.int value) => $_setSignedInt32(26, value);
+  @$pb.TagNumber(27)
+  $core.bool hasFreemiumTokensLimit() => $_has(26);
+  @$pb.TagNumber(27)
+  void clearFreemiumTokensLimit() => $_clearField(27);
+
+  @$pb.TagNumber(28)
+  $fixnum.Int64 get planExpiresTsMs => $_getI64(27);
+  @$pb.TagNumber(28)
+  set planExpiresTsMs($fixnum.Int64 value) => $_setInt64(27, value);
+  @$pb.TagNumber(28)
+  $core.bool hasPlanExpiresTsMs() => $_has(27);
+  @$pb.TagNumber(28)
+  void clearPlanExpiresTsMs() => $_clearField(28);
 }
 
 class BillingWallet extends $pb.GeneratedMessage {
@@ -926,6 +1001,13 @@ class BillingAccount extends $pb.GeneratedMessage {
     $fixnum.Int64? createdTsMs,
     $fixnum.Int64? updatedTsMs,
     $fixnum.Int64? deletedTsMs,
+    $core.bool? freemiumActive,
+    $core.int? freemiumMsgsUsed,
+    $core.int? freemiumMsgsLimit,
+    $core.int? freemiumTokensUsed,
+    $core.int? freemiumTokensLimit,
+    $fixnum.Int64? planExpiresTsMs,
+    $fixnum.Int64? trialExpiresTsMs,
   }) {
     final result = BillingAccount._();
     if (id != null) result.id = id;
@@ -957,6 +1039,15 @@ class BillingAccount extends $pb.GeneratedMessage {
     if (createdTsMs != null) result.createdTsMs = createdTsMs;
     if (updatedTsMs != null) result.updatedTsMs = updatedTsMs;
     if (deletedTsMs != null) result.deletedTsMs = deletedTsMs;
+    if (freemiumActive != null) result.freemiumActive = freemiumActive;
+    if (freemiumMsgsUsed != null) result.freemiumMsgsUsed = freemiumMsgsUsed;
+    if (freemiumMsgsLimit != null) result.freemiumMsgsLimit = freemiumMsgsLimit;
+    if (freemiumTokensUsed != null)
+      result.freemiumTokensUsed = freemiumTokensUsed;
+    if (freemiumTokensLimit != null)
+      result.freemiumTokensLimit = freemiumTokensLimit;
+    if (planExpiresTsMs != null) result.planExpiresTsMs = planExpiresTsMs;
+    if (trialExpiresTsMs != null) result.trialExpiresTsMs = trialExpiresTsMs;
     return result;
   }
 
@@ -998,6 +1089,13 @@ class BillingAccount extends $pb.GeneratedMessage {
     ..aInt64(20, _omitFieldNames ? '' : 'createdTsMs')
     ..aInt64(21, _omitFieldNames ? '' : 'updatedTsMs')
     ..aInt64(22, _omitFieldNames ? '' : 'deletedTsMs')
+    ..aOB(23, _omitFieldNames ? '' : 'freemiumActive')
+    ..aI(24, _omitFieldNames ? '' : 'freemiumMsgsUsed')
+    ..aI(25, _omitFieldNames ? '' : 'freemiumMsgsLimit')
+    ..aI(26, _omitFieldNames ? '' : 'freemiumTokensUsed')
+    ..aI(27, _omitFieldNames ? '' : 'freemiumTokensLimit')
+    ..aInt64(28, _omitFieldNames ? '' : 'planExpiresTsMs')
+    ..aInt64(29, _omitFieldNames ? '' : 'trialExpiresTsMs')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1219,6 +1317,70 @@ class BillingAccount extends $pb.GeneratedMessage {
   $core.bool hasDeletedTsMs() => $_has(21);
   @$pb.TagNumber(22)
   void clearDeletedTsMs() => $_clearField(22);
+
+  /// Freemium (no paid plan)
+  @$pb.TagNumber(23)
+  $core.bool get freemiumActive => $_getBF(22);
+  @$pb.TagNumber(23)
+  set freemiumActive($core.bool value) => $_setBool(22, value);
+  @$pb.TagNumber(23)
+  $core.bool hasFreemiumActive() => $_has(22);
+  @$pb.TagNumber(23)
+  void clearFreemiumActive() => $_clearField(23);
+
+  @$pb.TagNumber(24)
+  $core.int get freemiumMsgsUsed => $_getIZ(23);
+  @$pb.TagNumber(24)
+  set freemiumMsgsUsed($core.int value) => $_setSignedInt32(23, value);
+  @$pb.TagNumber(24)
+  $core.bool hasFreemiumMsgsUsed() => $_has(23);
+  @$pb.TagNumber(24)
+  void clearFreemiumMsgsUsed() => $_clearField(24);
+
+  @$pb.TagNumber(25)
+  $core.int get freemiumMsgsLimit => $_getIZ(24);
+  @$pb.TagNumber(25)
+  set freemiumMsgsLimit($core.int value) => $_setSignedInt32(24, value);
+  @$pb.TagNumber(25)
+  $core.bool hasFreemiumMsgsLimit() => $_has(24);
+  @$pb.TagNumber(25)
+  void clearFreemiumMsgsLimit() => $_clearField(25);
+
+  @$pb.TagNumber(26)
+  $core.int get freemiumTokensUsed => $_getIZ(25);
+  @$pb.TagNumber(26)
+  set freemiumTokensUsed($core.int value) => $_setSignedInt32(25, value);
+  @$pb.TagNumber(26)
+  $core.bool hasFreemiumTokensUsed() => $_has(25);
+  @$pb.TagNumber(26)
+  void clearFreemiumTokensUsed() => $_clearField(26);
+
+  @$pb.TagNumber(27)
+  $core.int get freemiumTokensLimit => $_getIZ(26);
+  @$pb.TagNumber(27)
+  set freemiumTokensLimit($core.int value) => $_setSignedInt32(26, value);
+  @$pb.TagNumber(27)
+  $core.bool hasFreemiumTokensLimit() => $_has(26);
+  @$pb.TagNumber(27)
+  void clearFreemiumTokensLimit() => $_clearField(27);
+
+  @$pb.TagNumber(28)
+  $fixnum.Int64 get planExpiresTsMs => $_getI64(27);
+  @$pb.TagNumber(28)
+  set planExpiresTsMs($fixnum.Int64 value) => $_setInt64(27, value);
+  @$pb.TagNumber(28)
+  $core.bool hasPlanExpiresTsMs() => $_has(27);
+  @$pb.TagNumber(28)
+  void clearPlanExpiresTsMs() => $_clearField(28);
+
+  @$pb.TagNumber(29)
+  $fixnum.Int64 get trialExpiresTsMs => $_getI64(28);
+  @$pb.TagNumber(29)
+  set trialExpiresTsMs($fixnum.Int64 value) => $_setInt64(28, value);
+  @$pb.TagNumber(29)
+  $core.bool hasTrialExpiresTsMs() => $_has(28);
+  @$pb.TagNumber(29)
+  void clearTrialExpiresTsMs() => $_clearField(29);
 }
 
 class BillingTopupRequest extends $pb.GeneratedMessage {
@@ -1592,6 +1754,12 @@ class BillingPushQuota extends $pb.GeneratedMessage {
     $core.double? frontierPoolUsedIdr,
     $fixnum.Int64? poolPeriodStartMs,
     $fixnum.Int64? trialExpiresTsMs,
+    $core.bool? freemiumActive,
+    $core.int? freemiumMsgsUsed,
+    $core.int? freemiumMsgsLimit,
+    $core.int? freemiumTokensUsed,
+    $core.int? freemiumTokensLimit,
+    $fixnum.Int64? planExpiresTsMs,
   }) {
     final result = BillingPushQuota._();
     if (alienAllow5hUsed != null) result.alienAllow5hUsed = alienAllow5hUsed;
@@ -1611,6 +1779,14 @@ class BillingPushQuota extends $pb.GeneratedMessage {
       result.frontierPoolUsedIdr = frontierPoolUsedIdr;
     if (poolPeriodStartMs != null) result.poolPeriodStartMs = poolPeriodStartMs;
     if (trialExpiresTsMs != null) result.trialExpiresTsMs = trialExpiresTsMs;
+    if (freemiumActive != null) result.freemiumActive = freemiumActive;
+    if (freemiumMsgsUsed != null) result.freemiumMsgsUsed = freemiumMsgsUsed;
+    if (freemiumMsgsLimit != null) result.freemiumMsgsLimit = freemiumMsgsLimit;
+    if (freemiumTokensUsed != null)
+      result.freemiumTokensUsed = freemiumTokensUsed;
+    if (freemiumTokensLimit != null)
+      result.freemiumTokensLimit = freemiumTokensLimit;
+    if (planExpiresTsMs != null) result.planExpiresTsMs = planExpiresTsMs;
     return result;
   }
 
@@ -1642,6 +1818,12 @@ class BillingPushQuota extends $pb.GeneratedMessage {
     ..aD(10, _omitFieldNames ? '' : 'frontierPoolUsedIdr')
     ..aInt64(11, _omitFieldNames ? '' : 'poolPeriodStartMs')
     ..aInt64(12, _omitFieldNames ? '' : 'trialExpiresTsMs')
+    ..aOB(13, _omitFieldNames ? '' : 'freemiumActive')
+    ..aI(14, _omitFieldNames ? '' : 'freemiumMsgsUsed')
+    ..aI(15, _omitFieldNames ? '' : 'freemiumMsgsLimit')
+    ..aI(16, _omitFieldNames ? '' : 'freemiumTokensUsed')
+    ..aI(17, _omitFieldNames ? '' : 'freemiumTokensLimit')
+    ..aInt64(18, _omitFieldNames ? '' : 'planExpiresTsMs')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1774,6 +1956,60 @@ class BillingPushQuota extends $pb.GeneratedMessage {
   $core.bool hasTrialExpiresTsMs() => $_has(11);
   @$pb.TagNumber(12)
   void clearTrialExpiresTsMs() => $_clearField(12);
+
+  @$pb.TagNumber(13)
+  $core.bool get freemiumActive => $_getBF(12);
+  @$pb.TagNumber(13)
+  set freemiumActive($core.bool value) => $_setBool(12, value);
+  @$pb.TagNumber(13)
+  $core.bool hasFreemiumActive() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearFreemiumActive() => $_clearField(13);
+
+  @$pb.TagNumber(14)
+  $core.int get freemiumMsgsUsed => $_getIZ(13);
+  @$pb.TagNumber(14)
+  set freemiumMsgsUsed($core.int value) => $_setSignedInt32(13, value);
+  @$pb.TagNumber(14)
+  $core.bool hasFreemiumMsgsUsed() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearFreemiumMsgsUsed() => $_clearField(14);
+
+  @$pb.TagNumber(15)
+  $core.int get freemiumMsgsLimit => $_getIZ(14);
+  @$pb.TagNumber(15)
+  set freemiumMsgsLimit($core.int value) => $_setSignedInt32(14, value);
+  @$pb.TagNumber(15)
+  $core.bool hasFreemiumMsgsLimit() => $_has(14);
+  @$pb.TagNumber(15)
+  void clearFreemiumMsgsLimit() => $_clearField(15);
+
+  @$pb.TagNumber(16)
+  $core.int get freemiumTokensUsed => $_getIZ(15);
+  @$pb.TagNumber(16)
+  set freemiumTokensUsed($core.int value) => $_setSignedInt32(15, value);
+  @$pb.TagNumber(16)
+  $core.bool hasFreemiumTokensUsed() => $_has(15);
+  @$pb.TagNumber(16)
+  void clearFreemiumTokensUsed() => $_clearField(16);
+
+  @$pb.TagNumber(17)
+  $core.int get freemiumTokensLimit => $_getIZ(16);
+  @$pb.TagNumber(17)
+  set freemiumTokensLimit($core.int value) => $_setSignedInt32(16, value);
+  @$pb.TagNumber(17)
+  $core.bool hasFreemiumTokensLimit() => $_has(16);
+  @$pb.TagNumber(17)
+  void clearFreemiumTokensLimit() => $_clearField(17);
+
+  @$pb.TagNumber(18)
+  $fixnum.Int64 get planExpiresTsMs => $_getI64(17);
+  @$pb.TagNumber(18)
+  set planExpiresTsMs($fixnum.Int64 value) => $_setInt64(17, value);
+  @$pb.TagNumber(18)
+  $core.bool hasPlanExpiresTsMs() => $_has(17);
+  @$pb.TagNumber(18)
+  void clearPlanExpiresTsMs() => $_clearField(18);
 }
 
 class BillingPushCommission extends $pb.GeneratedMessage {
@@ -7371,6 +7607,13 @@ class ResBillingSummary extends $pb.GeneratedMessage {
     $core.double? alienAllowWeeklyLimit,
     $core.Iterable<BillingPlanDoc>? plans,
     $core.bool? overageEnabled,
+    $core.bool? freemiumActive,
+    $core.int? freemiumMsgsUsed,
+    $core.int? freemiumMsgsLimit,
+    $core.int? freemiumTokensUsed,
+    $core.int? freemiumTokensLimit,
+    $fixnum.Int64? planExpiresTsMs,
+    $fixnum.Int64? trialExpiresTsMs,
   }) {
     final result = ResBillingSummary._();
     if (balanceUsd != null) result.balanceUsd = balanceUsd;
@@ -7398,6 +7641,15 @@ class ResBillingSummary extends $pb.GeneratedMessage {
       result.alienAllowWeeklyLimit = alienAllowWeeklyLimit;
     if (plans != null) result.plans.addAll(plans);
     if (overageEnabled != null) result.overageEnabled = overageEnabled;
+    if (freemiumActive != null) result.freemiumActive = freemiumActive;
+    if (freemiumMsgsUsed != null) result.freemiumMsgsUsed = freemiumMsgsUsed;
+    if (freemiumMsgsLimit != null) result.freemiumMsgsLimit = freemiumMsgsLimit;
+    if (freemiumTokensUsed != null)
+      result.freemiumTokensUsed = freemiumTokensUsed;
+    if (freemiumTokensLimit != null)
+      result.freemiumTokensLimit = freemiumTokensLimit;
+    if (planExpiresTsMs != null) result.planExpiresTsMs = planExpiresTsMs;
+    if (trialExpiresTsMs != null) result.trialExpiresTsMs = trialExpiresTsMs;
     return result;
   }
 
@@ -7437,6 +7689,13 @@ class ResBillingSummary extends $pb.GeneratedMessage {
     ..pPM<BillingPlanDoc>(18, _omitFieldNames ? '' : 'plans',
         subBuilder: BillingPlanDoc.$_createMessage)
     ..aOB(19, _omitFieldNames ? '' : 'overageEnabled')
+    ..aOB(20, _omitFieldNames ? '' : 'freemiumActive')
+    ..aI(21, _omitFieldNames ? '' : 'freemiumMsgsUsed')
+    ..aI(22, _omitFieldNames ? '' : 'freemiumMsgsLimit')
+    ..aI(23, _omitFieldNames ? '' : 'freemiumTokensUsed')
+    ..aI(24, _omitFieldNames ? '' : 'freemiumTokensLimit')
+    ..aInt64(25, _omitFieldNames ? '' : 'planExpiresTsMs')
+    ..aInt64(26, _omitFieldNames ? '' : 'trialExpiresTsMs')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -7625,6 +7884,69 @@ class ResBillingSummary extends $pb.GeneratedMessage {
   $core.bool hasOverageEnabled() => $_has(18);
   @$pb.TagNumber(19)
   void clearOverageEnabled() => $_clearField(19);
+
+  @$pb.TagNumber(20)
+  $core.bool get freemiumActive => $_getBF(19);
+  @$pb.TagNumber(20)
+  set freemiumActive($core.bool value) => $_setBool(19, value);
+  @$pb.TagNumber(20)
+  $core.bool hasFreemiumActive() => $_has(19);
+  @$pb.TagNumber(20)
+  void clearFreemiumActive() => $_clearField(20);
+
+  @$pb.TagNumber(21)
+  $core.int get freemiumMsgsUsed => $_getIZ(20);
+  @$pb.TagNumber(21)
+  set freemiumMsgsUsed($core.int value) => $_setSignedInt32(20, value);
+  @$pb.TagNumber(21)
+  $core.bool hasFreemiumMsgsUsed() => $_has(20);
+  @$pb.TagNumber(21)
+  void clearFreemiumMsgsUsed() => $_clearField(21);
+
+  @$pb.TagNumber(22)
+  $core.int get freemiumMsgsLimit => $_getIZ(21);
+  @$pb.TagNumber(22)
+  set freemiumMsgsLimit($core.int value) => $_setSignedInt32(21, value);
+  @$pb.TagNumber(22)
+  $core.bool hasFreemiumMsgsLimit() => $_has(21);
+  @$pb.TagNumber(22)
+  void clearFreemiumMsgsLimit() => $_clearField(22);
+
+  @$pb.TagNumber(23)
+  $core.int get freemiumTokensUsed => $_getIZ(22);
+  @$pb.TagNumber(23)
+  set freemiumTokensUsed($core.int value) => $_setSignedInt32(22, value);
+  @$pb.TagNumber(23)
+  $core.bool hasFreemiumTokensUsed() => $_has(22);
+  @$pb.TagNumber(23)
+  void clearFreemiumTokensUsed() => $_clearField(23);
+
+  @$pb.TagNumber(24)
+  $core.int get freemiumTokensLimit => $_getIZ(23);
+  @$pb.TagNumber(24)
+  set freemiumTokensLimit($core.int value) => $_setSignedInt32(23, value);
+  @$pb.TagNumber(24)
+  $core.bool hasFreemiumTokensLimit() => $_has(23);
+  @$pb.TagNumber(24)
+  void clearFreemiumTokensLimit() => $_clearField(24);
+
+  @$pb.TagNumber(25)
+  $fixnum.Int64 get planExpiresTsMs => $_getI64(24);
+  @$pb.TagNumber(25)
+  set planExpiresTsMs($fixnum.Int64 value) => $_setInt64(24, value);
+  @$pb.TagNumber(25)
+  $core.bool hasPlanExpiresTsMs() => $_has(24);
+  @$pb.TagNumber(25)
+  void clearPlanExpiresTsMs() => $_clearField(25);
+
+  @$pb.TagNumber(26)
+  $fixnum.Int64 get trialExpiresTsMs => $_getI64(25);
+  @$pb.TagNumber(26)
+  set trialExpiresTsMs($fixnum.Int64 value) => $_setInt64(25, value);
+  @$pb.TagNumber(26)
+  $core.bool hasTrialExpiresTsMs() => $_has(25);
+  @$pb.TagNumber(26)
+  void clearTrialExpiresTsMs() => $_clearField(26);
 }
 
 const $core.bool _omitFieldNames =

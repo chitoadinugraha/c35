@@ -144,3 +144,47 @@ const ResAdminLogReport$json = {
 final $typed_data.Uint8List resAdminLogReportDescriptor = $convert.base64Decode(
     'ChFSZXNBZG1pbkxvZ1JlcG9ydBInCgd3aWRnZXRzGAEgAygLMg0uYzM1LlVpV2lkZ2V0Ugd3aW'
     'RnZXRz');
+
+@$core.Deprecated('Use reqAdminPlatformPnlDescriptor instead')
+const ReqAdminPlatformPnl$json = {
+  '1': 'ReqAdminPlatformPnl',
+  '2': [
+    {'1': 'since_ms', '3': 1, '4': 1, '5': 3, '10': 'sinceMs'},
+    {'1': 'until_ms', '3': 2, '4': 1, '5': 3, '10': 'untilMs'},
+  ],
+};
+
+/// Descriptor for `ReqAdminPlatformPnl`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqAdminPlatformPnlDescriptor = $convert.base64Decode(
+    'ChNSZXFBZG1pblBsYXRmb3JtUG5sEhkKCHNpbmNlX21zGAEgASgDUgdzaW5jZU1zEhkKCHVudG'
+    'lsX21zGAIgASgDUgd1bnRpbE1z');
+
+@$core.Deprecated('Use resAdminPlatformPnlDescriptor instead')
+const ResAdminPlatformPnl$json = {
+  '1': 'ResAdminPlatformPnl',
+  '2': [
+    {
+      '1': 'widgets',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.UiWidget',
+      '10': 'widgets'
+    },
+    {'1': 'revenue_usd', '3': 2, '4': 1, '5': 1, '10': 'revenueUsd'},
+    {'1': 'ai_cogs_usd', '3': 3, '4': 1, '5': 1, '10': 'aiCogsUsd'},
+    {'1': 'infra_cogs_usd', '3': 4, '4': 1, '5': 1, '10': 'infraCogsUsd'},
+    {'1': 'gross_profit_usd', '3': 5, '4': 1, '5': 1, '10': 'grossProfitUsd'},
+    {'1': 'ai_api_vendor_usd', '3': 6, '4': 1, '5': 1, '10': 'aiApiVendorUsd'},
+    {'1': 'ai_cogs_drift_pct', '3': 7, '4': 1, '5': 1, '10': 'aiCogsDriftPct'},
+  ],
+};
+
+/// Descriptor for `ResAdminPlatformPnl`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resAdminPlatformPnlDescriptor = $convert.base64Decode(
+    'ChNSZXNBZG1pblBsYXRmb3JtUG5sEicKB3dpZGdldHMYASADKAsyDS5jMzUuVWlXaWRnZXRSB3'
+    'dpZGdldHMSHwoLcmV2ZW51ZV91c2QYAiABKAFSCnJldmVudWVVc2QSHgoLYWlfY29nc191c2QY'
+    'AyABKAFSCWFpQ29nc1VzZBIkCg5pbmZyYV9jb2dzX3VzZBgEIAEoAVIMaW5mcmFDb2dzVXNkEi'
+    'gKEGdyb3NzX3Byb2ZpdF91c2QYBSABKAFSDmdyb3NzUHJvZml0VXNkEikKEWFpX2FwaV92ZW5k'
+    'b3JfdXNkGAYgASgBUg5haUFwaVZlbmRvclVzZBIpChFhaV9jb2dzX2RyaWZ0X3BjdBgHIAEoAV'
+    'IOYWlDb2dzRHJpZnRQY3Q=');

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alienai_c35/c/app_id.dart';
 import 'package:alienai_c35/c/config.dart';
 import 'package:alienai_c35/c/log.dart';
@@ -93,7 +95,8 @@ Future<void> serverHostWaitReady({Duration? maxWait}) async {
 Future<void> serverHostInit() async {
   serverHostApply(await serverHostActiveBase());
   if (kDebugMode && serverHostNormalize(C35Config.authApiBase) == serverHostLocalUrl) {
-    await serverHostWaitReady();
+    // Do not block app boot — local dev_server can take 30–90s (YB/NATS cold start).
+    unawaited(serverHostWaitReady());
   }
 }
 

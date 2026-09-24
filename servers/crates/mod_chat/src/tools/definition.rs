@@ -37,6 +37,9 @@ pub struct ToolDefinition {
     /// Topic IDs where this tool is always included regardless of RAG selection.
     #[serde(default)]
     pub always: Vec<String>,
+    /// Extra phrases for tool embed index / vector RAG (ID + EN user language).
+    #[serde(default)]
+    pub rag_phrases: Vec<String>,
     /// Mention kinds required (e.g. `site`, `device`); empty means no kind gate.
     #[serde(default)]
     pub requires_kinds: Vec<String>,

@@ -313,7 +313,7 @@ function Publish-C35FetcherImage {
     $buildSw = [System.Diagnostics.Stopwatch]::StartNew()
     $tarPaths = @(
         'servers/Cargo.toml', 'servers/Cargo.lock',
-        'servers/crates', 'servers/fetcher', 'servers/server_ai', 'servers/channel_whatsapp_device',
+        'servers/crates', 'servers/fetcher', 'servers/server_ai', 'servers/channel_whatsapp_device', 'servers/node_stats',
         '_/schemas', '_/deployments/Dockerfile.c35-fetcher'
     )
     Invoke-ClusterBuildkitBuild -RepoRoot $dir -ImageRef $imageRef -Platform $Platform -TarPaths $tarPaths -DockerfileRel '_/deployments/Dockerfile.c35-fetcher'

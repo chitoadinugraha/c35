@@ -445,6 +445,7 @@ dependencies = [
 name = "c35_mod_admin"
 version = "0.1.0"
 dependencies = [
+ "c35_mod_platform",
  "c35_proto",
  "c35_store",
  "chrono",
@@ -731,6 +732,31 @@ dependencies = [
  "serde_json",
  "sqlx",
  "tracing",
+]
+
+[[package]]
+name = "c35_mod_platform"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-nats",
+ "async-trait",
+ "base64 0.22.1",
+ "blake3",
+ "c35_mod_fetch",
+ "c35_store",
+ "chrono",
+ "dotenvy",
+ "hmac",
+ "jsonwebtoken",
+ "reqwest",
+ "rsa",
+ "serde",
+ "serde_json",
+ "sha2",
+ "sqlx",
+ "tokio",
+ "urlencoding",
 ]
 
 [[package]]
@@ -3398,6 +3424,7 @@ dependencies = [
  "pkcs1",
  "pkcs8",
  "rand_core 0.6.4",
+ "sha2",
  "signature",
  "spki",
  "subtle",
@@ -3787,6 +3814,7 @@ dependencies = [
  "c35_mod_chat",
  "c35_mod_fetch",
  "c35_mod_llm",
+ "c35_mod_platform",
  "c35_nats",
  "c35_store",
  "c35_trace",

@@ -76,6 +76,26 @@ void main() {
     expect(find.text('Recognizing…'), findsOneWidget);
   });
 
+  testWidgets('UiAudioWaveform shows preparing state without timer', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: UiAudioWaveform(
+            recordingSeconds: ValueNotifier(0),
+            amplitude: ValueNotifier(0.0),
+            isPreparing: ValueNotifier(true),
+            engine: 'web',
+            onCancel: () {},
+            onCommit: () {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Preparing…'), findsOneWidget);
+    expect(find.text('00:00'), findsNothing);
+  });
+
   testWidgets('UiAudioWaveform shows device icon when transcribing with local engine', (tester) async {
     await tester.pumpWidget(
       MaterialApp(

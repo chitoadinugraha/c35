@@ -4,7 +4,7 @@ use c35_mod_log::{log_put, LogPut};
 use c35_store::snowflake_id;
 use sqlx::PgPool;
 
-use crate::billing_cost::billing_cost_usd;
+use crate::billing_cost::{billing_cost_usd, billing_cost_wholesale_usd, RETAIL_MARKUP};
 use crate::billing_profile::{
     billing_profile_deduct_turn, billing_profile_fetch, billing_profile_ensure,
     billing_signup_trial_autoclaim, profile_has_pools, profile_pool_remaining,
@@ -86,6 +86,7 @@ pub async fn billing_account_ensure(pool: &PgPool, owner_iid: i64) -> Result<Bil
         billing_fetch(pool, owner_iid).await?.expect("billing_account")
     };
     let _ = billing_profile_ensure(pool, owner_iid).await;
+    let _ = crate::billing_freemium::billing_plan_lapse_if_expired(pool, owner_iid).await;
     if let Err(e) = billing_signup_trial_autoclaim(pool, owner_iid).await {
         tracing::warn!("signup trial autoclaim: {e}");
     }
@@ -94,6 +95,10 @@ pub async fn billing_account_ensure(pool: &PgPool, owner_iid: i64) -> Result<Bil
 
 pub async fn billing_gate(pool: &PgPool, owner_iid: i64) -> Result<BillingRow> {
     let row = billing_account_ensure(pool, owner_iid).await?;
+    if crate::billing_freemium::billing_freemium_applies(pool, owner_iid).await? {
+        crate::billing_freemium::billing_freemium_check(pool, owner_iid).await?;
+        return Ok(row);
+    }
     let acct = sqlx::query_as::<_, (String, String, i64)>(
         "SELECT balance_idr::text, billing_currency, fx_micro_per_usd FROM ai.billing_account WHERE id = $1",
     )
@@ -192,8 +197,17 @@ pub async fn billing_usage_report(
         billing_gate(pool, owner_iid).await?
     };
     let llm_cost = billing_cost_usd(model, tokens_in, tokens_out);
-    let cost = llm_cost + extra_cost_usd.max(0.0);
+    let llm_wholesale = billing_cost_wholesale_usd(model, tokens_in, tokens_out);
+    let extra_retail = extra_cost_usd.max(0.0);
+    let cost_wholesale_usd = llm_wholesale + extra_retail / RETAIL_MARKUP;
+    let cost = llm_cost + extra_retail;
+    let personal = bctx.map(|b| b.scope == "personal").unwrap_or(true);
+    let freemium = personal && crate::billing_freemium::billing_freemium_applies(pool, owner_iid).await?;
     if cost <= 0.0 {
+        if freemium {
+            let turn_tokens = (tokens_in + tokens_out).max(0);
+            crate::billing_freemium::billing_freemium_add_tokens(pool, owner_iid, turn_tokens).await?;
+        }
         return Ok(0.0);
     }
     let mut meta = if let Some(b) = bctx {
@@ -241,20 +255,59 @@ pub async fn billing_usage_report(
     .await?;
     let inserted = sqlx::query(
         r#"
-        INSERT INTO ai.billing_usage_dedupe (owner_iid, req_id, cost_usd, billing_account_id, log_id)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO ai.billing_usage_dedupe (owner_iid, req_id, cost_usd, cost_wholesale_usd, billing_account_id, log_id)
+        VALUES ($1, $2, $3, $4, $5, $6)
         ON CONFLICT (owner_iid, req_id) DO NOTHING
         "#,
     )
     .bind(owner_iid)
     .bind(req_id)
     .bind(cost)
+    .bind(cost_wholesale_usd)
     .bind(row.id)
     .bind(log_id)
     .execute(pool)
     .await?;
     if inserted.rows_affected() == 0 {
         return Ok(0.0);
+    }
+    if freemium {
+        let turn_tokens = (tokens_in + tokens_out).max(0);
+        crate::billing_freemium::billing_freemium_add_tokens(pool, owner_iid, turn_tokens).await?;
+        let row_after = billing_fetch(pool, owner_iid).await?.unwrap_or(row);
+        let acct = sqlx::query_as::<_, (String, String, i64)>(
+            "SELECT balance_idr::text, billing_currency, fx_micro_per_usd FROM ai.billing_account WHERE id = $1",
+        )
+        .bind(row_after.id)
+        .fetch_one(pool)
+        .await?;
+        let balance_idr = acct.0.parse().unwrap_or(0.0);
+        crate::billing_reservation::billing_reservation_settle(
+            pool,
+            owner_iid,
+            &row_after,
+            req_id,
+            0.0,
+            balance_idr,
+            &acct.1,
+            acct.2,
+        )
+        .await?;
+        sqlx::query(
+            r#"
+            UPDATE ai.billing_usage_dedupe SET
+                currency = $3,
+                amount_native = 0,
+                deducted_native = 0
+            WHERE owner_iid = $1 AND req_id = $2
+            "#,
+        )
+        .bind(owner_iid)
+        .bind(req_id)
+        .bind(&acct.1)
+        .execute(pool)
+        .await?;
+        return Ok(cost);
     }
     let allowance_rem = crate::billing_on_demand::allowance_remaining(
         row.alien_allow_5h_used,

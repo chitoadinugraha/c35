@@ -8,7 +8,7 @@ use super::gemini::{gemini_generate, gemini_generate_stream};
 use super::thought::ParseOut;
 
 fn parse_out_ready(out: &ParseOut) -> bool {
-    !out.text.trim().is_empty() || out.function_call.is_some()
+    !out.text.trim().is_empty() || out.function_call.is_some() || !out.function_calls.is_empty()
 }
 
 fn parse_out_promote_thought(mut out: ParseOut) -> ParseOut {
@@ -53,6 +53,7 @@ pub async fn llm_generate_chain(
                             in_tok: tin,
                             out_tok: tout,
                             function_call: None,
+                            function_calls: Vec::new(),
                             model_content: serde_json::json!({ "role": "model", "parts": [{ "text": text }] }),
                         },
                         target.provider_model.clone(),

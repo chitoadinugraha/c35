@@ -163,8 +163,8 @@ pub async fn gemini_stt(client: &reqwest::Client, audio: &[u8], mime: &str, lang
 
 pub fn lang_normalize(lang: &str) -> String {
     let lang = lang.trim();
-    if lang.is_empty() {
-        return "en-US".into();
+    if lang.is_empty() || lang.eq_ignore_ascii_case("auto") {
+        return "id-ID".into();
     }
     if lang.contains('-') {
         return lang.to_string();

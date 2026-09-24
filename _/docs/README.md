@@ -23,6 +23,7 @@ When code and docs disagree, fix the code to match these docs (or explicitly rev
 | [nats.md](nats.md) | NATS layers, JetStream streams, cron schedules, YB hydrate |
 | [server.md](server.md) | Rust crate workspace layout |
 | [fetcher.md](fetcher.md) | `c35-fetcher` singleton — FX rate, LLM catalog, periodic external sync |
+| [platform.md](platform.md) | Platform vendor costs, wholesale COGS, root P&L |
 | [ui.md](ui.md) | Flutter shell, pages, navigation |
 | [roadmap.md](roadmap.md) | Phase 0→9 start/end goals |
 | [skill.md](skill.md) | Skill scope, catalog, automation |

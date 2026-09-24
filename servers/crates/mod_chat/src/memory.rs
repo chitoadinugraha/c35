@@ -1,7 +1,7 @@
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
-use c35_mod_llm::{embed_cache_get, embed_cache_key, embed_cache_put, embed_text, EMBED_TASK_DOCUMENT, EMBED_TASK_QUERY};
+use c35_mod_llm::{embed_cache_key, embed_cached, embed_cache_put, embed_text, EMBED_TASK_DOCUMENT, EMBED_TASK_QUERY};
 use c35_store::snowflake_id;
 use reqwest::Client;
 use sqlx::PgPool;
@@ -177,24 +177,17 @@ async fn memory_retrieve_impl(
 
     let embed_t0 = Instant::now();
     let model = c35_mod_llm::embed_model_tag("gemini-embedding-2", EMBED_DIMS);
-    let qkey = embed_cache_key(q, EMBED_TASK_QUERY, EMBED_DIMS);
-    let query_vec = if let Some(v) = embed_cache_get(pool, &model, &qkey).await? {
-        trace.embed_cached = true;
-        trace.embed_ms = embed_t0.elapsed().as_millis() as i64;
-        v
-    } else {
-        match embed_text(http, q, EMBED_TASK_QUERY, EMBED_DIMS).await {
-            Ok(v) => {
-                let _ = embed_cache_put(pool, &model, &qkey, q, EMBED_TASK_QUERY, &v, 0).await;
-                trace.embed_ms = embed_t0.elapsed().as_millis() as i64;
-                v
-            }
-            Err(_) => {
-                trace.embed_skipped = true;
-                let rows: Vec<(String, String)> = cands.into_iter().take(limit).map(|c| (c.key, c.content)).collect();
-                trace.memory_count = rows.len() as i32;
-                return Ok((memory_prompt_block(&rows), trace));
-            }
+    let query_vec = match embed_cached(pool, http, q, EMBED_TASK_QUERY, EMBED_DIMS).await {
+        Ok(r) => {
+            trace.embed_cached = r.cached;
+            trace.embed_ms = embed_t0.elapsed().as_millis() as i64;
+            r.embedding
+        }
+        Err(_) => {
+            trace.embed_skipped = true;
+            let rows: Vec<(String, String)> = cands.into_iter().take(limit).map(|c| (c.key, c.content)).collect();
+            trace.memory_count = rows.len() as i32;
+            return Ok((memory_prompt_block(&rows), trace));
         }
     };
 
@@ -202,8 +195,8 @@ async fn memory_retrieve_impl(
     for cand in &cands {
         let payload = format!("{}: {}", cand.key, cand.content);
         let dkey = embed_cache_key(&payload, EMBED_TASK_DOCUMENT, EMBED_DIMS);
-        let doc_vec = if let Some(v) = embed_cache_get(pool, &model, &dkey).await? {
-            v
+        let doc_vec = if let Ok(r) = embed_cached(pool, http, &payload, EMBED_TASK_DOCUMENT, EMBED_DIMS).await {
+            r.embedding
         } else if let Ok(v) = embed_text(http, &payload, EMBED_TASK_DOCUMENT, EMBED_DIMS).await {
             let _ = embed_cache_put(pool, &model, &dkey, &payload, EMBED_TASK_DOCUMENT, &v, 0).await;
             v

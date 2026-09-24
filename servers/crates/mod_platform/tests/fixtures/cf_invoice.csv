@@ -1,0 +1,4 @@
+description,amount,currency,period_start,period_end
+Workers AI inference,12.34,USD,2026-08-01,2026-08-31
+DNS Standard queries,5.00,USD,2026-08-01,2026-08-31
+Zero Trust seats,8.50,USD,2026-08-01,2026-08-31

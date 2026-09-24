@@ -45,6 +45,28 @@ pub async fn billing_account_get(ctx: &Ctx, billing_iid: i64) -> WireResult<Bill
         });
     };
 
+    let owner_iid: i64 = row.get("owner_iid");
+    let _ = crate::billing_freemium::billing_plan_lapse_if_expired(&ctx.pool, owner_iid)
+        .await
+        .ok();
+    let freemium = crate::billing_freemium::billing_freemium_snapshot(&ctx.pool, owner_iid)
+        .await
+        .unwrap_or_default();
+    let profile_ts = sqlx::query_as::<_, (Option<chrono::DateTime<chrono::Utc>>, Option<chrono::DateTime<chrono::Utc>>)>(
+        r#"
+        SELECT trial_expires_ts, plan_expires_ts
+        FROM ai.billing_profile
+        WHERE owner_iid = $1 AND deleted_ts IS NULL
+        LIMIT 1
+        "#,
+    )
+    .bind(owner_iid)
+    .fetch_optional(&ctx.pool)
+    .await
+    .ok()
+    .flatten()
+    .unwrap_or((None, None));
+
     let w5: chrono::DateTime<chrono::Utc> = row.get("window_5h_start");
     let ww: chrono::DateTime<chrono::Utc> = row.get("window_weekly_start");
     let created: chrono::DateTime<chrono::Utc> = row.get("created_ts");
@@ -52,7 +74,7 @@ pub async fn billing_account_get(ctx: &Ctx, billing_iid: i64) -> WireResult<Bill
 
     Ok(BillingAccount {
         id: row.get("id"),
-        owner_iid: row.get("owner_iid"),
+        owner_iid,
         name: row.get("name"),
         balance_usd: row.get("balance_usd"),
         balance_idr: row.get("balance_idr"),
@@ -76,6 +98,13 @@ pub async fn billing_account_get(ctx: &Ctx, billing_iid: i64) -> WireResult<Bill
             .unwrap_or_else(|| "{}".into()),
         created_ts_ms: created.timestamp_millis(),
         updated_ts_ms: updated.timestamp_millis(),
+        freemium_active: freemium.active,
+        freemium_msgs_used: freemium.msgs_used,
+        freemium_msgs_limit: freemium.msgs_limit,
+        freemium_tokens_used: freemium.tokens_used,
+        freemium_tokens_limit: freemium.tokens_limit,
+        plan_expires_ts_ms: profile_ts.1.map(|t| t.timestamp_millis()).unwrap_or(0),
+        trial_expires_ts_ms: profile_ts.0.map(|t| t.timestamp_millis()).unwrap_or(0),
         ..Default::default()
     })
 }

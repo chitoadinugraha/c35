@@ -47,6 +47,8 @@ class AppStore extends ChangeNotifier {
 
   String get planTier => billing?.planTier.isNotEmpty == true ? billing!.planTier : 'free';
 
+  bool get freemiumActive => billingFreemiumActive(billing);
+
   String get meterState {
     final b = billing;
     if (b == null) return 'green';

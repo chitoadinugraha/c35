@@ -67,12 +67,46 @@ pub fn resolve_day_id(day_id: &str, locale: &str) -> String {
         return today_day_id(locale);
     }
     if d == "yesterday" {
-        let off = offset_hours(timezone_from_locale(locale));
-        let now = Utc::now() + chrono::Duration::hours(off as i64);
-        let y = now - chrono::Duration::days(1);
-        return format!("{}-{:02}-{:02}", y.year(), y.month(), y.day());
+        return day_id_offset(locale, 1);
     }
     day_id.trim().to_string()
+}
+
+fn day_id_offset(locale: &str, days_ago: i64) -> String {
+    let off = offset_hours(timezone_from_locale(locale));
+    let now = Utc::now() + chrono::Duration::hours(off as i64);
+    let d = now - chrono::Duration::days(days_ago);
+    format!("{}-{:02}-{:02}", d.year(), d.month(), d.day())
+}
+
+/// Infer consumption.today `day_id` from user text (today / yesterday / N days ago).
+pub fn day_id_from_query(text: &str, locale: &str) -> String {
+    let t = text.trim().to_ascii_lowercase();
+    if t.contains("minggu lalu") || t.contains("seminggu lalu") || t.contains("week ago") {
+        return day_id_offset(locale, 7);
+    }
+    if let Some(rest) = t
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .windows(2)
+        .find_map(|w| {
+            let n = w[0].parse::<i64>().ok()?;
+            let unit = w[1];
+            if unit == "hari" && (t.contains("lalu") || t.contains("yang lalu")) {
+                Some(n)
+            } else if unit == "days" && t.contains("ago") {
+                Some(n)
+            } else {
+                None
+            }
+        })
+    {
+        return day_id_offset(locale, rest);
+    }
+    if t.contains("kemarin") || t.contains("yesterday") {
+        return resolve_day_id("yesterday", locale);
+    }
+    resolve_day_id("today", locale)
 }
 
 pub fn day_bounds_ms(day_id: &str, locale: &str) -> anyhow::Result<(i64, i64)> {
@@ -96,6 +130,16 @@ pub use c35_store::{snowflake_max_at_ms, snowflake_min_at_ms};
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_day_id_from_query_relative() {
+        let today = today_day_id("id-ID");
+        assert_eq!(day_id_from_query("apa aja yang aku makan hari ini?", "id-ID"), today);
+        let yesterday = resolve_day_id("yesterday", "id-ID");
+        assert_eq!(day_id_from_query("makan kemarin apa ya", "id-ID"), yesterday);
+        let week_ago = day_id_offset("id-ID", 7);
+        assert_eq!(day_id_from_query("apa aja yang aku makan 1 minggu lalu", "id-ID"), week_ago);
+    }
 
     #[test]
     fn test_infer_meal_type_keywords() {

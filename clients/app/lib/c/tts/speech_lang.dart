@@ -45,8 +45,10 @@ String? speechLangDetect(String text) {
 String speechLangResolve(String text, {String last = '', required String locale}) {
   final detected = speechLangDetect(text);
   if (detected != null) return detected;
-  if (last.isNotEmpty) return last;
   if (locale != kSpeechLangAuto && speechLangDef(locale) != null) return locale;
+  // Auto: default Indonesian — do not let a prior English turn stick via lastLang.
+  if (locale == kSpeechLangAuto) return kSpeechLangFallback;
+  if (last.isNotEmpty) return last;
   return kSpeechLangFallback;
 }
 

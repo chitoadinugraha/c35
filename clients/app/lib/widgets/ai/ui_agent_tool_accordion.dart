@@ -1,5 +1,6 @@
 import 'package:alienai_c35/c/trace/trace_view.dart';
 import 'package:alienai_c35/c/ui/ui_format.dart';
+import 'package:alienai_c35/widgets/ai/msg_trace_view.dart';
 import 'package:flutter/material.dart';
 
 class UiAgentToolAccordion extends StatefulWidget {
@@ -44,16 +45,6 @@ class _UiAgentToolAccordionState extends State<UiAgentToolAccordion> {
     } else if (!oldWidget.live && widget.live) {
       _expanded = true;
     }
-  }
-
-  IconData _iconForTool(String label) {
-    final l = label.toLowerCase();
-    if (l.contains('search') || l.contains('web')) return Icons.travel_explore_rounded;
-    if (l.contains('device') || l.contains('phone')) return Icons.smartphone_rounded;
-    if (l.contains('file') || l.contains('read') || l.contains('write')) return Icons.description_outlined;
-    if (l.contains('sql') || l.contains('db') || l.contains('query')) return Icons.storage_rounded;
-    if (l.contains('calc') || l.contains('math')) return Icons.calculate_outlined;
-    return Icons.terminal_rounded;
   }
 
   @override
@@ -138,33 +129,7 @@ class _UiAgentToolAccordionState extends State<UiAgentToolAccordion> {
                   for (final chip in widget.chips)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(
-                        children: [
-                          Icon(
-                            chip.ok ? Icons.check_circle_outline_rounded : Icons.error_outline_rounded,
-                            size: 14,
-                            color: chip.ok ? const Color(0xFF22C55E) : const Color(0xFFF59E0B),
-                          ),
-                          const SizedBox(width: 8),
-                          Icon(_iconForTool(chip.label), size: 13, color: _muted),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              chip.label,
-                              style: const TextStyle(
-                                color: _text,
-                                fontSize: 12,
-                                fontFamily: 'Consolas',
-                              ),
-                            ),
-                          ),
-                          if (chip.durationMs > 0)
-                            Text(
-                              uiFmtDurationMs(chip.durationMs),
-                              style: const TextStyle(color: _muted, fontSize: 11),
-                            ),
-                        ],
-                      ),
+                      child: UiMsgTraceToolChip(chip: chip, compact: true),
                     ),
                 ],
               ),

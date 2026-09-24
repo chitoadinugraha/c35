@@ -515,6 +515,7 @@ pub async fn billing_promotion_claim(
             pool_period_start_ms: Utc::now().timestamp_millis(),
             trial_expires_ts_ms: expires_ts.timestamp_millis(),
             active_promotion_id: promo_id,
+            ..Default::default()
         })
     } else {
         None

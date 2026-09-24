@@ -36,6 +36,11 @@ CREATE INDEX IF NOT EXISTS idx_log_created_desc ON ai.log (created_ts DESC, id D
 CREATE INDEX IF NOT EXISTS idx_log_owner_req_created ON ai.log (owner_iid, req_id, created_ts DESC) WHERE deleted_ts IS NULL AND req_id <> '';
 CREATE INDEX IF NOT EXISTS idx_chat_msg_owner_created_desc ON ai.chat_msg (owner_iid, created_ts DESC, id DESC) WHERE deleted_ts IS NULL;
 CREATE INDEX IF NOT EXISTS idx_chat_msg_owner_req ON ai.chat_msg (owner_iid, req_id) WHERE deleted_ts IS NULL AND req_id <> '';
+ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS freemium_day DATE;
+ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS freemium_msgs_used INT NOT NULL DEFAULT 0;
+ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS freemium_tokens_used INT NOT NULL DEFAULT 0;
+ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS plan_expires_ts TIMESTAMPTZ;
+UPDATE ai.billing_promotion SET code = 'SIGNUPTRIAL' WHERE id = 900000000000000001 AND code = 'signup_trial';
 ";
 
 pub fn missing_table(err: &SqlxError) -> bool {

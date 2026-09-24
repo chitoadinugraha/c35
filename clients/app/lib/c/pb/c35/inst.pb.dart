@@ -33,6 +33,8 @@ class InstDoc extends $pb.GeneratedMessage {
     $fixnum.Int64? createdTsMs,
     $fixnum.Int64? updatedTsMs,
     $fixnum.Int64? deletedTsMs,
+    $core.Iterable<$core.String>? includeTools,
+    $core.Iterable<$core.String>? excludeTools,
   }) {
     final result = InstDoc._();
     if (id != null) result.id = id;
@@ -49,6 +51,8 @@ class InstDoc extends $pb.GeneratedMessage {
     if (createdTsMs != null) result.createdTsMs = createdTsMs;
     if (updatedTsMs != null) result.updatedTsMs = updatedTsMs;
     if (deletedTsMs != null) result.deletedTsMs = deletedTsMs;
+    if (includeTools != null) result.includeTools.addAll(includeTools);
+    if (excludeTools != null) result.excludeTools.addAll(excludeTools);
     return result;
   }
 
@@ -79,6 +83,8 @@ class InstDoc extends $pb.GeneratedMessage {
     ..aInt64(12, _omitFieldNames ? '' : 'createdTsMs')
     ..aInt64(13, _omitFieldNames ? '' : 'updatedTsMs')
     ..aInt64(14, _omitFieldNames ? '' : 'deletedTsMs')
+    ..pPS(15, _omitFieldNames ? '' : 'includeTools')
+    ..pPS(16, _omitFieldNames ? '' : 'excludeTools')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -208,6 +214,12 @@ class InstDoc extends $pb.GeneratedMessage {
   $core.bool hasDeletedTsMs() => $_has(13);
   @$pb.TagNumber(14)
   void clearDeletedTsMs() => $_clearField(14);
+
+  @$pb.TagNumber(15)
+  $pb.PbList<$core.String> get includeTools => $_getList(14);
+
+  @$pb.TagNumber(16)
+  $pb.PbList<$core.String> get excludeTools => $_getList(15);
 }
 
 class ReqInstList extends $pb.GeneratedMessage {

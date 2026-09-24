@@ -13,6 +13,8 @@ type InstRow = {
   inst: string;
   phrases: string[];
   triggers: string[];
+  include_tools: string[];
+  exclude_tools: string[];
   priority: number;
   enabled: boolean;
   def_hash: string;
@@ -50,6 +52,8 @@ const rowToJson = (r: InstRow) => ({
   inst: r.inst,
   phrases: r.phrases,
   triggers: r.triggers,
+  include_tools: r.include_tools,
+  exclude_tools: r.exclude_tools,
   priority: r.priority,
   enabled: r.enabled,
   def_hash: r.def_hash,
@@ -59,7 +63,7 @@ const rowToJson = (r: InstRow) => ({
 });
 
 const SELECT_COLS =
-  "id, scope, kind, topic_id, topics, inst, phrases, triggers, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts";
+  "id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts";
 
 export const registerInstTools = (server: McpServer) => {
   server.registerTool(
@@ -126,7 +130,9 @@ export const registerInstTools = (server: McpServer) => {
         topic_id: z.string().optional().describe("Topic id for mention/topic kinds"),
         topics: z.array(z.string()).optional().describe("Topic filter list"),
         phrases: z.array(z.string()).optional().describe("Phrase triggers"),
-        triggers: z.array(z.string()).optional().describe("Tool/signal triggers"),
+        triggers: z.array(z.string()).optional().describe("Signal triggers (always, mention:, topic:)"),
+        include_tools: z.array(z.string()).optional().describe("Force-include tool names when inst matches"),
+        exclude_tools: z.array(z.string()).optional().describe("Drop tool names when inst matches"),
         priority: z.number().optional().describe("Priority (higher wins)"),
         enabled: z.boolean().optional().describe("Enabled flag (default true)"),
         def_hash: z.string().optional().describe("Seed provenance hash"),
@@ -143,19 +149,22 @@ export const registerInstTools = (server: McpServer) => {
       const topics = args.topics ?? [];
       const phrases = args.phrases ?? [];
       const triggers = args.triggers ?? [];
+      const includeTools = args.include_tools ?? [];
+      const excludeTools = args.exclude_tools ?? [];
       const priority = args.priority ?? 0;
       const enabled = args.enabled ?? true;
       const defHash = (args.def_hash ?? "").trim();
 
       await pool.query(
-        `INSERT INTO ai.inst (id, scope, kind, topic_id, topics, inst, phrases, triggers, priority, enabled, def_hash, updated_ts, deleted_ts)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW(),NULL)
+        `INSERT INTO ai.inst (id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, enabled, def_hash, updated_ts, deleted_ts)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,NOW(),NULL)
          ON CONFLICT (id) DO UPDATE SET
            scope = EXCLUDED.scope, kind = EXCLUDED.kind, topic_id = EXCLUDED.topic_id,
            topics = EXCLUDED.topics, inst = EXCLUDED.inst, phrases = EXCLUDED.phrases,
-           triggers = EXCLUDED.triggers, priority = EXCLUDED.priority, enabled = EXCLUDED.enabled,
+           triggers = EXCLUDED.triggers, include_tools = EXCLUDED.include_tools,
+           exclude_tools = EXCLUDED.exclude_tools, priority = EXCLUDED.priority, enabled = EXCLUDED.enabled,
            def_hash = EXCLUDED.def_hash, updated_ts = NOW(), deleted_ts = NULL`,
-        [id, scope, kind, topicId, topics, body, phrases, triggers, priority, enabled, defHash],
+        [id, scope, kind, topicId, topics, body, phrases, triggers, includeTools, excludeTools, priority, enabled, defHash],
       );
       await instPublish(id);
       const { rows } = await pool.query<InstRow>(`SELECT ${SELECT_COLS} FROM ai.inst WHERE id = $1`, [id]);

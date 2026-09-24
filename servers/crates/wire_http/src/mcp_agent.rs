@@ -5,7 +5,7 @@ use axum::routing::post;
 use axum::{Json, Router};
 use c35_ctx::AppState;
 use c35_mod_chat::{
-    mcp_agent_owner_allowed, mcp_prompt_compose, mcp_prompt_run, mcp_tool_exec,
+    mcp_agent_allowed_owners, mcp_agent_owner_allowed, mcp_prompt_compose, mcp_prompt_run, mcp_tool_exec,
     DEFAULT_TEST_OWNER_IID,
 };
 use c35_store::snowflake_id;
@@ -60,6 +60,8 @@ struct McpAgentBody {
     #[serde(default)]
     owner_iid: Option<i64>,
     #[serde(default)]
+    uid: Option<i64>,
+    #[serde(default)]
     tool_name: String,
     #[serde(default)]
     args_json: Value,
@@ -86,17 +88,22 @@ async fn mcp_agent_post(
             .into_response();
     }
 
-    let owner_iid = body.owner_iid.unwrap_or(DEFAULT_TEST_OWNER_IID);
+    let owner_iid = body.owner_iid.or(body.uid).unwrap_or(DEFAULT_TEST_OWNER_IID);
     if !mcp_agent_owner_allowed(owner_iid) {
         return (
             StatusCode::FORBIDDEN,
             Json(json!({
                 "ok": false,
                 "error": format!(
-                    "mcp agent actions only allowed for test owner {}",
-                    DEFAULT_TEST_OWNER_IID
+                    "mcp agent actions only allowed for owner_iid in [{}]",
+                    mcp_agent_allowed_owners()
+                        .iter()
+                        .map(|i| i.to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
                 ),
                 "owner_iid": owner_iid,
+                "allowed_owner_iids": mcp_agent_allowed_owners(),
             })),
         )
             .into_response();

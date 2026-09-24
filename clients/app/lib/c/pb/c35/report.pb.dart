@@ -440,6 +440,201 @@ class ResAdminLogReport extends $pb.GeneratedMessage {
   $pb.PbList<UiWidget> get widgets => $_getList(0);
 }
 
+class ReqAdminPlatformPnl extends $pb.GeneratedMessage {
+  factory ReqAdminPlatformPnl({
+    $fixnum.Int64? sinceMs,
+    $fixnum.Int64? untilMs,
+  }) {
+    final result = ReqAdminPlatformPnl._();
+    if (sinceMs != null) result.sinceMs = sinceMs;
+    if (untilMs != null) result.untilMs = untilMs;
+    return result;
+  }
+
+  ReqAdminPlatformPnl._();
+
+  factory ReqAdminPlatformPnl.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqAdminPlatformPnl()..mergeFromBuffer(data, registry);
+  factory ReqAdminPlatformPnl.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqAdminPlatformPnl()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqAdminPlatformPnl',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqAdminPlatformPnl.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'sinceMs')
+    ..aInt64(2, _omitFieldNames ? '' : 'untilMs')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqAdminPlatformPnl clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqAdminPlatformPnl copyWith(void Function(ReqAdminPlatformPnl) updates) =>
+      super.copyWith((message) => updates(message as ReqAdminPlatformPnl))
+          as ReqAdminPlatformPnl;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core
+      .Deprecated('Use ReqAdminPlatformPnl() / ReqAdminPlatformPnl.new instead')
+  static ReqAdminPlatformPnl create() => ReqAdminPlatformPnl._();
+  static $pb.GeneratedMessage $_createMessage() => ReqAdminPlatformPnl._();
+  @$core.override
+  ReqAdminPlatformPnl createEmptyInstance() => ReqAdminPlatformPnl._();
+  @$core.pragma('dart2js:noInline')
+  static ReqAdminPlatformPnl getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqAdminPlatformPnl>(
+          ReqAdminPlatformPnl.$_createMessage);
+  static ReqAdminPlatformPnl? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get sinceMs => $_getI64(0);
+  @$pb.TagNumber(1)
+  set sinceMs($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSinceMs() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSinceMs() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get untilMs => $_getI64(1);
+  @$pb.TagNumber(2)
+  set untilMs($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasUntilMs() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearUntilMs() => $_clearField(2);
+}
+
+class ResAdminPlatformPnl extends $pb.GeneratedMessage {
+  factory ResAdminPlatformPnl({
+    $core.Iterable<UiWidget>? widgets,
+    $core.double? revenueUsd,
+    $core.double? aiCogsUsd,
+    $core.double? infraCogsUsd,
+    $core.double? grossProfitUsd,
+    $core.double? aiApiVendorUsd,
+    $core.double? aiCogsDriftPct,
+  }) {
+    final result = ResAdminPlatformPnl._();
+    if (widgets != null) result.widgets.addAll(widgets);
+    if (revenueUsd != null) result.revenueUsd = revenueUsd;
+    if (aiCogsUsd != null) result.aiCogsUsd = aiCogsUsd;
+    if (infraCogsUsd != null) result.infraCogsUsd = infraCogsUsd;
+    if (grossProfitUsd != null) result.grossProfitUsd = grossProfitUsd;
+    if (aiApiVendorUsd != null) result.aiApiVendorUsd = aiApiVendorUsd;
+    if (aiCogsDriftPct != null) result.aiCogsDriftPct = aiCogsDriftPct;
+    return result;
+  }
+
+  ResAdminPlatformPnl._();
+
+  factory ResAdminPlatformPnl.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResAdminPlatformPnl()..mergeFromBuffer(data, registry);
+  factory ResAdminPlatformPnl.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResAdminPlatformPnl()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResAdminPlatformPnl',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResAdminPlatformPnl.$_createMessage)
+    ..pPM<UiWidget>(1, _omitFieldNames ? '' : 'widgets',
+        subBuilder: UiWidget.$_createMessage)
+    ..aD(2, _omitFieldNames ? '' : 'revenueUsd')
+    ..aD(3, _omitFieldNames ? '' : 'aiCogsUsd')
+    ..aD(4, _omitFieldNames ? '' : 'infraCogsUsd')
+    ..aD(5, _omitFieldNames ? '' : 'grossProfitUsd')
+    ..aD(6, _omitFieldNames ? '' : 'aiApiVendorUsd')
+    ..aD(7, _omitFieldNames ? '' : 'aiCogsDriftPct')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResAdminPlatformPnl clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResAdminPlatformPnl copyWith(void Function(ResAdminPlatformPnl) updates) =>
+      super.copyWith((message) => updates(message as ResAdminPlatformPnl))
+          as ResAdminPlatformPnl;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core
+      .Deprecated('Use ResAdminPlatformPnl() / ResAdminPlatformPnl.new instead')
+  static ResAdminPlatformPnl create() => ResAdminPlatformPnl._();
+  static $pb.GeneratedMessage $_createMessage() => ResAdminPlatformPnl._();
+  @$core.override
+  ResAdminPlatformPnl createEmptyInstance() => ResAdminPlatformPnl._();
+  @$core.pragma('dart2js:noInline')
+  static ResAdminPlatformPnl getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResAdminPlatformPnl>(
+          ResAdminPlatformPnl.$_createMessage);
+  static ResAdminPlatformPnl? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<UiWidget> get widgets => $_getList(0);
+
+  @$pb.TagNumber(2)
+  $core.double get revenueUsd => $_getN(1);
+  @$pb.TagNumber(2)
+  set revenueUsd($core.double value) => $_setDouble(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasRevenueUsd() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearRevenueUsd() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.double get aiCogsUsd => $_getN(2);
+  @$pb.TagNumber(3)
+  set aiCogsUsd($core.double value) => $_setDouble(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasAiCogsUsd() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearAiCogsUsd() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.double get infraCogsUsd => $_getN(3);
+  @$pb.TagNumber(4)
+  set infraCogsUsd($core.double value) => $_setDouble(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasInfraCogsUsd() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearInfraCogsUsd() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.double get grossProfitUsd => $_getN(4);
+  @$pb.TagNumber(5)
+  set grossProfitUsd($core.double value) => $_setDouble(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasGrossProfitUsd() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearGrossProfitUsd() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.double get aiApiVendorUsd => $_getN(5);
+  @$pb.TagNumber(6)
+  set aiApiVendorUsd($core.double value) => $_setDouble(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasAiApiVendorUsd() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearAiApiVendorUsd() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.double get aiCogsDriftPct => $_getN(6);
+  @$pb.TagNumber(7)
+  set aiCogsDriftPct($core.double value) => $_setDouble(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasAiCogsDriftPct() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearAiCogsDriftPct() => $_clearField(7);
+}
+
 const $core.bool _omitFieldNames =
     $core.bool.fromEnvironment('protobuf.omit_field_names');
 const $core.bool _omitMessageNames =

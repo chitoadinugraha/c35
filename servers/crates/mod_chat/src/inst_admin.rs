@@ -106,6 +106,8 @@ type InstAdminDbRow = (
     String,
     Vec<String>,
     Vec<String>,
+    Vec<String>,
+    Vec<String>,
     i32,
     bool,
     String,
@@ -124,6 +126,8 @@ fn inst_doc_map(
         inst,
         phrases,
         triggers,
+        include_tools,
+        exclude_tools,
         priority,
         enabled,
         def_hash,
@@ -141,6 +145,8 @@ fn inst_doc_map(
         inst,
         phrases,
         triggers,
+        include_tools,
+        exclude_tools,
         priority,
         enabled: Some(enabled),
         def_hash,
@@ -152,7 +158,7 @@ fn inst_doc_map(
 
 async fn inst_fetch_doc(pool: &PgPool, id: &str) -> Result<InstDoc, InstAdminError> {
     let row = sqlx::query_as::<_, InstAdminDbRow>(
-        "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
+        "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
          FROM ai.inst WHERE id = $1",
     )
     .bind(id)
@@ -194,7 +200,7 @@ pub async fn inst_list(
 
     let rows = match (scope_filter, kind_filter, req.enabled) {
         (Some(scope), Some(kind), Some(enabled)) => sqlx::query_as::<_, InstAdminDbRow>(
-            "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
+            "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
              FROM ai.inst WHERE ($1::bool OR deleted_ts IS NULL) AND scope = $2 AND kind = $3 AND enabled = $4 \
              ORDER BY priority DESC, id ASC",
         )
@@ -205,7 +211,7 @@ pub async fn inst_list(
         .fetch_all(pool)
         .await,
         (Some(scope), Some(kind), None) => sqlx::query_as::<_, InstAdminDbRow>(
-            "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
+            "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
              FROM ai.inst WHERE ($1::bool OR deleted_ts IS NULL) AND scope = $2 AND kind = $3 \
              ORDER BY priority DESC, id ASC",
         )
@@ -215,7 +221,7 @@ pub async fn inst_list(
         .fetch_all(pool)
         .await,
         (Some(scope), None, Some(enabled)) => sqlx::query_as::<_, InstAdminDbRow>(
-            "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
+            "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
              FROM ai.inst WHERE ($1::bool OR deleted_ts IS NULL) AND scope = $2 AND enabled = $3 \
              ORDER BY priority DESC, id ASC",
         )
@@ -225,7 +231,7 @@ pub async fn inst_list(
         .fetch_all(pool)
         .await,
         (Some(scope), None, None) => sqlx::query_as::<_, InstAdminDbRow>(
-            "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
+            "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
              FROM ai.inst WHERE ($1::bool OR deleted_ts IS NULL) AND scope = $2 \
              ORDER BY priority DESC, id ASC",
         )
@@ -234,7 +240,7 @@ pub async fn inst_list(
         .fetch_all(pool)
         .await,
         (None, Some(kind), Some(enabled)) => sqlx::query_as::<_, InstAdminDbRow>(
-            "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
+            "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
              FROM ai.inst WHERE ($1::bool OR deleted_ts IS NULL) AND kind = $2 AND enabled = $3 \
              ORDER BY priority DESC, id ASC",
         )
@@ -244,7 +250,7 @@ pub async fn inst_list(
         .fetch_all(pool)
         .await,
         (None, Some(kind), None) => sqlx::query_as::<_, InstAdminDbRow>(
-            "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
+            "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
              FROM ai.inst WHERE ($1::bool OR deleted_ts IS NULL) AND kind = $2 \
              ORDER BY priority DESC, id ASC",
         )
@@ -253,7 +259,7 @@ pub async fn inst_list(
         .fetch_all(pool)
         .await,
         (None, None, Some(enabled)) => sqlx::query_as::<_, InstAdminDbRow>(
-            "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
+            "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
              FROM ai.inst WHERE ($1::bool OR deleted_ts IS NULL) AND enabled = $2 \
              ORDER BY priority DESC, id ASC",
         )
@@ -262,7 +268,7 @@ pub async fn inst_list(
         .fetch_all(pool)
         .await,
         (None, None, None) => sqlx::query_as::<_, InstAdminDbRow>(
-            "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
+            "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
              FROM ai.inst WHERE ($1::bool OR deleted_ts IS NULL) \
              ORDER BY priority DESC, id ASC",
         )
@@ -331,9 +337,9 @@ pub async fn inst_put(
     sqlx::query(
         r#"
         INSERT INTO ai.inst (
-            id, scope, kind, topic_id, topics, inst, phrases, triggers, priority, enabled, def_hash, updated_ts, deleted_ts
+            id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, enabled, def_hash, updated_ts, deleted_ts
         ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NULL
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NULL
         )
         ON CONFLICT (id) DO UPDATE SET
             scope = EXCLUDED.scope,
@@ -343,6 +349,8 @@ pub async fn inst_put(
             inst = EXCLUDED.inst,
             phrases = EXCLUDED.phrases,
             triggers = EXCLUDED.triggers,
+            include_tools = EXCLUDED.include_tools,
+            exclude_tools = EXCLUDED.exclude_tools,
             priority = EXCLUDED.priority,
             enabled = EXCLUDED.enabled,
             def_hash = EXCLUDED.def_hash,
@@ -358,6 +366,8 @@ pub async fn inst_put(
     .bind(doc.inst.trim())
     .bind(&doc.phrases)
     .bind(&doc.triggers)
+    .bind(&doc.include_tools)
+    .bind(&doc.exclude_tools)
     .bind(doc.priority)
     .bind(enabled)
     .bind(doc.def_hash.trim())

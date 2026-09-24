@@ -3,6 +3,7 @@ mod billing_account_get;
 mod billing_cost;
 mod fetch_fx;
 mod fx_live;
+mod billing_freemium;
 mod billing_finance;
 mod billing_history;
 mod billing_midtrans;
@@ -55,6 +56,14 @@ pub use billing_signup_credit::billing_signup_credit;
 pub use billing_history::billing_history;
 pub use billing_push::billing_notify_owner;
 pub use billing_summary::billing_summary;
+pub use billing_freemium::{
+    billing_freemium_add_tokens, billing_freemium_applies, billing_freemium_check,
+    billing_freemium_reserve_turn, billing_freemium_snapshot, billing_freemium_wire,
+    billing_plan_lapse_if_expired,
+    freemium_tool_allowed, freemium_tool_blocked, plan_expires_from_months, plan_expires_from_period,
+    tier_is_paid, FreemiumSnapshot,
+    FREEMIUM_MODEL, FREEMIUM_MSGS_PER_DAY, FREEMIUM_TOKENS_PER_DAY, FREEMIUM_TURN_TOKEN_ESTIMATE,
+};
 pub use billing_finance::{
     billing_admin_adjust_access, billing_topup_list, billing_topup_review, commission_withdraw_list,
     commission_withdraw_review, FinanceError,

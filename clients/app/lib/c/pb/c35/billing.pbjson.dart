@@ -149,6 +149,42 @@ const BillingProfile$json = {
       '5': 3,
       '10': 'activePromotionId'
     },
+    {'1': 'freemium_active', '3': 23, '4': 1, '5': 8, '10': 'freemiumActive'},
+    {
+      '1': 'freemium_msgs_used',
+      '3': 24,
+      '4': 1,
+      '5': 5,
+      '10': 'freemiumMsgsUsed'
+    },
+    {
+      '1': 'freemium_msgs_limit',
+      '3': 25,
+      '4': 1,
+      '5': 5,
+      '10': 'freemiumMsgsLimit'
+    },
+    {
+      '1': 'freemium_tokens_used',
+      '3': 26,
+      '4': 1,
+      '5': 5,
+      '10': 'freemiumTokensUsed'
+    },
+    {
+      '1': 'freemium_tokens_limit',
+      '3': 27,
+      '4': 1,
+      '5': 5,
+      '10': 'freemiumTokensLimit'
+    },
+    {
+      '1': 'plan_expires_ts_ms',
+      '3': 28,
+      '4': 1,
+      '5': 3,
+      '10': 'planExpiresTsMs'
+    },
   ],
 };
 
@@ -173,7 +209,12 @@ final $typed_data.Uint8List billingProfileDescriptor = $convert.base64Decode(
     'ASgBUhNmcm9udGllclBvb2xVc2VkSWRyEi8KFHBvb2xfcGVyaW9kX3N0YXJ0X21zGBQgASgDUh'
     'Fwb29sUGVyaW9kU3RhcnRNcxItChN0cmlhbF9leHBpcmVzX3RzX21zGBUgASgDUhB0cmlhbEV4'
     'cGlyZXNUc01zEi4KE2FjdGl2ZV9wcm9tb3Rpb25faWQYFiABKANSEWFjdGl2ZVByb21vdGlvbk'
-    'lk');
+    'lkEicKD2ZyZWVtaXVtX2FjdGl2ZRgXIAEoCFIOZnJlZW1pdW1BY3RpdmUSLAoSZnJlZW1pdW1f'
+    'bXNnc191c2VkGBggASgFUhBmcmVlbWl1bU1zZ3NVc2VkEi4KE2ZyZWVtaXVtX21zZ3NfbGltaX'
+    'QYGSABKAVSEWZyZWVtaXVtTXNnc0xpbWl0EjAKFGZyZWVtaXVtX3Rva2Vuc191c2VkGBogASgF'
+    'UhJmcmVlbWl1bVRva2Vuc1VzZWQSMgoVZnJlZW1pdW1fdG9rZW5zX2xpbWl0GBsgASgFUhNmcm'
+    'VlbWl1bVRva2Vuc0xpbWl0EisKEnBsYW5fZXhwaXJlc190c19tcxgcIAEoA1IPcGxhbkV4cGly'
+    'ZXNUc01z');
 
 @$core.Deprecated('Use billingWalletDescriptor instead')
 const BillingWallet$json = {
@@ -371,6 +412,49 @@ const BillingAccount$json = {
     {'1': 'created_ts_ms', '3': 20, '4': 1, '5': 3, '10': 'createdTsMs'},
     {'1': 'updated_ts_ms', '3': 21, '4': 1, '5': 3, '10': 'updatedTsMs'},
     {'1': 'deleted_ts_ms', '3': 22, '4': 1, '5': 3, '10': 'deletedTsMs'},
+    {'1': 'freemium_active', '3': 23, '4': 1, '5': 8, '10': 'freemiumActive'},
+    {
+      '1': 'freemium_msgs_used',
+      '3': 24,
+      '4': 1,
+      '5': 5,
+      '10': 'freemiumMsgsUsed'
+    },
+    {
+      '1': 'freemium_msgs_limit',
+      '3': 25,
+      '4': 1,
+      '5': 5,
+      '10': 'freemiumMsgsLimit'
+    },
+    {
+      '1': 'freemium_tokens_used',
+      '3': 26,
+      '4': 1,
+      '5': 5,
+      '10': 'freemiumTokensUsed'
+    },
+    {
+      '1': 'freemium_tokens_limit',
+      '3': 27,
+      '4': 1,
+      '5': 5,
+      '10': 'freemiumTokensLimit'
+    },
+    {
+      '1': 'plan_expires_ts_ms',
+      '3': 28,
+      '4': 1,
+      '5': 3,
+      '10': 'planExpiresTsMs'
+    },
+    {
+      '1': 'trial_expires_ts_ms',
+      '3': 29,
+      '4': 1,
+      '5': 3,
+      '10': 'trialExpiresTsMs'
+    },
   ],
 };
 
@@ -392,7 +476,13 @@ final $typed_data.Uint8List billingAccountDescriptor = $convert.base64Decode(
     '5BdmFpbGFibGVJZHISMgoVY29tbWlzc2lvbl9lYXJuZWRfaWRyGBIgASgBUhNjb21taXNzaW9u'
     'RWFybmVkSWRyEhsKCW1ldGFfanNvbhgTIAEoCVIIbWV0YUpzb24SIgoNY3JlYXRlZF90c19tcx'
     'gUIAEoA1ILY3JlYXRlZFRzTXMSIgoNdXBkYXRlZF90c19tcxgVIAEoA1ILdXBkYXRlZFRzTXMS'
-    'IgoNZGVsZXRlZF90c19tcxgWIAEoA1ILZGVsZXRlZFRzTXM=');
+    'IgoNZGVsZXRlZF90c19tcxgWIAEoA1ILZGVsZXRlZFRzTXMSJwoPZnJlZW1pdW1fYWN0aXZlGB'
+    'cgASgIUg5mcmVlbWl1bUFjdGl2ZRIsChJmcmVlbWl1bV9tc2dzX3VzZWQYGCABKAVSEGZyZWVt'
+    'aXVtTXNnc1VzZWQSLgoTZnJlZW1pdW1fbXNnc19saW1pdBgZIAEoBVIRZnJlZW1pdW1Nc2dzTG'
+    'ltaXQSMAoUZnJlZW1pdW1fdG9rZW5zX3VzZWQYGiABKAVSEmZyZWVtaXVtVG9rZW5zVXNlZBIy'
+    'ChVmcmVlbWl1bV90b2tlbnNfbGltaXQYGyABKAVSE2ZyZWVtaXVtVG9rZW5zTGltaXQSKwoScG'
+    'xhbl9leHBpcmVzX3RzX21zGBwgASgDUg9wbGFuRXhwaXJlc1RzTXMSLQoTdHJpYWxfZXhwaXJl'
+    'c190c19tcxgdIAEoA1IQdHJpYWxFeHBpcmVzVHNNcw==');
 
 @$core.Deprecated('Use billingTopupRequestDescriptor instead')
 const BillingTopupRequest$json = {
@@ -551,6 +641,42 @@ const BillingPushQuota$json = {
       '5': 3,
       '10': 'trialExpiresTsMs'
     },
+    {'1': 'freemium_active', '3': 13, '4': 1, '5': 8, '10': 'freemiumActive'},
+    {
+      '1': 'freemium_msgs_used',
+      '3': 14,
+      '4': 1,
+      '5': 5,
+      '10': 'freemiumMsgsUsed'
+    },
+    {
+      '1': 'freemium_msgs_limit',
+      '3': 15,
+      '4': 1,
+      '5': 5,
+      '10': 'freemiumMsgsLimit'
+    },
+    {
+      '1': 'freemium_tokens_used',
+      '3': 16,
+      '4': 1,
+      '5': 5,
+      '10': 'freemiumTokensUsed'
+    },
+    {
+      '1': 'freemium_tokens_limit',
+      '3': 17,
+      '4': 1,
+      '5': 5,
+      '10': 'freemiumTokensLimit'
+    },
+    {
+      '1': 'plan_expires_ts_ms',
+      '3': 18,
+      '4': 1,
+      '5': 3,
+      '10': 'planExpiresTsMs'
+    },
   ],
 };
 
@@ -567,7 +693,12 @@ final $typed_data.Uint8List billingPushQuotaDescriptor = $convert.base64Decode(
     'aWRyGAkgASgBUhRmcm9udGllclBvb2xMaW1pdElkchIzChZmcm9udGllcl9wb29sX3VzZWRfaW'
     'RyGAogASgBUhNmcm9udGllclBvb2xVc2VkSWRyEi8KFHBvb2xfcGVyaW9kX3N0YXJ0X21zGAsg'
     'ASgDUhFwb29sUGVyaW9kU3RhcnRNcxItChN0cmlhbF9leHBpcmVzX3RzX21zGAwgASgDUhB0cm'
-    'lhbEV4cGlyZXNUc01z');
+    'lhbEV4cGlyZXNUc01zEicKD2ZyZWVtaXVtX2FjdGl2ZRgNIAEoCFIOZnJlZW1pdW1BY3RpdmUS'
+    'LAoSZnJlZW1pdW1fbXNnc191c2VkGA4gASgFUhBmcmVlbWl1bU1zZ3NVc2VkEi4KE2ZyZWVtaX'
+    'VtX21zZ3NfbGltaXQYDyABKAVSEWZyZWVtaXVtTXNnc0xpbWl0EjAKFGZyZWVtaXVtX3Rva2Vu'
+    'c191c2VkGBAgASgFUhJmcmVlbWl1bVRva2Vuc1VzZWQSMgoVZnJlZW1pdW1fdG9rZW5zX2xpbW'
+    'l0GBEgASgFUhNmcmVlbWl1bVRva2Vuc0xpbWl0EisKEnBsYW5fZXhwaXJlc190c19tcxgSIAEo'
+    'A1IPcGxhbkV4cGlyZXNUc01z');
 
 @$core.Deprecated('Use billingPushCommissionDescriptor instead')
 const BillingPushCommission$json = {
@@ -1910,6 +2041,49 @@ const ResBillingSummary$json = {
       '10': 'plans'
     },
     {'1': 'overage_enabled', '3': 19, '4': 1, '5': 8, '10': 'overageEnabled'},
+    {'1': 'freemium_active', '3': 20, '4': 1, '5': 8, '10': 'freemiumActive'},
+    {
+      '1': 'freemium_msgs_used',
+      '3': 21,
+      '4': 1,
+      '5': 5,
+      '10': 'freemiumMsgsUsed'
+    },
+    {
+      '1': 'freemium_msgs_limit',
+      '3': 22,
+      '4': 1,
+      '5': 5,
+      '10': 'freemiumMsgsLimit'
+    },
+    {
+      '1': 'freemium_tokens_used',
+      '3': 23,
+      '4': 1,
+      '5': 5,
+      '10': 'freemiumTokensUsed'
+    },
+    {
+      '1': 'freemium_tokens_limit',
+      '3': 24,
+      '4': 1,
+      '5': 5,
+      '10': 'freemiumTokensLimit'
+    },
+    {
+      '1': 'plan_expires_ts_ms',
+      '3': 25,
+      '4': 1,
+      '5': 3,
+      '10': 'planExpiresTsMs'
+    },
+    {
+      '1': 'trial_expires_ts_ms',
+      '3': 26,
+      '4': 1,
+      '5': 3,
+      '10': 'trialExpiresTsMs'
+    },
   ],
 };
 
@@ -1930,4 +2104,10 @@ final $typed_data.Uint8List resBillingSummaryDescriptor = $convert.base64Decode(
     'aXQSNQoXYWxpZW5fYWxsb3dfd2Vla2x5X3VzZWQYECABKAFSFGFsaWVuQWxsb3dXZWVrbHlVc2'
     'VkEjcKGGFsaWVuX2FsbG93X3dlZWtseV9saW1pdBgRIAEoAVIVYWxpZW5BbGxvd1dlZWtseUxp'
     'bWl0EikKBXBsYW5zGBIgAygLMhMuYzM1LkJpbGxpbmdQbGFuRG9jUgVwbGFucxInCg9vdmVyYW'
-    'dlX2VuYWJsZWQYEyABKAhSDm92ZXJhZ2VFbmFibGVk');
+    'dlX2VuYWJsZWQYEyABKAhSDm92ZXJhZ2VFbmFibGVkEicKD2ZyZWVtaXVtX2FjdGl2ZRgUIAEo'
+    'CFIOZnJlZW1pdW1BY3RpdmUSLAoSZnJlZW1pdW1fbXNnc191c2VkGBUgASgFUhBmcmVlbWl1bU'
+    '1zZ3NVc2VkEi4KE2ZyZWVtaXVtX21zZ3NfbGltaXQYFiABKAVSEWZyZWVtaXVtTXNnc0xpbWl0'
+    'EjAKFGZyZWVtaXVtX3Rva2Vuc191c2VkGBcgASgFUhJmcmVlbWl1bVRva2Vuc1VzZWQSMgoVZn'
+    'JlZW1pdW1fdG9rZW5zX2xpbWl0GBggASgFUhNmcmVlbWl1bVRva2Vuc0xpbWl0EisKEnBsYW5f'
+    'ZXhwaXJlc190c19tcxgZIAEoA1IPcGxhbkV4cGlyZXNUc01zEi0KE3RyaWFsX2V4cGlyZXNfdH'
+    'NfbXMYGiABKANSEHRyaWFsRXhwaXJlc1RzTXM=');

@@ -59,9 +59,9 @@ ORDER BY created_ts DESC LIMIT 20;
 | `trace_get` | Full turn trace from `ai.log` by `req_id` (ASC) |
 | `msg_get` | `{ msg_id }` or `{ req_id }` → message + blocks + trace |
 | `msg_find` | Search messages (default `owner_iid=99000`) |
-| `tool_exec` | Cluster tool via server HTTP — **owner locked to 33000**; see [`_/docs/mcp-security.md`](../../_/docs/mcp-security.md) |
-| `prompt_compose` | Inst + tool selection preview + compose trace — owner **33000** only |
-| `prompt_run` | Full prompt turn as **33000** (requires `C35_MCP_AGENT_ENABLED` + strong `C35_MCP_AGENT_KEY`) |
+| `tool_exec` | Cluster tool via server HTTP — default **33000**, **99000** allowed; see [`_/docs/mcp-security.md`](../../_/docs/mcp-security.md) |
+| `prompt_compose` | Inst + tool selection preview + compose trace — default **33000**, **99000** allowed |
+| `prompt_run` | Full prompt turn + inline **trace** — default **33000**, use **99000** for chito data (see `prompt-run-test.md`) |
 | `inst_*` | CRUD on `ai.inst` |
 
 Global **`yb`** MCP still useful for ad-hoc SQL and `meta` joins.

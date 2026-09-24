@@ -453,6 +453,15 @@ const InvokeReq$json = {
       '9': 0,
       '10': 'expensePut'
     },
+    {
+      '1': 'admin_platform_pnl',
+      '3': 128,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqAdminPlatformPnl',
+      '9': 0,
+      '10': 'adminPlatformPnl'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -527,7 +536,8 @@ final $typed_data.Uint8List invokeReqDescriptor = $convert.base64Decode(
     'FCaWxsaW5nQWRtaW5BZGp1c3RMaXN0SABSFmJpbGxpbmdBZG1pbkFkanVzdExpc3QSQgoQYWRt'
     'aW5fbG9nX3JlcG9ydBh+IAEoCzIWLmMzNS5SZXFBZG1pbkxvZ1JlcG9ydEgAUg5hZG1pbkxvZ1'
     'JlcG9ydBI1CgtleHBlbnNlX3B1dBh/IAEoCzISLmMzNS5SZXFFeHBlbnNlUHV0SABSCmV4cGVu'
-    'c2VQdXRCBgoEYm9keQ==');
+    'c2VQdXQSSQoSYWRtaW5fcGxhdGZvcm1fcG5sGIABIAEoCzIYLmMzNS5SZXFBZG1pblBsYXRmb3'
+    'JtUG5sSABSEGFkbWluUGxhdGZvcm1QbmxCBgoEYm9keQ==');
 
 @$core.Deprecated('Use invokeResDescriptor instead')
 const InvokeRes$json = {
@@ -959,6 +969,15 @@ const InvokeRes$json = {
       '9': 0,
       '10': 'expensePut'
     },
+    {
+      '1': 'admin_platform_pnl',
+      '3': 128,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResAdminPlatformPnl',
+      '9': 0,
+      '10': 'adminPlatformPnl'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -1032,7 +1051,8 @@ final $typed_data.Uint8List invokeResDescriptor = $convert.base64Decode(
     'KAsyHi5jMzUuUmVzQmlsbGluZ0FkbWluQWRqdXN0TGlzdEgAUhZiaWxsaW5nQWRtaW5BZGp1c3'
     'RMaXN0EkIKEGFkbWluX2xvZ19yZXBvcnQYfiABKAsyFi5jMzUuUmVzQWRtaW5Mb2dSZXBvcnRI'
     'AFIOYWRtaW5Mb2dSZXBvcnQSNQoLZXhwZW5zZV9wdXQYfyABKAsyEi5jMzUuUmVzRXhwZW5zZV'
-    'B1dEgAUgpleHBlbnNlUHV0QgYKBGJvZHk=');
+    'B1dEgAUgpleHBlbnNlUHV0EkkKEmFkbWluX3BsYXRmb3JtX3BubBiAASABKAsyGC5jMzUuUmVz'
+    'QWRtaW5QbGF0Zm9ybVBubEgAUhBhZG1pblBsYXRmb3JtUG5sQgYKBGJvZHk=');
 
 @$core.Deprecated('Use wsReqDescriptor instead')
 const WsReq$json = {

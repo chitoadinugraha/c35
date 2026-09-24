@@ -168,6 +168,12 @@ List<AgentModel> agentModelsFromProto(List<PromptModelOption> rows) {
   return out.isEmpty ? const [AgentModel.alien] : out;
 }
 
+List<AgentModel> agentModelsForBilling(List<AgentModel> models, {required bool freemium}) {
+  if (!freemium) return models;
+  final alien = models.where((m) => m.provider == 'alienai').toList();
+  return alien.isEmpty ? const [AgentModel.alien] : alien;
+}
+
 int agentModelProviderBand(String provider) => switch (provider) {
       'alienai' => 0,
       'google' => 100,

@@ -4,6 +4,33 @@ use anyhow::{bail, Result};
 use reqwest::Client;
 use serde_json::{json, Value};
 
+/// Resolve search text from tool args — models sometimes send `queries` (array) instead of `query`.
+pub fn search_query_from_args(args: &Value) -> String {
+    if let Some(q) = args.get("query").and_then(|v| v.as_str()) {
+        let q = q.trim();
+        if !q.is_empty() {
+            return q.to_string();
+        }
+    }
+    if let Some(q) = args.get("q").and_then(|v| v.as_str()) {
+        let q = q.trim();
+        if !q.is_empty() {
+            return q.to_string();
+        }
+    }
+    if let Some(arr) = args.get("queries").and_then(|v| v.as_array()) {
+        for item in arr {
+            if let Some(q) = item.as_str() {
+                let q = q.trim();
+                if !q.is_empty() {
+                    return q.to_string();
+                }
+            }
+        }
+    }
+    String::new()
+}
+
 pub fn search_def() -> (String, String, Value) {
     (
         "web.search".into(),
@@ -82,4 +109,27 @@ pub async fn web_search_exec(client: &Client, query: &str, limit: u32) -> Result
         "count": results.len(),
         "results": results
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn search_query_from_args_prefers_query_string() {
+        let args = json!({ "query": "bioskop malang", "queries": ["other"] });
+        assert_eq!(search_query_from_args(&args), "bioskop malang");
+    }
+
+    #[test]
+    fn search_query_from_args_falls_back_to_queries_array() {
+        let args = json!({ "queries": ["", "bioskop malang film"] });
+        assert_eq!(search_query_from_args(&args), "bioskop malang film");
+    }
+
+    #[test]
+    fn search_query_from_args_empty_when_missing() {
+        assert!(search_query_from_args(&json!({})).is_empty());
+        assert!(search_query_from_args(&json!({ "queries": [] })).is_empty());
+    }
 }

@@ -1,0 +1,10 @@
+{
+  "Utilization": [
+    {
+      "Region": "ap-southeast-1",
+      "NumBillableTB": 0.5,
+      "NumBillableObjects": 12840,
+      "PaddedStorageSizeBytes": 549755813888
+    }
+  ]
+}

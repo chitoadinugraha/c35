@@ -60,9 +60,22 @@ fn locale_prefers_indonesian(user: &str, locale: &str) -> bool {
 
 pub fn user_asks_time(text: &str) -> bool {
     let t = text.to_ascii_lowercase();
+    if food_recap_blocks_time_strip(&t) {
+        return false;
+    }
     ["hari apa", "hari ini", "what day", "tanggal", "jam berapa", "what time", "what date", "sekarang hari", "pukul berapa", "waktu sekarang"]
         .iter()
         .any(|k| t.contains(k))
+}
+
+fn food_recap_blocks_time_strip(t: &str) -> bool {
+    if ["makan", "dimakan", "konsumsi", "what did i eat", "food history", "meal recap", "riwayat makan"]
+        .iter()
+        .any(|k| t.contains(k))
+    {
+        return true;
+    }
+    t.contains("apa aja yang aku makan") || t.contains("apa yang aku makan")
 }
 
 pub fn time_prompt_prepend(block: &str, base: &str) -> String {
@@ -86,6 +99,8 @@ mod tests {
         assert!(user_asks_time("Sekarang jam berapa?"));
         assert!(user_asks_time("what day is it today?"));
         assert!(!user_asks_time("buatkan gambar kucing"));
+        assert!(!user_asks_time("apa aja yang aku makan hari ini?"));
+        assert!(!user_asks_time("riwayat makan kemarin"));
     }
 
     #[test]

@@ -9,6 +9,7 @@ import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/pages/page_root_inst.dart';
 import 'package:alienai_c35/pages/page_root_logs.dart';
 import 'package:alienai_c35/pages/page_root_objects.dart';
+import 'package:alienai_c35/pages/page_root_pnl.dart';
 import 'package:alienai_c35/widgets/admin/ui_admin_action_tile.dart';
 import 'package:alienai_c35/widgets/admin/ui_admin_network_row.dart';
 import 'package:alienai_c35/widgets/admin/ui_admin_node_card.dart';
@@ -54,6 +55,8 @@ class _PageRootConsoleState extends State<PageRootConsole> {
   void _openInst() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageRootInst(chatConn: widget.chatConn)));
 
   void _openObjects() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageRootObjects(chatConn: widget.chatConn)));
+
+  void _openPnl() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageRootPnl(chatConn: widget.chatConn)));
 
   DiskDeviceStat? _bootStorage(NodeStat node) {
     final storages = _stats.storagesFor(node);
@@ -155,6 +158,12 @@ class _PageRootConsoleState extends State<PageRootConsole> {
                     title: 'Objects',
                     subtitle: 'aliases & taxonomy',
                     onTap: _openObjects,
+                  ),
+                  UiAdminActionTile(
+                    icon: Icons.insights_outlined,
+                    title: 'P&L',
+                    subtitle: 'revenue & COGS',
+                    onTap: _openPnl,
                   ),
                 ],
               ),

@@ -48,6 +48,8 @@ fn inst_core_assistant() -> InstRow {
         inst: "You are Alien AI".into(),
         phrases: vec![],
         triggers: vec!["always".into()],
+        include_tools: vec![],
+        exclude_tools: vec![],
         priority: 200,
     }
 }
@@ -72,7 +74,9 @@ fn inst_web_search() -> InstRow {
         topics: vec![],
         inst: "web".into(),
         phrases: vec!["search the web".into(), "cari".into()],
-        triggers: vec!["tool_include:web.search".into()],
+        triggers: vec![],
+        include_tools: vec!["web.search".into()],
+        exclude_tools: vec![],
         priority: 100,
     }
 }
@@ -86,7 +90,9 @@ fn inst_consumption_coach() -> InstRow {
         topics: vec![],
         inst: "nutrition".into(),
         phrases: vec!["nutrition recap".into()],
-        triggers: vec!["tool_include:consumption.today".into(), "tool_exclude:img.generate".into()],
+        triggers: vec![],
+        include_tools: vec!["consumption.today".into()],
+        exclude_tools: vec!["img.generate".into()],
         priority: 135,
     }
 }
@@ -105,7 +111,9 @@ fn inst_consumption() -> InstRow {
             "berapa kalori".into(),
             "how many calories".into(),
         ],
-        triggers: vec!["tool_include:consumption.add".into(), "tool_exclude:img.generate".into()],
+        triggers: vec![],
+        include_tools: vec!["consumption.add".into()],
+        exclude_tools: vec!["img.generate".into()],
         priority: 140,
     }
 }
@@ -124,7 +132,9 @@ fn inst_consumption_delete() -> InstRow {
             "delete meal".into(),
             "cancel meal".into(),
         ],
-        triggers: vec!["tool_include:consumption.delete".into(), "tool_exclude:img.generate".into()],
+        triggers: vec![],
+        include_tools: vec!["consumption.delete".into()],
+        exclude_tools: vec!["img.generate".into()],
         priority: 140,
     }
 }
@@ -140,6 +150,7 @@ fn health_catalog() -> Vec<ToolDef> {
             always: vec![],
             readonly: true,
             requires_kinds: vec![],
+            rag_phrases: vec![],
             requires_capability: None,
         },
         ToolDef {
@@ -151,6 +162,7 @@ fn health_catalog() -> Vec<ToolDef> {
             always: vec![],
             readonly: false,
             requires_kinds: vec![],
+            rag_phrases: vec![],
             requires_capability: None,
         },
         ToolDef {
@@ -162,6 +174,7 @@ fn health_catalog() -> Vec<ToolDef> {
             always: vec![],
             readonly: false,
             requires_kinds: vec![],
+            rag_phrases: vec![],
             requires_capability: None,
         },
         ToolDef {
@@ -173,6 +186,7 @@ fn health_catalog() -> Vec<ToolDef> {
             always: vec!["general".into(), "health".into()],
             readonly: false,
             requires_kinds: vec![],
+            rag_phrases: vec![],
             requires_capability: None,
         },
         ToolDef {
@@ -184,6 +198,7 @@ fn health_catalog() -> Vec<ToolDef> {
             always: vec!["general".into(), "health".into()],
             readonly: true,
             requires_kinds: vec![],
+            rag_phrases: vec![],
             requires_capability: None,
         },
         ToolDef {
@@ -195,6 +210,7 @@ fn health_catalog() -> Vec<ToolDef> {
             always: vec![],
             readonly: false,
             requires_kinds: vec![],
+            rag_phrases: vec![],
             requires_capability: None,
         },
         ToolDef {
@@ -206,6 +222,7 @@ fn health_catalog() -> Vec<ToolDef> {
             always: vec!["general".into(), "health".into()],
             readonly: false,
             requires_kinds: vec![],
+            rag_phrases: vec![],
             requires_capability: None,
         },
         ToolDef {
@@ -217,6 +234,7 @@ fn health_catalog() -> Vec<ToolDef> {
             always: vec!["general".into(), "health".into()],
             readonly: false,
             requires_kinds: vec![],
+            rag_phrases: vec![],
             requires_capability: None,
         },
     ]
@@ -260,7 +278,9 @@ fn compose_inst_exclude_drops_web_search() {
         topics: vec![],
         inst: "no web".into(),
         phrases: vec!["offline only".into()],
-        triggers: vec!["tool_exclude:web.search".into()],
+        triggers: vec![],
+        include_tools: vec![],
+        exclude_tools: vec!["web.search".into()],
         priority: 50,
     };
     let out = compose_default(&[inst], "offline only please", pa_catalog(), &[]);
@@ -385,6 +405,7 @@ fn compose_ask_mode_keeps_readonly_consumption_today() {
         always: vec!["general".into()],
         readonly: true,
         requires_kinds: vec![],
+        rag_phrases: vec![],
         requires_capability: None,
     });
     let scopes = inst_scopes_home();
@@ -414,11 +435,13 @@ fn inst_mention_research() -> InstRow {
         topics: vec![],
         inst: "research".into(),
         phrases: vec![],
-        triggers: vec![
-            "tool_include:web.research".into(),
-            "tool_include:web.visit".into(),
-            "tool_include:web.search".into(),
+        triggers: vec![],
+        include_tools: vec![
+            "web.research".into(),
+            "web.visit".into(),
+            "web.search".into(),
         ],
+        exclude_tools: vec![],
         priority: 125,
     }
 }
@@ -453,7 +476,9 @@ fn inst_referral_put() -> InstRow {
         topics: vec![],
         inst: "[REFERRAL] create code".into(),
         phrases: vec!["buat referral code".into(), "referral code untuk".into()],
-        triggers: vec!["tool_include:referral.code.put".into()],
+        triggers: vec![],
+        include_tools: vec!["referral.code.put".into()],
+        exclude_tools: vec![],
         priority: 130,
     }
 }
@@ -467,7 +492,9 @@ fn inst_referral_list() -> InstRow {
         topics: vec![],
         inst: "[REFERRAL] list codes".into(),
         phrases: vec!["daftar referral code".into(), "list referral codes".into()],
-        triggers: vec!["tool_include:referral.code.list".into()],
+        triggers: vec![],
+        include_tools: vec!["referral.code.list".into()],
+        exclude_tools: vec![],
         priority: 125,
     }
 }
@@ -547,6 +574,7 @@ fn site_catalog() -> Vec<ToolDef> {
             always: vec![],
             readonly: false,
             requires_kinds: vec!["site".into()],
+            rag_phrases: vec![],
             requires_capability: None,
         },
         ToolDef {
@@ -558,6 +586,7 @@ fn site_catalog() -> Vec<ToolDef> {
             always: vec![],
             readonly: false,
             requires_kinds: vec![],
+            rag_phrases: vec![],
             requires_capability: None,
         },
     ]
@@ -609,6 +638,7 @@ fn tool_mention_capability_read_needs_any_site() {
         always: vec![],
         readonly: true,
         requires_kinds: vec!["site".into()],
+        rag_phrases: vec![],
         requires_capability: Some("commerce".into()),
     };
     let caps = SiteCapabilityView::from_map(HashMap::from([
@@ -645,6 +675,7 @@ fn tool_mention_capability_write_needs_default_site() {
         always: vec![],
         readonly: false,
         requires_kinds: vec!["site".into()],
+        rag_phrases: vec![],
         requires_capability: Some("commerce".into()),
     };
     let caps = SiteCapabilityView::from_map(HashMap::from([(111, json!({ "commerce": true }))]));
@@ -677,7 +708,9 @@ fn inst_img_edit() -> InstRow {
         topics: vec![],
         inst: "edit".into(),
         phrases: vec!["remove background".into(), "edit gambar".into()],
-        triggers: vec!["tool_include:img.edit".into(), "tool_exclude:img.generate".into()],
+        triggers: vec![],
+        include_tools: vec!["img.edit".into()],
+        exclude_tools: vec!["img.generate".into()],
         priority: 145,
     }
 }
@@ -691,7 +724,9 @@ fn inst_mention_image_high() -> InstRow {
         topics: vec![],
         inst: "hd".into(),
         phrases: vec![],
-        triggers: vec!["tool_include:img.generate".into()],
+        triggers: vec![],
+        include_tools: vec!["img.generate".into()],
+        exclude_tools: vec![],
         priority: 130,
     }
 }

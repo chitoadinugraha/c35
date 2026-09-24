@@ -147,6 +147,7 @@ pub async fn billing_plan_subscribe(
     .flatten();
 
     if let Some(pid) = profile_id {
+        let plan_expires = crate::billing_freemium::plan_expires_from_period(billing_period);
         sqlx::query(
             r#"
             UPDATE ai.billing_profile
@@ -156,6 +157,7 @@ pub async fn billing_plan_subscribe(
                 frontier_pool_limit_idr = $4,
                 frontier_pool_used_idr = 0,
                 pool_period_start = NOW(),
+                plan_expires_ts = $6,
                 default_wallet_currency = $5,
                 updated_ts = NOW()
             WHERE id = $1
@@ -166,19 +168,21 @@ pub async fn billing_plan_subscribe(
         .bind(alien_pool_idr)
         .bind(frontier_pool_idr)
         .bind(&billing_currency)
+        .bind(plan_expires)
         .execute(&mut *tx)
         .await
         .map_err(|e| e.to_string())?;
     } else {
         let pid = c35_store::snowflake_id();
+        let plan_expires = crate::billing_freemium::plan_expires_from_period(billing_period);
         sqlx::query(
             r#"
             INSERT INTO ai.billing_profile (
                 id, owner_iid, plan_tier, default_wallet_currency,
                 alien_pool_limit_idr, alien_pool_used_idr,
                 frontier_pool_limit_idr, frontier_pool_used_idr,
-                pool_period_start
-            ) VALUES ($1, $2, $3, $4, $5, 0, $6, 0, NOW())
+                pool_period_start, plan_expires_ts
+            ) VALUES ($1, $2, $3, $4, $5, 0, $6, 0, NOW(), $7)
             "#,
         )
         .bind(pid)
@@ -187,12 +191,15 @@ pub async fn billing_plan_subscribe(
         .bind(&billing_currency)
         .bind(alien_pool_idr)
         .bind(frontier_pool_idr)
+        .bind(plan_expires)
         .execute(&mut *tx)
         .await
         .map_err(|e| e.to_string())?;
     }
 
     tx.commit().await.map_err(|e| e.to_string())?;
+
+    crate::billing_push::billing_notify_owner(pool, None, owner_iid, None).await;
 
     let purchase_id = format!("plan:{owner_iid}:{slug}");
     let commission_idr = if charge_idr {

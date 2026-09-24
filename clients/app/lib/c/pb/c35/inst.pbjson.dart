@@ -27,6 +27,8 @@ const InstDoc$json = {
     {'1': 'inst', '3': 6, '4': 1, '5': 9, '10': 'inst'},
     {'1': 'phrases', '3': 7, '4': 3, '5': 9, '10': 'phrases'},
     {'1': 'triggers', '3': 8, '4': 3, '5': 9, '10': 'triggers'},
+    {'1': 'include_tools', '3': 15, '4': 3, '5': 9, '10': 'includeTools'},
+    {'1': 'exclude_tools', '3': 16, '4': 3, '5': 9, '10': 'excludeTools'},
     {'1': 'priority', '3': 9, '4': 1, '5': 5, '10': 'priority'},
     {
       '1': 'enabled',
@@ -61,11 +63,12 @@ final $typed_data.Uint8List instDocDescriptor = $convert.base64Decode(
     'CgdJbnN0RG9jEg4KAmlkGAEgASgJUgJpZBIUCgVzY29wZRgCIAEoCVIFc2NvcGUSEgoEa2luZB'
     'gDIAEoCVIEa2luZBIZCgh0b3BpY19pZBgEIAEoCVIHdG9waWNJZBIWCgZ0b3BpY3MYBSADKAlS'
     'BnRvcGljcxISCgRpbnN0GAYgASgJUgRpbnN0EhgKB3BocmFzZXMYByADKAlSB3BocmFzZXMSGg'
-    'oIdHJpZ2dlcnMYCCADKAlSCHRyaWdnZXJzEhoKCHByaW9yaXR5GAkgASgFUghwcmlvcml0eRId'
-    'CgdlbmFibGVkGAogASgISABSB2VuYWJsZWSIAQESGQoIZGVmX2hhc2gYCyABKAlSB2RlZkhhc2'
-    'gSIgoNY3JlYXRlZF90c19tcxgMIAEoA1ILY3JlYXRlZFRzTXMSIgoNdXBkYXRlZF90c19tcxgN'
-    'IAEoA1ILdXBkYXRlZFRzTXMSJwoNZGVsZXRlZF90c19tcxgOIAEoA0gBUgtkZWxldGVkVHNNc4'
-    'gBAUIKCghfZW5hYmxlZEIQCg5fZGVsZXRlZF90c19tcw==');
+    'oIdHJpZ2dlcnMYCCADKAlSCHRyaWdnZXJzEiMKDWluY2x1ZGVfdG9vbHMYDyADKAlSDGluY2x1'
+    'ZGVUb29scxIjCg1leGNsdWRlX3Rvb2xzGBAgAygJUgxleGNsdWRlVG9vbHMSGgoIcHJpb3JpdH'
+    'kYCSABKAVSCHByaW9yaXR5Eh0KB2VuYWJsZWQYCiABKAhIAFIHZW5hYmxlZIgBARIZCghkZWZf'
+    'aGFzaBgLIAEoCVIHZGVmSGFzaBIiCg1jcmVhdGVkX3RzX21zGAwgASgDUgtjcmVhdGVkVHNNcx'
+    'IiCg11cGRhdGVkX3RzX21zGA0gASgDUgt1cGRhdGVkVHNNcxInCg1kZWxldGVkX3RzX21zGA4g'
+    'ASgDSAFSC2RlbGV0ZWRUc01ziAEBQgoKCF9lbmFibGVkQhAKDl9kZWxldGVkX3RzX21z');
 
 @$core.Deprecated('Use reqInstListDescriptor instead')
 const ReqInstList$json = {

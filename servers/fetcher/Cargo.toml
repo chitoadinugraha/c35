@@ -18,6 +18,7 @@ c35_mod_billing = { path = "../crates/mod_billing", package = "c35_mod_billing" 
 c35_mod_chat = { path = "../crates/mod_chat", package = "c35_mod_chat" }
 c35_mod_fetch = { path = "../crates/mod_fetch", package = "c35_mod_fetch" }
 c35_mod_llm = { path = "../crates/mod_llm", package = "c35_mod_llm" }
+c35_mod_platform = { path = "../crates/mod_platform", package = "c35_mod_platform" }
 c35_nats = { path = "../crates/system/nats", package = "c35_nats" }
 c35_store = { path = "../crates/store", package = "c35_store" }
 c35_trace = { path = "../crates/system/trace", package = "c35_trace" }

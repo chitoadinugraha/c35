@@ -1,0 +1,39 @@
+{
+  "items": [
+    {
+      "service": "Compute",
+      "skuName": "VM.Standard.E4.Flex",
+      "computedAmount": 42.5,
+      "currency": "USD",
+      "timeUsageStarted": "2026-09-01T00:00:00.000Z"
+    },
+    {
+      "service": "Block Storage",
+      "skuName": "Block Volume Storage",
+      "computedAmount": 12.0,
+      "currency": "USD",
+      "timeUsageStarted": "2026-09-01T00:00:00.000Z"
+    },
+    {
+      "service": "Virtual Cloud Network",
+      "skuName": "Outbound Data Transfer",
+      "computedAmount": 3.25,
+      "currency": "USD",
+      "timeUsageStarted": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "service": "Logging Analytics",
+      "skuName": "Log Storage",
+      "computedAmount": 0.75,
+      "currency": "USD",
+      "timeUsageStarted": "2026-09-02T00:00:00.000Z"
+    },
+    {
+      "service": "Compute",
+      "skuName": "VM.Standard.E4.Flex",
+      "computedAmount": 0.0,
+      "currency": "USD",
+      "timeUsageStarted": "2026-09-03T00:00:00.000Z"
+    }
+  ]
+}

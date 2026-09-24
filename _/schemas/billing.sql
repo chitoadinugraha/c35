@@ -281,6 +281,7 @@ CREATE TABLE IF NOT EXISTS ai.billing_usage_dedupe (
     currency                VARCHAR(3) NOT NULL DEFAULT '',
     amount_native           NUMERIC(20, 4) NOT NULL DEFAULT 0,
     deducted_native         NUMERIC(20, 4) NOT NULL DEFAULT 0,
+    cost_wholesale_usd      NUMERIC(12, 6) NOT NULL DEFAULT 0,
 
     created_ts              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
@@ -290,6 +291,7 @@ CREATE TABLE IF NOT EXISTS ai.billing_usage_dedupe (
 ALTER TABLE ai.billing_usage_dedupe ADD COLUMN IF NOT EXISTS currency VARCHAR(3) NOT NULL DEFAULT '';
 ALTER TABLE ai.billing_usage_dedupe ADD COLUMN IF NOT EXISTS amount_native NUMERIC(20, 4) NOT NULL DEFAULT 0;
 ALTER TABLE ai.billing_usage_dedupe ADD COLUMN IF NOT EXISTS deducted_native NUMERIC(20, 4) NOT NULL DEFAULT 0;
+ALTER TABLE ai.billing_usage_dedupe ADD COLUMN IF NOT EXISTS cost_wholesale_usd NUMERIC(12, 6) NOT NULL DEFAULT 0;
 
 CREATE INDEX IF NOT EXISTS idx_billing_usage_dedupe_account
     ON ai.billing_usage_dedupe (billing_account_id, created_ts DESC);
@@ -579,6 +581,10 @@ ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS frontier_pool_used_idr N
 ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS pool_period_start TIMESTAMPTZ;
 ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS trial_expires_ts TIMESTAMPTZ;
 ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS active_promotion_id BIGINT;
+ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS freemium_day DATE;
+ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS plan_expires_ts TIMESTAMPTZ;
+ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS freemium_msgs_used INT NOT NULL DEFAULT 0;
+ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS freemium_tokens_used INT NOT NULL DEFAULT 0;
 
 -- ------------------------------------------------------------------------------
 -- v2: Wallet (native balance per owner_iid + currency)
@@ -829,7 +835,7 @@ INSERT INTO ai.billing_promotion (
 )
 SELECT
     900000000000000001,
-    'signup_trial',
+    'SIGNUPTRIAL',
     'signup_trial',
     'multi',
     'Signup Trial',

@@ -305,7 +305,7 @@ INSERT INTO ai.billing_promotion (
 )
 SELECT
     900000000000000001,
-    'signup_trial',
+    'SIGNUPTRIAL',
     'signup_trial',
     'multi',
     'Signup Trial',

@@ -26,8 +26,24 @@ class PromptRunStore extends ChangeNotifier {
   static final PromptRunStore instance = PromptRunStore._();
 
   final _runs = <String, PromptRunPush>{};
+  final _liveThoughts = <String, StringBuffer>{};
+  final _liveTexts = <String, StringBuffer>{};
 
   PromptRunPush? get(String reqId) => _runs[reqId.trim()];
+
+  String liveThought(String reqId) => _liveThoughts[reqId.trim()]?.toString() ?? '';
+  String liveText(String reqId) => _liveTexts[reqId.trim()]?.toString() ?? '';
+
+  void appendDelta(String reqId, String text, bool thought) {
+    final id = reqId.trim();
+    if (id.isEmpty || text.isEmpty) return;
+    if (thought) {
+      _liveThoughts.putIfAbsent(id, () => StringBuffer()).write(text);
+    } else {
+      _liveTexts.putIfAbsent(id, () => StringBuffer()).write(text);
+    }
+    notifyListeners();
+  }
 
   List<PromptRunPush> childrenFor(String parentReqId) {
     final parent = parentReqId.trim();
@@ -50,8 +66,10 @@ class PromptRunStore extends ChangeNotifier {
   }
 
   void clear() {
-    if (_runs.isEmpty) return;
+    if (_runs.isEmpty && _liveThoughts.isEmpty && _liveTexts.isEmpty) return;
     _runs.clear();
+    _liveThoughts.clear();
+    _liveTexts.clear();
     notifyListeners();
   }
 }

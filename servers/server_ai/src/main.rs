@@ -59,6 +59,11 @@ async fn main() -> anyhow::Result<()> {
     c35_mod_llm::llm_catalog_spawn(pool.clone());
     c35_mod_llm::runtime_config_watch(pool.clone());
     c35_mod_chat::inst_cache_init(&pool).await;
+    c35_mod_llm::embed_cache_evict_spawn(pool.clone());
+    let embed_http = c35_mod_chat::tools::http_client(std::time::Duration::from_secs(60));
+    if let Err(e) = c35_mod_chat::tool_index_init(&pool, &embed_http).await {
+        tracing::warn!("tool_index init failed (lexical fallback): {e}");
+    }
     let pool_cfg = c35_store::PoolConfig::from_env();
     c35_store::pool_monitor_spawn(pool.clone(), pool_cfg.clone());
     c35_mod_chat::prompt_run_pool_diag_spawn(pool.clone(), pool_cfg.max_connections);
