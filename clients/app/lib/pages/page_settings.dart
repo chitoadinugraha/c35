@@ -30,6 +30,7 @@ import 'package:alienai_c35/c/auth/auth_service.dart';
 import 'package:alienai_c35/widgets/ai/ui_bot_memories_sheet.dart';
 import 'package:alienai_c35/widgets/skill/ui_skill_master_detail.dart';
 import 'package:alienai_c35/widgets/io/in_alien_id_signup.dart';
+import 'package:alienai_c35/widgets/io/in_referral_code.dart';
 import 'package:alienai_c35/widgets/settings/ui_account_live_conns.dart';
 import 'package:alienai_c35/widgets/settings/ui_settings_password.dart';
 import 'package:alienai_c35/widgets/settings/ui_settings_pin.dart';
@@ -207,6 +208,12 @@ class _PageSettingsState extends State<PageSettings> {
     });
   }
 
+  Future<void> _editReferralCode() async {
+    if (Session.instance.hasReferrer) return;
+    final ok = await showDialog<bool>(context: context, builder: (ctx) => _ReferralCodeDialog(auth: _auth));
+    if (ok == true && mounted) setState(() {});
+  }
+
   Future<void> _languagePick() async {
     final picked = await askAppLocale(context: context, value: context.locale);
     if (picked == null || !mounted) return;
@@ -308,6 +315,17 @@ class _PageSettingsState extends State<PageSettings> {
                                       ),
                                     ),
                                   ),
+                                  if (!Session.instance.hasReferrer) ...[
+                                    const SizedBox(height: 4),
+                                    _ProfileTapRow(
+                                      label: 'Referral Code',
+                                      onTap: _busy ? null : _editReferralCode,
+                                      child: const Text(
+                                        'Not set (Tap to enter referral code)',
+                                        style: TextStyle(color: Color(0xFF34D399), fontSize: 13, fontWeight: FontWeight.w500),
+                                      ),
+                                    ),
+                                  ],
                                   const SizedBox(height: 10),
                                   UiAccountRoleBadges(action: _badgeAction, size: UiAccountRoleBadgeSize.page),
                                 ]),
@@ -557,6 +575,89 @@ class _AlienIdDialog extends StatefulWidget {
   final String initial;
   @override
   State<_AlienIdDialog> createState() => _AlienIdDialogState();
+}
+
+class _ReferralCodeDialog extends StatefulWidget {
+  const _ReferralCodeDialog({required this.auth});
+  final AuthService auth;
+  @override
+  State<_ReferralCodeDialog> createState() => _ReferralCodeDialogState();
+}
+
+class _ReferralCodeDialogState extends State<_ReferralCodeDialog> {
+  var _code = '';
+  var _codeValid = false;
+  var _busy = false;
+  String? _error;
+
+  void _onReferralChanged(InReferralCodeState s) => setState(() {
+        _code = s.codeNorm;
+        _codeValid = s.codeValid;
+        _error = null;
+      });
+
+  Future<void> _claim() async {
+    if (!_codeValid || _code.isEmpty || _busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final res = await widget.auth.claimReferral(_code);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Claimed Rp ${(res['bonus_idr'] ?? 10000).toInt()} bonus from ${res['issuer_name'] ?? 'Referrer'}!'),
+          backgroundColor: const Color(0xFF10B981),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = uiAuthError(e);
+          _busy = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        backgroundColor: const Color(0xFF18181B),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFF27272A))),
+        title: const Text('Set Referral Code', style: TextStyle(color: Color(0xFFF4F4F5), fontSize: 16, fontWeight: FontWeight.bold)),
+        content: SizedBox(
+          width: 360,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Get Rp 10.000 when you link a valid referral code.',
+                style: TextStyle(color: Color(0xFFA1A1AA), fontSize: 13, height: 1.4),
+              ),
+              const SizedBox(height: 16),
+              InReferralCode(labelText: 'Referral Code', autofocus: true, onChanged: _onReferralChanged),
+              if (_error != null) ...[
+                const SizedBox(height: 10),
+                Text(_error!, style: const TextStyle(color: Color(0xFFF87171), fontSize: 12)),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: _busy ? null : () => Navigator.pop(context), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: (_codeValid && !_busy) ? _claim : null,
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFF34D399), foregroundColor: Colors.black),
+            child: _busy
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                : const Text('Claim Rp 10.000'),
+          ),
+        ],
+      );
 }
 
 class _AlienIdDialogState extends State<_AlienIdDialog> {

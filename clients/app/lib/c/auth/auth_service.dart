@@ -52,6 +52,13 @@ List<String> authGlobalRolesFrom(Map<String, dynamic> data) {
   return const [];
 }
 
+(int referredByIid, bool referralDismissed) authReferralStateFrom(Map<String, dynamic> data) {
+  final id = data['identity'] is Map<String, dynamic> ? data['identity'] as Map<String, dynamic> : const <String, dynamic>{};
+  final refBy = int.tryParse('${id['referred_by_iid'] ?? data['referred_by_iid'] ?? ''}') ?? 0;
+  final dismissed = id['referral_prompt_dismissed'] == true || data['referral_prompt_dismissed'] == true;
+  return (refBy, dismissed);
+}
+
 class AuthService extends ChangeNotifier {
   LoginResult? _login;
   AuthSignInBusy _busy = AuthSignInBusy.none;
@@ -256,6 +263,7 @@ class AuthService extends ChangeNotifier {
       final uid = int.tryParse('${body['uid']}');
       final token = '${body['token'] ?? body['session_id'] ?? ''}'.trim();
       if (uid == null || uid <= 0 || token.isEmpty) return ('Google sign-in failed', null);
+      final (refBy, dismissed) = authReferralStateFrom(body);
       final stored = await _store(
         LoginResult(
           uid: uid,
@@ -266,6 +274,8 @@ class AuthService extends ChangeNotifier {
           pic: authPicFrom(body),
         ),
         globalRoles: authGlobalRolesFrom(body),
+        referredByIid: refBy,
+        referralDismissed: dismissed,
       );
       await validateSessionForServer();
       return (null, _login ?? stored);
@@ -282,7 +292,8 @@ class AuthService extends ChangeNotifier {
     final idData = data['identity'] as Map<String, dynamic>? ?? {};
     final uid = (idData['id'] as num?)?.toInt() ?? (data['uid'] as num?)?.toInt() ?? 0;
     if (token.isEmpty || uid == 0) throw ApiException('Sign-in failed.');
-    return _store(
+    final (refBy, dismissed) = authReferralStateFrom(data);
+    final stored = await _store(
       LoginResult(
         uid: uid,
         token: token,
@@ -292,10 +303,19 @@ class AuthService extends ChangeNotifier {
         pic: authPicFrom(data),
       ),
       globalRoles: authGlobalRolesFrom(data),
+      referredByIid: refBy,
+      referralDismissed: dismissed,
     );
+    await validateSessionForServer();
+    return _login ?? stored;
   }
 
-  Future<LoginResult> _store(LoginResult result, {List<String> globalRoles = const []}) async {
+  Future<LoginResult> _store(
+    LoginResult result, {
+    List<String> globalRoles = const [],
+    int referredByIid = 0,
+    bool referralDismissed = false,
+  }) async {
     await Session.instance.put(
       uid: result.uid,
       name: result.name,
@@ -304,6 +324,8 @@ class AuthService extends ChangeNotifier {
       email: result.email,
       token: result.token,
       globalRoles: globalRoles,
+      referredByIid: referredByIid,
+      referralDismissed: referralDismissed,
     );
     _login = LoginResult(uid: result.uid, token: result.token, name: result.name, email: result.email, handle: result.handle, pic: result.pic);
     notifyListeners();
