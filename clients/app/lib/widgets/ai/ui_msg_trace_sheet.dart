@@ -4,22 +4,24 @@ import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/trace/trace_view.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/ui/ui_format.dart';
+import 'package:alienai_c35/widgets/ai/ui_msg_id.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:flutter/material.dart';
 
-Future<void> showMsgTraceSheet(BuildContext context, {required String reqId, required ChatConn conn}) => showModalBottomSheet<void>(
+Future<void> showMsgTraceSheet(BuildContext context, {required String reqId, required ChatConn conn, int msgId = 0}) => showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: const Color(0xFF18181B),
       barrierColor: const Color(0xE6000000),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (ctx) => _MsgTraceSheet(reqId: reqId, conn: conn),
+      builder: (ctx) => _MsgTraceSheet(reqId: reqId, conn: conn, msgId: msgId),
     );
 
 class _MsgTraceSheet extends StatefulWidget {
-  const _MsgTraceSheet({required this.reqId, required this.conn});
+  const _MsgTraceSheet({required this.reqId, required this.conn, this.msgId = 0});
   final String reqId;
   final ChatConn conn;
+  final int msgId;
 
   @override
   State<_MsgTraceSheet> createState() => _MsgTraceSheetState();
@@ -110,6 +112,11 @@ class _MsgTraceSheetState extends State<_MsgTraceSheet> {
                 ],
               ),
             ),
+            if (widget.msgId > 0)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                child: UiMsgId(id: widget.msgId),
+              ),
             if (_view.totals.tokensIn > 0 || _view.totals.tokensOut > 0 || _view.totals.durationMs > 0)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -292,7 +299,7 @@ class _ToolFilterCandidateRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = traceToolLabel(candidate.toolId);
+    final label = candidate.toolId;
     final sim = traceSimLabel(candidate.sim);
     final fed = !dropped && candidate.fed;
     final color = dropped

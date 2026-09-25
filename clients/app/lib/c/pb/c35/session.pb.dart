@@ -164,6 +164,10 @@ class ReqSessionInit extends $pb.GeneratedMessage {
     $core.bool? includeInbox,
     $core.bool? includeBilling,
     $fixnum.Int64? hintsSinceMs,
+    $core.String? locationCity,
+    $core.String? locationRegion,
+    $core.String? locationCountry,
+    $core.String? locationSource,
   }) {
     final result = ReqSessionInit._();
     if (sinceMs != null) result.sinceMs = sinceMs;
@@ -175,6 +179,10 @@ class ReqSessionInit extends $pb.GeneratedMessage {
     if (includeInbox != null) result.includeInbox = includeInbox;
     if (includeBilling != null) result.includeBilling = includeBilling;
     if (hintsSinceMs != null) result.hintsSinceMs = hintsSinceMs;
+    if (locationCity != null) result.locationCity = locationCity;
+    if (locationRegion != null) result.locationRegion = locationRegion;
+    if (locationCountry != null) result.locationCountry = locationCountry;
+    if (locationSource != null) result.locationSource = locationSource;
     return result;
   }
 
@@ -200,6 +208,10 @@ class ReqSessionInit extends $pb.GeneratedMessage {
     ..aOB(7, _omitFieldNames ? '' : 'includeInbox')
     ..aOB(8, _omitFieldNames ? '' : 'includeBilling')
     ..aInt64(9, _omitFieldNames ? '' : 'hintsSinceMs')
+    ..aOS(10, _omitFieldNames ? '' : 'locationCity')
+    ..aOS(11, _omitFieldNames ? '' : 'locationRegion')
+    ..aOS(12, _omitFieldNames ? '' : 'locationCountry')
+    ..aOS(13, _omitFieldNames ? '' : 'locationSource')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -304,6 +316,44 @@ class ReqSessionInit extends $pb.GeneratedMessage {
   $core.bool hasHintsSinceMs() => $_has(8);
   @$pb.TagNumber(9)
   void clearHintsSinceMs() => $_clearField(9);
+
+  /// Sync device prefs to identity (city-level location for local recommendations).
+  @$pb.TagNumber(10)
+  $core.String get locationCity => $_getSZ(9);
+  @$pb.TagNumber(10)
+  set locationCity($core.String value) => $_setString(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasLocationCity() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearLocationCity() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $core.String get locationRegion => $_getSZ(10);
+  @$pb.TagNumber(11)
+  set locationRegion($core.String value) => $_setString(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasLocationRegion() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearLocationRegion() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  $core.String get locationCountry => $_getSZ(11);
+  @$pb.TagNumber(12)
+  set locationCountry($core.String value) => $_setString(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasLocationCountry() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearLocationCountry() => $_clearField(12);
+
+  /// device | user — empty when client is not asserting a source
+  @$pb.TagNumber(13)
+  $core.String get locationSource => $_getSZ(12);
+  @$pb.TagNumber(13)
+  set locationSource($core.String value) => $_setString(12, value);
+  @$pb.TagNumber(13)
+  $core.bool hasLocationSource() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearLocationSource() => $_clearField(13);
 }
 
 class ResSessionInit extends $pb.GeneratedMessage {

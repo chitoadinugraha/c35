@@ -39,6 +39,7 @@ pub async fn gemini_generate(
     thinking: &str,
     model: &str,
     system: &str,
+    tool_call_mode: &str,
 ) -> Result<super::thought::ParseOut> {
     let key = gemini_api_key();
     if key.is_empty() {
@@ -53,7 +54,8 @@ pub async fn gemini_generate(
     }
     if !tools.is_null() && tools.as_array().map(|a| !a.is_empty()).unwrap_or(true) && tools != &json!([]) {
         body["tools"] = tools.clone();
-        body["toolConfig"] = json!({ "functionCallingConfig": { "mode": "AUTO" } });
+        let mode = if tool_call_mode.trim().is_empty() { "AUTO" } else { tool_call_mode.trim() };
+        body["toolConfig"] = json!({ "functionCallingConfig": { "mode": mode } });
     }
     let url = format!("https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}");
     let v: Value = gemini_http().post(&url).json(&body).send().await?.error_for_status()?.json().await?;
@@ -115,6 +117,7 @@ pub async fn gemini_generate_stream(
     thinking: &str,
     model: &str,
     system: &str,
+    tool_call_mode: &str,
     on_delta: &mut (dyn FnMut(bool, String) + Send),
     cancel: &CancellationToken,
 ) -> Result<super::thought::ParseOut> {
@@ -131,7 +134,8 @@ pub async fn gemini_generate_stream(
     }
     if !tools.is_null() && tools.as_array().map(|a| !a.is_empty()).unwrap_or(true) && tools != &json!([]) {
         body["tools"] = tools.clone();
-        body["toolConfig"] = json!({ "functionCallingConfig": { "mode": "AUTO" } });
+        let mode = if tool_call_mode.trim().is_empty() { "AUTO" } else { tool_call_mode.trim() };
+        body["toolConfig"] = json!({ "functionCallingConfig": { "mode": mode } });
     }
     let url = format!("https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse&key={key}");
     let mut stream = gemini_http().post(&url).json(&body).send().await?.error_for_status()?.bytes_stream();

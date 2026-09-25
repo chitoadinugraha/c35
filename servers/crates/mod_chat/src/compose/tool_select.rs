@@ -16,6 +16,20 @@ fn tool_def_always(t: &ToolDef, active_topic: &str) -> bool {
     t.always.iter().any(|x| x == "*" || x == active_topic)
 }
 
+/// Force web.search on general topic; pair web.visit so the model can read URLs from results.
+pub fn compose_force_general_web(eligible: &[ToolDef], active_topics: &[&str], force_include: &mut Vec<String>) {
+    if !active_topics.iter().any(|t| *t == "general") {
+        return;
+    }
+    let has = |name: &str| eligible.iter().any(|t| t.name == name);
+    if has("web.search") && !force_include.iter().any(|x| x == "web.search") {
+        force_include.push("web.search".into());
+    }
+    if force_include.iter().any(|x| x == "web.search") && has("web.visit") && !force_include.iter().any(|x| x == "web.visit") {
+        force_include.push("web.visit".into());
+    }
+}
+
 pub fn tool_turn_eligible(t: &ToolDef, active_topics: &[&str]) -> bool {
     active_topics
         .iter()

@@ -91,7 +91,8 @@ class _UiBotConversationState extends State<UiBotConversation> {
               children: [
                 UiMsgCopyPrefix(text: copyPrefix),
                 if (thoughtView.thought != null) UiMsgThought(text: thoughtView.thought!, thinking: false),
-                if (m.reqId.isNotEmpty) UiMsgTraceLoader(conn: widget.store.conn, reqId: m.reqId, part: MsgTracePart.chips),
+                if (m.reqId.isNotEmpty)
+                  UiMsgTraceLoader(conn: widget.store.conn, reqId: m.reqId, part: MsgTracePart.chips),
                 if (m.content.trim().isNotEmpty)
                   MarkdownBody(
                     data: m.content,

@@ -343,3 +343,162 @@ async fn test_db_auth_signup_signin_referral_flow() {
         .unwrap();
     assert_eq!(signin_via_handle.status(), StatusCode::OK);
 }
+
+#[tokio::test]
+async fn test_referral_code_limits_and_short_lookup() {
+    let pool = match c35_store::pool_connect().await {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("Skipping DB test, cannot connect: {e}");
+            return;
+        }
+    };
+
+    let state = AppState {
+        pool: pool.clone(),
+        nats: None,
+        jwt_secret: "test_jwt_secret_dev".into(),
+        oauth: Arc::new(OAuthStore::default()),
+        cas_secret: "test_cas_secret".into(),
+        cas_dir: std::env::temp_dir().join("c35_test_cas"),
+        public_origin: "https://api.alienai.id".into(),
+    };
+    let router = auth_router().with_state(state);
+
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+    let pkg_code = format!("PKG{ts}");
+    let lim_code = format!("LIM{ts}");
+    let short_code = format!("S{ts}");
+
+    let _ = sqlx::query(
+        r#"
+        INSERT INTO ai.referral_code (code, issued_by_iid, used_count, expires_at, meta)
+        VALUES ($1, 99000, 0, NULL, '{"type":"package","name":"pkg","price_usd":1}'::jsonb)
+        ON CONFLICT (code) DO UPDATE SET meta = EXCLUDED.meta, used_count = 0
+        "#,
+    )
+    .bind(&pkg_code)
+    .execute(&pool)
+    .await;
+
+    let _ = sqlx::query(
+        r#"
+        INSERT INTO ai.referral_code (code, issued_by_iid, used_count, expires_at, meta)
+        VALUES ($1, 99000, 0, NULL, '{"type":"referral","name":"limited","max_uses":1}'::jsonb)
+        ON CONFLICT (code) DO UPDATE SET meta = EXCLUDED.meta, used_count = 0
+        "#,
+    )
+    .bind(&lim_code)
+    .execute(&pool)
+    .await;
+
+    let _ = sqlx::query(
+        r#"
+        INSERT INTO ai.referral_code (code, issued_by_iid, used_count, expires_at, meta)
+        VALUES ($1, 99000, 0, NULL, '{"type":"referral","name":"short"}'::jsonb)
+        ON CONFLICT (code) DO UPDATE SET meta = EXCLUDED.meta, used_count = 0
+        "#,
+    )
+    .bind(&short_code)
+    .execute(&pool)
+    .await;
+
+    let lookup_short = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/v1/auth/referral/lookup?code={short_code}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(lookup_short.status(), StatusCode::OK);
+    let short_body: Value = serde_json::from_slice(&to_bytes(lookup_short.into_body(), usize::MAX).await.unwrap()).unwrap();
+    assert_eq!(short_body["valid"], true);
+    assert_eq!(short_body["issuer_name"].as_str().unwrap().is_empty(), false);
+
+    let lookup_pkg = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/v1/auth/referral/lookup?code={pkg_code}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(lookup_pkg.status(), StatusCode::OK);
+    let pkg_body: Value = serde_json::from_slice(&to_bytes(lookup_pkg.into_body(), usize::MAX).await.unwrap()).unwrap();
+    assert_eq!(pkg_body["valid"], false);
+
+    let email1 = format!("ref_lim1_{ts}@alienai.id");
+    let signup1 = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/auth/signup")
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_vec(&serde_json::json!({
+                    "name": "Ref Lim One",
+                    "email": email1,
+                    "password": "Password123!",
+                    "referral_code": lim_code
+                })).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(signup1.status(), StatusCode::OK);
+
+    let email2 = format!("ref_lim2_{ts}@alienai.id");
+    let signup2 = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/auth/signup")
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_vec(&serde_json::json!({
+                    "name": "Ref Lim Two",
+                    "email": email2,
+                    "password": "Password123!",
+                    "referral_code": lim_code
+                })).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(signup2.status(), StatusCode::BAD_REQUEST);
+
+    let email_pkg = format!("ref_pkg_{ts}@alienai.id");
+    let signup_pkg = router
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/v1/auth/signup")
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_vec(&serde_json::json!({
+                    "name": "Ref Pkg",
+                    "email": email_pkg,
+                    "password": "Password123!",
+                    "referral_code": pkg_code
+                })).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(signup_pkg.status(), StatusCode::BAD_REQUEST);
+
+    let _ = sqlx::query("DELETE FROM ai.referral_code WHERE code = ANY($1)")
+        .bind(vec![pkg_code, lim_code, short_code])
+        .execute(&pool)
+        .await;
+}

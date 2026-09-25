@@ -29,6 +29,10 @@ class IdentityProfile extends $pb.GeneratedMessage {
     $core.String? tz,
     $fixnum.Int64? billingIid,
     $core.bool? isRoot,
+    $core.String? locationCity,
+    $core.String? locationRegion,
+    $core.String? locationCountry,
+    $core.String? locationSource,
   }) {
     final result = IdentityProfile._();
     if (iid != null) result.iid = iid;
@@ -41,6 +45,10 @@ class IdentityProfile extends $pb.GeneratedMessage {
     if (tz != null) result.tz = tz;
     if (billingIid != null) result.billingIid = billingIid;
     if (isRoot != null) result.isRoot = isRoot;
+    if (locationCity != null) result.locationCity = locationCity;
+    if (locationRegion != null) result.locationRegion = locationRegion;
+    if (locationCountry != null) result.locationCountry = locationCountry;
+    if (locationSource != null) result.locationSource = locationSource;
     return result;
   }
 
@@ -67,6 +75,10 @@ class IdentityProfile extends $pb.GeneratedMessage {
     ..aOS(8, _omitFieldNames ? '' : 'tz')
     ..aInt64(9, _omitFieldNames ? '' : 'billingIid')
     ..aOB(10, _omitFieldNames ? '' : 'isRoot')
+    ..aOS(11, _omitFieldNames ? '' : 'locationCity')
+    ..aOS(12, _omitFieldNames ? '' : 'locationRegion')
+    ..aOS(13, _omitFieldNames ? '' : 'locationCountry')
+    ..aOS(14, _omitFieldNames ? '' : 'locationSource')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -180,6 +192,44 @@ class IdentityProfile extends $pb.GeneratedMessage {
   $core.bool hasIsRoot() => $_has(9);
   @$pb.TagNumber(10)
   void clearIsRoot() => $_clearField(10);
+
+  /// Approximate user location for local recommendations (city-level).
+  @$pb.TagNumber(11)
+  $core.String get locationCity => $_getSZ(10);
+  @$pb.TagNumber(11)
+  set locationCity($core.String value) => $_setString(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasLocationCity() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearLocationCity() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  $core.String get locationRegion => $_getSZ(11);
+  @$pb.TagNumber(12)
+  set locationRegion($core.String value) => $_setString(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasLocationRegion() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearLocationRegion() => $_clearField(12);
+
+  @$pb.TagNumber(13)
+  $core.String get locationCountry => $_getSZ(12);
+  @$pb.TagNumber(13)
+  set locationCountry($core.String value) => $_setString(12, value);
+  @$pb.TagNumber(13)
+  $core.bool hasLocationCountry() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearLocationCountry() => $_clearField(13);
+
+  /// device | ip | user — read-only from identity.meta.location.source
+  @$pb.TagNumber(14)
+  $core.String get locationSource => $_getSZ(13);
+  @$pb.TagNumber(14)
+  set locationSource($core.String value) => $_setString(13, value);
+  @$pb.TagNumber(14)
+  $core.bool hasLocationSource() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearLocationSource() => $_clearField(14);
 }
 
 class NavCounts extends $pb.GeneratedMessage {

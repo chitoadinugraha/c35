@@ -83,6 +83,7 @@ class ChatConn {
   var _manualDisconnect = false;
   var _retryCount = 0;
   var _locale = 'en';
+  var _tz = '';
   final status = ValueNotifier<ChatConnStatus>(ChatConnStatus.disconnected);
   final _reconnectedCtrl = StreamController<void>.broadcast();
   final _promptPending = <String, StreamController<PromptStreamEvent>>{};
@@ -113,7 +114,7 @@ class ChatConn {
 
   bool get connected => _ch != null;
 
-  String _wsUrl({String locale = 'en'}) {
+  String _wsUrl({String locale = 'en', String tz = ''}) {
     final base = C35Config.authApiBase.replaceAll(RegExp(r'/+$'), '');
     final u = Uri.parse(base);
     final scheme = u.scheme == 'https' ? 'wss' : 'ws';
@@ -126,20 +127,21 @@ class ChatConn {
       queryParameters: {
         'jwt': token,
         if (locale.isNotEmpty) 'locale': locale,
+        if (tz.isNotEmpty) 'tz': tz,
       },
     ).toString();
   }
 
-  Future<void> connect({String locale = 'en'}) async {
+  Future<void> connect({String locale = 'en', String tz = ''}) async {
     _manualDisconnect = false;
     _locale = locale;
+    _tz = tz;
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
     _retryCount = 0;
     status.value = ChatConnStatus.connecting;
     await _tearDownSocket(failPending: true);
-    _attachSocket(locale: locale);
-    status.value = ChatConnStatus.connected;
+    _attachSocket(locale: locale, tz: tz);
   }
 
   Future<void> disconnect() async {
@@ -170,10 +172,10 @@ class ChatConn {
     _rpcPending.clear();
   }
 
-  void _attachSocket({required String locale}) {
+  void _attachSocket({required String locale, String tz = ''}) {
     final token = Session.instance.token.trim();
     if (token.isEmpty) throw 'not signed in';
-    _ch = WebSocketChannel.connect(Uri.parse(_wsUrl(locale: locale)));
+    _ch = WebSocketChannel.connect(Uri.parse(_wsUrl(locale: locale, tz: tz)));
     _sub = _ch!.stream.listen(_onData, onError: _onWsError, onDone: _onWsDone);
   }
 
@@ -196,11 +198,9 @@ class ChatConn {
     if (_reconnectTimer != null) return;
     status.value = ChatConnStatus.reconnecting;
     _retryCount++;
-    if (_retryCount > 12) {
-      status.value = ChatConnStatus.disconnected;
-      return;
-    }
-    final delay = Duration(seconds: (1 << (_retryCount - 1).clamp(0, 4)).clamp(1, 16));
+    // Exponential backoff capped at 30 seconds to prevent socket exhaustion
+    final sec = (1 << (_retryCount - 1).clamp(0, 5)).clamp(1, 30);
+    final delay = Duration(seconds: sec);
     l('chat ws reconnect attempt $_retryCount in ${delay.inSeconds}s');
     _reconnectTimer = Timer(delay, () async {
       _reconnectTimer = null;
@@ -208,10 +208,7 @@ class ChatConn {
       try {
         status.value = ChatConnStatus.connecting;
         await _tearDownSocket(failPending: false);
-        _attachSocket(locale: _locale);
-        _retryCount = 0;
-        status.value = ChatConnStatus.connected;
-        if (!_reconnectedCtrl.isClosed) _reconnectedCtrl.add(null);
+        _attachSocket(locale: _locale, tz: _tz);
       } catch (e) {
         lError('chat ws reconnect: $e');
         _scheduleReconnectIfNeeded();
@@ -245,6 +242,14 @@ class ChatConn {
 
   void _onData(dynamic data) {
     if (data is! List<int>) return;
+    if (status.value != ChatConnStatus.connected || _retryCount > 0) {
+      final wasReconnecting = _retryCount > 0 || status.value == ChatConnStatus.reconnecting;
+      _retryCount = 0;
+      status.value = ChatConnStatus.connected;
+      if (wasReconnecting && !_reconnectedCtrl.isClosed) {
+        _reconnectedCtrl.add(null);
+      }
+    }
     final res = WsRes.fromBuffer(data);
     final reqId = res.reqId;
 
@@ -327,14 +332,22 @@ class ChatConn {
       if (!c.isCompleted) c.completeError(message);
     }
     _rpcPending.clear();
-    _ch = null;
+    _sub?.cancel();
     _sub = null;
+    try {
+      _ch?.sink.close();
+    } catch (_) {}
+    _ch = null;
   }
 
   Future<ResSessionInit> sessionInit({
     Int64 sinceMs = Int64.ZERO,
     String locale = 'en',
     String tz = '',
+    String locationCity = '',
+    String locationRegion = '',
+    String locationCountry = '',
+    String locationSource = '',
     String dv = '',
     String clientId = '',
     int platform = 0,
@@ -348,6 +361,10 @@ class ChatConn {
             sinceMs: sinceMs,
             locale: locale,
             tz: tz,
+            locationCity: locationCity,
+            locationRegion: locationRegion,
+            locationCountry: locationCountry,
+            locationSource: locationSource,
             dv: dv,
             clientId: clientId,
             platform: platform,
@@ -410,8 +427,9 @@ class ChatConn {
     if (!_traceCacheCtrl.isClosed) _traceCacheCtrl.add(reqId);
   }
 
-  Future<void> tracePrefetch(String reqId) async {
-    if (reqId.isEmpty || traceCacheGet(reqId).isNotEmpty) return;
+  Future<void> tracePrefetch(String reqId, {bool force = false}) async {
+    if (reqId.isEmpty) return;
+    if (!force && traceCacheGet(reqId).isNotEmpty) return;
     for (var i = 0; i < 3; i++) {
       try {
         final res = await logList(reqId: reqId);

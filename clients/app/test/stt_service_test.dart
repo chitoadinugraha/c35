@@ -19,6 +19,7 @@ class _FakeVoiceApi extends VoiceApi {
     required String mime,
     String? lang,
     String? reqId,
+    Duration timeout = const Duration(seconds: 10),
   }) async {
     lastReqId = reqId;
     return sttResult;
@@ -34,26 +35,11 @@ void main() {
     SttService.instance.bindVoiceApi(null);
   });
 
-  test('sttEngineRoute maps engines correctly and defaults appropriately', () {
+  test('sttEngineRoute always routes to cloud', () {
     expect(VoicePrefs.instance.sttEngine, VoicePrefs.defaultSttEngine);
-    expect(SttService.sttEngineRoute('web'), 'web');
-    expect(SttService.sttEngineRoute('local'), 'local');
+    expect(SttService.sttEngineRoute('web'), 'cloud');
+    expect(SttService.sttEngineRoute('local'), 'cloud');
     expect(SttService.sttEngineRoute('cloud'), 'cloud');
-  });
-
-  test('transcribeRouted uses web path when engine is web', () async {
-    await VoicePrefs.instance.setSttEngine('web');
-    final result = await SttService.instance.transcribeRouted(
-      bytes: Uint8List.fromList([1, 2, 3]),
-      lang: 'en-US',
-      mime: 'audio/wav',
-      webTranscribe: (_, lang, mime) async {
-        expect(lang, 'en-US');
-        expect(mime, 'audio/wav');
-        return 'web transcript';
-      },
-    );
-    expect(result, 'web transcript');
   });
 
   test('transcribeRouted uses VoiceApi when engine is cloud', () async {
@@ -98,6 +84,8 @@ void main() {
     expect(SttService.sanitizeTranscript('00:00'), '');
     expect(SttService.sanitizeTranscript('0:00'), '');
     expect(SttService.sanitizeTranscript('00:00 - 00:03'), '');
+    expect(SttService.sanitizeTranscript('[NO_SPEECH]'), '');
+    expect(SttService.sanitizeTranscript('NO_SPEECH'), '');
     expect(SttService.sanitizeTranscript('[silence]'), '');
     expect(SttService.sanitizeTranscript('(silence)'), '');
     expect(SttService.sanitizeTranscript('   '), '');
@@ -156,5 +144,26 @@ void main() {
       mime: 'audio/wav',
     );
     expect(result, isNull);
+  });
+
+  test('resampleTo16kMono downsamples 48kHz stereo to 16kHz mono', () {
+    // 48000 frames of stereo 16-bit PCM = 48000 * 2 channels * 2 bytes = 192000 bytes (1 second)
+    final pcm48kStereo = Uint8List(48000 * 4);
+    final resampled = SttService.resampleTo16kMono(pcm48kStereo, srcRate: 48000, srcChannels: 2);
+    // 16000 frames of mono 16-bit PCM = 16000 * 1 channel * 2 bytes = 32000 bytes (1 second)
+    expect(resampled.length, 16000 * 2);
+  });
+
+  test('VoicePrefs saves, loads, and clears mic device preferences', () async {
+    expect(VoicePrefs.instance.micDeviceId, '');
+    expect(VoicePrefs.instance.micDeviceLabel, '');
+
+    await VoicePrefs.instance.setMicDevice('test-id-123', 'USB Audio Device');
+    expect(VoicePrefs.instance.micDeviceId, 'test-id-123');
+    expect(VoicePrefs.instance.micDeviceLabel, 'USB Audio Device');
+
+    await VoicePrefs.instance.setMicDevice('', '');
+    expect(VoicePrefs.instance.micDeviceId, '');
+    expect(VoicePrefs.instance.micDeviceLabel, '');
   });
 }

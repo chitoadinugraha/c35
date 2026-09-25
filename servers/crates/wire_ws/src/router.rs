@@ -1,5 +1,6 @@
 use axum::{
     extract::{Query, State, WebSocketUpgrade},
+    http::HeaderMap,
     response::IntoResponse,
     routing::get,
     Router,
@@ -34,8 +35,9 @@ async fn ws_handler(
     ws: WebSocketUpgrade,
     State(state): State<AppState>,
     Query(q): Query<WsQuery>,
+    headers: HeaderMap,
 ) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| session::handle(socket, state, q))
+    ws.on_upgrade(move |socket| session::handle(socket, state, q, headers))
 }
 
 async fn agent_ws_handler(

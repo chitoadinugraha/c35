@@ -9,7 +9,7 @@ use sqlx::types::Json;
 use sqlx::PgPool;
 use tokio_util::sync::CancellationToken;
 
-use crate::compose::compose_tools_and_inst_async;
+use crate::compose::{compose_force_tool_call, compose_tools_and_inst_async};
 use crate::prompt_run::prompt_run_get;
 use crate::mention_registry::{
     mention_active_topics, mention_prompt_block, mention_ref_parse, mention_resolve_all, MentionRef,
@@ -29,8 +29,11 @@ use crate::context_compact::prepare_prompt_history;
 use crate::memory::{memory_prompt_merge, memory_retrieve};
 use crate::memory_extract::memory_extract_turn_gate;
 use crate::prompt::thought::thinking_level;
-use crate::prompt::time::{time_prompt_block, time_prompt_prepend, time_timezone_resolve, user_asks_time};
-use crate::prompt::tool_loop::prompt_cluster_turn;
+use crate::prompt::time::{
+    location_prompt_block, prompt_context_prepend, time_prompt_block, time_timezone_resolve, user_asks_time,
+};
+use crate::prompt::user_context::user_prompt_context_get;
+use crate::prompt::tool_loop::{prompt_cluster_turn, user_wants_search};
 use crate::prompt::ChatReq;
 use crate::tools::{cluster_tools, http_client, TurnCtx};
 use crate::turn_tracer::TurnTracer;
@@ -316,9 +319,16 @@ where
     .await;
     let site_iid = mention_ctx.default_site_iid;
     let topic_block = topic_inst_block(pool, &topic_id).await;
-    let tz = time_timezone_resolve(locale, &req.text);
-    let time_block = time_prompt_block(tz);
-    let mut system = time_prompt_prepend(&time_block, "");
+    let user_ctx = user_prompt_context_get(pool, owner_iid).await;
+    let locale_eff = if locale.trim().is_empty() { user_ctx.locale.as_str() } else { locale };
+    let tz = time_timezone_resolve(&user_ctx.tz, locale_eff, &req.text);
+    let time_block = time_prompt_block(&tz);
+    let location_block = location_prompt_block(
+        &user_ctx.location_city,
+        &user_ctx.location_region,
+        &user_ctx.location_country,
+    );
+    let mut system = prompt_context_prepend(&time_block, &location_block, "");
     if !topic_block.is_empty() {
         system = format!("{system}\n\n{topic_block}");
     }
@@ -350,7 +360,7 @@ where
     tracer.trace_prepare(&composed.trace, &req.text, prepare_ms, context_tokens_est).await;
     tracer.trace_memory(&memory.trace).await;
 
-    let tools = if user_asks_time(&req.text) && mention_ids.is_empty() {
+    let tools = if user_asks_time(&req.text) && mention_ids.is_empty() && !user_wants_search(&req.text) {
         vec![]
     } else {
         composed.tools
@@ -358,6 +368,10 @@ where
             .filter(|t| !freemium || c35_mod_billing::freemium_tool_allowed(&t.name))
             .collect()
     };
+    let force_tool_call = compose_force_tool_call(&composed.matched_ids, &tools);
+    if force_tool_call {
+        system = format!("{system}{}", crate::prompt::web_grounding::WEB_GROUNDED_REPLY_RULE);
+    }
     let chat_req = ChatReq {
         model: model.clone(),
         system,
@@ -365,6 +379,7 @@ where
         thinking: thinking_level(&req.thinking),
         tools,
         history,
+        force_tool_call,
     };
     let attachments_json = req.attachments_json.as_str();
     let mut turn_ctx = TurnCtx {
@@ -377,6 +392,9 @@ where
         mention_ids: &inst_mention_ids,
         user_text: &req.text,
         locale,
+        location_city: &user_ctx.location_city,
+        location_region: &user_ctx.location_region,
+        location_country: &user_ctx.location_country,
         attachments_json,
         req_id,
         run_kind,

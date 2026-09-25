@@ -1,4 +1,5 @@
-use c35_mod_chat::compose::{compose_tools_and_inst, tool_mention_eligible};
+use c35_mod_chat::compose::{
+    compose_force_tool_call,compose_tools_and_inst, tool_mention_eligible};
 use c35_mod_chat::inst_macro::{inst_scopes_channel, inst_scopes_home, InstRow, SCOPE_GLOBAL};
 use c35_mod_chat::tool_rag::{tool_trim_ranked, ToolCandidate, DEFAULT_TOOL_SIM_GAP, DEFAULT_TOOL_SIM_THRESHOLD, DEFAULT_TOOL_TOP_K};
 use c35_mod_chat::{MentionContext, MentionRow, SiteCapabilityView, SiteContext};
@@ -259,6 +260,55 @@ fn compose_search_query_includes_web_search() {
     assert!(out.tools.iter().any(|t| t.name == "web.search"));
 }
 
+fn inst_web_search_cinema() -> InstRow {
+    InstRow {
+        id: "inst.web_search".into(),
+        scope: "global".into(),
+        kind: "task".into(),
+        topic_id: "".into(),
+        topics: vec![],
+        inst: "Ground factual answers by calling the web.search tool.".into(),
+        phrases: vec![
+            "film".into(),
+            "bioskop".into(),
+            "tayang".into(),
+            "jadwal".into(),
+            "sekarang".into(),
+            "cari".into(),
+        ],
+        triggers: vec!["tool_include:web.search".into()],
+        include_tools: vec![],
+        exclude_tools: vec![],
+        priority: 100,
+    }
+}
+
+#[test]
+fn compose_general_cinema_includes_web_search_and_visit() {
+    let out = compose_with_mention(
+        &[inst_core_assistant()],
+        "film bioskop di malang sekarang apa yang tayang",
+        cluster_tools(),
+        &[],
+        &MentionContext::empty(),
+    );
+    assert!(out.tools.iter().any(|t| t.name == "web.search"));
+    assert!(out.tools.iter().any(|t| t.name == "web.visit"));
+}
+
+#[test]
+fn compose_cinema_query_inst_still_includes_web_search() {
+    let out = compose_with_mention(
+        &[inst_core_assistant(), inst_web_search_cinema()],
+        "film bioskop di malang sekarang apa yang tayang",
+        cluster_tools(),
+        &[],
+        &MentionContext::empty(),
+    );
+    assert!(out.matched_ids.contains(&"inst.web_search".into()));
+    assert!(out.tools.iter().any(|t| t.name == "web.search"));
+}
+
 #[test]
 fn compose_small_catalog_skips_rag() {
     let small = pa_catalog().into_iter().take(2).collect::<Vec<_>>();
@@ -336,7 +386,7 @@ fn compose_force_plus_lexical_within_top_k() {
 fn compose_always_inst_applies_on_empty_text() {
     let out = compose_default(&[inst_core_assistant()], "hello", pa_catalog(), &[]);
     assert!(out.matched_ids.contains(&"inst.core.assistant".into()));
-    assert!(out.inst_block.contains("[INST:inst.core.assistant]"));
+    assert!(out.inst_block.contains("### inst.core.assistant"));
 }
 
 #[test]
@@ -776,4 +826,12 @@ fn tool_trim_ranked_drops_low_sim_gap() {
     let trimmed = tool_trim_ranked(&ranked, &[], DEFAULT_TOOL_SIM_THRESHOLD, DEFAULT_TOOL_SIM_GAP);
     assert_eq!(trimmed.len(), 1);
     assert_eq!(trimmed[0].tool_id, "consumption.add");
+}
+
+#[test]
+fn compose_force_tool_call_when_web_search_inst_and_tool() {
+    let tools = vec![ToolDef::new("web.search".into(), "Search".into(), json!({}))];
+    assert!(compose_force_tool_call(&["inst.web_search".into()], &tools));
+    assert!(!compose_force_tool_call(&["inst.core.assistant".into()], &tools));
+    assert!(!compose_force_tool_call(&["inst.web_search".into()], &[]));
 }

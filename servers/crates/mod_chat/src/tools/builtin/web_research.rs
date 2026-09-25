@@ -11,8 +11,9 @@ pub async fn web_research_exec(
     query: &str,
     search_limit: u32,
     visit_top: u32,
+    geo: Option<&web::SearchGeoContext>,
 ) -> anyhow::Result<Value> {
-    let search_res = web::web_search_exec(client, query, search_limit).await?;
+    let search_res = web::web_search_exec(client, query, search_limit, geo).await?;
     let results = search_res
         .get("results")
         .and_then(|r| r.as_array())
@@ -83,6 +84,13 @@ tool! {
         if query.is_empty() {
             bail!("Search query cannot be empty");
         }
-        web_research_exec(&ctx.http_client, &query, search_limit, visit_top).await
+        let geo = web::SearchGeoContext::from_tool_ctx(
+            &ctx.location_city,
+            &ctx.location_region,
+            &ctx.location_country,
+            &ctx.locale,
+        );
+        let geo_ref = if geo.is_empty() { None } else { Some(&geo) };
+        web_research_exec(&ctx.http_client, &query, search_limit, visit_top, geo_ref).await
     }
 }

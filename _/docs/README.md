@@ -38,6 +38,7 @@ When code and docs disagree, fix the code to match these docs (or explicitly rev
 | [tx.md](tx.md) | POS / transactions (`site.tx_*`, id.alienai model) |
 | [channels.md](channels.md) | Messaging channels (Telegram, WhatsApp Cloud, WhatsApp Device) |
 | [voice.md](voice.md) | STT/TTS engines (web / local / cloud), billing, cs_bots parity |
+| [location.md](location.md) | Device / manual / IP city context, consent, SearXNG locale |
 
 Schemas live in [`../schemas/`](../schemas/).
 

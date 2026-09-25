@@ -77,7 +77,7 @@ pub fn inst_tool_directives(rows: &[InstRow]) -> (Vec<String>, Vec<String>) {
 pub fn inst_matched_prompt(matched: &[InstRow]) -> String {
     matched
         .iter()
-        .map(|r| format!("[INST:{}]\n{}", r.id, r.inst.trim()))
+        .map(|r| format!("### {}\n{}", r.id, r.inst.trim()))
         .collect::<Vec<_>>()
         .join("\n\n")
 }

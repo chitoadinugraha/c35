@@ -4,9 +4,33 @@ use c35_ctx::Ctx;
 use c35_proto::{ReqSessionInit, ResSessionInit, ResSync};
 use c35_wire::WireResult;
 
-use crate::{identity_nav_counts::identity_nav_counts, identity_profile_get::identity_profile_get};
+use crate::{
+    identity_geo::{identity_geo_ip_apply, GeoHint},
+    identity_nav_counts::identity_nav_counts,
+    identity_prefs_sync::identity_prefs_sync,
+    identity_profile_get::identity_profile_get,
+};
 
-pub async fn session_init(ctx: &Ctx, req: ReqSessionInit) -> WireResult<ResSessionInit> {
+pub async fn session_init(ctx: &Ctx, req: ReqSessionInit, geo: Option<&GeoHint>) -> WireResult<ResSessionInit> {
+    let client_set_location = !req.location_city.trim().is_empty()
+        || !req.location_region.trim().is_empty()
+        || !req.location_country.trim().is_empty();
+    let _ = identity_prefs_sync(
+        &ctx.pool,
+        ctx.caller_iid,
+        &req.locale,
+        &req.tz,
+        &req.location_city,
+        &req.location_region,
+        &req.location_country,
+        &req.location_source,
+    )
+    .await;
+    if !client_set_location {
+        if let Some(g) = geo {
+            let _ = identity_geo_ip_apply(&ctx.pool, ctx.caller_iid, g).await;
+        }
+    }
     let profile = identity_profile_get(ctx).await?;
     let billing = c35_mod_billing::billing_account_get(ctx, profile.billing_iid).await?;
     let nav = identity_nav_counts(ctx).await?;

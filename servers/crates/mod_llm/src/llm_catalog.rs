@@ -25,6 +25,7 @@ fn cache() -> &'static RwLock<CatalogCache> {
 // ============================================================= API
 pub async fn llm_catalog_init(pool: &PgPool) -> Result<()> {
     llm_catalog_seed(pool).await?;
+    runtime_config_reload(pool).await;
     if sync_enabled() {
         let _ = crate::catalog_sync::llm_catalog_sync(pool).await;
     }

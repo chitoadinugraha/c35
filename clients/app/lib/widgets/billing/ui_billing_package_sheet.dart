@@ -128,6 +128,7 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
   Widget build(BuildContext context) {
     final billing = AppStore.instance.billing;
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
+    final maxHeight = MediaQuery.sizeOf(context).height * 0.9;
     final balanceLabel = billing != null
         ? billingWalletBalanceLabel(billing, _currency)
         : _summary != null
@@ -135,84 +136,93 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
             : '';
     return Padding(
       padding: EdgeInsets.fromLTRB(16, 12, 16, 16 + bottom),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: _border, borderRadius: BorderRadius.circular(99)))),
-          const SizedBox(height: 16),
-          const Text('Plans', style: TextStyle(color: _text, fontSize: 18, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 4),
-          const Text('Monthly included Alien AI + Frontier pools in IDR', style: TextStyle(color: _muted, fontSize: 12)),
-          const SizedBox(height: 12),
-          if (_loading)
-            const Padding(padding: EdgeInsets.all(24), child: UILoading())
-          else if (_error != null && _summary == null)
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(children: [
-                Text(_error!, style: const TextStyle(color: Color(0xFFF87171))),
-                const SizedBox(height: 12),
-                OutlinedButton(onPressed: _load, child: const Text('Retry')),
-              ]),
-            )
-          else ...[
-            SegmentedButton<bool>(
-              segments: const [
-                ButtonSegment(value: false, label: Text('Monthly')),
-                ButtonSegment(value: true, label: Text('Yearly')),
-              ],
-              selected: {_yearly},
-              onSelectionChanged: (s) => setState(() => _yearly = s.first),
-              style: ButtonStyle(
-                visualDensity: VisualDensity.compact,
-                foregroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? _text : _muted),
-              ),
-            ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: maxHeight),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: _border, borderRadius: BorderRadius.circular(99)))),
+            const SizedBox(height: 16),
+            const Text('Plans', style: TextStyle(color: _text, fontSize: 18, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 4),
+            const Text('Monthly included usage quotas in IDR', style: TextStyle(color: _muted, fontSize: 12)),
             const SizedBox(height: 12),
-            if (_success != null) Text(_success!, style: const TextStyle(color: Color(0xFF34D399), fontSize: 12)),
-            if (_error != null && _summary != null) Text(_error!, style: const TextStyle(color: Color(0xFFF87171), fontSize: 12)),
-            ..._plans.map((plan) => _BillingPlanCard(
-                  plan: plan,
-                  currency: _currency,
-                  yearly: _yearly,
-                  selected: plan.slug == _selectedSlug,
-                  isCurrent: plan.slug.trim().toLowerCase() == _currentTier,
-                  recommended: billingPlanIsRecommended(plan.slug),
-                  onTap: () => setState(() => _selectedSlug = plan.slug),
-                )),
-            if (balanceLabel.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  const Icon(Icons.account_balance_wallet_outlined, size: 14, color: _muted),
-                  const SizedBox(width: 6),
-                  Text('Balance $balanceLabel', style: const TextStyle(color: _muted, fontSize: 11)),
+            if (_loading)
+              const Expanded(child: Center(child: UILoading()))
+            else if (_error != null && _summary == null)
+              Expanded(
+                child: Center(
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Text(_error!, style: const TextStyle(color: Color(0xFFF87171))),
+                    const SizedBox(height: 12),
+                    OutlinedButton(onPressed: _load, child: const Text('Retry')),
+                  ]),
+                ),
+              )
+            else ...[
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(value: false, label: Text('Monthly')),
+                  ButtonSegment(value: true, label: Text('Yearly')),
                 ],
+                selected: {_yearly},
+                onSelectionChanged: (s) => setState(() => _yearly = s.first),
+                style: ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                  foregroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? _text : _muted),
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (_success != null) Text(_success!, style: const TextStyle(color: Color(0xFF34D399), fontSize: 12)),
+              if (_error != null && _summary != null) Text(_error!, style: const TextStyle(color: Color(0xFFF87171), fontSize: 12)),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.only(top: 4, bottom: 8),
+                  children: _plans
+                      .map((plan) => _BillingPlanCard(
+                            plan: plan,
+                            currency: _currency,
+                            yearly: _yearly,
+                            selected: plan.slug == _selectedSlug,
+                            isCurrent: plan.slug.trim().toLowerCase() == _currentTier,
+                            recommended: billingPlanIsRecommended(plan.slug),
+                            onTap: () => setState(() => _selectedSlug = plan.slug),
+                          ))
+                      .toList(),
+                ),
+              ),
+              if (balanceLabel.isNotEmpty) ...[
+                Row(
+                  children: [
+                    const Icon(Icons.account_balance_wallet_outlined, size: 14, color: _muted),
+                    const SizedBox(width: 6),
+                    Text('Balance $balanceLabel', style: const TextStyle(color: _muted, fontSize: 11)),
+                  ],
+                ),
+                const SizedBox(height: 8),
+              ],
+              FilledButton(
+                onPressed: _subscribing || _selectedPlan == null || _selectedIsCurrent ? null : _subscribe,
+                child: _subscribing
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                    : Text(_selectedPlan == null
+                        ? 'Choose a plan'
+                        : _selectedIsCurrent
+                            ? 'Current plan'
+                            : 'Subscribe with balance'),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  Navigator.of(context).pop();
+                  if (context.mounted) await billingPackageRedeemDialog(context, conn: widget.conn);
+                },
+                icon: const Icon(Icons.redeem_outlined),
+                label: const Text('Redeem package code'),
               ),
             ],
-            const SizedBox(height: 12),
-            FilledButton(
-              onPressed: _subscribing || _selectedPlan == null || _selectedIsCurrent ? null : _subscribe,
-              child: _subscribing
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : Text(_selectedPlan == null
-                      ? 'Choose a plan'
-                      : _selectedIsCurrent
-                          ? 'Current plan'
-                          : 'Subscribe with balance'),
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: () async {
-                Navigator.of(context).pop();
-                if (context.mounted) await billingPackageRedeemDialog(context, conn: widget.conn);
-              },
-              icon: const Icon(Icons.redeem_outlined),
-              label: const Text('Redeem package code'),
-            ),
           ],
-        ],
+        ),
       ),
     );
   }
@@ -246,13 +256,7 @@ class _BillingPlanCard extends StatelessWidget {
     final accent = billingPlanAccentColor(plan.slug);
     final price = billingPlanPriceLabel(plan, currency: currency, yearly: yearly);
     final priceSub = billingPlanPriceSubLabel(plan, currency: currency, yearly: yearly);
-    final priority = billingPlanPriorityBadge(plan);
-    final channels = billingPlanChannelsBadge(plan);
-    final badges = <String>[
-      billingPlanQuotaBadge(plan),
-      if (priority != null) priority,
-      if (channels != null) channels,
-    ];
+    final quotaLines = billingPlanQuotaLines(plan);
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
@@ -269,64 +273,75 @@ class _BillingPlanCard extends StatelessWidget {
             ),
             child: Padding(
               padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
                           children: [
-                            Row(
-                              children: [
-                                Text(plan.name, style: TextStyle(color: accent, fontWeight: FontWeight.w800, fontSize: 16)),
-                                if (recommended) ...[
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                    decoration: BoxDecoration(color: accent.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(99)),
-                                    child: Text('Popular', style: TextStyle(color: accent, fontSize: 10, fontWeight: FontWeight.w700)),
-                                  ),
-                                ],
-                                if (isCurrent) ...[
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                    decoration: BoxDecoration(color: const Color(0xFF27272A), borderRadius: BorderRadius.circular(99)),
-                                    child: const Text('Current', style: TextStyle(color: _text, fontSize: 10, fontWeight: FontWeight.w600)),
-                                  ),
-                                ],
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            Text(price, style: const TextStyle(color: _text, fontWeight: FontWeight.w700, fontSize: 15)),
-                            if (priceSub != null) Text(priceSub, style: const TextStyle(color: _muted, fontSize: 11)),
+                            Text(plan.name, style: TextStyle(color: accent, fontWeight: FontWeight.w800, fontSize: 16)),
+                            if (recommended) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(color: accent.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(99)),
+                                child: Text('Popular', style: TextStyle(color: accent, fontSize: 10, fontWeight: FontWeight.w700)),
+                              ),
+                            ],
+                            if (isCurrent) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(color: const Color(0xFF27272A), borderRadius: BorderRadius.circular(99)),
+                                child: const Text('Current', style: TextStyle(color: _text, fontSize: 10, fontWeight: FontWeight.w600)),
+                              ),
+                            ],
                           ],
                         ),
-                      ),
-                      Icon(selected ? Icons.radio_button_checked : Icons.radio_button_off, color: selected ? accent : _muted, size: 20),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: badges
-                        .map((b) => Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF27272A),
-                                borderRadius: BorderRadius.circular(99),
-                                border: Border.all(color: b.contains('priority') ? accent.withValues(alpha: 0.35) : _border),
+                        const SizedBox(height: 4),
+                        Text(price, style: const TextStyle(color: _text, fontWeight: FontWeight.w700, fontSize: 17)),
+                        if (priceSub != null) Text(priceSub, style: const TextStyle(color: _muted, fontSize: 11)),
+                        if (quotaLines.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          ...quotaLines.map(
+                            (line) => Padding(
+                              padding: const EdgeInsets.only(bottom: 5),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    flex: 11,
+                                    child: Text(line.label, style: const TextStyle(color: _muted, fontSize: 12, height: 1.25)),
+                                  ),
+                                  Expanded(
+                                    flex: 12,
+                                    child: Text(
+                                      line.value,
+                                      textAlign: TextAlign.end,
+                                      style: TextStyle(
+                                        color: line.label == 'Priority' ? accent : _text,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        height: 1.25,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              child: Text(b, style: TextStyle(color: b.contains('priority') ? accent : _text, fontSize: 10, fontWeight: FontWeight.w600)),
-                            ))
-                        .toList(),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(billingPlanPoolsLabel(plan), style: const TextStyle(color: _muted, fontSize: 11, height: 1.35)),
+                  const SizedBox(width: 8),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Icon(selected ? Icons.radio_button_checked : Icons.radio_button_off, color: selected ? accent : _muted, size: 22),
+                  ),
                 ],
               ),
             ),

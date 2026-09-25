@@ -2,23 +2,43 @@
 # Build from c35 repo root:
 #   docker build --platform linux/arm64 -f _/deployments/Dockerfile.c35-node-stats -t c35-node-stats .
 
-FROM rust:1.89-bookworm AS rust-build
-
+FROM rust:1.89-bookworm AS chef
+RUN cargo install cargo-chef --locked
 WORKDIR /app
 
+FROM chef AS planner
 COPY servers/Cargo.toml servers/Cargo.lock /app/servers/
 COPY servers/node_stats /app/servers/node_stats
 COPY servers/crates/proto /app/servers/crates/proto
 COPY _/schemas /app/_/schemas
+WORKDIR /app/servers
+RUN cargo chef prepare --recipe-path /tmp/recipe.json -p c_node_stats
+
+FROM chef AS rust-build
+WORKDIR /app
+
+COPY servers/Cargo.toml servers/Cargo.lock /app/servers/
+COPY servers/node_stats/Cargo.toml /app/servers/node_stats/
+COPY servers/crates/proto /app/servers/crates/proto
+COPY _/schemas /app/_/schemas
+COPY --from=planner /tmp/recipe.json /app/servers/recipe.json
 
 ENV CARGO_TARGET_DIR=/app/target
-ENV CARGO_BUILD_JOBS=1
+ENV CARGO_BUILD_JOBS=2
 ENV CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1
+
+WORKDIR /app/servers
+RUN --mount=type=cache,target=/usr/local/cargo/registry,id=c35-node-stats-cargo-registry,sharing=locked \
+    --mount=type=cache,target=/usr/local/cargo/git,id=c35-node-stats-cargo-git,sharing=locked \
+    --mount=type=cache,target=/app/target,id=c35-node-stats-rust-target,sharing=locked \
+    cargo chef cook --release --recipe-path recipe.json -p c_node_stats
+
+COPY servers/node_stats /app/servers/node_stats
 
 RUN --mount=type=cache,target=/usr/local/cargo/registry,id=c35-node-stats-cargo-registry,sharing=locked \
     --mount=type=cache,target=/usr/local/cargo/git,id=c35-node-stats-cargo-git,sharing=locked \
     --mount=type=cache,target=/app/target,id=c35-node-stats-rust-target,sharing=locked \
-    cargo build --release -p c_node_stats --manifest-path servers/Cargo.toml \
+    cargo build --release -p c_node_stats --manifest-path Cargo.toml \
     && cp /app/target/release/c_node_stats /app/c_node_stats \
     && sha256sum /app/c_node_stats > /app/c_node_stats.sha
 

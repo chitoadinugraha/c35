@@ -1,4 +1,5 @@
 import 'package:alienai_c35/c/chat/chat_block.dart';
+import 'package:alienai_c35/c/files/msg_attachment.dart';
 import 'package:alienai_c35/c/consumption/consumption_api.dart';
 import 'package:alienai_c35/c/consumption/consumption_food.dart';
 import 'package:alienai_c35/c/consumption/consumption_glance.dart';
@@ -8,6 +9,7 @@ import 'package:alienai_c35/c/expense/expense_receipt.dart';
 import 'package:alienai_c35/widgets/ai/ui_consumption_food_card.dart';
 import 'package:alienai_c35/widgets/ai/ui_consumption_glance_card.dart';
 import 'package:alienai_c35/widgets/ai/ui_expense_glance_card.dart';
+import 'package:alienai_c35/widgets/ai/ui_attach_chips.dart';
 import 'package:alienai_c35/widgets/ai/ui_expense_receipt_card.dart';
 import 'package:flutter/material.dart';
 
@@ -26,6 +28,7 @@ class UiMsgBlocks extends StatelessWidget {
     this.onConsumptionSaved,
     this.onExpenseSaved,
     this.onBlockCollapsedChanged,
+    this.onImageUpgradeHd,
     this.primary = false,
   });
 
@@ -37,6 +40,7 @@ class UiMsgBlocks extends StatelessWidget {
   final ConsumptionBlockSaved? onConsumptionSaved;
   final ExpenseBlockSaved? onExpenseSaved;
   final BlockCollapsedChanged? onBlockCollapsedChanged;
+  final void Function(ChatBlock block)? onImageUpgradeHd;
   final bool primary;
 
   @override
@@ -122,6 +126,35 @@ class UiMsgBlocks extends StatelessWidget {
             card: ExpenseGlanceCard.fromBlockBody(b.body),
             collapsed: b.collapsed,
             locale: locale,
+          ),
+        );
+      case 'image':
+        final hash = b.body['hash']?.toString() ?? '';
+        final url = b.body['url']?.toString() ?? '';
+        if (hash.isEmpty && url.isEmpty) return const SizedBox.shrink();
+        final mime = b.body['mime']?.toString() ?? 'image/png';
+        final prompt = b.body['prompt']?.toString().trim() ?? '';
+        final name = prompt.isNotEmpty ? prompt : 'image.png';
+        final canUpgrade = onImageUpgradeHd != null && !ChatBlock.imageIsHd(b);
+        return Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: UiAttachChips(
+            attachments: [MsgAttachment(hash: hash, name: name, mime: mime, url: url)],
+            showUpgradeHd: canUpgrade,
+            onUpgradeHd: canUpgrade ? () => onImageUpgradeHd!(b) : null,
+          ),
+        );
+      case 'file':
+      case 'attachment':
+        final hash = b.body['hash']?.toString() ?? '';
+        final url = b.body['url']?.toString() ?? '';
+        if (hash.isEmpty && url.isEmpty) return const SizedBox.shrink();
+        final mime = b.body['mime']?.toString() ?? 'application/octet-stream';
+        final name = b.body['name']?.toString().trim() ?? (b.body['filename']?.toString().trim() ?? 'file');
+        return Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: UiAttachChips(
+            attachments: [MsgAttachment(hash: hash, name: name, mime: mime, url: url)],
           ),
         );
       default:

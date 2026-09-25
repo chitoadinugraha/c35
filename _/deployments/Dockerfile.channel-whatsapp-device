@@ -2,24 +2,56 @@
 # Build from c35 repo root:
 #   docker build --platform linux/arm64 -f _/deployments/Dockerfile.channel-whatsapp-device -t channel-whatsapp-device .
 
-FROM rust:1.89-bookworm AS rust-build
+FROM rust:1.89-bookworm AS chef
+RUN cargo install cargo-chef --locked
+WORKDIR /app
 
+FROM chef AS planner
+COPY servers/Cargo.toml servers/Cargo.lock /app/servers/
+COPY servers/crates /app/servers/crates
+COPY servers/channel_whatsapp_device /app/servers/channel_whatsapp_device
+COPY servers/server_ai/Cargo.toml /app/servers/server_ai/
+COPY servers/fetcher/Cargo.toml /app/servers/fetcher/
+COPY servers/node_stats/Cargo.toml /app/servers/node_stats/
+COPY _/deployments/docker/workspace-stub.sh /usr/local/bin/workspace-stub.sh
+RUN chmod +x /usr/local/bin/workspace-stub.sh \
+    && workspace-stub.sh server_ai fetcher node_stats
+COPY _/schemas /app/_/schemas
+WORKDIR /app/servers
+RUN cargo chef prepare --recipe-path /tmp/recipe.json -p c35_channel_whatsapp_device
+
+FROM chef AS rust-build
 WORKDIR /app
 
 COPY servers/Cargo.toml servers/Cargo.lock /app/servers/
 COPY servers/crates /app/servers/crates
-COPY servers/server_ai /app/servers/server_ai
-COPY servers/channel_whatsapp_device /app/servers/channel_whatsapp_device
+COPY servers/channel_whatsapp_device/Cargo.toml /app/servers/channel_whatsapp_device/
+COPY servers/server_ai/Cargo.toml /app/servers/server_ai/
+COPY servers/fetcher/Cargo.toml /app/servers/fetcher/
+COPY servers/node_stats/Cargo.toml /app/servers/node_stats/
+COPY _/deployments/docker/workspace-stub.sh /usr/local/bin/workspace-stub.sh
+RUN chmod +x /usr/local/bin/workspace-stub.sh \
+    && workspace-stub.sh server_ai fetcher node_stats channel_whatsapp_device
+
 COPY _/schemas /app/_/schemas
+COPY --from=planner /tmp/recipe.json /app/servers/recipe.json
 
 ENV CARGO_TARGET_DIR=/app/target
-ENV CARGO_BUILD_JOBS=1
+ENV CARGO_BUILD_JOBS=2
 ENV CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1
+
+WORKDIR /app/servers
+RUN --mount=type=cache,target=/usr/local/cargo/registry,id=c35-wa-device-cargo-registry,sharing=locked \
+    --mount=type=cache,target=/usr/local/cargo/git,id=c35-wa-device-cargo-git,sharing=locked \
+    --mount=type=cache,target=/app/target,id=c35-wa-device-rust-target,sharing=locked \
+    cargo chef cook --release --recipe-path recipe.json -p c35_channel_whatsapp_device
+
+COPY servers/channel_whatsapp_device /app/servers/channel_whatsapp_device
 
 RUN --mount=type=cache,target=/usr/local/cargo/registry,id=c35-wa-device-cargo-registry,sharing=locked \
     --mount=type=cache,target=/usr/local/cargo/git,id=c35-wa-device-cargo-git,sharing=locked \
     --mount=type=cache,target=/app/target,id=c35-wa-device-rust-target,sharing=locked \
-    cargo build --release -p c35_channel_whatsapp_device --manifest-path servers/Cargo.toml \
+    cargo build --release -p c35_channel_whatsapp_device --manifest-path Cargo.toml \
     && cp /app/target/release/channel_whatsapp_device /app/channel_whatsapp_device \
     && sha256sum /app/channel_whatsapp_device > /app/channel_whatsapp_device.sha
 

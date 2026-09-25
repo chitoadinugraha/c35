@@ -1,4 +1,5 @@
 use axum::extract::ws::{Message, WebSocket};
+use axum::http::HeaderMap;
 use c35_ctx::{AppState, Ctx};
 use c35_mod_chat::{
     chat_ensure, chat_title_from_text, prompt_run_cancel_children, prompt_run_cancel_request,
@@ -25,7 +26,14 @@ struct PromptFlight {
     cancel: CancellationToken,
 }
 
-pub async fn handle(mut socket: WebSocket, state: AppState, q: WsQuery) {
+fn prompt_run_inline_forced() -> bool {
+    std::env::var("C35_PROMPT_RUN_INLINE")
+        .ok()
+        .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+}
+
+pub async fn handle(mut socket: WebSocket, state: AppState, q: WsQuery, headers: HeaderMap) {
+    let geo_hint = c35_mod_identity::identity_geo_from_headers(&headers);
     let token = match q.jwt.as_deref() {
         Some(t) if !t.is_empty() => t,
         _ => {
@@ -104,7 +112,7 @@ pub async fn handle(mut socket: WebSocket, state: AppState, q: WsQuery) {
                                 });
                             }
                             _ => {
-                                let res = dispatch(&state, &ctx, req, &q, app_conn_id, admin_session_id, &out_tx).await;
+                                let res = dispatch(&state, &ctx, req, &q, &geo_hint, app_conn_id, admin_session_id, &out_tx).await;
                                 if socket.send(Message::Binary(pb_encode(&res).into())).await.is_err() {
                                     break;
                                 }
@@ -180,16 +188,18 @@ fn prompt_req_put(
                 model: p.model.clone(),
             })),
         });
-        if let Some(nats_client) = nats.clone() {
-            let job = PromptRunJob {
-                req_id: req_id_spawn.clone(),
-                owner_iid,
-                chat_id,
-            };
-            if prompt_run_enqueue(&nats_client, &job).await.is_ok() {
-                return;
+        if !prompt_run_inline_forced() {
+            if let Some(nats_client) = nats.clone() {
+                let job = PromptRunJob {
+                    req_id: req_id_spawn.clone(),
+                    owner_iid,
+                    chat_id,
+                };
+                if prompt_run_enqueue(&nats_client, &job).await.is_ok() {
+                    return;
+                }
+                tracing::warn!("[c35:prompt_run] JetStream enqueue failed, falling back to inline turn");
             }
-            tracing::warn!("[c35:prompt_run] JetStream enqueue failed, falling back to inline turn");
         }
         match prompt_turn(
             &pool,
@@ -252,13 +262,14 @@ async fn dispatch(
     ctx: &Ctx,
     req: WsReq,
     q: &WsQuery,
+    geo_hint: &c35_mod_identity::GeoHint,
     app_conn_id: u64,
     admin_session_id: u64,
     out_tx: &mpsc::UnboundedSender<WsRes>,
 ) -> WsRes {
     let req_id = req.req_id;
     match req.body {
-        Some(ws_req::Body::SessionInit(init)) => match session_init(ctx, init, q).await {
+        Some(ws_req::Body::SessionInit(init)) => match session_init(ctx, init, q, geo_hint).await {
             Ok(body) => WsRes {
                 req_id,
                 body: Some(ws_res::Body::SessionInit(body)),
@@ -784,6 +795,7 @@ async fn session_init(
     ctx: &Ctx,
     mut req: c35_proto::ReqSessionInit,
     q: &WsQuery,
+    geo_hint: &c35_mod_identity::GeoHint,
 ) -> Result<c35_proto::ResSessionInit, WireErr> {
     if req.since_ms == 0 {
         req.since_ms = q.since.unwrap_or(0);
@@ -792,7 +804,7 @@ async fn session_init(
         req.locale = q.locale.clone().unwrap_or_default();
     }
     if req.tz.is_empty() {
-        req.tz = q.tz.clone().unwrap_or_default();
+        req.tz = q.tz.clone().unwrap_or_else(|| geo_hint.tz.clone());
     }
     let hints_since_ms = req.hints_since_ms;
     let locale = if req.locale.is_empty() {
@@ -801,7 +813,7 @@ async fn session_init(
         req.locale.clone()
     };
     let include_inbox = req.include_inbox;
-    let mut res = c35_mod_identity::session_init(ctx, req).await?;
+    let mut res = c35_mod_identity::session_init(ctx, req, Some(geo_hint)).await?;
     res.models = c35_mod_llm::prompt_models();
     if include_inbox {
         if let Ok(inbox) = c35_mod_chat::inbox_list(

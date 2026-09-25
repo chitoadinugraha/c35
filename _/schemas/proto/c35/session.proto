@@ -32,6 +32,12 @@ message ReqSessionInit {
   bool include_inbox = 7;        // default true — prompt chats only
   bool include_billing = 8;      // default true
   int64 hints_since_ms = 9;
+  // Sync device prefs to identity (city-level location for local recommendations).
+  string location_city = 10;
+  string location_region = 11;
+  string location_country = 12;
+  // device | user — empty when client is not asserting a source
+  string location_source = 13;
 }
 
 message ResSessionInit {

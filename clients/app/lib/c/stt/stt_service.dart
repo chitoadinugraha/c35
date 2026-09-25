@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
@@ -24,11 +23,8 @@ class SttService {
   void bindVoiceApi(VoiceApi? api) => _voiceApi = api;
 
   @visibleForTesting
-  static String sttEngineRoute(String engine) {
-    if (engine == 'cloud') return 'cloud';
-    if (engine == 'local') return 'local';
-    return 'web';
-  }
+  static String sttEngineRoute(String engine) => 'cloud';
+
 
   static const maxRecordingSeconds = 30;
 
@@ -37,14 +33,17 @@ class SttService {
   StreamSubscription<Uint8List>? _streamSub;
   Timer? _recordSecondTimer;
   Timer? _interimTimer;
+  bool _interimInFlight = false;
+  int _interimCounter = 0;
   String? _recordingMime;
   final BytesBuilder _pcmBuffer = BytesBuilder(copy: false);
   bool _isStreamingPcm = false;
-  bool _interimInFlight = false;
   bool _speechDetected = false;
   DateTime? _silenceSince;
   DateTime? _recordingStartedAt;
   String _sessionReqId = '';
+  double? _noiseFloorDb;
+  int _consecutiveSpeechFrames = 0;
 
   final ValueNotifier<bool> isRecording = ValueNotifier(false);
   final ValueNotifier<bool> isTranscribing = ValueNotifier(false);
@@ -56,14 +55,67 @@ class SttService {
   String? lastTranscribeError;
   VoidCallback? onAutoStop;
 
+  int _streamSampleRate = 16000;
+  int _streamChannels = 1;
+
   static String sanitizeTranscript(String raw) {
     final t = raw.trim();
     if (t.isEmpty) return '';
+    if (t.contains('[NO_SPEECH]') || t.contains('NO_SPEECH')) return '';
     if (t == '00:00' || t == '0:00' || t.startsWith('00:00')) return '';
     final lower = t.toLowerCase();
     if (lower == '[silence]' || lower == '(silence)' || lower == 'silence' || lower == 'no speech') return '';
+    if (lower == 'thank you.' ||
+        lower == 'thank you' ||
+        lower == 'thank you!' ||
+        lower == 'thanks for watching.' ||
+        lower == 'thanks for watching' ||
+        lower == 'thank you for watching.' ||
+        lower == 'you' ||
+        lower == 'you.' ||
+        lower == 'bye.' ||
+        lower == 'bye') {
+      return '';
+    }
+    if (lower.startsWith('subtitles by') || lower.startsWith('subtitle by')) return '';
     if (RegExp(r'^\d{1,2}:\d{2}(?:\s*[-–—]\s*\d{1,2}:\d{2})?$').hasMatch(t)) return '';
+    if (RegExp(r'^[\d\s:\-–—]+$').hasMatch(t)) return '';
     return t;
+  }
+
+  /// Downsamples 16-bit linear PCM from any sample rate / channel count to 16kHz mono.
+  static Uint8List resampleTo16kMono(Uint8List pcm, {required int srcRate, required int srcChannels}) {
+    if (pcm.isEmpty) return pcm;
+    if (srcRate == 16000 && srcChannels == 1) return pcm;
+
+    final bytesPerSrcSample = 2;
+    final bytesPerSrcFrame = srcChannels * bytesPerSrcSample;
+    final totalSrcFrames = pcm.length ~/ bytesPerSrcFrame;
+    if (totalSrcFrames == 0) return Uint8List(0);
+
+    final totalDstFrames = (totalSrcFrames * 16000) ~/ srcRate;
+    if (totalDstFrames == 0) return Uint8List(0);
+
+    final dst = Uint8List(totalDstFrames * 2);
+    final dstData = ByteData.sublistView(dst);
+    final srcData = ByteData.sublistView(pcm);
+
+    final step = srcRate / 16000.0;
+    for (var i = 0; i < totalDstFrames; i++) {
+      final srcFrameIdx = (i * step).toInt().clamp(0, totalSrcFrames - 1);
+      final byteOffset = srcFrameIdx * bytesPerSrcFrame;
+
+      var monoSample = 0;
+      if (srcChannels == 1) {
+        monoSample = srcData.getInt16(byteOffset, Endian.little);
+      } else {
+        final left = srcData.getInt16(byteOffset, Endian.little);
+        final right = srcData.getInt16(byteOffset + 2, Endian.little);
+        monoSample = (left + right) ~/ 2;
+      }
+      dstData.setInt16(i * 2, monoSample, Endian.little);
+    }
+    return dst;
   }
 
   /// Converts raw 16-bit linear PCM byte buffer into a valid 16-bit WAV file buffer.
@@ -110,18 +162,23 @@ class SttService {
     return wav;
   }
 
-  /// Calculates peak amplitude (0.0 - 1.0) and dB level from 16-bit linear PCM chunk.
+  /// Calculates peak amplitude (0.0 - 1.0) and dB level (from RMS) from 16-bit linear PCM chunk.
   static ({double norm, double levelDb}) pcmAmplitude(Uint8List chunk) {
     if (chunk.isEmpty) return (norm: 0.0, levelDb: -100.0);
     var peak = 0;
+    var sumSq = 0.0;
+    var count = 0;
     for (var i = 0; i < chunk.length - 1; i += 2) {
       var sample = chunk[i] | (chunk[i + 1] << 8);
       if (sample > 32767) sample -= 65536;
       final val = sample.abs();
       if (val > peak) peak = val;
+      sumSq += (sample / 32768.0) * (sample / 32768.0);
+      count++;
     }
     final norm = (peak / 32768.0).clamp(0.0, 1.0);
-    final levelDb = norm > 0 ? (20 * log(norm) / ln10) : -100.0;
+    final rms = count > 0 ? sqrt(sumSq / count) : 0.0;
+    final levelDb = rms > 1e-5 ? (20 * log(rms) / ln10) : -100.0;
     return (norm: norm, levelDb: levelDb);
   }
 
@@ -137,26 +194,150 @@ class SttService {
     }
   }
 
-  Future<List<({RecordConfig config, String ext, String mime})>> _recordingFormats() async {
+  /// Lists available audio input devices (microphones).
+  Future<List<InputDevice>> listInputDevices() async {
+    await _init();
+    try {
+      return await _recorder!.listInputDevices();
+    } catch (e) {
+      debugPrint('[SttService] listInputDevices error: $e');
+      return const [];
+    }
+  }
+
+  /// Queries the Windows registry to find the GUID of the actual Windows default
+  /// recording endpoint (eConsole / Role 0, the one with the green checkmark).
+  static Future<String?> _detectWindowsDefaultCaptureDeviceGuid() async {
+    if (kIsWeb || !Platform.isWindows) return null;
+    try {
+      final regCmd = File(r'C:\Windows\System32\reg.exe').existsSync() ? r'C:\Windows\System32\reg.exe' : 'reg';
+      final res = await Process.run(regCmd, [
+        'query',
+        r'HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\MMDevices\Audio\Capture',
+        '/s',
+        '/v',
+        'Level:0',
+      ]);
+      if (res.exitCode != 0) return null;
+      final out = res.stdout as String;
+      final lines = out.split(RegExp(r'[\r\n]+'));
+      String? currentGuid;
+      int maxLevel = -1;
+      String? bestGuid;
+      for (final line in lines) {
+        final keyMatch = RegExp(r'Capture\\\{([0-9a-fA-F-]+)\}').firstMatch(line);
+        if (keyMatch != null) {
+          currentGuid = keyMatch.group(1);
+          continue;
+        }
+        if (currentGuid != null && line.contains('Level:0')) {
+          final valMatch = RegExp(r'0x([0-9a-fA-F]+)').firstMatch(line);
+          if (valMatch != null) {
+            final level = int.tryParse(valMatch.group(1)!, radix: 16) ?? -1;
+            if (level > maxLevel) {
+              maxLevel = level;
+              bestGuid = currentGuid;
+            }
+          }
+        }
+      }
+      return bestGuid?.toLowerCase();
+    } catch (e) {
+      debugPrint('[SttService] error detecting Windows default microphone: $e');
+      return null;
+    }
+  }
+
+  /// Resolves the active input device.
+  /// If the user selected a specific device in VoicePrefs, uses that.
+  /// Otherwise, discovers the true Windows Default recording device (eConsole / Role 0).
+  Future<InputDevice?> resolveActiveMicDevice() async {
+    final devices = await listInputDevices();
+    if (devices.isEmpty) return null;
+
+    final savedId = VoicePrefs.instance.micDeviceId.trim();
+    if (savedId.isNotEmpty && savedId != 'default') {
+      final match = devices.where((d) => d.id == savedId).firstOrNull;
+      if (match != null) return match;
+    }
+
+    // 1. On Windows, locate the actual Windows Default recording device (eConsole / Role 0)
+    if (!kIsWeb && Platform.isWindows) {
+      final defaultGuid = await _detectWindowsDefaultCaptureDeviceGuid();
+      if (defaultGuid != null && defaultGuid.isNotEmpty) {
+        final winDefault = devices.where((d) => d.id.toLowerCase().contains(defaultGuid)).firstOrNull;
+        if (winDefault != null) {
+          debugPrint('[SttService] Using Windows default microphone: "${winDefault.label}" (id: ${winDefault.id})');
+          return winDefault;
+        }
+      }
+    }
+
+    // 2. Fallback: pick the first non-virtual device
+    InputDevice? best;
+    for (final d in devices) {
+      final lower = d.label.toLowerCase();
+      final isVirtual = lower.contains('droidcam') ||
+          lower.contains('virtual') ||
+          lower.contains('cable') ||
+          lower.contains('stereo mix');
+      if (!isVirtual) {
+        best = d;
+        break;
+      }
+    }
+    return best ?? devices.first;
+  }
+
+  Future<List<({RecordConfig config, String ext, String mime})>> _recordingFormats([InputDevice? device]) async {
     await _init();
     final supports = _recorder!.isEncoderSupported;
     final formats = <({RecordConfig config, String ext, String mime})>[];
     if (!kIsWeb && Platform.isWindows) {
       formats.add((
-        config: const RecordConfig(encoder: AudioEncoder.wav, sampleRate: 16000, numChannels: 1),
+        config: RecordConfig(
+          encoder: AudioEncoder.wav,
+          sampleRate: 16000,
+          numChannels: 1,
+          bitRate: 256000,
+          device: device,
+        ),
+        ext: 'wav',
+        mime: 'audio/wav',
+      ));
+      formats.add((
+        config: RecordConfig(
+          encoder: AudioEncoder.wav,
+          sampleRate: 44100,
+          numChannels: 1,
+          bitRate: 705600,
+          device: device,
+        ),
         ext: 'wav',
         mime: 'audio/wav',
       ));
       if (await supports(AudioEncoder.aacLc)) {
         formats.add((
-          config: const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 64000, sampleRate: 44100, numChannels: 1),
+          config: RecordConfig(
+            encoder: AudioEncoder.aacLc,
+            bitRate: 64000,
+            sampleRate: 44100,
+            numChannels: 1,
+            device: device,
+          ),
           ext: 'm4a',
           mime: 'audio/mp4',
         ));
       }
       if (await supports(AudioEncoder.flac)) {
         formats.add((
-          config: const RecordConfig(encoder: AudioEncoder.flac, bitRate: 128000, sampleRate: 44100, numChannels: 1),
+          config: RecordConfig(
+            encoder: AudioEncoder.flac,
+            bitRate: 128000,
+            sampleRate: 44100,
+            numChannels: 1,
+            device: device,
+          ),
           ext: 'flac',
           mime: 'audio/flac',
         ));
@@ -165,19 +346,37 @@ class SttService {
     }
     if (await supports(AudioEncoder.opus)) {
       formats.add((
-        config: const RecordConfig(encoder: AudioEncoder.opus, bitRate: 32000, sampleRate: 48000, numChannels: 1),
+        config: RecordConfig(
+          encoder: AudioEncoder.opus,
+          bitRate: 32000,
+          sampleRate: 48000,
+          numChannels: 1,
+          device: device,
+        ),
         ext: 'ogg',
         mime: 'audio/ogg',
       ));
     }
     formats.add((
-      config: const RecordConfig(encoder: AudioEncoder.aacLc, bitRate: 64000, sampleRate: 16000, numChannels: 1),
+      config: RecordConfig(
+        encoder: AudioEncoder.aacLc,
+        bitRate: 64000,
+        sampleRate: 16000,
+        numChannels: 1,
+        device: device,
+      ),
       ext: 'm4a',
       mime: 'audio/mp4',
     ));
     if (await supports(AudioEncoder.wav)) {
       formats.add((
-        config: const RecordConfig(encoder: AudioEncoder.wav, sampleRate: 16000, numChannels: 1),
+        config: RecordConfig(
+          encoder: AudioEncoder.wav,
+          sampleRate: 16000,
+          numChannels: 1,
+          bitRate: 256000,
+          device: device,
+        ),
         ext: 'wav',
         mime: 'audio/wav',
       ));
@@ -195,37 +394,45 @@ class SttService {
         onAutoStop?.call();
       }
     });
+
+    if (_isStreamingPcm) {
+      _interimTimer?.cancel();
+      _interimCounter = 0;
+      _interimInFlight = false;
+      _interimTimer = Timer.periodic(const Duration(milliseconds: 1400), (_) async {
+        if (!isRecording.value || !_speechDetected || _interimInFlight) return;
+        final rawPcm = _pcmBuffer.toBytes();
+        // At least 0.8s of speech audio before triggering interim snapshot
+        final minBytes = (_streamSampleRate * _streamChannels * 2 * 0.8).toInt();
+        if (rawPcm.length < minBytes) return;
+
+        _interimInFlight = true;
+        _interimCounter++;
+        final reqId = 'interim_${_sessionReqId}_$_interimCounter';
+        try {
+          final pcm16k = resampleTo16kMono(rawPcm, srcRate: _streamSampleRate, srcChannels: _streamChannels);
+          final wav = pcmToWav(pcm16k, sampleRate: 16000, channels: 1);
+          final pref = VoicePrefs.instance.speechLang;
+          final effectiveLang = speechLangSttLocale(pref, last: VoicePrefs.instance.lastLang);
+          final text = await transcribeRouted(
+            bytes: wav,
+            lang: effectiveLang,
+            mime: 'audio/wav',
+            isInterim: true,
+            reqId: reqId,
+          );
+          if (isRecording.value && text != null && text.trim().isNotEmpty) {
+            liveTranscript.value = text.trim();
+          }
+        } catch (e) {
+          debugPrint('[SttService] interim transcribe ignored: $e');
+        } finally {
+          _interimInFlight = false;
+        }
+      });
+    }
   }
 
-  void _startInterimTranscribeLoop() {
-    _interimTimer?.cancel();
-    _interimTimer = Timer.periodic(const Duration(milliseconds: 1200), (_) async {
-      if (!isRecording.value || !_isStreamingPcm || _interimInFlight || !_speechDetected) return;
-      final currentPcm = _pcmBuffer.toBytes();
-      // Require at least 0.8s of audio: 16,000 samples * 2 bytes = 32,000 bytes/s -> ~25,600 bytes
-      if (currentPcm.length < 25600) return;
-      _interimInFlight = true;
-      try {
-        final wav = pcmToWav(currentPcm, sampleRate: 16000, channels: 1);
-        final pref = VoicePrefs.instance.speechLang;
-        final effectiveLang = speechLangSttLocale(pref, last: VoicePrefs.instance.lastLang);
-        final partial = await transcribeRouted(
-          bytes: wav,
-          lang: effectiveLang,
-          mime: 'audio/wav',
-          isInterim: true,
-          reqId: 'interim_${_sessionReqId}_${recordingSeconds.value}',
-        );
-        if (partial != null && partial.isNotEmpty && isRecording.value) {
-          liveTranscript.value = partial;
-        }
-      } catch (e) {
-        debugPrint('[SttService] interim transcribe: $e');
-      } finally {
-        _interimInFlight = false;
-      }
-    });
-  }
 
   void _onAudioLevel(double level, double norm, List<double> history) {
     audioAmplitude.value = norm;
@@ -233,27 +440,50 @@ class SttService {
     if (history.length > 80) history.removeAt(0);
     amplitudeHistory.value = List.of(history);
 
-    // Natural voice activity detection thresholds
-    // Standard conversational speech into mics typically ranges between -48 dB and -30 dB.
-    const speechDbThreshold = -48.0;
-    const speechNormThreshold = 0.10;
-    const silenceTimeoutMs = 1100;
+    // Adaptive noise floor tracking:
+    // Noise floor must never adapt into conversational speech range (typically > -46 dB).
+    if (level > -90.0) {
+      if (_noiseFloorDb == null) {
+        _noiseFloorDb = level.clamp(-75.0, -50.0);
+      } else if (level < _noiseFloorDb!) {
+        // Fast decay down to track lower ambient baseline
+        _noiseFloorDb = _noiseFloorDb! * 0.70 + level * 0.30;
+      } else if (!_speechDetected && level < -48.0) {
+        // Slow rise only when clearly in ambient range
+        _noiseFloorDb = _noiseFloorDb! * 0.95 + level * 0.05;
+      }
+      _noiseFloorDb = _noiseFloorDb!.clamp(-75.0, -48.0);
+    }
+
+    final ambientFloor = _noiseFloorDb ?? -55.0;
+    // Dynamic speech threshold: +7 dB above ambient floor, minimum -44 dB
+    final dynamicSpeechDb = max(ambientFloor + 7.0, -44.0);
+    final isSpeechFrame = level > dynamicSpeechDb || norm >= 0.08;
+
+    const silenceTimeoutMs = 1300;
     const initialSilenceTimeoutMs = 4500;
 
-    if (level > speechDbThreshold || norm >= speechNormThreshold) {
-      _speechDetected = true;
-      _silenceSince = null;
-    } else if (_speechDetected) {
-      _silenceSince ??= DateTime.now();
-      if (DateTime.now().difference(_silenceSince!).inMilliseconds >= silenceTimeoutMs) {
-        _stopTimers();
-        onAutoStop?.call();
+    if (isSpeechFrame) {
+      _consecutiveSpeechFrames++;
+      // Require at least 2 consecutive speech frames (~150ms) to filter out sporadic clicks/taps
+      if (_consecutiveSpeechFrames >= 2) {
+        _speechDetected = true;
+        _silenceSince = null;
       }
-    } else if (_recordingStartedAt != null) {
-      // If user started recording but no speech was detected after 4.5 seconds
-      if (DateTime.now().difference(_recordingStartedAt!).inMilliseconds >= initialSilenceTimeoutMs) {
-        _stopTimers();
-        onAutoStop?.call();
+    } else {
+      _consecutiveSpeechFrames = 0;
+      if (_speechDetected) {
+        _silenceSince ??= DateTime.now();
+        if (DateTime.now().difference(_silenceSince!).inMilliseconds >= silenceTimeoutMs) {
+          _stopTimers();
+          onAutoStop?.call();
+        }
+      } else if (_recordingStartedAt != null) {
+        // If user started recording but no speech was detected after 4.5 seconds
+        if (DateTime.now().difference(_recordingStartedAt!).inMilliseconds >= initialSilenceTimeoutMs) {
+          _stopTimers();
+          onAutoStop?.call();
+        }
       }
     }
   }
@@ -279,42 +509,60 @@ class SttService {
       liveTranscript.value = '';
       _speechDetected = false;
       _silenceSince = null;
-      _interimInFlight = false;
       _sessionReqId = Ulid().toString();
       _recordingStartedAt = DateTime.now();
+      _noiseFloorDb = null;
+      _consecutiveSpeechFrames = 0;
       _stopTimers();
 
+      final activeMic = await resolveActiveMicDevice();
+      debugPrint('[SttService] Using microphone: "${activeMic?.label ?? 'system default'}" (id: ${activeMic?.id})');
+
       // Try streaming PCM first (low latency, continuous interim snapshots, no file locks)
-      try {
-        const pcmConfig = RecordConfig(
-          encoder: AudioEncoder.pcm16bits,
-          sampleRate: 16000,
-          numChannels: 1,
-        );
-        final stream = await _recorder!.startStream(pcmConfig);
-        _isStreamingPcm = true;
-        _recordingMime = 'audio/wav';
-        _pcmBuffer.clear();
+      // On Windows Media Foundation, bitRate MUST match sampleRate * numChannels * 16 bits.
+      final candidates = [
+        (sampleRate: 48000, numChannels: 2, bitRate: 1536000),
+        (sampleRate: 48000, numChannels: 1, bitRate: 768000),
+        (sampleRate: 44100, numChannels: 2, bitRate: 1411200),
+        (sampleRate: 44100, numChannels: 1, bitRate: 705600),
+        (sampleRate: 16000, numChannels: 1, bitRate: 256000),
+        (sampleRate: 16000, numChannels: 2, bitRate: 512000),
+      ];
+      for (final cand in candidates) {
+        try {
+          final pcmConfig = RecordConfig(
+            encoder: AudioEncoder.pcm16bits,
+            sampleRate: cand.sampleRate,
+            numChannels: cand.numChannels,
+            bitRate: cand.bitRate,
+            device: activeMic,
+          );
+          final stream = await _recorder!.startStream(pcmConfig);
+          _streamSampleRate = cand.sampleRate;
+          _streamChannels = cand.numChannels;
+          _isStreamingPcm = true;
+          _recordingMime = 'audio/wav';
+          _pcmBuffer.clear();
 
-        final history = <double>[];
-        _streamSub = stream.listen((chunk) {
-          if (!isRecording.value) return;
-          _pcmBuffer.add(chunk);
-          final amp = pcmAmplitude(chunk);
-          _onAudioLevel(amp.levelDb, amp.norm, history);
-        });
+          final history = <double>[];
+          _streamSub = stream.listen((chunk) {
+            if (!isRecording.value) return;
+            _pcmBuffer.add(chunk);
+            final amp = pcmAmplitude(chunk);
+            _onAudioLevel(amp.levelDb, amp.norm, history);
+          });
 
-        _startRecordingTimers();
-        _startInterimTranscribeLoop();
-        isRecording.value = true;
-        return true;
-      } catch (streamErr) {
-        debugPrint('[SttService] startStream not available ($streamErr), falling back to file recording');
-        _isStreamingPcm = false;
+          _startRecordingTimers();
+          isRecording.value = true;
+          return true;
+        } catch (streamErr) {
+          debugPrint('[SttService] startStream (${cand.sampleRate}Hz) not available: $streamErr');
+        }
       }
+      _isStreamingPcm = false;
 
       // Fallback: file recording
-      final formats = await _recordingFormats();
+      final formats = await _recordingFormats(activeMic);
       final tempDir = await getTemporaryDirectory();
       Object? lastError;
       for (final fmt in formats) {
@@ -365,6 +613,7 @@ class SttService {
     _recordSecondTimer = null;
     _interimTimer?.cancel();
     _interimTimer = null;
+    _interimInFlight = false;
     _ampSub?.cancel();
     _ampSub = null;
     _streamSub?.cancel();
@@ -389,7 +638,8 @@ class SttService {
         await _recorder?.stop();
       } catch (_) {}
       if (pcm.isNotEmpty) {
-        audioBytes = pcmToWav(pcm, sampleRate: 16000, channels: 1);
+        final pcm16k = resampleTo16kMono(pcm, srcRate: _streamSampleRate, srcChannels: _streamChannels);
+        audioBytes = pcmToWav(pcm16k, sampleRate: 16000, channels: 1);
         mime = 'audio/wav';
       }
     } else {
@@ -462,6 +712,8 @@ class SttService {
     _speechDetected = false;
     _silenceSince = null;
     _recordingStartedAt = null;
+    _noiseFloorDb = null;
+    _consecutiveSpeechFrames = 0;
 
     if (_recorder != null && isRecording.value) {
       try {
@@ -497,24 +749,30 @@ class SttService {
     if (route == 'cloud') {
       if (_voiceApi == null) {
         debugPrint('[SttService] cloud STT requires VoiceApi (bind from page_ai_home)');
-        if (bytes.isNotEmpty) {
-          final direct = await _transcribeGeminiDirect(bytes: bytes, lang: lang, mime: mime, isInterim: isInterim);
-          if (direct != null && direct.isNotEmpty) return sanitizeTranscript(direct);
+        if (!isInterim) {
+          lastTranscribeError = 'Voice API not ready. Please try again.';
         }
         return null;
       }
       try {
-        lastTranscribeError = null;
-        final res = await _voiceApi!.sttTranscribe(audio: bytes, mime: mime, lang: lang, reqId: reqId);
+        if (!isInterim) lastTranscribeError = null;
+        final timeout = isInterim ? const Duration(seconds: 8) : const Duration(seconds: 25);
+        final res = await _voiceApi!.sttTranscribe(
+          audio: bytes,
+          mime: mime,
+          lang: lang,
+          reqId: reqId,
+          timeout: timeout,
+        );
         if (res != null && res.isNotEmpty) {
           final clean = sanitizeTranscript(res);
           if (clean.isNotEmpty) return clean;
         }
+        return null;
       } catch (e) {
-        debugPrint('[SttService] cloud STT error: $e, falling back to direct Gemini 3.1 Flash Lite');
-        if (bytes.isNotEmpty) {
-          final direct = await _transcribeGeminiDirect(bytes: bytes, lang: lang, mime: mime, isInterim: isInterim);
-          if (direct != null && direct.isNotEmpty) return sanitizeTranscript(direct);
+        debugPrint('[SttService] cloud STT error: $e');
+        if (!isInterim) {
+          lastTranscribeError = uiFriendlyError(e, fallback: 'Speech recognition failed. Please try again.');
         }
         return null;
       }
@@ -523,69 +781,6 @@ class SttService {
       final res = await webTranscribe(bytes, lang, mime);
       return res != null ? sanitizeTranscript(res) : null;
     }
-    if (bytes.isNotEmpty) {
-      final direct = await _transcribeGeminiDirect(bytes: bytes, lang: lang, mime: mime, isInterim: isInterim);
-      if (direct != null && direct.isNotEmpty) return sanitizeTranscript(direct);
-    }
     return null;
-  }
-
-  Future<String?> _transcribeGeminiDirect({
-    required Uint8List bytes,
-    required String lang,
-    required String mime,
-    bool isInterim = false,
-  }) async {
-    try {
-      final key = Platform.environment['GEMINI_API_KEY'] ??
-          Platform.environment['GOOGLE_API_KEY'];
-      if (key == null || key.isEmpty) return null;
-      final uri = Uri.parse(
-          'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=$key');
-      final prompt = lang.startsWith('id')
-          ? 'Transkripsikan pesan suara ini dengan akurat dalam Bahasa Indonesia atau bahasa yang digunakan penutur. Balas hanya dengan kata-kata yang diucapkan, tanpa tanda kutip atau komentar. PENTING: Jika tidak ada ucapan manusia yang jelas atau hanya ada hening/suara latar, jangan kembalikan apapun (balas teks kosong). Jangan berikan penanda waktu atau timestamp seperti 00:00.'
-          : 'Transcribe the spoken audio verbatim. Reply with only the spoken words. If no speech is heard or if there is only silence, noise, or breathing, return an empty string. Never return timestamps (such as 00:00), duration markers, explanations, or commentary.';
-
-      final client = HttpClient();
-      final req = await client.postUrl(uri);
-      req.headers.contentType = ContentType.json;
-      req.write(jsonEncode({
-        'contents': [
-          {
-            'parts': [
-              {
-                'inline_data': {
-                  'mime_type': mime.isNotEmpty ? mime : 'audio/wav',
-                  'data': base64Encode(bytes),
-                }
-              },
-              {'text': prompt}
-            ]
-          }
-        ],
-        'generationConfig': {
-          'temperature': 0.1,
-          'maxOutputTokens': 1024,
-        }
-      }));
-      final timeoutDuration = isInterim ? const Duration(seconds: 4) : const Duration(seconds: 15);
-      final res = await req.close().timeout(timeoutDuration);
-      if (res.statusCode != 200) return null;
-      final body = await utf8.decodeStream(res);
-      final json = jsonDecode(body);
-      if (json is! Map || !json.containsKey('candidates')) return null;
-      final candidates = json['candidates'];
-      if (candidates is! List || candidates.isEmpty) return null;
-      final first = candidates.first;
-      if (first is! Map || !first.containsKey('content')) return null;
-      final parts = first['content']?['parts'];
-      if (parts is! List || parts.isEmpty) return null;
-      final text = parts.first['text']?.toString().trim();
-      final clean = (text != null) ? sanitizeTranscript(text) : '';
-      return clean.isNotEmpty ? clean : null;
-    } catch (e) {
-      debugPrint('[SttService] Gemini direct STT error: $e');
-      return null;
-    }
   }
 }

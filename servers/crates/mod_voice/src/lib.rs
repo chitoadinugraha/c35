@@ -44,14 +44,19 @@ pub async fn voice_stt(
     } else {
         Some(voice_billing_gate(pool, owner_iid, &req_id, VOICE_STT_HOLD).await?)
     };
-    let text_res = if std::env::var("GOOGLE_CLOUD_API_KEY").is_ok() {
-        match stt::google_stt(http_client(), audio, mime, lang).await {
-            Ok(t) => Ok(t),
-            Err(e) => {
-                tracing::warn!("google_stt failed, falling back to gemini 3.1 flash lite: {e}");
-                stt::gemini_stt(http_client(), audio, mime, lang).await
-            }
-        }
+    let has_cf_token = std::env::var("CLOUDFLARE_API_TOKEN").is_ok()
+        || std::env::var("CLOUDFLARE_TOKEN").is_ok()
+        || std::env::var("CF_API_TOKEN").is_ok();
+    let has_google_key = std::env::var("GOOGLE_CLOUD_API_KEY").is_ok()
+        || std::env::var("GOOGLE_API_KEY").is_ok();
+
+    let mut provider_used = "gemini.stt";
+    let text_res = if has_cf_token {
+        provider_used = "cloudflare.whisper";
+        stt::cf_whisper_stt(http_client(), audio, mime, lang).await
+    } else if has_google_key {
+        provider_used = "google.speech";
+        stt::google_stt(http_client(), audio, mime, lang).await
     } else {
         stt::gemini_stt(http_client(), audio, mime, lang).await
     };
@@ -61,12 +66,19 @@ pub async fn voice_stt(
             if row.is_some() {
                 let _ = voice_billing_abort(pool, &req_id).await;
             }
+            if is_interim {
+                tracing::debug!("interim voice_stt failed: {e}");
+                return Ok(String::new());
+            }
             return Err(e);
         }
     };
     if text.trim().is_empty() {
         if row.is_some() {
             let _ = voice_billing_abort(pool, &req_id).await;
+        }
+        if is_interim {
+            return Ok(String::new());
         }
         anyhow::bail!("No speech detected");
     }
@@ -89,7 +101,7 @@ pub async fn voice_stt(
             wholesale,
             "voice_stt",
             &text,
-            "google.speech",
+            provider_used,
             duration_ms,
             meta,
         )

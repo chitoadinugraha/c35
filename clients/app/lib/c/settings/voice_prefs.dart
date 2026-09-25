@@ -15,17 +15,21 @@ class VoicePrefs extends ChangeNotifier {
   static const speakEnabledDefault = false;
   static const _keyRate = 'voice_speech_rate';
   static const _keyPitch = 'voice_speech_pitch';
+  static const _keyMicId = 'voice_mic_device_id';
+  static const _keyMicLabel = 'voice_mic_device_label';
 
-  static String get defaultSttEngine => kIsWeb ? 'web' : 'cloud';
+  static String get defaultSttEngine => 'cloud';
 
   SharedPreferences? _prefs;
   var _speechLang = kSpeechLangDefault;
   var _lastLang = '';
-  var _sttEngine = defaultSttEngine;
-  var _ttsEngine = 'web';
+  var _sttEngine = 'cloud';
+  var _ttsEngine = 'local';
   var _speakEnabled = speakEnabledDefault;
   var _speechRate = 1.4;
   var _speechPitch = 1.0;
+  var _micDeviceId = '';
+  var _micDeviceLabel = '';
 
   String get speechLang => _speechLang;
   String get lastLang => _lastLang;
@@ -34,17 +38,36 @@ class VoicePrefs extends ChangeNotifier {
   bool get speakEnabled => _speakEnabled;
   double get speechRate => _speechRate;
   double get speechPitch => _speechPitch;
+  String get micDeviceId => _micDeviceId;
+  String get micDeviceLabel => _micDeviceLabel;
 
   Future<void> load() async {
     _prefs ??= await SharedPreferences.getInstance();
     _speechLang = _prefs!.getString(_keyLang) ?? kSpeechLangDefault;
     _lastLang = _prefs!.getString(_keyLastLang) ?? '';
-    final savedStt = _prefs!.getString(_keyStt);
-    _sttEngine = (savedStt == null || (!kIsWeb && savedStt == 'web')) ? defaultSttEngine : savedStt;
-    _ttsEngine = _prefs!.getString(_keyTts) ?? 'web';
+    _sttEngine = 'cloud';
+    final savedTts = _prefs!.getString(_keyTts);
+    _ttsEngine = (savedTts == null || savedTts == 'web') ? 'local' : savedTts;
     _speakEnabled = _prefs!.getBool(_keySpeak) ?? speakEnabledDefault;
     _speechRate = _prefs!.getDouble(_keyRate) ?? 1.4;
     _speechPitch = _prefs!.getDouble(_keyPitch) ?? 1.0;
+    _micDeviceId = _prefs!.getString(_keyMicId) ?? '';
+    _micDeviceLabel = _prefs!.getString(_keyMicLabel) ?? '';
+    notifyListeners();
+  }
+
+  Future<void> setMicDevice(String id, String label) async {
+    if (_micDeviceId == id && _micDeviceLabel == label) return;
+    _micDeviceId = id;
+    _micDeviceLabel = label;
+    _prefs ??= await SharedPreferences.getInstance();
+    if (id.isEmpty) {
+      await _prefs!.remove(_keyMicId);
+      await _prefs!.remove(_keyMicLabel);
+    } else {
+      await _prefs!.setString(_keyMicId, id);
+      await _prefs!.setString(_keyMicLabel, label);
+    }
     notifyListeners();
   }
 

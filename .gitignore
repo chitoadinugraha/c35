@@ -1,33 +1,68 @@
+# =============================================================================
+# Build outputs & caches
+# =============================================================================
 .cache/
+**/.cache/
 **/target/
-.dart_tool/
-.packages
+**/.dart_tool/
+**/.gradle/
 build/
-*.iml
-.idea/
-.vscode/
-*.log
-**/.env.local
+**/build/
+.packages
 
-# Deploy credentials (keep local; GitHub push protection blocks service account JSON)
-_/certs/google-play-upload-service-account.json
-_/certs/windows-msix-store.pfx
-
-# Docker build context tarballs
-c35-build-*.tar
-cs-agent-build-*.tar
+# Rust workspaces (canonical: .cache/server via servers/.cargo/config.toml)
+servers/target/
+remotes/target/
 
 # Flutter / Dart
 clients/app/.flutter-plugins
 clients/app/.flutter-plugins-dependencies
 clients/app/.dart_tool/
 clients/app/build/
+clients/app/.pub/
+**/doc/api/
+**/.widget_preview/
 
-# Rust (canonical output: .cache/* via workspace .cargo/config.toml)
-servers/target/
-remotes/target/
-.cache/
+# Node / Python
+**/node_modules/
+**/__pycache__/
+**/*.pyc
 
-# OS
+# =============================================================================
+# IDE & OS
+# =============================================================================
+*.iml
+.idea/
+.vscode/
 Thumbs.db
 .DS_Store
+
+# =============================================================================
+# Secrets & local env (never commit)
+# =============================================================================
+**/.env.local
+**/.env.*.local
+
+# Deploy credentials (GitHub push protection blocks service account JSON)
+_/certs/google-play-upload-service-account.json
+_/certs/windows-msix-store.pfx
+clients/app/android/key.properties
+clients/app/android/app/upload_keystore.jks
+clients/app/android/app/google-services.json
+
+# =============================================================================
+# Docker / deploy artifacts
+# =============================================================================
+c35-build-*.tar
+cs-agent-build-*.tar
+*.tar
+
+# =============================================================================
+# Logs & local DB
+# =============================================================================
+*.log
+**/*.db
+**/*.db-wal
+**/*.db-shm
+**/*.sqlite
+**/*.sqlite3

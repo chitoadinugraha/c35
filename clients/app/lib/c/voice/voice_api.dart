@@ -18,6 +18,7 @@ class VoiceApi {
     required String mime,
     String? lang,
     String? reqId,
+    Duration timeout = const Duration(seconds: 25),
   }) async {
     final id = (reqId != null && reqId.isNotEmpty) ? reqId : Ulid().toString();
     final res = await conn.invoke(
@@ -29,7 +30,7 @@ class VoiceApi {
           reqId: id,
         ),
       ),
-    );
+    ).timeout(timeout);
     if (res.hasVoiceStt()) {
       final stt = res.voiceStt;
       if (stt.error.isNotEmpty) {

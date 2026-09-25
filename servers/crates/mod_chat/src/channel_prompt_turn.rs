@@ -14,7 +14,10 @@ use crate::memory::{memory_prompt_merge, memory_retrieve};
 use crate::memory_extract::memory_extract_turn_gate;
 use crate::prompt::gemini::gemini_api_key;
 use crate::prompt::thought::thinking_level;
-use crate::prompt::time::{time_prompt_block, time_prompt_prepend, time_timezone_resolve};
+use crate::prompt::time::{
+    location_prompt_block, prompt_context_prepend, time_prompt_block, time_timezone_resolve,
+};
+use crate::prompt::user_context::user_prompt_context_get;
 use crate::prompt::tool_loop::prompt_cluster_turn;
 use crate::prompt::ChatReq;
 use crate::tools::{cluster_tools, TurnCtx};
@@ -73,8 +76,15 @@ pub async fn channel_prompt_turn(
         &crate::site_capability::SiteCapabilityView::empty(),
     )
     .await;
-    let tz = time_timezone_resolve(locale, &prompt_text);
-    let mut system = time_prompt_prepend(&time_prompt_block(tz), "");
+    let user_ctx = user_prompt_context_get(pool, owner_iid).await;
+    let tz = time_timezone_resolve(&user_ctx.tz, locale, &prompt_text);
+    let time_block = time_prompt_block(&tz);
+    let location_block = location_prompt_block(
+        &user_ctx.location_city,
+        &user_ctx.location_region,
+        &user_ctx.location_country,
+    );
+    let mut system = prompt_context_prepend(&time_block, &location_block, "");
     if let Some(inst_base) = bot_inst_base(pool, bot_iid).await {
         system = format!("{inst_base}\n\n{system}");
     }
@@ -118,8 +128,9 @@ pub async fn channel_prompt_turn(
         system,
         user,
         thinking: thinking_level(""),
-        tools: composed.tools,
+        tools: composed.tools.clone(),
         history,
+        force_tool_call: crate::compose::compose_force_tool_call(&composed.matched_ids, &composed.tools),
     };
     let mut turn_ctx = TurnCtx {
         pool,
@@ -131,6 +142,9 @@ pub async fn channel_prompt_turn(
         mention_ids: &[],
         user_text: &prompt_text,
         locale,
+        location_city: &user_ctx.location_city,
+        location_region: &user_ctx.location_region,
+        location_country: &user_ctx.location_country,
         attachments_json,
         req_id,
         run_kind: "main",

@@ -1,6 +1,6 @@
 # Billing plans (LOCKED)
 
-Status: **locked** 2026-09-22 (IDR pools, Lite–Ultra, bot/device SKUs, promotions)
+Status: **locked** 2026-09-22; **pools** 2026-03-25 = 2× monthly subscription (list IDR prices unchanged)
 
 ## Overview
 
@@ -32,25 +32,33 @@ Yearly prepay = lower monthly equivalent. Charge exact `billing_plan_price` amou
 
 ### Prices (IDR / month)
 
-| slug | tier | Yearly (per mo) | Monthly | Quota vs Lite |
-|------|------|-----------------|---------|---------------|
-| `lite` | lite | **Rp 49.000** | **Rp 59.000** | 1× |
-| `plus` | plus | **Rp 99.000** | **Rp 109.000** | **4×** |
-| `pro` | pro | **Rp 309.000** | **Rp 349.000** | **10×** |
-| `ultra` | ultra | **Rp 1.000.000** | **Rp 1.200.000** | **40×** (marketing) |
+| slug | tier | Yearly (per mo) | Monthly | Tier features (channels, priority) |
+|------|------|-----------------|---------|-------------------------------------|
+| `lite` | lite | **Rp 49.000** | **Rp 59.000** | 2 channels |
+| `plus` | plus | **Rp 99.000** | **Rp 105.000** | 2 channels, wallet overage |
+| `pro` | pro | **Rp 309.000** | **Rp 340.000** | 3 channels, priority, overage |
+| `ultra` | ultra | **Rp 1.000.000** | **Rp 1.200.000** | 5 channels, top priority, overage |
 
-### Included pools (Lite = 1× reference)
+### Included pools (2× monthly subscription)
 
-Shown to user as **monthly included usage** (resets each billing period):
+Shown to user as **monthly included usage** (resets each billing period). **Formula (all user tiers):**
 
-| Tier | Alien AI pool | Frontier pool | Total shown | ~× price |
-|------|---------------|---------------|-------------|----------|
-| **Lite** | Rp 100.000 | Rp 20.000 | Rp 120.000 | 2.4× (at Rp 50k ref) |
-| **Plus** | Rp 400.000 | Rp 80.000 | Rp 480.000 | ~4.8× |
-| **Pro** | Rp 1.000.000 | Rp 200.000 | Rp 1.200.000 | ~3.9× |
-| **Ultra** | Rp 4.000.000 | Rp 800.000 | Rp 4.800.000 | ~4.8× |
+```
+total_pool_idr = 2 × monthly_subscription_idr   -- use monthly row; yearly prepay uses same pools per period
+alien_pool     = round(total × 83.33%)          -- same ~5:1 as Lite (100k : 20k)
+frontier_pool  = total − alien_pool
+```
 
-Lite reference uses **~83% Alien / ~17% Frontier** split. Higher tiers multiply both pools by tier multiplier.
+Seeded template on `ai.billing_plan` (`alien_pool_idr_monthly`, `frontier_pool_idr_monthly`) from **monthly** `billing_plan_price`:
+
+| Tier | Monthly price | Alien AI pool | Frontier pool | Total | ≈ × subscription |
+|------|---------------|---------------|---------------|-------|------------------|
+| **Lite** | Rp 59.000 | Rp 100.000 | Rp 20.000 | Rp 120.000 | ~2.0× |
+| **Plus** | Rp 105.000 | Rp 175.000 | Rp 35.000 | Rp 210.000 | ~2.0× |
+| **Pro** | Rp 340.000 | Rp 565.000 | Rp 115.000 | Rp 680.000 | ~2.0× |
+| **Ultra** | Rp 1.200.000 | Rp 2.000.000 | Rp 400.000 | Rp 2.400.000 | ~2.0× |
+
+Lite rows are rounded to clean IDR but follow the same rule. Higher tiers buy **channels, priority, and overage** — not larger included pools vs Lite on a per-rupiah basis.
 
 ### Channels & pace (user scope)
 
@@ -68,7 +76,7 @@ Lite reference uses **~83% Alien / ~17% Frontier** split. Higher tiers multiply 
 |------|-------------|
 | Lite | Stop or top-up wallet (no slow bleed) |
 | Plus, Pro | Wallet metered overage (`overage_enabled`) |
-| Ultra | Wallet overage + **priority**; 40× pool is promotional — balance is backstop |
+| Ultra | Wallet overage + **priority**; included pool is 2× monthly fee — balance is backstop |
 
 ---
 
@@ -194,7 +202,7 @@ Store: `billing_profile.freemium_day`, `freemium_msgs_used`, `freemium_tokens_us
 
 ## Ultra extras
 
-Beyond 40× pools:
+Beyond higher monthly fee (same **2×** included-pool rule as other tiers):
 
 - **Priority queue** (busy hours)
 - **Early access** (models, features)
@@ -209,12 +217,16 @@ Beyond 40× pools:
 Unchanged — see prior doc. Yearly vs monthly = separate `billing_plan_price` rows:
 
 ```sql
--- Example shape (amounts illustrative)
+-- Current user plan prices (2026-03); pools on ai.billing_plan from 2× monthly fee
 INSERT INTO ai.billing_plan_price (plan_slug, currency, amount, billing_period) VALUES
   ('lite', 'IDR', 49000, 'yearly'),
   ('lite', 'IDR', 59000, 'monthly'),
   ('plus', 'IDR', 99000, 'yearly'),
-  ('plus', 'IDR', 109000, 'monthly');
+  ('plus', 'IDR', 105000, 'monthly'),
+  ('pro', 'IDR', 309000, 'yearly'),
+  ('pro', 'IDR', 340000, 'monthly'),
+  ('ultra', 'IDR', 1000000, 'yearly'),
+  ('ultra', 'IDR', 1200000, 'monthly');
 ```
 
 ### A — Pay from wallet
@@ -260,7 +272,7 @@ billing_purchase → payment provider → settled → activate subscription
 
 ## Client display
 
-- Plans sheet: yearly vs monthly toggle; show **Alien + Frontier Rp pools** per tier
+- Plans sheet: yearly vs monthly toggle; list **Alien AI Quota** + **API Quota** (Frontier pool) per tier
 - Account menu: tier name + dual pool rings + trial bar
 - Never show USD pool rates or provider names on Alien AI
 - Bot settings: indicate **"Using your quota"** when borrowing owner pools

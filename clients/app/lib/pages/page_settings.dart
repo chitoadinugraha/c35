@@ -13,16 +13,23 @@ import 'package:alienai_c35/c/profile/profile_api.dart';
 import 'package:alienai_c35/c/profile/profile_handle.dart';
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/settings/prompt_usage_prefs.dart';
+import 'package:alienai_c35/c/location/location_permission.dart';
+import 'package:alienai_c35/c/location/location_service.dart';
+import 'package:alienai_c35/c/location/user_location_prefs.dart';
+import 'package:alienai_c35/c/settings/user_locale_prefs.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/settings/voice_prefs.dart';
+import 'package:alienai_c35/c/task/task_trigger_cron.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/c/store/chat_store.dart';
 import 'package:alienai_c35/c/stt/stt_mic_permission.dart';
 import 'package:alienai_c35/c/stt/stt_service.dart';
 import 'package:alienai_c35/c/tts/speech_lang.dart';
+import 'package:record/record.dart' show InputDevice;
 import 'package:alienai_c35/c/tts/tts_service.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/c/chat/chat_conn.dart';
+import 'package:alienai_c35/c/voice/voice_api.dart';
 import 'package:alienai_c35/pages/finance/page_finance_payments.dart';
 import 'package:alienai_c35/pages/finance/page_finance_receive_accounts.dart';
 import 'package:alienai_c35/pages/page_allow_control.dart' show ThisPcRegister;
@@ -89,15 +96,49 @@ class _PageSettingsState extends State<PageSettings> {
   late double _speechRate = VoicePrefs.instance.speechRate;
   late double _speechPitch = VoicePrefs.instance.speechPitch;
   late bool _showUsageStats = PromptUsagePrefs.instance.showUsageStats;
+  late String _tz = UserLocalePrefs.instance.tz;
+  late String _locationCity = UserLocalePrefs.instance.locationCity;
+  late String _locationRegion = UserLocalePrefs.instance.locationRegion;
+  late String _locationCountry = UserLocalePrefs.instance.locationCountry;
+  late String _locationSource = UserLocalePrefs.instance.locationSource;
+  var _locationManualExpanded = UserLocalePrefs.instance.locationSource.trim().toLowerCase() == 'user';
   String _apkUrl = '';
+  List<InputDevice> _audioInputDevices = const [];
+  InputDevice? _resolvedDefaultMic;
 
   @override
   void initState() {
     super.initState();
+    if (widget.chatConn != null) {
+      final api = VoiceApi(widget.chatConn!);
+      SttService.instance.bindVoiceApi(api);
+      TtsService.instance.bindVoiceApi(api);
+    }
     sessionTick.addListener(_onSessionTick);
     VoicePrefs.instance.addListener(_onVoiceChanged);
     PromptUsagePrefs.instance.addListener(_onUsagePrefsChanged);
+    UserLocalePrefs.instance.addListener(_onLocalePrefsChanged);
+    unawaited(_loadAudioDevices());
     unawaited(_hydrate());
+  }
+
+  Future<void> _loadAudioDevices() async {
+    try {
+      final devices = await SttService.instance.listInputDevices();
+      final resolved = await SttService.instance.resolveActiveMicDevice();
+      debugPrint('[PageSettings] _loadAudioDevices: found ${devices.length} devices');
+      for (final d in devices) {
+        debugPrint('[PageSettings]   device: "${d.label}" (${d.id})');
+      }
+      debugPrint('[PageSettings]   resolved default: "${resolved?.label}" (${resolved?.id})');
+      if (!mounted) return;
+      setState(() {
+        _audioInputDevices = devices;
+        _resolvedDefaultMic = resolved;
+      });
+    } catch (e, st) {
+      debugPrint('[PageSettings] _loadAudioDevices error: $e\n$st');
+    }
   }
 
   Future<void> _hydrate() async {
@@ -126,6 +167,9 @@ class _PageSettingsState extends State<PageSettings> {
         _unlockMode = settings.sessionUnlockMode;
       }
     });
+    if (!mounted) return;
+    await _locationSyncFromServer();
+    await _loadAudioDevices();
   }
 
   @override
@@ -133,6 +177,7 @@ class _PageSettingsState extends State<PageSettings> {
     sessionTick.removeListener(_onSessionTick);
     VoicePrefs.instance.removeListener(_onVoiceChanged);
     PromptUsagePrefs.instance.removeListener(_onUsagePrefsChanged);
+    UserLocalePrefs.instance.removeListener(_onLocalePrefsChanged);
     super.dispose();
   }
 
@@ -160,6 +205,99 @@ class _PageSettingsState extends State<PageSettings> {
   void _onUsagePrefsChanged() {
     if (!mounted) return;
     setState(() => _showUsageStats = PromptUsagePrefs.instance.showUsageStats);
+  }
+
+  void _onLocalePrefsChanged() {
+    if (!mounted) return;
+    setState(() {
+      _tz = UserLocalePrefs.instance.tz;
+      _locationCity = UserLocalePrefs.instance.locationCity;
+      _locationRegion = UserLocalePrefs.instance.locationRegion;
+      _locationCountry = UserLocalePrefs.instance.locationCountry;
+      _locationSource = UserLocalePrefs.instance.locationSource;
+      _locationManualExpanded = UserLocalePrefs.instance.locationSource.trim().toLowerCase() == 'user';
+    });
+  }
+
+  String _locationSourceLabel(String source) {
+    final s = source.trim().toLowerCase();
+    if (s == 'device') return 'settings.locationSourceDevice'.tr();
+    if (s == 'ip') return 'settings.locationSourceIp'.tr();
+    if (s == 'user') return 'settings.locationSourceUser'.tr();
+    return 'settings.locationSourceUnknown'.tr();
+  }
+
+  String _locationPlaceSummary() {
+    final parts = [_locationCity, _locationRegion, _locationCountry].map((s) => s.trim()).where((s) => s.isNotEmpty);
+    return parts.join(', ');
+  }
+
+  Future<void> _locationSyncFromServer() async {
+    if (widget.chatConn == null || widget.chatStore == null) return;
+    if (UserLocalePrefs.instance.locationManualLocked) return;
+    final locale = mounted ? context.locale.toString() : 'en';
+    await widget.chatStore!.refreshFromConn(widget.chatConn!, locale: locale);
+  }
+
+  Future<void> _tzPrefsSave() async {
+    await UserLocalePrefs.instance.put(tz: _tz);
+    await _localePrefsSyncConn();
+  }
+
+  Future<void> _locationManualSave() async {
+    await UserLocationPrefs.instance.put(useDevice: false, locationSource: 'user');
+    await UserLocalePrefs.instance.put(
+      locationCity: _locationCity,
+      locationRegion: _locationRegion,
+      locationCountry: _locationCountry,
+      locationSource: 'user',
+    );
+    if (!mounted) return;
+    setState(() {
+      _locationSource = 'user';
+      _locationManualExpanded = true;
+    });
+    await _localePrefsSyncConn();
+  }
+
+  Future<void> _localePrefsSyncConn() async {
+    final locale = context.locale.toString();
+    if (widget.chatConn != null && widget.chatStore != null) {
+      await widget.chatStore!.refreshFromConn(widget.chatConn!, locale: locale);
+    }
+  }
+
+  Future<void> _locationUseDevice() async {
+    if (defaultTargetPlatform != TargetPlatform.android && defaultTargetPlatform != TargetPlatform.iOS) return;
+    final granted = await locationPermissionEnsure();
+    if (!granted) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('settings.locationDeniedSnack'.tr()), behavior: SnackBarBehavior.floating));
+      return;
+    }
+    locationServiceCacheClear();
+    final loc = await locationServiceResolve(force: true);
+    if (loc == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('settings.locationDeniedSnack'.tr()), behavior: SnackBarBehavior.floating));
+      return;
+    }
+    await UserLocationPrefs.instance.put(asked: true, useDevice: true, locationSource: 'device');
+    await UserLocalePrefs.instance.put(
+      locationCity: loc.city,
+      locationRegion: loc.region,
+      locationCountry: loc.country,
+      locationSource: 'device',
+    );
+    if (!mounted) return;
+    setState(() {
+      _locationCity = loc.city;
+      _locationRegion = loc.region;
+      _locationCountry = loc.country;
+      _locationSource = 'device';
+      _locationManualExpanded = false;
+    });
+    await _localePrefsSyncConn();
   }
 
   Future<void> _run(Future<void> Function() fn) async {
@@ -446,6 +584,124 @@ class _PageSettingsState extends State<PageSettings> {
                           ),
                         ),
                         const SizedBox(height: 28),
+                        _SectionLabel('settings.sectionLocationTime'.tr()),
+                        const SizedBox(height: 8),
+                        _Card(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                            child: Builder(
+                              builder: (context) {
+                                final place = _locationPlaceSummary();
+                                final source = _locationSource.trim().toLowerCase();
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    if (place.isNotEmpty)
+                                      Text(
+                                        place,
+                                        style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 15, fontWeight: FontWeight.w500),
+                                      )
+                                    else
+                                      Text(
+                                        'settings.locationPlaceUnset'.tr(),
+                                        style: const TextStyle(color: Color(0xFF71717A), fontSize: 13),
+                                      ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      'settings.locationSource'.tr(namedArgs: {'source': _locationSourceLabel(_locationSource)}),
+                                      style: const TextStyle(color: Color(0xFF71717A), fontSize: 12),
+                                    ),
+                                    if (source == 'ip' && place.isNotEmpty) ...[
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'settings.locationIpHint'.tr(),
+                                        style: const TextStyle(color: Color(0xFF71717A), fontSize: 12),
+                                      ),
+                                    ],
+                                    if (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS) ...[
+                                      const SizedBox(height: 10),
+                                      OutlinedButton.icon(
+                                        onPressed: _busy ? null : () => _run(_locationUseDevice),
+                                        icon: const Icon(Icons.my_location_outlined, size: 18),
+                                        label: Text('settings.locationUseDevice'.tr()),
+                                      ),
+                                    ],
+                                    const SizedBox(height: 12),
+                                    DropdownButtonFormField<String>(
+                                      key: ValueKey('tz_$_tz'),
+                                      initialValue: _tz.isEmpty ? UserLocalePrefs.deviceTimezoneDetect() : _tz,
+                                      dropdownColor: const Color(0xFF18181B),
+                                      style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 14),
+                                      decoration: _fieldDecoration('settings.locationFieldTimezone'.tr()),
+                                      items: [
+                                        if (_tz.isNotEmpty && !kCommonTimezones.contains(_tz)) DropdownMenuItem(value: _tz, child: Text(_tz)),
+                                        ...kCommonTimezones.map((tz) => DropdownMenuItem(value: tz, child: Text(tz))),
+                                      ],
+                                      onChanged: (v) async {
+                                        if (v == null) return;
+                                        setState(() => _tz = v);
+                                        await _run(_tzPrefsSave);
+                                      },
+                                    ),
+                                    if (!_locationManualExpanded) ...[
+                                      const SizedBox(height: 8),
+                                      Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: TextButton(
+                                          onPressed: _busy ? null : () => setState(() => _locationManualExpanded = true),
+                                          child: Text('settings.locationEditManually'.tr()),
+                                        ),
+                                      ),
+                                    ] else ...[
+                                      const SizedBox(height: 12),
+                                      TextFormField(
+                                        key: ValueKey('city_$_locationCity'),
+                                        initialValue: _locationCity,
+                                        style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 14),
+                                        decoration: _fieldDecoration('settings.locationFieldCity'.tr()),
+                                        onChanged: (v) => _locationCity = v,
+                                        onFieldSubmitted: (_) => _run(_locationManualSave),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      TextFormField(
+                                        key: ValueKey('region_$_locationRegion'),
+                                        initialValue: _locationRegion,
+                                        style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 14),
+                                        decoration: _fieldDecoration('settings.locationFieldRegion'.tr()),
+                                        onChanged: (v) => _locationRegion = v,
+                                        onFieldSubmitted: (_) => _run(_locationManualSave),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      TextFormField(
+                                        key: ValueKey('country_$_locationCountry'),
+                                        initialValue: _locationCountry,
+                                        style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 14),
+                                        decoration: _fieldDecoration('settings.locationFieldCountry'.tr()),
+                                        onChanged: (v) => _locationCountry = v,
+                                        onFieldSubmitted: (_) => _run(_locationManualSave),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'settings.locationHint'.tr(),
+                                        style: const TextStyle(color: Color(0xFF71717A), fontSize: 12),
+                                      ),
+                                      if (source == 'ip' || source == 'device') ...[
+                                        Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: TextButton(
+                                            onPressed: _busy ? null : () => setState(() => _locationManualExpanded = false),
+                                            child: Text('settings.locationHideManual'.tr()),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ],
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 28),
                         _SectionLabel('settings.sectionVoice'.tr()),
                         const SizedBox(height: 8),
                         _Card(
@@ -466,24 +722,91 @@ class _PageSettingsState extends State<PageSettings> {
                             Padding(
                               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                               child: DropdownButtonFormField<String>(
+                                key: ValueKey('mic_${VoicePrefs.instance.micDeviceId}_${_resolvedDefaultMic?.id}_${_audioInputDevices.length}'),
+                                initialValue: VoicePrefs.instance.micDeviceId.isNotEmpty &&
+                                        _audioInputDevices.any((d) => d.id == VoicePrefs.instance.micDeviceId)
+                                    ? VoicePrefs.instance.micDeviceId
+                                    : '',
+                                dropdownColor: const Color(0xFF18181B),
+                                style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 14),
+                                decoration: _fieldDecoration('Microphone'),
+                                isExpanded: true,
+                                selectedItemBuilder: (ctx) => [
+                                  Row(children: [
+                                    const Icon(Icons.settings_suggest_outlined, size: 18, color: Color(0xFFA1A1AA)),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        'System default (${_resolvedDefaultMic?.label ?? "Microphone"})',
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ]),
+                                  ..._audioInputDevices.map((d) => Row(children: [
+                                    const Icon(Icons.mic_none_rounded, size: 18, color: Color(0xFFA1A1AA)),
+                                    const SizedBox(width: 10),
+                                    Expanded(child: Text(d.label.isNotEmpty ? d.label : d.id, overflow: TextOverflow.ellipsis)),
+                                  ])),
+                                ],
+                                items: [
+                                  DropdownMenuItem(
+                                    value: '',
+                                    child: Row(children: [
+                                      const Icon(Icons.settings_suggest_outlined, size: 18, color: Color(0xFFA1A1AA)),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          'System default (${_resolvedDefaultMic?.label ?? "Microphone"})',
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ]),
+                                  ),
+                                  ..._audioInputDevices.map((d) => DropdownMenuItem(
+                                    value: d.id,
+                                    child: Row(children: [
+                                      const Icon(Icons.mic_none_rounded, size: 18, color: Color(0xFFA1A1AA)),
+                                      const SizedBox(width: 10),
+                                      Expanded(child: Text(d.label.isNotEmpty ? d.label : d.id, overflow: TextOverflow.ellipsis)),
+                                    ]),
+                                  )),
+                                ],
+                                onChanged: (v) {
+                                  if (v == null) return;
+                                  if (v.isEmpty) {
+                                    VoicePrefs.instance.setMicDevice('', '');
+                                  } else {
+                                    final d = _audioInputDevices.firstWhere((x) => x.id == v);
+                                    VoicePrefs.instance.setMicDevice(d.id, d.label);
+                                  }
+                                },
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                              child: DropdownButtonFormField<String>(
                                 key: ValueKey(_sttEngine),
                                 initialValue: _sttEngine,
                                 dropdownColor: const Color(0xFF18181B),
                                 style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 14),
                                 decoration: _fieldDecoration('Speech to text'),
+                                selectedItemBuilder: (ctx) => const [
+                                  Row(children: [
+                                    Icon(Icons.cloud_outlined, size: 18, color: Color(0xFFA1A1AA)),
+                                    SizedBox(width: 10),
+                                    Text('Cloud'),
+                                  ]),
+                                ],
                                 items: const [
-                                  if (kIsWeb) DropdownMenuItem(value: 'web', child: Text('Web')),
-                                  DropdownMenuItem(value: 'cloud', child: Text('Cloud')),
-                                  DropdownMenuItem(value: 'local', child: Text('Local')),
+                                  DropdownMenuItem(value: 'cloud', child: Row(children: [
+                                    Icon(Icons.cloud_outlined, size: 18, color: Color(0xFFA1A1AA)),
+                                    SizedBox(width: 10),
+                                    Text('Cloud'),
+                                  ])),
                                 ],
                                 onChanged: (v) => v != null ? VoicePrefs.instance.setSttEngine(v) : null,
                               ),
                             ),
-                            if (_sttEngine == 'cloud')
-                              const Padding(
-                                padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
-                                child: Text('Uses Alien AI cloud voice — charged to your balance.', style: TextStyle(color: Color(0xFF71717A), fontSize: 12)),
-                              ),
                             Padding(
                               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                               child: Row(children: [
@@ -494,24 +817,38 @@ class _PageSettingsState extends State<PageSettings> {
                                     dropdownColor: const Color(0xFF18181B),
                                     style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 14),
                                     decoration: _fieldDecoration('Text to speech'),
+                                    selectedItemBuilder: (ctx) => const [
+                                      Row(children: [
+                                        Icon(Icons.devices_outlined, size: 18, color: Color(0xFFA1A1AA)),
+                                        SizedBox(width: 10),
+                                        Text('Local'),
+                                      ]),
+                                      Row(children: [
+                                        Icon(Icons.cloud_outlined, size: 18, color: Color(0xFFA1A1AA)),
+                                        SizedBox(width: 10),
+                                        Text('Cloud'),
+                                      ]),
+                                    ],
                                     items: const [
-                                      DropdownMenuItem(value: 'web', child: Text('Web')),
-                                      DropdownMenuItem(value: 'local', child: Text('Local')),
-                                      DropdownMenuItem(value: 'cloud', child: Text('Cloud')),
+                                      DropdownMenuItem(value: 'local', child: Row(children: [
+                                        Icon(Icons.devices_outlined, size: 18, color: Color(0xFFA1A1AA)),
+                                        SizedBox(width: 10),
+                                        Text('Local'),
+                                      ])),
+                                      DropdownMenuItem(value: 'cloud', child: Row(children: [
+                                        Icon(Icons.cloud_outlined, size: 18, color: Color(0xFFA1A1AA)),
+                                        SizedBox(width: 10),
+                                        Text('Cloud'),
+                                      ])),
                                     ],
                                     onChanged: (v) => v != null ? VoicePrefs.instance.setTtsEngine(v) : null,
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                uiIconButton(icon: const Icon(Icons.hearing_rounded, color: _accent), tooltip: 'Test speech to text', onPressed: () => showDialog<void>(context: context, builder: (ctx) => _SttTestDialog(speechLang: _speechLang))),
+                                uiIconButton(icon: const Icon(Icons.hearing_rounded, color: _accent), tooltip: 'Test speech to text', onPressed: () => showDialog<void>(context: context, builder: (ctx) => _SttTestDialog(speechLang: _speechLang, chatConn: widget.chatConn))),
                                 uiIconButton(icon: const Icon(Icons.record_voice_over_rounded, color: _accent), tooltip: 'Test text to speech', onPressed: () => showDialog<void>(context: context, builder: (ctx) => _TtsTestDialog(speechLang: _speechLang))),
                               ]),
                             ),
-                            if (_ttsEngine == 'cloud')
-                              const Padding(
-                                padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
-                                child: Text('Uses Alien AI cloud voice — charged to your balance.', style: TextStyle(color: Color(0xFF71717A), fontSize: 12)),
-                              ),
                             Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 4), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Speech speed', style: TextStyle(color: Color(0xFFE4E4E7), fontSize: 13, fontWeight: FontWeight.w500)), Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: const Color(0xFF18181B), borderRadius: BorderRadius.circular(6), border: Border.all(color: _border)), child: Text('${_speechRate.toStringAsFixed(2)}x', style: const TextStyle(color: _accent, fontSize: 12, fontFamily: 'monospace', fontWeight: FontWeight.w600)))])),
                             SliderTheme(data: SliderTheme.of(context).copyWith(activeTrackColor: _accent, inactiveTrackColor: const Color(0xFF27272A), thumbColor: const Color(0xFFF4F4F5), trackHeight: 3), child: Slider(value: _speechRate.clamp(0.75, 2.0), min: 0.75, max: 2.0, divisions: 25, onChanged: VoicePrefs.instance.setSpeechRate)),
                             Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 4), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Speech pitch', style: TextStyle(color: Color(0xFFE4E4E7), fontSize: 13, fontWeight: FontWeight.w500)), Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: const Color(0xFF18181B), borderRadius: BorderRadius.circular(6), border: Border.all(color: _border)), child: Text('${_speechPitch.toStringAsFixed(2)}x', style: const TextStyle(color: _accent, fontSize: 12, fontFamily: 'monospace', fontWeight: FontWeight.w600)))])),
@@ -783,8 +1120,9 @@ class _TtsTestDialogState extends State<_TtsTestDialog> {
 }
 
 class _SttTestDialog extends StatefulWidget {
-  const _SttTestDialog({required this.speechLang});
+  const _SttTestDialog({required this.speechLang, this.chatConn});
   final String speechLang;
+  final ChatConn? chatConn;
   @override
   State<_SttTestDialog> createState() => _SttTestDialogState();
 }
@@ -792,9 +1130,50 @@ class _SttTestDialog extends StatefulWidget {
 class _SttTestDialogState extends State<_SttTestDialog> {
   var _recording = false;
   String _transcript = '';
+  InputDevice? _activeMic;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.chatConn != null) {
+      final api = VoiceApi(widget.chatConn!);
+      SttService.instance.bindVoiceApi(api);
+      TtsService.instance.bindVoiceApi(api);
+    }
+    SttService.instance.liveTranscript.addListener(_onLiveTranscript);
+    unawaited(SttService.instance.resolveActiveMicDevice().then((mic) {
+      if (mounted) setState(() => _activeMic = mic);
+    }));
+  }
+
+  void _onLiveTranscript() {
+    if (mounted && _recording && SttService.instance.liveTranscript.value.isNotEmpty) {
+      setState(() {
+        _transcript = SttService.instance.liveTranscript.value;
+      });
+    }
+  }
+
+  Future<void> _stop() async {
+    if (!_recording) return;
+    setState(() {
+      _recording = false;
+      _transcript = 'Transcribing…';
+    });
+    final text = await SttService.instance.stopAndTranscribe(lang: widget.speechLang);
+    if (!mounted) return;
+    setState(() {
+      _transcript = text ?? (SttService.instance.lastTranscribeError ?? 'No speech detected');
+    });
+  }
+
   @override
   void dispose() {
-    if (_recording || SttService.instance.isRecording.value) SttService.instance.cancel();
+    SttService.instance.liveTranscript.removeListener(_onLiveTranscript);
+    SttService.instance.onAutoStop = null;
+    if (_recording || SttService.instance.isRecording.value) {
+      unawaited(SttService.instance.cancel());
+    }
     super.dispose();
   }
 
@@ -802,19 +1181,46 @@ class _SttTestDialogState extends State<_SttTestDialog> {
   Widget build(BuildContext context) => AlertDialog(
         backgroundColor: const Color(0xFF18181B),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Color(0xFF27272A))),
-        title: const Text('Test speech to text', style: TextStyle(color: Color(0xFFF4F4F5), fontSize: 16, fontWeight: FontWeight.bold)),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Test speech to text', style: TextStyle(color: Color(0xFFF4F4F5), fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(Icons.mic_none_rounded, size: 14, color: Color(0xFF71717A)),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    VoicePrefs.instance.micDeviceId.isNotEmpty && VoicePrefs.instance.micDeviceLabel.isNotEmpty
+                        ? VoicePrefs.instance.micDeviceLabel
+                        : 'System default (${_activeMic?.label ?? "Windows default"})',
+                    style: const TextStyle(color: Color(0xFF71717A), fontSize: 12, fontWeight: FontWeight.normal),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           GestureDetector(
             onTap: () async {
               if (_recording) {
-                final text = await SttService.instance.stopAndTranscribe(lang: widget.speechLang);
-                if (!mounted) return;
-                setState(() { _recording = false; _transcript = text ?? 'No transcript (${VoicePrefs.instance.sttEngine})'; });
+                await _stop();
               } else {
                 final messenger = ScaffoldMessenger.maybeOf(context);
+                SttService.instance.onAutoStop = () {
+                  if (mounted && _recording) unawaited(_stop());
+                };
                 final ok = await SttService.instance.startRecording();
                 if (!mounted) return;
-                if (!ok) { messenger?.showSnackBar(SnackBar(content: Text(SttService.instance.lastStartError ?? sttMicErrorMessage()))); return; }
+                if (!ok) {
+                  SttService.instance.onAutoStop = null;
+                  messenger?.showSnackBar(SnackBar(content: Text(SttService.instance.lastStartError ?? sttMicErrorMessage())));
+                  return;
+                }
                 setState(() { _recording = true; _transcript = ''; });
               }
             },
@@ -826,7 +1232,7 @@ class _SttTestDialogState extends State<_SttTestDialog> {
             ),
           ),
           const SizedBox(height: 12),
-          Text(_recording ? 'Listening… tap to stop' : 'Tap mic to record', style: TextStyle(color: _recording ? const Color(0xFFEF4444) : const Color(0xFF71717A), fontSize: 13)),
+          Text(_recording ? 'Listening… (speak or tap to stop)' : 'Tap mic to record', style: TextStyle(color: _recording ? const Color(0xFFEF4444) : const Color(0xFF71717A), fontSize: 13)),
           if (_transcript.isNotEmpty) ...[
             const SizedBox(height: 16),
             Container(width: double.infinity, padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: const Color(0xFF09090B), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFF27272A))), child: Text(_transcript, style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 13))),

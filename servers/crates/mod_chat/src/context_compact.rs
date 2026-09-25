@@ -131,7 +131,7 @@ async fn compact_llm(transcript: &str, old_summary: &str) -> Result<(String, i32
     };
     let model = gemini_model(CONTEXT_COMPACT_MODEL);
     let contents = vec![json!({ "role": "user", "parts": [{ "text": user }] })];
-    let out = gemini_generate(&contents, &json!([]), &thinking_level("off"), &model, COMPACT_SYSTEM).await?;
+    let out = gemini_generate(&contents, &json!([]), &thinking_level("off"), &model, COMPACT_SYSTEM, "AUTO").await?;
     let cost = billing_cost_usd(CONTEXT_COMPACT_MODEL, out.in_tok, out.out_tok);
     let summary = parse_compact_summary(&out.text);
     Ok((summary, out.in_tok, out.out_tok, cost))

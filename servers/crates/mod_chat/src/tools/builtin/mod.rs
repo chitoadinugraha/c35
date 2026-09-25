@@ -4,6 +4,7 @@ mod delegate;
 mod device;
 mod img_edit;
 mod img_generate;
+mod presentation_export;
 mod referral;
 mod site;
 mod site_query;
@@ -20,6 +21,7 @@ pub use delegate::{
 pub use device::{DeviceCommandTool, DeviceInputTool, DeviceScreenshotTool};
 pub use img_edit::ImgEditTool;
 pub use img_generate::ImgGenerateTool;
+pub use presentation_export::PresentationExportTool;
 pub use referral::{
     ReferralCodeDeleteTool, ReferralCodeListTool, ReferralCodePutTool, ReferralTreeGetTool,
 };

@@ -7,7 +7,11 @@ pub async fn identity_profile_get(ctx: &Ctx) -> WireResult<IdentityProfile> {
     let row = sqlx::query(
         r#"
         SELECT id, kind, type, alien_id, name, pic, locale, tz, billing_iid,
-               COALESCE((meta->>'is_root')::boolean, false) AS is_root
+               COALESCE((meta->>'is_root')::boolean, false) AS is_root,
+               COALESCE(meta #>> '{location,city}', '') AS location_city,
+               COALESCE(meta #>> '{location,region}', '') AS location_region,
+               COALESCE(meta #>> '{location,country}', '') AS location_country,
+               COALESCE(meta #>> '{location,source}', '') AS location_source
         FROM ai.identity
         WHERE id = $1 AND deleted_ts IS NULL
         "#,
@@ -39,5 +43,9 @@ pub async fn identity_profile_get(ctx: &Ctx) -> WireResult<IdentityProfile> {
         tz: row.get("tz"),
         billing_iid: row.try_get("billing_iid").unwrap_or(0),
         is_root: row.get("is_root"),
+        location_city: row.try_get::<String, _>("location_city").unwrap_or_default(),
+        location_region: row.try_get::<String, _>("location_region").unwrap_or_default(),
+        location_country: row.try_get::<String, _>("location_country").unwrap_or_default(),
+        location_source: row.try_get::<String, _>("location_source").unwrap_or_default(),
     })
 }

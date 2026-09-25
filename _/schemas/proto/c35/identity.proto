@@ -15,6 +15,12 @@ message IdentityProfile {
   string tz = 8;
   int64 billing_iid = 9;
   bool is_root = 10;
+  // Approximate user location for local recommendations (city-level).
+  string location_city = 11;
+  string location_region = 12;
+  string location_country = 13;
+  // device | ip | user — read-only from identity.meta.location.source
+  string location_source = 14;
 }
 
 message NavCounts {

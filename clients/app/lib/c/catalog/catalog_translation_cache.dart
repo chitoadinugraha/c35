@@ -23,6 +23,7 @@ const _enFallback = <String, String>{
   'tool.img.generate.done': 'Generated image',
   'tool.img.edit.calling': 'Editing image…',
   'tool.img.edit.done': 'Edited image',
+  'chat.image.upgrade_hd': 'Upgrade to HD',
   'tool.consumption.add.calling': 'Logging food…',
   'tool.consumption.add.done': 'Logged food',
   'tool.consumption.today.calling': 'Checking meals today…',
@@ -56,6 +57,7 @@ const _enFallback = <String, String>{
 };
 
 const _idFallback = <String, String>{
+  'chat.image.upgrade_hd': 'Tingkatkan ke HD',
   'tool.var.source': 'sumber',
   'tool.var.query': 'web',
   'tool.web.search.calling': 'Mencari {{query}}…',

@@ -122,7 +122,9 @@ class CanvasStore extends ChangeNotifier {
       _activeArtifactIndex = _artifacts.length - 1;
     }
 
-    if (this.artifact?.type == 'markdown') {
+    final artType = this.artifact?.type;
+    final artLang = this.artifact?.language.toLowerCase();
+    if (artType == 'markdown' || artType == 'slide' || artLang == 'slide' || artLang == 'slides' || artLang == 'marp') {
       _activeTab = CanvasTab.preview;
     } else {
       _activeTab = CanvasTab.editor;
@@ -136,7 +138,9 @@ class CanvasStore extends ChangeNotifier {
   void selectArtifact(int index) {
     if (index < 0 || index >= _artifacts.length) return;
     _activeArtifactIndex = index;
-    if (_artifacts[index].type == 'markdown') {
+    final artType = _artifacts[index].type;
+    final artLang = _artifacts[index].language.toLowerCase();
+    if (artType == 'markdown' || artType == 'slide' || artLang == 'slide' || artLang == 'slides' || artLang == 'marp') {
       _activeTab = CanvasTab.preview;
     }
     notifyListeners();
@@ -160,13 +164,14 @@ class CanvasStore extends ChangeNotifier {
     required String language,
     bool open = true,
   }) {
-    final isMarkdown = language.toLowerCase() == 'markdown' ||
-        language.toLowerCase() == 'md';
+    final langLower = language.toLowerCase();
+    final isMarkdown = langLower == 'markdown' || langLower == 'md';
+    final isSlide = langLower == 'slide' || langLower == 'slides' || langLower == 'marp';
     final art = CanvasArtifact(
       id: const Uuid().v4(),
       title: title.isNotEmpty ? title : 'Snippet',
       language: language.isNotEmpty ? language : 'text',
-      type: isMarkdown ? 'markdown' : 'code',
+      type: isSlide ? 'slide' : (isMarkdown ? 'markdown' : 'code'),
       content: code,
     );
     openArtifact(art, open: open);

@@ -106,5 +106,84 @@ void main() {
       expect(store.artifact?.content, 'updated notes');
       expect(find.text('Save snapshot'), findsOneWidget);
     });
+
+    testWidgets('renders slide deck with card viewer and slide navigation', (tester) async {
+      final store = CanvasStore();
+      const slideContent = '''
+# Slide 1: Welcome
+Alien AI Presentation
+---
+# Slide 2: Problem
+Market pain points
+---
+# Slide 3: Solution
+Unified AI Agent
+''';
+      store.openCode(title: 'pitch.deck', code: slideContent, language: 'slide');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: UiCanvasPanel(store: store),
+          ),
+        ),
+      );
+
+      // Slide toolbar should indicate slide 1 of 3
+      expect(find.text('Slide 1 of 3'), findsOneWidget);
+      expect(find.textContaining('Welcome'), findsOneWidget);
+      expect(find.text('Export Deck'), findsOneWidget);
+
+      // Tap Next slide
+      await tester.tap(find.byIcon(Icons.chevron_right_rounded));
+      await tester.pump();
+
+      expect(find.text('Slide 2 of 3'), findsOneWidget);
+      expect(find.textContaining('Problem'), findsOneWidget);
+
+      // Tap Next slide again
+      await tester.tap(find.byIcon(Icons.chevron_right_rounded));
+      await tester.pump();
+
+      expect(find.text('Slide 3 of 3'), findsOneWidget);
+      expect(find.textContaining('Solution'), findsOneWidget);
+    });
+
+    testWidgets('triggers export prompt callback when export option chosen', (tester) async {
+      final store = CanvasStore();
+      store.openCode(
+        title: 'strategy.deck',
+        code: '# Slide 1\nTitle\n---\n# Slide 2\nGoals',
+        language: 'slide',
+      );
+
+      String? exportedPrompt;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: UiCanvasPanel(
+              store: store,
+              onPromptExport: (art, prompt) => exportedPrompt = prompt,
+            ),
+          ),
+        ),
+      );
+
+      // Open Export Deck menu
+      await tester.tap(find.text('Export Deck'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Build directly on PC (PowerPoint)'), findsOneWidget);
+      expect(find.text('Download as PPTX / PDF'), findsOneWidget);
+      expect(find.text('Export to Google Slides'), findsOneWidget);
+
+      // Select Build directly on PC
+      await tester.tap(find.text('Build directly on PC (PowerPoint)'));
+      await tester.pumpAndSettle();
+
+      expect(exportedPrompt, contains('PowerPoint'));
+    });
   });
 }
+

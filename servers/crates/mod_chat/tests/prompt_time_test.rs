@@ -10,8 +10,8 @@ fn prompt_time_question_is_detected() {
 
 #[test]
 fn prompt_time_block_has_context_for_answer() {
-    let tz = time_timezone_resolve("id", "sekarang hari apa ?");
-    let block = time_prompt_block(tz);
+    let tz = time_timezone_resolve("", "id", "sekarang hari apa ?");
+    let block = time_prompt_block(&tz);
     assert!(block.contains("Now:"));
 }
 
@@ -23,8 +23,8 @@ async fn live_prompt_time_question_streams_text() {
         eprintln!("skipping live_prompt_time_question_streams_text: GEMINI_API_KEY missing");
         return;
     }
-    let tz = time_timezone_resolve("id", "sekarang hari apa ?");
-    let system = time_prompt_block(tz);
+    let tz = time_timezone_resolve("", "id", "sekarang hari apa ?");
+    let system = time_prompt_block(&tz);
     let contents = [json!({ "role": "user", "parts": [{ "text": "sekarang hari apa ?" }] })];
     let cancel = CancellationToken::new();
     let mut deltas = Vec::new();
@@ -38,6 +38,7 @@ async fn live_prompt_time_question_streams_text() {
         "off",
         &model,
         &system,
+        "AUTO",
         &mut on_delta,
         &cancel,
     )

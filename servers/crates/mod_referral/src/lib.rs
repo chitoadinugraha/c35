@@ -6,7 +6,7 @@ mod stats;
 
 pub use codes::{
     normalize_code, referral_code_doc_from_row, referral_code_meta_from_doc, referral_package_get,
-    ReferralPackage,
+    referral_signup_code_lookup, referral_signup_code_redeem, ReferralPackage, ReferralSignupCode,
 };
 pub use commission::{
     commission_accrue_on_purchase, commission_accrue_on_topup_tx, commission_simulate, MARKETING_POOL_RATE,

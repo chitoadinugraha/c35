@@ -5,6 +5,8 @@ pub mod llm_route;
 pub mod thought;
 pub mod time;
 pub mod tool_loop;
+pub mod user_context;
+pub mod web_grounding;
 
 use crate::tools::ToolDef;
 
@@ -22,6 +24,8 @@ pub struct ChatReq {
     pub thinking: String,
     pub tools: Vec<ToolDef>,
     pub history: Vec<ChatHistoryMsg>,
+    /// When true, first tool hop uses Gemini function-calling mode ANY (web-search inst).
+    pub force_tool_call: bool,
 }
 
 #[derive(Debug, Clone, Default)]

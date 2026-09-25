@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alienai_c35/c/catalog/catalog_translation_cache.dart';
 import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/chat/chat_inbox.dart';
 import 'package:alienai_c35/widgets/ai/ui_chat_message_menu.dart';
@@ -7,14 +8,14 @@ import 'package:alienai_c35/widgets/ai/ui_msg_trace_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-Future<void> showMsgTraceBottomSheet(BuildContext context, {required String reqId, required ChatConn conn}) async {
+Future<void> showMsgTraceBottomSheet(BuildContext context, {required String reqId, required ChatConn conn, int msgId = 0}) async {
   if (reqId.trim().isEmpty) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No trace available'), behavior: SnackBarBehavior.floating, duration: Duration(seconds: 2)));
     }
     return;
   }
-  await showMsgTraceSheet(context, reqId: reqId.trim(), conn: conn);
+  await showMsgTraceSheet(context, reqId: reqId.trim(), conn: conn, msgId: msgId);
 }
 
 List<ChatMessageMenuItem> msgBubbleMenuItems(
@@ -29,6 +30,7 @@ List<ChatMessageMenuItem> msgBubbleMenuItems(
   VoidCallback? onSpeak,
   bool showRetry = false,
   VoidCallback? onRetryLastTurn,
+  VoidCallback? onImageUpgradeHd,
   ChatConn? conn,
 }) {
   final loc = MaterialLocalizations.of(context);
@@ -74,6 +76,17 @@ List<ChatMessageMenuItem> msgBubbleMenuItems(
           onPressed: onRetryLastTurn,
         ),
     ],
+    if (onImageUpgradeHd != null) ...[
+      const ChatMessageMenuDivider(),
+      ChatMessageMenuAction(
+        label: catalogT('chat.image.upgrade_hd'),
+        icon: Icons.hd_rounded,
+        onPressed: () {
+          ContextMenuController.removeAny();
+          onImageUpgradeHd();
+        },
+      ),
+    ],
     if (canTrace) ...[
       const ChatMessageMenuDivider(),
       ChatMessageMenuAction(
@@ -82,7 +95,7 @@ List<ChatMessageMenuItem> msgBubbleMenuItems(
         onPressed: () {
           ContextMenuController.removeAny();
           if (!context.mounted) return;
-          unawaited(showMsgTraceBottomSheet(context, reqId: reqId, conn: traceConn));
+          unawaited(showMsgTraceBottomSheet(context, reqId: reqId, conn: traceConn, msgId: msgId));
         },
       ),
     ],
@@ -115,6 +128,7 @@ Widget msgBubbleContextMenu(
   VoidCallback? onSpeak,
   bool showRetry = false,
   VoidCallback? onRetryLastTurn,
+  VoidCallback? onImageUpgradeHd,
   ChatConn? conn,
 }) {
   void closeMenu() => ContextMenuController.removeAny();
@@ -133,6 +147,7 @@ Widget msgBubbleContextMenu(
     onSpeak: onSpeak,
     showRetry: showRetry,
     onRetryLastTurn: onRetryLastTurn,
+    onImageUpgradeHd: onImageUpgradeHd,
     conn: conn,
   );
 

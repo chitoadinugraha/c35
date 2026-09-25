@@ -15,9 +15,7 @@ bool referralCodeIsSpecial(String code) => specialReferralCodes.contains(referra
 
 bool referralCodeReadyForCheck(String code) {
   final norm = referralCodeNorm(code);
-  if (norm.isEmpty) return false;
-  if (referralCodeIsSpecial(norm)) return true;
-  return norm.length == referralCodeNormMaxLen;
+  return norm.isNotEmpty;
 }
 
 int referralCodeDisplayMaxLen() => referralCodeNormMaxLen + (referralCodeNormMaxLen ~/ referralCodeGroupLen) - 1;

@@ -8,8 +8,13 @@ mod identity_list;
 mod identity_put;
 mod identity_delete;
 mod identity_nav_counts;
+mod identity_geo;
+mod identity_prefs_sync;
 mod identity_profile_get;
 mod session_init;
+
+pub use identity_geo::{identity_geo_from_headers, identity_geo_ip_apply, GeoHint};
+pub use identity_prefs_sync::identity_prefs_sync;
 
 pub use auth_jwt::{jwt_caller_iid, jwt_decode, jwt_issue, jwt_verify, SessionJwtClaims};
 pub use auth_oauth::oauth_router;

@@ -1,14 +1,14 @@
 use anyhow::{bail, Result};
 use base64::Engine;
 use c35_mod_billing::image_tool_wholesale_usd;
-use c35_mod_file::{cas_bytes_get, cas_dir_default, cas_put};
+use c35_mod_file::{cas_bytes_get, cas_dir_default, cas_image_bytes_fit_inline, cas_put};
 use c35_mod_llm::{cf_grok_image_run, cf_image_provider_enabled};
 use serde_json::{json, Value};
 use sqlx::PgPool;
 use tokio::time::Duration;
 
 use crate::prompt::gemini::gemini_api_key;
-use crate::tools::image_tier::{image_tier_resolve, ImageTier, MODEL_IMAGEN};
+use crate::tools::image_tier::{image_default_draft_tier, image_tier_resolve, ImageTier, MODEL_IMAGEN};
 
 #[derive(Debug, Clone)]
 pub struct ImageRunMeta {
@@ -360,10 +360,15 @@ fn img_tool_response(
         "wholesale_usd": meta.wholesale_usd,
         "block": {
             "kind": "image",
-            "hash": put.hash,
-            "url": put.url,
-            "mime": put.mime_type,
-            "prompt": prompt,
+            "collapsed": false,
+            "body": {
+                "hash": put.hash,
+                "url": put.url,
+                "mime": put.mime_type,
+                "prompt": prompt,
+                "quality": quality,
+                "image_size": meta.image_size,
+            }
         }
     });
     if !source_hash.is_empty() {
@@ -392,11 +397,13 @@ pub async fn img_generate_exec(
         aspect_ratio.trim()
     };
     let q = if quality.trim().is_empty() { "draft" } else { quality.trim() };
-    let tier = image_tier_resolve(mention_ids, user_text, prompt, q, false);
+    let default_draft = image_default_draft_tier(pool).await;
+    let tier = image_tier_resolve(mention_ids, user_text, prompt, q, false, &default_draft);
     let (bytes, meta) = image_run(client, prompt, ar, &tier, None).await?;
     let mime = infer_mime(&bytes);
+    let (bytes, mime) = cas_image_bytes_fit_inline(bytes, mime).map_err(|e| anyhow::anyhow!(e))?;
     let secret = cas_secret_from_env();
-    let put = cas_put(pool, &cas_dir_default(), &secret, &bytes, mime).await?;
+    let put = cas_put(pool, &cas_dir_default(), &secret, &bytes, &mime).await?;
     Ok(img_tool_response(
         "img.generate",
         &put,
@@ -440,7 +447,8 @@ pub async fn img_edit_exec(
         aspect_ratio.trim()
     };
     let q = if quality.trim().is_empty() { "draft" } else { quality.trim() };
-    let tier = image_tier_resolve(mention_ids, user_text, prompt, q, true);
+    let default_draft = image_default_draft_tier(pool).await;
+    let tier = image_tier_resolve(mention_ids, user_text, prompt, q, true, &default_draft);
     let (source_bytes, source_mime) = img_load_cas(pool, &hash).await?;
     let (bytes, meta) = image_run(
         client,
@@ -451,8 +459,9 @@ pub async fn img_edit_exec(
     )
     .await?;
     let mime = infer_mime(&bytes);
+    let (bytes, mime) = cas_image_bytes_fit_inline(bytes, mime).map_err(|e| anyhow::anyhow!(e))?;
     let secret = cas_secret_from_env();
-    let put = cas_put(pool, &cas_dir_default(), &secret, &bytes, mime).await?;
+    let put = cas_put(pool, &cas_dir_default(), &secret, &bytes, &mime).await?;
     Ok(img_tool_response(
         "img.edit",
         &put,

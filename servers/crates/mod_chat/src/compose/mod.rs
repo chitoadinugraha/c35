@@ -24,7 +24,12 @@ pub use mention_gate::{
     tool_mention_capability_eligible, tool_mention_eligible, tool_mention_kinds_eligible,
 };
 pub use topic::{tool_topic_eligible, topic_resolve};
-pub use tool_select::{tool_turn_eligible, tools_for_turn};
+pub use tool_select::{compose_force_general_web, tool_turn_eligible, tools_for_turn};
+
+/// First LLM hop must call a tool when web-search inst matched and web.search is available.
+pub fn compose_force_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> bool {
+    matched_ids.iter().any(|id| id == "inst.web_search") && tools.iter().any(|t| t.name == "web.search")
+}
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ComposeTraceCandidate {
@@ -182,6 +187,8 @@ fn compose_prepare_scoped(
         .filter(|t| tool_mention_eligible(t, mention, caps))
         .filter(|t| !ask_mode || t.readonly)
         .collect();
+    compose_force_general_web(&eligible_tools, &topic_refs, &mut force_include);
+
     if ask_mode && eligible_tools.is_empty() {
         return Err(ComposeOutput {
             inst_block,

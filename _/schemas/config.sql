@@ -26,6 +26,14 @@ ON CONFLICT (key) DO UPDATE SET
     value = EXCLUDED.value,
     updated_at = NOW();
 
+-- img.generate draft default: "lite" = gemini-3.1-flash-lite-image 1K; "flash" = gemini-3.1-flash-image 1K.
+-- Env C35_IMAGE_DEFAULT_TIER overrides this row. HD (2K) is unchanged (@image_high / quality hd).
+INSERT INTO ai.config (key, value) VALUES (
+    'image.default_tier',
+    '{"tier":"lite"}'::jsonb
+)
+ON CONFLICT (key) DO NOTHING;
+
 -- Manual wallet top-up bank details (shown in app).
 INSERT INTO ai.config (key, value) VALUES (
     'billing.manual_transfer',

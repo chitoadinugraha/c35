@@ -10,6 +10,7 @@ use axum::{
 };
 use c35_ctx::AppState;
 use c35_mod_billing::billing_signup_credit;
+use c35_mod_referral::{referral_signup_code_lookup, referral_signup_code_redeem};
 use c35_store::{db_retry, snowflake_id};
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
@@ -259,50 +260,43 @@ pub async fn sign_up(
         let parent_opt: Option<i64> = if special {
             Some(99000)
         } else {
-            sqlx::query_scalar("SELECT issued_by_iid FROM ai.referral_code WHERE code = $1 AND (expires_at IS NULL OR expires_at > NOW()) LIMIT 1")
-                .bind(&code_norm)
-                .fetch_optional(pool)
-                .await
-                .ok()
-                .flatten()
+            match referral_signup_code_lookup(pool, &code_norm).await {
+                Ok(Some(info)) if info.issued_by_iid != iid => {
+                    referral_signup_code_redeem(pool, &code_norm).await.ok().map(|r| r.issued_by_iid)
+                }
+                Ok(Some(_)) => return bad("Cannot refer yourself."),
+                _ => None,
+            }
         };
 
         if let Some(parent_iid) = parent_opt {
-            if parent_iid != iid {
-                referred_by_iid = Some(parent_iid);
-                referral_prompt_dismissed = true;
-                let _ = sqlx::query("UPDATE ai.identity SET referred_by_iid = $1, meta = meta || '{\"referral_prompt_dismissed\": true}'::jsonb WHERE id = $2")
-                    .bind(parent_iid)
-                    .bind(iid)
-                    .execute(pool)
-                    .await;
-                let _ = sqlx::query("INSERT INTO ai.referral_share (parent_iid, child_iid, share_percent) VALUES ($1, $2, 25) ON CONFLICT DO NOTHING")
-                    .bind(parent_iid)
-                    .bind(iid)
-                    .execute(pool)
-                    .await;
-                if !special {
-                    let _ = sqlx::query("UPDATE ai.referral_code SET used_count = used_count + 1 WHERE code = $1")
-                        .bind(&code_norm)
-                        .execute(pool)
-                        .await;
-                }
-                const BONUS_IDR: f64 = 10_000.0;
-                let bonus_usd = BONUS_IDR / 17_630.0;
-                balance_idr += BONUS_IDR;
-                balance_usd += bonus_usd;
-                let _ = sqlx::query(
-                    r#"
-                    UPDATE ai.billing_account SET balance_idr = balance_idr + $2, balance_usd = balance_usd + $3, updated_ts = NOW()
-                    WHERE owner_iid = $1
-                    "#,
-                )
+            referred_by_iid = Some(parent_iid);
+            referral_prompt_dismissed = true;
+            let _ = sqlx::query("UPDATE ai.identity SET referred_by_iid = $1, meta = meta || '{\"referral_prompt_dismissed\": true}'::jsonb WHERE id = $2")
+                .bind(parent_iid)
                 .bind(iid)
-                .bind(BONUS_IDR)
-                .bind(bonus_usd)
                 .execute(pool)
                 .await;
-            }
+            let _ = sqlx::query("INSERT INTO ai.referral_share (parent_iid, child_iid, share_percent) VALUES ($1, $2, 25) ON CONFLICT DO NOTHING")
+                .bind(parent_iid)
+                .bind(iid)
+                .execute(pool)
+                .await;
+            const BONUS_IDR: f64 = 10_000.0;
+            let bonus_usd = BONUS_IDR / 17_630.0;
+            balance_idr += BONUS_IDR;
+            balance_usd += bonus_usd;
+            let _ = sqlx::query(
+                r#"
+                UPDATE ai.billing_account SET balance_idr = balance_idr + $2, balance_usd = balance_usd + $3, updated_ts = NOW()
+                WHERE owner_iid = $1
+                "#,
+            )
+            .bind(iid)
+            .bind(BONUS_IDR)
+            .bind(bonus_usd)
+            .execute(pool)
+            .await;
         } else {
             return bad("Invalid or expired referral code.");
         }
@@ -539,38 +533,17 @@ pub async fn referral_lookup(
         }))
         .into_response();
     }
-    let row = sqlx::query(
-        r#"
-        SELECT rc.code, rc.issued_by_iid, i.name AS issuer_name, COALESCE(i.pic, '') AS issuer_pic,
-               COALESCE((rc.meta->>'allow_short_id')::boolean, false) AS allow_short_id
-        FROM ai.referral_code rc
-        JOIN ai.identity i ON i.id = rc.issued_by_iid
-        WHERE rc.code = $1 AND (rc.expires_at IS NULL OR rc.expires_at > NOW())
-        LIMIT 1
-        "#,
-    )
-    .bind(&norm)
-    .fetch_optional(&st.pool)
-    .await
-    .ok()
-    .flatten();
-
-    match row {
-        Some(r) => {
-            let issuer_name: String = r.get("issuer_name");
-            let issuer_pic: String = r.get("issuer_pic");
-            let allow_short_id: bool = r.try_get("allow_short_id").unwrap_or(false);
-            Json(json!({
-                "valid": true,
-                "code": norm,
-                "issuer_name": issuer_name,
-                "issuer_pic": issuer_pic,
-                "allow_short_id": allow_short_id,
-                "type": "referral"
-            }))
-            .into_response()
-        }
-        None => Json(json!({
+    match referral_signup_code_lookup(&st.pool, &norm).await {
+        Ok(Some(info)) => Json(json!({
+            "valid": true,
+            "code": info.code,
+            "issuer_name": info.issuer_name,
+            "issuer_pic": info.issuer_pic,
+            "allow_short_id": info.allow_short_id,
+            "type": "referral"
+        }))
+        .into_response(),
+        Ok(None) => Json(json!({
             "valid": false,
             "code": norm,
             "issuer_name": "",
@@ -579,6 +552,7 @@ pub async fn referral_lookup(
             "type": ""
         }))
         .into_response(),
+        Err(e) => err(e),
     }
 }
 
@@ -624,32 +598,18 @@ pub async fn referral_claim(
     let (parent_iid, issuer_name) = if special {
         (99000, "Alien AI".to_string())
     } else {
-        let row = sqlx::query(
-            r#"
-            SELECT rc.issued_by_iid, i.name AS issuer_name
-            FROM ai.referral_code rc
-            JOIN ai.identity i ON i.id = rc.issued_by_iid
-            WHERE rc.code = $1 AND (rc.expires_at IS NULL OR rc.expires_at > NOW())
-            LIMIT 1
-            "#,
-        )
-        .bind(&code_norm)
-        .fetch_optional(pool)
-        .await
-        .ok()
-        .flatten();
-
-        match row {
-            Some(r) => (
-                r.get::<i64, _>("issued_by_iid"),
-                r.get::<String, _>("issuer_name"),
-            ),
-            None => return bad("Invalid or expired referral code."),
+        match referral_signup_code_lookup(pool, &code_norm).await {
+            Ok(Some(info)) => (info.issued_by_iid, info.issuer_name),
+            _ => return bad("Invalid or expired referral code."),
         }
     };
 
     if parent_iid == iid {
         return bad("Cannot refer yourself.");
+    }
+
+    if !special && referral_signup_code_redeem(pool, &code_norm).await.is_err() {
+        return bad("Invalid or expired referral code.");
     }
 
     let _ = sqlx::query(
@@ -667,15 +627,6 @@ pub async fn referral_claim(
     .bind(iid)
     .execute(pool)
     .await;
-
-    if !special {
-        let _ = sqlx::query(
-            "UPDATE ai.referral_code SET used_count = used_count + 1 WHERE code = $1",
-        )
-        .bind(&code_norm)
-        .execute(pool)
-        .await;
-    }
 
     const BONUS_IDR: f64 = 10_000.0;
     let bonus_usd = BONUS_IDR / 17_630.0;
@@ -749,15 +700,12 @@ pub async fn alien_id_check(
     let allows_short = if referral_code_is_special(&ref_norm) {
         true
     } else if !ref_norm.is_empty() {
-        sqlx::query_scalar::<_, bool>(
-            "SELECT COALESCE((meta->>'allow_short_id')::boolean, false) FROM ai.referral_code WHERE code = $1 AND (expires_at IS NULL OR expires_at > NOW()) LIMIT 1",
-        )
-        .bind(&ref_norm)
-        .fetch_optional(&st.pool)
-        .await
-        .ok()
-        .flatten()
-        .unwrap_or(false)
+        referral_signup_code_lookup(&st.pool, &ref_norm)
+            .await
+            .ok()
+            .flatten()
+            .map(|info| info.allow_short_id)
+            .unwrap_or(false)
     } else {
         false
     };
@@ -828,15 +776,12 @@ pub async fn alien_id_claim(
     let allows_short = if referral_code_is_special(&ref_norm) {
         true
     } else if !ref_norm.is_empty() {
-        sqlx::query_scalar::<_, bool>(
-            "SELECT COALESCE((meta->>'allow_short_id')::boolean, false) FROM ai.referral_code WHERE code = $1 AND (expires_at IS NULL OR expires_at > NOW()) LIMIT 1",
-        )
-        .bind(&ref_norm)
-        .fetch_optional(pool)
-        .await
-        .ok()
-        .flatten()
-        .unwrap_or(false)
+        referral_signup_code_lookup(pool, &ref_norm)
+            .await
+            .ok()
+            .flatten()
+            .map(|info| info.allow_short_id)
+            .unwrap_or(false)
     } else {
         false
     };
@@ -885,46 +830,38 @@ pub async fn alien_id_claim(
                     let parent_iid = if special {
                         Some(99000)
                     } else {
-                        sqlx::query_scalar("SELECT issued_by_iid FROM ai.referral_code WHERE code = $1 AND (expires_at IS NULL OR expires_at > NOW()) LIMIT 1")
-                            .bind(&ref_norm)
-                            .fetch_optional(pool)
-                            .await
-                            .ok()
-                            .flatten()
+                        match referral_signup_code_lookup(pool, &ref_norm).await {
+                            Ok(Some(info)) if info.issued_by_iid != iid => {
+                                referral_signup_code_redeem(pool, &ref_norm).await.ok().map(|r| r.issued_by_iid)
+                            }
+                            _ => None,
+                        }
                     };
 
                     if let Some(pid) = parent_iid {
-                        if pid != iid {
-                            let _ = sqlx::query("UPDATE ai.identity SET referred_by_iid = $1, meta = meta || '{\"referral_prompt_dismissed\": true}'::jsonb WHERE id = $2")
-                                .bind(pid)
-                                .bind(iid)
-                                .execute(pool)
-                                .await;
-                            let _ = sqlx::query("INSERT INTO ai.referral_share (parent_iid, child_iid, share_percent) VALUES ($1, $2, 25) ON CONFLICT DO NOTHING")
-                                .bind(pid)
-                                .bind(iid)
-                                .execute(pool)
-                                .await;
-                            if !special {
-                                let _ = sqlx::query("UPDATE ai.referral_code SET used_count = used_count + 1 WHERE code = $1")
-                                    .bind(&ref_norm)
-                                    .execute(pool)
-                                    .await;
-                            }
-                            const BONUS_IDR: f64 = 10_000.0;
-                            let bonus_usd = BONUS_IDR / 17_630.0;
-                            let _ = sqlx::query(
-                                r#"
-                                UPDATE ai.billing_account SET balance_idr = balance_idr + $2, balance_usd = balance_usd + $3, updated_ts = NOW()
-                                WHERE owner_iid = $1
-                                "#,
-                            )
+                        let _ = sqlx::query("UPDATE ai.identity SET referred_by_iid = $1, meta = meta || '{\"referral_prompt_dismissed\": true}'::jsonb WHERE id = $2")
+                            .bind(pid)
                             .bind(iid)
-                            .bind(BONUS_IDR)
-                            .bind(bonus_usd)
                             .execute(pool)
                             .await;
-                        }
+                        let _ = sqlx::query("INSERT INTO ai.referral_share (parent_iid, child_iid, share_percent) VALUES ($1, $2, 25) ON CONFLICT DO NOTHING")
+                            .bind(pid)
+                            .bind(iid)
+                            .execute(pool)
+                            .await;
+                        const BONUS_IDR: f64 = 10_000.0;
+                        let bonus_usd = BONUS_IDR / 17_630.0;
+                        let _ = sqlx::query(
+                            r#"
+                            UPDATE ai.billing_account SET balance_idr = balance_idr + $2, balance_usd = balance_usd + $3, updated_ts = NOW()
+                            WHERE owner_iid = $1
+                            "#,
+                        )
+                        .bind(iid)
+                        .bind(BONUS_IDR)
+                        .bind(bonus_usd)
+                        .execute(pool)
+                        .await;
                     }
                 }
             }

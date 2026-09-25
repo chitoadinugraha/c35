@@ -11,6 +11,8 @@ import 'package:alienai_c35/c/files/msg_attachment.dart';
 import 'package:alienai_c35/c/pb/c35/chat.pb.dart';
 import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
 import 'package:alienai_c35/c/pb/c35/session.pb.dart';
+import 'package:alienai_c35/c/location/user_location_prefs.dart';
+import 'package:alienai_c35/c/settings/user_locale_prefs.dart';
 import 'package:alienai_c35/c/session.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/foundation.dart';
@@ -1280,6 +1282,13 @@ class ChatStore extends ChangeNotifier {
         pic: profile.pic,
         globalRoles: roles.isEmpty ? null : roles,
       ));
+      unawaited(UserLocalePrefs.instance.mergeFromProfile(
+        tz: profile.tz,
+        locationCity: profile.locationCity,
+        locationRegion: profile.locationRegion,
+        locationCountry: profile.locationCountry,
+        locationSource: profile.locationSource,
+      ));
     }
     final membersByChat = {for (final m in init.inboxMembers) m.chatId.toInt(): m};
     for (final chat in init.inboxChats) {
@@ -1299,7 +1308,19 @@ class ChatStore extends ChangeNotifier {
 
   Future<void> refreshFromConn(ChatConn conn, {String locale = 'en'}) async {
     try {
-      final init = await conn.sessionInit(locale: locale, includeInbox: true, hintsSinceMs: Int64(HintStore.instance.rev));
+      final prefs = UserLocalePrefs.instance;
+      final locPrefs = UserLocationPrefs.instance;
+      final hasLoc = prefs.locationCity.isNotEmpty || prefs.locationRegion.isNotEmpty || prefs.locationCountry.isNotEmpty;
+      final init = await conn.sessionInit(
+        locale: locale,
+        tz: prefs.tz.isNotEmpty ? prefs.tz : UserLocalePrefs.deviceTimezoneDetect(),
+        locationCity: prefs.locationCity,
+        locationRegion: prefs.locationRegion,
+        locationCountry: prefs.locationCountry,
+        locationSource: locPrefs.sessionSourceForWire(hasLocationFields: hasLoc),
+        includeInbox: true,
+        hintsSinceMs: Int64(HintStore.instance.rev),
+      );
       sessionInitMerge(init);
     } catch (_) {}
     try {

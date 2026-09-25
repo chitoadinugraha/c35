@@ -62,13 +62,19 @@ INSERT INTO ai.inst (
     'global',
     'task',
     '',
-    '[WEB] Ground factual answers with web.search. Use for current events, prices, weather, or anything that may have changed.',
-    ARRAY['search', 'cari', 'googling', 'browse', 'latest', 'terbaru', 'kapan', 'weather', 'cuaca', 'harga'],
+    'Ground factual answers by calling the web.search tool (then web.visit when you need page text). Do not reply with plain-text search queries or [WEB] lines. Use for current events, prices, weather, cinema schedules, or anything that may have changed. When [USER LOCATION] is set and the question is local (weather, bioskop, terdekat, near me), include that city or region in the web.search query unless the user named a different place.',
+    ARRAY['search', 'cari', 'googling', 'browse', 'latest', 'terbaru', 'kapan', 'weather', 'cuaca', 'harga', 'film', 'bioskop', 'tayang', 'jadwal', 'sekarang', 'nonton', 'cinema', 'jadwal nonton', 'apa yang', 'hari ini'],
     ARRAY['tool_include:web.search'],
     100,
     'seed',
     NOW()
 ) ON CONFLICT (id) DO NOTHING;
+
+UPDATE ai.inst SET
+    inst = 'Ground factual answers by calling the web.search tool (then web.visit when you need page text). Do not reply with plain-text search queries or [WEB] lines. Use for current events, prices, weather, cinema schedules, or anything that may have changed. When [USER LOCATION] is set and the question is local (weather, bioskop, terdekat, near me), include that city or region in the web.search query unless the user named a different place.',
+    phrases = ARRAY['search', 'cari', 'googling', 'browse', 'latest', 'terbaru', 'kapan', 'weather', 'cuaca', 'harga', 'film', 'bioskop', 'tayang', 'jadwal', 'sekarang', 'nonton', 'cinema', 'jadwal nonton', 'apa yang', 'hari ini'],
+    updated_ts = NOW()
+WHERE id = 'inst.web_search';
 
 -- Seed: @research mention steering
 INSERT INTO ai.inst (
@@ -591,3 +597,37 @@ Use depth 2 unless they ask for deeper. Summarize node names and child_count —
     'seed',
     NOW()
 ) ON CONFLICT (id) DO NOTHING;
+
+-- Seed: presentation & slide deck builder workflow (clarify -> outline -> canvas -> export/build)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.presentation',
+    'global',
+    'task',
+    '',
+    '[PRESENTATION] User wants to create a presentation, slide deck, pitch deck, or PowerPoint. \
+Follow this strict 4-stage workflow: \
+1. CLARIFY FIRST (GRILL-ME): Never output final slides on turn 1. Ask 2-4 clarifying questions to understand: target audience, core objective, desired tone, estimated number of slides, and any must-include metrics or data points. \
+2. OUTLINE & BLUEPRINT: Once the user answers, formulate a slide-by-slide outline (Title, Core Message, and Layout/Visual cue for each slide). Ask: "Does this outline look good, or should we adjust any slide before staging on Canvas?" \
+3. CANVAS STAGING: Once the user approves the outline, generate the complete slide deck into Canvas (kind: ''canvas.artifact'', language: ''slide'') with slides separated by ''---''. Include punchy headlines, structured bullet points, and speaker notes. Tell the user they can review and edit directly in the Canvas sidecar, or click ''Iterate with AI'' to refine. \
+4. EXPORT & BUILD: Once the user is satisfied with the Canvas draft, ask which implementation they prefer: (a) Build directly on PC (if @Device / remote PC connected, via PowerPoint/Keynote or python-pptx), (b) Download as editable PPTX (call tool presentation.export with the markdown slides to generate the .pptx file), or (c) Export to Google Slides.',
+    ARRAY[
+        'presentation', 'presentasi', 'slide', 'slides', 'slide deck',
+        'bikin slide', 'buat slide', 'bikin presentasi', 'buat presentasi',
+        'pitch deck', 'powerpoint', 'keynote', 'deck', 'marp'
+    ],
+    ARRAY[]::TEXT[],
+    ARRAY['presentation.export'],
+    150,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    kind = EXCLUDED.kind,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+

@@ -88,12 +88,31 @@ String? billingPlanPriorityBadge(BillingPlanDoc plan) {
 }
 
 String billingPlanPoolsLabel(BillingPlanDoc plan) {
+  final lines = billingPlanQuotaLines(plan);
+  if (lines.isEmpty) return billingPlanAllowLabelLegacy(plan);
+  return lines.map((l) => '${l.label}: ${l.value}').join(' · ');
+}
+
+class BillingPlanQuotaLine {
+  const BillingPlanQuotaLine({required this.label, required this.value});
+
+  final String label;
+  final String value;
+}
+
+List<BillingPlanQuotaLine> billingPlanQuotaLines(BillingPlanDoc plan) {
   final alien = plan.alienPoolIdrMonthly;
   final frontier = plan.frontierPoolIdrMonthly;
-  if (alien > 0 || frontier > 0) {
-    return 'Alien AI ${billingFmtRp(alien > 0 ? alien : 0, compact: true)} · Frontier ${billingFmtRp(frontier > 0 ? frontier : 0, compact: true)} /mo';
-  }
-  return billingPlanAllowLabelLegacy(plan);
+  if (alien <= 0 && frontier <= 0) return const [];
+  final lines = <BillingPlanQuotaLine>[
+    if (alien > 0) BillingPlanQuotaLine(label: 'Alien AI Quota', value: '${billingFmtRp(alien)}/mo'),
+    if (frontier > 0) BillingPlanQuotaLine(label: 'API Quota', value: '${billingFmtRp(frontier)}/mo'),
+  ];
+  final channels = billingPlanChannelsBadge(plan);
+  if (channels != null) lines.add(BillingPlanQuotaLine(label: 'Channels', value: channels));
+  final priority = billingPlanPriorityBadge(plan);
+  if (priority != null) lines.add(BillingPlanQuotaLine(label: 'Priority', value: priority));
+  return lines;
 }
 
 String billingPlanAllowLabelLegacy(BillingPlanDoc plan) =>
@@ -139,7 +158,7 @@ BillingPlanDoc _plan({
 
 List<BillingPlanDoc> billingPlanCatalogFallback() => [
       _plan(slug: 'lite', name: 'Lite', sortOrder: 10, priceIdrMonthly: 59000, priceIdrYearly: 49000, alienPool: 100000, frontierPool: 20000, poolMultiplier: 1, channels: 2),
-      _plan(slug: 'plus', name: 'Plus', sortOrder: 20, priceIdrMonthly: 109000, priceIdrYearly: 99000, alienPool: 400000, frontierPool: 80000, poolMultiplier: 4, channels: 2, overage: true),
-      _plan(slug: 'pro', name: 'Pro', sortOrder: 30, priceIdrMonthly: 349000, priceIdrYearly: 309000, alienPool: 1000000, frontierPool: 200000, poolMultiplier: 10, channels: 3, overage: true, queuePriority: 5),
-      _plan(slug: 'ultra', name: 'Ultra', sortOrder: 40, priceIdrMonthly: 1200000, priceIdrYearly: 1000000, alienPool: 4000000, frontierPool: 800000, poolMultiplier: 40, channels: 5, overage: true, queuePriority: 30, priorityQueue: true),
+      _plan(slug: 'plus', name: 'Plus', sortOrder: 20, priceIdrMonthly: 105000, priceIdrYearly: 99000, alienPool: 175000, frontierPool: 35000, poolMultiplier: 4, channels: 2, overage: true),
+      _plan(slug: 'pro', name: 'Pro', sortOrder: 30, priceIdrMonthly: 340000, priceIdrYearly: 309000, alienPool: 565000, frontierPool: 115000, poolMultiplier: 10, channels: 3, overage: true, queuePriority: 5),
+      _plan(slug: 'ultra', name: 'Ultra', sortOrder: 40, priceIdrMonthly: 1200000, priceIdrYearly: 1000000, alienPool: 2000000, frontierPool: 400000, poolMultiplier: 40, channels: 5, overage: true, queuePriority: 30, priorityQueue: true),
     ];

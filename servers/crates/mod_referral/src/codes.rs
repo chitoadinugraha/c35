@@ -126,3 +126,107 @@ pub fn normalize_code(raw: &str) -> String {
         .collect::<String>()
         .to_uppercase()
 }
+
+#[derive(Debug, Clone)]
+pub struct ReferralSignupCode {
+    pub code: String,
+    pub issued_by_iid: i64,
+    pub issuer_name: String,
+    pub issuer_pic: String,
+    pub allow_short_id: bool,
+}
+
+fn referral_signup_code_valid(meta: &Value, used_count: i32, expires_at_ms: i64) -> bool {
+    if meta_str(meta, "type") == "package" {
+        return false;
+    }
+    if expires_at_ms > 0 && expires_at_ms <= chrono::Utc::now().timestamp_millis() {
+        return false;
+    }
+    let max_uses = meta_i32(meta, "max_uses");
+    !(max_uses > 0 && used_count >= max_uses)
+}
+
+fn referral_signup_code_from_row(code: &str, row: &sqlx::postgres::PgRow) -> Option<ReferralSignupCode> {
+    let meta: Value = row.try_get("meta").unwrap_or(json!({}));
+    let used_count: i32 = row.get("used_count");
+    let expires_at_ms = row.get::<Option<f64>, _>("expires_at_ms").unwrap_or(0.0) as i64;
+    if !referral_signup_code_valid(&meta, used_count, expires_at_ms) {
+        return None;
+    }
+    Some(ReferralSignupCode {
+        code: code.to_string(),
+        issued_by_iid: row.get("issued_by_iid"),
+        issuer_name: row.get("issuer_name"),
+        issuer_pic: row.get::<String, _>("issuer_pic"),
+        allow_short_id: meta
+            .get("allow_short_id")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false),
+    })
+}
+
+const REFERRAL_SIGNUP_CODE_SELECT: &str = r#"
+        SELECT rc.code, rc.issued_by_iid, rc.used_count,
+               (EXTRACT(EPOCH FROM rc.expires_at) * 1000)::float8 AS expires_at_ms,
+               COALESCE(rc.meta, '{}'::jsonb) AS meta,
+               i.name AS issuer_name, COALESCE(i.pic, '') AS issuer_pic
+        FROM ai.referral_code rc
+        JOIN ai.identity i ON i.id = rc.issued_by_iid
+        WHERE rc.code = $1
+"#;
+
+pub async fn referral_signup_code_lookup(pool: &PgPool, raw_code: &str) -> Result<Option<ReferralSignupCode>, String> {
+    let code = normalize_code(raw_code);
+    if code.is_empty() {
+        return Ok(None);
+    }
+    let row = sqlx::query(REFERRAL_SIGNUP_CODE_SELECT)
+        .bind(&code)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(row.as_ref().and_then(|r| referral_signup_code_from_row(&code, r)))
+}
+
+pub async fn referral_signup_code_redeem(pool: &PgPool, raw_code: &str) -> Result<ReferralSignupCode, String> {
+    let code = normalize_code(raw_code);
+    if code.is_empty() {
+        return Err("Invalid or expired referral code.".into());
+    }
+    let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
+    let row = sqlx::query(&format!("{REFERRAL_SIGNUP_CODE_SELECT} FOR UPDATE"))
+        .bind(&code)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|e| e.to_string())?;
+    let Some(row) = row else {
+        return Err("Invalid or expired referral code.".into());
+    };
+    let Some(info) = referral_signup_code_from_row(&code, &row) else {
+        return Err("Invalid or expired referral code.".into());
+    };
+    sqlx::query("UPDATE ai.referral_code SET used_count = used_count + 1, updated_ts = NOW() WHERE code = $1")
+        .bind(&code)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| e.to_string())?;
+    tx.commit().await.map_err(|e| e.to_string())?;
+    Ok(info)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn referral_signup_code_valid_rejects_package_and_max_uses() {
+        let meta = json!({"type": "package", "max_uses": 0});
+        assert!(!referral_signup_code_valid(&meta, 0, 0));
+        let meta = json!({"type": "referral", "max_uses": 2});
+        assert!(referral_signup_code_valid(&meta, 1, 0));
+        assert!(!referral_signup_code_valid(&meta, 2, 0));
+        let meta = json!({"max_uses": 0});
+        assert!(referral_signup_code_valid(&meta, 0, 0));
+    }
+}

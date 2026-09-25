@@ -218,7 +218,7 @@ Users see **two monthly pools in IDR**:
 | **Frontier** | Pinned Gemini, GPT, Claude, … | Catalog wholesale × **1.50** |
 
 See [billing-pricing.md](billing-pricing.md) for rates, margin, and debit order.  
-See [billing-plans.md](billing-plans.md) for per-tier pool amounts and caps.
+See [billing-plans.md](billing-plans.md) for per-tier pool amounts and caps (**included total ≈ 2× monthly subscription**, 83/17 Alien/Frontier split).
 
 **Server (shipped):** `billing_profile` pool columns are written on subscribe and signup-trial claim; `billing_usage_report` deducts pools first for personal turns. Legacy `billing_account` `alien_allow_*` columns still exist as fallback when profile pools are zero.
 

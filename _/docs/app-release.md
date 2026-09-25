@@ -73,6 +73,14 @@ Standalone scripts bump once each. Set `DEPLOY_SKIP_VERSION_BUMP=1` to skip (orc
 
 Scripts call `deployLoadEnvLocal()` — values in repo-root `.env.local` apply when not set in the shell.
 
+**Mint `DEPLOY_AUTH_TOKEN`:** session JWT for CAS upload (default identity **99000**). Requires `kubectl` access to `c35/c35-server-env` (`C35_JWT_SECRET`):
+
+```powershell
+.\_\scripts\deploy\mint_deploy_auth_token.ps1
+```
+
+Re-run before expiry (~30 days) or when uploads return `401`.
+
 Web upload does **not** require `DEPLOY_AUTH_TOKEN` (S3 only). Version publish still requires `YB_PASSWORD`.
 
 ---

@@ -8,15 +8,16 @@ use futures_util::future::join_all;
 use serde_json::{json, Value};
 use tokio_util::sync::CancellationToken;
 
-use super::llm_route::{bill_model_slug, llm_generate_chain, llm_stream_chain};
+use super::llm_route::{bill_model_slug, llm_stream_chain};
 use super::thought::{thought_push, thinking_level};
+use super::web_grounding::{pick_visit_url, reply_looks_like_web_placeholder, search_payload};
 use super::{ChatReq, ChatRes};
 use crate::prompt::hooks::PromptHopCheckpoint;
 use crate::prompt_run::{
     chat_tool_rounds_max, checkpoint_record_tool, checkpoint_set_fatal, checkpoint_tool_should_stop,
 };
 use crate::chat_title_set;
-use crate::tools::{cluster_tool_exec, http_client, tool_decls, TurnCtx};
+use crate::tools::{cluster_tool_def, cluster_tool_exec, http_client, tool_decls, TurnCtx};
 use crate::turn_tracer::TurnTracer;
 
 pub const CHAT_TOOL_ROUNDS_MAX: u8 = 24;
@@ -76,8 +77,8 @@ pub async fn prompt_cluster_turn(
     let bill_slug = bill_model_slug(&requested_model);
     let thinking = thinking_level(&req.thinking);
     let system = cluster_system(req);
-    let tools = req.tools.clone();
-    let tool_json = tool_decls(&tools);
+    let mut tools = req.tools.clone();
+    let mut tool_json = tool_decls(&tools);
     let client = http_client(std::time::Duration::from_secs(30));
     let mut contents: Vec<Value> = Vec::with_capacity(req.history.len() + 1);
     for h in &req.history {
@@ -105,6 +106,7 @@ pub async fn prompt_cluster_turn(
             &json!([]),
             &thinking,
             &system,
+            "AUTO",
             on_delta,
             cancel,
         )
@@ -124,16 +126,50 @@ pub async fn prompt_cluster_turn(
 
     let mut prev_calls: Vec<(String, Value)> = Vec::new();
     let mut used_tool = false;
+    let mut web_grounded = false;
+    if req.force_tool_call && tools.iter().any(|t| t.name == "web.search") {
+        let q = search_query_from_user(&req.user);
+        if tool_loop_run_web_search(
+            &client,
+            &q,
+            true,
+            &mut contents,
+            &mut tools,
+            &mut tool_json,
+            &mut tools_cost_usd,
+            &mut thought,
+            on_delta,
+            turn_ctx.as_deref(),
+            tracer,
+        )
+        .await?
+        {
+            used_tool = true;
+            web_grounded = true;
+            prev_calls = vec![("web.search".into(), json!({ "query": q, "limit": 6 }))];
+        }
+    }
     for round in 0..rounds_max {
         if cancel.is_cancelled() { anyhow::bail!("aborted"); }
         let wrap = chat_tool_rounds_done(round + 1, run_kind);
         let hop = round + 1;
         let hop_started = Instant::now();
+        let tool_call_mode = if round == 0 && req.force_tool_call && !web_grounded && !wrap { "ANY" } else { "AUTO" };
         let (out, _provider_model, _) = if wrap {
             contents.push(json!({ "role": "user", "parts": [{ "text": CHAT_WRAPUP_HINT }] }));
-            llm_generate_chain(&client, &requested_model, &contents, &json!([]), &thinking, &system, &req.user).await?
+            llm_stream_chain(&requested_model, &contents, &json!([]), &thinking, &system, "AUTO", on_delta, cancel).await?
         } else {
-            llm_generate_chain(&client, &requested_model, &contents, &tool_json, &thinking, &system, &req.user).await?
+            llm_stream_chain(
+                &requested_model,
+                &contents,
+                &tool_json,
+                &thinking,
+                &system,
+                tool_call_mode,
+                on_delta,
+                cancel,
+            )
+            .await?
         };
         let hop_ms = hop_started.elapsed().as_millis() as i64;
         tokens_in += out.in_tok;
@@ -143,7 +179,9 @@ pub async fn prompt_cluster_turn(
             tr.llm_call(hop as u8, &bill_slug, out.in_tok, out.out_tok, hop_ms, hop_cost, &out.text).await;
         }
         hop_checkpoint(turn_ctx.as_deref(), &on_hop, hop as i32, hop as i32, tokens_in, tokens_out, tools_cost_usd, &blocks_json, "");
-        emit_thought(on_delta, &mut thought, &out.thought);
+        if !out.thought.is_empty() {
+            thought_push(&mut thought, &out.thought);
+        }
         if !out.function_calls.is_empty() {
             if wrap || tool_calls_dup(&prev_calls, &out.function_calls) {
                 return wrap_up(
@@ -284,6 +322,10 @@ pub async fn prompt_cluster_turn(
                 }));
             }
 
+            if out.function_calls.iter().any(|(n, _)| n == "web.search" || n == "web.visit") {
+                ensure_web_visit_tool(&mut tools, &mut tool_json);
+            }
+
             prev_calls = out.function_calls;
             continue;
         }
@@ -322,31 +364,42 @@ pub async fn prompt_cluster_turn(
             prev_calls = vec![("consumption.today".into(), args)];
             continue;
         }
-        if round == 0 && !used_tool && user_wants_search(&req.user) && tools.iter().any(|t| t.name == "web.search") {
+        if round == 0
+            && !used_tool
+            && tools.iter().any(|t| t.name == "web.search")
+            && (req.force_tool_call || user_wants_search(&req.user))
+        {
             let q = search_query_from_user(&req.user);
-            emit_thought(on_delta, &mut thought, "Using web.search…\n");
-            let tool_started = Instant::now();
-            let args = json!({ "query": q, "limit": 6 });
-            let (result, tool_cost) = cluster_tool_exec(&client, "web.search", &args, turn_ctx.as_deref()).await;
-            tools_cost_usd += tool_cost;
-            let tool_ms = tool_started.elapsed().as_millis() as i64;
-            let ok = result.get("ok").and_then(|v| v.as_bool()).unwrap_or(true);
-            if let Some(tr) = tracer {
-                tr.tool_result("web.search", &snowflake_id().to_string(), &args, &result, ok, tool_ms).await;
+            if tool_loop_run_web_search(
+                &client,
+                &q,
+                req.force_tool_call,
+                &mut contents,
+                &mut tools,
+                &mut tool_json,
+                &mut tools_cost_usd,
+                &mut thought,
+                on_delta,
+                turn_ctx.as_deref(),
+                tracer,
+            )
+            .await?
+            {
+                used_tool = true;
+                prev_calls = vec![("web.search".into(), json!({ "query": q, "limit": 6 }))];
+                continue;
             }
-            used_tool = true;
-            contents.push(json!({ "role": "model", "parts": [{ "functionCall": { "name": "web_search", "args": { "query": q } } }] }));
-            contents.push(json!({
-                "role": "function",
-                "parts": [{ "functionResponse": { "name": "web_search", "response": result } }]
-            }));
-            prev_calls = vec![("web.search".into(), args)];
-            continue;
         }
         if !out.text.is_empty() {
-            emit_thought(on_delta, &mut thought, &out.thought);
-            emit_text(on_delta, &mut text, &out.text);
-            return Ok(ChatRes { text, thought, blocks_json, tokens_in, tokens_out, model_used, tools_cost_usd });
+            let reject_ungrounded = req.force_tool_call && !web_grounded && !used_tool;
+            let reject_placeholder = req.force_tool_call && reply_looks_like_web_placeholder(&out.text);
+            if !reject_ungrounded && !reject_placeholder {
+                if !out.thought.is_empty() {
+                    thought_push(&mut thought, &out.thought);
+                }
+                text = out.text.clone();
+                return Ok(ChatRes { text, thought, blocks_json, tokens_in, tokens_out, model_used, tools_cost_usd });
+            }
         }
         break;
     }
@@ -391,7 +444,7 @@ async fn wrap_up(
     if cancel.is_cancelled() { anyhow::bail!("aborted"); }
     contents.push(json!({ "role": "user", "parts": [{ "text": CHAT_WRAPUP_HINT }] }));
     let hop_started = Instant::now();
-    let (out, _provider_model, _) = llm_stream_chain(requested_model, &contents, &json!([]), thinking, system, on_delta, cancel).await?;
+    let (out, _provider_model, _) = llm_stream_chain(requested_model, &contents, &json!([]), thinking, system, "AUTO", on_delta, cancel).await?;
     let hop_ms = hop_started.elapsed().as_millis() as i64;
     tokens_in += out.in_tok;
     tokens_out += out.out_tok;
@@ -477,11 +530,78 @@ fn emit_text(on_delta: &mut (dyn FnMut(bool, String) + Send), acc: &mut String, 
     on_delta(false, piece.to_string());
 }
 
+/// Run web.search (+ web.visit on best URL) and append Gemini function messages to `contents`.
+async fn tool_loop_run_web_search(
+    client: &reqwest::Client,
+    query: &str,
+    force_visit: bool,
+    contents: &mut Vec<Value>,
+    tools: &mut Vec<crate::tools::ToolDef>,
+    tool_json: &mut Value,
+    tools_cost_usd: &mut f64,
+    thought: &mut String,
+    on_delta: &mut (dyn FnMut(bool, String) + Send),
+    turn_ctx: Option<&TurnCtx<'_>>,
+    tracer: Option<&TurnTracer>,
+) -> Result<bool> {
+    let q = query.trim();
+    if q.is_empty() {
+        return Ok(false);
+    }
+    emit_thought(on_delta, thought, "Using web.search…\n");
+    let args = json!({ "query": q, "limit": 6 });
+    let tool_started = Instant::now();
+    let (result, tool_cost) = cluster_tool_exec(client, "web.search", &args, turn_ctx).await;
+    *tools_cost_usd += tool_cost;
+    let tool_ms = tool_started.elapsed().as_millis() as i64;
+    let ok = result.get("ok").and_then(|v| v.as_bool()).unwrap_or(true);
+    if let Some(tr) = tracer {
+        tr.tool_result("web.search", &snowflake_id().to_string(), &args, &result, ok, tool_ms).await;
+    }
+    let mut model_parts = vec![json!({ "functionCall": { "name": "web_search", "args": { "query": q } } })];
+    let mut function_parts = vec![json!({ "functionResponse": { "name": "web_search", "response": result } })];
+    ensure_web_visit_tool(tools, tool_json);
+    let search_ok = search_payload(&result).get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
+    if force_visit && search_ok && tools.iter().any(|t| t.name == "web.visit") {
+        if let Some(url) = pick_visit_url(&result) {
+            emit_thought(on_delta, thought, "Using web.visit…\n");
+            let visit_args = json!({ "url": url });
+            let visit_started = Instant::now();
+            let (visit_result, visit_cost) = cluster_tool_exec(client, "web.visit", &visit_args, turn_ctx).await;
+            *tools_cost_usd += visit_cost;
+            let visit_ms = visit_started.elapsed().as_millis() as i64;
+            let visit_ok = visit_result.get("ok").and_then(|v| v.as_bool()).unwrap_or(true);
+            if let Some(tr) = tracer {
+                tr.tool_result("web.visit", &snowflake_id().to_string(), &visit_args, &visit_result, visit_ok, visit_ms).await;
+            }
+            model_parts.push(json!({ "functionCall": { "name": "web_visit", "args": visit_args } }));
+            function_parts.push(json!({ "functionResponse": { "name": "web_visit", "response": visit_result } }));
+        }
+    }
+    contents.push(json!({ "role": "model", "parts": model_parts }));
+    contents.push(json!({ "role": "function", "parts": function_parts }));
+    Ok(true)
+}
+
+fn ensure_web_visit_tool(tools: &mut Vec<crate::tools::ToolDef>, tool_json: &mut serde_json::Value) {
+    if tools.iter().any(|t| t.name == "web.visit") {
+        return;
+    }
+    if let Some(def) = cluster_tool_def("web.visit") {
+        tools.push(def);
+        *tool_json = tool_decls(tools);
+    }
+}
+
 pub fn user_wants_search(text: &str) -> bool {
     let t = text.to_ascii_lowercase();
-    ["search", "cari ", "google ", "berita", "latest ", "news ", "what is ", "apa itu ", "siapa "]
-        .iter()
-        .any(|k| t.contains(k))
+    [
+        "search", "cari ", "google ", "berita", "latest ", "news ", "what is ", "apa itu ", "siapa ",
+        "film", "bioskop", "cinema", "jadwal", "tayang", "nonton", "cuaca", "harga ", "sekarang apa",
+        "hari ini apa", "apa yang tayang", "jadwal nonton", "showtime",
+    ]
+    .iter()
+    .any(|k| t.contains(k))
 }
 
 pub fn search_query_from_user(text: &str) -> String {
@@ -530,4 +650,15 @@ pub fn user_wants_consumption_recap(text: &str) -> bool {
 pub fn consumption_recap_args_from_user(text: &str, locale: &str) -> Value {
     let day_id = c35_mod_consumption::day_id_from_query(text, locale);
     json!({ "day_id": day_id, "days": 1 })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn user_wants_search_cinema_id() {
+        assert!(user_wants_search("film apa saja di bioskop malang hari ini ?"));
+    }
+
 }

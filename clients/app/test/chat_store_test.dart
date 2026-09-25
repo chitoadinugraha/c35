@@ -567,6 +567,19 @@ void main() {
     expect(updated2[1].collapsed, isTrue);
   });
 
+  test('ChatBlock decodes legacy flat image blocks', () {
+    final block = ChatBlock.fromJson({
+      'kind': 'image',
+      'hash': 'abc123',
+      'url': '/fs/abc123',
+      'mime': 'image/png',
+      'prompt': 'bread logo',
+    });
+    expect(block.kind, 'image');
+    expect(block.body['hash'], 'abc123');
+    expect(block.body['mime'], 'image/png');
+  });
+
   test('deep search matches message body and produces snippet', () {
     final store = ChatStore();
     final chat = ChatRow(id: 1, title: 'Project Discussion', lastMsgAt: 1000);

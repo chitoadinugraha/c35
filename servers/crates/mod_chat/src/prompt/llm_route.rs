@@ -31,6 +31,7 @@ pub async fn llm_generate_chain(
     thinking: &str,
     system: &str,
     user: &str,
+    tool_call_mode: &str,
 ) -> Result<(ParseOut, String, String)> {
     let chain = model_chain_for_slug(requested_model);
     if chain.is_empty() {
@@ -39,7 +40,7 @@ pub async fn llm_generate_chain(
     let mut last_err = String::new();
     for target in chain {
         let attempt = if target.provider == "google" {
-            gemini_generate(contents, tools, thinking, &target.provider_model, system)
+            gemini_generate(contents, tools, thinking, &target.provider_model, system, tool_call_mode)
                 .await
                 .map(|o| (o, target.provider_model.clone()))
         } else {
@@ -91,13 +92,14 @@ pub async fn llm_stream_chain(
     tools: &Value,
     thinking: &str,
     system: &str,
+    tool_call_mode: &str,
     on_delta: &mut (dyn FnMut(bool, String) + Send),
     cancel: &CancellationToken,
 ) -> Result<(ParseOut, String, String)> {
     if !model_is_alien(requested_model) {
         let target = model_resolve_target(requested_model)
             .ok_or_else(|| anyhow::anyhow!("unknown model {requested_model}"))?;
-        let out = gemini_generate_stream(contents, tools, thinking, &target.provider_model, system, on_delta, cancel).await?;
+        let out = gemini_generate_stream(contents, tools, thinking, &target.provider_model, system, tool_call_mode, on_delta, cancel).await?;
         return Ok((out, target.provider_model, bill_model_slug(requested_model)));
     }
     let chain = model_chain_for_slug(requested_model);
@@ -109,7 +111,7 @@ pub async fn llm_stream_chain(
         if target.provider != "google" {
             continue;
         }
-        match gemini_generate_stream(contents, tools, thinking, &target.provider_model, system, on_delta, cancel).await {
+        match gemini_generate_stream(contents, tools, thinking, &target.provider_model, system, tool_call_mode, on_delta, cancel).await {
             Ok(out) if parse_out_ready(&out) => {
                 return Ok((out, target.provider_model, bill_model_slug(requested_model)));
             }

@@ -24,8 +24,8 @@ use crate::mention_context::MentionContext;
 use builtin::{
     ComputerUseDelegateTool, ConsumptionAddTool, ConsumptionDeleteTool, ConsumptionTodayTool,
     ConsumptionUpdateTool, DelegateRunTool, DeviceCommandTool, DeviceInputTool, DeviceScreenshotTool,
-    ExpenseAddTool, ExpenseDeleteTool, ExpenseSummaryTool, ImgEditTool, ImgGenerateTool, ReferralCodeDeleteTool,
-    ReferralCodeListTool, ReferralCodePutTool, ReferralTreeGetTool, SiteContactPutTool,
+    ExpenseAddTool, ExpenseDeleteTool, ExpenseSummaryTool, ImgEditTool, ImgGenerateTool, PresentationExportTool,
+    ReferralCodeDeleteTool, ReferralCodeListTool, ReferralCodePutTool, ReferralTreeGetTool, SiteContactPutTool,
     SiteDraftPutTool, SiteObjectPutTool, SiteProductPatchTool, SiteProductPutTool, SitePublishTool, SiteQueryRunTool,
     SiteTxDebtPayTool, SiteTxListTool, SiteTxPreviewTool, SiteTxPutTool, WebResearchTool,
     WebSearchTool, WebVisitTool,
@@ -87,6 +87,9 @@ pub struct TurnCtx<'a> {
     pub mention_ids: &'a [String],
     pub user_text: &'a str,
     pub locale: &'a str,
+    pub location_city: &'a str,
+    pub location_region: &'a str,
+    pub location_country: &'a str,
     pub attachments_json: &'a str,
     pub req_id: &'a str,
     pub run_kind: &'a str,
@@ -101,6 +104,7 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(WebResearchTool));
     dispatcher.register(Arc::new(ImgGenerateTool));
     dispatcher.register(Arc::new(ImgEditTool));
+    dispatcher.register(Arc::new(PresentationExportTool));
     dispatcher.register(Arc::new(ConsumptionAddTool));
     dispatcher.register(Arc::new(ConsumptionTodayTool));
     dispatcher.register(Arc::new(ConsumptionUpdateTool));
@@ -147,6 +151,12 @@ pub fn cluster_tools() -> Vec<ToolDef> {
         .collect()
 }
 
+pub fn cluster_tool_def(name: &str) -> Option<ToolDef> {
+    default_dispatcher()
+        .get(name)
+        .map(|t| ToolDef::from_definition(&t.definition()))
+}
+
 pub fn cluster_tool_name(name: &str) -> String {
     default_dispatcher()
         .get(name)
@@ -183,6 +193,9 @@ fn tool_context_from_turn(client: Client, turn: &TurnCtx<'_>) -> ToolContext {
         turn.mention_ids.to_vec(),
         turn.user_text,
         turn.locale,
+        turn.location_city,
+        turn.location_region,
+        turn.location_country,
         turn.attachments_json,
         turn.req_id,
         client,
@@ -209,6 +222,9 @@ pub async fn cluster_tool_exec(
             vec![],
             "",
             "en",
+            "",
+            "",
+            "",
             "",
             "",
             client.clone(),

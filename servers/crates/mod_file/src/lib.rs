@@ -15,8 +15,11 @@ use serde::Deserialize;
 use sqlx::{Postgres, Row, Transaction};
 use serde_json::Value as JsonValue;
 
+mod inline_fit;
 mod optimize;
 mod s3;
+
+pub use inline_fit::cas_image_bytes_fit_inline;
 
 use s3::{BlobS3, S3BlobError};
 

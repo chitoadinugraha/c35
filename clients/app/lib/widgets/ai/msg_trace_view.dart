@@ -115,8 +115,9 @@ class _UiMsgTraceLoaderState extends State<UiMsgTraceLoader> {
     final reqId = widget.reqId.trim();
     if (reqId.isEmpty) return;
     var view = msgTraceViewForReq(widget.conn, reqId: reqId);
-    if (view.isEmpty) {
-      await widget.conn.tracePrefetch(reqId);
+    final partMissing = _partEmpty(view);
+    if (view.isEmpty || partMissing) {
+      await widget.conn.tracePrefetch(reqId, force: true);
       view = msgTraceViewForReq(widget.conn, reqId: reqId);
     }
     if (!mounted) return;
@@ -125,7 +126,24 @@ class _UiMsgTraceLoaderState extends State<UiMsgTraceLoader> {
       _syncPoll();
       return;
     }
-    if (_partEmpty(view)) return;
+    if (_partEmpty(view) && widget.live) {
+      _syncPoll();
+      return;
+    }
+    final prev = _view;
+    final changed = prev == null ||
+        prev.chips.length != view.chips.length ||
+        prev.citations.length != view.citations.length ||
+        (prev.chips.isNotEmpty && view.chips.isNotEmpty && prev.chips.last.label != view.chips.last.label) ||
+        (widget.part == MsgTracePart.citations &&
+            prev.citations.length == view.citations.length &&
+            prev.citations.isNotEmpty &&
+            view.citations.isNotEmpty &&
+            prev.citations.last.url != view.citations.last.url);
+    if (!changed) {
+      _syncPoll();
+      return;
+    }
     setState(() => _view = view);
     _syncPoll();
   }

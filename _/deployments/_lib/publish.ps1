@@ -226,7 +226,13 @@ function Invoke-ClusterBuildkitBuild {
     $tarPath = Join-Path $RepoRoot $tarName
     Push-Location $RepoRoot
     try {
-        $excludes = @('--exclude=**/.cache', '--exclude=**/target', '--exclude=**/node_modules')
+        $excludes = @(
+            '--exclude=.git', '--exclude=.cache', '--exclude=**/.cache',
+            '--exclude=**/.dart_tool', '--exclude=**/.cargo',
+            '--exclude=**/target', '--exclude=**/build',
+            '--exclude=**/node_modules', '--exclude=**/__pycache__',
+            '--exclude=clients/app', '--exclude=remotes'
+        )
         & tar -cf $tarName @excludes @TarPaths
         if ($LASTEXITCODE -ne 0) { throw "tar context failed" }
         Write-Host "==> stage context on buildkit pod=$pod ($([math]::Round((Get-Item $tarPath).Length / 1MB, 2)) MB)"
@@ -269,8 +275,11 @@ function Publish-C35ChannelWhatsappDeviceImage {
     $buildSw = [System.Diagnostics.Stopwatch]::StartNew()
     $tarPaths = @(
         'servers/Cargo.toml', 'servers/Cargo.lock',
-        'servers/crates', 'servers/server_ai', 'servers/channel_whatsapp_device',
-        '_/schemas', '_/deployments/Dockerfile.channel-whatsapp-device'
+        'servers/crates', 'servers/channel_whatsapp_device',
+        'servers/server_ai/Cargo.toml',
+        'servers/fetcher/Cargo.toml',
+        'servers/node_stats/Cargo.toml',
+        '_/schemas', '_/deployments/Dockerfile.channel-whatsapp-device', '_/deployments/docker'
     )
     Invoke-ClusterBuildkitBuild -RepoRoot $dir -ImageRef $imageRef -Platform $Platform -TarPaths $tarPaths -DockerfileRel '_/deployments/Dockerfile.channel-whatsapp-device'
     $buildSw.Stop()
@@ -292,7 +301,7 @@ function Publish-C35NodeStatsImage {
     $tarPaths = @(
         'servers/Cargo.toml', 'servers/Cargo.lock',
         'servers/node_stats', 'servers/crates/proto', '_/schemas',
-        '_/deployments/Dockerfile.c35-node-stats'
+        '_/deployments/Dockerfile.c35-node-stats', '_/deployments/docker'
     )
     Invoke-ClusterBuildkitBuild -RepoRoot $dir -ImageRef $imageRef -Platform $Platform -TarPaths $tarPaths -DockerfileRel '_/deployments/Dockerfile.c35-node-stats'
     $buildSw.Stop()
@@ -313,8 +322,11 @@ function Publish-C35FetcherImage {
     $buildSw = [System.Diagnostics.Stopwatch]::StartNew()
     $tarPaths = @(
         'servers/Cargo.toml', 'servers/Cargo.lock',
-        'servers/crates', 'servers/fetcher', 'servers/server_ai', 'servers/channel_whatsapp_device', 'servers/node_stats',
-        '_/schemas', '_/deployments/Dockerfile.c35-fetcher'
+        'servers/crates', 'servers/fetcher',
+        'servers/server_ai/Cargo.toml',
+        'servers/node_stats/Cargo.toml',
+        'servers/channel_whatsapp_device/Cargo.toml',
+        '_/schemas', '_/deployments/Dockerfile.c35-fetcher', '_/deployments/docker'
     )
     Invoke-ClusterBuildkitBuild -RepoRoot $dir -ImageRef $imageRef -Platform $Platform -TarPaths $tarPaths -DockerfileRel '_/deployments/Dockerfile.c35-fetcher'
     $buildSw.Stop()
@@ -335,8 +347,12 @@ function Publish-C35ServerImage {
     $buildSw = [System.Diagnostics.Stopwatch]::StartNew()
     $tarPaths = @(
         'servers/Cargo.toml', 'servers/Cargo.lock',
-        'servers/crates', 'servers/fetcher', 'servers/server_ai', 'servers/channel_whatsapp_device',
-        'servers/node_stats', 'clients/web', '_/schemas', '_/deployments/Dockerfile'
+        'servers/crates', 'servers/server_ai',
+        'servers/fetcher/Cargo.toml',
+        'servers/node_stats/Cargo.toml',
+        'servers/channel_whatsapp_device/Cargo.toml',
+        'clients/web', '_/schemas',
+        '_/deployments/Dockerfile', '_/deployments/docker'
     )
     Invoke-ClusterBuildkitBuild -RepoRoot $dir -ImageRef $imageRef -Platform $Platform -TarPaths $tarPaths
     $buildSw.Stop()

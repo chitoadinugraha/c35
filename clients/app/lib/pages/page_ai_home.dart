@@ -24,6 +24,10 @@ import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/c/settings/prompt_usage_prefs.dart';
+import 'package:alienai_c35/c/location/location_permission.dart';
+import 'package:alienai_c35/c/location/location_service.dart';
+import 'package:alienai_c35/c/location/user_location_prefs.dart';
+import 'package:alienai_c35/c/settings/user_locale_prefs.dart';
 import 'package:alienai_c35/c/settings/voice_prefs.dart';
 import 'package:alienai_c35/c/store/chat_store.dart';
 import 'package:alienai_c35/c/store/prompt_run_store.dart';
@@ -39,6 +43,7 @@ import 'package:alienai_c35/pages/page_sites.dart';
 import 'package:alienai_c35/pages/page_settings.dart';
 import 'package:alienai_c35/pages/referral/page_referral_tree.dart';
 import 'package:alienai_c35/widgets/referral/ui_referral_claim_dialog.dart';
+import 'package:alienai_c35/widgets/settings/ui_location_consent_dialog.dart';
 import 'package:alienai_c35/widgets/referral/ui_referral_commission_sheet.dart';
 import 'package:alienai_c35/widgets/ai/in_composer.dart';
 import 'package:alienai_c35/widgets/ai/msg_trace_view.dart';
@@ -68,6 +73,7 @@ import 'package:alienai_c35/widgets/ai/ui_markdown_code_block.dart';
 import 'package:alienai_c35/widgets/ai/ui_context_meter.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
@@ -187,7 +193,8 @@ class _PageAIHomeState extends State<PageAIHome> {
     if (mounted) setState(() => _catalogReady = true);
     try {
       final locale = CatalogTranslationCache.instance.lang;
-      await _conn.connect(locale: locale);
+      final localePrefs = UserLocalePrefs.instance;
+      await _conn.connect(locale: locale, tz: localePrefs.tz.isNotEmpty ? localePrefs.tz : UserLocalePrefs.deviceTimezoneDetect());
       await _store.refreshFromConn(_conn, locale: locale);
       if (_store.mentionCatalog.mentions.isEmpty) {
         try {
@@ -206,6 +213,46 @@ class _PageAIHomeState extends State<PageAIHome> {
     } finally {
       if (mounted) setState(() => _modelsReady = true);
     }
+    if (mounted) unawaited(_checkLocationConsent());
+  }
+
+  Future<void> _checkLocationConsent() async {
+    if (!mounted) return;
+    if (kIsWeb || (defaultTargetPlatform != TargetPlatform.android && defaultTargetPlatform != TargetPlatform.iOS)) return;
+    await UserLocationPrefs.instance.load();
+    if (!mounted) return;
+    if (UserLocationPrefs.instance.asked) return;
+    if (UserLocalePrefs.instance.locationCity.isNotEmpty) return;
+    final continueFlow = await UiLocationConsentDialog.show(context);
+    await UserLocationPrefs.instance.put(asked: true);
+    if (continueFlow != true) return;
+    final granted = await locationPermissionEnsure();
+    if (!granted) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('settings.locationDeniedSnack'.tr()), behavior: SnackBarBehavior.floating),
+      );
+      return;
+    }
+    final loc = await locationServiceResolve();
+    if (loc == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('settings.locationDeniedSnack'.tr()), behavior: SnackBarBehavior.floating),
+      );
+      return;
+    }
+    await UserLocationPrefs.instance.put(useDevice: true, locationSource: 'device');
+    await UserLocalePrefs.instance.put(
+      locationCity: loc.city,
+      locationRegion: loc.region,
+      locationCountry: loc.country,
+      locationSource: 'device',
+    );
+    try {
+      await _store.refreshFromConn(_conn, locale: CatalogTranslationCache.instance.lang);
+    } catch (_) {}
+    if (mounted) setState(() {});
   }
 
   void _onConsumptionBlockSaved(int msgId, ChatBlock block) {
@@ -294,6 +341,15 @@ class _PageAIHomeState extends State<PageAIHome> {
     }
     final snippet = artifact.title.isNotEmpty ? artifact.title : 'Canvas document';
     _composerCtrl.text = 'Regarding "$snippet":\n';
+    _composerCtrl.selection = TextSelection.collapsed(offset: _composerCtrl.text.length);
+    _composerFocus.requestFocus();
+  }
+
+  void _onCanvasExport(CanvasArtifact artifact, String prompt) {
+    if (MediaQuery.sizeOf(context).width < 720 && (_scaffoldKey.currentState?.isEndDrawerOpen ?? false)) {
+      Navigator.of(context).pop();
+    }
+    _composerCtrl.text = prompt;
     _composerCtrl.selection = TextSelection.collapsed(offset: _composerCtrl.text.length);
     _composerFocus.requestFocus();
   }
@@ -520,7 +576,18 @@ class _PageAIHomeState extends State<PageAIHome> {
     );
   }
 
-  Future<void> _composerSend(String text, List<MsgAttachment> attachments, {bool retry = false, String? toolMode}) async {
+  Future<void> _imageUpgradeHd(ChatBlock block) async {
+    final prompt = block.body['prompt']?.toString().trim() ?? '';
+    if (prompt.isEmpty || ChatBlock.imageIsHd(block)) return;
+    if (_store.promptBusy) return;
+    final locale = CatalogTranslationCache.instance.lang;
+    final lead = locale.startsWith('id')
+        ? 'Buat ulang gambar ini dalam kualitas HD (2K), detail lebih tajam.'
+        : 'Regenerate this image in HD (2K) with sharper detail.';
+    await _composerSend('$lead\n\n$prompt', const [], mentionIds: const ['image_high']);
+  }
+
+  Future<void> _composerSend(String text, List<MsgAttachment> attachments, {bool retry = false, String? toolMode, List<String>? mentionIds}) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty && attachments.isEmpty) return;
     if (_store.promptBusy && !retry) return;
@@ -576,7 +643,7 @@ class _PageAIHomeState extends State<PageAIHome> {
         text: trimmed,
         chatId: serverChatId,
         attachmentsJson: MsgAttachment.encode(attachments),
-        mentionIds: _mentionIds.toList(),
+        mentionIds: mentionIds ?? _mentionIds.toList(),
         model: _model.id,
         thinking: _model.thinking.wire,
         toolMode: turnToolMode,
@@ -607,6 +674,10 @@ class _PageAIHomeState extends State<PageAIHome> {
         if (ev.kind == 'delta') {
           if (ev.thought) {
             _store.msgStreamThought(ev.text, chatId: streamChatId);
+            final rid = _conn.lastPromptReqId ?? '';
+            if (rid.isNotEmpty && ev.text.contains('Using ')) {
+              unawaited(_conn.tracePrefetch(rid, force: true));
+            }
           } else if (ev.blocksJson.isNotEmpty) {
             _store.msgStreamBlocks(ev.blocksJson, chatId: streamChatId);
           } else {
@@ -648,7 +719,7 @@ class _PageAIHomeState extends State<PageAIHome> {
             if (assistantText.isNotEmpty) unawaited(_speak(assistantText));
           }
           if (end.reqId.isNotEmpty) {
-            unawaited(_conn.tracePrefetch(end.reqId).then((_) {
+            unawaited(_conn.tracePrefetch(end.reqId, force: true).then((_) {
               if (mounted) setState(() {});
             }));
           }
@@ -773,6 +844,8 @@ class _PageAIHomeState extends State<PageAIHome> {
     final lastUserIdx = messages.lastIndexWhere((x) => x.role == 'user');
     final lastAssistantIdx = messages.lastIndexWhere((x) => x.role == 'assistant');
     final showRetry = !_store.promptBusyFor(m.chatId) && (i == lastUserIdx || i == lastAssistantIdx);
+    final imageBlock = !isUser ? ChatBlock.imageFirst(m.blocksJson) : null;
+    final showImageUpgrade = imageBlock != null && !ChatBlock.imageIsHd(imageBlock) && !_store.promptBusyFor(m.chatId);
     return msgBubbleContextMenu(
       ctx,
       state,
@@ -790,6 +863,12 @@ class _PageAIHomeState extends State<PageAIHome> {
           : null,
       showRetry: showRetry,
       onRetryLastTurn: showRetry ? _retryLastTurn : null,
+      onImageUpgradeHd: showImageUpgrade
+          ? () {
+              final b = ChatBlock.imageFirst(m.blocksJson);
+              if (b != null) unawaited(_imageUpgradeHd(b));
+            }
+          : null,
       conn: _conn,
     );
   }
@@ -959,7 +1038,13 @@ class _PageAIHomeState extends State<PageAIHome> {
               thinking: inThoughtPhase,
               startedAtMs: promptingThis ? _store.promptStartedAtMs : null,
             ),
-          if (m.reqId.isNotEmpty) UiMsgTraceLoader(conn: _conn, reqId: m.reqId, live: promptingThis, part: MsgTracePart.chips),
+          if (m.reqId.isNotEmpty)
+            UiMsgTraceLoader(
+              conn: _conn,
+              reqId: m.reqId,
+              live: promptingThis,
+              part: MsgTracePart.chips,
+            ),
           _subagentRunCards(m),
           if (hasError)
             UiMsgError(
@@ -1005,9 +1090,15 @@ class _PageAIHomeState extends State<PageAIHome> {
               onExpenseSaved: _onExpenseBlockSaved,
               onBlockCollapsedChanged: (msgId, blockIndex, collapsed) =>
                   _store.msgBlockCollapsedPut(msgId: msgId, blockIndex: blockIndex, collapsed: collapsed),
+              onImageUpgradeHd: _store.promptBusyFor(m.chatId) ? null : _imageUpgradeHd,
             ),
           if (!hasError && m.reqId.isNotEmpty)
-            UiMsgTraceLoader(conn: _conn, reqId: m.reqId, part: MsgTracePart.citations),
+            UiMsgTraceLoader(
+              conn: _conn,
+              reqId: m.reqId,
+              live: promptingThis,
+              part: MsgTracePart.citations,
+            ),
           if (!hasError)
             Builder(builder: (_) {
               final usageMsg = m.model.isNotEmpty || i != lastAssistantIdx
@@ -1177,6 +1268,7 @@ class _PageAIHomeState extends State<PageAIHome> {
                     child: UiCanvasPanel(
                       store: _canvasStore,
                       onPromptIterate: _onCanvasIterate,
+                      onPromptExport: _onCanvasExport,
                       onClose: () => Navigator.of(context).pop(),
                     ),
                   ),
@@ -1199,6 +1291,7 @@ class _PageAIHomeState extends State<PageAIHome> {
                           child: UiCanvasPanel(
                             store: _canvasStore,
                             onPromptIterate: _onCanvasIterate,
+                            onPromptExport: _onCanvasExport,
                           ),
                         ),
                     ],

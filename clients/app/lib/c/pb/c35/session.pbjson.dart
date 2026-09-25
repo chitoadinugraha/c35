@@ -56,6 +56,10 @@ const ReqSessionInit$json = {
     {'1': 'include_inbox', '3': 7, '4': 1, '5': 8, '10': 'includeInbox'},
     {'1': 'include_billing', '3': 8, '4': 1, '5': 8, '10': 'includeBilling'},
     {'1': 'hints_since_ms', '3': 9, '4': 1, '5': 3, '10': 'hintsSinceMs'},
+    {'1': 'location_city', '3': 10, '4': 1, '5': 9, '10': 'locationCity'},
+    {'1': 'location_region', '3': 11, '4': 1, '5': 9, '10': 'locationRegion'},
+    {'1': 'location_country', '3': 12, '4': 1, '5': 9, '10': 'locationCountry'},
+    {'1': 'location_source', '3': 13, '4': 1, '5': 9, '10': 'locationSource'},
   ],
 };
 
@@ -65,7 +69,10 @@ final $typed_data.Uint8List reqSessionInitDescriptor = $convert.base64Decode(
     'ABKAlSBmxvY2FsZRIOCgJ0ehgDIAEoCVICdHoSDgoCZHYYBCABKAlSAmR2EhsKCWNsaWVudF9p'
     'ZBgFIAEoCVIIY2xpZW50SWQSGgoIcGxhdGZvcm0YBiABKAVSCHBsYXRmb3JtEiMKDWluY2x1ZG'
     'VfaW5ib3gYByABKAhSDGluY2x1ZGVJbmJveBInCg9pbmNsdWRlX2JpbGxpbmcYCCABKAhSDmlu'
-    'Y2x1ZGVCaWxsaW5nEiQKDmhpbnRzX3NpbmNlX21zGAkgASgDUgxoaW50c1NpbmNlTXM=');
+    'Y2x1ZGVCaWxsaW5nEiQKDmhpbnRzX3NpbmNlX21zGAkgASgDUgxoaW50c1NpbmNlTXMSIwoNbG'
+    '9jYXRpb25fY2l0eRgKIAEoCVIMbG9jYXRpb25DaXR5EicKD2xvY2F0aW9uX3JlZ2lvbhgLIAEo'
+    'CVIObG9jYXRpb25SZWdpb24SKQoQbG9jYXRpb25fY291bnRyeRgMIAEoCVIPbG9jYXRpb25Db3'
+    'VudHJ5EicKD2xvY2F0aW9uX3NvdXJjZRgNIAEoCVIObG9jYXRpb25Tb3VyY2U=');
 
 @$core.Deprecated('Use resSessionInitDescriptor instead')
 const ResSessionInit$json = {

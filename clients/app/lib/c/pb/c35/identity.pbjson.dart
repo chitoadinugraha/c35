@@ -29,6 +29,10 @@ const IdentityProfile$json = {
     {'1': 'tz', '3': 8, '4': 1, '5': 9, '10': 'tz'},
     {'1': 'billing_iid', '3': 9, '4': 1, '5': 3, '10': 'billingIid'},
     {'1': 'is_root', '3': 10, '4': 1, '5': 8, '10': 'isRoot'},
+    {'1': 'location_city', '3': 11, '4': 1, '5': 9, '10': 'locationCity'},
+    {'1': 'location_region', '3': 12, '4': 1, '5': 9, '10': 'locationRegion'},
+    {'1': 'location_country', '3': 13, '4': 1, '5': 9, '10': 'locationCountry'},
+    {'1': 'location_source', '3': 14, '4': 1, '5': 9, '10': 'locationSource'},
   ],
 };
 
@@ -38,7 +42,10 @@ final $typed_data.Uint8List identityProfileDescriptor = $convert.base64Decode(
     'ISCgR0eXBlGAMgASgJUgR0eXBlEhkKCGFsaWVuX2lkGAQgASgJUgdhbGllbklkEhIKBG5hbWUY'
     'BSABKAlSBG5hbWUSEAoDcGljGAYgASgJUgNwaWMSFgoGbG9jYWxlGAcgASgJUgZsb2NhbGUSDg'
     'oCdHoYCCABKAlSAnR6Eh8KC2JpbGxpbmdfaWlkGAkgASgDUgpiaWxsaW5nSWlkEhcKB2lzX3Jv'
-    'b3QYCiABKAhSBmlzUm9vdA==');
+    'b3QYCiABKAhSBmlzUm9vdBIjCg1sb2NhdGlvbl9jaXR5GAsgASgJUgxsb2NhdGlvbkNpdHkSJw'
+    'oPbG9jYXRpb25fcmVnaW9uGAwgASgJUg5sb2NhdGlvblJlZ2lvbhIpChBsb2NhdGlvbl9jb3Vu'
+    'dHJ5GA0gASgJUg9sb2NhdGlvbkNvdW50cnkSJwoPbG9jYXRpb25fc291cmNlGA4gASgJUg5sb2'
+    'NhdGlvblNvdXJjZQ==');
 
 @$core.Deprecated('Use navCountsDescriptor instead')
 const NavCounts$json = {

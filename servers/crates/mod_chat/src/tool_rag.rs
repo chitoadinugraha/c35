@@ -65,6 +65,19 @@ fn lexical_tokens(s: &str) -> Vec<String> {
         .collect()
 }
 
+/// Substring overlap only when the shorter token is at least 5 chars (avoids di→description, lang→malang).
+fn lexical_token_match(query: &str, hay: &str) -> bool {
+    if query == hay {
+        return true;
+    }
+    let (short, long) = if query.len() <= hay.len() {
+        (query, hay)
+    } else {
+        (hay, query)
+    };
+    short.len() >= 5 && long.contains(short)
+}
+
 fn lexical_sim(query_tokens: &[String], hay: &str) -> f32 {
     if query_tokens.is_empty() {
         return 0.0;
@@ -75,7 +88,7 @@ fn lexical_sim(query_tokens: &[String], hay: &str) -> f32 {
     }
     let hits = query_tokens
         .iter()
-        .filter(|t| hay_tokens.iter().any(|h| h == *t || h.contains(t.as_str()) || t.contains(h.as_str())))
+        .filter(|t| hay_tokens.iter().any(|h| lexical_token_match(t, h)))
         .count();
     hits as f32 / query_tokens.len() as f32
 }
@@ -95,10 +108,11 @@ pub fn tool_find_lexical(
             continue;
         }
         let hay = format!(
-            "{} {} {}",
+            "{} {} {} {}",
             t.name.replace('_', " ").replace('.', " "),
             t.description,
-            t.aliases.join(" ")
+            t.aliases.join(" "),
+            t.rag_phrases.join(" ")
         );
         let sim = lexical_sim(&q, &hay);
         let included = force_include.iter().any(|x| x == &t.name);
@@ -198,4 +212,69 @@ pub fn tools_for_turn_lexical(
     let ids: Vec<String> = ranked.into_iter().map(|c| c.tool_id).collect();
     let selected = tool_select(&eligible, &ids, &force);
     if selected.is_empty() { eligible } else { selected }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tools::ToolDef;
+    use serde_json::json;
+
+    #[test]
+    fn lexical_token_match_rejects_short_substrings() {
+        assert!(!lexical_token_match("di", "description"));
+        assert!(!lexical_token_match("lang", "malang"));
+        assert!(lexical_token_match("search", "websearch"));
+    }
+
+    #[test]
+    fn lexical_cinema_query_ranks_web_search() {
+        let defs = vec![
+            ToolDef {
+                name: "web.search".into(),
+                description: "Search the web via SearXNG".into(),
+                parameters: json!({}),
+                aliases: vec!["web_search".into()],
+                topics: vec!["*".into()],
+                always: vec!["general".into()],
+                readonly: true,
+                requires_kinds: vec![],
+                rag_phrases: vec!["film bioskop".into(), "apa yang tayang".into()],
+                requires_capability: None,
+            },
+            ToolDef {
+                name: "web.visit".into(),
+                description: "Visit an HTTP URL after web.search".into(),
+                parameters: json!({}),
+                aliases: vec![],
+                topics: vec!["*".into()],
+                always: vec![],
+                readonly: false,
+                requires_kinds: vec![],
+                rag_phrases: vec![],
+                requires_capability: None,
+            },
+            ToolDef {
+                name: "expense.add".into(),
+                description: "Log a personal expense".into(),
+                parameters: json!({}),
+                aliases: vec![],
+                topics: vec!["finance".into()],
+                always: vec!["general".into()],
+                readonly: false,
+                requires_kinds: vec![],
+                rag_phrases: vec![],
+                requires_capability: None,
+            },
+        ];
+        let ranked = tool_find_lexical(
+            "film bioskop di malang sekarang apa yang tayang",
+            &defs,
+            &[],
+            &[],
+            DEFAULT_TOOL_TOP_K,
+        );
+        let top = ranked.first().map(|c| c.tool_id.as_str()).unwrap_or("");
+        assert_eq!(top, "web.search");
+    }
 }

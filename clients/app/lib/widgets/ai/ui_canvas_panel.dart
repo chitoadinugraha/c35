@@ -11,11 +11,13 @@ class UiCanvasPanel extends StatefulWidget {
     super.key,
     required this.store,
     this.onPromptIterate,
+    this.onPromptExport,
     this.onClose,
   });
 
   final CanvasStore store;
   final void Function(CanvasArtifact artifact)? onPromptIterate;
+  final void Function(CanvasArtifact artifact, String prompt)? onPromptExport;
   final VoidCallback? onClose;
 
   @override
@@ -102,6 +104,49 @@ class _UiCanvasPanelState extends State<UiCanvasPanel> {
         duration: Duration(seconds: 1),
       ),
     );
+  }
+
+  int _currentSlideIndex = 0;
+  bool _cardViewMode = true;
+
+  bool _isSlideDeck(CanvasArtifact? artifact, String content) {
+    if (artifact == null) return false;
+    final lang = artifact.language.toLowerCase();
+    final type = artifact.type.toLowerCase();
+    if (lang == 'slide' || lang == 'slides' || lang == 'marp' || type == 'slide' || type == 'presentation') {
+      return true;
+    }
+    return content.contains(RegExp(r'(?:^|\n)---\s*(?:\n|$)'));
+  }
+
+  List<String> _parseSlides(String content) {
+    if (content.trim().isEmpty) return ['_Empty slide_'];
+    final raw = content.split(RegExp(r'(?:^|\n)---\s*(?:\n|$)'));
+    final slides = raw.map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+    return slides.isEmpty ? [content] : slides;
+  }
+
+  void _handleExportChoice(String choice, CanvasArtifact artifact) {
+    final title = artifact.title.isNotEmpty ? artifact.title : 'Presentation';
+    String prompt;
+    switch (choice) {
+      case 'pc':
+        prompt = 'I am satisfied with this deck ("$title"). Please implement and build it directly on my connected PC using PowerPoint.';
+        break;
+      case 'download_pptx':
+        prompt = 'I am satisfied with this deck ("$title"). Please compile and export it as a downloadable PPTX / PDF file.';
+        break;
+      case 'google_slides':
+        prompt = 'I am satisfied with this deck ("$title"). Please export this presentation to Google Slides.';
+        break;
+      default:
+        return;
+    }
+    if (widget.onPromptExport != null) {
+      widget.onPromptExport!(artifact, prompt);
+    } else if (widget.onPromptIterate != null) {
+      widget.onPromptIterate!(artifact);
+    }
   }
 
   Widget _header(CanvasArtifact artifact) {
@@ -248,6 +293,45 @@ class _UiCanvasPanelState extends State<UiCanvasPanel> {
             ),
             onPressed: _copyContent,
           ),
+          if (_isSlideDeck(artifact, widget.store.artifact?.content ?? _textCtrl.text)) ...[
+            PopupMenuButton<String>(
+              tooltip: uiPopupMenuTooltipText('Export presentation'),
+              icon: const Icon(Icons.ios_share_rounded, color: _muted, size: 16),
+              onSelected: (choice) => _handleExportChoice(choice, artifact),
+              itemBuilder: (ctx) => [
+                const PopupMenuItem(
+                  value: 'pc',
+                  child: Row(
+                    children: [
+                      Icon(Icons.desktop_windows_rounded, size: 16, color: _accent),
+                      SizedBox(width: 8),
+                      Expanded(child: Text('Build on PC (PowerPoint)')),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'download_pptx',
+                  child: Row(
+                    children: [
+                      Icon(Icons.download_rounded, size: 16, color: Color(0xFF10B981)),
+                      SizedBox(width: 8),
+                      Expanded(child: Text('Download PPTX / PDF')),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'google_slides',
+                  child: Row(
+                    children: [
+                      Icon(Icons.slideshow_rounded, size: 16, color: Color(0xFFF59E0B)),
+                      SizedBox(width: 8),
+                      Expanded(child: Text('Export to Google Slides')),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
           uiIconButton(
             tooltip: 'Close canvas',
             icon: const Icon(Icons.close_rounded, color: _muted, size: 18),
@@ -342,6 +426,11 @@ class _UiCanvasPanelState extends State<UiCanvasPanel> {
 
   Widget _previewView() {
     final content = widget.store.artifact?.content ?? _textCtrl.text;
+    final artifact = widget.store.artifact;
+    if (_isSlideDeck(artifact, content)) {
+      return _slideDeckPreview(content, artifact);
+    }
+
     return Container(
       color: _bg,
       padding: const EdgeInsets.all(16),
@@ -366,10 +455,229 @@ class _UiCanvasPanelState extends State<UiCanvasPanel> {
     );
   }
 
+  Widget _slideDeckPreview(String content, CanvasArtifact? artifact) {
+    final slides = _parseSlides(content);
+    if (_currentSlideIndex >= slides.length) {
+      _currentSlideIndex = slides.length - 1;
+    }
+    if (_currentSlideIndex < 0) {
+      _currentSlideIndex = 0;
+    }
+
+    return Container(
+      color: _bg,
+      child: Column(
+        children: [
+          // Slide deck toolbar
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: const BoxDecoration(
+              color: _panelBg,
+              border: Border(bottom: BorderSide(color: _border)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.slideshow_rounded, size: 16, color: _accent),
+                const SizedBox(width: 8),
+                Text(
+                  _cardViewMode
+                      ? 'Slide ${_currentSlideIndex + 1} of ${slides.length}'
+                      : '${slides.length} Slides',
+                  style: const TextStyle(
+                    color: _text,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const Spacer(),
+                if (_cardViewMode) ...[
+                  uiIconButton(
+                    tooltip: 'Previous slide',
+                    icon: Icon(
+                      Icons.chevron_left_rounded,
+                      size: 20,
+                      color: _currentSlideIndex > 0 ? _text : _muted.withValues(alpha: 0.3),
+                    ),
+                    onPressed: _currentSlideIndex > 0
+                        ? () => setState(() => _currentSlideIndex--)
+                        : null,
+                  ),
+                  const SizedBox(width: 4),
+                  uiIconButton(
+                    tooltip: 'Next slide',
+                    icon: Icon(
+                      Icons.chevron_right_rounded,
+                      size: 20,
+                      color: _currentSlideIndex < slides.length - 1
+                          ? _text
+                          : _muted.withValues(alpha: 0.3),
+                    ),
+                    onPressed: _currentSlideIndex < slides.length - 1
+                        ? () => setState(() => _currentSlideIndex++)
+                        : null,
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                InkWell(
+                  onTap: () => setState(() => _cardViewMode = !_cardViewMode),
+                  borderRadius: BorderRadius.circular(4),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: _cardViewMode ? _accent.withValues(alpha: 0.15) : Colors.transparent,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: _border),
+                    ),
+                    child: Text(
+                      _cardViewMode ? 'Card' : 'Scroll',
+                      style: TextStyle(
+                        color: _cardViewMode ? _accent : _muted,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Slide body
+          Expanded(
+            child: _cardViewMode
+                ? _singleSlideCard(slides[_currentSlideIndex], _currentSlideIndex, slides.length)
+                : _allSlidesScroll(slides),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _singleSlideCard(String slideContent, int index, int total) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 640),
+          child: AspectRatio(
+            aspectRatio: 16 / 9,
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF16161A),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF2E2E36)),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black54,
+                    blurRadius: 16,
+                    offset: Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 20, 24, 36),
+                      child: SingleChildScrollView(
+                        child: MarkdownBody(
+                          data: slideContent,
+                          selectable: true,
+                          styleSheet: MarkdownStyleSheet(
+                            p: const TextStyle(color: _text, fontSize: 14, height: 1.5),
+                            h1: const TextStyle(color: _text, fontSize: 20, fontWeight: FontWeight.bold),
+                            h2: const TextStyle(color: _accent, fontSize: 16, fontWeight: FontWeight.bold),
+                            h3: const TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w600),
+                            listBullet: const TextStyle(color: _accent, fontSize: 14),
+                            code: const TextStyle(
+                              color: _text,
+                              fontSize: 12,
+                              fontFamily: 'Consolas',
+                              backgroundColor: Color(0xFF1E1E24),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    right: 14,
+                    bottom: 10,
+                    child: Text(
+                      '${index + 1} / $total',
+                      style: const TextStyle(
+                        color: _muted,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _allSlidesScroll(List<String> slides) {
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: slides.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 16),
+      itemBuilder: (ctx, i) {
+        return Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF16161A),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: _border),
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: _accent.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      'SLIDE ${i + 1}',
+                      style: const TextStyle(
+                        color: _accent,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              MarkdownBody(
+                data: slides[i],
+                selectable: true,
+                styleSheet: MarkdownStyleSheet(
+                  p: const TextStyle(color: _text, fontSize: 14, height: 1.5),
+                  h1: const TextStyle(color: _text, fontSize: 18, fontWeight: FontWeight.bold),
+                  h2: const TextStyle(color: _accent, fontSize: 15, fontWeight: FontWeight.bold),
+                  h3: const TextStyle(color: _text, fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _footer(CanvasArtifact artifact) {
     final text = _textCtrl.text;
     final lines = '\n'.allMatches(text).length + 1;
     final chars = text.length;
+    final isSlide = _isSlideDeck(artifact, text);
 
     return Container(
       height: 40,
@@ -381,7 +689,9 @@ class _UiCanvasPanelState extends State<UiCanvasPanel> {
       child: Row(
         children: [
           Text(
-            '$lines lines • $chars chars',
+            isSlide
+                ? '${_parseSlides(text).length} slides • $chars chars'
+                : '$lines lines • $chars chars',
             style: const TextStyle(color: _muted, fontSize: 11),
           ),
           const Spacer(),
@@ -393,6 +703,68 @@ class _UiCanvasPanelState extends State<UiCanvasPanel> {
                 'Save snapshot',
                 style: TextStyle(color: _accent, fontSize: 12),
               ),
+            ),
+            const SizedBox(width: 8),
+          ],
+          if (isSlide) ...[
+            PopupMenuButton<String>(
+              tooltip: uiPopupMenuTooltipText('Export presentation options'),
+              onSelected: (choice) => _handleExportChoice(choice, artifact),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFF059669)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.ios_share_rounded, size: 13, color: Color(0xFF10B981)),
+                    SizedBox(width: 5),
+                    Text(
+                      'Export Deck',
+                      style: TextStyle(
+                        color: Color(0xFF10B981),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              itemBuilder: (ctx) => [
+                const PopupMenuItem(
+                  value: 'pc',
+                  child: Row(
+                    children: [
+                      Icon(Icons.desktop_windows_rounded, size: 16, color: _accent),
+                      SizedBox(width: 8),
+                      Expanded(child: Text('Build directly on PC (PowerPoint)')),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'download_pptx',
+                  child: Row(
+                    children: [
+                      Icon(Icons.download_rounded, size: 16, color: Color(0xFF10B981)),
+                      SizedBox(width: 8),
+                      Expanded(child: Text('Download as PPTX / PDF')),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'google_slides',
+                  child: Row(
+                    children: [
+                      Icon(Icons.slideshow_rounded, size: 16, color: Color(0xFFF59E0B)),
+                      SizedBox(width: 8),
+                      Expanded(child: Text('Export to Google Slides')),
+                    ],
+                  ),
+                ),
+              ],
             ),
             const SizedBox(width: 8),
           ],

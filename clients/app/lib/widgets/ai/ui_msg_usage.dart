@@ -16,7 +16,8 @@ class UiMsgUsage extends StatelessWidget {
   final String billingCurrency;
   final int fxMicroPerUsd;
 
-  static const _style = TextStyle(color: uiMsgUsageColor, fontSize: 11, height: 1, fontWeight: FontWeight.w500, fontFeatures: [FontFeature.tabularFigures()]);
+  static const style = TextStyle(color: uiMsgUsageColor, fontSize: 11, height: 1, fontWeight: FontWeight.w500, fontFeatures: [FontFeature.tabularFigures()]);
+  static const _style = style;
   static const _sepStyle = TextStyle(color: Color(0xFF52525B), fontSize: 10, height: 1, fontWeight: FontWeight.w500);
 
   static Widget _sep() => const Padding(padding: EdgeInsets.symmetric(horizontal: 5), child: Text('·', style: _sepStyle));

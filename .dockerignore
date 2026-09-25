@@ -1,40 +1,72 @@
+# =============================================================================
+# VCS, IDE, agent tooling (not needed in server images)
+# =============================================================================
 .git
-.cache
 .cursor
+.agents
 .idea
 .vscode
+**/*.iml
+terminals
+agent-transcripts
+
+# =============================================================================
+# Caches & build outputs
+# =============================================================================
+.cache
 **/.cache
+**/.cargo
 **/.dart_tool
 **/.flutter-plugins
 **/.flutter-plugins-dependencies
 **/.gradle
-**/.idea
-**/*.iml
-**/*.md
-**/*.log
-**/.env
-**/.env.*
-**/.cargo
 **/target
 **/build
 **/node_modules
 **/__pycache__
 **/*.pdb
+**/*.rs.bk
 
-clients
-terminals
-agent-transcripts
-_/scripts
-_/docs
-
-# Local / generated
+# =============================================================================
+# Secrets, logs, local DB
+# =============================================================================
+**/*.log
+**/.env
+**/.env.*
+**/.env.local
 **/*.db
 **/*.db-wal
 **/*.db-shm
 **/*.sqlite
 **/*.sqlite3
-**/*.rs.bk
 
-# Keep Docker context to servers workspace + contracts
+# =============================================================================
+# Docs, scripts, tests (not copied into Rust images)
+# =============================================================================
+**/*.md
+_/docs
+_/scripts
+_/mcps
+remotes
+spec.md
+
+# =============================================================================
+# Clients — server image only needs static web assets
+# =============================================================================
+clients/**
+!clients/web
+!clients/web/**
+
+# =============================================================================
+# Deploy tarballs / certs
+# =============================================================================
+*.tar
+_/certs
+
+# =============================================================================
+# Always include contracts + deployment manifests
+# =============================================================================
 !_/schemas
+!_/schemas/**
 !_/deployments
+!_/deployments/**

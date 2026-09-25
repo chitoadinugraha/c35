@@ -1,7 +1,7 @@
 use anyhow::bail;
 use c35_mod_billing::billing_can_afford_tool;
 use crate::tool;
-use crate::tools::image_tier::{image_tier_resolve, image_tier_retail_usd};
+use crate::tools::image_tier::{image_default_draft_tier, image_tier_resolve, image_tier_retail_usd};
 
 tool! {
     struct: ImgEditTool,
@@ -22,7 +22,8 @@ tool! {
         let source_hash = args["source_hash"].as_str().unwrap_or("");
         let aspect_ratio = args["aspect_ratio"].as_str().unwrap_or("1:1");
         let quality = args["quality"].as_str().unwrap_or("draft");
-        let tier = image_tier_resolve(&ctx.mention_ids, &ctx.user_text, prompt, quality, true);
+        let default_draft = image_default_draft_tier(&ctx.pool).await;
+        let tier = image_tier_resolve(&ctx.mention_ids, &ctx.user_text, prompt, quality, true, &default_draft);
         if ctx.owner_iid > 0 {
             let retail = image_tier_retail_usd(&tier);
             let can_afford = billing_can_afford_tool(&ctx.pool, ctx.owner_iid, retail)

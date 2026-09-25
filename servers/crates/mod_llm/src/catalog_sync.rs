@@ -36,6 +36,7 @@ pub async fn llm_catalog_sync(pool: &PgPool) -> Result<()> {
 }
 
 pub async fn llm_catalog_sync_force(pool: &PgPool) -> Result<usize> {
+    runtime_config_reload(pool).await;
     let synced_at = Utc::now();
     let mut fetched = gemini_fetch().await?;
     let cf = cf_models_fetch().await?;
@@ -214,19 +215,25 @@ async fn cf_models_fetch() -> Result<Vec<LlmModelRow>> {
         "https://api.cloudflare.com/client/v4/accounts/{}/ai/models/search?format=openrouter&per_page=200&hide_experimental=true",
         cfg.account_id
     );
-    let v: Value = reqwest::Client::new()
+    let resp = reqwest::Client::new()
         .get(&url)
         .header("Authorization", format!("Bearer {}", cfg.api_token))
         .timeout(Duration::from_secs(45))
         .send()
         .await
-        .context("cf models search")?
-        .error_for_status()
-        .context("cf models search status")?
-        .json()
-        .await
-        .context("cf models search json")?;
-    let rows = v["result"].as_array().cloned().unwrap_or_default();
+        .context("cf models search")?;
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        tracing::warn!(
+            status = %status,
+            hint = %cf_api_error_hint(&body),
+            "cf models search failed; skipping CF catalog (CLOUDFLARE_ACCOUNT_ID + token with Workers AI Read)"
+        );
+        return Ok(Vec::new());
+    }
+    let v: Value = resp.json().await.context("cf models search json")?;
+    let rows = cf_search_result_rows(&v);
     let mut out = Vec::new();
     for raw in rows {
         let id = raw["id"].as_str().or_else(|| raw["name"].as_str()).unwrap_or("").trim().to_string();
@@ -286,6 +293,36 @@ fn cf_provider_slug(id: &str) -> Result<(String, String)> {
     Err(anyhow::anyhow!("unsupported cf model id: {id}"))
 }
 
+fn cf_search_result_rows(v: &Value) -> Vec<Value> {
+    let result = v.get("result");
+    if let Some(arr) = result.and_then(|r| r.as_array()) {
+        return arr.clone();
+    }
+    if let Some(arr) = result.and_then(|r| r.get("data")).and_then(|d| d.as_array()) {
+        return arr.clone();
+    }
+    Vec::new()
+}
+
+fn cf_api_error_hint(body: &str) -> String {
+    let v: Value = serde_json::from_str(body).unwrap_or(Value::Null);
+    if let Some(msg) = v
+        .get("errors")
+        .and_then(|e| e.as_array())
+        .and_then(|a| a.first())
+        .and_then(|o| o.get("message"))
+        .and_then(|m| m.as_str())
+    {
+        return msg.to_string();
+    }
+    let t = body.trim();
+    if t.len() > 200 {
+        format!("{}...", t.chars().take(200).collect::<String>())
+    } else {
+        t.to_string()
+    }
+}
+
 fn cf_chat_eligible(id: &str) -> bool {
     let m = id.to_ascii_lowercase();
     if is_preview_id(&m) {
@@ -301,6 +338,30 @@ fn cf_chat_eligible(id: &str) -> bool {
         || m.starts_with("anthropic/")
         || m.starts_with("deepseek/")
         || m.starts_with("@cf/")
+}
+
+#[cfg(test)]
+mod cf_search_tests {
+    use super::{cf_api_error_hint, cf_search_result_rows};
+    use serde_json::json;
+
+    #[test]
+    fn cf_search_rows_default_result_array() {
+        let v = json!({ "result": [{ "id": "openai/gpt-4" }] });
+        assert_eq!(cf_search_result_rows(&v).len(), 1);
+    }
+
+    #[test]
+    fn cf_search_rows_openrouter_data() {
+        let v = json!({ "result": { "data": [{ "id": "anthropic/claude" }] } });
+        assert_eq!(cf_search_result_rows(&v).len(), 1);
+    }
+
+    #[test]
+    fn cf_api_error_hint_parses_cf_json() {
+        let body = r#"{"errors":[{"code":7003,"message":"invalid account"}]}"#;
+        assert_eq!(cf_api_error_hint(body), "invalid account");
+    }
 }
 
 async fn prune_stale_cf(pool: &PgPool, fetched: &[LlmModelRow]) -> Result<()> {

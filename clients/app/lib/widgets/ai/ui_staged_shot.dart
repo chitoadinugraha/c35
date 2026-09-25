@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:alienai_c35/c/catalog/catalog_translation_cache.dart';
 import 'package:alienai_c35/c/config.dart';
 import 'package:alienai_c35/c/media/media_types.dart';
 import 'package:alienai_c35/c/session.dart';
@@ -195,21 +196,30 @@ Future<StagedMedia?> stagedShotPreview(
   String name = '',
   bool editable = true,
   StagedMedia? source,
+  VoidCallback? onUpgradeHd,
 }) =>
     showDialog<StagedMedia>(
       context: context,
       barrierColor: const Color(0xE608080A),
       barrierDismissible: false,
-      builder: (ctx) => _ShotPreview(bytes: bytes ?? source?.bytes ?? Uint8List(0), servePath: servePath, name: name.isNotEmpty ? name : (source?.name ?? ''), editable: editable, source: source),
+      builder: (ctx) => _ShotPreview(
+        bytes: bytes ?? source?.bytes ?? Uint8List(0),
+        servePath: servePath,
+        name: name.isNotEmpty ? name : (source?.name ?? ''),
+        editable: editable,
+        source: source,
+        onUpgradeHd: onUpgradeHd,
+      ),
     );
 
 class _ShotPreview extends StatefulWidget {
-  const _ShotPreview({required this.bytes, required this.servePath, required this.name, required this.editable, this.source});
+  const _ShotPreview({required this.bytes, required this.servePath, required this.name, required this.editable, this.source, this.onUpgradeHd});
   final Uint8List bytes;
   final String servePath;
   final String name;
   final bool editable;
   final StagedMedia? source;
+  final VoidCallback? onUpgradeHd;
 
   @override
   State<_ShotPreview> createState() => _ShotPreviewState();
@@ -387,6 +397,18 @@ class _ShotPreviewState extends State<_ShotPreview> {
                 child: Row(
                   children: [
                     uiIconButton(tooltip: 'Close', onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close_rounded, color: zinc100, size: _tbIcon), iconSize: _tbIcon, padding: _tbPad, constraints: _tbConstraints, style: _tbStyle),
+                    if (!editable && widget.onUpgradeHd != null) ...[
+                      const SizedBox(width: 8),
+                      TextButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          widget.onUpgradeHd?.call();
+                        },
+                        icon: const Icon(Icons.hd_rounded, size: 18, color: zinc100),
+                        label: Text(catalogT('chat.image.upgrade_hd'), style: const TextStyle(color: zinc100, fontWeight: FontWeight.w600, fontSize: 13)),
+                        style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0), minimumSize: const Size(0, _tbSize), tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                      ),
+                    ],
                     if (editable) ...[
                       const Spacer(),
                       uiIconButton(
