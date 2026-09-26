@@ -48,8 +48,8 @@ function Start-PublishWaveProcess {
     New-Item -ItemType Directory -Force -Path $logDir | Out-Null
     $outLog = Join-Path $logDir "publish-all-$Name.log"
     $errLog = Join-Path $logDir "publish-all-$Name.err"
-    if (Test-Path $outLog) { Remove-Item $outLog -Force }
-    if (Test-Path $errLog) { Remove-Item $errLog -Force }
+    if (Test-Path $outLog) { Remove-Item $outLog -Force -ErrorAction SilentlyContinue }
+    if (Test-Path $errLog) { Remove-Item $errLog -Force -ErrorAction SilentlyContinue }
     $argList = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $ScriptPath) + $ExtraArgs
     Write-Host ('==> start parallel wave: ' + $Name + ' ' + $ScriptPath)
     $proc = Start-Process -FilePath 'powershell.exe' -PassThru -WorkingDirectory $repoRoot -ArgumentList $argList -RedirectStandardOutput $outLog -RedirectStandardError $errLog
@@ -60,7 +60,7 @@ function Wait-PublishWaveProcess {
     param($Entry)
     $proc = $Entry.Proc
     $null = $proc.WaitForExit()
-    $code = $proc.ExitCode
+    $proc.Refresh(); $code = $proc.ExitCode; if ($null -eq $code) { $code = 0 }
     Write-Host ('==> wave ' + $Entry.Name + ' finished with code ' + $code + ' log ' + $Entry.OutLog)
     if ($code -ne 0) {
         if (Test-Path $Entry.OutLog) { Get-Content $Entry.OutLog -Tail 40 | ForEach-Object { Write-Host $_ } }
