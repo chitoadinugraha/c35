@@ -5,7 +5,7 @@ use std::time::Duration;
 use axum::{
     extract::{DefaultBodyLimit, Path as AxumPath, Query, State},
     http::{header, HeaderMap, HeaderValue, StatusCode},
-    response::IntoResponse,
+    response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
 };
@@ -459,8 +459,25 @@ pub async fn cas_bytes_get(
 /// Axum default request body cap is 2 MiB; Windows agent ZIPs and APK sideloads exceed that.
 const CAS_UPLOAD_MAX_BYTES: usize = 256 * 1024 * 1024;
 
+fn cas_download_filename(name: &str) -> Option<HeaderValue> {
+    let clean = name.trim();
+    if clean.is_empty()
+        || clean.len() > 200
+        || !clean
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-' || c == '_')
+    {
+        return None;
+    }
+    HeaderValue::from_str(&format!("attachment; filename=\"{clean}\"")).ok()
+}
+
 pub fn file_router() -> Router<AppState> {
     Router::new()
+        .route(
+            "/fs/{hash}/{filename}",
+            get(get_file_named_handler).head(head_file_named_handler),
+        )
         .route("/fs/{hash}", get(get_file_handler).head(head_file_handler).put(put_file_handler))
         .route(
             "/v1/file/upload",
@@ -535,11 +552,30 @@ async fn get_file_handler(
     Query(q): Query<CasGetQuery>,
     headers: HeaderMap,
 ) -> impl IntoResponse {
+    file_get_response(&st, &hash, &q, &headers, None).await
+}
+
+async fn get_file_named_handler(
+    State(st): State<AppState>,
+    AxumPath((hash, filename)): AxumPath<(String, String)>,
+    Query(q): Query<CasGetQuery>,
+    headers: HeaderMap,
+) -> impl IntoResponse {
+    file_get_response(&st, &hash, &q, &headers, Some(filename)).await
+}
+
+async fn file_get_response(
+    st: &AppState,
+    hash: &str,
+    q: &CasGetQuery,
+    headers: &HeaderMap,
+    download_name: Option<String>,
+) -> Response {
     let canonical = hash.trim().to_lowercase();
     if cas_hash_normalize(&canonical).is_none() {
         return (StatusCode::BAD_REQUEST, "invalid hash").into_response();
     }
-    if !file_access_ok(&st, &canonical, &q, &headers).await {
+    if !file_access_ok(st, &canonical, q, headers).await {
         return (StatusCode::UNAUTHORIZED, "unauthorized").into_response();
     }
 
@@ -571,10 +607,22 @@ async fn get_file_handler(
             if let Ok(v) = HeaderValue::from_str(&mime) {
                 res_headers.insert(header::CONTENT_TYPE, v);
             }
+            if let Some(name) = download_name.as_deref().and_then(cas_download_filename) {
+                res_headers.insert(header::CONTENT_DISPOSITION, name);
+            }
             (StatusCode::OK, res_headers, bytes).into_response()
         }
         Err(_) => (StatusCode::NOT_FOUND, "not found").into_response(),
     }
+}
+
+async fn head_file_named_handler(
+    State(st): State<AppState>,
+    AxumPath((hash, _filename)): AxumPath<(String, String)>,
+    Query(q): Query<CasGetQuery>,
+    headers: HeaderMap,
+) -> impl IntoResponse {
+    head_file_handler(State(st), AxumPath(hash), Query(q), headers).await
 }
 
 async fn head_file_handler(

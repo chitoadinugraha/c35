@@ -152,6 +152,7 @@ fn feature_names() -> Vec<&'static str> {
         "billing",
         "channel",
         "site",
+        "mail",
         "voice",
     ]
 }

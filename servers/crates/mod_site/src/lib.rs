@@ -6,6 +6,7 @@ pub mod render;
 mod rows;
 mod site_config;
 mod site_contact;
+mod dns_verify;
 mod site_domain;
 mod site_draft;
 mod site_ids;
@@ -26,7 +27,8 @@ pub use site_config::{
     site_capability_check, site_capability_enabled, site_capabilities_get, site_config_put,
 };
 pub use site_contact::{site_contact_list, site_contact_put, site_contact_upsert};
-pub use site_domain::{site_domain_list, site_domain_put};
+pub use site_domain::{site_domain_list, site_domain_put, site_domain_verify};
+pub use dns_verify::{cname_destination_matches, domain_cname_target};
 pub use site_draft::{site_draft_get, site_draft_put};
 pub use site_list::site_list;
 pub use site_object::{site_object_list, site_object_put, site_object_upsert};

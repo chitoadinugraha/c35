@@ -8,27 +8,28 @@ Applied by `c35_store::migrate_apply` on `server_ai` boot and via `.\_\scripts\d
 
 ```
 1. identity.sql
-2. billing.sql
-3. chat.sql
-4. prompt_run.sql    ← durable AI prompt job queue (JetStream worker)
-5. asset_tag.sql
-6. log.sql
-7. embed.sql
-8. inst.sql
-9. topic.sql
-10. mention.sql
-11. translation.sql
-12. hint.sql
-13. memory.sql
-14. skill.sql
-15. task.sql
-16. consumption.sql
-17. object_normalizer.sql
-18. site.sql         ← creates YSQL schema site
-19. tx.sql           ← site.tx_* (requires site.sql)
-20. file.sql
-21. channel.sql
-22. config.sql
+2. mail.sql           ← creates YSQL schema mail (requires identity.sql)
+3. billing.sql
+4. chat.sql
+5. prompt_run.sql    ← durable AI prompt job queue (JetStream worker)
+6. asset_tag.sql
+7. log.sql
+8. embed.sql
+9. inst.sql
+10. topic.sql
+11. mention.sql
+12. translation.sql
+13. hint.sql
+14. memory.sql
+15. skill.sql
+16. task.sql
+17. consumption.sql
+18. object_normalizer.sql
+19. site.sql         ← creates YSQL schema site
+20. tx.sql           ← site.tx_* (requires site.sql)
+21. file.sql
+22. channel.sql
+23. config.sql
 ```
 
 One-time data migrations live in `_/schemas/migrations/` — run manually when upgrading legacy DBs (not on every boot).
@@ -38,6 +39,7 @@ One-time data migrations live in `_/schemas/migrations/` — run manually when u
 | Schema | Contents |
 |--------|----------|
 | **`ai`** | Platform: identity, grants, chat, billing, log, skill, … |
+| **`mail`** | Platform mail: domain (CF onboard), mailbox, message |
 | **`site`** | Site payload + POS: config, draft, product, tx, … |
 | **`file`** | CAS blobs (later) |
 
@@ -48,6 +50,7 @@ Site **registry** stays in `ai.identity(kind=site)` — `site.*` tables FK to `a
 | File | Status | Description |
 |------|--------|-------------|
 | [identity.sql](identity.sql) | **locked** | Identity, grants, auth, referral |
+| [mail.sql](mail.sql) | **draft** | `mail.*` — domains, mailboxes, messages |
 | [billing.sql](billing.sql) | **locked** | Wallet, quota, top-up, reservation, dedupe |
 | [chat.sql](chat.sql) | **locked** | Chat, member, messages (prompt + bot_peer; direct deferred) |
 | [log.sql](log.sql) | **locked** | Unified audit + billing trace |

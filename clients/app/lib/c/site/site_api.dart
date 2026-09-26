@@ -128,6 +128,9 @@ class SiteApi {
     return out;
   }
 
+  Future<ResSiteDomainVerify> domainVerify(int siteIid, int domainId, {bool forceTls = false}) =>
+      conn.siteDomainVerify(siteIid, domainId, forceTls: forceTls);
+
   TableDef? tableDefFor(List<TableDef> defs, String collection) =>
       defs.where((d) => d.collection == collection).firstOrNull;
 

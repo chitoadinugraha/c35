@@ -1,0 +1,154 @@
+syntax = "proto3";
+
+package c35;
+
+// Platform mail — see _/docs/plans/2026-09-26-site-domain-mail-multitask.md (M1 scaffold).
+
+enum MailDirection {
+  MAIL_DIRECTION_UNSPECIFIED = 0;
+  MAIL_DIRECTION_IN = 1;
+  MAIL_DIRECTION_OUT = 2;
+}
+
+enum MailStatus {
+  MAIL_STATUS_UNSPECIFIED = 0;
+  MAIL_STATUS_RECEIVED = 1;
+  MAIL_STATUS_QUEUED = 2;
+  MAIL_STATUS_SENT = 3;
+  MAIL_STATUS_FAILED = 4;
+}
+
+enum MailMailboxKind {
+  MAIL_MAILBOX_KIND_UNSPECIFIED = 0;
+  MAIL_MAILBOX_KIND_PERSONAL = 1;
+  MAIL_MAILBOX_KIND_SITE = 2;
+}
+
+enum MailMailboxAccess {
+  MAIL_MAILBOX_ACCESS_UNSPECIFIED = 0;
+  MAIL_MAILBOX_ACCESS_READ = 1;
+  MAIL_MAILBOX_ACCESS_WRITE = 2;
+}
+
+message MailAccount {
+  int64 owner_iid = 1;
+  string address = 2;
+  int64 created_ts_ms = 3;
+  int64 mailbox_id = 4;
+}
+
+message MailMailboxMember {
+  int64 member_iid = 1;
+  string name = 2;
+  string email = 3;
+  MailMailboxAccess access = 4;
+}
+
+message MailMailbox {
+  int64 mailbox_id = 1;
+  string address = 2;
+  MailMailboxKind kind = 3;
+  int64 site_iid = 4;
+  string site_name = 5;
+  string label = 6;
+  int32 subscriber_limit = 7;
+  MailMailboxAccess my_access = 8;
+  int32 unread_count = 9;
+  repeated MailMailboxMember members = 10;
+}
+
+message MailMessage {
+  int64 message_id = 1;
+  MailDirection direction = 2;
+  string from_addr = 3;
+  string to_addr = 4;
+  string subject = 5;
+  string body_text = 6;
+  string body_html = 7;
+  MailStatus status = 8;
+  string attachments_json = 9;
+  string error = 10;
+  int64 created_ts_ms = 11;
+  int64 sent_ts_ms = 12;
+  bool is_archived = 13;
+  bool is_read = 14;
+}
+
+message MailAttachment {
+  string path = 1;
+  string name = 2;
+  string mime = 3;
+  int64 size = 4;
+}
+
+message MailDomainSetupStep {
+  string key = 1;
+  string status = 2;
+  string detail = 3;
+}
+
+message MailDomain {
+  string hostname = 1;
+  string zone_id = 2;
+  bool sending_enabled = 3;
+  bool routing_enabled = 4;
+  int64 created_ts_ms = 5;
+  repeated MailDomainSetupStep setup_steps = 6;
+  string error_summary = 7;
+}
+
+// ================================= RPC (subset — M1 scaffold)
+
+message ReqMailList {
+  MailDirection direction = 1;
+  int32 limit = 2;
+  int64 before_message_id = 3;
+  bool is_archived = 4;
+  int64 mailbox_id = 5;
+}
+
+message ResMailList {
+  repeated MailMessage messages = 1;
+}
+
+message ReqMailGet {
+  int64 message_id = 1;
+  int64 mailbox_id = 2;
+}
+
+message ResMailGet {
+  MailMessage message = 1;
+}
+
+message ReqMailSend {
+  string to_addr = 1;
+  string subject = 2;
+  string body_text = 3;
+  string body_html = 4;
+  repeated MailAttachment attachments = 5;
+  int64 mailbox_id = 6;
+}
+
+message ResMailSend {
+  MailMessage message = 1;
+}
+
+message ReqMailMailboxList {}
+
+message ResMailMailboxList {
+  repeated MailMailbox mailboxes = 1;
+}
+
+message ReqMailDomainList {}
+
+message ResMailDomainList {
+  repeated MailDomain domains = 1;
+}
+
+message ReqMailDomainAdd {
+  string hostname = 1;
+}
+
+message ResMailDomainAdd {
+  MailDomain domain = 1;
+}

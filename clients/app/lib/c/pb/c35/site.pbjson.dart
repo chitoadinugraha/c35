@@ -152,6 +152,9 @@ const SiteDomain$json = {
     {'1': 'tls_status', '3': 5, '4': 1, '5': 9, '10': 'tlsStatus'},
     {'1': 'verified_ts_ms', '3': 6, '4': 1, '5': 3, '10': 'verifiedTsMs'},
     {'1': 'verify_token', '3': 7, '4': 1, '5': 9, '10': 'verifyToken'},
+    {'1': 'verify_error', '3': 8, '4': 1, '5': 9, '10': 'verifyError'},
+    {'1': 'tls_error', '3': 9, '4': 1, '5': 9, '10': 'tlsError'},
+    {'1': 'last_verify_ts_ms', '3': 10, '4': 1, '5': 3, '10': 'lastVerifyTsMs'},
     {'1': 'created_ts_ms', '3': 20, '4': 1, '5': 3, '10': 'createdTsMs'},
     {'1': 'updated_ts_ms', '3': 21, '4': 1, '5': 3, '10': 'updatedTsMs'},
     {'1': 'deleted_ts_ms', '3': 22, '4': 1, '5': 3, '10': 'deletedTsMs'},
@@ -163,9 +166,11 @@ final $typed_data.Uint8List siteDomainDescriptor = $convert.base64Decode(
     'CgpTaXRlRG9tYWluEg4KAmlkGAEgASgDUgJpZBIZCghzaXRlX2lpZBgCIAEoA1IHc2l0ZUlpZB'
     'IaCghob3N0bmFtZRgDIAEoCVIIaG9zdG5hbWUSHQoKaXNfcHJpbWFyeRgEIAEoCFIJaXNQcmlt'
     'YXJ5Eh0KCnRsc19zdGF0dXMYBSABKAlSCXRsc1N0YXR1cxIkCg52ZXJpZmllZF90c19tcxgGIA'
-    'EoA1IMdmVyaWZpZWRUc01zEiEKDHZlcmlmeV90b2tlbhgHIAEoCVILdmVyaWZ5VG9rZW4SIgoN'
-    'Y3JlYXRlZF90c19tcxgUIAEoA1ILY3JlYXRlZFRzTXMSIgoNdXBkYXRlZF90c19tcxgVIAEoA1'
-    'ILdXBkYXRlZFRzTXMSIgoNZGVsZXRlZF90c19tcxgWIAEoA1ILZGVsZXRlZFRzTXM=');
+    'EoA1IMdmVyaWZpZWRUc01zEiEKDHZlcmlmeV90b2tlbhgHIAEoCVILdmVyaWZ5VG9rZW4SIQoM'
+    'dmVyaWZ5X2Vycm9yGAggASgJUgt2ZXJpZnlFcnJvchIbCgl0bHNfZXJyb3IYCSABKAlSCHRsc0'
+    'Vycm9yEikKEWxhc3RfdmVyaWZ5X3RzX21zGAogASgDUg5sYXN0VmVyaWZ5VHNNcxIiCg1jcmVh'
+    'dGVkX3RzX21zGBQgASgDUgtjcmVhdGVkVHNNcxIiCg11cGRhdGVkX3RzX21zGBUgASgDUgt1cG'
+    'RhdGVkVHNNcxIiCg1kZWxldGVkX3RzX21zGBYgASgDUgtkZWxldGVkVHNNcw==');
 
 @$core.Deprecated('Use siteDraftDescriptor instead')
 const SiteDraft$json = {
@@ -795,6 +800,36 @@ const ResSiteDomainPut$json = {
 /// Descriptor for `ResSiteDomainPut`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List resSiteDomainPutDescriptor =
     $convert.base64Decode('ChBSZXNTaXRlRG9tYWluUHV0Eg4KAmlkGAEgASgDUgJpZA==');
+
+@$core.Deprecated('Use reqSiteDomainVerifyDescriptor instead')
+const ReqSiteDomainVerify$json = {
+  '1': 'ReqSiteDomainVerify',
+  '2': [
+    {'1': 'site_iid', '3': 1, '4': 1, '5': 3, '10': 'siteIid'},
+    {'1': 'domain_id', '3': 2, '4': 1, '5': 3, '10': 'domainId'},
+    {'1': 'force_tls', '3': 3, '4': 1, '5': 8, '10': 'forceTls'},
+  ],
+};
+
+/// Descriptor for `ReqSiteDomainVerify`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqSiteDomainVerifyDescriptor = $convert.base64Decode(
+    'ChNSZXFTaXRlRG9tYWluVmVyaWZ5EhkKCHNpdGVfaWlkGAEgASgDUgdzaXRlSWlkEhsKCWRvbW'
+    'Fpbl9pZBgCIAEoA1IIZG9tYWluSWQSGwoJZm9yY2VfdGxzGAMgASgIUghmb3JjZVRscw==');
+
+@$core.Deprecated('Use resSiteDomainVerifyDescriptor instead')
+const ResSiteDomainVerify$json = {
+  '1': 'ResSiteDomainVerify',
+  '2': [
+    {'1': 'dns_verified', '3': 1, '4': 1, '5': 8, '10': 'dnsVerified'},
+    {'1': 'error', '3': 2, '4': 1, '5': 9, '10': 'error'},
+    {'1': 'tls_status', '3': 3, '4': 1, '5': 9, '10': 'tlsStatus'},
+  ],
+};
+
+/// Descriptor for `ResSiteDomainVerify`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resSiteDomainVerifyDescriptor = $convert.base64Decode(
+    'ChNSZXNTaXRlRG9tYWluVmVyaWZ5EiEKDGRuc192ZXJpZmllZBgBIAEoCFILZG5zVmVyaWZpZW'
+    'QSFAoFZXJyb3IYAiABKAlSBWVycm9yEh0KCnRsc19zdGF0dXMYAyABKAlSCXRsc1N0YXR1cw==');
 
 @$core.Deprecated('Use reqSitePreviewTokenDescriptor instead')
 const ReqSitePreviewToken$json = {

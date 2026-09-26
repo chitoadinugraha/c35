@@ -139,6 +139,7 @@ pub async fn sync_pull(pool: &PgPool, caller_iid: i64, req: ReqSync) -> ResSync 
         let rows = sqlx::query(
             r#"
             SELECT id, site_iid, hostname, is_primary, tls_status, verify_token, verified_ts,
+                   verify_error, tls_error, last_verify_ts,
                    created_ts, updated_ts, deleted_ts
             FROM site.domain
             WHERE site_iid = ANY($1::bigint[])

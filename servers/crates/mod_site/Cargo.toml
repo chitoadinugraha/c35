@@ -23,6 +23,8 @@ hex = "0.4"
 hmac = "0.12"
 sha2 = "0.10"
 subtle = "2"
+reqwest = { workspace = true }
+hickory-resolver = { version = "0.24", default-features = false, features = ["tokio-runtime", "system-config"] }
 
 [dev-dependencies]
 tokio = { workspace = true }

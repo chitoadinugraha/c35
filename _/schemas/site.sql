@@ -55,6 +55,9 @@ CREATE TABLE IF NOT EXISTS site.domain (
     verify_token        VARCHAR(64) NOT NULL DEFAULT '',
     verified_ts         TIMESTAMPTZ,
     tls_status          VARCHAR(32) NOT NULL DEFAULT 'pending',
+    verify_error        VARCHAR(512) NOT NULL DEFAULT '',
+    tls_error           TEXT NOT NULL DEFAULT '',
+    last_verify_ts      TIMESTAMPTZ,
 
     created_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),

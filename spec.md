@@ -116,6 +116,7 @@ Full UI spec: [`_/docs/ui.md`](_/docs/ui.md)
 | [`_/schemas/billing.sql`](_/schemas/billing.sql) | Billing DDL |
 | [`_/schemas/log.sql`](_/schemas/log.sql) | Log DDL |
 | [`_/docs/site.md`](_/docs/site.md) | Sites — `site.*` schema, UITable, guest URLs |
+| [`_/docs/mail.md`](_/docs/mail.md) | Platform mail — `mail.*`, CF onboard, vs `site.domain` HTTP |
 | [`_/docs/site-ai.md`](_/docs/site-ai.md) | Site @mentions, multi-site context, `site.query.run` catalog |
 | [`_/docs/tx.md`](_/docs/tx.md) | POS — `site.tx_*`, id.alienai UI + model |
 | [`_/schemas/site.sql`](_/schemas/site.sql) | Site DDL (`site` schema) |

@@ -444,6 +444,9 @@ class SiteDomain extends $pb.GeneratedMessage {
     $core.String? tlsStatus,
     $fixnum.Int64? verifiedTsMs,
     $core.String? verifyToken,
+    $core.String? verifyError,
+    $core.String? tlsError,
+    $fixnum.Int64? lastVerifyTsMs,
     $fixnum.Int64? createdTsMs,
     $fixnum.Int64? updatedTsMs,
     $fixnum.Int64? deletedTsMs,
@@ -456,6 +459,9 @@ class SiteDomain extends $pb.GeneratedMessage {
     if (tlsStatus != null) result.tlsStatus = tlsStatus;
     if (verifiedTsMs != null) result.verifiedTsMs = verifiedTsMs;
     if (verifyToken != null) result.verifyToken = verifyToken;
+    if (verifyError != null) result.verifyError = verifyError;
+    if (tlsError != null) result.tlsError = tlsError;
+    if (lastVerifyTsMs != null) result.lastVerifyTsMs = lastVerifyTsMs;
     if (createdTsMs != null) result.createdTsMs = createdTsMs;
     if (updatedTsMs != null) result.updatedTsMs = updatedTsMs;
     if (deletedTsMs != null) result.deletedTsMs = deletedTsMs;
@@ -482,6 +488,9 @@ class SiteDomain extends $pb.GeneratedMessage {
     ..aOS(5, _omitFieldNames ? '' : 'tlsStatus')
     ..aInt64(6, _omitFieldNames ? '' : 'verifiedTsMs')
     ..aOS(7, _omitFieldNames ? '' : 'verifyToken')
+    ..aOS(8, _omitFieldNames ? '' : 'verifyError')
+    ..aOS(9, _omitFieldNames ? '' : 'tlsError')
+    ..aInt64(10, _omitFieldNames ? '' : 'lastVerifyTsMs')
     ..aInt64(20, _omitFieldNames ? '' : 'createdTsMs')
     ..aInt64(21, _omitFieldNames ? '' : 'updatedTsMs')
     ..aInt64(22, _omitFieldNames ? '' : 'deletedTsMs')
@@ -570,30 +579,57 @@ class SiteDomain extends $pb.GeneratedMessage {
   @$pb.TagNumber(7)
   void clearVerifyToken() => $_clearField(7);
 
+  @$pb.TagNumber(8)
+  $core.String get verifyError => $_getSZ(7);
+  @$pb.TagNumber(8)
+  set verifyError($core.String value) => $_setString(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasVerifyError() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearVerifyError() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.String get tlsError => $_getSZ(8);
+  @$pb.TagNumber(9)
+  set tlsError($core.String value) => $_setString(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasTlsError() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearTlsError() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $fixnum.Int64 get lastVerifyTsMs => $_getI64(9);
+  @$pb.TagNumber(10)
+  set lastVerifyTsMs($fixnum.Int64 value) => $_setInt64(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasLastVerifyTsMs() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearLastVerifyTsMs() => $_clearField(10);
+
   @$pb.TagNumber(20)
-  $fixnum.Int64 get createdTsMs => $_getI64(7);
+  $fixnum.Int64 get createdTsMs => $_getI64(10);
   @$pb.TagNumber(20)
-  set createdTsMs($fixnum.Int64 value) => $_setInt64(7, value);
+  set createdTsMs($fixnum.Int64 value) => $_setInt64(10, value);
   @$pb.TagNumber(20)
-  $core.bool hasCreatedTsMs() => $_has(7);
+  $core.bool hasCreatedTsMs() => $_has(10);
   @$pb.TagNumber(20)
   void clearCreatedTsMs() => $_clearField(20);
 
   @$pb.TagNumber(21)
-  $fixnum.Int64 get updatedTsMs => $_getI64(8);
+  $fixnum.Int64 get updatedTsMs => $_getI64(11);
   @$pb.TagNumber(21)
-  set updatedTsMs($fixnum.Int64 value) => $_setInt64(8, value);
+  set updatedTsMs($fixnum.Int64 value) => $_setInt64(11, value);
   @$pb.TagNumber(21)
-  $core.bool hasUpdatedTsMs() => $_has(8);
+  $core.bool hasUpdatedTsMs() => $_has(11);
   @$pb.TagNumber(21)
   void clearUpdatedTsMs() => $_clearField(21);
 
   @$pb.TagNumber(22)
-  $fixnum.Int64 get deletedTsMs => $_getI64(9);
+  $fixnum.Int64 get deletedTsMs => $_getI64(12);
   @$pb.TagNumber(22)
-  set deletedTsMs($fixnum.Int64 value) => $_setInt64(9, value);
+  set deletedTsMs($fixnum.Int64 value) => $_setInt64(12, value);
   @$pb.TagNumber(22)
-  $core.bool hasDeletedTsMs() => $_has(9);
+  $core.bool hasDeletedTsMs() => $_has(12);
   @$pb.TagNumber(22)
   void clearDeletedTsMs() => $_clearField(22);
 }
@@ -3452,6 +3488,170 @@ class ResSiteDomainPut extends $pb.GeneratedMessage {
   $core.bool hasId() => $_has(0);
   @$pb.TagNumber(1)
   void clearId() => $_clearField(1);
+}
+
+class ReqSiteDomainVerify extends $pb.GeneratedMessage {
+  factory ReqSiteDomainVerify({
+    $fixnum.Int64? siteIid,
+    $fixnum.Int64? domainId,
+    $core.bool? forceTls,
+  }) {
+    final result = ReqSiteDomainVerify._();
+    if (siteIid != null) result.siteIid = siteIid;
+    if (domainId != null) result.domainId = domainId;
+    if (forceTls != null) result.forceTls = forceTls;
+    return result;
+  }
+
+  ReqSiteDomainVerify._();
+
+  factory ReqSiteDomainVerify.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteDomainVerify()..mergeFromBuffer(data, registry);
+  factory ReqSiteDomainVerify.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteDomainVerify()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqSiteDomainVerify',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqSiteDomainVerify.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'siteIid')
+    ..aInt64(2, _omitFieldNames ? '' : 'domainId')
+    ..aOB(3, _omitFieldNames ? '' : 'forceTls')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteDomainVerify clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteDomainVerify copyWith(void Function(ReqSiteDomainVerify) updates) =>
+      super.copyWith((message) => updates(message as ReqSiteDomainVerify))
+          as ReqSiteDomainVerify;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core
+      .Deprecated('Use ReqSiteDomainVerify() / ReqSiteDomainVerify.new instead')
+  static ReqSiteDomainVerify create() => ReqSiteDomainVerify._();
+  static $pb.GeneratedMessage $_createMessage() => ReqSiteDomainVerify._();
+  @$core.override
+  ReqSiteDomainVerify createEmptyInstance() => ReqSiteDomainVerify._();
+  @$core.pragma('dart2js:noInline')
+  static ReqSiteDomainVerify getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqSiteDomainVerify>(
+          ReqSiteDomainVerify.$_createMessage);
+  static ReqSiteDomainVerify? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get siteIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set siteIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSiteIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSiteIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get domainId => $_getI64(1);
+  @$pb.TagNumber(2)
+  set domainId($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasDomainId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearDomainId() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.bool get forceTls => $_getBF(2);
+  @$pb.TagNumber(3)
+  set forceTls($core.bool value) => $_setBool(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasForceTls() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearForceTls() => $_clearField(3);
+}
+
+class ResSiteDomainVerify extends $pb.GeneratedMessage {
+  factory ResSiteDomainVerify({
+    $core.bool? dnsVerified,
+    $core.String? error,
+    $core.String? tlsStatus,
+  }) {
+    final result = ResSiteDomainVerify._();
+    if (dnsVerified != null) result.dnsVerified = dnsVerified;
+    if (error != null) result.error = error;
+    if (tlsStatus != null) result.tlsStatus = tlsStatus;
+    return result;
+  }
+
+  ResSiteDomainVerify._();
+
+  factory ResSiteDomainVerify.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteDomainVerify()..mergeFromBuffer(data, registry);
+  factory ResSiteDomainVerify.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteDomainVerify()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResSiteDomainVerify',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResSiteDomainVerify.$_createMessage)
+    ..aOB(1, _omitFieldNames ? '' : 'dnsVerified')
+    ..aOS(2, _omitFieldNames ? '' : 'error')
+    ..aOS(3, _omitFieldNames ? '' : 'tlsStatus')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteDomainVerify clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteDomainVerify copyWith(void Function(ResSiteDomainVerify) updates) =>
+      super.copyWith((message) => updates(message as ResSiteDomainVerify))
+          as ResSiteDomainVerify;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core
+      .Deprecated('Use ResSiteDomainVerify() / ResSiteDomainVerify.new instead')
+  static ResSiteDomainVerify create() => ResSiteDomainVerify._();
+  static $pb.GeneratedMessage $_createMessage() => ResSiteDomainVerify._();
+  @$core.override
+  ResSiteDomainVerify createEmptyInstance() => ResSiteDomainVerify._();
+  @$core.pragma('dart2js:noInline')
+  static ResSiteDomainVerify getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResSiteDomainVerify>(
+          ResSiteDomainVerify.$_createMessage);
+  static ResSiteDomainVerify? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get dnsVerified => $_getBF(0);
+  @$pb.TagNumber(1)
+  set dnsVerified($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasDnsVerified() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearDnsVerified() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get error => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set error($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasError() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearError() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get tlsStatus => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set tlsStatus($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasTlsStatus() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearTlsStatus() => $_clearField(3);
 }
 
 class ReqSitePreviewToken extends $pb.GeneratedMessage {

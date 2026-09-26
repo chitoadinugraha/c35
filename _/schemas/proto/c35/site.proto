@@ -51,6 +51,9 @@ message SiteDomain {
   string tls_status = 5;
   int64 verified_ts_ms = 6;
   string verify_token = 7;
+  string verify_error = 8;
+  string tls_error = 9;
+  int64 last_verify_ts_ms = 10;
 
   int64 created_ts_ms = 20;
   int64 updated_ts_ms = 21;
@@ -277,6 +280,18 @@ message ReqSiteDomainPut {
 
 message ResSiteDomainPut {
   int64 id = 1;
+}
+
+message ReqSiteDomainVerify {
+  int64 site_iid = 1;
+  int64 domain_id = 2;
+  bool force_tls = 3; // re-run cert-manager ensure when DNS already verified
+}
+
+message ResSiteDomainVerify {
+  bool dns_verified = 1;
+  string error = 2;
+  string tls_status = 3;
 }
 
 message ReqSitePreviewToken {

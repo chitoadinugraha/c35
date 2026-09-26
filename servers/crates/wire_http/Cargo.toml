@@ -27,6 +27,7 @@ c35_mod_consumption = { path = "../mod_consumption", package = "c35_mod_consumpt
 c35_mod_expense = { path = "../mod_expense", package = "c35_mod_expense" }
 c35_mod_device = { path = "../mod_device", package = "c35_mod_device" }
 c35_mod_site = { path = "../mod_site", package = "c35_mod_site" }
+c35_mod_mail = { path = "../mod_mail", package = "c35_mod_mail" }
 c35_mod_tx = { path = "../mod_tx", package = "c35_mod_tx" }
 c35_mod_voice = { path = "../mod_voice", package = "c35_mod_voice" }
 c35_proto = { path = "../proto", package = "c35_proto" }

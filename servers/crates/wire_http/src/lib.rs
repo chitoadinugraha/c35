@@ -66,6 +66,7 @@ pub fn router(state: AppState) -> Router {
         .merge(catalog::catalog_router())
         .merge(invoke::invoke_router())
         .merge(c35_mod_billing::billing_webhook_router())
+        .merge(c35_mod_mail::mail_router())
         .merge(guest_order::guest_order_router())
         .with_state(state)
 }

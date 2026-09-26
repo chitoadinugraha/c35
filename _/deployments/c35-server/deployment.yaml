@@ -22,6 +22,7 @@ spec:
         app.kubernetes.io/name: c35-server
         app.kubernetes.io/part-of: c35
     spec:
+      serviceAccountName: c35-server
       nodeSelector:
         kubernetes.io/arch: arm64
       imagePullSecrets:
@@ -47,10 +48,18 @@ spec:
                   fieldPath: metadata.name
             - name: LISTEN
               value: "0.0.0.0:8080"
+            - name: C35_TLS_SYNC_ENABLED
+              value: "1"
+            - name: C35_TLS_CLUSTER_ISSUER
+              value: "letsencrypt-prod-dns"
             - name: C35_PUBLIC_ORIGIN
               value: "https://alienai.id"
             - name: C35_PRIMARY_HOSTS
-              value: "www.alienai.id"
+              value: "alienai.id,www.alienai.id,site.alienai.id"
+            - name: C35_DOMAIN_CNAME_TARGET
+              value: "site.alienai.id"
+            - name: C35_TLS_SYNC_ENABLED
+              value: "1"
             - name: YB_DATABASE
               value: c35
             - name: YB_HOST

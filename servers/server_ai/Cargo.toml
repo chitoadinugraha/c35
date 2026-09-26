@@ -25,6 +25,7 @@ c35_mod_channel = { path = "../crates/mod_channel", package = "c35_mod_channel" 
 c35_mod_chat = { path = "../crates/mod_chat", package = "c35_mod_chat" }
 c35_mod_device = { path = "../crates/mod_device", package = "c35_mod_device" }
 c35_mod_site = { path = "../crates/mod_site", package = "c35_mod_site" }
+c35_mod_mail = { path = "../crates/mod_mail", package = "c35_mod_mail" }
 c35_mod_llm = { path = "../crates/mod_llm", package = "c35_mod_llm" }
 c35_mod_log = { path = "../crates/mod_log", package = "c35_mod_log" }
 tokio = { workspace = true }

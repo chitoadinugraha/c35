@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: c35-server
+  namespace: c35
+  labels:
+    app.kubernetes.io/name: c35-server
+    app.kubernetes.io/part-of: c35
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: c35-server-tls-sync
+  namespace: c35
+  labels:
+    app.kubernetes.io/name: c35-server
+    app.kubernetes.io/part-of: c35
+rules:
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get"]
+  - apiGroups: ["cert-manager.io"]
+    resources: ["certificates"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: c35-server-tls-sync
+  namespace: c35
+  labels:
+    app.kubernetes.io/name: c35-server
+    app.kubernetes.io/part-of: c35
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: c35-server-tls-sync
+subjects:
+  - kind: ServiceAccount
+    name: c35-server
+    namespace: c35

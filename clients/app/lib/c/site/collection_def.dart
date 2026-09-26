@@ -91,6 +91,9 @@ TableDef _domainTable() => TableDef(
         _col('tls_status', 'TLS', ColType.COL_TYPE_TEXT, readonly: true, inlineEditable: false),
         _col('verify_token', 'Verify token', ColType.COL_TYPE_TEXT, readonly: true, inlineEditable: false),
         _col('verified_ts_ms', 'Verified', ColType.COL_TYPE_TS, readonly: true, inlineEditable: false),
+        _col('verify_error', 'Verify error', ColType.COL_TYPE_TEXT, readonly: true, inlineEditable: false),
+        _col('tls_error', 'TLS error', ColType.COL_TYPE_TEXT, readonly: true, inlineEditable: false),
+        _col('last_verify_ts_ms', 'Last verify', ColType.COL_TYPE_TS, readonly: true, inlineEditable: false),
         _col('updated_ts_ms', 'Updated', ColType.COL_TYPE_TS, readonly: true, inlineEditable: false),
       ],
     );

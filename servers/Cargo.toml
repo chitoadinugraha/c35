@@ -23,6 +23,7 @@ members = [
     "crates/mod_device",
     "crates/mod_skill",
     "crates/mod_site",
+    "crates/mod_mail",
     "crates/mod_tx",
     "crates/mod_voice",
     "crates/mod_hint",
@@ -64,7 +65,7 @@ tower-http = { version = "0.6", features = ["cors", "trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 dashmap = "6"
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "system-proxy"] }
 urlencoding = "2"
 
 [profile.dev]

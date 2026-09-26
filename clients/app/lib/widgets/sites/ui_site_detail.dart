@@ -5,6 +5,8 @@ import 'package:alienai_c35/c/site/site_api.dart';
 import 'package:alienai_c35/c/site/site_table_rows.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/c/pb/c35/tx.pb.dart';
+import 'package:alienai_c35/c/site/site_domain.dart';
+import 'package:alienai_c35/widgets/sites/io_site_domain_dialogs.dart';
 import 'package:alienai_c35/widgets/sites/tx/tx_api.dart';
 import 'package:alienai_c35/widgets/sites/tx/ui_site_tx_editor.dart';
 import 'package:alienai_c35/widgets/sites/ui_site_preview.dart';
@@ -19,6 +21,7 @@ const _border = Color(0xFF27272A);
 const _muted = Color(0xFF71717A);
 const _text = Color(0xFFF4F4F5);
 const _accent = Color(0xFF34D399);
+const _error = Color(0xFFF87171);
 
 class UiSiteDetail extends StatefulWidget {
   const UiSiteDetail({super.key, required this.row, required this.api, this.onBack, this.title, this.initialTabRoute});
@@ -670,6 +673,7 @@ class _UiSiteSettingsTabState extends State<_UiSiteSettingsTab> {
   var _loading = true;
   var _savingCaps = false;
   var _domainsBusy = false;
+  int? _fixingDomainId;
   Map<String, bool> _caps = {for (final k in ['commerce', 'booking', 'queue']) k: true};
   final _domains = <String, SiteDomain>{};
   List<Map<String, String>> _domainRows = const [];
@@ -751,6 +755,126 @@ class _UiSiteSettingsTabState extends State<_UiSiteSettingsTab> {
     }
   }
 
+  Future<void> _refreshDomains() async => _setDomains(await widget.api.domainList(widget.siteIid));
+
+  Future<void> _verifyDomain(SiteDomain d) async {
+    if (_domainsBusy) return;
+    await ioSiteDomainDnsDialogOpen(
+      context,
+      domain: d.hostname,
+      errorMessage: d.verifyError.isNotEmpty ? d.verifyError : null,
+      onCheck: () async {
+        setState(() => _domainsBusy = true);
+        try {
+          final res = await widget.api.domainVerify(widget.siteIid, d.id.toInt());
+          await _refreshDomains();
+          if (!mounted) return false;
+          if (res.dnsVerified) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('DNS verified'), behavior: SnackBarBehavior.floating));
+            return true;
+          }
+          final msg = res.error.isNotEmpty ? res.error : 'DNS verification failed';
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating));
+          return false;
+        } catch (e) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating));
+          return false;
+        } finally {
+          if (mounted) setState(() => _domainsBusy = false);
+        }
+      },
+    );
+  }
+
+  Future<void> _fixHttps(SiteDomain d) async {
+    if (_fixingDomainId != null) return;
+    setState(() => _fixingDomainId = d.id.toInt());
+    try {
+      final res = await widget.api.domainVerify(widget.siteIid, d.id.toInt(), forceTls: true);
+      await _refreshDomains();
+      if (!mounted) return;
+      final tls = res.tlsStatus.trim();
+      if (tls == 'ready' || tls == 'active') {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('HTTPS ready'), behavior: SnackBarBehavior.floating));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(tls.isEmpty ? 'TLS sync requested' : 'TLS: $tls'), behavior: SnackBarBehavior.floating),
+        );
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating));
+    } finally {
+      if (mounted) setState(() => _fixingDomainId = null);
+    }
+  }
+
+  Widget _domainStatusRow(String rowKey, double width) {
+    final d = _domains[rowKey];
+    if (d == null) return const SizedBox.shrink();
+    final domainId = d.id.toInt();
+    final dnsOk = siteDomainDnsVerified(d);
+    final tls = siteDomainTlsChip(d.tlsStatus);
+    return SizedBox(
+      width: width,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF18181B),
+          border: Border(bottom: BorderSide(color: _border.withValues(alpha: 0.6))),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (!dnsOk)
+                  TextButton(
+                    onPressed: _domainsBusy ? null : () => _verifyDomain(d),
+                    child: const Text('Verify DNS'),
+                  )
+                else if (tls == SiteDomainTlsChip.failed)
+                  TextButton(
+                    onPressed: _fixingDomainId != null ? null : () => _fixHttps(d),
+                    child: _fixingDomainId == domainId
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: _muted))
+                        : const Text('Fix HTTPS'),
+                  ),
+                TextButton(
+                  onPressed: _domainsBusy ? null : () => ioSiteDomainDnsDialogOpen(context, domain: d.hostname),
+                  child: const Text('DNS steps'),
+                ),
+              ],
+            ),
+            if (dnsOk) ...[
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  _SiteDomainStatusChip(label: 'DNS verified', tone: _SiteDomainChipTone.ok),
+                  switch (tls) {
+                    SiteDomainTlsChip.ready => _SiteDomainStatusChip(label: 'HTTPS ready', tone: _SiteDomainChipTone.ok),
+                    SiteDomainTlsChip.failed => _SiteDomainStatusChip(label: 'HTTPS failed', tone: _SiteDomainChipTone.bad),
+                    SiteDomainTlsChip.disabled => _SiteDomainStatusChip(label: 'HTTPS cluster only', tone: _SiteDomainChipTone.muted),
+                    SiteDomainTlsChip.pending => _SiteDomainStatusChip(label: 'HTTPS pending', tone: _SiteDomainChipTone.warn),
+                  },
+                ],
+              ),
+              if (d.tlsError.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(d.tlsError, style: const TextStyle(color: _error, fontSize: 12)),
+              ],
+            ] else if (d.verifyError.isNotEmpty) ...[
+              Text(d.verifyError, style: const TextStyle(color: _error, fontSize: 12)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _infoRow(String label, String value) => Padding(
         padding: const EdgeInsets.only(bottom: 14),
         child: Column(
@@ -793,7 +917,7 @@ class _UiSiteSettingsTabState extends State<_UiSiteSettingsTab> {
         const SizedBox(height: 28),
         const Text('Domains', style: TextStyle(color: _text, fontSize: 15, fontWeight: FontWeight.w600)),
         const SizedBox(height: 4),
-        const Text('CNAME to alienai.id', style: TextStyle(color: _muted, fontSize: 12)),
+        Text('CNAME to $siteDomainCnameTarget (grey / DNS only)', style: const TextStyle(color: _muted, fontSize: 12)),
         const SizedBox(height: 12),
         if (domainDef == null)
           const Text('No domain table definition', style: TextStyle(color: _muted))
@@ -804,8 +928,64 @@ class _UiSiteSettingsTabState extends State<_UiSiteSettingsTab> {
             loading: _domainsBusy,
             onCellCommit: _commitDomain,
             onAddRow: _addDomain,
+            rowBuilder: (scope) => [...scope.defaultTiles, _domainStatusRow(scope.rowKey, scope.tableWidth)],
           ),
       ],
+    );
+  }
+}
+
+enum _SiteDomainChipTone { ok, warn, bad, muted }
+
+class _SiteDomainStatusChip extends StatelessWidget {
+  const _SiteDomainStatusChip({required this.label, required this.tone});
+
+  final String label;
+  final _SiteDomainChipTone tone;
+
+  @override
+  Widget build(BuildContext context) {
+    final (bg, border, fg, icon) = switch (tone) {
+      _SiteDomainChipTone.ok => (
+          const Color(0xFF14532D).withValues(alpha: 0.45),
+          const Color(0xFF22C55E).withValues(alpha: 0.45),
+          const Color(0xFF4ADE80),
+          Icons.verified,
+        ),
+      _SiteDomainChipTone.warn => (
+          const Color(0xFF713F12).withValues(alpha: 0.40),
+          const Color(0xFFF59E0B).withValues(alpha: 0.45),
+          const Color(0xFFFCD34D),
+          Icons.hourglass_top,
+        ),
+      _SiteDomainChipTone.bad => (
+          const Color(0xFF7F1D1D).withValues(alpha: 0.40),
+          const Color(0xFFEF4444).withValues(alpha: 0.45),
+          const Color(0xFFFCA5A5),
+          Icons.error_outline,
+        ),
+      _SiteDomainChipTone.muted => (
+          const Color(0xFF27272A),
+          _border,
+          _muted,
+          Icons.info_outline,
+        ),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        border: Border.all(color: border),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: fg),
+          const SizedBox(width: 4),
+          Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: fg)),
+        ],
+      ),
     );
   }
 }

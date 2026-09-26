@@ -220,6 +220,9 @@ Map<String, String> siteDomainCells(SiteDomain d) => {
       'tls_status': d.tlsStatus,
       'verify_token': d.verifyToken,
       'verified_ts_ms': _fmtTs(d.verifiedTsMs),
+      'verify_error': d.verifyError,
+      'tls_error': d.tlsError,
+      'last_verify_ts_ms': _fmtTs(d.lastVerifyTsMs),
       'updated_ts_ms': _fmtTs(d.updatedTsMs),
     };
 

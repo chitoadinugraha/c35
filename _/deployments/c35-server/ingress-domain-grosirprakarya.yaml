@@ -1,0 +1,32 @@
+# One-off custom domain ingress (until tls_sync runs on cluster with site verify).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: c35-domain-grosirprakarya-com
+  namespace: c35
+  labels:
+    app.kubernetes.io/name: c35-server
+    app.kubernetes.io/part-of: c35
+    c35.alienai.id/custom-domain: "true"
+    c35.alienai.id/domain: grosirprakarya.com
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod-dns
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/redirect-entry-point: https
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - grosirprakarya.com
+      secretName: c35-tls-grosirprakarya-com
+  rules:
+    - host: grosirprakarya.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: c35-server
+                port:
+                  name: http

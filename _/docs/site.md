@@ -1,6 +1,6 @@
 # Site (LOCKED)
 
-Status: **locked** 2026-09-21 (revised from 2026-09-20)
+Status: **locked** 2026-09-21 (revised 2026-09-26 — custom domain DNS/TLS)
 
 Prompt-built websites and business storefronts.
 
@@ -47,7 +47,40 @@ site.tx … site.tx_*        POS (id.alienai model — see tx.md)
 | `alienai.id` | `/{alien_id}/about` | page inside SiteDoc |
 | custom domain (verified) | `/` | site by `site.domain.hostname` (Host header) |
 
-Custom domain: user CNAMEs to `alienai.id` (CF orange cloud OK). TLS cert stored in CF / cert-manager — DB holds **`tls_status`** only.
+## Custom domains (HTTP)
+
+Customers attach their own hostname to a published site. **Do not** point DNS at orange **`alienai.id`** — that host is Cloudflare-proxied for path guest URLs only (`https://alienai.id/{alien_id}/…`).
+
+### Customer DNS
+
+| Case | Record | Target |
+|------|--------|--------|
+| Subdomain (e.g. `www`) | **CNAME** | **`site.alienai.id`** (grey — proxied **false**) |
+| Apex (`example.com`) | **A/AAAA** to origin IP **or** registrar CNAME flatten to `site.alienai.id` | Same addresses as `site.alienai.id` |
+
+Platform DNS: **`site.alienai.id`** → cluster origin (grey, same IP as `api.alienai.id`). It is a **platform host**, not a `site.domain` row — `host_is_primary("site.alienai.id")` is true.
+
+**Verify** (RPC `site_domain_verify`): hostname must CNAME-chain to `C35_DOMAIN_CNAME_TARGET` **or** apex A/AAAA must match that target’s resolved addresses. One verified hostname → one site (`uq_site_domain_hostname`); `www` and apex are separate rows.
+
+### TLS (origin, cert-manager)
+
+- Certificates are issued on the **origin** via **cert-manager** (per-hostname Ingress → `c35-server`). Private keys and PEM live in **Kubernetes Secrets only**.
+- **Never store TLS PEM or private keys in Yugabyte.** `site.domain` holds **`tls_status`**, **`verify_error`**, **`tls_error`**, **`last_verify_ts`** — status and errors for the app UI, not secret material.
+- `tls_status`: `pending` | `ready` | `failed` | `disabled` (synced from cluster when TLS sync runs).
+
+Mail on the customer zone (`@example.com`) is a **separate** stack (`mail.*`, Cloudflare zone onboard) — not the same as HTTP CNAME verify (see [`plans/2026-09-26-site-domain-mail-multitask.md`](plans/2026-09-26-site-domain-mail-multitask.md) Track D1).
+
+### Server env (`c35-server`)
+
+| Variable | Default | Role |
+|----------|---------|------|
+| `C35_DOMAIN_CNAME_TARGET` | `site.alienai.id` | CNAME target for UI copy and DNS verify |
+| `C35_PRIMARY_HOSTS` | *(merged)* | Comma-separated **extra** platform hosts; code always includes `alienai.id`, `www.alienai.id`, `site.alienai.id` |
+| `C35_TLS_SYNC_ENABLED` | off (`0`) | `1` / `true` — create/update cert-manager Ingress per verified hostname |
+| `C35_TLS_NAMESPACE` | `c35` | Namespace for domain Ingress resources |
+| `C35_TLS_CLUSTER_ISSUER` | `letsencrypt-prod-dns` | cert-manager `ClusterIssuer` annotation (cluster may override) |
+
+Cluster template: [`_/deployments/c35-server/deployment.yaml`](../deployments/c35-server/deployment.yaml). Local dev: [`servers/server_ai/.env.example`](../../servers/server_ai/.env.example).
 
 **API split (implemented):**
 

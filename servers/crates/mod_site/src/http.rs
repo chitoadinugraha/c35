@@ -80,6 +80,9 @@ fn host_is_api(host: &str) -> bool {
     normalize_hostname(host) == "api.alienai.id"
 }
 
+/// Platform hosts: guest `/{alien_id}` routing, not customer custom domains.
+/// Defaults include `alienai.id`, `www.alienai.id`, and `site.alienai.id` (platform site CNAME target).
+/// Extra hosts merge from `C35_PRIMARY_HOSTS` (comma-separated); cluster sets this in deployment.
 pub fn host_is_primary(host: &str) -> bool {
     let h = normalize_hostname(host);
     if h.is_empty() {
@@ -91,7 +94,11 @@ pub fn host_is_primary(host: &str) -> bool {
     if matches!(h.as_str(), "localhost" | "127.0.0.1" | "::1" | "0.0.0.0") {
         return true;
     }
-    let mut hosts = vec!["alienai.id".to_string(), "www.alienai.id".to_string()];
+    let mut hosts = vec![
+        "alienai.id".to_string(),
+        "www.alienai.id".to_string(),
+        "site.alienai.id".to_string(),
+    ];
     if let Ok(raw) = std::env::var("C35_PRIMARY_HOSTS") {
         for part in raw.split(',') {
             let p = normalize_hostname(part);
