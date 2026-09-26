@@ -10,7 +10,6 @@ pub const DEFAULT_SUBSCRIBER_LIMIT: i32 = 1000;
 pub struct MailboxCtx {
     pub mailbox_id: i64,
     pub address: String,
-    pub subscriber_limit: i32,
 }
 
 pub async fn ensure_personal_mailbox(pool: &PgPool, owner_iid: i64, address: &str) -> Result<i64, String> {
@@ -67,7 +66,7 @@ pub async fn resolve_mailbox(pool: &PgPool, caller_iid: i64, mailbox_id: i64, ne
         ensure_personal_mailbox(pool, caller_iid, &format!("{}@{}", alien_id.trim(), host)).await?
     };
     let row = sqlx::query(
-        "SELECT m.id, m.address, m.subscriber_limit, mm.access FROM mail.mailbox m
+        "SELECT m.id, m.address, mm.access FROM mail.mailbox m
          JOIN mail.mailbox_member mm ON mm.mailbox_id = m.id AND mm.member_iid = $2
          WHERE m.id = $1 AND m.deleted_ts IS NULL",
     )
@@ -83,7 +82,6 @@ pub async fn resolve_mailbox(pool: &PgPool, caller_iid: i64, mailbox_id: i64, ne
     Ok(MailboxCtx {
         mailbox_id: row.get("id"),
         address: row.get("address"),
-        subscriber_limit: row.get::<i32, _>("subscriber_limit").max(1),
     })
 }
 

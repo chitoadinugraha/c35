@@ -253,21 +253,6 @@ impl K8s {
         res.json().await.map_err(|e| e.to_string())
     }
 
-    async fn delete(&self, path: &str) -> Result<(), String> {
-        let url = format!("{}{}", self.base, path);
-        let res = self
-            .auth(self.client.delete(&url))
-            .send()
-            .await
-            .map_err(|e| e.to_string())?;
-        let status = res.status();
-        if status.as_u16() == 404 || status.is_success() {
-            return Ok(());
-        }
-        let t = res.text().await.unwrap_or_default();
-        Err(format!("k8s DELETE {path}: {status} {t}"))
-    }
-
     fn ingress_body(&self, domain: &str) -> Value {
         let name = ingress_name(domain);
         let secret = secret_name(domain);
@@ -339,15 +324,6 @@ impl K8s {
                 Ok(())
             }
         }
-    }
-
-    async fn delete_ingress(&self, domain: &str) -> Result<(), String> {
-        let name = ingress_name(domain);
-        let path = format!(
-            "/apis/networking.k8s.io/v1/namespaces/{}/ingresses/{}",
-            self.ns, name
-        );
-        self.delete(&path).await
     }
 
     async fn cert_info(&self, domain: &str) -> Result<CertInfo, String> {
@@ -485,33 +461,6 @@ pub async fn domain_tls_ensure(domain: &str, force: bool) -> CertInfo {
     k.cert_info(&domain)
         .await
         .unwrap_or_else(|e| CertInfo::failed(e))
-}
-
-pub async fn domain_tls_status(domain: &str) -> CertInfo {
-    let Some(k) = k8s() else {
-        return CertInfo::disabled();
-    };
-    let domain = domain.trim().to_lowercase();
-    if domain.is_empty() {
-        return CertInfo::failed("invalid domain");
-    }
-    k.cert_info(&domain)
-        .await
-        .unwrap_or_else(|e| CertInfo::failed(e))
-}
-
-pub async fn domain_tls_delete(domain: &str) -> Result<(), String> {
-    let Some(k) = k8s() else {
-        return Ok(());
-    };
-    let domain = domain.trim().to_lowercase();
-    if domain.is_empty() {
-        return Ok(());
-    }
-    let lock = domain_lock(&domain);
-    let _guard = lock.lock().await;
-    last_ensure_map().lock().unwrap().remove(&domain);
-    k.delete_ingress(&domain).await
 }
 
 pub async fn domain_tls_status_sync(pool: &PgPool, domain_id: i64, info: &CertInfo) {
