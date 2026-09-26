@@ -536,18 +536,18 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                               },
                               child: MouseRegion(
                                 cursor: controlEnabled ? SystemMouseCursors.precise : SystemMouseCursors.basic,
-                                child: frame != null
-                                    ? Image.memory(
-                                        frame.jpegBytes,
-                                        gaplessPlayback: true,
-                                        fit: BoxFit.contain,
+                                child: hasVideoTrack
+                                    ? RTCVideoView(
+                                        sess.videoRenderer,
+                                        objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitContain,
                                       )
-                                    : hasVideoTrack
-                                        ? RTCVideoView(
-                                            sess.videoRenderer,
-                                            objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitContain,
+                                    : (frame != null
+                                        ? Image.memory(
+                                            frame.jpegBytes,
+                                            gaplessPlayback: true,
+                                            fit: BoxFit.contain,
                                           )
-                                        : const SizedBox.shrink(),
+                                        : const SizedBox.shrink()),
                               ),
                             ),
                           );

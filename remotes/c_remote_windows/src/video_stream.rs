@@ -7,26 +7,23 @@
 
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Arc;
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, SystemTime};
 
 use anyhow::{bail, Context, Result};
 use bytes::Bytes;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 use webrtc::media::Sample;
 use webrtc::track::track_local::track_local_static_sample::TrackLocalStaticSample;
 
-use windows::core::{Interface, GUID};
-use windows::Win32::Foundation::HMODULE;
 use windows::Win32::Media::MediaFoundation::{
-    eAVEncH264VProfile_Base, IMFMediaType, IMFSample, IMFTransform, MFCreateMediaType,
+    eAVEncH264VProfile_Base, IMFActivate, IMFMediaType, IMFTransform, MFCreateMediaType,
     MFCreateMemoryBuffer, MFCreateSample, MFShutdown, MFStartup, MFTEnumEx,
     MFVideoFormat_H264, MFVideoFormat_NV12, MFMediaType_Video, MFT_CATEGORY_VIDEO_ENCODER,
     MFT_ENUM_FLAG_HARDWARE, MFT_ENUM_FLAG_SORTANDFILTER, MFT_ENUM_FLAG_SYNCMFT,
-    MFT_OUTPUT_DATA_BUFFER, MFT_OUTPUT_STREAM_INFO, MFSTARTUP_NOSOCKET, MF_MT_AVG_BITRATE,
+    MFT_OUTPUT_DATA_BUFFER, MFSTARTUP_NOSOCKET, MF_MT_AVG_BITRATE,
     MF_MT_FRAME_RATE, MF_MT_FRAME_SIZE, MF_MT_INTERLACE_MODE, MF_MT_MAJOR_TYPE,
     MF_MT_MPEG2_PROFILE, MF_MT_SUBTYPE,
 };
-use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_INPROC_SERVER};
 
 static VIDEO_STREAM_ACTIVE: AtomicBool = AtomicBool::new(false);
 static TARGET_BITRATE_BPS: AtomicU32 = AtomicU32::new(2_500_000); // 2.5 Mbps default
@@ -41,23 +38,38 @@ pub fn set_target_bitrate_bps(bps: u32) {
     debug!(bps = clamped, "target video bitrate updated");
 }
 
-/// Convert 32-bit BGRA image bytes to NV12 format (Y plane + interleaved UV plane).
+/// Convert 32-bit BGRA image bytes to NV12 format (Y plane + interleaved UV plane)
+/// with bilinear-like nearest-neighbor scaling directly to target dimensions.
 /// NV12 is the universal input format for GPU video encoders.
-pub fn bgra_to_nv12(bgra: &[u8], width: usize, height: usize) -> Vec<u8> {
-    let y_plane_size = width * height;
-    let uv_plane_size = width * (height / 2);
+pub fn bgra_to_nv12_scaled(
+    bgra: &[u8],
+    src_w: usize,
+    src_h: usize,
+    target_w: usize,
+    target_h: usize,
+) -> Vec<u8> {
+    let y_plane_size = target_w * target_h;
+    let uv_plane_size = target_w * (target_h / 2);
     let mut nv12 = vec![0u8; y_plane_size + uv_plane_size];
 
     let (y_plane, uv_plane) = nv12.split_at_mut(y_plane_size);
 
-    for y in 0..height {
-        let bgra_row = y * width * 4;
-        let y_row = y * width;
-        let uv_row = (y / 2) * width;
+    let x_ratio = ((src_w as u64) << 16) / target_w.max(1) as u64;
+    let y_ratio = ((src_h as u64) << 16) / target_h.max(1) as u64;
+
+    for y in 0..target_h {
+        let src_y = (((y as u64 * y_ratio) >> 16) as usize).min(src_h.saturating_sub(1));
+        let src_row = src_y * src_w * 4;
+        let dst_y_row = y * target_w;
+        let dst_uv_row = (y / 2) * target_w;
         let is_even_row = (y % 2) == 0;
 
-        for x in 0..width {
-            let px = bgra_row + x * 4;
+        for x in 0..target_w {
+            let src_x = (((x as u64 * x_ratio) >> 16) as usize).min(src_w.saturating_sub(1));
+            let px = src_row + src_x * 4;
+            if px + 2 >= bgra.len() {
+                continue;
+            }
             let b = bgra[px] as i32;
             let g = bgra[px + 1] as i32;
             let r = bgra[px + 2] as i32;
@@ -65,14 +77,14 @@ pub fn bgra_to_nv12(bgra: &[u8], width: usize, height: usize) -> Vec<u8> {
             // Fast integer ITU-R BT.601 conversion:
             // Y = (( 66 * R + 129 * G +  25 * B + 128) >> 8) + 16
             let y_val = ((66 * r + 129 * g + 25 * b + 128) >> 8) + 16;
-            y_plane[y_row + x] = y_val.clamp(0, 255) as u8;
+            y_plane[dst_y_row + x] = y_val.clamp(0, 255) as u8;
 
             if is_even_row && (x % 2 == 0) {
                 // U = ((-38 * R -  74 * G + 112 * B + 128) >> 8) + 128
                 // V = ((112 * R -  94 * G -  18 * B + 128) >> 8) + 128
                 let u_val = ((-38 * r - 74 * g + 112 * b + 128) >> 8) + 128;
                 let v_val = ((112 * r - 94 * g - 18 * b + 128) >> 8) + 128;
-                let uv_idx = uv_row + x;
+                let uv_idx = dst_uv_row + x;
                 uv_plane[uv_idx] = u_val.clamp(0, 255) as u8;
                 uv_plane[uv_idx + 1] = v_val.clamp(0, 255) as u8;
             }
@@ -84,10 +96,10 @@ pub fn bgra_to_nv12(bgra: &[u8], width: usize, height: usize) -> Vec<u8> {
 
 pub struct H264Encoder {
     transform: IMFTransform,
-    width: u32,
-    height: u32,
-    bitrate: u32,
-    fps: u32,
+    pub width: u32,
+    pub height: u32,
+    pub bitrate: u32,
+    pub fps: u32,
     sample_index: u64,
     is_hardware: bool,
 }
@@ -110,53 +122,63 @@ impl H264Encoder {
             let mut is_hardware = false;
 
             let hw_flags = MFT_ENUM_FLAG_HARDWARE | MFT_ENUM_FLAG_SORTANDFILTER;
-            let mut count = 0u32;
-            let mut clsids: *mut GUID = std::ptr::null_mut();
+            let mut hw_activates_ptr: *mut Option<IMFActivate> = std::ptr::null_mut();
+            let mut hw_count = 0u32;
 
             if MFTEnumEx(
                 MFT_CATEGORY_VIDEO_ENCODER,
                 hw_flags,
                 None,
                 None,
-                &mut clsids,
-                &mut count,
+                &mut hw_activates_ptr,
+                &mut hw_count,
             )
             .is_ok()
-                && count > 0
-                && !clsids.is_null()
+                && hw_count > 0
+                && !hw_activates_ptr.is_null()
             {
-                let clsid = *clsids;
-                windows::Win32::System::Com::CoTaskMemFree(Some(clsids as *const _));
-                if let Ok(t) = CoCreateInstance(&clsid, None, CLSCTX_INPROC_SERVER) {
-                    info!("Hardware H.264 encoder initialized (GPU accelerated)");
-                    transform = Some(t);
-                    is_hardware = true;
+                let activates = std::slice::from_raw_parts(hw_activates_ptr, hw_count as usize);
+                for act_opt in activates {
+                    if let Some(act) = act_opt {
+                        if let Ok(t) = act.ActivateObject::<IMFTransform>() {
+                            info!("Hardware H.264 encoder activated (GPU NVENC/QSV/AMF)");
+                            transform = Some(t);
+                            is_hardware = true;
+                            break;
+                        }
+                    }
                 }
+                windows::Win32::System::Com::CoTaskMemFree(Some(hw_activates_ptr as *const _));
             }
 
             // Attempt 2: Fallback to Microsoft software H.264 encoder MFT
             if transform.is_none() {
                 let sw_flags = MFT_ENUM_FLAG_SYNCMFT | MFT_ENUM_FLAG_SORTANDFILTER;
+                let mut sw_activates_ptr: *mut Option<IMFActivate> = std::ptr::null_mut();
                 let mut sw_count = 0u32;
-                let mut sw_clsids: *mut GUID = std::ptr::null_mut();
                 if MFTEnumEx(
                     MFT_CATEGORY_VIDEO_ENCODER,
                     sw_flags,
                     None,
                     None,
-                    &mut sw_clsids,
+                    &mut sw_activates_ptr,
                     &mut sw_count,
                 )
                 .is_ok()
                     && sw_count > 0
-                    && !sw_clsids.is_null()
+                    && !sw_activates_ptr.is_null()
                 {
-                    let clsid = *sw_clsids;
-                    windows::Win32::System::Com::CoTaskMemFree(Some(sw_clsids as *const _));
-                    if let Ok(t) = CoCreateInstance(&clsid, None, CLSCTX_INPROC_SERVER) {
-                        info!("Software H.264 encoder initialized (CPU fallback)");
-                        transform = Some(t);
+                    let activates = std::slice::from_raw_parts(sw_activates_ptr, sw_count as usize);
+                    for act_opt in activates {
+                        if let Some(act) = act_opt {
+                            if let Ok(t) = act.ActivateObject::<IMFTransform>() {
+                                info!("Software H.264 encoder activated (CPU MFT fallback)");
+                                transform = Some(t);
+                                break;
+                            }
+                        }
                     }
+                    windows::Win32::System::Com::CoTaskMemFree(Some(sw_activates_ptr as *const _));
                 }
             }
 
@@ -229,9 +251,7 @@ impl H264Encoder {
             self.transform.ProcessInput(0, &in_sample, 0)?;
 
             // 3. Collect output H.264 NAL units
-            let mut stream_info = MFT_OUTPUT_STREAM_INFO::default();
-            self.transform.GetOutputStreamInfo(0, &mut stream_info)?;
-
+            let stream_info = self.transform.GetOutputStreamInfo(0)?;
             let out_buf_size = stream_info.cbSize.max(128 * 1024);
             let out_buffer = MFCreateMemoryBuffer(out_buf_size)
                 .context("MFCreateMemoryBuffer for output")?;
@@ -283,23 +303,22 @@ impl Drop for H264Encoder {
 pub fn start_video_stream(video_track: Arc<TrackLocalStaticSample>) {
     tokio::spawn(async move {
         VIDEO_STREAM_ACTIVE.store(true, Ordering::SeqCst);
-        info!("WebRTC video streaming thread started");
+        info!("==> [WEBRTC VIDEO STREAM] H.264 stream loop started");
 
-        // Target 30 FPS for smooth desktop interaction
+        // Target 30 FPS for smooth, low-latency desktop interaction
         let target_fps = 30u32;
         let frame_interval = Duration::from_millis(1000 / target_fps as u64);
         let mut ticker = tokio::time::interval(frame_interval);
         ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
-        // Screen dimensions: default 1280x720, adapted to aspect ratio
-        let mut target_w = 1280u32;
-        let mut target_h = 720u32;
-
         let mut encoder_opt: Option<H264Encoder> = None;
         let mut capturer_opt: Option<crate::dxgi_capture::DxgiCapturer> = None;
         let mut consecutive_failures = 0u32;
 
-        // Try activating GPU DXGI capturer
+        let mut last_frame: Option<(u32, u32, Vec<u8>)> = None;
+        let mut idle_ticks = 0u32;
+
+        // Try activating GPU DXGI capturer first
         match crate::dxgi_capture::DxgiCapturer::new() {
             Ok(cap) => {
                 info!("DXGI GPU desktop capture active for video stream");
@@ -310,50 +329,63 @@ pub fn start_video_stream(video_track: Arc<TrackLocalStaticSample>) {
             }
         }
 
-        loop {
+        while VIDEO_STREAM_ACTIVE.load(Ordering::SeqCst) {
             ticker.tick().await;
 
             let bitrate = TARGET_BITRATE_BPS.load(Ordering::Relaxed);
 
-            // 1. Capture screen frame (GPU DXGI first, fallback to GDI)
+            // Dynamic resolution bound based on connection bitrate
+            let max_w = if bitrate < 1_200_000 {
+                1280
+            } else if bitrate < 2_500_000 {
+                1600
+            } else {
+                1920
+            };
+
+            // 1. Capture screen frame (GPU DXGI first, fallback to GDI raw)
             let captured = if let Some(capturer) = capturer_opt.as_mut() {
                 match capturer.capture_frame(10) {
                     Ok(Some((src_w, src_h, bgra))) => Some((src_w, src_h, bgra)),
                     Ok(None) => None, // Idle frame; screen unchanged
                     Err(_) => {
-                        // DXGI access lost (e.g. desktop switch / lock); fall back to GDI
-                        None
+                        // DXGI access lost (desktop switch / lock); fall back to GDI raw
+                        crate::screen_capture::capture_screen_gdi_raw(max_w).ok()
                     }
                 }
             } else {
-                None
+                crate::screen_capture::capture_screen_gdi_raw(max_w).ok()
             };
 
             let (src_w, src_h, bgra_buf) = match captured {
-                Some(c) => c,
+                Some(c) => {
+                    last_frame = Some(c.clone());
+                    idle_ticks = 0;
+                    c
+                }
                 None => {
-                    // Try GDI capture fallback
-                    match crate::screen_capture::capture_screen_gdi(target_w, 65, None, false, None, false) {
-                        Ok((Some((w, h, _, _)), _)) => {
-                            // GDI produces JPEG bytes; for video stream we capture raw BGRA if DXGI is unavailable
+                    idle_ticks += 1;
+                    // Send periodic heartbeat frame every 15 idle ticks (~0.5s) to maintain WebRTC video decoder pipeline
+                    if idle_ticks % 15 == 0 {
+                        if let Some(prev) = &last_frame {
+                            prev.clone()
+                        } else {
                             continue;
                         }
-                        _ => continue,
+                    } else {
+                        continue;
                     }
                 }
             };
 
-            // Scale target resolution while maintaining aspect ratio
-            if src_w > 0 && src_h > 0 {
-                let aspect = src_w as f64 / src_h as f64;
-                target_w = src_w.min(1920);
-                target_h = ((target_w as f64 / aspect).round() as u32 / 2) * 2;
-                target_w = (target_w / 2) * 2;
-            }
+            // Scale target resolution while maintaining aspect ratio and even dimensions
+            let aspect = src_w as f64 / src_h.max(1) as f64;
+            let target_w = ((src_w.min(max_w) / 2) * 2).max(640);
+            let target_h = (((target_w as f64 / aspect).round() as u32 / 2) * 2).max(360);
 
             // Lazy initialize or reinitialize encoder if dimensions/bitrate change
             let encoder_needs_reinit = encoder_opt.as_ref().map_or(true, |e| {
-                e.width != target_w || e.height != target_h
+                e.width != target_w || e.height != target_h || e.bitrate != bitrate
             });
 
             if encoder_needs_reinit {
@@ -362,7 +394,7 @@ pub fn start_video_stream(video_track: Arc<TrackLocalStaticSample>) {
                     height = target_h,
                     bitrate,
                     fps = target_fps,
-                    "initializing H.264 video encoder"
+                    "re-initializing H.264 video encoder"
                 );
                 match H264Encoder::new(target_w, target_h, target_fps, bitrate) {
                     Ok(enc) => {
@@ -378,7 +410,6 @@ pub fn start_video_stream(video_track: Arc<TrackLocalStaticSample>) {
                         if consecutive_failures < 3 {
                             warn!("failed to initialize H.264 encoder: {e}");
                         }
-                        // Fall back: sleep and retry
                         tokio::time::sleep(Duration::from_millis(100)).await;
                         continue;
                     }
@@ -390,8 +421,14 @@ pub fn start_video_stream(video_track: Arc<TrackLocalStaticSample>) {
                 None => continue,
             };
 
-            // Convert BGRA to NV12
-            let nv12 = bgra_to_nv12(&bgra_buf, target_w as usize, target_h as usize);
+            // Convert BGRA to NV12 with smooth scaling
+            let nv12 = bgra_to_nv12_scaled(
+                &bgra_buf,
+                src_w as usize,
+                src_h as usize,
+                target_w as usize,
+                target_h as usize,
+            );
 
             // Encode frame to H.264 Annex B NALUs
             match encoder.encode_frame(&nv12) {
@@ -407,7 +444,7 @@ pub fn start_video_stream(video_track: Arc<TrackLocalStaticSample>) {
                         debug!("video_track write_sample: {e}");
                     }
                 }
-                Ok(_) => {} // Encoder buffering frame
+                Ok(_) => {} // Encoder buffering initial frame
                 Err(e) => {
                     debug!("H.264 encode error: {e}");
                 }

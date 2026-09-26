@@ -81,6 +81,103 @@ pub fn draw_red_marker(buf: &mut [u8], w: u32, h: u32, nx: f64, ny: f64) {
     }
 }
 
+/// Capture screen using GDI returning raw BGRA pixel bytes without compression.
+pub fn capture_screen_gdi_raw(max_w: u32) -> Result<(u32, u32, Vec<u8>)> {
+    unsafe {
+        let vx = GetSystemMetrics(SM_XVIRTUALSCREEN);
+        let vy = GetSystemMetrics(SM_YVIRTUALSCREEN);
+        let vw = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+        let vh = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+        let (src_x, src_y, src_w, src_h) = if vw > 0 && vh > 0 {
+            (vx, vy, vw, vh)
+        } else {
+            (0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN))
+        };
+        if src_w <= 0 || src_h <= 0 {
+            bail!("invalid screen metrics: {src_w}x{src_h}");
+        }
+
+        let (dst_w, dst_h) = if max_w > 0 && (src_w as u32) > max_w {
+            let h = ((src_h as u64 * max_w as u64) / src_w as u64).max(1) as u32;
+            (max_w, h)
+        } else {
+            (src_w as u32, src_h as u32)
+        };
+
+        let hdc_screen: HDC = GetDC(HWND::default());
+        if hdc_screen.is_invalid() {
+            bail!("failed to get screen HDC");
+        }
+
+        let hdc_mem: HDC = CreateCompatibleDC(hdc_screen);
+        if hdc_mem.is_invalid() {
+            let _ = ReleaseDC(HWND::default(), hdc_screen);
+            bail!("failed to create compatible DC");
+        }
+
+        let hbm: HBITMAP = CreateCompatibleBitmap(hdc_screen, dst_w as i32, dst_h as i32);
+        if hbm.is_invalid() {
+            let _ = DeleteDC(hdc_mem);
+            let _ = ReleaseDC(HWND::default(), hdc_screen);
+            bail!("failed to create compatible bitmap");
+        }
+
+        let old_bm = SelectObject(hdc_mem, hbm);
+        let _ = SetStretchBltMode(hdc_mem, COLORONCOLOR);
+
+        let blt_res = StretchBlt(
+            hdc_mem,
+            0,
+            0,
+            dst_w as i32,
+            dst_h as i32,
+            hdc_screen,
+            src_x,
+            src_y,
+            src_w,
+            src_h,
+            SRCCOPY,
+        );
+
+        let mut bgra_buf = vec![0u8; (dst_w * dst_h * 4) as usize];
+
+        let mut bmi = BITMAPINFO {
+            bmiHeader: BITMAPINFOHEADER {
+                biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+                biWidth: dst_w as i32,
+                biHeight: -(dst_h as i32), // negative for top-down DIB
+                biPlanes: 1,
+                biBitCount: 32,
+                biCompression: BI_RGB.0,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let dib_res = GetDIBits(
+            hdc_mem,
+            hbm,
+            0,
+            dst_h,
+            Some(bgra_buf.as_mut_ptr() as *mut _),
+            &mut bmi,
+            DIB_RGB_COLORS,
+        );
+
+        // Cleanup GDI objects immediately
+        let _ = SelectObject(hdc_mem, old_bm);
+        let _ = DeleteObject(hbm);
+        let _ = DeleteDC(hdc_mem);
+        let _ = ReleaseDC(HWND::default(), hdc_screen);
+
+        if !blt_res.as_bool() || dib_res == 0 {
+            bail!("failed to capture screen DIB");
+        }
+
+        Ok((dst_w, dst_h, bgra_buf))
+    }
+}
+
 /// Capture screen using GDI fallback (Win32 compatible DC / StretchBlt).
 pub fn capture_screen_gdi(
     max_w: u32,

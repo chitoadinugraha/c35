@@ -199,10 +199,16 @@ class RemoteSession {
 
       _pc = await createPeerConnection({'iceServers': iceServers});
       _pc!.onIceCandidate = (c) => unawaited(_sendIce(c));
-      _pc!.onTrack = (event) {
-        l('remote onTrack: ${event.track.kind}');
-        if (event.track.kind == 'video' && event.streams.isNotEmpty) {
-          videoRenderer.srcObject = event.streams[0];
+      _pc!.onTrack = (event) async {
+        l('remote onTrack: ${event.track.kind} streams=${event.streams.length}');
+        if (event.track.kind == 'video') {
+          if (event.streams.isNotEmpty) {
+            videoRenderer.srcObject = event.streams[0];
+          } else {
+            final stream = await createLocalMediaStream('remote_video_stream');
+            stream.addTrack(event.track);
+            videoRenderer.srcObject = stream;
+          }
           hasVideoTrack.value = true;
         }
       };

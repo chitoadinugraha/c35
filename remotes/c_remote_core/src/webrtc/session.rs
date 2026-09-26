@@ -410,7 +410,7 @@ impl WebrtcSession {
             .then(|| {
                 Arc::new(TrackLocalStaticSample::new(
                     RTCRtpCodecCapability {
-                        mime_type: "video/VP8".to_owned(),
+                        mime_type: "video/H264".to_owned(),
                         ..Default::default()
                     },
                     "screen".to_owned(),
@@ -723,7 +723,7 @@ fn push_connected(
             session_id: session_id.to_string(),
             mode: mode.map(|m| m as i32).unwrap_or(RemoteConnectionMode::Unspecified as i32),
             selected_ice: 0,
-            video_active: false,
+            video_active: webrtc_rtp_media_enabled(),
             webrtc_connected,
             update_ready: staged.is_some(),
             update_version: staged.unwrap_or(0),
