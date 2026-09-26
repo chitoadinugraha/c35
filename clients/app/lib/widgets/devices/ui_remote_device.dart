@@ -18,6 +18,22 @@ const _emerald = Color(0xFF10B981);
 const _amber = Color(0xFFF59E0B);
 const _red = Color(0xFFEF4444);
 
+enum _RemoteInteractMode { view, control, mouse }
+
+extension on _RemoteInteractMode {
+  String get label => switch (this) {
+        _RemoteInteractMode.view => 'View',
+        _RemoteInteractMode.control => 'Control',
+        _RemoteInteractMode.mouse => 'Mouse',
+      };
+
+  IconData get icon => switch (this) {
+        _RemoteInteractMode.view => Icons.visibility_outlined,
+        _RemoteInteractMode.control => Icons.gamepad_outlined,
+        _RemoteInteractMode.mouse => Icons.mouse_outlined,
+      };
+}
+
 class UiRemoteDevice extends StatefulWidget {
   const UiRemoteDevice({
     super.key,
@@ -25,7 +41,6 @@ class UiRemoteDevice extends StatefulWidget {
     this.deviceName = 'Remote Device',
     this.online = false,
     this.compact = false,
-    this.trackpad = false,
     this.softKeyboard = false,
   });
 
@@ -33,7 +48,6 @@ class UiRemoteDevice extends StatefulWidget {
   final String deviceName;
   final bool online;
   final bool compact;
-  final bool trackpad;
   final bool softKeyboard;
 
   @override
@@ -43,12 +57,25 @@ class UiRemoteDevice extends StatefulWidget {
 class _UiRemoteDeviceState extends State<UiRemoteDevice> {
   final _focusNode = FocusNode();
   var _connecting = false;
+  var _interactMode = _RemoteInteractMode.control;
   String? _error;
   int _heldButtons = 0;
+
+  bool get _controlInputEnabled => _interactMode != _RemoteInteractMode.view;
+  bool get _keyboardInputEnabled => _interactMode == _RemoteInteractMode.control;
+
+  void _setInteractMode(_RemoteInteractMode mode) {
+    setState(() => _interactMode = mode);
+    final sess = widget.session;
+    if (sess == null) return;
+    sess.isControlEnabled.value = _controlInputEnabled;
+    if (_keyboardInputEnabled) _focusNode.requestFocus();
+  }
 
   @override
   void initState() {
     super.initState();
+    widget.session?.isControlEnabled.value = _controlInputEnabled;
     _connect();
   }
 
@@ -89,7 +116,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
     final sess = widget.session;
     if (sess == null) return;
     sess.userActivityPing();
-    if (!sess.isControlEnabled.value) return;
+    if (!_controlInputEnabled) return;
     if (size.width <= 0 || size.height <= 0) return;
 
     final nx = (local.dx / size.width).clamp(0.0, 1.0);
@@ -108,7 +135,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
     final sess = widget.session;
     if (sess == null) return KeyEventResult.ignored;
     sess.userActivityPing();
-    if (!sess.isControlEnabled.value) return KeyEventResult.ignored;
+    if (!_keyboardInputEnabled) return KeyEventResult.ignored;
 
     final vk = _windowsVkForLogicalKey(event.logicalKey);
     if (vk == 0) return KeyEventResult.ignored;
@@ -182,7 +209,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
 
   void _sendSpecialKey(int vk, String name) {
     final sess = widget.session;
-    if (sess == null || !sess.isControlEnabled.value) return;
+    if (sess == null || !_keyboardInputEnabled) return;
     sess.sendInput(RemoteInputEvent(eventType: 'key_down', keyCode: vk));
     Future.delayed(const Duration(milliseconds: 60), () {
       sess.sendInput(RemoteInputEvent(eventType: 'key_up', keyCode: vk));
@@ -191,7 +218,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
 
   void _sendShortcut(String combo) {
     final sess = widget.session;
-    if (sess == null || !sess.isControlEnabled.value) return;
+    if (sess == null || !_keyboardInputEnabled) return;
     sess.userActivityPing();
     sess.sendInput(RemoteInputEvent(eventType: 'shortcut', text: combo));
   }
@@ -203,27 +230,72 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
       return const Center(child: Text('No active session', style: TextStyle(color: _zinc500)));
     }
 
+    final controlInput = _controlInputEnabled;
+
     return ValueListenableBuilder<bool>(
       valueListenable: sess.connected,
-      builder: (context, connected, _) => ValueListenableBuilder<bool>(
-        valueListenable: sess.isControlEnabled,
-        builder: (context, controlEnabled, _) => Column(
-          children: [
-            if (!widget.compact || connected) _buildToolbar(sess, connected, controlEnabled),
-            if (!controlEnabled && connected) _buildViewOnlyNotice(sess),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: _buildCanvasArea(sess, connected, controlEnabled),
-              ),
+      builder: (context, connected, _) => Column(
+        children: [
+          if (!widget.compact || connected) _buildToolbar(sess, connected),
+          if (!controlInput && connected) _buildViewOnlyNotice(),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: _buildCanvasArea(sess, connected, controlInput),
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInteractModeMenu() {
+    final mode = _interactMode;
+    final accent = mode == _RemoteInteractMode.view ? _zinc400 : _amber;
+
+    return PopupMenuButton<_RemoteInteractMode>(
+      tooltip: uiPopupMenuTooltipText('Interaction mode'),
+      color: const Color(0xFF18181B),
+      initialValue: mode,
+      onSelected: _setInteractMode,
+      itemBuilder: (_) => [
+        for (final m in _RemoteInteractMode.values)
+          PopupMenuItem(
+            value: m,
+            child: Row(
+              children: [
+                Icon(m.icon, size: 16, color: m == mode ? _amber : _zinc400),
+                const SizedBox(width: 10),
+                Text(m.label, style: TextStyle(color: _zinc100, fontSize: 13, fontWeight: m == mode ? FontWeight.w600 : FontWeight.w400)),
+              ],
+            ),
+          ),
+      ],
+      child: uiPopupMenuChild(
+        tooltip: 'Interaction mode',
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          decoration: BoxDecoration(
+            color: mode == _RemoteInteractMode.view ? const Color(0xFF27272A) : _amber.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: mode == _RemoteInteractMode.view ? _border : _amber),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(mode.icon, size: 14, color: accent),
+              const SizedBox(width: 4),
+              Text(mode.label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: mode == _RemoteInteractMode.view ? _zinc100 : _amber)),
+              const SizedBox(width: 2),
+              Icon(Icons.arrow_drop_down, size: 18, color: accent),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildToolbar(RemoteSession sess, bool connected, bool controlEnabled) {
+  Widget _buildToolbar(RemoteSession sess, bool connected) {
     return Container(
       height: 48,
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -306,48 +378,10 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
             },
           ),
 
-          // Safety mode toggle (View Only vs Remote Control)
           if (connected) ...[
-            InkWell(
-              borderRadius: BorderRadius.circular(8),
-              onTap: () {
-                sess.isControlEnabled.value = !sess.isControlEnabled.value;
-                if (sess.isControlEnabled.value) {
-                  _focusNode.requestFocus();
-                }
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: controlEnabled ? _amber.withValues(alpha: 0.15) : const Color(0xFF27272A),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: controlEnabled ? _amber : _border),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      controlEnabled ? Icons.gamepad_outlined : Icons.lock_outline_rounded,
-                      size: 14,
-                      color: controlEnabled ? _amber : _zinc400,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      controlEnabled ? 'Control Active' : 'View Only',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: controlEnabled ? _amber : _zinc100,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            _buildInteractModeMenu(),
             const SizedBox(width: 8),
-
-            // Send text action
-            if (controlEnabled) ...[
+            if (_interactMode == _RemoteInteractMode.control) ...[
               uiIconButton(
                 tooltip: 'Send Text',
                 icon: const Icon(Icons.keyboard_outlined, size: 18, color: _zinc400),
@@ -403,7 +437,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
     );
   }
 
-  Widget _buildViewOnlyNotice(RemoteSession sess) {
+  Widget _buildViewOnlyNotice() {
     return Container(
       width: double.infinity,
       color: const Color(0xFF18181B),
@@ -423,10 +457,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
               visualDensity: VisualDensity.compact,
               padding: const EdgeInsets.symmetric(horizontal: 8),
             ),
-            onPressed: () {
-              sess.isControlEnabled.value = true;
-              _focusNode.requestFocus();
-            },
+            onPressed: () => _setInteractMode(_RemoteInteractMode.control),
             child: const Text('Enable Control', style: TextStyle(color: _amber, fontSize: 12, fontWeight: FontWeight.w600)),
           ),
         ],

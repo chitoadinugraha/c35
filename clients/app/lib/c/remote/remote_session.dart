@@ -63,7 +63,7 @@ class RemoteSession {
   final status = ValueNotifier<RemoteSessionStatus>(RemoteSessionStatus.disconnected);
   final mode = ValueNotifier<RemoteConnectionMode>(RemoteConnectionMode.REMOTE_CONNECTION_MODE_UNSPECIFIED);
   final screenFrame = ValueNotifier<RemoteScreenFrame?>(null);
-  final isControlEnabled = ValueNotifier<bool>(false);
+  final isControlEnabled = ValueNotifier<bool>(true);
   final fps = ValueNotifier<int>(0);
   final hasVideoTrack = ValueNotifier<bool>(false);
   final updateReady = ValueNotifier<bool>(false);

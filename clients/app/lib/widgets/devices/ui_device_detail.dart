@@ -41,7 +41,6 @@ class UiDeviceDetail extends StatefulWidget {
 }
 
 class _UiDeviceDetailState extends State<UiDeviceDetail> {
-  var _trackpad = false;
   var _softKeyboard = false;
   final _skillKey = GlobalKey<UiSkillMasterDetailState>();
   var _filesSearchOpen = false;
@@ -151,12 +150,6 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> {
                                 return badge;
                               },
                             ),
-                            const SizedBox(width: 12),
-                            _toolBtn(
-                              icon: _trackpad ? Icons.swipe : Icons.mouse_outlined,
-                              tooltip: _trackpad ? 'Trackpad mode' : 'Mouse mode',
-                              onPressed: () => setState(() => _trackpad = !_trackpad),
-                            ),
                             if (mobile) ...[
                               const SizedBox(width: 10),
                               _toolBtn(
@@ -229,7 +222,6 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> {
         deviceName: widget.row.identity.name,
         online: online,
         compact: _isMobile(context),
-        trackpad: _trackpad,
         softKeyboard: _softKeyboard,
       );
     }
