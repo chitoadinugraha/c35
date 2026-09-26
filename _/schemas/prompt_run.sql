@@ -34,8 +34,15 @@ CREATE TABLE IF NOT EXISTS ai.prompt_run (
         status IN ('queued','running','waiting_child','done','failed','cancelled')
     ),
     CONSTRAINT chk_prompt_run_kind CHECK (
-        kind IN ('main','research','computer_use','site_build')
+        kind IN ('main','research','computer_use','site_build','channel')
     )
+);
+
+ALTER TABLE ai.prompt_run ADD COLUMN IF NOT EXISTS steer_delivered_count INT NOT NULL DEFAULT 0;
+
+ALTER TABLE ai.prompt_run DROP CONSTRAINT IF EXISTS chk_prompt_run_kind;
+ALTER TABLE ai.prompt_run ADD CONSTRAINT chk_prompt_run_kind CHECK (
+    kind IN ('main','research','computer_use','site_build','channel')
 );
 
 CREATE INDEX IF NOT EXISTS idx_prompt_run_chat ON ai.prompt_run (chat_id, created_ts DESC);

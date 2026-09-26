@@ -2,7 +2,9 @@ use axum::extract::ws::{Message, WebSocket};
 use axum::http::HeaderMap;
 use c35_ctx::{AppState, Ctx};
 use c35_mod_chat::{
-    chat_ensure, chat_title_from_text, prompt_run_cancel_children, prompt_run_cancel_request,
+    chat_ensure, chat_title_from_text, prompt_followup_cancel_all_for_req, prompt_followup_cancel_rpc,
+    prompt_followup_list, prompt_followup_publish_state, prompt_followup_put,
+    prompt_followup_start_next_queued, prompt_run_cancel_children, prompt_run_cancel_request,
     prompt_run_enqueue, prompt_run_insert, prompt_run_row_new, prompt_turn, PromptTurnHooks,
 };
 use c35_mod_consumption::{consumption_list_rpc, consumption_put_rpc};
@@ -100,6 +102,7 @@ pub async fn handle(mut socket: WebSocket, state: AppState, q: WsQuery, headers:
                                     tokio::spawn(async move {
                                         let _ = prompt_run_cancel_request(&pool, &rid).await;
                                         let _ = prompt_run_cancel_children(&pool, &rid).await;
+                                        let _ = prompt_followup_cancel_all_for_req(&pool, &rid).await;
                                     });
                                     prompt_abort(prompt_flight.as_ref());
                                 }
@@ -249,6 +252,9 @@ fn prompt_req_put(
                     })),
                 });
                 c35_mod_billing::billing_notify_owner(&pool, nats.as_ref(), owner_iid, Some(&out_tx)).await;
+                if let Some(nats_client) = nats.as_ref() {
+                    let _ = prompt_followup_start_next_queued(&pool, nats_client, &req_id_spawn).await;
+                }
             }
             Err(e) => {
                 let _ = out_tx.send(prompt_fail(&req_id_spawn, e.to_string()));
@@ -369,6 +375,69 @@ async fn dispatch(
                 body: Some(ws_res::Body::ChatSend(body)),
             },
             Err(e) => err_res(req_id, WireErr::client("chat_send_failed", e.to_string())),
+        },
+        Some(ws_req::Body::PromptFollowupPut(r)) => {
+            let chat_id = r.chat_id;
+            match prompt_followup_put(
+                &state.pool,
+                ctx.caller_iid,
+                chat_id,
+                &r.req_id,
+                &r.text,
+                &r.attachments_json,
+                r.kind,
+                "app",
+                None,
+            )
+            .await
+            {
+                Ok(body) => {
+                    if !body.rejected {
+                        let rid = if body.req_id.is_empty() { r.req_id.clone() } else { body.req_id.clone() };
+                        let _ = prompt_followup_publish_state(
+                            &state.pool,
+                            state.nats.as_ref(),
+                            ctx.caller_iid,
+                            chat_id,
+                            &rid,
+                        )
+                        .await;
+                    }
+                    WsRes {
+                        req_id,
+                        body: Some(ws_res::Body::PromptFollowupPut(body)),
+                    }
+                }
+                Err(e) => err_res(req_id, WireErr::client("prompt_followup_put_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::PromptFollowupList(r)) => match prompt_followup_list(&state.pool, r.chat_id, &r.req_id).await {
+            Ok(body) => WsRes {
+                req_id,
+                body: Some(ws_res::Body::PromptFollowupList(body)),
+            },
+            Err(e) => err_res(req_id, WireErr::client("prompt_followup_list_failed", e.to_string())),
+        },
+        Some(ws_req::Body::PromptFollowupCancel(r)) => match prompt_followup_cancel_rpc(&state.pool, ctx.caller_iid, &r.id).await {
+            Ok((body, notify)) => {
+                if body.ok {
+                    if let Some((chat_id, rid)) = notify {
+                        let _ = prompt_followup_publish_state(
+                            &state.pool,
+                            state.nats.as_ref(),
+                            ctx.caller_iid,
+                            chat_id,
+                            &rid,
+                        )
+                        .await;
+                    }
+                }
+                WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::PromptFollowupCancel(body)),
+                }
+            }
+            Err(e) => err_res(req_id, WireErr::client("prompt_followup_cancel_failed", e.to_string())),
         },
         Some(ws_req::Body::LogList(r)) => match c35_mod_chat::log_list(&state.pool, ctx.caller_iid, r).await {
             Ok(body) => WsRes {
@@ -554,6 +623,15 @@ async fn dispatch(
                     body: Some(ws_res::Body::SiteDomainPut(body)),
                 },
                 Err(e) => err_res(req_id, WireErr::client("site_domain_put_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteDomainVerify(r)) => {
+            match c35_mod_site::site_domain_verify(&state.pool, ctx.caller_iid, r, Some(out_tx)).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteDomainVerify(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_domain_verify_failed", e.to_string())),
             }
         }
         Some(ws_req::Body::CollectionDefList(r)) => WsRes {
@@ -781,6 +859,60 @@ async fn dispatch(
                     body: Some(ws_res::Body::HintTouch(c35_proto::ResHintTouch { ok: true })),
                 },
                 Err(e) => err_res(req_id, WireErr::client("hint_touch_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::MailList(r)) => {
+            match c35_mod_mail::mail_list_rpc(state, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::MailList(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("mail_list_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::MailGet(r)) => {
+            match c35_mod_mail::mail_get_rpc(state, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::MailGet(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("mail_get_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::MailSend(r)) => {
+            match c35_mod_mail::mail_send_rpc(state, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::MailSend(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("mail_send_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::MailMailboxList(r)) => {
+            match c35_mod_mail::mail_mailbox_list_rpc(state, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::MailMailboxList(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("mail_mailbox_list_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::MailDomainList(r)) => {
+            match c35_mod_mail::mail_domain_list_rpc(state, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::MailDomainList(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("mail_domain_list_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::MailDomainAdd(r)) => {
+            match c35_mod_mail::mail_domain_add_rpc(state, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::MailDomainAdd(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("mail_domain_add_failed", e.to_string())),
             }
         }
         _ => err_res(

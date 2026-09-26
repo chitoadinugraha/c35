@@ -415,6 +415,13 @@ mod tests {
     }
 
     #[test]
+    fn sql_stmts_parses_mail_sql() {
+        let sql = include_str!("../../../../_/schemas/mail.sql");
+        let stmts = super::sql_stmts(sql);
+        assert!(stmts.len() >= 6, "mail.sql stmt count: {}", stmts.len());
+    }
+
+    #[test]
     fn sql_stmts_splits_do_dollar_block_as_one_statement() {
         let sql = r"
         CREATE TABLE t (id INT);

@@ -343,6 +343,9 @@ async fn process_prompt_job(
             )
             .await;
             c35_mod_billing::billing_notify_owner(&pool, Some(&nats), owner_iid, None).await;
+            if let Err(e) = crate::prompt_followup::prompt_followup_start_next_queued(&pool, &nats, &req_id).await {
+                tracing::warn!("[c35:prompt_followup] start_next_queued failed req_id={req_id}: {e:#}");
+            }
             let _ = acker_mutex.lock().await.ack().await;
         }
         Err(e) => {

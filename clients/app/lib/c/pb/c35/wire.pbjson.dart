@@ -1734,6 +1734,96 @@ const WsReq$json = {
       '9': 0,
       '10': 'chatHistoryClear'
     },
+    {
+      '1': 'mail_list',
+      '3': 86,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqMailList',
+      '9': 0,
+      '10': 'mailList'
+    },
+    {
+      '1': 'mail_get',
+      '3': 87,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqMailGet',
+      '9': 0,
+      '10': 'mailGet'
+    },
+    {
+      '1': 'mail_send',
+      '3': 88,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqMailSend',
+      '9': 0,
+      '10': 'mailSend'
+    },
+    {
+      '1': 'mail_mailbox_list',
+      '3': 89,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqMailMailboxList',
+      '9': 0,
+      '10': 'mailMailboxList'
+    },
+    {
+      '1': 'mail_domain_list',
+      '3': 90,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqMailDomainList',
+      '9': 0,
+      '10': 'mailDomainList'
+    },
+    {
+      '1': 'site_domain_verify',
+      '3': 91,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqSiteDomainVerify',
+      '9': 0,
+      '10': 'siteDomainVerify'
+    },
+    {
+      '1': 'mail_domain_add',
+      '3': 92,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqMailDomainAdd',
+      '9': 0,
+      '10': 'mailDomainAdd'
+    },
+    {
+      '1': 'prompt_followup_put',
+      '3': 141,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqPromptFollowupPut',
+      '9': 0,
+      '10': 'promptFollowupPut'
+    },
+    {
+      '1': 'prompt_followup_list',
+      '3': 142,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqPromptFollowupList',
+      '9': 0,
+      '10': 'promptFollowupList'
+    },
+    {
+      '1': 'prompt_followup_cancel',
+      '3': 143,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqPromptFollowupCancel',
+      '9': 0,
+      '10': 'promptFollowupCancel'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -1827,7 +1917,19 @@ final $typed_data.Uint8List wsReqDescriptor = $convert.base64Decode(
     'UGF5SABSCXR4RGVidFBheRI8Cg5zaXRlX3F1ZXJ5X3J1bhhTIAEoCzIULmMzNS5SZXFTaXRlUX'
     'VlcnlSdW5IAFIMc2l0ZVF1ZXJ5UnVuEjUKC2V4cGVuc2VfcHV0GFQgASgLMhIuYzM1LlJlcUV4'
     'cGVuc2VQdXRIAFIKZXhwZW5zZVB1dBJIChJjaGF0X2hpc3RvcnlfY2xlYXIYVSABKAsyGC5jMz'
-    'UuUmVxQ2hhdEhpc3RvcnlDbGVhckgAUhBjaGF0SGlzdG9yeUNsZWFyQgYKBGJvZHk=');
+    'UuUmVxQ2hhdEhpc3RvcnlDbGVhckgAUhBjaGF0SGlzdG9yeUNsZWFyEi8KCW1haWxfbGlzdBhW'
+    'IAEoCzIQLmMzNS5SZXFNYWlsTGlzdEgAUghtYWlsTGlzdBIsCghtYWlsX2dldBhXIAEoCzIPLm'
+    'MzNS5SZXFNYWlsR2V0SABSB21haWxHZXQSLwoJbWFpbF9zZW5kGFggASgLMhAuYzM1LlJlcU1h'
+    'aWxTZW5kSABSCG1haWxTZW5kEkUKEW1haWxfbWFpbGJveF9saXN0GFkgASgLMhcuYzM1LlJlcU'
+    '1haWxNYWlsYm94TGlzdEgAUg9tYWlsTWFpbGJveExpc3QSQgoQbWFpbF9kb21haW5fbGlzdBha'
+    'IAEoCzIWLmMzNS5SZXFNYWlsRG9tYWluTGlzdEgAUg5tYWlsRG9tYWluTGlzdBJIChJzaXRlX2'
+    'RvbWFpbl92ZXJpZnkYWyABKAsyGC5jMzUuUmVxU2l0ZURvbWFpblZlcmlmeUgAUhBzaXRlRG9t'
+    'YWluVmVyaWZ5Ej8KD21haWxfZG9tYWluX2FkZBhcIAEoCzIVLmMzNS5SZXFNYWlsRG9tYWluQW'
+    'RkSABSDW1haWxEb21haW5BZGQSTAoTcHJvbXB0X2ZvbGxvd3VwX3B1dBiNASABKAsyGS5jMzUu'
+    'UmVxUHJvbXB0Rm9sbG93dXBQdXRIAFIRcHJvbXB0Rm9sbG93dXBQdXQSTwoUcHJvbXB0X2ZvbG'
+    'xvd3VwX2xpc3QYjgEgASgLMhouYzM1LlJlcVByb21wdEZvbGxvd3VwTGlzdEgAUhJwcm9tcHRG'
+    'b2xsb3d1cExpc3QSVQoWcHJvbXB0X2ZvbGxvd3VwX2NhbmNlbBiPASABKAsyHC5jMzUuUmVxUH'
+    'JvbXB0Rm9sbG93dXBDYW5jZWxIAFIUcHJvbXB0Rm9sbG93dXBDYW5jZWxCBgoEYm9keQ==');
 
 @$core.Deprecated('Use wsResDescriptor instead')
 const WsRes$json = {
@@ -2582,6 +2684,105 @@ const WsRes$json = {
       '9': 0,
       '10': 'chatHistoryClear'
     },
+    {
+      '1': 'mail_list',
+      '3': 134,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResMailList',
+      '9': 0,
+      '10': 'mailList'
+    },
+    {
+      '1': 'mail_get',
+      '3': 135,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResMailGet',
+      '9': 0,
+      '10': 'mailGet'
+    },
+    {
+      '1': 'mail_send',
+      '3': 136,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResMailSend',
+      '9': 0,
+      '10': 'mailSend'
+    },
+    {
+      '1': 'mail_mailbox_list',
+      '3': 137,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResMailMailboxList',
+      '9': 0,
+      '10': 'mailMailboxList'
+    },
+    {
+      '1': 'mail_domain_list',
+      '3': 138,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResMailDomainList',
+      '9': 0,
+      '10': 'mailDomainList'
+    },
+    {
+      '1': 'site_domain_verify',
+      '3': 139,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResSiteDomainVerify',
+      '9': 0,
+      '10': 'siteDomainVerify'
+    },
+    {
+      '1': 'mail_domain_add',
+      '3': 140,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResMailDomainAdd',
+      '9': 0,
+      '10': 'mailDomainAdd'
+    },
+    {
+      '1': 'prompt_followup_put',
+      '3': 141,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResPromptFollowupPut',
+      '9': 0,
+      '10': 'promptFollowupPut'
+    },
+    {
+      '1': 'prompt_followup_list',
+      '3': 142,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResPromptFollowupList',
+      '9': 0,
+      '10': 'promptFollowupList'
+    },
+    {
+      '1': 'prompt_followup_cancel',
+      '3': 143,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResPromptFollowupCancel',
+      '9': 0,
+      '10': 'promptFollowupCancel'
+    },
+    {
+      '1': 'prompt_followup_push',
+      '3': 144,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.PromptFollowupPush',
+      '9': 0,
+      '10': 'promptFollowupPush'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -2684,4 +2885,18 @@ final $typed_data.Uint8List wsResDescriptor = $convert.base64Decode(
     'l0ZV9xdWVyeV9ydW4YgwEgASgLMhQuYzM1LlJlc1NpdGVRdWVyeVJ1bkgAUgxzaXRlUXVlcnlS'
     'dW4SNgoLZXhwZW5zZV9wdXQYhAEgASgLMhIuYzM1LlJlc0V4cGVuc2VQdXRIAFIKZXhwZW5zZV'
     'B1dBJJChJjaGF0X2hpc3RvcnlfY2xlYXIYhQEgASgLMhguYzM1LlJlc0NoYXRIaXN0b3J5Q2xl'
-    'YXJIAFIQY2hhdEhpc3RvcnlDbGVhckIGCgRib2R5');
+    'YXJIAFIQY2hhdEhpc3RvcnlDbGVhchIwCgltYWlsX2xpc3QYhgEgASgLMhAuYzM1LlJlc01haW'
+    'xMaXN0SABSCG1haWxMaXN0Ei0KCG1haWxfZ2V0GIcBIAEoCzIPLmMzNS5SZXNNYWlsR2V0SABS'
+    'B21haWxHZXQSMAoJbWFpbF9zZW5kGIgBIAEoCzIQLmMzNS5SZXNNYWlsU2VuZEgAUghtYWlsU2'
+    'VuZBJGChFtYWlsX21haWxib3hfbGlzdBiJASABKAsyFy5jMzUuUmVzTWFpbE1haWxib3hMaXN0'
+    'SABSD21haWxNYWlsYm94TGlzdBJDChBtYWlsX2RvbWFpbl9saXN0GIoBIAEoCzIWLmMzNS5SZX'
+    'NNYWlsRG9tYWluTGlzdEgAUg5tYWlsRG9tYWluTGlzdBJJChJzaXRlX2RvbWFpbl92ZXJpZnkY'
+    'iwEgASgLMhguYzM1LlJlc1NpdGVEb21haW5WZXJpZnlIAFIQc2l0ZURvbWFpblZlcmlmeRJACg'
+    '9tYWlsX2RvbWFpbl9hZGQYjAEgASgLMhUuYzM1LlJlc01haWxEb21haW5BZGRIAFINbWFpbERv'
+    'bWFpbkFkZBJMChNwcm9tcHRfZm9sbG93dXBfcHV0GI0BIAEoCzIZLmMzNS5SZXNQcm9tcHRGb2'
+    'xsb3d1cFB1dEgAUhFwcm9tcHRGb2xsb3d1cFB1dBJPChRwcm9tcHRfZm9sbG93dXBfbGlzdBiO'
+    'ASABKAsyGi5jMzUuUmVzUHJvbXB0Rm9sbG93dXBMaXN0SABSEnByb21wdEZvbGxvd3VwTGlzdB'
+    'JVChZwcm9tcHRfZm9sbG93dXBfY2FuY2VsGI8BIAEoCzIcLmMzNS5SZXNQcm9tcHRGb2xsb3d1'
+    'cENhbmNlbEgAUhRwcm9tcHRGb2xsb3d1cENhbmNlbBJMChRwcm9tcHRfZm9sbG93dXBfcHVzaB'
+    'iQASABKAsyFy5jMzUuUHJvbXB0Rm9sbG93dXBQdXNoSABSEnByb21wdEZvbGxvd3VwUHVzaEIG'
+    'CgRib2R5');

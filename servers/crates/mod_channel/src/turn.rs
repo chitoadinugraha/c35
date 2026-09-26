@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use c35_ctx::AppState;
-use c35_mod_chat::{channel_prompt_turn, gemini_api_key};
+use c35_mod_chat::{
+    channel_prompt_turn, gemini_api_key, prompt_followup_next_queued,
+    prompt_followup_mark_queue_delivered, prompt_run_finish, prompt_run_insert, prompt_run_row_channel,
+};
 use reqwest::Client;
 
 use crate::debounce::{debouncer_turn_finished, debouncer_turn_started};
@@ -64,6 +67,11 @@ pub async fn execute_channel_turn(state: Arc<AppState>, job: ChannelTurnJob) -> 
         job.inbound.external_msg_id.clone(),
     );
 
+    let channel_row = prompt_run_row_channel(&job.req_id, job.owner_iid, job.chat_id, &job.message, "");
+    if let Err(e) = prompt_run_insert(&state.pool, &channel_row).await {
+        tracing::warn!("[c35:channel] prompt_run insert failed: {e:#}");
+    }
+
     let _typing_guard = channel_typing_start(
         client.clone(),
         state.nats.clone(),
@@ -105,6 +113,29 @@ pub async fn execute_channel_turn(state: Arc<AppState>, job: ChannelTurnJob) -> 
     };
     channel_reply_nats(&client, state.nats.as_ref(), Some(&cas), &out_ctx, &reply, job.inbound.is_voice).await?;
     chat_msg_assistant_put(&state.pool, job.chat_id, job.owner_iid, job.bot_iid, &job.req_id, &reply).await?;
+    let _ = prompt_run_finish(&state.pool, &job.req_id, "done", 0, 0, 0.0, 0, None, None).await;
+    let queued = prompt_followup_next_queued(&state.pool, &job.req_id).await?;
+    if let Some(q) = queued {
+        let _ = prompt_followup_mark_queue_delivered(&state.pool, &q.id).await;
+        let follow_job = ChannelTurnJob {
+            bot_iid: job.bot_iid,
+            chat_id: job.chat_id,
+            owner_iid: job.owner_iid,
+            peer_iid: job.peer_iid,
+            channel: job.channel.clone(),
+            inbound: job.inbound.clone(),
+            message: q.text,
+            attachments_json: q.attachments_json,
+            req_id: crate::outbound::channel_req_id(&job.inbound.platform),
+        };
+        debouncer_turn_finished(state.clone(), job.chat_id).await;
+        crate::hub::channel_hub()
+            .debouncer
+            .lock()
+            .await
+            .schedule(state, follow_job);
+        return Ok(());
+    }
     debouncer_turn_finished(state, job.chat_id).await;
     Ok(())
 }

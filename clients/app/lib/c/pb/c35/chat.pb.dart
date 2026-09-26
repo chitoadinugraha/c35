@@ -1593,6 +1593,680 @@ class ReqPromptAbort extends $pb.GeneratedMessage {
   void clearReqId() => $_clearField(2);
 }
 
+class ReqPromptFollowupPut extends $pb.GeneratedMessage {
+  factory ReqPromptFollowupPut({
+    $fixnum.Int64? chatId,
+    $core.String? reqId,
+    $core.String? text,
+    $core.String? attachmentsJson,
+    PromptFollowupKind? kind,
+  }) {
+    final result = ReqPromptFollowupPut._();
+    if (chatId != null) result.chatId = chatId;
+    if (reqId != null) result.reqId = reqId;
+    if (text != null) result.text = text;
+    if (attachmentsJson != null) result.attachmentsJson = attachmentsJson;
+    if (kind != null) result.kind = kind;
+    return result;
+  }
+
+  ReqPromptFollowupPut._();
+
+  factory ReqPromptFollowupPut.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqPromptFollowupPut()..mergeFromBuffer(data, registry);
+  factory ReqPromptFollowupPut.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqPromptFollowupPut()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqPromptFollowupPut',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqPromptFollowupPut.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'chatId')
+    ..aOS(2, _omitFieldNames ? '' : 'reqId')
+    ..aOS(3, _omitFieldNames ? '' : 'text')
+    ..aOS(4, _omitFieldNames ? '' : 'attachmentsJson')
+    ..aE<PromptFollowupKind>(5, _omitFieldNames ? '' : 'kind',
+        enumValues: PromptFollowupKind.values)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqPromptFollowupPut clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqPromptFollowupPut copyWith(void Function(ReqPromptFollowupPut) updates) =>
+      super.copyWith((message) => updates(message as ReqPromptFollowupPut))
+          as ReqPromptFollowupPut;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqPromptFollowupPut() / ReqPromptFollowupPut.new instead')
+  static ReqPromptFollowupPut create() => ReqPromptFollowupPut._();
+  static $pb.GeneratedMessage $_createMessage() => ReqPromptFollowupPut._();
+  @$core.override
+  ReqPromptFollowupPut createEmptyInstance() => ReqPromptFollowupPut._();
+  @$core.pragma('dart2js:noInline')
+  static ReqPromptFollowupPut getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqPromptFollowupPut>(
+          ReqPromptFollowupPut.$_createMessage);
+  static ReqPromptFollowupPut? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get chatId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set chatId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasChatId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearChatId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get reqId => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set reqId($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasReqId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearReqId() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get text => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set text($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasText() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearText() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get attachmentsJson => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set attachmentsJson($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasAttachmentsJson() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearAttachmentsJson() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  PromptFollowupKind get kind => $_getN(4);
+  @$pb.TagNumber(5)
+  set kind(PromptFollowupKind value) => $_setField(5, value);
+  @$pb.TagNumber(5)
+  $core.bool hasKind() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearKind() => $_clearField(5);
+}
+
+class ResPromptFollowupPut extends $pb.GeneratedMessage {
+  factory ResPromptFollowupPut({
+    $core.String? id,
+    $core.String? reqId,
+    $core.int? queueDepth,
+    $core.bool? rejected,
+    $core.String? rejectReason,
+  }) {
+    final result = ResPromptFollowupPut._();
+    if (id != null) result.id = id;
+    if (reqId != null) result.reqId = reqId;
+    if (queueDepth != null) result.queueDepth = queueDepth;
+    if (rejected != null) result.rejected = rejected;
+    if (rejectReason != null) result.rejectReason = rejectReason;
+    return result;
+  }
+
+  ResPromptFollowupPut._();
+
+  factory ResPromptFollowupPut.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResPromptFollowupPut()..mergeFromBuffer(data, registry);
+  factory ResPromptFollowupPut.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResPromptFollowupPut()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResPromptFollowupPut',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResPromptFollowupPut.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'id')
+    ..aOS(2, _omitFieldNames ? '' : 'reqId')
+    ..aI(3, _omitFieldNames ? '' : 'queueDepth')
+    ..aOB(4, _omitFieldNames ? '' : 'rejected')
+    ..aOS(5, _omitFieldNames ? '' : 'rejectReason')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResPromptFollowupPut clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResPromptFollowupPut copyWith(void Function(ResPromptFollowupPut) updates) =>
+      super.copyWith((message) => updates(message as ResPromptFollowupPut))
+          as ResPromptFollowupPut;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResPromptFollowupPut() / ResPromptFollowupPut.new instead')
+  static ResPromptFollowupPut create() => ResPromptFollowupPut._();
+  static $pb.GeneratedMessage $_createMessage() => ResPromptFollowupPut._();
+  @$core.override
+  ResPromptFollowupPut createEmptyInstance() => ResPromptFollowupPut._();
+  @$core.pragma('dart2js:noInline')
+  static ResPromptFollowupPut getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResPromptFollowupPut>(
+          ResPromptFollowupPut.$_createMessage);
+  static ResPromptFollowupPut? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get id => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set id($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get reqId => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set reqId($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasReqId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearReqId() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.int get queueDepth => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set queueDepth($core.int value) => $_setSignedInt32(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasQueueDepth() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearQueueDepth() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.bool get rejected => $_getBF(3);
+  @$pb.TagNumber(4)
+  set rejected($core.bool value) => $_setBool(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasRejected() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearRejected() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get rejectReason => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set rejectReason($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasRejectReason() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearRejectReason() => $_clearField(5);
+}
+
+class PromptFollowupRow extends $pb.GeneratedMessage {
+  factory PromptFollowupRow({
+    $core.String? id,
+    $core.String? reqId,
+    $fixnum.Int64? chatId,
+    PromptFollowupKind? kind,
+    $core.String? status,
+    $core.String? text,
+    $core.int? seq,
+    $fixnum.Int64? createdTsMs,
+  }) {
+    final result = PromptFollowupRow._();
+    if (id != null) result.id = id;
+    if (reqId != null) result.reqId = reqId;
+    if (chatId != null) result.chatId = chatId;
+    if (kind != null) result.kind = kind;
+    if (status != null) result.status = status;
+    if (text != null) result.text = text;
+    if (seq != null) result.seq = seq;
+    if (createdTsMs != null) result.createdTsMs = createdTsMs;
+    return result;
+  }
+
+  PromptFollowupRow._();
+
+  factory PromptFollowupRow.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      PromptFollowupRow()..mergeFromBuffer(data, registry);
+  factory PromptFollowupRow.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      PromptFollowupRow()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'PromptFollowupRow',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: PromptFollowupRow.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'id')
+    ..aOS(2, _omitFieldNames ? '' : 'reqId')
+    ..aInt64(3, _omitFieldNames ? '' : 'chatId')
+    ..aE<PromptFollowupKind>(4, _omitFieldNames ? '' : 'kind',
+        enumValues: PromptFollowupKind.values)
+    ..aOS(5, _omitFieldNames ? '' : 'status')
+    ..aOS(6, _omitFieldNames ? '' : 'text')
+    ..aI(7, _omitFieldNames ? '' : 'seq')
+    ..aInt64(8, _omitFieldNames ? '' : 'createdTsMs')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  PromptFollowupRow clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  PromptFollowupRow copyWith(void Function(PromptFollowupRow) updates) =>
+      super.copyWith((message) => updates(message as PromptFollowupRow))
+          as PromptFollowupRow;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use PromptFollowupRow() / PromptFollowupRow.new instead')
+  static PromptFollowupRow create() => PromptFollowupRow._();
+  static $pb.GeneratedMessage $_createMessage() => PromptFollowupRow._();
+  @$core.override
+  PromptFollowupRow createEmptyInstance() => PromptFollowupRow._();
+  @$core.pragma('dart2js:noInline')
+  static PromptFollowupRow getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<PromptFollowupRow>(
+          PromptFollowupRow.$_createMessage);
+  static PromptFollowupRow? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get id => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set id($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get reqId => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set reqId($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasReqId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearReqId() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get chatId => $_getI64(2);
+  @$pb.TagNumber(3)
+  set chatId($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasChatId() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearChatId() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  PromptFollowupKind get kind => $_getN(3);
+  @$pb.TagNumber(4)
+  set kind(PromptFollowupKind value) => $_setField(4, value);
+  @$pb.TagNumber(4)
+  $core.bool hasKind() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearKind() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get status => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set status($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasStatus() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearStatus() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get text => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set text($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasText() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearText() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.int get seq => $_getIZ(6);
+  @$pb.TagNumber(7)
+  set seq($core.int value) => $_setSignedInt32(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasSeq() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearSeq() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $fixnum.Int64 get createdTsMs => $_getI64(7);
+  @$pb.TagNumber(8)
+  set createdTsMs($fixnum.Int64 value) => $_setInt64(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasCreatedTsMs() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearCreatedTsMs() => $_clearField(8);
+}
+
+class ReqPromptFollowupList extends $pb.GeneratedMessage {
+  factory ReqPromptFollowupList({
+    $fixnum.Int64? chatId,
+    $core.String? reqId,
+  }) {
+    final result = ReqPromptFollowupList._();
+    if (chatId != null) result.chatId = chatId;
+    if (reqId != null) result.reqId = reqId;
+    return result;
+  }
+
+  ReqPromptFollowupList._();
+
+  factory ReqPromptFollowupList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqPromptFollowupList()..mergeFromBuffer(data, registry);
+  factory ReqPromptFollowupList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqPromptFollowupList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqPromptFollowupList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqPromptFollowupList.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'chatId')
+    ..aOS(2, _omitFieldNames ? '' : 'reqId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqPromptFollowupList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqPromptFollowupList copyWith(
+          void Function(ReqPromptFollowupList) updates) =>
+      super.copyWith((message) => updates(message as ReqPromptFollowupList))
+          as ReqPromptFollowupList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqPromptFollowupList() / ReqPromptFollowupList.new instead')
+  static ReqPromptFollowupList create() => ReqPromptFollowupList._();
+  static $pb.GeneratedMessage $_createMessage() => ReqPromptFollowupList._();
+  @$core.override
+  ReqPromptFollowupList createEmptyInstance() => ReqPromptFollowupList._();
+  @$core.pragma('dart2js:noInline')
+  static ReqPromptFollowupList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqPromptFollowupList>(
+          ReqPromptFollowupList.$_createMessage);
+  static ReqPromptFollowupList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get chatId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set chatId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasChatId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearChatId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get reqId => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set reqId($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasReqId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearReqId() => $_clearField(2);
+}
+
+class ResPromptFollowupList extends $pb.GeneratedMessage {
+  factory ResPromptFollowupList({
+    $core.Iterable<PromptFollowupRow>? items,
+    $core.String? activeReqId,
+  }) {
+    final result = ResPromptFollowupList._();
+    if (items != null) result.items.addAll(items);
+    if (activeReqId != null) result.activeReqId = activeReqId;
+    return result;
+  }
+
+  ResPromptFollowupList._();
+
+  factory ResPromptFollowupList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResPromptFollowupList()..mergeFromBuffer(data, registry);
+  factory ResPromptFollowupList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResPromptFollowupList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResPromptFollowupList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResPromptFollowupList.$_createMessage)
+    ..pPM<PromptFollowupRow>(1, _omitFieldNames ? '' : 'items',
+        subBuilder: PromptFollowupRow.$_createMessage)
+    ..aOS(2, _omitFieldNames ? '' : 'activeReqId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResPromptFollowupList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResPromptFollowupList copyWith(
+          void Function(ResPromptFollowupList) updates) =>
+      super.copyWith((message) => updates(message as ResPromptFollowupList))
+          as ResPromptFollowupList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResPromptFollowupList() / ResPromptFollowupList.new instead')
+  static ResPromptFollowupList create() => ResPromptFollowupList._();
+  static $pb.GeneratedMessage $_createMessage() => ResPromptFollowupList._();
+  @$core.override
+  ResPromptFollowupList createEmptyInstance() => ResPromptFollowupList._();
+  @$core.pragma('dart2js:noInline')
+  static ResPromptFollowupList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResPromptFollowupList>(
+          ResPromptFollowupList.$_createMessage);
+  static ResPromptFollowupList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<PromptFollowupRow> get items => $_getList(0);
+
+  @$pb.TagNumber(2)
+  $core.String get activeReqId => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set activeReqId($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasActiveReqId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearActiveReqId() => $_clearField(2);
+}
+
+class ReqPromptFollowupCancel extends $pb.GeneratedMessage {
+  factory ReqPromptFollowupCancel({
+    $core.String? id,
+  }) {
+    final result = ReqPromptFollowupCancel._();
+    if (id != null) result.id = id;
+    return result;
+  }
+
+  ReqPromptFollowupCancel._();
+
+  factory ReqPromptFollowupCancel.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqPromptFollowupCancel()..mergeFromBuffer(data, registry);
+  factory ReqPromptFollowupCancel.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqPromptFollowupCancel()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqPromptFollowupCancel',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqPromptFollowupCancel.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'id')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqPromptFollowupCancel clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqPromptFollowupCancel copyWith(
+          void Function(ReqPromptFollowupCancel) updates) =>
+      super.copyWith((message) => updates(message as ReqPromptFollowupCancel))
+          as ReqPromptFollowupCancel;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqPromptFollowupCancel() / ReqPromptFollowupCancel.new instead')
+  static ReqPromptFollowupCancel create() => ReqPromptFollowupCancel._();
+  static $pb.GeneratedMessage $_createMessage() => ReqPromptFollowupCancel._();
+  @$core.override
+  ReqPromptFollowupCancel createEmptyInstance() => ReqPromptFollowupCancel._();
+  @$core.pragma('dart2js:noInline')
+  static ReqPromptFollowupCancel getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqPromptFollowupCancel>(
+          ReqPromptFollowupCancel.$_createMessage);
+  static ReqPromptFollowupCancel? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get id => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set id($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+}
+
+class ResPromptFollowupCancel extends $pb.GeneratedMessage {
+  factory ResPromptFollowupCancel({
+    $core.bool? ok,
+  }) {
+    final result = ResPromptFollowupCancel._();
+    if (ok != null) result.ok = ok;
+    return result;
+  }
+
+  ResPromptFollowupCancel._();
+
+  factory ResPromptFollowupCancel.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResPromptFollowupCancel()..mergeFromBuffer(data, registry);
+  factory ResPromptFollowupCancel.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResPromptFollowupCancel()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResPromptFollowupCancel',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResPromptFollowupCancel.$_createMessage)
+    ..aOB(1, _omitFieldNames ? '' : 'ok')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResPromptFollowupCancel clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResPromptFollowupCancel copyWith(
+          void Function(ResPromptFollowupCancel) updates) =>
+      super.copyWith((message) => updates(message as ResPromptFollowupCancel))
+          as ResPromptFollowupCancel;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResPromptFollowupCancel() / ResPromptFollowupCancel.new instead')
+  static ResPromptFollowupCancel create() => ResPromptFollowupCancel._();
+  static $pb.GeneratedMessage $_createMessage() => ResPromptFollowupCancel._();
+  @$core.override
+  ResPromptFollowupCancel createEmptyInstance() => ResPromptFollowupCancel._();
+  @$core.pragma('dart2js:noInline')
+  static ResPromptFollowupCancel getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResPromptFollowupCancel>(
+          ResPromptFollowupCancel.$_createMessage);
+  static ResPromptFollowupCancel? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get ok => $_getBF(0);
+  @$pb.TagNumber(1)
+  set ok($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasOk() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOk() => $_clearField(1);
+}
+
+class PromptFollowupPush extends $pb.GeneratedMessage {
+  factory PromptFollowupPush({
+    $core.String? activeReqId,
+    $core.Iterable<PromptFollowupRow>? items,
+  }) {
+    final result = PromptFollowupPush._();
+    if (activeReqId != null) result.activeReqId = activeReqId;
+    if (items != null) result.items.addAll(items);
+    return result;
+  }
+
+  PromptFollowupPush._();
+
+  factory PromptFollowupPush.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      PromptFollowupPush()..mergeFromBuffer(data, registry);
+  factory PromptFollowupPush.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      PromptFollowupPush()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'PromptFollowupPush',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: PromptFollowupPush.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'activeReqId')
+    ..pPM<PromptFollowupRow>(2, _omitFieldNames ? '' : 'items',
+        subBuilder: PromptFollowupRow.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  PromptFollowupPush clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  PromptFollowupPush copyWith(void Function(PromptFollowupPush) updates) =>
+      super.copyWith((message) => updates(message as PromptFollowupPush))
+          as PromptFollowupPush;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use PromptFollowupPush() / PromptFollowupPush.new instead')
+  static PromptFollowupPush create() => PromptFollowupPush._();
+  static $pb.GeneratedMessage $_createMessage() => PromptFollowupPush._();
+  @$core.override
+  PromptFollowupPush createEmptyInstance() => PromptFollowupPush._();
+  @$core.pragma('dart2js:noInline')
+  static PromptFollowupPush getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<PromptFollowupPush>(
+          PromptFollowupPush.$_createMessage);
+  static PromptFollowupPush? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get activeReqId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set activeReqId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasActiveReqId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearActiveReqId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $pb.PbList<PromptFollowupRow> get items => $_getList(1);
+}
+
 class PromptRunPush extends $pb.GeneratedMessage {
   factory PromptRunPush({
     $core.String? reqId,

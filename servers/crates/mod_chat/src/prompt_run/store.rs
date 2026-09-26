@@ -38,6 +38,45 @@ pub struct PromptRunRow {
     pub delivery_count: i32,
 }
 
+pub fn prompt_run_row_channel(
+    req_id: &str,
+    owner_iid: i64,
+    chat_id: i64,
+    text: &str,
+    locale: &str,
+) -> PromptRunRow {
+    PromptRunRow {
+        req_id: req_id.into(),
+        chat_id,
+        owner_iid,
+        parent_req_id: None,
+        kind: "channel".into(),
+        status: "running".into(),
+        topic_id: "general".into(),
+        device_iid: 0,
+        text: text.into(),
+        mention_ids_json: Json(serde_json::json!([])),
+        tool_mode: "agent".into(),
+        model: String::new(),
+        attachments_json: "[]".into(),
+        locale: locale.into(),
+        cancel_requested: false,
+        turn_count: 0,
+        max_turns: PROMPT_RUN_MAX_TURNS_DEFAULT,
+        fail_class: None,
+        fail_reason: None,
+        checkpoint_json: Json(serde_json::json!({})),
+        budget_usd_cap: 0.50,
+        accumulated_cost_usd: 0.0,
+        tokens_in: 0,
+        tokens_out: 0,
+        cost_usd: 0.0,
+        duration_ms: 0,
+        lease_pod: None,
+        delivery_count: 0,
+    }
+}
+
 pub fn prompt_run_row_new(req_id: &str, owner_iid: i64, chat_id: i64, req: &ReqPrompt, locale: &str) -> PromptRunRow {
     let mention_ids: Value = serde_json::to_value(&req.mention_ids).unwrap_or(Value::Array(vec![]));
     let device_iid = req.device_iids.first().copied().unwrap_or(0);

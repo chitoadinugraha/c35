@@ -84,6 +84,22 @@ final $typed_data.Uint8List chatMsgStatusDescriptor = $convert.base64Decode(
     'RfTVNHX1NUQVRVU19TVFJFQU1JTkcQARIYChRDSEFUX01TR19TVEFUVVNfRE9ORRACEh8KG0NI'
     'QVRfTVNHX1NUQVRVU19JTlRFUlJVUFRFRBADEhkKFUNIQVRfTVNHX1NUQVRVU19FUlJPUhAE');
 
+@$core.Deprecated('Use promptFollowupKindDescriptor instead')
+const PromptFollowupKind$json = {
+  '1': 'PromptFollowupKind',
+  '2': [
+    {'1': 'PROMPT_FOLLOWUP_KIND_UNSPECIFIED', '2': 0},
+    {'1': 'PROMPT_FOLLOWUP_KIND_STEER', '2': 1},
+    {'1': 'PROMPT_FOLLOWUP_KIND_QUEUE', '2': 2},
+  ],
+};
+
+/// Descriptor for `PromptFollowupKind`. Decode as a `google.protobuf.EnumDescriptorProto`.
+final $typed_data.Uint8List promptFollowupKindDescriptor = $convert.base64Decode(
+    'ChJQcm9tcHRGb2xsb3d1cEtpbmQSJAogUFJPTVBUX0ZPTExPV1VQX0tJTkRfVU5TUEVDSUZJRU'
+    'QQABIeChpQUk9NUFRfRk9MTE9XVVBfS0lORF9TVEVFUhABEh4KGlBST01QVF9GT0xMT1dVUF9L'
+    'SU5EX1FVRVVFEAI=');
+
 @$core.Deprecated('Use chatDescriptor instead')
 const Chat$json = {
   '1': 'Chat',
@@ -388,6 +404,160 @@ const ReqPromptAbort$json = {
 final $typed_data.Uint8List reqPromptAbortDescriptor = $convert.base64Decode(
     'Cg5SZXFQcm9tcHRBYm9ydBIXCgdjaGF0X2lkGAEgASgDUgZjaGF0SWQSFQoGcmVxX2lkGAIgAS'
     'gJUgVyZXFJZA==');
+
+@$core.Deprecated('Use reqPromptFollowupPutDescriptor instead')
+const ReqPromptFollowupPut$json = {
+  '1': 'ReqPromptFollowupPut',
+  '2': [
+    {'1': 'chat_id', '3': 1, '4': 1, '5': 3, '10': 'chatId'},
+    {'1': 'req_id', '3': 2, '4': 1, '5': 9, '10': 'reqId'},
+    {'1': 'text', '3': 3, '4': 1, '5': 9, '10': 'text'},
+    {'1': 'attachments_json', '3': 4, '4': 1, '5': 9, '10': 'attachmentsJson'},
+    {
+      '1': 'kind',
+      '3': 5,
+      '4': 1,
+      '5': 14,
+      '6': '.c35.PromptFollowupKind',
+      '10': 'kind'
+    },
+  ],
+};
+
+/// Descriptor for `ReqPromptFollowupPut`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqPromptFollowupPutDescriptor = $convert.base64Decode(
+    'ChRSZXFQcm9tcHRGb2xsb3d1cFB1dBIXCgdjaGF0X2lkGAEgASgDUgZjaGF0SWQSFQoGcmVxX2'
+    'lkGAIgASgJUgVyZXFJZBISCgR0ZXh0GAMgASgJUgR0ZXh0EikKEGF0dGFjaG1lbnRzX2pzb24Y'
+    'BCABKAlSD2F0dGFjaG1lbnRzSnNvbhIrCgRraW5kGAUgASgOMhcuYzM1LlByb21wdEZvbGxvd3'
+    'VwS2luZFIEa2luZA==');
+
+@$core.Deprecated('Use resPromptFollowupPutDescriptor instead')
+const ResPromptFollowupPut$json = {
+  '1': 'ResPromptFollowupPut',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 9, '10': 'id'},
+    {'1': 'req_id', '3': 2, '4': 1, '5': 9, '10': 'reqId'},
+    {'1': 'queue_depth', '3': 3, '4': 1, '5': 5, '10': 'queueDepth'},
+    {'1': 'rejected', '3': 4, '4': 1, '5': 8, '10': 'rejected'},
+    {'1': 'reject_reason', '3': 5, '4': 1, '5': 9, '10': 'rejectReason'},
+  ],
+};
+
+/// Descriptor for `ResPromptFollowupPut`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resPromptFollowupPutDescriptor = $convert.base64Decode(
+    'ChRSZXNQcm9tcHRGb2xsb3d1cFB1dBIOCgJpZBgBIAEoCVICaWQSFQoGcmVxX2lkGAIgASgJUg'
+    'VyZXFJZBIfCgtxdWV1ZV9kZXB0aBgDIAEoBVIKcXVldWVEZXB0aBIaCghyZWplY3RlZBgEIAEo'
+    'CFIIcmVqZWN0ZWQSIwoNcmVqZWN0X3JlYXNvbhgFIAEoCVIMcmVqZWN0UmVhc29u');
+
+@$core.Deprecated('Use promptFollowupRowDescriptor instead')
+const PromptFollowupRow$json = {
+  '1': 'PromptFollowupRow',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 9, '10': 'id'},
+    {'1': 'req_id', '3': 2, '4': 1, '5': 9, '10': 'reqId'},
+    {'1': 'chat_id', '3': 3, '4': 1, '5': 3, '10': 'chatId'},
+    {
+      '1': 'kind',
+      '3': 4,
+      '4': 1,
+      '5': 14,
+      '6': '.c35.PromptFollowupKind',
+      '10': 'kind'
+    },
+    {'1': 'status', '3': 5, '4': 1, '5': 9, '10': 'status'},
+    {'1': 'text', '3': 6, '4': 1, '5': 9, '10': 'text'},
+    {'1': 'seq', '3': 7, '4': 1, '5': 5, '10': 'seq'},
+    {'1': 'created_ts_ms', '3': 8, '4': 1, '5': 3, '10': 'createdTsMs'},
+  ],
+};
+
+/// Descriptor for `PromptFollowupRow`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List promptFollowupRowDescriptor = $convert.base64Decode(
+    'ChFQcm9tcHRGb2xsb3d1cFJvdxIOCgJpZBgBIAEoCVICaWQSFQoGcmVxX2lkGAIgASgJUgVyZX'
+    'FJZBIXCgdjaGF0X2lkGAMgASgDUgZjaGF0SWQSKwoEa2luZBgEIAEoDjIXLmMzNS5Qcm9tcHRG'
+    'b2xsb3d1cEtpbmRSBGtpbmQSFgoGc3RhdHVzGAUgASgJUgZzdGF0dXMSEgoEdGV4dBgGIAEoCV'
+    'IEdGV4dBIQCgNzZXEYByABKAVSA3NlcRIiCg1jcmVhdGVkX3RzX21zGAggASgDUgtjcmVhdGVk'
+    'VHNNcw==');
+
+@$core.Deprecated('Use reqPromptFollowupListDescriptor instead')
+const ReqPromptFollowupList$json = {
+  '1': 'ReqPromptFollowupList',
+  '2': [
+    {'1': 'chat_id', '3': 1, '4': 1, '5': 3, '10': 'chatId'},
+    {'1': 'req_id', '3': 2, '4': 1, '5': 9, '10': 'reqId'},
+  ],
+};
+
+/// Descriptor for `ReqPromptFollowupList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqPromptFollowupListDescriptor = $convert.base64Decode(
+    'ChVSZXFQcm9tcHRGb2xsb3d1cExpc3QSFwoHY2hhdF9pZBgBIAEoA1IGY2hhdElkEhUKBnJlcV'
+    '9pZBgCIAEoCVIFcmVxSWQ=');
+
+@$core.Deprecated('Use resPromptFollowupListDescriptor instead')
+const ResPromptFollowupList$json = {
+  '1': 'ResPromptFollowupList',
+  '2': [
+    {
+      '1': 'items',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.PromptFollowupRow',
+      '10': 'items'
+    },
+    {'1': 'active_req_id', '3': 2, '4': 1, '5': 9, '10': 'activeReqId'},
+  ],
+};
+
+/// Descriptor for `ResPromptFollowupList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resPromptFollowupListDescriptor = $convert.base64Decode(
+    'ChVSZXNQcm9tcHRGb2xsb3d1cExpc3QSLAoFaXRlbXMYASADKAsyFi5jMzUuUHJvbXB0Rm9sbG'
+    '93dXBSb3dSBWl0ZW1zEiIKDWFjdGl2ZV9yZXFfaWQYAiABKAlSC2FjdGl2ZVJlcUlk');
+
+@$core.Deprecated('Use reqPromptFollowupCancelDescriptor instead')
+const ReqPromptFollowupCancel$json = {
+  '1': 'ReqPromptFollowupCancel',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 9, '10': 'id'},
+  ],
+};
+
+/// Descriptor for `ReqPromptFollowupCancel`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqPromptFollowupCancelDescriptor = $convert
+    .base64Decode('ChdSZXFQcm9tcHRGb2xsb3d1cENhbmNlbBIOCgJpZBgBIAEoCVICaWQ=');
+
+@$core.Deprecated('Use resPromptFollowupCancelDescriptor instead')
+const ResPromptFollowupCancel$json = {
+  '1': 'ResPromptFollowupCancel',
+  '2': [
+    {'1': 'ok', '3': 1, '4': 1, '5': 8, '10': 'ok'},
+  ],
+};
+
+/// Descriptor for `ResPromptFollowupCancel`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resPromptFollowupCancelDescriptor = $convert
+    .base64Decode('ChdSZXNQcm9tcHRGb2xsb3d1cENhbmNlbBIOCgJvaxgBIAEoCFICb2s=');
+
+@$core.Deprecated('Use promptFollowupPushDescriptor instead')
+const PromptFollowupPush$json = {
+  '1': 'PromptFollowupPush',
+  '2': [
+    {'1': 'active_req_id', '3': 1, '4': 1, '5': 9, '10': 'activeReqId'},
+    {
+      '1': 'items',
+      '3': 2,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.PromptFollowupRow',
+      '10': 'items'
+    },
+  ],
+};
+
+/// Descriptor for `PromptFollowupPush`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List promptFollowupPushDescriptor = $convert.base64Decode(
+    'ChJQcm9tcHRGb2xsb3d1cFB1c2gSIgoNYWN0aXZlX3JlcV9pZBgBIAEoCVILYWN0aXZlUmVxSW'
+    'QSLAoFaXRlbXMYAiADKAsyFi5jMzUuUHJvbXB0Rm9sbG93dXBSb3dSBWl0ZW1z');
 
 @$core.Deprecated('Use promptRunPushDescriptor instead')
 const PromptRunPush$json = {

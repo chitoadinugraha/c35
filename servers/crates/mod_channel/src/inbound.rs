@@ -2,6 +2,8 @@ use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
 use c35_ctx::AppState;
+use c35_mod_chat::{prompt_followup_active_req, prompt_followup_enabled, prompt_followup_put};
+use c35_proto::PromptFollowupKind;
 use c35_mod_log::{log_put, LogPut};
 use reqwest::Client;
 use tracing::info;
@@ -135,6 +137,43 @@ pub async fn channel_inbound_handle(
 
     if !chat_ai_reply_enabled(&state.pool, chat_id).await {
         return Ok((chat_id, peer_iid));
+    }
+
+    if prompt_followup_enabled() {
+        if let Ok(Some(active_req)) = prompt_followup_active_req(&state.pool, chat_id).await {
+            let dedup = inbound
+                .external_msg_id
+                .as_deref()
+                .filter(|s| !s.is_empty())
+                .map(|id| format!("{}:{}:{}:{}", inbound.platform, bot_iid, channel.id, id));
+            let steer = prompt_followup_put(
+                &state.pool,
+                owner_iid,
+                chat_id,
+                &active_req,
+                &message,
+                "[]",
+                PromptFollowupKind::Steer as i32,
+                "channel",
+                dedup.as_deref(),
+            )
+            .await;
+            if steer.as_ref().map(|r| r.rejected).unwrap_or(true) {
+                let _ = prompt_followup_put(
+                    &state.pool,
+                    owner_iid,
+                    chat_id,
+                    &active_req,
+                    &message,
+                    "[]",
+                    PromptFollowupKind::Queue as i32,
+                    "channel",
+                    dedup.as_deref(),
+                )
+                .await;
+            }
+            return Ok((chat_id, peer_iid));
+        }
     }
 
     let mut attachments = inbound.attachments.clone();

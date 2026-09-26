@@ -1,6 +1,9 @@
 use anyhow::Result;
 use async_nats::Client;
-use c35_proto::{pb_encode, PromptRunPush, ResPromptDelta, ResPromptEnd, ResPromptFail, ResPromptStart, WsRes, ws_res};
+use c35_proto::{
+    pb_encode, PromptFollowupPush, PromptRunPush, ResPromptDelta, ResPromptEnd, ResPromptFail,
+    ResPromptStart, WsRes, ws_res,
+};
 
 pub fn prompt_chat_subject(owner_iid: i64, chat_id: i64) -> String {
     format!("c35.user.{owner_iid}.chat.{chat_id}")
@@ -101,6 +104,24 @@ pub async fn prompt_run_fanout_fail(
         WsRes {
             req_id: req_id.into(),
             body: Some(ws_res::Body::PromptFail(fail)),
+        },
+    )
+    .await
+}
+
+pub async fn prompt_followup_fanout_push(
+    nats: &Client,
+    owner_iid: i64,
+    chat_id: i64,
+    push: PromptFollowupPush,
+) -> Result<()> {
+    prompt_chat_fanout_ws(
+        nats,
+        owner_iid,
+        chat_id,
+        WsRes {
+            req_id: String::new(),
+            body: Some(ws_res::Body::PromptFollowupPush(push)),
         },
     )
     .await

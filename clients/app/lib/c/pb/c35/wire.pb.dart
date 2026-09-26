@@ -26,7 +26,8 @@ import 'device.pb.dart' as $5;
 import 'hint.pb.dart' as $22;
 import 'identity.pb.dart' as $17;
 import 'inst.pb.dart' as $6;
-import 'log.pb.dart' as $24;
+import 'log.pb.dart' as $25;
+import 'mail.pb.dart' as $23;
 import 'object.pb.dart' as $9;
 import 'referral.pb.dart' as $2;
 import 'remote.pb.dart' as $19;
@@ -38,7 +39,7 @@ import 'stats.pb.dart' as $21;
 import 'sync.pb.dart' as $13;
 import 'task.pb.dart' as $18;
 import 'tx.pb.dart' as $11;
-import 'types.pb.dart' as $23;
+import 'types.pb.dart' as $24;
 import 'voice.pb.dart' as $7;
 
 export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
@@ -2369,6 +2370,16 @@ enum WsReq_Body {
   siteQueryRun,
   expensePut,
   chatHistoryClear,
+  mailList,
+  mailGet,
+  mailSend,
+  mailMailboxList,
+  mailDomainList,
+  siteDomainVerify,
+  mailDomainAdd,
+  promptFollowupPut,
+  promptFollowupList,
+  promptFollowupCancel,
   notSet
 }
 
@@ -2451,6 +2462,16 @@ class WsReq extends $pb.GeneratedMessage {
     $16.ReqSiteQueryRun? siteQueryRun,
     $11.ReqExpensePut? expensePut,
     $14.ReqChatHistoryClear? chatHistoryClear,
+    $23.ReqMailList? mailList,
+    $23.ReqMailGet? mailGet,
+    $23.ReqMailSend? mailSend,
+    $23.ReqMailMailboxList? mailMailboxList,
+    $23.ReqMailDomainList? mailDomainList,
+    $16.ReqSiteDomainVerify? siteDomainVerify,
+    $23.ReqMailDomainAdd? mailDomainAdd,
+    $14.ReqPromptFollowupPut? promptFollowupPut,
+    $14.ReqPromptFollowupList? promptFollowupList,
+    $14.ReqPromptFollowupCancel? promptFollowupCancel,
   }) {
     final result = WsReq._();
     if (reqId != null) result.reqId = reqId;
@@ -2538,6 +2559,18 @@ class WsReq extends $pb.GeneratedMessage {
     if (siteQueryRun != null) result.siteQueryRun = siteQueryRun;
     if (expensePut != null) result.expensePut = expensePut;
     if (chatHistoryClear != null) result.chatHistoryClear = chatHistoryClear;
+    if (mailList != null) result.mailList = mailList;
+    if (mailGet != null) result.mailGet = mailGet;
+    if (mailSend != null) result.mailSend = mailSend;
+    if (mailMailboxList != null) result.mailMailboxList = mailMailboxList;
+    if (mailDomainList != null) result.mailDomainList = mailDomainList;
+    if (siteDomainVerify != null) result.siteDomainVerify = siteDomainVerify;
+    if (mailDomainAdd != null) result.mailDomainAdd = mailDomainAdd;
+    if (promptFollowupPut != null) result.promptFollowupPut = promptFollowupPut;
+    if (promptFollowupList != null)
+      result.promptFollowupList = promptFollowupList;
+    if (promptFollowupCancel != null)
+      result.promptFollowupCancel = promptFollowupCancel;
     return result;
   }
 
@@ -2626,6 +2659,16 @@ class WsReq extends $pb.GeneratedMessage {
     83: WsReq_Body.siteQueryRun,
     84: WsReq_Body.expensePut,
     85: WsReq_Body.chatHistoryClear,
+    86: WsReq_Body.mailList,
+    87: WsReq_Body.mailGet,
+    88: WsReq_Body.mailSend,
+    89: WsReq_Body.mailMailboxList,
+    90: WsReq_Body.mailDomainList,
+    91: WsReq_Body.siteDomainVerify,
+    92: WsReq_Body.mailDomainAdd,
+    141: WsReq_Body.promptFollowupPut,
+    142: WsReq_Body.promptFollowupList,
+    143: WsReq_Body.promptFollowupCancel,
     0: WsReq_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -2707,7 +2750,17 @@ class WsReq extends $pb.GeneratedMessage {
       82,
       83,
       84,
-      85
+      85,
+      86,
+      87,
+      88,
+      89,
+      90,
+      91,
+      92,
+      141,
+      142,
+      143
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$12.ReqSessionInit>(2, _omitFieldNames ? '' : 'sessionInit',
@@ -2876,6 +2929,30 @@ class WsReq extends $pb.GeneratedMessage {
     ..aOM<$14.ReqChatHistoryClear>(
         85, _omitFieldNames ? '' : 'chatHistoryClear',
         subBuilder: $14.ReqChatHistoryClear.$_createMessage)
+    ..aOM<$23.ReqMailList>(86, _omitFieldNames ? '' : 'mailList',
+        subBuilder: $23.ReqMailList.$_createMessage)
+    ..aOM<$23.ReqMailGet>(87, _omitFieldNames ? '' : 'mailGet',
+        subBuilder: $23.ReqMailGet.$_createMessage)
+    ..aOM<$23.ReqMailSend>(88, _omitFieldNames ? '' : 'mailSend',
+        subBuilder: $23.ReqMailSend.$_createMessage)
+    ..aOM<$23.ReqMailMailboxList>(89, _omitFieldNames ? '' : 'mailMailboxList',
+        subBuilder: $23.ReqMailMailboxList.$_createMessage)
+    ..aOM<$23.ReqMailDomainList>(90, _omitFieldNames ? '' : 'mailDomainList',
+        subBuilder: $23.ReqMailDomainList.$_createMessage)
+    ..aOM<$16.ReqSiteDomainVerify>(
+        91, _omitFieldNames ? '' : 'siteDomainVerify',
+        subBuilder: $16.ReqSiteDomainVerify.$_createMessage)
+    ..aOM<$23.ReqMailDomainAdd>(92, _omitFieldNames ? '' : 'mailDomainAdd',
+        subBuilder: $23.ReqMailDomainAdd.$_createMessage)
+    ..aOM<$14.ReqPromptFollowupPut>(
+        141, _omitFieldNames ? '' : 'promptFollowupPut',
+        subBuilder: $14.ReqPromptFollowupPut.$_createMessage)
+    ..aOM<$14.ReqPromptFollowupList>(
+        142, _omitFieldNames ? '' : 'promptFollowupList',
+        subBuilder: $14.ReqPromptFollowupList.$_createMessage)
+    ..aOM<$14.ReqPromptFollowupCancel>(
+        143, _omitFieldNames ? '' : 'promptFollowupCancel',
+        subBuilder: $14.ReqPromptFollowupCancel.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -2973,6 +3050,16 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(83)
   @$pb.TagNumber(84)
   @$pb.TagNumber(85)
+  @$pb.TagNumber(86)
+  @$pb.TagNumber(87)
+  @$pb.TagNumber(88)
+  @$pb.TagNumber(89)
+  @$pb.TagNumber(90)
+  @$pb.TagNumber(91)
+  @$pb.TagNumber(92)
+  @$pb.TagNumber(141)
+  @$pb.TagNumber(142)
+  @$pb.TagNumber(143)
   WsReq_Body whichBody() => _WsReq_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(3)
@@ -3049,6 +3136,16 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(83)
   @$pb.TagNumber(84)
   @$pb.TagNumber(85)
+  @$pb.TagNumber(86)
+  @$pb.TagNumber(87)
+  @$pb.TagNumber(88)
+  @$pb.TagNumber(89)
+  @$pb.TagNumber(90)
+  @$pb.TagNumber(91)
+  @$pb.TagNumber(92)
+  @$pb.TagNumber(141)
+  @$pb.TagNumber(142)
+  @$pb.TagNumber(143)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -3898,6 +3995,119 @@ class WsReq extends $pb.GeneratedMessage {
   void clearChatHistoryClear() => $_clearField(85);
   @$pb.TagNumber(85)
   $14.ReqChatHistoryClear ensureChatHistoryClear() => $_ensure(75);
+
+  @$pb.TagNumber(86)
+  $23.ReqMailList get mailList => $_getN(76);
+  @$pb.TagNumber(86)
+  set mailList($23.ReqMailList value) => $_setField(86, value);
+  @$pb.TagNumber(86)
+  $core.bool hasMailList() => $_has(76);
+  @$pb.TagNumber(86)
+  void clearMailList() => $_clearField(86);
+  @$pb.TagNumber(86)
+  $23.ReqMailList ensureMailList() => $_ensure(76);
+
+  @$pb.TagNumber(87)
+  $23.ReqMailGet get mailGet => $_getN(77);
+  @$pb.TagNumber(87)
+  set mailGet($23.ReqMailGet value) => $_setField(87, value);
+  @$pb.TagNumber(87)
+  $core.bool hasMailGet() => $_has(77);
+  @$pb.TagNumber(87)
+  void clearMailGet() => $_clearField(87);
+  @$pb.TagNumber(87)
+  $23.ReqMailGet ensureMailGet() => $_ensure(77);
+
+  @$pb.TagNumber(88)
+  $23.ReqMailSend get mailSend => $_getN(78);
+  @$pb.TagNumber(88)
+  set mailSend($23.ReqMailSend value) => $_setField(88, value);
+  @$pb.TagNumber(88)
+  $core.bool hasMailSend() => $_has(78);
+  @$pb.TagNumber(88)
+  void clearMailSend() => $_clearField(88);
+  @$pb.TagNumber(88)
+  $23.ReqMailSend ensureMailSend() => $_ensure(78);
+
+  @$pb.TagNumber(89)
+  $23.ReqMailMailboxList get mailMailboxList => $_getN(79);
+  @$pb.TagNumber(89)
+  set mailMailboxList($23.ReqMailMailboxList value) => $_setField(89, value);
+  @$pb.TagNumber(89)
+  $core.bool hasMailMailboxList() => $_has(79);
+  @$pb.TagNumber(89)
+  void clearMailMailboxList() => $_clearField(89);
+  @$pb.TagNumber(89)
+  $23.ReqMailMailboxList ensureMailMailboxList() => $_ensure(79);
+
+  @$pb.TagNumber(90)
+  $23.ReqMailDomainList get mailDomainList => $_getN(80);
+  @$pb.TagNumber(90)
+  set mailDomainList($23.ReqMailDomainList value) => $_setField(90, value);
+  @$pb.TagNumber(90)
+  $core.bool hasMailDomainList() => $_has(80);
+  @$pb.TagNumber(90)
+  void clearMailDomainList() => $_clearField(90);
+  @$pb.TagNumber(90)
+  $23.ReqMailDomainList ensureMailDomainList() => $_ensure(80);
+
+  @$pb.TagNumber(91)
+  $16.ReqSiteDomainVerify get siteDomainVerify => $_getN(81);
+  @$pb.TagNumber(91)
+  set siteDomainVerify($16.ReqSiteDomainVerify value) => $_setField(91, value);
+  @$pb.TagNumber(91)
+  $core.bool hasSiteDomainVerify() => $_has(81);
+  @$pb.TagNumber(91)
+  void clearSiteDomainVerify() => $_clearField(91);
+  @$pb.TagNumber(91)
+  $16.ReqSiteDomainVerify ensureSiteDomainVerify() => $_ensure(81);
+
+  @$pb.TagNumber(92)
+  $23.ReqMailDomainAdd get mailDomainAdd => $_getN(82);
+  @$pb.TagNumber(92)
+  set mailDomainAdd($23.ReqMailDomainAdd value) => $_setField(92, value);
+  @$pb.TagNumber(92)
+  $core.bool hasMailDomainAdd() => $_has(82);
+  @$pb.TagNumber(92)
+  void clearMailDomainAdd() => $_clearField(92);
+  @$pb.TagNumber(92)
+  $23.ReqMailDomainAdd ensureMailDomainAdd() => $_ensure(82);
+
+  @$pb.TagNumber(141)
+  $14.ReqPromptFollowupPut get promptFollowupPut => $_getN(83);
+  @$pb.TagNumber(141)
+  set promptFollowupPut($14.ReqPromptFollowupPut value) =>
+      $_setField(141, value);
+  @$pb.TagNumber(141)
+  $core.bool hasPromptFollowupPut() => $_has(83);
+  @$pb.TagNumber(141)
+  void clearPromptFollowupPut() => $_clearField(141);
+  @$pb.TagNumber(141)
+  $14.ReqPromptFollowupPut ensurePromptFollowupPut() => $_ensure(83);
+
+  @$pb.TagNumber(142)
+  $14.ReqPromptFollowupList get promptFollowupList => $_getN(84);
+  @$pb.TagNumber(142)
+  set promptFollowupList($14.ReqPromptFollowupList value) =>
+      $_setField(142, value);
+  @$pb.TagNumber(142)
+  $core.bool hasPromptFollowupList() => $_has(84);
+  @$pb.TagNumber(142)
+  void clearPromptFollowupList() => $_clearField(142);
+  @$pb.TagNumber(142)
+  $14.ReqPromptFollowupList ensurePromptFollowupList() => $_ensure(84);
+
+  @$pb.TagNumber(143)
+  $14.ReqPromptFollowupCancel get promptFollowupCancel => $_getN(85);
+  @$pb.TagNumber(143)
+  set promptFollowupCancel($14.ReqPromptFollowupCancel value) =>
+      $_setField(143, value);
+  @$pb.TagNumber(143)
+  $core.bool hasPromptFollowupCancel() => $_has(85);
+  @$pb.TagNumber(143)
+  void clearPromptFollowupCancel() => $_clearField(143);
+  @$pb.TagNumber(143)
+  $14.ReqPromptFollowupCancel ensurePromptFollowupCancel() => $_ensure(85);
 }
 
 enum WsRes_Body {
@@ -3985,6 +4195,17 @@ enum WsRes_Body {
   siteQueryRun,
   expensePut,
   chatHistoryClear,
+  mailList,
+  mailGet,
+  mailSend,
+  mailMailboxList,
+  mailDomainList,
+  siteDomainVerify,
+  mailDomainAdd,
+  promptFollowupPut,
+  promptFollowupList,
+  promptFollowupCancel,
+  promptFollowupPush,
   notSet
 }
 
@@ -3992,7 +4213,7 @@ enum WsRes_Body {
 class WsRes extends $pb.GeneratedMessage {
   factory WsRes({
     $core.String? reqId,
-    $23.Err? err,
+    $24.Err? err,
     $12.ResSessionInit? sessionInit,
     $13.ResSync? sync,
     $14.ResInboxList? inboxList,
@@ -4020,7 +4241,7 @@ class WsRes extends $pb.GeneratedMessage {
     $0.BillingPushBalance? billingBalance,
     $0.BillingPushQuota? billingQuota,
     $0.BillingPushCommission? billingCommission,
-    $24.LogPush? logPush,
+    $25.LogPush? logPush,
     $4.ChannelPairPush? channelPairPush,
     $21.StatsPush? statsPush,
     $15.ResSkillList? skillList,
@@ -4076,6 +4297,17 @@ class WsRes extends $pb.GeneratedMessage {
     $16.ResSiteQueryRun? siteQueryRun,
     $11.ResExpensePut? expensePut,
     $14.ResChatHistoryClear? chatHistoryClear,
+    $23.ResMailList? mailList,
+    $23.ResMailGet? mailGet,
+    $23.ResMailSend? mailSend,
+    $23.ResMailMailboxList? mailMailboxList,
+    $23.ResMailDomainList? mailDomainList,
+    $16.ResSiteDomainVerify? siteDomainVerify,
+    $23.ResMailDomainAdd? mailDomainAdd,
+    $14.ResPromptFollowupPut? promptFollowupPut,
+    $14.ResPromptFollowupList? promptFollowupList,
+    $14.ResPromptFollowupCancel? promptFollowupCancel,
+    $14.PromptFollowupPush? promptFollowupPush,
   }) {
     final result = WsRes._();
     if (reqId != null) result.reqId = reqId;
@@ -4172,6 +4404,20 @@ class WsRes extends $pb.GeneratedMessage {
     if (siteQueryRun != null) result.siteQueryRun = siteQueryRun;
     if (expensePut != null) result.expensePut = expensePut;
     if (chatHistoryClear != null) result.chatHistoryClear = chatHistoryClear;
+    if (mailList != null) result.mailList = mailList;
+    if (mailGet != null) result.mailGet = mailGet;
+    if (mailSend != null) result.mailSend = mailSend;
+    if (mailMailboxList != null) result.mailMailboxList = mailMailboxList;
+    if (mailDomainList != null) result.mailDomainList = mailDomainList;
+    if (siteDomainVerify != null) result.siteDomainVerify = siteDomainVerify;
+    if (mailDomainAdd != null) result.mailDomainAdd = mailDomainAdd;
+    if (promptFollowupPut != null) result.promptFollowupPut = promptFollowupPut;
+    if (promptFollowupList != null)
+      result.promptFollowupList = promptFollowupList;
+    if (promptFollowupCancel != null)
+      result.promptFollowupCancel = promptFollowupCancel;
+    if (promptFollowupPush != null)
+      result.promptFollowupPush = promptFollowupPush;
     return result;
   }
 
@@ -4269,6 +4515,17 @@ class WsRes extends $pb.GeneratedMessage {
     131: WsRes_Body.siteQueryRun,
     132: WsRes_Body.expensePut,
     133: WsRes_Body.chatHistoryClear,
+    134: WsRes_Body.mailList,
+    135: WsRes_Body.mailGet,
+    136: WsRes_Body.mailSend,
+    137: WsRes_Body.mailMailboxList,
+    138: WsRes_Body.mailDomainList,
+    139: WsRes_Body.siteDomainVerify,
+    140: WsRes_Body.mailDomainAdd,
+    141: WsRes_Body.promptFollowupPut,
+    142: WsRes_Body.promptFollowupList,
+    143: WsRes_Body.promptFollowupCancel,
+    144: WsRes_Body.promptFollowupPush,
     0: WsRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -4359,11 +4616,22 @@ class WsRes extends $pb.GeneratedMessage {
       130,
       131,
       132,
-      133
+      133,
+      134,
+      135,
+      136,
+      137,
+      138,
+      139,
+      140,
+      141,
+      142,
+      143,
+      144
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
-    ..aOM<$23.Err>(2, _omitFieldNames ? '' : 'err',
-        subBuilder: $23.Err.$_createMessage)
+    ..aOM<$24.Err>(2, _omitFieldNames ? '' : 'err',
+        subBuilder: $24.Err.$_createMessage)
     ..aOM<$12.ResSessionInit>(10, _omitFieldNames ? '' : 'sessionInit',
         subBuilder: $12.ResSessionInit.$_createMessage)
     ..aOM<$13.ResSync>(11, _omitFieldNames ? '' : 'sync',
@@ -4423,8 +4691,8 @@ class WsRes extends $pb.GeneratedMessage {
     ..aOM<$0.BillingPushCommission>(
         62, _omitFieldNames ? '' : 'billingCommission',
         subBuilder: $0.BillingPushCommission.$_createMessage)
-    ..aOM<$24.LogPush>(70, _omitFieldNames ? '' : 'logPush',
-        subBuilder: $24.LogPush.$_createMessage)
+    ..aOM<$25.LogPush>(70, _omitFieldNames ? '' : 'logPush',
+        subBuilder: $25.LogPush.$_createMessage)
     ..aOM<$4.ChannelPairPush>(71, _omitFieldNames ? '' : 'channelPairPush',
         subBuilder: $4.ChannelPairPush.$_createMessage)
     ..aOM<$21.StatsPush>(72, _omitFieldNames ? '' : 'statsPush',
@@ -4546,6 +4814,33 @@ class WsRes extends $pb.GeneratedMessage {
     ..aOM<$14.ResChatHistoryClear>(
         133, _omitFieldNames ? '' : 'chatHistoryClear',
         subBuilder: $14.ResChatHistoryClear.$_createMessage)
+    ..aOM<$23.ResMailList>(134, _omitFieldNames ? '' : 'mailList',
+        subBuilder: $23.ResMailList.$_createMessage)
+    ..aOM<$23.ResMailGet>(135, _omitFieldNames ? '' : 'mailGet',
+        subBuilder: $23.ResMailGet.$_createMessage)
+    ..aOM<$23.ResMailSend>(136, _omitFieldNames ? '' : 'mailSend',
+        subBuilder: $23.ResMailSend.$_createMessage)
+    ..aOM<$23.ResMailMailboxList>(137, _omitFieldNames ? '' : 'mailMailboxList',
+        subBuilder: $23.ResMailMailboxList.$_createMessage)
+    ..aOM<$23.ResMailDomainList>(138, _omitFieldNames ? '' : 'mailDomainList',
+        subBuilder: $23.ResMailDomainList.$_createMessage)
+    ..aOM<$16.ResSiteDomainVerify>(
+        139, _omitFieldNames ? '' : 'siteDomainVerify',
+        subBuilder: $16.ResSiteDomainVerify.$_createMessage)
+    ..aOM<$23.ResMailDomainAdd>(140, _omitFieldNames ? '' : 'mailDomainAdd',
+        subBuilder: $23.ResMailDomainAdd.$_createMessage)
+    ..aOM<$14.ResPromptFollowupPut>(
+        141, _omitFieldNames ? '' : 'promptFollowupPut',
+        subBuilder: $14.ResPromptFollowupPut.$_createMessage)
+    ..aOM<$14.ResPromptFollowupList>(
+        142, _omitFieldNames ? '' : 'promptFollowupList',
+        subBuilder: $14.ResPromptFollowupList.$_createMessage)
+    ..aOM<$14.ResPromptFollowupCancel>(
+        143, _omitFieldNames ? '' : 'promptFollowupCancel',
+        subBuilder: $14.ResPromptFollowupCancel.$_createMessage)
+    ..aOM<$14.PromptFollowupPush>(
+        144, _omitFieldNames ? '' : 'promptFollowupPush',
+        subBuilder: $14.PromptFollowupPush.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -4652,6 +4947,17 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(131)
   @$pb.TagNumber(132)
   @$pb.TagNumber(133)
+  @$pb.TagNumber(134)
+  @$pb.TagNumber(135)
+  @$pb.TagNumber(136)
+  @$pb.TagNumber(137)
+  @$pb.TagNumber(138)
+  @$pb.TagNumber(139)
+  @$pb.TagNumber(140)
+  @$pb.TagNumber(141)
+  @$pb.TagNumber(142)
+  @$pb.TagNumber(143)
+  @$pb.TagNumber(144)
   WsRes_Body whichBody() => _WsRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(10)
@@ -4737,6 +5043,17 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(131)
   @$pb.TagNumber(132)
   @$pb.TagNumber(133)
+  @$pb.TagNumber(134)
+  @$pb.TagNumber(135)
+  @$pb.TagNumber(136)
+  @$pb.TagNumber(137)
+  @$pb.TagNumber(138)
+  @$pb.TagNumber(139)
+  @$pb.TagNumber(140)
+  @$pb.TagNumber(141)
+  @$pb.TagNumber(142)
+  @$pb.TagNumber(143)
+  @$pb.TagNumber(144)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -4749,15 +5066,15 @@ class WsRes extends $pb.GeneratedMessage {
   void clearReqId() => $_clearField(1);
 
   @$pb.TagNumber(2)
-  $23.Err get err => $_getN(1);
+  $24.Err get err => $_getN(1);
   @$pb.TagNumber(2)
-  set err($23.Err value) => $_setField(2, value);
+  set err($24.Err value) => $_setField(2, value);
   @$pb.TagNumber(2)
   $core.bool hasErr() => $_has(1);
   @$pb.TagNumber(2)
   void clearErr() => $_clearField(2);
   @$pb.TagNumber(2)
-  $23.Err ensureErr() => $_ensure(1);
+  $24.Err ensureErr() => $_ensure(1);
 
   @$pb.TagNumber(10)
   $12.ResSessionInit get sessionInit => $_getN(2);
@@ -5062,15 +5379,15 @@ class WsRes extends $pb.GeneratedMessage {
   $0.BillingPushCommission ensureBillingCommission() => $_ensure(28);
 
   @$pb.TagNumber(70)
-  $24.LogPush get logPush => $_getN(29);
+  $25.LogPush get logPush => $_getN(29);
   @$pb.TagNumber(70)
-  set logPush($24.LogPush value) => $_setField(70, value);
+  set logPush($25.LogPush value) => $_setField(70, value);
   @$pb.TagNumber(70)
   $core.bool hasLogPush() => $_has(29);
   @$pb.TagNumber(70)
   void clearLogPush() => $_clearField(70);
   @$pb.TagNumber(70)
-  $24.LogPush ensureLogPush() => $_ensure(29);
+  $25.LogPush ensureLogPush() => $_ensure(29);
 
   @$pb.TagNumber(71)
   $4.ChannelPairPush get channelPairPush => $_getN(30);
@@ -5683,6 +6000,131 @@ class WsRes extends $pb.GeneratedMessage {
   void clearChatHistoryClear() => $_clearField(133);
   @$pb.TagNumber(133)
   $14.ResChatHistoryClear ensureChatHistoryClear() => $_ensure(84);
+
+  @$pb.TagNumber(134)
+  $23.ResMailList get mailList => $_getN(85);
+  @$pb.TagNumber(134)
+  set mailList($23.ResMailList value) => $_setField(134, value);
+  @$pb.TagNumber(134)
+  $core.bool hasMailList() => $_has(85);
+  @$pb.TagNumber(134)
+  void clearMailList() => $_clearField(134);
+  @$pb.TagNumber(134)
+  $23.ResMailList ensureMailList() => $_ensure(85);
+
+  @$pb.TagNumber(135)
+  $23.ResMailGet get mailGet => $_getN(86);
+  @$pb.TagNumber(135)
+  set mailGet($23.ResMailGet value) => $_setField(135, value);
+  @$pb.TagNumber(135)
+  $core.bool hasMailGet() => $_has(86);
+  @$pb.TagNumber(135)
+  void clearMailGet() => $_clearField(135);
+  @$pb.TagNumber(135)
+  $23.ResMailGet ensureMailGet() => $_ensure(86);
+
+  @$pb.TagNumber(136)
+  $23.ResMailSend get mailSend => $_getN(87);
+  @$pb.TagNumber(136)
+  set mailSend($23.ResMailSend value) => $_setField(136, value);
+  @$pb.TagNumber(136)
+  $core.bool hasMailSend() => $_has(87);
+  @$pb.TagNumber(136)
+  void clearMailSend() => $_clearField(136);
+  @$pb.TagNumber(136)
+  $23.ResMailSend ensureMailSend() => $_ensure(87);
+
+  @$pb.TagNumber(137)
+  $23.ResMailMailboxList get mailMailboxList => $_getN(88);
+  @$pb.TagNumber(137)
+  set mailMailboxList($23.ResMailMailboxList value) => $_setField(137, value);
+  @$pb.TagNumber(137)
+  $core.bool hasMailMailboxList() => $_has(88);
+  @$pb.TagNumber(137)
+  void clearMailMailboxList() => $_clearField(137);
+  @$pb.TagNumber(137)
+  $23.ResMailMailboxList ensureMailMailboxList() => $_ensure(88);
+
+  @$pb.TagNumber(138)
+  $23.ResMailDomainList get mailDomainList => $_getN(89);
+  @$pb.TagNumber(138)
+  set mailDomainList($23.ResMailDomainList value) => $_setField(138, value);
+  @$pb.TagNumber(138)
+  $core.bool hasMailDomainList() => $_has(89);
+  @$pb.TagNumber(138)
+  void clearMailDomainList() => $_clearField(138);
+  @$pb.TagNumber(138)
+  $23.ResMailDomainList ensureMailDomainList() => $_ensure(89);
+
+  @$pb.TagNumber(139)
+  $16.ResSiteDomainVerify get siteDomainVerify => $_getN(90);
+  @$pb.TagNumber(139)
+  set siteDomainVerify($16.ResSiteDomainVerify value) => $_setField(139, value);
+  @$pb.TagNumber(139)
+  $core.bool hasSiteDomainVerify() => $_has(90);
+  @$pb.TagNumber(139)
+  void clearSiteDomainVerify() => $_clearField(139);
+  @$pb.TagNumber(139)
+  $16.ResSiteDomainVerify ensureSiteDomainVerify() => $_ensure(90);
+
+  @$pb.TagNumber(140)
+  $23.ResMailDomainAdd get mailDomainAdd => $_getN(91);
+  @$pb.TagNumber(140)
+  set mailDomainAdd($23.ResMailDomainAdd value) => $_setField(140, value);
+  @$pb.TagNumber(140)
+  $core.bool hasMailDomainAdd() => $_has(91);
+  @$pb.TagNumber(140)
+  void clearMailDomainAdd() => $_clearField(140);
+  @$pb.TagNumber(140)
+  $23.ResMailDomainAdd ensureMailDomainAdd() => $_ensure(91);
+
+  @$pb.TagNumber(141)
+  $14.ResPromptFollowupPut get promptFollowupPut => $_getN(92);
+  @$pb.TagNumber(141)
+  set promptFollowupPut($14.ResPromptFollowupPut value) =>
+      $_setField(141, value);
+  @$pb.TagNumber(141)
+  $core.bool hasPromptFollowupPut() => $_has(92);
+  @$pb.TagNumber(141)
+  void clearPromptFollowupPut() => $_clearField(141);
+  @$pb.TagNumber(141)
+  $14.ResPromptFollowupPut ensurePromptFollowupPut() => $_ensure(92);
+
+  @$pb.TagNumber(142)
+  $14.ResPromptFollowupList get promptFollowupList => $_getN(93);
+  @$pb.TagNumber(142)
+  set promptFollowupList($14.ResPromptFollowupList value) =>
+      $_setField(142, value);
+  @$pb.TagNumber(142)
+  $core.bool hasPromptFollowupList() => $_has(93);
+  @$pb.TagNumber(142)
+  void clearPromptFollowupList() => $_clearField(142);
+  @$pb.TagNumber(142)
+  $14.ResPromptFollowupList ensurePromptFollowupList() => $_ensure(93);
+
+  @$pb.TagNumber(143)
+  $14.ResPromptFollowupCancel get promptFollowupCancel => $_getN(94);
+  @$pb.TagNumber(143)
+  set promptFollowupCancel($14.ResPromptFollowupCancel value) =>
+      $_setField(143, value);
+  @$pb.TagNumber(143)
+  $core.bool hasPromptFollowupCancel() => $_has(94);
+  @$pb.TagNumber(143)
+  void clearPromptFollowupCancel() => $_clearField(143);
+  @$pb.TagNumber(143)
+  $14.ResPromptFollowupCancel ensurePromptFollowupCancel() => $_ensure(94);
+
+  @$pb.TagNumber(144)
+  $14.PromptFollowupPush get promptFollowupPush => $_getN(95);
+  @$pb.TagNumber(144)
+  set promptFollowupPush($14.PromptFollowupPush value) =>
+      $_setField(144, value);
+  @$pb.TagNumber(144)
+  $core.bool hasPromptFollowupPush() => $_has(95);
+  @$pb.TagNumber(144)
+  void clearPromptFollowupPush() => $_clearField(144);
+  @$pb.TagNumber(144)
+  $14.PromptFollowupPush ensurePromptFollowupPush() => $_ensure(95);
 }
 
 const $core.bool _omitFieldNames =

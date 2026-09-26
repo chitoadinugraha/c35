@@ -120,5 +120,30 @@ class ChatMsgStatus extends $pb.ProtobufEnum {
   const ChatMsgStatus._(super.value, super.name);
 }
 
+class PromptFollowupKind extends $pb.ProtobufEnum {
+  static const PromptFollowupKind PROMPT_FOLLOWUP_KIND_UNSPECIFIED =
+      PromptFollowupKind._(
+          0, _omitEnumNames ? '' : 'PROMPT_FOLLOWUP_KIND_UNSPECIFIED');
+  static const PromptFollowupKind PROMPT_FOLLOWUP_KIND_STEER =
+      PromptFollowupKind._(
+          1, _omitEnumNames ? '' : 'PROMPT_FOLLOWUP_KIND_STEER');
+  static const PromptFollowupKind PROMPT_FOLLOWUP_KIND_QUEUE =
+      PromptFollowupKind._(
+          2, _omitEnumNames ? '' : 'PROMPT_FOLLOWUP_KIND_QUEUE');
+
+  static const $core.List<PromptFollowupKind> values = <PromptFollowupKind>[
+    PROMPT_FOLLOWUP_KIND_UNSPECIFIED,
+    PROMPT_FOLLOWUP_KIND_STEER,
+    PROMPT_FOLLOWUP_KIND_QUEUE,
+  ];
+
+  static final $core.List<PromptFollowupKind?> _byValue =
+      $pb.ProtobufEnum.$_initByValueList(values, 2);
+  static PromptFollowupKind? valueOf($core.int value) =>
+      value < 0 || value >= _byValue.length ? null : _byValue[value];
+
+  const PromptFollowupKind._(super.value, super.name);
+}
+
 const $core.bool _omitEnumNames =
     $core.bool.fromEnvironment('protobuf.omit_enum_names');

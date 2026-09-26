@@ -10,6 +10,7 @@ mod log_list;
 pub mod compose;
 mod inst;
 pub mod prompt_run;
+pub mod prompt_followup;
 mod inst_admin;
 mod object_admin;
 mod mcp_agent;
@@ -84,11 +85,19 @@ pub use memory::{memory_prompt_merge, memory_put, memory_retrieve, MemoryRetriev
 pub use memory_extract::memory_extract_turn_gate;
 pub use prompt::audio;
 pub use prompt::gemini::gemini_api_key;
+pub use prompt_followup::{
+    prompt_followup_append_to_contents, prompt_followup_cancel_rpc, prompt_followup_enabled,
+    prompt_followup_list, prompt_followup_publish_state, prompt_followup_put,
+    prompt_followup_push_from_list, prompt_followup_start_next_queued, prompt_followup_active_req,
+    prompt_followup_cancel_all_for_req, prompt_followup_drain_steers, prompt_followup_next_queued,
+    prompt_followup_mark_queue_delivered, FollowupRow,
+};
 pub use prompt_run::{
     checkpoint_fatal_fail_class, prompt_run_cancel_children, prompt_run_cancel_request,
     prompt_run_checkpoint_save, prompt_run_enqueue, prompt_run_get, prompt_run_hydrate_replay,
-    prompt_run_insert, prompt_run_is_cancelled, prompt_run_is_terminal, prompt_run_kind_default,
-    prompt_run_lease_touch, prompt_run_row_new, prompt_run_should_stop, prompt_run_status_set,
+    prompt_run_finish, prompt_run_insert, prompt_run_is_cancelled, prompt_run_is_terminal,
+    prompt_run_kind_default, prompt_run_lease_touch, prompt_run_row_channel, prompt_run_row_new,
+    prompt_run_should_stop, prompt_run_status_set,
     prompt_run_pool_diag_spawn, prompt_run_summary, prompt_run_wait_terminal,
     prompt_run_worker_start, PromptRunRow,
     PromptRunWorker,

@@ -151,6 +151,24 @@ pub async fn prompt_cluster_turn(
     }
     for round in 0..rounds_max {
         if cancel.is_cancelled() { anyhow::bail!("aborted"); }
+        if let Some(ctx) = turn_ctx.as_ref() {
+            if crate::prompt_followup::prompt_followup_enabled() {
+                match crate::prompt_followup::prompt_followup_drain_steers(
+                    ctx.pool,
+                    ctx.req_id,
+                    ctx.chat_id,
+                    ctx.owner_iid,
+                )
+                .await
+                {
+                    Ok(steer_texts) if !steer_texts.is_empty() => {
+                        crate::prompt_followup::prompt_followup_append_to_contents(&mut contents, &steer_texts);
+                    }
+                    Err(e) => tracing::warn!("[c35:prompt_followup] drain failed req_id={}: {e:#}", ctx.req_id),
+                    _ => {}
+                }
+            }
+        }
         let wrap = chat_tool_rounds_done(round + 1, run_kind);
         let hop = round + 1;
         let hop_started = Instant::now();

@@ -166,6 +166,62 @@ message ReqPromptAbort {
   string req_id = 2;   // empty = legacy chat-level abort
 }
 
+enum PromptFollowupKind {
+  PROMPT_FOLLOWUP_KIND_UNSPECIFIED = 0;
+  PROMPT_FOLLOWUP_KIND_STEER = 1;
+  PROMPT_FOLLOWUP_KIND_QUEUE = 2;
+}
+
+message ReqPromptFollowupPut {
+  int64 chat_id = 1;
+  string req_id = 2;
+  string text = 3;
+  string attachments_json = 4;
+  PromptFollowupKind kind = 5;
+}
+
+message ResPromptFollowupPut {
+  string id = 1;
+  string req_id = 2;
+  int32 queue_depth = 3;
+  bool rejected = 4;
+  string reject_reason = 5;
+}
+
+message PromptFollowupRow {
+  string id = 1;
+  string req_id = 2;
+  int64 chat_id = 3;
+  PromptFollowupKind kind = 4;
+  string status = 5;
+  string text = 6;
+  int32 seq = 7;
+  int64 created_ts_ms = 8;
+}
+
+message ReqPromptFollowupList {
+  int64 chat_id = 1;
+  string req_id = 2;
+}
+
+message ResPromptFollowupList {
+  repeated PromptFollowupRow items = 1;
+  string active_req_id = 2;
+}
+
+message ReqPromptFollowupCancel {
+  string id = 1;
+}
+
+message ResPromptFollowupCancel {
+  bool ok = 1;
+}
+
+message PromptFollowupPush {
+  string active_req_id = 1;
+  repeated PromptFollowupRow items = 2;
+}
+
 message PromptRunPush {
   string req_id = 1;
   string parent_req_id = 2;

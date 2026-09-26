@@ -13,6 +13,7 @@ import "c35/log.proto";
 import "c35/skill.proto";
 import "c35/consumption.proto";
 import "c35/site.proto";
+import "c35/mail.proto";
 import "c35/collection.proto";
 import "c35/tx.proto";
 import "c35/referral.proto";
@@ -228,6 +229,18 @@ message WsReq {
     ReqSiteQueryRun site_query_run = 83;
     ReqExpensePut expense_put = 84;
     ReqChatHistoryClear chat_history_clear = 85;
+
+    ReqMailList mail_list = 86;
+    ReqMailGet mail_get = 87;
+    ReqMailSend mail_send = 88;
+    ReqMailMailboxList mail_mailbox_list = 89;
+    ReqMailDomainList mail_domain_list = 90;
+    ReqSiteDomainVerify site_domain_verify = 91;
+    ReqMailDomainAdd mail_domain_add = 92;
+
+    ReqPromptFollowupPut prompt_followup_put = 141;
+    ReqPromptFollowupList prompt_followup_list = 142;
+    ReqPromptFollowupCancel prompt_followup_cancel = 143;
   }
 }
 
@@ -334,5 +347,18 @@ message WsRes {
     ResSiteQueryRun site_query_run = 131;
     ResExpensePut expense_put = 132;
     ResChatHistoryClear chat_history_clear = 133;
+
+    ResMailList mail_list = 134;
+    ResMailGet mail_get = 135;
+    ResMailSend mail_send = 136;
+    ResMailMailboxList mail_mailbox_list = 137;
+    ResMailDomainList mail_domain_list = 138;
+    ResSiteDomainVerify site_domain_verify = 139;
+    ResMailDomainAdd mail_domain_add = 140;
+
+    ResPromptFollowupPut prompt_followup_put = 141;
+    ResPromptFollowupList prompt_followup_list = 142;
+    ResPromptFollowupCancel prompt_followup_cancel = 143;
+    PromptFollowupPush prompt_followup_push = 144;
   }
 }

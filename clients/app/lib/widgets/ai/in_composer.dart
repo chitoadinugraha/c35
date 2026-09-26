@@ -5,6 +5,7 @@ import 'package:alienai_c35/c/cas/cas_client.dart';
 import 'package:alienai_c35/c/catalog/catalog_api.dart';
 import 'package:alienai_c35/c/catalog/catalog_translation_cache.dart';
 import 'package:alienai_c35/c/files/msg_attachment.dart';
+import 'package:alienai_c35/c/pb/c35/chat.pb.dart';
 import 'package:alienai_c35/c/llm/agent_model.dart';
 import 'package:alienai_c35/c/media/ask_media.dart';
 import 'package:alienai_c35/c/media/media_types.dart';
@@ -64,6 +65,9 @@ class InComposer extends StatefulWidget {
     this.controller,
     this.focusNode,
     this.showSpeakIndicator = true,
+    this.followupRows = const [],
+    this.onFollowupSteer,
+    this.onFollowupRemove,
   });
 
   final void Function(String text, List<MsgAttachment> attachments, {String? toolMode}) onSend;
@@ -86,6 +90,9 @@ class InComposer extends StatefulWidget {
   final TextEditingController? controller;
   final FocusNode? focusNode;
   final bool showSpeakIndicator;
+  final List<PromptFollowupRow> followupRows;
+  final void Function(PromptFollowupRow row)? onFollowupSteer;
+  final void Function(PromptFollowupRow row)? onFollowupRemove;
 
   @override
   State<InComposer> createState() => _InComposerState();
@@ -146,8 +153,8 @@ class _InComposerState extends State<InComposer> {
   ];
 
   bool get _hasText => _controller.text.trim().isNotEmpty || _attachments.isNotEmpty;
-  bool get _canSubmit => widget.enabled && !widget.busy && !_submitting && !_recording && _hasText;
-  String get _hintText => _recording ? 'composer.listening'.tr() : widget.hint;
+  bool get _canSubmit => widget.enabled && !_submitting && !_recording && _hasText;
+  String get _hintText => _recording ? 'composer.listening'.tr() : (widget.busy ? 'Send follow-up' : widget.hint);
   bool get _askActive => widget.toolMode == 'ask';
   List<CatalogMention> get _composerMentions => widget.mentions.where((m) => m.id != 'image').toList(growable: false);
   bool get _hasSelectedMentions => widget.selectedMentionIds.any((id) => id != 'image');
@@ -677,6 +684,60 @@ class _InComposerState extends State<InComposer> {
     if (kind == ComposerActionKind.mic) unawaited(_startMic());
   }
 
+  Widget _followupQueueBox() {
+    final rows = widget.followupRows;
+    if (rows.isEmpty) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF27272A),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF3F3F46)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            child: Text('${rows.length} queued', style: const TextStyle(color: zinc500, fontSize: 11, fontWeight: FontWeight.w600)),
+          ),
+          for (final row in rows)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      row.text,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: zinc100, fontSize: 13),
+                    ),
+                  ),
+                  if (widget.onFollowupSteer != null)
+                    TextButton.icon(
+                      onPressed: () => widget.onFollowupSteer!(row),
+                      icon: const Icon(Icons.subdirectory_arrow_left_rounded, size: 16),
+                      label: const Text('Steer'),
+                      style: TextButton.styleFrom(foregroundColor: const Color(0xFF38BDF8), padding: const EdgeInsets.symmetric(horizontal: 8)),
+                    ),
+                  if (widget.onFollowupRemove != null)
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 18, color: zinc500),
+                      onPressed: () => widget.onFollowupRemove!(row),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _slashSuggestionsBox() {
     final matches = _slashMatches;
     if (matches.isEmpty) return const SizedBox.shrink();
@@ -894,7 +955,7 @@ class _InComposerState extends State<InComposer> {
         key: const ValueKey('composer_text_field'),
         controller: _controller,
         focusNode: _focus,
-        enabled: widget.enabled && !widget.busy && !_recording,
+        enabled: widget.enabled && !_recording,
         minLines: 1,
         maxLines: 6,
         keyboardType: TextInputType.multiline,
@@ -1092,6 +1153,7 @@ class _InComposerState extends State<InComposer> {
                   ],
                 ),
               ),
+            _followupQueueBox(),
             _slashSuggestionsBox(),
             _mentionSuggestionsBox(),
             _selectedMentionRow(),

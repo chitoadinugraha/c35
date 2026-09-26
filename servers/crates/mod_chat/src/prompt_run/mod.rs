@@ -18,8 +18,8 @@ pub use checkpoint::{
     SCREENSHOT_STUCK_LEN,
 };
 pub use fanout::{
-    prompt_chat_subject, prompt_run_fanout_delta, prompt_run_fanout_end, prompt_run_fanout_fail,
-    prompt_run_fanout_publish, prompt_run_fanout_start, prompt_run_push_from_row,
+    prompt_chat_subject, prompt_followup_fanout_push, prompt_run_fanout_delta, prompt_run_fanout_end,
+    prompt_run_fanout_fail, prompt_run_fanout_publish, prompt_run_fanout_start, prompt_run_push_from_row,
 };
 pub use jetstream::{
     prompt_jetstream_consumer, prompt_jetstream_ensure, prompt_run_job_publish, CONSUMER_NAME,
@@ -30,7 +30,8 @@ pub use store::{
     prompt_run_cancel_children, prompt_run_cancel_request, prompt_run_checkpoint_save,
     prompt_run_delivery_inc, prompt_run_finish, prompt_run_get, prompt_run_insert,
     prompt_run_is_cancelled, prompt_run_is_terminal, prompt_run_kind_default, prompt_run_lease_touch,
-    prompt_run_list_active, prompt_run_list_queued, prompt_run_over_max_deliver, prompt_run_row_new,
+    prompt_run_list_active, prompt_run_list_queued, prompt_run_over_max_deliver, prompt_run_row_channel,
+    prompt_run_row_new,
     prompt_run_status_set, prompt_run_summary, prompt_run_wait_terminal, PromptRunActiveDiag,
     PromptRunRow,
 };

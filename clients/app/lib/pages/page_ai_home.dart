@@ -30,6 +30,8 @@ import 'package:alienai_c35/c/location/user_location_prefs.dart';
 import 'package:alienai_c35/c/settings/user_locale_prefs.dart';
 import 'package:alienai_c35/c/settings/voice_prefs.dart';
 import 'package:alienai_c35/c/store/chat_store.dart';
+import 'package:alienai_c35/c/store/prompt_followup_store.dart';
+import 'package:alienai_c35/widgets/ai/prompt_followup_format.dart';
 import 'package:alienai_c35/c/store/prompt_run_store.dart';
 import 'package:alienai_c35/c/stt/stt_service.dart';
 import 'package:alienai_c35/c/tts/tts_service.dart';
@@ -112,6 +114,8 @@ class _PageAIHomeState extends State<PageAIHome> {
   StreamSubscription? _billingQuotaSub;
   StreamSubscription? _billingCommissionSub;
   StreamSubscription? _reconnectedSub;
+  StreamSubscription? _followupPushSub;
+  StreamSubscription? _promptRunPushSub;
   var _menuMsgIndex = 0;
   var _retrying = false;
   var _hintRunning = false;
@@ -129,6 +133,19 @@ class _PageAIHomeState extends State<PageAIHome> {
       unawaited(_store.refreshFromConn(_conn, locale: CatalogTranslationCache.instance.lang));
       if (mounted) setState(() {});
     });
+    _followupPushSub = _conn.onPromptFollowupPush.listen((p) {
+      PromptFollowupStore.instance.mergePush(p);
+      if (mounted) setState(() {});
+    });
+    _promptRunPushSub = _conn.onPromptRunPush.listen((push) {
+      if (push.parentReqId.isNotEmpty) return;
+      final cid = _store.activeChatId;
+      if (cid == null) return;
+      if (push.status == 'queued' && !_store.promptBusyFor(cid)) {
+        unawaited(_attachQueuedPromptRun(push.reqId, cid));
+      }
+    });
+    PromptFollowupStore.instance.addListener(_onFollowupStoreChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_boot());
       _checkReferralPrompt();
@@ -155,6 +172,106 @@ class _PageAIHomeState extends State<PageAIHome> {
     if (mounted) setState(() {});
   }
 
+  void _onFollowupStoreChanged() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _followupRefresh() async {
+    final cid = _store.activeChatId;
+    if (cid == null || cid <= 0) return;
+    try {
+      final res = await _conn.promptFollowupList(chatId: cid, reqId: _conn.lastPromptReqId ?? '');
+      PromptFollowupStore.instance.merge(res);
+    } catch (_) {}
+  }
+
+  Future<void> _followupSteer(PromptFollowupRow row) async {
+    final cid = _store.activeChatId;
+    if (cid == null) return;
+    try {
+      final res = await _conn.promptFollowupPut(
+        chatId: cid,
+        text: row.text,
+        reqId: _conn.lastPromptReqId ?? '',
+        kind: PromptFollowupKind.PROMPT_FOLLOWUP_KIND_STEER,
+      );
+      if (res.rejected && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(promptFollowupRejectLabel(res.rejectReason, localeCode: context.locale.languageCode))),
+        );
+      } else if (!res.rejected) {
+        await _conn.promptFollowupCancel(id: row.id);
+      }
+      await _followupRefresh();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    }
+  }
+
+  Future<void> _followupRemove(PromptFollowupRow row) async {
+    try {
+      await _conn.promptFollowupCancel(id: row.id);
+      await _followupRefresh();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    }
+  }
+
+  Future<void> _attachQueuedPromptRun(String reqId, int chatId) async {
+    if (_store.promptBusyFor(chatId)) return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    _store.promptBusyPut(true, chatId: chatId, reqId: reqId);
+    _store.msgPut(MsgRow(
+      id: _store.msgNextLocalId(),
+      chatId: chatId,
+      role: 'assistant',
+      content: '',
+      createdAtMs: now + 1,
+      reqId: reqId,
+    ));
+    _store.msgStreamStart(chatId: chatId, reqId: reqId, model: _model.id);
+    final startedAt = _store.promptStartedAtMs;
+    try {
+      await for (final ev in _conn.promptAttach(reqId: reqId)) {
+        if (ev.kind == 'delta') {
+          if (ev.thought) {
+            _store.msgStreamThought(ev.text, chatId: chatId);
+          } else if (ev.blocksJson.isNotEmpty) {
+            _store.msgStreamBlocks(ev.blocksJson, chatId: chatId);
+          } else {
+            _store.msgStreamContent(ev.text, chatId: chatId);
+          }
+          continue;
+        }
+        if (ev.kind == 'end' && ev.end != null) {
+          final end = ev.end!;
+          _store.msgStreamEnd(
+            chatId: chatId,
+            msgId: end.msgId.toInt(),
+            tokensIn: end.tokensIn,
+            tokensOut: end.tokensOut,
+            costUsd: end.costUsd,
+            durationMs: end.durationMs,
+            reqId: end.reqId,
+            model: end.model,
+            error: end.hasErrorMessage() ? end.errorMessage : '',
+          );
+          continue;
+        }
+        if (ev.kind == 'fail') {
+          _store.msgStreamFail(msgErrorNormalize(ev.message), chatId: chatId, startedAtMs: startedAt);
+        }
+      }
+    } catch (e) {
+      _store.msgStreamFail(msgErrorNormalize(e), chatId: chatId, startedAtMs: startedAt);
+    } finally {
+      _store.msgStreamFinalize(chatId: chatId, model: _model.id, startedAtMs: startedAt);
+      if (_store.promptBusyFor(chatId)) _store.promptBusyPut(false, chatId: chatId);
+      PromptFollowupStore.instance.clear();
+      if (mounted) setState(() {});
+    }
+  }
+
   void _checkReferralPrompt() {
     if (!mounted) return;
     if (Session.instance.needsReferralPrompt) {
@@ -171,6 +288,9 @@ class _PageAIHomeState extends State<PageAIHome> {
     _billingQuotaSub?.cancel();
     _billingCommissionSub?.cancel();
     _reconnectedSub?.cancel();
+    _followupPushSub?.cancel();
+    _promptRunPushSub?.cancel();
+    PromptFollowupStore.instance.removeListener(_onFollowupStoreChanged);
     _timeline.dispose();
     _conn.disconnect();
     _canvasStore.dispose();
@@ -590,7 +710,29 @@ class _PageAIHomeState extends State<PageAIHome> {
   Future<void> _composerSend(String text, List<MsgAttachment> attachments, {bool retry = false, String? toolMode, List<String>? mentionIds}) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty && attachments.isEmpty) return;
-    if (_store.promptBusy && !retry) return;
+    if (_store.promptBusy && !retry) {
+      final cid = _store.activeChatId;
+      if (cid == null) return;
+      try {
+        final res = await _conn.promptFollowupPut(
+          chatId: cid,
+          text: trimmed,
+          reqId: _conn.lastPromptReqId ?? '',
+          attachmentsJson: MsgAttachment.encode(attachments),
+        );
+        if (res.rejected && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(promptFollowupRejectLabel(res.rejectReason, localeCode: context.locale.languageCode))),
+          );
+        } else {
+          _composerReset();
+          await _followupRefresh();
+        }
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      }
+      return;
+    }
     unawaited(TtsService.instance.stop());
 
     var chatId = _store.activeChatId;
@@ -651,6 +793,7 @@ class _PageAIHomeState extends State<PageAIHome> {
         reqId: reqId,
       );
     _store.promptBusyPut(true, chatId: chatId, reqId: reqId);
+    unawaited(_followupRefresh());
     _store.msgStreamStart(chatId: chatId, reqId: reqId, model: _model.id);
     final promptStartedAtMs = _store.promptStartedAtMs;
     try {
@@ -737,6 +880,7 @@ class _PageAIHomeState extends State<PageAIHome> {
       for (final cid in {streamChatId, localChatId}) {
         if (_store.promptBusyFor(cid)) _store.promptBusyPut(false, chatId: cid);
       }
+      PromptFollowupStore.instance.clear();
       if (_store.activeChatId == streamChatId) _timeline.scrollToBottom(force: true);
     }
   }
@@ -994,6 +1138,9 @@ class _PageAIHomeState extends State<PageAIHome> {
               onSend: (text, atts, {toolMode}) => _composerSend(text, atts, toolMode: toolMode),
               onAbort: _store.promptBusyFor(_store.activeChatId) ? _abortPrompt : null,
               busy: _store.promptBusyFor(_store.activeChatId),
+              followupRows: promptFollowupQueueRows(PromptFollowupStore.instance.items),
+              onFollowupSteer: _followupSteer,
+              onFollowupRemove: _followupRemove,
               enabled: _catalogReady,
             ),
           ),

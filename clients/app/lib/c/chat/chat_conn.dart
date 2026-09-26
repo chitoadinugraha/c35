@@ -97,6 +97,7 @@ class ChatConn {
   final _statsPushCtrl = StreamController<StatsPush>.broadcast();
   final _logPushCtrl = StreamController<LogPush>.broadcast();
   final _promptRunPushCtrl = StreamController<PromptRunPush>.broadcast();
+  final _promptFollowupPushCtrl = StreamController<PromptFollowupPush>.broadcast();
   final _traceCache = <String, List<TraceLogDoc>>{};
   final _traceCacheCtrl = StreamController<String>.broadcast();
 
@@ -110,6 +111,7 @@ class ChatConn {
   Stream<StatsPush> get onStatsPush => _statsPushCtrl.stream;
   Stream<LogPush> get onLogPush => _logPushCtrl.stream;
   Stream<PromptRunPush> get onPromptRunPush => _promptRunPushCtrl.stream;
+  Stream<PromptFollowupPush> get onPromptFollowupPush => _promptFollowupPushCtrl.stream;
   Stream<void> get onReconnected => _reconnectedCtrl.stream;
 
   bool get connected => _ch != null;
@@ -266,6 +268,10 @@ class ChatConn {
       final push = res.promptRunPush;
       PromptRunStore.instance.put(push);
       if (!_promptRunPushCtrl.isClosed) _promptRunPushCtrl.add(push);
+    }
+    if (res.hasPromptFollowupPush()) {
+      final push = res.promptFollowupPush;
+      if (!_promptFollowupPushCtrl.isClosed) _promptFollowupPushCtrl.add(push);
     }
     if (_isRemoteSignal(res) && !_remoteSignalCtrl.isClosed) _remoteSignalCtrl.add(res);
 
@@ -641,6 +647,18 @@ class ChatConn {
         (res) => res.siteDomainPut,
       );
 
+  Future<ResSiteDomainVerify> siteDomainVerify(int siteIid, int domainId, {bool forceTls = false}) =>
+      _rpc<ResSiteDomainVerify>(
+        WsReq(
+          siteDomainVerify: ReqSiteDomainVerify(
+            siteIid: Int64(siteIid),
+            domainId: Int64(domainId),
+            forceTls: forceTls,
+          ),
+        ),
+        (res) => res.siteDomainVerify,
+      );
+
   Future<ResSiteConfigPut> siteConfigPut(int siteIid, {required String capabilitiesJson}) => _rpc<ResSiteConfigPut>(
         WsReq(siteConfigPut: ReqSiteConfigPut(siteIid: Int64(siteIid), capabilitiesJson: capabilitiesJson)),
         (res) => res.siteConfigPut,
@@ -735,6 +753,49 @@ class ChatConn {
   Future<ResChatSend> chatSend(int chatId, String text, {String attachmentsJson = '[]'}) => _rpc<ResChatSend>(
         WsReq(chatSend: ReqChatSend(chatId: Int64(chatId), text: text, attachmentsJson: attachmentsJson)),
         (res) => res.chatSend,
+      );
+
+  Future<ResPromptFollowupPut> promptFollowupPut({
+    required int chatId,
+    required String text,
+    String reqId = '',
+    String attachmentsJson = '[]',
+    PromptFollowupKind kind = PromptFollowupKind.PROMPT_FOLLOWUP_KIND_QUEUE,
+  }) =>
+      _rpc<ResPromptFollowupPut>(
+        WsReq(
+          promptFollowupPut: ReqPromptFollowupPut(
+            chatId: Int64(chatId),
+            reqId: reqId,
+            text: text,
+            attachmentsJson: attachmentsJson,
+            kind: kind,
+          ),
+        ),
+        (res) => res.promptFollowupPut,
+      );
+
+  Stream<PromptStreamEvent> promptAttach({required String reqId}) async* {
+    if (_ch == null) await connect();
+    final id = reqId.trim();
+    if (id.isEmpty) return;
+    final ctrl = StreamController<PromptStreamEvent>();
+    _promptPending[id] = ctrl;
+    lastPromptReqId = id;
+    yield* ctrl.stream;
+  }
+
+  Future<ResPromptFollowupCancel> promptFollowupCancel({required String id}) => _rpc<ResPromptFollowupCancel>(
+        WsReq(promptFollowupCancel: ReqPromptFollowupCancel(id: id)),
+        (res) => res.promptFollowupCancel,
+      );
+
+  Future<ResPromptFollowupList> promptFollowupList({required int chatId, String reqId = ''}) =>
+      _rpc<ResPromptFollowupList>(
+        WsReq(
+          promptFollowupList: ReqPromptFollowupList(chatId: Int64(chatId), reqId: reqId),
+        ),
+        (res) => res.promptFollowupList,
       );
 
   Future<void> promptAbort({Int64 chatId = Int64.ZERO, String reqId = ''}) async {

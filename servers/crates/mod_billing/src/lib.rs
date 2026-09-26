@@ -5,6 +5,7 @@ mod fetch_fx;
 mod fx_live;
 mod billing_freemium;
 mod billing_finance;
+mod billing_followup;
 mod billing_history;
 mod billing_midtrans;
 mod billing_on_demand;
@@ -56,6 +57,7 @@ pub use billing_signup_credit::billing_signup_credit;
 pub use billing_history::billing_history;
 pub use billing_push::billing_notify_owner;
 pub use billing_summary::billing_summary;
+pub use billing_followup::{billing_followup_caps, FollowupCaps};
 pub use billing_freemium::{
     billing_freemium_add_tokens, billing_freemium_applies, billing_freemium_check,
     billing_freemium_reserve_turn, billing_freemium_snapshot, billing_freemium_wire,

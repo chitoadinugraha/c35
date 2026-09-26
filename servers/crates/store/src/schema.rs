@@ -2,6 +2,7 @@ pub const IDENTITY_SQL: &str = include_str!("../../../../_/schemas/identity.sql"
 pub const BILLING_SQL: &str = include_str!("../../../../_/schemas/billing.sql");
 pub const CHAT_SQL: &str = include_str!("../../../../_/schemas/chat.sql");
 pub const PROMPT_RUN_SQL: &str = include_str!("../../../../_/schemas/prompt_run.sql");
+pub const PROMPT_FOLLOWUP_SQL: &str = include_str!("../../../../_/schemas/prompt_followup.sql");
 pub const ASSET_TAG_SQL: &str = include_str!("../../../../_/schemas/asset_tag.sql");
 pub const LOG_SQL: &str = include_str!("../../../../_/schemas/log.sql");
 pub const EMBED_SQL: &str = include_str!("../../../../_/schemas/embed.sql");
@@ -9,6 +10,7 @@ pub const SKILL_SQL: &str = include_str!("../../../../_/schemas/skill.sql");
 pub const TASK_SQL: &str = include_str!("../../../../_/schemas/task.sql");
 pub const CONSUMPTION_SQL: &str = include_str!("../../../../_/schemas/consumption.sql");
 pub const SITE_SQL: &str = include_str!("../../../../_/schemas/site.sql");
+pub const MAIL_SQL: &str = include_str!("../../../../_/schemas/mail.sql");
 pub const TX_SQL: &str = include_str!("../../../../_/schemas/tx.sql");
 pub const FILE_SQL: &str = include_str!("../../../../_/schemas/file.sql");
 pub const INST_SQL: &str = include_str!("../../../../_/schemas/inst.sql");
@@ -23,9 +25,11 @@ pub const CONFIG_SQL: &str = include_str!("../../../../_/schemas/config.sql");
 
 pub const SCHEMA_APPLY_ORDER: &[(&str, &str)] = &[
     ("identity", IDENTITY_SQL),
+    ("mail", MAIL_SQL),
     ("billing", BILLING_SQL),
     ("chat", CHAT_SQL),
     ("prompt_run", PROMPT_RUN_SQL),
+    ("prompt_followup", PROMPT_FOLLOWUP_SQL),
     ("asset_tag", ASSET_TAG_SQL),
     ("log", LOG_SQL),
     ("embed", EMBED_SQL),

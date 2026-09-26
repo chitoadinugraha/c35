@@ -69,6 +69,17 @@ Prompt turns are submitted via `ReqPrompt` and enqueued onto NATS JetStream stre
 3. Client WebSocket on any server pod subscribes to the user subject and delivers frames to app.
 4. **Crash recovery:** If a server pod restarts or crashes during a turn, JetStream redelivers unacknowledged prompt jobs to another surviving pod. The client reconnects, re-subscribes, and resumes without losing state.
 
+### Mid-run follow-up (queue + steer)
+
+While `ai.prompt_run` is **active** (`queued` / `running` / `waiting_child`), the app may send **`PromptFollowupPut`** instead of starting a second turn:
+
+| Kind | Behavior | Plan caps (`billing_plan.caps_json`) |
+|------|----------|--------------------------------------|
+| **steer** | Same `req_id`; drained at tool-loop boundary as a user refinement | Lite: 3; Plus/Pro/Ultra: 20 |
+| **queue** | FIFO row in `ai.prompt_followup`; after the turn finishes, **one** queued message becomes a **new** `req_id` + JetStream job | Lite: 0; paid: 5 |
+
+Wire: `ReqPromptFollowupPut` / `List` / `Cancel`, push `PromptFollowupPush` on fanout. Disable cluster-wide with `C35_PROMPT_FOLLOWUP=0`. Schema: [`_/schemas/prompt_followup.sql`](../schemas/prompt_followup.sql).
+
 ---
 
 ## Kind: `prompt` (personal AI)
