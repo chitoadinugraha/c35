@@ -193,7 +193,7 @@ class _PageDevicesState extends State<PageDevices> {
                               kind: id.kind,
                               type: id.type,
                               pinned: row.isPinned,
-                              clusterOnline: deviceOnlineFromMeta(id.metaJson),
+                              clusterOnline: deviceClusterOnline(id.metaJson, remoteSessionActive: session.connected.value),
                               webrtcConnected: session.connected.value,
                               webrtcConnecting: session.isLinking,
                               selected: _store.selectedId == sid,

@@ -5,6 +5,8 @@ import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
 import 'package:alienai_c35/c/pb/c35/remote.pbenum.dart';
 import 'package:alienai_c35/c/pb/c35/skill.pb.dart';
 import 'package:alienai_c35/c/remote/remote_session.dart';
+import 'package:alienai_c35/c/settings/remote_prefs.dart';
+import 'dart:async';
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/widgets/devices/ui_device_files.dart';
 import 'package:alienai_c35/widgets/devices/ui_remote_device.dart';
@@ -14,6 +16,7 @@ import 'package:alienai_c35/widgets/ui/ui_safe_area.dart';
 import 'package:alienai_c35/widgets/ui/ui_window_bar.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:window_manager/window_manager.dart';
 
 const _border = Color(0xFF27272A);
 const _muted = Color(0xFF71717A);
@@ -41,30 +44,29 @@ class UiDeviceDetail extends StatefulWidget {
 }
 
 class _UiDeviceDetailState extends State<UiDeviceDetail> {
-  var _softKeyboard = false;
+  var _remoteInteractMode = RemoteInteractMode.control;
+  var _remoteShowStats = false;
   final _skillKey = GlobalKey<UiSkillMasterDetailState>();
-  var _filesSearchOpen = false;
-  var _filesSearchQuery = '';
-  late final _filesSearchCtrl = TextEditingController();
-  late final _filesSearchFocus = FocusNode();
   late final RemoteSession _session;
 
   @override
   void initState() {
     super.initState();
     _session = RemoteSession.of(widget.chatConn, widget.row.identity.iid.toInt());
-    _filesSearchCtrl.addListener(() => setState(() => _filesSearchQuery = _filesSearchCtrl.text));
     if (widget.row.identity.kind.toLowerCase() == 'remote' && widget.chatConn.connected && !_session.connected.value) {
       _session.start().catchError((e) {
         lError('device detail auto-connect failed: $e');
       });
     }
+    unawaited(
+      RemotePrefs.instance.load().then((_) {
+        if (mounted) setState(() => _remoteShowStats = RemotePrefs.instance.showStreamStats);
+      }),
+    );
   }
 
   @override
   void dispose() {
-    _filesSearchCtrl.dispose();
-    _filesSearchFocus.dispose();
     super.dispose();
   }
 
@@ -90,7 +92,6 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> {
                   animation: controller,
                   builder: (context, _) {
                     final isRemote = kind == 'remote' && controller.index == 0;
-                    final isFiles = kind == 'remote' && controller.index == 1;
                     final isSkill = kind == 'remote' && controller.index == 3;
                     return Padding(
                       padding: const EdgeInsets.fromLTRB(8, 0, 4, 0),
@@ -108,13 +109,6 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> {
                               tabs: [for (final t in tabs) Tab(text: t)],
                             ),
                           ),
-                          if (isFiles) ...[
-                            if (_filesSearchOpen)
-                              SizedBox(width: 220, child: _filesSearchBar())
-                            else
-                              _toolBtn(icon: Icons.search, tooltip: 'Search files', onPressed: _openFilesSearch),
-                            const SizedBox(width: 8),
-                          ],
                           if (isSkill)
                             Builder(
                               builder: (ctx) => _toolBtn(
@@ -150,16 +144,35 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> {
                                 return badge;
                               },
                             ),
-                            if (mobile) ...[
-                              const SizedBox(width: 10),
-                              _toolBtn(
-                                icon: Icons.keyboard_outlined,
-                                tooltip: _softKeyboard ? 'Hide soft keyboard' : 'Show soft keyboard',
-                                onPressed: () => setState(() => _softKeyboard = !_softKeyboard),
+                            const SizedBox(width: 8),
+                            ListenableBuilder(
+                              listenable: Listenable.merge([_session.updateReady, _session.updateVersion]),
+                              builder: (context, _) => UiRemoteSessionMenu(
+                                mode: _remoteInteractMode,
+                                showStreamStats: _remoteShowStats,
+                                onModeChanged: (m) {
+                                  setState(() => _remoteInteractMode = m);
+                                  _session.isControlEnabled.value = m != RemoteInteractMode.view;
+                                },
+                                onShowStreamStatsChanged: (v) {
+                                  setState(() => _remoteShowStats = v);
+                                  unawaited(RemotePrefs.instance.setShowStreamStats(v));
+                                },
+                                onTeach: () => _remoteTeach(context),
+                                onFullscreen: _remoteFullscreen,
+                                updateReady: _session.updateReady.value,
+                                updateVersion: _session.updateVersion.value,
+                                onApplyUpdate: () {
+                                  _session.triggerUpdate();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Agent update triggered. It will reconnect once restarted.'),
+                                      duration: Duration(seconds: 4),
+                                    ),
+                                  );
+                                },
                               ),
-                            ],
-                            const SizedBox(width: 10),
-                            _toolBtn(icon: Icons.fullscreen_outlined, tooltip: 'Fullscreen', onPressed: null),
+                            ),
                           ],
                         ],
                       ),
@@ -222,10 +235,19 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> {
         deviceName: widget.row.identity.name,
         online: online,
         compact: _isMobile(context),
-        softKeyboard: _softKeyboard,
+        interactMode: _remoteInteractMode,
+        showStreamStats: _remoteShowStats,
+        onInteractModeChanged: (m) {
+          setState(() => _remoteInteractMode = m);
+          _session.isControlEnabled.value = m != RemoteInteractMode.view;
+        },
+        onShowStreamStatsChanged: (v) {
+          setState(() => _remoteShowStats = v);
+          unawaited(RemotePrefs.instance.setShowStreamStats(v));
+        },
       );
     }
-    if (kind == 'remote' && tab == 'Files') return UiDeviceFiles(session: _session, searchQuery: _filesSearchQuery);
+    if (kind == 'remote' && tab == 'Files') return UiDeviceFiles(session: _session);
     if (kind == 'remote' && tab == 'Skill') {
       return UiSkillMasterDetail(
         key: _skillKey,
@@ -245,52 +267,23 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> {
     );
   }
 
-  void _openFilesSearch() {
-    setState(() => _filesSearchOpen = true);
+  void _remoteTeach(BuildContext context) {
+    final controller = DefaultTabController.of(context);
+    controller.animateTo(3);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _filesSearchFocus.requestFocus();
+      if (mounted) _skillKey.currentState?.teach();
     });
   }
 
-  void _closeFilesSearch() {
-    _filesSearchCtrl.clear();
-    _filesSearchFocus.unfocus();
-    setState(() => _filesSearchOpen = false);
+  Future<void> _remoteFullscreen() async {
+    if (kIsWeb || !uiDesktopWindow) return;
+    try {
+      final full = await windowManager.isFullScreen();
+      await windowManager.setFullScreen(!full);
+    } catch (e) {
+      lError('remote fullscreen: $e');
+    }
   }
-
-  Widget _filesSearchBar() => Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _filesSearchCtrl,
-              focusNode: _filesSearchFocus,
-              style: const TextStyle(fontSize: 13, color: _text),
-              decoration: InputDecoration(
-                hintText: 'Search files',
-                hintStyle: const TextStyle(color: _muted, fontSize: 13),
-                prefixIcon: const Icon(Icons.search, size: 16, color: _muted),
-                prefixIconConstraints: const BoxConstraints(minWidth: 36, minHeight: 32),
-                isDense: true,
-                filled: true,
-                fillColor: _panel,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-              ),
-            ),
-          ),
-          uiIconButton(
-            tooltip: _filesSearchCtrl.text.isNotEmpty ? 'Clear' : 'Close search',
-            icon: const Icon(Icons.close, size: 18, color: Color(0xFFA1A1AA)),
-            onPressed: _filesSearchCtrl.text.isNotEmpty
-                ? () {
-                    _filesSearchCtrl.clear();
-                    _filesSearchFocus.requestFocus();
-                  }
-                : _closeFilesSearch,
-          ),
-        ],
-      );
 
   Widget _remoteBadge(bool clusterOnline, RemoteSession session) {
     if (!widget.chatConn.connected) {

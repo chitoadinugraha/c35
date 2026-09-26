@@ -9,6 +9,7 @@ import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/foundation.dart';
 
+/// Agent control-plane presence (`meta.last_seen_ts_ms` on the device identity).
 bool deviceOnlineFromMeta(String metaJson) {
   if (metaJson.trim().isEmpty) return false;
   try {
@@ -24,6 +25,10 @@ bool deviceOnlineFromMeta(String metaJson) {
     return false;
   }
 }
+
+/// Cloud dot: fresh agent presence, or an active WebRTC session (signaling path is live).
+bool deviceClusterOnline(String metaJson, {bool remoteSessionActive = false}) =>
+    deviceOnlineFromMeta(metaJson) || remoteSessionActive;
 
 class DeviceStore extends ChangeNotifier {
   DeviceStore({ChatConn? conn, ReferralConn? invoke}) : _conn = conn ?? ChatConn(), _invoke = invoke ?? ReferralConn();

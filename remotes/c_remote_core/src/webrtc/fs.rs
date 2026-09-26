@@ -5,8 +5,8 @@ use std::path::{Component, Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
 use c35_proto::{
-    pb_encode, Message, RemoteFsEntry, RemoteFsListReq, RemoteFsListRes, RemoteFsReadReq,
-    RemoteFsReadRes, RemoteFsWriteReq, RemoteFsWriteRes,
+    pb_encode, Message, RemoteFsDriveKind, RemoteFsEntry, RemoteFsListReq, RemoteFsListRes,
+    RemoteFsReadReq, RemoteFsReadRes, RemoteFsWriteReq, RemoteFsWriteRes,
 };
 
 const READ_CHUNK_DEFAULT: i32 = 256 * 1024;
@@ -172,6 +172,7 @@ pub fn fs_list(req: RemoteFsListReq) -> RemoteFsListRes {
                         is_dir,
                         size,
                         modified_ms,
+                        drive_kind: RemoteFsDriveKind::Unspecified.into(),
                     });
                 }
                 entries.sort_by(|a, b| {
@@ -326,19 +327,99 @@ fn list_drives() -> Vec<RemoteFsEntry> {
     ('A'..='Z')
         .filter_map(|c| {
             let root = format!("{}:\\", c);
-            if Path::new(&root).exists() {
-                Some(RemoteFsEntry {
-                    name: format!("{}:", c),
-                    path: root,
-                    is_dir: true,
-                    size: 0,
-                    modified_ms: 0,
-                })
-            } else {
-                None
+            if !Path::new(&root).exists() {
+                return None;
             }
+            let kind = drive_kind_for_root(&root);
+            Some(RemoteFsEntry {
+                name: drive_display_name(c, &root, kind),
+                path: root,
+                is_dir: true,
+                size: 0,
+                modified_ms: 0,
+                drive_kind: kind.into(),
+            })
         })
         .collect()
+}
+
+fn drive_kind_for_root(root: &str) -> RemoteFsDriveKind {
+    #[cfg(windows)]
+    {
+        return drive_kind_windows(root);
+    }
+    #[cfg(not(windows))]
+    {
+        RemoteFsDriveKind::Fixed
+    }
+}
+
+#[cfg(windows)]
+fn drive_kind_windows(root: &str) -> RemoteFsDriveKind {
+    use std::ffi::OsStr;
+    use std::os::windows::ffi::OsStrExt;
+    use windows::core::PCWSTR;
+    use windows::Win32::Storage::FileSystem::GetDriveTypeW;
+
+    let wide: Vec<u16> = OsStr::new(root).encode_wide().chain(Some(0)).collect();
+    match unsafe { GetDriveTypeW(PCWSTR(wide.as_ptr())) } {
+        2 => RemoteFsDriveKind::Removable,
+        3 => RemoteFsDriveKind::Fixed,
+        4 => RemoteFsDriveKind::Remote,
+        5 => RemoteFsDriveKind::Cdrom,
+        6 => RemoteFsDriveKind::Ram,
+        _ => RemoteFsDriveKind::Fixed,
+    }
+}
+
+fn drive_display_name(letter: char, root: &str, kind: RemoteFsDriveKind) -> String {
+    #[cfg(windows)]
+    {
+        if let Some(label) = drive_volume_label_windows(root) {
+            if !label.is_empty() {
+                return format!("{} ({}:)", label, letter);
+            }
+        }
+    }
+    match kind {
+        RemoteFsDriveKind::Remote => format!("Network ({letter}:)"),
+        RemoteFsDriveKind::Removable => format!("USB Drive ({letter}:)"),
+        RemoteFsDriveKind::Cdrom => format!("DVD ({letter}:)"),
+        RemoteFsDriveKind::Ram => format!("RAM Disk ({letter}:)"),
+        _ => format!("Local Disk ({letter}:)"),
+    }
+}
+
+#[cfg(windows)]
+fn drive_volume_label_windows(root: &str) -> Option<String> {
+    use std::ffi::OsStr;
+    use std::os::windows::ffi::OsStrExt;
+    use windows::core::PCWSTR;
+    use windows::Win32::Storage::FileSystem::GetVolumeInformationW;
+
+    let wide: Vec<u16> = OsStr::new(root).encode_wide().chain(Some(0)).collect();
+    let mut label = [0u16; 261];
+    let ok = unsafe {
+        GetVolumeInformationW(
+            PCWSTR(wide.as_ptr()),
+            Some(&mut label),
+            None,
+            None,
+            None,
+            None,
+        )
+    };
+    if ok.is_err() {
+        return None;
+    }
+    let end = label.iter().position(|&c| c == 0).unwrap_or(label.len());
+    let s = String::from_utf16_lossy(&label[..end]).trim().to_string();
+    if s.is_empty() { None } else { Some(s) }
+}
+
+#[cfg(not(windows))]
+fn drive_volume_label_windows(_root: &str) -> Option<String> {
+    None
 }
 
 pub fn path_resolve(raw: &str) -> Result<PathBuf, String> {

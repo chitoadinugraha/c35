@@ -14,33 +14,28 @@ const _masterBg = Color(0xFF0C0C10);
 const _panel = Color(0xFF111114);
 const _selectedBg = Color(0xFF18181B);
 const _accent = Color(0xFF34D399);
-const _treeWidth = 240.0;
-const _listBreakpoint = 720.0;
 const _previewBreakpoint = 1024.0;
 const _previewMaxBytes = 256 * 1024;
 
-enum _MobilePane { tree, list, preview }
+enum _MobilePane { explorer, preview }
 
 class UiDeviceFiles extends StatefulWidget {
-  const UiDeviceFiles({super.key, required this.session, this.searchQuery = ''});
+  const UiDeviceFiles({super.key, required this.session});
 
   final RemoteSession session;
-  final String searchQuery;
 
   @override
   State<UiDeviceFiles> createState() => _UiDeviceFilesState();
 }
 
 class _UiDeviceFilesState extends State<UiDeviceFiles> {
-  static final _mockRoots = _buildMockRoots();
-  static const _mockDefaultPath = r'C:\Users\CHITO\Documents';
-
   final _expanded = <String>{};
   final _dirCache = <String, List<_FsEntry>>{};
+  final _searchCtrl = TextEditingController();
   List<_FsEntry>? _roots;
   var _selectedPath = '';
   String? _selectedFilePath;
-  var _mobilePane = _MobilePane.tree;
+  var _mobilePane = _MobilePane.explorer;
   var _loadingRoots = false;
   var _loadingDir = false;
   String? _listError;
@@ -51,11 +46,10 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
   Uint8List? _previewImage;
   String? _previewError;
 
-  bool get _useMock => widget.session.connected.value && widget.session.fs == null;
-
   @override
   void initState() {
     super.initState();
+    _searchCtrl.addListener(() => setState(() {}));
     widget.session.connected.addListener(_onConnectionChanged);
     if (widget.session.connected.value && widget.session.fs != null) _loadRoots();
   }
@@ -63,6 +57,7 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
   @override
   void dispose() {
     widget.session.connected.removeListener(_onConnectionChanged);
+    _searchCtrl.dispose();
     super.dispose();
   }
 
@@ -76,6 +71,7 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
         _selectedFilePath = null;
         _clearPreview();
         _listError = null;
+        _mobilePane = _MobilePane.explorer;
       });
       return;
     }
@@ -132,7 +128,6 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
   }
 
   Future<void> _loadDir(String path, {bool silent = false, bool force = false}) async {
-    if (_useMock) return;
     final fs = widget.session.fs;
     if (fs == null) return;
     if (!force && _dirCache.containsKey(path)) return;
@@ -155,17 +150,7 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
 
   Future<void> _loadPreview(String path) async {
     final fs = widget.session.fs;
-    if (fs == null || _useMock) {
-      final mock = _entryAt(path);
-      if (mock == null) return;
-      setState(() {
-        _previewLoading = false;
-        _previewError = null;
-        _previewText = mock.previewText;
-        _previewImage = mock.previewKind == _PreviewKind.image ? Uint8List(0) : null;
-      });
-      return;
-    }
+    if (fs == null) return;
     setState(() {
       _previewLoading = true;
       _clearPreview();
@@ -207,12 +192,11 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
     }
   }
 
-  List<_FsEntry> get _effectiveRoots => _useMock ? _mockRoots : (_roots ?? const []);
+  List<_FsEntry> get _rootsList => _roots ?? const [];
 
-  List<_FsEntry> _dirEntries(String path) {
-    if (_useMock) return _entryAt(path)?.children ?? const [];
-    return _dirCache[path] ?? const [];
-  }
+  List<_FsEntry> _dirEntries(String path) => _dirCache[path] ?? const [];
+
+  String get _searchQuery => _searchCtrl.text.trim().toLowerCase();
 
   @override
   Widget build(BuildContext context) {
@@ -221,16 +205,12 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
         if (mounted) _loadRoots();
       });
     }
-    if (_useMock && _selectedPath.isEmpty) {
-      _selectedPath = _mockDefaultPath;
-      _expanded.addAll(['C:', r'C:\Users', r'C:\Users\CHITO']);
-    }
     return ListenableBuilder(
       listenable: widget.session.connected,
       builder: (context, _) {
         if (!widget.session.connected.value) return _connectPrompt();
-        if (_useMock && _roots == null) return _loadingPane('Connecting file channel…');
-        if (_loadingRoots && _roots == null && !_useMock) return _loadingPane('Loading drives…');
+        if (widget.session.fs == null) return _loadingPane('Opening file channel…');
+        if (_loadingRoots && _roots == null) return _loadingPane('Loading drives…');
         return _filesLayout(context);
       },
     );
@@ -284,28 +264,21 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
       );
 
   Widget _filesLayout(BuildContext context) {
-    final w = MediaQuery.sizeOf(context).width;
-    final wide = w >= _listBreakpoint;
-    final showPreviewPane = w >= _previewBreakpoint;
-    if (wide) {
+    final showPreviewPane = MediaQuery.sizeOf(context).width >= _previewBreakpoint;
+    if (_mobilePane == _MobilePane.preview) {
+      return _previewPane(showBack: true, onBack: () => setState(() => _mobilePane = _MobilePane.explorer));
+    }
+    if (showPreviewPane) {
       return Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SizedBox(width: _treeWidth, child: _treePane(showBack: false)),
+          Expanded(flex: 5, child: _explorerPane()),
           const VerticalDivider(width: 1, color: _border),
-          Expanded(flex: showPreviewPane ? 5 : 1, child: _listPane(compact: !showPreviewPane)),
-          if (showPreviewPane) ...[
-            const VerticalDivider(width: 1, color: _border),
-            Expanded(flex: 4, child: _previewPane(showBack: false)),
-          ],
+          Expanded(flex: 4, child: _previewPane(showBack: false)),
         ],
       );
     }
-    return switch (_mobilePane) {
-      _MobilePane.tree => _treePane(showBack: false),
-      _MobilePane.list => _listPane(compact: true, showBack: true, onBack: () => setState(() => _mobilePane = _MobilePane.tree)),
-      _MobilePane.preview => _previewPane(showBack: true, onBack: () => setState(() => _mobilePane = _MobilePane.list)),
-    };
+    return _explorerPane();
   }
 
   void _selectDir(_FsEntry node) {
@@ -313,7 +286,7 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
       _selectedPath = node.path;
       _selectedFilePath = null;
       _clearPreview();
-      if (MediaQuery.sizeOf(context).width < _listBreakpoint) _mobilePane = _MobilePane.list;
+      _expanded.add(node.path);
     });
     _loadDir(node.path);
   }
@@ -338,34 +311,59 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
     if (_expanded.contains(node.path)) _loadDir(node.path);
   }
 
-  Widget _treePane({required bool showBack, VoidCallback? onBack}) => ColoredBox(
+  Widget _explorerPane() => ColoredBox(
         color: _masterBg,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _paneHeader('Folders', showBack: showBack, onBack: onBack),
+            _searchBar(),
+            _fileListHeader(),
+            if (_listError != null)
+              _errorBanner(_listError!, onRetry: () {
+                _dirCache.remove(_selectedPath);
+                _loadDir(_selectedPath, force: true);
+              }),
             Expanded(
-              child: _effectiveRoots.isEmpty
-                  ? const Center(child: Text('No drives found', style: TextStyle(color: _muted, fontSize: 13)))
-                  : ListView(padding: const EdgeInsets.fromLTRB(4, 4, 4, 8), children: [for (final n in _effectiveRoots) _treeNode(n, 0)]),
+              child: _loadingDir && _dirCache.isEmpty
+                  ? _loadingPane('Loading folder…')
+                  : _rootsList.isEmpty
+                      ? const Center(child: Text('No drives found', style: TextStyle(color: _muted, fontSize: 13)))
+                      : _explorerList(),
             ),
           ],
         ),
       );
 
-  Widget _listPane({required bool compact, bool showBack = false, VoidCallback? onBack}) => ColoredBox(
-        color: const Color(0xFF08080A),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _paneHeader(_selectedPath.isEmpty ? 'Files' : _selectedPath, mono: true, showBack: showBack, onBack: onBack),
-            if (!compact) _fileListHeader(),
-            if (_listError != null) _errorBanner(_listError!, onRetry: () {
-                  _dirCache.remove(_selectedPath);
-                  _loadDir(_selectedPath, force: true);
-                }),
-            Expanded(child: _loadingDir ? _loadingPane('Loading folder…') : _fileList(compact: compact)),
-          ],
+  Widget _searchBar() => Padding(
+        padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
+        child: TextField(
+          controller: _searchCtrl,
+          style: const TextStyle(fontSize: 13, color: _text),
+          decoration: InputDecoration(
+            hintText: 'Search files',
+            hintStyle: const TextStyle(color: _muted, fontSize: 13),
+            prefixIcon: const Icon(Icons.search, size: 16, color: _muted),
+            prefixIconConstraints: const BoxConstraints(minWidth: 36, minHeight: 32),
+            suffixIcon: _searchCtrl.text.isEmpty
+                ? null
+                : uiIconButton(
+                    tooltip: 'Clear',
+                    onPressed: _searchCtrl.clear,
+                    icon: const Icon(Icons.close, size: 16, color: Color(0xFFA1A1AA)),
+                    style: const ButtonStyle(
+                      visualDensity: VisualDensity.compact,
+                      padding: WidgetStatePropertyAll(EdgeInsets.zero),
+                      minimumSize: WidgetStatePropertyAll(Size(28, 28)),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+            isDense: true,
+            filled: true,
+            fillColor: _panel,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
+          ),
         ),
       );
 
@@ -417,20 +415,12 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
       );
     }
     if (_previewImage != null) {
-      if (_previewImage!.isEmpty && _useMock) return _mockImagePreview(file.name);
       return Center(
         child: InteractiveViewer(
-          child: Image.memory(_previewImage!, gaplessPlayback: true, errorBuilder: (_, __, ___) => _mockImagePreview(file.name)),
+          child: Image.memory(_previewImage!, gaplessPlayback: true),
         ),
       );
     }
-    if (_useMock && file.previewKind == _PreviewKind.text) {
-      return SingleChildScrollView(
-        padding: const EdgeInsets.all(12),
-        child: SelectableText(file.previewText ?? '', style: const TextStyle(color: _text, fontSize: 12, fontFamily: 'Consolas', height: 1.45)),
-      );
-    }
-    if (_useMock && file.previewKind == _PreviewKind.image) return _mockImagePreview(file.name);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -439,27 +429,7 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
     );
   }
 
-  Widget _mockImagePreview(String name) => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 220,
-              height: 140,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                gradient: const LinearGradient(colors: [Color(0xFF1E3A5F), Color(0xFF34D399)]),
-                border: Border.all(color: _border),
-              ),
-              child: const Icon(Icons.image_outlined, size: 48, color: _muted),
-            ),
-            const SizedBox(height: 12),
-            Text(name, style: const TextStyle(color: _muted, fontSize: 12)),
-          ],
-        ),
-      );
-
-  Widget _paneHeader(String title, {bool mono = false, bool showBack = false, VoidCallback? onBack}) => Container(
+  Widget _paneHeader(String title, {bool showBack = false, VoidCallback? onBack}) => Container(
         padding: const EdgeInsets.fromLTRB(8, 8, 12, 8),
         decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: _border))),
         child: Row(
@@ -477,7 +447,7 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
                 ),
               ),
             Expanded(
-              child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: _muted, fontSize: 11, fontWeight: FontWeight.w500, fontFamily: mono ? 'Consolas' : null)),
+              child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _muted, fontSize: 11, fontWeight: FontWeight.w500)),
             ),
           ],
         ),
@@ -498,127 +468,97 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
 
   Widget _colHeader(String label) => Text(label, style: const TextStyle(color: _muted, fontSize: 11, fontWeight: FontWeight.w500));
 
-  Widget _fileList({required bool compact}) {
-    if (_selectedPath.isEmpty && !_useMock) {
-      return const Center(child: Text('Select a folder', style: TextStyle(color: _muted, fontSize: 13)));
-    }
-    final q = widget.searchQuery.trim().toLowerCase();
-    final entries = _dirEntries(_selectedPath).where((e) => q.isEmpty || e.name.toLowerCase().contains(q)).toList();
-    if (entries.isEmpty) {
-      return Center(child: Text(q.isEmpty ? 'This folder is empty' : 'No matches', style: const TextStyle(color: _muted, fontSize: 13)));
-    }
-    return ListView.separated(
-      itemCount: entries.length,
-      separatorBuilder: (_, __) => const Divider(height: 1, color: _border),
-      itemBuilder: (context, i) => _fileRow(entries[i], compact: compact),
+  Widget _explorerList() => ListView(
+        padding: const EdgeInsets.fromLTRB(0, 4, 0, 8),
+        children: [for (final n in _rootsList) _explorerNode(n, 0)],
+      );
+
+  Widget _explorerNode(_FsEntry node, int depth) {
+    final q = _searchQuery;
+    if (q.isNotEmpty && !_nodeMatches(node, q)) return const SizedBox.shrink();
+    final expanded = _expanded.contains(node.path) || (q.isNotEmpty && node.isDir);
+    final children = node.isDir ? _dirEntries(node.path) : const <_FsEntry>[];
+    final hasChildren = node.isDir && (children.isNotEmpty || !_dirCache.containsKey(node.path));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _explorerRow(node, depth: depth, expanded: expanded, hasChildren: hasChildren),
+        if (expanded && node.isDir) for (final c in children) _explorerNode(c, depth + 1),
+      ],
     );
   }
 
-  Widget _fileRow(_FsEntry entry, {required bool compact}) {
+  Widget _explorerRow(_FsEntry entry, {required int depth, required bool expanded, required bool hasChildren}) {
     final selectedDir = entry.isDir && entry.path == _selectedPath;
     final selectedFile = !entry.isDir && entry.path == _selectedFilePath;
     final previewable = _canPreview(entry);
+    final indent = 8.0 + depth * 16.0;
     return Material(
       color: selectedDir || selectedFile ? _selectedBg : Colors.transparent,
       child: InkWell(
         onTap: entry.isDir ? () => _selectDir(entry) : previewable ? () => _selectFile(entry) : null,
         hoverColor: const Color(0xFF1C1C22),
         child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 12, vertical: compact ? 9 : 7),
-          child: compact
-              ? Row(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+          child: Row(
+            children: [
+              Expanded(
+                flex: 5,
+                child: Row(
                   children: [
-                    Icon(entry.isDir ? Icons.folder_outlined : _fileIcon(entry.name), size: 18, color: entry.isDir ? const Color(0xFFFBBF24) : _muted),
-                    const SizedBox(width: 10),
-                    Expanded(child: Text(entry.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _text, fontSize: 13))),
-                    if (!entry.isDir) Text(_formatSize(entry.size), style: const TextStyle(color: _muted, fontSize: 11)),
-                  ],
-                )
-              : Row(
-                  children: [
+                    SizedBox(
+                      width: indent,
+                    ),
+                    SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: entry.isDir && hasChildren
+                          ? IconButton(
+                              padding: EdgeInsets.zero,
+                              visualDensity: VisualDensity.compact,
+                              iconSize: 16,
+                              splashRadius: 14,
+                              onPressed: () => _toggleExpand(entry),
+                              icon: Icon(expanded ? Icons.expand_more : Icons.chevron_right, size: 16, color: _muted),
+                            )
+                          : null,
+                    ),
+                    Icon(_entryIcon(entry), size: 16, color: _entryIconColor(entry)),
+                    const SizedBox(width: 8),
                     Expanded(
-                      flex: 5,
-                      child: Row(
-                        children: [
-                          Icon(entry.isDir ? Icons.folder_outlined : _fileIcon(entry.name), size: 16, color: entry.isDir ? const Color(0xFFFBBF24) : _muted),
-                          const SizedBox(width: 8),
-                          Expanded(child: Text(entry.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _text, fontSize: 13))),
-                        ],
+                      child: Text(
+                        _entryLabel(entry),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: _text, fontSize: 13),
                       ),
                     ),
-                    Expanded(flex: 2, child: Text(entry.isDir ? '' : _formatSize(entry.size), style: const TextStyle(color: _muted, fontSize: 12))),
-                    Expanded(flex: 2, child: Text(_typeLabel(entry), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _muted, fontSize: 12))),
-                    Expanded(flex: 3, child: Text(entry.modified != null ? _formatDate(entry.modified!) : '', style: const TextStyle(color: _muted, fontSize: 12))),
                   ],
                 ),
+              ),
+              Expanded(flex: 2, child: Text(entry.isDir ? '' : _formatSize(entry.size), style: const TextStyle(color: _muted, fontSize: 12))),
+              Expanded(flex: 2, child: Text(_typeLabel(entry), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _muted, fontSize: 12))),
+              Expanded(flex: 3, child: Text(entry.modified != null ? _formatDate(entry.modified!) : '', style: const TextStyle(color: _muted, fontSize: 12))),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _treeNode(_FsEntry node, int depth) {
-    final q = widget.searchQuery.trim().toLowerCase();
-    if (q.isNotEmpty && !_nodeMatches(node, q)) return const SizedBox.shrink();
-    final expanded = _expanded.contains(node.path);
-    final selected = node.isDir && node.path == _selectedPath;
-    final children = _useMock ? node.children : _dirEntries(node.path);
-    final hasChildren = node.isDir && (children.isNotEmpty || (!_useMock && !_dirCache.containsKey(node.path)));
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Material(
-          color: selected ? _selectedBg : Colors.transparent,
-          child: InkWell(
-            onTap: node.isDir ? () => _selectDir(node) : null,
-            hoverColor: const Color(0xFF1C1C22),
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(4.0 + depth * 14.0, 2, 4, 2),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 20,
-                    height: 24,
-                    child: hasChildren
-                        ? IconButton(
-                            padding: EdgeInsets.zero,
-                            visualDensity: VisualDensity.compact,
-                            iconSize: 16,
-                            splashRadius: 14,
-                            onPressed: () => _toggleExpand(node),
-                            icon: Icon(expanded ? Icons.expand_more : Icons.chevron_right, size: 16, color: _muted),
-                          )
-                        : null,
-                  ),
-                  Icon(node.isDir ? Icons.folder_outlined : _fileIcon(node.name), size: 15, color: node.isDir ? const Color(0xFFFBBF24) : _muted),
-                  const SizedBox(width: 6),
-                  Expanded(child: Text(node.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: selected ? _text : const Color(0xFFA1A1AA), fontSize: 12))),
-                ],
-              ),
-            ),
-          ),
-        ),
-        if (expanded && node.isDir) for (final c in children) _treeNode(c, depth + 1),
-      ],
-    );
-  }
-
   bool _canPreview(_FsEntry entry) {
     if (entry.isDir) return false;
-    if (_useMock) return entry.previewKind != _PreviewKind.none;
     return _isTextMime('', entry.path) || _isImageMime('', entry.path);
   }
 
   bool _nodeMatches(_FsEntry node, String q) {
-    if (node.name.toLowerCase().contains(q)) return true;
-    final children = _useMock ? node.children : _dirEntries(node.path);
-    return children.any((c) => _nodeMatches(c, q));
+    if (_entryLabel(node).toLowerCase().contains(q) || node.name.toLowerCase().contains(q)) return true;
+    return _dirEntries(node.path).any((c) => _nodeMatches(c, q));
   }
 
   _FsEntry? _entryAt(String path) {
-    for (final root in _effectiveRoots) {
+    for (final root in _rootsList) {
       if (root.path == path) return root;
-      final found = _findPath(root, path);
-      if (found != null) return found;
     }
     for (final entries in _dirCache.values) {
       for (final e in entries) {
@@ -627,18 +567,7 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
     }
     return null;
   }
-
-  _FsEntry? _findPath(_FsEntry node, String path) {
-    if (node.path == path) return node;
-    for (final c in node.children) {
-      final found = _findPath(c, path);
-      if (found != null) return found;
-    }
-    return null;
-  }
 }
-
-enum _PreviewKind { none, text, image }
 
 class _FsEntry {
   _FsEntry({
@@ -647,10 +576,8 @@ class _FsEntry {
     this.isDir = false,
     this.size = 0,
     this.modified,
-    this.previewKind = _PreviewKind.none,
-    this.previewText,
-    List<_FsEntry>? children,
-  }) : children = children ?? [];
+    this.driveKind = RemoteFsDriveKind.REMOTE_FS_DRIVE_KIND_UNSPECIFIED,
+  });
 
   factory _FsEntry.fromPb(RemoteFsEntry e) => _FsEntry(
         name: e.name,
@@ -658,6 +585,7 @@ class _FsEntry {
         isDir: e.isDir,
         size: e.size.toInt(),
         modified: e.modifiedMs.toInt() > 0 ? DateTime.fromMillisecondsSinceEpoch(e.modifiedMs.toInt()) : null,
+        driveKind: e.driveKind,
       );
 
   final String name;
@@ -665,59 +593,44 @@ class _FsEntry {
   final bool isDir;
   final int size;
   final DateTime? modified;
-  final _PreviewKind previewKind;
-  final String? previewText;
-  final List<_FsEntry> children;
+  final RemoteFsDriveKind driveKind;
 }
 
-List<_FsEntry> _buildMockRoots() {
-  final c = _FsEntry(name: 'C:', path: 'C:');
-  final users = c.child('Users');
-  final chito = users.child(r'C:\Users\CHITO');
-  chito
-      .child('Desktop')
-      .file('Notes.txt', 2048, DateTime(2026, 9, 18), kind: _PreviewKind.text, text: 'TODO\n- finish device files UI\n- wire streaming preview')
-      .file('Screenshot.png', 842000, DateTime(2026, 9, 19), kind: _PreviewKind.image);
-  final docs = chito.child('Documents');
-  docs
-      .child('Work')
-      .file('report.docx', 48000, DateTime(2026, 9, 15))
-      .file('budget.xlsx', 22000, DateTime(2026, 9, 10));
-  docs.child('Personal').file('resume.pdf', 310000, DateTime(2026, 8, 28));
-  chito
-      .child('Downloads')
-      .file('setup.exe', 12400000, DateTime(2026, 9, 20))
-      .file('archive.zip', 5600000, DateTime(2026, 9, 17));
-  chito.child('Pictures').file('wallpaper.jpg', 1200000, DateTime(2026, 7, 4), kind: _PreviewKind.image);
-  c.child('Program Files').child('Alien AI').file('agent.exe', 8900000, DateTime(2026, 9, 1));
-  c.child('Windows');
-
-  final d = _FsEntry(name: 'D:', path: 'D:');
-  final projects = d.child('Projects');
-  projects
-      .child('alienai')
-      .file('README.md', 1200, DateTime(2026, 9, 12), kind: _PreviewKind.text, text: '# alienai\n\nRemote agent runtime.')
-      .file('Cargo.toml', 800, DateTime(2026, 9, 12), kind: _PreviewKind.text, text: '[package]\nname = "c_remote_core"\nversion = "0.1.0"');
-  projects.child('c35').file('spec.md', 4500, DateTime(2026, 9, 20), kind: _PreviewKind.text, text: '# c35 spec\n\nDevice files stream over agent session.').file('dev.ps1', 3200, DateTime(2026, 9, 19));
-  d.child('Backup').file('drive-image.wim', 48000000000, DateTime(2026, 6, 1));
-
-  return [c, d];
+IconData _entryIcon(_FsEntry entry) {
+  if (!entry.isDir) return _fileIcon(entry.name);
+  if (!_isDriveRoot(entry.path)) return Icons.folder_outlined;
+  return switch (entry.driveKind) {
+    RemoteFsDriveKind.REMOTE_FS_DRIVE_KIND_REMOTE => Icons.folder_shared_outlined,
+    RemoteFsDriveKind.REMOTE_FS_DRIVE_KIND_REMOVABLE => Icons.usb_outlined,
+    RemoteFsDriveKind.REMOTE_FS_DRIVE_KIND_CDROM => Icons.album_outlined,
+    RemoteFsDriveKind.REMOTE_FS_DRIVE_KIND_RAM => Icons.memory_outlined,
+    _ => Icons.storage_outlined,
+  };
 }
 
-extension on _FsEntry {
-  _FsEntry child(String name) {
-    final childPath = path.endsWith(r'\') || path.endsWith('/') ? '$path$name' : '$path\\$name';
-    final n = _FsEntry(name: name, path: childPath, isDir: true);
-    children.add(n);
-    return n;
-  }
+Color _entryIconColor(_FsEntry entry) {
+  if (!entry.isDir) return _muted;
+  if (_isDriveRoot(entry.path)) return const Color(0xFF93C5FD);
+  return const Color(0xFFFBBF24);
+}
 
-  _FsEntry file(String name, int size, DateTime modified, {_PreviewKind kind = _PreviewKind.none, String? text}) {
-    final filePath = path.endsWith(r'\') || path.endsWith('/') ? '$path$name' : '$path\\$name';
-    final n = _FsEntry(name: name, path: filePath, size: size, modified: modified, previewKind: kind, previewText: text);
-    children.add(n);
-    return n;
-  }
+String _entryLabel(_FsEntry entry) {
+  if (!_isDriveRoot(entry.path)) return entry.name;
+  if (entry.name.contains('(') && entry.name.contains(':')) return entry.name;
+  final letter = entry.path.substring(0, 1).toUpperCase();
+  return switch (entry.driveKind) {
+    RemoteFsDriveKind.REMOTE_FS_DRIVE_KIND_REMOTE => 'Network ($letter:)',
+    RemoteFsDriveKind.REMOTE_FS_DRIVE_KIND_REMOVABLE => 'USB Drive ($letter:)',
+    RemoteFsDriveKind.REMOTE_FS_DRIVE_KIND_CDROM => 'DVD ($letter:)',
+    RemoteFsDriveKind.REMOTE_FS_DRIVE_KIND_RAM => 'RAM Disk ($letter:)',
+    _ => 'Local Disk ($letter:)',
+  };
+}
+
+bool _isDriveRoot(String path) {
+  final p = path.replaceAll('/', '\\');
+  if (p.length == 2 && p[1] == ':') return true;
+  return p.length == 3 && p[1] == ':' && p[2] == '\\';
 }
 
 bool _isTextMime(String mime, String path) {
@@ -756,6 +669,15 @@ IconData _fileIcon(String name) {
 }
 
 String _typeLabel(_FsEntry entry) {
+  if (entry.isDir && _isDriveRoot(entry.path)) {
+    return switch (entry.driveKind) {
+      RemoteFsDriveKind.REMOTE_FS_DRIVE_KIND_REMOTE => 'Network drive',
+      RemoteFsDriveKind.REMOTE_FS_DRIVE_KIND_REMOVABLE => 'Removable disk',
+      RemoteFsDriveKind.REMOTE_FS_DRIVE_KIND_CDROM => 'DVD drive',
+      RemoteFsDriveKind.REMOTE_FS_DRIVE_KIND_RAM => 'RAM disk',
+      _ => 'Local disk',
+    };
+  }
   if (entry.isDir) return 'File folder';
   final ext = _ext(entry.name);
   return ext.isEmpty ? 'File' : '${ext.toUpperCase()} File';

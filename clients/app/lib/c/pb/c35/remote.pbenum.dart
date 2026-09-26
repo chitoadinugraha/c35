@@ -64,5 +64,41 @@ class RemoteConnectionMode extends $pb.ProtobufEnum {
   const RemoteConnectionMode._(super.value, super.name);
 }
 
+class RemoteFsDriveKind extends $pb.ProtobufEnum {
+  static const RemoteFsDriveKind REMOTE_FS_DRIVE_KIND_UNSPECIFIED =
+      RemoteFsDriveKind._(
+          0, _omitEnumNames ? '' : 'REMOTE_FS_DRIVE_KIND_UNSPECIFIED');
+  static const RemoteFsDriveKind REMOTE_FS_DRIVE_KIND_FIXED =
+      RemoteFsDriveKind._(
+          1, _omitEnumNames ? '' : 'REMOTE_FS_DRIVE_KIND_FIXED');
+  static const RemoteFsDriveKind REMOTE_FS_DRIVE_KIND_REMOVABLE =
+      RemoteFsDriveKind._(
+          2, _omitEnumNames ? '' : 'REMOTE_FS_DRIVE_KIND_REMOVABLE');
+  static const RemoteFsDriveKind REMOTE_FS_DRIVE_KIND_REMOTE =
+      RemoteFsDriveKind._(
+          3, _omitEnumNames ? '' : 'REMOTE_FS_DRIVE_KIND_REMOTE');
+  static const RemoteFsDriveKind REMOTE_FS_DRIVE_KIND_CDROM =
+      RemoteFsDriveKind._(
+          4, _omitEnumNames ? '' : 'REMOTE_FS_DRIVE_KIND_CDROM');
+  static const RemoteFsDriveKind REMOTE_FS_DRIVE_KIND_RAM =
+      RemoteFsDriveKind._(5, _omitEnumNames ? '' : 'REMOTE_FS_DRIVE_KIND_RAM');
+
+  static const $core.List<RemoteFsDriveKind> values = <RemoteFsDriveKind>[
+    REMOTE_FS_DRIVE_KIND_UNSPECIFIED,
+    REMOTE_FS_DRIVE_KIND_FIXED,
+    REMOTE_FS_DRIVE_KIND_REMOVABLE,
+    REMOTE_FS_DRIVE_KIND_REMOTE,
+    REMOTE_FS_DRIVE_KIND_CDROM,
+    REMOTE_FS_DRIVE_KIND_RAM,
+  ];
+
+  static final $core.List<RemoteFsDriveKind?> _byValue =
+      $pb.ProtobufEnum.$_initByValueList(values, 5);
+  static RemoteFsDriveKind? valueOf($core.int value) =>
+      value < 0 || value >= _byValue.length ? null : _byValue[value];
+
+  const RemoteFsDriveKind._(super.value, super.name);
+}
+
 const $core.bool _omitEnumNames =
     $core.bool.fromEnvironment('protobuf.omit_enum_names');

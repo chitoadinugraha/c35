@@ -1452,6 +1452,7 @@ class RemoteFsEntry extends $pb.GeneratedMessage {
     $core.bool? isDir,
     $fixnum.Int64? size,
     $fixnum.Int64? modifiedMs,
+    RemoteFsDriveKind? driveKind,
   }) {
     final result = RemoteFsEntry._();
     if (name != null) result.name = name;
@@ -1459,6 +1460,7 @@ class RemoteFsEntry extends $pb.GeneratedMessage {
     if (isDir != null) result.isDir = isDir;
     if (size != null) result.size = size;
     if (modifiedMs != null) result.modifiedMs = modifiedMs;
+    if (driveKind != null) result.driveKind = driveKind;
     return result;
   }
 
@@ -1480,6 +1482,8 @@ class RemoteFsEntry extends $pb.GeneratedMessage {
     ..aOB(3, _omitFieldNames ? '' : 'isDir')
     ..aInt64(4, _omitFieldNames ? '' : 'size')
     ..aInt64(5, _omitFieldNames ? '' : 'modifiedMs')
+    ..aE<RemoteFsDriveKind>(6, _omitFieldNames ? '' : 'driveKind',
+        enumValues: RemoteFsDriveKind.values)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1548,6 +1552,15 @@ class RemoteFsEntry extends $pb.GeneratedMessage {
   $core.bool hasModifiedMs() => $_has(4);
   @$pb.TagNumber(5)
   void clearModifiedMs() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  RemoteFsDriveKind get driveKind => $_getN(5);
+  @$pb.TagNumber(6)
+  set driveKind(RemoteFsDriveKind value) => $_setField(6, value);
+  @$pb.TagNumber(6)
+  $core.bool hasDriveKind() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearDriveKind() => $_clearField(6);
 }
 
 class RemoteFsListReq extends $pb.GeneratedMessage {

@@ -48,6 +48,26 @@ final $typed_data.Uint8List remoteConnectionModeDescriptor = $convert.base64Deco
     'lGSUVEEAASIQodUkVNT1RFX0NPTk5FQ1RJT05fTU9ERV9ESVJFQ1QQARIgChxSRU1PVEVfQ09O'
     'TkVDVElPTl9NT0RFX1JFTEFZEAI=');
 
+@$core.Deprecated('Use remoteFsDriveKindDescriptor instead')
+const RemoteFsDriveKind$json = {
+  '1': 'RemoteFsDriveKind',
+  '2': [
+    {'1': 'REMOTE_FS_DRIVE_KIND_UNSPECIFIED', '2': 0},
+    {'1': 'REMOTE_FS_DRIVE_KIND_FIXED', '2': 1},
+    {'1': 'REMOTE_FS_DRIVE_KIND_REMOVABLE', '2': 2},
+    {'1': 'REMOTE_FS_DRIVE_KIND_REMOTE', '2': 3},
+    {'1': 'REMOTE_FS_DRIVE_KIND_CDROM', '2': 4},
+    {'1': 'REMOTE_FS_DRIVE_KIND_RAM', '2': 5},
+  ],
+};
+
+/// Descriptor for `RemoteFsDriveKind`. Decode as a `google.protobuf.EnumDescriptorProto`.
+final $typed_data.Uint8List remoteFsDriveKindDescriptor = $convert.base64Decode(
+    'ChFSZW1vdGVGc0RyaXZlS2luZBIkCiBSRU1PVEVfRlNfRFJJVkVfS0lORF9VTlNQRUNJRklFRB'
+    'AAEh4KGlJFTU9URV9GU19EUklWRV9LSU5EX0ZJWEVEEAESIgoeUkVNT1RFX0ZTX0RSSVZFX0tJ'
+    'TkRfUkVNT1ZBQkxFEAISHwobUkVNT1RFX0ZTX0RSSVZFX0tJTkRfUkVNT1RFEAMSHgoaUkVNT1'
+    'RFX0ZTX0RSSVZFX0tJTkRfQ0RST00QBBIcChhSRU1PVEVfRlNfRFJJVkVfS0lORF9SQU0QBQ==');
+
 @$core.Deprecated('Use reqRemoteSessionStartDescriptor instead')
 const ReqRemoteSessionStart$json = {
   '1': 'ReqRemoteSessionStart',
@@ -339,6 +359,14 @@ const RemoteFsEntry$json = {
     {'1': 'is_dir', '3': 3, '4': 1, '5': 8, '10': 'isDir'},
     {'1': 'size', '3': 4, '4': 1, '5': 3, '10': 'size'},
     {'1': 'modified_ms', '3': 5, '4': 1, '5': 3, '10': 'modifiedMs'},
+    {
+      '1': 'drive_kind',
+      '3': 6,
+      '4': 1,
+      '5': 14,
+      '6': '.c35.RemoteFsDriveKind',
+      '10': 'driveKind'
+    },
   ],
 };
 
@@ -346,7 +374,8 @@ const RemoteFsEntry$json = {
 final $typed_data.Uint8List remoteFsEntryDescriptor = $convert.base64Decode(
     'Cg1SZW1vdGVGc0VudHJ5EhIKBG5hbWUYASABKAlSBG5hbWUSEgoEcGF0aBgCIAEoCVIEcGF0aB'
     'IVCgZpc19kaXIYAyABKAhSBWlzRGlyEhIKBHNpemUYBCABKANSBHNpemUSHwoLbW9kaWZpZWRf'
-    'bXMYBSABKANSCm1vZGlmaWVkTXM=');
+    'bXMYBSABKANSCm1vZGlmaWVkTXMSNQoKZHJpdmVfa2luZBgGIAEoDjIWLmMzNS5SZW1vdGVGc0'
+    'RyaXZlS2luZFIJZHJpdmVLaW5k');
 
 @$core.Deprecated('Use remoteFsListReqDescriptor instead')
 const RemoteFsListReq$json = {

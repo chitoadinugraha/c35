@@ -149,12 +149,22 @@ message RemoteInputEvent {
 // WebRTC data channel `remote-fs` (binary frame = protobuf encode)
 // ---------------------------------------------------------------------------
 
+enum RemoteFsDriveKind {
+  REMOTE_FS_DRIVE_KIND_UNSPECIFIED = 0;
+  REMOTE_FS_DRIVE_KIND_FIXED = 1;
+  REMOTE_FS_DRIVE_KIND_REMOVABLE = 2;
+  REMOTE_FS_DRIVE_KIND_REMOTE = 3;
+  REMOTE_FS_DRIVE_KIND_CDROM = 4;
+  REMOTE_FS_DRIVE_KIND_RAM = 5;
+}
+
 message RemoteFsEntry {
   string name = 1;
   string path = 2;
   bool is_dir = 3;
   int64 size = 4;
   int64 modified_ms = 5;
+  RemoteFsDriveKind drive_kind = 6;
 }
 
 message RemoteFsListReq {
