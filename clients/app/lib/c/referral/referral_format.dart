@@ -1,3 +1,5 @@
+import 'package:alienai_c35/c/ui/money_format.dart';
+
 const referralCodeNormMaxLen = 20;
 const referralCodeGroupLen = 4;
 const referralCodeHint = 'ABCD-1234-EFGH-IJKL-MNOP';
@@ -21,7 +23,7 @@ const referralWithdrawCurrencyUsd = 'USD';
 bool referralCurrencyIsIdr(String currency) => currency.toUpperCase() == 'IDR';
 
 String referralCommissionAmountLabel(String currency, double usd, double idr) =>
-    referralCurrencyIsIdr(currency) ? 'Rp ${idr.toStringAsFixed(0)}' : referralUsdLabel(usd);
+    referralCurrencyIsIdr(currency) ? 'Rp ${moneyFmtIdrGrouped(idr.round())}' : referralUsdLabel(usd);
 
 double? referralWithdrawAmountParse(String raw) => double.tryParse(raw.trim().replaceAll(',', ''));
 
@@ -55,7 +57,7 @@ String referralUsdLabel(double usd) => '\$${usd.toStringAsFixed(2)}';
 bool referralCommissionHasBalance(double usd, double idr) => idr > 0 || usd > 0;
 
 String referralCommissionStripLabel(double usd, double idr) {
-  if (idr > 0) return 'Rp ${idr.toStringAsFixed(0)}';
+  if (idr > 0) return 'Rp ${moneyFmtIdrGrouped(idr.round())}';
   if (usd > 0) return referralUsdLabel(usd);
   return '—';
 }
