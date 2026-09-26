@@ -9,6 +9,35 @@ use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{fmt, EnvFilter};
 
 static LOG_SESSION: OnceLock<PathBuf> = OnceLock::new();
+static CONSOLE_VISIBLE: OnceLock<bool> = OnceLock::new();
+
+/// Attach to parent console when launched from cmd/PowerShell; no-op window when started from Explorer.
+pub fn console_attach_from_parent() -> bool {
+    *CONSOLE_VISIBLE.get_or_init(|| {
+        #[cfg(windows)]
+        {
+            use windows::Win32::System::Console::{AttachConsole, ATTACH_PARENT_PROCESS};
+            let attached = unsafe { AttachConsole(ATTACH_PARENT_PROCESS).is_ok() };
+            if attached {
+                return true;
+            }
+            false
+        }
+        #[cfg(not(windows))]
+        {
+            use std::io::IsTerminal;
+            std::io::stdout().is_terminal()
+        }
+    })
+}
+
+pub fn console_visible() -> bool {
+    console_attach_from_parent()
+}
+
+fn log_to_stdout_enabled() -> bool {
+    console_visible()
+}
 
 pub fn log_dir() -> PathBuf {
     #[cfg(target_os = "windows")]
@@ -89,42 +118,61 @@ pub fn boot_append(msg: &str) {
         .and_then(|mut f| f.write_all(line.as_bytes()));
 }
 
+
 pub fn init() {
     let path = log_session_path();
     let filter = EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| EnvFilter::new("info,c_remote_core=debug,c_remote_windows=debug"));
 
-    let stdout_layer = fmt::layer()
-        .with_writer(std::io::stdout)
-        .with_target(false)
-        .compact();
-
     match OpenOptions::new().create(true).append(true).open(&path) {
-        Ok(file) => {
+        Ok(file) if log_to_stdout_enabled() => {
             let file_layer = fmt::layer()
                 .with_writer(Mutex::new(file))
                 .with_ansi(false);
-
+            let stdout_layer = fmt::layer()
+                .with_writer(std::io::stdout)
+                .with_target(false)
+                .compact();
             tracing_subscriber::registry()
                 .with(filter)
                 .with(stdout_layer)
                 .with(file_layer)
                 .init();
-
-            tracing::info!(
-                path = %path.display(),
-                pid = std::process::id(),
-                "========== remote agent session start =========="
-            );
         }
-        Err(e) => {
+        Ok(file) => {
+            let file_layer = fmt::layer()
+                .with_writer(Mutex::new(file))
+                .with_ansi(false);
+            tracing_subscriber::registry()
+                .with(filter)
+                .with(file_layer)
+                .init();
+        }
+        Err(e) if log_to_stdout_enabled() => {
+            let stdout_layer = fmt::layer()
+                .with_writer(std::io::stdout)
+                .with_target(false)
+                .compact();
             tracing_subscriber::registry()
                 .with(filter)
                 .with(stdout_layer)
                 .init();
-            tracing::warn!(error = %e, path = %path.display(), "remote agent log file unavailable, using stdout only");
+            tracing::warn!(error = %e, path = %path.display(), "remote agent log file unavailable");
+        }
+        Err(e) => {
+            tracing_subscriber::registry()
+                .with(filter)
+                .with(fmt::layer().with_writer(std::io::sink))
+                .init();
+            tracing::warn!(error = %e, path = %path.display(), "remote agent log file unavailable");
         }
     }
+
+    tracing::info!(
+        path = %path.display(),
+        pid = std::process::id(),
+        "========== remote agent session start =========="
+    );
 }
 
 pub fn log_open() -> anyhow::Result<()> {

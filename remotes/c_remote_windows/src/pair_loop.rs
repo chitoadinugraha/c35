@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use anyhow::anyhow;
 use c_remote_core::config::{session_key_load, session_key_save, server_url};
 use c_remote_core::pair::{pair_poll, pair_register, pair_should_reroll, PairPoll};
 use crate::pair_ui::PairUi;
@@ -33,14 +34,15 @@ pub async fn pair_until_claimed(
             Ok(Err(e)) => {
                 tracing::warn!("pair_register failed: {e}");
                 ui.set_connecting();
-                ui.set_status("Can't reach Alien AI right now. Retrying…");
+                ui.set_status(&c_remote_core::pair::pair_connect_status(&e, &base_url));
                 tokio::time::sleep(Duration::from_secs(3)).await;
                 continue;
             }
             Err(e) => {
                 tracing::warn!("pair_register task failed: {e}");
                 ui.set_connecting();
-                ui.set_status("Can't reach Alien AI right now. Retrying…");
+                let wrapped = anyhow!("{e}");
+                ui.set_status(&c_remote_core::pair::pair_connect_status(&wrapped, &base_url));
                 tokio::time::sleep(Duration::from_secs(3)).await;
                 continue;
             }
@@ -79,7 +81,7 @@ pub async fn pair_until_claimed(
                 Ok(p) => p,
                 Err(e) => {
                     tracing::warn!("pair_poll failed: {e}");
-                    ui.set_status("Can't reach Alien AI right now. Retrying…");
+                    ui.set_status(&c_remote_core::pair::pair_connect_status(&e, &base_url));
                     continue;
                 }
             };

@@ -1,27 +1,48 @@
-# E2E: run older remote agent build against a local mock /version + zip (no prod CAS).
+# E2E: run prior-build remote agent against mock /version + zip (no prod CAS).
+# Defaults: prod /version for target; agent build = target-1 (minimum 2).
 # Usage:
 #   .\_\scripts\dev\test_remote_autoupdate.ps1
-#   .\_\scripts\dev\test_remote_autoupdate.ps1 -AgentExe D:\path\c_remote_windows.exe -Zip D:\path\c_remote_windows-2.zip
+#   .\_\scripts\dev\test_remote_autoupdate.ps1 -AgentBuild 2 -TargetVersion 3
 
 param(
     [string]$AgentExe = '',
     [string]$Zip = '',
-    [int]$TargetVersion = 2,
+    [int]$AgentBuild = 0,
+    [int]$TargetVersion = 0,
     [int]$WaitSeconds = 180,
-    [int]$MockPort = 8877
+    [int]$MockPort = 8877,
+    [string]$ProdBaseUrl = 'https://alienai.id'
 )
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 
+if ($TargetVersion -le 0) {
+    $live = Invoke-RestMethod -Uri "$ProdBaseUrl/version/remote-windows" -Method Get
+    $TargetVersion = [int]$live.version
+}
+if ($TargetVersion -lt 2) { throw "TargetVersion must be >= 2 (prod is $TargetVersion)" }
+
+if ($AgentBuild -le 0) {
+    $AgentBuild = [Math]::Max(2, $TargetVersion - 1)
+}
+if ($AgentBuild -ge $TargetVersion) {
+    throw "AgentBuild ($AgentBuild) must be < TargetVersion ($TargetVersion)"
+}
+
 if (-not $AgentExe) {
-    $AgentExe = Join-Path $repoRoot '.cache\remote-autoupdate-test\v1\c_remote_windows.exe'
+    $AgentExe = Join-Path $repoRoot ".cache\remote-autoupdate-test\v$AgentBuild\c_remote_windows.exe"
+}
+if (-not (Test-Path $AgentExe)) {
+    Write-Host "==> building fixture for build $AgentBuild"
+    & (Join-Path $PSScriptRoot 'ensure_remote_autoupdate_fixture.ps1') -Build $AgentBuild
 }
 if (-not $Zip) {
-    $Zip = Join-Path $repoRoot '.cache\c_remote\remote-windows\c_remote_windows-2.zip'
+    $Zip = Join-Path $repoRoot ".cache\c_remote\remote-windows\c_remote_windows-$TargetVersion.zip"
 }
-if (-not (Test-Path $AgentExe)) { throw "Agent exe not found: $AgentExe" }
-if (-not (Test-Path $Zip)) { throw "Zip not found: $Zip" }
+if (-not (Test-Path $Zip)) {
+    throw "Zip not found: $Zip (run remote publish or copy prod bundle)"
+}
 
 $hashTool = Join-Path $repoRoot '.cache\rust\hash_blake3\release\hash_blake3.exe'
 if (-not (Test-Path $hashTool)) {
@@ -29,7 +50,7 @@ if (-not (Test-Path $hashTool)) {
     cargo build --release --manifest-path (Join-Path $repoRoot '_\scripts\deploy\tools\hash_blake3\Cargo.toml')
 }
 $hash = (& $hashTool $Zip).Trim().ToLower()
-Write-Host "==> target zip hash=$hash size=$((Get-Item $Zip).Length)"
+Write-Host "==> agent build=$AgentBuild -> target=$TargetVersion hash=$hash size=$((Get-Item $Zip).Length)"
 
 $updatesRoot = Join-Path $env:LOCALAPPDATA 'AlienAI\updates\remote'
 if (Test-Path $updatesRoot) {
@@ -43,7 +64,7 @@ Start-Sleep -Seconds 1
 $agentDir = Split-Path $AgentExe -Parent
 Remove-Item Env:C35_DEV -ErrorAction SilentlyContinue
 
-Write-Host "==> starting agent v1 from $AgentExe (mock server http://127.0.0.1:$MockPort)"
+Write-Host "==> starting agent build $AgentBuild from $AgentExe (mock http://127.0.0.1:$MockPort)"
 $psi = New-Object System.Diagnostics.ProcessStartInfo
 $psi.FileName = $AgentExe
 $psi.WorkingDirectory = $agentDir
@@ -100,7 +121,7 @@ if ($logText -notmatch 'AUTO-UPDATE STAGED') {
     throw 'Expected AUTO-UPDATE STAGED in agent log'
 }
 if ($logText -notmatch 'AUTO-UPDATE APPLYING') {
-    Write-Warning 'AUTO-UPDATE APPLYING not found in log (apply may still be pending while agent is busy)'
+    Write-Warning 'AUTO-UPDATE APPLYING not found in log (apply skipped in C35_DEV mock test)'
 }
 
-Write-Host '==> remote autoupdate E2E: PASS (poll, download, blake3 verify, stage)'
+Write-Host "==> remote autoupdate E2E: PASS (build $AgentBuild -> $TargetVersion)"

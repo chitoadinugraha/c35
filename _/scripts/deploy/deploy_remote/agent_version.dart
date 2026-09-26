@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
+import 'package:postgres/postgres.dart';
 
 import '../deploy_lib.dart';
 
@@ -24,6 +25,27 @@ void agentVersionWrite(String root, String name, int build) {
 String agentVersionStampSync(String root) {
   final (build, _) = agentVersionRead(root);
   return '$build';
+}
+
+/// Minimum supported remote agent build; raise on breaking wire/session (see app-release-min.mdc).
+const remoteAgentMinBuild = 2;
+
+int remoteReleaseMinResolve({int min = 0}) {
+  final env = int.tryParse(deployEnv('REMOTE_AGENT_MIN', '')) ?? 0;
+  final floor = env > 0 ? env : remoteAgentMinBuild;
+  final requested = min > 0 ? min : floor;
+  return requested > floor ? requested : floor;
+}
+
+Future<int> remoteReleaseMinPublish(Connection conn, int min) async {
+  const configKey = 'app.release.c35.remote-windows';
+  final base = remoteReleaseMinResolve(min: min);
+  final rows = await conn.execute(
+    Sql.named(r"SELECT COALESCE((value->>'min')::bigint, 0) AS m FROM ai.config WHERE key = @key"),
+    parameters: {'key': configKey},
+  );
+  final existing = rows.isEmpty ? 0 : (rows.first[0] as int? ?? 0);
+  return base > existing ? base : existing;
 }
 
 void agentVersionBump(String root) {

@@ -176,6 +176,29 @@ pub async fn update_download(_base_url: &str, rel: &ReleaseRes) -> Result<(), an
     if ready_marker(rel.version).exists() {
         return Ok(());
     }
+    let mut backoff = Duration::from_secs(2);
+    let mut last_err: Option<anyhow::Error> = None;
+    for attempt in 1..=3u32 {
+        match update_download_once(rel).await {
+            Ok(()) => return Ok(()),
+            Err(e) => {
+                warn!(attempt, version = rel.version, "update download attempt failed: {e}");
+                last_err = Some(e);
+                let staging = staging_dir(rel.version);
+                if staging.exists() {
+                    let _ = std::fs::remove_dir_all(&staging);
+                }
+                if attempt < 3 {
+                    tokio::time::sleep(backoff).await;
+                    backoff = (backoff * 4).min(Duration::from_secs(32));
+                }
+            }
+        }
+    }
+    Err(last_err.unwrap_or_else(|| anyhow::anyhow!("update download failed")))
+}
+
+async fn update_download_once(rel: &ReleaseRes) -> Result<(), anyhow::Error> {
     if rel.hash.as_deref().unwrap_or("").is_empty() {
         anyhow::bail!("release missing hash");
     }
@@ -367,12 +390,11 @@ pub fn trigger_background_update(base_url: String) {
 }
 
 pub async fn update_run_loop(base_url: String) {
-    let mut tick = tokio::time::interval(Duration::from_secs(300));
-    tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    let mut interval_secs = 45u64;
     loop {
         tokio::select! {
-            _ = tick.tick() => {
-                check_and_stage_update(&base_url).await;
+            _ = tokio::time::sleep(Duration::from_secs(interval_secs)) => {
+                interval_secs = update_tick(&base_url).await;
             }
             _ = IDLE_NOTIFY.notified() => {
                 if let Some(v) = update_staged_version() {
@@ -383,7 +405,24 @@ pub async fn update_run_loop(base_url: String) {
                         }
                     }
                 }
+                interval_secs = update_tick(&base_url).await.min(interval_secs);
             }
+        }
+    }
+}
+
+/// Returns recommended seconds until the next poll (60 when an update is pending/staged).
+async fn update_tick(base_url: &str) -> u64 {
+    check_and_stage_update(base_url).await;
+    if update_staged_version().is_some() {
+        return 60;
+    }
+    match update_poll(base_url).await {
+        Ok(Some(_)) => 60,
+        Ok(None) => 300,
+        Err(e) => {
+            warn!("update poll failed: {e}");
+            120
         }
     }
 }

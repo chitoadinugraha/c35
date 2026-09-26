@@ -68,7 +68,7 @@ impl PairWindow {
                 .name("c35-pair-ui".into())
                 .spawn(move || {
                     if let Err(e) = run_pair_window(inner_t, hwnd_t, ready_t, user_quit_t, programmatic_close_t) {
-                        warn!("Pairing window failed ({e}); code will also print to the console.");
+                        warn!("Pairing window failed ({e}); use --cli for console pairing or check logs");
                     }
                 });
             let window = Self {
@@ -123,18 +123,17 @@ impl PairWindow {
             g.expires_total = total;
             g.deadline = Some(Instant::now() + total);
         }
-        println!();
-        println!("============================================================");
-        println!(">>> {}", WINDOW_TITLE);
-        println!(">>> {}", INSTRUCTION);
-        println!(">>> [ {} ]", code);
-        println!("============================================================");
+        tracing::info!(
+            code = %code,
+            expires_sec = expires_in_sec,
+            "pairing code (enter in Alien AI app -> Devices -> Pair with Code)"
+        );
         self.invalidate_all();
     }
 
     pub fn set_status(&self, status: &str) {
         self.inner.lock().unwrap().status = status.to_string();
-        println!(">>> {status}");
+        tracing::info!(status = %status, "pair window status");
         self.invalidate_all();
     }
 

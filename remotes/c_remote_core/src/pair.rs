@@ -55,6 +55,31 @@ pub fn pair_should_reroll(poll: &PairPoll, deadline: Instant, now: Instant) -> b
     matches!(poll, PairPoll::Expired) || now >= deadline
 }
 
+/// User-visible pairing status when register/poll fails (no secrets in output).
+pub fn pair_connect_status(err: &anyhow::Error, base_url: &str) -> String {
+    let msg = err.to_string().to_ascii_lowercase();
+    let base = base_url.to_ascii_lowercase();
+    if base.contains("127.0.0.1") || base.contains("localhost") {
+        return "Dev server missing pairing API. Use https://alienai.id for prod. Retrying…".to_string();
+    }
+    if msg.contains("timed out")
+        || msg.contains("timeout")
+        || msg.contains("connection refused")
+        || msg.contains("failed to connect")
+        || msg.contains("dns")
+        || msg.contains("network")
+    {
+        return "Network unreachable. Retrying…".to_string();
+    }
+    if msg.contains("401") || msg.contains("403") {
+        return "Server rejected the request. Retrying…".to_string();
+    }
+    if msg.contains("status") || msg.contains("http") {
+        return "Server error. Retrying…".to_string();
+    }
+    "Can't reach Alien AI right now. Retrying…".to_string()
+}
+
 pub async fn pair_register(
     base_url: &str,
     device_name: &str,

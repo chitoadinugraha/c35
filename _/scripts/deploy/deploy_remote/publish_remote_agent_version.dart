@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
 import 'package:postgres/postgres.dart';
 
 import '../deploy_lib.dart';
+import 'agent_version.dart';
 
 const configKey = 'app.release.c35.remote-windows';
 
@@ -13,7 +15,6 @@ Future<void> publishRemoteAgentVersion({required int version, required String ve
   if (h.isEmpty) throw StateError('hash required for remote agent publish');
   if (size <= 0) throw StateError('Invalid remote agent zip size: $size');
 
-  final configValue = jsonEncode({'version': version, 'versionName': versionName, 'min': min, 'hash': h, 'size': size});
   await runStep('Publish remote-windows version $version to ai.config', () async {
     final host = deployEnv('YB_HOST', 'yb-tservers.yugabyte.svc.cluster.local');
     final port = int.tryParse(deployEnv('YB_PORT', '5433')) ?? 5433;
@@ -27,6 +28,8 @@ Future<void> publishRemoteAgentVersion({required int version, required String ve
       settings: ConnectionSettings(sslMode: (ssl == 'disable' || ssl == 'false') ? SslMode.disable : SslMode.require),
     );
     try {
+      final minPublish = await remoteReleaseMinPublish(conn, min);
+      final configValue = jsonEncode({'version': version, 'versionName': versionName, 'min': minPublish, 'hash': h, 'size': size});
       await conn.execute(
         Sql.named('''
           INSERT INTO ai.config (key, value, updated_at)
@@ -35,27 +38,37 @@ Future<void> publishRemoteAgentVersion({required int version, required String ve
         '''),
         parameters: {'key': configKey, 'value': configValue},
       );
+      stdout.writeln('✓ ai.config min=$minPublish (floor≥$remoteAgentMinBuild)');
     } finally {
       await conn.close();
     }
   });
 
   await runStep('Broadcast release over NATS', () async {
-    final natsHost = deployEnv('NATS_HOST', 'nats.c35.svc.cluster.local');
-    final natsPort = int.tryParse(deployEnv('NATS_PORT', '4222')) ?? 4222;
-    try {
-      final socket = await Socket.connect(natsHost, natsPort, timeout: const Duration(seconds: 3));
-      final payload = jsonEncode({'platform': 'remote-windows', 'version': version, 'versionName': versionName, 'hash': h, 'size': size});
-      final payloadBytes = utf8.encode(payload);
-      socket.write('CONNECT {"verbose":false,"pedantic":false}\r\n');
-      socket.write('PUB c35.release.remote-windows ${payloadBytes.length}\r\n');
-      socket.add(payloadBytes);
-      socket.write('\r\nPING\r\n');
-      await socket.flush();
-      await socket.close();
-      stdout.writeln('✓ NATS broadcasted to c35.release.remote-windows ($version)');
-    } catch (e) {
-      stdout.writeln('ℹ NATS broadcast notice: $e (agents will still pick up update via periodic poll)');
+    final script = p.join(repoRoot(), '_', 'scripts', 'deploy', 'deploy_remote', 'nats_broadcast_remote_release.ps1');
+    final proc = await Process.run(
+      'powershell',
+      [
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        script,
+        '-Version',
+        '$version',
+        '-VersionName',
+        versionName,
+        '-Hash',
+        h,
+        '-Size',
+        '$size',
+      ],
+      runInShell: false,
+    );
+    stdout.write(proc.stdout);
+    stderr.write(proc.stderr);
+    if (proc.exitCode != 0) {
+      stdout.writeln('ℹ NATS cluster broadcast failed (exit ${proc.exitCode}); agents still poll alienai.id');
     }
   });
 

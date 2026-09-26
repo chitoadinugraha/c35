@@ -1,3 +1,5 @@
+#![cfg_attr(windows, windows_subsystem = "windows")]
+
 use c_remote_core::config::{device_iid_load, server_url, session_key_clear, session_key_load};
 use c_remote_core::conn_ws::{conn_ws_run_reconnect, is_invalid_session};
 use c_remote_core::ConnExit;
@@ -14,19 +16,21 @@ async fn run() -> anyhow::Result<()> {
     let base_url = server_url();
     let paired = session_key_load().is_some();
 
-    println!(
-        "\n\
-        +--------------------------------------------------------------+\n\
-        |  AlienAI Remote Agent (Windows) {:<28}|\n\
-        |  Device: {:<18} Paired: {:<5} Dev: {:<5} |\n\
-        |  Server: {:<52}|\n\
-        +--------------------------------------------------------------+\n",
-        agent_version_label(),
-        dev_name,
-        paired,
-        dev,
-        base_url,
-    );
+    if c_remote_core::log_local::console_visible() {
+        println!(
+            "\n\
+            +--------------------------------------------------------------+\n\
+            |  AlienAI Remote Agent (Windows) {:<28}|\n\
+            |  Device: {:<18} Paired: {:<5} Dev: {:<5} |\n\
+            |  Server: {:<52}|\n\
+            +--------------------------------------------------------------+\n",
+            agent_version_label(),
+            dev_name,
+            paired,
+            dev,
+            base_url,
+        );
+    }
 
     info!(
         version = agent_version_label(),
@@ -128,6 +132,7 @@ async fn run() -> anyhow::Result<()> {
 
 #[tokio::main]
 async fn main() {
+    let _ = c_remote_core::log_local::console_attach_from_parent();
     #[cfg(windows)]
     unsafe {
         use windows::Win32::UI::HiDpi::{SetProcessDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2};

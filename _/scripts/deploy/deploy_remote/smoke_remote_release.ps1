@@ -4,19 +4,22 @@
 
 param(
     [string]$BaseUrl = 'https://alienai.id',
-    [int]$MinVersion = 1
+    [int]$MinVersion = 1,
+    [int]$MinBuild = 0
 )
 
 $ErrorActionPreference = 'Stop'
 $base = $BaseUrl.Trim().TrimEnd('/')
 
-Write-Host "==> smoke remote release base=$base minVersion=$MinVersion"
+Write-Host "==> smoke remote release base=$base minVersion=$MinVersion minBuild=$MinBuild"
 
 $ver = Invoke-RestMethod -Uri "$base/version/remote-windows" -Method Get
 if ($ver.version -lt $MinVersion) { throw "version $($ver.version) < min $MinVersion" }
+if ($MinBuild -gt 0 -and $ver.min -lt $MinBuild) { throw "release min $($ver.min) < minBuild $MinBuild" }
 if ([string]::IsNullOrWhiteSpace($ver.hash)) { throw 'version JSON missing hash' }
 if ($ver.size -le 0) { throw 'version JSON missing size' }
-Write-Host "  version=$($ver.version) name=$($ver.versionName) size=$($ver.size)"
+Write-Host "  version=$($ver.version) min=$($ver.min) name=$($ver.versionName) size=$($ver.size)"
+if ($ver.url -and $ver.url -notmatch 'alienai\.id') { throw "version url must be on alienai.id: $($ver.url)" }
 
 $pair = Invoke-RestMethod -Uri "$base/v1/device/pair/register" -Method Post -ContentType 'application/json' -Body '{"device_name":"smoke-test","device_type":"windows"}'
 if ([string]::IsNullOrWhiteSpace($pair.code)) { throw 'pair/register missing code' }
