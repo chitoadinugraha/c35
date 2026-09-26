@@ -84,6 +84,7 @@ message InvokeReq {
     ReqAdminLogReport admin_log_report = 126;
     ReqExpensePut expense_put = 127;
     ReqAdminPlatformPnl admin_platform_pnl = 128;
+    ReqAdminOpsPeaks admin_ops_peaks = 129;
   }
 }
 
@@ -141,6 +142,7 @@ message InvokeRes {
     ResAdminLogReport admin_log_report = 126;
     ResExpensePut expense_put = 127;
     ResAdminPlatformPnl admin_platform_pnl = 128;
+    ResAdminOpsPeaks admin_ops_peaks = 129;
   }
 }
 
@@ -237,6 +239,18 @@ message WsReq {
     ReqMailDomainList mail_domain_list = 90;
     ReqSiteDomainVerify site_domain_verify = 91;
     ReqMailDomainAdd mail_domain_add = 92;
+    ReqMailAccountGet mail_account_get = 93;
+    ReqMailArchive mail_archive = 94;
+    ReqMailMarkRead mail_mark_read = 95;
+    ReqMailGroupList mail_group_list = 96;
+    ReqMailGroupUpsert mail_group_upsert = 97;
+    ReqMailGroupDelete mail_group_delete = 98;
+    ReqMailBroadcast mail_broadcast = 99;
+    ReqMailMailboxAdminList mail_mailbox_admin_list = 100;
+    ReqMailMailboxCreate mail_mailbox_create = 101;
+    ReqMailMailboxUpdate mail_mailbox_update = 102;
+    ReqMailMailboxDelete mail_mailbox_delete = 103;
+    ReqMailDomainFix mail_domain_fix = 104;
 
     ReqPromptFollowupPut prompt_followup_put = 141;
     ReqPromptFollowupList prompt_followup_list = 142;
@@ -355,6 +369,19 @@ message WsRes {
     ResMailDomainList mail_domain_list = 138;
     ResSiteDomainVerify site_domain_verify = 139;
     ResMailDomainAdd mail_domain_add = 140;
+
+    ResMailAccountGet mail_account_get = 145;
+    ResMailArchive mail_archive = 146;
+    ResMailMarkRead mail_mark_read = 147;
+    ResMailGroupList mail_group_list = 148;
+    ResMailGroupUpsert mail_group_upsert = 149;
+    ResMailGroupDelete mail_group_delete = 150;
+    ResMailBroadcast mail_broadcast = 151;
+    ResMailMailboxAdminList mail_mailbox_admin_list = 152;
+    ResMailMailboxCreate mail_mailbox_create = 153;
+    ResMailMailboxUpdate mail_mailbox_update = 154;
+    ResMailMailboxDelete mail_mailbox_delete = 155;
+    ResMailDomainFix mail_domain_fix = 156;
 
     ResPromptFollowupPut prompt_followup_put = 141;
     ResPromptFollowupList prompt_followup_list = 142;

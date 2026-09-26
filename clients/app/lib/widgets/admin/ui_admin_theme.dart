@@ -15,6 +15,8 @@ const adminBarOut = Color(0xFF34D399);
 const adminHealthOk = Color(0xFF34D399);
 const adminHealthStale = Color(0xFFF87171);
 
+Color adminBarFillForPct(double pct) => pct > 90 ? adminBarCrit : pct > 80 ? adminBarWarn : adminBarFill;
+
 const adminDashboardMaxWidth = 800.0;
 
 class UiAdminSectionTitle extends StatelessWidget {

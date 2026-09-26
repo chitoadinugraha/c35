@@ -63,3 +63,34 @@ message ReqLogSubscribe {
 }
 
 message ReqLogUnsubscribe {}
+
+message OpsMetric1mRow {
+  int64 ts_min_ms = 1;
+  string entity_type = 2;
+  string entity_id = 3;
+  string node_name = 4;
+  optional double cpu_max = 5;
+  optional int64 mem_used_max = 6;
+  optional double net_in_max = 7;
+  optional double net_out_max = 8;
+  optional string disk_device = 9;
+  optional int64 disk_used_last = 10;
+  optional int64 disk_total_last = 11;
+  optional string vol_namespace = 12;
+  optional string vol_pvc = 13;
+  optional int64 vol_used_last = 14;
+  optional int64 vol_capacity_last = 15;
+}
+
+message ReqAdminOpsPeaks {
+  int64 since_ms = 1;
+  int64 until_ms = 2;
+  optional string entity_type = 3;
+  optional string node_name = 4;
+}
+
+message ResAdminOpsPeaks {
+  repeated OpsMetric1mRow rows = 1;
+  double peak_cpu_max = 2;
+  double peak_mem_pct_max = 3;
+}

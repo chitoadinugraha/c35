@@ -56,18 +56,6 @@ export const registerAgentTools = (server: McpServer) => {
   );
 
   server.registerTool(
-    "device_list_http",
-    {
-      description: "List paired remote devices via /v1/mcp/agent device_list (release compare).",
-      inputSchema: ownerSchema,
-    },
-    async ({ owner_iid, uid }) => {
-      const result = await agentPost("device_list", {}, resolveOwnerIid(owner_iid, uid));
-      return jsonContent(result);
-    },
-  );
-
-  server.registerTool(
     "prompt_run",
     {
       description:

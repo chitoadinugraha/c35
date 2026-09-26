@@ -54,13 +54,17 @@ const NavCounts$json = {
     {'1': 'bots', '3': 1, '4': 1, '5': 5, '10': 'bots'},
     {'1': 'devices', '3': 2, '4': 1, '5': 5, '10': 'devices'},
     {'1': 'sites', '3': 3, '4': 1, '5': 5, '10': 'sites'},
+    {'1': 'mail_inbox_unread', '3': 4, '4': 1, '5': 5, '10': 'mailInboxUnread'},
+    {'1': 'mail_menu_visible', '3': 5, '4': 1, '5': 8, '10': 'mailMenuVisible'},
   ],
 };
 
 /// Descriptor for `NavCounts`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List navCountsDescriptor = $convert.base64Decode(
     'CglOYXZDb3VudHMSEgoEYm90cxgBIAEoBVIEYm90cxIYCgdkZXZpY2VzGAIgASgFUgdkZXZpY2'
-    'VzEhQKBXNpdGVzGAMgASgFUgVzaXRlcw==');
+    'VzEhQKBXNpdGVzGAMgASgFUgVzaXRlcxIqChFtYWlsX2luYm94X3VucmVhZBgEIAEoBVIPbWFp'
+    'bEluYm94VW5yZWFkEioKEW1haWxfbWVudV92aXNpYmxlGAUgASgIUg9tYWlsTWVudVZpc2libG'
+    'U=');
 
 @$core.Deprecated('Use identityGrantDescriptor instead')
 const IdentityGrant$json = {

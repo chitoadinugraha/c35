@@ -20,6 +20,11 @@ static ACTIVE_TASKS: AtomicUsize = AtomicUsize::new(0);
 static ACTIVE_SESSIONS: AtomicUsize = AtomicUsize::new(0);
 static IDLE_NOTIFY: Notify = Notify::const_new();
 
+/// Routine poll when no newer release is known.
+const POLL_UP_TO_DATE_SECS: u64 = 45;
+/// Retry while an update is staged but the agent is still busy.
+const POLL_PENDING_SECS: u64 = 15;
+
 /// RAII guard to track active task execution.
 pub struct TaskGuard;
 
@@ -293,12 +298,18 @@ pub fn update_apply(version: i64) -> Result<(), anyhow::Error> {
         anyhow::bail!("staged exe missing: {}", exe.display());
     }
     let install = install_dir();
+    let dest_exe = std::env::current_exe()?;
     let script = updates_root().join("apply.ps1");
+    let staged_name = if exe.exists() {
+        WINDOWS_AGENT_EXE
+    } else {
+        WINDOWS_LEGACY_AGENT_EXE
+    };
     let script_body = format!(
         r#"
 $staging = '{staging}'
+$destExe = '{dest_exe}'
 $install = '{install}'
-$exe = Join-Path $install '{exe_name}'
 $legacyExe = Join-Path $install '{legacy_exe}'
 $deadline = (Get-Date).AddSeconds(8)
 foreach ($name in @('{process}', '{legacy_process}')) {{
@@ -308,14 +319,25 @@ foreach ($name in @('{process}', '{legacy_process}')) {{
   Get-Process -Name $name -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 }}
 Start-Sleep -Milliseconds 300
-Copy-Item -Path (Join-Path $staging '{exe_name}') -Destination $exe -Force
+$src = Join-Path $staging '{staged_name}'
+if (-not (Test-Path $src)) {{
+  $alt = Join-Path $staging '{alt_name}'
+  if (Test-Path $alt) {{ $src = $alt }}
+}}
+Copy-Item -Path $src -Destination $destExe -Force
 if (Test-Path $legacyExe) {{ Remove-Item $legacyExe -Force -ErrorAction SilentlyContinue }}
-Start-Process $exe
+Start-Process $destExe
 exit 0
 "#,
         staging = staging.display().to_string().replace('\'', "''"),
+        dest_exe = dest_exe.display().to_string().replace('\'', "''"),
         install = install.display().to_string().replace('\'', "''"),
-        exe_name = WINDOWS_AGENT_EXE,
+        staged_name = staged_name,
+        alt_name = if staged_name == WINDOWS_AGENT_EXE {
+            WINDOWS_LEGACY_AGENT_EXE
+        } else {
+            WINDOWS_AGENT_EXE
+        },
         legacy_exe = WINDOWS_LEGACY_AGENT_EXE,
         process = WINDOWS_AGENT_PROCESS,
         legacy_process = WINDOWS_LEGACY_AGENT_PROCESS,
@@ -376,6 +398,22 @@ exit 0
     }
 }
 
+/// Tray / user-initiated check: poll, download, apply immediately when idle.
+pub fn update_check_now() {
+    if let Some(v) = update_staged_version() {
+        if is_idle() {
+            info!(version = v, "manual update check: applying staged build");
+            tokio::spawn(async move {
+                if let Err(e) = update_apply(v) {
+                    warn!("manual update apply failed: {e}");
+                }
+            });
+            return;
+        }
+    }
+    trigger_background_update(crate::config::server_url());
+}
+
 /// Trigger an immediate background check and download (e.g. from NATS release push).
 pub fn trigger_background_update(base_url: String) {
     tokio::spawn(async move {
@@ -430,15 +468,15 @@ pub async fn update_run_loop(base_url: String) {
     }
 }
 
-/// Returns recommended seconds until the next poll (60 when an update is pending/staged).
+/// Returns recommended seconds until the next poll.
 async fn update_tick(base_url: &str) -> u64 {
     check_and_stage_update(base_url).await;
     if update_staged_version().is_some() {
-        return 60;
+        return POLL_PENDING_SECS;
     }
     match update_poll(base_url).await {
-        Ok(Some(_)) => 60,
-        Ok(None) => 300,
+        Ok(Some(_)) => POLL_PENDING_SECS,
+        Ok(None) => POLL_UP_TO_DATE_SECS,
         Err(e) => {
             warn!("update poll failed: {e}");
             120
@@ -492,6 +530,10 @@ pub async fn update_check_on_start(base_url: &str) {
                     warn!("startup update download: {e}");
                 } else {
                     crate::webrtc::notify_update_ready(rel.version).await;
+                    if is_idle() {
+                        info!(version = rel.version, "startup: agent idle; applying update");
+                        let _ = update_apply(rel.version);
+                    }
                 }
             }
             Ok(None) => {}

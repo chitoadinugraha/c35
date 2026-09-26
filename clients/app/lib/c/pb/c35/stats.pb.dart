@@ -880,6 +880,400 @@ class ReqLogUnsubscribe extends $pb.GeneratedMessage {
   static ReqLogUnsubscribe? _defaultInstance;
 }
 
+class OpsMetric1mRow extends $pb.GeneratedMessage {
+  factory OpsMetric1mRow({
+    $fixnum.Int64? tsMinMs,
+    $core.String? entityType,
+    $core.String? entityId,
+    $core.String? nodeName,
+    $core.double? cpuMax,
+    $fixnum.Int64? memUsedMax,
+    $core.double? netInMax,
+    $core.double? netOutMax,
+    $core.String? diskDevice,
+    $fixnum.Int64? diskUsedLast,
+    $fixnum.Int64? diskTotalLast,
+    $core.String? volNamespace,
+    $core.String? volPvc,
+    $fixnum.Int64? volUsedLast,
+    $fixnum.Int64? volCapacityLast,
+  }) {
+    final result = OpsMetric1mRow._();
+    if (tsMinMs != null) result.tsMinMs = tsMinMs;
+    if (entityType != null) result.entityType = entityType;
+    if (entityId != null) result.entityId = entityId;
+    if (nodeName != null) result.nodeName = nodeName;
+    if (cpuMax != null) result.cpuMax = cpuMax;
+    if (memUsedMax != null) result.memUsedMax = memUsedMax;
+    if (netInMax != null) result.netInMax = netInMax;
+    if (netOutMax != null) result.netOutMax = netOutMax;
+    if (diskDevice != null) result.diskDevice = diskDevice;
+    if (diskUsedLast != null) result.diskUsedLast = diskUsedLast;
+    if (diskTotalLast != null) result.diskTotalLast = diskTotalLast;
+    if (volNamespace != null) result.volNamespace = volNamespace;
+    if (volPvc != null) result.volPvc = volPvc;
+    if (volUsedLast != null) result.volUsedLast = volUsedLast;
+    if (volCapacityLast != null) result.volCapacityLast = volCapacityLast;
+    return result;
+  }
+
+  OpsMetric1mRow._();
+
+  factory OpsMetric1mRow.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      OpsMetric1mRow()..mergeFromBuffer(data, registry);
+  factory OpsMetric1mRow.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      OpsMetric1mRow()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'OpsMetric1mRow',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: OpsMetric1mRow.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'tsMinMs')
+    ..aOS(2, _omitFieldNames ? '' : 'entityType')
+    ..aOS(3, _omitFieldNames ? '' : 'entityId')
+    ..aOS(4, _omitFieldNames ? '' : 'nodeName')
+    ..aD(5, _omitFieldNames ? '' : 'cpuMax')
+    ..aInt64(6, _omitFieldNames ? '' : 'memUsedMax')
+    ..aD(7, _omitFieldNames ? '' : 'netInMax')
+    ..aD(8, _omitFieldNames ? '' : 'netOutMax')
+    ..aOS(9, _omitFieldNames ? '' : 'diskDevice')
+    ..aInt64(10, _omitFieldNames ? '' : 'diskUsedLast')
+    ..aInt64(11, _omitFieldNames ? '' : 'diskTotalLast')
+    ..aOS(12, _omitFieldNames ? '' : 'volNamespace')
+    ..aOS(13, _omitFieldNames ? '' : 'volPvc')
+    ..aInt64(14, _omitFieldNames ? '' : 'volUsedLast')
+    ..aInt64(15, _omitFieldNames ? '' : 'volCapacityLast')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  OpsMetric1mRow clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  OpsMetric1mRow copyWith(void Function(OpsMetric1mRow) updates) =>
+      super.copyWith((message) => updates(message as OpsMetric1mRow))
+          as OpsMetric1mRow;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use OpsMetric1mRow() / OpsMetric1mRow.new instead')
+  static OpsMetric1mRow create() => OpsMetric1mRow._();
+  static $pb.GeneratedMessage $_createMessage() => OpsMetric1mRow._();
+  @$core.override
+  OpsMetric1mRow createEmptyInstance() => OpsMetric1mRow._();
+  @$core.pragma('dart2js:noInline')
+  static OpsMetric1mRow getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<OpsMetric1mRow>(
+          OpsMetric1mRow.$_createMessage);
+  static OpsMetric1mRow? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get tsMinMs => $_getI64(0);
+  @$pb.TagNumber(1)
+  set tsMinMs($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasTsMinMs() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearTsMinMs() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get entityType => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set entityType($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasEntityType() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearEntityType() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get entityId => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set entityId($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasEntityId() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearEntityId() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get nodeName => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set nodeName($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasNodeName() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearNodeName() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.double get cpuMax => $_getN(4);
+  @$pb.TagNumber(5)
+  set cpuMax($core.double value) => $_setDouble(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasCpuMax() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearCpuMax() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $fixnum.Int64 get memUsedMax => $_getI64(5);
+  @$pb.TagNumber(6)
+  set memUsedMax($fixnum.Int64 value) => $_setInt64(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasMemUsedMax() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearMemUsedMax() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.double get netInMax => $_getN(6);
+  @$pb.TagNumber(7)
+  set netInMax($core.double value) => $_setDouble(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasNetInMax() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearNetInMax() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.double get netOutMax => $_getN(7);
+  @$pb.TagNumber(8)
+  set netOutMax($core.double value) => $_setDouble(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasNetOutMax() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearNetOutMax() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.String get diskDevice => $_getSZ(8);
+  @$pb.TagNumber(9)
+  set diskDevice($core.String value) => $_setString(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasDiskDevice() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearDiskDevice() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $fixnum.Int64 get diskUsedLast => $_getI64(9);
+  @$pb.TagNumber(10)
+  set diskUsedLast($fixnum.Int64 value) => $_setInt64(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasDiskUsedLast() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearDiskUsedLast() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $fixnum.Int64 get diskTotalLast => $_getI64(10);
+  @$pb.TagNumber(11)
+  set diskTotalLast($fixnum.Int64 value) => $_setInt64(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasDiskTotalLast() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearDiskTotalLast() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  $core.String get volNamespace => $_getSZ(11);
+  @$pb.TagNumber(12)
+  set volNamespace($core.String value) => $_setString(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasVolNamespace() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearVolNamespace() => $_clearField(12);
+
+  @$pb.TagNumber(13)
+  $core.String get volPvc => $_getSZ(12);
+  @$pb.TagNumber(13)
+  set volPvc($core.String value) => $_setString(12, value);
+  @$pb.TagNumber(13)
+  $core.bool hasVolPvc() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearVolPvc() => $_clearField(13);
+
+  @$pb.TagNumber(14)
+  $fixnum.Int64 get volUsedLast => $_getI64(13);
+  @$pb.TagNumber(14)
+  set volUsedLast($fixnum.Int64 value) => $_setInt64(13, value);
+  @$pb.TagNumber(14)
+  $core.bool hasVolUsedLast() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearVolUsedLast() => $_clearField(14);
+
+  @$pb.TagNumber(15)
+  $fixnum.Int64 get volCapacityLast => $_getI64(14);
+  @$pb.TagNumber(15)
+  set volCapacityLast($fixnum.Int64 value) => $_setInt64(14, value);
+  @$pb.TagNumber(15)
+  $core.bool hasVolCapacityLast() => $_has(14);
+  @$pb.TagNumber(15)
+  void clearVolCapacityLast() => $_clearField(15);
+}
+
+class ReqAdminOpsPeaks extends $pb.GeneratedMessage {
+  factory ReqAdminOpsPeaks({
+    $fixnum.Int64? sinceMs,
+    $fixnum.Int64? untilMs,
+    $core.String? entityType,
+    $core.String? nodeName,
+  }) {
+    final result = ReqAdminOpsPeaks._();
+    if (sinceMs != null) result.sinceMs = sinceMs;
+    if (untilMs != null) result.untilMs = untilMs;
+    if (entityType != null) result.entityType = entityType;
+    if (nodeName != null) result.nodeName = nodeName;
+    return result;
+  }
+
+  ReqAdminOpsPeaks._();
+
+  factory ReqAdminOpsPeaks.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqAdminOpsPeaks()..mergeFromBuffer(data, registry);
+  factory ReqAdminOpsPeaks.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqAdminOpsPeaks()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqAdminOpsPeaks',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqAdminOpsPeaks.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'sinceMs')
+    ..aInt64(2, _omitFieldNames ? '' : 'untilMs')
+    ..aOS(3, _omitFieldNames ? '' : 'entityType')
+    ..aOS(4, _omitFieldNames ? '' : 'nodeName')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqAdminOpsPeaks clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqAdminOpsPeaks copyWith(void Function(ReqAdminOpsPeaks) updates) =>
+      super.copyWith((message) => updates(message as ReqAdminOpsPeaks))
+          as ReqAdminOpsPeaks;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqAdminOpsPeaks() / ReqAdminOpsPeaks.new instead')
+  static ReqAdminOpsPeaks create() => ReqAdminOpsPeaks._();
+  static $pb.GeneratedMessage $_createMessage() => ReqAdminOpsPeaks._();
+  @$core.override
+  ReqAdminOpsPeaks createEmptyInstance() => ReqAdminOpsPeaks._();
+  @$core.pragma('dart2js:noInline')
+  static ReqAdminOpsPeaks getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ReqAdminOpsPeaks>(
+          ReqAdminOpsPeaks.$_createMessage);
+  static ReqAdminOpsPeaks? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get sinceMs => $_getI64(0);
+  @$pb.TagNumber(1)
+  set sinceMs($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSinceMs() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSinceMs() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get untilMs => $_getI64(1);
+  @$pb.TagNumber(2)
+  set untilMs($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasUntilMs() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearUntilMs() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get entityType => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set entityType($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasEntityType() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearEntityType() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get nodeName => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set nodeName($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasNodeName() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearNodeName() => $_clearField(4);
+}
+
+class ResAdminOpsPeaks extends $pb.GeneratedMessage {
+  factory ResAdminOpsPeaks({
+    $core.Iterable<OpsMetric1mRow>? rows,
+    $core.double? peakCpuMax,
+    $core.double? peakMemPctMax,
+  }) {
+    final result = ResAdminOpsPeaks._();
+    if (rows != null) result.rows.addAll(rows);
+    if (peakCpuMax != null) result.peakCpuMax = peakCpuMax;
+    if (peakMemPctMax != null) result.peakMemPctMax = peakMemPctMax;
+    return result;
+  }
+
+  ResAdminOpsPeaks._();
+
+  factory ResAdminOpsPeaks.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResAdminOpsPeaks()..mergeFromBuffer(data, registry);
+  factory ResAdminOpsPeaks.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResAdminOpsPeaks()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResAdminOpsPeaks',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResAdminOpsPeaks.$_createMessage)
+    ..pPM<OpsMetric1mRow>(1, _omitFieldNames ? '' : 'rows',
+        subBuilder: OpsMetric1mRow.$_createMessage)
+    ..aD(2, _omitFieldNames ? '' : 'peakCpuMax')
+    ..aD(3, _omitFieldNames ? '' : 'peakMemPctMax')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResAdminOpsPeaks clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResAdminOpsPeaks copyWith(void Function(ResAdminOpsPeaks) updates) =>
+      super.copyWith((message) => updates(message as ResAdminOpsPeaks))
+          as ResAdminOpsPeaks;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResAdminOpsPeaks() / ResAdminOpsPeaks.new instead')
+  static ResAdminOpsPeaks create() => ResAdminOpsPeaks._();
+  static $pb.GeneratedMessage $_createMessage() => ResAdminOpsPeaks._();
+  @$core.override
+  ResAdminOpsPeaks createEmptyInstance() => ResAdminOpsPeaks._();
+  @$core.pragma('dart2js:noInline')
+  static ResAdminOpsPeaks getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ResAdminOpsPeaks>(
+          ResAdminOpsPeaks.$_createMessage);
+  static ResAdminOpsPeaks? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<OpsMetric1mRow> get rows => $_getList(0);
+
+  @$pb.TagNumber(2)
+  $core.double get peakCpuMax => $_getN(1);
+  @$pb.TagNumber(2)
+  set peakCpuMax($core.double value) => $_setDouble(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasPeakCpuMax() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearPeakCpuMax() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.double get peakMemPctMax => $_getN(2);
+  @$pb.TagNumber(3)
+  set peakMemPctMax($core.double value) => $_setDouble(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasPeakMemPctMax() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearPeakMemPctMax() => $_clearField(3);
+}
+
 const $core.bool _omitFieldNames =
     $core.bool.fromEnvironment('protobuf.omit_field_names');
 const $core.bool _omitMessageNames =

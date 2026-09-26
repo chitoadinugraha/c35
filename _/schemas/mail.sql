@@ -102,6 +102,25 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_mail_message_external_id
     WHERE external_id IS NOT NULL AND btrim(external_id) <> '';
 
 -- ------------------------------------------------------------------------------
+-- Broadcast groups (per mailbox)
+-- ------------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS mail.group (
+    group_id                    TEXT PRIMARY KEY,
+    owner_iid                   BIGINT NOT NULL REFERENCES ai.identity(id),
+    mailbox_id                  BIGINT NOT NULL REFERENCES mail.mailbox(id),
+    name                        TEXT NOT NULL,
+    description                 TEXT NOT NULL DEFAULT '',
+    emails_json                 JSONB NOT NULL DEFAULT '[]'::jsonb,
+
+    created_ts                  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_ts                  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_mail_group_mailbox
+    ON mail.group (mailbox_id, created_ts DESC);
+
+-- ------------------------------------------------------------------------------
 -- Seed: platform domain
 -- ------------------------------------------------------------------------------
 

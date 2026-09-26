@@ -5,6 +5,25 @@ use sqlx::{PgPool, Row};
 use crate::access::is_mail_admin;
 use crate::cloudflare::{CfConfig, normalize_domain, receive_worker_name};
 
+pub fn parse_email_domain(address: &str) -> Option<String> {
+    let addr = address.trim();
+    let at = addr.rfind('@')?;
+    let domain = addr[at + 1..].trim();
+    if domain.is_empty() {
+        return None;
+    }
+    Some(normalize_domain(domain))
+}
+
+pub async fn domain_allowed(pool: &PgPool, hostname: &str) -> Result<bool, String> {
+    let h = normalize_domain(hostname);
+    sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM mail.domain WHERE lower(hostname) = lower($1))")
+        .bind(&h)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 pub async fn default_hostname(pool: &PgPool) -> String {
     if let Ok(Some(d)) = sqlx::query_scalar::<_, String>(
         "SELECT hostname FROM mail.domain WHERE hostname = 'alienai.id'",
@@ -61,6 +80,47 @@ pub async fn add_admin(pool: &PgPool, viewer_iid: i64, raw: &str) -> Result<Mail
     .map_err(|e| e.to_string())?;
     let row = sqlx::query(
         "SELECT hostname, zone_id, sending_enabled, routing_enabled, setup_error, created_ts FROM mail.domain WHERE hostname = $1",
+    )
+    .bind(&hostname)
+    .fetch_one(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+    let mut d = row_to_proto(&row);
+    d.setup_steps = sync.steps;
+    Ok(d)
+}
+
+pub async fn fix_admin(pool: &PgPool, viewer_iid: i64, raw: &str) -> Result<MailDomain, String> {
+    if !is_mail_admin(pool, viewer_iid).await? {
+        return Err("forbidden".into());
+    }
+    let hostname = normalize_domain(raw);
+    if hostname.is_empty() {
+        return Err("hostname required".into());
+    }
+    let exists: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM mail.domain WHERE lower(hostname) = lower($1))")
+        .bind(&hostname)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+    if !exists {
+        return Err(format!("domain not registered: {hostname}"));
+    }
+    let cfg = CfConfig::from_env().ok_or_else(|| "CLOUDFLARE_API_TOKEN not configured".to_string())?;
+    let sync = sync_cf(&cfg, &hostname).await;
+    sqlx::query(
+        "UPDATE mail.domain SET zone_id = $2, sending_enabled = $3, routing_enabled = $4, setup_error = $5, updated_ts = NOW() WHERE lower(hostname) = lower($1)",
+    )
+    .bind(&hostname)
+    .bind(&sync.zone_id)
+    .bind(sync.sending_enabled)
+    .bind(sync.routing_enabled)
+    .bind(&sync.error_summary)
+    .execute(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+    let row = sqlx::query(
+        "SELECT hostname, zone_id, sending_enabled, routing_enabled, setup_error, created_ts FROM mail.domain WHERE lower(hostname) = lower($1)",
     )
     .bind(&hostname)
     .fetch_one(pool)

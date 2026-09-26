@@ -97,7 +97,7 @@ message MailDomain {
   string error_summary = 7;
 }
 
-// ================================= RPC (subset — M1 scaffold)
+// ================================= RPC
 
 message ReqMailList {
   MailDirection direction = 1;
@@ -150,5 +150,133 @@ message ReqMailDomainAdd {
 }
 
 message ResMailDomainAdd {
+  MailDomain domain = 1;
+}
+
+message ReqMailAccountGet {}
+
+message ResMailAccountGet {
+  MailAccount account = 1;
+}
+
+message ReqMailArchive {
+  repeated int64 message_ids = 1;
+  bool archive = 2;
+  int64 mailbox_id = 3;
+}
+
+message ResMailArchive {
+  int32 count = 1;
+}
+
+message MailGroup {
+  string group_id = 1;
+  string name = 2;
+  string description = 3;
+  repeated string emails = 4;
+  int64 created_ts_ms = 5;
+  int64 updated_ts_ms = 6;
+}
+
+message ReqMailGroupList {
+  int64 mailbox_id = 1;
+}
+
+message ResMailGroupList {
+  repeated MailGroup groups = 1;
+}
+
+message ReqMailGroupUpsert {
+  MailGroup group = 1;
+  int64 mailbox_id = 2;
+}
+
+message ResMailGroupUpsert {
+  MailGroup group = 1;
+}
+
+message ReqMailGroupDelete {
+  string group_id = 1;
+  int64 mailbox_id = 2;
+}
+
+message ResMailGroupDelete {
+  bool success = 1;
+}
+
+message ReqMailBroadcast {
+  string group_id = 1;
+  repeated string custom_emails = 2;
+  string subject = 3;
+  string body_text = 4;
+  string body_html = 5;
+  repeated MailAttachment attachments = 6;
+  int64 mailbox_id = 7;
+}
+
+message MailBroadcastFailure {
+  string to_addr = 1;
+  string error = 2;
+}
+
+message ResMailBroadcast {
+  int32 queued_count = 1;
+  repeated MailBroadcastFailure failures = 2;
+}
+
+message ReqMailMarkRead {
+  repeated int64 message_ids = 1;
+  bool read = 2;
+  int64 mailbox_id = 3;
+}
+
+message ResMailMarkRead {
+  int32 count = 1;
+  int32 inbox_unread_count = 2;
+}
+
+message ReqMailMailboxAdminList {}
+
+message ResMailMailboxAdminList {
+  repeated MailMailbox mailboxes = 1;
+}
+
+message ReqMailMailboxCreate {
+  MailMailboxKind kind = 1;
+  int64 site_iid = 2;
+  string address = 3;
+  string label = 4;
+  int32 subscriber_limit = 5;
+  repeated MailMailboxMember members = 6;
+}
+
+message ResMailMailboxCreate {
+  MailMailbox mailbox = 1;
+}
+
+message ReqMailMailboxUpdate {
+  int64 mailbox_id = 1;
+  string label = 2;
+  int32 subscriber_limit = 3;
+  repeated MailMailboxMember members = 4;
+}
+
+message ResMailMailboxUpdate {
+  MailMailbox mailbox = 1;
+}
+
+message ReqMailMailboxDelete {
+  int64 mailbox_id = 1;
+}
+
+message ResMailMailboxDelete {
+  bool success = 1;
+}
+
+message ReqMailDomainFix {
+  string hostname = 1;
+}
+
+message ResMailDomainFix {
   MailDomain domain = 1;
 }

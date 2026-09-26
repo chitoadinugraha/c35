@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:fixnum/fixnum.dart';
 
 String adminFmtBytes(Int64 bytes) {
@@ -26,3 +28,20 @@ double adminPct(Int64 used, Int64 total) {
 }
 
 String adminFmtPct(double pct) => '${pct.toStringAsFixed(0)}%';
+
+String adminFmtBytesPair(Int64 used, Int64 total) {
+  final t = total.toInt();
+  final u = used.toInt();
+  if (t <= 0) return adminFmtBytes(used);
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  var v = t.toDouble();
+  var i = 0;
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i++;
+  }
+  final div = math.pow(1024, i).toDouble();
+  String fmt(double n) => n >= 10 || i == 0 ? n.toStringAsFixed(0) : n.toStringAsFixed(1);
+  return '${fmt(u / div)}/${fmt(t / div)}${units[i]}';
+}
+

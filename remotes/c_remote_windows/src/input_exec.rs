@@ -2,14 +2,13 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use c_remote_core::c35_proto::RemoteInputEvent;
 use tracing::{info, warn};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT, KEYEVENTF_KEYUP,
-    KEYEVENTF_UNICODE, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEEVENTF_MIDDLEDOWN,
-    MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL,
-    MOUSEINPUT, VIRTUAL_KEY,
+    SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT, KEYEVENTF_EXTENDEDKEY,
+    KEYEVENTF_KEYUP, KEYEVENTF_UNICODE, MAPVK_VK_TO_VSC, MapVirtualKeyW, MOUSEEVENTF_LEFTDOWN,
+    MOUSEEVENTF_LEFTUP, MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_RIGHTDOWN,
+    MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL, MOUSEINPUT, VIRTUAL_KEY,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     GetSystemMetrics, SetCursorPos, SM_CXSCREEN, SM_CYSCREEN,
-    SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN, SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN,
 };
 
 static CONTROL_ALLOWED: AtomicBool = AtomicBool::new(true);
@@ -29,18 +28,16 @@ pub fn execute_input(evt: &RemoteInputEvent) {
         return;
     }
 
-    // Support multi-monitor virtual desktop span (handles negative X/Y offsets)
-    let vx = unsafe { GetSystemMetrics(SM_XVIRTUALSCREEN) };
-    let vy = unsafe { GetSystemMetrics(SM_YVIRTUALSCREEN) };
-    let vw = unsafe { GetSystemMetrics(SM_CXVIRTUALSCREEN) };
-    let vh = unsafe { GetSystemMetrics(SM_CYVIRTUALSCREEN) };
-    let (screen_w, screen_h) = if vw > 0 && vh > 0 {
-        (vw, vh)
+    // Primary monitor bounds matching DXGI display 0 capture
+    let screen_w = unsafe { GetSystemMetrics(SM_CXSCREEN) };
+    let screen_h = unsafe { GetSystemMetrics(SM_CYSCREEN) };
+    let (w, h) = if screen_w > 0 && screen_h > 0 {
+        (screen_w, screen_h)
     } else {
-        (unsafe { GetSystemMetrics(SM_CXSCREEN) }, unsafe { GetSystemMetrics(SM_CYSCREEN) })
+        (1920, 1080)
     };
-    let px = vx + (evt.x.clamp(0.0, 1.0) * screen_w as f64).round() as i32;
-    let py = vy + (evt.y.clamp(0.0, 1.0) * screen_h as f64).round() as i32;
+    let px = (evt.x.clamp(0.0, 1.0) * w as f64).round() as i32;
+    let py = (evt.y.clamp(0.0, 1.0) * h as f64).round() as i32;
 
     match evt.event_type.as_str() {
         "apply_update" => {
@@ -282,17 +279,22 @@ fn send_mouse_event(
 }
 
 fn send_key_event(vk: u16, key_up: bool) {
-    let flags = if key_up {
+    let mut flags = if key_up {
         KEYEVENTF_KEYUP
     } else {
         windows::Win32::UI::Input::KeyboardAndMouse::KEYBD_EVENT_FLAGS(0)
     };
+    // Extended keys: arrows, home, end, pgup, pgdn, ins, del, win keys, numpad divide, numlock
+    if matches!(vk, 0x21..=0x28 | 0x2D | 0x2E | 0x5B | 0x5C | 0x5D | 0x6F | 0x90) {
+        flags |= KEYEVENTF_EXTENDEDKEY;
+    }
+    let scan = unsafe { MapVirtualKeyW(vk as u32, MAPVK_VK_TO_VSC) as u16 };
     let input = INPUT {
         r#type: INPUT_KEYBOARD,
         Anonymous: INPUT_0 {
             ki: KEYBDINPUT {
                 wVk: VIRTUAL_KEY(vk),
-                wScan: 0,
+                wScan: scan,
                 dwFlags: flags,
                 time: 0,
                 dwExtraInfo: 0,

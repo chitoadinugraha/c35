@@ -6,6 +6,7 @@ import 'package:alienai_c35/c/chat/chat_block.dart';
 import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/parts/csai__version.dart';
 import 'package:alienai_c35/c/hint/hint_store.dart';
+import 'package:alienai_c35/c/mail/mail_inbox_bus.dart';
 import 'package:alienai_c35/c/mention/mention_catalog.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/c/llm/agent_model.dart';
@@ -1271,7 +1272,10 @@ class ChatStore extends ChangeNotifier {
   final mentionCatalog = MentionCatalogStore();
 
   void sessionInitMerge(ResSessionInit init) {
-    if (init.hasNav()) navCounts = init.nav;
+    if (init.hasNav()) {
+      navCounts = init.nav;
+      mailInboxBus.applyFromNav(init.nav);
+    }
     if (init.hasBilling()) AppStore.instance.billingPut(init.billing);
     if (init.hasMentions()) mentionCatalog.mergeCatalog(init.mentions);
     if (init.models.isNotEmpty) models = agentModelsFromProto(init.models);

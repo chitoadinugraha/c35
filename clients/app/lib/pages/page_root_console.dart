@@ -6,6 +6,7 @@ import 'package:alienai_c35/c/admin/admin_stats_stream.dart';
 import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/pb/c35/stats.pb.dart';
 import 'package:alienai_c35/c/session.dart';
+import 'package:fixnum/fixnum.dart';
 import 'package:alienai_c35/pages/page_root_inst.dart';
 import 'package:alienai_c35/pages/page_root_logs.dart';
 import 'package:alienai_c35/pages/page_root_objects.dart';
@@ -32,12 +33,47 @@ class PageRootConsole extends StatefulWidget {
 class _PageRootConsoleState extends State<PageRootConsole> {
   late final AdminApi _api = AdminApi.chat(widget.chatConn);
   late final AdminStatsStream _stats = AdminStatsStream(_api);
+  Map<String, ({double cpuMax, int memUsedMax})> _peaks24h = const {};
+  bool _peaksLoading = true;
 
   @override
   void initState() {
     super.initState();
     if (!Session.instance.isRoot) return;
     unawaited(_stats.start());
+    unawaited(_loadPeaks24h());
+  }
+
+  Future<void> _loadPeaks24h() async {
+    final untilMs = Int64(DateTime.now().millisecondsSinceEpoch);
+    final sinceMs = untilMs - Int64(86400000);
+    try {
+      final res = await _api.adminOpsPeaks(sinceMs: sinceMs, untilMs: untilMs, entityType: 'node');
+      if (!mounted) return;
+      setState(() {
+        _peaks24h = _nodePeaksFromRows(res.rows);
+        _peaksLoading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _peaksLoading = false);
+    }
+  }
+
+  Map<String, ({double cpuMax, int memUsedMax})> _nodePeaksFromRows(List<OpsMetric1mRow> rows) {
+    final out = <String, ({double cpuMax, int memUsedMax})>{};
+    for (final r in rows) {
+      if (r.entityType != 'node') continue;
+      final node = r.nodeName.isNotEmpty ? r.nodeName : r.entityId;
+      if (node.isEmpty) continue;
+      final prev = out[node];
+      final cpu = r.hasCpuMax() ? r.cpuMax : 0.0;
+      final mem = r.hasMemUsedMax() ? r.memUsedMax.toInt() : 0;
+      out[node] = (
+        cpuMax: prev == null ? cpu : (cpu > prev.cpuMax ? cpu : prev.cpuMax),
+        memUsedMax: prev == null ? mem : (mem > prev.memUsedMax ? mem : prev.memUsedMax),
+      );
+    }
+    return out;
   }
 
   @override
@@ -139,6 +175,44 @@ class _PageRootConsoleState extends State<PageRootConsole> {
                       ),
                     ),
                   ],
+                  const SizedBox(height: 14),
+                  const UiAdminSectionTitle('24h peaks'),
+                  UiAdminPanel(
+                    child: _peaksLoading
+                        ? const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8),
+                            child: Text('Loading rollup peaks…', style: TextStyle(color: adminMuted, fontSize: 12)),
+                          )
+                        : _peaks24h.isEmpty
+                            ? const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 8),
+                                child: Text('No 1m rollup data yet', style: TextStyle(color: adminMuted, fontSize: 12)),
+                              )
+                            : Column(
+                                children: [
+                                  for (final e in _peaks24h.entries.toList()..sort((a, b) => a.key.compareTo(b.key)))
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(vertical: 6),
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(e.key, style: const TextStyle(color: adminText, fontSize: 13, fontWeight: FontWeight.w500)),
+                                          ),
+                                          Text(
+                                            'CPU ${e.value.cpuMax.toStringAsFixed(0)}%',
+                                            style: const TextStyle(color: adminMuted, fontSize: 12),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Text(
+                                            'RAM ${adminFmtBytes(Int64(e.value.memUsedMax))}',
+                                            style: const TextStyle(color: adminMuted, fontSize: 12),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                ],
+                              ),
+                  ),
                   const SizedBox(height: 18),
                   const UiAdminSectionTitle('Quick actions'),
                   Wrap(

@@ -1,7 +1,9 @@
 import 'package:alienai_c35/c/api/referral_conn.dart';
 import 'package:alienai_c35/c/profile/profile_handle.dart';
 import 'package:alienai_c35/c/referral/referral_format.dart';
+import 'package:alienai_c35/c/mail/mail_inbox_bus.dart';
 import 'package:alienai_c35/c/session.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:alienai_c35/widgets/ui/ui_account_role_badges.dart';
 import 'package:alienai_c35/c/settings/voice_prefs.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
@@ -35,9 +37,11 @@ class UiAccountMenuAction {
     this.onDevices,
     this.onSites,
     this.onRootConsole,
+    this.onMail,
     this.botsCount,
     this.devicesCount,
     this.sitesCount,
+    this.mailInboxCount,
   });
 
   final ReferralConn? conn;
@@ -54,9 +58,11 @@ class UiAccountMenuAction {
   final VoidCallback? onDevices;
   final VoidCallback? onSites;
   final VoidCallback? onRootConsole;
+  final VoidCallback? onMail;
   final int? botsCount;
   final int? devicesCount;
   final int? sitesCount;
+  final int? mailInboxCount;
 }
 
 Future<void> uiAccountMenuShow(BuildContext anchorCtx, {UiAccountMenuAction? action}) async {
@@ -147,7 +153,7 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
             elevation: 12,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: _border)),
             child: ListenableBuilder(
-              listenable: AppStore.instance,
+              listenable: Listenable.merge([AppStore.instance, mailInboxBus]),
               builder: (context, _) {
                 final billing = AppStore.instance.billing;
                 return Column(
@@ -246,13 +252,20 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
                         onChanged: (v) => VoicePrefs.instance.setSpeakEnabled(v),
                       ),
                     ),
-                    if (acts.onReferralTree != null || acts.onLock != null || acts.onSignOut != null) ...[
+                    if (acts.onMail != null || acts.onReferralTree != null || acts.onLock != null || acts.onSignOut != null) ...[
                       const Divider(height: 1, color: _border),
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
                         child: Row(
                           children: [
                             const Spacer(),
+                            if (acts.onMail != null) ...[
+                              _MailFooterBtn(
+                                count: acts.mailInboxCount ?? mailInboxBus.inboxCount,
+                                onTap: () => _popThen(acts.onMail),
+                              ),
+                              const SizedBox(width: 8),
+                            ],
                             if (acts.onReferralTree != null) ...[
                               _MenuIconBtn(icon: Icons.account_tree_outlined, tooltip: 'Referral tree', onTap: () => _popThen(acts.onReferralTree)),
                               const SizedBox(width: 8),
@@ -308,6 +321,45 @@ class _NavCountBtn extends StatelessWidget {
           ),
         ),
       );
+}
+
+class _MailFooterBtn extends StatelessWidget {
+  const _MailFooterBtn({required this.count, this.onTap});
+
+  final int count;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final badge = MailInboxBus.unreadMenuLabel(count);
+    return uiTooltip(
+      message: 'mail.title'.tr(),
+      child: Material(
+        color: _hoverBg,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(badge.isEmpty ? 8 : 10, 0, 8, 0),
+            child: SizedBox(
+              height: 32,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (badge.isNotEmpty) ...[
+                    Text(badge, style: const TextStyle(color: _text, fontSize: 12, fontWeight: FontWeight.w700)),
+                    const SizedBox(width: 6),
+                  ],
+                  const Icon(Icons.mail_outlined, size: 18, color: Color(0xFFA1A1AA)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _MenuIconBtn extends StatelessWidget {

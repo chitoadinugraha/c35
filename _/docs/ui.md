@@ -61,11 +61,19 @@ On avatar tap:
 | Bot icon + count | Bots page |
 | Device icon + count | Devices page |
 | Site icon + count | Sites page |
+| Mail (staff / shared mailbox) | `PageMail` — CSA parity inbox + composer; see [mail.md](mail.md) |
 | Referral tree | Referral page (copy cs_agent) |
 | Lock | Session lock |
 | Logout | Sign out |
 
 **No space picker.** Personal AI is Home; bots/devices/sites are separate pages.
+
+### Mail (platform email)
+
+- **Entry:** avatar menu footer — **`9+` / `1`–`9` + mail icon** (left of referral tree); Settings tile when `Session.canUseMail`. Unread = sum of all mailboxes; loaded on **`ResSessionInit.nav`** (`mail_inbox_unread`, `mail_menu_visible`) and cached per uid in prefs until session init refreshes.
+- **UI:** `clients/app/lib/pages/mail/page_mail.dart` — ported from CSA `e34b9bf2` (master/detail, AppFlowy composer, attachments, mailing lists, broadcast).
+- **Wire:** `MailApi` → `ChatConn.rpc` / `WsReq` mail_* fields (see `_/schemas/proto/c35/mail.proto`).
+- **Admin** (domain onboard, mailbox CRUD): server RPCs shipped; Flutter admin panel (`UiPartnerMailPanel` parity) — follow-up; use MCP/SQL or deploy after panel lands.
 
 ## Home (personal AI chat)
 

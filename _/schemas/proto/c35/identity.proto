@@ -27,6 +27,10 @@ message NavCounts {
   int32 bots = 1;
   int32 devices = 2;
   int32 sites = 3;
+  // Sum of unread inbound (non-archived) across all mailboxes the user can access.
+  int32 mail_inbox_unread = 4;
+  // Show platform mail entry (staff / partner / mailbox_member).
+  bool mail_menu_visible = 5;
 }
 
 message IdentityGrant {

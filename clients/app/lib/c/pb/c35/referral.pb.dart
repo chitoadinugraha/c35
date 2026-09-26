@@ -1345,11 +1345,15 @@ class ResReferralUserStats extends $pb.GeneratedMessage {
     ReferralUserStatColumn? colA,
     ReferralUserStatColumn? colB,
     ReferralUserWalletSnapshot? wallet,
+    $core.String? authEmail,
+    $core.String? authPhone,
   }) {
     final result = ResReferralUserStats._();
     if (colA != null) result.colA = colA;
     if (colB != null) result.colB = colB;
     if (wallet != null) result.wallet = wallet;
+    if (authEmail != null) result.authEmail = authEmail;
+    if (authPhone != null) result.authPhone = authPhone;
     return result;
   }
 
@@ -1372,6 +1376,8 @@ class ResReferralUserStats extends $pb.GeneratedMessage {
         subBuilder: ReferralUserStatColumn.$_createMessage)
     ..aOM<ReferralUserWalletSnapshot>(3, _omitFieldNames ? '' : 'wallet',
         subBuilder: ReferralUserWalletSnapshot.$_createMessage)
+    ..aOS(4, _omitFieldNames ? '' : 'authEmail')
+    ..aOS(5, _omitFieldNames ? '' : 'authPhone')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1429,6 +1435,25 @@ class ResReferralUserStats extends $pb.GeneratedMessage {
   void clearWallet() => $_clearField(3);
   @$pb.TagNumber(3)
   ReferralUserWalletSnapshot ensureWallet() => $_ensure(2);
+
+  /// Populated only when viewer is root / director (login email + phone from identity_provider).
+  @$pb.TagNumber(4)
+  $core.String get authEmail => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set authEmail($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasAuthEmail() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearAuthEmail() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get authPhone => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set authPhone($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasAuthPhone() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearAuthPhone() => $_clearField(5);
 }
 
 class ReferralCommissionLevel extends $pb.GeneratedMessage {

@@ -9,3 +9,5 @@ metadata:
 data:
   C35_NODE_MOUNTS: "/,/var/log"
   C35_VOLUME_PATHS: ""
+  C35_VOLUME_DISCOVER: "1"
+  C35_VOLUME_DISCOVER_NS: "yugabyte"

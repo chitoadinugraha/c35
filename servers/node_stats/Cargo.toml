@@ -11,9 +11,16 @@ path = "src/main.rs"
 [dependencies]
 anyhow = { workspace = true }
 async-nats = { workspace = true }
+c35_nats = { path = "../crates/system/nats", package = "c35_nats" }
 c35_proto = { path = "../crates/proto", package = "c35_proto" }
+chrono = { workspace = true }
 libc = { workspace = true }
 prost = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+urlencoding = { workspace = true }

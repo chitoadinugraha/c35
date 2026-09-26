@@ -38,6 +38,9 @@ const Log$json = {
     {'1': 'created_ts_ms', '3': 17, '4': 1, '5': 3, '10': 'createdTsMs'},
     {'1': 'updated_ts_ms', '3': 18, '4': 1, '5': 3, '10': 'updatedTsMs'},
     {'1': 'deleted_ts_ms', '3': 19, '4': 1, '5': 3, '10': 'deletedTsMs'},
+    {'1': 'event_kind', '3': 20, '4': 1, '5': 9, '10': 'eventKind'},
+    {'1': 'class', '3': 21, '4': 1, '5': 9, '10': 'class'},
+    {'1': 'subject', '3': 22, '4': 1, '5': 9, '10': 'subject'},
   ],
 };
 
@@ -52,7 +55,8 @@ final $typed_data.Uint8List logDescriptor = $convert.base64Decode(
     'KAVSCmR1cmF0aW9uTXMSGQoIY29zdF91c2QYDyABKAFSB2Nvc3RVc2QSGwoJbWV0YV9qc29uGB'
     'AgASgJUghtZXRhSnNvbhIiCg1jcmVhdGVkX3RzX21zGBEgASgDUgtjcmVhdGVkVHNNcxIiCg11'
     'cGRhdGVkX3RzX21zGBIgASgDUgt1cGRhdGVkVHNNcxIiCg1kZWxldGVkX3RzX21zGBMgASgDUg'
-    'tkZWxldGVkVHNNcw==');
+    'tkZWxldGVkVHNNcxIdCgpldmVudF9raW5kGBQgASgJUglldmVudEtpbmQSFAoFY2xhc3MYFSAB'
+    'KAlSBWNsYXNzEhgKB3N1YmplY3QYFiABKAlSB3N1YmplY3Q=');
 
 @$core.Deprecated('Use logPushDescriptor instead')
 const LogPush$json = {

@@ -48,7 +48,7 @@ async fn run() -> anyhow::Result<()> {
         c_remote_windows::input_exec::execute_input,
     ));
     c_remote_core::webrtc::set_screen_handler(std::sync::Arc::new(|dc| {
-        c_remote_windows::screen_capture::start_screen_stream(dc, 1920, 25);
+        c_remote_windows::screen_capture::start_screen_stream(dc, 1280, 25);
     }));
     c_remote_core::webrtc::set_screenshot_handler(std::sync::Arc::new(|max_w, quality, marker, som| {
         c_remote_windows::screen_capture::capture_screen_jpeg(max_w, quality, marker, som)

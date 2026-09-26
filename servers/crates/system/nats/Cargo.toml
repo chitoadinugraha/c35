@@ -7,8 +7,10 @@ description = "c35 NATS client (cluster TLS)"
 [dependencies]
 anyhow = { workspace = true }
 async-nats = { workspace = true }
-chrono = { workspace = true }
+c35_proto = { path = "../../proto", package = "c35_proto" }
 futures-util = { workspace = true }
+prost = { workspace = true }
+chrono = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }

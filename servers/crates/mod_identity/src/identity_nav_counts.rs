@@ -40,5 +40,7 @@ pub async fn identity_nav_counts(ctx: &Ctx) -> WireResult<NavCounts> {
         bots: bots as i32,
         devices: devices as i32,
         sites: sites as i32,
+        mail_inbox_unread: 0,
+        mail_menu_visible: false,
     })
 }

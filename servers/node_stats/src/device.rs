@@ -78,9 +78,10 @@ pub fn block_devices(host_prefix: &str) -> Vec<BlockDevice> {
 fn block_devices_linux(host_prefix: &str) -> Result<Vec<BlockDevice>> {
     let block_dir = format!("{host_prefix}/sys/block");
     let mountinfo = fs::read_to_string(format!("{host_prefix}/proc/self/mountinfo"))?;
-    let mount_map = device_mounts_from_mountinfo(&mountinfo, |maj, min| {
-        resolve_block_dev(host_prefix, maj, min)
-    });
+    let dev_by_mount = parse_mount_devices_text(&mountinfo);
+    let resolve = |maj: u64, min: u64| resolve_block_dev(host_prefix, maj, min);
+    let mount_map = build_device_mount_map(&dev_by_mount, resolve);
+    let disk_mounts = disk_mount_paths(&dev_by_mount, resolve);
 
     let mut names: Vec<String> = fs::read_dir(&block_dir)?
         .filter_map(|e| e.ok())
@@ -91,20 +92,40 @@ fn block_devices_linux(host_prefix: &str) -> Result<Vec<BlockDevice>> {
 
     Ok(names
         .into_iter()
-        .map(|name| block_device_from_parts(host_prefix, &name, &mount_map))
+        .map(|name| {
+            let mounts = disk_mounts.get(&name).cloned().unwrap_or_default();
+            block_device_from_parts(host_prefix, &name, &mount_map, &mounts)
+        })
         .collect())
+}
+
+fn disk_mount_paths(
+    dev_by_mount: &HashMap<String, (u64, u64)>,
+    resolve_dev: impl Fn(u64, u64) -> String,
+) -> HashMap<String, Vec<String>> {
+    let mut out: HashMap<String, Vec<String>> = HashMap::new();
+    for (mount, (maj, min)) in dev_by_mount {
+        let dev_name = resolve_dev(*maj, *min);
+        if dev_name.is_empty() {
+            continue;
+        }
+        let disk = whole_disk_name(&dev_name);
+        out.entry(disk).or_default().push(mount.clone());
+    }
+    out
 }
 
 fn block_device_from_parts(
     host_prefix: &str,
     name: &str,
     mount_map: &HashMap<String, DeviceMountInfo>,
+    disk_mounts: &[String],
 ) -> BlockDevice {
     let info = mount_map.get(name).cloned().unwrap_or_default();
     let mount = info.mount;
     let is_boot = info.is_boot;
     let label = device_label(&mount, is_boot);
-    let (used_bytes, total_bytes) = device_bytes(host_prefix, name, &mount);
+    let (used_bytes, total_bytes) = device_bytes(host_prefix, name, disk_mounts);
     BlockDevice {
         name: name.to_string(),
         mount,
@@ -164,14 +185,31 @@ fn device_label(mount: &str, is_boot: bool) -> String {
         .unwrap_or_else(|| mount.trim_start_matches('/').into())
 }
 
-fn device_bytes(host_prefix: &str, name: &str, mount: &str) -> (u64, u64) {
-    if !mount.is_empty() {
+fn device_bytes(host_prefix: &str, name: &str, mounts: &[String]) -> (u64, u64) {
+    let total = sysfs_size(host_prefix, name).1;
+    let mut used = 0u64;
+    let mut seen = std::collections::HashSet::new();
+    for mount in mounts {
+        if !seen.insert(mount.as_str()) {
+            continue;
+        }
         let path = host_path(host_prefix, mount);
+        if !exists(&path) {
+            continue;
+        }
+        let (u, _) = stat_bytes(&path).unwrap_or((0, 0));
+        used = used.saturating_add(u);
+    }
+    if total > 0 {
+        return (used.min(total), total);
+    }
+    if mounts.len() == 1 {
+        let path = host_path(host_prefix, &mounts[0]);
         if exists(&path) {
             return stat_bytes(&path).unwrap_or((0, 0));
         }
     }
-    sysfs_size(host_prefix, name)
+    (used, total)
 }
 
 fn sysfs_size(host_prefix: &str, name: &str) -> (u64, u64) {
@@ -211,9 +249,14 @@ mod tests {
     #[test]
     fn boot_device_marked() {
         let mount_map = device_mounts_from_mountinfo(MOUNTINFO_BOOT, dev_resolver);
+        let dev_by_mount = parse_mount_devices_text(MOUNTINFO_BOOT);
+        let disk_mounts = disk_mount_paths(&dev_by_mount, dev_resolver);
         let devices = ["sda", "sdb"]
             .iter()
-            .map(|name| block_device_from_parts("", name, &mount_map))
+            .map(|name| {
+                let mounts = disk_mounts.get(*name).cloned().unwrap_or_default();
+                block_device_from_parts("", name, &mount_map, &mounts)
+            })
             .collect::<Vec<_>>();
         assert!(devices.iter().any(|d| d.is_boot && d.name == "sda"));
         let boot = devices.iter().find(|d| d.name == "sda").unwrap();

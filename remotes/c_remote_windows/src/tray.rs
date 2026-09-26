@@ -61,6 +61,8 @@ fn run_tray_loop(tx: tokio::sync::mpsc::UnboundedSender<TrayAction>) -> anyhow::
     const ID_QUIT: usize = 1002;
     const ID_TOGGLE_CONTROL: usize = 1003;
     const ID_TOGGLE_AUTOSTART: usize = 1004;
+    const ID_APPLY_UPDATE: usize = 1005;
+    const ID_CHECK_UPDATE: usize = 1006;
     const TRAY_TIMER_ID: usize = 99;
 
     static IS_EXITING: AtomicBool = AtomicBool::new(false);
@@ -153,6 +155,11 @@ fn run_tray_loop(tx: tokio::sync::mpsc::UnboundedSender<TrayAction>) -> anyhow::
                             0,
                             PCWSTR(ver.as_ptr()),
                         );
+                        if let Some(v) = c_remote_core::update::update_staged_version() {
+                            let label = HSTRING::from(format!("Apply update (v{v})…"));
+                            let _ = AppendMenuW(hmenu, MF_STRING, ID_APPLY_UPDATE, PCWSTR(label.as_ptr()));
+                        }
+                        let _ = AppendMenuW(hmenu, MF_STRING, ID_CHECK_UPDATE, w!("Check for update"));
                         let _ = AppendMenuW(hmenu, MF_STRING, ID_SHOW_LOG, w!("Show Log"));
                         let _ = AppendMenuW(hmenu, MF_STRING, ID_UNPAIR, w!("Unpair"));
                         let _ = AppendMenuW(hmenu, MF_SEPARATOR, 0, PCWSTR::null());
@@ -183,6 +190,16 @@ fn run_tray_loop(tx: tokio::sync::mpsc::UnboundedSender<TrayAction>) -> anyhow::
                 if id == ID_TOGGLE_CONTROL {
                     let next = !crate::input_exec::is_control_allowed();
                     crate::input_exec::set_control_allowed(next);
+                }
+                if id == ID_APPLY_UPDATE {
+                    if let Some(v) = c_remote_core::update::update_staged_version() {
+                        info!(version = v, "tray: applying staged agent update");
+                        let _ = c_remote_core::update::update_apply(v);
+                    }
+                }
+                if id == ID_CHECK_UPDATE {
+                    info!("tray: check for update");
+                    c_remote_core::update::update_check_now();
                 }
                 if id == ID_SHOW_LOG {
                     match c_remote_core::log_local::log_open() {

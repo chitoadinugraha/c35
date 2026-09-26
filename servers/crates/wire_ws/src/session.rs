@@ -1072,6 +1072,12 @@ async fn session_init(
     if let Ok(hints) = c35_mod_hint::hint_bundle_get(&ctx.pool, ctx.caller_iid, locale, hints_since_ms).await {
         res.hints = Some(hints);
     }
+    if let Some(nav) = res.nav.as_mut() {
+        if let Ok((unread, visible)) = c35_mod_mail::nav_mail_snapshot(&ctx.pool, ctx.caller_iid).await {
+            nav.mail_inbox_unread = unread;
+            nav.mail_menu_visible = visible;
+        }
+    }
     Ok(res)
 }
 

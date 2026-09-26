@@ -157,6 +157,58 @@ async fn column_for_period(
     }
 }
 
+async fn subject_auth_contact(pool: &PgPool, subject_iid: i64) -> (String, String) {
+    let rows = sqlx::query(
+        r#"
+        SELECT kind, identifier
+        FROM ai.identity_provider
+        WHERE identity_iid = $1 AND deleted_ts IS NULL AND kind IN ('google', 'email', 'phone')
+        ORDER BY CASE kind WHEN 'google' THEN 0 WHEN 'email' THEN 1 ELSE 2 END
+        "#,
+    )
+    .bind(subject_iid)
+    .fetch_all(pool)
+    .await
+    .unwrap_or_default();
+    let mut email = String::new();
+    let mut phone = String::new();
+    for r in rows {
+        let kind: String = r.get("kind");
+        let id: String = r.get("identifier");
+        if kind == "phone" {
+            if phone.is_empty() {
+                phone = id.trim().to_string();
+            }
+            continue;
+        }
+        if email.is_empty() {
+            let lower = id.trim().to_lowercase();
+            if lower.contains('@') && !lower.ends_with("@alienai.id") {
+                email = lower;
+            }
+        }
+    }
+    if email.is_empty() {
+        let meta: Option<serde_json::Value> = sqlx::query_scalar(
+            "SELECT meta FROM ai.identity WHERE id = $1 AND deleted_ts IS NULL",
+        )
+        .bind(subject_iid)
+        .fetch_optional(pool)
+        .await
+        .ok()
+        .flatten();
+        if let Some(m) = meta {
+            if let Some(e) = m.get("email").and_then(|v| v.as_str()) {
+                let lower = e.trim().to_lowercase();
+                if lower.contains('@') && !lower.ends_with("@alienai.id") {
+                    email = lower;
+                }
+            }
+        }
+    }
+    (email, phone)
+}
+
 async fn wallet_snapshot(pool: &PgPool, owner_iid: i64) -> Option<ReferralUserWalletSnapshot> {
     let row = sqlx::query(
         r#"
@@ -200,9 +252,16 @@ pub async fn referral_user_stats(
     let col_a = column_for_period(pool, subject, &req.col_a.unwrap_or_default()).await;
     let col_b = column_for_period(pool, subject, &req.col_b.unwrap_or_default()).await;
     let wallet = wallet_snapshot(pool, subject).await;
+    let (auth_email, auth_phone) = if viewer_is_root_or_director(pool, viewer_iid).await {
+        subject_auth_contact(pool, subject).await
+    } else {
+        (String::new(), String::new())
+    };
     Ok(ResReferralUserStats {
         col_a: Some(col_a),
         col_b: Some(col_b),
         wallet,
+        auth_email,
+        auth_phone,
     })
 }

@@ -3,6 +3,7 @@ use c35_store::PgPool;
 use tokio::sync::mpsc::UnboundedReceiver;
 
 pub async fn nats_post_connect(pool: PgPool, client: Client) {
+    c35_wire_ws::admin_stats_warm(client.clone()).await;
     if let Err(e) = c35_nats::jetstream_streams_ensure(&client).await {
         tracing::warn!(error = %e, "[c35:nats] stream ensure failed");
         return;

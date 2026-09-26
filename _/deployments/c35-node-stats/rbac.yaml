@@ -6,3 +6,31 @@ metadata:
   labels:
     app: c35-node-stats
     app.kubernetes.io/part-of: c35
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: c35-node-stats
+  labels:
+    app: c35-node-stats
+    app.kubernetes.io/part-of: c35
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "persistentvolumeclaims"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: c35-node-stats
+  labels:
+    app: c35-node-stats
+    app.kubernetes.io/part-of: c35
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: c35-node-stats
+subjects:
+  - kind: ServiceAccount
+    name: c35-node-stats
+    namespace: c35

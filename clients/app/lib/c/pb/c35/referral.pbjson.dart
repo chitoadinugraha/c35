@@ -360,6 +360,8 @@ const ResReferralUserStats$json = {
       '6': '.c35.ReferralUserWalletSnapshot',
       '10': 'wallet'
     },
+    {'1': 'auth_email', '3': 4, '4': 1, '5': 9, '10': 'authEmail'},
+    {'1': 'auth_phone', '3': 5, '4': 1, '5': 9, '10': 'authPhone'},
   ],
 };
 
@@ -368,7 +370,8 @@ final $typed_data.Uint8List resReferralUserStatsDescriptor = $convert.base64Deco
     'ChRSZXNSZWZlcnJhbFVzZXJTdGF0cxIwCgVjb2xfYRgBIAEoCzIbLmMzNS5SZWZlcnJhbFVzZX'
     'JTdGF0Q29sdW1uUgRjb2xBEjAKBWNvbF9iGAIgASgLMhsuYzM1LlJlZmVycmFsVXNlclN0YXRD'
     'b2x1bW5SBGNvbEISNwoGd2FsbGV0GAMgASgLMh8uYzM1LlJlZmVycmFsVXNlcldhbGxldFNuYX'
-    'BzaG90UgZ3YWxsZXQ=');
+    'BzaG90UgZ3YWxsZXQSHQoKYXV0aF9lbWFpbBgEIAEoCVIJYXV0aEVtYWlsEh0KCmF1dGhfcGhv'
+    'bmUYBSABKAlSCWF1dGhQaG9uZQ==');
 
 @$core.Deprecated('Use referralCommissionLevelDescriptor instead')
 const ReferralCommissionLevel$json = {

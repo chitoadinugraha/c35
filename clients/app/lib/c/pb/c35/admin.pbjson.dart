@@ -163,12 +163,35 @@ const ReqAdminLogList$json = {
       '10': 'beforeId',
       '17': true
     },
+    {
+      '1': 'event_kind',
+      '3': 9,
+      '4': 1,
+      '5': 9,
+      '9': 4,
+      '10': 'eventKind',
+      '17': true
+    },
+    {'1': 'class', '3': 10, '4': 1, '5': 9, '9': 5, '10': 'class', '17': true},
+    {
+      '1': 'subject_prefix',
+      '3': 11,
+      '4': 1,
+      '5': 9,
+      '9': 6,
+      '10': 'subjectPrefix',
+      '17': true
+    },
+    {'1': 'exclude_trace', '3': 12, '4': 1, '5': 8, '10': 'excludeTrace'},
   ],
   '8': [
     {'1': '_owner_iid'},
     {'1': '_kind'},
     {'1': '_topic'},
     {'1': '_before_id'},
+    {'1': '_event_kind'},
+    {'1': '_class'},
+    {'1': '_subject_prefix'},
   ],
 };
 
@@ -178,8 +201,11 @@ final $typed_data.Uint8List reqAdminLogListDescriptor = $convert.base64Decode(
     'NpbmNlX21zGAIgASgDUgdzaW5jZU1zEhkKCHVudGlsX21zGAMgASgDUgd1bnRpbE1zEhIKBHRl'
     'eHQYBCABKAlSBHRleHQSFwoEa2luZBgFIAEoCUgBUgRraW5kiAEBEhkKBXRvcGljGAYgASgJSA'
     'JSBXRvcGljiAEBEhQKBWxpbWl0GAcgASgFUgVsaW1pdBIgCgliZWZvcmVfaWQYCCABKANIA1II'
-    'YmVmb3JlSWSIAQFCDAoKX293bmVyX2lpZEIHCgVfa2luZEIICgZfdG9waWNCDAoKX2JlZm9yZV'
-    '9pZA==');
+    'YmVmb3JlSWSIAQESIgoKZXZlbnRfa2luZBgJIAEoCUgEUglldmVudEtpbmSIAQESGQoFY2xhc3'
+    'MYCiABKAlIBVIFY2xhc3OIAQESKgoOc3ViamVjdF9wcmVmaXgYCyABKAlIBlINc3ViamVjdFBy'
+    'ZWZpeIgBARIjCg1leGNsdWRlX3RyYWNlGAwgASgIUgxleGNsdWRlVHJhY2VCDAoKX293bmVyX2'
+    'lpZEIHCgVfa2luZEIICgZfdG9waWNCDAoKX2JlZm9yZV9pZEINCgtfZXZlbnRfa2luZEIICgZf'
+    'Y2xhc3NCEQoPX3N1YmplY3RfcHJlZml4');
 
 @$core.Deprecated('Use resAdminLogListDescriptor instead')
 const ResAdminLogList$json = {

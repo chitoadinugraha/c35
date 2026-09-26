@@ -44,6 +44,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
   final _focusNode = FocusNode();
   var _connecting = false;
   String? _error;
+  int _heldButtons = 0;
 
   @override
   void initState() {
@@ -232,18 +233,29 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
       ),
       child: Row(
         children: [
-          // Resolution / FPS
-          ValueListenableBuilder<RemoteScreenFrame?>(
-            valueListenable: sess.screenFrame,
-            builder: (context, frame, _) => ValueListenableBuilder<int>(
-              valueListenable: sess.fps,
-              builder: (context, fps, _) {
-                if (!connected || frame == null) return const SizedBox.shrink();
-                return Text(
-                  '${frame.width}×${frame.height} • ${fps}fps',
-                  style: const TextStyle(fontSize: 11, color: _zinc500),
-                );
-              },
+          // Resolution / FPS / Codec
+          ValueListenableBuilder<bool>(
+            valueListenable: sess.hasVideoTrack,
+            builder: (context, hasVideo, _) => ValueListenableBuilder<RemoteScreenFrame?>(
+              valueListenable: sess.screenFrame,
+              builder: (context, frame, _) => ValueListenableBuilder<int>(
+                valueListenable: sess.fps,
+                builder: (context, fps, _) {
+                  if (!connected) return const SizedBox.shrink();
+                  final w = hasVideo && sess.videoRenderer.videoWidth > 0
+                      ? sess.videoRenderer.videoWidth
+                      : (frame?.width ?? 0);
+                  final h = hasVideo && sess.videoRenderer.videoHeight > 0
+                      ? sess.videoRenderer.videoHeight
+                      : (frame?.height ?? 0);
+                  if (w <= 0 || h <= 0) return const SizedBox.shrink();
+                  final codec = hasVideo ? 'H.264' : 'MJPEG';
+                  return Text(
+                    '$w×$h • ${fps}fps ($codec)',
+                    style: const TextStyle(fontSize: 11, color: _zinc500),
+                  );
+                },
+              ),
             ),
           ),
 
@@ -471,9 +483,14 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                     );
                   }
 
-                  final aspectRatio = frame != null && frame.width > 0 && frame.height > 0
-                      ? frame.width / frame.height
-                      : 16 / 9;
+                  final double aspectRatio;
+                  if (hasVideoTrack && sess.videoRenderer.videoWidth > 0 && sess.videoRenderer.videoHeight > 0) {
+                    aspectRatio = sess.videoRenderer.videoWidth / sess.videoRenderer.videoHeight;
+                  } else if (frame != null && frame.width > 0 && frame.height > 0) {
+                    aspectRatio = frame.width / frame.height;
+                  } else {
+                    aspectRatio = 16 / 9;
+                  }
 
                   return Center(
                     child: AspectRatio(
@@ -488,15 +505,18 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                             child: Listener(
                               onPointerDown: (e) {
                                 if (controlEnabled) _focusNode.requestFocus();
-                                final btn = e.buttons == kSecondaryMouseButton
+                                final btn = (e.buttons & kSecondaryMouseButton != 0)
                                     ? 2
-                                    : (e.buttons == kMiddleMouseButton ? 1 : 0);
+                                    : ((e.buttons & kMiddleMouseButton != 0) ? 1 : 0);
+                                _heldButtons = e.buttons;
                                 _sendPointer('mouse_down', e.localPosition, renderSize, button: btn);
                               },
                               onPointerUp: (e) {
-                                final btn = e.buttons == kSecondaryMouseButton
+                                final released = _heldButtons & ~e.buttons;
+                                final btn = (released & kSecondaryMouseButton != 0)
                                     ? 2
-                                    : (e.buttons == kMiddleMouseButton ? 1 : 0);
+                                    : ((released & kMiddleMouseButton != 0) ? 1 : 0);
+                                _heldButtons = e.buttons;
                                 _sendPointer('mouse_up', e.localPosition, renderSize, button: btn);
                               },
                               onPointerMove: (e) {
@@ -507,8 +527,11 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                               },
                               onPointerSignal: (e) {
                                 if (e is PointerScrollEvent) {
-                                  final delta = (e.scrollDelta.dy / 20).round();
-                                  _sendPointer('wheel', e.localPosition, renderSize, deltaY: delta);
+                                  // Invert dy: Flutter scroll-down is positive dy, Win32 WHEEL_DELTA requires negative for down
+                                  final delta = (-e.scrollDelta.dy / 20).round();
+                                  if (delta != 0) {
+                                    _sendPointer('wheel', e.localPosition, renderSize, deltaY: delta);
+                                  }
                                 }
                               },
                               child: MouseRegion(
@@ -554,6 +577,62 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
     if (key == LogicalKeyboardKey.shiftLeft || key == LogicalKeyboardKey.shiftRight) return 0x10;
     if (key == LogicalKeyboardKey.altLeft || key == LogicalKeyboardKey.altRight) return 0x12;
     if (key == LogicalKeyboardKey.metaLeft || key == LogicalKeyboardKey.metaRight) return 0x5B;
+
+    // Navigation & editing keys
+    if (key == LogicalKeyboardKey.home) return 0x24;
+    if (key == LogicalKeyboardKey.end) return 0x23;
+    if (key == LogicalKeyboardKey.pageUp) return 0x21;
+    if (key == LogicalKeyboardKey.pageDown) return 0x22;
+    if (key == LogicalKeyboardKey.insert) return 0x2D;
+    if (key == LogicalKeyboardKey.capsLock) return 0x14;
+    if (key == LogicalKeyboardKey.numLock) return 0x90;
+    if (key == LogicalKeyboardKey.scrollLock) return 0x91;
+    if (key == LogicalKeyboardKey.printScreen) return 0x2C;
+    if (key == LogicalKeyboardKey.pause) return 0x13;
+
+    // Function keys (F1 - F12)
+    if (key == LogicalKeyboardKey.f1) return 0x70;
+    if (key == LogicalKeyboardKey.f2) return 0x71;
+    if (key == LogicalKeyboardKey.f3) return 0x72;
+    if (key == LogicalKeyboardKey.f4) return 0x73;
+    if (key == LogicalKeyboardKey.f5) return 0x74;
+    if (key == LogicalKeyboardKey.f6) return 0x75;
+    if (key == LogicalKeyboardKey.f7) return 0x76;
+    if (key == LogicalKeyboardKey.f8) return 0x77;
+    if (key == LogicalKeyboardKey.f9) return 0x78;
+    if (key == LogicalKeyboardKey.f10) return 0x79;
+    if (key == LogicalKeyboardKey.f11) return 0x7A;
+    if (key == LogicalKeyboardKey.f12) return 0x7B;
+
+    // Punctuation and symbols
+    if (key == LogicalKeyboardKey.semicolon) return 0xBA;
+    if (key == LogicalKeyboardKey.equal) return 0xBB;
+    if (key == LogicalKeyboardKey.comma) return 0xBC;
+    if (key == LogicalKeyboardKey.minus) return 0xBD;
+    if (key == LogicalKeyboardKey.period) return 0xBE;
+    if (key == LogicalKeyboardKey.slash) return 0xBF;
+    if (key == LogicalKeyboardKey.backquote) return 0xC0;
+    if (key == LogicalKeyboardKey.bracketLeft) return 0xDB;
+    if (key == LogicalKeyboardKey.backslash) return 0xDC;
+    if (key == LogicalKeyboardKey.bracketRight) return 0xDD;
+    if (key == LogicalKeyboardKey.quote) return 0xDE;
+
+    // Numpad keys
+    if (key == LogicalKeyboardKey.numpad0) return 0x60;
+    if (key == LogicalKeyboardKey.numpad1) return 0x61;
+    if (key == LogicalKeyboardKey.numpad2) return 0x62;
+    if (key == LogicalKeyboardKey.numpad3) return 0x63;
+    if (key == LogicalKeyboardKey.numpad4) return 0x64;
+    if (key == LogicalKeyboardKey.numpad5) return 0x65;
+    if (key == LogicalKeyboardKey.numpad6) return 0x66;
+    if (key == LogicalKeyboardKey.numpad7) return 0x67;
+    if (key == LogicalKeyboardKey.numpad8) return 0x68;
+    if (key == LogicalKeyboardKey.numpad9) return 0x69;
+    if (key == LogicalKeyboardKey.numpadMultiply) return 0x6A;
+    if (key == LogicalKeyboardKey.numpadAdd) return 0x6B;
+    if (key == LogicalKeyboardKey.numpadSubtract) return 0x6D;
+    if (key == LogicalKeyboardKey.numpadDecimal) return 0x6E;
+    if (key == LogicalKeyboardKey.numpadDivide) return 0x6F;
 
     final id = key.keyId;
     // 'a'..'z' (0x61..0x7A) -> 0x41..0x5A

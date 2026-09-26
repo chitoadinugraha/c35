@@ -84,6 +84,7 @@ class RemoteSession {
   Timer? _reconnectTimer;
   static Timer? _leaveDevicesTimer;
   var _frameCount = 0;
+  var _lastDecodedFrames = 0;
   var _starting = false;
   var _retryCount = 0;
   var _manualStop = false;
@@ -234,7 +235,7 @@ class RemoteSession {
       _bindFsChannel(_fsChannel!);
 
       _inputChannel = await _pc!.createDataChannel(_inputChannelLabel, RTCDataChannelInit()..ordered = true);
-      _screenChannel = await _pc!.createDataChannel(_screenChannelLabel, RTCDataChannelInit()..ordered = false..maxRetransmits = 0);
+      _screenChannel = await _pc!.createDataChannel(_screenChannelLabel, RTCDataChannelInit()..ordered = true);
       _bindScreenChannel(_screenChannel!);
 
       _startFpsTimer();
@@ -274,6 +275,7 @@ class RemoteSession {
     _fpsTimer?.cancel();
     _fpsTimer = null;
     _frameCount = 0;
+    _lastDecodedFrames = 0;
     fps.value = 0;
     screenFrame.value = null;
     hasVideoTrack.value = false;
@@ -325,7 +327,23 @@ class RemoteSession {
   void _startFpsTimer() {
     _fpsTimer?.cancel();
     _frameCount = 0;
-    _fpsTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+    _lastDecodedFrames = 0;
+    _fpsTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
+      if (hasVideoTrack.value && _pc != null) {
+        try {
+          final stats = await _pc!.getStats();
+          for (final r in stats) {
+            if (r.type == 'inbound-rtp' && r.values['kind'] == 'video') {
+              final frames = int.tryParse(r.values['framesDecoded']?.toString() ?? '') ?? 0;
+              if (_lastDecodedFrames > 0 && frames >= _lastDecodedFrames) {
+                fps.value = frames - _lastDecodedFrames;
+              }
+              _lastDecodedFrames = frames;
+              return;
+            }
+          }
+        } catch (_) {}
+      }
       fps.value = _frameCount;
       _frameCount = 0;
     });

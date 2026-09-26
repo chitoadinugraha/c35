@@ -13,6 +13,9 @@ pub const STREAM_DEVICE_TASK: &str = "C35_DEVICE_TASK";
 pub const SUBJECT_DEVICE_TASK: &str = "c35.act.device.*.task.run";
 
 pub async fn jetstream_streams_ensure(client: &Client) -> anyhow::Result<()> {
+    crate::stats_kv::stats_kv_ensure(client)
+        .await
+        .context("c35_stats KV")?;
     let js = jetstream::new(client.clone());
     js.get_or_create_stream(jetstream::stream::Config {
         name: STREAM_CHAT_PROMPT.into(),

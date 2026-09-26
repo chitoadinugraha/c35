@@ -324,6 +324,9 @@ pub fn capture_screen_jpeg(
 /// [6..8]: height (u16 be)
 /// [8..16]: timestamp_ms (u64 be)
 /// [16..]: jpeg payload
+/// WebRTC SCTP ordered channel reliably delivers larger messages; allow up to 120KB for high-DPI desktop frames.
+pub const REMOTE_SCREEN_SCTP_MAX_BYTES: usize = 120_000;
+
 pub fn make_screen_packet(w: u16, h: u16, ts_ms: u64, jpeg: &[u8]) -> Vec<u8> {
     let mut packet = Vec::with_capacity(16 + jpeg.len());
     packet.extend_from_slice(b"CS35");
@@ -352,6 +355,8 @@ pub fn start_screen_stream(dc: Arc<RTCDataChannel>, max_w: u32, target_fps: u32)
 
         let mut prev_hash: Option<[u8; 32]> = None;
         let mut last_sent_time = SystemTime::now();
+        let mut stream_max_w = max_w.min(1280);
+        let mut stream_quality: u8 = 68;
 
         loop {
             interval.tick().await;
@@ -368,44 +373,91 @@ pub fn start_screen_stream(dc: Arc<RTCDataChannel>, max_w: u32, target_fps: u32)
             // Force frame if dirty or 2s heartbeat elapsed
             let force = dirty || elapsed >= Duration::from_secs(2);
 
-            let cur_prev_hash = prev_hash;
-            let capture_res = tokio::task::spawn_blocking(move || {
-                capture_screen_diff(max_w, 72, cur_prev_hash, force)
-            })
-            .await;
+            let mut sent = false;
+            let mut stop_stream = false;
+            for attempt in 0..5u8 {
+                let cur_prev_hash = prev_hash;
+                let cap_w = stream_max_w;
+                let cap_q = stream_quality;
+                let capture_res = tokio::task::spawn_blocking(move || {
+                    capture_screen_diff(cap_w, cap_q, cur_prev_hash, force)
+                })
+                .await;
 
-            match capture_res {
-                Ok(Ok((Some((w, h, jpeg)), new_hash))) => {
-                    prev_hash = Some(new_hash);
-                    last_sent_time = SystemTime::now();
-                    let ts_ms = SystemTime::now()
-                        .duration_since(UNIX_EPOCH)
-                        .unwrap_or_default()
-                        .as_millis() as u64;
-                    let packet = make_screen_packet(w, h, ts_ms, &jpeg);
-                    if let Err(e) = dc.send(&bytes::Bytes::from(packet)).await {
-                        debug!("remote-screen send failed: {e}, stopping stream");
+                match capture_res {
+                    Ok(Ok((Some((w, h, jpeg)), new_hash))) => {
+                        let ts_ms = SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_millis() as u64;
+                        let packet = make_screen_packet(w, h, ts_ms, &jpeg);
+                        if packet.len() > REMOTE_SCREEN_SCTP_MAX_BYTES {
+                            stream_quality = stream_quality.saturating_sub(12).max(40);
+                            stream_max_w = (stream_max_w * 3 / 4).max(640);
+                            debug!(
+                                bytes = packet.len(),
+                                attempt,
+                                stream_max_w,
+                                stream_quality,
+                                "remote-screen frame too large for SCTP; retry smaller"
+                            );
+                            continue;
+                        }
+                        prev_hash = Some(new_hash);
+                        last_sent_time = SystemTime::now();
+                        let packet_len = packet.len();
+                        if let Err(e) = dc.send(&bytes::Bytes::from(packet)).await {
+                            if dc.ready_state() == webrtc::data_channel::data_channel_state::RTCDataChannelState::Closed {
+                                info!("remote-screen data channel closed, stopping stream");
+                                stop_stream = true;
+                                break;
+                            }
+                            debug!("remote-screen send transient error: {e}, will retry next tick");
+                            break;
+                        }
+                        if stream_max_w < max_w && packet_len < REMOTE_SCREEN_SCTP_MAX_BYTES / 2 {
+                            stream_max_w = (stream_max_w + 64).min(max_w);
+                        }
+                        if stream_quality < 68 {
+                            stream_quality = (stream_quality + 2).min(68);
+                        }
+                        sent = true;
+                        break;
+                    }
+                    Ok(Ok((None, new_hash))) => {
+                        prev_hash = Some(new_hash);
+                        sent = true;
+                        break;
+                    }
+                    Ok(Err(e)) => {
+                        let n = CAPTURE_FAIL_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
+                        if n >= 5 && !CAPTURE_FAIL_WARNED.swap(true, Ordering::Relaxed) {
+                            warn!(
+                                failures = n,
+                                "screen capture failing repeatedly: {e} — check VM is logged in, desktop visible, and not on lock screen"
+                            );
+                        } else {
+                            debug!("screen capture error: {e}");
+                        }
+                        sent = true;
+                        break;
+                    }
+                    Err(e) => {
+                        error!("spawn_blocking capture error: {e}");
+                        sent = true;
                         break;
                     }
                 }
-                Ok(Ok((None, new_hash))) => {
-                    prev_hash = Some(new_hash);
-                }
-                Ok(Err(e)) => {
-                    let n = CAPTURE_FAIL_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
-                    if n >= 5 && !CAPTURE_FAIL_WARNED.swap(true, Ordering::Relaxed) {
-                        warn!(
-                            failures = n,
-                            "screen capture failing repeatedly: {e} — check VM is logged in, desktop visible, and not on lock screen"
-                        );
-                    } else {
-                        debug!("screen capture error: {e}");
-                    }
-                }
-                Err(e) => {
-                    error!("spawn_blocking capture error: {e}");
-                    break;
-                }
+            }
+            if !sent && !stop_stream {
+                warn!(
+                    stream_max_w,
+                    stream_quality,
+                    "remote-screen could not fit frame under SCTP max after retries"
+                );
+            }
+            if stop_stream {
+                break;
             }
         }
 

@@ -4,7 +4,8 @@ use c35_wire::{WireErr, WireResult};
 use sqlx::Row;
 
 pub async fn billing_account_get(ctx: &Ctx, billing_iid: i64) -> WireResult<BillingAccount> {
-    let iid = if billing_iid != 0 {
+    // identity.billing_iid is the wallet owner (FK → ai.identity.id), not billing_account.id.
+    let owner_iid = if billing_iid != 0 {
         billing_iid
     } else {
         ctx.caller_iid
@@ -28,18 +29,18 @@ pub async fn billing_account_get(ctx: &Ctx, billing_iid: i64) -> WireResult<Bill
                commission_earned_idr::float8 AS commission_earned_idr,
                meta, created_ts, updated_ts
         FROM ai.billing_account
-        WHERE id = $1 AND deleted_ts IS NULL
+        WHERE owner_iid = $1 AND deleted_ts IS NULL
+        LIMIT 1
         "#,
     )
-    .bind(iid)
+    .bind(owner_iid)
     .fetch_optional(&ctx.pool)
     .await
     .map_err(|e| WireErr::Internal(e.to_string()))?;
 
     let Some(row) = row else {
         return Ok(BillingAccount {
-            id: iid,
-            owner_iid: ctx.caller_iid,
+            owner_iid,
             name: "Personal".into(),
             ..Default::default()
         });

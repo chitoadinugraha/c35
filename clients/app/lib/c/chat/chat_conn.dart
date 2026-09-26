@@ -253,6 +253,8 @@ class ChatConn {
 
   void _send(WsReq req) => _ch!.sink.add(req.writeToBuffer());
 
+  Future<T> rpc<T>(WsReq req, T Function(WsRes res) parse) => _rpc(req, parse);
+
   Future<T> _rpc<T>(WsReq req, T Function(WsRes res) parse) async {
     if (_ch == null) await connect();
     final reqId = req.reqId.isNotEmpty ? req.reqId : const Uuid().v4();

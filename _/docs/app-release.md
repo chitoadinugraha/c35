@@ -26,6 +26,8 @@ Run from `_/scripts/deploy` after `dart pub get`. Set env vars (see below) or us
 
 **PowerShell:** `.\_\scripts\deploy\publish_app_release.ps1 -AndroidPromote` (same as promote script row).
 
+**Full stack (server + app):** `.\_\scripts\deploy\publish_all.ps1` runs `publish_server.ps1` and default `publish_app_release.ps1` **in parallel** (Buildkit server build vs Flutter/Play/CAS). App platforms inside the Dart orchestrator remain sequential. Optional `-RemoteAgent` runs after both finish; `-SkipServer` / `-SkipApp` skip one side.
+
 **Primary command:** `dart run deploy_app/play_store_upload_tester.dart` for internal QA; `dart run deploy_app/deploy_app_release.dart` for coordinated production.
 
 **Rules**

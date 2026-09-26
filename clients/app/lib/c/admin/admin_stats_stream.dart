@@ -29,6 +29,8 @@ class AdminStatsStream extends ChangeNotifier {
 
   final AdminApi api;
   StreamSubscription<StatsPush>? _sub;
+  StreamSubscription<void>? _reconnectedSub;
+  String? subscribeError;
   final _nodes = <String, NodeStat>{};
   final _volumes = <String, VolumeStat>{};
   final _netPeaks = <String, _NetPeak>{};
@@ -82,9 +84,21 @@ class AdminStatsStream extends ChangeNotifier {
   }
 
   Future<void> start() async {
+    _reconnectedSub ??= api.chatConn.onReconnected.listen((_) => unawaited(_subscribe()));
+    await _subscribe();
+  }
+
+  Future<void> _subscribe() async {
     await _sub?.cancel();
     _sub = api.chatConn.onStatsPush.listen(_onPush);
-    await api.statsSubscribe();
+    subscribeError = null;
+    notifyListeners();
+    try {
+      await api.statsSubscribe();
+    } catch (e) {
+      subscribeError = '$e';
+      notifyListeners();
+    }
   }
 
   Future<void> stop() async {
@@ -112,6 +126,8 @@ class AdminStatsStream extends ChangeNotifier {
 
   @override
   void dispose() {
+    unawaited(_reconnectedSub?.cancel());
+    _reconnectedSub = null;
     unawaited(stop());
     super.dispose();
   }

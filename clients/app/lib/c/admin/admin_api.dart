@@ -5,6 +5,7 @@ import 'package:alienai_c35/c/pb/c35/inst.pb.dart';
 import 'package:alienai_c35/c/pb/c35/log.pb.dart';
 import 'package:alienai_c35/c/pb/c35/object.pb.dart';
 import 'package:alienai_c35/c/pb/c35/report.pb.dart';
+import 'package:alienai_c35/c/pb/c35/stats.pb.dart';
 import 'package:alienai_c35/c/pb/c35/wire.pb.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:uuid/uuid.dart';
@@ -147,4 +148,19 @@ class AdminApi {
   Future<void> logSubscribe({int? ownerIid}) => chatConn.logSubscribe(ownerIid: ownerIid);
 
   Future<void> logUnsubscribe() => chatConn.logUnsubscribe();
+
+  Future<ResAdminOpsPeaks> adminOpsPeaks({
+    required Int64 sinceMs,
+    required Int64 untilMs,
+    String? entityType,
+    String? nodeName,
+  }) async {
+    final req = ReqAdminOpsPeaks(sinceMs: sinceMs, untilMs: untilMs);
+    if (entityType != null && entityType.isNotEmpty) req.entityType = entityType;
+    if (nodeName != null && nodeName.isNotEmpty) req.nodeName = nodeName;
+    final res = await _invoke(InvokeReq(reqId: const Uuid().v4(), adminOpsPeaks: req));
+    invokeResThrow(res, fallback: 'Failed to load ops peaks');
+    if (!res.hasAdminOpsPeaks()) throw 'Failed to load ops peaks';
+    return res.adminOpsPeaks;
+  }
 }

@@ -9,3 +9,4 @@ pub mod screen_capture;
 pub mod startup;
 pub mod tray;
 pub mod uia;
+pub mod video_stream;

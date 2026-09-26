@@ -9,6 +9,8 @@ typedef ReferralUserStatsRow = ({
   ReferralUserStatColumn colA,
   ReferralUserStatColumn colB,
   ReferralUserWalletSnapshot? wallet,
+  String authEmail,
+  String authPhone,
 });
 
 // ignore: unintended_html_in_doc_comment
@@ -38,5 +40,7 @@ Future<ReferralUserStatsRow> referralUserStatsGet(
     colA: body.hasColA() ? body.colA : ReferralUserStatColumn(),
     colB: body.hasColB() ? body.colB : ReferralUserStatColumn(),
     wallet: body.hasWallet() ? body.wallet : null,
+    authEmail: body.authEmail,
+    authPhone: body.authPhone,
   );
 }

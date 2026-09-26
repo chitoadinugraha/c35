@@ -21,6 +21,7 @@ import 'package:alienai_c35/c/llm/agent_model.dart';
 import 'package:alienai_c35/c/pb/c35/chat.pb.dart';
 import 'package:alienai_c35/c/pb/c35/sync.pb.dart';
 import 'package:alienai_c35/c/log.dart';
+import 'package:alienai_c35/c/mail/mail_inbox_bus.dart';
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/c/settings/prompt_usage_prefs.dart';
@@ -42,6 +43,7 @@ import 'package:alienai_c35/pages/page_bots.dart';
 import 'package:alienai_c35/pages/page_devices.dart';
 import 'package:alienai_c35/pages/page_root_console.dart';
 import 'package:alienai_c35/pages/page_sites.dart';
+import 'package:alienai_c35/pages/mail/page_mail.dart';
 import 'package:alienai_c35/pages/page_settings.dart';
 import 'package:alienai_c35/pages/referral/page_referral_tree.dart';
 import 'package:alienai_c35/widgets/referral/ui_referral_claim_dialog.dart';
@@ -611,6 +613,8 @@ class _PageAIHomeState extends State<PageAIHome> {
 
   void _openSites() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageSites(chatConn: _conn)));
 
+  void _openMail() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageMail(chatConn: _conn)));
+
   void _openRootConsole() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageRootConsole(chatConn: _conn)));
 
   bool get _financeRole => Session.instance.isRoot || Session.instance.globalRoles.contains('finance');
@@ -648,6 +652,8 @@ class _PageAIHomeState extends State<PageAIHome> {
           onDevices: _openDevices,
           onSites: _openSites,
           onRootConsole: Session.instance.isRoot ? _openRootConsole : null,
+          onMail: Session.instance.canUseMail || mailInboxBus.menuVisible ? _openMail : null,
+          mailInboxCount: mailInboxBus.inboxCount,
           botsCount: _store.navCounts.bots,
           devicesCount: _store.navCounts.devices,
           sitesCount: _store.navCounts.sites,

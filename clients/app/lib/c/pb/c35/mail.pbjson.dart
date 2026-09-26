@@ -493,3 +493,465 @@ const ResMailDomainAdd$json = {
 final $typed_data.Uint8List resMailDomainAddDescriptor = $convert.base64Decode(
     'ChBSZXNNYWlsRG9tYWluQWRkEicKBmRvbWFpbhgBIAEoCzIPLmMzNS5NYWlsRG9tYWluUgZkb2'
     '1haW4=');
+
+@$core.Deprecated('Use reqMailAccountGetDescriptor instead')
+const ReqMailAccountGet$json = {
+  '1': 'ReqMailAccountGet',
+};
+
+/// Descriptor for `ReqMailAccountGet`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqMailAccountGetDescriptor =
+    $convert.base64Decode('ChFSZXFNYWlsQWNjb3VudEdldA==');
+
+@$core.Deprecated('Use resMailAccountGetDescriptor instead')
+const ResMailAccountGet$json = {
+  '1': 'ResMailAccountGet',
+  '2': [
+    {
+      '1': 'account',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.MailAccount',
+      '10': 'account'
+    },
+  ],
+};
+
+/// Descriptor for `ResMailAccountGet`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resMailAccountGetDescriptor = $convert.base64Decode(
+    'ChFSZXNNYWlsQWNjb3VudEdldBIqCgdhY2NvdW50GAEgASgLMhAuYzM1Lk1haWxBY2NvdW50Ug'
+    'dhY2NvdW50');
+
+@$core.Deprecated('Use reqMailArchiveDescriptor instead')
+const ReqMailArchive$json = {
+  '1': 'ReqMailArchive',
+  '2': [
+    {'1': 'message_ids', '3': 1, '4': 3, '5': 3, '10': 'messageIds'},
+    {'1': 'archive', '3': 2, '4': 1, '5': 8, '10': 'archive'},
+    {'1': 'mailbox_id', '3': 3, '4': 1, '5': 3, '10': 'mailboxId'},
+  ],
+};
+
+/// Descriptor for `ReqMailArchive`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqMailArchiveDescriptor = $convert.base64Decode(
+    'Cg5SZXFNYWlsQXJjaGl2ZRIfCgttZXNzYWdlX2lkcxgBIAMoA1IKbWVzc2FnZUlkcxIYCgdhcm'
+    'NoaXZlGAIgASgIUgdhcmNoaXZlEh0KCm1haWxib3hfaWQYAyABKANSCW1haWxib3hJZA==');
+
+@$core.Deprecated('Use resMailArchiveDescriptor instead')
+const ResMailArchive$json = {
+  '1': 'ResMailArchive',
+  '2': [
+    {'1': 'count', '3': 1, '4': 1, '5': 5, '10': 'count'},
+  ],
+};
+
+/// Descriptor for `ResMailArchive`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resMailArchiveDescriptor = $convert
+    .base64Decode('Cg5SZXNNYWlsQXJjaGl2ZRIUCgVjb3VudBgBIAEoBVIFY291bnQ=');
+
+@$core.Deprecated('Use mailGroupDescriptor instead')
+const MailGroup$json = {
+  '1': 'MailGroup',
+  '2': [
+    {'1': 'group_id', '3': 1, '4': 1, '5': 9, '10': 'groupId'},
+    {'1': 'name', '3': 2, '4': 1, '5': 9, '10': 'name'},
+    {'1': 'description', '3': 3, '4': 1, '5': 9, '10': 'description'},
+    {'1': 'emails', '3': 4, '4': 3, '5': 9, '10': 'emails'},
+    {'1': 'created_ts_ms', '3': 5, '4': 1, '5': 3, '10': 'createdTsMs'},
+    {'1': 'updated_ts_ms', '3': 6, '4': 1, '5': 3, '10': 'updatedTsMs'},
+  ],
+};
+
+/// Descriptor for `MailGroup`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List mailGroupDescriptor = $convert.base64Decode(
+    'CglNYWlsR3JvdXASGQoIZ3JvdXBfaWQYASABKAlSB2dyb3VwSWQSEgoEbmFtZRgCIAEoCVIEbm'
+    'FtZRIgCgtkZXNjcmlwdGlvbhgDIAEoCVILZGVzY3JpcHRpb24SFgoGZW1haWxzGAQgAygJUgZl'
+    'bWFpbHMSIgoNY3JlYXRlZF90c19tcxgFIAEoA1ILY3JlYXRlZFRzTXMSIgoNdXBkYXRlZF90c1'
+    '9tcxgGIAEoA1ILdXBkYXRlZFRzTXM=');
+
+@$core.Deprecated('Use reqMailGroupListDescriptor instead')
+const ReqMailGroupList$json = {
+  '1': 'ReqMailGroupList',
+  '2': [
+    {'1': 'mailbox_id', '3': 1, '4': 1, '5': 3, '10': 'mailboxId'},
+  ],
+};
+
+/// Descriptor for `ReqMailGroupList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqMailGroupListDescriptor = $convert.base64Decode(
+    'ChBSZXFNYWlsR3JvdXBMaXN0Eh0KCm1haWxib3hfaWQYASABKANSCW1haWxib3hJZA==');
+
+@$core.Deprecated('Use resMailGroupListDescriptor instead')
+const ResMailGroupList$json = {
+  '1': 'ResMailGroupList',
+  '2': [
+    {
+      '1': 'groups',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.MailGroup',
+      '10': 'groups'
+    },
+  ],
+};
+
+/// Descriptor for `ResMailGroupList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resMailGroupListDescriptor = $convert.base64Decode(
+    'ChBSZXNNYWlsR3JvdXBMaXN0EiYKBmdyb3VwcxgBIAMoCzIOLmMzNS5NYWlsR3JvdXBSBmdyb3'
+    'Vwcw==');
+
+@$core.Deprecated('Use reqMailGroupUpsertDescriptor instead')
+const ReqMailGroupUpsert$json = {
+  '1': 'ReqMailGroupUpsert',
+  '2': [
+    {
+      '1': 'group',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.MailGroup',
+      '10': 'group'
+    },
+    {'1': 'mailbox_id', '3': 2, '4': 1, '5': 3, '10': 'mailboxId'},
+  ],
+};
+
+/// Descriptor for `ReqMailGroupUpsert`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqMailGroupUpsertDescriptor = $convert.base64Decode(
+    'ChJSZXFNYWlsR3JvdXBVcHNlcnQSJAoFZ3JvdXAYASABKAsyDi5jMzUuTWFpbEdyb3VwUgVncm'
+    '91cBIdCgptYWlsYm94X2lkGAIgASgDUgltYWlsYm94SWQ=');
+
+@$core.Deprecated('Use resMailGroupUpsertDescriptor instead')
+const ResMailGroupUpsert$json = {
+  '1': 'ResMailGroupUpsert',
+  '2': [
+    {
+      '1': 'group',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.MailGroup',
+      '10': 'group'
+    },
+  ],
+};
+
+/// Descriptor for `ResMailGroupUpsert`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resMailGroupUpsertDescriptor = $convert.base64Decode(
+    'ChJSZXNNYWlsR3JvdXBVcHNlcnQSJAoFZ3JvdXAYASABKAsyDi5jMzUuTWFpbEdyb3VwUgVncm'
+    '91cA==');
+
+@$core.Deprecated('Use reqMailGroupDeleteDescriptor instead')
+const ReqMailGroupDelete$json = {
+  '1': 'ReqMailGroupDelete',
+  '2': [
+    {'1': 'group_id', '3': 1, '4': 1, '5': 9, '10': 'groupId'},
+    {'1': 'mailbox_id', '3': 2, '4': 1, '5': 3, '10': 'mailboxId'},
+  ],
+};
+
+/// Descriptor for `ReqMailGroupDelete`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqMailGroupDeleteDescriptor = $convert.base64Decode(
+    'ChJSZXFNYWlsR3JvdXBEZWxldGUSGQoIZ3JvdXBfaWQYASABKAlSB2dyb3VwSWQSHQoKbWFpbG'
+    'JveF9pZBgCIAEoA1IJbWFpbGJveElk');
+
+@$core.Deprecated('Use resMailGroupDeleteDescriptor instead')
+const ResMailGroupDelete$json = {
+  '1': 'ResMailGroupDelete',
+  '2': [
+    {'1': 'success', '3': 1, '4': 1, '5': 8, '10': 'success'},
+  ],
+};
+
+/// Descriptor for `ResMailGroupDelete`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resMailGroupDeleteDescriptor =
+    $convert.base64Decode(
+        'ChJSZXNNYWlsR3JvdXBEZWxldGUSGAoHc3VjY2VzcxgBIAEoCFIHc3VjY2Vzcw==');
+
+@$core.Deprecated('Use reqMailBroadcastDescriptor instead')
+const ReqMailBroadcast$json = {
+  '1': 'ReqMailBroadcast',
+  '2': [
+    {'1': 'group_id', '3': 1, '4': 1, '5': 9, '10': 'groupId'},
+    {'1': 'custom_emails', '3': 2, '4': 3, '5': 9, '10': 'customEmails'},
+    {'1': 'subject', '3': 3, '4': 1, '5': 9, '10': 'subject'},
+    {'1': 'body_text', '3': 4, '4': 1, '5': 9, '10': 'bodyText'},
+    {'1': 'body_html', '3': 5, '4': 1, '5': 9, '10': 'bodyHtml'},
+    {
+      '1': 'attachments',
+      '3': 6,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.MailAttachment',
+      '10': 'attachments'
+    },
+    {'1': 'mailbox_id', '3': 7, '4': 1, '5': 3, '10': 'mailboxId'},
+  ],
+};
+
+/// Descriptor for `ReqMailBroadcast`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqMailBroadcastDescriptor = $convert.base64Decode(
+    'ChBSZXFNYWlsQnJvYWRjYXN0EhkKCGdyb3VwX2lkGAEgASgJUgdncm91cElkEiMKDWN1c3RvbV'
+    '9lbWFpbHMYAiADKAlSDGN1c3RvbUVtYWlscxIYCgdzdWJqZWN0GAMgASgJUgdzdWJqZWN0EhsK'
+    'CWJvZHlfdGV4dBgEIAEoCVIIYm9keVRleHQSGwoJYm9keV9odG1sGAUgASgJUghib2R5SHRtbB'
+    'I1CgthdHRhY2htZW50cxgGIAMoCzITLmMzNS5NYWlsQXR0YWNobWVudFILYXR0YWNobWVudHMS'
+    'HQoKbWFpbGJveF9pZBgHIAEoA1IJbWFpbGJveElk');
+
+@$core.Deprecated('Use mailBroadcastFailureDescriptor instead')
+const MailBroadcastFailure$json = {
+  '1': 'MailBroadcastFailure',
+  '2': [
+    {'1': 'to_addr', '3': 1, '4': 1, '5': 9, '10': 'toAddr'},
+    {'1': 'error', '3': 2, '4': 1, '5': 9, '10': 'error'},
+  ],
+};
+
+/// Descriptor for `MailBroadcastFailure`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List mailBroadcastFailureDescriptor = $convert.base64Decode(
+    'ChRNYWlsQnJvYWRjYXN0RmFpbHVyZRIXCgd0b19hZGRyGAEgASgJUgZ0b0FkZHISFAoFZXJyb3'
+    'IYAiABKAlSBWVycm9y');
+
+@$core.Deprecated('Use resMailBroadcastDescriptor instead')
+const ResMailBroadcast$json = {
+  '1': 'ResMailBroadcast',
+  '2': [
+    {'1': 'queued_count', '3': 1, '4': 1, '5': 5, '10': 'queuedCount'},
+    {
+      '1': 'failures',
+      '3': 2,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.MailBroadcastFailure',
+      '10': 'failures'
+    },
+  ],
+};
+
+/// Descriptor for `ResMailBroadcast`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resMailBroadcastDescriptor = $convert.base64Decode(
+    'ChBSZXNNYWlsQnJvYWRjYXN0EiEKDHF1ZXVlZF9jb3VudBgBIAEoBVILcXVldWVkQ291bnQSNQ'
+    'oIZmFpbHVyZXMYAiADKAsyGS5jMzUuTWFpbEJyb2FkY2FzdEZhaWx1cmVSCGZhaWx1cmVz');
+
+@$core.Deprecated('Use reqMailMarkReadDescriptor instead')
+const ReqMailMarkRead$json = {
+  '1': 'ReqMailMarkRead',
+  '2': [
+    {'1': 'message_ids', '3': 1, '4': 3, '5': 3, '10': 'messageIds'},
+    {'1': 'read', '3': 2, '4': 1, '5': 8, '10': 'read'},
+    {'1': 'mailbox_id', '3': 3, '4': 1, '5': 3, '10': 'mailboxId'},
+  ],
+};
+
+/// Descriptor for `ReqMailMarkRead`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqMailMarkReadDescriptor = $convert.base64Decode(
+    'Cg9SZXFNYWlsTWFya1JlYWQSHwoLbWVzc2FnZV9pZHMYASADKANSCm1lc3NhZ2VJZHMSEgoEcm'
+    'VhZBgCIAEoCFIEcmVhZBIdCgptYWlsYm94X2lkGAMgASgDUgltYWlsYm94SWQ=');
+
+@$core.Deprecated('Use resMailMarkReadDescriptor instead')
+const ResMailMarkRead$json = {
+  '1': 'ResMailMarkRead',
+  '2': [
+    {'1': 'count', '3': 1, '4': 1, '5': 5, '10': 'count'},
+    {
+      '1': 'inbox_unread_count',
+      '3': 2,
+      '4': 1,
+      '5': 5,
+      '10': 'inboxUnreadCount'
+    },
+  ],
+};
+
+/// Descriptor for `ResMailMarkRead`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resMailMarkReadDescriptor = $convert.base64Decode(
+    'Cg9SZXNNYWlsTWFya1JlYWQSFAoFY291bnQYASABKAVSBWNvdW50EiwKEmluYm94X3VucmVhZF'
+    '9jb3VudBgCIAEoBVIQaW5ib3hVbnJlYWRDb3VudA==');
+
+@$core.Deprecated('Use reqMailMailboxAdminListDescriptor instead')
+const ReqMailMailboxAdminList$json = {
+  '1': 'ReqMailMailboxAdminList',
+};
+
+/// Descriptor for `ReqMailMailboxAdminList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqMailMailboxAdminListDescriptor =
+    $convert.base64Decode('ChdSZXFNYWlsTWFpbGJveEFkbWluTGlzdA==');
+
+@$core.Deprecated('Use resMailMailboxAdminListDescriptor instead')
+const ResMailMailboxAdminList$json = {
+  '1': 'ResMailMailboxAdminList',
+  '2': [
+    {
+      '1': 'mailboxes',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.MailMailbox',
+      '10': 'mailboxes'
+    },
+  ],
+};
+
+/// Descriptor for `ResMailMailboxAdminList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resMailMailboxAdminListDescriptor =
+    $convert.base64Decode(
+        'ChdSZXNNYWlsTWFpbGJveEFkbWluTGlzdBIuCgltYWlsYm94ZXMYASADKAsyEC5jMzUuTWFpbE'
+        '1haWxib3hSCW1haWxib3hlcw==');
+
+@$core.Deprecated('Use reqMailMailboxCreateDescriptor instead')
+const ReqMailMailboxCreate$json = {
+  '1': 'ReqMailMailboxCreate',
+  '2': [
+    {
+      '1': 'kind',
+      '3': 1,
+      '4': 1,
+      '5': 14,
+      '6': '.c35.MailMailboxKind',
+      '10': 'kind'
+    },
+    {'1': 'site_iid', '3': 2, '4': 1, '5': 3, '10': 'siteIid'},
+    {'1': 'address', '3': 3, '4': 1, '5': 9, '10': 'address'},
+    {'1': 'label', '3': 4, '4': 1, '5': 9, '10': 'label'},
+    {'1': 'subscriber_limit', '3': 5, '4': 1, '5': 5, '10': 'subscriberLimit'},
+    {
+      '1': 'members',
+      '3': 6,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.MailMailboxMember',
+      '10': 'members'
+    },
+  ],
+};
+
+/// Descriptor for `ReqMailMailboxCreate`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqMailMailboxCreateDescriptor = $convert.base64Decode(
+    'ChRSZXFNYWlsTWFpbGJveENyZWF0ZRIoCgRraW5kGAEgASgOMhQuYzM1Lk1haWxNYWlsYm94S2'
+    'luZFIEa2luZBIZCghzaXRlX2lpZBgCIAEoA1IHc2l0ZUlpZBIYCgdhZGRyZXNzGAMgASgJUgdh'
+    'ZGRyZXNzEhQKBWxhYmVsGAQgASgJUgVsYWJlbBIpChBzdWJzY3JpYmVyX2xpbWl0GAUgASgFUg'
+    '9zdWJzY3JpYmVyTGltaXQSMAoHbWVtYmVycxgGIAMoCzIWLmMzNS5NYWlsTWFpbGJveE1lbWJl'
+    'clIHbWVtYmVycw==');
+
+@$core.Deprecated('Use resMailMailboxCreateDescriptor instead')
+const ResMailMailboxCreate$json = {
+  '1': 'ResMailMailboxCreate',
+  '2': [
+    {
+      '1': 'mailbox',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.MailMailbox',
+      '10': 'mailbox'
+    },
+  ],
+};
+
+/// Descriptor for `ResMailMailboxCreate`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resMailMailboxCreateDescriptor = $convert.base64Decode(
+    'ChRSZXNNYWlsTWFpbGJveENyZWF0ZRIqCgdtYWlsYm94GAEgASgLMhAuYzM1Lk1haWxNYWlsYm'
+    '94UgdtYWlsYm94');
+
+@$core.Deprecated('Use reqMailMailboxUpdateDescriptor instead')
+const ReqMailMailboxUpdate$json = {
+  '1': 'ReqMailMailboxUpdate',
+  '2': [
+    {'1': 'mailbox_id', '3': 1, '4': 1, '5': 3, '10': 'mailboxId'},
+    {'1': 'label', '3': 2, '4': 1, '5': 9, '10': 'label'},
+    {'1': 'subscriber_limit', '3': 3, '4': 1, '5': 5, '10': 'subscriberLimit'},
+    {
+      '1': 'members',
+      '3': 4,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.MailMailboxMember',
+      '10': 'members'
+    },
+  ],
+};
+
+/// Descriptor for `ReqMailMailboxUpdate`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqMailMailboxUpdateDescriptor = $convert.base64Decode(
+    'ChRSZXFNYWlsTWFpbGJveFVwZGF0ZRIdCgptYWlsYm94X2lkGAEgASgDUgltYWlsYm94SWQSFA'
+    'oFbGFiZWwYAiABKAlSBWxhYmVsEikKEHN1YnNjcmliZXJfbGltaXQYAyABKAVSD3N1YnNjcmli'
+    'ZXJMaW1pdBIwCgdtZW1iZXJzGAQgAygLMhYuYzM1Lk1haWxNYWlsYm94TWVtYmVyUgdtZW1iZX'
+    'Jz');
+
+@$core.Deprecated('Use resMailMailboxUpdateDescriptor instead')
+const ResMailMailboxUpdate$json = {
+  '1': 'ResMailMailboxUpdate',
+  '2': [
+    {
+      '1': 'mailbox',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.MailMailbox',
+      '10': 'mailbox'
+    },
+  ],
+};
+
+/// Descriptor for `ResMailMailboxUpdate`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resMailMailboxUpdateDescriptor = $convert.base64Decode(
+    'ChRSZXNNYWlsTWFpbGJveFVwZGF0ZRIqCgdtYWlsYm94GAEgASgLMhAuYzM1Lk1haWxNYWlsYm'
+    '94UgdtYWlsYm94');
+
+@$core.Deprecated('Use reqMailMailboxDeleteDescriptor instead')
+const ReqMailMailboxDelete$json = {
+  '1': 'ReqMailMailboxDelete',
+  '2': [
+    {'1': 'mailbox_id', '3': 1, '4': 1, '5': 3, '10': 'mailboxId'},
+  ],
+};
+
+/// Descriptor for `ReqMailMailboxDelete`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqMailMailboxDeleteDescriptor = $convert.base64Decode(
+    'ChRSZXFNYWlsTWFpbGJveERlbGV0ZRIdCgptYWlsYm94X2lkGAEgASgDUgltYWlsYm94SWQ=');
+
+@$core.Deprecated('Use resMailMailboxDeleteDescriptor instead')
+const ResMailMailboxDelete$json = {
+  '1': 'ResMailMailboxDelete',
+  '2': [
+    {'1': 'success', '3': 1, '4': 1, '5': 8, '10': 'success'},
+  ],
+};
+
+/// Descriptor for `ResMailMailboxDelete`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resMailMailboxDeleteDescriptor =
+    $convert.base64Decode(
+        'ChRSZXNNYWlsTWFpbGJveERlbGV0ZRIYCgdzdWNjZXNzGAEgASgIUgdzdWNjZXNz');
+
+@$core.Deprecated('Use reqMailDomainFixDescriptor instead')
+const ReqMailDomainFix$json = {
+  '1': 'ReqMailDomainFix',
+  '2': [
+    {'1': 'hostname', '3': 1, '4': 1, '5': 9, '10': 'hostname'},
+  ],
+};
+
+/// Descriptor for `ReqMailDomainFix`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqMailDomainFixDescriptor = $convert.base64Decode(
+    'ChBSZXFNYWlsRG9tYWluRml4EhoKCGhvc3RuYW1lGAEgASgJUghob3N0bmFtZQ==');
+
+@$core.Deprecated('Use resMailDomainFixDescriptor instead')
+const ResMailDomainFix$json = {
+  '1': 'ResMailDomainFix',
+  '2': [
+    {
+      '1': 'domain',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.MailDomain',
+      '10': 'domain'
+    },
+  ],
+};
+
+/// Descriptor for `ResMailDomainFix`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resMailDomainFixDescriptor = $convert.base64Decode(
+    'ChBSZXNNYWlsRG9tYWluRml4EicKBmRvbWFpbhgBIAEoCzIPLmMzNS5NYWlsRG9tYWluUgZkb2'
+    '1haW4=');

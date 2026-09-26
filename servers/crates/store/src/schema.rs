@@ -22,6 +22,7 @@ pub const MEMORY_SQL: &str = include_str!("../../../../_/schemas/memory.sql");
 pub const OBJECT_NORMALIZER_SQL: &str = include_str!("../../../../_/schemas/object_normalizer.sql");
 pub const CHANNEL_SQL: &str = include_str!("../../../../_/schemas/channel.sql");
 pub const CONFIG_SQL: &str = include_str!("../../../../_/schemas/config.sql");
+pub const OPS_SQL: &str = include_str!("../../../../_/schemas/ops.sql");
 
 pub const SCHEMA_APPLY_ORDER: &[(&str, &str)] = &[
     ("identity", IDENTITY_SQL),
@@ -48,4 +49,5 @@ pub const SCHEMA_APPLY_ORDER: &[(&str, &str)] = &[
     ("file", FILE_SQL),
     ("channel", CHANNEL_SQL),
     ("config", CONFIG_SQL),
+    ("ops", OPS_SQL),
 ];

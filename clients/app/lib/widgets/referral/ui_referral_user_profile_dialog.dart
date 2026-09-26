@@ -59,13 +59,6 @@ class _ReferralPalette {
   static const error = Color(0xFFF87171);
 }
 
-String _maskEmail(String email) {
-  final trimmed = email.trim();
-  final at = trimmed.indexOf('@');
-  if (at <= 1) return trimmed;
-  return '${trimmed[0]}***${trimmed.substring(at)}';
-}
-
 ReferralTreeNode _patchNode(
   ReferralTreeNode n, {
   String? name,
@@ -128,6 +121,8 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
   var _statsBusy = false;
   ReferralUserStatsRow? _stats;
   ReferralUserWalletSnapshot? _wallet;
+  var _authEmail = '';
+  var _authPhone = '';
   late ReferralPeriodRange _colARange = referralPeriodRange(ReferralPeriodPreset.mtd);
   late ReferralPeriodRange _colBRange = referralPeriodRange(ReferralPeriodPreset.lastMonth);
   late String _colALabel = 'This Month';
@@ -156,12 +151,16 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
       setState(() {
         _stats = stats;
         _wallet = stats.wallet;
+        _authEmail = stats.authEmail;
+        _authPhone = stats.authPhone;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _stats = null;
         _wallet = null;
+        _authEmail = '';
+        _authPhone = '';
       });
     } finally {
       if (mounted) setState(() => _statsBusy = false);
@@ -229,7 +228,7 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
   bool get _canEdit => widget.viewerIsRoot && !_busy;
   bool get _canAdjust => (Session.instance.isRoot || Session.instance.globalRoles.contains('director')) && !_busy;
   bool get _canEditReferrer => _canEdit && !referralNodeIsRoot(_node);
-  bool get _showFullContact => widget.isSelf || widget.viewerIsRoot;
+  bool get _canViewContact => Session.instance.isRoot || Session.instance.globalRoles.contains('director');
 
   String get _platformLabel {
     final h = _node.handle.trim();
@@ -237,18 +236,17 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
     return '';
   }
 
-  String? get _authEmailLabel {
-    final email = _node.email.trim();
-    if (email.isEmpty) return null;
-    if (email.endsWith('@$profileAlienDomain')) return null;
-    return _showFullContact ? email : _maskEmail(email);
+  String? get _loginEmailLabel {
+    if (!_canViewContact) return null;
+    final email = _authEmail.trim().isNotEmpty ? _authEmail.trim() : _node.email.trim();
+    if (email.isEmpty || email.endsWith('@$profileAlienDomain')) return null;
+    return email;
   }
 
-  String get _subtitle {
-    if (_platformLabel.isNotEmpty) return _platformLabel;
-    final handle = _node.displayHandle;
-    if (handle.isEmpty) return '';
-    return _showFullContact ? handle : _maskEmail(handle);
+  String? get _loginPhoneLabel {
+    if (!_canViewContact) return null;
+    final phone = _authPhone.trim();
+    return phone.isEmpty ? null : phone;
   }
 
   List<String> get _roles => [
@@ -305,7 +303,7 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
       builder: (ctx) => _TextPromptDialog(
         title: 'Change email',
         label: 'Login email',
-        initial: _authEmailLabel ?? _node.email,
+        initial: _loginEmailLabel ?? _node.email,
         keyboardType: TextInputType.emailAddress,
         onSubmit: (v) {
           final t = v.trim().toLowerCase();
@@ -473,16 +471,17 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
                           children: [
                             Text(_node.name, style: const TextStyle(color: _ReferralPalette.text, fontSize: 16, fontWeight: FontWeight.w700, height: 1.2)),
                             if (widget.isSelf) const Padding(padding: EdgeInsets.only(top: 2), child: Text('(you)', style: TextStyle(color: _ReferralPalette.muted, fontSize: 12))),
-                            if (_authEmailLabel != null) ...[
-                              const SizedBox(height: 2),
-                              Text(_authEmailLabel!, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _ReferralPalette.muted, fontSize: 12)),
-                            ],
                             if (_platformLabel.isNotEmpty) ...[
                               const SizedBox(height: 2),
                               Text(_platformLabel, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _ReferralPalette.muted, fontSize: 12)),
-                            ] else if (_subtitle.isNotEmpty && _authEmailLabel == null) ...[
+                            ],
+                            if (_loginEmailLabel != null) ...[
                               const SizedBox(height: 2),
-                              Text(_subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _ReferralPalette.muted, fontSize: 12)),
+                              Text(_loginEmailLabel!, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _ReferralPalette.muted, fontSize: 12)),
+                            ],
+                            if (_loginPhoneLabel != null) ...[
+                              const SizedBox(height: 2),
+                              Text(_loginPhoneLabel!, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _ReferralPalette.muted, fontSize: 12)),
                             ],
                             if (_node.isBanned) ...[
                               const SizedBox(height: 6),

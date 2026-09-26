@@ -230,6 +230,22 @@ async fn download_agent_msi(State(st): State<AppState>) -> Response {
     download_msix_redirect(st, "remote-windows").await
 }
 
+async fn download_agent_update_ps1() -> Response {
+    const SCRIPT: &str = include_str!("../scripts/agent_ota_rescue.ps1");
+    (
+        StatusCode::OK,
+        [
+            (header::CONTENT_TYPE, HeaderValue::from_static("text/plain; charset=utf-8")),
+            (
+                header::CONTENT_DISPOSITION,
+                HeaderValue::from_static("attachment; filename=\"agent-update.ps1\""),
+            ),
+        ],
+        SCRIPT,
+    )
+        .into_response()
+}
+
 pub fn web_router() -> Router<AppState> {
     Router::new()
         .route("/terms", get(|| page_get("terms.html")))
@@ -263,6 +279,7 @@ pub fn web_router() -> Router<AppState> {
         .route("/download/alienai.zip", get(download_agent_zip))
         .route("/download/agent.zip", get(download_agent_zip))
         .route("/download/agent.msi", get(download_agent_msi))
+        .route("/download/agent-update.ps1", get(download_agent_update_ps1))
 }
 
 #[cfg(test)]

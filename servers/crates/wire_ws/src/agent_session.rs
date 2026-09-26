@@ -4,12 +4,41 @@ use axum::body::Bytes;
 use axum::extract::ws::{Message, WebSocket};
 use c35_ctx::AppState;
 use c35_mod_device::{
-    agent_log_put, agent_presence_put, agent_session_resolve, remote_signaling_agent_frame,
-    remote_signaling_agent_register, remote_signaling_agent_unregister, AgentVersionReport,
+    agent_log_put, agent_presence_put, agent_session_resolve, release_config_get,
+    release_needs_update, remote_signaling_agent_frame, remote_signaling_agent_register,
+    remote_signaling_agent_unregister, AgentVersionReport,
 };
 use futures_util::StreamExt;
 use tokio::sync::mpsc;
 use tracing::{info, warn};
+
+const RELEASE_NUDGE_PAYLOAD: &[u8] = b"c35.release:remote-windows";
+const RELEASE_NUDGE_INTERVAL: Duration = Duration::from_secs(90);
+
+fn spawn_release_nudge_loop(
+    pool: sqlx::PgPool,
+    agent_build: i64,
+    tx: mpsc::UnboundedSender<Vec<u8>>,
+) {
+    if agent_build <= 0 {
+        return;
+    }
+    tokio::spawn(async move {
+        loop {
+            let needs = match release_config_get(&pool, "remote-windows").await {
+                Ok(Some(rel)) => release_needs_update(agent_build, &rel),
+                _ => false,
+            };
+            if !needs {
+                break;
+            }
+            if tx.send(RELEASE_NUDGE_PAYLOAD.to_vec()).is_err() {
+                break;
+            }
+            tokio::time::sleep(RELEASE_NUDGE_INTERVAL).await;
+        }
+    });
+}
 
 pub async fn handle(
     mut socket: WebSocket,
@@ -57,6 +86,8 @@ pub async fn handle(
 
     let (agent_out_tx, mut agent_out_rx) = mpsc::unbounded_channel::<Vec<u8>>();
     remote_signaling_agent_register(session.device_iid, agent_out_tx.clone());
+
+    spawn_release_nudge_loop(state.pool.clone(), agent_build, agent_out_tx.clone());
 
     if let Some(nats) = state.nats.as_ref() {
         let nats_sub = nats.clone();

@@ -51,7 +51,7 @@ c_remote_core/src/update.rs
 ### Auto-Update Execution Rules
 
 1. **Background Download:**
-   - On startup (non-blocking) and every 5 minutes in `update_run_loop`.
+   - On startup (non-blocking), tray **Check for update**, NATS push, and ~45s in `update_run_loop` (15s while staged); apply as soon as idle.
    - On NATS `c35.release.{platform}` push via server WebSocket relay: wakes up immediately and downloads in the background.
 2. **Idle Auto-Apply:**
    - If `is_idle() == true` (no running tasks and no active user remote sessions): applies immediately and restarts into the new binary.

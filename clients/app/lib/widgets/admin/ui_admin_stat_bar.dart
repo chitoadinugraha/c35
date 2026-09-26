@@ -21,7 +21,7 @@ class UiAdminStatBar extends StatelessWidget {
   final double critPct;
   final bool dense;
 
-  Color get _fill => pct >= critPct ? adminBarCrit : pct >= warnPct ? adminBarWarn : adminBarFill;
+  Color get _fill => adminBarFillForPct(pct);
 
   @override
   Widget build(BuildContext context) => Padding(

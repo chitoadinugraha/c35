@@ -56,7 +56,7 @@ is_idle() == (active_tasks() == 0 && active_sessions() == 0)
 - **`active_sessions`**: Tracked via `WebrtcHub`, updating the number of connected human viewers in real time.
 
 ### B. Background Download & Verification
-1. The agent checks for updates on startup (non-blocking background task) and every 5 minutes in `update_run_loop`.
+1. The agent checks for updates on startup (non-blocking background task), on NATS release push, from the tray **Check for update**, and about every 45s in `update_run_loop` (15s while an update is staged). When idle, it applies immediately after download.
 2. When a higher build is found, the agent downloads the zip bundle directly into the platform staging directory.
 3. The bundle is verified with **Blake3** against the server release hash.
 4. Upon successful extraction, a `.ready` marker file is placed in the version staging folder.
@@ -73,11 +73,27 @@ is_idle() == (active_tasks() == 0 && active_sessions() == 0)
 - **Case 4: Development Mode (`is_dev_mode() == true`):**
   Applying updates is completely bypassed to prevent overwriting target debug builds.
 
+### D. Stuck on an old build (e.g. tray still shows build 5)
+
+Older agents could download an update but never apply because `active_sessions` stayed &gt; 0 after Remote disconnected. **You do not need to unpair.**
+
+**Preferred (keeps pairing):** quit the tray icon, then in PowerShell:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest https://alienai.id/download/agent-update.ps1 -OutFile $env:TEMP\agent-update.ps1; & $env:TEMP\agent-update.ps1"
+```
+
+(Requires `agent-update.ps1` on the live site — shipped with `server_ai`.)
+
+**Also fine:** run `https://alienai.id/download/agent.exe` (Inno installer overwrites `%LOCALAPPDATA%\AlienAI\alienai_remote_windows.exe`; pairing data stays).
+
+After you are on **build 8+**, routine OTA + tray **Check for update** should keep you current without reinstalling.
+
 ---
 
 ## 2. NATS Instant Release Push
 
-Instead of waiting for the 5-minute poll interval, the deployment script broadcasts releases instantly:
+The deployment script broadcasts releases instantly (agents also poll ~45s):
 
 1. **Deploy Script:**
    `dart run deploy_remote/remote_windows_upload_prod.dart` publishes release metadata to NATS subject:

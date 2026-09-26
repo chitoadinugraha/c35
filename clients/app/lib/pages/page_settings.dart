@@ -33,6 +33,7 @@ import 'package:alienai_c35/c/voice/voice_api.dart';
 import 'package:alienai_c35/pages/finance/page_finance_payments.dart';
 import 'package:alienai_c35/pages/finance/page_finance_receive_accounts.dart';
 import 'package:alienai_c35/pages/page_allow_control.dart' show ThisPcRegister;
+import 'package:alienai_c35/pages/mail/page_mail.dart';
 import 'package:alienai_c35/pages/page_root_console.dart';
 import 'package:alienai_c35/c/auth/auth_service.dart';
 import 'package:alienai_c35/widgets/ai/ui_bot_memories_sheet.dart';
@@ -486,6 +487,19 @@ class _PageSettingsState extends State<PageSettings> {
                             ]),
                           ),
                         ),
+                        if (Session.instance.canUseMail && widget.chatConn != null) ...[
+                          const SizedBox(height: 28),
+                          _SectionLabel('mail.title'.tr()),
+                          const SizedBox(height: 8),
+                          _Card(
+                            child: UiSettingsTile(
+                              icon: Icons.mail_outlined,
+                              title: 'mail.title'.tr(),
+                              subtitle: 'mail.inbox'.tr(),
+                              onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageMail(chatConn: widget.chatConn!))),
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 28),
                         _SectionLabel('Billing'),
                         const SizedBox(height: 8),

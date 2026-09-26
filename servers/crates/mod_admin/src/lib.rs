@@ -5,10 +5,12 @@ use std::collections::HashSet;
 
 mod log_admin;
 mod log_report;
+mod ops_peaks;
 mod platform_pnl;
 
 pub use log_admin::admin_log_list;
 pub use log_report::admin_log_report;
+pub use ops_peaks::admin_ops_peaks;
 pub use platform_pnl::admin_platform_pnl;
 use sqlx::{PgPool, Row};
 

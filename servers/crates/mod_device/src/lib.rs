@@ -20,6 +20,7 @@ pub use device_pair_poll::device_pair_poll;
 pub use device_pair_register::device_pair_register;
 pub use device_unpair::{device_unpair, device_unpair_notify, DEVICE_UNPAIR_PUSH};
 pub use mcp_device::{mcp_device_get, mcp_device_list};
+pub use release_config::{release_config_get, release_needs_update};
 pub use remote_ice_config::remote_ice_config;
 pub use remote_signaling::{
     remote_agent_send_raw, remote_device_command_run, remote_device_input_send,

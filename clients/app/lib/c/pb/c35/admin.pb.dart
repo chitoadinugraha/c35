@@ -413,6 +413,10 @@ class ReqAdminLogList extends $pb.GeneratedMessage {
     $core.String? topic,
     $core.int? limit,
     $fixnum.Int64? beforeId,
+    $core.String? eventKind,
+    $core.String? class_10,
+    $core.String? subjectPrefix,
+    $core.bool? excludeTrace,
   }) {
     final result = ReqAdminLogList._();
     if (ownerIid != null) result.ownerIid = ownerIid;
@@ -423,6 +427,10 @@ class ReqAdminLogList extends $pb.GeneratedMessage {
     if (topic != null) result.topic = topic;
     if (limit != null) result.limit = limit;
     if (beforeId != null) result.beforeId = beforeId;
+    if (eventKind != null) result.eventKind = eventKind;
+    if (class_10 != null) result.class_10 = class_10;
+    if (subjectPrefix != null) result.subjectPrefix = subjectPrefix;
+    if (excludeTrace != null) result.excludeTrace = excludeTrace;
     return result;
   }
 
@@ -447,6 +455,10 @@ class ReqAdminLogList extends $pb.GeneratedMessage {
     ..aOS(6, _omitFieldNames ? '' : 'topic')
     ..aI(7, _omitFieldNames ? '' : 'limit')
     ..aInt64(8, _omitFieldNames ? '' : 'beforeId')
+    ..aOS(9, _omitFieldNames ? '' : 'eventKind')
+    ..aOS(10, _omitFieldNames ? '' : 'class')
+    ..aOS(11, _omitFieldNames ? '' : 'subjectPrefix')
+    ..aOB(12, _omitFieldNames ? '' : 'excludeTrace')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -542,6 +554,42 @@ class ReqAdminLogList extends $pb.GeneratedMessage {
   $core.bool hasBeforeId() => $_has(7);
   @$pb.TagNumber(8)
   void clearBeforeId() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.String get eventKind => $_getSZ(8);
+  @$pb.TagNumber(9)
+  set eventKind($core.String value) => $_setString(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasEventKind() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearEventKind() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $core.String get class_10 => $_getSZ(9);
+  @$pb.TagNumber(10)
+  set class_10($core.String value) => $_setString(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasClass_10() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearClass_10() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $core.String get subjectPrefix => $_getSZ(10);
+  @$pb.TagNumber(11)
+  set subjectPrefix($core.String value) => $_setString(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasSubjectPrefix() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearSubjectPrefix() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  $core.bool get excludeTrace => $_getBF(11);
+  @$pb.TagNumber(12)
+  set excludeTrace($core.bool value) => $_setBool(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasExcludeTrace() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearExcludeTrace() => $_clearField(12);
 }
 
 class ResAdminLogList extends $pb.GeneratedMessage {

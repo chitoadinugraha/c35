@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:alienai_c35/c/app_id.dart';
+import 'package:alienai_c35/c/mail/mail_inbox_bus.dart';
 import 'package:alienai_c35/c/app_id_ensure.dart';
 import 'package:alienai_c35/c/hint/hint_store.dart';
 import 'package:alienai_c35/c/profile/profile_handle.dart';
@@ -42,6 +44,10 @@ class Session {
   bool get allowControlYes => allowControl == 'yes';
   bool get isRoot => globalRoles.contains('root');
   bool get isTester => globalRoles.contains('tester');
+
+  static const _partnerMenuRoles = {'partner', 'finance', 'director', 'marketing'};
+
+  bool get canUseMail => isRoot || globalRoles.any(_partnerMenuRoles.contains);
   bool get hasReferrer => referredByIid > 0;
   bool get hasAlienId => handle.isNotEmpty && handle != 'user' && !handle.startsWith('@user');
   bool get needsReferralPrompt => signedIn && !hasReferrer && !referralDismissed;
@@ -62,6 +68,7 @@ class Session {
     referredByIid = p.getInt(C35AppId.sessionReferredBy) ?? 0;
     referralDismissed = p.getBool(C35AppId.sessionReferralDismissed) ?? false;
     sessionTick.value++;
+    unawaited(mailInboxBus.restoreForSession());
   }
 
   Future<void> modelPut(String id) async {
@@ -209,6 +216,7 @@ class Session {
     modelId = '';
     referredByIid = 0;
     referralDismissed = false;
+    mailInboxBus.clear();
     if (clearStored) {
       final p = await SharedPreferences.getInstance();
       await p.remove(C35AppId.sessionUid);

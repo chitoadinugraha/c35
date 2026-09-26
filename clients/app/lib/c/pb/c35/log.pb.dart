@@ -38,6 +38,9 @@ class Log extends $pb.GeneratedMessage {
     $fixnum.Int64? createdTsMs,
     $fixnum.Int64? updatedTsMs,
     $fixnum.Int64? deletedTsMs,
+    $core.String? eventKind,
+    $core.String? class_21,
+    $core.String? subject,
   }) {
     final result = Log._();
     if (id != null) result.id = id;
@@ -59,6 +62,9 @@ class Log extends $pb.GeneratedMessage {
     if (createdTsMs != null) result.createdTsMs = createdTsMs;
     if (updatedTsMs != null) result.updatedTsMs = updatedTsMs;
     if (deletedTsMs != null) result.deletedTsMs = deletedTsMs;
+    if (eventKind != null) result.eventKind = eventKind;
+    if (class_21 != null) result.class_21 = class_21;
+    if (subject != null) result.subject = subject;
     return result;
   }
 
@@ -94,6 +100,9 @@ class Log extends $pb.GeneratedMessage {
     ..aInt64(17, _omitFieldNames ? '' : 'createdTsMs')
     ..aInt64(18, _omitFieldNames ? '' : 'updatedTsMs')
     ..aInt64(19, _omitFieldNames ? '' : 'deletedTsMs')
+    ..aOS(20, _omitFieldNames ? '' : 'eventKind')
+    ..aOS(21, _omitFieldNames ? '' : 'class')
+    ..aOS(22, _omitFieldNames ? '' : 'subject')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -286,6 +295,33 @@ class Log extends $pb.GeneratedMessage {
   $core.bool hasDeletedTsMs() => $_has(18);
   @$pb.TagNumber(19)
   void clearDeletedTsMs() => $_clearField(19);
+
+  @$pb.TagNumber(20)
+  $core.String get eventKind => $_getSZ(19);
+  @$pb.TagNumber(20)
+  set eventKind($core.String value) => $_setString(19, value);
+  @$pb.TagNumber(20)
+  $core.bool hasEventKind() => $_has(19);
+  @$pb.TagNumber(20)
+  void clearEventKind() => $_clearField(20);
+
+  @$pb.TagNumber(21)
+  $core.String get class_21 => $_getSZ(20);
+  @$pb.TagNumber(21)
+  set class_21($core.String value) => $_setString(20, value);
+  @$pb.TagNumber(21)
+  $core.bool hasClass_21() => $_has(20);
+  @$pb.TagNumber(21)
+  void clearClass_21() => $_clearField(21);
+
+  @$pb.TagNumber(22)
+  $core.String get subject => $_getSZ(21);
+  @$pb.TagNumber(22)
+  set subject($core.String value) => $_setString(21, value);
+  @$pb.TagNumber(22)
+  $core.bool hasSubject() => $_has(21);
+  @$pb.TagNumber(22)
+  void clearSubject() => $_clearField(22);
 }
 
 /// NATS live tail: log.{iid}.{dv}.{topic}
