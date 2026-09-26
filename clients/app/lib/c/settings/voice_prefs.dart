@@ -17,6 +17,7 @@ class VoicePrefs extends ChangeNotifier {
   static const _keyPitch = 'voice_speech_pitch';
   static const _keyMicId = 'voice_mic_device_id';
   static const _keyMicLabel = 'voice_mic_device_label';
+  static const _keySttAutoSend = 'voice_stt_auto_send';
 
   static String get defaultSttEngine => 'cloud';
   static String get defaultTtsEngine => 'cloud';
@@ -31,6 +32,7 @@ class VoicePrefs extends ChangeNotifier {
   var _speechPitch = 1.0;
   var _micDeviceId = '';
   var _micDeviceLabel = '';
+  var _sttAutoSend = false;
 
   String get speechLang => _speechLang;
   String get lastLang => _lastLang;
@@ -41,6 +43,7 @@ class VoicePrefs extends ChangeNotifier {
   double get speechPitch => _speechPitch;
   String get micDeviceId => _micDeviceId;
   String get micDeviceLabel => _micDeviceLabel;
+  bool get sttAutoSend => _sttAutoSend;
 
   Future<void> load() async {
     _prefs ??= await SharedPreferences.getInstance();
@@ -57,6 +60,15 @@ class VoicePrefs extends ChangeNotifier {
     _speechPitch = _prefs!.getDouble(_keyPitch) ?? 1.0;
     _micDeviceId = _prefs!.getString(_keyMicId) ?? '';
     _micDeviceLabel = _prefs!.getString(_keyMicLabel) ?? '';
+    _sttAutoSend = _prefs!.getBool(_keySttAutoSend) ?? false;
+    notifyListeners();
+  }
+
+  Future<void> setSttAutoSend(bool value) async {
+    if (_sttAutoSend == value) return;
+    _sttAutoSend = value;
+    _prefs ??= await SharedPreferences.getInstance();
+    await _prefs!.setBool(_keySttAutoSend, value);
     notifyListeners();
   }
 

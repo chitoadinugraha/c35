@@ -112,6 +112,12 @@
     "locationEditManually": "Kota salah? Atur manual",
     "locationHideManual": "Sembunyikan kolom manual"
   },
+  "composer": {
+    "listening": "Mendengarkan...",
+    "autoSend": "Kirim otomatis",
+    "preparing": "Menyiapkan...",
+    "finishRecording": "Selesai merekam"
+  },
   "sessionLock": {
     "title": "Perangkat ini terkunci",
     "subtitle": "Untuk keamanan, hanya satu perangkat yang boleh aktif.",

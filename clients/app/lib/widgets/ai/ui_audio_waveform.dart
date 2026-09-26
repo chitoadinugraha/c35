@@ -1,7 +1,9 @@
 import 'dart:math';
 
 import 'package:alienai_c35/c/settings/voice_prefs.dart';
+import 'package:alienai_c35/c/stt/stt_service.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -12,6 +14,7 @@ class UiAudioWaveform extends StatefulWidget {
     required this.amplitude,
     this.amplitudeHistory,
     this.liveTranscript,
+    this.isLiveInterim,
     this.isTranscribing,
     this.isPreparing,
     this.engine,
@@ -23,6 +26,7 @@ class UiAudioWaveform extends StatefulWidget {
   final ValueListenable<double> amplitude;
   final ValueListenable<List<double>>? amplitudeHistory;
   final ValueListenable<String>? liveTranscript;
+  final ValueListenable<bool>? isLiveInterim;
   final ValueListenable<bool>? isTranscribing;
   final ValueListenable<bool>? isPreparing;
   final String? engine;
@@ -93,74 +97,141 @@ class _UiAudioWaveformState extends State<UiAudioWaveform> with SingleTickerProv
               ValueListenableBuilder<bool>(
                 valueListenable: transcribingListenable,
                 builder: (ctx, transcribing, _) {
-                  return ValueListenableBuilder<String>(
-                    valueListenable: widget.liveTranscript ?? ValueNotifier(''),
-                    builder: (ctx, transcript, _) {
-                      final hasText = transcript.trim().isNotEmpty;
-                      if (!transcribing && !hasText) {
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 6),
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF27272A).withValues(alpha: 0.5),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(engineIcon, size: 14, color: _zinc400),
-                              const SizedBox(width: 6),
-                              const Expanded(
-                                child: Text(
-                                  'Speak now…',
-                                  style: TextStyle(color: _zinc400, fontSize: 12, fontStyle: FontStyle.italic),
+                  return ValueListenableBuilder<bool>(
+                    valueListenable: widget.isLiveInterim ?? SttService.instance.isLiveInterim,
+                    builder: (ctx, isInterim, _) {
+                      return ValueListenableBuilder<String>(
+                        valueListenable: widget.liveTranscript ?? ValueNotifier(''),
+                        builder: (ctx, transcript, _) {
+                          final hasText = transcript.trim().isNotEmpty;
+                          if (!transcribing && !hasText) {
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 6),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF18181B),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: const Color(0xFF27272A)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(engineIcon, size: 14, color: _zinc400),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'composer.listening'.tr(),
+                                      style: const TextStyle(color: _zinc400, fontSize: 13, fontStyle: FontStyle.italic),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                          final isConfirmed = !isInterim && !transcribing;
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF18181B),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isConfirmed ? const Color(0xFF10B981).withValues(alpha: 0.35) : const Color(0xFF27272A),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Row(
+                                  children: [
+                                    if (isConfirmed) ...[
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF059669).withValues(alpha: 0.2),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.check_rounded, size: 11, color: Color(0xFF34D399)),
+                                            SizedBox(width: 3),
+                                            Text(
+                                              'Confirmed',
+                                              style: TextStyle(color: Color(0xFF34D399), fontSize: 10, fontWeight: FontWeight.w600),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ] else ...[
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF27272A),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Container(
+                                              width: 6,
+                                              height: 6,
+                                              decoration: const BoxDecoration(
+                                                color: Color(0xFF38BDF8),
+                                                shape: BoxShape.circle,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            const Text(
+                                              'Live Interim',
+                                              style: TextStyle(color: _zinc400, fontSize: 10, fontWeight: FontWeight.w600),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                    const Spacer(),
+                                    if (transcribing) ...[
+                                      const SizedBox(
+                                        width: 11,
+                                        height: 11,
+                                        child: CircularProgressIndicator(strokeWidth: 1.8, color: _zinc400),
+                                      ),
+                                      const SizedBox(width: 5),
+                                      const Text(
+                                        'Finalizing…',
+                                        style: TextStyle(color: _zinc400, fontSize: 11, fontStyle: FontStyle.italic),
+                                      ),
+                                      const SizedBox(width: 6),
+                                    ],
+                                    uiIconButton(
+                                      tooltip: 'Cancel recording',
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                                      icon: const Icon(Icons.close_rounded, size: 15, color: _red),
+                                      onPressed: widget.onCancel,
+                                    ),
+                                  ],
                                 ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 6),
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF27272A).withValues(alpha: 0.5),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          children: [
-                            if (transcribing) ...[
-                              Icon(engineIcon, size: 14, color: _zinc400),
-                              const SizedBox(width: 6),
-                              const Text(
-                                'Recognizing…',
-                                style: TextStyle(color: _zinc400, fontSize: 12, fontStyle: FontStyle.italic),
-                              ),
-                              const Spacer(),
-                              uiIconButton(
-                                tooltip: 'Cancel recording',
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                                icon: const Icon(Icons.close_rounded, size: 16, color: _red),
-                                onPressed: widget.onCancel,
-                              ),
-                            ] else ...[
-                              const Icon(Icons.record_voice_over_rounded, size: 13, color: _zinc400),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  transcript,
-                                  maxLines: 3,
+                                const SizedBox(height: 6),
+                                Text(
+                                  hasText
+                                      ? (isConfirmed ? transcript : '$transcript…')
+                                      : 'Recognizing…',
+                                  maxLines: 4,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: _zinc100,
+                                  style: TextStyle(
+                                    color: isConfirmed ? _zinc100 : _zinc400,
                                     fontSize: 13,
-                                    height: 1.25,
+                                    fontStyle: isConfirmed ? FontStyle.normal : FontStyle.italic,
+                                    fontWeight: isConfirmed ? FontWeight.w500 : FontWeight.w400,
+                                    height: 1.35,
                                   ),
                                 ),
-                              ),
-                            ],
-                          ],
-                        ),
+                              ],
+                            ),
+                          );
+                        },
                       );
                     },
                   );
@@ -195,9 +266,9 @@ class _UiAudioWaveformState extends State<UiAudioWaveform> with SingleTickerProv
               child: CircularProgressIndicator(strokeWidth: 2, color: _zinc400),
             ),
             const SizedBox(width: 8),
-            const Text(
-              'Preparing…',
-              style: TextStyle(color: _zinc400, fontSize: 13, fontStyle: FontStyle.italic),
+            Text(
+              'composer.preparing'.tr(),
+              style: const TextStyle(color: _zinc400, fontSize: 13, fontStyle: FontStyle.italic),
             ),
           ],
         ),
@@ -292,7 +363,46 @@ class _UiAudioWaveformState extends State<UiAudioWaveform> with SingleTickerProv
                       ),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 6),
+            ListenableBuilder(
+              listenable: VoicePrefs.instance,
+              builder: (ctx, _) {
+                return ValueListenableBuilder<bool>(
+                  valueListenable: transcribingListenable,
+                  builder: (ctx, transcribing, _) {
+                    if (transcribing) return const SizedBox.shrink();
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: Checkbox(
+                            value: VoicePrefs.instance.sttAutoSend,
+                            onChanged: (v) => VoicePrefs.instance.setSttAutoSend(v ?? false),
+                            activeColor: const Color(0xFF34D399),
+                            side: const BorderSide(color: _zinc500),
+                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => VoicePrefs.instance.setSttAutoSend(!VoicePrefs.instance.sttAutoSend),
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 2, right: 4),
+                            child: Text(
+                              'composer.autoSend'.tr(),
+                              style: const TextStyle(color: _zinc400, fontSize: 11, fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+            ),
+            const SizedBox(width: 4),
             ValueListenableBuilder<bool>(
               valueListenable: transcribingListenable,
               builder: (ctx, transcribing, _) {
@@ -309,7 +419,7 @@ class _UiAudioWaveformState extends State<UiAudioWaveform> with SingleTickerProv
                   );
                 }
                 return uiTooltip(
-                  message: 'Finish recording',
+                  message: 'composer.finishRecording'.tr(),
                   child: Material(
                     color: _zinc100,
                     shape: const CircleBorder(),

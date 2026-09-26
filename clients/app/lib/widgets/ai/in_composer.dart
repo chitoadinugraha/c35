@@ -19,6 +19,7 @@ import 'package:alienai_c35/widgets/ai/ui_staged_shot.dart';
 import 'package:alienai_c35/widgets/media/in_media.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:desktop_drop/desktop_drop.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pasteboard/pasteboard.dart';
@@ -146,7 +147,7 @@ class _InComposerState extends State<InComposer> {
 
   bool get _hasText => _controller.text.trim().isNotEmpty || _attachments.isNotEmpty;
   bool get _canSubmit => widget.enabled && !widget.busy && !_submitting && !_recording && _hasText;
-  String get _hintText => _recording ? 'Listening…' : widget.hint;
+  String get _hintText => _recording ? 'composer.listening'.tr() : widget.hint;
   bool get _askActive => widget.toolMode == 'ask';
   List<CatalogMention> get _composerMentions => widget.mentions.where((m) => m.id != 'image').toList(growable: false);
   bool get _hasSelectedMentions => widget.selectedMentionIds.any((id) => id != 'image');
@@ -640,6 +641,10 @@ class _InComposerState extends State<InComposer> {
     _controller.text = newText;
     _controller.selection = TextSelection.collapsed(offset: newText.length);
     setState(() {});
+    if (VoicePrefs.instance.sttAutoSend && _controller.text.trim().isNotEmpty) {
+      await _submit();
+      return;
+    }
     _focus.requestFocus();
   }
 
@@ -926,6 +931,7 @@ class _InComposerState extends State<InComposer> {
           amplitude: SttService.instance.audioAmplitude,
           amplitudeHistory: SttService.instance.amplitudeHistory,
           liveTranscript: SttService.instance.liveTranscript,
+          isLiveInterim: SttService.instance.isLiveInterim,
           isTranscribing: SttService.instance.isTranscribing,
           engine: VoicePrefs.instance.sttEngine,
           onCancel: _cancelMic,

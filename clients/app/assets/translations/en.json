@@ -112,6 +112,12 @@
     "locationEditManually": "Wrong city? Set manually",
     "locationHideManual": "Hide manual fields"
   },
+  "composer": {
+    "listening": "Listening...",
+    "autoSend": "Auto Send",
+    "preparing": "Preparing...",
+    "finishRecording": "Finish recording"
+  },
   "sessionLock": {
     "title": "This device is locked",
     "subtitle": "For security, only one device may be active at a time.",
