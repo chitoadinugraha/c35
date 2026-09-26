@@ -351,7 +351,7 @@ function Publish-C35ServerImage {
         'servers/fetcher/Cargo.toml',
         'servers/node_stats/Cargo.toml',
         'servers/channel_whatsapp_device/Cargo.toml',
-        'clients/web', '_/schemas',
+        'clients/web', 'scripts/presentation', '_/schemas',
         '_/deployments/Dockerfile', '_/deployments/docker'
     )
     Invoke-ClusterBuildkitBuild -RepoRoot $dir -ImageRef $imageRef -Platform $Platform -TarPaths $tarPaths

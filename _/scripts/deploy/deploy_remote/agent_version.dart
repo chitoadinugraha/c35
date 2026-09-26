@@ -28,6 +28,11 @@ String agentVersionStampSync(String root) {
 
 void agentVersionBump(String root) {
   final (build, name) = agentVersionRead(root);
-  agentVersionWrite(root, name, build + 1);
-  stdout.writeln('✓ Remote agent version bumped to $name+${build + 1}');
+  final next = build + 1;
+  final parts = name.split('.');
+  final major = parts.isNotEmpty ? parts[0] : '1';
+  final patch = parts.length > 2 ? parts[2] : '0';
+  final nextName = '$major.$next.$patch';
+  agentVersionWrite(root, nextName, next);
+  stdout.writeln('✓ Remote agent version bumped to $nextName+$next');
 }

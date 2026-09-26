@@ -3,7 +3,7 @@ use std::sync::OnceLock;
 use std::time::Duration;
 
 use axum::{
-    extract::{Path as AxumPath, Query, State},
+    extract::{DefaultBodyLimit, Path as AxumPath, Query, State},
     http::{header, HeaderMap, HeaderValue, StatusCode},
     response::IntoResponse,
     routing::{get, post},
@@ -456,10 +456,16 @@ pub async fn cas_bytes_get(
     }
 }
 
+/// Axum default request body cap is 2 MiB; Windows agent ZIPs and APK sideloads exceed that.
+const CAS_UPLOAD_MAX_BYTES: usize = 256 * 1024 * 1024;
+
 pub fn file_router() -> Router<AppState> {
     Router::new()
         .route("/fs/{hash}", get(get_file_handler).head(head_file_handler).put(put_file_handler))
-        .route("/v1/file/upload", post(upload_file_handler))
+        .route(
+            "/v1/file/upload",
+            post(upload_file_handler).layer(DefaultBodyLimit::max(CAS_UPLOAD_MAX_BYTES)),
+        )
 }
 
 #[derive(Deserialize, Default)]

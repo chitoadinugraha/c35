@@ -16,6 +16,15 @@ fn main() {
     if name.is_empty() || build_num <= 0 {
         panic!("invalid remotes/VERSION (expected NAME+BUILD): {line}");
     }
+    let middle = name
+        .split('.')
+        .nth(1)
+        .and_then(|s| s.parse::<i64>().ok());
+    if middle != Some(build_num) {
+        panic!(
+            "remotes/VERSION middle segment must match +BUILD (expected 1.N.0+N, got {name}+{build_num})"
+        );
+    }
     let out = PathBuf::from(env::var("OUT_DIR").unwrap()).join("agent_version.rs");
     fs::write(
         &out,

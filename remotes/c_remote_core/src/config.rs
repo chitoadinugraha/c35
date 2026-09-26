@@ -195,12 +195,20 @@ pub fn session_key_clear() -> anyhow::Result<()> {
 }
 
 pub fn server_url() -> String {
-    std::env::var("C35_SERVER_URL")
-        .or_else(|_| std::env::var("C35_SERVER"))
-        .unwrap_or_else(|_| "https://alienai.id".to_string())
-        .trim()
-        .trim_end_matches('/')
-        .to_string()
+    const DEFAULT: &str = "https://alienai.id";
+    let from_env = || {
+        std::env::var("C35_SERVER_URL")
+            .or_else(|_| std::env::var("C35_SERVER"))
+            .unwrap_or_else(|_| DEFAULT.to_string())
+            .trim()
+            .trim_end_matches('/')
+            .to_string()
+    };
+    if crate::update::is_dev_mode() {
+        from_env()
+    } else {
+        DEFAULT.to_string()
+    }
 }
 
 fn unix_now_secs() -> u64 {

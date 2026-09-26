@@ -4,10 +4,12 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use serde::Deserialize;
-use tokio::sync::Notify;
+use tokio::sync::{Mutex, Notify};
 use tracing::{info, warn};
 
 use crate::version::AGENT_BUILD;
+
+static DOWNLOAD_LOCK: Mutex<()> = Mutex::const_new(());
 
 static ACTIVE_TASKS: AtomicUsize = AtomicUsize::new(0);
 static ACTIVE_SESSIONS: AtomicUsize = AtomicUsize::new(0);
@@ -90,6 +92,11 @@ pub struct ReleaseRes {
     pub url: String,
 }
 
+/// True when this agent should fetch/apply the published release (honors `min` floor).
+pub fn release_requires_update(agent_build: i64, rel: &ReleaseRes) -> bool {
+    agent_build < rel.min || rel.version > agent_build
+}
+
 pub fn current_platform() -> &'static str {
     #[cfg(target_os = "windows")]
     return "remote-windows";
@@ -157,7 +164,7 @@ pub async fn update_poll(base_url: &str) -> Result<Option<ReleaseRes>, anyhow::E
         return Ok(None);
     }
     let body: ReleaseRes = res.json().await?;
-    if body.version > AGENT_BUILD {
+    if release_requires_update(AGENT_BUILD, &body) {
         Ok(Some(body))
     } else {
         Ok(None)
@@ -165,13 +172,14 @@ pub async fn update_poll(base_url: &str) -> Result<Option<ReleaseRes>, anyhow::E
 }
 
 pub async fn update_download(_base_url: &str, rel: &ReleaseRes) -> Result<(), anyhow::Error> {
+    let _dl = DOWNLOAD_LOCK.lock().await;
+    if ready_marker(rel.version).exists() {
+        return Ok(());
+    }
     if rel.hash.as_deref().unwrap_or("").is_empty() {
         anyhow::bail!("release missing hash");
     }
     let staging = staging_dir(rel.version);
-    if ready_marker(rel.version).exists() {
-        return Ok(());
-    }
     if staging.exists() {
         let _ = std::fs::remove_dir_all(&staging);
     }
@@ -432,4 +440,35 @@ pub async fn update_check_on_start(base_url: &str) {
             Err(e) => warn!("startup update poll: {e}"),
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{release_requires_update, ReleaseRes};
+
+    fn rel(version: i64, min: i64) -> ReleaseRes {
+        ReleaseRes {
+            version,
+            version_name: "1.0.0".into(),
+            min,
+            hash: Some("ab".into()),
+            size: Some(1),
+            url: "https://example/fs/x".into(),
+        }
+    }
+
+    #[test]
+    fn release_requires_update_when_newer_version() {
+        assert!(release_requires_update(1, &rel(2, 1)));
+    }
+
+    #[test]
+    fn release_requires_update_when_below_min_floor() {
+        assert!(release_requires_update(2, &rel(2, 3)));
+    }
+
+    #[test]
+    fn release_up_to_date() {
+        assert!(!release_requires_update(3, &rel(3, 2)));
+    }
 }

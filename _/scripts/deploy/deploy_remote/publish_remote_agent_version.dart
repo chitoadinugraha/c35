@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:postgres/postgres.dart';
 
@@ -40,7 +41,7 @@ Future<void> publishRemoteAgentVersion({required int version, required String ve
   });
 
   await runStep('Broadcast release over NATS', () async {
-    final natsHost = deployEnv('NATS_HOST', '127.0.0.1');
+    final natsHost = deployEnv('NATS_HOST', 'nats.c35.svc.cluster.local');
     final natsPort = int.tryParse(deployEnv('NATS_PORT', '4222')) ?? 4222;
     try {
       final socket = await Socket.connect(natsHost, natsPort, timeout: const Duration(seconds: 3));
