@@ -4,8 +4,10 @@ import 'package:alienai_c35/c/account/account_api.dart';
 import 'package:alienai_c35/c/api/settings_conn.dart';
 import 'package:alienai_c35/c/app_id.dart';
 import 'package:alienai_c35/c/config.dart';
+import 'package:alienai_c35/c/hint/hint_store.dart';
 import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/c/session.dart';
+import 'package:alienai_c35/c/site/site_store.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -368,11 +370,14 @@ class AuthService extends ChangeNotifier {
 
   Future<void> signOut({bool clearStored = true}) async {
     final token = sessionAuthToken();
+    final uid = Session.instance.uid;
     if (token.isNotEmpty) {
       try {
         await http.post(Uri.parse('${C35Config.authApiBase}/v1/auth/signout'), headers: {'Authorization': 'Bearer $token'});
       } catch (_) {}
     }
+    await HintStore.instance.clearForUid(uid);
+    await siteListCacheClear(uid);
     await Session.instance.clear(clearStored: clearStored);
     _login = null;
     _sessionLocked = false;

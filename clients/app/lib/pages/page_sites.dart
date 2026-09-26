@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/site/site_store.dart';
+import 'package:alienai_c35/widgets/sites/ui_site_add_menu.dart';
 import 'package:alienai_c35/widgets/sites/ui_site_detail.dart';
 import 'package:alienai_c35/widgets/sites/ui_site_row.dart';
 import 'package:alienai_c35/widgets/ui/ui_alert.dart';
+import 'package:alienai_c35/widgets/ui/ui_menu_position.dart';
 import 'package:alienai_c35/widgets/ui/ui_empty_state.dart';
 import 'package:alienai_c35/widgets/ui/ui_master_detail.dart';
 import 'package:alienai_c35/widgets/ui/ui_page.dart';
@@ -34,7 +36,10 @@ class _PageSitesState extends State<PageSites> {
   @override
   void initState() {
     super.initState();
-    unawaited(_boot());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_boot());
+    });
   }
 
   Future<void> _boot() async {
@@ -61,7 +66,7 @@ class _PageSitesState extends State<PageSites> {
     final currentName = row.name.isNotEmpty ? row.name : row.alienId;
     final action = await showMenu<String>(
       context: context,
-      position: RelativeRect.fromLTRB(pos.dx, pos.dy, pos.dx, pos.dy),
+      position: uiMenuPositionAt(context, pos),
       color: const Color(0xFF18181B),
       items: [
         PopupMenuItem(
@@ -102,27 +107,51 @@ class _PageSitesState extends State<PageSites> {
 
   Widget _masterList() => ListenableBuilder(
         listenable: _store,
-        builder: (context, _) => ColoredBox(
-          color: _masterBg,
-          child: _store.loading
-              ? const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _muted)))
-              : _store.filtered.isEmpty
-                  ? _store.rows.isEmpty ? UiEmptyState.sites() : UiEmptyState.noMatches('sites')
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-                      itemCount: _store.filtered.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 4),
-                      itemBuilder: (context, i) {
-                        final row = _store.filtered[i];
-                        final sid = row.siteIid.toString();
-                        return GestureDetector(
-                          onSecondaryTapDown: (d) => _rowMenu(sid, d.globalPosition),
-                          onLongPress: () => _rowMenu(sid, Offset(MediaQuery.sizeOf(context).width / 2, 200)),
-                          child: UiSiteRow(row: row, selected: _store.selectedId == sid, onTap: () => _store.select(sid)),
-                        );
-                      },
-                    ),
-        ),
+        builder: (context, _) {
+          final err = _store.refreshError;
+          final showErr = err != null && err.isNotEmpty && _store.rows.isNotEmpty;
+          return ColoredBox(
+            color: _masterBg,
+            child: _store.loading
+                ? const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _muted)))
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (showErr)
+                        Material(
+                          color: const Color(0xFF422006),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            child: Row(
+                              children: [
+                                const Expanded(child: Text('Could not refresh sites. Showing cached list.', style: TextStyle(color: Color(0xFFFEF3C7), fontSize: 12))),
+                                TextButton(onPressed: () => unawaited(_store.refresh()), child: const Text('Retry')),
+                              ],
+                            ),
+                          ),
+                        ),
+                      Expanded(
+                        child: _store.filtered.isEmpty
+                            ? _store.rows.isEmpty ? UiEmptyState.sites() : UiEmptyState.noMatches('sites')
+                            : ListView.separated(
+                                padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+                                itemCount: _store.filtered.length,
+                                separatorBuilder: (_, __) => const SizedBox(height: 4),
+                                itemBuilder: (context, i) {
+                                  final row = _store.filtered[i];
+                                  final sid = row.siteIid.toString();
+                                  return GestureDetector(
+                                    onSecondaryTapDown: (d) => _rowMenu(sid, d.globalPosition),
+                                    onLongPress: () => _rowMenu(sid, Offset(MediaQuery.sizeOf(context).width / 2, 200)),
+                                    child: UiSiteRow(row: row, selected: _store.selectedId == sid, onTap: () => _store.select(sid)),
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
+                  ),
+          );
+        },
       );
 
   Widget _masterBar() {
@@ -221,6 +250,9 @@ class _SiteMasterBar extends StatelessWidget {
   Widget build(BuildContext context) => UiPageBar(
         onBack: onBack,
         title: 'Sites',
-        trailing: UiSearchToggle(onSearch: store.searchPut),
+        trailing: UiSearchToggle(
+          onSearch: store.searchPut,
+          trailing: UiSiteAddMenu(store: store),
+        ),
       );
 }

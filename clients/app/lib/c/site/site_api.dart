@@ -3,18 +3,113 @@ import 'dart:convert';
 import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/pb/c35/collection.pb.dart';
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
+import 'package:alienai_c35/c/device/device_api.dart';
+import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
 import 'package:alienai_c35/c/site/collection_def.dart';
 import 'package:fixnum/fixnum.dart';
+
+SiteRow siteRowFromIdentity(IdentityListRow row) {
+  final id = row.identity;
+  return SiteRow(
+    siteIid: id.iid,
+    alienId: id.alienId,
+    name: id.name,
+    pic: id.pic,
+    publishedVersionId: '',
+    updatedTsMs: id.updatedTsMs,
+    isArchived: row.archivedTsMs > Int64.ZERO,
+    isPinned: row.isPinned,
+    sortOrder: row.sortOrder,
+  );
+}
+
+Future<List<SiteRow>> siteListFetch(ChatConn conn, {bool archived = false}) async {
+  try {
+    final res = await conn.siteList(archived: archived);
+    if (res.sites.isNotEmpty) return res.sites;
+  } catch (_) {}
+  final res = await identityList(conn, const ['site'], includeArchived: archived);
+  return res.rows.map(siteRowFromIdentity).toList(growable: false);
+}
+
+class SiteCreateFeatures {
+  SiteCreateFeatures({this.product = false, this.pos = false, this.attendance = false, this.reservation = false});
+
+  bool product;
+  bool pos;
+  bool attendance;
+  bool reservation;
+}
+
+SiteCreateFeatures siteCreateFeaturesNormalize(SiteCreateFeatures f) {
+  if (f.pos) f.product = true;
+  if (!f.product) f.pos = false;
+  return f;
+}
+
+Map<String, bool> siteCreateFeaturesToCaps(SiteCreateFeatures f) {
+  final n = siteCreateFeaturesNormalize(f);
+  return {
+    'commerce': n.product || n.pos,
+    'booking': n.reservation,
+    'queue': false,
+    'attendance': n.attendance,
+  };
+}
+
+String siteCreateCapabilitiesJson(SiteCreateFeatures f) => jsonEncode(siteCreateFeaturesToCaps(f));
+
+String siteAlienIdSlug(String name) {
+  var s = name.trim().toLowerCase();
+  s = s.replaceAll(RegExp(r'[^a-z0-9\s_-]'), '');
+  s = s.replaceAll(RegExp(r'[\s_]+'), '-');
+  s = s.replaceAll(RegExp(r'-+'), '-').replaceAll(RegExp(r'^-|-$'), '');
+  if (s.length > 48) s = s.substring(0, 48).replaceAll(RegExp(r'-+$'), '');
+  return s;
+}
+
+String siteTaglineSuggest({required String name, required String locale}) {
+  final n = name.trim();
+  if (n.isEmpty) return '';
+  final id = locale.toLowerCase().startsWith('id');
+  final templates = id
+      ? [
+          '$n — tempat terbaik untuk belanja dan layanan.',
+          'Selamat datang di $n. Kualitas dan pelayanan terbaik.',
+          '$n siap melayani kebutuhan Anda setiap hari.',
+          'Temukan produk dan layanan terbaik di $n.',
+        ]
+      : [
+          '$n — your place for great products and service.',
+          'Welcome to $n. Quality you can trust.',
+          '$n is here for you every day.',
+          'Discover what $n has to offer.',
+        ];
+  return templates[n.hashCode.abs() % templates.length];
+}
+
+SiteDraft siteCreateDraft({required Int64 siteIid, required String name, required String tagline, String pic = ''}) {
+  final props = <String, dynamic>{'title': name, if (tagline.isNotEmpty) 'subtitle': tagline, if (pic.isNotEmpty) 'pic': pic};
+  final doc = SiteDoc(
+    pages: [
+      SitePage(
+        path: '/',
+        title: name,
+        blocks: [SiteBlock(id: 'hero1', type: 'hero', propsJson: jsonEncode(props))],
+      ),
+    ],
+    themeJson: '{"accent":"#2563eb"}',
+    metaJson: jsonEncode({'seo_title': name, if (tagline.isNotEmpty) 'tagline': tagline}),
+  );
+  return SiteDraft(siteIid: siteIid, doc: doc);
+}
 
 class SiteApi {
   SiteApi(this.conn);
 
   final ChatConn conn;
 
-  Future<List<SiteRow>> list({bool archived = false}) async {
-    final res = await conn.siteList(archived: archived);
-    return res.sites;
-  }
+  Future<List<SiteRow>> list({bool archived = false}) => siteListFetch(conn, archived: archived);
 
   Future<List<TableDef>> collectionDefs({int siteIid = 0}) async {
     try {

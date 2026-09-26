@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:alienai_c35/c/app_id.dart';
 import 'package:alienai_c35/c/app_id_ensure.dart';
+import 'package:alienai_c35/c/hint/hint_store.dart';
 import 'package:alienai_c35/c/profile/profile_handle.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -192,6 +193,7 @@ class Session {
     await p.setInt(C35AppId.sessionReferredBy, referredByIid);
     await p.setBool(C35AppId.sessionReferralDismissed, referralDismissed);
     sessionTick.value++;
+    await HintStore.instance.restore();
   }
 
   Future<void> clear({bool clearStored = true}) async {
