@@ -19,7 +19,7 @@ class TtsService {
   void bindVoiceApi(VoiceApi? api) => _voiceApi = api;
 
   @visibleForTesting
-  static String ttsEngineRoute(String engine) => engine;
+  static String ttsEngineRoute(String engine) => 'cloud';
 
   FlutterTts? _flutterTts;
   AudioPlayer? _audioPlayer;
@@ -76,7 +76,7 @@ class TtsService {
     unawaited(prefs.setLastLang(effectiveLang));
     lastSpeakError = null;
     await stop();
-    final engine = prefs.ttsEngine;
+    final engine = ttsEngineRoute(prefs.ttsEngine);
     if (engine == 'cloud') {
       final played = await _speakCloud(spoken, effectiveLang, prefs.speechRate);
       if (played) return;

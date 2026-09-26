@@ -48,7 +48,7 @@ class _PageFinanceReceiveAccountsState extends State<PageFinanceReceiveAccounts>
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = uiFriendlyError(e, fallback: 'Could not load receive accounts.');
+        _error = uiFriendlyError(e, fallback: 'Could not load payment accounts.');
       });
     }
   }
@@ -66,7 +66,7 @@ class _PageFinanceReceiveAccountsState extends State<PageFinanceReceiveAccounts>
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDlg) => AlertDialog(
           backgroundColor: _card,
-          title: Text(existing == null ? 'Add receive account' : 'Edit receive account', style: const TextStyle(color: _text)),
+          title: Text(existing == null ? 'Add payment account' : 'Edit payment account', style: const TextStyle(color: _text)),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -135,7 +135,7 @@ class _PageFinanceReceiveAccountsState extends State<PageFinanceReceiveAccounts>
         appBar: AppBar(
           backgroundColor: _bg,
           foregroundColor: _text,
-          title: const Text('Receive accounts'),
+          title: const Text('Payment accounts'),
           actions: [
             IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
             IconButton(onPressed: () => _editAccount(), icon: const Icon(Icons.add)),
@@ -149,7 +149,7 @@ class _PageFinanceReceiveAccountsState extends State<PageFinanceReceiveAccounts>
                     ? ListView(children: [
                         if (_error != null) Padding(padding: const EdgeInsets.all(16), child: Text(_error!, style: const TextStyle(color: Color(0xFFEF4444)))),
                         const SizedBox(height: 80),
-                        const Center(child: Text('No receive accounts', style: TextStyle(color: _muted))),
+                        const Center(child: Text('No payment accounts', style: TextStyle(color: _muted))),
                       ])
                     : ListView.separated(
                         padding: const EdgeInsets.all(12),

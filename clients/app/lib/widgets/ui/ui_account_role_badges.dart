@@ -118,7 +118,7 @@ class _FinanceBadge extends StatelessWidget {
               children: [
                 Icon(Icons.account_balance_outlined, size: 16, color: _muted),
                 SizedBox(width: 10),
-                Text('Receive accounts', style: TextStyle(color: _badgeText, fontSize: 13)),
+                Text('Payment accounts', style: TextStyle(color: _badgeText, fontSize: 13)),
               ],
             ),
           ),

@@ -32,9 +32,9 @@ void main() {
     TtsService.instance.bindVoiceApi(null);
   });
 
-  test('ttsEngineRoute passes engine through', () {
-    expect(TtsService.ttsEngineRoute('web'), 'web');
-    expect(TtsService.ttsEngineRoute('local'), 'local');
+  test('ttsEngineRoute always routes to cloud', () {
+    expect(TtsService.ttsEngineRoute('web'), 'cloud');
+    expect(TtsService.ttsEngineRoute('local'), 'cloud');
     expect(TtsService.ttsEngineRoute('cloud'), 'cloud');
   });
 

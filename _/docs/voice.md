@@ -12,7 +12,7 @@ Proto: [`../schemas/proto/c35/voice.proto`](../schemas/proto/c35/voice.proto)
 
 ## Engines
 
-Engine choice is stored in `VoicePrefs` (`voice_stt_engine`, `voice_tts_engine`). Settings → Voice exposes pickers for **web** (default), **local**, and **cloud**.
+Engine choice is stored in `VoicePrefs` (`voice_stt_engine`, `voice_tts_engine`). **STT and TTS default to `cloud`**; on load, legacy `local` / `web` TTS prefs are rewritten to `cloud`. Settings → Voice shows **cloud** only for both directions (client routers ignore saved non-cloud values).
 
 | Engine | STT | TTS | Server / billing |
 |--------|-----|-----|------------------|

@@ -784,28 +784,34 @@ class _PageSettingsState extends State<PageSettings> {
                             ),
                             Padding(
                               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                              child: DropdownButtonFormField<String>(
-                                key: ValueKey(_sttEngine),
-                                initialValue: _sttEngine,
-                                dropdownColor: const Color(0xFF18181B),
-                                style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 14),
-                                decoration: _fieldDecoration('Speech to text'),
-                                selectedItemBuilder: (ctx) => const [
-                                  Row(children: [
-                                    Icon(Icons.cloud_outlined, size: 18, color: Color(0xFFA1A1AA)),
-                                    SizedBox(width: 10),
-                                    Text('Cloud'),
-                                  ]),
-                                ],
-                                items: const [
-                                  DropdownMenuItem(value: 'cloud', child: Row(children: [
-                                    Icon(Icons.cloud_outlined, size: 18, color: Color(0xFFA1A1AA)),
-                                    SizedBox(width: 10),
-                                    Text('Cloud'),
-                                  ])),
-                                ],
-                                onChanged: (v) => v != null ? VoicePrefs.instance.setSttEngine(v) : null,
-                              ),
+                              child: Row(children: [
+                                Expanded(
+                                  child: DropdownButtonFormField<String>(
+                                    key: ValueKey(_sttEngine),
+                                    initialValue: _sttEngine,
+                                    dropdownColor: const Color(0xFF18181B),
+                                    style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 14),
+                                    decoration: _fieldDecoration('Speech to text'),
+                                    selectedItemBuilder: (ctx) => const [
+                                      Row(children: [
+                                        Icon(Icons.cloud_outlined, size: 18, color: Color(0xFFA1A1AA)),
+                                        SizedBox(width: 10),
+                                        Text('Cloud'),
+                                      ]),
+                                    ],
+                                    items: const [
+                                      DropdownMenuItem(value: 'cloud', child: Row(children: [
+                                        Icon(Icons.cloud_outlined, size: 18, color: Color(0xFFA1A1AA)),
+                                        SizedBox(width: 10),
+                                        Text('Cloud'),
+                                      ])),
+                                    ],
+                                    onChanged: (v) => v != null ? VoicePrefs.instance.setSttEngine(v) : null,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                uiIconButton(icon: const Icon(Icons.hearing_rounded, color: _accent), tooltip: 'Test speech to text', onPressed: () => showDialog<void>(context: context, builder: (ctx) => _SttTestDialog(speechLang: _speechLang, chatConn: widget.chatConn))),
+                              ]),
                             ),
                             Padding(
                               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -819,22 +825,12 @@ class _PageSettingsState extends State<PageSettings> {
                                     decoration: _fieldDecoration('Text to speech'),
                                     selectedItemBuilder: (ctx) => const [
                                       Row(children: [
-                                        Icon(Icons.devices_outlined, size: 18, color: Color(0xFFA1A1AA)),
-                                        SizedBox(width: 10),
-                                        Text('Local'),
-                                      ]),
-                                      Row(children: [
                                         Icon(Icons.cloud_outlined, size: 18, color: Color(0xFFA1A1AA)),
                                         SizedBox(width: 10),
                                         Text('Cloud'),
                                       ]),
                                     ],
                                     items: const [
-                                      DropdownMenuItem(value: 'local', child: Row(children: [
-                                        Icon(Icons.devices_outlined, size: 18, color: Color(0xFFA1A1AA)),
-                                        SizedBox(width: 10),
-                                        Text('Local'),
-                                      ])),
                                       DropdownMenuItem(value: 'cloud', child: Row(children: [
                                         Icon(Icons.cloud_outlined, size: 18, color: Color(0xFFA1A1AA)),
                                         SizedBox(width: 10),
@@ -845,8 +841,7 @@ class _PageSettingsState extends State<PageSettings> {
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                uiIconButton(icon: const Icon(Icons.hearing_rounded, color: _accent), tooltip: 'Test speech to text', onPressed: () => showDialog<void>(context: context, builder: (ctx) => _SttTestDialog(speechLang: _speechLang, chatConn: widget.chatConn))),
-                                uiIconButton(icon: const Icon(Icons.record_voice_over_rounded, color: _accent), tooltip: 'Test text to speech', onPressed: () => showDialog<void>(context: context, builder: (ctx) => _TtsTestDialog(speechLang: _speechLang))),
+                                uiIconButton(icon: const Icon(Icons.record_voice_over_rounded, color: _accent), tooltip: 'Test text to speech', onPressed: () => showDialog<void>(context: context, builder: (ctx) => _TtsTestDialog(speechLang: _speechLang, chatConn: widget.chatConn))),
                               ]),
                             ),
                             Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 4), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Speech speed', style: TextStyle(color: Color(0xFFE4E4E7), fontSize: 13, fontWeight: FontWeight.w500)), Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: const Color(0xFF18181B), borderRadius: BorderRadius.circular(6), border: Border.all(color: _border)), child: Text('${_speechRate.toStringAsFixed(2)}x', style: const TextStyle(color: _accent, fontSize: 12, fontFamily: 'monospace', fontWeight: FontWeight.w600)))])),
@@ -1079,8 +1074,9 @@ class _SpeechLangDropdownRow extends StatelessWidget {
 }
 
 class _TtsTestDialog extends StatefulWidget {
-  const _TtsTestDialog({required this.speechLang});
+  const _TtsTestDialog({required this.speechLang, this.chatConn});
   final String speechLang;
+  final ChatConn? chatConn;
   @override
   State<_TtsTestDialog> createState() => _TtsTestDialogState();
 }
@@ -1088,6 +1084,13 @@ class _TtsTestDialog extends StatefulWidget {
 class _TtsTestDialogState extends State<_TtsTestDialog> {
   late final TextEditingController _ctrl = TextEditingController(text: 'Hello! This is a test of text to speech.');
   var _playing = false;
+  @override
+  void initState() {
+    super.initState();
+    if (widget.chatConn != null) {
+      TtsService.instance.bindVoiceApi(VoiceApi(widget.chatConn!));
+    }
+  }
   @override
   void dispose() {
     _ctrl.dispose();
@@ -1129,6 +1132,7 @@ class _SttTestDialog extends StatefulWidget {
 
 class _SttTestDialogState extends State<_SttTestDialog> {
   var _recording = false;
+  var _isFinalizing = false;
   String _transcript = '';
   InputDevice? _activeMic;
 
@@ -1141,35 +1145,47 @@ class _SttTestDialogState extends State<_SttTestDialog> {
       TtsService.instance.bindVoiceApi(api);
     }
     SttService.instance.liveTranscript.addListener(_onLiveTranscript);
+    SttService.instance.isLiveInterim.addListener(_onInterimStateChanged);
     unawaited(SttService.instance.resolveActiveMicDevice().then((mic) {
       if (mounted) setState(() => _activeMic = mic);
     }));
   }
 
+  void _onInterimStateChanged() {
+    if (mounted) setState(() {});
+  }
+
   void _onLiveTranscript() {
-    if (mounted && _recording && SttService.instance.liveTranscript.value.isNotEmpty) {
+    final live = SttService.instance.liveTranscript.value.trim();
+    if (mounted && live.isNotEmpty) {
       setState(() {
-        _transcript = SttService.instance.liveTranscript.value;
+        _transcript = live;
       });
     }
   }
 
   Future<void> _stop() async {
     if (!_recording) return;
+    final hadInterim = _transcript.isNotEmpty && _transcript != 'Transcribing…';
     setState(() {
       _recording = false;
-      _transcript = 'Transcribing…';
+      _isFinalizing = true;
+      if (!hadInterim) {
+        _transcript = 'Transcribing…';
+      }
     });
     final text = await SttService.instance.stopAndTranscribe(lang: widget.speechLang);
     if (!mounted) return;
     setState(() {
-      _transcript = text ?? (SttService.instance.lastTranscribeError ?? 'No speech detected');
+      _isFinalizing = false;
+      _transcript = text ?? (hadInterim ? _transcript : (SttService.instance.lastTranscribeError ?? 'No speech detected'));
     });
   }
 
   @override
   void dispose() {
     SttService.instance.liveTranscript.removeListener(_onLiveTranscript);
+    SttService.instance.isLiveInterim.removeListener(_onInterimStateChanged);
     SttService.instance.onAutoStop = null;
     if (_recording || SttService.instance.isRecording.value) {
       unawaited(SttService.instance.cancel());
@@ -1178,65 +1194,168 @@ class _SttTestDialogState extends State<_SttTestDialog> {
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-        backgroundColor: const Color(0xFF18181B),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Color(0xFF27272A))),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Test speech to text', style: TextStyle(color: Color(0xFFF4F4F5), fontSize: 16, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 4),
-            Row(
+  Widget build(BuildContext context) {
+    final isInterim = (_recording && SttService.instance.isLiveInterim.value) || _isFinalizing;
+
+    return AlertDialog(
+      backgroundColor: const Color(0xFF18181B),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Color(0xFF27272A))),
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('Test speech to text', style: TextStyle(color: Color(0xFFF4F4F5), fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              const Icon(Icons.mic_none_rounded, size: 14, color: Color(0xFF71717A)),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  VoicePrefs.instance.micDeviceId.isNotEmpty && VoicePrefs.instance.micDeviceLabel.isNotEmpty
+                      ? VoicePrefs.instance.micDeviceLabel
+                      : 'System default (${_activeMic?.label ?? "Windows default"})',
+                  style: const TextStyle(color: Color(0xFF71717A), fontSize: 12, fontWeight: FontWeight.normal),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        GestureDetector(
+          onTap: () async {
+            if (_recording) {
+              await _stop();
+            } else {
+              final messenger = ScaffoldMessenger.maybeOf(context);
+              SttService.instance.onAutoStop = () {
+                if (mounted && _recording) unawaited(_stop());
+              };
+              final ok = await SttService.instance.startRecording();
+              if (!mounted) return;
+              if (!ok) {
+                SttService.instance.onAutoStop = null;
+                messenger?.showSnackBar(SnackBar(content: Text(SttService.instance.lastStartError ?? sttMicErrorMessage())));
+                return;
+              }
+              setState(() { _recording = true; _transcript = ''; });
+            }
+          },
+          child: Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: _recording ? const Color(0xFFEF4444).withValues(alpha: 0.15) : const Color(0xFF34D399).withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+              border: Border.all(color: _recording ? const Color(0xFFEF4444) : const Color(0xFF34D399), width: 2),
+            ),
+            child: Icon(_recording ? Icons.stop_rounded : Icons.mic_rounded, color: _recording ? const Color(0xFFEF4444) : const Color(0xFF34D399), size: 32),
+          ),
+        ),
+        if (_recording)
+          Padding(
+            padding: const EdgeInsets.only(top: 10, bottom: 2),
+            child: ValueListenableBuilder<List<double>>(
+              valueListenable: SttService.instance.amplitudeHistory,
+              builder: (context, history, _) {
+                final bars = history.length > 24 ? history.sublist(history.length - 24) : history;
+                return SizedBox(
+                  height: 18,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      for (final h in bars)
+                        Container(
+                          width: 3,
+                          height: (h * 16).clamp(3.0, 16.0),
+                          margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF34D399).withValues(alpha: (h * 0.8 + 0.25).clamp(0.25, 1.0)),
+                            borderRadius: BorderRadius.circular(1.5),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        const SizedBox(height: 10),
+        Text(
+          _recording
+              ? 'Listening… (speak or tap to stop)'
+              : _isFinalizing
+                  ? 'Finalizing transcription…'
+                  : 'Tap mic to record',
+          style: TextStyle(
+            color: _recording
+                ? const Color(0xFFEF4444)
+                : _isFinalizing
+                    ? const Color(0xFF34D399)
+                    : const Color(0xFF71717A),
+            fontSize: 13,
+          ),
+        ),
+        if (_recording || _transcript.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF09090B),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isInterim ? const Color(0xFF3F3F46) : const Color(0xFF27272A),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.mic_none_rounded, size: 14, color: Color(0xFF71717A)),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    VoicePrefs.instance.micDeviceId.isNotEmpty && VoicePrefs.instance.micDeviceLabel.isNotEmpty
-                        ? VoicePrefs.instance.micDeviceLabel
-                        : 'System default (${_activeMic?.label ?? "Windows default"})',
-                    style: const TextStyle(color: Color(0xFF71717A), fontSize: 12, fontWeight: FontWeight.normal),
-                    overflow: TextOverflow.ellipsis,
+                Row(
+                  children: [
+                    Icon(
+                      isInterim ? Icons.graphic_eq_rounded : Icons.check_circle_outline_rounded,
+                      size: 13,
+                      color: isInterim ? const Color(0xFFA1A1AA) : const Color(0xFF34D399),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      isInterim ? 'Live Interim' : 'Confirmed',
+                      style: TextStyle(
+                        color: isInterim ? const Color(0xFFA1A1AA) : const Color(0xFF34D399),
+                        fontSize: 11,
+                        fontWeight: isInterim ? FontWeight.normal : FontWeight.w600,
+                        fontStyle: isInterim ? FontStyle.italic : FontStyle.normal,
+                      ),
+                    ),
+                    const Spacer(),
+                    if (_isFinalizing)
+                      const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF34D399))),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _transcript.isNotEmpty
+                      ? (_transcript + (isInterim && _recording ? ' …' : ''))
+                      : 'Listening for speech…',
+                  style: TextStyle(
+                    color: _transcript.isNotEmpty
+                        ? (isInterim ? const Color(0xFFA1A1AA) : const Color(0xFFF4F4F5))
+                        : const Color(0xFF71717A),
+                    fontSize: 13,
+                    fontStyle: isInterim ? FontStyle.italic : FontStyle.normal,
+                    fontWeight: isInterim ? FontWeight.w400 : FontWeight.w500,
+                    height: 1.4,
                   ),
                 ),
               ],
             ),
-          ],
-        ),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          GestureDetector(
-            onTap: () async {
-              if (_recording) {
-                await _stop();
-              } else {
-                final messenger = ScaffoldMessenger.maybeOf(context);
-                SttService.instance.onAutoStop = () {
-                  if (mounted && _recording) unawaited(_stop());
-                };
-                final ok = await SttService.instance.startRecording();
-                if (!mounted) return;
-                if (!ok) {
-                  SttService.instance.onAutoStop = null;
-                  messenger?.showSnackBar(SnackBar(content: Text(SttService.instance.lastStartError ?? sttMicErrorMessage())));
-                  return;
-                }
-                setState(() { _recording = true; _transcript = ''; });
-              }
-            },
-            child: Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(color: _recording ? const Color(0xFFEF4444).withValues(alpha: 0.15) : const Color(0xFF34D399).withValues(alpha: 0.15), shape: BoxShape.circle, border: Border.all(color: _recording ? const Color(0xFFEF4444) : const Color(0xFF34D399), width: 2)),
-              child: Icon(_recording ? Icons.stop_rounded : Icons.mic_rounded, color: _recording ? const Color(0xFFEF4444) : const Color(0xFF34D399), size: 32),
-            ),
           ),
-          const SizedBox(height: 12),
-          Text(_recording ? 'Listening… (speak or tap to stop)' : 'Tap mic to record', style: TextStyle(color: _recording ? const Color(0xFFEF4444) : const Color(0xFF71717A), fontSize: 13)),
-          if (_transcript.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            Container(width: double.infinity, padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: const Color(0xFF09090B), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFF27272A))), child: Text(_transcript, style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 13))),
-          ],
-        ]),
-      );
+        ],
+      ]),
+    );
+  }
 }

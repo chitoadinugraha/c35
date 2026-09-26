@@ -19,12 +19,13 @@ class VoicePrefs extends ChangeNotifier {
   static const _keyMicLabel = 'voice_mic_device_label';
 
   static String get defaultSttEngine => 'cloud';
+  static String get defaultTtsEngine => 'cloud';
 
   SharedPreferences? _prefs;
   var _speechLang = kSpeechLangDefault;
   var _lastLang = '';
   var _sttEngine = 'cloud';
-  var _ttsEngine = 'local';
+  var _ttsEngine = 'cloud';
   var _speakEnabled = speakEnabledDefault;
   var _speechRate = 1.4;
   var _speechPitch = 1.0;
@@ -46,8 +47,11 @@ class VoicePrefs extends ChangeNotifier {
     _speechLang = _prefs!.getString(_keyLang) ?? kSpeechLangDefault;
     _lastLang = _prefs!.getString(_keyLastLang) ?? '';
     _sttEngine = 'cloud';
+    _ttsEngine = 'cloud';
     final savedTts = _prefs!.getString(_keyTts);
-    _ttsEngine = (savedTts == null || savedTts == 'web') ? 'local' : savedTts;
+    if (savedTts != 'cloud') {
+      await _prefs!.setString(_keyTts, 'cloud');
+    }
     _speakEnabled = _prefs!.getBool(_keySpeak) ?? speakEnabledDefault;
     _speechRate = _prefs!.getDouble(_keyRate) ?? 1.4;
     _speechPitch = _prefs!.getDouble(_keyPitch) ?? 1.0;
