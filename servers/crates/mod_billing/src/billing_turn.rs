@@ -1,4 +1,4 @@
-use anyhow::Result;
+﻿use anyhow::Result;
 use chrono::{Duration, Utc};
 use c35_mod_log::{log_put, LogPut};
 use c35_store::snowflake_id;
@@ -235,7 +235,7 @@ pub async fn billing_usage_report(
         pool,
         nats,
         LogPut {
-            owner_iid,
+            class: None,            owner_iid,
             kind: "llm",
             topic: "",
             dv: "",

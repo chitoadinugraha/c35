@@ -13,7 +13,7 @@ pub async fn auth_session_create(
     identity_iid: i64,
     ip: Option<&str>,
     ua: Option<&str>,
-) -> Result<String, sqlx::Error> {
+) -> Result<(String, i64), sqlx::Error> {
     db_retry(pool, || async {
         let row = sqlx::query_as::<_, (String, Option<String>, Option<String>)>(
             r#"
@@ -52,7 +52,7 @@ pub async fn auth_session_create(
         .bind(ua)
         .execute(pool)
         .await?;
-        Ok(raw_token)
+        Ok((raw_token, session_id))
     })
     .await
 }

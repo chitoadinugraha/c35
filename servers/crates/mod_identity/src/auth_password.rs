@@ -304,10 +304,11 @@ pub async fn sign_up(
 
     let ip = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok());
     let ua = headers.get(header::USER_AGENT).and_then(|v| v.to_str().ok());
-    let token = match auth_session_create(pool, iid, ip, ua).await {
+    let (token, sess_id) = match auth_session_create(pool, iid, ip, ua).await {
         Ok(t) => t,
         Err(e) => return err(format!("Session creation failed: {e}")),
     };
+    crate::auth_event::auth_sign_in_emit(&st, iid, sess_id, "password_signup");
     auth_response(
         iid,
         name,
@@ -381,7 +382,10 @@ pub async fn sign_in(
     .await
     {
         Ok(Some(r)) => r,
-        Ok(None) => return unauthorized("Invalid username/email or password."),
+        Ok(None) => {
+            crate::auth_event::auth_sign_in_failed_emit(&st, 0, "password");
+            return unauthorized("Invalid username/email or password.");
+        }
         Err(e) => return err(format!("Database error: {e}")),
     };
     let secret_hash: Option<String> = row.get("secret_hash");
@@ -390,6 +394,8 @@ pub async fn sign_in(
         None => return unauthorized("Invalid username/email or password."),
     };
     if !verify_password(password, &secret_hash) {
+        let iid: i64 = row.get("identity_iid");
+        crate::auth_event::auth_sign_in_failed_emit(&st, iid, "password");
         return unauthorized("Invalid username/email or password.");
     }
     let iid: i64 = row.get("identity_iid");
@@ -405,10 +411,11 @@ pub async fn sign_in(
 
     let ip = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok());
     let ua = headers.get(header::USER_AGENT).and_then(|v| v.to_str().ok());
-    let token = match auth_session_create(pool, iid, ip, ua).await {
+    let (token, sess_id) = match auth_session_create(pool, iid, ip, ua).await {
         Ok(t) => t,
         Err(e) => return err(format!("Session creation failed: {e}")),
     };
+    crate::auth_event::auth_sign_in_emit(&st, iid, sess_id, "password");
     auth_response(
         iid,
         &name,
@@ -425,6 +432,9 @@ pub async fn sign_in(
 
 pub async fn sign_out(State(st): State<AppState>, headers: HeaderMap) -> Response {
     if let Some(token) = auth_token_extract(&headers, None) {
+        if let Ok(Some(owner_iid)) = crate::auth_session::auth_session_resolve(&st.pool, &token).await {
+            crate::auth_event::auth_sign_out_emit(&st, owner_iid);
+        }
         let _ = auth_session_delete(&st.pool, &token).await;
     }
     let mut resp = Json(json!({ "ok": true })).into_response();

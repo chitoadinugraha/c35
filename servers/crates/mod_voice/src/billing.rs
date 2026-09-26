@@ -1,4 +1,4 @@
-use anyhow::Result;
+﻿use anyhow::Result;
 use async_nats::Client;
 use c35_mod_billing::{
     billing_account_ensure, billing_deduct_allowance, billing_gate_with_hold_custom,
@@ -111,7 +111,7 @@ pub async fn voice_billing_settle(
         pool,
         nats,
         LogPut {
-            owner_iid,
+            class: None,            owner_iid,
             kind: "tool",
             topic,
             dv: "",

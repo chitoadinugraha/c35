@@ -27,6 +27,10 @@ CREATE TABLE IF NOT EXISTS ai.log (
 
     meta                JSONB NOT NULL DEFAULT '{}',
 
+    event_kind          VARCHAR(64) NOT NULL DEFAULT '',
+    subject             TEXT NOT NULL DEFAULT '',
+    class               VARCHAR(16) NOT NULL DEFAULT 'trace',
+
     created_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_ts          TIMESTAMPTZ,
@@ -68,6 +72,14 @@ CREATE INDEX IF NOT EXISTS idx_log_created_desc
 CREATE INDEX IF NOT EXISTS idx_log_owner_req_created
     ON ai.log (owner_iid, req_id, created_ts DESC)
     WHERE deleted_ts IS NULL AND req_id <> '';
+
+CREATE INDEX IF NOT EXISTS idx_log_owner_event_kind_created
+    ON ai.log (owner_iid, event_kind, created_ts DESC, id DESC)
+    WHERE deleted_ts IS NULL AND event_kind <> '';
+
+CREATE INDEX IF NOT EXISTS idx_log_class_owner_created
+    ON ai.log (owner_iid, class, created_ts DESC, id DESC)
+    WHERE deleted_ts IS NULL;
 
 ALTER TABLE ai.billing_usage_dedupe DROP CONSTRAINT IF EXISTS fk_billing_usage_dedupe_log;
 ALTER TABLE ai.billing_usage_dedupe

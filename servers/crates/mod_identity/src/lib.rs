@@ -2,6 +2,7 @@ mod auth_ident;
 mod auth_jwt;
 mod auth_oauth;
 mod auth_password;
+mod auth_event;
 mod auth_session;
 mod identity_grant_patch;
 mod identity_list;

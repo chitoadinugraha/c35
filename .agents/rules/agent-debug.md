@@ -55,7 +55,7 @@ ORDER BY created_ts DESC LIMIT 20;
 
 | Tool | Purpose |
 |------|---------|
-| `log_tail` | Tail `ai.log` **DESC** by `created_ts`; default owner **99000**; `global=true` for all owners; optional `q` grep |
+| `log_tail` | Tail `ai.log` **DESC** by `created_ts`; default owner **99000**; `global=true` for all owners; optional `q` grep. Domain **events**: `text` is **English** at emit; filter `meta` / `event_kind` when added — see [`_/docs/event.md`](../../_/docs/event.md) |
 | `trace_get` | Full turn trace from `ai.log` by `req_id` (ASC) |
 | `msg_get` | `{ msg_id }` or `{ req_id }` → message + blocks + trace |
 | `msg_find` | Search messages (default `owner_iid=99000`) |

@@ -10,6 +10,7 @@ blake3 = { workspace = true }
 bytes = { workspace = true }
 c35_ctx = { path = "../system/ctx", package = "c35_ctx" }
 c35_mod_log = { path = "../mod_log", package = "c35_mod_log" }
+c35_mod_event = { path = "../mod_event", package = "c35_mod_event" }
 async-nats = { workspace = true }
 c35_mod_chat = { path = "../mod_chat", package = "c35_mod_chat" }
 c35_mod_file = { path = "../mod_file", package = "c35_mod_file" }

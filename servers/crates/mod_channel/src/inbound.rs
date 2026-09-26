@@ -1,4 +1,4 @@
-use std::sync::Arc;
+﻿use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
 use c35_ctx::AppState;
@@ -78,7 +78,7 @@ pub async fn channel_inbound_handle(
         &state.pool,
         state.nats.as_ref(),
         LogPut {
-            owner_iid,
+            class: None,            owner_iid,
             kind: "system",
             topic: "msg_received",
             dv: "c35-server",
@@ -207,7 +207,7 @@ fn truncate_log_text(s: &str) -> String {
     if s.chars().count() <= MAX {
         return s.to_string();
     }
-    format!("{}…", s.chars().take(MAX).collect::<String>())
+    format!("{}â€¦", s.chars().take(MAX).collect::<String>())
 }
 
 fn http_client() -> Client {

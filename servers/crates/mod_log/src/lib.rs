@@ -11,6 +11,9 @@ const REDACTED: &str = "[redacted]";
 
 fn key_sensitive(key: &str) -> bool {
     let k = key.to_ascii_lowercase();
+    if k == "sess_id" || k == "conn_id" {
+        return false;
+    }
     ["token", "secret", "password", "api_key", "authorization", "session", "credential", "private_key"]
         .iter()
         .any(|s| k.contains(s))
@@ -44,6 +47,8 @@ fn text_sanitize(s: &str) -> String {
 
 pub struct LogPut<'a> {
     pub owner_iid: i64,
+    /// `trace` (default) | `event` | `error` — only non-trace rows publish on legacy `log.*` NATS.
+    pub class: Option<&'a str>,
     pub kind: &'a str,
     pub topic: &'a str,
     pub dv: &'a str,
@@ -67,18 +72,19 @@ pub async fn log_put(pool: &PgPool, nats: Option<&Client>, row: LogPut<'_>) -> R
     let text = text_sanitize(row.text);
     let meta = meta_sanitize(&row.meta);
     let meta_json = meta.to_string();
+    let class = row.class.unwrap_or("trace");
 
     sqlx::query(
         r#"
         INSERT INTO ai.log (
             id, owner_iid, kind, topic, dv, req_id, chat_id, task_id, device_iid,
             text, model, tokens_in, tokens_out, duration_ms, cost_usd, meta,
-            created_ts, updated_ts
+            event_kind, subject, class, created_ts, updated_ts
         )
         VALUES (
             $1, $2, $3, $4, $5, $6, $7, $8, $9,
             $10, $11, $12, $13, $14, $15, $16::jsonb,
-            NOW(), NOW()
+            '', '', $17, NOW(), NOW()
         )
         "#,
     )
@@ -98,9 +104,11 @@ pub async fn log_put(pool: &PgPool, nats: Option<&Client>, row: LogPut<'_>) -> R
     .bind(row.duration_ms)
     .bind(row.cost_usd)
     .bind(&meta)
+    .bind(class)
     .execute(pool)
     .await?;
 
+    let publish_nats = class != "trace";
     let pb_row = Log {
         id,
         owner_iid: row.owner_iid,
@@ -121,17 +129,21 @@ pub async fn log_put(pool: &PgPool, nats: Option<&Client>, row: LogPut<'_>) -> R
         created_ts_ms: now_ms,
         updated_ts_ms: now_ms,
         deleted_ts_ms: 0,
+        event_kind: String::new(),
+        class: class.to_string(),
+        subject: String::new(),
     };
-    let subject = format!("log.{}.{}.{}", row.owner_iid, row.dv, row.topic);
-    let payload = LogPush { row: Some(pb_row) }.encode_to_vec();
-
-    match nats {
-        Some(client) => {
-            if let Err(e) = client.publish(subject, payload.into()).await {
-                warn!(error = %e, "log_put: nats publish failed");
+    if publish_nats {
+        let subject = format!("log.{}.{}.{}", row.owner_iid, row.dv, row.topic);
+        let payload = LogPush { row: Some(pb_row) }.encode_to_vec();
+        match nats {
+            Some(client) => {
+                if let Err(e) = client.publish(subject, payload.into()).await {
+                    warn!(error = %e, "log_put: nats publish failed");
+                }
             }
+            None => warn!("log_put: nats unavailable, row inserted only"),
         }
-        None => warn!("log_put: nats unavailable, row inserted only"),
     }
 
     Ok(id)

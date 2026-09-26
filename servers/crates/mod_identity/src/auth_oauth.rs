@@ -179,13 +179,14 @@ pub async fn google_callback(
     .unwrap_or_default();
     let ip = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok());
     let ua = headers.get(header::USER_AGENT).and_then(|v| v.to_str().ok());
-    let token = match auth_session_create(pool, iid, ip, ua).await {
+    let (token, sess_id) = match auth_session_create(pool, iid, ip, ua).await {
         Ok(t) => t,
         Err(e) => {
             error!("[auth:google] session error: {}", e);
             return (StatusCode::INTERNAL_SERVER_ERROR, "Session create error").into_response();
         }
     };
+    crate::auth_event::auth_sign_in_emit(&st, iid, sess_id, "google");
     let exp = Utc::now() + Duration::minutes(10);
     st.oauth.results.insert(
         pending.client_id.clone(),

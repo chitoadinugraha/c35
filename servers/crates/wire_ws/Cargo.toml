@@ -18,8 +18,10 @@ c35_mod_mail = { path = "../mod_mail", package = "c35_mod_mail" }
 c35_mod_tx = { path = "../mod_tx", package = "c35_mod_tx" }
 c35_mod_voice = { path = "../mod_voice", package = "c35_mod_voice" }
 c35_mod_identity = { path = "../mod_identity", package = "c35_mod_identity" }
+c35_mod_event = { path = "../mod_event", package = "c35_mod_event" }
 c35_mod_hint = { path = "../mod_hint", package = "c35_mod_hint" }
 c35_mod_admin = { path = "../mod_admin", package = "c35_mod_admin" }
+c35_nats = { path = "../system/nats", package = "c35_nats" }
 async-nats = { workspace = true }
 c35_mod_llm = { path = "../mod_llm", package = "c35_mod_llm" }
 tokio-util = "0.7"
@@ -29,6 +31,7 @@ c35_wire = { path = "../wire", package = "c35_wire" }
 futures-util = { workspace = true }
 prost = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 sqlx = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }

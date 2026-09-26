@@ -6,7 +6,9 @@ Status: **locked** 2026-09-20
 
 **One table** for audit timeline + billing trace — no separate `usage` or `log_billing` table (cs_agent pattern).
 
-Operational traces for root/admin live stream over NATS: `log.{iid}.{dv}.{topic}`.
+**Domain events** (sign-in, meal logged, channel connected): [event.md](event.md) — NATS `c35.user.{iid}.ev.{slug}`. **LLM/tool trace** stays in this table only (no NATS).
+
+Legacy admin tail subject `log.{iid}.{dv}.{topic}` is deprecated; new lifecycle code uses [event.md](event.md).
 
 See also [billing.md](billing.md), [sync.md](sync.md).
 
@@ -26,7 +28,7 @@ Append-only. Syncable via `_ts` (tombstones rare; prefer append).
 | `dv` | Client device id |
 | `req_id` | Correlates `chat_msg`, billing dedupe |
 | `chat_id`, `task_id`, `device_iid` | Context refs |
-| `text` | Human-readable summary (never secrets) |
+| `text` | Human-readable summary (never secrets). **Events:** English only at emit ([event.md](event.md)); user locales render from catalog at read. **Trace:** turn summary as today. |
 | `model` | LLM model id when `kind=llm` |
 | `tokens_in`, `tokens_out`, `duration_ms` | Turn metrics |
 | `cost_usd` | **Server-only** billable amount; client rows = 0 |

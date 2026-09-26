@@ -1,3 +1,4 @@
+﻿use crate::channel_event::channel_connected_emit;
 use c35_mod_log::{log_put, LogPut};
 use c35_proto::{ReqChannelTelegramConnect, ResChannelTelegramConnect};
 use serde::Deserialize;
@@ -296,7 +297,7 @@ pub async fn channel_telegram_connect(
             pool,
             nats,
             LogPut {
-                owner_iid,
+                class: None,                owner_iid,
                 kind: "error",
                 topic: "error",
                 dv: "c35-server",
@@ -330,30 +331,17 @@ pub async fn channel_telegram_connect(
         .await
         .map_err(|e| e.to_string())?;
 
-    let _ = log_put(
+    channel_connected_emit(
         pool,
         nats,
-        LogPut {
-            owner_iid,
-            kind: "system",
-            topic: "connected",
-            dv: "c35-server",
-            req_id: None,
-            chat_id: None,
-            task_id: None,
-            device_iid: None,
-            text: "Telegram channel connected",
-            model: "",
-            tokens_in: 0,
-            tokens_out: 0,
-            duration_ms: 0,
-            cost_usd: 0.0,
-            meta: serde_json::json!({
-                "platform": "telegram",
-                "bot_iid": bot_iid,
-                "channel_id": channel_id,
-            }),
-        },
+        owner_iid,
+        "telegram",
+        &channel_id,
+        serde_json::json!({
+            "platform": "telegram",
+            "bot_iid": bot_iid,
+            "channel_id": channel_id,
+        }),
     )
     .await;
 

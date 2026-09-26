@@ -127,9 +127,10 @@ c35.user.{iid}.commission
 c35.user.{iid}.quota
 c35.user.{iid}.settings
 c35.user.{iid}.profile
+c35.user.{iid}.ev.{slug}   # domain events — sign-in, meal-logged, … (see event.md)
 ```
 
-Client subscribes after WS auth. Payload: protobuf delta or full slice for that topic.
+Client subscribes after WS auth. Payload: protobuf delta or full slice for that topic. Event payloads: `EventPush` ([event.md](event.md)).
 
 ### Device task runs (owner realtime)
 
@@ -191,6 +192,10 @@ c35.stats.volume.{node_name}.{namespace}.{pvc_name}
 
 Published every ~2s per node. Root Flutter clients subscribe via WS `ReqStatsSubscribe`; `server_ai` relays `c35.stats.>` as `WsRes.stats_push` with per-subject snapshot cache.
 
+**JetStream KV (latest sample per key):** bucket `c35_stats`, bootstrapped by `c35_nats::stats_kv_ensure` inside `jetstream_streams_ensure`. Keys: `node/{node_name}`, `vol/{node_name}/{namespace}/{pvc_name}` — values are protobuf `StatsPush` (same as pub/sub). Used for multi-pod snapshot without per-subject NATS replay.
+
+**1-minute history (YB):** `ai.ops_metric_1m` ([`../schemas/ops.sql`](../schemas/ops.sql)) stores rolled-up peaks per entity (`entity_type` `node` | `volume`). Live path stays NATS; YB is for `ReqAdminOpsPeaks` / charts over a time range.
+
 ### Fetcher cache invalidation (server-internal)
 
 ```
@@ -219,7 +224,7 @@ log.{iid}.{dv}.{topic}
 | `dv` | Device/client id (DV) |
 | `topic` | `sign-in`, `sign-out`, `prompt`, `connected`, `disconnected`, `error`, … |
 
-Root/admin UI subscribes with wildcard filter; table-backed `ai.log` is canonical store. WS `ReqLogSubscribe` (root only) relays `log.>` (or filtered by `owner_iid`) as `WsRes.log_push`. Historical search uses invoke `admin_log_list` (root only).
+Root/admin UI subscribes with wildcard filter; table-backed `ai.log` is canonical store. WS `ReqLogSubscribe` (root only) relays domain **`EventPush`** from NATS `c35.user.*.ev.>` and `c35.ev.>` as `WsRes.log_push` (mapped from `Event`). LLM/tool rows (`class=trace`) are **not** on NATS — use `admin_log_list` / MCP `log_tail`. Historical search uses invoke `admin_log_list` (root only) with `event_kind`, `class`, `exclude_trace`.
 
 ## Log table
 

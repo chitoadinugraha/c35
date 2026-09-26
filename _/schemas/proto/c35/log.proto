@@ -27,6 +27,10 @@ message Log {
   int64 created_ts_ms = 17;
   int64 updated_ts_ms = 18;
   int64 deleted_ts_ms = 19;
+
+  string event_kind = 20;
+  string class = 21;      // event | error | trace
+  string subject = 22;
 }
 
 // NATS live tail: log.{iid}.{dv}.{topic}

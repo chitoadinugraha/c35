@@ -1,4 +1,5 @@
 pub mod bridge;
+mod channel_event;
 mod debounce;
 mod disconnect;
 mod dedup;

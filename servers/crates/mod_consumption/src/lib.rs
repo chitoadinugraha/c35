@@ -3,6 +3,7 @@ mod coach;
 mod compact;
 mod copy;
 mod day;
+mod events;
 mod detect;
 mod fingerprint;
 mod rpc;
@@ -23,6 +24,7 @@ pub use store::{
     food_delete, food_duplicate_today, food_get, food_get_latest_today, food_list_day, food_put, food_update,
     nutrition_sum_day, nutrition_sum_range, prefs_calorie_goal,
 };
+pub use events::{consumption_meal_deleted_emit, consumption_meal_emit};
 pub use rpc::{consumption_list_rpc, consumption_put_rpc};
 pub use today::{consumption_today, items_matching_query, matched_items_kcal};
 pub use types::{ConsumptionFood, ConsumptionGlance, ConsumptionItem, ConsumptionToday, DEFAULT_CALORIE_GOAL, NutritionSummary};

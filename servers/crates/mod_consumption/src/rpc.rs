@@ -1,5 +1,6 @@
 use c35_proto::{Consumption, ConsumptionItem as PbItem, Nutrition, ReqConsumptionList, ReqConsumptionPut, ResConsumptionList, ResConsumptionPut};
 use serde_json::json;
+use async_nats::Client;
 use sqlx::PgPool;
 
 use crate::{
@@ -60,7 +61,13 @@ pub async fn consumption_list_rpc(pool: &PgPool, owner_iid: i64, locale: &str, r
     }
 }
 
-pub async fn consumption_put_rpc(pool: &PgPool, owner_iid: i64, locale: &str, req: ReqConsumptionPut) -> Result<ResConsumptionPut, String> {
+pub async fn consumption_put_rpc(
+    pool: &PgPool,
+    nats: Option<&Client>,
+    owner_iid: i64,
+    locale: &str,
+    req: ReqConsumptionPut,
+) -> Result<ResConsumptionPut, String> {
     let doc = req.consumption.ok_or_else(|| "consumption required".to_string())?;
     let id = doc.id;
     if id == 0 {
@@ -68,6 +75,7 @@ pub async fn consumption_put_rpc(pool: &PgPool, owner_iid: i64, locale: &str, re
     }
     if doc.deleted_ts_ms > 0 {
         crate::food_delete(pool, owner_iid, id).await?;
+        crate::events::consumption_meal_deleted_emit(pool, nats, owner_iid, id, "rpc").await;
         return Ok(ResConsumptionPut {
             consumption: Some(doc),
             blocks_json: "[]".into(),
@@ -102,6 +110,17 @@ pub async fn consumption_put_rpc(pool: &PgPool, owner_iid: i64, locale: &str, re
     }
     let fingerprint = meal_fingerprint(&items);
     food_update(pool, owner_iid, id, &items, &fingerprint).await?;
+    crate::events::consumption_meal_emit(
+        pool,
+        nats,
+        owner_iid,
+        c35_mod_event::kinds::CONSUMPTION_MEAL_UPDATED,
+        id,
+        &items,
+        "rpc",
+        None,
+    )
+    .await;
     let food = food_get(pool, owner_iid, id).await?.ok_or_else(|| "not found".to_string())?;
     let day = resolve_day_id("today", locale);
     let (start, end) = day_bounds_ms(&day, locale).unwrap_or((0, i64::MAX));

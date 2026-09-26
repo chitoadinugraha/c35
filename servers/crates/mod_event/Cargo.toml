@@ -1,0 +1,23 @@
+[package]
+name = "c35_mod_event"
+version.workspace = true
+edition.workspace = true
+
+[[example]]
+name = "emit_smoke"
+path = "examples/emit_smoke.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+async-nats = { workspace = true }
+chrono = { workspace = true }
+dotenvy = { workspace = true }
+prost = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+c35_proto = { path = "../proto", package = "c35_proto" }
+c35_store = { path = "../store", package = "c35_store" }
+c35_nats = { path = "../system/nats", package = "c35_nats" }

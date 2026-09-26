@@ -9,6 +9,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "billing.proto",
         "chat.proto",
         "log.proto",
+        "event.proto",
         "skill.proto",
         "task.proto",
         "remote.proto",

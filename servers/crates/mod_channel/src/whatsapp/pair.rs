@@ -1,4 +1,4 @@
-use c35_mod_log::{log_put, LogPut};
+﻿use c35_mod_log::{log_put, LogPut};
 use c35_proto::ResChannelWhatsappPair;
 use serde::Serialize;
 use sqlx::PgPool;
@@ -133,7 +133,7 @@ pub async fn channel_whatsapp_pair_start(
         pool,
         nats,
         LogPut {
-            owner_iid,
+            class: None,            owner_iid,
             kind: "system",
             topic: "pair_start",
             dv: "c35-server",
@@ -251,7 +251,7 @@ pub async fn channel_whatsapp_pair_abort(
         pool,
         nats,
         LogPut {
-            owner_iid,
+            class: None,            owner_iid,
             kind: "system",
             topic: "pair_abort",
             dv: "c35-server",

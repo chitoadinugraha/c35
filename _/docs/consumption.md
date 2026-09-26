@@ -26,6 +26,10 @@ See [`../schemas/consumption.sql`](../schemas/consumption.sql).
 | `consumption_water` | yes | Daily ml rollup keyed by `day_id` (YYYY-MM-DD) |
 | `consumption_prefs` | yes | Calorie + water goals |
 
+## Events
+
+After a meal is saved, updated, or deleted, emit domain events (not on read/tools glance). Catalog: [event.md](event.md) — `consumption.meal_logged`, `meal_updated`, `meal_deleted` → NATS `c35.user.{owner_iid}.ev.meal-logged` (etc.). Emit from `mod_consumption::store` on successful write.
+
 ## Meal types
 
 `other` | `breakfast` | `lunch` | `dinner` | `snack` | `dessert` | `late_night`

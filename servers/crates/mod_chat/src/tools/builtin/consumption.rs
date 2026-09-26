@@ -163,6 +163,17 @@ pub async fn consumption_add_exec(ctx: &ToolContext, args: &Value) -> Result<Val
         Ok(id) => id,
         Err(e) => return Ok(json!({ "ok": false, "runner": "cluster", "tool": "consumption.add", "error": e })),
     };
+    c35_mod_consumption::consumption_meal_emit(
+        &ctx.pool,
+        ctx.nats.as_ref(),
+        ctx.owner_iid,
+        c35_mod_event::kinds::CONSUMPTION_MEAL_LOGGED,
+        id,
+        &items,
+        "tool",
+        Some(&ctx.req_id),
+    )
+    .await;
     let (so_far, _, _, _, meals_logged) = nutrition_sum_day(&ctx.pool, ctx.owner_iid, start, end)
         .await
         .unwrap_or((0, 0, 0, 0, 0));

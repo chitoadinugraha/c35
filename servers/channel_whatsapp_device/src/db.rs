@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+﻿use anyhow::{anyhow, Result};
 use async_nats::Client as NatsClient;
 use c35_mod_log::{log_put, LogPut};
 use serde_json::{json, Value};
@@ -15,7 +15,7 @@ pub fn truncate_log_text(s: &str) -> String {
     if s.chars().count() <= MAX {
         return s.to_string();
     }
-    format!("{}…", s.chars().take(MAX).collect::<String>())
+    format!("{}â€¦", s.chars().take(MAX).collect::<String>())
 }
 
 #[derive(Debug, Clone)]
@@ -143,7 +143,7 @@ pub async fn channel_log(
         pool,
         nats,
         LogPut {
-            owner_iid,
+            class: None,            owner_iid,
             kind: log_kind,
             topic,
             dv: LOG_DV,

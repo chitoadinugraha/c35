@@ -30,6 +30,7 @@ c35_mod_log = { path = "../mod_log", package = "c35_mod_log" }
 async-nats = { workspace = true }
 c35_mod_file = { path = "../mod_file", package = "c35_mod_file" }
 c35_mod_consumption = { path = "../mod_consumption", package = "c35_mod_consumption" }
+c35_mod_event = { path = "../mod_event", package = "c35_mod_event" }
 c35_mod_expense = { path = "../mod_expense", package = "c35_mod_expense" }
 c35_mod_referral = { path = "../mod_referral", package = "c35_mod_referral" }
 c35_mod_llm = { path = "../mod_llm", package = "c35_mod_llm" }

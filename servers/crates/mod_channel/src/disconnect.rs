@@ -1,4 +1,4 @@
-use c35_mod_log::{log_put, LogPut};
+use crate::channel_event::channel_disconnected_emit;
 use c35_proto::{ReqChannelDisconnect, ResChannelDisconnect};
 use sqlx::PgPool;
 use tracing::info;
@@ -90,30 +90,17 @@ pub async fn channel_disconnect(
         };
     }
 
-    let _ = log_put(
+    channel_disconnected_emit(
         pool,
         nats,
-        LogPut {
-            owner_iid,
-            kind: "system",
-            topic: "disconnected",
-            dv: "c35-server",
-            req_id: None,
-            chat_id: None,
-            task_id: None,
-            device_iid: None,
-            text: "Channel disconnected",
-            model: "",
-            tokens_in: 0,
-            tokens_out: 0,
-            duration_ms: 0,
-            cost_usd: 0.0,
-            meta: serde_json::json!({
-                "platform": ch.platform,
-                "bot_iid": bot_iid,
-                "channel_id": channel_id,
-            }),
-        },
+        owner_iid,
+        &ch.platform,
+        channel_id,
+        serde_json::json!({
+            "platform": ch.platform,
+            "bot_iid": bot_iid,
+            "channel_id": channel_id,
+        }),
     )
     .await;
 

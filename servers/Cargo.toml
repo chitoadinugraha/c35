@@ -17,6 +17,7 @@ members = [
     "crates/mod_llm",
     "crates/mod_chat",
     "crates/mod_log",
+    "crates/mod_event",
     "crates/mod_consumption",
     "crates/mod_expense",
     "crates/mod_channel",

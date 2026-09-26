@@ -7,7 +7,8 @@ use axum::{
 };
 use c35_ctx::AppState;
 use c35_mod_admin::{
-    admin_log_list, admin_log_report, admin_platform_pnl, admin_user_put, admin_user_search,
+    admin_log_list, admin_log_report, admin_ops_peaks, admin_platform_pnl, admin_user_put,
+    admin_user_search,
 };
 use c35_mod_billing::{
     billing_admin_adjust, billing_admin_adjust_list, billing_history, billing_notify_owner,
@@ -372,6 +373,17 @@ pub async fn dispatch_invoke(state: &AppState, req: InvokeReq) -> InvokeRes {
                 Err(e) => invoke_error(&req_id, e.status_code, e.message),
             }
         }
+        Some(invoke_req::Body::AdminOpsPeaks(r)) => {
+            match admin_ops_peaks(pool, iid, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::AdminOpsPeaks(res)),
+                },
+                Err(e) => invoke_error(&req_id, e.status_code, e.message),
+            }
+        }
         Some(invoke_req::Body::ChannelTelegramConnect(r)) => {
             match channel_telegram_connect(&state.pool, iid, &state.public_origin, r, state.nats.as_ref()).await {
                 Ok(res) => InvokeRes {
@@ -396,7 +408,7 @@ pub async fn dispatch_invoke(state: &AppState, req: InvokeReq) -> InvokeRes {
         }
         Some(invoke_req::Body::ConsumptionPut(r)) => {
             let locale = "en";
-            match consumption_put_rpc(pool, iid, locale, r).await {
+            match consumption_put_rpc(pool, state.nats.as_ref(), iid, locale, r).await {
                 Ok(res) => InvokeRes {
                     req_id,
                     status_code: 200,

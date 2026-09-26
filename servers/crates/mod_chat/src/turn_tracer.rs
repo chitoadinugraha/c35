@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+﻿use std::sync::Mutex;
 
 use c35_mod_billing::billing_cost_usd;
 use c35_mod_log::{log_put, LogPut};
@@ -51,7 +51,7 @@ impl TurnTracer {
             &self.pool,
             self.nats.as_ref(),
             LogPut {
-                owner_iid: self.owner_iid,
+                class: None,                owner_iid: self.owner_iid,
                 kind,
                 topic,
                 dv: "",
@@ -97,7 +97,7 @@ impl TurnTracer {
         self.put(
             "system",
             "trace_tool_filter",
-            &format!("Tool filter · {fed} fed · {} ranked", trace.candidates.len()),
+            &format!("Tool filter Â· {fed} fed Â· {} ranked", trace.candidates.len()),
             tool_meta,
             "",
             0,
@@ -117,7 +117,7 @@ impl TurnTracer {
         self.put(
             "system",
             "trace_prepare",
-            &format!("Prepare · {prepare_ms}ms"),
+            &format!("Prepare Â· {prepare_ms}ms"),
             prep_meta,
             "",
             0,
@@ -143,7 +143,7 @@ impl TurnTracer {
         self.put(
             "system",
             "trace_memory",
-            &format!("Memory · {} rows", trace.memory_count),
+            &format!("Memory Â· {} rows", trace.memory_count),
             meta,
             "",
             0,
@@ -186,7 +186,7 @@ impl TurnTracer {
         let tool_id = tool.replace('_', ".");
         let preview = serde_json::to_string(result).unwrap_or_default();
         let preview = if preview.len() > 4000 {
-            format!("{}…", preview.chars().take(4000).collect::<String>())
+            format!("{}â€¦", preview.chars().take(4000).collect::<String>())
         } else {
             preview
         };

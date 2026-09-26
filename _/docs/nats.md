@@ -38,6 +38,17 @@ Bootstrapped by `c35_nats::jetstream_streams_ensure` on every `c35-server` NATS 
 | `C35_DEVICE_TASK` | `c35.act.device.*.task.run` | WorkQueue | `c35-task-dispatch` | Device automation (`ai.task_run`) |
 | `C35_TASK_SCHEDULE` | `c35.schedule.task.>`, `c35.task.fire.>` | default + `allow_msg_schedules` | `c35-task-schedule-fire` (planned) | Cron / once triggers |
 
+### JetStream KV — `c35_stats`
+
+Bootstrapped with streams via `c35_nats::stats_kv_ensure` (`stats_kv.rs`). Holds the **latest** protobuf `StatsPush` per key for cluster-wide ops snapshots:
+
+| Key pattern | Value |
+|-------------|--------|
+| `node/{node_name}` | `StatsPush` (`node` body) |
+| `vol/{node_name}/{namespace}/{pvc_name}` | `StatsPush` (`volume` body) |
+
+Ephemeral like other JetStream data on `emptyDir` — recover from live `c35.stats.*` publishers after NATS loss. **1-minute rollups** for peaks/history are persisted in YB `ai.ops_metric_1m` ([`ops.sql`](../schemas/ops.sql)); see [sync.md](sync.md) node stats section.
+
 Work message body (minimal JSON):
 
 ```json
@@ -48,7 +59,7 @@ Full state loaded from YB by `req_id` / `run_id`.
 
 ### Core pub/sub (no JetStream)
 
-See [sync.md](sync.md) — `c35.user.{iid}.*`, `log.{iid}.{dv}.{topic}`, `c35.stats.*`, `c35.fetch.*`, `c35.inst.*`, channel `c35.ev.channel.*`.
+See [sync.md](sync.md) — `c35.user.{iid}.*` (incl. `.ev.{slug}` per [event.md](event.md)), `c35.stats.*`, `c35.fetch.*`, `c35.inst.*`, channel `c35.ev.channel.*`. LLM trace is DB-only; deprecated: `log.{iid}.{dv}.{topic}`.
 
 ---
 

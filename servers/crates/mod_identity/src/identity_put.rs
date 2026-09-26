@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+﻿use anyhow::{anyhow, Result};
 use async_nats::Client;
 use c35_mod_log::{log_put, LogPut};
 use c35_proto::{ReqIdentityPut, ResIdentityPut};
@@ -118,7 +118,7 @@ async fn log_bot_event(
         pool,
         nats,
         LogPut {
-            owner_iid,
+            class: None,            owner_iid,
             kind: "system",
             topic,
             dv: "c35-server",

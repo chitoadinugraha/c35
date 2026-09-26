@@ -56,6 +56,22 @@ pub async fn handle(mut socket: WebSocket, state: AppState, q: WsQuery, headers:
     let (out_tx, mut out_rx) = mpsc::unbounded_channel::<WsRes>();
     let app_conn_id = c35_mod_device::remote_signaling_app_conn_register(out_tx.clone());
     let admin_session_id = crate::admin_fanout::admin_session_id();
+    {
+        let mut ev = c35_mod_event::EventCtx::for_owner(caller_iid, "c35-app");
+        ev.conn_id = Some(admin_session_id as i64);
+        let pool = state.pool.clone();
+        let nats = state.nats.clone();
+        tokio::spawn(async move {
+            let _ = c35_mod_event::event_emit(
+                &pool,
+                nats.as_ref(),
+                ev,
+                c35_mod_event::kinds::USER_CONNECTED,
+                serde_json::json!({}),
+            )
+            .await;
+        });
+    }
     let mut prompt_flight: Option<PromptFlight> = None;
     if let Some(nats) = state.nats.clone() {
         let fanout_tx = out_tx.clone();
@@ -135,6 +151,13 @@ pub async fn handle(mut socket: WebSocket, state: AppState, q: WsQuery, headers:
     }
 
     c35_mod_device::remote_signaling_app_conn_unregister(app_conn_id);
+    c35_mod_event::event_spawn(
+        state.pool.clone(),
+        state.nats.clone(),
+        c35_mod_event::EventCtx::for_owner(caller_iid, "c35-app"),
+        c35_mod_event::kinds::USER_DISCONNECTED,
+        serde_json::json!({}),
+    );
     crate::admin_fanout::admin_session_drop(admin_session_id).await;
 }
 
@@ -302,7 +325,7 @@ async fn dispatch(
         }
         Some(ws_req::Body::ConsumptionPut(r)) => {
             let locale = q.locale.as_deref().unwrap_or("en");
-            match consumption_put_rpc(&state.pool, ctx.caller_iid, locale, r).await {
+            match consumption_put_rpc(&state.pool, state.nats.as_ref(), ctx.caller_iid, locale, r).await {
                 Ok(res) => WsRes {
                     req_id,
                     body: Some(ws_res::Body::ConsumptionPut(res)),
@@ -913,6 +936,78 @@ async fn dispatch(
                     body: Some(ws_res::Body::MailDomainAdd(body)),
                 },
                 Err(e) => err_res(req_id, WireErr::client("mail_domain_add_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::MailAccountGet(r)) => {
+            match c35_mod_mail::mail_account_get_rpc(state, ctx.caller_iid, r).await {
+                Ok(body) => WsRes { req_id, body: Some(ws_res::Body::MailAccountGet(body)) },
+                Err(e) => err_res(req_id, WireErr::client("mail_account_get_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::MailArchive(r)) => {
+            match c35_mod_mail::mail_archive_rpc(state, ctx.caller_iid, r).await {
+                Ok(body) => WsRes { req_id, body: Some(ws_res::Body::MailArchive(body)) },
+                Err(e) => err_res(req_id, WireErr::client("mail_archive_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::MailMarkRead(r)) => {
+            match c35_mod_mail::mail_mark_read_rpc(state, ctx.caller_iid, r).await {
+                Ok(body) => WsRes { req_id, body: Some(ws_res::Body::MailMarkRead(body)) },
+                Err(e) => err_res(req_id, WireErr::client("mail_mark_read_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::MailGroupList(r)) => {
+            match c35_mod_mail::mail_group_list_rpc(state, ctx.caller_iid, r).await {
+                Ok(body) => WsRes { req_id, body: Some(ws_res::Body::MailGroupList(body)) },
+                Err(e) => err_res(req_id, WireErr::client("mail_group_list_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::MailGroupUpsert(r)) => {
+            match c35_mod_mail::mail_group_upsert_rpc(state, ctx.caller_iid, r).await {
+                Ok(body) => WsRes { req_id, body: Some(ws_res::Body::MailGroupUpsert(body)) },
+                Err(e) => err_res(req_id, WireErr::client("mail_group_upsert_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::MailGroupDelete(r)) => {
+            match c35_mod_mail::mail_group_delete_rpc(state, ctx.caller_iid, r).await {
+                Ok(body) => WsRes { req_id, body: Some(ws_res::Body::MailGroupDelete(body)) },
+                Err(e) => err_res(req_id, WireErr::client("mail_group_delete_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::MailBroadcast(r)) => {
+            match c35_mod_mail::mail_broadcast_rpc(state, ctx.caller_iid, r).await {
+                Ok(body) => WsRes { req_id, body: Some(ws_res::Body::MailBroadcast(body)) },
+                Err(e) => err_res(req_id, WireErr::client("mail_broadcast_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::MailMailboxAdminList(r)) => {
+            match c35_mod_mail::mail_mailbox_admin_list_rpc(state, ctx.caller_iid, r).await {
+                Ok(body) => WsRes { req_id, body: Some(ws_res::Body::MailMailboxAdminList(body)) },
+                Err(e) => err_res(req_id, WireErr::client("mail_mailbox_admin_list_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::MailMailboxCreate(r)) => {
+            match c35_mod_mail::mail_mailbox_create_rpc(state, ctx.caller_iid, r).await {
+                Ok(body) => WsRes { req_id, body: Some(ws_res::Body::MailMailboxCreate(body)) },
+                Err(e) => err_res(req_id, WireErr::client("mail_mailbox_create_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::MailMailboxUpdate(r)) => {
+            match c35_mod_mail::mail_mailbox_update_rpc(state, ctx.caller_iid, r).await {
+                Ok(body) => WsRes { req_id, body: Some(ws_res::Body::MailMailboxUpdate(body)) },
+                Err(e) => err_res(req_id, WireErr::client("mail_mailbox_update_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::MailMailboxDelete(r)) => {
+            match c35_mod_mail::mail_mailbox_delete_rpc(state, ctx.caller_iid, r).await {
+                Ok(body) => WsRes { req_id, body: Some(ws_res::Body::MailMailboxDelete(body)) },
+                Err(e) => err_res(req_id, WireErr::client("mail_mailbox_delete_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::MailDomainFix(r)) => {
+            match c35_mod_mail::mail_domain_fix_rpc(state, ctx.caller_iid, r).await {
+                Ok(body) => WsRes { req_id, body: Some(ws_res::Body::MailDomainFix(body)) },
+                Err(e) => err_res(req_id, WireErr::client("mail_domain_fix_failed", e.to_string())),
             }
         }
         _ => err_res(

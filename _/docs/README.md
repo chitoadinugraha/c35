@@ -19,6 +19,7 @@ When code and docs disagree, fix the code to match these docs (or explicitly rev
 | [billing-plans.md](billing-plans.md) | Lite–Ultra plans, bot/device SKUs, promotions |
 | [billing-implementation.md](billing-implementation.md) | Phased rollout plan (schema → server → client) |
 | [log.md](log.md) | Unified audit + billing log |
+| [event.md](event.md) | Domain events (NATS `c35.user.*.ev.*`, triggers; not LLM trace) |
 | [sync.md](sync.md) | Incremental sync, `_ts` convention, NATS subjects |
 | [nats.md](nats.md) | NATS layers, JetStream streams, cron schedules, YB hydrate |
 | [server.md](server.md) | Rust crate workspace layout |
@@ -45,3 +46,5 @@ Schemas live in [`../schemas/`](../schemas/).
 ## Implementation plans
 
 Working multitask / implementation plans live in [`plans/`](plans/). These are ephemeral execution docs — not locked specs. Update or archive when work completes.
+
+Active: [Event bus + MCP log grep](plans/2026-09-26-event-bus-multitask.md).

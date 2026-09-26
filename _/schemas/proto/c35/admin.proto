@@ -41,6 +41,10 @@ message ReqAdminLogList {
   optional string topic = 6;
   int32 limit = 7;
   optional int64 before_id = 8;
+  optional string event_kind = 9;
+  optional string class = 10;
+  optional string subject_prefix = 11;
+  bool exclude_trace = 12;
 }
 
 message ResAdminLogList {

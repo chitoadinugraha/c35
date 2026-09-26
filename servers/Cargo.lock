@@ -495,6 +495,7 @@ dependencies = [
  "bytes",
  "c35_ctx",
  "c35_mod_chat",
+ "c35_mod_event",
  "c35_mod_file",
  "c35_mod_log",
  "c35_proto",
@@ -528,6 +529,7 @@ dependencies = [
  "c35_mod_billing",
  "c35_mod_consumption",
  "c35_mod_device",
+ "c35_mod_event",
  "c35_mod_expense",
  "c35_mod_fetch",
  "c35_mod_file",
@@ -559,9 +561,11 @@ name = "c35_mod_consumption"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-nats",
  "base64 0.22.1",
  "blake3",
  "c35_mod_billing",
+ "c35_mod_event",
  "c35_mod_file",
  "c35_mod_llm",
  "c35_proto",
@@ -581,6 +585,7 @@ dependencies = [
  "async-nats",
  "base64 0.22.1",
  "blake3",
+ "c35_mod_event",
  "c35_mod_log",
  "c35_proto",
  "c35_store",
@@ -593,6 +598,25 @@ dependencies = [
  "sha1",
  "sqlx",
  "tokio",
+]
+
+[[package]]
+name = "c35_mod_event"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-nats",
+ "c35_nats",
+ "c35_proto",
+ "c35_store",
+ "chrono",
+ "dotenvy",
+ "prost 0.13.5",
+ "serde_json",
+ "sqlx",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -679,6 +703,7 @@ dependencies = [
  "blake3",
  "c35_ctx",
  "c35_mod_billing",
+ "c35_mod_event",
  "c35_mod_hint",
  "c35_mod_log",
  "c35_mod_referral",
@@ -882,8 +907,10 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-nats",
+ "c35_proto",
  "chrono",
  "futures-util",
+ "prost 0.13.5",
  "serde",
  "serde_json",
  "sqlx",
@@ -976,6 +1003,7 @@ dependencies = [
  "c35_mod_chat",
  "c35_mod_consumption",
  "c35_mod_device",
+ "c35_mod_event",
  "c35_mod_expense",
  "c35_mod_hint",
  "c35_mod_identity",
@@ -985,12 +1013,14 @@ dependencies = [
  "c35_mod_skill",
  "c35_mod_tx",
  "c35_mod_voice",
+ "c35_nats",
  "c35_proto",
  "c35_wire",
  "c35_wire_http",
  "futures-util",
  "prost 0.13.5",
  "serde",
+ "serde_json",
  "sqlx",
  "tokio",
  "tokio-util",
@@ -1003,12 +1033,19 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-nats",
+ "c35_nats",
  "c35_proto",
+ "chrono",
  "libc",
  "prost 0.13.5",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sqlx",
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "urlencoding",
 ]
 
 [[package]]

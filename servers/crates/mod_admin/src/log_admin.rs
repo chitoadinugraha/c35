@@ -12,11 +12,27 @@ pub async fn admin_log_list(
     let mut qb = QueryBuilder::new(
         r#"
         SELECT id, owner_iid, kind, topic, dv, req_id, chat_id, task_id, device_iid,
-               text, model, tokens_in, tokens_out, duration_ms, cost_usd::float8 AS cost_usd, meta, created_ts, updated_ts, deleted_ts
+               text, model, tokens_in, tokens_out, duration_ms, cost_usd::float8 AS cost_usd, meta,
+               event_kind, subject, class, created_ts, updated_ts, deleted_ts
         FROM ai.log
         WHERE deleted_ts IS NULL
         "#,
     );
+    if req.exclude_trace {
+        qb.push(" AND class IN ('event', 'error')");
+    }
+    if let Some(event_kind) = req.event_kind.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty()) {
+        qb.push(" AND event_kind = ");
+        qb.push_bind(event_kind);
+    }
+    if let Some(class) = req.class.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty()) {
+        qb.push(" AND class = ");
+        qb.push_bind(class);
+    }
+    if let Some(prefix) = req.subject_prefix.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty()) {
+        qb.push(" AND subject LIKE ");
+        qb.push_bind(format!("{}%", prefix));
+    }
     if let Some(owner_iid) = req.owner_iid {
         qb.push(" AND owner_iid = ");
         qb.push_bind(owner_iid);
@@ -45,7 +61,7 @@ pub async fn admin_log_list(
         qb.push(" AND id < ");
         qb.push_bind(before_id);
     }
-    qb.push(" ORDER BY id DESC LIMIT ");
+    qb.push(" ORDER BY created_ts DESC, id DESC LIMIT ");
     qb.push_bind(limit);
     let rows = qb
         .build()
@@ -82,6 +98,9 @@ fn row_to_log(r: sqlx::postgres::PgRow) -> Log {
         created_ts_ms: ts_ms(r.get("created_ts")),
         updated_ts_ms: ts_ms(r.get("updated_ts")),
         deleted_ts_ms: ts_ms(r.get("deleted_ts")),
+        event_kind: r.get::<Option<String>, _>("event_kind").unwrap_or_default(),
+        class: r.get::<Option<String>, _>("class").unwrap_or_default(),
+        subject: r.get::<Option<String>, _>("subject").unwrap_or_default(),
     }
 }
 
