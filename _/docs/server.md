@@ -140,7 +140,13 @@ cd remotes && cargo build -p c_remote_windows
 |--------|----------------|
 | `.\cleanup.ps1` | Rust cache + cluster buildkit (both) |
 | `.\_\scripts\dev\cleanup_rust_cache.ps1` | Local `.cache/server`, `.cache/c_remote`, `.cache/rust` |
-| `.\_\scripts\deploy\cleanup_buildkit.ps1` | Cluster buildkit Docker layer cache |
+| `.\_\scripts\deploy\cleanup_buildkit.ps1` | Cluster buildkit cache (default: older than 7d; `-Full` wipes all) |
+
+**Publish speed:** cluster publish scripts no longer prune buildkit before each build (that forced cold Rust compiles). Leave buildkit scaled up between publishes when possible; use `-PruneBuildkit` / `-StopBuildkit` only when freeing disk. Manual prune: `cleanup_buildkit.ps1` or `cleanup.ps1 -SkipRust`.
+
+**Publish perf:** scripts emit `C35 publish perf` + `.cache/publish-perf/latest.json` (wall time, stage marks, OCIR image size when creds available). App releases also print `C35_PUBLISH_PERF` from Dart (`deploy_lib.dart`).
+
+**c35-server image:** `_/deployments/Dockerfile` — stub `server_ai` + `cargo build` (workspace deps), copy real `server_ai`, drop stale `server_ai` artifacts, rebuild (`CARGO_BUILD_JOBS=3`, `CODEGEN_UNITS=4`, target cache `c35-server-rust-target-v11`). `FROM c35-rust-chef` is toolchain only (not cargo-chef cook; that path failed on arm64). Fetcher / node-stats / channel-whatsapp still use cargo-chef. Rollout-only: `publish_server.ps1 -SkipBuild`.
 
 Rust trim (default): stale artifacts older than 30 days (`cargo sweep` when installed, else file-age prune).  
 Full wipe: `.\cleanup.ps1 -Full` or `cargo clean` in `servers/` / `remotes/`.

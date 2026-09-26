@@ -36,6 +36,7 @@ c_remote_*  ──WS or Alien Beacon──►  c35-server  ◄──WS──  Fl
 - Agent registers as `identity(kind=remote, type=windows|android|…)`.
 - Pairing: 10-char code — see [Pairing](#pairing) below and [identity.md](identity.md).
 - Presence: `meta.last_seen_ts_ms`, `meta.online` updated on connect/disconnect.
+- Agent build: on WS connect the agent sends `build` + `version_name` query params; server stores `meta.agent_build`, `meta.agent_version_name`, and `meta.agent_version` (display label). Compare to `ai.config` `app.release.c35.remote-windows` via MCP `device_list` / `device_list_http` (`release.needs_update`).
 - **No** client SQLCipher replica; **no** bidirectional task sync from agent (cs_agent pattern removed).
 
 ## Pairing
@@ -295,7 +296,9 @@ When a user mentions a device (e.g. `@Chito-PC`) or when computer use is needed,
 
 - **`device.screenshot`**: Captures high-definition JPEG desktop screenshots (`max_width`, `quality`, optional `marker_x`, `marker_y`, optional `som: bool`).
 - **`device.input`**: Dispatches mouse clicks, moves, drags, typing, and key presses using normalized `(0.0, 0.0)` to `(1.0, 1.0)` coordinates. Setting `screenshot_after=true` automatically waits 200ms and returns a follow-up screenshot with a red target marker confirming where the action landed.
-- **`device.command`**: Executes PowerShell commands directly on the remote agent with a configurable timeout (`timeout_sec`), returning structured `stdout`, `stderr`, and `exit_code`.
+- **`device.command`**: Executes PowerShell commands directly on the remote agent with a configurable timeout (`timeout_sec`), returning structured `stdout`, `stderr`, and `exit_code`. **Preferred for bulk data** (export, join, transform, spreadsheet load); UI clicks are for gates only (login, export button, captcha).
+
+**Bulk data (locked steering):** Topic `computer_use` instructs the subagent to **plan first** (keys, volume, phases), use **bulk extract + `device.command` scripts** when row count is large or work is repetitive, **pilot** a small sample, and use **row-by-row UI lookup only** when no export/API/script path exists. See [`../schemas/topic.sql`](../schemas/topic.sql) seed `computer_use`.
 
 #### 2. Set-of-Mark (SoM) & Windows UI Automation (UIA) Engine
 
@@ -366,7 +369,16 @@ App and agent fetch ICE config from server before `createOffer`. Prefer **host/s
 | Input | WebRTC data channel `remote-input` → `RemoteInputEvent` (Win32 `SendInput`) |
 | Auto-Connect | Starts immediately when user enters device detail / Remote tab |
 | Auto-Reconnect | Re-initiates on connection failure with exponential backoff (1s, 2s, 4s, 8s, 16s) up to 5 attempts |
-| Inactivity Disconnect | Closes peer connection after 60s idle (zero user input) with 1-click **Resume Session** overlay |
+| Leave Devices page | Closes WebRTC 60s after the user leaves the Devices page (stream stays up while the page is open, including view-only) |
+| Screen transport | SCTP `remote-screen` MJPEG by default; RTP VP8/Opus only when agent calls `set_webrtc_rtp_media_enabled(true)` |
+
+### Hyper-V / VM checklist
+
+- Run the installed agent (tray), not only the downloaded zip binary left in Downloads.
+- Stay **logged in** with a **visible desktop** (lock screen → black capture).
+- If Enhanced Session breaks capture, try basic VMConnect session.
+- Agent log: `%LOCALAPPDATA%\AlienAI\logs\latest.txt` — look for `desktop screen streaming started` or repeated capture warnings.
+- MCP debug: `device_list` → `device_log_tail` (q=`webrtc`) → `device_screenshot` with `owner_iid=99000` — see [`plans/2026-09-26-remote-streaming-mcp-debug.md`](plans/2026-09-26-remote-streaming-mcp-debug.md).
 | Fallback | MJPEG diffs over `remote-screen` SCTP data channel if video track negotiation is unavailable |
 | Badge | `host`/`srflx` → **Direct**; `relay` → **Relay** |
 | Idle | Stop encode when no subscribers / no dirty frames |
@@ -395,7 +407,7 @@ Devices page → remote device row shows **two status dots** (trailing):
 | Dot | Position | Meaning |
 |-----|----------|---------|
 | Left | WebRTC | App ↔ device data plane connected |
-| Right | Cluster | Agent ↔ server control session online |
+| Right | Alien AI Cloud | Agent ↔ server control session online |
 
 Device detail tabs per [ui.md](ui.md):
 

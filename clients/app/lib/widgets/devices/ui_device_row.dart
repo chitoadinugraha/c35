@@ -22,7 +22,7 @@ class UiDeviceRow extends StatelessWidget {
   final String kind;
   final String type;
   final bool pinned;
-  /// Agent session: device ↔ cluster (control plane, presence, tasks).
+  /// Agent session: device ↔ Alien AI Cloud (control plane, presence, tasks).
   final bool clusterOnline;
   /// WebRTC data plane: app ↔ device (screen, files, media — P2P or TURN).
   final bool webrtcConnected;
@@ -84,7 +84,7 @@ class UiDeviceRow extends StatelessWidget {
       children: [
         _webrtcDot(),
         const SizedBox(width: 5),
-        _dot(clusterOnline, 'Agent (cluster)'),
+        _dot(clusterOnline, 'Alien AI Cloud'),
       ],
     );
   }

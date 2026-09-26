@@ -1,13 +1,7 @@
 import 'package:alienai_c35/c/admin/admin_format.dart';
+import 'package:alienai_c35/widgets/admin/ui_admin_theme.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/material.dart';
-
-const _muted = Color(0xFF71717A);
-const _text = Color(0xFFF4F4F5);
-const _barBg = Color(0xFF27272A);
-const _barFill = Color(0xFF34D399);
-const _barWarn = Color(0xFFFBBF24);
-const _barCrit = Color(0xFFF87171);
 
 class UiAdminStatBar extends StatelessWidget {
   const UiAdminStatBar({
@@ -17,6 +11,7 @@ class UiAdminStatBar extends StatelessWidget {
     required this.pct,
     this.warnPct = 80,
     this.critPct = 90,
+    this.dense = false,
   });
 
   final String label;
@@ -24,31 +19,32 @@ class UiAdminStatBar extends StatelessWidget {
   final double pct;
   final double warnPct;
   final double critPct;
+  final bool dense;
 
-  Color get _fill => pct >= critPct ? _barCrit : pct >= warnPct ? _barWarn : _barFill;
+  Color get _fill => pct >= critPct ? adminBarCrit : pct >= warnPct ? adminBarWarn : adminBarFill;
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
+        padding: EdgeInsets.symmetric(vertical: dense ? 4 : 6),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               children: [
-                Text(label, style: const TextStyle(color: _text, fontSize: 13, fontWeight: FontWeight.w600)),
+                Text(label, style: const TextStyle(color: adminText, fontSize: 13, fontWeight: FontWeight.w600)),
                 const Spacer(),
-                Text(detail, style: const TextStyle(color: _muted, fontSize: 12)),
-                const SizedBox(width: 8),
-                Text(adminFmtPct(pct), style: TextStyle(color: _fill, fontSize: 12, fontWeight: FontWeight.w600)),
+                Text(detail, style: const TextStyle(color: adminMuted, fontSize: 11)),
+                const SizedBox(width: 6),
+                Text(adminFmtPct(pct), style: TextStyle(color: _fill, fontSize: 11, fontWeight: FontWeight.w600)),
               ],
             ),
-            const SizedBox(height: 6),
+            SizedBox(height: dense ? 4 : 6),
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
                 value: (pct / 100).clamp(0, 1),
-                minHeight: 8,
-                backgroundColor: _barBg,
+                minHeight: dense ? 7 : 8,
+                backgroundColor: adminBarBg,
                 color: _fill,
               ),
             ),
@@ -84,8 +80,8 @@ class UiAdminMountRow extends StatelessWidget {
       children: [
         Row(
           children: [
-            Expanded(child: Text(label, style: const TextStyle(color: _text, fontSize: 13, fontWeight: FontWeight.w500))),
-            Text('R ${adminFmtBps(readBps)}  W ${adminFmtBps(writeBps)}', style: const TextStyle(color: _muted, fontSize: 11)),
+            Expanded(child: Text(label, style: const TextStyle(color: adminText, fontSize: 13, fontWeight: FontWeight.w500))),
+            Text('R ${adminFmtBps(readBps)}  W ${adminFmtBps(writeBps)}', style: const TextStyle(color: adminMuted, fontSize: 11)),
           ],
         ),
         const SizedBox(height: 4),
@@ -95,11 +91,11 @@ class UiAdminMountRow extends StatelessWidget {
               flex: 2,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(3),
-                child: LinearProgressIndicator(value: (ioPct / 100).clamp(0, 1), minHeight: 6, backgroundColor: _barBg, color: const Color(0xFF60A5FA)),
+                child: LinearProgressIndicator(value: (ioPct / 100).clamp(0, 1), minHeight: 6, backgroundColor: adminBarBg, color: adminBarIn),
               ),
             ),
             const SizedBox(width: 12),
-            Text('${adminFmtBytes(used)} / ${adminFmtBytes(total)}', style: const TextStyle(color: _muted, fontSize: 11)),
+            Text('${adminFmtBytes(used)} / ${adminFmtBytes(total)}', style: const TextStyle(color: adminMuted, fontSize: 11)),
             const SizedBox(width: 8),
             SizedBox(
               width: 72,
@@ -108,8 +104,8 @@ class UiAdminMountRow extends StatelessWidget {
                 child: LinearProgressIndicator(
                   value: (pct / 100).clamp(0, 1),
                   minHeight: 6,
-                  backgroundColor: _barBg,
-                  color: pct >= 90 ? _barCrit : pct >= 80 ? _barWarn : _barFill,
+                  backgroundColor: adminBarBg,
+                  color: pct >= 90 ? adminBarCrit : pct >= 80 ? adminBarWarn : adminBarFill,
                 ),
               ),
             ),

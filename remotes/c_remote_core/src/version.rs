@@ -18,3 +18,8 @@ pub fn agent_version_label() -> String {
 pub fn agent_version_short() -> String {
     format!("v{}", agent_version_number())
 }
+
+/// Tray menu line: `1.5.0 (build 5)`.
+pub fn agent_version_tray_label() -> String {
+    format!("{} (build {})", AGENT_VERSION_NAME, AGENT_BUILD)
+}

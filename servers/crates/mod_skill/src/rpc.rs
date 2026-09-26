@@ -7,7 +7,207 @@ use c35_proto::{
 use c35_store::snowflake_id;
 use sqlx::{PgPool, Row};
 
+mod openskill {
+    use c35_proto::SkillCatalog;
+    use reqwest::Client;
+    use serde::Deserialize;
+    use std::sync::OnceLock;
+    use std::time::Duration;
+
+    const DEFAULT_BASE: &str = "https://www.openagentskill.com";
+
+    fn http_client() -> &'static Client {
+        static CLIENT: OnceLock<Client> = OnceLock::new();
+        CLIENT.get_or_init(|| {
+            Client::builder()
+                .timeout(Duration::from_secs(10))
+                .connect_timeout(Duration::from_secs(4))
+                .build()
+                .expect("openskill http client")
+        })
+    }
+
+    pub fn openskill_enabled() -> bool {
+        match std::env::var("C35_OPENSKILL_ENABLED").as_deref() {
+            Ok("0") | Ok("false") | Ok("no") => false,
+            _ => true,
+        }
+    }
+
+    fn openskill_base() -> String {
+        std::env::var("C35_OPENSKILL_BASE_URL")
+            .ok()
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or_else(|| DEFAULT_BASE.to_string())
+    }
+
+    fn openskill_list_limit() -> i32 {
+        std::env::var("C35_OPENSKILL_LIST_LIMIT")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(15)
+            .clamp(1, 30)
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct SearchResponse {
+        skills: Vec<SkillItem>,
+    }
+
+    #[derive(Clone, Debug, Deserialize)]
+    struct SkillItem {
+        slug: String,
+        name: String,
+        description: Option<String>,
+        author: Option<String>,
+        verified: Option<bool>,
+        tags: Option<Vec<String>>,
+        repository: Option<String>,
+        urls: Option<Urls>,
+    }
+
+    #[derive(Clone, Debug, Deserialize)]
+    struct Urls {
+        repository: Option<String>,
+        detail: Option<String>,
+    }
+
+    pub async fn openskill_search(q: &str, limit: i32) -> Vec<SkillCatalog> {
+        if !openskill_enabled() || q.trim().is_empty() {
+            return vec![];
+        }
+        let lim = limit.min(openskill_list_limit());
+        let url = format!(
+            "{}/api/agent/skills?q={}&limit={}",
+            openskill_base().trim_end_matches('/'),
+            urlencoding::encode(q.trim()),
+            lim
+        );
+        let resp = match http_client().get(&url).send().await {
+            Ok(r) if r.status().is_success() => r,
+            Ok(r) => {
+                tracing::warn!("openskill search http {}", r.status());
+                return vec![];
+            }
+            Err(e) => {
+                tracing::warn!("openskill search: {e}");
+                return vec![];
+            }
+        };
+        let parsed: SearchResponse = match resp.json().await {
+            Ok(p) => p,
+            Err(e) => {
+                tracing::warn!("openskill search json: {e}");
+                return vec![];
+            }
+        };
+        parsed.skills.into_iter().map(skill_item_to_catalog).collect()
+    }
+
+    fn skill_item_to_catalog(item: SkillItem) -> SkillCatalog {
+        let source_url = item
+            .urls
+            .and_then(|u| u.repository.or(u.detail))
+            .or(item.repository)
+            .unwrap_or_default();
+        let summary = item.description.unwrap_or_default();
+        let author = item.author.unwrap_or_else(|| "OpenSkill".to_string());
+        let tags: Vec<String> = item.tags.unwrap_or_default();
+        let tags_json = if tags.is_empty() {
+            r#"["openskill"]"#.to_string()
+        } else {
+            serde_json::to_string(&tags).unwrap_or_else(|_| r#"["openskill"]"#.to_string())
+        };
+        SkillCatalog {
+            id: 0,
+            author_iid: 0,
+            author_name: author,
+            slug: item.slug.clone(),
+            title: item.name,
+            summary,
+            body_md: String::new(),
+            tags_json,
+            install_count: 0,
+            rating: 5.0,
+            is_verified: item.verified.unwrap_or(false),
+            status: "published".to_string(),
+            price_usd: 0.0,
+            price_idr: 0.0,
+            billing_period: "free".to_string(),
+            source: "openskill".to_string(),
+            source_url,
+            is_external: true,
+            external_slug: item.slug,
+        }
+    }
+
+    pub async fn openskill_install_body(slug: &str) -> Result<String, String> {
+        if slug.trim().is_empty() {
+            return Err("external_slug required".into());
+        }
+        let url = format!(
+            "{}/api/skills/{}/install?format=text",
+            openskill_base().trim_end_matches('/'),
+            slug.trim()
+        );
+        let resp = http_client()
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+        if !resp.status().is_success() {
+            return Err(format!("openskill install http {}", resp.status()));
+        }
+        let text = resp.text().await.map_err(|e| e.to_string())?;
+        if text.trim().is_empty() {
+            return Err("openskill install empty body".into());
+        }
+        Ok(text)
+    }
+
+    pub fn openskill_phrase(slug: &str) -> String {
+        format!("openskill:{}", slug.trim())
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn search_response_parses_fixture_and_maps_catalog() {
+            let json = r#"{
+                "skills": [{
+                    "slug": "web-scraper",
+                    "name": "Web Scraper",
+                    "description": "Scrape pages",
+                    "author": "acme",
+                    "verified": true,
+                    "tags": ["web"],
+                    "repository": "https://github.com/x/y",
+                    "urls": { "repository": "https://github.com/x/y", "detail": "https://example.com/skill" },
+                    "unknown_field": 1
+                }]
+            }"#;
+            let parsed: SearchResponse = serde_json::from_str(json).expect("parse");
+            assert_eq!(parsed.skills.len(), 1);
+            let cat = skill_item_to_catalog(parsed.skills[0].clone());
+            assert_eq!(cat.slug, "web-scraper");
+            assert_eq!(cat.title, "Web Scraper");
+            assert_eq!(cat.source, "openskill");
+            assert!(cat.is_external);
+            assert_eq!(cat.external_slug, "web-scraper");
+            assert_eq!(cat.source_url, "https://github.com/x/y");
+            assert!(cat.tags_json.contains("web"));
+        }
+
+        #[test]
+        fn openskill_phrase_trims_slug() {
+            assert_eq!(openskill_phrase("  foo  "), "openskill:foo");
+        }
+    }
+}
 use crate::seed;
+use std::collections::HashSet;
 
 fn scope_db(scope: i32) -> &'static str {
     match scope {
@@ -113,7 +313,35 @@ fn catalog_from_row(row: &sqlx::postgres::PgRow) -> SkillCatalog {
         price_usd: row.try_get::<f64, _>("price_usd").unwrap_or(0.0),
         price_idr: row.try_get::<f64, _>("price_idr").unwrap_or(0.0),
         billing_period: row.get("billing_period"),
+        source: row.try_get("source").unwrap_or_else(|_| "community".to_string()),
+        source_url: row.try_get("source_url").unwrap_or_default(),
+        is_external: false,
+        external_slug: String::new(),
     }
+}
+
+async fn catalog_merge_external(
+    internal: Vec<SkillCatalog>,
+    q: &str,
+    limit: i32,
+) -> Vec<SkillCatalog> {
+    if !openskill::openskill_enabled() || q.is_empty() || internal.len() >= limit as usize {
+        return internal;
+    }
+    let slugs: HashSet<String> = internal.iter().map(|c| c.slug.to_lowercase()).collect();
+    let room = (limit as usize).saturating_sub(internal.len());
+    let external = openskill::openskill_search(q, room as i32).await;
+    let mut out = internal;
+    for item in external {
+        if slugs.contains(&item.slug.to_lowercase()) {
+            continue;
+        }
+        out.push(item);
+        if out.len() >= limit as usize {
+            break;
+        }
+    }
+    out
 }
 
 async fn skill_steps(pool: &PgPool, skill_id: i64) -> Vec<SkillStep> {
@@ -354,7 +582,8 @@ pub async fn skill_catalog_list_rpc(
         sqlx::query(
             r#"
             SELECT id, author_iid, author_name, slug, title, summary, body_md, tags_json::text,
-                   install_count, rating, is_verified, status, price_usd, price_idr, billing_period
+                   install_count, rating, is_verified, status, price_usd, price_idr, billing_period,
+                   source, source_url
             FROM ai.skill_catalog
             WHERE deleted_ts IS NULL AND status = 'published'
             ORDER BY install_count DESC, title ASC
@@ -369,7 +598,8 @@ pub async fn skill_catalog_list_rpc(
         sqlx::query(
             r#"
             SELECT id, author_iid, author_name, slug, title, summary, body_md, tags_json::text,
-                   install_count, rating, is_verified, status, price_usd, price_idr, billing_period
+                   install_count, rating, is_verified, status, price_usd, price_idr, billing_period,
+                   source, source_url
             FROM ai.skill_catalog
             WHERE deleted_ts IS NULL AND status = 'published'
               AND (LOWER(title) LIKE $1 OR LOWER(summary) LIKE $1 OR LOWER(slug) LIKE $1
@@ -385,7 +615,10 @@ pub async fn skill_catalog_list_rpc(
         .unwrap_or_default()
     };
 
-    let catalogs = rows.iter().map(|row| catalog_from_row(row)).collect();
+    let mut catalogs: Vec<SkillCatalog> = rows.iter().map(catalog_from_row).collect();
+    if !q.is_empty() {
+        catalogs = catalog_merge_external(catalogs, &q, limit).await;
+    }
     ResSkillCatalogList { catalogs }
 }
 
@@ -405,6 +638,7 @@ pub async fn skill_catalog_search_rpc(
         SELECT sc.id, sc.author_iid, sc.author_name, sc.slug, sc.title, sc.summary,
                sc.body_md, sc.tags_json::text, sc.install_count, sc.rating,
                sc.is_verified, sc.status, sc.price_usd, sc.price_idr, sc.billing_period,
+               sc.source, sc.source_url,
                (
                    sc.install_count::float * 0.3
                    + sc.rating::float * 6.0
@@ -444,8 +678,15 @@ pub async fn skill_catalog_search_rpc(
     .await
     .unwrap_or_default();
 
-    let total = rows.len() as i32;
-    let catalogs = rows.iter().map(|row| catalog_from_row(row)).collect();
+    let mut catalogs: Vec<SkillCatalog> = rows.iter().map(catalog_from_row).collect();
+    let mut total = catalogs.len() as i32;
+    if !q.is_empty() && catalogs.is_empty() {
+        catalogs = openskill::openskill_search(&q, limit).await;
+        total = catalogs.len() as i32;
+    } else if !q.is_empty() {
+        catalogs = catalog_merge_external(catalogs, &q, limit).await;
+        total = catalogs.len() as i32;
+    }
     ResSkillCatalogSearch { catalogs, total }
 }
 
@@ -780,11 +1021,100 @@ pub async fn skill_run_report_rpc(
 }
 
 
+async fn skill_catalog_install_openskill(
+    pool: &PgPool,
+    caller_iid: i64,
+    req: &ReqSkillCatalogInstall,
+) -> Result<ResSkillCatalogInstall, String> {
+    let scope = scope_db(req.scope);
+    if scope == "device" && req.device_iid == 0 {
+        return Err("device_iid required for device scope".into());
+    }
+    let slug = req.external_slug.trim();
+    let phrase = openskill::openskill_phrase(slug);
+    let phrase_json = serde_json::json!([phrase]).to_string();
+    let existing: Option<i64> = sqlx::query_scalar(
+        r#"
+        SELECT id FROM ai.skill
+        WHERE owner_iid = $1 AND deleted_ts IS NULL
+          AND phrases_json @> $2::jsonb
+          AND ($3::bigint = 0 OR device_iid = $3)
+        LIMIT 1
+        "#,
+    )
+    .bind(caller_iid)
+    .bind(&phrase_json)
+    .bind(req.device_iid)
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+    if existing.is_some() {
+        return Err("skill already installed".into());
+    }
+
+    let body_md = openskill::openskill_install_body(slug).await?;
+    let title = if req.external_title.trim().is_empty() {
+        slug.replace('-', " ")
+    } else {
+        req.external_title.trim().to_string()
+    };
+    let hash = hash_body(&body_md);
+    let skill_id = snowflake_id();
+    let tags_json = r#"["openskill"]"#;
+
+    sqlx::query(
+        r#"
+        INSERT INTO ai.skill (
+            id, owner_iid, scope, device_iid, team_iid, title, hash_blake3, body_md,
+            source, catalog_id, catalog_variant_id, catalog_release_id, author_name,
+            tags_json, phrases_json, auto_run, auto_submit, created_ts, updated_ts
+        ) VALUES (
+            $1, $2, $3, $4, 0, $5, $6, $7,
+            'catalog', 0, 0, 0, 'OpenSkill',
+            $8::jsonb, $9::jsonb, TRUE, FALSE, NOW(), NOW()
+        )
+        "#,
+    )
+    .bind(skill_id)
+    .bind(caller_iid)
+    .bind(scope)
+    .bind(req.device_iid)
+    .bind(&title)
+    .bind(&hash)
+    .bind(&body_md)
+    .bind(tags_json)
+    .bind(&phrase_json)
+    .execute(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    let row = sqlx::query(
+        r#"
+        SELECT id, owner_iid, scope, device_iid, team_iid, title, hash_blake3, body_md,
+               source, catalog_id, catalog_variant_id, catalog_release_id, author_name,
+               tags_json, phrases_json, auto_run, surface, target_app, url_pattern,
+               patch_epoch, patch_count, consecutive_ok, detected_app_version, auto_submit,
+               last_patched_ts, created_ts, updated_ts, deleted_ts
+        FROM ai.skill WHERE id = $1
+        "#,
+    )
+    .bind(skill_id)
+    .fetch_one(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    let skill = skill_from_row(&row);
+    Ok(ResSkillCatalogInstall { skill: Some(skill) })
+}
+
 pub async fn skill_catalog_install_rpc(
     pool: &PgPool,
     caller_iid: i64,
     req: ReqSkillCatalogInstall,
 ) -> Result<ResSkillCatalogInstall, String> {
+    if req.external_source == "openskill" && !req.external_slug.is_empty() {
+        return skill_catalog_install_openskill(pool, caller_iid, &req).await;
+    }
     if req.catalog_id == 0 {
         return Err("catalog_id required".into());
     }

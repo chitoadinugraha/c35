@@ -1,16 +1,18 @@
 # Build linux/arm64 c35-server on cluster buildkit, push OCIR, apply + rollout in c35.
 # Usage:
 #   .\_\scripts\deploy\publish_server.ps1
-#   .\_\scripts\deploy\publish_server.ps1 -Tag v0.1.0 -SkipCleanup
-#   .\_\scripts\deploy\publish_server.ps1 -LocalBuild
+#   .\_\scripts\deploy\publish_server.ps1 -Tag v0.1.0
+#   .\_\scripts\deploy\publish_server.ps1 -PruneBuildkit -StopBuildkit   # free disk; cold next build
 #
-# Prereq: docker (local build only), kubectl, OCIR_PASSWORD (or .env.local)
+# Prereq: kubectl, OCIR credentials for cluster buildkit (see publish.ps1)
 
 param(
     [string]$Tag = "latest",
     [switch]$SkipBuild,
     [switch]$SkipDeploy,
-    [switch]$SkipCleanup,
+    [switch]$PruneBuildkit,
+    [switch]$StopBuildkit,
+    [switch]$SkipCleanup,  # deprecated: no-op (prune is opt-in via -PruneBuildkit)
     [switch]$LocalBuild,
     [string]$Namespace = "c35",
     [string]$EnvFile = "",
@@ -55,41 +57,22 @@ if (-not $RegistryPass) { $RegistryPass = $env:OCIR_PASSWORD }
 if (-not $RegistryPass -and $envMap['OCIR_PASSWORD']) { $RegistryPass = $envMap['OCIR_PASSWORD'] }
 
 Require-Command kubectl
+if ($LocalBuild) { Deny-LocalArmDockerBuild }
 
 Write-Host "========================================"
 Write-Host " publish: c35-server -> $Namespace ($imageRef)"
 Write-Host " host: https://api.alienai.id"
 Write-Host "========================================"
 
+Start-PublishPerfSession -Kind 'cluster' -Target 'c35-server' -ImageRef $imageRef -Tag $Tag
+
 try {
-    if (-not $SkipCleanup) {
+    if ($PruneBuildkit) {
         & (Join-Path $PSScriptRoot "cleanup_buildkit.ps1")
     }
 
     if (-not $SkipBuild) {
-        if ($LocalBuild) {
-            Require-Command docker
-            if (-not $RegistryPass) { throw "Set -RegistryPass or OCIR_PASSWORD to push $imageRef" }
-            Write-Host "==> docker login hsg.ocir.io"
-            $RegistryPass | docker login hsg.ocir.io -u $RegistryUser --password-stdin
-            if ($LASTEXITCODE -ne 0) { throw "docker login failed" }
-            Write-Host "==> docker build $imageRef ($Platform)"
-            Push-Location $repoRoot
-            try {
-                docker build --platform $Platform -f $dockerfile -t $imageRef -t "${imageRepo}:latest" .
-                if ($LASTEXITCODE -ne 0) { throw "docker build failed" }
-                docker push $imageRef
-                if ($LASTEXITCODE -ne 0) { throw "docker push $imageRef failed" }
-                if ($Tag -ne "latest") {
-                    docker push "${imageRepo}:latest"
-                    if ($LASTEXITCODE -ne 0) { throw "docker push latest failed" }
-                }
-            } finally {
-                Pop-Location
-            }
-        } else {
-            Publish-C35ServerImage -Tag $Tag -RepoRoot $repoRoot -Platform $Platform
-        }
+        Publish-C35ServerImage -Tag $Tag -RepoRoot $repoRoot -Platform $Platform
     }
 
     if ($SkipDeploy) {
@@ -124,7 +107,9 @@ try {
 
     Write-Host "==> done"
     kubectl get deploy,svc,ingress -n $Namespace -l app.kubernetes.io/name=c35-server
-    Stop-Buildkit
+    if ($StopBuildkit) { Stop-Buildkit }
 } catch {
     throw
+} finally {
+    Write-PublishPerfReport -RepoRoot $repoRoot -RegistryUser $RegistryUser -RegistryPass $RegistryPass
 }

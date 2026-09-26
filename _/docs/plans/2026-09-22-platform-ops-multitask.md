@@ -64,6 +64,7 @@ Execute **Track A + B** first (routing + NATS persist). **C–G** can paralleliz
 | Action | Detail |
 |--------|--------|
 | CF DNS | `api.alienai.id` A → `168.110.219.43`, **proxied: false** |
+| CF DNS | `site.alienai.id` A → same origin IP, **proxied: false** (customer custom-domain CNAME target; see [`_/docs/site.md`](../../site.md) § Custom domains) |
 | CF DNS | `alienai.id` → same IP, **proxied: true** when ready for CDN |
 | CSA ingress | `csa-ingress` — remove `alienai.id` `/` rule OR lower priority so c35 wins |
 | Traefik priority | c35 `alienai.id` `/` priority > CSA; keep c35 `/v1`/`/a` on api host |

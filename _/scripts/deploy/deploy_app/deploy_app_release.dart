@@ -34,7 +34,7 @@ Future<void> main(List<String> args) async {
       await s3UploadWebBuild(versionCode: versionCode, webBuildDir: webDir);
       await publishWebAppVersion(versionCode);
       deployAppBumpVersion();
-      deployDone(version: 'v$versionCode', detail: 'web ${dirSizeLabel(webDir)}');
+      deployDone(version: 'v$versionCode', detail: 'web ${dirSizeLabel(webDir)}', target: 'web-release');
       return;
     }
 
@@ -43,7 +43,7 @@ Future<void> main(List<String> args) async {
       await runStep('Upload Windows zip to CAS', () => uploadWindowsReleaseOnly(build));
       await publishWindowsAppVersion(version: build.version, hash: build.hash, size: build.size);
       deployAppBumpVersion();
-      deployDone(version: 'v${build.version}', detail: 'zip ${formatBytes(build.size)}');
+      deployDone(version: 'v${build.version}', detail: 'zip ${formatBytes(build.size)}', target: 'windows-release');
       return;
     }
 
@@ -52,7 +52,7 @@ Future<void> main(List<String> args) async {
     if (tester) {
       final versionCode = await playStoreBuildAndUpload(uploadAabToPlayStoreInternal);
       deployAppBumpVersion();
-      deployDone(version: 'v$versionCode', detail: 'internal AAB only');
+      deployDone(version: 'v$versionCode', detail: 'internal AAB only', target: 'android-tester');
       return;
     }
 
@@ -62,7 +62,7 @@ Future<void> main(List<String> args) async {
     await playStoreBuildAndUpload(uploadAabToPlayStoreInternal);
     await promotePlayStoreReleaseToProduction(versionCode);
 
-    Platform.environment['DEPLOY_SKIP_VERSION_BUMP'] = '1';
+    deploySetEnv('DEPLOY_SKIP_VERSION_BUMP', '1');
 
     final apk = buildAndroidApk();
     await uploadAndroidApkRelease(apk);

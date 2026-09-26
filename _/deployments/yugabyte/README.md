@@ -9,6 +9,16 @@ Single-node YB uses one shared **`yb-data`** PVC (`oci-bv`, 50Gi) with Helm `sub
 
 PV reclaim is patched to **Retain** after bind (default `oci-bv` is Delete).
 
+## PVC `pg_data` symlink (required)
+
+Helm mounts subPath `tserver` at `/mnt/disk0`. The image ships `pg_data` as an absolute symlink to `/mnt/disk0/pg_data_15`, which breaks on subPath mounts. After any restore or new PVC, fix **before** first YB start:
+
+```bash
+kubectl exec -n yugabyte yb-tserver-0 -c yb-tserver -- sh -c 'cd /mnt/disk0 && rm -f pg_data && ln -s pg_data_15 pg_data'
+```
+
+(Use a one-off inspect pod with the PVC mounted at `/data/tserver` if YB is scaled down.)
+
 ## Migrate from hostPath
 
 ```powershell

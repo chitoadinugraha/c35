@@ -28,6 +28,10 @@ String agentVersionStampSync(String root) {
 }
 
 /// Minimum supported remote agent build; raise on breaking wire/session (see app-release-min.mdc).
+const remoteWindowsExeName = 'alienai_remote_windows.exe';
+const remoteWindowsLegacyExeName = 'c_remote_windows.exe';
+String remoteWindowsZipFileName(int version) => 'alienai_remote_windows-$version.zip';
+String remoteWindowsSetupFileName(int version) => 'AlienAI_Remote_Windows_Setup-$version.exe';
 const remoteAgentMinBuild = 2;
 
 int remoteReleaseMinResolve({int min = 0}) {

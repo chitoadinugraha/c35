@@ -8,6 +8,7 @@
 #   .\_\scripts\deploy\publish_app_release.ps1 -WebOnly
 #   .\_\scripts\deploy\publish_app_release.ps1 -PromoteOnly 240
 #   .\_\scripts\deploy\publish_app_release.ps1 -AndroidPromote
+#   (if Play OK but CAS failed) dart run deploy_app/play_store_upload_promote_prod.dart --finish-cas-only <N>
 #   .\_\scripts\deploy\publish_app_release.ps1 -RemoteAgent
 #   .\_\scripts\deploy\publish_app_release.ps1 -MintToken
 #
@@ -30,6 +31,18 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 $deployDir = Join-Path $repoRoot '_\scripts\deploy'
 $envFile = Join-Path $repoRoot '.env.local'
+. (Join-Path $repoRoot '_\deployments\_lib\publish_perf.ps1')
+
+function Get-AppPubspecVersionInfo([string]$Root) {
+    $pubspec = Join-Path $Root 'clients\app\pubspec.yaml'
+    if (-not (Test-Path $pubspec)) { return @{ build = ''; name = '' } }
+    $line = Get-Content $pubspec | Where-Object { $_ -match '^version:\s*(\d+)\.(\d+)\.(\d+)\+(\d+)\s*$' } | Select-Object -First 1
+    if (-not $line) { return @{ build = ''; name = '' } }
+    if ($line -notmatch '^version:\s*(\d+)\.(\d+)\.(\d+)\+(\d+)\s*$') { return @{ build = ''; name = '' } }
+    $major = $Matches[1]
+    $build = $Matches[4]
+    return @{ build = $build; name = "$major.$build.0" }
+}
 
 function Read-DotEnvLine([string]$Path) {
     if (-not (Test-Path $Path)) { return }
@@ -42,6 +55,34 @@ function Read-DotEnvLine([string]$Path) {
         $v = $p[1].Trim().Trim('"').Trim("'")
         if ($k -and -not (Test-Path Env:$k)) { Set-Item -Path "Env:$k" -Value $v }
     }
+}
+
+function Invoke-DeployDart {
+    param([string[]]$DartArgs)
+    $dartLines = @()
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        & dart @DartArgs 2>&1 | ForEach-Object {
+            $dartLines += $_
+            Write-Host $_
+        }
+    } finally {
+        $ErrorActionPreference = $prevEap
+    }
+    if ($LASTEXITCODE -ne 0) { throw "dart failed: $($DartArgs -join ' ')" }
+    foreach ($line in $dartLines) { Merge-PublishPerfFromJsonLine ([string]$line) }
+}
+
+function Resolve-AppPublishPerfTarget {
+    if ($AndroidPromote) { return 'android-promote-prod' }
+    if ($PromoteOnly -gt 0) { return 'android-promote-only' }
+    if ($Tester) { return 'android-tester' }
+    if ($WindowsOnly) { return 'windows-release' }
+    if ($WebOnly) { return 'web-release' }
+    if ($AndroidOnly) { return 'android-release' }
+    if ($RemoteAgent) { return 'remote-windows-agent' }
+    return 'app-release'
 }
 
 Read-DotEnvLine $envFile
@@ -58,6 +99,10 @@ if (-not $env:YB_PASSWORD) {
     throw 'YB_PASSWORD required (repo-root .env.local or shell).'
 }
 
+$pub = Get-AppPubspecVersionInfo $repoRoot
+$perfTarget = Resolve-AppPublishPerfTarget
+Start-PublishPerfSession -Kind 'app' -Target $perfTarget -Version $pub.build -VersionName $pub.name
+
 Push-Location $deployDir
 try {
     if (-not $SkipDartGet) {
@@ -71,22 +116,19 @@ try {
         Remove-Item Env:C35_SERVER -ErrorAction SilentlyContinue
         Remove-Item Env:C35_SERVER_URL -ErrorAction SilentlyContinue
         $env:C35_SERVER = 'https://alienai.id'
-        dart run deploy_remote/remote_windows_upload_prod.dart
-        if ($LASTEXITCODE -ne 0) { throw 'remote_windows_upload_prod failed' }
+        Invoke-DeployDart @('run', 'deploy_remote/remote_windows_upload_prod.dart')
         return
     }
 
     if ($PromoteOnly -gt 0) {
         Write-Host "==> Play promote-only versionCode=$PromoteOnly"
-        dart run deploy_app/play_store_upload_promote_prod.dart --promote-only $PromoteOnly
-        if ($LASTEXITCODE -ne 0) { throw 'play_store_upload_promote_prod --promote-only failed' }
+        Invoke-DeployDart @('run', 'deploy_app/play_store_upload_promote_prod.dart', '--promote-only', "$PromoteOnly")
         return
     }
 
     if ($AndroidPromote) {
         Write-Host '==> Android: internal upload, promote prod, APK + /version/android'
-        dart run deploy_app/play_store_upload_promote_prod.dart
-        if ($LASTEXITCODE -ne 0) { throw 'play_store_upload_promote_prod failed' }
+        Invoke-DeployDart @('run', 'deploy_app/play_store_upload_promote_prod.dart')
         return
     }
 
@@ -104,11 +146,11 @@ try {
     }
 
     Write-Host ('==> ' + ($dartArgs -join ' '))
-    & dart @dartArgs
-    if ($LASTEXITCODE -ne 0) { throw 'deploy_app_release failed' }
+    Invoke-DeployDart $dartArgs
 }
 finally {
     Pop-Location
+    Write-PublishPerfReport -RepoRoot $repoRoot
 }
 
 Write-Host '==> publish_app_release done'

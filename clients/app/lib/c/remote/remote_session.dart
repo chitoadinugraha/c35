@@ -49,7 +49,6 @@ enum RemoteSessionStatus {
   connecting,
   connected,
   reconnecting,
-  pausedIdle,
   failed,
 }
 
@@ -82,8 +81,8 @@ class RemoteSession {
   RTCDataChannel? _screenChannel;
   StreamSubscription<WsRes>? _signalSub;
   Timer? _fpsTimer;
-  Timer? _inactivityTimer;
   Timer? _reconnectTimer;
+  static Timer? _leaveDevicesTimer;
   var _frameCount = 0;
   var _starting = false;
   var _retryCount = 0;
@@ -113,30 +112,31 @@ class RemoteSession {
     }
   }
 
+  /// Devices page opened — keep WebRTC alive while user is on the page.
+  static void devicesPageVisible() {
+    _leaveDevicesTimer?.cancel();
+    _leaveDevicesTimer = null;
+  }
+
+  /// Devices page closed — tear down WebRTC after 1 minute off the page.
+  static void devicesPageHidden() {
+    _leaveDevicesTimer?.cancel();
+    _leaveDevicesTimer = Timer(const Duration(minutes: 1), () {
+      l('devices page left for 60s, stopping remote sessions');
+      for (final iid in _sessions.keys.toList()) {
+        unawaited(dispose(iid));
+      }
+    });
+  }
+
   // -------------------------------------------------------------------------
-  // Inactivity & Reconnect
+  // Reconnect
   // -------------------------------------------------------------------------
 
-  void userActivityPing() {
-    if (status.value == RemoteSessionStatus.pausedIdle) return;
-    _resetInactivityTimer();
-  }
-
-  void _resetInactivityTimer() {
-    _inactivityTimer?.cancel();
-    if (!connected.value) return;
-    _inactivityTimer = Timer(const Duration(minutes: 1), _onInactivityTimeout);
-  }
-
-  void _onInactivityTimeout() {
-    l('remote session $deviceIid inactive for 60s, disconnecting WebRTC');
-    status.value = RemoteSessionStatus.pausedIdle;
-    unawaited(_teardownPc(keepSessionId: false));
-  }
+  void userActivityPing() {}
 
   void _scheduleReconnect() {
     if (_manualStop) return;
-    if (status.value == RemoteSessionStatus.pausedIdle) return;
     if (_retryCount >= 5) {
       status.value = RemoteSessionStatus.failed;
       return;
@@ -151,7 +151,7 @@ class RemoteSession {
         status.value = RemoteSessionStatus.disconnected;
         return;
       }
-      if (!_manualStop && status.value != RemoteSessionStatus.pausedIdle && !connected.value) {
+      if (!_manualStop && !connected.value) {
         start();
       }
     });
@@ -214,13 +214,12 @@ class RemoteSession {
         if (up) {
           _retryCount = 0;
           status.value = RemoteSessionStatus.connected;
-          _resetInactivityTimer();
         } else if (s == RTCPeerConnectionState.RTCPeerConnectionStateFailed ||
             s == RTCPeerConnectionState.RTCPeerConnectionStateClosed ||
             s == RTCPeerConnectionState.RTCPeerConnectionStateDisconnected) {
           final wasConnected = connected.value;
           unawaited(_teardownPc(keepSessionId: true));
-          if (wasConnected && !_manualStop && status.value != RemoteSessionStatus.pausedIdle) {
+          if (wasConnected && !_manualStop) {
             _scheduleReconnect();
           }
         }
@@ -258,8 +257,6 @@ class RemoteSession {
     _manualStop = true;
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
-    _inactivityTimer?.cancel();
-    _inactivityTimer = null;
     status.value = RemoteSessionStatus.disconnected;
     final sid = sessionId;
     if (sid != null) {

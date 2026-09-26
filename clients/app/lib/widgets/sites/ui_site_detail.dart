@@ -13,6 +13,7 @@ import 'package:alienai_c35/widgets/sites/ui_site_preview.dart';
 import 'package:alienai_c35/widgets/ui/ui_col_cell.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:alienai_c35/widgets/ui/ui_table.dart';
+import 'package:alienai_c35/widgets/ui/ui_safe_area.dart';
 import 'package:alienai_c35/widgets/ui/ui_window_bar.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/material.dart';
@@ -174,9 +175,7 @@ class _UiSiteDetailState extends State<UiSiteDetail> {
     );
   }
 
-  Widget _navBarWrap() => uiDesktopWindow
-      ? _navBar()
-      : SafeArea(bottom: false, child: _navBar());
+  Widget _navBarWrap() => uiDesktopWindow ? _navBar() : uiMobileTopBar(context, _navBar());
 
   Widget _navBar() => Container(
         padding: const EdgeInsets.fromLTRB(4, 6, 8, 6),

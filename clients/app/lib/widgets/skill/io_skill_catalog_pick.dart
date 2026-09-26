@@ -65,6 +65,7 @@ class _IoSkillCatalogDialogState extends State<_IoSkillCatalogDialog> {
   }
 
   Color _sourceAccent(SkillCatalog c) {
+    if (c.source == 'openskill' || c.isExternal) return const Color(0xFF38BDF8);
     final tags = c.tagsJson.toLowerCase();
     if (tags.contains('openskill') || c.authorName.toLowerCase().contains('openskill')) return const Color(0xFF38BDF8);
     if (c.isVerified) return const Color(0xFF34D399);
@@ -72,6 +73,7 @@ class _IoSkillCatalogDialogState extends State<_IoSkillCatalogDialog> {
   }
 
   String _sourceLabel(SkillCatalog c) {
+    if (c.source == 'openskill' || c.isExternal) return 'OpenSkill';
     final tags = c.tagsJson.toLowerCase();
     if (tags.contains('openskill') || c.authorName.toLowerCase().contains('openskill')) return 'OpenSkill';
     if (c.isVerified) return 'Verified';

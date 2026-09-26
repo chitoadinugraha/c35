@@ -1,5 +1,6 @@
 import 'package:alienai_c35/c/referral/referral_format.dart';
 import 'package:alienai_c35/c/session.dart';
+import 'package:alienai_c35/widgets/ui/ui_menu_position.dart';
 import 'package:flutter/material.dart';
 
 const _badgeBg = Color(0xFF27272A);
@@ -84,23 +85,29 @@ class _RoleBadge extends StatelessWidget {
   }
 }
 
-class _FinanceBadge extends StatelessWidget {
+class _FinanceBadge extends StatefulWidget {
   const _FinanceBadge({required this.action, required this.fontSize, required this.padding});
 
   final UiAccountRoleBadgesAction action;
   final double fontSize;
   final EdgeInsets padding;
 
-  Future<void> _openMenu(BuildContext anchorCtx) async {
-    final box = anchorCtx.findRenderObject() as RenderBox?;
+  @override
+  State<_FinanceBadge> createState() => _FinanceBadgeState();
+}
+
+class _FinanceBadgeState extends State<_FinanceBadge> {
+  final _anchorKey = GlobalKey();
+
+  Future<void> _openMenu(BuildContext menuCtx) async {
+    final box = _anchorKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null || !box.hasSize) return;
-    final origin = box.localToGlobal(Offset.zero);
     final selected = await showMenu<String>(
-      context: anchorCtx,
+      context: menuCtx,
       color: const Color(0xFF18181B),
-      position: RelativeRect.fromLTRB(origin.dx, origin.dy + box.size.height + 4, origin.dx, origin.dy),
+      position: uiMenuPositionBelow(menuCtx, box),
       items: [
-        if (action.onFinancePayments != null)
+        if (widget.action.onFinancePayments != null)
           const PopupMenuItem(
             value: 'payments',
             child: Row(
@@ -111,7 +118,7 @@ class _FinanceBadge extends StatelessWidget {
               ],
             ),
           ),
-        if (action.onFinanceReceiveAccounts != null)
+        if (widget.action.onFinanceReceiveAccounts != null)
           const PopupMenuItem(
             value: 'receive',
             child: Row(
@@ -126,27 +133,26 @@ class _FinanceBadge extends StatelessWidget {
     );
     switch (selected) {
       case 'payments':
-        action.onFinancePayments?.call();
+        widget.action.onFinancePayments?.call();
       case 'receive':
-        action.onFinanceReceiveAccounts?.call();
+        widget.action.onFinanceReceiveAccounts?.call();
     }
   }
 
   @override
-  Widget build(BuildContext context) => Builder(
-        builder: (anchorCtx) => InkWell(
-          onTap: () => _openMenu(anchorCtx),
-          borderRadius: BorderRadius.circular(999),
-          child: Container(
-            padding: padding,
-            decoration: BoxDecoration(color: _badgeBg, borderRadius: BorderRadius.circular(999)),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(referralGlobalRoleLabel('finance'), style: TextStyle(color: _badgeText, fontSize: fontSize, fontWeight: FontWeight.w600)),
-                Icon(Icons.expand_more_rounded, size: fontSize + 2, color: _muted),
-              ],
-            ),
+  Widget build(BuildContext context) => InkWell(
+        onTap: () => _openMenu(context),
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          key: _anchorKey,
+          padding: widget.padding,
+          decoration: BoxDecoration(color: _badgeBg, borderRadius: BorderRadius.circular(999)),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(referralGlobalRoleLabel('finance'), style: TextStyle(color: _badgeText, fontSize: widget.fontSize, fontWeight: FontWeight.w600)),
+              Icon(Icons.expand_more_rounded, size: widget.fontSize + 2, color: _muted),
+            ],
           ),
         ),
       );

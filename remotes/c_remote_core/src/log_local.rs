@@ -183,15 +183,39 @@ pub fn log_open() -> anyhow::Result<()> {
     if !path.exists() {
         fs::File::create(&path)?;
     }
+    log_open_ensure_header(&path);
     #[cfg(target_os = "windows")]
     {
-        std::process::Command::new("cmd")
-            .args(["/C", "start", "", &path.display().to_string()])
-            .spawn()?;
+        let path_str = path.display().to_string();
+        if std::process::Command::new("notepad.exe")
+            .arg(&path_str)
+            .spawn()
+            .is_ok()
+        {
+            return Ok(());
+        }
+        let dir = log_dir();
+        let _ = std::process::Command::new("explorer.exe")
+            .arg(dir.display().to_string())
+            .spawn();
     }
     #[cfg(not(target_os = "windows"))]
     {
         tracing::info!(path = %path.display(), "log file");
     }
     Ok(())
+}
+
+fn log_open_ensure_header(path: &Path) {
+    let empty = fs::metadata(path).map(|m| m.len() == 0).unwrap_or(true);
+    if !empty {
+        return;
+    }
+    let header = format!(
+        "Alien AI Remote Agent — {}\nLog file: {}\nLogs folder: {}\n\n",
+        crate::version::agent_version_tray_label(),
+        path.display(),
+        log_dir().display(),
+    );
+    let _ = fs::write(path, header);
 }

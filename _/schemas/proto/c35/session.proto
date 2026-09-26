@@ -9,7 +9,8 @@ import "c35/sync.proto";
 import "c35/catalog.proto";
 import "c35/hint.proto";
 
-// Connect: /v1/ws?since=<ms>&jwt=...&locale=...&tz=...
+// Connect: /v1/ws?since=<ms>&jwt=...&locale=...&tz=...&build=<n>&version_name=...
+// `v` is an alias for `build` on the query string.
 // First message after auth: ReqSessionInit → ResSessionInit (one round trip)
 
 message PromptModelOption {
@@ -38,6 +39,8 @@ message ReqSessionInit {
   string location_country = 12;
   // device | user — empty when client is not asserting a source
   string location_source = 13;
+  int64 app_build = 14;
+  string app_version_name = 15;
 }
 
 message ResSessionInit {

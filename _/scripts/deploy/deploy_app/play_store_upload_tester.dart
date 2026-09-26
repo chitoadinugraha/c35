@@ -14,7 +14,7 @@ Future<void> main(List<String> args) async {
     deployAppBumpVersionUnlessSkipped();
     stdout.writeln('Tester upload complete (internal track, versionCode $versionCode)');
     final version = await playStoreShowDeployedStatus();
-    deployDone(version: version ?? 'v$versionCode', detail: 'AAB ${aabBundleSizeLabel()}');
+    deployDone(version: version ?? 'v$versionCode', detail: 'AAB ${aabBundleSizeLabel()}', target: 'android-tester');
   } catch (e) {
     phaseFail('Play Store tester upload failed', e.toString());
   }

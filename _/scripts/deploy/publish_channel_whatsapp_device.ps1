@@ -1,14 +1,15 @@
 # Build linux/arm64 channel-whatsapp-device on cluster buildkit, push OCIR, apply + rollout in c35.
 # Usage:
 #   .\_\scripts\deploy\publish_channel_whatsapp_device.ps1
-#   .\_\scripts\deploy\publish_channel_whatsapp_device.ps1 -Tag v0.1.0 -SkipCleanup
-#   .\_\scripts\deploy\publish_channel_whatsapp_device.ps1 -LocalBuild
+#   .\_\scripts\deploy\publish_channel_whatsapp_device.ps1 -Tag v0.1.0
 
 param(
     [string]$Tag = "latest",
     [switch]$SkipBuild,
     [switch]$SkipDeploy,
-    [switch]$SkipCleanup,
+    [switch]$PruneBuildkit,
+    [switch]$StopBuildkit,
+    [switch]$SkipCleanup,  # deprecated: no-op
     [switch]$LocalBuild,
     [string]$Namespace = "c35",
     [string]$EnvFile = "",
@@ -53,40 +54,21 @@ if (-not $RegistryPass) { $RegistryPass = $env:OCIR_PASSWORD }
 if (-not $RegistryPass -and $envMap['OCIR_PASSWORD']) { $RegistryPass = $envMap['OCIR_PASSWORD'] }
 
 Require-Command kubectl
+if ($LocalBuild) { Deny-LocalArmDockerBuild }
 
 Write-Host "========================================"
 Write-Host " publish: channel-whatsapp-device -> $Namespace ($imageRef)"
 Write-Host "========================================"
 
+Start-PublishPerfSession -Kind 'cluster' -Target 'channel-whatsapp-device' -ImageRef $imageRef -Tag $Tag
+
 try {
-    if (-not $SkipCleanup) {
+    if ($PruneBuildkit) {
         & (Join-Path $PSScriptRoot "cleanup_buildkit.ps1")
     }
 
     if (-not $SkipBuild) {
-        if ($LocalBuild) {
-            Require-Command docker
-            if (-not $RegistryPass) { throw "Set -RegistryPass or OCIR_PASSWORD to push $imageRef" }
-            Write-Host "==> docker login hsg.ocir.io"
-            $RegistryPass | docker login hsg.ocir.io -u $RegistryUser --password-stdin
-            if ($LASTEXITCODE -ne 0) { throw "docker login failed" }
-            Write-Host "==> docker build $imageRef ($Platform)"
-            Push-Location $repoRoot
-            try {
-                docker build --platform $Platform -f $dockerfile -t $imageRef -t "${imageRepo}:latest" .
-                if ($LASTEXITCODE -ne 0) { throw "docker build failed" }
-                docker push $imageRef
-                if ($LASTEXITCODE -ne 0) { throw "docker push $imageRef failed" }
-                if ($Tag -ne "latest") {
-                    docker push "${imageRepo}:latest"
-                    if ($LASTEXITCODE -ne 0) { throw "docker push latest failed" }
-                }
-            } finally {
-                Pop-Location
-            }
-        } else {
-            Publish-C35ChannelWhatsappDeviceImage -Tag $Tag -RepoRoot $repoRoot -Platform $Platform
-        }
+        Publish-C35ChannelWhatsappDeviceImage -Tag $Tag -RepoRoot $repoRoot -Platform $Platform
     }
 
     if ($SkipDeploy) {
@@ -113,5 +95,6 @@ try {
     Write-Host "==> done"
     kubectl get deploy,svc -n $Namespace -l app.kubernetes.io/name=channel-whatsapp-device
 } finally {
-    Stop-Buildkit
+    if ($StopBuildkit) { Stop-Buildkit }
+    Write-PublishPerfReport -RepoRoot $repoRoot -RegistryUser $RegistryUser -RegistryPass $RegistryPass
 }

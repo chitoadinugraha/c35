@@ -210,6 +210,10 @@ const SkillCatalog$json = {
     {'1': 'price_usd', '3': 13, '4': 1, '5': 1, '10': 'priceUsd'},
     {'1': 'price_idr', '3': 14, '4': 1, '5': 1, '10': 'priceIdr'},
     {'1': 'billing_period', '3': 15, '4': 1, '5': 9, '10': 'billingPeriod'},
+    {'1': 'source', '3': 16, '4': 1, '5': 9, '10': 'source'},
+    {'1': 'source_url', '3': 17, '4': 1, '5': 9, '10': 'sourceUrl'},
+    {'1': 'is_external', '3': 18, '4': 1, '5': 8, '10': 'isExternal'},
+    {'1': 'external_slug', '3': 19, '4': 1, '5': 9, '10': 'externalSlug'},
   ],
 };
 
@@ -222,7 +226,10 @@ final $typed_data.Uint8List skillCatalogDescriptor = $convert.base64Decode(
     'c3RhbGxfY291bnQYCSABKAVSDGluc3RhbGxDb3VudBIWCgZyYXRpbmcYCiABKAFSBnJhdGluZx'
     'IfCgtpc192ZXJpZmllZBgLIAEoCFIKaXNWZXJpZmllZBIWCgZzdGF0dXMYDCABKAlSBnN0YXR1'
     'cxIbCglwcmljZV91c2QYDSABKAFSCHByaWNlVXNkEhsKCXByaWNlX2lkchgOIAEoAVIIcHJpY2'
-    'VJZHISJQoOYmlsbGluZ19wZXJpb2QYDyABKAlSDWJpbGxpbmdQZXJpb2Q=');
+    'VJZHISJQoOYmlsbGluZ19wZXJpb2QYDyABKAlSDWJpbGxpbmdQZXJpb2QSFgoGc291cmNlGBAg'
+    'ASgJUgZzb3VyY2USHQoKc291cmNlX3VybBgRIAEoCVIJc291cmNlVXJsEh8KC2lzX2V4dGVybm'
+    'FsGBIgASgIUgppc0V4dGVybmFsEiMKDWV4dGVybmFsX3NsdWcYEyABKAlSDGV4dGVybmFsU2x1'
+    'Zw==');
 
 @$core.Deprecated('Use reqSkillListDescriptor instead')
 const ReqSkillList$json = {
@@ -358,6 +365,9 @@ const ReqSkillCatalogInstall$json = {
       '10': 'scope'
     },
     {'1': 'device_iid', '3': 5, '4': 1, '5': 3, '10': 'deviceIid'},
+    {'1': 'external_source', '3': 6, '4': 1, '5': 9, '10': 'externalSource'},
+    {'1': 'external_slug', '3': 7, '4': 1, '5': 9, '10': 'externalSlug'},
+    {'1': 'external_title', '3': 8, '4': 1, '5': 9, '10': 'externalTitle'},
   ],
 };
 
@@ -366,7 +376,9 @@ final $typed_data.Uint8List reqSkillCatalogInstallDescriptor = $convert.base64De
     'ChZSZXFTa2lsbENhdGFsb2dJbnN0YWxsEh0KCmNhdGFsb2dfaWQYASABKANSCWNhdGFsb2dJZB'
     'IdCgp2YXJpYW50X2lkGAIgASgDUgl2YXJpYW50SWQSHQoKcmVsZWFzZV9pZBgDIAEoA1IJcmVs'
     'ZWFzZUlkEiUKBXNjb3BlGAQgASgOMg8uYzM1LlNraWxsU2NvcGVSBXNjb3BlEh0KCmRldmljZV'
-    '9paWQYBSABKANSCWRldmljZUlpZA==');
+    '9paWQYBSABKANSCWRldmljZUlpZBInCg9leHRlcm5hbF9zb3VyY2UYBiABKAlSDmV4dGVybmFs'
+    'U291cmNlEiMKDWV4dGVybmFsX3NsdWcYByABKAlSDGV4dGVybmFsU2x1ZxIlCg5leHRlcm5hbF'
+    '90aXRsZRgIIAEoCVINZXh0ZXJuYWxUaXRsZQ==');
 
 @$core.Deprecated('Use resSkillCatalogInstallDescriptor instead')
 const ResSkillCatalogInstall$json = {

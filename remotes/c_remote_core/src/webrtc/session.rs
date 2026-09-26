@@ -27,6 +27,19 @@ use webrtc::track::track_local::TrackLocal;
 
 use super::fs::fs_dispatch;
 
+use std::sync::atomic::{AtomicBool, Ordering};
+
+static RTP_MEDIA_ENABLED: AtomicBool = AtomicBool::new(false);
+
+/// When false (default), screen uses SCTP `remote-screen` only — no empty VP8/Opus tracks.
+pub fn set_webrtc_rtp_media_enabled(enabled: bool) {
+    RTP_MEDIA_ENABLED.store(enabled, Ordering::Relaxed);
+}
+
+pub fn webrtc_rtp_media_enabled() -> bool {
+    RTP_MEDIA_ENABLED.load(Ordering::Relaxed)
+}
+
 type SessionMap = HashMap<String, Arc<WebrtcSession>>;
 
 static ACTIVE_HUB: std::sync::RwLock<Option<std::sync::Weak<WebrtcHub>>> = std::sync::RwLock::new(None);
@@ -392,40 +405,47 @@ impl WebrtcSession {
         };
         let pc = Arc::new(api.new_peer_connection(config).await?);
 
-        let video_track = Arc::new(TrackLocalStaticSample::new(
-            RTCRtpCodecCapability {
-                mime_type: "video/VP8".to_owned(),
-                ..Default::default()
-            },
-            "screen".to_owned(),
-            "c35-screen".to_owned(),
-        ));
-        let _ = pc.add_track(Arc::clone(&video_track) as Arc<dyn TrackLocal + Send + Sync>);
-
-        let audio_track = Arc::new(TrackLocalStaticSample::new(
-            RTCRtpCodecCapability {
-                mime_type: "audio/opus".to_owned(),
-                ..Default::default()
-            },
-            "audio".to_owned(),
-            "c35-audio".to_owned(),
-        ));
-        let _ = pc.add_track(Arc::clone(&audio_track) as Arc<dyn TrackLocal + Send + Sync>);
+        let rtp_media = webrtc_rtp_media_enabled();
+        let video_track = rtp_media
+            .then(|| {
+                Arc::new(TrackLocalStaticSample::new(
+                    RTCRtpCodecCapability {
+                        mime_type: "video/VP8".to_owned(),
+                        ..Default::default()
+                    },
+                    "screen".to_owned(),
+                    "c35-screen".to_owned(),
+                ))
+            });
+        let audio_track = rtp_media.then(|| {
+            Arc::new(TrackLocalStaticSample::new(
+                RTCRtpCodecCapability {
+                    mime_type: "audio/opus".to_owned(),
+                    ..Default::default()
+                },
+                "audio".to_owned(),
+                "c35-audio".to_owned(),
+            ))
+        });
+        if let Some(v) = &video_track {
+            let _ = pc.add_track(Arc::clone(v) as Arc<dyn TrackLocal + Send + Sync>);
+        }
+        if let Some(a) = &audio_track {
+            let _ = pc.add_track(Arc::clone(a) as Arc<dyn TrackLocal + Send + Sync>);
+        }
 
         let connected_pushed = Arc::new(RwLock::new(false));
         let sid = session_id.clone();
         let dev = device_iid;
         let out = out_tx.clone();
         let pushed = Arc::clone(&connected_pushed);
-        let v_track = Arc::clone(&video_track);
-        let a_track = Arc::clone(&audio_track);
 
         pc.on_peer_connection_state_change(Box::new(move |state| {
             let out = out.clone();
             let pushed = Arc::clone(&pushed);
             let sid = sid.clone();
-            let v_track = Arc::clone(&v_track);
-            let a_track = Arc::clone(&a_track);
+            let v_track = video_track.clone();
+            let a_track = audio_track.clone();
             Box::pin(async move {
                 info!(session_id = %sid, ?state, "==> [WEBRTC STATE] PC state changed: {:?}", state);
                 if state == RTCPeerConnectionState::Connected {
@@ -434,7 +454,9 @@ impl WebrtcSession {
                         *pushed.write().await = true;
                         info!(session_id = %sid, "==> [WEBRTC CONNECTED] Remote viewer is streaming desktop live");
                         push_connected(&out, dev, &sid, true, Some(RemoteConnectionMode::Direct));
-                        dispatch_media_tracks(v_track, Some(a_track));
+                        if let Some(v) = v_track {
+                            dispatch_media_tracks(v, a_track);
+                        }
                     }
                 } else if state == RTCPeerConnectionState::Failed
                     || state == RTCPeerConnectionState::Closed

@@ -81,6 +81,13 @@ int billingPlanQueuePriority(BillingPlanDoc plan) {
   };
 }
 
+String? billingPlanFollowupQueueLabel(BillingPlanDoc plan) {
+  final slug = plan.slug.trim().toLowerCase();
+  if (slug == 'lite') return 'Not included';
+  if (slug == 'plus' || slug == 'pro' || slug == 'ultra') return 'Up to 5 while AI works';
+  return null;
+}
+
 String? billingPlanPriorityBadge(BillingPlanDoc plan) {
   final mult = billingPlanQueuePriority(plan);
   if (mult <= 1) return plan.priorityQueue ? 'Priority queue' : null;
@@ -93,25 +100,114 @@ String billingPlanPoolsLabel(BillingPlanDoc plan) {
   return lines.map((l) => '${l.label}: ${l.value}').join(' · ');
 }
 
-class BillingPlanQuotaLine {
-  const BillingPlanQuotaLine({required this.label, required this.value});
+enum BillingPlanLineKind { sectionHeader, row }
 
+class BillingPlanQuotaLine {
+  const BillingPlanQuotaLine({
+    required this.label,
+    this.value = '',
+    this.comparison,
+    this.kind = BillingPlanLineKind.row,
+    this.showsIncluded = false,
+    this.valueAccent = false,
+  });
+
+  final BillingPlanLineKind kind;
   final String label;
   final String value;
+  final String? comparison;
+  final bool showsIncluded;
+  final bool valueAccent;
 }
 
-List<BillingPlanQuotaLine> billingPlanQuotaLines(BillingPlanDoc plan) {
+int billingPlanIotDeviceLimit(BillingPlanDoc plan) => switch (plan.slug.trim().toLowerCase()) {
+      'plus' => 20,
+      'pro' => 100,
+      'ultra' => 1000,
+      _ => 10,
+    };
+
+String billingPlanModelsValue(BillingPlanDoc plan) => switch (plan.slug.trim().toLowerCase()) {
+      'lite' => 'Alien AI',
+      _ => 'Gemini, ChatGPT, DeepSeek & more',
+    };
+
+String? billingPlanTierComparison(int value, int liteValue) {
+  if (liteValue <= 0 || value <= liteValue) return null;
+  final ratio = value / liteValue;
+  final shown = ratio >= 10 ? ratio.round().toString() : (ratio * 10).round() / 10;
+  return '($shown× more than Lite)';
+}
+
+String? billingPlanQuotaComparison(BillingPlanDoc plan, {BillingPlanDoc? litePlan}) {
+  final slug = plan.slug.trim().toLowerCase();
+  if (slug == 'lite' || billingPlanIsFree(slug)) return null;
+  final mult = billingPlanQuotaMultiplier(plan);
+  if (mult > 1) return '($mult× more than Lite)';
+  if (litePlan == null) return null;
+  final alien = plan.alienPoolIdrMonthly;
+  final base = litePlan.alienPoolIdrMonthly;
+  if (base <= 0 || alien <= base) return null;
+  final ratio = alien / base;
+  final shown = ratio >= 10 ? ratio.round().toString() : (ratio * 10).round() / 10;
+  return '($shown× more than Lite)';
+}
+
+String? billingPlanQuotaAmountComparison(double value, double baseline, {String baselineName = 'Lite'}) {
+  if (baseline <= 0 || value <= baseline) return null;
+  final ratio = value / baseline;
+  final shown = ratio >= 10 ? ratio.round().toString() : (ratio * 10).round() / 10;
+  return '($shown× more than $baselineName)';
+}
+
+List<BillingPlanQuotaLine> billingPlanQuotaLines(BillingPlanDoc plan, {BillingPlanDoc? litePlan}) {
   final alien = plan.alienPoolIdrMonthly;
   final frontier = plan.frontierPoolIdrMonthly;
-  if (alien <= 0 && frontier <= 0) return const [];
+  final liteIot = litePlan != null ? billingPlanIotDeviceLimit(litePlan) : 10;
+  final iot = billingPlanIotDeviceLimit(plan);
+  final poolCmp = billingPlanQuotaComparison(plan, litePlan: litePlan);
+  final baseAlien = litePlan?.alienPoolIdrMonthly ?? 0;
+  final baseFrontier = litePlan?.frontierPoolIdrMonthly ?? 0;
   final lines = <BillingPlanQuotaLine>[
-    if (alien > 0) BillingPlanQuotaLine(label: 'Alien AI Quota', value: '${billingFmtRp(alien)}/mo'),
-    if (frontier > 0) BillingPlanQuotaLine(label: 'API Quota', value: '${billingFmtRp(frontier)}/mo'),
+    const BillingPlanQuotaLine(label: 'Features', kind: BillingPlanLineKind.sectionHeader),
+    const BillingPlanQuotaLine(label: 'Computer use', value: 'Included', showsIncluded: false),
+    const BillingPlanQuotaLine(label: 'Image generation', value: 'Included', showsIncluded: false),
+    BillingPlanQuotaLine(label: 'Multiple models', value: billingPlanModelsValue(plan), showsIncluded: true),
+    BillingPlanQuotaLine(
+      label: 'IoT devices',
+      value: '$iot device${iot == 1 ? '' : 's'}',
+      showsIncluded: true,
+      comparison: billingPlanTierComparison(iot, liteIot),
+    ),
+    if (plan.overageEnabled)
+      const BillingPlanQuotaLine(label: 'Wallet overage', value: 'Enabled', showsIncluded: false, valueAccent: true),
+    const BillingPlanQuotaLine(label: 'Limits', kind: BillingPlanLineKind.sectionHeader),
+    if (alien > 0)
+      BillingPlanQuotaLine(
+        label: 'Alien AI quota',
+        value: '${billingFmtRp(alien)}/mo',
+        comparison: poolCmp ?? billingPlanQuotaAmountComparison(alien, baseAlien),
+        showsIncluded: true,
+      ),
+    if (frontier > 0)
+      BillingPlanQuotaLine(
+        label: 'API quota',
+        value: '${billingFmtRp(frontier)}/mo',
+        comparison: poolCmp ?? billingPlanQuotaAmountComparison(frontier, baseFrontier),
+        showsIncluded: true,
+      ),
   ];
   final channels = billingPlanChannelsBadge(plan);
-  if (channels != null) lines.add(BillingPlanQuotaLine(label: 'Channels', value: channels));
+  if (channels != null) lines.add(BillingPlanQuotaLine(label: 'Channels', value: channels, showsIncluded: true));
   final priority = billingPlanPriorityBadge(plan);
-  if (priority != null) lines.add(BillingPlanQuotaLine(label: 'Priority', value: priority));
+  if (priority != null) {
+    lines.add(BillingPlanQuotaLine(label: 'Priority queue', value: priority, valueAccent: true));
+  }
+  final followup = billingPlanFollowupQueueLabel(plan);
+  if (followup != null) {
+    lines.add(BillingPlanQuotaLine(label: 'Prompt queue', value: followup));
+  }
+  if (alien <= 0 && frontier <= 0 && lines.length <= 2) return const [];
   return lines;
 }
 
@@ -157,8 +253,8 @@ BillingPlanDoc _plan({
     );
 
 List<BillingPlanDoc> billingPlanCatalogFallback() => [
-      _plan(slug: 'lite', name: 'Lite', sortOrder: 10, priceIdrMonthly: 59000, priceIdrYearly: 49000, alienPool: 100000, frontierPool: 20000, poolMultiplier: 1, channels: 2),
-      _plan(slug: 'plus', name: 'Plus', sortOrder: 20, priceIdrMonthly: 105000, priceIdrYearly: 99000, alienPool: 175000, frontierPool: 35000, poolMultiplier: 4, channels: 2, overage: true),
-      _plan(slug: 'pro', name: 'Pro', sortOrder: 30, priceIdrMonthly: 340000, priceIdrYearly: 309000, alienPool: 565000, frontierPool: 115000, poolMultiplier: 10, channels: 3, overage: true, queuePriority: 5),
+      _plan(slug: 'lite', name: 'Lite', sortOrder: 10, priceIdrMonthly: 59000, priceIdrYearly: 49000, alienPool: 100000, frontierPool: 20000, poolMultiplier: 1, channels: 1),
+      _plan(slug: 'plus', name: 'Plus', sortOrder: 20, priceIdrMonthly: 105000, priceIdrYearly: 99000, alienPool: 175000, frontierPool: 35000, poolMultiplier: 4, channels: 1, overage: true),
+      _plan(slug: 'pro', name: 'Pro', sortOrder: 30, priceIdrMonthly: 340000, priceIdrYearly: 309000, alienPool: 565000, frontierPool: 115000, poolMultiplier: 10, channels: 1, overage: true, queuePriority: 5),
       _plan(slug: 'ultra', name: 'Ultra', sortOrder: 40, priceIdrMonthly: 1200000, priceIdrYearly: 1000000, alienPool: 2000000, frontierPool: 400000, poolMultiplier: 40, channels: 5, overage: true, queuePriority: 30, priorityQueue: true),
     ];

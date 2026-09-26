@@ -43,7 +43,8 @@ class SttService {
   DateTime? _recordingStartedAt;
   String _sessionReqId = '';
   double? _noiseFloorDb;
-  int _consecutiveSpeechFrames = 0;
+  DateTime? _lastHistoryPush;
+  double _windowPeak = 0.0;
 
   final ValueNotifier<bool> isRecording = ValueNotifier(false);
   final ValueNotifier<bool> isTranscribing = ValueNotifier(false);
@@ -51,6 +52,7 @@ class SttService {
   final ValueNotifier<double> audioAmplitude = ValueNotifier(0.0);
   final ValueNotifier<List<double>> amplitudeHistory = ValueNotifier(const []);
   final ValueNotifier<String> liveTranscript = ValueNotifier('');
+  final ValueNotifier<bool> isLiveInterim = ValueNotifier(false);
   String? lastStartError;
   String? lastTranscribeError;
   VoidCallback? onAutoStop;
@@ -65,19 +67,28 @@ class SttService {
     if (t == '00:00' || t == '0:00' || t.startsWith('00:00')) return '';
     final lower = t.toLowerCase();
     if (lower == '[silence]' || lower == '(silence)' || lower == 'silence' || lower == 'no speech') return '';
-    if (lower == 'thank you.' ||
-        lower == 'thank you' ||
-        lower == 'thank you!' ||
-        lower == 'thanks for watching.' ||
-        lower == 'thanks for watching' ||
-        lower == 'thank you for watching.' ||
-        lower == 'you' ||
-        lower == 'you.' ||
-        lower == 'bye.' ||
-        lower == 'bye') {
+    final stripped = lower.replaceAll(RegExp(r'[.!?,…\s]+$'), '').trim();
+    if (stripped == 'thank you' ||
+        stripped == 'thanks' ||
+        stripped == 'thank you very much' ||
+        stripped == 'thanks for watching' ||
+        stripped == 'thank you for watching' ||
+        stripped == 'terima kasih' ||
+        stripped == 'terima kasih banyak' ||
+        stripped == 'terima kasih sudah menonton' ||
+        stripped == 'terima kasih telah menonton' ||
+        stripped == 'terima kasih sudah menyaksikan' ||
+        stripped == 'makasih' ||
+        stripped == 'makasih banyak' ||
+        stripped == 'sampai jumpa' ||
+        stripped == 'sampai jumpa lagi' ||
+        stripped == 'you' ||
+        stripped == 'bye') {
       return '';
     }
-    if (lower.startsWith('subtitles by') || lower.startsWith('subtitle by')) return '';
+    if (stripped.startsWith('subtitles by') || stripped.startsWith('subtitle by')) {
+      return '';
+    }
     if (RegExp(r'^\d{1,2}:\d{2}(?:\s*[-–—]\s*\d{1,2}:\d{2})?$').hasMatch(t)) return '';
     if (RegExp(r'^[\d\s:\-–—]+$').hasMatch(t)) return '';
     return t;
@@ -399,17 +410,21 @@ class SttService {
       _interimTimer?.cancel();
       _interimCounter = 0;
       _interimInFlight = false;
-      _interimTimer = Timer.periodic(const Duration(milliseconds: 1400), (_) async {
-        if (!isRecording.value || !_speechDetected || _interimInFlight) return;
+      _interimTimer = Timer.periodic(const Duration(milliseconds: 350), (_) async {
+        if (!isRecording.value || _interimInFlight) return;
+        // Don't send interim snapshots if speech hasn't begun yet (prevents sending pure silence to Whisper)
+        if (!_speechDetected && audioAmplitude.value < 0.02) return;
         final rawPcm = _pcmBuffer.toBytes();
-        // At least 0.8s of speech audio before triggering interim snapshot
-        final minBytes = (_streamSampleRate * _streamChannels * 2 * 0.8).toInt();
+        // At least 0.75s of audio so the first full word is complete (avoids hallucinating on incomplete phonemes)
+        final minBytes = (_streamSampleRate * _streamChannels * 2 * 0.75).toInt();
         if (rawPcm.length < minBytes) return;
 
         _interimInFlight = true;
         _interimCounter++;
-        final reqId = 'interim_${_sessionReqId}_$_interimCounter';
+        final currentCounter = _interimCounter;
+        final reqId = 'interim_${_sessionReqId}_$currentCounter';
         try {
+          debugPrint('[SttService] sending interim snapshot #$currentCounter (${rawPcm.length} bytes)...');
           final pcm16k = resampleTo16kMono(rawPcm, srcRate: _streamSampleRate, srcChannels: _streamChannels);
           final wav = pcmToWav(pcm16k, sampleRate: 16000, channels: 1);
           final pref = VoicePrefs.instance.speechLang;
@@ -421,11 +436,16 @@ class SttService {
             isInterim: true,
             reqId: reqId,
           );
+          debugPrint('[SttService] interim #$currentCounter result: "${text ?? ''}"');
           if (isRecording.value && text != null && text.trim().isNotEmpty) {
-            liveTranscript.value = text.trim();
+            final clean = sanitizeTranscript(text.trim());
+            if (clean.isNotEmpty) {
+              liveTranscript.value = clean;
+              isLiveInterim.value = true;
+            }
           }
         } catch (e) {
-          debugPrint('[SttService] interim transcribe ignored: $e');
+          debugPrint('[SttService] interim #$currentCounter error: $e');
         } finally {
           _interimInFlight = false;
         }
@@ -436,42 +456,41 @@ class SttService {
 
   void _onAudioLevel(double level, double norm, List<double> history) {
     audioAmplitude.value = norm;
-    history.add(norm);
-    if (history.length > 80) history.removeAt(0);
-    amplitudeHistory.value = List.of(history);
+    if (norm > _windowPeak) _windowPeak = norm;
+
+    final now = DateTime.now();
+    if (_lastHistoryPush == null || now.difference(_lastHistoryPush!).inMilliseconds >= 40) {
+      _lastHistoryPush = now;
+      history.add(_windowPeak);
+      _windowPeak = norm * 0.35; // smooth decay for next window
+      if (history.length > 200) history.removeAt(0);
+      amplitudeHistory.value = List.of(history);
+    }
 
     // Adaptive noise floor tracking:
-    // Noise floor must never adapt into conversational speech range (typically > -46 dB).
     if (level > -90.0) {
       if (_noiseFloorDb == null) {
         _noiseFloorDb = level.clamp(-75.0, -50.0);
       } else if (level < _noiseFloorDb!) {
-        // Fast decay down to track lower ambient baseline
         _noiseFloorDb = _noiseFloorDb! * 0.70 + level * 0.30;
       } else if (!_speechDetected && level < -48.0) {
-        // Slow rise only when clearly in ambient range
         _noiseFloorDb = _noiseFloorDb! * 0.95 + level * 0.05;
       }
       _noiseFloorDb = _noiseFloorDb!.clamp(-75.0, -48.0);
     }
 
-    final ambientFloor = _noiseFloorDb ?? -55.0;
-    // Dynamic speech threshold: +7 dB above ambient floor, minimum -44 dB
-    final dynamicSpeechDb = max(ambientFloor + 7.0, -44.0);
-    final isSpeechFrame = level > dynamicSpeechDb || norm >= 0.08;
+    final ambientFloor = _noiseFloorDb ?? -60.0;
+    // Conversational speech threshold: +4 dB above ambient floor, minimum -54 dB (or norm >= 0.02)
+    final dynamicSpeechDb = max(ambientFloor + 4.0, -54.0);
+    final isSpeechFrame = level > dynamicSpeechDb || norm >= 0.02;
 
-    const silenceTimeoutMs = 1300;
-    const initialSilenceTimeoutMs = 4500;
+    final silenceTimeoutMs = liveTranscript.value.isNotEmpty ? 900 : 1300;
+    const initialSilenceTimeoutMs = 5000;
 
     if (isSpeechFrame) {
-      _consecutiveSpeechFrames++;
-      // Require at least 2 consecutive speech frames (~150ms) to filter out sporadic clicks/taps
-      if (_consecutiveSpeechFrames >= 2) {
-        _speechDetected = true;
-        _silenceSince = null;
-      }
+      _speechDetected = true;
+      _silenceSince = null;
     } else {
-      _consecutiveSpeechFrames = 0;
       if (_speechDetected) {
         _silenceSince ??= DateTime.now();
         if (DateTime.now().difference(_silenceSince!).inMilliseconds >= silenceTimeoutMs) {
@@ -507,12 +526,14 @@ class SttService {
       audioAmplitude.value = 0.05;
       amplitudeHistory.value = const [];
       liveTranscript.value = '';
+      isLiveInterim.value = false;
       _speechDetected = false;
       _silenceSince = null;
       _sessionReqId = Ulid().toString();
       _recordingStartedAt = DateTime.now();
       _noiseFloorDb = null;
-      _consecutiveSpeechFrames = 0;
+      _lastHistoryPush = null;
+      _windowPeak = 0.0;
       _stopTimers();
 
       final activeMic = await resolveActiveMicDevice();
@@ -554,6 +575,7 @@ class SttService {
 
           _startRecordingTimers();
           isRecording.value = true;
+          debugPrint('[SttService] startStream (${cand.sampleRate}Hz, ${cand.numChannels}ch) active! PCM streaming running.');
           return true;
         } catch (streamErr) {
           debugPrint('[SttService] startStream (${cand.sampleRate}Hz) not available: $streamErr');
@@ -631,6 +653,13 @@ class SttService {
     _recordingMime = null;
 
     if (_isStreamingPcm) {
+      // If an interim snapshot is currently in-flight, give it a brief window (~350ms) to resolve:
+      if (_interimInFlight) {
+        final waitStart = DateTime.now();
+        while (_interimInFlight && DateTime.now().difference(waitStart).inMilliseconds < 350) {
+          await Future.delayed(const Duration(milliseconds: 25));
+        }
+      }
       final pcm = _pcmBuffer.toBytes();
       _pcmBuffer.clear();
       _isStreamingPcm = false;
@@ -661,6 +690,34 @@ class SttService {
       }
     }
 
+    final pref = lang ?? VoicePrefs.instance.speechLang;
+    final effectiveLang = speechLangSttLocale(pref, last: VoicePrefs.instance.lastLang);
+
+    // Fast-path: If interim streaming already captured and transcribed the user's speech,
+    // confirm it immediately without forcing the user to wait through a 3-4s slow spin!
+    final readyTranscript = liveTranscript.value.trim();
+    if (readyTranscript.isNotEmpty) {
+      isLiveInterim.value = false;
+      final settleBytes = audioBytes;
+      if (settleBytes != null && settleBytes.isNotEmpty) {
+        // Settle final billing / usage record on server in the background:
+        unawaited(() async {
+          try {
+            await transcribeRouted(
+              bytes: settleBytes,
+              lang: effectiveLang,
+              mime: mime,
+              isInterim: false,
+              reqId: 'final_$_sessionReqId',
+            );
+          } catch (e) {
+            debugPrint('[SttService] background final transcribe: $e');
+          }
+        }());
+      }
+      return readyTranscript;
+    }
+
     if (audioBytes == null || audioBytes.isEmpty) {
       if (liveTranscript.value.isNotEmpty) return liveTranscript.value;
       return null;
@@ -670,8 +727,6 @@ class SttService {
     lastTranscribeError = null;
 
     try {
-      final pref = lang ?? VoicePrefs.instance.speechLang;
-      final effectiveLang = speechLangSttLocale(pref, last: VoicePrefs.instance.lastLang);
       final transcript = await transcribeRouted(
         bytes: audioBytes,
         lang: effectiveLang,
@@ -683,15 +738,18 @@ class SttService {
       final clean = (trimmed != null) ? sanitizeTranscript(trimmed) : null;
       if (clean != null && clean.isNotEmpty) {
         liveTranscript.value = clean;
+        isLiveInterim.value = false;
         return clean;
       }
       if (liveTranscript.value.isNotEmpty) {
+        isLiveInterim.value = false;
         return liveTranscript.value;
       }
       lastTranscribeError = 'No speech detected';
       return null;
     } catch (e) {
       if (liveTranscript.value.isNotEmpty) {
+        isLiveInterim.value = false;
         return liveTranscript.value;
       }
       lastTranscribeError = uiFriendlyError(e, fallback: 'Speech recognition failed. Please try again.');
@@ -707,13 +765,15 @@ class SttService {
     recordingSeconds.value = 0;
     amplitudeHistory.value = const [];
     liveTranscript.value = '';
+    isLiveInterim.value = false;
     _pcmBuffer.clear();
     _isStreamingPcm = false;
     _speechDetected = false;
     _silenceSince = null;
     _recordingStartedAt = null;
     _noiseFloorDb = null;
-    _consecutiveSpeechFrames = 0;
+    _lastHistoryPush = null;
+    _windowPeak = 0.0;
 
     if (_recorder != null && isRecording.value) {
       try {

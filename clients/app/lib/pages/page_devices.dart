@@ -7,12 +7,15 @@ import 'package:alienai_c35/widgets/devices/ui_device_add_menu.dart';
 import 'package:alienai_c35/widgets/devices/ui_device_detail.dart';
 import 'package:alienai_c35/widgets/devices/ui_device_row.dart';
 import 'package:alienai_c35/widgets/ui/ui_alert.dart';
+import 'package:alienai_c35/widgets/ui/ui_menu_position.dart';
 import 'package:alienai_c35/widgets/ui/ui_empty_state.dart';
 import 'package:alienai_c35/widgets/ui/ui_master_detail.dart';
 import 'package:alienai_c35/widgets/ui/ui_page.dart';
 import 'package:alienai_c35/widgets/ui/ui_page_bar.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
-import 'package:alienai_c35/widgets/ui/ui_window_bar.dart';
+import 'package:alienai_c35/widgets/ui/ui_safe_area.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 const _muted = Color(0xFF71717A);
@@ -30,11 +33,21 @@ class PageDevices extends StatefulWidget {
 
 class _PageDevicesState extends State<PageDevices> {
   late final _store = DeviceStore(conn: widget.chatConn);
+  Timer? _presenceTimer;
 
   @override
   void initState() {
     super.initState();
+    RemoteSession.devicesPageVisible();
     _store.refresh();
+    _presenceTimer = Timer.periodic(const Duration(seconds: 30), (_) => _store.refresh());
+  }
+
+  @override
+  void dispose() {
+    _presenceTimer?.cancel();
+    RemoteSession.devicesPageHidden();
+    super.dispose();
   }
 
   String? _deviceName(String? id) {
@@ -85,7 +98,7 @@ class _PageDevicesState extends State<PageDevices> {
     final currentName = row.identity.name.isNotEmpty ? row.identity.name : row.identity.type;
     final action = await showMenu<String>(
       context: context,
-      position: RelativeRect.fromLTRB(pos.dx, pos.dy, pos.dx, pos.dy),
+      position: uiMenuPositionAt(context, pos),
       color: const Color(0xFF18181B),
       items: [
         PopupMenuItem(
@@ -197,7 +210,7 @@ class _PageDevicesState extends State<PageDevices> {
     final bar = _DeviceMasterBar(onBack: () => Navigator.pop(context), store: _store);
     return ColoredBox(
       color: _masterBg,
-      child: uiDesktopWindow ? bar : SafeArea(bottom: false, child: bar),
+      child: uiMobileTopBar(context, bar),
     );
   }
 

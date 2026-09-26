@@ -16,14 +16,18 @@ if (-not $ServerUrl) {
 }
 $env:C35_SERVER_URL = $ServerUrl.TrimEnd('/')
 
-$agentProcs = @(Get-Process -Name 'c_remote_windows' -ErrorAction SilentlyContinue)
+$agentName = 'alienai_remote_windows'
+$agentProcs = @(Get-Process -Name $agentName -ErrorAction SilentlyContinue)
+if ($agentProcs.Count -eq 0) {
+    $agentProcs = @(Get-Process -Name 'c_remote_windows' -ErrorAction SilentlyContinue)
+}
 foreach ($p in $agentProcs) {
-    Write-Host "==> kill c_remote_windows pid $($p.Id)"
+    Write-Host "==> kill $agentName pid $($p.Id)"
     & taskkill /F /T /PID $p.Id 2>$null | Out-Null
 }
 if ($agentProcs.Count -gt 0) { Start-Sleep -Milliseconds 300 }
 
-Write-Host "c_remote_windows -> $env:C35_SERVER_URL"
+Write-Host "alienai_remote_windows -> $env:C35_SERVER_URL"
 if ($Cli) { Write-Host 'pairing mode: CLI (--cli)' } else { Write-Host 'pairing mode: window (use -Cli for console code)' }
 Write-Host ''
 

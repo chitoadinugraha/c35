@@ -5,7 +5,8 @@ use c35_mod_billing::{billing_resolve, billing_usage_report, TurnBillingCtx};
 use sqlx::PgPool;
 use tokio_util::sync::CancellationToken;
 
-use crate::compose::compose_tools_and_inst_async;
+use crate::bot_meta::{bot_turn_meta_parse, bot_turn_signals, BOT_TOPIC, BOT_WEB_TOOL_EXCLUDE};
+use crate::compose::{compose_tools_and_inst_async, ComposeTurnOpts};
 use crate::inst_macro::inst_scopes_channel;
 use crate::inst_cache::inst_list_cached;
 use crate::context_billing::ContextBillingExtra;
@@ -56,6 +57,19 @@ pub async fn channel_prompt_turn(
     let user = attach_prompt(&prompt_text, attachments_json);
     let locale = "";
 
+    let bot_meta = bot_meta_load(pool, bot_iid).await;
+    let turn_meta = bot_turn_meta_parse(bot_meta.as_ref());
+    let signals = bot_turn_signals(&turn_meta);
+    let mut extra_exclude: Vec<String> = Vec::new();
+    if !turn_meta.web_search {
+        extra_exclude.extend(BOT_WEB_TOOL_EXCLUDE.iter().map(|s| s.to_string()));
+    }
+    let compose_opts = ComposeTurnOpts {
+        extra_signals: &signals,
+        extra_tool_exclude: &extra_exclude,
+        bot_web_search: turn_meta.web_search,
+    };
+
     let inst_rows = inst_list_cached();
     let empty_mentions: [String; 0] = [];
     let inst_scopes = inst_scopes_channel();
@@ -68,12 +82,13 @@ pub async fn channel_prompt_turn(
         cluster_tools(),
         &[],
         &empty_mentions,
-        &["general".into()],
+        &[BOT_TOPIC.into()],
         "agent",
         &[],
         &inst_scopes,
         &crate::mention_context::MentionContext::empty(),
         &crate::site_capability::SiteCapabilityView::empty(),
+        compose_opts,
     )
     .await;
     let user_ctx = user_prompt_context_get(pool, owner_iid).await;
@@ -200,14 +215,19 @@ pub async fn channel_prompt_turn(
     Ok((res.text, res.tokens_in, res.tokens_out, cost_usd, res.model_used))
 }
 
-async fn bot_inst_base(pool: &PgPool, bot_iid: i64) -> Option<String> {
-    let meta: Option<serde_json::Value> = sqlx::query_scalar("SELECT meta FROM ai.identity WHERE id = $1 AND kind = 'bot' AND deleted_ts IS NULL")
+async fn bot_meta_load(pool: &PgPool, bot_iid: i64) -> Option<serde_json::Value> {
+    sqlx::query_scalar("SELECT meta FROM ai.identity WHERE id = $1 AND kind = 'bot' AND deleted_ts IS NULL")
         .bind(bot_iid)
         .fetch_optional(pool)
         .await
         .ok()
-        .flatten();
-    meta.and_then(|m| m.get("inst_base").and_then(|v| v.as_str()).map(|s| s.trim().to_string()))
+        .flatten()
+}
+
+async fn bot_inst_base(pool: &PgPool, bot_iid: i64) -> Option<String> {
+    bot_meta_load(pool, bot_iid)
+        .await
+        .and_then(|m| m.get("inst_base").and_then(|v| v.as_str()).map(|s| s.trim().to_string()))
         .filter(|s| !s.is_empty())
 }
 

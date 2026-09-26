@@ -50,11 +50,13 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
     unawaited(_load());
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  Future<void> _load({bool showLoading = true}) async {
+    if (showLoading) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final summary = await billingSummaryGet(widget.conn);
       if (!mounted) return;
@@ -92,10 +94,22 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
     return null;
   }
 
+  BillingPlanDoc? get _litePlan {
+    for (final p in _plans) {
+      if (p.slug.trim().toLowerCase() == 'lite') return p;
+    }
+    return null;
+  }
+
   bool get _selectedIsCurrent {
     final plan = _selectedPlan;
     if (plan == null) return false;
     return plan.slug.trim().toLowerCase() == _currentTier;
+  }
+
+  Future<void> _redeemPackage() async {
+    final redeemed = await billingPackageRedeemDialog(context, conn: widget.conn);
+    if (mounted && redeemed) await _load(showLoading: false);
   }
 
   Future<void> _subscribe() async {
@@ -143,9 +157,34 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
           children: [
             Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: _border, borderRadius: BorderRadius.circular(99)))),
             const SizedBox(height: 16),
-            const Text('Plans', style: TextStyle(color: _text, fontSize: 18, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 4),
-            const Text('Monthly included usage quotas in IDR', style: TextStyle(color: _muted, fontSize: 12)),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Plans', style: TextStyle(color: _text, fontSize: 18, fontWeight: FontWeight.w700)),
+                      SizedBox(height: 4),
+                      Text('Monthly included usage quotas in IDR', style: TextStyle(color: _muted, fontSize: 12)),
+                    ],
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: _redeemPackage,
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    foregroundColor: _muted,
+                    textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                  ),
+                  icon: const Icon(Icons.redeem_outlined, size: 15),
+                  label: const Text('Redeem code'),
+                ),
+              ],
+            ),
             const SizedBox(height: 12),
             if (_loading)
               const Expanded(child: Center(child: UILoading()))
@@ -181,6 +220,7 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
                   children: _plans
                       .map((plan) => _BillingPlanCard(
                             plan: plan,
+                            litePlan: _litePlan,
                             currency: _currency,
                             yearly: _yearly,
                             selected: plan.slug == _selectedSlug,
@@ -211,15 +251,6 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
                             ? 'Current plan'
                             : 'Subscribe with balance'),
               ),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: () async {
-                  Navigator.of(context).pop();
-                  if (context.mounted) await billingPackageRedeemDialog(context, conn: widget.conn);
-                },
-                icon: const Icon(Icons.redeem_outlined),
-                label: const Text('Redeem package code'),
-              ),
             ],
           ],
         ),
@@ -231,6 +262,7 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
 class _BillingPlanCard extends StatelessWidget {
   const _BillingPlanCard({
     required this.plan,
+    required this.litePlan,
     required this.currency,
     required this.yearly,
     required this.selected,
@@ -240,6 +272,7 @@ class _BillingPlanCard extends StatelessWidget {
   });
 
   final BillingPlanDoc plan;
+  final BillingPlanDoc? litePlan;
   final String currency;
   final bool yearly;
   final bool selected;
@@ -256,7 +289,7 @@ class _BillingPlanCard extends StatelessWidget {
     final accent = billingPlanAccentColor(plan.slug);
     final price = billingPlanPriceLabel(plan, currency: currency, yearly: yearly);
     final priceSub = billingPlanPriceSubLabel(plan, currency: currency, yearly: yearly);
-    final quotaLines = billingPlanQuotaLines(plan);
+    final quotaLines = billingPlanQuotaLines(plan, litePlan: litePlan);
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
@@ -307,31 +340,30 @@ class _BillingPlanCard extends StatelessWidget {
                         if (quotaLines.isNotEmpty) ...[
                           const SizedBox(height: 10),
                           ...quotaLines.map(
-                            (line) => Padding(
-                              padding: const EdgeInsets.only(bottom: 5),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    flex: 11,
-                                    child: Text(line.label, style: const TextStyle(color: _muted, fontSize: 12, height: 1.25)),
-                                  ),
-                                  Expanded(
-                                    flex: 12,
+                            (line) => line.kind == BillingPlanLineKind.sectionHeader
+                                ? Padding(
+                                    padding: EdgeInsets.only(top: line.label == 'Limits' ? 6 : 0, bottom: 4),
                                     child: Text(
-                                      line.value,
-                                      textAlign: TextAlign.end,
-                                      style: TextStyle(
-                                        color: line.label == 'Priority' ? accent : _text,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        height: 1.25,
+                                      line.label,
+                                      style: const TextStyle(
+                                        color: _muted,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: 0.4,
+                                        height: 1.2,
                                       ),
                                     ),
+                                  )
+                                : Padding(
+                                    padding: const EdgeInsets.only(bottom: 5),
+                                    child: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(child: _BillingPlanQuotaLabel(line: line, accent: accent)),
+                                        _BillingPlanQuotaValue(line: line, accent: accent),
+                                      ],
+                                    ),
                                   ),
-                                ],
-                              ),
-                            ),
                           ),
                         ],
                       ],
@@ -349,5 +381,57 @@ class _BillingPlanCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _BillingPlanQuotaLabel extends StatelessWidget {
+  const _BillingPlanQuotaLabel({required this.line, required this.accent});
+
+  final BillingPlanQuotaLine line;
+  final Color accent;
+
+  static const _muted = Color(0xFFA1A1AA);
+
+  @override
+  Widget build(BuildContext context) {
+    final cmp = line.label == 'Channels' || line.label == 'Computer use' || line.label == 'Image generation' ? null : line.comparison;
+    if (cmp == null) return Text(line.label, style: const TextStyle(color: _muted, fontSize: 12, height: 1.25));
+    return Text.rich(
+      TextSpan(
+        style: const TextStyle(color: _muted, fontSize: 12, height: 1.25),
+        children: [
+          TextSpan(text: line.label),
+          TextSpan(
+            text: ' $cmp',
+            style: TextStyle(color: accent, fontSize: 11, fontWeight: FontWeight.w700, height: 1.25),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BillingPlanQuotaValue extends StatelessWidget {
+  const _BillingPlanQuotaValue({required this.line, required this.accent});
+
+  final BillingPlanQuotaLine line;
+  final Color accent;
+
+  static const _text = Color(0xFFE4E4E7);
+
+  @override
+  Widget build(BuildContext context) {
+    final valueText = line.showsIncluded && line.value.isNotEmpty ? '${line.value} · Included' : line.value;
+    if (valueText.isEmpty) return const SizedBox.shrink();
+    return Text(
+        valueText,
+        textAlign: TextAlign.end,
+        style: TextStyle(
+          color: line.valueAccent ? accent : _text,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          height: 1.25,
+        ),
+      );
   }
 }

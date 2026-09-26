@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -23,6 +24,9 @@ String repoRoot() {
 }
 
 final Map<String, String> _deployEnvLocal = {};
+final Map<String, String> _deployEnvOverrides = {};
+
+void deploySetEnv(String key, String value) => _deployEnvOverrides[key] = value;
 
 void deployLoadEnvLocal() {
   final path = p.join(repoRoot(), '.env.local');
@@ -44,6 +48,8 @@ void deployLoadEnvLocal() {
 }
 
 String deployEnv(String key, [String fallback = '']) {
+  final fromOverride = _deployEnvOverrides[key]?.trim();
+  if (fromOverride != null && fromOverride.isNotEmpty) return fromOverride;
   final fromProcess = Platform.environment[key]?.trim();
   if (fromProcess != null && fromProcess.isNotEmpty) return fromProcess;
   final fromFile = _deployEnvLocal[key]?.trim();
@@ -73,8 +79,31 @@ int dirBytes(String path) {
 String dirSizeLabel(String path) => formatBytes(dirBytes(path));
 
 DateTime? _deployStartedAt;
+final Map<String, double> _deployMarksSec = {};
+final Map<String, int> _deployArtifactsBytes = {};
 
-void deployStart() => _deployStartedAt = DateTime.now();
+void deployStart() {
+  _deployStartedAt = DateTime.now();
+  _deployMarksSec.clear();
+  _deployArtifactsBytes.clear();
+}
+
+void deployMark(String id, Duration elapsed) => _deployMarksSec[id] = elapsed.inMilliseconds / 1000.0;
+
+void deployArtifact(String id, int bytes) => _deployArtifactsBytes[id] = bytes;
+
+String deployMarkSlug(String label) =>
+    label.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '_').replaceAll(RegExp(r'_+'), '_').replaceAll(RegExp(r'^_|_$'), '');
+
+T deployRunSync<T>(String id, T Function() fn) {
+  final sw = Stopwatch()..start();
+  try {
+    return fn();
+  } finally {
+    sw.stop();
+    deployMark(id, sw.elapsed);
+  }
+}
 
 String _pad2(int n) => n < 10 ? '0$n' : '$n';
 
@@ -92,12 +121,23 @@ String formatDuration(Duration d) {
   return '${s}s';
 }
 
-void deployDone({String? version, String? detail, bool exitProcess = true}) {
+void deployDone({String? version, String? detail, String target = 'app-release', bool exitProcess = true}) {
   final finishedAt = DateTime.now();
   final wallElapsed = _deployStartedAt != null ? finishedAt.difference(_deployStartedAt!) : Duration.zero;
   stdout.writeln('');
   if (version != null && version.isNotEmpty) stdout.writeln('📦 $version${detail != null && detail.isNotEmpty ? ' · $detail' : ''}');
   stdout.writeln('✅ Done in ${formatDuration(wallElapsed)} (finished ${deployDoneAt(finishedAt)})');
+  final perf = <String, Object?>{
+    'kind': 'app',
+    'target': target,
+    'version': version != null && version.isNotEmpty ? version.replaceFirst('v', '') : '',
+    'detail': detail ?? '',
+    'duration_sec': wallElapsed.inSeconds,
+    'finished_at': deployDoneAt(finishedAt),
+  };
+  if (_deployMarksSec.isNotEmpty) perf['marks'] = _deployMarksSec;
+  if (_deployArtifactsBytes.isNotEmpty) perf['artifacts_bytes'] = _deployArtifactsBytes;
+  stdout.writeln('C35_PUBLISH_PERF ${jsonEncode(perf)}');
   if (exitProcess) exit(0);
 }
 
@@ -115,7 +155,9 @@ Future<T> runStep<T>(String label, Future<T> Function() task) async {
   try {
     final result = await task();
     timer.cancel();
-    stdout.writeln('\r✓ $label completed in ${DateTime.now().difference(start).inSeconds}s');
+    final stepElapsed = DateTime.now().difference(start);
+    deployMark(deployMarkSlug(label), stepElapsed);
+    stdout.writeln('\r✓ $label completed in ${stepElapsed.inSeconds}s');
     return result;
   } catch (e) {
     timer.cancel();

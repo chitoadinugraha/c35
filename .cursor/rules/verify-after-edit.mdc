@@ -30,6 +30,15 @@ cargo build -p server_ai
 
 Run `cargo test -p CRATE` when the edited crate has tests.
 
+## Remote agent (`remotes/**`)
+
+```powershell
+cd remotes
+cargo build -p c_remote_windows
+```
+
+If the change ships to paired devices (not local-only dev), run `.\_\scripts\deploy\publish_remote_agent.ps1` and include **Publish summary** (`publish-remote-agent.mdc`).
+
 ## Dart / Flutter (`clients/app/**`)
 
 ```powershell

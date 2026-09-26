@@ -2,8 +2,8 @@
 # Build from c35 repo root:
 #   docker build --platform linux/arm64 -f _/deployments/Dockerfile.c35-node-stats -t c35-node-stats .
 
-FROM rust:1.89-bookworm AS chef
-RUN cargo install cargo-chef --locked
+ARG RUST_CHEF_IMAGE=hsg.ocir.io/axr8wqrrukgm/c35-rust-chef:1.89-bookworm
+FROM ${RUST_CHEF_IMAGE} AS chef
 WORKDIR /app
 
 FROM chef AS planner
@@ -12,7 +12,7 @@ COPY servers/node_stats /app/servers/node_stats
 COPY servers/crates/proto /app/servers/crates/proto
 COPY _/schemas /app/_/schemas
 WORKDIR /app/servers
-RUN cargo chef prepare --recipe-path /tmp/recipe.json -p c_node_stats
+RUN cargo chef prepare --recipe-path /tmp/recipe.json
 
 FROM chef AS rust-build
 WORKDIR /app
@@ -24,7 +24,7 @@ COPY _/schemas /app/_/schemas
 COPY --from=planner /tmp/recipe.json /app/servers/recipe.json
 
 ENV CARGO_TARGET_DIR=/app/target
-ENV CARGO_BUILD_JOBS=2
+ENV CARGO_BUILD_JOBS=4
 ENV CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1
 
 WORKDIR /app/servers

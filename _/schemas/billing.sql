@@ -904,3 +904,61 @@ UPDATE ai.billing_account SET
     updated_ts = NOW(),
     deleted_ts = NULL
 WHERE owner_iid = 33000;
+
+-- ------------------------------------------------------------------------------
+-- Operator / test plan tiers (see migrations/billing_operator_plans_99000_33000.sql)
+-- 33000 → Pro; 99000 chito → Ultra
+-- ------------------------------------------------------------------------------
+
+INSERT INTO ai.billing_account (
+    id, owner_iid, name, balance_usd, balance_idr, plan_tier,
+    alien_allow_5h_limit, alien_allow_weekly_limit, updated_ts
+) VALUES (
+    990000000000000001,
+    99000,
+    'Personal',
+    500,
+    50000000,
+    'ultra',
+    4.0,
+    80.0,
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    plan_tier = 'ultra',
+    balance_usd = GREATEST(ai.billing_account.balance_usd, EXCLUDED.balance_usd),
+    balance_idr = GREATEST(ai.billing_account.balance_idr, EXCLUDED.balance_idr),
+    alien_allow_5h_limit = GREATEST(ai.billing_account.alien_allow_5h_limit, EXCLUDED.alien_allow_5h_limit),
+    alien_allow_weekly_limit = GREATEST(ai.billing_account.alien_allow_weekly_limit, EXCLUDED.alien_allow_weekly_limit),
+    updated_ts = NOW(),
+    deleted_ts = NULL;
+
+UPDATE ai.billing_account SET
+    plan_tier = 'pro',
+    alien_allow_5h_limit = GREATEST(alien_allow_5h_limit, 1.0),
+    alien_allow_weekly_limit = GREATEST(alien_allow_weekly_limit, 20.0),
+    updated_ts = NOW()
+WHERE owner_iid = 33000;
+
+INSERT INTO ai.billing_profile (
+    id, owner_iid, plan_tier, default_wallet_currency,
+    alien_allow_5h_limit, alien_allow_weekly_limit,
+    alien_pool_limit_idr, frontier_pool_limit_idr,
+    pool_period_start, plan_expires_ts
+) VALUES
+    (330000000000000010, 33000, 'pro', 'IDR', 1.0, 20.0, 565000, 115000, NOW(), NOW() + INTERVAL '10 years'),
+    (990000000000000010, 99000, 'ultra', 'IDR', 4.0, 80.0, 2000000, 400000, NOW(), NOW() + INTERVAL '10 years')
+ON CONFLICT (id) DO UPDATE SET
+    plan_tier = EXCLUDED.plan_tier,
+    alien_allow_5h_limit = EXCLUDED.alien_allow_5h_limit,
+    alien_allow_weekly_limit = EXCLUDED.alien_allow_weekly_limit,
+    alien_pool_limit_idr = EXCLUDED.alien_pool_limit_idr,
+    frontier_pool_limit_idr = EXCLUDED.frontier_pool_limit_idr,
+    plan_expires_ts = EXCLUDED.plan_expires_ts,
+    updated_ts = NOW(),
+    deleted_ts = NULL;
+
+UPDATE ai.billing_profile SET
+    plan_tier = CASE owner_iid WHEN 33000 THEN 'pro' WHEN 99000 THEN 'ultra' END,
+    plan_expires_ts = NOW() + INTERVAL '10 years',
+    updated_ts = NOW()
+WHERE owner_iid IN (33000, 99000) AND deleted_ts IS NULL;

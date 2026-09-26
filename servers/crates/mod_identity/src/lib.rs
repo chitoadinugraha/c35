@@ -11,6 +11,7 @@ mod identity_nav_counts;
 mod identity_geo;
 mod identity_prefs_sync;
 mod identity_profile_get;
+mod identity_client_put;
 mod session_init;
 
 pub use identity_geo::{identity_geo_from_headers, identity_geo_ip_apply, GeoHint};

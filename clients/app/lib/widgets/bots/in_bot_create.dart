@@ -23,7 +23,7 @@ const _border = Color(0xFF27272A);
 const _title = Color(0xFFF4F4F5);
 const _muted = Color(0xFF71717A);
 const _dialogW = 400.0;
-const _dialogH = 520.0;
+const _dialogH = 580.0;
 const _stepTotal = 3;
 
 class InBotCreateResult {
@@ -106,6 +106,19 @@ class _InBotCreateState extends State<InBotCreate> {
   int? _botIid;
   final _channels = <BotChannelDoc>[];
   final _assets = <String>[];
+  var _strictMode = true;
+  var _webSearch = false;
+
+  String _botMetaJson({List<String>? assets, bool includeChannels = false}) {
+    final map = <String, dynamic>{
+      'inst_base': _instructions.text.trim(),
+      'strict_mode': _strictMode,
+      'web_search': _webSearch,
+    };
+    if (assets != null) map['assets'] = assets;
+    if (includeChannels) map['channels'] = <dynamic>[];
+    return jsonEncode(map);
+  }
 
   Future<void> _pickPic() async {
     final picked = await FilePicker.platform.pickFiles(type: FileType.image, withData: true);
@@ -175,7 +188,7 @@ class _InBotCreateState extends State<InBotCreate> {
         _saving = true;
       });
       try {
-        final meta = jsonEncode({'inst_base': _instructions.text.trim(), 'channels': [], 'assets': []});
+        final meta = _botMetaJson(includeChannels: true);
         final req = ReqIdentityPut(kind: 'bot', type: 'chat', name: name, pic: _pic, metaJson: meta);
         if (_botIid != null) req.iid = Int64(_botIid!);
         final res = await widget.onIdentityPut(req);
@@ -225,7 +238,7 @@ class _InBotCreateState extends State<InBotCreate> {
       _saving = true;
     });
     try {
-      final meta = jsonEncode({'inst_base': _instructions.text.trim(), 'assets': _assets});
+      final meta = _botMetaJson(assets: _assets);
       await widget.onIdentityPut(ReqIdentityPut(iid: Int64(iid), kind: 'bot', type: 'chat', name: _name.text.trim(), pic: _pic, metaJson: meta));
       if (!mounted) return;
       _finished = true;
@@ -377,6 +390,29 @@ class _InBotCreateState extends State<InBotCreate> {
             minLines: 4,
             style: const TextStyle(color: _title, fontSize: 13, height: 1.4),
             decoration: UiInputDecoration.of(context, labelText: 'Instructions', hintText: 'You are a helpful assistant for…', floatingLabel: true, alignLabelWithHint: true),
+          ),
+          const SizedBox(height: 8),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Strict mode', style: TextStyle(color: _title, fontSize: 14, fontWeight: FontWeight.w500)),
+            subtitle: const Text(
+              'Answer only about this business; politely decline unrelated questions.',
+              style: TextStyle(color: _muted, fontSize: 12, height: 1.35),
+            ),
+            value: _strictMode,
+            activeThumbColor: const Color(0xFF34D399),
+            onChanged: _saving ? null : (v) => setState(() => _strictMode = v),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Web search', style: TextStyle(color: _title, fontSize: 14, fontWeight: FontWeight.w500)),
+            subtitle: const Text(
+              'Search and visit websites for live factual answers.',
+              style: TextStyle(color: _muted, fontSize: 12, height: 1.35),
+            ),
+            value: _webSearch,
+            activeThumbColor: const Color(0xFF34D399),
+            onChanged: _saving ? null : (v) => setState(() => _webSearch = v),
           ),
         ],
       );

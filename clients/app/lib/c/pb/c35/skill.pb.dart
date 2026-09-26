@@ -638,6 +638,10 @@ class SkillCatalog extends $pb.GeneratedMessage {
     $core.double? priceUsd,
     $core.double? priceIdr,
     $core.String? billingPeriod,
+    $core.String? source,
+    $core.String? sourceUrl,
+    $core.bool? isExternal,
+    $core.String? externalSlug,
   }) {
     final result = SkillCatalog._();
     if (id != null) result.id = id;
@@ -655,6 +659,10 @@ class SkillCatalog extends $pb.GeneratedMessage {
     if (priceUsd != null) result.priceUsd = priceUsd;
     if (priceIdr != null) result.priceIdr = priceIdr;
     if (billingPeriod != null) result.billingPeriod = billingPeriod;
+    if (source != null) result.source = source;
+    if (sourceUrl != null) result.sourceUrl = sourceUrl;
+    if (isExternal != null) result.isExternal = isExternal;
+    if (externalSlug != null) result.externalSlug = externalSlug;
     return result;
   }
 
@@ -686,6 +694,10 @@ class SkillCatalog extends $pb.GeneratedMessage {
     ..aD(13, _omitFieldNames ? '' : 'priceUsd')
     ..aD(14, _omitFieldNames ? '' : 'priceIdr')
     ..aOS(15, _omitFieldNames ? '' : 'billingPeriod')
+    ..aOS(16, _omitFieldNames ? '' : 'source')
+    ..aOS(17, _omitFieldNames ? '' : 'sourceUrl')
+    ..aOB(18, _omitFieldNames ? '' : 'isExternal')
+    ..aOS(19, _omitFieldNames ? '' : 'externalSlug')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -844,6 +856,42 @@ class SkillCatalog extends $pb.GeneratedMessage {
   $core.bool hasBillingPeriod() => $_has(14);
   @$pb.TagNumber(15)
   void clearBillingPeriod() => $_clearField(15);
+
+  @$pb.TagNumber(16)
+  $core.String get source => $_getSZ(15);
+  @$pb.TagNumber(16)
+  set source($core.String value) => $_setString(15, value);
+  @$pb.TagNumber(16)
+  $core.bool hasSource() => $_has(15);
+  @$pb.TagNumber(16)
+  void clearSource() => $_clearField(16);
+
+  @$pb.TagNumber(17)
+  $core.String get sourceUrl => $_getSZ(16);
+  @$pb.TagNumber(17)
+  set sourceUrl($core.String value) => $_setString(16, value);
+  @$pb.TagNumber(17)
+  $core.bool hasSourceUrl() => $_has(16);
+  @$pb.TagNumber(17)
+  void clearSourceUrl() => $_clearField(17);
+
+  @$pb.TagNumber(18)
+  $core.bool get isExternal => $_getBF(17);
+  @$pb.TagNumber(18)
+  set isExternal($core.bool value) => $_setBool(17, value);
+  @$pb.TagNumber(18)
+  $core.bool hasIsExternal() => $_has(17);
+  @$pb.TagNumber(18)
+  void clearIsExternal() => $_clearField(18);
+
+  @$pb.TagNumber(19)
+  $core.String get externalSlug => $_getSZ(18);
+  @$pb.TagNumber(19)
+  set externalSlug($core.String value) => $_setString(18, value);
+  @$pb.TagNumber(19)
+  $core.bool hasExternalSlug() => $_has(18);
+  @$pb.TagNumber(19)
+  void clearExternalSlug() => $_clearField(19);
 }
 
 class ReqSkillList extends $pb.GeneratedMessage {
@@ -1359,6 +1407,9 @@ class ReqSkillCatalogInstall extends $pb.GeneratedMessage {
     $fixnum.Int64? releaseId,
     SkillScope? scope,
     $fixnum.Int64? deviceIid,
+    $core.String? externalSource,
+    $core.String? externalSlug,
+    $core.String? externalTitle,
   }) {
     final result = ReqSkillCatalogInstall._();
     if (catalogId != null) result.catalogId = catalogId;
@@ -1366,6 +1417,9 @@ class ReqSkillCatalogInstall extends $pb.GeneratedMessage {
     if (releaseId != null) result.releaseId = releaseId;
     if (scope != null) result.scope = scope;
     if (deviceIid != null) result.deviceIid = deviceIid;
+    if (externalSource != null) result.externalSource = externalSource;
+    if (externalSlug != null) result.externalSlug = externalSlug;
+    if (externalTitle != null) result.externalTitle = externalTitle;
     return result;
   }
 
@@ -1388,6 +1442,9 @@ class ReqSkillCatalogInstall extends $pb.GeneratedMessage {
     ..aE<SkillScope>(4, _omitFieldNames ? '' : 'scope',
         enumValues: SkillScope.values)
     ..aInt64(5, _omitFieldNames ? '' : 'deviceIid')
+    ..aOS(6, _omitFieldNames ? '' : 'externalSource')
+    ..aOS(7, _omitFieldNames ? '' : 'externalSlug')
+    ..aOS(8, _omitFieldNames ? '' : 'externalTitle')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1458,6 +1515,33 @@ class ReqSkillCatalogInstall extends $pb.GeneratedMessage {
   $core.bool hasDeviceIid() => $_has(4);
   @$pb.TagNumber(5)
   void clearDeviceIid() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get externalSource => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set externalSource($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasExternalSource() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearExternalSource() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.String get externalSlug => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set externalSlug($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasExternalSlug() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearExternalSlug() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.String get externalTitle => $_getSZ(7);
+  @$pb.TagNumber(8)
+  set externalTitle($core.String value) => $_setString(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasExternalTitle() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearExternalTitle() => $_clearField(8);
 }
 
 class ResSkillCatalogInstall extends $pb.GeneratedMessage {

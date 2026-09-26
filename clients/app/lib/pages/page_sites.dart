@@ -12,7 +12,7 @@ import 'package:alienai_c35/widgets/ui/ui_master_detail.dart';
 import 'package:alienai_c35/widgets/ui/ui_page.dart';
 import 'package:alienai_c35/widgets/ui/ui_page_bar.dart';
 import 'package:alienai_c35/widgets/ui/ui_search_toggle.dart';
-import 'package:alienai_c35/widgets/ui/ui_window_bar.dart';
+import 'package:alienai_c35/widgets/ui/ui_safe_area.dart';
 import 'package:flutter/material.dart';
 
 const _muted = Color(0xFF71717A);
@@ -156,7 +156,7 @@ class _PageSitesState extends State<PageSites> {
 
   Widget _masterBar() {
     final bar = _SiteMasterBar(onBack: () => Navigator.pop(context), store: _store);
-    return ColoredBox(color: _masterBg, child: uiDesktopWindow ? bar : SafeArea(bottom: false, child: bar));
+    return ColoredBox(color: _masterBg, child: uiMobileTopBar(context, bar));
   }
 
   Widget _detail(String? id) {

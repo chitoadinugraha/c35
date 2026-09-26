@@ -40,7 +40,7 @@ pub fn load_alien_icon(width: i32, height: i32) -> windows::Win32::UI::WindowsAn
 #[cfg(target_os = "windows")]
 fn run_tray_loop(tx: tokio::sync::mpsc::UnboundedSender<TrayAction>) -> anyhow::Result<()> {
     use std::sync::atomic::{AtomicBool, Ordering};
-    use windows::core::{w, PCWSTR};
+    use windows::core::{w, HSTRING, PCWSTR};
     use windows::Win32::Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, POINT, WPARAM};
     use windows::Win32::UI::Shell::{
         Shell_NotifyIconW, NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NIM_DELETE, NOTIFYICONDATAW,
@@ -49,7 +49,8 @@ fn run_tray_loop(tx: tokio::sync::mpsc::UnboundedSender<TrayAction>) -> anyhow::
         AppendMenuW, CreatePopupMenu, CreateWindowExW, DefWindowProcW, DestroyMenu, DestroyWindow,
         DispatchMessageW, GetCursorPos, GetMessageW, KillTimer, PostMessageW, PostQuitMessage,
         RegisterClassExW, RegisterWindowMessageW, SetForegroundWindow, SetTimer, TrackPopupMenu,
-        TranslateMessage, HICON, HMENU, MF_SEPARATOR, MF_STRING, MSG, TPM_BOTTOMALIGN,
+        TranslateMessage, HICON, HMENU, MF_DISABLED, MF_GRAYED, MF_SEPARATOR, MF_STRING, MSG,
+        TPM_BOTTOMALIGN,
         TPM_RIGHTBUTTON, WINDOW_EX_STYLE, WM_COMMAND, WM_CONTEXTMENU, WM_DESTROY, WM_NULL,
         WM_RBUTTONUP, WM_TIMER, WM_USER, WNDCLASSEXW, WS_OVERLAPPEDWINDOW,
     };
@@ -71,7 +72,10 @@ fn run_tray_loop(tx: tokio::sync::mpsc::UnboundedSender<TrayAction>) -> anyhow::
     unsafe fn build_tray_nid(hwnd: HWND) -> NOTIFYICONDATAW {
         let icon: HICON = load_alien_icon(0, 0);
         let mut tip_chars = [0u16; 128];
-        let tip_text = "Alien AI Remote Agent";
+        let tip_text = format!(
+            "Alien AI Remote Agent — {}",
+            c_remote_core::version::agent_version_tray_label()
+        );
         for (i, c) in tip_text.encode_utf16().take(127).enumerate() {
             tip_chars[i] = c;
         }
@@ -142,6 +146,13 @@ fn run_tray_loop(tx: tokio::sync::mpsc::UnboundedSender<TrayAction>) -> anyhow::
                         };
                         let _ = AppendMenuW(hmenu, MF_STRING, ID_TOGGLE_AUTOSTART, autostart_text);
                         let _ = AppendMenuW(hmenu, MF_SEPARATOR, 0, PCWSTR::null());
+                        let ver = HSTRING::from(c_remote_core::version::agent_version_tray_label());
+                        let _ = AppendMenuW(
+                            hmenu,
+                            MF_STRING | MF_GRAYED | MF_DISABLED,
+                            0,
+                            PCWSTR(ver.as_ptr()),
+                        );
                         let _ = AppendMenuW(hmenu, MF_STRING, ID_SHOW_LOG, w!("Show Log"));
                         let _ = AppendMenuW(hmenu, MF_STRING, ID_UNPAIR, w!("Unpair"));
                         let _ = AppendMenuW(hmenu, MF_SEPARATOR, 0, PCWSTR::null());
@@ -174,7 +185,10 @@ fn run_tray_loop(tx: tokio::sync::mpsc::UnboundedSender<TrayAction>) -> anyhow::
                     crate::input_exec::set_control_allowed(next);
                 }
                 if id == ID_SHOW_LOG {
-                    let _ = c_remote_core::log_local::log_open();
+                    match c_remote_core::log_local::log_open() {
+                        Ok(()) => info!("Opened agent log file"),
+                        Err(e) => warn!("Show Log failed: {e:#}"),
+                    }
                 }
                 if id == ID_UNPAIR {
                     info!("User selected Unpair from Alien AI system tray menu.");

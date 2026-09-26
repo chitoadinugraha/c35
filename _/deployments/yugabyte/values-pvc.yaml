@@ -5,7 +5,7 @@ authCredentials:
     passwordSecretName: yb-ysql-auth
 enableLoadBalancer: false
 nodeSelector:
-  kubernetes.io/hostname: 10.0.91.240
+  kubernetes.io/hostname: 10.0.85.142
 partition:
   master: 0
   tserver: 0

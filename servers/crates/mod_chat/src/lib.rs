@@ -1,4 +1,5 @@
 mod asset_tag;
+mod bot_meta;
 mod bot_peer;
 mod catalog;
 mod chat_history_clear;

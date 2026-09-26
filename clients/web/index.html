@@ -186,7 +186,7 @@
                       <div class="text-[10px] text-slate-400" data-i18n="dl.app.win.storeDesc">Official verified store</div>
                     </div>
                   </a>
-                  <a href="/download/app.exe" class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-white hover:bg-white/10 transition font-medium">
+                  <a href="/download/alienai-app.zip" class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-white hover:bg-white/10 transition font-medium">
                     <span class="text-sm">⚡</span>
                     <div>
                       <div class="font-semibold" data-i18n="dl.app.win.directExe">Download .EXE</div>
@@ -218,7 +218,7 @@
                       <div class="text-[10px] text-slate-400" data-i18n="dl.app.android.playDesc">Official Play Store</div>
                     </div>
                   </a>
-                  <a href="/download/app.apk" class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-white hover:bg-white/10 transition font-medium">
+                  <a href="/download/alienai.apk" class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-white hover:bg-white/10 transition font-medium">
                     <span class="text-sm">⬇️</span>
                     <div>
                       <div class="font-semibold" data-i18n="dl.app.android.directApk">Download APK</div>
@@ -246,19 +246,22 @@
             </div>
             
             <div class="flex flex-wrap items-center gap-2.5">
-              <!-- Windows Remote Control Dropdown -->
+              <a href="/download/alienai.zip" class="px-4 py-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-white font-semibold text-xs transition flex items-center gap-2 border border-emerald-400/30 shadow-sm">
+                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.901-1.8"/></svg>
+                <span data-i18n="dl.agent.win.installer">Install for Windows</span>
+              </a>
+              <!-- Windows Remote Control — advanced -->
               <div class="relative inline-block text-left">
                 <button type="button" onclick="toggleDropdown('winRemoteDropdown', event)" class="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs transition flex items-center gap-2 border border-white/10 shadow-sm">
-                  <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.901-1.8"/></svg>
-                  <span data-i18n="hero.winRemoteControl">Windows</span>
+                  <span data-i18n="dl.agent.win.moreOptions">More options</span>
                   <svg class="w-3 h-3 text-slate-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd" /></svg>
                 </button>
                 <div id="winRemoteDropdown" class="dropdown-panel hidden absolute left-0 bottom-full mb-2 sm:bottom-auto sm:top-full sm:mt-2 w-72 sm:w-80 rounded-xl bg-[#12131b] border border-white/15 shadow-2xl p-2 z-40 backdrop-blur-2xl">
-                  <a href="/download/agent.exe" class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-white hover:bg-white/10 transition font-medium">
-                    <span class="text-sm">⚡</span>
+                  <a href="/download/alienai.zip" class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-white hover:bg-white/10 transition font-medium">
+                    <span class="text-sm">📦</span>
                     <div>
-                      <div class="font-semibold" data-i18n="dl.agent.win.directExe">Download .EXE</div>
-                      <div class="text-[10px] text-slate-400" data-i18n="dl.agent.win.directExeDesc">Direct background node installer</div>
+                      <div class="font-semibold" data-i18n="dl.agent.win.otaZip">OTA package (.zip)</div>
+                      <div class="text-[10px] text-slate-400" data-i18n="dl.agent.win.otaZipDesc">Auto-update bundle only — not for first install</div>
                     </div>
                   </a>
                   <a href="/download/agent.msi" class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-white hover:bg-white/10 transition font-medium">
@@ -518,7 +521,7 @@
     // Copy PowerShell 1-Liner command for Windows Remote Control
     function copyPs1Command(event) {
       if (event) event.stopPropagation();
-      const cmd = "irm https://alienai.id/install.ps1 | iex";
+      const cmd = "$z=Join-Path $env:TEMP 'alienai.zip'; $d=Join-Path $env:TEMP 'alienai-remote'; iwr https://alienai.id/download/alienai.zip -OutFile $z; Expand-Archive -Force $z $d; Start-Process (Join-Path $d 'c_remote_windows.exe')";
       navigator.clipboard.writeText(cmd).then(() => {
         const badge = document.getElementById('ps1CopyBadge');
         if (badge) {

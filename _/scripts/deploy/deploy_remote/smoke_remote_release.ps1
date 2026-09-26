@@ -16,19 +16,28 @@ Write-Host "==> smoke remote release base=$base minVersion=$MinVersion minBuild=
 $ver = Invoke-RestMethod -Uri "$base/version/remote-windows" -Method Get
 if ($ver.version -lt $MinVersion) { throw "version $($ver.version) < min $MinVersion" }
 if ($MinBuild -gt 0 -and $ver.min -lt $MinBuild) { throw "release min $($ver.min) < minBuild $MinBuild" }
-if ([string]::IsNullOrWhiteSpace($ver.hash)) { throw 'version JSON missing hash' }
-if ($ver.size -le 0) { throw 'version JSON missing size' }
-Write-Host "  version=$($ver.version) min=$($ver.min) name=$($ver.versionName) size=$($ver.size)"
+if ([string]::IsNullOrWhiteSpace($ver.hash)) { throw 'version JSON missing hash (OTA zip)' }
+if ($ver.size -le 0) { throw 'version JSON missing size (OTA zip)' }
+if ([string]::IsNullOrWhiteSpace($ver.setupHash)) { throw 'version JSON missing setupHash (website installer)' }
+if ($ver.setupSize -le 0) { throw 'version JSON missing setupSize' }
+Write-Host "  version=$($ver.version) min=$($ver.min) name=$($ver.versionName) otaSize=$($ver.size) setupSize=$($ver.setupSize)"
 if ($ver.url -and $ver.url -notmatch 'alienai\.id') { throw "version url must be on alienai.id: $($ver.url)" }
 
 $pair = Invoke-RestMethod -Uri "$base/v1/device/pair/register" -Method Post -ContentType 'application/json' -Body '{"device_name":"smoke-test","device_type":"windows"}'
 if ([string]::IsNullOrWhiteSpace($pair.code)) { throw 'pair/register missing code' }
 Write-Host "  pair/register ok code=$($pair.code)"
 
-$dlHeaders = curl.exe -sI "$base/download/agent.exe" 2>&1 | Out-String
-if ($dlHeaders -notmatch 'HTTP/\S+\s+307') { throw "download/agent.exe expected 307, got: $dlHeaders" }
-if ($dlHeaders -notmatch 'Location:\s*\S+/fs/') { throw "download/agent.exe missing /fs/ Location" }
-Write-Host '  download/agent.exe -> 307 CAS redirect ok'
+$setupHeaders = curl.exe -sI "$base/download/agent.exe" 2>&1 | Out-String
+if ($setupHeaders -notmatch 'HTTP/\S+\s+200') { throw "download/agent.exe expected 200, got: $setupHeaders" }
+if ($setupHeaders -notmatch 'content-disposition:.*(Setup\.exe|alienai\.zip)') {
+    throw "download/agent.exe missing installer or zip filename: $setupHeaders"
+}
+Write-Host '  download/agent.exe -> 200 installer ok'
+
+$dlHeaders = curl.exe -sI "$base/download/alienai.zip" 2>&1 | Out-String
+if ($dlHeaders -notmatch 'HTTP/\S+\s+200') { throw "download/alienai.zip expected 200, got: $dlHeaders" }
+if ($dlHeaders -notmatch 'content-disposition:.*alienai\.zip') { throw "download/alienai.zip missing filename: $dlHeaders" }
+Write-Host '  download/alienai.zip -> 200 OTA zip ok'
 
 if ($ver.url) {
     $cas = curl.exe -sI $ver.url 2>&1 | Out-String

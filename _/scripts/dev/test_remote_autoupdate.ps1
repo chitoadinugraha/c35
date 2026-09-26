@@ -31,14 +31,14 @@ if ($AgentBuild -ge $TargetVersion) {
 }
 
 if (-not $AgentExe) {
-    $AgentExe = Join-Path $repoRoot ".cache\remote-autoupdate-test\v$AgentBuild\c_remote_windows.exe"
+    $AgentExe = Join-Path $repoRoot ".cache\remote-autoupdate-test\v$AgentBuild\alienai_remote_windows.exe"
 }
 if (-not (Test-Path $AgentExe)) {
     Write-Host "==> building fixture for build $AgentBuild"
     & (Join-Path $PSScriptRoot 'ensure_remote_autoupdate_fixture.ps1') -Build $AgentBuild
 }
 if (-not $Zip) {
-    $Zip = Join-Path $repoRoot ".cache\c_remote\remote-windows\c_remote_windows-$TargetVersion.zip"
+    $Zip = Join-Path $repoRoot ".cache\c_remote\remote-windows\alienai_remote_windows-$TargetVersion.zip"
 }
 if (-not (Test-Path $Zip)) {
     throw "Zip not found: $Zip (run remote publish or copy prod bundle)"
@@ -102,10 +102,11 @@ if (-not $ok) {
 Write-Host "==> staged .ready present; waiting for apply/restart"
 Start-Sleep -Seconds 12
 
-$running = Get-Process -Name c_remote_windows -ErrorAction SilentlyContinue
-Write-Host "==> running c_remote_windows processes: $($running.Count)"
+$running = @(Get-Process -Name alienai_remote_windows -ErrorAction SilentlyContinue) + @(Get-Process -Name c_remote_windows -ErrorAction SilentlyContinue)
+Write-Host "==> running remote agent processes: $($running.Count)"
 foreach ($p in $running) { Write-Host "   pid=$($p.Id) path=$($p.Path)" }
 
+Stop-Process -Name alienai_remote_windows -Force -ErrorAction SilentlyContinue
 Stop-Process -Name c_remote_windows -Force -ErrorAction SilentlyContinue
 Stop-Process -Id $mockProc.Id -Force -ErrorAction SilentlyContinue
 

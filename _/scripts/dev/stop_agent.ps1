@@ -1,10 +1,12 @@
-# Stop running c_remote_windows agent processes.
+# Stop running Alien AI remote Windows agent processes.
 param([switch]$Quiet)
 
 $ErrorActionPreference = 'SilentlyContinue'
 
-$procs = @(Get-Process -Name 'c_remote_windows' -ErrorAction SilentlyContinue)
-foreach ($p in $procs) {
-    if (-not $Quiet) { Write-Host "==> kill c_remote_windows pid $($p.Id)" }
-    & taskkill /F /T /PID $p.Id 2>$null | Out-Null
+foreach ($agentName in @('alienai_remote_windows', 'c_remote_windows')) {
+    $procs = @(Get-Process -Name $agentName -ErrorAction SilentlyContinue)
+    foreach ($p in $procs) {
+        if (-not $Quiet) { Write-Host "==> kill $agentName pid $($p.Id)" }
+        & taskkill /F /T /PID $p.Id 2>$null | Out-Null
+    }
 }

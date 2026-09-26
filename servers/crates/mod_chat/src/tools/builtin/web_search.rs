@@ -8,7 +8,7 @@ tool! {
     name: "web.search",
     aliases: ["web_search", "search_web"],
     description: "Search the web via SearXNG and return title/url/snippet JSON. Use for knowledge questions, news, live listings, schedules, and lookups.",
-    topics: ["*"],
+    topics: ["general", "research"],
     always: ["general", "research"],
     rag_phrases: [
         "film bioskop", "jadwal bioskop", "apa yang tayang", "jadwal nonton", "cinema schedule",

@@ -1,7 +1,7 @@
 import 'build_remote_windows.dart';
 import '../deploy_lib.dart';
 
-void main() {
+void main() async {
   deployLoadEnvLocal();
-  buildRemoteWindowsRelease();
+  await buildRemoteWindowsRelease();
 }

@@ -1,0 +1,16 @@
+[
+  {
+    "op": "replace",
+    "path": "/spec/tls",
+    "value": [
+      {
+        "hosts": ["app.alienai.id", "mail-in.alienai.id"],
+        "secretName": "alienai-id-tls"
+      },
+      {
+        "hosts": ["alienwebs.com", "app.alienwebs.com"],
+        "secretName": "alienwebs-tls"
+      }
+    ]
+  }
+]

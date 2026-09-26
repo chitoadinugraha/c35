@@ -4,6 +4,7 @@ import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/widgets/bots/channel_util.dart';
 import 'package:alienai_c35/widgets/bots/io_bot_delete_dialog.dart';
 import 'package:alienai_c35/widgets/ui/ui_alert.dart';
+import 'package:alienai_c35/widgets/ui/ui_menu_position.dart';
 import 'package:alienai_c35/widgets/ui/ui_empty_state.dart';
 import 'package:alienai_c35/widgets/ui/ui_user_avatar.dart';
 import 'package:flutter/material.dart';
@@ -36,7 +37,7 @@ class UiBotNavList extends StatelessWidget {
     final canDelete = _canDelete(row);
     final action = await showMenu<String>(
       context: context,
-      position: RelativeRect.fromLTRB(pos.dx, pos.dy, pos.dx, pos.dy),
+      position: uiMenuPositionAt(context, pos),
       color: const Color(0xFF18181B),
       items: [
         const PopupMenuItem(

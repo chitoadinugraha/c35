@@ -1,10 +1,11 @@
+import 'package:alienai_c35/widgets/ui/ui_menu_position.dart';
 import 'package:flutter/material.dart';
 
 enum SkillAddAction { teach, install }
 
 Future<SkillAddAction?> ioSkillAddMenuShow(BuildContext context, {required Offset position, bool showTeach = true}) => showMenu<SkillAddAction>(
       context: context,
-      position: RelativeRect.fromLTRB(position.dx, position.dy, position.dx, position.dy),
+      position: uiMenuPositionAt(context, position),
       color: const Color(0xFF18181B),
       items: [
         if (showTeach)

@@ -168,6 +168,8 @@ class ReqSessionInit extends $pb.GeneratedMessage {
     $core.String? locationRegion,
     $core.String? locationCountry,
     $core.String? locationSource,
+    $fixnum.Int64? appBuild,
+    $core.String? appVersionName,
   }) {
     final result = ReqSessionInit._();
     if (sinceMs != null) result.sinceMs = sinceMs;
@@ -183,6 +185,8 @@ class ReqSessionInit extends $pb.GeneratedMessage {
     if (locationRegion != null) result.locationRegion = locationRegion;
     if (locationCountry != null) result.locationCountry = locationCountry;
     if (locationSource != null) result.locationSource = locationSource;
+    if (appBuild != null) result.appBuild = appBuild;
+    if (appVersionName != null) result.appVersionName = appVersionName;
     return result;
   }
 
@@ -212,6 +216,8 @@ class ReqSessionInit extends $pb.GeneratedMessage {
     ..aOS(11, _omitFieldNames ? '' : 'locationRegion')
     ..aOS(12, _omitFieldNames ? '' : 'locationCountry')
     ..aOS(13, _omitFieldNames ? '' : 'locationSource')
+    ..aInt64(14, _omitFieldNames ? '' : 'appBuild')
+    ..aOS(15, _omitFieldNames ? '' : 'appVersionName')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -354,6 +360,24 @@ class ReqSessionInit extends $pb.GeneratedMessage {
   $core.bool hasLocationSource() => $_has(12);
   @$pb.TagNumber(13)
   void clearLocationSource() => $_clearField(13);
+
+  @$pb.TagNumber(14)
+  $fixnum.Int64 get appBuild => $_getI64(13);
+  @$pb.TagNumber(14)
+  set appBuild($fixnum.Int64 value) => $_setInt64(13, value);
+  @$pb.TagNumber(14)
+  $core.bool hasAppBuild() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearAppBuild() => $_clearField(14);
+
+  @$pb.TagNumber(15)
+  $core.String get appVersionName => $_getSZ(14);
+  @$pb.TagNumber(15)
+  set appVersionName($core.String value) => $_setString(14, value);
+  @$pb.TagNumber(15)
+  $core.bool hasAppVersionName() => $_has(14);
+  @$pb.TagNumber(15)
+  void clearAppVersionName() => $_clearField(15);
 }
 
 class ResSessionInit extends $pb.GeneratedMessage {

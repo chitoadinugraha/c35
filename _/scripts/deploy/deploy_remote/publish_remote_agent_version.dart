@@ -9,11 +9,22 @@ import 'agent_version.dart';
 
 const configKey = 'app.release.c35.remote-windows';
 
-Future<void> publishRemoteAgentVersion({required int version, required String versionName, required String hash, required int size, int min = 0}) async {
+Future<void> publishRemoteAgentVersion({
+  required int version,
+  required String versionName,
+  required String hash,
+  required int size,
+  required String setupHash,
+  required int setupSize,
+  int min = 0,
+}) async {
   if (version <= 0) throw StateError('Invalid remote agent version: $version');
   final h = hash.trim().toLowerCase();
   if (h.isEmpty) throw StateError('hash required for remote agent publish');
   if (size <= 0) throw StateError('Invalid remote agent zip size: $size');
+  final setup = setupHash.trim().toLowerCase();
+  if (setup.isEmpty) throw StateError('setupHash required for remote agent publish');
+  if (setupSize <= 0) throw StateError('Invalid remote agent setup size: $setupSize');
 
   await runStep('Publish remote-windows version $version to ai.config', () async {
     final host = deployEnv('YB_HOST', 'yb-tservers.yugabyte.svc.cluster.local');
@@ -29,7 +40,15 @@ Future<void> publishRemoteAgentVersion({required int version, required String ve
     );
     try {
       final minPublish = await remoteReleaseMinPublish(conn, min);
-      final configValue = jsonEncode({'version': version, 'versionName': versionName, 'min': minPublish, 'hash': h, 'size': size});
+      final configValue = jsonEncode({
+        'version': version,
+        'versionName': versionName,
+        'min': minPublish,
+        'hash': h,
+        'size': size,
+        'setupHash': setup,
+        'setupSize': setupSize,
+      });
       await conn.execute(
         Sql.named('''
           INSERT INTO ai.config (key, value, updated_at)

@@ -154,7 +154,7 @@ tool! {
     name: "web.visit",
     aliases: ["web_visit", "fetch_url"],
     description: "Visit an HTTP/HTTPS URL, strip HTML, and return readable text. Use after web.search when you need page content.",
-    topics: ["*", "research"],
+    topics: ["general", "research"],
     always: ["research"],
     ui_calling_key: "tool.web.visit.calling",
     ui_done_key: "tool.web.visit.done",

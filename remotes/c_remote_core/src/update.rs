@@ -9,6 +9,11 @@ use tracing::{info, warn};
 
 use crate::version::AGENT_BUILD;
 
+pub(crate) const WINDOWS_AGENT_EXE: &str = "alienai_remote_windows.exe";
+pub(crate) const WINDOWS_AGENT_PROCESS: &str = "alienai_remote_windows";
+pub(crate) const WINDOWS_LEGACY_AGENT_EXE: &str = "c_remote_windows.exe";
+pub(crate) const WINDOWS_LEGACY_AGENT_PROCESS: &str = "c_remote_windows";
+
 static DOWNLOAD_LOCK: Mutex<()> = Mutex::const_new(());
 
 static ACTIVE_TASKS: AtomicUsize = AtomicUsize::new(0);
@@ -277,7 +282,13 @@ pub fn update_apply(version: i64) -> Result<(), anyhow::Error> {
     }
 
     let staging = staging_dir(version);
-    let exe = staging.join("c_remote_windows.exe");
+    let exe = staging.join(WINDOWS_AGENT_EXE);
+    if !exe.exists() {
+        let legacy = staging.join(WINDOWS_LEGACY_AGENT_EXE);
+        if legacy.exists() {
+            std::fs::copy(&legacy, &exe)?;
+        }
+    }
     if !exe.exists() {
         anyhow::bail!("staged exe missing: {}", exe.display());
     }
@@ -287,19 +298,27 @@ pub fn update_apply(version: i64) -> Result<(), anyhow::Error> {
         r#"
 $staging = '{staging}'
 $install = '{install}'
-$exe = Join-Path $install 'c_remote_windows.exe'
+$exe = Join-Path $install '{exe_name}'
+$legacyExe = Join-Path $install '{legacy_exe}'
 $deadline = (Get-Date).AddSeconds(8)
-while ((Get-Process -Name c_remote_windows -ErrorAction SilentlyContinue) -and ((Get-Date) -lt $deadline)) {{
-  Start-Sleep -Milliseconds 200
+foreach ($name in @('{process}', '{legacy_process}')) {{
+  while ((Get-Process -Name $name -ErrorAction SilentlyContinue) -and ((Get-Date) -lt $deadline)) {{
+    Start-Sleep -Milliseconds 200
+  }}
+  Get-Process -Name $name -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 }}
-Get-Process -Name c_remote_windows -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Milliseconds 300
-Copy-Item -Path (Join-Path $staging 'c_remote_windows.exe') -Destination $exe -Force
+Copy-Item -Path (Join-Path $staging '{exe_name}') -Destination $exe -Force
+if (Test-Path $legacyExe) {{ Remove-Item $legacyExe -Force -ErrorAction SilentlyContinue }}
 Start-Process $exe
 exit 0
 "#,
         staging = staging.display().to_string().replace('\'', "''"),
         install = install.display().to_string().replace('\'', "''"),
+        exe_name = WINDOWS_AGENT_EXE,
+        legacy_exe = WINDOWS_LEGACY_AGENT_EXE,
+        process = WINDOWS_AGENT_PROCESS,
+        legacy_process = WINDOWS_LEGACY_AGENT_PROCESS,
     );
     std::fs::create_dir_all(script.parent().unwrap())?;
     std::fs::write(&script, script_body)?;

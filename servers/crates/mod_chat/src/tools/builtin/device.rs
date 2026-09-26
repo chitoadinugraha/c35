@@ -36,7 +36,7 @@ tool! {
     struct: DeviceCommandTool,
     name: "device.command",
     aliases: ["device_command", "run_command_on_device", "exec_device"],
-    description: "Run a shell or PowerShell command on a user's paired remote device (e.g. Chito-PC). Returns command execution stdout, stderr, and exit code.",
+    description: "Run a shell or PowerShell command on a user's paired remote device (e.g. Chito-PC). Prefer this for bulk or repetitive data work (export, join, transform, spreadsheet load); use device.input for one-off UI steps only. Returns command execution stdout, stderr, and exit code.",
     topics: ["computer_use"],
     always: ["computer_use"],
     ui_calling_key: "tool.device.command.calling",

@@ -17,13 +17,14 @@ pub struct InstRow {
 
 pub const SCOPE_GLOBAL: &str = "global";
 pub const SCOPE_ROLE_PERSONAL_ASSISTANT: &str = "role:personal_assistant";
+pub const SCOPE_ROLE_BOT: &str = "role:bot";
 
 pub fn inst_scopes_home() -> Vec<String> {
     vec![SCOPE_GLOBAL.into(), SCOPE_ROLE_PERSONAL_ASSISTANT.into()]
 }
 
 pub fn inst_scopes_channel() -> Vec<String> {
-    vec![SCOPE_GLOBAL.into()]
+    vec![SCOPE_ROLE_BOT.into()]
 }
 
 pub struct InstMatchCtx<'a> {
@@ -90,6 +91,9 @@ fn scope_applies(row_scope: &str, active: &[String]) -> bool {
 }
 
 fn inst_applies(row: &InstRow, ctx: &InstMatchCtx<'_>) -> bool {
+    if ctx.topic_id == "bot" && row.scope == SCOPE_GLOBAL && row.kind != "trigger" {
+        return false;
+    }
     if !scope_applies(&row.scope, ctx.scopes) {
         return false;
     }

@@ -51,6 +51,8 @@ Phase 8  mod_site + Sites page (UITable tabs, prompt web.builder, guest render)
 Phase 9  mod_tx + POS editor (id.alienai UI; site.tx_* schema)
 ```
 
+**Shipped (2026-09-26):** Skill marketplace browse/install (Alien seed catalog) + OpenSkill registry merge on search — see [`skill.md`](skill.md).
+
 ## Module boundaries
 
 | Module | Owner scope | Site scope | Reference |
@@ -64,7 +66,7 @@ Phase 9  mod_tx + POS editor (id.alienai UI; site.tx_* schema)
 
 - **Site registry** = `identity(kind=site)` — no duplicate site registry table.
 - **Site payload** = YSQL schema **`site`** (not `ai.site_*`).
-- **Guest URLs** = `alienai.id/{alien_id}` path only; custom domain via CNAME + Host header.
+- **Guest URLs** = `alienai.id/{alien_id}` path only; custom domain via grey CNAME to `site.alienai.id` + Host header (see `site.md`).
 - **Guest layout** = `site.draft.doc_json` block tree — not CSA fixed hub sections.
 - **Site admin UI** = Devices-like tabs + **UITable**; layout via Home prompt (`web.builder`).
 - **Staff access** = `identity_grant` on site_iid.

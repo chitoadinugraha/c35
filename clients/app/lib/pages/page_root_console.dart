@@ -15,14 +15,10 @@ import 'package:alienai_c35/widgets/admin/ui_admin_network_row.dart';
 import 'package:alienai_c35/widgets/admin/ui_admin_node_card.dart';
 import 'package:alienai_c35/widgets/admin/ui_admin_stat_bar.dart';
 import 'package:alienai_c35/widgets/admin/ui_admin_storage_row.dart';
+import 'package:alienai_c35/widgets/admin/ui_admin_theme.dart';
 import 'package:alienai_c35/widgets/admin/ui_admin_volume_row.dart';
 import 'package:alienai_c35/widgets/ui/ui_page.dart';
 import 'package:flutter/material.dart';
-
-const _muted = Color(0xFF71717A);
-const _text = Color(0xFFF4F4F5);
-const _panel = Color(0xFF111114);
-const _border = Color(0xFF27272A);
 
 class PageRootConsole extends StatefulWidget {
   const PageRootConsole({super.key, required this.chatConn});
@@ -73,7 +69,7 @@ class _PageRootConsoleState extends State<PageRootConsole> {
       return UiPage(
         title: 'Admin',
         onBack: () => Navigator.pop(context),
-        body: const Center(child: Text('Root access required', style: TextStyle(color: _muted))),
+        body: const Center(child: Text('Root access required', style: TextStyle(color: adminMuted))),
       );
     }
     return UiPage(
@@ -87,87 +83,102 @@ class _PageRootConsoleState extends State<PageRootConsole> {
           final multiNode = nodes.length > 1;
           final volumes = selected != null ? _stats.volumesForNode(selected.nodeName) : const <VolumeStat>[];
 
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              if (nodes.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Center(child: Text('Waiting for node stats…', style: TextStyle(color: _muted, fontSize: 13))),
-                )
-              else if (multiNode)
-                for (final node in nodes) ...[
-                  Builder(
-                    builder: (context) {
-                      final boot = _bootStorage(node);
-                      return UiAdminNodeCard(
-                        nodeName: node.nodeName,
-                        cpuPct: node.cpuPct,
-                        cpuCores: node.cpuCores,
-                        memUsed: node.memUsedBytes,
-                        memTotal: node.memTotalBytes,
-                        storagePct: boot == null ? null : adminPct(boot.usedBytes, boot.totalBytes),
-                        storageLabel: boot?.device.isNotEmpty == true ? boot!.device : 'sda',
-                        tsMs: node.tsMs,
-                        selected: selected?.nodeName == node.nodeName,
-                        expanded: selected?.nodeName == node.nodeName,
-                        onTap: () => _stats.selectNode(node.nodeName),
-                        expandedBody: _NodeStatsBody(stats: _stats, node: node),
-                      );
-                    },
-                  ),
-                ]
-              else if (selected != null)
-                _NodeStatsBody(stats: _stats, node: selected),
-              if (volumes.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                const Text('Volumes', style: TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: _panel, borderRadius: BorderRadius.circular(10), border: Border.all(color: _border)),
-                  child: Column(
-                    children: volumes.map((v) => UiAdminVolumeRow(volume: v, showNode: multiNode)).toList(),
-                  ),
-                ),
-              ],
-              const SizedBox(height: 20),
-              GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 8,
-                crossAxisSpacing: 8,
-                childAspectRatio: 2.2,
+          return Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: adminDashboardMaxWidth),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                 children: [
-                  UiAdminActionTile(
-                    icon: Icons.article_outlined,
-                    title: 'Logs',
-                    subtitle: 'ai.log tail',
-                    primary: true,
-                    onTap: _openLogs,
-                  ),
-                  UiAdminActionTile(
-                    icon: Icons.tune_outlined,
-                    title: 'Inst',
-                    subtitle: 'prompt steering',
-                    onTap: _openInst,
-                  ),
-                  UiAdminActionTile(
-                    icon: Icons.category_outlined,
-                    title: 'Objects',
-                    subtitle: 'aliases & taxonomy',
-                    onTap: _openObjects,
-                  ),
-                  UiAdminActionTile(
-                    icon: Icons.insights_outlined,
-                    title: 'P&L',
-                    subtitle: 'revenue & COGS',
-                    onTap: _openPnl,
+                  if (nodes.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: Center(child: Text('Waiting for node stats…', style: TextStyle(color: adminMuted, fontSize: 13))),
+                    )
+                  else if (multiNode)
+                    for (final node in nodes) ...[
+                      Builder(
+                        builder: (context) {
+                          final boot = _bootStorage(node);
+                          return UiAdminNodeCard(
+                            nodeName: node.nodeName,
+                            cpuPct: node.cpuPct,
+                            cpuCores: node.cpuCores,
+                            memUsed: node.memUsedBytes,
+                            memTotal: node.memTotalBytes,
+                            storagePct: boot == null ? null : adminPct(boot.usedBytes, boot.totalBytes),
+                            storageLabel: boot?.device.isNotEmpty == true ? boot!.device : 'sda',
+                            tsMs: node.tsMs,
+                            selected: selected?.nodeName == node.nodeName,
+                            expanded: selected?.nodeName == node.nodeName,
+                            onTap: () => _stats.selectNode(node.nodeName),
+                            expandedBody: _NodeStatsBody(stats: _stats, node: node, embedded: true),
+                          );
+                        },
+                      ),
+                    ]
+                  else if (selected != null)
+                    UiAdminPanel(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _NodeHeader(node: selected),
+                          const SizedBox(height: 10),
+                          const Divider(height: 1, color: adminBorder),
+                          const SizedBox(height: 10),
+                          _NodeStatsBody(stats: _stats, node: selected),
+                        ],
+                      ),
+                    ),
+                  if (volumes.isNotEmpty) ...[
+                    const SizedBox(height: 14),
+                    const UiAdminSectionTitle('Volumes'),
+                    UiAdminPanel(
+                      child: Column(
+                        children: volumes.map((v) => UiAdminVolumeRow(volume: v, showNode: multiNode)).toList(),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 18),
+                  const UiAdminSectionTitle('Quick actions'),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      UiAdminActionTile(
+                        icon: Icons.article_outlined,
+                        title: 'Logs',
+                        subtitle: 'ai.log tail',
+                        primary: true,
+                        compact: true,
+                        onTap: _openLogs,
+                      ),
+                      UiAdminActionTile(
+                        icon: Icons.tune_outlined,
+                        title: 'Inst',
+                        subtitle: 'prompt steering',
+                        compact: true,
+                        onTap: _openInst,
+                      ),
+                      UiAdminActionTile(
+                        icon: Icons.category_outlined,
+                        title: 'Objects',
+                        subtitle: 'aliases & taxonomy',
+                        compact: true,
+                        onTap: _openObjects,
+                      ),
+                      UiAdminActionTile(
+                        icon: Icons.insights_outlined,
+                        title: 'P&L',
+                        subtitle: 'revenue & COGS',
+                        compact: true,
+                        onTap: _openPnl,
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
+            ),
           );
         },
       ),
@@ -175,27 +186,78 @@ class _PageRootConsoleState extends State<PageRootConsole> {
   }
 }
 
+class _NodeHeader extends StatelessWidget {
+  const _NodeHeader({required this.node});
+
+  final NodeStat node;
+
+  bool get _healthOk {
+    final ts = node.tsMs.toInt();
+    if (ts <= 0) return false;
+    return DateTime.now().millisecondsSinceEpoch - ts < 60000;
+  }
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: _healthOk ? adminHealthOk : adminHealthStale),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              node.nodeName.isNotEmpty ? node.nodeName : 'Node',
+              style: const TextStyle(color: adminText, fontSize: 15, fontWeight: FontWeight.w600),
+            ),
+          ),
+          if (node.cpuCores > 0) Text('${node.cpuCores} cores', style: const TextStyle(color: adminMuted, fontSize: 11)),
+        ],
+      );
+}
+
 class _NodeStatsBody extends StatelessWidget {
-  const _NodeStatsBody({required this.stats, required this.node});
+  const _NodeStatsBody({required this.stats, required this.node, this.embedded = false});
 
   final AdminStatsStream stats;
   final NodeStat node;
+  final bool embedded;
 
   @override
   Widget build(BuildContext context) {
     final storages = stats.storagesFor(node);
-    return Column(
+    final hostSection = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        UiAdminStatBar(
-          label: 'CPU',
-          detail: '${node.cpuCores} cores',
-          pct: node.cpuPct.clamp(0, 100),
-        ),
-        UiAdminStatBar(
-          label: 'Memory',
-          detail: '${adminFmtBytes(node.memUsedBytes)} / ${adminFmtBytes(node.memTotalBytes)}',
-          pct: adminPct(node.memUsedBytes, node.memTotalBytes),
+        const UiAdminSectionTitle('Host'),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final wide = constraints.maxWidth >= 520;
+            final cpu = UiAdminStatBar(
+              label: 'CPU',
+              detail: '${node.cpuCores} cores',
+              pct: node.cpuPct.clamp(0, 100),
+              dense: true,
+            );
+            final mem = UiAdminStatBar(
+              label: 'Memory',
+              detail: '${adminFmtBytes(node.memUsedBytes)} / ${adminFmtBytes(node.memTotalBytes)}',
+              pct: adminPct(node.memUsedBytes, node.memTotalBytes),
+              dense: true,
+            );
+            if (!wide) {
+              return Column(children: [cpu, mem]);
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: cpu),
+                const SizedBox(width: 16),
+                Expanded(child: mem),
+              ],
+            );
+          },
         ),
         if (node.swapTotalBytes > 0)
           UiAdminStatBar(
@@ -204,26 +266,61 @@ class _NodeStatsBody extends StatelessWidget {
             pct: adminPct(node.swapUsedBytes, node.swapTotalBytes),
             warnPct: 50,
             critPct: 80,
+            dense: true,
           ),
+        const Padding(
+          padding: EdgeInsets.only(top: 6, bottom: 2),
+          child: Text('Network', style: TextStyle(color: adminMuted, fontSize: 11, fontWeight: FontWeight.w500)),
+        ),
         UiAdminNetworkRow(
           inBps: node.netInBps,
           outBps: node.netOutBps,
           maxBps: stats.networkMaxBps(node.nodeName),
         ),
-        const Padding(
-          padding: EdgeInsets.only(top: 4, bottom: 4),
-          child: Text('Storages', style: TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w600)),
-        ),
-        for (final d in storages)
-          UiAdminStorageRow(
-            device: d.device,
-            label: d.label,
-            usedBytes: d.usedBytes.toInt(),
-            totalBytes: d.totalBytes.toInt(),
-            readBps: d.readBps,
-            writeBps: d.writeBps,
-            isBoot: d.isBoot,
-          ),
+      ],
+    );
+
+    final devicesSection = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const UiAdminSectionTitle('Block devices'),
+        if (storages.isEmpty)
+          const Text('No block devices reported', style: TextStyle(color: adminMuted, fontSize: 12))
+        else
+          for (final d in storages)
+            UiAdminStorageRow(
+              device: d.device,
+              label: d.label,
+              usedBytes: d.usedBytes.toInt(),
+              totalBytes: d.totalBytes.toInt(),
+              readBps: d.readBps,
+              writeBps: d.writeBps,
+              isBoot: d.isBoot,
+            ),
+      ],
+    );
+
+    if (embedded) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          hostSection,
+          const SizedBox(height: 8),
+          const Divider(height: 1, color: adminBorder),
+          const SizedBox(height: 8),
+          devicesSection,
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        hostSection,
+        const SizedBox(height: 12),
+        const Divider(height: 1, color: adminBorder),
+        const SizedBox(height: 4),
+        devicesSection,
       ],
     );
   }

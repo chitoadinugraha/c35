@@ -1,0 +1,76 @@
+---
+description: After cluster or app publish, report wall time, image size, version, and per-stage marks
+alwaysApply: true
+---
+
+# Publish perf report (agent)
+
+Whenever you run a **publish** script for c35 (or the user asks you to publish), you **must** end your reply with a **Publish summary** sourced from perf output — not guesses.
+
+## Scripts
+
+| Script | `target` (typical) |
+|--------|-------------------|
+| `.\_\scripts\deploy\publish_c35_rust_chef.ps1` | `c35-rust-chef` |
+| `.\_\scripts\deploy\publish_server.ps1` | `c35-server` |
+| `.\_\scripts\deploy\publish_fetcher.ps1` | `c35-fetcher` |
+| `.\_\scripts\deploy\publish_node_stats.ps1` | `c35-node-stats` |
+| `.\_\scripts\deploy\publish_channel_whatsapp_device.ps1` | `channel-whatsapp-device` |
+| `.\_\scripts\deploy\publish_app_release.ps1` | see app targets below |
+
+### App / client `target` values (Dart `C35_PUBLISH_PERF`)
+
+| `target` | When |
+|----------|------|
+| `app-release` | Full `deploy_app_release.dart` (AAB+APK+optional win/web) |
+| `android-promote-prod` | `-AndroidPromote` / `play_store_upload_promote_prod.dart` |
+| `android-promote-only` | `-PromoteOnly N` |
+| `android-tester` | `-Tester` |
+| `android-release` | `-AndroidOnly` |
+| `windows-release` | `-WindowsOnly` |
+| `web-release` | `-WebOnly` |
+| `remote-windows-agent` | `-RemoteAgent` |
+
+## Metrics sources
+
+1. Console: `C35 publish perf` block + `C35_PUBLISH_PERF {json}`.
+2. File: `.cache/publish-perf/latest.json`.
+
+### Cluster marks (PowerShell)
+
+`context_tar`, `context_upload`, `context_extract`, `buildctl`, `image_build`, `rollout`, `wall_total`
+
+### App marks (Dart `marks` in JSON)
+
+| Mark | Meaning |
+|------|---------|
+| `android_aab` | `flutter build appbundle` |
+| `android_apk` | `flutter build apk` |
+| `flutter_web` | `flutter build web` |
+| `flutter_windows` | `flutter build windows` |
+| `windows_zip` | Zip bundle step |
+| `load_play_store_credentials`, `upload_*`, … | `runStep` labels (slugged) |
+
+### App artifacts (`artifacts_bytes`)
+
+`android_aab`, `android_apk`, `web`, `windows_zip` — report human size via summary.
+
+Cluster **image size**: OCIR manifest sum when `OCIR_PASSWORD` available.
+
+## Required user-facing summary
+
+```
+### Publish summary
+- **Target:** …
+- **Version:** … (build + version_name for app)
+- **Image:** … (cluster)
+- **Image size:** …
+- **Duration:** wall + stage marks
+- **Artifacts:** sizes from artifacts_bytes / detail
+```
+
+## Build speed (do not undo)
+
+- No Buildkit prune before publish unless user asks (`-PruneBuildkit`).
+- Publish `c35-rust-chef` when Rust toolchain/chef layer changes; cluster Dockerfiles `FROM` that image.
+- Omit `-StopBuildkit` between publishes when possible.

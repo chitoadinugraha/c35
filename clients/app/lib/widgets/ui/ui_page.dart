@@ -1,6 +1,6 @@
 import 'package:alienai_c35/widgets/ui/ui_page_bar.dart';
+import 'package:alienai_c35/widgets/ui/ui_safe_area.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
-import 'package:alienai_c35/widgets/ui/ui_window_bar.dart';
 import 'package:flutter/material.dart';
 
 const uiPageBg = Color(0xFF08080A);
@@ -134,7 +134,7 @@ class _UiPageState extends State<UiPage> {
       trailing: _trailing(),
       searchWidget: _searchOpen ? _searchBar() : null,
     );
-    return uiDesktopWindow ? bar : SafeArea(bottom: false, child: bar);
+    return uiMobileTopBar(context, bar);
   }
 
   @override

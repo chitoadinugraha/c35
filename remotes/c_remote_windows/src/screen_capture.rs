@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -17,6 +17,8 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 
 static CAPTURE_ACTIVE: AtomicBool = AtomicBool::new(false);
+static CAPTURE_FAIL_COUNT: AtomicU32 = AtomicU32::new(0);
+static CAPTURE_FAIL_WARNED: AtomicBool = AtomicBool::new(false);
 static SCREEN_DIRTY: AtomicBool = AtomicBool::new(true);
 static DXGI_DISABLED: AtomicBool = AtomicBool::new(false);
 static DXGI_CAPTURER: std::sync::Mutex<Option<crate::dxgi_capture::DxgiCapturer>> =
@@ -339,7 +341,11 @@ pub fn start_screen_stream(dc: Arc<RTCDataChannel>, max_w: u32, target_fps: u32)
 
     tokio::spawn(async move {
         CAPTURE_ACTIVE.store(true, Ordering::SeqCst);
-        info!(fps, max_w, "desktop screen streaming started (with dirty detection & backpressure)");
+        info!(
+            fps,
+            max_w,
+            "desktop screen streaming started (SCTP MJPEG; ensure an interactive desktop session — lock screen / headless VM may yield black frames)"
+        );
 
         let mut interval = tokio::time::interval(frame_interval);
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
@@ -386,7 +392,15 @@ pub fn start_screen_stream(dc: Arc<RTCDataChannel>, max_w: u32, target_fps: u32)
                     prev_hash = Some(new_hash);
                 }
                 Ok(Err(e)) => {
-                    debug!("screen capture error: {e}");
+                    let n = CAPTURE_FAIL_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
+                    if n >= 5 && !CAPTURE_FAIL_WARNED.swap(true, Ordering::Relaxed) {
+                        warn!(
+                            failures = n,
+                            "screen capture failing repeatedly: {e} — check VM is logged in, desktop visible, and not on lock screen"
+                        );
+                    } else {
+                        debug!("screen capture error: {e}");
+                    }
                 }
                 Err(e) => {
                     error!("spawn_blocking capture error: {e}");

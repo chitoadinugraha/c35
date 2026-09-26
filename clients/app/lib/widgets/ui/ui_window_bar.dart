@@ -2,6 +2,7 @@ import 'package:alienai_c35/c/conn/server_host.dart';
 import 'package:alienai_c35/c/nav.dart';
 import 'package:alienai_c35/c/parts/version_label.dart';
 import 'package:alienai_c35/c/session.dart';
+import 'package:alienai_c35/widgets/ui/ui_menu_position.dart';
 import 'package:alienai_c35/widgets/ui/ui_update_banner.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -166,15 +167,13 @@ class _UiWindowBarState extends State<UiWindowBar> with WindowListener {
     if (closedAt != null && DateTime.now().difference(closedAt) < const Duration(milliseconds: 250)) return;
     final box = _titleKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null || !box.hasSize) return;
-    final origin = box.localToGlobal(Offset.zero);
-    final top = origin.dy + box.size.height - 8;
     _menuOpen = true;
     try {
       final selected = await showMenu<String>(
         context: navCtx,
         color: const Color(0xFF18181B),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: const BorderSide(color: Color(0xFF27272A))),
-        position: RelativeRect.fromLTRB(origin.dx, top, origin.dx + box.size.width, top),
+        position: uiMenuPositionBelow(navCtx, box, gap: -8),
         items: serverHostOptions
             .map((o) => PopupMenuItem(
                   value: o,

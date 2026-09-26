@@ -1,0 +1,32 @@
+---
+description: Cluster arm64 images — buildkit only, never local Docker
+alwaysApply: true
+---
+
+# Cluster Buildkit (arm64) — no local Docker
+
+**btm.alienai.id (k3s-btm) runs linux/arm64.** Container images for that cluster must be built on **cluster Buildkit**, not with local `docker build`.
+
+## Hard rule (agents)
+
+- **Never** run `docker build --platform linux/arm64` (or `-LocalBuild` on publish scripts) to ship c35 cluster images.
+- **Never** suggest local Docker as a workaround when Buildkit fails — fix Buildkit (disk, OOM, OCIR secret in cluster) or retry; use `cleanup_buildkit.ps1` if cache is full.
+- **Always** use the publish scripts **without** `-LocalBuild`:
+
+```powershell
+.\_\scripts\deploy\publish_server.ps1
+.\_\scripts\deploy\publish_fetcher.ps1
+.\_\scripts\deploy\publish_node_stats.ps1
+.\_\scripts\deploy\publish_channel_whatsapp_device.ps1
+```
+
+Build path: `Ensure-Buildkit` → `buildctl` on pod in namespace `build` → push `hsg.ocir.io/axr8wqrrukgm/...` → `kubectl rollout`. Shared helpers: [`_/deployments/_lib/publish.ps1`](../../_/deployments/_lib/publish.ps1).
+
+## Allowed local Docker
+
+- **Not** for pushing arm64 cluster releases.
+- Native Windows/macOS **non-container** builds (Rust release agent, Flutter) stay on the dev machine.
+
+## OCIR
+
+Registry credentials belong in cluster/buildkit or `.env.local` for **buildkit push from the publish script** — not ad-hoc local `docker login` for arm64 release builds.

@@ -12,7 +12,7 @@ data:
     listening-port=3479
     listening-ip=0.0.0.0
     relay-ip=0.0.0.0
-    external-ip=129.225.3.111
+    external-ip=168.110.203.3
     realm=alienai.id
     fingerprint
     lt-cred-mech

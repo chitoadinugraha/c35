@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:alienai_c35/c/app_id.dart';
 import 'package:alienai_c35/c/chat/chat_block.dart';
 import 'package:alienai_c35/c/chat/chat_conn.dart';
+import 'package:alienai_c35/c/parts/csai__version.dart';
 import 'package:alienai_c35/c/hint/hint_store.dart';
 import 'package:alienai_c35/c/mention/mention_catalog.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
@@ -1311,6 +1313,8 @@ class ChatStore extends ChangeNotifier {
       final prefs = UserLocalePrefs.instance;
       final locPrefs = UserLocationPrefs.instance;
       final hasLoc = prefs.locationCity.isNotEmpty || prefs.locationRegion.isNotEmpty || prefs.locationCountry.isNotEmpty;
+      final dv = await deviceInstallId();
+      final appBuild = int.tryParse(csaiVersion) ?? 0;
       final init = await conn.sessionInit(
         locale: locale,
         tz: prefs.tz.isNotEmpty ? prefs.tz : UserLocalePrefs.deviceTimezoneDetect(),
@@ -1318,6 +1322,11 @@ class ChatStore extends ChangeNotifier {
         locationRegion: prefs.locationRegion,
         locationCountry: prefs.locationCountry,
         locationSource: locPrefs.sessionSourceForWire(hasLocationFields: hasLoc),
+        dv: dv,
+        clientId: dv,
+        platform: ChatConn.wirePlatform(),
+        appBuild: appBuild,
+        appVersionName: csaiVersionFull,
         includeInbox: true,
         hintsSinceMs: Int64(HintStore.instance.rev),
       );

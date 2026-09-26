@@ -76,7 +76,7 @@ class UiSkillMasterDetailState extends State<UiSkillMasterDetail> {
     if (catalog == null || !mounted) return;
     setState(() => _busy = true);
     try {
-      final skill = await _api.catalogInstall(catalogId: catalog.id.toInt(), scope: widget.scope, deviceIid: widget.deviceIid);
+      final skill = await _api.catalogInstall(catalog, scope: widget.scope, deviceIid: widget.deviceIid);
       setState(() {
         _skills = [skill, ..._skills.where((s) => s.id != skill.id)];
         _selectedId = '${skill.id}';

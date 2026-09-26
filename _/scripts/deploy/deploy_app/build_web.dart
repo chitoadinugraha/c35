@@ -22,18 +22,21 @@ String buildWebRelease({String? serverUrl}) {
   final apiServer = serverUrl?.trim().isNotEmpty == true
       ? serverUrl!.trim()
       : deployEnv('C35_SERVER', 'https://api.alienai.id');
-  _flutterPrepareForBuild(clientApp);
-  stdout.writeln('Building Flutter web (version $version, server $apiServer)...');
-  final proc = Process.runSync(
-    'flutter',
-    ['build', 'web', '--release', '--base-href', '/app/', '--dart-define=C35_SERVER=$apiServer'],
-    workingDirectory: clientApp,
-    runInShell: Platform.isWindows,
-  );
-  stdout.write(proc.stdout);
-  stderr.write(proc.stderr);
-  if (proc.exitCode != 0) throw StateError('flutter build web failed (exit ${proc.exitCode})');
-  if (!Directory(out).existsSync()) throw StateError('Flutter web build missing: $out');
-  stdout.writeln('✓ Flutter web build successful');
-  return out;
+  return deployRunSync('flutter_web', () {
+    _flutterPrepareForBuild(clientApp);
+    stdout.writeln('Building Flutter web (version $version, server $apiServer)...');
+    final proc = Process.runSync(
+      'flutter',
+      ['build', 'web', '--release', '--base-href', '/app/', '--dart-define=C35_SERVER=$apiServer'],
+      workingDirectory: clientApp,
+      runInShell: Platform.isWindows,
+    );
+    stdout.write(proc.stdout);
+    stderr.write(proc.stderr);
+    if (proc.exitCode != 0) throw StateError('flutter build web failed (exit ${proc.exitCode})');
+    if (!Directory(out).existsSync()) throw StateError('Flutter web build missing: $out');
+    deployArtifact('web', dirBytes(out));
+    stdout.writeln('✓ Flutter web build successful');
+    return out;
+  });
 }

@@ -21,7 +21,10 @@ Run from `_/scripts/deploy` after `dart pub get`. Set env vars (see below) or us
 | `play_store_upload_tester.dart` | AAB only | Play internal | **No** | Once |
 | `play_store_upload_prod.dart` | AAB + APK | Play prod + CAS | `android` | Once |
 | `play_store_upload_promote_prod.dart` | AAB (+ APK on full run) | internal → prod | `android` | Once |
+| `play_store_upload_promote_prod.dart --finish-cas-only N` | *(existing APK)* | S3/CAS + `/version` | `android` | Unless skipped |
 | `windows_upload_prod.dart` | Windows ZIP | CAS | `windows` | Once |
+
+**PowerShell:** `.\_\scripts\deploy\publish_app_release.ps1 -AndroidPromote` (same as promote script row).
 
 **Primary command:** `dart run deploy_app/play_store_upload_tester.dart` for internal QA; `dart run deploy_app/deploy_app_release.dart` for coordinated production.
 
@@ -52,7 +55,8 @@ Standalone scripts bump once each. Set `DEPLOY_SKIP_VERSION_BUMP=1` to skip (orc
 
 | Variable | Required | Default / notes |
 |----------|----------|-----------------|
-| `DEPLOY_AUTH_TOKEN` | CAS upload | JWT for `POST /v1/file/upload` (APK, Windows ZIP) |
+| `DEPLOY_AUTH_TOKEN` | CAS upload | JWT for `POST /v1/file/upload` (small blobs; large APKs use S3 — see below) |
+| `CAS_UPLOAD_VIA_S3` | No | `1` (default when APK &gt;512 KiB) uploads to S3 `fs/{hash}` + `ai.file_blob_meta` instead of HTTP `POST /v1/file/upload` (avoids LB timeout on ~100 MiB APKs) |
 | `YB_PASSWORD` | Version publish | Yugabyte password for `ai.config` writes |
 | `YB_HOST` | No | `yb-tservers.yugabyte.svc.cluster.local` |
 | `YB_PORT` | No | `5433` |
@@ -80,6 +84,17 @@ Scripts call `deployLoadEnvLocal()` — values in repo-root `.env.local` apply w
 ```
 
 Re-run before expiry (~30 days) or when uploads return `401`.
+
+Large **Android APK** sideload uploads use **`S3_*`** (same as web/CAS blob path) when `CAS_UPLOAD_VIA_S3=1` or file size &gt;512 KiB. `DEPLOY_AUTH_TOKEN` is not used on that path.
+
+**Recovery:** If Play promote succeeded but CAS/`/version/android` failed, finish without rebuilding:
+
+```powershell
+cd _\scripts\deploy
+dart run deploy_app/play_store_upload_promote_prod.dart --finish-cas-only <versionCode>
+```
+
+Requires the APK still at `clients/app/build/app/outputs/flutter-apk/app-release.apk` for that build (or rebuild APK at the same `versionCode` before running).
 
 Web upload does **not** require `DEPLOY_AUTH_TOKEN` (S3 only). Version publish still requires `YB_PASSWORD`.
 

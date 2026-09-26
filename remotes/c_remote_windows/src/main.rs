@@ -53,9 +53,8 @@ async fn run() -> anyhow::Result<()> {
     c_remote_core::webrtc::set_screenshot_handler(std::sync::Arc::new(|max_w, quality, marker, som| {
         c_remote_windows::screen_capture::capture_screen_jpeg(max_w, quality, marker, som)
     }));
-    c_remote_core::webrtc::set_track_handler(std::sync::Arc::new(|_v_track, _a_track| {
-        info!("WebRTC media tracks (video+audio) connected and ready");
-    }));
+    // SCTP `remote-screen` MJPEG until VP8 encode is implemented (set_webrtc_rtp_media_enabled(true)).
+    c_remote_core::webrtc::set_webrtc_rtp_media_enabled(false);
 
     let base_url = server_url();
     update_check_on_start(&base_url).await;

@@ -2,13 +2,14 @@
 # Usage:
 #   .\_\scripts\deploy\publish_node_stats.ps1
 #   .\_\scripts\deploy\publish_node_stats.ps1 -Tag v0.1.0 -SkipBuild
-#   .\_\scripts\deploy\publish_node_stats.ps1 -LocalBuild
 
 param(
     [string]$Tag = "latest",
     [switch]$SkipBuild,
     [switch]$SkipDeploy,
-    [switch]$SkipCleanup,
+    [switch]$PruneBuildkit,
+    [switch]$StopBuildkit,
+    [switch]$SkipCleanup,  # deprecated: no-op
     [switch]$LocalBuild,
     [string]$Namespace = "c35",
     [string]$EnvFile = "",
@@ -53,40 +54,21 @@ if (-not $RegistryPass) { $RegistryPass = $env:OCIR_PASSWORD }
 if (-not $RegistryPass -and $envMap['OCIR_PASSWORD']) { $RegistryPass = $envMap['OCIR_PASSWORD'] }
 
 Require-Command kubectl
+if ($LocalBuild) { Deny-LocalArmDockerBuild }
 
 Write-Host "========================================"
 Write-Host " publish: c35-node-stats -> $Namespace ($imageRef)"
 Write-Host "========================================"
 
+Start-PublishPerfSession -Kind 'cluster' -Target 'c35-node-stats' -ImageRef $imageRef -Tag $Tag
+
 try {
-    if (-not $SkipCleanup) {
+    if ($PruneBuildkit) {
         & (Join-Path $PSScriptRoot "cleanup_buildkit.ps1")
     }
 
     if (-not $SkipBuild) {
-        if ($LocalBuild) {
-            Require-Command docker
-            if (-not $RegistryPass) { throw "Set -RegistryPass or OCIR_PASSWORD to push $imageRef" }
-            Write-Host "==> docker login hsg.ocir.io"
-            $RegistryPass | docker login hsg.ocir.io -u $RegistryUser --password-stdin
-            if ($LASTEXITCODE -ne 0) { throw "docker login failed" }
-            Write-Host "==> docker build $imageRef ($Platform)"
-            Push-Location $repoRoot
-            try {
-                docker build --platform $Platform -f $dockerfile -t $imageRef -t "${imageRepo}:latest" .
-                if ($LASTEXITCODE -ne 0) { throw "docker build failed" }
-                docker push $imageRef
-                if ($LASTEXITCODE -ne 0) { throw "docker push failed" }
-                if ($Tag -ne "latest") {
-                    docker push "${imageRepo}:latest"
-                    if ($LASTEXITCODE -ne 0) { throw "docker push latest failed" }
-                }
-            } finally {
-                Pop-Location
-            }
-        } else {
-            Publish-C35NodeStatsImage -Tag $Tag -RepoRoot $repoRoot -Platform $Platform
-        }
+        Publish-C35NodeStatsImage -Tag $Tag -RepoRoot $repoRoot -Platform $Platform
     }
 
     if (-not $SkipDeploy) {
@@ -99,9 +81,8 @@ try {
         kubectl get pods -n $Namespace -l app=c35-node-stats
     }
 } finally {
-    if (-not $SkipCleanup) {
-        Stop-Buildkit
-    }
+    if ($StopBuildkit) { Stop-Buildkit }
+    Write-PublishPerfReport -RepoRoot $repoRoot -RegistryUser $RegistryUser -RegistryPass $RegistryPass
 }
 
 Write-Host "==> done: $imageRef"

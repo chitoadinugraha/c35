@@ -1,6 +1,7 @@
 use c35_mod_chat::compose::{
-    compose_force_tool_call,compose_tools_and_inst, tool_mention_eligible};
-use c35_mod_chat::inst_macro::{inst_scopes_channel, inst_scopes_home, InstRow, SCOPE_GLOBAL};
+    compose_force_tool_call, compose_tools_and_inst, tool_mention_eligible, ComposeTurnOpts,
+};
+use c35_mod_chat::inst_macro::{inst_scopes_channel, inst_scopes_home, InstRow, SCOPE_GLOBAL, SCOPE_ROLE_PERSONAL_ASSISTANT};
 use c35_mod_chat::tool_rag::{tool_trim_ranked, ToolCandidate, DEFAULT_TOOL_SIM_GAP, DEFAULT_TOOL_SIM_THRESHOLD, DEFAULT_TOOL_TOP_K};
 use c35_mod_chat::{MentionContext, MentionRow, SiteCapabilityView, SiteContext};
 use c35_mod_chat::tools::{cluster_tools, ToolDef};
@@ -36,13 +37,14 @@ fn compose_with_mention(
         &scopes,
         mention,
         &SiteCapabilityView::empty(),
+        ComposeTurnOpts::default(),
     )
 }
 
 fn inst_core_assistant() -> InstRow {
     InstRow {
         id: "inst.core.assistant".into(),
-        scope: SCOPE_GLOBAL.into(),
+        scope: SCOPE_ROLE_PERSONAL_ASSISTANT.into(),
         kind: "trigger".into(),
         topic_id: "".into(),
         topics: vec![],
@@ -398,12 +400,13 @@ fn compose_scope_filters_personal_assistant_inst() {
         pa_catalog(),
         &[],
         &[],
-        &["general".into()],
+        &["bot".into()],
         "agent",
         &[],
         &channel_scopes,
         &MentionContext::empty(),
         &SiteCapabilityView::empty(),
+        ComposeTurnOpts::default(),
     );
     assert!(!out.matched_ids.contains(&"inst.consumption_add".into()));
     let home_scopes = inst_scopes_home();
@@ -419,8 +422,57 @@ fn compose_scope_filters_personal_assistant_inst() {
         &home_scopes,
         &MentionContext::empty(),
         &SiteCapabilityView::empty(),
+        ComposeTurnOpts::default(),
     );
     assert!(out_home.matched_ids.contains(&"inst.consumption_add".into()));
+}
+
+#[test]
+fn compose_bot_topic_excludes_home_always_tools() {
+    let catalog = cluster_tools();
+    let scopes = inst_scopes_channel();
+    let out = compose_tools_and_inst(
+        &[],
+        "hello",
+        catalog,
+        &[],
+        &[],
+        &["bot".into()],
+        "agent",
+        &[],
+        &scopes,
+        &MentionContext::empty(),
+        &SiteCapabilityView::empty(),
+        ComposeTurnOpts::default(),
+    );
+    assert!(!out.tools.iter().any(|t| t.name == "consumption.add"));
+    assert!(!out.tools.iter().any(|t| t.name == "web.search"));
+}
+
+#[test]
+fn compose_bot_web_search_opt_in() {
+    let catalog = cluster_tools();
+    let scopes = inst_scopes_channel();
+    let signals = vec!["bot:web_search".into()];
+    let out = compose_tools_and_inst(
+        &[],
+        "cuaca hari ini",
+        catalog,
+        &[],
+        &[],
+        &["bot".into()],
+        "agent",
+        &[],
+        &scopes,
+        &MentionContext::empty(),
+        &SiteCapabilityView::empty(),
+        ComposeTurnOpts {
+            extra_signals: &signals,
+            extra_tool_exclude: &[],
+            bot_web_search: true,
+        },
+    );
+    assert!(out.tools.iter().any(|t| t.name == "web.search"));
 }
 
 #[test]
@@ -438,6 +490,7 @@ fn compose_ask_mode_no_write_tools() {
         &scopes,
         &MentionContext::empty(),
         &SiteCapabilityView::empty(),
+        ComposeTurnOpts::default(),
     );
     assert!(out.tools.is_empty());
     assert_eq!(out.trace.rag_skip_reason, "ask_mode");
@@ -471,6 +524,7 @@ fn compose_ask_mode_keeps_readonly_consumption_today() {
         &scopes,
         &MentionContext::empty(),
         &SiteCapabilityView::empty(),
+        ComposeTurnOpts::default(),
     );
     assert!(out.tools.iter().any(|t| t.name == "consumption.today"));
     assert!(!out.tools.iter().any(|t| t.name == "consumption.add"));
@@ -512,6 +566,7 @@ fn compose_research_mention_includes_web_research() {
         &scopes,
         &MentionContext::empty(),
         &SiteCapabilityView::empty(),
+        ComposeTurnOpts::default(),
     );
     assert!(out.tools.iter().any(|t| t.name == "web.research"));
     assert!(out.tools.iter().any(|t| t.name == "web.search"));
@@ -550,17 +605,19 @@ fn inst_referral_list() -> InstRow {
 }
 
 fn referral_catalog() -> Vec<ToolDef> {
+    let mut list = ToolDef::new(
+        "referral.code.list".into(),
+        "List referral and package codes issued by the caller. Examples: daftar referral code, list my referral codes.".into(),
+        json!({}),
+    );
+    list.always = vec!["general".into()];
     vec![
         ToolDef::new(
             "referral.code.put".into(),
             "Create or update a referral signup or package code for the caller. Examples: buat referral code untuk Chito, create referral code named Partner-A.".into(),
             json!({}),
         ),
-        ToolDef::new(
-            "referral.code.list".into(),
-            "List referral and package codes issued by the caller. Examples: daftar referral code, list my referral codes.".into(),
-            json!({}),
-        ),
+        list,
         ToolDef::new(
             "referral.code.delete".into(),
             "Delete a referral or package code owned by the caller.".into(),
@@ -601,7 +658,14 @@ fn compose_referral_list_forces_list_tool() {
 
 #[test]
 fn compose_referral_list_lexical_without_inst() {
-    let out = compose_default(&[], "daftar kode referral saya", referral_catalog(), &[]);
+    let catalog = vec![
+        ToolDef::new(
+            "referral.code.list".into(),
+            "List referral and package codes issued by the caller. Examples: daftar referral code, list my referral codes.".into(),
+            json!({}),
+        ),
+    ];
+    let out = compose_default(&[], "daftar kode referral saya", catalog, &[]);
     assert!(out.tools.iter().any(|t| t.name == "referral.code.list"));
 }
 
@@ -665,6 +729,7 @@ fn compose_requires_kinds_keeps_site_tools_with_site_mention() {
         &scopes,
         &mention,
         &SiteCapabilityView::empty(),
+        ComposeTurnOpts::default(),
     );
     assert!(out.tools.iter().any(|t| t.name == "site.product_put"));
 }
@@ -811,6 +876,7 @@ fn compose_mention_image_high_matched() {
         &inst_scopes_home(),
         &mention,
         &SiteCapabilityView::empty(),
+        ComposeTurnOpts::default(),
     );
     assert!(out.matched_ids.contains(&"inst.mention.image_high".into()));
     assert!(out.tools.iter().any(|t| t.name == "img.generate"));

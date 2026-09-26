@@ -89,6 +89,13 @@ void main() {
     expect(SttService.sanitizeTranscript('[silence]'), '');
     expect(SttService.sanitizeTranscript('(silence)'), '');
     expect(SttService.sanitizeTranscript('   '), '');
+    expect(SttService.sanitizeTranscript('Terima kasih.'), '');
+    expect(SttService.sanitizeTranscript('Terima kasih!'), '');
+    expect(SttService.sanitizeTranscript('Terima kasih banyak...'), '');
+    expect(SttService.sanitizeTranscript('Terima kasih sudah menonton.'), '');
+    expect(SttService.sanitizeTranscript('Terima kasih telah menonton!'), '');
+    expect(SttService.sanitizeTranscript('Sampai jumpa.'), '');
+    expect(SttService.sanitizeTranscript('Thank you.'), '');
     expect(SttService.sanitizeTranscript('Hello world'), 'Hello world');
     expect(SttService.sanitizeTranscript('Halo apa kabar'), 'Halo apa kabar');
   });

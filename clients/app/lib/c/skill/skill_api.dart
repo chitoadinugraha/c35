@@ -22,8 +22,18 @@ class SkillApi {
     return res.catalogs;
   }
 
-  Future<Skill> catalogInstall({required int catalogId, SkillScope scope = SkillScope.SKILL_SCOPE_USER, int deviceIid = 0, int variantId = 0, int releaseId = 0}) async {
-    final res = await conn.skillCatalogInstall(catalogId: catalogId, scope: scope, deviceIid: deviceIid, variantId: variantId, releaseId: releaseId);
+  Future<Skill> catalogInstall(SkillCatalog catalog, {SkillScope scope = SkillScope.SKILL_SCOPE_USER, int deviceIid = 0}) async {
+    final external = catalog.isExternal;
+    final slug = external ? (catalog.externalSlug.isNotEmpty ? catalog.externalSlug : catalog.slug) : '';
+    if (external && slug.isEmpty) throw 'external skill slug required';
+    final res = await conn.skillCatalogInstall(
+      catalogId: external ? 0 : catalog.id.toInt(),
+      scope: scope,
+      deviceIid: deviceIid,
+      externalSource: external ? 'openskill' : '',
+      externalSlug: slug,
+      externalTitle: external ? catalog.title : '',
+    );
     if (!res.hasSkill()) throw 'install failed';
     return res.skill;
   }

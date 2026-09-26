@@ -1,14 +1,7 @@
 import 'package:alienai_c35/c/admin/admin_format.dart';
+import 'package:alienai_c35/widgets/admin/ui_admin_theme.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/material.dart';
-
-const _muted = Color(0xFF71717A);
-const _text = Color(0xFFF4F4F5);
-const _panel = Color(0xFF111114);
-const _border = Color(0xFF27272A);
-const _accent = Color(0xFF34D399);
-const _healthDotOk = Color(0xFF34D399);
-const _healthDotStale = Color(0xFFF87171);
 
 class UiAdminNodeCard extends StatelessWidget {
   const UiAdminNodeCard({
@@ -45,6 +38,14 @@ class UiAdminNodeCard extends StatelessWidget {
     if (ts == null || ts <= 0) return false;
     return DateTime.now().millisecondsSinceEpoch - ts < 60000;
   }
+
+  static const _muted = adminMuted;
+  static const _text = adminText;
+  static const _panel = adminPanel;
+  static const _border = adminBorder;
+  static const _accent = adminAccent;
+  static const _healthDotOk = adminHealthOk;
+  static const _healthDotStale = adminHealthStale;
 
   String get _summary {
     final memPct = adminPct(memUsed, memTotal).round();

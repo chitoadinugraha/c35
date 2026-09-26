@@ -3,7 +3,7 @@ use serde_json::{json, Value};
 use sqlx::PgPool;
 use tokio_util::sync::CancellationToken;
 
-use crate::compose::compose_tools_and_inst_async;
+use crate::compose::{compose_tools_and_inst_async, ComposeTurnOpts};
 use crate::inst_cache::inst_list_cached;
 use crate::inst_macro::inst_scopes_home;
 use crate::log_list::log_list;
@@ -137,7 +137,8 @@ pub async fn mcp_tool_exec(
         "[]",
         req_id,
         http,
-    );
+    )
+    .with_mcp_agent(true);
     let (result, cost) = default_dispatcher()
         .execute(tool_name, args_json.clone(), &ctx)
         .await;
@@ -173,6 +174,7 @@ pub async fn mcp_prompt_compose(pool: &PgPool, owner_iid: i64, text: &str, local
         &inst_scopes,
         &MentionContext::empty(),
         &SiteCapabilityView::empty(),
+        ComposeTurnOpts::default(),
     )
     .await;
     let selected_tools: Vec<String> = composed.tools.iter().map(|t| t.name.clone()).collect();

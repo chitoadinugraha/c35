@@ -8,5 +8,9 @@ blake3 = { workspace = true }
 chrono = { workspace = true }
 c35_proto = { path = "../proto", package = "c35_proto" }
 c35_store = { path = "../store", package = "c35_store" }
+reqwest = { workspace = true }
+serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }
+tracing = { workspace = true }
+urlencoding = { workspace = true }

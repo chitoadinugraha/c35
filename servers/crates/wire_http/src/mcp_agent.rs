@@ -149,6 +149,23 @@ async fn mcp_agent_post(
             }
             mcp_prompt_compose(&st.pool, owner_iid, &body.text, locale).await
         }
+        "device_list" => c35_mod_device::mcp_device_list(&st.pool, owner_iid).await,
+        "client_list" => c35_mod_device::mcp_client_list(&st.pool, owner_iid).await,
+        "device_get" => {
+            let device_iid = body
+                .args_json
+                .get("device_iid")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(0);
+            if device_iid <= 0 {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(json!({ "ok": false, "error": "args_json.device_iid required" })),
+                )
+                    .into_response();
+            }
+            c35_mod_device::mcp_device_get(&st.pool, owner_iid, device_iid).await
+        }
         "prompt_run" => {
             if body.text.is_empty() {
                 return (
@@ -174,7 +191,14 @@ async fn mcp_agent_post(
                 Json(json!({
                     "ok": false,
                     "error": format!("unknown action: {other}"),
-                    "actions": ["tool_exec", "prompt_compose", "prompt_run"],
+                    "actions": [
+                        "tool_exec",
+                        "prompt_compose",
+                        "prompt_run",
+                        "device_list",
+                        "device_get",
+                        "client_list"
+                    ],
                 })),
             )
                 .into_response();

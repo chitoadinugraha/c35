@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:alienai_c35/c/config.dart';
+import 'package:alienai_c35/c/parts/csai__version.dart';
+import 'package:flutter/foundation.dart';
 import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:alienai_c35/c/pb/c35/catalog.pb.dart';
@@ -23,7 +25,6 @@ import 'package:alienai_c35/c/trace/trace_view.dart';
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/store/prompt_run_store.dart';
 import 'package:fixnum/fixnum.dart';
-import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
@@ -84,6 +85,8 @@ class ChatConn {
   var _retryCount = 0;
   var _locale = 'en';
   var _tz = '';
+  var _appBuild = 0;
+  var _appVersionName = '';
   final status = ValueNotifier<ChatConnStatus>(ChatConnStatus.disconnected);
   final _reconnectedCtrl = StreamController<void>.broadcast();
   final _promptPending = <String, StreamController<PromptStreamEvent>>{};
@@ -116,7 +119,7 @@ class ChatConn {
 
   bool get connected => _ch != null;
 
-  String _wsUrl({String locale = 'en', String tz = ''}) {
+  String _wsUrl({String locale = 'en', String tz = '', int appBuild = 0, String appVersionName = ''}) {
     final base = C35Config.authApiBase.replaceAll(RegExp(r'/+$'), '');
     final u = Uri.parse(base);
     final scheme = u.scheme == 'https' ? 'wss' : 'ws';
@@ -130,20 +133,38 @@ class ChatConn {
         'jwt': token,
         if (locale.isNotEmpty) 'locale': locale,
         if (tz.isNotEmpty) 'tz': tz,
+        if (appBuild > 0) 'build': '$appBuild',
+        if (appVersionName.isNotEmpty) 'version_name': appVersionName,
       },
     ).toString();
   }
 
-  Future<void> connect({String locale = 'en', String tz = ''}) async {
+  static int wirePlatform() => switch (defaultTargetPlatform) {
+        TargetPlatform.android => 1,
+        TargetPlatform.iOS => 1,
+        TargetPlatform.macOS => 2,
+        TargetPlatform.windows => 3,
+        TargetPlatform.linux => 3,
+        _ => 4,
+      };
+
+  Future<void> connect({
+    String locale = 'en',
+    String tz = '',
+    int appBuild = 0,
+    String appVersionName = '',
+  }) async {
     _manualDisconnect = false;
     _locale = locale;
     _tz = tz;
+    _appBuild = appBuild > 0 ? appBuild : (int.tryParse(csaiVersion) ?? 0);
+    _appVersionName = appVersionName.isNotEmpty ? appVersionName : csaiVersionFull;
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
     _retryCount = 0;
     status.value = ChatConnStatus.connecting;
     await _tearDownSocket(failPending: true);
-    _attachSocket(locale: locale, tz: tz);
+    _attachSocket(locale: locale, tz: tz, appBuild: appBuild, appVersionName: appVersionName);
   }
 
   Future<void> disconnect() async {
@@ -174,10 +195,17 @@ class ChatConn {
     _rpcPending.clear();
   }
 
-  void _attachSocket({required String locale, String tz = ''}) {
+  void _attachSocket({
+    required String locale,
+    String tz = '',
+    int appBuild = 0,
+    String appVersionName = '',
+  }) {
     final token = Session.instance.token.trim();
     if (token.isEmpty) throw 'not signed in';
-    _ch = WebSocketChannel.connect(Uri.parse(_wsUrl(locale: locale, tz: tz)));
+    _ch = WebSocketChannel.connect(
+      Uri.parse(_wsUrl(locale: locale, tz: tz, appBuild: appBuild, appVersionName: appVersionName)),
+    );
     _sub = _ch!.stream.listen(_onData, onError: _onWsError, onDone: _onWsDone);
   }
 
@@ -210,7 +238,12 @@ class ChatConn {
       try {
         status.value = ChatConnStatus.connecting;
         await _tearDownSocket(failPending: false);
-        _attachSocket(locale: _locale, tz: _tz);
+        _attachSocket(
+          locale: _locale,
+          tz: _tz,
+          appBuild: _appBuild,
+          appVersionName: _appVersionName,
+        );
       } catch (e) {
         lError('chat ws reconnect: $e');
         _scheduleReconnectIfNeeded();
@@ -357,6 +390,8 @@ class ChatConn {
     String dv = '',
     String clientId = '',
     int platform = 0,
+    int appBuild = 0,
+    String appVersionName = '',
     bool includeInbox = true,
     bool includeBilling = false,
     Int64 hintsSinceMs = Int64.ZERO,
@@ -374,6 +409,8 @@ class ChatConn {
             dv: dv,
             clientId: clientId,
             platform: platform,
+            appBuild: Int64(appBuild),
+            appVersionName: appVersionName,
             includeInbox: includeInbox,
             includeBilling: includeBilling,
             hintsSinceMs: hintsSinceMs,
@@ -534,7 +571,17 @@ class ChatConn {
         (_) {},
       );
 
-  Future<ResSkillCatalogInstall> skillCatalogInstall({required int catalogId, SkillScope scope = SkillScope.SKILL_SCOPE_USER, int deviceIid = 0, int variantId = 0, int releaseId = 0}) => _rpc<ResSkillCatalogInstall>(
+  Future<ResSkillCatalogInstall> skillCatalogInstall({
+    required int catalogId,
+    SkillScope scope = SkillScope.SKILL_SCOPE_USER,
+    int deviceIid = 0,
+    int variantId = 0,
+    int releaseId = 0,
+    String externalSource = '',
+    String externalSlug = '',
+    String externalTitle = '',
+  }) =>
+      _rpc<ResSkillCatalogInstall>(
         WsReq(
           skillCatalogInstall: ReqSkillCatalogInstall(
             catalogId: Int64(catalogId),
@@ -542,6 +589,9 @@ class ChatConn {
             releaseId: Int64(releaseId),
             scope: scope,
             deviceIid: Int64(deviceIid),
+            externalSource: externalSource,
+            externalSlug: externalSlug,
+            externalTitle: externalTitle,
           ),
         ),
         (res) => res.skillCatalogInstall,

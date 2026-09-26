@@ -67,6 +67,7 @@ import 'package:alienai_c35/widgets/billing/ui_billing_package_sheet.dart';
 import 'package:alienai_c35/widgets/chat/ui_chat_timeline.dart';
 import 'package:alienai_c35/widgets/ui/ui_account_menu.dart';
 import 'package:alienai_c35/widgets/ui/ui_conn_wifi.dart';
+import 'package:alienai_c35/widgets/ui/ui_safe_area.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:alienai_c35/widgets/ui/ui_user_avatar.dart';
 import 'package:alienai_c35/c/store/canvas_store.dart';
@@ -1105,7 +1106,7 @@ class _PageAIHomeState extends State<PageAIHome> {
     );
     return DecoratedBox(
       decoration: const BoxDecoration(color: _bg, border: Border(bottom: BorderSide(color: _border))),
-      child: wide ? bar : SafeArea(bottom: false, child: bar),
+      child: wide ? bar : uiMobileTopBar(context, bar),
     );
   }
 
@@ -1118,7 +1119,7 @@ class _PageAIHomeState extends State<PageAIHome> {
           _chatHeader(wide: wide),
           Expanded(child: _threadBody()),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            padding: EdgeInsets.fromLTRB(16, 0, 16, uiSafeBottomInset(context, 16)),
             child: InComposer(
               key: ValueKey(_store.activeChatId ?? 'new'),
               controller: _composerCtrl,
@@ -1383,7 +1384,7 @@ class _PageAIHomeState extends State<PageAIHome> {
           ),
         ),
         Positioned(
-          bottom: 12,
+          bottom: uiSafeBottomInset(context, 12),
           right: 20,
           child: ListenableBuilder(
             listenable: Listenable.merge([_timeline.isAtBottom, _timeline.unreadStreamCount]),

@@ -24,7 +24,14 @@ pub use mention_gate::{
     tool_mention_capability_eligible, tool_mention_eligible, tool_mention_kinds_eligible,
 };
 pub use topic::{tool_topic_eligible, topic_resolve};
-pub use tool_select::{compose_force_general_web, tool_turn_eligible, tools_for_turn};
+pub use tool_select::{compose_bot_web_tools_inject, compose_force_bot_web, compose_force_general_web, tool_turn_eligible, tools_for_turn};
+
+#[derive(Clone, Copy, Default)]
+pub struct ComposeTurnOpts<'a> {
+    pub extra_signals: &'a [String],
+    pub extra_tool_exclude: &'a [String],
+    pub bot_web_search: bool,
+}
 
 /// First LLM hop must call a tool when web-search inst matched and web.search is available.
 pub fn compose_force_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> bool {
@@ -153,6 +160,7 @@ fn compose_prepare_scoped(
     scopes: &[String],
     mention: &MentionContext,
     caps: &SiteCapabilityView,
+    opts: ComposeTurnOpts<'_>,
 ) -> Result<ComposePrep, ComposeOutput> {
     let topics: Vec<String> = if active_topics.is_empty() {
         vec![topic_resolve("", mention_ids, mentions)]
@@ -161,7 +169,11 @@ fn compose_prepare_scoped(
     };
     let topic_refs: Vec<&str> = topics.iter().map(|t| t.as_str()).collect();
     let primary_topic = topic_refs.first().map(|t| *t).unwrap_or("general");
-    let empty: [String; 0] = [];
+    let signal_slice: &[String] = if opts.extra_signals.is_empty() {
+        &[]
+    } else {
+        opts.extra_signals
+    };
     let matched = inst_pick(
         inst_rows,
         &InstMatchCtx {
@@ -169,12 +181,17 @@ fn compose_prepare_scoped(
             topic_id: primary_topic,
             text,
             mention_ids,
-            signals: &empty,
+            signals: signal_slice,
         },
     );
     let matched_ids: Vec<String> = matched.iter().map(|r| r.id.clone()).collect();
     let inst_block = inst_matched_prompt(&matched);
-    let (mut force_include, tool_exclude) = inst_tool_directives(&matched);
+    let (mut force_include, mut tool_exclude) = inst_tool_directives(&matched);
+    for t in opts.extra_tool_exclude {
+        if !t.is_empty() && !tool_exclude.iter().any(|x| x == t) {
+            tool_exclude.push(t.to_string());
+        }
+    }
     for t in skill_tools {
         if !t.is_empty() && !force_include.iter().any(|x| x == t) {
             force_include.push(t.clone());
@@ -188,6 +205,9 @@ fn compose_prepare_scoped(
         .filter(|t| !ask_mode || t.readonly)
         .collect();
     compose_force_general_web(&eligible_tools, &topic_refs, &mut force_include);
+    if opts.bot_web_search && primary_topic == "bot" {
+        compose_force_bot_web(&eligible_tools, &mut force_include);
+    }
 
     if ask_mode && eligible_tools.is_empty() {
         return Err(ComposeOutput {
@@ -211,12 +231,15 @@ fn compose_prepare_scoped(
 
     let force = super::tool_rag::canonicalize_tool_ids(&eligible_tools, &force_include);
     let exclude = super::tool_rag::canonicalize_tool_ids(&eligible_tools, &tool_exclude);
-    let eligible: Vec<ToolDef> = eligible_tools
+    let mut eligible: Vec<ToolDef> = eligible_tools
         .iter()
         .filter(|t| !exclude.iter().any(|x| x == &t.name))
         .filter(|t| tool_turn_eligible(t, &topic_refs))
         .cloned()
         .collect();
+    if opts.bot_web_search && primary_topic == "bot" {
+        compose_bot_web_tools_inject(&eligible_tools, &mut eligible, &exclude);
+    }
     let force: Vec<String> = force.into_iter().filter(|id| eligible.iter().any(|t| &t.name == id)).collect();
     let rag_skipped = eligible.len() <= TOOL_RAG_MIN;
 
@@ -291,6 +314,7 @@ pub async fn compose_tools_and_inst_async(
     scopes: &[String],
     mention: &MentionContext,
     caps: &SiteCapabilityView,
+    opts: ComposeTurnOpts<'_>,
 ) -> ComposeOutput {
     let started = Instant::now();
     let prep = match compose_prepare_scoped(
@@ -305,6 +329,7 @@ pub async fn compose_tools_and_inst_async(
         scopes,
         mention,
         caps,
+        opts,
     ) {
         Ok(p) => p,
         Err(out) => {
@@ -340,6 +365,7 @@ pub fn compose_tools_and_inst(
     scopes: &[String],
     mention: &MentionContext,
     caps: &SiteCapabilityView,
+    opts: ComposeTurnOpts<'_>,
 ) -> ComposeOutput {
     let started = Instant::now();
     let prep = match compose_prepare_scoped(
@@ -354,6 +380,7 @@ pub fn compose_tools_and_inst(
         scopes,
         mention,
         caps,
+        opts,
     ) {
         Ok(p) => p,
         Err(out) => {

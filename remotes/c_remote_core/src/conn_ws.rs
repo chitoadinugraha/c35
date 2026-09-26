@@ -8,6 +8,7 @@ use tracing::{info, warn};
 
 use crate::conn_exit::ConnExit;
 use crate::log_push;
+use crate::version::{AGENT_BUILD, AGENT_VERSION_NAME};
 use crate::webrtc::WebrtcHub;
 
 pub fn is_invalid_session(err: &anyhow::Error) -> bool {
@@ -15,7 +16,7 @@ pub fn is_invalid_session(err: &anyhow::Error) -> bool {
     msg.contains("401") || msg.contains("unauthorized") || msg.contains("invalid session")
 }
 
-pub fn agent_ws_url(server_url: &str, session_key: &str) -> String {
+pub fn agent_ws_url(server_url: &str, session_key: &str, agent_build: i64, version_name: &str) -> String {
     let base = server_url.trim_end_matches('/');
     let ws_base = if base.starts_with("https://") {
         format!("wss://{}", base.trim_start_matches("https://"))
@@ -24,11 +25,19 @@ pub fn agent_ws_url(server_url: &str, session_key: &str) -> String {
     } else {
         format!("wss://{}", base.trim_start_matches('/'))
     };
-    format!(
+    let mut url = format!(
         "{}/v1/agent/ws?session_key={}",
         ws_base,
         urlencoding::encode(session_key)
-    )
+    );
+    if agent_build > 0 {
+        url.push_str(&format!("&build={}", agent_build));
+        if !version_name.is_empty() {
+            url.push_str("&version_name=");
+            url.push_str(&urlencoding::encode(version_name));
+        }
+    }
+    url
 }
 
 pub async fn conn_ws_run(
@@ -36,7 +45,7 @@ pub async fn conn_ws_run(
     session_key: &str,
     device_iid: i64,
 ) -> anyhow::Result<ConnExit> {
-    let url = agent_ws_url(server_url, session_key);
+    let url = agent_ws_url(server_url, session_key, AGENT_BUILD, AGENT_VERSION_NAME);
     info!(device_iid, url = %url, "==> [WS CONNECTING] Opening agent control socket");
 
     let (ws, _) = connect_async(&url).await?;

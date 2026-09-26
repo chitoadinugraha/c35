@@ -92,6 +92,10 @@ message SkillCatalog {
   double price_usd = 13;
   double price_idr = 14;
   string billing_period = 15; // free | one_time | monthly | yearly
+  string source = 16;         // community | openskill | alien
+  string source_url = 17;
+  bool is_external = 18;      // id==0; install via external_slug
+  string external_slug = 19;
 }
 
 // ================================= API
@@ -138,6 +142,9 @@ message ReqSkillCatalogInstall {
   int64 release_id = 3;
   SkillScope scope = 4;
   int64 device_iid = 5;
+  string external_source = 6; // "openskill" when installing external catalog row
+  string external_slug = 7;
+  string external_title = 8;    // display title from marketplace list
 }
 
 message ResSkillCatalogInstall {

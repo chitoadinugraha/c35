@@ -23,7 +23,7 @@ if ($AgentBuild -le 0) {
 }
 if ($AgentBuild -ge $TargetVersion) { throw "AgentBuild must be < TargetVersion ($AgentBuild >= $TargetVersion)" }
 
-$agentExe = Join-Path $repoRoot ".cache\remote-autoupdate-test\v$AgentBuild\c_remote_windows.exe"
+$agentExe = Join-Path $repoRoot ".cache\remote-autoupdate-test\v$AgentBuild\alienai_remote_windows.exe"
 if (-not (Test-Path $agentExe)) {
     & (Join-Path $PSScriptRoot 'ensure_remote_autoupdate_fixture.ps1') -Build $AgentBuild
 }
@@ -67,6 +67,7 @@ while ((Get-Date) -lt $deadline) {
     }
 }
 
+Stop-Process -Name alienai_remote_windows -Force -ErrorAction SilentlyContinue
 Stop-Process -Name c_remote_windows -Force -ErrorAction SilentlyContinue
 
 if (-not $readyOk) {
@@ -90,7 +91,7 @@ if ($logText -notmatch 'AUTO-UPDATE STAGED') {
     Remove-Item -Recurse -Force $sandbox -ErrorAction SilentlyContinue
     throw 'Expected AUTO-UPDATE STAGED in sandbox logs'
 }
-$stagedExe = Join-Path $updatesRoot "$TargetVersion\c_remote_windows.exe"
+$stagedExe = Join-Path $updatesRoot "$TargetVersion\alienai_remote_windows.exe"
 if (-not (Test-Path $stagedExe)) {
     Remove-Item -Recurse -Force $sandbox -ErrorAction SilentlyContinue
     throw "Staged exe missing before apply: $stagedExe"

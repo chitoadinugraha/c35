@@ -18,8 +18,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'cargo build failed' }
     $outDir = Join-Path $repoRoot ".cache\remote-autoupdate-test\v$Build"
     New-Item -ItemType Directory -Force -Path $outDir | Out-Null
-    Copy-Item (Join-Path $repoRoot '.cache\c_remote\release\c_remote_windows.exe') (Join-Path $outDir 'c_remote_windows.exe') -Force
-    Write-Host "==> fixture ready: build $Build at $outDir\c_remote_windows.exe"
+    Copy-Item (Join-Path $repoRoot '.cache\c_remote\release\alienai_remote_windows.exe') (Join-Path $outDir 'alienai_remote_windows.exe') -Force
+    Write-Host "==> fixture ready: build $Build at $outDir\alienai_remote_windows.exe"
     Set-Content $verFile -Value $saved.TrimEnd() -NoNewline
     cargo build --release -p c_remote_windows
     if ($LASTEXITCODE -ne 0) { throw 'cargo restore build failed' }

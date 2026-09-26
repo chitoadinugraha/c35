@@ -433,52 +433,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(11),
-        child: ValueListenableBuilder<RemoteSessionStatus>(
-          valueListenable: sess.status,
-          builder: (context, status, _) {
-            if (status == RemoteSessionStatus.pausedIdle) {
-              return Center(
-                child: Container(
-                  constraints: const BoxConstraints(maxWidth: 380),
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF18181B),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: _border),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.pause_circle_outline_rounded, size: 54, color: _amber),
-                      const SizedBox(height: 14),
-                      const Text(
-                        'Session Paused',
-                        style: TextStyle(color: _zinc100, fontSize: 16, fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Direct connection disconnected after 1 minute of inactivity to save network bandwidth and battery.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: _zinc400, fontSize: 13, height: 1.4),
-                      ),
-                      const SizedBox(height: 18),
-                      FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: _emerald,
-                          foregroundColor: Colors.black,
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                        ),
-                        icon: const Icon(Icons.play_arrow_rounded, size: 20),
-                        label: const Text('Resume Session', style: TextStyle(fontWeight: FontWeight.w600)),
-                        onPressed: _connect,
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }
-
-            return ValueListenableBuilder<bool>(
+        child: ValueListenableBuilder<bool>(
               valueListenable: sess.hasVideoTrack,
               builder: (context, hasVideoTrack, _) => ValueListenableBuilder<RemoteScreenFrame?>(
                 valueListenable: sess.screenFrame,
@@ -558,16 +513,18 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                               },
                               child: MouseRegion(
                                 cursor: controlEnabled ? SystemMouseCursors.precise : SystemMouseCursors.basic,
-                                child: hasVideoTrack
-                                    ? RTCVideoView(
-                                        sess.videoRenderer,
-                                        objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitContain,
-                                      )
-                                    : Image.memory(
-                                        frame!.jpegBytes,
+                                child: frame != null
+                                    ? Image.memory(
+                                        frame.jpegBytes,
                                         gaplessPlayback: true,
                                         fit: BoxFit.contain,
-                                      ),
+                                      )
+                                    : hasVideoTrack
+                                        ? RTCVideoView(
+                                            sess.videoRenderer,
+                                            objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitContain,
+                                          )
+                                        : const SizedBox.shrink(),
                               ),
                             ),
                           );
@@ -577,8 +534,6 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                   );
                 },
               ),
-            );
-          },
         ),
       ),
     );

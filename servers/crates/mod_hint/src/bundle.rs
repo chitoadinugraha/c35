@@ -288,8 +288,9 @@ async fn site_rows(pool: &PgPool, user_iid: i64) -> Result<Vec<SiteRow>> {
         .collect())
 }
 
+/// Match `c35_mod_site::site_capability_enabled` — missing keys default to enabled.
 fn capability_enabled(caps: &serde_json::Value, key: &str) -> bool {
-    caps.get(key).and_then(|v| v.as_bool()).unwrap_or(false)
+    caps.get(key).and_then(|v| v.as_bool()).unwrap_or(true)
 }
 
 fn site_visit_url(alien_id: &str, site_iid: i64) -> String {

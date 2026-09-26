@@ -65,15 +65,17 @@ WindowsBuildResult buildWindowsRelease({String? serverUrl}) {
   stdout.writeln('Building Windows release (version $version, server $apiServer)...');
 
   final clientApp = deployAppDir(root);
-  final flutterProc = Process.runSync(
-    'flutter',
-    ['build', 'windows', '--release', '--dart-define=C35_SERVER=$apiServer'],
-    workingDirectory: clientApp,
-    runInShell: Platform.isWindows,
-  );
-  stdout.write(flutterProc.stdout);
-  stderr.write(flutterProc.stderr);
-  if (flutterProc.exitCode != 0) throw StateError('flutter build windows failed (exit ${flutterProc.exitCode})');
+  deployRunSync('flutter_windows', () {
+    final flutterProc = Process.runSync(
+      'flutter',
+      ['build', 'windows', '--release', '--dart-define=C35_SERVER=$apiServer'],
+      workingDirectory: clientApp,
+      runInShell: Platform.isWindows,
+    );
+    stdout.write(flutterProc.stdout);
+    stderr.write(flutterProc.stderr);
+    if (flutterProc.exitCode != 0) throw StateError('flutter build windows failed (exit ${flutterProc.exitCode})');
+  });
 
   final flutterOut = windowsFlutterReleaseDir(root);
   if (!Directory(flutterOut).existsSync()) throw StateError('Flutter Windows release dir not found: $flutterOut');
@@ -84,9 +86,10 @@ WindowsBuildResult buildWindowsRelease({String? serverUrl}) {
   _copyTree(Directory(flutterOut), bundle);
 
   final zipPath = windowsZipPath(root, version);
-  _writeZip(bundle, zipPath);
+  deployRunSync('windows_zip', () => _writeZip(bundle, zipPath));
   final hash = blake3HexOfFile(zipPath, root: root);
   final size = File(zipPath).lengthSync();
+  deployArtifact('windows_zip', size);
   stdout.writeln('✓ Windows zip ${formatBytes(size)} hash=$hash');
   return WindowsBuildResult(version: version, zipPath: zipPath, hash: hash, size: size);
 }

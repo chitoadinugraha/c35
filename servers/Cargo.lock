@@ -834,8 +834,12 @@ dependencies = [
  "c35_proto",
  "c35_store",
  "chrono",
+ "reqwest",
+ "serde",
  "serde_json",
  "sqlx",
+ "tracing",
+ "urlencoding",
 ]
 
 [[package]]

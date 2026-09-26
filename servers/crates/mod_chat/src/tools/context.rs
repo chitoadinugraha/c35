@@ -23,6 +23,8 @@ pub struct ToolContext {
     pub attachments_json: String,
     pub req_id: String,
     pub http_client: Client,
+    /// Set for `/v1/mcp/agent` tool_exec (skips freemium block on operator device tools).
+    pub mcp_agent: bool,
     title_slot: Option<Arc<Mutex<Option<String>>>>,
 }
 
@@ -60,8 +62,14 @@ impl ToolContext {
             attachments_json: attachments_json.into(),
             req_id: req_id.into(),
             http_client,
+            mcp_agent: false,
             title_slot: None,
         }
+    }
+
+    pub fn with_mcp_agent(mut self, mcp_agent: bool) -> Self {
+        self.mcp_agent = mcp_agent;
+        self
     }
 
     pub fn with_title_slot(mut self, slot: Arc<Mutex<Option<String>>>) -> Self {

@@ -5,15 +5,19 @@ use axum::extract::ws::{Message, WebSocket};
 use c35_ctx::AppState;
 use c35_mod_device::{
     agent_log_put, agent_presence_put, agent_session_resolve, remote_signaling_agent_frame,
-    remote_signaling_agent_register, remote_signaling_agent_unregister,
+    remote_signaling_agent_register, remote_signaling_agent_unregister, AgentVersionReport,
 };
 use futures_util::StreamExt;
 use tokio::sync::mpsc;
 use tracing::{info, warn};
 
-const AGENT_VERSION: &str = "c_remote/0.1";
-
-pub async fn handle(mut socket: WebSocket, state: AppState, session_key: String) {
+pub async fn handle(
+    mut socket: WebSocket,
+    state: AppState,
+    session_key: String,
+    agent_build: i64,
+    agent_version_name: String,
+) {
     let session = match agent_session_resolve(&state.pool, &session_key).await {
         Ok(Some(s)) => s,
         Ok(None) => return,
@@ -30,7 +34,15 @@ pub async fn handle(mut socket: WebSocket, state: AppState, session_key: String)
         "agent ws connected"
     );
 
-    let _ = agent_presence_put(&state.pool, session.device_iid, true, Some(AGENT_VERSION)).await;
+    let version = if agent_build > 0 {
+        Some(AgentVersionReport {
+            build: agent_build,
+            version_name: agent_version_name,
+        })
+    } else {
+        None
+    };
+    let _ = agent_presence_put(&state.pool, session.device_iid, true, version).await;
     let _ = agent_log_put(
         &state.pool,
         state.nats.as_ref(),

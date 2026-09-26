@@ -63,7 +63,12 @@ ORDER BY created_ts DESC LIMIT 20;
 | `prompt_compose` | Inst + tool selection preview + compose trace — default **33000**, **99000** allowed |
 | `prompt_run` | Full prompt turn + inline **trace** — default **33000**, use **99000** for chito data (see `prompt-run-test.md`) |
 | `inst_*` | CRUD on `ai.inst` |
+| `device_list` / `device_get` / `device_log_tail` | Remote presence + agent logs (default **99000**) |
+| `device_screenshot` / `device_command` / `device_input` | Typed device tools (default **99000**) |
+| `device_list_http` / `device_get_http` | Same via `/v1/mcp/agent` without SQL |
 
 Global **`yb`** MCP still useful for ad-hoc SQL and `meta` joins.
+
+**Remote device control:** see `device-control-chito.md` — **99000** only unless user explicitly names another owner.
 
 Prefer **msg id** when you have it (exact). Use **text search** only to discover ids.

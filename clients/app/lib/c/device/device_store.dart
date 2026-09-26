@@ -14,10 +14,11 @@ bool deviceOnlineFromMeta(String metaJson) {
   try {
     final m = jsonDecode(metaJson);
     if (m is! Map) return false;
-    final lastSeen = m['last_seen'] ?? m['last_seen_ms'];
-    if (lastSeen == null) return false;
+    if (m['online'] == false) return false;
+    final lastSeen = m['last_seen_ts_ms'] ?? m['last_seen'] ?? m['last_seen_ms'];
+    if (lastSeen == null) return m['online'] == true;
     final ms = lastSeen is num ? lastSeen.toInt() : int.tryParse('$lastSeen') ?? 0;
-    if (ms <= 0) return false;
+    if (ms <= 0) return m['online'] == true;
     return DateTime.now().millisecondsSinceEpoch - ms < 120000;
   } catch (_) {
     return false;

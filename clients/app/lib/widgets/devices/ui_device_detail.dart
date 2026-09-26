@@ -10,6 +10,7 @@ import 'package:alienai_c35/widgets/devices/ui_device_files.dart';
 import 'package:alienai_c35/widgets/devices/ui_remote_device.dart';
 import 'package:alienai_c35/widgets/skill/ui_skill_master_detail.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
+import 'package:alienai_c35/widgets/ui/ui_safe_area.dart';
 import 'package:alienai_c35/widgets/ui/ui_window_bar.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -189,7 +190,7 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> {
 
   Widget _navBarWrap() {
     final bar = _navBar();
-    if (widget.onBack != null && !uiDesktopWindow) return SafeArea(bottom: false, child: bar);
+    if (widget.onBack != null && !uiDesktopWindow) return uiMobileTopBar(context, bar);
     return bar;
   }
 
@@ -314,7 +315,12 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> {
     if (session.isLinking) {
       return _pillBadge('Connecting…', fg: const Color(0xFFFDE68A), bg: const Color(0xFF422006), border: const Color(0xFFF59E0B));
     }
-    return _pillBadge(clusterOnline ? 'Online' : 'Offline', fg: clusterOnline ? const Color(0xFF86EFAC) : _muted, bg: clusterOnline ? const Color(0xFF14532D) : const Color(0xFF27272A), border: clusterOnline ? const Color(0xFF22C55E) : const Color(0xFF3F3F46));
+    return _pillBadge(
+      clusterOnline ? 'Alien AI Cloud' : 'Cloud offline',
+      fg: clusterOnline ? const Color(0xFF86EFAC) : _muted,
+      bg: clusterOnline ? const Color(0xFF14532D) : const Color(0xFF27272A),
+      border: clusterOnline ? const Color(0xFF22C55E) : const Color(0xFF3F3F46),
+    );
   }
 
   Widget _pillBadge(String label, {required Color fg, required Color bg, required Color border}) => Container(

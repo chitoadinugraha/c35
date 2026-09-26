@@ -130,105 +130,27 @@ class _UiAudioWaveformState extends State<UiAudioWaveform> with SingleTickerProv
                           final isConfirmed = !isInterim && !transcribing;
                           return Container(
                             margin: const EdgeInsets.only(bottom: 6),
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                             decoration: BoxDecoration(
                               color: const Color(0xFF18181B),
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
-                                color: isConfirmed ? const Color(0xFF10B981).withValues(alpha: 0.35) : const Color(0xFF27272A),
+                                color: const Color(0xFF27272A),
                               ),
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Row(
-                                  children: [
-                                    if (isConfirmed) ...[
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF059669).withValues(alpha: 0.2),
-                                          borderRadius: BorderRadius.circular(4),
-                                        ),
-                                        child: const Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(Icons.check_rounded, size: 11, color: Color(0xFF34D399)),
-                                            SizedBox(width: 3),
-                                            Text(
-                                              'Confirmed',
-                                              style: TextStyle(color: Color(0xFF34D399), fontSize: 10, fontWeight: FontWeight.w600),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ] else ...[
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF27272A),
-                                          borderRadius: BorderRadius.circular(4),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Container(
-                                              width: 6,
-                                              height: 6,
-                                              decoration: const BoxDecoration(
-                                                color: Color(0xFF38BDF8),
-                                                shape: BoxShape.circle,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 4),
-                                            const Text(
-                                              'Live Interim',
-                                              style: TextStyle(color: _zinc400, fontSize: 10, fontWeight: FontWeight.w600),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                    const Spacer(),
-                                    if (transcribing) ...[
-                                      const SizedBox(
-                                        width: 11,
-                                        height: 11,
-                                        child: CircularProgressIndicator(strokeWidth: 1.8, color: _zinc400),
-                                      ),
-                                      const SizedBox(width: 5),
-                                      const Text(
-                                        'Finalizing…',
-                                        style: TextStyle(color: _zinc400, fontSize: 11, fontStyle: FontStyle.italic),
-                                      ),
-                                      const SizedBox(width: 6),
-                                    ],
-                                    uiIconButton(
-                                      tooltip: 'Cancel recording',
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                                      icon: const Icon(Icons.close_rounded, size: 15, color: _red),
-                                      onPressed: widget.onCancel,
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  hasText
-                                      ? (isConfirmed ? transcript : '$transcript…')
-                                      : 'Recognizing…',
-                                  maxLines: 4,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: isConfirmed ? _zinc100 : _zinc400,
-                                    fontSize: 13,
-                                    fontStyle: isConfirmed ? FontStyle.normal : FontStyle.italic,
-                                    fontWeight: isConfirmed ? FontWeight.w500 : FontWeight.w400,
-                                    height: 1.35,
-                                  ),
-                                ),
-                              ],
+                            child: Text(
+                              hasText
+                                  ? (isConfirmed ? transcript : '$transcript…')
+                                  : 'composer.listening'.tr(),
+                              maxLines: 4,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: isConfirmed ? _zinc100 : _zinc400,
+                                fontSize: 13.5,
+                                fontStyle: isConfirmed ? FontStyle.normal : FontStyle.italic,
+                                fontWeight: isConfirmed ? FontWeight.w500 : FontWeight.w400,
+                                height: 1.35,
+                              ),
                             ),
                           );
                         },
@@ -471,7 +393,7 @@ class _DecorativeWave extends StatelessWidget {
       );
 }
 
-/// Dynamic scrolling waveform — exponential scaling suppresses static noise.
+/// Dynamic scrolling waveform with perceptual dynamic range and idle breathing.
 class _TelegramWaveformPainter extends CustomPainter {
   _TelegramWaveformPainter({
     required this.samples,
@@ -483,16 +405,16 @@ class _TelegramWaveformPainter extends CustomPainter {
   final double currentAmplitude;
   final double animValue;
 
-  static const double barWidth = 3.0;
+  static const double barWidth = 2.5;
   static const double barGap = 2.0;
-  static const double minBarHeight = 3.0;
-  static const double maxBarHeight = 24.0;
-  static const double noiseFloor = 0.18;
+  static const double minBarHeight = 3.5;
+  static const double maxBarHeight = 22.0;
 
   static double _shapeAmplitude(double amp) {
-    final clamped = amp.clamp(0.0, 1.0);
-    if (clamped < noiseFloor) return 0.0;
-    return pow((clamped - noiseFloor) / (1.0 - noiseFloor), 2.2).toDouble();
+    if (amp < 0.012) return 0.0;
+    // Compress conversational audio levels (0.02 - 0.28) into vibrant, responsive heights
+    final normalized = ((amp - 0.012) / 0.28).clamp(0.0, 1.0);
+    return pow(normalized, 0.55).toDouble();
   }
 
   @override
@@ -516,18 +438,26 @@ class _TelegramWaveformPainter extends CustomPainter {
 
     for (var i = 0; i < maxBars; i++) {
       final amp = _shapeAmplitude(activeSlice[i]);
+      // Idle harmonic wave so silent bars gently breathe instead of looking like dead dots
+      final idleWave = sin((i * 0.35) + (animValue * 2 * pi)) * 0.5 + 0.5;
       final h = amp <= 0
-          ? minBarHeight
+          ? (minBarHeight + idleWave * 1.5)
           : (minBarHeight + (amp * (maxBarHeight - minBarHeight))).clamp(minBarHeight, maxBarHeight);
       final x = i * totalBarStep;
       final top = centerY - (h / 2);
 
+      // Smooth opacity fade on the leftmost edge
       final progressFromLeft = i / maxBars;
-      final alpha = (progressFromLeft < 0.15 ? (progressFromLeft / 0.15) : 1.0).clamp(0.25, 1.0);
+      final alpha = (progressFromLeft < 0.12 ? (progressFromLeft / 0.12) : 1.0).clamp(0.25, 1.0);
 
-      final colorVal = amp <= 0
-          ? const Color(0xFF3F3F46)
-          : Color.lerp(const Color(0xFFA1A1AA), const Color(0xFFF4F4F5), amp)!;
+      final Color colorVal;
+      if (amp <= 0) {
+        colorVal = Color.lerp(const Color(0xFF3F3F46), const Color(0xFF52525B), idleWave)!;
+      } else if (amp > 0.65) {
+        colorVal = Color.lerp(const Color(0xFFF4F4F5), const Color(0xFF34D399), (amp - 0.65) / 0.35)!;
+      } else {
+        colorVal = Color.lerp(const Color(0xFFA1A1AA), const Color(0xFFF4F4F5), amp)!;
+      }
       paint.color = colorVal.withValues(alpha: alpha);
 
       final rect = RRect.fromRectAndRadius(

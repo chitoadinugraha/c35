@@ -70,26 +70,46 @@ String buildAndroidAab({String? serverUrl}) {
   final cores = deployAndroidBuildCores();
   if (cores > 0) stdout.writeln('Android build parallelism: $cores cores (Gradle workers + CMake/Ninja)');
   androidGradleStop(clientApp);
-  final proc = Process.runSync(
-    'flutter',
-    ['build', 'appbundle', '--release', '--dart-define=C35_SERVER=$apiServer'],
-    workingDirectory: clientApp,
-    environment: androidBuildProcessEnvironment(),
-    runInShell: Platform.isWindows,
-  );
-  stdout.write(proc.stdout);
-  stderr.write(proc.stderr);
-  if (proc.exitCode != 0) throw StateError('flutter build appbundle failed (exit ${proc.exitCode})');
-  if (!Directory(buildOutput).existsSync()) {
-    throw StateError('Flutter Android build failed. build/app/outputs/bundle/release directory not found.');
-  }
-  stdout.writeln('✓ Flutter Android AAB build successful');
-  return buildOutput;
+  return deployRunSync('android_aab', () {
+    final proc = Process.runSync(
+      'flutter',
+      ['build', 'appbundle', '--release', '--dart-define=C35_SERVER=$apiServer'],
+      workingDirectory: clientApp,
+      environment: androidBuildProcessEnvironment(),
+      runInShell: Platform.isWindows,
+    );
+    stdout.write(proc.stdout);
+    stderr.write(proc.stderr);
+    if (proc.exitCode != 0) throw StateError('flutter build appbundle failed (exit ${proc.exitCode})');
+    if (!Directory(buildOutput).existsSync()) {
+      throw StateError('Flutter Android build failed. build/app/outputs/bundle/release directory not found.');
+    }
+    for (final ent in Directory(buildOutput).listSync()) {
+      if (ent is File && ent.path.endsWith('.aab')) {
+        deployArtifact('android_aab', ent.lengthSync());
+        break;
+      }
+    }
+    stdout.writeln('✓ Flutter Android AAB build successful');
+    return buildOutput;
+  });
 }
 
 String _androidApiServer(String? serverUrl) => serverUrl?.trim().isNotEmpty == true
     ? serverUrl!.trim()
     : (Platform.environment['C35_SERVER']?.trim().isNotEmpty == true ? Platform.environment['C35_SERVER']!.trim() : 'https://alienai.id');
+
+AndroidApkResult androidApkResultFromExisting({int? version}) {
+  final root = repoRoot();
+  final clientApp = deployAppDir(root);
+  final apkPath = p.join(clientApp, 'build', 'app', 'outputs', 'flutter-apk', 'app-release.apk');
+  if (!File(apkPath).existsSync()) throw StateError('Android APK not found at $apkPath (build apk first)');
+  final v = version ?? int.parse(versionReadPubspec(root).$2.toString());
+  final size = File(apkPath).lengthSync();
+  final hash = blake3HexOfFile(apkPath, root: root);
+  deployArtifact('android_apk', size);
+  return AndroidApkResult(version: v, apkPath: apkPath, hash: hash, size: size);
+}
 
 AndroidApkResult buildAndroidApk({String? serverUrl, bool stampVersion = false}) {
   final root = repoRoot();
@@ -101,19 +121,22 @@ AndroidApkResult buildAndroidApk({String? serverUrl, bool stampVersion = false})
   final cores = deployAndroidBuildCores();
   if (cores > 0) stdout.writeln('Android build parallelism: $cores cores (Gradle workers + CMake/Ninja)');
   androidGradleStop(clientApp);
-  final proc = Process.runSync(
-    'flutter',
-    ['build', 'apk', '--release', '--dart-define=C35_SERVER=$apiServer'],
-    workingDirectory: clientApp,
-    environment: androidBuildProcessEnvironment(),
-    runInShell: Platform.isWindows,
-  );
-  stdout.write(proc.stdout);
-  stderr.write(proc.stderr);
-  if (proc.exitCode != 0) throw StateError('flutter build apk failed (exit ${proc.exitCode})');
-  if (!File(apkPath).existsSync()) throw StateError('Flutter Android APK build failed. app-release.apk not found.');
-  final size = File(apkPath).lengthSync();
-  final hash = blake3HexOfFile(apkPath, root: root);
-  stdout.writeln('✓ Flutter Android APK build successful hash=$hash size=$size');
-  return AndroidApkResult(version: version, apkPath: apkPath, hash: hash, size: size);
+  return deployRunSync('android_apk', () {
+    final proc = Process.runSync(
+      'flutter',
+      ['build', 'apk', '--release', '--dart-define=C35_SERVER=$apiServer'],
+      workingDirectory: clientApp,
+      environment: androidBuildProcessEnvironment(),
+      runInShell: Platform.isWindows,
+    );
+    stdout.write(proc.stdout);
+    stderr.write(proc.stderr);
+    if (proc.exitCode != 0) throw StateError('flutter build apk failed (exit ${proc.exitCode})');
+    if (!File(apkPath).existsSync()) throw StateError('Flutter Android APK build failed. app-release.apk not found.');
+    final size = File(apkPath).lengthSync();
+    final hash = blake3HexOfFile(apkPath, root: root);
+    deployArtifact('android_apk', size);
+    stdout.writeln('✓ Flutter Android APK build successful hash=$hash size=$size');
+    return AndroidApkResult(version: version, apkPath: apkPath, hash: hash, size: size);
+  });
 }

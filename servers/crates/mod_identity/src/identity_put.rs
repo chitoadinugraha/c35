@@ -61,6 +61,12 @@ fn meta_merge(existing: &Value, incoming: &Value) -> Value {
     if out.get("inst_base").is_none() {
         out["inst_base"] = json!("");
     }
+    if out.get("strict_mode").is_none() {
+        out["strict_mode"] = json!(true);
+    }
+    if out.get("web_search").is_none() {
+        out["web_search"] = json!(false);
+    }
     if let Some(in_obj) = incoming.as_object() {
         for (k, v) in in_obj {
             if k == "channels" && v.as_array().is_some_and(|a| a.is_empty()) {

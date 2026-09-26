@@ -309,30 +309,208 @@ async fn ensure_root_google_identity(pool: &sqlx::PgPool, profile: &GoogleProfil
     .bind(meta)
     .execute(pool)
     .await?;
-    if sqlx::query(
-        "SELECT 1 FROM ai.identity_provider WHERE identity_iid = $1 AND kind = 'google' AND LOWER(identifier) = $2 LIMIT 1",
-    )
-    .bind(IID)
-    .bind(&email)
-    .fetch_optional(pool)
-    .await?
-    .is_none()
-    {
-        let prov_id = snowflake_id();
-        sqlx::query(
+    google_provider_attach_if_missing(pool, IID, sub, &email).await?;
+    google_provider_sync_login(pool, IID, sub, &email).await?;
+    let _ = billing_signup_credit(pool, IID, 100.0).await;
+    Ok(())
+}
+
+/// Resolve existing account: Google `sub` first (stable when Gmail changes), then email fallbacks.
+async fn google_login_resolve_iid(pool: &sqlx::PgPool, sub: &str, email: &str) -> Result<Option<i64>, sqlx::Error> {
+    if !sub.is_empty() {
+        if let Some(r) = sqlx::query(
             r#"
-            INSERT INTO ai.identity_provider (id, identity_iid, kind, identifier, is_verified, is_primary, verified_at, meta)
-            VALUES ($1, $2, 'google', $3, true, true, NOW(), $4) ON CONFLICT DO NOTHING
+            SELECT identity_iid FROM ai.identity_provider
+            WHERE kind = 'google' AND deleted_ts IS NULL AND meta->>'google_sub' = $1
+            LIMIT 1
             "#,
         )
-        .bind(prov_id)
-        .bind(IID)
-        .bind(&email)
-        .bind(json!({ "google_sub": sub }))
+        .bind(sub)
+        .fetch_optional(pool)
+        .await?
+        {
+            return Ok(Some(r.get("identity_iid")));
+        }
+    }
+    if !email.is_empty() {
+        if let Some(r) = sqlx::query(
+            r#"
+            SELECT identity_iid FROM ai.identity_provider
+            WHERE kind = 'google' AND deleted_ts IS NULL AND LOWER(identifier) = LOWER($1)
+            LIMIT 1
+            "#,
+        )
+        .bind(email)
+        .fetch_optional(pool)
+        .await?
+        {
+            return Ok(Some(r.get("identity_iid")));
+        }
+        if let Some(r) = sqlx::query(
+            r#"
+            SELECT identity_iid FROM ai.identity_provider
+            WHERE kind = 'email' AND deleted_ts IS NULL AND LOWER(identifier) = LOWER($1)
+            LIMIT 1
+            "#,
+        )
+        .bind(email)
+        .fetch_optional(pool)
+        .await?
+        {
+            return Ok(Some(r.get("identity_iid")));
+        }
+        if let Some(r) = sqlx::query(
+            "SELECT id FROM ai.identity WHERE deleted_ts IS NULL AND LOWER(meta->>'email') = LOWER($1) LIMIT 1",
+        )
+        .bind(email)
+        .fetch_optional(pool)
+        .await?
+        {
+            return Ok(Some(r.get("id")));
+        }
+    }
+    Ok(None)
+}
+
+async fn google_provider_attach_if_missing(
+    pool: &sqlx::PgPool,
+    iid: i64,
+    sub: &str,
+    email: &str,
+) -> Result<(), sqlx::Error> {
+    if sqlx::query(
+        "SELECT 1 FROM ai.identity_provider WHERE identity_iid = $1 AND kind = 'google' AND deleted_ts IS NULL LIMIT 1",
+    )
+    .bind(iid)
+    .fetch_optional(pool)
+    .await?
+    .is_some()
+    {
+        return Ok(());
+    }
+    let prov_id = snowflake_id();
+    let _ = sqlx::query(
+        r#"
+        INSERT INTO ai.identity_provider (id, identity_iid, kind, identifier, is_verified, is_primary, verified_at, meta)
+        VALUES ($1, $2, 'google', $3, true, true, NOW(), $4)
+        ON CONFLICT (kind, identifier) DO NOTHING
+        "#,
+    )
+    .bind(prov_id)
+    .bind(iid)
+    .bind(email)
+    .bind(json!({ "google_sub": sub }))
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+/// Refresh `google_sub` and Gmail identifier after OAuth; skip identifier change if another google row owns that email.
+async fn google_provider_sync_login(
+    pool: &sqlx::PgPool,
+    iid: i64,
+    sub: &str,
+    email: &str,
+) -> Result<(), sqlx::Error> {
+    let sub_meta = json!({ "google_sub": sub });
+    if let Some(r) = sqlx::query(
+        r#"
+        SELECT id, LOWER(identifier) AS ident
+        FROM ai.identity_provider
+        WHERE identity_iid = $1 AND kind = 'google' AND deleted_ts IS NULL
+        LIMIT 1
+        "#,
+    )
+    .bind(iid)
+    .fetch_optional(pool)
+    .await?
+    {
+        let prov_id: i64 = r.get("id");
+        let old_ident: String = r.get("ident");
+        if !email.is_empty() && old_ident != email {
+            let n = sqlx::query(
+                r#"
+                UPDATE ai.identity_provider
+                SET identifier = $1,
+                    meta = COALESCE(meta, '{}'::jsonb) || $2::jsonb,
+                    is_verified = true,
+                    updated_ts = NOW()
+                WHERE id = $3 AND deleted_ts IS NULL
+                  AND NOT EXISTS (
+                    SELECT 1 FROM ai.identity_provider o
+                    WHERE o.kind = 'google' AND o.deleted_ts IS NULL
+                      AND LOWER(o.identifier) = LOWER($1) AND o.id <> $3
+                  )
+                "#,
+            )
+            .bind(email)
+            .bind(&sub_meta)
+            .bind(prov_id)
+            .execute(pool)
+            .await?
+            .rows_affected();
+            if n == 0 {
+                sqlx::query(
+                    r#"
+                    UPDATE ai.identity_provider
+                    SET meta = COALESCE(meta, '{}'::jsonb) || $1::jsonb,
+                        is_verified = true,
+                        updated_ts = NOW()
+                    WHERE id = $2 AND deleted_ts IS NULL
+                    "#,
+                )
+                .bind(&sub_meta)
+                .bind(prov_id)
+                .execute(pool)
+                .await?;
+            }
+        } else {
+            sqlx::query(
+                r#"
+                UPDATE ai.identity_provider
+                SET meta = COALESCE(meta, '{}'::jsonb) || $1::jsonb,
+                    is_verified = true,
+                    updated_ts = NOW()
+                WHERE id = $2 AND deleted_ts IS NULL
+                "#,
+            )
+            .bind(&sub_meta)
+            .bind(prov_id)
+            .execute(pool)
+            .await?;
+        }
+    }
+    if !email.is_empty() {
+        sqlx::query(
+            r#"
+            UPDATE ai.identity
+            SET meta = COALESCE(meta, '{}'::jsonb) || jsonb_build_object('email', $2::text),
+                updated_ts = NOW()
+            WHERE id = $1 AND deleted_ts IS NULL
+            "#,
+        )
+        .bind(iid)
+        .bind(email)
+        .execute(pool)
+        .await?;
+        sqlx::query(
+            r#"
+            UPDATE ai.identity_provider
+            SET identifier = $1, is_verified = true, updated_ts = NOW()
+            WHERE identity_iid = $2 AND kind = 'email' AND deleted_ts IS NULL
+              AND LOWER(identifier) <> LOWER($1)
+              AND NOT EXISTS (
+                SELECT 1 FROM ai.identity_provider o
+                WHERE o.kind = 'email' AND o.deleted_ts IS NULL
+                  AND LOWER(o.identifier) = LOWER($1) AND o.identity_iid <> $2
+              )
+            "#,
+        )
+        .bind(email)
+        .bind(iid)
         .execute(pool)
         .await?;
     }
-    let _ = billing_signup_credit(pool, IID, 100.0).await;
     Ok(())
 }
 
@@ -343,35 +521,9 @@ async fn get_or_create_google_identity(pool: &sqlx::PgPool, profile: &GoogleProf
         ensure_root_google_identity(pool, profile).await?;
         return Ok(99000);
     }
-    if let Some(r) = sqlx::query(
-        "SELECT identity_iid FROM ai.identity_provider WHERE kind = 'google' AND (identifier = $1 OR meta->>'google_sub' = $2) LIMIT 1",
-    )
-    .bind(&email)
-    .bind(sub)
-    .fetch_optional(pool)
-    .await?
-    {
-        return Ok(r.get("identity_iid"));
-    }
-    if let Some(r) = sqlx::query("SELECT id FROM ai.identity WHERE LOWER(meta->>'email') = $1 AND deleted_ts IS NULL LIMIT 1")
-        .bind(&email)
-        .fetch_optional(pool)
-        .await?
-    {
-        let iid: i64 = r.get("id");
-        let prov_id = snowflake_id();
-        let _ = sqlx::query(
-            r#"
-            INSERT INTO ai.identity_provider (id, identity_iid, kind, identifier, is_verified, is_primary, verified_at, meta)
-            VALUES ($1, $2, 'google', $3, true, true, NOW(), $4) ON CONFLICT DO NOTHING
-            "#,
-        )
-        .bind(prov_id)
-        .bind(iid)
-        .bind(&email)
-        .bind(json!({ "google_sub": sub }))
-        .execute(pool)
-        .await;
+    if let Some(iid) = google_login_resolve_iid(pool, sub, &email).await? {
+        google_provider_attach_if_missing(pool, iid, sub, &email).await?;
+        google_provider_sync_login(pool, iid, sub, &email).await?;
         return Ok(iid);
     }
     let iid = snowflake_id();

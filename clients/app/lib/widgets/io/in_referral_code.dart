@@ -20,6 +20,75 @@ bool referralCodeReadyForCheck(String code) {
 
 int referralCodeDisplayMaxLen() => referralCodeNormMaxLen + (referralCodeNormMaxLen ~/ referralCodeGroupLen) - 1;
 
+/// Uppercase grouped code field (same as referral). Caller handles validation / preview.
+class InFormattedReferralCodeField extends StatefulWidget {
+  const InFormattedReferralCodeField({
+    super.key,
+    this.autofocus = false,
+    this.labelText = 'Referral Code',
+    this.onChanged,
+  });
+
+  final bool autofocus;
+  final String labelText;
+  final void Function(String norm)? onChanged;
+
+  @override
+  State<InFormattedReferralCodeField> createState() => InFormattedReferralCodeFieldState();
+}
+
+class InFormattedReferralCodeFieldState extends State<InFormattedReferralCodeField> {
+  late final TextEditingController _codeCtrl = TextEditingController();
+
+  String get codeNorm => referralCodeNorm(_codeCtrl.text);
+
+  void clear() {
+    _codeCtrl.clear();
+    widget.onChanged?.call('');
+    setState(() {});
+  }
+
+  void _onCodeChanged(String raw) {
+    final norm = referralCodeNorm(raw);
+    final formatted = referralCodeFormat(norm);
+    if (_codeCtrl.text != formatted) {
+      _codeCtrl.value = TextEditingValue(
+        text: formatted,
+        selection: TextSelection.collapsed(offset: formatted.length),
+      );
+    }
+    setState(() {});
+    widget.onChanged?.call(norm);
+  }
+
+  @override
+  void dispose() {
+    _codeCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return TextField(
+      controller: _codeCtrl,
+      autofocus: widget.autofocus,
+      decoration: UiInputDecoration.of(
+        context,
+        labelText: widget.labelText,
+        hintText: referralCodeHint,
+        suffixIcon: _codeCtrl.text.isEmpty
+            ? null
+            : uiIconButton(tooltip: 'Clear', onPressed: clear, icon: const Icon(Icons.clear, size: 18)),
+      ),
+      maxLength: referralCodeDisplayMaxLen(),
+      buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
+      style: theme.textTheme.bodyMedium?.copyWith(letterSpacing: 0.8, fontWeight: FontWeight.w500),
+      onChanged: _onCodeChanged,
+    );
+  }
+}
+
 /// Live-validated referral code field with debounce and issuer preview.
 class InReferralCode extends StatefulWidget {
   const InReferralCode({

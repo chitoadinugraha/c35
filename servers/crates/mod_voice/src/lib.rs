@@ -53,7 +53,7 @@ pub async fn voice_stt(
     let mut provider_used = "gemini.stt";
     let text_res = if has_cf_token {
         provider_used = "cloudflare.whisper";
-        stt::cf_whisper_stt(http_client(), audio, mime, lang).await
+        stt::cf_whisper_stt(http_client(), audio, mime, lang, is_interim).await
     } else if has_google_key {
         provider_used = "google.speech";
         stt::google_stt(http_client(), audio, mime, lang).await

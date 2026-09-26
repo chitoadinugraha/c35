@@ -2,18 +2,43 @@ use chrono::Utc;
 use serde_json::{json, Value};
 use sqlx::PgPool;
 
+pub struct AgentVersionReport {
+    pub build: i64,
+    pub version_name: String,
+}
+
 pub async fn agent_presence_put(
     pool: &PgPool,
     device_iid: i64,
     online: bool,
-    agent_version: Option<&str>,
+    version: Option<AgentVersionReport>,
 ) -> Result<(), String> {
     let now = Utc::now().timestamp_millis();
-    let patch = json!({
-        "online": online,
-        "last_seen_ts_ms": now,
-        "agent_version": agent_version,
-    });
+    let patch = if online {
+        let (build, version_name, label) = match version {
+            Some(v) if v.build > 0 => {
+                let label = if v.version_name.is_empty() {
+                    format!("v{}", v.build)
+                } else {
+                    format!("{} (v{})", v.version_name, v.build)
+                };
+                (v.build, v.version_name, label)
+            }
+            _ => (0_i64, String::new(), "unknown".to_string()),
+        };
+        json!({
+            "online": true,
+            "last_seen_ts_ms": now,
+            "agent_build": build,
+            "agent_version_name": version_name,
+            "agent_version": label,
+        })
+    } else {
+        json!({
+            "online": false,
+            "last_seen_ts_ms": now,
+        })
+    };
     sqlx::query(
         r#"
         UPDATE ai.identity

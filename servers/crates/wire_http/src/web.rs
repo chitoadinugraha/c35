@@ -1,14 +1,15 @@
 use std::path::{Path as StdPath, PathBuf};
 use axum::{
     extract::{Path, State},
-    http::{header, HeaderMap, StatusCode},
+    http::{header, HeaderMap, HeaderValue, StatusCode},
     response::{IntoResponse, Redirect, Response},
     routing::get,
     Router,
 };
 use c35_ctx::AppState;
+use c35_mod_file::cas_bytes_get;
 
-use crate::version::{DownloadKind, version_download_resolve};
+use crate::version::{DownloadKind, version_download_blob_resolve, version_download_resolve};
 
 const MSIX_NOT_PUBLISHED: &str = "MSIX not published; use auto-update ZIP";
 
@@ -134,13 +135,41 @@ pub async fn static_get(Path(path): Path<String>) -> Response {
     (StatusCode::NOT_FOUND, "static asset not found").into_response()
 }
 
-async fn download_redirect(st: AppState, platform: &'static str, kind: DownloadKind) -> Response {
-    match version_download_resolve(&st.pool, &st.cas_secret, &st.public_origin, platform, kind).await {
-        Ok(Some(url)) => Redirect::temporary(&url).into_response(),
-        Ok(None) => (StatusCode::NOT_FOUND, "download not found").into_response(),
+fn download_content_disposition(filename: &str) -> HeaderValue {
+    HeaderValue::from_str(&format!("attachment; filename=\"{filename}\""))
+        .unwrap_or_else(|_| HeaderValue::from_static("attachment"))
+}
+
+async fn download_serve(
+    st: AppState,
+    platform: &'static str,
+    kind: DownloadKind,
+    filename: &'static str,
+) -> Response {
+    let hash = match version_download_blob_resolve(&st.pool, platform, kind).await {
+        Ok(Some(h)) => h,
+        Ok(None) => return (StatusCode::NOT_FOUND, "download not found").into_response(),
         Err(e) => {
-            tracing::warn!(error = %e, platform, "download redirect lookup failed");
-            (StatusCode::INTERNAL_SERVER_ERROR, "download lookup failed").into_response()
+            tracing::warn!(error = %e, platform, "download blob lookup failed");
+            return (StatusCode::INTERNAL_SERVER_ERROR, "download lookup failed").into_response();
+        }
+    };
+    match cas_bytes_get(&st.pool, &st.cas_dir, &hash).await {
+        Ok((bytes, mime)) => {
+            let mut headers = HeaderMap::new();
+            if let Ok(v) = HeaderValue::from_str(&mime) {
+                headers.insert(header::CONTENT_TYPE, v);
+            }
+            headers.insert(header::CONTENT_DISPOSITION, download_content_disposition(filename));
+            headers.insert(
+                header::CACHE_CONTROL,
+                HeaderValue::from_static("public, max-age=300"),
+            );
+            (StatusCode::OK, headers, bytes).into_response()
+        }
+        Err(e) => {
+            tracing::warn!(error = %e, platform, hash, "download blob read failed");
+            (StatusCode::NOT_FOUND, "download not found").into_response()
         }
     }
 }
@@ -165,19 +194,36 @@ async fn download_msix_redirect(st: AppState, platform: &'static str) -> Respons
 }
 
 async fn download_app_apk(State(st): State<AppState>) -> Response {
-    download_redirect(st, "android", DownloadKind::Apk).await
+    download_serve(st, "android", DownloadKind::Apk, "alienai.apk").await
 }
 
-async fn download_app_exe(State(st): State<AppState>) -> Response {
-    download_redirect(st, "windows", DownloadKind::WindowsZip).await
+async fn download_app_zip(State(st): State<AppState>) -> Response {
+    download_serve(st, "windows", DownloadKind::WindowsZip, "alienai-app.zip").await
 }
 
 async fn download_app_msi(State(st): State<AppState>) -> Response {
     download_msix_redirect(st, "windows").await
 }
 
-async fn download_agent_exe(State(st): State<AppState>) -> Response {
-    download_redirect(st, "remote-windows", DownloadKind::WindowsZip).await
+async fn download_agent_install(State(st): State<AppState>) -> Response {
+    let has_setup = matches!(
+        version_download_blob_resolve(&st.pool, "remote-windows", DownloadKind::WindowsSetup).await,
+        Ok(Some(_))
+    );
+    if has_setup {
+        return download_serve(
+            st,
+            "remote-windows",
+            DownloadKind::WindowsSetup,
+            "AlienAI_Remote_Windows_Setup.exe",
+        )
+        .await;
+    }
+    download_serve(st, "remote-windows", DownloadKind::WindowsZip, "alienai.zip").await
+}
+
+async fn download_agent_zip(State(st): State<AppState>) -> Response {
+    download_serve(st, "remote-windows", DownloadKind::WindowsZip, "alienai.zip").await
 }
 
 async fn download_agent_msi(State(st): State<AppState>) -> Response {
@@ -209,9 +255,13 @@ pub fn web_router() -> Router<AppState> {
             Redirect::temporary("https://alienai.id/app/")
         }))
         .route("/download/app.apk", get(download_app_apk))
-        .route("/download/app.exe", get(download_app_exe))
+        .route("/download/alienai.apk", get(download_app_apk))
+        .route("/download/app.exe", get(download_app_zip))
+        .route("/download/alienai-app.zip", get(download_app_zip))
         .route("/download/app.msi", get(download_app_msi))
-        .route("/download/agent.exe", get(download_agent_exe))
+        .route("/download/agent.exe", get(download_agent_install))
+        .route("/download/alienai.zip", get(download_agent_zip))
+        .route("/download/agent.zip", get(download_agent_zip))
         .route("/download/agent.msi", get(download_agent_msi))
 }
 

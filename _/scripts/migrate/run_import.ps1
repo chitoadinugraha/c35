@@ -49,6 +49,14 @@ Write-Host '==> import_from_backup.py (yb-all-v2.sql -> c35)'
 python (Join-Path $migrateDir 'import_from_backup.py')
 if ($LASTEXITCODE -ne 0) { throw 'import_from_backup failed' }
 
+Write-Host '==> migrate_csa_passwords.py (CSA pass_hash -> ai.identity_provider)'
+python (Join-Path $migrateDir 'migrate_csa_passwords.py')
+if ($LASTEXITCODE -ne 0) { throw 'migrate_csa_passwords failed' }
+
+Write-Host '==> migrate_csa_google.py (CSA Google -> ai.identity_provider; zero old balances)'
+python (Join-Path $migrateDir 'migrate_csa_google.py')
+if ($LASTEXITCODE -ne 0) { throw 'migrate_csa_google failed' }
+
 if (-not $SkipAvatars) {
     Write-Host '==> migrate_avatars_to_fs.py (http avatars -> CAS)'
     python (Join-Path $migrateDir 'migrate_avatars_to_fs.py')
@@ -70,6 +78,10 @@ cur.execute('SELECT COUNT(*) FROM ai.referral_share')
 print('shares:', cur.fetchone()[0])
 cur.execute('SELECT COUNT(*) FROM ai.file_blob_inline')
 print('blobs:', cur.fetchone()[0])
+cur.execute("SELECT COUNT(*) FROM ai.identity_provider WHERE kind='password' AND deleted_ts IS NULL")
+print('password_providers:', cur.fetchone()[0])
+cur.execute("SELECT COUNT(*) FROM ai.identity_provider WHERE kind='google' AND deleted_ts IS NULL")
+print('google_providers:', cur.fetchone()[0])
 conn.close()
 "@
 

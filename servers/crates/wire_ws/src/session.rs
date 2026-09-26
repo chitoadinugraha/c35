@@ -938,6 +938,12 @@ async fn session_init(
     if req.tz.is_empty() {
         req.tz = q.tz.clone().unwrap_or_else(|| geo_hint.tz.clone());
     }
+    if req.app_build == 0 {
+        req.app_build = q.build.unwrap_or(0);
+    }
+    if req.app_version_name.is_empty() {
+        req.app_version_name = q.version_name.clone().unwrap_or_default();
+    }
     let hints_since_ms = req.hints_since_ms;
     let locale = if req.locale.is_empty() {
         q.locale.as_deref().unwrap_or("en").to_string()

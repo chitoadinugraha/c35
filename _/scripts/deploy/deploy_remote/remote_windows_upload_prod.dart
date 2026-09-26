@@ -55,7 +55,7 @@ Future<void> main(List<String> args) async {
   try {
     deployStart();
     deployLoadEnvLocal();
-    final build = buildRemoteWindowsRelease();
+    final build = await buildRemoteWindowsRelease();
     await uploadAndPublishRemoteRelease(build);
     await _runRemoteReleaseSmoke(build.version);
     await _runProdOtaDryRun(build.version);

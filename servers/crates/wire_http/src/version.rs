@@ -32,6 +32,12 @@ pub struct VersionRes {
     pub apk_size: Option<i64>,
     #[serde(rename = "apkUrl", skip_serializing_if = "Option::is_none")]
     pub apk_url: Option<String>,
+    #[serde(rename = "setupHash", skip_serializing_if = "Option::is_none")]
+    pub setup_hash: Option<String>,
+    #[serde(rename = "setupSize", skip_serializing_if = "Option::is_none")]
+    pub setup_size: Option<i64>,
+    #[serde(rename = "setupUrl", skip_serializing_if = "Option::is_none")]
+    pub setup_url: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -69,6 +75,7 @@ pub fn version_router() -> Router<AppState> {
 pub enum DownloadKind {
     Apk,
     WindowsZip,
+    WindowsSetup,
     WindowsMsix,
 }
 
@@ -76,6 +83,7 @@ pub fn version_download_url(release: &VersionRes, stored: &Value, kind: Download
     match kind {
         DownloadKind::Apk => release.apk_url.clone(),
         DownloadKind::WindowsZip => release.hash.as_deref().map(|_| release.url.clone()),
+        DownloadKind::WindowsSetup => release.setup_url.clone(),
         DownloadKind::WindowsMsix => version_store_msix_url(stored),
     }
 }
@@ -111,6 +119,30 @@ pub async fn version_download_resolve(
         return Ok(None);
     };
     Ok(version_download_url(&release, &stored, kind))
+}
+
+pub fn version_download_blob_hash(release: &VersionRes, kind: DownloadKind) -> Option<String> {
+    match kind {
+        DownloadKind::Apk => release.apk_hash.clone(),
+        DownloadKind::WindowsZip => release.hash.clone(),
+        DownloadKind::WindowsSetup => release.setup_hash.clone(),
+        DownloadKind::WindowsMsix => None,
+    }
+}
+
+pub async fn version_download_blob_resolve(
+    pool: &sqlx::PgPool,
+    platform: &str,
+    kind: DownloadKind,
+) -> Result<Option<String>, sqlx::Error> {
+    let Some(stored) = version_config_get(pool, platform).await? else {
+        return Ok(None);
+    };
+    let Some(release) = version_release_build(&stored, "unused", "https://unused", Duration::from_secs(1))
+    else {
+        return Ok(None);
+    };
+    Ok(version_download_blob_hash(&release, kind))
 }
 
 pub fn version_release_build(stored: &Value, secret: &str, origin: &str, ttl: Duration) -> Option<VersionRes> {
@@ -149,6 +181,15 @@ pub fn version_release_build(stored: &Value, secret: &str, origin: &str, ttl: Du
     let apk_url = apk_hash
         .as_deref()
         .map(|h| format!("{base}{}", cas_sign(secret, h, ttl)));
+    let setup_hash = stored
+        .get("setupHash")
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+        .map(str::to_string);
+    let setup_size = stored.get("setupSize").and_then(json_i64);
+    let setup_url = setup_hash
+        .as_deref()
+        .map(|h| format!("{base}{}", cas_sign(secret, h, ttl)));
     Some(VersionRes {
         version,
         version_name,
@@ -159,6 +200,9 @@ pub fn version_release_build(stored: &Value, secret: &str, origin: &str, ttl: Du
         apk_hash,
         apk_size,
         apk_url,
+        setup_hash,
+        setup_size,
+        setup_url,
     })
 }
 
@@ -292,6 +336,47 @@ mod tests {
         let out = version_release_build(&stored, "dev-cas-hmac", "https://alienai.id", Duration::from_secs(3600)).unwrap();
         assert_eq!(out.apk_hash.as_deref(), Some("abc123"));
         assert!(out.apk_url.as_ref().unwrap().contains("/fs/abc123?"));
+    }
+
+    #[test]
+    fn version_download_blob_hash_from_release() {
+        let release = version_release_build(
+            &json!({ "version": 2, "hash": "winhash", "apkHash": "apkhash", "size": 1 }),
+            "secret",
+            "https://alienai.id",
+            Duration::from_secs(60),
+        )
+        .unwrap();
+        assert_eq!(
+            version_download_blob_hash(&release, DownloadKind::WindowsZip).as_deref(),
+            Some("winhash")
+        );
+        assert_eq!(
+            version_download_blob_hash(&release, DownloadKind::Apk).as_deref(),
+            Some("apkhash")
+        );
+        assert!(version_download_blob_hash(&release, DownloadKind::WindowsMsix).is_none());
+        assert!(version_download_blob_hash(&release, DownloadKind::WindowsSetup).is_none());
+    }
+
+    #[test]
+    fn version_release_build_with_setup_hash() {
+        let stored = json!({
+            "version": 5,
+            "versionName": "1.5.0",
+            "min": 2,
+            "hash": "otahash",
+            "size": 1000,
+            "setupHash": "setuphash",
+            "setupSize": 2000
+        });
+        let out = version_release_build(&stored, "dev-cas-hmac", "https://alienai.id", Duration::from_secs(3600)).unwrap();
+        assert_eq!(out.setup_hash.as_deref(), Some("setuphash"));
+        assert!(out.setup_url.as_ref().unwrap().contains("/fs/setuphash?"));
+        assert_eq!(
+            version_download_blob_hash(&out, DownloadKind::WindowsSetup).as_deref(),
+            Some("setuphash")
+        );
     }
 
     #[test]

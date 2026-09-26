@@ -7,6 +7,16 @@ use tracing::info;
 use super::context::ToolContext;
 use super::definition::{Tool, ToolDefinition};
 
+fn mcp_operator_device_tool(name: &str) -> bool {
+    matches!(
+        name,
+        "device.command"
+            | "device.input"
+            | "device.screenshot"
+            | "computer_use.delegate"
+    )
+}
+
 /// Whether a tool is eligible for the given topic (topics / always filter).
 pub fn tool_topic_eligible(def: &ToolDefinition, topic_id: &str) -> bool {
     if def.always.iter().any(|t| t == "*" || t == topic_id) {
@@ -87,7 +97,9 @@ impl ToolDispatcher {
         };
 
         let def = tool.definition();
+        let mcp_device_exempt = ctx.mcp_agent && mcp_operator_device_tool(&def.name);
         if ctx.owner_iid > 0
+            && !mcp_device_exempt
             && c35_mod_billing::billing_freemium_applies(&ctx.pool, ctx.owner_iid)
                 .await
                 .unwrap_or(false)

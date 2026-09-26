@@ -17,11 +17,17 @@ pub struct WsQuery {
     pub since: Option<i64>,
     pub locale: Option<String>,
     pub tz: Option<String>,
+    #[serde(alias = "v")]
+    pub build: Option<i64>,
+    pub version_name: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct AgentWsQuery {
     pub session_key: String,
+    #[serde(alias = "v")]
+    pub build: Option<i64>,
+    pub version_name: Option<String>,
 }
 
 pub fn router(state: AppState) -> Router {
@@ -49,9 +55,13 @@ async fn agent_ws_handler(
     if session_key.is_empty() {
         return axum::http::StatusCode::UNAUTHORIZED.into_response();
     }
+    let agent_build = q.build.unwrap_or(0);
+    let agent_version_name = q.version_name.clone().unwrap_or_default();
     match agent_session_resolve(&state.pool, &session_key).await {
         Ok(Some(_)) => ws
-            .on_upgrade(move |socket| agent_session::handle(socket, state, session_key))
+            .on_upgrade(move |socket| {
+                agent_session::handle(socket, state, session_key, agent_build, agent_version_name)
+            })
             .into_response(),
         Ok(None) => axum::http::StatusCode::UNAUTHORIZED.into_response(),
         Err(_) => axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response(),

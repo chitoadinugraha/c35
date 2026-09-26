@@ -58,8 +58,6 @@ spec:
               value: "alienai.id,www.alienai.id,site.alienai.id"
             - name: C35_DOMAIN_CNAME_TARGET
               value: "site.alienai.id"
-            - name: C35_TLS_SYNC_ENABLED
-              value: "1"
             - name: YB_DATABASE
               value: c35
             - name: YB_HOST

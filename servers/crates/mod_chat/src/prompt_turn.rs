@@ -9,7 +9,7 @@ use sqlx::types::Json;
 use sqlx::PgPool;
 use tokio_util::sync::CancellationToken;
 
-use crate::compose::{compose_force_tool_call, compose_tools_and_inst_async};
+use crate::compose::{compose_force_tool_call, compose_tools_and_inst_async, ComposeTurnOpts};
 use crate::prompt_run::prompt_run_get;
 use crate::mention_registry::{
     mention_active_topics, mention_prompt_block, mention_ref_parse, mention_resolve_all, MentionRef,
@@ -315,6 +315,7 @@ where
         &inst_scopes,
         &mention_ctx,
         &caps,
+        ComposeTurnOpts::default(),
     )
     .await;
     let site_iid = mention_ctx.default_site_iid;

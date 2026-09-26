@@ -10,6 +10,7 @@ import 'package:alienai_c35/widgets/referral/ui_referral_code_list.dart';
 import 'package:alienai_c35/widgets/referral/ui_referral_user_profile_dialog.dart';
 import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:alienai_c35/widgets/ui/ui_page.dart';
+import 'package:alienai_c35/widgets/ui/ui_safe_area.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/material.dart';
@@ -390,7 +391,7 @@ class _PageReferralTreeState extends State<PageReferralTree> {
                 onNodeTap: _openProfile,
               ),
               Positioned(
-                bottom: 24,
+                bottom: uiSafeBottomInset(context, 24),
                 right: 24,
                 child: Material(
                   color: const Color(0xFF18181B).withValues(alpha: 0.94),

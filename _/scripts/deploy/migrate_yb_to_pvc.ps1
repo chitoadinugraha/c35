@@ -2,7 +2,7 @@
 $ErrorActionPreference = 'Stop'
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 $YbDir = Join-Path $RepoRoot '_\deployments\yugabyte'
-$Node = '10.0.91.240'
+$Node = '10.0.85.142'
 
 function Wait-YbPodsGone {
     kubectl wait -n yugabyte --for=delete pod/yb-tserver-0 --timeout=300s 2>$null

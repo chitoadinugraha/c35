@@ -180,6 +180,9 @@ CREATE TABLE IF NOT EXISTS ai.identity_client (
     label_auto      TEXT NOT NULL DEFAULT '',
     os_name         TEXT NOT NULL DEFAULT '',
     session_hash    VARCHAR(64) NOT NULL DEFAULT '',
+    app_build       BIGINT NOT NULL DEFAULT 0,
+    app_version_name TEXT NOT NULL DEFAULT '',
+    last_ws_ts_ms   BIGINT NOT NULL DEFAULT 0,
 
     created_ts      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_ts      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -267,6 +270,37 @@ INSERT INTO ai.identity (
     owner_iid = EXCLUDED.owner_iid,
     locale = EXCLUDED.locale,
     tz = EXCLUDED.tz,
+    meta = EXCLUDED.meta,
+    is_active = EXCLUDED.is_active,
+    updated_ts = NOW(),
+    deleted_ts = NULL;
+
+-- ------------------------------------------------------------------------------
+-- Seed: platform skill catalog author (marketplace seed rows)
+-- Fixed iid 33001 — author_iid FK for ai.skill_catalog
+-- ------------------------------------------------------------------------------
+
+INSERT INTO ai.identity (
+    id, kind, type, alien_id, name, owner_iid, locale, tz, meta, is_active, created_ts, updated_ts
+) VALUES (
+    33001,
+    'bot',
+    'catalog',
+    'skill-catalog',
+    'Alien Skill Catalog',
+    33001,
+    'en_US',
+    'Asia/Jakarta',
+    '{"is_platform_catalog":true}'::jsonb,
+    TRUE,
+    NOW(),
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    kind = EXCLUDED.kind,
+    type = EXCLUDED.type,
+    alien_id = EXCLUDED.alien_id,
+    name = EXCLUDED.name,
+    owner_iid = EXCLUDED.owner_iid,
     meta = EXCLUDED.meta,
     is_active = EXCLUDED.is_active,
     updated_ts = NOW(),

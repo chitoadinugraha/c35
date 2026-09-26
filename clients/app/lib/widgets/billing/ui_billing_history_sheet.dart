@@ -8,6 +8,7 @@ import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/billing/ui_billing_topup_dialog.dart';
 import 'package:alienai_c35/widgets/ui/ui_loading.dart';
+import 'package:alienai_c35/widgets/ui/ui_menu_position.dart';
 import 'package:flutter/material.dart';
 
 Future<void> billingHistorySheet(BuildContext context, {required ReferralConn conn}) async {
@@ -124,12 +125,11 @@ class _BillingHistorySheetState extends State<_BillingHistorySheet> {
   Future<void> _showWalletMenu(BuildContext anchorCtx, BillingAccount? billing) async {
     final box = anchorCtx.findRenderObject() as RenderBox?;
     if (box == null) return;
-    final pos = box.localToGlobal(Offset.zero);
     final selected = await showMenu<String>(
       context: context,
       color: _surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: const BorderSide(color: _border)),
-      position: RelativeRect.fromLTRB(pos.dx, pos.dy + box.size.height + 4, pos.dx + box.size.width, 0),
+      position: uiMenuPositionBelow(context, box),
       items: _currencies.map((c) {
         final label = billingWalletBalanceLabel(billing, c);
         final active = c == _currency;

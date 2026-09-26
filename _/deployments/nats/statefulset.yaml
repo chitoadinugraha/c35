@@ -24,7 +24,7 @@ spec:
         app: nats
     spec:
       nodeSelector:
-        kubernetes.io/hostname: 10.0.91.240
+        kubernetes.io/hostname: 10.0.85.142
       securityContext:
         fsGroup: 1000
         runAsNonRoot: true

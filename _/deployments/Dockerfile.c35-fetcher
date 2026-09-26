@@ -2,8 +2,8 @@
 # Build from c35 repo root:
 #   docker build --platform linux/arm64 -f _/deployments/Dockerfile.c35-fetcher -t c35-fetcher .
 
-FROM rust:1.89-bookworm AS chef
-RUN cargo install cargo-chef --locked
+ARG RUST_CHEF_IMAGE=hsg.ocir.io/axr8wqrrukgm/c35-rust-chef:1.89-bookworm
+FROM ${RUST_CHEF_IMAGE} AS chef
 WORKDIR /app
 
 FROM chef AS planner
@@ -18,7 +18,7 @@ RUN chmod +x /usr/local/bin/workspace-stub.sh \
     && workspace-stub.sh server_ai node_stats channel_whatsapp_device
 COPY _/schemas /app/_/schemas
 WORKDIR /app/servers
-RUN cargo chef prepare --recipe-path /tmp/recipe.json -p server_fetcher
+RUN cargo chef prepare --recipe-path /tmp/recipe.json
 
 FROM chef AS rust-build
 WORKDIR /app
@@ -37,7 +37,7 @@ COPY _/schemas /app/_/schemas
 COPY --from=planner /tmp/recipe.json /app/servers/recipe.json
 
 ENV CARGO_TARGET_DIR=/app/target
-ENV CARGO_BUILD_JOBS=2
+ENV CARGO_BUILD_JOBS=4
 ENV CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1
 
 WORKDIR /app/servers

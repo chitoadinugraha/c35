@@ -83,6 +83,18 @@ Use **`owner_iid=33000`** for automated tests; use **99000** only when intention
 - `owner_iid` / `uid` default **33000**; **99000** allowed for chito data tests; server enforces allowlist
 - `prompt_run` returns inline **`trace`** (`ai.log` lines + meta) for the turn `req_id`
 
+### Remote device control (operator consent)
+
+Cursor rule: `.cursor/rules/device-control-chito.mdc`.
+
+| owner_iid | Agent may use `device.*` / computer use? |
+|-----------|------------------------------------------|
+| **99000** | Yes — Chito’s paired remotes when debugging or fixing remote/computer use |
+| **33000** | Yes — tester fixtures only |
+| **Other** | **No** — server returns 403 on `/v1/mcp/agent`; agents must not target other users’ devices unless the user explicitly names another owner in chat |
+
+MCP helpers (see [`plans/2026-09-26-remote-streaming-mcp-debug.md`](plans/2026-09-26-remote-streaming-mcp-debug.md)): `device_list`, `device_get`, `device_log_tail`, `device_screenshot`, `device_command`, `device_input`, `device_list_http`, `device_get_http`. Rebuild: `cd _/mcps/inst && npm run build`.
+
 ---
 
 ## Related identities

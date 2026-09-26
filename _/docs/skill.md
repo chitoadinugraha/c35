@@ -36,8 +36,8 @@ See [`../schemas/skill.sql`](../schemas/skill.sql).
 Proto: [`../schemas/proto/c35/skill.proto`](../schemas/proto/c35/skill.proto)
 
 - `ReqSkillList` / `ReqSkillPut` — CRUD
-- `ReqSkillCatalogList` / `ReqSkillCatalogInstall` — marketplace
-- `ReqSkillCatalogSearch` — fuzzy search by `target_app` + `phrases_json` (Phase 7, before auto-submit)
+- `ReqSkillCatalogList` / `ReqSkillCatalogInstall` — marketplace (Alien `ai.skill_catalog` + optional OpenSkill merge)
+- `ReqSkillCatalogSearch` — ranked search for dispatcher + UI; OpenSkill fallback when internal miss
 
 Sync collection name: `skill` (includes steps inline on full get).
 
@@ -255,11 +255,50 @@ string detected_app_version   = 24;
 
 ---
 
+## Marketplace (Alien catalog)
+
+Server-led registry in `ai.skill_catalog*` (not owner-delta synced). On each `ReqSkillCatalogList`, `mod_skill` runs `skill_catalog_ensure_seed` so published rows exist (platform author identity **`33001`** / `skill-catalog` — FK for `author_iid`).
+
+| Path | Behavior |
+|------|----------|
+| **List** (`q` empty) | Published internal rows only, ordered by `install_count`. |
+| **List** (`q` non-empty) | Internal LIKE match, then **merge** OpenSkill hits until `limit` (dedupe by `slug`). |
+| **Search** (`ReqSkillCatalogSearch`) | Ranked internal query; if `q` set and internal empty → OpenSkill-only; else merge like list. |
+| **Install (internal)** | `catalog_id` + optional variant/release → copy release `body_md` into `ai.skill`. |
+| **Install (external)** | `catalog_id = 0`, `external_source = "openskill"`, `external_slug` set → fetch install text upstream, insert local skill (no `skill_catalog.install_count` bump). |
+
+Wire (`SkillCatalog`): `source`, `source_url`, `is_external`, `external_slug`. External rows use **`id = 0`** on the wire; clients must pass slug fields on install, not catalog id.
+
+Free installs only in v1 (`charge_install` no-op when price is zero). Paid catalog + wallet debit remains deferred.
+
+---
+
+## OpenSkill (OpenAgentSkill)
+
+External agent-skills registry compatible with [OpenAgentSkill](https://www.openagentskill.com) HTTP API. Enabled by default unless explicitly turned off.
+
+| Env | Default | Role |
+|-----|---------|------|
+| `C35_OPENSKILL_ENABLED` | on (`0` / `false` / `no` disables) | Gate search + install fetch |
+| `C35_OPENSKILL_BASE_URL` | `https://www.openagentskill.com` | Registry base URL |
+| `C35_OPENSKILL_LIST_LIMIT` | `15` (clamped 1–30) | Max external rows per merge |
+
+| Upstream | Maps to |
+|----------|---------|
+| `GET {base}/api/agent/skills?q=&limit=` | External `SkillCatalog` list (`source=openskill`, `is_external=true`) |
+| `GET {base}/api/skills/{slug}/install?format=text` | `body_md` on external install |
+
+On upstream failure (timeout, non-2xx, bad JSON), RPCs return **internal results only** — never fail the whole list/search. Connect timeout 4s, request timeout 10s.
+
+Implementation: `servers/crates/mod_skill/src/rpc.rs` (`openskill` submodule).
+
+---
+
 ## UI (Phase 7)
 
 - **Teach mode** on Devices page → Skill tab: record steps → `ReqSkillPut`.
 - **Skill picker** in prompt tools: match `phrases_json`, `url_pattern`, `target_app` against user request.
-- **Catalog browser**: search, install, rate — Phase 7+.
+- **Catalog browser** (Skill marketplace dialog): `ReqSkillCatalogList` search; install via `ReqSkillCatalogInstall` (internal id or OpenSkill slug fields).
 - **`needs_review` banner** on skill row: "Auto-repair paused — this skill needs attention."
 - **"Submitted to catalog"** notification after successful auto-submit.
 
@@ -269,7 +308,6 @@ Skills attach to `ai.task` / `ai.task_run` (see [remote.md](remote.md)). A task 
 
 ## Deferred
 
-- OpenSkill API routing (fall back to external catalog if internal search misses).
 - Cron scheduler worker (`task_trigger.kind=cron`) — table ready; worker is follow-up.
 - Embedding-based phrase matching (v1 uses exact + substring; v2 upgrades to cosine on `ai.embed_cache`).
 - Skill marketplace payments — `price_usd`, `billing_period` columns already in schema.

@@ -90,20 +90,27 @@ pub fn sanitize_transcript(raw: &str) -> String {
     if lower == "[silence]" || lower == "(silence)" || lower == "silence" || lower == "no speech" {
         return String::new();
     }
-    if lower == "thank you."
-        || lower == "thank you"
-        || lower == "thank you!"
-        || lower == "thanks for watching."
-        || lower == "thanks for watching"
-        || lower == "thank you for watching."
-        || lower == "you"
-        || lower == "you."
-        || lower == "bye."
-        || lower == "bye"
+    let stripped = lower.trim_end_matches(|c: char| c == '.' || c == '!' || c == '?' || c == ',' || c == '…').trim();
+    if stripped == "thank you"
+        || stripped == "thanks"
+        || stripped == "thank you very much"
+        || stripped == "thanks for watching"
+        || stripped == "thank you for watching"
+        || stripped == "terima kasih"
+        || stripped == "terima kasih banyak"
+        || stripped == "terima kasih sudah menonton"
+        || stripped == "terima kasih telah menonton"
+        || stripped == "terima kasih sudah menyaksikan"
+        || stripped == "makasih"
+        || stripped == "makasih banyak"
+        || stripped == "sampai jumpa"
+        || stripped == "sampai jumpa lagi"
+        || stripped == "you"
+        || stripped == "bye"
     {
         return String::new();
     }
-    if lower.starts_with("subtitles by") || lower.starts_with("subtitle by") {
+    if stripped.starts_with("subtitles by") || stripped.starts_with("subtitle by") {
         return String::new();
     }
     // If the entire text consists only of digits, colons, hyphens, and whitespace, it's a timestamp marker
@@ -206,6 +213,7 @@ pub async fn cf_whisper_stt(
     audio: &[u8],
     _mime: &str,
     lang: &str,
+    _is_interim: bool,
 ) -> Result<String> {
     let token = std::env::var("CLOUDFLARE_API_TOKEN")
         .or_else(|_| std::env::var("CLOUDFLARE_TOKEN"))
@@ -233,6 +241,7 @@ pub async fn cf_whisper_stt(
         "audio": b64,
         "vad_filter": true,
         "condition_on_previous_text": false,
+        "temperature": 0.0,
     });
     if !iso_lang.is_empty() && iso_lang != "auto" {
         payload["language"] = json!(iso_lang);
@@ -288,6 +297,11 @@ mod tests {
         assert_eq!(sanitize_transcript("00:00"), "");
         assert_eq!(sanitize_transcript("00:00 - 00:05"), "");
         assert_eq!(sanitize_transcript("[silence]"), "");
+        assert_eq!(sanitize_transcript("Terima kasih."), "");
+        assert_eq!(sanitize_transcript("Terima kasih!"), "");
+        assert_eq!(sanitize_transcript("terima kasih sudah menonton."), "");
+        assert_eq!(sanitize_transcript("Sampai jumpa."), "");
+        assert_eq!(sanitize_transcript("Thank you."), "");
         assert_eq!(sanitize_transcript("Halo selamat pagi"), "Halo selamat pagi");
     }
 

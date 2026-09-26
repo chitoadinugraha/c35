@@ -113,7 +113,6 @@ pub fn tool_index_ready() -> bool {
 pub struct ToolFindResult {
     pub ranked: Vec<ToolCandidate>,
     pub best_sim: f32,
-    pub matches_above: usize,
     pub query_cached: bool,
     pub ranker: &'static str,
 }
@@ -128,7 +127,6 @@ pub async fn tool_find_vector(
     let empty = ToolFindResult {
         ranked: vec![],
         best_sim: 0.0,
-        matches_above: 0,
         query_cached: false,
         ranker: "vector",
     };
@@ -155,7 +153,6 @@ pub async fn tool_find_vector(
         eligible.iter().map(|t| t.name.as_str()).collect();
     let mut scored: Vec<ToolCandidate> = Vec::new();
     let mut best_sim = 0.0f32;
-    let mut matches_above = 0usize;
 
     for item in index {
         if !eligible_ids.contains(item.tool_id.as_str()) {
@@ -166,7 +163,6 @@ pub async fn tool_find_vector(
             best_sim = sim;
         }
         if sim > DEFAULT_TOOL_SIM_THRESHOLD {
-            matches_above += 1;
             scored.push(ToolCandidate {
                 tool_id: item.tool_id.clone(),
                 sim,
@@ -194,7 +190,6 @@ pub async fn tool_find_vector(
     ToolFindResult {
         ranked,
         best_sim,
-        matches_above,
         query_cached: embed.cached,
         ranker: "vector",
     }
