@@ -7,6 +7,7 @@ mod billing_freemium;
 mod billing_finance;
 mod billing_followup;
 mod billing_history;
+mod billing_http;
 mod billing_midtrans;
 mod billing_on_demand;
 mod billing_package;
@@ -76,6 +77,7 @@ pub use billing_admin_adjust::{
 pub use billing_receive_account::{receive_account_list, receive_account_put};
 pub use fetch_fx::{fx_change_bps, fx_markup_apply, fx_micro_from_idr, FxRateFetchTask};
 pub use fx_live::{fx_live_idr_per_usd, fx_live_init, fx_live_micro_per_usd, fx_live_rate_id, fx_live_subscribe};
+pub use billing_http::billing_http_client;
 pub use billing_runtime::{billing_runtime_init, midtrans_active_key, midtrans_is_production, midtrans_usd_idr_from_env, BillingRuntime};
 pub use billing_topup::{billing_topup_get, billing_topup_methods, billing_topup_put, billing_topup_settle};
 pub use billing_webhook::billing_webhook_router;

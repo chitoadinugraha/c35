@@ -16,6 +16,28 @@ pub fn platform_proxy_url() -> Option<String> {
     proxy_url_from_keys(&["ALIENAI_PROXY_CF_URL", "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY"])
 }
 
+/// Dedicated egress via GCP (or other) static IP — not Cloudflare WARP.
+pub fn static_proxy_url() -> Option<String> {
+    proxy_url_from_keys(&["ALIENAI_PROXY_STATIC_URL"])
+}
+
+pub fn http_client_static(timeout: Duration) -> Client {
+    let mut builder = Client::builder().timeout(timeout);
+    if let Some(proxy_url) = static_proxy_url() {
+        info!("[egress_http] static-IP egress via proxy: {}", proxy_url);
+        match Proxy::all(&proxy_url) {
+            Ok(mut proxy) => {
+                if let Some(no_proxy) = no_proxy_from_env() {
+                    proxy = proxy.no_proxy(Some(no_proxy));
+                }
+                builder = builder.proxy(proxy);
+            }
+            Err(e) => tracing::warn!("[egress_http] static proxy invalid: {e}"),
+        }
+    }
+    builder.build().unwrap_or_default()
+}
+
 fn no_proxy_from_env() -> Option<reqwest::NoProxy> {
     std::env::var("NO_PROXY")
         .or_else(|_| std::env::var("no_proxy"))

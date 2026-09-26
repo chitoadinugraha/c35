@@ -1,10 +1,14 @@
 # Shared publish helpers for c35-server cluster buildkit builds.
 # Buildkit defaults to replicas=0; call Ensure-Buildkit before use, Stop-Buildkit when done.
 
+. (Join-Path $PSScriptRoot 'publish_perf.ps1')
+
 $script:PublishRegistry = "hsg.ocir.io/axr8wqrrukgm"
 $script:PublishImage = "$script:PublishRegistry/c35-server"
 $script:PublishChannelWhatsappDeviceImage = "$script:PublishRegistry/channel-whatsapp-device"
 $script:PublishNodeStatsImage = "$script:PublishRegistry/c35-node-stats"
+$script:PublishRustChefImage = "$script:PublishRegistry/c35-rust-chef"
+$script:PublishRustChefTagDefault = '1.89-bookworm'
 $script:PublishBuildkitNs = "build"
 $script:PublishBuildkitSvc = "buildkit"
 $script:PublishBuildkitPort = 1234
@@ -13,6 +17,15 @@ $script:PublishBuildkitDir = Join-Path $PSScriptRoot "..\buildkit"
 
 function Require-Command([string]$Name) {
     if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) { throw "Required command not found: $Name" }
+}
+
+function Deny-LocalArmDockerBuild {
+    throw @"
+Local Docker arm64 builds are disabled for c35 cluster images.
+Use cluster Buildkit instead (omit -LocalBuild):
+  .\_\scripts\deploy\publish_server.ps1
+See .cursor/rules/cluster-buildkit.mdc
+"@
 }
 
 function Format-PublishDuration([TimeSpan]$Elapsed) {
@@ -107,8 +120,12 @@ spec:
   holderIdentity: $Holder
   leaseDurationSeconds: 60
 "@
+            $prevApply = $ErrorActionPreference
+            $ErrorActionPreference = 'SilentlyContinue'
             $yaml | kubectl apply -f - 2>$null | Out-Null
-            if ($LASTEXITCODE -eq 0) { return }
+            $ErrorActionPreference = $prevApply
+            $existing = (kubectl get lease $name -n $ns -o jsonpath='{.spec.holderIdentity}' 2>$null)
+            if ($existing -eq $Holder) { return }
         } elseif ($existing -eq $Holder) {
             kubectl patch lease $name -n $ns --type=merge -p "{`"spec`":{`"holderIdentity`":`"$Holder`",`"leaseDurationSeconds`":60}}" 2>$null | Out-Null
             return
@@ -130,10 +147,13 @@ function Release-BuildLease {
     param([string]$Holder)
     $ns = $script:PublishBuildkitNs
     $name = 'c35-build'
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = 'SilentlyContinue'
     $existing = kubectl get lease $name -n $ns -o jsonpath='{.spec.holderIdentity}' 2>$null
     if ($existing -eq $Holder) {
         kubectl delete lease $name -n $ns 2>$null | Out-Null
     }
+    $ErrorActionPreference = $prevEap
 }
 
 function Ensure-Buildkit {
@@ -179,15 +199,22 @@ function Copy-FileToBuildkit {
     if (-not (Test-Path $LocalFile)) { throw "missing local file: $LocalFile" }
     $remoteDir = ($RemoteFile -replace '/[^/]+$', '')
     kubectl exec -n $script:PublishBuildkitNs $Pod -- mkdir -p $remoteDir | Out-Null
+    $local = (Resolve-Path $LocalFile).Path
+    $dir = Split-Path -Parent $local
+    $name = Split-Path -Leaf $local
     $prev = Get-Location
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
     try {
-        Set-Location (Split-Path -Parent (Resolve-Path $LocalFile))
-        $name = Split-Path -Leaf $LocalFile
+        Set-Location $dir
+        kubectl cp -n $script:PublishBuildkitNs "./$name" "${Pod}:${RemoteFile}" 2>&1 | Out-Host
+        if ($LASTEXITCODE -eq 0) { return }
         $stage = "cat > $RemoteFile"
         cmd.exe /c "kubectl exec -n $($script:PublishBuildkitNs) $Pod -i -- sh -c `"$stage`" < `"$name`""
-        if ($LASTEXITCODE -ne 0) { throw "stream $name -> ${Pod}:$RemoteFile failed" }
+        if ($LASTEXITCODE -ne 0) { throw "upload $name -> ${Pod}:$RemoteFile failed" }
     } finally {
         Set-Location $prev
+        $ErrorActionPreference = $prevEap
     }
 }
 
@@ -210,7 +237,8 @@ function Invoke-ClusterBuildkitBuild {
         [string]$ImageRef,
         [string]$Platform = "linux/arm64",
         [string[]]$TarPaths,
-        [string]$DockerfileRel = "_/deployments/Dockerfile"
+        [string]$DockerfileRel = "_/deployments/Dockerfile",
+        [string]$ContextRel = ""
     )
     Require-Command kubectl
     Require-Command tar
@@ -226,19 +254,23 @@ function Invoke-ClusterBuildkitBuild {
     $tarPath = Join-Path $RepoRoot $tarName
     Push-Location $RepoRoot
     try {
-        $excludes = @(
-            '--exclude=.git', '--exclude=.cache', '--exclude=**/.cache',
-            '--exclude=**/.dart_tool', '--exclude=**/.cargo',
-            '--exclude=**/target', '--exclude=**/build',
-            '--exclude=**/node_modules', '--exclude=**/__pycache__',
-            '--exclude=clients/app', '--exclude=remotes'
-        )
+        $tarSw = [System.Diagnostics.Stopwatch]::StartNew()
+        $excludes = Get-PublishTarExcludeArgs
         & tar -cf $tarName @excludes @TarPaths
         if ($LASTEXITCODE -ne 0) { throw "tar context failed" }
-        Write-Host "==> stage context on buildkit pod=$pod ($([math]::Round((Get-Item $tarPath).Length / 1MB, 2)) MB)"
+        $tarSw.Stop()
+        $contextMb = [math]::Round((Get-Item $tarPath).Length / 1MB, 2)
+        Set-PublishPerfMark -Name 'context_tar' -Seconds $tarSw.Elapsed.TotalSeconds -Extra @{ context_mb = $contextMb }
+        Write-Host "==> stage context on buildkit pod=$pod ($contextMb MB)"
+        $uploadSw = [System.Diagnostics.Stopwatch]::StartNew()
         Copy-FileToBuildkit -Pod $pod -LocalFile $tarPath -RemoteFile "$remote/context.tar"
+        $uploadSw.Stop()
+        Set-PublishPerfMark -Name 'context_upload' -Seconds $uploadSw.Elapsed.TotalSeconds
+        $extractSw = [System.Diagnostics.Stopwatch]::StartNew()
         kubectl exec -n $script:PublishBuildkitNs $pod -- sh -c "tar -xf $remote/context.tar -C $remote"
         if ($LASTEXITCODE -ne 0) { throw "extract context tar failed" }
+        $extractSw.Stop()
+        Set-PublishPerfMark -Name 'context_extract' -Seconds $extractSw.Elapsed.TotalSeconds
     } finally {
         Pop-Location
         if (Test-Path $tarPath) { Remove-Item $tarPath -Force }
@@ -248,18 +280,46 @@ function Invoke-ClusterBuildkitBuild {
     $dfName = ($dfRel -split '/')[-1]
     $dfDir = $dfRel -replace '/[^/]+$', ''
     $dockerfileLocal = if ($dfDir) { "$remote/$dfDir" } else { $remote }
+    $ctxRel = ($ContextRel -replace '\\', '/').Trim('/')
+    $contextLocal = if ($ctxRel) { "$remote/$ctxRel" } else { $remote }
+    $buildSw = [System.Diagnostics.Stopwatch]::StartNew()
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
     kubectl exec -n $script:PublishBuildkitNs $pod -- buildctl --addr unix:///run/buildkit/buildkitd.sock build `
         --frontend dockerfile.v0 `
-        --local "context=$remote" `
+        --local "context=$contextLocal" `
         --local "dockerfile=$dockerfileLocal" `
         --opt "filename=$dfName" `
         --opt "platform=$Platform" `
-        --output "type=image,name=$ImageRef,push=true"
-    if ($LASTEXITCODE -ne 0) { throw "buildctl failed" }
+        --output "type=image,name=$ImageRef,push=true" 2>&1 | ForEach-Object { Write-Host $_ }
+    $buildOk = $LASTEXITCODE -eq 0
+    $ErrorActionPreference = $prevEap
+    if (-not $buildOk) { throw "buildctl failed" }
+    $buildSw.Stop()
+    Set-PublishPerfMark -Name 'buildctl' -Seconds $buildSw.Elapsed.TotalSeconds
     kubectl exec -n $script:PublishBuildkitNs $pod -- rm -rf $remote | Out-Null
     } finally {
         Release-BuildLease -Holder $holder
     }
+}
+
+function Publish-C35RustChefImage {
+    param(
+        [string]$Tag = $script:PublishRustChefTagDefault,
+        [string]$RepoRoot,
+        [string]$Platform = 'linux/arm64'
+    )
+    $imageRef = "$($script:PublishRustChefImage):$Tag"
+    $dir = (Resolve-Path $RepoRoot).Path
+    Show-PublishDiskStatus -Label 'disk before build (c35-rust-chef)'
+    Write-Host "==> build $imageRef via cluster buildkit ($Platform)"
+    $buildSw = [System.Diagnostics.Stopwatch]::StartNew()
+    $tarPaths = @('_/deployments/Dockerfile.c35-rust-chef')
+    Invoke-ClusterBuildkitBuild -RepoRoot $dir -ImageRef $imageRef -Platform $Platform -TarPaths $tarPaths -DockerfileRel '_/deployments/Dockerfile.c35-rust-chef'
+    $buildSw.Stop()
+    Set-PublishPerfMark -Name 'image_build' -Seconds $buildSw.Elapsed.TotalSeconds
+    Write-Host "==> build finished in $(Format-PublishDuration $buildSw.Elapsed)"
+    Show-PublishDiskStatus -Label 'disk after build (c35-rust-chef)'
 }
 
 function Publish-C35ChannelWhatsappDeviceImage {
@@ -283,6 +343,7 @@ function Publish-C35ChannelWhatsappDeviceImage {
     )
     Invoke-ClusterBuildkitBuild -RepoRoot $dir -ImageRef $imageRef -Platform $Platform -TarPaths $tarPaths -DockerfileRel '_/deployments/Dockerfile.channel-whatsapp-device'
     $buildSw.Stop()
+    Set-PublishPerfMark -Name 'image_build' -Seconds $buildSw.Elapsed.TotalSeconds
     Write-Host "==> build finished in $(Format-PublishDuration $buildSw.Elapsed)"
     Show-PublishDiskStatus -Label "disk after build (channel-whatsapp-device)"
 }
@@ -305,6 +366,7 @@ function Publish-C35NodeStatsImage {
     )
     Invoke-ClusterBuildkitBuild -RepoRoot $dir -ImageRef $imageRef -Platform $Platform -TarPaths $tarPaths -DockerfileRel '_/deployments/Dockerfile.c35-node-stats'
     $buildSw.Stop()
+    Set-PublishPerfMark -Name 'image_build' -Seconds $buildSw.Elapsed.TotalSeconds
     Write-Host "==> build finished in $(Format-PublishDuration $buildSw.Elapsed)"
     Show-PublishDiskStatus -Label "disk after build (c35-node-stats)"
 }
@@ -330,8 +392,23 @@ function Publish-C35FetcherImage {
     )
     Invoke-ClusterBuildkitBuild -RepoRoot $dir -ImageRef $imageRef -Platform $Platform -TarPaths $tarPaths -DockerfileRel '_/deployments/Dockerfile.c35-fetcher'
     $buildSw.Stop()
+    Set-PublishPerfMark -Name 'image_build' -Seconds $buildSw.Elapsed.TotalSeconds
     Write-Host "==> build finished in $(Format-PublishDuration $buildSw.Elapsed)"
     Show-PublishDiskStatus -Label "disk after build (c35-fetcher)"
+}
+
+function Publish-GcpStaticEgressImage {
+    param(
+        [string]$Tag = 'latest',
+        [string]$RepoRoot,
+        [string]$Platform = 'linux/amd64'
+    )
+    $imageRef = "hsg.ocir.io/axr8wqrrukgm/c35-static-egress:$Tag"
+    $dir = (Resolve-Path $RepoRoot).Path
+    Write-Host "==> build $imageRef via cluster buildkit ($Platform)"
+    $tarPaths = @('servers/c35-proxy-cf-warp')
+    Invoke-ClusterBuildkitBuild -RepoRoot $dir -ImageRef $imageRef -Platform $Platform -TarPaths $tarPaths `
+        -DockerfileRel 'servers/c35-proxy-cf-warp/Dockerfile' -ContextRel 'servers/c35-proxy-cf-warp'
 }
 
 function Publish-C35ServerImage {
@@ -356,6 +433,7 @@ function Publish-C35ServerImage {
     )
     Invoke-ClusterBuildkitBuild -RepoRoot $dir -ImageRef $imageRef -Platform $Platform -TarPaths $tarPaths
     $buildSw.Stop()
+    Set-PublishPerfMark -Name 'image_build' -Seconds $buildSw.Elapsed.TotalSeconds
     Write-Host "==> build finished in $(Format-PublishDuration $buildSw.Elapsed)"
     Show-PublishDiskStatus -Label "disk after build"
 }
@@ -369,5 +447,6 @@ function Publish-Rollout {
     kubectl rollout status "deployment/$Deployment" -n $Namespace --timeout=300s
     if ($LASTEXITCODE -ne 0) { throw "rollout failed: deployment/$Deployment" }
     $deploySw.Stop()
+    Set-PublishPerfMark -Name 'rollout' -Seconds $deploySw.Elapsed.TotalSeconds
     Write-Host "==> rollout finished in $(Format-PublishDuration $deploySw.Elapsed)"
 }

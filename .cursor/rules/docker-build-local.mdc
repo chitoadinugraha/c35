@@ -1,0 +1,30 @@
+---
+description: Build amd64 images locally for GCP VMs — never docker build on c-personal
+alwaysApply: true
+---
+
+# Docker builds (GCP amd64 local; cluster arm64 via buildkit)
+
+## Hard rules
+
+1. **Never** `docker build`, `docker compose build`, `cargo build` for container images, or `scp` source to compile on **GCP legacy VMs** (`c-personal` / `35.212.234.193`). Runtime only: `docker pull`, `docker run`, firewall, tailscale.
+2. **btm OKE (arm64)** — cluster images via **buildkit** only. See `cluster-buildkit.mdc`. No local `docker build` for arm64 releases.
+3. **GCP static egress** (`c35-static-egress`) — **`linux/amd64` only**, built **locally** with buildx, pushed to OCIR, then pulled on GCP.
+
+## GCP static egress (amd64)
+
+```powershell
+.\_\scripts\deploy\publish_gcp_static_egress.ps1
+```
+
+Image: `hsg.ocir.io/axr8wqrrukgm/c35-static-egress:latest` (CONNECT proxy; same crate as `c35-proxy-cf-warp`, no WARP sidecar on GCP).
+
+Runbook: [`_/deployments/gcp-static-egress/README.md`](../../_/deployments/gcp-static-egress/README.md)
+
+## Summary
+
+| Artifact | Platform | Build |
+|----------|----------|--------|
+| c35-server, fetcher, channel workers | `linux/arm64` | Cluster buildkit + `publish_*.ps1` |
+| GCP static egress proxy | `linux/amd64` | **Local** `publish_gcp_static_egress.ps1` |
+| c-personal VM | — | **No builds** |
