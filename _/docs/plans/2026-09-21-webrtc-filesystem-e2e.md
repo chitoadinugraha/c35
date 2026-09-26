@@ -1,6 +1,8 @@
 # WebRTC Filesystem — E2E Smoke Test Checklist
 
-> **Parent plan:** [2026-09-21-webrtc-filesystem.md](./2026-09-21-webrtc-filesystem.md) (Track 7)  
+> **Parent plan:** [2026-09-21-webrtc-filesystem.md](./2026-09-21-webrtc-filesystem.md) (Track 7)
+
+**Shipped (2026-09-26):** Files tab is live — real `remote-fs` listing, preview, upload (`fsWrite`), drag-drop, Explorer paste, device copy/paste, transfer progress. Canonical UX: [`ui.md`](../ui.md#files-tab-remote), wire/ops: [`remote.md`](../remote.md#files-tab--browse-copy-stream). Smoke steps below still apply; ignore “mock” / “blocked Track 6” notes unless re-auditing history.  
 > **Spec:** [`_/docs/remote.md`](../../_/docs/remote.md)
 
 Manual end-to-end verification for the app ↔ device WebRTC data plane (Files tab, status dots, TURN relay). Run this after Tracks 0–6 are implemented — see [Implementation gaps](#implementation-gaps-tracks-06) before testing.
@@ -206,9 +208,9 @@ Verify ICE config from server (authenticated WS):
 | Server relay | `remote_signaling_agent_frame` errors in server logs |
 | Build stale | Rebuild agent: `cargo build -p c_remote_windows` |
 
-### Mock data in Files tab
+### Mock data in Files tab (historical)
 
-If the tree shows `C:\Users\CHITO\...` regardless of real disk layout, Track 6 is not complete — `ui_device_files.dart` still uses `_mockRoots()`. Backend may still work; test via logs or wire up UI per Track 6.
+If the tree always showed `C:\Users\CHITO\...` regardless of disk, that was pre–Track 6 mock data. Current builds list real drives via `fsList('')`. If listing fails, check `remote-fs channel state=open` in logs.
 
 ---
 
@@ -223,10 +225,10 @@ File audit before E2E (2026-09-21). Use this to know what should work vs what is
 | **2 — Proto** | Done | `_/schemas/proto/c35/remote.proto`, Dart `remote.pb.dart` | — |
 | **3 — Signaling** | Done | `remote_signaling.rs`, `wire_ws/agent_session.rs`, `session.rs` | — |
 | **4 — Agent WebRTC + fs** | Mostly done | `remotes/c_remote_core/src/webrtc/{mod,session,fs}.rs`, `conn_ws.rs` | Screen capture is **stub** (TODO in `session.rs`); fs list/read/write implemented on agent |
-| **5 — Flutter client** | Mostly done | `remote_session.dart`, `remote_fs_api.dart`, `flutter_webrtc` in `pubspec.yaml` | `RemoteFsApi` has `fsList` / `fsRead` only — **no `fsWrite`** |
-| **6 — UI integration** | **Incomplete** | `ui_device_row.dart` accepts `webrtcConnected` | `page_devices.dart` hardcodes `webrtcConnected: false`; `ui_device_files.dart` uses **mock** data; no Connect button / `RemoteSession` wiring; no Direct/Relay badge in detail header; `ui_remote_device.dart` does not reuse `RemoteSession` |
+| **5 — Flutter client** | Done | `remote_session.dart`, `remote_fs_api.dart`, `remote_fs_transfer.dart` | `fsList` / `fsRead` / `fsWrite`; upload queue + `pasteboard` |
+| **6 — UI integration** | Done | `ui_device_files.dart`, `page_devices.dart`, `ui_device_fs_upload_panel.dart` | Tree-grid, sort, preview, transfers in master column |
 
-**E2E impact:** Tests **0** (cluster dot) and signaling/backend portions of **1** can be validated now. Tests **2–6** require Track 6 (and **4** for file send UI) to pass in the app UI.
+**E2E impact:** Run smoke **§1–5** in the desktop app against a paired Windows agent. **§4** upload: use `+`, drag-drop, or Explorer **Ctrl+C** → Files **Ctrl+V** (Android picker path may differ).
 
 ---
 

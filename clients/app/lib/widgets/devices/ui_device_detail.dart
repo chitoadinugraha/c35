@@ -60,7 +60,18 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> {
     }
     unawaited(
       RemotePrefs.instance.load().then((_) {
-        if (mounted) setState(() => _remoteShowStats = RemotePrefs.instance.showStreamStats);
+        if (mounted) {
+          final modeName = RemotePrefs.instance.interactMode;
+          final mode = RemoteInteractMode.values.firstWhere(
+            (m) => m.name == modeName,
+            orElse: () => RemoteInteractMode.control,
+          );
+          setState(() {
+            _remoteShowStats = RemotePrefs.instance.showStreamStats;
+            _remoteInteractMode = mode;
+          });
+          _session.isControlEnabled.value = mode != RemoteInteractMode.view;
+        }
       }),
     );
   }
@@ -240,6 +251,7 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> {
         onInteractModeChanged: (m) {
           setState(() => _remoteInteractMode = m);
           _session.isControlEnabled.value = m != RemoteInteractMode.view;
+          unawaited(RemotePrefs.instance.setInteractMode(m.name));
         },
         onShowStreamStatsChanged: (v) {
           setState(() => _remoteShowStats = v);

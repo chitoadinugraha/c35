@@ -5,6 +5,7 @@ import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/remote/remote_session.dart';
 import 'package:alienai_c35/widgets/devices/ui_device_add_menu.dart';
 import 'package:alienai_c35/widgets/devices/ui_device_detail.dart';
+import 'package:alienai_c35/widgets/devices/ui_device_fs_upload_panel.dart';
 import 'package:alienai_c35/widgets/devices/ui_device_row.dart';
 import 'package:alienai_c35/widgets/ui/ui_alert.dart';
 import 'package:alienai_c35/widgets/ui/ui_menu_position.dart';
@@ -167,43 +168,59 @@ class _PageDevicesState extends State<PageDevices> {
 
   Widget _masterList() => ListenableBuilder(
         listenable: _store,
-        builder: (context, _) => ColoredBox(
-          color: _masterBg,
-          child: _store.loading
-              ? const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _muted)))
-              : _store.filtered.isEmpty
-                  ? _store.rows.isEmpty ? UiEmptyState.devices() : UiEmptyState.noMatches('devices')
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-                      itemCount: _store.filtered.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 4),
-                      itemBuilder: (context, i) {
-                        final row = _store.filtered[i];
-                        final id = row.identity;
-                        final sid = id.iid.toString();
-                        final deviceIid = id.iid.toInt();
-                        final session = RemoteSession.of(widget.chatConn, deviceIid);
-                        return GestureDetector(
-                          onSecondaryTapDown: (d) => _rowMenu(sid, d.globalPosition),
-                          onLongPress: () => _rowMenu(sid, Offset(MediaQuery.sizeOf(context).width / 2, 200)),
-                          child: ListenableBuilder(
-                            listenable: Listenable.merge([session.connected, session.status]),
-                            builder: (context, _) => UiDeviceRow(
-                              name: id.name.isNotEmpty ? id.name : id.type,
-                              kind: id.kind,
-                              type: id.type,
-                              pinned: row.isPinned,
-                              clusterOnline: deviceClusterOnline(id.metaJson, remoteSessionActive: session.connected.value),
-                              webrtcConnected: session.connected.value,
-                              webrtcConnecting: session.isLinking,
-                              selected: _store.selectedId == sid,
-                              onTap: () => _store.select(sid),
+        builder: (context, _) {
+          final selectedSid = _store.selectedId;
+          RemoteSession? selectedSession;
+          if (selectedSid != null) {
+            final iid = int.tryParse(selectedSid);
+            if (iid != null) selectedSession = RemoteSession.of(widget.chatConn, iid);
+          }
+          return ColoredBox(
+            color: _masterBg,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _store.loading
+                      ? const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _muted)))
+                      : _store.filtered.isEmpty
+                          ? _store.rows.isEmpty ? UiEmptyState.devices() : UiEmptyState.noMatches('devices')
+                          : ListView.separated(
+                              padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+                              itemCount: _store.filtered.length,
+                              separatorBuilder: (_, __) => const SizedBox(height: 4),
+                              itemBuilder: (context, i) {
+                                final row = _store.filtered[i];
+                                final id = row.identity;
+                                final sid = id.iid.toString();
+                                final deviceIid = id.iid.toInt();
+                                final session = RemoteSession.of(widget.chatConn, deviceIid);
+                                return GestureDetector(
+                                  onSecondaryTapDown: (d) => _rowMenu(sid, d.globalPosition),
+                                  onLongPress: () => _rowMenu(sid, Offset(MediaQuery.sizeOf(context).width / 2, 200)),
+                                  child: ListenableBuilder(
+                                    listenable: Listenable.merge([session.connected, session.status]),
+                                    builder: (context, _) => UiDeviceRow(
+                                      name: id.name.isNotEmpty ? id.name : id.type,
+                                      kind: id.kind,
+                                      type: id.type,
+                                      pinned: row.isPinned,
+                                      clusterOnline: deviceClusterOnline(id.metaJson, remoteSessionActive: session.connected.value),
+                                      webrtcConnected: session.connected.value,
+                                      webrtcConnecting: session.isLinking,
+                                      selected: _store.selectedId == sid,
+                                      onTap: () => _store.select(sid),
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
-                          ),
-                        );
-                      },
-                    ),
-        ),
+                ),
+                if (selectedSession != null) UiDeviceFsUploadPanel(session: selectedSession),
+              ],
+            ),
+          );
+        },
       );
 
   Widget _masterBar() {

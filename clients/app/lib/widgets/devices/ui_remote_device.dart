@@ -218,9 +218,41 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
   var _modWinLocked = false;
   String? _error;
   int _heldButtons = 0;
+  int _lastDownButtons = 0;
+  int _maxPointersInGesture = 0;
+  bool _tapClickDispatched = false;
+  var _panZoomActive = false;
+  var _scale = 1.0;
+  var _panOffset = Offset.zero;
+  Offset? _touchStart;
+  var _touchMoved = false;
+  final Map<int, Offset> _activePointers = {};
+  double? _initialPinchDistance;
+  double _initialScaleOnPinch = 1.0;
+  var _physicalCtrlPressed = false;
+  var _physicalAltPressed = false;
+  var _physicalWinPressed = false;
+  Timer? _edgeScrollTimer;
+  Offset _edgeScrollVelocity = Offset.zero;
 
   bool get _controlInputEnabled => widget.interactMode != RemoteInteractMode.view;
   bool get _keyboardInputEnabled => widget.interactMode == RemoteInteractMode.control;
+
+  bool _onHardwareKeyEvent(KeyEvent event) {
+    final ctrl = HardwareKeyboard.instance.isControlPressed;
+    final alt = HardwareKeyboard.instance.isAltPressed;
+    final win = HardwareKeyboard.instance.isMetaPressed;
+    if (_physicalCtrlPressed != ctrl || _physicalAltPressed != alt || _physicalWinPressed != win) {
+      if (mounted) {
+        setState(() {
+          _physicalCtrlPressed = ctrl;
+          _physicalAltPressed = alt;
+          _physicalWinPressed = win;
+        });
+      }
+    }
+    return false;
+  }
 
   void _applyInteractMode(RemoteInteractMode mode) {
     widget.onInteractModeChanged(mode);
@@ -228,6 +260,94 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
     if (sess == null) return;
     sess.isControlEnabled.value = mode != RemoteInteractMode.view;
     if (mode == RemoteInteractMode.control) _focusNode.requestFocus();
+  }
+
+  Offset _toDesktopCoords(Offset local, Size size) {
+    if (_scale <= 1.0) return local;
+    final actualX = (local.dx - _panOffset.dx) / _scale;
+    final actualY = (local.dy - _panOffset.dy) / _scale;
+    return Offset(actualX.clamp(0.0, size.width), actualY.clamp(0.0, size.height));
+  }
+
+  void _clampPan(Size renderSize) {
+    if (_scale <= 1.0) {
+      _scale = 1.0;
+      _panOffset = Offset.zero;
+      return;
+    }
+    final minX = -renderSize.width * (_scale - 1.0);
+    final minY = -renderSize.height * (_scale - 1.0);
+    _panOffset = Offset(
+      _panOffset.dx.clamp(minX, 0.0),
+      _panOffset.dy.clamp(minY, 0.0),
+    );
+  }
+
+  void _zoomAt(Offset focal, double factor, Size renderSize) {
+    final newScale = (_scale * factor).clamp(1.0, 4.0);
+    if (newScale == _scale) return;
+    final scaleRatio = newScale / _scale;
+    _panOffset = focal - (focal - _panOffset) * scaleRatio;
+    _scale = newScale;
+    _clampPan(renderSize);
+    setState(() {});
+  }
+
+  void _updateEdgeScrolling(Offset localPos, Size renderSize) {
+    if (_scale <= 1.0) {
+      _stopEdgeScrolling();
+      return;
+    }
+
+    const margin = 48.0;
+    const maxSpeed = 16.0;
+
+    double vx = 0;
+    double vy = 0;
+
+    final cx = localPos.dx.clamp(0.0, renderSize.width);
+    final cy = localPos.dy.clamp(0.0, renderSize.height);
+
+    if (cx < margin) {
+      final r = (margin - cx) / margin;
+      vx = maxSpeed * r * r;
+    } else if (cx > renderSize.width - margin) {
+      final r = (cx - (renderSize.width - margin)) / margin;
+      vx = -maxSpeed * r * r;
+    }
+
+    if (cy < margin) {
+      final r = (margin - cy) / margin;
+      vy = maxSpeed * r * r;
+    } else if (cy > renderSize.height - margin) {
+      final r = (cy - (renderSize.height - margin)) / margin;
+      vy = -maxSpeed * r * r;
+    }
+
+    if (vx == 0 && vy == 0) {
+      _stopEdgeScrolling();
+      return;
+    }
+
+    _edgeScrollVelocity = Offset(vx, vy);
+    _edgeScrollTimer ??= Timer.periodic(const Duration(milliseconds: 16), (_) {
+      if (!mounted || _scale <= 1.0) {
+        _stopEdgeScrolling();
+        return;
+      }
+      final oldPan = _panOffset;
+      _panOffset += _edgeScrollVelocity;
+      _clampPan(renderSize);
+      if (_panOffset != oldPan) {
+        setState(() {});
+      }
+    });
+  }
+
+  void _stopEdgeScrolling() {
+    _edgeScrollTimer?.cancel();
+    _edgeScrollTimer = null;
+    _edgeScrollVelocity = Offset.zero;
   }
 
   String? _streamStatsLabel(RemoteSession sess, bool hasVideo, RemoteScreenFrame? frame, int fps) {
@@ -243,33 +363,29 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
   }
 
   Widget _buildStreamStatsOverlay(String label) => Positioned(
-        left: 10,
-        top: 10,
+        right: 12,
+        bottom: 12,
         child: IgnorePointer(
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: const Color(0xD9111114),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0x33FFFFFF)),
-              boxShadow: [
-                BoxShadow(color: Colors.black.withValues(alpha: 0.45), blurRadius: 16, offset: const Offset(0, 4)),
-              ],
+              color: Colors.black.withValues(alpha: 0.38),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
             ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.hd_outlined, size: 13, color: _emerald.withValues(alpha: 0.9)),
-                  const SizedBox(width: 7),
+                  Icon(Icons.hd_outlined, size: 12, color: _emerald.withValues(alpha: 0.85)),
+                  const SizedBox(width: 5),
                   Text(
                     label,
                     style: const TextStyle(
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.w500,
-                      color: _zinc100,
-                      height: 1.2,
-                      letterSpacing: 0.15,
+                      color: Color(0xDDFFFFFF),
+                      letterSpacing: 0.1,
                       fontFeatures: [FontFeature.tabularFigures()],
                     ),
                   ),
@@ -283,6 +399,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
   @override
   void initState() {
     super.initState();
+    HardwareKeyboard.instance.addHandler(_onHardwareKeyEvent);
     widget.session?.isControlEnabled.value = _controlInputEnabled;
     _connect();
   }
@@ -307,6 +424,8 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onHardwareKeyEvent);
+    _stopEdgeScrolling();
     _releaseAllModifiers(silent: true);
     _focusNode.dispose();
     _vkbCtrl.dispose();
@@ -440,8 +559,9 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
     if (!_controlInputEnabled) return;
     if (size.width <= 0 || size.height <= 0) return;
 
-    final nx = (local.dx / size.width).clamp(0.0, 1.0);
-    final ny = (local.dy / size.height).clamp(0.0, 1.0);
+    final unzoomed = _toDesktopCoords(local, size);
+    final nx = (unzoomed.dx / size.width).clamp(0.0, 1.0);
+    final ny = (unzoomed.dy / size.height).clamp(0.0, 1.0);
 
     sess.sendInput(RemoteInputEvent(
       eventType: eventType,
@@ -537,6 +657,63 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
         ),
       );
 
+  Widget _panZoomButton() {
+    final isZoomed = _scale > 1.05;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Tooltip(
+        message: uiPopupMenuTooltipText('Pan & Zoom (tap to toggle, double-tap to reset)'),
+        child: Material(
+          color: _panZoomActive
+              ? _amber.withValues(alpha: 0.18)
+              : (isZoomed ? const Color(0xFF242018) : const Color(0xFF18181B)),
+          borderRadius: BorderRadius.circular(8),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: () {
+              setState(() => _panZoomActive = !_panZoomActive);
+            },
+            onDoubleTap: () {
+              setState(() {
+                _scale = 1.0;
+                _panOffset = Offset.zero;
+                _panZoomActive = false;
+              });
+            },
+            child: SizedBox(
+              width: 36,
+              height: 40,
+              child: Column(
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 120),
+                    height: _panZoomActive ? 3 : 0,
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
+                      color: _amber,
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+                    ),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: Icon(
+                        Icons.open_with_rounded,
+                        size: 16,
+                        color: _panZoomActive
+                            ? _amber
+                            : (isZoomed ? _amber.withValues(alpha: 0.8) : _zinc400),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildBottomInputBar() {
     if (!_controlInputEnabled) return const SizedBox.shrink();
 
@@ -550,9 +727,10 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
             padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
             child: Row(
               children: [
-                _bottomKeyChip(label: 'Ctrl', locked: _modCtrlLocked, onTap: () => _toggleModifierLock(0x11)),
-                _bottomKeyChip(label: 'Alt', locked: _modAltLocked, onTap: () => _toggleModifierLock(0x12)),
-                _bottomKeyChip(label: 'Win', locked: _modWinLocked, onTap: () => _toggleModifierLock(0x5B)),
+                _panZoomButton(),
+                _bottomKeyChip(label: 'Ctrl', locked: _modCtrlLocked || _physicalCtrlPressed, onTap: () => _toggleModifierLock(0x11)),
+                _bottomKeyChip(label: 'Alt', locked: _modAltLocked || _physicalAltPressed, onTap: () => _toggleModifierLock(0x12)),
+                _bottomKeyChip(label: 'Win', locked: _modWinLocked || _physicalWinPressed, onTap: () => _toggleModifierLock(0x5B)),
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -703,65 +881,166 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                           return Focus(
                             focusNode: _focusNode,
                             onKeyEvent: _handleKeyEvent,
-                            child: Listener(
-                              onPointerDown: (e) {
-                                if (controlEnabled) _focusNode.requestFocus();
-                                final btn = (e.buttons & kSecondaryMouseButton != 0)
-                                    ? 2
-                                    : ((e.buttons & kMiddleMouseButton != 0) ? 1 : 0);
-                                _heldButtons = e.buttons;
-                                _sendPointer('mouse_down', e.localPosition, renderSize, button: btn);
-                              },
-                              onPointerUp: (e) {
-                                final released = _heldButtons & ~e.buttons;
-                                final btn = (released & kSecondaryMouseButton != 0)
-                                    ? 2
-                                    : ((released & kMiddleMouseButton != 0) ? 1 : 0);
-                                _heldButtons = e.buttons;
-                                _sendPointer('mouse_up', e.localPosition, renderSize, button: btn);
-                              },
-                              onPointerMove: (e) {
-                                _sendPointer('mouse_move', e.localPosition, renderSize);
-                              },
-                              onPointerHover: (e) {
-                                _sendPointer('mouse_move', e.localPosition, renderSize);
-                              },
-                              onPointerSignal: (e) {
-                                if (e is PointerScrollEvent) {
-                                  // Invert dy: Flutter scroll-down is positive dy, Win32 WHEEL_DELTA requires negative for down
-                                  final delta = (-e.scrollDelta.dy / 20).round();
-                                  if (delta != 0) {
-                                    _sendPointer('wheel', e.localPosition, renderSize, deltaY: delta);
+                            child: MouseRegion(
+                              cursor: (_panZoomActive || _physicalCtrlPressed || _modCtrlLocked)
+                                  ? SystemMouseCursors.grab
+                                  : (controlEnabled ? SystemMouseCursors.precise : SystemMouseCursors.basic),
+                              onExit: (_) => _stopEdgeScrolling(),
+                              child: Listener(
+                                onPointerDown: (e) {
+                                  if (controlEnabled) _focusNode.requestFocus();
+                                  _activePointers[e.pointer] = e.localPosition;
+                                  if (_activePointers.length == 1) {
+                                    _touchStart = e.localPosition;
+                                    _touchMoved = false;
+                                    _maxPointersInGesture = 1;
+                                    _tapClickDispatched = false;
+                                  } else if (_activePointers.length > _maxPointersInGesture) {
+                                    _maxPointersInGesture = _activePointers.length;
                                   }
-                                }
-                              },
-                              child: ValueListenableBuilder<int>(
-                                valueListenable: sess.fps,
-                                builder: (context, fps, _) {
-                                  final statsLabel = widget.showStreamStats ? _streamStatsLabel(sess, hasVideoTrack, frame, fps) : null;
+                                  _lastDownButtons = e.buttons;
 
-                                  return Stack(
-                                    fit: StackFit.expand,
-                                    children: [
-                                      MouseRegion(
-                                        cursor: controlEnabled ? SystemMouseCursors.precise : SystemMouseCursors.basic,
-                                        child: hasVideoTrack
-                                            ? RTCVideoView(
-                                                sess.videoRenderer,
-                                                objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitContain,
-                                              )
-                                            : (frame != null
-                                                ? Image.memory(
-                                                    frame.jpegBytes,
-                                                    gaplessPlayback: true,
-                                                    fit: BoxFit.contain,
-                                                  )
-                                                : const SizedBox.shrink()),
-                                      ),
-                                      if (statsLabel != null) _buildStreamStatsOverlay(statsLabel),
-                                    ],
-                                  );
+                                  if (_activePointers.length == 2) {
+                                    final pts = _activePointers.values.toList();
+                                    _initialPinchDistance = (pts[0] - pts[1]).distance;
+                                    _initialScaleOnPinch = _scale;
+                                    return;
+                                  }
+
+                                  final isDesktopCtrl = HardwareKeyboard.instance.isControlPressed || _modCtrlLocked;
+                                  final isMiddleClick = (e.buttons & kMiddleMouseButton != 0);
+                                  if (isDesktopCtrl || isMiddleClick || _panZoomActive) {
+                                    return;
+                                  }
+
+                                  final btn = (e.buttons & kSecondaryMouseButton != 0)
+                                      ? 2
+                                      : ((e.buttons & kMiddleMouseButton != 0) ? 1 : 0);
+                                  _heldButtons = e.buttons;
+                                  _sendPointer('mouse_down', e.localPosition, renderSize, button: btn);
                                 },
+                                onPointerMove: (e) {
+                                  _activePointers[e.pointer] = e.localPosition;
+                                  _updateEdgeScrolling(e.localPosition, renderSize);
+
+                                  if (_activePointers.length >= 2 && _initialPinchDistance != null && _initialPinchDistance! > 10) {
+                                    final pts = _activePointers.values.toList();
+                                    final currentDist = (pts[0] - pts[1]).distance;
+                                    final focal = (pts[0] + pts[1]) / 2;
+                                    final scaleRatio = currentDist / _initialPinchDistance!;
+                                    final targetScale = (_initialScaleOnPinch * scaleRatio).clamp(1.0, 4.0);
+                                    _zoomAt(focal, targetScale / _scale, renderSize);
+                                    _touchMoved = true;
+                                    return;
+                                  }
+
+                                  final isDesktopCtrl = HardwareKeyboard.instance.isControlPressed || _modCtrlLocked;
+                                  final isMiddleClick = (e.buttons & kMiddleMouseButton != 0);
+
+                                  if (isDesktopCtrl || isMiddleClick || _panZoomActive) {
+                                    if (_touchStart != null && (e.localPosition - _touchStart!).distance > 14.0) {
+                                      _touchMoved = true;
+                                    }
+                                    _panOffset += e.delta;
+                                    _clampPan(renderSize);
+                                    setState(() {});
+                                    return;
+                                  }
+
+                                  _sendPointer('mouse_move', e.localPosition, renderSize);
+                                },
+                                onPointerHover: (e) {
+                                  _updateEdgeScrolling(e.localPosition, renderSize);
+                                  _sendPointer('mouse_move', e.localPosition, renderSize);
+                                },
+                                onPointerUp: (e) {
+                                  _stopEdgeScrolling();
+                                  final hadTwoOrMorePointers = _maxPointersInGesture >= 2;
+                                  _activePointers.remove(e.pointer);
+                                  if (_activePointers.length < 2) {
+                                    _initialPinchDistance = null;
+                                  }
+
+                                  final isDesktopCtrl = HardwareKeyboard.instance.isControlPressed || _modCtrlLocked;
+                                  final wasMiddleClick = (_heldButtons & kMiddleMouseButton != 0);
+                                  if (isDesktopCtrl || wasMiddleClick) {
+                                    _heldButtons = e.buttons;
+                                    return;
+                                  }
+
+                                  if (_panZoomActive) {
+                                    if (!_touchMoved && !_tapClickDispatched && _touchStart != null) {
+                                      _tapClickDispatched = true;
+                                      final btn = (hadTwoOrMorePointers || (_lastDownButtons & kSecondaryMouseButton != 0)) ? 2 : 0;
+                                      _sendPointer('mouse_down', _touchStart!, renderSize, button: btn);
+                                      _sendPointer('mouse_up', _touchStart!, renderSize, button: btn);
+                                    }
+                                    _heldButtons = e.buttons;
+                                    return;
+                                  }
+
+                                  final released = _heldButtons & ~e.buttons;
+                                  final btn = (released & kSecondaryMouseButton != 0)
+                                      ? 2
+                                      : ((released & kMiddleMouseButton != 0) ? 1 : 0);
+                                  _heldButtons = e.buttons;
+                                  _sendPointer('mouse_up', e.localPosition, renderSize, button: btn);
+                                },
+                                onPointerCancel: (e) {
+                                  _stopEdgeScrolling();
+                                  _activePointers.remove(e.pointer);
+                                  if (_activePointers.length < 2) {
+                                    _initialPinchDistance = null;
+                                  }
+                                },
+                                onPointerSignal: (e) {
+                                  if (e is PointerScrollEvent) {
+                                    final isDesktopCtrl = HardwareKeyboard.instance.isControlPressed || _modCtrlLocked;
+                                    if (isDesktopCtrl) {
+                                      final factor = e.scrollDelta.dy < 0 ? 1.15 : 0.87;
+                                      _zoomAt(e.localPosition, factor, renderSize);
+                                      return;
+                                    }
+
+                                    // Invert dy: Flutter scroll-down is positive dy, Win32 WHEEL_DELTA requires negative for down
+                                    final delta = (-e.scrollDelta.dy / 20).round();
+                                    if (delta != 0) {
+                                      _sendPointer('wheel', e.localPosition, renderSize, deltaY: delta);
+                                    }
+                                  }
+                                },
+                                child: ValueListenableBuilder<int>(
+                                  valueListenable: sess.fps,
+                                  builder: (context, fps, _) {
+                                    final statsLabel = widget.showStreamStats ? _streamStatsLabel(sess, hasVideoTrack, frame, fps) : null;
+
+                                    return Stack(
+                                      fit: StackFit.expand,
+                                      children: [
+                                        ClipRect(
+                                          child: Transform(
+                                            // ignore: deprecated_member_use
+                                            transform: Matrix4.identity()..translate(_panOffset.dx, _panOffset.dy)..scale(_scale),
+                                            alignment: Alignment.topLeft,
+                                            child: hasVideoTrack
+                                                ? RTCVideoView(
+                                                    sess.videoRenderer,
+                                                    objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitContain,
+                                                  )
+                                                : (frame != null
+                                                    ? Image.memory(
+                                                        frame.jpegBytes,
+                                                        gaplessPlayback: true,
+                                                        fit: BoxFit.contain,
+                                                      )
+                                                    : const SizedBox.shrink()),
+                                          ),
+                                        ),
+                                        if (statsLabel != null) _buildStreamStatsOverlay(statsLabel),
+                                      ],
+                                    );
+                                  },
+                                ),
                               ),
                             ),
                           );

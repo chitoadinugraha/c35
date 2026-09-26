@@ -470,3 +470,77 @@ const RemoteFsWriteRes$json = {
 final $typed_data.Uint8List remoteFsWriteResDescriptor = $convert.base64Decode(
     'ChBSZW1vdGVGc1dyaXRlUmVzEiMKDWJ5dGVzX3dyaXR0ZW4YASABKANSDGJ5dGVzV3JpdHRlbh'
     'IUCgVlcnJvchgCIAEoCVIFZXJyb3I=');
+
+@$core.Deprecated('Use remoteFsMkdirReqDescriptor instead')
+const RemoteFsMkdirReq$json = {
+  '1': 'RemoteFsMkdirReq',
+  '2': [
+    {'1': 'path', '3': 2, '4': 1, '5': 9, '10': 'path'},
+  ],
+};
+
+/// Descriptor for `RemoteFsMkdirReq`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List remoteFsMkdirReqDescriptor = $convert
+    .base64Decode('ChBSZW1vdGVGc01rZGlyUmVxEhIKBHBhdGgYAiABKAlSBHBhdGg=');
+
+@$core.Deprecated('Use remoteFsMkdirResDescriptor instead')
+const RemoteFsMkdirRes$json = {
+  '1': 'RemoteFsMkdirRes',
+  '2': [
+    {'1': 'error', '3': 1, '4': 1, '5': 9, '10': 'error'},
+  ],
+};
+
+/// Descriptor for `RemoteFsMkdirRes`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List remoteFsMkdirResDescriptor = $convert
+    .base64Decode('ChBSZW1vdGVGc01rZGlyUmVzEhQKBWVycm9yGAEgASgJUgVlcnJvcg==');
+
+@$core.Deprecated('Use remoteFsDeleteReqDescriptor instead')
+const RemoteFsDeleteReq$json = {
+  '1': 'RemoteFsDeleteReq',
+  '2': [
+    {'1': 'path', '3': 5, '4': 1, '5': 9, '10': 'path'},
+  ],
+};
+
+/// Descriptor for `RemoteFsDeleteReq`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List remoteFsDeleteReqDescriptor = $convert
+    .base64Decode('ChFSZW1vdGVGc0RlbGV0ZVJlcRISCgRwYXRoGAUgASgJUgRwYXRo');
+
+@$core.Deprecated('Use remoteFsDeleteResDescriptor instead')
+const RemoteFsDeleteRes$json = {
+  '1': 'RemoteFsDeleteRes',
+  '2': [
+    {'1': 'error', '3': 1, '4': 1, '5': 9, '10': 'error'},
+  ],
+};
+
+/// Descriptor for `RemoteFsDeleteRes`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List remoteFsDeleteResDescriptor = $convert
+    .base64Decode('ChFSZW1vdGVGc0RlbGV0ZVJlcxIUCgVlcnJvchgBIAEoCVIFZXJyb3I=');
+
+@$core.Deprecated('Use remoteFsRenameReqDescriptor instead')
+const RemoteFsRenameReq$json = {
+  '1': 'RemoteFsRenameReq',
+  '2': [
+    {'1': 'from_path', '3': 1, '4': 1, '5': 9, '10': 'fromPath'},
+    {'1': 'to_path', '3': 2, '4': 1, '5': 9, '10': 'toPath'},
+  ],
+};
+
+/// Descriptor for `RemoteFsRenameReq`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List remoteFsRenameReqDescriptor = $convert.base64Decode(
+    'ChFSZW1vdGVGc1JlbmFtZVJlcRIbCglmcm9tX3BhdGgYASABKAlSCGZyb21QYXRoEhcKB3RvX3'
+    'BhdGgYAiABKAlSBnRvUGF0aA==');
+
+@$core.Deprecated('Use remoteFsRenameResDescriptor instead')
+const RemoteFsRenameRes$json = {
+  '1': 'RemoteFsRenameRes',
+  '2': [
+    {'1': 'error', '3': 1, '4': 1, '5': 9, '10': 'error'},
+  ],
+};
+
+/// Descriptor for `RemoteFsRenameRes`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List remoteFsRenameResDescriptor = $convert
+    .base64Decode('ChFSZW1vdGVGc1JlbmFtZVJlcxIUCgVlcnJvchgBIAEoCVIFZXJyb3I=');

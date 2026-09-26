@@ -5,8 +5,9 @@ use std::path::{Component, Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
 use c35_proto::{
-    pb_encode, Message, RemoteFsDriveKind, RemoteFsEntry, RemoteFsListReq, RemoteFsListRes,
-    RemoteFsReadReq, RemoteFsReadRes, RemoteFsWriteReq, RemoteFsWriteRes,
+    pb_encode, Message, RemoteFsDeleteReq, RemoteFsDeleteRes, RemoteFsDriveKind, RemoteFsEntry,
+    RemoteFsListReq, RemoteFsListRes, RemoteFsMkdirReq, RemoteFsMkdirRes, RemoteFsReadReq,
+    RemoteFsReadRes, RemoteFsRenameReq, RemoteFsRenameRes, RemoteFsWriteReq, RemoteFsWriteRes,
 };
 
 const READ_CHUNK_DEFAULT: i32 = 256 * 1024;
@@ -16,6 +17,9 @@ enum FsFrameKind {
     List,
     Read,
     Write,
+    Mkdir,
+    Delete,
+    Rename,
 }
 
 pub fn fs_dispatch(data: &[u8]) -> Vec<u8> {
@@ -58,27 +62,88 @@ pub fn fs_dispatch(data: &[u8]) -> Vec<u8> {
             };
             pb_encode(&fs_write(req))
         }
+        FsFrameKind::Mkdir => {
+            let req = match Message::decode(data) {
+                Ok(r) => r,
+                Err(_) => {
+                    return pb_encode(&RemoteFsMkdirRes {
+                        error: "invalid RemoteFsMkdirReq".into(),
+                    });
+                }
+            };
+            pb_encode(&fs_mkdir(req))
+        }
+        FsFrameKind::Delete => {
+            let req = match Message::decode(data) {
+                Ok(r) => r,
+                Err(_) => {
+                    return pb_encode(&RemoteFsDeleteRes {
+                        error: "invalid RemoteFsDeleteReq".into(),
+                    });
+                }
+            };
+            pb_encode(&fs_delete(req))
+        }
+        FsFrameKind::Rename => {
+            let req = match Message::decode(data) {
+                Ok(r) => r,
+                Err(_) => {
+                    return pb_encode(&RemoteFsRenameRes {
+                        error: "invalid RemoteFsRenameReq".into(),
+                    });
+                }
+            };
+            pb_encode(&fs_rename(req))
+        }
     }
 }
 
 fn fs_frame_kind(data: &[u8]) -> FsFrameKind {
+    let mut has_f1 = false;
+    let mut has_f2 = false;
+    let mut f2_wire = 0u8;
+    let mut has_f3 = false;
+    let mut f3_wire = 0u8;
+    let mut has_f4 = false;
+    let mut has_f5 = false;
     let mut i = 0usize;
     while i < data.len() {
-        let (tag, wire) = match read_tag(data, &mut i) {
+        let (field, wire) = match read_tag(data, &mut i) {
             Some(v) => v,
             None => break,
         };
-        let field = tag >> 3;
-        if field == 3 {
-            return if wire == 2 {
-                FsFrameKind::Write
-            } else {
-                FsFrameKind::Read
-            };
+        match field {
+            1 => has_f1 = true,
+            2 => {
+                has_f2 = true;
+                f2_wire = wire;
+            }
+            3 => {
+                has_f3 = true;
+                f3_wire = wire;
+            }
+            4 => has_f4 = true,
+            5 if wire == 2 => has_f5 = true,
+            _ => {}
         }
         if !skip_field(data, &mut i, wire) {
             break;
         }
+    }
+    if has_f4 || (has_f3 && f3_wire == 2 && has_f1) {
+        return FsFrameKind::Write;
+    }
+    if has_f3 && f3_wire == 0 {
+        return FsFrameKind::Read;
+    }
+    if has_f1 && has_f2 && f2_wire == 2 {
+        return FsFrameKind::Rename;
+    }
+    if has_f5 {
+        return FsFrameKind::Delete;
+    }
+    if has_f2 && f2_wire == 2 && !has_f1 {
+        return FsFrameKind::Mkdir;
     }
     FsFrameKind::List
 }
@@ -323,6 +388,70 @@ pub fn fs_write(req: RemoteFsWriteReq) -> RemoteFsWriteRes {
     }
 }
 
+pub fn fs_mkdir(req: RemoteFsMkdirReq) -> RemoteFsMkdirRes {
+    let path = req.path.trim();
+    if path.is_empty() {
+        return RemoteFsMkdirRes {
+            error: "path required".into(),
+        };
+    }
+    match path_resolve(path) {
+        Ok(p) => RemoteFsMkdirRes {
+            error: std::fs::create_dir_all(&p)
+                .err()
+                .map(|e| e.to_string())
+                .unwrap_or_default(),
+        },
+        Err(e) => RemoteFsMkdirRes { error: e },
+    }
+}
+
+pub fn fs_delete(req: RemoteFsDeleteReq) -> RemoteFsDeleteRes {
+    let path = req.path.trim();
+    if path.is_empty() {
+        return RemoteFsDeleteRes {
+            error: "path required".into(),
+        };
+    }
+    match path_resolve(path) {
+        Ok(p) => match std::fs::symlink_metadata(&p) {
+            Ok(meta) => {
+                let err = if meta.is_dir() {
+                    std::fs::remove_dir_all(&p).err()
+                } else {
+                    std::fs::remove_file(&p).err()
+                };
+                RemoteFsDeleteRes {
+                    error: err.map(|e| e.to_string()).unwrap_or_default(),
+                }
+            }
+            Err(e) => RemoteFsDeleteRes {
+                error: e.to_string(),
+            },
+        },
+        Err(e) => RemoteFsDeleteRes { error: e },
+    }
+}
+
+pub fn fs_rename(req: RemoteFsRenameReq) -> RemoteFsRenameRes {
+    let from = req.from_path.trim();
+    let to = req.to_path.trim();
+    if from.is_empty() || to.is_empty() {
+        return RemoteFsRenameRes {
+            error: "from_path and to_path required".into(),
+        };
+    }
+    match (path_resolve(from), path_resolve(to)) {
+        (Ok(from_p), Ok(to_p)) => RemoteFsRenameRes {
+            error: std::fs::rename(&from_p, &to_p)
+                .err()
+                .map(|e| e.to_string())
+                .unwrap_or_default(),
+        },
+        (Err(e), _) | (_, Err(e)) => RemoteFsRenameRes { error: e },
+    }
+}
+
 fn list_drives() -> Vec<RemoteFsEntry> {
     ('A'..='Z')
         .filter_map(|c| {
@@ -455,7 +584,7 @@ fn mime_guess(path: &Path) -> String {
         .unwrap_or("")
         .to_ascii_lowercase();
     match ext.as_str() {
-        "txt" | "md" | "log" => "text/plain".into(),
+        "txt" | "md" | "log" | "ini" => "text/plain".into(),
         "json" => "application/json".into(),
         "html" | "htm" => "text/html".into(),
         "png" => "image/png".into(),

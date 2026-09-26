@@ -237,14 +237,57 @@ Tabs:
 | Tab | Content |
 |-----|---------|
 | Remote | `UIRemoteDevice` — WebRTC screen + input |
-| Files | Master/detail file browser — tree + list + preview (wide). WebRTC `remote-fs`; requires data-plane dot |
+| Files | WebRTC file explorer — tree-grid + preview (wide). See [Files tab](#files-tab-remote) below |
 | Task | Scheduled/one-shot tasks |
 | Skill | Manual + automatic (self-learned) skills; Teach button |
 | Settings | Name, instructions, device config |
 
-Files tab search icon sits trailing on the tab bar row. Small screens: drill-in tree → list → preview.
-
 Remote agent attaches skills/tasks to device **identity id**.
+
+### Files tab (remote)
+
+**Transport:** SCTP data channel `remote-fs` (protobuf `RemoteFs*`). Requires **WebRTC connected** (left dot on device row). Bytes are app ↔ device direct — not stored on cluster unless user saves elsewhere. See [`remote.md`](remote.md#files-tab--browse-copy-stream).
+
+**Devices master column:** while a device is selected, **Transfers** shows slim progress bars for active uploads/copies (queued jobs for that device).
+
+**Layout**
+
+| Width | Explorer | Preview |
+|-------|----------|---------|
+| Wide (≥1024px) | Search + ops + sortable tree-grid | Right pane — text / image preview |
+| Narrow | Full-width explorer | Tap previewable file → full-screen preview with back |
+
+**Explorer chrome**
+
+- **Search** — filter visible tree (expands matching branches).
+- **`+`** — multi-select local file picker → upload into current folder.
+- **Ops row** — Download, New folder, New file, Rename, Delete, Cut, Copy, Paste (toolbar tooltips document paste priority).
+- **Column headers** — tap Name / Size / Type / Modified to sort (toggle asc/desc; Name keeps folders before files).
+- **FAB** (when transfers active) — badge count; opens transfer sheet.
+
+**Drive roots** — agent sends volume label + `RemoteFsDriveKind` (local / USB / network / DVD / RAM). Icons: `storage`, `usb`, `folder_shared`, etc.; amber tone matches folders.
+
+**Upload from your computer (desktop)**
+
+| Method | Behavior |
+|--------|----------|
+| **`+` or drag-drop** | Enqueue upload to selected folder |
+| **Ctrl+C in Explorer → Ctrl+V in Files** | `Pasteboard.files()` → upload queue (files + local folders via tree upload) |
+
+**Copy / paste inside Files**
+
+| Action | Scope |
+|--------|--------|
+| **Copy** (toolbar, context menu, Ctrl+C) | Selected **file** on device → in-app clipboard (paths) |
+| **Paste** (toolbar, Ctrl+V / Cmd+V) | If OS clipboard has files → **upload**; else if in-app clipboard → **duplicate on device** (read/write chunks, auto-rename collisions) |
+
+**Download** — toolbar or context menu; pick a local folder; `RemoteFsTransfer.downloadRemote` (files + folder trees).
+
+**Mutations** — New folder (`fsMkdir`), Rename (`fsRename`), Delete (`fsDelete` + confirm). Drive roots cannot be deleted.
+
+**Preview** — text-like extensions up to **2 MB**; images up to **512 KB** via chunked `RemoteFsRead` (banner when capped). Other types: use Download.
+
+**Widgets:** `widgets/devices/ui_device_files.dart`, `widgets/devices/ui_device_fs_upload_panel.dart`, `c/remote/remote_fs_transfer.dart`.
 
 ## Sites page — Phase 8
 

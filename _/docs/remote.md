@@ -385,20 +385,29 @@ App and agent fetch ICE config from server before `createOffer`. Prefer **host/s
 
 ### Files tab — browse, copy, stream
 
-Master/detail file UI (tree + list + preview on wide screens). **All ops on `remote-fs` data channel.**
+Single **tree-grid** explorer (sortable columns) + optional **preview** pane on wide layouts. **All file bytes on `remote-fs` data channel** — server is signaling/TURN only.
 
 | Op | Wire | Notes |
 |----|------|-------|
-| List dir | `RemoteFsListReq` → `RemoteFsListRes` | Lazy tree; agent reads local FS |
-| Read chunk | `RemoteFsReadReq{path, offset, len}` → `RemoteFsReadRes{bytes, eof}` | Text preview, progressive image |
-| Write chunk | `RemoteFsWriteReq` | Phone → PC send; chunked upload |
-| Stream media | `RemoteFsReadReq` with larger chunks or dedicated `RemoteFsStreamOpen` | Video/audio preview; range-like reads |
+| List dir | `RemoteFsListReq` → `RemoteFsListRes` | Empty `path` → drive roots with label + `RemoteFsDriveKind` (Windows `GetDriveTypeW` + volume label) |
+| Read chunk | `RemoteFsReadReq{path, offset, len}` → `RemoteFsReadRes{data, eof, mime}` | Preview; 256 KB default chunk |
+| Write chunk | `RemoteFsWriteReq{path, offset, data, finalize}` → `RemoteFsWriteRes` | Uploads; 256 KB chunks; serial queue on client |
+| Remote copy | Read + write same channel | In-app Copy/Paste between folders on device |
+| Stream media | Larger `RemoteFsRead` reads | Future: video/audio preview |
 
-**Preview limits (client):** cap text preview (e.g. 256 KB), stream images/video progressively. Unsupported types → download-only over same channel.
+**Client upload sources (desktop):** file picker (`+`), drag-drop (`desktop_drop`), **Explorer Ctrl+C → Files Ctrl+V** (`pasteboard` file list). Upload jobs: `RemoteFsTransfer` (`c/remote/remote_fs_transfer.dart`); progress in Devices master column + Files FAB.
 
-**Session gate:** Files tab requires WebRTC connected (left status dot). Cluster dot (agent online) alone is not enough — show **Connect** prompt.
+**In-app clipboard:** Copy stores remote **file** paths only (not folders). Paste prefers OS file clipboard, then falls back to remote duplicate.
 
-Proto: [`../schemas/proto/c35/remote.proto`](../schemas/proto/c35/remote.proto).
+**Preview limits (client):** text-like extensions + images, **256 KB** cap per open preview. Unsupported types → no inline preview yet.
+
+**Session gate:** Files tab requires WebRTC connected and `remote-fs` channel open. Until then: **Connect** or **Opening file channel…** — cluster dot alone is not enough.
+
+**Agent:** `remotes/c_remote_core/src/webrtc/fs.rs` (`fs_list`, `fs_read`, `fs_write`, drive roots).
+
+**UI:** [`ui.md`](ui.md#files-tab-remote) — `ui_device_files.dart`, `ui_device_fs_upload_panel.dart`.
+
+Proto: [`../schemas/proto/c35/remote.proto`](../schemas/proto/c35/remote.proto) — `RemoteFsEntry.drive_kind`, `RemoteFsDriveKind`.
 
 ## UI
 
@@ -414,7 +423,7 @@ Device detail tabs per [ui.md](ui.md):
 | Tab | Scope |
 |-----|-------|
 | Remote | WebRTC screen + input (`remote-input`) |
-| Files | WebRTC file browse/copy/stream (`remote-fs`) — mock UI done |
+| Files | WebRTC file browse/upload/copy/preview (`remote-fs`) |
 | Task | `ReqTaskList`, run history, start/cancel |
 | Skill | Teach + list (see [skill.md](skill.md)) |
 | Settings | Name, instructions, agent version |

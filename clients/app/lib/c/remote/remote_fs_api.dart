@@ -65,6 +65,21 @@ class RemoteFsApi {
     return RemoteFsWriteRes.fromBuffer(res);
   }
 
+  Future<RemoteFsMkdirRes> fsMkdir(String path) async {
+    final res = await _call(RemoteFsMkdirReq(path: path).writeToBuffer());
+    return RemoteFsMkdirRes.fromBuffer(res);
+  }
+
+  Future<RemoteFsDeleteRes> fsDelete(String path) async {
+    final res = await _call(RemoteFsDeleteReq(path: path).writeToBuffer());
+    return RemoteFsDeleteRes.fromBuffer(res);
+  }
+
+  Future<RemoteFsRenameRes> fsRename(String fromPath, String toPath) async {
+    final res = await _call(RemoteFsRenameReq(fromPath: fromPath, toPath: toPath).writeToBuffer());
+    return RemoteFsRenameRes.fromBuffer(res);
+  }
+
   /// Stream/download file chunks concurrently using a pipelined sliding window.
   /// [concurrency] specifies how many chunk requests are in-flight over WebRTC simultaneously.
   Stream<RemoteFsReadRes> streamFile(

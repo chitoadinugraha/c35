@@ -2022,6 +2022,362 @@ class RemoteFsWriteRes extends $pb.GeneratedMessage {
   void clearError() => $_clearField(2);
 }
 
+/// path is field 2 (not 1) so frames differ from RemoteFsListReq on the wire.
+class RemoteFsMkdirReq extends $pb.GeneratedMessage {
+  factory RemoteFsMkdirReq({
+    $core.String? path,
+  }) {
+    final result = RemoteFsMkdirReq._();
+    if (path != null) result.path = path;
+    return result;
+  }
+
+  RemoteFsMkdirReq._();
+
+  factory RemoteFsMkdirReq.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteFsMkdirReq()..mergeFromBuffer(data, registry);
+  factory RemoteFsMkdirReq.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteFsMkdirReq()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'RemoteFsMkdirReq',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: RemoteFsMkdirReq.$_createMessage)
+    ..aOS(2, _omitFieldNames ? '' : 'path')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteFsMkdirReq clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteFsMkdirReq copyWith(void Function(RemoteFsMkdirReq) updates) =>
+      super.copyWith((message) => updates(message as RemoteFsMkdirReq))
+          as RemoteFsMkdirReq;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use RemoteFsMkdirReq() / RemoteFsMkdirReq.new instead')
+  static RemoteFsMkdirReq create() => RemoteFsMkdirReq._();
+  static $pb.GeneratedMessage $_createMessage() => RemoteFsMkdirReq._();
+  @$core.override
+  RemoteFsMkdirReq createEmptyInstance() => RemoteFsMkdirReq._();
+  @$core.pragma('dart2js:noInline')
+  static RemoteFsMkdirReq getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<RemoteFsMkdirReq>(
+          RemoteFsMkdirReq.$_createMessage);
+  static RemoteFsMkdirReq? _defaultInstance;
+
+  @$pb.TagNumber(2)
+  $core.String get path => $_getSZ(0);
+  @$pb.TagNumber(2)
+  set path($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(2)
+  $core.bool hasPath() => $_has(0);
+  @$pb.TagNumber(2)
+  void clearPath() => $_clearField(2);
+}
+
+class RemoteFsMkdirRes extends $pb.GeneratedMessage {
+  factory RemoteFsMkdirRes({
+    $core.String? error,
+  }) {
+    final result = RemoteFsMkdirRes._();
+    if (error != null) result.error = error;
+    return result;
+  }
+
+  RemoteFsMkdirRes._();
+
+  factory RemoteFsMkdirRes.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteFsMkdirRes()..mergeFromBuffer(data, registry);
+  factory RemoteFsMkdirRes.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteFsMkdirRes()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'RemoteFsMkdirRes',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: RemoteFsMkdirRes.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'error')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteFsMkdirRes clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteFsMkdirRes copyWith(void Function(RemoteFsMkdirRes) updates) =>
+      super.copyWith((message) => updates(message as RemoteFsMkdirRes))
+          as RemoteFsMkdirRes;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use RemoteFsMkdirRes() / RemoteFsMkdirRes.new instead')
+  static RemoteFsMkdirRes create() => RemoteFsMkdirRes._();
+  static $pb.GeneratedMessage $_createMessage() => RemoteFsMkdirRes._();
+  @$core.override
+  RemoteFsMkdirRes createEmptyInstance() => RemoteFsMkdirRes._();
+  @$core.pragma('dart2js:noInline')
+  static RemoteFsMkdirRes getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<RemoteFsMkdirRes>(
+          RemoteFsMkdirRes.$_createMessage);
+  static RemoteFsMkdirRes? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get error => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set error($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasError() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearError() => $_clearField(1);
+}
+
+/// path is field 5 so frames differ from list/read/write tags.
+class RemoteFsDeleteReq extends $pb.GeneratedMessage {
+  factory RemoteFsDeleteReq({
+    $core.String? path,
+  }) {
+    final result = RemoteFsDeleteReq._();
+    if (path != null) result.path = path;
+    return result;
+  }
+
+  RemoteFsDeleteReq._();
+
+  factory RemoteFsDeleteReq.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteFsDeleteReq()..mergeFromBuffer(data, registry);
+  factory RemoteFsDeleteReq.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteFsDeleteReq()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'RemoteFsDeleteReq',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: RemoteFsDeleteReq.$_createMessage)
+    ..aOS(5, _omitFieldNames ? '' : 'path')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteFsDeleteReq clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteFsDeleteReq copyWith(void Function(RemoteFsDeleteReq) updates) =>
+      super.copyWith((message) => updates(message as RemoteFsDeleteReq))
+          as RemoteFsDeleteReq;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use RemoteFsDeleteReq() / RemoteFsDeleteReq.new instead')
+  static RemoteFsDeleteReq create() => RemoteFsDeleteReq._();
+  static $pb.GeneratedMessage $_createMessage() => RemoteFsDeleteReq._();
+  @$core.override
+  RemoteFsDeleteReq createEmptyInstance() => RemoteFsDeleteReq._();
+  @$core.pragma('dart2js:noInline')
+  static RemoteFsDeleteReq getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<RemoteFsDeleteReq>(
+          RemoteFsDeleteReq.$_createMessage);
+  static RemoteFsDeleteReq? _defaultInstance;
+
+  @$pb.TagNumber(5)
+  $core.String get path => $_getSZ(0);
+  @$pb.TagNumber(5)
+  set path($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(5)
+  $core.bool hasPath() => $_has(0);
+  @$pb.TagNumber(5)
+  void clearPath() => $_clearField(5);
+}
+
+class RemoteFsDeleteRes extends $pb.GeneratedMessage {
+  factory RemoteFsDeleteRes({
+    $core.String? error,
+  }) {
+    final result = RemoteFsDeleteRes._();
+    if (error != null) result.error = error;
+    return result;
+  }
+
+  RemoteFsDeleteRes._();
+
+  factory RemoteFsDeleteRes.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteFsDeleteRes()..mergeFromBuffer(data, registry);
+  factory RemoteFsDeleteRes.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteFsDeleteRes()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'RemoteFsDeleteRes',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: RemoteFsDeleteRes.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'error')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteFsDeleteRes clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteFsDeleteRes copyWith(void Function(RemoteFsDeleteRes) updates) =>
+      super.copyWith((message) => updates(message as RemoteFsDeleteRes))
+          as RemoteFsDeleteRes;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use RemoteFsDeleteRes() / RemoteFsDeleteRes.new instead')
+  static RemoteFsDeleteRes create() => RemoteFsDeleteRes._();
+  static $pb.GeneratedMessage $_createMessage() => RemoteFsDeleteRes._();
+  @$core.override
+  RemoteFsDeleteRes createEmptyInstance() => RemoteFsDeleteRes._();
+  @$core.pragma('dart2js:noInline')
+  static RemoteFsDeleteRes getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<RemoteFsDeleteRes>(
+          RemoteFsDeleteRes.$_createMessage);
+  static RemoteFsDeleteRes? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get error => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set error($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasError() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearError() => $_clearField(1);
+}
+
+class RemoteFsRenameReq extends $pb.GeneratedMessage {
+  factory RemoteFsRenameReq({
+    $core.String? fromPath,
+    $core.String? toPath,
+  }) {
+    final result = RemoteFsRenameReq._();
+    if (fromPath != null) result.fromPath = fromPath;
+    if (toPath != null) result.toPath = toPath;
+    return result;
+  }
+
+  RemoteFsRenameReq._();
+
+  factory RemoteFsRenameReq.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteFsRenameReq()..mergeFromBuffer(data, registry);
+  factory RemoteFsRenameReq.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteFsRenameReq()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'RemoteFsRenameReq',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: RemoteFsRenameReq.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'fromPath')
+    ..aOS(2, _omitFieldNames ? '' : 'toPath')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteFsRenameReq clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteFsRenameReq copyWith(void Function(RemoteFsRenameReq) updates) =>
+      super.copyWith((message) => updates(message as RemoteFsRenameReq))
+          as RemoteFsRenameReq;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use RemoteFsRenameReq() / RemoteFsRenameReq.new instead')
+  static RemoteFsRenameReq create() => RemoteFsRenameReq._();
+  static $pb.GeneratedMessage $_createMessage() => RemoteFsRenameReq._();
+  @$core.override
+  RemoteFsRenameReq createEmptyInstance() => RemoteFsRenameReq._();
+  @$core.pragma('dart2js:noInline')
+  static RemoteFsRenameReq getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<RemoteFsRenameReq>(
+          RemoteFsRenameReq.$_createMessage);
+  static RemoteFsRenameReq? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get fromPath => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set fromPath($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasFromPath() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearFromPath() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get toPath => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set toPath($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasToPath() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearToPath() => $_clearField(2);
+}
+
+class RemoteFsRenameRes extends $pb.GeneratedMessage {
+  factory RemoteFsRenameRes({
+    $core.String? error,
+  }) {
+    final result = RemoteFsRenameRes._();
+    if (error != null) result.error = error;
+    return result;
+  }
+
+  RemoteFsRenameRes._();
+
+  factory RemoteFsRenameRes.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteFsRenameRes()..mergeFromBuffer(data, registry);
+  factory RemoteFsRenameRes.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteFsRenameRes()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'RemoteFsRenameRes',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: RemoteFsRenameRes.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'error')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteFsRenameRes clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteFsRenameRes copyWith(void Function(RemoteFsRenameRes) updates) =>
+      super.copyWith((message) => updates(message as RemoteFsRenameRes))
+          as RemoteFsRenameRes;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use RemoteFsRenameRes() / RemoteFsRenameRes.new instead')
+  static RemoteFsRenameRes create() => RemoteFsRenameRes._();
+  static $pb.GeneratedMessage $_createMessage() => RemoteFsRenameRes._();
+  @$core.override
+  RemoteFsRenameRes createEmptyInstance() => RemoteFsRenameRes._();
+  @$core.pragma('dart2js:noInline')
+  static RemoteFsRenameRes getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<RemoteFsRenameRes>(
+          RemoteFsRenameRes.$_createMessage);
+  static RemoteFsRenameRes? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get error => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set error($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasError() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearError() => $_clearField(1);
+}
+
 const $core.bool _omitFieldNames =
     $core.bool.fromEnvironment('protobuf.omit_field_names');
 const $core.bool _omitMessageNames =

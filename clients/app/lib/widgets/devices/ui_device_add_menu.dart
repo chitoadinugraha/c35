@@ -20,7 +20,7 @@ class UiDeviceAddMenu extends StatelessWidget {
     }
   }
 
-  Future<void> _onFlashComingSoon(BuildContext context) => uiAlertInfo(context, title: 'Coming soon', message: 'Flash device is not available yet.');
+  Future<void> _onFlashComingSoon(BuildContext context) => uiAlertInfo(context, title: 'Coming soon', message: 'Flash IoT Device is not available yet.');
 
   @override
   Widget build(BuildContext context) => uiPopupMenuTooltipWrap(
@@ -48,7 +48,7 @@ class UiDeviceAddMenu extends StatelessWidget {
               value: 'flash',
               child: ListTile(
                 leading: Icon(Icons.usb),
-                title: Text('Flash device'),
+                title: Text('Flash IoT Device'),
                 subtitle: Text('Coming soon'),
               ),
             ),

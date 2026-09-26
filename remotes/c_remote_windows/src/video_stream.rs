@@ -16,8 +16,8 @@ use webrtc::media::Sample;
 use webrtc::track::track_local::track_local_static_sample::TrackLocalStaticSample;
 
 use windows::Win32::Media::MediaFoundation::{
-    eAVEncH264VProfile_Base, IMFActivate, IMFMediaType, IMFTransform, MFCreateMediaType,
-    MFCreateMemoryBuffer, MFCreateSample, MFShutdown, MFStartup, MFTEnumEx,
+    eAVEncH264VProfile_Base, eAVEncH264VProfile_High, IMFActivate, IMFMediaType, IMFTransform,
+    MFCreateMediaType, MFCreateMemoryBuffer, MFCreateSample, MFShutdown, MFStartup, MFTEnumEx,
     MFVideoFormat_H264, MFVideoFormat_NV12, MFMediaType_Video, MFT_CATEGORY_VIDEO_ENCODER,
     MFT_ENUM_FLAG_HARDWARE, MFT_ENUM_FLAG_SORTANDFILTER, MFT_ENUM_FLAG_SYNCMFT,
     MFT_OUTPUT_DATA_BUFFER, MFSTARTUP_NOSOCKET, MF_MT_AVG_BITRATE,
@@ -26,14 +26,14 @@ use windows::Win32::Media::MediaFoundation::{
 };
 
 static VIDEO_STREAM_ACTIVE: AtomicBool = AtomicBool::new(false);
-static TARGET_BITRATE_BPS: AtomicU32 = AtomicU32::new(2_500_000); // 2.5 Mbps default
+static TARGET_BITRATE_BPS: AtomicU32 = AtomicU32::new(12_000_000); // 12 Mbps default for crisp LAN stream
 
 pub fn is_video_stream_active() -> bool {
     VIDEO_STREAM_ACTIVE.load(Ordering::SeqCst)
 }
 
 pub fn set_target_bitrate_bps(bps: u32) {
-    let clamped = bps.clamp(500_000, 8_000_000);
+    let clamped = bps.clamp(500_000, 25_000_000);
     TARGET_BITRATE_BPS.store(clamped, Ordering::Relaxed);
     debug!(bps = clamped, "target video bitrate updated");
 }
@@ -195,9 +195,13 @@ impl H264Encoder {
             out_type.SetUINT64(&MF_MT_FRAME_SIZE, ((width as u64) << 32) | (height as u64))?;
             out_type.SetUINT64(&MF_MT_FRAME_RATE, ((fps as u64) << 32) | 1)?;
             out_type.SetUINT32(&MF_MT_INTERLACE_MODE, 2)?; // Progressive
-            out_type.SetUINT32(&MF_MT_MPEG2_PROFILE, eAVEncH264VProfile_Base.0 as u32)?;
+            out_type.SetUINT32(&MF_MT_MPEG2_PROFILE, eAVEncH264VProfile_High.0 as u32)?;
 
-            transform.SetOutputType(0, &out_type, 0)?;
+            if transform.SetOutputType(0, &out_type, 0).is_err() {
+                // High profile fallback to baseline if hardware doesn't support high
+                let _ = out_type.SetUINT32(&MF_MT_MPEG2_PROFILE, eAVEncH264VProfile_Base.0 as u32);
+                transform.SetOutputType(0, &out_type, 0)?;
+            }
 
             // Configure Input Media Type (NV12 YUV)
             let in_type: IMFMediaType = MFCreateMediaType().context("MFCreateMediaType for input")?;
@@ -334,13 +338,15 @@ pub fn start_video_stream(video_track: Arc<TrackLocalStaticSample>) {
 
             let bitrate = TARGET_BITRATE_BPS.load(Ordering::Relaxed);
 
-            // Dynamic resolution bound based on connection bitrate
-            let max_w = if bitrate < 1_200_000 {
+            // Dynamic resolution bound based on connection bitrate (up to 4K on LAN)
+            let max_w = if bitrate < 2_000_000 {
                 1280
-            } else if bitrate < 2_500_000 {
-                1600
-            } else {
+            } else if bitrate < 6_000_000 {
                 1920
+            } else if bitrate < 10_000_000 {
+                2560
+            } else {
+                3840
             };
 
             // 1. Capture screen frame (GPU DXGI first, fallback to GDI raw)

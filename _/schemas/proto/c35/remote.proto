@@ -200,3 +200,30 @@ message RemoteFsWriteRes {
   int64 bytes_written = 1;
   string error = 2;
 }
+
+// path is field 2 (not 1) so frames differ from RemoteFsListReq on the wire.
+message RemoteFsMkdirReq {
+  string path = 2;
+}
+
+message RemoteFsMkdirRes {
+  string error = 1;
+}
+
+// path is field 5 so frames differ from list/read/write tags.
+message RemoteFsDeleteReq {
+  string path = 5;
+}
+
+message RemoteFsDeleteRes {
+  string error = 1;
+}
+
+message RemoteFsRenameReq {
+  string from_path = 1;
+  string to_path = 2;
+}
+
+message RemoteFsRenameRes {
+  string error = 1;
+}
