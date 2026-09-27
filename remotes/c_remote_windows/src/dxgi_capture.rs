@@ -3,8 +3,11 @@
 //! Provides ultra-low latency (<1ms) frame grabbing directly from GPU VRAM.
 //! Automatically recovers from display mode/resolution changes and desktop switches.
 
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
+
 use anyhow::{bail, Context, Result};
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 use windows::core::Interface;
 use windows::Win32::Foundation::HMODULE;
 use windows::Win32::Graphics::Direct3D::{
@@ -25,14 +28,59 @@ use windows::Win32::Graphics::Dxgi::{
     DXGI_ERROR_INVALID_CALL, DXGI_ERROR_WAIT_TIMEOUT, DXGI_OUTDUPL_FRAME_INFO,
 };
 
+static SHARED_CAPTURER: Mutex<Option<DxgiCapturer>> = Mutex::new(None);
+static DXGI_DISABLED: AtomicBool = AtomicBool::new(false);
+
 pub struct DxgiCapturer {
     device: ID3D11Device,
     context: ID3D11DeviceContext,
-    duplication: IDXGIOutputDuplication,
+    duplication: Option<IDXGIOutputDuplication>,
     staging_texture: Option<ID3D11Texture2D>,
     width: u32,
     height: u32,
     display_index: u32,
+}
+
+/// Single process-wide DXGI duplication session (Windows allows one per output).
+pub fn shared_capture_frame(timeout_ms: u32) -> Result<Option<(u32, u32, Vec<u8>)>> {
+    if DXGI_DISABLED.load(Ordering::Relaxed) {
+        bail!("DXGI capture disabled after repeated failures");
+    }
+    let mut guard = SHARED_CAPTURER.lock().unwrap();
+    if guard.is_none() {
+        match DxgiCapturer::new() {
+            Ok(cap) => {
+                info!("DXGI GPU desktop capture activated (shared)");
+                *guard = Some(cap);
+            }
+            Err(e) => {
+                DXGI_DISABLED.store(true, Ordering::Relaxed);
+                bail!("DXGI capture init failed: {e}");
+            }
+        }
+    }
+    let capturer = guard.as_mut().unwrap();
+    match capturer.capture_frame(timeout_ms) {
+        Ok(frame) => Ok(frame),
+        Err(e) => {
+            warn!("DXGI shared capture failed ({e}); resetting capturer");
+            *guard = None;
+            match DxgiCapturer::new() {
+                Ok(cap) => {
+                    *guard = Some(cap);
+                    guard.as_mut().unwrap().capture_frame(timeout_ms)
+                }
+                Err(e2) => {
+                    DXGI_DISABLED.store(true, Ordering::Relaxed);
+                    Err(e2)
+                }
+            }
+        }
+    }
+}
+
+pub fn shared_dxgi_disabled() -> bool {
+    DXGI_DISABLED.load(Ordering::Relaxed)
 }
 
 // Safety: COM pointers in DxgiCapturer are used sequentially within a thread or mutex.
@@ -84,7 +132,7 @@ impl DxgiCapturer {
             Ok(Self {
                 device,
                 context,
-                duplication,
+                duplication: Some(duplication),
                 staging_texture: None,
                 width: 0,
                 height: 0,
@@ -93,18 +141,29 @@ impl DxgiCapturer {
         }
     }
 
+    fn drop_duplication(&mut self) {
+        self.staging_texture = None;
+        self.duplication = None;
+    }
+
     /// Reinitialize duplication after access lost (e.g. resolution change, UAC prompt).
     fn reinitialize(&mut self) -> Result<()> {
         unsafe {
-            self.staging_texture = None;
+            self.drop_duplication();
             let dxgi_device: IDXGIDevice = self.device.cast()?;
             let adapter: IDXGIAdapter1 = dxgi_device.GetAdapter()?.cast()?;
             let output: IDXGIOutput = adapter.EnumOutputs(self.display_index)?;
             let output1: IDXGIOutput1 = output.cast()?;
-            self.duplication = output1.DuplicateOutput(&self.device)?;
+            self.duplication = Some(output1.DuplicateOutput(&self.device)?);
             debug!(display_index = self.display_index, "DXGI desktop duplication reinitialized");
             Ok(())
         }
+    }
+
+    fn recreate_device(&mut self) -> Result<()> {
+        let display_index = self.display_index;
+        *self = Self::new_with_display(display_index)?;
+        Ok(())
     }
 
     /// Ensure staging texture matches required dimensions.
@@ -148,10 +207,14 @@ impl DxgiCapturer {
     /// - `Err(e)` on unrecoverable DXGI error.
     pub fn capture_frame(&mut self, timeout_ms: u32) -> Result<Option<(u32, u32, Vec<u8>)>> {
         unsafe {
+            let duplication = self
+                .duplication
+                .as_ref()
+                .context("DXGI duplication not initialized")?;
             let mut frame_info = DXGI_OUTDUPL_FRAME_INFO::default();
             let mut resource: Option<IDXGIResource> = None;
 
-            let hr = self.duplication.AcquireNextFrame(
+            let hr = duplication.AcquireNextFrame(
                 timeout_ms,
                 &mut frame_info,
                 &mut resource,
@@ -164,8 +227,9 @@ impl DxgiCapturer {
                 }
                 if e.code() == DXGI_ERROR_ACCESS_LOST || e.code() == DXGI_ERROR_INVALID_CALL {
                     warn!("DXGI access lost, attempting reinitialization: {e}");
-                    if let Err(reinit_err) = self.reinitialize() {
-                        bail!("DXGI reinit failed: {reinit_err}");
+                    if self.reinitialize().is_err() {
+                        warn!("DXGI reinit failed; recreating D3D11 device");
+                        self.recreate_device().context("DXGI full recreate failed")?;
                     }
                     return Ok(None);
                 }
@@ -175,7 +239,9 @@ impl DxgiCapturer {
             let resource = match resource {
                 Some(r) => r,
                 None => {
-                    let _ = self.duplication.ReleaseFrame();
+                    if let Some(dup) = self.duplication.as_ref() {
+                        let _ = dup.ReleaseFrame();
+                    }
                     return Ok(None);
                 }
             };
@@ -190,15 +256,21 @@ impl DxgiCapturer {
             let staging_tex = match self.ensure_staging_texture(width, height) {
                 Ok(t) => t.clone(),
                 Err(e) => {
-                    let _ = self.duplication.ReleaseFrame();
+                    if let Some(dup) = self.duplication.as_ref() {
+                        let _ = dup.ReleaseFrame();
+                    }
                     return Err(e);
                 }
             };
 
+            let duplication = self
+                .duplication
+                .as_ref()
+                .context("DXGI duplication not initialized")?;
             // Copy from GPU desktop surface to CPU-readable staging texture
             self.context.CopyResource(&staging_tex, &desktop_tex);
             // Release frame as quickly as possible so Desktop Window Manager continues
-            let _ = self.duplication.ReleaseFrame();
+            let _ = duplication.ReleaseFrame();
 
             // Map staging texture to read BGRA pixel bytes
             let mut mapped = D3D11_MAPPED_SUBRESOURCE::default();

@@ -316,25 +316,17 @@ pub fn start_video_stream(video_track: Arc<TrackLocalStaticSample>) {
         ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
         let mut encoder_opt: Option<H264Encoder> = None;
-        let mut capturer_opt: Option<crate::dxgi_capture::DxgiCapturer> = None;
         let mut consecutive_failures = 0u32;
 
         let mut last_frame: Option<(u32, u32, Vec<u8>)> = None;
         let mut idle_ticks = 0u32;
 
-        // Try activating GPU DXGI capturer first
-        match crate::dxgi_capture::DxgiCapturer::new() {
-            Ok(cap) => {
-                info!("DXGI GPU desktop capture active for video stream");
-                capturer_opt = Some(cap);
-            }
-            Err(e) => {
-                warn!("DXGI desktop duplication unavailable: {e}; using GDI capture fallback");
-            }
-        }
-
         while VIDEO_STREAM_ACTIVE.load(Ordering::SeqCst) {
             ticker.tick().await;
+
+            if c_remote_core::webrtc::is_file_media_active() {
+                continue;
+            }
 
             let bitrate = TARGET_BITRATE_BPS.load(Ordering::Relaxed);
 
@@ -349,18 +341,11 @@ pub fn start_video_stream(video_track: Arc<TrackLocalStaticSample>) {
                 3840
             };
 
-            // 1. Capture screen frame (GPU DXGI first, fallback to GDI raw)
-            let captured = if let Some(capturer) = capturer_opt.as_mut() {
-                match capturer.capture_frame(10) {
-                    Ok(Some((src_w, src_h, bgra))) => Some((src_w, src_h, bgra)),
-                    Ok(None) => None, // Idle frame; screen unchanged
-                    Err(_) => {
-                        // DXGI access lost (desktop switch / lock); fall back to GDI raw
-                        crate::screen_capture::capture_screen_gdi_raw(max_w).ok()
-                    }
-                }
-            } else {
-                crate::screen_capture::capture_screen_gdi_raw(max_w).ok()
+            // 1. Capture screen frame (shared GPU DXGI first, fallback to GDI raw)
+            let captured = match crate::dxgi_capture::shared_capture_frame(10) {
+                Ok(Some((src_w, src_h, bgra))) => Some((src_w, src_h, bgra)),
+                Ok(None) => None,
+                Err(_) => crate::screen_capture::capture_screen_gdi_raw(max_w).ok(),
             };
 
             let (src_w, src_h, bgra_buf) = match captured {

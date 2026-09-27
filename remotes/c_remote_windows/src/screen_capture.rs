@@ -7,7 +7,7 @@ use tracing::{debug, error, info, warn};
 use webrtc::data_channel::RTCDataChannel;
 use windows::Win32::Foundation::HWND;
 use windows::Win32::Graphics::Gdi::{
-    CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject, GetDC, GetDIBits,
+    BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject, GetDC, GetDIBits,
     ReleaseDC, SelectObject, SetStretchBltMode, StretchBlt, BITMAPINFO, BITMAPINFOHEADER, BI_RGB,
     COLORONCOLOR, DIB_RGB_COLORS, HBITMAP, HDC, SRCCOPY,
 };
@@ -20,9 +20,6 @@ static CAPTURE_ACTIVE: AtomicBool = AtomicBool::new(false);
 static CAPTURE_FAIL_COUNT: AtomicU32 = AtomicU32::new(0);
 static CAPTURE_FAIL_WARNED: AtomicBool = AtomicBool::new(false);
 static SCREEN_DIRTY: AtomicBool = AtomicBool::new(true);
-static DXGI_DISABLED: AtomicBool = AtomicBool::new(false);
-static DXGI_CAPTURER: std::sync::Mutex<Option<crate::dxgi_capture::DxgiCapturer>> =
-    std::sync::Mutex::new(None);
 
 pub fn is_capture_active() -> bool {
     CAPTURE_ACTIVE.load(Ordering::SeqCst)
@@ -81,6 +78,114 @@ pub fn draw_red_marker(buf: &mut [u8], w: u32, h: u32, nx: f64, ny: f64) {
     }
 }
 
+/// Copy the virtual desktop into a BGRA buffer (handles negative virtual-screen origins).
+unsafe fn gdi_read_bgra(hdc_screen: HDC, src_w: i32, src_h: i32, dst_w: u32, dst_h: u32) -> Result<Vec<u8>> {
+    let hdc_full = CreateCompatibleDC(hdc_screen);
+    if hdc_full.is_invalid() {
+        bail!("failed to create compatible DC for virtual screen");
+    }
+
+    let hbm_full = CreateCompatibleBitmap(hdc_screen, src_w, src_h);
+    if hbm_full.is_invalid() {
+        let _ = DeleteDC(hdc_full);
+        bail!("failed to create virtual-screen bitmap");
+    }
+
+    let old_full = SelectObject(hdc_full, hbm_full);
+    let vx = GetSystemMetrics(SM_XVIRTUALSCREEN);
+    let vy = GetSystemMetrics(SM_YVIRTUALSCREEN);
+    if BitBlt(hdc_full, 0, 0, src_w, src_h, hdc_screen, vx, vy, SRCCOPY).is_err() {
+        let _ = SelectObject(hdc_full, old_full);
+        let _ = DeleteObject(hbm_full);
+        let _ = DeleteDC(hdc_full);
+        bail!("BitBlt virtual screen failed");
+    }
+
+    let (read_dc, read_bm, read_w, read_h, scaled): (HDC, HBITMAP, u32, u32, bool) =
+        if dst_w as i32 == src_w && dst_h as i32 == src_h {
+            (hdc_full, hbm_full, dst_w, dst_h, false)
+        } else {
+            let hdc_scaled = CreateCompatibleDC(hdc_screen);
+            if hdc_scaled.is_invalid() {
+                let _ = SelectObject(hdc_full, old_full);
+                let _ = DeleteObject(hbm_full);
+                let _ = DeleteDC(hdc_full);
+                bail!("failed to create scale DC");
+            }
+            let hbm_scaled = CreateCompatibleBitmap(hdc_screen, dst_w as i32, dst_h as i32);
+            if hbm_scaled.is_invalid() {
+                let _ = DeleteDC(hdc_scaled);
+                let _ = SelectObject(hdc_full, old_full);
+                let _ = DeleteObject(hbm_full);
+                let _ = DeleteDC(hdc_full);
+                bail!("failed to create scaled bitmap");
+            }
+            let old_scaled = SelectObject(hdc_scaled, hbm_scaled);
+            let _ = SetStretchBltMode(hdc_scaled, COLORONCOLOR);
+            let stretch_ok = StretchBlt(
+                hdc_scaled,
+                0,
+                0,
+                dst_w as i32,
+                dst_h as i32,
+                hdc_full,
+                0,
+                0,
+                src_w,
+                src_h,
+                SRCCOPY,
+            );
+            let _ = SelectObject(hdc_scaled, old_scaled);
+            if !stretch_ok.as_bool() {
+                let _ = DeleteObject(hbm_scaled);
+                let _ = DeleteDC(hdc_scaled);
+                let _ = SelectObject(hdc_full, old_full);
+                let _ = DeleteObject(hbm_full);
+                let _ = DeleteDC(hdc_full);
+                bail!("StretchBlt scaled desktop failed");
+            }
+            (hdc_scaled, hbm_scaled, dst_w, dst_h, true)
+        };
+
+    let mut bgra_buf = vec![0u8; (read_w * read_h * 4) as usize];
+    let mut bmi = BITMAPINFO {
+        bmiHeader: BITMAPINFOHEADER {
+            biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+            biWidth: read_w as i32,
+            biHeight: -(read_h as i32),
+            biPlanes: 1,
+            biBitCount: 32,
+            biCompression: BI_RGB.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    let dib_res = GetDIBits(
+        read_dc,
+        read_bm,
+        0,
+        read_h,
+        Some(bgra_buf.as_mut_ptr() as *mut _),
+        &mut bmi,
+        DIB_RGB_COLORS,
+    );
+
+    if scaled {
+        let _ = DeleteObject(read_bm);
+        let _ = DeleteDC(read_dc);
+    }
+    let _ = SelectObject(hdc_full, old_full);
+    let _ = DeleteObject(hbm_full);
+    let _ = DeleteDC(hdc_full);
+
+    if dib_res == 0 {
+        bail!("failed to capture screen DIB");
+    }
+
+    Ok(bgra_buf)
+}
+
 /// Capture screen using GDI returning raw BGRA pixel bytes without compression.
 pub fn capture_screen_gdi_raw(max_w: u32) -> Result<(u32, u32, Vec<u8>)> {
     unsafe {
@@ -88,14 +193,15 @@ pub fn capture_screen_gdi_raw(max_w: u32) -> Result<(u32, u32, Vec<u8>)> {
         let vy = GetSystemMetrics(SM_YVIRTUALSCREEN);
         let vw = GetSystemMetrics(SM_CXVIRTUALSCREEN);
         let vh = GetSystemMetrics(SM_CYVIRTUALSCREEN);
-        let (src_x, src_y, src_w, src_h) = if vw > 0 && vh > 0 {
-            (vx, vy, vw, vh)
+        let (src_w, src_h) = if vw > 0 && vh > 0 {
+            (vw, vh)
         } else {
-            (0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN))
+            (GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN))
         };
         if src_w <= 0 || src_h <= 0 {
             bail!("invalid screen metrics: {src_w}x{src_h}");
         }
+        let _ = (vx, vy);
 
         let (dst_w, dst_h) = if max_w > 0 && (src_w as u32) > max_w {
             let h = ((src_h as u64 * max_w as u64) / src_w as u64).max(1) as u32;
@@ -109,70 +215,9 @@ pub fn capture_screen_gdi_raw(max_w: u32) -> Result<(u32, u32, Vec<u8>)> {
             bail!("failed to get screen HDC");
         }
 
-        let hdc_mem: HDC = CreateCompatibleDC(hdc_screen);
-        if hdc_mem.is_invalid() {
-            let _ = ReleaseDC(HWND::default(), hdc_screen);
-            bail!("failed to create compatible DC");
-        }
-
-        let hbm: HBITMAP = CreateCompatibleBitmap(hdc_screen, dst_w as i32, dst_h as i32);
-        if hbm.is_invalid() {
-            let _ = DeleteDC(hdc_mem);
-            let _ = ReleaseDC(HWND::default(), hdc_screen);
-            bail!("failed to create compatible bitmap");
-        }
-
-        let old_bm = SelectObject(hdc_mem, hbm);
-        let _ = SetStretchBltMode(hdc_mem, COLORONCOLOR);
-
-        let blt_res = StretchBlt(
-            hdc_mem,
-            0,
-            0,
-            dst_w as i32,
-            dst_h as i32,
-            hdc_screen,
-            src_x,
-            src_y,
-            src_w,
-            src_h,
-            SRCCOPY,
-        );
-
-        let mut bgra_buf = vec![0u8; (dst_w * dst_h * 4) as usize];
-
-        let mut bmi = BITMAPINFO {
-            bmiHeader: BITMAPINFOHEADER {
-                biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
-                biWidth: dst_w as i32,
-                biHeight: -(dst_h as i32), // negative for top-down DIB
-                biPlanes: 1,
-                biBitCount: 32,
-                biCompression: BI_RGB.0,
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-
-        let dib_res = GetDIBits(
-            hdc_mem,
-            hbm,
-            0,
-            dst_h,
-            Some(bgra_buf.as_mut_ptr() as *mut _),
-            &mut bmi,
-            DIB_RGB_COLORS,
-        );
-
-        // Cleanup GDI objects immediately
-        let _ = SelectObject(hdc_mem, old_bm);
-        let _ = DeleteObject(hbm);
-        let _ = DeleteDC(hdc_mem);
+        let capture_res = gdi_read_bgra(hdc_screen, src_w, src_h, dst_w, dst_h);
         let _ = ReleaseDC(HWND::default(), hdc_screen);
-
-        if !blt_res.as_bool() || dib_res == 0 {
-            bail!("failed to capture screen DIB");
-        }
+        let bgra_buf = capture_res?;
 
         Ok((dst_w, dst_h, bgra_buf))
     }
@@ -188,14 +233,12 @@ pub fn capture_screen_gdi(
     som: bool,
 ) -> Result<(Option<(u16, u16, Vec<u8>, String)>, [u8; 32])> {
     unsafe {
-        let vx = GetSystemMetrics(SM_XVIRTUALSCREEN);
-        let vy = GetSystemMetrics(SM_YVIRTUALSCREEN);
         let vw = GetSystemMetrics(SM_CXVIRTUALSCREEN);
         let vh = GetSystemMetrics(SM_CYVIRTUALSCREEN);
-        let (src_x, src_y, src_w, src_h) = if vw > 0 && vh > 0 {
-            (vx, vy, vw, vh)
+        let (src_w, src_h) = if vw > 0 && vh > 0 {
+            (vw, vh)
         } else {
-            (0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN))
+            (GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN))
         };
         if src_w <= 0 || src_h <= 0 {
             bail!("invalid screen metrics: {src_w}x{src_h}");
@@ -213,70 +256,8 @@ pub fn capture_screen_gdi(
             bail!("failed to get screen HDC");
         }
 
-        let hdc_mem: HDC = CreateCompatibleDC(hdc_screen);
-        if hdc_mem.is_invalid() {
-            let _ = ReleaseDC(HWND::default(), hdc_screen);
-            bail!("failed to create compatible DC");
-        }
-
-        let hbm: HBITMAP = CreateCompatibleBitmap(hdc_screen, dst_w as i32, dst_h as i32);
-        if hbm.is_invalid() {
-            let _ = DeleteDC(hdc_mem);
-            let _ = ReleaseDC(HWND::default(), hdc_screen);
-            bail!("failed to create compatible bitmap");
-        }
-
-        let old_bm = SelectObject(hdc_mem, hbm);
-        let _ = SetStretchBltMode(hdc_mem, COLORONCOLOR);
-
-        let blt_res = StretchBlt(
-            hdc_mem,
-            0,
-            0,
-            dst_w as i32,
-            dst_h as i32,
-            hdc_screen,
-            src_x,
-            src_y,
-            src_w,
-            src_h,
-            SRCCOPY,
-        );
-
-        let mut bgra_buf = vec![0u8; (dst_w * dst_h * 4) as usize];
-
-        let mut bmi = BITMAPINFO {
-            bmiHeader: BITMAPINFOHEADER {
-                biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
-                biWidth: dst_w as i32,
-                biHeight: -(dst_h as i32), // negative for top-down DIB
-                biPlanes: 1,
-                biBitCount: 32,
-                biCompression: BI_RGB.0,
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-
-        let dib_res = GetDIBits(
-            hdc_mem,
-            hbm,
-            0,
-            dst_h,
-            Some(bgra_buf.as_mut_ptr() as *mut _),
-            &mut bmi,
-            DIB_RGB_COLORS,
-        );
-
-        // Cleanup GDI objects immediately
-        let _ = SelectObject(hdc_mem, old_bm);
-        let _ = DeleteObject(hbm);
-        let _ = DeleteDC(hdc_mem);
+        let mut bgra_buf = gdi_read_bgra(hdc_screen, src_w, src_h, dst_w, dst_h)?;
         let _ = ReleaseDC(HWND::default(), hdc_screen);
-
-        if !blt_res.as_bool() || dib_res == 0 {
-            bail!("failed to capture screen DIB");
-        }
 
         let mut axtree = String::new();
         if som {
@@ -321,23 +302,8 @@ pub fn capture_screen_diff_opt(
     marker: Option<(f64, f64)>,
     som: bool,
 ) -> Result<(Option<(u16, u16, Vec<u8>, String)>, [u8; 32])> {
-    if !DXGI_DISABLED.load(Ordering::Relaxed) {
-        let mut guard = DXGI_CAPTURER.lock().unwrap();
-        if guard.is_none() {
-            match crate::dxgi_capture::DxgiCapturer::new() {
-                Ok(cap) => {
-                    info!("DXGI GPU desktop capture activated");
-                    *guard = Some(cap);
-                }
-                Err(e) => {
-                    warn!("DXGI capture init failed: {e}; falling back to GDI");
-                    DXGI_DISABLED.store(true, Ordering::Relaxed);
-                }
-            }
-        }
-
-        if let Some(capturer) = guard.as_mut() {
-            match capturer.capture_frame(16) {
+    if !crate::dxgi_capture::shared_dxgi_disabled() {
+        match crate::dxgi_capture::shared_capture_frame(16) {
                 Ok(Some((src_w, src_h, raw_bgra))) => {
                     let (dst_w, dst_h, mut bgra_buf) = if max_w > 0 && src_w > max_w {
                         let h = ((src_h as u64 * max_w as u64) / src_w as u64).max(1) as u32;
@@ -387,7 +353,6 @@ pub fn capture_screen_diff_opt(
                     warn!("DXGI capture frame error: {e}; falling back to GDI");
                 }
             }
-        }
     }
 
     capture_screen_gdi(max_w, quality, prev_hash, force, marker, som)
@@ -457,6 +422,10 @@ pub fn start_screen_stream(dc: Arc<RTCDataChannel>, max_w: u32, target_fps: u32)
 
         loop {
             interval.tick().await;
+
+            if c_remote_core::webrtc::is_file_media_active() {
+                continue;
+            }
 
             // SCTP backpressure: skip frame if data channel send buffer > 256KB
             let buffered = dc.buffered_amount().await;
