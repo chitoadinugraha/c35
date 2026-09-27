@@ -1,3 +1,4 @@
+use c35_mod_admin::require_root;
 use c35_proto::{MentionItem, ReqMentionSearch, ResMentionList, ResMentionSearch};
 use c35_store::missing_table;
 use serde_json::Value;
@@ -63,9 +64,21 @@ fn meta_online(meta: &Value) -> bool {
     meta.get("online").and_then(|v| v.as_bool()).unwrap_or(false)
 }
 
+fn catalog_mention_kind(id: &str) -> &'static str {
+    if id == "test_multitask" {
+        "command"
+    } else {
+        "catalog"
+    }
+}
+
+fn mention_visible_to_caller(item: &MentionItem, caller_is_root: bool) -> bool {
+    !item.root_only || caller_is_root
+}
+
 async fn catalog_rows(pool: &PgPool) -> Vec<MentionItem> {
-    let rows = sqlx::query_as::<_, (String, Option<String>, String, String, i32, String, String)>(
-        "SELECT id, topic_id, icon, color, sort, label_key, caption_key \
+    let rows = sqlx::query_as::<_, (String, Option<String>, String, String, i32, String, String, Vec<String>, bool)>(
+        "SELECT id, topic_id, icon, color, sort, label_key, caption_key, search_terms, root_only \
          FROM ai.mention WHERE enabled = true ORDER BY sort ASC, id ASC",
     )
     .fetch_all(pool)
@@ -73,8 +86,13 @@ async fn catalog_rows(pool: &PgPool) -> Vec<MentionItem> {
     match rows {
         Ok(rows) => rows
             .into_iter()
-            .map(|(id, topic_id, icon, color, sort, label_key, caption_key)| {
+            .map(|(id, topic_id, icon, color, sort, label_key, caption_key, search_terms, root_only)| {
                 let label = label_key.clone();
+                let terms = if search_terms.is_empty() {
+                    vec![id.clone(), label_key.to_lowercase()]
+                } else {
+                    search_terms
+                };
                 MentionItem {
                     id: mention_ref_catalog(&id),
                     topic_id: topic_id.unwrap_or_default(),
@@ -84,13 +102,14 @@ async fn catalog_rows(pool: &PgPool) -> Vec<MentionItem> {
                     sort,
                     label_key: label_key.clone(),
                     caption_key,
-                    search_terms: vec![id.clone(), label_key.to_lowercase()],
+                    search_terms: terms,
                     enabled: true,
                     title: label.clone(),
                     scope_label: String::new(),
                     label,
                     scope_ref: String::new(),
-                    kind: "catalog".into(),
+                    kind: catalog_mention_kind(&id).into(),
+                    root_only,
                 }
             })
             .collect(),
@@ -196,6 +215,7 @@ async fn identity_rows(pool: &PgPool, caller_iid: i64) -> Vec<MentionItem> {
                     label: title,
                     scope_ref: String::new(),
                     kind: "identity".into(),
+                    root_only: false,
                 }
             })
             .collect(),
@@ -207,7 +227,12 @@ async fn identity_rows(pool: &PgPool, caller_iid: i64) -> Vec<MentionItem> {
 }
 
 pub async fn mention_snapshot(pool: &PgPool, caller_iid: i64) -> (i64, Vec<MentionItem>) {
-    let catalog = catalog_rows(pool).await;
+    let caller_is_root = require_root(pool, caller_iid).await.is_ok();
+    let catalog = catalog_rows(pool)
+        .await
+        .into_iter()
+        .filter(|item| mention_visible_to_caller(item, caller_is_root))
+        .collect::<Vec<_>>();
     let identities = identity_rows(pool, caller_iid).await;
     let mut items = catalog;
     items.extend(identities);
@@ -308,10 +333,12 @@ async fn identity_resolve(pool: &PgPool, caller_iid: i64, iid: i64) -> Option<Me
         })
 }
 
-async fn catalog_resolve(pool: &PgPool, id: &str) -> Option<MentionResolved> {
+async fn catalog_resolve(pool: &PgPool, caller_iid: i64, id: &str) -> Option<MentionResolved> {
+    let caller_is_root = require_root(pool, caller_iid).await.is_ok();
     catalog_rows(pool)
         .await
         .into_iter()
+        .filter(|item| mention_visible_to_caller(item, caller_is_root))
         .find(|item| item.id == mention_ref_catalog(id) || item.id == id)
         .map(|item| MentionResolved {
             item,
@@ -327,7 +354,7 @@ pub async fn mention_resolve_one(
 ) -> Option<MentionResolved> {
     match mention_ref_parse(raw)? {
         MentionRef::Iid(iid) => identity_resolve(pool, caller_iid, iid).await,
-        MentionRef::Catalog(id) => catalog_resolve(pool, &id).await,
+        MentionRef::Catalog(id) => catalog_resolve(pool, caller_iid, &id).await,
     }
 }
 

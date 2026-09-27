@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:ui' as ui;
 
 import 'package:alienai_c35/c/catalog/catalog_api.dart';
@@ -22,18 +23,112 @@ String composerMentionToken(String catalogId) =>
 List<String> composerMentionIdsParse(String text) =>
     _composerMentionTokenRe.allMatches(text).map((m) => m.group(1)!).toList(growable: false);
 
+final RegExp _composerMentionPlainIidRe = RegExp(r'\biid:\d+\b', caseSensitive: false);
+
+/// Bracket mention in stored / wire message text. `[@iid:<snowflake>]`, `[@catalog:<id>]`.
+/// Future kinds (e.g. `[@file:<hash>]`) extend the same pattern — see `_/docs/chat.md`.
+final RegExp composerMentionBracketRe = RegExp(r'\[@(iid|catalog):([^\]]+)\]', caseSensitive: false);
+
+String composerMentionBracketForId(String canonicalId) {
+  final t = canonicalId.trim();
+  if (t.startsWith('iid:')) return '[@iid:${t.substring(4)}]';
+  if (t.startsWith('catalog:')) return '[@catalog:${t.substring(8)}]';
+  if (RegExp(r'^\d+$').hasMatch(t)) return '[@iid:$t]';
+  return '[@catalog:$t]';
+}
+
+String? composerMentionIdFromBracket(String kind, String body) {
+  final k = kind.trim().toLowerCase();
+  final b = body.trim();
+  if (b.isEmpty) return null;
+  if (k == 'iid') return 'iid:$b';
+  if (k == 'catalog') return 'catalog:$b';
+  return null;
+}
+
+String composerMentionBracketTokenize(String text) => text.replaceAllMapped(composerMentionBracketRe, (m) {
+      final id = composerMentionIdFromBracket(m.group(1)!, m.group(2)!);
+      return id == null ? m.group(0)! : composerMentionToken(id);
+    });
+
+List<String> composerMentionIdsCollect(String text) {
+  final out = <String>[];
+  final seen = <String>{};
+  for (final id in composerMentionIdsParse(text)) {
+    if (seen.add(id)) out.add(id);
+  }
+  for (final m in composerMentionBracketRe.allMatches(text)) {
+    final id = composerMentionIdFromBracket(m.group(1)!, m.group(2)!);
+    if (id != null && seen.add(id)) out.add(id);
+  }
+  for (final m in _composerMentionPlainIidRe.allMatches(text)) {
+    final id = m.group(0)!;
+    if (seen.add(id)) out.add(id);
+  }
+  return out;
+}
+
 bool composerMentionTextHasTokens(String text) =>
-    _composerMentionTokenRe.hasMatch(text) || text.contains(composerMentionStart);
+    _composerMentionTokenRe.hasMatch(text) ||
+    text.contains(composerMentionStart) ||
+    composerMentionBracketRe.hasMatch(text);
 
 String composerMentionPlainText(String text) =>
     text.replaceAll(_composerMentionTokenRe, '').replaceAll(RegExp(r'[ \t]+\n'), '\n').trim();
 
+String composerMentionInlineIidTokenize(String text) => text.replaceAllMapped(_composerMentionPlainIidRe, (m) => composerMentionToken(m.group(0)!));
+
+/// Re-wrap device mention labels as composer tokens after retry / server plain text.
+String composerMentionDisplayRestore(String plain, List<CatalogMention> mentions, {List<String>? mentionIds}) {
+  if (composerMentionTextHasTokens(plain) && _composerMentionTokenRe.hasMatch(plain)) return plain;
+  var out = composerMentionBracketTokenize(plain);
+  if (_composerMentionTokenRe.hasMatch(out)) return out;
+  out = composerMentionInlineIidTokenize(out);
+  if (_composerMentionTokenRe.hasMatch(out)) return out;
+  var rest = out.trimLeft();
+  final iidLead = RegExp(r'^(iid:\d+)(?=\s|$)', caseSensitive: false);
+  final iidMatch = iidLead.firstMatch(rest);
+  if (iidMatch != null) {
+    return composerMentionToken(iidMatch.group(1)!) + rest.substring(iidMatch.end);
+  }
+  final tryIds = mentionIds ?? composerMentionIdsCollect(plain);
+  for (final id in tryIds) {
+    final m = composerMentionLookup(mentions, id);
+    if (m == null) continue;
+    final label = m.displayLabel.trim();
+    if (label.isEmpty) continue;
+    if (!rest.toLowerCase().startsWith(label.toLowerCase())) continue;
+    return composerMentionToken(id) + rest.substring(label.length);
+  }
+  for (final m in mentions) {
+    if (!m.isDevice) continue;
+    final label = m.displayLabel.trim();
+    if (label.isEmpty) continue;
+    if (!rest.toLowerCase().startsWith(label.toLowerCase())) continue;
+    return composerMentionToken(m.id) + rest.substring(label.length);
+  }
+  return out;
+}
+
+/// Plain text safe for [Text] when mention chips cannot render (empty catalog, reload).
+String composerMentionUserContentDisplay(String content, List<CatalogMention> mentions) {
+  if (!composerMentionTextHasTokens(content)) return content;
+  if (mentions.isNotEmpty) return content;
+  return composerMentionTextForPrompt(content, mentions, mentionIds: composerMentionIdsCollect(content));
+}
+
 String composerMentionTextForPrompt(String text, List<CatalogMention> mentions, {List<String>? mentionIds}) {
-  var out = text.replaceAllMapped(_composerMentionTokenRe, (m) {
+  var out = composerMentionBracketTokenize(text);
+  out = out.replaceAllMapped(_composerMentionTokenRe, (m) {
     final id = m.group(1)!.trim();
     return composerMentionLookup(mentions, id)?.displayLabel ?? id;
   });
-  final ids = mentionIds ?? composerMentionIdsParse(text);
+  out = out.replaceAllMapped(composerMentionBracketRe, (m) {
+    final id = composerMentionIdFromBracket(m.group(1)!, m.group(2)!);
+    if (id == null) return m.group(0)!;
+    return composerMentionLookup(mentions, id)?.displayLabel ?? id;
+  });
+  final ids = mentionIds ?? composerMentionIdsCollect(text);
   if (out.contains(composerMentionStart) && ids.isNotEmpty) {
     final queue = List<String>.from(ids);
     final sb = StringBuffer();
@@ -53,8 +148,70 @@ String composerMentionTextForPrompt(String text, List<CatalogMention> mentions, 
   return out.replaceAll(RegExp(r'[ \t]+\n'), '\n').replaceAll(RegExp(r' {2,}'), ' ').trim();
 }
 
+/// Plain text + bracket mentions for wire / server `chat_msg.content`.
+String composerMentionTextForWire(String text, List<CatalogMention> mentions, {List<String>? mentionIds}) {
+  var out = text.replaceAllMapped(_composerMentionTokenRe, (m) => composerMentionBracketForId(m.group(1)!));
+  out = out.replaceAllMapped(_composerMentionPlainIidRe, (m) => composerMentionBracketForId(m.group(0)!));
+  out = out.replaceAllMapped(composerMentionBracketRe, (m) {
+    final id = composerMentionIdFromBracket(m.group(1)!, m.group(2)!);
+    return id == null ? m.group(0)! : composerMentionBracketForId(id);
+  });
+  var rest = out.trimLeft();
+  final ids = mentionIds ?? composerMentionIdsCollect(out);
+  for (final id in ids) {
+    final m = composerMentionLookup(mentions, id);
+    if (m == null) continue;
+    final label = m.displayLabel.trim();
+    if (label.isEmpty || !rest.toLowerCase().startsWith(label.toLowerCase())) continue;
+    out = composerMentionBracketForId(id) + rest.substring(label.length);
+    break;
+  }
+  return out.replaceAll(RegExp(r'[ \t]+\n'), '\n').replaceAll(RegExp(r' {2,}'), ' ').trim();
+}
+
 bool composerMentionTextNonempty(String text) =>
-    composerMentionPlainText(text).isNotEmpty || composerMentionIdsParse(text).isNotEmpty;
+    composerMentionPlainText(text).isNotEmpty ||
+    composerMentionIdsParse(text).isNotEmpty ||
+    composerMentionIdsCollect(text).isNotEmpty;
+
+List<String> msgMentionIdsDecode(String mentionIdsJson) {
+  final raw = mentionIdsJson.trim();
+  if (raw.isEmpty || raw == '[]') return const [];
+  try {
+    final v = jsonDecode(raw);
+    if (v is! List) return const [];
+    return [for (final e in v) '$e'.trim()].where((e) => e.isNotEmpty).toList(growable: false);
+  } catch (_) {
+    return const [];
+  }
+}
+
+String msgMentionIdsEncode(Iterable<String> ids) {
+  final out = <String>[];
+  final seen = <String>{};
+  for (final id in ids) {
+    final t = id.trim();
+    if (t.isEmpty || t == 'image' || !seen.add(t)) continue;
+    out.add(t);
+  }
+  return jsonEncode(out);
+}
+
+/// Stable user-bubble text: stored mention ids + inline iid + catalog labels.
+String msgUserContentForDisplay({
+  required String content,
+  required String mentionIdsJson,
+  required List<CatalogMention> mentions,
+}) {
+  final stored = msgMentionIdsDecode(mentionIdsJson);
+  final collected = composerMentionIdsCollect(content);
+  final ids = [...stored, ...collected.where((id) => !stored.contains(id))];
+  var out = composerMentionDisplayRestore(content, mentions, mentionIds: ids);
+  if (!composerMentionTextHasTokens(out) && ids.isNotEmpty) {
+    out = composerMentionDisplayRestore(out, mentions, mentionIds: ids);
+  }
+  return out;
+}
 
 CatalogMention? composerMentionLookup(List<CatalogMention> mentions, String id) {
   for (final m in mentions) {
@@ -129,7 +286,8 @@ class _ComposerMentionChipInline extends StatelessWidget {
           else if (mention != null)
             SizedBox(width: 13, height: 13, child: Center(child: _mentionIcon(mention!)))
           else
-            const SizedBox(width: 5),
+            const SizedBox.shrink(),
+          const SizedBox(width: 6),
           Text(
             label,
             maxLines: 1,

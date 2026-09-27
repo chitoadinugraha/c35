@@ -93,6 +93,36 @@ INSERT INTO ai.inst (
     NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
+-- Seed: device topic — facts-only steering when @device activates topic device
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.device.facts',
+    'global',
+    'topic',
+    'device',
+    '[DEVICE FACTS] Remote device questions about the mentioned PC must use tools — never guess from training or desktop icon lore. \
+Use device_iid from [MENTION TARGETS] (match the device the user named). If several devices are listed, ask which one before calling tools. \
+Normal directory paths (e.g. C:\\Users, Desktop) → device.fs.list. Recycle Bin listing (what files are in the bin) → device.fs.list with path recycle bin or Shell:RecycleBinFolder — never shell.run for listing. Empty/clean bin only when the user explicitly asks → shell.run (Clear-RecycleBin -Force). Other Shell: virtual folders → device.fs.list when path matches; else shell.run with quoted -Path. \
+Screen layout, visible UI, or "what is on screen" → device.screenshot. \
+If a tool returns ok=false or empty output, say so plainly — do not invent contents. \
+Multi-step UI automation (click/type flows) is computer_use / delegate — not this topic unless the user explicitly asks to operate the machine.',
+    ARRAY[]::TEXT[],
+    ARRAY[]::TEXT[],
+    ARRAY['device.screenshot', 'shell.run', 'device.fs.list'],
+    ARRAY['device.input'],
+    140,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    kind = EXCLUDED.kind,
+    topic_id = EXCLUDED.topic_id,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
 -- Seed: device read-only screen queries (screenshot only, no input/command)
 INSERT INTO ai.inst (
     id, scope, kind, topic_id, inst, phrases, triggers, priority, def_hash, updated_ts
@@ -106,11 +136,35 @@ INSERT INTO ai.inst (
         'what''s on screen', 'whats on screen', 'what is on screen', 'show screen',
         'show me the screen', 'lihat layar', 'tampilkan layar', 'apa di layar'
     ],
-    ARRAY['tool_include:device.screenshot', 'tool_exclude:device.input', 'tool_exclude:device.command'],
+    ARRAY['tool_include:device.screenshot', 'tool_exclude:device.input', 'tool_exclude:shell.run'],
     128,
     'seed',
     NOW()
 ) ON CONFLICT (id) DO NOTHING;
+
+-- Seed: list Recycle Bin via fs.list (not shell Get-ChildItem Shell:...)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, priority, def_hash, updated_ts
+) VALUES (
+    'inst.mention.device_recycle_list',
+    'global',
+    'task',
+    'device',
+    '[DEVICE RECYCLE LIST] User asks what files are in the Recycle Bin. Call device.fs.list with path recycle bin (or Shell:RecycleBinFolder). Do not use shell.run to list the bin.',
+    ARRAY[
+        'recycle bin', 'recyclebin', 'keranjang sampah', 'tempat sampah',
+        'apa saja file yang di recycle', 'file yang di recycle bin', 'isi recycle bin'
+    ],
+    ARRAY['tool_include:device.fs.list', 'tool_exclude:shell.run'],
+    132,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
 
 UPDATE ai.inst SET
     inst = '[MENTION: @research] Deep research mode: use web.search to discover sources, web.visit to read key pages, and web.research to synthesize a thorough answer with citations. For multi-part questions (compare, multi-region, or several independent sub-questions), call delegate.run with topic_id=research once per sub-question so children can run in parallel.',
@@ -159,6 +213,41 @@ INSERT INTO ai.inst (
     'seed',
     NOW()
 ) ON CONFLICT (id) DO NOTHING;
+
+-- Seed: parallel multitask via delegate.run (general topic)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.task.multitask_delegate',
+    'global',
+    'task',
+    '',
+    '[MULTITASK] When the user asks for parallel work, multiple independent tasks, or "multitask" N times, spawn one delegate.run child per independent sub-task (topic_id=general or research) with a focused goal. Do not fake parallel output in prose when real children are appropriate. You cannot perform real wall-clock delays (e.g. count every 1 second for minutes) — say that honestly; for timed demos, explain limits or use a single short illustration. Synthesize child summaries into one reply.',
+    ARRAY[
+        'multitask', 'multi task', 'multi-task', 'multitasking', 'parallel', 'simultaneously',
+        'at the same time', 'two at once', 'run both', 'bersamaan', 'dua sekaligus'
+    ],
+    ARRAY['tool_include:delegate.run'],
+    ARRAY['delegate.run'],
+    127,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO NOTHING;
+
+UPDATE ai.inst SET
+    kind = 'task',
+    topic_id = '',
+    inst = '[MULTITASK] When the user asks for parallel work, multiple independent tasks, or "multitask" N times, spawn one delegate.run child per independent sub-task (topic_id=general or research) with a focused goal. Do not fake parallel output in prose when real children are appropriate. You cannot perform real wall-clock delays (e.g. count every 1 second for minutes) — say that honestly; for timed demos, explain limits or use a single short illustration. Synthesize child summaries into one reply.',
+    phrases = ARRAY[
+        'multitask', 'multi task', 'multi-task', 'multitasking', 'parallel', 'simultaneously',
+        'at the same time', 'two at once', 'run both', 'bersamaan', 'dua sekaligus'
+    ],
+    triggers = ARRAY['tool_include:delegate.run'],
+    include_tools = ARRAY['delegate.run'],
+    priority = 127,
+    enabled = true,
+    updated_ts = NOW()
+WHERE id = 'inst.task.multitask_delegate';
 
 -- Seed: @image mention steering
 INSERT INTO ai.inst (

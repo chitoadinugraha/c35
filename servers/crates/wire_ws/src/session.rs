@@ -5,8 +5,8 @@ use c35_mod_chat::{
     chat_ensure, chat_title_from_text, prompt_followup_cancel_all_for_req, prompt_followup_cancel_rpc,
     prompt_followup_list, prompt_followup_publish_state, prompt_followup_put,
     prompt_followup_start_next_queued, prompt_run_cancel_children, prompt_run_cancel_request,
-    prompt_run_enqueue, prompt_run_insert, prompt_run_row_new, prompt_run_concurrency_acquire,
-    prompt_turn, PromptTurnHooks,
+    prompt_run_enqueue, prompt_run_finish, prompt_run_insert, prompt_run_row_new,
+    prompt_run_concurrency_acquire, prompt_run_status_set, prompt_turn, PromptTurnHooks,
 };
 use c35_mod_consumption::{consumption_list_rpc, consumption_put_rpc};
 use c35_mod_expense::expense_put_rpc;
@@ -234,6 +234,7 @@ fn prompt_req_put(
                 return;
             }
         };
+        let _ = prompt_run_status_set(&pool, &req_id_spawn, "running", None, None).await;
         match prompt_turn(
             &pool,
             nats.as_ref(),
@@ -267,6 +268,29 @@ fn prompt_req_put(
         .await
         {
             Ok(turn) => {
+                let status = if turn.error_text.is_empty() { "done" } else { "failed" };
+                let fail_class = if turn.error_text.is_empty() {
+                    None
+                } else {
+                    Some("transient")
+                };
+                let fail_reason = if turn.error_text.is_empty() {
+                    None
+                } else {
+                    Some(turn.error_text.as_str())
+                };
+                let _ = prompt_run_finish(
+                    &pool,
+                    &req_id_spawn,
+                    status,
+                    turn.tokens_in,
+                    turn.tokens_out,
+                    turn.cost_usd,
+                    turn.duration_ms,
+                    fail_class,
+                    fail_reason,
+                )
+                .await;
                 let _ = out_tx.send(WsRes {
                     req_id: req_id_spawn.clone(),
                     body: Some(ws_res::Body::PromptEnd(ResPromptEnd {
@@ -287,7 +311,26 @@ fn prompt_req_put(
                 }
             }
             Err(e) => {
-                let _ = out_tx.send(prompt_fail(&req_id_spawn, e.to_string()));
+                let err_msg = e.to_string();
+                let is_abort = cancel.is_cancelled() || err_msg.contains("aborted");
+                let (status, fail_class) = if is_abort {
+                    ("cancelled", "cancel")
+                } else {
+                    ("failed", "transient")
+                };
+                let _ = prompt_run_finish(
+                    &pool,
+                    &req_id_spawn,
+                    status,
+                    0,
+                    0,
+                    0.0,
+                    0,
+                    Some(fail_class),
+                    Some(err_msg.as_str()),
+                )
+                .await;
+                let _ = out_tx.send(prompt_fail(&req_id_spawn, err_msg));
             }
         }
     });

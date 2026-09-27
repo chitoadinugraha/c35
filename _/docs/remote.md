@@ -296,9 +296,9 @@ When a user mentions a device (e.g. `@Chito-PC`) or when computer use is needed,
 
 - **`device.screenshot`**: Captures high-definition JPEG desktop screenshots (`max_width`, `quality`, optional `marker_x`, `marker_y`, optional `som: bool`).
 - **`device.input`**: Dispatches mouse clicks, moves, drags, typing, and key presses using normalized `(0.0, 0.0)` to `(1.0, 1.0)` coordinates. Setting `screenshot_after=true` automatically waits 200ms and returns a follow-up screenshot with a red target marker confirming where the action landed.
-- **`device.command`**: Executes PowerShell commands directly on the remote agent with a configurable timeout (`timeout_sec`), returning structured `stdout`, `stderr`, and `exit_code`. **Preferred for bulk data** (export, join, transform, spreadsheet load); UI clicks are for gates only (login, export button, captcha).
+- **`shell.run`**: Executes PowerShell commands directly on the remote agent with a configurable timeout (`timeout_sec`), returning structured `stdout`, `stderr`, and `exit_code`. **Preferred for bulk data** (export, join, transform, spreadsheet load); UI clicks are for gates only (login, export button, captcha).
 
-**Bulk data (locked steering):** Topic `computer_use` instructs the subagent to **plan first** (keys, volume, phases), use **bulk extract + `device.command` scripts** when row count is large or work is repetitive, **pilot** a small sample, and use **row-by-row UI lookup only** when no export/API/script path exists. See [`../schemas/topic.sql`](../schemas/topic.sql) seed `computer_use`.
+**Bulk data (locked steering):** Topic `computer_use` instructs the subagent to **plan first** (keys, volume, phases), use **bulk extract + `shell.run` scripts** when row count is large or work is repetitive, **pilot** a small sample, and use **row-by-row UI lookup only** when no export/API/script path exists. See [`../schemas/topic.sql`](../schemas/topic.sql) seed `computer_use`.
 
 #### 2. Set-of-Mark (SoM) & Windows UI Automation (UIA) Engine
 

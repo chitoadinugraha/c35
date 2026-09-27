@@ -19,6 +19,7 @@ import 'package:alienai_c35/c/pb/c35/session.pb.dart';
 import 'package:alienai_c35/c/location/user_location_prefs.dart';
 import 'package:alienai_c35/c/settings/user_locale_prefs.dart';
 import 'package:alienai_c35/c/session.dart';
+import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -117,7 +118,9 @@ class ChatRow {
     this.unreadStatus = false,
     this.contextSummaryPresent = false,
     this.boundDeviceIid = 0,
-  }) : tags = tags ?? const [];
+    List<String>? stickyMentionIds,
+  })  : tags = tags ?? const [],
+        stickyMentionIds = stickyMentionIds ?? const [];
 
   final int id;
   String title;
@@ -131,6 +134,7 @@ class ChatRow {
   bool unreadStatus;
   bool contextSummaryPresent;
   int boundDeviceIid;
+  List<String> stickyMentionIds;
 
   bool get pinned => pinnedAt > 0;
   bool get archived => archivedAt > 0;
@@ -148,6 +152,7 @@ class ChatRow {
         'unreadStatus': unreadStatus,
         'contextSummaryPresent': contextSummaryPresent,
         if (boundDeviceIid > 0) 'boundDeviceIid': boundDeviceIid,
+        if (stickyMentionIds.isNotEmpty) 'stickyMentionIds': stickyMentionIds,
       };
 
   factory ChatRow.fromJson(Map<String, dynamic> j) => ChatRow(
@@ -163,6 +168,7 @@ class ChatRow {
         unreadStatus: j['unreadStatus'] as bool? ?? false,
         contextSummaryPresent: j['contextSummaryPresent'] as bool? ?? false,
         boundDeviceIid: j['boundDeviceIid'] as int? ?? 0,
+        stickyMentionIds: j['stickyMentionIds'] is List ? [for (final t in j['stickyMentionIds'] as List) '$t'] : const [],
       );
 }
 
@@ -195,6 +201,7 @@ class MsgRow {
     this.model = '',
     this.error = '',
     this.createdAtMs = 0,
+    this.mentionIdsJson = '[]',
     List<MsgAttachment>? attachments,
   }) : attachments = attachments ?? const [],
        clientKey = clientKey.isNotEmpty ? clientKey : msgClientKeyNew(role: role, reqId: reqId);
@@ -216,6 +223,7 @@ class MsgRow {
   String model;
   String error;
   int createdAtMs;
+  String mentionIdsJson;
   List<MsgAttachment> attachments;
 
   Map<String, dynamic> toJson() => {
@@ -236,6 +244,7 @@ class MsgRow {
         if (model.isNotEmpty) 'model': model,
         if (error.isNotEmpty) 'error': error,
         'createdAtMs': createdAtMs,
+        if (mentionIdsJson != '[]') 'mentionIdsJson': mentionIdsJson,
       };
 
   factory MsgRow.fromJson(Map<String, dynamic> j) {
@@ -258,6 +267,7 @@ class MsgRow {
       model: '${j['model'] ?? ''}',
       error: '${j['error'] ?? ''}',
       createdAtMs: j['createdAtMs'] as int? ?? 0,
+      mentionIdsJson: '${j['mentionIdsJson'] ?? '[]'}',
       attachments: MsgAttachment.decode(attachmentsRaw),
     );
   }
@@ -280,6 +290,7 @@ class MsgRow {
     String? model,
     String? error,
     int? createdAtMs,
+    String? mentionIdsJson,
     List<MsgAttachment>? attachments,
   }) =>
       MsgRow(
@@ -300,6 +311,7 @@ class MsgRow {
         model: model ?? this.model,
         error: error ?? this.error,
         createdAtMs: createdAtMs ?? this.createdAtMs,
+        mentionIdsJson: mentionIdsJson ?? this.mentionIdsJson,
         attachments: attachments ?? this.attachments,
       );
 }
@@ -314,7 +326,6 @@ class ChatStore extends ChangeNotifier {
   List<AgentModel> models = const [AgentModel.alien];
   NavCounts navCounts = NavCounts();
   String search = '';
-  bool archivedOpen = false;
   int? activeChatId;
   bool promptBusy = false;
   int? promptChatId;
@@ -639,7 +650,6 @@ class ChatStore extends ChangeNotifier {
       c.archivedAt = archived ? now : 0;
       if (archived) c.pinnedAt = 0;
     }
-    if (archived) archivedOpen = true;
     if (activeChatId != null && archived && ids.contains(activeChatId)) {
       activeChatId = visibleChats.isEmpty ? null : visibleChats.first.id;
     }
@@ -652,6 +662,39 @@ class ChatStore extends ChangeNotifier {
       c.tags = [...tags];
     }
     _touch();
+  }
+
+  void chatStickyMentionsMerge(int chatId, Iterable<String> mentionIds) {
+    final add = mentionIds.map((e) => e.trim()).where((e) => e.isNotEmpty && e != 'image');
+    if (add.isEmpty) return;
+    for (final c in chats) {
+      if (c.id != chatId) continue;
+      final seen = <String>{...c.stickyMentionIds};
+      for (final id in add) {
+        seen.add(id);
+      }
+      c.stickyMentionIds = seen.toList();
+      _touch();
+      return;
+    }
+  }
+
+  List<String> chatStickyMentionsFor(int chatId) {
+    for (final c in chats) {
+      if (c.id == chatId) return List<String>.from(c.stickyMentionIds);
+    }
+    return const [];
+  }
+
+  void chatStickyMentionsRebuild(int chatId) {
+    final seen = <String>{};
+    for (final m in msgs) {
+      if (m.chatId != chatId || m.role != 'user') continue;
+      seen.addAll(msgMentionIdsDecode(m.mentionIdsJson));
+      seen.addAll(composerMentionIdsCollect(m.content));
+    }
+    if (seen.isEmpty) return;
+    chatStickyMentionsMerge(chatId, seen);
   }
 
   void chatDelete(int id) {
@@ -725,11 +768,6 @@ class ChatStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  void archivedOpenPut(bool v) {
-    archivedOpen = v;
-    notifyListeners();
-  }
-
   void chatTitlePut(int id, String title) {
     if (id == 0) return;
     final t = title.trim();
@@ -761,7 +799,11 @@ class ChatStore extends ChangeNotifier {
     final title = chat.title.isNotEmpty ? chat.title : chat.peerName;
     final existingIdx = chats.indexWhere((c) => c.id == id);
     final prevUnread = existingIdx >= 0 ? chats[existingIdx].unreadStatus : false;
+    final prevSticky = existingIdx >= 0 ? chats[existingIdx].stickyMentionIds : const <String>[];
+    final metaSticky = chatMetaStickyMentionIds(chat.metaJson);
+    final mergedSticky = {...prevSticky, ...metaSticky}.toList();
     final unread = member.unreadCount > 0 || (prevUnread && id != activeChatId);
+    final bound = chatMetaBoundDeviceIid(chat.metaJson);
     final row = ChatRow(
       id: id,
       title: title.isNotEmpty ? title : 'Chat',
@@ -774,7 +816,8 @@ class ChatStore extends ChangeNotifier {
       lastMsgStatus: status,
       unreadStatus: unread,
       contextSummaryPresent: chatMetaContextSummaryPresent(chat.metaJson),
-      boundDeviceIid: chatMetaBoundDeviceIid(chat.metaJson),
+      boundDeviceIid: bound > 0 ? bound : (existingIdx >= 0 ? chats[existingIdx].boundDeviceIid : 0),
+      stickyMentionIds: mergedSticky,
     );
     final pendingIdx = chats.indexWhere((c) => c.pending && c.id != id);
     if (pendingIdx >= 0) {
@@ -792,7 +835,39 @@ class ChatStore extends ChangeNotifier {
     } else {
       chats.add(row);
     }
+    if (lastAt == 0 && preview.trim().isEmpty && !promptBusyFor(id)) {
+      _msgsClearLocal(id);
+    }
     _touch();
+  }
+
+  void _msgsClearLocal(int chatId) {
+    final before = msgs.length;
+    msgs.removeWhere((m) => m.chatId == chatId);
+    if (msgs.length != before) {
+      unawaited(_persistMsgs(chatId));
+      _touchMsgs(chatId);
+    }
+  }
+
+  Future<void> msgsPullFromServer(ChatConn conn, int chatId) async {
+    if (chatId <= 0 || promptBusyFor(chatId)) return;
+    try {
+      final res = await conn.chatMsgList(chatId: Int64(chatId));
+      msgsReloadFromServer(chatId, res.messages);
+    } catch (_) {}
+  }
+
+  Future<void> msgsSyncStaleFromServer(ChatConn conn) async {
+    for (final c in chats) {
+      if (c.id <= 0 || promptBusyFor(c.id)) continue;
+      final hasLocal = msgs.any((m) => m.chatId == c.id);
+      if (hasLocal && c.lastMsgAt == 0 && c.lastMsgPreview.trim().isEmpty) {
+        await msgsPullFromServer(conn, c.id);
+      }
+    }
+    final active = activeChatId;
+    if (active != null && active > 0) await msgsPullFromServer(conn, active);
   }
 
   MsgRow? _turnAssistant({required int chatId, String reqId = ''}) {
@@ -868,6 +943,7 @@ class ChatStore extends ChangeNotifier {
         model: row.model.isNotEmpty ? row.model : old.model,
         error: row.error.isNotEmpty ? row.error : old.error,
         createdAtMs: row.createdAtMs > 0 ? row.createdAtMs : old.createdAtMs,
+        mentionIdsJson: row.mentionIdsJson != '[]' ? row.mentionIdsJson : old.mentionIdsJson,
         attachments: _mergeAttachments(old, row),
       );
 
@@ -887,7 +963,9 @@ class ChatStore extends ChangeNotifier {
     if (row.reqId.isNotEmpty) {
       final byReq = msgs.indexWhere((m) => m.reqId == row.reqId && m.role == row.role && m.chatId == row.chatId);
       if (byReq >= 0) {
-        msgs[byReq] = _msgMerge(msgs[byReq], row);
+        final old = msgs[byReq];
+        if (old.id > 0 && row.id > 0 && old.id != row.id) _tombstonedMsgIds.add(old.id);
+        msgs[byReq] = _msgMerge(old, row);
         if (touchPreview) {
           _chatPreviewTouch(
             row.chatId,
@@ -966,6 +1044,9 @@ class ChatStore extends ChangeNotifier {
         costUsd: m.costUsd,
         error: m.hasErrorText() ? m.errorText : '',
         createdAtMs: m.createdTsMs.toInt(),
+        mentionIdsJson: role == 'user'
+            ? msgMentionIdsEncode(composerMentionIdsCollect(m.content))
+            : '[]',
         attachments: MsgAttachment.decode(m.attachmentsJson),
       ),
       touchPreview: false,
@@ -999,12 +1080,14 @@ class ChatStore extends ChangeNotifier {
     final rid = reqId.isNotEmpty ? reqId : (pendingPromptReqId ?? '');
     final m = _turnAssistant(chatId: cid, reqId: rid);
     if (m != null) {
+      if (rid.isNotEmpty && m.reqId.isNotEmpty && m.reqId != rid) return;
       if (text.startsWith(m.content) && text.length > m.content.length) {
         m.content = text;
       } else {
         m.content = '${m.content}$text';
       }
     } else {
+      if (rid.isNotEmpty) return;
       msgs.add(MsgRow(id: _nextLocalId--, chatId: cid, role: 'assistant', content: text, reqId: rid));
     }
     _chatPreviewTouch(cid, m?.content ?? text, atMs: DateTime.now().millisecondsSinceEpoch);
@@ -1018,8 +1101,10 @@ class ChatStore extends ChangeNotifier {
     final rid = reqId.isNotEmpty ? reqId : (pendingPromptReqId ?? '');
     final m = _turnAssistant(chatId: cid, reqId: rid);
     if (m != null) {
+      if (rid.isNotEmpty && m.reqId.isNotEmpty && m.reqId != rid) return;
       m.thought = '${m.thought}$text';
     } else {
+      if (rid.isNotEmpty) return;
       msgs.add(MsgRow(id: _nextLocalId--, chatId: cid, role: 'assistant', content: '', thought: text, reqId: rid));
     }
     _touchMsgs(cid, debounce: true);
@@ -1032,9 +1117,11 @@ class ChatStore extends ChangeNotifier {
     final rid = reqId.isNotEmpty ? reqId : (pendingPromptReqId ?? '');
     final m = _turnAssistant(chatId: cid, reqId: rid);
     if (m != null) {
+      if (rid.isNotEmpty && m.reqId.isNotEmpty && m.reqId != rid) return;
       m.blocksJson = blocksJson;
       if (m.error.isNotEmpty) m.error = '';
     } else {
+      if (rid.isNotEmpty) return;
       msgs.add(MsgRow(id: _nextLocalId--, chatId: cid, role: 'assistant', content: '', blocksJson: blocksJson, reqId: rid));
     }
     _touchMsgs(cid, debounce: true);
@@ -1062,6 +1149,13 @@ class ChatStore extends ChangeNotifier {
     final i = _assistantIdx(cid, reqId: rid);
     if (i == null) return;
     final m = msgs[i];
+    if (msgHasBody(m) && uiIsConnectionError(text)) {
+      _chatStatusPut(cid, status: 'done', unread: cid != activeChatId);
+      _promptClear();
+      _flushDirtyMsgs();
+      _touchMsgs(cid);
+      return;
+    }
     final started = startedAtMs > 0 ? startedAtMs : promptStartedAtMs;
     final duration = m.durationMs > 0 ? m.durationMs : (started > 0 ? DateTime.now().millisecondsSinceEpoch - started : 0);
     msgs[i] = m.copyWith(error: text, durationMs: duration > 0 ? duration : m.durationMs);
@@ -1235,6 +1329,7 @@ class ChatStore extends ChangeNotifier {
     if (lastUserIdx < 0) return null;
     final lastUser = msgs[lastUserIdx];
     _tombstoneAssistantsAfterUser(cid, lastUserIdx);
+    if (lastUser.id > 0) _tombstonedMsgIds.add(lastUser.id);
     _touchMsgs(cid);
     notifyListeners();
     return (text: lastUser.content, attachments: List<MsgAttachment>.from(lastUser.attachments));
@@ -1279,6 +1374,7 @@ class ChatStore extends ChangeNotifier {
     required List<MsgAttachment> attachments,
     required String reqId,
     required int createdAtMs,
+    String mentionIdsJson = '[]',
   }) {
     final idx = msgs.lastIndexWhere((m) => m.chatId == chatId && m.role == 'user');
     if (idx >= 0) {
@@ -1289,6 +1385,7 @@ class ChatStore extends ChangeNotifier {
         attachmentsJson: MsgAttachment.encode(attachments),
         reqId: reqId,
         createdAtMs: createdAtMs,
+        mentionIdsJson: mentionIdsJson != '[]' ? mentionIdsJson : old.mentionIdsJson,
         error: '',
       );
     } else {
@@ -1301,6 +1398,7 @@ class ChatStore extends ChangeNotifier {
         attachmentsJson: MsgAttachment.encode(attachments),
         createdAtMs: createdAtMs,
         reqId: reqId,
+        mentionIdsJson: mentionIdsJson,
       ));
     }
     _chatPreviewTouch(chatId, content, atMs: createdAtMs);
@@ -1310,6 +1408,10 @@ class ChatStore extends ChangeNotifier {
 
   void msgsReloadFromServer(int chatId, List<ChatMsg> serverMsgs) {
     if (chatId <= 0 || promptBusyFor(chatId)) return;
+    final mentionByReq = <String, String>{
+      for (final m in msgs)
+        if (m.chatId == chatId && m.role == 'user' && m.reqId.isNotEmpty && m.mentionIdsJson != '[]') m.reqId: m.mentionIdsJson,
+    };
     msgs.removeWhere((m) => m.chatId == chatId);
     final sorted = [...serverMsgs]..sort((a, b) => a.id.compareTo(b.id));
     var newestPreview = '';
@@ -1322,6 +1424,21 @@ class ChatStore extends ChangeNotifier {
       }
       msgPutFromServer(m);
     }
+    for (var i = 0; i < msgs.length; i++) {
+      final m = msgs[i];
+      if (m.chatId != chatId || m.role != 'user') continue;
+      final saved = mentionByReq[m.reqId];
+      final inferred = composerMentionIdsCollect(m.content);
+      if (inferred.isNotEmpty) {
+        msgs[i] = m.copyWith(mentionIdsJson: msgMentionIdsEncode(inferred));
+        continue;
+      }
+      if (saved != null && saved != '[]') {
+        msgs[i] = m.copyWith(mentionIdsJson: saved);
+        continue;
+      }
+    }
+    chatStickyMentionsRebuild(chatId);
     if (newestAt > 0) _chatPreviewTouch(chatId, newestPreview, atMs: newestAt);
     _touchMsgs(chatId);
   }
@@ -1347,6 +1464,7 @@ class ChatStore extends ChangeNotifier {
     }
     if (init.hasBilling()) AppStore.instance.billingPut(init.billing);
     if (init.hasMentions()) mentionCatalog.mergeCatalog(init.mentions);
+    if (init.hasMentions() || init.inboxChats.isNotEmpty) notifyListeners();
     if (init.models.isNotEmpty) models = agentModelsFromProto(init.models);
     if (init.hasProfile()) {
       final profile = init.profile;
@@ -1408,6 +1526,7 @@ class ChatStore extends ChangeNotifier {
     try {
       inboxMerge(await conn.inboxList(includeArchived: true));
     } catch (_) {}
+    await msgsSyncStaleFromServer(conn);
     chatStatusStaleClear();
     notifyListeners();
   }

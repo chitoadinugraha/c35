@@ -34,7 +34,10 @@ class UiUserBubble extends StatelessWidget {
                   if (content.trim().isNotEmpty)
                     composerMentionTextHasTokens(content) && mentions.isNotEmpty
                         ? ComposerMentionMessageText(text: content, mentions: mentions)
-                        : Text(content, style: const TextStyle(fontSize: 14.5, height: 1.45, color: Color(0xFFE4E4E7), fontWeight: FontWeight.w500)),
+                        : Text(
+                            composerMentionUserContentDisplay(content, mentions),
+                            style: const TextStyle(fontSize: 14.5, height: 1.45, color: Color(0xFFE4E4E7), fontWeight: FontWeight.w500),
+                          ),
                 ],
               ),
             ),

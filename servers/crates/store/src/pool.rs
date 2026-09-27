@@ -24,8 +24,8 @@ pub const POOL_RESERVED_CONNECTIONS: u32 = 10;
 
 impl PoolConfig {
     pub fn from_env() -> Self {
-        let max = env_u32("PG_MAX_CONNECTIONS", 24);
-        let min = env_u32("PG_MIN_CONNECTIONS", 4).min(max);
+        let max = env_u32("PG_MAX_CONNECTIONS", 48);
+        let min = env_u32("PG_MIN_CONNECTIONS", 12).min(max);
         Self {
             max_connections: max,
             min_connections: min,

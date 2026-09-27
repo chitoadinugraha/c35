@@ -11,7 +11,7 @@ use serde_json::{json, Value};
 use sqlx::types::Json;
 
 use crate::prompt_run::{
-    prompt_run_insert, prompt_run_job_publish, prompt_run_kind_default, prompt_run_summary,
+    prompt_run_insert, prompt_run_job_publish, prompt_run_kind_normalize, prompt_run_summary,
     prompt_run_wait_terminal, PromptRunRow,
 };
 use crate::tool;
@@ -95,11 +95,8 @@ pub async fn delegate_run_exec(ctx: &ToolContext, args: &Value) -> anyhow::Resul
     if parent_req_id.is_empty() {
         bail!("delegate.run requires parent req_id");
     }
-    let kind = args["kind"]
-        .as_str()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| prompt_run_kind_default(topic_id));
+    let kind_raw = args["kind"].as_str().map(str::trim).unwrap_or("");
+    let kind = prompt_run_kind_normalize(kind_raw, topic_id);
     let label = args["label"].as_str().unwrap_or_default().trim();
     let device_iid = args["device_iid"].as_u64().unwrap_or(0) as i64;
 
@@ -174,6 +171,11 @@ tool! {
     aliases: ["delegate_run", "subagent.run"],
     description: "Spawn a child subagent on a topic with its own prompt run, billing hold, and budget. Waits for completion and returns a summary.",
     topics: ["general", "research", "device"],
+    rag_phrases: [
+        "multitask", "multi task", "multi-task", "parallel tasks", "run in parallel",
+        "subagent", "sub-agent", "two at once", "simultaneously", "at the same time",
+        "bersamaan", "dua sekaligus", "multitasking",
+    ],
     ui_calling_key: "tool.delegate.run.calling",
     ui_done_key: "tool.delegate.run.done",
     parameters: {

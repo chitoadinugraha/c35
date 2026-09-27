@@ -77,6 +77,19 @@ void main() {
     expect(branch.droppedGap, hasLength(1));
   });
 
+  test('traceToolLabelFromLog prefers subagent meta over generic tool label', () {
+    final log = TraceLogDoc(
+      kind: 'tool',
+      topic: 'tool_result',
+      text: '{"ok":true}',
+      metaJson: jsonEncode({
+        'tool': 'delegate.run',
+        'subagent': {'child_req_id': '12345678901234567', 'kind': 'research', 'status': 'done', 'topic_id': 'research'},
+      }),
+    );
+    expect(traceToolLabelFromLog(log), 'Subagent · research · done · …01234567');
+  });
+
   test('traceToolChipsFromView includes executed tools only', () {
     final view = buildTraceView([
       _log(topic: 'trace_tool_filter', branch: 'tools', durationMs: 12),

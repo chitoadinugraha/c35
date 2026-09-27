@@ -19,6 +19,8 @@ pub mod tools;
 pub mod update;
 pub mod version;
 pub mod webrtc;
+pub mod win_powershell;
+pub mod win_app_launch;
 
 pub use conn_exit::ConnExit;
 pub use c35_proto;

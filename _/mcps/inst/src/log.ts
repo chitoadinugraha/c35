@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { pool } from "./db.js";
+import { pool, promptRunChildren } from "./db.js";
 import { clampLimit, debugOwnerIid, ilike, jsonContent } from "./util.js";
 
 type LogRow = {
@@ -275,8 +275,26 @@ export const registerLogTools = (server: McpServer) => {
       }
       const sql = `SELECT ${LOG_COLS_META} FROM ai.log WHERE ${clauses.join(" AND ")} ORDER BY created_ts ASC, id ASC`;
       const { rows } = await pool.query<LogRow>(sql, params);
+      const subagents = await promptRunChildren(rid);
+      const subagent_traces: Record<string, ReturnType<typeof logRowJson>[]> = {};
+      for (const child of subagents) {
+        const childClauses =
+          owner !== undefined
+            ? "deleted_ts IS NULL AND req_id = $1 AND owner_iid = $2"
+            : "deleted_ts IS NULL AND req_id = $1";
+        const childParams = owner !== undefined ? [child.req_id, owner] : [child.req_id];
+        const { rows: childRows } = await pool.query<LogRow>(
+          `SELECT ${LOG_COLS_META} FROM ai.log WHERE ${childClauses} ORDER BY created_ts ASC, id ASC`,
+          childParams,
+        );
+        subagent_traces[child.req_id] = childRows.map((r) => logRowJson(r, true));
+      }
+      const multitask_real = subagents.length > 0;
       return jsonContent({
         req_id: rid,
+        multitask_real,
+        subagents,
+        subagent_traces,
         count: rows.length,
         lines: rows.map(logCompactLine),
         trace: rows.map((r) => logRowJson(r, true)),

@@ -113,6 +113,7 @@ const ReqAdminLogReport$json = {
     {'1': 'since_ms', '3': 2, '4': 1, '5': 3, '10': 'sinceMs'},
     {'1': 'until_ms', '3': 3, '4': 1, '5': 3, '10': 'untilMs'},
     {'1': 'limit', '3': 4, '4': 1, '5': 5, '10': 'limit'},
+    {'1': 'group_tools', '3': 5, '4': 1, '5': 8, '10': 'groupTools'},
   ],
   '8': [
     {'1': '_owner_iid'},
@@ -123,7 +124,8 @@ const ReqAdminLogReport$json = {
 final $typed_data.Uint8List reqAdminLogReportDescriptor = $convert.base64Decode(
     'ChFSZXFBZG1pbkxvZ1JlcG9ydBIgCglvd25lcl9paWQYASABKANIAFIIb3duZXJJaWSIAQESGQ'
     'oIc2luY2VfbXMYAiABKANSB3NpbmNlTXMSGQoIdW50aWxfbXMYAyABKANSB3VudGlsTXMSFAoF'
-    'bGltaXQYBCABKAVSBWxpbWl0QgwKCl9vd25lcl9paWQ=');
+    'bGltaXQYBCABKAVSBWxpbWl0Eh8KC2dyb3VwX3Rvb2xzGAUgASgIUgpncm91cFRvb2xzQgwKCl'
+    '9vd25lcl9paWQ=');
 
 @$core.Deprecated('Use resAdminLogReportDescriptor instead')
 const ResAdminLogReport$json = {

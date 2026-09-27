@@ -14,7 +14,7 @@ use crate::mention_registry::{
     mention_active_topics, mention_ref_parse, mention_resolve_all, MentionRef,
 };
 use crate::mention_tool_registry::mention_force_tools;
-use crate::site_capability::{site_capability_view_for_mention, SiteCapabilityView};
+use crate::site_capability::site_capability_view_for_mention;
 use crate::site_resolve::site_context_resolve;
 use crate::prompt_turn::{prompt_turn, PromptTurnHooks};
 use crate::prompt_run::prompt_run_concurrency_acquire;

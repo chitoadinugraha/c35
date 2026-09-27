@@ -21,6 +21,7 @@ fn site_mention(iid: i64, alien_id: &str, name: &str) -> MentionResolved {
             label: name.into(),
             scope_ref: String::new(),
             kind: "identity".into(),
+            root_only: false,
         },
         identity_iid: Some(iid),
         identity_kind: Some("site".into()),

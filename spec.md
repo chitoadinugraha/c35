@@ -102,6 +102,7 @@ Full UI spec: [`_/docs/ui.md`](_/docs/ui.md)
 | [`_/docs/architecture.md`](_/docs/architecture.md) | Locked system design |
 | [`_/docs/identity.md`](_/docs/identity.md) | Identity kinds, grants, alien_id |
 | [`_/docs/chat.md`](_/docs/chat.md) | Chat; Home inbox = prompt only |
+| [`_/docs/mention.md`](_/docs/mention.md) | Mentions — bracket text `[@iid:…]`, wire `mention_ids[]`, reload context |
 | [`_/docs/inst.md`](_/docs/inst.md) | Instruction macros (`ai.inst`) — LLM prompt steering |
 | [`_/docs/sync.md`](_/docs/sync.md) | `_ts` fields, since-delta, indexes, NATS |
 | [`_/docs/server.md`](_/docs/server.md) | Crate workspace layout |

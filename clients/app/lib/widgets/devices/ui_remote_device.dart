@@ -30,13 +30,13 @@ enum RemoteInteractMode { view, mouse, trackpad }
 
 extension RemoteInteractModeUi on RemoteInteractMode {
   String get label => switch (this) {
-        RemoteInteractMode.view => 'View',
+        RemoteInteractMode.view => 'Pan (view only)',
         RemoteInteractMode.mouse => 'Mouse',
         RemoteInteractMode.trackpad => 'Trackpad',
       };
 
   IconData get icon => switch (this) {
-        RemoteInteractMode.view => Icons.visibility_outlined,
+        RemoteInteractMode.view => Icons.open_with_rounded,
         RemoteInteractMode.mouse => Icons.mouse_outlined,
         RemoteInteractMode.trackpad => Icons.touch_app_outlined,
       };
@@ -47,11 +47,8 @@ class UiRemoteBottomSessionControl extends StatelessWidget {
     super.key,
     required this.mode,
     required this.showStreamStats,
-    required this.panZoomActive,
-    required this.isZoomed,
     required this.onModeChanged,
     required this.onShowStreamStatsChanged,
-    required this.onPanToggle,
     required this.onPanReset,
     required this.onTeach,
     required this.onFullscreen,
@@ -62,11 +59,8 @@ class UiRemoteBottomSessionControl extends StatelessWidget {
 
   final RemoteInteractMode mode;
   final bool showStreamStats;
-  final bool panZoomActive;
-  final bool isZoomed;
   final ValueChanged<RemoteInteractMode> onModeChanged;
   final ValueChanged<bool> onShowStreamStatsChanged;
-  final VoidCallback onPanToggle;
   final VoidCallback onPanReset;
   final VoidCallback onTeach;
   final VoidCallback onFullscreen;
@@ -91,59 +85,9 @@ class UiRemoteBottomSessionControl extends StatelessWidget {
     }
   }
 
-  Widget _teachMenuTile() => MenuItemButton(
-        style: const ButtonStyle(
-            padding: WidgetStatePropertyAll(
-                EdgeInsets.symmetric(horizontal: 10, vertical: 6))),
-        onPressed: () => _onMenuSelected('teach'),
-        child: Container(
-          width: 220,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            gradient: LinearGradient(
-              colors: [
-                _amber.withValues(alpha: 0.22),
-                const Color(0xFF6366F1).withValues(alpha: 0.14)
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            border: Border.all(color: _amber.withValues(alpha: 0.45)),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.auto_awesome_rounded, size: 18, color: _amber),
-              SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Teach skill',
-                        style: TextStyle(
-                            color: _zinc100,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700)),
-                    SizedBox(height: 2),
-                    Text('Capture steps from this session',
-                        style: TextStyle(
-                            color: _zinc400, fontSize: 11, height: 1.2)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
 
   @override
   Widget build(BuildContext context) {
-    final panBg = panZoomActive
-        ? _amber.withValues(alpha: 0.18)
-        : (isZoomed ? const Color(0xFF242018) : const Color(0xFF18181B));
-    final panIconColor = panZoomActive
-        ? _amber
-        : (isZoomed ? _amber.withValues(alpha: 0.8) : _zinc400);
     final modeAccent = mode == RemoteInteractMode.view ? _zinc400 : _amber;
 
     return MenuAnchor(
@@ -198,7 +142,13 @@ class UiRemoteBottomSessionControl extends StatelessWidget {
           ),
         ],
         const Divider(height: 1, color: _border),
-        _teachMenuTile(),
+        MenuItemButton(
+          leadingIcon: const Icon(Icons.auto_awesome_outlined,
+              size: 16, color: _zinc400),
+          onPressed: () => _onMenuSelected('teach'),
+          child: const Text('Teach skill',
+              style: TextStyle(color: _zinc100, fontSize: 13)),
+        ),
         MenuItemButton(
           leadingIcon:
               const Icon(Icons.fullscreen_outlined, size: 16, color: _zinc400),
@@ -208,68 +158,29 @@ class UiRemoteBottomSessionControl extends StatelessWidget {
         ),
       ],
       builder: (context, controller, child) {
+        final tip = mode == RemoteInteractMode.view
+            ? 'Pan (view only) — drag & pinch zoom; no remote input'
+            : '${mode.label} — Ctrl+drag or middle-click to pan when zoomed';
         return Tooltip(
-          message: uiPopupMenuTooltipText('Pan & zoom · ${mode.label}'),
+          message: uiPopupMenuTooltipText(tip),
           child: Material(
-            color: panBg,
+            color: const Color(0xFF18181B),
             borderRadius: BorderRadius.circular(8),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                InkWell(
-                  borderRadius:
-                      const BorderRadius.horizontal(left: Radius.circular(8)),
-                  onTap: onPanToggle,
-                  onDoubleTap: onPanReset,
-                  child: SizedBox(
-                    width: 36,
-                    height: 40,
-                    child: Column(
-                      children: [
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 120),
-                          height: panZoomActive ? 3 : 0,
-                          width: double.infinity,
-                          decoration: const BoxDecoration(
-                            color: _amber,
-                            borderRadius:
-                                BorderRadius.vertical(top: Radius.circular(8)),
-                          ),
-                        ),
-                        Expanded(
-                          child: Center(
-                              child: Icon(Icons.open_with_rounded,
-                                  size: 16, color: panIconColor)),
-                        ),
-                      ],
-                    ),
-                  ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () => controller.isOpen ? controller.close() : controller.open(),
+              onDoubleTap: onPanReset,
+              child: SizedBox(
+                width: 40,
+                height: 40,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(mode.icon, size: 17, color: modeAccent),
+                    Icon(Icons.arrow_drop_down, size: 18, color: modeAccent),
+                  ],
                 ),
-                Container(width: 1, height: 24, color: _border),
-                InkWell(
-                  borderRadius:
-                      const BorderRadius.horizontal(right: Radius.circular(8)),
-                  onTap: () {
-                    if (controller.isOpen) {
-                      controller.close();
-                    } else {
-                      controller.open();
-                    }
-                  },
-                  child: SizedBox(
-                    width: 28,
-                    height: 40,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(mode.icon, size: 14, color: modeAccent),
-                        Icon(Icons.arrow_drop_down,
-                            size: 16, color: modeAccent),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         );
@@ -331,7 +242,6 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
   int _lastDownButtons = 0;
   int _maxPointersInGesture = 0;
   bool _tapClickDispatched = false;
-  var _panZoomActive = false;
   var _scale = 1.0;
   var _panOffset = Offset.zero;
   Offset? _touchStart;
@@ -353,6 +263,11 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
       widget.interactMode != RemoteInteractMode.view;
   bool get _keyboardInputEnabled =>
       widget.interactMode != RemoteInteractMode.view;
+  bool get _viewPanMode => widget.interactMode == RemoteInteractMode.view;
+  bool _canvasDragPans({required bool ctrl, required bool middle}) =>
+      _viewPanMode || ctrl || middle;
+  bool _canvasPinchZooms() =>
+      widget.interactMode != RemoteInteractMode.trackpad;
 
   bool _onHardwareKeyEvent(KeyEvent event) {
     final ctrl = HardwareKeyboard.instance.isControlPressed;
@@ -920,22 +835,16 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
         ),
       );
 
-  Widget _panSessionControl() {
-    final isZoomed = _scale > 1.05;
-    return Padding(
+  Widget _panSessionControl() => Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: UiRemoteBottomSessionControl(
         mode: widget.interactMode,
         showStreamStats: widget.showStreamStats,
-        panZoomActive: _panZoomActive,
-        isZoomed: isZoomed,
         onModeChanged: _applyInteractMode,
         onShowStreamStatsChanged: widget.onShowStreamStatsChanged,
-        onPanToggle: () => setState(() => _panZoomActive = !_panZoomActive),
         onPanReset: () => setState(() {
           _scale = 1.0;
           _panOffset = Offset.zero;
-          _panZoomActive = false;
         }),
         onTeach: widget.onTeach,
         onFullscreen: widget.onFullscreen,
@@ -944,7 +853,6 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
         onApplyUpdate: widget.onApplyUpdate,
       ),
     );
-  }
 
   Widget _promptChatButton() {
     final store = widget.promptStore;
@@ -1091,7 +999,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
           const SizedBox(width: 8),
           const Expanded(
             child: Text(
-              'View-Only mode active. Remote mouse and keyboard input are disabled for safety.',
+              'Pan (view only) — local pan/zoom only. Remote mouse and keyboard are disabled.',
               style: TextStyle(fontSize: 12, color: _zinc400),
             ),
           ),
@@ -1169,7 +1077,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                       _streamContentSize(sess, hasVideoTrack, frame);
 
                       MouseCursor canvasCursor(String remoteShape) =>
-                          (_panZoomActive ||
+                          (_viewPanMode ||
                                   _physicalCtrlPressed ||
                                   _modCtrlLocked)
                               ? SystemMouseCursors.grab
@@ -1218,9 +1126,9 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                                     _modCtrlLocked;
                                 final isMiddleClick =
                                     (e.buttons & kMiddleMouseButton != 0);
-                                if (isDesktopCtrl ||
-                                    isMiddleClick ||
-                                    _panZoomActive) {
+                                if (_canvasDragPans(
+                                    ctrl: isDesktopCtrl,
+                                    middle: isMiddleClick)) {
                                   return;
                                 }
 
@@ -1261,7 +1169,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
 
                                 if (_activePointers.length >= 2) {
                                   final pts = _activePointers.values.toList();
-                                  if (_panZoomActive &&
+                                  if (_canvasPinchZooms() &&
                                       _initialPinchDistance != null &&
                                       _initialPinchDistance! > 10) {
                                     final currentDist =
@@ -1303,9 +1211,9 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                                 final isMiddleClick =
                                     (e.buttons & kMiddleMouseButton != 0);
 
-                                if (isDesktopCtrl ||
-                                    isMiddleClick ||
-                                    _panZoomActive) {
+                                if (_canvasDragPans(
+                                    ctrl: isDesktopCtrl,
+                                    middle: isMiddleClick)) {
                                   if (_touchStart != null &&
                                       (e.localPosition - _touchStart!)
                                               .distance >
@@ -1362,33 +1270,6 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                                 final wasMiddleClick =
                                     (_heldButtons & kMiddleMouseButton != 0);
                                 if (isDesktopCtrl || wasMiddleClick) {
-                                  _heldButtons = e.buttons;
-                                  return;
-                                }
-
-                                if (_panZoomActive) {
-                                  if (!_touchMoved &&
-                                      !_tapClickDispatched &&
-                                      _touchStart != null) {
-                                    _tapClickDispatched = true;
-                                    final btn = (hadTwoOrMorePointers ||
-                                            (_lastDownButtons &
-                                                    kSecondaryMouseButton !=
-                                                0))
-                                        ? 2
-                                        : 0;
-                                    if (widget.interactMode ==
-                                        RemoteInteractMode.trackpad) {
-                                      _trackpadTapUp(button: btn);
-                                    } else {
-                                      _sendPointer('mouse_down', _touchStart!,
-                                          renderSize,
-                                          button: btn);
-                                      _sendPointer(
-                                          'mouse_up', _touchStart!, renderSize,
-                                          button: btn);
-                                    }
-                                  }
                                   _heldButtons = e.buttons;
                                   return;
                                 }

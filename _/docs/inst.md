@@ -91,6 +91,10 @@ Entries in `triggers[]`:
 
 Steering detail: [site-ai.md](site-ai.md). Compare inst must instruct the model to pass **all** `site_iids` from `[SITE CONTEXTS]`.
 
+### Device topic (`topic_id=device`)
+
+When the user `@mentions` a paired device, compose resolves **`device`** as the active topic (`ai.topic` id `device`, extends `general`). **`kind=topic`** row **`inst.device.facts`** (priority 140) applies: **facts-only** — use **`device_iid`** from `[MENTION TARGETS]`; **`device.fs.list`** for normal directory paths; **`shell.run`** for Recycle Bin / Shell virtual folders and empty-bin requests; **`device.screenshot`** for on-screen layout; never guess. **`include_tools`:** `device.screenshot`, `shell.run`, `device.fs.list`; **`exclude_tools`:** `device.input`. Narrow phrase steering stays in **`inst.mention.device_read`** (screenshot-only task rows). Multi-step desktop automation is **`computer_use`** / **`computer_use.delegate`**, not the device facts topic.
+
 ---
 
 ## Compose pipeline (per prompt turn)
@@ -227,7 +231,7 @@ kind = 'task'
 | Doc | Link |
 |-----|------|
 | Consumption tools | [consumption.md](consumption.md) |
-| Composer @mentions | [`../schemas/mention.sql`](../schemas/mention.sql) |
+| Composer @mentions | [`../schemas/mention.sql`](../schemas/mention.sql), **[mention.md](../mention.md)** (bracket text + wire ids) |
 | Image gen / edit tiers | [`image.md`](image.md) |
 | Topics | [`../schemas/topic.sql`](../schemas/topic.sql) (if present) / catalog proto |
 | Chat turn | [chat.md](chat.md) |

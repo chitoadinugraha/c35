@@ -1970,6 +1970,24 @@ const WsReq$json = {
       '9': 0,
       '10': 'chatDeviceContextCreate'
     },
+    {
+      '1': 'req_remote_fs_list',
+      '3': 159,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqRemoteFsList',
+      '9': 0,
+      '10': 'reqRemoteFsList'
+    },
+    {
+      '1': 'req_remote_fs_read',
+      '3': 160,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqRemoteFsRead',
+      '9': 0,
+      '10': 'reqRemoteFsRead'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -2094,7 +2112,10 @@ final $typed_data.Uint8List wsReqDescriptor = $convert.base64Decode(
     'hjaGF0X2RldmljZV9jb250ZXh0X2xpc3QYnQEgASgLMh0uYzM1LlJlcUNoYXREZXZpY2VDb250'
     'ZXh0TGlzdEgAUhVjaGF0RGV2aWNlQ29udGV4dExpc3QSXwoaY2hhdF9kZXZpY2VfY29udGV4dF'
     '9jcmVhdGUYngEgASgLMh8uYzM1LlJlcUNoYXREZXZpY2VDb250ZXh0Q3JlYXRlSABSF2NoYXRE'
-    'ZXZpY2VDb250ZXh0Q3JlYXRlQgYKBGJvZHk=');
+    'ZXZpY2VDb250ZXh0Q3JlYXRlEkQKEnJlcV9yZW1vdGVfZnNfbGlzdBifASABKAsyFC5jMzUuUm'
+    'VxUmVtb3RlRnNMaXN0SABSD3JlcVJlbW90ZUZzTGlzdBJEChJyZXFfcmVtb3RlX2ZzX3JlYWQY'
+    'oAEgASgLMhQuYzM1LlJlcVJlbW90ZUZzUmVhZEgAUg9yZXFSZW1vdGVGc1JlYWRCBgoEYm9keQ'
+    '==');
 
 @$core.Deprecated('Use wsResDescriptor instead')
 const WsRes$json = {
@@ -3074,6 +3095,24 @@ const WsRes$json = {
       '9': 0,
       '10': 'chatDeviceContextCreate'
     },
+    {
+      '1': 'res_remote_fs_list',
+      '3': 159,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.RemoteFsListRes',
+      '9': 0,
+      '10': 'resRemoteFsList'
+    },
+    {
+      '1': 'res_remote_fs_read',
+      '3': 160,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.RemoteFsReadRes',
+      '9': 0,
+      '10': 'resRemoteFsRead'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -3208,4 +3247,7 @@ final $typed_data.Uint8List wsResDescriptor = $convert.base64Decode(
     'IScHJvbXB0Rm9sbG93dXBQdXNoElkKGGNoYXRfZGV2aWNlX2NvbnRleHRfbGlzdBidASABKAsy'
     'HS5jMzUuUmVzQ2hhdERldmljZUNvbnRleHRMaXN0SABSFWNoYXREZXZpY2VDb250ZXh0TGlzdB'
     'JfChpjaGF0X2RldmljZV9jb250ZXh0X2NyZWF0ZRieASABKAsyHy5jMzUuUmVzQ2hhdERldmlj'
-    'ZUNvbnRleHRDcmVhdGVIAFIXY2hhdERldmljZUNvbnRleHRDcmVhdGVCBgoEYm9keQ==');
+    'ZUNvbnRleHRDcmVhdGVIAFIXY2hhdERldmljZUNvbnRleHRDcmVhdGUSRAoScmVzX3JlbW90ZV'
+    '9mc19saXN0GJ8BIAEoCzIULmMzNS5SZW1vdGVGc0xpc3RSZXNIAFIPcmVzUmVtb3RlRnNMaXN0'
+    'EkQKEnJlc19yZW1vdGVfZnNfcmVhZBigASABKAsyFC5jMzUuUmVtb3RlRnNSZWFkUmVzSABSD3'
+    'Jlc1JlbW90ZUZzUmVhZEIGCgRib2R5');

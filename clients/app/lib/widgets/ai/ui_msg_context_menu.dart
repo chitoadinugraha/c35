@@ -73,7 +73,10 @@ List<ChatMessageMenuItem> msgBubbleMenuItems(
         ChatMessageMenuAction(
           label: 'Retry',
           icon: Icons.refresh_rounded,
-          onPressed: onRetryLastTurn,
+          onPressed: () {
+            ContextMenuController.removeAny();
+            onRetryLastTurn();
+          },
         ),
     ],
     if (onImageUpgradeHd != null) ...[
@@ -99,16 +102,17 @@ List<ChatMessageMenuItem> msgBubbleMenuItems(
         },
       ),
     ],
-    if (msgId > 0) ...[
+    if (msgId > 0 || reqId.trim().isNotEmpty) ...[
       const ChatMessageMenuDivider(),
       ChatMessageMenuAction(
-        label: 'Copy message ID',
+        label: msgId > 0 ? 'Copy message ID' : 'Copy request ID',
         icon: Icons.tag_rounded,
         onPressed: () {
           ContextMenuController.removeAny();
-          Clipboard.setData(ClipboardData(text: '$msgId'));
+          final copyId = msgId > 0 ? '$msgId' : reqId.trim();
+          Clipboard.setData(ClipboardData(text: copyId));
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Message ID copied: $msgId'), behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 1)),
+            SnackBar(content: Text('${msgId > 0 ? 'Message' : 'Request'} ID copied: $copyId'), behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 1)),
           );
         },
       ),
@@ -151,17 +155,5 @@ Widget msgBubbleContextMenu(
     conn: conn,
   );
 
-  return SizedBox.expand(
-    child: Stack(
-      children: [
-        Positioned.fill(
-          child: Listener(
-            behavior: HitTestBehavior.opaque,
-            onPointerDown: (_) => ContextMenuController.removeAny(),
-          ),
-        ),
-        ChatMessageContextMenu(anchors: selectableRegionState.contextMenuAnchors, items: items),
-      ],
-    ),
-  );
+  return ChatMessageContextMenu(anchors: selectableRegionState.contextMenuAnchors, items: items);
 }

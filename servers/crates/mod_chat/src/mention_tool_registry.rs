@@ -26,6 +26,7 @@ pub fn mention_force_tools(resolved: &[MentionResolved]) -> Vec<String> {
     let mut out = Vec::new();
     if mention_has_device(resolved) {
         push_unique(&mut out, "device.screenshot");
+        push_unique(&mut out, "shell.run");
     }
     for r in resolved {
         for rule in TOPIC_FORCE_TOOLS {

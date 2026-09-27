@@ -98,9 +98,15 @@ chat_member: one row (member_iid = owner)
 
 ### Mentions (composer `@`)
 
-`ReqPromptSend.mention_ids[]` — zero or more refs (`iid:{snowflake}`, `catalog:{id}`).
+Full spec: **[mention.md](mention.md)** — bracket pattern `[@kind:payload]`, `mention_ids[]`, context preservation, adding new kinds.
 
-Server resolves all refs → **`MentionContext`** (sites, devices, …). Prompt includes `[MENTION TARGETS]` and `[SITE CONTEXTS]` (multi-site). See [site-ai.md](site-ai.md).
+Summary:
+
+- `ReqPrompt.mention_ids[]` — canonical refs (`iid:{snowflake}`, `catalog:{id}`) for tools/topic/inst.
+- **`chat_msg.content`** — embed **`[@iid:…]`** / **`[@catalog:…]`** so history reload keeps mentions (client chips round-trip via `composerMentionDisplayRestore`).
+- Server normalizes on user message insert (`mention_content_normalize`); client sends wire text via `composerMentionTextForWire`.
+
+Server resolves refs → **`MentionContext`** — [site-ai.md](site-ai.md). Sticky + device bind: `chat_mention_context_commit`, `bound_device_iid` (below).
 
 | Mention kind | `topic_id` | Force tools (baseline) |
 |--------------|------------|------------------------|

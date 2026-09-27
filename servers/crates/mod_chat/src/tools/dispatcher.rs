@@ -10,7 +10,7 @@ use super::definition::{Tool, ToolDefinition};
 fn mcp_operator_device_tool(name: &str) -> bool {
     matches!(
         name,
-        "device.command"
+        "shell.run"
             | "device.input"
             | "device.screenshot"
             | "computer_use.delegate"

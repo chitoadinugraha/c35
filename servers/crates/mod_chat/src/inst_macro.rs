@@ -227,6 +227,37 @@ mod tests {
     }
 
     #[test]
+    fn inst_pick_multitask_delegate_phrase() {
+        let rows = vec![InstRow {
+            id: "inst.task.multitask_delegate".into(),
+            scope: SCOPE_GLOBAL.into(),
+            kind: "task".into(),
+            topic_id: "".into(),
+            topics: vec![],
+            inst: "multitask".into(),
+            phrases: vec!["multitask".into(), "parallel".into()],
+            triggers: vec!["tool_include:delegate.run".into()],
+            include_tools: vec!["delegate.run".into()],
+            exclude_tools: vec![],
+            priority: 127,
+        }];
+        let empty: [String; 0] = [];
+        let scopes = inst_scopes_home();
+        let ctx = InstMatchCtx {
+            scopes: &scopes,
+            topic_id: "general",
+            text: "can you multitask 2 times",
+            mention_ids: &empty,
+            signals: &empty,
+        };
+        let picked = inst_pick(&rows, &ctx);
+        assert_eq!(picked.len(), 1);
+        assert_eq!(picked[0].id, "inst.task.multitask_delegate");
+        let (inc, _) = inst_tool_directives(&picked);
+        assert!(inc.iter().any(|t| t == "delegate.run"));
+    }
+
+    #[test]
     fn inst_always_trigger_applies() {
         let rows = vec![InstRow {
             id: "inst.core.assistant".into(),

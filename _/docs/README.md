@@ -13,6 +13,7 @@ When code and docs disagree, fix the code to match these docs (or explicitly rev
 | [structure.md](structure.md) | Repo file tree, crate layout, conventions |
 | [identity.md](identity.md) | Identity model (`kind`, `type`, `alien_id`, grants) |
 | [chat.md](chat.md) | Chat kinds; Home inbox = prompt only |
+| [mention.md](mention.md) | `@` mentions — `[@kind:payload]` in message text, `mention_ids[]`, context preservation |
 | [context-compaction.md](context-compaction.md) | Token packing, rolling summary, memory extraction, compaction billing |
 | [billing.md](billing.md) | Multi-wallet balances, quota, FX policy, top-up |
 | [billing-pricing.md](billing-pricing.md) | Alien / Frontier pool rates, model comparison, debit order |

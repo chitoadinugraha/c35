@@ -46,6 +46,7 @@ fn mention_force_tools_includes_device_when_remote() {
             label: "Chito PC".into(),
             scope_ref: String::new(),
             kind: "identity".into(),
+            root_only: false,
         },
         identity_iid: Some(99),
         identity_kind: Some("remote".into()),
@@ -53,8 +54,8 @@ fn mention_force_tools_includes_device_when_remote() {
     assert!(mention_has_device(&resolved));
     let tools = mention_force_tools(&resolved);
     assert!(tools.iter().any(|t| t == "device.screenshot"));
+    assert!(tools.iter().any(|t| t == "shell.run"));
     assert!(!tools.iter().any(|t| t == "device.input"));
-    assert!(!tools.iter().any(|t| t == "device.command"));
     assert_eq!(mention_active_topic(&resolved, ""), "device");
 }
 
@@ -78,6 +79,7 @@ fn mention_active_topics_adds_site_commerce_when_enabled() {
             label: "Warung A".into(),
             scope_ref: String::new(),
             kind: "identity".into(),
+            root_only: false,
         },
         identity_iid: Some(111),
         identity_kind: Some("site".into()),

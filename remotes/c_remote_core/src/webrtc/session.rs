@@ -6,10 +6,11 @@ use std::sync::{Arc, Mutex};
 use bytes::Bytes;
 
 use c35_proto::{
-    pb_decode, pb_encode, RemoteConnectionMode, RemoteCursorEvent, RemoteSessionPush,
-    ReqRemoteCommand, ReqRemoteScreenshot, ReqRemoteSessionStart, ResRemoteCommand,
-    ResRemoteScreenshot, RtcSignalAnswer, RtcSignalIce, RtcSignalOffer, WsReq, WsRes, ws_req,
-    ws_res,
+    pb_decode, pb_encode, RemoteConnectionMode, RemoteCursorEvent, RemoteFsListReq,
+    RemoteFsListRes, RemoteFsReadReq, RemoteFsReadRes, RemoteSessionPush, ReqRemoteCommand,
+    ReqRemoteFsList, ReqRemoteFsRead, ReqRemoteScreenshot, ReqRemoteSessionStart,
+    ResRemoteCommand, ResRemoteScreenshot, RtcSignalAnswer, RtcSignalIce, RtcSignalOffer, WsReq,
+    WsRes, ws_req, ws_res,
 };
 use tokio::sync::{mpsc, RwLock};
 use tracing::{info, warn};
@@ -26,7 +27,7 @@ use webrtc::rtp_transceiver::rtp_codec::RTCRtpCodecCapability;
 use webrtc::track::track_local::track_local_static_sample::TrackLocalStaticSample;
 use webrtc::track::track_local::TrackLocal;
 
-use super::fs::fs_dispatch;
+use super::fs::{fs_dispatch, fs_list, fs_read, recycle_bin_list_powershell_command, FS_READ_WS_MAX};
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -137,6 +138,12 @@ impl WebrtcHub {
             Some(ws_req::Body::ReqRemoteCommand(cmd)) => {
                 self.handle_command(req.req_id, cmd).await;
             }
+            Some(ws_req::Body::ReqRemoteFsList(fs)) => {
+                self.handle_fs_list(req.req_id, fs).await;
+            }
+            Some(ws_req::Body::ReqRemoteFsRead(fs)) => {
+                self.handle_fs_read(req.req_id, fs).await;
+            }
             _ => {}
         }
     }
@@ -184,7 +191,7 @@ impl WebrtcHub {
 
     async fn handle_command(&self, req_id: String, req: ReqRemoteCommand) {
         let _task_guard = crate::update::task_start();
-        let cmd = req.command.trim().to_string();
+        let cmd = command_prepare_shell(req.command.trim());
         let timeout_secs = if req.timeout_sec == 0 { 15 } else { req.timeout_sec.min(60) };
 
         let res_body = if cmd.is_empty() {
@@ -198,45 +205,51 @@ impl WebrtcHub {
         } else {
             #[cfg(windows)]
             {
-                let run_res = tokio::time::timeout(
-                    std::time::Duration::from_secs(timeout_secs as u64),
-                    tokio::task::spawn_blocking(move || {
-                        std::process::Command::new("powershell")
-                            .args(["-NoProfile", "-NonInteractive", "-Command", &cmd])
-                            .output()
-                    }),
-                )
-                .await;
-
-                match run_res {
-                    Ok(Ok(Ok(output))) => ResRemoteCommand {
-                        ok: output.status.success(),
+                if matches!(crate::win_app_launch::try_direct_launch(&cmd), Some(Ok(()))) {
+                    ResRemoteCommand {
+                        ok: true,
                         error: String::new(),
-                        exit_code: output.status.code().unwrap_or(-1),
-                        stdout: String::from_utf8_lossy(&output.stdout).to_string(),
-                        stderr: String::from_utf8_lossy(&output.stderr).to_string(),
-                    },
-                    Ok(Ok(Err(e))) => ResRemoteCommand {
-                        ok: false,
-                        error: format!("process spawn error: {e}"),
-                        exit_code: -1,
-                        stdout: String::new(),
+                        exit_code: 0,
+                        stdout: "launched (direct)".into(),
                         stderr: String::new(),
-                    },
-                    Ok(Err(e)) => ResRemoteCommand {
-                        ok: false,
-                        error: format!("task join error: {e}"),
-                        exit_code: -1,
-                        stdout: String::new(),
-                        stderr: String::new(),
-                    },
-                    Err(_) => ResRemoteCommand {
-                        ok: false,
-                        error: format!("command execution timed out after {timeout_secs}s"),
-                        exit_code: -1,
-                        stdout: String::new(),
-                        stderr: String::new(),
-                    },
+                    }
+                } else {
+                    let run_res = tokio::time::timeout(
+                        std::time::Duration::from_secs(timeout_secs as u64),
+                        tokio::task::spawn_blocking(move || crate::win_powershell::command_output(&cmd)),
+                    )
+                    .await;
+
+                    match run_res {
+                        Ok(Ok(Ok(output))) => ResRemoteCommand {
+                            ok: output.status.success(),
+                            error: String::new(),
+                            exit_code: output.status.code().unwrap_or(-1),
+                            stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+                            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+                        },
+                        Ok(Ok(Err(e))) => ResRemoteCommand {
+                            ok: false,
+                            error: format!("process spawn error: {e}"),
+                            exit_code: -1,
+                            stdout: String::new(),
+                            stderr: String::new(),
+                        },
+                        Ok(Err(e)) => ResRemoteCommand {
+                            ok: false,
+                            error: format!("task join error: {e}"),
+                            exit_code: -1,
+                            stdout: String::new(),
+                            stderr: String::new(),
+                        },
+                        Err(_) => ResRemoteCommand {
+                            ok: false,
+                            error: format!("command execution timed out after {timeout_secs}s"),
+                            exit_code: -1,
+                            stdout: String::new(),
+                            stderr: String::new(),
+                        },
+                    }
                 }
             }
             #[cfg(not(windows))]
@@ -254,6 +267,58 @@ impl WebrtcHub {
         let res = WsRes {
             req_id,
             body: Some(ws_res::Body::ResRemoteCommand(res_body)),
+        };
+        let _ = self.out_tx.send(pb_encode(&res));
+    }
+
+    async fn handle_fs_list(&self, req_id: String, req: ReqRemoteFsList) {
+        let path = req.path;
+        let res_body = match tokio::task::spawn_blocking(move || {
+            fs_list(RemoteFsListReq { path })
+        })
+        .await
+        {
+            Ok(r) => r,
+            Err(e) => RemoteFsListRes {
+                entries: vec![],
+                error: format!("task join error: {e}"),
+            },
+        };
+        let res = WsRes {
+            req_id,
+            body: Some(ws_res::Body::ResRemoteFsList(res_body)),
+        };
+        let _ = self.out_tx.send(pb_encode(&res));
+    }
+
+    async fn handle_fs_read(&self, req_id: String, req: ReqRemoteFsRead) {
+        let path = req.path;
+        let offset = req.offset;
+        let max_bytes = if req.max_bytes <= 0 {
+            FS_READ_WS_MAX
+        } else {
+            req.max_bytes.min(FS_READ_WS_MAX)
+        };
+        let res_body = match tokio::task::spawn_blocking(move || {
+            fs_read(RemoteFsReadReq {
+                path,
+                offset,
+                length: max_bytes,
+            })
+        })
+        .await
+        {
+            Ok(r) => r,
+            Err(e) => RemoteFsReadRes {
+                data: vec![],
+                eof: true,
+                mime: String::new(),
+                error: format!("task join error: {e}"),
+            },
+        };
+        let res = WsRes {
+            req_id,
+            body: Some(ws_res::Body::ResRemoteFsRead(res_body)),
         };
         let _ = self.out_tx.send(pb_encode(&res));
     }
@@ -751,6 +816,21 @@ fn send_ice(
         })),
     };
     let _ = out_tx.send(pb_encode(&frame));
+}
+
+/// PowerShell treats `Shell:` as a drive unless the path is quoted.
+fn command_prepare_shell(raw: &str) -> String {
+    let cmd = raw.trim();
+    if cmd.is_empty() {
+        return String::new();
+    }
+    let lower = cmd.to_ascii_lowercase();
+    if lower.contains("shell:recyclebinfolder")
+        || (lower.contains("get-childitem") && lower.contains("recycle"))
+    {
+        return recycle_bin_list_powershell_command().into();
+    }
+    cmd.to_string()
 }
 
 fn push_connected(

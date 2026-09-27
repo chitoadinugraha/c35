@@ -75,11 +75,7 @@ async fn execute_step(step: &SkillStep) -> Result<()> {
             }
             let output = tokio::task::spawn_blocking({
                 let cmd = cmd.to_string();
-                move || {
-                    std::process::Command::new("powershell")
-                        .args(["-NoProfile", "-NonInteractive", "-Command", &cmd])
-                        .output()
-                }
+                move || crate::win_powershell::command_output(&cmd)
             })
             .await??;
             if !output.status.success() {

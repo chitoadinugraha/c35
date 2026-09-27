@@ -102,7 +102,7 @@ The prompt composer supports dual-channel intent modifiers:
 
 1. **Entity Mentions (`@`)**:
    - **Trigger**: Typing `@` opens an auto-complete suggestion box of tools, remote devices, and builder sites.
-   - **Behavior**: Inserts `@displayLabel ` in-line into the prompt, preserving natural grammatical context, while activating the corresponding entity context in the backend turn.
+   - **Behavior**: Inserts an in-line **chip** in the composer (object-replacement tokens). On send, message text on the wire and in **`ai.chat_msg.content`** uses the locked bracket form **`[@iid:<snowflake>]`** or **`[@catalog:<id>]`** so history reload keeps mention context. See **[mention.md](mention.md)**.
    - **Keyboard Navigation**: `ArrowDown`/`ArrowUp` to cycle, `Tab` or `Enter` to select, `Escape` to dismiss.
 
 2. **Slash Commands (`/`)**:

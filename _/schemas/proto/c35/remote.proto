@@ -132,6 +132,22 @@ message ResRemoteCommand {
 }
 
 // ---------------------------------------------------------------------------
+// Remote filesystem list/read (agent control session RPC — not WebRTC)
+// ---------------------------------------------------------------------------
+
+message ReqRemoteFsList {
+  int64 device_iid = 1;
+  string path = 2; // empty = list drive roots
+}
+
+message ReqRemoteFsRead {
+  int64 device_iid = 1;
+  string path = 2;
+  int64 offset = 3;
+  int32 max_bytes = 4; // 0 = agent default; server caps for LLM tools
+}
+
+// ---------------------------------------------------------------------------
 // WebRTC data channel payloads (binary frame = protobuf encode)
 // ---------------------------------------------------------------------------
 

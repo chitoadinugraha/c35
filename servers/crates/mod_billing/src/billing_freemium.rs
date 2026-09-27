@@ -64,6 +64,8 @@ pub fn freemium_tool_blocked(name: &str) -> bool {
             | "computer_use.delegate"
             | "computer_use_delegate"
             | "delegate_computer_use"
+            | "shell.run"
+            | "device.shell.run"
             | "device.command"
             | "device.input"
             | "device.screenshot"

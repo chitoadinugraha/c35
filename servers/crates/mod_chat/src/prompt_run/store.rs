@@ -463,13 +463,39 @@ pub fn prompt_run_is_terminal(status: &str) -> bool {
     matches!(status, "done" | "failed" | "cancelled")
 }
 
+const PROMPT_RUN_KINDS: &[&str] = &["main", "research", "computer_use", "site_build", "channel"];
+
+pub fn prompt_run_kind_allowed(kind: &str) -> bool {
+    PROMPT_RUN_KINDS.contains(&kind.trim())
+}
+
 pub fn prompt_run_kind_default(topic_id: &str) -> &'static str {
-    match topic_id {
+    match topic_id.trim() {
         "research" => "research",
         "computer_use" => "computer_use",
         "web.builder" | "site_build" => "site_build",
-        _ => "research",
+        "general" | "device" | "" => "main",
+        _ => "main",
     }
+}
+
+/// Map model/tool args to a CHECK-safe `ai.prompt_run.kind` (never persist `general`).
+pub fn prompt_run_kind_normalize(kind: &str, topic_id: &str) -> &'static str {
+    let k = kind.trim();
+    if prompt_run_kind_allowed(k) {
+        return match k {
+            "main" => "main",
+            "research" => "research",
+            "computer_use" => "computer_use",
+            "site_build" => "site_build",
+            "channel" => "channel",
+            _ => "main",
+        };
+    }
+    if k == "general" || k.is_empty() {
+        return prompt_run_kind_default(topic_id);
+    }
+    prompt_run_kind_default(topic_id)
 }
 
 pub async fn prompt_run_summary(pool: &PgPool, req_id: &str) -> Result<String> {

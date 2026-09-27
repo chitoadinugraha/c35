@@ -301,12 +301,14 @@ class ReqAdminLogReport extends $pb.GeneratedMessage {
     $fixnum.Int64? sinceMs,
     $fixnum.Int64? untilMs,
     $core.int? limit,
+    $core.bool? groupTools,
   }) {
     final result = ReqAdminLogReport._();
     if (ownerIid != null) result.ownerIid = ownerIid;
     if (sinceMs != null) result.sinceMs = sinceMs;
     if (untilMs != null) result.untilMs = untilMs;
     if (limit != null) result.limit = limit;
+    if (groupTools != null) result.groupTools = groupTools;
     return result;
   }
 
@@ -327,6 +329,7 @@ class ReqAdminLogReport extends $pb.GeneratedMessage {
     ..aInt64(2, _omitFieldNames ? '' : 'sinceMs')
     ..aInt64(3, _omitFieldNames ? '' : 'untilMs')
     ..aI(4, _omitFieldNames ? '' : 'limit')
+    ..aOB(5, _omitFieldNames ? '' : 'groupTools')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -386,6 +389,16 @@ class ReqAdminLogReport extends $pb.GeneratedMessage {
   $core.bool hasLimit() => $_has(3);
   @$pb.TagNumber(4)
   void clearLimit() => $_clearField(4);
+
+  /// When true, append tool execution widgets (grouped by meta.tool on kind=tool trace rows).
+  @$pb.TagNumber(5)
+  $core.bool get groupTools => $_getBF(4);
+  @$pb.TagNumber(5)
+  set groupTools($core.bool value) => $_setBool(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasGroupTools() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearGroupTools() => $_clearField(5);
 }
 
 class ResAdminLogReport extends $pb.GeneratedMessage {

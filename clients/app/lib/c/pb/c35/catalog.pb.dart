@@ -149,6 +149,7 @@ class MentionItem extends $pb.GeneratedMessage {
     $core.String? label,
     $core.String? scopeRef,
     $core.String? kind,
+    $core.bool? rootOnly,
   }) {
     final result = MentionItem._();
     if (id != null) result.id = id;
@@ -166,6 +167,7 @@ class MentionItem extends $pb.GeneratedMessage {
     if (label != null) result.label = label;
     if (scopeRef != null) result.scopeRef = scopeRef;
     if (kind != null) result.kind = kind;
+    if (rootOnly != null) result.rootOnly = rootOnly;
     return result;
   }
 
@@ -197,6 +199,7 @@ class MentionItem extends $pb.GeneratedMessage {
     ..aOS(13, _omitFieldNames ? '' : 'label')
     ..aOS(14, _omitFieldNames ? '' : 'scopeRef')
     ..aOS(15, _omitFieldNames ? '' : 'kind')
+    ..aOB(16, _omitFieldNames ? '' : 'rootOnly')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -349,6 +352,15 @@ class MentionItem extends $pb.GeneratedMessage {
   $core.bool hasKind() => $_has(14);
   @$pb.TagNumber(15)
   void clearKind() => $_clearField(15);
+
+  @$pb.TagNumber(16)
+  $core.bool get rootOnly => $_getBF(15);
+  @$pb.TagNumber(16)
+  set rootOnly($core.bool value) => $_setBool(15, value);
+  @$pb.TagNumber(16)
+  $core.bool hasRootOnly() => $_has(15);
+  @$pb.TagNumber(16)
+  void clearRootOnly() => $_clearField(16);
 }
 
 class MentionCatalog extends $pb.GeneratedMessage {

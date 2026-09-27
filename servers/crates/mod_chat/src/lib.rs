@@ -25,6 +25,7 @@ mod site_validate;
 pub mod inst_macro;
 mod mention;
 pub mod mention_context;
+mod mention_content;
 mod mention_registry;
 mod mention_tool_registry;
 mod site_capability;
@@ -61,7 +62,7 @@ pub use bot_peer::{bot_peer_list, bot_peer_msg_list, chat_send, chat_stop};
 pub use chat_history_clear::chat_history_clear;
 pub use chat_patch::chat_patch;
 pub use chat_sync::chat_title_set;
-pub use device_context::{bound_device_prompt_prepare, chat_device_context_create, chat_device_context_list};
+pub use device_context::{bound_device_prompt_prepare, chat_device_context_create, chat_device_context_list, chat_mention_context_commit};
 pub use channel_prompt_turn::channel_prompt_turn;
 pub use inbox::{chat_msg_list, inbox_list};
 pub use log_list::log_list;
@@ -101,7 +102,8 @@ pub use prompt_run::{
     checkpoint_fatal_fail_class, prompt_run_cancel_children, prompt_run_cancel_request,
     prompt_run_checkpoint_save, prompt_run_enqueue, prompt_run_get, prompt_run_hydrate_replay,
     prompt_run_finish, prompt_run_insert, prompt_run_is_cancelled, prompt_run_is_terminal,
-    prompt_run_kind_default, prompt_run_lease_touch, prompt_run_row_channel, prompt_run_row_new,
+    prompt_run_kind_allowed, prompt_run_kind_default, prompt_run_kind_normalize, prompt_run_lease_touch,
+    prompt_run_row_channel, prompt_run_row_new,
     prompt_run_should_stop, prompt_run_status_set,
     prompt_run_pool_diag_spawn, prompt_run_summary, prompt_run_wait_terminal,
     prompt_run_concurrency_acquire, prompt_run_concurrency_init,

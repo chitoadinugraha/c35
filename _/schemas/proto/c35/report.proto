@@ -29,6 +29,8 @@ message ReqAdminLogReport {
   int64 since_ms = 2;
   int64 until_ms = 3;
   int32 limit = 4;
+  // When true, append tool execution widgets (grouped by meta.tool on kind=tool trace rows).
+  bool group_tools = 5;
 }
 
 message ResAdminLogReport {

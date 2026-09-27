@@ -3,6 +3,8 @@ use c35_store::snowflake_id;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
+use crate::mention_content::mention_content_normalize;
+
 #[derive(Debug, Clone)]
 pub struct FollowupRow {
     pub id: String,
@@ -206,6 +208,7 @@ pub async fn prompt_followup_drain_steers(
     let mut out = Vec::new();
     for (id, text, _attachments) in rows {
         let msg_id = snowflake_id();
+        let user_content = mention_content_normalize(&text, &[]);
         sqlx::query(
             r#"
             INSERT INTO ai.chat_msg (id, chat_id, owner_iid, req_id, sender_iid, role, source, content, attachments, created_ts, updated_ts)
@@ -216,7 +219,7 @@ pub async fn prompt_followup_drain_steers(
         .bind(chat_id)
         .bind(owner_iid)
         .bind(req_id)
-        .bind(&text)
+        .bind(&user_content)
         .execute(pool)
         .await?;
         sqlx::query(
@@ -231,7 +234,7 @@ pub async fn prompt_followup_drain_steers(
         .bind(req_id)
         .execute(pool)
         .await?;
-        out.push(text);
+        out.push(user_content);
     }
     Ok(out)
 }

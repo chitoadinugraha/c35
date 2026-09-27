@@ -20,11 +20,11 @@ class UiAppBarVersionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.end,
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('Alien AI', style: _labelStyle),
-          Text('Version ${csaiVersionBuild()}', style: _versionStyle),
+          const Text('Alien AI', textAlign: TextAlign.right, style: _labelStyle),
+          Text('Version ${csaiVersionBuild()}', textAlign: TextAlign.right, style: _versionStyle),
         ],
       );
 }
@@ -38,6 +38,7 @@ class UiContextMeter extends StatefulWidget {
     this.costUsd = 0.0,
     this.billingCurrency = moneyDefaultCurrency,
     this.fxMicroPerUsd = moneyDefaultFxMicroPerUsd,
+    this.tapPadding = const EdgeInsets.all(6),
   });
 
   final int tokensIn;
@@ -46,6 +47,7 @@ class UiContextMeter extends StatefulWidget {
   final double costUsd;
   final String billingCurrency;
   final int fxMicroPerUsd;
+  final EdgeInsets tapPadding;
 
   @override
   State<UiContextMeter> createState() => _UiContextMeterState();
@@ -265,7 +267,7 @@ class _UiContextMeterState extends State<UiContextMeter> {
               borderRadius: BorderRadius.circular(14),
               onTap: _showDetail,
               child: Padding(
-                padding: const EdgeInsets.all(6),
+                padding: widget.tapPadding,
                 child: SizedBox(
                   width: 18,
                   height: 18,

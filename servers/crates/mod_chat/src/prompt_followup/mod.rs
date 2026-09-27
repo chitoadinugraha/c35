@@ -4,7 +4,7 @@ use anyhow::{anyhow, Result};
 use c35_mod_billing::billing_followup_caps;
 use c35_proto::{
     PromptFollowupKind, PromptFollowupPush, PromptFollowupRow, ResPromptFollowupCancel,
-    ResPromptFollowupList, ResPromptFollowupPut,
+    ResPromptFollowupList, ResPromptFollowupPut, ResPromptStart,
 };
 use async_nats::Client;
 use c35_proto::PromptRunJob;
@@ -12,7 +12,7 @@ use c35_store::snowflake_id;
 use serde_json::{json, Value};
 use sqlx::PgPool;
 
-use c35_proto::ResPromptStart;
+use crate::mention_content::mention_content_normalize;
 use crate::prompt_run::{
     prompt_followup_fanout_push, prompt_run_enqueue, prompt_run_fanout_publish, prompt_run_fanout_start,
     prompt_run_get, prompt_run_insert, prompt_run_push_from_row, prompt_run_row_new,
@@ -214,6 +214,7 @@ pub async fn prompt_followup_start_next_queued(
     prompt_followup_mark_queue_delivered(pool, &q.id).await?;
     let new_req_id = snowflake_id().to_string();
     let user_msg_id = snowflake_id();
+    let user_content = mention_content_normalize(&q.text, &[]);
     sqlx::query(
         r#"
         INSERT INTO ai.chat_msg (id, chat_id, owner_iid, req_id, sender_iid, role, source, content, attachments, created_ts, updated_ts)
@@ -224,13 +225,13 @@ pub async fn prompt_followup_start_next_queued(
     .bind(parent.chat_id)
     .bind(parent.owner_iid)
     .bind(&new_req_id)
-    .bind(&q.text)
+    .bind(&user_content)
     .bind(&q.attachments_json)
     .execute(pool)
     .await?;
-    chat_touch_preview(pool, parent.chat_id, parent.owner_iid, &q.text, "streaming").await?;
+    chat_touch_preview(pool, parent.chat_id, parent.owner_iid, &user_content, "streaming").await?;
     let mut req = parent.to_req_prompt();
-    req.text = q.text.clone();
+    req.text = user_content.clone();
     req.attachments_json = q.attachments_json.clone();
     let row = prompt_run_row_new(&new_req_id, parent.owner_iid, parent.chat_id, &req, &parent.locale);
     prompt_run_insert(pool, &row).await?;

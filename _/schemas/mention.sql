@@ -14,8 +14,11 @@ CREATE TABLE IF NOT EXISTS ai.mention (
     label_key       TEXT NOT NULL,
     caption_key     TEXT NOT NULL DEFAULT '',
     search_terms    TEXT[] NOT NULL DEFAULT '{}',
-    enabled         BOOLEAN NOT NULL DEFAULT TRUE
+    enabled         BOOLEAN NOT NULL DEFAULT TRUE,
+    root_only       BOOLEAN NOT NULL DEFAULT FALSE
 );
+
+ALTER TABLE ai.mention ADD COLUMN IF NOT EXISTS root_only BOOLEAN NOT NULL DEFAULT FALSE;
 
 CREATE INDEX IF NOT EXISTS idx_mention_enabled_sort
     ON ai.mention (enabled, sort ASC, id ASC);
@@ -71,3 +74,27 @@ INSERT INTO ai.mention (
     'mention.memorize.caption',
     ARRAY['remember', 'memorize', 'ingat', 'save', 'recall', 'memory']
 ) ON CONFLICT (id) DO NOTHING;
+
+-- Seed: root QA — /test-multitask (delegate.run multitask smoke)
+INSERT INTO ai.mention (
+    id, topic_id, inst_id, icon, color, sort, label_key, caption_key, search_terms, root_only
+) VALUES (
+    'test_multitask',
+    'research',
+    NULL,
+    'iconify://mdi:source-branch',
+    '#06B6D4',
+    5,
+    'mention.test_multitask.label',
+    'mention.root_only.caption',
+    ARRAY['test', 'multitask', 'delegate', 'subagent', 'qa', '/test-multitask'],
+    TRUE
+) ON CONFLICT (id) DO UPDATE SET
+    topic_id = EXCLUDED.topic_id,
+    icon = EXCLUDED.icon,
+    sort = EXCLUDED.sort,
+    label_key = EXCLUDED.label_key,
+    caption_key = EXCLUDED.caption_key,
+    search_terms = EXCLUDED.search_terms,
+    root_only = EXCLUDED.root_only,
+    enabled = TRUE;

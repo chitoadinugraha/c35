@@ -7,10 +7,11 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock};
 
 use c35_proto::{
-    pb_decode, pb_encode, RemoteConnectionMode, RemoteSessionPush, ReqRemoteCommand,
-    ReqRemoteScreenshot, ReqRemoteSessionStart, ReqRemoteSessionStop, ResRemoteCommand,
-    ResRemoteScreenshot, ResRemoteSessionStart, ResRemoteSessionStop, RtcSignalAnswer,
-    RtcSignalIce, RtcSignalOffer, WsReq, WsRes, ws_req, ws_res,
+    pb_decode, pb_encode, RemoteConnectionMode, RemoteFsListRes, RemoteFsReadRes,
+    RemoteSessionPush, ReqRemoteCommand, ReqRemoteFsList, ReqRemoteFsRead, ReqRemoteScreenshot,
+    ReqRemoteSessionStart, ReqRemoteSessionStop, ResRemoteCommand, ResRemoteScreenshot,
+    ResRemoteSessionStart, ResRemoteSessionStop, RtcSignalAnswer, RtcSignalIce, RtcSignalOffer,
+    WsReq, WsRes, ws_req, ws_res,
 };
 use dashmap::DashMap;
 use sqlx::PgPool;
@@ -22,6 +23,13 @@ static HUB: OnceLock<Arc<RemoteSignalingHub>> = OnceLock::new();
 static APP_CONN_SEQ: AtomicU64 = AtomicU64::new(1);
 static PENDING_SCREENSHOTS: OnceLock<DashMap<String, tokio::sync::oneshot::Sender<ResRemoteScreenshot>>> = OnceLock::new();
 static PENDING_COMMANDS: OnceLock<DashMap<String, tokio::sync::oneshot::Sender<ResRemoteCommand>>> = OnceLock::new();
+static PENDING_FS_LIST: OnceLock<DashMap<String, tokio::sync::oneshot::Sender<RemoteFsListRes>>> =
+    OnceLock::new();
+static PENDING_FS_READ: OnceLock<DashMap<String, tokio::sync::oneshot::Sender<RemoteFsReadRes>>> =
+    OnceLock::new();
+
+const FS_READ_LLM_MAX: i32 = 256 * 1024;
+const FS_RPC_TIMEOUT_SEC: u64 = 30;
 
 fn hub() -> Arc<RemoteSignalingHub> {
     HUB.get_or_init(|| Arc::new(RemoteSignalingHub::default())).clone()
@@ -33,6 +41,14 @@ fn pending_screenshots() -> &'static DashMap<String, tokio::sync::oneshot::Sende
 
 fn pending_commands() -> &'static DashMap<String, tokio::sync::oneshot::Sender<ResRemoteCommand>> {
     PENDING_COMMANDS.get_or_init(DashMap::new)
+}
+
+fn pending_fs_list() -> &'static DashMap<String, tokio::sync::oneshot::Sender<RemoteFsListRes>> {
+    PENDING_FS_LIST.get_or_init(DashMap::new)
+}
+
+fn pending_fs_read() -> &'static DashMap<String, tokio::sync::oneshot::Sender<RemoteFsReadRes>> {
+    PENDING_FS_READ.get_or_init(DashMap::new)
 }
 
 #[derive(Clone)]
@@ -516,6 +532,46 @@ async fn dispatch_agent_res(
             }
             Ok(())
         }
+        Some(ws_res::Body::ResRemoteFsList(fs_res)) => {
+            let req_id = res.req_id.trim().to_string();
+            if !req_id.is_empty() {
+                if let Some((_, tx)) = pending_fs_list().remove(&req_id) {
+                    let _ = tx.send(fs_res);
+                    return Ok(());
+                }
+                if let Some(nats) = nats {
+                    let subject = format!("c35.rpc.fs_list.{req_id}");
+                    let relay_res = WsRes {
+                        req_id,
+                        body: Some(ws_res::Body::ResRemoteFsList(fs_res)),
+                    };
+                    let bytes = pb_encode(&relay_res);
+                    let _ = nats.publish(subject, bytes.into()).await;
+                    return Ok(());
+                }
+            }
+            Ok(())
+        }
+        Some(ws_res::Body::ResRemoteFsRead(fs_res)) => {
+            let req_id = res.req_id.trim().to_string();
+            if !req_id.is_empty() {
+                if let Some((_, tx)) = pending_fs_read().remove(&req_id) {
+                    let _ = tx.send(fs_res);
+                    return Ok(());
+                }
+                if let Some(nats) = nats {
+                    let subject = format!("c35.rpc.fs_read.{req_id}");
+                    let relay_res = WsRes {
+                        req_id,
+                        body: Some(ws_res::Body::ResRemoteFsRead(fs_res)),
+                    };
+                    let bytes = pb_encode(&relay_res);
+                    let _ = nats.publish(subject, bytes.into()).await;
+                    return Ok(());
+                }
+            }
+            Ok(())
+        }
         _ => Ok(()),
     }
 }
@@ -737,5 +793,158 @@ pub async fn remote_device_screenshot_capture(
 
     pending_screenshots().remove(&req_id);
     result
+}
+
+async fn remote_device_fs_rpc<T, F>(
+    pool: &PgPool,
+    nats: Option<&async_nats::Client>,
+    caller_iid: i64,
+    device_iid: i64,
+    build_req: F,
+    pending: &DashMap<String, tokio::sync::oneshot::Sender<T>>,
+    nats_subject_prefix: &str,
+    extract: fn(WsRes) -> Option<T>,
+    timeout_label: &str,
+) -> Result<T, String>
+where
+    F: FnOnce(String) -> WsReq,
+    T: Send + 'static,
+{
+    device_remote_allowed(pool, caller_iid, device_iid).await?;
+
+    match agent_cluster_online(pool, device_iid).await {
+        Ok(true) => {}
+        Ok(false) => return Err("agent offline".into()),
+        Err(e) => return Err(e),
+    }
+
+    let req_id = c35_store::snowflake_id().to_string();
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    pending.insert(req_id.clone(), tx);
+
+    let req = build_req(req_id.clone());
+
+    let mut nats_sub = None;
+    if let Some(nats) = nats {
+        let subject = format!("{nats_subject_prefix}{req_id}");
+        if let Ok(sub) = nats.subscribe(subject).await {
+            nats_sub = Some(sub);
+        }
+    }
+
+    if let Err(e) = remote_agent_send_raw(nats, device_iid, pb_encode(&req)).await {
+        pending.remove(&req_id);
+        return Err(e);
+    }
+
+    let rx_fut = async {
+        if let Ok(res) = rx.await {
+            return Ok(res);
+        }
+        Err("fs rpc channel closed".to_string())
+    };
+
+    let nats_fut = async {
+        if let Some(mut sub) = nats_sub {
+            use futures_util::StreamExt;
+            if let Some(msg) = sub.next().await {
+                if let Ok(res) = pb_decode::<WsRes>(&msg.payload) {
+                    if let Some(out) = extract(res) {
+                        return Ok(out);
+                    }
+                }
+            }
+        }
+        futures_util::future::pending::<Result<T, String>>().await
+    };
+
+    let wait_timeout = std::time::Duration::from_secs(FS_RPC_TIMEOUT_SEC);
+    let result = tokio::select! {
+        res = rx_fut => res,
+        res = nats_fut => res,
+        _ = tokio::time::sleep(wait_timeout) => {
+            Err(format!("{timeout_label} timed out (agent took too long to respond)"))
+        }
+    };
+
+    pending.remove(&req_id);
+    result
+}
+
+pub async fn remote_device_fs_list(
+    pool: &PgPool,
+    nats: Option<&async_nats::Client>,
+    caller_iid: i64,
+    device_iid: i64,
+    path: &str,
+) -> Result<RemoteFsListRes, String> {
+    let path = path.to_string();
+    remote_device_fs_rpc(
+        pool,
+        nats,
+        caller_iid,
+        device_iid,
+        |req_id| WsReq {
+            req_id,
+            body: Some(ws_req::Body::ReqRemoteFsList(ReqRemoteFsList {
+                device_iid,
+                path,
+            })),
+        },
+        pending_fs_list(),
+        "c35.rpc.fs_list.",
+        |res| {
+            if let Some(ws_res::Body::ResRemoteFsList(r)) = res.body {
+                Some(r)
+            } else {
+                None
+            }
+        },
+        "filesystem list",
+    )
+    .await
+}
+
+pub async fn remote_device_fs_read(
+    pool: &PgPool,
+    nats: Option<&async_nats::Client>,
+    caller_iid: i64,
+    device_iid: i64,
+    path: &str,
+    offset: i64,
+    max_bytes: i32,
+) -> Result<RemoteFsReadRes, String> {
+    let path = path.to_string();
+    let max_bytes = if max_bytes <= 0 {
+        FS_READ_LLM_MAX
+    } else {
+        max_bytes.min(FS_READ_LLM_MAX)
+    };
+    remote_device_fs_rpc(
+        pool,
+        nats,
+        caller_iid,
+        device_iid,
+        |req_id| WsReq {
+            req_id,
+            body: Some(ws_req::Body::ReqRemoteFsRead(ReqRemoteFsRead {
+                device_iid,
+                path,
+                offset,
+                max_bytes,
+            })),
+        },
+        pending_fs_read(),
+        "c35.rpc.fs_read.",
+        |res| {
+            if let Some(ws_res::Body::ResRemoteFsRead(r)) = res.body {
+                Some(r)
+            } else {
+                None
+            }
+        },
+        "filesystem read",
+    )
+    .await
 }
 

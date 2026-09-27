@@ -30,6 +30,7 @@ import 'package:alienai_c35/c/location/location_service.dart';
 import 'package:alienai_c35/c/location/user_location_prefs.dart';
 import 'package:alienai_c35/c/settings/user_locale_prefs.dart';
 import 'package:alienai_c35/c/settings/voice_prefs.dart';
+import 'package:alienai_c35/c/mention/composer_test_commands.dart';
 import 'package:alienai_c35/c/store/chat_store.dart';
 import 'package:alienai_c35/c/store/prompt_followup_store.dart';
 import 'package:alienai_c35/widgets/ai/prompt_followup_format.dart';
@@ -118,6 +119,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   StreamSubscription? _billingQuotaSub;
   StreamSubscription? _billingCommissionSub;
   StreamSubscription? _reconnectedSub;
+  StreamSubscription? _socketAttachedSub;
   StreamSubscription? _followupPushSub;
   StreamSubscription? _promptRunPushSub;
   var _menuMsgIndex = 0;
@@ -136,8 +138,10 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     if (Session.instance.modelId.isNotEmpty) _model = AgentModel.of(Session.instance.modelId, _store.models);
     _timeline.attach();
     _reconnectedSub = _conn.onReconnected.listen((_) {
-      unawaited(_store.refreshFromConn(_conn, locale: CatalogTranslationCache.instance.lang).then((_) => _reconcilePromptState()));
-      if (mounted) setState(() {});
+      unawaited(_refreshConnSession());
+    });
+    _socketAttachedSub = _conn.onSocketAttached.listen((_) {
+      unawaited(_refreshConnSession());
     });
     _followupPushSub = _conn.onPromptFollowupPush.listen((p) {
       PromptFollowupStore.instance.mergePush(p);
@@ -170,6 +174,23 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       locale: CatalogTranslationCache.instance.lang,
       tz: localePrefs.tz.isNotEmpty ? localePrefs.tz : UserLocalePrefs.deviceTimezoneDetect(),
     );
+    await _refreshConnSession();
+  }
+
+  var _refreshConnInflight = false;
+
+  Future<void> _refreshConnSession() async {
+    if (_refreshConnInflight) return;
+    _refreshConnInflight = true;
+    try {
+      await _store.refreshFromConn(_conn, locale: CatalogTranslationCache.instance.lang);
+      await _reconcilePromptState();
+    } catch (e) {
+      lError('conn session refresh: $e');
+    } finally {
+      _refreshConnInflight = false;
+    }
+    if (mounted) setState(() {});
   }
 
   @override
@@ -283,7 +304,8 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         }
       }
     } catch (e) {
-      _store.msgStreamFail(msgErrorNormalize(e), chatId: chatId, startedAtMs: startedAt);
+      final recovered = await _promptStreamRecoverFromServer(chatId, reqId);
+      if (!recovered) _store.msgStreamFail(msgErrorNormalize(e), chatId: chatId, startedAtMs: startedAt);
     } finally {
       _store.msgStreamFinalize(chatId: chatId, model: _model.id, startedAtMs: startedAt);
       if (_store.promptBusyFor(chatId)) _store.promptBusyPut(false, chatId: chatId);
@@ -301,7 +323,9 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) unawaited(_reconcilePromptState());
+    if (state != AppLifecycleState.resumed) return;
+    unawaited(_reconcilePromptState());
+    if (_conn.status.value != ChatConnStatus.connected) unawaited(_connConnect());
   }
 
   void _promptWatchdogCancel() {
@@ -319,14 +343,30 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     if (cid == null || cid <= 0) return;
     try {
       final res = await _conn.chatMsgList(chatId: Int64(cid));
-      for (final m in res.messages) {
-        _store.msgPutFromServer(m);
-      }
+      _store.msgsReloadFromServer(cid, res.messages);
     } catch (e) {
       lError('prompt reconcile: $e');
     }
     _store.promptReconcileFromServerMsgs(cid, _store.msgs.where((m) => m.chatId == cid));
     if (mounted) setState(() {});
+  }
+
+  Future<bool> _promptStreamRecoverFromServer(int chatId, String reqId) async {
+    if (chatId <= 0) return false;
+    try {
+      final res = await _conn.chatMsgList(chatId: Int64(chatId));
+      _store.msgsReloadFromServer(chatId, res.messages);
+      final rid = reqId.trim();
+      _store.promptReconcileFromServerMsgs(chatId, _store.msgs.where((m) => m.chatId == chatId));
+      for (final row in _store.msgs) {
+        if (row.chatId != chatId || row.role != 'assistant') continue;
+        if (rid.isNotEmpty && row.reqId != rid) continue;
+        if (row.error.trim().isEmpty && msgHasBody(row)) return true;
+      }
+    } catch (e) {
+      lError('prompt stream recover: $e');
+    }
+    return false;
   }
 
   Future<void> _promptWatchdogFire(String reqId) async {
@@ -355,6 +395,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     _billingQuotaSub?.cancel();
     _billingCommissionSub?.cancel();
     _reconnectedSub?.cancel();
+    _socketAttachedSub?.cancel();
     _followupPushSub?.cancel();
     _promptRunPushSub?.cancel();
     PromptFollowupStore.instance.removeListener(_onFollowupStoreChanged);
@@ -380,16 +421,16 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     await PromptUsagePrefs.instance.load();
     if (mounted) setState(() => _catalogReady = true);
     try {
-      final locale = CatalogTranslationCache.instance.lang;
       await _connConnect();
-      await _store.refreshFromConn(_conn, locale: locale);
-      await _reconcilePromptState();
       if (_store.mentionCatalog.mentions.isEmpty) {
         try {
           await _store.mentionCatalog.refresh(_conn);
         } catch (e) {
           lError('mention list: $e');
         }
+      }
+      if (mounted) {
+        setState(_mentionIdsSyncFromChat);
       }
       if (mounted) _model = AgentModel.of(Session.instance.modelId, _store.models);
       _syncSub = _conn.onSyncPush.listen(_onSyncPush);
@@ -516,6 +557,14 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     _composerFocus.unfocus();
   }
 
+  void _mentionIdsSyncFromChat() {
+    _mentionIds.clear();
+    final chat = _activeChat;
+    if (chat == null) return;
+    if (chat.boundDeviceIid > 0) _mentionIds.add('iid:${chat.boundDeviceIid}');
+    _mentionIds.addAll(chat.stickyMentionIds);
+  }
+
   void _closeHistoryDrawerIfNarrow() {
     if (MediaQuery.sizeOf(context).width >= 720) return;
     final state = _scaffoldKey.currentState;
@@ -525,6 +574,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
 
   void _newChat() {
     _store.chatNew();
+    _mentionIds.clear();
     _composerReset();
     _canvasStore.close();
     _timeline.scrollToBottom(force: true);
@@ -554,6 +604,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     _closeHistoryDrawerIfNarrow();
     _store.chatSelect(id);
     _composerReset();
+    _mentionIdsSyncFromChat();
     _canvasStore.close();
     try {
       final res = await _conn.chatMsgList(chatId: Int64(id));
@@ -786,26 +837,41 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     await _composerSend('$lead\n\n$prompt', const [], mentionIds: const ['image_high']);
   }
 
+  Future<void> _runTestMultitask() => _composerSend(composerTestMultitaskSlash, const []);
+
   Future<void> _composerSend(String text, List<MsgAttachment> attachments, {bool retry = false, String? toolMode, List<String>? mentionIds, String? displayContent}) async {
-    final trimmed = text.trim();
-    final mids = (mentionIds ?? _mentionIds.toList()).where((id) => id != 'image').toList(growable: false);
+    var trimmed = text.trim();
+    var mids = (mentionIds ?? _mentionIds.toList()).where((id) => id != 'image').toList(growable: false);
+    var uiContent = (displayContent ?? trimmed).trim();
+    if (composerSendIsTestMultitask(uiContent) || composerSendIsTestMultitask(trimmed)) {
+      final p = composerTestMultitaskPayload();
+      trimmed = p.text;
+      uiContent = p.displayContent;
+      mids = p.mentionIds;
+    }
     if (trimmed.isEmpty && attachments.isEmpty && mids.isEmpty) return;
     final catalogMentions = _store.mentionCatalog.mentions;
-    final uiContent = (displayContent ?? trimmed).trim();
+    final wireMentionIds = [
+      ...mids,
+      ...composerMentionIdsParse(uiContent),
+      ...composerMentionIdsCollect(uiContent),
+    ];
+    final wireText = composerMentionTextForWire(uiContent, catalogMentions, mentionIds: wireMentionIds);
+    if (wireText.isEmpty && attachments.isEmpty && wireMentionIds.isEmpty) return;
     final previewLine = composerMentionTextHasTokens(uiContent)
         ? composerMentionTextForPrompt(
             uiContent,
             catalogMentions,
-            mentionIds: mids.isNotEmpty ? mids : composerMentionIdsParse(uiContent),
+            mentionIds: wireMentionIds,
           )
-        : trimmed;
+        : wireText;
     if (_store.promptBusy && !retry) {
       final cid = _store.activeChatId;
       if (cid == null) return;
       try {
         final res = await _conn.promptFollowupPut(
           chatId: cid,
-          text: trimmed,
+          text: wireText,
           reqId: _conn.lastPromptReqId ?? '',
           attachmentsJson: MsgAttachment.encode(attachments),
         );
@@ -836,17 +902,33 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     }
     if (chatId == null) return;
 
+    if (mids.isNotEmpty) {
+      _store.chatStickyMentionsMerge(chatId, [...mids, ...composerMentionIdsCollect(uiContent)]);
+      _mentionIdsSyncFromChat();
+    }
+
     final now = DateTime.now().millisecondsSinceEpoch;
     final reqId = const Uuid().v4();
+    final mentionIdsJson = msgMentionIdsEncode(wireMentionIds);
     final replaceFailedTurn = !retry && _store.msgCanReplaceFailedTurn(chatId);
     if (replaceFailedTurn) _store.msgReplaceFailedTurnPrep(chatId);
-    if (retry || replaceFailedTurn) {
+    if (retry) {
       _store.msgUserTurnRetry(
         chatId: chatId,
         content: uiContent,
         attachments: attachments,
         reqId: reqId,
         createdAtMs: now,
+        mentionIdsJson: mentionIdsJson,
+      );
+    } else if (replaceFailedTurn) {
+      _store.msgUserTurnRetry(
+        chatId: chatId,
+        content: uiContent,
+        attachments: attachments,
+        reqId: reqId,
+        createdAtMs: now,
+        mentionIdsJson: mentionIdsJson,
       );
     } else {
       final userMsg = MsgRow(
@@ -858,6 +940,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         attachmentsJson: MsgAttachment.encode(attachments),
         createdAtMs: now,
         reqId: reqId,
+        mentionIdsJson: mentionIdsJson,
       );
       _store.msgPut(userMsg);
     }
@@ -876,10 +959,10 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     final serverChatId = chatId > 0 ? Int64(chatId) : Int64.ZERO;
     final turnToolMode = toolMode ?? _toolMode;
     final promptStream = _conn.promptSend(
-        text: trimmed,
+        text: wireText,
         chatId: serverChatId,
         attachmentsJson: MsgAttachment.encode(attachments),
-        mentionIds: mids,
+        mentionIds: wireMentionIds,
         model: _model.id,
         thinking: _model.thinking.wire,
         toolMode: turnToolMode,
@@ -910,16 +993,16 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
           continue;
         }
         if (ev.kind == 'delta') {
+          final rid = (_conn.lastPromptReqId ?? reqId).trim();
           if (ev.thought) {
-            _store.msgStreamThought(ev.text, chatId: streamChatId);
-            final rid = _conn.lastPromptReqId ?? '';
+            _store.msgStreamThought(ev.text, chatId: streamChatId, reqId: rid);
             if (rid.isNotEmpty && ev.text.contains('Using ')) {
               unawaited(_conn.tracePrefetch(rid));
             }
           } else if (ev.blocksJson.isNotEmpty) {
-            _store.msgStreamBlocks(ev.blocksJson, chatId: streamChatId);
+            _store.msgStreamBlocks(ev.blocksJson, chatId: streamChatId, reqId: rid);
           } else {
-            _store.msgStreamContent(ev.text, chatId: streamChatId);
+            _store.msgStreamContent(ev.text, chatId: streamChatId, reqId: rid);
           }
           if (_store.activeChatId == streamChatId) {
             if (_timeline.stickToBottom) {
@@ -969,7 +1052,9 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         }
       }
     } catch (e) {
-      _store.msgStreamFail(msgErrorNormalize(e), chatId: streamChatId, startedAtMs: promptStartedAtMs);
+      final rid = _conn.lastPromptReqId?.trim().isNotEmpty == true ? _conn.lastPromptReqId!.trim() : reqId;
+      final recovered = await _promptStreamRecoverFromServer(streamChatId, rid);
+      if (!recovered) _store.msgStreamFail(msgErrorNormalize(e), chatId: streamChatId, startedAtMs: promptStartedAtMs);
     } finally {
       _promptWatchdogCancel();
       _store.msgStreamFinalize(chatId: streamChatId, model: _model.id, startedAtMs: promptStartedAtMs);
@@ -1037,18 +1122,38 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     );
   }
 
-  Widget _accountAvatar() => Builder(
-        builder: (ctx) => Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            UiConnWifi(conn: _conn, onReconnect: _connConnect),
-            UiAccountBtn(
-              tooltip: 'Account',
-              onTap: () => _avatarMenu(ctx),
-              child: UiUserAvatar(name: Session.instance.name, email: Session.instance.email, handle: Session.instance.handle, pic: Session.instance.pic, size: 28),
+  Widget _chatHeaderAccountTrailing(BuildContext menuCtx) => Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          UiConnWifi(conn: _conn, onReconnect: _connConnect),
+          const SizedBox(width: 10),
+          const UiAppBarVersionLabel(),
+          if (Session.instance.isRoot || Session.instance.isTester)
+            ListenableBuilder(
+              listenable: PromptUsagePrefs.instance,
+              builder: (context, _) {
+                if (!PromptUsagePrefs.instance.showUsageStats) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: UiContextMeter(
+                    tokensIn: _threadTokensIn,
+                    tokensOut: _threadTokensOut,
+                    costUsd: _threadCostUsd,
+                    contextLimit: _model.gemini ? 1000000 : 128000,
+                    billingCurrency: AppStore.instance.wallet.billingCurrency,
+                    fxMicroPerUsd: AppStore.instance.wallet.fxMicroPerUsd,
+                    tapPadding: const EdgeInsets.fromLTRB(6, 6, 0, 6),
+                  ),
+                );
+              },
             ),
-          ],
-        ),
+          UiAccountBtn(
+            tooltip: 'Account',
+            onTap: () => _avatarMenu(menuCtx),
+            child: UiUserAvatar(name: Session.instance.name, email: Session.instance.email, handle: Session.instance.handle, pic: Session.instance.pic, size: 28),
+          ),
+        ],
       );
 
   Widget _historySidebar() => UiChatHistorySidebar(
@@ -1177,28 +1282,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
                   ),
                 ),
               ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const UiAppBarVersionLabel(),
-                if (Session.instance.isRoot || Session.instance.isTester)
-                  ListenableBuilder(
-                    listenable: PromptUsagePrefs.instance,
-                    builder: (context, _) => PromptUsagePrefs.instance.showUsageStats
-                        ? UiContextMeter(
-                            tokensIn: _threadTokensIn,
-                            tokensOut: _threadTokensOut,
-                            costUsd: _threadCostUsd,
-                            contextLimit: _model.gemini ? 1000000 : 128000,
-                            billingCurrency: AppStore.instance.wallet.billingCurrency,
-                            fxMicroPerUsd: AppStore.instance.wallet.fxMicroPerUsd,
-                          )
-                        : const SizedBox.shrink(),
-                  ),
-                _accountAvatar(),
-              ],
-            ),
+            Builder(builder: _chatHeaderAccountTrailing),
           ],
         ),
       ),
@@ -1227,7 +1311,11 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
               models: _store.models,
               modelsLoading: !_modelsReady,
               onModel: _modelPut,
-              mentions: _store.mentionCatalog.mentions,
+              mentions: _store.mentionCatalog.mentions
+                  .where((m) => !m.rootOnly || Session.instance.isRoot)
+                  .toList(growable: false),
+              viewerIsRoot: Session.instance.isRoot,
+              onTestMultitask: Session.instance.isRoot ? _runTestMultitask : null,
               selectedMentionIds: _mentionIds,
               toolMode: _toolMode,
               onMentionToggle: _mentionToggle,
@@ -1267,7 +1355,13 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
 
     Widget body;
     if (isUser) {
-      body = UiUserBubble(content: m.content, copyPrefix: copyPrefix, attachments: m.attachments, mentions: _store.mentionCatalog.mentions);
+      final catalogMentions = _store.mentionCatalog.mentions;
+      final userContent = msgUserContentForDisplay(
+        content: m.content,
+        mentionIdsJson: m.mentionIdsJson,
+        mentions: catalogMentions,
+      );
+      body = UiUserBubble(content: userContent, copyPrefix: copyPrefix, attachments: m.attachments, mentions: catalogMentions);
     } else {
       final content = msgDisplayContent(m);
       final err = msgRowError(m).trim();
@@ -1276,6 +1370,8 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       final thoughtView = msgThoughtView(thought: m.thought, content: content, thinking: inThoughtPhase);
       final showTraceChips = m.reqId.isNotEmpty && (!inThoughtPhase || msgThoughtStripPlaceholders(m.thought.trim()).isNotEmpty);
       final blocks = ChatBlock.decodeList(m.blocksJson);
+      final hasAnswerBody = content.trim().isNotEmpty || m.thought.trim().isNotEmpty || blocks.isNotEmpty;
+      final showFatalError = hasError && !hasAnswerBody;
       final locale = CatalogTranslationCache.instance.lang;
       final showRetry = hasError && !_store.promptBusyFor(m.chatId) && i == lastAssistantIdx;
       body = Column(
@@ -1296,7 +1392,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
               part: MsgTracePart.chips,
             ),
           _subagentRunCards(m),
-          if (hasError)
+          if (showFatalError)
             UiMsgError(
               message: msgPromptErrorMessage(err),
               detail: sessionViewerIsRoot() ? err : null,
@@ -1328,14 +1424,33 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
                 code: const TextStyle(color: _text, fontSize: 13, fontFamily: 'Consolas', backgroundColor: Color(0xFF1A1A1D)),
               ),
             ),
-          if (!hasError && blocks.isNotEmpty)
+          if (hasError && hasAnswerBody)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      msgPromptErrorMessage(err),
+                      style: const TextStyle(fontSize: 12, height: 1.4, color: Color(0xFF71717A)),
+                    ),
+                  ),
+                  if (showRetry)
+                    TextButton(
+                      onPressed: _retrying ? null : _retryLastTurn,
+                      child: Text(_retrying ? 'Retrying…' : 'Retry'),
+                    ),
+                ],
+              ),
+            ),
+          if ((!hasError || hasAnswerBody) && blocks.isNotEmpty)
             UiMsgBlocks(
               msgId: m.id,
               blocks: blocks,
               consumptionApi: _consumptionApi,
               expenseApi: _expenseApi,
               locale: locale,
-              primary: content.trim().isEmpty && !hasError,
+              primary: content.trim().isEmpty && !showFatalError,
               onConsumptionSaved: _onConsumptionBlockSaved,
               onExpenseSaved: _onExpenseBlockSaved,
               onBlockCollapsedChanged: (msgId, blockIndex, collapsed) =>
@@ -1382,11 +1497,21 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
 
   Future<void> _retryLastTurn() async {
     if (_retrying) return;
+    ContextMenuController.removeAny();
     final turn = _store.retryLastTurnPrep();
     if (turn == null) return;
+    final mentions = _store.mentionCatalog.mentions;
+    final mentionIds = composerMentionIdsCollect(turn.text);
+    final displayContent = composerMentionDisplayRestore(turn.text, mentions, mentionIds: mentionIds);
     setState(() => _retrying = true);
     try {
-      await _composerSend(turn.text, turn.attachments, retry: true);
+      await _composerSend(
+        turn.text,
+        turn.attachments,
+        retry: true,
+        mentionIds: mentionIds,
+        displayContent: displayContent,
+      );
     } finally {
       if (mounted) setState(() => _retrying = false);
     }

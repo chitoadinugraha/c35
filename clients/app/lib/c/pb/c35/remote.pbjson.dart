@@ -364,6 +364,37 @@ final $typed_data.Uint8List resRemoteCommandDescriptor = $convert.base64Decode(
     'ISGwoJZXhpdF9jb2RlGAMgASgFUghleGl0Q29kZRIWCgZzdGRvdXQYBCABKAlSBnN0ZG91dBIW'
     'CgZzdGRlcnIYBSABKAlSBnN0ZGVycg==');
 
+@$core.Deprecated('Use reqRemoteFsListDescriptor instead')
+const ReqRemoteFsList$json = {
+  '1': 'ReqRemoteFsList',
+  '2': [
+    {'1': 'device_iid', '3': 1, '4': 1, '5': 3, '10': 'deviceIid'},
+    {'1': 'path', '3': 2, '4': 1, '5': 9, '10': 'path'},
+  ],
+};
+
+/// Descriptor for `ReqRemoteFsList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqRemoteFsListDescriptor = $convert.base64Decode(
+    'Cg9SZXFSZW1vdGVGc0xpc3QSHQoKZGV2aWNlX2lpZBgBIAEoA1IJZGV2aWNlSWlkEhIKBHBhdG'
+    'gYAiABKAlSBHBhdGg=');
+
+@$core.Deprecated('Use reqRemoteFsReadDescriptor instead')
+const ReqRemoteFsRead$json = {
+  '1': 'ReqRemoteFsRead',
+  '2': [
+    {'1': 'device_iid', '3': 1, '4': 1, '5': 3, '10': 'deviceIid'},
+    {'1': 'path', '3': 2, '4': 1, '5': 9, '10': 'path'},
+    {'1': 'offset', '3': 3, '4': 1, '5': 3, '10': 'offset'},
+    {'1': 'max_bytes', '3': 4, '4': 1, '5': 5, '10': 'maxBytes'},
+  ],
+};
+
+/// Descriptor for `ReqRemoteFsRead`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqRemoteFsReadDescriptor = $convert.base64Decode(
+    'Cg9SZXFSZW1vdGVGc1JlYWQSHQoKZGV2aWNlX2lpZBgBIAEoA1IJZGV2aWNlSWlkEhIKBHBhdG'
+    'gYAiABKAlSBHBhdGgSFgoGb2Zmc2V0GAMgASgDUgZvZmZzZXQSGwoJbWF4X2J5dGVzGAQgASgF'
+    'UghtYXhCeXRlcw==');
+
 @$core.Deprecated('Use remoteInputEventDescriptor instead')
 const RemoteInputEvent$json = {
   '1': 'RemoteInputEvent',

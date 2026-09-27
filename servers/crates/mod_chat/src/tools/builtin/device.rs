@@ -44,14 +44,15 @@ fn device_fail(error: impl Into<String>) -> Value {
 }
 
 tool! {
-    struct: DeviceCommandTool,
-    name: "device.command",
-    aliases: ["device_command", "run_command_on_device", "exec_device"],
-    description: "Run a shell or PowerShell command on a user's paired remote device (e.g. Chito-PC). Prefer this for bulk or repetitive data work (export, join, transform, spreadsheet load); use device.input for one-off UI steps only. Returns command execution stdout, stderr, and exit code.",
+    struct: ShellRunTool,
+    name: "shell.run",
+    aliases: ["device.command", "device_command", "device.shell.run", "shell_run", "run_command_on_device", "exec_device"],
+    description: "Run a shell or PowerShell command on a user's paired remote device (e.g. DESKTOP-…). Use for ping, scripts, bulk file work, and stdout/stderr. To open a GUI app (Chrome, Edge, Notepad), use a simple launch such as `chrome` or `Start-Process chrome` — the agent opens it directly like a double-click (no shell window). Use device.input only when the UI has no direct launch path.",
     topics: ["device", "computer_use"],
     always: ["device", "computer_use"],
-    ui_calling_key: "tool.device.command.calling",
-    ui_done_key: "tool.device.command.done",
+    rag_phrases: ["ping", "shell", "powershell", "cmd", "terminal", "run command", "network latency"],
+    ui_calling_key: "tool.shell.run.calling",
+    ui_done_key: "tool.shell.run.done",
     parameters: {
         device_iid: (integer, "Target device identity ID", required),
         command: (string, "Shell or PowerShell command to execute", required),
@@ -297,7 +298,7 @@ tool! {
     struct: DeviceFsListTool,
     name: "device.fs.list",
     aliases: ["device_fs_list", "list_device_directory"],
-    description: "List files and folders on a paired remote device. Use normal paths (e.g. C:\\Users). Empty path lists drive roots. For Recycle Bin use path recycle bin or Shell:RecycleBinFolder (not $RecycleBin$). Do not use device.command to list the bin.",
+    description: "List files and folders on a paired remote device. Use normal paths (e.g. C:\\Users). Empty path lists drive roots. For Recycle Bin use path recycle bin or Shell:RecycleBinFolder (not $RecycleBin$). Do not use shell.run to list the bin.",
     topics: ["device", "computer_use"],
     always: ["device", "computer_use"],
     readonly: true,

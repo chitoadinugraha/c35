@@ -19,7 +19,7 @@ pub use delegate::{
     delegate_child_row, delegate_result_json, ComputerUseDelegateTool, DelegateRunTool,
 };
 pub use device::{
-    DeviceCommandTool, DeviceFsListTool, DeviceFsReadTool, DeviceInputTool, DeviceScreenshotTool,
+    DeviceFsListTool, DeviceFsReadTool, DeviceInputTool, DeviceScreenshotTool, ShellRunTool,
 };
 pub use img_edit::ImgEditTool;
 pub use img_generate::ImgGenerateTool;

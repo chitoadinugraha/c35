@@ -151,3 +151,17 @@ pub fn event_by_kind(kind: &str) -> Option<&'static EventDef> {
 pub fn catalog_list() -> &'static [EventDef] {
     CATALOG
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn catalog_list_covers_event_by_kind() {
+        let list = catalog_list();
+        assert!(!list.is_empty());
+        for def in list {
+            assert!(event_by_kind(def.kind).is_some());
+        }
+    }
+}

@@ -257,6 +257,8 @@ message WsReq {
     ReqPromptFollowupCancel prompt_followup_cancel = 143;
     ReqChatDeviceContextList chat_device_context_list = 157;
     ReqChatDeviceContextCreate chat_device_context_create = 158;
+    ReqRemoteFsList req_remote_fs_list = 159;
+    ReqRemoteFsRead req_remote_fs_read = 160;
   }
 }
 
@@ -391,5 +393,7 @@ message WsRes {
     PromptFollowupPush prompt_followup_push = 144;
     ResChatDeviceContextList chat_device_context_list = 157;
     ResChatDeviceContextCreate chat_device_context_create = 158;
+    RemoteFsListRes res_remote_fs_list = 159;
+    RemoteFsReadRes res_remote_fs_read = 160;
   }
 }

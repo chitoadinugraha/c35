@@ -3,7 +3,7 @@ mod emit;
 mod render;
 mod subject;
 
-pub use catalog::{event_by_kind, EventClass, EventDef, EventScope};
+pub use catalog::{catalog_list, event_by_kind, EventClass, EventDef, EventScope};
 pub use emit::{event_emit, event_spawn, EventCtx};
 
 pub mod kinds {

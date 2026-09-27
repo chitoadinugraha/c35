@@ -73,12 +73,14 @@ class SlashCommand {
     required this.label,
     required this.description,
     required this.icon,
+    this.rootOnly = false,
   });
 
   final String id;
   final String label;
   final String description;
   final IconData icon;
+  final bool rootOnly;
 }
 
 class InComposer extends StatefulWidget {
@@ -107,6 +109,8 @@ class InComposer extends StatefulWidget {
     this.followupRows = const [],
     this.onFollowupSteer,
     this.onFollowupRemove,
+    this.viewerIsRoot = false,
+    this.onTestMultitask,
   });
 
   final void Function(String text, List<MsgAttachment> attachments, {String? toolMode, List<String>? mentionIds, String? displayContent}) onSend;
@@ -132,6 +136,8 @@ class InComposer extends StatefulWidget {
   final List<PromptFollowupRow> followupRows;
   final void Function(PromptFollowupRow row)? onFollowupSteer;
   final void Function(PromptFollowupRow row)? onFollowupRemove;
+  final bool viewerIsRoot;
+  final VoidCallback? onTestMultitask;
 
   @override
   State<InComposer> createState() => _InComposerState();
@@ -177,7 +183,7 @@ class _InComposerState extends State<InComposer> {
 
   void _clearMentionMenuRowKeys() => _mentionMenuRowKeys.clear();
 
-  static const _slashCommands = [
+  static const _slashCommandsBase = [
     SlashCommand(
       id: 'ask',
       label: '/ask',
@@ -198,11 +204,25 @@ class _InComposerState extends State<InComposer> {
     ),
   ];
 
+  List<SlashCommand> get _slashCommands => [
+        ..._slashCommandsBase,
+        if (widget.viewerIsRoot)
+          const SlashCommand(
+            id: 'test-multitask',
+            label: '/test-multitask',
+            description: 'Root only',
+            icon: Icons.hub_outlined,
+            rootOnly: true,
+          ),
+      ];
+
   bool get _hasText => composerMentionTextNonempty(_textWithoutActiveMentionDraft) || _attachments.isNotEmpty;
   bool get _canSubmit => widget.enabled && !_submitting && !_recording && _hasText;
   String get _hintText => _recording ? 'composer.listening'.tr() : (widget.busy ? 'Send follow-up' : widget.hint);
   bool get _askActive => widget.toolMode == 'ask';
-  List<CatalogMention> get _composerMentions => widget.mentions.where((m) => m.id != 'image').toList(growable: false);
+  List<CatalogMention> get _composerMentions => widget.mentions
+      .where((m) => m.id != 'image' && (!m.rootOnly || widget.viewerIsRoot))
+      .toList(growable: false);
 
   Set<String> get _inlineMentionIds => composerMentionIdsParse(_controller.text).toSet();
 
@@ -252,6 +272,9 @@ class _InComposerState extends State<InComposer> {
     } else if (cmd.id == 'clear') {
       _controller.clear();
       widget.onNewChat?.call();
+    } else if (cmd.id == 'test-multitask') {
+      _controller.clear();
+      widget.onTestMultitask?.call();
     }
     _highlightedSlashIndex = 0;
     setState(() {});
@@ -412,12 +435,16 @@ class _InComposerState extends State<InComposer> {
     if (!_mentionPickerActive) return const [];
     final q = _activeMentionQuery ?? '';
     final matches = _mentionMatches;
-    final tools = matches.where((m) => !m.isDevice).toList(growable: false);
+    final tools = matches.where((m) => !m.isDevice && !m.isRootCommand).toList(growable: false);
+    final rootOnly = matches.where((m) => m.isRootCommand).toList(growable: false);
     final devices = matches.where((m) => m.isDevice).toList(growable: false);
     final rows = <_MentionPickRow>[];
     if (_mentionQueryShowsImage(q)) rows.add(const _MentionPickRow(kind: _MentionPickKind.image));
     if (_mentionQueryShowsFile(q)) rows.add(const _MentionPickRow(kind: _MentionPickKind.file));
     for (final m in tools) {
+      rows.add(_MentionPickRow(kind: _MentionPickKind.mention, mention: m));
+    }
+    for (final m in rootOnly) {
       rows.add(_MentionPickRow(kind: _MentionPickKind.mention, mention: m));
     }
     for (final m in devices) {
@@ -441,6 +468,11 @@ class _InComposerState extends State<InComposer> {
   }
 
   void _pickMention(CatalogMention m) {
+    if (m.isRootCommand && widget.onTestMultitask != null) {
+      _dismissMentionPicker();
+      widget.onTestMultitask!();
+      return;
+    }
     _removeMentionMenuOverlay();
     _clearMentionMenuRowKeys();
     _mentionMenuHighlight.value = 0;
@@ -691,7 +723,7 @@ class _InComposerState extends State<InComposer> {
       ...widget.selectedMentionIds.where((id) => id != 'image' && !_inlineMentionIds.contains(id)),
     ].toList(growable: false);
 
-    var submitText = composerMentionTextForPrompt(draft, _composerMentions, mentionIds: mentionIds);
+    var submitText = composerMentionTextForWire(draft, _composerMentions, mentionIds: mentionIds);
     if (submitText.startsWith('/ask ') || submitText == '/ask') {
       turnToolMode = 'ask';
       submitText = submitText.length > 4 ? submitText.substring(4).trim() : '';
@@ -964,7 +996,8 @@ class _InComposerState extends State<InComposer> {
     if (pickRows.isEmpty) return const SizedBox.shrink();
 
     final matches = _mentionMatches;
-    final tools = matches.where((m) => !m.isDevice).toList(growable: false);
+    final tools = matches.where((m) => !m.isDevice && !m.isRootCommand).toList(growable: false);
+    final rootOnly = matches.where((m) => m.isRootCommand).toList(growable: false);
     final devices = matches.where((m) => m.isDevice).toList(growable: false);
     final q = _activeMentionQuery ?? '';
     var rowIndex = 0;
@@ -994,7 +1027,7 @@ class _InComposerState extends State<InComposer> {
           label: 'File',
         ),
       );
-      if (tools.isNotEmpty || devices.isNotEmpty) {
+      if (tools.isNotEmpty || rootOnly.isNotEmpty || devices.isNotEmpty) {
         children.add(const Divider(height: 1, color: Color(0xFF3F3F46)));
       }
     }
@@ -1015,6 +1048,25 @@ class _InComposerState extends State<InComposer> {
           ),
         );
         if (m != tools.last) children.add(const Divider(height: 1, color: Color(0xFF3F3F46)));
+      }
+    }
+    if (rootOnly.isNotEmpty) {
+      children.add(const Divider(height: 1, color: Color(0xFF3F3F46)));
+      children.add(_mentionSectionHeader('Root'));
+      for (final m in rootOnly) {
+        final i = rowIndex++;
+        children.add(
+          _mentionMenuTile(
+            rowIndex: i,
+            highlightIndex: highlightIndex,
+            onTap: () => _pickMention(m),
+            leading: _mentionLeadingIcon(m),
+            label: m.displayLabel,
+            caption: m.displayCaption,
+            selected: _inlineMentionIds.contains(m.id),
+          ),
+        );
+        if (m != rootOnly.last) children.add(const Divider(height: 1, color: Color(0xFF3F3F46)));
       }
     }
     if (devices.isNotEmpty) {

@@ -192,8 +192,8 @@ Implementation plan: [`plans/2026-09-21-remote-agent-pairing.md`](plans/2026-09-
 | `LISTEN` | HTTP bind (default `0.0.0.0:8080`) |
 | `C35_DB_MIGRATE` | `1` = apply `_/schemas/*.sql` on boot |
 | `YB_*` / `POSTGRES_*` | Yugabyte connection |
-| `PG_MAX_CONNECTIONS` | SQLx pool size per process (default `24`) |
-| `PG_MIN_CONNECTIONS` | Warm idle connections (default `4`) |
+| `PG_MAX_CONNECTIONS` | SQLx pool size per process (default `48`) |
+| `PG_MIN_CONNECTIONS` | Warm idle connections (default `12`) |
 | `PG_SLOW_STATEMENT_MS` | Log SQL slower than this at `WARN` via `sqlx::query` (default `1000`) |
 | `PG_SLOW_ACQUIRE_MS` | Log pool acquire slower than this (default `3000`) |
 | `PROMPT_RUN_MAX_CONCURRENT` | Max parallel JetStream prompt jobs per `server_ai` pod (default `8`) |
@@ -211,8 +211,16 @@ See `servers/server_ai/.env.example`.
 - Root-level `crates/` directory
 - `file.sql` until CAS strategy is locked
 
+## Implementation plans
+
+Ephemeral multitask plans: [`plans/`](plans/) (see also [README.md](README.md)).
+
+- [Mention brackets + chat cache sync](plans/2026-09-27-mention-brackets-chat-sync.md)
+- [Multitask streaming (delegate.run UX)](plans/2026-09-27-multitask-streaming.md) — Track A steering shipped; ops + B–F pending
+
 ## Related docs
 
+- [mention.md](mention.md) — `[@kind:payload]` in message text, wire `mention_ids[]`, context preservation
 - [server.md](server.md) — crate roles, deployment
 - [roadmap.md](roadmap.md) — phase map
 - [architecture.md](architecture.md) — system overview

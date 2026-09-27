@@ -4,7 +4,7 @@ Status: **locked** 2026-09-23
 
 How the Home assistant operates on **Sites**: `@mention` scoping, multi-site context, write tools vs read queries, and `inst` steering.
 
-Related: [site.md](site.md) (schema + UITable), [tx.md](tx.md) (POS), [inst.md](inst.md), [chat.md](chat.md), [hint.md](hint.md).
+Related: [site.md](site.md) (schema + UITable), [tx.md](tx.md) (POS), [inst.md](inst.md), [chat.md](chat.md), [mention.md](mention.md) (bracket text + `mention_ids[]`), [hint.md](hint.md).
 
 ---
 

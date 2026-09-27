@@ -13,6 +13,9 @@ use c35_proto::{
 const READ_CHUNK_DEFAULT: i32 = 256 * 1024;
 const READ_CHUNK_MAX: i32 = 4 * 1024 * 1024;
 
+/// Max read size for agent WS / LLM automation (not WebRTC viewer channel).
+pub const FS_READ_WS_MAX: i32 = 256 * 1024;
+
 enum FsFrameKind {
     List,
     Read,
@@ -217,6 +220,10 @@ pub fn fs_list(req: RemoteFsListReq) -> RemoteFsListRes {
             entries: list_drives(),
             error: String::new(),
         };
+    }
+    #[cfg(windows)]
+    if fs_list_path_is_recycle_bin(path) {
+        return fs_list_recycle_bin_windows();
     }
     match path_resolve(path) {
         Ok(p) => match std::fs::read_dir(&p) {
@@ -578,6 +585,129 @@ pub fn path_resolve(raw: &str) -> Result<PathBuf, String> {
 
 fn path_display(path: &Path) -> String {
     path.to_string_lossy().replace('/', "\\")
+}
+
+#[cfg(windows)]
+fn fs_list_path_is_recycle_bin(raw: &str) -> bool {
+    let s = raw.trim().trim_matches('"').to_ascii_lowercase();
+    matches!(
+        s.as_str(),
+        "$recyclebin$"
+            | "shell:recyclebinfolder"
+            | "recycle bin"
+            | "recyclebin"
+            | "recyle bin"
+    ) || (s.contains("recycle") && s.contains("bin") && !s.contains('\\'))
+}
+
+#[cfg(windows)]
+const RECYCLE_BIN_LIST_PS: &str = r#"$rows = @()
+try {
+  Get-ChildItem -LiteralPath 'Shell:RecycleBinFolder' -Force -ErrorAction Stop | ForEach-Object {
+    $rows += [PSCustomObject]@{
+      name = $_.Name
+      path = $_.FullName
+      is_dir = $_.PSIsContainer
+      size = if ($_.PSIsContainer) { 0 } else { [int64]$_.Length }
+      modified_ms = [int64]([DateTimeOffset]::new($_.LastWriteTime.ToUniversalTime()).ToUnixTimeMilliseconds())
+    }
+  }
+} catch {
+  $bin = (New-Object -ComObject Shell.Application).NameSpace(0x0a)
+  if ($null -eq $bin) { throw $_ }
+  foreach ($i in @($bin.Items())) {
+    $ms = 0
+    try {
+      if ($i.ModifyDate) {
+        $ms = [int64]([DateTimeOffset]::new($i.ModifyDate.ToUniversalTime()).ToUnixTimeMilliseconds())
+      }
+    } catch {}
+    $rows += [PSCustomObject]@{
+      name = $i.Name
+      path = $i.Path
+      is_dir = $false
+      size = [int64]$i.Size
+      modified_ms = $ms
+    }
+  }
+}
+if ($rows.Count -eq 0) { '[]' } else { $rows | ConvertTo-Json -Compress -Depth 4 }"#;
+
+#[cfg(windows)]
+pub fn recycle_bin_list_powershell_command() -> &'static str {
+    RECYCLE_BIN_LIST_PS
+}
+
+#[cfg(windows)]
+fn fs_list_recycle_bin_windows() -> RemoteFsListRes {
+    let output = match crate::win_powershell::command_output(RECYCLE_BIN_LIST_PS) {
+        Ok(o) => o,
+        Err(e) => {
+            return RemoteFsListRes {
+                entries: vec![],
+                error: e.to_string(),
+            };
+        }
+    };
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        let msg = if stderr.is_empty() {
+            format!("exit {}", output.status.code().unwrap_or(-1))
+        } else {
+            stderr
+        };
+        return RemoteFsListRes {
+            entries: vec![],
+            error: msg,
+        };
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if stdout.is_empty() || stdout == "null" {
+        return RemoteFsListRes {
+            entries: vec![],
+            error: String::new(),
+        };
+    }
+    let parsed: Result<serde_json::Value, _> = serde_json::from_str(&stdout);
+    let rows = match parsed {
+        Ok(serde_json::Value::Array(a)) => a,
+        Ok(one) => vec![one],
+        Err(e) => {
+            return RemoteFsListRes {
+                entries: vec![],
+                error: format!("recycle bin parse error: {e}"),
+            };
+        }
+    };
+    let mut entries = Vec::new();
+    for row in rows {
+        let Some(obj) = row.as_object() else { continue };
+        let name = obj.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        if name.is_empty() {
+            continue;
+        }
+        entries.push(RemoteFsEntry {
+            name: name.clone(),
+            path: obj
+                .get("path")
+                .and_then(|v| v.as_str())
+                .unwrap_or(&name)
+                .to_string(),
+            is_dir: obj.get("is_dir").and_then(|v| v.as_bool()).unwrap_or(false),
+            size: obj.get("size").and_then(|v| v.as_i64()).unwrap_or(0),
+            modified_ms: obj.get("modified_ms").and_then(|v| v.as_i64()).unwrap_or(0),
+            drive_kind: RemoteFsDriveKind::Unspecified.into(),
+        });
+    }
+    entries.sort_by(|a, b| {
+        b.is_dir
+            .cmp(&a.is_dir)
+            .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+    });
+    RemoteFsListRes {
+        entries,
+        error: String::new(),
+    }
 }
 
 fn mime_guess(path: &Path) -> String {

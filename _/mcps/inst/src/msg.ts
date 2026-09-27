@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { pool } from "./db.js";
+import { pool, promptRunChildren } from "./db.js";
 import { clampLimit, debugOwnerIid, ilike, jsonContent } from "./util.js";
 
 type ChatMsgRow = {
@@ -112,7 +112,13 @@ export const registerMsgTools = (server: McpServer) => {
         if (!rows[0]) throw new Error("message not found");
         const msg = rows[0];
         const trace = msg.req_id ? await traceForReq(msg.req_id, ownerIid) : [];
-        return jsonContent({ message: msgRowJson(msg), trace });
+        const subagents = msg.req_id ? await promptRunChildren(msg.req_id) : [];
+        return jsonContent({
+          message: msgRowJson(msg),
+          multitask_real: subagents.length > 0,
+          subagents,
+          trace,
+        });
       }
 
       const rid = req_id!.trim();
@@ -121,8 +127,11 @@ export const registerMsgTools = (server: McpServer) => {
         [rid, ownerIid],
       );
       const trace = await traceForReq(rid, ownerIid);
+      const subagents = await promptRunChildren(rid);
       return jsonContent({
         req_id: rid,
+        multitask_real: subagents.length > 0,
+        subagents,
         messages: rows.map(msgRowJson),
         trace,
       });

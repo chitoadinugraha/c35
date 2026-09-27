@@ -240,6 +240,70 @@ pub async fn chat_device_context_create(
     })
 }
 
+/// Persist sticky composer mentions on the chat and bind a single device when unbound.
+pub async fn chat_mention_context_commit(
+    pool: &PgPool,
+    chat_id: i64,
+    owner_iid: i64,
+    mention_ids: &[String],
+) -> Result<()> {
+    if mention_ids.is_empty() {
+        return Ok(());
+    }
+    let meta_row: Option<Value> = sqlx::query_scalar(
+        "SELECT COALESCE(meta, '{}'::jsonb) FROM ai.chat WHERE id = $1 AND owner_iid = $2 AND kind = 'prompt' AND deleted_ts IS NULL",
+    )
+    .bind(chat_id)
+    .bind(owner_iid)
+    .fetch_optional(pool)
+    .await?;
+    let Some(mut meta) = meta_row else {
+        return Ok(());
+    };
+    let mut sticky: Vec<String> = meta
+        .get("sticky_mention_ids")
+        .and_then(|v| serde_json::from_value(v.clone()).ok())
+        .unwrap_or_default();
+    for id in mention_ids {
+        let t = id.trim();
+        if t.is_empty() || sticky.iter().any(|x| x == t) {
+            continue;
+        }
+        sticky.push(t.to_string());
+    }
+    meta["sticky_mention_ids"] = json!(sticky);
+    let devices = mention_device_iids_from_req(mention_ids);
+    if devices.len() == 1 {
+        let device = devices[0];
+        sqlx::query(
+            r#"
+            UPDATE ai.chat
+            SET bound_device_iid = $1,
+                meta = $2,
+                updated_ts = NOW()
+            WHERE id = $3 AND owner_iid = $4 AND kind = 'prompt'
+              AND (bound_device_iid = 0 OR bound_device_iid = $1)
+            "#,
+        )
+        .bind(device)
+        .bind(&meta)
+        .bind(chat_id)
+        .bind(owner_iid)
+        .execute(pool)
+        .await?;
+    } else {
+        sqlx::query(
+            "UPDATE ai.chat SET meta = $1, updated_ts = NOW() WHERE id = $2 AND owner_iid = $3 AND kind = 'prompt'",
+        )
+        .bind(&meta)
+        .bind(chat_id)
+        .bind(owner_iid)
+        .execute(pool)
+        .await?;
+    }
+    Ok(())
+}
+
 pub async fn bound_device_prompt_prepare(
     pool: &PgPool,
     owner_iid: i64,

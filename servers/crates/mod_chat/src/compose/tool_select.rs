@@ -35,6 +35,23 @@ pub fn compose_force_bot_web(eligible: &[ToolDef], force_include: &mut Vec<Strin
     }
 }
 
+/// Keep inst- or mention-forced tools in the eligible set even when topic/RAG filters would drop them.
+pub fn compose_inject_force_tools(
+    catalog: &[ToolDef],
+    eligible: &mut Vec<ToolDef>,
+    force_include: &[String],
+    exclude: &[String],
+) {
+    for name in force_include {
+        if name.is_empty() || exclude.iter().any(|x| x == name) || eligible.iter().any(|t| &t.name == name) {
+            continue;
+        }
+        if let Some(t) = catalog.iter().find(|t| &t.name == name) {
+            eligible.push(t.clone());
+        }
+    }
+}
+
 pub fn compose_bot_web_tools_inject(catalog: &[ToolDef], eligible: &mut Vec<ToolDef>, exclude: &[String]) {
     for name in ["web.search", "web.visit"] {
         if exclude.iter().any(|x| x == name) || eligible.iter().any(|t| t.name == name) {

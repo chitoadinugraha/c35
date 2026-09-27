@@ -65,6 +65,8 @@ INSERT INTO ai.translation (lang, key, category, text) VALUES
 -- mention.memorize.*
 ('en', 'mention.memorize.label', 'mention', 'Memorize'),
 ('en', 'mention.memorize.caption', 'mention', 'Save a fact to memory'),
+('en', 'mention.test_multitask.label', 'mention', '/test-multitask'),
+('en', 'mention.root_only.caption', 'mention', 'Root only'),
 -- topic.general.*
 ('en', 'topic.general.label', 'topic', 'General'),
 ('en', 'topic.general.caption', 'topic', 'Default assistant'),
@@ -74,6 +76,9 @@ INSERT INTO ai.translation (lang, key, category, text) VALUES
 -- topic.image.*
 ('en', 'topic.image.label', 'topic', 'Image'),
 ('en', 'topic.image.caption', 'topic', 'Image generation'),
+-- topic.device.*
+('en', 'topic.device.label', 'topic', 'Device'),
+('en', 'topic.device.caption', 'topic', 'Paired PC facts via tools'),
 ('en', 'composer.ask.label', 'catalog', 'Ask'),
 ('en', 'composer.ask.caption', 'catalog', 'Answer without tools'),
 ('en', 'hint.consumption_add.label', 'hint', 'Track Consumption'),
@@ -114,12 +119,16 @@ INSERT INTO ai.translation (lang, key, category, text) VALUES
 ('id', 'mention.image.caption', 'mention', 'Buat gambar'),
 ('id', 'mention.memorize.label', 'mention', 'Ingat'),
 ('id', 'mention.memorize.caption', 'mention', 'Simpan ke memori'),
+('id', 'mention.test_multitask.label', 'mention', '/test-multitask'),
+('id', 'mention.root_only.caption', 'mention', 'Root only'),
 ('id', 'topic.general.label', 'topic', 'Umum'),
 ('id', 'topic.general.caption', 'topic', 'Asisten default'),
 ('id', 'topic.research.label', 'topic', 'Riset'),
 ('id', 'topic.research.caption', 'topic', 'Riset web multi-sumber'),
 ('id', 'topic.image.label', 'topic', 'Gambar'),
 ('id', 'topic.image.caption', 'topic', 'Pembuatan gambar'),
+('id', 'topic.device.label', 'topic', 'Perangkat'),
+('id', 'topic.device.caption', 'topic', 'Fakta PC terpasang via alat'),
 ('id', 'composer.ask.label', 'catalog', 'Tanya'),
 ('id', 'composer.ask.caption', 'catalog', 'Jawab tanpa alat'),
 ('id', 'hint.consumption_add.label', 'hint', 'Catat konsumsi makanan'),

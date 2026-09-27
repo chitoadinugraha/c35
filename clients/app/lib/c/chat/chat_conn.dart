@@ -83,12 +83,14 @@ class ChatConn {
   Timer? _reconnectTimer;
   var _manualDisconnect = false;
   var _retryCount = 0;
+  var _socketGen = 0;
   var _locale = 'en';
   var _tz = '';
   var _appBuild = 0;
   var _appVersionName = '';
   final status = ValueNotifier<ChatConnStatus>(ChatConnStatus.disconnected);
   final _reconnectedCtrl = StreamController<void>.broadcast();
+  final _socketAttachedCtrl = StreamController<void>.broadcast();
   final _promptPending = <String, StreamController<PromptStreamEvent>>{};
   final _rpcPending = <String, Completer<WsRes>>{};
   final _syncPushCtrl = StreamController<SyncPush>.broadcast();
@@ -117,6 +119,8 @@ class ChatConn {
   Stream<PromptRunPush> get onPromptRunPush => _promptRunPushCtrl.stream;
   Stream<PromptFollowupPush> get onPromptFollowupPush => _promptFollowupPushCtrl.stream;
   Stream<void> get onReconnected => _reconnectedCtrl.stream;
+  /// Fires after auto-reconnect attaches a socket (before first frame); run session init.
+  Stream<void> get onSocketAttached => _socketAttachedCtrl.stream;
 
   bool get connected => _ch != null;
 
@@ -222,19 +226,30 @@ class ChatConn {
   }) {
     final token = Session.instance.token.trim();
     if (token.isEmpty) throw 'not signed in';
+    final gen = ++_socketGen;
     _ch = WebSocketChannel.connect(
       Uri.parse(_wsUrl(locale: locale, tz: tz, appBuild: appBuild, appVersionName: appVersionName)),
     );
-    _sub = _ch!.stream.listen(_onData, onError: _onWsError, onDone: _onWsDone);
+    _sub = _ch!.stream.listen(
+      (data) => _onData(data, gen),
+      onError: (e) => _onWsError(e, gen),
+      onDone: () => _onWsDone(gen),
+    );
   }
 
-  void _onWsError(Object e) {
+  void _emitSocketAttached() {
+    if (!_socketAttachedCtrl.isClosed) _socketAttachedCtrl.add(null);
+  }
+
+  void _onWsError(Object e, int gen) {
+    if (gen != _socketGen) return;
     lError('chat ws: $e');
     _failAll('$e');
     _scheduleReconnectIfNeeded();
   }
 
-  void _onWsDone() {
+  void _onWsDone(int gen) {
+    if (gen != _socketGen) return;
     _failAll('connection closed');
     _scheduleReconnectIfNeeded();
   }
@@ -267,6 +282,7 @@ class ChatConn {
           appBuild: _appBuild,
           appVersionName: _appVersionName,
         );
+        _emitSocketAttached();
       } catch (e) {
         lError('chat ws reconnect: $e');
         _scheduleReconnectIfNeeded();
@@ -300,7 +316,8 @@ class ChatConn {
     c.complete(res);
   }
 
-  void _onData(dynamic data) {
+  void _onData(dynamic data, int gen) {
+    if (gen != _socketGen) return;
     if (data is! List<int>) return;
     if (status.value != ChatConnStatus.connected || _retryCount > 0) {
       final wasReconnecting = _retryCount > 0 || status.value == ChatConnStatus.reconnecting;

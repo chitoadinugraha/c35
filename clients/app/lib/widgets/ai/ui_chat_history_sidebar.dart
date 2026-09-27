@@ -38,6 +38,7 @@ class UiChatHistorySidebar extends StatefulWidget {
 class _UiChatHistorySidebarState extends State<UiChatHistorySidebar> {
   late final _search = TextEditingController(text: widget.store.search);
   var _refreshing = false;
+  var _archivedExpanded = false;
 
   @override
   void initState() {
@@ -155,12 +156,12 @@ class _UiChatHistorySidebarState extends State<UiChatHistorySidebar> {
             padding: const EdgeInsets.only(top: 8, bottom: 2),
             child: InkWell(
               borderRadius: BorderRadius.circular(8),
-              onTap: () => store.archivedOpenPut(!store.archivedOpen),
+              onTap: () => setState(() => _archivedExpanded = !_archivedExpanded),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 child: Row(
                   children: [
-                    Icon(store.archivedOpen ? Icons.expand_more : Icons.chevron_right, size: 16, color: const Color(0xFF71717A)),
+                    Icon(_archivedExpanded ? Icons.expand_more : Icons.chevron_right, size: 16, color: const Color(0xFF71717A)),
                     const SizedBox(width: 4),
                     const Expanded(child: Text('Archived', style: TextStyle(fontSize: 12, color: Color(0xFF71717A), fontWeight: FontWeight.w500))),
                     Text('${store.archivedChats.length}', style: const TextStyle(fontSize: 11, color: Color(0xFF52525B))),
@@ -247,7 +248,7 @@ class _UiChatHistorySidebarState extends State<UiChatHistorySidebar> {
 
     if (store.archivedChats.isNotEmpty) {
       items.add(_SidebarArchivedToggleItem());
-      if (store.archivedOpen) {
+      if (_archivedExpanded) {
         for (final c in store.archivedChats) {
           items.add(_SidebarChatItem(c, archived: true));
         }

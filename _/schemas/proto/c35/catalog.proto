@@ -28,7 +28,8 @@ message MentionItem {
   string scope_label = 12;
   string label = 13;          // precomputed badge, e.g. "Site 1: Nasi goreng"
   string scope_ref = 14;
-  string kind = 15;           // catalog | identity | collection
+  string kind = 15;           // catalog | identity | collection | command
+  bool root_only = 16;        // composer + RPC: visible only to root viewers
 }
 
 message MentionCatalog {

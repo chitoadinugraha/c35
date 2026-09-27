@@ -10,6 +10,7 @@ Mirrored for Cursor: [`.cursor/rules/prompt-steering.mdc`](../../.cursor/rules/p
 Read before changing prompt behavior:
 
 - [`_/docs/inst.md`](../../_/docs/inst.md) — inst rows, triggers, compose pipeline
+- [`_/docs/mention.md`](../../_/docs/mention.md) — `[@kind:payload]` in message text, `mention_ids[]`, context preservation
 - [`_/docs/site-ai.md`](../../_/docs/site-ai.md) — tool metadata, multi-site context
 - [`_/schemas/topic.sql`](../../_/schemas/topic.sql) — topic seeds + persona chain
 

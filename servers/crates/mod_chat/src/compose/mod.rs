@@ -24,7 +24,10 @@ pub use mention_gate::{
     tool_mention_capability_eligible, tool_mention_eligible, tool_mention_kinds_eligible,
 };
 pub use topic::{tool_topic_eligible, topic_resolve};
-pub use tool_select::{compose_bot_web_tools_inject, compose_force_bot_web, compose_force_general_web, tool_turn_eligible, tools_for_turn};
+pub use tool_select::{
+    compose_bot_web_tools_inject, compose_force_bot_web, compose_force_general_web,
+    compose_inject_force_tools, tool_turn_eligible, tools_for_turn,
+};
 
 #[derive(Clone, Copy, Default)]
 pub struct ComposeTurnOpts<'a> {
@@ -138,7 +141,15 @@ fn compose_tools_ranked(
             let ranked = ranked_with_forced(&vf.ranked, force);
             let trimmed = tool_trim_ranked(&ranked, force, DEFAULT_TOOL_SIM_THRESHOLD, DEFAULT_TOOL_SIM_GAP);
             let ranked_ids: Vec<String> = trimmed.iter().map(|c| c.tool_id.clone()).collect();
-            let tools = rag_tool_select(eligible, &ranked_ids, force);
+            let mut tools = rag_tool_select(eligible, &ranked_ids, force);
+            for id in force {
+                if tools.iter().any(|t| &t.name == id) {
+                    continue;
+                }
+                if let Some(t) = eligible.iter().find(|t| &t.name == id) {
+                    tools.push(t.clone());
+                }
+            }
             return (ranked, trimmed, tools, vf.ranker.to_string(), vf.best_sim, vf.query_cached);
         }
     }
@@ -146,11 +157,19 @@ fn compose_tools_ranked(
     let ranked = tool_find_lexical(text, eligible, force, exclude, DEFAULT_TOOL_TOP_K);
     let trimmed = tool_trim_ranked(&ranked, force, LEXICAL_SIM_THRESHOLD, DEFAULT_TOOL_SIM_GAP);
     let ranked_ids: Vec<String> = trimmed.iter().map(|c| c.tool_id.clone()).collect();
-    let tools = if trimmed.is_empty() && !eligible.is_empty() {
+    let mut tools = if trimmed.is_empty() && !eligible.is_empty() {
         eligible.to_vec()
     } else {
         rag_tool_select(eligible, &ranked_ids, force)
     };
+    for id in force {
+        if tools.iter().any(|t| &t.name == id) {
+            continue;
+        }
+        if let Some(t) = eligible.iter().find(|t| &t.name == id) {
+            tools.push(t.clone());
+        }
+    }
     let best = ranked.first().map(|c| c.sim).unwrap_or(0.0);
     (ranked, trimmed, tools, "lexical".into(), best, false)
 }
@@ -248,6 +267,7 @@ fn compose_prepare_scoped(
     if opts.bot_web_search && primary_topic == "bot" {
         compose_bot_web_tools_inject(&eligible_tools, &mut eligible, &exclude);
     }
+    compose_inject_force_tools(&eligible_tools, &mut eligible, &force_include, &exclude);
     let force: Vec<String> = force.into_iter().filter(|id| eligible.iter().any(|t| &t.name == id)).collect();
     let rag_skipped = eligible.len() <= TOOL_RAG_MIN;
 

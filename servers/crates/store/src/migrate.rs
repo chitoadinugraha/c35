@@ -429,6 +429,16 @@ mod tests {
     }
 
     #[test]
+    fn sql_stmts_parses_tool_artifact_sql() {
+        let sql = include_str!("../../../../_/schemas/tool_artifact.sql");
+        let stmts = super::sql_stmts(sql);
+        assert_eq!(stmts.len(), 3);
+        assert!(stmts[0].starts_with("CREATE TABLE IF NOT EXISTS ai.tool_artifact"));
+        assert!(stmts[1].contains("idx_tool_artifact_req"));
+        assert!(stmts[2].contains("idx_tool_artifact_expires"));
+    }
+
+    #[test]
     fn sql_stmts_splits_do_dollar_block_as_one_statement() {
         let sql = r"
         CREATE TABLE t (id INT);

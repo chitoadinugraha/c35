@@ -141,6 +141,7 @@ pub async fn gemini_generate_stream(
     let mut stream = gemini_http().post(&url).json(&body).send().await?.error_for_status()?.bytes_stream();
     let mut buf = String::new();
     let mut last = json!({});
+    let mut acc_content = json!(null);
     let mut acc_text = String::new();
     let mut acc_thought = String::new();
     while let Some(chunk) = stream.next().await {
@@ -163,16 +164,72 @@ pub async fn gemini_generate_stream(
                         anyhow::bail!("{}", v["error"]["message"].as_str().unwrap_or("gemini stream failed"));
                     }
                     gemini_stream_emit(&v, on_delta, &mut acc_text, &mut acc_thought);
+                    gemini_stream_acc_content(&mut acc_content, &v);
                     last = v;
                 }
             }
         }
     }
-    Ok(gemini_stream_finalize(&last, &acc_text, &acc_thought))
+    Ok(gemini_stream_finalize(&last, &acc_content, &acc_text, &acc_thought))
 }
 
-fn gemini_stream_finalize(last: &Value, acc_text: &str, acc_thought: &str) -> super::thought::ParseOut {
-    let parsed = parse_candidate(last);
+fn gemini_stream_acc_content(acc: &mut Value, v: &Value) {
+    let content = v["candidates"][0]["content"].clone();
+    if content.is_null() {
+        return;
+    }
+    if acc.is_null() {
+        *acc = content;
+        return;
+    }
+    let Some(new_parts) = content["parts"].as_array() else { return };
+    if acc.get("parts").and_then(|p| p.as_array()).is_none() {
+        acc["parts"] = json!([]);
+    }
+    let parts = acc["parts"].as_array_mut().expect("parts array");
+    for part in new_parts {
+        if part.get("functionCall").is_some() {
+            parts.retain(|p| p.get("functionCall").is_none());
+            parts.push(part.clone());
+            continue;
+        }
+        if part.get("thoughtSignature").is_some() {
+            if let Some(last_fc) = parts.iter_mut().rev().find(|p| p.get("functionCall").is_some()) {
+                if let Some(sig) = part.get("thoughtSignature") {
+                    last_fc["thoughtSignature"] = sig.clone();
+                }
+            }
+            continue;
+        }
+        if part_is_thought(part) {
+            parts.push(part.clone());
+            continue;
+        }
+        if let Some(t) = part["text"].as_str().filter(|s| !s.is_empty()) {
+            if let Some(last_text) = parts.iter_mut().rev().find(|p| p.get("text").is_some() && !part_is_thought(p)) {
+                let merged = format!("{}{}", last_text["text"].as_str().unwrap_or(""), t);
+                last_text["text"] = json!(merged);
+            } else {
+                parts.push(part.clone());
+            }
+        }
+    }
+    if content.get("role").and_then(|r| r.as_str()).is_some() {
+        acc["role"] = content["role"].clone();
+    }
+}
+
+fn gemini_stream_finalize(last: &Value, acc_content: &Value, acc_text: &str, acc_thought: &str) -> super::thought::ParseOut {
+    let parsed = if !acc_content.is_null() {
+        let mut wrap = last.clone();
+        if wrap["candidates"].is_null() || wrap["candidates"].as_array().map(|a| a.is_empty()).unwrap_or(true) {
+            wrap = json!({ "candidates": [{}], "usageMetadata": last.get("usageMetadata").cloned().unwrap_or(json!({})) });
+        }
+        wrap["candidates"][0]["content"] = acc_content.clone();
+        parse_candidate(&wrap)
+    } else {
+        parse_candidate(last)
+    };
     super::thought::ParseOut {
         text: if acc_text.is_empty() { parsed.text } else { acc_text.to_string() },
         thought: if acc_thought.is_empty() { parsed.thought } else { acc_thought.to_string() },
@@ -199,14 +256,14 @@ mod tests {
         gemini_stream_emit(&chunk1, &mut noop, &mut acc_text, &mut acc_thought);
         gemini_stream_emit(&chunk2, &mut noop, &mut acc_text, &mut acc_thought);
         assert_eq!(acc_text, "Sekarang hari Senin.");
-        let out = gemini_stream_finalize(&chunk2, &acc_text, &acc_thought);
+        let out = gemini_stream_finalize(&chunk2, &json!(null), &acc_text, &acc_thought);
         assert_eq!(out.text, "Sekarang hari Senin.");
     }
 
     #[test]
     fn stream_finalize_without_accumulation_reads_empty_final_chunk() {
         let chunk2 = json!({"candidates":[{"content":{"parts":[{"text":"","thoughtSignature":"sig"}]}}]});
-        let out = gemini_stream_finalize(&chunk2, "", "");
+        let out = gemini_stream_finalize(&chunk2, &json!(null), "", "");
         assert!(out.text.is_empty());
     }
 

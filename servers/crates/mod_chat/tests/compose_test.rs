@@ -902,6 +902,52 @@ fn compose_force_tool_call_when_web_search_inst_and_tool() {
     assert!(!compose_force_tool_call(&["inst.web_search".into()], &[]));
 }
 
+fn inst_multitask_delegate() -> InstRow {
+    InstRow {
+        id: "inst.task.multitask_delegate".into(),
+        scope: SCOPE_GLOBAL.into(),
+        kind: "task".into(),
+        topic_id: "".into(),
+        topics: vec![],
+        inst: "multitask".into(),
+        phrases: vec![
+            "multitask".into(),
+            "multi task".into(),
+            "parallel".into(),
+            "two at once".into(),
+        ],
+        triggers: vec!["tool_include:delegate.run".into()],
+        include_tools: vec!["delegate.run".into()],
+        exclude_tools: vec![],
+        priority: 127,
+    }
+}
+
+#[test]
+fn compose_multitask_inst_force_feeds_delegate_run() {
+    let catalog = cluster_tools();
+    let out = compose_default(
+        &[inst_core_assistant(), inst_multitask_delegate()],
+        "can you multitask 2 times with separate subagents",
+        catalog,
+        &[],
+    );
+    assert!(out.matched_ids.contains(&"inst.task.multitask_delegate".into()));
+    assert!(
+        out.tools.iter().any(|t| t.name == "delegate.run"),
+        "selected_tools={}",
+        out.trace.selected_tools.join(",")
+    );
+    let delegate_fed = out
+        .trace
+        .candidates
+        .iter()
+        .find(|c| c.tool_id == "delegate.run")
+        .map(|c| c.fed)
+        .unwrap_or(false);
+    assert!(delegate_fed, "delegate.run should be fed when multitask inst matches");
+}
+
 #[test]
 fn compose_meal_recommendation_matches_consumption_coach() {
     let mut coach = inst_consumption_coach();

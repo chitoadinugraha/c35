@@ -23,6 +23,18 @@ int chatMetaBoundDeviceIid(String metaJson) {
   }
 }
 
+List<String> chatMetaStickyMentionIds(String metaJson) {
+  if (metaJson.trim().isEmpty) return const [];
+  try {
+    final m = (jsonDecode(metaJson) as Map).cast<String, dynamic>();
+    final raw = m['sticky_mention_ids'];
+    if (raw is! List) return const [];
+    return [for (final e in raw) '$e'.trim()].where((e) => e.isNotEmpty).toList(growable: false);
+  } catch (_) {
+    return const [];
+  }
+}
+
 String _prefsKeyActiveChat(int deviceIid) => 'device_prompt_active_chat_$deviceIid';
 
 class DevicePromptContextStore extends ChangeNotifier {

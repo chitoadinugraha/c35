@@ -26,7 +26,8 @@ use crate::inst_cache::inst_list_cached;
 use crate::mention::mention_list_enabled;
 use crate::context_billing::ContextBillingExtra;
 use crate::context_compact::prepare_prompt_history;
-use crate::device_context::bound_device_prompt_prepare;
+use crate::device_context::{bound_device_prompt_prepare, chat_mention_context_commit};
+use crate::mention_content::mention_content_normalize;
 use crate::memory::{memory_prompt_merge, memory_retrieve};
 use crate::memory_extract::memory_extract_turn_gate;
 use crate::prompt::thought::thinking_level;
@@ -176,6 +177,7 @@ where
     let title = chat_title_from_text(&req.text);
     let chat_id = chat_ensure(pool, owner_iid, req.chat_id, &title).await?;
     bound_device_prompt_prepare(pool, owner_iid, chat_id, &mut req).await?;
+    chat_mention_context_commit(pool, chat_id, owner_iid, &req.mention_ids).await?;
 
     if req.chat_id > 0 {
         let last_msg: Option<(i64, String)> = sqlx::query_as(
@@ -233,6 +235,7 @@ where
         }
     }
 
+    let user_content = mention_content_normalize(&req.text, &req.mention_ids);
     let user_msg_id = snowflake_id();
     sqlx::query(
         r#"
@@ -244,11 +247,11 @@ where
     .bind(chat_id)
     .bind(owner_iid)
     .bind(req_id)
-    .bind(&req.text)
+    .bind(&user_content)
     .bind(chat_attachments_json(&req.attachments_json))
     .execute(pool)
     .await?;
-    let _ = chat_touch(pool, chat_id, owner_iid, &req.text, "streaming").await;
+    let _ = chat_touch(pool, chat_id, owner_iid, &user_content, "streaming").await;
 
     let model = if freemium {
         c35_mod_billing::FREEMIUM_MODEL.to_string()
@@ -257,7 +260,7 @@ where
     } else {
         req.model.clone()
     };
-    let user = attach_prompt(&req.text, &req.attachments_json);
+    let user = attach_prompt(&user_content, &req.attachments_json);
     let inst_rows = inst_list_cached();
     let mentions = mention_list_enabled(pool).await;
     let mention_ids: Vec<String> = req.mention_ids.clone();

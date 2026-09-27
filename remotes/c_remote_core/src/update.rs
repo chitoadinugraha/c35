@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
@@ -348,17 +349,7 @@ exit 0
     #[cfg(target_os = "windows")]
     {
         info!(version, "==> [AUTO-UPDATE APPLYING] Spawning update apply script and restarting");
-        Command::new("powershell")
-            .args([
-                "-NoProfile",
-                "-ExecutionPolicy",
-                "Bypass",
-                "-WindowStyle",
-                "Hidden",
-                "-File",
-                script.to_str().unwrap(),
-            ])
-            .spawn()?;
+        crate::win_powershell::file_spawn(script.to_str().unwrap())?;
         std::process::exit(0);
     }
     #[cfg(any(target_os = "linux", target_os = "macos"))]

@@ -39,7 +39,7 @@ export const registerDeviceAgentTools = (server: McpServer) => {
   server.registerTool(
     "device_command",
     {
-      description: "Run shell/PowerShell on a paired remote device (device.command). Default owner 99000.",
+      description: "Run shell/PowerShell on a paired remote device (shell.run). Default owner 99000.",
       inputSchema: {
         device_iid: z.union([z.string(), z.number()]),
         command: z.string(),
@@ -53,7 +53,7 @@ export const registerDeviceAgentTools = (server: McpServer) => {
       const args: Record<string, unknown> = { device_iid: deviceIidArg(device_iid), command };
       if (shell) args.shell = shell;
       if (timeout_secs !== undefined) args.timeout_secs = timeout_secs;
-      const result = await agentPost("tool_exec", { tool_name: "device.command", args_json: args }, owner);
+      const result = await agentPost("tool_exec", { tool_name: "shell.run", args_json: args }, owner);
       return jsonContent(result);
     },
   );

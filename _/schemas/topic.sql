@@ -78,13 +78,34 @@ INSERT INTO ai.topic (
     NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
+-- Seed: paired device topic (@device mention → remote PC facts via tools)
+INSERT INTO ai.topic (
+    id, label_key, inst, extend, sort, def_hash, updated_ts
+) VALUES (
+    'device',
+    'topic.device.label',
+    'Remote device questions use tools on the mentioned PC — shell output and screenshots — not guesses. Pass device_iid from mention targets.',
+    'general',
+    25,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO NOTHING;
+
+UPDATE ai.topic SET
+    inst = 'Remote device questions use tools on the mentioned PC — shell output and screenshots — not guesses. Pass device_iid from mention targets.',
+    label_key = 'topic.device.label',
+    extend = 'general',
+    sort = 25,
+    updated_ts = NOW()
+WHERE id = 'device';
+
 -- Seed: computer use topic (desktop automation subagent)
 INSERT INTO ai.topic (
     id, label_key, inst, extend, sort, def_hash, updated_ts
 ) VALUES (
     'computer_use',
     'topic.computer_use.label',
-    'Scale and plan first: state goal, data sources, join keys, and estimated row count (read pagination or export UI if unknown). If work is repetitive or more than a few dozen rows, do not UI-search row by row — prefer bulk extract (export, API, or scripted download via device.command), join or transform locally, then bulk load (CSV import, spreadsheet API, paste import). Use device.input only for login, navigation, one-time export, or captcha; use device.command for scripts. Pilot on a small sample and report match rate before a full batch. Row-by-row UI lookup is last resort only when no export, API, or scripted path exists — then tell the user scale limits and still minimize clicks. Desktop automation: always screenshot first, use SoM when stuck, verify each action, stop after 2 identical errors. Coordinates for device.input are normalized from 0.0 to 1.0 (top-left is 0.0, 0.0) across the desktop span. Use event_type=''double_click'' to open desktop apps or files. Use event_type=''shortcut'' with text (e.g. ''win+r'', ''ctrl+c'', ''alt+tab'') for hotkeys. Always verify outcomes with device.screenshot or screenshot_after=true.',
+    'Scale and plan first: state goal, data sources, join keys, and estimated row count (read pagination or export UI if unknown). If work is repetitive or more than a few dozen rows, do not UI-search row by row — prefer bulk extract (export, API, or scripted download via shell.run), join or transform locally, then bulk load (CSV import, spreadsheet API, paste import). Use device.input only for login, navigation, one-time export, or captcha; use shell.run for scripts. Pilot on a small sample and report match rate before a full batch. Row-by-row UI lookup is last resort only when no export, API, or scripted path exists — then tell the user scale limits and still minimize clicks. Desktop automation: always screenshot first, use SoM when stuck, verify each action, stop after 2 identical errors. Coordinates for device.input are normalized from 0.0 to 1.0 (top-left is 0.0, 0.0) across the desktop span. Use event_type=''double_click'' to open desktop apps or files. Use event_type=''shortcut'' with text (e.g. ''win+r'', ''ctrl+c'', ''alt+tab'') for hotkeys. Always verify outcomes with device.screenshot or screenshot_after=true.',
     'general',
     30,
     'seed',
@@ -93,6 +114,6 @@ INSERT INTO ai.topic (
 
 -- Refresh computer_use persona on existing clusters (INSERT above is no-op when row exists)
 UPDATE ai.topic SET
-    inst = 'Scale and plan first: state goal, data sources, join keys, and estimated row count (read pagination or export UI if unknown). If work is repetitive or more than a few dozen rows, do not UI-search row by row — prefer bulk extract (export, API, or scripted download via device.command), join or transform locally, then bulk load (CSV import, spreadsheet API, paste import). Use device.input only for login, navigation, one-time export, or captcha; use device.command for scripts. Pilot on a small sample and report match rate before a full batch. Row-by-row UI lookup is last resort only when no export, API, or scripted path exists — then tell the user scale limits and still minimize clicks. Desktop automation: always screenshot first, use SoM when stuck, verify each action, stop after 2 identical errors. Coordinates for device.input are normalized from 0.0 to 1.0 (top-left is 0.0, 0.0) across the desktop span. Use event_type=''double_click'' to open desktop apps or files. Use event_type=''shortcut'' with text (e.g. ''win+r'', ''ctrl+c'', ''alt+tab'') for hotkeys. Always verify outcomes with device.screenshot or screenshot_after=true.',
+    inst = 'Scale and plan first: state goal, data sources, join keys, and estimated row count (read pagination or export UI if unknown). If work is repetitive or more than a few dozen rows, do not UI-search row by row — prefer bulk extract (export, API, or scripted download via shell.run), join or transform locally, then bulk load (CSV import, spreadsheet API, paste import). Use device.input only for login, navigation, one-time export, or captcha; use shell.run for scripts. Pilot on a small sample and report match rate before a full batch. Row-by-row UI lookup is last resort only when no export, API, or scripted path exists — then tell the user scale limits and still minimize clicks. Desktop automation: always screenshot first, use SoM when stuck, verify each action, stop after 2 identical errors. Coordinates for device.input are normalized from 0.0 to 1.0 (top-left is 0.0, 0.0) across the desktop span. Use event_type=''double_click'' to open desktop apps or files. Use event_type=''shortcut'' with text (e.g. ''win+r'', ''ctrl+c'', ''alt+tab'') for hotkeys. Always verify outcomes with device.screenshot or screenshot_after=true.',
     updated_ts = NOW()
 WHERE id = 'computer_use';

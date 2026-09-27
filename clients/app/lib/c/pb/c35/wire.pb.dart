@@ -2434,6 +2434,8 @@ enum WsReq_Body {
   promptFollowupCancel,
   chatDeviceContextList,
   chatDeviceContextCreate,
+  reqRemoteFsList,
+  reqRemoteFsRead,
   notSet
 }
 
@@ -2540,6 +2542,8 @@ class WsReq extends $pb.GeneratedMessage {
     $15.ReqPromptFollowupCancel? promptFollowupCancel,
     $15.ReqChatDeviceContextList? chatDeviceContextList,
     $15.ReqChatDeviceContextCreate? chatDeviceContextCreate,
+    $20.ReqRemoteFsList? reqRemoteFsList,
+    $20.ReqRemoteFsRead? reqRemoteFsRead,
   }) {
     final result = WsReq._();
     if (reqId != null) result.reqId = reqId;
@@ -2656,6 +2660,8 @@ class WsReq extends $pb.GeneratedMessage {
       result.chatDeviceContextList = chatDeviceContextList;
     if (chatDeviceContextCreate != null)
       result.chatDeviceContextCreate = chatDeviceContextCreate;
+    if (reqRemoteFsList != null) result.reqRemoteFsList = reqRemoteFsList;
+    if (reqRemoteFsRead != null) result.reqRemoteFsRead = reqRemoteFsRead;
     return result;
   }
 
@@ -2768,6 +2774,8 @@ class WsReq extends $pb.GeneratedMessage {
     143: WsReq_Body.promptFollowupCancel,
     157: WsReq_Body.chatDeviceContextList,
     158: WsReq_Body.chatDeviceContextCreate,
+    159: WsReq_Body.reqRemoteFsList,
+    160: WsReq_Body.reqRemoteFsRead,
     0: WsReq_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -2873,7 +2881,9 @@ class WsReq extends $pb.GeneratedMessage {
       142,
       143,
       157,
-      158
+      158,
+      159,
+      160
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$13.ReqSessionInit>(2, _omitFieldNames ? '' : 'sessionInit',
@@ -3100,6 +3110,10 @@ class WsReq extends $pb.GeneratedMessage {
     ..aOM<$15.ReqChatDeviceContextCreate>(
         158, _omitFieldNames ? '' : 'chatDeviceContextCreate',
         subBuilder: $15.ReqChatDeviceContextCreate.$_createMessage)
+    ..aOM<$20.ReqRemoteFsList>(159, _omitFieldNames ? '' : 'reqRemoteFsList',
+        subBuilder: $20.ReqRemoteFsList.$_createMessage)
+    ..aOM<$20.ReqRemoteFsRead>(160, _omitFieldNames ? '' : 'reqRemoteFsRead',
+        subBuilder: $20.ReqRemoteFsRead.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -3221,6 +3235,8 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(143)
   @$pb.TagNumber(157)
   @$pb.TagNumber(158)
+  @$pb.TagNumber(159)
+  @$pb.TagNumber(160)
   WsReq_Body whichBody() => _WsReq_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(3)
@@ -3321,6 +3337,8 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(143)
   @$pb.TagNumber(157)
   @$pb.TagNumber(158)
+  @$pb.TagNumber(159)
+  @$pb.TagNumber(160)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -4444,6 +4462,28 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(158)
   $15.ReqChatDeviceContextCreate ensureChatDeviceContextCreate() =>
       $_ensure(99);
+
+  @$pb.TagNumber(159)
+  $20.ReqRemoteFsList get reqRemoteFsList => $_getN(100);
+  @$pb.TagNumber(159)
+  set reqRemoteFsList($20.ReqRemoteFsList value) => $_setField(159, value);
+  @$pb.TagNumber(159)
+  $core.bool hasReqRemoteFsList() => $_has(100);
+  @$pb.TagNumber(159)
+  void clearReqRemoteFsList() => $_clearField(159);
+  @$pb.TagNumber(159)
+  $20.ReqRemoteFsList ensureReqRemoteFsList() => $_ensure(100);
+
+  @$pb.TagNumber(160)
+  $20.ReqRemoteFsRead get reqRemoteFsRead => $_getN(101);
+  @$pb.TagNumber(160)
+  set reqRemoteFsRead($20.ReqRemoteFsRead value) => $_setField(160, value);
+  @$pb.TagNumber(160)
+  $core.bool hasReqRemoteFsRead() => $_has(101);
+  @$pb.TagNumber(160)
+  void clearReqRemoteFsRead() => $_clearField(160);
+  @$pb.TagNumber(160)
+  $20.ReqRemoteFsRead ensureReqRemoteFsRead() => $_ensure(101);
 }
 
 enum WsRes_Body {
@@ -4556,6 +4596,8 @@ enum WsRes_Body {
   mailDomainFix,
   chatDeviceContextList,
   chatDeviceContextCreate,
+  resRemoteFsList,
+  resRemoteFsRead,
   notSet
 }
 
@@ -4672,6 +4714,8 @@ class WsRes extends $pb.GeneratedMessage {
     $23.ResMailDomainFix? mailDomainFix,
     $15.ResChatDeviceContextList? chatDeviceContextList,
     $15.ResChatDeviceContextCreate? chatDeviceContextCreate,
+    $20.RemoteFsListRes? resRemoteFsList,
+    $20.RemoteFsReadRes? resRemoteFsRead,
   }) {
     final result = WsRes._();
     if (reqId != null) result.reqId = reqId;
@@ -4799,6 +4843,8 @@ class WsRes extends $pb.GeneratedMessage {
       result.chatDeviceContextList = chatDeviceContextList;
     if (chatDeviceContextCreate != null)
       result.chatDeviceContextCreate = chatDeviceContextCreate;
+    if (resRemoteFsList != null) result.resRemoteFsList = resRemoteFsList;
+    if (resRemoteFsRead != null) result.resRemoteFsRead = resRemoteFsRead;
     return result;
   }
 
@@ -4921,6 +4967,8 @@ class WsRes extends $pb.GeneratedMessage {
     156: WsRes_Body.mailDomainFix,
     157: WsRes_Body.chatDeviceContextList,
     158: WsRes_Body.chatDeviceContextCreate,
+    159: WsRes_Body.resRemoteFsList,
+    160: WsRes_Body.resRemoteFsRead,
     0: WsRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -5036,7 +5084,9 @@ class WsRes extends $pb.GeneratedMessage {
       155,
       156,
       157,
-      158
+      158,
+      159,
+      160
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$24.Err>(2, _omitFieldNames ? '' : 'err',
@@ -5284,6 +5334,10 @@ class WsRes extends $pb.GeneratedMessage {
     ..aOM<$15.ResChatDeviceContextCreate>(
         158, _omitFieldNames ? '' : 'chatDeviceContextCreate',
         subBuilder: $15.ResChatDeviceContextCreate.$_createMessage)
+    ..aOM<$20.RemoteFsListRes>(159, _omitFieldNames ? '' : 'resRemoteFsList',
+        subBuilder: $20.RemoteFsListRes.$_createMessage)
+    ..aOM<$20.RemoteFsReadRes>(160, _omitFieldNames ? '' : 'resRemoteFsRead',
+        subBuilder: $20.RemoteFsReadRes.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -5415,6 +5469,8 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(156)
   @$pb.TagNumber(157)
   @$pb.TagNumber(158)
+  @$pb.TagNumber(159)
+  @$pb.TagNumber(160)
   WsRes_Body whichBody() => _WsRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(10)
@@ -5525,6 +5581,8 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(156)
   @$pb.TagNumber(157)
   @$pb.TagNumber(158)
+  @$pb.TagNumber(159)
+  @$pb.TagNumber(160)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -6757,6 +6815,28 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(158)
   $15.ResChatDeviceContextCreate ensureChatDeviceContextCreate() =>
       $_ensure(109);
+
+  @$pb.TagNumber(159)
+  $20.RemoteFsListRes get resRemoteFsList => $_getN(110);
+  @$pb.TagNumber(159)
+  set resRemoteFsList($20.RemoteFsListRes value) => $_setField(159, value);
+  @$pb.TagNumber(159)
+  $core.bool hasResRemoteFsList() => $_has(110);
+  @$pb.TagNumber(159)
+  void clearResRemoteFsList() => $_clearField(159);
+  @$pb.TagNumber(159)
+  $20.RemoteFsListRes ensureResRemoteFsList() => $_ensure(110);
+
+  @$pb.TagNumber(160)
+  $20.RemoteFsReadRes get resRemoteFsRead => $_getN(111);
+  @$pb.TagNumber(160)
+  set resRemoteFsRead($20.RemoteFsReadRes value) => $_setField(160, value);
+  @$pb.TagNumber(160)
+  $core.bool hasResRemoteFsRead() => $_has(111);
+  @$pb.TagNumber(160)
+  void clearResRemoteFsRead() => $_clearField(160);
+  @$pb.TagNumber(160)
+  $20.RemoteFsReadRes ensureResRemoteFsRead() => $_ensure(111);
 }
 
 const $core.bool _omitFieldNames =

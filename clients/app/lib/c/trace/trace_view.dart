@@ -273,7 +273,27 @@ String toolLabelFromTemplate(String template, Map<String, String> vars) {
   return out.replaceAll('…', '').trim();
 }
 
+String traceSubagentLabelFromLog(TraceLogDoc log) {
+  final sub = log.meta['subagent'];
+  if (sub is! Map) return '';
+  final kind = _asStr(sub['kind']);
+  final topic = _asStr(sub['topic_id']);
+  final child = _asStr(sub['child_req_id']);
+  final status = _asStr(sub['status']);
+  final parts = <String>['Subagent'];
+  if (kind.isNotEmpty) parts.add(kind);
+  if (topic.isNotEmpty && topic != kind) parts.add(topic);
+  if (status.isNotEmpty) parts.add(status);
+  if (child.isNotEmpty) {
+    final tail = child.length > 8 ? child.substring(child.length - 8) : child;
+    parts.add('…$tail');
+  }
+  return parts.join(' · ');
+}
+
 String traceToolLabelFromLog(TraceLogDoc log, {bool done = true}) {
+  final subagent = traceSubagentLabelFromLog(log);
+  if (subagent.isNotEmpty) return subagent;
   final tool = _asStr(log.meta['tool']).replaceAll('_', '.').trim();
   if (tool.isEmpty) return 'Tool';
   final key = 'tool.$tool.${done ? 'done' : 'calling'}';

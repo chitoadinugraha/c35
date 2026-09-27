@@ -17,6 +17,7 @@ class CatalogMention {
     this.label = '',
     this.kind = '',
     this.sort = 0,
+    this.rootOnly = false,
   });
 
   final String id;
@@ -28,8 +29,11 @@ class CatalogMention {
   final String captionKey;
   final String label;
   final String kind;
+  final bool rootOnly;
 
   bool get isDevice => kind == 'identity' && topicId == 'device';
+
+  bool get isRootCommand => rootOnly || kind == 'command';
 
   bool get isSite => kind == 'identity' && topicId == 'web.builder';
 
@@ -47,7 +51,7 @@ class CatalogMention {
 
   String get displayCaption {
     final key = captionKey.trim();
-    if (key.isEmpty) return '';
+    if (key.isEmpty) return rootOnly ? catalogT('mention.root_only.caption') : '';
     return key.contains('.') ? catalogT(key) : key;
   }
 
@@ -61,6 +65,7 @@ class CatalogMention {
         captionKey: item.captionKey,
         label: item.label.isNotEmpty ? item.label : item.title,
         kind: item.kind,
+        rootOnly: item.rootOnly,
       );
 
   factory CatalogMention.fromJson(Map<String, dynamic> j) => CatalogMention(
@@ -73,6 +78,7 @@ class CatalogMention {
         captionKey: '${j['caption_key'] ?? ''}',
         label: '${j['label'] ?? ''}',
         kind: '${j['kind'] ?? ''}',
+        rootOnly: j['root_only'] == true,
       );
 }
 

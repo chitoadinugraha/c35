@@ -74,13 +74,31 @@ impl TurnTracer {
         .await;
     }
 
-    fn branch_meta(step: u32, branch: &str, parallel_group: &str) -> Value {
+    fn branch_meta(step: u32, branch: &str, parallel_group: &str, concurrent_kind: &str) -> Value {
         serde_json::json!({
             "step": step,
             "branch": branch,
             "parallel": true,
             "parallel_group": parallel_group,
+            "concurrent_kind": concurrent_kind,
         })
+    }
+
+    fn subagent_meta_from_result(tool_id: &str, result: &Value) -> Option<Value> {
+        let norm = tool_id.replace('_', ".");
+        if norm != "delegate.run" && norm != "computer_use.delegate" {
+            return None;
+        }
+        let child = result
+            .get("child_req_id")
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())?;
+        Some(serde_json::json!({
+            "child_req_id": child,
+            "kind": result.get("kind").and_then(|v| v.as_str()).unwrap_or(""),
+            "status": result.get("status").and_then(|v| v.as_str()).unwrap_or(""),
+            "topic_id": result.get("topic_id").and_then(|v| v.as_str()).unwrap_or(""),
+        }))
     }
 
     pub async fn trace_prepare(&self, trace: &ComposeTrace, user_text: &str, prepare_ms: i64, context_tokens_est: i32) {
@@ -88,7 +106,7 @@ impl TurnTracer {
         const GROUP: &str = "prepare";
         let fed = trace.candidates.iter().filter(|c| c.fed).count();
         let inst_meta = {
-            let mut m = Self::branch_meta(STEP, "inst", GROUP);
+            let mut m = Self::branch_meta(STEP, "inst", GROUP, "compose_parallel");
             if let Some(obj) = m.as_object_mut() {
                 obj.insert("topic".into(), serde_json::json!("trace_inst_enrich"));
                 obj.insert("inst_ids".into(), serde_json::json!(trace.inst_ids));
@@ -118,7 +136,7 @@ impl TurnTracer {
             0.0,
         )
         .await;
-        let mut tool_meta = Self::branch_meta(STEP, "tools", GROUP);
+        let mut tool_meta = Self::branch_meta(STEP, "tools", GROUP, "compose_parallel");
         if let Some(obj) = tool_meta.as_object_mut() {
             obj.insert("topic".into(), serde_json::json!("trace_tool_filter"));
             obj.insert("inst_ids".into(), serde_json::json!(trace.inst_ids));
@@ -131,7 +149,7 @@ impl TurnTracer {
         self.put(
             "system",
             "trace_tool_filter",
-            &format!("Tool filter Â· {fed} fed Â· {} ranked", trace.candidates.len()),
+            &format!("Tool filter · {fed} fed · {} ranked", trace.candidates.len()),
             tool_meta,
             "",
             0,
@@ -139,7 +157,7 @@ impl TurnTracer {
             trace.tool_filter_ms as i32,
             0.0,
         ).await;
-        let mut prep_meta = Self::branch_meta(STEP, "compose", GROUP);
+        let mut prep_meta = Self::branch_meta(STEP, "compose", GROUP, "compose_parallel");
         if let Some(obj) = prep_meta.as_object_mut() {
             obj.insert("topic".into(), serde_json::json!("trace_prepare"));
             obj.insert("duration_ms".into(), serde_json::json!(prepare_ms));
@@ -165,7 +183,7 @@ impl TurnTracer {
         if trace.memory_count == 0 && trace.duration_ms == 0 {
             return;
         }
-        let mut meta = Self::branch_meta(1, "memory", "prepare");
+        let mut meta = Self::branch_meta(1, "memory", "prepare", "compose_parallel");
         if let Some(obj) = meta.as_object_mut() {
             obj.insert("topic".into(), serde_json::json!("trace_memory"));
             obj.insert("duration_ms".into(), serde_json::json!(trace.duration_ms));
@@ -238,6 +256,7 @@ impl TurnTracer {
             "branch": tool_id,
             "parallel": true,
             "parallel_group": format!("hop_{hop}"),
+            "concurrent_kind": "tools_same_hop",
             "tool": tool_id,
             "tool_call_id": tool_call_id,
             "args": args,
@@ -245,6 +264,12 @@ impl TurnTracer {
             "output_preview": preview,
             "duration_ms": duration_ms,
         });
+        if let Some(subagent) = Self::subagent_meta_from_result(&tool_id, result) {
+            if let Some(obj) = meta.as_object_mut() {
+                obj.insert("subagent".into(), subagent);
+                obj.insert("concurrent_kind".into(), serde_json::json!("subagent"));
+            }
+        }
         if let Some(screenshot) = tool_screenshot_meta_from_result(result) {
             if let Some(obj) = meta.as_object_mut() {
                 obj.insert("screenshot".into(), screenshot);

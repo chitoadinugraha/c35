@@ -3,6 +3,7 @@ import 'package:alienai_c35/c/chat/chat_inbox.dart';
 import 'package:alienai_c35/c/files/msg_attachment.dart';
 import 'package:alienai_c35/c/pb/c35/chat.pb.dart';
 import 'package:alienai_c35/c/store/chat_store.dart';
+import 'package:alienai_c35/widgets/ai/composer_mention_text.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,7 +23,7 @@ void main() {
     expect(msgDisplayContent(m), 'Sekarang hari Senin.');
   });
 
-  test('retryLastTurnPrep drops trailing assistant only', () {
+  test('retryLastTurnPrep keeps user row and drops failed assistant', () {
     final store = ChatStore();
     store.chats = [ChatRow(id: 1, title: 'A')];
     store.activeChatId = 1;
@@ -36,6 +37,7 @@ void main() {
     expect(turn?.text, 'hi');
     expect(store.msgs.length, 1);
     expect(store.msgs.single.role, 'user');
+    expect(store.msgs.single.content, 'hi');
   });
 
   test('retryLastTurnPrep drops trailing assistant when other chat messages follow in msgs', () {
@@ -51,10 +53,30 @@ void main() {
     final turn = store.retryLastTurnPrep();
 
     expect(turn?.text, 'hello chat 1');
-    expect(store.msgs.where((m) => m.chatId == 1).length, 1);
-    expect(store.msgs.where((m) => m.chatId == 1).single.role, 'user');
+    expect(store.msgs.where((m) => m.chatId == 1).map((m) => m.role).toList(), ['user']);
     // Ensure chat 2 was untouched
     expect(store.msgs.where((m) => m.chatId == 2).length, 1);
+  });
+
+  test('msgUserTurnRetry on retry path replaces content without duplicating user', () {
+    final store = ChatStore();
+    store.activeChatId = 1;
+    store.msgs = [
+      MsgRow(id: 10, chatId: 1, role: 'user', content: 'DESKTOP prompt', reqId: 'r1'),
+      MsgRow(id: 11, chatId: 1, role: 'assistant', content: 'answer', reqId: 'r1'),
+    ];
+    store.retryLastTurnPrep();
+    store.msgUserTurnRetry(
+      chatId: 1,
+      content: '${composerMentionToken('iid:42')} open chrome',
+      attachments: const [],
+      reqId: 'r2',
+      createdAtMs: 99,
+    );
+    store.msgPut(MsgRow(id: -1, chatId: 1, role: 'assistant', content: '', reqId: 'r2', createdAtMs: 100));
+
+    expect(store.msgs.where((m) => m.chatId == 1 && m.role == 'user').length, 1);
+    expect(store.msgs.where((m) => m.chatId == 1 && m.role == 'user').single.reqId, 'r2');
   });
 
   test('msgCanReplaceFailedTurn is true when last assistant errored', () {
@@ -163,6 +185,32 @@ void main() {
     expect(store.msgs.last.content, 'Sekarang hari Senin.');
     expect(store.msgs.last.error, 'billing failed');
     expect(store.promptBusy, isFalse);
+  });
+
+  test('msgStreamFail skips transport error when assistant already has body', () {
+    final store = ChatStore();
+    store.msgs = [MsgRow(id: 11, chatId: 1, role: 'assistant', content: 'Chrome is open on your desktop.')];
+    store.promptBusyPut(true, chatId: 1, reqId: 'req-1');
+
+    store.msgStreamFail('WebSocketChannelException: SocketException: Connection refused', chatId: 1);
+
+    expect(store.msgs.last.content, 'Chrome is open on your desktop.');
+    expect(store.msgs.last.error, isEmpty);
+    expect(store.promptBusy, isFalse);
+  });
+
+  test('msgStreamContent ignores stale req when no matching assistant', () {
+    final store = ChatStore();
+    store.msgs = [
+      MsgRow(id: 10, chatId: 1, role: 'user', content: 'q', reqId: 'req-new'),
+      MsgRow(id: 11, chatId: 1, role: 'assistant', content: '', reqId: 'req-new'),
+    ];
+    store.promptBusyPut(true, chatId: 1, reqId: 'req-new');
+
+    store.msgStreamContent('stale answer', chatId: 1, reqId: 'req-old');
+
+    expect(store.msgs.last.content, isEmpty);
+    expect(store.msgs.length, 2);
   });
 
   test('msgStream routes to prompt chat, not active chat', () {
@@ -676,5 +724,54 @@ void main() {
 
     final history = store.recentUserPrompts;
     expect(history, ['third prompt', 'first prompt', 'second prompt']);
+  });
+
+  test('msgPutFromServer stores mentionIdsJson from bracket content', () {
+    final store = ChatStore();
+    store.msgPutFromServer(
+      ChatMsg(
+        id: Int64(100),
+        chatId: Int64(5),
+        role: ChatMsgRole.CHAT_MSG_ROLE_USER,
+        content: 'ping [@iid:42] now',
+        reqId: 'req-bracket',
+        createdTsMs: Int64(1000),
+      ),
+    );
+    expect(msgMentionIdsDecode(store.msgs.single.mentionIdsJson), ['iid:42']);
+  });
+
+  test('msgsReloadFromServer preserves bracket-derived mention ids', () {
+    final store = ChatStore();
+    store.chats = [ChatRow(id: 5, title: 'T')];
+    store.msgs = [
+      MsgRow(id: 1, chatId: 5, role: 'user', content: 'old', reqId: 'r1', mentionIdsJson: '["iid:99"]'),
+    ];
+    store.msgsReloadFromServer(5, [
+      ChatMsg(
+        id: Int64(2),
+        chatId: Int64(5),
+        role: ChatMsgRole.CHAT_MSG_ROLE_USER,
+        content: 'ping [@iid:42]',
+        reqId: 'r1',
+        createdTsMs: Int64(2000),
+      ),
+    ]);
+    expect(store.msgs.single.content, contains('[@iid:42]'));
+    expect(msgMentionIdsDecode(store.msgs.single.mentionIdsJson), contains('iid:42'));
+  });
+
+  test('chatPutFromServer clears cached msgs when server history is empty', () {
+    final store = ChatStore();
+    store.chats = [ChatRow(id: 5, title: 'Old', lastMsgAt: 999, lastMsgPreview: 'hello')];
+    store.msgs = [MsgRow(id: 1, chatId: 5, role: 'user', content: 'hello')];
+
+    store.chatPutFromServer(
+      Chat(id: Int64(5), lastMsgPreview: '', lastMsgTsMs: Int64.ZERO),
+      ChatMember(chatId: Int64(5), lastMsgPreview: '', lastMsgTsMs: Int64.ZERO),
+    );
+
+    expect(store.msgs.where((m) => m.chatId == 5), isEmpty);
+    expect(store.chats.single.lastMsgPreview, '');
   });
 }

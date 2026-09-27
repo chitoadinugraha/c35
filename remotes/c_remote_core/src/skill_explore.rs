@@ -135,11 +135,7 @@ async fn run_prompt_as_shell(prompt: &str) -> Result<String> {
     };
 
     let output = tokio::task::spawn_blocking({
-        move || {
-            std::process::Command::new("powershell")
-                .args(["-NoProfile", "-NonInteractive", "-Command", &cmd])
-                .output()
-        }
+        move || crate::win_powershell::command_output(&cmd)
     })
     .await??;
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();

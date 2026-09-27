@@ -53,6 +53,7 @@ const MentionItem$json = {
     {'1': 'label', '3': 13, '4': 1, '5': 9, '10': 'label'},
     {'1': 'scope_ref', '3': 14, '4': 1, '5': 9, '10': 'scopeRef'},
     {'1': 'kind', '3': 15, '4': 1, '5': 9, '10': 'kind'},
+    {'1': 'root_only', '3': 16, '4': 1, '5': 8, '10': 'rootOnly'},
   ],
 };
 
@@ -65,7 +66,7 @@ final $typed_data.Uint8List mentionItemDescriptor = $convert.base64Decode(
     'CSADKAlSC3NlYXJjaFRlcm1zEhgKB2VuYWJsZWQYCiABKAhSB2VuYWJsZWQSFAoFdGl0bGUYCy'
     'ABKAlSBXRpdGxlEh8KC3Njb3BlX2xhYmVsGAwgASgJUgpzY29wZUxhYmVsEhQKBWxhYmVsGA0g'
     'ASgJUgVsYWJlbBIbCglzY29wZV9yZWYYDiABKAlSCHNjb3BlUmVmEhIKBGtpbmQYDyABKAlSBG'
-    'tpbmQ=');
+    'tpbmQSGwoJcm9vdF9vbmx5GBAgASgIUghyb290T25seQ==');
 
 @$core.Deprecated('Use mentionCatalogDescriptor instead')
 const MentionCatalog$json = {

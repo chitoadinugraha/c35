@@ -1,4 +1,6 @@
-use c35_mod_chat::prompt_run::{prompt_run_is_terminal, prompt_run_kind_default, PromptRunRow};
+use c35_mod_chat::prompt_run::{
+    prompt_run_is_terminal, prompt_run_kind_default, prompt_run_kind_normalize, PromptRunRow,
+};
 use c35_mod_chat::tools::builtin::{delegate_child_row, delegate_result_json};
 use serde_json::json;
 use sqlx::types::Json;
@@ -31,7 +33,16 @@ fn prompt_run_kind_default_maps_topics() {
     assert_eq!(prompt_run_kind_default("research"), "research");
     assert_eq!(prompt_run_kind_default("computer_use"), "computer_use");
     assert_eq!(prompt_run_kind_default("web.builder"), "site_build");
-    assert_eq!(prompt_run_kind_default("general"), "research");
+    assert_eq!(prompt_run_kind_default("general"), "main");
+}
+
+#[test]
+fn prompt_run_kind_normalize_rejects_general_kind() {
+    assert_eq!(prompt_run_kind_normalize("general", "general"), "main");
+    assert_eq!(prompt_run_kind_normalize("general", "research"), "research");
+    assert_eq!(prompt_run_kind_normalize("research", "general"), "research");
+    assert_eq!(prompt_run_kind_normalize("", "research"), "research");
+    assert_eq!(prompt_run_kind_normalize("bogus", "general"), "main");
 }
 
 #[test]

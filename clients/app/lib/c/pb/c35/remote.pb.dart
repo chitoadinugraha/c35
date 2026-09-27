@@ -1316,6 +1316,168 @@ class ResRemoteCommand extends $pb.GeneratedMessage {
   void clearStderr() => $_clearField(5);
 }
 
+class ReqRemoteFsList extends $pb.GeneratedMessage {
+  factory ReqRemoteFsList({
+    $fixnum.Int64? deviceIid,
+    $core.String? path,
+  }) {
+    final result = ReqRemoteFsList._();
+    if (deviceIid != null) result.deviceIid = deviceIid;
+    if (path != null) result.path = path;
+    return result;
+  }
+
+  ReqRemoteFsList._();
+
+  factory ReqRemoteFsList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqRemoteFsList()..mergeFromBuffer(data, registry);
+  factory ReqRemoteFsList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqRemoteFsList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqRemoteFsList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqRemoteFsList.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'deviceIid')
+    ..aOS(2, _omitFieldNames ? '' : 'path')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqRemoteFsList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqRemoteFsList copyWith(void Function(ReqRemoteFsList) updates) =>
+      super.copyWith((message) => updates(message as ReqRemoteFsList))
+          as ReqRemoteFsList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqRemoteFsList() / ReqRemoteFsList.new instead')
+  static ReqRemoteFsList create() => ReqRemoteFsList._();
+  static $pb.GeneratedMessage $_createMessage() => ReqRemoteFsList._();
+  @$core.override
+  ReqRemoteFsList createEmptyInstance() => ReqRemoteFsList._();
+  @$core.pragma('dart2js:noInline')
+  static ReqRemoteFsList getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ReqRemoteFsList>(
+          ReqRemoteFsList.$_createMessage);
+  static ReqRemoteFsList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get deviceIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set deviceIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasDeviceIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearDeviceIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get path => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set path($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasPath() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearPath() => $_clearField(2);
+}
+
+class ReqRemoteFsRead extends $pb.GeneratedMessage {
+  factory ReqRemoteFsRead({
+    $fixnum.Int64? deviceIid,
+    $core.String? path,
+    $fixnum.Int64? offset,
+    $core.int? maxBytes,
+  }) {
+    final result = ReqRemoteFsRead._();
+    if (deviceIid != null) result.deviceIid = deviceIid;
+    if (path != null) result.path = path;
+    if (offset != null) result.offset = offset;
+    if (maxBytes != null) result.maxBytes = maxBytes;
+    return result;
+  }
+
+  ReqRemoteFsRead._();
+
+  factory ReqRemoteFsRead.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqRemoteFsRead()..mergeFromBuffer(data, registry);
+  factory ReqRemoteFsRead.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqRemoteFsRead()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqRemoteFsRead',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqRemoteFsRead.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'deviceIid')
+    ..aOS(2, _omitFieldNames ? '' : 'path')
+    ..aInt64(3, _omitFieldNames ? '' : 'offset')
+    ..aI(4, _omitFieldNames ? '' : 'maxBytes')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqRemoteFsRead clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqRemoteFsRead copyWith(void Function(ReqRemoteFsRead) updates) =>
+      super.copyWith((message) => updates(message as ReqRemoteFsRead))
+          as ReqRemoteFsRead;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqRemoteFsRead() / ReqRemoteFsRead.new instead')
+  static ReqRemoteFsRead create() => ReqRemoteFsRead._();
+  static $pb.GeneratedMessage $_createMessage() => ReqRemoteFsRead._();
+  @$core.override
+  ReqRemoteFsRead createEmptyInstance() => ReqRemoteFsRead._();
+  @$core.pragma('dart2js:noInline')
+  static ReqRemoteFsRead getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ReqRemoteFsRead>(
+          ReqRemoteFsRead.$_createMessage);
+  static ReqRemoteFsRead? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get deviceIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set deviceIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasDeviceIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearDeviceIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get path => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set path($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasPath() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearPath() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get offset => $_getI64(2);
+  @$pb.TagNumber(3)
+  set offset($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasOffset() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearOffset() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.int get maxBytes => $_getIZ(3);
+  @$pb.TagNumber(4)
+  set maxBytes($core.int value) => $_setSignedInt32(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasMaxBytes() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearMaxBytes() => $_clearField(4);
+}
+
 class RemoteInputEvent extends $pb.GeneratedMessage {
   factory RemoteInputEvent({
     $core.String? eventType,

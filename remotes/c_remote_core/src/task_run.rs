@@ -46,11 +46,7 @@ pub async fn task_run_handle(
             info!(command = %cmd, "executing legacy agent command");
             #[cfg(windows)]
             {
-                let output = tokio::task::spawn_blocking(move || {
-                    std::process::Command::new("powershell")
-                        .args(["-NoProfile", "-NonInteractive", "-Command", &cmd])
-                        .output()
-                })
+                let output = tokio::task::spawn_blocking(move || crate::win_powershell::command_output(&cmd))
                 .await??;
                 info!(status = ?output.status, "legacy command finished");
             }

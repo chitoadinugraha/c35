@@ -24,7 +24,7 @@ use crate::mention_context::MentionContext;
 
 use builtin::{
     ComputerUseDelegateTool, ConsumptionAddTool, ConsumptionDeleteTool, ConsumptionTodayTool,
-    ConsumptionUpdateTool, DelegateRunTool, DeviceCommandTool, DeviceFsListTool, DeviceFsReadTool,
+    ConsumptionUpdateTool, DelegateRunTool, DeviceFsListTool, DeviceFsReadTool, ShellRunTool,
     DeviceInputTool, DeviceScreenshotTool,
     ExpenseAddTool, ExpenseDeleteTool, ExpenseSummaryTool, ImgEditTool, ImgGenerateTool, PresentationExportTool,
     ReferralCodeDeleteTool, ReferralCodeListTool, ReferralCodePutTool, ReferralTreeGetTool, SiteContactPutTool,
@@ -114,7 +114,7 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(ExpenseAddTool));
     dispatcher.register(Arc::new(ExpenseSummaryTool));
     dispatcher.register(Arc::new(ExpenseDeleteTool));
-    dispatcher.register(Arc::new(DeviceCommandTool));
+    dispatcher.register(Arc::new(ShellRunTool));
     dispatcher.register(Arc::new(DeviceFsListTool));
     dispatcher.register(Arc::new(DeviceFsReadTool));
     dispatcher.register(Arc::new(DeviceInputTool));
