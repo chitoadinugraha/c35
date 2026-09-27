@@ -1417,6 +1417,7 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> with WidgetsBindingObserv
   }
 
   Widget _explorerNode(_FsEntry node, int depth) {
+    if (depth > 128) return const SizedBox.shrink();
     final q = _searchQuery;
     if (q.isNotEmpty && !_nodeMatches(node, q)) return const SizedBox.shrink();
     final expanded = _expanded.contains(node.path) || (q.isNotEmpty && node.isDir);
@@ -1506,9 +1507,11 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> with WidgetsBindingObserv
     return _isTextMime('', entry.path) || _isImageMime('', entry.path) || _isVideoMime('', entry.path);
   }
 
-  bool _nodeMatches(_FsEntry node, String q) {
+  bool _nodeMatches(_FsEntry node, String q, [Set<String>? visited]) {
+    final seen = visited ?? <String>{};
+    if (!seen.add(node.path)) return false;
     if (_entryLabel(node).toLowerCase().contains(q) || node.name.toLowerCase().contains(q)) return true;
-    return _dirEntries(node.path).any((c) => _nodeMatches(c, q));
+    return _dirEntries(node.path).any((c) => _nodeMatches(c, q, seen));
   }
 
   _FsEntry? _entryAt(String path) {

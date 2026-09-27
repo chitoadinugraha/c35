@@ -44,17 +44,26 @@ class UiDeviceDetail extends StatefulWidget {
   State<UiDeviceDetail> createState() => _UiDeviceDetailState();
 }
 
-class _UiDeviceDetailState extends State<UiDeviceDetail> {
+class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProviderStateMixin {
   var _remoteInteractMode = RemoteInteractMode.mouse;
   var _remoteShowStats = false;
   final _skillKey = GlobalKey<UiSkillMasterDetailState>();
   late final RemoteSession _session;
   DevicePromptContextStore? _promptStore;
+  late final TabController _tabController;
+  late final List<String> _tabs;
 
   @override
   void initState() {
     super.initState();
     final deviceIid = widget.row.identity.iid.toInt();
+    final kind = widget.row.identity.kind.toLowerCase();
+    _tabs = kind == 'iot' ? const ['Control', 'Wiring'] : const ['Remote', 'Files', 'Task', 'Skill', 'Settings'];
+    _tabController = TabController(length: _tabs.length, vsync: this);
+    _tabController.addListener(() {
+      if (_tabController.indexIsChanging) return;
+      setState(() {});
+    });
     _session = RemoteSession.of(widget.chatConn, deviceIid);
     if (widget.row.identity.kind.toLowerCase() == 'remote') {
       _promptStore = DevicePromptContextStore(
@@ -89,6 +98,7 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> {
 
   @override
   void dispose() {
+    _tabController.dispose();
     _promptStore?.dispose();
     super.dispose();
   }
@@ -98,84 +108,66 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> {
     final id = widget.row.identity;
     final kind = id.kind.toLowerCase();
     final online = deviceOnlineFromMeta(id.metaJson);
-    final tabs = kind == 'iot' ? const ['Control', 'Wiring'] : const ['Remote', 'Files', 'Task', 'Skill', 'Settings'];
     final mobile = _isMobile(context);
-    return DefaultTabController(
-      length: tabs.length,
-      child: ColoredBox(
-        color: const Color(0xFF08080A),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (widget.onBack != null || widget.title != null) _navBarWrap(),
-            Builder(
-              builder: (context) {
-                final controller = DefaultTabController.of(context);
-                return AnimatedBuilder(
-                  animation: controller,
-                  builder: (context, _) {
-                    final isRemote = kind == 'remote' && controller.index == 0;
-                    final isSkill = kind == 'remote' && controller.index == 3;
-                    return Padding(
-                      padding: const EdgeInsets.fromLTRB(8, 0, 4, 0),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: TabBar(
-                              controller: controller,
-                              isScrollable: true,
-                              tabAlignment: TabAlignment.start,
-                              labelColor: _text,
-                              unselectedLabelColor: _muted,
-                              indicatorColor: _accent,
-                              dividerColor: _border,
-                              tabs: [for (final t in tabs) Tab(text: t)],
-                            ),
-                          ),
-                          if (isSkill)
-                            Builder(
-                              builder: (ctx) => _toolBtn(
-                                icon: Icons.add,
-                                tooltip: 'Add skill',
-                                onPressed: () {
-                                  final box = ctx.findRenderObject() as RenderBox?;
-                                  if (box == null) return;
-                                  final anchor = box.localToGlobal(Offset(box.size.width, box.size.height));
-                                  _skillKey.currentState?.showAddMenu(ctx, anchor: anchor);
-                                },
-                              ),
-                            ),
-                          if (isRemote) ...[
-                            ListenableBuilder(
-                              listenable: Listenable.merge([_session.connected, _session.mode, _session.status]),
-                              builder: (context, _) {
-                                if (mobile && !_session.connected.value && widget.chatConn.connected) {
-                                  return _toolBtn(
-                                    icon: Icons.refresh_rounded,
-                                    tooltip: 'Reconnect',
-                                    onPressed: () => _session.start().catchError((e) => lError('device reconnect: $e')),
-                                  );
-                                }
-                                return _remoteBadge(_session);
-                              },
-                            ),
-                          ],
-                        ],
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-            Expanded(
-              child: TabBarView(
-                children: [
-                  for (final t in tabs) _tabBody(kind, t, online),
+    final tabIndex = _tabController.index;
+    final activeTab = _tabs[tabIndex];
+    final isRemote = kind == 'remote' && activeTab == 'Remote';
+    final isSkill = kind == 'remote' && activeTab == 'Skill';
+    return ColoredBox(
+      color: const Color(0xFF08080A),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (widget.onBack != null || widget.title != null) _navBarWrap(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 0, 4, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TabBar(
+                    controller: _tabController,
+                    isScrollable: true,
+                    tabAlignment: TabAlignment.start,
+                    labelColor: _text,
+                    unselectedLabelColor: _muted,
+                    indicatorColor: _accent,
+                    dividerColor: _border,
+                    tabs: [for (final t in _tabs) Tab(text: t)],
+                  ),
+                ),
+                if (isSkill)
+                  Builder(
+                    builder: (ctx) => _toolBtn(
+                      icon: Icons.add,
+                      tooltip: 'Add skill',
+                      onPressed: () {
+                        final box = ctx.findRenderObject() as RenderBox?;
+                        if (box == null) return;
+                        final anchor = box.localToGlobal(Offset(box.size.width, box.size.height));
+                        _skillKey.currentState?.showAddMenu(ctx, anchor: anchor);
+                      },
+                    ),
+                  ),
+                if (isRemote) ...[
+                  ListenableBuilder(
+                    listenable: Listenable.merge([_session.connected, _session.mode, _session.status]),
+                    builder: (context, _) {
+                      if (mobile && !_session.connected.value && widget.chatConn.connected) {
+                        return _toolBtn(
+                          icon: Icons.refresh_rounded,
+                          tooltip: 'Reconnect',
+                          onPressed: () => _session.start().catchError((e) => lError('device reconnect: $e')),
+                        );
+                      }
+                      return _remoteBadge(_session);
+                    },
+                  ),
                 ],
-              ),
+              ],
             ),
-          ],
-        ),
+          ),
+          Expanded(child: _tabBody(kind, activeTab, online)),
+        ],
       ),
     );
   }
@@ -272,8 +264,7 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> {
   }
 
   void _remoteTeach(BuildContext context) {
-    final controller = DefaultTabController.of(context);
-    controller.animateTo(3);
+    _tabController.animateTo(3);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _skillKey.currentState?.teach();
     });

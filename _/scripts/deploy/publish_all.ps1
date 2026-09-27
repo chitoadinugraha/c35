@@ -1,4 +1,5 @@
-﻿param(
+﻿# Parallel server + app publish. Remote Windows agent is opt-in: pass -RemoteAgent only when needed.
+param(
     [switch]$SkipServer,
     [switch]$SkipApp,
     [switch]$RemoteAgent,
@@ -52,7 +53,7 @@ function Start-PublishWaveProcess {
     if (Test-Path $errLog) { Remove-Item $errLog -Force -ErrorAction SilentlyContinue }
     $argList = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $ScriptPath) + $ExtraArgs
     Write-Host ('==> start parallel wave: ' + $Name + ' ' + $ScriptPath)
-    $proc = Start-Process -FilePath 'powershell.exe' -PassThru -WorkingDirectory $repoRoot -ArgumentList $argList -RedirectStandardOutput $outLog -RedirectStandardError $errLog
+    $proc = Start-Process -FilePath 'powershell.exe' -WindowStyle Hidden -PassThru -WorkingDirectory $repoRoot -ArgumentList $argList -RedirectStandardOutput $outLog -RedirectStandardError $errLog
     return @{ Name = $Name; Proc = $proc; OutLog = $outLog; ErrLog = $errLog }
 }
 
