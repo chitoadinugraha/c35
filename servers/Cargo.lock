@@ -445,6 +445,9 @@ dependencies = [
 name = "c35_mod_admin"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "async-nats",
+ "c35_mod_event",
  "c35_mod_platform",
  "c35_proto",
  "c35_store",
@@ -596,6 +599,7 @@ dependencies = [
  "futures-util",
  "hmac",
  "rand 0.8.8",
+ "serde",
  "serde_json",
  "sha1",
  "sqlx",

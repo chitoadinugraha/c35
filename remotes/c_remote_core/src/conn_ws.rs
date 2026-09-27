@@ -72,6 +72,7 @@ pub async fn conn_ws_run(
         }
     }
     info!(device_iid, "==> [WS CONNECTED] Agent online & control socket ready");
+    crate::agent_ui::ws_connected_set(true);
     log_push::log_push(
         server_url,
         session_key,
@@ -109,6 +110,7 @@ pub async fn conn_ws_run(
                         webrtc.handle_frame(&data).await;
                         if crate::conn_exit::unpair_requested() {
                             crate::conn_exit::reset_unpair_flag();
+                            crate::agent_ui::ws_connected_set(false);
                             return Ok(ConnExit::Unpaired);
                         }
                     }
@@ -128,6 +130,7 @@ pub async fn conn_ws_run(
     }
 
     crate::update::active_sessions_set(0);
+    crate::agent_ui::ws_connected_set(false);
     warn!(device_iid, "==> [WS DISCONNECTED] Agent control socket disconnected");
     log_push::log_push(
         server_url,

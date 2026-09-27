@@ -163,6 +163,14 @@ pub fn device_iid_load() -> Option<i64> {
 }
 
 pub fn session_key_save(session_key: &str, device_iid: i64) -> anyhow::Result<()> {
+    session_key_save_with_owner(session_key, device_iid, None)
+}
+
+pub fn session_key_save_with_owner(
+    session_key: &str,
+    device_iid: i64,
+    owner_alien_id: Option<&str>,
+) -> anyhow::Result<()> {
     let trimmed = session_key.trim();
     if trimmed.is_empty() {
         anyhow::bail!("session_key is empty");
@@ -173,11 +181,88 @@ pub fn session_key_save(session_key: &str, device_iid: i64) -> anyhow::Result<()
             .with_context(|| format!("create config dir {}", dir.display()))?;
     }
     let enc = encrypt_secret(trimmed)?;
-    let json = serde_json::json!({
-        "session_key_enc": enc,
-        "device_iid": device_iid,
-        "saved_at": unix_now_secs(),
-    });
+    let mut json = config_load().unwrap_or_else(|| serde_json::json!({}));
+    if let Some(obj) = json.as_object_mut() {
+        obj.insert("session_key_enc".into(), serde_json::Value::String(enc));
+        obj.insert("device_iid".into(), serde_json::json!(device_iid));
+        obj.insert("saved_at".into(), serde_json::json!(unix_now_secs()));
+        if let Some(id) = owner_alien_id.map(str::trim).filter(|s| !s.is_empty()) {
+            obj.insert("owner_alien_id".into(), serde_json::Value::String(id.to_string()));
+        }
+    } else {
+        json = serde_json::json!({
+            "session_key_enc": enc,
+            "device_iid": device_iid,
+            "saved_at": unix_now_secs(),
+        });
+        if let Some(id) = owner_alien_id.map(str::trim).filter(|s| !s.is_empty()) {
+            json["owner_alien_id"] = serde_json::Value::String(id.to_string());
+        }
+    }
+    std::fs::write(&path, json.to_string())
+        .with_context(|| format!("write config {}", path.display()))
+}
+
+pub fn owner_alien_id_load() -> Option<String> {
+    let j = config_load()?;
+    let s = j.get("owner_alien_id").and_then(|v| v.as_str())?;
+    let t = s.trim();
+    if t.is_empty() {
+        None
+    } else {
+        Some(t.to_string())
+    }
+}
+
+pub fn owner_alien_id_save(owner_alien_id: &str) -> anyhow::Result<()> {
+    let id = owner_alien_id.trim();
+    if id.is_empty() {
+        anyhow::bail!("owner_alien_id is empty");
+    }
+    merge_config_field("owner_alien_id", serde_json::Value::String(id.to_string()))
+}
+
+/// Cache owner / device display fields without touching session credentials.
+pub fn owner_cache_save(
+    owner_alien_id: &str,
+    owner_name: Option<&str>,
+    device_name: Option<&str>,
+) -> anyhow::Result<()> {
+    let id = owner_alien_id.trim();
+    if id.is_empty() {
+        anyhow::bail!("owner_alien_id is empty");
+    }
+    let mut patch = serde_json::Map::new();
+    patch.insert("owner_alien_id".into(), serde_json::Value::String(id.to_string()));
+    if let Some(n) = owner_name.map(str::trim).filter(|s| !s.is_empty()) {
+        patch.insert("owner_name".into(), serde_json::Value::String(n.to_string()));
+    }
+    if let Some(n) = device_name.map(str::trim).filter(|s| !s.is_empty()) {
+        patch.insert("device_name".into(), serde_json::Value::String(n.to_string()));
+    }
+    merge_config_fields(patch)
+}
+
+fn merge_config_field(key: &str, value: serde_json::Value) -> anyhow::Result<()> {
+    let mut patch = serde_json::Map::new();
+    patch.insert(key.to_string(), value);
+    merge_config_fields(patch)
+}
+
+fn merge_config_fields(patch: serde_json::Map<String, serde_json::Value>) -> anyhow::Result<()> {
+    let path = config_path();
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir)
+            .with_context(|| format!("create config dir {}", dir.display()))?;
+    }
+    let mut json = config_load().unwrap_or_else(|| serde_json::json!({}));
+    if let Some(obj) = json.as_object_mut() {
+        for (k, v) in patch {
+            obj.insert(k, v);
+        }
+    } else {
+        json = serde_json::Value::Object(patch);
+    }
     std::fs::write(&path, json.to_string())
         .with_context(|| format!("write config {}", path.display()))
 }

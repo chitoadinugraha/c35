@@ -1,10 +1,10 @@
 use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
-use axum::routing::post;
+use axum::routing::{get, post};
 use axum::{Json, Router};
 use c35_ctx::AppState;
-use c35_mod_device::{agent_log_put, agent_session_resolve};
+use c35_mod_device::{agent_log_put, agent_profile_get, agent_session_resolve};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -17,7 +17,9 @@ pub struct AgentLogBody {
 }
 
 pub fn agent_router() -> Router<AppState> {
-    Router::new().route("/v1/agent/log", post(agent_log))
+    Router::new()
+        .route("/v1/agent/log", post(agent_log))
+        .route("/v1/agent/profile", get(agent_profile))
 }
 
 fn session_key_from_headers(headers: &HeaderMap) -> Option<&str> {
@@ -27,6 +29,19 @@ fn session_key_from_headers(headers: &HeaderMap) -> Option<&str> {
         .and_then(|v| v.to_str().ok())
         .map(str::trim)
         .filter(|s| !s.is_empty())
+}
+
+async fn agent_profile(State(st): State<AppState>, headers: HeaderMap) -> impl IntoResponse {
+    let session_key = session_key_from_headers(&headers).unwrap_or("");
+    let session = match agent_session_resolve(&st.pool, session_key).await {
+        Ok(Some(s)) => s,
+        Ok(None) => return (StatusCode::UNAUTHORIZED, "invalid session").into_response(),
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
+    };
+    match agent_profile_get(&st.pool, &session).await {
+        Ok(profile) => Json(profile).into_response(),
+        Err(e) => (StatusCode::NOT_FOUND, e).into_response(),
+    }
 }
 
 async fn agent_log(

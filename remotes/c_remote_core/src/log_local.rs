@@ -8,6 +8,8 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{fmt, EnvFilter};
 
+use crate::log_ring;
+
 static LOG_SESSION: OnceLock<PathBuf> = OnceLock::new();
 static CONSOLE_VISIBLE: OnceLock<bool> = OnceLock::new();
 
@@ -135,6 +137,7 @@ pub fn init() {
                 .compact();
             tracing_subscriber::registry()
                 .with(filter)
+                .with(log_ring::layer())
                 .with(stdout_layer)
                 .with(file_layer)
                 .init();
@@ -145,6 +148,7 @@ pub fn init() {
                 .with_ansi(false);
             tracing_subscriber::registry()
                 .with(filter)
+                .with(log_ring::layer())
                 .with(file_layer)
                 .init();
         }
@@ -155,6 +159,7 @@ pub fn init() {
                 .compact();
             tracing_subscriber::registry()
                 .with(filter)
+                .with(log_ring::layer())
                 .with(stdout_layer)
                 .init();
             tracing::warn!(error = %e, path = %path.display(), "remote agent log file unavailable");
@@ -162,6 +167,7 @@ pub fn init() {
         Err(e) => {
             tracing_subscriber::registry()
                 .with(filter)
+                .with(log_ring::layer())
                 .with(fmt::layer().with_writer(std::io::sink))
                 .init();
             tracing::warn!(error = %e, path = %path.display(), "remote agent log file unavailable");

@@ -8,6 +8,9 @@ pub mod pair_ui;
 pub mod pair_window;
 pub mod screen_capture;
 pub mod startup;
+pub mod agent_window;
+#[cfg(windows)]
+pub mod agent_window_ui;
 pub mod tray;
 pub mod uia;
 pub mod video_stream;

@@ -1,7 +1,10 @@
+pub mod agent_profile;
+pub mod agent_ui;
 pub mod config;
 pub mod conn_exit;
 pub mod conn_ws;
 pub mod log_local;
+pub mod log_ring;
 pub mod log_push;
 pub mod pair;
 pub mod presence;

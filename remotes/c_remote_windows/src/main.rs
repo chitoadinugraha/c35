@@ -44,6 +44,12 @@ async fn run() -> anyhow::Result<()> {
 
     c_remote_windows::startup::prevent_sleep();
 
+    c_remote_core::agent_ui::bool_providers_set(c_remote_core::agent_ui::AgentUiBoolProviders {
+        capture_active: Some(c_remote_windows::screen_capture::is_capture_active),
+        control_allowed: Some(c_remote_windows::input_exec::is_control_allowed),
+        autostart_enabled: Some(c_remote_windows::startup::is_autostart_enabled),
+    });
+
     c_remote_core::webrtc::set_input_handler(std::sync::Arc::new(
         c_remote_windows::input_exec::execute_input,
     ));
@@ -67,7 +73,38 @@ async fn run() -> anyhow::Result<()> {
     tokio::spawn(update_run_loop(base_url.clone()));
 
     let (tray_tx, mut tray_rx) = tokio::sync::mpsc::unbounded_channel();
+    c_remote_windows::agent_window::start(tray_tx.clone());
     start_tray_thread(tray_tx);
+    c_remote_core::agent_ui::device_name_set(&dev_name);
+    if let Some(id) = c_remote_core::config::owner_alien_id_load() {
+        c_remote_core::agent_ui::owner_label_set(
+            &format!("@{}", id.trim_start_matches('@')),
+        );
+    }
+    tokio::spawn(async {
+        loop {
+            if let Some(key) = c_remote_core::config::session_key_load() {
+                let base = c_remote_core::config::server_url();
+                if let Some(p) =
+                    c_remote_core::agent_profile::agent_profile_fetch(&base, &key).await
+                {
+                    let label = c_remote_core::agent_profile::owner_display(&p);
+                    c_remote_core::agent_ui::owner_label_set(&label);
+                    if !p.device_name.is_empty() {
+                        c_remote_core::agent_ui::device_name_set(&p.device_name);
+                    }
+                    if !p.owner_alien_id.is_empty() {
+                        let _ = c_remote_core::config::owner_cache_save(
+                            &p.owner_alien_id,
+                            Some(p.owner_name.as_str()).filter(|s| !s.is_empty()),
+                            Some(p.device_name.as_str()).filter(|s| !s.is_empty()),
+                        );
+                    }
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(120)).await;
+        }
+    });
 
     loop {
         if session_key_load().is_none() {

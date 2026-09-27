@@ -1,5 +1,6 @@
 mod agent_auth;
 mod agent_log_put;
+mod agent_profile;
 mod agent_presence;
 mod device_pair;
 mod device_pair_poll;
@@ -13,6 +14,7 @@ mod remote_signaling;
 
 pub use agent_auth::{agent_session_resolve, AgentSession};
 pub use agent_log_put::agent_log_put;
+pub use agent_profile::{agent_profile_get, AgentProfile};
 pub use agent_presence::{agent_meta_get, agent_presence_put, AgentVersionReport};
 pub use mcp_client::mcp_client_list;
 pub use device_pair::device_pair;

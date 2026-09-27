@@ -49,20 +49,16 @@ fn run_tray_loop(tx: tokio::sync::mpsc::UnboundedSender<TrayAction>) -> anyhow::
         AppendMenuW, CreatePopupMenu, CreateWindowExW, DefWindowProcW, DestroyMenu, DestroyWindow,
         DispatchMessageW, GetCursorPos, GetMessageW, KillTimer, PostMessageW, PostQuitMessage,
         RegisterClassExW, RegisterWindowMessageW, SetForegroundWindow, SetTimer, TrackPopupMenu,
-        TranslateMessage, HICON, HMENU, MF_DISABLED, MF_GRAYED, MF_SEPARATOR, MF_STRING, MSG,
-        TPM_BOTTOMALIGN,
+        TranslateMessage, HICON, HMENU, MF_SEPARATOR, MF_STRING, MSG, TPM_BOTTOMALIGN,
         TPM_RIGHTBUTTON, WINDOW_EX_STYLE, WM_COMMAND, WM_CONTEXTMENU, WM_DESTROY, WM_NULL,
-        WM_RBUTTONUP, WM_TIMER, WM_USER, WNDCLASSEXW, WS_OVERLAPPEDWINDOW,
+        WM_LBUTTONDBLCLK, WM_RBUTTONUP, WM_TIMER, WM_USER, WNDCLASSEXW, WS_OVERLAPPEDWINDOW,
     };
 
     const WM_TRAYICON: u32 = WM_USER + 100;
-    const ID_SHOW_LOG: usize = 1000;
+    const ID_OPEN_APP: usize = 1000;
+    const ID_CHECK_UPDATE: usize = 1006;
     const ID_UNPAIR: usize = 1001;
     const ID_QUIT: usize = 1002;
-    const ID_TOGGLE_CONTROL: usize = 1003;
-    const ID_TOGGLE_AUTOSTART: usize = 1004;
-    const ID_APPLY_UPDATE: usize = 1005;
-    const ID_CHECK_UPDATE: usize = 1006;
     const TRAY_TIMER_ID: usize = 99;
 
     static IS_EXITING: AtomicBool = AtomicBool::new(false);
@@ -74,9 +70,11 @@ fn run_tray_loop(tx: tokio::sync::mpsc::UnboundedSender<TrayAction>) -> anyhow::
     unsafe fn build_tray_nid(hwnd: HWND) -> NOTIFYICONDATAW {
         let icon: HICON = load_alien_icon(0, 0);
         let mut tip_chars = [0u16; 128];
+        let cloud = if c_remote_core::agent_ui::ws_connected() { "online" } else { "offline" };
         let tip_text = format!(
-            "Alien AI Remote Agent — {}",
-            c_remote_core::version::agent_version_tray_label()
+            "Alien AI Remote — {} ({})",
+            c_remote_core::version::agent_version_tray_label(),
+            cloud
         );
         for (i, c) in tip_text.encode_utf16().take(127).enumerate() {
             tip_chars[i] = c;
@@ -90,6 +88,43 @@ fn run_tray_loop(tx: tokio::sync::mpsc::UnboundedSender<TrayAction>) -> anyhow::
             hIcon: icon,
             szTip: tip_chars,
             ..Default::default()
+        }
+    }
+
+    unsafe fn show_tray_menu(hwnd: HWND) {
+        let mut pt = POINT::default();
+        let _ = GetCursorPos(&mut pt);
+        if let Ok(hmenu) = CreatePopupMenu() {
+            let _ = AppendMenuW(hmenu, MF_STRING, ID_OPEN_APP, w!("Open Alien AI Agent"));
+            let check_label = HSTRING::from(format!(
+                "Check for update ({})",
+                c_remote_core::version::agent_version_tray_label()
+            ));
+            let _ = AppendMenuW(
+                hmenu,
+                MF_STRING,
+                ID_CHECK_UPDATE,
+                PCWSTR(check_label.as_ptr()),
+            );
+            if let Some(v) = c_remote_core::update::update_staged_version() {
+                let apply = HSTRING::from(format!("Apply update (v{v})…"));
+                let _ = AppendMenuW(hmenu, MF_STRING, 1005, PCWSTR(apply.as_ptr()));
+            }
+            let _ = AppendMenuW(hmenu, MF_STRING, ID_UNPAIR, w!("Unpair"));
+            let _ = AppendMenuW(hmenu, MF_SEPARATOR, 0, PCWSTR::null());
+            let _ = AppendMenuW(hmenu, MF_STRING, ID_QUIT, w!("Quit"));
+            let _ = SetForegroundWindow(hwnd);
+            let _ = TrackPopupMenu(
+                hmenu,
+                TPM_RIGHTBUTTON | TPM_BOTTOMALIGN,
+                pt.x,
+                pt.y,
+                0,
+                hwnd,
+                None,
+            );
+            let _ = PostMessageW(hwnd, WM_NULL, WPARAM(0), LPARAM(0));
+            let _ = DestroyMenu(hmenu);
         }
     }
 
@@ -125,73 +160,19 @@ fn run_tray_loop(tx: tokio::sync::mpsc::UnboundedSender<TrayAction>) -> anyhow::
             }
             WM_TRAYICON => {
                 let event = lparam.0 as u32;
-                if event == WM_RBUTTONUP || event == WM_CONTEXTMENU {
-                    let mut pt = POINT::default();
-                    let _ = GetCursorPos(&mut pt);
-
-                    if let Ok(hmenu) = CreatePopupMenu() {
-                        if crate::screen_capture::is_capture_active() {
-                            let _ = AppendMenuW(hmenu, MF_STRING, 0, w!("🔴 Remote View Active"));
-                            let _ = AppendMenuW(hmenu, MF_SEPARATOR, 0, PCWSTR::null());
-                        }
-                        let control_text = if crate::input_exec::is_control_allowed() {
-                            w!("✓ Remote Control Allowed")
-                        } else {
-                            w!("✗ Remote Control Blocked")
-                        };
-                        let _ = AppendMenuW(hmenu, MF_STRING, ID_TOGGLE_CONTROL, control_text);
-                        let _ = AppendMenuW(hmenu, MF_SEPARATOR, 0, PCWSTR::null());
-                        let autostart_text = if crate::startup::is_autostart_enabled() {
-                            w!("✓ Start on Windows Boot")
-                        } else {
-                            w!("☐ Start on Windows Boot")
-                        };
-                        let _ = AppendMenuW(hmenu, MF_STRING, ID_TOGGLE_AUTOSTART, autostart_text);
-                        let _ = AppendMenuW(hmenu, MF_SEPARATOR, 0, PCWSTR::null());
-                        let ver = HSTRING::from(c_remote_core::version::agent_version_tray_label());
-                        let _ = AppendMenuW(
-                            hmenu,
-                            MF_STRING | MF_GRAYED | MF_DISABLED,
-                            0,
-                            PCWSTR(ver.as_ptr()),
-                        );
-                        if let Some(v) = c_remote_core::update::update_staged_version() {
-                            let label = HSTRING::from(format!("Apply update (v{v})…"));
-                            let _ = AppendMenuW(hmenu, MF_STRING, ID_APPLY_UPDATE, PCWSTR(label.as_ptr()));
-                        }
-                        let _ = AppendMenuW(hmenu, MF_STRING, ID_CHECK_UPDATE, w!("Check for update"));
-                        let _ = AppendMenuW(hmenu, MF_STRING, ID_SHOW_LOG, w!("Show Log"));
-                        let _ = AppendMenuW(hmenu, MF_STRING, ID_UNPAIR, w!("Unpair"));
-                        let _ = AppendMenuW(hmenu, MF_SEPARATOR, 0, PCWSTR::null());
-                        let _ = AppendMenuW(hmenu, MF_STRING, ID_QUIT, w!("Quit"));
-
-                        let _ = SetForegroundWindow(hwnd);
-                        let _ = TrackPopupMenu(
-                            hmenu,
-                            TPM_RIGHTBUTTON | TPM_BOTTOMALIGN,
-                            pt.x,
-                            pt.y,
-                            0,
-                            hwnd,
-                            None,
-                        );
-                        let _ = PostMessageW(hwnd, WM_NULL, WPARAM(0), LPARAM(0));
-                        let _ = DestroyMenu(hmenu);
-                    }
+                if event == WM_LBUTTONDBLCLK {
+                    crate::agent_window::show_or_focus();
+                } else if event == WM_RBUTTONUP || event == WM_CONTEXTMENU {
+                    show_tray_menu(hwnd);
                 }
                 LRESULT(0)
             }
             WM_COMMAND => {
                 let id = wparam.0 as usize;
-                if id == ID_TOGGLE_AUTOSTART {
-                    let next = !crate::startup::is_autostart_enabled();
-                    let _ = crate::startup::set_autostart_enabled(next);
+                if id == ID_OPEN_APP {
+                    crate::agent_window::show_or_focus();
                 }
-                if id == ID_TOGGLE_CONTROL {
-                    let next = !crate::input_exec::is_control_allowed();
-                    crate::input_exec::set_control_allowed(next);
-                }
-                if id == ID_APPLY_UPDATE {
+                if id == 1005 {
                     if let Some(v) = c_remote_core::update::update_staged_version() {
                         info!(version = v, "tray: applying staged agent update");
                         let _ = c_remote_core::update::update_apply(v);
@@ -201,14 +182,8 @@ fn run_tray_loop(tx: tokio::sync::mpsc::UnboundedSender<TrayAction>) -> anyhow::
                     info!("tray: check for update");
                     c_remote_core::update::update_check_now();
                 }
-                if id == ID_SHOW_LOG {
-                    match c_remote_core::log_local::log_open() {
-                        Ok(()) => info!("Opened agent log file"),
-                        Err(e) => warn!("Show Log failed: {e:#}"),
-                    }
-                }
                 if id == ID_UNPAIR {
-                    info!("User selected Unpair from Alien AI system tray menu.");
+                    info!("tray: unpair");
                     TRAY_TX.with(|c| {
                         if let Some(tx) = c.borrow().as_ref() {
                             let _ = tx.send(TrayAction::Unpair);
@@ -283,7 +258,7 @@ fn run_tray_loop(tx: tokio::sync::mpsc::UnboundedSender<TrayAction>) -> anyhow::
             if Shell_NotifyIconW(NIM_ADD, &mut nid).as_bool() {
                 added = true;
                 TRAY_ATTACHED.store(true, Ordering::Relaxed);
-                info!("System tray icon active. Right-click for menu.");
+                info!("System tray icon active. Right-click for menu, double-click to open.");
                 break;
             }
             std::thread::sleep(std::time::Duration::from_millis(200));
