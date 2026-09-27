@@ -91,7 +91,7 @@ class PageAIHome extends StatefulWidget {
   State<PageAIHome> createState() => _PageAIHomeState();
 }
 
-class _PageAIHomeState extends State<PageAIHome> {
+class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   static const _bg = Color(0xFF08080A);
   static const _border = Color(0xFF27272A);
   static const _muted = Color(0xFF71717A);
@@ -124,16 +124,18 @@ class _PageAIHomeState extends State<PageAIHome> {
   var _hintRunning = false;
   String? _selectedPlain;
   String? _uiLang;
+  Timer? _promptWatchdog;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     SttService.instance.bindVoiceApi(_voiceApi);
     TtsService.instance.bindVoiceApi(_voiceApi);
     if (Session.instance.modelId.isNotEmpty) _model = AgentModel.of(Session.instance.modelId, _store.models);
     _timeline.attach();
     _reconnectedSub = _conn.onReconnected.listen((_) {
-      unawaited(_store.refreshFromConn(_conn, locale: CatalogTranslationCache.instance.lang));
+      unawaited(_store.refreshFromConn(_conn, locale: CatalogTranslationCache.instance.lang).then((_) => _reconcilePromptState()));
       if (mounted) setState(() {});
     });
     _followupPushSub = _conn.onPromptFollowupPush.listen((p) {
@@ -283,7 +285,54 @@ class _PageAIHomeState extends State<PageAIHome> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) unawaited(_reconcilePromptState());
+  }
+
+  void _promptWatchdogCancel() {
+    _promptWatchdog?.cancel();
+    _promptWatchdog = null;
+  }
+
+  void _promptWatchdogStart(String reqId) {
+    _promptWatchdogCancel();
+    _promptWatchdog = Timer(const Duration(minutes: 2), () => unawaited(_promptWatchdogFire(reqId)));
+  }
+
+  Future<void> _reconcilePromptState() async {
+    final cid = _store.activeChatId;
+    if (cid == null || cid <= 0) return;
+    try {
+      final res = await _conn.chatMsgList(chatId: Int64(cid));
+      for (final m in res.messages) {
+        _store.msgPutFromServer(m);
+      }
+    } catch (e) {
+      lError('prompt reconcile: $e');
+    }
+    _store.promptReconcileFromServerMsgs(cid, _store.msgs.where((m) => m.chatId == cid));
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _promptWatchdogFire(String reqId) async {
+    final cid = _store.promptChatId ?? _store.activeChatId;
+    if (cid == null || !_store.promptBusyFor(cid) || _store.pendingPromptReqId != reqId) return;
+    l('prompt watchdog: reqId=$reqId chatId=$cid');
+    if (cid > 0) await _reconcilePromptState();
+    if (!_store.promptBusyFor(cid)) return;
+    _store.msgStreamFail('Timed out waiting for reply', chatId: cid);
+    try {
+      await _conn.promptAbort(chatId: cid > 0 ? Int64(cid) : Int64.ZERO, reqId: reqId);
+    } catch (_) {}
+    _store.promptBusyPut(false, chatId: cid);
+    _promptWatchdogCancel();
+    if (mounted) setState(() {});
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _promptWatchdogCancel();
     SttService.instance.bindVoiceApi(null);
     TtsService.instance.bindVoiceApi(null);
     _syncSub?.cancel();
@@ -319,6 +368,7 @@ class _PageAIHomeState extends State<PageAIHome> {
       final localePrefs = UserLocalePrefs.instance;
       await _conn.connect(locale: locale, tz: localePrefs.tz.isNotEmpty ? localePrefs.tz : UserLocalePrefs.deviceTimezoneDetect());
       await _store.refreshFromConn(_conn, locale: locale);
+      await _reconcilePromptState();
       if (_store.mentionCatalog.mentions.isEmpty) {
         try {
           await _store.mentionCatalog.refresh(_conn);
@@ -441,6 +491,7 @@ class _PageAIHomeState extends State<PageAIHome> {
         } else {
           _store.chatStatusStaleClear(chatId: cid);
         }
+        _store.promptReconcileFromServerMsgs(cid, _store.msgs.where((x) => x.chatId == cid));
       }
     }
   }
@@ -450,12 +501,19 @@ class _PageAIHomeState extends State<PageAIHome> {
     _composerFocus.unfocus();
   }
 
+  void _closeHistoryDrawerIfNarrow() {
+    if (MediaQuery.sizeOf(context).width >= 720) return;
+    final state = _scaffoldKey.currentState;
+    if (state == null || !state.isDrawerOpen) return;
+    state.closeDrawer();
+  }
+
   void _newChat() {
     _store.chatNew();
     _composerReset();
     _canvasStore.close();
     _timeline.scrollToBottom(force: true);
-    if (MediaQuery.sizeOf(context).width < 720) _scaffoldKey.currentState?.closeDrawer();
+    _closeHistoryDrawerIfNarrow();
   }
 
   void _onCanvasIterate(CanvasArtifact artifact) {
@@ -478,16 +536,17 @@ class _PageAIHomeState extends State<PageAIHome> {
   }
 
   Future<void> _selectChat(int id) async {
+    _closeHistoryDrawerIfNarrow();
     _store.chatSelect(id);
     _composerReset();
     _canvasStore.close();
     try {
       final res = await _conn.chatMsgList(chatId: Int64(id));
       _store.msgsReloadFromServer(id, res.messages);
+      _store.promptReconcileFromServerMsgs(id, _store.msgs.where((m) => m.chatId == id));
     } catch (_) {}
-    _timeline.scrollToBottom(force: true);
     if (!mounted) return;
-    if (MediaQuery.sizeOf(context).width < 720) _scaffoldKey.currentState?.closeDrawer();
+    _timeline.scrollToBottom(force: true);
   }
 
   Future<void> _chatTag(int id, List<String> current) async {
@@ -733,6 +792,11 @@ class _PageAIHomeState extends State<PageAIHome> {
           );
         } else {
           _composerReset();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Queued while the current reply finishes'), behavior: SnackBarBehavior.floating),
+            );
+          }
           await _followupRefresh();
         }
       } catch (e) {
@@ -800,6 +864,7 @@ class _PageAIHomeState extends State<PageAIHome> {
         reqId: reqId,
       );
     _store.promptBusyPut(true, chatId: chatId, reqId: reqId);
+    _promptWatchdogStart(reqId);
     unawaited(_followupRefresh());
     _store.msgStreamStart(chatId: chatId, reqId: reqId, model: _model.id);
     final promptStartedAtMs = _store.promptStartedAtMs;
@@ -883,6 +948,7 @@ class _PageAIHomeState extends State<PageAIHome> {
     } catch (e) {
       _store.msgStreamFail(msgErrorNormalize(e), chatId: streamChatId, startedAtMs: promptStartedAtMs);
     } finally {
+      _promptWatchdogCancel();
       _store.msgStreamFinalize(chatId: streamChatId, model: _model.id, startedAtMs: promptStartedAtMs);
       for (final cid in {streamChatId, localChatId}) {
         if (_store.promptBusyFor(cid)) _store.promptBusyPut(false, chatId: cid);
@@ -1164,10 +1230,10 @@ class _PageAIHomeState extends State<PageAIHome> {
 
   Widget _msgTile(MsgRow m, {required int i, required int count}) {
     final isUser = m.role == 'user';
-    final lastIdx = count - 1;
     final lastAssistantIdx = _store.activeMsgs.lastIndexWhere((x) => x.role == 'assistant');
-    final promptingThis = _store.promptBusyFor(m.chatId) && i == lastIdx && !isUser;
-    final usageStreaming = !isUser && msgUsageStreaming(busy: _store.promptBusyFor(m.chatId), i: i, lastAssistantIdx: lastAssistantIdx, lastIdx: lastIdx);
+    final liveReqId = _store.promptLiveReqId ?? _store.pendingPromptReqId ?? '';
+    final promptingThis = !isUser && _store.promptBusyFor(m.chatId) && m.reqId.isNotEmpty && m.reqId == liveReqId;
+    final usageStreaming = !isUser && msgUsageStreaming(busy: _store.promptBusyFor(m.chatId), msgReqId: m.reqId, liveReqId: liveReqId);
     final copyPrefix = msgCopyPrefix(role: m.role, userName: Session.instance.name, createdAtMs: m.createdAtMs);
 
     Widget body;
@@ -1356,53 +1422,52 @@ class _PageAIHomeState extends State<PageAIHome> {
         ),
       );
 
-  Widget _threadBody() {
-    final msgs = _store.activeMsgs;
-    if (_store.activeChatId == null && msgs.isEmpty) return _threadHero();
-    if (msgs.isEmpty) return _threadHero();
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: SelectionArea(
-            onSelectionChanged: (c) => _selectedPlain = c?.plainText,
-            contextMenuBuilder: _threadContextMenu,
-            child: UiChatTimeline(
-              key: ValueKey(_store.activeChatId ?? 'hero'),
-              controller: _timeline,
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              itemCount: msgs.length,
-              itemBuilder: (context, i) => ListenableBuilder(
-                listenable: _store,
-                builder: (_, __) {
-                  final rows = _store.activeMsgs;
-                  if (i >= rows.length) return const SizedBox.shrink();
-                  final m = rows[i];
-                  return Listener(
-                    onPointerDown: (_) => _menuMsgIndex = i,
-                    child: KeyedSubtree(
-                      key: ValueKey('${m.chatId}:${m.id}:${m.reqId}:${m.role}'),
-                      child: _msgTile(m, i: i, count: rows.length),
-                    ),
-                  );
-                },
+  Widget _threadBody() => ListenableBuilder(
+        listenable: _store,
+        builder: (context, _) {
+          final msgs = _store.activeMsgs;
+          if (_store.activeChatId == null && msgs.isEmpty) return _threadHero();
+          if (msgs.isEmpty) return _threadHero();
+          return Stack(
+            children: [
+              Positioned.fill(
+                child: SelectionArea(
+                  onSelectionChanged: (c) => _selectedPlain = c?.plainText,
+                  contextMenuBuilder: _threadContextMenu,
+                  child: UiChatTimeline(
+                    key: ValueKey(_store.activeChatId ?? 'hero'),
+                    controller: _timeline,
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                    itemCount: msgs.length,
+                    itemBuilder: (context, i) {
+                      if (i >= msgs.length) return const SizedBox.shrink();
+                      final m = msgs[i];
+                      return Listener(
+                        onPointerDown: (_) => _menuMsgIndex = i,
+                        child: KeyedSubtree(
+                          key: ValueKey(msgTileKey(m)),
+                          child: _msgTile(m, i: i, count: msgs.length),
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ),
-            ),
-          ),
-        ),
-        Positioned(
-          bottom: uiSafeBottomInset(context, 12),
-          right: 20,
-          child: ListenableBuilder(
-            listenable: Listenable.merge([_timeline.isAtBottom, _timeline.unreadStreamCount]),
-            builder: (ctx, _) {
-              if (_timeline.isAtBottom.value) return const SizedBox.shrink();
-              return _jumpToLatestPill(_timeline.unreadStreamCount.value);
-            },
-          ),
-        ),
-      ],
-    );
-  }
+              Positioned(
+                bottom: uiSafeBottomInset(context, 12),
+                right: 20,
+                child: ListenableBuilder(
+                  listenable: Listenable.merge([_timeline.isAtBottom, _timeline.unreadStreamCount]),
+                  builder: (ctx, _) {
+                    if (_timeline.isAtBottom.value) return const SizedBox.shrink();
+                    return _jumpToLatestPill(_timeline.unreadStreamCount.value);
+                  },
+                ),
+              ),
+            ],
+          );
+        },
+      );
 
   @override
   Widget build(BuildContext context) {

@@ -515,6 +515,42 @@ void main() {
     expect(store.msgs.single.reqId, 'uuid-1234');
   });
 
+  test('msgPut merge keeps stable clientKey when server assigns id', () {
+    final store = ChatStore();
+    const key = 'uuid-1234:user';
+    store.msgs = [
+      MsgRow(id: -1, chatId: 5, role: 'user', content: 'hello', reqId: 'uuid-1234', clientKey: key),
+    ];
+    store.msgPut(MsgRow(id: 100, chatId: 5, role: 'user', content: 'hello', reqId: 'uuid-1234'));
+    expect(store.msgs.single.clientKey, key);
+    expect(store.msgs.single.id, 100);
+  });
+
+  test('promptReconcileFromServerMsgs clears busy when server assistant is done', () {
+    final store = ChatStore();
+    store.chats = [ChatRow(id: 5, title: 'A', lastMsgStatus: 'streaming')];
+    store.msgs = [
+      MsgRow(id: 1, chatId: 5, role: 'user', content: 'hi', reqId: 'rid-1'),
+      MsgRow(id: 2, chatId: 5, role: 'assistant', content: '', reqId: 'rid-1'),
+    ];
+    store.promptBusyPut(true, chatId: 5, reqId: 'rid-1');
+    store.promptReconcileFromServerMsgs(5, [
+      MsgRow(id: 1, chatId: 5, role: 'user', content: 'hi', reqId: 'rid-1'),
+      MsgRow(
+        id: 99,
+        chatId: 5,
+        role: 'assistant',
+        content: 'done',
+        reqId: 'rid-1',
+        tokensOut: 3,
+        durationMs: 100,
+      ),
+    ]);
+    expect(store.promptBusy, isFalse);
+    expect(store.msgs.last.content, 'done');
+    expect(store.msgs.last.id, 99);
+  });
+
   test('msgStreamContent preserves repeated tokens such as indentation and punctuation', () {
     final store = ChatStore();
     store.msgs = [MsgRow(id: 11, chatId: 1, role: 'assistant', content: '')];

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:alienai_c35/c/app_id.dart';
 import 'package:alienai_c35/c/chat/chat_block.dart';
 import 'package:alienai_c35/c/chat/chat_conn.dart';
+import 'package:alienai_c35/c/remote/device_prompt_context.dart';
 import 'package:alienai_c35/c/parts/csai__version.dart';
 import 'package:alienai_c35/c/hint/hint_store.dart';
 import 'package:alienai_c35/c/mail/mail_inbox_bus.dart';
@@ -20,6 +21,17 @@ import 'package:alienai_c35/c/session.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
+
+/// Stable Flutter list key — survives local id → server snowflake merge.
+String msgClientKeyNew({required String role, String reqId = ''}) {
+  final rid = reqId.trim();
+  if (rid.isNotEmpty) return '$rid:$role';
+  return const Uuid().v4();
+}
+
+String msgTileKey(MsgRow m) =>
+    m.clientKey.isNotEmpty ? m.clientKey : '${m.chatId}:${m.id}:${m.reqId}:${m.role}';
 
 const _chatRowsKey = 'c35_chat_rows';
 String _chatMsgsKey(int chatId) => 'c35_chat_msgs_$chatId';
@@ -103,6 +115,7 @@ class ChatRow {
     this.lastMsgStatus = 'done',
     this.unreadStatus = false,
     this.contextSummaryPresent = false,
+    this.boundDeviceIid = 0,
   }) : tags = tags ?? const [];
 
   final int id;
@@ -116,6 +129,7 @@ class ChatRow {
   String lastMsgStatus;
   bool unreadStatus;
   bool contextSummaryPresent;
+  int boundDeviceIid;
 
   bool get pinned => pinnedAt > 0;
   bool get archived => archivedAt > 0;
@@ -132,6 +146,7 @@ class ChatRow {
         'lastMsgStatus': lastMsgStatus,
         'unreadStatus': unreadStatus,
         'contextSummaryPresent': contextSummaryPresent,
+        if (boundDeviceIid > 0) 'boundDeviceIid': boundDeviceIid,
       };
 
   factory ChatRow.fromJson(Map<String, dynamic> j) => ChatRow(
@@ -146,6 +161,7 @@ class ChatRow {
         lastMsgStatus: '${j['lastMsgStatus'] ?? 'done'}',
         unreadStatus: j['unreadStatus'] as bool? ?? false,
         contextSummaryPresent: j['contextSummaryPresent'] as bool? ?? false,
+        boundDeviceIid: j['boundDeviceIid'] as int? ?? 0,
       );
 }
 
@@ -165,6 +181,7 @@ class MsgRow {
     required this.chatId,
     required this.role,
     required this.content,
+    String clientKey = '',
     this.thought = '',
     this.attachmentsJson = '[]',
     this.blocksJson = '',
@@ -178,11 +195,13 @@ class MsgRow {
     this.error = '',
     this.createdAtMs = 0,
     List<MsgAttachment>? attachments,
-  }) : attachments = attachments ?? const [];
+  }) : attachments = attachments ?? const [],
+       clientKey = clientKey.isNotEmpty ? clientKey : msgClientKeyNew(role: role, reqId: reqId);
 
   final int id;
   final int chatId;
   final String role;
+  final String clientKey;
   String content;
   String thought;
   String attachmentsJson;
@@ -208,6 +227,7 @@ class MsgRow {
         'blocksJson': blocksJson,
         'traceJson': traceJson,
         'reqId': reqId,
+        'clientKey': clientKey,
         'tokensIn': tokensIn,
         'tokensOut': tokensOut,
         'durationMs': durationMs,
@@ -229,6 +249,7 @@ class MsgRow {
       blocksJson: '${j['blocksJson'] ?? ''}',
       traceJson: '${j['traceJson'] ?? ''}',
       reqId: '${j['reqId'] ?? ''}',
+      clientKey: '${j['clientKey'] ?? ''}',
       tokensIn: j['tokensIn'] as int? ?? 0,
       tokensOut: j['tokensOut'] as int? ?? 0,
       durationMs: j['durationMs'] as int? ?? 0,
@@ -250,6 +271,7 @@ class MsgRow {
     String? blocksJson,
     String? traceJson,
     String? reqId,
+    String? clientKey,
     int? tokensIn,
     int? tokensOut,
     int? durationMs,
@@ -269,6 +291,7 @@ class MsgRow {
         blocksJson: blocksJson ?? this.blocksJson,
         traceJson: traceJson ?? this.traceJson,
         reqId: reqId ?? this.reqId,
+        clientKey: clientKey ?? this.clientKey,
         tokensIn: tokensIn ?? this.tokensIn,
         tokensOut: tokensOut ?? this.tokensOut,
         durationMs: durationMs ?? this.durationMs,
@@ -296,6 +319,7 @@ class ChatStore extends ChangeNotifier {
   int? promptChatId;
   int promptStartedAtMs = 0;
   String? pendingPromptReqId;
+  String? promptLiveReqId;
   final Set<int> _deletingChatIds = {};
 
   bool promptBusyFor(int? chatId) => promptBusy && chatId != null && chatId == promptChatId;
@@ -749,6 +773,7 @@ class ChatStore extends ChangeNotifier {
       lastMsgStatus: status,
       unreadStatus: unread,
       contextSummaryPresent: chatMetaContextSummaryPresent(chat.metaJson),
+      boundDeviceIid: chatMetaBoundDeviceIid(chat.metaJson),
     );
     final pendingIdx = chats.indexWhere((c) => c.pending && c.id != id);
     if (pendingIdx >= 0) {
@@ -821,6 +846,7 @@ class ChatStore extends ChangeNotifier {
         id: row.id != 0 ? row.id : old.id,
         chatId: row.chatId != 0 ? row.chatId : old.chatId,
         role: row.role.isNotEmpty ? row.role : old.role,
+        clientKey: old.clientKey,
         content: _mergeContent(old, row),
         thought: msgMergeText(old.thought, row.thought),
         attachmentsJson: _mergeAttachmentsJson(old, row),
@@ -1090,6 +1116,40 @@ class ChatStore extends ChangeNotifier {
     promptChatId = null;
     promptStartedAtMs = 0;
     pendingPromptReqId = null;
+    promptLiveReqId = null;
+  }
+
+  /// When server already finished the turn but client stream state stalled (reconnect / key reuse).
+  void promptReconcileFromServerMsgs(int chatId, Iterable<MsgRow> rows) {
+    for (final c in chats) {
+      if (c.id == chatId && c.lastMsgStatus == 'streaming' && !promptBusyFor(chatId)) {
+        chatStatusStaleClear(chatId: chatId);
+      }
+    }
+    final rid = pendingPromptReqId?.trim() ?? '';
+    if (rid.isEmpty || !promptBusyFor(chatId)) return;
+    MsgRow? assistant;
+    for (final m in rows) {
+      if (m.chatId != chatId || m.role != 'assistant' || m.reqId != rid) continue;
+      assistant = m;
+    }
+    if (assistant == null) return;
+    final a = assistant;
+    final settled = a.error.trim().isNotEmpty || a.content.trim().isNotEmpty || a.tokensOut > 0 || (a.id > 0 && a.durationMs > 0);
+    if (!settled) return;
+    msgPut(a, touchPreview: false);
+    msgStreamEnd(
+      chatId: chatId,
+      msgId: a.id,
+      tokensIn: a.tokensIn,
+      tokensOut: a.tokensOut,
+      costUsd: a.costUsd,
+      durationMs: a.durationMs,
+      reqId: rid,
+      model: a.model,
+      error: a.error,
+    );
+    promptBusyPut(false, chatId: chatId);
   }
 
   int chatEnsurePending() {
@@ -1111,6 +1171,7 @@ class ChatStore extends ChangeNotifier {
       promptBusy = true;
       promptChatId = chatId ?? promptChatId;
       pendingPromptReqId = reqId;
+      promptLiveReqId = reqId?.trim().isNotEmpty == true ? reqId!.trim() : pendingPromptReqId;
       promptStartedAtMs = DateTime.now().millisecondsSinceEpoch;
     } else {
       final id = chatId ?? promptChatId;

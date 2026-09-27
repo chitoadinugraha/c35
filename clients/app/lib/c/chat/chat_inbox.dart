@@ -28,9 +28,12 @@ String chatMsgTraceLabel(String reqId) {
 bool msgCanTrace({required bool viewerIsRoot, required bool isAssistant, required String reqId}) =>
     isAssistant && reqId.trim().isNotEmpty;
 
-/// Hide usage only on the in-flight assistant (last row). During Ollama wait the last row is the user, so the previous assistant keeps usage.
-bool msgUsageStreaming({required bool busy, required int i, required int lastAssistantIdx, required int lastIdx}) =>
-    busy && i == lastAssistantIdx && i == lastIdx;
+/// Usage spinner on the assistant row for the active prompt turn (`req_id`), not list index.
+bool msgUsageStreaming({required bool busy, required String msgReqId, required String liveReqId}) {
+  final rid = msgReqId.trim();
+  final live = liveReqId.trim();
+  return busy && rid.isNotEmpty && live.isNotEmpty && rid == live;
+}
 
 bool msgThoughtIsPlaceholder(String raw) {
   final t = raw.trim().toLowerCase().replaceAll('…', '...').replaceAll(RegExp(r'\.+$'), '');

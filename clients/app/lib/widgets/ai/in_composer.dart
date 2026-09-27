@@ -544,15 +544,15 @@ class _InComposerState extends State<InComposer> {
     _historyIndex = -1;
     _draftText = '';
 
-    final text = _controller.text.trim();
-    if (text == '/clear') {
+    final raw = _controller.text.trim();
+    if (raw == '/clear') {
       _controller.clear();
       _attachments.clear();
       setState(() => _submitting = false);
       widget.onNewChat?.call();
       return;
     }
-    if (text == '/model') {
+    if (raw == '/model') {
       _controller.clear();
       _attachments.clear();
       setState(() => _submitting = false);
@@ -561,12 +561,6 @@ class _InComposerState extends State<InComposer> {
     }
 
     String? turnToolMode;
-    String submitText = text;
-    if (text.startsWith('/ask ') || text == '/ask') {
-      turnToolMode = 'ask';
-      submitText = text.length > 4 ? text.substring(4).trim() : '';
-    }
-
     final atts = <MsgAttachment>[];
     for (var item in _attachments) {
       if ((item.hash == null || item.hash!.isEmpty) && item.bytes.isNotEmpty) {
@@ -576,6 +570,12 @@ class _InComposerState extends State<InComposer> {
       if (item.bytes.isNotEmpty || (item.hash != null && item.hash!.isNotEmpty)) {
         atts.add(MsgAttachment.fromStaged(item));
       }
+    }
+
+    var submitText = _controller.text.trim();
+    if (submitText.startsWith('/ask ') || submitText == '/ask') {
+      turnToolMode = 'ask';
+      submitText = submitText.length > 4 ? submitText.substring(4).trim() : '';
     }
 
     if (submitText.isEmpty && atts.isEmpty) {

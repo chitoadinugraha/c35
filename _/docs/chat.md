@@ -110,6 +110,21 @@ Server resolves all refs → **`MentionContext`** (sites, devices, …). Prompt 
 
 **Multi-site:** compare/report turns may mention 2+ sites; writes still require explicit `site_iid` when ambiguous. Reads use `site.query.run`.
 
+### Device-bound prompt contexts (Remote composer)
+
+Multiple **`kind=prompt`** threads may bind to one paired device via `ai.chat.meta`:
+
+| Meta key | Meaning |
+|----------|---------|
+| `bound_device_iid` | Device identity id (snowflake) — stored on **`ai.chat.bound_device_iid`** (indexed) and mirrored in `meta` for wire |
+| `bound_device_kind` | Optional `remote` \| `iot` (display only) |
+
+- **Create / list:** `ReqChatDeviceContextCreate`, `ReqChatDeviceContextList` (wire 157–158). Not the same as `chat_id=0` on a generic Home prompt.
+- **Reuse:** many contexts per device; client picks active `chat_id` (prefs + resume list). Home inbox still lists all bound threads.
+- **Prompt turns:** server enforces locked device mention + `device_iids` when `bound_device_iid > 0` (`bound_device_prompt_prepare`).
+
+UI: Devices → Remote toolbar chat icon — mini composer + history sheet. See [`_/docs/remote.md`](remote.md).
+
 ---
 
 ### Turn Execution Modes (`tool_mode`)
@@ -245,6 +260,20 @@ Following the principle *"No schema migration. Tools and citations reconstruct f
 2. The client fetches traces via `tracePrefetch(reqId)` (polled live during prompt turn, pre-fetched for historical messages).
 3. [`citationsFromTraceLogs`](../clients/app/lib/c/trace/trace_view.dart) extracts URLs, titles, and snippets, deduplicating by domain host.
 4. [`UiCitationChips`](../clients/app/lib/widgets/ai/ui_citation_chips.dart) renders interactive source chips featuring Google S2 Favicon integration and external URL launching.
+
+---
+
+## Flutter Home client (prompt thread UI)
+
+Server rows in `ai.chat_msg` are authoritative. The app keeps a local `ChatStore` cache and optimistic rows while a turn streams.
+
+| Concept | Role |
+|---------|------|
+| **`clientKey`** | Stable per-row id for Flutter list keys (`req_id:role` or UUID). Does **not** change when local negative `id` merges to server snowflake. |
+| **`promptBusy` / `promptLiveReqId`** | Client-only streaming flags; must match the active turn `req_id`. Live “thinking” UI keys off `req_id`, not list index. |
+| **Reconcile** | On reconnect, chat open, app resume, or sync push: if server assistant for `pendingPromptReqId` is already done, clear busy and merge row (`promptReconcileFromServerMsgs`). |
+
+Wrong bubble text + infinite spinner with correct server history usually means **stale client state** — not cross-user leakage. Hot reload rebuilds widgets; reconcile aligns store to server without reload.
 
 ---
 
