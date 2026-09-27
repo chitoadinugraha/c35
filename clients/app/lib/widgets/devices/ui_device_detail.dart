@@ -4,6 +4,7 @@ import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
 import 'package:alienai_c35/c/pb/c35/remote.pbenum.dart';
 import 'package:alienai_c35/c/pb/c35/skill.pb.dart';
+import 'package:alienai_c35/c/remote/device_prompt_context.dart';
 import 'package:alienai_c35/c/remote/remote_session.dart';
 import 'package:alienai_c35/c/settings/remote_prefs.dart';
 import 'dart:async';
@@ -44,15 +45,25 @@ class UiDeviceDetail extends StatefulWidget {
 }
 
 class _UiDeviceDetailState extends State<UiDeviceDetail> {
-  var _remoteInteractMode = RemoteInteractMode.control;
+  var _remoteInteractMode = RemoteInteractMode.mouse;
   var _remoteShowStats = false;
   final _skillKey = GlobalKey<UiSkillMasterDetailState>();
   late final RemoteSession _session;
+  DevicePromptContextStore? _promptStore;
 
   @override
   void initState() {
     super.initState();
-    _session = RemoteSession.of(widget.chatConn, widget.row.identity.iid.toInt());
+    final deviceIid = widget.row.identity.iid.toInt();
+    _session = RemoteSession.of(widget.chatConn, deviceIid);
+    if (widget.row.identity.kind.toLowerCase() == 'remote') {
+      _promptStore = DevicePromptContextStore(
+        deviceIid: deviceIid,
+        deviceName: widget.row.identity.name,
+        chatConn: widget.chatConn,
+      );
+      unawaited(_promptStore!.init());
+    }
     if (widget.row.identity.kind.toLowerCase() == 'remote' && widget.chatConn.connected && !_session.connected.value) {
       _session.start().catchError((e) {
         lError('device detail auto-connect failed: $e');
@@ -64,7 +75,7 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> {
           final modeName = RemotePrefs.instance.interactMode;
           final mode = RemoteInteractMode.values.firstWhere(
             (m) => m.name == modeName,
-            orElse: () => RemoteInteractMode.control,
+            orElse: () => RemoteInteractMode.mouse,
           );
           setState(() {
             _remoteShowStats = RemotePrefs.instance.showStreamStats;
@@ -78,6 +89,7 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> {
 
   @override
   void dispose() {
+    _promptStore?.dispose();
     super.dispose();
   }
 
@@ -137,52 +149,15 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> {
                             ListenableBuilder(
                               listenable: Listenable.merge([_session.connected, _session.mode, _session.status]),
                               builder: (context, _) {
-                                final badge = _remoteBadge(online, _session);
                                 if (mobile && !_session.connected.value && widget.chatConn.connected) {
-                                  return Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      badge,
-                                      const SizedBox(width: 6),
-                                      _toolBtn(
-                                        icon: Icons.refresh_rounded,
-                                        tooltip: 'Reconnect',
-                                        onPressed: () => _session.start().catchError((e) => lError('device reconnect: $e')),
-                                      ),
-                                    ],
+                                  return _toolBtn(
+                                    icon: Icons.refresh_rounded,
+                                    tooltip: 'Reconnect',
+                                    onPressed: () => _session.start().catchError((e) => lError('device reconnect: $e')),
                                   );
                                 }
-                                return badge;
+                                return _remoteBadge(_session);
                               },
-                            ),
-                            const SizedBox(width: 8),
-                            ListenableBuilder(
-                              listenable: Listenable.merge([_session.updateReady, _session.updateVersion]),
-                              builder: (context, _) => UiRemoteSessionMenu(
-                                mode: _remoteInteractMode,
-                                showStreamStats: _remoteShowStats,
-                                onModeChanged: (m) {
-                                  setState(() => _remoteInteractMode = m);
-                                  _session.isControlEnabled.value = m != RemoteInteractMode.view;
-                                },
-                                onShowStreamStatsChanged: (v) {
-                                  setState(() => _remoteShowStats = v);
-                                  unawaited(RemotePrefs.instance.setShowStreamStats(v));
-                                },
-                                onTeach: () => _remoteTeach(context),
-                                onFullscreen: _remoteFullscreen,
-                                updateReady: _session.updateReady.value,
-                                updateVersion: _session.updateVersion.value,
-                                onApplyUpdate: () {
-                                  _session.triggerUpdate();
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Agent update triggered. It will reconnect once restarted.'),
-                                      duration: Duration(seconds: 4),
-                                    ),
-                                  );
-                                },
-                              ),
                             ),
                           ],
                         ],
@@ -241,22 +216,39 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> {
       );
   Widget _tabBody(String kind, String tab, bool online) {
     if (kind == 'remote' && tab == 'Remote') {
-      return UiRemoteDevice(
-        session: _session,
-        deviceName: widget.row.identity.name,
-        online: online,
-        compact: _isMobile(context),
-        interactMode: _remoteInteractMode,
-        showStreamStats: _remoteShowStats,
-        onInteractModeChanged: (m) {
-          setState(() => _remoteInteractMode = m);
-          _session.isControlEnabled.value = m != RemoteInteractMode.view;
-          unawaited(RemotePrefs.instance.setInteractMode(m.name));
-        },
-        onShowStreamStatsChanged: (v) {
-          setState(() => _remoteShowStats = v);
-          unawaited(RemotePrefs.instance.setShowStreamStats(v));
-        },
+      return ListenableBuilder(
+        listenable: Listenable.merge([_session.updateReady, _session.updateVersion]),
+        builder: (context, _) => UiRemoteDevice(
+          session: _session,
+          promptStore: _promptStore,
+          deviceName: widget.row.identity.name,
+          online: online,
+          compact: _isMobile(context),
+          interactMode: _remoteInteractMode,
+          showStreamStats: _remoteShowStats,
+          onInteractModeChanged: (m) {
+            setState(() => _remoteInteractMode = m);
+            _session.isControlEnabled.value = m != RemoteInteractMode.view;
+            unawaited(RemotePrefs.instance.setInteractMode(m.name));
+          },
+          onShowStreamStatsChanged: (v) {
+            setState(() => _remoteShowStats = v);
+            unawaited(RemotePrefs.instance.setShowStreamStats(v));
+          },
+          onTeach: () => _remoteTeach(context),
+          onFullscreen: _remoteFullscreen,
+          updateReady: _session.updateReady.value,
+          updateVersion: _session.updateVersion.value,
+          onApplyUpdate: () {
+            _session.triggerUpdate();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Agent update triggered. It will reconnect once restarted.'),
+                duration: Duration(seconds: 4),
+              ),
+            );
+          },
+        ),
       );
     }
     if (kind == 'remote' && tab == 'Files') return UiDeviceFiles(session: _session);
@@ -297,27 +289,19 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> {
     }
   }
 
-  Widget _remoteBadge(bool clusterOnline, RemoteSession session) {
+  Widget _remoteBadge(RemoteSession session) {
     if (!widget.chatConn.connected) {
       return _pillBadge('Offline', fg: _muted, bg: const Color(0xFF27272A), border: const Color(0xFF3F3F46));
     }
     if (session.connected.value) {
       final relay = session.mode.value == RemoteConnectionMode.REMOTE_CONNECTION_MODE_RELAY;
-      final label = relay ? 'Relay' : 'Direct';
-      final fg = relay ? const Color(0xFFFDE68A) : const Color(0xFF86EFAC);
-      final bg = relay ? const Color(0xFF422006) : const Color(0xFF14532D);
-      final border = relay ? const Color(0xFFF59E0B) : const Color(0xFF22C55E);
-      return _pillBadge(label, fg: fg, bg: bg, border: border);
+      if (!relay) return const SizedBox.shrink();
+      return _pillBadge('Relay', fg: const Color(0xFFFDE68A), bg: const Color(0xFF422006), border: const Color(0xFFF59E0B));
     }
     if (session.isLinking) {
       return _pillBadge('Connecting…', fg: const Color(0xFFFDE68A), bg: const Color(0xFF422006), border: const Color(0xFFF59E0B));
     }
-    return _pillBadge(
-      clusterOnline ? 'Alien AI Cloud' : 'Cloud offline',
-      fg: clusterOnline ? const Color(0xFF86EFAC) : _muted,
-      bg: clusterOnline ? const Color(0xFF14532D) : const Color(0xFF27272A),
-      border: clusterOnline ? const Color(0xFF22C55E) : const Color(0xFF3F3F46),
-    );
+    return const SizedBox.shrink();
   }
 
   Widget _pillBadge(String label, {required Color fg, required Color bg, required Color border}) => Container(

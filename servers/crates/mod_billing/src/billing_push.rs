@@ -1,3 +1,6 @@
+use c35_nats::{
+    user_app_subject_balance, user_app_subject_commission, user_app_subject_quota,
+};
 use c35_proto::{BillingPushBalance, BillingPushCommission, BillingPushQuota, WsRes, ws_res};
 use prost::Message;
 use sqlx::{PgPool, Row};
@@ -98,19 +101,19 @@ pub async fn billing_notify_owner(
     if let Some(nats) = nats {
         let _ = nats
             .publish(
-                format!("c35.user.{owner_iid}.balance"),
+                user_app_subject_balance(owner_iid),
                 balance.encode_to_vec().into(),
             )
             .await;
         let _ = nats
             .publish(
-                format!("c35.user.{owner_iid}.quota"),
+                user_app_subject_quota(owner_iid),
                 quota.encode_to_vec().into(),
             )
             .await;
         let _ = nats
             .publish(
-                format!("c35.user.{owner_iid}.commission"),
+                user_app_subject_commission(owner_iid),
                 commission.encode_to_vec().into(),
             )
             .await;

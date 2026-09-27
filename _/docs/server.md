@@ -375,7 +375,7 @@ Server WS clients receive pair updates via NATS fanout → `ChannelPairPush` (se
 | `c35.act.device.{device_iid}.task.run` | server → agent (JetStream workqueue) | `ActDeviceTaskRun` |
 | `c35.ev.device.{device_iid}.task.{run_id}` | agent → server | `EvDeviceTaskProgress` / `EvDeviceTaskDone` |
 | `c35.ev.device.{device_iid}.presence` | agent ↔ server | `EvDevicePresence` |
-| `c35.user.{owner_iid}.task_run` | server → client WS | `TaskRunPush` |
+| `c35.user.{owner_iid}.app.task_run` | server → client WS | `TaskRunPush` |
 
 JetStream streams `C35_CHAT_PROMPT`, `C35_DEVICE_TASK`, `C35_TASK_SCHEDULE`. Queue groups `c35-prompt-dispatch`, `c35-task-dispatch`. No YB dispatch polling — see [remote.md](remote.md), [nats.md](nats.md).
 

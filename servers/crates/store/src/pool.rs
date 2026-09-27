@@ -19,6 +19,9 @@ pub struct PoolConfig {
     pub test_before_acquire: bool,
 }
 
+/// Connections reserved for WS, NATS workers, probes, and background tasks (not prompt turns).
+pub const POOL_RESERVED_CONNECTIONS: u32 = 10;
+
 impl PoolConfig {
     pub fn from_env() -> Self {
         let max = env_u32("PG_MAX_CONNECTIONS", 24);
@@ -33,6 +36,13 @@ impl PoolConfig {
             slow_statement: Duration::from_millis(env_u64("PG_SLOW_STATEMENT_MS", 1_000)),
             test_before_acquire: env_bool("PG_TEST_BEFORE_ACQUIRE", true),
         }
+    }
+
+    /// Max concurrent prompt turns that should share the SQLx pool without starving other work.
+    pub fn prompt_run_concurrency_cap(&self) -> usize {
+        self.max_connections
+            .saturating_sub(POOL_RESERVED_CONNECTIONS)
+            .max(4) as usize
     }
 }
 

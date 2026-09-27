@@ -15,6 +15,7 @@ pub mod skill_submit;
 pub mod skill_tape;
 pub mod task_report;
 pub mod task_run;
+pub mod tools;
 pub mod update;
 pub mod version;
 pub mod webrtc;

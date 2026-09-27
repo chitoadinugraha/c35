@@ -57,6 +57,10 @@ Write-Host '==> migrate_csa_google.py (CSA Google -> ai.identity_provider; zero 
 python (Join-Path $migrateDir 'migrate_csa_google.py')
 if ($LASTEXITCODE -ne 0) { throw 'migrate_csa_google failed' }
 
+Write-Host '==> backfill_identity_contact_meta.py (meta.email + email providers + retire OAuth shells)'
+python (Join-Path $migrateDir 'backfill_identity_contact_meta.py')
+if ($LASTEXITCODE -ne 0) { throw 'backfill_identity_contact_meta failed' }
+
 if (-not $SkipAvatars) {
     Write-Host '==> migrate_avatars_to_fs.py (http avatars -> CAS)'
     python (Join-Path $migrateDir 'migrate_avatars_to_fs.py')

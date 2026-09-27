@@ -1,3 +1,4 @@
+import 'package:alienai_c35/c/parts/version_label.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:flutter/material.dart';
 
@@ -8,6 +9,25 @@ const _text = Color(0xFFF4F4F5);
 const _muted = Color(0xFFA1A1AA);
 const _inColor = Color(0xFF06B6D4);
 const _outColor = Color(0xFFA78BFA);
+
+/// App bar label beside [UiContextMeter] (build id for support screenshots).
+class UiAppBarVersionLabel extends StatelessWidget {
+  const UiAppBarVersionLabel({super.key});
+
+  static const _labelStyle = TextStyle(color: _muted, fontSize: 10, fontWeight: FontWeight.w500, height: 1.15);
+  static const _versionStyle = TextStyle(color: _muted, fontSize: 9, height: 1.15, fontFeatures: [FontFeature.tabularFigures()]);
+
+  @override
+  Widget build(BuildContext context) => Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('Alien AI', style: _labelStyle),
+          Text('Version ${csaiVersionBuild()}', style: _versionStyle),
+        ],
+      );
+}
 
 class UiContextMeter extends StatefulWidget {
   const UiContextMeter({

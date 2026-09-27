@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use c35_mod_billing::{billing_resolve, billing_usage_report, TurnBillingCtx};
 use sqlx::PgPool;
 use tokio_util::sync::CancellationToken;
@@ -22,6 +22,7 @@ use crate::prompt::user_context::user_prompt_context_get;
 use crate::prompt::tool_loop::prompt_cluster_turn;
 use crate::prompt::ChatReq;
 use crate::tools::{cluster_tools, TurnCtx};
+use crate::prompt_run::prompt_run_concurrency_acquire;
 use crate::turn_tracer::TurnTracer;
 
 pub async fn channel_prompt_turn(
@@ -38,6 +39,9 @@ pub async fn channel_prompt_turn(
     if gemini_api_key().is_empty() {
         anyhow::bail!("GEMINI_API_KEY not set");
     }
+    let _concurrency = prompt_run_concurrency_acquire()
+        .await
+        .context("prompt turn concurrency limit")?;
     let turn_started = Instant::now();
     let bctx = billing_resolve(
         pool,
@@ -89,6 +93,8 @@ pub async fn channel_prompt_turn(
         &crate::mention_context::MentionContext::empty(),
         &crate::site_capability::SiteCapabilityView::empty(),
         compose_opts,
+        owner_iid,
+        locale,
     )
     .await;
     let user_ctx = user_prompt_context_get(pool, owner_iid).await;

@@ -9,3 +9,14 @@ String csaiVersionBuild() {
 String appVersionLabel() => 'v${csaiVersionBuild()}';
 
 String appVersionDetailLabel() => 'Version: ${csaiVersionBuild()}';
+
+String settingsReleaseVersionsFooter({
+  int? appLatest,
+  int? agentLatest,
+  int? serverLatest,
+}) =>
+    [
+      'App ${appLatest ?? '—'}',
+      'Remote ${agentLatest ?? '—'}',
+      'Server ${serverLatest ?? '—'}',
+    ].join(' · ');

@@ -91,6 +91,7 @@ class _PageSettingsState extends State<PageSettings> {
   var _hasPin = false;
   var _unlockMode = 'tap';
   late String _serverLabel = '';
+  late String _releaseVersionsFooter = '';
   late String _speechLang = VoicePrefs.instance.speechLang;
   late String _sttEngine = VoicePrefs.instance.sttEngine;
   late String _ttsEngine = VoicePrefs.instance.ttsEngine;
@@ -144,11 +145,20 @@ class _PageSettingsState extends State<PageSettings> {
 
   Future<void> _hydrate() async {
     final host = await serverHostFooterLabel();
+    final apiBase = await serverHostActiveBase();
     var apkUrl = '';
+    var releaseFooter = '';
     if (defaultTargetPlatform == TargetPlatform.android) {
-      final base = await serverHostActiveBase();
-      final release = await appReleaseGet(base, platform: 'android');
+      final release = await appReleaseGet(apiBase, platform: 'android');
       apkUrl = release?.apkUrl ?? '';
+    }
+    final platforms = await appReleasePlatformsGet(apiBase);
+    if (platforms != null) {
+      releaseFooter = settingsReleaseVersionsFooter(
+        appLatest: platforms.versionOf(appReleasePlatformForDevice()),
+        agentLatest: platforms.versionOf('remote-windows'),
+        serverLatest: platforms.versionOf('server'),
+      );
     }
     UserSettingsRes? settings;
     try {
@@ -162,6 +172,7 @@ class _PageSettingsState extends State<PageSettings> {
       _pic = Session.instance.pic;
       _serverLabel = host;
       _apkUrl = apkUrl;
+      _releaseVersionsFooter = releaseFooter;
       if (settings != null) {
         _hasPassword = settings.hasPassword;
         _hasPin = settings.hasPin;
@@ -866,7 +877,16 @@ class _PageSettingsState extends State<PageSettings> {
                           ]),
                         ),
                         const SizedBox(height: 24),
-                        Center(child: Text(appVersionLabel(), style: const TextStyle(color: Color(0xFF52525B), fontSize: 12))),
+                        Center(
+                          child: Text(
+                            [
+                              appVersionLabel(),
+                              if (_releaseVersionsFooter.isNotEmpty) _releaseVersionsFooter,
+                            ].join(' · '),
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Color(0xFF52525B), fontSize: 12),
+                          ),
+                        ),
                         const SizedBox(height: 4),
                         Center(
                           child: GestureDetector(

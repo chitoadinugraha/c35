@@ -310,6 +310,12 @@ mod tests {
     use serde_json::json;
 
     #[test]
+    fn platform_slug_allows_hyphen() {
+        let platform = "ffmpeg-windows";
+        assert!(platform.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-'));
+    }
+
+    #[test]
     fn version_release_build_windows_from_hash() {
         let stored = json!({
             "version": 235,

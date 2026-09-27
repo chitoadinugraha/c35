@@ -1609,7 +1609,7 @@ class BillingTopupRequest extends $pb.GeneratedMessage {
   void clearUpdatedTsMs() => $_clearField(15);
 }
 
-/// NATS push: c35.user.{iid}.balance | .quota | .commission
+/// NATS app lane: c35.user.{iid}.app.balance | .app.quota | .app.commission (see _/docs/sync.md)
 class BillingPushBalance extends $pb.GeneratedMessage {
   factory BillingPushBalance({
     $fixnum.Int64? billingAccountId,

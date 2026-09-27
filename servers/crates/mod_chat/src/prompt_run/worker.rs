@@ -10,7 +10,6 @@ use c35_proto::{PromptRunJob, ResPromptEnd, ResPromptFail};
 use futures_util::StreamExt;
 use serde::Deserialize;
 use sqlx::PgPool;
-use tokio::sync::Semaphore;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn, Instrument};
@@ -18,6 +17,7 @@ use tracing::{error, info, warn, Instrument};
 use crate::prompt_turn::{prompt_turn, PromptTurnHooks};
 
 use super::checkpoint::{prompt_run_max_concurrent, prompt_run_should_stop};
+use super::concurrency::prompt_run_concurrency_acquire;
 use super::fanout::{
     prompt_run_fanout_delta, prompt_run_fanout_end, prompt_run_fanout_fail, prompt_run_fanout_publish,
     prompt_run_push_from_row,
@@ -60,7 +60,6 @@ async fn prompt_run_worker_loop(pool: PgPool, nats: Client, draining: Arc<Atomic
     let js = prompt_jetstream_ensure(&nats).await?;
     let consumer = prompt_jetstream_consumer(&js).await?;
     let max_concurrent = prompt_run_max_concurrent();
-    let sem = Arc::new(Semaphore::new(max_concurrent));
     info!(
         max_concurrent,
         "[c35:prompt_run] JetStream consumer ready stream={} subject={}",
@@ -78,11 +77,13 @@ async fn prompt_run_worker_loop(pool: PgPool, nats: Client, draining: Arc<Atomic
         };
         let Some(msg) = msg else { break };
         let msg = msg.context("jetstream message")?;
-        let permit = sem
-            .clone()
-            .acquire_owned()
-            .await
-            .context("prompt_run concurrency semaphore closed")?;
+        let permit = match prompt_run_concurrency_acquire().await {
+            Ok(p) => p,
+            Err(e) => {
+                warn!("[c35:prompt_run] concurrency acquire failed: {e:#}");
+                continue;
+            }
+        };
         let pool = pool.clone();
         let nats = nats.clone();
         let draining = draining.clone();

@@ -1,5 +1,6 @@
 mod block;
 mod coach;
+mod coach_enrich;
 mod compact;
 mod copy;
 mod day;
@@ -15,6 +16,7 @@ pub use block::{
     append_block, consumption_food_block, consumption_glance_block, food_with_items, replace_consumption_block,
 };
 pub use compact::{consumption_compact_for_llm, items_compact_for_llm, meal_hints_json, nutrition_summary_json, today_compact_for_llm};
+pub use coach_enrich::{consumption_coach_enrich, consumption_coach_enrich_days};
 pub use coach::{build_food_coach_ctx, food_coach_llm, today_food_counts, FoodCoachCtx};
 pub use copy::{food_chat_title, food_log_coach, food_log_headline, today_recap_coach};
 pub use day::{day_bounds_ms, day_id_from_query, infer_meal_type, local_hour, multi_day_bounds_ms, resolve_day_id, today_day_id, timezone_from_locale};

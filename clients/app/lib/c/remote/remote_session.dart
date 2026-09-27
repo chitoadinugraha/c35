@@ -61,6 +61,7 @@ class RemoteSession {
 
   final connected = ValueNotifier<bool>(false);
   final status = ValueNotifier<RemoteSessionStatus>(RemoteSessionStatus.disconnected);
+  late final Listenable presenceListenable = Listenable.merge([connected, status]);
   final mode = ValueNotifier<RemoteConnectionMode>(RemoteConnectionMode.REMOTE_CONNECTION_MODE_UNSPECIFIED);
   final screenFrame = ValueNotifier<RemoteScreenFrame?>(null);
   final isControlEnabled = ValueNotifier<bool>(true);
@@ -68,6 +69,7 @@ class RemoteSession {
   final hasVideoTrack = ValueNotifier<bool>(false);
   final updateReady = ValueNotifier<bool>(false);
   final updateVersion = ValueNotifier<int?>(null);
+  final remoteCursorShape = ValueNotifier<String>('arrow');
 
   final videoRenderer = RTCVideoRenderer();
   var _rendererInitialized = false;
@@ -233,7 +235,7 @@ class RemoteSession {
       };
       _pc!.onDataChannel = (ch) {
         if (ch.label == _fsChannelLabel) _bindFsChannel(ch);
-        if (ch.label == _inputChannelLabel) _inputChannel = ch;
+        if (ch.label == _inputChannelLabel) _bindInputChannel(ch);
         if (ch.label == _screenChannelLabel) _bindScreenChannel(ch);
       };
 
@@ -241,6 +243,7 @@ class RemoteSession {
       _bindFsChannel(_fsChannel!);
 
       _inputChannel = await _pc!.createDataChannel(_inputChannelLabel, RTCDataChannelInit()..ordered = true);
+      _bindInputChannel(_inputChannel!);
       _screenChannel = await _pc!.createDataChannel(_screenChannelLabel, RTCDataChannelInit()..ordered = true);
       _bindScreenChannel(_screenChannel!);
 
@@ -284,6 +287,7 @@ class RemoteSession {
     _lastDecodedFrames = 0;
     fps.value = 0;
     screenFrame.value = null;
+    remoteCursorShape.value = 'arrow';
     hasVideoTrack.value = false;
     videoRenderer.srcObject = null;
     isControlEnabled.value = false;
@@ -315,6 +319,19 @@ class RemoteSession {
     ch.onDataChannelState = (s) {
       l('remote-fs channel state=$s');
       if (s == RTCDataChannelState.RTCDataChannelOpen) fs = RemoteFsApi(ch);
+    };
+  }
+
+  void _bindInputChannel(RTCDataChannel ch) {
+    _inputChannel = ch;
+    ch.onMessage = (msg) {
+      if (!msg.isBinary) return;
+      try {
+        final cursor = RemoteCursorEvent.fromBuffer(msg.binary);
+        if (cursor.shape.isNotEmpty) {
+          remoteCursorShape.value = cursor.shape;
+        }
+      } catch (_) {}
     };
   }
 

@@ -13,7 +13,7 @@ fn site_mention(iid: i64, alien_id: &str, name: &str) -> MentionResolved {
             color: "#34d399".into(),
             sort: 40,
             label_key: name.into(),
-            caption_key: "Website".into(),
+            caption_key: "Site".into(),
             search_terms: vec![name.to_lowercase(), alien_id.to_lowercase(), iid.to_string()],
             enabled: true,
             title: name.into(),

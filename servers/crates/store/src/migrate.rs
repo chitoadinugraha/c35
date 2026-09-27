@@ -1,5 +1,7 @@
 use anyhow::{Context, Result};
-use sqlx::{Error as SqlxError, PgPool, Row};
+use sqlx::postgres::PgConnectOptions;
+use sqlx::{ConnectOptions, Error as SqlxError, PgConnection, PgPool, Row};
+use std::str::FromStr;
 use std::collections::BTreeSet;
 use std::future::Future;
 use std::path::{Path, PathBuf};
@@ -184,21 +186,26 @@ pub async fn migrate_audit(pool: &PgPool) -> Result<MigrateAuditReport> {
     })
 }
 
-async fn migrate_locked(pool: &PgPool, label: &str, sql: &str) -> Result<()> {
-    let mut conn = pool.acquire().await?;
+async fn migrate_locked(_pool: &PgPool, label: &str, sql: &str) -> Result<()> {
+    let url = dsn()?;
+    let mut conn = PgConnectOptions::from_str(&url)
+        .context("parse postgres url for migrate")?
+        .connect()
+        .await
+        .context("migrate direct connect")?;
     sqlx::query("SELECT pg_advisory_lock($1)")
         .bind(MIGRATE_LOCK_KEY)
-        .execute(&mut *conn)
+        .execute(&mut conn)
         .await?;
     let out = schema_apply(&mut conn, sql, label).await;
     let _ = sqlx::query("SELECT pg_advisory_unlock($1)")
         .bind(MIGRATE_LOCK_KEY)
-        .execute(&mut *conn)
+        .execute(&mut conn)
         .await;
     out
 }
 
-async fn schema_apply(conn: &mut sqlx::pool::PoolConnection<sqlx::Postgres>, sql: &str, label: &str) -> Result<()> {
+async fn schema_apply(conn: &mut PgConnection, sql: &str, label: &str) -> Result<()> {
     for stmt in sql_stmts(sql) {
         exec_retry(conn, &stmt, label).await?;
     }
@@ -206,10 +213,10 @@ async fn schema_apply(conn: &mut sqlx::pool::PoolConnection<sqlx::Postgres>, sql
     Ok(())
 }
 
-async fn exec_retry(conn: &mut sqlx::pool::PoolConnection<sqlx::Postgres>, stmt: &str, label: &str) -> Result<()> {
+async fn exec_retry(conn: &mut PgConnection, stmt: &str, label: &str) -> Result<()> {
     let mut delay = Duration::from_millis(100);
     for attempt in 0..8 {
-        match sqlx::query(stmt).execute(&mut **conn).await {
+        match sqlx::query(stmt).execute(&mut *conn).await {
             Ok(_) => return Ok(()),
             Err(e) if schema_stmt_skip(&e) => return Ok(()),
             Err(e) if schema_stmt_retry(&e) && attempt < 7 => {

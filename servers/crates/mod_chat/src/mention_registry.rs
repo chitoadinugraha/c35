@@ -143,12 +143,12 @@ async fn identity_rows(pool: &PgPool, caller_iid: i64) -> Vec<MentionItem> {
                 let caption = match kind.as_str() {
                     "remote" | "iot" => {
                         if meta_online(&meta) {
-                            "Online agent"
+                            "Remote Device"
                         } else {
                             "Offline"
                         }
                     }
-                    "site" => "Website",
+                    "site" => "Site",
                     "bot" => "Bot",
                     _ => "",
                 };

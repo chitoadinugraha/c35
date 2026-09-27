@@ -1,12 +1,13 @@
 use anyhow::Result;
 use async_nats::Client;
+use c35_nats::user_app_subject_chat;
 use c35_proto::{
     pb_encode, PromptFollowupPush, PromptRunPush, ResPromptDelta, ResPromptEnd, ResPromptFail,
     ResPromptStart, WsRes, ws_res,
 };
 
 pub fn prompt_chat_subject(owner_iid: i64, chat_id: i64) -> String {
-    format!("c35.user.{owner_iid}.chat.{chat_id}")
+    user_app_subject_chat(owner_iid, chat_id)
 }
 
 async fn prompt_chat_fanout_ws(nats: &Client, owner_iid: i64, chat_id: i64, res: WsRes) -> Result<()> {

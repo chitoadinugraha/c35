@@ -13,6 +13,7 @@ use tokio::sync::mpsc;
 use tracing::{info, warn};
 
 const RELEASE_NUDGE_PAYLOAD: &[u8] = b"c35.release:remote-windows";
+const FFMPEG_RELEASE_NUDGE_PAYLOAD: &[u8] = b"c35.release:ffmpeg-windows";
 const RELEASE_NUDGE_INTERVAL: Duration = Duration::from_secs(90);
 
 fn spawn_release_nudge_loop(
@@ -111,11 +112,29 @@ pub async fn handle(
             if let Ok(mut sub) = nats_release.subscribe(subject.to_string()).await {
                 while let Some(msg) = sub.next().await {
                     let notification = if msg.payload.is_empty() {
-                        b"c35.release:remote-windows".to_vec()
+                        RELEASE_NUDGE_PAYLOAD.to_vec()
                     } else {
                         msg.payload.to_vec()
                     };
                     if tx_release.send(notification).is_err() {
+                        break;
+                    }
+                }
+            }
+        });
+
+        let nats_ffmpeg = nats.clone();
+        let tx_ffmpeg = agent_out_tx.clone();
+        tokio::spawn(async move {
+            let subject = "c35.release.ffmpeg-windows";
+            if let Ok(mut sub) = nats_ffmpeg.subscribe(subject.to_string()).await {
+                while let Some(msg) = sub.next().await {
+                    let notification = if msg.payload.is_empty() {
+                        FFMPEG_RELEASE_NUDGE_PAYLOAD.to_vec()
+                    } else {
+                        msg.payload.to_vec()
+                    };
+                    if tx_ffmpeg.send(notification).is_err() {
                         break;
                     }
                 }

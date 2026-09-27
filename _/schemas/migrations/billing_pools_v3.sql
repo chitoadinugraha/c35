@@ -301,7 +301,8 @@ END $$;
 INSERT INTO ai.billing_promotion (
     id, code, type, audience, name, base_plan_slug,
     pool_multiplier, alien_pool_idr, frontier_pool_idr,
-    duration_days, max_claims_per_email, scope, is_active, created_by_iid
+    duration_days, max_claims_per_email, valid_from, valid_to,
+    scope, is_active, created_by_iid
 )
 SELECT
     900000000000000001,
@@ -315,6 +316,8 @@ SELECT
     5000,
     7,
     1,
+    TIMESTAMPTZ '2020-01-01 00:00:00+00',
+    TIMESTAMPTZ '2099-12-31 23:59:59+00',
     'user',
     TRUE,
     i.id
@@ -332,6 +335,8 @@ ON CONFLICT (id) DO UPDATE SET
     frontier_pool_idr = EXCLUDED.frontier_pool_idr,
     duration_days = EXCLUDED.duration_days,
     max_claims_per_email = EXCLUDED.max_claims_per_email,
+    valid_from = EXCLUDED.valid_from,
+    valid_to = EXCLUDED.valid_to,
     scope = EXCLUDED.scope,
     is_active = EXCLUDED.is_active,
     updated_ts = NOW();

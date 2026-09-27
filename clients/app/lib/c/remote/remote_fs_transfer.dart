@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/c/remote/remote_fs_api.dart';
+import 'package:alienai_c35/c/remote/remote_fs_picker_staging.dart';
 import 'package:alienai_c35/c/remote/remote_session.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -188,6 +189,23 @@ class RemoteFsTransfer extends ChangeNotifier {
     unawaited(_pump());
   }
 
+  /// Stage [files] from `file_picker` (content URIs to temp) then enqueue uploads.
+  Future<void> uploadPickerFiles(String destDir, List<PlatformFile> files) async {
+    if (destDir.isEmpty || files.isEmpty) return;
+    var enqueued = false;
+    for (final file in files) {
+      final staged = await remoteFsStagePickerFile(file);
+      if (staged == null || staged.isEmpty) continue;
+      final name = file.name.trim().isNotEmpty ? file.name.trim() : _basename(staged);
+      jobs.add(RemoteFsJob.uploadLocal(
+          label: name, destPath: _join(destDir, name), localPath: staged));
+      enqueued = true;
+    }
+    if (!enqueued) return;
+    notifyListeners();
+    unawaited(_pump());
+  }
+
   void uploadLocalDirectory(String destDir, String localDir) {
     if (localDir.isEmpty) return;
     final name = _basename(localDir);
@@ -197,12 +215,27 @@ class RemoteFsTransfer extends ChangeNotifier {
     unawaited(_pump());
   }
 
-  /// Pick a local folder (desktop) and download remote file(s) or folder trees via [fsRead].
+  /// Pick save location (`file_picker`) and download remote file(s) or folder trees via [fsRead].
   Future<void> downloadRemote(List<String> remotePaths) async {
     if (remotePaths.isEmpty) return;
     if (kIsWeb) throw 'Download to disk is not supported on web';
     final fs = _session.fs;
     if (fs == null) throw 'File channel not open';
+
+    if (!kIsWeb && Platform.isAndroid && remotePaths.length == 1) {
+      final remote = remotePaths.single;
+      final name = _basename(remote);
+      if (!await _isRemoteDir(fs, remote)) {
+        final savePath = await FilePicker.platform.saveFile(fileName: name);
+        if (savePath == null || savePath.isEmpty) return;
+        jobs.add(RemoteFsJob.downloadRemote(
+            label: name, fromPath: remote, localPath: savePath));
+        notifyListeners();
+        unawaited(_pump());
+        return;
+      }
+    }
+
     final destDir = await FilePicker.platform.getDirectoryPath();
     if (destDir == null || destDir.isEmpty) return;
     for (final remote in remotePaths) {
@@ -326,7 +359,15 @@ class RemoteFsTransfer extends ChangeNotifier {
   Future<void> _runUploadLocal(RemoteFsApi fs, RemoteFsJob job) async {
     final localPath = job.localPath;
     if (localPath == null) throw 'missing local path';
-    await _uploadLocalFile(fs, job, localPath, job.destPath);
+    try {
+      await _uploadLocalFile(fs, job, localPath, job.destPath);
+    } finally {
+      if (await remoteFsIsStagedTempPath(localPath)) {
+        try {
+          await File(localPath).delete();
+        } catch (_) {}
+      }
+    }
   }
 
   Future<void> _runUploadLocalTree(RemoteFsApi fs, RemoteFsJob job) async {
@@ -376,12 +417,14 @@ class RemoteFsTransfer extends ChangeNotifier {
     try {
       var offset = 0;
       while (offset < total) {
+        await fs.waitForLowPrioritySlot();
         final chunk = await raf.read(_chunkSize);
         if (chunk.isEmpty) break;
         final data = Uint8List.fromList(chunk);
         final finalize = offset + data.length >= total;
         final res = await fs.fsWrite(remotePath, data,
             offset: offset, finalize: finalize);
+        await fs.throttleLowPriority(data.length);
         if (res.error.isNotEmpty) throw res.error;
         offset += data.length;
         job.bytesDone += data.length;
@@ -427,7 +470,9 @@ class RemoteFsTransfer extends ChangeNotifier {
       RemoteFsApi fs, RemoteFsJob job, String from, String dest) async {
     var offset = 0;
     while (true) {
-      final res = await fs.fsRead(from, offset: offset, len: _chunkSize);
+      await fs.waitForLowPrioritySlot();
+      final res = await fs.fsRead(from, offset: offset, len: _chunkSize, priority: RemoteFsPriority.low);
+      await fs.throttleLowPriority(res.data.length);
       if (res.error.isNotEmpty) throw res.error;
       if (res.data.isEmpty && res.eof) break;
       final finalize = res.eof;

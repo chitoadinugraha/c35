@@ -101,10 +101,6 @@ class _UiMsgThoughtState extends State<UiMsgThought> {
                         _headerLabel,
                         style: const TextStyle(color: uiMsgThoughtColor, fontSize: 12, fontWeight: FontWeight.w600, height: 1.2),
                       ),
-                      if (_live) ...[
-                        const SizedBox(width: 4),
-                        const UiThinkingDots(color: uiMsgThoughtColor),
-                      ],
                       if (_live && widget.startedAtMs != null) ...[
                         const SizedBox(width: 8),
                         _ThoughtElapsed(startedAtMs: widget.startedAtMs!),

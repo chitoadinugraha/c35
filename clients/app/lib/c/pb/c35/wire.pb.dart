@@ -2432,6 +2432,8 @@ enum WsReq_Body {
   promptFollowupPut,
   promptFollowupList,
   promptFollowupCancel,
+  chatDeviceContextList,
+  chatDeviceContextCreate,
   notSet
 }
 
@@ -2536,6 +2538,8 @@ class WsReq extends $pb.GeneratedMessage {
     $15.ReqPromptFollowupPut? promptFollowupPut,
     $15.ReqPromptFollowupList? promptFollowupList,
     $15.ReqPromptFollowupCancel? promptFollowupCancel,
+    $15.ReqChatDeviceContextList? chatDeviceContextList,
+    $15.ReqChatDeviceContextCreate? chatDeviceContextCreate,
   }) {
     final result = WsReq._();
     if (reqId != null) result.reqId = reqId;
@@ -2648,6 +2652,10 @@ class WsReq extends $pb.GeneratedMessage {
       result.promptFollowupList = promptFollowupList;
     if (promptFollowupCancel != null)
       result.promptFollowupCancel = promptFollowupCancel;
+    if (chatDeviceContextList != null)
+      result.chatDeviceContextList = chatDeviceContextList;
+    if (chatDeviceContextCreate != null)
+      result.chatDeviceContextCreate = chatDeviceContextCreate;
     return result;
   }
 
@@ -2758,6 +2766,8 @@ class WsReq extends $pb.GeneratedMessage {
     141: WsReq_Body.promptFollowupPut,
     142: WsReq_Body.promptFollowupList,
     143: WsReq_Body.promptFollowupCancel,
+    157: WsReq_Body.chatDeviceContextList,
+    158: WsReq_Body.chatDeviceContextCreate,
     0: WsReq_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -2861,7 +2871,9 @@ class WsReq extends $pb.GeneratedMessage {
       104,
       141,
       142,
-      143
+      143,
+      157,
+      158
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$13.ReqSessionInit>(2, _omitFieldNames ? '' : 'sessionInit',
@@ -3082,6 +3094,12 @@ class WsReq extends $pb.GeneratedMessage {
     ..aOM<$15.ReqPromptFollowupCancel>(
         143, _omitFieldNames ? '' : 'promptFollowupCancel',
         subBuilder: $15.ReqPromptFollowupCancel.$_createMessage)
+    ..aOM<$15.ReqChatDeviceContextList>(
+        157, _omitFieldNames ? '' : 'chatDeviceContextList',
+        subBuilder: $15.ReqChatDeviceContextList.$_createMessage)
+    ..aOM<$15.ReqChatDeviceContextCreate>(
+        158, _omitFieldNames ? '' : 'chatDeviceContextCreate',
+        subBuilder: $15.ReqChatDeviceContextCreate.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -3201,6 +3219,8 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(141)
   @$pb.TagNumber(142)
   @$pb.TagNumber(143)
+  @$pb.TagNumber(157)
+  @$pb.TagNumber(158)
   WsReq_Body whichBody() => _WsReq_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(3)
@@ -3299,6 +3319,8 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(141)
   @$pb.TagNumber(142)
   @$pb.TagNumber(143)
+  @$pb.TagNumber(157)
+  @$pb.TagNumber(158)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -4397,6 +4419,31 @@ class WsReq extends $pb.GeneratedMessage {
   void clearPromptFollowupCancel() => $_clearField(143);
   @$pb.TagNumber(143)
   $15.ReqPromptFollowupCancel ensurePromptFollowupCancel() => $_ensure(97);
+
+  @$pb.TagNumber(157)
+  $15.ReqChatDeviceContextList get chatDeviceContextList => $_getN(98);
+  @$pb.TagNumber(157)
+  set chatDeviceContextList($15.ReqChatDeviceContextList value) =>
+      $_setField(157, value);
+  @$pb.TagNumber(157)
+  $core.bool hasChatDeviceContextList() => $_has(98);
+  @$pb.TagNumber(157)
+  void clearChatDeviceContextList() => $_clearField(157);
+  @$pb.TagNumber(157)
+  $15.ReqChatDeviceContextList ensureChatDeviceContextList() => $_ensure(98);
+
+  @$pb.TagNumber(158)
+  $15.ReqChatDeviceContextCreate get chatDeviceContextCreate => $_getN(99);
+  @$pb.TagNumber(158)
+  set chatDeviceContextCreate($15.ReqChatDeviceContextCreate value) =>
+      $_setField(158, value);
+  @$pb.TagNumber(158)
+  $core.bool hasChatDeviceContextCreate() => $_has(99);
+  @$pb.TagNumber(158)
+  void clearChatDeviceContextCreate() => $_clearField(158);
+  @$pb.TagNumber(158)
+  $15.ReqChatDeviceContextCreate ensureChatDeviceContextCreate() =>
+      $_ensure(99);
 }
 
 enum WsRes_Body {
@@ -4507,6 +4554,8 @@ enum WsRes_Body {
   mailMailboxUpdate,
   mailMailboxDelete,
   mailDomainFix,
+  chatDeviceContextList,
+  chatDeviceContextCreate,
   notSet
 }
 
@@ -4621,6 +4670,8 @@ class WsRes extends $pb.GeneratedMessage {
     $23.ResMailMailboxUpdate? mailMailboxUpdate,
     $23.ResMailMailboxDelete? mailMailboxDelete,
     $23.ResMailDomainFix? mailDomainFix,
+    $15.ResChatDeviceContextList? chatDeviceContextList,
+    $15.ResChatDeviceContextCreate? chatDeviceContextCreate,
   }) {
     final result = WsRes._();
     if (reqId != null) result.reqId = reqId;
@@ -4744,6 +4795,10 @@ class WsRes extends $pb.GeneratedMessage {
     if (mailMailboxUpdate != null) result.mailMailboxUpdate = mailMailboxUpdate;
     if (mailMailboxDelete != null) result.mailMailboxDelete = mailMailboxDelete;
     if (mailDomainFix != null) result.mailDomainFix = mailDomainFix;
+    if (chatDeviceContextList != null)
+      result.chatDeviceContextList = chatDeviceContextList;
+    if (chatDeviceContextCreate != null)
+      result.chatDeviceContextCreate = chatDeviceContextCreate;
     return result;
   }
 
@@ -4864,6 +4919,8 @@ class WsRes extends $pb.GeneratedMessage {
     154: WsRes_Body.mailMailboxUpdate,
     155: WsRes_Body.mailMailboxDelete,
     156: WsRes_Body.mailDomainFix,
+    157: WsRes_Body.chatDeviceContextList,
+    158: WsRes_Body.chatDeviceContextCreate,
     0: WsRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -4977,7 +5034,9 @@ class WsRes extends $pb.GeneratedMessage {
       153,
       154,
       155,
-      156
+      156,
+      157,
+      158
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$24.Err>(2, _omitFieldNames ? '' : 'err',
@@ -5219,6 +5278,12 @@ class WsRes extends $pb.GeneratedMessage {
         subBuilder: $23.ResMailMailboxDelete.$_createMessage)
     ..aOM<$23.ResMailDomainFix>(156, _omitFieldNames ? '' : 'mailDomainFix',
         subBuilder: $23.ResMailDomainFix.$_createMessage)
+    ..aOM<$15.ResChatDeviceContextList>(
+        157, _omitFieldNames ? '' : 'chatDeviceContextList',
+        subBuilder: $15.ResChatDeviceContextList.$_createMessage)
+    ..aOM<$15.ResChatDeviceContextCreate>(
+        158, _omitFieldNames ? '' : 'chatDeviceContextCreate',
+        subBuilder: $15.ResChatDeviceContextCreate.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -5348,6 +5413,8 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(154)
   @$pb.TagNumber(155)
   @$pb.TagNumber(156)
+  @$pb.TagNumber(157)
+  @$pb.TagNumber(158)
   WsRes_Body whichBody() => _WsRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(10)
@@ -5456,6 +5523,8 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(154)
   @$pb.TagNumber(155)
   @$pb.TagNumber(156)
+  @$pb.TagNumber(157)
+  @$pb.TagNumber(158)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -6663,6 +6732,31 @@ class WsRes extends $pb.GeneratedMessage {
   void clearMailDomainFix() => $_clearField(156);
   @$pb.TagNumber(156)
   $23.ResMailDomainFix ensureMailDomainFix() => $_ensure(107);
+
+  @$pb.TagNumber(157)
+  $15.ResChatDeviceContextList get chatDeviceContextList => $_getN(108);
+  @$pb.TagNumber(157)
+  set chatDeviceContextList($15.ResChatDeviceContextList value) =>
+      $_setField(157, value);
+  @$pb.TagNumber(157)
+  $core.bool hasChatDeviceContextList() => $_has(108);
+  @$pb.TagNumber(157)
+  void clearChatDeviceContextList() => $_clearField(157);
+  @$pb.TagNumber(157)
+  $15.ResChatDeviceContextList ensureChatDeviceContextList() => $_ensure(108);
+
+  @$pb.TagNumber(158)
+  $15.ResChatDeviceContextCreate get chatDeviceContextCreate => $_getN(109);
+  @$pb.TagNumber(158)
+  set chatDeviceContextCreate($15.ResChatDeviceContextCreate value) =>
+      $_setField(158, value);
+  @$pb.TagNumber(158)
+  $core.bool hasChatDeviceContextCreate() => $_has(109);
+  @$pb.TagNumber(158)
+  void clearChatDeviceContextCreate() => $_clearField(158);
+  @$pb.TagNumber(158)
+  $15.ResChatDeviceContextCreate ensureChatDeviceContextCreate() =>
+      $_ensure(109);
 }
 
 const $core.bool _omitFieldNames =

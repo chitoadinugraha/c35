@@ -66,6 +66,7 @@ async fn main() -> anyhow::Result<()> {
     }
     let pool_cfg = c35_store::PoolConfig::from_env();
     c35_store::pool_monitor_spawn(pool.clone(), pool_cfg.clone());
+    c35_mod_chat::prompt_run_concurrency_init();
     c35_mod_chat::prompt_run_pool_diag_spawn(pool.clone(), pool_cfg.max_connections);
     c35_wire_http::status_probe_spawn(pool.clone(), nats.clone());
     if let (Some(nats_client), Some(events)) = (nats.clone(), nats_events) {

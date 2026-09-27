@@ -120,6 +120,11 @@ List<TraceToolFilterCandidate> _toolCandidatesFromMeta(dynamic raw) {
   return out;
 }
 
+List<String> _stringListFromMeta(dynamic raw) {
+  if (raw is! List) return const [];
+  return raw.map((e) => _asStr(e)).where((s) => s.isNotEmpty).toList();
+}
+
 String traceModelLabel(String model) {
   final m = model.trim().toLowerCase();
   if (m.isEmpty || m == 'auto' || m == 'alien' || m == 'alienai' || m == 'cloud') return 'alienai';
@@ -308,16 +313,27 @@ TraceView buildTraceView(List<TraceLogDoc> logs) {
         final branch = _asStr(r.meta['branch']);
         final label = switch (r.topic) {
           'trace_memory' => 'Memory',
+          'trace_inst_enrich' => 'Inst enrich',
           'trace_tool_filter' => 'Tool filter',
           'trace_prepare' => 'Compose',
           _ => branch.isNotEmpty ? branch : r.topic,
         };
+        final instIds = r.topic == 'trace_inst_enrich' ? _stringListFromMeta(r.meta['inst_ids']) : const <String>[];
+        final enrichKeys = r.topic == 'trace_inst_enrich' ? _stringListFromMeta(r.meta['enrich_keys']) : const <String>[];
         branches.add(TraceBranch(
           label: label,
           durationMs: r.durationMs,
           costUsd: r.costUsd,
           detail: r.text.split('\n').first,
-          toolCandidates: r.topic == 'trace_tool_filter' ? _toolCandidatesFromMeta(r.meta['candidates']) : const [],
+          isTool: r.topic == 'trace_inst_enrich' && (instIds.isNotEmpty || enrichKeys.isNotEmpty),
+          toolCandidates: r.topic == 'trace_tool_filter'
+              ? _toolCandidatesFromMeta(r.meta['candidates'])
+              : r.topic == 'trace_inst_enrich'
+                  ? [
+                      ...instIds.map((id) => TraceToolFilterCandidate(toolId: id, sim: 1, fed: true)),
+                      ...enrichKeys.map((k) => TraceToolFilterCandidate(toolId: k, sim: 1, fed: true)),
+                    ]
+                  : const [],
           droppedGap: r.topic == 'trace_tool_filter' ? _toolCandidatesFromMeta(r.meta['dropped_gap']) : const [],
           ragSkipped: r.topic == 'trace_tool_filter' && r.meta['rag_skipped'] == true,
           ragSkipReason: r.topic == 'trace_tool_filter' ? _asStr(r.meta['rag_skip_reason']) : '',
@@ -369,11 +385,13 @@ String traceTotalsLine(TraceTotals totals, {String currency = moneyDefaultCurren
 
 List<MsgTraceToolChip> traceToolChipsFromView(TraceView view) {
   final out = <MsgTraceToolChip>[];
+  final seen = <String>{};
   for (final step in view.steps) {
-    // Prepare traces (tool filter, compose, memory) are for the trace sheet only.
+    // Prepare (inst enrich, tool filter) stays in trace sheet only — not under the message.
     if (step.title == 'Prepare') continue;
     for (final b in step.branches) {
       if (!b.isTool || b.label.isEmpty) continue;
+      if (!seen.add(b.label)) continue;
       out.add(MsgTraceToolChip(label: b.label, ok: b.ok, durationMs: b.durationMs, iconUrl: b.iconUrl));
     }
   }

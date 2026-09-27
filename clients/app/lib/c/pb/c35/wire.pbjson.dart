@@ -1952,6 +1952,24 @@ const WsReq$json = {
       '9': 0,
       '10': 'promptFollowupCancel'
     },
+    {
+      '1': 'chat_device_context_list',
+      '3': 157,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqChatDeviceContextList',
+      '9': 0,
+      '10': 'chatDeviceContextList'
+    },
+    {
+      '1': 'chat_device_context_create',
+      '3': 158,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqChatDeviceContextCreate',
+      '9': 0,
+      '10': 'chatDeviceContextCreate'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -2072,8 +2090,11 @@ final $typed_data.Uint8List wsReqDescriptor = $convert.base64Decode(
     'EoCzIZLmMzNS5SZXFQcm9tcHRGb2xsb3d1cFB1dEgAUhFwcm9tcHRGb2xsb3d1cFB1dBJPChRw'
     'cm9tcHRfZm9sbG93dXBfbGlzdBiOASABKAsyGi5jMzUuUmVxUHJvbXB0Rm9sbG93dXBMaXN0SA'
     'BSEnByb21wdEZvbGxvd3VwTGlzdBJVChZwcm9tcHRfZm9sbG93dXBfY2FuY2VsGI8BIAEoCzIc'
-    'LmMzNS5SZXFQcm9tcHRGb2xsb3d1cENhbmNlbEgAUhRwcm9tcHRGb2xsb3d1cENhbmNlbEIGCg'
-    'Rib2R5');
+    'LmMzNS5SZXFQcm9tcHRGb2xsb3d1cENhbmNlbEgAUhRwcm9tcHRGb2xsb3d1cENhbmNlbBJZCh'
+    'hjaGF0X2RldmljZV9jb250ZXh0X2xpc3QYnQEgASgLMh0uYzM1LlJlcUNoYXREZXZpY2VDb250'
+    'ZXh0TGlzdEgAUhVjaGF0RGV2aWNlQ29udGV4dExpc3QSXwoaY2hhdF9kZXZpY2VfY29udGV4dF'
+    '9jcmVhdGUYngEgASgLMh8uYzM1LlJlcUNoYXREZXZpY2VDb250ZXh0Q3JlYXRlSABSF2NoYXRE'
+    'ZXZpY2VDb250ZXh0Q3JlYXRlQgYKBGJvZHk=');
 
 @$core.Deprecated('Use wsResDescriptor instead')
 const WsRes$json = {
@@ -3035,6 +3056,24 @@ const WsRes$json = {
       '9': 0,
       '10': 'promptFollowupPush'
     },
+    {
+      '1': 'chat_device_context_list',
+      '3': 157,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResChatDeviceContextList',
+      '9': 0,
+      '10': 'chatDeviceContextList'
+    },
+    {
+      '1': 'chat_device_context_create',
+      '3': 158,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResChatDeviceContextCreate',
+      '9': 0,
+      '10': 'chatDeviceContextCreate'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -3166,4 +3205,7 @@ final $typed_data.Uint8List wsResDescriptor = $convert.base64Decode(
     'AFIScHJvbXB0Rm9sbG93dXBMaXN0ElUKFnByb21wdF9mb2xsb3d1cF9jYW5jZWwYjwEgASgLMh'
     'wuYzM1LlJlc1Byb21wdEZvbGxvd3VwQ2FuY2VsSABSFHByb21wdEZvbGxvd3VwQ2FuY2VsEkwK'
     'FHByb21wdF9mb2xsb3d1cF9wdXNoGJABIAEoCzIXLmMzNS5Qcm9tcHRGb2xsb3d1cFB1c2hIAF'
-    'IScHJvbXB0Rm9sbG93dXBQdXNoQgYKBGJvZHk=');
+    'IScHJvbXB0Rm9sbG93dXBQdXNoElkKGGNoYXRfZGV2aWNlX2NvbnRleHRfbGlzdBidASABKAsy'
+    'HS5jMzUuUmVzQ2hhdERldmljZUNvbnRleHRMaXN0SABSFWNoYXREZXZpY2VDb250ZXh0TGlzdB'
+    'JfChpjaGF0X2RldmljZV9jb250ZXh0X2NyZWF0ZRieASABKAsyHy5jMzUuUmVzQ2hhdERldmlj'
+    'ZUNvbnRleHRDcmVhdGVIAFIXY2hhdERldmljZUNvbnRleHRDcmVhdGVCBgoEYm9keQ==');

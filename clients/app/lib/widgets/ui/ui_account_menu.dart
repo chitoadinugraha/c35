@@ -252,33 +252,32 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
                         onChanged: (v) => VoicePrefs.instance.setSpeakEnabled(v),
                       ),
                     ),
-                    if (acts.onMail != null || acts.onReferralTree != null || acts.onLock != null || acts.onSignOut != null) ...[
-                      const Divider(height: 1, color: _border),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-                        child: Row(
-                          children: [
-                            const Spacer(),
-                            if (acts.onMail != null) ...[
-                              _MailFooterBtn(
-                                count: acts.mailInboxCount ?? mailInboxBus.inboxCount,
-                                onTap: () => _popThen(acts.onMail),
-                              ),
-                              const SizedBox(width: 8),
-                            ],
-                            if (acts.onReferralTree != null) ...[
-                              _MenuIconBtn(icon: Icons.account_tree_outlined, tooltip: 'Referral tree', onTap: () => _popThen(acts.onReferralTree)),
-                              const SizedBox(width: 8),
-                            ],
-                            if (acts.onLock != null) ...[
-                              _MenuIconBtn(icon: Icons.lock_outline_rounded, tooltip: 'Lock', onTap: () => _popThen(acts.onLock)),
-                              const SizedBox(width: 8),
-                            ],
-                            if (acts.onSignOut != null) _MenuIconBtn(icon: Icons.logout_rounded, tooltip: 'Sign out', destructive: true, onTap: () => _popThen(acts.onSignOut)),
+                    const Divider(height: 1, color: _border),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          if (acts.onMail != null) ...[
+                            _MailFooterBtn(
+                              count: acts.mailInboxCount ?? mailInboxBus.inboxCount,
+                              onTap: () => _popThen(acts.onMail),
+                            ),
+                            const SizedBox(width: 8),
                           ],
-                        ),
+                          if (acts.onReferralTree != null) ...[
+                            _MenuIconBtn(icon: Icons.account_tree_outlined, tooltip: 'Referral tree', onTap: () => _popThen(acts.onReferralTree)),
+                            const SizedBox(width: 8),
+                          ],
+                          if (acts.onLock != null) ...[
+                            _MenuIconBtn(icon: Icons.lock_outline_rounded, tooltip: 'Lock', onTap: () => _popThen(acts.onLock)),
+                            const SizedBox(width: 8),
+                          ],
+                          if (acts.onSignOut != null) _MenuIconBtn(icon: Icons.logout_rounded, tooltip: 'Sign out', destructive: true, onTap: () => _popThen(acts.onSignOut)),
+                        ],
                       ),
-                    ],
+                    ),
                   ],
                 );
               },

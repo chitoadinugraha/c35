@@ -48,9 +48,11 @@ async fn run() -> anyhow::Result<()> {
         c_remote_windows::input_exec::execute_input,
     ));
     c_remote_core::webrtc::set_screen_handler(std::sync::Arc::new(|dc| {
-        c_remote_windows::screen_capture::start_screen_stream(dc, 1280, 25);
+        c_remote_windows::screen_capture::start_screen_stream(dc, 0, 25);
     }));
+    c_remote_core::webrtc::register_media_handler();
     c_remote_core::webrtc::set_track_handler(std::sync::Arc::new(|v_track, _a_track| {
+        c_remote_core::webrtc::set_video_track(v_track.clone());
         c_remote_windows::video_stream::start_video_stream(v_track);
     }));
     c_remote_core::webrtc::set_screenshot_handler(std::sync::Arc::new(|max_w, quality, marker, som| {
@@ -61,6 +63,7 @@ async fn run() -> anyhow::Result<()> {
 
     let base_url = server_url();
     update_check_on_start(&base_url).await;
+    c_remote_core::tools::ffmpeg::ffmpeg_tick(&base_url).await;
     tokio::spawn(update_run_loop(base_url.clone()));
 
     let (tray_tx, mut tray_rx) = tokio::sync::mpsc::unbounded_channel();

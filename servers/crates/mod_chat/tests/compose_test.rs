@@ -901,3 +901,19 @@ fn compose_force_tool_call_when_web_search_inst_and_tool() {
     assert!(!compose_force_tool_call(&["inst.core.assistant".into()], &tools));
     assert!(!compose_force_tool_call(&["inst.web_search".into()], &[]));
 }
+
+#[test]
+fn compose_meal_recommendation_matches_consumption_coach() {
+    let mut coach = inst_consumption_coach();
+    coach.phrases = vec!["enaknya aku makan apa".into(), "enaknya makan apa".into()];
+    let mut tools = pa_catalog();
+    tools.push(ToolDef::new("consumption.today".into(), "Today nutrition".into(), json!({})));
+    let out = compose_default(
+        &[inst_core_assistant(), coach],
+        "Enaknya aku makan apa?",
+        tools,
+        &[],
+    );
+    assert!(out.matched_ids.iter().any(|id| id == "inst.consumption_coach"));
+    assert!(out.tools.iter().any(|t| t.name == "consumption.today"));
+}

@@ -370,7 +370,89 @@ async fn google_login_resolve_iid(pool: &sqlx::PgPool, sub: &str, email: &str) -
             return Ok(Some(r.get("id")));
         }
     }
-    Ok(None)
+    if !sub.is_empty() {
+        if let Some(r) = sqlx::query(
+            r#"
+            SELECT id FROM ai.identity
+            WHERE deleted_ts IS NULL AND kind = 'user' AND meta->>'google_sub' = $1
+            LIMIT 1
+            "#,
+        )
+        .bind(sub)
+        .fetch_optional(pool)
+        .await?
+        {
+            return Ok(Some(r.get("id")));
+        }
+    }
+    google_login_resolve_migrated_slot(pool, sub, email).await
+}
+
+/// Migrated CSA row waiting for first Google link (no google provider yet).
+async fn google_login_resolve_migrated_slot(
+    pool: &sqlx::PgPool,
+    sub: &str,
+    email: &str,
+) -> Result<Option<i64>, sqlx::Error> {
+    if email.is_empty() && sub.is_empty() {
+        return Ok(None);
+    }
+    let row = sqlx::query(
+        r#"
+        SELECT i.id
+        FROM ai.identity i
+        WHERE i.deleted_ts IS NULL
+          AND i.kind = 'user'
+          AND i.is_active = true
+          AND NOT EXISTS (
+            SELECT 1 FROM ai.identity_provider g
+            WHERE g.identity_iid = i.id AND g.kind = 'google' AND g.deleted_ts IS NULL
+          )
+          AND (
+            ($1 <> '' AND LOWER(i.meta->>'email') = LOWER($1))
+            OR ($2 <> '' AND i.meta->>'google_sub' = $2)
+            OR ($1 <> '' AND EXISTS (
+              SELECT 1 FROM ai.identity_provider p
+              WHERE p.identity_iid = i.id AND p.deleted_ts IS NULL
+                AND p.kind = 'email' AND LOWER(p.identifier) = LOWER($1)
+            ))
+          )
+        ORDER BY
+          CASE WHEN i.alien_id IS NOT NULL AND TRIM(i.alien_id) <> '' THEN 0 ELSE 1 END,
+          i.created_ts ASC
+        LIMIT 1
+        "#,
+    )
+    .bind(email)
+    .bind(sub)
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.map(|r| r.get("id")))
+}
+
+async fn google_identity_contact_meta_merge(
+    pool: &sqlx::PgPool,
+    iid: i64,
+    sub: &str,
+    email: &str,
+) -> Result<(), sqlx::Error> {
+    if email.is_empty() && sub.is_empty() {
+        return Ok(());
+    }
+    let patch = json!({ "email": email, "google_sub": sub });
+    sqlx::query(
+        r#"
+        UPDATE ai.identity
+        SET meta = COALESCE(meta, '{}'::jsonb) || $2::jsonb,
+            updated_ts = NOW()
+        WHERE id = $1 AND deleted_ts IS NULL
+        "#,
+    )
+    .bind(iid)
+    .bind(patch)
+    .execute(pool)
+    .await?;
+    Ok(())
 }
 
 async fn google_provider_attach_if_missing(
@@ -523,6 +605,7 @@ async fn get_or_create_google_identity(pool: &sqlx::PgPool, profile: &GoogleProf
         return Ok(99000);
     }
     if let Some(iid) = google_login_resolve_iid(pool, sub, &email).await? {
+        google_identity_contact_meta_merge(pool, iid, sub, &email).await?;
         google_provider_attach_if_missing(pool, iid, sub, &email).await?;
         google_provider_sync_login(pool, iid, sub, &email).await?;
         return Ok(iid);

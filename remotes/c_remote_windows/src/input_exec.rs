@@ -161,6 +161,19 @@ pub fn execute_input(evt: &RemoteInputEvent) {
             info!(event_type = other, "unhandled remote input event");
         }
     }
+    if matches!(
+        evt.event_type.as_str(),
+        "mouse_move"
+            | "mouse_down"
+            | "mouse_up"
+            | "mouse_click"
+            | "double_click"
+            | "right_click"
+            | "middle_click"
+            | "wheel"
+    ) {
+        c_remote_core::webrtc::input_cursor_publish(crate::cursor_shape::probe());
+    }
     crate::screen_capture::mark_screen_dirty();
 }
 

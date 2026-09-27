@@ -18,7 +18,7 @@ Wallet + quota + commission for platform AI usage. Adapted from `D:\cs_agent`, e
 
 **Single audit ledger:** `ai.log` — see [log.md](log.md). Billable LLM rows set `cost_usd > 0` (internal COGS). Client error rows stay `0`.
 
-`ResSessionInit` returns billing snapshot in one round trip. Realtime pushes: `c35.user.{iid}.balance`, `.quota`, `.commission` over NATS.
+`ResSessionInit` returns billing snapshot in one round trip. Realtime pushes: `c35.user.{iid}.app.balance`, `.app.quota`, `.app.commission` over NATS (app lane — [sync.md](sync.md)).
 
 Implementation plan: [billing-implementation.md](billing-implementation.md).
 
@@ -291,9 +291,9 @@ Compaction cost is included in the turn total when rolled into `extra_cost_usd`;
 ## NATS subjects
 
 ```
-c35.user.{iid}.balance      -- payload includes wallet_id, currency, balance
-c35.user.{iid}.quota        -- billing_profile allowance
-c35.user.{iid}.commission
+c35.user.{iid}.app.balance      -- payload includes wallet_id, currency, balance
+c35.user.{iid}.app.quota        -- billing_profile allowance
+c35.user.{iid}.app.commission
 ```
 
 Push after any `billing_wallet` or `billing_profile` mutation.

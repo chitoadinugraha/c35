@@ -138,12 +138,22 @@ async fn promotion_resolve_pools(
 }
 
 fn promotion_validate_dates(
+    promo_type: &str,
     audience: &str,
     valid_from: Option<DateTime<Utc>>,
     valid_to: Option<DateTime<Utc>>,
 ) -> Result<(), String> {
     let now = Utc::now();
     if audience == "multi" {
+        // Signup trial is evergreen (limits are per-email / per-user duration_days).
+        if promo_type == "signup_trial" {
+            if let Some(to) = valid_to {
+                if to < now {
+                    return Err("promotion expired".into());
+                }
+            }
+            return Ok(());
+        }
         if valid_from.is_none() || valid_to.is_none() {
             return Err("valid_from and valid_to required for multi audience".into());
         }
@@ -303,7 +313,7 @@ pub async fn billing_promotion_claim(
     };
     let valid_from = promo.try_get::<Option<DateTime<Utc>>, _>("valid_from").ok().flatten();
     let valid_to = promo.try_get::<Option<DateTime<Utc>>, _>("valid_to").ok().flatten();
-    promotion_validate_dates(&audience, valid_from, valid_to)?;
+    promotion_validate_dates(&promo_type, &audience, valid_from, valid_to)?;
 
     let total_claims: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM ai.billing_promotion_claim WHERE promotion_id = $1",

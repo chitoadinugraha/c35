@@ -240,7 +240,7 @@ async fn update_download_once(rel: &ReleaseRes) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-fn extract_zip(zip_path: &Path, out_dir: &Path) -> Result<(), anyhow::Error> {
+pub(crate) fn extract_zip(zip_path: &Path, out_dir: &Path) -> Result<(), anyhow::Error> {
     let file = std::fs::File::open(zip_path)?;
     let mut archive = zip::ZipArchive::new(file)?;
     for i in 0..archive.len() {
@@ -470,6 +470,8 @@ pub async fn update_run_loop(base_url: String) {
 
 /// Returns recommended seconds until the next poll.
 async fn update_tick(base_url: &str) -> u64 {
+    #[cfg(target_os = "windows")]
+    crate::tools::ffmpeg::ffmpeg_tick(base_url).await;
     check_and_stage_update(base_url).await;
     if update_staged_version().is_some() {
         return POLL_PENDING_SECS;

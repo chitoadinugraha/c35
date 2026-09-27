@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:alienai_c35/c/api/referral_conn.dart';
@@ -6,8 +7,10 @@ import 'package:alienai_c35/c/device/device_api.dart';
 import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/c/remote/remote_session.dart';
 import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
+import 'package:alienai_c35/c/session.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Agent control-plane presence (`meta.last_seen_ts_ms` on the device identity).
 bool deviceOnlineFromMeta(String metaJson) {
@@ -40,6 +43,7 @@ class DeviceStore extends ChangeNotifier {
 
   var _loading = false;
   var _search = '';
+  var _cacheRestored = false;
   final _rows = <IdentityListRow>[];
   String? _selectedId;
 
@@ -78,21 +82,53 @@ class DeviceStore extends ChangeNotifier {
   }
 
   Future<void> ensureConnected({String locale = 'en'}) async {
-    if (_conn.connected) return;
-    await _conn.connect(locale: locale);
+    if (!_conn.connected) await _conn.connect(locale: locale);
+    if (_conn.status.value == ChatConnStatus.connected) return;
+    for (var i = 0; i < 300; i++) {
+      if (_conn.status.value == ChatConnStatus.connected) return;
+      if (!_conn.connected) await _conn.connect(locale: locale);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+    if (_conn.status.value != ChatConnStatus.connected) throw 'not connected';
+  }
+
+  void _sortRows() => _rows.sort((a, b) {
+        final pin = (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0);
+        if (pin != 0) return pin;
+        final order = a.sortOrder.compareTo(b.sortOrder);
+        if (order != 0) return order;
+        return b.identity.updatedTsMs.compareTo(a.identity.updatedTsMs);
+      });
+
+  Future<void> _restoreCacheIfNeeded() async {
+    if (_cacheRestored) return;
+    _cacheRestored = true;
+    final cached = await deviceListCacheRestore(Session.instance.uid);
+    if (cached.isEmpty) return;
+    _rows.addAll(cached);
+    _sortRows();
+    if (_selectedId == null && _rows.isNotEmpty) _selectedId = _rows.first.identity.iid.toString();
+    notifyListeners();
   }
 
   Future<void> refresh({bool includeArchived = false}) async {
-    _loading = true;
-    notifyListeners();
+    await _restoreCacheIfNeeded();
+    final showSpinner = _rows.isEmpty;
+    if (showSpinner) {
+      _loading = true;
+      notifyListeners();
+    }
     try {
       await ensureConnected();
-      final res = await identityList(_conn, const ['remote', 'iot'], includeArchived: includeArchived);
+      final res = await identityList(_conn, const ['remote', 'iot'], includeArchived: includeArchived)
+          .timeout(const Duration(seconds: 30));
       _rows
         ..clear()
         ..addAll(res.rows);
+      _sortRows();
       if (_selectedId != null && rowById(_selectedId) == null) _selectedId = null;
       if (_selectedId == null && _rows.isNotEmpty) _selectedId = _rows.first.identity.iid.toString();
+      await deviceListCacheSave(Session.instance.uid, _rows);
     } catch (e) {
       lError('device refresh: $e');
     } finally {
@@ -108,6 +144,7 @@ class DeviceStore extends ChangeNotifier {
       final id = res.device.identity.iid.toString();
       _selectedId = id;
       notifyListeners();
+      await deviceListCacheSave(Session.instance.uid, _rows);
       return res.device;
     } catch (e) {
       lError('device pair: $e');
@@ -134,6 +171,7 @@ class DeviceStore extends ChangeNotifier {
         _selectedId = _rows.isEmpty ? null : _rows.first.identity.iid.toString();
       }
       notifyListeners();
+      await deviceListCacheSave(Session.instance.uid, _rows);
     } catch (e) {
       lError('device delete: $e');
       rethrow;
@@ -159,7 +197,9 @@ class DeviceStore extends ChangeNotifier {
       } else {
         _rows.add(res.row);
       }
+      _sortRows();
       notifyListeners();
+      await deviceListCacheSave(Session.instance.uid, _rows);
     } catch (e) {
       lError('device name put: $e');
       rethrow;
@@ -176,17 +216,38 @@ class DeviceStore extends ChangeNotifier {
       } else {
         _rows.add(res.row);
       }
-      _rows.sort((a, b) {
-        final pin = (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0);
-        if (pin != 0) return pin;
-        final order = a.sortOrder.compareTo(b.sortOrder);
-        if (order != 0) return order;
-        return b.identity.updatedTsMs.compareTo(a.identity.updatedTsMs);
-      });
+      _sortRows();
       notifyListeners();
+      await deviceListCacheSave(Session.instance.uid, _rows);
     } catch (e) {
       lError('device grant patch: $e');
       rethrow;
     }
   }
+}
+
+String _deviceListCacheKey(int ownerUid) => 'c35.device.list.v1.$ownerUid';
+
+Future<void> deviceListCacheClear(int ownerUid) async {
+  if (ownerUid <= 0) return;
+  final p = await SharedPreferences.getInstance();
+  await p.remove(_deviceListCacheKey(ownerUid));
+}
+
+Future<List<IdentityListRow>> deviceListCacheRestore(int ownerUid) async {
+  if (ownerUid <= 0) return [];
+  final p = await SharedPreferences.getInstance();
+  final raw = p.getString(_deviceListCacheKey(ownerUid));
+  if (raw == null || raw.isEmpty) return [];
+  try {
+    return List<IdentityListRow>.from(ResIdentityList.fromBuffer(base64Decode(raw)).rows);
+  } catch (_) {
+    return [];
+  }
+}
+
+Future<void> deviceListCacheSave(int ownerUid, List<IdentityListRow> rows) async {
+  if (ownerUid <= 0) return;
+  final p = await SharedPreferences.getInstance();
+  await p.setString(_deviceListCacheKey(ownerUid), base64Encode(ResIdentityList(rows: rows).writeToBuffer()));
 }

@@ -1445,6 +1445,64 @@ class RemoteInputEvent extends $pb.GeneratedMessage {
   void clearDeltaY() => $_clearField(7);
 }
 
+/// Agent → viewer on `remote-input` (viewer sends RemoteInputEvent only).
+class RemoteCursorEvent extends $pb.GeneratedMessage {
+  factory RemoteCursorEvent({
+    $core.String? shape,
+  }) {
+    final result = RemoteCursorEvent._();
+    if (shape != null) result.shape = shape;
+    return result;
+  }
+
+  RemoteCursorEvent._();
+
+  factory RemoteCursorEvent.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteCursorEvent()..mergeFromBuffer(data, registry);
+  factory RemoteCursorEvent.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteCursorEvent()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'RemoteCursorEvent',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: RemoteCursorEvent.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'shape')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteCursorEvent clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteCursorEvent copyWith(void Function(RemoteCursorEvent) updates) =>
+      super.copyWith((message) => updates(message as RemoteCursorEvent))
+          as RemoteCursorEvent;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use RemoteCursorEvent() / RemoteCursorEvent.new instead')
+  static RemoteCursorEvent create() => RemoteCursorEvent._();
+  static $pb.GeneratedMessage $_createMessage() => RemoteCursorEvent._();
+  @$core.override
+  RemoteCursorEvent createEmptyInstance() => RemoteCursorEvent._();
+  @$core.pragma('dart2js:noInline')
+  static RemoteCursorEvent getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<RemoteCursorEvent>(
+          RemoteCursorEvent.$_createMessage);
+  static RemoteCursorEvent? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get shape => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set shape($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasShape() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearShape() => $_clearField(1);
+}
+
 class RemoteFsEntry extends $pb.GeneratedMessage {
   factory RemoteFsEntry({
     $core.String? name,
@@ -2376,6 +2434,453 @@ class RemoteFsRenameRes extends $pb.GeneratedMessage {
   $core.bool hasError() => $_has(0);
   @$pb.TagNumber(1)
   void clearError() => $_clearField(1);
+}
+
+class RemoteMediaOpenReq extends $pb.GeneratedMessage {
+  factory RemoteMediaOpenReq({
+    $core.String? path,
+  }) {
+    final result = RemoteMediaOpenReq._();
+    if (path != null) result.path = path;
+    return result;
+  }
+
+  RemoteMediaOpenReq._();
+
+  factory RemoteMediaOpenReq.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteMediaOpenReq()..mergeFromBuffer(data, registry);
+  factory RemoteMediaOpenReq.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteMediaOpenReq()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'RemoteMediaOpenReq',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: RemoteMediaOpenReq.$_createMessage)
+    ..aOS(21, _omitFieldNames ? '' : 'path')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteMediaOpenReq clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteMediaOpenReq copyWith(void Function(RemoteMediaOpenReq) updates) =>
+      super.copyWith((message) => updates(message as RemoteMediaOpenReq))
+          as RemoteMediaOpenReq;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use RemoteMediaOpenReq() / RemoteMediaOpenReq.new instead')
+  static RemoteMediaOpenReq create() => RemoteMediaOpenReq._();
+  static $pb.GeneratedMessage $_createMessage() => RemoteMediaOpenReq._();
+  @$core.override
+  RemoteMediaOpenReq createEmptyInstance() => RemoteMediaOpenReq._();
+  @$core.pragma('dart2js:noInline')
+  static RemoteMediaOpenReq getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<RemoteMediaOpenReq>(
+          RemoteMediaOpenReq.$_createMessage);
+  static RemoteMediaOpenReq? _defaultInstance;
+
+  @$pb.TagNumber(21)
+  $core.String get path => $_getSZ(0);
+  @$pb.TagNumber(21)
+  set path($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(21)
+  $core.bool hasPath() => $_has(0);
+  @$pb.TagNumber(21)
+  void clearPath() => $_clearField(21);
+}
+
+class RemoteMediaOpenRes extends $pb.GeneratedMessage {
+  factory RemoteMediaOpenRes({
+    $core.bool? ok,
+    $core.String? error,
+    RemoteMediaState? state,
+    RemoteMediaEncoder? encoder,
+  }) {
+    final result = RemoteMediaOpenRes._();
+    if (ok != null) result.ok = ok;
+    if (error != null) result.error = error;
+    if (state != null) result.state = state;
+    if (encoder != null) result.encoder = encoder;
+    return result;
+  }
+
+  RemoteMediaOpenRes._();
+
+  factory RemoteMediaOpenRes.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteMediaOpenRes()..mergeFromBuffer(data, registry);
+  factory RemoteMediaOpenRes.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteMediaOpenRes()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'RemoteMediaOpenRes',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: RemoteMediaOpenRes.$_createMessage)
+    ..aOB(1, _omitFieldNames ? '' : 'ok')
+    ..aOS(2, _omitFieldNames ? '' : 'error')
+    ..aE<RemoteMediaState>(3, _omitFieldNames ? '' : 'state',
+        enumValues: RemoteMediaState.values)
+    ..aE<RemoteMediaEncoder>(4, _omitFieldNames ? '' : 'encoder',
+        enumValues: RemoteMediaEncoder.values)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteMediaOpenRes clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteMediaOpenRes copyWith(void Function(RemoteMediaOpenRes) updates) =>
+      super.copyWith((message) => updates(message as RemoteMediaOpenRes))
+          as RemoteMediaOpenRes;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use RemoteMediaOpenRes() / RemoteMediaOpenRes.new instead')
+  static RemoteMediaOpenRes create() => RemoteMediaOpenRes._();
+  static $pb.GeneratedMessage $_createMessage() => RemoteMediaOpenRes._();
+  @$core.override
+  RemoteMediaOpenRes createEmptyInstance() => RemoteMediaOpenRes._();
+  @$core.pragma('dart2js:noInline')
+  static RemoteMediaOpenRes getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<RemoteMediaOpenRes>(
+          RemoteMediaOpenRes.$_createMessage);
+  static RemoteMediaOpenRes? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get ok => $_getBF(0);
+  @$pb.TagNumber(1)
+  set ok($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasOk() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOk() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get error => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set error($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasError() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearError() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  RemoteMediaState get state => $_getN(2);
+  @$pb.TagNumber(3)
+  set state(RemoteMediaState value) => $_setField(3, value);
+  @$pb.TagNumber(3)
+  $core.bool hasState() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearState() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  RemoteMediaEncoder get encoder => $_getN(3);
+  @$pb.TagNumber(4)
+  set encoder(RemoteMediaEncoder value) => $_setField(4, value);
+  @$pb.TagNumber(4)
+  $core.bool hasEncoder() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearEncoder() => $_clearField(4);
+}
+
+class RemoteMediaCloseReq extends $pb.GeneratedMessage {
+  factory RemoteMediaCloseReq({
+    $core.bool? close,
+  }) {
+    final result = RemoteMediaCloseReq._();
+    if (close != null) result.close = close;
+    return result;
+  }
+
+  RemoteMediaCloseReq._();
+
+  factory RemoteMediaCloseReq.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteMediaCloseReq()..mergeFromBuffer(data, registry);
+  factory RemoteMediaCloseReq.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteMediaCloseReq()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'RemoteMediaCloseReq',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: RemoteMediaCloseReq.$_createMessage)
+    ..aOB(22, _omitFieldNames ? '' : 'close')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteMediaCloseReq clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteMediaCloseReq copyWith(void Function(RemoteMediaCloseReq) updates) =>
+      super.copyWith((message) => updates(message as RemoteMediaCloseReq))
+          as RemoteMediaCloseReq;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core
+      .Deprecated('Use RemoteMediaCloseReq() / RemoteMediaCloseReq.new instead')
+  static RemoteMediaCloseReq create() => RemoteMediaCloseReq._();
+  static $pb.GeneratedMessage $_createMessage() => RemoteMediaCloseReq._();
+  @$core.override
+  RemoteMediaCloseReq createEmptyInstance() => RemoteMediaCloseReq._();
+  @$core.pragma('dart2js:noInline')
+  static RemoteMediaCloseReq getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<RemoteMediaCloseReq>(
+          RemoteMediaCloseReq.$_createMessage);
+  static RemoteMediaCloseReq? _defaultInstance;
+
+  @$pb.TagNumber(22)
+  $core.bool get close => $_getBF(0);
+  @$pb.TagNumber(22)
+  set close($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(22)
+  $core.bool hasClose() => $_has(0);
+  @$pb.TagNumber(22)
+  void clearClose() => $_clearField(22);
+}
+
+class RemoteMediaCloseRes extends $pb.GeneratedMessage {
+  factory RemoteMediaCloseRes({
+    $core.bool? ok,
+    $core.String? error,
+    RemoteMediaState? state,
+  }) {
+    final result = RemoteMediaCloseRes._();
+    if (ok != null) result.ok = ok;
+    if (error != null) result.error = error;
+    if (state != null) result.state = state;
+    return result;
+  }
+
+  RemoteMediaCloseRes._();
+
+  factory RemoteMediaCloseRes.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteMediaCloseRes()..mergeFromBuffer(data, registry);
+  factory RemoteMediaCloseRes.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteMediaCloseRes()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'RemoteMediaCloseRes',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: RemoteMediaCloseRes.$_createMessage)
+    ..aOB(1, _omitFieldNames ? '' : 'ok')
+    ..aOS(2, _omitFieldNames ? '' : 'error')
+    ..aE<RemoteMediaState>(3, _omitFieldNames ? '' : 'state',
+        enumValues: RemoteMediaState.values)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteMediaCloseRes clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteMediaCloseRes copyWith(void Function(RemoteMediaCloseRes) updates) =>
+      super.copyWith((message) => updates(message as RemoteMediaCloseRes))
+          as RemoteMediaCloseRes;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core
+      .Deprecated('Use RemoteMediaCloseRes() / RemoteMediaCloseRes.new instead')
+  static RemoteMediaCloseRes create() => RemoteMediaCloseRes._();
+  static $pb.GeneratedMessage $_createMessage() => RemoteMediaCloseRes._();
+  @$core.override
+  RemoteMediaCloseRes createEmptyInstance() => RemoteMediaCloseRes._();
+  @$core.pragma('dart2js:noInline')
+  static RemoteMediaCloseRes getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<RemoteMediaCloseRes>(
+          RemoteMediaCloseRes.$_createMessage);
+  static RemoteMediaCloseRes? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get ok => $_getBF(0);
+  @$pb.TagNumber(1)
+  set ok($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasOk() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOk() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get error => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set error($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasError() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearError() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  RemoteMediaState get state => $_getN(2);
+  @$pb.TagNumber(3)
+  set state(RemoteMediaState value) => $_setField(3, value);
+  @$pb.TagNumber(3)
+  $core.bool hasState() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearState() => $_clearField(3);
+}
+
+class RemoteMediaStatusReq extends $pb.GeneratedMessage {
+  factory RemoteMediaStatusReq({
+    $core.bool? query,
+  }) {
+    final result = RemoteMediaStatusReq._();
+    if (query != null) result.query = query;
+    return result;
+  }
+
+  RemoteMediaStatusReq._();
+
+  factory RemoteMediaStatusReq.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteMediaStatusReq()..mergeFromBuffer(data, registry);
+  factory RemoteMediaStatusReq.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteMediaStatusReq()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'RemoteMediaStatusReq',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: RemoteMediaStatusReq.$_createMessage)
+    ..aOB(23, _omitFieldNames ? '' : 'query')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteMediaStatusReq clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteMediaStatusReq copyWith(void Function(RemoteMediaStatusReq) updates) =>
+      super.copyWith((message) => updates(message as RemoteMediaStatusReq))
+          as RemoteMediaStatusReq;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use RemoteMediaStatusReq() / RemoteMediaStatusReq.new instead')
+  static RemoteMediaStatusReq create() => RemoteMediaStatusReq._();
+  static $pb.GeneratedMessage $_createMessage() => RemoteMediaStatusReq._();
+  @$core.override
+  RemoteMediaStatusReq createEmptyInstance() => RemoteMediaStatusReq._();
+  @$core.pragma('dart2js:noInline')
+  static RemoteMediaStatusReq getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<RemoteMediaStatusReq>(
+          RemoteMediaStatusReq.$_createMessage);
+  static RemoteMediaStatusReq? _defaultInstance;
+
+  @$pb.TagNumber(23)
+  $core.bool get query => $_getBF(0);
+  @$pb.TagNumber(23)
+  set query($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(23)
+  $core.bool hasQuery() => $_has(0);
+  @$pb.TagNumber(23)
+  void clearQuery() => $_clearField(23);
+}
+
+class RemoteMediaStatusRes extends $pb.GeneratedMessage {
+  factory RemoteMediaStatusRes({
+    RemoteMediaState? state,
+    $core.String? path,
+    $core.String? error,
+    RemoteMediaEncoder? encoder,
+  }) {
+    final result = RemoteMediaStatusRes._();
+    if (state != null) result.state = state;
+    if (path != null) result.path = path;
+    if (error != null) result.error = error;
+    if (encoder != null) result.encoder = encoder;
+    return result;
+  }
+
+  RemoteMediaStatusRes._();
+
+  factory RemoteMediaStatusRes.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteMediaStatusRes()..mergeFromBuffer(data, registry);
+  factory RemoteMediaStatusRes.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteMediaStatusRes()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'RemoteMediaStatusRes',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: RemoteMediaStatusRes.$_createMessage)
+    ..aE<RemoteMediaState>(1, _omitFieldNames ? '' : 'state',
+        enumValues: RemoteMediaState.values)
+    ..aOS(2, _omitFieldNames ? '' : 'path')
+    ..aOS(3, _omitFieldNames ? '' : 'error')
+    ..aE<RemoteMediaEncoder>(4, _omitFieldNames ? '' : 'encoder',
+        enumValues: RemoteMediaEncoder.values)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteMediaStatusRes clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteMediaStatusRes copyWith(void Function(RemoteMediaStatusRes) updates) =>
+      super.copyWith((message) => updates(message as RemoteMediaStatusRes))
+          as RemoteMediaStatusRes;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use RemoteMediaStatusRes() / RemoteMediaStatusRes.new instead')
+  static RemoteMediaStatusRes create() => RemoteMediaStatusRes._();
+  static $pb.GeneratedMessage $_createMessage() => RemoteMediaStatusRes._();
+  @$core.override
+  RemoteMediaStatusRes createEmptyInstance() => RemoteMediaStatusRes._();
+  @$core.pragma('dart2js:noInline')
+  static RemoteMediaStatusRes getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<RemoteMediaStatusRes>(
+          RemoteMediaStatusRes.$_createMessage);
+  static RemoteMediaStatusRes? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  RemoteMediaState get state => $_getN(0);
+  @$pb.TagNumber(1)
+  set state(RemoteMediaState value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasState() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearState() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get path => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set path($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasPath() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearPath() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get error => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set error($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasError() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearError() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  RemoteMediaEncoder get encoder => $_getN(3);
+  @$pb.TagNumber(4)
+  set encoder(RemoteMediaEncoder value) => $_setField(4, value);
+  @$pb.TagNumber(4)
+  $core.bool hasEncoder() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearEncoder() => $_clearField(4);
 }
 
 const $core.bool _omitFieldNames =

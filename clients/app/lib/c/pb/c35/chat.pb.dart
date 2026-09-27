@@ -3204,6 +3204,307 @@ class ResChatHistoryClear extends $pb.GeneratedMessage {
   void clearChatsAffected() => $_clearField(2);
 }
 
+/// Device-bound prompt contexts (Remote / Devices composer)
+class ReqChatDeviceContextList extends $pb.GeneratedMessage {
+  factory ReqChatDeviceContextList({
+    $fixnum.Int64? deviceIid,
+    $core.bool? includeArchived,
+    $core.int? limit,
+  }) {
+    final result = ReqChatDeviceContextList._();
+    if (deviceIid != null) result.deviceIid = deviceIid;
+    if (includeArchived != null) result.includeArchived = includeArchived;
+    if (limit != null) result.limit = limit;
+    return result;
+  }
+
+  ReqChatDeviceContextList._();
+
+  factory ReqChatDeviceContextList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqChatDeviceContextList()..mergeFromBuffer(data, registry);
+  factory ReqChatDeviceContextList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqChatDeviceContextList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqChatDeviceContextList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqChatDeviceContextList.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'deviceIid')
+    ..aOB(2, _omitFieldNames ? '' : 'includeArchived')
+    ..aI(3, _omitFieldNames ? '' : 'limit')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqChatDeviceContextList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqChatDeviceContextList copyWith(
+          void Function(ReqChatDeviceContextList) updates) =>
+      super.copyWith((message) => updates(message as ReqChatDeviceContextList))
+          as ReqChatDeviceContextList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqChatDeviceContextList() / ReqChatDeviceContextList.new instead')
+  static ReqChatDeviceContextList create() => ReqChatDeviceContextList._();
+  static $pb.GeneratedMessage $_createMessage() => ReqChatDeviceContextList._();
+  @$core.override
+  ReqChatDeviceContextList createEmptyInstance() =>
+      ReqChatDeviceContextList._();
+  @$core.pragma('dart2js:noInline')
+  static ReqChatDeviceContextList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqChatDeviceContextList>(
+          ReqChatDeviceContextList.$_createMessage);
+  static ReqChatDeviceContextList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get deviceIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set deviceIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasDeviceIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearDeviceIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.bool get includeArchived => $_getBF(1);
+  @$pb.TagNumber(2)
+  set includeArchived($core.bool value) => $_setBool(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasIncludeArchived() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearIncludeArchived() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.int get limit => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set limit($core.int value) => $_setSignedInt32(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasLimit() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearLimit() => $_clearField(3);
+}
+
+class ResChatDeviceContextList extends $pb.GeneratedMessage {
+  factory ResChatDeviceContextList({
+    $core.Iterable<Chat>? chats,
+    $core.Iterable<ChatMember>? members,
+  }) {
+    final result = ResChatDeviceContextList._();
+    if (chats != null) result.chats.addAll(chats);
+    if (members != null) result.members.addAll(members);
+    return result;
+  }
+
+  ResChatDeviceContextList._();
+
+  factory ResChatDeviceContextList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResChatDeviceContextList()..mergeFromBuffer(data, registry);
+  factory ResChatDeviceContextList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResChatDeviceContextList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResChatDeviceContextList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResChatDeviceContextList.$_createMessage)
+    ..pPM<Chat>(1, _omitFieldNames ? '' : 'chats',
+        subBuilder: Chat.$_createMessage)
+    ..pPM<ChatMember>(2, _omitFieldNames ? '' : 'members',
+        subBuilder: ChatMember.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResChatDeviceContextList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResChatDeviceContextList copyWith(
+          void Function(ResChatDeviceContextList) updates) =>
+      super.copyWith((message) => updates(message as ResChatDeviceContextList))
+          as ResChatDeviceContextList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResChatDeviceContextList() / ResChatDeviceContextList.new instead')
+  static ResChatDeviceContextList create() => ResChatDeviceContextList._();
+  static $pb.GeneratedMessage $_createMessage() => ResChatDeviceContextList._();
+  @$core.override
+  ResChatDeviceContextList createEmptyInstance() =>
+      ResChatDeviceContextList._();
+  @$core.pragma('dart2js:noInline')
+  static ResChatDeviceContextList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResChatDeviceContextList>(
+          ResChatDeviceContextList.$_createMessage);
+  static ResChatDeviceContextList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<Chat> get chats => $_getList(0);
+
+  @$pb.TagNumber(2)
+  $pb.PbList<ChatMember> get members => $_getList(1);
+}
+
+class ReqChatDeviceContextCreate extends $pb.GeneratedMessage {
+  factory ReqChatDeviceContextCreate({
+    $fixnum.Int64? deviceIid,
+    $core.String? title,
+  }) {
+    final result = ReqChatDeviceContextCreate._();
+    if (deviceIid != null) result.deviceIid = deviceIid;
+    if (title != null) result.title = title;
+    return result;
+  }
+
+  ReqChatDeviceContextCreate._();
+
+  factory ReqChatDeviceContextCreate.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqChatDeviceContextCreate()..mergeFromBuffer(data, registry);
+  factory ReqChatDeviceContextCreate.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqChatDeviceContextCreate()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqChatDeviceContextCreate',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqChatDeviceContextCreate.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'deviceIid')
+    ..aOS(2, _omitFieldNames ? '' : 'title')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqChatDeviceContextCreate clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqChatDeviceContextCreate copyWith(
+          void Function(ReqChatDeviceContextCreate) updates) =>
+      super.copyWith(
+              (message) => updates(message as ReqChatDeviceContextCreate))
+          as ReqChatDeviceContextCreate;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqChatDeviceContextCreate() / ReqChatDeviceContextCreate.new instead')
+  static ReqChatDeviceContextCreate create() => ReqChatDeviceContextCreate._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ReqChatDeviceContextCreate._();
+  @$core.override
+  ReqChatDeviceContextCreate createEmptyInstance() =>
+      ReqChatDeviceContextCreate._();
+  @$core.pragma('dart2js:noInline')
+  static ReqChatDeviceContextCreate getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqChatDeviceContextCreate>(
+          ReqChatDeviceContextCreate.$_createMessage);
+  static ReqChatDeviceContextCreate? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get deviceIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set deviceIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasDeviceIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearDeviceIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get title => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set title($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasTitle() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearTitle() => $_clearField(2);
+}
+
+class ResChatDeviceContextCreate extends $pb.GeneratedMessage {
+  factory ResChatDeviceContextCreate({
+    Chat? chat,
+    ChatMember? member,
+  }) {
+    final result = ResChatDeviceContextCreate._();
+    if (chat != null) result.chat = chat;
+    if (member != null) result.member = member;
+    return result;
+  }
+
+  ResChatDeviceContextCreate._();
+
+  factory ResChatDeviceContextCreate.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResChatDeviceContextCreate()..mergeFromBuffer(data, registry);
+  factory ResChatDeviceContextCreate.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResChatDeviceContextCreate()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResChatDeviceContextCreate',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResChatDeviceContextCreate.$_createMessage)
+    ..aOM<Chat>(1, _omitFieldNames ? '' : 'chat',
+        subBuilder: Chat.$_createMessage)
+    ..aOM<ChatMember>(2, _omitFieldNames ? '' : 'member',
+        subBuilder: ChatMember.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResChatDeviceContextCreate clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResChatDeviceContextCreate copyWith(
+          void Function(ResChatDeviceContextCreate) updates) =>
+      super.copyWith(
+              (message) => updates(message as ResChatDeviceContextCreate))
+          as ResChatDeviceContextCreate;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResChatDeviceContextCreate() / ResChatDeviceContextCreate.new instead')
+  static ResChatDeviceContextCreate create() => ResChatDeviceContextCreate._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ResChatDeviceContextCreate._();
+  @$core.override
+  ResChatDeviceContextCreate createEmptyInstance() =>
+      ResChatDeviceContextCreate._();
+  @$core.pragma('dart2js:noInline')
+  static ResChatDeviceContextCreate getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResChatDeviceContextCreate>(
+          ResChatDeviceContextCreate.$_createMessage);
+  static ResChatDeviceContextCreate? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  Chat get chat => $_getN(0);
+  @$pb.TagNumber(1)
+  set chat(Chat value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasChat() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearChat() => $_clearField(1);
+  @$pb.TagNumber(1)
+  Chat ensureChat() => $_ensure(0);
+
+  @$pb.TagNumber(2)
+  ChatMember get member => $_getN(1);
+  @$pb.TagNumber(2)
+  set member(ChatMember value) => $_setField(2, value);
+  @$pb.TagNumber(2)
+  $core.bool hasMember() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearMember() => $_clearField(2);
+  @$pb.TagNumber(2)
+  ChatMember ensureMember() => $_ensure(1);
+}
+
 class AssetTagHint extends $pb.GeneratedMessage {
   factory AssetTagHint({
     $core.String? tag,

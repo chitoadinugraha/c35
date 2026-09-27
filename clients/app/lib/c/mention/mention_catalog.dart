@@ -37,11 +37,16 @@ class MentionCatalogStore {
     }
   }
 
-  Future<void> refresh(ChatConn conn) async => mergeList(await conn.mentionList());
-
-  Future<List<CatalogMention>> search(ChatConn conn, {String q = '', List<String> kinds = const [], int limit = 20}) async {
-    final res = await conn.mentionSearch(q: q, kinds: kinds, limit: limit);
-    putItems(res.mentions);
-    return res.mentions.map(CatalogMention.fromMentionItem).toList(growable: false);
+  List<CatalogMention> mentionListFilter(List<CatalogMention> rows, String q, {int limit = 20}) {
+    final lq = q.toLowerCase();
+    if (lq.isEmpty) return rows.take(limit).toList(growable: false);
+    return rows.where((m) {
+      if (m.id.toLowerCase().contains(lq)) return true;
+      if (m.displayLabel.toLowerCase().contains(lq)) return true;
+      final cap = m.displayCaption;
+      return cap.isNotEmpty && cap.toLowerCase().contains(lq);
+    }).take(limit).toList(growable: false);
   }
+
+  Future<void> refresh(ChatConn conn) async => mergeList(await conn.mentionList());
 }

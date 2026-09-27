@@ -61,6 +61,12 @@ class _UiChatHistorySidebarState extends State<UiChatHistorySidebar> {
     }
   }
 
+  void _closeDrawerIfOpen() {
+    final scaffold = Scaffold.maybeOf(context);
+    if (scaffold == null || !scaffold.isDrawerOpen) return;
+    Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context) => ListenableBuilder(
         listenable: widget.store,
@@ -105,7 +111,15 @@ class _UiChatHistorySidebarState extends State<UiChatHistorySidebar> {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      uiIconButton(tooltip: 'New chat', color: const Color(0xFF71717A), onPressed: widget.onNewChat, icon: const Icon(Icons.add_rounded, size: 20)),
+                      uiIconButton(
+                        tooltip: 'New chat',
+                        color: const Color(0xFF71717A),
+                        onPressed: () {
+                          _closeDrawerIfOpen();
+                          widget.onNewChat();
+                        },
+                        icon: const Icon(Icons.add_rounded, size: 20),
+                      ),
                     ],
                   ),
                 ),
@@ -250,6 +264,7 @@ class _UiChatHistorySidebarState extends State<UiChatHistorySidebar> {
     return _ChatTile(
       title: c.title.trim().isEmpty || c.title == 'New chat' ? c.title : chatTitleDisplay(c.title),
       subtitle: subtitle,
+      boundDevice: c.boundDeviceIid > 0,
       selected: selected,
       pinned: c.pinned,
       muted: archived,
@@ -258,7 +273,12 @@ class _UiChatHistorySidebarState extends State<UiChatHistorySidebar> {
       status: c.lastMsgStatus,
       unread: c.unreadStatus && !selected,
       lastMsgAt: c.lastMsgAt,
-      onTap: deleting ? null : () => widget.onChatSelect(c.id),
+      onTap: deleting
+          ? null
+          : () {
+              _closeDrawerIfOpen();
+              widget.onChatSelect(c.id);
+            },
       onMenu: deleting ? null : (ctx, global) => widget.onChatMenu(c.id, global),
     );
   }
@@ -292,12 +312,14 @@ class _ChatTile extends StatefulWidget {
     this.unread = false,
     this.lastMsgAt = 0,
     this.subtitle = '',
+    this.boundDevice = false,
     required this.onTap,
     required this.onMenu,
   });
 
   final String title;
   final String subtitle;
+  final bool boundDevice;
   final bool selected;
   final bool pinned;
   final bool muted;
@@ -397,6 +419,11 @@ class _ChatTileState extends State<_ChatTile> {
                           opacity: deleting ? 0 : 1,
                           child: const Icon(Icons.push_pin, size: 12, color: Color(0xFFA1A1AA)),
                         ),
+                      ),
+                    if (widget.boundDevice)
+                      const Padding(
+                        padding: EdgeInsets.only(right: 6),
+                        child: Icon(Icons.devices_rounded, size: 12, color: Color(0xFFF59E0B)),
                       ),
                     Expanded(
                       child: Column(

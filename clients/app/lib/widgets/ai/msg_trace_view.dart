@@ -6,7 +6,6 @@ import 'package:alienai_c35/c/ui/ui_format.dart';
 import 'package:flutter/material.dart';
 
 import 'package:alienai_c35/widgets/ai/ui_citation_chips.dart';
-
 enum MsgTracePart { chips, citations, all }
 
 class MsgTraceView {
@@ -47,6 +46,7 @@ class UiMsgTraceLoader extends StatefulWidget {
 
 class _UiMsgTraceLoaderState extends State<UiMsgTraceLoader> {
   MsgTraceView? _view;
+  var _loading = false;
   Timer? _poll;
   StreamSubscription<String>? _traceSub;
   var _idlePollTicks = 0;
@@ -74,6 +74,7 @@ class _UiMsgTraceLoaderState extends State<UiMsgTraceLoader> {
       _poll?.cancel();
       _poll = null;
       _idlePollTicks = 0;
+      _loading = false;
     }
     if (oldWidget.reqId != widget.reqId || oldWidget.live != widget.live || oldWidget.part != widget.part) unawaited(_load());
     _syncPoll();
@@ -115,12 +116,16 @@ class _UiMsgTraceLoaderState extends State<UiMsgTraceLoader> {
     final reqId = widget.reqId.trim();
     if (reqId.isEmpty) return;
     var view = msgTraceViewForReq(widget.conn, reqId: reqId);
+    final cacheEmpty = view.isEmpty;
     final partMissing = _partEmpty(view);
-    if (view.isEmpty || partMissing) {
-      await widget.conn.tracePrefetch(reqId, force: true);
+    final needsFetch = cacheEmpty || (widget.live && partMissing);
+    if (needsFetch) {
+      if (mounted && !_loading) setState(() => _loading = true);
+      await widget.conn.tracePrefetch(reqId, force: cacheEmpty);
       view = msgTraceViewForReq(widget.conn, reqId: reqId);
     }
     if (!mounted) return;
+    if (_loading) setState(() => _loading = false);
     if (_partEmpty(view) && !widget.live) {
       setState(() => _view = view);
       _syncPoll();
@@ -151,7 +156,9 @@ class _UiMsgTraceLoaderState extends State<UiMsgTraceLoader> {
   @override
   Widget build(BuildContext context) {
     final v = _view;
-    if (v == null || _partEmpty(v)) return const SizedBox.shrink();
+    if (v == null || _partEmpty(v)) {
+      return const SizedBox.shrink();
+    }
     return UiMsgTraceView(view: v, compact: widget.compact, live: widget.live, part: widget.part);
   }
 }

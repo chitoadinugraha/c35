@@ -154,7 +154,7 @@ message BillingTopupRequest {
   int64 updated_ts_ms = 15;
 }
 
-// NATS push: c35.user.{iid}.balance | .quota | .commission
+// NATS app lane: c35.user.{iid}.app.balance | .app.quota | .app.commission (see _/docs/sync.md)
 message BillingPushBalance {
   int64 billing_account_id = 1;  // legacy
   double balance_usd = 2;        // legacy

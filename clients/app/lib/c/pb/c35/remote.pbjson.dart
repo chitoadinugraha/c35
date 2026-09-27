@@ -68,6 +68,41 @@ final $typed_data.Uint8List remoteFsDriveKindDescriptor = $convert.base64Decode(
     'TkRfUkVNT1ZBQkxFEAISHwobUkVNT1RFX0ZTX0RSSVZFX0tJTkRfUkVNT1RFEAMSHgoaUkVNT1'
     'RFX0ZTX0RSSVZFX0tJTkRfQ0RST00QBBIcChhSRU1PVEVfRlNfRFJJVkVfS0lORF9SQU0QBQ==');
 
+@$core.Deprecated('Use remoteMediaStateDescriptor instead')
+const RemoteMediaState$json = {
+  '1': 'RemoteMediaState',
+  '2': [
+    {'1': 'REMOTE_MEDIA_STATE_UNSPECIFIED', '2': 0},
+    {'1': 'REMOTE_MEDIA_STATE_IDLE', '2': 1},
+    {'1': 'REMOTE_MEDIA_STATE_OPENING', '2': 2},
+    {'1': 'REMOTE_MEDIA_STATE_PLAYING', '2': 3},
+    {'1': 'REMOTE_MEDIA_STATE_ERROR', '2': 4},
+  ],
+};
+
+/// Descriptor for `RemoteMediaState`. Decode as a `google.protobuf.EnumDescriptorProto`.
+final $typed_data.Uint8List remoteMediaStateDescriptor = $convert.base64Decode(
+    'ChBSZW1vdGVNZWRpYVN0YXRlEiIKHlJFTU9URV9NRURJQV9TVEFURV9VTlNQRUNJRklFRBAAEh'
+    'sKF1JFTU9URV9NRURJQV9TVEFURV9JRExFEAESHgoaUkVNT1RFX01FRElBX1NUQVRFX09QRU5J'
+    'TkcQAhIeChpSRU1PVEVfTUVESUFfU1RBVEVfUExBWUlORxADEhwKGFJFTU9URV9NRURJQV9TVE'
+    'FURV9FUlJPUhAE');
+
+@$core.Deprecated('Use remoteMediaEncoderDescriptor instead')
+const RemoteMediaEncoder$json = {
+  '1': 'RemoteMediaEncoder',
+  '2': [
+    {'1': 'REMOTE_MEDIA_ENCODER_UNSPECIFIED', '2': 0},
+    {'1': 'REMOTE_MEDIA_ENCODER_HW_MF', '2': 1},
+    {'1': 'REMOTE_MEDIA_ENCODER_FFMPEG', '2': 2},
+  ],
+};
+
+/// Descriptor for `RemoteMediaEncoder`. Decode as a `google.protobuf.EnumDescriptorProto`.
+final $typed_data.Uint8List remoteMediaEncoderDescriptor = $convert.base64Decode(
+    'ChJSZW1vdGVNZWRpYUVuY29kZXISJAogUkVNT1RFX01FRElBX0VOQ09ERVJfVU5TUEVDSUZJRU'
+    'QQABIeChpSRU1PVEVfTUVESUFfRU5DT0RFUl9IV19NRhABEh8KG1JFTU9URV9NRURJQV9FTkNP'
+    'REVSX0ZGTVBFRxAC');
+
 @$core.Deprecated('Use reqRemoteSessionStartDescriptor instead')
 const ReqRemoteSessionStart$json = {
   '1': 'ReqRemoteSessionStart',
@@ -350,6 +385,18 @@ final $typed_data.Uint8List remoteInputEventDescriptor = $convert.base64Decode(
     'ZGUYBSABKAVSB2tleUNvZGUSEgoEdGV4dBgGIAEoCVIEdGV4dBIXCgdkZWx0YV95GAcgASgFUg'
     'ZkZWx0YVk=');
 
+@$core.Deprecated('Use remoteCursorEventDescriptor instead')
+const RemoteCursorEvent$json = {
+  '1': 'RemoteCursorEvent',
+  '2': [
+    {'1': 'shape', '3': 1, '4': 1, '5': 9, '10': 'shape'},
+  ],
+};
+
+/// Descriptor for `RemoteCursorEvent`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List remoteCursorEventDescriptor = $convert
+    .base64Decode('ChFSZW1vdGVDdXJzb3JFdmVudBIUCgVzaGFwZRgBIAEoCVIFc2hhcGU=');
+
 @$core.Deprecated('Use remoteFsEntryDescriptor instead')
 const RemoteFsEntry$json = {
   '1': 'RemoteFsEntry',
@@ -544,3 +591,125 @@ const RemoteFsRenameRes$json = {
 /// Descriptor for `RemoteFsRenameRes`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List remoteFsRenameResDescriptor = $convert
     .base64Decode('ChFSZW1vdGVGc1JlbmFtZVJlcxIUCgVlcnJvchgBIAEoCVIFZXJyb3I=');
+
+@$core.Deprecated('Use remoteMediaOpenReqDescriptor instead')
+const RemoteMediaOpenReq$json = {
+  '1': 'RemoteMediaOpenReq',
+  '2': [
+    {'1': 'path', '3': 21, '4': 1, '5': 9, '10': 'path'},
+  ],
+};
+
+/// Descriptor for `RemoteMediaOpenReq`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List remoteMediaOpenReqDescriptor = $convert
+    .base64Decode('ChJSZW1vdGVNZWRpYU9wZW5SZXESEgoEcGF0aBgVIAEoCVIEcGF0aA==');
+
+@$core.Deprecated('Use remoteMediaOpenResDescriptor instead')
+const RemoteMediaOpenRes$json = {
+  '1': 'RemoteMediaOpenRes',
+  '2': [
+    {'1': 'ok', '3': 1, '4': 1, '5': 8, '10': 'ok'},
+    {'1': 'error', '3': 2, '4': 1, '5': 9, '10': 'error'},
+    {
+      '1': 'state',
+      '3': 3,
+      '4': 1,
+      '5': 14,
+      '6': '.c35.RemoteMediaState',
+      '10': 'state'
+    },
+    {
+      '1': 'encoder',
+      '3': 4,
+      '4': 1,
+      '5': 14,
+      '6': '.c35.RemoteMediaEncoder',
+      '10': 'encoder'
+    },
+  ],
+};
+
+/// Descriptor for `RemoteMediaOpenRes`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List remoteMediaOpenResDescriptor = $convert.base64Decode(
+    'ChJSZW1vdGVNZWRpYU9wZW5SZXMSDgoCb2sYASABKAhSAm9rEhQKBWVycm9yGAIgASgJUgVlcn'
+    'JvchIrCgVzdGF0ZRgDIAEoDjIVLmMzNS5SZW1vdGVNZWRpYVN0YXRlUgVzdGF0ZRIxCgdlbmNv'
+    'ZGVyGAQgASgOMhcuYzM1LlJlbW90ZU1lZGlhRW5jb2RlclIHZW5jb2Rlcg==');
+
+@$core.Deprecated('Use remoteMediaCloseReqDescriptor instead')
+const RemoteMediaCloseReq$json = {
+  '1': 'RemoteMediaCloseReq',
+  '2': [
+    {'1': 'close', '3': 22, '4': 1, '5': 8, '10': 'close'},
+  ],
+};
+
+/// Descriptor for `RemoteMediaCloseReq`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List remoteMediaCloseReqDescriptor =
+    $convert.base64Decode(
+        'ChNSZW1vdGVNZWRpYUNsb3NlUmVxEhQKBWNsb3NlGBYgASgIUgVjbG9zZQ==');
+
+@$core.Deprecated('Use remoteMediaCloseResDescriptor instead')
+const RemoteMediaCloseRes$json = {
+  '1': 'RemoteMediaCloseRes',
+  '2': [
+    {'1': 'ok', '3': 1, '4': 1, '5': 8, '10': 'ok'},
+    {'1': 'error', '3': 2, '4': 1, '5': 9, '10': 'error'},
+    {
+      '1': 'state',
+      '3': 3,
+      '4': 1,
+      '5': 14,
+      '6': '.c35.RemoteMediaState',
+      '10': 'state'
+    },
+  ],
+};
+
+/// Descriptor for `RemoteMediaCloseRes`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List remoteMediaCloseResDescriptor = $convert.base64Decode(
+    'ChNSZW1vdGVNZWRpYUNsb3NlUmVzEg4KAm9rGAEgASgIUgJvaxIUCgVlcnJvchgCIAEoCVIFZX'
+    'Jyb3ISKwoFc3RhdGUYAyABKA4yFS5jMzUuUmVtb3RlTWVkaWFTdGF0ZVIFc3RhdGU=');
+
+@$core.Deprecated('Use remoteMediaStatusReqDescriptor instead')
+const RemoteMediaStatusReq$json = {
+  '1': 'RemoteMediaStatusReq',
+  '2': [
+    {'1': 'query', '3': 23, '4': 1, '5': 8, '10': 'query'},
+  ],
+};
+
+/// Descriptor for `RemoteMediaStatusReq`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List remoteMediaStatusReqDescriptor =
+    $convert.base64Decode(
+        'ChRSZW1vdGVNZWRpYVN0YXR1c1JlcRIUCgVxdWVyeRgXIAEoCFIFcXVlcnk=');
+
+@$core.Deprecated('Use remoteMediaStatusResDescriptor instead')
+const RemoteMediaStatusRes$json = {
+  '1': 'RemoteMediaStatusRes',
+  '2': [
+    {
+      '1': 'state',
+      '3': 1,
+      '4': 1,
+      '5': 14,
+      '6': '.c35.RemoteMediaState',
+      '10': 'state'
+    },
+    {'1': 'path', '3': 2, '4': 1, '5': 9, '10': 'path'},
+    {'1': 'error', '3': 3, '4': 1, '5': 9, '10': 'error'},
+    {
+      '1': 'encoder',
+      '3': 4,
+      '4': 1,
+      '5': 14,
+      '6': '.c35.RemoteMediaEncoder',
+      '10': 'encoder'
+    },
+  ],
+};
+
+/// Descriptor for `RemoteMediaStatusRes`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List remoteMediaStatusResDescriptor = $convert.base64Decode(
+    'ChRSZW1vdGVNZWRpYVN0YXR1c1JlcxIrCgVzdGF0ZRgBIAEoDjIVLmMzNS5SZW1vdGVNZWRpYV'
+    'N0YXRlUgVzdGF0ZRISCgRwYXRoGAIgASgJUgRwYXRoEhQKBWVycm9yGAMgASgJUgVlcnJvchIx'
+    'CgdlbmNvZGVyGAQgASgOMhcuYzM1LlJlbW90ZU1lZGlhRW5jb2RlclIHZW5jb2Rlcg==');

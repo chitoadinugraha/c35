@@ -281,9 +281,24 @@ Remote agent attaches skills/tasks to device **identity id**.
 | **Copy** (toolbar, context menu, Ctrl+C) | Selected **file** on device → in-app clipboard (paths) |
 | **Paste** (toolbar, Ctrl+V / Cmd+V) | If OS clipboard has files → **upload**; else if in-app clipboard → **duplicate on device** (read/write chunks, auto-rename collisions) |
 
-**Download** — toolbar or context menu; pick a local folder; `RemoteFsTransfer.downloadRemote` (files + folder trees).
+**Download** — toolbar or context menu; `file_picker` save (single file on Android) or folder pick; `RemoteFsTransfer.downloadRemote` (files + folder trees).
 
 **Mutations** — New folder (`fsMkdir`), Rename (`fsRename`), Delete (`fsDelete` + confirm). Drive roots cannot be deleted.
+
+**Android Files matrix** (phone/tablet app — remote PC drives over WebRTC)
+
+| Capability | Android | Notes |
+|------------|---------|--------|
+| Browse / list / sort | Supported | Same tree-grid; narrow width hides Size/Type/Modified columns |
+| Text / image preview | Supported | Same caps (2 MB text, 512 KB image) |
+| Upload (`+`) | Supported | `file_picker`; content URIs staged to app temp before chunk upload |
+| Download | Supported | Single file → `saveFile`; multi-item / folder → SAF directory pick |
+| In-app copy / cut / paste (device) | Supported | Duplicate on remote device |
+| OS clipboard → upload | N/A | No Explorer-style file paths; use `+` picker |
+| Drag-drop upload | N/A | Desktop only (`desktop_drop` not used on mobile) |
+| Video play (WebRTC) | Supported | When agent ships media track (desktop agent) |
+| Background transfers | Degraded | Snackbar warns to keep app open; no wakelock in v1 |
+| Local ffmpeg OTA | N/A | Play build — agent-side tools only |
 
 **Preview** — text-like extensions up to **2 MB**; images up to **512 KB** via chunked `RemoteFsRead` (banner when capped). Other types: use Download.
 

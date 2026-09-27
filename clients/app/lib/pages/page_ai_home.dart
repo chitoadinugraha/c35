@@ -5,10 +5,10 @@ import 'package:uuid/uuid.dart';
 import 'package:alienai_c35/c/api/settings_conn.dart';
 import 'package:alienai_c35/c/api/referral_conn.dart';
 import 'package:alienai_c35/c/auth/auth_service.dart';
-import 'package:alienai_c35/c/catalog/catalog_api.dart';
 import 'package:alienai_c35/c/catalog/catalog_translation_cache.dart';
 import 'package:alienai_c35/c/chat/chat_block.dart';
 import 'package:alienai_c35/c/chat/chat_conn.dart';
+import 'package:alienai_c35/c/conn/server_host.dart';
 import 'package:alienai_c35/c/chat/chat_inbox.dart';
 import 'package:alienai_c35/c/chat/chat_title.dart';
 import 'package:alienai_c35/c/chat/space_hints.dart';
@@ -49,6 +49,7 @@ import 'package:alienai_c35/pages/referral/page_referral_tree.dart';
 import 'package:alienai_c35/widgets/referral/ui_referral_claim_dialog.dart';
 import 'package:alienai_c35/widgets/settings/ui_location_consent_dialog.dart';
 import 'package:alienai_c35/widgets/referral/ui_referral_commission_sheet.dart';
+import 'package:alienai_c35/widgets/ai/composer_mention_text.dart';
 import 'package:alienai_c35/widgets/ai/in_composer.dart';
 import 'package:alienai_c35/widgets/ai/msg_trace_view.dart';
 import 'package:alienai_c35/widgets/ai/ui_alien_icon.dart';
@@ -151,10 +152,24 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       }
     });
     PromptFollowupStore.instance.addListener(_onFollowupStoreChanged);
+    serverHostTick.addListener(_onServerHostChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_boot());
       _checkReferralPrompt();
     });
+  }
+
+  void _onServerHostChanged() {
+    if (!mounted || !Session.instance.signedIn) return;
+    unawaited(_connConnect());
+  }
+
+  Future<void> _connConnect() async {
+    final localePrefs = UserLocalePrefs.instance;
+    await _conn.connect(
+      locale: CatalogTranslationCache.instance.lang,
+      tz: localePrefs.tz.isNotEmpty ? localePrefs.tz : UserLocalePrefs.deviceTimezoneDetect(),
+    );
   }
 
   @override
@@ -343,6 +358,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     _followupPushSub?.cancel();
     _promptRunPushSub?.cancel();
     PromptFollowupStore.instance.removeListener(_onFollowupStoreChanged);
+    serverHostTick.removeListener(_onServerHostChanged);
     _timeline.dispose();
     _conn.disconnect();
     _canvasStore.dispose();
@@ -365,8 +381,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     if (mounted) setState(() => _catalogReady = true);
     try {
       final locale = CatalogTranslationCache.instance.lang;
-      final localePrefs = UserLocalePrefs.instance;
-      await _conn.connect(locale: locale, tz: localePrefs.tz.isNotEmpty ? localePrefs.tz : UserLocalePrefs.deviceTimezoneDetect());
+      await _connConnect();
       await _store.refreshFromConn(_conn, locale: locale);
       await _reconcilePromptState();
       if (_store.mentionCatalog.mentions.isEmpty) {
@@ -721,8 +736,6 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
 
   void _mentionToggle(String id) => setState(() => _mentionIds.contains(id) ? _mentionIds.remove(id) : _mentionIds.add(id));
 
-  Future<List<CatalogMention>> _mentionSearch(String q) => _store.mentionCatalog.search(_conn, q: q);
-
   void _toolModeToggle() => setState(() => _toolMode = _toolMode == 'ask' ? 'agent' : 'ask');
 
   void _modelPut(AgentModel m) {
@@ -773,9 +786,19 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     await _composerSend('$lead\n\n$prompt', const [], mentionIds: const ['image_high']);
   }
 
-  Future<void> _composerSend(String text, List<MsgAttachment> attachments, {bool retry = false, String? toolMode, List<String>? mentionIds}) async {
+  Future<void> _composerSend(String text, List<MsgAttachment> attachments, {bool retry = false, String? toolMode, List<String>? mentionIds, String? displayContent}) async {
     final trimmed = text.trim();
-    if (trimmed.isEmpty && attachments.isEmpty) return;
+    final mids = (mentionIds ?? _mentionIds.toList()).where((id) => id != 'image').toList(growable: false);
+    if (trimmed.isEmpty && attachments.isEmpty && mids.isEmpty) return;
+    final catalogMentions = _store.mentionCatalog.mentions;
+    final uiContent = (displayContent ?? trimmed).trim();
+    final previewLine = composerMentionTextHasTokens(uiContent)
+        ? composerMentionTextForPrompt(
+            uiContent,
+            catalogMentions,
+            mentionIds: mids.isNotEmpty ? mids : composerMentionIdsParse(uiContent),
+          )
+        : trimmed;
     if (_store.promptBusy && !retry) {
       final cid = _store.activeChatId;
       if (cid == null) return;
@@ -820,7 +843,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     if (retry || replaceFailedTurn) {
       _store.msgUserTurnRetry(
         chatId: chatId,
-        content: trimmed,
+        content: uiContent,
         attachments: attachments,
         reqId: reqId,
         createdAtMs: now,
@@ -830,7 +853,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         id: _store.msgNextLocalId(),
         chatId: chatId,
         role: 'user',
-        content: trimmed,
+        content: uiContent,
         attachments: attachments,
         attachmentsJson: MsgAttachment.encode(attachments),
         createdAtMs: now,
@@ -856,7 +879,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         text: trimmed,
         chatId: serverChatId,
         attachmentsJson: MsgAttachment.encode(attachments),
-        mentionIds: mentionIds ?? _mentionIds.toList(),
+        mentionIds: mids,
         model: _model.id,
         thinking: _model.thinking.wire,
         toolMode: turnToolMode,
@@ -874,11 +897,11 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
           if (ev.chatId != Int64.ZERO) {
             final startId = ev.chatId.toInt();
             streamChatId = startId;
-            final title = trimmed.isNotEmpty ? chatTitleFromText(trimmed.split('\n').first) : 'New chat';
+            final title = previewLine.isNotEmpty ? chatTitleFromText(previewLine.split('\n').first) : 'New chat';
             if (startId != localChatId) _store.chatIdMigrate(localChatId, startId);
             _store.chatPutFromServer(
               Chat(id: ev.chatId, title: title),
-              ChatMember(chatId: ev.chatId, lastMsgPreview: trimmed, lastMsgTsMs: Int64(now)),
+              ChatMember(chatId: ev.chatId, lastMsgPreview: previewLine, lastMsgTsMs: Int64(now)),
             );
             _store.promptBusyPut(true, chatId: startId, reqId: _conn.lastPromptReqId);
             if (_store.activeChatId == localChatId || _store.activeChatId == null) _store.chatSelect(startId);
@@ -891,7 +914,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
             _store.msgStreamThought(ev.text, chatId: streamChatId);
             final rid = _conn.lastPromptReqId ?? '';
             if (rid.isNotEmpty && ev.text.contains('Using ')) {
-              unawaited(_conn.tracePrefetch(rid, force: true));
+              unawaited(_conn.tracePrefetch(rid));
             }
           } else if (ev.blocksJson.isNotEmpty) {
             _store.msgStreamBlocks(ev.blocksJson, chatId: streamChatId);
@@ -934,7 +957,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
             if (assistantText.isNotEmpty) unawaited(_speak(assistantText));
           }
           if (end.reqId.isNotEmpty) {
-            unawaited(_conn.tracePrefetch(end.reqId, force: true).then((_) {
+            unawaited(_conn.tracePrefetch(end.reqId).then((_) {
               if (mounted) setState(() {});
             }));
           }
@@ -1018,7 +1041,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         builder: (ctx) => Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            UiConnWifi(conn: _conn),
+            UiConnWifi(conn: _conn, onReconnect: _connConnect),
             UiAccountBtn(
               tooltip: 'Account',
               onTap: () => _avatarMenu(ctx),
@@ -1154,24 +1177,28 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
                   ),
                 ),
               ),
-            if (Session.instance.isRoot || Session.instance.isTester)
-              ListenableBuilder(
-                listenable: PromptUsagePrefs.instance,
-                builder: (context, _) => PromptUsagePrefs.instance.showUsageStats
-                    ? Padding(
-                        padding: const EdgeInsets.only(right: 4),
-                        child: UiContextMeter(
-                          tokensIn: _threadTokensIn,
-                          tokensOut: _threadTokensOut,
-                          costUsd: _threadCostUsd,
-                          contextLimit: _model.gemini ? 1000000 : 128000,
-                          billingCurrency: AppStore.instance.wallet.billingCurrency,
-                          fxMicroPerUsd: AppStore.instance.wallet.fxMicroPerUsd,
-                        ),
-                      )
-                    : const SizedBox.shrink(),
-              ),
-            _accountAvatar(),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const UiAppBarVersionLabel(),
+                if (Session.instance.isRoot || Session.instance.isTester)
+                  ListenableBuilder(
+                    listenable: PromptUsagePrefs.instance,
+                    builder: (context, _) => PromptUsagePrefs.instance.showUsageStats
+                        ? UiContextMeter(
+                            tokensIn: _threadTokensIn,
+                            tokensOut: _threadTokensOut,
+                            costUsd: _threadCostUsd,
+                            contextLimit: _model.gemini ? 1000000 : 128000,
+                            billingCurrency: AppStore.instance.wallet.billingCurrency,
+                            fxMicroPerUsd: AppStore.instance.wallet.fxMicroPerUsd,
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                _accountAvatar(),
+              ],
+            ),
           ],
         ),
       ),
@@ -1204,11 +1231,10 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
               selectedMentionIds: _mentionIds,
               toolMode: _toolMode,
               onMentionToggle: _mentionToggle,
-              onMentionSearch: _mentionSearch,
               onToolModeToggle: _toolModeToggle,
               promptHistory: _store.recentUserPrompts,
               onNewChat: _newChat,
-              onSend: (text, atts, {toolMode}) => _composerSend(text, atts, toolMode: toolMode),
+              onSend: (text, atts, {toolMode, mentionIds, displayContent}) => _composerSend(text, atts, toolMode: toolMode, mentionIds: mentionIds, displayContent: displayContent),
               onAbort: _store.promptBusyFor(_store.activeChatId) ? _abortPrompt : null,
               busy: _store.promptBusyFor(_store.activeChatId),
               followupRows: promptFollowupQueueRows(PromptFollowupStore.instance.items),
@@ -1222,7 +1248,10 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
 
   String _plainForMsg(MsgRow m) {
     final parts = <String>[];
-    final content = msgDisplayContent(m).trim();
+    var content = msgDisplayContent(m).trim();
+    if (m.role == 'user' && composerMentionTextHasTokens(content)) {
+      content = composerMentionTextForPrompt(content, _store.mentionCatalog.mentions, mentionIds: composerMentionIdsParse(content));
+    }
     if (content.isNotEmpty) parts.add(content);
     if (m.thought.trim().isNotEmpty) parts.add(msgThoughtStripPlaceholders(m.thought));
     return parts.join('\n\n');
@@ -1238,13 +1267,14 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
 
     Widget body;
     if (isUser) {
-      body = UiUserBubble(content: m.content, copyPrefix: copyPrefix, attachments: m.attachments);
+      body = UiUserBubble(content: m.content, copyPrefix: copyPrefix, attachments: m.attachments, mentions: _store.mentionCatalog.mentions);
     } else {
       final content = msgDisplayContent(m);
       final err = msgRowError(m).trim();
       final hasError = err.isNotEmpty;
       final inThoughtPhase = promptingThis && content.trim().isEmpty && !hasError;
       final thoughtView = msgThoughtView(thought: m.thought, content: content, thinking: inThoughtPhase);
+      final showTraceChips = m.reqId.isNotEmpty && (!inThoughtPhase || msgThoughtStripPlaceholders(m.thought.trim()).isNotEmpty);
       final blocks = ChatBlock.decodeList(m.blocksJson);
       final locale = CatalogTranslationCache.instance.lang;
       final showRetry = hasError && !_store.promptBusyFor(m.chatId) && i == lastAssistantIdx;
@@ -1258,7 +1288,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
               thinking: inThoughtPhase,
               startedAtMs: promptingThis ? _store.promptStartedAtMs : null,
             ),
-          if (m.reqId.isNotEmpty)
+          if (showTraceChips)
             UiMsgTraceLoader(
               conn: _conn,
               reqId: m.reqId,

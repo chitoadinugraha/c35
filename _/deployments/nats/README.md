@@ -90,7 +90,7 @@ Image: `nats:2.15-alpine` in `statefulset.yaml`.
 | Stream | Subject | Consumer / queue | Retention | Notes |
 |--------|---------|------------------|-----------|-------|
 | `C35_DEVICE_TASK` | task dispatch | — | — | See [server.md](../../docs/server.md) |
-| `C35_CHAT_PROMPT` | `c35.prompt.run` | durable `c35-prompt-dispatch` (pull, `max_deliver=3`, `ack_wait=60s`) | WorkQueue | Prompt turn jobs; live fanout on core NATS `c35.user.{owner_iid}.chat.{chat_id}` |
+| `C35_CHAT_PROMPT` | `c35.prompt.run` | durable `c35-prompt-dispatch` (pull, `max_deliver=3`, `ack_wait=60s`) | WorkQueue | Prompt turn jobs; live fanout on core NATS `c35.user.{owner_iid}.app.chat.{chat_id}` |
 | `C35_TASK_SCHEDULE` | `c35.schedule.task.*` | — | — | Cron schedules; requires NATS 2.14+ |
 
 ### Bootstrap streams

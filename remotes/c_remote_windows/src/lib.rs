@@ -1,4 +1,5 @@
 pub mod audio_capture;
+pub mod cursor_shape;
 pub mod dxgi_capture;
 pub mod icon;
 pub mod input_exec;

@@ -65,7 +65,7 @@ Clicking a chat clears the unread dot (`unread_count = 0`, dot dismissed).
 
 Prompt turns are submitted via `ReqPrompt` and enqueued onto NATS JetStream stream `C35_CHAT_PROMPT`:
 1. Worker leases the job with `ack_wait = 60s` (heartbeat).
-2. Worker publishes deltas to `c35.user.{owner_iid}.chat.{chat_id}`.
+2. Worker publishes deltas to `c35.user.{owner_iid}.app.chat.{chat_id}` (app lane — [sync.md](sync.md)).
 3. Client WebSocket on any server pod subscribes to the user subject and delivers frames to app.
 4. **Crash recovery:** If a server pod restarts or crashes during a turn, JetStream redelivers unacknowledged prompt jobs to another surviving pod. The client reconnects, re-subscribes, and resumes without losing state.
 

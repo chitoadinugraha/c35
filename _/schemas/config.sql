@@ -50,6 +50,21 @@ INSERT INTO ai.config (key, value) VALUES (
 )
 ON CONFLICT (key) DO NOTHING;
 
+-- c35-server cluster image generation (GET /version/server). Bump on publish_server.ps1.
+INSERT INTO ai.config (key, value) VALUES (
+    'app.release.c35.server',
+    '{"version":1,"versionName":"1.0.0","min":0,"url":"https://api.alienai.id/livez"}'::jsonb
+)
+ON CONFLICT (key) DO NOTHING;
+
+-- FFmpeg sidecar for remote Windows agent (GET /version/ffmpeg-windows, NATS c35.release.ffmpeg-windows).
+-- { version, versionName, min, hash, size } — min = minimum remote-windows agent build (0 = any).
+INSERT INTO ai.config (key, value) VALUES (
+    'app.release.c35.ffmpeg-windows',
+    '{"version":0,"versionName":"0.0.0","min":0,"hash":"","size":0}'::jsonb
+)
+ON CONFLICT (key) DO NOTHING;
+
 -- LLM catalog (platform). Prices in micro-USD per million tokens (µUSD/M).
 CREATE TABLE IF NOT EXISTS ai.llm_model (
     id                  TEXT PRIMARY KEY,

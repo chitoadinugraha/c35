@@ -10,11 +10,12 @@ import 'package:alienai_c35/c/remote/remote_session.dart';
 import 'package:alienai_c35/widgets/ui/ui_alert.dart';
 import 'package:alienai_c35/widgets/ui/ui_menu_position.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
-import 'package:desktop_drop/desktop_drop.dart';
+import 'package:alienai_c35/widgets/devices/device_files_explorer_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:pasteboard/pasteboard.dart';
 
 const _border = Color(0xFF27272A);
@@ -25,6 +26,7 @@ const _panel = Color(0xFF111114);
 const _selectedBg = Color(0xFF18181B);
 const _accent = Color(0xFF34D399);
 const _previewBreakpoint = 1024.0;
+const _compactExplorerBreakpoint = 640.0;
 const _previewTextMaxBytes = 2 * 1024 * 1024;
 const _previewImageMaxBytes = 512 * 1024;
 
@@ -53,7 +55,7 @@ class UiDeviceFiles extends StatefulWidget {
   State<UiDeviceFiles> createState() => _UiDeviceFilesState();
 }
 
-class _UiDeviceFilesState extends State<UiDeviceFiles> {
+class _UiDeviceFilesState extends State<UiDeviceFiles> with WidgetsBindingObserver {
   final _expanded = <String>{};
   final _dirCache = <String, List<_FsEntry>>{};
   final _searchCtrl = TextEditingController();
@@ -71,18 +73,22 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
   var _loadingDir = false;
   String? _listError;
   var _connecting = false;
+  var _backgroundTransferWarned = false;
 
   var _previewLoading = false;
   String? _previewText;
   Uint8List? _previewImage;
   String? _previewError;
   var _previewTruncated = false;
+  String? _mediaPlayingPath;
+  var _mediaBusy = false;
 
   RemoteFsTransfer get _transfer => RemoteFsTransfer.of(widget.session);
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _searchCtrl.addListener(() => setState(() {}));
     widget.session.connected.addListener(_onConnectionChanged);
     _transfer.addListener(_onTransferChanged);
@@ -90,7 +96,27 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _backgroundTransferWarned = false;
+      return;
+    }
+    if (state != AppLifecycleState.paused && state != AppLifecycleState.inactive) return;
+    if (_backgroundTransferWarned || _transfer.activeCount == 0 || !mounted) return;
+    _backgroundTransferWarned = true;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Keep the app open while file transfers finish.')),
+    );
+  }
+
+  bool _compactExplorer(BuildContext context) => MediaQuery.sizeOf(context).width < _compactExplorerBreakpoint;
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    if (_mediaPlayingPath != null) {
+      unawaited(_mediaStop(silent: true));
+    }
     widget.session.connected.removeListener(_onConnectionChanged);
     _transfer.removeListener(_onTransferChanged);
     _searchCtrl.dispose();
@@ -159,7 +185,6 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
       final res = await fs.fsList('');
       if (res.error.isNotEmpty) throw res.error;
       final roots = res.entries.map(_FsEntry.fromPb).toList();
-      l('device files roots: ${roots.length}');
       if (!mounted) return;
       setState(() {
         _roots = roots;
@@ -198,15 +223,72 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
     }
   }
 
+  Future<void> _mediaPlay(_FsEntry file) async {
+    final fs = widget.session.fs;
+    if (fs == null || _mediaBusy) return;
+    if (!widget.session.connected.value) {
+      await uiAlertError(context, 'Connect to the device before playing video.');
+      return;
+    }
+    setState(() => _mediaBusy = true);
+    try {
+      await widget.session.start();
+      final res = await fs.mediaOpen(file.path);
+      if (!res.ok) throw res.error.isNotEmpty ? res.error : 'media open failed';
+      if (!mounted) return;
+      setState(() {
+        _mediaPlayingPath = file.path;
+        _previewError = null;
+      });
+    } catch (e) {
+      lError('device files media play ${file.path}: $e');
+      if (mounted) {
+        setState(() => _previewError = '$e');
+        await uiAlertError(context, e, fallback: 'Could not play video on device.');
+      }
+    } finally {
+      if (mounted) setState(() => _mediaBusy = false);
+    }
+  }
+
+  Future<void> _mediaStop({bool silent = false}) async {
+    final fs = widget.session.fs;
+    if (fs == null) {
+      if (mounted) setState(() => _mediaPlayingPath = null);
+      return;
+    }
+    if (!silent) setState(() => _mediaBusy = true);
+    try {
+      await fs.mediaClose();
+    } catch (e) {
+      lError('device files media stop: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _mediaPlayingPath = null;
+          if (!silent) _mediaBusy = false;
+        });
+      }
+    }
+  }
+
   Future<void> _loadPreview(String path) async {
     final fs = widget.session.fs;
     if (fs == null) return;
+    if (_mediaPlayingPath != null && _mediaPlayingPath != path) {
+      await _mediaStop(silent: true);
+    }
     setState(() {
       _previewLoading = true;
       _clearPreview();
       _previewLoading = true;
     });
     try {
+      if (_isVideoMime('', path)) {
+        if (!mounted) return;
+        setState(() => _previewLoading = false);
+        return;
+      }
       final isText = _isTextMime('', path);
       final isImage = _isImageMime('', path);
       final maxBytes = isText ? _previewTextMaxBytes : (isImage ? _previewImageMaxBytes : 0);
@@ -462,8 +544,9 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
     try {
       await _transfer.downloadRemote(paths);
       if (!mounted) return;
+      final dest = !kIsWeb && Platform.isAndroid ? 'your device' : 'your computer';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Downloading ${paths.length} item(s) to your computer…')),
+        SnackBar(content: Text('Downloading ${paths.length} item(s) to $dest…')),
       );
     } catch (e) {
       lError('device files download: $e');
@@ -614,11 +697,22 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
     }
     final dest = _destDir();
     if (dest.isEmpty) return;
-    final res = await FilePicker.platform.pickFiles(allowMultiple: true, withReadStream: false);
+    final res = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
+      withData: kIsWeb,
+      withReadStream: !kIsWeb,
+    );
     if (res == null || res.files.isEmpty) return;
-    final paths = res.files.map((f) => f.path).whereType<String>().where((p) => p.isNotEmpty).toList();
-    if (paths.isEmpty) return;
-    _transfer.uploadLocalFiles(dest, paths);
+    try {
+      await _transfer.uploadPickerFiles(dest, res.files);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Uploading ${res.files.length} file(s)…')),
+      );
+    } catch (e) {
+      lError('device files upload pick: $e');
+      if (mounted) await uiAlertError(context, e, fallback: 'Could not start upload.');
+    }
   }
 
   bool get _hasFileSelection {
@@ -660,7 +754,7 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
     final dest = _destDir();
     if (dest.isEmpty) return;
 
-    if (!kIsWeb) {
+    if (!kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
       try {
         final clipboard = await Pasteboard.files();
         final files = <String>[];
@@ -754,17 +848,11 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
     _transfer.createEmptyFile(dest, name);
   }
 
-  Future<void> _onDropDone(DropDoneDetails detail) async {
+  Future<void> _onDropDone(List<String> paths) async {
     setState(() => _isDragging = false);
-    if (widget.session.fs == null) return;
+    if (widget.session.fs == null || paths.isEmpty) return;
     final dest = _destDir();
     if (dest.isEmpty) return;
-    final paths = <String>[];
-    for (final f in detail.files) {
-      final p = f.path;
-      if (p.isNotEmpty) paths.add(p);
-    }
-    if (paths.isEmpty) return;
     _transfer.uploadLocalFiles(dest, paths);
   }
 
@@ -985,13 +1073,14 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
     );
   }
 
-  Widget _fileOpsBar() => Padding(
-        padding: const EdgeInsets.fromLTRB(8, 0, 8, 6),
-        child: Row(
+  Widget _fileOpsBar() {
+    final compact = _compactExplorer(context);
+    final downloadTip = !kIsWeb && Platform.isAndroid ? 'Download to this device' : 'Download to your computer';
+    final ops = Row(
           children: [
             _opsBtn(
               icon: Icons.download_outlined,
-              tooltip: 'Download to your computer',
+              tooltip: downloadTip,
               onPressed: _hasActionSelection ? () => unawaited(_downloadSelection()) : null,
             ),
             _opsBtn(icon: Icons.create_new_folder_outlined, tooltip: 'New folder', onPressed: _showNewFolderDialog),
@@ -1009,8 +1098,14 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
             if (_isDragging)
               const Text('Drop to upload', style: TextStyle(color: _accent, fontSize: 11)),
           ],
-        ),
-      );
+        );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 0, 8, 6),
+      child: compact
+          ? SingleChildScrollView(scrollDirection: Axis.horizontal, child: ops)
+          : ops,
+    );
+  }
 
   Widget _opsBtn({required IconData icon, required String tooltip, VoidCallback? onPressed}) => uiIconButton(
         tooltip: tooltip,
@@ -1082,10 +1177,42 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _paneHeader(file?.name ?? 'Preview', showBack: showBack, onBack: onBack),
+          _paneHeader(
+            file?.name ?? 'Preview',
+            showBack: showBack,
+            onBack: onBack,
+            trailing: file != null && _isVideoMime('', file.path) ? _mediaToolbar(file) : null,
+          ),
           Expanded(child: file == null ? _previewEmpty() : _previewBody(file)),
         ],
       ),
+    );
+  }
+
+  Widget _mediaToolbar(_FsEntry file) {
+    final playing = _mediaPlayingPath == file.path;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (_mediaBusy)
+          const SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2, color: _accent),
+          )
+        else if (playing)
+          uiIconButton(
+            tooltip: 'Stop',
+            onPressed: _mediaStop,
+            icon: const Icon(Icons.stop_circle_outlined, size: 20, color: _accent),
+          )
+        else
+          uiIconButton(
+            tooltip: 'Play on device (WebRTC)',
+            onPressed: () => _mediaPlay(file),
+            icon: const Icon(Icons.play_circle_outline, size: 22, color: _accent),
+          ),
+      ],
     );
   }
 
@@ -1107,6 +1234,23 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
   Widget _previewEmpty() => const Center(child: Text('Select a previewable file', style: TextStyle(color: _muted, fontSize: 13)));
 
   Widget _previewBody(_FsEntry file) {
+    if (_mediaPlayingPath == file.path) {
+      return ValueListenableBuilder<bool>(
+        valueListenable: widget.session.hasVideoTrack,
+        builder: (context, hasVideo, _) {
+          if (!hasVideo) return _loadingPane('Waiting for WebRTC video track…');
+          return ColoredBox(
+            color: Colors.black,
+            child: Center(
+              child: RTCVideoView(
+                widget.session.videoRenderer,
+                objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitContain,
+              ),
+            ),
+          );
+        },
+      );
+    }
     if (_previewLoading) return _loadingPane('Loading preview…');
     if (_previewError != null) {
       return Center(
@@ -1164,12 +1308,31 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
-        child: Text('Preview not available for this file type.\nDownload to open locally.', textAlign: TextAlign.center, style: TextStyle(color: _muted.withValues(alpha: 0.9), fontSize: 13)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _isVideoMime('', file.path)
+                  ? 'Video file — use Play to stream over WebRTC.'
+                  : 'Preview not available for this file type.\nDownload to open locally.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: _muted.withValues(alpha: 0.9), fontSize: 13),
+            ),
+            if (_isVideoMime('', file.path) && !_mediaBusy) ...[
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: () => _mediaPlay(file),
+                icon: const Icon(Icons.play_arrow),
+                label: const Text('Play'),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _paneHeader(String title, {bool showBack = false, VoidCallback? onBack}) => Container(
+  Widget _paneHeader(String title, {bool showBack = false, VoidCallback? onBack, Widget? trailing}) => Container(
         padding: const EdgeInsets.fromLTRB(8, 8, 12, 8),
         decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: _border))),
         child: Row(
@@ -1189,11 +1352,14 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
             Expanded(
               child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _muted, fontSize: 11, fontWeight: FontWeight.w500)),
             ),
+            if (trailing != null) trailing,
           ],
         ),
       );
 
-  Widget _fileListHeader() => Container(
+  Widget _fileListHeader() {
+    if (_compactExplorer(context)) return const SizedBox.shrink();
+    return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: _border))),
         child: Row(
@@ -1205,6 +1371,7 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
           ],
         ),
       );
+  }
 
   Widget _sortHeader(_FsSortColumn column, String label) {
     final active = _sortColumn == column;
@@ -1239,16 +1406,13 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
       padding: const EdgeInsets.fromLTRB(0, 4, 0, 72),
       children: [for (final n in _sortedEntries(_rootsList)) _explorerNode(n, 0)],
     );
-    if (!dropEnabled) return list;
-    return DropTarget(
-      onDragEntered: (_) => setState(() => _isDragging = true),
-      onDragExited: (_) => setState(() => _isDragging = false),
+    return deviceFilesExplorerDrop(
+      enabled: dropEnabled,
+      isDragging: _isDragging,
+      onDragEntered: () => setState(() => _isDragging = true),
+      onDragExited: () => setState(() => _isDragging = false),
       onDragDone: _onDropDone,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
-        decoration: BoxDecoration(border: Border.all(color: _isDragging ? _accent : Colors.transparent, width: 1.5)),
-        child: list,
-      ),
+      child: list,
     );
   }
 
@@ -1268,8 +1432,9 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
   }
 
   Widget _explorerRow(_FsEntry entry, {required int depth, required bool expanded, required bool hasChildren}) {
+    final compact = _compactExplorer(context);
     final selected = _selectedPaths.contains(entry.path) || entry.path == _highlightPath || (entry.isDir && entry.path == _selectedPath);
-    final indent = 8.0 + depth * 16.0;
+    final indent = 8.0 + depth * (compact ? 12.0 : 16.0);
     return Material(
       color: selected ? _selectedBg : Colors.transparent,
       child: InkWell(
@@ -1321,9 +1486,14 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
                   ],
                 ),
               ),
-              Expanded(flex: 2, child: Text(entry.isDir ? '' : _formatSize(entry.size), style: const TextStyle(color: _muted, fontSize: 12))),
-              Expanded(flex: 2, child: Text(_typeLabel(entry), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _muted, fontSize: 12))),
-              Expanded(flex: 3, child: Text(entry.modified != null ? _formatDate(entry.modified!) : '', style: const TextStyle(color: _muted, fontSize: 12))),
+              if (!compact) ...[
+                Expanded(flex: 2, child: Text(entry.isDir ? '' : _formatSize(entry.size), style: const TextStyle(color: _muted, fontSize: 12))),
+                Expanded(flex: 2, child: Text(_typeLabel(entry), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _muted, fontSize: 12))),
+                Expanded(
+                  flex: 3,
+                  child: Text(entry.modified != null ? _formatDate(entry.modified!) : '', style: const TextStyle(color: _muted, fontSize: 12)),
+                ),
+              ],
             ],
           ),
         ),
@@ -1333,7 +1503,7 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> {
 
   bool _canPreview(_FsEntry entry) {
     if (entry.isDir) return false;
-    return _isTextMime('', entry.path) || _isImageMime('', entry.path);
+    return _isTextMime('', entry.path) || _isImageMime('', entry.path) || _isVideoMime('', entry.path);
   }
 
   bool _nodeMatches(_FsEntry node, String q) {
@@ -1431,6 +1601,15 @@ bool _isImageMime(String mime, String path) {
   final ext = _ext(path);
   return switch (ext) {
     'png' || 'jpg' || 'jpeg' || 'gif' || 'webp' || 'bmp' => true,
+    _ => false,
+  };
+}
+
+bool _isVideoMime(String mime, String path) {
+  if (mime.startsWith('video/')) return true;
+  final ext = _ext(path);
+  return switch (ext) {
+    'mp4' || 'mkv' || 'webm' || 'mov' || 'avi' || 'm4v' || 'wmv' => true,
     _ => false,
   };
 }

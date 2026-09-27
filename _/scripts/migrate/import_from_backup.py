@@ -15,6 +15,7 @@ except ImportError:
     print("pip install psycopg2-binary blake3", file=sys.stderr)
     raise
 
+from migrate_auth_contact import auth_email_by_uid_from_backup
 from migrate_lib import (
     CAS_SECRET,
     CHITO_NEW_IID,
@@ -163,6 +164,8 @@ def main() -> int:
             uid = int(row[0])
             roles_by_uid.setdefault(uid, []).append(row[1])
 
+    emails_by_uid = auth_email_by_uid_from_backup(BACKUP) if BACKUP.exists() else {}
+
     users: list[dict] = []
     for row in users_raw:
         if len(row) < 7:
@@ -215,6 +218,9 @@ def main() -> int:
                 if uid == CHITO_OLD_IID:
                     continue
                 meta = {"is_root": bool(u["is_root"]), "global_roles": u["global_roles"]}
+                login_email = emails_by_uid.get(uid)
+                if login_email:
+                    meta["email"] = login_email
                 pic = pic_from_csa(u["pic"], CAS_SECRET)
                 cur.execute(
                     """

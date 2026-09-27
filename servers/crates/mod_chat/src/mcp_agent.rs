@@ -10,6 +10,7 @@ use crate::log_list::log_list;
 use crate::mention::mention_list_enabled;
 use crate::mention_context::MentionContext;
 use crate::prompt_turn::{prompt_turn, PromptTurnHooks};
+use crate::prompt_run::prompt_run_concurrency_acquire;
 use crate::site_capability::SiteCapabilityView;
 use crate::tools::{cluster_tools, default_dispatcher, http_client, ToolContext};
 
@@ -175,6 +176,8 @@ pub async fn mcp_prompt_compose(pool: &PgPool, owner_iid: i64, text: &str, local
         &MentionContext::empty(),
         &SiteCapabilityView::empty(),
         ComposeTurnOpts::default(),
+        owner_iid,
+        locale,
     )
     .await;
     let selected_tools: Vec<String> = composed.tools.iter().map(|t| t.name.clone()).collect();
@@ -185,6 +188,9 @@ pub async fn mcp_prompt_compose(pool: &PgPool, owner_iid: i64, text: &str, local
         "inst_ids": composed.matched_ids,
         "inst_block": inst_block_preview(&composed.inst_block),
         "selected_tools": selected_tools,
+        "inst_enrich_keys": composed.trace.inst_enrich_keys,
+        "inst_enrich_ms": composed.trace.inst_enrich_ms,
+        "tool_filter_ms": composed.trace.tool_filter_ms,
         "trace": composed.trace,
     })
 }
@@ -216,6 +222,16 @@ pub async fn mcp_prompt_run(
     let hooks = PromptTurnHooks {
         skip_billing_gate: true,
         on_hop: None,
+    };
+    let _concurrency = match prompt_run_concurrency_acquire().await {
+        Ok(p) => p,
+        Err(e) => {
+            return json!({
+                "ok": false,
+                "error": e.to_string(),
+                "req_id": req_id,
+            });
+        }
     };
     match prompt_turn(
         pool,

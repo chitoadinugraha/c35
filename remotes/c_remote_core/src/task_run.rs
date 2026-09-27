@@ -28,6 +28,14 @@ pub async fn task_run_handle(
             return Ok(());
         }
         let cmd = cmd.to_string();
+        if cmd.starts_with("c35.release:ffmpeg-windows")
+            || cmd.contains("\"platform\":\"ffmpeg-windows\"")
+        {
+            info!("Received ffmpeg release notification; triggering ffmpeg OTA download");
+            #[cfg(target_os = "windows")]
+            crate::tools::ffmpeg::trigger_background_ffmpeg_update(dispatch_ctx.server_url.clone());
+            return Ok(());
+        }
         if cmd.starts_with("c35.release:") || cmd.starts_with("{\"platform\":\"remote-windows\"") {
             info!("Received release notification over agent session; triggering immediate background update");
             crate::update::trigger_background_update(dispatch_ctx.server_url.clone());

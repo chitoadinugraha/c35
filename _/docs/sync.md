@@ -119,26 +119,38 @@ Older chat messages: paginate from server on scroll (not full local sync).
 
 ## NATS subjects
 
-### User realtime (push after DB write)
+### App realtime lane (Flutter WS — LOCKED)
 
-```
-c35.user.{iid}.balance
-c35.user.{iid}.commission
-c35.user.{iid}.quota
-c35.user.{iid}.settings
-c35.user.{iid}.profile
-c35.user.{iid}.ev.{slug}   # domain events — sign-in, meal-logged, … (see event.md)
+All **unsolicited UI state** for the signed-in user goes under:
+
+```text
+c35.user.{owner_iid}.app.>
 ```
 
-Client subscribes after WS auth. Payload: protobuf delta or full slice for that topic. Event payloads: `EventPush` ([event.md](event.md)).
+`server_ai` subscribes this filter once per app WebSocket (`wire_ws::user_app_nats_fanout`). **Do not** publish app UI deltas on `c35.user.{iid}.ev.*` or on legacy flat subjects (`c35.user.{iid}.balance`, `c35.user.{iid}.chat.*` without `.app.`).
 
-### Device task runs (owner realtime)
+| Subject | Payload | When |
+|---------|---------|------|
+| `c35.user.{iid}.app.balance` | `BillingPushBalance` | Wallet / balance change |
+| `c35.user.{iid}.app.quota` | `BillingPushQuota` | Allowance rings, freemium, plan expiry |
+| `c35.user.{iid}.app.commission` | `BillingPushCommission` | Partner commission |
+| `c35.user.{iid}.app.profile` | `WsRes` | Profile row delta (future) |
+| `c35.user.{iid}.app.settings` | `WsRes` | Settings delta (future) |
+| `c35.user.{iid}.app.task_run` | `WsRes` (`TaskRunPush`) | Task run progress (future) |
+| `c35.user.{iid}.app.inbox` | `WsRes` (`SyncPush`) | New chat, `chat_member`, committed `chat_msg` (future) |
+| `c35.user.{iid}.app.chat.{chat_id}` | `WsRes` | Prompt stream (`PromptStart` / `Delta` / `End`) + per-chat `SyncPush` |
 
+**Code:** subject helpers + decode — `servers/crates/system/nats/src/user_app.rs` (`c35_nats::user_app_subject_*`, `user_app_subscribe_subject`).
+
+Billing typed pushes stay raw protobuf on NATS; chat/inbox use encoded `WsRes`. WS fanout maps both to `WsRes` on the wire.
+
+### Domain events (not app lane)
+
+```text
+c35.user.{iid}.ev.{slug}   # sign-in, meal-logged, … (see event.md)
 ```
-c35.user.{iid}.task_run
-```
 
-Payload: `TaskRunPush` (protobuf). Published after `ai.task_run` mutation (start, progress, terminal).
+Normal app WS **does not** subscribe `ev.*`. Root admin uses `ReqLogSubscribe` → `c35.user.*.ev.>` relay.
 
 ### Device task dispatch (JetStream — not client-subscribed)
 
@@ -153,8 +165,8 @@ Server pods use queue group `c35-task-dispatch`. Agents receive work on server s
 ### Prompt run dispatch (JetStream)
 
 ```
-c35.prompt.run                    # PromptRunJob (workqueue)
-c35.user.{owner_iid}.chat.{chat_id}  # live WsRes fanout (core NATS)
+c35.prompt.run                              # PromptRunJob (workqueue)
+c35.user.{owner_iid}.app.chat.{chat_id}     # live WsRes fanout (core NATS)
 ```
 
 Stream `C35_CHAT_PROMPT`, queue group `c35-prompt-dispatch`. State in `ai.prompt_run` (YB). Hydrate republishes `queued` rows after NATS recovery — [nats.md](nats.md).

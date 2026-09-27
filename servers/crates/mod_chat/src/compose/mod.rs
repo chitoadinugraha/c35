@@ -60,6 +60,12 @@ pub struct ComposeTrace {
     pub best_sim: f32,
     #[serde(default)]
     pub embed_cached: bool,
+    #[serde(default)]
+    pub inst_enrich_keys: Vec<String>,
+    #[serde(default)]
+    pub inst_enrich_ms: i64,
+    #[serde(default)]
+    pub tool_filter_ms: i64,
 }
 
 fn trace_dropped_gap(ranked: &[ToolCandidate], trimmed: &[ToolCandidate]) -> Vec<ComposeTraceCandidate> {
@@ -86,6 +92,7 @@ pub struct ComposeOutput {
 struct ComposePrep {
     inst_block: String,
     matched_ids: Vec<String>,
+    matched: Vec<InstRow>,
     eligible: Vec<ToolDef>,
     force: Vec<String>,
     exclude: Vec<String>,
@@ -225,6 +232,7 @@ fn compose_prepare_scoped(
                 ranker: String::new(),
                 best_sim: 0.0,
                 embed_cached: false,
+                ..Default::default()
             },
         });
     }
@@ -246,6 +254,7 @@ fn compose_prepare_scoped(
     Ok(ComposePrep {
         inst_block,
         matched_ids,
+        matched,
         eligible,
         force,
         exclude,
@@ -296,6 +305,7 @@ fn compose_finish(started: Instant, prep: ComposePrep, text: &str, vector_find: 
             ranker,
             best_sim,
             embed_cached,
+            ..Default::default()
         },
     }
 }
@@ -315,6 +325,8 @@ pub async fn compose_tools_and_inst_async(
     mention: &MentionContext,
     caps: &SiteCapabilityView,
     opts: ComposeTurnOpts<'_>,
+    owner_iid: i64,
+    locale: &str,
 ) -> ComposeOutput {
     let started = Instant::now();
     let prep = match compose_prepare_scoped(
@@ -345,12 +357,44 @@ pub async fn compose_tools_and_inst_async(
         }
     };
 
-    let vector_find = if prep.rag_skipped || !tool_index_ready() {
-        None
-    } else {
-        Some(tool_find_vector(pool, http, text, &prep.eligible).await)
+    let locale_eff = if locale.trim().is_empty() { "id-ID" } else { locale.trim() };
+    let enrich_ctx = crate::inst_enrich::InstEnrichCtx {
+        pool,
+        owner_iid,
+        locale: locale_eff,
+        user_text: text,
     };
-    compose_finish(started, prep, text, vector_find)
+    let matched = prep.matched.clone();
+    let eligible = prep.eligible.clone();
+    let rag_skipped = prep.rag_skipped;
+    let parallel_start = Instant::now();
+
+    let ((enrich_res, enrich_ms), (vector_find, tool_ms)) = tokio::join!(
+        async {
+            let t = Instant::now();
+            let r = crate::inst_enrich::inst_enrich_append(&matched, &enrich_ctx).await;
+            (r, t.elapsed().as_millis() as i64)
+        },
+        async {
+            let t = Instant::now();
+            let vf = if rag_skipped || !tool_index_ready() {
+                None
+            } else {
+                Some(tool_find_vector(pool, http, text, &eligible).await)
+            };
+            (vf, t.elapsed().as_millis() as i64)
+        }
+    );
+
+    let mut prep = prep;
+    prep.inst_block.push_str(&enrich_res.suffix);
+    let parallel_ms = parallel_start.elapsed().as_millis() as i64;
+    let mut out = compose_finish(started, prep, text, vector_find);
+    out.trace.duration_ms = parallel_ms;
+    out.trace.tool_filter_ms = tool_ms;
+    out.trace.inst_enrich_ms = enrich_ms;
+    out.trace.inst_enrich_keys = enrich_res.keys;
+    out
 }
 
 pub fn compose_tools_and_inst(

@@ -59,7 +59,7 @@ Full state loaded from YB by `req_id` / `run_id`.
 
 ### Core pub/sub (no JetStream)
 
-See [sync.md](sync.md) — `c35.user.{iid}.*` (incl. `.ev.{slug}` per [event.md](event.md)), `c35.stats.*`, `c35.fetch.*`, `c35.inst.*`, channel `c35.ev.channel.*`. LLM trace is DB-only; deprecated: `log.{iid}.{dv}.{topic}`.
+See [sync.md](sync.md) — app UI: `c35.user.{iid}.app.>`; events: `c35.user.{iid}.ev.{slug}` ([event.md](event.md)); `c35.stats.*`, `c35.fetch.*`, `c35.inst.*`, channel `c35.ev.channel.*`. LLM trace is DB-only; deprecated: `log.{iid}.{dv}.{topic}`.
 
 ---
 

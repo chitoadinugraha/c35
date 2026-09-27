@@ -84,6 +84,37 @@ impl TurnTracer {
         const STEP: u32 = 1;
         const GROUP: &str = "prepare";
         let fed = trace.candidates.iter().filter(|c| c.fed).count();
+        let inst_meta = {
+            let mut m = Self::branch_meta(STEP, "inst", GROUP);
+            if let Some(obj) = m.as_object_mut() {
+                obj.insert("topic".into(), serde_json::json!("trace_inst_enrich"));
+                obj.insert("inst_ids".into(), serde_json::json!(trace.inst_ids));
+                obj.insert("enrich_keys".into(), serde_json::json!(trace.inst_enrich_keys));
+                obj.insert("duration_ms".into(), serde_json::json!(trace.inst_enrich_ms));
+            }
+            m
+        };
+        let inst_label = if trace.inst_enrich_keys.is_empty() {
+            format!("Inst · {} matched", trace.inst_ids.len())
+        } else {
+            format!(
+                "Inst · {} · enrich {}",
+                trace.inst_ids.len(),
+                trace.inst_enrich_keys.join(", ")
+            )
+        };
+        self.put(
+            "system",
+            "trace_inst_enrich",
+            &inst_label,
+            inst_meta,
+            "",
+            0,
+            0,
+            trace.inst_enrich_ms as i32,
+            0.0,
+        )
+        .await;
         let mut tool_meta = Self::branch_meta(STEP, "tools", GROUP);
         if let Some(obj) = tool_meta.as_object_mut() {
             obj.insert("topic".into(), serde_json::json!("trace_tool_filter"));
@@ -92,7 +123,7 @@ impl TurnTracer {
             obj.insert("rag_skip_reason".into(), serde_json::json!(trace.rag_skip_reason));
             obj.insert("candidates".into(), serde_json::json!(trace.candidates));
             obj.insert("dropped_gap".into(), serde_json::json!(trace.dropped_gap));
-            obj.insert("duration_ms".into(), serde_json::json!(trace.duration_ms));
+            obj.insert("duration_ms".into(), serde_json::json!(trace.tool_filter_ms));
         }
         self.put(
             "system",
@@ -102,7 +133,7 @@ impl TurnTracer {
             "",
             0,
             0,
-            trace.duration_ms as i32,
+            trace.tool_filter_ms as i32,
             0.0,
         ).await;
         let mut prep_meta = Self::branch_meta(STEP, "compose", GROUP);

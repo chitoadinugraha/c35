@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:alienai_c35/c/cas/cas_client.dart';
 import 'package:alienai_c35/c/catalog/catalog_api.dart';
-import 'package:alienai_c35/c/catalog/catalog_translation_cache.dart';
 import 'package:alienai_c35/c/files/msg_attachment.dart';
 import 'package:alienai_c35/c/pb/c35/chat.pb.dart';
 import 'package:alienai_c35/c/llm/agent_model.dart';
@@ -12,21 +11,61 @@ import 'package:alienai_c35/c/media/media_types.dart';
 import 'package:alienai_c35/c/settings/voice_prefs.dart';
 import 'package:alienai_c35/c/stt/stt_mic_permission.dart';
 import 'package:alienai_c35/c/stt/stt_service.dart';
+import 'package:alienai_c35/widgets/ai/composer_mention_text.dart';
 import 'package:alienai_c35/widgets/ai/composer_action.dart';
 import 'package:alienai_c35/widgets/ai/ui_assistant_model_chip.dart';
 import 'package:alienai_c35/widgets/ai/ui_audio_waveform.dart';
 import 'package:alienai_c35/widgets/ai/ui_speak_indicator.dart';
 import 'package:alienai_c35/widgets/ai/ui_staged_shot.dart';
 import 'package:alienai_c35/widgets/media/in_media.dart';
+import 'package:alienai_c35/widgets/ui/ui_icon.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:extended_text_field/extended_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pasteboard/pasteboard.dart';
 
 const zinc100 = Color(0xFFF4F4F5);
 const zinc500 = Color(0xFF71717A);
+const _mentionIconGrey = Color(0xFFA1A1AA);
+
+enum _MentionPickKind { image, file, mention }
+
+class _MentionPickRow {
+  const _MentionPickRow({required this.kind, this.mention});
+
+  final _MentionPickKind kind;
+  final CatalogMention? mention;
+}
+
+bool _mentionCatalogMatchesQuery(CatalogMention m, String q) {
+  if (q.isEmpty) return true;
+  final lq = q.toLowerCase();
+  if (m.id.toLowerCase().contains(lq)) return true;
+  if (m.displayLabel.toLowerCase().contains(lq)) return true;
+  final cap = m.displayCaption;
+  if (cap.isNotEmpty && cap.toLowerCase().contains(lq)) return true;
+  return false;
+}
+
+bool _mentionQueryShowsImage(String q) => q.isEmpty || 'image'.contains(q.toLowerCase());
+
+bool _mentionQueryShowsFile(String q) => q.isEmpty || 'file'.contains(q.toLowerCase());
+
+Widget _mentionLeadingIcon(CatalogMention m) {
+  if (m.isDevice) return const Icon(Icons.computer_rounded, size: 16, color: _mentionIconGrey);
+  if (m.isSite) return const Icon(Icons.language_rounded, size: 16, color: _mentionIconGrey);
+  if (m.id == 'image_high' || m.topicId == 'image') {
+    return const Icon(Icons.image_outlined, size: 16, color: _mentionIconGrey);
+  }
+  final raw = m.icon.trim();
+  if (raw.startsWith('iconify://') || (raw.contains(':') && !raw.contains(' '))) {
+    return UiIcon(raw, size: 16, color: _mentionIconGrey, recolor: true);
+  }
+  return const Icon(Icons.alternate_email_rounded, size: 16, color: _mentionIconGrey);
+}
 
 class SlashCommand {
   const SlashCommand({
@@ -70,7 +109,7 @@ class InComposer extends StatefulWidget {
     this.onFollowupRemove,
   });
 
-  final void Function(String text, List<MsgAttachment> attachments, {String? toolMode}) onSend;
+  final void Function(String text, List<MsgAttachment> attachments, {String? toolMode, List<String>? mentionIds, String? displayContent}) onSend;
   final AgentModel model;
   final ValueChanged<AgentModel> onModel;
   final List<AgentModel> models;
@@ -123,13 +162,20 @@ class _InComposerState extends State<InComposer> {
   var _isDragging = false;
   var _historyIndex = -1;
   var _draftText = '';
-  var _highlightedMentionIndex = 0;
   var _highlightedSlashIndex = 0;
-  Timer? _mentionSearchDebounce;
-  List<CatalogMention> _mentionSearchResults = const [];
-  var _mentionSearching = false;
   var _wasStacked = false;
   double _inputAreaWidth = 0;
+  double _composerShellHeight = 0;
+  final _composerShellKey = GlobalKey();
+  final _mentionLayerLink = LayerLink();
+  OverlayEntry? _mentionMenuOverlayEntry;
+  final _mentionListScrollController = ScrollController();
+  final Map<int, GlobalKey> _mentionMenuRowKeys = {};
+  final _mentionMenuHighlight = ValueNotifier<int>(0);
+
+  GlobalKey _mentionMenuRowKey(int index) => _mentionMenuRowKeys.putIfAbsent(index, GlobalKey.new);
+
+  void _clearMentionMenuRowKeys() => _mentionMenuRowKeys.clear();
 
   static const _slashCommands = [
     SlashCommand(
@@ -152,12 +198,13 @@ class _InComposerState extends State<InComposer> {
     ),
   ];
 
-  bool get _hasText => _controller.text.trim().isNotEmpty || _attachments.isNotEmpty;
+  bool get _hasText => composerMentionTextNonempty(_textWithoutActiveMentionDraft) || _attachments.isNotEmpty;
   bool get _canSubmit => widget.enabled && !_submitting && !_recording && _hasText;
   String get _hintText => _recording ? 'composer.listening'.tr() : (widget.busy ? 'Send follow-up' : widget.hint);
   bool get _askActive => widget.toolMode == 'ask';
   List<CatalogMention> get _composerMentions => widget.mentions.where((m) => m.id != 'image').toList(growable: false);
-  bool get _hasSelectedMentions => widget.selectedMentionIds.any((id) => id != 'image');
+
+  Set<String> get _inlineMentionIds => composerMentionIdsParse(_controller.text).toSet();
 
   String? get _activeMentionQuery {
     final sel = _controller.selection;
@@ -165,6 +212,18 @@ class _InComposerState extends State<InComposer> {
     final textBefore = _controller.text.substring(0, sel.baseOffset);
     final match = RegExp(r'@([a-zA-Z0-9_\-\.]*)$').firstMatch(textBefore);
     return match?.group(1);
+  }
+
+  bool get _mentionPickerActive => _activeMentionQuery != null;
+
+  String get _textWithoutActiveMentionDraft {
+    final sel = _controller.selection;
+    if (_activeMentionQuery == null || !sel.isValid) return _controller.text;
+    final textBefore = _controller.text.substring(0, sel.baseOffset);
+    final textAfter = _controller.text.substring(sel.baseOffset);
+    final atIndex = textBefore.lastIndexOf('@');
+    if (atIndex < 0) return _controller.text;
+    return textBefore.substring(0, atIndex) + textAfter;
   }
 
   String? get _activeSlashQuery {
@@ -200,36 +259,204 @@ class _InComposerState extends State<InComposer> {
   }
 
   List<CatalogMention> get _mentionMatches {
-    final query = _activeMentionQuery;
-    if (query == null || widget.onMentionToggle == null) return const [];
-    final q = query.toLowerCase();
-    return (q.isNotEmpty && widget.onMentionSearch != null)
-        ? _mentionSearchResults
-        : _composerMentions.where((m) {
-            final label = m.displayLabel;
-            return m.id.toLowerCase().contains(q) || label.toLowerCase().contains(q);
-          }).take(6).toList(growable: false);
+    if (!_mentionPickerActive || widget.onMentionToggle == null) return const [];
+    final q = _activeMentionQuery!.toLowerCase();
+    return _composerMentions.where((m) => _mentionCatalogMatchesQuery(m, q)).take(20).toList(growable: false);
+  }
+
+  void _requestComposerFocus([int? cursorOffset]) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_focus.canRequestFocus) return;
+      _focus.requestFocus();
+      if (cursorOffset != null) {
+        final len = _controller.text.length;
+        _controller.selection = TextSelection.collapsed(offset: cursorOffset.clamp(0, len));
+      }
+    });
+  }
+
+  void _clearActiveMentionQuery() {
+    final sel = _controller.selection;
+    if (!sel.isValid || sel.baseOffset < 0 || sel.baseOffset > _controller.text.length) return;
+    final textBefore = _controller.text.substring(0, sel.baseOffset);
+    final textAfter = _controller.text.substring(sel.baseOffset);
+    final atIndex = textBefore.lastIndexOf('@');
+    if (atIndex < 0) return;
+    final newText = textBefore.substring(0, atIndex) + textAfter;
+    _controller.text = newText;
+    _controller.selection = TextSelection.collapsed(offset: atIndex);
+  }
+
+  void _dismissMentionPicker() {
+    _clearActiveMentionQuery();
+    _removeMentionMenuOverlay();
+    _clearMentionMenuRowKeys();
+    _mentionMenuHighlight.value = 0;
+  }
+
+  void _insertMentionTrigger() {
+    if (!widget.enabled || widget.busy) return;
+    if (_mentionPickerActive) {
+      _focus.requestFocus();
+      _measureComposerShell();
+      return;
+    }
+    final sel = _controller.selection;
+    final text = _controller.text;
+    final offset = sel.isValid ? sel.baseOffset.clamp(0, text.length) : text.length;
+    final before = text.substring(0, offset);
+    final after = text.substring(offset);
+    final needsSpace = before.isNotEmpty && !before.endsWith(' ') && !before.endsWith('\n');
+    final insert = needsSpace ? ' @' : '@';
+    final newText = before + insert + after;
+    final newOffset = offset + insert.length;
+    _controller.text = newText;
+    _controller.selection = TextSelection.collapsed(offset: newOffset);
+    _clearMentionMenuRowKeys();
+    _mentionMenuHighlight.value = 0;
+    setState(() {});
+    _syncMentionMenuOverlay();
+    _focus.requestFocus();
+    _measureComposerShell();
+  }
+
+  void _scrollHighlightedMentionIntoView() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final ctx = _mentionMenuRowKeys[_mentionMenuHighlight.value]?.currentContext;
+      if (ctx == null) return;
+      Scrollable.ensureVisible(
+        ctx,
+        alignment: 0.5,
+        duration: const Duration(milliseconds: 100),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  void _mentionMenuHighlightKeyboard(int index) {
+    if (_mentionMenuHighlight.value == index) return;
+    _mentionMenuHighlight.value = index;
+    _scrollHighlightedMentionIntoView();
+  }
+
+  void _mentionMenuHighlightHover(int index) {
+    if (_mentionMenuHighlight.value == index) return;
+    _mentionMenuHighlight.value = index;
+  }
+
+  void _measureComposerShell() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final box = _composerShellKey.currentContext?.findRenderObject() as RenderBox?;
+      final h = box != null && box.hasSize ? box.size.height : null;
+      if (h != null && (h - _composerShellHeight).abs() > 0.5) setState(() => _composerShellHeight = h);
+      if (_mentionPickerActive) _mentionMenuOverlayEntry?.markNeedsBuild();
+    });
+  }
+
+  void _syncMentionMenuOverlay() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_mentionPickerActive) {
+        _ensureMentionMenuOverlay();
+      } else {
+        _removeMentionMenuOverlay();
+      }
+    });
+  }
+
+  void _ensureMentionMenuOverlay() {
+    final overlay = Overlay.maybeOf(context);
+    if (overlay == null) return;
+    if (_mentionMenuOverlayEntry != null) return;
+    _mentionMenuOverlayEntry = OverlayEntry(builder: (context) => _mentionMenuOverlayLayer());
+    overlay.insert(_mentionMenuOverlayEntry!);
+  }
+
+  void _removeMentionMenuOverlay() {
+    _mentionMenuOverlayEntry?.remove();
+    _mentionMenuOverlayEntry = null;
+  }
+
+  Widget _mentionMenuOverlayLayer() {
+    final shellBox = _composerShellKey.currentContext?.findRenderObject() as RenderBox?;
+    final menuWidth = shellBox != null && shellBox.hasSize ? (shellBox.size.width - 16).clamp(200.0, 640.0) : 320.0;
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Listener(
+            behavior: HitTestBehavior.translucent,
+            onPointerDown: (_) => _dismissMentionPicker(),
+          ),
+        ),
+        CompositedTransformFollower(
+          link: _mentionLayerLink,
+          showWhenUnlinked: false,
+          targetAnchor: Alignment.topLeft,
+          followerAnchor: Alignment.bottomLeft,
+          offset: const Offset(8, -6),
+          child: SizedBox(
+            width: menuWidth,
+            child: ValueListenableBuilder<int>(
+              valueListenable: _mentionMenuHighlight,
+              builder: (context, highlightIndex, _) => _mentionMenu(highlightIndex: highlightIndex),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<_MentionPickRow> get _mentionPickRows {
+    if (!_mentionPickerActive) return const [];
+    final q = _activeMentionQuery ?? '';
+    final matches = _mentionMatches;
+    final tools = matches.where((m) => !m.isDevice).toList(growable: false);
+    final devices = matches.where((m) => m.isDevice).toList(growable: false);
+    final rows = <_MentionPickRow>[];
+    if (_mentionQueryShowsImage(q)) rows.add(const _MentionPickRow(kind: _MentionPickKind.image));
+    if (_mentionQueryShowsFile(q)) rows.add(const _MentionPickRow(kind: _MentionPickKind.file));
+    for (final m in tools) {
+      rows.add(_MentionPickRow(kind: _MentionPickKind.mention, mention: m));
+    }
+    for (final m in devices) {
+      rows.add(_MentionPickRow(kind: _MentionPickKind.mention, mention: m));
+    }
+    return rows;
+  }
+
+  void _pickMentionRow(_MentionPickRow row) {
+    if (row.kind == _MentionPickKind.image) {
+      _dismissMentionPicker();
+      unawaited(_attachImage());
+      return;
+    }
+    if (row.kind == _MentionPickKind.file) {
+      _dismissMentionPicker();
+      unawaited(_attachFile());
+      return;
+    }
+    if (row.mention != null) _pickMention(row.mention!);
   }
 
   void _pickMention(CatalogMention m) {
-    widget.onMentionToggle?.call(m.id);
-    final sel = _controller.selection;
-    if (sel.isValid && sel.baseOffset >= 0 && sel.baseOffset <= _controller.text.length) {
-      final textBefore = _controller.text.substring(0, sel.baseOffset);
-      final textAfter = _controller.text.substring(sel.baseOffset);
-      final atIndex = textBefore.lastIndexOf('@');
-      if (atIndex >= 0) {
-        final replacement = '@${m.displayLabel} ';
-        final newText = textBefore.substring(0, atIndex) + replacement + textAfter;
-        _controller.text = newText;
-        _controller.selection = TextSelection.collapsed(offset: atIndex + replacement.length);
-      }
-    }
-    _highlightedMentionIndex = 0;
-    _mentionSearchResults = const [];
-    _mentionSearching = false;
+    _removeMentionMenuOverlay();
+    _clearMentionMenuRowKeys();
+    _mentionMenuHighlight.value = 0;
+    _clearActiveMentionQuery();
+    final offset = _controller.selection.isValid ? _controller.selection.baseOffset : _controller.text.length;
+    final text = _controller.text;
+    final before = text.substring(0, offset.clamp(0, text.length));
+    final after = text.substring(offset.clamp(0, text.length));
+    final token = composerMentionToken(m.id);
+    final needsSpace = before.isNotEmpty && !before.endsWith(' ') && !before.endsWith('\n');
+    final insert = '${needsSpace ? ' ' : ''}$token ';
+    final newText = before + insert + after;
+    final cursor = before.length + insert.length;
+    _controller.value = TextEditingValue(text: newText, selection: TextSelection.collapsed(offset: cursor));
     setState(() {});
-    _focus.requestFocus();
+    _requestComposerFocus(cursor);
   }
 
   void _onFocusChange() {
@@ -246,7 +473,9 @@ class _InComposerState extends State<InComposer> {
 
   @override
   void dispose() {
-    _mentionSearchDebounce?.cancel();
+    _mentionListScrollController.dispose();
+    _mentionMenuHighlight.dispose();
+    _removeMentionMenuOverlay();
     SttService.instance.onAutoStop = null;
     SttService.instance.liveTranscript.removeListener(_onLiveTranscript);
     if (_recording || SttService.instance.isRecording.value) {
@@ -257,43 +486,6 @@ class _InComposerState extends State<InComposer> {
     _internalController?.dispose();
     _internalFocus?.dispose();
     super.dispose();
-  }
-
-  void _scheduleMentionSearch(String? query) {
-    _mentionSearchDebounce?.cancel();
-    if (query == null || widget.onMentionSearch == null) {
-      if (_mentionSearchResults.isNotEmpty || _mentionSearching) {
-        setState(() {
-          _mentionSearchResults = const [];
-          _mentionSearching = false;
-        });
-      }
-      return;
-    }
-    final q = query;
-    if (q.isEmpty) {
-      if (_mentionSearchResults.isNotEmpty || _mentionSearching) {
-        setState(() {
-          _mentionSearchResults = const [];
-          _mentionSearching = false;
-        });
-      }
-      return;
-    }
-    _mentionSearchDebounce = Timer(const Duration(milliseconds: 200), () async {
-      if (!mounted) return;
-      setState(() => _mentionSearching = true);
-      try {
-        final results = await widget.onMentionSearch!(q);
-        if (!mounted) return;
-        setState(() {
-          _mentionSearchResults = results;
-          _mentionSearching = false;
-        });
-      } catch (_) {
-        if (mounted) setState(() => _mentionSearching = false);
-      }
-    });
   }
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
@@ -325,38 +517,35 @@ class _InComposerState extends State<InComposer> {
       }
     }
 
-    final matches = _mentionMatches;
-    if (matches.isNotEmpty) {
+    final pickRows = _mentionPickRows;
+    if (pickRows.isNotEmpty) {
       if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-        setState(() {
-          _highlightedMentionIndex = (_highlightedMentionIndex + 1) % matches.length;
-        });
+        _mentionMenuHighlightKeyboard((_mentionMenuHighlight.value + 1) % pickRows.length);
         return KeyEventResult.handled;
       }
       if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-        setState(() {
-          _highlightedMentionIndex = (_highlightedMentionIndex - 1 + matches.length) % matches.length;
-        });
+        _mentionMenuHighlightKeyboard((_mentionMenuHighlight.value - 1 + pickRows.length) % pickRows.length);
         return KeyEventResult.handled;
       }
       if (event.logicalKey == LogicalKeyboardKey.enter || event.logicalKey == LogicalKeyboardKey.tab) {
-        final target = matches[_highlightedMentionIndex.clamp(0, matches.length - 1)];
-        _pickMention(target);
+        final target = pickRows[_mentionMenuHighlight.value.clamp(0, pickRows.length - 1)];
+        _pickMentionRow(target);
         return KeyEventResult.handled;
       }
       if (event.logicalKey == LogicalKeyboardKey.escape) {
-        _scheduleMentionSearch(null);
-        setState(() {
-          _mentionSearchResults = const [];
-          _mentionSearching = false;
-        });
+        _dismissMentionPicker();
         return KeyEventResult.handled;
       }
     }
 
+    if (_mentionPickerActive && event.logicalKey == LogicalKeyboardKey.escape) {
+      _dismissMentionPicker();
+      return KeyEventResult.handled;
+    }
+
     if (event.logicalKey == LogicalKeyboardKey.arrowUp && widget.promptHistory.isNotEmpty && _attachments.isEmpty) {
       final sel = _controller.selection;
-      if (!sel.isValid || sel.baseOffset == 0 || _controller.text.isEmpty) {
+      if (!sel.isValid || sel.baseOffset == 0 || composerMentionPlainText(_controller.text).isEmpty) {
         if (_historyIndex == -1) _draftText = _controller.text;
         if (_historyIndex + 1 < widget.promptHistory.length) {
           _historyIndex++;
@@ -461,82 +650,6 @@ class _InComposerState extends State<InComposer> {
     if (picked != null) _stageItems(picked.map((m) => m.copyWith(uploadProgress: 0.05)).toList());
   }
 
-  Future<void> _attach() async {
-    final tools = _composerMentions.where((m) => !m.isDevice).toList();
-    final devices = _composerMentions.where((m) => m.isDevice).toList();
-    final action = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: const Color(0xFF18181B),
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (ctx) => SafeArea(
-        child: ValueListenableBuilder<int>(
-          valueListenable: catalogTranslationTick,
-          builder: (context, _, __) => Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(leading: const Icon(Icons.image_outlined, color: zinc100), title: const Text('Image', style: TextStyle(color: zinc100)), onTap: () => Navigator.pop(ctx, 'image')),
-              ListTile(leading: const Icon(Icons.attach_file_rounded, color: zinc100), title: const Text('File', style: TextStyle(color: zinc100)), onTap: () => Navigator.pop(ctx, 'file')),
-              if (widget.onMentionToggle != null && _composerMentions.isNotEmpty) ...[
-                if (tools.isNotEmpty) ...[
-                  const Divider(height: 1, color: Color(0xFF27272A)),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                    child: Align(alignment: Alignment.centerLeft, child: Text('Tools', style: const TextStyle(color: zinc500, fontSize: 12, fontWeight: FontWeight.w600))),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-                    child: Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        for (final m in tools)
-                          _MentionChip(
-                            mention: m,
-                            selected: widget.selectedMentionIds.contains(m.id),
-                            onTap: () {
-                              widget.onMentionToggle!(m.id);
-                              setState(() {});
-                            },
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-                if (devices.isNotEmpty) ...[
-                  const Divider(height: 1, color: Color(0xFF27272A)),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                    child: Align(alignment: Alignment.centerLeft, child: Text('Devices', style: const TextStyle(color: zinc500, fontSize: 12, fontWeight: FontWeight.w600))),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                    child: Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        for (final m in devices)
-                          _MentionChip(
-                            mention: m,
-                            selected: widget.selectedMentionIds.contains(m.id),
-                            onTap: () {
-                              widget.onMentionToggle!(m.id);
-                              setState(() {});
-                            },
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-    if (action == 'image') await _attachImage();
-    if (action == 'file') await _attachFile();
-  }
-
   Future<void> _submit() async {
     if (!_canSubmit || _submitting) return;
     _submitting = true;
@@ -572,13 +685,19 @@ class _InComposerState extends State<InComposer> {
       }
     }
 
-    var submitText = _controller.text.trim();
+    final draft = _textWithoutActiveMentionDraft;
+    final mentionIds = [
+      ...composerMentionIdsParse(draft),
+      ...widget.selectedMentionIds.where((id) => id != 'image' && !_inlineMentionIds.contains(id)),
+    ].toList(growable: false);
+
+    var submitText = composerMentionTextForPrompt(draft, _composerMentions, mentionIds: mentionIds);
     if (submitText.startsWith('/ask ') || submitText == '/ask') {
       turnToolMode = 'ask';
       submitText = submitText.length > 4 ? submitText.substring(4).trim() : '';
     }
 
-    if (submitText.isEmpty && atts.isEmpty) {
+    if (submitText.isEmpty && atts.isEmpty && mentionIds.isEmpty) {
       _submitting = false;
       return;
     }
@@ -588,7 +707,7 @@ class _InComposerState extends State<InComposer> {
     setState(() {});
 
     try {
-      widget.onSend(submitText, atts, toolMode: turnToolMode);
+      widget.onSend(submitText, atts, toolMode: turnToolMode, mentionIds: mentionIds, displayContent: draft.trim());
     } finally {
       if (mounted) {
         setState(() => _submitting = false);
@@ -786,91 +905,166 @@ class _InComposerState extends State<InComposer> {
     );
   }
 
-  Widget _mentionSuggestionsBox() {
-    final matches = _mentionMatches;
-    if (matches.isEmpty && !_mentionSearching) return const SizedBox.shrink();
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(8, 8, 8, 4),
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFF27272A),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF3F3F46)),
-      ),
-      constraints: const BoxConstraints(maxHeight: 180),
-      child: ListView.separated(
-        shrinkWrap: true,
-        padding: EdgeInsets.zero,
-        itemCount: matches.length + (_mentionSearching ? 1 : 0),
-        separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFF3F3F46)),
-        itemBuilder: (context, i) {
-          if (i >= matches.length) {
-            return const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              child: Align(alignment: Alignment.centerLeft, child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))),
-            );
-          }
-          final m = matches[i];
-          final label = m.displayLabel;
-          final caption = m.displayCaption;
-          final isDev = m.isDevice;
-          final selected = widget.selectedMentionIds.contains(m.id);
-          final isHighlighted = i == _highlightedMentionIndex;
-          return InkWell(
-            onTap: () => _pickMention(m),
-            child: Container(
-              color: isHighlighted ? const Color(0xFF3F3F46) : Colors.transparent,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: Row(
-                children: [
-                  Icon(
-                    isDev ? Icons.computer_rounded : Icons.alternate_email_rounded,
-                    size: 16,
-                    color: isDev ? const Color(0xFF38BDF8) : const Color(0xFFA1A1AA),
-                  ),
+  Widget _mentionMenuTile({
+    required int rowIndex,
+    required int highlightIndex,
+    required VoidCallback onTap,
+    required Widget leading,
+    required String label,
+    String caption = '',
+    bool selected = false,
+  }) {
+    final isHighlighted = rowIndex == highlightIndex;
+    return KeyedSubtree(
+      key: _mentionMenuRowKey(rowIndex),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => _mentionMenuHighlightHover(rowIndex),
+        child: GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            color: isHighlighted ? const Color(0xFF3F3F46) : Colors.transparent,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              children: [
+                leading,
+                const SizedBox(width: 8),
+                Text(label, style: const TextStyle(color: zinc100, fontSize: 13, fontWeight: FontWeight.w500)),
+                if (caption.isNotEmpty) ...[
                   const SizedBox(width: 8),
-                  Text('@$label', style: const TextStyle(color: zinc100, fontSize: 13, fontWeight: FontWeight.w500)),
-                  if (caption.isNotEmpty) ...[
-                    const SizedBox(width: 8),
-                    Text(caption, style: const TextStyle(color: zinc500, fontSize: 11)),
-                  ],
-                  const Spacer(),
-                  if (isHighlighted)
-                    const Padding(
-                      padding: EdgeInsets.only(right: 6),
-                      child: Text('↵', style: TextStyle(color: zinc500, fontSize: 12)),
-                    ),
-                  if (selected)
-                    const Icon(Icons.check_rounded, size: 16, color: Color(0xFF22C55E)),
+                  Text(caption, style: const TextStyle(color: zinc500, fontSize: 11)),
                 ],
-              ),
+                const Spacer(),
+                if (isHighlighted)
+                  const Padding(
+                    padding: EdgeInsets.only(right: 6),
+                    child: Text('↵', style: TextStyle(color: zinc500, fontSize: 12)),
+                  ),
+                if (selected) const Icon(Icons.check_rounded, size: 16, color: Color(0xFF22C55E)),
+              ],
             ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _selectedMentionRow() {
-    if (!_hasSelectedMentions || widget.onMentionToggle == null) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
-      child: ValueListenableBuilder<int>(
-        valueListenable: catalogTranslationTick,
-        builder: (context, _, __) => Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: [
-            for (final m in _composerMentions.where((m) => widget.selectedMentionIds.contains(m.id)))
-              _MentionChip(mention: m, selected: true, onTap: () => widget.onMentionToggle!(m.id)),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  static const _attachBtnWidth = 40.0;
+  Widget _mentionSectionHeader(String title) => Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(title, style: const TextStyle(color: zinc500, fontSize: 12, fontWeight: FontWeight.w600)),
+        ),
+      );
+
+  Widget _mentionMenu({required int highlightIndex}) {
+    if (!_mentionPickerActive) return const SizedBox.shrink();
+    final pickRows = _mentionPickRows;
+    if (pickRows.isEmpty) return const SizedBox.shrink();
+
+    final matches = _mentionMatches;
+    final tools = matches.where((m) => !m.isDevice).toList(growable: false);
+    final devices = matches.where((m) => m.isDevice).toList(growable: false);
+    final q = _activeMentionQuery ?? '';
+    var rowIndex = 0;
+
+    final children = <Widget>[];
+    if (_mentionQueryShowsImage(q)) {
+      children.add(
+        _mentionMenuTile(
+          rowIndex: rowIndex++,
+          highlightIndex: highlightIndex,
+          onTap: () => _pickMentionRow(const _MentionPickRow(kind: _MentionPickKind.image)),
+          leading: const Icon(Icons.image_outlined, size: 16, color: _mentionIconGrey),
+          label: 'Image',
+        ),
+      );
+      if (_mentionQueryShowsFile(q) || tools.isNotEmpty || devices.isNotEmpty) {
+        children.add(const Divider(height: 1, color: Color(0xFF3F3F46)));
+      }
+    }
+    if (_mentionQueryShowsFile(q)) {
+      children.add(
+        _mentionMenuTile(
+          rowIndex: rowIndex++,
+          highlightIndex: highlightIndex,
+          onTap: () => _pickMentionRow(const _MentionPickRow(kind: _MentionPickKind.file)),
+          leading: const Icon(Icons.attach_file_rounded, size: 16, color: _mentionIconGrey),
+          label: 'File',
+        ),
+      );
+      if (tools.isNotEmpty || devices.isNotEmpty) {
+        children.add(const Divider(height: 1, color: Color(0xFF3F3F46)));
+      }
+    }
+    if (tools.isNotEmpty) {
+      children.add(const Divider(height: 1, color: Color(0xFF3F3F46)));
+      children.add(_mentionSectionHeader('Tools'));
+      for (final m in tools) {
+        final i = rowIndex++;
+        children.add(
+          _mentionMenuTile(
+            rowIndex: i,
+            highlightIndex: highlightIndex,
+            onTap: () => _pickMention(m),
+            leading: _mentionLeadingIcon(m),
+            label: m.displayLabel,
+            caption: m.displayCaption,
+            selected: _inlineMentionIds.contains(m.id),
+          ),
+        );
+        if (m != tools.last) children.add(const Divider(height: 1, color: Color(0xFF3F3F46)));
+      }
+    }
+    if (devices.isNotEmpty) {
+      children.add(const Divider(height: 1, color: Color(0xFF3F3F46)));
+      children.add(_mentionSectionHeader('Devices'));
+      for (final m in devices) {
+        final i = rowIndex++;
+        children.add(
+          _mentionMenuTile(
+            rowIndex: i,
+            highlightIndex: highlightIndex,
+            onTap: () => _pickMention(m),
+            leading: _mentionLeadingIcon(m),
+            label: m.displayLabel,
+            caption: m.displayCaption,
+            selected: _inlineMentionIds.contains(m.id),
+          ),
+        );
+        if (m != devices.last) children.add(const Divider(height: 1, color: Color(0xFF3F3F46)));
+      }
+    }
+    return Material(
+      elevation: 8,
+      shadowColor: Colors.black54,
+      color: const Color(0xFF27272A),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFF3F3F46)),
+        ),
+        constraints: const BoxConstraints(maxHeight: 280),
+        child: Scrollbar(
+          thumbVisibility: true,
+          controller: _mentionListScrollController,
+          child: ListView(
+            controller: _mentionListScrollController,
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            physics: const ClampingScrollPhysics(),
+            children: children,
+          ),
+        ),
+      ),
+    );
+  }
+
+  static const _attachBtnWidth = 32.0;
+  static const _attachTextGap = 4.0;
+
+  double get _leadingActionsWidth => _attachBtnWidth;
   static const _actionBtnWidth = 38.0;
   static const _modelChipWidth = 150.0;
   static const _modePillWidth = 64.0;
@@ -883,11 +1077,11 @@ class _InComposerState extends State<InComposer> {
   bool _shouldUseStackedLayout(BuildContext context, double totalWidth) {
     if (totalWidth < _inlineMinWidth) return true;
     if (_controller.text.contains('\n')) return true;
-    final textWidth = totalWidth - _attachBtnWidth - _modePillLayoutWidth - _modelChipWidth - _actionBtnWidth - 32;
+    final textWidth = totalWidth - _leadingActionsWidth - _modePillLayoutWidth - _modelChipWidth - _actionBtnWidth - 32;
     if (textWidth <= 48) return true;
     final painter = TextPainter(
       text: TextSpan(
-        text: _controller.text.isEmpty ? ' ' : _controller.text,
+        text: composerMentionPlainText(_controller.text).isEmpty && _controller.text.isEmpty ? ' ' : _controller.text,
         style: const TextStyle(fontSize: 14, height: 1.35),
       ),
       textDirection: Directionality.of(context),
@@ -897,14 +1091,7 @@ class _InComposerState extends State<InComposer> {
     return painter.computeLineMetrics().length > 1;
   }
 
-  void _restoreComposerFocus([TextSelection? selection]) {
-    final sel = selection ?? _controller.selection;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_focus.canRequestFocus) return;
-      _focus.requestFocus();
-      if (sel.isValid) _controller.selection = sel;
-    });
-  }
+  void _restoreComposerFocus([TextSelection? selection]) => _requestComposerFocus(selection?.baseOffset);
 
   VoidCallback? _modelTap() => widget.enabled
       ? () async {
@@ -913,12 +1100,19 @@ class _InComposerState extends State<InComposer> {
         }
       : null;
 
-  Widget _attachButton() => uiIconButton(
-        tooltip: 'Attach',
-        onPressed: widget.enabled && !widget.busy ? _attach : null,
-        icon: const Icon(Icons.attach_file_rounded, size: 20, color: zinc500),
-        style: IconButton.styleFrom(minimumSize: const Size(_attachBtnWidth, _attachBtnWidth), tapTargetSize: MaterialTapTargetSize.shrinkWrap, visualDensity: VisualDensity.compact),
+  Widget _mentionMenuButton() => uiIconButton(
+        tooltip: 'Mention menu',
+        onPressed: widget.enabled && !widget.busy ? _insertMentionTrigger : null,
+        icon: Icon(Icons.add_rounded, size: 21, color: _mentionPickerActive ? zinc100 : zinc500),
+        style: IconButton.styleFrom(
+          padding: EdgeInsets.zero,
+          minimumSize: const Size(_attachBtnWidth, _attachBtnWidth),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          visualDensity: VisualDensity.compact,
+        ),
       );
+
+  Widget _leadingActionButtons() => _mentionMenuButton();
 
   Widget _modePill() {
     if (!_modePillVisible) return const SizedBox.shrink();
@@ -951,37 +1145,43 @@ class _InComposerState extends State<InComposer> {
 
   Widget _actionButton() => _ActionButton(kind: composerActionKind(streaming: widget.busy, recording: _recording, hasText: _hasText), onAction: _onAction);
 
-  Widget _textField({required bool stacked}) => TextField(
-        key: const ValueKey('composer_text_field'),
-        controller: _controller,
-        focusNode: _focus,
-        enabled: widget.enabled && !_recording,
-        minLines: 1,
-        maxLines: 6,
-        keyboardType: TextInputType.multiline,
-        textInputAction: TextInputAction.newline,
-        style: const TextStyle(color: zinc100, fontSize: 14, height: 1.35),
-        cursorColor: zinc100,
-        onChanged: (_) {
-          final hadFocus = _focus.hasFocus;
-          final sel = _controller.selection;
-          final prevStacked = _wasStacked;
-          _scheduleMentionSearch(_activeMentionQuery);
-          setState(() {});
-          final nextStacked = _shouldUseStackedLayout(context, _inputAreaWidth);
-          _wasStacked = nextStacked;
-          if (prevStacked != nextStacked && hadFocus) _restoreComposerFocus(sel);
-        },
-        decoration: InputDecoration(
-          hintText: _hintText,
-          hintStyle: const TextStyle(color: zinc500, fontSize: 14, height: 1.35),
-          isDense: true,
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          contentPadding: EdgeInsets.fromLTRB(4, stacked ? 10 : 8, 4, stacked ? 10 : 6),
-        ),
-      );
+  Widget _composerTextArea({required bool stacked}) {
+    final field = ExtendedTextField(
+      key: const ValueKey('composer_text_field'),
+      controller: _controller,
+      focusNode: _focus,
+      enabled: widget.enabled && !_recording,
+      minLines: 1,
+      maxLines: 6,
+      keyboardType: TextInputType.multiline,
+      textInputAction: TextInputAction.newline,
+      style: const TextStyle(color: zinc100, fontSize: 14, height: 1.35),
+      cursorColor: zinc100,
+      specialTextSpanBuilder: ComposerMentionSpanBuilder(mentions: _composerMentions),
+      onChanged: (_) {
+        final hadFocus = _focus.hasFocus;
+        final sel = _controller.selection;
+        final prevStacked = _wasStacked;
+        _mentionMenuHighlight.value = 0;
+        setState(() {});
+        _syncMentionMenuOverlay();
+        if (_mentionPickerActive) _measureComposerShell();
+        final nextStacked = _shouldUseStackedLayout(context, _inputAreaWidth);
+        _wasStacked = nextStacked;
+        if (prevStacked != nextStacked && hadFocus) _restoreComposerFocus(sel);
+      },
+      decoration: InputDecoration(
+        hintText: _hintText,
+        hintStyle: const TextStyle(color: zinc500, fontSize: 14, height: 1.35),
+        isDense: true,
+        border: InputBorder.none,
+        enabledBorder: InputBorder.none,
+        focusedBorder: InputBorder.none,
+        contentPadding: EdgeInsets.fromLTRB(2, stacked ? 10 : 8, 4, stacked ? 10 : 6),
+      ),
+    );
+    return Padding(padding: const EdgeInsets.fromLTRB(0, 4, 4, 4), child: field);
+  }
 
   Widget _inputArea(double maxWidth) {
     if (_recording) {
@@ -1007,18 +1207,14 @@ class _InComposerState extends State<InComposer> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
-          crossAxisAlignment: stacked ? CrossAxisAlignment.end : CrossAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             SizedBox(
-              width: stacked ? 0 : _attachBtnWidth,
-              child: stacked ? null : _attachButton(),
+              width: stacked ? 0 : _leadingActionsWidth,
+              child: stacked ? null : _leadingActionButtons(),
             ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: _textField(stacked: stacked),
-              ),
-            ),
+            if (!stacked) const SizedBox(width: _attachTextGap),
+            Expanded(child: _composerTextArea(stacked: stacked)),
             if (!stacked) ...[
               if (_modePillVisible) ...[
                 _modePill(),
@@ -1036,7 +1232,7 @@ class _InComposerState extends State<InComposer> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                _attachButton(),
+                _leadingActionButtons(),
                 if (_modePillVisible) ...[
                   _modePill(),
                   const SizedBox(width: 4),
@@ -1099,6 +1295,12 @@ class _InComposerState extends State<InComposer> {
 
   @override
   Widget build(BuildContext context) {
+    if (_mentionPickerActive) {
+      _measureComposerShell();
+      _syncMentionMenuOverlay();
+    } else {
+      _removeMentionMenuOverlay();
+    }
     final border = _isDragging
         ? const Color(0xFF38BDF8)
         : (_focused ? const Color(0xFF3F3F46) : const Color(0xFF27272A));
@@ -1107,65 +1309,72 @@ class _InComposerState extends State<InComposer> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (widget.showSpeakIndicator) const Align(alignment: Alignment.centerLeft, child: UiSpeakIndicator()),
-        DropTarget(
-      onDragEntered: (_) => setState(() => _isDragging = true),
-      onDragExited: (_) => setState(() => _isDragging = false),
-      onDragDone: (detail) async {
-        setState(() => _isDragging = false);
-        if (!widget.enabled || widget.busy) return;
-        final staged = <StagedMedia>[];
-        for (final xFile in detail.files.take(defaultMaxMediaFiles - _attachments.length)) {
-          try {
-            final bytes = await xFile.readAsBytes();
-            if (bytes.isEmpty) continue;
-            final name = xFile.name;
-            final mime = mimeForFilename(name);
-            staged.add(StagedMedia(name: name, bytes: bytes, mime: mime, type: mediaTypeForMime(mime), size: bytes.length, uploadProgress: 0.05));
-          } catch (_) {}
-        }
-        if (staged.isNotEmpty) _stageItems(staged);
-      },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
-        decoration: BoxDecoration(
-          color: _isDragging ? const Color(0xFF0F172A) : const Color(0xFF18181B),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: border, width: _isDragging ? 1.5 : 1.0),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        Stack(
+          clipBehavior: Clip.none,
           children: [
-            if (_isDragging)
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                alignment: Alignment.center,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF1E293B),
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
+            DropTarget(
+              onDragEntered: (_) => setState(() => _isDragging = true),
+              onDragExited: (_) => setState(() => _isDragging = false),
+              onDragDone: (detail) async {
+                setState(() => _isDragging = false);
+                if (!widget.enabled || widget.busy) return;
+                final staged = <StagedMedia>[];
+                for (final xFile in detail.files.take(defaultMaxMediaFiles - _attachments.length)) {
+                  try {
+                    final bytes = await xFile.readAsBytes();
+                    if (bytes.isEmpty) continue;
+                    final name = xFile.name;
+                    final mime = mimeForFilename(name);
+                    staged.add(StagedMedia(name: name, bytes: bytes, mime: mime, type: mediaTypeForMime(mime), size: bytes.length, uploadProgress: 0.05));
+                  } catch (_) {}
+                }
+                if (staged.isNotEmpty) _stageItems(staged);
+              },
+              child: AnimatedContainer(
+                key: _composerShellKey,
+                duration: const Duration(milliseconds: 120),
+                decoration: BoxDecoration(
+                  color: _isDragging ? const Color(0xFF0F172A) : const Color(0xFF18181B),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: border, width: _isDragging ? 1.5 : 1.0),
                 ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Icon(Icons.file_download_outlined, size: 16, color: Color(0xFF38BDF8)),
-                    SizedBox(width: 6),
-                    Text('Drop files to attach', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 12, fontWeight: FontWeight.w600)),
+                    if (_isDragging)
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        alignment: Alignment.center,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF1E293B),
+                          borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.file_download_outlined, size: 16, color: Color(0xFF38BDF8)),
+                            SizedBox(width: 6),
+                            Text('Drop files to attach', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 12, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      ),
+                    _followupQueueBox(),
+                    _slashSuggestionsBox(),
+                    _attachmentRow(),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(6, 4, 8, 4),
+                      child: CompositedTransformTarget(
+                        link: _mentionLayerLink,
+                        child: LayoutBuilder(builder: (context, constraints) => _inputArea(constraints.maxWidth)),
+                      ),
+                    ),
                   ],
                 ),
               ),
-            _followupQueueBox(),
-            _slashSuggestionsBox(),
-            _mentionSuggestionsBox(),
-            _selectedMentionRow(),
-            _attachmentRow(),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              child: LayoutBuilder(builder: (context, constraints) => _inputArea(constraints.maxWidth)),
             ),
           ],
         ),
-      ),
-    ),
       ],
     );
   }
@@ -1188,57 +1397,4 @@ class _ActionButton extends StatelessWidget {
           ComposerActionKind.mic => IconButton(icon: const Icon(Icons.mic_rounded), color: const Color(0xFF9CA3AF), iconSize: 20, padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: _size, minHeight: _size), onPressed: onAction),
         },
       );
-}
-
-class _MentionChip extends StatelessWidget {
-  const _MentionChip({required this.mention, required this.selected, required this.onTap});
-
-  final CatalogMention mention;
-  final bool selected;
-  final VoidCallback onTap;
-
-  Color get _chipColor {
-    final s = mention.color.trim();
-    if (s.isEmpty) return const Color(0xFF22C55E);
-    var hex = s.startsWith('#') ? s.substring(1) : s;
-    if (hex.length == 6) hex = 'FF$hex';
-    final v = int.tryParse(hex, radix: 16);
-    return v == null ? const Color(0xFF22C55E) : Color(v);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final label = mention.displayLabel;
-    final caption = mention.displayCaption;
-    final isDevice = mention.isDevice;
-    Widget? avatar;
-    if (isDevice) {
-      avatar = Container(
-        width: 7,
-        height: 7,
-        decoration: BoxDecoration(
-          color: _chipColor,
-          shape: BoxShape.circle,
-        ),
-      );
-    }
-    final tip = caption.isNotEmpty ? caption : label;
-    return uiTooltip(
-      message: tip,
-      child: FilterChip(
-      avatar: avatar,
-      label: Text('@$label'),
-      tooltip: uiTooltipText(tip),
-      selected: selected,
-      onSelected: (_) => onTap(),
-      showCheckmark: false,
-      labelStyle: TextStyle(color: selected ? Colors.black : zinc100, fontSize: 12),
-      selectedColor: _chipColor,
-      backgroundColor: const Color(0xFF1A1A1D),
-      side: const BorderSide(color: Color(0xFF27272A)),
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      visualDensity: VisualDensity.compact,
-    ),
-    );
-  }
 }

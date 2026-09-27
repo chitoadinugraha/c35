@@ -10,13 +10,13 @@ class PromptUsagePrefs extends ChangeNotifier {
   static const _key = 'prompt_show_usage_stats';
 
   SharedPreferences? _prefs;
-  var _showUsageStats = true;
+  var _showUsageStats = false;
 
   bool get showUsageStats => _showUsageStats;
 
   Future<void> load() async {
     _prefs ??= await SharedPreferences.getInstance();
-    _showUsageStats = _prefs!.getBool(_key) ?? true;
+    _showUsageStats = _prefs!.getBool(_key) ?? false;
     notifyListeners();
   }
 

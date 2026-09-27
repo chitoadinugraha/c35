@@ -100,5 +100,59 @@ class RemoteFsDriveKind extends $pb.ProtobufEnum {
   const RemoteFsDriveKind._(super.value, super.name);
 }
 
+class RemoteMediaState extends $pb.ProtobufEnum {
+  static const RemoteMediaState REMOTE_MEDIA_STATE_UNSPECIFIED =
+      RemoteMediaState._(
+          0, _omitEnumNames ? '' : 'REMOTE_MEDIA_STATE_UNSPECIFIED');
+  static const RemoteMediaState REMOTE_MEDIA_STATE_IDLE =
+      RemoteMediaState._(1, _omitEnumNames ? '' : 'REMOTE_MEDIA_STATE_IDLE');
+  static const RemoteMediaState REMOTE_MEDIA_STATE_OPENING =
+      RemoteMediaState._(2, _omitEnumNames ? '' : 'REMOTE_MEDIA_STATE_OPENING');
+  static const RemoteMediaState REMOTE_MEDIA_STATE_PLAYING =
+      RemoteMediaState._(3, _omitEnumNames ? '' : 'REMOTE_MEDIA_STATE_PLAYING');
+  static const RemoteMediaState REMOTE_MEDIA_STATE_ERROR =
+      RemoteMediaState._(4, _omitEnumNames ? '' : 'REMOTE_MEDIA_STATE_ERROR');
+
+  static const $core.List<RemoteMediaState> values = <RemoteMediaState>[
+    REMOTE_MEDIA_STATE_UNSPECIFIED,
+    REMOTE_MEDIA_STATE_IDLE,
+    REMOTE_MEDIA_STATE_OPENING,
+    REMOTE_MEDIA_STATE_PLAYING,
+    REMOTE_MEDIA_STATE_ERROR,
+  ];
+
+  static final $core.List<RemoteMediaState?> _byValue =
+      $pb.ProtobufEnum.$_initByValueList(values, 4);
+  static RemoteMediaState? valueOf($core.int value) =>
+      value < 0 || value >= _byValue.length ? null : _byValue[value];
+
+  const RemoteMediaState._(super.value, super.name);
+}
+
+class RemoteMediaEncoder extends $pb.ProtobufEnum {
+  static const RemoteMediaEncoder REMOTE_MEDIA_ENCODER_UNSPECIFIED =
+      RemoteMediaEncoder._(
+          0, _omitEnumNames ? '' : 'REMOTE_MEDIA_ENCODER_UNSPECIFIED');
+  static const RemoteMediaEncoder REMOTE_MEDIA_ENCODER_HW_MF =
+      RemoteMediaEncoder._(
+          1, _omitEnumNames ? '' : 'REMOTE_MEDIA_ENCODER_HW_MF');
+  static const RemoteMediaEncoder REMOTE_MEDIA_ENCODER_FFMPEG =
+      RemoteMediaEncoder._(
+          2, _omitEnumNames ? '' : 'REMOTE_MEDIA_ENCODER_FFMPEG');
+
+  static const $core.List<RemoteMediaEncoder> values = <RemoteMediaEncoder>[
+    REMOTE_MEDIA_ENCODER_UNSPECIFIED,
+    REMOTE_MEDIA_ENCODER_HW_MF,
+    REMOTE_MEDIA_ENCODER_FFMPEG,
+  ];
+
+  static final $core.List<RemoteMediaEncoder?> _byValue =
+      $pb.ProtobufEnum.$_initByValueList(values, 2);
+  static RemoteMediaEncoder? valueOf($core.int value) =>
+      value < 0 || value >= _byValue.length ? null : _byValue[value];
+
+  const RemoteMediaEncoder._(super.value, super.name);
+}
+
 const $core.bool _omitEnumNames =
     $core.bool.fromEnvironment('protobuf.omit_enum_names');

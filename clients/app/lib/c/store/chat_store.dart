@@ -12,6 +12,7 @@ import 'package:alienai_c35/c/mention/mention_catalog.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/c/llm/agent_model.dart';
 import 'package:alienai_c35/c/files/msg_attachment.dart';
+import 'package:alienai_c35/widgets/ai/composer_mention_text.dart';
 import 'package:alienai_c35/c/pb/c35/chat.pb.dart';
 import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
 import 'package:alienai_c35/c/pb/c35/session.pb.dart';
@@ -837,7 +838,14 @@ class ChatStore extends ChangeNotifier {
   }
 
   String _mergeContent(MsgRow old, MsgRow row) {
-    if (row.id > 0 && row.content.trim().isNotEmpty) return row.content;
+    if (row.id > 0 && row.content.trim().isNotEmpty) {
+      if (old.role == 'user' &&
+          composerMentionTextHasTokens(old.content) &&
+          !composerMentionTextHasTokens(row.content)) {
+        return old.content;
+      }
+      return row.content;
+    }
     if (row.content.trim().isNotEmpty && row.reqId.isNotEmpty && row.reqId == old.reqId && row.content != old.content) return row.content;
     return msgMergeText(old.content, row.content);
   }

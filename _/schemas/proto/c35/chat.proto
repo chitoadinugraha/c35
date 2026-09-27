@@ -295,6 +295,28 @@ message ResChatHistoryClear {
   int32 chats_affected = 2;
 }
 
+// Device-bound prompt contexts (Remote / Devices composer)
+message ReqChatDeviceContextList {
+  int64 device_iid = 1;
+  bool include_archived = 2;
+  int32 limit = 3;
+}
+
+message ResChatDeviceContextList {
+  repeated Chat chats = 1;
+  repeated ChatMember members = 2;
+}
+
+message ReqChatDeviceContextCreate {
+  int64 device_iid = 1;
+  string title = 2;
+}
+
+message ResChatDeviceContextCreate {
+  Chat chat = 1;
+  ChatMember member = 2;
+}
+
 message AssetTagHint {
   string tag = 1;
   int32 count = 2;

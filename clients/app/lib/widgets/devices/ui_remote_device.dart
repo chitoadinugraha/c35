@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' show max;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,7 +7,11 @@ import 'package:flutter/services.dart';
 import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:alienai_c35/c/pb/c35/remote.pb.dart';
+import 'package:alienai_c35/c/remote/device_prompt_context.dart';
+import 'package:alienai_c35/c/remote/remote_cursor.dart';
 import 'package:alienai_c35/c/remote/remote_session.dart';
+import 'package:alienai_c35/widgets/devices/in_device_prompt_composer.dart';
+import 'package:alienai_c35/widgets/devices/ui_device_prompt_sheet.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 const _border = Color(0xFF27272A);
@@ -18,29 +23,36 @@ const _emerald = Color(0xFF10B981);
 const _amber = Color(0xFFF59E0B);
 const _red = Color(0xFFEF4444);
 
-enum RemoteInteractMode { view, control, mouse }
+const _trackpadSingleClickDelay = Duration(milliseconds: 280);
+const _trackpadDoubleTapWindowMs = 350;
+
+enum RemoteInteractMode { view, mouse, trackpad }
 
 extension RemoteInteractModeUi on RemoteInteractMode {
   String get label => switch (this) {
         RemoteInteractMode.view => 'View',
-        RemoteInteractMode.control => 'Control',
         RemoteInteractMode.mouse => 'Mouse',
+        RemoteInteractMode.trackpad => 'Trackpad',
       };
 
   IconData get icon => switch (this) {
         RemoteInteractMode.view => Icons.visibility_outlined,
-        RemoteInteractMode.control => Icons.gamepad_outlined,
         RemoteInteractMode.mouse => Icons.mouse_outlined,
+        RemoteInteractMode.trackpad => Icons.touch_app_outlined,
       };
 }
 
-class UiRemoteSessionMenu extends StatelessWidget {
-  const UiRemoteSessionMenu({
+class UiRemoteBottomSessionControl extends StatelessWidget {
+  const UiRemoteBottomSessionControl({
     super.key,
     required this.mode,
     required this.showStreamStats,
+    required this.panZoomActive,
+    required this.isZoomed,
     required this.onModeChanged,
     required this.onShowStreamStatsChanged,
+    required this.onPanToggle,
+    required this.onPanReset,
     required this.onTeach,
     required this.onFullscreen,
     this.updateReady = false,
@@ -50,132 +62,218 @@ class UiRemoteSessionMenu extends StatelessWidget {
 
   final RemoteInteractMode mode;
   final bool showStreamStats;
+  final bool panZoomActive;
+  final bool isZoomed;
   final ValueChanged<RemoteInteractMode> onModeChanged;
   final ValueChanged<bool> onShowStreamStatsChanged;
+  final VoidCallback onPanToggle;
+  final VoidCallback onPanReset;
   final VoidCallback onTeach;
   final VoidCallback onFullscreen;
   final bool updateReady;
   final int? updateVersion;
   final VoidCallback? onApplyUpdate;
 
-  @override
-  Widget build(BuildContext context) {
-    final accent = mode == RemoteInteractMode.view ? _zinc400 : _amber;
+  void _onMenuSelected(String id) {
+    switch (id) {
+      case 'view':
+        onModeChanged(RemoteInteractMode.view);
+      case 'mouse':
+        onModeChanged(RemoteInteractMode.mouse);
+      case 'trackpad':
+        onModeChanged(RemoteInteractMode.trackpad);
+      case 'teach':
+        onTeach();
+      case 'fullscreen':
+        onFullscreen();
+      case 'update':
+        onApplyUpdate?.call();
+    }
+  }
 
-    return PopupMenuButton<String>(
-      tooltip: uiPopupMenuTooltipText('Remote session'),
-      color: const Color(0xFF18181B),
-      onSelected: (id) {
-        switch (id) {
-          case 'view':
-            onModeChanged(RemoteInteractMode.view);
-          case 'control':
-            onModeChanged(RemoteInteractMode.control);
-          case 'mouse':
-            onModeChanged(RemoteInteractMode.mouse);
-          case 'teach':
-            onTeach();
-          case 'fullscreen':
-            onFullscreen();
-          case 'update':
-            onApplyUpdate?.call();
-        }
-      },
-      itemBuilder: (_) => [
-        for (final m in RemoteInteractMode.values)
-          CheckedPopupMenuItem<String>(
-            value: m.name,
-            checked: m == mode,
-            child: Row(
-              children: [
-                Icon(m.icon, size: 16, color: m == mode ? _amber : _zinc400),
-                const SizedBox(width: 10),
-                Text(m.label, style: TextStyle(color: _zinc100, fontSize: 13, fontWeight: m == mode ? FontWeight.w600 : FontWeight.w400)),
+  Widget _teachMenuTile() => MenuItemButton(
+        style: const ButtonStyle(
+            padding: WidgetStatePropertyAll(
+                EdgeInsets.symmetric(horizontal: 10, vertical: 6))),
+        onPressed: () => _onMenuSelected('teach'),
+        child: Container(
+          width: 220,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            gradient: LinearGradient(
+              colors: [
+                _amber.withValues(alpha: 0.22),
+                const Color(0xFF6366F1).withValues(alpha: 0.14)
               ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
+            border: Border.all(color: _amber.withValues(alpha: 0.45)),
           ),
-        const PopupMenuDivider(),
-        PopupMenuItem<String>(
-          height: 44,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          onTap: () {},
           child: Row(
             children: [
-              const Icon(Icons.insights_outlined, size: 16, color: _zinc400),
-              const SizedBox(width: 10),
-              const Expanded(child: Text('Show stats', style: TextStyle(color: _zinc100, fontSize: 13))),
-              Switch.adaptive(
-                value: showStreamStats,
-                activeThumbColor: _amber,
-                activeTrackColor: _amber.withValues(alpha: 0.45),
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                onChanged: (v) {
-                  onShowStreamStatsChanged(v);
-                  Navigator.of(context).pop();
-                },
+              Icon(Icons.auto_awesome_rounded, size: 18, color: _amber),
+              SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Teach skill',
+                        style: TextStyle(
+                            color: _zinc100,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700)),
+                    SizedBox(height: 2),
+                    Text('Capture steps from this session',
+                        style: TextStyle(
+                            color: _zinc400, fontSize: 11, height: 1.2)),
+                  ],
+                ),
               ),
             ],
           ),
         ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final panBg = panZoomActive
+        ? _amber.withValues(alpha: 0.18)
+        : (isZoomed ? const Color(0xFF242018) : const Color(0xFF18181B));
+    final panIconColor = panZoomActive
+        ? _amber
+        : (isZoomed ? _amber.withValues(alpha: 0.8) : _zinc400);
+    final modeAccent = mode == RemoteInteractMode.view ? _zinc400 : _amber;
+
+    return MenuAnchor(
+      style: MenuStyle(
+        backgroundColor: const WidgetStatePropertyAll(Color(0xFF18181B)),
+        surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+        padding:
+            const WidgetStatePropertyAll(EdgeInsets.symmetric(vertical: 6)),
+        shape: WidgetStatePropertyAll(RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: const BorderSide(color: _border))),
+      ),
+      menuChildren: [
+        for (final m in RemoteInteractMode.values)
+          MenuItemButton(
+            leadingIcon:
+                Icon(m.icon, size: 16, color: m == mode ? _amber : _zinc400),
+            trailingIcon: m == mode
+                ? const Icon(Icons.check_rounded, size: 16, color: _amber)
+                : null,
+            onPressed: () => _onMenuSelected(m.name),
+            child: Text(m.label,
+                style: TextStyle(
+                    color: _zinc100,
+                    fontSize: 13,
+                    fontWeight: m == mode ? FontWeight.w600 : FontWeight.w400)),
+          ),
+        const Divider(height: 1, color: _border),
+        MenuItemButton(
+          leadingIcon: Icon(Icons.insights_outlined,
+              size: 16, color: showStreamStats ? _amber : _zinc400),
+          trailingIcon: showStreamStats
+              ? const Icon(Icons.check_rounded, size: 16, color: _amber)
+              : null,
+          onPressed: () => onShowStreamStatsChanged(!showStreamStats),
+          child: const Text('Show stats',
+              style: TextStyle(color: _zinc100, fontSize: 13)),
+        ),
         if (updateReady) ...[
-          const PopupMenuDivider(),
-          PopupMenuItem(
-            value: 'update',
+          const Divider(height: 1, color: _border),
+          MenuItemButton(
+            leadingIcon: const Icon(Icons.system_update_rounded,
+                size: 16, color: _emerald),
+            onPressed: () => _onMenuSelected('update'),
+            child: Text(
+              updateVersion != null
+                  ? 'Update agent (v$updateVersion)'
+                  : 'Update agent',
+              style: const TextStyle(
+                  color: _zinc100, fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+        const Divider(height: 1, color: _border),
+        _teachMenuTile(),
+        MenuItemButton(
+          leadingIcon:
+              const Icon(Icons.fullscreen_outlined, size: 16, color: _zinc400),
+          onPressed: () => _onMenuSelected('fullscreen'),
+          child: const Text('Fullscreen',
+              style: TextStyle(color: _zinc100, fontSize: 13)),
+        ),
+      ],
+      builder: (context, controller, child) {
+        return Tooltip(
+          message: uiPopupMenuTooltipText('Pan & zoom · ${mode.label}'),
+          child: Material(
+            color: panBg,
+            borderRadius: BorderRadius.circular(8),
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.system_update_rounded, size: 16, color: _emerald),
-                const SizedBox(width: 10),
-                Text(
-                  updateVersion != null ? 'Update agent (v$updateVersion)' : 'Update agent',
-                  style: const TextStyle(color: _zinc100, fontSize: 13, fontWeight: FontWeight.w600),
+                InkWell(
+                  borderRadius:
+                      const BorderRadius.horizontal(left: Radius.circular(8)),
+                  onTap: onPanToggle,
+                  onDoubleTap: onPanReset,
+                  child: SizedBox(
+                    width: 36,
+                    height: 40,
+                    child: Column(
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 120),
+                          height: panZoomActive ? 3 : 0,
+                          width: double.infinity,
+                          decoration: const BoxDecoration(
+                            color: _amber,
+                            borderRadius:
+                                BorderRadius.vertical(top: Radius.circular(8)),
+                          ),
+                        ),
+                        Expanded(
+                          child: Center(
+                              child: Icon(Icons.open_with_rounded,
+                                  size: 16, color: panIconColor)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Container(width: 1, height: 24, color: _border),
+                InkWell(
+                  borderRadius:
+                      const BorderRadius.horizontal(right: Radius.circular(8)),
+                  onTap: () {
+                    if (controller.isOpen) {
+                      controller.close();
+                    } else {
+                      controller.open();
+                    }
+                  },
+                  child: SizedBox(
+                    width: 28,
+                    height: 40,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(mode.icon, size: 14, color: modeAccent),
+                        Icon(Icons.arrow_drop_down,
+                            size: 16, color: modeAccent),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
-        ],
-        const PopupMenuDivider(),
-        const PopupMenuItem(
-          value: 'teach',
-          child: Row(
-            children: [
-              Icon(Icons.school_outlined, size: 16, color: _zinc400),
-              SizedBox(width: 10),
-              Text('Teach', style: TextStyle(color: _zinc100, fontSize: 13)),
-            ],
-          ),
-        ),
-        const PopupMenuItem(
-          value: 'fullscreen',
-          child: Row(
-            children: [
-              Icon(Icons.fullscreen_outlined, size: 16, color: _zinc400),
-              SizedBox(width: 10),
-              Text('Fullscreen', style: TextStyle(color: _zinc100, fontSize: 13)),
-            ],
-          ),
-        ),
-      ],
-      child: uiPopupMenuChild(
-        tooltip: 'Remote session',
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-          decoration: BoxDecoration(
-            color: const Color(0xFF111114),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: _border),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(mode.icon, size: 14, color: accent),
-              const SizedBox(width: 4),
-              Text(mode.label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: mode == RemoteInteractMode.view ? _zinc100 : _amber)),
-              const SizedBox(width: 2),
-              Icon(Icons.arrow_drop_down, size: 18, color: accent),
-            ],
-          ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -191,9 +289,16 @@ class UiRemoteDevice extends StatefulWidget {
     required this.showStreamStats,
     required this.onInteractModeChanged,
     required this.onShowStreamStatsChanged,
+    required this.onTeach,
+    required this.onFullscreen,
+    this.updateReady = false,
+    this.updateVersion,
+    this.onApplyUpdate,
+    this.promptStore,
   });
 
   final RemoteSession? session;
+  final DevicePromptContextStore? promptStore;
   final String deviceName;
   final bool online;
   final bool compact;
@@ -201,6 +306,11 @@ class UiRemoteDevice extends StatefulWidget {
   final bool showStreamStats;
   final ValueChanged<RemoteInteractMode> onInteractModeChanged;
   final ValueChanged<bool> onShowStreamStatsChanged;
+  final VoidCallback onTeach;
+  final VoidCallback onFullscreen;
+  final bool updateReady;
+  final int? updateVersion;
+  final VoidCallback? onApplyUpdate;
 
   @override
   State<UiRemoteDevice> createState() => _UiRemoteDeviceState();
@@ -229,20 +339,28 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
   final Map<int, Offset> _activePointers = {};
   double? _initialPinchDistance;
   double _initialScaleOnPinch = 1.0;
+  Offset _virtualCursorNorm = const Offset(0.5, 0.5);
+  Offset _twoFingerPrevPos = Offset.zero;
   var _physicalCtrlPressed = false;
   var _physicalAltPressed = false;
   var _physicalWinPressed = false;
   Timer? _edgeScrollTimer;
   Offset _edgeScrollVelocity = Offset.zero;
+  Timer? _trackpadPendingClickTimer;
+  int? _trackpadLastTapMs;
 
-  bool get _controlInputEnabled => widget.interactMode != RemoteInteractMode.view;
-  bool get _keyboardInputEnabled => widget.interactMode == RemoteInteractMode.control;
+  bool get _controlInputEnabled =>
+      widget.interactMode != RemoteInteractMode.view;
+  bool get _keyboardInputEnabled =>
+      widget.interactMode != RemoteInteractMode.view;
 
   bool _onHardwareKeyEvent(KeyEvent event) {
     final ctrl = HardwareKeyboard.instance.isControlPressed;
     final alt = HardwareKeyboard.instance.isAltPressed;
     final win = HardwareKeyboard.instance.isMetaPressed;
-    if (_physicalCtrlPressed != ctrl || _physicalAltPressed != alt || _physicalWinPressed != win) {
+    if (_physicalCtrlPressed != ctrl ||
+        _physicalAltPressed != alt ||
+        _physicalWinPressed != win) {
       if (mounted) {
         setState(() {
           _physicalCtrlPressed = ctrl;
@@ -259,14 +377,57 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
     final sess = widget.session;
     if (sess == null) return;
     sess.isControlEnabled.value = mode != RemoteInteractMode.view;
-    if (mode == RemoteInteractMode.control) _focusNode.requestFocus();
+    if (mode != RemoteInteractMode.view) _focusNode.requestFocus();
   }
 
   Offset _toDesktopCoords(Offset local, Size size) {
     if (_scale <= 1.0) return local;
     final actualX = (local.dx - _panOffset.dx) / _scale;
     final actualY = (local.dy - _panOffset.dy) / _scale;
-    return Offset(actualX.clamp(0.0, size.width), actualY.clamp(0.0, size.height));
+    return Offset(
+        actualX.clamp(0.0, size.width), actualY.clamp(0.0, size.height));
+  }
+
+  Size _lastStreamContentSize = Size.zero;
+
+  Size _streamContentSize(RemoteSession sess, bool hasVideoTrack, RemoteScreenFrame? frame) {
+    if (hasVideoTrack && sess.videoRenderer.videoWidth > 0 && sess.videoRenderer.videoHeight > 0) {
+      return Size(sess.videoRenderer.videoWidth.toDouble(), sess.videoRenderer.videoHeight.toDouble());
+    }
+    if (frame != null && frame.width > 0 && frame.height > 0) {
+      return Size(frame.width.toDouble(), frame.height.toDouble());
+    }
+    return Size.zero;
+  }
+
+  (double scale, Offset offset) _coverLayout(Size viewport, Size content) {
+    if (content.width <= 0 || content.height <= 0) return (1, Offset.zero);
+    final s = max(viewport.width / content.width, viewport.height / content.height);
+    final dw = content.width * s;
+    final dh = content.height * s;
+    return (s, Offset((viewport.width - dw) / 2, (viewport.height - dh) / 2));
+  }
+
+  Offset _viewportLocalToNorm(Offset local, Size viewport, Size content) {
+    if (content.width <= 0 || content.height <= 0) return Offset.zero;
+    final unzoomed = _toDesktopCoords(local, viewport);
+    final (coverScale, coverOffset) = _coverLayout(viewport, content);
+    final dw = content.width * coverScale;
+    final dh = content.height * coverScale;
+    return Offset(
+      ((unzoomed.dx - coverOffset.dx) / dw).clamp(0.0, 1.0),
+      ((unzoomed.dy - coverOffset.dy) / dh).clamp(0.0, 1.0),
+    );
+  }
+
+  Offset _normToViewportLocal(Offset norm, Size viewport, Size content) {
+    final (coverScale, coverOffset) = _coverLayout(viewport, content);
+    final dw = content.width * coverScale;
+    final dh = content.height * coverScale;
+    return Offset(
+      coverOffset.dx + norm.dx * dw * _scale + _panOffset.dx,
+      coverOffset.dy + norm.dy * dh * _scale + _panOffset.dy,
+    );
   }
 
   void _clampPan(Size renderSize) {
@@ -350,7 +511,8 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
     _edgeScrollVelocity = Offset.zero;
   }
 
-  String? _streamStatsLabel(RemoteSession sess, bool hasVideo, RemoteScreenFrame? frame, int fps) {
+  String? _streamStatsLabel(
+      RemoteSession sess, bool hasVideo, RemoteScreenFrame? frame, int fps) {
     final w = hasVideo && sess.videoRenderer.videoWidth > 0
         ? sess.videoRenderer.videoWidth
         : (frame?.width ?? 0);
@@ -363,33 +525,26 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
   }
 
   Widget _buildStreamStatsOverlay(String label) => Positioned(
-        right: 12,
-        bottom: 12,
+        left: 0,
+        top: 0,
         child: IgnorePointer(
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.38),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+              color: Colors.black.withValues(alpha: 0.18),
+              borderRadius:
+                  const BorderRadius.only(bottomRight: Radius.circular(4)),
             ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.hd_outlined, size: 12, color: _emerald.withValues(alpha: 0.85)),
-                  const SizedBox(width: 5),
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xDDFFFFFF),
-                      letterSpacing: 0.1,
-                      fontFeatures: [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                ],
+              padding: const EdgeInsets.fromLTRB(4, 2, 6, 3),
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white.withValues(alpha: 0.72),
+                  letterSpacing: 0.1,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
               ),
             ),
           ),
@@ -412,7 +567,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
     }
     if (oldWidget.interactMode != widget.interactMode) {
       widget.session?.isControlEnabled.value = _controlInputEnabled;
-      if (widget.interactMode == RemoteInteractMode.control) {
+      if (widget.interactMode != RemoteInteractMode.view) {
         _focusNode.requestFocus();
       }
       if (widget.interactMode == RemoteInteractMode.view) {
@@ -426,6 +581,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_onHardwareKeyEvent);
     _stopEdgeScrolling();
+    _trackpadCancelPendingClick();
     _releaseAllModifiers(silent: true);
     _focusNode.dispose();
     _vkbCtrl.dispose();
@@ -437,6 +593,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
     setState(() {
       _vkbOpen = !_vkbOpen;
       if (_vkbOpen) {
+        widget.promptStore?.composerOpenPut(false);
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) _vkbFocus.requestFocus();
         });
@@ -446,6 +603,29 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
         _vkbPrevLen = 0;
       }
     });
+  }
+
+  void _togglePromptComposer() {
+    final store = widget.promptStore;
+    if (store == null) return;
+    if (store.composerOpen) {
+      store.composerOpenPut(false);
+      return;
+    }
+    setState(() {
+      _vkbOpen = false;
+      _vkbFocus.unfocus();
+      _vkbCtrl.clear();
+      _vkbPrevLen = 0;
+    });
+    store.composerOpenPut(true);
+  }
+
+  void _openPromptHistory() {
+    final store = widget.promptStore;
+    if (store == null) return;
+    unawaited(
+        showDevicePromptSheet(context, store, deviceName: widget.deviceName));
   }
 
   void _onVirtualKeyboardChanged(String value) {
@@ -552,24 +732,98 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
     }
   }
 
-  void _sendPointer(String eventType, Offset local, Size size, {int button = 0, int deltaY = 0}) {
+  void _sendPointerNorm(String eventType, Offset norm,
+      {int button = 0, int deltaY = 0}) {
     final sess = widget.session;
-    if (sess == null) return;
+    if (sess == null || !_controlInputEnabled) return;
     sess.userActivityPing();
-    if (!_controlInputEnabled) return;
-    if (size.width <= 0 || size.height <= 0) return;
-
-    final unzoomed = _toDesktopCoords(local, size);
-    final nx = (unzoomed.dx / size.width).clamp(0.0, 1.0);
-    final ny = (unzoomed.dy / size.height).clamp(0.0, 1.0);
-
     sess.sendInput(RemoteInputEvent(
       eventType: eventType,
-      x: nx,
-      y: ny,
+      x: norm.dx.clamp(0.0, 1.0),
+      y: norm.dy.clamp(0.0, 1.0),
       button: button,
       deltaY: deltaY,
     ));
+  }
+
+  void _sendPointer(String eventType, Offset local, Size size,
+      {int button = 0, int deltaY = 0}) {
+    if (size.width <= 0 || size.height <= 0) return;
+    final content = _lastStreamContentSize;
+    final norm = content == Size.zero ? Offset(
+      (_toDesktopCoords(local, size).dx / size.width).clamp(0.0, 1.0),
+      (_toDesktopCoords(local, size).dy / size.height).clamp(0.0, 1.0),
+    ) : _viewportLocalToNorm(local, size, content);
+    _virtualCursorNorm = norm;
+    _sendPointerNorm(eventType, _virtualCursorNorm,
+        button: button, deltaY: deltaY);
+  }
+
+  void _trackpadCancelPendingClick() {
+    _trackpadPendingClickTimer?.cancel();
+    _trackpadPendingClickTimer = null;
+  }
+
+  void _trackpadApplyDelta(Offset delta, Size renderSize) {
+    if (delta.dx == 0 && delta.dy == 0) return;
+    final content = _lastStreamContentSize;
+    final (coverScale, _) = _coverLayout(renderSize, content == Size.zero ? renderSize : content);
+    final dw = (content == Size.zero ? renderSize.width : content.width * coverScale) * _scale;
+    final dh = (content == Size.zero ? renderSize.height : content.height * coverScale) * _scale;
+    final dNormX = delta.dx / dw;
+    final dNormY = delta.dy / dh;
+    _virtualCursorNorm = Offset(
+      (_virtualCursorNorm.dx + dNormX).clamp(0.0, 1.0),
+      (_virtualCursorNorm.dy + dNormY).clamp(0.0, 1.0),
+    );
+    _sendPointerNorm('mouse_move', _virtualCursorNorm);
+
+    if (_scale > 1.0) {
+      final cursorLocal = _normToViewportLocal(_virtualCursorNorm, renderSize, content == Size.zero ? renderSize : content);
+      final curScreenX = cursorLocal.dx;
+      final curScreenY = cursorLocal.dy;
+      const pad = 48.0;
+      var nPanX = _panOffset.dx;
+      var nPanY = _panOffset.dy;
+      if (curScreenX < pad) {
+        nPanX += (pad - curScreenX);
+      } else if (curScreenX > renderSize.width - pad) {
+        nPanX -= (curScreenX - (renderSize.width - pad));
+      }
+      if (curScreenY < pad) {
+        nPanY += (pad - curScreenY);
+      } else if (curScreenY > renderSize.height - pad) {
+        nPanY -= (curScreenY - (renderSize.height - pad));
+      }
+      _panOffset = Offset(nPanX, nPanY);
+      _clampPan(renderSize);
+    }
+    setState(() {});
+  }
+
+  void _trackpadTapUp({required int button}) {
+    if (button == 2) {
+      _trackpadCancelPendingClick();
+      _trackpadLastTapMs = null;
+      _sendPointerNorm('right_click', _virtualCursorNorm);
+      return;
+    }
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (_trackpadLastTapMs != null &&
+        now - _trackpadLastTapMs! < _trackpadDoubleTapWindowMs) {
+      _trackpadCancelPendingClick();
+      _trackpadLastTapMs = null;
+      _sendPointerNorm('double_click', _virtualCursorNorm, button: 0);
+      return;
+    }
+    _trackpadCancelPendingClick();
+    _trackpadLastTapMs = now;
+    _trackpadPendingClickTimer = Timer(_trackpadSingleClickDelay, () {
+      _trackpadPendingClickTimer = null;
+      _trackpadLastTapMs = null;
+      _sendPointerNorm('mouse_down', _virtualCursorNorm, button: 0);
+      _sendPointerNorm('mouse_up', _virtualCursorNorm, button: 0);
+    });
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
@@ -594,7 +848,8 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
   Widget build(BuildContext context) {
     final sess = widget.session;
     if (sess == null) {
-      return const Center(child: Text('No active session', style: TextStyle(color: _zinc500)));
+      return const Center(
+          child: Text('No active session', style: TextStyle(color: _zinc500)));
     }
 
     final controlInput = _controlInputEnabled;
@@ -610,16 +865,23 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
               child: _buildCanvasArea(sess, connected, controlInput),
             ),
           ),
+          if (connected) _buildBottomInputBar(),
         ],
       ),
     );
   }
 
-  Widget _bottomKeyChip({required String label, required bool locked, required VoidCallback onTap}) => Expanded(
+  Widget _bottomKeyChip(
+          {required String label,
+          required bool locked,
+          required VoidCallback onTap}) =>
+      Expanded(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
           child: Material(
-            color: locked ? _amber.withValues(alpha: 0.12) : const Color(0xFF18181B),
+            color: locked
+                ? _amber.withValues(alpha: 0.12)
+                : const Color(0xFF18181B),
             borderRadius: BorderRadius.circular(8),
             child: InkWell(
               borderRadius: BorderRadius.circular(8),
@@ -634,7 +896,8 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                       width: double.infinity,
                       decoration: BoxDecoration(
                         color: _amber,
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                        borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(8)),
                       ),
                     ),
                     Expanded(
@@ -657,56 +920,67 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
         ),
       );
 
-  Widget _panZoomButton() {
+  Widget _panSessionControl() {
     final isZoomed = _scale > 1.05;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: Tooltip(
-        message: uiPopupMenuTooltipText('Pan & Zoom (tap to toggle, double-tap to reset)'),
-        child: Material(
-          color: _panZoomActive
-              ? _amber.withValues(alpha: 0.18)
-              : (isZoomed ? const Color(0xFF242018) : const Color(0xFF18181B)),
+      child: UiRemoteBottomSessionControl(
+        mode: widget.interactMode,
+        showStreamStats: widget.showStreamStats,
+        panZoomActive: _panZoomActive,
+        isZoomed: isZoomed,
+        onModeChanged: _applyInteractMode,
+        onShowStreamStatsChanged: widget.onShowStreamStatsChanged,
+        onPanToggle: () => setState(() => _panZoomActive = !_panZoomActive),
+        onPanReset: () => setState(() {
+          _scale = 1.0;
+          _panOffset = Offset.zero;
+          _panZoomActive = false;
+        }),
+        onTeach: widget.onTeach,
+        onFullscreen: widget.onFullscreen,
+        updateReady: widget.updateReady,
+        updateVersion: widget.updateVersion,
+        onApplyUpdate: widget.onApplyUpdate,
+      ),
+    );
+  }
+
+  Widget _promptChatButton() {
+    final store = widget.promptStore;
+    if (store == null) return const SizedBox.shrink();
+    final open = store.composerOpen;
+    return Padding(
+      padding: const EdgeInsets.only(right: 4),
+      child: Material(
+        color: open ? _amber.withValues(alpha: 0.18) : const Color(0xFF18181B),
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
           borderRadius: BorderRadius.circular(8),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(8),
-            onTap: () {
-              setState(() => _panZoomActive = !_panZoomActive);
-            },
-            onDoubleTap: () {
-              setState(() {
-                _scale = 1.0;
-                _panOffset = Offset.zero;
-                _panZoomActive = false;
-              });
-            },
-            child: SizedBox(
-              width: 36,
-              height: 40,
-              child: Column(
-                children: [
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 120),
-                    height: _panZoomActive ? 3 : 0,
-                    width: double.infinity,
-                    decoration: const BoxDecoration(
-                      color: _amber,
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
-                    ),
+          onTap: _togglePromptComposer,
+          onLongPress: _openPromptHistory,
+          child: SizedBox(
+            width: 36,
+            height: 40,
+            child: Column(
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 120),
+                  height: open ? 3 : 0,
+                  width: double.infinity,
+                  decoration: const BoxDecoration(
+                    color: _amber,
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(8)),
                   ),
-                  Expanded(
-                    child: Center(
-                      child: Icon(
-                        Icons.open_with_rounded,
-                        size: 16,
-                        color: _panZoomActive
-                            ? _amber
-                            : (isZoomed ? _amber.withValues(alpha: 0.8) : _zinc400),
-                      ),
-                    ),
+                ),
+                Expanded(
+                  child: Center(
+                    child: Icon(Icons.chat_bubble_outline_rounded,
+                        size: 18, color: open ? _amber : _zinc400),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
@@ -715,50 +989,71 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
   }
 
   Widget _buildBottomInputBar() {
-    if (!_controlInputEnabled) return const SizedBox.shrink();
+    final store = widget.promptStore;
+    final control = _controlInputEnabled;
 
-    return ColoredBox(
-      color: _panel,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Divider(height: 1, color: _border),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-            child: Row(
-              children: [
-                _panZoomButton(),
-                _bottomKeyChip(label: 'Ctrl', locked: _modCtrlLocked || _physicalCtrlPressed, onTap: () => _toggleModifierLock(0x11)),
-                _bottomKeyChip(label: 'Alt', locked: _modAltLocked || _physicalAltPressed, onTap: () => _toggleModifierLock(0x12)),
-                _bottomKeyChip(label: 'Win', locked: _modWinLocked || _physicalWinPressed, onTap: () => _toggleModifierLock(0x5B)),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: Material(
-                      color: _vkbOpen ? _amber.withValues(alpha: 0.15) : const Color(0xFF18181B),
-                      borderRadius: BorderRadius.circular(8),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(8),
-                        onTap: _toggleVirtualKeyboard,
-                        child: SizedBox(
-                          height: 40,
-                          child: Icon(
-                            Icons.keyboard_outlined,
-                            size: 22,
-                            color: _vkbOpen ? _amber : _zinc100,
+    Widget body() => ColoredBox(
+          color: _panel,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Divider(height: 1, color: _border),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+                child: Row(
+                  children: [
+                    if (control) _promptChatButton(),
+                    _panSessionControl(),
+                    if (control) ...[
+                      _bottomKeyChip(
+                          label: 'Ctrl',
+                          locked: _modCtrlLocked || _physicalCtrlPressed,
+                          onTap: () => _toggleModifierLock(0x11)),
+                      _bottomKeyChip(
+                          label: 'Alt',
+                          locked: _modAltLocked || _physicalAltPressed,
+                          onTap: () => _toggleModifierLock(0x12)),
+                      _bottomKeyChip(
+                          label: 'Win',
+                          locked: _modWinLocked || _physicalWinPressed,
+                          onTap: () => _toggleModifierLock(0x5B)),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Material(
+                            color: _vkbOpen
+                                ? _amber.withValues(alpha: 0.15)
+                                : const Color(0xFF18181B),
+                            borderRadius: BorderRadius.circular(8),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(8),
+                              onTap: _toggleVirtualKeyboard,
+                              child: SizedBox(
+                                height: 40,
+                                child: Icon(
+                                  Icons.keyboard_outlined,
+                                  size: 22,
+                                  color: _vkbOpen ? _amber : _zinc100,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
+                    ] else
+                      const Spacer(),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              if (control && _vkbOpen) _buildVirtualKeyboardField(),
+              if (control && store != null && store.composerOpen)
+                InDevicePromptComposer(
+                    store: store, deviceName: widget.deviceName),
+            ],
           ),
-          if (_vkbOpen) _buildVirtualKeyboardField(),
-        ],
-      ),
-    );
+        );
+    if (store == null) return body();
+    return ListenableBuilder(listenable: store, builder: (_, __) => body());
   }
 
   Widget _buildVirtualKeyboardField() => Padding(
@@ -775,8 +1070,11 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
             hintStyle: const TextStyle(color: _zinc500, fontSize: 14),
             filled: true,
             fillColor: const Color(0xFF27272A),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide.none),
           ),
           onChanged: _onVirtualKeyboardChanged,
         ),
@@ -802,265 +1100,463 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
               visualDensity: VisualDensity.compact,
               padding: const EdgeInsets.symmetric(horizontal: 8),
             ),
-            onPressed: () => _applyInteractMode(RemoteInteractMode.control),
-            child: const Text('Enable Control', style: TextStyle(color: _amber, fontSize: 12, fontWeight: FontWeight.w600)),
+            onPressed: () => _applyInteractMode(RemoteInteractMode.mouse),
+            child: const Text('Enable Mouse',
+                style: TextStyle(
+                    color: _amber, fontSize: 12, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCanvasArea(RemoteSession sess, bool connected, bool controlEnabled) {
-    final border = controlEnabled ? _amber.withValues(alpha: 0.6) : _border;
-
+  Widget _buildCanvasArea(
+      RemoteSession sess, bool connected, bool controlEnabled) {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: _panel,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: border, width: controlEnabled ? 1.5 : 1.0),
+        border: Border.all(color: _border),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(11),
-        child: Column(
-          children: [
-            Expanded(
-              child: ValueListenableBuilder<bool>(
-              valueListenable: sess.hasVideoTrack,
-              builder: (context, hasVideoTrack, _) => ValueListenableBuilder<RemoteScreenFrame?>(
-                valueListenable: sess.screenFrame,
-                builder: (context, frame, _) {
-                  if (!connected || (!hasVideoTrack && frame == null)) {
-                    final linking = sess.conn.connected && (sess.isLinking || _connecting);
-                    return Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.desktop_windows_outlined,
-                            size: 56,
-                            color: linking ? _amber : const Color(0xFF3F3F46),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            _error != null
-                                ? 'Connection Error: $_error'
-                                : (!sess.conn.connected
-                                    ? 'Server offline. Reconnect when signed in.'
-                                    : linking
-                                        ? 'Connecting to ${widget.deviceName}…'
-                                        : widget.compact
-                                            ? 'Screen stream idle. Tap Reconnect beside the status badge.'
-                                            : 'Screen stream idle. Click Reconnect above to start.'),
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: _error != null ? _red : _zinc400,
-                            ),
-                          ),
-                        ],
+        child: SizedBox.expand(
+          child: ValueListenableBuilder<bool>(
+          valueListenable: sess.hasVideoTrack,
+          builder: (context, hasVideoTrack, _) =>
+              ValueListenableBuilder<RemoteScreenFrame?>(
+            valueListenable: sess.screenFrame,
+            builder: (context, frame, _) {
+              if (!connected || (!hasVideoTrack && frame == null)) {
+                final linking =
+                    sess.conn.connected && (sess.isLinking || _connecting);
+                return Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.desktop_windows_outlined,
+                        size: 56,
+                        color: linking ? _amber : const Color(0xFF3F3F46),
                       ),
-                    );
-                  }
+                      const SizedBox(height: 12),
+                      Text(
+                        _error != null
+                            ? 'Connection Error: $_error'
+                            : (!sess.conn.connected
+                                ? 'Server offline. Reconnect when signed in.'
+                                : linking
+                                    ? 'Connecting to ${widget.deviceName}…'
+                                    : widget.compact
+                                        ? 'Screen stream idle. Tap Reconnect beside the status badge.'
+                                        : 'Screen stream idle. Click Reconnect above to start.'),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: _error != null ? _red : _zinc400,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
 
-                  final double aspectRatio;
-                  if (hasVideoTrack && sess.videoRenderer.videoWidth > 0 && sess.videoRenderer.videoHeight > 0) {
-                    aspectRatio = sess.videoRenderer.videoWidth / sess.videoRenderer.videoHeight;
-                  } else if (frame != null && frame.width > 0 && frame.height > 0) {
-                    aspectRatio = frame.width / frame.height;
-                  } else {
-                    aspectRatio = 16 / 9;
-                  }
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  final renderSize =
+                      Size(constraints.maxWidth, constraints.maxHeight);
+                  _lastStreamContentSize =
+                      _streamContentSize(sess, hasVideoTrack, frame);
 
-                  return Center(
-                    child: AspectRatio(
-                      aspectRatio: aspectRatio,
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          final renderSize = Size(constraints.maxWidth, constraints.maxHeight);
+                      MouseCursor canvasCursor(String remoteShape) =>
+                          (_panZoomActive ||
+                                  _physicalCtrlPressed ||
+                                  _modCtrlLocked)
+                              ? SystemMouseCursors.grab
+                              : (widget.interactMode ==
+                                      RemoteInteractMode.trackpad
+                                  ? SystemMouseCursors.none
+                                  : (controlEnabled
+                                      ? remoteCursorFromShape(remoteShape)
+                                      : SystemMouseCursors.basic));
 
-                          return Focus(
-                            focusNode: _focusNode,
-                            onKeyEvent: _handleKeyEvent,
-                            child: MouseRegion(
-                              cursor: (_panZoomActive || _physicalCtrlPressed || _modCtrlLocked)
-                                  ? SystemMouseCursors.grab
-                                  : (controlEnabled ? SystemMouseCursors.precise : SystemMouseCursors.basic),
-                              onExit: (_) => _stopEdgeScrolling(),
-                              child: Listener(
-                                onPointerDown: (e) {
-                                  if (controlEnabled) _focusNode.requestFocus();
-                                  _activePointers[e.pointer] = e.localPosition;
-                                  if (_activePointers.length == 1) {
-                                    _touchStart = e.localPosition;
-                                    _touchMoved = false;
-                                    _maxPointersInGesture = 1;
-                                    _tapClickDispatched = false;
-                                  } else if (_activePointers.length > _maxPointersInGesture) {
-                                    _maxPointersInGesture = _activePointers.length;
+                      return Focus(
+                        focusNode: _focusNode,
+                        onKeyEvent: _handleKeyEvent,
+                        child: ValueListenableBuilder<String>(
+                          valueListenable: sess.remoteCursorShape,
+                          builder: (context, remoteShape, _) => MouseRegion(
+                            cursor: canvasCursor(remoteShape),
+                            onExit: (_) => _stopEdgeScrolling(),
+                            child: Listener(
+                              onPointerDown: (e) {
+                                if (controlEnabled) _focusNode.requestFocus();
+                                _activePointers[e.pointer] = e.localPosition;
+                                if (_activePointers.length == 1) {
+                                  _touchStart = e.localPosition;
+                                  _touchMoved = false;
+                                  _maxPointersInGesture = 1;
+                                  _tapClickDispatched = false;
+                                } else if (_activePointers.length >
+                                    _maxPointersInGesture) {
+                                  _maxPointersInGesture =
+                                      _activePointers.length;
+                                }
+                                _lastDownButtons = e.buttons;
+
+                                if (_activePointers.length == 2) {
+                                  final pts = _activePointers.values.toList();
+                                  _initialPinchDistance =
+                                      (pts[0] - pts[1]).distance;
+                                  _initialScaleOnPinch = _scale;
+                                  _twoFingerPrevPos = (pts[0] + pts[1]) / 2;
+                                  return;
+                                }
+
+                                final isDesktopCtrl = HardwareKeyboard
+                                        .instance.isControlPressed ||
+                                    _modCtrlLocked;
+                                final isMiddleClick =
+                                    (e.buttons & kMiddleMouseButton != 0);
+                                if (isDesktopCtrl ||
+                                    isMiddleClick ||
+                                    _panZoomActive) {
+                                  return;
+                                }
+
+                                if (widget.interactMode ==
+                                    RemoteInteractMode.trackpad) {
+                                  if (e.kind == PointerDeviceKind.mouse &&
+                                      e.buttons != 0 &&
+                                      _activePointers.length == 1) {
+                                    _trackpadCancelPendingClick();
+                                    final btn = (e.buttons &
+                                                kSecondaryMouseButton !=
+                                            0)
+                                        ? 2
+                                        : ((e.buttons & kMiddleMouseButton != 0)
+                                            ? 1
+                                            : 0);
+                                    _heldButtons = e.buttons;
+                                    _sendPointerNorm(
+                                        'mouse_down', _virtualCursorNorm,
+                                        button: btn);
                                   }
-                                  _lastDownButtons = e.buttons;
+                                  return;
+                                }
 
-                                  if (_activePointers.length == 2) {
-                                    final pts = _activePointers.values.toList();
-                                    _initialPinchDistance = (pts[0] - pts[1]).distance;
-                                    _initialScaleOnPinch = _scale;
-                                    return;
-                                  }
+                                final btn =
+                                    (e.buttons & kSecondaryMouseButton != 0)
+                                        ? 2
+                                        : ((e.buttons & kMiddleMouseButton != 0)
+                                            ? 1
+                                            : 0);
+                                _heldButtons = e.buttons;
+                                _sendPointer(
+                                    'mouse_down', e.localPosition, renderSize,
+                                    button: btn);
+                              },
+                              onPointerMove: (e) {
+                                _activePointers[e.pointer] = e.localPosition;
 
-                                  final isDesktopCtrl = HardwareKeyboard.instance.isControlPressed || _modCtrlLocked;
-                                  final isMiddleClick = (e.buttons & kMiddleMouseButton != 0);
-                                  if (isDesktopCtrl || isMiddleClick || _panZoomActive) {
-                                    return;
-                                  }
-
-                                  final btn = (e.buttons & kSecondaryMouseButton != 0)
-                                      ? 2
-                                      : ((e.buttons & kMiddleMouseButton != 0) ? 1 : 0);
-                                  _heldButtons = e.buttons;
-                                  _sendPointer('mouse_down', e.localPosition, renderSize, button: btn);
-                                },
-                                onPointerMove: (e) {
-                                  _activePointers[e.pointer] = e.localPosition;
-                                  _updateEdgeScrolling(e.localPosition, renderSize);
-
-                                  if (_activePointers.length >= 2 && _initialPinchDistance != null && _initialPinchDistance! > 10) {
-                                    final pts = _activePointers.values.toList();
-                                    final currentDist = (pts[0] - pts[1]).distance;
+                                if (_activePointers.length >= 2) {
+                                  final pts = _activePointers.values.toList();
+                                  if (_panZoomActive &&
+                                      _initialPinchDistance != null &&
+                                      _initialPinchDistance! > 10) {
+                                    final currentDist =
+                                        (pts[0] - pts[1]).distance;
                                     final focal = (pts[0] + pts[1]) / 2;
-                                    final scaleRatio = currentDist / _initialPinchDistance!;
-                                    final targetScale = (_initialScaleOnPinch * scaleRatio).clamp(1.0, 4.0);
-                                    _zoomAt(focal, targetScale / _scale, renderSize);
+                                    final scaleRatio =
+                                        currentDist / _initialPinchDistance!;
+                                    final targetScale =
+                                        (_initialScaleOnPinch * scaleRatio)
+                                            .clamp(1.0, 4.0);
+                                    _zoomAt(focal, targetScale / _scale,
+                                        renderSize);
                                     _touchMoved = true;
                                     return;
                                   }
 
-                                  final isDesktopCtrl = HardwareKeyboard.instance.isControlPressed || _modCtrlLocked;
-                                  final isMiddleClick = (e.buttons & kMiddleMouseButton != 0);
-
-                                  if (isDesktopCtrl || isMiddleClick || _panZoomActive) {
-                                    if (_touchStart != null && (e.localPosition - _touchStart!).distance > 14.0) {
+                                  if (widget.interactMode ==
+                                      RemoteInteractMode.trackpad) {
+                                    final currentCenter = (pts[0] + pts[1]) / 2;
+                                    final dy =
+                                        currentCenter.dy - _twoFingerPrevPos.dy;
+                                    _twoFingerPrevPos = currentCenter;
+                                    if (dy.abs() > 1.0) {
                                       _touchMoved = true;
+                                      final delta = (dy / 5.0).round();
+                                      if (delta != 0) {
+                                        _sendPointerNorm(
+                                            'wheel', _virtualCursorNorm,
+                                            deltaY: delta);
+                                      }
                                     }
-                                    _panOffset += e.delta;
-                                    _clampPan(renderSize);
-                                    setState(() {});
                                     return;
                                   }
+                                }
 
-                                  _sendPointer('mouse_move', e.localPosition, renderSize);
-                                },
-                                onPointerHover: (e) {
-                                  _updateEdgeScrolling(e.localPosition, renderSize);
-                                  _sendPointer('mouse_move', e.localPosition, renderSize);
-                                },
-                                onPointerUp: (e) {
-                                  _stopEdgeScrolling();
-                                  final hadTwoOrMorePointers = _maxPointersInGesture >= 2;
-                                  _activePointers.remove(e.pointer);
-                                  if (_activePointers.length < 2) {
-                                    _initialPinchDistance = null;
+                                final isDesktopCtrl = HardwareKeyboard
+                                        .instance.isControlPressed ||
+                                    _modCtrlLocked;
+                                final isMiddleClick =
+                                    (e.buttons & kMiddleMouseButton != 0);
+
+                                if (isDesktopCtrl ||
+                                    isMiddleClick ||
+                                    _panZoomActive) {
+                                  if (_touchStart != null &&
+                                      (e.localPosition - _touchStart!)
+                                              .distance >
+                                          14.0) {
+                                    _touchMoved = true;
                                   }
+                                  _panOffset += e.delta;
+                                  _clampPan(renderSize);
+                                  setState(() {});
+                                  return;
+                                }
 
-                                  final isDesktopCtrl = HardwareKeyboard.instance.isControlPressed || _modCtrlLocked;
-                                  final wasMiddleClick = (_heldButtons & kMiddleMouseButton != 0);
-                                  if (isDesktopCtrl || wasMiddleClick) {
-                                    _heldButtons = e.buttons;
-                                    return;
+                                if (widget.interactMode ==
+                                    RemoteInteractMode.trackpad) {
+                                  if (_touchStart != null &&
+                                      (e.localPosition - _touchStart!)
+                                              .distance >
+                                          6.0) {
+                                    _touchMoved = true;
+                                    _trackpadCancelPendingClick();
                                   }
+                                  _trackpadApplyDelta(e.delta, renderSize);
+                                  return;
+                                }
 
-                                  if (_panZoomActive) {
-                                    if (!_touchMoved && !_tapClickDispatched && _touchStart != null) {
-                                      _tapClickDispatched = true;
-                                      final btn = (hadTwoOrMorePointers || (_lastDownButtons & kSecondaryMouseButton != 0)) ? 2 : 0;
-                                      _sendPointer('mouse_down', _touchStart!, renderSize, button: btn);
-                                      _sendPointer('mouse_up', _touchStart!, renderSize, button: btn);
-                                    }
-                                    _heldButtons = e.buttons;
-                                    return;
-                                  }
+                                _updateEdgeScrolling(
+                                    e.localPosition, renderSize);
+                                _sendPointer(
+                                    'mouse_move', e.localPosition, renderSize);
+                              },
+                              onPointerHover: (e) {
+                                if (widget.interactMode ==
+                                    RemoteInteractMode.trackpad) {
+                                  _trackpadApplyDelta(e.delta, renderSize);
+                                  return;
+                                }
+                                _updateEdgeScrolling(
+                                    e.localPosition, renderSize);
+                                _sendPointer(
+                                    'mouse_move', e.localPosition, renderSize);
+                              },
+                              onPointerUp: (e) {
+                                _stopEdgeScrolling();
+                                final hadTwoOrMorePointers =
+                                    _maxPointersInGesture >= 2;
+                                _activePointers.remove(e.pointer);
+                                if (_activePointers.length < 2) {
+                                  _initialPinchDistance = null;
+                                }
 
-                                  final released = _heldButtons & ~e.buttons;
-                                  final btn = (released & kSecondaryMouseButton != 0)
-                                      ? 2
-                                      : ((released & kMiddleMouseButton != 0) ? 1 : 0);
+                                final isDesktopCtrl = HardwareKeyboard
+                                        .instance.isControlPressed ||
+                                    _modCtrlLocked;
+                                final wasMiddleClick =
+                                    (_heldButtons & kMiddleMouseButton != 0);
+                                if (isDesktopCtrl || wasMiddleClick) {
                                   _heldButtons = e.buttons;
-                                  _sendPointer('mouse_up', e.localPosition, renderSize, button: btn);
-                                },
-                                onPointerCancel: (e) {
-                                  _stopEdgeScrolling();
-                                  _activePointers.remove(e.pointer);
-                                  if (_activePointers.length < 2) {
-                                    _initialPinchDistance = null;
-                                  }
-                                },
-                                onPointerSignal: (e) {
-                                  if (e is PointerScrollEvent) {
-                                    final isDesktopCtrl = HardwareKeyboard.instance.isControlPressed || _modCtrlLocked;
-                                    if (isDesktopCtrl) {
-                                      final factor = e.scrollDelta.dy < 0 ? 1.15 : 0.87;
-                                      _zoomAt(e.localPosition, factor, renderSize);
-                                      return;
-                                    }
+                                  return;
+                                }
 
-                                    // Invert dy: Flutter scroll-down is positive dy, Win32 WHEEL_DELTA requires negative for down
-                                    final delta = (-e.scrollDelta.dy / 20).round();
-                                    if (delta != 0) {
-                                      _sendPointer('wheel', e.localPosition, renderSize, deltaY: delta);
+                                if (_panZoomActive) {
+                                  if (!_touchMoved &&
+                                      !_tapClickDispatched &&
+                                      _touchStart != null) {
+                                    _tapClickDispatched = true;
+                                    final btn = (hadTwoOrMorePointers ||
+                                            (_lastDownButtons &
+                                                    kSecondaryMouseButton !=
+                                                0))
+                                        ? 2
+                                        : 0;
+                                    if (widget.interactMode ==
+                                        RemoteInteractMode.trackpad) {
+                                      _trackpadTapUp(button: btn);
+                                    } else {
+                                      _sendPointer('mouse_down', _touchStart!,
+                                          renderSize,
+                                          button: btn);
+                                      _sendPointer(
+                                          'mouse_up', _touchStart!, renderSize,
+                                          button: btn);
                                     }
                                   }
-                                },
-                                child: ValueListenableBuilder<int>(
-                                  valueListenable: sess.fps,
-                                  builder: (context, fps, _) {
-                                    final statsLabel = widget.showStreamStats ? _streamStatsLabel(sess, hasVideoTrack, frame, fps) : null;
+                                  _heldButtons = e.buttons;
+                                  return;
+                                }
 
-                                    return Stack(
-                                      fit: StackFit.expand,
-                                      children: [
-                                        ClipRect(
-                                          child: Transform(
-                                            // ignore: deprecated_member_use
-                                            transform: Matrix4.identity()..translate(_panOffset.dx, _panOffset.dy)..scale(_scale),
-                                            alignment: Alignment.topLeft,
-                                            child: hasVideoTrack
-                                                ? RTCVideoView(
-                                                    sess.videoRenderer,
-                                                    objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitContain,
+                                if (widget.interactMode ==
+                                    RemoteInteractMode.trackpad) {
+                                  if (e.kind == PointerDeviceKind.mouse &&
+                                      (_heldButtons & ~e.buttons) != 0) {
+                                    final released = _heldButtons & ~e.buttons;
+                                    final btn =
+                                        (released & kSecondaryMouseButton != 0)
+                                            ? 2
+                                            : ((released & kMiddleMouseButton !=
+                                                    0)
+                                                ? 1
+                                                : 0);
+                                    _heldButtons = e.buttons;
+                                    _sendPointerNorm(
+                                        'mouse_up', _virtualCursorNorm,
+                                        button: btn);
+                                    return;
+                                  }
+                                  if (!_touchMoved && !_tapClickDispatched) {
+                                    _tapClickDispatched = true;
+                                    final btn = (hadTwoOrMorePointers ||
+                                            (_lastDownButtons &
+                                                    kSecondaryMouseButton !=
+                                                0))
+                                        ? 2
+                                        : 0;
+                                    _trackpadTapUp(button: btn);
+                                  }
+                                  _heldButtons = e.buttons;
+                                  return;
+                                }
+
+                                final released = _heldButtons & ~e.buttons;
+                                final btn =
+                                    (released & kSecondaryMouseButton != 0)
+                                        ? 2
+                                        : ((released & kMiddleMouseButton != 0)
+                                            ? 1
+                                            : 0);
+                                _heldButtons = e.buttons;
+                                _sendPointer(
+                                    'mouse_up', e.localPosition, renderSize,
+                                    button: btn);
+                              },
+                              onPointerCancel: (e) {
+                                _stopEdgeScrolling();
+                                _activePointers.remove(e.pointer);
+                                if (_activePointers.length < 2) {
+                                  _initialPinchDistance = null;
+                                }
+                              },
+                              onPointerSignal: (e) {
+                                if (e is PointerScrollEvent) {
+                                  final isDesktopCtrl = HardwareKeyboard
+                                          .instance.isControlPressed ||
+                                      _modCtrlLocked;
+                                  if (isDesktopCtrl) {
+                                    final factor =
+                                        e.scrollDelta.dy < 0 ? 1.15 : 0.87;
+                                    _zoomAt(
+                                        e.localPosition, factor, renderSize);
+                                    return;
+                                  }
+
+                                  // Invert dy: Flutter scroll-down is positive dy, Win32 WHEEL_DELTA requires negative for down
+                                  final delta =
+                                      (-e.scrollDelta.dy / 20).round();
+                                  if (delta != 0) {
+                                    if (widget.interactMode ==
+                                        RemoteInteractMode.trackpad) {
+                                      _sendPointerNorm(
+                                          'wheel', _virtualCursorNorm,
+                                          deltaY: delta);
+                                    } else {
+                                      _sendPointer(
+                                          'wheel', e.localPosition, renderSize,
+                                          deltaY: delta);
+                                    }
+                                  }
+                                }
+                              },
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  RepaintBoundary(
+                                    child: ClipRect(
+                                      child: Transform(
+                                        // ignore: deprecated_member_use
+                                        transform: Matrix4.identity()
+                                          ..translate(
+                                              _panOffset.dx, _panOffset.dy)
+                                          ..scale(_scale),
+                                        alignment: Alignment.topLeft,
+                                        child: hasVideoTrack
+                                            ? RTCVideoView(
+                                                sess.videoRenderer,
+                                                objectFit: RTCVideoViewObjectFit
+                                                    .RTCVideoViewObjectFitCover,
+                                              )
+                                            : (frame != null
+                                                ? Image.memory(
+                                                    frame.jpegBytes,
+                                                    gaplessPlayback: true,
+                                                    fit: BoxFit.cover,
+                                                    width: renderSize.width,
+                                                    height: renderSize.height,
+                                                    filterQuality:
+                                                        FilterQuality.high,
+                                                    isAntiAlias: true,
                                                   )
-                                                : (frame != null
-                                                    ? Image.memory(
-                                                        frame.jpegBytes,
-                                                        gaplessPlayback: true,
-                                                        fit: BoxFit.contain,
-                                                      )
-                                                    : const SizedBox.shrink()),
-                                          ),
-                                        ),
-                                        if (statsLabel != null) _buildStreamStatsOverlay(statsLabel),
-                                      ],
-                                    );
-                                  },
-                                ),
+                                                : const SizedBox.shrink()),
+                                      ),
+                                    ),
+                                  ),
+                                  if (widget.interactMode ==
+                                          RemoteInteractMode.trackpad &&
+                                      connected)
+                                    Positioned(
+                                      left: _normToViewportLocal(
+                                              _virtualCursorNorm,
+                                              renderSize,
+                                              _lastStreamContentSize)
+                                          .dx
+                                          .clamp(-20.0, renderSize.width),
+                                      top: _normToViewportLocal(
+                                              _virtualCursorNorm,
+                                              renderSize,
+                                              _lastStreamContentSize)
+                                          .dy
+                                          .clamp(-24.0, renderSize.height),
+                                      child: const _VirtualCursorWidget(),
+                                    ),
+                                  ValueListenableBuilder<int>(
+                                    valueListenable: sess.fps,
+                                    builder: (context, fps, _) {
+                                      final statsLabel = widget.showStreamStats
+                                          ? _streamStatsLabel(
+                                              sess, hasVideoTrack, frame, fps)
+                                          : null;
+                                      if (statsLabel == null)
+                                        return const SizedBox.shrink();
+                                      return _buildStreamStatsOverlay(
+                                          statsLabel);
+                                    },
+                                  ),
+                                ],
                               ),
                             ),
-                          );
-                        },
-                      ),
-                    ),
-                  );
+                          ),
+                        ),
+                      );
                 },
-              ),
-            ),
-            ),
-            if (connected) _buildBottomInputBar(),
-          ],
+              );
+            },
+          ),
+        ),
         ),
       ),
     );
   }
 
   int _windowsVkForLogicalKey(LogicalKeyboardKey key) {
-    if (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.numpadEnter) return 0x0D;
+    if (key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.numpadEnter) return 0x0D;
     if (key == LogicalKeyboardKey.tab) return 0x09;
     if (key == LogicalKeyboardKey.escape) return 0x1B;
     if (key == LogicalKeyboardKey.backspace) return 0x08;
@@ -1070,10 +1566,14 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
     if (key == LogicalKeyboardKey.arrowUp) return 0x26;
     if (key == LogicalKeyboardKey.arrowRight) return 0x27;
     if (key == LogicalKeyboardKey.arrowDown) return 0x28;
-    if (key == LogicalKeyboardKey.controlLeft || key == LogicalKeyboardKey.controlRight) return 0x11;
-    if (key == LogicalKeyboardKey.shiftLeft || key == LogicalKeyboardKey.shiftRight) return 0x10;
-    if (key == LogicalKeyboardKey.altLeft || key == LogicalKeyboardKey.altRight) return 0x12;
-    if (key == LogicalKeyboardKey.metaLeft || key == LogicalKeyboardKey.metaRight) return 0x5B;
+    if (key == LogicalKeyboardKey.controlLeft ||
+        key == LogicalKeyboardKey.controlRight) return 0x11;
+    if (key == LogicalKeyboardKey.shiftLeft ||
+        key == LogicalKeyboardKey.shiftRight) return 0x10;
+    if (key == LogicalKeyboardKey.altLeft || key == LogicalKeyboardKey.altRight)
+      return 0x12;
+    if (key == LogicalKeyboardKey.metaLeft ||
+        key == LogicalKeyboardKey.metaRight) return 0x5B;
 
     // Navigation & editing keys
     if (key == LogicalKeyboardKey.home) return 0x24;
@@ -1139,4 +1639,52 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
 
     return 0;
   }
+}
+
+class _VirtualCursorWidget extends StatelessWidget {
+  const _VirtualCursorWidget();
+
+  @override
+  Widget build(BuildContext context) {
+    return const IgnorePointer(
+      child: CustomPaint(
+        size: Size(20, 24),
+        painter: _VirtualCursorPainter(),
+      ),
+    );
+  }
+}
+
+class _VirtualCursorPainter extends CustomPainter {
+  const _VirtualCursorPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(0, 18.5)
+      ..lineTo(4.8, 14.5)
+      ..lineTo(8.5, 22.5)
+      ..lineTo(11.8, 21.0)
+      ..lineTo(8.2, 13.2)
+      ..lineTo(14.0, 13.2)
+      ..close();
+
+    canvas.drawShadow(path, Colors.black.withValues(alpha: 0.6), 3.0, true);
+
+    final strokePaint = Paint()
+      ..color = const Color(0xFF18181B)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(path, strokePaint);
+
+    final fillPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(path, fillPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

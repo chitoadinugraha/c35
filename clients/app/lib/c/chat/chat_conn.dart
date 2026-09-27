@@ -102,6 +102,7 @@ class ChatConn {
   final _promptRunPushCtrl = StreamController<PromptRunPush>.broadcast();
   final _promptFollowupPushCtrl = StreamController<PromptFollowupPush>.broadcast();
   final _traceCache = <String, List<TraceLogDoc>>{};
+  final _tracePrefetchInflight = <String, Future<void>>{};
   final _traceCacheCtrl = StreamController<String>.broadcast();
 
   Stream<SyncPush> get onSyncPush => _syncPushCtrl.stream;
@@ -164,8 +165,26 @@ class ChatConn {
     _retryCount = 0;
     status.value = ChatConnStatus.connecting;
     await _tearDownSocket(failPending: true);
-    _attachSocket(locale: locale, tz: tz, appBuild: appBuild, appVersionName: appVersionName);
+    try {
+      _attachSocket(locale: locale, tz: tz, appBuild: appBuild, appVersionName: appVersionName);
+    } catch (e) {
+      lError('chat ws connect: $e');
+      if (Session.instance.token.trim().isEmpty) {
+        status.value = ChatConnStatus.disconnected;
+      } else {
+        _scheduleReconnectIfNeeded();
+      }
+      rethrow;
+    }
   }
+
+  /// Cancel backoff, tear down the socket, and connect again with the last [connect] params.
+  Future<void> reconnect() => connect(
+        locale: _locale,
+        tz: _tz,
+        appBuild: _appBuild,
+        appVersionName: _appVersionName,
+      );
 
   Future<void> disconnect() async {
     _manualDisconnect = true;
@@ -222,6 +241,10 @@ class ChatConn {
 
   void _scheduleReconnectIfNeeded() {
     if (_manualDisconnect) {
+      status.value = ChatConnStatus.disconnected;
+      return;
+    }
+    if (Session.instance.token.trim().isEmpty) {
       status.value = ChatConnStatus.disconnected;
       return;
     }
@@ -436,6 +459,33 @@ class ChatConn {
         (res) => res.chatMsgList,
       );
 
+  Future<ResChatDeviceContextList> chatDeviceContextList({
+    required Int64 deviceIid,
+    bool includeArchived = true,
+    int limit = 20,
+  }) =>
+      _rpc<ResChatDeviceContextList>(
+        WsReq(
+          chatDeviceContextList: ReqChatDeviceContextList(
+            deviceIid: deviceIid,
+            includeArchived: includeArchived,
+            limit: limit,
+          ),
+        ),
+        (res) => res.chatDeviceContextList,
+      );
+
+  Future<ResChatDeviceContextCreate> chatDeviceContextCreate({
+    required Int64 deviceIid,
+    String title = '',
+  }) =>
+      _rpc<ResChatDeviceContextCreate>(
+        WsReq(
+          chatDeviceContextCreate: ReqChatDeviceContextCreate(deviceIid: deviceIid, title: title),
+        ),
+        (res) => res.chatDeviceContextCreate,
+      );
+
   Future<ResChatHistoryClear> chatHistoryClear({bool dryRun = false}) => _rpc<ResChatHistoryClear>(
         WsReq(chatHistoryClear: ReqChatHistoryClear(dryRun: dryRun)),
         (res) => res.chatHistoryClear,
@@ -473,8 +523,21 @@ class ChatConn {
   }
 
   Future<void> tracePrefetch(String reqId, {bool force = false}) async {
-    if (reqId.isEmpty) return;
-    if (!force && traceCacheGet(reqId).isNotEmpty) return;
+    final id = reqId.trim();
+    if (id.isEmpty) return;
+    if (!force && traceCacheGet(id).isNotEmpty) return;
+    final inflight = _tracePrefetchInflight[id];
+    if (inflight != null) return inflight;
+    final job = _tracePrefetchOnce(id);
+    _tracePrefetchInflight[id] = job;
+    try {
+      await job;
+    } finally {
+      if (identical(_tracePrefetchInflight[id], job)) _tracePrefetchInflight.remove(id);
+    }
+  }
+
+  Future<void> _tracePrefetchOnce(String reqId) async {
     for (var i = 0; i < 3; i++) {
       try {
         final res = await logList(reqId: reqId);

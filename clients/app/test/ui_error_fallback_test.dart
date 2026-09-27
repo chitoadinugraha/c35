@@ -3,6 +3,7 @@ import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/ui/ui_error_fallback.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -69,6 +70,23 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: UiErrorFallback(error: StateError('boom'))));
     expect(find.text('Root only'), findsOneWidget);
     expect(find.textContaining('boom'), findsOneWidget);
+  });
+
+  testWidgets('root detail copy puts full error on clipboard', (tester) async {
+    Session.instance.globalRoles = const ['root'];
+    addTearDown(() => Session.instance.globalRoles = const []);
+    final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') {
+        expect(call.arguments['text'], 'Bad state: root-copy-me');
+        return null;
+      }
+      return null;
+    });
+    addTearDown(() => messenger.setMockMethodCallHandler(SystemChannels.platform, null));
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: UiErrorFallback(error: StateError('root-copy-me')))));
+    await tester.tap(find.byIcon(Icons.copy_rounded));
+    await tester.pump();
   });
 
   testWidgets('error host overlays fallback without removing the app', (tester) async {

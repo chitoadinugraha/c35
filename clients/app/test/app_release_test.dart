@@ -22,4 +22,17 @@ void main() {
   test('appReleaseParse rejects invalid version', () {
     expect(appReleaseParse({'version': 0}), isNull);
   });
+
+  test('appReleasePlatformsParse reads platform map', () {
+    final all = appReleasePlatformsParse({
+      'platforms': {
+        'android': {'version': 248, 'versionName': '20.248.0', 'min': 0, 'url': 'https://play.google.com'},
+        'remote-windows': {'version': 12, 'versionName': '1.12.0', 'min': 0, 'url': 'https://alienai.id'},
+        'server': {'version': 248, 'versionName': '20.248.0', 'min': 0, 'url': 'https://api.alienai.id/livez'},
+      },
+    });
+    expect(all?.versionOf('android'), 248);
+    expect(all?.versionOf('remote-windows'), 12);
+    expect(all?.versionOf('server'), 248);
+  });
 }

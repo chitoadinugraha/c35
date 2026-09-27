@@ -1,4 +1,5 @@
 mod checkpoint;
+mod concurrency;
 mod fanout;
 mod hydrate;
 mod jetstream;
@@ -14,9 +15,10 @@ pub use checkpoint::{
     checkpoint_set_fatal, checkpoint_tool_should_stop, prompt_run_should_stop,
     COMPUTER_USE_MAX_DEVICE_INPUT, COMPUTER_USE_MAX_ROUNDS, COMPUTER_USE_MAX_SCREENSHOTS,
     FATAL_ERROR_THRESHOLD, PROMPT_RUN_MAX_CONCURRENT_DEFAULT, PROMPT_RUN_MAX_DELIVER,
-    PROMPT_RUN_MAX_TURNS_DEFAULT, prompt_run_max_concurrent,
+    PROMPT_RUN_MAX_TURNS_DEFAULT, prompt_run_max_concurrent, prompt_run_max_concurrent_requested,
     SCREENSHOT_STUCK_LEN,
 };
+pub use concurrency::{prompt_run_concurrency_acquire, prompt_run_concurrency_init};
 pub use fanout::{
     prompt_chat_subject, prompt_followup_fanout_push, prompt_run_fanout_delta, prompt_run_fanout_end,
     prompt_run_fanout_fail, prompt_run_fanout_publish, prompt_run_fanout_start, prompt_run_push_from_row,

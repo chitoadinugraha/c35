@@ -31,6 +31,34 @@
 - Web client (`app.release.c35.web`) adds `url: https://alienai.id/app/` — no hash/size (static tree on S3).
 - Signed CAS URL: `https://alienai.id/fs/{hash}?exp={exp}&sig={sig}`. Cloudflare orange cloud caches the immutable blob at edge PoPs globally.
 
+### FFmpeg sidecar (`ffmpeg-windows`)
+
+Windows remote agents (and desktop app if needed) download **ffmpeg** separately from the agent OTA zip. Not shipped inside the Play/APK or agent bundle.
+
+| Item | Value |
+|------|-------|
+| Config key | `app.release.c35.ffmpeg-windows` |
+| `GET /version/ffmpeg-windows` | Same release JSON shape as app platforms (signed CAS `url` from `hash`) |
+| NATS | `c35.release.ffmpeg-windows` |
+| CAS artifact | `alienai_ffmpeg_windows-{N}.zip` (Blake3 in `hash`) |
+| Agent install dir | `%LOCALAPPDATA%\AlienAI\ffmpeg\` (staged extract, atomic swap — see Wave 3 agent code) |
+
+```json
+{
+  "version": 1,
+  "versionName": "ffmpeg.1.0",
+  "min": 0,
+  "hash": "<blake3 hex of zip>",
+  "size": 89123456
+}
+```
+
+- **`version`**: monotonic integer; clients compare this only (not semver in `versionName`).
+- **`min`**: minimum **remote-windows agent build** required before applying this ffmpeg bundle (`0` = any paired agent). Same field name as other releases for `/version` handler compatibility.
+- Zip layout: **`ffmpeg.exe` at archive root** (plus DLLs); publish script rejects dirs without root `ffmpeg.exe`.
+
+**Android Play builds:** no ffmpeg binary OTA (policy); media/tools use agent-side ffmpeg on paired PCs only.
+
 ---
 
 ## Remote Agents (`remote-windows`, `remote-macos`, `remote-linux`, `remote-android`)
@@ -137,6 +165,30 @@ $env:DEPLOY_AUTH_TOKEN = '<jwt>'
 $env:YB_PASSWORD = '<password>'
 dart run deploy_remote/remote_windows_upload_prod.dart
 ```
+
+### FFmpeg Windows sidecar
+
+Manual publish when pinning a new ffmpeg build (no automated daily job in v1):
+
+```powershell
+cd _\scripts\deploy
+dart pub get
+$env:DEPLOY_AUTH_TOKEN = '<jwt>'
+$env:YB_PASSWORD = '<password>'
+# Folder must contain ffmpeg.exe at the top level (typical gyan.dev essentials build).
+.\publish_ffmpeg_windows.ps1 -FfmpegDir 'D:\vendor\ffmpeg-essentials\bin'
+```
+
+Optional: `-Version N` (default bumps `ai.config`), `-MinAgentBuild N` (writes `min` in JSON), `-SkipNats` (config + CAS only).
+
+**Verify after publish:**
+
+```powershell
+curl -sS https://api.alienai.id/version/ffmpeg-windows
+# Expect JSON: version, versionName, min, hash, size, url (signed /fs/... link)
+```
+
+NATS: `c35.release.ffmpeg-windows` payload `{ platform, version, versionName, hash, size }` (same pattern as `c35.release.remote-windows`). Operators may re-run the publish script on a schedule to refresh CAS TTL pins; that is optional until a fetcher cron exists.
 
 ### Remote Linux / macOS Agent (Future)
 Follow the same script pattern in `_\scripts\deploy\deploy_remote\`:

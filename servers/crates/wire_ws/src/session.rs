@@ -5,18 +5,18 @@ use c35_mod_chat::{
     chat_ensure, chat_title_from_text, prompt_followup_cancel_all_for_req, prompt_followup_cancel_rpc,
     prompt_followup_list, prompt_followup_publish_state, prompt_followup_put,
     prompt_followup_start_next_queued, prompt_run_cancel_children, prompt_run_cancel_request,
-    prompt_run_enqueue, prompt_run_insert, prompt_run_row_new, prompt_turn, PromptTurnHooks,
+    prompt_run_enqueue, prompt_run_insert, prompt_run_row_new, prompt_run_concurrency_acquire,
+    prompt_turn, PromptTurnHooks,
 };
 use c35_mod_consumption::{consumption_list_rpc, consumption_put_rpc};
 use c35_mod_expense::expense_put_rpc;
+use c35_nats::{user_app_fanout_decode, user_app_subscribe_subject};
 use c35_proto::{
-    pb_decode, pb_encode, BillingPushBalance, BillingPushCommission, BillingPushQuota,
-    PromptRunJob, ReqChannelDisconnect, ReqChannelWhatsappPairAbort, ReqChannelWhatsappPairStart,
-    ReqChannelWhatsappPairWatch, ReqIdentityDelete,
-    ReqPromptAbort, ResChannelWhatsappPair, ResChatStop, ResPromptDelta, ResPromptEnd, ResPromptFail,
-    ResPromptStart, WsReq, WsRes, ws_req, ws_res,
+    pb_decode, pb_encode, PromptRunJob, ReqChannelDisconnect, ReqChannelWhatsappPairAbort,
+    ReqChannelWhatsappPairStart, ReqChannelWhatsappPairWatch, ReqIdentityDelete, ReqPromptAbort,
+    ResChannelWhatsappPair, ResChatStop, ResPromptDelta, ResPromptEnd, ResPromptFail, ResPromptStart,
+    WsReq, WsRes, ws_req, ws_res,
 };
-use prost::Message as ProstMessage;
 use c35_wire::WireErr;
 use futures_util::StreamExt;
 use tokio::sync::mpsc;
@@ -76,7 +76,7 @@ pub async fn handle(mut socket: WebSocket, state: AppState, q: WsQuery, headers:
     if let Some(nats) = state.nats.clone() {
         let fanout_tx = out_tx.clone();
         tokio::spawn(async move {
-            billing_nats_fanout(nats, caller_iid, fanout_tx).await;
+            user_app_nats_fanout(nats, caller_iid, fanout_tx).await;
         });
     }
     if let Some(nats) = state.nats.clone() {
@@ -227,6 +227,13 @@ fn prompt_req_put(
                 tracing::warn!("[c35:prompt_run] JetStream enqueue failed, falling back to inline turn");
             }
         }
+        let _concurrency = match prompt_run_concurrency_acquire().await {
+            Ok(p) => p,
+            Err(e) => {
+                let _ = out_tx.send(prompt_fail(&req_id_spawn, e.to_string()));
+                return;
+            }
+        };
         match prompt_turn(
             &pool,
             nats.as_ref(),
@@ -364,6 +371,24 @@ async fn dispatch(
             },
             Err(e) => err_res(req_id, WireErr::client("chat_patch_failed", e.to_string())),
         },
+        Some(ws_req::Body::ChatDeviceContextList(r)) => {
+            match c35_mod_chat::chat_device_context_list(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::ChatDeviceContextList(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("chat_device_context_list_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::ChatDeviceContextCreate(r)) => {
+            match c35_mod_chat::chat_device_context_create(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::ChatDeviceContextCreate(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("chat_device_context_create_failed", e.to_string())),
+            }
+        }
         Some(ws_req::Body::ChatHistoryClear(r)) => match c35_mod_chat::chat_history_clear(&state.pool, ctx.caller_iid, r).await {
             Ok(body) => WsRes {
                 req_id,
@@ -1088,47 +1113,22 @@ fn err_res(req_id: String, err: WireErr) -> WsRes {
     }
 }
 
-async fn billing_nats_fanout(
+async fn user_app_nats_fanout(
     nats: async_nats::Client,
     owner_iid: i64,
     out_tx: mpsc::UnboundedSender<WsRes>,
 ) {
-    let subject = format!("c35.user.{owner_iid}.>");
+    let subject = user_app_subscribe_subject(owner_iid);
     let mut sub = match nats.subscribe(subject).await {
         Ok(s) => s,
         Err(e) => {
-            tracing::warn!("billing nats subscribe: {e}");
+            tracing::warn!("user app nats subscribe: {e}");
             return;
         }
     };
     while let Some(msg) = sub.next().await {
-        let subj = msg.subject.as_str();
-        let body = if subj.ends_with(".balance") {
-            BillingPushBalance::decode(msg.payload.as_ref())
-                .ok()
-                .map(ws_res::Body::BillingBalance)
-        } else if subj.ends_with(".quota") {
-            BillingPushQuota::decode(msg.payload.as_ref())
-                .ok()
-                .map(ws_res::Body::BillingQuota)
-        } else if subj.ends_with(".commission") {
-            BillingPushCommission::decode(msg.payload.as_ref())
-                .ok()
-                .map(ws_res::Body::BillingCommission)
-        } else if subj.contains(".chat.") {
-            WsRes::decode(msg.payload.as_ref()).ok().and_then(|ws| ws.body)
-        } else {
-            None
-        };
-        if let Some(body) = body {
-            let req_id = if subj.contains(".chat.") {
-                WsRes::decode(msg.payload.as_ref())
-                    .map(|ws| ws.req_id)
-                    .unwrap_or_default()
-            } else {
-                String::new()
-            };
-            let _ = out_tx.send(WsRes { req_id, body: Some(body) });
+        if let Some(res) = user_app_fanout_decode(msg.subject.as_str(), msg.payload.as_ref()) {
+            let _ = out_tx.send(res);
         }
     }
 }

@@ -16,6 +16,11 @@ except ImportError:
     print("pip install psycopg2-binary", file=sys.stderr)
     raise
 
+from migrate_auth_contact import (
+    identity_contact_meta_ensure,
+    identity_email_provider_ensure,
+    retire_google_signup_shells,
+)
 from migrate_csa_passwords import copy_blocks, parse_tsv
 from migrate_lib import CHITO_NEW_IID, CHITO_OLD_IID, C35_DB, connect
 
@@ -85,16 +90,25 @@ def load_google_rows(blocks: dict[str, list[str]]) -> list[dict]:
 
 def resolve_identity_iid(cur, sub: str, email: str, csa_uid: int) -> int | None:
     cur.execute(
-        """
-        SELECT identity_iid FROM ai.identity_provider
-        WHERE deleted_ts IS NULL AND kind = 'google' AND meta->>'google_sub' = %s
-        LIMIT 1
-        """,
-        (sub,),
+        "SELECT id FROM ai.identity WHERE id = %s AND deleted_ts IS NULL LIMIT 1",
+        (csa_uid,),
     )
     row = cur.fetchone()
     if row:
         return int(row[0])
+
+    if sub:
+        cur.execute(
+            """
+            SELECT identity_iid FROM ai.identity_provider
+            WHERE deleted_ts IS NULL AND kind = 'google' AND meta->>'google_sub' = %s
+            LIMIT 1
+            """,
+            (sub,),
+        )
+        row = cur.fetchone()
+        if row:
+            return int(row[0])
 
     if email:
         cur.execute(
@@ -108,16 +122,17 @@ def resolve_identity_iid(cur, sub: str, email: str, csa_uid: int) -> int | None:
         row = cur.fetchone()
         if row:
             return int(row[0])
-
-    cur.execute(
-        "SELECT id FROM ai.identity WHERE id = %s AND deleted_ts IS NULL LIMIT 1",
-        (csa_uid,),
-    )
-    row = cur.fetchone()
-    if row:
-        return int(row[0])
-
-    if email:
+        cur.execute(
+            """
+            SELECT identity_iid FROM ai.identity_provider
+            WHERE deleted_ts IS NULL AND kind = 'email' AND LOWER(identifier) = %s
+            LIMIT 1
+            """,
+            (email,),
+        )
+        row = cur.fetchone()
+        if row:
+            return int(row[0])
         cur.execute(
             """
             SELECT id FROM ai.identity
@@ -129,6 +144,18 @@ def resolve_identity_iid(cur, sub: str, email: str, csa_uid: int) -> int | None:
         row = cur.fetchone()
         if row:
             return int(row[0])
+        if sub:
+            cur.execute(
+                """
+                SELECT id FROM ai.identity
+                WHERE deleted_ts IS NULL AND kind = 'user' AND meta->>'google_sub' = %s
+                LIMIT 1
+                """,
+                (sub,),
+            )
+            row = cur.fetchone()
+            if row:
+                return int(row[0])
     return None
 
 
@@ -179,7 +206,7 @@ def main() -> int:
 
     c35 = connect(C35_DB)
     c35.autocommit = False
-    inserted = updated = skipped = missing = 0
+    inserted = updated = skipped = missing = retired = 0
     touched_iids: set[int] = set()
 
     try:
@@ -218,6 +245,9 @@ def main() -> int:
                 )
                 existing = cur.fetchone()
                 if existing and int(existing[1]) == iid and existing[2] == sub:
+                    identity_contact_meta_ensure(cur, iid, email, sub)
+                    identity_email_provider_ensure(cur, iid, email, snowflake_id)
+                    retired += retire_google_signup_shells(cur, iid, email)
                     skipped += 1
                     touched_iids.add(iid)
                     continue
@@ -261,6 +291,9 @@ def main() -> int:
                     else:
                         updated += 1
 
+                identity_contact_meta_ensure(cur, iid, email, sub)
+                identity_email_provider_ensure(cur, iid, email, snowflake_id)
+                retired += retire_google_signup_shells(cur, iid, email)
                 touched_iids.add(iid)
                 print(f"ok iid={iid} sub={sub} email={email}")
 
@@ -271,8 +304,8 @@ def main() -> int:
         c35.commit()
         print(
             f"done google={len(rows)} inserted={inserted} updated={updated} skipped={skipped} "
-            f"missing={missing} balances_zeroed wallets={wallets} accounts={accounts} "
-            f"from {BACKUP.name}"
+            f"missing={missing} retired_shells={retired} balances_zeroed wallets={wallets} "
+            f"accounts={accounts} from {BACKUP.name}"
         )
         return 0
     except Exception:

@@ -9,7 +9,7 @@ use windows::Win32::Foundation::HWND;
 use windows::Win32::Graphics::Gdi::{
     BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject, GetDC, GetDIBits,
     ReleaseDC, SelectObject, SetStretchBltMode, StretchBlt, BITMAPINFO, BITMAPINFOHEADER, BI_RGB,
-    COLORONCOLOR, DIB_RGB_COLORS, HBITMAP, HDC, SRCCOPY,
+    DIB_RGB_COLORS, HBITMAP, HDC, HALFTONE, SRCCOPY,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     GetSystemMetrics, SM_CXSCREEN, SM_CYSCREEN,
@@ -78,6 +78,22 @@ pub fn draw_red_marker(buf: &mut [u8], w: u32, h: u32, nx: f64, ny: f64) {
     }
 }
 
+/// True when nearly all pixels are near-black (lock screen, session 0, headless VM capture).
+fn frame_mostly_black(bgra: &[u8]) -> bool {
+    if bgra.len() < 4 {
+        return true;
+    }
+    let mut dark = 0u64;
+    let mut total = 0u64;
+    for px in bgra.chunks_exact(4) {
+        total += 1;
+        if px[0] < 12 && px[1] < 12 && px[2] < 12 {
+            dark += 1;
+        }
+    }
+    total > 0 && dark * 100 / total >= 94
+}
+
 /// Copy the virtual desktop into a BGRA buffer (handles negative virtual-screen origins).
 unsafe fn gdi_read_bgra(hdc_screen: HDC, src_w: i32, src_h: i32, dst_w: u32, dst_h: u32) -> Result<Vec<u8>> {
     let hdc_full = CreateCompatibleDC(hdc_screen);
@@ -121,7 +137,7 @@ unsafe fn gdi_read_bgra(hdc_screen: HDC, src_w: i32, src_h: i32, dst_w: u32, dst
                 bail!("failed to create scaled bitmap");
             }
             let old_scaled = SelectObject(hdc_scaled, hbm_scaled);
-            let _ = SetStretchBltMode(hdc_scaled, COLORONCOLOR);
+            let _ = SetStretchBltMode(hdc_scaled, HALFTONE);
             let stretch_ok = StretchBlt(
                 hdc_scaled,
                 0,
@@ -270,6 +286,18 @@ pub fn capture_screen_gdi(
             draw_red_marker(&mut bgra_buf, dst_w, dst_h, mx, my);
         }
 
+        if frame_mostly_black(&bgra_buf) {
+            if crate::video_stream::is_video_stream_active() {
+                if let Some((w, h, b)) = crate::dxgi_capture::shared_last_bgra_clone() {
+                    if !frame_mostly_black(&b) {
+                        debug!("GDI capture black; using last DXGI frame from active WebRTC stream");
+                        return encode_bgra_screenshot(w, h, b, max_w, quality, prev_hash, force, marker, som, false);
+                    }
+                }
+            }
+            bail!("desktop capture is blank (unlock PC, sign in to interactive session — lock screen / non-interactive VM session often yields black frames)");
+        }
+
         let hash = *blake3::hash(&bgra_buf).as_bytes();
 
         if !force && prev_hash == Some(hash) {
@@ -294,6 +322,141 @@ pub fn capture_screen_gdi(
 /// Capture full desktop and compare with previous frame hash.
 /// Tries fast GPU capture via DXGI Desktop Duplication (<1ms) first.
 /// If DXGI is unavailable (headless, RDP, lock screen), falls back seamlessly to GDI capture.
+fn encode_bgra_screenshot(
+    src_w: u32,
+    src_h: u32,
+    raw_bgra: Vec<u8>,
+    max_w: u32,
+    quality: u8,
+    prev_hash: Option<[u8; 32]>,
+    force: bool,
+    marker: Option<(f64, f64)>,
+    som: bool,
+    check_black: bool,
+) -> Result<(Option<(u16, u16, Vec<u8>, String)>, [u8; 32])> {
+    let (dst_w, dst_h, mut bgra_buf) = if max_w > 0 && src_w > max_w {
+        let h = ((src_h as u64 * max_w as u64) / src_w as u64).max(1) as u32;
+        let scaled = downscale_bgra(&raw_bgra, src_w, src_h, max_w, h);
+        (max_w, h, scaled)
+    } else {
+        (src_w, src_h, raw_bgra)
+    };
+
+    let mut axtree = String::new();
+    if som {
+        let marks = crate::uia::uia_walk();
+        axtree = crate::uia::axtree_text(&marks, src_w, src_h);
+        crate::uia::draw_som_overlay(&mut bgra_buf, dst_w, dst_h, src_w, src_h, &marks);
+    }
+
+    if let Some((mx, my)) = marker {
+        draw_red_marker(&mut bgra_buf, dst_w, dst_h, mx, my);
+    }
+
+    if check_black && frame_mostly_black(&bgra_buf) {
+        bail!("desktop capture is blank (unlock PC, sign in to interactive session — lock screen / non-interactive VM session often yields black frames)");
+    }
+
+    let hash = *blake3::hash(&bgra_buf).as_bytes();
+    if !force && prev_hash == Some(hash) {
+        return Ok((None, hash));
+    }
+
+    let mut jpeg_bytes = Vec::with_capacity((dst_w * dst_h / 2) as usize);
+    let encoder = jpeg_encoder::Encoder::new(&mut jpeg_bytes, quality);
+    encoder
+        .encode(
+            &bgra_buf,
+            dst_w as u16,
+            dst_h as u16,
+            jpeg_encoder::ColorType::Bgra,
+        )
+        .context("failed to encode desktop JPEG")?;
+
+    Ok((Some((dst_w as u16, dst_h as u16, jpeg_bytes, axtree)), hash))
+}
+
+fn try_reuse_last_dxgi_frame(
+    max_w: u32,
+    quality: u8,
+    prev_hash: Option<[u8; 32]>,
+    force: bool,
+    marker: Option<(f64, f64)>,
+    som: bool,
+) -> Option<Result<(Option<(u16, u16, Vec<u8>, String)>, [u8; 32])>> {
+    if !crate::video_stream::is_video_stream_active() {
+        return None;
+    }
+    let (w, h, bgra) = crate::dxgi_capture::shared_last_bgra_clone()?;
+    debug!(w, h, "screenshot reusing last DXGI desktop frame from WebRTC stream");
+    Some(encode_bgra_screenshot(w, h, bgra, max_w, quality, prev_hash, force, marker, som, false))
+}
+
+/// Chat / `device.screenshot` path when WebRTC video is off — fresh agent capture only.
+fn capture_tool_screenshot_agent_opt(
+    max_w: u32,
+    quality: u8,
+    prev_hash: Option<[u8; 32]>,
+    marker: Option<(f64, f64)>,
+    som: bool,
+) -> Result<(Option<(u16, u16, Vec<u8>, String)>, [u8; 32])> {
+    if !crate::dxgi_capture::shared_dxgi_disabled() {
+        match crate::dxgi_capture::shared_capture_for_tool_screenshot() {
+            Ok((src_w, src_h, raw_bgra)) => {
+                if let Ok(out) = encode_bgra_screenshot(
+                    src_w,
+                    src_h,
+                    raw_bgra,
+                    max_w,
+                    quality,
+                    prev_hash,
+                    true,
+                    marker,
+                    som,
+                    true,
+                ) {
+                    return Ok(out);
+                }
+                warn!("tool screenshot DXGI frame blank; falling back to GDI");
+            }
+            Err(e) => warn!("tool screenshot DXGI capture failed: {e}; falling back to GDI"),
+        }
+    }
+    capture_screen_gdi(max_w, quality, prev_hash, true, marker, som)
+}
+
+fn screenshot_recover_after_blank(
+    max_w: u32,
+    quality: u8,
+    prev_hash: Option<[u8; 32]>,
+    force: bool,
+    marker: Option<(f64, f64)>,
+    som: bool,
+) -> Option<Result<(Option<(u16, u16, Vec<u8>, String)>, [u8; 32])>> {
+    if !force {
+        return None;
+    }
+    if let Some(res) = try_reuse_last_dxgi_frame(max_w, quality, prev_hash, force, marker, som) {
+        if res.is_ok() {
+            return Some(res);
+        }
+    }
+    for ms in [50u32, 200, 500] {
+        if let Ok(Some((w, h, bgra))) = crate::dxgi_capture::shared_capture_frame(ms) {
+            if frame_mostly_black(&bgra) {
+                continue;
+            }
+            if let Ok(out) = encode_bgra_screenshot(w, h, bgra, max_w, quality, prev_hash, force, marker, som, true) {
+                return Some(Ok(out));
+            }
+        }
+    }
+    if let Some(res) = try_reuse_last_dxgi_frame(max_w, quality, prev_hash, force, marker, som) {
+        return Some(res);
+    }
+    None
+}
+
 pub fn capture_screen_diff_opt(
     max_w: u32,
     quality: u8,
@@ -302,60 +465,86 @@ pub fn capture_screen_diff_opt(
     marker: Option<(f64, f64)>,
     som: bool,
 ) -> Result<(Option<(u16, u16, Vec<u8>, String)>, [u8; 32])> {
+    if force && !crate::video_stream::is_video_stream_active() {
+        return capture_tool_screenshot_agent_opt(max_w, quality, prev_hash, marker, som);
+    }
     if !crate::dxgi_capture::shared_dxgi_disabled() {
         match crate::dxgi_capture::shared_capture_frame(16) {
-                Ok(Some((src_w, src_h, raw_bgra))) => {
-                    let (dst_w, dst_h, mut bgra_buf) = if max_w > 0 && src_w > max_w {
-                        let h = ((src_h as u64 * max_w as u64) / src_w as u64).max(1) as u32;
-                        let scaled = downscale_bgra(&raw_bgra, src_w, src_h, max_w, h);
-                        (max_w, h, scaled)
-                    } else {
-                        (src_w, src_h, raw_bgra)
-                    };
-
-                    let mut axtree = String::new();
-                    if som {
-                        let marks = crate::uia::uia_walk();
-                        axtree = crate::uia::axtree_text(&marks, src_w, src_h);
-                        crate::uia::draw_som_overlay(&mut bgra_buf, dst_w, dst_h, src_w, src_h, &marks);
-                    }
-
-                    if let Some((mx, my)) = marker {
-                        draw_red_marker(&mut bgra_buf, dst_w, dst_h, mx, my);
-                    }
-
-                    let hash = *blake3::hash(&bgra_buf).as_bytes();
-                    if !force && prev_hash == Some(hash) {
-                        return Ok((None, hash));
-                    }
-
-                    let mut jpeg_bytes = Vec::with_capacity((dst_w * dst_h / 2) as usize);
-                    let encoder = jpeg_encoder::Encoder::new(&mut jpeg_bytes, quality);
-                    encoder
-                        .encode(
-                            &bgra_buf,
-                            dst_w as u16,
-                            dst_h as u16,
-                            jpeg_encoder::ColorType::Bgra,
-                        )
-                        .context("failed to encode desktop JPEG from DXGI frame")?;
-
-                    return Ok((Some((dst_w as u16, dst_h as u16, jpeg_bytes, axtree)), hash));
+            Ok(Some((src_w, src_h, raw_bgra))) => {
+                if let Ok(out) = encode_bgra_screenshot(
+                    src_w,
+                    src_h,
+                    raw_bgra,
+                    max_w,
+                    quality,
+                    prev_hash,
+                    force,
+                    marker,
+                    som,
+                    true,
+                ) {
+                    return Ok(out);
                 }
-                Ok(None) => {
-                    // No new frame from DXGI within timeout (screen is static)
-                    if !force && prev_hash.is_some() {
-                        return Ok((None, prev_hash.unwrap()));
-                    }
-                    // If forced (e.g. initial connection), fall through to GDI to get initial frame
-                }
-                Err(e) => {
-                    warn!("DXGI capture frame error: {e}; falling back to GDI");
+                warn!("DXGI frame blank; trying cached frame, DXGI retry, then GDI");
+                if let Some(res) = screenshot_recover_after_blank(max_w, quality, prev_hash, force, marker, som) {
+                    return res;
                 }
             }
+            Ok(None) => {
+                if !force && prev_hash.is_some() {
+                    return Ok((None, prev_hash.unwrap()));
+                }
+                if force {
+                    if let Some(res) = try_reuse_last_dxgi_frame(max_w, quality, prev_hash, force, marker, som) {
+                        return res;
+                    }
+                    if let Ok(Some((src_w, src_h, raw_bgra))) = crate::dxgi_capture::shared_capture_frame(500) {
+                        if let Ok(out) = encode_bgra_screenshot(
+                            src_w,
+                            src_h,
+                            raw_bgra,
+                            max_w,
+                            quality,
+                            prev_hash,
+                            force,
+                            marker,
+                            som,
+                            true,
+                        ) {
+                            return Ok(out);
+                        }
+                        if let Some(res) = screenshot_recover_after_blank(max_w, quality, prev_hash, force, marker, som) {
+                            return res;
+                        }
+                    }
+                    if let Some(res) = try_reuse_last_dxgi_frame(max_w, quality, prev_hash, force, marker, som) {
+                        return res;
+                    }
+                    warn!("DXGI idle for tool screenshot; GDI fallback often black on Hyper-V — prefer Remote tab stream");
+                }
+            }
+            Err(e) => {
+                warn!("DXGI capture frame error: {e}; trying last DXGI frame before GDI");
+                if force {
+                    if let Some(res) = try_reuse_last_dxgi_frame(max_w, quality, prev_hash, force, marker, som) {
+                        return res;
+                    }
+                }
+            }
+        }
     }
 
-    capture_screen_gdi(max_w, quality, prev_hash, force, marker, som)
+    match capture_screen_gdi(max_w, quality, prev_hash, force, marker, som) {
+        Ok(v) => Ok(v),
+        Err(e) => {
+            if force {
+                if let Some(res) = try_reuse_last_dxgi_frame(max_w, quality, prev_hash, force, marker, som) {
+                    return res;
+                }
+            }
+            Err(e)
+        }
+    }
 }
 
 pub fn capture_screen_diff(
@@ -380,6 +569,12 @@ pub fn capture_screen_jpeg(
     frame.context("failed to capture frame")
 }
 
+pub fn desktop_width_cap() -> u32 {
+    unsafe {
+        GetSystemMetrics(SM_CXVIRTUALSCREEN).max(1) as u32
+    }
+}
+
 /// Encode frame into 16-byte header + JPEG body:
 /// [0..4]: b"CS35"
 /// [4..6]: width (u16 be)
@@ -399,16 +594,18 @@ pub fn make_screen_packet(w: u16, h: u16, ts_ms: u64, jpeg: &[u8]) -> Vec<u8> {
     packet
 }
 
-/// Spawn screen capture streamer on a WebRTC data channel with dirty-frame detection and SCTP backpressure.
+/// `max_w == 0` → capture up to native desktop width; SCTP backpressure + packet-size retries shrink as needed.
 pub fn start_screen_stream(dc: Arc<RTCDataChannel>, max_w: u32, target_fps: u32) {
     let fps = target_fps.clamp(5, 30);
     let frame_interval = Duration::from_millis(1000 / fps as u64);
 
     tokio::spawn(async move {
         CAPTURE_ACTIVE.store(true, Ordering::SeqCst);
+        let ceiling = if max_w > 0 { max_w } else { desktop_width_cap() };
         info!(
             fps,
             max_w,
+            ceiling,
             "desktop screen streaming started (SCTP MJPEG; ensure an interactive desktop session — lock screen / headless VM may yield black frames)"
         );
 
@@ -417,13 +614,17 @@ pub fn start_screen_stream(dc: Arc<RTCDataChannel>, max_w: u32, target_fps: u32)
 
         let mut prev_hash: Option<[u8; 32]> = None;
         let mut last_sent_time = SystemTime::now();
-        let mut stream_max_w = max_w.min(1280);
-        let mut stream_quality: u8 = 68;
+        let mut stream_max_w = ceiling;
+        let mut stream_quality: u8 = 80;
 
         loop {
             interval.tick().await;
 
             if c_remote_core::webrtc::is_file_media_active() {
+                continue;
+            }
+
+            if crate::video_stream::is_video_stream_active() {
                 continue;
             }
 
@@ -481,11 +682,11 @@ pub fn start_screen_stream(dc: Arc<RTCDataChannel>, max_w: u32, target_fps: u32)
                             debug!("remote-screen send transient error: {e}, will retry next tick");
                             break;
                         }
-                        if stream_max_w < max_w && packet_len < REMOTE_SCREEN_SCTP_MAX_BYTES / 2 {
-                            stream_max_w = (stream_max_w + 64).min(max_w);
+                        if stream_max_w < ceiling && packet_len < REMOTE_SCREEN_SCTP_MAX_BYTES / 2 {
+                            stream_max_w = (stream_max_w + 64).min(ceiling);
                         }
-                        if stream_quality < 68 {
-                            stream_quality = (stream_quality + 2).min(68);
+                        if stream_quality < 80 {
+                            stream_quality = (stream_quality + 2).min(88);
                         }
                         sent = true;
                         break;

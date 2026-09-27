@@ -778,6 +778,81 @@ final $typed_data.Uint8List resChatHistoryClearDescriptor = $convert.base64Decod
     'ChNSZXNDaGF0SGlzdG9yeUNsZWFyEiEKDG1zZ3NfZGVsZXRlZBgBIAEoBVILbXNnc0RlbGV0ZW'
     'QSJQoOY2hhdHNfYWZmZWN0ZWQYAiABKAVSDWNoYXRzQWZmZWN0ZWQ=');
 
+@$core.Deprecated('Use reqChatDeviceContextListDescriptor instead')
+const ReqChatDeviceContextList$json = {
+  '1': 'ReqChatDeviceContextList',
+  '2': [
+    {'1': 'device_iid', '3': 1, '4': 1, '5': 3, '10': 'deviceIid'},
+    {'1': 'include_archived', '3': 2, '4': 1, '5': 8, '10': 'includeArchived'},
+    {'1': 'limit', '3': 3, '4': 1, '5': 5, '10': 'limit'},
+  ],
+};
+
+/// Descriptor for `ReqChatDeviceContextList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqChatDeviceContextListDescriptor = $convert.base64Decode(
+    'ChhSZXFDaGF0RGV2aWNlQ29udGV4dExpc3QSHQoKZGV2aWNlX2lpZBgBIAEoA1IJZGV2aWNlSW'
+    'lkEikKEGluY2x1ZGVfYXJjaGl2ZWQYAiABKAhSD2luY2x1ZGVBcmNoaXZlZBIUCgVsaW1pdBgD'
+    'IAEoBVIFbGltaXQ=');
+
+@$core.Deprecated('Use resChatDeviceContextListDescriptor instead')
+const ResChatDeviceContextList$json = {
+  '1': 'ResChatDeviceContextList',
+  '2': [
+    {'1': 'chats', '3': 1, '4': 3, '5': 11, '6': '.c35.Chat', '10': 'chats'},
+    {
+      '1': 'members',
+      '3': 2,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.ChatMember',
+      '10': 'members'
+    },
+  ],
+};
+
+/// Descriptor for `ResChatDeviceContextList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resChatDeviceContextListDescriptor =
+    $convert.base64Decode(
+        'ChhSZXNDaGF0RGV2aWNlQ29udGV4dExpc3QSHwoFY2hhdHMYASADKAsyCS5jMzUuQ2hhdFIFY2'
+        'hhdHMSKQoHbWVtYmVycxgCIAMoCzIPLmMzNS5DaGF0TWVtYmVyUgdtZW1iZXJz');
+
+@$core.Deprecated('Use reqChatDeviceContextCreateDescriptor instead')
+const ReqChatDeviceContextCreate$json = {
+  '1': 'ReqChatDeviceContextCreate',
+  '2': [
+    {'1': 'device_iid', '3': 1, '4': 1, '5': 3, '10': 'deviceIid'},
+    {'1': 'title', '3': 2, '4': 1, '5': 9, '10': 'title'},
+  ],
+};
+
+/// Descriptor for `ReqChatDeviceContextCreate`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqChatDeviceContextCreateDescriptor =
+    $convert.base64Decode(
+        'ChpSZXFDaGF0RGV2aWNlQ29udGV4dENyZWF0ZRIdCgpkZXZpY2VfaWlkGAEgASgDUglkZXZpY2'
+        'VJaWQSFAoFdGl0bGUYAiABKAlSBXRpdGxl');
+
+@$core.Deprecated('Use resChatDeviceContextCreateDescriptor instead')
+const ResChatDeviceContextCreate$json = {
+  '1': 'ResChatDeviceContextCreate',
+  '2': [
+    {'1': 'chat', '3': 1, '4': 1, '5': 11, '6': '.c35.Chat', '10': 'chat'},
+    {
+      '1': 'member',
+      '3': 2,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ChatMember',
+      '10': 'member'
+    },
+  ],
+};
+
+/// Descriptor for `ResChatDeviceContextCreate`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resChatDeviceContextCreateDescriptor =
+    $convert.base64Decode(
+        'ChpSZXNDaGF0RGV2aWNlQ29udGV4dENyZWF0ZRIdCgRjaGF0GAEgASgLMgkuYzM1LkNoYXRSBG'
+        'NoYXQSJwoGbWVtYmVyGAIgASgLMg8uYzM1LkNoYXRNZW1iZXJSBm1lbWJlcg==');
+
 @$core.Deprecated('Use assetTagHintDescriptor instead')
 const AssetTagHint$json = {
   '1': 'AssetTagHint',

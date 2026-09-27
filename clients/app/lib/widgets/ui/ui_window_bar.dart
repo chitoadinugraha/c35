@@ -157,10 +157,11 @@ class _UiWindowBarState extends State<UiWindowBar> with WindowListener {
   }
 
   Future<void> _serverHostMenu() async {
-    final navCtx = c35NavigatorKey.currentContext;
-    if (navCtx == null) return;
+    final overlay = c35NavigatorKey.currentState?.overlay;
+    if (overlay == null || !overlay.mounted) return;
+    final menuCtx = overlay.context;
     if (_menuOpen) {
-      Navigator.of(navCtx).pop();
+      Navigator.of(menuCtx).pop();
       return;
     }
     final closedAt = _menuClosedAt;
@@ -170,10 +171,10 @@ class _UiWindowBarState extends State<UiWindowBar> with WindowListener {
     _menuOpen = true;
     try {
       final selected = await showMenu<String>(
-        context: navCtx,
+        context: menuCtx,
         color: const Color(0xFF18181B),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: const BorderSide(color: Color(0xFF27272A))),
-        position: uiMenuPositionBelow(navCtx, box, gap: -8),
+        position: uiMenuPositionBelow(menuCtx, box, gap: -8),
         items: serverHostOptions
             .map((o) => PopupMenuItem(
                   value: o,

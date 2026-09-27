@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:alienai_c35/c/parts/csai__version.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class AppRelease {
@@ -62,6 +63,55 @@ Future<AppRelease?> appReleaseGet(String apiBase, {String platform = 'windows'})
     if (res.statusCode != 200) return null;
     final json = jsonDecode(res.body) as Map<String, dynamic>;
     return appReleaseParse(json);
+  } catch (_) {
+    return null;
+  }
+}
+
+class AppReleasePlatforms {
+  const AppReleasePlatforms({required this.byPlatform});
+  final Map<String, AppRelease> byPlatform;
+
+  int? versionOf(String platform) => byPlatform[platform.trim().toLowerCase()]?.version;
+}
+
+AppReleasePlatforms? appReleasePlatformsParse(Map<String, dynamic> json) {
+  final raw = json['platforms'];
+  if (raw is! Map) return null;
+  final out = <String, AppRelease>{};
+  for (final entry in raw.entries) {
+    final key = '${entry.key}'.trim().toLowerCase();
+    if (key.isEmpty || entry.value is! Map) continue;
+    final release = appReleaseParse(Map<String, dynamic>.from(entry.value as Map));
+    if (release != null && release.version > 0) out[key] = release;
+  }
+  return out.isEmpty ? null : AppReleasePlatforms(byPlatform: out);
+}
+
+String appReleasePlatformForDevice() {
+  switch (defaultTargetPlatform) {
+    case TargetPlatform.android:
+      return 'android';
+    case TargetPlatform.iOS:
+      return 'android';
+    case TargetPlatform.windows:
+      return 'windows';
+    case TargetPlatform.macOS:
+      return 'windows';
+    case TargetPlatform.linux:
+      return 'windows';
+    default:
+      return 'web';
+  }
+}
+
+Future<AppReleasePlatforms?> appReleasePlatformsGet(String apiBase) async {
+  final base = apiBase.replaceAll(RegExp(r'/+$'), '');
+  try {
+    final res = await http.get(Uri.parse('$base/version')).timeout(const Duration(seconds: 15));
+    if (res.statusCode != 200) return null;
+    final json = jsonDecode(res.body) as Map<String, dynamic>;
+    return appReleasePlatformsParse(json);
   } catch (_) {
     return null;
   }

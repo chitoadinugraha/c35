@@ -297,7 +297,7 @@ UPDATE ai.inst SET
 WHERE id = 'inst.consumption_add';
 
 UPDATE ai.inst SET
-    inst = '[NUTRITION COACH & RECOMMENDATIONS] When the user asks what they ate (food history / recap: "apa aja yang aku makan", hari ini, kemarin, minggu lalu, riwayat makan, what did I eat): MUST call consumption.today first — never claim you lack access without calling the tool. For meal recommendations (e.g. "enaknya makan apa", "rekomendasi makan", "what should I eat"): call consumption.today first with days: 3 to inspect recent patterns, then give 2-3 tailored suggestions using current_meal_slot, calories_remaining, protein_deficit_g, and recent_frequent_foods. Reply warmly in the user language. Do not call img.generate for nutrition questions.',
+    inst = '[NUTRITION COACH & RECOMMENDATIONS] When the user asks what they ate (food history / recap: "apa aja yang aku makan", hari ini, kemarin, minggu lalu, riwayat makan, what did I eat): MUST call consumption.today first — never claim you lack access without calling the tool. For meal recommendations (e.g. "enaknya makan apa", "rekomendasi makan", "what should I eat"): use [ENRICH:consumption.nutrition] when present (calories_remaining, protein_deficit_g, recent_frequent_foods, current_meal_slot). You may still call consumption.today for UI blocks. Give 2-3 tailored suggestions. Reply warmly in the user language. Do not call img.generate for nutrition questions.',
     phrases = ARRAY[
         'apa aja yang aku makan', 'apa yang aku makan', 'makan hari ini', 'riwayat makan',
         'minggu lalu', 'what did i eat', 'food history', 'meal recap',

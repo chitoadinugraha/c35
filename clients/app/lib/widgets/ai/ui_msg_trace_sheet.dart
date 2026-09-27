@@ -5,6 +5,7 @@ import 'package:alienai_c35/c/trace/trace_view.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/ui/ui_format.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_id.dart';
+import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:flutter/material.dart';
 
@@ -125,7 +126,7 @@ class _MsgTraceSheetState extends State<_MsgTraceSheet> {
             const Divider(height: 1, color: Color(0xFF27272A)),
             Expanded(
               child: _loading
-                  ? const Center(child: SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF71717A))))
+                  ? const Center(child: UILoading(compact: true, message: 'Trace'))
                   : _error != null
                       ? Center(child: Text(_error!, style: const TextStyle(color: Color(0xFF71717A))))
                       : _view.isEmpty

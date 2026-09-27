@@ -1,14 +1,17 @@
+import 'package:alienai_c35/c/catalog/catalog_api.dart';
 import 'package:alienai_c35/c/files/msg_attachment.dart';
+import 'package:alienai_c35/widgets/ai/composer_mention_text.dart';
 import 'package:alienai_c35/widgets/ai/ui_attach_chips.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_copy_prefix.dart';
 import 'package:flutter/material.dart';
 
 class UiUserBubble extends StatelessWidget {
-  const UiUserBubble({super.key, required this.content, required this.copyPrefix, this.attachments = const [], this.leadingNewline = false});
+  const UiUserBubble({super.key, required this.content, required this.copyPrefix, this.attachments = const [], this.leadingNewline = false, this.mentions = const []});
   final String content;
   final String copyPrefix;
   final List<MsgAttachment> attachments;
   final bool leadingNewline;
+  final List<CatalogMention> mentions;
 
   @override
   Widget build(BuildContext context) => ConstrainedBox(
@@ -28,7 +31,10 @@ class UiUserBubble extends StatelessWidget {
                 children: [
                   UiMsgCopyPrefix(text: copyPrefix, leadingNewline: leadingNewline),
                   if (attachments.isNotEmpty) ...[UiAttachChips(attachments: attachments), if (content.trim().isNotEmpty) const SizedBox(height: 8)],
-                  if (content.trim().isNotEmpty) Text(content, style: const TextStyle(fontSize: 14.5, height: 1.45, color: Color(0xFFE4E4E7), fontWeight: FontWeight.w500)),
+                  if (content.trim().isNotEmpty)
+                    composerMentionTextHasTokens(content) && mentions.isNotEmpty
+                        ? ComposerMentionMessageText(text: content, mentions: mentions)
+                        : Text(content, style: const TextStyle(fontSize: 14.5, height: 1.45, color: Color(0xFFE4E4E7), fontWeight: FontWeight.w500)),
                 ],
               ),
             ),

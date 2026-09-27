@@ -98,7 +98,7 @@ See [sync.md](sync.md).
 
 - Client caches `ResSessionInit` + recent chats in Flutter secure storage (protobuf).
 - On connect, server returns changes since `?since=` only.
-- Realtime pushes: `c35.user.{iid}.balance`, `.quota`, `.settings`, `.profile`, …
+- Realtime pushes (app lane): `c35.user.{iid}.app.>` — balance, quota, chat, inbox, … ([sync.md](sync.md))
 - Logs: `log.{iid}.{dv}.{topic}` (topics: `sign-in`, `prompt`, `connected`, …)
 
 ## UI (summary)

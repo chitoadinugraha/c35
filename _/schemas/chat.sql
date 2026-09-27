@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS ai.chat (
     last_msg_preview    VARCHAR(255) NOT NULL DEFAULT '',
 
     meta                JSONB NOT NULL DEFAULT '{}',
+    bound_device_iid    BIGINT NOT NULL DEFAULT 0,   -- prompt: Remote/device-bound context; 0 = unbound
 
     created_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -50,6 +51,9 @@ CREATE TABLE IF NOT EXISTS ai.chat (
         kind <> 'prompt'
         OR (bot_iid IS NULL AND channel_id = '' AND peer_key = '')
     ),
+    CONSTRAINT chk_chat_bound_device CHECK (
+        bound_device_iid = 0 OR kind = 'prompt'
+    ),
     CONSTRAINT chk_chat_direct_fields CHECK (
         kind <> 'direct'
         OR (bot_iid IS NULL AND channel_id = '' AND peer_key = '')
@@ -63,6 +67,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_chat_bot_peer
 
 CREATE INDEX IF NOT EXISTS idx_chat_owner_sync
     ON ai.chat (owner_iid, updated_ts);
+
+-- Device-bound prompt contexts (Remote composer)
+CREATE INDEX IF NOT EXISTS idx_chat_prompt_bound_device
+    ON ai.chat (owner_iid, bound_device_iid, last_msg_ts DESC)
+    WHERE kind = 'prompt'
+      AND deleted_ts IS NULL
+      AND bound_device_iid <> 0;
 
 CREATE INDEX IF NOT EXISTS idx_chat_bot_peer_list
     ON ai.chat (bot_iid, last_msg_ts DESC)

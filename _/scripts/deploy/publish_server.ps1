@@ -105,6 +105,20 @@ try {
         Write-Warning "auth smoke failed: $_"
     }
 
+    if ($env:YB_PASSWORD -or $envMap['YB_PASSWORD']) {
+        Write-Host "==> publish GET /version/server (app pubspec build)"
+        Push-Location (Join-Path $repoRoot '_\scripts\deploy')
+        try {
+            dart pub get 2>$null | Out-Null
+            dart run deploy_app/publish_server_version.dart
+            if ($LASTEXITCODE -ne 0) { throw 'publish_server_version.dart failed' }
+        } finally {
+            Pop-Location
+        }
+    } else {
+        Write-Warning 'YB_PASSWORD missing — skip /version/server publish'
+    }
+
     Write-Host "==> done"
     kubectl get deploy,svc,ingress -n $Namespace -l app.kubernetes.io/name=c35-server
     if ($StopBuildkit) { Stop-Buildkit }

@@ -145,6 +145,11 @@ message RemoteInputEvent {
   int32 delta_y = 7;          // wheel
 }
 
+// Agent → viewer on `remote-input` (viewer sends RemoteInputEvent only).
+message RemoteCursorEvent {
+  string shape = 1; // arrow | text | click | wait | progress | help | forbidden | move | precise | resize_ns | resize_ew | resize_nesw | resize_nwse
+}
+
 // ---------------------------------------------------------------------------
 // WebRTC data channel `remote-fs` (binary frame = protobuf encode)
 // ---------------------------------------------------------------------------
@@ -226,4 +231,55 @@ message RemoteFsRenameReq {
 
 message RemoteFsRenameRes {
   string error = 1;
+}
+
+// ---------------------------------------------------------------------------
+// WebRTC data channel `remote-fs` — file media (H.264 on existing video track)
+// Field tags 21–23 avoid collision with RemoteFs* request shapes.
+// ---------------------------------------------------------------------------
+
+enum RemoteMediaState {
+  REMOTE_MEDIA_STATE_UNSPECIFIED = 0;
+  REMOTE_MEDIA_STATE_IDLE = 1;
+  REMOTE_MEDIA_STATE_OPENING = 2;
+  REMOTE_MEDIA_STATE_PLAYING = 3;
+  REMOTE_MEDIA_STATE_ERROR = 4;
+}
+
+enum RemoteMediaEncoder {
+  REMOTE_MEDIA_ENCODER_UNSPECIFIED = 0;
+  REMOTE_MEDIA_ENCODER_HW_MF = 1;
+  REMOTE_MEDIA_ENCODER_FFMPEG = 2;
+}
+
+message RemoteMediaOpenReq {
+  string path = 21;
+}
+
+message RemoteMediaOpenRes {
+  bool ok = 1;
+  string error = 2;
+  RemoteMediaState state = 3;
+  RemoteMediaEncoder encoder = 4;
+}
+
+message RemoteMediaCloseReq {
+  bool close = 22;
+}
+
+message RemoteMediaCloseRes {
+  bool ok = 1;
+  string error = 2;
+  RemoteMediaState state = 3;
+}
+
+message RemoteMediaStatusReq {
+  bool query = 23;
+}
+
+message RemoteMediaStatusRes {
+  RemoteMediaState state = 1;
+  string path = 2;
+  string error = 3;
+  RemoteMediaEncoder encoder = 4;
 }

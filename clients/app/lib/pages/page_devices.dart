@@ -196,10 +196,11 @@ class _PageDevicesState extends State<PageDevices> {
                                 final deviceIid = id.iid.toInt();
                                 final session = RemoteSession.of(widget.chatConn, deviceIid);
                                 return GestureDetector(
+                                  key: ValueKey(sid),
                                   onSecondaryTapDown: (d) => _rowMenu(sid, d.globalPosition),
                                   onLongPress: () => _rowMenu(sid, Offset(MediaQuery.sizeOf(context).width / 2, 200)),
                                   child: ListenableBuilder(
-                                    listenable: Listenable.merge([session.connected, session.status]),
+                                    listenable: session.presenceListenable,
                                     builder: (context, _) => UiDeviceRow(
                                       name: id.name.isNotEmpty ? id.name : id.type,
                                       kind: id.kind,

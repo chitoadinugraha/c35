@@ -31,6 +31,8 @@ class CatalogMention {
 
   bool get isDevice => kind == 'identity' && topicId == 'device';
 
+  bool get isSite => kind == 'identity' && topicId == 'web.builder';
+
   String get displayLabel {
     final key = labelKey.trim();
     if (key.isNotEmpty) {

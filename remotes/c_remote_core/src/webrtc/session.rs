@@ -1,14 +1,15 @@
 //! WebRTC peer sessions — signaling relay + `remote-fs` data channel.
 
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use bytes::Bytes;
 
 use c35_proto::{
-    pb_decode, pb_encode, RemoteConnectionMode, RemoteSessionPush, ReqRemoteCommand,
-    ReqRemoteScreenshot, ReqRemoteSessionStart, ResRemoteCommand, ResRemoteScreenshot,
-    RtcSignalAnswer, RtcSignalIce, RtcSignalOffer, WsReq, WsRes, ws_req, ws_res,
+    pb_decode, pb_encode, RemoteConnectionMode, RemoteCursorEvent, RemoteSessionPush,
+    ReqRemoteCommand, ReqRemoteScreenshot, ReqRemoteSessionStart, ResRemoteCommand,
+    ResRemoteScreenshot, RtcSignalAnswer, RtcSignalIce, RtcSignalOffer, WsReq, WsRes, ws_req,
+    ws_res,
 };
 use tokio::sync::{mpsc, RwLock};
 use tracing::{info, warn};
@@ -610,12 +611,56 @@ fn wire_screen_channel(dc: Arc<webrtc::data_channel::RTCDataChannel>) {
     }));
 }
 
+static INPUT_DC: Mutex<Option<Arc<webrtc::data_channel::RTCDataChannel>>> = Mutex::new(None);
+static LAST_CURSOR_SHAPE: Mutex<Option<String>> = Mutex::new(None);
+
+pub fn input_cursor_publish(shape: &str) {
+    let shape = shape.trim();
+    if shape.is_empty() {
+        return;
+    }
+    {
+        let mut last = LAST_CURSOR_SHAPE.lock().unwrap_or_else(|e| e.into_inner());
+        if last.as_deref() == Some(shape) {
+            return;
+        }
+        *last = Some(shape.to_string());
+    }
+    let dc = INPUT_DC
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
+    let Some(dc) = dc else { return };
+    let evt = RemoteCursorEvent {
+        shape: shape.to_string(),
+    };
+    let bytes = pb_encode(&evt);
+    tokio::spawn(async move {
+        if let Err(e) = dc.send(&Bytes::from(bytes)).await {
+            warn!("remote-input cursor send failed: {e}");
+        }
+    });
+}
+
 fn wire_input_channel(dc: Arc<webrtc::data_channel::RTCDataChannel>) {
+    {
+        let mut slot = INPUT_DC.lock().unwrap_or_else(|e| e.into_inner());
+        *slot = Some(Arc::clone(&dc));
+    }
+    *LAST_CURSOR_SHAPE.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    dc.on_close(Box::new(|| {
+        let mut slot = INPUT_DC.lock().unwrap_or_else(|e| e.into_inner());
+        *slot = None;
+        *LAST_CURSOR_SHAPE.lock().unwrap_or_else(|e| e.into_inner()) = None;
+        Box::pin(async {})
+    }));
     dc.on_message(Box::new(|msg: DataChannelMessage| {
         let data = msg.data.to_vec();
         Box::pin(async move {
             if let Ok(evt) = pb_decode::<c35_proto::RemoteInputEvent>(&data) {
-                dispatch_input(&evt);
+                if !evt.event_type.is_empty() {
+                    dispatch_input(&evt);
+                }
             }
         })
     }));

@@ -143,7 +143,7 @@ Separate from referral commission codes. Marketing / trials / custom packages.
 | audience | Fields | UI |
 |----------|--------|-----|
 | `single` | One redemption total | After use: **"Used by …"** |
-| `multi` | `max_claims_total`, `valid_from` / `valid_to` | List of users who claimed |
+| `multi` | `max_claims_total`, `valid_from` / `valid_to` (optional for evergreen `signup_trial`) | List of users who claimed |
 
 ### Common fields
 

@@ -23,6 +23,9 @@ enum FsFrameKind {
 }
 
 pub fn fs_dispatch(data: &[u8]) -> Vec<u8> {
+    if let Some(kind) = super::media::media_frame_kind(data) {
+        return super::media::media_dispatch(kind, data);
+    }
     match fs_frame_kind(data) {
         FsFrameKind::List => {
             let req = match Message::decode(data) {

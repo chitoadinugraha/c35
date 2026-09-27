@@ -7,6 +7,7 @@ import 'package:alienai_c35/c/config.dart';
 import 'package:alienai_c35/c/hint/hint_store.dart';
 import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/c/session.dart';
+import 'package:alienai_c35/c/device/device_store.dart';
 import 'package:alienai_c35/c/site/site_store.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:flutter/foundation.dart';
@@ -378,6 +379,7 @@ class AuthService extends ChangeNotifier {
     }
     await HintStore.instance.clearForUid(uid);
     await siteListCacheClear(uid);
+    await deviceListCacheClear(uid);
     await Session.instance.clear(clearStored: clearStored);
     _login = null;
     _sessionLocked = false;

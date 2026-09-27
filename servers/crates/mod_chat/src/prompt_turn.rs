@@ -26,6 +26,7 @@ use crate::inst_cache::inst_list_cached;
 use crate::mention::mention_list_enabled;
 use crate::context_billing::ContextBillingExtra;
 use crate::context_compact::prepare_prompt_history;
+use crate::device_context::bound_device_prompt_prepare;
 use crate::memory::{memory_prompt_merge, memory_retrieve};
 use crate::memory_extract::memory_extract_turn_gate;
 use crate::prompt::thought::thinking_level;
@@ -149,7 +150,7 @@ pub async fn prompt_turn<F, G>(
     nats: Option<&async_nats::Client>,
     owner_iid: i64,
     req_id: &str,
-    req: ReqPrompt,
+    mut req: ReqPrompt,
     locale: &str,
     mut on_delta: F,
     mut on_blocks: G,
@@ -174,6 +175,7 @@ where
     let prepare_started = Instant::now();
     let title = chat_title_from_text(&req.text);
     let chat_id = chat_ensure(pool, owner_iid, req.chat_id, &title).await?;
+    bound_device_prompt_prepare(pool, owner_iid, chat_id, &mut req).await?;
 
     if req.chat_id > 0 {
         let last_msg: Option<(i64, String)> = sqlx::query_as(
@@ -300,6 +302,8 @@ where
         .unwrap_or_else(|| explicit_topic.clone());
     let tool_mode = if req.tool_mode.trim().is_empty() { "agent" } else { req.tool_mode.trim() };
     let inst_scopes = inst_scopes_home();
+    let user_ctx = user_prompt_context_get(pool, owner_iid).await;
+    let locale_eff = if locale.trim().is_empty() { user_ctx.locale.as_str() } else { locale };
     let http = http_client(std::time::Duration::from_secs(30));
     let composed = compose_tools_and_inst_async(
         pool,
@@ -316,12 +320,12 @@ where
         &mention_ctx,
         &caps,
         ComposeTurnOpts::default(),
+        owner_iid,
+        locale_eff,
     )
     .await;
     let site_iid = mention_ctx.default_site_iid;
     let topic_block = topic_inst_block(pool, &topic_id).await;
-    let user_ctx = user_prompt_context_get(pool, owner_iid).await;
-    let locale_eff = if locale.trim().is_empty() { user_ctx.locale.as_str() } else { locale };
     let tz = time_timezone_resolve(&user_ctx.tz, locale_eff, &req.text);
     let time_block = time_prompt_block(&tz);
     let location_block = location_prompt_block(

@@ -209,7 +209,7 @@ After NATS data loss, hydrate republishes all active triggers from YB. Full spec
 | `c35.act.device.{device_iid}.task.run` | server → agent (via JetStream) | `ActDeviceTaskRun` |
 | `c35.ev.device.{device_iid}.task.{run_id}` | agent → server | `EvDeviceTaskProgress` / `EvDeviceTaskDone` |
 | `c35.ev.device.{device_iid}.presence` | agent ↔ server | `EvDevicePresence` (`online` / `offline`) |
-| `c35.user.{owner_iid}.task_run` | server → client WS | `TaskRunPush` fanout |
+| `c35.user.{owner_iid}.app.task_run` | server → client WS | `TaskRunPush` fanout |
 
 Log tail (unchanged): `log.{owner_iid}.{dv}.{topic}` — task steps use `kind=task`, `topic=task_step|task_done|task_fail`.
 

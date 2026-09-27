@@ -29,7 +29,33 @@ use windows::Win32::Graphics::Dxgi::{
 };
 
 static SHARED_CAPTURER: Mutex<Option<DxgiCapturer>> = Mutex::new(None);
+static SHARED_LAST_BGRA: Mutex<Option<(u32, u32, Vec<u8>)>> = Mutex::new(None);
 static DXGI_DISABLED: AtomicBool = AtomicBool::new(false);
+
+pub fn shared_last_bgra_clone() -> Option<(u32, u32, Vec<u8>)> {
+    SHARED_LAST_BGRA.lock().unwrap().clone()
+}
+
+fn bgra_mostly_black(bgra: &[u8]) -> bool {
+    if bgra.len() < 4 {
+        return true;
+    }
+    let mut dark = 0u64;
+    let mut total = 0u64;
+    for px in bgra.chunks_exact(4) {
+        total += 1;
+        if px[0] < 12 && px[1] < 12 && px[2] < 12 {
+            dark += 1;
+        }
+    }
+    total > 0 && dark * 100 / total >= 94
+}
+
+pub fn shared_remember_bgra(w: u32, h: u32, bgra: Vec<u8>) {
+    if bgra.len() >= 4 && w > 0 && h > 0 && !bgra_mostly_black(&bgra) {
+        *SHARED_LAST_BGRA.lock().unwrap() = Some((w, h, bgra));
+    }
+}
 
 pub struct DxgiCapturer {
     device: ID3D11Device,
@@ -39,6 +65,8 @@ pub struct DxgiCapturer {
     width: u32,
     height: u32,
     display_index: u32,
+    /// Last good frame from this duplication session (tool screenshots when the desktop is idle).
+    last_bgra: Option<(u32, u32, Vec<u8>)>,
 }
 
 /// Single process-wide DXGI duplication session (Windows allows one per output).
@@ -60,21 +88,69 @@ pub fn shared_capture_frame(timeout_ms: u32) -> Result<Option<(u32, u32, Vec<u8>
         }
     }
     let capturer = guard.as_mut().unwrap();
-    match capturer.capture_frame(timeout_ms) {
-        Ok(frame) => Ok(frame),
+    let out = match capturer.capture_frame(timeout_ms) {
+        Ok(Some(frame)) => {
+            shared_remember_bgra(frame.0, frame.1, frame.2.clone());
+            Ok(Some(frame))
+        }
+        Ok(None) => Ok(None),
         Err(e) => {
             warn!("DXGI shared capture failed ({e}); resetting capturer");
             *guard = None;
             match DxgiCapturer::new() {
                 Ok(cap) => {
                     *guard = Some(cap);
-                    guard.as_mut().unwrap().capture_frame(timeout_ms)
+                    match guard.as_mut().unwrap().capture_frame(timeout_ms) {
+                        Ok(Some(frame)) => {
+                            shared_remember_bgra(frame.0, frame.1, frame.2.clone());
+                            Ok(Some(frame))
+                        }
+                        other => other,
+                    }
                 }
                 Err(e2) => {
                     DXGI_DISABLED.store(true, Ordering::Relaxed);
                     Err(e2)
                 }
             }
+        }
+    };
+    out
+}
+
+fn ensure_shared_capturer(guard: &mut Option<DxgiCapturer>) -> Result<()> {
+    if guard.is_some() {
+        return Ok(());
+    }
+    match DxgiCapturer::new() {
+        Ok(cap) => {
+            info!("DXGI GPU desktop capture activated (shared)");
+            *guard = Some(cap);
+            Ok(())
+        }
+        Err(e) => {
+            DXGI_DISABLED.store(true, Ordering::Relaxed);
+            bail!("DXGI capture init failed: {e}");
+        }
+    }
+}
+
+/// Fresh desktop grab for chat / tool screenshots when WebRTC video is not streaming.
+/// Does not read the WebRTC frame cache (`SHARED_LAST_BGRA`).
+pub fn shared_capture_for_tool_screenshot() -> Result<(u32, u32, Vec<u8>)> {
+    if DXGI_DISABLED.load(Ordering::Relaxed) {
+        bail!("DXGI capture disabled after repeated failures");
+    }
+    let mut guard = SHARED_CAPTURER.lock().unwrap();
+    ensure_shared_capturer(&mut guard)?;
+    let capturer = guard.as_mut().unwrap();
+    match capturer.capture_for_tool_screenshot() {
+        Ok(frame) => Ok(frame),
+        Err(e) => {
+            warn!("DXGI tool screenshot failed ({e}); resetting capturer");
+            *guard = None;
+            ensure_shared_capturer(&mut guard)?;
+            guard.as_mut().unwrap().capture_for_tool_screenshot()
         }
     }
 }
@@ -137,6 +213,7 @@ impl DxgiCapturer {
                 width: 0,
                 height: 0,
                 display_index,
+                last_bgra: None,
             })
         }
     }
@@ -291,7 +368,26 @@ impl DxgiCapturer {
 
             self.context.Unmap(&staging_tex, 0);
 
+            if !bgra_mostly_black(&bgra_buf) {
+                self.last_bgra = Some((width, height, bgra_buf.clone()));
+            }
+
             Ok(Some((width, height, bgra_buf)))
         }
+    }
+
+    /// Acquire a desktop image for one-off tool screenshots (chat mode, no WebRTC video).
+    pub fn capture_for_tool_screenshot(&mut self) -> Result<(u32, u32, Vec<u8>)> {
+        for &ms in &[16u32, 80, 200, 500, 1000] {
+            match self.capture_frame(ms)? {
+                Some(frame) => return Ok(frame),
+                None => continue,
+            }
+        }
+        if let Some(frame) = self.last_bgra.clone() {
+            debug!(w = frame.0, h = frame.1, "DXGI idle; reusing last frame from agent duplication session");
+            return Ok(frame);
+        }
+        bail!("DXGI could not acquire a desktop frame (desktop idle or session not interactive)")
     }
 }

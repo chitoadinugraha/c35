@@ -330,35 +330,25 @@ pub fn start_video_stream(video_track: Arc<TrackLocalStaticSample>) {
 
             let bitrate = TARGET_BITRATE_BPS.load(Ordering::Relaxed);
 
-            // Dynamic resolution bound based on connection bitrate (up to 4K on LAN)
-            let max_w = if bitrate < 2_000_000 {
-                1280
-            } else if bitrate < 6_000_000 {
-                1920
-            } else if bitrate < 10_000_000 {
-                2560
-            } else {
-                3840
-            };
-
-            // 1. Capture screen frame (shared GPU DXGI first, fallback to GDI raw)
+            // 1. Capture screen frame (shared GPU DXGI first, fallback to GDI raw at native res)
             let captured = match crate::dxgi_capture::shared_capture_frame(10) {
                 Ok(Some((src_w, src_h, bgra))) => Some((src_w, src_h, bgra)),
                 Ok(None) => None,
-                Err(_) => crate::screen_capture::capture_screen_gdi_raw(max_w).ok(),
+                Err(_) => crate::screen_capture::capture_screen_gdi_raw(0).ok(),
             };
 
             let (src_w, src_h, bgra_buf) = match captured {
                 Some(c) => {
+                    crate::dxgi_capture::shared_remember_bgra(c.0, c.1, c.2.clone());
                     last_frame = Some(c.clone());
                     idle_ticks = 0;
                     c
                 }
                 None => {
                     idle_ticks += 1;
-                    // Send periodic heartbeat frame every 15 idle ticks (~0.5s) to maintain WebRTC video decoder pipeline
                     if idle_ticks % 15 == 0 {
                         if let Some(prev) = &last_frame {
+                            crate::dxgi_capture::shared_remember_bgra(prev.0, prev.1, prev.2.clone());
                             prev.clone()
                         } else {
                             continue;
@@ -369,9 +359,9 @@ pub fn start_video_stream(video_track: Arc<TrackLocalStaticSample>) {
                 }
             };
 
-            // Scale target resolution while maintaining aspect ratio and even dimensions
+            // Encode at native capture size; TARGET_BITRATE_BPS controls sharpness vs bandwidth.
             let aspect = src_w as f64 / src_h.max(1) as f64;
-            let target_w = ((src_w.min(max_w) / 2) * 2).max(640);
+            let target_w = ((src_w / 2) * 2).max(640);
             let target_h = (((target_w as f64 / aspect).round() as u32 / 2) * 2).max(360);
 
             // Lazy initialize or reinitialize encoder if dimensions/bitrate change
