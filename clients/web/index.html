@@ -187,17 +187,10 @@
                     </div>
                   </a>
                   <a href="/download/alienai-app.zip" class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-white hover:bg-white/10 transition font-medium">
-                    <span class="text-sm">⚡</span>
-                    <div>
-                      <div class="font-semibold" data-i18n="dl.app.win.directExe">Download .EXE</div>
-                      <div class="text-[10px] text-slate-400" data-i18n="dl.app.win.directExeDesc">Direct installer</div>
-                    </div>
-                  </a>
-                  <a href="/download/app.msi" class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-white hover:bg-white/10 transition font-medium">
                     <span class="text-sm">📦</span>
                     <div>
-                      <div class="font-semibold" data-i18n="dl.app.win.directMsi">Download .MSI</div>
-                      <div class="text-[10px] text-slate-400" data-i18n="dl.app.win.directMsiDesc">Windows Installer package</div>
+                      <div class="font-semibold" data-i18n="dl.app.win.directZip">Download .ZIP</div>
+                      <div class="text-[10px] text-slate-400" data-i18n="dl.app.win.directZipDesc">Sideload update package</div>
                     </div>
                   </a>
                 </div>
@@ -246,7 +239,7 @@
             </div>
             
             <div class="flex flex-wrap items-center gap-2.5">
-              <a href="/download/alienai.zip" class="px-4 py-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-white font-semibold text-xs transition flex items-center gap-2 border border-emerald-400/30 shadow-sm">
+              <a href="/download/agent.exe" class="px-4 py-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-white font-semibold text-xs transition flex items-center gap-2 border border-emerald-400/30 shadow-sm">
                 <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.901-1.8"/></svg>
                 <span data-i18n="dl.agent.win.installer">Install for Windows</span>
               </a>
@@ -262,13 +255,6 @@
                     <div>
                       <div class="font-semibold" data-i18n="dl.agent.win.otaZip">OTA package (.zip)</div>
                       <div class="text-[10px] text-slate-400" data-i18n="dl.agent.win.otaZipDesc">Auto-update bundle only — not for first install</div>
-                    </div>
-                  </a>
-                  <a href="/download/agent.msi" class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-white hover:bg-white/10 transition font-medium">
-                    <span class="text-sm">📦</span>
-                    <div>
-                      <div class="font-semibold" data-i18n="dl.agent.win.directMsi">Download .MSI</div>
-                      <div class="text-[10px] text-slate-400" data-i18n="dl.agent.win.directMsiDesc">Enterprise MSI package</div>
                     </div>
                   </a>
                   <button type="button" onclick="copyPs1Command(event)" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-white hover:bg-white/10 transition font-medium text-left group">
@@ -521,7 +507,7 @@
     // Copy PowerShell 1-Liner command for Windows Remote Control
     function copyPs1Command(event) {
       if (event) event.stopPropagation();
-      const cmd = "$z=Join-Path $env:TEMP 'alienai.zip'; $d=Join-Path $env:TEMP 'alienai-remote'; iwr https://alienai.id/download/alienai.zip -OutFile $z; Expand-Archive -Force $z $d; Start-Process (Join-Path $d 'c_remote_windows.exe')";
+      const cmd = "powershell -NoProfile -ExecutionPolicy Bypass -Command \"Invoke-WebRequest https://alienai.id/download/agent-update.ps1 -OutFile $env:TEMP\\agent-update.ps1; & $env:TEMP\\agent-update.ps1\"";
       navigator.clipboard.writeText(cmd).then(() => {
         const badge = document.getElementById('ps1CopyBadge');
         if (badge) {
