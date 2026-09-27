@@ -230,9 +230,11 @@ pub async fn prompt_cluster_turn(
                 let turn_ctx_ref = turn_ctx.as_deref();
                 async move {
                     let tool_started = Instant::now();
-                    let (result, tool_cost) = cluster_tool_exec(client, name, args, turn_ctx_ref).await;
+                    let tool_call_id = snowflake_id().to_string();
+                    let (result, tool_cost) =
+                        cluster_tool_exec(client, name, args, turn_ctx_ref, Some(&tool_call_id)).await;
                     let tool_ms = tool_started.elapsed().as_millis() as i64;
-                    (name.clone(), args.clone(), result, tool_cost, tool_ms)
+                    (name.clone(), args.clone(), result, tool_cost, tool_ms, tool_call_id)
                 }
             }))
             .await;
@@ -247,11 +249,11 @@ pub async fn prompt_cluster_turn(
             let mut function_parts = Vec::with_capacity(executions.len());
             let mut latest_img_b64 = None;
 
-            for (name, args, result, tool_cost, tool_ms) in executions {
+            for (name, args, result, tool_cost, tool_ms, tool_call_id) in executions {
                 tools_cost_usd += tool_cost;
                 let ok = result.get("ok").and_then(|v| v.as_bool()).unwrap_or(true);
                 if let Some(tr) = tracer {
-                    tr.tool_result(&name, &snowflake_id().to_string(), &args, &result, ok, tool_ms).await;
+                    tr.tool_result(&name, &tool_call_id, &args, &result, ok, tool_ms).await;
                 }
                 if let Some(block) = result.get("block") {
                     blocks_json = append_block(&blocks_json, block.clone());
@@ -357,7 +359,7 @@ pub async fn prompt_cluster_turn(
             emit_thought(on_delta, &mut thought, "Using consumption.today…\n");
             let tool_started = Instant::now();
             let (result, tool_cost) =
-                cluster_tool_exec(&client, "consumption.today", &args, turn_ctx.as_deref()).await;
+                cluster_tool_exec(&client, "consumption.today", &args, turn_ctx.as_deref(), None).await;
             tools_cost_usd += tool_cost;
             let tool_ms = tool_started.elapsed().as_millis() as i64;
             let ok = result.get("ok").and_then(|v| v.as_bool()).unwrap_or(true);
@@ -569,7 +571,7 @@ async fn tool_loop_run_web_search(
     emit_thought(on_delta, thought, "Using web.search…\n");
     let args = json!({ "query": q, "limit": 6 });
     let tool_started = Instant::now();
-    let (result, tool_cost) = cluster_tool_exec(client, "web.search", &args, turn_ctx).await;
+    let (result, tool_cost) = cluster_tool_exec(client, "web.search", &args, turn_ctx, None).await;
     *tools_cost_usd += tool_cost;
     let tool_ms = tool_started.elapsed().as_millis() as i64;
     let ok = result.get("ok").and_then(|v| v.as_bool()).unwrap_or(true);
@@ -585,7 +587,7 @@ async fn tool_loop_run_web_search(
             emit_thought(on_delta, thought, "Using web.visit…\n");
             let visit_args = json!({ "url": url });
             let visit_started = Instant::now();
-            let (visit_result, visit_cost) = cluster_tool_exec(client, "web.visit", &visit_args, turn_ctx).await;
+            let (visit_result, visit_cost) = cluster_tool_exec(client, "web.visit", &visit_args, turn_ctx, None).await;
             *tools_cost_usd += visit_cost;
             let visit_ms = visit_started.elapsed().as_millis() as i64;
             let visit_ok = visit_result.get("ok").and_then(|v| v.as_bool()).unwrap_or(true);

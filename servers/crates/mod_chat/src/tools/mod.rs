@@ -3,6 +3,7 @@ pub mod context;
 pub mod definition;
 pub mod dispatcher;
 pub mod egress_http;
+pub mod device_screenshot_artifact;
 pub mod img;
 pub mod image_tier;
 pub mod macros;
@@ -23,7 +24,8 @@ use crate::mention_context::MentionContext;
 
 use builtin::{
     ComputerUseDelegateTool, ConsumptionAddTool, ConsumptionDeleteTool, ConsumptionTodayTool,
-    ConsumptionUpdateTool, DelegateRunTool, DeviceCommandTool, DeviceInputTool, DeviceScreenshotTool,
+    ConsumptionUpdateTool, DelegateRunTool, DeviceCommandTool, DeviceFsListTool, DeviceFsReadTool,
+    DeviceInputTool, DeviceScreenshotTool,
     ExpenseAddTool, ExpenseDeleteTool, ExpenseSummaryTool, ImgEditTool, ImgGenerateTool, PresentationExportTool,
     ReferralCodeDeleteTool, ReferralCodeListTool, ReferralCodePutTool, ReferralTreeGetTool, SiteContactPutTool,
     SiteDraftPutTool, SiteObjectPutTool, SiteProductPatchTool, SiteProductPutTool, SitePublishTool, SiteQueryRunTool,
@@ -113,6 +115,8 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(ExpenseSummaryTool));
     dispatcher.register(Arc::new(ExpenseDeleteTool));
     dispatcher.register(Arc::new(DeviceCommandTool));
+    dispatcher.register(Arc::new(DeviceFsListTool));
+    dispatcher.register(Arc::new(DeviceFsReadTool));
     dispatcher.register(Arc::new(DeviceInputTool));
     dispatcher.register(Arc::new(DeviceScreenshotTool));
     dispatcher.register(Arc::new(SiteDraftPutTool));
@@ -208,10 +212,17 @@ pub async fn cluster_tool_exec(
     name: &str,
     args: &Value,
     ctx: Option<&TurnCtx<'_>>,
+    tool_call_id: Option<&str>,
 ) -> (Value, f64) {
     let dispatcher = default_dispatcher();
     let tool_ctx = match ctx {
-        Some(turn) => tool_context_from_turn(client.clone(), turn),
+        Some(turn) => {
+            let mut tc = tool_context_from_turn(client.clone(), turn);
+            if let Some(id) = tool_call_id {
+                tc = tc.with_tool_call_id(id);
+            }
+            tc
+        }
         None => ToolContext::new(
             PgPool::connect_lazy("postgres://unused").expect("lazy pool"),
             None,

@@ -40,15 +40,19 @@ export const registerAgentTools = (server: McpServer) => {
       inputSchema: {
         text: z.string().describe("User prompt text"),
         locale: z.string().optional().describe("Locale (default en-US)"),
+        mention_ids: z
+          .array(z.string())
+          .optional()
+          .describe("Composer mention ids (e.g. iid:97279816209936384 for a paired device)"),
         ...ownerSchema,
       },
     },
-    async ({ text, locale, owner_iid, uid }) => {
+    async ({ text, locale, mention_ids, owner_iid, uid }) => {
       const prompt = text.trim();
       if (!prompt) throw new Error("text required");
       const result = await agentPost(
         "prompt_compose",
-        { text: prompt, locale: locale ?? "en-US" },
+        { text: prompt, locale: locale ?? "en-US", mention_ids: mention_ids ?? [] },
         resolveOwnerIid(owner_iid, uid),
       );
       return jsonContent(result);
@@ -63,15 +67,19 @@ export const registerAgentTools = (server: McpServer) => {
       inputSchema: {
         text: z.string().describe("User prompt text"),
         locale: z.string().optional().describe("Locale (default id-ID or en-US)"),
+        mention_ids: z
+          .array(z.string())
+          .optional()
+          .describe("Composer mention ids (e.g. iid:97279816209936384 for a paired device)"),
         ...ownerSchema,
       },
     },
-    async ({ text, locale, owner_iid, uid }) => {
+    async ({ text, locale, mention_ids, owner_iid, uid }) => {
       const prompt = text.trim();
       if (!prompt) throw new Error("text required");
       const result = await agentPost(
         "prompt_run",
-        { text: prompt, locale: locale ?? "en-US" },
+        { text: prompt, locale: locale ?? "en-US", mention_ids: mention_ids ?? [] },
         resolveOwnerIid(owner_iid, uid),
       );
       if (result.ok === false && (result.status === 404 || String(result.error ?? "").includes("not found"))) {

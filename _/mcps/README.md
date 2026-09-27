@@ -58,6 +58,9 @@ Use the **same** key in MCP config env. Restart `dev_server.ps1` after server or
 | `prompt_compose` | Inst + tool pick preview + compose trace |
 | `prompt_run` | Full prompt turn + inline **trace** (`trace.lines`, `trace.trace`) |
 | `inst_list` / `inst_get` / `inst_put` / `inst_delete` | `ai.inst` CRUD |
+| `device_screenshot` / `device_command` / `device_input` | Remote device tools (`device_iid` string snowflake ok; screenshot supports `som`, `marker_x/y`) |
+| `tool_artifact_list` / `tool_artifact_fetch` | CAS screenshot artifacts (14d) for a `req_id` |
+| `trace_screenshot` | Latest screenshot artifact for a turn; use `save_path` to write `.jpg` for vision debug |
 
 ## Indexes (fast tail)
 

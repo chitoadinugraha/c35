@@ -22,6 +22,8 @@ pub struct ToolContext {
     pub location_country: String,
     pub attachments_json: String,
     pub req_id: String,
+    /// Same id as `TurnTracer::tool_result` when set by `cluster_tool_exec`.
+    pub tool_call_id: String,
     pub http_client: Client,
     /// Set for `/v1/mcp/agent` tool_exec (skips freemium block on operator device tools).
     pub mcp_agent: bool,
@@ -61,6 +63,7 @@ impl ToolContext {
             location_country: location_country.into(),
             attachments_json: attachments_json.into(),
             req_id: req_id.into(),
+            tool_call_id: String::new(),
             http_client,
             mcp_agent: false,
             title_slot: None,
@@ -69,6 +72,11 @@ impl ToolContext {
 
     pub fn with_mcp_agent(mut self, mcp_agent: bool) -> Self {
         self.mcp_agent = mcp_agent;
+        self
+    }
+
+    pub fn with_tool_call_id(mut self, tool_call_id: impl Into<String>) -> Self {
+        self.tool_call_id = tool_call_id.into();
         self
     }
 

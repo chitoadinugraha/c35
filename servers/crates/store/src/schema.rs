@@ -13,6 +13,7 @@ pub const SITE_SQL: &str = include_str!("../../../../_/schemas/site.sql");
 pub const MAIL_SQL: &str = include_str!("../../../../_/schemas/mail.sql");
 pub const TX_SQL: &str = include_str!("../../../../_/schemas/tx.sql");
 pub const FILE_SQL: &str = include_str!("../../../../_/schemas/file.sql");
+pub const TOOL_ARTIFACT_SQL: &str = include_str!("../../../../_/schemas/tool_artifact.sql");
 pub const INST_SQL: &str = include_str!("../../../../_/schemas/inst.sql");
 pub const TOPIC_SQL: &str = include_str!("../../../../_/schemas/topic.sql");
 pub const MENTION_SQL: &str = include_str!("../../../../_/schemas/mention.sql");
@@ -47,6 +48,7 @@ pub const SCHEMA_APPLY_ORDER: &[(&str, &str)] = &[
     ("site", SITE_SQL),
     ("tx", TX_SQL),
     ("file", FILE_SQL),
+    ("tool_artifact", TOOL_ARTIFACT_SQL),
     ("channel", CHANNEL_SQL),
     ("config", CONFIG_SQL),
     ("ops", OPS_SQL),

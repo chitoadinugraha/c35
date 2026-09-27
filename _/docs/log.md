@@ -88,4 +88,30 @@ Admin/global tail uses server-side query or NATS — not full log sync to client
 (chat_id, created_ts DESC)       -- per-chat history
 (req_id)                         -- trace lookup
 (owner_iid, kind, created_ts DESC) -- filtered views
+(meta->>'tool', created_ts DESC) -- partial: kind=tool, class=trace (migration 20260927)
+```
+
+---
+
+## Tool execution analytics
+
+Cluster tool hops are stored as **`kind=tool`**, **`class=trace`**, with **`meta.tool`** (dotted id, e.g. `device.screenshot`) and **`meta.ok`**; failures also use **`topic=tool_error`**. Voice or other tool rows without **`meta.tool`** are excluded from tool usage reports.
+
+**Device screenshots:** `device.screenshot` / `device.input` (with image) set **`meta.screenshot`** `{ hash, url, width, height, som, marker }` on the tool row; JPEG bytes live in CAS + **`ai.tool_artifact`** (14d TTL). `output_preview` omits `image_base64`.
+
+**Admin RPC:** `ReqAdminLogReport` with **`group_tools=true`** (root only, same `since_ms` / `until_ms` / optional `owner_iid` / `limit` as the log summary). Response widgets add:
+
+- Total tool executions in range
+- Table **`tool_id | calls | ok | fail | avg_ms`** (top N by call count)
+- Weekly call totals (UTC week start, last 12 weeks in range)
+
+**Ad-hoc SQL** (same filters as the report):
+
+```sql
+SELECT meta->>'tool' AS tool_id, COUNT(*) AS calls
+FROM ai.log
+WHERE deleted_ts IS NULL AND kind = 'tool' AND class = 'trace'
+  AND COALESCE(meta->>'tool', '') <> ''
+  AND created_ts >= NOW() - INTERVAL '30 days'
+GROUP BY 1 ORDER BY 2 DESC;
 ```

@@ -664,6 +664,7 @@ dependencies = [
  "blake3",
  "c35_ctx",
  "c35_mod_identity",
+ "c35_store",
  "chrono",
  "dotenvy",
  "image",

@@ -5,6 +5,9 @@ use c35_mod_log::{log_put, LogPut};
 use serde_json::Value;
 use sqlx::PgPool;
 
+use crate::tools::device_screenshot_artifact::{
+    tool_result_preview_trim, tool_screenshot_log_text, tool_screenshot_meta_from_result,
+};
 use crate::compose::ComposeTrace;
 use crate::memory::MemoryRetrieveTrace;
 
@@ -215,31 +218,43 @@ impl TurnTracer {
         let hop = self.hop.lock().map(|h| *h).unwrap_or(1);
         let step = hop as u32 + 1;
         let tool_id = tool.replace('_', ".");
-        let preview = serde_json::to_string(result).unwrap_or_default();
+        let slim = tool_result_preview_trim(result);
+        let preview = serde_json::to_string(&slim).unwrap_or_default();
         let preview = if preview.len() > 4000 {
-            format!("{}â€¦", preview.chars().take(4000).collect::<String>())
+            format!("{}…", preview.chars().take(4000).collect::<String>())
         } else {
             preview
         };
+        let text = if tool_screenshot_meta_from_result(result).is_some() {
+            tool_screenshot_log_text(&tool_id, result)
+        } else {
+            preview.clone()
+        };
         let topic = if ok { "tool_result" } else { "tool_error" };
+        let mut meta = serde_json::json!({
+            "topic": topic,
+            "step": step,
+            "hop": hop,
+            "branch": tool_id,
+            "parallel": true,
+            "parallel_group": format!("hop_{hop}"),
+            "tool": tool_id,
+            "tool_call_id": tool_call_id,
+            "args": args,
+            "ok": ok,
+            "output_preview": preview,
+            "duration_ms": duration_ms,
+        });
+        if let Some(screenshot) = tool_screenshot_meta_from_result(result) {
+            if let Some(obj) = meta.as_object_mut() {
+                obj.insert("screenshot".into(), screenshot);
+            }
+        }
         self.put(
             "tool",
             topic,
-            &preview,
-            serde_json::json!({
-                "topic": topic,
-                "step": step,
-                "hop": hop,
-                "branch": tool_id,
-                "parallel": true,
-                "parallel_group": format!("hop_{hop}"),
-                "tool": tool_id,
-                "tool_call_id": tool_call_id,
-                "args": args,
-                "ok": ok,
-                "output_preview": preview,
-                "duration_ms": duration_ms,
-            }),
+            &text,
+            meta,
             "",
             0,
             0,

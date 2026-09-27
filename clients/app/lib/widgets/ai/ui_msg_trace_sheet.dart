@@ -4,6 +4,7 @@ import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/trace/trace_view.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/ui/ui_format.dart';
+import 'package:alienai_c35/widgets/ai/msg_trace_view.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_id.dart';
 import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
@@ -178,28 +179,58 @@ class _StepTile extends StatelessWidget {
       );
 }
 
-class _BranchRow extends StatelessWidget {
+class _BranchRow extends StatefulWidget {
   const _BranchRow({required this.branch});
   final TraceBranch branch;
 
   @override
+  State<_BranchRow> createState() => _BranchRowState();
+}
+
+class _BranchRowState extends State<_BranchRow> {
+  var _previewExpanded = false;
+
+  @override
   Widget build(BuildContext context) {
+    final branch = widget.branch;
     final ms = uiFmtDurationMs(branch.durationMs);
     final price = branch.costUsd > 0 ? moneyCostLabel(branch.costUsd) : '';
     final usage = [if (branch.tokensIn > 0) '${uiFmtGroupedInt(branch.tokensIn)}↑', if (branch.tokensOut > 0) '${uiFmtGroupedInt(branch.tokensOut)}↓', if (ms.isNotEmpty) ms, if (price.isNotEmpty) price].join('  ');
+    final canPreview = branch.hasScreenshotPreview;
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('|-', style: TextStyle(color: branch.ok ? const Color(0xFF52525B) : Colors.orange, fontSize: 12, fontFamily: 'Consolas')),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              '${branch.label}${usage.isNotEmpty ? '  $usage' : ''}',
-              style: TextStyle(color: branch.ok ? const Color(0xFFA1A1AA) : Colors.orange, fontSize: 12, height: 1.35),
+          InkWell(
+            onTap: canPreview ? () => setState(() => _previewExpanded = !_previewExpanded) : null,
+            borderRadius: BorderRadius.circular(4),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('|-', style: TextStyle(color: branch.ok ? const Color(0xFF52525B) : Colors.orange, fontSize: 12, fontFamily: 'Consolas')),
+                  const SizedBox(width: 6),
+                  if (canPreview) ...[
+                    Icon(_previewExpanded ? Icons.expand_more_rounded : Icons.chevron_right_rounded, size: 14, color: const Color(0xFF71717A)),
+                    const SizedBox(width: 2),
+                  ],
+                  Expanded(
+                    child: Text(
+                      '${branch.label}${usage.isNotEmpty ? '  $usage' : ''}',
+                      style: TextStyle(color: branch.ok ? const Color(0xFFA1A1AA) : Colors.orange, fontSize: 12, height: 1.35),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
+          if (_previewExpanded && branch.screenshot != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 28, top: 6, bottom: 4),
+              child: UiTraceScreenshotPreview(screenshot: branch.screenshot!, maxWidth: 320),
+            ),
         ],
       ),
     );

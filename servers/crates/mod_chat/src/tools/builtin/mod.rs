@@ -18,7 +18,9 @@ pub use expense::{ExpenseAddTool, ExpenseDeleteTool, ExpenseSummaryTool};
 pub use delegate::{
     delegate_child_row, delegate_result_json, ComputerUseDelegateTool, DelegateRunTool,
 };
-pub use device::{DeviceCommandTool, DeviceInputTool, DeviceScreenshotTool};
+pub use device::{
+    DeviceCommandTool, DeviceFsListTool, DeviceFsReadTool, DeviceInputTool, DeviceScreenshotTool,
+};
 pub use img_edit::ImgEditTool;
 pub use img_generate::ImgGenerateTool;
 pub use presentation_export::PresentationExportTool;

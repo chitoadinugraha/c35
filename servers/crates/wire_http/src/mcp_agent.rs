@@ -5,8 +5,9 @@ use axum::routing::post;
 use axum::{Json, Router};
 use c35_ctx::AppState;
 use c35_mod_chat::{
-    mcp_agent_allowed_owners, mcp_agent_owner_allowed, mcp_prompt_compose, mcp_prompt_run, mcp_tool_exec,
-    DEFAULT_TEST_OWNER_IID,
+    mcp_agent_allowed_owners, mcp_agent_owner_allowed, mcp_prompt_compose, mcp_prompt_run,
+    mcp_json_i64, mcp_tool_artifact_fetch, mcp_tool_artifact_list, mcp_tool_exec,
+    mcp_trace_screenshot, DEFAULT_TEST_OWNER_IID,
 };
 use c35_store::snowflake_id;
 use serde::Deserialize;
@@ -73,6 +74,8 @@ struct McpAgentBody {
     req_id: String,
     #[serde(default)]
     chat_id: i64,
+    #[serde(default)]
+    mention_ids: Vec<String>,
 }
 
 async fn mcp_agent_post(
@@ -147,16 +150,15 @@ async fn mcp_agent_post(
                 )
                     .into_response();
             }
-            mcp_prompt_compose(&st.pool, owner_iid, &body.text, locale).await
+            mcp_prompt_compose(&st.pool, owner_iid, &body.text, locale, &body.mention_ids).await
         }
         "device_list" => c35_mod_device::mcp_device_list(&st.pool, owner_iid).await,
         "client_list" => c35_mod_device::mcp_client_list(&st.pool, owner_iid).await,
+        "tool_artifact_list" => mcp_tool_artifact_list(&st.pool, owner_iid, &body.args_json).await,
+        "tool_artifact_fetch" => mcp_tool_artifact_fetch(&st.pool, owner_iid, &body.args_json).await,
+        "trace_screenshot" => mcp_trace_screenshot(&st.pool, owner_iid, &body.args_json).await,
         "device_get" => {
-            let device_iid = body
-                .args_json
-                .get("device_iid")
-                .and_then(|v| v.as_i64())
-                .unwrap_or(0);
+            let device_iid = mcp_json_i64(&body.args_json, "device_iid").unwrap_or(0);
             if device_iid <= 0 {
                 return (
                     StatusCode::BAD_REQUEST,
@@ -182,6 +184,7 @@ async fn mcp_agent_post(
                 locale,
                 &req_id,
                 body.chat_id,
+                &body.mention_ids,
             )
             .await
         }
@@ -197,7 +200,10 @@ async fn mcp_agent_post(
                         "prompt_run",
                         "device_list",
                         "device_get",
-                        "client_list"
+                        "client_list",
+                        "tool_artifact_list",
+                        "tool_artifact_fetch",
+                        "trace_screenshot"
                     ],
                 })),
             )

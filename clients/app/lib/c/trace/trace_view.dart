@@ -12,6 +12,59 @@ class TraceToolFilterCandidate {
   final bool fed;
 }
 
+class TraceScreenshot {
+  const TraceScreenshot({this.hash = '', this.url = '', this.width = 0, this.height = 0, this.som = false, this.marker = false});
+  final String hash;
+  final String url;
+  final int width;
+  final int height;
+  final bool som;
+  final bool marker;
+
+  bool get hasPreview => hash.trim().isNotEmpty || url.trim().isNotEmpty;
+  String get imageSrc => traceScreenshotImageSrc(hash: hash, url: url);
+}
+
+String traceScreenshotImageSrc({String hash = '', String url = ''}) {
+  final u = url.trim();
+  if (u.isNotEmpty) return u;
+  final h = hash.trim();
+  if (h.isEmpty) return '';
+  if (h.startsWith('http://') || h.startsWith('https://') || h.startsWith('/fs/')) return h;
+  return '/fs/$h';
+}
+
+TraceScreenshot? traceScreenshotFromLog(TraceLogDoc log) {
+  final raw = log.meta['screenshot'];
+  if (raw is Map) {
+    final hash = _asStr(raw['hash']);
+    final url = _asStr(raw['url']);
+    if (hash.isNotEmpty || url.isNotEmpty) {
+      return TraceScreenshot(
+        hash: hash,
+        url: url,
+        width: _asInt(raw['width']),
+        height: _asInt(raw['height']),
+        som: raw['som'] == true,
+        marker: raw['marker'] == true,
+      );
+    }
+  }
+  final json = traceToolJsonFromLog(log);
+  if (json == null) return null;
+  final hash = _asStr(json['image_hash']);
+  final url = _asStr(json['image_url']);
+  if (hash.isEmpty && url.isEmpty) return null;
+  return TraceScreenshot(
+    hash: hash,
+    url: url,
+    width: _asInt(json['width']),
+    height: _asInt(json['height']),
+    som: json['som'] == true,
+    marker: json['marker'] == true,
+  );
+}
+
 class TraceBranch {
   const TraceBranch({
     required this.label,
@@ -27,6 +80,7 @@ class TraceBranch {
     this.droppedGap = const [],
     this.ragSkipped = false,
     this.ragSkipReason = '',
+    this.screenshot,
   });
   final String label;
   final bool isTool;
@@ -41,8 +95,10 @@ class TraceBranch {
   final List<TraceToolFilterCandidate> droppedGap;
   final bool ragSkipped;
   final String ragSkipReason;
+  final TraceScreenshot? screenshot;
 
   bool get hasToolFilterDetail => toolCandidates.isNotEmpty || droppedGap.isNotEmpty;
+  bool get hasScreenshotPreview => screenshot?.hasPreview ?? false;
 }
 
 class TraceStep {
@@ -254,6 +310,7 @@ TraceBranch _branchFromLog(TraceLogDoc log) {
     tokensOut: log.tokensOut,
     ok: meta['ok'] as bool? ?? log.topic != 'tool_error',
     detail: log.text.length > 120 ? '${log.text.substring(0, 120)}…' : log.text,
+    screenshot: isTool ? traceScreenshotFromLog(log) : null,
   );
 }
 
@@ -391,19 +448,22 @@ List<MsgTraceToolChip> traceToolChipsFromView(TraceView view) {
     if (step.title == 'Prepare') continue;
     for (final b in step.branches) {
       if (!b.isTool || b.label.isEmpty) continue;
-      if (!seen.add(b.label)) continue;
-      out.add(MsgTraceToolChip(label: b.label, ok: b.ok, durationMs: b.durationMs, iconUrl: b.iconUrl));
+      if (!seen.add('${step.index}|${b.label}')) continue;
+      out.add(MsgTraceToolChip(label: b.label, ok: b.ok, durationMs: b.durationMs, iconUrl: b.iconUrl, screenshot: b.screenshot));
     }
   }
   return out;
 }
 
 class MsgTraceToolChip {
-  const MsgTraceToolChip({required this.label, this.ok = true, this.durationMs = 0, this.iconUrl = ''});
+  const MsgTraceToolChip({required this.label, this.ok = true, this.durationMs = 0, this.iconUrl = '', this.screenshot});
   final String label;
   final bool ok;
   final int durationMs;
   final String iconUrl;
+  final TraceScreenshot? screenshot;
+
+  bool get hasScreenshotPreview => screenshot?.hasPreview ?? false;
 }
 
 class Citation {

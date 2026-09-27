@@ -87,7 +87,7 @@ async fn test_parallel_tool_dispatch_and_response_format() {
         let client = &client;
         async move {
             let tool_started = Instant::now();
-            let (result, tool_cost) = cluster_tool_exec(client, name, args, None).await;
+            let (result, tool_cost) = cluster_tool_exec(client, name, args, None, None).await;
             let tool_ms = tool_started.elapsed().as_millis() as i64;
             (name.clone(), args.clone(), result, tool_cost, tool_ms)
         }

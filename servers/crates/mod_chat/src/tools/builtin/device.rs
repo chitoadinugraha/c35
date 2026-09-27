@@ -1,8 +1,19 @@
 use crate::tool;
+use crate::tools::device_screenshot_artifact::device_screenshot_attach_artifact;
 use c35_mod_device::{
-    remote_device_command_run, remote_device_input_send, remote_device_screenshot_capture,
+    remote_device_command_run, remote_device_fs_list, remote_device_fs_read, remote_device_input_send,
+    remote_device_screenshot_capture,
 };
 use serde_json::{json, Value};
+
+fn arg_i64(v: &Value, key: &str) -> i64 {
+    match v.get(key) {
+        Some(x) if x.is_i64() => x.as_i64().unwrap_or(0),
+        Some(x) if x.is_u64() => x.as_u64().unwrap_or(0) as i64,
+        Some(x) => x.as_str().and_then(|s| s.trim().parse().ok()).unwrap_or(0),
+        None => 0,
+    }
+}
 
 fn device_fail_class(error: &str) -> (&'static str, bool) {
     let e = error.to_lowercase();
@@ -37,8 +48,8 @@ tool! {
     name: "device.command",
     aliases: ["device_command", "run_command_on_device", "exec_device"],
     description: "Run a shell or PowerShell command on a user's paired remote device (e.g. Chito-PC). Prefer this for bulk or repetitive data work (export, join, transform, spreadsheet load); use device.input for one-off UI steps only. Returns command execution stdout, stderr, and exit code.",
-    topics: ["computer_use"],
-    always: ["computer_use"],
+    topics: ["device", "computer_use"],
+    always: ["device", "computer_use"],
     ui_calling_key: "tool.device.command.calling",
     ui_done_key: "tool.device.command.done",
     parameters: {
@@ -47,7 +58,7 @@ tool! {
         timeout_sec: (integer, "Execution timeout in seconds (default 15, max 60)", optional),
     },
     execute: |args, ctx| {
-        let device_iid = args["device_iid"].as_i64().unwrap_or(0);
+        let device_iid = arg_i64(&args, "device_iid");
         let command = args["command"].as_str().unwrap_or_default().trim();
         let timeout_sec = args["timeout_sec"].as_i64().unwrap_or(15).clamp(1, 60) as u32;
         if device_iid <= 0 {
@@ -103,7 +114,7 @@ tool! {
         som: (boolean, "Optional Set-of-Mark (SoM) visual tags and accessibility tree extraction. When true, labels interactive controls with numbered badges and returns exact coordinates.", optional),
     },
     execute: |args, ctx| {
-        let device_iid = args["device_iid"].as_i64().unwrap_or(0);
+        let device_iid = arg_i64(&args, "device_iid");
         if device_iid <= 0 {
             return Ok(device_fail("device_iid is required"));
         }
@@ -144,6 +155,20 @@ tool! {
                 if !res.axtree_text.is_empty() {
                     out["axtree_text"] = json!(res.axtree_text);
                 }
+                let marker_used = marker.is_some();
+                device_screenshot_attach_artifact(
+                    &ctx,
+                    "device.screenshot",
+                    device_iid,
+                    &res.jpeg_bytes,
+                    res.width,
+                    res.height,
+                    som,
+                    marker_used,
+                    res.axtree_text.len(),
+                    &mut out,
+                )
+                .await;
                 Ok(out)
             }
             Err(e) => Ok(device_fail(format!("Failed to request screenshot from device: {e}"))),
@@ -172,7 +197,7 @@ tool! {
         screenshot_after: (boolean, "If true, captures and returns a new screenshot with a red target marker showing where the click landed to verify action", optional),
     },
     execute: |args, ctx| {
-        let device_iid = args["device_iid"].as_i64().unwrap_or(0);
+        let device_iid = arg_i64(&args, "device_iid");
         if device_iid <= 0 {
             return Ok(device_fail("device_iid is required"));
         }
@@ -241,14 +266,140 @@ tool! {
                         "width": res.width,
                         "height": res.height,
                     });
+                    out["width"] = json!(res.width);
+                    out["height"] = json!(res.height);
                     out["image_base64"] = json!(b64);
                     out["mime_type"] = json!("image/jpeg");
                     out["hint"] = json!(format!("Follow-up screenshot captured ({}x{}). Observation is attached with red action marker.", res.width, res.height));
+                    let marker_used = marker.is_some();
+                    device_screenshot_attach_artifact(
+                        &ctx,
+                        "device.input",
+                        device_iid,
+                        &res.jpeg_bytes,
+                        res.width,
+                        res.height,
+                        false,
+                        marker_used,
+                        0,
+                        &mut out,
+                    )
+                    .await;
                 }
             }
         }
 
         Ok(out)
+    }
+}
+
+tool! {
+    struct: DeviceFsListTool,
+    name: "device.fs.list",
+    aliases: ["device_fs_list", "list_device_directory"],
+    description: "List files and folders on a paired remote device. Use normal paths (e.g. C:\\Users). Empty path lists drive roots. For Recycle Bin use path recycle bin or Shell:RecycleBinFolder (not $RecycleBin$). Do not use device.command to list the bin.",
+    topics: ["device", "computer_use"],
+    always: ["device", "computer_use"],
+    readonly: true,
+    parameters: {
+        device_iid: (integer, "Target device identity ID", required),
+        path: (string, "Directory path on the device (empty string lists drives)", optional),
+    },
+    execute: |args, ctx| {
+        let device_iid = arg_i64(&args, "device_iid");
+        if device_iid <= 0 {
+            return Ok(device_fail("device_iid is required"));
+        }
+        let path = args["path"].as_str().unwrap_or_default();
+
+        match remote_device_fs_list(
+            &ctx.pool,
+            ctx.nats.as_ref(),
+            ctx.owner_iid,
+            device_iid,
+            path,
+        ).await {
+            Ok(res) => {
+                if !res.error.is_empty() {
+                    return Ok(device_fail(format!("Failed to list path: {}", res.error)));
+                }
+                let entries: Vec<Value> = res.entries.iter().map(|e| {
+                    json!({
+                        "name": e.name,
+                        "path": e.path,
+                        "is_dir": e.is_dir,
+                        "size": e.size,
+                        "modified_ms": e.modified_ms,
+                    })
+                }).collect();
+                Ok(json!({
+                    "ok": true,
+                    "status": "ok",
+                    "device_iid": device_iid,
+                    "path": path,
+                    "entries": entries,
+                }))
+            }
+            Err(e) => Ok(device_fail(format!("Failed to list directory on device: {e}"))),
+        }
+    }
+}
+
+tool! {
+    struct: DeviceFsReadTool,
+    name: "device.fs.read",
+    aliases: ["device_fs_read", "read_device_file"],
+    description: "Read bytes from a file on a paired remote device. Returns base64 data with mime hint; capped at 256KB per call — use offset for larger files.",
+    topics: ["device", "computer_use"],
+    always: ["device", "computer_use"],
+    readonly: true,
+    parameters: {
+        device_iid: (integer, "Target device identity ID", required),
+        path: (string, "File path on the device", required),
+        offset: (integer, "Byte offset to start reading (default 0)", optional),
+        max_bytes: (integer, "Max bytes to read (default 256KB, server cap 256KB)", optional),
+    },
+    execute: |args, ctx| {
+        let device_iid = arg_i64(&args, "device_iid");
+        if device_iid <= 0 {
+            return Ok(device_fail("device_iid is required"));
+        }
+        let path = args["path"].as_str().unwrap_or_default().trim();
+        if path.is_empty() {
+            return Ok(device_fail("path is required"));
+        }
+        let offset = args["offset"].as_i64().unwrap_or(0).max(0);
+        let max_bytes = args["max_bytes"].as_i64().unwrap_or(0) as i32;
+
+        match remote_device_fs_read(
+            &ctx.pool,
+            ctx.nats.as_ref(),
+            ctx.owner_iid,
+            device_iid,
+            path,
+            offset,
+            max_bytes,
+        ).await {
+            Ok(res) => {
+                if !res.error.is_empty() {
+                    return Ok(device_fail(format!("Failed to read file: {}", res.error)));
+                }
+                use base64::Engine;
+                let b64 = base64::engine::general_purpose::STANDARD.encode(&res.data);
+                Ok(json!({
+                    "ok": true,
+                    "status": "ok",
+                    "device_iid": device_iid,
+                    "path": path,
+                    "offset": offset,
+                    "eof": res.eof,
+                    "mime": res.mime,
+                    "data_base64": b64,
+                    "bytes": res.data.len(),
+                }))
+            }
+            Err(e) => Ok(device_fail(format!("Failed to read file on device: {e}"))),
+        }
     }
 }
 

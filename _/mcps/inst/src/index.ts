@@ -7,6 +7,7 @@ import { registerDeviceTools } from "./device.js";
 import { registerInstTools } from "./inst.js";
 import { registerLogTools } from "./log.js";
 import { registerMsgTools } from "./msg.js";
+import { registerToolArtifactTools } from "./tool_artifact.js";
 
 const server = new McpServer({ name: "c35", version: "0.2.0" });
 
@@ -17,6 +18,7 @@ registerAgentTools(server);
 registerDeviceTools(server);
 registerDeviceAgentTools(server);
 registerClientTools(server);
+registerToolArtifactTools(server);
 
 const main = async () => {
   if (!process.env.DATABASE_URL?.trim()) {

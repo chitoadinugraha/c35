@@ -326,6 +326,14 @@ Desktop screenshots consume substantial tokens (~1,000–2,000 tokens per image)
 - Only the **latest screenshot** is provided as image content to the model on each turn.
 - Token consumption drops by **up to 90%**, allowing agents to run indefinitely complex multi-step desktop tasks reliably.
 
+#### 5. Screenshot artifacts (trace preview, 14d)
+
+Each `device.screenshot` / `device.input` post-screenshot JPEG sent to the LLM is also stored in **CAS** (`cas_put` → `ai.file_blob_meta`) with an **`ai.tool_artifact`** row (`expires_ts` = created + **14 days**, soft-delete via `tool_artifact_evict_stale`).
+
+- Tool JSON to the model still includes `image_base64` for vision; trace rows store **`meta.screenshot`** (`hash`, `url`, `width`, `height`, `som`, `marker`) — no base64 in `ai.log`.
+- Flutter trace: expandable preview on device tool chips (`/fs/{hash}` or signed `url`).
+- MCP debug (after `server_ai` deploy + MCP reload): `tool_artifact_list`, `tool_artifact_fetch`, `trace_screenshot` on `/v1/mcp/agent`; `device_screenshot` accepts string `device_iid` and `marker_x` / `marker_y`.
+
 ### ICE / TURN (cluster)
 
 | Piece | Status | Notes |

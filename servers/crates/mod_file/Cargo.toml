@@ -19,6 +19,7 @@ urlencoding = { workspace = true }
 webp = "0.3"
 c35_ctx = { path = "../system/ctx", package = "c35_ctx" }
 c35_mod_identity = { path = "../mod_identity", package = "c35_mod_identity" }
+c35_store = { path = "../store", package = "c35_store" }
 
 [dev-dependencies]
 dotenvy = { workspace = true }

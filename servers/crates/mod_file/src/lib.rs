@@ -18,8 +18,13 @@ use serde_json::Value as JsonValue;
 mod inline_fit;
 mod optimize;
 mod s3;
+mod tool_artifact;
 
 pub use inline_fit::cas_image_bytes_fit_inline;
+pub use tool_artifact::{
+    tool_artifact_evict_stale, tool_artifact_get, tool_artifact_insert, tool_artifact_list_by_req,
+    ToolArtifactRow, TOOL_ARTIFACT_TTL_DAYS,
+};
 
 use s3::{BlobS3, S3BlobError};
 

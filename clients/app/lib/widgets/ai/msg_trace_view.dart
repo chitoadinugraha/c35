@@ -1,11 +1,13 @@
 import 'dart:async';
 
 import 'package:alienai_c35/c/chat/chat_conn.dart';
+import 'package:alienai_c35/c/settings/prompt_usage_prefs.dart';
 import 'package:alienai_c35/c/trace/trace_view.dart';
 import 'package:alienai_c35/c/ui/ui_format.dart';
 import 'package:flutter/material.dart';
 
 import 'package:alienai_c35/widgets/ai/ui_citation_chips.dart';
+import 'package:alienai_c35/widgets/ui/ui_img.dart';
 enum MsgTracePart { chips, citations, all }
 
 class MsgTraceView {
@@ -153,13 +155,20 @@ class _UiMsgTraceLoaderState extends State<UiMsgTraceLoader> {
     _syncPoll();
   }
 
+  bool _hideToolTraceWhenIdle() =>
+      !widget.live && widget.part != MsgTracePart.citations && !PromptUsagePrefs.instance.showUsageStats;
+
+  Widget _buildBody() {
+    if (_hideToolTraceWhenIdle()) return const SizedBox.shrink();
+    final v = _view;
+    if (v == null || _partEmpty(v)) return const SizedBox.shrink();
+    return UiMsgTraceView(view: v, compact: widget.compact, live: widget.live, part: widget.part);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final v = _view;
-    if (v == null || _partEmpty(v)) {
-      return const SizedBox.shrink();
-    }
-    return UiMsgTraceView(view: v, compact: widget.compact, live: widget.live, part: widget.part);
+    if (widget.part == MsgTracePart.citations) return _buildBody();
+    return ListenableBuilder(listenable: PromptUsagePrefs.instance, builder: (context, _) => _buildBody());
   }
 }
 
@@ -198,22 +207,80 @@ class UiMsgTraceView extends StatelessWidget {
   }
 }
 
-class UiMsgTraceToolChip extends StatelessWidget {
+class UiTraceScreenshotPreview extends StatelessWidget {
+  const UiTraceScreenshotPreview({super.key, required this.screenshot, this.maxWidth = 280});
+
+  final TraceScreenshot screenshot;
+  final double maxWidth;
+
+  static const _muted = Color(0xFF71717A);
+
+  @override
+  Widget build(BuildContext context) {
+    final src = screenshot.imageSrc;
+    if (src.isEmpty) return const SizedBox.shrink();
+    final dim = screenshot.width > 0 && screenshot.height > 0 ? '${screenshot.width}×${screenshot.height}' : '';
+    final flags = [
+      if (screenshot.som) 'SoM',
+      if (screenshot.marker) 'marker',
+    ].join(' · ');
+    final caption = [dim, flags].where((s) => s.isNotEmpty).join(' · ');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxWidth),
+            child: UiImg(
+              src: src,
+              fit: BoxFit.contain,
+              width: maxWidth,
+              fallback: const SizedBox(
+                height: 80,
+                child: Center(child: Icon(Icons.broken_image_outlined, size: 20, color: _muted)),
+              ),
+            ),
+          ),
+        ),
+        if (caption.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(caption, style: const TextStyle(color: _muted, fontSize: 10, height: 1.2)),
+          ),
+      ],
+    );
+  }
+}
+
+class UiMsgTraceToolChip extends StatefulWidget {
   const UiMsgTraceToolChip({super.key, required this.chip, this.compact = true});
 
   final MsgTraceToolChip chip;
   final bool compact;
 
+  @override
+  State<UiMsgTraceToolChip> createState() => _UiMsgTraceToolChipState();
+}
+
+class _UiMsgTraceToolChipState extends State<UiMsgTraceToolChip> {
   static const _muted = Color(0xFF71717A);
   static const _text = Color(0xFFA1A1AA);
   static const _border = Color(0xFF27272A);
   static const _error = Color(0xFFEF4444);
 
+  var _previewExpanded = false;
+
   @override
   Widget build(BuildContext context) {
+    final chip = widget.chip;
+    final compact = widget.compact;
     final ms = uiFmtDurationMs(chip.durationMs);
+    final canPreview = chip.hasScreenshotPreview;
+    final maxW = compact ? 240.0 : 280.0;
     return ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: compact ? 240 : 280),
+      constraints: BoxConstraints(maxWidth: maxW),
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 10, vertical: compact ? 4 : 6),
         decoration: BoxDecoration(
@@ -221,31 +288,57 @@ class UiMsgTraceToolChip extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: _border),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            _chipIcon(),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                chip.label,
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-                style: const TextStyle(color: _text, fontSize: 12, height: 1.2),
-              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                _chipIcon(chip),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    chip.label,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    style: const TextStyle(color: _text, fontSize: 12, height: 1.2),
+                  ),
+                ),
+                if (ms.isNotEmpty) ...[
+                  const SizedBox(width: 6),
+                  Text(ms, style: const TextStyle(color: _muted, fontSize: 12, height: 1.2)),
+                ],
+                if (canPreview) ...[
+                  const SizedBox(width: 4),
+                  InkWell(
+                    onTap: () => setState(() => _previewExpanded = !_previewExpanded),
+                    borderRadius: BorderRadius.circular(4),
+                    child: Padding(
+                      padding: const EdgeInsets.all(2),
+                      child: Icon(
+                        _previewExpanded ? Icons.expand_less_rounded : Icons.chevron_right_rounded,
+                        size: 16,
+                        color: _muted,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
-            if (ms.isNotEmpty) ...[
-              const SizedBox(width: 6),
-              Text(ms, style: const TextStyle(color: _muted, fontSize: 12, height: 1.2)),
-            ],
+            if (_previewExpanded && canPreview && chip.screenshot != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: UiTraceScreenshotPreview(screenshot: chip.screenshot!, maxWidth: maxW - 4),
+              ),
           ],
         ),
       ),
     );
   }
 
-  Widget _chipIcon() {
+  Widget _chipIcon(MsgTraceToolChip chip) {
     if (!chip.ok) return const Icon(Icons.error_outline, size: 14, color: _error);
     if (chip.iconUrl.isNotEmpty) {
       return ClipRRect(

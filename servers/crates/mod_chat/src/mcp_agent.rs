@@ -1,4 +1,5 @@
 use c35_proto::{ReqLogList, ReqPrompt};
+use c35_store::snowflake_id;
 use serde_json::{json, Value};
 use sqlx::PgPool;
 use tokio_util::sync::CancellationToken;
@@ -8,10 +9,15 @@ use crate::inst_cache::inst_list_cached;
 use crate::inst_macro::inst_scopes_home;
 use crate::log_list::log_list;
 use crate::mention::mention_list_enabled;
-use crate::mention_context::MentionContext;
+use crate::mention_context::{mention_context_build, MentionContext};
+use crate::mention_registry::{
+    mention_active_topics, mention_ref_parse, mention_resolve_all, MentionRef,
+};
+use crate::mention_tool_registry::mention_force_tools;
+use crate::site_capability::{site_capability_view_for_mention, SiteCapabilityView};
+use crate::site_resolve::site_context_resolve;
 use crate::prompt_turn::{prompt_turn, PromptTurnHooks};
 use crate::prompt_run::prompt_run_concurrency_acquire;
-use crate::site_capability::SiteCapabilityView;
 use crate::tools::{cluster_tools, default_dispatcher, http_client, ToolContext};
 
 pub const DEFAULT_DEBUG_OWNER_IID: i64 = 99000;
@@ -122,6 +128,7 @@ pub async fn mcp_tool_exec(
         return mcp_agent_owner_denied(owner_iid, req_id);
     }
     let http = http_client(std::time::Duration::from_secs(30));
+    let tool_call_id = snowflake_id().to_string();
     let ctx = ToolContext::new(
         pool.clone(),
         None,
@@ -139,7 +146,8 @@ pub async fn mcp_tool_exec(
         req_id,
         http,
     )
-    .with_mcp_agent(true);
+    .with_mcp_agent(true)
+    .with_tool_call_id(tool_call_id);
     let (result, cost) = default_dispatcher()
         .execute(tool_name, args_json.clone(), &ctx)
         .await;
@@ -153,38 +161,25 @@ pub async fn mcp_tool_exec(
     })
 }
 
-pub async fn mcp_prompt_compose(pool: &PgPool, owner_iid: i64, text: &str, locale: &str) -> Value {
+pub async fn mcp_prompt_compose(
+    pool: &PgPool,
+    owner_iid: i64,
+    text: &str,
+    locale: &str,
+    mention_ids: &[String],
+) -> Value {
     if !mcp_agent_owner_allowed(owner_iid) {
         return mcp_agent_owner_denied(owner_iid, "");
     }
-    let inst_rows = inst_list_cached();
-    let mentions = mention_list_enabled(pool).await;
-    let inst_scopes = inst_scopes_home();
-    let http = http_client(std::time::Duration::from_secs(30));
-    let composed = compose_tools_and_inst_async(
-        pool,
-        &http,
-        &inst_rows,
-        text,
-        cluster_tools(),
-        &[],
-        &[],
-        &["general".into()],
-        "agent",
-        &mentions,
-        &inst_scopes,
-        &MentionContext::empty(),
-        &SiteCapabilityView::empty(),
-        ComposeTurnOpts::default(),
-        owner_iid,
-        locale,
-    )
-    .await;
+    let (composed, active_topics) =
+        mcp_compose_for_mentions(pool, owner_iid, text, locale, mention_ids, "agent").await;
     let selected_tools: Vec<String> = composed.tools.iter().map(|t| t.name.clone()).collect();
     json!({
         "ok": true,
         "owner_iid": owner_iid,
         "locale": locale,
+        "mention_ids": mention_ids,
+        "active_topics": active_topics,
         "inst_ids": composed.matched_ids,
         "inst_block": inst_block_preview(&composed.inst_block),
         "selected_tools": selected_tools,
@@ -195,6 +190,64 @@ pub async fn mcp_prompt_compose(pool: &PgPool, owner_iid: i64, text: &str, local
     })
 }
 
+async fn mcp_compose_for_mentions(
+    pool: &PgPool,
+    owner_iid: i64,
+    text: &str,
+    locale: &str,
+    mention_ids: &[String],
+    tool_mode: &str,
+) -> (crate::compose::ComposeOutput, Vec<String>) {
+    let inst_rows = inst_list_cached();
+    let mentions = mention_list_enabled(pool).await;
+    let resolved = mention_resolve_all(pool, owner_iid, mention_ids).await;
+    let inst_mention_ids: Vec<String> = mention_ids
+        .iter()
+        .filter_map(|raw| match mention_ref_parse(raw) {
+            Some(MentionRef::Catalog(id)) => Some(id),
+            _ if !raw.contains(':') && raw.parse::<i64>().is_err() => Some(raw.clone()),
+            _ => None,
+        })
+        .collect();
+    let force_tools = mention_force_tools(&resolved);
+    let mention_ctx = mention_context_build(&resolved);
+    let mention_ctx = if mention_ctx.sites.is_empty() {
+        site_context_resolve(pool, owner_iid, text, &inst_mention_ids)
+            .await
+            .ok()
+            .flatten()
+            .map(MentionContext::from_site)
+            .unwrap_or(mention_ctx)
+    } else {
+        mention_ctx
+    };
+    let caps = site_capability_view_for_mention(pool, &mention_ctx).await;
+    let commerce_site_iids = caps.commerce_site_iids(&mention_ctx.site_iids());
+    let active_topics = mention_active_topics(&resolved, "", &commerce_site_iids);
+    let inst_scopes = inst_scopes_home();
+    let http = http_client(std::time::Duration::from_secs(30));
+    let composed = compose_tools_and_inst_async(
+        pool,
+        &http,
+        &inst_rows,
+        text,
+        cluster_tools(),
+        &force_tools,
+        &inst_mention_ids,
+        &active_topics,
+        tool_mode,
+        &mentions,
+        &inst_scopes,
+        &mention_ctx,
+        &caps,
+        ComposeTurnOpts::default(),
+        owner_iid,
+        locale,
+    )
+    .await;
+    (composed, active_topics)
+}
+
 pub async fn mcp_prompt_run(
     pool: &PgPool,
     nats: Option<&async_nats::Client>,
@@ -203,6 +256,7 @@ pub async fn mcp_prompt_run(
     locale: &str,
     req_id: &str,
     chat_id: i64,
+    mention_ids: &[String],
 ) -> Value {
     if !mcp_agent_owner_allowed(owner_iid) {
         return mcp_agent_owner_denied(owner_iid, req_id);
@@ -213,7 +267,7 @@ pub async fn mcp_prompt_run(
         text: text.to_string(),
         attachments_json: String::new(),
         thinking: String::new(),
-        mention_ids: vec![],
+        mention_ids: mention_ids.to_vec(),
         topic_id: String::new(),
         tool_mode: "agent".into(),
         device_iids: vec![],

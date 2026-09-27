@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { agentPost, ownerSchema } from "./agent_http_shared.js";
+import { deviceIidArg } from "./snowflake.js";
 import { debugOwnerIid, jsonContent, resolveOwnerIid } from "./util.js";
 
 const deviceOwner = (owner_iid?: number, uid?: number) =>
@@ -13,17 +14,23 @@ export const registerDeviceAgentTools = (server: McpServer) => {
       description:
         "Capture JPEG screenshot from a paired remote device via cluster device.screenshot (default owner 99000).",
       inputSchema: {
-        device_iid: z.number().describe("Remote device identity id"),
+        device_iid: z.union([z.string(), z.number()]).describe("Remote device id (string snowflake recommended)"),
         max_width: z.number().optional(),
+        quality: z.number().optional(),
         som: z.boolean().optional().describe("Set-of-Mark UI overlay"),
+        marker_x: z.number().optional().describe("Normalized X 0-1 for red marker overlay"),
+        marker_y: z.number().optional().describe("Normalized Y 0-1 for red marker overlay"),
         ...ownerSchema,
       },
     },
-    async ({ device_iid, max_width, som, owner_iid, uid }) => {
+    async ({ device_iid, max_width, quality, som, marker_x, marker_y, owner_iid, uid }) => {
       const owner = deviceOwner(owner_iid, uid);
-      const args: Record<string, unknown> = { device_iid };
+      const args: Record<string, unknown> = { device_iid: deviceIidArg(device_iid) };
       if (max_width !== undefined) args.max_width = max_width;
+      if (quality !== undefined) args.quality = quality;
       if (som !== undefined) args.som = som;
+      if (marker_x !== undefined) args.marker_x = marker_x;
+      if (marker_y !== undefined) args.marker_y = marker_y;
       const result = await agentPost("tool_exec", { tool_name: "device.screenshot", args_json: args }, owner);
       return jsonContent(result);
     },
@@ -34,7 +41,7 @@ export const registerDeviceAgentTools = (server: McpServer) => {
     {
       description: "Run shell/PowerShell on a paired remote device (device.command). Default owner 99000.",
       inputSchema: {
-        device_iid: z.number(),
+        device_iid: z.union([z.string(), z.number()]),
         command: z.string(),
         shell: z.enum(["powershell", "cmd"]).optional(),
         timeout_secs: z.number().optional(),
@@ -43,7 +50,7 @@ export const registerDeviceAgentTools = (server: McpServer) => {
     },
     async ({ device_iid, command, shell, timeout_secs, owner_iid, uid }) => {
       const owner = deviceOwner(owner_iid, uid);
-      const args: Record<string, unknown> = { device_iid, command };
+      const args: Record<string, unknown> = { device_iid: deviceIidArg(device_iid), command };
       if (shell) args.shell = shell;
       if (timeout_secs !== undefined) args.timeout_secs = timeout_secs;
       const result = await agentPost("tool_exec", { tool_name: "device.command", args_json: args }, owner);
@@ -56,7 +63,7 @@ export const registerDeviceAgentTools = (server: McpServer) => {
     {
       description: "Send mouse/keyboard input to remote device (device.input). Default owner 99000.",
       inputSchema: {
-        device_iid: z.number(),
+        device_iid: z.union([z.string(), z.number()]),
         event_type: z.string(),
         x: z.number().optional(),
         y: z.number().optional(),
@@ -69,7 +76,7 @@ export const registerDeviceAgentTools = (server: McpServer) => {
     async (input) => {
       const { device_iid, owner_iid, uid, ...rest } = input;
       const owner = deviceOwner(owner_iid, uid);
-      const args: Record<string, unknown> = { device_iid, ...rest };
+      const args: Record<string, unknown> = { device_iid: deviceIidArg(device_iid), ...rest };
       const result = await agentPost("tool_exec", { tool_name: "device.input", args_json: args }, owner);
       return jsonContent(result);
     },
@@ -93,13 +100,17 @@ export const registerDeviceAgentTools = (server: McpServer) => {
     {
       description: "Get one remote device via /v1/mcp/agent device_get.",
       inputSchema: {
-        device_iid: z.number(),
+        device_iid: z.union([z.string(), z.number()]),
         ...ownerSchema,
       },
     },
     async ({ device_iid, owner_iid, uid }) => {
       const owner = owner_iid ?? uid ?? resolveOwnerIid();
-      const result = await agentPost("device_get", { args_json: { device_iid } }, owner);
+      const result = await agentPost(
+        "device_get",
+        { args_json: { device_iid: deviceIidArg(device_iid) } },
+        owner,
+      );
       return jsonContent(result);
     },
   );

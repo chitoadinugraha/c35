@@ -16,6 +16,7 @@ pub mod prompt_followup;
 mod inst_admin;
 mod object_admin;
 mod mcp_agent;
+mod mcp_tool_artifact;
 mod translation_admin;
 mod inst_cache;
 mod inst_enrich;
@@ -114,3 +115,9 @@ pub use site_validate::{
     THEME_KEYS,
 };
 pub use tool_index::tool_index_init;
+pub use c35_mod_file::{
+    tool_artifact_evict_stale, tool_artifact_insert, TOOL_ARTIFACT_TTL_DAYS,
+};
+pub use mcp_tool_artifact::{
+    mcp_json_i64, mcp_tool_artifact_fetch, mcp_tool_artifact_list, mcp_trace_screenshot,
+};

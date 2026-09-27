@@ -194,4 +194,68 @@ void main() {
     expect(chips, hasLength(2));
     expect(chips.every((c) => c.label.contains('jadwalnonton.com')), isTrue);
   });
+
+  test('traceScreenshotFromLog prefers meta.screenshot', () {
+    final log = TraceLogDoc(
+      kind: 'tool',
+      topic: 'tool_result',
+      text: '{"ok":true}',
+      metaJson: jsonEncode({
+        'tool': 'device.screenshot',
+        'screenshot': {'hash': 'abc123def', 'url': 'https://cdn.example/cas/abc', 'width': 1280, 'height': 782, 'som': true, 'marker': false},
+      }),
+    );
+    final shot = traceScreenshotFromLog(log);
+    expect(shot, isNotNull);
+    expect(shot!.hash, 'abc123def');
+    expect(shot.url, 'https://cdn.example/cas/abc');
+    expect(shot.width, 1280);
+    expect(shot.som, isTrue);
+    expect(shot.imageSrc, 'https://cdn.example/cas/abc');
+  });
+
+  test('traceScreenshotFromLog falls back to output_preview image fields', () {
+    final log = TraceLogDoc(
+      kind: 'tool',
+      topic: 'tool_result',
+      text: 'device.screenshot ok',
+      metaJson: jsonEncode({
+        'tool': 'device.screenshot',
+        'output_preview': '{"ok":true,"image_hash":"deadbeef","image_url":"","width":800,"height":600}',
+      }),
+    );
+    final shot = traceScreenshotFromLog(log);
+    expect(shot?.hash, 'deadbeef');
+    expect(shot?.imageSrc, '/fs/deadbeef');
+  });
+
+  test('buildTraceView attaches screenshot to device tool branch and chip', () {
+    final view = buildTraceView([
+      TraceLogDoc(
+        kind: 'llm',
+        topic: 'llm_call',
+        text: '',
+        durationMs: 500,
+        metaJson: jsonEncode({'step': 2, 'hop': 1}),
+      ),
+      TraceLogDoc(
+        kind: 'tool',
+        topic: 'tool_result',
+        text: '{"ok":true}',
+        durationMs: 1200,
+        metaJson: jsonEncode({
+          'step': 2,
+          'tool': 'device.screenshot',
+          'screenshot': {'hash': 'snap1', 'url': '', 'width': 100, 'height': 50},
+        }),
+      ),
+      TraceLogDoc(kind: 'llm', topic: 'llm_turn', text: 'done', metaJson: jsonEncode({})),
+    ]);
+    final branch = view.steps.first.branches.first;
+    expect(branch.hasScreenshotPreview, isTrue);
+    expect(branch.screenshot?.hash, 'snap1');
+    final chips = traceToolChipsFromView(view);
+    expect(chips, hasLength(1));
+    expect(chips.first.hasScreenshotPreview, isTrue);
+  });
 }
