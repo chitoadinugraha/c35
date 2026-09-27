@@ -11,6 +11,13 @@ PV reclaim is patched to **Retain** after bind (default `oci-bv` is Delete).
 
 ## PVC `pg_data` symlink (required)
 
+Helm mounts subPath `tserver` at `/mnt/disk0`. The chart still sets `--fs_data_dirs=/var/yugabyte` (ephemeral overlay) unless patched — **tserver then starts empty while real data stays on the PVC**. After PVC migration run:
+
+```powershell
+.\_\deployments\yugabyte\patch-gflags-fs-data-dirs.ps1
+kubectl delete pod -n yugabyte yb-master-0 yb-tserver-0
+```
+
 Helm mounts subPath `tserver` at `/mnt/disk0`. The image ships `pg_data` as an absolute symlink to `/mnt/disk0/pg_data_15`, which breaks on subPath mounts. After any restore or new PVC, fix **before** first YB start:
 
 ```bash

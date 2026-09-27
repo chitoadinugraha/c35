@@ -201,6 +201,15 @@ async fn run() -> anyhow::Result<()> {
                             tracing::warn!("drive toggle apply failed: {e:#}");
                         }
                     }
+                    Some(TrayAction::Restart) => {
+                        info!("Restarting agent per user request.");
+                        c_remote_windows::drive::drive_unmount();
+                        conn.abort();
+                        if let Err(e) = c_remote_windows::startup::agent_restart_spawn() {
+                            tracing::warn!("agent restart spawn failed: {e:#}");
+                        }
+                        return Ok(());
+                    }
                     Some(TrayAction::Quit) | None => {
                         conn.abort();
                         info!("Exiting per user request.");

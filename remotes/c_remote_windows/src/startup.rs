@@ -91,3 +91,27 @@ pub fn set_autostart_enabled(_enabled: bool) -> Result<()> {
 
 #[cfg(not(windows))]
 pub fn prevent_sleep() {}
+
+/// Spawn a fresh agent process (same exe + args), then exit the current process.
+pub fn agent_restart_spawn() -> Result<()> {
+    let exe = std::env::current_exe()?;
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        use std::process::Command;
+        const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
+        const DETACHED_PROCESS: u32 = 0x00000008;
+        Command::new(&exe)
+            .args(&args)
+            .creation_flags(CREATE_NEW_PROCESS_GROUP | DETACHED_PROCESS)
+            .spawn()?;
+    }
+    #[cfg(not(windows))]
+    {
+        use std::process::Command;
+        Command::new(&exe).args(&args).spawn()?;
+    }
+    info!(path = %exe.display(), "spawned agent restart");
+    Ok(())
+}

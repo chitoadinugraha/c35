@@ -69,6 +69,13 @@ pub async fn pair_until_claimed(
                         ui.close();
                         return Ok(());
                     }
+                    Some(TrayAction::Restart) => {
+                        ui.close();
+                        if let Err(e) = crate::startup::agent_restart_spawn() {
+                            tracing::warn!("agent restart spawn failed: {e:#}");
+                        }
+                        return Ok(());
+                    }
                     Some(TrayAction::Unpair) | Some(TrayAction::DriveSet(_)) | None => {}
                 }
             }

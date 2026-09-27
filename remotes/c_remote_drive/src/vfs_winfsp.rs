@@ -99,7 +99,7 @@ pub fn mount_virtual_drive(vfs: &VfsDriveManager, quota: Option<QuotaSnapshot>) 
     vfs.prepare_layout()?;
     let quota = quota.unwrap_or(QuotaSnapshot {
         used_bytes: 0,
-        limit_bytes: 10 * 1024 * 1024 * 1024,
+        limit_bytes: 1024 * 1024 * 1024,
     });
     #[cfg(all(target_os = "windows", feature = "winfsp"))]
     {
@@ -159,7 +159,7 @@ pub async fn quota_from_device_storage(client: &reqwest::Client, api_base: &str,
     }
     let body: serde_json::Value = res.json().await.ok()?;
     let used = body.get("storage_used_bytes").and_then(|v| v.as_u64()).unwrap_or(0);
-    let limit = body.get("storage_limit_bytes").and_then(|v| v.as_u64()).unwrap_or(10 * 1024 * 1024 * 1024);
+    let limit = body.get("storage_limit_bytes").and_then(|v| v.as_u64()).unwrap_or(1024 * 1024 * 1024);
     Some(QuotaSnapshot { used_bytes: used, limit_bytes: limit })
 }
 
@@ -171,7 +171,7 @@ pub async fn quota_from_billing_api(client: &reqwest::Client, base_url: &str, to
     }
     let body: serde_json::Value = res.json().await.ok()?;
     let used = body.get("storage_used_bytes").and_then(|v| v.as_u64()).unwrap_or(0);
-    let limit = body.get("storage_limit_bytes").and_then(|v| v.as_u64()).unwrap_or(10 * 1024 * 1024 * 1024);
+    let limit = body.get("storage_limit_bytes").and_then(|v| v.as_u64()).unwrap_or(1024 * 1024 * 1024);
     Some(QuotaSnapshot { used_bytes: used, limit_bytes: limit })
 }
 

@@ -4,6 +4,7 @@ use tracing::{info, warn};
 pub enum TrayAction {
     Unpair,
     Quit,
+    Restart,
     DriveSet(bool),
 }
 
@@ -59,6 +60,7 @@ fn run_tray_loop(tx: tokio::sync::mpsc::UnboundedSender<TrayAction>) -> anyhow::
     const ID_OPEN_APP: usize = 1000;
     const ID_CHECK_UPDATE: usize = 1006;
     const ID_UNPAIR: usize = 1001;
+    const ID_RESTART: usize = 1007;
     const ID_QUIT: usize = 1002;
     const TRAY_TIMER_ID: usize = 99;
 
@@ -113,6 +115,7 @@ fn run_tray_loop(tx: tokio::sync::mpsc::UnboundedSender<TrayAction>) -> anyhow::
             }
             let _ = AppendMenuW(hmenu, MF_STRING, ID_UNPAIR, w!("Unpair"));
             let _ = AppendMenuW(hmenu, MF_SEPARATOR, 0, PCWSTR::null());
+            let _ = AppendMenuW(hmenu, MF_STRING, ID_RESTART, w!("Restart Agent"));
             let _ = AppendMenuW(hmenu, MF_STRING, ID_QUIT, w!("Quit"));
             let _ = SetForegroundWindow(hwnd);
             let _ = TrackPopupMenu(
@@ -188,6 +191,14 @@ fn run_tray_loop(tx: tokio::sync::mpsc::UnboundedSender<TrayAction>) -> anyhow::
                     TRAY_TX.with(|c| {
                         if let Some(tx) = c.borrow().as_ref() {
                             let _ = tx.send(TrayAction::Unpair);
+                        }
+                    });
+                }
+                if id == ID_RESTART {
+                    info!("tray: restart agent");
+                    TRAY_TX.with(|c| {
+                        if let Some(tx) = c.borrow().as_ref() {
+                            let _ = tx.send(TrayAction::Restart);
                         }
                     });
                 }

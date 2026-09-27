@@ -200,12 +200,12 @@ async fn migrate_startup_apply(expected_hash: &str) -> Result<()> {
     schema_boot_line("schema: connect");
     let mut conn = migrate_direct_connect().await?;
     migrate_advisory_lock_acquire(&mut conn).await?;
-    schema_boot_line("schema: boot");
-    schema_apply(&mut conn, BOOT_PATCH_SQL, "boot").await?;
     for (label, sql) in SCHEMA_APPLY_ORDER {
         schema_boot_line(&format!("schema: {label}"));
         schema_apply(&mut conn, sql, label).await?;
     }
+    schema_boot_line("schema: boot");
+    schema_apply(&mut conn, BOOT_PATCH_SQL, "boot").await?;
     schema_version_write_conn(&mut conn, expected_hash).await?;
     migrate_advisory_lock_release(&mut conn).await;
     schema_boot_line("schema: applied");
@@ -314,7 +314,8 @@ pub fn schema_expected_tables() -> BTreeSet<String> {
 pub async fn migrate_audit(pool: &PgPool) -> Result<MigrateAuditReport> {
     let expected = schema_expected_tables();
     let rows = sqlx::query(
-        "SELECT table_schema, table_name FROM information_schema.tables WHERE table_schema IN ('ai', 'site') AND table_type = 'BASE TABLE' ORDER BY 1, 2",
+        "SELECT table_schema, table_name FROM information_schema.tables \
+         WHERE table_schema IN ('ai', 'site', 'mail') AND table_type = 'BASE TABLE' ORDER BY 1, 2",
     )
         .fetch_all(pool)
         .await?;

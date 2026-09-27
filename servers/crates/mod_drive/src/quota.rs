@@ -7,9 +7,6 @@ pub const DRIVE_LIMIT_DEFAULT_BYTES: i64 = STORAGE_GIB;
 
 pub fn drive_storage_limit_bytes_from_plan_slug(plan_slug: &str) -> i64 {
     match plan_slug.trim().to_ascii_lowercase().as_str() {
-        "lite" => STORAGE_GIB,
-        "plus" => 5 * STORAGE_GIB,
-        "pro" => 10 * STORAGE_GIB,
         "ultra" => 15 * STORAGE_GIB,
         _ => DRIVE_LIMIT_DEFAULT_BYTES,
     }
@@ -52,9 +49,9 @@ mod tests {
         let cases = [
             ("free", DRIVE_LIMIT_DEFAULT_BYTES),
             ("", DRIVE_LIMIT_DEFAULT_BYTES),
-            ("lite", STORAGE_GIB),
-            ("plus", 5 * STORAGE_GIB),
-            ("pro", 10 * STORAGE_GIB),
+            ("lite", DRIVE_LIMIT_DEFAULT_BYTES),
+            ("plus", DRIVE_LIMIT_DEFAULT_BYTES),
+            ("pro", DRIVE_LIMIT_DEFAULT_BYTES),
             ("ultra", 15 * STORAGE_GIB),
             ("ULTRA", 15 * STORAGE_GIB),
             ("unknown_tier", DRIVE_LIMIT_DEFAULT_BYTES),
