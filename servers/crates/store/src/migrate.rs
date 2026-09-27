@@ -4,13 +4,15 @@ use sqlx::{ConnectOptions, Error as SqlxError, PgConnection, PgPool, Row};
 use std::str::FromStr;
 use std::collections::BTreeSet;
 use std::future::Future;
+use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::sync::OnceCell;
 
 use crate::schema::SCHEMA_APPLY_ORDER;
 
 const MIGRATE_LOCK_KEY: i64 = 9035;
+const SCHEMA_VERSION_KEY: &str = "c35.schema_version";
 
 static SCHEMA_READY: OnceCell<()> = OnceCell::const_new();
 
@@ -96,16 +98,160 @@ async fn migrate_once(pool: &PgPool) -> Result<()> {
         .map(|_| ())
 }
 
-/// Safe idempotent column patches — runs on every boot under advisory lock.
-pub async fn migrate_boot(pool: &PgPool) -> Result<()> {
-    migrate_locked(pool, "boot", BOOT_PATCH_SQL).await
+fn schema_boot_line(detail: &str) {
+    println!("Booting: {detail}");
+    let _ = std::io::stdout().flush();
 }
 
-pub async fn migrate_apply(pool: &PgPool) -> Result<()> {
-    tracing::info!("applying c35 schemas");
+pub fn schema_bundle_hash() -> String {
+    let mut hasher = blake3::Hasher::new();
+    hasher.update(BOOT_PATCH_SQL.as_bytes());
     for (label, sql) in SCHEMA_APPLY_ORDER {
-        migrate_locked(pool, label, sql).await?;
+        hasher.update(label.as_bytes());
+        hasher.update(sql.as_bytes());
     }
+    hasher.finalize().to_hex().to_string()
+}
+
+/// Boot patches + schema apply when `ai.config` version differs (server startup).
+pub async fn migrate_startup(pool: &PgPool) -> Result<()> {
+    let expected = schema_bundle_hash();
+    schema_boot_line("schema: check");
+    if schema_version_skip_apply(pool, &expected).await? {
+        let _ = SCHEMA_READY.set(());
+        return Ok(());
+    }
+    migrate_startup_apply(&expected).await?;
+    let _ = SCHEMA_READY.set(());
+    Ok(())
+}
+
+fn env_truthy(key: &str) -> bool {
+    std::env::var(key)
+        .ok()
+        .is_some_and(|v| matches!(v.trim(), "1" | "true" | "yes"))
+}
+
+async fn schema_version_skip_apply(pool: &PgPool, expected: &str) -> Result<bool> {
+    if env_truthy("C35_SCHEMA_SKIP") {
+        schema_boot_line("schema: skipped (C35_SCHEMA_SKIP)");
+        return Ok(true);
+    }
+    if env_truthy("C35_SCHEMA_FORCE_APPLY") {
+        schema_boot_line("schema: force apply (C35_SCHEMA_FORCE_APPLY)");
+        return Ok(false);
+    }
+    let state = schema_boot_state(pool).await?;
+    if let Some(stored) = state.stored {
+        if stored == expected {
+            schema_boot_line("schema: up to date");
+            return Ok(true);
+        }
+        schema_boot_line("schema: version changed, applying");
+        return Ok(false);
+    }
+    if state.sentinel {
+        schema_boot_line("schema: existing database, recording version");
+        schema_version_write_pool(pool, expected).await?;
+        Ok(true)
+    } else {
+        schema_boot_line("schema: fresh database, applying");
+        Ok(false)
+    }
+}
+
+struct SchemaBootState {
+    stored: Option<String>,
+    sentinel: bool,
+}
+
+async fn schema_boot_state(pool: &PgPool) -> Result<SchemaBootState> {
+    let fut = async {
+        let row: (Option<String>, bool) = sqlx::query_as(
+            "SELECT \
+                (SELECT value->>'hash' FROM ai.config WHERE key = $1) AS ver, \
+                (to_regclass('ai.config') IS NOT NULL \
+                    AND to_regclass('ai.identity') IS NOT NULL \
+                    AND to_regclass('ai.chat_msg') IS NOT NULL) AS sentinel",
+        )
+        .bind(SCHEMA_VERSION_KEY)
+        .fetch_one(pool)
+        .await?;
+        Ok(SchemaBootState {
+            stored: row.0,
+            sentinel: row.1,
+        })
+    };
+    match tokio::time::timeout(Duration::from_secs(20), fut).await {
+        Ok(Ok(s)) => Ok(s),
+        Ok(Err(e)) if missing_schema(&e) => Ok(SchemaBootState {
+            stored: None,
+            sentinel: false,
+        }),
+        Ok(Err(e)) => Err(e.into()),
+        Err(_) => anyhow::bail!(
+            "schema version check timed out (20s); YB may be overloaded — retry, run c35_migrate apply, or set C35_SCHEMA_SKIP=1 for local dev"
+        ),
+    }
+}
+
+async fn migrate_startup_apply(expected_hash: &str) -> Result<()> {
+    tracing::info!("applying c35 schemas");
+    schema_boot_line("schema: connect");
+    let mut conn = migrate_direct_connect().await?;
+    migrate_advisory_lock_acquire(&mut conn).await?;
+    schema_boot_line("schema: boot");
+    schema_apply(&mut conn, BOOT_PATCH_SQL, "boot").await?;
+    for (label, sql) in SCHEMA_APPLY_ORDER {
+        schema_boot_line(&format!("schema: {label}"));
+        schema_apply(&mut conn, sql, label).await?;
+    }
+    schema_version_write_conn(&mut conn, expected_hash).await?;
+    migrate_advisory_lock_release(&mut conn).await;
+    schema_boot_line("schema: applied");
+    Ok(())
+}
+
+async fn schema_version_write_pool(pool: &PgPool, hash: &str) -> Result<()> {
+    let value = serde_json::json!({ "hash": hash });
+    sqlx::query(
+        "INSERT INTO ai.config (key, value, updated_at) VALUES ($1, $2, NOW()) \
+         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()",
+    )
+    .bind(SCHEMA_VERSION_KEY)
+    .bind(value)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+async fn schema_version_write_conn(conn: &mut PgConnection, hash: &str) -> Result<()> {
+    let value = serde_json::json!({ "hash": hash });
+    sqlx::query(
+        "INSERT INTO ai.config (key, value, updated_at) VALUES ($1, $2, NOW()) \
+         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()",
+    )
+    .bind(SCHEMA_VERSION_KEY)
+    .bind(value)
+    .execute(&mut *conn)
+    .await?;
+    Ok(())
+}
+
+/// Safe idempotent column patches — runs on every boot under advisory lock.
+pub async fn migrate_boot(_pool: &PgPool) -> Result<()> {
+    let mut conn = migrate_direct_connect().await?;
+    schema_boot_line("schema: boot");
+    migrate_advisory_lock_acquire(&mut conn).await?;
+    let out = schema_apply(&mut conn, BOOT_PATCH_SQL, "boot").await;
+    migrate_advisory_lock_release(&mut conn).await;
+    out
+}
+
+pub async fn migrate_apply(_pool: &PgPool) -> Result<()> {
+    let expected = schema_bundle_hash();
+    migrate_startup_apply(&expected).await?;
+    let _ = SCHEMA_READY.set(());
     Ok(())
 }
 
@@ -186,23 +332,52 @@ pub async fn migrate_audit(pool: &PgPool) -> Result<MigrateAuditReport> {
     })
 }
 
-async fn migrate_locked(_pool: &PgPool, label: &str, sql: &str) -> Result<()> {
+async fn migrate_direct_connect() -> Result<PgConnection> {
     let url = dsn()?;
-    let mut conn = PgConnectOptions::from_str(&url)
+    PgConnectOptions::from_str(&url)
         .context("parse postgres url for migrate")?
         .connect()
         .await
-        .context("migrate direct connect")?;
-    sqlx::query("SELECT pg_advisory_lock($1)")
-        .bind(MIGRATE_LOCK_KEY)
-        .execute(&mut conn)
-        .await?;
-    let out = schema_apply(&mut conn, sql, label).await;
+        .context("migrate direct connect")
+}
+
+async fn migrate_advisory_lock_acquire(conn: &mut PgConnection) -> Result<()> {
+    let started = Instant::now();
+    let mut wait_announced = false;
+    let mut last_reminder = Instant::now();
+    loop {
+        let got = sqlx::query_scalar::<_, bool>("SELECT pg_try_advisory_lock($1)")
+            .bind(MIGRATE_LOCK_KEY)
+            .fetch_one(&mut *conn)
+            .await?;
+        if got {
+            if wait_announced {
+                schema_boot_line("schema: migrate lock acquired");
+            }
+            return Ok(());
+        }
+        if !wait_announced {
+            schema_boot_line(
+                "schema: waiting for migrate lock (another server_ai or cluster pod migrating?)",
+            );
+            wait_announced = true;
+            last_reminder = Instant::now();
+        } else if last_reminder.elapsed() >= Duration::from_secs(15) {
+            schema_boot_line(&format!(
+                "schema: still waiting for migrate lock ({:.0}s)",
+                started.elapsed().as_secs_f64()
+            ));
+            last_reminder = Instant::now();
+        }
+        tokio::time::sleep(Duration::from_millis(500)).await;
+    }
+}
+
+async fn migrate_advisory_lock_release(conn: &mut PgConnection) {
     let _ = sqlx::query("SELECT pg_advisory_unlock($1)")
         .bind(MIGRATE_LOCK_KEY)
-        .execute(&mut conn)
+        .execute(&mut *conn)
         .await;
-    out
 }
 
 async fn schema_apply(conn: &mut PgConnection, sql: &str, label: &str) -> Result<()> {
@@ -394,6 +569,13 @@ pub(crate) fn dsn() -> Result<String> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn schema_bundle_hash_is_stable_blake3_hex() {
+        let h = super::schema_bundle_hash();
+        assert_eq!(h.len(), 64);
+        assert_eq!(h, super::schema_bundle_hash());
+    }
+
     #[test]
     fn sql_stmts_splits() {
         let stmts = super::sql_stmts("CREATE TABLE a (id int);\nCREATE TABLE b (id int);");

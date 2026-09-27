@@ -8,6 +8,7 @@ import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:alienai_c35/c/pb/c35/catalog.pb.dart';
 import 'package:alienai_c35/c/pb/c35/channel.pb.dart';
 import 'package:alienai_c35/c/pb/c35/chat.pb.dart';
+import 'package:alienai_c35/c/pb/c35/data_source.pb.dart';
 import 'package:alienai_c35/c/pb/c35/collection.pb.dart';
 import 'package:alienai_c35/c/pb/c35/hint.pb.dart';
 import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
@@ -875,6 +876,33 @@ class ChatConn {
   Future<ResBotPeerList> botPeerList(int botIid, {bool includeArchived = false, int limit = 100}) => _rpc<ResBotPeerList>(
         WsReq(botPeerList: ReqBotPeerList(botIid: Int64(botIid), includeArchived: includeArchived, limit: limit)),
         (res) => res.botPeerList,
+      );
+
+  Future<ResDataSourceList> dataSourceList({int botIid = 0, int sinceUpdatedTsMs = 0, int limit = 100}) =>
+      _rpc<ResDataSourceList>(
+        WsReq(
+          dataSourceList: ReqDataSourceList(
+            botIid: Int64(botIid),
+            sinceUpdatedTsMs: Int64(sinceUpdatedTsMs),
+            limit: limit,
+          ),
+        ),
+        (res) => res.dataSourceList,
+      );
+
+  Future<ResDataSourcePut> dataSourcePut(DataSourceDoc doc) => _rpc<ResDataSourcePut>(
+        WsReq(dataSourcePut: ReqDataSourcePut(doc: doc)),
+        (res) => res.dataSourcePut,
+      );
+
+  Future<ResDataSourceDelete> dataSourceDelete(int id) => _rpc<ResDataSourceDelete>(
+        WsReq(dataSourceDelete: ReqDataSourceDelete(id: Int64(id))),
+        (res) => res.dataSourceDelete,
+      );
+
+  Future<ResDataSourceSync> dataSourceSync(int id) => _rpc<ResDataSourceSync>(
+        WsReq(dataSourceSync: ReqDataSourceSync(id: Int64(id))),
+        (res) => res.dataSourceSync,
       );
 
   Future<ResChatStop> chatStop(int chatId, bool stopped) => _rpc<ResChatStop>(

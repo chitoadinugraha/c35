@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:alienai_c35/c/bot/bot_api.dart';
+import 'package:alienai_c35/c/bot/data_source_api.dart';
 import 'package:alienai_c35/c/bot/bot_store.dart';
 import 'package:alienai_c35/c/channel/channel_api.dart';
 import 'package:alienai_c35/c/log.dart';
@@ -24,7 +25,7 @@ const _title = Color(0xFFF4F4F5);
 const _muted = Color(0xFF71717A);
 const _dialogW = 400.0;
 const _dialogH = 580.0;
-const _stepTotal = 3;
+const _stepTotal = 4;
 
 class InBotCreateResult {
   const InBotCreateResult({required this.botIid, required this.name});
@@ -105,17 +106,18 @@ class _InBotCreateState extends State<InBotCreate> {
   String? _error;
   int? _botIid;
   final _channels = <BotChannelDoc>[];
-  final _assets = <String>[];
+  final _sheetDrafts = <BotSheetDraft>[];
   var _strictMode = true;
+  var _autoBlockSpammer = true;
   var _webSearch = false;
 
-  String _botMetaJson({List<String>? assets, bool includeChannels = false}) {
+  String _botMetaJson({bool includeChannels = false}) {
     final map = <String, dynamic>{
       'inst_base': _instructions.text.trim(),
       'strict_mode': _strictMode,
+      'auto_block_spammer': _strictMode && _autoBlockSpammer,
       'web_search': _webSearch,
     };
-    if (assets != null) map['assets'] = assets;
     if (includeChannels) map['channels'] = <dynamic>[];
     return jsonEncode(map);
   }
@@ -140,7 +142,8 @@ class _InBotCreateState extends State<InBotCreate> {
   String get _stepTitle => switch (_step) {
         0 => 'New Chat Bot',
         1 => 'Connect channels',
-        _ => 'Assets',
+        2 => 'Assets',
+        _ => 'Instructions & behavior',
       };
 
   bool get _canStepForward => _step == 0 ? _name.text.trim().isNotEmpty : true;
@@ -209,10 +212,10 @@ class _InBotCreateState extends State<InBotCreate> {
       }
       return;
     }
-    if (_step == 1) {
+    if (_step == 1 || _step == 2) {
       setState(() {
         _error = null;
-        _step = 2;
+        _step += 1;
       });
       return;
     }
@@ -238,8 +241,26 @@ class _InBotCreateState extends State<InBotCreate> {
       _saving = true;
     });
     try {
-      final meta = _botMetaJson(assets: _assets);
+      final meta = _botMetaJson();
       await widget.onIdentityPut(ReqIdentityPut(iid: Int64(iid), kind: 'bot', type: 'chat', name: _name.text.trim(), pic: _pic, metaJson: meta));
+      final conn = widget.store.conn;
+      for (final sheet in _sheetDrafts) {
+        final put = await dataSourcePut(
+          conn,
+          botIid: iid,
+          sourceKind: 'google_sheet',
+          name: sheet.name,
+          configJson: jsonEncode({'view_url': sheet.viewUrl}),
+        );
+        final dsId = put.id.toInt();
+        if (dsId > 0) {
+          try {
+            await dataSourceSync(conn, dsId);
+          } catch (e) {
+            lError('bot create sheet sync $dsId: $e');
+          }
+        }
+      }
       if (!mounted) return;
       _finished = true;
       Navigator.pop(context, InBotCreateResult(botIid: iid, name: _name.text.trim()));
@@ -356,7 +377,7 @@ class _InBotCreateState extends State<InBotCreate> {
     return UiUserAvatar(name: name, pic: _pic, size: 64);
   }
 
-  Widget _stepInfo() => Column(
+  Widget _stepBasics() => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Center(
@@ -383,9 +404,20 @@ class _InBotCreateState extends State<InBotCreate> {
             decoration: UiInputDecoration.of(context, labelText: 'Name', hintText: 'Customer service', floatingLabel: true),
             onChanged: (_) => setState(() => _error = null),
           ),
+        ],
+      );
+
+  Widget _stepBehavior() => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Tell the bot how to reply. You can edit this anytime in bot settings.',
+            style: TextStyle(color: _muted.withValues(alpha: 0.95), fontSize: 12, height: 1.35),
+          ),
           const SizedBox(height: 12),
           TextField(
             controller: _instructions,
+            autofocus: true,
             maxLines: 5,
             minLines: 4,
             style: const TextStyle(color: _title, fontSize: 13, height: 1.4),
@@ -403,6 +435,18 @@ class _InBotCreateState extends State<InBotCreate> {
             activeThumbColor: const Color(0xFF34D399),
             onChanged: _saving ? null : (v) => setState(() => _strictMode = v),
           ),
+          if (_strictMode)
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Block Spammer Automatically', style: TextStyle(color: _title, fontSize: 14, fontWeight: FontWeight.w500)),
+              subtitle: const Text(
+                'Block users who send 10+ unrelated messages.',
+                style: TextStyle(color: _muted, fontSize: 12, height: 1.35),
+              ),
+              value: _autoBlockSpammer,
+              activeThumbColor: const Color(0xFF34D399),
+              onChanged: _saving ? null : (v) => setState(() => _autoBlockSpammer = v),
+            ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Web search', style: TextStyle(color: _title, fontSize: 14, fontWeight: FontWeight.w500)),
@@ -420,9 +464,9 @@ class _InBotCreateState extends State<InBotCreate> {
   Widget _stepChannels() => IoChannelListPanel(channels: _channels, onPick: _onPick, onRemove: _removeChannel, busy: _saving);
 
   Widget _stepAssets() => IoAssetListPanel(
-        assets: _assets,
-        onAdd: (id) => setState(() => _assets.add(id)),
-        onRemove: (id) => setState(() => _assets.remove(id)),
+        sheets: _sheetDrafts,
+        onAdd: (d) => setState(() => _sheetDrafts.add(d)),
+        onRemove: (d) => setState(() => _sheetDrafts.remove(d)),
         busy: _saving,
       );
 
@@ -460,7 +504,14 @@ class _InBotCreateState extends State<InBotCreate> {
                   _stepNav(),
                   const SizedBox(height: 16),
                   Expanded(
-                    child: SingleChildScrollView(child: switch (_step) { 0 => _stepInfo(), 1 => _stepChannels(), _ => _stepAssets() }),
+                    child: SingleChildScrollView(
+                      child: switch (_step) {
+                        0 => _stepBasics(),
+                        1 => _stepChannels(),
+                        2 => _stepAssets(),
+                        _ => _stepBehavior(),
+                      },
+                    ),
                   ),
                   if (_error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_error!, style: const TextStyle(color: Color(0xFFEF4444), fontSize: 11))),
                   const SizedBox(height: 16),

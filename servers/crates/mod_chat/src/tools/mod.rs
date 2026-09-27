@@ -23,6 +23,7 @@ pub use dispatcher::{tool_topic_eligible, ToolDispatcher};
 use crate::mention_context::MentionContext;
 
 use builtin::{
+    DriveListTool, DriveReadTool, GsheetAppendTool, GsheetReadTool, GsheetUpdateTool,
     ComputerUseDelegateTool, ConsumptionAddTool, ConsumptionDeleteTool, ConsumptionTodayTool,
     ConsumptionUpdateTool, DelegateRunTool, DeviceFsListTool, DeviceFsReadTool, ShellRunTool,
     DeviceInputTool, DeviceScreenshotTool,
@@ -101,6 +102,11 @@ pub struct TurnCtx<'a> {
 
 fn build_default_dispatcher() -> ToolDispatcher {
     let dispatcher = ToolDispatcher::new();
+    dispatcher.register(Arc::new(DriveListTool));
+    dispatcher.register(Arc::new(DriveReadTool));
+    dispatcher.register(Arc::new(GsheetReadTool));
+    dispatcher.register(Arc::new(GsheetAppendTool));
+    dispatcher.register(Arc::new(GsheetUpdateTool));
     dispatcher.register(Arc::new(WebSearchTool));
     dispatcher.register(Arc::new(WebVisitTool));
     dispatcher.register(Arc::new(WebResearchTool));

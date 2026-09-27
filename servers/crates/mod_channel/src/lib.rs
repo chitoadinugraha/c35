@@ -8,6 +8,7 @@ mod hub;
 mod inbound;
 mod limit;
 mod media;
+mod policy;
 pub mod outbound;
 mod pair_fanout;
 mod peer;

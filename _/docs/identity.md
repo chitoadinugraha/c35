@@ -207,6 +207,19 @@ Rules:
 - Stop/intervention is **per `bot_peer` chat row** (one external user + channel) — not per bot, not per channel globally.
 - No separate channel table in Phase 1 — channels are JSONB on the bot identity row (same pattern as cs_agent `space.meta.channels[]`).
 
+### Bot data sources (Google Sheets, …)
+
+Linked spreadsheets and similar knowledge **do not** live in `meta.assets` string tags. They are rows in `ai.data_source` (synced chunks in `ai.data_source_chunk`). See [`data_source.md`](data_source.md).
+
+```json
+{
+  "channels": [ "..."],
+  "strict_mode": true
+}
+```
+
+Attach sheets via app `data_source_put` or bot wizard after create; `bot_iid` on each `data_source` row.
+
 ## Remote device model
 
 ```
@@ -261,8 +274,10 @@ Canonical DDL: [`../schemas/identity.sql`](../schemas/identity.sql)
 ## Referral
 
 - `referred_by_iid` on `user` identities
-- Referral forest UI: port from `D:\cs_agent` unchanged in behavior
-- Referral codes/shares: separate tables (see cs_agent `referral_code`, `referral_share`)
+- Referral forest UI — staff roles, wide access, and admin audit: **[`referral.md`](referral.md)** (locked)
+- Referral codes/shares: separate tables (see cs_agent `referral_code`, `referral_share`); DDL in [`../schemas/`](../schemas/)
+
+Staff **`global_roles`** and **`is_root`** live in `ai.identity.meta` (not `identity_grant`). Only root may edit profile fields; director may change referrer and assign roles; events logged as `admin.user_*` — see [`referral.md`](referral.md).
 
 ## Migration notes from prior projects
 

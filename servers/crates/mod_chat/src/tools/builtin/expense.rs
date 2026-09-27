@@ -131,7 +131,7 @@ pub async fn expense_add_exec(ctx: &ToolContext, args: &Value) -> Result<Value> 
         after_minor: so_far,
         tx_count,
     };
-    let receipt = receipt_from_detect(
+    let mut receipt = receipt_from_detect(
         tx_id,
         &detect,
         &photo_hash,
@@ -141,9 +141,59 @@ pub async fn expense_add_exec(ctx: &ToolContext, args: &Value) -> Result<Value> 
         today.clone(),
         locale,
     );
+
+    // Food-Expense Bridge:
+    // If dining / cafe ready-to-eat meal with <= 5 items (never for bulk groceries), auto-log to nutrition!
+    let log_food_requested = args.get("log_food").and_then(|v| v.as_bool()).unwrap_or(true);
+    if detect.can_log_food && log_food_requested && !dup.is_some() {
+        let meal_type = c35_mod_consumption::infer_meal_type(note, locale);
+        let food_items: Vec<c35_mod_consumption::ConsumptionItem> = detect.items.iter().map(|i| {
+            c35_mod_consumption::ConsumptionItem {
+                name: i.name.clone(),
+                name_id: i.name_id.clone(),
+                qty: i.qty,
+                obj_id: i.obj_id,
+                calories: 250,
+                protein: 10,
+                fat: 8,
+                carbs: 25,
+                fiber: 2,
+                sugar: 4,
+                sodium: 300,
+                potassium: 150,
+                iron: 1,
+                cholesterol: 15,
+                purines: 20,
+                verified: i.obj_id > 0,
+                confidence: if i.obj_id > 0 { 0.90 } else { 0.65 },
+            }
+        }).collect();
+        let mfp = c35_mod_consumption::meal_fingerprint(&food_items);
+        if let Ok(cid) = c35_mod_consumption::food_put(
+            &ctx.pool,
+            ctx.owner_iid,
+            &receipt.headline,
+            &photo_hash,
+            &pics,
+            &mfp,
+            meal_type,
+            &food_items,
+        ).await {
+            receipt.linked_consumption_id = Some(cid);
+            let _ = sqlx::query(
+                "UPDATE site.tx SET tx_data_json = tx_data_json || $3 WHERE site_iid = $1 AND tx_id = $2"
+            )
+            .bind(ctx.owner_iid)
+            .bind(tx_id)
+            .bind(serde_json::json!({ "consumption_id": cid }))
+            .execute(&ctx.pool)
+            .await;
+        }
+    }
+
     let block = expense_receipt_block(&receipt, locale);
-    let total = expense_total_minor(&detect.items);
-    let coach = expense_log_coach(true, total, so_far, dup.is_some(), locale);
+    let total = if detect.total_minor > 0 { detect.total_minor } else { expense_total_minor(&detect.items) };
+    let coach = expense_log_coach(true, total, so_far, dup.is_some(), &detect.currency, locale);
 
     let full = json!({
         "ok": true,
@@ -153,6 +203,10 @@ pub async fn expense_add_exec(ctx: &ToolContext, args: &Value) -> Result<Value> 
         "headline": receipt.headline,
         "coach": coach,
         "total_minor": total,
+        "currency": detect.currency,
+        "math_verified": detect.math_verified,
+        "can_log_food": detect.can_log_food,
+        "linked_consumption_id": receipt.linked_consumption_id.map(|id| id.to_string()),
         "payment_method": detect.payment_method,
         "items": detect.items,
         "today": &today,

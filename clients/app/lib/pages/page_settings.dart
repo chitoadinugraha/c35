@@ -5,6 +5,7 @@ import 'package:alienai_c35/c/account/invoke_account.dart';
 import 'package:alienai_c35/c/api/referral_conn.dart';
 import 'package:alienai_c35/c/api/settings_conn.dart';
 import 'package:alienai_c35/c/conn/server_host.dart';
+import 'package:alienai_c35/c/drive/drive_api.dart';
 import 'package:alienai_c35/c/locale/app_locale.dart';
 import 'package:alienai_c35/c/parts/version_label.dart';
 import 'package:alienai_c35/c/update/app_release.dart';
@@ -105,6 +106,7 @@ class _PageSettingsState extends State<PageSettings> {
   late String _locationSource = UserLocalePrefs.instance.locationSource;
   var _locationManualExpanded = UserLocalePrefs.instance.locationSource.trim().toLowerCase() == 'user';
   String _apkUrl = '';
+  DriveStorage? _driveStorage;
   List<InputDevice> _audioInputDevices = const [];
   InputDevice? _resolvedDefaultMic;
 
@@ -161,9 +163,15 @@ class _PageSettingsState extends State<PageSettings> {
       );
     }
     UserSettingsRes? settings;
+    DriveStorage? driveStorage;
     try {
       settings = await _account?.userSettingsGet();
     } catch (_) {}
+    if (widget.conn != null) {
+      try {
+        driveStorage = await driveStorageGet(widget.conn!);
+      } catch (_) {}
+    }
     if (!mounted) return;
     setState(() {
       _name = Session.instance.name;
@@ -178,6 +186,7 @@ class _PageSettingsState extends State<PageSettings> {
         _hasPin = settings.hasPin;
         _unlockMode = settings.sessionUnlockMode;
       }
+      _driveStorage = driveStorage;
     });
     if (!mounted) return;
     await _locationSyncFromServer();
@@ -527,6 +536,38 @@ class _PageSettingsState extends State<PageSettings> {
                                 icon: Icons.hourglass_top_outlined,
                                 title: 'Free allowance',
                                 subtitle: '${moneyAllowanceLabel((widget.store.wallet.allow5hLimit - widget.store.wallet.allow5hUsed).clamp(0.0, widget.store.wallet.allow5hLimit), currency: widget.store.wallet.billingCurrency, fxMicroPerUsd: widget.store.wallet.fxMicroPerUsd)} remaining of ${moneyAllowanceLabel(widget.store.wallet.allow5hLimit, currency: widget.store.wallet.billingCurrency, fxMicroPerUsd: widget.store.wallet.fxMicroPerUsd)} (5h)',
+                              ),
+                            ],
+                            if (_driveStorage != null) ...[
+                              uiSettingsDivider(),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  const Icon(Icons.cloud_outlined, color: Color(0xFF71717A), size: 22),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                      const Text('Alien AI Drive', style: TextStyle(color: Color(0xFFE4E4E7), fontSize: 14, fontWeight: FontWeight.w500)),
+                                      const SizedBox(height: 6),
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(4),
+                                        child: LinearProgressIndicator(
+                                          minHeight: 6,
+                                          value: _driveStorage!.limitBytes > 0
+                                              ? (_driveStorage!.usedBytes / _driveStorage!.limitBytes).clamp(0.0, 1.0)
+                                              : null,
+                                          backgroundColor: const Color(0xFF3F3F46),
+                                          color: const Color(0xFF34D399),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        driveStorageLabel(_driveStorage!.usedBytes, _driveStorage!.limitBytes),
+                                        style: const TextStyle(color: Color(0xFF71717A), fontSize: 12),
+                                      ),
+                                    ]),
+                                  ),
+                                ]),
                               ),
                             ],
                           ]),

@@ -3,6 +3,7 @@
 mod fs;
 mod media;
 mod session;
+mod stats_probe;
 
 #[cfg(windows)]
 mod file_playback;

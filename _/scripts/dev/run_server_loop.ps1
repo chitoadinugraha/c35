@@ -16,7 +16,7 @@ while ($true) {
         Start-Sleep -Seconds $restartDelaySec
         continue
     }
-    Write-Host "==> starting server_ai (port $Port)"
+    Write-Host '==> starting server_ai'
     Push-Location $Root
     try {
         & $exe

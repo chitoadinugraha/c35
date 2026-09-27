@@ -9,6 +9,8 @@ mod referral;
 mod site;
 mod site_query;
 mod site_tx;
+mod drive;
+mod gsheet;
 mod web_research;
 mod web_search;
 mod web_visit;
@@ -35,6 +37,8 @@ pub use site_query::SiteQueryRunTool;
 pub use site_tx::{
     SiteTxDebtPayTool, SiteTxListTool, SiteTxPreviewTool, SiteTxPutTool,
 };
+pub use drive::{DriveListTool, DriveReadTool};
+pub use gsheet::{GsheetAppendTool, GsheetReadTool, GsheetUpdateTool};
 pub use web_research::WebResearchTool;
 pub use web_search::WebSearchTool;
 pub use web_visit::WebVisitTool;

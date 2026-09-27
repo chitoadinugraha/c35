@@ -453,6 +453,34 @@ async fn dispatch(
             },
             Err(e) => err_res(req_id, WireErr::client("bot_peer_list_failed", e.to_string())),
         },
+        Some(ws_req::Body::DataSourceList(r)) => match c35_mod_chat::data_source_list(&state.pool, ctx.caller_iid, r).await {
+            Ok(body) => WsRes {
+                req_id,
+                body: Some(ws_res::Body::DataSourceList(body)),
+            },
+            Err(e) => err_res(req_id, WireErr::client("data_source_list_failed", e.to_string())),
+        },
+        Some(ws_req::Body::DataSourcePut(r)) => match c35_mod_chat::data_source_put(&state.pool, ctx.caller_iid, r).await {
+            Ok(body) => WsRes {
+                req_id,
+                body: Some(ws_res::Body::DataSourcePut(body)),
+            },
+            Err(e) => err_res(req_id, WireErr::client("data_source_put_failed", e.to_string())),
+        },
+        Some(ws_req::Body::DataSourceDelete(r)) => match c35_mod_chat::data_source_delete(&state.pool, ctx.caller_iid, r).await {
+            Ok(body) => WsRes {
+                req_id,
+                body: Some(ws_res::Body::DataSourceDelete(body)),
+            },
+            Err(e) => err_res(req_id, WireErr::client("data_source_delete_failed", e.to_string())),
+        },
+        Some(ws_req::Body::DataSourceSync(r)) => match c35_mod_chat::data_source_sync(&state.pool, ctx.caller_iid, r).await {
+            Ok(body) => WsRes {
+                req_id,
+                body: Some(ws_res::Body::DataSourceSync(body)),
+            },
+            Err(e) => err_res(req_id, WireErr::client("data_source_sync_failed", e.to_string())),
+        },
         Some(ws_req::Body::ChatStop(r)) => match c35_mod_chat::chat_stop(&state.pool, ctx.caller_iid, r).await {
             Ok(body) => WsRes {
                 req_id,

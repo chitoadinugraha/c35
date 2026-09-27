@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package c35;
+
+// Bot data sources — see _/docs/data_source.md
+
+message DataSourceDoc {
+  int64 id = 1;
+  int64 bot_iid = 2;
+  string source_kind = 3;
+  string name = 4;
+  string config_json = 5;
+  string sync_status = 6;
+  int32 row_count = 7;
+  int64 synced_ts_ms = 8;
+  int64 updated_ts_ms = 9;
+}
+
+message ReqDataSourceList {
+  int64 bot_iid = 1;
+  int64 since_updated_ts_ms = 2;
+  int32 limit = 3;
+}
+
+message ResDataSourceList {
+  repeated DataSourceDoc items = 1;
+}
+
+message ReqDataSourcePut {
+  DataSourceDoc doc = 1;
+}
+
+message ResDataSourcePut {
+  int64 id = 1;
+  DataSourceDoc doc = 2;
+}
+
+message ReqDataSourceDelete {
+  int64 id = 1;
+}
+
+message ResDataSourceDelete {
+  bool ok = 1;
+}
+
+message ReqDataSourceSync {
+  int64 id = 1;
+}
+
+message ResDataSourceSync {
+  DataSourceDoc doc = 1;
+}

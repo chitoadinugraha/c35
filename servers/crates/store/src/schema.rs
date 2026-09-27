@@ -6,6 +6,7 @@ pub const PROMPT_FOLLOWUP_SQL: &str = include_str!("../../../../_/schemas/prompt
 pub const ASSET_TAG_SQL: &str = include_str!("../../../../_/schemas/asset_tag.sql");
 pub const LOG_SQL: &str = include_str!("../../../../_/schemas/log.sql");
 pub const EMBED_SQL: &str = include_str!("../../../../_/schemas/embed.sql");
+pub const DATA_SOURCE_SQL: &str = include_str!("../../../../_/schemas/data_source.sql");
 pub const SKILL_SQL: &str = include_str!("../../../../_/schemas/skill.sql");
 pub const TASK_SQL: &str = include_str!("../../../../_/schemas/task.sql");
 pub const CONSUMPTION_SQL: &str = include_str!("../../../../_/schemas/consumption.sql");
@@ -13,6 +14,7 @@ pub const SITE_SQL: &str = include_str!("../../../../_/schemas/site.sql");
 pub const MAIL_SQL: &str = include_str!("../../../../_/schemas/mail.sql");
 pub const TX_SQL: &str = include_str!("../../../../_/schemas/tx.sql");
 pub const FILE_SQL: &str = include_str!("../../../../_/schemas/file.sql");
+pub const DRIVE_SQL: &str = include_str!("../../../../_/schemas/drive.sql");
 pub const TOOL_ARTIFACT_SQL: &str = include_str!("../../../../_/schemas/tool_artifact.sql");
 pub const INST_SQL: &str = include_str!("../../../../_/schemas/inst.sql");
 pub const TOPIC_SQL: &str = include_str!("../../../../_/schemas/topic.sql");
@@ -35,6 +37,7 @@ pub const SCHEMA_APPLY_ORDER: &[(&str, &str)] = &[
     ("asset_tag", ASSET_TAG_SQL),
     ("log", LOG_SQL),
     ("embed", EMBED_SQL),
+    ("data_source", DATA_SOURCE_SQL),
     ("inst", INST_SQL),
     ("topic", TOPIC_SQL),
     ("mention", MENTION_SQL),
@@ -48,6 +51,7 @@ pub const SCHEMA_APPLY_ORDER: &[(&str, &str)] = &[
     ("site", SITE_SQL),
     ("tx", TX_SQL),
     ("file", FILE_SQL),
+    ("drive", DRIVE_SQL),
     ("tool_artifact", TOOL_ARTIFACT_SQL),
     ("channel", CHANNEL_SQL),
     ("config", CONFIG_SQL),

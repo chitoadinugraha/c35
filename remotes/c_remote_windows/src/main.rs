@@ -9,7 +9,13 @@ use c_remote_windows::pair_loop::pair_until_claimed;
 use c_remote_windows::tray::{start_tray_thread, TrayAction};
 use tracing::info;
 
+#[cfg(target_os = "windows")]
+fn init_drive_winfsp() { c_remote_drive::vfs_winfsp::init_winfsp_dll_path(); }
+#[cfg(not(target_os = "windows"))]
+fn init_drive_winfsp() {}
+
 async fn run() -> anyhow::Result<()> {
+    init_drive_winfsp();
     let cli = std::env::args().any(|a| a == "--cli");
     let dev = is_dev_mode();
     let dev_name = c_remote_windows::pair_loop::device_name();
@@ -81,6 +87,14 @@ async fn run() -> anyhow::Result<()> {
             &format!("@{}", id.trim_start_matches('@')),
         );
     }
+    c_remote_core::agent_ui::package_labels_set(
+        c_remote_core::config::personal_package_name_load().unwrap_or_else(|| "—".into()),
+        c_remote_core::config::device_package_name_load().unwrap_or_else(|| "—".into()),
+    );
+    c_remote_core::agent_ui::drive_enabled_set(c_remote_core::config::drive_enabled_load());
+    tokio::spawn(async {
+        c_remote_windows::drive::drive_start_on_agent_ready().await;
+    });
     tokio::spawn(async {
         loop {
             if let Some(key) = c_remote_core::config::session_key_load() {
@@ -93,11 +107,23 @@ async fn run() -> anyhow::Result<()> {
                     if !p.device_name.is_empty() {
                         c_remote_core::agent_ui::device_name_set(&p.device_name);
                     }
+                    c_remote_core::agent_ui::package_labels_set(
+                        &p.personal_package_name,
+                        &p.device_package_name,
+                    );
+                    if let (Some(used), Some(limit)) =
+                        (p.storage_used_bytes, p.storage_limit_bytes)
+                    {
+                        c_remote_core::agent_ui::drive_storage_set(used, Some(limit));
+                    }
                     if !p.owner_alien_id.is_empty() {
                         let _ = c_remote_core::config::owner_cache_save(
                             &p.owner_alien_id,
                             Some(p.owner_name.as_str()).filter(|s| !s.is_empty()),
                             Some(p.device_name.as_str()).filter(|s| !s.is_empty()),
+                            Some(p.personal_package_name.as_str()).filter(|s| !s.is_empty() && *s != "—"),
+                            Some(p.device_package_name.as_str())
+                                .filter(|s| !s.is_empty() && *s != "No device package"),
                         );
                     }
                 }
@@ -112,6 +138,9 @@ async fn run() -> anyhow::Result<()> {
             if session_key_load().is_none() {
                 return Ok(());
             }
+            if c_remote_core::config::drive_enabled_load() {
+                let _ = c_remote_windows::drive::drive_mount().await;
+            }
             continue;
         }
 
@@ -125,6 +154,8 @@ async fn run() -> anyhow::Result<()> {
         let session_key = session_key_load().expect("paired");
         let device_iid = device_iid_load().unwrap_or(0);
 
+        let _ = c_remote_windows::drive::drive_mount().await;
+
         let url = base_url.clone();
         let mut conn = tokio::spawn(async move {
             conn_ws_run_reconnect(&url, &session_key, device_iid).await
@@ -136,11 +167,13 @@ async fn run() -> anyhow::Result<()> {
                     match r {
                         Ok(Ok(ConnExit::Unpaired)) => {
                             info!("unpaired via server push");
+                            c_remote_windows::drive::drive_unmount();
                             session_key_clear()?;
                         }
                         Ok(Ok(ConnExit::Completed)) => tracing::warn!("conn_ws exited unexpectedly"),
                         Ok(Err(e)) if is_invalid_session(&e) => {
                             info!("session invalid; clearing config and re-pairing");
+                            c_remote_windows::drive::drive_unmount();
                             session_key_clear()?;
                         }
                         Ok(Err(e)) => tracing::warn!("conn_ws error: {e}"),
@@ -151,6 +184,7 @@ async fn run() -> anyhow::Result<()> {
                 action = tray_rx.recv() => match action {
                     Some(TrayAction::Unpair) => {
                         info!("Unpairing this PC…");
+                        c_remote_windows::drive::drive_unmount();
                         conn.abort();
                         if let Some(key) = session_key_load() {
                             let url = base_url.clone();
@@ -158,8 +192,14 @@ async fn run() -> anyhow::Result<()> {
                                 tracing::warn!("server unpair failed (clearing local anyway): {e}");
                             }
                         }
+                        c_remote_windows::drive::drive_unmount();
                         session_key_clear()?;
                         break;
+                    }
+                    Some(TrayAction::DriveSet(enabled)) => {
+                        if let Err(e) = c_remote_windows::drive::drive_apply(enabled).await {
+                            tracing::warn!("drive toggle apply failed: {e:#}");
+                        }
                     }
                     Some(TrayAction::Quit) | None => {
                         conn.abort();

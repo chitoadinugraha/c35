@@ -102,7 +102,7 @@ fn build_tx(
     fingerprint: &str,
     _note: &str,
 ) -> Tx {
-    let total = expense_total_minor(&detect.items);
+    let total = if detect.total_minor > 0 { detect.total_minor } else { expense_total_minor(&detect.items) };
     let headline = if detect.headline.is_empty() {
         item_name_label(&detect.items, "id")
     } else {
@@ -170,7 +170,29 @@ pub async fn expense_put(
     let res = tx_put(pool, caller_iid, ReqTxPut { tx: Some(tx) }, None)
         .await
         .map_err(|e| e.to_string())?;
-    Ok(res.tx.map(|t| t.tx_id).unwrap_or(0))
+    let tx_id = res.tx.map(|t| t.tx_id).unwrap_or(0);
+    if tx_id > 0 {
+        let meta = serde_json::json!({
+            "currency": detect.currency,
+            "subtotal_minor": detect.subtotal_minor,
+            "tax_minor": detect.tax_minor,
+            "service_minor": detect.service_minor,
+            "discount_minor": detect.discount_minor,
+            "math_verified": detect.math_verified,
+            "math_discrepancy_minor": detect.math_discrepancy_minor,
+            "is_dining": detect.is_dining,
+            "can_log_food": detect.can_log_food,
+        });
+        let _ = sqlx::query(
+            "UPDATE site.tx SET tx_data_json = tx_data_json || $3 WHERE site_iid = $1 AND tx_id = $2"
+        )
+        .bind(caller_iid)
+        .bind(tx_id)
+        .bind(meta)
+        .execute(pool)
+        .await;
+    }
+    Ok(tx_id)
 }
 
 pub async fn expense_update(
@@ -292,13 +314,32 @@ pub async fn expense_get(pool: &PgPool, owner_iid: i64, tx_id: i64) -> Result<Op
             .unwrap_or("")
             .to_string();
         let payment_method = expense_payment_method(pool, owner_iid, tx_id).await?;
+        let currency = tx_data.get("currency").and_then(|c| c.as_str()).unwrap_or(DEFAULT_CURRENCY).to_string();
+        let subtotal_minor = tx_data.get("subtotal_minor").and_then(|v| v.as_i64()).unwrap_or(0);
+        let tax_minor = tx_data.get("tax_minor").and_then(|v| v.as_i64()).unwrap_or(0);
+        let service_minor = tx_data.get("service_minor").and_then(|v| v.as_i64()).unwrap_or(0);
+        let discount_minor = tx_data.get("discount_minor").and_then(|v| v.as_i64()).unwrap_or(0);
+        let math_verified = tx_data.get("math_verified").and_then(|v| v.as_bool()).unwrap_or(true);
+        let math_discrepancy_minor = tx_data.get("math_discrepancy_minor").and_then(|v| v.as_i64()).unwrap_or(0);
+        let is_dining = tx_data.get("is_dining").and_then(|v| v.as_bool()).unwrap_or(false);
+        let can_log_food = tx_data.get("can_log_food").and_then(|v| v.as_bool()).unwrap_or(false);
+        let linked_consumption_id = tx_data.get("consumption_id").and_then(|v| v.as_i64());
         return Ok(Some(ExpenseReceipt {
             tx_id: tx_id.to_string(),
             headline: desc,
             subtitle: subject_name,
             coach: String::new(),
             total_minor: total,
-            currency: DEFAULT_CURRENCY.into(),
+            currency,
+            subtotal_minor,
+            tax_minor,
+            service_minor,
+            discount_minor,
+            math_verified,
+            math_discrepancy_minor,
+            is_dining,
+            can_log_food,
+            linked_consumption_id,
             saved: true,
             duplicate: false,
             duplicate_reason: String::new(),
@@ -389,7 +430,7 @@ pub fn receipt_from_detect(
     today: ExpenseTodaySummary,
     locale: &str,
 ) -> ExpenseReceipt {
-    let total = expense_total_minor(&detect.items);
+    let total = if detect.total_minor > 0 { detect.total_minor } else { expense_total_minor(&detect.items) };
     let headline = if detect.headline.is_empty() {
         item_name_label(&detect.items, locale)
     } else {
@@ -401,7 +442,16 @@ pub fn receipt_from_detect(
         subtitle: detect.subject.clone(),
         coach: String::new(),
         total_minor: total,
-        currency: DEFAULT_CURRENCY.into(),
+        currency: if detect.currency.is_empty() { DEFAULT_CURRENCY.into() } else { detect.currency.clone() },
+        subtotal_minor: detect.subtotal_minor,
+        tax_minor: detect.tax_minor,
+        service_minor: detect.service_minor,
+        discount_minor: detect.discount_minor,
+        math_verified: detect.math_verified,
+        math_discrepancy_minor: detect.math_discrepancy_minor,
+        is_dining: detect.is_dining,
+        can_log_food: detect.can_log_food,
+        linked_consumption_id: None,
         saved,
         duplicate,
         duplicate_reason: duplicate_reason.to_string(),

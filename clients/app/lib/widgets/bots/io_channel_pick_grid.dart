@@ -159,27 +159,65 @@ class IoChannelRow extends StatelessWidget {
 
 const _assetPickItems = [
   IoAskItem(id: 'google_sheets', title: 'Google Sheets', subtitle: 'Read and write spreadsheet data', icon: Icons.table_chart_outlined, accent: Color(0xFF34A853)),
-  IoAskItem(id: 'google_drive', title: 'Google Drive', subtitle: 'Access files and folders', icon: Icons.folder_outlined, accent: Color(0xFF4285F4)),
 ];
 
-class IoAssetListPanel extends StatelessWidget {
-  const IoAssetListPanel({super.key, required this.assets, required this.onAdd, required this.onRemove, this.busy = false});
+class BotSheetDraft {
+  const BotSheetDraft({required this.name, required this.viewUrl});
 
-  final List<String> assets;
-  final ValueChanged<String> onAdd;
-  final ValueChanged<String> onRemove;
+  final String name;
+  final String viewUrl;
+}
+
+class IoAssetListPanel extends StatelessWidget {
+  const IoAssetListPanel({super.key, required this.sheets, required this.onAdd, required this.onRemove, this.busy = false});
+
+  final List<BotSheetDraft> sheets;
+  final ValueChanged<BotSheetDraft> onAdd;
+  final ValueChanged<BotSheetDraft> onRemove;
   final bool busy;
 
-  Future<void> _addAsset(BuildContext context) async {
+  Future<void> _addSheet(BuildContext context) async {
     final picked = await ioAskItemsShow(context, title: 'Add asset', items: _assetPickItems, searchHint: 'Search assets…');
-    if (picked != null && !assets.contains(picked.id)) onAdd(picked.id);
-  }
-
-  IoAskItem? _item(String id) {
-    for (final item in _assetPickItems) {
-      if (item.id == id) return item;
-    }
-    return null;
+    if (!context.mounted) return;
+    if (picked == null || picked.id != 'google_sheets') return;
+    final nameCtrl = TextEditingController(text: 'Sheet');
+    final urlCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF18181B),
+        title: const Text('Google Sheet', style: TextStyle(color: _title)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameCtrl,
+              style: const TextStyle(color: _title),
+              decoration: const InputDecoration(labelText: 'Name', labelStyle: TextStyle(color: _muted)),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: urlCtrl,
+              style: const TextStyle(color: _title),
+              decoration: const InputDecoration(
+                labelText: 'Sheet URL',
+                hintText: 'https://docs.google.com/spreadsheets/d/…',
+                labelStyle: TextStyle(color: _muted),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Add')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final name = nameCtrl.text.trim();
+    final url = urlCtrl.text.trim();
+    if (name.isEmpty || url.isEmpty) return;
+    onAdd(BotSheetDraft(name: name, viewUrl: url));
   }
 
   @override
@@ -191,34 +229,40 @@ class IoAssetListPanel extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
-              child: assets.isEmpty
-                  ? const Center(child: Text('No assets yet', style: TextStyle(color: _muted, fontSize: 13)))
+              child: sheets.isEmpty
+                  ? const Center(child: Text('No sheets yet', style: TextStyle(color: _muted, fontSize: 13)))
                   : ListView.separated(
-                      itemCount: assets.length,
+                      itemCount: sheets.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 6),
                       itemBuilder: (context, i) {
-                        final id = assets[i];
-                        final item = _item(id);
+                        final sheet = sheets[i];
                         return Container(
                           padding: const EdgeInsets.fromLTRB(10, 8, 6, 8),
                           decoration: BoxDecoration(color: const Color(0xFF18181B), borderRadius: BorderRadius.circular(10), border: Border.all(color: _border)),
                           child: Row(
                             children: [
-                              if (item?.icon != null)
-                                Container(
-                                  width: 32,
-                                  height: 32,
-                                  decoration: BoxDecoration(color: (item!.accent ?? _accent).withValues(alpha: 0.18), borderRadius: BorderRadius.circular(8)),
-                                  child: Icon(item.icon, size: 16, color: item.accent ?? _accent),
+                              Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(color: const Color(0xFF34A853).withValues(alpha: 0.18), borderRadius: BorderRadius.circular(8)),
+                                child: const Icon(Icons.table_chart_outlined, size: 16, color: Color(0xFF34A853)),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(sheet.name, style: const TextStyle(color: _title, fontSize: 13, fontWeight: FontWeight.w600)),
+                                    Text(sheet.viewUrl, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _muted, fontSize: 11)),
+                                  ],
                                 ),
-                              if (item?.icon != null) const SizedBox(width: 10),
-                              Expanded(child: Text(item?.title ?? id, style: const TextStyle(color: _title, fontSize: 13, fontWeight: FontWeight.w600))),
+                              ),
                               if (!busy)
                                 IconButton(
                                   visualDensity: VisualDensity.compact,
                                   padding: EdgeInsets.zero,
                                   constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                                  onPressed: () => onRemove(id),
+                                  onPressed: () => onRemove(sheet),
                                   icon: const Icon(Icons.close, size: 16, color: _muted),
                                 ),
                             ],
@@ -229,7 +273,7 @@ class IoAssetListPanel extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             OutlinedButton.icon(
-              onPressed: busy ? null : () => _addAsset(context),
+              onPressed: busy ? null : () => _addSheet(context),
               icon: const Icon(Icons.add, size: 16, color: _accent),
               label: const Text('Add asset', style: TextStyle(color: _accent, fontSize: 13, fontWeight: FontWeight.w600)),
               style: OutlinedButton.styleFrom(side: const BorderSide(color: _border), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),

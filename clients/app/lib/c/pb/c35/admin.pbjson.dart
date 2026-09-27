@@ -67,6 +67,19 @@ final $typed_data.Uint8List resAdminUserSearchDescriptor = $convert.base64Decode
     'ChJSZXNBZG1pblVzZXJTZWFyY2gSJwoFdXNlcnMYASADKAsyES5jMzUuQWRtaW5Vc2VySGl0Ug'
     'V1c2Vycw==');
 
+@$core.Deprecated('Use adminGlobalRolesPatchDescriptor instead')
+const AdminGlobalRolesPatch$json = {
+  '1': 'AdminGlobalRolesPatch',
+  '2': [
+    {'1': 'roles', '3': 1, '4': 3, '5': 9, '10': 'roles'},
+  ],
+};
+
+/// Descriptor for `AdminGlobalRolesPatch`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List adminGlobalRolesPatchDescriptor =
+    $convert.base64Decode(
+        'ChVBZG1pbkdsb2JhbFJvbGVzUGF0Y2gSFAoFcm9sZXMYASADKAlSBXJvbGVz');
+
 @$core.Deprecated('Use reqAdminUserPutDescriptor instead')
 const ReqAdminUserPut$json = {
   '1': 'ReqAdminUserPut',
@@ -107,6 +120,16 @@ const ReqAdminUserPut$json = {
       '10': 'authEmail',
       '17': true
     },
+    {
+      '1': 'global_roles',
+      '3': 7,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.AdminGlobalRolesPatch',
+      '9': 5,
+      '10': 'globalRoles',
+      '17': true
+    },
   ],
   '8': [
     {'1': '_name'},
@@ -114,6 +137,7 @@ const ReqAdminUserPut$json = {
     {'1': '_referred_by_uid'},
     {'1': '_handle'},
     {'1': '_auth_email'},
+    {'1': '_global_roles'},
   ],
 };
 
@@ -123,8 +147,10 @@ final $typed_data.Uint8List reqAdminUserPutDescriptor = $convert.base64Decode(
     'VudGl0eUlkEhcKBG5hbWUYAiABKAlIAFIEbmFtZYgBARIiCgphdmF0YXJfdXJsGAMgASgJSAFS'
     'CWF2YXRhclVybIgBARIrCg9yZWZlcnJlZF9ieV91aWQYBCABKANIAlINcmVmZXJyZWRCeVVpZI'
     'gBARIbCgZoYW5kbGUYBSABKAlIA1IGaGFuZGxliAEBEiIKCmF1dGhfZW1haWwYBiABKAlIBFIJ'
-    'YXV0aEVtYWlsiAEBQgcKBV9uYW1lQg0KC19hdmF0YXJfdXJsQhIKEF9yZWZlcnJlZF9ieV91aW'
-    'RCCQoHX2hhbmRsZUINCgtfYXV0aF9lbWFpbA==');
+    'YXV0aEVtYWlsiAEBEkIKDGdsb2JhbF9yb2xlcxgHIAEoCzIaLmMzNS5BZG1pbkdsb2JhbFJvbG'
+    'VzUGF0Y2hIBVILZ2xvYmFsUm9sZXOIAQFCBwoFX25hbWVCDQoLX2F2YXRhcl91cmxCEgoQX3Jl'
+    'ZmVycmVkX2J5X3VpZEIJCgdfaGFuZGxlQg0KC19hdXRoX2VtYWlsQg8KDV9nbG9iYWxfcm9sZX'
+    'M=');
 
 @$core.Deprecated('Use resAdminUserPutDescriptor instead')
 const ResAdminUserPut$json = {

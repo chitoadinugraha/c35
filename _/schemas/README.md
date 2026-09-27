@@ -1,10 +1,10 @@
 # Schemas
 
-SQL and protobuf sources for c35. Applied by `server_ai` on boot (idempotent).
+SQL and protobuf sources for c35. Applied when the **schema bundle hash** changes (see [`_/docs/schema-migrate.md`](../docs/schema-migrate.md)).
 
 ## Apply order
 
-Applied by `c35_store::migrate_apply` on `server_ai` boot and via `.\_\scripts\dev\migrate_db.ps1`.
+Registered in `servers/crates/store/src/schema.rs` (`SCHEMA_APPLY_ORDER`). On boot, `server_ai` calls `migrate_startup` (skip when `ai.config` `c35.schema_version` matches). Force apply: `cd servers && cargo run -p c35_store --bin c35_migrate -- apply` or `.\_\scripts\dev\migrate_db.ps1`.
 
 ```
 1. identity.sql
@@ -15,21 +15,23 @@ Applied by `c35_store::migrate_apply` on `server_ai` boot and via `.\_\scripts\d
 6. asset_tag.sql
 7. log.sql
 8. embed.sql
-9. inst.sql
-10. topic.sql
-11. mention.sql
-12. translation.sql
-13. hint.sql
-14. memory.sql
-15. skill.sql
-16. task.sql
-17. consumption.sql
-18. object_normalizer.sql
-19. site.sql         ← creates YSQL schema site
-20. tx.sql           ← site.tx_* (requires site.sql)
-21. file.sql
-22. channel.sql
-23. config.sql
+9. data_source.sql
+10. inst.sql
+11. topic.sql
+12. mention.sql
+13. translation.sql
+14. hint.sql
+15. memory.sql
+16. skill.sql
+17. task.sql
+18. consumption.sql
+19. object_normalizer.sql
+20. site.sql         ← creates YSQL schema site
+21. tx.sql           ← site.tx_* (requires site.sql)
+22. file.sql
+23. drive.sql         ← owner drive path index (requires file.sql / CAS)
+24. channel.sql
+25. config.sql
 ```
 
 One-time data migrations live in `_/schemas/migrations/` — run manually when upgrading legacy DBs (not on every boot).
@@ -63,6 +65,7 @@ Site **registry** stays in `ai.identity(kind=site)` — `site.*` tables FK to `a
 | [site.sql](site.sql) | **locked** | `site.*` — doc, publish, render, catalog, domain |
 | [tx.sql](tx.sql) | **locked** | `site.tx_*` — POS (id.alienai model) |
 | [file.sql](file.sql) | **locked** | CAS: inline + S3 + variants |
+| [drive.sql](drive.sql) | **locked** | Owner drive path index (`ai.drive_file`) |
 | [`proto/`](proto/) | **locked** | Protobuf wire contracts (`c35/*.proto`) |
 
 ## Conventions (LOCKED)

@@ -1,4 +1,3 @@
-import 'package:alienai_c35/c/catalog/catalog_api.dart';
 import 'package:alienai_c35/widgets/ai/composer_mention_text.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -28,6 +27,10 @@ void main() {
 
   test('composerMentionIdsCollect reads bracket form', () {
     expect(composerMentionIdsCollect('hello [@catalog:research] there'), ['catalog:research']);
+  });
+
+  test('composerMentionIdsCollect reads drive bracket', () {
+    expect(composerMentionIdsCollect('read [@drive:notes/todo.txt]'), ['drive:notes/todo.txt']);
   });
 
   test('composerMentionDisplayRestore wraps inline iid in sentence', () {

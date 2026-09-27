@@ -1,5 +1,6 @@
 mod agent;
 mod app_web;
+mod drive;
 mod catalog;
 mod device;
 mod guest_order;
@@ -12,7 +13,8 @@ mod web;
 
 use axum::{
     extract::Query,
-    http::HeaderMap,
+    http::{header, HeaderMap, StatusCode},
+    response::{IntoResponse, Response},
     routing::get,
     Json, Router,
 };
@@ -40,9 +42,17 @@ struct LocaleQuery {
     lang: Option<String>,
 }
 
-async fn locale_detect(headers: HeaderMap, Query(q): Query<LocaleQuery>) -> Json<serde_json::Value> {
+async fn locale_detect(headers: HeaderMap, Query(q): Query<LocaleQuery>) -> Response {
     let lang = locale::detect_locale(&headers, q.lang.as_deref());
-    Json(serde_json::json!({ "lang": lang }))
+    (
+        StatusCode::OK,
+        [
+            (header::CACHE_CONTROL, "private, no-store"),
+            (header::CONTENT_TYPE, "application/json"),
+        ],
+        Json(serde_json::json!({ "lang": lang })),
+    )
+        .into_response()
 }
 
 pub fn router(state: AppState) -> Router {
@@ -58,6 +68,7 @@ pub fn router(state: AppState) -> Router {
         .merge(auth_router())
         .merge(oauth_router())
         .merge(file_router())
+        .merge(drive::drive_router())
         .merge(channel_router())
         .merge(version::version_router())
         .merge(device::device_router())

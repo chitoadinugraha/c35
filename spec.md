@@ -101,11 +101,15 @@ Full UI spec: [`_/docs/ui.md`](_/docs/ui.md)
 |-----|----------|
 | [`_/docs/architecture.md`](_/docs/architecture.md) | Locked system design |
 | [`_/docs/identity.md`](_/docs/identity.md) | Identity kinds, grants, alien_id |
+| [`_/docs/referral.md`](_/docs/referral.md) | Referral forest, partner/director/root RBAC, admin audit events |
 | [`_/docs/chat.md`](_/docs/chat.md) | Chat; Home inbox = prompt only |
 | [`_/docs/mention.md`](_/docs/mention.md) | Mentions — bracket text `[@iid:…]`, wire `mention_ids[]`, reload context |
 | [`_/docs/inst.md`](_/docs/inst.md) | Instruction macros (`ai.inst`) — LLM prompt steering |
 | [`_/docs/sync.md`](_/docs/sync.md) | `_ts` fields, since-delta, indexes, NATS |
+| [`_/docs/data_source.md`](_/docs/data_source.md) | Bot data sources — cached Google Sheets (generic sync/chunk tables) |
+| [`_/docs/drive.md`](_/docs/drive.md) | Alien AI Drive — owner volume, agent A: mount, CAS + quotas |
 | [`_/docs/server.md`](_/docs/server.md) | Crate workspace layout |
+| [`_/docs/schema-migrate.md`](_/docs/schema-migrate.md) | YSQL schema bundle hash, boot skip, `c35_migrate` |
 | [`_/docs/ui.md`](_/docs/ui.md) | Pages, navigation, components |
 | [`_/docs/remote.md`](_/docs/remote.md) | Remote: agent control session + WebRTC data plane (screen, files, media) |
 | [`_/docs/remote-agent.md`](_/docs/remote-agent.md) | Remote agent architecture, multi-platform porting, OTA & watchdog spec |

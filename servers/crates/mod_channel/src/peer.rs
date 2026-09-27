@@ -1,7 +1,9 @@
 use anyhow::Result;
+use c35_mod_log::{log_put, LogPut};
 use c35_store::snowflake_id;
 use sqlx::{PgPool, Row};
 
+use crate::policy::AUTO_BLOCK_OOS_THRESHOLD;
 use crate::types::ChannelInboundMessage;
 
 pub async fn peer_iid_resolve(pool: &PgPool, inbound: &ChannelInboundMessage) -> Result<i64> {
@@ -213,4 +215,100 @@ pub async fn chat_ai_reply_enabled(pool: &PgPool, chat_id: i64) -> bool {
     .ok()
     .flatten()
     .unwrap_or(true)
+}
+
+pub async fn chat_strict_oos_count_get(pool: &PgPool, chat_id: i64) -> Result<u32> {
+    let row = sqlx::query_scalar::<_, Option<serde_json::Value>>(
+        "SELECT meta->'strict_oos_count' FROM ai.chat WHERE id = $1 AND deleted_ts IS NULL",
+    )
+    .bind(chat_id)
+    .fetch_optional(pool)
+    .await?;
+    Ok(row
+        .and_then(|v| v.and_then(|n| n.as_u64()))
+        .unwrap_or(0) as u32)
+}
+
+pub async fn chat_strict_oos_count_set(pool: &PgPool, chat_id: i64, count: u32) -> Result<()> {
+    sqlx::query(
+        r#"
+        UPDATE ai.chat
+        SET meta = jsonb_set(COALESCE(meta, '{}'::jsonb), '{strict_oos_count}', to_jsonb($2::int)),
+            updated_ts = NOW()
+        WHERE id = $1 AND deleted_ts IS NULL
+        "#,
+    )
+    .bind(chat_id)
+    .bind(count as i32)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn chat_ai_reply_set(pool: &PgPool, chat_id: i64, enabled: bool) -> Result<()> {
+    sqlx::query(
+        "UPDATE ai.chat SET ai_reply_enabled = $2, updated_ts = NOW() WHERE id = $1 AND deleted_ts IS NULL",
+    )
+    .bind(chat_id)
+    .bind(enabled)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub struct StrictOosApplyResult {
+    pub count: u32,
+    pub newly_blocked: bool,
+}
+
+pub async fn chat_strict_oos_apply(
+    pool: &PgPool,
+    nats: Option<&async_nats::Client>,
+    owner_iid: i64,
+    bot_iid: i64,
+    chat_id: i64,
+    was_oos: bool,
+    auto_block: bool,
+) -> Result<StrictOosApplyResult> {
+    let count = if was_oos {
+        chat_strict_oos_count_get(pool, chat_id).await? + 1
+    } else {
+        0
+    };
+    chat_strict_oos_count_set(pool, chat_id, count).await?;
+    let newly_blocked = auto_block && was_oos && count >= AUTO_BLOCK_OOS_THRESHOLD;
+    if newly_blocked {
+        chat_ai_reply_set(pool, chat_id, false).await?;
+        let _ = log_put(
+            pool,
+            nats,
+            LogPut {
+                class: None,
+                owner_iid,
+                kind: "system",
+                topic: "channel",
+                dv: "c35-server",
+                req_id: None,
+                chat_id: Some(chat_id),
+                task_id: None,
+                device_iid: None,
+                text: "Auto-blocked peer after repeated out-of-scope messages",
+                model: "",
+                tokens_in: 0,
+                tokens_out: 0,
+                duration_ms: 0,
+                cost_usd: 0.0,
+                meta: serde_json::json!({
+                    "channel": {
+                        "bot_iid": bot_iid,
+                        "chat_id": chat_id,
+                        "strict_oos_count": count,
+                        "event": "peer_auto_blocked",
+                    }
+                }),
+            },
+        )
+        .await;
+    }
+    Ok(StrictOosApplyResult { count, newly_blocked })
 }

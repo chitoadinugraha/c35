@@ -225,9 +225,10 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
     await _loadStats();
   }
 
-  bool get _canEdit => widget.viewerIsRoot && !_busy;
+  bool get _canEdit => referralCanEditProfile() && !_busy;
   bool get _canAdjust => (Session.instance.isRoot || Session.instance.globalRoles.contains('director')) && !_busy;
-  bool get _canEditReferrer => _canEdit && !referralNodeIsRoot(_node);
+  bool get _canEditReferrer => referralCanEditReferrer() && !referralNodeIsRoot(_node);
+  bool get _canEditRoles => referralCanEditRoles() && !referralNodeIsRoot(_node);
   bool get _canViewContact => Session.instance.isRoot || Session.instance.globalRoles.contains('director');
 
   String get _platformLabel {
@@ -415,6 +416,38 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
     });
   }
 
+  Future<void> _editRoles() async {
+    if (!_canEditRoles) return;
+    const assignable = ['partner', 'marketing', 'finance'];
+    final allRoles = referralCanEditRolesGrantDirector() ? [...assignable, 'director'] : assignable;
+    final selected = {..._node.globalRoles.where((r) => r != 'root')};
+    final picked = await showDialog<Set<String>>(
+      context: context,
+      builder: (ctx) => _RolesEditDialog(initial: selected, options: allRoles),
+    );
+    if (picked == null) return;
+    final next = picked.toList()..sort();
+    final current = _node.globalRoles.where((r) => r != 'root').toList()..sort();
+    if (next.toString() == current.toString()) return;
+    await _run(() async {
+      await _admin.userPut(targetId: _node.id, globalRoles: next);
+      if (!mounted) return;
+      setState(() {
+        _reloadTree = true;
+        _node = ReferralTreeNode()..mergeFromMessage(_node)..globalRoles.clear()..globalRoles.addAll(next);
+      });
+    });
+  }
+
+  Future<void> _onReferrerAction(String action) async {
+    switch (action) {
+      case 'set_referrer':
+        await _setReferredBy();
+      case 'clear_referrer':
+        await _clearReferredBy();
+    }
+  }
+
   Future<void> _onEditAction(String action) async {
     switch (action) {
       case 'name':
@@ -522,6 +555,25 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
                                 child: const Icon(Icons.edit_outlined, size: 20, color: _ReferralPalette.muted),
                               ),
                             ),
+                          if (_canEditReferrer && !_canEdit)
+                            PopupMenuButton<String>(
+                              tooltip: uiPopupMenuTooltipText('Referrer'),
+                              enabled: !_busy,
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                              color: _ReferralPalette.bg,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: _ReferralPalette.border)),
+                              onSelected: _onReferrerAction,
+                              itemBuilder: (ctx) => [
+                                const PopupMenuItem(value: 'set_referrer', child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.person_add_alt_1_outlined, size: 20, color: _ReferralPalette.muted), title: Text('Set referred by'), dense: true)),
+                                if (_node.parentId != 0)
+                                  const PopupMenuItem(value: 'clear_referrer', child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.person_remove_outlined, size: 20, color: _ReferralPalette.muted), title: Text('Clear referred by'), dense: true)),
+                              ],
+                              child: uiPopupMenuChild(
+                                tooltip: 'Referrer',
+                                child: const Icon(Icons.account_tree_outlined, size: 20, color: _ReferralPalette.muted),
+                              ),
+                            ),
                           if (widget.onFocus != null)
                             uiIconButton(
                               tooltip: 'Center in tree',
@@ -574,10 +626,18 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
                           ),
                           const SizedBox(height: 10),
                         ],
-                        if (_roles.isNotEmpty) ...[
+                        if (_roles.isNotEmpty || _canEditRoles) ...[
                           _ProfileSection(
                             title: 'Roles',
-                            child: Wrap(spacing: 5, runSpacing: 5, children: _roles.map((r) => _RoleChip(label: r)).toList()),
+                            showTrailing: _canEditRoles,
+                            onTap: _canEditRoles && !_busy ? _editRoles : null,
+                            child: Wrap(
+                              spacing: 5,
+                              runSpacing: 5,
+                              children: _roles.isEmpty
+                                  ? [const Text('No roles', style: TextStyle(color: _ReferralPalette.muted, fontSize: 12))]
+                                  : _roles.map((r) => _RoleChip(label: r)).toList(),
+                            ),
                           ),
                           const SizedBox(height: 10),
                         ],
@@ -603,7 +663,7 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
                           onColATap: () => _pickColumnRange(colA: true),
                           onColBTap: () => _pickColumnRange(colA: false),
                         ),
-                        if (widget.viewerIsRoot) ...[
+                        if (Session.instance.isRoot) ...[
                           const SizedBox(height: 10),
                           OutlinedButton.icon(
                             onPressed: _busy
@@ -947,6 +1007,51 @@ class _RoleChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(color: _ReferralPalette.section, borderRadius: BorderRadius.circular(999), border: Border.all(color: _ReferralPalette.border)),
         child: Text(label, style: const TextStyle(color: _ReferralPalette.text, fontSize: 11, fontWeight: FontWeight.w600)),
+      );
+}
+
+class _RolesEditDialog extends StatefulWidget {
+  const _RolesEditDialog({required this.initial, required this.options});
+
+  final Set<String> initial;
+  final List<String> options;
+
+  @override
+  State<_RolesEditDialog> createState() => _RolesEditDialogState();
+}
+
+class _RolesEditDialogState extends State<_RolesEditDialog> {
+  late Set<String> _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    _selected = {...widget.initial};
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        backgroundColor: _ReferralPalette.bg,
+        title: const Text('Edit roles', style: TextStyle(color: _ReferralPalette.text)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final role in widget.options)
+                CheckboxListTile(
+                  value: _selected.contains(role),
+                  onChanged: (v) => setState(() => v == true ? _selected.add(role) : _selected.remove(role)),
+                  title: Text(referralGlobalRoleLabel(role), style: const TextStyle(color: _ReferralPalette.text)),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  dense: true,
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(context, _selected), child: const Text('Save')),
+        ],
       );
 }
 

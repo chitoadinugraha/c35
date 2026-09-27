@@ -48,6 +48,12 @@ pub async fn identity_delete(pool: &PgPool, caller_iid: i64, req: ReqIdentityDel
             .bind(iid)
             .execute(&mut *tx)
             .await?;
+        sqlx::query(
+            "UPDATE ai.data_source SET bot_iid = NULL, updated_ts = NOW() WHERE bot_iid = $1 AND deleted_ts IS NULL",
+        )
+        .bind(iid)
+        .execute(&mut *tx)
+        .await?;
     }
     tx.commit().await?;
     Ok(ResIdentityDelete {

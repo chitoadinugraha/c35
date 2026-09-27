@@ -23,7 +23,9 @@ c35_mod_file = { path = "../crates/mod_file", package = "c35_mod_file" }
 reqwest = { workspace = true }
 c35_mod_channel = { path = "../crates/mod_channel", package = "c35_mod_channel" }
 c35_mod_chat = { path = "../crates/mod_chat", package = "c35_mod_chat" }
+c35_mod_data_source = { path = "../crates/mod_data_source", package = "c35_mod_data_source" }
 c35_mod_device = { path = "../crates/mod_device", package = "c35_mod_device" }
+c35_mod_drive = { path = "../crates/mod_drive", package = "c35_mod_drive" }
 c35_mod_site = { path = "../crates/mod_site", package = "c35_mod_site" }
 c35_mod_mail = { path = "../crates/mod_mail", package = "c35_mod_mail" }
 c35_mod_llm = { path = "../crates/mod_llm", package = "c35_mod_llm" }

@@ -1,6 +1,6 @@
 //! Plain startup lines — no timestamp, level, or target.
 
-use std::io::IsTerminal;
+use std::io::{IsTerminal, Write};
 
 const RESET: &str = "\x1b[0m";
 
@@ -27,6 +27,15 @@ fn url(s: &str) -> String {
     paint("34", s)
 }
 
+fn emit_line(line: &str) {
+    println!("{line}");
+    let _ = std::io::stdout().flush();
+}
+
+pub fn booting(phase: &str) {
+    emit_line(&format!("{} {}", label("Booting:"), mute(phase)));
+}
+
 pub fn store_connected(yb_ms: u128, nats_ms: Option<u128>, nats_required: bool) {
     let mut line = ok(&format!("YB {yb_ms}ms"));
     match nats_ms {
@@ -40,11 +49,16 @@ pub fn store_connected(yb_ms: u128, nats_ms: Option<u128>, nats_required: bool) 
         }
         None => {}
     }
-    println!("{} {line}", label("Store Connected:"));
+    emit_line(&format!("{} {line}", label("Store Connected:")));
 }
 
-pub fn features(names: &[&str]) {
-    println!("{} {}", label("Features:"), ok(&names.join(", ")));
+pub fn features(names: &[impl AsRef<str>]) {
+    let joined = names
+        .iter()
+        .map(|s| s.as_ref())
+        .collect::<Vec<_>>()
+        .join(", ");
+    emit_line(&format!("{} {}", label("Features:"), ok(&joined)));
 }
 
 pub fn listening(entries: &[(&str, String)]) {
@@ -52,16 +66,18 @@ pub fn listening(entries: &[(&str, String)]) {
         return;
     }
     if entries.len() == 1 {
-        println!("{} {}", label("Listening"), url(&entries[0].1));
+        emit_line(&format!("{} {}", label("Listening"), url(&entries[0].1)));
         return;
     }
-    println!("{}", label("Listening"));
+    emit_line(&label("Listening"));
     for (name, addr) in entries {
-        println!("  {} {}", mute(name), url(addr));
+        emit_line(&format!("  {} {}", mute(name), url(addr)));
     }
 }
 
-pub fn port_in_use(port: &str) {
+pub fn port_in_use(listen: &str) {
+    let port = listen.rsplit(':').next().unwrap_or(listen);
+    eprintln!("{} {}", label("Listening failed:"), url(listen));
     let pids = port_pids(port);
     if pids.is_empty() {
         return;

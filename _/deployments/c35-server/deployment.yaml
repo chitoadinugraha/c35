@@ -82,6 +82,14 @@ spec:
               value: "3000"
             - name: PROMPT_RUN_MAX_CONCURRENT
               value: "8"
+            - name: DATA_SOURCE_BG_ENABLED
+              value: "1"
+            - name: DATA_SOURCE_BG_TICK_SEC
+              value: "30"
+            - name: DATA_SOURCE_BG_BATCH
+              value: "8"
+            - name: DATA_SOURCE_BG_MAX_CONCURRENT
+              value: "2"
             - name: EXTERNAL_FETCHER
               value: "1"
             - name: RUST_LOG

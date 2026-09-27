@@ -69,7 +69,7 @@ pub async fn pair_until_claimed(
                         ui.close();
                         return Ok(());
                     }
-                    Some(TrayAction::Unpair) | None => {}
+                    Some(TrayAction::Unpair) | Some(TrayAction::DriveSet(_)) | None => {}
                 }
             }
 

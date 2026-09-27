@@ -180,6 +180,8 @@ async fn peer_avatar_fetch_upload(
     Ok(uploaded.hash)
 }
 
+const CHANNEL_INBOUND_IMAGE_MAX_BYTES: usize = 5_242_880;
+
 pub async fn extract_message_payload(
     http: &reqwest::Client,
     client: &wa_rs::Client,
@@ -200,11 +202,18 @@ pub async fn extract_message_payload(
     let mut attachments = Vec::new();
     if let Some(img) = msg.image_message.as_ref() {
         if let Ok(bytes) = client.download(img.as_ref()).await {
-            let name = "image.jpg";
-            let mime = img.mimetype.as_deref().unwrap_or("image/jpeg");
-            match upload_channel_media(http, bot_iid, channel_id, webhook_secret, name, mime, &bytes).await {
-                Ok(att) => attachments.push(att),
-                Err(e) => warn!("[wa-channel] image upload failed channel_id={channel_id}: {e:#}"),
+            if bytes.len() <= CHANNEL_INBOUND_IMAGE_MAX_BYTES {
+                let name = "image.jpg";
+                let mime = img.mimetype.as_deref().unwrap_or("image/jpeg");
+                match upload_channel_media(http, bot_iid, channel_id, webhook_secret, name, mime, &bytes).await {
+                    Ok(att) => attachments.push(att),
+                    Err(e) => warn!("[wa-channel] image upload failed channel_id={channel_id}: {e:#}"),
+                }
+            } else {
+                warn!(
+                    "[wa-channel] image too large channel_id={channel_id} bytes={}",
+                    bytes.len()
+                );
             }
         }
         let caption = img.caption.as_deref().unwrap_or("[image]").to_string();
@@ -217,17 +226,13 @@ pub async fn extract_message_payload(
         }.with_quote(msg));
     }
     if let Some(doc) = msg.document_message.as_ref() {
-        if let Ok(bytes) = client.download(doc.as_ref()).await {
-            let name = doc.file_name.as_deref().unwrap_or("document");
-            let mime = doc.mimetype.as_deref().unwrap_or("application/octet-stream");
-            match upload_channel_media(http, bot_iid, channel_id, webhook_secret, name, mime, &bytes).await {
-                Ok(att) => attachments.push(att),
-                Err(e) => warn!("[wa-channel] document upload failed channel_id={channel_id}: {e:#}"),
-            }
-        }
-        let caption = doc.caption.as_deref().unwrap_or("[document]").to_string();
+        let caption = doc
+            .caption
+            .as_deref()
+            .or_else(|| doc.file_name.as_deref())
+            .unwrap_or("[document]");
         return Some(InboundPayload {
-            text: if text.is_empty() { caption } else { text },
+            text: if text.is_empty() { caption.to_string() } else { text },
             attachments,
             is_voice: false,
             quoted_msg_id: String::new(),
@@ -236,14 +241,6 @@ pub async fn extract_message_payload(
     }
     if let Some(audio) = msg.audio_message.as_ref() {
         let is_voice = audio.ptt == Some(true);
-        if let Ok(bytes) = client.download(audio.as_ref()).await {
-            let mime = audio.mimetype.as_deref().unwrap_or("audio/ogg");
-            let name = if is_voice { "voice.ogg" } else { "audio.mp3" };
-            match upload_channel_media(http, bot_iid, channel_id, webhook_secret, name, mime, &bytes).await {
-                Ok(att) => attachments.push(att),
-                Err(e) => warn!("[wa-channel] audio upload failed channel_id={channel_id}: {e:#}"),
-            }
-        }
         let fallback = if is_voice { "[voice]" } else { "[audio]" };
         return Some(InboundPayload {
             text: if text.is_empty() { fallback.into() } else { text },
@@ -254,16 +251,9 @@ pub async fn extract_message_payload(
         }.with_quote(msg));
     }
     if let Some(video) = msg.video_message.as_ref() {
-        if let Ok(bytes) = client.download(video.as_ref()).await {
-            let mime = video.mimetype.as_deref().unwrap_or("video/mp4");
-            match upload_channel_media(http, bot_iid, channel_id, webhook_secret, "video.mp4", mime, &bytes).await {
-                Ok(att) => attachments.push(att),
-                Err(e) => warn!("[wa-channel] video upload failed channel_id={channel_id}: {e:#}"),
-            }
-        }
-        let caption = video.caption.as_deref().unwrap_or("[video]").to_string();
+        let caption = video.caption.as_deref().unwrap_or("[video]");
         return Some(InboundPayload {
-            text: if text.is_empty() { caption } else { text },
+            text: if text.is_empty() { caption.to_string() } else { text },
             attachments,
             is_voice: false,
             quoted_msg_id: String::new(),
@@ -271,13 +261,6 @@ pub async fn extract_message_payload(
         }.with_quote(msg));
     }
     if let Some(sticker) = msg.sticker_message.as_ref() {
-        if let Ok(bytes) = client.download(sticker.as_ref()).await {
-            let mime = sticker.mimetype.as_deref().unwrap_or("image/webp");
-            match upload_channel_media(http, bot_iid, channel_id, webhook_secret, "sticker.webp", mime, &bytes).await {
-                Ok(att) => attachments.push(att),
-                Err(e) => warn!("[wa-channel] sticker upload failed channel_id={channel_id}: {e:#}"),
-            }
-        }
         return Some(InboundPayload {
             text: if text.is_empty() { "[sticker]".into() } else { text },
             attachments,

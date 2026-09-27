@@ -22,11 +22,12 @@ import 'channel.pb.dart' as $4;
 import 'chat.pb.dart' as $15;
 import 'collection.pb.dart' as $21;
 import 'consumption.pb.dart' as $1;
+import 'data_source.pb.dart' as $24;
 import 'device.pb.dart' as $5;
 import 'hint.pb.dart' as $22;
 import 'identity.pb.dart' as $18;
 import 'inst.pb.dart' as $6;
-import 'log.pb.dart' as $25;
+import 'log.pb.dart' as $26;
 import 'mail.pb.dart' as $23;
 import 'object.pb.dart' as $9;
 import 'referral.pb.dart' as $2;
@@ -39,7 +40,7 @@ import 'stats.pb.dart' as $12;
 import 'sync.pb.dart' as $14;
 import 'task.pb.dart' as $19;
 import 'tx.pb.dart' as $11;
-import 'types.pb.dart' as $24;
+import 'types.pb.dart' as $25;
 import 'voice.pb.dart' as $7;
 
 export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
@@ -2436,6 +2437,10 @@ enum WsReq_Body {
   chatDeviceContextCreate,
   reqRemoteFsList,
   reqRemoteFsRead,
+  dataSourceList,
+  dataSourcePut,
+  dataSourceDelete,
+  dataSourceSync,
   notSet
 }
 
@@ -2544,6 +2549,10 @@ class WsReq extends $pb.GeneratedMessage {
     $15.ReqChatDeviceContextCreate? chatDeviceContextCreate,
     $20.ReqRemoteFsList? reqRemoteFsList,
     $20.ReqRemoteFsRead? reqRemoteFsRead,
+    $24.ReqDataSourceList? dataSourceList,
+    $24.ReqDataSourcePut? dataSourcePut,
+    $24.ReqDataSourceDelete? dataSourceDelete,
+    $24.ReqDataSourceSync? dataSourceSync,
   }) {
     final result = WsReq._();
     if (reqId != null) result.reqId = reqId;
@@ -2662,6 +2671,10 @@ class WsReq extends $pb.GeneratedMessage {
       result.chatDeviceContextCreate = chatDeviceContextCreate;
     if (reqRemoteFsList != null) result.reqRemoteFsList = reqRemoteFsList;
     if (reqRemoteFsRead != null) result.reqRemoteFsRead = reqRemoteFsRead;
+    if (dataSourceList != null) result.dataSourceList = dataSourceList;
+    if (dataSourcePut != null) result.dataSourcePut = dataSourcePut;
+    if (dataSourceDelete != null) result.dataSourceDelete = dataSourceDelete;
+    if (dataSourceSync != null) result.dataSourceSync = dataSourceSync;
     return result;
   }
 
@@ -2776,6 +2789,10 @@ class WsReq extends $pb.GeneratedMessage {
     158: WsReq_Body.chatDeviceContextCreate,
     159: WsReq_Body.reqRemoteFsList,
     160: WsReq_Body.reqRemoteFsRead,
+    161: WsReq_Body.dataSourceList,
+    162: WsReq_Body.dataSourcePut,
+    163: WsReq_Body.dataSourceDelete,
+    164: WsReq_Body.dataSourceSync,
     0: WsReq_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -2883,7 +2900,11 @@ class WsReq extends $pb.GeneratedMessage {
       157,
       158,
       159,
-      160
+      160,
+      161,
+      162,
+      163,
+      164
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$13.ReqSessionInit>(2, _omitFieldNames ? '' : 'sessionInit',
@@ -3114,6 +3135,15 @@ class WsReq extends $pb.GeneratedMessage {
         subBuilder: $20.ReqRemoteFsList.$_createMessage)
     ..aOM<$20.ReqRemoteFsRead>(160, _omitFieldNames ? '' : 'reqRemoteFsRead',
         subBuilder: $20.ReqRemoteFsRead.$_createMessage)
+    ..aOM<$24.ReqDataSourceList>(161, _omitFieldNames ? '' : 'dataSourceList',
+        subBuilder: $24.ReqDataSourceList.$_createMessage)
+    ..aOM<$24.ReqDataSourcePut>(162, _omitFieldNames ? '' : 'dataSourcePut',
+        subBuilder: $24.ReqDataSourcePut.$_createMessage)
+    ..aOM<$24.ReqDataSourceDelete>(
+        163, _omitFieldNames ? '' : 'dataSourceDelete',
+        subBuilder: $24.ReqDataSourceDelete.$_createMessage)
+    ..aOM<$24.ReqDataSourceSync>(164, _omitFieldNames ? '' : 'dataSourceSync',
+        subBuilder: $24.ReqDataSourceSync.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -3237,6 +3267,10 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(158)
   @$pb.TagNumber(159)
   @$pb.TagNumber(160)
+  @$pb.TagNumber(161)
+  @$pb.TagNumber(162)
+  @$pb.TagNumber(163)
+  @$pb.TagNumber(164)
   WsReq_Body whichBody() => _WsReq_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(3)
@@ -3339,6 +3373,10 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(158)
   @$pb.TagNumber(159)
   @$pb.TagNumber(160)
+  @$pb.TagNumber(161)
+  @$pb.TagNumber(162)
+  @$pb.TagNumber(163)
+  @$pb.TagNumber(164)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -4484,6 +4522,50 @@ class WsReq extends $pb.GeneratedMessage {
   void clearReqRemoteFsRead() => $_clearField(160);
   @$pb.TagNumber(160)
   $20.ReqRemoteFsRead ensureReqRemoteFsRead() => $_ensure(101);
+
+  @$pb.TagNumber(161)
+  $24.ReqDataSourceList get dataSourceList => $_getN(102);
+  @$pb.TagNumber(161)
+  set dataSourceList($24.ReqDataSourceList value) => $_setField(161, value);
+  @$pb.TagNumber(161)
+  $core.bool hasDataSourceList() => $_has(102);
+  @$pb.TagNumber(161)
+  void clearDataSourceList() => $_clearField(161);
+  @$pb.TagNumber(161)
+  $24.ReqDataSourceList ensureDataSourceList() => $_ensure(102);
+
+  @$pb.TagNumber(162)
+  $24.ReqDataSourcePut get dataSourcePut => $_getN(103);
+  @$pb.TagNumber(162)
+  set dataSourcePut($24.ReqDataSourcePut value) => $_setField(162, value);
+  @$pb.TagNumber(162)
+  $core.bool hasDataSourcePut() => $_has(103);
+  @$pb.TagNumber(162)
+  void clearDataSourcePut() => $_clearField(162);
+  @$pb.TagNumber(162)
+  $24.ReqDataSourcePut ensureDataSourcePut() => $_ensure(103);
+
+  @$pb.TagNumber(163)
+  $24.ReqDataSourceDelete get dataSourceDelete => $_getN(104);
+  @$pb.TagNumber(163)
+  set dataSourceDelete($24.ReqDataSourceDelete value) => $_setField(163, value);
+  @$pb.TagNumber(163)
+  $core.bool hasDataSourceDelete() => $_has(104);
+  @$pb.TagNumber(163)
+  void clearDataSourceDelete() => $_clearField(163);
+  @$pb.TagNumber(163)
+  $24.ReqDataSourceDelete ensureDataSourceDelete() => $_ensure(104);
+
+  @$pb.TagNumber(164)
+  $24.ReqDataSourceSync get dataSourceSync => $_getN(105);
+  @$pb.TagNumber(164)
+  set dataSourceSync($24.ReqDataSourceSync value) => $_setField(164, value);
+  @$pb.TagNumber(164)
+  $core.bool hasDataSourceSync() => $_has(105);
+  @$pb.TagNumber(164)
+  void clearDataSourceSync() => $_clearField(164);
+  @$pb.TagNumber(164)
+  $24.ReqDataSourceSync ensureDataSourceSync() => $_ensure(105);
 }
 
 enum WsRes_Body {
@@ -4598,6 +4680,10 @@ enum WsRes_Body {
   chatDeviceContextCreate,
   resRemoteFsList,
   resRemoteFsRead,
+  dataSourceList,
+  dataSourcePut,
+  dataSourceDelete,
+  dataSourceSync,
   notSet
 }
 
@@ -4605,7 +4691,7 @@ enum WsRes_Body {
 class WsRes extends $pb.GeneratedMessage {
   factory WsRes({
     $core.String? reqId,
-    $24.Err? err,
+    $25.Err? err,
     $13.ResSessionInit? sessionInit,
     $14.ResSync? sync,
     $15.ResInboxList? inboxList,
@@ -4633,7 +4719,7 @@ class WsRes extends $pb.GeneratedMessage {
     $0.BillingPushBalance? billingBalance,
     $0.BillingPushQuota? billingQuota,
     $0.BillingPushCommission? billingCommission,
-    $25.LogPush? logPush,
+    $26.LogPush? logPush,
     $4.ChannelPairPush? channelPairPush,
     $12.StatsPush? statsPush,
     $16.ResSkillList? skillList,
@@ -4716,6 +4802,10 @@ class WsRes extends $pb.GeneratedMessage {
     $15.ResChatDeviceContextCreate? chatDeviceContextCreate,
     $20.RemoteFsListRes? resRemoteFsList,
     $20.RemoteFsReadRes? resRemoteFsRead,
+    $24.ResDataSourceList? dataSourceList,
+    $24.ResDataSourcePut? dataSourcePut,
+    $24.ResDataSourceDelete? dataSourceDelete,
+    $24.ResDataSourceSync? dataSourceSync,
   }) {
     final result = WsRes._();
     if (reqId != null) result.reqId = reqId;
@@ -4845,6 +4935,10 @@ class WsRes extends $pb.GeneratedMessage {
       result.chatDeviceContextCreate = chatDeviceContextCreate;
     if (resRemoteFsList != null) result.resRemoteFsList = resRemoteFsList;
     if (resRemoteFsRead != null) result.resRemoteFsRead = resRemoteFsRead;
+    if (dataSourceList != null) result.dataSourceList = dataSourceList;
+    if (dataSourcePut != null) result.dataSourcePut = dataSourcePut;
+    if (dataSourceDelete != null) result.dataSourceDelete = dataSourceDelete;
+    if (dataSourceSync != null) result.dataSourceSync = dataSourceSync;
     return result;
   }
 
@@ -4969,6 +5063,10 @@ class WsRes extends $pb.GeneratedMessage {
     158: WsRes_Body.chatDeviceContextCreate,
     159: WsRes_Body.resRemoteFsList,
     160: WsRes_Body.resRemoteFsRead,
+    161: WsRes_Body.dataSourceList,
+    162: WsRes_Body.dataSourcePut,
+    163: WsRes_Body.dataSourceDelete,
+    164: WsRes_Body.dataSourceSync,
     0: WsRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -5086,11 +5184,15 @@ class WsRes extends $pb.GeneratedMessage {
       157,
       158,
       159,
-      160
+      160,
+      161,
+      162,
+      163,
+      164
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
-    ..aOM<$24.Err>(2, _omitFieldNames ? '' : 'err',
-        subBuilder: $24.Err.$_createMessage)
+    ..aOM<$25.Err>(2, _omitFieldNames ? '' : 'err',
+        subBuilder: $25.Err.$_createMessage)
     ..aOM<$13.ResSessionInit>(10, _omitFieldNames ? '' : 'sessionInit',
         subBuilder: $13.ResSessionInit.$_createMessage)
     ..aOM<$14.ResSync>(11, _omitFieldNames ? '' : 'sync',
@@ -5150,8 +5252,8 @@ class WsRes extends $pb.GeneratedMessage {
     ..aOM<$0.BillingPushCommission>(
         62, _omitFieldNames ? '' : 'billingCommission',
         subBuilder: $0.BillingPushCommission.$_createMessage)
-    ..aOM<$25.LogPush>(70, _omitFieldNames ? '' : 'logPush',
-        subBuilder: $25.LogPush.$_createMessage)
+    ..aOM<$26.LogPush>(70, _omitFieldNames ? '' : 'logPush',
+        subBuilder: $26.LogPush.$_createMessage)
     ..aOM<$4.ChannelPairPush>(71, _omitFieldNames ? '' : 'channelPairPush',
         subBuilder: $4.ChannelPairPush.$_createMessage)
     ..aOM<$12.StatsPush>(72, _omitFieldNames ? '' : 'statsPush',
@@ -5338,6 +5440,15 @@ class WsRes extends $pb.GeneratedMessage {
         subBuilder: $20.RemoteFsListRes.$_createMessage)
     ..aOM<$20.RemoteFsReadRes>(160, _omitFieldNames ? '' : 'resRemoteFsRead',
         subBuilder: $20.RemoteFsReadRes.$_createMessage)
+    ..aOM<$24.ResDataSourceList>(161, _omitFieldNames ? '' : 'dataSourceList',
+        subBuilder: $24.ResDataSourceList.$_createMessage)
+    ..aOM<$24.ResDataSourcePut>(162, _omitFieldNames ? '' : 'dataSourcePut',
+        subBuilder: $24.ResDataSourcePut.$_createMessage)
+    ..aOM<$24.ResDataSourceDelete>(
+        163, _omitFieldNames ? '' : 'dataSourceDelete',
+        subBuilder: $24.ResDataSourceDelete.$_createMessage)
+    ..aOM<$24.ResDataSourceSync>(164, _omitFieldNames ? '' : 'dataSourceSync',
+        subBuilder: $24.ResDataSourceSync.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -5471,6 +5582,10 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(158)
   @$pb.TagNumber(159)
   @$pb.TagNumber(160)
+  @$pb.TagNumber(161)
+  @$pb.TagNumber(162)
+  @$pb.TagNumber(163)
+  @$pb.TagNumber(164)
   WsRes_Body whichBody() => _WsRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(10)
@@ -5583,6 +5698,10 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(158)
   @$pb.TagNumber(159)
   @$pb.TagNumber(160)
+  @$pb.TagNumber(161)
+  @$pb.TagNumber(162)
+  @$pb.TagNumber(163)
+  @$pb.TagNumber(164)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -5595,15 +5714,15 @@ class WsRes extends $pb.GeneratedMessage {
   void clearReqId() => $_clearField(1);
 
   @$pb.TagNumber(2)
-  $24.Err get err => $_getN(1);
+  $25.Err get err => $_getN(1);
   @$pb.TagNumber(2)
-  set err($24.Err value) => $_setField(2, value);
+  set err($25.Err value) => $_setField(2, value);
   @$pb.TagNumber(2)
   $core.bool hasErr() => $_has(1);
   @$pb.TagNumber(2)
   void clearErr() => $_clearField(2);
   @$pb.TagNumber(2)
-  $24.Err ensureErr() => $_ensure(1);
+  $25.Err ensureErr() => $_ensure(1);
 
   @$pb.TagNumber(10)
   $13.ResSessionInit get sessionInit => $_getN(2);
@@ -5908,15 +6027,15 @@ class WsRes extends $pb.GeneratedMessage {
   $0.BillingPushCommission ensureBillingCommission() => $_ensure(28);
 
   @$pb.TagNumber(70)
-  $25.LogPush get logPush => $_getN(29);
+  $26.LogPush get logPush => $_getN(29);
   @$pb.TagNumber(70)
-  set logPush($25.LogPush value) => $_setField(70, value);
+  set logPush($26.LogPush value) => $_setField(70, value);
   @$pb.TagNumber(70)
   $core.bool hasLogPush() => $_has(29);
   @$pb.TagNumber(70)
   void clearLogPush() => $_clearField(70);
   @$pb.TagNumber(70)
-  $25.LogPush ensureLogPush() => $_ensure(29);
+  $26.LogPush ensureLogPush() => $_ensure(29);
 
   @$pb.TagNumber(71)
   $4.ChannelPairPush get channelPairPush => $_getN(30);
@@ -6837,6 +6956,50 @@ class WsRes extends $pb.GeneratedMessage {
   void clearResRemoteFsRead() => $_clearField(160);
   @$pb.TagNumber(160)
   $20.RemoteFsReadRes ensureResRemoteFsRead() => $_ensure(111);
+
+  @$pb.TagNumber(161)
+  $24.ResDataSourceList get dataSourceList => $_getN(112);
+  @$pb.TagNumber(161)
+  set dataSourceList($24.ResDataSourceList value) => $_setField(161, value);
+  @$pb.TagNumber(161)
+  $core.bool hasDataSourceList() => $_has(112);
+  @$pb.TagNumber(161)
+  void clearDataSourceList() => $_clearField(161);
+  @$pb.TagNumber(161)
+  $24.ResDataSourceList ensureDataSourceList() => $_ensure(112);
+
+  @$pb.TagNumber(162)
+  $24.ResDataSourcePut get dataSourcePut => $_getN(113);
+  @$pb.TagNumber(162)
+  set dataSourcePut($24.ResDataSourcePut value) => $_setField(162, value);
+  @$pb.TagNumber(162)
+  $core.bool hasDataSourcePut() => $_has(113);
+  @$pb.TagNumber(162)
+  void clearDataSourcePut() => $_clearField(162);
+  @$pb.TagNumber(162)
+  $24.ResDataSourcePut ensureDataSourcePut() => $_ensure(113);
+
+  @$pb.TagNumber(163)
+  $24.ResDataSourceDelete get dataSourceDelete => $_getN(114);
+  @$pb.TagNumber(163)
+  set dataSourceDelete($24.ResDataSourceDelete value) => $_setField(163, value);
+  @$pb.TagNumber(163)
+  $core.bool hasDataSourceDelete() => $_has(114);
+  @$pb.TagNumber(163)
+  void clearDataSourceDelete() => $_clearField(163);
+  @$pb.TagNumber(163)
+  $24.ResDataSourceDelete ensureDataSourceDelete() => $_ensure(114);
+
+  @$pb.TagNumber(164)
+  $24.ResDataSourceSync get dataSourceSync => $_getN(115);
+  @$pb.TagNumber(164)
+  set dataSourceSync($24.ResDataSourceSync value) => $_setField(164, value);
+  @$pb.TagNumber(164)
+  $core.bool hasDataSourceSync() => $_has(115);
+  @$pb.TagNumber(164)
+  void clearDataSourceSync() => $_clearField(164);
+  @$pb.TagNumber(164)
+  $24.ResDataSourceSync ensureDataSourceSync() => $_ensure(115);
 }
 
 const $core.bool _omitFieldNames =

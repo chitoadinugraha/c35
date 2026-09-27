@@ -15,7 +15,9 @@ mod identity_profile_get;
 mod identity_client_put;
 mod session_init;
 
-pub use identity_geo::{identity_geo_from_headers, identity_geo_ip_apply, GeoHint};
+pub use identity_geo::{
+    identity_client_ip, identity_geo_from_headers, identity_geo_ip_apply, GeoHint,
+};
 pub use identity_prefs_sync::identity_prefs_sync;
 
 pub use auth_jwt::{jwt_caller_iid, jwt_decode, jwt_issue, jwt_verify, SessionJwtClaims};

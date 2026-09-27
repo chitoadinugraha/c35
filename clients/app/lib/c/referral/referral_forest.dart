@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:alienai_c35/c/chat/chat_inbox.dart';
 import 'package:alienai_c35/c/pb/c35/referral.pb.dart';
+import 'package:alienai_c35/c/session.dart';
 import 'package:fixnum/fixnum.dart';
 
 extension ReferralTreeNodeView on ReferralTreeNode {
@@ -87,14 +88,24 @@ bool referralNodeIsRoot(ReferralTreeNode node) {
 
 bool referralTreeWideAccess({required int viewerId, required List<ReferralTreeNode> nodes}) {
   if (sessionViewerIsRoot()) return true;
+  final roles = Session.instance.globalRoles;
+  if (roles.contains('partner') || roles.contains('director')) return true;
   if (viewerId == _devRootUid) return true;
   for (final n in nodes) {
     if (n.id != viewerId) continue;
     if (referralNodeIsRoot(n)) return true;
-    if (n.globalRoles.contains('partner')) return true;
+    if (n.globalRoles.contains('partner') || n.globalRoles.contains('director')) return true;
   }
   return false;
 }
+
+bool referralCanEditProfile() => Session.instance.isRoot;
+
+bool referralCanEditReferrer() => Session.instance.isRoot || Session.instance.globalRoles.contains('director');
+
+bool referralCanEditRoles() => Session.instance.isRoot || Session.instance.globalRoles.contains('director');
+
+bool referralCanEditRolesGrantDirector() => Session.instance.isRoot;
 
 ReferralTreeNode referralTreeNodeWithParent(ReferralTreeNode node, int referredBy) {
   if (node.parentId == referredBy) return node;

@@ -15,6 +15,8 @@ class ConsumptionItemRow {
     this.iron = 0,
     this.cholesterol = 0,
     this.purines = 0,
+    this.verified = false,
+    this.confidence = 0.70,
   });
 
   String name;
@@ -32,6 +34,8 @@ class ConsumptionItemRow {
   int iron;
   int cholesterol;
   int purines;
+  bool verified;
+  double confidence;
 
   int kcalScaled() => (calories * qty).round();
 
@@ -60,6 +64,8 @@ class ConsumptionItemRow {
         iron: (j['iron'] as num?)?.round() ?? 0,
         cholesterol: (j['cholesterol'] as num?)?.round() ?? 0,
         purines: (j['purines'] as num?)?.round() ?? 0,
+        verified: j['verified'] == true || ((j['obj_id'] as num?)?.toInt() ?? 0) > 0,
+        confidence: (j['confidence'] as num?)?.toDouble() ?? 0.70,
       );
 
   Map<String, dynamic> toJson() => {
@@ -78,6 +84,8 @@ class ConsumptionItemRow {
         'iron': iron,
         'cholesterol': cholesterol,
         'purines': purines,
+        'verified': verified,
+        'confidence': confidence,
       };
 }
 

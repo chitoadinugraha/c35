@@ -10,7 +10,10 @@ pub mod screen_capture;
 pub mod startup;
 pub mod agent_window;
 #[cfg(windows)]
+pub mod agent_status_window;
+#[cfg(windows)]
 pub mod agent_window_ui;
+pub mod drive;
 pub mod tray;
 pub mod uia;
 pub mod video_stream;

@@ -1,9 +1,6 @@
 use anyhow::{Context, Result};
 use c35_ctx::AppState;
-use c35_mod_chat::audio::{self, transcript_valid};
-use c35_mod_file::cas_bytes_get;
 use reqwest::Client;
-use sqlx::PgPool;
 use tracing::warn;
 
 use crate::store::ChannelDoc;
@@ -12,113 +9,6 @@ use crate::types::ChannelInboundAttachment;
 
 pub fn channel_voice_placeholder(text: &str) -> bool {
     matches!(text.trim().to_lowercase().as_str(), "[voice]" | "[audio]" | "[sticker]")
-}
-
-pub async fn transcribe_cas_attachments(
-    client: &Client,
-    pool: &PgPool,
-    cas_dir: &std::path::Path,
-    items: &[ChannelInboundAttachment],
-) -> Result<String> {
-    let mut parts = Vec::new();
-    for item in items {
-        if item.hash.is_empty() || !item.mime.starts_with("audio/") {
-            continue;
-        }
-        let (bytes, mime) = cas_bytes_get(pool, cas_dir, &item.hash)
-            .await
-            .with_context(|| format!("cas read hash={}", item.hash))?;
-        let mime = audio::audio_mime_resolve(&item.mime, &mime, &bytes);
-        let transcript = audio::transcribe_audio(client, &bytes, &mime)
-            .await
-            .with_context(|| format!("transcribe hash={}", item.hash))?;
-        let t = transcript.trim();
-        if transcript_valid(t) {
-            parts.push(t.to_string());
-        }
-    }
-    Ok(parts.join(" "))
-}
-
-pub async fn transcribe_telegram_voice(
-    client: &Client,
-    bot_token: &str,
-    items: &[ChannelInboundAttachment],
-) -> Result<String> {
-    let mut parts = Vec::new();
-    for item in items {
-        if item.media_id.is_empty() || !item.mime.starts_with("audio/") {
-            continue;
-        }
-        let (bytes, dl_mime) = tg_file_download(client, bot_token, &item.media_id)
-            .await
-            .with_context(|| format!("telegram download file_id={}", item.media_id))?;
-        let mime = audio::audio_mime_resolve(&item.mime, &dl_mime, &bytes);
-        let transcript = audio::transcribe_audio(client, &bytes, &mime)
-            .await
-            .with_context(|| format!("transcribe file_id={}", item.media_id))?;
-        let t = transcript.trim();
-        if transcript_valid(t) {
-            parts.push(t.to_string());
-        }
-    }
-    Ok(parts.join(" "))
-}
-
-pub async fn transcribe_whatsapp_voice(
-    client: &Client,
-    access_token: &str,
-    items: &[ChannelInboundAttachment],
-) -> Result<String> {
-    let mut parts = Vec::new();
-    for item in items {
-        if item.media_id.is_empty() || !item.mime.starts_with("audio/") {
-            continue;
-        }
-        let (bytes, dl_mime) = crate::whatsapp::fetch_meta_cloud_media(client, access_token, &item.media_id)
-            .await
-            .map_err(|e| anyhow::anyhow!("whatsapp media download failed: {e}"))?;
-        let mime = audio::audio_mime_resolve(&item.mime, &dl_mime, &bytes);
-        let transcript = audio::transcribe_audio(client, &bytes, &mime)
-            .await
-            .with_context(|| format!("transcribe whatsapp media_id={}", item.media_id))?;
-        let t = transcript.trim();
-        if transcript_valid(t) {
-            parts.push(t.to_string());
-        }
-    }
-    Ok(parts.join(" "))
-}
-
-pub async fn transcribe_voice_logged(
-    client: &Client,
-    pool: &PgPool,
-    cas_dir: &std::path::Path,
-    bot_token: &str,
-    access_token: &str,
-    items: &[ChannelInboundAttachment],
-) -> String {
-    if !bot_token.is_empty() {
-        if let Ok(t) = transcribe_telegram_voice(client, bot_token, items).await {
-            if !t.trim().is_empty() {
-                return t;
-            }
-        }
-    }
-    if !access_token.is_empty() {
-        if let Ok(t) = transcribe_whatsapp_voice(client, access_token, items).await {
-            if !t.trim().is_empty() {
-                return t;
-            }
-        }
-    }
-    match transcribe_cas_attachments(client, pool, cas_dir, items).await {
-        Ok(t) => t,
-        Err(e) => {
-            warn!("[c35:channel] voice transcribe failed: {e:#}");
-            String::new()
-        }
-    }
 }
 
 pub async fn resolve_inbound_attachments_cas(
@@ -139,14 +29,24 @@ pub async fn resolve_inbound_attachments_cas(
             None
         };
         if let Some((bytes, dl_mime)) = fetched {
+            if !crate::policy::inbound_bytes_allowed(bytes.len()) {
+                warn!(
+                    "[c35:channel] inbound attachment too large media_id={} bytes={}",
+                    item.media_id,
+                    bytes.len()
+                );
+                continue;
+            }
             let mime = if item.mime.is_empty() || item.mime == "application/octet-stream" {
                 dl_mime
             } else {
                 item.mime.clone()
             };
             if let Ok(put) = c35_mod_file::cas_put(&state.pool, &state.cas_dir, &state.cas_secret, &bytes, &mime).await {
-                item.hash = put.hash;
-                item.mime = mime;
+                if crate::policy::inbound_attachment_allowed(&mime) {
+                    item.hash = put.hash;
+                    item.mime = mime;
+                }
             }
         }
     }

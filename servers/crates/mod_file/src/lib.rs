@@ -3,10 +3,10 @@ use std::sync::OnceLock;
 use std::time::Duration;
 
 use axum::{
-    extract::{DefaultBodyLimit, Path as AxumPath, Query, State},
+    extract::{Path as AxumPath, Query, State},
     http::{header, HeaderMap, HeaderValue, StatusCode},
     response::{IntoResponse, Response},
-    routing::{get, post},
+    routing::get,
     Json, Router,
 };
 use c35_ctx::AppState;
@@ -462,7 +462,7 @@ pub async fn cas_bytes_get(
 }
 
 /// Axum default request body cap is 2 MiB; Windows agent ZIPs and APK sideloads exceed that.
-const CAS_UPLOAD_MAX_BYTES: usize = 256 * 1024 * 1024;
+pub const CAS_UPLOAD_MAX_BYTES: usize = 256 * 1024 * 1024;
 
 fn cas_download_filename(name: &str) -> Option<HeaderValue> {
     let clean = name.trim();
@@ -484,10 +484,6 @@ pub fn file_router() -> Router<AppState> {
             get(get_file_named_handler).head(head_file_named_handler),
         )
         .route("/fs/{hash}", get(get_file_handler).head(head_file_handler).put(put_file_handler))
-        .route(
-            "/v1/file/upload",
-            post(upload_file_handler).layer(DefaultBodyLimit::max(CAS_UPLOAD_MAX_BYTES)),
-        )
 }
 
 #[derive(Deserialize, Default)]
@@ -688,7 +684,7 @@ async fn put_file_handler(
     }
 }
 
-async fn upload_file_handler(
+pub async fn upload_file_session_handler(
     State(st): State<AppState>,
     headers: HeaderMap,
     body: axum::body::Bytes,

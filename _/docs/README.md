@@ -12,6 +12,7 @@ When code and docs disagree, fix the code to match these docs (or explicitly rev
 | [snowflake.md](snowflake.md) | Snowflake bit layout, epoch, per-pod worker id |
 | [structure.md](structure.md) | Repo file tree, crate layout, conventions |
 | [identity.md](identity.md) | Identity model (`kind`, `type`, `alien_id`, grants) |
+| [referral.md](referral.md) | Referral forest, staff roles (partner/director/root), admin audit |
 | [chat.md](chat.md) | Chat kinds; Home inbox = prompt only |
 | [mention.md](mention.md) | `@` mentions — `[@kind:payload]` in message text, `mention_ids[]`, context preservation |
 | [context-compaction.md](context-compaction.md) | Token packing, rolling summary, memory extraction, compaction billing |
@@ -39,13 +40,14 @@ When code and docs disagree, fix the code to match these docs (or explicitly rev
 | [site-ai.md](site-ai.md) | Site mentions, multi-site context, query catalog, commerce tools |
 | [tx.md](tx.md) | POS / transactions (`site.tx_*`, id.alienai model) |
 | [channels.md](channels.md) | Messaging channels (Telegram, WhatsApp Cloud, WhatsApp Device) |
+| [data_source.md](data_source.md) | Bot data sources — Sheets/chunks in YB; plans in [`plans/2026-09-27-data-source-all-waves-multitask.md`](plans/2026-09-27-data-source-all-waves-multitask.md) |
 | [voice.md](voice.md) | STT/TTS engines (web / local / cloud), billing, cs_bots parity |
 | [location.md](location.md) | Device / manual / IP city context, consent, SearXNG locale |
 
-Schemas live in [`../schemas/`](../schemas/).
+Schemas live in [`../schemas/`](../schemas/). Boot apply + version hash: [schema-migrate.md](schema-migrate.md).
 
 ## Implementation plans
 
 Working multitask / implementation plans live in [`plans/`](plans/). These are ephemeral execution docs — not locked specs. Update or archive when work completes.
 
-Active: [Event bus + MCP log grep](plans/2026-09-26-event-bus-multitask.md).
+Active: [Event bus + MCP log grep](plans/2026-09-26-event-bus-multitask.md), [Bot data sources / Google Sheets](plans/2026-09-27-data-source-google-sheet-multitask.md).

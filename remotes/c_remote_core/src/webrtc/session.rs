@@ -505,6 +505,7 @@ impl WebrtcSession {
         let dev = device_iid;
         let out = out_tx.clone();
         let pushed = Arc::clone(&connected_pushed);
+        let pc_state = Arc::clone(&pc);
 
         pc.on_peer_connection_state_change(Box::new(move |state| {
             let out = out.clone();
@@ -512,6 +513,7 @@ impl WebrtcSession {
             let sid = sid.clone();
             let v_track = video_track.clone();
             let a_track = audio_track.clone();
+            let pc_probe = Arc::clone(&pc_state);
             Box::pin(async move {
                 info!(session_id = %sid, ?state, "==> [WEBRTC STATE] PC state changed: {:?}", state);
                 if state == RTCPeerConnectionState::Connected {
@@ -523,6 +525,13 @@ impl WebrtcSession {
                         if let Some(v) = v_track {
                             dispatch_media_tracks(v, a_track);
                         }
+                        let out_probe = out.clone();
+                        let sid_probe = sid.clone();
+                        tokio::spawn(async move {
+                            if let Some(mode) = super::stats_probe::connection_mode_probe(&pc_probe).await {
+                                push_connected(&out_probe, dev, &sid_probe, true, Some(mode));
+                            }
+                        });
                     }
                 } else if state == RTCPeerConnectionState::Failed
                     || state == RTCPeerConnectionState::Closed
@@ -840,6 +849,13 @@ fn push_connected(
     webrtc_connected: bool,
     mode: Option<RemoteConnectionMode>,
 ) {
+    if webrtc_connected {
+        if let Some(m) = mode {
+            crate::agent_ui::user_app_session_set(session_id, m);
+        }
+    } else {
+        crate::agent_ui::user_app_session_clear(session_id);
+    }
     let staged = crate::update::update_staged_version();
     let frame = WsRes {
         req_id: String::new(),

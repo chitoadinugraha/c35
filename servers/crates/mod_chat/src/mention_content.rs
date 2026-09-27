@@ -9,6 +9,7 @@ pub fn mention_id_from_bracket(kind: &str, body: &str) -> Option<String> {
     match k.as_str() {
         "iid" => Some(format!("iid:{b}")),
         "catalog" => Some(format!("catalog:{b}")),
+        "drive" => Some(format!("drive:{b}")),
         _ => None,
     }
 }
@@ -20,6 +21,9 @@ pub fn mention_bracket_for_id(canonical: &str) -> String {
     }
     if let Some(n) = t.strip_prefix("catalog:") {
         return format!("[@catalog:{n}]");
+    }
+    if let Some(n) = t.strip_prefix("drive:") {
+        return format!("[@drive:{n}]");
     }
     if t.chars().all(|c| c.is_ascii_digit()) && !t.is_empty() {
         return format!("[@iid:{t}]");
@@ -111,5 +115,15 @@ mod tests {
         let out = mention_content_normalize("ping iid:42 ke google", &[]);
         assert!(out.contains("[@iid:42]"));
         assert!(!out.contains(" ping iid:42"));
+    }
+
+    #[test]
+    fn bracket_roundtrip_drive() {
+        let id = "drive:reports/q1.csv";
+        assert_eq!(mention_bracket_for_id(id), "[@drive:reports/q1.csv]");
+        assert_eq!(
+            mention_id_from_bracket("drive", "reports/q1.csv").as_deref(),
+            Some(id)
+        );
     }
 }

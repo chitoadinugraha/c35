@@ -142,6 +142,30 @@ const CATALOG: &[EventDef] = &[
         desc: "Remote device unpaired",
         txt_en: "Device unpaired",
     },
+    EventDef {
+        kind: "admin.user_profile_updated",
+        slug: "user-profile-updated",
+        scope: EventScope::User,
+        class: EventClass::Event,
+        desc: "Root updated a user profile field",
+        txt_en: "$name updated user $target_iid profile ($fields)",
+    },
+    EventDef {
+        kind: "admin.user_referrer_updated",
+        slug: "user-referrer-updated",
+        scope: EventScope::User,
+        class: EventClass::Event,
+        desc: "Referrer link changed by admin",
+        txt_en: "$name changed referrer for user $target_iid",
+    },
+    EventDef {
+        kind: "admin.user_roles_updated",
+        slug: "user-roles-updated",
+        scope: EventScope::User,
+        class: EventClass::Event,
+        desc: "Global roles changed by admin",
+        txt_en: "$name updated roles for user $target_iid",
+    },
 ];
 
 pub fn event_by_kind(kind: &str) -> Option<&'static EventDef> {

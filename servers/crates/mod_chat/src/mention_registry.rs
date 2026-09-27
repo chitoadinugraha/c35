@@ -8,6 +8,7 @@ use tracing::warn;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MentionRef {
     Catalog(String),
+    Drive(String),
     Iid(i64),
 }
 
@@ -25,6 +26,9 @@ pub fn mention_ref_parse(raw: &str) -> Option<MentionRef> {
     }
     if let Some(id) = s.strip_prefix("catalog:") {
         return (!id.is_empty()).then(|| MentionRef::Catalog(id.to_string()));
+    }
+    if let Some(path) = s.strip_prefix("drive:") {
+        return (!path.is_empty()).then(|| MentionRef::Drive(path.to_string()));
     }
     if let Some(id) = s.strip_prefix("iid:") {
         return id.parse::<i64>().ok().filter(|i| *i > 0).map(MentionRef::Iid);
@@ -355,6 +359,28 @@ pub async fn mention_resolve_one(
     match mention_ref_parse(raw)? {
         MentionRef::Iid(iid) => identity_resolve(pool, caller_iid, iid).await,
         MentionRef::Catalog(id) => catalog_resolve(pool, caller_iid, &id).await,
+        MentionRef::Drive(path) => Some(MentionResolved {
+            item: MentionItem {
+                id: format!("drive:{path}"),
+                topic_id: "general".into(),
+                inst_id: String::new(),
+                icon: "mdi:folder-outline".into(),
+                color: String::new(),
+                sort: 0,
+                label_key: String::new(),
+                caption_key: String::new(),
+                search_terms: vec![],
+                enabled: true,
+                title: String::new(),
+                scope_label: String::new(),
+                label: path.clone(),
+                scope_ref: String::new(),
+                kind: "drive".into(),
+                root_only: false,
+            },
+            identity_iid: None,
+            identity_kind: None,
+        }),
     }
 }
 

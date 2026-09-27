@@ -1,0 +1,23 @@
+[package]
+name = "c35_mod_data_source"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+blake3 = { workspace = true }
+chrono = { workspace = true }
+jsonwebtoken = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+urlencoding = { workspace = true }
+c35_mod_llm = { path = "../mod_llm", package = "c35_mod_llm" }
+c35_store = { path = "../store", package = "c35_store" }
+
+[[bin]]
+name = "data_source_sync_once"
+path = "src/bin/data_source_sync_once.rs"

@@ -4,6 +4,14 @@ use c35_mod_chat::{
 };
 
 #[test]
+fn mention_ref_parse_drive_path() {
+    assert_eq!(
+        mention_ref_parse("drive:notes/todo.txt"),
+        Some(MentionRef::Drive("notes/todo.txt".into()))
+    );
+}
+
+#[test]
 fn mention_ref_parse_catalog_and_iid() {
     assert_eq!(
         mention_ref_parse("catalog:research"),

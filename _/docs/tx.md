@@ -164,7 +164,10 @@ Guest checkout UI stays on published SiteDoc blocks; staff POS is Flutter Sites 
 
 We take **COA seed slugs + guest order flow** from CSA; **everything else** from id.alienai.
 
-## Deferred
+## Deferred / Future SOTA Roadmap
 
-- Per-site COA chart table
-- Stock delivery denorm table
+- **Receipt Ingestion via Platform Mail (`mail.*`)**: Forwarding digital invoices or ride-hailing / food-delivery receipts (Grab, Gojek, Uber) to `expense@alienai.id` for automatic parsing and logging into `site.tx`.
+- **Android SMS & Bank Notification Listener**: Optional background service listening for financial mutation SMS/push notifications (e.g. BCA, Mandiri, Chase) to trigger proactive one-tap expense confirmations.
+- **Open Banking Aggregation**: Direct read-only bank feed sync via Open Banking APIs (Brick, Ayoconnect, Plaid, Salt Edge).
+- **Per-site COA chart table**
+- **Stock delivery denorm table**

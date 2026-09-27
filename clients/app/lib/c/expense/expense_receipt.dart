@@ -63,6 +63,18 @@ class ExpenseTodaySummary {
       );
 }
 
+String expenseFmtCurrency(int minor, [String currency = 'IDR']) {
+  final cur = currency.trim().toUpperCase();
+  if (cur == 'IDR' || cur.isEmpty) return expenseFmtIdr(minor);
+  if (cur == 'USD') return '\$${(minor / 100).toStringAsFixed(2)}';
+  if (cur == 'EUR') return '€${(minor / 100).toStringAsFixed(2)}';
+  if (cur == 'GBP') return '£${(minor / 100).toStringAsFixed(2)}';
+  if (cur == 'SGD') return 'S\$${(minor / 100).toStringAsFixed(2)}';
+  if (cur == 'MYR') return 'RM ${(minor / 100).toStringAsFixed(2)}';
+  if (cur == 'JPY') return '¥$minor';
+  return '$cur $minor';
+}
+
 class ExpenseReceiptCard {
   const ExpenseReceiptCard({
     required this.txId,
@@ -71,6 +83,15 @@ class ExpenseReceiptCard {
     this.coach = '',
     this.totalMinor = 0,
     this.currency = 'IDR',
+    this.subtotalMinor = 0,
+    this.taxMinor = 0,
+    this.serviceMinor = 0,
+    this.discountMinor = 0,
+    this.mathVerified = true,
+    this.mathDiscrepancyMinor = 0,
+    this.isDining = false,
+    this.canLogFood = false,
+    this.linkedConsumptionId,
     this.saved = true,
     this.duplicate = false,
     this.duplicateReason = '',
@@ -91,6 +112,15 @@ class ExpenseReceiptCard {
   final String coach;
   final int totalMinor;
   final String currency;
+  final int subtotalMinor;
+  final int taxMinor;
+  final int serviceMinor;
+  final int discountMinor;
+  final bool mathVerified;
+  final int mathDiscrepancyMinor;
+  final bool isDining;
+  final bool canLogFood;
+  final String? linkedConsumptionId;
   final bool saved;
   final bool duplicate;
   final String duplicateReason;
@@ -104,7 +134,7 @@ class ExpenseReceiptCard {
   final bool canEditPrice;
   final String qtyMode;
 
-  String amountLabel() => expenseFmtIdr(totalMinor);
+  String amountLabel() => expenseFmtCurrency(totalMinor, currency);
 
   factory ExpenseReceiptCard.fromBlockBody(Map<String, dynamic> body) {
     final today = Map<String, dynamic>.from(body['today'] as Map? ?? const {});
@@ -116,6 +146,15 @@ class ExpenseReceiptCard {
       coach: body['coach']?.toString() ?? '',
       totalMinor: (body['total_minor'] as num?)?.round() ?? 0,
       currency: body['currency']?.toString() ?? 'IDR',
+      subtotalMinor: (body['subtotal_minor'] as num?)?.round() ?? 0,
+      taxMinor: (body['tax_minor'] as num?)?.round() ?? 0,
+      serviceMinor: (body['service_minor'] as num?)?.round() ?? 0,
+      discountMinor: (body['discount_minor'] as num?)?.round() ?? 0,
+      mathVerified: body['math_verified'] != false,
+      mathDiscrepancyMinor: (body['math_discrepancy_minor'] as num?)?.round() ?? 0,
+      isDining: body['is_dining'] == true,
+      canLogFood: body['can_log_food'] == true,
+      linkedConsumptionId: body['linked_consumption_id']?.toString(),
       saved: body['saved'] != false,
       duplicate: body['duplicate'] == true,
       duplicateReason: body['duplicate_reason']?.toString() ?? '',

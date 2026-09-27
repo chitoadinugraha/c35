@@ -37,6 +37,8 @@ c35_mod_referral = { path = "../mod_referral", package = "c35_mod_referral" }
 c35_mod_llm = { path = "../mod_llm", package = "c35_mod_llm" }
 c35_wire = { path = "../wire", package = "c35_wire" }
 c35_mod_device = { path = "../mod_device", package = "c35_mod_device" }
+c35_mod_data_source = { path = "../mod_data_source", package = "c35_mod_data_source" }
+c35_mod_drive = { path = "../mod_drive", package = "c35_mod_drive" }
 c35_mod_hint = { path = "../mod_hint", package = "c35_mod_hint" }
 c35_mod_site = { path = "../mod_site", package = "c35_mod_site" }
 c35_mod_tx = { path = "../mod_tx", package = "c35_mod_tx" }

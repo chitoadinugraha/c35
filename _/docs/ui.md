@@ -146,7 +146,9 @@ Canvas transforms the chat from an ephemeral timeline into a dual-pane collabora
 
 ## Referral tree
 
-Build **exactly** like `D:\cs_agent` — UI and root user management unchanged in behavior. Wire adapts to c35 identity schema.
+Forest chart, node badges (Root / Partner / Director / …), and staff admin on user profiles. **RBAC and audit:** [`referral.md`](referral.md).
+
+Build follows cs_agent UX (pan/zoom forest, share %, profile sheet, codes list). Wire uses c35 `ai.identity` + `admin_user_put` + `referral_tree_get`.
 
 ## Settings
 
@@ -168,7 +170,7 @@ Pattern: `csa_site_published` site editor.
 Lists `identity(kind=bot, type=chat)` for current owner. Each row = one bot identity (may run Telegram + WhatsApp + … via `meta.channels[]`).
 
 #### Bot Creation Wizard (`InBotCreate`)
-- 3-step wizard: Basic info (name, instructions, avatar) → Connect channels (Telegram, WhatsApp Meta, WhatsApp Device) → Assets.
+- 4-step wizard: Basic info (name, avatar) → Connect channels (Telegram, WhatsApp Meta, WhatsApp Device) → Assets → Instructions & behavior (instructions, strict mode, block spammer, web search).
 - **Draft Cancellation**: If setup is cancelled or dismissed after channels have been added, the client automatically triggers draft cleanup (`_cleanupDraft`), disconnecting all channels (deleting Telegram webhooks and terminating WhatsApp sessions) and deleting the draft identity to prevent orphaned sessions.
 
 #### Bot Deletion Dialog (`IoBotDeleteDialog`)

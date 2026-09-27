@@ -166,6 +166,30 @@ INSERT INTO ai.inst (
     priority = EXCLUDED.priority,
     updated_ts = NOW();
 
+-- Seed: Alien AI Drive (cloud A: volume) — drive.list / drive.read, not web search
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, priority, def_hash, updated_ts
+) VALUES (
+    'inst.drive.list',
+    'global',
+    'task',
+    'general',
+    '[DRIVE] User asks about Alien AI Drive, cloud drive files, or [@drive:path] mentions. Call drive.list to enumerate; drive.read for file contents. Do not use web.search for drive listing.',
+    ARRAY[
+        'alien ai drive', 'cloud drive', 'drive files', 'a drive', 'my drive',
+        'file di drive', 'isi drive', '@drive:'
+    ],
+    ARRAY['tool_include:drive.list', 'tool_include:drive.read', 'tool_exclude:web.search', 'tool_exclude:web.visit'],
+    135,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
 UPDATE ai.inst SET
     inst = '[MENTION: @research] Deep research mode: use web.search to discover sources, web.visit to read key pages, and web.research to synthesize a thorough answer with citations. For multi-part questions (compare, multi-region, or several independent sub-questions), call delegate.run with topic_id=research once per sub-question so children can run in parallel.',
     triggers = ARRAY['tool_include:web.research', 'tool_include:web.visit', 'tool_include:web.search', 'tool_include:delegate.run'],
@@ -753,7 +777,7 @@ INSERT INTO ai.inst (
     'role:bot',
     'trigger',
     '',
-    '[BOT STRICT] Stay within this business. In scope: products, menu, recommendations (e.g. what to eat or drink here), pricing, hours, location, orders, reservations, delivery, promos, policies, and complaints about this business. Out of scope: homework, politics, unrelated hobbies, other companies, personal finance, and general chitchat with no link to this business. If out of scope, refuse briefly and politely; offer to help with something related to this business instead. Do not invent capabilities you do not have.',
+    '[BOT STRICT] Stay within this business. In scope: products, menu, recommendations (e.g. what to eat or drink here), pricing, hours, location, orders, reservations, delivery, promos, policies, and complaints about this business. Out of scope: homework, politics, unrelated hobbies, other companies, personal finance, and general chitchat with no link to this business. If out of scope, refuse briefly and politely; offer to help with something related to this business instead. Do not invent capabilities you do not have. When refusing because the message is out of scope, the first line of your reply MUST be exactly [bot-oos] on its own line, then a blank line, then the customer-visible refusal. When answering in scope, do NOT include [bot-oos].',
     ARRAY[]::TEXT[],
     ARRAY['bot:strict'],
     ARRAY[
@@ -769,7 +793,7 @@ INSERT INTO ai.inst (
 
 UPDATE ai.inst SET
     scope = 'role:bot',
-    inst = '[BOT STRICT] Stay within this business. In scope: products, menu, recommendations (e.g. what to eat or drink here), pricing, hours, location, orders, reservations, delivery, promos, policies, and complaints about this business. Out of scope: homework, politics, unrelated hobbies, other companies, personal finance, and general chitchat with no link to this business. If out of scope, refuse briefly and politely; offer to help with something related to this business instead. Do not invent capabilities you do not have.',
+    inst = '[BOT STRICT] Stay within this business. In scope: products, menu, recommendations (e.g. what to eat or drink here), pricing, hours, location, orders, reservations, delivery, promos, policies, and complaints about this business. Out of scope: homework, politics, unrelated hobbies, other companies, personal finance, and general chitchat with no link to this business. If out of scope, refuse briefly and politely; offer to help with something related to this business instead. Do not invent capabilities you do not have. When refusing because the message is out of scope, the first line of your reply MUST be exactly [bot-oos] on its own line, then a blank line, then the customer-visible refusal. When answering in scope, do NOT include [bot-oos].',
     triggers = ARRAY['bot:strict'],
     exclude_tools = ARRAY[
         'consumption.add', 'consumption.today', 'consumption.update', 'consumption.delete',

@@ -48,17 +48,33 @@ class UiExpenseReceiptCard extends StatelessWidget {
     final subtitle = [
       if (card.subtitle.isNotEmpty) card.subtitle,
       if (payment.isNotEmpty) payment,
+      if (card.currency != 'IDR') card.currency,
     ].join(' · ');
 
     final chips = <RecordChipData>[
       if (payment.isNotEmpty) RecordChipData(label: isId ? 'Metode' : 'Payment', value: payment),
       if (card.subtitle.isNotEmpty) RecordChipData(label: isId ? 'Toko' : 'Merchant', value: card.subtitle),
+      if (card.currency != 'IDR') RecordChipData(label: isId ? 'Mata Uang' : 'Currency', value: card.currency),
+      if (card.taxMinor > 0) RecordChipData(label: isId ? 'Pajak' : 'Tax', value: expenseFmtCurrency(card.taxMinor, card.currency)),
+      if (card.serviceMinor > 0) RecordChipData(label: isId ? 'Layanan' : 'Service', value: expenseFmtCurrency(card.serviceMinor, card.currency)),
+      if (card.discountMinor > 0) RecordChipData(label: isId ? 'Diskon' : 'Discount', value: '-${expenseFmtCurrency(card.discountMinor, card.currency)}'),
+      if (card.linkedConsumptionId != null && card.linkedConsumptionId!.isNotEmpty)
+        RecordChipData(label: '🥗', value: isId ? 'Tercatat di Nutrisi' : 'Logged to Nutrition'),
     ];
 
     final contextLabel = card.today.txCount > 0 ? (isId ? 'Total Hari Ini' : "Today's Total") : '';
     final contextValue = card.today.txCount > 0
-        ? '${expenseFmtIdr(card.today.afterMinor)} · ${card.today.txCount} ${isId ? 'transaksi' : 'tx'}'
+        ? '${expenseFmtCurrency(card.today.afterMinor, card.currency)} · ${card.today.txCount} ${isId ? 'transaksi' : 'tx'}'
         : '';
+
+    String footer = '';
+    if (card.duplicate && card.duplicateReason.trim().isNotEmpty) {
+      footer = card.duplicateReason;
+    } else if (!card.mathVerified) {
+      footer = isId
+          ? '⚠️ Rincian item berbeda dari total struk (periksa baris item)'
+          : '⚠️ Item math differs from receipt total (please review items)';
+    }
 
     return UiRecordCard(
       id: card.txId,
@@ -84,14 +100,14 @@ class UiExpenseReceiptCard extends StatelessWidget {
           )
           .toList(),
       chips: chips,
-      footerNote: card.duplicate && card.duplicateReason.trim().isNotEmpty ? card.duplicateReason : '',
+      footerNote: footer,
       collapsed: collapsed,
       locale: locale,
       qtyMode: card.qtyMode,
       canEditName: card.canEditName,
       canEditQty: card.canEditQty,
       canEditPrice: card.canEditPrice,
-      formatPrice: expenseFmtIdr,
+      formatPrice: (m) => expenseFmtCurrency(m, card.currency),
       saved: card.saved,
       duplicate: card.duplicate,
       onSave: onSave != null

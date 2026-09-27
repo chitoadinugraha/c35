@@ -84,8 +84,9 @@ pub async fn channel_reply_nats(
     cas: Option<&ChannelCasCtx<'_>>,
     ctx: &OutboundCtx,
     reply_text: &str,
-    speak: bool,
+    _speak: bool,
 ) -> Result<()> {
+    let speak = false;
     let payload = outbound_payload_parse(reply_text);
     if payload.text.trim().is_empty() && payload.media.is_empty() {
         return Ok(());

@@ -4,6 +4,8 @@ Status: **Implemented & Active**
 
 `c35_mod_channel` provides multi-channel messaging capabilities for AI bots across Telegram and WhatsApp.
 
+**Bot knowledge (Google Sheets):** Channel turns inject synced sheet context from YB before the LLM call (`data_source_prompt_for_bot`). See [`data_source.md`](data_source.md).
+
 ---
 
 ## Supported Channels & Providers
@@ -44,39 +46,25 @@ Telegram and WhatsApp typing statuses expire after ~5 seconds on client apps. To
 
 ## 3. Voice Notes Pipeline
 
-Bidirectional voice support: inbound voice note → STT transcription → LLM turn (`speak = true`) → TTS audio synthesis → voice reply with text caption.
-
-### Inbound (Speech-to-Text)
-1. **Telegram**:
-   - Webhook extracts `voice` or `audio` `file_id`.
-   - Fetches file path via `/getFile` and downloads raw OGG bytes.
-2. **WhatsApp Cloud API**:
-   - Webhook extracts audio `media_id`.
-   - `fetch_meta_cloud_media`: Queries Meta Graph API for temporary download URL with Bearer token, downloads raw bytes, and stores into CAS (`cas_put`).
-3. **STT Processing** (`c35_mod_chat::audio`):
-   - In-memory `ffmpeg` converts OGG/Opus to 16 kHz mono WAV.
-   - Transcribes via Gemini inline audio with Chromium STT fallback (`id-ID` and `en-US`).
-   - Refusal/hallucination validation filters invalid outputs.
-
-### Outbound (Text-to-Speech)
-When inbound is voice or `speak == true`:
-1. `speech_text_clean`: Strips `<thought>` blocks, backticks, URLs, and Markdown markers.
-2. `speech_text_cap`: Caps spoken audio to 2 sentences for natural conversational delivery.
-3. `speech_lang_tts_code`: Detects Indonesian (`id`) vs English (`en`) from text hint words.
-4. `web_tts`: Synthesizes MP3 audio bytes.
-5. **Delivery**:
-   - **Telegram**: `tg_send_voice_reply` uploads multipart `voice.ogg` to `/sendVoice` with the text transcription as caption below the waveform. Falls back to `/sendAudio` if needed.
-   - **WhatsApp Cloud**: `wa_cloud_upload_media` uploads bytes to `/media`, then `wa_cloud_send_audio` posts message with `type: "audio"`.
-   - **WhatsApp Device**: Publishes `ActChannelMsgSend` with `media: [ActChannelMediaItem { kind: "audio" }]`.
-   - **Fallback**: If TTS synthesis fails, gracefully falls back to text delivery.
+**Business bots (default):** Channels do **not** accept voice notes or send TTS voice replies. Unsupported media gets a short text reply; inbound STT/TTS is disabled in `mod_channel`.
 
 ---
 
-## 4. Media Pipeline (Images & Documents)
+## 3b. Block Spammer Automatically (Strict mode)
+
+When bot meta has `strict_mode` and `auto_block_spammer` (default both true):
+
+- Out-of-scope refusals prefix `[bot-oos]` (stripped before outbound) per `inst.bot.strict`.
+- Per `bot_peer` chat, `meta.strict_oos_count` increments on each OOS reply; in-scope replies reset to 0.
+- At **10** OOS replies, `ai.chat.ai_reply_enabled = false` (same as manual Stop). Resume from Bots UI resets the counter.
+
+---
+
+## 4. Media Pipeline (Images only)
 
 ### Inbound
-- **Telegram**: Webhook parses `photo` (selecting the largest `PhotoSize` resolution) and `document` into `ChannelInboundAttachment`.
-- **WhatsApp Cloud**: Webhook parses `image` and `document` attachments.
+- **Images only** (`image/*`), max **5 MiB** per file (`CHANNEL_INBOUND_IMAGE_MAX_BYTES`).
+- Voice, video, documents, stickers: not downloaded for LLM; unsupported-only messages get `CHANNEL_UNSUPPORTED_REPLY`.
 - **CAS Resolution**: `resolve_inbound_attachments_cas` downloads raw bytes from Telegram or WhatsApp and saves into Content Addressable Storage (`cas_put`), setting `item.hash`. The multimodal LLM turn receives the CAS hash for vision/multimodal processing.
 
 ### Outbound
@@ -129,7 +117,7 @@ When a bot is deleted by the user:
 
 ### Draft Cancellation
 When creating a new bot (`InBotCreate` in [`clients/app/lib/widgets/bots/in_bot_create.dart`](file:///d:/c35/clients/app/lib/widgets/bots/in_bot_create.dart)):
-- If channels are connected during Step 1/2 and the user cancels or dismisses the wizard, `_cleanupDraft()` disconnects every connected channel (deleting Telegram webhooks and terminating WhatsApp sessions) and deletes the draft bot identity.
+- If channels are connected during steps 2–3 and the user cancels or dismisses the wizard, `_cleanupDraft()` disconnects every connected channel (deleting Telegram webhooks and terminating WhatsApp sessions) and deletes the draft bot identity.
 - Pop navigation and disposal hooks guarantee that cancelled setups never leave active webhooks or orphaned worker sessions running.
 
 ### Transaction Guarantees

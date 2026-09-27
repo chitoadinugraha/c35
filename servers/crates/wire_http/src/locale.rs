@@ -3,9 +3,12 @@ use axum::http::{header, HeaderMap};
 /// Detect user locale with priority:
 /// 1. Query param (?lang=id or ?lang=en)
 /// 2. Cookie (alienai_lang)
-/// 3. Geo IP headers (CF-IPCountry, X-Country-Code)
+/// 3. Geo IP headers (CF-IPCountry when orange-cloud proxied, X-Country-Code, geoip-country-code)
 /// 4. Accept-Language header
 /// 5. Default 'en'
+///
+/// Note: `CF-IPCountry` is only sent to origin when the hostname is Cloudflare-proxied (orange cloud).
+/// Grey-cloud DNS (direct to OCI/LB) skips step 3 unless another edge injects country headers.
 pub fn detect_locale(headers: &HeaderMap, query_lang: Option<&str>) -> String {
     if let Some(ql) = query_lang {
         let q = ql.trim().to_lowercase();
@@ -37,8 +40,10 @@ pub fn detect_locale(headers: &HeaderMap, query_lang: Option<&str>) -> String {
         .or_else(|| headers.get("x-country-code"))
         .or_else(|| headers.get("geoip-country-code"))
         .and_then(|v| v.to_str().ok())
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty() && !s.eq_ignore_ascii_case("xx"))
     {
-        if country.trim().eq_ignore_ascii_case("ID") {
+        if country.eq_ignore_ascii_case("ID") {
             return "id".into();
         }
     }

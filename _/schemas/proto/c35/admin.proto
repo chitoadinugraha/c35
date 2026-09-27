@@ -21,6 +21,10 @@ message ResAdminUserSearch {
   repeated AdminUserHit users = 1;
 }
 
+message AdminGlobalRolesPatch {
+  repeated string roles = 1;
+}
+
 message ReqAdminUserPut {
   int64 target_identity_id = 1;
   optional string name = 2;
@@ -28,6 +32,7 @@ message ReqAdminUserPut {
   optional int64 referred_by_uid = 4;
   optional string handle = 5;
   optional string auth_email = 6;
+  optional AdminGlobalRolesPatch global_roles = 7;
 }
 
 message ResAdminUserPut {}

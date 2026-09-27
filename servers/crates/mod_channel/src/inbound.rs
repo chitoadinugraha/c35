@@ -10,9 +10,14 @@ use tracing::info;
 
 use crate::dedup::{channel_dedup_try_mark, channel_inbound_msg_put};
 use crate::hub::channel_hub_init;
-use crate::media::{channel_voice_placeholder, transcribe_voice_logged};
+use crate::media::channel_voice_placeholder;
+use crate::outbound::{channel_reply_nats, outbound_ctx_with_msg, ChannelCasCtx};
 use crate::peer::{
-    bot_peer_chat_resolve, chat_ai_reply_enabled, chat_msg_external_put, peer_iid_resolve,
+    bot_peer_chat_resolve, chat_ai_reply_enabled, chat_msg_assistant_put, chat_msg_external_put,
+    peer_iid_resolve,
+};
+use crate::policy::{
+    inbound_attachments_filter, inbound_had_blocked_media, CHANNEL_UNSUPPORTED_REPLY,
 };
 use crate::store::{bot_channel_get, bot_owner_iid, ChannelDoc};
 use crate::turn::ChannelTurnJob;
@@ -40,31 +45,24 @@ pub async fn channel_inbound_handle(
     let peer_iid = peer_iid_resolve(&state.pool, inbound).await?;
     let chat_id = bot_peer_chat_resolve(&state.pool, owner_iid, bot_iid, &channel.id, inbound).await?;
 
+    let blocked_media = inbound_had_blocked_media(inbound);
     let mut message = inbound.text.clone();
     if channel_voice_placeholder(&message) {
         message.clear();
     }
-    if inbound.is_voice && !inbound.attachments.is_empty() {
-        let client = http_client();
-        let transcript = transcribe_voice_logged(
-            &client,
-            &state.pool,
-            &state.cas_dir,
-            &channel.bot_token,
-            &channel.access_token,
-            &inbound.attachments,
-        )
-        .await;
-        if !transcript.trim().is_empty() {
-            message = transcript;
-        } else if message.trim().is_empty() {
-            message = "[voice message - transcription failed]".into();
-        }
-    } else if inbound.is_voice && message.trim().is_empty() {
-        message = "[voice note]".into();
-    }
-    if message.trim().is_empty() && inbound.attachments.is_empty() {
+
+    let mut attachments = inbound.attachments.clone();
+    inbound_attachments_filter(&mut attachments);
+
+    let unsupported_only =
+        blocked_media && message.trim().is_empty() && attachments.is_empty();
+
+    if message.trim().is_empty() && attachments.is_empty() && !unsupported_only {
         return Err(anyhow!("empty channel message"));
+    }
+
+    if message.trim().is_empty() && unsupported_only {
+        message = "[unsupported media]".into();
     }
 
     let req_id = crate::outbound::channel_req_id(&inbound.platform);
@@ -78,7 +76,8 @@ pub async fn channel_inbound_handle(
         &state.pool,
         state.nats.as_ref(),
         LogPut {
-            class: None,            owner_iid,
+            class: None,
+            owner_iid,
             kind: "system",
             topic: "msg_received",
             dv: "c35-server",
@@ -139,6 +138,12 @@ pub async fn channel_inbound_handle(
         return Ok((chat_id, peer_iid));
     }
 
+    if unsupported_only {
+        channel_static_reply(state, bot_iid, channel, inbound, chat_id, owner_iid, &req_id, CHANNEL_UNSUPPORTED_REPLY)
+            .await?;
+        return Ok((chat_id, peer_iid));
+    }
+
     if prompt_followup_enabled() {
         if let Ok(Some(active_req)) = prompt_followup_active_req(&state.pool, chat_id).await {
             let dedup = inbound
@@ -176,12 +181,14 @@ pub async fn channel_inbound_handle(
         }
     }
 
-    let mut attachments = inbound.attachments.clone();
     if !attachments.is_empty() {
         let client = http_client();
         crate::media::resolve_inbound_attachments_cas(&client, state, channel, &mut attachments).await;
+        attachments.retain(|a| !a.hash.is_empty());
     }
     let attachments_json = serde_json::to_string(&attachments).unwrap_or_else(|_| "[]".into());
+    let mut inbound_job = inbound.clone();
+    inbound_job.is_voice = false;
     let hub = channel_hub_init();
     let job = ChannelTurnJob {
         bot_iid,
@@ -189,7 +196,7 @@ pub async fn channel_inbound_handle(
         owner_iid,
         peer_iid,
         channel: channel.clone(),
-        inbound: inbound.clone(),
+        inbound: inbound_job,
         message,
         attachments_json,
         req_id,
@@ -202,12 +209,41 @@ pub async fn channel_inbound_handle(
     Ok((chat_id, peer_iid))
 }
 
+async fn channel_static_reply(
+    state: &AppState,
+    bot_iid: i64,
+    channel: &ChannelDoc,
+    inbound: &ChannelInboundMessage,
+    chat_id: i64,
+    owner_iid: i64,
+    req_id: &str,
+    text: &str,
+) -> Result<()> {
+    let client = http_client();
+    let out_ctx = outbound_ctx_with_msg(
+        &inbound.platform,
+        &inbound.external_user_id,
+        channel,
+        owner_iid,
+        bot_iid,
+        inbound.external_msg_id.clone(),
+    );
+    let cas = ChannelCasCtx {
+        pool: &state.pool,
+        cas_dir: &state.cas_dir,
+        cas_secret: &state.cas_secret,
+    };
+    channel_reply_nats(&client, state.nats.as_ref(), Some(&cas), &out_ctx, text, false).await?;
+    chat_msg_assistant_put(&state.pool, chat_id, owner_iid, bot_iid, req_id, text).await?;
+    Ok(())
+}
+
 fn truncate_log_text(s: &str) -> String {
     const MAX: usize = 120;
     if s.chars().count() <= MAX {
         return s.to_string();
     }
-    format!("{}â€¦", s.chars().take(MAX).collect::<String>())
+    format!("{}...", s.chars().take(MAX).collect::<String>())
 }
 
 fn http_client() -> Client {

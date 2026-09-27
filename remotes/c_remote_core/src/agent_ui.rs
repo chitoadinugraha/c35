@@ -1,5 +1,8 @@
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{OnceLock, RwLock};
+use std::sync::{LazyLock, OnceLock, RwLock};
+
+use c35_proto::RemoteConnectionMode;
 
 /// Optional platform hooks (e.g. Windows tray reads capture / control / autostart).
 pub struct AgentUiBoolProviders {
@@ -24,6 +27,13 @@ static WEBRTC_CONNECTING: AtomicBool = AtomicBool::new(false);
 static UPDATE_CHECK_MSG: RwLock<String> = RwLock::new(String::new());
 static OWNER_LABEL: RwLock<String> = RwLock::new(String::new());
 static DEVICE_NAME: RwLock<String> = RwLock::new(String::new());
+static PERSONAL_PACKAGE: RwLock<String> = RwLock::new(String::new());
+static DEVICE_PACKAGE: RwLock<String> = RwLock::new(String::new());
+static DRIVE_ENABLED: AtomicBool = AtomicBool::new(true);
+static DRIVE_STORAGE_USED: RwLock<Option<i64>> = RwLock::new(None);
+static DRIVE_STORAGE_LIMIT: RwLock<Option<i64>> = RwLock::new(None);
+static USER_APP_SESSIONS: LazyLock<RwLock<HashMap<String, RemoteConnectionMode>>> =
+    LazyLock::new(|| RwLock::new(HashMap::new()));
 
 #[derive(Debug, Clone)]
 pub struct AgentUiSnapshot {
@@ -37,6 +47,12 @@ pub struct AgentUiSnapshot {
     pub last_update_check_msg: String,
     pub owner_label: String,
     pub device_name: String,
+    pub personal_package_name: String,
+    pub device_package_name: String,
+    pub drive_enabled: bool,
+    pub drive_storage_used_bytes: Option<i64>,
+    pub drive_storage_limit_bytes: Option<i64>,
+    pub user_app_lines: Vec<String>,
 }
 
 pub fn snapshot() -> AgentUiSnapshot {
@@ -56,7 +72,65 @@ pub fn snapshot() -> AgentUiSnapshot {
         last_update_check_msg: last_update_check_msg(),
         owner_label: owner_label(),
         device_name: device_name(),
+        personal_package_name: personal_package_name(),
+        device_package_name: device_package_name(),
+        drive_enabled: drive_enabled(),
+        drive_storage_used_bytes: drive_storage_used_bytes(),
+        drive_storage_limit_bytes: drive_storage_limit_bytes(),
+        user_app_lines: user_app_lines(),
     }
+}
+
+pub fn user_app_session_set(session_id: &str, mode: RemoteConnectionMode) {
+    let sid = session_id.trim();
+    if sid.is_empty() {
+        return;
+    }
+    if let Ok(mut g) = USER_APP_SESSIONS.write() {
+        g.insert(sid.to_string(), mode);
+    }
+}
+
+pub fn user_app_session_clear(session_id: &str) {
+    let sid = session_id.trim();
+    if sid.is_empty() {
+        return;
+    }
+    if let Ok(mut g) = USER_APP_SESSIONS.write() {
+        g.remove(sid);
+    }
+}
+
+fn mode_line(mode: RemoteConnectionMode) -> &'static str {
+    match mode {
+        RemoteConnectionMode::Relay => "Proxied",
+        RemoteConnectionMode::Direct => "Direct Connection",
+        RemoteConnectionMode::Unspecified => "Direct Connection",
+    }
+}
+
+pub fn user_app_lines() -> Vec<String> {
+    USER_APP_SESSIONS
+        .read()
+        .map(|g| g.values().map(|m| mode_line(*m).to_string()).collect())
+        .unwrap_or_default()
+}
+
+pub fn user_app_connected_count() -> usize {
+    USER_APP_SESSIONS.read().map(|g| g.len()).unwrap_or(0)
+}
+
+/// Subtitle for the User App status card (one line; multiple sessions joined with ·).
+pub fn user_app_subtitle(connecting: bool) -> String {
+    let lines = user_app_lines();
+    if lines.is_empty() {
+        return if connecting {
+            "Connecting…".to_string()
+        } else {
+            "Not Connected".to_string()
+        };
+    }
+    lines.join(" · ")
 }
 
 pub fn ws_connected_set(connected: bool) {
@@ -106,4 +180,70 @@ pub fn device_name_set(name: impl Into<String>) {
 
 pub fn device_name() -> String {
     DEVICE_NAME.read().map(|g| g.clone()).unwrap_or_default()
+}
+
+pub fn package_labels_set(personal: impl Into<String>, device: impl Into<String>) {
+    if let Ok(mut g) = PERSONAL_PACKAGE.write() {
+        *g = personal.into();
+    }
+    if let Ok(mut g) = DEVICE_PACKAGE.write() {
+        *g = device.into();
+    }
+}
+
+pub fn personal_package_name() -> String {
+    PERSONAL_PACKAGE.read().map(|g| g.clone()).unwrap_or_default()
+}
+
+pub fn device_package_name() -> String {
+    DEVICE_PACKAGE.read().map(|g| g.clone()).unwrap_or_default()
+}
+
+pub fn drive_enabled_set(enabled: bool) {
+    DRIVE_ENABLED.store(enabled, Ordering::SeqCst);
+}
+
+pub fn drive_enabled() -> bool {
+    DRIVE_ENABLED.load(Ordering::SeqCst)
+}
+
+pub fn drive_storage_set(used_bytes: i64, limit_bytes: Option<i64>) {
+    if let Ok(mut g) = DRIVE_STORAGE_USED.write() {
+        *g = Some(used_bytes.max(0));
+    }
+    if let Ok(mut g) = DRIVE_STORAGE_LIMIT.write() {
+        *g = limit_bytes.filter(|n| *n >= 0);
+    }
+}
+
+pub fn drive_storage_used_bytes() -> Option<i64> {
+    DRIVE_STORAGE_USED.read().ok().and_then(|g| *g)
+}
+
+pub fn drive_storage_limit_bytes() -> Option<i64> {
+    DRIVE_STORAGE_LIMIT.read().ok().and_then(|g| *g)
+}
+
+/// Human-readable pair for status UI (GiB when ≥ 1 GiB, else MiB).
+pub fn drive_storage_label() -> Option<String> {
+    let used = drive_storage_used_bytes()?;
+    let limit = drive_storage_limit_bytes()?;
+    Some(format!(
+        "{} / {}",
+        format_storage_gib(used),
+        format_storage_gib(limit)
+    ))
+}
+
+fn format_storage_gib(bytes: i64) -> String {
+    const GIB: f64 = 1024.0 * 1024.0 * 1024.0;
+    const MIB: f64 = 1024.0 * 1024.0;
+    let b = bytes.max(0) as f64;
+    if b >= GIB {
+        format!("{:.1} GiB", b / GIB)
+    } else if b >= MIB {
+        format!("{:.0} MiB", b / MIB)
+    } else {
+        format!("{:.0} B", b)
+    }
 }

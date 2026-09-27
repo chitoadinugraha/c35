@@ -54,7 +54,7 @@ fn alien_id_handle(alien_id: Option<String>) -> String {
 }
 
 async fn referral_wide_access(pool: &PgPool, viewer_iid: i64) -> bool {
-    require_admin(pool, viewer_iid).await.is_ok()
+    c35_mod_admin::referral_tree_wide_access(pool, viewer_iid).await
 }
 
 async fn referral_descends_from(pool: &PgPool, ancestor: i64, node: i64) -> bool {

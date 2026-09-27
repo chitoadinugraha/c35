@@ -286,22 +286,39 @@ class _UiConsumptionFoodCardState extends State<UiConsumptionFoodCard> {
         ),
       );
 
-  Widget _buildItemRow(int index) => Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                _items[index].label(widget.locale),
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFFE4E4E7)),
-              ),
+  Widget _buildItemRow(int index) {
+    final item = _items[index];
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    item.label(widget.locale),
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFFE4E4E7)),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (item.verified) ...[
+                  const SizedBox(width: 4),
+                  Tooltip(
+                    message: _isId ? 'Terverifikasi (Database)' : 'Verified (Database Grounded)',
+                    child: const Icon(Icons.verified_rounded, size: 13, color: Color(0xFF10B981)),
+                  ),
+                ],
+              ],
             ),
-            _buildEditButton(index),
-            const SizedBox(width: 4),
-            _buildQtyField(index),
-          ],
-        ),
-      );
+          ),
+          _buildEditButton(index),
+          const SizedBox(width: 4),
+          _buildQtyField(index),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

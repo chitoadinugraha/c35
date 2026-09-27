@@ -36,6 +36,10 @@ pub struct ConsumptionItem {
     pub cholesterol: i32,
     #[serde(default)]
     pub purines: i32,
+    #[serde(default)]
+    pub verified: bool,
+    #[serde(default)]
+    pub confidence: f32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

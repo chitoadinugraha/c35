@@ -32,6 +32,7 @@ class AdminApi {
     bool clearReferredBy = false,
     String? handle,
     String? authEmail,
+    List<String>? globalRoles,
   }) async {
     final req = ReqAdminUserPut(targetIdentityId: Int64(targetId));
     if (name != null) req.name = name;
@@ -43,6 +44,7 @@ class AdminApi {
     }
     if (handle != null) req.handle = handle;
     if (authEmail != null) req.authEmail = authEmail;
+    if (globalRoles != null) req.globalRoles = AdminGlobalRolesPatch(roles: globalRoles);
     final res = await _invoke(InvokeReq(reqId: const Uuid().v4(), adminUserPut: req));
     invokeResThrow(res, fallback: 'Failed to update user');
   }

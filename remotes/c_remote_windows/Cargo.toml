@@ -14,6 +14,7 @@ winres = "0.1"
 [dependencies]
 anyhow = { workspace = true }
 c_remote_core = { path = "../c_remote_core" }
+c_remote_drive = { path = "../c_remote_drive" }
 futures-util = { workspace = true }
 hostname = "0.4"
 tokio = { workspace = true }

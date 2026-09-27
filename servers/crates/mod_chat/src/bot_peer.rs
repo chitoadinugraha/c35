@@ -8,7 +8,7 @@ use sqlx::{PgPool, Row};
 
 use crate::inbox::ts_ms;
 
-async fn bot_access_verify(pool: &PgPool, caller_iid: i64, bot_iid: i64) -> Result<()> {
+pub(crate) async fn bot_access_verify(pool: &PgPool, caller_iid: i64, bot_iid: i64) -> Result<()> {
     if bot_iid == 0 {
         return Err(anyhow!("bot_iid required"));
     }
@@ -128,6 +128,19 @@ pub async fn chat_stop(pool: &PgPool, caller_iid: i64, req: ReqChatStop) -> Resu
     .bind(caller_iid)
     .execute(pool)
     .await?;
+    if ai_reply_enabled {
+        let _ = sqlx::query(
+            r#"
+            UPDATE ai.chat
+            SET meta = jsonb_set(COALESCE(meta, '{}'::jsonb), '{strict_oos_count}', '0'::jsonb),
+                updated_ts = NOW()
+            WHERE id = $1 AND kind = 'bot_peer' AND deleted_ts IS NULL
+            "#,
+        )
+        .bind(chat_id)
+        .execute(pool)
+        .await;
+    }
     Ok(ResChatStop {
         chat_id,
         ai_reply_enabled,

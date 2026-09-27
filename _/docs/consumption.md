@@ -54,7 +54,10 @@ LLM callable tools (like id.alienai `consume.food.log`):
 - Photo → items + nutrition estimate
 - Voice/text → structured `ConsumptionPut`
 
-## Deferred
+## Deferred / Future SOTA Roadmap
 
-- Exercise / sleep tracking
-- Integration with external health APIs
+- **Barcode Scanner (UPC/EAN)**: In-app camera scanner via `mobile_scanner` with Open Food Facts API lookup for instant packaged food and beverage logging.
+- **Nutrition Facts OCR**: Direct photo capture of packaged Nutrition Facts tables with 100% verified extraction into `consumption_item`.
+- **Health Platform Sync**: Integration with Apple HealthKit and Google Health Connect for step counts, active burn calories, and daily weigh-ins.
+- **Adaptive TDEE Engine**: Dynamic calculation of weekly energy expenditure (intake vs weight trend) to auto-calibrate daily caloric targets.
+- **Exercise / sleep tracking**: Dedicated biometric logs and sleep stages.

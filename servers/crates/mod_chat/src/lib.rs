@@ -6,6 +6,7 @@ mod chat_history_clear;
 mod chat_patch;
 mod chat_sync;
 mod channel_prompt_turn;
+mod data_source_rpc;
 mod device_context;
 mod inbox;
 mod log_list;
@@ -58,8 +59,10 @@ pub use site_capability::{site_capability_view_for_mention, SiteCapabilityView};
 pub use tools::ToolDef;
 
 pub use asset_tag::asset_tag_list;
+pub use bot_meta::{bot_auto_block_enabled, bot_turn_meta_load, bot_turn_meta_parse, BotTurnMeta, BOT_TOPIC, BOT_WEB_TOOL_EXCLUDE};
 pub use bot_peer::{bot_peer_list, bot_peer_msg_list, chat_send, chat_stop};
 pub use chat_history_clear::chat_history_clear;
+pub use data_source_rpc::{data_source_delete, data_source_list, data_source_put, data_source_sync};
 pub use chat_patch::chat_patch;
 pub use chat_sync::chat_title_set;
 pub use device_context::{bound_device_prompt_prepare, chat_device_context_create, chat_device_context_list, chat_mention_context_commit};

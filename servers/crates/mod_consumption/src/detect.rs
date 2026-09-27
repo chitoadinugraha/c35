@@ -250,6 +250,8 @@ fn parse_items(raw: &str) -> Result<Vec<ConsumptionItem>, String> {
                 iron: i.iron.round() as i32,
                 cholesterol: i.cholesterol.round() as i32,
                 purines: i.purines.round() as i32,
+                verified: false,
+                confidence: 0.70,
             })
         })
         .collect())
@@ -263,11 +265,13 @@ pub fn items_from_json(v: &serde_json::Value) -> Result<Vec<ConsumptionItem>, St
         if name.is_empty() {
             continue;
         }
+        let obj_id = item.get("obj_id").and_then(|x| x.as_i64()).unwrap_or(0);
+        let verified = item.get("verified").and_then(|x| x.as_bool()).unwrap_or(obj_id > 0);
         out.push(ConsumptionItem {
             name: name.to_string(),
             name_id: item.get("name_id").and_then(|x| x.as_str()).unwrap_or(name).to_string(),
             qty: item.get("qty").and_then(|x| x.as_f64()).unwrap_or(1.0) as f32,
-            obj_id: item.get("obj_id").and_then(|x| x.as_i64()).unwrap_or(0),
+            obj_id,
             calories: item.get("calories").and_then(|x| x.as_i64()).unwrap_or(0) as i32,
             protein: item.get("protein").and_then(|x| x.as_i64()).unwrap_or(0) as i32,
             fat: item.get("fat").and_then(|x| x.as_i64()).unwrap_or(0) as i32,
@@ -279,6 +283,8 @@ pub fn items_from_json(v: &serde_json::Value) -> Result<Vec<ConsumptionItem>, St
             iron: item.get("iron").and_then(|x| x.as_i64()).unwrap_or(0) as i32,
             cholesterol: item.get("cholesterol").and_then(|x| x.as_i64()).unwrap_or(0) as i32,
             purines: item.get("purines").and_then(|x| x.as_i64()).unwrap_or(0) as i32,
+            verified,
+            confidence: if verified { 0.95 } else { 0.70 },
         });
     }
     if out.is_empty() {

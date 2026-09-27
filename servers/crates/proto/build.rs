@@ -32,6 +32,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "object.proto",
         "report.proto",
         "fetch.proto",
+        "data_source.proto",
         "wire.proto",
     ];
 

@@ -356,13 +356,15 @@ pub async fn food_list_day(
 }
 
 async fn food_items_load(pool: &PgPool, owner_iid: i64, consumption_id: i64) -> Result<Vec<ConsumptionItem>, String> {
-    let rows = sqlx::query_as::<_, (String, String, f32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i64)>(
-        "SELECT name, name_id, qty, calories, protein, fat, carbs, fiber, sugar, sodium,
-                COALESCE(potassium, 0), COALESCE(iron, 0), COALESCE(cholesterol, 0),
-                COALESCE(purines, 0), COALESCE(obj_id, 0)
-         FROM ai.consumption_item
-         WHERE consumption_id = $1 AND owner_iid = $2 AND deleted_ts IS NULL
-         ORDER BY idx ASC",
+    let rows = sqlx::query_as::<_, (String, String, f32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i32, i64, Option<bool>)>(
+        "SELECT ci.name, ci.name_id, ci.qty, ci.calories, ci.protein, ci.fat, ci.carbs, ci.fiber, ci.sugar, ci.sodium,
+                COALESCE(ci.potassium, 0), COALESCE(ci.iron, 0), COALESCE(ci.cholesterol, 0),
+                COALESCE(ci.purines, 0), COALESCE(ci.obj_id, 0),
+                a.verified
+         FROM ai.consumption_item ci
+         LEFT JOIN ai.object_alias a ON a.obj_id = ci.obj_id AND a.is_canonical = true
+         WHERE ci.consumption_id = $1 AND ci.owner_iid = $2 AND ci.deleted_ts IS NULL
+         ORDER BY ci.idx ASC",
     )
     .bind(consumption_id)
     .bind(owner_iid)
@@ -371,7 +373,8 @@ async fn food_items_load(pool: &PgPool, owner_iid: i64, consumption_id: i64) -> 
     .map_err(|e| e.to_string())?;
     Ok(rows
         .into_iter()
-        .map(|(name, name_id, qty, calories, protein, fat, carbs, fiber, sugar, sodium, potassium, iron, cholesterol, purines, obj_id)| {
+        .map(|(name, name_id, qty, calories, protein, fat, carbs, fiber, sugar, sodium, potassium, iron, cholesterol, purines, obj_id, verified)| {
+            let is_v = verified.unwrap_or(false) || obj_id > 0;
             ConsumptionItem {
                 name,
                 name_id,
@@ -388,6 +391,8 @@ async fn food_items_load(pool: &PgPool, owner_iid: i64, consumption_id: i64) -> 
                 iron,
                 cholesterol,
                 purines,
+                verified: is_v,
+                confidence: if is_v { 0.95 } else { 0.70 },
             }
         })
         .collect())

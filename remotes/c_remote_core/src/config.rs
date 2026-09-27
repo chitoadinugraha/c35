@@ -186,6 +186,9 @@ pub fn session_key_save_with_owner(
         obj.insert("session_key_enc".into(), serde_json::Value::String(enc));
         obj.insert("device_iid".into(), serde_json::json!(device_iid));
         obj.insert("saved_at".into(), serde_json::json!(unix_now_secs()));
+        if !obj.contains_key("drive_enabled") {
+            obj.insert("drive_enabled".into(), serde_json::json!(true));
+        }
         if let Some(id) = owner_alien_id.map(str::trim).filter(|s| !s.is_empty()) {
             obj.insert("owner_alien_id".into(), serde_json::Value::String(id.to_string()));
         }
@@ -194,6 +197,7 @@ pub fn session_key_save_with_owner(
             "session_key_enc": enc,
             "device_iid": device_iid,
             "saved_at": unix_now_secs(),
+            "drive_enabled": true,
         });
         if let Some(id) = owner_alien_id.map(str::trim).filter(|s| !s.is_empty()) {
             json["owner_alien_id"] = serde_json::Value::String(id.to_string());
@@ -227,6 +231,8 @@ pub fn owner_cache_save(
     owner_alien_id: &str,
     owner_name: Option<&str>,
     device_name: Option<&str>,
+    personal_package_name: Option<&str>,
+    device_package_name: Option<&str>,
 ) -> anyhow::Result<()> {
     let id = owner_alien_id.trim();
     if id.is_empty() {
@@ -240,7 +246,49 @@ pub fn owner_cache_save(
     if let Some(n) = device_name.map(str::trim).filter(|s| !s.is_empty()) {
         patch.insert("device_name".into(), serde_json::Value::String(n.to_string()));
     }
+    if let Some(n) = personal_package_name.map(str::trim).filter(|s| !s.is_empty()) {
+        patch.insert(
+            "personal_package_name".into(),
+            serde_json::Value::String(n.to_string()),
+        );
+    }
+    if let Some(n) = device_package_name.map(str::trim).filter(|s| !s.is_empty()) {
+        patch.insert(
+            "device_package_name".into(),
+            serde_json::Value::String(n.to_string()),
+        );
+    }
     merge_config_fields(patch)
+}
+
+pub fn personal_package_name_load() -> Option<String> {
+    let j = config_load()?;
+    let s = j
+        .get("personal_package_name")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())?;
+    Some(s.to_string())
+}
+
+pub fn drive_enabled_load() -> bool {
+    config_load()
+        .and_then(|j| j.get("drive_enabled").and_then(|v| v.as_bool()))
+        .unwrap_or(true)
+}
+
+pub fn drive_enabled_save(enabled: bool) -> anyhow::Result<()> {
+    merge_config_field("drive_enabled", serde_json::json!(enabled))
+}
+
+pub fn device_package_name_load() -> Option<String> {
+    let j = config_load()?;
+    let s = j
+        .get("device_package_name")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())?;
+    Some(s.to_string())
 }
 
 fn merge_config_field(key: &str, value: serde_json::Value) -> anyhow::Result<()> {

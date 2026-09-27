@@ -28,6 +28,7 @@ import "c35/catalog.proto";
 import "c35/hint.proto";
 import "c35/object.proto";
 import "c35/report.proto";
+import "c35/data_source.proto";
 
 // HTTP invoke envelope (referral, admin, billing review, …)
 message InvokeReq {
@@ -259,6 +260,11 @@ message WsReq {
     ReqChatDeviceContextCreate chat_device_context_create = 158;
     ReqRemoteFsList req_remote_fs_list = 159;
     ReqRemoteFsRead req_remote_fs_read = 160;
+
+    ReqDataSourceList data_source_list = 161;
+    ReqDataSourcePut data_source_put = 162;
+    ReqDataSourceDelete data_source_delete = 163;
+    ReqDataSourceSync data_source_sync = 164;
   }
 }
 
@@ -395,5 +401,10 @@ message WsRes {
     ResChatDeviceContextCreate chat_device_context_create = 158;
     RemoteFsListRes res_remote_fs_list = 159;
     RemoteFsReadRes res_remote_fs_read = 160;
+
+    ResDataSourceList data_source_list = 161;
+    ResDataSourcePut data_source_put = 162;
+    ResDataSourceDelete data_source_delete = 163;
+    ResDataSourceSync data_source_sync = 164;
   }
 }

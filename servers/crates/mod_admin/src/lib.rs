@@ -3,11 +3,13 @@ use c35_proto::{
 };
 use std::collections::HashSet;
 
+mod admin_event;
 mod log_admin;
 mod log_report;
 mod ops_peaks;
 mod platform_pnl;
 
+pub use admin_event::{admin_event_profile_updated, admin_event_referrer_updated, admin_event_roles_updated};
 pub use log_admin::admin_log_list;
 pub use log_report::admin_log_report;
 pub use ops_peaks::admin_ops_peaks;
@@ -66,16 +68,28 @@ pub async fn require_root(pool: &PgPool, viewer_iid: i64) -> Result<(), AdminErr
     }
 }
 
-fn meta_is_partner(meta: &serde_json::Value) -> bool {
+fn meta_global_roles(meta: &serde_json::Value) -> HashSet<String> {
     meta.get("global_roles")
         .and_then(|v| v.as_array())
-        .map(|a| a.iter().any(|x| x.as_str() == Some("partner")))
-        .unwrap_or(false)
+        .map(|a| {
+            a.iter()
+                .filter_map(|x| x.as_str().map(|s| s.to_string()))
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
-pub async fn require_admin(pool: &PgPool, viewer_iid: i64) -> Result<(), AdminError> {
+fn meta_is_partner(meta: &serde_json::Value) -> bool {
+    meta_global_roles(meta).contains("partner")
+}
+
+fn meta_is_director(meta: &serde_json::Value) -> bool {
+    meta_global_roles(meta).contains("director")
+}
+
+async fn viewer_meta(pool: &PgPool, viewer_iid: i64) -> Result<serde_json::Value, AdminError> {
     if viewer_iid == 99_000 {
-        return Ok(());
+        return Ok(serde_json::json!({ "is_root": true, "global_roles": ["root"] }));
     }
     if viewer_iid <= 0 {
         return Err(AdminError::forbidden());
@@ -88,12 +102,73 @@ pub async fn require_admin(pool: &PgPool, viewer_iid: i64) -> Result<(), AdminEr
     let Some(row) = row else {
         return Err(AdminError::forbidden());
     };
-    let meta: serde_json::Value = row.try_get("meta").unwrap_or(serde_json::json!({}));
-    if meta_is_root(&meta) || meta_is_partner(&meta) {
+    Ok(row.try_get("meta").unwrap_or(serde_json::json!({})))
+}
+
+pub async fn referral_tree_wide_access(pool: &PgPool, viewer_iid: i64) -> bool {
+    viewer_meta(pool, viewer_iid).await.is_ok_and(|meta| {
+        meta_is_root(&meta) || meta_is_partner(&meta) || meta_is_director(&meta)
+    })
+}
+
+pub async fn require_referral_staff(pool: &PgPool, viewer_iid: i64) -> Result<(), AdminError> {
+    let meta = viewer_meta(pool, viewer_iid).await?;
+    if meta_is_root(&meta) || meta_is_partner(&meta) || meta_is_director(&meta) {
         Ok(())
     } else {
         Err(AdminError::forbidden())
     }
+}
+
+pub async fn require_admin(pool: &PgPool, viewer_iid: i64) -> Result<(), AdminError> {
+    require_referral_staff(pool, viewer_iid).await
+}
+
+async fn require_root_actor(pool: &PgPool, viewer_iid: i64) -> Result<(), AdminError> {
+    require_root(pool, viewer_iid).await
+}
+
+async fn require_root_or_director(pool: &PgPool, viewer_iid: i64) -> Result<(), AdminError> {
+    let meta = viewer_meta(pool, viewer_iid).await?;
+    if meta_is_root(&meta) || meta_is_director(&meta) {
+        Ok(())
+    } else {
+        Err(AdminError::forbidden())
+    }
+}
+
+const STAFF_ASSIGNABLE_ROLES: &[&str] = &["partner", "marketing", "finance"];
+const ROOT_EXTRA_ROLES: &[&str] = &["director"];
+
+fn normalize_role_list(roles: &[String]) -> Vec<String> {
+    let mut out: Vec<String> = roles
+        .iter()
+        .map(|r| r.trim().to_lowercase())
+        .filter(|r| !r.is_empty() && r != "root")
+        .collect();
+    out.sort();
+    out.dedup();
+    out
+}
+
+fn director_may_assign(roles: &[String]) -> Result<Vec<String>, AdminError> {
+    let norm = normalize_role_list(roles);
+    for r in &norm {
+        if !STAFF_ASSIGNABLE_ROLES.contains(&r.as_str()) {
+            return Err(AdminError::bad(format!("director cannot assign role: {r}")));
+        }
+    }
+    Ok(norm)
+}
+
+fn root_may_assign(roles: &[String]) -> Result<Vec<String>, AdminError> {
+    let norm = normalize_role_list(roles);
+    for r in &norm {
+        if !STAFF_ASSIGNABLE_ROLES.contains(&r.as_str()) && !ROOT_EXTRA_ROLES.contains(&r.as_str()) {
+            return Err(AdminError::bad(format!("invalid role: {r}")));
+        }
+    }
+    Ok(norm)
 }
 
 fn normalize_alien_id(raw: &str) -> String {
@@ -244,10 +319,10 @@ async fn descendant_ids(pool: &PgPool, root_iid: i64) -> Result<HashSet<i64>, Ad
 
 pub async fn admin_user_put(
     pool: &PgPool,
+    nats: Option<&async_nats::Client>,
     viewer_iid: i64,
     req: ReqAdminUserPut,
 ) -> Result<ResAdminUserPut, AdminError> {
-    require_admin(pool, viewer_iid).await?;
     let target = req.target_identity_id;
     if target <= 0 {
         return Err(AdminError::bad("target required"));
@@ -255,6 +330,44 @@ pub async fn admin_user_put(
     if !identity_exists(pool, target).await? {
         return Err(AdminError::bad("user not found"));
     }
+
+    let profile_change = req.name.is_some()
+        || req.handle.is_some()
+        || req.avatar_url.is_some()
+        || req.auth_email.is_some();
+    let referrer_change = req.referred_by_uid.is_some();
+    let roles_change = req.global_roles.is_some();
+
+    if profile_change {
+        require_root_actor(pool, viewer_iid).await?;
+    }
+    if referrer_change || roles_change {
+        require_root_or_director(pool, viewer_iid).await?;
+    }
+    if !profile_change && !referrer_change && !roles_change {
+        return Err(AdminError::bad("no changes"));
+    }
+
+    let target_row = sqlx::query(
+        "SELECT meta, COALESCE(referred_by_iid, 0) AS referred_by FROM ai.identity WHERE id = $1 AND deleted_ts IS NULL",
+    )
+    .bind(target)
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| AdminError::bad(e.to_string()))?;
+    let Some(target_row) = target_row else {
+        return Err(AdminError::bad("user not found"));
+    };
+    let target_meta: serde_json::Value = target_row.try_get("meta").unwrap_or(serde_json::json!({}));
+    let roles_before: Vec<String> = meta_global_roles(&target_meta).into_iter().collect();
+    let referred_before: i64 = target_row.get("referred_by");
+    let referred_before_opt = if referred_before > 0 {
+        Some(referred_before)
+    } else {
+        None
+    };
+
+    let mut profile_fields: Vec<&str> = Vec::new();
     let mut tx = pool.begin().await.map_err(|e| AdminError::bad(e.to_string()))?;
 
     if let Some(name) = req.name.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty()) {
@@ -264,6 +377,7 @@ pub async fn admin_user_put(
             .execute(&mut *tx)
             .await
             .map_err(|e| AdminError::bad(e.to_string()))?;
+        profile_fields.push("name");
     }
 
     if let Some(raw) = req.handle.as_ref() {
@@ -280,6 +394,7 @@ pub async fn admin_user_put(
             .execute(&mut *tx)
             .await
             .map_err(|e| AdminError::bad(e.to_string()))?;
+        profile_fields.push("handle");
     }
 
     if let Some(url) = req.avatar_url.as_ref() {
@@ -289,6 +404,7 @@ pub async fn admin_user_put(
             .execute(&mut *tx)
             .await
             .map_err(|e| AdminError::bad(e.to_string()))?;
+        profile_fields.push("avatar");
     }
 
     if let Some(email) = req
@@ -323,8 +439,10 @@ pub async fn admin_user_put(
         .execute(&mut *tx)
         .await
         .map_err(|e| AdminError::bad(e.to_string()))?;
+        profile_fields.push("email");
     }
 
+    let mut referred_after_opt: Option<Option<i64>> = None;
     if req.referred_by_uid.is_some() {
         let parent = req.referred_by_uid.unwrap_or(0);
         if is_root_user(pool, target).await? {
@@ -347,15 +465,58 @@ pub async fn admin_user_put(
                 .execute(&mut *tx)
                 .await
                 .map_err(|e| AdminError::bad(e.to_string()))?;
+            referred_after_opt = Some(Some(parent));
         } else {
             sqlx::query("UPDATE ai.identity SET referred_by_iid = NULL, updated_ts = NOW() WHERE id = $1")
                 .bind(target)
                 .execute(&mut *tx)
                 .await
                 .map_err(|e| AdminError::bad(e.to_string()))?;
+            referred_after_opt = Some(None);
         }
     }
 
+    let mut roles_after: Option<Vec<String>> = None;
+    if let Some(patch) = req.global_roles.as_ref() {
+        if is_root_user(pool, target).await? {
+            return Err(AdminError::bad("cannot change roles for root user"));
+        }
+        let viewer_meta = viewer_meta(pool, viewer_iid).await?;
+        let next = if meta_is_root(&viewer_meta) {
+            root_may_assign(&patch.roles)?
+        } else {
+            director_may_assign(&patch.roles)?
+        };
+        roles_after = Some(next.clone());
+        let roles_json = serde_json::to_value(&next).unwrap_or(serde_json::json!([]));
+        sqlx::query(
+            r#"UPDATE ai.identity SET meta = jsonb_set(COALESCE(meta, '{}'::jsonb), '{global_roles}', $2::jsonb), updated_ts = NOW() WHERE id = $1"#,
+        )
+        .bind(target)
+        .bind(roles_json)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| AdminError::bad(e.to_string()))?;
+    }
+
     tx.commit().await.map_err(|e| AdminError::bad(e.to_string()))?;
+
+    if !profile_fields.is_empty() {
+        admin_event_profile_updated(
+            pool,
+            nats,
+            viewer_iid,
+            target,
+            &profile_fields,
+        )
+        .await;
+    }
+    if let Some(to) = referred_after_opt {
+        admin_event_referrer_updated(pool, nats, viewer_iid, target, referred_before_opt, to).await;
+    }
+    if let Some(after) = roles_after {
+        admin_event_roles_updated(pool, nats, viewer_iid, target, &roles_before, &after).await;
+    }
+
     Ok(ResAdminUserPut {})
 }

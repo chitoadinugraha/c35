@@ -112,6 +112,8 @@ pub async fn channel_prompt_turn(
     if !composed.inst_block.is_empty() {
         system = format!("{system}\n\n{}", composed.inst_block);
     }
+    let ds_block = c35_mod_data_source::data_source_prompt_for_bot(pool, &http, bot_iid, &prompt_text).await;
+    system = c35_mod_data_source::data_source_prompt_merge(&system, &ds_block);
     let memory = memory_retrieve(pool, &http, owner_iid, Some(bot_iid), &prompt_text, 8).await;
     system = memory_prompt_merge(&system, &memory.block);
 
@@ -257,8 +259,13 @@ fn attach_prompt(text: &str, attachments_json: &str) -> String {
         for a in v {
             let name = a.get("name").and_then(|x| x.as_str()).unwrap_or("");
             let hash = a.get("hash").and_then(|x| x.as_str()).unwrap_or("");
-            if !hash.is_empty() {
-                out.push_str(&format!("\n[attached: {} {}]", name, hash));
+            let mime = a.get("mime").and_then(|x| x.as_str()).unwrap_or("");
+            if hash.is_empty() {
+                continue;
+            }
+            out.push_str(&format!("\n[attached: {} {} {}]", name, hash, mime));
+            if mime.starts_with("image/") {
+                out.push_str(&format!(" [image: /fs/{}]", hash));
             }
         }
     }

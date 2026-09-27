@@ -8,6 +8,8 @@ Status: **locked** 2026-09-20
 
 Remote agents (`remotes/*`) may keep local state for execution, but sync to server through the same identity + wire protocol.
 
+**Bot external data** (Google Sheets, etc.) is **server-side only**: `ai.data_source` bindings are not client-delta synced in v1; chunks are materialized on the server. See [`data_source.md`](data_source.md).
+
 ## Timestamp convention
 
 Every **syncable** row has:

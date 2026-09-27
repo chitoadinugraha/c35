@@ -330,7 +330,7 @@ pub async fn dispatch_invoke(state: &AppState, req: InvokeReq) -> InvokeRes {
             }
         }
         Some(invoke_req::Body::AdminUserPut(r)) => {
-            match admin_user_put(pool, iid, r).await {
+            match admin_user_put(pool, state.nats.as_ref(), iid, r).await {
                 Ok(res) => InvokeRes {
                     req_id,
                     status_code: 200,

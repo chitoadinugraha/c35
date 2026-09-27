@@ -4,6 +4,7 @@ use tracing::{info, warn};
 pub enum TrayAction {
     Unpair,
     Quit,
+    DriveSet(bool),
 }
 
 pub fn start_tray_thread(tx: tokio::sync::mpsc::UnboundedSender<TrayAction>) {
@@ -97,7 +98,7 @@ fn run_tray_loop(tx: tokio::sync::mpsc::UnboundedSender<TrayAction>) -> anyhow::
         if let Ok(hmenu) = CreatePopupMenu() {
             let _ = AppendMenuW(hmenu, MF_STRING, ID_OPEN_APP, w!("Open Alien AI Agent"));
             let check_label = HSTRING::from(format!(
-                "Check for update ({})",
+                "Check for update — {}",
                 c_remote_core::version::agent_version_tray_label()
             ));
             let _ = AppendMenuW(

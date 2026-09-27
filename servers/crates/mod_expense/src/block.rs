@@ -5,9 +5,9 @@ use super::fingerprint::expense_total_minor;
 use super::types::{ExpenseGlance, ExpenseReceipt};
 
 pub fn expense_receipt_block(receipt: &ExpenseReceipt, locale: &str) -> Value {
-    let total = expense_total_minor(&receipt.items);
+    let total = if receipt.total_minor > 0 { receipt.total_minor } else { expense_total_minor(&receipt.items) };
     let headline = if receipt.headline.is_empty() {
-        expense_log_headline(receipt.saved, receipt.duplicate && !receipt.saved, &receipt.items, total, locale)
+        expense_log_headline(receipt.saved, receipt.duplicate && !receipt.saved, &receipt.items, total, &receipt.currency, locale)
     } else {
         receipt.headline.clone()
     };
@@ -17,6 +17,7 @@ pub fn expense_receipt_block(receipt: &ExpenseReceipt, locale: &str) -> Value {
             total,
             receipt.today.after_minor,
             receipt.duplicate && receipt.saved,
+            &receipt.currency,
             locale,
         )
     } else {
@@ -30,8 +31,17 @@ pub fn expense_receipt_block(receipt: &ExpenseReceipt, locale: &str) -> Value {
             "headline": headline,
             "subtitle": receipt.subtitle,
             "coach": coach,
-            "total_minor": receipt.total_minor,
+            "total_minor": total,
             "currency": receipt.currency,
+            "subtotal_minor": receipt.subtotal_minor,
+            "tax_minor": receipt.tax_minor,
+            "service_minor": receipt.service_minor,
+            "discount_minor": receipt.discount_minor,
+            "math_verified": receipt.math_verified,
+            "math_discrepancy_minor": receipt.math_discrepancy_minor,
+            "is_dining": receipt.is_dining,
+            "can_log_food": receipt.can_log_food,
+            "linked_consumption_id": receipt.linked_consumption_id.map(|id| id.to_string()),
             "saved": receipt.saved,
             "duplicate": receipt.duplicate,
             "duplicate_reason": receipt.duplicate_reason,
@@ -79,5 +89,7 @@ pub fn receipt_with_items(
         payment_method: payment_method.to_string(),
         items,
         today: super::types::ExpenseTodaySummary::default(),
+        math_verified: true,
+        ..Default::default()
     }
 }

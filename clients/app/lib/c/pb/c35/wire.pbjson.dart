@@ -1988,6 +1988,42 @@ const WsReq$json = {
       '9': 0,
       '10': 'reqRemoteFsRead'
     },
+    {
+      '1': 'data_source_list',
+      '3': 161,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqDataSourceList',
+      '9': 0,
+      '10': 'dataSourceList'
+    },
+    {
+      '1': 'data_source_put',
+      '3': 162,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqDataSourcePut',
+      '9': 0,
+      '10': 'dataSourcePut'
+    },
+    {
+      '1': 'data_source_delete',
+      '3': 163,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqDataSourceDelete',
+      '9': 0,
+      '10': 'dataSourceDelete'
+    },
+    {
+      '1': 'data_source_sync',
+      '3': 164,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqDataSourceSync',
+      '9': 0,
+      '10': 'dataSourceSync'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -2114,8 +2150,13 @@ final $typed_data.Uint8List wsReqDescriptor = $convert.base64Decode(
     '9jcmVhdGUYngEgASgLMh8uYzM1LlJlcUNoYXREZXZpY2VDb250ZXh0Q3JlYXRlSABSF2NoYXRE'
     'ZXZpY2VDb250ZXh0Q3JlYXRlEkQKEnJlcV9yZW1vdGVfZnNfbGlzdBifASABKAsyFC5jMzUuUm'
     'VxUmVtb3RlRnNMaXN0SABSD3JlcVJlbW90ZUZzTGlzdBJEChJyZXFfcmVtb3RlX2ZzX3JlYWQY'
-    'oAEgASgLMhQuYzM1LlJlcVJlbW90ZUZzUmVhZEgAUg9yZXFSZW1vdGVGc1JlYWRCBgoEYm9keQ'
-    '==');
+    'oAEgASgLMhQuYzM1LlJlcVJlbW90ZUZzUmVhZEgAUg9yZXFSZW1vdGVGc1JlYWQSQwoQZGF0YV'
+    '9zb3VyY2VfbGlzdBihASABKAsyFi5jMzUuUmVxRGF0YVNvdXJjZUxpc3RIAFIOZGF0YVNvdXJj'
+    'ZUxpc3QSQAoPZGF0YV9zb3VyY2VfcHV0GKIBIAEoCzIVLmMzNS5SZXFEYXRhU291cmNlUHV0SA'
+    'BSDWRhdGFTb3VyY2VQdXQSSQoSZGF0YV9zb3VyY2VfZGVsZXRlGKMBIAEoCzIYLmMzNS5SZXFE'
+    'YXRhU291cmNlRGVsZXRlSABSEGRhdGFTb3VyY2VEZWxldGUSQwoQZGF0YV9zb3VyY2Vfc3luYx'
+    'ikASABKAsyFi5jMzUuUmVxRGF0YVNvdXJjZVN5bmNIAFIOZGF0YVNvdXJjZVN5bmNCBgoEYm9k'
+    'eQ==');
 
 @$core.Deprecated('Use wsResDescriptor instead')
 const WsRes$json = {
@@ -3113,6 +3154,42 @@ const WsRes$json = {
       '9': 0,
       '10': 'resRemoteFsRead'
     },
+    {
+      '1': 'data_source_list',
+      '3': 161,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResDataSourceList',
+      '9': 0,
+      '10': 'dataSourceList'
+    },
+    {
+      '1': 'data_source_put',
+      '3': 162,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResDataSourcePut',
+      '9': 0,
+      '10': 'dataSourcePut'
+    },
+    {
+      '1': 'data_source_delete',
+      '3': 163,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResDataSourceDelete',
+      '9': 0,
+      '10': 'dataSourceDelete'
+    },
+    {
+      '1': 'data_source_sync',
+      '3': 164,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResDataSourceSync',
+      '9': 0,
+      '10': 'dataSourceSync'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -3250,4 +3327,9 @@ final $typed_data.Uint8List wsResDescriptor = $convert.base64Decode(
     'ZUNvbnRleHRDcmVhdGVIAFIXY2hhdERldmljZUNvbnRleHRDcmVhdGUSRAoScmVzX3JlbW90ZV'
     '9mc19saXN0GJ8BIAEoCzIULmMzNS5SZW1vdGVGc0xpc3RSZXNIAFIPcmVzUmVtb3RlRnNMaXN0'
     'EkQKEnJlc19yZW1vdGVfZnNfcmVhZBigASABKAsyFC5jMzUuUmVtb3RlRnNSZWFkUmVzSABSD3'
-    'Jlc1JlbW90ZUZzUmVhZEIGCgRib2R5');
+    'Jlc1JlbW90ZUZzUmVhZBJDChBkYXRhX3NvdXJjZV9saXN0GKEBIAEoCzIWLmMzNS5SZXNEYXRh'
+    'U291cmNlTGlzdEgAUg5kYXRhU291cmNlTGlzdBJACg9kYXRhX3NvdXJjZV9wdXQYogEgASgLMh'
+    'UuYzM1LlJlc0RhdGFTb3VyY2VQdXRIAFINZGF0YVNvdXJjZVB1dBJJChJkYXRhX3NvdXJjZV9k'
+    'ZWxldGUYowEgASgLMhguYzM1LlJlc0RhdGFTb3VyY2VEZWxldGVIAFIQZGF0YVNvdXJjZURlbG'
+    'V0ZRJDChBkYXRhX3NvdXJjZV9zeW5jGKQBIAEoCzIWLmMzNS5SZXNEYXRhU291cmNlU3luY0gA'
+    'Ug5kYXRhU291cmNlU3luY0IGCgRib2R5');

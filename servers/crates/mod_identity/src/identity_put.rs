@@ -64,6 +64,9 @@ fn meta_merge(existing: &Value, incoming: &Value) -> Value {
     if out.get("strict_mode").is_none() {
         out["strict_mode"] = json!(true);
     }
+    if out.get("auto_block_spammer").is_none() {
+        out["auto_block_spammer"] = json!(true);
+    }
     if out.get("web_search").is_none() {
         out["web_search"] = json!(false);
     }

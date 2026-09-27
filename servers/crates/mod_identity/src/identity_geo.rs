@@ -15,6 +15,15 @@ impl GeoHint {
     }
 }
 
+/// First client IP from reverse-proxy headers (Cloudflare or Traefik).
+pub fn identity_client_ip(headers: &HeaderMap) -> Option<std::net::IpAddr> {
+    let first_ip = |raw: &str| raw.split(',').next()?.trim().parse().ok();
+    ["cf-connecting-ip", "x-forwarded-for", "x-real-ip"]
+        .into_iter()
+        .find_map(|name| header_str(headers, name))
+        .and_then(|s| first_ip(&s))
+}
+
 fn header_str(headers: &HeaderMap, name: &str) -> Option<String> {
     headers
         .get(name)

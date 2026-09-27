@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, Query, State},
+    extract::{DefaultBodyLimit, Path, Query, State},
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
     routing::{get, post},
@@ -11,6 +11,7 @@ use serde::Serialize;
 use tracing::warn;
 
 use crate::inbound::channel_inbound_from_webhook;
+use crate::policy::CHANNEL_INBOUND_IMAGE_MAX_BYTES;
 use crate::store::{bot_channel_get, STATUS_CONNECTED};
 use crate::telegram::parse_telegram_payload;
 use crate::whatsapp::parse_whatsapp_payload;
@@ -35,7 +36,7 @@ pub fn channel_router() -> Router<AppState> {
         )
         .route(
             "/v1/channels/whatsapp/webhook/{bot_iid}/{channel_id}/media",
-            post(whatsapp_media_upload),
+            post(whatsapp_media_upload).layer(DefaultBodyLimit::max(CHANNEL_INBOUND_IMAGE_MAX_BYTES)),
         )
 }
 

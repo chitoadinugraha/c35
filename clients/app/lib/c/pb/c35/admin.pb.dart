@@ -245,6 +245,59 @@ class ResAdminUserSearch extends $pb.GeneratedMessage {
   $pb.PbList<AdminUserHit> get users => $_getList(0);
 }
 
+class AdminGlobalRolesPatch extends $pb.GeneratedMessage {
+  factory AdminGlobalRolesPatch({
+    $core.Iterable<$core.String>? roles,
+  }) {
+    final result = AdminGlobalRolesPatch._();
+    if (roles != null) result.roles.addAll(roles);
+    return result;
+  }
+
+  AdminGlobalRolesPatch._();
+
+  factory AdminGlobalRolesPatch.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      AdminGlobalRolesPatch()..mergeFromBuffer(data, registry);
+  factory AdminGlobalRolesPatch.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      AdminGlobalRolesPatch()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'AdminGlobalRolesPatch',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: AdminGlobalRolesPatch.$_createMessage)
+    ..pPS(1, _omitFieldNames ? '' : 'roles')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  AdminGlobalRolesPatch clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  AdminGlobalRolesPatch copyWith(
+          void Function(AdminGlobalRolesPatch) updates) =>
+      super.copyWith((message) => updates(message as AdminGlobalRolesPatch))
+          as AdminGlobalRolesPatch;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use AdminGlobalRolesPatch() / AdminGlobalRolesPatch.new instead')
+  static AdminGlobalRolesPatch create() => AdminGlobalRolesPatch._();
+  static $pb.GeneratedMessage $_createMessage() => AdminGlobalRolesPatch._();
+  @$core.override
+  AdminGlobalRolesPatch createEmptyInstance() => AdminGlobalRolesPatch._();
+  @$core.pragma('dart2js:noInline')
+  static AdminGlobalRolesPatch getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<AdminGlobalRolesPatch>(
+          AdminGlobalRolesPatch.$_createMessage);
+  static AdminGlobalRolesPatch? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<$core.String> get roles => $_getList(0);
+}
+
 class ReqAdminUserPut extends $pb.GeneratedMessage {
   factory ReqAdminUserPut({
     $fixnum.Int64? targetIdentityId,
@@ -253,6 +306,7 @@ class ReqAdminUserPut extends $pb.GeneratedMessage {
     $fixnum.Int64? referredByUid,
     $core.String? handle,
     $core.String? authEmail,
+    AdminGlobalRolesPatch? globalRoles,
   }) {
     final result = ReqAdminUserPut._();
     if (targetIdentityId != null) result.targetIdentityId = targetIdentityId;
@@ -261,6 +315,7 @@ class ReqAdminUserPut extends $pb.GeneratedMessage {
     if (referredByUid != null) result.referredByUid = referredByUid;
     if (handle != null) result.handle = handle;
     if (authEmail != null) result.authEmail = authEmail;
+    if (globalRoles != null) result.globalRoles = globalRoles;
     return result;
   }
 
@@ -283,6 +338,8 @@ class ReqAdminUserPut extends $pb.GeneratedMessage {
     ..aInt64(4, _omitFieldNames ? '' : 'referredByUid')
     ..aOS(5, _omitFieldNames ? '' : 'handle')
     ..aOS(6, _omitFieldNames ? '' : 'authEmail')
+    ..aOM<AdminGlobalRolesPatch>(7, _omitFieldNames ? '' : 'globalRoles',
+        subBuilder: AdminGlobalRolesPatch.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -360,6 +417,17 @@ class ReqAdminUserPut extends $pb.GeneratedMessage {
   $core.bool hasAuthEmail() => $_has(5);
   @$pb.TagNumber(6)
   void clearAuthEmail() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  AdminGlobalRolesPatch get globalRoles => $_getN(6);
+  @$pb.TagNumber(7)
+  set globalRoles(AdminGlobalRolesPatch value) => $_setField(7, value);
+  @$pb.TagNumber(7)
+  $core.bool hasGlobalRoles() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearGlobalRoles() => $_clearField(7);
+  @$pb.TagNumber(7)
+  AdminGlobalRolesPatch ensureGlobalRoles() => $_ensure(6);
 }
 
 class ResAdminUserPut extends $pb.GeneratedMessage {

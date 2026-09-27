@@ -3,8 +3,9 @@ use std::sync::Arc;
 use anyhow::Result;
 use c35_ctx::AppState;
 use c35_mod_chat::{
-    channel_prompt_turn, gemini_api_key, prompt_followup_next_queued,
-    prompt_followup_mark_queue_delivered, prompt_run_finish, prompt_run_insert, prompt_run_row_channel,
+    bot_auto_block_enabled, bot_turn_meta_load, channel_prompt_turn, gemini_api_key,
+    prompt_followup_mark_queue_delivered, prompt_followup_next_queued, prompt_run_finish,
+    prompt_run_insert, prompt_run_row_channel,
 };
 use reqwest::Client;
 
@@ -12,7 +13,8 @@ use crate::debounce::{debouncer_turn_finished, debouncer_turn_started};
 use crate::hub::channel_hub;
 use crate::limit::BOT_BUSY_REPLY;
 use crate::outbound::{channel_reply_nats, channel_stub_reply, outbound_ctx_with_msg, ChannelCasCtx};
-use crate::peer::chat_msg_assistant_put;
+use crate::peer::{chat_msg_assistant_put, chat_strict_oos_apply};
+use crate::policy::reply_oos_strip;
 use crate::store::ChannelDoc;
 use crate::typing::channel_typing_start;
 use crate::types::ChannelInboundMessage;
@@ -50,7 +52,7 @@ pub async fn execute_channel_turn(state: Arc<AppState>, job: ChannelTurnJob) -> 
                 cas_dir: &state.cas_dir,
                 cas_secret: &state.cas_secret,
             };
-            channel_reply_nats(&client, state.nats.as_ref(), Some(&cas), &out_ctx, BOT_BUSY_REPLY, job.inbound.is_voice).await?;
+            channel_reply_nats(&client, state.nats.as_ref(), Some(&cas), &out_ctx, BOT_BUSY_REPLY, false).await?;
             chat_msg_assistant_put(&state.pool, job.chat_id, job.owner_iid, job.bot_iid, &job.req_id, BOT_BUSY_REPLY).await?;
             debouncer_turn_finished(state, job.chat_id).await;
             return Ok(());
@@ -78,11 +80,11 @@ pub async fn execute_channel_turn(state: Arc<AppState>, job: ChannelTurnJob) -> 
         job.owner_iid,
         job.bot_iid,
         out_ctx.clone(),
-        job.inbound.is_voice,
+        false,
     );
 
-    let reply = if gemini_api_key().is_empty() {
-        channel_stub_reply(&job.message, job.inbound.is_voice)
+    let mut reply = if gemini_api_key().is_empty() {
+        channel_stub_reply(&job.message, false)
     } else {
         match channel_prompt_turn(
             &state.pool,
@@ -92,7 +94,7 @@ pub async fn execute_channel_turn(state: Arc<AppState>, job: ChannelTurnJob) -> 
             job.owner_iid,
             &job.message,
             &job.attachments_json,
-            job.inbound.is_voice,
+            false,
             &job.req_id,
         )
         .await
@@ -100,10 +102,35 @@ pub async fn execute_channel_turn(state: Arc<AppState>, job: ChannelTurnJob) -> 
             Ok((text, _, _, _, _)) => text,
             Err(e) => {
                 tracing::warn!("[c35:channel] prompt_turn failed: {}", e);
-                channel_stub_reply(&job.message, job.inbound.is_voice)
+                channel_stub_reply(&job.message, false)
             }
         }
     };
+
+    let (clean, was_oos) = reply_oos_strip(&reply);
+    reply = clean;
+
+    let turn_meta = bot_turn_meta_load(&state.pool, job.bot_iid).await;
+    if bot_auto_block_enabled(&turn_meta) {
+        let apply = chat_strict_oos_apply(
+            &state.pool,
+            state.nats.as_ref(),
+            job.owner_iid,
+            job.bot_iid,
+            job.chat_id,
+            was_oos,
+            true,
+        )
+        .await?;
+        if apply.newly_blocked {
+            tracing::info!(
+                "[c35:channel] auto-blocked chat_id={} bot_iid={} strict_oos_count={}",
+                job.chat_id,
+                job.bot_iid,
+                apply.count
+            );
+        }
+    }
 
     limiter.outbound_pace().await;
     let cas = ChannelCasCtx {
@@ -111,7 +138,7 @@ pub async fn execute_channel_turn(state: Arc<AppState>, job: ChannelTurnJob) -> 
         cas_dir: &state.cas_dir,
         cas_secret: &state.cas_secret,
     };
-    channel_reply_nats(&client, state.nats.as_ref(), Some(&cas), &out_ctx, &reply, job.inbound.is_voice).await?;
+    channel_reply_nats(&client, state.nats.as_ref(), Some(&cas), &out_ctx, &reply, false).await?;
     chat_msg_assistant_put(&state.pool, job.chat_id, job.owner_iid, job.bot_iid, &job.req_id, &reply).await?;
     let _ = prompt_run_finish(&state.pool, &job.req_id, "done", 0, 0, 0.0, 0, None, None).await;
     let queued = prompt_followup_next_queued(&state.pool, &job.req_id).await?;

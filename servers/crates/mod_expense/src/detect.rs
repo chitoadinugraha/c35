@@ -7,18 +7,28 @@ use super::types::{ExpenseDetectResult, ExpenseItem};
 
 const PROMPT_TEXT: &str = r#"You are a personal expense assistant. Extract purchase line items from the description.
 Output JSON object only:
-{"subject":"","headline":"","payment_method":"cash","items":[{"name":"","name_id":"","qty":1,"price_minor":0,"total_minor":0,"obj_id":0}]}
+{"subject":"","headline":"","currency":"IDR","payment_method":"cash","category":"general","subtotal_minor":0,"tax_minor":0,"service_minor":0,"discount_minor":0,"total_minor":0,"items":[{"name":"","name_id":"","qty":1,"price_minor":0,"total_minor":0,"obj_id":0}]}
 subject = merchant/store name. headline = short friendly summary of what was bought.
+currency: ISO 3-letter currency code (e.g. IDR, USD, EUR, SGD, MYR, JPY, GBP). Default to IDR if Indonesian text/receipt, or USD if dollar sign $.
+category: "dining" (restaurant, cafe, warung, bakery, food truck, drinks), "groceries" (supermarket, bulk raw food/household), or "general" (electronics, transport, retail, utilities).
 payment_method: cash, card, transfer, qris, or wallet.
-[AMOUNT INFERENCE] Infer realistic IDR minor units (integer rupiah, no decimals): small numbers for food/daily items mean thousands (18 → 18000, 6.5 → 6500), electronics/rent mean millions (18 → 18000000, 2.5 → 2500000). Suffixes k/rb = ×1,000, jt/m = ×1,000,000.
-price_minor and total_minor are in IDR (rupiah). total_minor = price_minor × qty (rounded).
+[AMOUNT INFERENCE]
+For IDR (integer rupiah, no decimals): small numbers for food/daily items mean thousands (18 → 18000, 6.5 → 6500), electronics/rent mean millions (18 → 18000000, 2.5 → 2500000). Suffixes k/rb = ×1,000, jt/m = ×1,000,000.
+For decimal currencies (USD, EUR, SGD, MYR, etc.): convert dollars/cents to integer cents in minor units (e.g. $12.50 → 1250, $4 → 400).
+total_minor = price_minor × qty. If receipt has subtotal, tax, service, discount, extract them.
 Default qty to 1. name_id in Bahasa Indonesia Title Case."#;
 
 const PROMPT_PIC: &str = r#"You are a personal expense assistant. You are given a receipt or purchase photo.
 Extract merchant, line items, and amounts. Output JSON object only:
-{"subject":"","headline":"","payment_method":"cash","items":[{"name":"","name_id":"","qty":1,"price_minor":0,"total_minor":0,"obj_id":0}]}
-[AMOUNT INFERENCE] Infer realistic IDR minor units: small numbers for food/daily items mean thousands (18 → 18000), electronics/rent mean millions (18 → 18000000). Suffixes k/rb = ×1,000, jt/m = ×1,000,000.
-price_minor and total_minor are integer IDR rupiah. name_id in Bahasa Indonesia Title Case."#;
+{"subject":"","headline":"","currency":"IDR","payment_method":"cash","category":"general","subtotal_minor":0,"tax_minor":0,"service_minor":0,"discount_minor":0,"total_minor":0,"items":[{"name":"","name_id":"","qty":1,"price_minor":0,"total_minor":0,"obj_id":0}]}
+currency: ISO 3-letter currency code (e.g. IDR, USD, EUR, SGD, MYR, JPY, GBP). Default to IDR if Indonesian receipt, or USD if $.
+category: "dining" (restaurant, cafe, warung, coffee, bakery), "groceries" (supermarket, bulk market, household), or "general" (retail, transport, bills).
+payment_method: cash, card, transfer, qris, or wallet.
+[AMOUNT INFERENCE]
+For IDR: integer rupiah (18000, 2500000).
+For decimal currencies (USD, EUR, SGD, MYR): convert to integer cents minor units (e.g. $12.50 → 1250).
+Extract subtotal_minor, tax_minor, service_minor, discount_minor, and final total_minor.
+name_id in Bahasa Indonesia Title Case."#;
 
 fn detect_model() -> Result<String, String> {
     if let Ok(raw) = std::env::var("GEMINI_MODEL") {
@@ -69,6 +79,20 @@ struct LlmDetect {
     headline: String,
     #[serde(default)]
     payment_method: String,
+    #[serde(default)]
+    currency: String,
+    #[serde(default)]
+    category: String,
+    #[serde(default)]
+    subtotal_minor: i64,
+    #[serde(default)]
+    tax_minor: i64,
+    #[serde(default)]
+    service_minor: i64,
+    #[serde(default)]
+    discount_minor: i64,
+    #[serde(default)]
+    total_minor: i64,
     #[serde(default)]
     items: Vec<LlmItem>,
 }
@@ -237,15 +261,132 @@ fn parse_detect(raw: &str) -> Result<ExpenseDetectResult, String> {
     if items.is_empty() {
         return Err("no expense items detected".into());
     }
+
+    let items_sum: i64 = items.iter().map(|i| i.total_minor).sum();
+    let subtotal_minor = if parsed.subtotal_minor > 0 { parsed.subtotal_minor } else { items_sum };
+    let calculated_total = subtotal_minor - parsed.discount_minor + parsed.tax_minor + parsed.service_minor;
+    let printed_total = if parsed.total_minor > 0 { parsed.total_minor } else { calculated_total };
+    let discrepancy = (calculated_total - printed_total).abs();
+    let math_verified = discrepancy == 0;
+
+    let currency = {
+        let c = parsed.currency.trim().to_uppercase();
+        if c.is_empty() || c == "RP" {
+            super::types::DEFAULT_CURRENCY.to_string()
+        } else {
+            c
+        }
+    };
+
+    let cat = parsed.category.trim().to_ascii_lowercase();
+    let has_food_items = items.iter().any(|i| is_food_or_dining_name(&i.name));
+    let has_food_subject = is_food_or_dining_name(&parsed.subject);
+    let is_food_related = has_food_items || has_food_subject;
+
+    let is_dining = cat == "dining" || (cat != "groceries" && is_food_related && items.len() <= 5);
+    let is_groceries = cat == "groceries" || (is_food_related && items.len() > 5);
+
+    // CRITICAL USER RULE: Careful if reasonable - do NOT group receipt with tons of food or groceries!
+    // can_log_food is ONLY true for ready-to-eat dining/cafe purchases with <= 5 items.
+    let can_log_food = is_dining && !is_groceries && items.len() <= 5 && !items.is_empty();
+
     let payment_method = if parsed.payment_method.trim().is_empty() {
         "cash".into()
     } else {
         parsed.payment_method.trim().to_ascii_lowercase()
     };
+
     Ok(ExpenseDetectResult {
         subject: parsed.subject.trim().to_string(),
         headline: parsed.headline.trim().to_string(),
         payment_method,
+        currency,
+        subtotal_minor,
+        tax_minor: parsed.tax_minor,
+        service_minor: parsed.service_minor,
+        discount_minor: parsed.discount_minor,
+        total_minor: printed_total,
+        math_verified,
+        math_discrepancy_minor: discrepancy,
+        is_dining,
+        is_groceries,
+        can_log_food,
         items,
     })
 }
+
+fn is_food_or_dining_name(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    let keywords = [
+        "nasi", "mie", "ayam", "bebek", "soto", "bakso", "kopi", "coffee", "tea", "teh",
+        "burger", "pizza", "bread", "roti", "cake", "salad", "pasta", "drink", "jus", "juice",
+        "cafe", "resto", "restaurant", "warung", "bakery", "kitchen", "bar", "diner",
+        "mcd", "kfc", "starbucks", "subway", "boba", "ramen", "sushi", "steak", "snack",
+    ];
+    keywords.iter().any(|k| lower.contains(k))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_detect_math_and_dining_rules() {
+        let json_dining = r#"{
+            "subject": "Kopi Kenangan",
+            "headline": "Kopi Kenangan Mantan",
+            "category": "dining",
+            "currency": "IDR",
+            "subtotal_minor": 18000,
+            "tax_minor": 1800,
+            "service_minor": 0,
+            "discount_minor": 0,
+            "total_minor": 19800,
+            "items": [
+                {"name": "Kopi Kenangan Mantan", "qty": 1, "price_minor": 18000, "total_minor": 18000}
+            ]
+        }"#;
+        let res = parse_detect(json_dining).expect("should parse");
+        assert!(res.math_verified);
+        assert_eq!(res.math_discrepancy_minor, 0);
+        assert!(res.is_dining);
+        assert!(!res.is_groceries);
+        assert!(res.can_log_food);
+
+        // Discrepancy test: item 18000 + tax 1800 != total 25000
+        let json_mismatch = r#"{
+            "subject": "Cafe ABC",
+            "headline": "Coffee",
+            "category": "dining",
+            "currency": "USD",
+            "subtotal_minor": 450,
+            "tax_minor": 50,
+            "total_minor": 600,
+            "items": [
+                {"name": "Espresso", "qty": 1, "price_minor": 450, "total_minor": 450}
+            ]
+        }"#;
+        let res_mis = parse_detect(json_mismatch).expect("should parse");
+        assert!(!res_mis.math_verified);
+        assert_eq!(res_mis.math_discrepancy_minor, 100);
+
+        // Bulk groceries test: MUST NOT log food
+        let json_groceries = r#"{
+            "subject": "Supermarket",
+            "headline": "Monthly Groceries",
+            "category": "groceries",
+            "currency": "IDR",
+            "subtotal_minor": 120000,
+            "total_minor": 120000,
+            "items": [
+                {"name": "Raw Chicken", "qty": 1, "price_minor": 35000, "total_minor": 35000},
+                {"name": "Cooking Oil", "qty": 2, "price_minor": 20000, "total_minor": 40000},
+                {"name": "Rice 5kg", "qty": 1, "price_minor": 45000, "total_minor": 45000}
+            ]
+        }"#;
+        let res_groc = parse_detect(json_groceries).expect("should parse");
+        assert!(res_groc.is_groceries);
+        assert!(!res_groc.can_log_food);
+    }
+}
+

@@ -20,4 +20,7 @@ pub mod kinds {
     pub const DEVICE_AGENT_CONNECTED: &str = "device.agent_connected";
     pub const DEVICE_AGENT_DISCONNECTED: &str = "device.agent_disconnected";
     pub const DEVICE_UNPAIRED: &str = "device.unpaired";
+    pub const ADMIN_USER_PROFILE_UPDATED: &str = "admin.user_profile_updated";
+    pub const ADMIN_USER_REFERRER_UPDATED: &str = "admin.user_referrer_updated";
+    pub const ADMIN_USER_ROLES_UPDATED: &str = "admin.user_roles_updated";
 }

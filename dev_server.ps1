@@ -27,8 +27,7 @@ if (-not (Get-Command cargo-watch -ErrorAction SilentlyContinue)) {
     exit 1
 }
 
-$listen = if ($env:LISTEN) { $env:LISTEN } else { "0.0.0.0:$port" }
-Write-Host "server_ai (watch) -> http://$listen"
+Write-Host 'server_ai (watch)'
 Write-Host ''
 
 $cargoWatchArgs = @(
