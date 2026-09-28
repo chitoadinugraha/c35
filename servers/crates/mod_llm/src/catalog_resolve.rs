@@ -32,10 +32,13 @@ pub fn catalog_alien_default() -> Option<String> {
 }
 
 pub fn catalog_alien_chain_filter(raw: &[String]) -> Vec<String> {
+    let catalog_ready = !catalog_models().is_empty();
     let mut out = Vec::new();
     for m in raw {
         let Some(valid) = catalog_provider_model(m) else {
-            tracing::warn!(model = %m, "catalog: dropping alien chain model not in provider catalog");
+            if catalog_ready {
+                tracing::warn!(model = %m, "catalog: dropping alien chain model not in provider catalog");
+            }
             continue;
         };
         if out.iter().any(|x| x == &valid) {

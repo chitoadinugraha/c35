@@ -12,6 +12,7 @@ use tracing::{info, warn};
 
 use crate::catalog_sync::llm_catalog_sync_force;
 use crate::llm_catalog::llm_catalog_reload;
+use crate::runtime_config::runtime_config_reload;
 
 pub const LLM_CATALOG_SUBJECT: &str = "c35.fetch.llm_catalog";
 
@@ -55,6 +56,7 @@ pub fn llm_catalog_nats_subscribe(pool: PgPool, nats: async_nats::Client) {
                 if let Err(e) = llm_catalog_reload(&pool).await {
                     warn!(error = %e, "llm_catalog_reload from nats failed");
                 } else {
+                    runtime_config_reload(&pool).await;
                     info!("llm_catalog reloaded from nats");
                 }
             }

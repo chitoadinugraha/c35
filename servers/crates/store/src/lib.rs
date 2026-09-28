@@ -5,8 +5,8 @@ mod snowflake;
 
 pub use migrate::{
     db_retry, env_load, migrate_apply, migrate_audit, migrate_boot, migrate_startup, missing_schema,
-    missing_table, schema_bundle_hash,
-    schema_expected_tables, sql_stmts, MigrateAuditReport,
+    missing_table, schema_bundle_hash, schema_expected_tables, sql_stmts, MigrateAuditReport,
+    MigrateStartupOutcome,
 };
 pub use pool::{pool_connect, pool_connect_url, pool_monitor_spawn, PoolConfig, POOL_RESERVED_CONNECTIONS};
 pub use snowflake::{snowflake_id, snowflake_max_at_ms, snowflake_min_at_ms, SNOWFLAKE_EPOCH_MS};

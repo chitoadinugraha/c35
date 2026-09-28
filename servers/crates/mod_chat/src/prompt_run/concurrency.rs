@@ -9,6 +9,12 @@ use super::checkpoint::PROMPT_RUN_MAX_CONCURRENT_DEFAULT;
 
 static PROMPT_RUN_SEM: OnceLock<Arc<Semaphore>> = OnceLock::new();
 
+pub fn prompt_run_max_concurrent_env_set() -> bool {
+    std::env::var("PROMPT_RUN_MAX_CONCURRENT")
+        .ok()
+        .is_some_and(|s| !s.trim().is_empty())
+}
+
 pub fn prompt_run_max_concurrent_requested() -> usize {
     std::env::var("PROMPT_RUN_MAX_CONCURRENT")
         .ok()
@@ -18,8 +24,12 @@ pub fn prompt_run_max_concurrent_requested() -> usize {
 }
 
 pub fn prompt_run_max_concurrent() -> usize {
-    let requested = prompt_run_max_concurrent_requested();
     let cap = PoolConfig::from_env().prompt_run_concurrency_cap();
+    let requested = if prompt_run_max_concurrent_env_set() {
+        prompt_run_max_concurrent_requested()
+    } else {
+        PROMPT_RUN_MAX_CONCURRENT_DEFAULT.min(cap)
+    };
     requested.min(cap).max(1)
 }
 
@@ -27,12 +37,12 @@ pub fn prompt_run_concurrency_init() {
     let max = prompt_run_max_concurrent();
     let pool_cfg = PoolConfig::from_env();
     let requested = prompt_run_max_concurrent_requested();
-    if requested > max {
+    if prompt_run_max_concurrent_env_set() && requested > max {
         tracing::warn!(
             requested,
             effective = max,
             pool_max = pool_cfg.max_connections,
-            reserved = c35_store::POOL_RESERVED_CONNECTIONS,
+            reserved = pool_cfg.prompt_run_reserved_connections(),
             "[c35:prompt_run] PROMPT_RUN_MAX_CONCURRENT capped for SQLx pool headroom"
         );
     }

@@ -36,7 +36,6 @@ pub async fn llm_catalog_sync(pool: &PgPool) -> Result<()> {
 }
 
 pub async fn llm_catalog_sync_force(pool: &PgPool) -> Result<usize> {
-    runtime_config_reload(pool).await;
     let synced_at = Utc::now();
     let mut fetched = gemini_fetch().await?;
     let cf = cf_models_fetch().await?;
@@ -65,6 +64,26 @@ pub async fn llm_catalog_sync_force(pool: &PgPool) -> Result<usize> {
     let n = fetched.len();
     tracing::info!(models = n, "llm_catalog synced");
     Ok(n)
+}
+
+pub fn pinned_seed_fingerprint() -> String {
+    let mut h = blake3::Hasher::new();
+    for m in pinned_models() {
+        h.update(m.id.as_bytes());
+        h.update(m.provider.as_bytes());
+        h.update(m.label.as_bytes());
+        h.update(m.provider_model.as_bytes());
+        h.update(&m.input_micro_per_m.to_le_bytes());
+        h.update(&m.output_micro_per_m.to_le_bytes());
+        h.update(&[m.supports_thinking as u8]);
+        h.update(&[m.enabled as u8]);
+        h.update(&[m.is_default as u8]);
+        h.update(&m.sort_order.to_le_bytes());
+        h.update(m.family.as_bytes());
+        h.update(&m.version_rank.to_le_bytes());
+        h.update(m.source.as_bytes());
+    }
+    h.finalize().to_hex().to_string()
 }
 
 pub fn pinned_models() -> Vec<LlmModelRow> {

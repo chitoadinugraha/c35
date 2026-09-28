@@ -12,7 +12,9 @@ async fn main() -> anyhow::Result<()> {
         .init();
     dotenvy::dotenv().ok();
     let pool = c35_store::pool_connect().await?;
-    c35_mod_llm::runtime_config_init(&pool).await;
+    if let Err(e) = c35_mod_llm::llm_catalog_warm(&pool).await {
+        tracing::warn!("llm_catalog_warm: {e:#}");
+    }
     let nats = c35_nats::connect()
         .await
         .ok_or_else(|| anyhow::anyhow!("NATS required for c35_fetcher"))?;

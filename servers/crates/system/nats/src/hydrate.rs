@@ -3,7 +3,8 @@ use async_nats::header::HeaderMap;
 use async_nats::jetstream;
 use async_nats::Client;
 use chrono::{DateTime, Utc};
-use sqlx::PgPool;
+use sqlx::pool::PoolConnection;
+use sqlx::{PgPool, Postgres};
 
 use super::streams::STREAM_TASK_SCHEDULE;
 
@@ -17,21 +18,37 @@ pub struct HydrateCounts {
     pub task_replay: u32,
 }
 
-pub async fn try_advisory_lock(pool: &PgPool) -> anyhow::Result<bool> {
-    let row = sqlx::query_scalar::<_, bool>("SELECT pg_try_advisory_lock($1, $2)")
-        .bind(HYDRATE_LOCK_K1)
-        .bind(HYDRATE_LOCK_K2)
-        .fetch_one(pool)
-        .await?;
-    Ok(row)
+/// Session-scoped advisory lock — unlock must use the same connection that acquired it.
+pub struct HydrateAdvisoryLock {
+    conn: PoolConnection<Postgres>,
 }
 
-pub async fn advisory_unlock(pool: &PgPool) {
-    let _ = sqlx::query("SELECT pg_advisory_unlock($1, $2)")
-        .bind(HYDRATE_LOCK_K1)
-        .bind(HYDRATE_LOCK_K2)
-        .execute(pool)
-        .await;
+impl HydrateAdvisoryLock {
+    pub async fn try_acquire(pool: &PgPool) -> anyhow::Result<Option<Self>> {
+        let mut conn = pool.acquire().await?;
+        let got = sqlx::query_scalar::<_, bool>("SELECT pg_try_advisory_lock($1, $2)")
+            .bind(HYDRATE_LOCK_K1)
+            .bind(HYDRATE_LOCK_K2)
+            .fetch_one(&mut *conn)
+            .await?;
+        Ok(got.then_some(Self { conn }))
+    }
+
+    pub async fn release(&mut self) {
+        let _ = sqlx::query("SELECT pg_advisory_unlock($1, $2)")
+            .bind(HYDRATE_LOCK_K1)
+            .bind(HYDRATE_LOCK_K2)
+            .execute(&mut *self.conn)
+            .await;
+    }
+}
+
+pub async fn try_advisory_lock(pool: &PgPool) -> anyhow::Result<bool> {
+    Ok(HydrateAdvisoryLock::try_acquire(pool).await?.is_some())
+}
+
+pub async fn advisory_unlock(_pool: &PgPool) {
+    tracing::debug!("advisory_unlock(pool) is deprecated; use HydrateAdvisoryLock::release on the lock holder");
 }
 
 fn table_missing(err: &sqlx::Error) -> bool {

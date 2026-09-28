@@ -24,11 +24,27 @@ fn cache() -> &'static RwLock<CatalogCache> {
 
 // ============================================================= API
 pub async fn llm_catalog_init(pool: &PgPool) -> Result<()> {
-    llm_catalog_seed(pool).await?;
-    runtime_config_reload(pool).await;
-    if sync_enabled() {
-        let _ = crate::catalog_sync::llm_catalog_sync(pool).await;
+    llm_catalog_pinned_ensure(pool).await?;
+    llm_catalog_reload(pool).await?;
+    if sync_enabled() && !crate::fetch_catalog::external_fetcher_enabled() {
+        let _ = crate::catalog_sync::llm_catalog_sync(pool).await?;
+    } else {
+        runtime_config_reload(pool).await;
     }
+    Ok(())
+}
+
+/// In-memory catalog must be loaded before alien-chain validation against provider models.
+pub async fn llm_catalog_ensure_memory(pool: &PgPool) {
+    if cache().read().unwrap().models.is_empty() {
+        if let Err(e) = llm_catalog_reload(pool).await {
+            tracing::warn!(error = %e, "llm_catalog_reload (ensure memory) failed");
+        }
+    }
+}
+
+/// Load catalog cache + alien chain runtime (no provider sync or pinned DB writes).
+pub async fn llm_catalog_warm(pool: &PgPool) -> Result<()> {
     llm_catalog_reload(pool).await?;
     runtime_config_reload(pool).await;
     Ok(())
@@ -161,6 +177,39 @@ pub async fn llm_catalog_reload(pool: &PgPool) -> Result<()> {
     let mut g = cache().write().unwrap();
     g.models = models;
     g.price_by_id = price_by_id;
+    Ok(())
+}
+
+const LLM_PINNED_SEED_KEY: &str = "c35.llm_pinned_seed";
+
+pub async fn llm_catalog_pinned_ensure(pool: &PgPool) -> Result<()> {
+    let expected = crate::catalog_sync::pinned_seed_fingerprint();
+    let stored = db_retry(pool, || async {
+        sqlx::query_scalar::<_, Option<String>>(
+            "SELECT value->>'hash' FROM ai.config WHERE key = $1",
+        )
+        .bind(LLM_PINNED_SEED_KEY)
+        .fetch_optional(pool)
+        .await
+    })
+    .await?
+    .flatten();
+    if stored.as_deref() == Some(&expected) {
+        return Ok(());
+    }
+    llm_catalog_seed(pool).await?;
+    let value = serde_json::json!({ "hash": expected });
+    db_retry(pool, || async {
+        sqlx::query(
+            "INSERT INTO ai.config (key, value, updated_at) VALUES ($1, $2, NOW()) \
+             ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()",
+        )
+        .bind(LLM_PINNED_SEED_KEY)
+        .bind(value.clone())
+        .execute(pool)
+        .await
+    })
+    .await?;
     Ok(())
 }
 

@@ -25,7 +25,6 @@ pub async fn boot_handlers_background(
     if let Err(e) = c35_mod_llm::llm_catalog_init(&pool).await {
         tracing::warn!("llm_catalog_init: {e:#}");
     }
-    c35_mod_llm::runtime_config_init(&pool).await;
     c35_mod_llm::llm_catalog_spawn(pool.clone());
     c35_mod_llm::runtime_config_watch(pool.clone());
     c35_mod_chat::inst_cache_init(&pool).await;

@@ -113,17 +113,26 @@ pub fn schema_bundle_hash() -> String {
     hasher.finalize().to_hex().to_string()
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MigrateStartupOutcome {
+    pub schema_applied: bool,
+}
+
 /// Boot patches + schema apply when `ai.config` version differs (server startup).
-pub async fn migrate_startup(pool: &PgPool) -> Result<()> {
+pub async fn migrate_startup(pool: &PgPool) -> Result<MigrateStartupOutcome> {
     let expected = schema_bundle_hash();
     schema_boot_line("schema: check");
     if schema_version_skip_apply(pool, &expected).await? {
         let _ = SCHEMA_READY.set(());
-        return Ok(());
+        return Ok(MigrateStartupOutcome {
+            schema_applied: false,
+        });
     }
     migrate_startup_apply(&expected).await?;
     let _ = SCHEMA_READY.set(());
-    Ok(())
+    Ok(MigrateStartupOutcome {
+        schema_applied: true,
+    })
 }
 
 fn env_truthy(key: &str) -> bool {

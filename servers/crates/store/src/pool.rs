@@ -38,11 +38,24 @@ impl PoolConfig {
         }
     }
 
+    /// Connections held back for WS, NATS, probes, etc. (never more than the pool can spare).
+    pub fn prompt_run_reserved_connections(&self) -> u32 {
+        let max = self.max_connections;
+        if max <= 1 {
+            return 0;
+        }
+        POOL_RESERVED_CONNECTIONS.min(max - 1)
+    }
+
     /// Max concurrent prompt turns that should share the SQLx pool without starving other work.
     pub fn prompt_run_concurrency_cap(&self) -> usize {
+        let max = self.max_connections;
+        if max == 0 {
+            return 1;
+        }
         self.max_connections
-            .saturating_sub(POOL_RESERVED_CONNECTIONS)
-            .max(4) as usize
+            .saturating_sub(self.prompt_run_reserved_connections())
+            .max(1) as usize
     }
 }
 
@@ -165,4 +178,41 @@ fn env_bool(key: &str, default: bool) -> bool {
         .ok()
         .map(|s| matches!(s.to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
         .unwrap_or(default)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn prompt_run_cap_scales_with_small_pool() {
+        let cfg = PoolConfig {
+            max_connections: 8,
+            min_connections: 1,
+            acquire_timeout: Duration::from_secs(30),
+            acquire_slow_threshold: Duration::from_millis(3000),
+            idle_timeout: Duration::from_secs(600),
+            max_lifetime: Duration::from_secs(1800),
+            slow_statement: Duration::from_millis(1000),
+            test_before_acquire: true,
+        };
+        assert_eq!(cfg.prompt_run_reserved_connections(), 7);
+        assert_eq!(cfg.prompt_run_concurrency_cap(), 1);
+    }
+
+    #[test]
+    fn prompt_run_cap_large_pool() {
+        let cfg = PoolConfig {
+            max_connections: 48,
+            min_connections: 12,
+            acquire_timeout: Duration::from_secs(30),
+            acquire_slow_threshold: Duration::from_millis(3000),
+            idle_timeout: Duration::from_secs(600),
+            max_lifetime: Duration::from_secs(1800),
+            slow_statement: Duration::from_millis(1000),
+            test_before_acquire: true,
+        };
+        assert_eq!(cfg.prompt_run_reserved_connections(), 10);
+        assert_eq!(cfg.prompt_run_concurrency_cap(), 38);
+    }
 }

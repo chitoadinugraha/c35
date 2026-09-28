@@ -145,6 +145,7 @@ async fn config_updated_at(pool: &PgPool, key: &str) -> Option<DateTime<Utc>> {
 }
 
 pub async fn runtime_config_reload(pool: &PgPool) {
+    crate::llm_catalog::llm_catalog_ensure_memory(pool).await;
     let alien = match alien_chain_load(pool).await {
         Ok(m) => m,
         Err(e) => {

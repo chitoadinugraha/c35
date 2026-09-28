@@ -7,8 +7,8 @@ mod user_app;
 pub use async_nats::Event;
 pub use connect::{connect, connect_supervised, configured, Client};
 pub use hydrate::{
-    advisory_unlock, hydrate_task_schedules, try_advisory_lock, HydrateCounts, HYDRATE_LOCK_K1,
-    HYDRATE_LOCK_K2,
+    advisory_unlock, hydrate_task_schedules, try_advisory_lock, HydrateAdvisoryLock, HydrateCounts,
+    HYDRATE_LOCK_K1, HYDRATE_LOCK_K2,
 };
 pub use stats_kv::{
     stats_kv_ensure, stats_kv_get, stats_kv_key_node, stats_kv_key_volume, stats_kv_list_pushes,

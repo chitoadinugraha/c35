@@ -9,8 +9,8 @@ pub async fn nats_post_connect(pool: PgPool, client: Client) {
         return;
     }
 
-    match c35_nats::try_advisory_lock(&pool).await {
-        Ok(true) => {
+    match c35_nats::HydrateAdvisoryLock::try_acquire(&pool).await {
+        Ok(Some(mut lock)) => {
             let schedules = c35_nats::hydrate_task_schedules(&client, &pool)
                 .await
                 .unwrap_or_else(|e| {
@@ -23,7 +23,7 @@ pub async fn nats_post_connect(pool: PgPool, client: Client) {
                     tracing::warn!(error = %e, "[c35:nats] prompt hydrate failed");
                     0
                 });
-            c35_nats::advisory_unlock(&pool).await;
+            lock.release().await;
             tracing::info!(
                 schedules,
                 prompt_replay,
@@ -31,7 +31,7 @@ pub async fn nats_post_connect(pool: PgPool, client: Client) {
                 "[c35:nats] hydrate complete"
             );
         }
-        Ok(false) => tracing::info!("[c35:nats] hydrate skipped (lock not acquired)"),
+        Ok(None) => tracing::info!("[c35:nats] hydrate skipped (lock not acquired)"),
         Err(e) => tracing::warn!(error = %e, "[c35:nats] hydrate lock failed"),
     }
 }

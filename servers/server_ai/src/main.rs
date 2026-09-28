@@ -58,7 +58,12 @@ async fn main() -> anyhow::Result<()> {
     let nats_ms = nats.as_ref().map(|_| nats_t0.elapsed().as_millis());
     log::store_connected(yb_ms, nats_ms, nats_required);
 
-    c35_store::migrate_startup(&pool).await?;
+    let migrate = c35_store::migrate_startup(&pool).await?;
+    if migrate.schema_applied {
+        if let Err(e) = c35_mod_llm::llm_catalog_pinned_ensure(&pool).await {
+            tracing::warn!("llm_catalog_pinned_ensure: {e:#}");
+        }
+    }
 
     let prompt_worker = Arc::new(Mutex::new(None));
     tokio::spawn(boot_handlers::boot_handlers_background(
