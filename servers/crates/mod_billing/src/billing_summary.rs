@@ -36,7 +36,8 @@ pub async fn billing_summary(pool: &PgPool, caller_iid: i64, billing_account_id:
                COALESCE(b.commission_available_idr::float8, 0.0) AS commission_available_idr,
                COALESCE(p.overage_enabled, FALSE) AS overage_enabled,
                b.window_5h_start,
-               b.window_weekly_start
+               b.window_weekly_start,
+               COALESCE(NULLIF(TRIM(b.billing_currency), ''), 'IDR') AS billing_currency
         FROM ai.billing_account b
         LEFT JOIN ai.billing_plan p ON p.slug = b.plan_tier AND p.scope = 'user'
         WHERE b.id = $1 AND b.owner_iid = $2 AND b.deleted_ts IS NULL
@@ -110,6 +111,8 @@ pub async fn billing_summary(pool: &PgPool, caller_iid: i64, billing_account_id:
         plan_expires_ts_ms: profile_ts.1.map(|t| t.timestamp_millis()).unwrap_or(0),
         trial_expires_ts_ms: profile_ts.0.map(|t| t.timestamp_millis()).unwrap_or(0),
         bot_plans,
+        billing_currency: row.get("billing_currency"),
+        fx_micro_per_usd: crate::fx_live::fx_live_micro_per_usd(),
     }
 }
 
@@ -241,5 +244,7 @@ fn billing_summary_default(plans: Vec<BillingPlanDoc>, bot_plans: Vec<BillingPla
         plan_expires_ts_ms: 0,
         trial_expires_ts_ms: 0,
         bot_plans,
+        billing_currency: "IDR".into(),
+        fx_micro_per_usd: crate::fx_live::fx_live_micro_per_usd(),
     }
 }

@@ -6,10 +6,12 @@ import 'package:alienai_c35/c/billing/billing_format.dart';
 import 'package:alienai_c35/c/billing/billing_summary_api.dart';
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
+import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/billing/billing_plan_format.dart';
 import 'package:alienai_c35/widgets/referral/ui_billing_package_redeem.dart';
 import 'package:alienai_c35/widgets/ui/ui_loading.dart';
+import 'package:fixnum/fixnum.dart';
 import 'package:flutter/material.dart';
 
 Future<void> billingPackageSheet(BuildContext context, {required ReferralConn conn}) async {
@@ -60,6 +62,7 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
     try {
       final summary = await billingSummaryGet(widget.conn);
       if (!mounted) return;
+      AppStore.instance.billingPut(billingAccountFromSummary(summary, base: AppStore.instance.billing));
       setState(() {
         _summary = summary;
         _loading = false;
@@ -83,7 +86,7 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
     return billingPlanIsFree(tier) ? 'lite' : tier.trim().toLowerCase();
   }
 
-  String get _currency => AppStore.instance.wallet.billingCurrency;
+  String get _currency => billingPrimaryCurrency(AppStore.instance.billing ?? BillingAccount(billingCurrency: moneyDefaultCurrency));
 
   BillingPlanDoc? get _selectedPlan {
     final slug = _selectedSlug;
@@ -143,11 +146,16 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
     final billing = AppStore.instance.billing;
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
     final maxHeight = MediaQuery.sizeOf(context).height * 0.9;
-    final balanceLabel = billing != null
-        ? billingWalletBalanceLabel(billing, _currency)
-        : _summary != null
-            ? billingBalanceLabel(BillingAccount(balanceUsd: _summary!.balanceUsd, balanceIdr: _summary!.balanceIdr, billingCurrency: _currency))
-            : '';
+    final balanceAccount = billing ??
+        (_summary != null
+            ? BillingAccount(
+                balanceUsd: _summary!.balanceUsd,
+                balanceIdr: _summary!.balanceIdr,
+                billingCurrency: billingCurrencyResolve(fromSummary: _summary!.hasBillingCurrency() ? _summary!.billingCurrency : null),
+                fxMicroPerUsd: _summary!.hasFxMicroPerUsd() ? _summary!.fxMicroPerUsd : Int64(moneyDefaultFxMicroPerUsd),
+              )
+            : null);
+    final balanceLabel = balanceAccount != null ? billingWalletBalanceLabel(balanceAccount, _currency) : '';
     return Padding(
       padding: EdgeInsets.fromLTRB(16, 12, 16, 16 + bottom),
       child: ConstrainedBox(
@@ -160,13 +168,16 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Plans', style: TextStyle(color: _text, fontSize: 18, fontWeight: FontWeight.w700)),
-                      SizedBox(height: 4),
-                      Text('Monthly included usage quotas in IDR', style: TextStyle(color: _muted, fontSize: 12)),
+                      const Text('Plans', style: TextStyle(color: _text, fontSize: 18, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 4),
+                      Text(
+                        _currency == 'IDR' ? 'Monthly included usage quotas in IDR' : 'Monthly included usage quotas in $_currency',
+                        style: const TextStyle(color: _muted, fontSize: 12),
+                      ),
                     ],
                   ),
                 ),

@@ -1,4 +1,5 @@
 import 'package:alienai_c35/c/llm/agent_model.dart';
+import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/widgets/ai/ui_assistant_provider_icon.dart';
 import 'package:alienai_c35/widgets/ui/ui_input_decoration.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
@@ -207,7 +208,10 @@ class _UiAssistantModelSheetState extends State<UiAssistantModelSheet> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(m.label, style: TextStyle(color: selected ? m.accent : const Color(0xFFF4F4F5), fontWeight: FontWeight.w600, fontSize: 14)),
-                                Text(m.local ? 'This PC' : m.priceLabel, style: const TextStyle(color: Color(0xFF71717A), fontSize: 12)),
+                                Text(
+                                  m.local ? 'This PC' : m.priceLabel(currency: AppStore.instance.wallet.billingCurrency, fxMicroPerUsd: AppStore.instance.wallet.fxMicroPerUsd),
+                                  style: const TextStyle(color: Color(0xFF71717A), fontSize: 12),
+                                ),
                               ],
                             ),
                           ),

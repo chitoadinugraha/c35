@@ -7,7 +7,7 @@ use serde_json::Value;
 use sqlx::PgPool;
 
 use crate::catalog_price::{price_for_model_id, DEFAULT_INPUT_MICRO_PER_M, DEFAULT_OUTPUT_MICRO_PER_M};
-use crate::catalog_rank::{alien_chain_sort_cmp, apply_gemini_enabled, family_of, gemini_chat_eligible, is_preview_id, model_list_sort_cmp, pick_default_provider, sort_order_for, version_rank_of};
+use crate::catalog_rank::{alien_chain_sort_cmp, apply_cf_enabled, apply_gemini_enabled, family_of, gemini_chat_eligible, model_list_sort_cmp, model_picker_sort_cmp, pick_default_provider, sort_order_for, version_rank_of};
 use crate::runtime_config::{cf_gateway_config, cf_gateway_ready};
 use crate::embed_gemini::gemini_api_key;
 use crate::catalog_types::LlmModelRow;
@@ -40,13 +40,14 @@ pub async fn llm_catalog_sync_force(pool: &PgPool) -> Result<usize> {
     let mut fetched = gemini_fetch().await?;
     let cf = cf_models_fetch().await?;
     prune_stale_cf(pool, &cf).await?;
+    prune_stale_seed_frontier(pool, &cf).await?;
     fetched.extend(cf);
-    for (idx, m) in fetched.iter_mut().enumerate() {
-        m.sort_order = sort_order_for(m, idx as i32);
+    for m in fetched.iter_mut() {
         upsert_model(pool, m, synced_at).await?;
     }
     prune_stale_google(pool, &fetched).await?;
     sync_alien_meta(pool, &fetched).await?;
+    catalog_reindex_sort_orders(pool).await?;
     if let Some(default_id) = pick_default_provider(&fetched, "google") {
         let id = default_id;
         db_retry(pool, || async {
@@ -267,8 +268,14 @@ async fn cf_models_fetch() -> Result<Vec<LlmModelRow>> {
             .to_string();
         let family = family_of(&slug);
         let version_rank = version_rank_of(&slug);
-        let (in_ppm, out_ppm) = price_for_model_id(&slug).unwrap_or((DEFAULT_INPUT_MICRO_PER_M, DEFAULT_OUTPUT_MICRO_PER_M));
-        let thinks = slug.contains("gemini-3") || slug.contains("claude") || slug.contains("o1");
+        let (in_ppm, out_ppm) = cf_pricing_micro_per_m(&raw)
+            .or_else(|| price_for_model_id(&slug))
+            .unwrap_or((DEFAULT_INPUT_MICRO_PER_M, DEFAULT_OUTPUT_MICRO_PER_M));
+        let thinks = slug.contains("gemini-3")
+            || slug.contains("claude")
+            || slug.contains("o1")
+            || slug.contains("reasoner")
+            || slug.contains("grok");
         out.push(LlmModelRow {
             id: slug,
             provider,
@@ -285,10 +292,12 @@ async fn cf_models_fetch() -> Result<Vec<LlmModelRow>> {
             source: "cf_api".into(),
         });
     }
+    apply_cf_enabled(&mut out);
     out.sort_by(model_list_sort_cmp);
     for (idx, m) in out.iter_mut().enumerate() {
         m.sort_order = sort_order_for(m, idx as i32);
     }
+    tracing::info!(cf_models = out.len(), enabled = out.iter().filter(|m| m.enabled).count(), "cf_models_fetch");
     Ok(out)
 }
 
@@ -302,6 +311,14 @@ fn cf_provider_slug(id: &str) -> Result<(String, String)> {
     }
     if lower.starts_with("deepseek/") {
         return Ok(("deepseek".into(), lower.strip_prefix("deepseek/").unwrap_or(&lower).to_string()));
+    }
+    if lower.starts_with("x-ai/") || lower.starts_with("xai/") {
+        let slug = lower
+            .strip_prefix("x-ai/")
+            .or_else(|| lower.strip_prefix("xai/"))
+            .unwrap_or(&lower)
+            .to_string();
+        return Ok(("xai".into(), slug));
     }
     if lower.starts_with("google/") {
         return Err(anyhow::anyhow!("skip google cf model"));
@@ -342,11 +359,103 @@ fn cf_api_error_hint(body: &str) -> String {
     }
 }
 
+fn cf_pricing_micro_per_m(raw: &Value) -> Option<(i64, i64)> {
+    let pricing = raw.get("pricing")?;
+    let in_s = pricing.get("prompt").and_then(|v| v.as_str()).or_else(|| pricing.get("input").and_then(|v| v.as_str()))?;
+    let out_s = pricing
+        .get("completion")
+        .and_then(|v| v.as_str())
+        .or_else(|| pricing.get("output").and_then(|v| v.as_str()))?;
+    let in_tok = in_s.trim().parse::<f64>().ok().filter(|&n| n >= 0.0)?;
+    let out_tok = out_s.trim().parse::<f64>().ok().filter(|&n| n >= 0.0)?;
+    if in_tok == 0.0 && out_tok == 0.0 {
+        return None;
+    }
+    Some((usd_per_token_to_micro_per_m(in_tok), usd_per_token_to_micro_per_m(out_tok)))
+}
+
+fn usd_per_token_to_micro_per_m(usd_per_token: f64) -> i64 {
+    (usd_per_token * 1_000_000.0 * 1_000_000.0).round() as i64
+}
+
+async fn catalog_reindex_sort_orders(pool: &PgPool) -> Result<()> {
+    db_retry(pool, || async {
+        sqlx::query(
+            "UPDATE ai.llm_model SET sort_order = 0, updated_at = NOW() WHERE id = 'alienai' AND deleted_at IS NULL",
+        )
+        .execute(pool)
+        .await
+    })
+    .await?;
+    let rows = db_retry(pool, || async {
+        sqlx::query_as::<_, (String, String, String, String, i64, i64, bool, bool, bool, i32, String, i32, String)>(
+            "SELECT id, provider, label, provider_model, input_micro_per_m, output_micro_per_m, supports_thinking, enabled, is_default, sort_order, family, version_rank, source \
+             FROM ai.llm_model WHERE deleted_at IS NULL AND enabled = true",
+        )
+        .fetch_all(pool)
+        .await
+    })
+    .await?;
+    let mut models = rows
+        .into_iter()
+        .map(
+            |(id, provider, label, provider_model, input_micro_per_m, output_micro_per_m, supports_thinking, enabled, is_default, sort_order, family, version_rank, source)| {
+                LlmModelRow {
+                    id,
+                    provider,
+                    label,
+                    provider_model,
+                    input_micro_per_m,
+                    output_micro_per_m,
+                    supports_thinking,
+                    enabled,
+                    is_default,
+                    sort_order,
+                    family,
+                    version_rank,
+                    source,
+                }
+            },
+        )
+        .collect::<Vec<_>>();
+    models.sort_by(model_picker_sort_cmp);
+    for (i, m) in models.iter().enumerate() {
+        let order = i as i32;
+        db_retry(pool, || async {
+            sqlx::query("UPDATE ai.llm_model SET sort_order = $1, updated_at = NOW() WHERE id = $2 AND deleted_at IS NULL")
+                .bind(order)
+                .bind(&m.id)
+                .execute(pool)
+                .await
+        })
+        .await?;
+    }
+    Ok(())
+}
+
+async fn prune_stale_seed_frontier(pool: &PgPool, cf: &[LlmModelRow]) -> Result<()> {
+    if cf.is_empty() {
+        return Ok(());
+    }
+    use std::collections::HashSet;
+    let providers: HashSet<String> = cf.iter().map(|m| m.provider.clone()).collect();
+    for provider in providers {
+        db_retry(pool, || async {
+            sqlx::query(
+                "UPDATE ai.llm_model SET enabled = false, updated_at = NOW() \
+                 WHERE source = 'seed' AND provider = $1 AND deleted_at IS NULL",
+            )
+            .bind(&provider)
+            .execute(pool)
+            .await
+        })
+        .await?;
+    }
+    Ok(())
+}
+
 fn cf_chat_eligible(id: &str) -> bool {
     let m = id.to_ascii_lowercase();
-    if is_preview_id(&m) {
-        return false;
-    }
     const SKIP: &[&str] = &[
         "embed", "embedding", "whisper", "tts", "dall-e", "image", "moderation", "transcribe", "realtime",
     ];
@@ -356,12 +465,14 @@ fn cf_chat_eligible(id: &str) -> bool {
     m.starts_with("openai/")
         || m.starts_with("anthropic/")
         || m.starts_with("deepseek/")
+        || m.starts_with("x-ai/")
+        || m.starts_with("xai/")
         || m.starts_with("@cf/")
 }
 
 #[cfg(test)]
 mod cf_search_tests {
-    use super::{cf_api_error_hint, cf_search_result_rows};
+    use super::{cf_api_error_hint, cf_pricing_micro_per_m, cf_search_result_rows};
     use serde_json::json;
 
     #[test]
@@ -380,6 +491,17 @@ mod cf_search_tests {
     fn cf_api_error_hint_parses_cf_json() {
         let body = r#"{"errors":[{"code":7003,"message":"invalid account"}]}"#;
         assert_eq!(cf_api_error_hint(body), "invalid account");
+    }
+
+    #[test]
+    fn cf_pricing_openrouter_to_micro_per_m() {
+        let row = json!({
+            "id": "openai/gpt-4o",
+            "pricing": { "prompt": "0.00000025", "completion": "0.000001" }
+        });
+        let (in_ppm, out_ppm) = cf_pricing_micro_per_m(&row).expect("pricing");
+        assert_eq!(in_ppm, 250_000);
+        assert_eq!(out_ppm, 1_000_000);
     }
 }
 

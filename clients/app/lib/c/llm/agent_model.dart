@@ -1,4 +1,5 @@
 import 'package:alienai_c35/c/pb/c35/session.pb.dart';
+import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:flutter/material.dart';
 
 enum AgentThinking {
@@ -114,7 +115,8 @@ class AgentModel {
     );
   }
 
-  String get priceLabel => agentModelPriceLabel(usdInPer1m, usdOutPer1m);
+  String priceLabel({String currency = moneyDefaultCurrency, int fxMicroPerUsd = moneyDefaultFxMicroPerUsd}) =>
+      agentModelPriceLabel(usdInPer1m, usdOutPer1m, currency: currency, fxMicroPerUsd: fxMicroPerUsd);
 
   AgentModel copyWith({AgentThinking? thinking}) => AgentModel(
         id: id,
@@ -144,12 +146,24 @@ const agentModelRetailMarkup = 1.5;
 
 double agentModelRetailPer1m(double wholesale) => wholesale * agentModelRetailMarkup;
 
-String agentModelPriceLabel(double usdInPer1m, double usdOutPer1m) {
+String agentModelTokenRateLabel(double usdPer1m, {String currency = moneyDefaultCurrency, int fxMicroPerUsd = moneyDefaultFxMicroPerUsd}) {
+  if (usdPer1m <= 0) return '—';
+  final retail = agentModelRetailPer1m(usdPer1m);
+  final cur = currency.toUpperCase();
+  if (cur == 'USD') return '\$${retail.toStringAsFixed(2)}';
+  if (cur == 'IDR') return moneyFmtIdrDetail(moneyUsdToLocal(retail, fxMicroPerUsd));
+  return '$cur ${moneyUsdToLocal(retail, fxMicroPerUsd).toStringAsFixed(2)}';
+}
+
+String agentModelPriceLabel(
+  double usdInPer1m,
+  double usdOutPer1m, {
+  String currency = moneyDefaultCurrency,
+  int fxMicroPerUsd = moneyDefaultFxMicroPerUsd,
+}) {
   if (usdInPer1m <= 0 && usdOutPer1m <= 0) return 'Auto';
-  final inRetail = agentModelRetailPer1m(usdInPer1m);
-  final outRetail = agentModelRetailPer1m(usdOutPer1m);
-  final inLabel = usdInPer1m > 0 ? '\$${inRetail.toStringAsFixed(2)}' : '—';
-  final outLabel = usdOutPer1m > 0 ? '\$${outRetail.toStringAsFixed(2)}' : '—';
+  final inLabel = agentModelTokenRateLabel(usdInPer1m, currency: currency, fxMicroPerUsd: fxMicroPerUsd);
+  final outLabel = agentModelTokenRateLabel(usdOutPer1m, currency: currency, fxMicroPerUsd: fxMicroPerUsd);
   return '$inLabel / $outLabel per 1M';
 }
 
@@ -176,10 +190,12 @@ List<AgentModel> agentModelsForBilling(List<AgentModel> models, {required bool f
 
 int agentModelProviderBand(String provider) => switch (provider) {
       'alienai' => 0,
-      'google' => 100,
-      'openai' => 200,
-      'anthropic' => 300,
-      'deepseek' => 400,
+      'openai' => 100,
+      'anthropic' => 110,
+      'deepseek' => 120,
+      'xai' => 130,
+      'cloudflare' => 140,
+      'google' => 200,
       _ => 900,
     };
 
@@ -201,6 +217,8 @@ int agentModelVersionRank(AgentModel m) {
 }
 
 int agentModelSort(AgentModel a, AgentModel b) {
+  if (a.provider == 'alienai') return -1;
+  if (b.provider == 'alienai') return 1;
   final band = agentModelProviderBand(a.provider).compareTo(agentModelProviderBand(b.provider));
   if (band != 0) return band;
   final fam = agentModelFamilyPriority(a).compareTo(agentModelFamilyPriority(b));
@@ -224,10 +242,12 @@ String agentModelProviderLabel(String provider) => switch (provider) {
       'openai' => 'ChatGPT',
       'anthropic' => 'Claude',
       'deepseek' => 'Deepseek',
+      'xai' => 'Grok',
+      'cloudflare' => 'Cloudflare',
       _ => provider,
     };
 
-const _agentModelProviderOrder = ['alienai', 'google', 'openai', 'anthropic', 'deepseek'];
+const _agentModelProviderOrder = ['alienai', 'openai', 'anthropic', 'deepseek', 'xai', 'cloudflare', 'google'];
 
 List<String> agentModelProviders(List<AgentModel> models) {
   final seen = <String>{};

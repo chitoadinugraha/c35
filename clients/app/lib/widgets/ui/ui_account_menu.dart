@@ -140,7 +140,7 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
     if (mounted) setState(() => _billingLoading = true);
     try {
       final summary = await billingSummaryGet(conn);
-      AppStore.instance.billingPut(billingAccountFromSummary(summary));
+      AppStore.instance.billingPut(billingAccountFromSummary(summary, base: AppStore.instance.billing));
     } catch (_) {}
     if (mounted) setState(() => _billingLoading = false);
   }

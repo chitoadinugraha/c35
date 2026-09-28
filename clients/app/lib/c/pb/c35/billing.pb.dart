@@ -7653,6 +7653,8 @@ class ResBillingSummary extends $pb.GeneratedMessage {
     $fixnum.Int64? planExpiresTsMs,
     $fixnum.Int64? trialExpiresTsMs,
     $core.Iterable<BillingPlanDoc>? botPlans,
+    $core.String? billingCurrency,
+    $fixnum.Int64? fxMicroPerUsd,
   }) {
     final result = ResBillingSummary._();
     if (balanceUsd != null) result.balanceUsd = balanceUsd;
@@ -7690,6 +7692,8 @@ class ResBillingSummary extends $pb.GeneratedMessage {
     if (planExpiresTsMs != null) result.planExpiresTsMs = planExpiresTsMs;
     if (trialExpiresTsMs != null) result.trialExpiresTsMs = trialExpiresTsMs;
     if (botPlans != null) result.botPlans.addAll(botPlans);
+    if (billingCurrency != null) result.billingCurrency = billingCurrency;
+    if (fxMicroPerUsd != null) result.fxMicroPerUsd = fxMicroPerUsd;
     return result;
   }
 
@@ -7738,6 +7742,8 @@ class ResBillingSummary extends $pb.GeneratedMessage {
     ..aInt64(26, _omitFieldNames ? '' : 'trialExpiresTsMs')
     ..pPM<BillingPlanDoc>(27, _omitFieldNames ? '' : 'botPlans',
         subBuilder: BillingPlanDoc.$_createMessage)
+    ..aOS(28, _omitFieldNames ? '' : 'billingCurrency')
+    ..aInt64(29, _omitFieldNames ? '' : 'fxMicroPerUsd')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -7992,6 +7998,24 @@ class ResBillingSummary extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(27)
   $pb.PbList<BillingPlanDoc> get botPlans => $_getList(26);
+
+  @$pb.TagNumber(28)
+  $core.String get billingCurrency => $_getSZ(27);
+  @$pb.TagNumber(28)
+  set billingCurrency($core.String value) => $_setString(27, value);
+  @$pb.TagNumber(28)
+  $core.bool hasBillingCurrency() => $_has(27);
+  @$pb.TagNumber(28)
+  void clearBillingCurrency() => $_clearField(28);
+
+  @$pb.TagNumber(29)
+  $fixnum.Int64 get fxMicroPerUsd => $_getI64(28);
+  @$pb.TagNumber(29)
+  set fxMicroPerUsd($fixnum.Int64 value) => $_setInt64(28, value);
+  @$pb.TagNumber(29)
+  $core.bool hasFxMicroPerUsd() => $_has(28);
+  @$pb.TagNumber(29)
+  void clearFxMicroPerUsd() => $_clearField(29);
 }
 
 const $core.bool _omitFieldNames =

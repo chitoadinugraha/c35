@@ -641,4 +641,6 @@ message ResBillingSummary {
   int64 plan_expires_ts_ms = 25;
   int64 trial_expires_ts_ms = 26;
   repeated BillingPlanDoc bot_plans = 27;
+  string billing_currency = 28;
+  int64 fx_micro_per_usd = 29;
 }

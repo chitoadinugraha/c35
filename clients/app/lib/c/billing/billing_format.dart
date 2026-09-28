@@ -27,8 +27,15 @@ String billingMeterStateFreemium(BillingAccount account) {
   return billingMeterState(pct, 1);
 }
 
-String billingPrimaryCurrency(BillingAccount account) =>
-    account.billingCurrency.isNotEmpty ? account.billingCurrency.toUpperCase() : moneyDefaultCurrency;
+String billingCurrencyResolve({String? fromAccount, String? fromSummary}) {
+  for (final raw in [fromAccount, fromSummary]) {
+    final c = raw?.trim().toUpperCase() ?? '';
+    if (c.isNotEmpty) return c;
+  }
+  return moneyDefaultCurrency;
+}
+
+String billingPrimaryCurrency(BillingAccount account) => billingCurrencyResolve(fromAccount: account.billingCurrency);
 
 List<String> billingWalletCurrencies(BillingAccount? account) {
   if (account == null) return [moneyDefaultCurrency];

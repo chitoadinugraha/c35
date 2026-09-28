@@ -1,8 +1,10 @@
 import 'package:alienai_c35/c/billing/billing_format.dart';
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
+import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/widgets/ai/ui_alien_icon.dart';
 import 'package:alienai_c35/widgets/billing/billing_plan_format.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
+import 'package:fixnum/fixnum.dart';
 import 'package:flutter/material.dart';
 
 const billingApiAllow5hDefault = 0.01;
@@ -419,7 +421,15 @@ UiQuotaPackagePanel uiQuotaPackagePanelFromSummary(
               freemiumTokensLimit: summary.freemiumTokensLimit,
             ))
           : summary.meterState,
-      balanceLabel: billingBalanceLabel(BillingAccount(balanceUsd: summary.balanceUsd, balanceIdr: summary.balanceIdr, billingCurrency: summary.balanceIdr > 0 ? 'IDR' : 'USD')),
+      balanceLabel: billingWalletBalanceLabel(
+        BillingAccount(
+          balanceUsd: summary.balanceUsd,
+          balanceIdr: summary.balanceIdr,
+          billingCurrency: billingCurrencyResolve(fromSummary: summary.hasBillingCurrency() ? summary.billingCurrency : null),
+          fxMicroPerUsd: summary.hasFxMicroPerUsd() ? summary.fxMicroPerUsd : Int64(moneyDefaultFxMicroPerUsd),
+        ),
+        billingCurrencyResolve(fromSummary: summary.hasBillingCurrency() ? summary.billingCurrency : null),
+      ),
       onBalanceTap: onBalanceTap,
       onPackageTap: onPackageTap,
       freemiumActive: summary.freemiumActive,

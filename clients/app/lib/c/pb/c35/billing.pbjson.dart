@@ -2110,6 +2110,8 @@ const ResBillingSummary$json = {
       '6': '.c35.BillingPlanDoc',
       '10': 'botPlans'
     },
+    {'1': 'billing_currency', '3': 28, '4': 1, '5': 9, '10': 'billingCurrency'},
+    {'1': 'fx_micro_per_usd', '3': 29, '4': 1, '5': 3, '10': 'fxMicroPerUsd'},
   ],
 };
 
@@ -2137,4 +2139,5 @@ final $typed_data.Uint8List resBillingSummaryDescriptor = $convert.base64Decode(
     'JlZW1pdW1fdG9rZW5zX2xpbWl0GBggASgFUhNmcmVlbWl1bVRva2Vuc0xpbWl0EisKEnBsYW5f'
     'ZXhwaXJlc190c19tcxgZIAEoA1IPcGxhbkV4cGlyZXNUc01zEi0KE3RyaWFsX2V4cGlyZXNfdH'
     'NfbXMYGiABKANSEHRyaWFsRXhwaXJlc1RzTXMSMAoJYm90X3BsYW5zGBsgAygLMhMuYzM1LkJp'
-    'bGxpbmdQbGFuRG9jUghib3RQbGFucw==');
+    'bGxpbmdQbGFuRG9jUghib3RQbGFucxIpChBiaWxsaW5nX2N1cnJlbmN5GBwgASgJUg9iaWxsaW'
+    '5nQ3VycmVuY3kSJwoQZnhfbWljcm9fcGVyX3VzZBgdIAEoA1INZnhNaWNyb1BlclVzZA==');

@@ -1,9 +1,12 @@
 use crate::catalog_types::LlmModelRow;
 
 const BAND_ALIENAI: i32 = 0;
-const BAND_GOOGLE: i32 = 100;
-const BAND_OPENAI: i32 = 200;
-const BAND_ANTHROPIC: i32 = 300;
+const BAND_OPENAI: i32 = 100;
+const BAND_ANTHROPIC: i32 = 110;
+const BAND_DEEPSEEK: i32 = 120;
+const BAND_XAI: i32 = 130;
+const BAND_CLOUDFLARE: i32 = 140;
+const BAND_GOOGLE: i32 = 200;
 const BAND_HIDDEN: i32 = 900;
 
 pub fn family_of(id: &str) -> String {
@@ -56,9 +59,12 @@ pub fn version_rank_of(id: &str) -> i32 {
 pub fn provider_band(provider: &str) -> i32 {
     match provider {
         "alienai" => BAND_ALIENAI,
-        "google" => BAND_GOOGLE,
         "openai" => BAND_OPENAI,
         "anthropic" => BAND_ANTHROPIC,
+        "deepseek" => BAND_DEEPSEEK,
+        "xai" => BAND_XAI,
+        "cloudflare" => BAND_CLOUDFLARE,
+        "google" => BAND_GOOGLE,
         _ => BAND_HIDDEN,
     }
 }
@@ -90,11 +96,49 @@ pub fn model_list_sort_cmp(a: &LlmModelRow, b: &LlmModelRow) -> std::cmp::Orderi
         .then_with(|| a.label.cmp(&b.label))
 }
 
+/// Picker order: Alien AI first, then CF frontier providers, then explicit Gemini pins.
+pub fn model_picker_sort_cmp(a: &LlmModelRow, b: &LlmModelRow) -> std::cmp::Ordering {
+    if a.id == "alienai" {
+        return std::cmp::Ordering::Less;
+    }
+    if b.id == "alienai" {
+        return std::cmp::Ordering::Greater;
+    }
+    model_list_sort_cmp(a, b)
+}
+
 pub fn sort_order_for(m: &LlmModelRow, index: i32) -> i32 {
     if !m.enabled {
         return BAND_HIDDEN + index;
     }
+    if m.id == "alienai" {
+        return 0;
+    }
     provider_band(&m.provider) + family_priority(&m.family) * 10 + index
+}
+
+pub fn apply_cf_enabled(models: &mut [LlmModelRow]) {
+    use std::collections::HashMap;
+    models.sort_by(model_list_sort_cmp);
+    let mut by_provider: HashMap<String, Vec<usize>> = HashMap::new();
+    for (i, m) in models.iter().enumerate() {
+        by_provider.entry(m.provider.clone()).or_default().push(i);
+    }
+    for indices in by_provider.values_mut() {
+        indices.sort_by(|&a, &b| model_list_sort_cmp(&models[a], &models[b]));
+        let mut stable_n = 0usize;
+        let mut preview_n = 0usize;
+        for &i in indices.iter() {
+            let m = &models[i];
+            if is_preview_id(&m.id) {
+                preview_n += 1;
+                models[i].enabled = preview_n <= 1;
+            } else {
+                stable_n += 1;
+                models[i].enabled = stable_n <= 6;
+            }
+        }
+    }
 }
 
 pub fn gemini_chat_eligible(id: &str, methods: &[String]) -> bool {
@@ -249,28 +293,72 @@ mod tests {
     }
 
     #[test]
-    fn flash_lite_sorts_before_other() {
-        let flash = LlmModelRow {
-            id: "gemini-3.1-flash-lite-preview".into(),
+    fn model_picker_puts_alien_first() {
+        let alien = LlmModelRow {
+            id: "alienai".into(),
+            provider: "alienai".into(),
+            label: "Alien AI".into(),
+            provider_model: String::new(),
+            input_micro_per_m: 0,
+            output_micro_per_m: 0,
+            supports_thinking: true,
+            enabled: true,
+            is_default: true,
+            sort_order: 0,
+            family: "flash-lite".into(),
+            version_rank: 0,
+            source: "pinned".into(),
+        };
+        let gemini = LlmModelRow {
+            id: "gemini-3.1-flash-lite".into(),
             provider: "google".into(),
-            label: "Gemini 3.1 Flash Lite Preview".into(),
-            provider_model: "gemini-3.1-flash-lite-preview".into(),
+            label: "Gemini 3.1 Flash Lite".into(),
+            provider_model: "gemini-3.1-flash-lite".into(),
+            input_micro_per_m: 0,
+            output_micro_per_m: 0,
+            supports_thinking: true,
+            enabled: true,
+            is_default: false,
+            sort_order: 100,
+            family: "flash-lite".into(),
+            version_rank: version_rank_of("gemini-3.1-flash-lite"),
+            source: "api".into(),
+        };
+        assert_eq!(model_picker_sort_cmp(&alien, &gemini), std::cmp::Ordering::Less);
+    }
+
+    #[test]
+    fn frontier_provider_before_google() {
+        let openai = LlmModelRow {
+            id: "gpt-4o".into(),
+            provider: "openai".into(),
+            label: "GPT-4o".into(),
+            provider_model: "openai/gpt-4o".into(),
+            input_micro_per_m: 0,
+            output_micro_per_m: 0,
+            supports_thinking: false,
+            enabled: true,
+            is_default: false,
+            sort_order: 0,
+            family: "other".into(),
+            version_rank: 0,
+            source: "cf_api".into(),
+        };
+        let gemini = LlmModelRow {
+            id: "gemini-2.5-flash".into(),
+            provider: "google".into(),
+            label: "Gemini 2.5 Flash".into(),
+            provider_model: "gemini-2.5-flash".into(),
             input_micro_per_m: 0,
             output_micro_per_m: 0,
             supports_thinking: true,
             enabled: true,
             is_default: false,
             sort_order: 0,
-            family: "flash-lite".into(),
-            version_rank: version_rank_of("gemini-3.1-flash-lite-preview"),
+            family: "flash".into(),
+            version_rank: version_rank_of("gemini-2.5-flash"),
             source: "api".into(),
         };
-        let other = LlmModelRow {
-            family: "other".into(),
-            id: "gemini-3.5-transcribe".into(),
-            label: "Gemini 3.5 Transcribe".into(),
-            ..flash.clone()
-        };
-        assert_eq!(model_list_sort_cmp(&flash, &other), std::cmp::Ordering::Less);
+        assert_eq!(model_list_sort_cmp(&openai, &gemini), std::cmp::Ordering::Less);
     }
 }
