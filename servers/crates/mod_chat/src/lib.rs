@@ -1,5 +1,6 @@
 mod asset_tag;
 mod bot_meta;
+mod bot_welcome;
 mod bot_peer;
 mod catalog;
 mod chat_history_clear;
@@ -63,6 +64,7 @@ pub use site_capability::{site_capability_view_for_mention, SiteCapabilityView};
 pub use tools::ToolDef;
 
 pub use asset_tag::asset_tag_list;
+pub use bot_welcome::{bot_welcome_shared_text, bot_welcome_text, BOT_BILLING_SHARED};
 pub use bot_meta::{
     bot_active_load, bot_active_parse, bot_auto_block_enabled, bot_turn_meta_load, bot_turn_meta_parse, BotTurnMeta,
     BOT_GSHEET_WRITE_TOOL_EXCLUDE, BOT_TOPIC, BOT_WEB_TOOL_EXCLUDE,

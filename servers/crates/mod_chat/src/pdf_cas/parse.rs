@@ -1,5 +1,5 @@
 use anyhow::{bail, Context, Result};
-use lopdf::{Document, Object};
+use lopdf::Document;
 use std::collections::BTreeMap;
 
 use super::types::{PdfSection, PdfStructure};
@@ -64,53 +64,6 @@ pub fn pdf_extract_pages(bytes: &[u8], page_from: u32, page_to: u32, max_chars: 
 
 fn outline_sections(_doc: &Document, _pages: &BTreeMap<u32, (u32, u16)>) -> Vec<PdfSection> {
     Vec::new()
-}
-
-fn outline_page(doc: &Document, pages: &BTreeMap<u32, (u32, u16)>, obj_id: (u32, u16)) -> Option<u32> {
-    if let Ok(obj) = doc.get_object(obj_id) {
-        if let Object::Dictionary(dict) = obj {
-            if let Ok(dest) = dict.get(b"Dest") {
-                return dest_page(doc, pages, dest);
-            }
-            if let Ok(a) = dict.get(b"A") {
-                return action_page(doc, pages, a);
-            }
-        }
-    }
-    None
-}
-
-fn action_page(doc: &Document, pages: &BTreeMap<u32, (u32, u16)>, action: &Object) -> Option<u32> {
-    if let Object::Dictionary(d) = action {
-        if let Ok(dest) = d.get(b"D") {
-            return dest_page(doc, pages, dest);
-        }
-    }
-    None
-}
-
-fn dest_page(doc: &Document, pages: &BTreeMap<u32, (u32, u16)>, dest: &Object) -> Option<u32> {
-    let arr = match dest {
-        Object::Array(a) => a,
-        _ => return None,
-    };
-    if arr.is_empty() {
-        return None;
-    }
-    page_num_from_ref(doc, pages, &arr[0])
-}
-
-fn page_num_from_ref(doc: &Document, pages: &BTreeMap<u32, (u32, u16)>, obj: &Object) -> Option<u32> {
-    let id = match obj {
-        Object::Reference(r) => (r.0, r.1),
-        _ => return None,
-    };
-    for (num, &(oid, gen)) in pages {
-        if oid == id.0 && gen == id.1 {
-            return Some(*num);
-        }
-    }
-    None
 }
 
 fn heading_heuristic(doc: &Document, pages: &BTreeMap<u32, (u32, u16)>, max_pages: u32) -> Vec<PdfSection> {

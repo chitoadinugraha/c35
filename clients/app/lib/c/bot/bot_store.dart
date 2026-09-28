@@ -12,6 +12,7 @@ import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
 import 'package:alienai_c35/c/pb/c35/sync.pb.dart';
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/store/chat_store.dart';
+import 'package:alienai_c35/widgets/bots/channel_util.dart';
 import 'package:alienai_c35/widgets/bots/in_bot_create.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/material.dart';
@@ -110,6 +111,19 @@ class BotStore extends ChangeNotifier {
     return List.unmodifiable(_msgs[id] ?? const []);
   }
 
+  String peerChannelPlatform(Chat? peer) {
+    if (peer == null) return '';
+    final bot = botById(peer.botIid.toString());
+    return botPeerPlatformResolve(channelId: peer.channelId, botMetaJson: bot?.identity.metaJson ?? '');
+  }
+
+  String peerDisplayPic(Chat? peer) {
+    if (peer == null) return '';
+    if (peer.peerPic.trim().isNotEmpty) return peer.peerPic;
+    if (peerChannelPlatform(peer) == kBotAppChannelId && Session.instance.pic.trim().isNotEmpty) return Session.instance.pic;
+    return '';
+  }
+
   Chat? peerById(String? chatId) {
     if (chatId == null) return null;
     for (final c in _peers) {
@@ -139,7 +153,8 @@ class BotStore extends ChangeNotifier {
     if (push.hasChatMsg()) {
       final m = push.chatMsg;
       final cid = m.chatId.toInt();
-      if (_selectedChatId == cid.toString()) {
+      final selected = _selectedChatId == cid.toString();
+      if (selected) {
         _msgPut(m);
       } else if (_selectedBotId != null) {
         final peer = peerById(cid.toString());
@@ -182,6 +197,7 @@ class BotStore extends ChangeNotifier {
       ChatMsgRole.CHAT_MSG_ROLE_SYSTEM => 'system',
       _ => 'assistant',
     };
+    final peer = peerById(m.chatId.toString());
     final row = MsgRow(
       id: m.id.toInt(),
       chatId: m.chatId.toInt(),
@@ -195,6 +211,7 @@ class BotStore extends ChangeNotifier {
       tokensOut: m.tokensOut,
       durationMs: m.durationMs,
       costUsd: m.costUsd,
+      model: peer?.model ?? '',
       createdAtMs: m.createdTsMs.toInt(),
     );
     final list = _msgs.putIfAbsent(row.chatId, () => []);
@@ -206,6 +223,12 @@ class BotStore extends ChangeNotifier {
       list.sort((a, b) => a.id.compareTo(b.id));
     }
     if (row.role == 'assistant') _typingParty.remove(row.chatId);
+    if (peer != null) {
+      if (m.content.isNotEmpty) {
+        peer.lastMsgPreview = m.content.length > 120 ? '${m.content.substring(0, 120)}…' : m.content;
+      }
+      if (m.createdTsMs.toInt() > 0) peer.lastMsgTsMs = m.createdTsMs;
+    }
     notifyListeners();
   }
 
@@ -392,6 +415,7 @@ class BotStore extends ChangeNotifier {
           tokensOut: m.tokensOut,
           durationMs: m.durationMs,
           costUsd: m.costUsd,
+          model: peerById(chatId)?.model ?? '',
           createdAtMs: m.createdTsMs.toInt(),
         ));
       }

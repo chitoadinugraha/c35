@@ -55,9 +55,8 @@ spec:
               readOnly: true
       volumes:
         - name: buildkit-cache
-          hostPath:
-            path: /var/lib/alienai/buildkit
-            type: DirectoryOrCreate
+          persistentVolumeClaim:
+            claimName: buildkit-data
         - name: buildkit-config
           configMap:
             name: buildkit-config

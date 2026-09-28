@@ -11,9 +11,10 @@ use serde::Serialize;
 use tracing::warn;
 
 use crate::inbound::channel_inbound_from_webhook;
+use crate::peer::bot_peer_chat_id_get;
 use crate::policy::CHANNEL_INBOUND_IMAGE_MAX_BYTES;
-use crate::store::{bot_channel_get, STATUS_CONNECTED};
-use crate::telegram::parse_telegram_payload;
+use crate::store::{bot_channel_get, bot_owner_iid, STATUS_CONNECTED};
+use crate::telegram::{parse_telegram_payload, parse_telegram_typing_peer};
 use crate::whatsapp::parse_whatsapp_payload;
 
 #[derive(Serialize)]
@@ -66,6 +67,25 @@ async fn telegram_webhook_scoped(
     }
     if channel.status != "connected" {
         return webhook_err(StatusCode::SERVICE_UNAVAILABLE, "Channel not active".into());
+    }
+    if let Some(peer_key) = parse_telegram_typing_peer(&body) {
+        match bot_peer_chat_id_get(&state.pool, bot_iid, &channel_id, &peer_key).await {
+            Ok(Some(chat_id)) => {
+                if let Ok(Some(owner_iid)) = bot_owner_iid(&state.pool, bot_iid).await {
+                    let _ = c35_mod_chat::bot_peer_typing_fanout(
+                        state.nats.as_ref(),
+                        owner_iid,
+                        chat_id,
+                        "peer",
+                        true,
+                    )
+                    .await;
+                }
+                return webhook_ok(chat_id, 0);
+            }
+            Ok(None) => return webhook_ok(0, 0),
+            Err(e) => return webhook_err(StatusCode::INTERNAL_SERVER_ERROR, format!("Chat lookup failed: {e:#}")),
+        }
     }
     let inbound = match parse_telegram_payload(&body) {
         Ok(v) => v,

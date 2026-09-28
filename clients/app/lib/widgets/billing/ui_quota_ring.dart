@@ -374,6 +374,26 @@ class UiQuotaPackagePanel extends StatelessWidget {
       );
 }
 
+UiQuotaPackagePanel uiQuotaPackagePanelLimitPlaceholder({bool planTierLoading = false, VoidCallback? onPackageTap}) => UiQuotaPackagePanel(
+      planTier: 'free',
+      planTierLoading: planTierLoading,
+      alien5hUsed: 0,
+      alien5hLimit: 0.05,
+      alienWeeklyUsed: 0,
+      alienWeeklyLimit: 1,
+      api5hUsed: 0,
+      api5hLimit: billingApiAllow5hDefault,
+      apiWeeklyUsed: 0,
+      apiWeeklyLimit: billingApiAllowWeeklyDefault,
+      meterState: 'green',
+      onPackageTap: onPackageTap,
+      freemiumActive: true,
+      freemiumMsgsUsed: 0,
+      freemiumMsgsLimit: billingFreemiumMsgsLimit,
+      freemiumTokensUsed: 0,
+      freemiumTokensLimit: billingFreemiumTokensLimit,
+    );
+
 UiQuotaPackagePanel uiQuotaPackagePanelFromSummary(
   ResBillingSummary summary, {
   bool planTierLoading = false,

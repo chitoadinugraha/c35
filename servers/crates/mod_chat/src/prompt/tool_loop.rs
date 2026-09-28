@@ -303,6 +303,17 @@ pub async fn prompt_cluster_turn(
                     anyhow::bail!(err);
                 }
                 let mut llm_result = result.get("llm").cloned().unwrap_or(result.clone());
+                if !ok && (name == "gsheet.update" || name == "gsheet.append") {
+                    let err = result
+                        .get("error")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("sheet write failed");
+                    llm_result = json!({
+                        "ok": false,
+                        "error": err,
+                        "reply_rule": "The spreadsheet was NOT updated. Tell the customer the save failed and do not claim stock or data changed.",
+                    });
+                }
                 let maybe_img = llm_result.as_object_mut().and_then(|obj| {
                     obj.remove("image_base64").and_then(|v| v.as_str().map(|s| s.to_string()))
                 });

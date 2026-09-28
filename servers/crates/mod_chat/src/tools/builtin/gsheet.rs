@@ -42,22 +42,28 @@ fn binding_resolve<'a>(bindings: &'a [GoogleSheetConfig], spreadsheet_id: Option
     }
 }
 
+fn cell_to_string(v: &Value) -> String {
+    match v {
+        Value::String(s) => s.clone(),
+        Value::Number(n) => n.to_string(),
+        Value::Bool(b) => b.to_string(),
+        Value::Null => String::new(),
+        other => other.to_string(),
+    }
+}
+
 fn row_from_args(args: &Value) -> Result<Vec<String>> {
     let row = args
         .get("row")
         .or_else(|| args.get("values"))
         .context("row (array of strings) is required")?;
     let items = row.as_array().context("row must be a JSON array of strings")?;
-    Ok(items
-        .iter()
-        .map(|v| match v {
-            Value::String(s) => s.clone(),
-            Value::Number(n) => n.to_string(),
-            Value::Bool(b) => b.to_string(),
-            Value::Null => String::new(),
-            other => other.to_string(),
-        })
-        .collect())
+    let flat = if items.len() == 1 {
+        items[0].as_array().map(|inner| inner.as_slice()).unwrap_or(items.as_slice())
+    } else {
+        items.as_slice()
+    };
+    Ok(flat.iter().map(cell_to_string).collect())
 }
 
 async fn gsheet_read_exec(args: Value, ctx: &ToolContext) -> Result<Value> {

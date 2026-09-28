@@ -9,6 +9,29 @@ pub use connect::{
 use crate::types::ChannelInboundAttachment;
 use anyhow::Result;
 
+/// Telegram `message` updates with `chat_action.type = typing` (no text body).
+pub fn parse_telegram_typing_peer(bytes: &[u8]) -> Option<String> {
+    let v: serde_json::Value = serde_json::from_slice(bytes).ok()?;
+    let msg = v.get("message")?;
+    if msg.get("text").is_some()
+        || msg.get("caption").is_some()
+        || msg.get("voice").is_some()
+        || msg.get("audio").is_some()
+        || msg.get("document").is_some()
+        || msg.get("photo").is_some()
+    {
+        return None;
+    }
+    let action = msg.get("chat_action")?.get("type")?.as_str()?;
+    if action != "typing" {
+        return None;
+    }
+    msg.get("chat")
+        .and_then(|c| c.get("id"))
+        .and_then(|i| i.as_i64())
+        .map(|id| id.to_string())
+}
+
 pub fn parse_telegram_payload(bytes: &[u8]) -> Result<crate::types::ChannelInboundMessage> {
     let v: serde_json::Value = serde_json::from_slice(bytes)?;
     let msg = v

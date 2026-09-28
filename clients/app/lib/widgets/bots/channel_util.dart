@@ -1,15 +1,35 @@
 import 'dart:convert';
 
+import 'package:alienai_c35/c/bot/bot_meta.dart';
 import 'package:alienai_c35/c/pb/c35/channel.pb.dart';
 import 'package:flutter/material.dart';
 
-(String label, IconData icon, Color accent) channelDisplay(BotChannelDoc channel) {
-  final (icon, accent) = switch (channel.platform) {
-    'whatsapp' => (Icons.chat_rounded, const Color(0xFF25D366)),
-    'telegram' => (Icons.send_rounded, const Color(0xFF38BDF8)),
-    'app' => (Icons.phone_android_rounded, const Color(0xFF34D399)),
-    _ => (Icons.link_rounded, const Color(0xFFA1A1AA)),
+typedef ChannelPlatformVisual = ({IconData icon, Color accent, String label});
+
+ChannelPlatformVisual channelPlatformVisual(String platform) {
+  final p = platform.trim().toLowerCase();
+  return switch (p) {
+    'whatsapp' => (icon: Icons.chat_rounded, accent: const Color(0xFF25D366), label: 'WhatsApp'),
+    'telegram' => (icon: Icons.send_rounded, accent: const Color(0xFF38BDF8), label: 'Telegram'),
+    'app' => (icon: Icons.apps_rounded, accent: const Color(0xFF18181B), label: 'App'),
+    _ => (icon: Icons.link_rounded, accent: const Color(0xFFA1A1AA), label: platform.isNotEmpty ? platform : 'Channel'),
   };
+}
+
+String botPeerPlatformResolve({required String channelId, String botMetaJson = ''}) {
+  if (channelId == kBotAppChannelId) return 'app';
+  for (final ch in botChannelsParse(botMetaJson)) {
+    if (ch.id == channelId) {
+      final platform = ch.platform.trim();
+      if (platform.isNotEmpty) return platform;
+    }
+  }
+  return '';
+}
+
+(String label, IconData icon, Color accent) channelDisplay(BotChannelDoc channel) {
+  final vis = channelPlatformVisual(channel.platform);
+  final (icon, accent) = (vis.icon, vis.accent);
   if (channel.platform == 'telegram') {
     final username = channel.botUsername.trim();
     if (username.isNotEmpty) return (username.startsWith('@') ? username : '@$username', icon, accent);

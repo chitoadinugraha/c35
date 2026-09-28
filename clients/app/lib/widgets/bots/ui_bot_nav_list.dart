@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 const _border = Color(0xFF27272A);
 const _muted = Color(0xFF71717A);
 const _bg = Color(0xFF0C0C10);
+const _refreshColor = Color(0xFF34D399);
 
 class UiBotNavList extends StatelessWidget {
   const UiBotNavList({
@@ -144,11 +145,29 @@ class UiBotNavList extends StatelessWidget {
     );
   }
 
+  Widget _scrollableEmpty(BuildContext context, Widget child) => LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Center(child: child),
+          ),
+        ),
+      );
+
+  Widget _refreshable(BuildContext context, Widget child) => RefreshIndicator(
+        onRefresh: store.refreshBots,
+        color: _refreshColor,
+        child: child,
+      );
+
   Widget _list(BuildContext context, List<IdentityListRow> bots) {
+    const scrollPhysics = AlwaysScrollableScrollPhysics();
     final canReorder = store.search.trim().isEmpty;
     if (canReorder) {
       return ReorderableListView.builder(
         padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+        physics: scrollPhysics,
         buildDefaultDragHandles: false,
         itemCount: bots.length,
         onReorderItem: _onReorder,
@@ -173,6 +192,7 @@ class UiBotNavList extends StatelessWidget {
     }
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+      physics: scrollPhysics,
       itemCount: bots.length,
       separatorBuilder: (_, __) => const SizedBox(height: 4),
       itemBuilder: (context, i) {
@@ -194,11 +214,17 @@ class UiBotNavList extends StatelessWidget {
           final bots = store.filtered;
           return ColoredBox(
             color: _bg,
-            child: store.loadingBots
+            child: store.loadingBots && bots.isEmpty
                 ? const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _muted)))
                 : bots.isEmpty
-                    ? (store.bots.isEmpty ? UiEmptyState.bots() : UiEmptyState.noMatches('bots'))
-                    : _list(context, bots),
+                    ? _refreshable(
+                        context,
+                        _scrollableEmpty(
+                          context,
+                          store.bots.isEmpty ? UiEmptyState.bots() : UiEmptyState.noMatches('bots'),
+                        ),
+                      )
+                    : _refreshable(context, _list(context, bots)),
           );
         },
       );

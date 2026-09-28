@@ -12,6 +12,12 @@ $port = if ($env:LISTEN) { [int](($env:LISTEN -split ':')[-1]) } else { 8080 }
 $loopCmd = Join-Path $root '_\scripts\dev\run_server_loop.cmd'
 $stopScript = Join-Path $root '_\scripts\dev\stop_listen_port.ps1'
 $envFile = Join-Path $root 'servers\server_ai\.env.local'
+$firebaseJson = Join-Path $root '_\certs\firebase-service.json'
+if (Test-Path $firebaseJson) {
+    if (-not $env:FIREBASE_SERVICE_ACCOUNT_PATH) { $env:FIREBASE_SERVICE_ACCOUNT_PATH = $firebaseJson }
+} else {
+    Write-Host "WARNING: missing $firebaseJson - Google Sheets write disabled locally (copy cs_bots _/certs/firebase-service.json)"
+}
 
 $env:DEV_SERVER_PORT = $port
 

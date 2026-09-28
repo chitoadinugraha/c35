@@ -141,14 +141,14 @@ sequenceDiagram
 **Stale rule (`data_source_sync_if_stale`):**
 
 - No sync row or `status != 'ok'` or empty `snapshot_hash` → stale
-- `now - synced_ts > DATA_SOURCE_SYNC_TTL_SEC` (default **120**) → stale
+- `now - synced_ts > DATA_SOURCE_SYNC_TTL_SEC` (default **30**) → stale
 
 **Unchanged remote:** if new Blake3 matches `snapshot_hash`, only bump `synced_ts` (no chunk rewrite, no embed churn).
 
 ### Google Sheet fetch (v1 adapter)
 
 - **Read:** `https://docs.google.com/spreadsheets/d/{spreadsheet_id}/export?format=csv&gid={gid}`
-- **Auth:** optional service account (`GOOGLE_SERVICE_ACCOUNT_PATH` or `FIREBASE_SERVICE_ACCOUNT_PATH`) when sheet is not public
+- **Auth:** optional service account (`GOOGLE_APPLICATION_CREDENTIALS_JSON`, `GOOGLE_SERVICE_ACCOUNT_PATH`, or `FIREBASE_SERVICE_ACCOUNT_PATH`) when sheet is not public
 - **Write (tools):** Sheets API v4 with same service account; sheet shared with the link Editor (cs_bots behavior)
 
 ### Chunking (`google_sheet`)
@@ -193,7 +193,7 @@ Future `google_slide`: one chunk per slide text (`slide:{n}`).
 | **Tick** | `DATA_SOURCE_BG_TICK_SEC` (default **30**) — interval between due scans |
 | **Batch** | `DATA_SOURCE_BG_BATCH` (default **8**) — max rows claimed per tick per pod |
 | **Concurrency** | `DATA_SOURCE_BG_MAX_CONCURRENT` (default **2**) — in-flight `sync_run` per pod (tokio semaphore) |
-| **TTL** | Reuse `DATA_SOURCE_SYNC_TTL_SEC` (default **120**) for due selection |
+| **TTL** | Reuse `DATA_SOURCE_SYNC_TTL_SEC` (default **30**) for due selection |
 | **Sharding** | `SELECT … FOR UPDATE OF d SKIP LOCKED` on due `ai.data_source` rows so **N replicas** split work without duplicate Google pulls |
 | **In-flight** | Short `status = 'syncing'` (or lease column) while claim held; clear on success/error |
 | **Errors** | `sync_upsert_error`; exponential backoff via `synced_ts` bump + `error` status (do not hot-loop failed sheets) |
@@ -277,10 +277,11 @@ v1: list via RPC when opening bot settings. Phase 2+: optional `SessionInit` del
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `DATA_SOURCE_SYNC_TTL_SEC` | `120` | Lazy + bg freshness threshold |
+| `DATA_SOURCE_SYNC_TTL_SEC` | `30` | Lazy + bg freshness threshold |
 | `DATA_SOURCE_SMALL_ROW_LIMIT` | `50` | Full inject vs retrieve |
 | `DATA_SOURCE_RETRIEVE_LIMIT` | `8` | Max chunks in prompt |
 | `DATA_SOURCE_RETRIEVE_TIMEOUT_SEC` | `4` | Retrieve budget |
+| `GOOGLE_APPLICATION_CREDENTIALS_JSON` | — | Inline service account JSON (`c35-server-env`; sync via `sync_gsheet_service_account.ps1` from cs_bots `firebase-service.json`) |
 | `GOOGLE_SERVICE_ACCOUNT_PATH` | — | Sheets read/write + private export |
 | `FIREBASE_SERVICE_ACCOUNT_PATH` | — | Alias accepted for same JSON |
 | `DATA_SOURCE_BG_ENABLED` | `1` | Phase 2 background loop |

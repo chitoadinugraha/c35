@@ -183,7 +183,70 @@ pub fn sheet_tab_title_or_index(raw: &str, index: usize) -> String {
     if !is_placeholder_sheet_tab_title(t) {
         return t.to_string();
     }
-    format!("Sheet {}", index + 1)
+    format!("Sheet{}", index + 1)
+}
+
+/// True when the tab title is a UI guess (not authoritative from Sheets API).
+pub fn is_guess_sheet_tab_title(title: &str) -> bool {
+    let t = title.trim();
+    if t.is_empty() || is_placeholder_sheet_tab_title(t) {
+        return true;
+    }
+    let lower = t.to_ascii_lowercase();
+    if !lower.starts_with("sheet") {
+        return false;
+    }
+    let rest = lower["sheet".len()..].trim();
+    rest.is_empty() || rest.chars().all(|c| c.is_ascii_digit())
+}
+
+/// Quote a tab name for Sheets API A1 notation (spaces/special chars need single quotes).
+pub fn sheet_a1_tab_quote(tab: &str) -> String {
+    let t = tab.trim();
+    if t.is_empty() {
+        return t.to_string();
+    }
+    let simple = t
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '_');
+    if simple {
+        return t.to_string();
+    }
+    format!("'{}'", t.replace('\'', "''"))
+}
+
+pub fn sheet_a1_range(tab: &str, cell_range: &str) -> String {
+    let r = cell_range.trim();
+    if r.contains('!') {
+        return r.to_string();
+    }
+    format!("{}!{}", sheet_a1_tab_quote(tab), r)
+}
+
+fn tab_title_for_gid(tabs: &[(String, String)], gid: &str) -> Option<String> {
+    tabs
+        .iter()
+        .find(|(_, g)| g == gid)
+        .map(|(title, _)| title.trim().to_string())
+        .filter(|t| !t.is_empty())
+}
+
+async fn google_sheet_tab_resolve(api: &SheetsApi, cfg: &GoogleSheetConfig) -> Result<String> {
+    if let Ok((_, tabs)) = spreadsheet_metadata_api(api, &cfg.spreadsheet_id).await {
+        if let Some(title) = tab_title_for_gid(&tabs, &cfg.gid) {
+            if !is_guess_sheet_tab_title(&title) {
+                return Ok(title);
+            }
+            if title != cfg.sheet_name.trim() {
+                return Ok(title);
+            }
+        }
+    }
+    let stored = sheet_tab_name(cfg);
+    if stored == "Sheet 1" {
+        return Ok("Sheet1".to_string());
+    }
+    Ok(stored)
 }
 
 pub fn sheet_tab_name(cfg: &GoogleSheetConfig) -> String {
@@ -456,19 +519,16 @@ pub async fn google_sheet_read_csv(http: &Client, cfg: &GoogleSheetConfig) -> Re
 
 pub async fn google_sheet_write_update(cfg: &GoogleSheetConfig, range: &str, row: Vec<String>) -> Result<Value> {
     let api = sheets_api()?.context("Google Sheets write unavailable — service account not configured")?;
-    let tab = sheet_tab_name(cfg);
-    let full_range = if range.contains('!') {
-        range.to_string()
-    } else {
-        format!("{}!{}", tab, range)
-    };
+    let tab = google_sheet_tab_resolve(api.as_ref(), cfg).await?;
+    let full_range = sheet_a1_range(&tab, range);
     values_put(api.as_ref(), &cfg.spreadsheet_id, &full_range, vec![row]).await
 }
 
 pub async fn google_sheet_write_append(cfg: &GoogleSheetConfig, row: Vec<String>) -> Result<Value> {
     let api = sheets_api()?.context("Google Sheets write unavailable — service account not configured")?;
-    let tab = sheet_tab_name(cfg);
-    values_append(api.as_ref(), &cfg.spreadsheet_id, &tab, vec![row]).await
+    let tab = google_sheet_tab_resolve(api.as_ref(), cfg).await?;
+    let range = sheet_a1_range(&tab, "A1");
+    values_append(api.as_ref(), &cfg.spreadsheet_id, &range, vec![row]).await
 }
 
 fn sheets_api() -> Result<Option<Arc<SheetsApi>>> {
@@ -484,17 +544,27 @@ fn sheets_api() -> Result<Option<Arc<SheetsApi>>> {
 }
 
 fn load_sheets_api() -> Result<Option<Arc<SheetsApi>>> {
+    if let Ok(json) = std::env::var("GOOGLE_APPLICATION_CREDENTIALS_JSON") {
+        if !json.trim().is_empty() {
+            let sa: ServiceAccount = serde_json::from_str(&json).context("parse service account json")?;
+            return Ok(Some(sheets_api_from_account(sa)?));
+        }
+    }
     let path = std::env::var("GOOGLE_SERVICE_ACCOUNT_PATH")
         .or_else(|_| std::env::var("FIREBASE_SERVICE_ACCOUNT_PATH"))
         .ok()
         .filter(|s| !s.trim().is_empty());
-    let Some(path) = path else {
-        return Ok(None);
-    };
-    let raw = std::fs::read_to_string(Path::new(&path))
-        .with_context(|| format!("read service account at {}", path))?;
-    let sa: ServiceAccount = serde_json::from_str(&raw).context("parse service account json")?;
-    Ok(Some(Arc::new(SheetsApi {
+    if let Some(path) = path {
+        let raw = std::fs::read_to_string(Path::new(&path))
+            .with_context(|| format!("read service account at {}", path))?;
+        let sa: ServiceAccount = serde_json::from_str(&raw).context("parse service account json")?;
+        return Ok(Some(sheets_api_from_account(sa)?));
+    }
+    Ok(None)
+}
+
+fn sheets_api_from_account(sa: ServiceAccount) -> Result<Arc<SheetsApi>> {
+    Ok(Arc::new(SheetsApi {
         client_email: sa.client_email,
         encoding_key: EncodingKey::from_rsa_pem(sa.private_key.as_bytes())
             .context("parse service account private key")?,
@@ -503,7 +573,7 @@ fn load_sheets_api() -> Result<Option<Arc<SheetsApi>>> {
             value: String::new(),
             expires_at: Instant::now(),
         }),
-    })))
+    }))
 }
 
 async fn access_token(api: &SheetsApi) -> Result<String> {
@@ -578,15 +648,14 @@ async fn values_put(api: &SheetsApi, spreadsheet_id: &str, range: &str, values: 
 async fn values_append(
     api: &SheetsApi,
     spreadsheet_id: &str,
-    sheet_name: &str,
+    range_a1: &str,
     values: Vec<Vec<String>>,
 ) -> Result<Value> {
     let token = access_token(api).await?;
-    let range = format!("{}!A1", sheet_name);
     let url = format!(
         "https://sheets.googleapis.com/v4/spreadsheets/{}/values/{}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS",
         spreadsheet_id,
-        urlencoding::encode(&range)
+        urlencoding::encode(range_a1)
     );
     let res = api
         .http
@@ -649,5 +718,36 @@ mod tests {
         assert_eq!(tabs.len(), 1);
         assert_eq!(tabs[0].0, "Stock List");
         assert_eq!(tabs[0].1, "0");
+    }
+
+    #[test]
+    fn sheet_a1_range_quotes_spaces() {
+        assert_eq!(sheet_a1_range("Sheet 1", "B2"), "'Sheet 1'!B2");
+        assert_eq!(sheet_a1_range("Sheet1", "B2"), "Sheet1!B2");
+        assert_eq!(sheet_a1_range("Stock List", "A2:C2"), "'Stock List'!A2:C2");
+    }
+
+    #[test]
+    fn is_guess_sheet_tab_title_detects_placeholders() {
+        assert!(is_guess_sheet_tab_title("Sheet 1"));
+        assert!(is_guess_sheet_tab_title("Sheet1"));
+        assert!(!is_guess_sheet_tab_title("Menu"));
+    }
+
+    #[tokio::test]
+    #[ignore = "live Google Sheets write — set GOOGLE_APPLICATION_CREDENTIALS_JSON"]
+    async fn gsheet_write_update_live_smoke() {
+        let _ = load_sheets_api().expect("load api");
+        let cfg = GoogleSheetConfig {
+            data_source_id: 0,
+            name: "smoke".into(),
+            spreadsheet_id: "10irW_az5QXTV62A2YmHbfZLFofAQNQ9Xdr8XYgA6ge0".into(),
+            gid: "0".into(),
+            sheet_name: "Sheet 1".into(),
+            write_allowed: true,
+        };
+        google_sheet_write_update(&cfg, "Z99", vec!["c35-write-test".into()])
+            .await
+            .expect("write probe cell");
     }
 }

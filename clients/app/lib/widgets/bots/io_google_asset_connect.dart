@@ -96,7 +96,7 @@ bool _isPlaceholderTabTitle(String title) {
 String sheetTabName(DataSourceSheetTab tab, int index) {
   final title = tab.title.trim();
   if (title.isNotEmpty && !_isPlaceholderTabTitle(title)) return title;
-  return 'Sheet ${index + 1}';
+  return 'Sheet${index + 1}';
 }
 
 String sheetTabPrimaryTitle(DataSourceSheetTab tab, int index) => sheetTabName(tab, index);

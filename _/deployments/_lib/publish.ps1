@@ -12,7 +12,7 @@ $script:PublishRustChefTagDefault = '1.89-bookworm'
 $script:PublishBuildkitNs = "build"
 $script:PublishBuildkitSvc = "buildkit"
 $script:PublishBuildkitPort = 1234
-$script:PublishBuildkitCacheHostPath = "/var/lib/alienai/buildkit (boot disk)"
+$script:PublishBuildkitCacheHostPath = "PVC build/buildkit-data (oci-bv 50Gi)"
 $script:PublishBuildkitDir = Join-Path $PSScriptRoot "..\buildkit"
 
 function Require-Command([string]$Name) {

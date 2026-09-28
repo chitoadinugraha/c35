@@ -94,6 +94,9 @@ spec:
               value: "1"
             - name: RUST_LOG
               value: info,server_ai=debug,sqlx::query=warn,sqlx::pool::acquire=warn
+            # Google Sheets write (cs_bots firebase-service.json in c35-server-env).
+            - name: FIREBASE_SERVICE_ACCOUNT_PATH
+              value: /var/secrets/google/firebase-service.json
             # WebRTC TURN (coturn static-auth-secret). Empty/missing → STUN-only ICE config.
             - name: C35_TURN_SECRET
               valueFrom:
@@ -134,11 +137,21 @@ spec:
             - name: nats-ca
               mountPath: /nats-ca
               readOnly: true
+            - name: google-sa-json
+              mountPath: /var/secrets/google
+              readOnly: true
             - name: cas-data
               mountPath: /data/cas
       volumes:
         - name: nats-ca
           secret:
             secretName: nats-ca
+        - name: google-sa-json
+          secret:
+            secretName: c35-server-env
+            optional: true
+            items:
+              - key: GOOGLE_APPLICATION_CREDENTIALS_JSON
+                path: firebase-service.json
         - name: cas-data
           emptyDir: {}

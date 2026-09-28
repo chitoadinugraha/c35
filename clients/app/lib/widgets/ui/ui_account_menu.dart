@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:alienai_c35/c/api/referral_conn.dart';
+import 'package:alienai_c35/c/billing/billing_summary_api.dart';
 import 'package:alienai_c35/c/profile/profile_handle.dart';
 import 'package:alienai_c35/c/referral/referral_format.dart';
 import 'package:alienai_c35/c/mail/mail_inbox_bus.dart';
@@ -118,6 +121,30 @@ class _UiAccountMenuDialog extends StatefulWidget {
 }
 
 class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
+  var _billingLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _billingLoading = AppStore.instance.billing == null && widget.action.conn != null;
+    unawaited(_billingEnsure());
+  }
+
+  Future<void> _billingEnsure() async {
+    if (AppStore.instance.billing != null) {
+      if (mounted && _billingLoading) setState(() => _billingLoading = false);
+      return;
+    }
+    final conn = widget.action.conn;
+    if (conn == null) return;
+    if (mounted) setState(() => _billingLoading = true);
+    try {
+      final summary = await billingSummaryGet(conn);
+      AppStore.instance.billingPut(billingAccountFromSummary(summary));
+    } catch (_) {}
+    if (mounted) setState(() => _billingLoading = false);
+  }
+
   void _popThen(VoidCallback? fn) {
     Navigator.pop(context);
     fn?.call();
@@ -185,17 +212,22 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
                         ),
                       ),
                     ),
-                    if (billing != null) ...[
-                      const Divider(height: 1, color: _border),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                        child: uiQuotaPackagePanelFromAccount(
-                          billing,
-                          onBalanceTap: acts.onBalance == null ? null : () => _popThen(acts.onBalance),
-                          onPackageTap: acts.onPackage == null ? null : () => _popThen(acts.onPackage),
-                        ),
-                      ),
-                      if (referralCommissionHasBalance(billing.commissionAvailableUsd, billing.commissionAvailableIdr) && acts.onCommissionTap != null) ...[
+                    const Divider(height: 1, color: _border),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                      child: billing != null
+                          ? uiQuotaPackagePanelFromAccount(
+                              billing,
+                              planTierLoading: _billingLoading,
+                              onBalanceTap: acts.onBalance == null ? null : () => _popThen(acts.onBalance),
+                              onPackageTap: acts.onPackage == null ? null : () => _popThen(acts.onPackage),
+                            )
+                          : uiQuotaPackagePanelLimitPlaceholder(
+                              planTierLoading: _billingLoading,
+                              onPackageTap: acts.onPackage == null ? null : () => _popThen(acts.onPackage),
+                            ),
+                    ),
+                    if (billing != null && referralCommissionHasBalance(billing.commissionAvailableUsd, billing.commissionAvailableIdr) && acts.onCommissionTap != null) ...[
                         Padding(
                           padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
                           child: Material(
@@ -230,7 +262,6 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
                           ),
                         ),
                       ],
-                    ],
                     if (_hasNavCounts(acts)) ...[
                       const Divider(height: 1, color: _border),
                       Padding(

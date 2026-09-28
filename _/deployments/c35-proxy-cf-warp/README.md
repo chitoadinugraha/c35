@@ -13,6 +13,15 @@ Secret `c35-proxy-cf-warp` with `MESH_NODE_TOKEN` retrieved via Cloudflare MCP t
 
 Exposes `http://c35-proxy-cf-warp.c35.svc.cluster.local:8080`.
 
+Health: `GET /health` on port 8080 (both containers must be ready; deployment `replicas: 1`).
+
+After node **DiskPressure** evictions, delete stale `Error`/`Evicted` pods if the deployment already shows `1/1` ready — they are leftovers, not a second replica:
+
+```powershell
+kubectl get pods -n c35 -l app.kubernetes.io/name=c35-proxy-cf-warp
+kubectl delete pod -n c35 -l app.kubernetes.io/name=c35-proxy-cf-warp --field-selector=status.phase=Failed
+```
+
 ## Consumers
 
 1. **SearXNG** (`searx` namespace):

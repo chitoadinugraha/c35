@@ -168,6 +168,16 @@ class _C35AppState extends State<C35App> {
           scaffoldBackgroundColor: _bg,
           colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF22C55E), brightness: Brightness.dark),
           useMaterial3: true,
+          snackBarTheme: const SnackBarThemeData(
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Color(0xFF27272A),
+            contentTextStyle: TextStyle(color: Color(0xFFE4E4E7), fontSize: 14, fontWeight: FontWeight.w500),
+            actionTextColor: Color(0xFF4ADE80),
+            closeIconColor: Color(0xFFA1A1AA),
+            elevation: 4,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(10))),
+            insetPadding: EdgeInsets.fromLTRB(16, 0, 16, 16),
+          ),
         ),
         builder: (context, child) => uiSemanticsGuard(UiErrorHost(
           child: Listener(

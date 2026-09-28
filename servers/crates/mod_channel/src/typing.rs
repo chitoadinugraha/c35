@@ -74,10 +74,7 @@ pub async fn channel_typing_pulse(
     speak: bool,
     active: bool,
 ) {
-    if ctx.platform == "app" {
-        let _ = c35_mod_chat::bot_peer_typing_fanout(nats, owner_iid, chat_id, "bot", active).await;
-        return;
-    }
+    let _ = c35_mod_chat::bot_peer_typing_fanout(nats, owner_iid, chat_id, "bot", active).await;
     if ctx.platform == "telegram" {
         if ctx.channel.bot_token.is_empty() || !active {
             return;

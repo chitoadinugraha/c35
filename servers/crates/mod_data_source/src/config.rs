@@ -12,7 +12,7 @@ pub fn data_source_sync_ttl_sec() -> i64 {
     std::env::var("DATA_SOURCE_SYNC_TTL_SEC")
         .ok()
         .and_then(|s| s.trim().parse().ok())
-        .unwrap_or(120)
+        .unwrap_or(30)
 }
 
 pub fn data_source_retrieve_limit() -> usize {

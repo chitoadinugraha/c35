@@ -20,6 +20,7 @@ mod turn;
 mod types;
 pub mod typing;
 mod webhook;
+mod welcome;
 
 pub mod telegram;
 pub mod whatsapp;

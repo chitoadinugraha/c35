@@ -15,9 +15,9 @@ use crate::hub::channel_hub_init;
 use crate::media::channel_voice_placeholder;
 use crate::outbound::{channel_reply_nats, outbound_ctx_with_msg, ChannelCasCtx};
 use crate::peer::{
-    bot_peer_chat_resolve, chat_ai_reply_enabled, chat_msg_assistant_put, chat_msg_external_put,
-    peer_iid_resolve,
+    bot_peer_chat_resolve, chat_ai_reply_enabled, chat_msg_assistant_put, chat_msg_external_put, peer_iid_resolve,
 };
+use crate::welcome::channel_welcome_deliver;
 use crate::policy::{
     inbound_attachments_filter, inbound_had_blocked_media, CHANNEL_UNSUPPORTED_REPLY,
 };
@@ -45,7 +45,13 @@ pub async fn channel_inbound_handle(
         .await?
         .ok_or_else(|| anyhow!("bot owner not found"))?;
     let peer_iid = peer_iid_resolve(&state.pool, inbound).await?;
-    let chat_id = bot_peer_chat_resolve(&state.pool, owner_iid, bot_iid, &channel.id, inbound).await?;
+    let (chat_id, chat_is_new) =
+        bot_peer_chat_resolve(&state.pool, owner_iid, bot_iid, &channel.id, inbound).await?;
+    if chat_is_new {
+        if let Err(e) = channel_welcome_deliver(state, bot_iid, owner_iid, chat_id, channel, inbound).await {
+            tracing::warn!("[c35:channel] welcome deliver failed chat_id={chat_id}: {e:#}");
+        }
+    }
 
     let blocked_media = inbound_had_blocked_media(inbound);
     let mut message = inbound.text.clone();
@@ -122,20 +128,20 @@ pub async fn channel_inbound_handle(
             let _ = c35_mod_chat::bot_peer_typing_fanout(nats.as_ref(), owner, cid, "peer", true).await;
         });
     }
+    let _ = bot_peer_msg_fanout(
+        &state.pool,
+        state.nats.as_ref(),
+        owner_iid,
+        chat_id,
+        user_msg_id,
+    )
+    .await;
     if inbound.platform == "app" {
         let _ = sqlx::query(
             "UPDATE ai.chat SET ai_reply_enabled = TRUE, updated_ts = NOW() WHERE id = $1 AND kind = 'bot_peer' AND ai_reply_enabled = FALSE",
         )
         .bind(chat_id)
         .execute(&state.pool)
-        .await;
-        let _ = bot_peer_msg_fanout(
-            &state.pool,
-            state.nats.as_ref(),
-            owner_iid,
-            chat_id,
-            user_msg_id,
-        )
         .await;
     }
     if let Some(ext_id) = inbound.external_msg_id.as_deref().filter(|s| !s.is_empty()) {

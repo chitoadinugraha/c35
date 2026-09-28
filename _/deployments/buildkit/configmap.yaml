@@ -10,4 +10,4 @@ data:
       gc = true
       [[worker.oci.gcpolicy]]
         all = true
-        keepBytes = 48318382080
+        keepBytes = 42949672960

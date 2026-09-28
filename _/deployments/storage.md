@@ -6,7 +6,7 @@
 |------|---------|----------------------|-------------------------------------|
 | **YugabyteDB** | PVC `yb-data` (`oci-bv`, 50Gi, Retain) | Yes | Yes (block volume reattaches) |
 | **NATS JetStream** | `emptyDir` on `nats-0` (`/data/jetstream`) | **No** (pod delete wipes store) | **No** — hydrate from YB on recovery |
-| **Buildkit cache** | `hostPath` `/var/lib/alienai/buildkit` | Yes | **No** — expendable |
+| **Buildkit cache** | PVC `buildkit-data` (`oci-bv`, 50Gi) | Yes | Yes (block volume reattaches) |
 | **c35-server CAS** | `emptyDir` | No | No |
 
 OCI `oci-bv` **minimum provisioned size is 50Gi** regardless of PVC request.
@@ -37,8 +37,11 @@ Delete legacy PVC `nats-data-nats-0` after migration to stop block-volume billin
 | PVC | NS | Class | Size | Reclaim | Notes |
 |-----|-----|-------|------|---------|-------|
 | `yb-data` | yugabyte | oci-bv | 50Gi | **Retain** | Production DB |
+| `buildkit-data` | build | oci-bv | 50Gi | Delete* | Docker/build cache; safe to wipe |
 
-Buildkit **no longer uses block storage** — cache on boot disk only.
+\*Default storage class reclaim; cache is expendable (`cleanup_buildkit.ps1`).
+
+Buildkit cache uses **`buildkit-data`** (`oci-bv`, 50Gi) — not node boot disk.
 
 NATS **no longer uses block storage** — JetStream on `emptyDir`; delete `nats-data-nats-0` if still present.
 

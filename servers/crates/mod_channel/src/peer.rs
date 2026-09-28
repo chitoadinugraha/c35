@@ -66,13 +66,34 @@ fn peer_pic_from_hash(hash: &str) -> String {
     }
 }
 
+pub async fn bot_peer_chat_id_get(
+    pool: &PgPool,
+    bot_iid: i64,
+    channel_id: &str,
+    peer_key: &str,
+) -> Result<Option<i64>> {
+    let row = sqlx::query(
+        r#"
+        SELECT id FROM ai.chat
+        WHERE kind = 'bot_peer' AND bot_iid = $1 AND channel_id = $2 AND peer_key = $3 AND deleted_ts IS NULL
+        LIMIT 1
+        "#,
+    )
+    .bind(bot_iid)
+    .bind(channel_id)
+    .bind(peer_key)
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.map(|r| r.get("id")))
+}
+
 pub async fn bot_peer_chat_resolve(
     pool: &PgPool,
     owner_iid: i64,
     bot_iid: i64,
     channel_id: &str,
     inbound: &ChannelInboundMessage,
-) -> Result<i64> {
+) -> Result<(i64, bool)> {
     if let Some(row) = sqlx::query(
         r#"
         SELECT id FROM ai.chat
@@ -97,7 +118,7 @@ pub async fn bot_peer_chat_resolve(
         .bind(&inbound.display_name)
         .execute(pool)
         .await;
-        return Ok(chat_id);
+        return Ok((chat_id, false));
     }
 
     let chat_id = snowflake_id();
@@ -122,7 +143,7 @@ pub async fn bot_peer_chat_resolve(
     .bind(preview)
     .execute(pool)
     .await?;
-    Ok(chat_id)
+    Ok((chat_id, true))
 }
 
 pub async fn chat_msg_external_put(
@@ -173,14 +194,70 @@ pub async fn chat_msg_assistant_put(
     req_id: &str,
     content: &str,
 ) -> Result<i64> {
+    chat_msg_assistant_put_usage(pool, chat_id, owner_iid, bot_iid, req_id, content, 0, 0, 0, 0.0).await
+}
+
+pub async fn chat_msg_usage_sync_from_log(pool: &PgPool, chat_msg_id: i64, req_id: &str) -> Result<()> {
+    if chat_msg_id <= 0 || req_id.trim().is_empty() {
+        return Ok(());
+    }
+    sqlx::query(
+        r#"
+        WITH agg AS (
+            SELECT
+                COALESCE(SUM(CASE WHEN kind IN ('llm', 'tool') THEN tokens_in ELSE 0 END), 0)::int AS tin,
+                COALESCE(SUM(CASE WHEN kind IN ('llm', 'tool') THEN tokens_out ELSE 0 END), 0)::int AS tout,
+                COALESCE(SUM(CASE WHEN kind IN ('llm', 'tool') THEN duration_ms ELSE 0 END), 0)::int AS dur,
+                COALESCE(SUM(CASE WHEN kind IN ('llm', 'tool') THEN cost_usd ELSE 0 END), 0)::float8 AS cost,
+                (
+                    SELECT model FROM ai.log
+                    WHERE req_id = $2 AND kind = 'llm' AND model <> ''
+                    ORDER BY created_ts DESC
+                    LIMIT 1
+                ) AS model
+            FROM ai.log
+            WHERE req_id = $2
+        )
+        UPDATE ai.chat_msg m
+        SET
+            tokens_in = CASE WHEN m.tokens_in = 0 AND a.tin > 0 THEN a.tin ELSE m.tokens_in END,
+            tokens_out = CASE WHEN m.tokens_out = 0 AND a.tout > 0 THEN a.tout ELSE m.tokens_out END,
+            duration_ms = CASE WHEN m.duration_ms = 0 AND a.dur > 0 THEN a.dur ELSE m.duration_ms END,
+            cost_usd = CASE WHEN m.cost_usd = 0 AND a.cost > 0::float8 THEN a.cost ELSE m.cost_usd END,
+            updated_ts = NOW()
+        FROM agg a
+        WHERE m.id = $1
+          AND (a.tin > 0 OR a.tout > 0 OR a.dur > 0 OR a.cost > 0::float8)
+        "#,
+    )
+    .bind(chat_msg_id)
+    .bind(req_id)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+pub async fn chat_msg_assistant_put_usage(
+    pool: &PgPool,
+    chat_id: i64,
+    owner_iid: i64,
+    bot_iid: i64,
+    req_id: &str,
+    content: &str,
+    tokens_in: i32,
+    tokens_out: i32,
+    duration_ms: i32,
+    cost_usd: f64,
+) -> Result<i64> {
     let msg_id = snowflake_id();
     let mut tx = pool.begin().await?;
     sqlx::query(
         r#"
         INSERT INTO ai.chat_msg (
-            id, chat_id, owner_iid, req_id, sender_iid, role, source, content, status, created_ts, updated_ts
+            id, chat_id, owner_iid, req_id, sender_iid, role, source, content,
+            tokens_in, tokens_out, duration_ms, cost_usd, status, created_ts, updated_ts
         )
-        VALUES ($1, $2, $3, $4, $5, 'assistant', 'prompt', $6, 'done', NOW(), NOW())
+        VALUES ($1, $2, $3, $4, $5, 'assistant', 'prompt', $6, $7, $8, $9, $10, 'done', NOW(), NOW())
         "#,
     )
     .bind(msg_id)
@@ -189,6 +266,10 @@ pub async fn chat_msg_assistant_put(
     .bind(req_id)
     .bind(bot_iid)
     .bind(content)
+    .bind(tokens_in)
+    .bind(tokens_out)
+    .bind(duration_ms)
+    .bind(cost_usd)
     .execute(&mut *tx)
     .await?;
     let preview: String = content.chars().take(255).collect();

@@ -89,6 +89,20 @@ fn meta_merge(existing: &Value, incoming: &Value) -> Value {
     out
 }
 
+fn meta_bot_finalize(meta: &mut Value) {
+    let Some(obj) = meta.as_object_mut() else { return };
+    if obj.get("welcome_message").is_none() {
+        obj.insert("welcome_message".into(), json!(""));
+    }
+    let slug = obj
+        .get("billing_plan_slug")
+        .and_then(|v| v.as_str())
+        .unwrap_or("shared");
+    if slug == "shared" {
+        obj.remove("welcome_message");
+    }
+}
+
 async fn identity_mutate_allowed(pool: &PgPool, caller_iid: i64, resource_iid: i64) -> Result<i64> {
     let row = sqlx::query(
         r#"
@@ -182,7 +196,10 @@ pub async fn identity_put(
             return Err(anyhow!("alien_id taken"));
         }
         let id = snowflake_id();
-        let meta = meta_merge(&json!({ "inst_base": "", "channels": [] }), &incoming_meta);
+        let mut meta = meta_merge(&json!({ "inst_base": "", "channels": [] }), &incoming_meta);
+        if kind == "bot" {
+            meta_bot_finalize(&mut meta);
+        }
         sqlx::query(
             r#"
             INSERT INTO ai.identity (id, kind, type, alien_id, name, pic, owner_iid, meta, created_ts, updated_ts)
@@ -231,6 +248,10 @@ pub async fn identity_put(
         .await?
         .ok_or_else(|| anyhow!("identity not found"))?;
     let meta = meta_merge(&existing_meta, &incoming_meta);
+    let mut meta = meta;
+    if kind == "bot" {
+        meta_bot_finalize(&mut meta);
+    }
     sqlx::query(
         r#"
         UPDATE ai.identity SET

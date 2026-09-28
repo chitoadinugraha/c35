@@ -155,9 +155,50 @@ pub async fn bot_peer_create(pool: &PgPool, caller_iid: i64, req: ReqBotPeerCrea
     .bind(chat_id)
     .fetch_one(pool)
     .await?;
+    let _ = bot_peer_welcome_put(pool, None, owner_iid, req.bot_iid, chat_id).await;
     Ok(ResBotPeerCreate {
         chat: Some(row_to_chat(row)),
     })
+}
+
+pub async fn bot_peer_welcome_put(
+    pool: &PgPool,
+    nats: Option<&Client>,
+    owner_iid: i64,
+    bot_iid: i64,
+    chat_id: i64,
+) -> Result<()> {
+    let Some(text) = crate::bot_welcome::bot_welcome_text(pool, bot_iid).await else {
+        return Ok(());
+    };
+    let req_id = format!("welcome-{}", snowflake_id());
+    let msg_id = snowflake_id();
+    sqlx::query(
+        r#"
+        INSERT INTO ai.chat_msg (
+            id, chat_id, owner_iid, req_id, sender_iid, role, source, content, status, created_ts, updated_ts
+        )
+        VALUES ($1, $2, $3, $4, $5, 'assistant', 'prompt', $6, 'done', NOW(), NOW())
+        "#,
+    )
+    .bind(msg_id)
+    .bind(chat_id)
+    .bind(owner_iid)
+    .bind(&req_id)
+    .bind(bot_iid)
+    .bind(&text)
+    .execute(pool)
+    .await?;
+    let preview: String = text.chars().take(255).collect();
+    sqlx::query(
+        "UPDATE ai.chat SET last_msg_ts = NOW(), last_msg_preview = $2, updated_ts = NOW() WHERE id = $1",
+    )
+    .bind(chat_id)
+    .bind(preview)
+    .execute(pool)
+    .await?;
+    bot_peer_msg_fanout(pool, nats, owner_iid, chat_id, msg_id).await?;
+    Ok(())
 }
 
 pub async fn bot_peer_app_send_verify(pool: &PgPool, caller_iid: i64, req: ReqBotPeerAppSend) -> Result<(i64, i64, String, String)> {
@@ -389,6 +430,7 @@ fn row_to_chat(r: sqlx::postgres::PgRow) -> Chat {
         kind: ChatKind::BotPeer as i32,
         owner_iid: r.get("owner_iid"),
         title: r.get("title"),
+        model: r.get::<Option<String>, _>("model").unwrap_or_default(),
         bot_iid: r.get("bot_iid"),
         channel_id: r.get("channel_id"),
         peer_key: r.get("peer_key"),

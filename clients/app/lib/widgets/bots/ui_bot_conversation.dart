@@ -4,10 +4,11 @@ import 'package:alienai_c35/c/bot/bot_meta.dart';
 import 'package:alienai_c35/c/bot/bot_store.dart';
 import 'package:alienai_c35/c/chat/chat_block.dart';
 import 'package:alienai_c35/c/chat/chat_inbox.dart';
-import 'package:alienai_c35/c/files/msg_attachment.dart';
 import 'package:alienai_c35/c/llm/agent_model.dart';
 import 'package:alienai_c35/c/consumption/consumption_api.dart';
 import 'package:alienai_c35/c/expense/expense_api.dart';
+import 'package:alienai_c35/c/files/msg_attachment.dart';
+import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/c/store/chat_store.dart';
 import 'package:alienai_c35/widgets/ai/msg_trace_view.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_blocks.dart';
@@ -17,6 +18,8 @@ import 'package:alienai_c35/widgets/ai/ui_msg_usage.dart';
 import 'package:alienai_c35/widgets/ai/in_composer.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_context_menu.dart';
 import 'package:alienai_c35/widgets/ai/ui_user_bubble.dart';
+import 'package:alienai_c35/widgets/bots/ui_bot_peer_avatar.dart';
+import 'package:alienai_c35/widgets/ui/ui_user_avatar.dart';
 import 'package:alienai_c35/widgets/chat/ui_chat_timeline.dart';
 import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:alienai_c35/widgets/ui/ui_safe_area.dart';
@@ -31,16 +34,26 @@ const _text = Color(0xFFF4F4F5);
 const _bubbleMaxW = 520.0;
 const _botBubbleBg = Color(0xFF1A1625);
 const _botBubbleBorder = Color(0xFF5B21B6);
+const _msgAvatarSize = 32.0;
+
+Widget _msgTrailingTime(int createdAtMs) => createdAtMs > 0
+    ? Padding(
+        padding: const EdgeInsets.only(left: 6, bottom: 2),
+        child: Text(chatMsgTimeLabel(createdAtMs), style: UiMsgUsage.style),
+      )
+    : const SizedBox.shrink();
 
 class UiBotConversation extends StatefulWidget {
   const UiBotConversation({
     super.key,
     required this.store,
     required this.chatId,
+    this.showTitleBar = true,
   });
 
   final BotStore store;
   final String chatId;
+  final bool showTitleBar;
 
   @override
   State<UiBotConversation> createState() => _UiBotConversationState();
@@ -134,6 +147,13 @@ class _UiBotConversationState extends State<UiBotConversation> {
   }
 
   Widget _msgTile(MsgRow m, {required int i, required int count}) {
+    final peer = widget.store.peerById(widget.chatId);
+    final platform = widget.store.peerChannelPlatform(peer);
+    final peerName = peer?.peerName.isNotEmpty == true ? peer!.peerName : (peer?.title ?? 'Customer');
+    final peerPic = widget.store.peerDisplayPic(peer);
+    final bot = widget.store.botById(widget.store.selectedBotId);
+    final botName = bot?.identity.name.isNotEmpty == true ? bot!.identity.name : 'Bot';
+    final botPic = bot?.identity.pic ?? '';
     final isCustomer = m.role == 'user';
     final isAssistant = m.role == 'assistant';
     final copyPrefix = msgCopyPrefix(
@@ -144,96 +164,157 @@ class _UiBotConversationState extends State<UiBotConversation> {
 
     Widget body;
     if (isCustomer) {
-      body = UiUserBubble(content: m.content, copyPrefix: copyPrefix, attachments: m.attachments);
+      body = Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Flexible(child: UiUserBubble(content: m.content, copyPrefix: copyPrefix, attachments: m.attachments)),
+          _msgTrailingTime(m.createdAtMs),
+        ],
+      );
     } else {
       final thoughtView = msgThoughtView(thought: m.thought, content: m.content, thinking: false);
       final blocks = ChatBlock.decodeList(m.blocksJson);
-      body = ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: _bubbleMaxW),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: _botBubbleBg,
-            borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16), bottomLeft: Radius.circular(4), bottomRight: Radius.circular(16)),
-            border: Border.all(color: _botBubbleBorder.withValues(alpha: 0.45)),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                UiMsgCopyPrefix(text: copyPrefix),
-                if (thoughtView.thought != null) UiMsgThought(text: thoughtView.thought!, thinking: false),
-                if (m.reqId.isNotEmpty)
-                  UiMsgTraceLoader(conn: widget.store.conn, reqId: m.reqId, part: MsgTracePart.chips),
-                if (m.content.trim().isNotEmpty)
-                  MarkdownBody(
-                    data: m.content,
-                    selectable: false,
-                    styleSheet: MarkdownStyleSheet(
-                      p: const TextStyle(color: _text, fontSize: 15, height: 1.45),
-                      code: const TextStyle(color: _text, fontSize: 13, fontFamily: 'Consolas', backgroundColor: Color(0xFF1A1A1D)),
-                    ),
+      body = Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Flexible(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: _bubbleMaxW),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: _botBubbleBg,
+                  borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16), bottomLeft: Radius.circular(4), bottomRight: Radius.circular(16)),
+                  border: Border.all(color: _botBubbleBorder.withValues(alpha: 0.45)),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      UiMsgCopyPrefix(text: copyPrefix),
+                      if (thoughtView.thought != null) UiMsgThought(text: thoughtView.thought!, thinking: false),
+                      if (m.reqId.isNotEmpty)
+                        UiMsgTraceLoader(conn: widget.store.conn, reqId: m.reqId, part: MsgTracePart.chips),
+                      if (m.content.trim().isNotEmpty)
+                        MarkdownBody(
+                          data: m.content,
+                          selectable: false,
+                          styleSheet: MarkdownStyleSheet(
+                            p: const TextStyle(color: _text, fontSize: 15, height: 1.45),
+                            code: const TextStyle(color: _text, fontSize: 13, fontFamily: 'Consolas', backgroundColor: Color(0xFF1A1A1D)),
+                          ),
+                        ),
+                      if (m.reqId.isNotEmpty) UiMsgTraceLoader(conn: widget.store.conn, reqId: m.reqId, part: MsgTracePart.citations),
+                      if (blocks.isNotEmpty)
+                        UiMsgBlocks(
+                          msgId: m.id,
+                          blocks: blocks,
+                          consumptionApi: _consumptionApi,
+                          expenseApi: _expenseApi,
+                          locale: 'en',
+                          onConsumptionSaved: (_, __) {},
+                        ),
+                    ],
                   ),
-                if (m.reqId.isNotEmpty) UiMsgTraceLoader(conn: widget.store.conn, reqId: m.reqId, part: MsgTracePart.citations),
-                if (blocks.isNotEmpty)
-                  UiMsgBlocks(
-                    msgId: m.id,
-                    blocks: blocks,
-                    consumptionApi: _consumptionApi,
-                    expenseApi: _expenseApi,
-                    locale: 'en',
-                    onConsumptionSaved: (_, __) {},
-                  ),
-                UiMsgUsage(msg: m, streaming: false),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Align(alignment: isCustomer ? Alignment.centerLeft : Alignment.centerRight, child: body),
-    );
-  }
-
-  Widget _typingRow(String? party) {
-    if (party == null) return const SizedBox.shrink();
-    final isPeer = party == 'peer';
-    final label = isPeer ? 'bots.typingPeer'.tr() : 'bots.typingBot'.tr();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-      child: Align(
-        alignment: isPeer ? Alignment.centerLeft : Alignment.centerRight,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: _bubbleMaxW),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: isPeer ? const Color(0xFF27272A) : _botBubbleBg,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: isPeer ? _border : _botBubbleBorder.withValues(alpha: 0.35)),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  UiThinkingDots(color: isPeer ? _muted : const Color(0xFFA78BFA), size: 3.2),
-                  const SizedBox(width: 8),
-                  Flexible(child: Text(label, style: TextStyle(color: isPeer ? _muted : const Color(0xFFC4B5FD), fontSize: 13))),
-                ],
+                ),
               ),
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.only(left: 6, bottom: 2),
+            child: UiMsgUsageWithTrace(
+              conn: widget.store.conn,
+              msg: m.model.isNotEmpty ? m : m.copyWith(model: peer?.model ?? ''),
+              showTimestamp: true,
+              trailing: true,
+              alwaysShow: true,
+            ),
+          ),
+        ],
+      );
+    }
+
+    final row = Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: isCustomer
+          ? [
+              UiBotPeerAvatar(name: peerName, pic: peerPic, platform: platform, size: _msgAvatarSize),
+              const SizedBox(width: 8),
+              Flexible(child: body),
+            ]
+          : [
+              Flexible(child: body),
+              const SizedBox(width: 8),
+              UiUserAvatar(name: botName, pic: botPic, size: _msgAvatarSize),
+            ],
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Align(alignment: isCustomer ? Alignment.centerLeft : Alignment.centerRight, child: row),
+    );
+  }
+
+  Widget _typingRow(String party) {
+    final isPeer = party == 'peer';
+    final peer = widget.store.peerById(widget.chatId);
+    final platform = widget.store.peerChannelPlatform(peer);
+    final peerName = peer?.peerName.isNotEmpty == true ? peer!.peerName : (peer?.title ?? 'Customer');
+    final peerPic = widget.store.peerDisplayPic(peer);
+    final bot = widget.store.botById(widget.store.selectedBotId);
+    final botName = bot?.identity.name.isNotEmpty == true ? bot!.identity.name : 'Bot';
+    final botPic = bot?.identity.pic ?? '';
+    final label = isPeer ? 'bots.typingPeer'.tr() : 'bots.typingBot'.tr();
+
+    final bubble = ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: _bubbleMaxW),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: isPeer ? const Color(0xFF27272A) : _botBubbleBg,
+          borderRadius: isPeer
+              ? const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16), bottomLeft: Radius.circular(16), bottomRight: Radius.circular(4))
+              : const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16), bottomLeft: Radius.circular(4), bottomRight: Radius.circular(16)),
+          border: Border.all(color: isPeer ? _border.withValues(alpha: 0.85) : _botBubbleBorder.withValues(alpha: 0.45)),
         ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: UiThinkingDots(color: isPeer ? const Color(0xFFA1A1AA) : const Color(0xFFA78BFA), size: 4, spacing: 3),
+        ),
+      ),
+    );
+
+    final row = Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: isPeer
+          ? [
+              UiBotPeerAvatar(name: peerName, pic: peerPic, platform: platform, size: _msgAvatarSize),
+              const SizedBox(width: 8),
+              bubble,
+            ]
+          : [
+              bubble,
+              const SizedBox(width: 8),
+              UiUserAvatar(name: botName, pic: botPic, size: _msgAvatarSize),
+            ],
+    );
+
+    return Semantics(
+      label: label,
+      liveRegion: true,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Align(alignment: isPeer ? Alignment.centerLeft : Alignment.centerRight, child: row),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-        listenable: widget.store,
+        listenable: Listenable.merge([widget.store, AppStore.instance]),
         builder: (context, _) {
           final peer = widget.store.peerById(widget.chatId);
           final msgs = widget.store.msgsFor(widget.chatId);
@@ -243,7 +324,7 @@ class _UiBotConversationState extends State<UiBotConversation> {
           final typingParty = widget.store.chatTypingParty(widget.chatId) ?? (isApp && widget.store.composerBusy ? 'bot' : null);
 
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (msgs.isNotEmpty) _timeline.scrollToBottom();
+            if (msgs.isNotEmpty || typingParty != null) _timeline.scrollToBottom(force: typingParty != null);
           });
 
           return ColoredBox(
@@ -251,25 +332,26 @@ class _UiBotConversationState extends State<UiBotConversation> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                DecoratedBox(
-                  decoration: const BoxDecoration(color: _bg, border: Border(bottom: BorderSide(color: _border))),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _text, fontSize: 15, fontWeight: FontWeight.w600)),
-                        ),
-                        if (peer != null && !botPeerIsApp(peer))
-                          TextButton.icon(
-                            onPressed: _toggleStop,
-                            icon: Icon(stopped ? Icons.play_arrow_rounded : Icons.stop_circle_outlined, size: 18, color: stopped ? const Color(0xFF22C55E) : const Color(0xFFEF4444)),
-                            label: Text(stopped ? 'bots.resumeAi'.tr() : 'bots.stopAi'.tr(), style: TextStyle(color: stopped ? const Color(0xFF22C55E) : const Color(0xFFEF4444), fontSize: 13)),
+                if (widget.showTitleBar)
+                  DecoratedBox(
+                    decoration: const BoxDecoration(color: _bg, border: Border(bottom: BorderSide(color: _border))),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _text, fontSize: 15, fontWeight: FontWeight.w600)),
                           ),
-                      ],
+                          if (peer != null && !botPeerIsApp(peer))
+                            TextButton.icon(
+                              onPressed: _toggleStop,
+                              icon: Icon(stopped ? Icons.play_arrow_rounded : Icons.stop_circle_outlined, size: 18, color: stopped ? const Color(0xFF22C55E) : const Color(0xFFEF4444)),
+                              label: Text(stopped ? 'bots.resumeAi'.tr() : 'bots.stopAi'.tr(), style: TextStyle(color: stopped ? const Color(0xFF22C55E) : const Color(0xFFEF4444), fontSize: 13)),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
                 Expanded(
                   child: widget.store.loadingMsgs && msgs.isEmpty
                       ? const Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: _muted)))
@@ -291,7 +373,26 @@ class _UiBotConversationState extends State<UiBotConversation> {
                               ),
                             ),
                 ),
-                _typingRow(typingParty),
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOutCubic,
+                  alignment: Alignment.topCenter,
+                  child: typingParty == null
+                      ? const SizedBox.shrink()
+                      : AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 180),
+                          switchInCurve: Curves.easeOut,
+                          switchOutCurve: Curves.easeIn,
+                          transitionBuilder: (child, anim) => FadeTransition(
+                            opacity: anim,
+                            child: SlideTransition(
+                              position: Tween<Offset>(begin: const Offset(0, 0.12), end: Offset.zero).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+                              child: child,
+                            ),
+                          ),
+                          child: KeyedSubtree(key: ValueKey(typingParty), child: _typingRow(typingParty)),
+                        ),
+                ),
                 Padding(
                   padding: EdgeInsets.fromLTRB(12, 0, 12, uiSafeBottomInset(context, 12)),
                   child: InComposer(
@@ -311,6 +412,28 @@ class _UiBotConversationState extends State<UiBotConversation> {
                 ),
               ],
             ),
+          );
+        },
+      );
+}
+
+class UiBotChatHeaderActions extends StatelessWidget {
+  const UiBotChatHeaderActions({super.key, required this.store, required this.chatId});
+
+  final BotStore store;
+  final String chatId;
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: store,
+        builder: (context, _) {
+          final peer = store.peerById(chatId);
+          if (peer == null || botPeerIsApp(peer)) return const SizedBox.shrink();
+          final stopped = !peer.aiReplyEnabled;
+          return TextButton.icon(
+            onPressed: () => store.chatStopToggle(chatId),
+            icon: Icon(stopped ? Icons.play_arrow_rounded : Icons.stop_circle_outlined, size: 18, color: stopped ? const Color(0xFF22C55E) : const Color(0xFFEF4444)),
+            label: Text(stopped ? 'bots.resumeAi'.tr() : 'bots.stopAi'.tr(), style: TextStyle(color: stopped ? const Color(0xFF22C55E) : const Color(0xFFEF4444), fontSize: 13)),
           );
         },
       );

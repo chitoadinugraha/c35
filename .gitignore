@@ -47,6 +47,7 @@ Thumbs.db
 
 # Deploy credentials (GitHub push protection blocks service account JSON)
 _/certs/google-play-upload-service-account.json
+_/certs/firebase-service.json
 _/certs/windows-msix-store.pfx
 clients/app/android/key.properties
 clients/app/android/app/upload_keystore.jks

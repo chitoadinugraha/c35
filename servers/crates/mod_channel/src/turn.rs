@@ -13,7 +13,9 @@ use crate::debounce::{debouncer_turn_finished, debouncer_turn_started};
 use crate::hub::channel_hub;
 use crate::limit::BOT_BUSY_REPLY;
 use crate::outbound::{channel_reply_nats, channel_stub_reply, outbound_ctx_with_msg, ChannelCasCtx};
-use crate::peer::{chat_msg_assistant_put, chat_strict_oos_apply};
+use crate::peer::{
+    chat_msg_assistant_put, chat_msg_assistant_put_usage, chat_msg_usage_sync_from_log, chat_strict_oos_apply,
+};
 use crate::policy::reply_oos_strip;
 use crate::store::ChannelDoc;
 use crate::typing::channel_typing_start;
@@ -94,6 +96,8 @@ pub async fn execute_channel_turn(state: Arc<AppState>, job: ChannelTurnJob) -> 
         false,
     );
 
+    let mut turn_usage: Option<(i32, i32, f64, String, i32)> = None;
+
     let mut reply = if gemini_api_key().is_empty() {
         channel_stub_reply(&job.message, false)
     } else {
@@ -110,7 +114,10 @@ pub async fn execute_channel_turn(state: Arc<AppState>, job: ChannelTurnJob) -> 
         )
         .await
         {
-            Ok((text, _, _, _, _)) => text,
+            Ok((text, tin, tout, cost, model, duration_ms)) => {
+                turn_usage = Some((tin, tout, cost, model, duration_ms));
+                text
+            }
             Err(e) => {
                 tracing::warn!("[c35:channel] prompt_turn failed: {}", e);
                 channel_stub_reply(&job.message, false)
@@ -150,19 +157,40 @@ pub async fn execute_channel_turn(state: Arc<AppState>, job: ChannelTurnJob) -> 
         cas_secret: &state.cas_secret,
     };
     channel_reply_nats(&client, state.nats.as_ref(), Some(&cas), &out_ctx, &reply, false).await?;
-    let assistant_msg_id =
-        chat_msg_assistant_put(&state.pool, job.chat_id, job.owner_iid, job.bot_iid, &job.req_id, &reply).await?;
-    if job.inbound.platform == "app" {
-        let _ = bot_peer_msg_fanout(
-            &state.pool,
-            state.nats.as_ref(),
-            job.owner_iid,
-            job.chat_id,
-            assistant_msg_id,
-        )
-        .await;
+    let (tin, tout, cost, model, duration_ms) = turn_usage
+        .as_ref()
+        .map(|(a, b, c, m, d)| (*a, *b, *c, m.clone(), *d))
+        .unwrap_or((0, 0, 0.0, String::new(), 0));
+    if !model.is_empty() {
+        let _ = sqlx::query("UPDATE ai.chat SET model = $2, updated_ts = NOW() WHERE id = $1")
+            .bind(job.chat_id)
+            .bind(&model)
+            .execute(&state.pool)
+            .await;
     }
-    let _ = prompt_run_finish(&state.pool, &job.req_id, "done", 0, 0, 0.0, 0, None, None).await;
+    let assistant_msg_id = chat_msg_assistant_put_usage(
+        &state.pool,
+        job.chat_id,
+        job.owner_iid,
+        job.bot_iid,
+        &job.req_id,
+        &reply,
+        tin,
+        tout,
+        duration_ms,
+        cost,
+    )
+    .await?;
+    let _ = chat_msg_usage_sync_from_log(&state.pool, assistant_msg_id, &job.req_id).await;
+    let _ = bot_peer_msg_fanout(
+        &state.pool,
+        state.nats.as_ref(),
+        job.owner_iid,
+        job.chat_id,
+        assistant_msg_id,
+    )
+    .await;
+    let _ = prompt_run_finish(&state.pool, &job.req_id, "done", tin, tout, cost, duration_ms, None, None).await;
     let queued = prompt_followup_next_queued(&state.pool, &job.req_id).await?;
     if let Some(q) = queued {
         let _ = prompt_followup_mark_queue_delivered(&state.pool, &q.id).await;

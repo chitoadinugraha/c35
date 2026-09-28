@@ -35,7 +35,7 @@ pub async fn channel_prompt_turn(
     attachments_json: &str,
     is_voice: bool,
     req_id: &str,
-) -> Result<(String, i32, i32, f64, String)> {
+) -> Result<(String, i32, i32, f64, String, i32)> {
     if gemini_api_key().is_empty() {
         anyhow::bail!("GEMINI_API_KEY not set");
     }
@@ -227,7 +227,7 @@ pub async fn channel_prompt_turn(
     )
     .await?;
     tracer.llm_turn(&res.model_used, res.tokens_in, res.tokens_out, duration_ms as i64, 0, cost_usd, &res.text).await;
-    Ok((res.text, res.tokens_in, res.tokens_out, cost_usd, res.model_used))
+    Ok((res.text, res.tokens_in, res.tokens_out, cost_usd, res.model_used, duration_ms))
 }
 
 async fn bot_meta_load(pool: &PgPool, bot_iid: i64) -> Option<serde_json::Value> {

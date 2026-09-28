@@ -1,5 +1,5 @@
-import 'package:alienai_c35/c/bot/bot_meta.dart';
-import 'package:alienai_c35/widgets/ui/ui_user_avatar.dart';
+import 'package:alienai_c35/c/bot/bot_meta.dart' show kBotAppChannelId;
+import 'package:alienai_c35/widgets/bots/ui_bot_peer_avatar.dart';
 import 'package:flutter/material.dart';
 
 const _border = Color(0xFF27272A);
@@ -10,7 +10,7 @@ class UiBotPeerRow extends StatelessWidget {
     super.key,
     required this.peerName,
     this.peerPic = '',
-    this.channel = '',
+    this.channelPlatform = '',
     this.lastMsg = '',
     this.time = '',
     this.aiReplyEnabled = true,
@@ -21,7 +21,7 @@ class UiBotPeerRow extends StatelessWidget {
 
   final String peerName;
   final String peerPic;
-  final String channel;
+  final String channelPlatform;
   final String lastMsg;
   final String time;
   final bool aiReplyEnabled;
@@ -46,7 +46,7 @@ class UiBotPeerRow extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
           child: Row(
             children: [
-              _avatar(),
+              UiBotPeerAvatar(name: peerName, pic: peerPic, platform: channelPlatform, size: 40),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -62,7 +62,7 @@ class UiBotPeerRow extends StatelessWidget {
                     Row(
                       children: [
                         Expanded(child: Text(lastMsg, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _muted, fontSize: 12))),
-                        if (!aiReplyEnabled && channel != kBotAppChannelId)
+                        if (!aiReplyEnabled && channelPlatform != kBotAppChannelId)
                           const Padding(padding: EdgeInsets.only(left: 6), child: Icon(Icons.stop_circle, size: 16, color: Color(0xFFEF4444))),
                         if (unread > 0) ...[
                           const SizedBox(width: 6),
@@ -80,41 +80,10 @@ class UiBotPeerRow extends StatelessWidget {
     );
   }
 
-  Widget _avatar() => SizedBox(
-        width: 40,
-        height: 40,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            UiUserAvatar(name: peerName, pic: peerPic, size: 40),
-            if (channel.isNotEmpty)
-              Positioned(
-                right: -2,
-                bottom: -2,
-                child: Container(
-                  width: 18,
-                  height: 18,
-                  decoration: BoxDecoration(color: const Color(0xFF18181B), shape: BoxShape.circle, border: Border.all(color: _border)),
-                  child: Icon(_channelIcon(channel), size: 11, color: const Color(0xFFA1A1AA)),
-                ),
-              ),
-          ],
-        ),
-      );
-
   Widget _unreadBadge(int count) => Container(
         constraints: const BoxConstraints(minWidth: 18),
         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
         decoration: BoxDecoration(color: const Color(0xFFEF4444), borderRadius: BorderRadius.circular(999)),
         child: Text(count > 99 ? '99+' : '$count', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)),
       );
-
-  IconData _channelIcon(String ch) => switch (ch.toLowerCase()) {
-        'app' => Icons.phone_android_rounded,
-        'telegram' => Icons.send_rounded,
-        'whatsapp' => Icons.chat_rounded,
-        'discord' => Icons.forum_outlined,
-        'web' || 'site' => Icons.language_rounded,
-        _ => Icons.hub_outlined,
-      };
 }

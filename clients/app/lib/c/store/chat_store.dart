@@ -1521,6 +1521,7 @@ class ChatStore extends ChangeNotifier {
         appBuild: appBuild,
         appVersionName: csaiVersionFull,
         includeInbox: true,
+        includeBilling: true,
         hintsSinceMs: Int64(HintStore.instance.rev),
         mentionsSinceMs: Int64(mentionCatalog.rev),
       );

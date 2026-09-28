@@ -108,6 +108,7 @@ class InBotCreate extends StatefulWidget {
 class _InBotCreateState extends State<InBotCreate> {
   late final _name = TextEditingController();
   late final _instructions = TextEditingController();
+  late final _welcomeMessage = TextEditingController();
   late final _bodyScrollCtrl = ScrollController();
   var _step = 0;
   var _saving = false;
@@ -199,6 +200,7 @@ class _InBotCreateState extends State<InBotCreate> {
       _name.text = id.name;
       _pic = id.pic;
       _instructions.text = '${meta['inst_base'] ?? ''}';
+      _welcomeMessage.text = '${meta['welcome_message'] ?? ''}';
       _strictMode = meta['strict_mode'] as bool? ?? true;
       _autoBlockSpammer = meta['auto_block_spammer'] as bool? ?? true;
       _webSearch = meta['web_search'] as bool? ?? false;
@@ -241,8 +243,16 @@ class _InBotCreateState extends State<InBotCreate> {
     }
   }
 
+  bool get _welcomeEditable => _billingPackage != null && !_billingPackage!.usesOwnerQuota;
+
+  String _welcomeSharedPreview() {
+    final name = _name.text.trim();
+    if (name.isEmpty) return 'botCreate.welcomeSharedPreview'.tr();
+    return 'botCreate.welcomeSharedPreviewNamed'.tr(namedArgs: {'name': name});
+  }
+
   String _botMetaJson({required bool active}) {
-    return jsonEncode(<String, dynamic>{
+    final map = <String, dynamic>{
       'inst_base': _instructions.text.trim(),
       'strict_mode': _strictMode,
       'auto_block_spammer': _strictMode && _autoBlockSpammer,
@@ -250,7 +260,11 @@ class _InBotCreateState extends State<InBotCreate> {
       'billing_plan_slug': _billingPackage!.slug,
       'billing_period': _billingYearly ? 'yearly' : 'monthly',
       'active': active,
-    });
+    };
+    if (_welcomeEditable) {
+      map['welcome_message'] = _welcomeMessage.text.trim();
+    }
+    return jsonEncode(map);
   }
 
   ReqIdentityPut _step0PutReq({required bool active, int? iid}) {
@@ -276,6 +290,7 @@ class _InBotCreateState extends State<InBotCreate> {
   void dispose() {
     _name.dispose();
     _instructions.dispose();
+    _welcomeMessage.dispose();
     _bodyScrollCtrl.dispose();
     super.dispose();
   }
@@ -633,12 +648,61 @@ class _InBotCreateState extends State<InBotCreate> {
             planExpiresTsMs: _planExpiresTsMs,
             onChanged: (v) => setState(() {
               _billingPackage = v;
+              if (! _welcomeEditable) _welcomeMessage.clear();
               _error = null;
             }),
             onYearlyChanged: (v) => setState(() => _billingYearly = v),
           ),
         ],
       );
+
+  Widget _welcomeMessageField() {
+    final editable = _welcomeEditable;
+    if (!editable) {
+      return uiTooltip(
+        message: 'botCreate.welcomeLockedHint'.tr(),
+        child: InkWell(
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('botCreate.welcomeLockedSnack'.tr()),
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          },
+          borderRadius: BorderRadius.circular(8),
+          child: InputDecorator(
+            decoration: UiInputDecoration.of(
+              context,
+              labelText: 'botCreate.welcomeLabel'.tr(),
+              floatingLabel: true,
+              suffixIcon: const Icon(Icons.lock_outline, size: 18, color: _muted),
+            ),
+            child: Text(
+              _welcomeSharedPreview(),
+              style: const TextStyle(color: _muted, fontSize: 13, height: 1.4),
+            ),
+          ),
+        ),
+      );
+    }
+    return TextField(
+      controller: _welcomeMessage,
+      enabled: !_saving,
+      maxLines: 3,
+      minLines: 2,
+      style: const TextStyle(color: _title, fontSize: 13, height: 1.4),
+      decoration: UiInputDecoration.of(
+        context,
+        labelText: 'botCreate.welcomeLabel'.tr(),
+        hintText: 'botCreate.welcomeHint'.tr(),
+        floatingLabel: true,
+        alignLabelWithHint: true,
+      ),
+      onChanged: (_) => setState(() => _error = null),
+    );
+  }
 
   Widget _stepBehavior() => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -647,6 +711,8 @@ class _InBotCreateState extends State<InBotCreate> {
             'Tell the bot how to reply. You can edit this anytime in bot settings.',
             style: TextStyle(color: _muted.withValues(alpha: 0.95), fontSize: 12, height: 1.35),
           ),
+          const SizedBox(height: 12),
+          _welcomeMessageField(),
           const SizedBox(height: 12),
           TextField(
             controller: _instructions,
