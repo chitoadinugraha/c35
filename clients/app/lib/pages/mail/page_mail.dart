@@ -24,8 +24,8 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 const _mailRailBreakpoint = 640;
 const _mailMailingListMasterDetailBreakpoint = 640.0;
@@ -3455,7 +3455,9 @@ class _MailHtmlBody extends StatefulWidget {
 }
 
 class _MailHtmlBodyState extends State<_MailHtmlBody> {
-  double _height = 48;
+  static const _maxBodyHeight = 480.0;
+  WebViewController? _controller;
+  String? _loadedHtml;
 
   String _wrappedHtml(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -3482,44 +3484,42 @@ class _MailHtmlBodyState extends State<_MailHtmlBody> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final html = _wrappedHtml(context);
+    if (_loadedHtml == html && _controller != null) return;
+    _loadedHtml = html;
+    final ctrl = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.disabled)
+      ..setBackgroundColor(Colors.transparent)
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onNavigationRequest: (request) {
+            final uri = Uri.tryParse(request.url);
+            if (uri != null &&
+                (uri.scheme == 'http' || uri.scheme == 'https' || uri.scheme == 'mailto')) {
+              unawaited(_confirmAndLaunchExternalUrl(context, uri));
+            }
+            return NavigationDecision.prevent;
+          },
+        ),
+      )
+      ..loadHtmlString(html);
+    setState(() => _controller = ctrl);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final ctrl = _controller;
+    if (ctrl == null) {
+      return const SizedBox(
+        height: 48,
+        child: Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))),
+      );
+    }
     return SizedBox(
-      height: _height,
-      child: InAppWebView(
-        initialData: InAppWebViewInitialData(
-          data: _wrappedHtml(context),
-          mimeType: 'text/html',
-          encoding: 'utf-8',
-        ),
-        initialSettings: InAppWebViewSettings(
-          javaScriptEnabled: false,
-          allowFileAccess: false,
-          allowContentAccess: false,
-          allowFileAccessFromFileURLs: false,
-          allowUniversalAccessFromFileURLs: false,
-          transparentBackground: true,
-          disableHorizontalScroll: true,
-          supportZoom: false,
-          verticalScrollBarEnabled: false,
-          horizontalScrollBarEnabled: false,
-          disableVerticalScroll: true,
-        ),
-        shouldOverrideUrlLoading: (controller, navigationAction) async {
-          final uri = navigationAction.request.url?.uriValue;
-          if (uri != null &&
-              (uri.scheme == 'http' || uri.scheme == 'https' || uri.scheme == 'mailto')) {
-            unawaited(_confirmAndLaunchExternalUrl(context, uri));
-            return NavigationActionPolicy.CANCEL;
-          }
-          return NavigationActionPolicy.CANCEL;
-        },
-        onLoadStop: (controller, _) async {
-          final h = await controller.getContentHeight();
-          if (!mounted || h == null) return;
-          final next = h.toDouble() + 4;
-          if (next != _height) setState(() => _height = next);
-        },
-      ),
+      height: _maxBodyHeight,
+      child: WebViewWidget(controller: ctrl),
     );
   }
 }

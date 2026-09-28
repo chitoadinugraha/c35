@@ -47,8 +47,7 @@ dependencies:
   image: ^4.5.4
   qr: ^3.0.2
   crypto: ^3.0.6
-  flutter_inappwebview: ^6.2.0-beta.3
-  flutter_inappwebview_windows: ^0.7.0-beta.3
+  webview_win_floating: ^3.0.3
   appflowy_editor:
     git:
       url: https://github.com/AppFlowy-IO/appflowy-editor.git
