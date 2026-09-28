@@ -41,6 +41,7 @@ class _UiSettingsUnlockModeState extends State<UiSettingsUnlockMode> {
       context: context,
       backgroundColor: const Color(0xFF18181B),
       showDragHandle: true,
+      useSafeArea: true,
       builder: (ctx) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),

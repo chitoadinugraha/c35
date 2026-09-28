@@ -12,7 +12,8 @@ use c35_mod_admin::{
 };
 use c35_mod_billing::{
     billing_admin_adjust, billing_admin_adjust_list, billing_history, billing_notify_owner,
-    billing_package_preview, billing_package_redeem, billing_plan_subscribe, billing_promotion_claim,
+    billing_package_preview, billing_package_redeem, billing_plan_change, billing_plan_quote,
+    billing_plan_subscribe, billing_promotion_claim,
     billing_promotion_create, billing_promotion_get, billing_promotion_list_by_creator, billing_summary,
     billing_topup_get, billing_topup_list, billing_topup_methods, billing_topup_put, billing_topup_review,
     bot_usage_stats, commission_withdraw_list, commission_withdraw_review, receive_account_list,
@@ -313,6 +314,29 @@ pub async fn dispatch_invoke(state: &AppState, req: InvokeReq) -> InvokeRes {
                         status_code: 200,
                         error_message: String::new(),
                         body: Some(invoke_res::Body::BillingPlanSubscribe(res)),
+                    }
+                }
+                Err(msg) => invoke_error(&req_id, 400, msg),
+            }
+        }
+        Some(invoke_req::Body::BillingPlanQuote(r)) => match billing_plan_quote(pool, iid, r).await {
+            Ok(res) => InvokeRes {
+                req_id,
+                status_code: 200,
+                error_message: String::new(),
+                body: Some(invoke_res::Body::BillingPlanQuote(res)),
+            },
+            Err(msg) => invoke_error(&req_id, 400, msg),
+        },
+        Some(invoke_req::Body::BillingPlanChange(r)) => {
+            match billing_plan_change(pool, iid, r).await {
+                Ok(res) => {
+                    billing_notify_owner(pool, state.nats.as_ref(), iid, None).await;
+                    InvokeRes {
+                        req_id,
+                        status_code: 200,
+                        error_message: String::new(),
+                        body: Some(invoke_res::Body::BillingPlanChange(res)),
                     }
                 }
                 Err(msg) => invoke_error(&req_id, 400, msg),

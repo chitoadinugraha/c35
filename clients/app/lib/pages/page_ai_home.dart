@@ -413,6 +413,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     _uiLang = context.locale.languageCode;
     try {
       await HintStore.instance.restore();
+      await _store.sessionInitCacheRestore();
       await _store.mentionCatalog.restore();
       await CatalogTranslationCache.instance.restore();
       await CatalogTranslationCache.instance.ensure(_uiLang!);
@@ -743,14 +744,12 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
 
   void _openRootConsole() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageRootConsole(chatConn: _conn)));
 
-  bool get _financeRole => Session.instance.isRoot || Session.instance.globalRoles.contains('finance');
-
-  bool get _receiveAccountRole => Session.instance.isRoot || Session.instance.globalRoles.any((r) => r == 'finance' || r == 'director');
+  bool get _financeStaff => Session.instance.isFinanceStaff;
 
   void _openFinancePayments() => Navigator.push(
         context,
         MaterialPageRoute<void>(
-          builder: (_) => PageFinancePayments(conn: ReferralConn(uid: Session.instance.uid), canReview: _financeRole),
+          builder: (_) => PageFinancePayments(conn: ReferralConn(uid: Session.instance.uid), canReview: _financeStaff),
         ),
       );
 
@@ -770,8 +769,8 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
           onBalance: () => billingHistorySheet(context, conn: ReferralConn(uid: Session.instance.uid)),
           onPackage: () => billingPackageSheet(context, conn: ReferralConn(uid: Session.instance.uid)),
           onCommissionTap: _openCommissionSheet,
-          onFinancePayments: _financeRole ? _openFinancePayments : null,
-          onFinanceReceiveAccounts: _receiveAccountRole ? _openFinanceReceiveAccounts : null,
+          onFinancePayments: _financeStaff ? _openFinancePayments : null,
+          onFinanceReceiveAccounts: _financeStaff ? _openFinanceReceiveAccounts : null,
           onLock: _lockSession,
           onSignOut: _signOut,
           onBots: _openBots,

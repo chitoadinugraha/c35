@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 Future<void> showMsgTraceSheet(BuildContext context, {required String reqId, required ChatConn conn, int msgId = 0}) => showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: const Color(0xFF18181B),
       barrierColor: const Color(0xE6000000),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),

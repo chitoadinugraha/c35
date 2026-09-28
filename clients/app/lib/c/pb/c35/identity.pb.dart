@@ -33,6 +33,8 @@ class IdentityProfile extends $pb.GeneratedMessage {
     $core.String? locationRegion,
     $core.String? locationCountry,
     $core.String? locationSource,
+    $core.String? email,
+    $core.Iterable<$core.String>? globalRoles,
   }) {
     final result = IdentityProfile._();
     if (iid != null) result.iid = iid;
@@ -49,6 +51,8 @@ class IdentityProfile extends $pb.GeneratedMessage {
     if (locationRegion != null) result.locationRegion = locationRegion;
     if (locationCountry != null) result.locationCountry = locationCountry;
     if (locationSource != null) result.locationSource = locationSource;
+    if (email != null) result.email = email;
+    if (globalRoles != null) result.globalRoles.addAll(globalRoles);
     return result;
   }
 
@@ -79,6 +83,8 @@ class IdentityProfile extends $pb.GeneratedMessage {
     ..aOS(12, _omitFieldNames ? '' : 'locationRegion')
     ..aOS(13, _omitFieldNames ? '' : 'locationCountry')
     ..aOS(14, _omitFieldNames ? '' : 'locationSource')
+    ..aOS(15, _omitFieldNames ? '' : 'email')
+    ..pPS(16, _omitFieldNames ? '' : 'globalRoles')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -230,6 +236,18 @@ class IdentityProfile extends $pb.GeneratedMessage {
   $core.bool hasLocationSource() => $_has(13);
   @$pb.TagNumber(14)
   void clearLocationSource() => $_clearField(14);
+
+  @$pb.TagNumber(15)
+  $core.String get email => $_getSZ(14);
+  @$pb.TagNumber(15)
+  set email($core.String value) => $_setString(14, value);
+  @$pb.TagNumber(15)
+  $core.bool hasEmail() => $_has(14);
+  @$pb.TagNumber(15)
+  void clearEmail() => $_clearField(15);
+
+  @$pb.TagNumber(16)
+  $pb.PbList<$core.String> get globalRoles => $_getList(15);
 }
 
 class NavCounts extends $pb.GeneratedMessage {

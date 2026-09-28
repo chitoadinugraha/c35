@@ -81,6 +81,16 @@ pub struct ComposeTrace {
     pub inst_enrich_ms: i64,
     #[serde(default)]
     pub tool_filter_ms: i64,
+    #[serde(default)]
+    pub tool_embed_ms: i64,
+    #[serde(default)]
+    pub tool_embed_token_in: i32,
+    #[serde(default)]
+    pub tool_embed_cost_usd: f64,
+    #[serde(default)]
+    pub tool_embed_model: String,
+    #[serde(default)]
+    pub tool_embed_cached: bool,
 }
 
 fn trace_dropped_gap(ranked: &[ToolCandidate], trimmed: &[ToolCandidate]) -> Vec<ComposeTraceCandidate> {
@@ -294,14 +304,14 @@ fn compose_prepare_scoped(
     })
 }
 
-fn compose_finish(started: Instant, prep: ComposePrep, text: &str, vector_find: Option<ToolFindResult>) -> ComposeOutput {
+fn compose_finish(started: Instant, prep: ComposePrep, text: &str, vector_find: Option<&ToolFindResult>) -> ComposeOutput {
     let (ranked, trimmed, tools, ranker, best_sim, embed_cached) = compose_tools_ranked(
         text,
         &prep.eligible,
         &prep.force,
         &prep.exclude,
         prep.rag_skipped,
-        vector_find.as_ref(),
+        vector_find,
     );
     let selected_tools: Vec<String> = tools.iter().map(|t| t.name.clone()).collect();
     let selected_set: std::collections::HashSet<&str> = selected_tools.iter().map(|s| s.as_str()).collect();
@@ -402,31 +412,37 @@ pub async fn compose_tools_and_inst_async(
     let rag_skipped = prep.rag_skipped;
     let parallel_start = Instant::now();
 
-    let ((enrich_res, enrich_ms), (vector_find, tool_ms)) = tokio::join!(
+    let ((enrich_res, enrich_ms), vector_find) = tokio::join!(
         async {
             let t = Instant::now();
             let r = crate::inst_enrich::inst_enrich_append(&matched, &enrich_ctx).await;
             (r, t.elapsed().as_millis() as i64)
         },
         async {
-            let t = Instant::now();
-            let vf = if rag_skipped || !tool_index_ready() {
+            if rag_skipped || !tool_index_ready() {
                 None
             } else {
                 Some(tool_find_vector(pool, http, text, &eligible).await)
-            };
-            (vf, t.elapsed().as_millis() as i64)
+            }
         }
     );
 
     let mut prep = prep;
     prep.inst_block.push_str(&enrich_res.suffix);
     let parallel_ms = parallel_start.elapsed().as_millis() as i64;
-    let mut out = compose_finish(started, prep, text, vector_find);
+    let mut out = compose_finish(started, prep, text, vector_find.as_ref());
     out.trace.duration_ms = parallel_ms;
-    out.trace.tool_filter_ms = tool_ms;
     out.trace.inst_enrich_ms = enrich_ms;
     out.trace.inst_enrich_keys = enrich_res.keys;
+    if let Some(vf) = vector_find.as_ref() {
+        out.trace.tool_filter_ms = vf.filter_ms;
+        out.trace.tool_embed_ms = vf.embed_ms;
+        out.trace.tool_embed_token_in = vf.embed_token_in;
+        out.trace.tool_embed_cost_usd = vf.embed_cost_usd;
+        out.trace.tool_embed_model = vf.embed_model.clone();
+        out.trace.tool_embed_cached = vf.query_cached;
+        out.trace.embed_cached = vf.query_cached;
+    }
     out
 }
 

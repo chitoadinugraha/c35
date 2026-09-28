@@ -15,6 +15,7 @@ Future<TxPayment?> askTransaksiPaymentMethod({
 }) =>
     showModalBottomSheet<TxPayment>(
       context: context,
+      useSafeArea: true,
       backgroundColor: const Color(0xFF121215),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),

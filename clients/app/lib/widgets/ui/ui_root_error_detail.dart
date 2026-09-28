@@ -6,6 +6,19 @@ class UiRootErrorDetail extends StatelessWidget {
 
   final String detail;
 
+  Widget _copyButton(BuildContext context) {
+    final btn = InkWell(
+      onTap: () => _copy(context),
+      borderRadius: BorderRadius.circular(4),
+      child: const Padding(
+        padding: EdgeInsets.all(4),
+        child: Icon(Icons.copy_rounded, size: 14, color: Color(0xFFA1A1AA)),
+      ),
+    );
+    if (Overlay.maybeOf(context) == null) return btn;
+    return Tooltip(message: 'Copy error', child: btn);
+  }
+
   void _copy(BuildContext context) {
     final text = detail.trim();
     if (text.isEmpty) return;
@@ -44,17 +57,7 @@ class UiRootErrorDetail extends StatelessWidget {
                   child: const Text('Root only', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFFA1A1AA), letterSpacing: 0.2)),
                 ),
                 const SizedBox(width: 4),
-                Tooltip(
-                  message: 'Copy error',
-                  child: InkWell(
-                    onTap: () => _copy(context),
-                    borderRadius: BorderRadius.circular(4),
-                    child: const Padding(
-                      padding: EdgeInsets.all(4),
-                      child: Icon(Icons.copy_rounded, size: 14, color: Color(0xFFA1A1AA)),
-                    ),
-                  ),
-                ),
+                _copyButton(context),
               ],
             ),
             const SizedBox(height: 6),

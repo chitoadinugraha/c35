@@ -1,7 +1,20 @@
 import 'package:flutter/material.dart';
 
-RenderBox? uiMenuOverlayBox(BuildContext context) =>
-    Overlay.of(context).context.findRenderObject() as RenderBox?;
+RenderBox? uiMenuOverlayBox(BuildContext context) {
+  final state = Overlay.maybeOf(context);
+  if (state != null) {
+    return state.context.findRenderObject() as RenderBox?;
+  }
+  if (context.widget is Overlay) {
+    return context.findRenderObject() as RenderBox?;
+  }
+  final nav = Navigator.maybeOf(context);
+  final navOverlay = nav?.overlay;
+  if (navOverlay != null && navOverlay.mounted) {
+    return navOverlay.context.findRenderObject() as RenderBox?;
+  }
+  return null;
+}
 
 RelativeRect uiMenuPositionAt(BuildContext context, Offset global) {
   final overlay = uiMenuOverlayBox(context);

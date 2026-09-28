@@ -84,12 +84,14 @@ class RemoteSession {
   StreamSubscription<WsRes>? _signalSub;
   Timer? _fpsTimer;
   Timer? _reconnectTimer;
+  Timer? _linkTimeout;
   static Timer? _leaveDevicesTimer;
   var _frameCount = 0;
   var _lastDecodedFrames = 0;
   var _starting = false;
   var _retryCount = 0;
   var _manualStop = false;
+  var _forceRelayIce = false;
 
   bool get isLinking =>
       status.value == RemoteSessionStatus.connecting || status.value == RemoteSessionStatus.reconnecting;
@@ -155,6 +157,7 @@ class RemoteSession {
         return;
       }
       if (!_manualStop && !connected.value) {
+        _forceRelayIce = false;
         start();
       }
     });
@@ -164,10 +167,32 @@ class RemoteSession {
   // Lifecycle
   // -------------------------------------------------------------------------
 
-  Future<void> start() async {
+  void prepareUserReconnect() {
+    _retryCount = 0;
+    _forceRelayIce = false;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    _linkTimeout?.cancel();
+    _linkTimeout = null;
+  }
+
+  bool get _peerLive => _pc != null && connected.value;
+
+  void _armLinkTimeout() {
+    _linkTimeout?.cancel();
+    _linkTimeout = Timer(const Duration(seconds: 45), () {
+      if (_manualStop || _peerLive) return;
+      l('remote link timeout');
+      status.value = RemoteSessionStatus.failed;
+      unawaited(_teardownPc(keepSessionId: true));
+    });
+  }
+
+  Future<void> start({bool forceRelay = false}) async {
     if (kIsWeb) throw UnsupportedError('WebRTC remote session is not supported on web');
     if (_starting) return;
-    if (connected.value) return;
+    if (_peerLive) return;
+    if (forceRelay) _forceRelayIce = true;
     if (!conn.connected) {
       l('remote session start skipped: server ws not connected');
       status.value = RemoteSessionStatus.disconnected;
@@ -185,6 +210,9 @@ class RemoteSession {
       sessionId = Ulid().toString();
       l('remote session start device=$deviceIid session=$sessionId');
 
+      await _signalSub?.cancel();
+      _signalSub = conn.onRemoteSignal.listen(_onSignal, onError: (e) => lError('remote signal: $e'));
+
       final iceRes = await conn.remoteIceConfig();
       final iceServers = iceRes.iceServers
           .map((s) => {
@@ -197,9 +225,14 @@ class RemoteSession {
       final startRes = await conn.remoteSessionStart(deviceIid, sessionId!);
       if (!startRes.ok) throw startRes.error.isNotEmpty ? startRes.error : 'session start failed';
 
-      _signalSub = conn.onRemoteSignal.listen(_onSignal, onError: (e) => lError('remote signal: $e'));
+      _armLinkTimeout();
 
-      _pc = await createPeerConnection({'iceServers': iceServers});
+      final pcConfig = <String, dynamic>{'iceServers': iceServers};
+      if (_forceRelayIce) {
+        pcConfig['iceTransportPolicy'] = 'relay';
+        l('remote session using TURN relay (iceTransportPolicy=relay)');
+      }
+      _pc = await createPeerConnection(pcConfig);
       _pc!.onIceCandidate = (c) => unawaited(_sendIce(c));
       _pc!.onTrack = (event) async {
         l('remote onTrack: ${event.track.kind} streams=${event.streams.length}');
@@ -216,21 +249,37 @@ class RemoteSession {
       };
       _pc!.onConnectionState = (s) {
         final up = s == RTCPeerConnectionState.RTCPeerConnectionStateConnected;
+        final wasConnected = connected.value;
         if (connected.value != up) {
           connected.value = up;
           l('remote pc state=$s connected=$up');
         }
         if (up) {
+          _linkTimeout?.cancel();
+          _linkTimeout = null;
           _retryCount = 0;
           status.value = RemoteSessionStatus.connected;
-        } else if (s == RTCPeerConnectionState.RTCPeerConnectionStateFailed ||
-            s == RTCPeerConnectionState.RTCPeerConnectionStateClosed ||
+        } else if (s == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
+          _linkTimeout?.cancel();
+          _linkTimeout = null;
+          if (_manualStop) return;
+          if (!wasConnected && !_forceRelayIce) {
+            _forceRelayIce = true;
+            l('remote peer failed on direct ICE; retrying via TURN relay');
+            unawaited(() async {
+              await _teardownPc(keepSessionId: true);
+              if (!_manualStop && !connected.value) await start(forceRelay: true);
+            }());
+            return;
+          }
+          unawaited(_teardownPc(keepSessionId: true));
+          if (wasConnected) _scheduleReconnect();
+        } else if (s == RTCPeerConnectionState.RTCPeerConnectionStateClosed ||
             s == RTCPeerConnectionState.RTCPeerConnectionStateDisconnected) {
           final wasConnected = connected.value;
+          if (_manualStop || !wasConnected) return;
           unawaited(_teardownPc(keepSessionId: true));
-          if (wasConnected && !_manualStop) {
-            _scheduleReconnect();
-          }
+          _scheduleReconnect();
         }
       };
       _pc!.onDataChannel = (ch) {
@@ -281,6 +330,8 @@ class RemoteSession {
   }
 
   Future<void> _teardownPc({bool keepSessionId = false}) async {
+    _linkTimeout?.cancel();
+    _linkTimeout = null;
     _fpsTimer?.cancel();
     _fpsTimer = null;
     _frameCount = 0;
@@ -399,7 +450,7 @@ class RemoteSession {
       if (push.deviceIid.toInt() != deviceIid) return;
       if (sessionId != null && push.sessionId != sessionId) return;
       if (push.hasMode()) mode.value = push.mode;
-      if (push.hasWebrtcConnected()) connected.value = push.webrtcConnected;
+      // Link state comes from local RTCPeerConnection only — agent push is for mode/OTA.
       if (push.hasUpdateReady()) {
         updateReady.value = push.updateReady;
         if (push.hasUpdateVersion()) {

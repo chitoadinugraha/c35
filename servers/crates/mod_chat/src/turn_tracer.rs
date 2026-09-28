@@ -105,6 +105,32 @@ impl TurnTracer {
         const STEP: u32 = 1;
         const GROUP: &str = "prepare";
         let fed = trace.candidates.iter().filter(|c| c.fed).count();
+        if trace.tool_embed_ms > 0 || trace.tool_embed_token_in > 0 {
+            let embed_label = if trace.tool_embed_cached {
+                format!("Prompt embed · cached · {} tok", trace.tool_embed_token_in)
+            } else {
+                format!("Prompt embed · {} tok", trace.tool_embed_token_in)
+            };
+            let mut embed_meta = Self::branch_meta(STEP, "embed", GROUP, "compose_parallel");
+            if let Some(obj) = embed_meta.as_object_mut() {
+                obj.insert("topic".into(), serde_json::json!("trace_tool_embed"));
+                obj.insert("duration_ms".into(), serde_json::json!(trace.tool_embed_ms));
+                obj.insert("embed_cached".into(), serde_json::json!(trace.tool_embed_cached));
+                obj.insert("task".into(), serde_json::json!("retrieval_query"));
+            }
+            self.put(
+                "system",
+                "trace_tool_embed",
+                &embed_label,
+                embed_meta,
+                &trace.tool_embed_model,
+                trace.tool_embed_token_in,
+                0,
+                trace.tool_embed_ms as i32,
+                trace.tool_embed_cost_usd,
+            )
+            .await;
+        }
         let inst_meta = {
             let mut m = Self::branch_meta(STEP, "inst", GROUP, "compose_parallel");
             if let Some(obj) = m.as_object_mut() {
@@ -197,11 +223,11 @@ impl TurnTracer {
             "trace_memory",
             &format!("Memory Â· {} rows", trace.memory_count),
             meta,
-            "",
-            0,
+            &trace.embed_model,
+            trace.embed_token_in,
             0,
             trace.duration_ms as i32,
-            0.0,
+            trace.embed_cost_usd,
         ).await;
     }
 

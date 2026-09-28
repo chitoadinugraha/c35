@@ -17,9 +17,13 @@ Future<void> showDevicePromptSheet(BuildContext context, DevicePromptContextStor
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
+    useSafeArea: true,
     backgroundColor: _panel,
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(12))),
-    builder: (ctx) => UiDevicePromptSheet(store: store, deviceName: deviceName),
+    builder: (ctx) => Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
+      child: UiDevicePromptSheet(store: store, deviceName: deviceName),
+    ),
   );
 }
 
@@ -83,7 +87,6 @@ class _UiDevicePromptSheetState extends State<UiDevicePromptSheet> {
   @override
   Widget build(BuildContext context) {
     final store = widget.store;
-    final bottom = MediaQuery.paddingOf(context).bottom;
     final height = MediaQuery.sizeOf(context).height * 0.72;
 
     return SizedBox(
@@ -192,7 +195,6 @@ class _UiDevicePromptSheetState extends State<UiDevicePromptSheet> {
           ),
           const Divider(height: 1, color: _border),
           InDevicePromptComposer(store: store, deviceName: widget.deviceName, dense: true),
-          SizedBox(height: bottom),
         ],
       ),
     );

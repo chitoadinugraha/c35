@@ -29,6 +29,13 @@ spec:
           args:
             - -c
             - /etc/coturn/turnserver.conf
+            - --static-auth-secret=$(STATIC_AUTH_SECRET)
+          env:
+            - name: STATIC_AUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: coturn-secret
+                  key: static-auth-secret
           ports:
             - name: stun-udp
               containerPort: 3479

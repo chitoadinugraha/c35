@@ -220,7 +220,7 @@ pub fn apply_gemini_enabled(models: &mut [LlmModelRow]) {
         } else {
             let n = stable_n.entry(m.family.clone()).or_insert(0);
             *n += 1;
-            m.enabled = *n <= 8;
+            m.enabled = *n <= 4;
         }
     }
 }

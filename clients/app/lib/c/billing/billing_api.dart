@@ -76,3 +76,47 @@ Future<ResBillingPlanSubscribe> billingPlanSubscribe(
   if (!res.hasBillingPlanSubscribe()) throw 'No subscribe response';
   return res.billingPlanSubscribe;
 }
+
+Future<ResBillingPlanQuote> billingPlanQuote(
+  ReferralConn conn, {
+  required String planSlug,
+  String billingPeriod = 'monthly',
+  String currency = 'IDR',
+}) async {
+  final res = await conn.invoke(
+    InvokeReq(
+      reqId: const Uuid().v4(),
+      billingPlanQuote: ReqBillingPlanQuote(
+        planSlug: planSlug,
+        billingPeriod: billingPeriod,
+        currency: currency,
+      ),
+    ),
+    timeout: const Duration(seconds: 15),
+  );
+  invokeResThrow(res, fallback: 'Failed to load plan quote');
+  if (!res.hasBillingPlanQuote()) throw 'No plan quote response';
+  return res.billingPlanQuote;
+}
+
+Future<ResBillingPlanChange> billingPlanChange(
+  ReferralConn conn, {
+  required String planSlug,
+  String billingPeriod = 'monthly',
+  String currency = 'IDR',
+}) async {
+  final res = await conn.invoke(
+    InvokeReq(
+      reqId: const Uuid().v4(),
+      billingPlanChange: ReqBillingPlanChange(
+        planSlug: planSlug,
+        billingPeriod: billingPeriod,
+        currency: currency,
+      ),
+    ),
+    timeout: const Duration(seconds: 20),
+  );
+  invokeResThrow(res, fallback: 'Failed to change plan');
+  if (!res.hasBillingPlanChange()) throw 'No plan change response';
+  return res.billingPlanChange;
+}

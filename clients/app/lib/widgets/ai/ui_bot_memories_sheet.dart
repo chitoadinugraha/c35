@@ -34,6 +34,7 @@ class UiBotMemoriesSheet extends StatefulWidget {
         context: context,
         backgroundColor: const Color(0xFF18181B),
         isScrollControlled: true,
+        useSafeArea: true,
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
         builder: (_) => UiBotMemoriesSheet(conn: conn),
       );

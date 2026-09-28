@@ -75,9 +75,9 @@ async fn data_source_chunk_retrieve_impl(
         let dkey = embed_cache_key(&payload, EMBED_TASK_DOCUMENT, EMBED_DIMS);
         let sim = if let Ok(r) = embed_cached(pool, http, &payload, EMBED_TASK_DOCUMENT, EMBED_DIMS).await {
             cosine_similarity(&query_vec, &r.embedding)
-        } else if let Ok(v) = embed_text(http, &payload, EMBED_TASK_DOCUMENT, EMBED_DIMS).await {
-            let _ = embed_cache_put(pool, &model, &dkey, &payload, EMBED_TASK_DOCUMENT, &v, 0).await;
-            cosine_similarity(&query_vec, &v)
+        } else if let Ok(out) = embed_text(http, &payload, EMBED_TASK_DOCUMENT, EMBED_DIMS).await {
+            let _ = embed_cache_put(pool, &model, &dkey, &payload, EMBED_TASK_DOCUMENT, &out.embedding, out.token_in).await;
+            cosine_similarity(&query_vec, &out.embedding)
         } else {
             f32::NEG_INFINITY
         };

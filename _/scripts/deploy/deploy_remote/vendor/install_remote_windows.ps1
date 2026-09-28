@@ -19,7 +19,11 @@ if (-not $SkipVcRedist) {
     Install-VcRedistIfNeeded -VcRedistPath $vc -Quiet:$Quiet
 }
 
-$destExe = Install-RemoteAgentTo -SourceExe $sourceExe -InstallDir $installDir -Quiet:$Quiet
+$winfspMsi = Join-Path $root 'winfsp-2.1.25156.msi'
+Install-WinFspIfNeeded -MsiPath $winfspMsi -Quiet:$Quiet
+
+$winfspDll = Join-Path $root 'winfsp-x64.dll'
+$destExe = Install-RemoteAgentTo -SourceExe $sourceExe -InstallDir $installDir -WinfspDllPath $winfspDll -Quiet:$Quiet
 
 if (-not $Quiet) { Write-Host "==> Starting $destExe" }
 Start-Process -FilePath $destExe

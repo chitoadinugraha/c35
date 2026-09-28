@@ -261,6 +261,9 @@ message BillingTopupQueueItem {
   int64 reviewed_by_iid = 12;
   string reviewer_name = 13;
   string reviewer_pic = 14;
+  string receive_bank_id = 15;
+  string receive_account_number = 16;
+  string receive_account_name = 17;
 }
 
 message ReqBillingTopupList {
@@ -367,6 +370,58 @@ message ResBillingPlanSubscribe {
   double balance_idr = 3;
   double alien_allow_5h_limit = 4;
   double alien_allow_weekly_limit = 5;
+  string pending_plan_slug = 6;
+  int64 plan_expires_ts_ms = 7;
+  string change_kind = 8;
+}
+
+message BillingPlanQuoteLine {
+  string label = 1;
+  double amount_idr = 2;
+  bool is_credit = 3;
+  bool accent = 4;
+}
+
+message ReqBillingPlanQuote {
+  string plan_slug = 1;
+  string billing_period = 2;
+  string currency = 3;
+}
+
+message ResBillingPlanQuote {
+  string kind = 1;
+  string plan_slug = 2;
+  string billing_period = 3;
+  double charge_idr = 4;
+  double credit_idr = 5;
+  double list_price_idr = 6;
+  int64 effective_ts_ms = 7;
+  int64 plan_expires_ts_ms = 8;
+  string pending_plan_slug = 9;
+  string pending_billing_period = 10;
+  repeated BillingPlanQuoteLine lines = 11;
+  string summary = 12;
+  bool yearly_alien_bonus = 13;
+  string current_plan_slug = 14;
+  string current_billing_period = 15;
+}
+
+message ReqBillingPlanChange {
+  string plan_slug = 1;
+  string billing_period = 2;
+  string currency = 3;
+}
+
+message ResBillingPlanChange {
+  string plan_tier = 1;
+  double balance_usd = 2;
+  double balance_idr = 3;
+  double alien_allow_5h_limit = 4;
+  double alien_allow_weekly_limit = 5;
+  string pending_plan_slug = 6;
+  int64 plan_expires_ts_ms = 7;
+  string change_kind = 8;
+  string pending_billing_period = 9;
 }
 
 message ReqBillingPackageRedeem {
@@ -643,4 +698,7 @@ message ResBillingSummary {
   repeated BillingPlanDoc bot_plans = 27;
   string billing_currency = 28;
   int64 fx_micro_per_usd = 29;
+  string billing_period = 30;
+  string pending_plan_slug = 31;
+  string pending_billing_period = 32;
 }

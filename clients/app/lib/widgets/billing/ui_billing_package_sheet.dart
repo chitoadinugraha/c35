@@ -18,9 +18,13 @@ Future<void> billingPackageSheet(BuildContext context, {required ReferralConn co
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
+    useSafeArea: true,
     backgroundColor: const Color(0xFF121215),
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-    builder: (_) => _BillingPackageSheet(conn: conn),
+    builder: (ctx) => Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
+      child: _BillingPackageSheet(conn: conn),
+    ),
   );
 }
 
@@ -41,10 +45,19 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
   var _loading = true;
   var _subscribing = false;
   var _yearly = false;
+  var _quoteLoading = false;
   String? _error;
   String? _success;
   ResBillingSummary? _summary;
+  ResBillingPlanQuote? _quote;
   String? _selectedSlug;
+  Timer? _quoteDebounce;
+
+  @override
+  void dispose() {
+    _quoteDebounce?.cancel();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -66,7 +79,9 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
       setState(() {
         _summary = summary;
         _loading = false;
+        _yearly = (summary.billingPeriod.trim().toLowerCase() == 'yearly');
       });
+      _scheduleQuote();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -81,14 +96,19 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
     return billingPlanCatalogNormalize(raw.isNotEmpty ? raw : billingPlanCatalogFallback());
   }
 
-  String get _currentTier {
-    final tier = _summary?.planTier ?? AppStore.instance.planTier;
-    return billingPlanIsFree(tier) ? 'lite' : tier.trim().toLowerCase();
+  String get _activePlanSlug {
+    final tier = (_summary?.planTier ?? AppStore.instance.planTier).trim().toLowerCase();
+    return billingPlanIsFree(tier) ? 'free' : tier;
   }
 
-  String get _currency => billingPrimaryCurrency(AppStore.instance.billing ?? BillingAccount(billingCurrency: moneyDefaultCurrency));
+  String get _activeBillingPeriod => (_summary?.billingPeriod ?? 'monthly').trim().toLowerCase();
+
+  String get _selectionPeriod => _yearly ? 'yearly' : 'monthly';
+
+  bool get _selectionIsNoPlan => _selectedSlug == billingPlanNoPlanSlug;
 
   BillingPlanDoc? get _selectedPlan {
+    if (_selectionIsNoPlan) return null;
     final slug = _selectedSlug;
     if (slug == null) return null;
     for (final p in _plans) {
@@ -104,10 +124,67 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
     return null;
   }
 
+  String get _currency => billingPrimaryCurrency(AppStore.instance.billing ?? BillingAccount(billingCurrency: moneyDefaultCurrency));
+
   bool get _selectedIsCurrent {
+    if (_selectedSlug == null) return false;
+    if (_selectionIsNoPlan) {
+      final pending = (_summary?.pendingPlanSlug ?? '').trim().toLowerCase();
+      return pending == 'free' && billingPlanIsPaidTier(_activePlanSlug);
+    }
     final plan = _selectedPlan;
     if (plan == null) return false;
-    return plan.slug.trim().toLowerCase() == _currentTier;
+    return plan.slug.trim().toLowerCase() == _activePlanSlug && _selectionPeriod == _activeBillingPeriod;
+  }
+
+  void _scheduleQuote() {
+    _quoteDebounce?.cancel();
+    if (_selectedSlug == null) {
+      setState(() {
+        _quote = null;
+        _quoteLoading = false;
+      });
+      return;
+    }
+    setState(() => _quoteLoading = true);
+    _quoteDebounce = Timer(const Duration(milliseconds: 280), () => unawaited(_loadQuote()));
+  }
+
+  Future<void> _loadQuote() async {
+    final slug = _selectedSlug;
+    if (slug == null) return;
+    try {
+      final quote = await billingPlanQuote(
+        widget.conn,
+        planSlug: slug,
+        billingPeriod: _selectionPeriod,
+        currency: _currency,
+      );
+      if (!mounted || slug != _selectedSlug || _selectionPeriod != (_yearly ? 'yearly' : 'monthly')) return;
+      setState(() {
+        _quote = quote;
+        _quoteLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _quoteLoading = false);
+    }
+  }
+
+  String get _primaryButtonLabel {
+    if (_selectedSlug == null) return 'Choose a plan';
+    if (_selectedIsCurrent) return 'Current plan';
+    final kind = (_quote?.kind ?? '').trim().toLowerCase();
+    if (kind == 'same') return 'Current plan';
+    if (kind == 'upgrade') {
+      final charge = _quote?.chargeIdr ?? 0;
+      if (charge > 0 && _currency == 'IDR') return 'Pay ${billingFmtRp(charge)} (prorated)';
+      return 'Upgrade now';
+    }
+    if (kind == 'downgrade' || kind == 'cancel') return 'Schedule at period end';
+    final charge = _quote?.chargeIdr ?? 0;
+    if (charge > 0 && _currency == 'IDR') return 'Pay ${billingFmtRp(charge)} from balance';
+    return 'Confirm plan change';
   }
 
   Future<void> _redeemPackage() async {
@@ -115,27 +192,29 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
     if (mounted && redeemed) await _load(showLoading: false);
   }
 
-  Future<void> _subscribe() async {
-    final plan = _selectedPlan;
-    if (plan == null || _selectedIsCurrent || _subscribing) return;
+  Future<void> _applyPlanChange() async {
+    final slug = _selectedSlug;
+    if (slug == null || _selectedIsCurrent || _subscribing) return;
     setState(() {
       _subscribing = true;
       _error = null;
       _success = null;
     });
     try {
-      await billingPlanSubscribe(
+      await billingPlanChange(
         widget.conn,
-        planSlug: plan.slug,
-        billingPeriod: _yearly ? 'yearly' : 'monthly',
+        planSlug: slug,
+        billingPeriod: _selectionPeriod,
         currency: _currency,
       );
       if (!mounted) return;
-      setState(() => _success = 'Subscribed to ${plan.name}');
+      final label = _selectionIsNoPlan ? 'No plan scheduled' : (_selectedPlan?.name ?? slug);
+      setState(() => _success = 'Updated: $label');
       await _load();
+      _scheduleQuote();
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = uiReferralError(e, fallback: 'Subscribe failed'));
+      setState(() => _error = uiReferralError(e, fallback: 'Plan change failed'));
     } finally {
       if (mounted) setState(() => _subscribing = false);
     }
@@ -144,7 +223,6 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
   @override
   Widget build(BuildContext context) {
     final billing = AppStore.instance.billing;
-    final bottom = MediaQuery.viewInsetsOf(context).bottom;
     final maxHeight = MediaQuery.sizeOf(context).height * 0.9;
     final balanceAccount = billing ??
         (_summary != null
@@ -157,7 +235,7 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
             : null);
     final balanceLabel = balanceAccount != null ? billingWalletBalanceLabel(balanceAccount, _currency) : '';
     return Padding(
-      padding: EdgeInsets.fromLTRB(16, 12, 16, 16 + bottom),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       child: ConstrainedBox(
         constraints: BoxConstraints(maxHeight: maxHeight),
         child: Column(
@@ -216,7 +294,10 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
                   ButtonSegment(value: true, label: Text('Yearly')),
                 ],
                 selected: {_yearly},
-                onSelectionChanged: (s) => setState(() => _yearly = s.first),
+                onSelectionChanged: (s) => setState(() {
+                  _yearly = s.first;
+                  _scheduleQuote();
+                }),
                 style: ButtonStyle(
                   visualDensity: VisualDensity.compact,
                   foregroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? _text : _muted),
@@ -225,23 +306,53 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
               const SizedBox(height: 8),
               if (_success != null) Text(_success!, style: const TextStyle(color: Color(0xFF34D399), fontSize: 12)),
               if (_error != null && _summary != null) Text(_error!, style: const TextStyle(color: Color(0xFFF87171), fontSize: 12)),
+              if ((_summary?.pendingPlanSlug ?? '').trim().isNotEmpty) ...[
+                Text(
+                  _pendingPlanHint(_summary!),
+                  style: const TextStyle(color: Color(0xFFFBBF24), fontSize: 11, height: 1.35),
+                ),
+                const SizedBox(height: 6),
+              ],
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.only(top: 4, bottom: 8),
-                  children: _plans
-                      .map((plan) => _BillingPlanCard(
-                            plan: plan,
-                            litePlan: _litePlan,
-                            currency: _currency,
-                            yearly: _yearly,
-                            selected: plan.slug == _selectedSlug,
-                            isCurrent: plan.slug.trim().toLowerCase() == _currentTier,
-                            recommended: billingPlanIsRecommended(plan.slug),
-                            onTap: () => setState(() => _selectedSlug = plan.slug),
-                          ))
-                      .toList(),
+                  children: [
+                    ..._plans.map(
+                      (plan) => _BillingPlanCard(
+                        plan: plan,
+                        litePlan: _litePlan,
+                        currency: _currency,
+                        yearly: _yearly,
+                        selected: plan.slug == _selectedSlug,
+                        isCurrent: plan.slug.trim().toLowerCase() == _activePlanSlug && _activeBillingPeriod == _selectionPeriod,
+                        recommended: billingPlanIsRecommended(plan.slug),
+                        onTap: () => setState(() {
+                          _selectedSlug = plan.slug;
+                          _scheduleQuote();
+                        }),
+                      ),
+                    ),
+                    if (billingPlanIsPaidTier(_activePlanSlug) || (_summary?.pendingPlanSlug ?? '').isNotEmpty)
+                      _BillingNoPlanCard(
+                        selected: _selectionIsNoPlan,
+                        onTap: () => setState(() {
+                          _selectedSlug = billingPlanNoPlanSlug;
+                          _scheduleQuote();
+                        }),
+                      ),
+                  ],
                 ),
               ),
+              if (_quote != null && _selectedSlug != null) ...[
+                _BillingPlanQuotePanel(quote: _quote!, currency: _currency, loading: _quoteLoading),
+                const SizedBox(height: 8),
+              ] else if (_quoteLoading) ...[
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                ),
+                const SizedBox(height: 8),
+              ],
               if (balanceLabel.isNotEmpty) ...[
                 Row(
                   children: [
@@ -253,20 +364,24 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
                 const SizedBox(height: 8),
               ],
               FilledButton(
-                onPressed: _subscribing || _selectedPlan == null || _selectedIsCurrent ? null : _subscribe,
+                onPressed: _subscribing || _selectedSlug == null || _selectedIsCurrent || (_quote?.kind == 'same') ? null : _applyPlanChange,
                 child: _subscribing
                     ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                    : Text(_selectedPlan == null
-                        ? 'Choose a plan'
-                        : _selectedIsCurrent
-                            ? 'Current plan'
-                            : 'Subscribe with balance'),
+                    : Text(_primaryButtonLabel),
               ),
             ],
           ],
         ),
       ),
     );
+  }
+
+  String _pendingPlanHint(ResBillingSummary summary) {
+    final pending = summary.pendingPlanSlug.trim().toLowerCase();
+    if (pending.isEmpty) return '';
+    if (pending == 'free') return 'After this period: daily free limits (Alien AI only).';
+    final period = summary.pendingBillingPeriod.trim().isEmpty ? '' : ' (${summary.pendingBillingPeriod})';
+    return 'Scheduled change: ${billingPlanTierLabel(pending)}$period at period end.';
   }
 }
 
@@ -300,7 +415,7 @@ class _BillingPlanCard extends StatelessWidget {
     final accent = billingPlanAccentColor(plan.slug);
     final price = billingPlanPriceLabel(plan, currency: currency, yearly: yearly);
     final priceSub = billingPlanPriceSubLabel(plan, currency: currency, yearly: yearly);
-    final quotaLines = billingPlanQuotaLines(plan, litePlan: litePlan);
+    final quotaLines = billingPlanQuotaLines(plan, litePlan: litePlan, yearly: yearly);
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
@@ -367,11 +482,24 @@ class _BillingPlanCard extends StatelessWidget {
                                   )
                                 : Padding(
                                     padding: const EdgeInsets.only(bottom: 5),
-                                    child: Row(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.stretch,
                                       children: [
-                                        Expanded(child: _BillingPlanQuotaLabel(line: line, accent: accent)),
-                                        _BillingPlanQuotaValue(line: line, accent: accent),
+                                        Row(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Expanded(child: _BillingPlanQuotaLabel(line: line, accent: accent)),
+                                            _BillingPlanQuotaValue(line: line, accent: accent),
+                                          ],
+                                        ),
+                                        if (line.info != null && line.info!.trim().isNotEmpty)
+                                          Padding(
+                                            padding: const EdgeInsets.only(top: 3),
+                                            child: Text(
+                                              line.info!,
+                                              style: const TextStyle(color: _muted, fontSize: 10, height: 1.35),
+                                            ),
+                                          ),
                                       ],
                                     ),
                                   ),
@@ -395,6 +523,129 @@ class _BillingPlanCard extends StatelessWidget {
   }
 }
 
+class _BillingNoPlanCard extends StatelessWidget {
+  const _BillingNoPlanCard({required this.selected, required this.onTap});
+
+  final bool selected;
+  final VoidCallback onTap;
+
+  static const _text = Color(0xFFE4E4E7);
+  static const _muted = Color(0xFFA1A1AA);
+  static const _border = Color(0xFF27272A);
+  static const _accent = Color(0xFF71717A);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: selected ? _accent : _border, width: selected ? 1.5 : 1),
+              color: selected ? _accent.withValues(alpha: 0.06) : const Color(0xFF18181B),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('No plan', style: TextStyle(color: _text, fontWeight: FontWeight.w800, fontSize: 16)),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Cancel paid plan at period end — freemium limits after.',
+                          style: TextStyle(color: _muted, fontSize: 11, height: 1.35),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Icon(selected ? Icons.radio_button_checked : Icons.radio_button_off, color: selected ? _accent : _muted, size: 22),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BillingPlanQuotePanel extends StatelessWidget {
+  const _BillingPlanQuotePanel({required this.quote, required this.currency, required this.loading});
+
+  final ResBillingPlanQuote quote;
+  final String currency;
+  final bool loading;
+
+  static const _text = Color(0xFFE4E4E7);
+  static const _muted = Color(0xFFA1A1AA);
+  static const _border = Color(0xFF27272A);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _border),
+        color: const Color(0xFF18181B),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(quote.summary, style: const TextStyle(color: _text, fontSize: 12, height: 1.35)),
+          if (quote.lines.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            ...quote.lines.map(
+              (line) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  children: [
+                    Expanded(child: Text(line.label, style: const TextStyle(color: _muted, fontSize: 11))),
+                    Text(
+                      line.isCredit ? '−${billingFmtRp(line.amountIdr)}' : billingFmtRp(line.amountIdr),
+                      style: TextStyle(
+                        color: line.isCredit ? const Color(0xFF34D399) : _text,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+          if (quote.yearlyAlienBonus)
+            const Padding(
+              padding: EdgeInsets.only(top: 4),
+              child: Text(
+                'Yearly billing: +20% Alien AI pool, 5h, and weekly allowance.',
+                style: TextStyle(color: Color(0xFF34D399), fontSize: 10, height: 1.3),
+              ),
+            ),
+          if (loading)
+            const Padding(
+              padding: EdgeInsets.only(top: 6),
+              child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _BillingPlanQuotaLabel extends StatelessWidget {
   const _BillingPlanQuotaLabel({required this.line, required this.accent});
 
@@ -405,7 +656,7 @@ class _BillingPlanQuotaLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cmp = line.label == 'Channels' || line.label == 'Computer use' || line.label == 'Image generation' ? null : line.comparison;
+    final cmp = billingPlanQuotaLineSkipsComparison(line.label) ? null : line.comparison;
     if (cmp == null) return Text(line.label, style: const TextStyle(color: _muted, fontSize: 12, height: 1.25));
     return Text.rich(
       TextSpan(

@@ -86,6 +86,8 @@ message InvokeReq {
     ReqExpensePut expense_put = 127;
     ReqAdminPlatformPnl admin_platform_pnl = 128;
     ReqAdminOpsPeaks admin_ops_peaks = 129;
+    ReqBillingPlanQuote billing_plan_quote = 130;
+    ReqBillingPlanChange billing_plan_change = 131;
   }
 }
 
@@ -144,6 +146,8 @@ message InvokeRes {
     ResExpensePut expense_put = 127;
     ResAdminPlatformPnl admin_platform_pnl = 128;
     ResAdminOpsPeaks admin_ops_peaks = 129;
+    ResBillingPlanQuote billing_plan_quote = 130;
+    ResBillingPlanChange billing_plan_change = 131;
   }
 }
 

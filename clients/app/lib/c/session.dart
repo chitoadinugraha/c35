@@ -45,6 +45,8 @@ class Session {
   bool get isRoot => globalRoles.contains('root');
   bool get isTester => globalRoles.contains('tester');
 
+  bool get isFinanceStaff => isRoot || globalRoles.any((r) => r == 'finance' || r == 'director');
+
   static const _partnerMenuRoles = {'partner', 'finance', 'director', 'marketing'};
 
   bool get canUseMail => isRoot || globalRoles.any(_partnerMenuRoles.contains);

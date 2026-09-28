@@ -3,9 +3,10 @@ import 'package:alienai_c35/c/bot/bot_store.dart';
 import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/widgets/bots/channel_util.dart';
+import 'package:alienai_c35/widgets/bots/ui_channel_platform_icon.dart';
 import 'package:alienai_c35/widgets/bots/io_bot_delete_dialog.dart';
 import 'package:alienai_c35/widgets/ui/ui_alert.dart';
-import 'package:alienai_c35/widgets/ui/ui_menu_position.dart';
+import 'package:alienai_c35/widgets/bots/ui_bot_menu.dart';
 import 'package:alienai_c35/widgets/ui/ui_empty_state.dart';
 import 'package:alienai_c35/widgets/ui/ui_user_avatar.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -38,32 +39,12 @@ class UiBotNavList extends StatelessWidget {
     final row = store.botById(id);
     if (row == null) return;
     final canDelete = _canDelete(row);
-    final action = await showMenu<String>(
+    final action = await uiBotMenuShowAt<String>(
       context: context,
-      position: uiMenuPositionAt(context, pos),
-      color: const Color(0xFF18181B),
+      global: pos,
       items: [
-        const PopupMenuItem(
-          value: 'archive',
-          child: Row(
-            children: [
-              Icon(Icons.archive_outlined, size: 18, color: Color(0xFFA1A1AA)),
-              SizedBox(width: 10),
-              Text('Archive'),
-            ],
-          ),
-        ),
-        if (canDelete)
-          const PopupMenuItem(
-            value: 'delete',
-            child: Row(
-              children: [
-                Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)),
-                SizedBox(width: 10),
-                Text('Delete', style: TextStyle(color: Color(0xFFEF4444))),
-              ],
-            ),
-          ),
+        uiBotMenuItem(value: 'archive', icon: Icons.archive_outlined, label: 'Archive'),
+        if (canDelete) uiBotMenuItem(value: 'delete', icon: Icons.delete_outline, label: 'Delete', destructive: true),
       ],
     );
     if (action == null || !context.mounted) return;
@@ -84,7 +65,7 @@ class UiBotNavList extends StatelessWidget {
     final id = row.identity.iid.toString();
     final selected = selectedBotId == id;
     final label = row.identity.name.isNotEmpty ? row.identity.name : row.identity.alienId;
-    final icons = botChannelIcons(row.identity.metaJson);
+    final platforms = botChannelPlatforms(row.identity.metaJson);
     final active = botActiveFromMetaJson(row.identity.metaJson);
     return Material(
       key: key,
@@ -123,16 +104,12 @@ class UiBotNavList extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text('bots.statusOff'.tr(), style: const TextStyle(color: Color(0xFF52525B), fontSize: 10, fontWeight: FontWeight.w600)),
                     ],
-                    if (icons.isNotEmpty) ...[
+                    if (platforms.isNotEmpty) ...[
                       const SizedBox(height: 6),
                       Wrap(
                         spacing: 4,
                         runSpacing: 4,
-                        children: icons
-                            .map(
-                              (e) => Icon(e.$1, size: 14, color: e.$2),
-                            )
-                            .toList(),
+                        children: platforms.map((p) => UiChannelPlatformIcon(platform: p, size: 14)).toList(),
                       ),
                     ],
                   ],

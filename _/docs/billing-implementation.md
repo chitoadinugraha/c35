@@ -94,7 +94,7 @@ Keep `billing_account` read-only during dual-read; drop after Phase 3.
 | `billing_plan_price_list` | Catalog for UI by currency |
 | `billing_fx_rate_current` | Latest rate per currency |
 | `billing_topup_put` | Single `amount` + `currency` → credit wallet |
-| `billing_plan_subscribe` | Charge `billing_plan_price`; debit wallet OR direct purchase path |
+| `billing_plan_subscribe` / `billing_plan_quote` / `billing_plan_change` | Quote proration; debit wallet or schedule pending tier |
 | `billing_purchase_*` | Create / settle direct checkout |
 | `billing_turn` / `billing_usage_report` | Deduct allowance → wallet native via fx rate |
 | `billing_push` | Push wallet + profile separately |
@@ -339,18 +339,22 @@ Schema + promotions (Phase 4b) are **live on the server**. Personal usage deduct
 | `billing_pool.rs` | Pure IDR math: Alien $1.50/$7 per 1M, Frontier wholesale × 1.50 → Rp via `billing_fx_rate` |
 | `billing_profile.rs` | `billing_profile_ensure`, apply plan pools, `billing_profile_deduct_turn` (`FOR UPDATE` tx), signup trial autoclaim |
 | `billing_promotion.rs` | Admin create (`created_by_iid`), claim, limits — all transactional |
-| `billing_plan_subscribe.rs` | Debit wallet at native `billing_plan_price` row; reset profile pools from plan template |
+| `billing_plan_change.rs` | Quote + change: prorated upgrade, scheduled downgrade/cancel, yearly +20% Alien limits; `billing_plan_subscribe` wraps change |
 | `billing_package.rs` | Package redeem — transactional `FOR UPDATE` on code + account |
 | `billing_turn.rs` | Gate + `billing_usage_report` — profile pool path for personal scope; wallet overflow in IDR |
 
-### Subscribe (`billing_plan_subscribe`)
+### Plan subscribe & change (`billing_plan_change`)
 
-1. Resolve price from `billing_plan_price (plan_slug, currency, billing_period)` — default `billing_period = monthly` when empty.
-2. Debit `billing_account.balance_idr` (or USD fallback) inside a transaction with `FOR UPDATE` + held-total check.
-3. Upsert `billing_profile`: set `plan_tier`, `alien_pool_limit_idr` / `frontier_pool_limit_idr` from `billing_plan` template, zero `*_used_idr`, set `pool_period_start`.
-4. Still updates legacy `billing_account.plan_tier` + USD allowance columns (dual-write).
+1. **`billing_plan_quote`** — classifies `same` \| `subscribe` \| `upgrade` \| `downgrade` \| `cancel`; returns proration lines + `charge_idr`.
+2. **`billing_plan_change`** — applies quote: immediate tier/pools for subscribe/upgrade; sets `pending_plan_slug` / `pending_billing_period` for downgrade/cancel.
+3. Resolve price from `billing_plan_price (plan_slug, currency, billing_period)` — default `monthly` when empty.
+4. Debit wallet when `charge_idr > 0` (transaction + held-total check).
+5. Upsert `billing_profile`: pools from template; yearly applies **1.2×** on Alien pool + 5h/weekly caps only.
+6. **`billing_plan_pending_apply`** on period lapse (from `billing_plan_lapse_if_expired`).
 
-**Proto:** `ReqBillingPlanSubscribe.billing_period` — `monthly` \| `yearly`.
+**Proto:** `ReqBillingPlanQuote` / `ReqBillingPlanChange`; legacy `ReqBillingPlanSubscribe.billing_period` — `monthly` \| `yearly`.
+
+**Migration:** `_/schemas/migrations/billing_plan_change_v1.sql` — `billing_period`, `pending_*` on `billing_profile`.
 
 ### Signup trial autoclaim
 

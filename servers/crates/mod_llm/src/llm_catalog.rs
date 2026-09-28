@@ -214,7 +214,10 @@ pub async fn llm_catalog_pinned_ensure(pool: &PgPool) -> Result<()> {
 }
 
 async fn llm_catalog_seed(pool: &PgPool) -> Result<()> {
-    let pinned = crate::catalog_sync::pinned_models();
+    let pinned = crate::catalog_sync::pinned_models()
+        .into_iter()
+        .chain(crate::catalog_sync::frontier_seed_models())
+        .collect::<Vec<_>>();
     for m in pinned {
         db_retry(pool, || async {
             sqlx::query(

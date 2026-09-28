@@ -64,6 +64,9 @@ async fn main() -> anyhow::Result<()> {
             tracing::warn!("llm_catalog_pinned_ensure: {e:#}");
         }
     }
+    if let Err(e) = c35_mod_llm::llm_catalog_warm(&pool).await {
+        tracing::warn!("llm_catalog_warm: {e:#}");
+    }
 
     let prompt_worker = Arc::new(Mutex::new(None));
     tokio::spawn(boot_handlers::boot_handlers_background(

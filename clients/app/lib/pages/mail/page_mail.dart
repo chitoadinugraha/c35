@@ -515,6 +515,7 @@ class _PageMailState extends State<PageMail> {
     if (_mailboxes.isEmpty && _account == null) return;
     await showModalBottomSheet<void>(
       context: context,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -3151,6 +3152,7 @@ class _MailThreadItemCardState extends State<_MailThreadItemCard> {
     final cs = theme.colorScheme;
     showModalBottomSheet<void>(
       context: context,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -3841,6 +3843,7 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
     if (writable.length <= 1) return;
     final picked = await showModalBottomSheet<MailMailbox>(
       context: context,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -3926,6 +3929,7 @@ class _MailComposeDialogState extends State<_MailComposeDialog> {
   Future<void> _openContactPicker(BuildContext context) async {
     final picked = await showModalBottomSheet<EmailContact>(
       context: context,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),

@@ -178,7 +178,11 @@ bool agentModelChatEligible(AgentModel m) {
 
 List<AgentModel> agentModelsFromProto(List<PromptModelOption> rows) {
   if (rows.isEmpty) return const [AgentModel.alien];
-  final out = rows.map(AgentModel.fromProto).where(agentModelChatEligible).toList()..sort(agentModelSort);
+  final out = <AgentModel>[];
+  for (final r in rows) {
+    final m = AgentModel.fromProto(r);
+    if (agentModelChatEligible(m)) out.add(m);
+  }
   return out.isEmpty ? const [AgentModel.alien] : out;
 }
 

@@ -83,6 +83,22 @@ pub async fn billing_summary(pool: &PgPool, caller_iid: i64, billing_account_id:
     .flatten()
     .unwrap_or((None, None));
 
+    let profile_plan = sqlx::query(
+        r#"
+        SELECT COALESCE(NULLIF(TRIM(billing_period), ''), 'monthly') AS billing_period,
+               NULLIF(TRIM(pending_plan_slug), '') AS pending_plan_slug,
+               NULLIF(TRIM(pending_billing_period), '') AS pending_billing_period
+        FROM ai.billing_profile
+        WHERE owner_iid = $1 AND deleted_ts IS NULL
+        LIMIT 1
+        "#,
+    )
+    .bind(caller_iid)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten();
+
     ResBillingSummary {
         balance_usd: row.get("balance_usd"),
         plan_tier: row.get("plan_tier"),
@@ -113,6 +129,18 @@ pub async fn billing_summary(pool: &PgPool, caller_iid: i64, billing_account_id:
         bot_plans,
         billing_currency: row.get("billing_currency"),
         fx_micro_per_usd: crate::fx_live::fx_live_micro_per_usd(),
+        billing_period: profile_plan
+            .as_ref()
+            .map(|r| r.get::<String, _>("billing_period"))
+            .unwrap_or_else(|| "monthly".into()),
+        pending_plan_slug: profile_plan
+            .as_ref()
+            .and_then(|r| r.get::<Option<String>, _>("pending_plan_slug"))
+            .unwrap_or_default(),
+        pending_billing_period: profile_plan
+            .as_ref()
+            .and_then(|r| r.get::<Option<String>, _>("pending_billing_period"))
+            .unwrap_or_default(),
     }
 }
 
@@ -246,5 +274,8 @@ fn billing_summary_default(plans: Vec<BillingPlanDoc>, bot_plans: Vec<BillingPla
         bot_plans,
         billing_currency: "IDR".into(),
         fx_micro_per_usd: crate::fx_live::fx_live_micro_per_usd(),
+        billing_period: "monthly".into(),
+        pending_plan_slug: String::new(),
+        pending_billing_period: String::new(),
     }
 }

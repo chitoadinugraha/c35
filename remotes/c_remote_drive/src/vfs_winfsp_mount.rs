@@ -286,7 +286,7 @@ mod win_impl {
         volume_params.flush_and_purge_on_cleanup(true);
         volume_params.file_info_timeout(1000);
         let mut host: FileSystemHost<AlienVfsContext, FineGuard> = FileSystemHost::new(volume_params, context)?;
-        let _ = std::process::Command::new("subst").args([clean_drive, "/d"]).status();
+        let _ = c_remote_core::win_powershell::program_status("subst", &[clean_drive, "/d"]);
         info!("Mounting WinFsp virtual volume to {clean_drive} ...");
         host.mount(clean_drive)?;
         host.start()?;

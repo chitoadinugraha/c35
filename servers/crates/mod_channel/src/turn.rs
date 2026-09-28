@@ -86,6 +86,7 @@ pub async fn execute_channel_turn(state: Arc<AppState>, job: ChannelTurnJob) -> 
         tracing::warn!("[c35:channel] prompt_run insert failed: {e:#}");
     }
 
+    let _ = c35_mod_chat::bot_peer_typing_fanout(state.nats.as_ref(), job.owner_iid, job.chat_id, "peer", false).await;
     let _typing_guard = channel_typing_start(
         client.clone(),
         state.nats.clone(),

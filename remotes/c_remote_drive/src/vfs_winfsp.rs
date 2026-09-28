@@ -1,6 +1,5 @@
 //! WinFsp silent install + mount helpers.
 use std::path::PathBuf;
-use std::process::Command;
 use tracing::{info, warn};
 
 use crate::vfs::VfsDriveManager;
@@ -16,17 +15,28 @@ impl QuotaSnapshot {
     }
 }
 
+pub const WINFSP_DLL_NAME: &str = "winfsp-x64.dll";
+
 pub const WINFSP_MSI_URL: &str =
-    "https://github.com/winfsp/winfsp/releases/download/v2.0.23075/winfsp-2.0.23075.msi";
+    "https://github.com/winfsp/winfsp/releases/download/v2.1/winfsp-2.1.25156.msi";
+
+fn winfsp_dll_beside_exe() -> Option<PathBuf> {
+    std::env::current_exe().ok().and_then(|exe| {
+        let dll = exe.parent()?.join(WINFSP_DLL_NAME);
+        dll.exists().then_some(dll)
+    })
+}
 
 pub fn winfsp_dll_path() -> Option<PathBuf> {
-    [
-        r"C:\Program Files (x86)\WinFsp\bin\winfsp-x64.dll",
-        r"C:\Program Files\WinFsp\bin\winfsp-x64.dll",
-    ]
-    .into_iter()
-    .map(PathBuf::from)
-    .find(|p| p.exists())
+    winfsp_dll_beside_exe().or_else(|| {
+        [
+            r"C:\Program Files (x86)\WinFsp\bin\winfsp-x64.dll",
+            r"C:\Program Files\WinFsp\bin\winfsp-x64.dll",
+        ]
+        .into_iter()
+        .map(PathBuf::from)
+        .find(|p| p.exists())
+    })
 }
 
 #[cfg(target_os = "windows")]
@@ -76,9 +86,7 @@ pub fn ensure_winfsp_installed() -> anyhow::Result<()> {
         dir = dir.to_string_lossy().replace('\'', "''"),
         url = WINFSP_MSI_URL,
     );
-    let status = Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", &ps])
-        .status()?;
+    let status = c_remote_core::win_powershell::command_status(&ps)?;
     if !status.success() {
         anyhow::bail!("WinFsp silent install failed with status {status:?}");
     }
@@ -137,9 +145,7 @@ pub fn update_explorer_quota_label(vfs: &VfsDriveManager, quota: &QuotaSnapshot)
              New-Item -Path $p -Force | Out-Null; \
              Set-ItemProperty -Path $p -Name '(Default)' -Value '{label}';",
         );
-        let _ = Command::new("powershell")
-            .args(["-NoProfile", "-NonInteractive", "-Command", &ps])
-            .status();
+        let _ = c_remote_core::win_powershell::command_status(&ps);
     }
     #[cfg(not(target_os = "windows"))]
     {

@@ -33,6 +33,8 @@ const IdentityProfile$json = {
     {'1': 'location_region', '3': 12, '4': 1, '5': 9, '10': 'locationRegion'},
     {'1': 'location_country', '3': 13, '4': 1, '5': 9, '10': 'locationCountry'},
     {'1': 'location_source', '3': 14, '4': 1, '5': 9, '10': 'locationSource'},
+    {'1': 'email', '3': 15, '4': 1, '5': 9, '10': 'email'},
+    {'1': 'global_roles', '3': 16, '4': 3, '5': 9, '10': 'globalRoles'},
   ],
 };
 
@@ -45,7 +47,8 @@ final $typed_data.Uint8List identityProfileDescriptor = $convert.base64Decode(
     'b3QYCiABKAhSBmlzUm9vdBIjCg1sb2NhdGlvbl9jaXR5GAsgASgJUgxsb2NhdGlvbkNpdHkSJw'
     'oPbG9jYXRpb25fcmVnaW9uGAwgASgJUg5sb2NhdGlvblJlZ2lvbhIpChBsb2NhdGlvbl9jb3Vu'
     'dHJ5GA0gASgJUg9sb2NhdGlvbkNvdW50cnkSJwoPbG9jYXRpb25fc291cmNlGA4gASgJUg5sb2'
-    'NhdGlvblNvdXJjZQ==');
+    'NhdGlvblNvdXJjZRIUCgVlbWFpbBgPIAEoCVIFZW1haWwSIQoMZ2xvYmFsX3JvbGVzGBAgAygJ'
+    'UgtnbG9iYWxSb2xlcw==');
 
 @$core.Deprecated('Use navCountsDescriptor instead')
 const NavCounts$json = {

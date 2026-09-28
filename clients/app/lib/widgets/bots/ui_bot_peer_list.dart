@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alienai_c35/c/bot/bot_meta.dart';
 import 'package:alienai_c35/c/bot/bot_store.dart';
 import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
@@ -6,7 +8,8 @@ import 'package:alienai_c35/widgets/bots/io_bot_delete_dialog.dart';
 import 'package:alienai_c35/widgets/bots/ui_bot_peer_row.dart';
 import 'package:alienai_c35/c/pb/c35/chat.pb.dart';
 import 'package:alienai_c35/widgets/ui/ui_alert.dart';
-import 'package:alienai_c35/widgets/ui/ui_menu_position.dart';
+import 'package:alienai_c35/widgets/bots/ui_bot_menu.dart';
+import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
@@ -27,8 +30,7 @@ class UiBotPeerHeaderActions extends StatelessWidget {
     } catch (_) {}
   }
 
-  Future<void> _headerMenuSelected(BuildContext context, String? action, IdentityListRow bot, String botId) async {
-    if (action == null || !context.mounted) return;
+  Future<void> _headerMenuSelected(BuildContext context, String action, IdentityListRow bot, String botId) async {
     try {
       switch (action) {
         case 'new_chat':
@@ -41,6 +43,20 @@ class UiBotPeerHeaderActions extends StatelessWidget {
     } catch (e) {
       if (context.mounted) await uiAlertError(context, e);
     }
+  }
+
+  Future<void> _openHeaderMenu(BuildContext context, RenderBox anchor, IdentityListRow bot, String botId) async {
+    final action = await uiBotMenuShowBelow<String>(
+      context: context,
+      anchor: anchor,
+      items: [
+        uiBotMenuItem(value: 'new_chat', icon: Icons.add_comment_outlined, label: 'bots.menuNewChat'.tr()),
+        uiBotMenuItem(value: 'configure', icon: Icons.settings_outlined, label: 'bots.menuConfigure'.tr()),
+        if (_botCanDelete(bot)) uiBotMenuItem(value: 'delete', icon: Icons.delete_outline, label: 'bots.menuDelete'.tr(), destructive: true),
+      ],
+    );
+    if (action == null || !context.mounted) return;
+    await _headerMenuSelected(context, action, bot, botId);
   }
 
   @override
@@ -67,46 +83,20 @@ class UiBotPeerHeaderActions extends StatelessWidget {
                   activeThumbColor: _accent,
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-              PopupMenuButton<String>(
-                tooltip: 'bots.menuTooltip'.tr(),
-                enabled: !activeBusy,
-                padding: EdgeInsets.zero,
-                icon: const Icon(Icons.more_vert, color: _muted, size: 20),
-                color: const Color(0xFF18181B),
-                onSelected: (v) => _headerMenuSelected(context, v, bot, botId),
-                itemBuilder: (_) => [
-                  PopupMenuItem(
-                    value: 'new_chat',
-                    child: Row(
-                      children: [
-                        const Icon(Icons.add_comment_outlined, size: 18, color: Color(0xFFA1A1AA)),
-                        const SizedBox(width: 10),
-                        Text('bots.menuNewChat'.tr()),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'configure',
-                    child: Row(
-                      children: [
-                        const Icon(Icons.settings_outlined, size: 18, color: Color(0xFFA1A1AA)),
-                        const SizedBox(width: 10),
-                        Text('bots.menuConfigure'.tr()),
-                      ],
-                    ),
-                  ),
-                  if (_botCanDelete(bot))
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)),
-                          const SizedBox(width: 10),
-                          Text('bots.menuDelete'.tr(), style: const TextStyle(color: Color(0xFFEF4444))),
-                        ],
-                      ),
-                    ),
-                ],
+              Builder(
+                builder: (btnCtx) => uiIconButton(
+                  tooltip: 'bots.menuTooltip'.tr(),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  icon: const Icon(Icons.more_vert, color: _muted, size: 20),
+                  onPressed: activeBusy
+                      ? null
+                      : () {
+                          final box = btnCtx.findRenderObject() as RenderBox?;
+                          if (box == null || !box.hasSize) return;
+                          unawaited(_openHeaderMenu(btnCtx, box, bot, botId));
+                        },
+                ),
               ),
             ],
           );
@@ -156,21 +146,11 @@ class UiBotPeerList extends StatelessWidget {
   }
 
   Future<void> _peerChatMenu(BuildContext context, Chat peer, Offset pos) async {
-    final action = await showMenu<String>(
+    final action = await uiBotMenuShowAt<String>(
       context: context,
-      position: uiMenuPositionAt(context, pos),
-      color: const Color(0xFF18181B),
+      global: pos,
       items: [
-        PopupMenuItem(
-          value: 'delete',
-          child: Row(
-            children: [
-              const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)),
-              const SizedBox(width: 10),
-              Text('common.delete'.tr(), style: const TextStyle(color: Color(0xFFEF4444))),
-            ],
-          ),
-        ),
+        uiBotMenuItem(value: 'delete', icon: Icons.delete_outline, label: 'common.delete'.tr(), destructive: true),
       ],
     );
     if (action == 'delete' && context.mounted) await _deletePeerChatConfirm(context, peer);

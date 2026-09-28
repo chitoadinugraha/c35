@@ -1,6 +1,7 @@
 import 'package:alienai_c35/c/bot/bot_meta.dart' show kBotAppChannelId;
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/widgets/bots/channel_util.dart';
+import 'package:alienai_c35/widgets/bots/ui_channel_platform_icon.dart';
 import 'package:alienai_c35/widgets/ui/ui_user_avatar.dart';
 import 'package:flutter/material.dart';
 
@@ -54,7 +55,9 @@ class UiBotPeerAvatar extends StatelessWidget {
                     shape: BoxShape.circle,
                     border: Border.all(color: platform == kBotAppChannelId ? const Color(0xFF3F3F46) : _badgeBorder, width: 1.5),
                   ),
-                  child: Icon(vis.icon, size: badge * 0.58, color: platform == kBotAppChannelId ? const Color(0xFFE4E4E7) : Colors.white),
+                  child: platform == kBotAppChannelId
+                      ? Icon(vis.icon, size: badge * 0.58, color: const Color(0xFFE4E4E7))
+                      : UiChannelPlatformIcon(platform: platform, size: badge * 0.58),
                 ),
               ),
             ),

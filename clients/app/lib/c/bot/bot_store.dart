@@ -17,6 +17,14 @@ import 'package:alienai_c35/widgets/bots/in_bot_create.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/material.dart';
 
+String botChatMsgSource(ChatMsg m) => switch (m.source) {
+      ChatMsgSource.CHAT_MSG_SOURCE_STAFF => 'staff',
+      ChatMsgSource.CHAT_MSG_SOURCE_PROMPT => 'prompt',
+      ChatMsgSource.CHAT_MSG_SOURCE_USER => 'user',
+      ChatMsgSource.CHAT_MSG_SOURCE_EXTERNAL => 'external',
+      _ => '',
+    };
+
 String botPeerTimeLabel(Int64 tsMs) {
   final ms = tsMs.toInt();
   if (ms <= 0) return '';
@@ -47,6 +55,7 @@ class BotStore extends ChangeNotifier {
   final _peers = <Chat>[];
   final _msgs = <int, List<MsgRow>>{};
   final _typingParty = <int, String>{};
+  final _typingTimers = <int, Timer>{};
   String? _selectedBotId;
   String? _selectedChatId;
   String? _botActiveBusyId;
@@ -63,10 +72,16 @@ class BotStore extends ChangeNotifier {
   bool chatTypingActive(String? chatId) => chatTypingParty(chatId) != null;
 
   void _typingPut(int chatId, String? party) {
+    _typingTimers.remove(chatId)?.cancel();
     if (party == null || party.isEmpty) {
       _typingParty.remove(chatId);
     } else {
       _typingParty[chatId] = party;
+      _typingTimers[chatId] = Timer(const Duration(seconds: 6), () {
+        _typingTimers.remove(chatId);
+        _typingParty.remove(chatId);
+        notifyListeners();
+      });
     }
     notifyListeners();
   }
@@ -147,6 +162,11 @@ class BotStore extends ChangeNotifier {
   void detach() {
     unawaited(_syncSub?.cancel());
     _syncSub = null;
+    for (final timer in _typingTimers.values) {
+      timer.cancel();
+    }
+    _typingTimers.clear();
+    _typingParty.clear();
   }
 
   void _onSyncPush(SyncPush push) {
@@ -171,12 +191,7 @@ class BotStore extends ChangeNotifier {
       final t = push.chatTyping;
       final cid = t.chatId.toInt();
       if (cid <= 0) return;
-      if (t.active && t.party.isNotEmpty) {
-        _typingParty[cid] = t.party;
-      } else {
-        _typingParty.remove(cid);
-      }
-      notifyListeners();
+      _typingPut(cid, t.active && t.party.isNotEmpty ? t.party : null);
     }
     if (push.hasChatMember()) {
       final m = push.chatMember;
@@ -213,6 +228,7 @@ class BotStore extends ChangeNotifier {
       costUsd: m.costUsd,
       model: peer?.model ?? '',
       createdAtMs: m.createdTsMs.toInt(),
+      source: botChatMsgSource(m),
     );
     final list = _msgs.putIfAbsent(row.chatId, () => []);
     final i = list.indexWhere((x) => x.id == row.id);
@@ -222,7 +238,7 @@ class BotStore extends ChangeNotifier {
       list.add(row);
       list.sort((a, b) => a.id.compareTo(b.id));
     }
-    if (row.role == 'assistant') _typingParty.remove(row.chatId);
+    if (row.role == 'assistant') _typingPut(row.chatId, null);
     if (peer != null) {
       if (m.content.isNotEmpty) {
         peer.lastMsgPreview = m.content.length > 120 ? '${m.content.substring(0, 120)}…' : m.content;
@@ -417,6 +433,7 @@ class BotStore extends ChangeNotifier {
           costUsd: m.costUsd,
           model: peerById(chatId)?.model ?? '',
           createdAtMs: m.createdTsMs.toInt(),
+          source: botChatMsgSource(m),
         ));
       }
       list.sort((a, b) => a.id.compareTo(b.id));

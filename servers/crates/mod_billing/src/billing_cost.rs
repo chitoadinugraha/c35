@@ -40,6 +40,14 @@ pub fn billing_cost_usd(model: &str, tokens_in: i32, tokens_out: i32) -> f64 {
     billing_to_retail_usd(billing_cost_wholesale_usd(model, tokens_in, tokens_out))
 }
 
+/// Embed input retail — charged on cache hit too (avoid cost/timing oracles).
+pub fn billing_embed_cost_usd(model: &str, token_in: i32) -> f64 {
+    if token_in <= 0 {
+        return 0.0;
+    }
+    billing_cost_usd(model, token_in, 0)
+}
+
 pub fn image_tool_wholesale_usd(quality: &str, provider_model: &str) -> f64 {
     let q = quality.trim().to_ascii_lowercase();
     let p = provider_model.trim().to_ascii_lowercase();
@@ -97,6 +105,14 @@ mod tests {
         assert_eq!(image_tool_wholesale_usd("draft", "imagen-3.0-generate-002"), 0.035);
         assert_eq!(image_tool_wholesale_usd("draft", "xai/grok-imagine-image"), 0.02);
         assert_eq!(image_tool_wholesale_usd("hd", "xai/grok-imagine-image-2.0"), 0.04);
+    }
+
+    #[test]
+    fn embed_billing_same_on_cache_hit() {
+        let model = "gemini-embedding-2@768";
+        let cost = billing_embed_cost_usd(model, 100);
+        assert!(cost > 0.0);
+        assert_eq!(cost, billing_embed_cost_usd(model, 100));
     }
 
     #[test]

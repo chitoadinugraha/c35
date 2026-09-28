@@ -1,7 +1,11 @@
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
-use c35_mod_llm::{embed_cache_key, embed_cached, embed_cache_put, embed_text, EMBED_TASK_DOCUMENT, EMBED_TASK_QUERY};
+use c35_mod_billing::billing_embed_cost_usd;
+use c35_mod_llm::{
+    embed_cache_key, embed_cached, embed_cache_put, embed_model_tag, embed_text, EMBED_MODEL, EMBED_TASK_DOCUMENT,
+    EMBED_TASK_QUERY,
+};
 use c35_store::snowflake_id;
 use reqwest::Client;
 use sqlx::PgPool;
@@ -18,6 +22,9 @@ pub struct MemoryRetrieveTrace {
     pub embed_ms: i64,
     pub embed_cached: bool,
     pub embed_skipped: bool,
+    pub embed_token_in: i32,
+    pub embed_cost_usd: f64,
+    pub embed_model: String,
 }
 
 pub struct MemoryRetrieveResult {
@@ -176,11 +183,14 @@ async fn memory_retrieve_impl(
     }
 
     let embed_t0 = Instant::now();
-    let model = c35_mod_llm::embed_model_tag("gemini-embedding-2", EMBED_DIMS);
+    let model = embed_model_tag(EMBED_MODEL, EMBED_DIMS);
+    trace.embed_model = model.clone();
     let query_vec = match embed_cached(pool, http, q, EMBED_TASK_QUERY, EMBED_DIMS).await {
         Ok(r) => {
             trace.embed_cached = r.cached;
             trace.embed_ms = embed_t0.elapsed().as_millis() as i64;
+            trace.embed_token_in = r.token_in;
+            trace.embed_cost_usd = billing_embed_cost_usd(&model, r.token_in);
             r.embedding
         }
         Err(_) => {
@@ -197,9 +207,9 @@ async fn memory_retrieve_impl(
         let dkey = embed_cache_key(&payload, EMBED_TASK_DOCUMENT, EMBED_DIMS);
         let doc_vec = if let Ok(r) = embed_cached(pool, http, &payload, EMBED_TASK_DOCUMENT, EMBED_DIMS).await {
             r.embedding
-        } else if let Ok(v) = embed_text(http, &payload, EMBED_TASK_DOCUMENT, EMBED_DIMS).await {
-            let _ = embed_cache_put(pool, &model, &dkey, &payload, EMBED_TASK_DOCUMENT, &v, 0).await;
-            v
+        } else if let Ok(out) = embed_text(http, &payload, EMBED_TASK_DOCUMENT, EMBED_DIMS).await {
+            let _ = embed_cache_put(pool, &model, &dkey, &payload, EMBED_TASK_DOCUMENT, &out.embedding, out.token_in).await;
+            out.embedding
         } else {
             continue;
         };

@@ -10,6 +10,9 @@ pub fn price_for_model_id(model: &str) -> Option<(i64, i64)> {
     if let Some((in_ppm, out_ppm)) = exact_price(&m) {
         return Some((in_ppm, out_ppm));
     }
+    if m.contains("embedding") {
+        return Some((150_000, 0));
+    }
     if m.contains("flash-lite") || m.contains("flash_lite") {
         return Some((75_000, 300_000));
     }

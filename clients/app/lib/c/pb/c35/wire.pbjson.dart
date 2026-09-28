@@ -471,6 +471,24 @@ const InvokeReq$json = {
       '9': 0,
       '10': 'adminOpsPeaks'
     },
+    {
+      '1': 'billing_plan_quote',
+      '3': 130,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqBillingPlanQuote',
+      '9': 0,
+      '10': 'billingPlanQuote'
+    },
+    {
+      '1': 'billing_plan_change',
+      '3': 131,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqBillingPlanChange',
+      '9': 0,
+      '10': 'billingPlanChange'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -547,7 +565,10 @@ final $typed_data.Uint8List invokeReqDescriptor = $convert.base64Decode(
     'JlcG9ydBI1CgtleHBlbnNlX3B1dBh/IAEoCzISLmMzNS5SZXFFeHBlbnNlUHV0SABSCmV4cGVu'
     'c2VQdXQSSQoSYWRtaW5fcGxhdGZvcm1fcG5sGIABIAEoCzIYLmMzNS5SZXFBZG1pblBsYXRmb3'
     'JtUG5sSABSEGFkbWluUGxhdGZvcm1QbmwSQAoPYWRtaW5fb3BzX3BlYWtzGIEBIAEoCzIVLmMz'
-    'NS5SZXFBZG1pbk9wc1BlYWtzSABSDWFkbWluT3BzUGVha3NCBgoEYm9keQ==');
+    'NS5SZXFBZG1pbk9wc1BlYWtzSABSDWFkbWluT3BzUGVha3MSSQoSYmlsbGluZ19wbGFuX3F1b3'
+    'RlGIIBIAEoCzIYLmMzNS5SZXFCaWxsaW5nUGxhblF1b3RlSABSEGJpbGxpbmdQbGFuUXVvdGUS'
+    'TAoTYmlsbGluZ19wbGFuX2NoYW5nZRiDASABKAsyGS5jMzUuUmVxQmlsbGluZ1BsYW5DaGFuZ2'
+    'VIAFIRYmlsbGluZ1BsYW5DaGFuZ2VCBgoEYm9keQ==');
 
 @$core.Deprecated('Use invokeResDescriptor instead')
 const InvokeRes$json = {
@@ -997,6 +1018,24 @@ const InvokeRes$json = {
       '9': 0,
       '10': 'adminOpsPeaks'
     },
+    {
+      '1': 'billing_plan_quote',
+      '3': 130,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResBillingPlanQuote',
+      '9': 0,
+      '10': 'billingPlanQuote'
+    },
+    {
+      '1': 'billing_plan_change',
+      '3': 131,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResBillingPlanChange',
+      '9': 0,
+      '10': 'billingPlanChange'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -1072,7 +1111,10 @@ final $typed_data.Uint8List invokeResDescriptor = $convert.base64Decode(
     'AFIOYWRtaW5Mb2dSZXBvcnQSNQoLZXhwZW5zZV9wdXQYfyABKAsyEi5jMzUuUmVzRXhwZW5zZV'
     'B1dEgAUgpleHBlbnNlUHV0EkkKEmFkbWluX3BsYXRmb3JtX3BubBiAASABKAsyGC5jMzUuUmVz'
     'QWRtaW5QbGF0Zm9ybVBubEgAUhBhZG1pblBsYXRmb3JtUG5sEkAKD2FkbWluX29wc19wZWFrcx'
-    'iBASABKAsyFS5jMzUuUmVzQWRtaW5PcHNQZWFrc0gAUg1hZG1pbk9wc1BlYWtzQgYKBGJvZHk=');
+    'iBASABKAsyFS5jMzUuUmVzQWRtaW5PcHNQZWFrc0gAUg1hZG1pbk9wc1BlYWtzEkkKEmJpbGxp'
+    'bmdfcGxhbl9xdW90ZRiCASABKAsyGC5jMzUuUmVzQmlsbGluZ1BsYW5RdW90ZUgAUhBiaWxsaW'
+    '5nUGxhblF1b3RlEkwKE2JpbGxpbmdfcGxhbl9jaGFuZ2UYgwEgASgLMhkuYzM1LlJlc0JpbGxp'
+    'bmdQbGFuQ2hhbmdlSABSEWJpbGxpbmdQbGFuQ2hhbmdlQgYKBGJvZHk=');
 
 @$core.Deprecated('Use wsReqDescriptor instead')
 const WsReq$json = {

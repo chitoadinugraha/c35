@@ -1,6 +1,7 @@
 import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/pb/c35/channel.pb.dart';
 import 'package:alienai_c35/widgets/bots/channel_util.dart';
+import 'package:alienai_c35/widgets/bots/ui_channel_platform_icon.dart';
 import 'package:alienai_c35/widgets/bots/io_google_asset_connect.dart';
 import 'package:alienai_c35/widgets/io/ask_confirm.dart';
 import 'package:alienai_c35/widgets/ui/io_ask_items.dart';
@@ -156,7 +157,7 @@ class IoChannelRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (label, icon, accent) = channelDisplay(channel);
+    final (label, _, accent) = channelDisplay(channel);
     final status = channel.status.isNotEmpty ? channel.status : 'pending';
     return Container(
       padding: const EdgeInsets.fromLTRB(10, 8, 6, 8),
@@ -167,7 +168,7 @@ class IoChannelRow extends StatelessWidget {
             width: 32,
             height: 32,
             decoration: BoxDecoration(color: accent.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(8)),
-            child: Icon(icon, size: 16, color: accent),
+            child: UiChannelPlatformIcon(platform: channel.platform, size: 16, accent: accent),
           ),
           const SizedBox(width: 10),
           Expanded(

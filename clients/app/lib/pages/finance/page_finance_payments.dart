@@ -38,7 +38,6 @@ class PageFinancePayments extends StatefulWidget {
 
 class _PageFinancePaymentsState extends State<PageFinancePayments> {
   static const _bg = Color(0xFF08080A);
-  static const _card = Color(0xFF18181B);
   static const _text = Color(0xFFF4F4F5);
   static const _muted = Color(0xFFA1A1AA);
 
@@ -49,6 +48,7 @@ class _PageFinancePaymentsState extends State<PageFinancePayments> {
   List<CommissionWithdrawQueueItem> _pendingWithdraws = [];
   List<BillingTopupQueueItem> _historyTopups = [];
   List<CommissionWithdrawQueueItem> _historyWithdraws = [];
+  BillingReceiveAccount? _defaultReceiveAccount;
   var _query = '';
   late final _searchCtrl = TextEditingController();
 
@@ -74,12 +74,18 @@ class _PageFinancePaymentsState extends State<PageFinancePayments> {
       final pendingWithdraws = await financeWithdrawList(widget.conn, status: 'pending');
       final historyTopups = await financeTopupList(widget.conn, status: 'history');
       final historyWithdraws = await financeWithdrawList(widget.conn, status: 'history');
+      BillingReceiveAccount? defaultReceive;
+      try {
+        final accounts = await financeReceiveAccountList(widget.conn, activeOnly: true);
+        if (accounts.isNotEmpty) defaultReceive = accounts.firstWhere((a) => a.isDefault, orElse: () => accounts.first);
+      } catch (_) {}
       if (!mounted) return;
       setState(() {
         _pendingTopups = pendingTopups;
         _pendingWithdraws = pendingWithdraws;
         _historyTopups = historyTopups;
         _historyWithdraws = historyWithdraws;
+        _defaultReceiveAccount = defaultReceive;
         _loading = false;
       });
     } catch (e) {
@@ -127,172 +133,22 @@ class _PageFinancePaymentsState extends State<PageFinancePayments> {
     if (changed == true) await _load();
   }
 
-  Future<bool?> _showTopupReviewDialog(BillingTopupQueueItem request) async {
-    final reasonCtrl = TextEditingController();
-    return showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: _card,
-        title: const Text('Review deposit', style: TextStyle(color: _text)),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(request.userName, style: const TextStyle(color: _text, fontWeight: FontWeight.w600)),
-              if (request.userHandle.isNotEmpty) Text(request.userHandle, style: const TextStyle(color: _muted, fontSize: 12)),
-              const SizedBox(height: 12),
-              Text(moneyFmtIdr(request.amountIdr), style: const TextStyle(color: Color(0xFFD97706), fontSize: 18, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 12),
-              if (request.proofUrl.isNotEmpty)
-                InkWell(
-                  onTap: () => showDialog(
-                    context: ctx,
-                    builder: (_) => Dialog(backgroundColor: _bg, child: InteractiveViewer(child: Image.network(request.proofUrl, fit: BoxFit.contain))),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(request.proofUrl, height: 160, width: double.infinity, fit: BoxFit.cover),
-                  ),
-                ),
-              if (widget.canReview) ...[
-                const SizedBox(height: 12),
-                TextField(
-                  controller: reasonCtrl,
-                  style: const TextStyle(color: _text),
-                  decoration: UiInputDecoration.of(ctx, hintText: 'Reason (optional for reject)'),
-                ),
-              ],
-            ],
-          ),
+  Future<bool?> _showTopupReviewDialog(BillingTopupQueueItem request) => showDialog<bool>(
+        context: context,
+        useRootNavigator: true,
+        builder: (ctx) => _TopupReviewDialog(
+          conn: widget.conn,
+          request: request,
+          canReview: widget.canReview,
+          defaultReceive: _defaultReceiveAccount,
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
-          if (widget.canReview) ...[
-            TextButton(
-              onPressed: () async {
-                try {
-                  await financeTopupReview(widget.conn, requestId: request.requestId.toInt(), action: 'reject', reason: reasonCtrl.text);
-                  if (ctx.mounted) Navigator.pop(ctx, true);
-                } catch (e) {
-                  if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(uiFriendlyError(e, fallback: 'Reject failed.'))));
-                }
-              },
-              child: const Text('Reject', style: TextStyle(color: Color(0xFFEF4444))),
-            ),
-            FilledButton(
-              onPressed: () async {
-                try {
-                  await financeTopupReview(widget.conn, requestId: request.requestId.toInt(), action: 'approve');
-                  if (ctx.mounted) Navigator.pop(ctx, true);
-                } catch (e) {
-                  if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(uiFriendlyError(e, fallback: 'Approve failed.'))));
-                }
-              },
-              child: const Text('Approve'),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
+      );
 
-  Future<bool?> _showWithdrawReviewDialog(CommissionWithdrawQueueItem request) async {
-    final reasonCtrl = TextEditingController();
-    Uint8List? proofBytes;
-    var proofMime = 'image/jpeg';
-    var uploading = false;
-
-    return showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDlg) => AlertDialog(
-          backgroundColor: _card,
-          title: const Text('Review withdrawal', style: TextStyle(color: _text)),
-          content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(request.userName, style: const TextStyle(color: _text, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                Text(moneyFmtIdr(request.amountIdr), style: const TextStyle(color: Color(0xFF34D399), fontSize: 18, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 8),
-                Text('${request.bankShortName} · ${request.accountNumber}', style: const TextStyle(color: _muted, fontSize: 12)),
-                Text(request.accountName, style: const TextStyle(color: _muted, fontSize: 12)),
-                if (widget.canReview) ...[
-                  const SizedBox(height: 12),
-                  OutlinedButton.icon(
-                    onPressed: uploading
-                        ? null
-                        : () async {
-                            final picked = await askMedia(context: ctx, types: const [MediaType.image], allowMultiple: false);
-                            if (picked == null || picked.isEmpty) return;
-                            setDlg(() {
-                              proofBytes = picked.first.bytes;
-                              proofMime = picked.first.mime;
-                            });
-                          },
-                    icon: Icon(proofBytes == null ? Icons.upload_file : Icons.check_circle, size: 16),
-                    label: Text(proofBytes == null ? 'Upload transfer proof' : 'Proof selected'),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: reasonCtrl,
-                    style: const TextStyle(color: _text),
-                    decoration: UiInputDecoration.of(ctx, hintText: 'Reason (optional for decline)'),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
-            if (widget.canReview) ...[
-              TextButton(
-                onPressed: () async {
-                  try {
-                    await financeWithdrawReview(widget.conn, requestId: request.requestId.toInt(), action: 'decline', reason: reasonCtrl.text);
-                    if (ctx.mounted) Navigator.pop(ctx, true);
-                  } catch (e) {
-                    if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(uiFriendlyError(e, fallback: 'Decline failed.'))));
-                  }
-                },
-                child: const Text('Decline', style: TextStyle(color: Color(0xFFEF4444))),
-              ),
-              FilledButton(
-                onPressed: uploading
-                    ? null
-                    : () async {
-                        if (proofBytes == null) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Upload transfer proof to approve.')));
-                          return;
-                        }
-                        setDlg(() => uploading = true);
-                        try {
-                          final uploaded = await casUpload(bytes: proofBytes!, mime: proofMime, name: 'withdraw-proof.jpg');
-                          if (uploaded == null || uploaded.url.isEmpty) throw Exception('Upload unavailable');
-                          await financeWithdrawReview(
-                            widget.conn,
-                            requestId: request.requestId.toInt(),
-                            action: 'approve',
-                            transferProofUrl: uploaded.url,
-                          );
-                          if (ctx.mounted) Navigator.pop(ctx, true);
-                        } catch (e) {
-                          if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(uiFriendlyError(e, fallback: 'Approve failed.'))));
-                        } finally {
-                          if (ctx.mounted) setDlg(() => uploading = false);
-                        }
-                      },
-                child: uploading ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Approve'),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
+  Future<bool?> _showWithdrawReviewDialog(CommissionWithdrawQueueItem request) => showDialog<bool>(
+        context: context,
+        useRootNavigator: true,
+        builder: (ctx) => _WithdrawReviewDialog(conn: widget.conn, request: request, canReview: widget.canReview),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -309,13 +165,13 @@ class _PageFinancePaymentsState extends State<PageFinancePayments> {
       appBar: AppBar(
         backgroundColor: _bg,
         foregroundColor: _text,
-        title: Row(
-          children: [
-            const Text('Payments'),
-            if (pendingCount > 0) ...[const SizedBox(width: 8), Badge(label: Text('$pendingCount'))],
-          ],
-        ),
-        actions: [IconButton(onPressed: _load, icon: const Icon(Icons.refresh))],
+        title: pendingCount > 0
+            ? Badge(
+                label: Text('$pendingCount'),
+                child: const Text('Payments'),
+              )
+            : const Text('Payments'),
+        actions: [IconButton(onPressed: _load, tooltip: '', icon: const Icon(Icons.refresh))],
       ),
       body: Column(
         children: [
@@ -368,6 +224,275 @@ class _PageFinancePaymentsState extends State<PageFinancePayments> {
                 onTap: _section == _PaymentsSection.pending ? () => _openPending(items[i]) : null,
               ),
             ),
+    );
+  }
+}
+
+class _TopupReviewDialog extends StatefulWidget {
+  const _TopupReviewDialog({required this.conn, required this.request, required this.canReview, this.defaultReceive});
+
+  final ReferralConn conn;
+  final BillingTopupQueueItem request;
+  final bool canReview;
+  final BillingReceiveAccount? defaultReceive;
+
+  @override
+  State<_TopupReviewDialog> createState() => _TopupReviewDialogState();
+}
+
+class _TopupReviewDialogState extends State<_TopupReviewDialog> {
+  static const _bg = Color(0xFF08080A);
+  static const _card = Color(0xFF18181B);
+  static const _text = Color(0xFFF4F4F5);
+  static const _muted = Color(0xFFA1A1AA);
+
+  late final _reasonCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _reasonCtrl.dispose();
+    super.dispose();
+  }
+
+  double _contentWidth(BuildContext ctx) {
+    final w = MediaQuery.sizeOf(ctx).width;
+    return w > 520 ? 420 : w - 48;
+  }
+
+  ({String bankId, String accountNumber, String accountName}) _receiveAccount() {
+    final r = widget.request;
+    if (r.receiveBankId.isNotEmpty || r.receiveAccountNumber.isNotEmpty) {
+      return (bankId: r.receiveBankId, accountNumber: r.receiveAccountNumber, accountName: r.receiveAccountName);
+    }
+    final d = widget.defaultReceive;
+    if (d != null) return (bankId: d.bankId, accountNumber: d.accountNumber, accountName: d.accountName);
+    return (bankId: '', accountNumber: '', accountName: '');
+  }
+
+  void _openProof(String proofUrl) => Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          fullscreenDialog: true,
+          builder: (vctx) => Scaffold(
+            backgroundColor: _bg,
+            appBar: AppBar(backgroundColor: _bg, foregroundColor: _text, title: const Text('Transfer proof')),
+            body: Center(child: InteractiveViewer(child: Image.network(proofUrl, fit: BoxFit.contain))),
+          ),
+        ),
+      );
+
+  Widget _receiveBox(({String bankId, String accountNumber, String accountName}) acct) {
+    if (acct.bankId.isEmpty && acct.accountNumber.isEmpty) return const SizedBox.shrink();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: const Color(0xFF1A1A1E), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFF27272A))),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Transfer to', style: TextStyle(color: _muted, fontSize: 11, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          Text('${acct.bankId} · ${acct.accountNumber}', style: const TextStyle(color: _text, fontSize: 13, fontWeight: FontWeight.w600)),
+          if (acct.accountName.isNotEmpty) Text(acct.accountName, style: const TextStyle(color: _muted, fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final request = widget.request;
+    final acct = _receiveAccount();
+    return AlertDialog(
+      backgroundColor: _card,
+      title: const Text('Review deposit', style: TextStyle(color: _text)),
+      content: SizedBox(
+        width: _contentWidth(context),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(request.userName, style: const TextStyle(color: _text, fontWeight: FontWeight.w600)),
+              if (request.userHandle.isNotEmpty) Text(request.userHandle, style: const TextStyle(color: _muted, fontSize: 12)),
+              const SizedBox(height: 12),
+              Text(moneyFmtIdr(request.amountIdr), style: const TextStyle(color: Color(0xFFD97706), fontSize: 18, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 12),
+              _receiveBox(acct),
+              if (request.proofUrl.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                InkWell(
+                  onTap: () => _openProof(request.proofUrl),
+                  borderRadius: BorderRadius.circular(8),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: AspectRatio(aspectRatio: 16 / 9, child: Image.network(request.proofUrl, fit: BoxFit.cover)),
+                  ),
+                ),
+              ],
+              if (widget.canReview) ...[
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _reasonCtrl,
+                  style: const TextStyle(color: _text),
+                  decoration: UiInputDecoration.of(context, hintText: 'Reason (optional for reject)'),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+        if (widget.canReview) ...[
+          TextButton(
+            onPressed: () async {
+              try {
+                await financeTopupReview(widget.conn, requestId: request.requestId.toInt(), action: 'reject', reason: _reasonCtrl.text);
+                if (context.mounted) Navigator.pop(context, true);
+              } catch (e) {
+                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e, fallback: 'Reject failed.'))));
+              }
+            },
+            child: const Text('Reject', style: TextStyle(color: Color(0xFFEF4444))),
+          ),
+          FilledButton(
+            onPressed: () async {
+              try {
+                await financeTopupReview(widget.conn, requestId: request.requestId.toInt(), action: 'approve');
+                if (context.mounted) Navigator.pop(context, true);
+              } catch (e) {
+                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e, fallback: 'Approve failed.'))));
+              }
+            },
+            child: const Text('Approve'),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _WithdrawReviewDialog extends StatefulWidget {
+  const _WithdrawReviewDialog({required this.conn, required this.request, required this.canReview});
+
+  final ReferralConn conn;
+  final CommissionWithdrawQueueItem request;
+  final bool canReview;
+
+  @override
+  State<_WithdrawReviewDialog> createState() => _WithdrawReviewDialogState();
+}
+
+class _WithdrawReviewDialogState extends State<_WithdrawReviewDialog> {
+  static const _card = Color(0xFF18181B);
+  static const _text = Color(0xFFF4F4F5);
+  static const _muted = Color(0xFFA1A1AA);
+
+  late final _reasonCtrl = TextEditingController();
+  Uint8List? _proofBytes;
+  var _proofMime = 'image/jpeg';
+  var _uploading = false;
+
+  @override
+  void dispose() {
+    _reasonCtrl.dispose();
+    super.dispose();
+  }
+
+  double _contentWidth(BuildContext ctx) {
+    final w = MediaQuery.sizeOf(ctx).width;
+    return w > 520 ? 420 : w - 48;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final request = widget.request;
+    return AlertDialog(
+      backgroundColor: _card,
+      title: const Text('Review withdrawal', style: TextStyle(color: _text)),
+      content: SizedBox(
+        width: _contentWidth(context),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(request.userName, style: const TextStyle(color: _text, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Text(moneyFmtIdr(request.amountIdr), style: const TextStyle(color: Color(0xFF34D399), fontSize: 18, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              Text('${request.bankShortName} · ${request.accountNumber}', style: const TextStyle(color: _muted, fontSize: 12)),
+              Text(request.accountName, style: const TextStyle(color: _muted, fontSize: 12)),
+              if (widget.canReview) ...[
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _uploading
+                      ? null
+                      : () async {
+                          final picked = await askMedia(context: context, types: const [MediaType.image], allowMultiple: false);
+                          if (picked == null || picked.isEmpty) return;
+                          setState(() {
+                            _proofBytes = picked.first.bytes;
+                            _proofMime = picked.first.mime;
+                          });
+                        },
+                  icon: Icon(_proofBytes == null ? Icons.upload_file : Icons.check_circle, size: 16),
+                  label: Text(_proofBytes == null ? 'Upload transfer proof' : 'Proof selected'),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _reasonCtrl,
+                  style: const TextStyle(color: _text),
+                  decoration: UiInputDecoration.of(context, hintText: 'Reason (optional for decline)'),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+        if (widget.canReview) ...[
+          TextButton(
+            onPressed: () async {
+              try {
+                await financeWithdrawReview(widget.conn, requestId: request.requestId.toInt(), action: 'decline', reason: _reasonCtrl.text);
+                if (context.mounted) Navigator.pop(context, true);
+              } catch (e) {
+                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e, fallback: 'Decline failed.'))));
+              }
+            },
+            child: const Text('Decline', style: TextStyle(color: Color(0xFFEF4444))),
+          ),
+          FilledButton(
+            onPressed: _uploading
+                ? null
+                : () async {
+                    if (_proofBytes == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Upload transfer proof to approve.')));
+                      return;
+                    }
+                    setState(() => _uploading = true);
+                    try {
+                      final uploaded = await casUpload(bytes: _proofBytes!, mime: _proofMime, name: 'withdraw-proof.jpg');
+                      if (uploaded == null || uploaded.url.isEmpty) throw Exception('Upload unavailable');
+                      await financeWithdrawReview(
+                        widget.conn,
+                        requestId: request.requestId.toInt(),
+                        action: 'approve',
+                        transferProofUrl: uploaded.url,
+                      );
+                      if (context.mounted) Navigator.pop(context, true);
+                    } catch (e) {
+                      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e, fallback: 'Approve failed.'))));
+                    } finally {
+                      if (context.mounted) setState(() => _uploading = false);
+                    }
+                  },
+            child: _uploading ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Approve'),
+          ),
+        ],
+      ],
     );
   }
 }

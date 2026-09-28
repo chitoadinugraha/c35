@@ -50,6 +50,26 @@ void main() {
     expect(view.totals.model, 'alienai');
   });
 
+  test('buildTraceView orders prepare branches with prompt embed first', () {
+    final view = buildTraceView([
+      _log(topic: 'trace_inst_enrich', branch: 'inst', durationMs: 5),
+      TraceLogDoc(
+        kind: 'system',
+        topic: 'trace_tool_embed',
+        text: 'Prompt embed',
+        model: 'gemini-embedding-2@768',
+        tokensIn: 42,
+        durationMs: 4600,
+        costUsd: 0.00001,
+        metaJson: jsonEncode({'step': 1, 'branch': 'embed', 'embed_cached': false}),
+      ),
+      _log(topic: 'trace_tool_filter', branch: 'tools', durationMs: 2),
+    ]);
+    expect(view.steps.first.branches.first.label, 'Prompt embed');
+    expect(view.steps.first.branches.first.tokensIn, 42);
+    expect(view.steps.first.branches.first.durationMs, 4600);
+  });
+
   test('buildTraceView parses tool filter candidates', () {
     final view = buildTraceView([
       TraceLogDoc(

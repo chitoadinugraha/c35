@@ -74,7 +74,8 @@ pub async fn finance_review_access(pool: &PgPool, viewer_iid: i64) -> Result<(),
     if meta.get("is_root").and_then(|v| v.as_bool()).unwrap_or(false) {
         return Ok(());
     }
-    if global_roles(&meta).contains("finance") {
+    let roles = global_roles(&meta);
+    if roles.iter().any(|r| matches!(r.as_str(), "finance" | "director")) {
         Ok(())
     } else {
         Err(FinanceError::forbidden())
@@ -126,7 +127,10 @@ SELECT t.id, t.owner_iid,
        COALESCE(t.reject_reason, '') AS reject_reason,
        COALESCE(t.reviewed_by_iid, 0) AS reviewed_by_iid,
        COALESCE(rev.name, '') AS reviewer_name,
-       COALESCE(rev.pic, '') AS reviewer_pic
+       COALESCE(rev.pic, '') AS reviewer_pic,
+       COALESCE(t.meta->'receive_account'->>'bank_id', '') AS receive_bank_id,
+       COALESCE(t.meta->'receive_account'->>'account_number', '') AS receive_account_number,
+       COALESCE(t.meta->'receive_account'->>'account_name', '') AS receive_account_name
 FROM ai.billing_topup_request t
 LEFT JOIN ai.identity u ON u.id = t.owner_iid
 LEFT JOIN ai.identity rev ON rev.id = t.reviewed_by_iid
@@ -185,6 +189,9 @@ pub async fn billing_topup_list(
                 reviewed_by_iid: r.get("reviewed_by_iid"),
                 reviewer_name: r.get("reviewer_name"),
                 reviewer_pic: r.get("reviewer_pic"),
+                receive_bank_id: r.get("receive_bank_id"),
+                receive_account_number: r.get("receive_account_number"),
+                receive_account_name: r.get("receive_account_name"),
             })
             .collect(),
     })

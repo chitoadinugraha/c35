@@ -8,6 +8,7 @@ import 'package:alienai_c35/c/llm/agent_model.dart';
 import 'package:alienai_c35/c/consumption/consumption_api.dart';
 import 'package:alienai_c35/c/expense/expense_api.dart';
 import 'package:alienai_c35/c/files/msg_attachment.dart';
+import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/c/store/chat_store.dart';
 import 'package:alienai_c35/widgets/ai/msg_trace_view.dart';
@@ -36,9 +37,9 @@ const _botBubbleBg = Color(0xFF1A1625);
 const _botBubbleBorder = Color(0xFF5B21B6);
 const _msgAvatarSize = 32.0;
 
-Widget _msgTrailingTime(int createdAtMs) => createdAtMs > 0
+Widget _msgTimeLabel(int createdAtMs, {required bool leading}) => createdAtMs > 0
     ? Padding(
-        padding: const EdgeInsets.only(left: 6, bottom: 2),
+        padding: leading ? const EdgeInsets.only(right: 6, bottom: 2) : const EdgeInsets.only(left: 6, bottom: 2),
         child: Text(chatMsgTimeLabel(createdAtMs), style: UiMsgUsage.style),
       )
     : const SizedBox.shrink();
@@ -125,7 +126,7 @@ class _UiBotConversationState extends State<UiBotConversation> {
     if (msgs.isEmpty) return const SizedBox.shrink();
     final i = _menuMsgIndex.clamp(0, msgs.length - 1);
     final m = msgs[i];
-    final isAssistant = m.role == 'assistant';
+    final isAssistant = m.role == 'assistant' && m.source != 'staff';
     final plain = _plainForMsg(m);
     final lastUserIdx = msgs.lastIndexWhere((x) => x.role == 'user');
     final lastAssistantIdx = msgs.lastIndexWhere((x) => x.role == 'assistant');
@@ -146,6 +147,12 @@ class _UiBotConversationState extends State<UiBotConversation> {
     );
   }
 
+  /// App chat preview: end-user sent (peer) on the right, bot on the left. Channel inbox: customer left, bot right. Staff always sent (right).
+  bool _msgAlignEnd({required bool isPeerSide, bool isStaff = false}) {
+    if (isStaff) return true;
+    return widget.store.chatIsApp(widget.chatId) ? isPeerSide : !isPeerSide;
+  }
+
   Widget _msgTile(MsgRow m, {required int i, required int count}) {
     final peer = widget.store.peerById(widget.chatId);
     final platform = widget.store.peerChannelPlatform(peer);
@@ -155,106 +162,115 @@ class _UiBotConversationState extends State<UiBotConversation> {
     final botName = bot?.identity.name.isNotEmpty == true ? bot!.identity.name : 'Bot';
     final botPic = bot?.identity.pic ?? '';
     final isCustomer = m.role == 'user';
-    final isAssistant = m.role == 'assistant';
+    final isStaff = m.source == 'staff';
+    final isBotAi = m.role == 'assistant' && !isStaff;
+    final staffName = Session.instance.name.trim().isNotEmpty ? Session.instance.name : 'Staff';
     final copyPrefix = msgCopyPrefix(
       role: m.role,
-      userName: isCustomer ? 'Customer' : (isAssistant ? 'Bot' : 'Staff'),
+      userName: isCustomer ? peerName : (isStaff ? staffName : (isBotAi ? botName : 'Staff')),
       createdAtMs: m.createdAtMs,
     );
 
-    Widget body;
-    if (isCustomer) {
-      body = Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Flexible(child: UiUserBubble(content: m.content, copyPrefix: copyPrefix, attachments: m.attachments)),
-          _msgTrailingTime(m.createdAtMs),
-        ],
-      );
+    Widget bubble;
+    if (isCustomer || isStaff) {
+      bubble = UiUserBubble(content: m.content, copyPrefix: copyPrefix, attachments: m.attachments);
     } else {
       final thoughtView = msgThoughtView(thought: m.thought, content: m.content, thinking: false);
       final blocks = ChatBlock.decodeList(m.blocksJson);
-      body = Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Flexible(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: _bubbleMaxW),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: _botBubbleBg,
-                  borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16), bottomLeft: Radius.circular(4), bottomRight: Radius.circular(16)),
-                  border: Border.all(color: _botBubbleBorder.withValues(alpha: 0.45)),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      UiMsgCopyPrefix(text: copyPrefix),
-                      if (thoughtView.thought != null) UiMsgThought(text: thoughtView.thought!, thinking: false),
-                      if (m.reqId.isNotEmpty)
-                        UiMsgTraceLoader(conn: widget.store.conn, reqId: m.reqId, part: MsgTracePart.chips),
-                      if (m.content.trim().isNotEmpty)
-                        MarkdownBody(
-                          data: m.content,
-                          selectable: false,
-                          styleSheet: MarkdownStyleSheet(
-                            p: const TextStyle(color: _text, fontSize: 15, height: 1.45),
-                            code: const TextStyle(color: _text, fontSize: 13, fontFamily: 'Consolas', backgroundColor: Color(0xFF1A1A1D)),
-                          ),
-                        ),
-                      if (m.reqId.isNotEmpty) UiMsgTraceLoader(conn: widget.store.conn, reqId: m.reqId, part: MsgTracePart.citations),
-                      if (blocks.isNotEmpty)
-                        UiMsgBlocks(
-                          msgId: m.id,
-                          blocks: blocks,
-                          consumptionApi: _consumptionApi,
-                          expenseApi: _expenseApi,
-                          locale: 'en',
-                          onConsumptionSaved: (_, __) {},
-                        ),
-                    ],
-                  ),
-                ),
+      bubble = ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: _bubbleMaxW),
+        child: IntrinsicWidth(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: _botBubbleBg,
+              borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16), bottomLeft: Radius.circular(4), bottomRight: Radius.circular(16)),
+              border: Border.all(color: _botBubbleBorder.withValues(alpha: 0.45)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  UiMsgCopyPrefix(text: copyPrefix),
+                  if (thoughtView.thought != null) UiMsgThought(text: thoughtView.thought!, thinking: false),
+                  if (m.reqId.isNotEmpty)
+                    UiMsgTraceLoader(conn: widget.store.conn, reqId: m.reqId, part: MsgTracePart.chips),
+                  if (m.content.trim().isNotEmpty)
+                    MarkdownBody(
+                      data: m.content,
+                      selectable: false,
+                      styleSheet: MarkdownStyleSheet(
+                        p: const TextStyle(color: _text, fontSize: 15, height: 1.45),
+                        code: const TextStyle(color: _text, fontSize: 13, fontFamily: 'Consolas', backgroundColor: Color(0xFF1A1A1D)),
+                      ),
+                    ),
+                  if (m.reqId.isNotEmpty) UiMsgTraceLoader(conn: widget.store.conn, reqId: m.reqId, part: MsgTracePart.citations),
+                  if (blocks.isNotEmpty)
+                    UiMsgBlocks(
+                      msgId: m.id,
+                      blocks: blocks,
+                      consumptionApi: _consumptionApi,
+                      expenseApi: _expenseApi,
+                      locale: 'en',
+                      onConsumptionSaved: (_, __) {},
+                    ),
+                  if (isBotAi)
+                    UiMsgUsageWithTrace(
+                      conn: widget.store.conn,
+                      msg: m.model.isNotEmpty ? m : m.copyWith(model: peer?.model ?? ''),
+                      showTimestamp: false,
+                      alwaysShow: true,
+                    ),
+                ],
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.only(left: 6, bottom: 2),
-            child: UiMsgUsageWithTrace(
-              conn: widget.store.conn,
-              msg: m.model.isNotEmpty ? m : m.copyWith(model: peer?.model ?? ''),
-              showTimestamp: true,
-              trailing: true,
-              alwaysShow: true,
-            ),
-          ),
-        ],
+        ),
       );
     }
 
+    final alignEnd = _msgAlignEnd(isPeerSide: isCustomer, isStaff: isStaff);
+    final peerAvatar = UiBotPeerAvatar(name: peerName, pic: peerPic, platform: platform, size: _msgAvatarSize);
+    final botAvatar = UiUserAvatar(name: botName, pic: botPic, size: _msgAvatarSize);
+    final staffAvatar = UiUserAvatar(
+      name: staffName,
+      pic: Session.instance.pic,
+      email: Session.instance.email,
+      handle: Session.instance.handle,
+      size: _msgAvatarSize,
+    );
+    final avatar = isCustomer ? peerAvatar : (isStaff ? staffAvatar : botAvatar);
+    final time = _msgTimeLabel(m.createdAtMs, leading: !alignEnd);
     final row = Row(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.end,
-      children: isCustomer
+      children: alignEnd
           ? [
-              UiBotPeerAvatar(name: peerName, pic: peerPic, platform: platform, size: _msgAvatarSize),
+              Flexible(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Flexible(child: bubble),
+                    _msgTimeLabel(m.createdAtMs, leading: false),
+                  ],
+                ),
+              ),
               const SizedBox(width: 8),
-              Flexible(child: body),
+              avatar,
             ]
           : [
-              Flexible(child: body),
+              time,
+              Flexible(child: bubble),
               const SizedBox(width: 8),
-              UiUserAvatar(name: botName, pic: botPic, size: _msgAvatarSize),
+              avatar,
             ],
     );
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: Align(alignment: isCustomer ? Alignment.centerLeft : Alignment.centerRight, child: row),
+      child: Align(alignment: alignEnd ? Alignment.centerRight : Alignment.centerLeft, child: row),
     );
   }
 
@@ -286,20 +302,17 @@ class _UiBotConversationState extends State<UiBotConversation> {
       ),
     );
 
+    final alignEnd = _msgAlignEnd(isPeerSide: isPeer);
+    final peerAvatar = UiBotPeerAvatar(name: peerName, pic: peerPic, platform: platform, size: _msgAvatarSize);
+    final botAvatar = UiUserAvatar(name: botName, pic: botPic, size: _msgAvatarSize);
     final row = Row(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.end,
-      children: isPeer
-          ? [
-              UiBotPeerAvatar(name: peerName, pic: peerPic, platform: platform, size: _msgAvatarSize),
-              const SizedBox(width: 8),
-              bubble,
-            ]
-          : [
-              bubble,
-              const SizedBox(width: 8),
-              UiUserAvatar(name: botName, pic: botPic, size: _msgAvatarSize),
-            ],
+      children: [
+        bubble,
+        const SizedBox(width: 8),
+        isPeer ? peerAvatar : botAvatar,
+      ],
     );
 
     return Semantics(
@@ -307,7 +320,7 @@ class _UiBotConversationState extends State<UiBotConversation> {
       liveRegion: true,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: Align(alignment: isPeer ? Alignment.centerLeft : Alignment.centerRight, child: row),
+        child: Align(alignment: alignEnd ? Alignment.centerRight : Alignment.centerLeft, child: row),
       ),
     );
   }

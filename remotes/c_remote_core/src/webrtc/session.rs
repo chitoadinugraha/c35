@@ -331,11 +331,18 @@ impl WebrtcHub {
         if self.sessions.read().await.contains_key(&session_id) {
             return;
         }
+        crate::agent_ui::webrtc_connecting_set(true);
+        let ice_servers = super::ice_config::ice_servers_fetch(
+            &self.dispatch_ctx.server_url,
+            &self.dispatch_ctx.session_key,
+        )
+        .await
+        .unwrap_or_else(ice_servers_load);
         match WebrtcSession::create(
             self.device_iid,
             session_id.clone(),
             self.out_tx.clone(),
-            ice_servers_load(),
+            ice_servers,
         )
         .await
         {
@@ -357,6 +364,9 @@ impl WebrtcHub {
                 crate::update::active_sessions_set(count);
             }
             Err(e) => {
+                if self.sessions.read().await.is_empty() {
+                    crate::agent_ui::webrtc_connecting_set(false);
+                }
                 warn!(session_id = %session_id, "==> [WEBRTC SESSION FAILED] Create error: {e}");
                 crate::log_push::spawn_log_push(
                     self.dispatch_ctx.server_url.clone(),
@@ -393,6 +403,9 @@ impl WebrtcHub {
             w.len()
         };
         crate::update::active_sessions_set(count);
+        if count == 0 {
+            crate::agent_ui::webrtc_connecting_set(false);
+        }
     }
 
     async fn session_get(&self, session_id: &str) -> Option<Arc<WebrtcSession>> {
@@ -780,11 +793,18 @@ fn ice_servers_load() -> Vec<RTCIceServer> {
     match serde_json::from_str::<Vec<IceEntry>>(&raw) {
         Ok(entries) if !entries.is_empty() => entries
             .into_iter()
-            .map(|e| RTCIceServer {
-                urls: e.urls,
-                username: e.username.unwrap_or_default(),
-                credential: e.credential.unwrap_or_default(),
-                credential_type: Default::default(),
+            .map(|e| {
+                let is_turn = e.urls.iter().any(|u| u.starts_with("turn:") || u.starts_with("turns:"));
+                RTCIceServer {
+                    urls: e.urls,
+                    username: e.username.unwrap_or_default(),
+                    credential: e.credential.unwrap_or_default(),
+                    credential_type: if is_turn {
+                        webrtc::ice_transport::ice_credential_type::RTCIceCredentialType::Password
+                    } else {
+                        webrtc::ice_transport::ice_credential_type::RTCIceCredentialType::Unspecified
+                    },
+                }
             })
             .collect(),
         _ => {
@@ -850,6 +870,7 @@ fn push_connected(
     mode: Option<RemoteConnectionMode>,
 ) {
     if webrtc_connected {
+        crate::agent_ui::webrtc_connecting_set(false);
         if let Some(m) = mode {
             crate::agent_ui::user_app_session_set(session_id, m);
         }

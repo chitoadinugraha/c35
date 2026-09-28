@@ -31,6 +31,7 @@ Future<Uint8List?> platformFileBytes(PlatformFile file) async {
 Future<ImageSource?> _askImageSource(BuildContext context) => showModalBottomSheet<ImageSource>(
       context: context,
       showDragHandle: true,
+      useSafeArea: true,
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,

@@ -1,6 +1,5 @@
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use tracing::{info, warn};
 
 /// Visible seed folders from an older layout. We do **not** create them:
@@ -73,7 +72,7 @@ impl VfsDriveManager {
     pub fn unmount_subst(&self) {
         let drive = self.drive_letter.trim_end_matches('\\');
         info!("Unmounting virtual drive {}", drive);
-        match Command::new("subst").args([drive, "/d"]).status() {
+        match c_remote_core::win_powershell::program_status("subst", &[drive, "/d"]) {
             Ok(s) if s.success() => info!("Unmounted virtual drive {}", drive),
             Ok(s) => warn!("subst /d exited with status {:?}", s),
             Err(e) => warn!("Failed to execute subst /d: {}", e),
@@ -92,7 +91,8 @@ impl VfsDriveManager {
             return;
         }
         info!("Mounting {} -> {:?}", drive, self.backing_dir);
-        match Command::new("subst").arg(drive).arg(&self.backing_dir).status() {
+        let backing = self.backing_dir.to_string_lossy();
+        match c_remote_core::win_powershell::program_status("subst", &[drive, backing.as_ref()]) {
             Ok(s) if s.success() => info!("Successfully mounted Virtual Drive {}", drive),
             Ok(s) => warn!("subst exited with status {:?}", s),
             Err(e) => warn!("Failed to execute subst command: {}", e),
@@ -194,14 +194,16 @@ impl VfsDriveManager {
         let _ = fs::write(&autorun_path, "[autorun]\r\nlabel=Alien AI\r\n");
         #[cfg(target_os = "windows")]
         {
-            let _ = Command::new("attrib").arg("+h").arg("+s").arg(autorun_path.to_str().unwrap_or_default()).status();
+            let path = autorun_path.to_str().unwrap_or_default();
+            let _ = c_remote_core::win_powershell::program_status("attrib", &["+h", "+s", path]);
         }
     }
 
     fn hide_system_files(&self, sys_dir: &Path) {
         #[cfg(target_os = "windows")]
         {
-            let _ = Command::new("attrib").arg("+h").arg("+s").arg(sys_dir.to_str().unwrap_or_default()).status();
+            let path = sys_dir.to_str().unwrap_or_default();
+            let _ = c_remote_core::win_powershell::program_status("attrib", &["+h", "+s", path]);
         }
         #[cfg(not(target_os = "windows"))]
         {
@@ -235,9 +237,7 @@ impl VfsDriveManager {
              {icon_cmds}",
             d = drive_clean,
         );
-        let _ = Command::new("powershell")
-            .args(["-NoProfile", "-NonInteractive", "-Command", &ps_script])
-            .status();
+        let _ = c_remote_core::win_powershell::command_status(&ps_script);
     }
 
     pub fn get_chrome_profile_dir(&self) -> PathBuf {

@@ -69,7 +69,7 @@ pub async fn llm_catalog_sync_force(pool: &PgPool) -> Result<usize> {
 
 pub fn pinned_seed_fingerprint() -> String {
     let mut h = blake3::Hasher::new();
-    for m in pinned_models() {
+    for m in pinned_models().into_iter().chain(frontier_seed_models()) {
         h.update(m.id.as_bytes());
         h.update(m.provider.as_bytes());
         h.update(m.label.as_bytes());
@@ -103,6 +103,82 @@ pub fn pinned_models() -> Vec<LlmModelRow> {
         version_rank: 0,
         source: "pinned".into(),
     }]
+}
+
+fn frontier_seed_row(
+    id: &str,
+    provider: &str,
+    label: &str,
+    provider_model: &str,
+    family: &str,
+    supports_thinking: bool,
+    version_rank: i32,
+) -> LlmModelRow {
+    let (input_micro_per_m, output_micro_per_m) = price_for_model_id(id)
+        .or_else(|| price_for_model_id(provider_model))
+        .unwrap_or((DEFAULT_INPUT_MICRO_PER_M, DEFAULT_OUTPUT_MICRO_PER_M));
+    LlmModelRow {
+        id: id.into(),
+        provider: provider.into(),
+        label: label.into(),
+        provider_model: provider_model.into(),
+        input_micro_per_m,
+        output_micro_per_m,
+        supports_thinking,
+        enabled: true,
+        is_default: false,
+        sort_order: 0,
+        family: family.into(),
+        version_rank,
+        source: "seed".into(),
+    }
+}
+
+/// Popular frontier models (Cloudflare gateway slugs). Kept when CF catalog sync is unavailable.
+pub fn frontier_seed_models() -> Vec<LlmModelRow> {
+    vec![
+        frontier_seed_row("gpt-4o", "openai", "GPT-4o", "openai/gpt-4o", "gpt-4o", false, 0),
+        frontier_seed_row("gpt-4o-mini", "openai", "GPT-4o mini", "openai/gpt-4o-mini", "gpt-4o", false, 0),
+        frontier_seed_row("gpt-4.1", "openai", "GPT-4.1", "openai/gpt-4.1", "gpt-4", false, 41),
+        frontier_seed_row("gpt-4.1-mini", "openai", "GPT-4.1 mini", "openai/gpt-4.1-mini", "gpt-4", false, 41),
+        frontier_seed_row(
+            "claude-sonnet-4-5",
+            "anthropic",
+            "Claude Sonnet 4.5",
+            "anthropic/claude-sonnet-4-5",
+            "claude",
+            false,
+            45,
+        ),
+        frontier_seed_row(
+            "claude-3-5-haiku-latest",
+            "anthropic",
+            "Claude 3.5 Haiku",
+            "anthropic/claude-3-5-haiku-latest",
+            "claude",
+            false,
+            35,
+        ),
+        frontier_seed_row(
+            "deepseek-chat",
+            "deepseek",
+            "DeepSeek Chat",
+            "deepseek/deepseek-chat",
+            "chat",
+            false,
+            0,
+        ),
+        frontier_seed_row(
+            "deepseek-reasoner",
+            "deepseek",
+            "DeepSeek Reasoner",
+            "deepseek/deepseek-reasoner",
+            "reasoner",
+            true,
+            0,
+        ),
+        frontier_seed_row("grok-2-latest", "xai", "Grok 2", "x-ai/grok-2-latest", "grok", false, 2),
+    ]
 }
 
 async fn prune_stale_google(pool: &PgPool, fetched: &[LlmModelRow]) -> Result<()> {

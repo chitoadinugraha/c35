@@ -1,4 +1,4 @@
-﻿use std::sync::Arc;
+use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
 use c35_ctx::AppState;
@@ -62,6 +62,12 @@ pub async fn channel_inbound_handle(
     let mut attachments = inbound.attachments.clone();
     inbound_attachments_filter(&mut attachments);
 
+    if !attachments.is_empty() {
+        let client = http_client();
+        crate::media::resolve_inbound_attachments_cas(&client, state, channel, &mut attachments).await;
+        attachments.retain(|a| !a.hash.is_empty());
+    }
+
     let unsupported_only =
         blocked_media && message.trim().is_empty() && attachments.is_empty();
 
@@ -72,6 +78,21 @@ pub async fn channel_inbound_handle(
     if message.trim().is_empty() && unsupported_only {
         message = "[unsupported media]".into();
     }
+
+    let atts_val = serde_json::Value::Array(
+        attachments
+            .iter()
+            .map(|a| {
+                serde_json::json!({
+                    "hash": a.hash,
+                    "name": if a.name.is_empty() { "photo.jpg".to_string() } else { a.name.clone() },
+                    "mime": if a.mime.is_empty() { "image/jpeg".to_string() } else { a.mime.clone() },
+                    "url": format!("/fs/{}", a.hash),
+                })
+            })
+            .collect(),
+    );
+    let attachments_json = serde_json::to_string(&attachments).unwrap_or_else(|_| "[]".into());
 
     let req_id = crate::outbound::channel_req_id(&inbound.platform);
     let log_preview = if message.trim().is_empty() {
@@ -118,9 +139,13 @@ pub async fn channel_inbound_handle(
         peer_iid,
         &req_id,
         &message,
+        Some(&atts_val),
     )
     .await?;
-    if inbound.platform != "app" {
+    let should_reply = chat_ai_reply_enabled(&state.pool, chat_id).await
+        && bot_active_load(&state.pool, bot_iid).await;
+
+    if inbound.platform != "app" && should_reply && !unsupported_only {
         let nats = state.nats.clone();
         let owner = owner_iid;
         let cid = chat_id;
@@ -217,12 +242,6 @@ pub async fn channel_inbound_handle(
         }
     }
 
-    if !attachments.is_empty() {
-        let client = http_client();
-        crate::media::resolve_inbound_attachments_cas(&client, state, channel, &mut attachments).await;
-        attachments.retain(|a| !a.hash.is_empty());
-    }
-    let attachments_json = serde_json::to_string(&attachments).unwrap_or_else(|_| "[]".into());
     let mut inbound_job = inbound.clone();
     inbound_job.is_voice = false;
     let hub = channel_hub_init();

@@ -1,7 +1,9 @@
 //! Boot tool embed index — DB cache + in-memory vectors for vector tool RAG.
 
 use std::sync::OnceLock;
+use std::time::Instant;
 
+use c35_mod_billing::billing_embed_cost_usd;
 use reqwest::Client;
 use sqlx::PgPool;
 use tracing::{info, warn};
@@ -83,11 +85,11 @@ pub async fn tool_index_init(pool: &PgPool, http: &Client) -> Result<usize, Stri
             vec
         } else {
             cache_misses += 1;
-            let vec = embed_text(http, text, task, EMBED_DIMENSIONS_DEFAULT)
+            let out = embed_text(http, text, task, EMBED_DIMENSIONS_DEFAULT)
                 .await
                 .map_err(|e| format!("tool index embed {}: {e}", def.name))?;
-            let _ = embed_cache_put(pool, &model, key, text, task, &vec, 0).await;
-            vec
+            let _ = embed_cache_put(pool, &model, key, text, task, &out.embedding, out.token_in).await;
+            out.embedding
         };
         if !embedding.is_empty() {
             indexed.push(IndexedTool {
@@ -115,6 +117,11 @@ pub struct ToolFindResult {
     pub best_sim: f32,
     pub query_cached: bool,
     pub ranker: &'static str,
+    pub embed_ms: i64,
+    pub filter_ms: i64,
+    pub embed_token_in: i32,
+    pub embed_cost_usd: f64,
+    pub embed_model: String,
 }
 
 /// Vector-rank eligible tools. Returns empty ranked when index not ready or embed fails.
@@ -124,31 +131,42 @@ pub async fn tool_find_vector(
     query: &str,
     eligible: &[ToolDef],
 ) -> ToolFindResult {
-    let empty = ToolFindResult {
+    let empty = |embed_model: String| ToolFindResult {
         ranked: vec![],
         best_sim: 0.0,
         query_cached: false,
         ranker: "vector",
+        embed_ms: 0,
+        filter_ms: 0,
+        embed_token_in: 0,
+        embed_cost_usd: 0.0,
+        embed_model,
     };
+    let embed_model = embed_model_tag(EMBED_MODEL, EMBED_DIMENSIONS_DEFAULT);
     let txt = query.trim();
     if txt.is_empty() || eligible.is_empty() {
-        return empty;
+        return empty(embed_model);
     }
     let Some(index) = TOOL_INDEX.get() else {
-        return empty;
+        return empty(embed_model);
     };
     if index.is_empty() {
-        return empty;
+        return empty(embed_model);
     }
 
+    let embed_t0 = Instant::now();
     let embed = match embed_cached(pool, http, txt, EMBED_TASK_QUERY, EMBED_DIMENSIONS_DEFAULT).await {
         Ok(r) => r,
         Err(e) => {
             warn!("tool_find_vector embed failed: {e}");
-            return empty;
+            return empty(embed_model);
         }
     };
+    let embed_ms = embed_t0.elapsed().as_millis() as i64;
+    let embed_token_in = embed.token_in;
+    let embed_cost_usd = billing_embed_cost_usd(&embed_model, embed_token_in);
 
+    let rank_t0 = Instant::now();
     let eligible_ids: std::collections::HashSet<&str> =
         eligible.iter().map(|t| t.name.as_str()).collect();
     let mut scored: Vec<ToolCandidate> = Vec::new();
@@ -187,10 +205,16 @@ pub async fn tool_find_vector(
         }
     }
 
+    let filter_ms = rank_t0.elapsed().as_millis() as i64;
     ToolFindResult {
         ranked,
         best_sim,
         query_cached: embed.cached,
         ranker: "vector",
+        embed_ms,
+        filter_ms,
+        embed_token_in,
+        embed_cost_usd,
+        embed_model,
     }
 }

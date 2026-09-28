@@ -7,7 +7,7 @@ use reqwest::Client;
 use sqlx::PgPool;
 use tracing::{debug, info};
 
-use crate::embed_gemini::{embed_text, EMBED_MODEL};
+use crate::embed_gemini::{embed_text, embed_token_est, EMBED_MODEL};
 use crate::{embed_bytes_to_vec, embed_cache_key, embed_model_tag, embed_vec_to_bytes};
 
 pub const EMBED_DIMENSIONS_DEFAULT: i32 = 768;
@@ -17,17 +17,18 @@ pub const EMBED_CACHE_EVICT_INTERVAL: Duration = Duration::from_secs(24 * 60 * 6
 pub struct EmbedCacheResult {
     pub embedding: Vec<f32>,
     pub cached: bool,
+    pub token_in: i32,
 }
 
 /// Point read with sliding-window touch — one round trip on hit.
-pub async fn embed_cache_get_touch(pool: &PgPool, model: &str, key: &str) -> Result<Option<Vec<f32>>, sqlx::Error> {
+pub async fn embed_cache_get_touch(pool: &PgPool, model: &str, key: &str) -> Result<Option<(Vec<f32>, i32)>, sqlx::Error> {
     let now_ms = Utc::now().timestamp_millis();
-    let row = sqlx::query_scalar::<_, Option<Vec<u8>>>(
+    let row = sqlx::query_as::<_, (Option<Vec<u8>>, i32)>(
         r#"
         UPDATE ai.embed_cache
         SET accessed_ts_ms = $3, ts_ms = $3
         WHERE model = $1 AND key = $2
-        RETURNING embedding
+        RETURNING embedding, token_in
         "#,
     )
     .bind(model)
@@ -35,7 +36,10 @@ pub async fn embed_cache_get_touch(pool: &PgPool, model: &str, key: &str) -> Res
     .bind(now_ms)
     .fetch_optional(pool)
     .await?;
-    Ok(row.flatten().and_then(|b| embed_bytes_to_vec(&b)))
+    Ok(match row {
+        Some((Some(bytes), token_in)) => embed_bytes_to_vec(&bytes).map(|v| (v, token_in)),
+        _ => None,
+    })
 }
 
 pub async fn embed_cache_get_many_touch(
@@ -124,14 +128,19 @@ pub async fn embed_cached(
     }
     let model = embed_model_tag(EMBED_MODEL, dimensions);
     let key = embed_cache_key(trimmed, task, dimensions);
-    if let Ok(Some(vec)) = embed_cache_get_touch(pool, &model, &key).await {
-        return Ok(EmbedCacheResult { embedding: vec, cached: true });
+    if let Ok(Some((vec, token_in))) = embed_cache_get_touch(pool, &model, &key).await {
+        let tokens = if token_in > 0 { token_in } else { embed_token_est(trimmed) };
+        return Ok(EmbedCacheResult { embedding: vec, cached: true, token_in: tokens });
     }
-    let vec = embed_text(http, trimmed, task, dimensions)
+    let out = embed_text(http, trimmed, task, dimensions)
         .await
         .map_err(|e| e.to_string())?;
-    let _ = embed_cache_put(pool, &model, &key, trimmed, task, &vec, 0).await;
-    Ok(EmbedCacheResult { embedding: vec, cached: false })
+    let _ = embed_cache_put(pool, &model, &key, trimmed, task, &out.embedding, out.token_in).await;
+    Ok(EmbedCacheResult {
+        embedding: out.embedding,
+        cached: false,
+        token_in: out.token_in,
+    })
 }
 
 /// Delete rows not accessed within `retention_days` (sliding window, not fixed TTL).

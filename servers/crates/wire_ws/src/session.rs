@@ -535,11 +535,22 @@ async fn dispatch(
             },
             Err(e) => err_res(req_id, WireErr::client("chat_stop_failed", e.to_string())),
         },
-        Some(ws_req::Body::ChatSend(r)) => match c35_mod_chat::chat_send(&state.pool, ctx.caller_iid, r).await {
-            Ok(body) => WsRes {
-                req_id,
-                body: Some(ws_res::Body::ChatSend(body)),
-            },
+        Some(ws_req::Body::ChatSend(r)) => match c35_mod_chat::chat_send(&state.pool, state.nats.as_ref(), ctx.caller_iid, r).await {
+            Ok(body) => {
+                if let Some(m) = &body.message {
+                    let text = m.content.trim();
+                    let atts_json = m.attachments_json.trim();
+                    if !text.is_empty() || !atts_json.is_empty() {
+                        if let Err(e) = c35_mod_channel::bot_peer_staff_channel_deliver(&state, m.chat_id, text, atts_json).await {
+                            tracing::warn!("[c35:bot_peer] staff channel deliver failed chat_id={}: {e:#}", m.chat_id);
+                        }
+                    }
+                }
+                WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::ChatSend(body)),
+                }
+            }
             Err(e) => err_res(req_id, WireErr::client("chat_send_failed", e.to_string())),
         },
         Some(ws_req::Body::PromptFollowupPut(r)) => {
@@ -1192,6 +1203,10 @@ async fn session_init(
     };
     let include_inbox = req.include_inbox;
     let mut res = c35_mod_identity::session_init(ctx, req, Some(geo_hint)).await?;
+    c35_mod_llm::llm_catalog_ensure_memory(&ctx.pool).await;
+    if c35_mod_llm::prompt_models().len() <= 1 {
+        let _ = c35_mod_llm::llm_catalog_reload(&ctx.pool).await;
+    }
     res.models = c35_mod_llm::prompt_models();
     if include_inbox {
         if let Ok(inbox) = c35_mod_chat::inbox_list(

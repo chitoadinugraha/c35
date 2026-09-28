@@ -11,6 +11,7 @@ use tracing::{info, warn};
 use crate::version::AGENT_BUILD;
 
 pub(crate) const WINDOWS_AGENT_EXE: &str = "alienai_remote_windows.exe";
+pub(crate) const WINDOWS_WINFSP_DLL: &str = "winfsp-x64.dll";
 pub(crate) const WINDOWS_AGENT_PROCESS: &str = "alienai_remote_windows";
 pub(crate) const WINDOWS_LEGACY_AGENT_EXE: &str = "c_remote_windows.exe";
 pub(crate) const WINDOWS_LEGACY_AGENT_PROCESS: &str = "c_remote_windows";
@@ -326,6 +327,10 @@ if (-not (Test-Path $src)) {{
   if (Test-Path $alt) {{ $src = $alt }}
 }}
 Copy-Item -Path $src -Destination $destExe -Force
+$winfsp = Join-Path $staging '{winfsp_dll}'
+if (Test-Path $winfsp) {{
+  Copy-Item -Path $winfsp -Destination (Join-Path $install '{winfsp_dll}') -Force
+}}
 if (Test-Path $legacyExe) {{ Remove-Item $legacyExe -Force -ErrorAction SilentlyContinue }}
 Start-Process $destExe
 exit 0
@@ -340,6 +345,7 @@ exit 0
             WINDOWS_AGENT_EXE
         },
         legacy_exe = WINDOWS_LEGACY_AGENT_EXE,
+        winfsp_dll = WINDOWS_WINFSP_DLL,
         process = WINDOWS_AGENT_PROCESS,
         legacy_process = WINDOWS_LEGACY_AGENT_PROCESS,
     );

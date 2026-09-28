@@ -106,14 +106,15 @@ CREATE INDEX idx_identity_owner_kind
 
 ## Client local cache
 
-Stored in Flutter secure storage as protobuf bytes:
+Stored in Flutter **SharedPreferences** (shell slices as protobuf bytes; chat rows as JSON). Secure storage upgrade: swap backend in `SessionInitCache` only.
 
 | Key | Content |
 |-----|---------|
-| `ResSessionInit` | Last full/delta session snapshot |
-| `since` | Watermark unix ms |
-| Recent chat list | Last N chats metadata |
-| Recent chat messages | Last N messages per active chat |
+| `c35.session_init.pb.{uid}` | Last shell `ResSessionInit` (billing, nav, profile, models) |
+| `c35.session_init.since_ms.{uid}` | Watermark for next `ReqSessionInit.since_ms` |
+| `c35.hint.*.{uid}` | Home hint catalog — see [hint.md](hint.md) |
+| `c35_session_*` | Login session (name, token, roles, …) |
+| Chat store keys | Recent chat list + messages per chat (JSON) |
 
 On app launch: render **stale cache immediately**, connect WS, apply delta, update UI.
 

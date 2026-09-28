@@ -8,6 +8,7 @@ typedef ThisPcRegister = Future<int?> Function({String name});
 Future<bool?> pageAllowControlShow(BuildContext context, {required AppStore store, ThisPcRegister? thisPcRegister, Future<void> Function()? thisPcUnregister}) async {
   final go = await showModalBottomSheet<bool>(
     context: context,
+    useSafeArea: true,
     backgroundColor: const Color(0xFF18181B),
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
     builder: (_) => PageAllowControl(store: store, thisPcUnregister: thisPcUnregister),

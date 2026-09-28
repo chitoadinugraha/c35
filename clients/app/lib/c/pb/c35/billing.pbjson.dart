@@ -906,6 +906,21 @@ const BillingTopupQueueItem$json = {
     {'1': 'reviewed_by_iid', '3': 12, '4': 1, '5': 3, '10': 'reviewedByIid'},
     {'1': 'reviewer_name', '3': 13, '4': 1, '5': 9, '10': 'reviewerName'},
     {'1': 'reviewer_pic', '3': 14, '4': 1, '5': 9, '10': 'reviewerPic'},
+    {'1': 'receive_bank_id', '3': 15, '4': 1, '5': 9, '10': 'receiveBankId'},
+    {
+      '1': 'receive_account_number',
+      '3': 16,
+      '4': 1,
+      '5': 9,
+      '10': 'receiveAccountNumber'
+    },
+    {
+      '1': 'receive_account_name',
+      '3': 17,
+      '4': 1,
+      '5': 9,
+      '10': 'receiveAccountName'
+    },
   ],
 };
 
@@ -919,7 +934,10 @@ final $typed_data.Uint8List billingTopupQueueItemDescriptor = $convert.base64Dec
     'ABKAlSB3VzZXJQaWMSHwoLdXNlcl9oYW5kbGUYCiABKAlSCnVzZXJIYW5kbGUSIwoNcmVqZWN0'
     'X3JlYXNvbhgLIAEoCVIMcmVqZWN0UmVhc29uEiYKD3Jldmlld2VkX2J5X2lpZBgMIAEoA1INcm'
     'V2aWV3ZWRCeUlpZBIjCg1yZXZpZXdlcl9uYW1lGA0gASgJUgxyZXZpZXdlck5hbWUSIQoMcmV2'
-    'aWV3ZXJfcGljGA4gASgJUgtyZXZpZXdlclBpYw==');
+    'aWV3ZXJfcGljGA4gASgJUgtyZXZpZXdlclBpYxImCg9yZWNlaXZlX2JhbmtfaWQYDyABKAlSDX'
+    'JlY2VpdmVCYW5rSWQSNAoWcmVjZWl2ZV9hY2NvdW50X251bWJlchgQIAEoCVIUcmVjZWl2ZUFj'
+    'Y291bnROdW1iZXISMAoUcmVjZWl2ZV9hY2NvdW50X25hbWUYESABKAlSEnJlY2VpdmVBY2NvdW'
+    '50TmFtZQ==');
 
 @$core.Deprecated('Use reqBillingTopupListDescriptor instead')
 const ReqBillingTopupList$json = {
@@ -1244,6 +1262,15 @@ const ResBillingPlanSubscribe$json = {
       '5': 1,
       '10': 'alienAllowWeeklyLimit'
     },
+    {'1': 'pending_plan_slug', '3': 6, '4': 1, '5': 9, '10': 'pendingPlanSlug'},
+    {
+      '1': 'plan_expires_ts_ms',
+      '3': 7,
+      '4': 1,
+      '5': 3,
+      '10': 'planExpiresTsMs'
+    },
+    {'1': 'change_kind', '3': 8, '4': 1, '5': 9, '10': 'changeKind'},
   ],
 };
 
@@ -1253,7 +1280,183 @@ final $typed_data.Uint8List resBillingPlanSubscribeDescriptor = $convert.base64D
     '8KC2JhbGFuY2VfdXNkGAIgASgBUgpiYWxhbmNlVXNkEh8KC2JhbGFuY2VfaWRyGAMgASgBUgpi'
     'YWxhbmNlSWRyEi8KFGFsaWVuX2FsbG93XzVoX2xpbWl0GAQgASgBUhFhbGllbkFsbG93NWhMaW'
     '1pdBI3ChhhbGllbl9hbGxvd193ZWVrbHlfbGltaXQYBSABKAFSFWFsaWVuQWxsb3dXZWVrbHlM'
-    'aW1pdA==');
+    'aW1pdBIqChFwZW5kaW5nX3BsYW5fc2x1ZxgGIAEoCVIPcGVuZGluZ1BsYW5TbHVnEisKEnBsYW'
+    '5fZXhwaXJlc190c19tcxgHIAEoA1IPcGxhbkV4cGlyZXNUc01zEh8KC2NoYW5nZV9raW5kGAgg'
+    'ASgJUgpjaGFuZ2VLaW5k');
+
+@$core.Deprecated('Use billingPlanQuoteLineDescriptor instead')
+const BillingPlanQuoteLine$json = {
+  '1': 'BillingPlanQuoteLine',
+  '2': [
+    {'1': 'label', '3': 1, '4': 1, '5': 9, '10': 'label'},
+    {'1': 'amount_idr', '3': 2, '4': 1, '5': 1, '10': 'amountIdr'},
+    {'1': 'is_credit', '3': 3, '4': 1, '5': 8, '10': 'isCredit'},
+    {'1': 'accent', '3': 4, '4': 1, '5': 8, '10': 'accent'},
+  ],
+};
+
+/// Descriptor for `BillingPlanQuoteLine`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List billingPlanQuoteLineDescriptor = $convert.base64Decode(
+    'ChRCaWxsaW5nUGxhblF1b3RlTGluZRIUCgVsYWJlbBgBIAEoCVIFbGFiZWwSHQoKYW1vdW50X2'
+    'lkchgCIAEoAVIJYW1vdW50SWRyEhsKCWlzX2NyZWRpdBgDIAEoCFIIaXNDcmVkaXQSFgoGYWNj'
+    'ZW50GAQgASgIUgZhY2NlbnQ=');
+
+@$core.Deprecated('Use reqBillingPlanQuoteDescriptor instead')
+const ReqBillingPlanQuote$json = {
+  '1': 'ReqBillingPlanQuote',
+  '2': [
+    {'1': 'plan_slug', '3': 1, '4': 1, '5': 9, '10': 'planSlug'},
+    {'1': 'billing_period', '3': 2, '4': 1, '5': 9, '10': 'billingPeriod'},
+    {'1': 'currency', '3': 3, '4': 1, '5': 9, '10': 'currency'},
+  ],
+};
+
+/// Descriptor for `ReqBillingPlanQuote`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqBillingPlanQuoteDescriptor = $convert.base64Decode(
+    'ChNSZXFCaWxsaW5nUGxhblF1b3RlEhsKCXBsYW5fc2x1ZxgBIAEoCVIIcGxhblNsdWcSJQoOYm'
+    'lsbGluZ19wZXJpb2QYAiABKAlSDWJpbGxpbmdQZXJpb2QSGgoIY3VycmVuY3kYAyABKAlSCGN1'
+    'cnJlbmN5');
+
+@$core.Deprecated('Use resBillingPlanQuoteDescriptor instead')
+const ResBillingPlanQuote$json = {
+  '1': 'ResBillingPlanQuote',
+  '2': [
+    {'1': 'kind', '3': 1, '4': 1, '5': 9, '10': 'kind'},
+    {'1': 'plan_slug', '3': 2, '4': 1, '5': 9, '10': 'planSlug'},
+    {'1': 'billing_period', '3': 3, '4': 1, '5': 9, '10': 'billingPeriod'},
+    {'1': 'charge_idr', '3': 4, '4': 1, '5': 1, '10': 'chargeIdr'},
+    {'1': 'credit_idr', '3': 5, '4': 1, '5': 1, '10': 'creditIdr'},
+    {'1': 'list_price_idr', '3': 6, '4': 1, '5': 1, '10': 'listPriceIdr'},
+    {'1': 'effective_ts_ms', '3': 7, '4': 1, '5': 3, '10': 'effectiveTsMs'},
+    {
+      '1': 'plan_expires_ts_ms',
+      '3': 8,
+      '4': 1,
+      '5': 3,
+      '10': 'planExpiresTsMs'
+    },
+    {'1': 'pending_plan_slug', '3': 9, '4': 1, '5': 9, '10': 'pendingPlanSlug'},
+    {
+      '1': 'pending_billing_period',
+      '3': 10,
+      '4': 1,
+      '5': 9,
+      '10': 'pendingBillingPeriod'
+    },
+    {
+      '1': 'lines',
+      '3': 11,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.BillingPlanQuoteLine',
+      '10': 'lines'
+    },
+    {'1': 'summary', '3': 12, '4': 1, '5': 9, '10': 'summary'},
+    {
+      '1': 'yearly_alien_bonus',
+      '3': 13,
+      '4': 1,
+      '5': 8,
+      '10': 'yearlyAlienBonus'
+    },
+    {
+      '1': 'current_plan_slug',
+      '3': 14,
+      '4': 1,
+      '5': 9,
+      '10': 'currentPlanSlug'
+    },
+    {
+      '1': 'current_billing_period',
+      '3': 15,
+      '4': 1,
+      '5': 9,
+      '10': 'currentBillingPeriod'
+    },
+  ],
+};
+
+/// Descriptor for `ResBillingPlanQuote`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resBillingPlanQuoteDescriptor = $convert.base64Decode(
+    'ChNSZXNCaWxsaW5nUGxhblF1b3RlEhIKBGtpbmQYASABKAlSBGtpbmQSGwoJcGxhbl9zbHVnGA'
+    'IgASgJUghwbGFuU2x1ZxIlCg5iaWxsaW5nX3BlcmlvZBgDIAEoCVINYmlsbGluZ1BlcmlvZBId'
+    'CgpjaGFyZ2VfaWRyGAQgASgBUgljaGFyZ2VJZHISHQoKY3JlZGl0X2lkchgFIAEoAVIJY3JlZG'
+    'l0SWRyEiQKDmxpc3RfcHJpY2VfaWRyGAYgASgBUgxsaXN0UHJpY2VJZHISJgoPZWZmZWN0aXZl'
+    'X3RzX21zGAcgASgDUg1lZmZlY3RpdmVUc01zEisKEnBsYW5fZXhwaXJlc190c19tcxgIIAEoA1'
+    'IPcGxhbkV4cGlyZXNUc01zEioKEXBlbmRpbmdfcGxhbl9zbHVnGAkgASgJUg9wZW5kaW5nUGxh'
+    'blNsdWcSNAoWcGVuZGluZ19iaWxsaW5nX3BlcmlvZBgKIAEoCVIUcGVuZGluZ0JpbGxpbmdQZX'
+    'Jpb2QSLwoFbGluZXMYCyADKAsyGS5jMzUuQmlsbGluZ1BsYW5RdW90ZUxpbmVSBWxpbmVzEhgK'
+    'B3N1bW1hcnkYDCABKAlSB3N1bW1hcnkSLAoSeWVhcmx5X2FsaWVuX2JvbnVzGA0gASgIUhB5ZW'
+    'FybHlBbGllbkJvbnVzEioKEWN1cnJlbnRfcGxhbl9zbHVnGA4gASgJUg9jdXJyZW50UGxhblNs'
+    'dWcSNAoWY3VycmVudF9iaWxsaW5nX3BlcmlvZBgPIAEoCVIUY3VycmVudEJpbGxpbmdQZXJpb2'
+    'Q=');
+
+@$core.Deprecated('Use reqBillingPlanChangeDescriptor instead')
+const ReqBillingPlanChange$json = {
+  '1': 'ReqBillingPlanChange',
+  '2': [
+    {'1': 'plan_slug', '3': 1, '4': 1, '5': 9, '10': 'planSlug'},
+    {'1': 'billing_period', '3': 2, '4': 1, '5': 9, '10': 'billingPeriod'},
+    {'1': 'currency', '3': 3, '4': 1, '5': 9, '10': 'currency'},
+  ],
+};
+
+/// Descriptor for `ReqBillingPlanChange`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqBillingPlanChangeDescriptor = $convert.base64Decode(
+    'ChRSZXFCaWxsaW5nUGxhbkNoYW5nZRIbCglwbGFuX3NsdWcYASABKAlSCHBsYW5TbHVnEiUKDm'
+    'JpbGxpbmdfcGVyaW9kGAIgASgJUg1iaWxsaW5nUGVyaW9kEhoKCGN1cnJlbmN5GAMgASgJUghj'
+    'dXJyZW5jeQ==');
+
+@$core.Deprecated('Use resBillingPlanChangeDescriptor instead')
+const ResBillingPlanChange$json = {
+  '1': 'ResBillingPlanChange',
+  '2': [
+    {'1': 'plan_tier', '3': 1, '4': 1, '5': 9, '10': 'planTier'},
+    {'1': 'balance_usd', '3': 2, '4': 1, '5': 1, '10': 'balanceUsd'},
+    {'1': 'balance_idr', '3': 3, '4': 1, '5': 1, '10': 'balanceIdr'},
+    {
+      '1': 'alien_allow_5h_limit',
+      '3': 4,
+      '4': 1,
+      '5': 1,
+      '10': 'alienAllow5hLimit'
+    },
+    {
+      '1': 'alien_allow_weekly_limit',
+      '3': 5,
+      '4': 1,
+      '5': 1,
+      '10': 'alienAllowWeeklyLimit'
+    },
+    {'1': 'pending_plan_slug', '3': 6, '4': 1, '5': 9, '10': 'pendingPlanSlug'},
+    {
+      '1': 'plan_expires_ts_ms',
+      '3': 7,
+      '4': 1,
+      '5': 3,
+      '10': 'planExpiresTsMs'
+    },
+    {'1': 'change_kind', '3': 8, '4': 1, '5': 9, '10': 'changeKind'},
+    {
+      '1': 'pending_billing_period',
+      '3': 9,
+      '4': 1,
+      '5': 9,
+      '10': 'pendingBillingPeriod'
+    },
+  ],
+};
+
+/// Descriptor for `ResBillingPlanChange`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resBillingPlanChangeDescriptor = $convert.base64Decode(
+    'ChRSZXNCaWxsaW5nUGxhbkNoYW5nZRIbCglwbGFuX3RpZXIYASABKAlSCHBsYW5UaWVyEh8KC2'
+    'JhbGFuY2VfdXNkGAIgASgBUgpiYWxhbmNlVXNkEh8KC2JhbGFuY2VfaWRyGAMgASgBUgpiYWxh'
+    'bmNlSWRyEi8KFGFsaWVuX2FsbG93XzVoX2xpbWl0GAQgASgBUhFhbGllbkFsbG93NWhMaW1pdB'
+    'I3ChhhbGllbl9hbGxvd193ZWVrbHlfbGltaXQYBSABKAFSFWFsaWVuQWxsb3dXZWVrbHlMaW1p'
+    'dBIqChFwZW5kaW5nX3BsYW5fc2x1ZxgGIAEoCVIPcGVuZGluZ1BsYW5TbHVnEisKEnBsYW5fZX'
+    'hwaXJlc190c19tcxgHIAEoA1IPcGxhbkV4cGlyZXNUc01zEh8KC2NoYW5nZV9raW5kGAggASgJ'
+    'UgpjaGFuZ2VLaW5kEjQKFnBlbmRpbmdfYmlsbGluZ19wZXJpb2QYCSABKAlSFHBlbmRpbmdCaW'
+    'xsaW5nUGVyaW9k');
 
 @$core.Deprecated('Use reqBillingPackageRedeemDescriptor instead')
 const ReqBillingPackageRedeem$json = {
@@ -2112,6 +2315,21 @@ const ResBillingSummary$json = {
     },
     {'1': 'billing_currency', '3': 28, '4': 1, '5': 9, '10': 'billingCurrency'},
     {'1': 'fx_micro_per_usd', '3': 29, '4': 1, '5': 3, '10': 'fxMicroPerUsd'},
+    {'1': 'billing_period', '3': 30, '4': 1, '5': 9, '10': 'billingPeriod'},
+    {
+      '1': 'pending_plan_slug',
+      '3': 31,
+      '4': 1,
+      '5': 9,
+      '10': 'pendingPlanSlug'
+    },
+    {
+      '1': 'pending_billing_period',
+      '3': 32,
+      '4': 1,
+      '5': 9,
+      '10': 'pendingBillingPeriod'
+    },
   ],
 };
 
@@ -2140,4 +2358,7 @@ final $typed_data.Uint8List resBillingSummaryDescriptor = $convert.base64Decode(
     'ZXhwaXJlc190c19tcxgZIAEoA1IPcGxhbkV4cGlyZXNUc01zEi0KE3RyaWFsX2V4cGlyZXNfdH'
     'NfbXMYGiABKANSEHRyaWFsRXhwaXJlc1RzTXMSMAoJYm90X3BsYW5zGBsgAygLMhMuYzM1LkJp'
     'bGxpbmdQbGFuRG9jUghib3RQbGFucxIpChBiaWxsaW5nX2N1cnJlbmN5GBwgASgJUg9iaWxsaW'
-    '5nQ3VycmVuY3kSJwoQZnhfbWljcm9fcGVyX3VzZBgdIAEoA1INZnhNaWNyb1BlclVzZA==');
+    '5nQ3VycmVuY3kSJwoQZnhfbWljcm9fcGVyX3VzZBgdIAEoA1INZnhNaWNyb1BlclVzZBIlCg5i'
+    'aWxsaW5nX3BlcmlvZBgeIAEoCVINYmlsbGluZ1BlcmlvZBIqChFwZW5kaW5nX3BsYW5fc2x1Zx'
+    'gfIAEoCVIPcGVuZGluZ1BsYW5TbHVnEjQKFnBlbmRpbmdfYmlsbGluZ19wZXJpb2QYICABKAlS'
+    'FHBlbmRpbmdCaWxsaW5nUGVyaW9k');

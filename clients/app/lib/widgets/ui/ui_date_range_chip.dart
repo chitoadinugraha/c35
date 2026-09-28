@@ -45,6 +45,7 @@ Future<DateRange?> dateRangeSheet(BuildContext context, {required DateRange init
       context: context,
       backgroundColor: _bg,
       isScrollControlled: true,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16)), side: BorderSide(color: _border)),
       builder: (ctx) => _DateRangeSheet(initial: initial),
     );

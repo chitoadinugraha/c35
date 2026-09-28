@@ -185,6 +185,9 @@ pub async fn mcp_prompt_compose(
         "selected_tools": selected_tools,
         "inst_enrich_keys": composed.trace.inst_enrich_keys,
         "inst_enrich_ms": composed.trace.inst_enrich_ms,
+        "tool_embed_ms": composed.trace.tool_embed_ms,
+        "tool_embed_token_in": composed.trace.tool_embed_token_in,
+        "tool_embed_cost_usd": composed.trace.tool_embed_cost_usd,
         "tool_filter_ms": composed.trace.tool_filter_ms,
         "trace": composed.trace,
     })

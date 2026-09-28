@@ -13,6 +13,20 @@ pub fn command_output(command: &str) -> std::io::Result<std::process::Output> {
 }
 
 #[cfg(windows)]
+pub fn command_status(command: &str) -> std::io::Result<std::process::ExitStatus> {
+    command_output(command).map(|o| o.status)
+}
+
+#[cfg(windows)]
+pub fn program_status(program: &str, args: &[&str]) -> std::io::Result<std::process::ExitStatus> {
+    use std::os::windows::process::CommandExt;
+    std::process::Command::new(program)
+        .args(args)
+        .creation_flags(CREATE_NO_WINDOW)
+        .status()
+}
+
+#[cfg(windows)]
 pub fn file_spawn(script_path: &str) -> std::io::Result<std::process::Child> {
     use std::os::windows::process::CommandExt;
     std::process::Command::new("powershell")

@@ -370,7 +370,12 @@ pub async fn chat_stop(pool: &PgPool, caller_iid: i64, req: ReqChatStop) -> Resu
     })
 }
 
-pub async fn chat_send(pool: &PgPool, caller_iid: i64, req: ReqChatSend) -> Result<ResChatSend> {
+pub async fn chat_send(
+    pool: &PgPool,
+    nats: Option<&Client>,
+    caller_iid: i64,
+    req: ReqChatSend,
+) -> Result<ResChatSend> {
     let chat_id = req.chat_id;
     let owner_iid = bot_peer_chat_verify(pool, caller_iid, chat_id).await?;
     let text = req.text.trim();
@@ -418,6 +423,7 @@ pub async fn chat_send(pool: &PgPool, caller_iid: i64, req: ReqChatSend) -> Resu
     .bind(msg_id)
     .fetch_one(pool)
     .await?;
+    bot_peer_msg_fanout(pool, nats, owner_iid, chat_id, msg_id).await?;
     Ok(ResChatSend {
         message: Some(row_to_msg(row)),
     })

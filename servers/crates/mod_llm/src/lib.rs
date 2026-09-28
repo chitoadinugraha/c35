@@ -21,7 +21,7 @@ pub use embed_cache::{
     embed_cache_evict_spawn, embed_cache_evict_stale, embed_cache_get_many_touch, embed_cache_get_touch,
     embed_cache_put, embed_cached, EmbedCacheResult, EMBED_CACHE_RETENTION_DAYS, EMBED_DIMENSIONS_DEFAULT,
 };
-pub use embed_gemini::{embed_text, EMBED_MODEL};
+pub use embed_gemini::{embed_text, embed_token_est, EmbedTextResult, EMBED_MODEL};
 pub use model_catalog::{
     model_chain_for_slug, model_is_alien, model_log_label, model_resolve_target, ModelTarget,
 };
@@ -29,7 +29,7 @@ pub use catalog_sync::llm_catalog_spawn;
 pub use fetch_catalog::{llm_catalog_nats_subscribe, LlmCatalogFetchTask};
 pub use catalog_resolve::{catalog_alien_chain_build, catalog_alien_chain_effective, catalog_alien_default, catalog_provider_model};
 pub use llm_catalog::{
-    catalog_models, catalog_price, llm_catalog_init, llm_catalog_pinned_ensure, llm_catalog_reload,
+    catalog_models, catalog_price, llm_catalog_ensure_memory, llm_catalog_init, llm_catalog_pinned_ensure, llm_catalog_reload,
     llm_catalog_warm, prompt_models, provider_model_resolve, LlmModelRow,
 };
 pub use model_cost::model_cost_usd;
@@ -77,7 +77,7 @@ pub fn embed_bytes_to_vec(bytes: &[u8]) -> Option<Vec<f32>> {
 
 /// Legacy alias — prefer `embed_cache_get_touch` (updates sliding access window).
 pub async fn embed_cache_get(pool: &PgPool, model: &str, key: &str) -> Result<Option<Vec<f32>>, sqlx::Error> {
-    embed_cache_get_touch(pool, model, key).await
+    Ok(embed_cache_get_touch(pool, model, key).await?.map(|(v, _)| v))
 }
 
 #[cfg(test)]

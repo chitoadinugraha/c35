@@ -14,6 +14,8 @@
 #define MyAppName "Alien AI Remote Agent"
 #define MyAppPublisher "Alien AI"
 #define MyAppExeName "alienai_remote_windows.exe"
+#define WinFspDllName "winfsp-x64.dll"
+#define WinFspMsiName "winfsp-2.1.25156.msi"
 #define MyAppId "{{A7C4E2B1-9F3D-4E8A-B6C1-RemoteAgent2026}"
 
 [Setup]
@@ -41,7 +43,9 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
 Source: "{#StageDir}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#StageDir}\{#WinFspDllName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#StageDir}\vc_redist.x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall; Check: VCRedistNeeded
+Source: "{#StageDir}\{#WinFspMsiName}"; DestDir: "{tmp}"; Flags: deleteafterinstall; Check: WinFspNeeded
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
@@ -52,9 +56,15 @@ Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription
 
 [Run]
 Filename: "{tmp}\vc_redist.x64.exe"; Parameters: "/install /quiet /norestart"; StatusMsg: "Installing Microsoft Visual C++ runtime..."; Flags: waituntilterminated; Check: VCRedistNeeded
+Filename: "msiexec.exe"; Parameters: "/i ""{tmp}\{#WinFspMsiName}"" /quiet /norestart ADDLOCAL=ALL"; StatusMsg: "Installing WinFsp (virtual drive)..."; Flags: waituntilterminated; Check: WinFspNeeded
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: postinstall nowait skipifsilent
 
 [Code]
+function WinFspNeeded: Boolean;
+begin
+  Result := not RegKeyExists(HKLM, 'SOFTWARE\WOW6432Node\WinFsp');
+end;
+
 function VCRedistNeeded: Boolean;
 var
   Installed: Cardinal;

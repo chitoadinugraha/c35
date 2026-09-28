@@ -23,7 +23,7 @@ List<String> uiAccountRoleBadgeLabels(Session s, UiAccountRoleBadgesAction actio
       if (s.isRoot) referralGlobalRoleLabel('root'),
       ...s.globalRoles.where((role) {
         if (role == 'root') return false;
-        if (uiAccountRoleHasFinanceNav(action) && role == 'finance') return false;
+        if (uiAccountRoleHasFinanceNav(action) && (role == 'finance' || role == 'director')) return false;
         return true;
       }).map(referralGlobalRoleLabel),
     ];

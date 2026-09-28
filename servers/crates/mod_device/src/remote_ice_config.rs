@@ -36,8 +36,8 @@ fn default_turn_urls() -> Vec<String> {
     env_urls(
         "C35_TURN_URLS",
         &[
-            "turn:turn.alienai.id:3479?transport=udp",
             "turn:turn.alienai.id:3479?transport=tcp",
+            "turn:turn.alienai.id:3479?transport=udp",
         ],
     )
 }

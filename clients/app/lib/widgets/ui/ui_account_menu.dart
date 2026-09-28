@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:alienai_c35/c/api/referral_conn.dart';
-import 'package:alienai_c35/c/billing/billing_summary_api.dart';
 import 'package:alienai_c35/c/profile/profile_handle.dart';
 import 'package:alienai_c35/c/referral/referral_format.dart';
 import 'package:alienai_c35/c/mail/mail_inbox_bus.dart';
@@ -135,14 +134,7 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
       if (mounted && _billingLoading) setState(() => _billingLoading = false);
       return;
     }
-    final conn = widget.action.conn;
-    if (conn == null) return;
-    if (mounted) setState(() => _billingLoading = true);
-    try {
-      final summary = await billingSummaryGet(conn);
-      AppStore.instance.billingPut(billingAccountFromSummary(summary, base: AppStore.instance.billing));
-    } catch (_) {}
-    if (mounted) setState(() => _billingLoading = false);
+    if (mounted && _billingLoading) setState(() => _billingLoading = false);
   }
 
   void _popThen(VoidCallback? fn) {

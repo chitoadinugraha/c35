@@ -202,6 +202,18 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> with WidgetsBindingObserv
     }
   }
 
+  Future<void> _refreshExplorer() async {
+    if (widget.session.fs == null || _loadingRoots) return;
+    final expanded = _expanded.toList();
+    setState(() => _dirCache.clear());
+    await _loadRoots();
+    for (final path in expanded) {
+      if (path.isNotEmpty && path != _selectedPath) {
+        await _loadDir(path, force: true, silent: true);
+      }
+    }
+  }
+
   Future<void> _loadDir(String path, {bool silent = false, bool force = false}) async {
     final fs = widget.session.fs;
     if (fs == null) return;
@@ -859,6 +871,7 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> with WidgetsBindingObserv
   void _showTransfersSheet() {
     showModalBottomSheet<void>(
       context: context,
+      useSafeArea: true,
       backgroundColor: const Color(0xFF18181B),
       builder: (ctx) => ListenableBuilder(
         listenable: _transfer,
@@ -1132,9 +1145,11 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> with WidgetsBindingObserv
                   hintStyle: const TextStyle(color: _muted, fontSize: 13),
                   prefixIcon: const Icon(Icons.search, size: 16, color: _muted),
                   prefixIconConstraints: const BoxConstraints(minWidth: 36, minHeight: 32),
-                  suffixIcon: _searchCtrl.text.isEmpty
-                      ? null
-                      : uiIconButton(
+                  suffixIcon: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_searchCtrl.text.isNotEmpty)
+                        uiIconButton(
                           tooltip: 'Clear',
                           onPressed: _searchCtrl.clear,
                           icon: const Icon(Icons.close, size: 16, color: Color(0xFFA1A1AA)),
@@ -1145,6 +1160,24 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> with WidgetsBindingObserv
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
                         ),
+                      uiIconButton(
+                        tooltip: 'Refresh',
+                        onPressed: (_loadingRoots || _loadingDir) ? null : () => unawaited(_refreshExplorer()),
+                        icon: Icon(
+                          Icons.refresh_rounded,
+                          size: 16,
+                          color: (_loadingRoots || _loadingDir) ? const Color(0xFF3F3F46) : const Color(0xFFA1A1AA),
+                        ),
+                        style: const ButtonStyle(
+                          visualDensity: VisualDensity.compact,
+                          padding: WidgetStatePropertyAll(EdgeInsets.zero),
+                          minimumSize: WidgetStatePropertyAll(Size(28, 28)),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      ),
+                    ],
+                  ),
+                  suffixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 32),
                   isDense: true,
                   filled: true,
                   fillColor: _panel,

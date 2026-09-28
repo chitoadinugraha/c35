@@ -82,12 +82,19 @@ async fn billing_manual_topup_put(
         req.payment_type.trim().to_string()
     };
     let now_ms = chrono::Utc::now().timestamp_millis();
+    let topup_meta = serde_json::json!({
+        "receive_account": {
+            "bank_id": receive.bank_id,
+            "account_number": receive.account_number,
+            "account_name": receive.account_name,
+        }
+    });
     sqlx::query(
         r#"
         INSERT INTO ai.billing_topup_request (
             id, owner_iid, billing_account_id, amount_usd, amount_idr,
-            provider, payment_type, external_order_id, proof_url, status
-        ) VALUES ($1, $2, $3, $4, $5, 'manual', $6, $7, $8, 'pending_review')
+            provider, payment_type, external_order_id, proof_url, status, meta
+        ) VALUES ($1, $2, $3, $4, $5, 'manual', $6, $7, $8, 'pending_review', $9)
         "#,
     )
     .bind(id)
@@ -98,6 +105,7 @@ async fn billing_manual_topup_put(
     .bind(&payment_type)
     .bind(&order_id)
     .bind(req.proof_url.trim())
+    .bind(&topup_meta)
     .execute(pool)
     .await
     .map_err(|e| e.to_string())?;

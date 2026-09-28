@@ -156,7 +156,10 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
                         return _toolBtn(
                           icon: Icons.refresh_rounded,
                           tooltip: 'Reconnect',
-                          onPressed: () => _session.start().catchError((e) => lError('device reconnect: $e')),
+                          onPressed: () {
+                            _session.prepareUserReconnect();
+                            _session.start().catchError((e) => lError('device reconnect: $e'));
+                          },
                         );
                       }
                       return _remoteBadge(_session);

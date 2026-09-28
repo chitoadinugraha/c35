@@ -308,6 +308,15 @@ String traceToolLabel(String toolId) {
   return toolLabelFromTemplate(catalogT('tool.$id.done'), const {});
 }
 
+int _prepareBranchOrder(String topic) => switch (topic) {
+      'trace_tool_embed' => 0,
+      'trace_inst_enrich' => 1,
+      'trace_tool_filter' => 2,
+      'trace_prepare' => 3,
+      'trace_memory' => 4,
+      _ => 9,
+    };
+
 String traceHopTitle(int hop, List<String> toolBranches, {required bool hasReplyText}) {
   if (toolBranches.isNotEmpty) return 'Tool run · ${toolBranches.join(', ')}';
   if (hasReplyText || hop >= 99) return 'Reply';
@@ -386,9 +395,15 @@ TraceView buildTraceView(List<TraceLogDoc> logs) {
         branches: branches,
       );
     } else {
-      for (final r in rows) {
+      final prepRows = [...rows]..sort((a, b) {
+          final ta = a.topic.isNotEmpty ? a.topic : _asStr(a.meta['topic']);
+          final tb = b.topic.isNotEmpty ? b.topic : _asStr(b.meta['topic']);
+          return _prepareBranchOrder(ta).compareTo(_prepareBranchOrder(tb));
+        });
+      for (final r in prepRows) {
         final branch = _asStr(r.meta['branch']);
         final label = switch (r.topic) {
+          'trace_tool_embed' => 'Prompt embed',
           'trace_memory' => 'Memory',
           'trace_inst_enrich' => 'Inst enrich',
           'trace_tool_filter' => 'Tool filter',
@@ -399,8 +414,9 @@ TraceView buildTraceView(List<TraceLogDoc> logs) {
         final enrichKeys = r.topic == 'trace_inst_enrich' ? _stringListFromMeta(r.meta['enrich_keys']) : const <String>[];
         branches.add(TraceBranch(
           label: label,
-          durationMs: r.durationMs,
-          costUsd: r.costUsd,
+          durationMs: r.durationMs > 0 ? r.durationMs : _asInt(r.meta['duration_ms']),
+          costUsd: r.costUsd > 0 ? r.costUsd : _asDouble(r.meta['cost_retail_usd']),
+          tokensIn: r.tokensIn > 0 ? r.tokensIn : _asInt(r.meta['prompt_tokens']),
           detail: r.text.split('\n').first,
           isTool: r.topic == 'trace_inst_enrich' && (instIds.isNotEmpty || enrichKeys.isNotEmpty),
           toolCandidates: r.topic == 'trace_tool_filter'
@@ -416,10 +432,17 @@ TraceView buildTraceView(List<TraceLogDoc> logs) {
           ragSkipReason: r.topic == 'trace_tool_filter' ? _asStr(r.meta['rag_skip_reason']) : '',
         ));
       }
+      final prepareWallMs = rows
+          .where((r) => r.topic == 'trace_prepare')
+          .map((r) => _asInt(r.meta['prepare_ms']))
+          .where((ms) => ms > 0)
+          .fold(0, (a, b) => b);
       hopStep = TraceStep(
         index: 0,
         title: 'Prepare',
-        durationMs: branches.fold(0, (a, b) => a + b.durationMs),
+        durationMs: prepareWallMs > 0
+            ? prepareWallMs
+            : branches.fold<int>(0, (best, b) => b.durationMs > best ? b.durationMs : best),
         costUsd: branches.fold(0.0, (a, b) => a + b.costUsd),
         branches: branches,
       );

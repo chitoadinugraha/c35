@@ -15,9 +15,13 @@ Future<void> billingHistorySheet(BuildContext context, {required ReferralConn co
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
+    useSafeArea: true,
     backgroundColor: const Color(0xFF121215),
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-    builder: (_) => _BillingHistorySheet(conn: conn),
+    builder: (ctx) => Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
+      child: _BillingHistorySheet(conn: conn),
+    ),
   );
 }
 

@@ -479,7 +479,7 @@ where
         res.tokens_out,
         duration_ms,
         Some(&bctx),
-        res.tools_cost_usd + context_extra,
+        res.tools_cost_usd + context_extra + composed.trace.tool_embed_cost_usd + memory.trace.embed_cost_usd,
         if usage_meta.as_object().map(|o| !o.is_empty()).unwrap_or(false) { Some(usage_meta) } else { None },
     )
     .await;

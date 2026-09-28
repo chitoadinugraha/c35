@@ -17,12 +17,10 @@ data:
     fingerprint
     lt-cred-mech
     use-auth-secret
-    static-auth-secret-file=/etc/coturn/secret/static-auth-secret
     no-cli
     no-tls
     no-dtls
     no-multicast-peers
-    no-loopback-peers
     log-file=stdout
     simple-log
     min-port=49160

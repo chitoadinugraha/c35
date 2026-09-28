@@ -78,28 +78,39 @@ pub async fn channel_reply(client: &Client, ctx: &OutboundCtx, reply_text: &str,
     channel_reply_nats(client, None, None, ctx, reply_text, speak).await
 }
 
-pub async fn channel_reply_nats(
+pub async fn channel_reply_nats_payload(
     client: &Client,
     nats: Option<&async_nats::Client>,
     cas: Option<&ChannelCasCtx<'_>>,
     ctx: &OutboundCtx,
-    reply_text: &str,
+    payload: &OutboundPayload,
     _speak: bool,
 ) -> Result<()> {
     let speak = false;
-    let payload = outbound_payload_parse(reply_text);
     if payload.text.trim().is_empty() && payload.media.is_empty() {
         return Ok(());
     }
     let plain = payload.text.clone();
     let formatted = if speak { plain.clone() } else { channel_text_format(&ctx.platform, &plain) };
     if ctx.platform == "telegram" {
-        return deliver_telegram(client, cas, ctx, &payload, &formatted, &plain, speak).await;
+        return deliver_telegram(client, cas, ctx, payload, &formatted, &plain, speak).await;
     }
     if ctx.platform == "whatsapp" {
-        return deliver_whatsapp(client, nats, cas, ctx, &payload, &formatted, &plain, speak).await;
+        return deliver_whatsapp(client, nats, cas, ctx, payload, &formatted, &plain, speak).await;
     }
     Ok(())
+}
+
+pub async fn channel_reply_nats(
+    client: &Client,
+    nats: Option<&async_nats::Client>,
+    cas: Option<&ChannelCasCtx<'_>>,
+    ctx: &OutboundCtx,
+    reply_text: &str,
+    speak: bool,
+) -> Result<()> {
+    let payload = outbound_payload_parse(reply_text);
+    channel_reply_nats_payload(client, nats, cas, ctx, &payload, speak).await
 }
 
 pub const TG_TEXT_MAX: usize = 4096;

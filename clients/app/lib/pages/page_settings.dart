@@ -408,9 +408,7 @@ class _PageSettingsState extends State<PageSettings> {
     }
   }
 
-  bool get _financeRole => Session.instance.isRoot || Session.instance.globalRoles.contains('finance');
-
-  bool get _receiveAccountRole => Session.instance.isRoot || Session.instance.globalRoles.any((r) => r == 'finance' || r == 'director');
+  bool get _financeStaff => Session.instance.isFinanceStaff;
 
   void _openRootConsole() {
     final conn = widget.chatConn;
@@ -421,7 +419,7 @@ class _PageSettingsState extends State<PageSettings> {
   void _openFinancePayments() => Navigator.push(
         context,
         MaterialPageRoute<void>(
-          builder: (_) => PageFinancePayments(conn: ReferralConn(uid: Session.instance.uid), canReview: _financeRole),
+          builder: (_) => PageFinancePayments(conn: ReferralConn(uid: Session.instance.uid), canReview: _financeStaff),
         ),
       );
 
@@ -432,8 +430,8 @@ class _PageSettingsState extends State<PageSettings> {
 
   UiAccountRoleBadgesAction get _badgeAction => UiAccountRoleBadgesAction(
         onRootConsole: Session.instance.isRoot && widget.chatConn != null ? _openRootConsole : null,
-        onFinancePayments: _financeRole ? _openFinancePayments : null,
-        onFinanceReceiveAccounts: _receiveAccountRole ? _openFinanceReceiveAccounts : null,
+        onFinancePayments: _financeStaff ? _openFinancePayments : null,
+        onFinanceReceiveAccounts: _financeStaff ? _openFinanceReceiveAccounts : null,
       );
 
   InputDecoration _fieldDecoration(String label) => InputDecoration(

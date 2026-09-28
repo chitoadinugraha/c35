@@ -55,6 +55,16 @@ async fn peer_profile_refresh(pool: &PgPool, peer_iid: i64, inbound: &ChannelInb
         .execute(pool)
         .await;
     }
+    let pic = peer_pic_from_hash(&inbound.avatar_hash);
+    if !pic.is_empty() {
+        let _ = sqlx::query(
+            "UPDATE ai.identity SET pic = $2, updated_ts = NOW() WHERE id = $1 AND (pic IS NULL OR pic = '' OR pic IS DISTINCT FROM $2)",
+        )
+        .bind(peer_iid)
+        .bind(&pic)
+        .execute(pool)
+        .await;
+    }
     Ok(())
 }
 
@@ -107,22 +117,31 @@ pub async fn bot_peer_chat_resolve(
     .fetch_optional(pool)
     .await? {
         let chat_id: i64 = row.get("id");
+        let pic = peer_pic_from_hash(&inbound.avatar_hash);
         let _ = sqlx::query(
             r#"
             UPDATE ai.chat
-            SET peer_name = $2, last_msg_ts = NOW(), updated_ts = NOW()
+            SET peer_name = $2,
+                peer_pic = CASE WHEN $3 <> '' THEN $3 ELSE peer_pic END,
+                last_msg_ts = NOW(),
+                updated_ts = NOW()
             WHERE id = $1
             "#,
         )
         .bind(chat_id)
         .bind(&inbound.display_name)
+        .bind(&pic)
         .execute(pool)
         .await;
         return Ok((chat_id, false));
     }
 
     let chat_id = snowflake_id();
-    let preview: String = inbound.text.chars().take(255).collect();
+    let preview: String = if inbound.text.trim().is_empty() && !inbound.attachments.is_empty() {
+        "[Photo]".to_string()
+    } else {
+        inbound.text.chars().take(255).collect()
+    };
     sqlx::query(
         r#"
         INSERT INTO ai.chat (
@@ -153,15 +172,17 @@ pub async fn chat_msg_external_put(
     peer_iid: i64,
     req_id: &str,
     content: &str,
+    attachments: Option<&serde_json::Value>,
 ) -> Result<i64> {
     let msg_id = snowflake_id();
+    let atts_val = attachments.cloned().unwrap_or_else(|| serde_json::json!([]));
     let mut tx = pool.begin().await?;
     sqlx::query(
         r#"
         INSERT INTO ai.chat_msg (
-            id, chat_id, owner_iid, req_id, sender_iid, role, source, content, status, created_ts, updated_ts
+            id, chat_id, owner_iid, req_id, sender_iid, role, source, content, attachments, status, created_ts, updated_ts
         )
-        VALUES ($1, $2, $3, $4, $5, 'user', 'external', $6, 'done', NOW(), NOW())
+        VALUES ($1, $2, $3, $4, $5, 'user', 'external', $6, $7, 'done', NOW(), NOW())
         "#,
     )
     .bind(msg_id)
@@ -170,9 +191,18 @@ pub async fn chat_msg_external_put(
     .bind(req_id)
     .bind(peer_iid)
     .bind(content)
+    .bind(atts_val)
     .execute(&mut *tx)
     .await?;
-    let preview: String = content.chars().take(255).collect();
+    let preview: String = if content.trim().is_empty() {
+        if attachments.and_then(|a| a.as_array()).map(|a| !a.is_empty()).unwrap_or(false) {
+            "[Photo]".to_string()
+        } else {
+            String::new()
+        }
+    } else {
+        content.chars().take(255).collect()
+    };
     sqlx::query(
         r#"
         UPDATE ai.chat SET last_msg_ts = NOW(), last_msg_preview = $2, updated_ts = NOW() WHERE id = $1

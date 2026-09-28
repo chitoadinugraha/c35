@@ -19,6 +19,7 @@ import 'package:alienai_c35/c/pb/c35/session.pb.dart';
 import 'package:alienai_c35/c/location/user_location_prefs.dart';
 import 'package:alienai_c35/c/settings/user_locale_prefs.dart';
 import 'package:alienai_c35/c/session.dart';
+import 'package:alienai_c35/c/session/session_init_cache.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/foundation.dart';
@@ -202,6 +203,7 @@ class MsgRow {
     this.error = '',
     this.createdAtMs = 0,
     this.mentionIdsJson = '[]',
+    this.source = '',
     List<MsgAttachment>? attachments,
   }) : attachments = attachments ?? const [],
        clientKey = clientKey.isNotEmpty ? clientKey : msgClientKeyNew(role: role, reqId: reqId);
@@ -224,6 +226,8 @@ class MsgRow {
   String error;
   int createdAtMs;
   String mentionIdsJson;
+  /// bot_peer wire: `staff`, `prompt`, `external`, `user`, …
+  String source;
   List<MsgAttachment> attachments;
 
   Map<String, dynamic> toJson() => {
@@ -245,6 +249,7 @@ class MsgRow {
         if (error.isNotEmpty) 'error': error,
         'createdAtMs': createdAtMs,
         if (mentionIdsJson != '[]') 'mentionIdsJson': mentionIdsJson,
+        if (source.isNotEmpty) 'source': source,
       };
 
   factory MsgRow.fromJson(Map<String, dynamic> j) {
@@ -268,6 +273,7 @@ class MsgRow {
       error: '${j['error'] ?? ''}',
       createdAtMs: j['createdAtMs'] as int? ?? 0,
       mentionIdsJson: '${j['mentionIdsJson'] ?? '[]'}',
+      source: '${j['source'] ?? ''}',
       attachments: MsgAttachment.decode(attachmentsRaw),
     );
   }
@@ -291,6 +297,7 @@ class MsgRow {
     String? error,
     int? createdAtMs,
     String? mentionIdsJson,
+    String? source,
     List<MsgAttachment>? attachments,
   }) =>
       MsgRow(
@@ -312,6 +319,7 @@ class MsgRow {
         error: error ?? this.error,
         createdAtMs: createdAtMs ?? this.createdAtMs,
         mentionIdsJson: mentionIdsJson ?? this.mentionIdsJson,
+        source: source ?? this.source,
         attachments: attachments ?? this.attachments,
       );
 }
@@ -1457,34 +1465,63 @@ class ChatStore extends ChangeNotifier {
 
   final mentionCatalog = MentionCatalogStore();
 
-  void sessionInitMerge(ResSessionInit init) {
+  List<String>? _sessionInitProfileRoles(IdentityProfile profile) {
+    if (profile.globalRoles.isNotEmpty) return profile.globalRoles.map((r) => r.toLowerCase()).toList();
+    if (profile.isRoot) return const ['root'];
+    return null;
+  }
+
+  void _sessionInitProfileMerge(IdentityProfile profile) {
+    unawaited(Session.instance.identityMerge(
+      name: profile.name,
+      alienId: profile.alienId,
+      pic: profile.pic,
+      email: profile.email.isNotEmpty ? profile.email : null,
+      globalRoles: _sessionInitProfileRoles(profile),
+    ));
+    unawaited(UserLocalePrefs.instance.mergeFromProfile(
+      tz: profile.tz,
+      locationCity: profile.locationCity,
+      locationRegion: profile.locationRegion,
+      locationCountry: profile.locationCountry,
+      locationSource: profile.locationSource,
+    ));
+  }
+
+  void applySessionInitShell(ResSessionInit init) {
     if (init.hasNav()) {
       navCounts = init.nav;
       mailInboxBus.applyFromNav(init.nav);
     }
     if (init.hasBilling()) AppStore.instance.billingPut(init.billing);
+    if (init.hasProfile()) _sessionInitProfileMerge(init.profile);
+    notifyListeners();
+  }
+
+  void _sessionInitModelsApply(List<PromptModelOption> rows) {
+    if (rows.isEmpty) return;
+    final next = agentModelsFromProto(rows);
+    if (next.length <= 1 && models.length > 1) return;
+    if (next.isNotEmpty && (next.length >= models.length || models.length <= 1)) models = next;
+  }
+
+  Future<void> sessionInitCacheRestore() async {
+    final init = await SessionInitCache.load();
+    if (init != null) applySessionInitShell(init);
+    final cachedModels = await SessionInitCache.loadModels();
+    if (cachedModels.isNotEmpty) {
+      _sessionInitModelsApply(cachedModels);
+      notifyListeners();
+    }
+  }
+
+  void sessionInitMerge(ResSessionInit init) {
+    applySessionInitShell(init);
+    _sessionInitModelsApply(init.models);
     if (init.hasMentions()) {
       unawaited(mentionCatalog.mergeCatalog(init.mentions, sinceMs: mentionCatalog.rev));
     }
     if (init.hasMentions() || init.inboxChats.isNotEmpty) notifyListeners();
-    if (init.models.isNotEmpty) models = agentModelsFromProto(init.models);
-    if (init.hasProfile()) {
-      final profile = init.profile;
-      final roles = profile.isRoot ? ['root'] : const <String>[];
-      unawaited(Session.instance.identityMerge(
-        name: profile.name,
-        alienId: profile.alienId,
-        pic: profile.pic,
-        globalRoles: roles.isEmpty ? null : roles,
-      ));
-      unawaited(UserLocalePrefs.instance.mergeFromProfile(
-        tz: profile.tz,
-        locationCity: profile.locationCity,
-        locationRegion: profile.locationRegion,
-        locationCountry: profile.locationCountry,
-        locationSource: profile.locationSource,
-      ));
-    }
     final membersByChat = {for (final m in init.inboxMembers) m.chatId.toInt(): m};
     for (final chat in init.inboxChats) {
       chatPutFromServer(chat, membersByChat[chat.id.toInt()] ?? ChatMember(chatId: chat.id));
@@ -1492,6 +1529,7 @@ class ChatStore extends ChangeNotifier {
     if (init.hasHints()) {
       unawaited(HintStore.instance.merge(init.hints, sinceMs: HintStore.instance.rev));
     }
+    unawaited(SessionInitCache.persist(init));
   }
 
   Future<void> hintTouch(ChatConn conn, {required int assetIid, required String assetKind}) async {
@@ -1509,6 +1547,7 @@ class ChatStore extends ChangeNotifier {
       final dv = await deviceInstallId();
       final appBuild = int.tryParse(csaiVersion) ?? 0;
       final init = await conn.sessionInit(
+        sinceMs: Int64(await SessionInitCache.sinceMs()),
         locale: locale,
         tz: prefs.tz.isNotEmpty ? prefs.tz : UserLocalePrefs.deviceTimezoneDetect(),
         locationCity: prefs.locationCity,

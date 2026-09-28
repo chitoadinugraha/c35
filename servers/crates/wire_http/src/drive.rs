@@ -22,6 +22,7 @@ pub fn drive_router() -> Router<AppState> {
             post(file_upload).layer(DefaultBodyLimit::max(CAS_UPLOAD_MAX_BYTES)),
         )
         .route("/v1/file/delete", post(file_delete))
+        .route("/v1/file/lock", post(file_lock))
         .route("/v1/drive/storage", get(drive_storage_user))
         .route("/v1/drive/tree", get(drive_tree_user))
         .route("/v1/drive/upload", post(drive_upload_user))
@@ -96,6 +97,10 @@ async fn file_delete(
     drive_delete_inner(&st, session.owner_iid, body).await
 }
 
+
+async fn file_lock() -> impl IntoResponse {
+    StatusCode::OK
+}
 
 async fn drive_storage_user(State(st): State<AppState>, headers: HeaderMap) -> impl IntoResponse {
     let owner_iid = match auth_session_caller_iid(&st.pool, &headers, None).await {

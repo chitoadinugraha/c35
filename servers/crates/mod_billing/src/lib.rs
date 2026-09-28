@@ -14,7 +14,7 @@ mod billing_package;
 mod billing_pool;
 mod billing_profile;
 mod billing_promotion;
-mod billing_plan_subscribe;
+mod billing_plan_change;
 mod billing_push;
 mod billing_receive_account;
 mod billing_resolve;
@@ -29,7 +29,8 @@ mod bot_usage;
 
 pub use billing_account_get::billing_account_get;
 pub use billing_cost::{
-    billing_cost_usd, billing_cost_wholesale_usd, billing_to_retail_usd, billing_tool_cost_usd,
+    billing_cost_usd, billing_cost_wholesale_usd, billing_embed_cost_usd, billing_to_retail_usd,
+    billing_tool_cost_usd,
     image_tool_retail_usd, image_tool_wholesale_usd,
     IMAGE_GEN_RETAIL_USD, IMAGE_GEN_WHOLESALE_USD, RETAIL_MARKUP, VOICE_STT_HOLD_USD,
     VOICE_STT_USD_PER_MIN, VOICE_TTS_HOLD_USD, VOICE_TTS_USD_PER_1K_CHARS,
@@ -52,7 +53,10 @@ pub use billing_promotion::{
     billing_promotion_claim, billing_promotion_create, billing_promotion_get,
     billing_promotion_list_by_creator, PromotionCreateFields,
 };
-pub use billing_plan_subscribe::billing_plan_subscribe;
+pub use billing_plan_change::{
+    billing_plan_change, billing_plan_pending_apply, billing_plan_quote, billing_plan_subscribe,
+    alien_yearly_multiplier, plan_cancel_slug, tier_rank, PlanChangeKind, YEARLY_ALIEN_BONUS,
+};
 pub use billing_resolve::{billing_gate_scoped, billing_resolve, BillingContext, TurnBillingCtx};
 pub use billing_signup_credit::billing_signup_credit;
 pub use billing_history::billing_history;

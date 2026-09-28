@@ -2775,6 +2775,9 @@ class BillingTopupQueueItem extends $pb.GeneratedMessage {
     $fixnum.Int64? reviewedByIid,
     $core.String? reviewerName,
     $core.String? reviewerPic,
+    $core.String? receiveBankId,
+    $core.String? receiveAccountNumber,
+    $core.String? receiveAccountName,
   }) {
     final result = BillingTopupQueueItem._();
     if (requestId != null) result.requestId = requestId;
@@ -2791,6 +2794,11 @@ class BillingTopupQueueItem extends $pb.GeneratedMessage {
     if (reviewedByIid != null) result.reviewedByIid = reviewedByIid;
     if (reviewerName != null) result.reviewerName = reviewerName;
     if (reviewerPic != null) result.reviewerPic = reviewerPic;
+    if (receiveBankId != null) result.receiveBankId = receiveBankId;
+    if (receiveAccountNumber != null)
+      result.receiveAccountNumber = receiveAccountNumber;
+    if (receiveAccountName != null)
+      result.receiveAccountName = receiveAccountName;
     return result;
   }
 
@@ -2821,6 +2829,9 @@ class BillingTopupQueueItem extends $pb.GeneratedMessage {
     ..aInt64(12, _omitFieldNames ? '' : 'reviewedByIid')
     ..aOS(13, _omitFieldNames ? '' : 'reviewerName')
     ..aOS(14, _omitFieldNames ? '' : 'reviewerPic')
+    ..aOS(15, _omitFieldNames ? '' : 'receiveBankId')
+    ..aOS(16, _omitFieldNames ? '' : 'receiveAccountNumber')
+    ..aOS(17, _omitFieldNames ? '' : 'receiveAccountName')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -2972,6 +2983,33 @@ class BillingTopupQueueItem extends $pb.GeneratedMessage {
   $core.bool hasReviewerPic() => $_has(13);
   @$pb.TagNumber(14)
   void clearReviewerPic() => $_clearField(14);
+
+  @$pb.TagNumber(15)
+  $core.String get receiveBankId => $_getSZ(14);
+  @$pb.TagNumber(15)
+  set receiveBankId($core.String value) => $_setString(14, value);
+  @$pb.TagNumber(15)
+  $core.bool hasReceiveBankId() => $_has(14);
+  @$pb.TagNumber(15)
+  void clearReceiveBankId() => $_clearField(15);
+
+  @$pb.TagNumber(16)
+  $core.String get receiveAccountNumber => $_getSZ(15);
+  @$pb.TagNumber(16)
+  set receiveAccountNumber($core.String value) => $_setString(15, value);
+  @$pb.TagNumber(16)
+  $core.bool hasReceiveAccountNumber() => $_has(15);
+  @$pb.TagNumber(16)
+  void clearReceiveAccountNumber() => $_clearField(16);
+
+  @$pb.TagNumber(17)
+  $core.String get receiveAccountName => $_getSZ(16);
+  @$pb.TagNumber(17)
+  set receiveAccountName($core.String value) => $_setString(16, value);
+  @$pb.TagNumber(17)
+  $core.bool hasReceiveAccountName() => $_has(16);
+  @$pb.TagNumber(17)
+  void clearReceiveAccountName() => $_clearField(17);
 }
 
 class ReqBillingTopupList extends $pb.GeneratedMessage {
@@ -4359,6 +4397,9 @@ class ResBillingPlanSubscribe extends $pb.GeneratedMessage {
     $core.double? balanceIdr,
     $core.double? alienAllow5hLimit,
     $core.double? alienAllowWeeklyLimit,
+    $core.String? pendingPlanSlug,
+    $fixnum.Int64? planExpiresTsMs,
+    $core.String? changeKind,
   }) {
     final result = ResBillingPlanSubscribe._();
     if (planTier != null) result.planTier = planTier;
@@ -4367,6 +4408,9 @@ class ResBillingPlanSubscribe extends $pb.GeneratedMessage {
     if (alienAllow5hLimit != null) result.alienAllow5hLimit = alienAllow5hLimit;
     if (alienAllowWeeklyLimit != null)
       result.alienAllowWeeklyLimit = alienAllowWeeklyLimit;
+    if (pendingPlanSlug != null) result.pendingPlanSlug = pendingPlanSlug;
+    if (planExpiresTsMs != null) result.planExpiresTsMs = planExpiresTsMs;
+    if (changeKind != null) result.changeKind = changeKind;
     return result;
   }
 
@@ -4389,6 +4433,9 @@ class ResBillingPlanSubscribe extends $pb.GeneratedMessage {
     ..aD(4, _omitFieldNames ? '' : 'alienAllow5hLimit',
         protoName: 'alien_allow_5h_limit')
     ..aD(5, _omitFieldNames ? '' : 'alienAllowWeeklyLimit')
+    ..aOS(6, _omitFieldNames ? '' : 'pendingPlanSlug')
+    ..aInt64(7, _omitFieldNames ? '' : 'planExpiresTsMs')
+    ..aOS(8, _omitFieldNames ? '' : 'changeKind')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -4459,6 +4506,671 @@ class ResBillingPlanSubscribe extends $pb.GeneratedMessage {
   $core.bool hasAlienAllowWeeklyLimit() => $_has(4);
   @$pb.TagNumber(5)
   void clearAlienAllowWeeklyLimit() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get pendingPlanSlug => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set pendingPlanSlug($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasPendingPlanSlug() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearPendingPlanSlug() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $fixnum.Int64 get planExpiresTsMs => $_getI64(6);
+  @$pb.TagNumber(7)
+  set planExpiresTsMs($fixnum.Int64 value) => $_setInt64(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasPlanExpiresTsMs() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearPlanExpiresTsMs() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.String get changeKind => $_getSZ(7);
+  @$pb.TagNumber(8)
+  set changeKind($core.String value) => $_setString(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasChangeKind() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearChangeKind() => $_clearField(8);
+}
+
+class BillingPlanQuoteLine extends $pb.GeneratedMessage {
+  factory BillingPlanQuoteLine({
+    $core.String? label,
+    $core.double? amountIdr,
+    $core.bool? isCredit,
+    $core.bool? accent,
+  }) {
+    final result = BillingPlanQuoteLine._();
+    if (label != null) result.label = label;
+    if (amountIdr != null) result.amountIdr = amountIdr;
+    if (isCredit != null) result.isCredit = isCredit;
+    if (accent != null) result.accent = accent;
+    return result;
+  }
+
+  BillingPlanQuoteLine._();
+
+  factory BillingPlanQuoteLine.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      BillingPlanQuoteLine()..mergeFromBuffer(data, registry);
+  factory BillingPlanQuoteLine.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      BillingPlanQuoteLine()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'BillingPlanQuoteLine',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: BillingPlanQuoteLine.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'label')
+    ..aD(2, _omitFieldNames ? '' : 'amountIdr')
+    ..aOB(3, _omitFieldNames ? '' : 'isCredit')
+    ..aOB(4, _omitFieldNames ? '' : 'accent')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  BillingPlanQuoteLine clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  BillingPlanQuoteLine copyWith(void Function(BillingPlanQuoteLine) updates) =>
+      super.copyWith((message) => updates(message as BillingPlanQuoteLine))
+          as BillingPlanQuoteLine;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use BillingPlanQuoteLine() / BillingPlanQuoteLine.new instead')
+  static BillingPlanQuoteLine create() => BillingPlanQuoteLine._();
+  static $pb.GeneratedMessage $_createMessage() => BillingPlanQuoteLine._();
+  @$core.override
+  BillingPlanQuoteLine createEmptyInstance() => BillingPlanQuoteLine._();
+  @$core.pragma('dart2js:noInline')
+  static BillingPlanQuoteLine getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<BillingPlanQuoteLine>(
+          BillingPlanQuoteLine.$_createMessage);
+  static BillingPlanQuoteLine? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get label => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set label($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasLabel() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearLabel() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.double get amountIdr => $_getN(1);
+  @$pb.TagNumber(2)
+  set amountIdr($core.double value) => $_setDouble(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasAmountIdr() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearAmountIdr() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.bool get isCredit => $_getBF(2);
+  @$pb.TagNumber(3)
+  set isCredit($core.bool value) => $_setBool(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasIsCredit() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearIsCredit() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.bool get accent => $_getBF(3);
+  @$pb.TagNumber(4)
+  set accent($core.bool value) => $_setBool(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasAccent() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearAccent() => $_clearField(4);
+}
+
+class ReqBillingPlanQuote extends $pb.GeneratedMessage {
+  factory ReqBillingPlanQuote({
+    $core.String? planSlug,
+    $core.String? billingPeriod,
+    $core.String? currency,
+  }) {
+    final result = ReqBillingPlanQuote._();
+    if (planSlug != null) result.planSlug = planSlug;
+    if (billingPeriod != null) result.billingPeriod = billingPeriod;
+    if (currency != null) result.currency = currency;
+    return result;
+  }
+
+  ReqBillingPlanQuote._();
+
+  factory ReqBillingPlanQuote.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingPlanQuote()..mergeFromBuffer(data, registry);
+  factory ReqBillingPlanQuote.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingPlanQuote()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqBillingPlanQuote',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqBillingPlanQuote.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'planSlug')
+    ..aOS(2, _omitFieldNames ? '' : 'billingPeriod')
+    ..aOS(3, _omitFieldNames ? '' : 'currency')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingPlanQuote clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingPlanQuote copyWith(void Function(ReqBillingPlanQuote) updates) =>
+      super.copyWith((message) => updates(message as ReqBillingPlanQuote))
+          as ReqBillingPlanQuote;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core
+      .Deprecated('Use ReqBillingPlanQuote() / ReqBillingPlanQuote.new instead')
+  static ReqBillingPlanQuote create() => ReqBillingPlanQuote._();
+  static $pb.GeneratedMessage $_createMessage() => ReqBillingPlanQuote._();
+  @$core.override
+  ReqBillingPlanQuote createEmptyInstance() => ReqBillingPlanQuote._();
+  @$core.pragma('dart2js:noInline')
+  static ReqBillingPlanQuote getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqBillingPlanQuote>(
+          ReqBillingPlanQuote.$_createMessage);
+  static ReqBillingPlanQuote? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get planSlug => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set planSlug($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasPlanSlug() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearPlanSlug() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get billingPeriod => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set billingPeriod($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasBillingPeriod() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearBillingPeriod() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get currency => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set currency($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasCurrency() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearCurrency() => $_clearField(3);
+}
+
+class ResBillingPlanQuote extends $pb.GeneratedMessage {
+  factory ResBillingPlanQuote({
+    $core.String? kind,
+    $core.String? planSlug,
+    $core.String? billingPeriod,
+    $core.double? chargeIdr,
+    $core.double? creditIdr,
+    $core.double? listPriceIdr,
+    $fixnum.Int64? effectiveTsMs,
+    $fixnum.Int64? planExpiresTsMs,
+    $core.String? pendingPlanSlug,
+    $core.String? pendingBillingPeriod,
+    $core.Iterable<BillingPlanQuoteLine>? lines,
+    $core.String? summary,
+    $core.bool? yearlyAlienBonus,
+    $core.String? currentPlanSlug,
+    $core.String? currentBillingPeriod,
+  }) {
+    final result = ResBillingPlanQuote._();
+    if (kind != null) result.kind = kind;
+    if (planSlug != null) result.planSlug = planSlug;
+    if (billingPeriod != null) result.billingPeriod = billingPeriod;
+    if (chargeIdr != null) result.chargeIdr = chargeIdr;
+    if (creditIdr != null) result.creditIdr = creditIdr;
+    if (listPriceIdr != null) result.listPriceIdr = listPriceIdr;
+    if (effectiveTsMs != null) result.effectiveTsMs = effectiveTsMs;
+    if (planExpiresTsMs != null) result.planExpiresTsMs = planExpiresTsMs;
+    if (pendingPlanSlug != null) result.pendingPlanSlug = pendingPlanSlug;
+    if (pendingBillingPeriod != null)
+      result.pendingBillingPeriod = pendingBillingPeriod;
+    if (lines != null) result.lines.addAll(lines);
+    if (summary != null) result.summary = summary;
+    if (yearlyAlienBonus != null) result.yearlyAlienBonus = yearlyAlienBonus;
+    if (currentPlanSlug != null) result.currentPlanSlug = currentPlanSlug;
+    if (currentBillingPeriod != null)
+      result.currentBillingPeriod = currentBillingPeriod;
+    return result;
+  }
+
+  ResBillingPlanQuote._();
+
+  factory ResBillingPlanQuote.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingPlanQuote()..mergeFromBuffer(data, registry);
+  factory ResBillingPlanQuote.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingPlanQuote()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResBillingPlanQuote',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResBillingPlanQuote.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'kind')
+    ..aOS(2, _omitFieldNames ? '' : 'planSlug')
+    ..aOS(3, _omitFieldNames ? '' : 'billingPeriod')
+    ..aD(4, _omitFieldNames ? '' : 'chargeIdr')
+    ..aD(5, _omitFieldNames ? '' : 'creditIdr')
+    ..aD(6, _omitFieldNames ? '' : 'listPriceIdr')
+    ..aInt64(7, _omitFieldNames ? '' : 'effectiveTsMs')
+    ..aInt64(8, _omitFieldNames ? '' : 'planExpiresTsMs')
+    ..aOS(9, _omitFieldNames ? '' : 'pendingPlanSlug')
+    ..aOS(10, _omitFieldNames ? '' : 'pendingBillingPeriod')
+    ..pPM<BillingPlanQuoteLine>(11, _omitFieldNames ? '' : 'lines',
+        subBuilder: BillingPlanQuoteLine.$_createMessage)
+    ..aOS(12, _omitFieldNames ? '' : 'summary')
+    ..aOB(13, _omitFieldNames ? '' : 'yearlyAlienBonus')
+    ..aOS(14, _omitFieldNames ? '' : 'currentPlanSlug')
+    ..aOS(15, _omitFieldNames ? '' : 'currentBillingPeriod')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingPlanQuote clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingPlanQuote copyWith(void Function(ResBillingPlanQuote) updates) =>
+      super.copyWith((message) => updates(message as ResBillingPlanQuote))
+          as ResBillingPlanQuote;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core
+      .Deprecated('Use ResBillingPlanQuote() / ResBillingPlanQuote.new instead')
+  static ResBillingPlanQuote create() => ResBillingPlanQuote._();
+  static $pb.GeneratedMessage $_createMessage() => ResBillingPlanQuote._();
+  @$core.override
+  ResBillingPlanQuote createEmptyInstance() => ResBillingPlanQuote._();
+  @$core.pragma('dart2js:noInline')
+  static ResBillingPlanQuote getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResBillingPlanQuote>(
+          ResBillingPlanQuote.$_createMessage);
+  static ResBillingPlanQuote? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get kind => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set kind($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasKind() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearKind() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get planSlug => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set planSlug($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasPlanSlug() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearPlanSlug() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get billingPeriod => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set billingPeriod($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasBillingPeriod() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearBillingPeriod() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.double get chargeIdr => $_getN(3);
+  @$pb.TagNumber(4)
+  set chargeIdr($core.double value) => $_setDouble(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasChargeIdr() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearChargeIdr() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.double get creditIdr => $_getN(4);
+  @$pb.TagNumber(5)
+  set creditIdr($core.double value) => $_setDouble(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasCreditIdr() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearCreditIdr() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.double get listPriceIdr => $_getN(5);
+  @$pb.TagNumber(6)
+  set listPriceIdr($core.double value) => $_setDouble(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasListPriceIdr() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearListPriceIdr() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $fixnum.Int64 get effectiveTsMs => $_getI64(6);
+  @$pb.TagNumber(7)
+  set effectiveTsMs($fixnum.Int64 value) => $_setInt64(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasEffectiveTsMs() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearEffectiveTsMs() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $fixnum.Int64 get planExpiresTsMs => $_getI64(7);
+  @$pb.TagNumber(8)
+  set planExpiresTsMs($fixnum.Int64 value) => $_setInt64(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasPlanExpiresTsMs() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearPlanExpiresTsMs() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.String get pendingPlanSlug => $_getSZ(8);
+  @$pb.TagNumber(9)
+  set pendingPlanSlug($core.String value) => $_setString(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasPendingPlanSlug() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearPendingPlanSlug() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $core.String get pendingBillingPeriod => $_getSZ(9);
+  @$pb.TagNumber(10)
+  set pendingBillingPeriod($core.String value) => $_setString(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasPendingBillingPeriod() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearPendingBillingPeriod() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $pb.PbList<BillingPlanQuoteLine> get lines => $_getList(10);
+
+  @$pb.TagNumber(12)
+  $core.String get summary => $_getSZ(11);
+  @$pb.TagNumber(12)
+  set summary($core.String value) => $_setString(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasSummary() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearSummary() => $_clearField(12);
+
+  @$pb.TagNumber(13)
+  $core.bool get yearlyAlienBonus => $_getBF(12);
+  @$pb.TagNumber(13)
+  set yearlyAlienBonus($core.bool value) => $_setBool(12, value);
+  @$pb.TagNumber(13)
+  $core.bool hasYearlyAlienBonus() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearYearlyAlienBonus() => $_clearField(13);
+
+  @$pb.TagNumber(14)
+  $core.String get currentPlanSlug => $_getSZ(13);
+  @$pb.TagNumber(14)
+  set currentPlanSlug($core.String value) => $_setString(13, value);
+  @$pb.TagNumber(14)
+  $core.bool hasCurrentPlanSlug() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearCurrentPlanSlug() => $_clearField(14);
+
+  @$pb.TagNumber(15)
+  $core.String get currentBillingPeriod => $_getSZ(14);
+  @$pb.TagNumber(15)
+  set currentBillingPeriod($core.String value) => $_setString(14, value);
+  @$pb.TagNumber(15)
+  $core.bool hasCurrentBillingPeriod() => $_has(14);
+  @$pb.TagNumber(15)
+  void clearCurrentBillingPeriod() => $_clearField(15);
+}
+
+class ReqBillingPlanChange extends $pb.GeneratedMessage {
+  factory ReqBillingPlanChange({
+    $core.String? planSlug,
+    $core.String? billingPeriod,
+    $core.String? currency,
+  }) {
+    final result = ReqBillingPlanChange._();
+    if (planSlug != null) result.planSlug = planSlug;
+    if (billingPeriod != null) result.billingPeriod = billingPeriod;
+    if (currency != null) result.currency = currency;
+    return result;
+  }
+
+  ReqBillingPlanChange._();
+
+  factory ReqBillingPlanChange.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingPlanChange()..mergeFromBuffer(data, registry);
+  factory ReqBillingPlanChange.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingPlanChange()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqBillingPlanChange',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqBillingPlanChange.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'planSlug')
+    ..aOS(2, _omitFieldNames ? '' : 'billingPeriod')
+    ..aOS(3, _omitFieldNames ? '' : 'currency')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingPlanChange clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingPlanChange copyWith(void Function(ReqBillingPlanChange) updates) =>
+      super.copyWith((message) => updates(message as ReqBillingPlanChange))
+          as ReqBillingPlanChange;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqBillingPlanChange() / ReqBillingPlanChange.new instead')
+  static ReqBillingPlanChange create() => ReqBillingPlanChange._();
+  static $pb.GeneratedMessage $_createMessage() => ReqBillingPlanChange._();
+  @$core.override
+  ReqBillingPlanChange createEmptyInstance() => ReqBillingPlanChange._();
+  @$core.pragma('dart2js:noInline')
+  static ReqBillingPlanChange getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqBillingPlanChange>(
+          ReqBillingPlanChange.$_createMessage);
+  static ReqBillingPlanChange? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get planSlug => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set planSlug($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasPlanSlug() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearPlanSlug() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get billingPeriod => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set billingPeriod($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasBillingPeriod() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearBillingPeriod() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get currency => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set currency($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasCurrency() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearCurrency() => $_clearField(3);
+}
+
+class ResBillingPlanChange extends $pb.GeneratedMessage {
+  factory ResBillingPlanChange({
+    $core.String? planTier,
+    $core.double? balanceUsd,
+    $core.double? balanceIdr,
+    $core.double? alienAllow5hLimit,
+    $core.double? alienAllowWeeklyLimit,
+    $core.String? pendingPlanSlug,
+    $fixnum.Int64? planExpiresTsMs,
+    $core.String? changeKind,
+    $core.String? pendingBillingPeriod,
+  }) {
+    final result = ResBillingPlanChange._();
+    if (planTier != null) result.planTier = planTier;
+    if (balanceUsd != null) result.balanceUsd = balanceUsd;
+    if (balanceIdr != null) result.balanceIdr = balanceIdr;
+    if (alienAllow5hLimit != null) result.alienAllow5hLimit = alienAllow5hLimit;
+    if (alienAllowWeeklyLimit != null)
+      result.alienAllowWeeklyLimit = alienAllowWeeklyLimit;
+    if (pendingPlanSlug != null) result.pendingPlanSlug = pendingPlanSlug;
+    if (planExpiresTsMs != null) result.planExpiresTsMs = planExpiresTsMs;
+    if (changeKind != null) result.changeKind = changeKind;
+    if (pendingBillingPeriod != null)
+      result.pendingBillingPeriod = pendingBillingPeriod;
+    return result;
+  }
+
+  ResBillingPlanChange._();
+
+  factory ResBillingPlanChange.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingPlanChange()..mergeFromBuffer(data, registry);
+  factory ResBillingPlanChange.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingPlanChange()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResBillingPlanChange',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResBillingPlanChange.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'planTier')
+    ..aD(2, _omitFieldNames ? '' : 'balanceUsd')
+    ..aD(3, _omitFieldNames ? '' : 'balanceIdr')
+    ..aD(4, _omitFieldNames ? '' : 'alienAllow5hLimit',
+        protoName: 'alien_allow_5h_limit')
+    ..aD(5, _omitFieldNames ? '' : 'alienAllowWeeklyLimit')
+    ..aOS(6, _omitFieldNames ? '' : 'pendingPlanSlug')
+    ..aInt64(7, _omitFieldNames ? '' : 'planExpiresTsMs')
+    ..aOS(8, _omitFieldNames ? '' : 'changeKind')
+    ..aOS(9, _omitFieldNames ? '' : 'pendingBillingPeriod')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingPlanChange clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingPlanChange copyWith(void Function(ResBillingPlanChange) updates) =>
+      super.copyWith((message) => updates(message as ResBillingPlanChange))
+          as ResBillingPlanChange;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResBillingPlanChange() / ResBillingPlanChange.new instead')
+  static ResBillingPlanChange create() => ResBillingPlanChange._();
+  static $pb.GeneratedMessage $_createMessage() => ResBillingPlanChange._();
+  @$core.override
+  ResBillingPlanChange createEmptyInstance() => ResBillingPlanChange._();
+  @$core.pragma('dart2js:noInline')
+  static ResBillingPlanChange getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResBillingPlanChange>(
+          ResBillingPlanChange.$_createMessage);
+  static ResBillingPlanChange? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get planTier => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set planTier($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasPlanTier() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearPlanTier() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.double get balanceUsd => $_getN(1);
+  @$pb.TagNumber(2)
+  set balanceUsd($core.double value) => $_setDouble(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasBalanceUsd() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearBalanceUsd() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.double get balanceIdr => $_getN(2);
+  @$pb.TagNumber(3)
+  set balanceIdr($core.double value) => $_setDouble(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasBalanceIdr() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearBalanceIdr() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.double get alienAllow5hLimit => $_getN(3);
+  @$pb.TagNumber(4)
+  set alienAllow5hLimit($core.double value) => $_setDouble(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasAlienAllow5hLimit() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearAlienAllow5hLimit() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.double get alienAllowWeeklyLimit => $_getN(4);
+  @$pb.TagNumber(5)
+  set alienAllowWeeklyLimit($core.double value) => $_setDouble(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasAlienAllowWeeklyLimit() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearAlienAllowWeeklyLimit() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get pendingPlanSlug => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set pendingPlanSlug($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasPendingPlanSlug() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearPendingPlanSlug() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $fixnum.Int64 get planExpiresTsMs => $_getI64(6);
+  @$pb.TagNumber(7)
+  set planExpiresTsMs($fixnum.Int64 value) => $_setInt64(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasPlanExpiresTsMs() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearPlanExpiresTsMs() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.String get changeKind => $_getSZ(7);
+  @$pb.TagNumber(8)
+  set changeKind($core.String value) => $_setString(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasChangeKind() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearChangeKind() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.String get pendingBillingPeriod => $_getSZ(8);
+  @$pb.TagNumber(9)
+  set pendingBillingPeriod($core.String value) => $_setString(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasPendingBillingPeriod() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearPendingBillingPeriod() => $_clearField(9);
 }
 
 class ReqBillingPackageRedeem extends $pb.GeneratedMessage {
@@ -7655,6 +8367,9 @@ class ResBillingSummary extends $pb.GeneratedMessage {
     $core.Iterable<BillingPlanDoc>? botPlans,
     $core.String? billingCurrency,
     $fixnum.Int64? fxMicroPerUsd,
+    $core.String? billingPeriod,
+    $core.String? pendingPlanSlug,
+    $core.String? pendingBillingPeriod,
   }) {
     final result = ResBillingSummary._();
     if (balanceUsd != null) result.balanceUsd = balanceUsd;
@@ -7694,6 +8409,10 @@ class ResBillingSummary extends $pb.GeneratedMessage {
     if (botPlans != null) result.botPlans.addAll(botPlans);
     if (billingCurrency != null) result.billingCurrency = billingCurrency;
     if (fxMicroPerUsd != null) result.fxMicroPerUsd = fxMicroPerUsd;
+    if (billingPeriod != null) result.billingPeriod = billingPeriod;
+    if (pendingPlanSlug != null) result.pendingPlanSlug = pendingPlanSlug;
+    if (pendingBillingPeriod != null)
+      result.pendingBillingPeriod = pendingBillingPeriod;
     return result;
   }
 
@@ -7744,6 +8463,9 @@ class ResBillingSummary extends $pb.GeneratedMessage {
         subBuilder: BillingPlanDoc.$_createMessage)
     ..aOS(28, _omitFieldNames ? '' : 'billingCurrency')
     ..aInt64(29, _omitFieldNames ? '' : 'fxMicroPerUsd')
+    ..aOS(30, _omitFieldNames ? '' : 'billingPeriod')
+    ..aOS(31, _omitFieldNames ? '' : 'pendingPlanSlug')
+    ..aOS(32, _omitFieldNames ? '' : 'pendingBillingPeriod')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -8016,6 +8738,33 @@ class ResBillingSummary extends $pb.GeneratedMessage {
   $core.bool hasFxMicroPerUsd() => $_has(28);
   @$pb.TagNumber(29)
   void clearFxMicroPerUsd() => $_clearField(29);
+
+  @$pb.TagNumber(30)
+  $core.String get billingPeriod => $_getSZ(29);
+  @$pb.TagNumber(30)
+  set billingPeriod($core.String value) => $_setString(29, value);
+  @$pb.TagNumber(30)
+  $core.bool hasBillingPeriod() => $_has(29);
+  @$pb.TagNumber(30)
+  void clearBillingPeriod() => $_clearField(30);
+
+  @$pb.TagNumber(31)
+  $core.String get pendingPlanSlug => $_getSZ(30);
+  @$pb.TagNumber(31)
+  set pendingPlanSlug($core.String value) => $_setString(30, value);
+  @$pb.TagNumber(31)
+  $core.bool hasPendingPlanSlug() => $_has(30);
+  @$pb.TagNumber(31)
+  void clearPendingPlanSlug() => $_clearField(31);
+
+  @$pb.TagNumber(32)
+  $core.String get pendingBillingPeriod => $_getSZ(31);
+  @$pb.TagNumber(32)
+  set pendingBillingPeriod($core.String value) => $_setString(31, value);
+  @$pb.TagNumber(32)
+  $core.bool hasPendingBillingPeriod() => $_has(31);
+  @$pb.TagNumber(32)
+  void clearPendingBillingPeriod() => $_clearField(32);
 }
 
 const $core.bool _omitFieldNames =

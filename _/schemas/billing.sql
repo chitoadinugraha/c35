@@ -583,6 +583,9 @@ ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS trial_expires_ts TIMESTA
 ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS active_promotion_id BIGINT;
 ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS freemium_day DATE;
 ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS plan_expires_ts TIMESTAMPTZ;
+ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS billing_period VARCHAR(16) NOT NULL DEFAULT 'monthly';
+ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS pending_plan_slug VARCHAR(32);
+ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS pending_billing_period VARCHAR(16);
 ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS freemium_msgs_used INT NOT NULL DEFAULT 0;
 ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS freemium_tokens_used INT NOT NULL DEFAULT 0;
 

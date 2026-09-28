@@ -95,10 +95,37 @@ pub fn phone_jid_display(jid: &str) -> String {
     if bare.is_empty() {
         return String::new();
     }
-    if bare.starts_with('+') {
-        bare.to_string()
+    let user = bare
+        .rsplit_once(':')
+        .filter(|(_, suffix)| !suffix.is_empty() && suffix.chars().all(|c| c.is_ascii_digit()))
+        .map(|(prefix, _)| prefix)
+        .unwrap_or(bare)
+        .trim();
+    if user.is_empty() {
+        return String::new();
+    }
+    if user.starts_with('+') {
+        user.to_string()
     } else {
-        format!("+{bare}")
+        format!("+{user}")
+    }
+}
+
+#[cfg(test)]
+mod phone_jid_display_tests {
+    use super::phone_jid_display;
+
+    #[test]
+    fn strips_linked_device_suffix() {
+        assert_eq!(
+            phone_jid_display("6285117777084:8@s.whatsapp.net"),
+            "+6285117777084"
+        );
+    }
+
+    #[test]
+    fn keeps_plain_user_part() {
+        assert_eq!(phone_jid_display("15551234567@s.whatsapp.net"), "+15551234567");
     }
 }
 

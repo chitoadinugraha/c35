@@ -8,6 +8,7 @@ import 'package:alienai_c35/c/hint/hint_store.dart';
 import 'package:alienai_c35/c/mention/mention_catalog.dart';
 import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/c/session.dart';
+import 'package:alienai_c35/c/session/session_init_cache.dart';
 import 'package:alienai_c35/c/device/device_store.dart';
 import 'package:alienai_c35/c/site/site_store.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
@@ -379,6 +380,7 @@ class AuthService extends ChangeNotifier {
       } catch (_) {}
     }
     await HintStore.instance.clearForUid(uid);
+    await SessionInitCache.clearForUid(uid);
     await mentionCatalogCacheClear(uid);
     await siteListCacheClear(uid);
     await deviceListCacheClear(uid);

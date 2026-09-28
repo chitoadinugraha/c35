@@ -121,8 +121,8 @@ When matched inst rows have a Rust enricher registered in `mod_chat::inst_enrich
 {"calories_remaining":…,"protein_deficit_g":…,…}
 ```
 
-- Enrichers run **in parallel** with vector tool filter (`tokio::join!` in `compose_tools_and_inst_async`).
-- Trace: `trace_inst_enrich` log row (Prepare step) lists matched `inst_ids` and enrich keys; `trace_tool_filter` runs in the same parallel group.
+- Enrichers run **in parallel** with tool query embed + vector rank (`tokio::join!` in `compose_tools_and_inst_async`).
+- Trace (Prepare): `trace_tool_embed` (prompt query embed, tokens + retail cost) → `trace_inst_enrich` → `trace_tool_filter` (vector rank only) — embed and enrich are concurrent; UI order is logical.
 - Steering text stays in `ai.inst`; enrichers only load DB facts keyed by `inst.id` (Type B unchanged).
 
 ---

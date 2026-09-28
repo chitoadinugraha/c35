@@ -638,6 +638,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
       _error = null;
     });
     try {
+      sess.prepareUserReconnect();
       await sess.start();
     } catch (e) {
       lError('remote start failed: $e');
@@ -1039,32 +1040,68 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                 final linking =
                     sess.conn.connected && (sess.isLinking || _connecting);
                 return Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.desktop_windows_outlined,
-                        size: 56,
-                        color: linking ? _amber : const Color(0xFF3F3F46),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        _error != null
-                            ? 'Connection Error: $_error'
-                            : (!sess.conn.connected
-                                ? 'Server offline. Reconnect when signed in.'
-                                : linking
-                                    ? 'Connecting to ${widget.deviceName}…'
-                                    : widget.compact
-                                        ? 'Screen stream idle. Tap Reconnect beside the status badge.'
-                                        : 'Screen stream idle. Click Reconnect above to start.'),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: _error != null ? _red : _zinc400,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.desktop_windows_outlined,
+                          size: 56,
+                          color: linking ? _amber : const Color(0xFF3F3F46),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 12),
+                        Text(
+                          _error != null
+                              ? 'Connection Error: $_error'
+                              : (!sess.conn.connected
+                                  ? 'Server offline. Reconnect when signed in.'
+                                  : linking
+                                      ? 'Connecting to ${widget.deviceName}…'
+                                      : 'Screen stream idle.'),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: _error != null ? _red : _zinc400,
+                          ),
+                        ),
+                        if (sess.conn.connected) ...[
+                          const SizedBox(height: 16),
+                          FilledButton.icon(
+                            onPressed: linking ? null : _connect,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: _amber,
+                              foregroundColor: const Color(0xFF09090B),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            icon: linking
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Color(0xFF09090B),
+                                    ),
+                                  )
+                                : const Icon(Icons.play_arrow_rounded, size: 18),
+                            label: Text(
+                              linking
+                                  ? 'Connecting…'
+                                  : (_error != null ? 'Retry' : 'Connect'),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                 );
               }

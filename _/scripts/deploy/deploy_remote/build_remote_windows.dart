@@ -38,8 +38,18 @@ String remoteSetupPath(String root, int version) => p.join(remoteCacheDir(root),
 String remoteStageDir(String root) => p.join(remoteCacheDir(root), 'stage');
 
 const _vcRedistUrl = 'https://aka.ms/vs/17/release/vc_redist.x64.exe';
+const _winfspDllName = 'winfsp-x64.dll';
+const _winfspMsiUrl = 'https://github.com/winfsp/winfsp/releases/download/v2.1/winfsp-2.1.25156.msi';
+const _winfspSysCrateDir = 'winfsp-sys-0.12.1+winfsp-2.1';
 
 String _vcRedistCachePath(String root) => p.join(root, '.cache', 'c_remote', 'vendor', 'vc_redist.x64.exe');
+
+String _winfspDllCachePath(String root) => p.join(root, '.cache', 'c_remote', 'vendor', _winfspDllName);
+
+String _winfspMsiCachePath(String root) => p.join(root, '.cache', 'c_remote', 'vendor', 'winfsp-2.1.25156.msi');
+
+String _winfspDllVendorPath(String root) =>
+    p.join(root, '_', 'scripts', 'deploy', 'deploy_remote', 'vendor', _winfspDllName);
 
 String _issPath(String root) => p.join(root, '_', 'scripts', 'deploy', 'deploy_remote', 'vendor', 'alienai_remote_windows.iss');
 
@@ -50,6 +60,52 @@ String _agentIconPath(String root) => p.join(root, 'remotes', 'c_remote_windows'
 String _installScriptPath(String root) => p.join(root, '_', 'scripts', 'deploy', 'deploy_remote', 'vendor', 'install_remote_windows.ps1');
 
 String _runtimeScriptPath(String root) => p.join(root, '_', 'scripts', 'deploy', 'deploy_remote', 'vendor', 'remote_runtime.ps1');
+
+File? _winfspDllFromCargoRegistry() {
+  final home = Platform.environment['CARGO_HOME'] ?? p.join(Platform.environment['USERPROFILE'] ?? '', '.cargo');
+  final srcRoot = p.join(home, 'registry', 'src');
+  if (!Directory(srcRoot).existsSync()) return null;
+  for (final indexDir in Directory(srcRoot).listSync().whereType<Directory>()) {
+    final candidate = File(p.join(indexDir.path, _winfspSysCrateDir, 'winfsp', 'bin', _winfspDllName));
+    if (candidate.existsSync() && candidate.lengthSync() > 100000) return candidate;
+  }
+  return null;
+}
+
+Future<File> _ensureWinfspDll(String root) async {
+  final dest = File(_winfspDllCachePath(root));
+  if (dest.existsSync() && dest.lengthSync() > 100000) return dest;
+  dest.parent.createSync(recursive: true);
+  final vendor = File(_winfspDllVendorPath(root));
+  if (vendor.existsSync() && vendor.lengthSync() > 100000) {
+    vendor.copySync(dest.path);
+    stdout.writeln('✓ $_winfspDllName ${formatBytes(dest.lengthSync())} (vendor)');
+    return dest;
+  }
+  final fromRegistry = _winfspDllFromCargoRegistry();
+  if (fromRegistry != null) {
+    fromRegistry.copySync(dest.path);
+    stdout.writeln('✓ $_winfspDllName ${formatBytes(dest.lengthSync())} (cargo registry)');
+    return dest;
+  }
+  throw StateError(
+    '$_winfspDllName missing: copy from winfsp-sys crate to ${_winfspDllVendorPath(root)} or run cargo fetch in remotes/',
+  );
+}
+
+Future<File> _ensureWinfspMsi(String root) async {
+  final dest = File(_winfspMsiCachePath(root));
+  if (dest.existsSync() && dest.lengthSync() > 1000000) return dest;
+  dest.parent.createSync(recursive: true);
+  stdout.writeln('Downloading WinFsp MSI for installer bundle...');
+  final res = await http.get(Uri.parse(_winfspMsiUrl));
+  if (res.statusCode != 200) {
+    throw StateError('WinFsp MSI download failed (${res.statusCode})');
+  }
+  dest.writeAsBytesSync(res.bodyBytes);
+  stdout.writeln('✓ ${p.basename(dest.path)} ${formatBytes(dest.lengthSync())}');
+  return dest;
+}
 
 Future<File> _ensureVcRedist(String root) async {
   final dest = File(_vcRedistCachePath(root));
@@ -148,11 +204,22 @@ Future<RemoteWindowsBuildResult> buildRemoteWindowsRelease({bool bundleVcRedist 
     vc.copySync(p.join(stage.path, 'vc_redist.x64.exe'));
   }
 
+  final winfspDll = await _ensureWinfspDll(root);
+  winfspDll.copySync(p.join(stage.path, _winfspDllName));
+
+  if (buildSetup && Platform.isWindows && bundleVcRedist) {
+    final msi = await _ensureWinfspMsi(root);
+    msi.copySync(p.join(stage.path, p.basename(msi.path)));
+  }
+
   File(_runtimeScriptPath(root)).copySync(p.join(stage.path, 'remote_runtime.ps1'));
   File(_installScriptPath(root)).copySync(p.join(stage.path, 'install_remote_windows.ps1'));
 
-  // OTA zip: agent binary only (small; static CRT + server push).
-  final archive = Archive()..addFile(ArchiveFile(remoteWindowsExeName, stagedExe.lengthSync(), stagedExe.readAsBytesSync()));
+  final winfspBytes = winfspDll.readAsBytesSync();
+  // OTA zip: agent exe + WinFsp user-mode DLL (delay-load; driver via MSI on first setup).
+  final archive = Archive()
+    ..addFile(ArchiveFile(remoteWindowsExeName, stagedExe.lengthSync(), stagedExe.readAsBytesSync()))
+    ..addFile(ArchiveFile(_winfspDllName, winfspBytes.length, winfspBytes));
   final zipPath = remoteZipPath(root, build);
   File(zipPath).parent.createSync(recursive: true);
   final zipBytes = ZipEncoder().encode(archive);

@@ -31,7 +31,20 @@ pub fn embed_l2_normalize(vec: &mut [f32]) {
     }
 }
 
-pub async fn embed_text(http: &Client, text: &str, task: &str, dimensions: i32) -> Result<Vec<f32>> {
+pub fn embed_token_est(text: &str) -> i32 {
+    let n = text.trim().len();
+    if n == 0 {
+        return 0;
+    }
+    ((n as f64) / 4.0).ceil().max(1.0) as i32
+}
+
+pub struct EmbedTextResult {
+    pub embedding: Vec<f32>,
+    pub token_in: i32,
+}
+
+pub async fn embed_text(http: &Client, text: &str, task: &str, dimensions: i32) -> Result<EmbedTextResult> {
     let key = gemini_api_key();
     if key.is_empty() {
         anyhow::bail!("GEMINI_API_KEY required for embed");
@@ -65,5 +78,10 @@ pub async fn embed_text(http: &Client, text: &str, task: &str, dimensions: i32) 
         return Err(anyhow!("gemini embed empty vector"));
     }
     embed_l2_normalize(&mut vec);
-    Ok(vec)
+    let token_in = body
+        .pointer("/metadata/billableCharacterCount")
+        .and_then(|v| v.as_i64())
+        .map(|n| ((n as f64) / 4.0).ceil().max(1.0) as i32)
+        .unwrap_or_else(|| embed_token_est(text));
+    Ok(EmbedTextResult { embedding: vec, token_in })
 }

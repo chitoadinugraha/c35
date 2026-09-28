@@ -212,9 +212,62 @@ Beyond higher monthly fee (same **2×** included-pool rule as other tiers):
 
 ---
 
-## Subscribe flows
+## Subscribe & plan changes
 
-Unchanged — see prior doc. Yearly vs monthly = separate `billing_plan_price` rows:
+Plans sheet is **subscription management**, not a one-time checkout. Wallet debits only when the server quote says `charge_idr > 0`.
+
+### No permanent “Free” paid tier
+
+- **Cancel / No plan** — not a SKU. User picks **No plan** → `pending_plan_slug = free` at **`plan_expires_ts`** → **freemium** (Alien AI only, daily caps).
+- **Freemium** is the default when there is no paid plan and no active signup trial.
+
+### Change kinds (`billing_plan_quote` / `billing_plan_change`)
+
+| Kind | When | Charge today | Effect |
+|------|------|--------------|--------|
+| `same` | Same tier **and** same `billing_period` | — | Reject in UI |
+| `subscribe` | No paid plan, or period expired | Full period price from `billing_plan_price` | Activate immediately; new `plan_expires_ts` |
+| `upgrade` | Higher tier and/or monthly→yearly while paid | **Prorated:** `new_price − credit` | New tier/pools **now**; **keep** existing `plan_expires_ts` |
+| `downgrade` | Lower tier and/or yearly→monthly | **0** | `pending_plan_slug` + `pending_billing_period`; switch at period end |
+| `cancel` | Slug `none` / `no_plan` / `free` | **0** | Pending `free` at period end |
+
+**Proration credit (upgrades):** unused fraction of current period × current plan list price (IDR row for active `billing_period`).
+
+**Downgrade / cancel:** current tier and pools stay until **`plan_expires_ts`**. At lapse, `billing_plan_pending_apply` runs the pending change (or lapse to freemium if pending is `free`).
+
+### Yearly Alien AI bonus
+
+When `billing_period = yearly`, **Alien AI only** gets **+20%** on:
+
+- `alien_pool_limit_idr`
+- `alien_allow_5h_limit`
+- `alien_allow_weekly_limit`
+
+**Not** applied to Frontier / API pool. Constant: `YEARLY_ALIEN_BONUS = 1.2` in `mod_billing`.
+
+### RPC
+
+| Invoke | Purpose |
+|--------|---------|
+| `billing_plan_quote` (130) | Breakdown before confirm |
+| `billing_plan_change` (131) | Apply quote (wallet debit when needed) |
+| `billing_plan_subscribe` | Wrapper → `billing_plan_change` (legacy clients) |
+
+Profile columns: `billing_period`, `pending_plan_slug`, `pending_billing_period` (`billing_plan_change_v1` migration).
+
+### Pay from wallet
+
+```
+quote.charge_idr > 0 && balance OK → billing_plan_change → debit → activate or schedule pending
+```
+
+### Direct purchase
+
+```
+billing_purchase → payment provider → settled → activate subscription
+```
+
+### Price rows (reference)
 
 ```sql
 -- Current user plan prices (2026-03); pools on ai.billing_plan from 2× monthly fee
@@ -229,17 +282,11 @@ INSERT INTO ai.billing_plan_price (plan_slug, currency, amount, billing_period) 
   ('ultra', 'IDR', 1200000, 'monthly');
 ```
 
-### A — Pay from wallet
+---
 
-```
-wallet balance >= price → billing_plan_subscribe → debit wallet → activate
-```
+## Subscribe flows (legacy heading — see above)
 
-### B — Direct purchase
-
-```
-billing_purchase → payment provider → settled → activate subscription
-```
+Unchanged payment rails; use **plan change** APIs for in-app Plans sheet.
 
 ---
 
@@ -272,8 +319,9 @@ billing_purchase → payment provider → settled → activate subscription
 
 ## Client display
 
-- Plans sheet: yearly vs monthly toggle; list **Alien AI Quota** + **API Quota** (Frontier pool) per tier
-- Account menu: tier name + dual pool rings + trial bar
+- Plans sheet: yearly vs monthly toggle; **quote panel** + prorated upgrade / schedule downgrade; **No plan** row (cancel at period end)
+- List **Alien AI Quota** (+20% green copy on yearly) + **API Quota** (Frontier pool) per tier
+- Account menu: tier name + dual pool rings + trial bar + pending change hint
 - Never show USD pool rates or provider names on Alien AI
 - Bot settings: indicate **"Using your quota"** when borrowing owner pools
 

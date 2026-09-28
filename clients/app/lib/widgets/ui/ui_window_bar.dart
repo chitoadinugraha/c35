@@ -157,9 +157,10 @@ class _UiWindowBarState extends State<UiWindowBar> with WindowListener {
   }
 
   Future<void> _serverHostMenu() async {
-    final overlay = c35NavigatorKey.currentState?.overlay;
-    if (overlay == null || !overlay.mounted) return;
-    final menuCtx = overlay.context;
+    final nav = c35NavigatorKey.currentState;
+    if (nav == null || !nav.mounted) return;
+    final menuCtx = nav.context;
+    if (nav.overlay == null || !nav.overlay!.mounted) return;
     if (_menuOpen) {
       Navigator.of(menuCtx).pop();
       return;

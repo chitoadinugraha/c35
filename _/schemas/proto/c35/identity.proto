@@ -21,6 +21,8 @@ message IdentityProfile {
   string location_country = 13;
   // device | ip | user — read-only from identity.meta.location.source
   string location_source = 14;
+  string email = 15;                 // meta.email — display / avatar
+  repeated string global_roles = 16; // meta.global_roles — root, finance, partner, …
 }
 
 message NavCounts {

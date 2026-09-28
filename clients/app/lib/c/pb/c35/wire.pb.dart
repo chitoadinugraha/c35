@@ -96,6 +96,8 @@ enum InvokeReq_Body {
   expensePut,
   adminPlatformPnl,
   adminOpsPeaks,
+  billingPlanQuote,
+  billingPlanChange,
   notSet
 }
 
@@ -154,6 +156,8 @@ class InvokeReq extends $pb.GeneratedMessage {
     $11.ReqExpensePut? expensePut,
     $10.ReqAdminPlatformPnl? adminPlatformPnl,
     $12.ReqAdminOpsPeaks? adminOpsPeaks,
+    $0.ReqBillingPlanQuote? billingPlanQuote,
+    $0.ReqBillingPlanChange? billingPlanChange,
   }) {
     final result = InvokeReq._();
     if (reqId != null) result.reqId = reqId;
@@ -229,6 +233,8 @@ class InvokeReq extends $pb.GeneratedMessage {
     if (expensePut != null) result.expensePut = expensePut;
     if (adminPlatformPnl != null) result.adminPlatformPnl = adminPlatformPnl;
     if (adminOpsPeaks != null) result.adminOpsPeaks = adminOpsPeaks;
+    if (billingPlanQuote != null) result.billingPlanQuote = billingPlanQuote;
+    if (billingPlanChange != null) result.billingPlanChange = billingPlanChange;
     return result;
   }
 
@@ -292,6 +298,8 @@ class InvokeReq extends $pb.GeneratedMessage {
     127: InvokeReq_Body.expensePut,
     128: InvokeReq_Body.adminPlatformPnl,
     129: InvokeReq_Body.adminOpsPeaks,
+    130: InvokeReq_Body.billingPlanQuote,
+    131: InvokeReq_Body.billingPlanChange,
     0: InvokeReq_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -348,7 +356,9 @@ class InvokeReq extends $pb.GeneratedMessage {
       126,
       127,
       128,
-      129
+      129,
+      130,
+      131
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aInt64(2, _omitFieldNames ? '' : 'callerIid')
@@ -476,6 +486,12 @@ class InvokeReq extends $pb.GeneratedMessage {
         subBuilder: $10.ReqAdminPlatformPnl.$_createMessage)
     ..aOM<$12.ReqAdminOpsPeaks>(129, _omitFieldNames ? '' : 'adminOpsPeaks',
         subBuilder: $12.ReqAdminOpsPeaks.$_createMessage)
+    ..aOM<$0.ReqBillingPlanQuote>(
+        130, _omitFieldNames ? '' : 'billingPlanQuote',
+        subBuilder: $0.ReqBillingPlanQuote.$_createMessage)
+    ..aOM<$0.ReqBillingPlanChange>(
+        131, _omitFieldNames ? '' : 'billingPlanChange',
+        subBuilder: $0.ReqBillingPlanChange.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -548,6 +564,8 @@ class InvokeReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(127)
   @$pb.TagNumber(128)
   @$pb.TagNumber(129)
+  @$pb.TagNumber(130)
+  @$pb.TagNumber(131)
   InvokeReq_Body whichBody() => _InvokeReq_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(10)
   @$pb.TagNumber(11)
@@ -599,6 +617,8 @@ class InvokeReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(127)
   @$pb.TagNumber(128)
   @$pb.TagNumber(129)
+  @$pb.TagNumber(130)
+  @$pb.TagNumber(131)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -1194,6 +1214,29 @@ class InvokeReq extends $pb.GeneratedMessage {
   void clearAdminOpsPeaks() => $_clearField(129);
   @$pb.TagNumber(129)
   $12.ReqAdminOpsPeaks ensureAdminOpsPeaks() => $_ensure(51);
+
+  @$pb.TagNumber(130)
+  $0.ReqBillingPlanQuote get billingPlanQuote => $_getN(52);
+  @$pb.TagNumber(130)
+  set billingPlanQuote($0.ReqBillingPlanQuote value) => $_setField(130, value);
+  @$pb.TagNumber(130)
+  $core.bool hasBillingPlanQuote() => $_has(52);
+  @$pb.TagNumber(130)
+  void clearBillingPlanQuote() => $_clearField(130);
+  @$pb.TagNumber(130)
+  $0.ReqBillingPlanQuote ensureBillingPlanQuote() => $_ensure(52);
+
+  @$pb.TagNumber(131)
+  $0.ReqBillingPlanChange get billingPlanChange => $_getN(53);
+  @$pb.TagNumber(131)
+  set billingPlanChange($0.ReqBillingPlanChange value) =>
+      $_setField(131, value);
+  @$pb.TagNumber(131)
+  $core.bool hasBillingPlanChange() => $_has(53);
+  @$pb.TagNumber(131)
+  void clearBillingPlanChange() => $_clearField(131);
+  @$pb.TagNumber(131)
+  $0.ReqBillingPlanChange ensureBillingPlanChange() => $_ensure(53);
 }
 
 enum InvokeRes_Body {
@@ -1246,6 +1289,8 @@ enum InvokeRes_Body {
   expensePut,
   adminPlatformPnl,
   adminOpsPeaks,
+  billingPlanQuote,
+  billingPlanChange,
   notSet
 }
 
@@ -1303,6 +1348,8 @@ class InvokeRes extends $pb.GeneratedMessage {
     $11.ResExpensePut? expensePut,
     $10.ResAdminPlatformPnl? adminPlatformPnl,
     $12.ResAdminOpsPeaks? adminOpsPeaks,
+    $0.ResBillingPlanQuote? billingPlanQuote,
+    $0.ResBillingPlanChange? billingPlanChange,
   }) {
     final result = InvokeRes._();
     if (reqId != null) result.reqId = reqId;
@@ -1377,6 +1424,8 @@ class InvokeRes extends $pb.GeneratedMessage {
     if (expensePut != null) result.expensePut = expensePut;
     if (adminPlatformPnl != null) result.adminPlatformPnl = adminPlatformPnl;
     if (adminOpsPeaks != null) result.adminOpsPeaks = adminOpsPeaks;
+    if (billingPlanQuote != null) result.billingPlanQuote = billingPlanQuote;
+    if (billingPlanChange != null) result.billingPlanChange = billingPlanChange;
     return result;
   }
 
@@ -1439,6 +1488,8 @@ class InvokeRes extends $pb.GeneratedMessage {
     127: InvokeRes_Body.expensePut,
     128: InvokeRes_Body.adminPlatformPnl,
     129: InvokeRes_Body.adminOpsPeaks,
+    130: InvokeRes_Body.billingPlanQuote,
+    131: InvokeRes_Body.billingPlanChange,
     0: InvokeRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -1494,7 +1545,9 @@ class InvokeRes extends $pb.GeneratedMessage {
       126,
       127,
       128,
-      129
+      129,
+      130,
+      131
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aI(2, _omitFieldNames ? '' : 'statusCode')
@@ -1620,6 +1673,12 @@ class InvokeRes extends $pb.GeneratedMessage {
         subBuilder: $10.ResAdminPlatformPnl.$_createMessage)
     ..aOM<$12.ResAdminOpsPeaks>(129, _omitFieldNames ? '' : 'adminOpsPeaks',
         subBuilder: $12.ResAdminOpsPeaks.$_createMessage)
+    ..aOM<$0.ResBillingPlanQuote>(
+        130, _omitFieldNames ? '' : 'billingPlanQuote',
+        subBuilder: $0.ResBillingPlanQuote.$_createMessage)
+    ..aOM<$0.ResBillingPlanChange>(
+        131, _omitFieldNames ? '' : 'billingPlanChange',
+        subBuilder: $0.ResBillingPlanChange.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1691,6 +1750,8 @@ class InvokeRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(127)
   @$pb.TagNumber(128)
   @$pb.TagNumber(129)
+  @$pb.TagNumber(130)
+  @$pb.TagNumber(131)
   InvokeRes_Body whichBody() => _InvokeRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(10)
   @$pb.TagNumber(11)
@@ -1741,6 +1802,8 @@ class InvokeRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(127)
   @$pb.TagNumber(128)
   @$pb.TagNumber(129)
+  @$pb.TagNumber(130)
+  @$pb.TagNumber(131)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -2333,6 +2396,29 @@ class InvokeRes extends $pb.GeneratedMessage {
   void clearAdminOpsPeaks() => $_clearField(129);
   @$pb.TagNumber(129)
   $12.ResAdminOpsPeaks ensureAdminOpsPeaks() => $_ensure(51);
+
+  @$pb.TagNumber(130)
+  $0.ResBillingPlanQuote get billingPlanQuote => $_getN(52);
+  @$pb.TagNumber(130)
+  set billingPlanQuote($0.ResBillingPlanQuote value) => $_setField(130, value);
+  @$pb.TagNumber(130)
+  $core.bool hasBillingPlanQuote() => $_has(52);
+  @$pb.TagNumber(130)
+  void clearBillingPlanQuote() => $_clearField(130);
+  @$pb.TagNumber(130)
+  $0.ResBillingPlanQuote ensureBillingPlanQuote() => $_ensure(52);
+
+  @$pb.TagNumber(131)
+  $0.ResBillingPlanChange get billingPlanChange => $_getN(53);
+  @$pb.TagNumber(131)
+  set billingPlanChange($0.ResBillingPlanChange value) =>
+      $_setField(131, value);
+  @$pb.TagNumber(131)
+  $core.bool hasBillingPlanChange() => $_has(53);
+  @$pb.TagNumber(131)
+  void clearBillingPlanChange() => $_clearField(131);
+  @$pb.TagNumber(131)
+  $0.ResBillingPlanChange ensureBillingPlanChange() => $_ensure(53);
 }
 
 enum WsReq_Body {

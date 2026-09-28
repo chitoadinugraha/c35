@@ -10,6 +10,7 @@ Future<AgentModel?> agentModelPick(BuildContext context, AgentModel current, Lis
   return showModalBottomSheet<AgentModel>(
     context: context,
     isScrollControlled: true,
+    useSafeArea: true,
     backgroundColor: const Color(0xFF18181B),
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
     builder: (ctx) => UiAssistantModelSheet(current: current, models: rows, modelsLoading: modelsLoading),

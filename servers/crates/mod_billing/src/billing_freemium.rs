@@ -185,6 +185,26 @@ pub async fn billing_plan_lapse_if_expired(pool: &PgPool, owner_iid: i64) -> Res
     if exp > Utc::now() {
         return Ok(false);
     }
+
+    let pending: Option<String> = sqlx::query_scalar(
+        "SELECT NULLIF(TRIM(pending_plan_slug), '') FROM ai.billing_profile WHERE id = $1",
+    )
+    .bind(profile_id)
+    .fetch_optional(pool)
+    .await?
+    .flatten();
+
+    if let Some(ref pslug) = pending {
+        if !pslug.eq_ignore_ascii_case("free") && tier_is_paid(pslug) {
+            if crate::billing_plan_change::billing_plan_pending_apply(pool, owner_iid)
+                .await
+                .is_ok()
+            {
+                return Ok(true);
+            }
+        }
+    }
+
     let mut tx = pool.begin().await?;
     sqlx::query(
         r#"
@@ -195,6 +215,8 @@ pub async fn billing_plan_lapse_if_expired(pool: &PgPool, owner_iid: i64) -> Res
             frontier_pool_limit_idr = 0,
             frontier_pool_used_idr = 0,
             plan_expires_ts = NULL,
+            pending_plan_slug = NULL,
+            pending_billing_period = NULL,
             updated_ts = NOW()
         WHERE id = $1
         "#,

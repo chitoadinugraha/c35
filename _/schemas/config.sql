@@ -89,8 +89,15 @@ CREATE INDEX IF NOT EXISTS idx_ai_llm_model_list ON ai.llm_model (sort_order) WH
 
 INSERT INTO ai.llm_model (id, provider, label, provider_model, input_micro_per_m, output_micro_per_m, supports_thinking, enabled, is_default, sort_order, family, version_rank, source) VALUES
     ('alienai', 'alienai', 'Alien AI', '', 75000, 300000, true, true, true, 0, 'flash-lite', 0, 'pinned'),
-    ('gpt-4o', 'openai', 'GPT-4o', 'gpt-4o', 250000, 1000000, false, true, false, 200, 'gpt-4o', 0, 'seed'),
-    ('claude-sonnet-4-5', 'anthropic', 'Claude Sonnet 4.5', 'anthropic/claude-sonnet-4-5', 300000, 1500000, false, true, false, 300, 'claude', 45, 'seed')
+    ('gpt-4o', 'openai', 'GPT-4o', 'openai/gpt-4o', 250000, 1000000, false, true, false, 200, 'gpt-4o', 0, 'seed'),
+    ('gpt-4o-mini', 'openai', 'GPT-4o mini', 'openai/gpt-4o-mini', 150000, 600000, false, true, false, 210, 'gpt-4o', 0, 'seed'),
+    ('gpt-4.1', 'openai', 'GPT-4.1', 'openai/gpt-4.1', 200000, 800000, false, true, false, 220, 'gpt-4', 41, 'seed'),
+    ('gpt-4.1-mini', 'openai', 'GPT-4.1 mini', 'openai/gpt-4.1-mini', 40000, 160000, false, true, false, 230, 'gpt-4', 41, 'seed'),
+    ('claude-sonnet-4-5', 'anthropic', 'Claude Sonnet 4.5', 'anthropic/claude-sonnet-4-5', 300000, 1500000, false, true, false, 300, 'claude', 45, 'seed'),
+    ('claude-3-5-haiku-latest', 'anthropic', 'Claude 3.5 Haiku', 'anthropic/claude-3-5-haiku-latest', 80000, 400000, false, true, false, 310, 'claude', 35, 'seed'),
+    ('deepseek-chat', 'deepseek', 'DeepSeek Chat', 'deepseek/deepseek-chat', 140000, 280000, false, true, false, 400, 'chat', 0, 'seed'),
+    ('deepseek-reasoner', 'deepseek', 'DeepSeek Reasoner', 'deepseek/deepseek-reasoner', 550000, 2190000, true, true, false, 410, 'reasoner', 0, 'seed'),
+    ('grok-2-latest', 'xai', 'Grok 2', 'x-ai/grok-2-latest', 200000, 1000000, false, true, false, 500, 'grok', 2, 'seed')
 ON CONFLICT (id) DO UPDATE SET
     label = EXCLUDED.label,
     provider = EXCLUDED.provider,
