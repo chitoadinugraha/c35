@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
   final (icon, accent) = switch (channel.platform) {
     'whatsapp' => (Icons.chat_rounded, const Color(0xFF25D366)),
     'telegram' => (Icons.send_rounded, const Color(0xFF38BDF8)),
+    'app' => (Icons.phone_android_rounded, const Color(0xFF34D399)),
     _ => (Icons.link_rounded, const Color(0xFFA1A1AA)),
   };
   if (channel.platform == 'telegram') {

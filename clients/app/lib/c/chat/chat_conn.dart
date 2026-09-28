@@ -296,14 +296,30 @@ class ChatConn {
   Future<T> rpc<T>(WsReq req, T Function(WsRes res) parse) => _rpc(req, parse);
 
   Future<T> _rpc<T>(WsReq req, T Function(WsRes res) parse) async {
-    if (_ch == null) await connect();
-    final reqId = req.reqId.isNotEmpty ? req.reqId : const Uuid().v4();
-    req.reqId = reqId;
-    final completer = Completer<WsRes>();
-    _rpcPending[reqId] = completer;
-    _send(req);
-    final res = await completer.future;
-    return parse(res);
+    Object? lastSendErr;
+    for (var attempt = 0; attempt < 2; attempt++) {
+      if (_ch == null || status.value != ChatConnStatus.connected) {
+        await reconnect();
+      }
+      final reqId = req.reqId.isNotEmpty ? req.reqId : const Uuid().v4();
+      req.reqId = reqId;
+      final completer = Completer<WsRes>();
+      _rpcPending[reqId] = completer;
+      try {
+        _ch!.sink.add(req.writeToBuffer());
+      } catch (e) {
+        _rpcPending.remove(reqId);
+        lastSendErr = e;
+        if (attempt == 0) {
+          await reconnect();
+          continue;
+        }
+        rethrow;
+      }
+      final res = await completer.future;
+      return parse(res);
+    }
+    throw lastSendErr ?? StateError('rpc send failed');
   }
 
   void _rpcComplete(String reqId, WsRes res) {
@@ -438,6 +454,7 @@ class ChatConn {
     bool includeInbox = true,
     bool includeBilling = false,
     Int64 hintsSinceMs = Int64.ZERO,
+    Int64 mentionsSinceMs = Int64.ZERO,
   }) =>
       _rpc<ResSessionInit>(
         WsReq(
@@ -457,6 +474,7 @@ class ChatConn {
             includeInbox: includeInbox,
             includeBilling: includeBilling,
             hintsSinceMs: hintsSinceMs,
+            mentionsSinceMs: mentionsSinceMs,
           ),
         ),
         (res) => res.sessionInit,
@@ -685,8 +703,8 @@ class ChatConn {
         (res) => res.skillCatalogSearch,
       );
 
-  Future<ResMentionList> mentionList() => _rpc<ResMentionList>(
-        WsReq(mentionList: ReqMentionList()),
+  Future<ResMentionList> mentionList({Int64 sinceMs = Int64.ZERO}) => _rpc<ResMentionList>(
+        WsReq(mentionList: ReqMentionList(sinceMs: sinceMs)),
         (res) => res.mentionList,
       );
 
@@ -878,6 +896,21 @@ class ChatConn {
         (res) => res.botPeerList,
       );
 
+  Future<ResBotPeerCreate> botPeerCreate(int botIid, {String title = ''}) => _rpc<ResBotPeerCreate>(
+        WsReq(botPeerCreate: ReqBotPeerCreate(botIid: Int64(botIid), title: title)),
+        (res) => res.botPeerCreate,
+      );
+
+  Future<ResBotPeerAppSend> botPeerAppSend(int chatId, String text, {String attachmentsJson = '[]'}) => _rpc<ResBotPeerAppSend>(
+        WsReq(botPeerAppSend: ReqBotPeerAppSend(chatId: Int64(chatId), text: text, attachmentsJson: attachmentsJson)),
+        (res) => res.botPeerAppSend,
+      );
+
+  Future<ResBotPeerDelete> botPeerDelete(int chatId) => _rpc<ResBotPeerDelete>(
+        WsReq(botPeerDelete: ReqBotPeerDelete(chatId: Int64(chatId))),
+        (res) => res.botPeerDelete,
+      );
+
   Future<ResDataSourceList> dataSourceList({int botIid = 0, int sinceUpdatedTsMs = 0, int limit = 100}) =>
       _rpc<ResDataSourceList>(
         WsReq(
@@ -903,6 +936,12 @@ class ChatConn {
   Future<ResDataSourceSync> dataSourceSync(int id) => _rpc<ResDataSourceSync>(
         WsReq(dataSourceSync: ReqDataSourceSync(id: Int64(id))),
         (res) => res.dataSourceSync,
+      );
+
+  Future<ResDataSourceCheck> dataSourceCheck({required String sourceKind, required String viewUrl}) =>
+      _rpc<ResDataSourceCheck>(
+        WsReq(dataSourceCheck: ReqDataSourceCheck(sourceKind: sourceKind, viewUrl: viewUrl)),
+        (res) => res.dataSourceCheck,
       );
 
   Future<ResChatStop> chatStop(int chatId, bool stopped) => _rpc<ResChatStop>(

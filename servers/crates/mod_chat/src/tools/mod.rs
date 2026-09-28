@@ -28,6 +28,8 @@ use builtin::{
     ConsumptionUpdateTool, DelegateRunTool, DeviceFsListTool, DeviceFsReadTool, ShellRunTool,
     DeviceInputTool, DeviceScreenshotTool,
     ExpenseAddTool, ExpenseDeleteTool, ExpenseSummaryTool, ImgEditTool, ImgGenerateTool, PresentationExportTool,
+    PresentationSourceExtractTool, PresentationSourceStructureTool,
+    PresentationVideoExtractTool, PresentationVideoStructureTool,
     ReferralCodeDeleteTool, ReferralCodeListTool, ReferralCodePutTool, ReferralTreeGetTool, SiteContactPutTool,
     SiteDraftPutTool, SiteObjectPutTool, SiteProductPatchTool, SiteProductPutTool, SitePublishTool, SiteQueryRunTool,
     SiteTxDebtPayTool, SiteTxListTool, SiteTxPreviewTool, SiteTxPutTool, WebResearchTool,
@@ -113,6 +115,10 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(ImgGenerateTool));
     dispatcher.register(Arc::new(ImgEditTool));
     dispatcher.register(Arc::new(PresentationExportTool));
+    dispatcher.register(Arc::new(PresentationSourceStructureTool));
+    dispatcher.register(Arc::new(PresentationSourceExtractTool));
+    dispatcher.register(Arc::new(PresentationVideoStructureTool));
+    dispatcher.register(Arc::new(PresentationVideoExtractTool));
     dispatcher.register(Arc::new(ConsumptionAddTool));
     dispatcher.register(Arc::new(ConsumptionTodayTool));
     dispatcher.register(Arc::new(ConsumptionUpdateTool));

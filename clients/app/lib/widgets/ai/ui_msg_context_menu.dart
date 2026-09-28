@@ -54,6 +54,18 @@ List<ChatMessageMenuItem> msgBubbleMenuItems(
         );
       },
     ),
+    if (text.isNotEmpty)
+      ChatMessageMenuAction(
+        label: 'Copy text',
+        icon: Icons.text_snippet_outlined,
+        onPressed: () {
+          ContextMenuController.removeAny();
+          Clipboard.setData(ClipboardData(text: text));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Copied to clipboard'), behavior: SnackBarBehavior.floating, duration: Duration(seconds: 1)),
+          );
+        },
+      ),
     if (onSelectAll != null)
       ChatMessageMenuAction(
         label: loc.selectAllButtonLabel,

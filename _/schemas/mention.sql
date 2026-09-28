@@ -27,6 +27,15 @@ CREATE INDEX IF NOT EXISTS idx_mention_topic
     ON ai.mention (topic_id)
     WHERE topic_id IS NOT NULL;
 
+-- Precompiled MentionCatalog protobuf per user (session init + mention_list since_ms).
+CREATE TABLE IF NOT EXISTS ai.mention_bundle (
+    user_iid            BIGINT PRIMARY KEY REFERENCES ai.identity(id) ON DELETE CASCADE,
+    updated_ts_ms       BIGINT NOT NULL DEFAULT 0,
+    body                BYTEA NOT NULL DEFAULT ''::bytea,
+    created_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Seed: @research
 INSERT INTO ai.mention (
     id, topic_id, inst_id, icon, color, sort, label_key, caption_key, search_terms

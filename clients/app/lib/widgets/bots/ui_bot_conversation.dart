@@ -1,5 +1,11 @@
+import 'dart:async';
+
+import 'package:alienai_c35/c/bot/bot_meta.dart';
 import 'package:alienai_c35/c/bot/bot_store.dart';
 import 'package:alienai_c35/c/chat/chat_block.dart';
+import 'package:alienai_c35/c/chat/chat_inbox.dart';
+import 'package:alienai_c35/c/files/msg_attachment.dart';
+import 'package:alienai_c35/c/llm/agent_model.dart';
 import 'package:alienai_c35/c/consumption/consumption_api.dart';
 import 'package:alienai_c35/c/expense/expense_api.dart';
 import 'package:alienai_c35/c/store/chat_store.dart';
@@ -8,8 +14,13 @@ import 'package:alienai_c35/widgets/ai/ui_msg_blocks.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_copy_prefix.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_thought.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_usage.dart';
+import 'package:alienai_c35/widgets/ai/in_composer.dart';
+import 'package:alienai_c35/widgets/ai/ui_msg_context_menu.dart';
 import 'package:alienai_c35/widgets/ai/ui_user_bubble.dart';
 import 'package:alienai_c35/widgets/chat/ui_chat_timeline.dart';
+import 'package:alienai_c35/widgets/ui/ui_loading.dart';
+import 'package:alienai_c35/widgets/ui/ui_safe_area.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
@@ -17,6 +28,9 @@ const _bg = Color(0xFF08080A);
 const _border = Color(0xFF27272A);
 const _muted = Color(0xFF71717A);
 const _text = Color(0xFFF4F4F5);
+const _bubbleMaxW = 520.0;
+const _botBubbleBg = Color(0xFF1A1625);
+const _botBubbleBorder = Color(0xFF5B21B6);
 
 class UiBotConversation extends StatefulWidget {
   const UiBotConversation({
@@ -33,10 +47,14 @@ class UiBotConversation extends StatefulWidget {
 }
 
 class _UiBotConversationState extends State<UiBotConversation> {
-  late final _composer = TextEditingController();
+  late final _composerCtrl = TextEditingController();
+  late final _composerFocus = FocusNode();
   late final _timeline = UiChatTimelineController();
   final _consumptionApi = ConsumptionApi();
   final _expenseApi = ExpenseApi();
+  var _menuMsgIndex = 0;
+  String? _selectedPlain;
+  var _retrying = false;
 
   @override
   void initState() {
@@ -46,16 +64,19 @@ class _UiBotConversationState extends State<UiBotConversation> {
 
   @override
   void dispose() {
-    _composer.dispose();
+    _composerCtrl.dispose();
+    _composerFocus.dispose();
     _timeline.dispose();
     super.dispose();
   }
 
-  Future<void> _send() async {
-    final text = _composer.text;
-    _composer.clear();
+  Future<void> _sendFromComposer(String text, List<MsgAttachment> attachments) async {
     try {
-      await widget.store.chatSend(widget.chatId, text);
+      if (widget.store.chatIsApp(widget.chatId)) {
+        await widget.store.chatAppSend(widget.chatId, text, attachments: attachments);
+      } else {
+        await widget.store.chatSend(widget.chatId, text, attachments: attachments);
+      }
       if (mounted) _timeline.scrollToBottom(force: true);
     } catch (_) {}
   }
@@ -66,23 +87,74 @@ class _UiBotConversationState extends State<UiBotConversation> {
     } catch (_) {}
   }
 
+  String _plainForMsg(MsgRow m) {
+    final parts = <String>[];
+    final content = msgDisplayContent(m).trim();
+    if (content.isNotEmpty) parts.add(content);
+    if (m.role == 'assistant' && m.thought.trim().isNotEmpty) parts.add(msgThoughtStripPlaceholders(m.thought));
+    return parts.join('\n\n');
+  }
+
+  Future<void> _retryLastTurn() async {
+    if (_retrying || !widget.store.chatIsApp(widget.chatId)) return;
+    ContextMenuController.removeAny();
+    setState(() => _retrying = true);
+    try {
+      await widget.store.chatAppRetryLastTurn(widget.chatId);
+      if (mounted) _timeline.scrollToBottom(force: true);
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => _retrying = false);
+    }
+  }
+
+  Widget _messageContextMenu(BuildContext ctx, SelectableRegionState state, List<MsgRow> msgs) {
+    if (msgs.isEmpty) return const SizedBox.shrink();
+    final i = _menuMsgIndex.clamp(0, msgs.length - 1);
+    final m = msgs[i];
+    final isAssistant = m.role == 'assistant';
+    final plain = _plainForMsg(m);
+    final lastUserIdx = msgs.lastIndexWhere((x) => x.role == 'user');
+    final lastAssistantIdx = msgs.lastIndexWhere((x) => x.role == 'assistant');
+    final isApp = widget.store.chatIsApp(widget.chatId);
+    final showRetry = isApp && !widget.store.composerBusy && !_retrying && (i == lastUserIdx || i == lastAssistantIdx);
+    return msgBubbleContextMenu(
+      ctx,
+      state,
+      plainText: plain,
+      selectedText: _selectedPlain,
+      viewerIsRoot: sessionViewerIsRoot(),
+      isAssistant: isAssistant,
+      reqId: m.reqId,
+      msgId: m.id > 0 ? m.id : 0,
+      showRetry: showRetry,
+      onRetryLastTurn: showRetry ? _retryLastTurn : null,
+      conn: widget.store.conn,
+    );
+  }
+
   Widget _msgTile(MsgRow m, {required int i, required int count}) {
-    final isUser = m.role == 'user';
-    final copyPrefix = msgCopyPrefix(role: m.role, userName: m.role == 'user' ? 'User' : 'Staff', createdAtMs: m.createdAtMs);
+    final isCustomer = m.role == 'user';
+    final isAssistant = m.role == 'assistant';
+    final copyPrefix = msgCopyPrefix(
+      role: m.role,
+      userName: isCustomer ? 'Customer' : (isAssistant ? 'Bot' : 'Staff'),
+      createdAtMs: m.createdAtMs,
+    );
 
     Widget body;
-    if (isUser) {
+    if (isCustomer) {
       body = UiUserBubble(content: m.content, copyPrefix: copyPrefix, attachments: m.attachments);
     } else {
       final thoughtView = msgThoughtView(thought: m.thought, content: m.content, thinking: false);
       final blocks = ChatBlock.decodeList(m.blocksJson);
       body = ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.82),
+        constraints: const BoxConstraints(maxWidth: _bubbleMaxW),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: const Color(0xFF141417),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: _border),
+            color: _botBubbleBg,
+            borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16), bottomLeft: Radius.circular(4), bottomRight: Radius.circular(16)),
+            border: Border.all(color: _botBubbleBorder.withValues(alpha: 0.45)),
           ),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
@@ -122,7 +194,40 @@ class _UiBotConversationState extends State<UiBotConversation> {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Align(alignment: isUser ? Alignment.centerRight : Alignment.centerLeft, child: body),
+      child: Align(alignment: isCustomer ? Alignment.centerLeft : Alignment.centerRight, child: body),
+    );
+  }
+
+  Widget _typingRow(String? party) {
+    if (party == null) return const SizedBox.shrink();
+    final isPeer = party == 'peer';
+    final label = isPeer ? 'bots.typingPeer'.tr() : 'bots.typingBot'.tr();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+      child: Align(
+        alignment: isPeer ? Alignment.centerLeft : Alignment.centerRight,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: _bubbleMaxW),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: isPeer ? const Color(0xFF27272A) : _botBubbleBg,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: isPeer ? _border : _botBubbleBorder.withValues(alpha: 0.35)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  UiThinkingDots(color: isPeer ? _muted : const Color(0xFFA78BFA), size: 3.2),
+                  const SizedBox(width: 8),
+                  Flexible(child: Text(label, style: TextStyle(color: isPeer ? _muted : const Color(0xFFC4B5FD), fontSize: 13))),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -134,6 +239,8 @@ class _UiBotConversationState extends State<UiBotConversation> {
           final msgs = widget.store.msgsFor(widget.chatId);
           final name = peer?.peerName.isNotEmpty == true ? peer!.peerName : (peer?.title ?? 'Conversation');
           final stopped = peer != null && !peer.aiReplyEnabled;
+          final isApp = widget.store.chatIsApp(widget.chatId);
+          final typingParty = widget.store.chatTypingParty(widget.chatId) ?? (isApp && widget.store.composerBusy ? 'bot' : null);
 
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (msgs.isNotEmpty) _timeline.scrollToBottom();
@@ -153,11 +260,12 @@ class _UiBotConversationState extends State<UiBotConversation> {
                         Expanded(
                           child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _text, fontSize: 15, fontWeight: FontWeight.w600)),
                         ),
-                        TextButton.icon(
-                          onPressed: peer == null ? null : _toggleStop,
-                          icon: Icon(stopped ? Icons.play_arrow_rounded : Icons.stop_circle_outlined, size: 18, color: stopped ? const Color(0xFF22C55E) : const Color(0xFFEF4444)),
-                          label: Text(stopped ? 'Resume' : 'Stop', style: TextStyle(color: stopped ? const Color(0xFF22C55E) : const Color(0xFFEF4444), fontSize: 13)),
-                        ),
+                        if (peer != null && !botPeerIsApp(peer))
+                          TextButton.icon(
+                            onPressed: _toggleStop,
+                            icon: Icon(stopped ? Icons.play_arrow_rounded : Icons.stop_circle_outlined, size: 18, color: stopped ? const Color(0xFF22C55E) : const Color(0xFFEF4444)),
+                            label: Text(stopped ? 'bots.resumeAi'.tr() : 'bots.stopAi'.tr(), style: TextStyle(color: stopped ? const Color(0xFF22C55E) : const Color(0xFFEF4444), fontSize: 13)),
+                          ),
                       ],
                     ),
                   ),
@@ -167,45 +275,38 @@ class _UiBotConversationState extends State<UiBotConversation> {
                       ? const Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: _muted)))
                       : msgs.isEmpty
                           ? const Center(child: Text('No messages yet', style: TextStyle(color: _muted, fontSize: 13)))
-                          : UiChatTimeline(
-                              controller: _timeline,
-                              itemCount: msgs.length,
-                              itemBuilder: (context, i) => _msgTile(msgs[i], i: i, count: msgs.length),
+                          : SelectionArea(
+                              onSelectionChanged: (c) => _selectedPlain = c?.plainText,
+                              contextMenuBuilder: (ctx, state) => _messageContextMenu(ctx, state, msgs),
+                              child: UiChatTimeline(
+                                controller: _timeline,
+                                itemCount: msgs.length,
+                                itemBuilder: (context, i) => Listener(
+                                  onPointerDown: (_) => _menuMsgIndex = i,
+                                  child: KeyedSubtree(
+                                    key: ValueKey(msgTileKey(msgs[i])),
+                                    child: _msgTile(msgs[i], i: i, count: msgs.length),
+                                  ),
+                                ),
+                              ),
                             ),
                 ),
+                _typingRow(typingParty),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _composer,
-                          minLines: 1,
-                          maxLines: 5,
-                          style: const TextStyle(color: _text, fontSize: 14),
-                          decoration: InputDecoration(
-                            hintText: 'Send as staff…',
-                            hintStyle: const TextStyle(color: _muted),
-                            filled: true,
-                            fillColor: const Color(0xFF18181B),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _border)),
-                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _border)),
-                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF34D399))),
-                          ),
-                          onSubmitted: widget.store.sending ? null : (_) => _send(),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      FilledButton(
-                        onPressed: widget.store.sending ? null : _send,
-                        style: FilledButton.styleFrom(backgroundColor: const Color(0xFF34D399), foregroundColor: Colors.black, minimumSize: const Size(44, 44), padding: EdgeInsets.zero),
-                        child: widget.store.sending
-                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-                            : const Icon(Icons.send_rounded, size: 18),
-                      ),
-                    ],
+                  padding: EdgeInsets.fromLTRB(12, 0, 12, uiSafeBottomInset(context, 12)),
+                  child: InComposer(
+                    key: ValueKey(widget.chatId),
+                    compact: true,
+                    controller: _composerCtrl,
+                    focusNode: _composerFocus,
+                    hint: isApp ? 'bots.messageHint'.tr() : 'bots.staffHint'.tr(),
+                    model: AgentModel.alien,
+                    models: const [AgentModel.alien],
+                    onModel: (_) {},
+                    enabled: peer != null,
+                    busy: widget.store.composerBusy,
+                    showSpeakIndicator: false,
+                    onSend: (text, atts, {toolMode, mentionIds, displayContent}) => _sendFromComposer(text, atts),
                   ),
                 ),
               ],

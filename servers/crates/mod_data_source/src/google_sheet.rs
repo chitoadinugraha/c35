@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::sync::Mutex;
 
+use crate::access::config_write_allowed;
 use crate::config::SOURCE_KIND_GOOGLE_SHEET;
 use crate::store::DataSourceRow;
 
@@ -25,6 +26,7 @@ pub struct GoogleSheetConfig {
     pub spreadsheet_id: String,
     pub gid: String,
     pub sheet_name: String,
+    pub write_allowed: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -66,6 +68,28 @@ struct TokenResponse {
     expires_in: u64,
 }
 
+#[derive(Deserialize)]
+struct SpreadsheetGetResponse {
+    properties: Option<SpreadsheetProperties>,
+    sheets: Option<Vec<SheetEntry>>,
+}
+
+#[derive(Deserialize)]
+struct SpreadsheetProperties {
+    title: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct SheetEntry {
+    properties: Option<SheetProperties>,
+}
+
+#[derive(Deserialize)]
+struct SheetProperties {
+    title: Option<String>,
+    sheet_id: Option<i64>,
+}
+
 use std::sync::OnceLock;
 
 static API: OnceLock<Option<Arc<SheetsApi>>> = OnceLock::new();
@@ -89,6 +113,7 @@ pub fn parse_sheet_url(url: &str) -> Result<ParsedSheetUrl> {
         .context("parse spreadsheet_id from url")?;
     let gid = extract_query_param(url, "gid")
         .or_else(|| extract_hash_param(url, "gid"))
+        .map(|g| normalize_sheet_gid(&g))
         .unwrap_or_else(|| "0".to_string());
     Ok(ParsedSheetUrl {
         spreadsheet_id,
@@ -128,6 +153,37 @@ fn extract_hash_param(url: &str, key: &str) -> Option<String> {
         }
     }
     None
+}
+
+/// GID query/hash values may include trailing fragment junk (e.g. `0#gid=0`).
+pub fn normalize_sheet_gid(raw: &str) -> String {
+    let raw = raw.trim();
+    let digits: String = raw.chars().take_while(|c| c.is_ascii_digit() || *c == '-').collect();
+    if digits.is_empty() {
+        "0".to_string()
+    } else {
+        digits
+    }
+}
+
+pub fn is_placeholder_sheet_tab_title(title: &str) -> bool {
+    let t = title.trim();
+    if t.is_empty() {
+        return true;
+    }
+    let lower = t.to_ascii_lowercase();
+    lower == "sheet"
+        || lower.starts_with("gid ")
+        || lower.starts_with("sheet (gid")
+        || lower.starts_with("tab (gid")
+}
+
+pub fn sheet_tab_title_or_index(raw: &str, index: usize) -> String {
+    let t = raw.trim();
+    if !is_placeholder_sheet_tab_title(t) {
+        return t.to_string();
+    }
+    format!("Sheet {}", index + 1)
 }
 
 pub fn sheet_tab_name(cfg: &GoogleSheetConfig) -> String {
@@ -170,6 +226,7 @@ pub fn google_sheet_config_from_row(row: &DataSourceRow) -> Result<GoogleSheetCo
         spreadsheet_id: spreadsheet_id.to_string(),
         gid,
         sheet_name,
+        write_allowed: config_write_allowed(config),
     })
 }
 
@@ -185,6 +242,181 @@ pub fn config_merge_sheet_url(config: &mut Value, view_url: &str) -> Result<()> 
         obj.insert("view_url".into(), json!(view_url.trim()));
     }
     Ok(())
+}
+
+pub async fn google_sheet_metadata(http: &Client, spreadsheet_id: &str) -> Result<(String, Vec<(String, String)>)> {
+    if let Ok(Some(api)) = sheets_api() {
+        if let Ok((title, tabs)) = spreadsheet_metadata_api(api.as_ref(), spreadsheet_id).await {
+            return Ok((title, tabs));
+        }
+    }
+    let view_url = format!("https://docs.google.com/spreadsheets/d/{}/edit", spreadsheet_id);
+    let res = http
+        .get(&view_url)
+        .timeout(Duration::from_secs(8))
+        .send()
+        .await;
+    if let Ok(res) = res {
+        if let Ok(body) = res.text().await {
+            let tabs = sheets_tabs_from_html(&body);
+            if let Some(title) = crate::google_url::html_title_from_document(&body) {
+                return Ok((title, tabs));
+            }
+            if !tabs.is_empty() {
+                return Ok((String::new(), tabs));
+            }
+        }
+    }
+    Ok((String::new(), vec![]))
+}
+
+/// Best-effort tab list from the public spreadsheet HTML bootstrap JSON.
+pub fn sheets_tabs_from_html(html: &str) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    let needle = "\"sheetId\":";
+    let mut pos = 0;
+    while let Some(rel) = html[pos..].find(needle) {
+        let idx = pos + rel;
+        let after = &html[idx + needle.len()..];
+        let gid: String = after
+            .trim_start()
+            .chars()
+            .take_while(|c| c.is_ascii_digit() || *c == '-')
+            .collect();
+        if gid.is_empty() {
+            pos = idx + needle.len();
+            continue;
+        }
+        let window_start = idx.saturating_sub(280);
+        let window_end = (idx + 400).min(html.len());
+        let window = &html[window_start..window_end];
+        let forward = &after[..after.len().min(400)];
+        let sheet_id_pos_in_window = idx - window_start;
+        let tab_index = out.len();
+        let title = tab_title_from_fragment(forward, window, sheet_id_pos_in_window)
+            .map(|t| sheet_tab_title_or_index(&t, tab_index))
+            .unwrap_or_else(|| sheet_tab_title_or_index("", tab_index));
+        if seen.insert(gid.clone()) {
+            out.push((title, gid));
+        }
+        pos = idx + needle.len();
+    }
+    out.sort_by(|a, b| {
+        let ga: i64 = a.1.parse().unwrap_or(0);
+        let gb: i64 = b.1.parse().unwrap_or(0);
+        ga.cmp(&gb)
+    });
+    out
+}
+
+fn tab_title_from_fragment(forward: &str, window: &str, sheet_id_pos_in_window: usize) -> Option<String> {
+    json_string_after_key(forward, "title")
+        .or_else(|| json_string_after_key(forward, "name"))
+        .or_else(|| json_string_before_key(window, "title", sheet_id_pos_in_window))
+        .or_else(|| json_string_before_key(window, "name", sheet_id_pos_in_window))
+        .filter(|t| !t.is_empty())
+}
+
+fn json_string_after_key(s: &str, key: &str) -> Option<String> {
+    for sep in [":\"", ": \""] {
+        let pat = format!("\"{key}\"{sep}");
+        let Some(start) = s.find(&pat) else { continue };
+        let rest = &s[start + pat.len()..];
+        let end = rest.find('"')?;
+        let val = rest[..end].trim();
+        if !val.is_empty() {
+            return Some(decode_json_string_escapes(val));
+        }
+    }
+    None
+}
+
+fn json_string_before_key(s: &str, key: &str, before_pos: usize) -> Option<String> {
+    let slice = &s[..before_pos.min(s.len())];
+    for sep in [":\"", ": \""] {
+        let pat = format!("\"{key}\"{sep}");
+        let Some(start) = slice.rfind(&pat) else { continue };
+        let rest = &slice[start + pat.len()..];
+        let end = rest.find('"')?;
+        let val = rest[..end].trim();
+        if !val.is_empty() {
+            return Some(decode_json_string_escapes(val));
+        }
+    }
+    None
+}
+
+fn decode_json_string_escapes(raw: &str) -> String {
+    let mut out = String::with_capacity(raw.len());
+    let mut chars = raw.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\\' {
+            match chars.next() {
+                Some('u') => {
+                    let hex: String = chars.by_ref().take(4).collect();
+                    if hex.len() == 4 {
+                        if let Ok(code) = u32::from_str_radix(&hex, 16) {
+                            if let Some(ch) = char::from_u32(code) {
+                                out.push(ch);
+                                continue;
+                            }
+                        }
+                    }
+                    out.push('\\');
+                    out.push('u');
+                    out.push_str(&hex);
+                    continue;
+                }
+                Some('"') => out.push('"'),
+                Some('\\') => out.push('\\'),
+                Some('n') => out.push('\n'),
+                Some('t') => out.push('\t'),
+                Some(other) => {
+                    out.push('\\');
+                    out.push(other);
+                }
+                None => out.push('\\'),
+            }
+            continue;
+        }
+        out.push(c);
+    }
+    out
+}
+
+async fn spreadsheet_metadata_api(api: &SheetsApi, spreadsheet_id: &str) -> Result<(String, Vec<(String, String)>)> {
+    let token = access_token(api).await?;
+    let url = format!(
+        "https://sheets.googleapis.com/v4/spreadsheets/{}?fields=properties.title,sheets.properties(title,sheetId)",
+        spreadsheet_id
+    );
+    let res = api
+        .http
+        .get(&url)
+        .bearer_auth(&token)
+        .send()
+        .await
+        .context("sheets metadata request")?
+        .error_for_status()
+        .context("sheets metadata denied")?
+        .json::<SpreadsheetGetResponse>()
+        .await
+        .context("parse sheets metadata")?;
+    let title = res.properties.and_then(|p| p.title).unwrap_or_default();
+    let tabs = res
+        .sheets
+        .unwrap_or_default()
+        .into_iter()
+        .enumerate()
+        .filter_map(|(i, s)| {
+            let p = s.properties?;
+            let gid = p.sheet_id.map(|id| id.to_string()).filter(|g| !g.is_empty())?;
+            let raw = p.title.unwrap_or_default();
+            Some((sheet_tab_title_or_index(&raw, i), gid))
+        })
+        .collect();
+    Ok((title, tabs))
 }
 
 pub async fn google_sheet_read_csv(http: &Client, cfg: &GoogleSheetConfig) -> Result<String> {
@@ -394,5 +626,28 @@ mod tests {
         let p = parse_sheet_url(u).unwrap();
         assert_eq!(p.spreadsheet_id, "abc");
         assert_eq!(p.gid, "7");
+    }
+
+    #[test]
+    fn normalize_sheet_gid_strips_trailing_fragment() {
+        assert_eq!(normalize_sheet_gid("0#gid=0"), "0");
+        assert_eq!(normalize_sheet_gid("42"), "42");
+    }
+
+    #[test]
+    fn sheets_tabs_from_html_parses_titles() {
+        let html = r#"{"sheetId":0,"title":"Sheet1"},{"sheetId":123456,"title":"Sales"}"#;
+        let tabs = sheets_tabs_from_html(html);
+        assert!(tabs.iter().any(|(t, g)| t == "Sheet1" && g == "0"));
+        assert!(tabs.iter().any(|(t, g)| t == "Sales" && g == "123456"));
+    }
+
+    #[test]
+    fn sheets_tabs_from_html_title_before_sheet_id() {
+        let html = r#"{"title":"Stock List","sheetId":0,"index":0}"#;
+        let tabs = sheets_tabs_from_html(html);
+        assert_eq!(tabs.len(), 1);
+        assert_eq!(tabs[0].0, "Stock List");
+        assert_eq!(tabs[0].1, "0");
     }
 }

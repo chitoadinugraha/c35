@@ -53,7 +53,9 @@ message ResTopicList {
   repeated TopicItem topics = 1;
 }
 
-message ReqMentionList {}
+message ReqMentionList {
+  int64 since_ms = 1;
+}
 
 message ResMentionList {
   repeated MentionItem mentions = 1;

@@ -7,6 +7,7 @@ pub const ASSET_TAG_SQL: &str = include_str!("../../../../_/schemas/asset_tag.sq
 pub const LOG_SQL: &str = include_str!("../../../../_/schemas/log.sql");
 pub const EMBED_SQL: &str = include_str!("../../../../_/schemas/embed.sql");
 pub const DATA_SOURCE_SQL: &str = include_str!("../../../../_/schemas/data_source.sql");
+pub const YOUTUBE_TRANSCRIPT_SQL: &str = include_str!("../../../../_/schemas/youtube_transcript.sql");
 pub const SKILL_SQL: &str = include_str!("../../../../_/schemas/skill.sql");
 pub const TASK_SQL: &str = include_str!("../../../../_/schemas/task.sql");
 pub const CONSUMPTION_SQL: &str = include_str!("../../../../_/schemas/consumption.sql");
@@ -38,6 +39,7 @@ pub const SCHEMA_APPLY_ORDER: &[(&str, &str)] = &[
     ("log", LOG_SQL),
     ("embed", EMBED_SQL),
     ("data_source", DATA_SOURCE_SQL),
+    ("youtube_transcript", YOUTUBE_TRANSCRIPT_SQL),
     ("inst", INST_SQL),
     ("topic", TOPIC_SQL),
     ("mention", MENTION_SQL),

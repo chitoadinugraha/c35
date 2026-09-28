@@ -245,6 +245,7 @@ const BillingPlanPrice$json = {
     {'1': 'currency', '3': 2, '4': 1, '5': 9, '10': 'currency'},
     {'1': 'amount', '3': 3, '4': 1, '5': 1, '10': 'amount'},
     {'1': 'billing_period', '3': 4, '4': 1, '5': 9, '10': 'billingPeriod'},
+    {'1': 'list_amount', '3': 5, '4': 1, '5': 1, '10': 'listAmount'},
   ],
 };
 
@@ -252,7 +253,8 @@ const BillingPlanPrice$json = {
 final $typed_data.Uint8List billingPlanPriceDescriptor = $convert.base64Decode(
     'ChBCaWxsaW5nUGxhblByaWNlEhsKCXBsYW5fc2x1ZxgBIAEoCVIIcGxhblNsdWcSGgoIY3Vycm'
     'VuY3kYAiABKAlSCGN1cnJlbmN5EhYKBmFtb3VudBgDIAEoAVIGYW1vdW50EiUKDmJpbGxpbmdf'
-    'cGVyaW9kGAQgASgJUg1iaWxsaW5nUGVyaW9k');
+    'cGVyaW9kGAQgASgJUg1iaWxsaW5nUGVyaW9kEh8KC2xpc3RfYW1vdW50GAUgASgBUgpsaXN0QW'
+    '1vdW50');
 
 @$core.Deprecated('Use billingFxRateDescriptor instead')
 const BillingFxRate$json = {
@@ -1467,6 +1469,20 @@ const BillingPlanDoc$json = {
       '10': 'queuePriorityMultiplier'
     },
     {'1': 'priority_queue', '3': 19, '4': 1, '5': 8, '10': 'priorityQueue'},
+    {
+      '1': 'price_idr_monthly_list',
+      '3': 20,
+      '4': 1,
+      '5': 1,
+      '10': 'priceIdrMonthlyList'
+    },
+    {
+      '1': 'price_idr_yearly_list',
+      '3': 21,
+      '4': 1,
+      '5': 1,
+      '10': 'priceIdrYearlyList'
+    },
   ],
 };
 
@@ -1485,7 +1501,9 @@ final $typed_data.Uint8List billingPlanDocDescriptor = $convert.base64Decode(
     'bnRpZXJfcG9vbF9pZHJfbW9udGhseRgPIAEoAVIWZnJvbnRpZXJQb29sSWRyTW9udGhseRInCg'
     '9wb29sX211bHRpcGxpZXIYECABKAFSDnBvb2xNdWx0aXBsaWVyEhIKBHRpZXIYESABKAlSBHRp'
     'ZXISOgoZcXVldWVfcHJpb3JpdHlfbXVsdGlwbGllchgSIAEoBVIXcXVldWVQcmlvcml0eU11bH'
-    'RpcGxpZXISJQoOcHJpb3JpdHlfcXVldWUYEyABKAhSDXByaW9yaXR5UXVldWU=');
+    'RpcGxpZXISJQoOcHJpb3JpdHlfcXVldWUYEyABKAhSDXByaW9yaXR5UXVldWUSMwoWcHJpY2Vf'
+    'aWRyX21vbnRobHlfbGlzdBgUIAEoAVITcHJpY2VJZHJNb250aGx5TGlzdBIxChVwcmljZV9pZH'
+    'JfeWVhcmx5X2xpc3QYFSABKAFSEnByaWNlSWRyWWVhcmx5TGlzdA==');
 
 @$core.Deprecated('Use billingHistoryRowDescriptor instead')
 const BillingHistoryRow$json = {
@@ -2084,6 +2102,14 @@ const ResBillingSummary$json = {
       '5': 3,
       '10': 'trialExpiresTsMs'
     },
+    {
+      '1': 'bot_plans',
+      '3': 27,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.BillingPlanDoc',
+      '10': 'botPlans'
+    },
   ],
 };
 
@@ -2110,4 +2136,5 @@ final $typed_data.Uint8List resBillingSummaryDescriptor = $convert.base64Decode(
     'EjAKFGZyZWVtaXVtX3Rva2Vuc191c2VkGBcgASgFUhJmcmVlbWl1bVRva2Vuc1VzZWQSMgoVZn'
     'JlZW1pdW1fdG9rZW5zX2xpbWl0GBggASgFUhNmcmVlbWl1bVRva2Vuc0xpbWl0EisKEnBsYW5f'
     'ZXhwaXJlc190c19tcxgZIAEoA1IPcGxhbkV4cGlyZXNUc01zEi0KE3RyaWFsX2V4cGlyZXNfdH'
-    'NfbXMYGiABKANSEHRyaWFsRXhwaXJlc1RzTXM=');
+    'NfbXMYGiABKANSEHRyaWFsRXhwaXJlc1RzTXMSMAoJYm90X3BsYW5zGBsgAygLMhMuYzM1LkJp'
+    'bGxpbmdQbGFuRG9jUghib3RQbGFucw==');

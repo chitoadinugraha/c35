@@ -50,3 +50,21 @@ message ReqDataSourceSync {
 message ResDataSourceSync {
   DataSourceDoc doc = 1;
 }
+
+message DataSourceSheetTab {
+  string title = 1;
+  string gid = 2;
+}
+
+message ReqDataSourceCheck {
+  string source_kind = 1;
+  string view_url = 2;
+}
+
+message ResDataSourceCheck {
+  bool ok = 1;
+  string error_msg = 2;
+  string title = 3;
+  string config_json = 4;
+  repeated DataSourceSheetTab tabs = 5;
+}

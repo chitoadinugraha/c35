@@ -230,7 +230,7 @@ async fn identity_rows(pool: &PgPool, caller_iid: i64) -> Vec<MentionItem> {
     }
 }
 
-pub async fn mention_snapshot(pool: &PgPool, caller_iid: i64) -> (i64, Vec<MentionItem>) {
+pub async fn mention_items_build(pool: &PgPool, caller_iid: i64) -> Vec<MentionItem> {
     let caller_is_root = require_root(pool, caller_iid).await.is_ok();
     let catalog = catalog_rows(pool)
         .await
@@ -240,6 +240,11 @@ pub async fn mention_snapshot(pool: &PgPool, caller_iid: i64) -> (i64, Vec<Menti
     let identities = identity_rows(pool, caller_iid).await;
     let mut items = catalog;
     items.extend(identities);
+    items
+}
+
+pub async fn mention_snapshot(pool: &PgPool, caller_iid: i64) -> (i64, Vec<MentionItem>) {
+    let items = mention_items_build(pool, caller_iid).await;
     let rev = chrono::Utc::now().timestamp_millis();
     (rev, items)
 }

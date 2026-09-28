@@ -2,7 +2,9 @@
 
 use anyhow::{anyhow, Result};
 use c35_ctx::AppState;
-use c35_mod_chat::{prompt_followup_active_req, prompt_followup_enabled, prompt_followup_put};
+use c35_mod_chat::{
+    bot_active_load, bot_peer_msg_fanout, prompt_followup_active_req, prompt_followup_enabled, prompt_followup_put,
+};
 use c35_proto::PromptFollowupKind;
 use c35_mod_log::{log_put, LogPut};
 use reqwest::Client;
@@ -112,6 +114,30 @@ pub async fn channel_inbound_handle(
         &message,
     )
     .await?;
+    if inbound.platform != "app" {
+        let nats = state.nats.clone();
+        let owner = owner_iid;
+        let cid = chat_id;
+        tokio::spawn(async move {
+            let _ = c35_mod_chat::bot_peer_typing_fanout(nats.as_ref(), owner, cid, "peer", true).await;
+        });
+    }
+    if inbound.platform == "app" {
+        let _ = sqlx::query(
+            "UPDATE ai.chat SET ai_reply_enabled = TRUE, updated_ts = NOW() WHERE id = $1 AND kind = 'bot_peer' AND ai_reply_enabled = FALSE",
+        )
+        .bind(chat_id)
+        .execute(&state.pool)
+        .await;
+        let _ = bot_peer_msg_fanout(
+            &state.pool,
+            state.nats.as_ref(),
+            owner_iid,
+            chat_id,
+            user_msg_id,
+        )
+        .await;
+    }
     if let Some(ext_id) = inbound.external_msg_id.as_deref().filter(|s| !s.is_empty()) {
         channel_inbound_msg_put(
             &state.pool,
@@ -134,7 +160,11 @@ pub async fn channel_inbound_handle(
         message.len()
     );
 
-    if !chat_ai_reply_enabled(&state.pool, chat_id).await {
+    if inbound.platform != "app" && !chat_ai_reply_enabled(&state.pool, chat_id).await {
+        return Ok((chat_id, peer_iid));
+    }
+
+    if !bot_active_load(&state.pool, bot_iid).await {
         return Ok((chat_id, peer_iid));
     }
 
@@ -144,7 +174,7 @@ pub async fn channel_inbound_handle(
         return Ok((chat_id, peer_iid));
     }
 
-    if prompt_followup_enabled() {
+    if prompt_followup_enabled() && inbound.platform != "app" {
         if let Ok(Some(active_req)) = prompt_followup_active_req(&state.pool, chat_id).await {
             let dedup = inbound
                 .external_msg_id
@@ -201,10 +231,19 @@ pub async fn channel_inbound_handle(
         attachments_json,
         req_id,
     };
-    hub.debouncer
-        .lock()
-        .await
-        .schedule(Arc::new(state.clone()), job);
+    let state_arc = Arc::new(state.clone());
+    if inbound.platform == "app" {
+        tokio::spawn(async move {
+            if let Err(e) = super::turn::execute_channel_turn(state_arc, job).await {
+                tracing::error!("[c35:channel] app turn failed chat_id={}: {e:#}", chat_id);
+            }
+        });
+    } else {
+        hub.debouncer
+            .lock()
+            .await
+            .schedule(state_arc, job);
+    }
 
     Ok((chat_id, peer_iid))
 }
@@ -236,6 +275,50 @@ async fn channel_static_reply(
     channel_reply_nats(&client, state.nats.as_ref(), Some(&cas), &out_ctx, text, false).await?;
     chat_msg_assistant_put(&state.pool, chat_id, owner_iid, bot_iid, req_id, text).await?;
     Ok(())
+}
+
+pub fn channel_app_doc() -> ChannelDoc {
+    ChannelDoc {
+        id: "app".into(),
+        platform: "app".into(),
+        provider: String::new(),
+        status: "connected".into(),
+        webhook_secret: String::new(),
+        verify_token: String::new(),
+        bot_token: String::new(),
+        bot_username: String::new(),
+        phone_number_id: String::new(),
+        access_token: String::new(),
+        phone: String::new(),
+        error_message: String::new(),
+        session: Default::default(),
+    }
+}
+
+pub async fn channel_app_peer_send(
+    state: &AppState,
+    bot_iid: i64,
+    peer_key: &str,
+    peer_name: &str,
+    text: &str,
+    attachments_json: &str,
+) -> Result<(i64, i64)> {
+    let attachments: Vec<crate::types::ChannelInboundAttachment> =
+        serde_json::from_str(attachments_json).unwrap_or_default();
+    let inbound = ChannelInboundMessage {
+        platform: "app".into(),
+        external_user_id: peer_key.to_string(),
+        display_name: peer_name.to_string(),
+        text: text.to_string(),
+        external_msg_id: Some(format!("app-{}", c35_store::snowflake_id())),
+        attachments,
+        is_voice: false,
+        quoted_msg_id: String::new(),
+        quoted_text: String::new(),
+        avatar_hash: String::new(),
+        platform_user_id: String::new(),
+    };
+    channel_inbound_handle(state, bot_iid, &channel_app_doc(), &inbound).await
 }
 
 fn truncate_log_text(s: &str) -> String {

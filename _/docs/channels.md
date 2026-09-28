@@ -60,6 +60,12 @@ When bot meta has `strict_mode` and `auto_block_spammer` (default both true):
 
 ---
 
+## 3c. Bot active (`meta.active`)
+
+When `identity.meta.active` is **false**, `channel_inbound_handle` still resolves peer chat and stores the inbound user message, but **does not** schedule a channel AI turn. Default **true** when the key is omitted (existing bots). Distinct from per-chat **`ai_reply_enabled`** (Stop on one conversation).
+
+---
+
 ## 4. Media Pipeline (Images only)
 
 ### Inbound

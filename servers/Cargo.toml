@@ -31,6 +31,7 @@ members = [
     "crates/mod_hint",
     "crates/mod_fetch",
     "crates/mod_data_source",
+    "crates/mod_youtube",
     "crates/mod_platform",
     "channel_whatsapp_device",
     "server_ai",

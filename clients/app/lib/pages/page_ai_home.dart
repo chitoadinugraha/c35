@@ -413,6 +413,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     _uiLang = context.locale.languageCode;
     try {
       await HintStore.instance.restore();
+      await _store.mentionCatalog.restore();
       await CatalogTranslationCache.instance.restore();
       await CatalogTranslationCache.instance.ensure(_uiLang!);
     } catch (e) {

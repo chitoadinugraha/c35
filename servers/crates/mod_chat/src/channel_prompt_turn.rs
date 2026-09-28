@@ -5,7 +5,7 @@ use c35_mod_billing::{billing_resolve, billing_usage_report, TurnBillingCtx};
 use sqlx::PgPool;
 use tokio_util::sync::CancellationToken;
 
-use crate::bot_meta::{bot_turn_meta_parse, bot_turn_signals, BOT_TOPIC, BOT_WEB_TOOL_EXCLUDE};
+use crate::bot_meta::{bot_turn_meta_parse, bot_turn_signals, BOT_GSHEET_WRITE_TOOL_EXCLUDE, BOT_TOPIC, BOT_WEB_TOOL_EXCLUDE};
 use crate::compose::{compose_tools_and_inst_async, ComposeTurnOpts};
 use crate::inst_macro::inst_scopes_channel;
 use crate::inst_cache::inst_list_cached;
@@ -68,10 +68,17 @@ pub async fn channel_prompt_turn(
     if !turn_meta.web_search {
         extra_exclude.extend(BOT_WEB_TOOL_EXCLUDE.iter().map(|s| s.to_string()));
     }
+    let ds_rows = c35_mod_data_source::data_source_list_for_bot(pool, bot_iid)
+        .await
+        .unwrap_or_default();
+    if !c35_mod_data_source::data_source_bot_gsheet_write_allowed(&ds_rows) {
+        extra_exclude.extend(BOT_GSHEET_WRITE_TOOL_EXCLUDE.iter().map(|s| s.to_string()));
+    }
     let compose_opts = ComposeTurnOpts {
         extra_signals: &signals,
         extra_tool_exclude: &extra_exclude,
         bot_web_search: turn_meta.web_search,
+        attachments_json,
     };
 
     let inst_rows = inst_list_cached();

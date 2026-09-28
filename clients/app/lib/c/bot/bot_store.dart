@@ -1,12 +1,16 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:alienai_c35/c/bot/bot_api.dart';
+import 'package:alienai_c35/c/bot/bot_meta.dart';
 import 'package:alienai_c35/c/channel/channel_api.dart';
 import 'package:alienai_c35/c/chat/chat_conn.dart';
+import 'package:alienai_c35/c/files/msg_attachment.dart';
 import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/c/pb/c35/chat.pb.dart';
 import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
 import 'package:alienai_c35/c/pb/c35/sync.pb.dart';
+import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/store/chat_store.dart';
 import 'package:alienai_c35/widgets/bots/in_bot_create.dart';
 import 'package:fixnum/fixnum.dart';
@@ -36,18 +40,40 @@ class BotStore extends ChangeNotifier {
   var _loadingBots = false;
   var _loadingPeers = false;
   var _loadingMsgs = false;
-  var _sending = false;
+  var _composerSending = false;
   var _search = '';
   final _bots = <IdentityListRow>[];
   final _peers = <Chat>[];
   final _msgs = <int, List<MsgRow>>{};
+  final _typingParty = <int, String>{};
   String? _selectedBotId;
   String? _selectedChatId;
+  String? _botActiveBusyId;
+  var _cacheRestored = false;
+
+  bool botActiveBusy(String botId) => _botActiveBusyId == botId;
+
+  String? chatTypingParty(String? chatId) {
+    final id = int.tryParse(chatId ?? '') ?? 0;
+    if (id <= 0) return null;
+    return _typingParty[id];
+  }
+
+  bool chatTypingActive(String? chatId) => chatTypingParty(chatId) != null;
+
+  void _typingPut(int chatId, String? party) {
+    if (party == null || party.isEmpty) {
+      _typingParty.remove(chatId);
+    } else {
+      _typingParty[chatId] = party;
+    }
+    notifyListeners();
+  }
 
   bool get loadingBots => _loadingBots;
   bool get loadingPeers => _loadingPeers;
   bool get loadingMsgs => _loadingMsgs;
-  bool get sending => _sending;
+  bool get composerBusy => _composerSending;
   String get search => _search;
   List<IdentityListRow> get bots => List.unmodifiable(_bots);
 
@@ -126,6 +152,17 @@ class BotStore extends ChangeNotifier {
         }
       }
     }
+    if (push.hasChatTyping()) {
+      final t = push.chatTyping;
+      final cid = t.chatId.toInt();
+      if (cid <= 0) return;
+      if (t.active && t.party.isNotEmpty) {
+        _typingParty[cid] = t.party;
+      } else {
+        _typingParty.remove(cid);
+      }
+      notifyListeners();
+    }
     if (push.hasChatMember()) {
       final m = push.chatMember;
       final i = _peers.indexWhere((c) => c.id == m.chatId);
@@ -168,42 +205,117 @@ class BotStore extends ChangeNotifier {
       list.add(row);
       list.sort((a, b) => a.id.compareTo(b.id));
     }
+    if (row.role == 'assistant') _typingParty.remove(row.chatId);
     notifyListeners();
   }
 
   Future<void> ensureConnected({String locale = 'en'}) async {
-    if (_conn.connected) return;
-    await _conn.connect(locale: locale);
+    if (!_conn.connected) await _conn.connect(locale: locale);
+    if (_conn.status.value == ChatConnStatus.connected) return;
+    for (var i = 0; i < 300; i++) {
+      if (_conn.status.value == ChatConnStatus.connected) return;
+      if (!_conn.connected) await _conn.connect(locale: locale);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+    if (_conn.status.value != ChatConnStatus.connected) throw 'not connected';
   }
 
-  Future<InBotCreateResult?> showCreateBot(BuildContext context) => inBotCreateShow(
+  Future<void> _restoreCacheIfNeeded() async {
+    if (_cacheRestored) return;
+    _cacheRestored = true;
+    final cached = await botListCacheRestore(Session.instance.uid);
+    if (cached.isEmpty) return;
+    _bots
+      ..clear()
+      ..addAll(cached);
+    _sortBots();
+    if (_selectedBotId == null && _bots.isNotEmpty) _selectedBotId = _bots.first.identity.iid.toString();
+    notifyListeners();
+  }
+
+  Future<void> _persistBots() => botListCacheSave(Session.instance.uid, _bots);
+
+  Future<InBotCreateResult?> showCreateBot(BuildContext context) async {
+    final created = await inBotCreateShow(
         context,
         store: this,
         onIdentityPut: (ReqIdentityPut req) => identityPut(_conn, req),
+        onIdentityDelete: (int iid) => identityDelete(_conn, iid),
         onTelegramConnect: channelTelegramConnectFn(_conn),
         onWhatsappMetaConnect: channelWhatsappMetaConnectFn(_conn),
         onWhatsappPairStart: channelWhatsappPairStartFn(_conn),
         onWhatsappPairWatch: channelWhatsappPairWatchFn(_conn),
         onWhatsappPairAbort: channelWhatsappPairAbortFn(_conn),
       );
+    await refreshBots();
+    return created;
+  }
 
   Future<void> botCreatedSelect(InBotCreateResult created) async {
     await refreshBots();
     await botSelect(created.botIid.toString());
   }
 
-  Future<void> refreshBots() async {
-    _loadingBots = true;
+  Future<void> botActivePut(String botId, bool active) async {
+    final row = botById(botId);
+    if (row == null || _botActiveBusyId != null) return;
+    _botActiveBusyId = botId;
     notifyListeners();
+    final id = row.identity;
+    Map<String, dynamic> meta;
+    try {
+      meta = jsonDecode(id.metaJson.isNotEmpty ? id.metaJson : '{}') as Map<String, dynamic>;
+    } catch (_) {
+      meta = {};
+    }
+    meta['active'] = active;
     try {
       await ensureConnected();
-      final res = await identityList(_conn, const ['bot']);
+      await identityPut(
+        _conn,
+        ReqIdentityPut(
+          iid: id.iid,
+          kind: 'bot',
+          type: 'chat',
+          name: id.name,
+          pic: id.pic,
+          metaJson: jsonEncode(meta),
+        ),
+      );
+      await refreshBots();
+    } catch (e) {
+      lError('bot active: $e');
+      rethrow;
+    } finally {
+      _botActiveBusyId = null;
+      notifyListeners();
+    }
+  }
+
+  Future<void> showEditBot(BuildContext context, String botId) async {
+    final iid = int.tryParse(botId) ?? 0;
+    if (iid <= 0) return;
+    await inBotCreateShow(context, store: this, editBotIid: iid);
+    await refreshBots();
+  }
+
+  Future<void> refreshBots() async {
+    await _restoreCacheIfNeeded();
+    final showSpinner = _bots.isEmpty;
+    if (showSpinner) {
+      _loadingBots = true;
+      notifyListeners();
+    }
+    try {
+      await ensureConnected();
+      final res = await identityList(_conn, const ['bot']).timeout(const Duration(seconds: 30));
       _bots
         ..clear()
         ..addAll(res.rows);
       _sortBots();
       if (_selectedBotId != null && botById(_selectedBotId) == null) _selectedBotId = null;
       if (_selectedBotId == null && _bots.isNotEmpty) _selectedBotId = _bots.first.identity.iid.toString();
+      await _persistBots();
       if (_selectedBotId != null) await refreshPeers();
     } catch (e) {
       lError('bot list: $e');
@@ -310,16 +422,118 @@ class BotStore extends ChangeNotifier {
     }
   }
 
-  Future<void> chatSend(String chatId, String text) async {
-    final trimmed = text.trim();
-    if (trimmed.isEmpty) return;
+  Future<void> peerChatDelete(String chatId) async {
     final id = int.tryParse(chatId) ?? 0;
     if (id <= 0) return;
-    _sending = true;
+    try {
+      await ensureConnected();
+      await botPeerDelete(_conn, id);
+      _peers.removeWhere((c) => c.id.toInt() == id);
+      _msgs.remove(id);
+      if (_selectedChatId == chatId) _selectedChatId = null;
+      notifyListeners();
+    } catch (e) {
+      lError('peer chat delete: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> botPeerCreateApp({String title = ''}) async {
+    final botId = _selectedBotId;
+    if (botId == null) return;
+    final iid = int.tryParse(botId) ?? 0;
+    if (iid <= 0) return;
+    _composerSending = true;
     notifyListeners();
     try {
       await ensureConnected();
-      final res = await _conn.chatSend(id, trimmed);
+      final res = await botPeerCreate(_conn, iid, title: title);
+      if (res.hasChat()) {
+        _peers.removeWhere((c) => c.id == res.chat.id);
+        _peers.insert(0, res.chat);
+      }
+      await refreshPeers();
+      if (res.hasChat()) await chatSelect(res.chat.id.toString());
+    } catch (e) {
+      lError('bot peer create: $e');
+      rethrow;
+    } finally {
+      _composerSending = false;
+      notifyListeners();
+    }
+  }
+
+  void _pollAppReply(String chatId) {
+    unawaited(() async {
+      for (final ms in const [400, 1200, 2500, 5000, 9000, 15000]) {
+        await Future<void>.delayed(Duration(milliseconds: ms));
+        if (_selectedChatId != chatId) return;
+        await loadMessages(chatId);
+      }
+    }());
+  }
+
+  bool chatIsApp(String? chatId) {
+    final peer = peerById(chatId);
+    return peer != null && botPeerIsApp(peer);
+  }
+
+  Future<void> chatAppRetryLastTurn(String chatId) async {
+    if (!chatIsApp(chatId)) return;
+    final id = int.tryParse(chatId) ?? 0;
+    if (id <= 0) return;
+    final msgs = _msgs[id] ?? [];
+    MsgRow? lastUser;
+    for (var i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i].role == 'user') {
+        lastUser = msgs[i];
+        break;
+      }
+    }
+    if (lastUser == null) return;
+    final text = lastUser.content.trim();
+    if (text.isEmpty && lastUser.attachments.isEmpty) return;
+    await chatAppSend(chatId, text, attachments: lastUser.attachments);
+  }
+
+  Future<void> chatAppSend(String chatId, String text, {List<MsgAttachment> attachments = const []}) async {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty && attachments.isEmpty) return;
+    final id = int.tryParse(chatId) ?? 0;
+    if (id <= 0) return;
+    _composerSending = true;
+    _typingPut(id, 'bot');
+    notifyListeners();
+    try {
+      await ensureConnected();
+      await botPeerAppSend(_conn, id, trimmed, attachmentsJson: MsgAttachment.encode(attachments));
+      await loadMessages(chatId);
+      _pollAppReply(chatId);
+      final peer = peerById(chatId);
+      if (peer != null) {
+        peer.lastMsgPreview = trimmed.length > 120 ? '${trimmed.substring(0, 120)}…' : trimmed;
+        peer.lastMsgTsMs = Int64(DateTime.now().millisecondsSinceEpoch);
+      }
+      notifyListeners();
+    } catch (e) {
+      lError('bot app send: $e');
+      rethrow;
+    } finally {
+      _composerSending = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> chatSend(String chatId, String text, {List<MsgAttachment> attachments = const []}) async {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty && attachments.isEmpty) return;
+    final id = int.tryParse(chatId) ?? 0;
+    if (id <= 0) return;
+    _composerSending = true;
+    notifyListeners();
+    try {
+      await ensureConnected();
+      final res = await _conn.chatSend(id, trimmed, attachmentsJson: MsgAttachment.encode(attachments));
       if (res.hasMessage()) _msgPut(res.message);
       final peer = peerById(chatId);
       if (peer != null) {
@@ -330,7 +544,7 @@ class BotStore extends ChangeNotifier {
       lError('chat send: $e');
       rethrow;
     } finally {
-      _sending = false;
+      _composerSending = false;
       notifyListeners();
     }
   }
@@ -368,6 +582,7 @@ class BotStore extends ChangeNotifier {
         _peers.clear();
         if (_selectedBotId != null) await refreshPeers();
       }
+      await _persistBots();
       notifyListeners();
     } catch (e) {
       lError('bot delete: $e');
@@ -394,6 +609,7 @@ class BotStore extends ChangeNotifier {
         }
       }
       _sortBots();
+      await _persistBots();
       if (notify) notifyListeners();
     } catch (e) {
       lError('bot grant patch: $e');

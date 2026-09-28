@@ -32,6 +32,7 @@ pub fn channel_typing_start(
     nats: Option<async_nats::Client>,
     owner_iid: i64,
     bot_iid: i64,
+    chat_id: i64,
     ctx: OutboundCtx,
     speak: bool,
 ) -> ChannelTypingGuard {
@@ -42,14 +43,14 @@ pub fn channel_typing_start(
     let task = tokio::spawn(async move {
         let mut tick = tokio::time::interval(std::time::Duration::from_secs(4));
         tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-        channel_typing_pulse(&client_clone, nats_clone.as_ref(), owner_iid, bot_iid, &ctx_clone, speak, true).await;
+        channel_typing_pulse(&client_clone, nats_clone.as_ref(), owner_iid, bot_iid, chat_id, &ctx_clone, speak, true).await;
         loop {
             tokio::select! {
                 _ = tick.tick() => {
                     if *stop_rx.borrow() {
                         break;
                     }
-                    channel_typing_pulse(&client_clone, nats_clone.as_ref(), owner_iid, bot_iid, &ctx_clone, speak, true).await;
+                    channel_typing_pulse(&client_clone, nats_clone.as_ref(), owner_iid, bot_iid, chat_id, &ctx_clone, speak, true).await;
                 }
                 changed = stop_rx.changed() => {
                     if changed.is_ok() && *stop_rx.borrow() {
@@ -58,9 +59,7 @@ pub fn channel_typing_start(
                 }
             }
         }
-        if ctx_clone.platform == "whatsapp" && is_linked_provider(&ctx_clone.channel.provider) {
-            channel_typing_pulse(&client_clone, nats_clone.as_ref(), owner_iid, bot_iid, &ctx_clone, speak, false).await;
-        }
+        channel_typing_pulse(&client_clone, nats_clone.as_ref(), owner_iid, bot_iid, chat_id, &ctx_clone, speak, false).await;
     });
     ChannelTypingGuard { stop: stop_tx, task }
 }
@@ -70,10 +69,15 @@ pub async fn channel_typing_pulse(
     nats: Option<&async_nats::Client>,
     owner_iid: i64,
     bot_iid: i64,
+    chat_id: i64,
     ctx: &OutboundCtx,
     speak: bool,
     active: bool,
 ) {
+    if ctx.platform == "app" {
+        let _ = c35_mod_chat::bot_peer_typing_fanout(nats, owner_iid, chat_id, "bot", active).await;
+        return;
+    }
     if ctx.platform == "telegram" {
         if ctx.channel.bot_token.is_empty() || !active {
             return;

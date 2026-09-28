@@ -14,6 +14,8 @@ pub mod compose;
 mod inst;
 pub mod prompt_run;
 pub mod prompt_followup;
+mod pdf_cas;
+mod video_source;
 mod inst_admin;
 mod object_admin;
 mod mcp_agent;
@@ -27,6 +29,7 @@ pub mod inst_macro;
 mod mention;
 pub mod mention_context;
 mod mention_content;
+mod mention_bundle;
 mod mention_registry;
 mod mention_tool_registry;
 mod site_capability;
@@ -49,6 +52,7 @@ pub use mention::{mention_list_enabled, MentionRow};
 pub use mention_context::{
     mention_context_build, mention_context_sites_block, site_iid_resolve, MentionContext,
 };
+pub use mention_bundle::{mention_bundle_get, mention_list_bundle_rpc};
 pub use mention_registry::{
     mention_active_topic, mention_active_topic_with_commerce, mention_active_topics,
     mention_device_iids, mention_has_device, mention_list_rpc, mention_prompt_block,
@@ -59,10 +63,17 @@ pub use site_capability::{site_capability_view_for_mention, SiteCapabilityView};
 pub use tools::ToolDef;
 
 pub use asset_tag::asset_tag_list;
-pub use bot_meta::{bot_auto_block_enabled, bot_turn_meta_load, bot_turn_meta_parse, BotTurnMeta, BOT_TOPIC, BOT_WEB_TOOL_EXCLUDE};
-pub use bot_peer::{bot_peer_list, bot_peer_msg_list, chat_send, chat_stop};
+pub use bot_meta::{
+    bot_active_load, bot_active_parse, bot_auto_block_enabled, bot_turn_meta_load, bot_turn_meta_parse, BotTurnMeta,
+    BOT_GSHEET_WRITE_TOOL_EXCLUDE, BOT_TOPIC, BOT_WEB_TOOL_EXCLUDE,
+};
+pub use bot_peer::{
+    bot_peer_app_send_ack, bot_peer_app_send_verify, bot_peer_create, bot_peer_delete, bot_peer_list, bot_peer_msg_fanout,
+    bot_peer_typing_fanout,
+    bot_peer_msg_list, chat_send, chat_stop, BOT_APP_CHANNEL_ID,
+};
 pub use chat_history_clear::chat_history_clear;
-pub use data_source_rpc::{data_source_delete, data_source_list, data_source_put, data_source_sync};
+pub use data_source_rpc::{data_source_check, data_source_delete, data_source_list, data_source_put, data_source_sync};
 pub use chat_patch::chat_patch;
 pub use chat_sync::chat_title_set;
 pub use device_context::{bound_device_prompt_prepare, chat_device_context_create, chat_device_context_list, chat_mention_context_commit};

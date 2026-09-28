@@ -1,3 +1,4 @@
+import 'package:alienai_c35/c/bot/bot_meta.dart';
 import 'package:alienai_c35/widgets/ui/ui_user_avatar.dart';
 import 'package:flutter/material.dart';
 
@@ -61,7 +62,8 @@ class UiBotPeerRow extends StatelessWidget {
                     Row(
                       children: [
                         Expanded(child: Text(lastMsg, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _muted, fontSize: 12))),
-                        if (!aiReplyEnabled) const Padding(padding: EdgeInsets.only(left: 6), child: Icon(Icons.stop_circle, size: 16, color: Color(0xFFEF4444))),
+                        if (!aiReplyEnabled && channel != kBotAppChannelId)
+                          const Padding(padding: EdgeInsets.only(left: 6), child: Icon(Icons.stop_circle, size: 16, color: Color(0xFFEF4444))),
                         if (unread > 0) ...[
                           const SizedBox(width: 6),
                           _unreadBadge(unread),
@@ -108,6 +110,7 @@ class UiBotPeerRow extends StatelessWidget {
       );
 
   IconData _channelIcon(String ch) => switch (ch.toLowerCase()) {
+        'app' => Icons.phone_android_rounded,
         'telegram' => Icons.send_rounded,
         'whatsapp' => Icons.chat_rounded,
         'discord' => Icons.forum_outlined,

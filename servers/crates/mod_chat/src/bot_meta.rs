@@ -1,6 +1,24 @@
 ﻿use serde_json::Value;
 use sqlx::PgPool;
 
+pub fn bot_active_parse(meta: Option<&Value>) -> bool {
+    meta.and_then(|m| m.get("active"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true)
+}
+
+pub async fn bot_active_load(pool: &PgPool, bot_iid: i64) -> bool {
+    let meta: Option<Value> = sqlx::query_scalar(
+        "SELECT meta FROM ai.identity WHERE id = $1 AND kind = 'bot' AND deleted_ts IS NULL",
+    )
+    .bind(bot_iid)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten();
+    bot_active_parse(meta.as_ref())
+}
+
 pub struct BotTurnMeta {
     pub strict_mode: bool,
     pub auto_block_spammer: bool,
@@ -55,3 +73,22 @@ pub fn bot_turn_signals(meta: &BotTurnMeta) -> Vec<String> {
 pub const BOT_TOPIC: &str = "bot";
 
 pub const BOT_WEB_TOOL_EXCLUDE: &[&str] = &["web.search", "web.visit", "web.research"];
+
+pub const BOT_GSHEET_WRITE_TOOL_EXCLUDE: &[&str] = &["gsheet.append", "gsheet.update"];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn bot_active_defaults_true() {
+        assert!(bot_active_parse(None));
+        assert!(bot_active_parse(Some(&json!({}))));
+    }
+
+    #[test]
+    fn bot_active_false() {
+        assert!(!bot_active_parse(Some(&json!({"active": false}))));
+    }
+}

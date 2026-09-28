@@ -57,7 +57,7 @@ RUN bun build --compile --minify render_pptx.ts --outfile /app/render_pptx
 FROM debian:bookworm-slim AS runtime
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl \
+    && apt-get install -y --no-install-recommends ca-certificates curl yt-dlp \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

@@ -26,7 +26,7 @@ String chatMsgTraceLabel(String reqId) {
 /// Root / wide-access check for trace and admin UI.
 /// Same rules as cs_bots: `isRoot`, uid 99000, or handle `chito`.
 bool msgCanTrace({required bool viewerIsRoot, required bool isAssistant, required String reqId}) =>
-    isAssistant && reqId.trim().isNotEmpty;
+    viewerIsRoot && isAssistant && reqId.trim().isNotEmpty;
 
 /// Usage spinner on the assistant row for the active prompt turn (`req_id`), not list index.
 bool msgUsageStreaming({required bool busy, required String msgReqId, required String liveReqId}) {

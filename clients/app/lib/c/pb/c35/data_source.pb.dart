@@ -668,6 +668,244 @@ class ResDataSourceSync extends $pb.GeneratedMessage {
   DataSourceDoc ensureDoc() => $_ensure(0);
 }
 
+class DataSourceSheetTab extends $pb.GeneratedMessage {
+  factory DataSourceSheetTab({
+    $core.String? title,
+    $core.String? gid,
+  }) {
+    final result = DataSourceSheetTab._();
+    if (title != null) result.title = title;
+    if (gid != null) result.gid = gid;
+    return result;
+  }
+
+  DataSourceSheetTab._();
+
+  factory DataSourceSheetTab.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      DataSourceSheetTab()..mergeFromBuffer(data, registry);
+  factory DataSourceSheetTab.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      DataSourceSheetTab()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'DataSourceSheetTab',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: DataSourceSheetTab.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'title')
+    ..aOS(2, _omitFieldNames ? '' : 'gid')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  DataSourceSheetTab clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  DataSourceSheetTab copyWith(void Function(DataSourceSheetTab) updates) =>
+      super.copyWith((message) => updates(message as DataSourceSheetTab))
+          as DataSourceSheetTab;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use DataSourceSheetTab() / DataSourceSheetTab.new instead')
+  static DataSourceSheetTab create() => DataSourceSheetTab._();
+  static $pb.GeneratedMessage $_createMessage() => DataSourceSheetTab._();
+  @$core.override
+  DataSourceSheetTab createEmptyInstance() => DataSourceSheetTab._();
+  @$core.pragma('dart2js:noInline')
+  static DataSourceSheetTab getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<DataSourceSheetTab>(
+          DataSourceSheetTab.$_createMessage);
+  static DataSourceSheetTab? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get title => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set title($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasTitle() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearTitle() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get gid => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set gid($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasGid() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearGid() => $_clearField(2);
+}
+
+class ReqDataSourceCheck extends $pb.GeneratedMessage {
+  factory ReqDataSourceCheck({
+    $core.String? sourceKind,
+    $core.String? viewUrl,
+  }) {
+    final result = ReqDataSourceCheck._();
+    if (sourceKind != null) result.sourceKind = sourceKind;
+    if (viewUrl != null) result.viewUrl = viewUrl;
+    return result;
+  }
+
+  ReqDataSourceCheck._();
+
+  factory ReqDataSourceCheck.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqDataSourceCheck()..mergeFromBuffer(data, registry);
+  factory ReqDataSourceCheck.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqDataSourceCheck()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqDataSourceCheck',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqDataSourceCheck.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'sourceKind')
+    ..aOS(2, _omitFieldNames ? '' : 'viewUrl')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqDataSourceCheck clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqDataSourceCheck copyWith(void Function(ReqDataSourceCheck) updates) =>
+      super.copyWith((message) => updates(message as ReqDataSourceCheck))
+          as ReqDataSourceCheck;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqDataSourceCheck() / ReqDataSourceCheck.new instead')
+  static ReqDataSourceCheck create() => ReqDataSourceCheck._();
+  static $pb.GeneratedMessage $_createMessage() => ReqDataSourceCheck._();
+  @$core.override
+  ReqDataSourceCheck createEmptyInstance() => ReqDataSourceCheck._();
+  @$core.pragma('dart2js:noInline')
+  static ReqDataSourceCheck getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqDataSourceCheck>(
+          ReqDataSourceCheck.$_createMessage);
+  static ReqDataSourceCheck? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get sourceKind => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set sourceKind($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSourceKind() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSourceKind() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get viewUrl => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set viewUrl($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasViewUrl() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearViewUrl() => $_clearField(2);
+}
+
+class ResDataSourceCheck extends $pb.GeneratedMessage {
+  factory ResDataSourceCheck({
+    $core.bool? ok,
+    $core.String? errorMsg,
+    $core.String? title,
+    $core.String? configJson,
+    $core.Iterable<DataSourceSheetTab>? tabs,
+  }) {
+    final result = ResDataSourceCheck._();
+    if (ok != null) result.ok = ok;
+    if (errorMsg != null) result.errorMsg = errorMsg;
+    if (title != null) result.title = title;
+    if (configJson != null) result.configJson = configJson;
+    if (tabs != null) result.tabs.addAll(tabs);
+    return result;
+  }
+
+  ResDataSourceCheck._();
+
+  factory ResDataSourceCheck.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResDataSourceCheck()..mergeFromBuffer(data, registry);
+  factory ResDataSourceCheck.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResDataSourceCheck()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResDataSourceCheck',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResDataSourceCheck.$_createMessage)
+    ..aOB(1, _omitFieldNames ? '' : 'ok')
+    ..aOS(2, _omitFieldNames ? '' : 'errorMsg')
+    ..aOS(3, _omitFieldNames ? '' : 'title')
+    ..aOS(4, _omitFieldNames ? '' : 'configJson')
+    ..pPM<DataSourceSheetTab>(5, _omitFieldNames ? '' : 'tabs',
+        subBuilder: DataSourceSheetTab.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResDataSourceCheck clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResDataSourceCheck copyWith(void Function(ResDataSourceCheck) updates) =>
+      super.copyWith((message) => updates(message as ResDataSourceCheck))
+          as ResDataSourceCheck;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResDataSourceCheck() / ResDataSourceCheck.new instead')
+  static ResDataSourceCheck create() => ResDataSourceCheck._();
+  static $pb.GeneratedMessage $_createMessage() => ResDataSourceCheck._();
+  @$core.override
+  ResDataSourceCheck createEmptyInstance() => ResDataSourceCheck._();
+  @$core.pragma('dart2js:noInline')
+  static ResDataSourceCheck getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResDataSourceCheck>(
+          ResDataSourceCheck.$_createMessage);
+  static ResDataSourceCheck? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get ok => $_getBF(0);
+  @$pb.TagNumber(1)
+  set ok($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasOk() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOk() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get errorMsg => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set errorMsg($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasErrorMsg() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearErrorMsg() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get title => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set title($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasTitle() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearTitle() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get configJson => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set configJson($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasConfigJson() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearConfigJson() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $pb.PbList<DataSourceSheetTab> get tabs => $_getList(4);
+}
+
 const $core.bool _omitFieldNames =
     $core.bool.fromEnvironment('protobuf.omit_field_names');
 const $core.bool _omitMessageNames =

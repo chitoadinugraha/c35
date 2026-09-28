@@ -2024,6 +2024,42 @@ const WsReq$json = {
       '9': 0,
       '10': 'dataSourceSync'
     },
+    {
+      '1': 'data_source_check',
+      '3': 165,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqDataSourceCheck',
+      '9': 0,
+      '10': 'dataSourceCheck'
+    },
+    {
+      '1': 'bot_peer_create',
+      '3': 166,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqBotPeerCreate',
+      '9': 0,
+      '10': 'botPeerCreate'
+    },
+    {
+      '1': 'bot_peer_app_send',
+      '3': 167,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqBotPeerAppSend',
+      '9': 0,
+      '10': 'botPeerAppSend'
+    },
+    {
+      '1': 'bot_peer_delete',
+      '3': 168,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqBotPeerDelete',
+      '9': 0,
+      '10': 'botPeerDelete'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -2155,8 +2191,12 @@ final $typed_data.Uint8List wsReqDescriptor = $convert.base64Decode(
     'ZUxpc3QSQAoPZGF0YV9zb3VyY2VfcHV0GKIBIAEoCzIVLmMzNS5SZXFEYXRhU291cmNlUHV0SA'
     'BSDWRhdGFTb3VyY2VQdXQSSQoSZGF0YV9zb3VyY2VfZGVsZXRlGKMBIAEoCzIYLmMzNS5SZXFE'
     'YXRhU291cmNlRGVsZXRlSABSEGRhdGFTb3VyY2VEZWxldGUSQwoQZGF0YV9zb3VyY2Vfc3luYx'
-    'ikASABKAsyFi5jMzUuUmVxRGF0YVNvdXJjZVN5bmNIAFIOZGF0YVNvdXJjZVN5bmNCBgoEYm9k'
-    'eQ==');
+    'ikASABKAsyFi5jMzUuUmVxRGF0YVNvdXJjZVN5bmNIAFIOZGF0YVNvdXJjZVN5bmMSRgoRZGF0'
+    'YV9zb3VyY2VfY2hlY2sYpQEgASgLMhcuYzM1LlJlcURhdGFTb3VyY2VDaGVja0gAUg9kYXRhU2'
+    '91cmNlQ2hlY2sSQAoPYm90X3BlZXJfY3JlYXRlGKYBIAEoCzIVLmMzNS5SZXFCb3RQZWVyQ3Jl'
+    'YXRlSABSDWJvdFBlZXJDcmVhdGUSRAoRYm90X3BlZXJfYXBwX3NlbmQYpwEgASgLMhYuYzM1Ll'
+    'JlcUJvdFBlZXJBcHBTZW5kSABSDmJvdFBlZXJBcHBTZW5kEkAKD2JvdF9wZWVyX2RlbGV0ZRio'
+    'ASABKAsyFS5jMzUuUmVxQm90UGVlckRlbGV0ZUgAUg1ib3RQZWVyRGVsZXRlQgYKBGJvZHk=');
 
 @$core.Deprecated('Use wsResDescriptor instead')
 const WsRes$json = {
@@ -3190,6 +3230,42 @@ const WsRes$json = {
       '9': 0,
       '10': 'dataSourceSync'
     },
+    {
+      '1': 'data_source_check',
+      '3': 165,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResDataSourceCheck',
+      '9': 0,
+      '10': 'dataSourceCheck'
+    },
+    {
+      '1': 'bot_peer_create',
+      '3': 166,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResBotPeerCreate',
+      '9': 0,
+      '10': 'botPeerCreate'
+    },
+    {
+      '1': 'bot_peer_app_send',
+      '3': 167,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResBotPeerAppSend',
+      '9': 0,
+      '10': 'botPeerAppSend'
+    },
+    {
+      '1': 'bot_peer_delete',
+      '3': 168,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResBotPeerDelete',
+      '9': 0,
+      '10': 'botPeerDelete'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -3332,4 +3408,9 @@ final $typed_data.Uint8List wsResDescriptor = $convert.base64Decode(
     'UuYzM1LlJlc0RhdGFTb3VyY2VQdXRIAFINZGF0YVNvdXJjZVB1dBJJChJkYXRhX3NvdXJjZV9k'
     'ZWxldGUYowEgASgLMhguYzM1LlJlc0RhdGFTb3VyY2VEZWxldGVIAFIQZGF0YVNvdXJjZURlbG'
     'V0ZRJDChBkYXRhX3NvdXJjZV9zeW5jGKQBIAEoCzIWLmMzNS5SZXNEYXRhU291cmNlU3luY0gA'
-    'Ug5kYXRhU291cmNlU3luY0IGCgRib2R5');
+    'Ug5kYXRhU291cmNlU3luYxJGChFkYXRhX3NvdXJjZV9jaGVjaxilASABKAsyFy5jMzUuUmVzRG'
+    'F0YVNvdXJjZUNoZWNrSABSD2RhdGFTb3VyY2VDaGVjaxJACg9ib3RfcGVlcl9jcmVhdGUYpgEg'
+    'ASgLMhUuYzM1LlJlc0JvdFBlZXJDcmVhdGVIAFINYm90UGVlckNyZWF0ZRJEChFib3RfcGVlcl'
+    '9hcHBfc2VuZBinASABKAsyFi5jMzUuUmVzQm90UGVlckFwcFNlbmRIAFIOYm90UGVlckFwcFNl'
+    'bmQSQAoPYm90X3BlZXJfZGVsZXRlGKgBIAEoCzIVLmMzNS5SZXNCb3RQZWVyRGVsZXRlSABSDW'
+    'JvdFBlZXJEZWxldGVCBgoEYm9keQ==');

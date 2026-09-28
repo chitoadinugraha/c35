@@ -329,6 +329,15 @@ const SyncPush$json = {
       '10': 'siteObject'
     },
     {'1': 'tx', '3': 13, '4': 1, '5': 11, '6': '.c35.Tx', '9': 0, '10': 'tx'},
+    {
+      '1': 'chat_typing',
+      '3': 17,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ChatTyping',
+      '9': 0,
+      '10': 'chatTyping'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -351,4 +360,5 @@ final $typed_data.Uint8List syncPushDescriptor = $convert.base64Decode(
     'JvZHVjdF9lbWJlZBgQIAEoCzIVLmMzNS5TaXRlUHJvZHVjdEVtYmVkSABSEHNpdGVQcm9kdWN0'
     'RW1iZWQSNQoMc2l0ZV9jb250YWN0GAsgASgLMhAuYzM1LlNpdGVDb250YWN0SABSC3NpdGVDb2'
     '50YWN0EjIKC3NpdGVfb2JqZWN0GAwgASgLMg8uYzM1LlNpdGVPYmplY3RIAFIKc2l0ZU9iamVj'
-    'dBIZCgJ0eBgNIAEoCzIHLmMzNS5UeEgAUgJ0eEIGCgRib2R5');
+    'dBIZCgJ0eBgNIAEoCzIHLmMzNS5UeEgAUgJ0eBIyCgtjaGF0X3R5cGluZxgRIAEoCzIPLmMzNS'
+    '5DaGF0VHlwaW5nSABSCmNoYXRUeXBpbmdCBgoEYm9keQ==');

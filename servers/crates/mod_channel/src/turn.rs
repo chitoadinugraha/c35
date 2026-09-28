@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use c35_ctx::AppState;
 use c35_mod_chat::{
-    bot_auto_block_enabled, bot_turn_meta_load, channel_prompt_turn, gemini_api_key,
+    bot_auto_block_enabled, bot_peer_msg_fanout, bot_turn_meta_load, channel_prompt_turn, gemini_api_key,
     prompt_followup_mark_queue_delivered, prompt_followup_next_queued, prompt_run_finish,
     prompt_run_insert, prompt_run_row_channel,
 };
@@ -32,6 +32,16 @@ pub struct ChannelTurnJob {
 }
 
 pub async fn execute_channel_turn(state: Arc<AppState>, job: ChannelTurnJob) -> Result<()> {
+    if job.inbound.platform != "app" {
+        let _ = c35_mod_chat::bot_peer_typing_fanout(
+            state.nats.as_ref(),
+            job.owner_iid,
+            job.chat_id,
+            "peer",
+            false,
+        )
+        .await;
+    }
     debouncer_turn_started(job.chat_id).await;
     let limiter = channel_hub().bot_limiter(job.bot_iid);
     let _guard = match limiter.acquire_turn(&state.pool).await {
@@ -79,6 +89,7 @@ pub async fn execute_channel_turn(state: Arc<AppState>, job: ChannelTurnJob) -> 
         state.nats.clone(),
         job.owner_iid,
         job.bot_iid,
+        job.chat_id,
         out_ctx.clone(),
         false,
     );
@@ -139,7 +150,18 @@ pub async fn execute_channel_turn(state: Arc<AppState>, job: ChannelTurnJob) -> 
         cas_secret: &state.cas_secret,
     };
     channel_reply_nats(&client, state.nats.as_ref(), Some(&cas), &out_ctx, &reply, false).await?;
-    chat_msg_assistant_put(&state.pool, job.chat_id, job.owner_iid, job.bot_iid, &job.req_id, &reply).await?;
+    let assistant_msg_id =
+        chat_msg_assistant_put(&state.pool, job.chat_id, job.owner_iid, job.bot_iid, &job.req_id, &reply).await?;
+    if job.inbound.platform == "app" {
+        let _ = bot_peer_msg_fanout(
+            &state.pool,
+            state.nats.as_ref(),
+            job.owner_iid,
+            job.chat_id,
+            assistant_msg_id,
+        )
+        .await;
+    }
     let _ = prompt_run_finish(&state.pool, &job.req_id, "done", 0, 0, 0.0, 0, None, None).await;
     let queued = prompt_followup_next_queued(&state.pool, &job.req_id).await?;
     if let Some(q) = queued {

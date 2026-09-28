@@ -1463,7 +1463,9 @@ class ChatStore extends ChangeNotifier {
       mailInboxBus.applyFromNav(init.nav);
     }
     if (init.hasBilling()) AppStore.instance.billingPut(init.billing);
-    if (init.hasMentions()) mentionCatalog.mergeCatalog(init.mentions);
+    if (init.hasMentions()) {
+      unawaited(mentionCatalog.mergeCatalog(init.mentions, sinceMs: mentionCatalog.rev));
+    }
     if (init.hasMentions() || init.inboxChats.isNotEmpty) notifyListeners();
     if (init.models.isNotEmpty) models = agentModelsFromProto(init.models);
     if (init.hasProfile()) {
@@ -1520,6 +1522,7 @@ class ChatStore extends ChangeNotifier {
         appVersionName: csaiVersionFull,
         includeInbox: true,
         hintsSinceMs: Int64(HintStore.instance.rev),
+        mentionsSinceMs: Int64(mentionCatalog.rev),
       );
       sessionInitMerge(init);
     } catch (_) {}

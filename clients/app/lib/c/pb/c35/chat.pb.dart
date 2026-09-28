@@ -3957,6 +3957,452 @@ class ResBotPeerList extends $pb.GeneratedMessage {
   $pb.PbList<Chat> get chats => $_getList(0);
 }
 
+/// In-app bot test thread (channel_id = app). Not sent to WhatsApp/Telegram.
+class ReqBotPeerCreate extends $pb.GeneratedMessage {
+  factory ReqBotPeerCreate({
+    $fixnum.Int64? botIid,
+    $core.String? title,
+  }) {
+    final result = ReqBotPeerCreate._();
+    if (botIid != null) result.botIid = botIid;
+    if (title != null) result.title = title;
+    return result;
+  }
+
+  ReqBotPeerCreate._();
+
+  factory ReqBotPeerCreate.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBotPeerCreate()..mergeFromBuffer(data, registry);
+  factory ReqBotPeerCreate.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBotPeerCreate()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqBotPeerCreate',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqBotPeerCreate.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'botIid')
+    ..aOS(2, _omitFieldNames ? '' : 'title')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBotPeerCreate clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBotPeerCreate copyWith(void Function(ReqBotPeerCreate) updates) =>
+      super.copyWith((message) => updates(message as ReqBotPeerCreate))
+          as ReqBotPeerCreate;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqBotPeerCreate() / ReqBotPeerCreate.new instead')
+  static ReqBotPeerCreate create() => ReqBotPeerCreate._();
+  static $pb.GeneratedMessage $_createMessage() => ReqBotPeerCreate._();
+  @$core.override
+  ReqBotPeerCreate createEmptyInstance() => ReqBotPeerCreate._();
+  @$core.pragma('dart2js:noInline')
+  static ReqBotPeerCreate getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ReqBotPeerCreate>(
+          ReqBotPeerCreate.$_createMessage);
+  static ReqBotPeerCreate? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get botIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set botIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasBotIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearBotIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get title => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set title($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasTitle() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearTitle() => $_clearField(2);
+}
+
+class ResBotPeerCreate extends $pb.GeneratedMessage {
+  factory ResBotPeerCreate({
+    Chat? chat,
+  }) {
+    final result = ResBotPeerCreate._();
+    if (chat != null) result.chat = chat;
+    return result;
+  }
+
+  ResBotPeerCreate._();
+
+  factory ResBotPeerCreate.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBotPeerCreate()..mergeFromBuffer(data, registry);
+  factory ResBotPeerCreate.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBotPeerCreate()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResBotPeerCreate',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResBotPeerCreate.$_createMessage)
+    ..aOM<Chat>(1, _omitFieldNames ? '' : 'chat',
+        subBuilder: Chat.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBotPeerCreate clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBotPeerCreate copyWith(void Function(ResBotPeerCreate) updates) =>
+      super.copyWith((message) => updates(message as ResBotPeerCreate))
+          as ResBotPeerCreate;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResBotPeerCreate() / ResBotPeerCreate.new instead')
+  static ResBotPeerCreate create() => ResBotPeerCreate._();
+  static $pb.GeneratedMessage $_createMessage() => ResBotPeerCreate._();
+  @$core.override
+  ResBotPeerCreate createEmptyInstance() => ResBotPeerCreate._();
+  @$core.pragma('dart2js:noInline')
+  static ResBotPeerCreate getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ResBotPeerCreate>(
+          ResBotPeerCreate.$_createMessage);
+  static ResBotPeerCreate? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  Chat get chat => $_getN(0);
+  @$pb.TagNumber(1)
+  set chat(Chat value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasChat() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearChat() => $_clearField(1);
+  @$pb.TagNumber(1)
+  Chat ensureChat() => $_ensure(0);
+}
+
+class ReqBotPeerAppSend extends $pb.GeneratedMessage {
+  factory ReqBotPeerAppSend({
+    $fixnum.Int64? chatId,
+    $core.String? text,
+    $core.String? attachmentsJson,
+  }) {
+    final result = ReqBotPeerAppSend._();
+    if (chatId != null) result.chatId = chatId;
+    if (text != null) result.text = text;
+    if (attachmentsJson != null) result.attachmentsJson = attachmentsJson;
+    return result;
+  }
+
+  ReqBotPeerAppSend._();
+
+  factory ReqBotPeerAppSend.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBotPeerAppSend()..mergeFromBuffer(data, registry);
+  factory ReqBotPeerAppSend.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBotPeerAppSend()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqBotPeerAppSend',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqBotPeerAppSend.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'chatId')
+    ..aOS(2, _omitFieldNames ? '' : 'text')
+    ..aOS(3, _omitFieldNames ? '' : 'attachmentsJson')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBotPeerAppSend clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBotPeerAppSend copyWith(void Function(ReqBotPeerAppSend) updates) =>
+      super.copyWith((message) => updates(message as ReqBotPeerAppSend))
+          as ReqBotPeerAppSend;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqBotPeerAppSend() / ReqBotPeerAppSend.new instead')
+  static ReqBotPeerAppSend create() => ReqBotPeerAppSend._();
+  static $pb.GeneratedMessage $_createMessage() => ReqBotPeerAppSend._();
+  @$core.override
+  ReqBotPeerAppSend createEmptyInstance() => ReqBotPeerAppSend._();
+  @$core.pragma('dart2js:noInline')
+  static ReqBotPeerAppSend getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ReqBotPeerAppSend>(
+          ReqBotPeerAppSend.$_createMessage);
+  static ReqBotPeerAppSend? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get chatId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set chatId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasChatId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearChatId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get text => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set text($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasText() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearText() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get attachmentsJson => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set attachmentsJson($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasAttachmentsJson() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearAttachmentsJson() => $_clearField(3);
+}
+
+class ResBotPeerAppSend extends $pb.GeneratedMessage {
+  factory ResBotPeerAppSend({
+    $fixnum.Int64? chatId,
+  }) {
+    final result = ResBotPeerAppSend._();
+    if (chatId != null) result.chatId = chatId;
+    return result;
+  }
+
+  ResBotPeerAppSend._();
+
+  factory ResBotPeerAppSend.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBotPeerAppSend()..mergeFromBuffer(data, registry);
+  factory ResBotPeerAppSend.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBotPeerAppSend()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResBotPeerAppSend',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResBotPeerAppSend.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'chatId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBotPeerAppSend clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBotPeerAppSend copyWith(void Function(ResBotPeerAppSend) updates) =>
+      super.copyWith((message) => updates(message as ResBotPeerAppSend))
+          as ResBotPeerAppSend;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResBotPeerAppSend() / ResBotPeerAppSend.new instead')
+  static ResBotPeerAppSend create() => ResBotPeerAppSend._();
+  static $pb.GeneratedMessage $_createMessage() => ResBotPeerAppSend._();
+  @$core.override
+  ResBotPeerAppSend createEmptyInstance() => ResBotPeerAppSend._();
+  @$core.pragma('dart2js:noInline')
+  static ResBotPeerAppSend getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ResBotPeerAppSend>(
+          ResBotPeerAppSend.$_createMessage);
+  static ResBotPeerAppSend? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get chatId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set chatId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasChatId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearChatId() => $_clearField(1);
+}
+
+class ReqBotPeerDelete extends $pb.GeneratedMessage {
+  factory ReqBotPeerDelete({
+    $fixnum.Int64? chatId,
+  }) {
+    final result = ReqBotPeerDelete._();
+    if (chatId != null) result.chatId = chatId;
+    return result;
+  }
+
+  ReqBotPeerDelete._();
+
+  factory ReqBotPeerDelete.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBotPeerDelete()..mergeFromBuffer(data, registry);
+  factory ReqBotPeerDelete.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBotPeerDelete()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqBotPeerDelete',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqBotPeerDelete.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'chatId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBotPeerDelete clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBotPeerDelete copyWith(void Function(ReqBotPeerDelete) updates) =>
+      super.copyWith((message) => updates(message as ReqBotPeerDelete))
+          as ReqBotPeerDelete;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqBotPeerDelete() / ReqBotPeerDelete.new instead')
+  static ReqBotPeerDelete create() => ReqBotPeerDelete._();
+  static $pb.GeneratedMessage $_createMessage() => ReqBotPeerDelete._();
+  @$core.override
+  ReqBotPeerDelete createEmptyInstance() => ReqBotPeerDelete._();
+  @$core.pragma('dart2js:noInline')
+  static ReqBotPeerDelete getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ReqBotPeerDelete>(
+          ReqBotPeerDelete.$_createMessage);
+  static ReqBotPeerDelete? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get chatId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set chatId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasChatId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearChatId() => $_clearField(1);
+}
+
+class ResBotPeerDelete extends $pb.GeneratedMessage {
+  factory ResBotPeerDelete() => ResBotPeerDelete._();
+
+  ResBotPeerDelete._();
+
+  factory ResBotPeerDelete.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBotPeerDelete()..mergeFromBuffer(data, registry);
+  factory ResBotPeerDelete.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBotPeerDelete()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResBotPeerDelete',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResBotPeerDelete.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBotPeerDelete clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBotPeerDelete copyWith(void Function(ResBotPeerDelete) updates) =>
+      super.copyWith((message) => updates(message as ResBotPeerDelete))
+          as ResBotPeerDelete;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResBotPeerDelete() / ResBotPeerDelete.new instead')
+  static ResBotPeerDelete create() => ResBotPeerDelete._();
+  static $pb.GeneratedMessage $_createMessage() => ResBotPeerDelete._();
+  @$core.override
+  ResBotPeerDelete createEmptyInstance() => ResBotPeerDelete._();
+  @$core.pragma('dart2js:noInline')
+  static ResBotPeerDelete getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ResBotPeerDelete>(
+          ResBotPeerDelete.$_createMessage);
+  static ResBotPeerDelete? _defaultInstance;
+}
+
+/// Realtime typing on bot_peer threads (WS SyncPush). party: bot | peer
+class ChatTyping extends $pb.GeneratedMessage {
+  factory ChatTyping({
+    $fixnum.Int64? chatId,
+    $core.String? party,
+    $core.bool? active,
+  }) {
+    final result = ChatTyping._();
+    if (chatId != null) result.chatId = chatId;
+    if (party != null) result.party = party;
+    if (active != null) result.active = active;
+    return result;
+  }
+
+  ChatTyping._();
+
+  factory ChatTyping.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ChatTyping()..mergeFromBuffer(data, registry);
+  factory ChatTyping.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ChatTyping()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ChatTyping',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ChatTyping.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'chatId')
+    ..aOS(2, _omitFieldNames ? '' : 'party')
+    ..aOB(3, _omitFieldNames ? '' : 'active')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ChatTyping clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ChatTyping copyWith(void Function(ChatTyping) updates) =>
+      super.copyWith((message) => updates(message as ChatTyping)) as ChatTyping;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ChatTyping() / ChatTyping.new instead')
+  static ChatTyping create() => ChatTyping._();
+  static $pb.GeneratedMessage $_createMessage() => ChatTyping._();
+  @$core.override
+  ChatTyping createEmptyInstance() => ChatTyping._();
+  @$core.pragma('dart2js:noInline')
+  static ChatTyping getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ChatTyping>(ChatTyping.$_createMessage);
+  static ChatTyping? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get chatId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set chatId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasChatId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearChatId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get party => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set party($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasParty() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearParty() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.bool get active => $_getBF(2);
+  @$pb.TagNumber(3)
+  set active($core.bool value) => $_setBool(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasActive() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearActive() => $_clearField(3);
+}
+
 const $core.bool _omitFieldNames =
     $core.bool.fromEnvironment('protobuf.omit_field_names');
 const $core.bool _omitMessageNames =

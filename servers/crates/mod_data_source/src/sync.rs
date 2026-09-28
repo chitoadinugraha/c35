@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use reqwest::Client;
+use serde_json::Value;
 use sqlx::{PgPool, Row};
 use tracing::info;
 
@@ -44,11 +45,16 @@ pub async fn data_source_sync_run(http: &Client, pool: &PgPool, data_source_id: 
 }
 
 async fn google_sheet_sync_run(http: &Client, pool: &PgPool, row: &DataSourceRow) -> Result<()> {
-    let cfg = google_sheet_config_from_row(row).context("google sheet config")?;
     let data_source_id = row.id;
-    let tab = sheet_tab_name(&cfg);
-    let csv = google_sheet_read_csv(http, &cfg).await.context("data source sync read csv")?;
-    let hash = snapshot_hash(&csv);
+    let (hash, chunks, data_rows) = if let Some(tabs) = google_sheet_tabs_from_config(&row.config) {
+        google_sheet_sync_material(http, row, &tabs).await?
+    } else {
+        let cfg = google_sheet_config_from_row(row).context("google sheet config")?;
+        let tab = sheet_tab_name(&cfg);
+        let csv = google_sheet_read_csv(http, &cfg).await.context("data source sync read csv")?;
+        let (chunks, data_rows) = sheet_csv_chunk_rows(&csv, &tab);
+        (snapshot_hash(&csv), chunks, data_rows)
+    };
     if let Some((existing, _)) = sync_row_get(pool, data_source_id).await? {
         if existing == hash && !hash.is_empty() {
             sync_touch(pool, data_source_id).await?;
@@ -59,7 +65,6 @@ async fn google_sheet_sync_run(http: &Client, pool: &PgPool, row: &DataSourceRow
             return Ok(());
         }
     }
-    let (chunks, data_rows) = sheet_csv_chunk_rows(&csv, &tab);
     chunks_delete_for_source(pool, data_source_id).await?;
     let dims = crate::config::EMBED_DIMS;
     for spec in &chunks {
@@ -87,6 +92,57 @@ async fn google_sheet_sync_run(http: &Client, pool: &PgPool, row: &DataSourceRow
         chunks.len()
     );
     Ok(())
+}
+
+fn google_sheet_tabs_from_config(config: &Value) -> Option<Vec<(String, String)>> {
+    if config.get("sync_scope").and_then(|v| v.as_str()) != Some("tabs") {
+        return None;
+    }
+    let tabs = config.get("tabs")?.as_array()?;
+    let out: Vec<(String, String)> = tabs
+        .iter()
+        .filter_map(|t| {
+            let gid = t.get("gid").and_then(|v| v.as_str())?.trim();
+            if gid.is_empty() {
+                return None;
+            }
+            let sheet_name = t
+                .get("sheet_name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .trim()
+                .to_string();
+            Some((gid.to_string(), sheet_name))
+        })
+        .collect();
+    (!out.is_empty()).then_some(out)
+}
+
+async fn google_sheet_sync_material(
+    http: &Client,
+    row: &DataSourceRow,
+    tabs: &[(String, String)],
+) -> Result<(String, Vec<crate::chunk::ChunkSpec>, usize)> {
+    let mut hash_parts = Vec::with_capacity(tabs.len());
+    let mut all_chunks = Vec::new();
+    let mut total_rows = 0usize;
+    for (gid, sheet_name) in tabs {
+        let mut cfg = google_sheet_config_from_row(row).context("google sheet config")?;
+        cfg.gid = gid.clone();
+        cfg.sheet_name = sheet_name.clone();
+        let tab = sheet_tab_name(&cfg);
+        let csv = google_sheet_read_csv(http, &cfg)
+            .await
+            .with_context(|| format!("data source sync read csv gid={gid}"))?;
+        hash_parts.push(format!("{gid}:{}", snapshot_hash(&csv)));
+        let (mut chunks, data_rows) = sheet_csv_chunk_rows(&csv, &tab);
+        for spec in &mut chunks {
+            spec.chunk_key = format!("tab:{gid}:{}", spec.chunk_key);
+        }
+        total_rows += data_rows;
+        all_chunks.extend(chunks);
+    }
+    Ok((snapshot_hash(&hash_parts.join("|")), all_chunks, total_rows))
 }
 
 async fn sync_is_stale(pool: &PgPool, data_source_id: i64) -> Result<bool> {

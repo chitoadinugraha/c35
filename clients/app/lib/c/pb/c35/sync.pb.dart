@@ -386,6 +386,7 @@ enum SyncPush_Body {
   siteConfig,
   siteDomain,
   siteProductEmbed,
+  chatTyping,
   notSet
 }
 
@@ -408,6 +409,7 @@ class SyncPush extends $pb.GeneratedMessage {
     $5.SiteConfig? siteConfig,
     $5.SiteDomain? siteDomain,
     $5.SiteProductEmbed? siteProductEmbed,
+    $0.ChatTyping? chatTyping,
   }) {
     final result = SyncPush._();
     if (chat != null) result.chat = chat;
@@ -426,6 +428,7 @@ class SyncPush extends $pb.GeneratedMessage {
     if (siteConfig != null) result.siteConfig = siteConfig;
     if (siteDomain != null) result.siteDomain = siteDomain;
     if (siteProductEmbed != null) result.siteProductEmbed = siteProductEmbed;
+    if (chatTyping != null) result.chatTyping = chatTyping;
     return result;
   }
 
@@ -455,13 +458,14 @@ class SyncPush extends $pb.GeneratedMessage {
     14: SyncPush_Body.siteConfig,
     15: SyncPush_Body.siteDomain,
     16: SyncPush_Body.siteProductEmbed,
+    17: SyncPush_Body.chatTyping,
     0: SyncPush_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
       _omitMessageNames ? '' : 'SyncPush',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
       createEmptyInstance: SyncPush.$_createMessage)
-    ..oo(0, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16])
+    ..oo(0, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17])
     ..aOM<$0.Chat>(1, _omitFieldNames ? '' : 'chat',
         subBuilder: $0.Chat.$_createMessage)
     ..aOM<$0.ChatMember>(2, _omitFieldNames ? '' : 'chatMember',
@@ -494,6 +498,8 @@ class SyncPush extends $pb.GeneratedMessage {
         subBuilder: $5.SiteDomain.$_createMessage)
     ..aOM<$5.SiteProductEmbed>(16, _omitFieldNames ? '' : 'siteProductEmbed',
         subBuilder: $5.SiteProductEmbed.$_createMessage)
+    ..aOM<$0.ChatTyping>(17, _omitFieldNames ? '' : 'chatTyping',
+        subBuilder: $0.ChatTyping.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -532,6 +538,7 @@ class SyncPush extends $pb.GeneratedMessage {
   @$pb.TagNumber(14)
   @$pb.TagNumber(15)
   @$pb.TagNumber(16)
+  @$pb.TagNumber(17)
   SyncPush_Body whichBody() => _SyncPush_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(1)
   @$pb.TagNumber(2)
@@ -549,6 +556,7 @@ class SyncPush extends $pb.GeneratedMessage {
   @$pb.TagNumber(14)
   @$pb.TagNumber(15)
   @$pb.TagNumber(16)
+  @$pb.TagNumber(17)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -726,6 +734,17 @@ class SyncPush extends $pb.GeneratedMessage {
   void clearSiteProductEmbed() => $_clearField(16);
   @$pb.TagNumber(16)
   $5.SiteProductEmbed ensureSiteProductEmbed() => $_ensure(15);
+
+  @$pb.TagNumber(17)
+  $0.ChatTyping get chatTyping => $_getN(16);
+  @$pb.TagNumber(17)
+  set chatTyping($0.ChatTyping value) => $_setField(17, value);
+  @$pb.TagNumber(17)
+  $core.bool hasChatTyping() => $_has(16);
+  @$pb.TagNumber(17)
+  void clearChatTyping() => $_clearField(17);
+  @$pb.TagNumber(17)
+  $0.ChatTyping ensureChatTyping() => $_ensure(16);
 }
 
 const $core.bool _omitFieldNames =

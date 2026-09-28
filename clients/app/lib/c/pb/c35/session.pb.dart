@@ -170,6 +170,7 @@ class ReqSessionInit extends $pb.GeneratedMessage {
     $core.String? locationSource,
     $fixnum.Int64? appBuild,
     $core.String? appVersionName,
+    $fixnum.Int64? mentionsSinceMs,
   }) {
     final result = ReqSessionInit._();
     if (sinceMs != null) result.sinceMs = sinceMs;
@@ -187,6 +188,7 @@ class ReqSessionInit extends $pb.GeneratedMessage {
     if (locationSource != null) result.locationSource = locationSource;
     if (appBuild != null) result.appBuild = appBuild;
     if (appVersionName != null) result.appVersionName = appVersionName;
+    if (mentionsSinceMs != null) result.mentionsSinceMs = mentionsSinceMs;
     return result;
   }
 
@@ -218,6 +220,7 @@ class ReqSessionInit extends $pb.GeneratedMessage {
     ..aOS(13, _omitFieldNames ? '' : 'locationSource')
     ..aInt64(14, _omitFieldNames ? '' : 'appBuild')
     ..aOS(15, _omitFieldNames ? '' : 'appVersionName')
+    ..aInt64(16, _omitFieldNames ? '' : 'mentionsSinceMs')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -378,6 +381,15 @@ class ReqSessionInit extends $pb.GeneratedMessage {
   $core.bool hasAppVersionName() => $_has(14);
   @$pb.TagNumber(15)
   void clearAppVersionName() => $_clearField(15);
+
+  @$pb.TagNumber(16)
+  $fixnum.Int64 get mentionsSinceMs => $_getI64(15);
+  @$pb.TagNumber(16)
+  set mentionsSinceMs($fixnum.Int64 value) => $_setInt64(15, value);
+  @$pb.TagNumber(16)
+  $core.bool hasMentionsSinceMs() => $_has(15);
+  @$pb.TagNumber(16)
+  void clearMentionsSinceMs() => $_clearField(16);
 }
 
 class ResSessionInit extends $pb.GeneratedMessage {

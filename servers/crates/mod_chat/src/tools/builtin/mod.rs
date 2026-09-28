@@ -25,7 +25,10 @@ pub use device::{
 };
 pub use img_edit::ImgEditTool;
 pub use img_generate::ImgGenerateTool;
-pub use presentation_export::PresentationExportTool;
+pub use presentation_export::{
+    PresentationExportTool, PresentationSourceExtractTool, PresentationSourceStructureTool,
+    PresentationVideoExtractTool, PresentationVideoStructureTool,
+};
 pub use referral::{
     ReferralCodeDeleteTool, ReferralCodeListTool, ReferralCodePutTool, ReferralTreeGetTool,
 };

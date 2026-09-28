@@ -111,7 +111,11 @@ class InComposer extends StatefulWidget {
     this.onFollowupRemove,
     this.viewerIsRoot = false,
     this.onTestMultitask,
+    this.compact = false,
   });
+
+  /// Bot / simple chat: attach + mic only — no @ mentions, model chip, slash menu, or follow-ups.
+  final bool compact;
 
   final void Function(String text, List<MsgAttachment> attachments, {String? toolMode, List<String>? mentionIds, String? displayContent}) onSend;
   final AgentModel model;
@@ -256,6 +260,7 @@ class _InComposerState extends State<InComposer> {
   }
 
   List<SlashCommand> get _slashMatches {
+    if (widget.compact) return const [];
     final q = _activeSlashQuery;
     if (q == null) return const [];
     if (q.isEmpty) return _slashCommands;
@@ -523,6 +528,14 @@ class _InComposerState extends State<InComposer> {
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
 
+    if (widget.compact) {
+      if (event.logicalKey == LogicalKeyboardKey.enter && !HardwareKeyboard.instance.isShiftPressed && _canSubmit) {
+        unawaited(_submit());
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
+
     final slashMatches = _slashMatches;
     if (slashMatches.isNotEmpty) {
       if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
@@ -723,13 +736,13 @@ class _InComposerState extends State<InComposer> {
       ...widget.selectedMentionIds.where((id) => id != 'image' && !_inlineMentionIds.contains(id)),
     ].toList(growable: false);
 
-    var submitText = composerMentionTextForWire(draft, _composerMentions, mentionIds: mentionIds);
-    if (submitText.startsWith('/ask ') || submitText == '/ask') {
+    var submitText = widget.compact ? draft.trim() : composerMentionTextForWire(draft, _composerMentions, mentionIds: mentionIds);
+    if (!widget.compact && (submitText.startsWith('/ask ') || submitText == '/ask')) {
       turnToolMode = 'ask';
       submitText = submitText.length > 4 ? submitText.substring(4).trim() : '';
     }
 
-    if (submitText.isEmpty && atts.isEmpty && mentionIds.isEmpty) {
+    if (submitText.isEmpty && atts.isEmpty && (widget.compact || mentionIds.isEmpty)) {
       _submitting = false;
       return;
     }
@@ -836,6 +849,7 @@ class _InComposerState extends State<InComposer> {
   }
 
   Widget _followupQueueBox() {
+    if (widget.compact) return const SizedBox.shrink();
     final rows = widget.followupRows;
     if (rows.isEmpty) return const SizedBox.shrink();
     return Container(
@@ -890,6 +904,7 @@ class _InComposerState extends State<InComposer> {
   }
 
   Widget _slashSuggestionsBox() {
+    if (widget.compact) return const SizedBox.shrink();
     final matches = _slashMatches;
     if (matches.isEmpty) return const SizedBox.shrink();
 
@@ -1100,7 +1115,6 @@ class _InComposerState extends State<InComposer> {
         ),
         constraints: const BoxConstraints(maxHeight: 280),
         child: Scrollbar(
-          thumbVisibility: true,
           controller: _mentionListScrollController,
           child: ListView(
             controller: _mentionListScrollController,
@@ -1129,7 +1143,8 @@ class _InComposerState extends State<InComposer> {
   bool _shouldUseStackedLayout(BuildContext context, double totalWidth) {
     if (totalWidth < _inlineMinWidth) return true;
     if (_controller.text.contains('\n')) return true;
-    final textWidth = totalWidth - _leadingActionsWidth - _modePillLayoutWidth - _modelChipWidth - _actionBtnWidth - 32;
+    final modelW = widget.compact ? 0.0 : _modelChipWidth;
+    final textWidth = totalWidth - _leadingActionsWidth - _modePillLayoutWidth - modelW - _actionBtnWidth - 32;
     if (textWidth <= 48) return true;
     final painter = TextPainter(
       text: TextSpan(
@@ -1164,7 +1179,45 @@ class _InComposerState extends State<InComposer> {
         ),
       );
 
-  Widget _leadingActionButtons() => _mentionMenuButton();
+  Future<void> _openCompactAttachMenu() async {
+    final ctx = context;
+    final box = ctx.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
+    final offset = box.localToGlobal(Offset.zero);
+    final action = await showMenu<String>(
+      context: ctx,
+      color: const Color(0xFF27272A),
+      position: RelativeRect.fromLTRB(offset.dx, offset.dy - 4, offset.dx + box.size.width, offset.dy),
+      items: const [
+        PopupMenuItem(
+          value: 'image',
+          height: 40,
+          child: Row(children: [Icon(Icons.image_outlined, size: 18, color: _mentionIconGrey), SizedBox(width: 10), Text('Photo', style: TextStyle(color: zinc100, fontSize: 13))]),
+        ),
+        PopupMenuItem(
+          value: 'file',
+          height: 40,
+          child: Row(children: [Icon(Icons.attach_file_rounded, size: 18, color: _mentionIconGrey), SizedBox(width: 10), Text('File', style: TextStyle(color: zinc100, fontSize: 13))]),
+        ),
+      ],
+    );
+    if (action == 'image') unawaited(_attachImage());
+    if (action == 'file') unawaited(_attachFile());
+  }
+
+  Widget _compactAttachButton() => uiIconButton(
+        tooltip: 'Attach',
+        onPressed: widget.enabled && !widget.busy ? () => unawaited(_openCompactAttachMenu()) : null,
+        icon: const Icon(Icons.add_rounded, size: 21, color: zinc500),
+        style: IconButton.styleFrom(
+          padding: EdgeInsets.zero,
+          minimumSize: const Size(_attachBtnWidth, _attachBtnWidth),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          visualDensity: VisualDensity.compact,
+        ),
+      );
+
+  Widget _leadingActionButtons() => widget.compact ? _compactAttachButton() : _mentionMenuButton();
 
   Widget _modePill() {
     if (!_modePillVisible) return const SizedBox.shrink();
@@ -1193,11 +1246,46 @@ class _InComposerState extends State<InComposer> {
     );
   }
 
-  Widget _modelChip() => UiAssistantModelChip(model: widget.model, onTap: _modelTap());
+  Widget _modelChip() => widget.compact ? const SizedBox.shrink() : UiAssistantModelChip(model: widget.model, onTap: _modelTap());
 
   Widget _actionButton() => _ActionButton(kind: composerActionKind(streaming: widget.busy, recording: _recording, hasText: _hasText), onAction: _onAction);
 
   Widget _composerTextArea({required bool stacked}) {
+    if (widget.compact) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(0, 4, 4, 4),
+        child: TextField(
+          key: const ValueKey('composer_text_field'),
+          controller: _controller,
+          focusNode: _focus,
+          enabled: widget.enabled && !_recording,
+          minLines: 1,
+          maxLines: 6,
+          keyboardType: TextInputType.multiline,
+          textInputAction: TextInputAction.newline,
+          style: const TextStyle(color: zinc100, fontSize: 14, height: 1.35),
+          cursorColor: zinc100,
+          onChanged: (_) {
+            final hadFocus = _focus.hasFocus;
+            final sel = _controller.selection;
+            final prevStacked = _wasStacked;
+            setState(() {});
+            final nextStacked = _shouldUseStackedLayout(context, _inputAreaWidth);
+            _wasStacked = nextStacked;
+            if (prevStacked != nextStacked && hadFocus) _restoreComposerFocus(sel);
+          },
+          decoration: InputDecoration(
+            hintText: _hintText,
+            hintStyle: const TextStyle(color: zinc500, fontSize: 14, height: 1.35),
+            isDense: true,
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            contentPadding: EdgeInsets.fromLTRB(2, stacked ? 10 : 8, 4, stacked ? 10 : 6),
+          ),
+        ),
+      );
+    }
     final field = ExtendedTextField(
       key: const ValueKey('composer_text_field'),
       controller: _controller,
@@ -1268,12 +1356,14 @@ class _InComposerState extends State<InComposer> {
             if (!stacked) const SizedBox(width: _attachTextGap),
             Expanded(child: _composerTextArea(stacked: stacked)),
             if (!stacked) ...[
-              if (_modePillVisible) ...[
+              if (!widget.compact && _modePillVisible) ...[
                 _modePill(),
                 const SizedBox(width: 4),
               ],
-              _modelChip(),
-              const SizedBox(width: 4),
+              if (!widget.compact) ...[
+                _modelChip(),
+                const SizedBox(width: 4),
+              ],
               _actionButton(),
             ],
           ],
@@ -1285,13 +1375,15 @@ class _InComposerState extends State<InComposer> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 _leadingActionButtons(),
-                if (_modePillVisible) ...[
+                if (!widget.compact && _modePillVisible) ...[
                   _modePill(),
                   const SizedBox(width: 4),
                 ],
                 const Spacer(),
-                _modelChip(),
-                const SizedBox(width: 4),
+                if (!widget.compact) ...[
+                  _modelChip(),
+                  const SizedBox(width: 4),
+                ],
                 _actionButton(),
               ],
             ),
@@ -1347,7 +1439,7 @@ class _InComposerState extends State<InComposer> {
 
   @override
   Widget build(BuildContext context) {
-    if (_mentionPickerActive) {
+    if (!widget.compact && _mentionPickerActive) {
       _measureComposerShell();
       _syncMentionMenuOverlay();
     } else {
@@ -1360,7 +1452,7 @@ class _InComposerState extends State<InComposer> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (widget.showSpeakIndicator) const Align(alignment: Alignment.centerLeft, child: UiSpeakIndicator()),
+        if (widget.showSpeakIndicator && !widget.compact) const Align(alignment: Alignment.centerLeft, child: UiSpeakIndicator()),
         Stack(
           clipBehavior: Clip.none,
           children: [

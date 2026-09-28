@@ -71,9 +71,12 @@ ai.embed_cache          — existing; document embeddings for retrieval
   "spreadsheet_id": "1ab…",
   "gid": "0",
   "sheet_name": "Sheet1",
-  "view_url": "https://docs.google.com/spreadsheets/d/…/edit#gid=0"
+  "view_url": "https://docs.google.com/spreadsheets/d/…/edit#gid=0",
+  "access_mode": "read_write"
 }
 ```
+
+`access_mode`: `read_write` (default) enables `gsheet.append` / `gsheet.update` for that binding; `read_only` keeps sync + prompt read path only. Docs/Slides bindings are always stored as `read_only`.
 
 Server may parse `view_url` on `data_source_put` to fill `spreadsheet_id` / `gid` when omitted.
 

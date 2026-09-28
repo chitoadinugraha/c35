@@ -953,3 +953,92 @@ const ResBotPeerList$json = {
 /// Descriptor for `ResBotPeerList`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List resBotPeerListDescriptor = $convert.base64Decode(
     'Cg5SZXNCb3RQZWVyTGlzdBIfCgVjaGF0cxgBIAMoCzIJLmMzNS5DaGF0UgVjaGF0cw==');
+
+@$core.Deprecated('Use reqBotPeerCreateDescriptor instead')
+const ReqBotPeerCreate$json = {
+  '1': 'ReqBotPeerCreate',
+  '2': [
+    {'1': 'bot_iid', '3': 1, '4': 1, '5': 3, '10': 'botIid'},
+    {'1': 'title', '3': 2, '4': 1, '5': 9, '10': 'title'},
+  ],
+};
+
+/// Descriptor for `ReqBotPeerCreate`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqBotPeerCreateDescriptor = $convert.base64Decode(
+    'ChBSZXFCb3RQZWVyQ3JlYXRlEhcKB2JvdF9paWQYASABKANSBmJvdElpZBIUCgV0aXRsZRgCIA'
+    'EoCVIFdGl0bGU=');
+
+@$core.Deprecated('Use resBotPeerCreateDescriptor instead')
+const ResBotPeerCreate$json = {
+  '1': 'ResBotPeerCreate',
+  '2': [
+    {'1': 'chat', '3': 1, '4': 1, '5': 11, '6': '.c35.Chat', '10': 'chat'},
+  ],
+};
+
+/// Descriptor for `ResBotPeerCreate`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resBotPeerCreateDescriptor = $convert.base64Decode(
+    'ChBSZXNCb3RQZWVyQ3JlYXRlEh0KBGNoYXQYASABKAsyCS5jMzUuQ2hhdFIEY2hhdA==');
+
+@$core.Deprecated('Use reqBotPeerAppSendDescriptor instead')
+const ReqBotPeerAppSend$json = {
+  '1': 'ReqBotPeerAppSend',
+  '2': [
+    {'1': 'chat_id', '3': 1, '4': 1, '5': 3, '10': 'chatId'},
+    {'1': 'text', '3': 2, '4': 1, '5': 9, '10': 'text'},
+    {'1': 'attachments_json', '3': 3, '4': 1, '5': 9, '10': 'attachmentsJson'},
+  ],
+};
+
+/// Descriptor for `ReqBotPeerAppSend`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqBotPeerAppSendDescriptor = $convert.base64Decode(
+    'ChFSZXFCb3RQZWVyQXBwU2VuZBIXCgdjaGF0X2lkGAEgASgDUgZjaGF0SWQSEgoEdGV4dBgCIA'
+    'EoCVIEdGV4dBIpChBhdHRhY2htZW50c19qc29uGAMgASgJUg9hdHRhY2htZW50c0pzb24=');
+
+@$core.Deprecated('Use resBotPeerAppSendDescriptor instead')
+const ResBotPeerAppSend$json = {
+  '1': 'ResBotPeerAppSend',
+  '2': [
+    {'1': 'chat_id', '3': 1, '4': 1, '5': 3, '10': 'chatId'},
+  ],
+};
+
+/// Descriptor for `ResBotPeerAppSend`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resBotPeerAppSendDescriptor = $convert.base64Decode(
+    'ChFSZXNCb3RQZWVyQXBwU2VuZBIXCgdjaGF0X2lkGAEgASgDUgZjaGF0SWQ=');
+
+@$core.Deprecated('Use reqBotPeerDeleteDescriptor instead')
+const ReqBotPeerDelete$json = {
+  '1': 'ReqBotPeerDelete',
+  '2': [
+    {'1': 'chat_id', '3': 1, '4': 1, '5': 3, '10': 'chatId'},
+  ],
+};
+
+/// Descriptor for `ReqBotPeerDelete`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqBotPeerDeleteDescriptor = $convert.base64Decode(
+    'ChBSZXFCb3RQZWVyRGVsZXRlEhcKB2NoYXRfaWQYASABKANSBmNoYXRJZA==');
+
+@$core.Deprecated('Use resBotPeerDeleteDescriptor instead')
+const ResBotPeerDelete$json = {
+  '1': 'ResBotPeerDelete',
+};
+
+/// Descriptor for `ResBotPeerDelete`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resBotPeerDeleteDescriptor =
+    $convert.base64Decode('ChBSZXNCb3RQZWVyRGVsZXRl');
+
+@$core.Deprecated('Use chatTypingDescriptor instead')
+const ChatTyping$json = {
+  '1': 'ChatTyping',
+  '2': [
+    {'1': 'chat_id', '3': 1, '4': 1, '5': 3, '10': 'chatId'},
+    {'1': 'party', '3': 2, '4': 1, '5': 9, '10': 'party'},
+    {'1': 'active', '3': 3, '4': 1, '5': 8, '10': 'active'},
+  ],
+};
+
+/// Descriptor for `ChatTyping`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List chatTypingDescriptor = $convert.base64Decode(
+    'CgpDaGF0VHlwaW5nEhcKB2NoYXRfaWQYASABKANSBmNoYXRJZBIUCgVwYXJ0eRgCIAEoCVIFcG'
+    'FydHkSFgoGYWN0aXZlGAMgASgIUgZhY3RpdmU=');

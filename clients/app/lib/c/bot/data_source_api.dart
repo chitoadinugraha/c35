@@ -25,4 +25,11 @@ Future<ResDataSourcePut> dataSourcePut(
 
 Future<ResDataSourceSync> dataSourceSync(ChatConn conn, int id) => conn.dataSourceSync(id);
 
+Future<ResDataSourceCheck> dataSourceCheck(
+  ChatConn conn, {
+  required String sourceKind,
+  required String viewUrl,
+}) =>
+    conn.dataSourceCheck(sourceKind: sourceKind, viewUrl: viewUrl);
+
 Future<ResDataSourceDelete> dataSourceDelete(ChatConn conn, int id) => conn.dataSourceDelete(id);

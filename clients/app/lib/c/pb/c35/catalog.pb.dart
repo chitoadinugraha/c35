@@ -648,7 +648,13 @@ class ResTopicList extends $pb.GeneratedMessage {
 }
 
 class ReqMentionList extends $pb.GeneratedMessage {
-  factory ReqMentionList() => ReqMentionList._();
+  factory ReqMentionList({
+    $fixnum.Int64? sinceMs,
+  }) {
+    final result = ReqMentionList._();
+    if (sinceMs != null) result.sinceMs = sinceMs;
+    return result;
+  }
 
   ReqMentionList._();
 
@@ -663,6 +669,7 @@ class ReqMentionList extends $pb.GeneratedMessage {
       _omitMessageNames ? '' : 'ReqMentionList',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
       createEmptyInstance: ReqMentionList.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'sinceMs')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -686,6 +693,15 @@ class ReqMentionList extends $pb.GeneratedMessage {
       _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ReqMentionList>(
           ReqMentionList.$_createMessage);
   static ReqMentionList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get sinceMs => $_getI64(0);
+  @$pb.TagNumber(1)
+  set sinceMs($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSinceMs() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSinceMs() => $_clearField(1);
 }
 
 class ResMentionList extends $pb.GeneratedMessage {

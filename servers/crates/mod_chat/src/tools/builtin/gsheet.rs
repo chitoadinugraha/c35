@@ -78,6 +78,9 @@ async fn gsheet_append_exec(args: Value, ctx: &ToolContext) -> Result<Value> {
     let bindings = sheet_bindings(ctx).await?;
     let want = args.get("spreadsheet_id").and_then(|v| v.as_str());
     let cfg = binding_resolve(&bindings, want)?;
+    if !cfg.write_allowed {
+        bail!("this Google Sheet is read-only");
+    }
     let row = row_from_args(&args)?;
     if row.is_empty() {
         bail!("row must not be empty");
@@ -96,6 +99,9 @@ async fn gsheet_update_exec(args: Value, ctx: &ToolContext) -> Result<Value> {
     let bindings = sheet_bindings(ctx).await?;
     let want = args.get("spreadsheet_id").and_then(|v| v.as_str());
     let cfg = binding_resolve(&bindings, want)?;
+    if !cfg.write_allowed {
+        bail!("this Google Sheet is read-only");
+    }
     let range = args.get("range").and_then(|v| v.as_str()).unwrap_or("").trim();
     if range.is_empty() {
         bail!("range is required");

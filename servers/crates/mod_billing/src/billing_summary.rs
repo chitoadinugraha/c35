@@ -4,7 +4,8 @@ use sqlx::{PgPool, Row};
 const MICRO_PER_USD: f64 = 1_000_000.0;
 
 pub async fn billing_summary(pool: &PgPool, caller_iid: i64, billing_account_id: i64) -> ResBillingSummary {
-    let plans = billing_plan_list(pool).await.unwrap_or_default();
+    let plans = billing_plan_list(pool, "user").await.unwrap_or_default();
+    let bot_plans = billing_plan_list(pool, "bot").await.unwrap_or_default();
     let account_id = if billing_account_id > 0 {
         billing_account_id
     } else {
@@ -18,7 +19,7 @@ pub async fn billing_summary(pool: &PgPool, caller_iid: i64, billing_account_id:
         .flatten()
         {
             Some(id) if id > 0 => id,
-            _ => return billing_summary_default(plans),
+            _ => return billing_summary_default(plans, bot_plans),
         }
     };
 
@@ -49,7 +50,7 @@ pub async fn billing_summary(pool: &PgPool, caller_iid: i64, billing_account_id:
     .flatten();
 
     let Some(row) = row else {
-        return billing_summary_default(plans);
+        return billing_summary_default(plans, bot_plans);
     };
 
     let alien_5h_used: f64 = row.get("alien_5h_used");
@@ -108,10 +109,11 @@ pub async fn billing_summary(pool: &PgPool, caller_iid: i64, billing_account_id:
         freemium_tokens_limit: freemium.tokens_limit,
         plan_expires_ts_ms: profile_ts.1.map(|t| t.timestamp_millis()).unwrap_or(0),
         trial_expires_ts_ms: profile_ts.0.map(|t| t.timestamp_millis()).unwrap_or(0),
+        bot_plans,
     }
 }
 
-async fn billing_plan_list(pool: &PgPool) -> Result<Vec<BillingPlanDoc>, sqlx::Error> {
+async fn billing_plan_list(pool: &PgPool, scope: &str) -> Result<Vec<BillingPlanDoc>, sqlx::Error> {
     let rows = sqlx::query(
         r#"
         SELECT p.slug, p.name, p.sort_order, p.price_usd::float8 AS price_usd, p.duration_months,
@@ -138,12 +140,25 @@ async fn billing_plan_list(pool: &PgPool) -> Result<Vec<BillingPlanDoc>, sqlx::E
                     WHERE plan_slug = p.slug AND currency = 'IDR' AND billing_period = 'yearly' AND is_active = TRUE
                     LIMIT 1),
                    0.0
-               ) AS price_idr_yearly
+               ) AS price_idr_yearly,
+               COALESCE(
+                   (SELECT list_amount::float8 FROM ai.billing_plan_price
+                    WHERE plan_slug = p.slug AND currency = 'IDR' AND billing_period = 'monthly' AND is_active = TRUE
+                    LIMIT 1),
+                   0.0
+               ) AS price_idr_monthly_list,
+               COALESCE(
+                   (SELECT list_amount::float8 FROM ai.billing_plan_price
+                    WHERE plan_slug = p.slug AND currency = 'IDR' AND billing_period = 'yearly' AND is_active = TRUE
+                    LIMIT 1),
+                   0.0
+               ) AS price_idr_yearly_list
         FROM ai.billing_plan p
-        WHERE p.is_active = TRUE AND p.scope = 'user'
+        WHERE p.is_active = TRUE AND p.scope = $1
         ORDER BY p.sort_order ASC, p.slug ASC
         "#,
     )
+    .bind(scope)
     .fetch_all(pool)
     .await?;
 
@@ -169,6 +184,8 @@ async fn billing_plan_list(pool: &PgPool) -> Result<Vec<BillingPlanDoc>, sqlx::E
             tier: r.get("tier"),
             queue_priority_multiplier: r.get("queue_priority_multiplier"),
             priority_queue: r.get("priority_queue"),
+            price_idr_monthly_list: r.get("price_idr_monthly_list"),
+            price_idr_yearly_list: r.get("price_idr_yearly_list"),
         })
         .collect())
 }
@@ -194,7 +211,7 @@ fn allow_meter_state(used: f64, limit: f64) -> String {
     }
 }
 
-fn billing_summary_default(plans: Vec<BillingPlanDoc>) -> ResBillingSummary {
+fn billing_summary_default(plans: Vec<BillingPlanDoc>, bot_plans: Vec<BillingPlanDoc>) -> ResBillingSummary {
     let now = chrono::Utc::now();
     ResBillingSummary {
         balance_usd: 0.0,
@@ -223,5 +240,6 @@ fn billing_summary_default(plans: Vec<BillingPlanDoc>) -> ResBillingSummary {
         freemium_tokens_limit: crate::billing_freemium::FREEMIUM_TOKENS_PER_DAY,
         plan_expires_ts_ms: 0,
         trial_expires_ts_ms: 0,
+        bot_plans,
     }
 }

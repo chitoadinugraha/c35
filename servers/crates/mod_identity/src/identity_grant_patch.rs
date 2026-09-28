@@ -85,6 +85,10 @@ pub async fn identity_grant_patch(pool: &PgPool, caller_iid: i64, req: ReqIdenti
     if kind == "site" {
         let _ = c35_mod_hint::hint_invalidate(pool, caller_iid).await;
     }
+    if kind == "site" || kind == "bot" || kind == "remote" || kind == "iot" {
+        let _ = c35_mod_hint::mention_invalidate(pool, caller_iid).await;
+        let _ = c35_mod_hint::mention_invalidate_for_asset(pool, resource_iid).await;
+    }
 
     let row = identity_list_row_get(pool, caller_iid, resource_iid).await?;
     Ok(ResIdentityGrantPatch { row: Some(row) })

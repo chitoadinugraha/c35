@@ -67,5 +67,6 @@ message SyncPush {
     SiteContact site_contact = 11;
     SiteObject site_object = 12;
     Tx tx = 13;
+    ChatTyping chat_typing = 17;
   }
 }

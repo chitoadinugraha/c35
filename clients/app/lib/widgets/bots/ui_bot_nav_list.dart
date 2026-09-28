@@ -1,3 +1,4 @@
+import 'package:alienai_c35/c/bot/bot_meta.dart';
 import 'package:alienai_c35/c/bot/bot_store.dart';
 import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
 import 'package:alienai_c35/c/session.dart';
@@ -7,6 +8,7 @@ import 'package:alienai_c35/widgets/ui/ui_alert.dart';
 import 'package:alienai_c35/widgets/ui/ui_menu_position.dart';
 import 'package:alienai_c35/widgets/ui/ui_empty_state.dart';
 import 'package:alienai_c35/widgets/ui/ui_user_avatar.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
 const _border = Color(0xFF27272A);
@@ -82,6 +84,7 @@ class UiBotNavList extends StatelessWidget {
     final selected = selectedBotId == id;
     final label = row.identity.name.isNotEmpty ? row.identity.name : row.identity.alienId;
     final icons = botChannelIcons(row.identity.metaJson);
+    final active = botActiveFromMetaJson(row.identity.metaJson);
     return Material(
       key: key,
       color: selected ? const Color(0xFF18181B) : Colors.transparent,
@@ -108,11 +111,17 @@ class UiBotNavList extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: selected ? const Color(0xFFF4F4F5) : const Color(0xFFA1A1AA),
+                        color: active
+                            ? (selected ? const Color(0xFFF4F4F5) : const Color(0xFFA1A1AA))
+                            : (selected ? const Color(0xFF71717A) : const Color(0xFF52525B)),
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
+                    if (!active) ...[
+                      const SizedBox(height: 4),
+                      Text('bots.statusOff'.tr(), style: const TextStyle(color: Color(0xFF52525B), fontSize: 10, fontWeight: FontWeight.w600)),
+                    ],
                     if (icons.isNotEmpty) ...[
                       const SizedBox(height: 6),
                       Wrap(

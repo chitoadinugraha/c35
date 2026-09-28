@@ -214,9 +214,13 @@ Linked spreadsheets and similar knowledge **do not** live in `meta.assets` strin
 ```json
 {
   "channels": [ "..."],
-  "strict_mode": true
+  "strict_mode": true,
+  "active": true
 }
 ```
+
+- **`active`**: when `false`, the bot does not run channel AI turns (inbound may still be stored). Default **true** if omitted. The create wizard sets **`active: false`** until the owner finishes setup or toggles on in the Bots UI.
+- Stop/intervention is **per `bot_peer` chat row** (`ai.chat.ai_reply_enabled`) — not the same as **`meta.active`** (whole bot).
 
 Attach sheets via app `data_source_put` or bot wizard after create; `bot_iid` on each `data_source` row.
 

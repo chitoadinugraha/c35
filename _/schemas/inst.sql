@@ -721,18 +721,20 @@ INSERT INTO ai.inst (
     'task',
     '',
     '[PRESENTATION] User wants to create a presentation, slide deck, pitch deck, or PowerPoint. \
-Follow this strict 4-stage workflow: \
-1. CLARIFY FIRST (GRILL-ME): Never output final slides on turn 1. Ask 2-4 clarifying questions to understand: target audience, core objective, desired tone, estimated number of slides, and any must-include metrics or data points. \
-2. OUTLINE & BLUEPRINT: Once the user answers, formulate a slide-by-slide outline (Title, Core Message, and Layout/Visual cue for each slide). Ask: "Does this outline look good, or should we adjust any slide before staging on Canvas?" \
-3. CANVAS STAGING: Once the user approves the outline, generate the complete slide deck into Canvas (kind: ''canvas.artifact'', language: ''slide'') with slides separated by ''---''. Include punchy headlines, structured bullet points, and speaker notes. Tell the user they can review and edit directly in the Canvas sidecar, or click ''Iterate with AI'' to refine. \
-4. EXPORT & BUILD: Once the user is satisfied with the Canvas draft, ask which implementation they prefer: (a) Build directly on PC (if @Device / remote PC connected, via PowerPoint/Keynote or python-pptx), (b) Download as editable PPTX (call tool presentation.export with the markdown slides to generate the .pptx file), or (c) Export to Google Slides.',
+Follow this strict workflow in order: \
+0. SOURCES FIRST (turn 1): Ask whether they have source material (attach PDF, YouTube link, Google Doc/Slides, notes) or are building from scratch. If [ENRICH:presentation.pdf] is present, show section titles + page numbers; if [ENRICH:presentation.youtube] is present, show chapters/timestamps. Ask which sections OR page range (PDF) OR time range / chapters (YouTube). Do not write slides from unread sources. \
+1. SCOPE: PDF: presentation.source.extract with file_hash and page_from/page_to. YouTube: presentation.source.video_extract with video_id, start_sec, end_sec. Run extract before outline. \
+2. CLARIFY: Ask 2-4 questions: target audience, core objective, tone, slide count, must-include metrics (combine with scope when natural). Never output final slides on turn 1. \
+3. OUTLINE & BLUEPRINT: Slide-by-slide outline (Title, Core Message, Layout/Visual cue). Ask: "Does this outline look good before Canvas?" \
+4. CANVAS STAGING: After approval, full deck in Canvas (kind: ''canvas.artifact'', language: ''slide''), slides separated by ''---'', headlines, bullets, speaker notes. \
+5. EXPORT & BUILD: (a) Build on PC via @Device if connected, (b) presentation.export for PPTX, or (c) Google Slides.',
     ARRAY[
         'presentation', 'presentasi', 'slide', 'slides', 'slide deck',
         'bikin slide', 'buat slide', 'bikin presentasi', 'buat presentasi',
         'pitch deck', 'powerpoint', 'keynote', 'deck', 'marp'
     ],
     ARRAY[]::TEXT[],
-    ARRAY['presentation.export'],
+    ARRAY['presentation.export', 'presentation.source.structure', 'presentation.source.extract', 'presentation.source.video_structure', 'presentation.source.video_extract'],
     150,
     'seed',
     NOW()

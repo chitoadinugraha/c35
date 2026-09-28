@@ -552,12 +552,14 @@ class BillingPlanPrice extends $pb.GeneratedMessage {
     $core.String? currency,
     $core.double? amount,
     $core.String? billingPeriod,
+    $core.double? listAmount,
   }) {
     final result = BillingPlanPrice._();
     if (planSlug != null) result.planSlug = planSlug;
     if (currency != null) result.currency = currency;
     if (amount != null) result.amount = amount;
     if (billingPeriod != null) result.billingPeriod = billingPeriod;
+    if (listAmount != null) result.listAmount = listAmount;
     return result;
   }
 
@@ -578,6 +580,7 @@ class BillingPlanPrice extends $pb.GeneratedMessage {
     ..aOS(2, _omitFieldNames ? '' : 'currency')
     ..aD(3, _omitFieldNames ? '' : 'amount')
     ..aOS(4, _omitFieldNames ? '' : 'billingPeriod')
+    ..aD(5, _omitFieldNames ? '' : 'listAmount')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -637,6 +640,15 @@ class BillingPlanPrice extends $pb.GeneratedMessage {
   $core.bool hasBillingPeriod() => $_has(3);
   @$pb.TagNumber(4)
   void clearBillingPeriod() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.double get listAmount => $_getN(4);
+  @$pb.TagNumber(5)
+  set listAmount($core.double value) => $_setDouble(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasListAmount() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearListAmount() => $_clearField(5);
 }
 
 class BillingFxRate extends $pb.GeneratedMessage {
@@ -5188,6 +5200,8 @@ class BillingPlanDoc extends $pb.GeneratedMessage {
     $core.String? tier,
     $core.int? queuePriorityMultiplier,
     $core.bool? priorityQueue,
+    $core.double? priceIdrMonthlyList,
+    $core.double? priceIdrYearlyList,
   }) {
     final result = BillingPlanDoc._();
     if (slug != null) result.slug = slug;
@@ -5213,6 +5227,10 @@ class BillingPlanDoc extends $pb.GeneratedMessage {
     if (queuePriorityMultiplier != null)
       result.queuePriorityMultiplier = queuePriorityMultiplier;
     if (priorityQueue != null) result.priorityQueue = priorityQueue;
+    if (priceIdrMonthlyList != null)
+      result.priceIdrMonthlyList = priceIdrMonthlyList;
+    if (priceIdrYearlyList != null)
+      result.priceIdrYearlyList = priceIdrYearlyList;
     return result;
   }
 
@@ -5249,6 +5267,8 @@ class BillingPlanDoc extends $pb.GeneratedMessage {
     ..aOS(17, _omitFieldNames ? '' : 'tier')
     ..aI(18, _omitFieldNames ? '' : 'queuePriorityMultiplier')
     ..aOB(19, _omitFieldNames ? '' : 'priorityQueue')
+    ..aD(20, _omitFieldNames ? '' : 'priceIdrMonthlyList')
+    ..aD(21, _omitFieldNames ? '' : 'priceIdrYearlyList')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -5443,6 +5463,24 @@ class BillingPlanDoc extends $pb.GeneratedMessage {
   $core.bool hasPriorityQueue() => $_has(18);
   @$pb.TagNumber(19)
   void clearPriorityQueue() => $_clearField(19);
+
+  @$pb.TagNumber(20)
+  $core.double get priceIdrMonthlyList => $_getN(19);
+  @$pb.TagNumber(20)
+  set priceIdrMonthlyList($core.double value) => $_setDouble(19, value);
+  @$pb.TagNumber(20)
+  $core.bool hasPriceIdrMonthlyList() => $_has(19);
+  @$pb.TagNumber(20)
+  void clearPriceIdrMonthlyList() => $_clearField(20);
+
+  @$pb.TagNumber(21)
+  $core.double get priceIdrYearlyList => $_getN(20);
+  @$pb.TagNumber(21)
+  set priceIdrYearlyList($core.double value) => $_setDouble(20, value);
+  @$pb.TagNumber(21)
+  $core.bool hasPriceIdrYearlyList() => $_has(20);
+  @$pb.TagNumber(21)
+  void clearPriceIdrYearlyList() => $_clearField(21);
 }
 
 class BillingHistoryRow extends $pb.GeneratedMessage {
@@ -7614,6 +7652,7 @@ class ResBillingSummary extends $pb.GeneratedMessage {
     $core.int? freemiumTokensLimit,
     $fixnum.Int64? planExpiresTsMs,
     $fixnum.Int64? trialExpiresTsMs,
+    $core.Iterable<BillingPlanDoc>? botPlans,
   }) {
     final result = ResBillingSummary._();
     if (balanceUsd != null) result.balanceUsd = balanceUsd;
@@ -7650,6 +7689,7 @@ class ResBillingSummary extends $pb.GeneratedMessage {
       result.freemiumTokensLimit = freemiumTokensLimit;
     if (planExpiresTsMs != null) result.planExpiresTsMs = planExpiresTsMs;
     if (trialExpiresTsMs != null) result.trialExpiresTsMs = trialExpiresTsMs;
+    if (botPlans != null) result.botPlans.addAll(botPlans);
     return result;
   }
 
@@ -7696,6 +7736,8 @@ class ResBillingSummary extends $pb.GeneratedMessage {
     ..aI(24, _omitFieldNames ? '' : 'freemiumTokensLimit')
     ..aInt64(25, _omitFieldNames ? '' : 'planExpiresTsMs')
     ..aInt64(26, _omitFieldNames ? '' : 'trialExpiresTsMs')
+    ..pPM<BillingPlanDoc>(27, _omitFieldNames ? '' : 'botPlans',
+        subBuilder: BillingPlanDoc.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -7947,6 +7989,9 @@ class ResBillingSummary extends $pb.GeneratedMessage {
   $core.bool hasTrialExpiresTsMs() => $_has(25);
   @$pb.TagNumber(26)
   void clearTrialExpiresTsMs() => $_clearField(26);
+
+  @$pb.TagNumber(27)
+  $pb.PbList<BillingPlanDoc> get botPlans => $_getList(26);
 }
 
 const $core.bool _omitFieldNames =

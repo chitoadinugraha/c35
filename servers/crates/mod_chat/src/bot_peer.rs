@@ -1,8 +1,13 @@
 use anyhow::{anyhow, Result};
+use async_nats::Client;
 use c35_proto::{
-    Chat, ChatKind, ChatMsg, ChatMsgRole, ChatMsgSource, ChatMsgStatus, ReqBotPeerList, ReqChatMsgList,
-    ReqChatSend, ReqChatStop, ResBotPeerList, ResChatMsgList, ResChatSend, ResChatStop,
+    Chat, ChatKind, ChatMsg, ChatMsgRole, ChatMsgSource, ChatMsgStatus, ChatTyping, ReqBotPeerAppSend,
+    ReqBotPeerCreate, ReqBotPeerDelete, ReqBotPeerList, ReqChatMsgList, ReqChatSend, ReqChatStop, ResBotPeerAppSend,
+    ResBotPeerCreate, ResBotPeerDelete, ResBotPeerList, ResChatMsgList, ResChatSend, ResChatStop, SyncPush, WsRes,
+    ws_res,
 };
+use c35_nats::user_app_subject_chat;
+use c35_proto::{pb_encode, sync_push};
 use c35_store::snowflake_id;
 use sqlx::{PgPool, Row};
 
@@ -92,6 +97,165 @@ pub async fn bot_peer_msg_list(pool: &PgPool, caller_iid: i64, req: ReqChatMsgLi
     Ok(ResChatMsgList { messages })
 }
 
+pub const BOT_APP_CHANNEL_ID: &str = "app";
+
+pub async fn bot_peer_create(pool: &PgPool, caller_iid: i64, req: ReqBotPeerCreate) -> Result<ResBotPeerCreate> {
+    bot_access_verify(pool, caller_iid, req.bot_iid).await?;
+    let owner_iid = sqlx::query_scalar::<_, i64>(
+        "SELECT owner_iid FROM ai.identity WHERE id = $1 AND kind = 'bot' AND deleted_ts IS NULL",
+    )
+    .bind(req.bot_iid)
+    .fetch_optional(pool)
+    .await?
+    .ok_or_else(|| anyhow!("bot not found"))?;
+    let n: i64 = sqlx::query_scalar(
+        r#"
+        SELECT COUNT(*)::bigint FROM ai.chat
+        WHERE kind = 'bot_peer' AND bot_iid = $1 AND channel_id = $2 AND deleted_ts IS NULL
+        "#,
+    )
+    .bind(req.bot_iid)
+    .bind(BOT_APP_CHANNEL_ID)
+    .fetch_one(pool)
+    .await?;
+    let title = req.title.trim();
+    let peer_name = if title.is_empty() {
+        format!("App chat {}", n + 1)
+    } else {
+        title.to_string()
+    };
+    let chat_id = snowflake_id();
+    let peer_key = format!("app-{}", chat_id);
+    let chat_title = format!("app · {}", peer_name);
+    sqlx::query(
+        r#"
+        INSERT INTO ai.chat (
+            id, kind, owner_iid, title, bot_iid, channel_id, peer_key, peer_name,
+            ai_reply_enabled, last_msg_preview, created_ts, updated_ts
+        )
+        VALUES ($1, 'bot_peer', $2, $3, $4, $5, $6, $7, TRUE, '', NOW(), NOW())
+        "#,
+    )
+    .bind(chat_id)
+    .bind(owner_iid)
+    .bind(&chat_title)
+    .bind(req.bot_iid)
+    .bind(BOT_APP_CHANNEL_ID)
+    .bind(&peer_key)
+    .bind(&peer_name)
+    .execute(pool)
+    .await?;
+    let row = sqlx::query(
+        r#"
+        SELECT id, kind, owner_iid, title, model, bot_iid, channel_id, peer_key, peer_name, peer_pic,
+               ai_reply_enabled, last_msg_ts, last_msg_preview, meta, created_ts, updated_ts, deleted_ts
+        FROM ai.chat WHERE id = $1
+        "#,
+    )
+    .bind(chat_id)
+    .fetch_one(pool)
+    .await?;
+    Ok(ResBotPeerCreate {
+        chat: Some(row_to_chat(row)),
+    })
+}
+
+pub async fn bot_peer_app_send_verify(pool: &PgPool, caller_iid: i64, req: ReqBotPeerAppSend) -> Result<(i64, i64, String, String)> {
+    let chat_id = req.chat_id;
+    let _owner_iid = bot_peer_chat_verify(pool, caller_iid, chat_id).await?;
+    let row = sqlx::query(
+        r#"
+        SELECT bot_iid, channel_id, peer_key, peer_name FROM ai.chat
+        WHERE id = $1 AND kind = 'bot_peer' AND deleted_ts IS NULL
+        "#,
+    )
+    .bind(chat_id)
+    .fetch_optional(pool)
+    .await?
+    .ok_or_else(|| anyhow!("chat not found"))?;
+    let channel_id: String = row.get("channel_id");
+    if channel_id != BOT_APP_CHANNEL_ID {
+        return Err(anyhow!("not an in-app bot chat"));
+    }
+    let text = req.text.trim();
+    let attachments = serde_json::from_str::<serde_json::Value>(&req.attachments_json)
+        .unwrap_or_else(|_| serde_json::json!([]));
+    if text.is_empty() && attachments.as_array().is_none_or(|a| a.is_empty()) {
+        return Err(anyhow!("text required"));
+    }
+    Ok((
+        _owner_iid,
+        row.get("bot_iid"),
+        row.get::<String, _>("peer_key"),
+        row.get::<String, _>("peer_name"),
+    ))
+}
+
+pub fn bot_peer_app_send_ack(chat_id: i64) -> ResBotPeerAppSend {
+    ResBotPeerAppSend { chat_id }
+}
+
+pub async fn bot_peer_typing_fanout(
+    nats: Option<&Client>,
+    owner_iid: i64,
+    chat_id: i64,
+    party: &str,
+    active: bool,
+) -> Result<()> {
+    let Some(nats) = nats else { return Ok(()); };
+    if chat_id <= 0 {
+        return Ok(());
+    }
+    let res = WsRes {
+        req_id: String::new(),
+        body: Some(ws_res::Body::SyncPush(SyncPush {
+            body: Some(sync_push::Body::ChatTyping(ChatTyping {
+                chat_id,
+                party: party.to_string(),
+                active,
+            })),
+        })),
+    };
+    nats.publish(user_app_subject_chat(owner_iid, chat_id), pb_encode(&res).into())
+        .await?;
+    Ok(())
+}
+
+pub async fn bot_peer_msg_fanout(
+    pool: &PgPool,
+    nats: Option<&Client>,
+    owner_iid: i64,
+    chat_id: i64,
+    msg_id: i64,
+) -> Result<()> {
+    let Some(nats) = nats else { return Ok(()); };
+    if msg_id <= 0 {
+        return Ok(());
+    }
+    let row = sqlx::query(
+        r#"
+        SELECT id, chat_id, owner_iid, req_id, sender_iid, role, source, content, thought, attachments, blocks_json,
+               tokens_in, tokens_out, duration_ms, status, cost_usd::float8 AS cost_usd, error_text, created_ts, updated_ts, deleted_ts
+        FROM ai.chat_msg WHERE id = $1 AND chat_id = $2 AND deleted_ts IS NULL
+        "#,
+    )
+    .bind(msg_id)
+    .bind(chat_id)
+    .fetch_optional(pool)
+    .await?;
+    let row = row.ok_or_else(|| anyhow!("chat_msg not found"))?;
+    let msg = row_to_msg(row);
+    let res = WsRes {
+        req_id: String::new(),
+        body: Some(ws_res::Body::SyncPush(SyncPush {
+            body: Some(sync_push::Body::ChatMsg(msg)),
+        })),
+    };
+    nats.publish(user_app_subject_chat(owner_iid, chat_id), pb_encode(&res).into())
+        .await?;
+    Ok(())
+}
+
 pub async fn bot_peer_list(pool: &PgPool, caller_iid: i64, req: ReqBotPeerList) -> Result<ResBotPeerList> {
     bot_access_verify(pool, caller_iid, req.bot_iid).await?;
     let limit = if req.limit <= 0 { 100 } else { req.limit.min(500) };
@@ -111,6 +275,24 @@ pub async fn bot_peer_list(pool: &PgPool, caller_iid: i64, req: ReqBotPeerList) 
     .await?;
     let chats = rows.into_iter().map(row_to_chat).collect();
     Ok(ResBotPeerList { chats })
+}
+
+pub async fn bot_peer_delete(pool: &PgPool, caller_iid: i64, req: ReqBotPeerDelete) -> Result<ResBotPeerDelete> {
+    let chat_id = req.chat_id;
+    bot_peer_chat_verify(pool, caller_iid, chat_id).await?;
+    sqlx::query(
+        "UPDATE ai.chat_msg SET deleted_ts = NOW(), updated_ts = NOW() WHERE chat_id = $1 AND deleted_ts IS NULL",
+    )
+    .bind(chat_id)
+    .execute(pool)
+    .await?;
+    sqlx::query(
+        "UPDATE ai.chat SET deleted_ts = NOW(), updated_ts = NOW() WHERE id = $1 AND kind = 'bot_peer' AND deleted_ts IS NULL",
+    )
+    .bind(chat_id)
+    .execute(pool)
+    .await?;
+    Ok(ResBotPeerDelete {})
 }
 
 pub async fn chat_stop(pool: &PgPool, caller_iid: i64, req: ReqChatStop) -> Result<ResChatStop> {

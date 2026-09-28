@@ -177,3 +177,56 @@ const ResDataSourceSync$json = {
 final $typed_data.Uint8List resDataSourceSyncDescriptor = $convert.base64Decode(
     'ChFSZXNEYXRhU291cmNlU3luYxIkCgNkb2MYASABKAsyEi5jMzUuRGF0YVNvdXJjZURvY1IDZG'
     '9j');
+
+@$core.Deprecated('Use dataSourceSheetTabDescriptor instead')
+const DataSourceSheetTab$json = {
+  '1': 'DataSourceSheetTab',
+  '2': [
+    {'1': 'title', '3': 1, '4': 1, '5': 9, '10': 'title'},
+    {'1': 'gid', '3': 2, '4': 1, '5': 9, '10': 'gid'},
+  ],
+};
+
+/// Descriptor for `DataSourceSheetTab`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List dataSourceSheetTabDescriptor = $convert.base64Decode(
+    'ChJEYXRhU291cmNlU2hlZXRUYWISFAoFdGl0bGUYASABKAlSBXRpdGxlEhAKA2dpZBgCIAEoCV'
+    'IDZ2lk');
+
+@$core.Deprecated('Use reqDataSourceCheckDescriptor instead')
+const ReqDataSourceCheck$json = {
+  '1': 'ReqDataSourceCheck',
+  '2': [
+    {'1': 'source_kind', '3': 1, '4': 1, '5': 9, '10': 'sourceKind'},
+    {'1': 'view_url', '3': 2, '4': 1, '5': 9, '10': 'viewUrl'},
+  ],
+};
+
+/// Descriptor for `ReqDataSourceCheck`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqDataSourceCheckDescriptor = $convert.base64Decode(
+    'ChJSZXFEYXRhU291cmNlQ2hlY2sSHwoLc291cmNlX2tpbmQYASABKAlSCnNvdXJjZUtpbmQSGQ'
+    'oIdmlld191cmwYAiABKAlSB3ZpZXdVcmw=');
+
+@$core.Deprecated('Use resDataSourceCheckDescriptor instead')
+const ResDataSourceCheck$json = {
+  '1': 'ResDataSourceCheck',
+  '2': [
+    {'1': 'ok', '3': 1, '4': 1, '5': 8, '10': 'ok'},
+    {'1': 'error_msg', '3': 2, '4': 1, '5': 9, '10': 'errorMsg'},
+    {'1': 'title', '3': 3, '4': 1, '5': 9, '10': 'title'},
+    {'1': 'config_json', '3': 4, '4': 1, '5': 9, '10': 'configJson'},
+    {
+      '1': 'tabs',
+      '3': 5,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.DataSourceSheetTab',
+      '10': 'tabs'
+    },
+  ],
+};
+
+/// Descriptor for `ResDataSourceCheck`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resDataSourceCheckDescriptor = $convert.base64Decode(
+    'ChJSZXNEYXRhU291cmNlQ2hlY2sSDgoCb2sYASABKAhSAm9rEhsKCWVycm9yX21zZxgCIAEoCV'
+    'IIZXJyb3JNc2cSFAoFdGl0bGUYAyABKAlSBXRpdGxlEh8KC2NvbmZpZ19qc29uGAQgASgJUgpj'
+    'b25maWdKc29uEisKBHRhYnMYBSADKAsyFy5jMzUuRGF0YVNvdXJjZVNoZWV0VGFiUgR0YWJz');

@@ -322,7 +322,10 @@ where
         &inst_scopes,
         &mention_ctx,
         &caps,
-        ComposeTurnOpts::default(),
+        ComposeTurnOpts {
+            attachments_json: &req.attachments_json,
+            ..ComposeTurnOpts::default()
+        },
         owner_iid,
         locale_eff,
     )

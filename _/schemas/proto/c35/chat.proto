@@ -350,3 +350,36 @@ message ReqBotPeerList {
 message ResBotPeerList {
   repeated Chat chats = 1;
 }
+
+// In-app bot test thread (channel_id = app). Not sent to WhatsApp/Telegram.
+message ReqBotPeerCreate {
+  int64 bot_iid = 1;
+  string title = 2;  // optional peer display name
+}
+
+message ResBotPeerCreate {
+  Chat chat = 1;
+}
+
+message ReqBotPeerAppSend {
+  int64 chat_id = 1;
+  string text = 2;
+  string attachments_json = 3;
+}
+
+message ResBotPeerAppSend {
+  int64 chat_id = 1;
+}
+
+message ReqBotPeerDelete {
+  int64 chat_id = 1;
+}
+
+message ResBotPeerDelete {}
+
+// Realtime typing on bot_peer threads (WS SyncPush). party: bot | peer
+message ChatTyping {
+  int64 chat_id = 1;
+  string party = 2;
+  bool active = 3;
+}

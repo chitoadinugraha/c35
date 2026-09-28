@@ -1,5 +1,6 @@
 use c35_mod_admin::{require_root, AdminError};
 use c35_mod_hint::hint_invalidate_all;
+
 use c35_proto::{ReqTranslationPut, ResTranslationPut};
 use sqlx::PgPool;
 
@@ -67,6 +68,7 @@ pub async fn translation_put(
 
     if affects_hints(category, key) {
         let _ = hint_invalidate_all(pool).await;
+        let _ = c35_mod_hint::mention_invalidate_all(pool).await;
     }
 
     Ok(ResTranslationPut {

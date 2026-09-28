@@ -470,6 +470,7 @@ fn compose_bot_web_search_opt_in() {
             extra_signals: &signals,
             extra_tool_exclude: &[],
             bot_web_search: true,
+            attachments_json: "[]",
         },
     );
     assert!(out.tools.iter().any(|t| t.name == "web.search"));

@@ -627,6 +627,7 @@ CREATE TABLE IF NOT EXISTS ai.billing_plan_price (
     currency        VARCHAR(3) NOT NULL,
     amount          NUMERIC(20, 4) NOT NULL,
     billing_period  VARCHAR(16) NOT NULL DEFAULT 'monthly',
+    list_amount     NUMERIC(20, 4),
 
     is_active       BOOLEAN NOT NULL DEFAULT TRUE,
     created_ts      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -634,7 +635,8 @@ CREATE TABLE IF NOT EXISTS ai.billing_plan_price (
 
     PRIMARY KEY (plan_slug, currency, billing_period),
     CONSTRAINT chk_billing_plan_price_currency CHECK (currency ~ '^[A-Z]{3}$'),
-    CONSTRAINT chk_billing_plan_price_amount_nonneg CHECK (amount >= 0)
+    CONSTRAINT chk_billing_plan_price_amount_nonneg CHECK (amount >= 0),
+    CONSTRAINT chk_billing_plan_price_list_gte_amount CHECK (list_amount IS NULL OR list_amount >= amount)
 );
 
 DO $$
@@ -656,28 +658,29 @@ BEGIN
     END IF;
 END $$;
 
-INSERT INTO ai.billing_plan_price (plan_slug, currency, amount, billing_period) VALUES
-    ('lite', 'IDR', 49000, 'yearly'),
-    ('lite', 'IDR', 59000, 'monthly'),
-    ('plus', 'IDR', 99000, 'yearly'),
-    ('plus', 'IDR', 105000, 'monthly'),
-    ('pro', 'IDR', 309000, 'yearly'),
-    ('pro', 'IDR', 340000, 'monthly'),
-    ('ultra', 'IDR', 1000000, 'yearly'),
-    ('ultra', 'IDR', 1200000, 'monthly'),
-    ('bot.lite', 'IDR', 39000, 'yearly'),
-    ('bot.lite', 'IDR', 49000, 'monthly'),
-    ('bot.small', 'IDR', 89000, 'yearly'),
-    ('bot.small', 'IDR', 99000, 'monthly'),
-    ('device.light', 'IDR', 499000, 'yearly'),
-    ('device.light', 'IDR', 599000, 'monthly'),
-    ('device.medium', 'IDR', 999000, 'yearly'),
-    ('device.medium', 'IDR', 1109000, 'monthly'),
-    ('plus', 'USD', 4.99, 'monthly'),
-    ('pro', 'USD', 14.99, 'monthly'),
-    ('bot.small', 'USD', 5.99, 'monthly')
+INSERT INTO ai.billing_plan_price (plan_slug, currency, amount, billing_period, list_amount) VALUES
+    ('lite', 'IDR', 49000, 'yearly', NULL),
+    ('lite', 'IDR', 59000, 'monthly', NULL),
+    ('plus', 'IDR', 99000, 'yearly', NULL),
+    ('plus', 'IDR', 105000, 'monthly', NULL),
+    ('pro', 'IDR', 309000, 'yearly', NULL),
+    ('pro', 'IDR', 340000, 'monthly', NULL),
+    ('ultra', 'IDR', 1000000, 'yearly', NULL),
+    ('ultra', 'IDR', 1200000, 'monthly', NULL),
+    ('bot.lite', 'IDR', 40000, 'yearly', 50000),
+    ('bot.lite', 'IDR', 50000, 'monthly', 60000),
+    ('bot.small', 'IDR', 90000, 'yearly', 100000),
+    ('bot.small', 'IDR', 100000, 'monthly', 110000),
+    ('device.light', 'IDR', 499000, 'yearly', NULL),
+    ('device.light', 'IDR', 599000, 'monthly', NULL),
+    ('device.medium', 'IDR', 999000, 'yearly', NULL),
+    ('device.medium', 'IDR', 1109000, 'monthly', NULL),
+    ('plus', 'USD', 4.99, 'monthly', NULL),
+    ('pro', 'USD', 14.99, 'monthly', NULL),
+    ('bot.small', 'USD', 5.99, 'monthly', NULL)
 ON CONFLICT (plan_slug, currency, billing_period) DO UPDATE SET
     amount = EXCLUDED.amount,
+    list_amount = EXCLUDED.list_amount,
     is_active = EXCLUDED.is_active,
     updated_ts = NOW();
 

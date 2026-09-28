@@ -155,11 +155,14 @@ final $typed_data.Uint8List resTopicListDescriptor = $convert.base64Decode(
 @$core.Deprecated('Use reqMentionListDescriptor instead')
 const ReqMentionList$json = {
   '1': 'ReqMentionList',
+  '2': [
+    {'1': 'since_ms', '3': 1, '4': 1, '5': 3, '10': 'sinceMs'},
+  ],
 };
 
 /// Descriptor for `ReqMentionList`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List reqMentionListDescriptor =
-    $convert.base64Decode('Cg5SZXFNZW50aW9uTGlzdA==');
+final $typed_data.Uint8List reqMentionListDescriptor = $convert.base64Decode(
+    'Cg5SZXFNZW50aW9uTGlzdBIZCghzaW5jZV9tcxgBIAEoA1IHc2luY2VNcw==');
 
 @$core.Deprecated('Use resMentionListDescriptor instead')
 const ResMentionList$json = {

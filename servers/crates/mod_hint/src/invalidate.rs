@@ -16,6 +16,48 @@ pub async fn hint_invalidate_all(pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
+pub async fn mention_invalidate(pool: &PgPool, user_iid: i64) -> Result<()> {
+    sqlx::query("DELETE FROM ai.mention_bundle WHERE user_iid = $1")
+        .bind(user_iid)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+pub async fn mention_invalidate_all(pool: &PgPool) -> Result<()> {
+    sqlx::query("DELETE FROM ai.mention_bundle").execute(pool).await?;
+    Ok(())
+}
+
+pub async fn mention_invalidate_for_asset(pool: &PgPool, asset_iid: i64) -> Result<()> {
+    let owner_iid: Option<i64> = sqlx::query_scalar(
+        "SELECT owner_iid FROM ai.identity WHERE id = $1 AND deleted_ts IS NULL",
+    )
+    .bind(asset_iid)
+    .fetch_optional(pool)
+    .await?;
+
+    let grantees: Vec<i64> = sqlx::query_scalar(
+        "SELECT grantee_iid FROM ai.identity_grant WHERE resource_iid = $1 AND deleted_ts IS NULL",
+    )
+    .bind(asset_iid)
+    .fetch_all(pool)
+    .await
+    .unwrap_or_default();
+
+    let mut users = HashSet::new();
+    if let Some(o) = owner_iid {
+        users.insert(o);
+    }
+    for u in grantees {
+        users.insert(u);
+    }
+    for u in users {
+        mention_invalidate(pool, u).await?;
+    }
+    Ok(())
+}
+
 pub async fn hint_invalidate_for_asset(pool: &PgPool, asset_iid: i64) -> Result<()> {
     let owner_iid: Option<i64> = sqlx::query_scalar(
         "SELECT owner_iid FROM ai.identity WHERE id = $1 AND deleted_ts IS NULL",

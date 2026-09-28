@@ -5,6 +5,7 @@ import 'package:alienai_c35/c/api/settings_conn.dart';
 import 'package:alienai_c35/c/app_id.dart';
 import 'package:alienai_c35/c/config.dart';
 import 'package:alienai_c35/c/hint/hint_store.dart';
+import 'package:alienai_c35/c/mention/mention_catalog.dart';
 import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/device/device_store.dart';
@@ -378,6 +379,7 @@ class AuthService extends ChangeNotifier {
       } catch (_) {}
     }
     await HintStore.instance.clearForUid(uid);
+    await mentionCatalogCacheClear(uid);
     await siteListCacheClear(uid);
     await deviceListCacheClear(uid);
     await Session.instance.clear(clearStored: clearStored);

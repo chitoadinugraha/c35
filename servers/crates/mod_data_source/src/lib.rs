@@ -1,14 +1,21 @@
+mod access;
 mod bg;
 mod chunk;
 mod config;
 mod csv;
+mod google_asset_check;
 mod google_sheet;
+mod google_url;
 mod prompt;
 mod retrieve;
 mod store;
 mod store_due;
 mod sync;
 
+pub use access::{
+    config_access_mode, config_normalize_access_mode, config_write_allowed, data_source_bot_gsheet_write_allowed,
+    ACCESS_MODE_READ_ONLY, ACCESS_MODE_READ_WRITE,
+};
 pub use chunk::{chunk_content_hash, snapshot_hash, sheet_csv_chunk_rows, ChunkSpec};
 pub use config::{
     data_source_bg_batch, data_source_bg_enabled, data_source_bg_max_concurrent, data_source_bg_tick_sec,
@@ -16,9 +23,14 @@ pub use config::{
     DATA_SOURCE_SMALL_ROW_LIMIT,
 };
 pub use csv::{parse_csv, parse_csv_line};
+pub use google_asset_check::{data_source_check_run, AssetCheckResult, SheetTabInfo};
 pub use google_sheet::{
-    config_merge_sheet_url, google_sheet_config_from_row, google_sheet_read_csv, google_sheet_write_append,
-    google_sheet_write_update, parse_sheet_url, sheet_tab_name, GoogleSheetConfig, ParsedSheetUrl,
+    config_merge_sheet_url, google_sheet_config_from_row, google_sheet_metadata, google_sheet_read_csv,
+    google_sheet_write_append, google_sheet_write_update, parse_sheet_url, sheet_tab_name, GoogleSheetConfig,
+    ParsedSheetUrl,
+};
+pub use google_url::{
+    config_merge_doc_url, config_merge_slide_url, SOURCE_KIND_GOOGLE_DOC, SOURCE_KIND_GOOGLE_SLIDE,
 };
 pub use prompt::{data_source_prompt_for_bot, data_source_prompt_merge};
 pub use retrieve::data_source_chunk_retrieve;

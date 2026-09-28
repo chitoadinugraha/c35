@@ -70,6 +70,12 @@ fn meta_merge(existing: &Value, incoming: &Value) -> Value {
     if out.get("web_search").is_none() {
         out["web_search"] = json!(false);
     }
+    if out.get("billing_plan_slug").is_none() {
+        out["billing_plan_slug"] = json!("shared");
+    }
+    if out.get("active").is_none() {
+        out["active"] = json!(true);
+    }
     if let Some(in_obj) = incoming.as_object() {
         for (k, v) in in_obj {
             if k == "channels" && v.as_array().is_some_and(|a| a.is_empty()) {
@@ -207,6 +213,9 @@ pub async fn identity_put(
         if kind == "site" {
             let _ = c35_mod_hint::hint_invalidate_for_asset(pool, id).await;
         }
+        if kind == "site" || kind == "bot" || kind == "remote" || kind == "iot" {
+            let _ = c35_mod_hint::mention_invalidate_for_asset(pool, id).await;
+        }
         let row = identity_list_row_get(pool, caller_iid, id).await?;
         return Ok(ResIdentityPut { row: Some(row) });
     }
@@ -257,6 +266,9 @@ pub async fn identity_put(
         .await?;
     if kind == "site" {
         let _ = c35_mod_hint::hint_invalidate_for_asset(pool, iid).await;
+    }
+    if kind == "site" || kind == "bot" || kind == "remote" || kind == "iot" {
+        let _ = c35_mod_hint::mention_invalidate_for_asset(pool, iid).await;
     }
     let row = identity_list_row_get(pool, caller_iid, iid).await?;
     Ok(ResIdentityPut { row: Some(row) })

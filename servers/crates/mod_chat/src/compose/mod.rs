@@ -29,11 +29,23 @@ pub use tool_select::{
     compose_inject_force_tools, tool_turn_eligible, tools_for_turn,
 };
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy)]
 pub struct ComposeTurnOpts<'a> {
     pub extra_signals: &'a [String],
     pub extra_tool_exclude: &'a [String],
     pub bot_web_search: bool,
+    pub attachments_json: &'a str,
+}
+
+impl<'a> Default for ComposeTurnOpts<'a> {
+    fn default() -> Self {
+        Self {
+            extra_signals: &[],
+            extra_tool_exclude: &[],
+            bot_web_search: false,
+            attachments_json: "[]",
+        }
+    }
 }
 
 /// First LLM hop must call a tool when web-search inst matched and web.search is available.
@@ -383,6 +395,7 @@ pub async fn compose_tools_and_inst_async(
         owner_iid,
         locale: locale_eff,
         user_text: text,
+        attachments_json: opts.attachments_json,
     };
     let matched = prep.matched.clone();
     let eligible = prep.eligible.clone();

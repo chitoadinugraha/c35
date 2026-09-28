@@ -27,7 +27,9 @@ pub mod whatsapp;
 pub use bridge::start_channel_inbound_subscriber;
 pub use disconnect::{bot_channels_disconnect_all, channel_disconnect};
 pub use hub::{channel_hub, channel_hub_init};
-pub use inbound::{channel_inbound_from_webhook, channel_inbound_handle, channel_runtime_init};
+pub use inbound::{
+    channel_app_peer_send, channel_inbound_from_webhook, channel_inbound_handle, channel_runtime_init,
+};
 pub use pair_fanout::channel_pair_nats_fanout;
 pub use telegram::channel_telegram_connect;
 pub use whatsapp::{

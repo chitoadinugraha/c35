@@ -2441,6 +2441,10 @@ enum WsReq_Body {
   dataSourcePut,
   dataSourceDelete,
   dataSourceSync,
+  dataSourceCheck,
+  botPeerCreate,
+  botPeerAppSend,
+  botPeerDelete,
   notSet
 }
 
@@ -2553,6 +2557,10 @@ class WsReq extends $pb.GeneratedMessage {
     $24.ReqDataSourcePut? dataSourcePut,
     $24.ReqDataSourceDelete? dataSourceDelete,
     $24.ReqDataSourceSync? dataSourceSync,
+    $24.ReqDataSourceCheck? dataSourceCheck,
+    $15.ReqBotPeerCreate? botPeerCreate,
+    $15.ReqBotPeerAppSend? botPeerAppSend,
+    $15.ReqBotPeerDelete? botPeerDelete,
   }) {
     final result = WsReq._();
     if (reqId != null) result.reqId = reqId;
@@ -2675,6 +2683,10 @@ class WsReq extends $pb.GeneratedMessage {
     if (dataSourcePut != null) result.dataSourcePut = dataSourcePut;
     if (dataSourceDelete != null) result.dataSourceDelete = dataSourceDelete;
     if (dataSourceSync != null) result.dataSourceSync = dataSourceSync;
+    if (dataSourceCheck != null) result.dataSourceCheck = dataSourceCheck;
+    if (botPeerCreate != null) result.botPeerCreate = botPeerCreate;
+    if (botPeerAppSend != null) result.botPeerAppSend = botPeerAppSend;
+    if (botPeerDelete != null) result.botPeerDelete = botPeerDelete;
     return result;
   }
 
@@ -2793,6 +2805,10 @@ class WsReq extends $pb.GeneratedMessage {
     162: WsReq_Body.dataSourcePut,
     163: WsReq_Body.dataSourceDelete,
     164: WsReq_Body.dataSourceSync,
+    165: WsReq_Body.dataSourceCheck,
+    166: WsReq_Body.botPeerCreate,
+    167: WsReq_Body.botPeerAppSend,
+    168: WsReq_Body.botPeerDelete,
     0: WsReq_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -2904,7 +2920,11 @@ class WsReq extends $pb.GeneratedMessage {
       161,
       162,
       163,
-      164
+      164,
+      165,
+      166,
+      167,
+      168
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$13.ReqSessionInit>(2, _omitFieldNames ? '' : 'sessionInit',
@@ -3144,6 +3164,14 @@ class WsReq extends $pb.GeneratedMessage {
         subBuilder: $24.ReqDataSourceDelete.$_createMessage)
     ..aOM<$24.ReqDataSourceSync>(164, _omitFieldNames ? '' : 'dataSourceSync',
         subBuilder: $24.ReqDataSourceSync.$_createMessage)
+    ..aOM<$24.ReqDataSourceCheck>(165, _omitFieldNames ? '' : 'dataSourceCheck',
+        subBuilder: $24.ReqDataSourceCheck.$_createMessage)
+    ..aOM<$15.ReqBotPeerCreate>(166, _omitFieldNames ? '' : 'botPeerCreate',
+        subBuilder: $15.ReqBotPeerCreate.$_createMessage)
+    ..aOM<$15.ReqBotPeerAppSend>(167, _omitFieldNames ? '' : 'botPeerAppSend',
+        subBuilder: $15.ReqBotPeerAppSend.$_createMessage)
+    ..aOM<$15.ReqBotPeerDelete>(168, _omitFieldNames ? '' : 'botPeerDelete',
+        subBuilder: $15.ReqBotPeerDelete.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -3271,6 +3299,10 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(162)
   @$pb.TagNumber(163)
   @$pb.TagNumber(164)
+  @$pb.TagNumber(165)
+  @$pb.TagNumber(166)
+  @$pb.TagNumber(167)
+  @$pb.TagNumber(168)
   WsReq_Body whichBody() => _WsReq_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(3)
@@ -3377,6 +3409,10 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(162)
   @$pb.TagNumber(163)
   @$pb.TagNumber(164)
+  @$pb.TagNumber(165)
+  @$pb.TagNumber(166)
+  @$pb.TagNumber(167)
+  @$pb.TagNumber(168)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -4566,6 +4602,50 @@ class WsReq extends $pb.GeneratedMessage {
   void clearDataSourceSync() => $_clearField(164);
   @$pb.TagNumber(164)
   $24.ReqDataSourceSync ensureDataSourceSync() => $_ensure(105);
+
+  @$pb.TagNumber(165)
+  $24.ReqDataSourceCheck get dataSourceCheck => $_getN(106);
+  @$pb.TagNumber(165)
+  set dataSourceCheck($24.ReqDataSourceCheck value) => $_setField(165, value);
+  @$pb.TagNumber(165)
+  $core.bool hasDataSourceCheck() => $_has(106);
+  @$pb.TagNumber(165)
+  void clearDataSourceCheck() => $_clearField(165);
+  @$pb.TagNumber(165)
+  $24.ReqDataSourceCheck ensureDataSourceCheck() => $_ensure(106);
+
+  @$pb.TagNumber(166)
+  $15.ReqBotPeerCreate get botPeerCreate => $_getN(107);
+  @$pb.TagNumber(166)
+  set botPeerCreate($15.ReqBotPeerCreate value) => $_setField(166, value);
+  @$pb.TagNumber(166)
+  $core.bool hasBotPeerCreate() => $_has(107);
+  @$pb.TagNumber(166)
+  void clearBotPeerCreate() => $_clearField(166);
+  @$pb.TagNumber(166)
+  $15.ReqBotPeerCreate ensureBotPeerCreate() => $_ensure(107);
+
+  @$pb.TagNumber(167)
+  $15.ReqBotPeerAppSend get botPeerAppSend => $_getN(108);
+  @$pb.TagNumber(167)
+  set botPeerAppSend($15.ReqBotPeerAppSend value) => $_setField(167, value);
+  @$pb.TagNumber(167)
+  $core.bool hasBotPeerAppSend() => $_has(108);
+  @$pb.TagNumber(167)
+  void clearBotPeerAppSend() => $_clearField(167);
+  @$pb.TagNumber(167)
+  $15.ReqBotPeerAppSend ensureBotPeerAppSend() => $_ensure(108);
+
+  @$pb.TagNumber(168)
+  $15.ReqBotPeerDelete get botPeerDelete => $_getN(109);
+  @$pb.TagNumber(168)
+  set botPeerDelete($15.ReqBotPeerDelete value) => $_setField(168, value);
+  @$pb.TagNumber(168)
+  $core.bool hasBotPeerDelete() => $_has(109);
+  @$pb.TagNumber(168)
+  void clearBotPeerDelete() => $_clearField(168);
+  @$pb.TagNumber(168)
+  $15.ReqBotPeerDelete ensureBotPeerDelete() => $_ensure(109);
 }
 
 enum WsRes_Body {
@@ -4684,6 +4764,10 @@ enum WsRes_Body {
   dataSourcePut,
   dataSourceDelete,
   dataSourceSync,
+  dataSourceCheck,
+  botPeerCreate,
+  botPeerAppSend,
+  botPeerDelete,
   notSet
 }
 
@@ -4806,6 +4890,10 @@ class WsRes extends $pb.GeneratedMessage {
     $24.ResDataSourcePut? dataSourcePut,
     $24.ResDataSourceDelete? dataSourceDelete,
     $24.ResDataSourceSync? dataSourceSync,
+    $24.ResDataSourceCheck? dataSourceCheck,
+    $15.ResBotPeerCreate? botPeerCreate,
+    $15.ResBotPeerAppSend? botPeerAppSend,
+    $15.ResBotPeerDelete? botPeerDelete,
   }) {
     final result = WsRes._();
     if (reqId != null) result.reqId = reqId;
@@ -4939,6 +5027,10 @@ class WsRes extends $pb.GeneratedMessage {
     if (dataSourcePut != null) result.dataSourcePut = dataSourcePut;
     if (dataSourceDelete != null) result.dataSourceDelete = dataSourceDelete;
     if (dataSourceSync != null) result.dataSourceSync = dataSourceSync;
+    if (dataSourceCheck != null) result.dataSourceCheck = dataSourceCheck;
+    if (botPeerCreate != null) result.botPeerCreate = botPeerCreate;
+    if (botPeerAppSend != null) result.botPeerAppSend = botPeerAppSend;
+    if (botPeerDelete != null) result.botPeerDelete = botPeerDelete;
     return result;
   }
 
@@ -5067,6 +5159,10 @@ class WsRes extends $pb.GeneratedMessage {
     162: WsRes_Body.dataSourcePut,
     163: WsRes_Body.dataSourceDelete,
     164: WsRes_Body.dataSourceSync,
+    165: WsRes_Body.dataSourceCheck,
+    166: WsRes_Body.botPeerCreate,
+    167: WsRes_Body.botPeerAppSend,
+    168: WsRes_Body.botPeerDelete,
     0: WsRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -5188,7 +5284,11 @@ class WsRes extends $pb.GeneratedMessage {
       161,
       162,
       163,
-      164
+      164,
+      165,
+      166,
+      167,
+      168
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$25.Err>(2, _omitFieldNames ? '' : 'err',
@@ -5449,6 +5549,14 @@ class WsRes extends $pb.GeneratedMessage {
         subBuilder: $24.ResDataSourceDelete.$_createMessage)
     ..aOM<$24.ResDataSourceSync>(164, _omitFieldNames ? '' : 'dataSourceSync',
         subBuilder: $24.ResDataSourceSync.$_createMessage)
+    ..aOM<$24.ResDataSourceCheck>(165, _omitFieldNames ? '' : 'dataSourceCheck',
+        subBuilder: $24.ResDataSourceCheck.$_createMessage)
+    ..aOM<$15.ResBotPeerCreate>(166, _omitFieldNames ? '' : 'botPeerCreate',
+        subBuilder: $15.ResBotPeerCreate.$_createMessage)
+    ..aOM<$15.ResBotPeerAppSend>(167, _omitFieldNames ? '' : 'botPeerAppSend',
+        subBuilder: $15.ResBotPeerAppSend.$_createMessage)
+    ..aOM<$15.ResBotPeerDelete>(168, _omitFieldNames ? '' : 'botPeerDelete',
+        subBuilder: $15.ResBotPeerDelete.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -5586,6 +5694,10 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(162)
   @$pb.TagNumber(163)
   @$pb.TagNumber(164)
+  @$pb.TagNumber(165)
+  @$pb.TagNumber(166)
+  @$pb.TagNumber(167)
+  @$pb.TagNumber(168)
   WsRes_Body whichBody() => _WsRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(10)
@@ -5702,6 +5814,10 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(162)
   @$pb.TagNumber(163)
   @$pb.TagNumber(164)
+  @$pb.TagNumber(165)
+  @$pb.TagNumber(166)
+  @$pb.TagNumber(167)
+  @$pb.TagNumber(168)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -7000,6 +7116,50 @@ class WsRes extends $pb.GeneratedMessage {
   void clearDataSourceSync() => $_clearField(164);
   @$pb.TagNumber(164)
   $24.ResDataSourceSync ensureDataSourceSync() => $_ensure(115);
+
+  @$pb.TagNumber(165)
+  $24.ResDataSourceCheck get dataSourceCheck => $_getN(116);
+  @$pb.TagNumber(165)
+  set dataSourceCheck($24.ResDataSourceCheck value) => $_setField(165, value);
+  @$pb.TagNumber(165)
+  $core.bool hasDataSourceCheck() => $_has(116);
+  @$pb.TagNumber(165)
+  void clearDataSourceCheck() => $_clearField(165);
+  @$pb.TagNumber(165)
+  $24.ResDataSourceCheck ensureDataSourceCheck() => $_ensure(116);
+
+  @$pb.TagNumber(166)
+  $15.ResBotPeerCreate get botPeerCreate => $_getN(117);
+  @$pb.TagNumber(166)
+  set botPeerCreate($15.ResBotPeerCreate value) => $_setField(166, value);
+  @$pb.TagNumber(166)
+  $core.bool hasBotPeerCreate() => $_has(117);
+  @$pb.TagNumber(166)
+  void clearBotPeerCreate() => $_clearField(166);
+  @$pb.TagNumber(166)
+  $15.ResBotPeerCreate ensureBotPeerCreate() => $_ensure(117);
+
+  @$pb.TagNumber(167)
+  $15.ResBotPeerAppSend get botPeerAppSend => $_getN(118);
+  @$pb.TagNumber(167)
+  set botPeerAppSend($15.ResBotPeerAppSend value) => $_setField(167, value);
+  @$pb.TagNumber(167)
+  $core.bool hasBotPeerAppSend() => $_has(118);
+  @$pb.TagNumber(167)
+  void clearBotPeerAppSend() => $_clearField(167);
+  @$pb.TagNumber(167)
+  $15.ResBotPeerAppSend ensureBotPeerAppSend() => $_ensure(118);
+
+  @$pb.TagNumber(168)
+  $15.ResBotPeerDelete get botPeerDelete => $_getN(119);
+  @$pb.TagNumber(168)
+  set botPeerDelete($15.ResBotPeerDelete value) => $_setField(168, value);
+  @$pb.TagNumber(168)
+  $core.bool hasBotPeerDelete() => $_has(119);
+  @$pb.TagNumber(168)
+  void clearBotPeerDelete() => $_clearField(168);
+  @$pb.TagNumber(168)
+  $15.ResBotPeerDelete ensureBotPeerDelete() => $_ensure(119);
 }
 
 const $core.bool _omitFieldNames =

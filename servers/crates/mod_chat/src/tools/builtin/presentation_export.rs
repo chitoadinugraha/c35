@@ -1,6 +1,8 @@
 use anyhow::{bail, Context, Result};
 use serde_json::json;
 use std::path::Path;
+use crate::pdf_cas::{pdf_extract_for_hash, pdf_structure_for_hash, PDF_EXTRACT_DEFAULT_MAX_CHARS as EXTRACT_DEFAULT_MAX};
+use c35_mod_youtube::{video_extract_json, video_structure_json, EXTRACT_DEFAULT_MAX_CHARS as VIDEO_EXTRACT_DEFAULT};
 use crate::tool;
 
 fn cas_secret_from_env() -> String {
@@ -181,6 +183,108 @@ tool! {
         let title = args["title"].as_str().unwrap_or("Presentation");
         let theme = args["theme"].as_str().unwrap_or("dark");
         presentation_export_exec(&ctx.pool, slides_markdown, title, theme).await
+    }
+}
+
+tool! {
+    struct: PresentationSourceStructureTool,
+    name: "presentation.source.structure",
+    aliases: ["pdf.structure"],
+    description: "PDF TOC and page count from file_hash (no full text).",
+    topics: ["presentation"],
+    always: ["presentation"],
+    rag_phrases: ["pdf outline", "table of contents"],
+    ui_calling_key: "tool.presentation.source.structure.calling",
+    ui_done_key: "tool.presentation.source.structure.done",
+    parameters: {
+        file_hash: (string, "CAS hash", required),
+        file_name: (string, "filename", optional, default = ""),
+    },
+    execute: |args, ctx| {
+        let hash = args["file_hash"].as_str().unwrap_or_default().trim();
+        if hash.is_empty() {
+            bail!("file_hash required");
+        }
+        let name = args["file_name"].as_str().unwrap_or("");
+        Ok(pdf_structure_for_hash(&ctx.pool, hash, name).await?)
+    }
+}
+
+tool! {
+    struct: PresentationSourceExtractTool,
+    name: "presentation.source.extract",
+    aliases: ["pdf.extract"],
+    description: "PDF text for page range after user chose scope.",
+    topics: ["presentation"],
+    always: ["presentation"],
+    rag_phrases: ["extract pdf pages"],
+    ui_calling_key: "tool.presentation.source.extract.calling",
+    ui_done_key: "tool.presentation.source.extract.done",
+    parameters: {
+        file_hash: (string, "CAS hash", required),
+        page_from: (integer, "first page", required),
+        page_to: (integer, "last page", required),
+        max_chars: (integer, "max chars", optional, default = 14000),
+    },
+    execute: |args, ctx| {
+        let hash = args["file_hash"].as_str().unwrap_or_default().trim();
+        if hash.is_empty() {
+            bail!("file_hash required");
+        }
+        let page_from = args["page_from"].as_u64().unwrap_or(1) as u32;
+        let page_to = args["page_to"].as_u64().unwrap_or(page_from as u64) as u32;
+        let max_chars = args["max_chars"].as_u64().unwrap_or(EXTRACT_DEFAULT_MAX as u64) as usize;
+        Ok(pdf_extract_for_hash(&ctx.pool, hash, page_from, page_to, max_chars).await?)
+    }
+}
+
+tool! {
+    struct: PresentationVideoStructureTool,
+    name: "presentation.source.video_structure",
+    aliases: ["youtube.structure", "video.structure"],
+    description: "YouTube chapters and metadata (no full transcript). Uses yt-dlp via CF proxy.",
+    topics: ["presentation"],
+    always: ["presentation"],
+    rag_phrases: ["youtube chapters", "video outline"],
+    ui_calling_key: "tool.presentation.source.video_structure.calling",
+    ui_done_key: "tool.presentation.source.video_structure.done",
+    parameters: {
+        url: (string, "YouTube URL or 11-char video_id", required),
+    },
+    execute: |args, ctx| {
+        let url = args["url"].as_str().unwrap_or_default().trim();
+        if url.is_empty() {
+            bail!("url required");
+        }
+        Ok(video_structure_json(&ctx.pool, url, ctx.owner_iid).await?)
+    }
+}
+
+tool! {
+    struct: PresentationVideoExtractTool,
+    name: "presentation.source.video_extract",
+    aliases: ["youtube.extract", "video.extract"],
+    description: "Caption text for a YouTube time range (seconds). Call after user picks scope.",
+    topics: ["presentation"],
+    always: ["presentation"],
+    rag_phrases: ["youtube transcript section", "video clip text"],
+    ui_calling_key: "tool.presentation.source.video_extract.calling",
+    ui_done_key: "tool.presentation.source.video_extract.done",
+    parameters: {
+        video_id: (string, "11-char video id", required),
+        start_sec: (number, "range start seconds", required),
+        end_sec: (number, "range end seconds", required),
+        max_chars: (integer, "max chars", optional, default = 14000),
+    },
+    execute: |args, ctx| {
+        let video_id = args["video_id"].as_str().unwrap_or_default().trim();
+        if video_id.is_empty() {
+            bail!("video_id required");
+        }
+        let start_sec = args["start_sec"].as_f64().unwrap_or(0.0);
+        let end_sec = args["end_sec"].as_f64().unwrap_or(start_sec);
+        let max_chars = args["max_chars"].as_u64().unwrap_or(VIDEO_EXTRACT_DEFAULT as u64) as usize;
+        Ok(video_extract_json(&ctx.pool, video_id, start_sec, end_sec, max_chars, ctx.owner_iid).await?)
     }
 }
 

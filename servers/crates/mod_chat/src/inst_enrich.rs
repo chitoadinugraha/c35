@@ -8,6 +8,7 @@ pub struct InstEnrichCtx<'a> {
     pub owner_iid: i64,
     pub locale: &'a str,
     pub user_text: &'a str,
+    pub attachments_json: &'a str,
 }
 
 pub struct InstEnrichResult {
@@ -25,6 +26,17 @@ pub async fn inst_enrich_append(matched: &[InstRow], ctx: &InstEnrichCtx<'_>) ->
     let mut suffix = String::new();
     let mut keys = Vec::new();
     for row in matched {
+        if row.id == "inst.presentation" {
+            if let Some(block) = crate::pdf_cas::presentation_pdf_enrich(ctx.pool, ctx.attachments_json).await {
+                keys.push("presentation.pdf".into());
+                suffix.push_str(&format!("\n\n[ENRICH:presentation.pdf]\n{block}"));
+            }
+            if let Some(block) = crate::video_source::presentation_youtube_enrich(ctx.pool, ctx.user_text, ctx.owner_iid).await {
+                keys.push("presentation.youtube".into());
+                suffix.push_str(&format!("\n\n[ENRICH:presentation.youtube]\n{block}"));
+            }
+            continue;
+        }
         let Some((key, block)) = enrich_one(row, ctx).await else {
             continue;
         };

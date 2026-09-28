@@ -453,6 +453,46 @@ async fn dispatch(
             },
             Err(e) => err_res(req_id, WireErr::client("bot_peer_list_failed", e.to_string())),
         },
+        Some(ws_req::Body::BotPeerCreate(r)) => match c35_mod_chat::bot_peer_create(&state.pool, ctx.caller_iid, r).await {
+            Ok(body) => WsRes {
+                req_id,
+                body: Some(ws_res::Body::BotPeerCreate(body)),
+            },
+            Err(e) => err_res(req_id, WireErr::client("bot_peer_create_failed", e.to_string())),
+        },
+        Some(ws_req::Body::BotPeerAppSend(r)) => {
+            let chat_id = r.chat_id;
+            let text = r.text.clone();
+            let attachments_json = r.attachments_json.clone();
+            match c35_mod_chat::bot_peer_app_send_verify(&state.pool, ctx.caller_iid, r).await {
+                Ok((_, bot_iid, peer_key, peer_name)) => {
+                    match c35_mod_channel::channel_app_peer_send(
+                        state,
+                        bot_iid,
+                        &peer_key,
+                        &peer_name,
+                        &text,
+                        &attachments_json,
+                    )
+                    .await
+                    {
+                        Ok(_) => WsRes {
+                            req_id,
+                            body: Some(ws_res::Body::BotPeerAppSend(c35_mod_chat::bot_peer_app_send_ack(chat_id))),
+                        },
+                        Err(e) => err_res(req_id, WireErr::client("bot_peer_app_send_failed", e.to_string())),
+                    }
+                }
+                Err(e) => err_res(req_id, WireErr::client("bot_peer_app_send_failed", e.to_string())),
+            }
+        },
+        Some(ws_req::Body::BotPeerDelete(r)) => match c35_mod_chat::bot_peer_delete(&state.pool, ctx.caller_iid, r).await {
+            Ok(body) => WsRes {
+                req_id,
+                body: Some(ws_res::Body::BotPeerDelete(body)),
+            },
+            Err(e) => err_res(req_id, WireErr::client("bot_peer_delete_failed", e.to_string())),
+        },
         Some(ws_req::Body::DataSourceList(r)) => match c35_mod_chat::data_source_list(&state.pool, ctx.caller_iid, r).await {
             Ok(body) => WsRes {
                 req_id,
@@ -480,6 +520,13 @@ async fn dispatch(
                 body: Some(ws_res::Body::DataSourceSync(body)),
             },
             Err(e) => err_res(req_id, WireErr::client("data_source_sync_failed", e.to_string())),
+        },
+        Some(ws_req::Body::DataSourceCheck(r)) => match c35_mod_chat::data_source_check(&state.pool, ctx.caller_iid, r).await {
+            Ok(body) => WsRes {
+                req_id,
+                body: Some(ws_res::Body::DataSourceCheck(body)),
+            },
+            Err(e) => err_res(req_id, WireErr::client("data_source_check_failed", e.to_string())),
         },
         Some(ws_req::Body::ChatStop(r)) => match c35_mod_chat::chat_stop(&state.pool, ctx.caller_iid, r).await {
             Ok(body) => WsRes {
@@ -815,8 +862,9 @@ async fn dispatch(
                 Err(e) => err_res(req_id, WireErr::client("rtc_signal_ice_failed", e)),
             }
         },
-        Some(ws_req::Body::MentionList(_)) => {
-            let list = c35_mod_chat::mention_list_rpc(&state.pool, ctx.caller_iid).await;
+        Some(ws_req::Body::MentionList(r)) => {
+            let list =
+                c35_mod_chat::mention_list_bundle_rpc(&state.pool, ctx.caller_iid, r.since_ms).await;
             WsRes {
                 req_id,
                 body: Some(ws_res::Body::MentionList(list)),
@@ -1136,6 +1184,7 @@ async fn session_init(
         req.app_version_name = q.version_name.clone().unwrap_or_default();
     }
     let hints_since_ms = req.hints_since_ms;
+    let mentions_since_ms = req.mentions_since_ms;
     let locale = if req.locale.is_empty() {
         q.locale.as_deref().unwrap_or("en").to_string()
     } else {
@@ -1159,11 +1208,9 @@ async fn session_init(
             res.inbox_members = inbox.members;
         }
     }
-    let mention_list = c35_mod_chat::mention_list_rpc(&ctx.pool, ctx.caller_iid).await;
-    res.mentions = Some(c35_proto::MentionCatalog {
-        rev: mention_list.rev,
-        items: mention_list.mentions,
-    });
+    if let Ok(mentions) = c35_mod_chat::mention_bundle_get(&ctx.pool, ctx.caller_iid, mentions_since_ms).await {
+        res.mentions = Some(mentions);
+    }
     let locale = locale.as_str();
     if let Ok(hints) = c35_mod_hint::hint_bundle_get(&ctx.pool, ctx.caller_iid, locale, hints_since_ms).await {
         res.hints = Some(hints);
