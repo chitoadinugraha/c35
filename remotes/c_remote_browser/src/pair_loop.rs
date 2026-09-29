@@ -3,10 +3,22 @@ use std::time::Duration;
 use c_remote_core::config::{session_key_load, session_key_save, server_url};
 use c_remote_core::pair::{pair_poll, pair_register, pair_should_reroll, PairPoll};
 
+use crate::mode;
+
 const DEVICE_TYPE: &str = "browser";
 
 pub async fn pair_until_claimed(cli: bool) -> anyhow::Result<()> {
     if session_key_load().is_some() {
+        return Ok(());
+    }
+
+    if mode::is_extension_engine() {
+        tracing::info!(
+            "extension mode: pair from the Chrome extension popup (not this process); waiting for session_key…"
+        );
+        while session_key_load().is_none() {
+            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+        }
         return Ok(());
     }
 

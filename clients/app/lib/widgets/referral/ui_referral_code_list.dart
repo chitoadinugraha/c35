@@ -13,23 +13,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
 
-Future<void> referralCodeListDialog(BuildContext context, {required ReferralConn conn}) async {
-  await showDialog<void>(
-    context: context,
-    builder: (ctx) => _ReferralCodeListDialog(conn: conn),
-  );
-}
-
-class _ReferralCodeListDialog extends StatefulWidget {
-  const _ReferralCodeListDialog({required this.conn});
+class UiReferralAffiliateCodesPanel extends StatefulWidget {
+  const UiReferralAffiliateCodesPanel({super.key, required this.conn});
 
   final ReferralConn conn;
 
   @override
-  State<_ReferralCodeListDialog> createState() => _ReferralCodeListDialogState();
+  State<UiReferralAffiliateCodesPanel> createState() => _UiReferralAffiliateCodesPanelState();
 }
 
-class _ReferralCodeListDialogState extends State<_ReferralCodeListDialog> {
+class _UiReferralAffiliateCodesPanelState extends State<UiReferralAffiliateCodesPanel> {
   late final _searchCtrl = TextEditingController();
   Timer? _debounce;
   Timer? _copiedClear;
@@ -124,122 +117,92 @@ class _ReferralCodeListDialogState extends State<_ReferralCodeListDialog> {
   @override
   Widget build(BuildContext context) {
     final filtered = _filtered;
-    return Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      backgroundColor: Colors.transparent,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 512, maxHeight: 720),
-        child: Material(
-          color: const Color(0xFF18181B),
-          elevation: 24,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: const Color(0xFF3F3F46).withValues(alpha: 0.95)),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+          child: Row(
             children: [
-              Container(
-                padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
-                decoration: const BoxDecoration(
-                  border: Border(bottom: BorderSide(color: Color(0xFF27272A))),
-                  color: Color(0xFF08080A),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.confirmation_number_outlined, size: 20, color: Color(0xFF22C55E)),
-                    const SizedBox(width: 10),
-                    const Expanded(
-                      child: Text('Referral codes', style: TextStyle(color: Color(0xFFF4F4F5), fontSize: 16, fontWeight: FontWeight.w700)),
-                    ),
-                    uiIconButton(
-                      onPressed: _loading ? null : () => _openForm(),
-                      tooltip: 'Add code',
-                      icon: const Icon(Icons.add, size: 20, color: Color(0xFFA1A1AA)),
-                    ),
-                    uiIconButton(
-                      onPressed: () => setState(() => _showSearch = !_showSearch),
-                      tooltip: 'Search',
-                      icon: const Icon(Icons.search, size: 20, color: Color(0xFFA1A1AA)),
-                    ),
-                    uiIconButton(
-                      onPressed: _loading ? null : _load,
-                      tooltip: 'Refresh',
-                      icon: const Icon(Icons.refresh, size: 20, color: Color(0xFFA1A1AA)),
-                    ),
-                    uiIconButton(
-                      onPressed: () => Navigator.pop(context),
-                      tooltip: 'Close',
-                      icon: const Icon(Icons.close, size: 20, color: Color(0xFFA1A1AA)),
-                    ),
-                  ],
-                ),
+              uiIconButton(
+                onPressed: _loading ? null : () => _openForm(),
+                tooltip: 'Add code',
+                icon: const Icon(Icons.add, size: 20, color: Color(0xFFA1A1AA)),
               ),
-              if (_showSearch)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                  child: TextField(
-                    controller: _searchCtrl,
-                    onChanged: (_) {
-                      _debounce?.cancel();
-                      _debounce = Timer(const Duration(milliseconds: 200), () {
-                        if (mounted) setState(() {});
-                      });
-                    },
-                    style: const TextStyle(color: Color(0xFFF4F4F5)),
-                    decoration: UiInputDecoration.of(context, hintText: 'Search codes…'),
-                  ),
-                ),
-              Expanded(
-                child: _loading
-                    ? const UILoading(message: 'Loading codes…')
-                    : _error != null
-                        ? Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(24),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFFA1A1AA))),
-                                  const SizedBox(height: 16),
-                                  FilledButton(onPressed: _load, child: const Text('Retry')),
-                                ],
-                              ),
-                            ),
-                          )
-                        : filtered.isEmpty
-                            ? Center(
-                                child: Text(
-                                  _searchCtrl.text.trim().isNotEmpty ? 'No codes match' : 'No referral codes yet',
-                                  style: const TextStyle(color: Color(0xFFA1A1AA)),
-                                ),
-                              )
-                            : ListView.separated(
-                                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                                itemCount: filtered.length,
-                                separatorBuilder: (context, index) => const SizedBox(height: 10),
-                                itemBuilder: (context, i) {
-                                  final code = filtered[i];
-                                  final copied = _copiedCode == code.code;
-                                  final meta = referralCodePriceUsdLabel(code.priceUsd, code.durationMonths, code.maxUses, code.usedCount);
-                                  final expires = referralCodeExpiresLabelMs(code.expiresAtMs.toInt());
-                                  return _CodeTile(
-                                    title: code.name.trim().isNotEmpty ? code.name.trim() : referralCodeTypeLabel(code.type),
-                                    formatted: referralCodeFormat(code.code),
-                                    meta: meta,
-                                    expires: expires,
-                                    copied: copied,
-                                    onCopy: () => _copyCode(code),
-                                    onEdit: () => _openForm(existing: code),
-                                    onDelete: () => _deleteCode(code),
-                                  );
-                                },
-                              ),
+              uiIconButton(
+                onPressed: () => setState(() => _showSearch = !_showSearch),
+                tooltip: 'Search',
+                icon: const Icon(Icons.search, size: 20, color: Color(0xFFA1A1AA)),
+              ),
+              uiIconButton(
+                onPressed: _loading ? null : _load,
+                tooltip: 'Refresh',
+                icon: const Icon(Icons.refresh, size: 20, color: Color(0xFFA1A1AA)),
               ),
             ],
           ),
         ),
-      ),
+        if (_showSearch)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            child: TextField(
+              controller: _searchCtrl,
+              onChanged: (_) {
+                _debounce?.cancel();
+                _debounce = Timer(const Duration(milliseconds: 200), () {
+                  if (mounted) setState(() {});
+                });
+              },
+              style: const TextStyle(color: Color(0xFFF4F4F5)),
+              decoration: UiInputDecoration.of(context, hintText: 'Search codes…'),
+            ),
+          ),
+        Expanded(
+          child: _loading
+              ? const UILoading(message: 'Loading codes…')
+              : _error != null
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFFA1A1AA))),
+                            const SizedBox(height: 16),
+                            FilledButton(onPressed: _load, child: const Text('Retry')),
+                          ],
+                        ),
+                      ),
+                    )
+                  : filtered.isEmpty
+                      ? Center(
+                          child: Text(
+                            _searchCtrl.text.trim().isNotEmpty ? 'No codes match' : 'No referral codes yet',
+                            style: const TextStyle(color: Color(0xFFA1A1AA)),
+                          ),
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                          itemCount: filtered.length,
+                          separatorBuilder: (context, index) => const SizedBox(height: 10),
+                          itemBuilder: (context, i) {
+                            final code = filtered[i];
+                            final copied = _copiedCode == code.code;
+                            final meta = referralCodePriceUsdLabel(code.priceUsd, code.durationMonths, code.maxUses, code.usedCount);
+                            final expires = referralCodeExpiresLabelMs(code.expiresAtMs.toInt());
+                            return _CodeTile(
+                              title: code.name.trim().isNotEmpty ? code.name.trim() : referralCodeTypeLabel(code.type),
+                              formatted: referralCodeFormat(code.code),
+                              meta: meta,
+                              expires: expires,
+                              copied: copied,
+                              onCopy: () => _copyCode(code),
+                              onEdit: () => _openForm(existing: code),
+                              onDelete: () => _deleteCode(code),
+                            );
+                          },
+                        ),
+        ),
+      ],
     );
   }
 }

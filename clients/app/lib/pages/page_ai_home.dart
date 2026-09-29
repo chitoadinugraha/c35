@@ -786,6 +786,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
           onCommissionTap: _openCommissionSheet,
           onFinancePayments: _financeStaff ? _openFinancePayments : null,
           onFinanceReceiveAccounts: _financeStaff ? _openFinanceReceiveAccounts : null,
+          onMarketingGenerateVoucher: null,
           onLock: _lockSession,
           onSignOut: _signOut,
           onBots: _openBots,

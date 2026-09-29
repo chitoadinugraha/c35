@@ -10,7 +10,9 @@ import 'package:alienai_c35/c/media/media_types.dart';
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
+import 'package:alienai_c35/c/billing/billing_platform.dart';
 import 'package:alienai_c35/widgets/billing/billing_topup.dart';
+import 'package:alienai_c35/widgets/billing/ui_billing_play_topup_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -581,5 +583,10 @@ class _UiBillingTopupPanelState extends State<UiBillingTopupPanel> {
   }
 
   @override
-  Widget build(BuildContext context) => _step == 0 ? _buildSetupStep() : _buildPaymentStep();
+  Widget build(BuildContext context) {
+    if (billingUsePlayCheckout() && _usesIdr) {
+      return UiBillingPlayTopupPanel(conn: widget.conn, onSubmitted: widget.onSubmitted);
+    }
+    return _step == 0 ? _buildSetupStep() : _buildPaymentStep();
+  }
 }

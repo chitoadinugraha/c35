@@ -6,6 +6,8 @@ Status: **locked** 2026-09-29
 
 Sibling specs: [browser-remote.md](browser-remote.md) (Playwright engine), [remote.md](remote.md) (desktop OS remote).
 
+Implementation plan for LLM automation on extension devices: [2026-09-29-chrome-extension-automation-multitask.md](plans/2026-09-29-chrome-extension-automation-multitask.md) (CE-A0 parity lock, CE-A1+ IPC RPC and MV3 observe/act).
+
 ---
 
 ## Two planes (unchanged)
@@ -50,6 +52,158 @@ Playwright CDP screencast and Node IPC are **not** on this path.
 | Engine process | Node + Playwright sidecar | None (extension + NM only) |
 | `browser.task.run` | Supported (automation steps) | **Not supported** — use Remote tab; clear error from tools |
 | Strict sites (CF, e-Puskesmas) | Often blocked / separate session | Human login in real Chrome |
+| LLM `browser.*` tools | Full Playwright IPC surface | See **parity matrix** below (Remote-only today; automation in CE-A*) |
+
+---
+
+## LLM `browser.*` parity matrix (CE-A0)
+
+Single cluster tool surface for `type=browser` devices. Branch on `meta.browser_engine` in server + agent (`servers/crates/mod_chat/src/tools/builtin/browser.rs`, `remotes/c_remote_browser/src/browser_command.rs`).
+
+**Extension column values:** `yes` (parity or acceptable substitute), `subset` (partial / different semantics), `no` (blocked or not wired), `planned` (locked target in automation plan, not shipped).
+
+| Cluster tool | Agent method | Playwright | Extension (shipped) | Extension (target CE-A*) | Notes |
+|--------------|--------------|------------|------------------------|---------------------------|-------|
+| `browser.tabs` | `tabs` | yes | **subset** | **yes** (subset) | Shipped: `list`, `activate` via extension IPC; `new` / `close` fail on agent. MV3 SW already has tab create/remove for IPC push — wired in CE-A3. Multi-window orchestration stays subset vs Playwright. |
+| `browser.page.observe` | `page.observe` | yes | **no** | **subset** | Target: url/title + simplified DOM text slice (not full Playwright AX tree). CE-A2. |
+| `browser.page.act` | `page.act` | yes | **no** | **subset** | Target: `click` / `fill` / `press` via `chrome.scripting` on active tab (CE-A2). Complements WebRTC Remote input (CE-A4). |
+| `browser.page.extract` | `page.extract` | yes | **no** | **subset** | Target: selector text in injected script; shadow DOM best-effort v1 (CE-A2). |
+| `browser.page.screenshot` | `page.screenshot` | yes | **no** | **yes** | Server pre-check blocks extension today; target CAS artifact same shape as Playwright tool (CE-A2 + CE-A5 H.1). |
+| `browser.task.run` | task queue / steps | yes | **no** | **subset** | Shipped: agent + server reject extension. Target: queued steps (navigate, click, fill, extract, wait, tab ops) inside MV3 — not 100% Playwright step parity (CE-A5 / Track I). |
+| `browser.file.upload` | `file.upload` | yes | **no** | **no** | Deferred Track G (MV3 file input). Playwright-only until product needs extension upload. |
+
+**Not an LLM tool:** Remote tab **WebRTC video + input** works on extension devices today (human plane). That is required for daily-profile control when `browser.page.act` is unavailable.
+
+**Review gate CE-A0:** parity table above is scope lock for extension automation waves; do not expand Playwright-only paths onto extension without updating this table first.
+
+---
+
+## NM + IPC message catalog
+
+Three hops: **MV3 extension** ↔ **native messaging host** (same `alienai_remote_browser.exe` NM loop) ↔ **extension IPC** (`127.0.0.1:37538`, default) ↔ **WebRTC agent** thread inside that binary.
+
+Framing (NM stdin/stdout and IPC socket): **4-byte little-endian length** + UTF-8 JSON payload (`remotes/c_remote_browser/src/chrome_native/host.rs`, `extension_ipc.rs`).
+
+### Native messaging — extension → Rust host (`type` / `command` → `ExtRequest.cmd`)
+
+| `type` | Direction | Purpose |
+|--------|-----------|---------|
+| `ping` | ext → host → ext | Liveness; response includes `pong: true`. |
+| `pair.start` | ext → host → ext | Register `browser_engine=extension` pair code. |
+| `pair.status` | ext → host → ext | `idle` / `pending` / `claimed` + optional `code`, `device_iid`. |
+| `frame` | ext → host | JPEG capture for WebRTC (`width`, `height`, `jpeg_b64`); host forwards to IPC. |
+| `tabs.list` | ext → host | Extension pushes tab array in message body; host forwards `tabs_result` to agent. |
+| `tabs.activate` | ext → host | Ack only today; tab switch done in SW before NM. |
+| `capture.start` / `capture.stop` | host → ext (via port push) | Start/stop `captureVisibleTab` loop (also driven from agent IPC). |
+
+Host → extension (long-lived `connectNative` port) uses the same JSON shapes as `ExtPush`: `type` values `capture.start`, `capture.stop`, `tabs.list`, `tabs.activate` (`extension_ipc::agent_ipc_to_ext_push`).
+
+**Example — pair status (request/response on `sendNativeMessage`):**
+
+```json
+{ "type": "pair.status" }
+```
+
+```json
+{
+  "ok": true,
+  "status": "pending",
+  "code": "AB12CD",
+  "expires_in_sec": 600
+}
+```
+
+**Example — video frame (fire-and-forget on native port):**
+
+```json
+{
+  "type": "frame",
+  "width": 1280,
+  "height": 720,
+  "jpeg_b64": "/9j/4AAQSkZJRg..."
+}
+```
+
+```json
+{ "ok": true }
+```
+
+**Example — tab list (extension → host; tabs filled by MV3 before send):**
+
+```json
+{
+  "type": "tabs.list",
+  "tabs": [
+    { "tab_id": "123", "url": "https://example.com/", "title": "Example", "active": true }
+  ]
+}
+```
+
+```json
+{ "ok": true, "tabs": [ { "tab_id": "123", "url": "https://example.com/", "title": "Example", "active": true } ] }
+```
+
+### Localhost IPC — agent ↔ native host (`AgentIpcMsg`, field `op`)
+
+Default listen: `127.0.0.1:37538` (`C35_BROWSER_EXTENSION_IPC_PORT` optional). Same length-prefix framing as NM.
+
+| `op` | Direction | Purpose |
+|------|-----------|---------|
+| `capture_start` / `capture_stop` | agent → host → ext | Maps to NM `capture.start` / `capture.stop`. |
+| `tabs_list` | agent → host → ext | Maps to NM `tabs.list`; host waits for ext tab payload. |
+| `tabs_activate` | agent → host → ext | NM `tabs.activate` + `tab_id`. |
+| `frame` | host → agent | Decoded into `BrowserState` for H.264 WebRTC. |
+| `tabs_result` | host → agent | Tab list JSON stored for `browser.tabs` list RPC. |
+| `ping` / `pong` | either | Diagnostics. |
+
+**Example — agent asks for tabs (host forwards to extension; async result):**
+
+Agent → host:
+
+```json
+{ "op": "tabs_list" }
+```
+
+Host → agent (after extension NM `tabs.list`):
+
+```json
+{
+  "op": "tabs_result",
+  "value": {
+    "tabs": [
+      { "tab_id": "123", "url": "https://example.com/", "title": "Example", "active": true }
+    ]
+  }
+}
+```
+
+**Example — capture gating (CE-A6 target; partial today):**
+
+```json
+{ "op": "capture_start" }
+```
+
+```json
+{ "op": "capture_stop" }
+```
+
+### Planned — correlated agent RPC (CE-A1+)
+
+Automation tools will use **request/response** over the IPC socket (and mirrored NM where needed), not fire-and-forget `tabs_list` alone. Locked shape from [automation multitask plan](plans/2026-09-29-chrome-extension-automation-multitask.md):
+
+```json
+{ "req_id": "01JABC...", "op": "page.observe", "params": { "tab_id": "123", "max_chars": 8000 } }
+```
+
+```json
+{ "req_id": "01JABC...", "ok": true, "result": { "url": "https://example.com/", "title": "Example", "snapshot": "..." } }
+```
+
+```json
+{ "req_id": "01JABC...", "ok": false, "error": "permission denied: scripting" }
+```
+
+Initial `op` set (CE-A1 B.2): `tabs.list`, `tabs.activate`, `tabs.new`, `tabs.close`, `page.observe`, `page.act`, `page.extract`, `page.screenshot`, `navigate`, `reload`, plus `input.inject` (CE-A4). Agent `browser_command` maps cluster methods to these ops when `browser_engine=extension`.
 
 ---
 
@@ -60,7 +214,7 @@ Same HTTP contract as [remote.md § Pairing](remote.md#pairing):
 | Step | Actor | Action |
 |------|-------|--------|
 | 1 | Native host | `POST /v1/device/pair/register` with `device_type: "browser"` and `meta_json` containing `"browser_engine":"extension"` |
-| 2 | Host | Opens `https://alienai.id/device/pair/chrome-extension?code=XXXXX-XXXXX` (public code only) |
+| 2 | Extension popup | Shows **Pair with Code** (same UX as desktop agent): code + expiry progress bar — no extra Chrome window |
 | 3 | User | Alien AI app → Devices → enter code (claim) |
 | 4 | Host | `GET /v1/device/pair/poll` until `claimed`; persist `config.json` + `session_key` |
 | 5 | Host | Agent WS (`conn_ws`) — same as Playwright `c_remote_browser` |
@@ -107,11 +261,12 @@ Host binary may ship shared with `remote-browser` zip when bundled; extension zi
 ## Security warnings (locked)
 
 1. **Daily profile risk** — Extension mode controls the same Chrome profile the user uses for banking, health portals, and work SSO. Treat Remote input as **full user capability** on the active tab; prefer view-only on sensitive flows until input policy is explicit.
-2. **Active tab only** — Capture and scripting apply to the **focused** tab the user (or Remote) selected; extension must not exfiltrate background tabs without tab APIs visible in UX.
-3. **Owner pair only** — Devices claim to one `owner_iid`; no multi-tenant extension install.
-4. **No cluster credentials in extension** — `session_key` and poll secrets live in Rust on disk; extension ↔ host only via native messaging.
-5. **No anti-bot guarantees** — Daily Chrome helps **human** logins; Remote input may still be detectable on some sites (document in troubleshooting; do not promise undetectable automation).
-6. **Supply chain** — Ship extension + host from alienai.id CAS/OTA only; unpacked load from documented path.
+2. **Daily profile + LLM automation (CE-A0)** — When CE-A* ships, every `browser.page.act`, `browser.task.run` step, and related MV3 script runs **as the logged-in user** in that daily profile: same cookies, vault, and site sessions as physical keyboard use. Automation is **not** an isolated sandbox like Playwright `%LOCALAPPDATA%\AlienAI\browser\profile\`. Do not market stealth, anti-bot evasion, or “undetectable” remote control; synthetic events and Remote input can be visible to sites.
+3. **Active tab only** — Capture and scripting apply to the **focused** tab the user (or Remote) selected; extension must not exfiltrate background tabs without tab APIs visible in UX.
+4. **Owner pair only** — Devices claim to one `owner_iid`; no multi-tenant extension install.
+5. **No cluster credentials in extension** — `session_key` and poll secrets live in Rust on disk; extension ↔ host only via native messaging.
+6. **No anti-bot guarantees** — Daily Chrome helps **human** logins; Remote input and agent-driven clicks may still be detectable on some sites (document in troubleshooting; do not promise undetectable automation).
+7. **Supply chain** — Ship extension + host from alienai.id CAS/OTA only; unpacked load from documented path.
 
 ---
 
@@ -133,5 +288,6 @@ Host binary may ship shared with `remote-browser` zip when bundled; extension zi
 
 ## Related plans
 
-- [2026-09-29-chrome-extension-remote-multitask.md](plans/2026-09-29-chrome-extension-remote-multitask.md) — implementation waves
+- [2026-09-29-chrome-extension-automation-multitask.md](plans/2026-09-29-chrome-extension-automation-multitask.md) — **LLM `browser.*` on extension** (CE-A0 parity, CE-A1 IPC RPC, MV3 observe/act/task runner)
+- [2026-09-29-chrome-extension-remote-multitask.md](plans/2026-09-29-chrome-extension-remote-multitask.md) — pairing, NM, WebRTC video (CE-W*)
 - [browser-remote.md](browser-remote.md) — Playwright engine (phase 1/2 plans)

@@ -33,6 +33,7 @@ class UiAccountMenuAction {
     this.onCommissionTap,
     this.onFinancePayments,
     this.onFinanceReceiveAccounts,
+    this.onMarketingGenerateVoucher,
     this.onLock,
     this.onSignOut,
     this.onBots,
@@ -54,6 +55,7 @@ class UiAccountMenuAction {
   final VoidCallback? onCommissionTap;
   final VoidCallback? onFinancePayments;
   final VoidCallback? onFinanceReceiveAccounts;
+  final VoidCallback? onMarketingGenerateVoucher;
   final VoidCallback? onLock;
   final VoidCallback? onSignOut;
   final VoidCallback? onBots;
@@ -151,6 +153,8 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
         onRootConsole: acts.onRootConsole == null ? null : () => _popThen(acts.onRootConsole),
         onFinancePayments: acts.onFinancePayments == null ? null : () => _popThen(acts.onFinancePayments),
         onFinanceReceiveAccounts: acts.onFinanceReceiveAccounts == null ? null : () => _popThen(acts.onFinanceReceiveAccounts),
+        onMarketingGenerateVoucher:
+            acts.onMarketingGenerateVoucher == null ? null : () => _popThen(acts.onMarketingGenerateVoucher),
       );
 
   @override

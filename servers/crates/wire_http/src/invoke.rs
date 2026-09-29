@@ -12,7 +12,10 @@ use c35_mod_admin::{
 };
 use c35_mod_billing::{
     billing_admin_adjust, billing_admin_adjust_list, billing_history, billing_notify_owner,
-    billing_package_preview, billing_package_redeem, billing_plan_change, billing_plan_quote,
+    billing_entitlement_list, billing_package_preview, billing_package_redeem, billing_play_product_list,
+    billing_play_verify, billing_plan_change, billing_voucher_limit_get, billing_voucher_limit_put,
+    billing_plan_quote, billing_voucher_before_code_delete, billing_voucher_issue, billing_voucher_list,
+    billing_voucher_redeem_list, billing_voucher_void,
     billing_plan_subscribe, billing_promotion_claim,
     billing_promotion_create, billing_promotion_get, billing_promotion_list_by_creator, billing_summary,
     billing_topup_get, billing_topup_list, billing_topup_methods, billing_topup_put, billing_topup_review,
@@ -113,6 +116,9 @@ pub async fn dispatch_invoke(state: &AppState, req: InvokeReq) -> InvokeRes {
             }
         }
         Some(invoke_req::Body::ReferralCodeDelete(r)) => {
+            if let Err(msg) = billing_voucher_before_code_delete(pool, iid, &r.code).await {
+                return invoke_error(&req_id, 400, msg);
+            }
             match referral_code_delete(pool, iid, &r.code).await {
                 Ok(()) => InvokeRes {
                     req_id,
@@ -343,6 +349,132 @@ pub async fn dispatch_invoke(state: &AppState, req: InvokeReq) -> InvokeRes {
                     }
                 }
                 Err(msg) => invoke_error(&req_id, 400, msg),
+            }
+        }
+        Some(invoke_req::Body::BillingVoucherIssue(r)) => {
+            match billing_voucher_issue(pool, iid, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::BillingVoucherIssue(res)),
+                },
+                Err(msg) => invoke_error(
+                    &req_id,
+                    if msg == "forbidden" { 403 } else { 400 },
+                    msg,
+                ),
+            }
+        }
+        Some(invoke_req::Body::BillingEntitlementList(_)) => {
+            match billing_entitlement_list(pool, iid).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::BillingEntitlementList(res)),
+                },
+                Err(msg) => invoke_error(&req_id, 400, msg),
+            }
+        }
+        Some(invoke_req::Body::BillingPlayVerify(r)) => {
+            match billing_play_verify(pool, iid, r).await {
+                Ok(res) => {
+                    billing_notify_owner(pool, state.nats.as_ref(), iid, None).await;
+                    InvokeRes {
+                        req_id,
+                        status_code: 200,
+                        error_message: String::new(),
+                        body: Some(invoke_res::Body::BillingPlayVerify(res)),
+                    }
+                }
+                Err(msg) => invoke_error(&req_id, 400, msg),
+            }
+        }
+        Some(invoke_req::Body::BillingPlayProductList(r)) => {
+            match billing_play_product_list(pool, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::BillingPlayProductList(res)),
+                },
+                Err(msg) => invoke_error(&req_id, 400, msg),
+            }
+        }
+        Some(invoke_req::Body::BillingVoucherLimitGet(r)) => {
+            match billing_voucher_limit_get(pool, iid, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::BillingVoucherLimitGet(res)),
+                },
+                Err(msg) => invoke_error(
+                    &req_id,
+                    if msg == "forbidden" { 403 } else { 400 },
+                    msg,
+                ),
+            }
+        }
+        Some(invoke_req::Body::BillingVoucherLimitPut(r)) => {
+            match billing_voucher_limit_put(pool, iid, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::BillingVoucherLimitPut(res)),
+                },
+                Err(msg) => invoke_error(
+                    &req_id,
+                    if msg == "forbidden" { 403 } else { 400 },
+                    msg,
+                ),
+            }
+        }
+        Some(invoke_req::Body::BillingVoucherList(r)) => {
+            match billing_voucher_list(pool, iid, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::BillingVoucherList(res)),
+                },
+                Err(msg) => invoke_error(
+                    &req_id,
+                    if msg == "forbidden" { 403 } else { 400 },
+                    msg,
+                ),
+            }
+        }
+        Some(invoke_req::Body::BillingVoucherRedeemList(r)) => {
+            match billing_voucher_redeem_list(pool, iid, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::BillingVoucherRedeemList(res)),
+                },
+                Err(msg) => invoke_error(
+                    &req_id,
+                    if msg == "forbidden" { 403 } else { 400 },
+                    msg,
+                ),
+            }
+        }
+        Some(invoke_req::Body::BillingVoucherVoid(r)) => {
+            match billing_voucher_void(pool, iid, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::BillingVoucherVoid(res)),
+                },
+                Err(msg) => invoke_error(
+                    &req_id,
+                    if msg == "forbidden" { 403 } else { 400 },
+                    msg,
+                ),
             }
         }
         Some(invoke_req::Body::AdminUserSearch(r)) => {

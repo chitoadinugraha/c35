@@ -32,7 +32,21 @@ function Resolve-HostExe {
     throw 'alienai_remote_browser.exe not found - build remote browser or pass -HostExe'
 }
 
+function Assert-ChromeExtensionHostExe {
+    param([string]$Path)
+    if (-not (Test-Path $Path)) { throw "missing host exe: $Path" }
+    $ascii = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($Path))
+    if ($ascii -like '*==> [AGENT READY] Windows Remote Agent*') {
+        throw @"
+Wrong executable for Chrome native messaging (desktop Windows agent).
+Build: cd remotes; cargo build --release -p c_remote_browser
+Then pass -HostExe to this script or copy .cache\c_remote\release\alienai_remote_browser.exe
+"@
+    }
+}
+
 $hostPath = Resolve-HostExe $HostExe
+Assert-ChromeExtensionHostExe $hostPath
 Write-Host "==> copy extension -> $destRoot"
 New-Item -ItemType Directory -Force -Path $destRoot | Out-Null
 robocopy $srcPkg $destRoot /E /NFL /NDL /NJH /NJS /nc /ns /np | Out-Null

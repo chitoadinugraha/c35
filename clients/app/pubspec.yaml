@@ -1,7 +1,7 @@
 name: alienai_c35
 description: "Alien AI — c35 client (auth + referral)"
 publish_to: 'none'
-version: 20.257.0+257
+version: 20.260.0+260
 
 environment:
   sdk: ^3.5.0
@@ -25,6 +25,7 @@ dependencies:
   blake3_dart: ^1.0.0
   archive: ^4.3.0
   in_app_update: ^4.2.3
+  in_app_purchase: ^3.2.3
   open_filex: ^4.7.0
   web_socket_channel: ^3.0.1
   scrollable_positioned_list: ^0.3.8
@@ -48,7 +49,6 @@ dependencies:
   qr: ^3.0.2
   crypto: ^3.0.6
   webview_win_floating: ^3.0.3
-  win32: ^5.15.0
   appflowy_editor:
     git:
       url: https://github.com/AppFlowy-IO/appflowy-editor.git

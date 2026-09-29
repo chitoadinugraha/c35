@@ -9,7 +9,6 @@ import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:alienai_c35/c/pb/c35/remote.pb.dart';
 import 'package:alienai_c35/c/remote/device_prompt_context.dart';
 import 'package:alienai_c35/c/remote/remote_cursor.dart';
-import 'package:alienai_c35/c/remote/remote_trackpad_cursor_lock.dart';
 import 'package:alienai_c35/c/remote/remote_virtual_cursor.dart';
 import 'package:alienai_c35/c/remote/remote_session.dart';
 import 'package:alienai_c35/widgets/devices/in_device_prompt_composer.dart';
@@ -255,8 +254,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
   int? _trackpadLastTapMs;
   var _trackpadDragLock = false;
   var _trackpadSuppressClickUp = false;
-  final RemoteTrackpadCursorLock _trackpadCursorLock =
-      createRemoteTrackpadCursorLock();
+  var _trackpadSurfaceCursorHidden = false;
 
   bool get _controlInputEnabled =>
       widget.interactMode != RemoteInteractMode.view;
@@ -272,12 +270,16 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
       e.kind == PointerDeviceKind.touch ||
       e.kind == PointerDeviceKind.mouse;
 
-  void _trackpadReleaseCursorLock() => _trackpadCursorLock.release();
+  void _trackpadSetSurfaceCursorHidden(bool hidden) {
+    if (_trackpadSurfaceCursorHidden == hidden) return;
+    setState(() => _trackpadSurfaceCursorHidden = hidden);
+  }
 
-  void _trackpadTryEngageCursorLock(PointerEvent e) {
+  void _trackpadSyncSurfaceCursor(PointerEvent e) {
     if (!_trackpadMode || e.kind != PointerDeviceKind.mouse) return;
-    if (e.buttons == 0 || (!_touchMoved && !_trackpadDragLock)) return;
-    _trackpadCursorLock.engage(e.position);
+    _trackpadSetSurfaceCursorHidden(
+      e.buttons != 0 && (_touchMoved || _trackpadDragLock),
+    );
   }
 
   bool _agentOfflineError(String? err) {
@@ -545,6 +547,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
     }
     if (oldWidget.interactMode != widget.interactMode) {
       _syncSessionControl();
+      _trackpadSurfaceCursorHidden = false;
       if (widget.interactMode != RemoteInteractMode.view) {
         _focusNode.requestFocus();
       }
@@ -560,7 +563,6 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
     HardwareKeyboard.instance.removeHandler(_onHardwareKeyEvent);
     _stopEdgeScrolling();
     _trackpadCancelPendingClick();
-    _trackpadReleaseCursorLock();
     _releaseAllModifiers(silent: true);
     _focusNode.dispose();
     _vkbCtrl.dispose();
@@ -1193,7 +1195,9 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                               ? SystemMouseCursors.grab
                               : (widget.interactMode ==
                                       RemoteInteractMode.trackpad
-                                  ? SystemMouseCursors.basic
+                                  ? (_trackpadSurfaceCursorHidden
+                                      ? SystemMouseCursors.none
+                                      : SystemMouseCursors.basic)
                                   : (controlEnabled
                                       ? remoteCursorFromShape(remoteShape)
                                       : SystemMouseCursors.basic));
@@ -1206,7 +1210,10 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                           valueListenable: sess.remoteCursorShape,
                           builder: (context, remoteShape, _) => MouseRegion(
                             cursor: canvasCursor(remoteShape),
-                            onExit: (_) => _stopEdgeScrolling(),
+                            onExit: (_) {
+                              _stopEdgeScrolling();
+                              _trackpadSetSurfaceCursorHidden(false);
+                            },
                             child: Listener(
                               onPointerDown: (e) {
                                 if (controlEnabled) _focusNode.requestFocus();
@@ -1374,7 +1381,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                                     _trackpadCancelPendingClick();
                                   }
                                   _trackpadApplyDelta(e.delta, renderSize);
-                                  _trackpadTryEngageCursorLock(e);
+                                  _trackpadSyncSurfaceCursor(e);
                                   return;
                                 }
 
@@ -1417,7 +1424,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
 
                                 if (widget.interactMode ==
                                     RemoteInteractMode.trackpad) {
-                                  _trackpadReleaseCursorLock();
+                                  _trackpadSetSurfaceCursorHidden(false);
                                   if (_trackpadSuppressClickUp) {
                                     _trackpadSuppressClickUp = false;
                                     _heldButtons = e.buttons;
@@ -1461,7 +1468,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                               },
                               onPointerCancel: (e) {
                                 _stopEdgeScrolling();
-                                _trackpadReleaseCursorLock();
+                                _trackpadSetSurfaceCursorHidden(false);
                                 if (!_trackpadGesturePointer(e)) return;
                                 _activePointers.remove(e.pointer);
                                 if (_activePointers.length < 2) {

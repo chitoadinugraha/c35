@@ -14,7 +14,6 @@ pub async fn handle_act(
     act: ActDeviceTaskRun,
 ) -> anyhow::Result<()> {
     let _guard = c_remote_core::update::task_start();
-    let st = crate::browser_state::global().ok_or_else(|| anyhow::anyhow!("browser state not init"))?;
 
     let body: Value = match serde_json::from_str(&act.prompt) {
         Ok(v) => v,
@@ -29,15 +28,20 @@ pub async fn handle_act(
         .and_then(|v| v.as_str())
         .unwrap_or("default");
     let steps = body.get("steps").cloned().unwrap_or(Value::Array(vec![]));
-    let headless = mode::headless_from_config();
-    let bridge = process::ensure_engine(&st, headless, slot_id).await?;
-
     let mut params = json!({ "slot_id": slot_id, "steps": steps });
     if let Some(tab_id) = body.get("tab_id").and_then(|v| v.as_str()) {
         params["tab_id"] = json!(tab_id);
     }
 
-    let result = bridge.call("task.run", params).await?;
+    let result = if mode::is_extension_engine() {
+        crate::extension_page::extension_task_run(params).await?
+    } else {
+        let st =
+            crate::browser_state::global().ok_or_else(|| anyhow::anyhow!("browser state not init"))?;
+        let headless = mode::headless_from_config();
+        let bridge = process::ensure_engine(&st, headless, slot_id).await?;
+        bridge.call("task.run", params).await?
+    };
 
     let detail = result.to_string();
     skill_api::task_done(

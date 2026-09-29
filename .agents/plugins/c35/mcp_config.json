@@ -1,5 +1,15 @@
 {
   "mcpServers": {
+    "nuphus-mcp": {
+      "command": "C:\\Program Files\\nodejs\\node.exe",
+      "args": [
+        "C:\\Users\\Chito\\AppData\\Roaming\\npm\\node_modules\\@nuphus\\nuphus-mcp\\bin\\cli.js",
+        "--confirm-write"
+      ],
+      "env": {
+        "NUPHUS_MCP_CONFIRM_WRITE": "1"
+      }
+    },
     "c35": {
       "command": "node",
       "args": ["D:/c35/_/mcps/inst/dist/index.js"],

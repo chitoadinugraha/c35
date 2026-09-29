@@ -32,6 +32,17 @@ fn cmd_err(msg: impl Into<String>) -> ResRemoteCommand {
 }
 
 async fn invoke_method(method: &str, params: Value) -> anyhow::Result<Value> {
+    if mode::is_extension_engine() {
+        if method == "tabs" {
+            return crate::extension_tabs::extension_tab_command(&params).await;
+        }
+        if method == "file.upload" {
+            anyhow::bail!(
+                "browser.file.upload is not supported in chrome extension mode (deferred v1; use Remote tab for manual file pick)"
+            );
+        }
+        return crate::extension_page::extension_page_method(method, &params).await;
+    }
     let st = crate::browser_state::global().ok_or_else(|| anyhow::anyhow!("browser state not init"))?;
     let headless = mode::headless_from_config();
     let slot_id = params
@@ -196,8 +207,11 @@ pub fn register_command_handler() {
             match invoke_method(method, params).await {
                 Ok(v) => Some(cmd_ok(v)),
                 Err(e) => {
-                    warn!("browser command {method}: {e}");
-                    Some(cmd_err(e.to_string()))
+                    let msg = e.to_string();
+                    if msg != crate::extension_ipc::EXTENSION_IPC_NOT_READY_MSG {
+                        warn!("browser command {method}: {msg}");
+                    }
+                    Some(cmd_err(msg))
                 }
             }
         })

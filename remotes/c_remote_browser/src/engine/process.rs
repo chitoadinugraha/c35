@@ -115,6 +115,13 @@ async fn launch_browser(bridge: &EngineBridge, headless: bool, profile: &Path, d
 }
 
 pub async fn spawn_engine(headless: bool, slot_id: &str) -> Result<EngineProcess> {
+    if crate::mode::is_extension_engine()
+        || std::env::var("C35_NATIVE_MESSAGING_HOST").as_deref() == Ok("1")
+    {
+        anyhow::bail!(
+            "Playwright browser_engine is disabled for Chrome extension / native messaging (use your daily Chrome profile)"
+        );
+    }
     let worker = resolve_worker_script()?;
     let node = std::env::var("C35_NODE").unwrap_or_else(|_| "node".into());
     let slot_id = sanitize_slot_id(slot_id);
@@ -177,6 +184,11 @@ pub async fn ensure_engine(
     headless: bool,
     slot_id: &str,
 ) -> Result<Arc<EngineBridge>> {
+    if crate::mode::is_extension_engine() {
+        anyhow::bail!(
+            "Playwright browser_engine is disabled in chrome extension mode; use your existing Chrome window"
+        );
+    }
     let slot_id = sanitize_slot_id(slot_id);
     let (needs_spawn, old) = {
         let mut guard = state

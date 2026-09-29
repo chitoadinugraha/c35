@@ -5242,6 +5242,9 @@ class ResBillingPackageRedeem extends $pb.GeneratedMessage {
     $core.String? packageName,
     $core.double? balanceUsd,
     $core.double? balanceIdr,
+    $core.Iterable<BillingEntitlementDoc>? entitlements,
+    $fixnum.Int64? entitlementId,
+    $fixnum.Int64? expiresTsMs,
   }) {
     final result = ResBillingPackageRedeem._();
     if (purchaseId != null) result.purchaseId = purchaseId;
@@ -5252,6 +5255,9 @@ class ResBillingPackageRedeem extends $pb.GeneratedMessage {
     if (packageName != null) result.packageName = packageName;
     if (balanceUsd != null) result.balanceUsd = balanceUsd;
     if (balanceIdr != null) result.balanceIdr = balanceIdr;
+    if (entitlements != null) result.entitlements.addAll(entitlements);
+    if (entitlementId != null) result.entitlementId = entitlementId;
+    if (expiresTsMs != null) result.expiresTsMs = expiresTsMs;
     return result;
   }
 
@@ -5276,6 +5282,10 @@ class ResBillingPackageRedeem extends $pb.GeneratedMessage {
     ..aOS(6, _omitFieldNames ? '' : 'packageName')
     ..aD(7, _omitFieldNames ? '' : 'balanceUsd')
     ..aD(8, _omitFieldNames ? '' : 'balanceIdr')
+    ..pPM<BillingEntitlementDoc>(9, _omitFieldNames ? '' : 'entitlements',
+        subBuilder: BillingEntitlementDoc.$_createMessage)
+    ..aInt64(10, _omitFieldNames ? '' : 'entitlementId')
+    ..aInt64(11, _omitFieldNames ? '' : 'expiresTsMs')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -5374,6 +5384,27 @@ class ResBillingPackageRedeem extends $pb.GeneratedMessage {
   $core.bool hasBalanceIdr() => $_has(7);
   @$pb.TagNumber(8)
   void clearBalanceIdr() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $pb.PbList<BillingEntitlementDoc> get entitlements => $_getList(8);
+
+  @$pb.TagNumber(10)
+  $fixnum.Int64 get entitlementId => $_getI64(9);
+  @$pb.TagNumber(10)
+  set entitlementId($fixnum.Int64 value) => $_setInt64(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasEntitlementId() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearEntitlementId() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $fixnum.Int64 get expiresTsMs => $_getI64(10);
+  @$pb.TagNumber(11)
+  set expiresTsMs($fixnum.Int64 value) => $_setInt64(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasExpiresTsMs() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearExpiresTsMs() => $_clearField(11);
 }
 
 class ReqBillingPackagePreview extends $pb.GeneratedMessage {
@@ -8790,6 +8821,2004 @@ class ResBillingSummary extends $pb.GeneratedMessage {
   $core.bool hasPendingBillingPeriod() => $_has(31);
   @$pb.TagNumber(32)
   void clearPendingBillingPeriod() => $_clearField(32);
+}
+
+/// Active plan / voucher grants (stacking). Sorted by expires_ts asc in list API.
+class BillingEntitlementDoc extends $pb.GeneratedMessage {
+  factory BillingEntitlementDoc({
+    $fixnum.Int64? id,
+    $core.String? planSlug,
+    $core.String? planName,
+    $fixnum.Int64? expiresTsMs,
+    $fixnum.Int64? purchasedTsMs,
+    $core.String? source,
+    $core.String? referralCode,
+    $core.double? creditIdr,
+    $core.bool? highlight,
+  }) {
+    final result = BillingEntitlementDoc._();
+    if (id != null) result.id = id;
+    if (planSlug != null) result.planSlug = planSlug;
+    if (planName != null) result.planName = planName;
+    if (expiresTsMs != null) result.expiresTsMs = expiresTsMs;
+    if (purchasedTsMs != null) result.purchasedTsMs = purchasedTsMs;
+    if (source != null) result.source = source;
+    if (referralCode != null) result.referralCode = referralCode;
+    if (creditIdr != null) result.creditIdr = creditIdr;
+    if (highlight != null) result.highlight = highlight;
+    return result;
+  }
+
+  BillingEntitlementDoc._();
+
+  factory BillingEntitlementDoc.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      BillingEntitlementDoc()..mergeFromBuffer(data, registry);
+  factory BillingEntitlementDoc.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      BillingEntitlementDoc()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'BillingEntitlementDoc',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: BillingEntitlementDoc.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'id')
+    ..aOS(2, _omitFieldNames ? '' : 'planSlug')
+    ..aOS(3, _omitFieldNames ? '' : 'planName')
+    ..aInt64(4, _omitFieldNames ? '' : 'expiresTsMs')
+    ..aInt64(5, _omitFieldNames ? '' : 'purchasedTsMs')
+    ..aOS(6, _omitFieldNames ? '' : 'source')
+    ..aOS(7, _omitFieldNames ? '' : 'referralCode')
+    ..aD(8, _omitFieldNames ? '' : 'creditIdr')
+    ..aOB(9, _omitFieldNames ? '' : 'highlight')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  BillingEntitlementDoc clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  BillingEntitlementDoc copyWith(
+          void Function(BillingEntitlementDoc) updates) =>
+      super.copyWith((message) => updates(message as BillingEntitlementDoc))
+          as BillingEntitlementDoc;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use BillingEntitlementDoc() / BillingEntitlementDoc.new instead')
+  static BillingEntitlementDoc create() => BillingEntitlementDoc._();
+  static $pb.GeneratedMessage $_createMessage() => BillingEntitlementDoc._();
+  @$core.override
+  BillingEntitlementDoc createEmptyInstance() => BillingEntitlementDoc._();
+  @$core.pragma('dart2js:noInline')
+  static BillingEntitlementDoc getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<BillingEntitlementDoc>(
+          BillingEntitlementDoc.$_createMessage);
+  static BillingEntitlementDoc? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get id => $_getI64(0);
+  @$pb.TagNumber(1)
+  set id($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get planSlug => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set planSlug($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasPlanSlug() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearPlanSlug() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get planName => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set planName($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasPlanName() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearPlanName() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $fixnum.Int64 get expiresTsMs => $_getI64(3);
+  @$pb.TagNumber(4)
+  set expiresTsMs($fixnum.Int64 value) => $_setInt64(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasExpiresTsMs() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearExpiresTsMs() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $fixnum.Int64 get purchasedTsMs => $_getI64(4);
+  @$pb.TagNumber(5)
+  set purchasedTsMs($fixnum.Int64 value) => $_setInt64(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasPurchasedTsMs() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearPurchasedTsMs() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get source => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set source($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasSource() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearSource() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.String get referralCode => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set referralCode($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasReferralCode() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearReferralCode() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.double get creditIdr => $_getN(7);
+  @$pb.TagNumber(8)
+  set creditIdr($core.double value) => $_setDouble(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasCreditIdr() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearCreditIdr() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.bool get highlight => $_getBF(8);
+  @$pb.TagNumber(9)
+  set highlight($core.bool value) => $_setBool(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasHighlight() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearHighlight() => $_clearField(9);
+}
+
+class ReqBillingVoucherIssue extends $pb.GeneratedMessage {
+  factory ReqBillingVoucherIssue({
+    $core.String? kind,
+    $core.String? planSlug,
+    $core.int? durationMonths,
+    $core.double? creditIdr,
+    $core.double? faceValueIdr,
+    $core.int? maxUses,
+    $fixnum.Int64? expiresAtMs,
+    $core.String? paymentRef,
+    $core.String? code,
+    $core.String? name,
+    $core.String? scope,
+    $core.String? billingPeriod,
+    $core.double? listPriceIdr,
+    $core.double? alienPoolLimitIdr,
+    $core.double? frontierPoolLimitIdr,
+    $core.int? quantity,
+  }) {
+    final result = ReqBillingVoucherIssue._();
+    if (kind != null) result.kind = kind;
+    if (planSlug != null) result.planSlug = planSlug;
+    if (durationMonths != null) result.durationMonths = durationMonths;
+    if (creditIdr != null) result.creditIdr = creditIdr;
+    if (faceValueIdr != null) result.faceValueIdr = faceValueIdr;
+    if (maxUses != null) result.maxUses = maxUses;
+    if (expiresAtMs != null) result.expiresAtMs = expiresAtMs;
+    if (paymentRef != null) result.paymentRef = paymentRef;
+    if (code != null) result.code = code;
+    if (name != null) result.name = name;
+    if (scope != null) result.scope = scope;
+    if (billingPeriod != null) result.billingPeriod = billingPeriod;
+    if (listPriceIdr != null) result.listPriceIdr = listPriceIdr;
+    if (alienPoolLimitIdr != null) result.alienPoolLimitIdr = alienPoolLimitIdr;
+    if (frontierPoolLimitIdr != null)
+      result.frontierPoolLimitIdr = frontierPoolLimitIdr;
+    if (quantity != null) result.quantity = quantity;
+    return result;
+  }
+
+  ReqBillingVoucherIssue._();
+
+  factory ReqBillingVoucherIssue.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingVoucherIssue()..mergeFromBuffer(data, registry);
+  factory ReqBillingVoucherIssue.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingVoucherIssue()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqBillingVoucherIssue',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqBillingVoucherIssue.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'kind')
+    ..aOS(2, _omitFieldNames ? '' : 'planSlug')
+    ..aI(3, _omitFieldNames ? '' : 'durationMonths')
+    ..aD(4, _omitFieldNames ? '' : 'creditIdr')
+    ..aD(5, _omitFieldNames ? '' : 'faceValueIdr')
+    ..aI(6, _omitFieldNames ? '' : 'maxUses')
+    ..aInt64(7, _omitFieldNames ? '' : 'expiresAtMs')
+    ..aOS(8, _omitFieldNames ? '' : 'paymentRef')
+    ..aOS(9, _omitFieldNames ? '' : 'code')
+    ..aOS(10, _omitFieldNames ? '' : 'name')
+    ..aOS(11, _omitFieldNames ? '' : 'scope')
+    ..aOS(12, _omitFieldNames ? '' : 'billingPeriod')
+    ..aD(13, _omitFieldNames ? '' : 'listPriceIdr')
+    ..aD(14, _omitFieldNames ? '' : 'alienPoolLimitIdr')
+    ..aD(15, _omitFieldNames ? '' : 'frontierPoolLimitIdr')
+    ..aI(16, _omitFieldNames ? '' : 'quantity')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingVoucherIssue clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingVoucherIssue copyWith(
+          void Function(ReqBillingVoucherIssue) updates) =>
+      super.copyWith((message) => updates(message as ReqBillingVoucherIssue))
+          as ReqBillingVoucherIssue;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqBillingVoucherIssue() / ReqBillingVoucherIssue.new instead')
+  static ReqBillingVoucherIssue create() => ReqBillingVoucherIssue._();
+  static $pb.GeneratedMessage $_createMessage() => ReqBillingVoucherIssue._();
+  @$core.override
+  ReqBillingVoucherIssue createEmptyInstance() => ReqBillingVoucherIssue._();
+  @$core.pragma('dart2js:noInline')
+  static ReqBillingVoucherIssue getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqBillingVoucherIssue>(
+          ReqBillingVoucherIssue.$_createMessage);
+  static ReqBillingVoucherIssue? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get kind => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set kind($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasKind() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearKind() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get planSlug => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set planSlug($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasPlanSlug() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearPlanSlug() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.int get durationMonths => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set durationMonths($core.int value) => $_setSignedInt32(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasDurationMonths() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearDurationMonths() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.double get creditIdr => $_getN(3);
+  @$pb.TagNumber(4)
+  set creditIdr($core.double value) => $_setDouble(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasCreditIdr() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearCreditIdr() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.double get faceValueIdr => $_getN(4);
+  @$pb.TagNumber(5)
+  set faceValueIdr($core.double value) => $_setDouble(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasFaceValueIdr() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearFaceValueIdr() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.int get maxUses => $_getIZ(5);
+  @$pb.TagNumber(6)
+  set maxUses($core.int value) => $_setSignedInt32(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasMaxUses() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearMaxUses() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $fixnum.Int64 get expiresAtMs => $_getI64(6);
+  @$pb.TagNumber(7)
+  set expiresAtMs($fixnum.Int64 value) => $_setInt64(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasExpiresAtMs() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearExpiresAtMs() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.String get paymentRef => $_getSZ(7);
+  @$pb.TagNumber(8)
+  set paymentRef($core.String value) => $_setString(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasPaymentRef() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearPaymentRef() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.String get code => $_getSZ(8);
+  @$pb.TagNumber(9)
+  set code($core.String value) => $_setString(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasCode() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearCode() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $core.String get name => $_getSZ(9);
+  @$pb.TagNumber(10)
+  set name($core.String value) => $_setString(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasName() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearName() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $core.String get scope => $_getSZ(10);
+  @$pb.TagNumber(11)
+  set scope($core.String value) => $_setString(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasScope() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearScope() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  $core.String get billingPeriod => $_getSZ(11);
+  @$pb.TagNumber(12)
+  set billingPeriod($core.String value) => $_setString(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasBillingPeriod() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearBillingPeriod() => $_clearField(12);
+
+  @$pb.TagNumber(13)
+  $core.double get listPriceIdr => $_getN(12);
+  @$pb.TagNumber(13)
+  set listPriceIdr($core.double value) => $_setDouble(12, value);
+  @$pb.TagNumber(13)
+  $core.bool hasListPriceIdr() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearListPriceIdr() => $_clearField(13);
+
+  @$pb.TagNumber(14)
+  $core.double get alienPoolLimitIdr => $_getN(13);
+  @$pb.TagNumber(14)
+  set alienPoolLimitIdr($core.double value) => $_setDouble(13, value);
+  @$pb.TagNumber(14)
+  $core.bool hasAlienPoolLimitIdr() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearAlienPoolLimitIdr() => $_clearField(14);
+
+  @$pb.TagNumber(15)
+  $core.double get frontierPoolLimitIdr => $_getN(14);
+  @$pb.TagNumber(15)
+  set frontierPoolLimitIdr($core.double value) => $_setDouble(14, value);
+  @$pb.TagNumber(15)
+  $core.bool hasFrontierPoolLimitIdr() => $_has(14);
+  @$pb.TagNumber(15)
+  void clearFrontierPoolLimitIdr() => $_clearField(15);
+
+  @$pb.TagNumber(16)
+  $core.int get quantity => $_getIZ(15);
+  @$pb.TagNumber(16)
+  set quantity($core.int value) => $_setSignedInt32(15, value);
+  @$pb.TagNumber(16)
+  $core.bool hasQuantity() => $_has(15);
+  @$pb.TagNumber(16)
+  void clearQuantity() => $_clearField(16);
+}
+
+class ResBillingVoucherIssue extends $pb.GeneratedMessage {
+  factory ResBillingVoucherIssue({
+    $core.String? code,
+    $core.double? faceValueIdr,
+    $core.Iterable<$core.String>? codes,
+  }) {
+    final result = ResBillingVoucherIssue._();
+    if (code != null) result.code = code;
+    if (faceValueIdr != null) result.faceValueIdr = faceValueIdr;
+    if (codes != null) result.codes.addAll(codes);
+    return result;
+  }
+
+  ResBillingVoucherIssue._();
+
+  factory ResBillingVoucherIssue.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingVoucherIssue()..mergeFromBuffer(data, registry);
+  factory ResBillingVoucherIssue.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingVoucherIssue()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResBillingVoucherIssue',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResBillingVoucherIssue.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'code')
+    ..aD(2, _omitFieldNames ? '' : 'faceValueIdr')
+    ..pPS(3, _omitFieldNames ? '' : 'codes')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingVoucherIssue clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingVoucherIssue copyWith(
+          void Function(ResBillingVoucherIssue) updates) =>
+      super.copyWith((message) => updates(message as ResBillingVoucherIssue))
+          as ResBillingVoucherIssue;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResBillingVoucherIssue() / ResBillingVoucherIssue.new instead')
+  static ResBillingVoucherIssue create() => ResBillingVoucherIssue._();
+  static $pb.GeneratedMessage $_createMessage() => ResBillingVoucherIssue._();
+  @$core.override
+  ResBillingVoucherIssue createEmptyInstance() => ResBillingVoucherIssue._();
+  @$core.pragma('dart2js:noInline')
+  static ResBillingVoucherIssue getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResBillingVoucherIssue>(
+          ResBillingVoucherIssue.$_createMessage);
+  static ResBillingVoucherIssue? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get code => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set code($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasCode() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearCode() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.double get faceValueIdr => $_getN(1);
+  @$pb.TagNumber(2)
+  set faceValueIdr($core.double value) => $_setDouble(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasFaceValueIdr() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearFaceValueIdr() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $pb.PbList<$core.String> get codes => $_getList(2);
+}
+
+class BillingVoucherDoc extends $pb.GeneratedMessage {
+  factory BillingVoucherDoc({
+    $core.String? code,
+    $core.String? kind,
+    $core.String? name,
+    $core.String? status,
+    $core.double? faceValueIdr,
+    $core.double? listPriceIdr,
+    $fixnum.Int64? expiresAtMs,
+    $core.String? scope,
+    $core.String? planSlug,
+    $core.int? durationMonths,
+    $core.double? creditIdr,
+    $fixnum.Int64? redeemedTsMs,
+    $fixnum.Int64? redeemedByIid,
+    $core.String? redeemedByName,
+    $core.int? usedCount,
+    $core.int? maxUses,
+    $core.String? billingPeriod,
+  }) {
+    final result = BillingVoucherDoc._();
+    if (code != null) result.code = code;
+    if (kind != null) result.kind = kind;
+    if (name != null) result.name = name;
+    if (status != null) result.status = status;
+    if (faceValueIdr != null) result.faceValueIdr = faceValueIdr;
+    if (listPriceIdr != null) result.listPriceIdr = listPriceIdr;
+    if (expiresAtMs != null) result.expiresAtMs = expiresAtMs;
+    if (scope != null) result.scope = scope;
+    if (planSlug != null) result.planSlug = planSlug;
+    if (durationMonths != null) result.durationMonths = durationMonths;
+    if (creditIdr != null) result.creditIdr = creditIdr;
+    if (redeemedTsMs != null) result.redeemedTsMs = redeemedTsMs;
+    if (redeemedByIid != null) result.redeemedByIid = redeemedByIid;
+    if (redeemedByName != null) result.redeemedByName = redeemedByName;
+    if (usedCount != null) result.usedCount = usedCount;
+    if (maxUses != null) result.maxUses = maxUses;
+    if (billingPeriod != null) result.billingPeriod = billingPeriod;
+    return result;
+  }
+
+  BillingVoucherDoc._();
+
+  factory BillingVoucherDoc.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      BillingVoucherDoc()..mergeFromBuffer(data, registry);
+  factory BillingVoucherDoc.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      BillingVoucherDoc()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'BillingVoucherDoc',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: BillingVoucherDoc.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'code')
+    ..aOS(2, _omitFieldNames ? '' : 'kind')
+    ..aOS(3, _omitFieldNames ? '' : 'name')
+    ..aOS(4, _omitFieldNames ? '' : 'status')
+    ..aD(5, _omitFieldNames ? '' : 'faceValueIdr')
+    ..aD(6, _omitFieldNames ? '' : 'listPriceIdr')
+    ..aInt64(7, _omitFieldNames ? '' : 'expiresAtMs')
+    ..aOS(8, _omitFieldNames ? '' : 'scope')
+    ..aOS(9, _omitFieldNames ? '' : 'planSlug')
+    ..aI(10, _omitFieldNames ? '' : 'durationMonths')
+    ..aD(11, _omitFieldNames ? '' : 'creditIdr')
+    ..aInt64(12, _omitFieldNames ? '' : 'redeemedTsMs')
+    ..aInt64(13, _omitFieldNames ? '' : 'redeemedByIid')
+    ..aOS(14, _omitFieldNames ? '' : 'redeemedByName')
+    ..aI(15, _omitFieldNames ? '' : 'usedCount')
+    ..aI(16, _omitFieldNames ? '' : 'maxUses')
+    ..aOS(17, _omitFieldNames ? '' : 'billingPeriod')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  BillingVoucherDoc clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  BillingVoucherDoc copyWith(void Function(BillingVoucherDoc) updates) =>
+      super.copyWith((message) => updates(message as BillingVoucherDoc))
+          as BillingVoucherDoc;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use BillingVoucherDoc() / BillingVoucherDoc.new instead')
+  static BillingVoucherDoc create() => BillingVoucherDoc._();
+  static $pb.GeneratedMessage $_createMessage() => BillingVoucherDoc._();
+  @$core.override
+  BillingVoucherDoc createEmptyInstance() => BillingVoucherDoc._();
+  @$core.pragma('dart2js:noInline')
+  static BillingVoucherDoc getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<BillingVoucherDoc>(
+          BillingVoucherDoc.$_createMessage);
+  static BillingVoucherDoc? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get code => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set code($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasCode() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearCode() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get kind => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set kind($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasKind() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearKind() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get name => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set name($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasName() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearName() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get status => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set status($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasStatus() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearStatus() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.double get faceValueIdr => $_getN(4);
+  @$pb.TagNumber(5)
+  set faceValueIdr($core.double value) => $_setDouble(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasFaceValueIdr() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearFaceValueIdr() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.double get listPriceIdr => $_getN(5);
+  @$pb.TagNumber(6)
+  set listPriceIdr($core.double value) => $_setDouble(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasListPriceIdr() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearListPriceIdr() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $fixnum.Int64 get expiresAtMs => $_getI64(6);
+  @$pb.TagNumber(7)
+  set expiresAtMs($fixnum.Int64 value) => $_setInt64(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasExpiresAtMs() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearExpiresAtMs() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.String get scope => $_getSZ(7);
+  @$pb.TagNumber(8)
+  set scope($core.String value) => $_setString(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasScope() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearScope() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.String get planSlug => $_getSZ(8);
+  @$pb.TagNumber(9)
+  set planSlug($core.String value) => $_setString(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasPlanSlug() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearPlanSlug() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $core.int get durationMonths => $_getIZ(9);
+  @$pb.TagNumber(10)
+  set durationMonths($core.int value) => $_setSignedInt32(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasDurationMonths() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearDurationMonths() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $core.double get creditIdr => $_getN(10);
+  @$pb.TagNumber(11)
+  set creditIdr($core.double value) => $_setDouble(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasCreditIdr() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearCreditIdr() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  $fixnum.Int64 get redeemedTsMs => $_getI64(11);
+  @$pb.TagNumber(12)
+  set redeemedTsMs($fixnum.Int64 value) => $_setInt64(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasRedeemedTsMs() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearRedeemedTsMs() => $_clearField(12);
+
+  @$pb.TagNumber(13)
+  $fixnum.Int64 get redeemedByIid => $_getI64(12);
+  @$pb.TagNumber(13)
+  set redeemedByIid($fixnum.Int64 value) => $_setInt64(12, value);
+  @$pb.TagNumber(13)
+  $core.bool hasRedeemedByIid() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearRedeemedByIid() => $_clearField(13);
+
+  @$pb.TagNumber(14)
+  $core.String get redeemedByName => $_getSZ(13);
+  @$pb.TagNumber(14)
+  set redeemedByName($core.String value) => $_setString(13, value);
+  @$pb.TagNumber(14)
+  $core.bool hasRedeemedByName() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearRedeemedByName() => $_clearField(14);
+
+  @$pb.TagNumber(15)
+  $core.int get usedCount => $_getIZ(14);
+  @$pb.TagNumber(15)
+  set usedCount($core.int value) => $_setSignedInt32(14, value);
+  @$pb.TagNumber(15)
+  $core.bool hasUsedCount() => $_has(14);
+  @$pb.TagNumber(15)
+  void clearUsedCount() => $_clearField(15);
+
+  @$pb.TagNumber(16)
+  $core.int get maxUses => $_getIZ(15);
+  @$pb.TagNumber(16)
+  set maxUses($core.int value) => $_setSignedInt32(15, value);
+  @$pb.TagNumber(16)
+  $core.bool hasMaxUses() => $_has(15);
+  @$pb.TagNumber(16)
+  void clearMaxUses() => $_clearField(16);
+
+  @$pb.TagNumber(17)
+  $core.String get billingPeriod => $_getSZ(16);
+  @$pb.TagNumber(17)
+  set billingPeriod($core.String value) => $_setString(16, value);
+  @$pb.TagNumber(17)
+  $core.bool hasBillingPeriod() => $_has(16);
+  @$pb.TagNumber(17)
+  void clearBillingPeriod() => $_clearField(17);
+}
+
+class ReqBillingVoucherList extends $pb.GeneratedMessage {
+  factory ReqBillingVoucherList() => ReqBillingVoucherList._();
+
+  ReqBillingVoucherList._();
+
+  factory ReqBillingVoucherList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingVoucherList()..mergeFromBuffer(data, registry);
+  factory ReqBillingVoucherList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingVoucherList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqBillingVoucherList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqBillingVoucherList.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingVoucherList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingVoucherList copyWith(
+          void Function(ReqBillingVoucherList) updates) =>
+      super.copyWith((message) => updates(message as ReqBillingVoucherList))
+          as ReqBillingVoucherList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqBillingVoucherList() / ReqBillingVoucherList.new instead')
+  static ReqBillingVoucherList create() => ReqBillingVoucherList._();
+  static $pb.GeneratedMessage $_createMessage() => ReqBillingVoucherList._();
+  @$core.override
+  ReqBillingVoucherList createEmptyInstance() => ReqBillingVoucherList._();
+  @$core.pragma('dart2js:noInline')
+  static ReqBillingVoucherList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqBillingVoucherList>(
+          ReqBillingVoucherList.$_createMessage);
+  static ReqBillingVoucherList? _defaultInstance;
+}
+
+class ResBillingVoucherList extends $pb.GeneratedMessage {
+  factory ResBillingVoucherList({
+    $core.Iterable<BillingVoucherDoc>? items,
+    ResBillingVoucherLimit? limit,
+  }) {
+    final result = ResBillingVoucherList._();
+    if (items != null) result.items.addAll(items);
+    if (limit != null) result.limit = limit;
+    return result;
+  }
+
+  ResBillingVoucherList._();
+
+  factory ResBillingVoucherList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingVoucherList()..mergeFromBuffer(data, registry);
+  factory ResBillingVoucherList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingVoucherList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResBillingVoucherList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResBillingVoucherList.$_createMessage)
+    ..pPM<BillingVoucherDoc>(1, _omitFieldNames ? '' : 'items',
+        subBuilder: BillingVoucherDoc.$_createMessage)
+    ..aOM<ResBillingVoucherLimit>(2, _omitFieldNames ? '' : 'limit',
+        subBuilder: ResBillingVoucherLimit.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingVoucherList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingVoucherList copyWith(
+          void Function(ResBillingVoucherList) updates) =>
+      super.copyWith((message) => updates(message as ResBillingVoucherList))
+          as ResBillingVoucherList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResBillingVoucherList() / ResBillingVoucherList.new instead')
+  static ResBillingVoucherList create() => ResBillingVoucherList._();
+  static $pb.GeneratedMessage $_createMessage() => ResBillingVoucherList._();
+  @$core.override
+  ResBillingVoucherList createEmptyInstance() => ResBillingVoucherList._();
+  @$core.pragma('dart2js:noInline')
+  static ResBillingVoucherList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResBillingVoucherList>(
+          ResBillingVoucherList.$_createMessage);
+  static ResBillingVoucherList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<BillingVoucherDoc> get items => $_getList(0);
+
+  @$pb.TagNumber(2)
+  ResBillingVoucherLimit get limit => $_getN(1);
+  @$pb.TagNumber(2)
+  set limit(ResBillingVoucherLimit value) => $_setField(2, value);
+  @$pb.TagNumber(2)
+  $core.bool hasLimit() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearLimit() => $_clearField(2);
+  @$pb.TagNumber(2)
+  ResBillingVoucherLimit ensureLimit() => $_ensure(1);
+}
+
+class BillingVoucherRedeemDoc extends $pb.GeneratedMessage {
+  factory BillingVoucherRedeemDoc({
+    $fixnum.Int64? id,
+    $core.String? code,
+    $fixnum.Int64? buyerIid,
+    $core.String? buyerName,
+    $core.double? faceValueIdr,
+    $core.double? listPriceIdr,
+    $fixnum.Int64? redeemedTsMs,
+  }) {
+    final result = BillingVoucherRedeemDoc._();
+    if (id != null) result.id = id;
+    if (code != null) result.code = code;
+    if (buyerIid != null) result.buyerIid = buyerIid;
+    if (buyerName != null) result.buyerName = buyerName;
+    if (faceValueIdr != null) result.faceValueIdr = faceValueIdr;
+    if (listPriceIdr != null) result.listPriceIdr = listPriceIdr;
+    if (redeemedTsMs != null) result.redeemedTsMs = redeemedTsMs;
+    return result;
+  }
+
+  BillingVoucherRedeemDoc._();
+
+  factory BillingVoucherRedeemDoc.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      BillingVoucherRedeemDoc()..mergeFromBuffer(data, registry);
+  factory BillingVoucherRedeemDoc.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      BillingVoucherRedeemDoc()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'BillingVoucherRedeemDoc',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: BillingVoucherRedeemDoc.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'id')
+    ..aOS(2, _omitFieldNames ? '' : 'code')
+    ..aInt64(3, _omitFieldNames ? '' : 'buyerIid')
+    ..aOS(4, _omitFieldNames ? '' : 'buyerName')
+    ..aD(5, _omitFieldNames ? '' : 'faceValueIdr')
+    ..aD(6, _omitFieldNames ? '' : 'listPriceIdr')
+    ..aInt64(7, _omitFieldNames ? '' : 'redeemedTsMs')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  BillingVoucherRedeemDoc clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  BillingVoucherRedeemDoc copyWith(
+          void Function(BillingVoucherRedeemDoc) updates) =>
+      super.copyWith((message) => updates(message as BillingVoucherRedeemDoc))
+          as BillingVoucherRedeemDoc;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use BillingVoucherRedeemDoc() / BillingVoucherRedeemDoc.new instead')
+  static BillingVoucherRedeemDoc create() => BillingVoucherRedeemDoc._();
+  static $pb.GeneratedMessage $_createMessage() => BillingVoucherRedeemDoc._();
+  @$core.override
+  BillingVoucherRedeemDoc createEmptyInstance() => BillingVoucherRedeemDoc._();
+  @$core.pragma('dart2js:noInline')
+  static BillingVoucherRedeemDoc getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<BillingVoucherRedeemDoc>(
+          BillingVoucherRedeemDoc.$_createMessage);
+  static BillingVoucherRedeemDoc? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get id => $_getI64(0);
+  @$pb.TagNumber(1)
+  set id($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get code => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set code($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasCode() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearCode() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get buyerIid => $_getI64(2);
+  @$pb.TagNumber(3)
+  set buyerIid($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasBuyerIid() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearBuyerIid() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get buyerName => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set buyerName($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasBuyerName() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearBuyerName() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.double get faceValueIdr => $_getN(4);
+  @$pb.TagNumber(5)
+  set faceValueIdr($core.double value) => $_setDouble(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasFaceValueIdr() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearFaceValueIdr() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.double get listPriceIdr => $_getN(5);
+  @$pb.TagNumber(6)
+  set listPriceIdr($core.double value) => $_setDouble(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasListPriceIdr() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearListPriceIdr() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $fixnum.Int64 get redeemedTsMs => $_getI64(6);
+  @$pb.TagNumber(7)
+  set redeemedTsMs($fixnum.Int64 value) => $_setInt64(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasRedeemedTsMs() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearRedeemedTsMs() => $_clearField(7);
+}
+
+class ReqBillingVoucherRedeemList extends $pb.GeneratedMessage {
+  factory ReqBillingVoucherRedeemList({
+    $core.int? limit,
+  }) {
+    final result = ReqBillingVoucherRedeemList._();
+    if (limit != null) result.limit = limit;
+    return result;
+  }
+
+  ReqBillingVoucherRedeemList._();
+
+  factory ReqBillingVoucherRedeemList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingVoucherRedeemList()..mergeFromBuffer(data, registry);
+  factory ReqBillingVoucherRedeemList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingVoucherRedeemList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqBillingVoucherRedeemList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqBillingVoucherRedeemList.$_createMessage)
+    ..aI(1, _omitFieldNames ? '' : 'limit')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingVoucherRedeemList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingVoucherRedeemList copyWith(
+          void Function(ReqBillingVoucherRedeemList) updates) =>
+      super.copyWith(
+              (message) => updates(message as ReqBillingVoucherRedeemList))
+          as ReqBillingVoucherRedeemList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqBillingVoucherRedeemList() / ReqBillingVoucherRedeemList.new instead')
+  static ReqBillingVoucherRedeemList create() =>
+      ReqBillingVoucherRedeemList._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ReqBillingVoucherRedeemList._();
+  @$core.override
+  ReqBillingVoucherRedeemList createEmptyInstance() =>
+      ReqBillingVoucherRedeemList._();
+  @$core.pragma('dart2js:noInline')
+  static ReqBillingVoucherRedeemList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqBillingVoucherRedeemList>(
+          ReqBillingVoucherRedeemList.$_createMessage);
+  static ReqBillingVoucherRedeemList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.int get limit => $_getIZ(0);
+  @$pb.TagNumber(1)
+  set limit($core.int value) => $_setSignedInt32(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasLimit() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearLimit() => $_clearField(1);
+}
+
+class ResBillingVoucherRedeemList extends $pb.GeneratedMessage {
+  factory ResBillingVoucherRedeemList({
+    $core.Iterable<BillingVoucherRedeemDoc>? items,
+  }) {
+    final result = ResBillingVoucherRedeemList._();
+    if (items != null) result.items.addAll(items);
+    return result;
+  }
+
+  ResBillingVoucherRedeemList._();
+
+  factory ResBillingVoucherRedeemList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingVoucherRedeemList()..mergeFromBuffer(data, registry);
+  factory ResBillingVoucherRedeemList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingVoucherRedeemList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResBillingVoucherRedeemList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResBillingVoucherRedeemList.$_createMessage)
+    ..pPM<BillingVoucherRedeemDoc>(1, _omitFieldNames ? '' : 'items',
+        subBuilder: BillingVoucherRedeemDoc.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingVoucherRedeemList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingVoucherRedeemList copyWith(
+          void Function(ResBillingVoucherRedeemList) updates) =>
+      super.copyWith(
+              (message) => updates(message as ResBillingVoucherRedeemList))
+          as ResBillingVoucherRedeemList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResBillingVoucherRedeemList() / ResBillingVoucherRedeemList.new instead')
+  static ResBillingVoucherRedeemList create() =>
+      ResBillingVoucherRedeemList._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ResBillingVoucherRedeemList._();
+  @$core.override
+  ResBillingVoucherRedeemList createEmptyInstance() =>
+      ResBillingVoucherRedeemList._();
+  @$core.pragma('dart2js:noInline')
+  static ResBillingVoucherRedeemList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResBillingVoucherRedeemList>(
+          ResBillingVoucherRedeemList.$_createMessage);
+  static ResBillingVoucherRedeemList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<BillingVoucherRedeemDoc> get items => $_getList(0);
+}
+
+class ReqBillingVoucherVoid extends $pb.GeneratedMessage {
+  factory ReqBillingVoucherVoid({
+    $core.String? code,
+  }) {
+    final result = ReqBillingVoucherVoid._();
+    if (code != null) result.code = code;
+    return result;
+  }
+
+  ReqBillingVoucherVoid._();
+
+  factory ReqBillingVoucherVoid.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingVoucherVoid()..mergeFromBuffer(data, registry);
+  factory ReqBillingVoucherVoid.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingVoucherVoid()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqBillingVoucherVoid',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqBillingVoucherVoid.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'code')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingVoucherVoid clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingVoucherVoid copyWith(
+          void Function(ReqBillingVoucherVoid) updates) =>
+      super.copyWith((message) => updates(message as ReqBillingVoucherVoid))
+          as ReqBillingVoucherVoid;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqBillingVoucherVoid() / ReqBillingVoucherVoid.new instead')
+  static ReqBillingVoucherVoid create() => ReqBillingVoucherVoid._();
+  static $pb.GeneratedMessage $_createMessage() => ReqBillingVoucherVoid._();
+  @$core.override
+  ReqBillingVoucherVoid createEmptyInstance() => ReqBillingVoucherVoid._();
+  @$core.pragma('dart2js:noInline')
+  static ReqBillingVoucherVoid getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqBillingVoucherVoid>(
+          ReqBillingVoucherVoid.$_createMessage);
+  static ReqBillingVoucherVoid? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get code => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set code($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasCode() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearCode() => $_clearField(1);
+}
+
+class ResBillingVoucherVoid extends $pb.GeneratedMessage {
+  factory ResBillingVoucherVoid({
+    $core.bool? ok,
+  }) {
+    final result = ResBillingVoucherVoid._();
+    if (ok != null) result.ok = ok;
+    return result;
+  }
+
+  ResBillingVoucherVoid._();
+
+  factory ResBillingVoucherVoid.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingVoucherVoid()..mergeFromBuffer(data, registry);
+  factory ResBillingVoucherVoid.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingVoucherVoid()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResBillingVoucherVoid',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResBillingVoucherVoid.$_createMessage)
+    ..aOB(1, _omitFieldNames ? '' : 'ok')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingVoucherVoid clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingVoucherVoid copyWith(
+          void Function(ResBillingVoucherVoid) updates) =>
+      super.copyWith((message) => updates(message as ResBillingVoucherVoid))
+          as ResBillingVoucherVoid;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResBillingVoucherVoid() / ResBillingVoucherVoid.new instead')
+  static ResBillingVoucherVoid create() => ResBillingVoucherVoid._();
+  static $pb.GeneratedMessage $_createMessage() => ResBillingVoucherVoid._();
+  @$core.override
+  ResBillingVoucherVoid createEmptyInstance() => ResBillingVoucherVoid._();
+  @$core.pragma('dart2js:noInline')
+  static ResBillingVoucherVoid getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResBillingVoucherVoid>(
+          ResBillingVoucherVoid.$_createMessage);
+  static ResBillingVoucherVoid? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get ok => $_getBF(0);
+  @$pb.TagNumber(1)
+  set ok($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasOk() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOk() => $_clearField(1);
+}
+
+class ReqBillingEntitlementList extends $pb.GeneratedMessage {
+  factory ReqBillingEntitlementList() => ReqBillingEntitlementList._();
+
+  ReqBillingEntitlementList._();
+
+  factory ReqBillingEntitlementList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingEntitlementList()..mergeFromBuffer(data, registry);
+  factory ReqBillingEntitlementList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingEntitlementList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqBillingEntitlementList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqBillingEntitlementList.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingEntitlementList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingEntitlementList copyWith(
+          void Function(ReqBillingEntitlementList) updates) =>
+      super.copyWith((message) => updates(message as ReqBillingEntitlementList))
+          as ReqBillingEntitlementList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqBillingEntitlementList() / ReqBillingEntitlementList.new instead')
+  static ReqBillingEntitlementList create() => ReqBillingEntitlementList._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ReqBillingEntitlementList._();
+  @$core.override
+  ReqBillingEntitlementList createEmptyInstance() =>
+      ReqBillingEntitlementList._();
+  @$core.pragma('dart2js:noInline')
+  static ReqBillingEntitlementList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqBillingEntitlementList>(
+          ReqBillingEntitlementList.$_createMessage);
+  static ReqBillingEntitlementList? _defaultInstance;
+}
+
+class ResBillingEntitlementList extends $pb.GeneratedMessage {
+  factory ResBillingEntitlementList({
+    $core.Iterable<BillingEntitlementDoc>? items,
+  }) {
+    final result = ResBillingEntitlementList._();
+    if (items != null) result.items.addAll(items);
+    return result;
+  }
+
+  ResBillingEntitlementList._();
+
+  factory ResBillingEntitlementList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingEntitlementList()..mergeFromBuffer(data, registry);
+  factory ResBillingEntitlementList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingEntitlementList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResBillingEntitlementList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResBillingEntitlementList.$_createMessage)
+    ..pPM<BillingEntitlementDoc>(1, _omitFieldNames ? '' : 'items',
+        subBuilder: BillingEntitlementDoc.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingEntitlementList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingEntitlementList copyWith(
+          void Function(ResBillingEntitlementList) updates) =>
+      super.copyWith((message) => updates(message as ResBillingEntitlementList))
+          as ResBillingEntitlementList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResBillingEntitlementList() / ResBillingEntitlementList.new instead')
+  static ResBillingEntitlementList create() => ResBillingEntitlementList._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ResBillingEntitlementList._();
+  @$core.override
+  ResBillingEntitlementList createEmptyInstance() =>
+      ResBillingEntitlementList._();
+  @$core.pragma('dart2js:noInline')
+  static ResBillingEntitlementList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResBillingEntitlementList>(
+          ResBillingEntitlementList.$_createMessage);
+  static ResBillingEntitlementList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<BillingEntitlementDoc> get items => $_getList(0);
+}
+
+/// Google Play in-app billing (Android package id.alienai)
+class BillingPlayProductDoc extends $pb.GeneratedMessage {
+  factory BillingPlayProductDoc({
+    $core.String? productId,
+    $core.String? kind,
+    $core.String? planSlug,
+    $core.String? billingPeriod,
+    $core.double? creditIdr,
+    $core.double? webPriceIdr,
+    $core.double? playPriceIdr,
+  }) {
+    final result = BillingPlayProductDoc._();
+    if (productId != null) result.productId = productId;
+    if (kind != null) result.kind = kind;
+    if (planSlug != null) result.planSlug = planSlug;
+    if (billingPeriod != null) result.billingPeriod = billingPeriod;
+    if (creditIdr != null) result.creditIdr = creditIdr;
+    if (webPriceIdr != null) result.webPriceIdr = webPriceIdr;
+    if (playPriceIdr != null) result.playPriceIdr = playPriceIdr;
+    return result;
+  }
+
+  BillingPlayProductDoc._();
+
+  factory BillingPlayProductDoc.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      BillingPlayProductDoc()..mergeFromBuffer(data, registry);
+  factory BillingPlayProductDoc.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      BillingPlayProductDoc()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'BillingPlayProductDoc',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: BillingPlayProductDoc.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'productId')
+    ..aOS(2, _omitFieldNames ? '' : 'kind')
+    ..aOS(3, _omitFieldNames ? '' : 'planSlug')
+    ..aOS(4, _omitFieldNames ? '' : 'billingPeriod')
+    ..aD(5, _omitFieldNames ? '' : 'creditIdr')
+    ..aD(6, _omitFieldNames ? '' : 'webPriceIdr')
+    ..aD(7, _omitFieldNames ? '' : 'playPriceIdr')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  BillingPlayProductDoc clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  BillingPlayProductDoc copyWith(
+          void Function(BillingPlayProductDoc) updates) =>
+      super.copyWith((message) => updates(message as BillingPlayProductDoc))
+          as BillingPlayProductDoc;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use BillingPlayProductDoc() / BillingPlayProductDoc.new instead')
+  static BillingPlayProductDoc create() => BillingPlayProductDoc._();
+  static $pb.GeneratedMessage $_createMessage() => BillingPlayProductDoc._();
+  @$core.override
+  BillingPlayProductDoc createEmptyInstance() => BillingPlayProductDoc._();
+  @$core.pragma('dart2js:noInline')
+  static BillingPlayProductDoc getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<BillingPlayProductDoc>(
+          BillingPlayProductDoc.$_createMessage);
+  static BillingPlayProductDoc? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get productId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set productId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasProductId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearProductId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get kind => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set kind($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasKind() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearKind() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get planSlug => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set planSlug($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasPlanSlug() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearPlanSlug() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get billingPeriod => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set billingPeriod($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasBillingPeriod() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearBillingPeriod() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.double get creditIdr => $_getN(4);
+  @$pb.TagNumber(5)
+  set creditIdr($core.double value) => $_setDouble(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasCreditIdr() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearCreditIdr() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.double get webPriceIdr => $_getN(5);
+  @$pb.TagNumber(6)
+  set webPriceIdr($core.double value) => $_setDouble(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasWebPriceIdr() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearWebPriceIdr() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.double get playPriceIdr => $_getN(6);
+  @$pb.TagNumber(7)
+  set playPriceIdr($core.double value) => $_setDouble(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasPlayPriceIdr() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearPlayPriceIdr() => $_clearField(7);
+}
+
+class ReqBillingPlayVerify extends $pb.GeneratedMessage {
+  factory ReqBillingPlayVerify({
+    $core.String? productId,
+    $core.String? purchaseToken,
+    $core.String? packageName,
+  }) {
+    final result = ReqBillingPlayVerify._();
+    if (productId != null) result.productId = productId;
+    if (purchaseToken != null) result.purchaseToken = purchaseToken;
+    if (packageName != null) result.packageName = packageName;
+    return result;
+  }
+
+  ReqBillingPlayVerify._();
+
+  factory ReqBillingPlayVerify.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingPlayVerify()..mergeFromBuffer(data, registry);
+  factory ReqBillingPlayVerify.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingPlayVerify()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqBillingPlayVerify',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqBillingPlayVerify.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'productId')
+    ..aOS(2, _omitFieldNames ? '' : 'purchaseToken')
+    ..aOS(3, _omitFieldNames ? '' : 'packageName')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingPlayVerify clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingPlayVerify copyWith(void Function(ReqBillingPlayVerify) updates) =>
+      super.copyWith((message) => updates(message as ReqBillingPlayVerify))
+          as ReqBillingPlayVerify;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqBillingPlayVerify() / ReqBillingPlayVerify.new instead')
+  static ReqBillingPlayVerify create() => ReqBillingPlayVerify._();
+  static $pb.GeneratedMessage $_createMessage() => ReqBillingPlayVerify._();
+  @$core.override
+  ReqBillingPlayVerify createEmptyInstance() => ReqBillingPlayVerify._();
+  @$core.pragma('dart2js:noInline')
+  static ReqBillingPlayVerify getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqBillingPlayVerify>(
+          ReqBillingPlayVerify.$_createMessage);
+  static ReqBillingPlayVerify? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get productId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set productId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasProductId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearProductId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get purchaseToken => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set purchaseToken($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasPurchaseToken() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearPurchaseToken() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get packageName => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set packageName($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasPackageName() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearPackageName() => $_clearField(3);
+}
+
+class ResBillingPlayVerify extends $pb.GeneratedMessage {
+  factory ResBillingPlayVerify({
+    $core.String? status,
+    $core.String? productId,
+    $core.String? planSlug,
+    $core.int? durationMonths,
+    $core.double? creditIdr,
+    $fixnum.Int64? entitlementId,
+    $fixnum.Int64? playPurchaseId,
+    $core.double? balanceIdr,
+    $core.Iterable<BillingEntitlementDoc>? entitlements,
+    $fixnum.Int64? expiresTsMs,
+  }) {
+    final result = ResBillingPlayVerify._();
+    if (status != null) result.status = status;
+    if (productId != null) result.productId = productId;
+    if (planSlug != null) result.planSlug = planSlug;
+    if (durationMonths != null) result.durationMonths = durationMonths;
+    if (creditIdr != null) result.creditIdr = creditIdr;
+    if (entitlementId != null) result.entitlementId = entitlementId;
+    if (playPurchaseId != null) result.playPurchaseId = playPurchaseId;
+    if (balanceIdr != null) result.balanceIdr = balanceIdr;
+    if (entitlements != null) result.entitlements.addAll(entitlements);
+    if (expiresTsMs != null) result.expiresTsMs = expiresTsMs;
+    return result;
+  }
+
+  ResBillingPlayVerify._();
+
+  factory ResBillingPlayVerify.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingPlayVerify()..mergeFromBuffer(data, registry);
+  factory ResBillingPlayVerify.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingPlayVerify()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResBillingPlayVerify',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResBillingPlayVerify.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'status')
+    ..aOS(2, _omitFieldNames ? '' : 'productId')
+    ..aOS(3, _omitFieldNames ? '' : 'planSlug')
+    ..aI(4, _omitFieldNames ? '' : 'durationMonths')
+    ..aD(5, _omitFieldNames ? '' : 'creditIdr')
+    ..aInt64(6, _omitFieldNames ? '' : 'entitlementId')
+    ..aInt64(7, _omitFieldNames ? '' : 'playPurchaseId')
+    ..aD(8, _omitFieldNames ? '' : 'balanceIdr')
+    ..pPM<BillingEntitlementDoc>(9, _omitFieldNames ? '' : 'entitlements',
+        subBuilder: BillingEntitlementDoc.$_createMessage)
+    ..aInt64(10, _omitFieldNames ? '' : 'expiresTsMs')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingPlayVerify clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingPlayVerify copyWith(void Function(ResBillingPlayVerify) updates) =>
+      super.copyWith((message) => updates(message as ResBillingPlayVerify))
+          as ResBillingPlayVerify;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResBillingPlayVerify() / ResBillingPlayVerify.new instead')
+  static ResBillingPlayVerify create() => ResBillingPlayVerify._();
+  static $pb.GeneratedMessage $_createMessage() => ResBillingPlayVerify._();
+  @$core.override
+  ResBillingPlayVerify createEmptyInstance() => ResBillingPlayVerify._();
+  @$core.pragma('dart2js:noInline')
+  static ResBillingPlayVerify getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResBillingPlayVerify>(
+          ResBillingPlayVerify.$_createMessage);
+  static ResBillingPlayVerify? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get status => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set status($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasStatus() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearStatus() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get productId => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set productId($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasProductId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearProductId() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get planSlug => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set planSlug($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasPlanSlug() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearPlanSlug() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.int get durationMonths => $_getIZ(3);
+  @$pb.TagNumber(4)
+  set durationMonths($core.int value) => $_setSignedInt32(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasDurationMonths() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearDurationMonths() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.double get creditIdr => $_getN(4);
+  @$pb.TagNumber(5)
+  set creditIdr($core.double value) => $_setDouble(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasCreditIdr() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearCreditIdr() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $fixnum.Int64 get entitlementId => $_getI64(5);
+  @$pb.TagNumber(6)
+  set entitlementId($fixnum.Int64 value) => $_setInt64(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasEntitlementId() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearEntitlementId() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $fixnum.Int64 get playPurchaseId => $_getI64(6);
+  @$pb.TagNumber(7)
+  set playPurchaseId($fixnum.Int64 value) => $_setInt64(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasPlayPurchaseId() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearPlayPurchaseId() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.double get balanceIdr => $_getN(7);
+  @$pb.TagNumber(8)
+  set balanceIdr($core.double value) => $_setDouble(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasBalanceIdr() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearBalanceIdr() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $pb.PbList<BillingEntitlementDoc> get entitlements => $_getList(8);
+
+  @$pb.TagNumber(10)
+  $fixnum.Int64 get expiresTsMs => $_getI64(9);
+  @$pb.TagNumber(10)
+  set expiresTsMs($fixnum.Int64 value) => $_setInt64(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasExpiresTsMs() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearExpiresTsMs() => $_clearField(10);
+}
+
+class ReqBillingPlayProductList extends $pb.GeneratedMessage {
+  factory ReqBillingPlayProductList() => ReqBillingPlayProductList._();
+
+  ReqBillingPlayProductList._();
+
+  factory ReqBillingPlayProductList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingPlayProductList()..mergeFromBuffer(data, registry);
+  factory ReqBillingPlayProductList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingPlayProductList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqBillingPlayProductList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqBillingPlayProductList.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingPlayProductList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingPlayProductList copyWith(
+          void Function(ReqBillingPlayProductList) updates) =>
+      super.copyWith((message) => updates(message as ReqBillingPlayProductList))
+          as ReqBillingPlayProductList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqBillingPlayProductList() / ReqBillingPlayProductList.new instead')
+  static ReqBillingPlayProductList create() => ReqBillingPlayProductList._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ReqBillingPlayProductList._();
+  @$core.override
+  ReqBillingPlayProductList createEmptyInstance() =>
+      ReqBillingPlayProductList._();
+  @$core.pragma('dart2js:noInline')
+  static ReqBillingPlayProductList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqBillingPlayProductList>(
+          ReqBillingPlayProductList.$_createMessage);
+  static ReqBillingPlayProductList? _defaultInstance;
+}
+
+class ResBillingPlayProductList extends $pb.GeneratedMessage {
+  factory ResBillingPlayProductList({
+    $core.Iterable<BillingPlayProductDoc>? products,
+  }) {
+    final result = ResBillingPlayProductList._();
+    if (products != null) result.products.addAll(products);
+    return result;
+  }
+
+  ResBillingPlayProductList._();
+
+  factory ResBillingPlayProductList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingPlayProductList()..mergeFromBuffer(data, registry);
+  factory ResBillingPlayProductList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingPlayProductList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResBillingPlayProductList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResBillingPlayProductList.$_createMessage)
+    ..pPM<BillingPlayProductDoc>(1, _omitFieldNames ? '' : 'products',
+        subBuilder: BillingPlayProductDoc.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingPlayProductList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingPlayProductList copyWith(
+          void Function(ResBillingPlayProductList) updates) =>
+      super.copyWith((message) => updates(message as ResBillingPlayProductList))
+          as ResBillingPlayProductList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResBillingPlayProductList() / ResBillingPlayProductList.new instead')
+  static ResBillingPlayProductList create() => ResBillingPlayProductList._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ResBillingPlayProductList._();
+  @$core.override
+  ResBillingPlayProductList createEmptyInstance() =>
+      ResBillingPlayProductList._();
+  @$core.pragma('dart2js:noInline')
+  static ResBillingPlayProductList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResBillingPlayProductList>(
+          ResBillingPlayProductList.$_createMessage);
+  static ResBillingPlayProductList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<BillingPlayProductDoc> get products => $_getList(0);
+}
+
+class ReqBillingVoucherLimitGet extends $pb.GeneratedMessage {
+  factory ReqBillingVoucherLimitGet({
+    $fixnum.Int64? targetIid,
+  }) {
+    final result = ReqBillingVoucherLimitGet._();
+    if (targetIid != null) result.targetIid = targetIid;
+    return result;
+  }
+
+  ReqBillingVoucherLimitGet._();
+
+  factory ReqBillingVoucherLimitGet.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingVoucherLimitGet()..mergeFromBuffer(data, registry);
+  factory ReqBillingVoucherLimitGet.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingVoucherLimitGet()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqBillingVoucherLimitGet',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqBillingVoucherLimitGet.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'targetIid')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingVoucherLimitGet clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingVoucherLimitGet copyWith(
+          void Function(ReqBillingVoucherLimitGet) updates) =>
+      super.copyWith((message) => updates(message as ReqBillingVoucherLimitGet))
+          as ReqBillingVoucherLimitGet;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqBillingVoucherLimitGet() / ReqBillingVoucherLimitGet.new instead')
+  static ReqBillingVoucherLimitGet create() => ReqBillingVoucherLimitGet._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ReqBillingVoucherLimitGet._();
+  @$core.override
+  ReqBillingVoucherLimitGet createEmptyInstance() =>
+      ReqBillingVoucherLimitGet._();
+  @$core.pragma('dart2js:noInline')
+  static ReqBillingVoucherLimitGet getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqBillingVoucherLimitGet>(
+          ReqBillingVoucherLimitGet.$_createMessage);
+  static ReqBillingVoucherLimitGet? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get targetIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set targetIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasTargetIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearTargetIid() => $_clearField(1);
+}
+
+class ReqBillingVoucherLimitPut extends $pb.GeneratedMessage {
+  factory ReqBillingVoucherLimitPut({
+    $fixnum.Int64? targetIid,
+    $core.double? limitIdr,
+  }) {
+    final result = ReqBillingVoucherLimitPut._();
+    if (targetIid != null) result.targetIid = targetIid;
+    if (limitIdr != null) result.limitIdr = limitIdr;
+    return result;
+  }
+
+  ReqBillingVoucherLimitPut._();
+
+  factory ReqBillingVoucherLimitPut.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingVoucherLimitPut()..mergeFromBuffer(data, registry);
+  factory ReqBillingVoucherLimitPut.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingVoucherLimitPut()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqBillingVoucherLimitPut',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqBillingVoucherLimitPut.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'targetIid')
+    ..aD(2, _omitFieldNames ? '' : 'limitIdr')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingVoucherLimitPut clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingVoucherLimitPut copyWith(
+          void Function(ReqBillingVoucherLimitPut) updates) =>
+      super.copyWith((message) => updates(message as ReqBillingVoucherLimitPut))
+          as ReqBillingVoucherLimitPut;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqBillingVoucherLimitPut() / ReqBillingVoucherLimitPut.new instead')
+  static ReqBillingVoucherLimitPut create() => ReqBillingVoucherLimitPut._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ReqBillingVoucherLimitPut._();
+  @$core.override
+  ReqBillingVoucherLimitPut createEmptyInstance() =>
+      ReqBillingVoucherLimitPut._();
+  @$core.pragma('dart2js:noInline')
+  static ReqBillingVoucherLimitPut getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqBillingVoucherLimitPut>(
+          ReqBillingVoucherLimitPut.$_createMessage);
+  static ReqBillingVoucherLimitPut? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get targetIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set targetIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasTargetIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearTargetIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.double get limitIdr => $_getN(1);
+  @$pb.TagNumber(2)
+  set limitIdr($core.double value) => $_setDouble(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasLimitIdr() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearLimitIdr() => $_clearField(2);
+}
+
+class ResBillingVoucherLimit extends $pb.GeneratedMessage {
+  factory ResBillingVoucherLimit({
+    $fixnum.Int64? targetIid,
+    $core.double? limitIdr,
+    $core.double? usedIdr,
+  }) {
+    final result = ResBillingVoucherLimit._();
+    if (targetIid != null) result.targetIid = targetIid;
+    if (limitIdr != null) result.limitIdr = limitIdr;
+    if (usedIdr != null) result.usedIdr = usedIdr;
+    return result;
+  }
+
+  ResBillingVoucherLimit._();
+
+  factory ResBillingVoucherLimit.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingVoucherLimit()..mergeFromBuffer(data, registry);
+  factory ResBillingVoucherLimit.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResBillingVoucherLimit()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResBillingVoucherLimit',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResBillingVoucherLimit.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'targetIid')
+    ..aD(2, _omitFieldNames ? '' : 'limitIdr')
+    ..aD(3, _omitFieldNames ? '' : 'usedIdr')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingVoucherLimit clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResBillingVoucherLimit copyWith(
+          void Function(ResBillingVoucherLimit) updates) =>
+      super.copyWith((message) => updates(message as ResBillingVoucherLimit))
+          as ResBillingVoucherLimit;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResBillingVoucherLimit() / ResBillingVoucherLimit.new instead')
+  static ResBillingVoucherLimit create() => ResBillingVoucherLimit._();
+  static $pb.GeneratedMessage $_createMessage() => ResBillingVoucherLimit._();
+  @$core.override
+  ResBillingVoucherLimit createEmptyInstance() => ResBillingVoucherLimit._();
+  @$core.pragma('dart2js:noInline')
+  static ResBillingVoucherLimit getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResBillingVoucherLimit>(
+          ResBillingVoucherLimit.$_createMessage);
+  static ResBillingVoucherLimit? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get targetIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set targetIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasTargetIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearTargetIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.double get limitIdr => $_getN(1);
+  @$pb.TagNumber(2)
+  set limitIdr($core.double value) => $_setDouble(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasLimitIdr() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearLimitIdr() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.double get usedIdr => $_getN(2);
+  @$pb.TagNumber(3)
+  set usedIdr($core.double value) => $_setDouble(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasUsedIdr() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearUsedIdr() => $_clearField(3);
 }
 
 const $core.bool _omitFieldNames =

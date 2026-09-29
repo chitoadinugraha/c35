@@ -17,7 +17,21 @@ From repo root:
 4. Run `%LOCALAPPDATA%\AlienAI\chrome_extension\install\agent\Start-ChromeRemoteAgent.cmd`.
 5. Extension popup → **Test native host** → **Pair device** → claim in the app.
 
-If policy install does not appear, use the desktop shortcut **Chrome (Alien AI Remote)** once.
+**Daily use:** normal **Google Chrome** (pinned extension). Do **not** use the desktop shortcut **Chrome (Alien AI Remote)** for browsing — it opens a **separate** Chrome with `--load-extension` and is only for one-time install troubleshooting.
+
+If policy install does not appear, load unpacked once (see below); avoid the shortcut unless you fully quit Chrome first.
+
+## Dev sync (install folder)
+
+If Chrome loads `%LOCALAPPDATA%\AlienAI\chrome_extension\install\alienai_remote`:
+
+```powershell
+.\_\scripts\dev\sync_chrome_extension_install.ps1
+```
+
+Then **Reload** on `chrome://extensions`. JS-only: `-SkipBuild`. Extension-only copy: `-SkipAgentRestart` after a prior full sync.
+
+**Agent automation (Nuphus MCP):** enable `nuphus-mcp` in `.cursor/mcp.json` (same as your global Cursor config), reload MCP in Cursor, then use browser tools to open `chrome://extensions`, reload extension ID `nnijloaplkijpadhmifhleodobafjffi`, and click the Alien AI Remote toolbar icon to verify the popup diagnostics.
 
 ## Load unpacked (dev only)
 

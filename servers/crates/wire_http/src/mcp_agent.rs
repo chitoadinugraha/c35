@@ -134,6 +134,7 @@ async fn mcp_agent_post(
             }
             mcp_tool_exec(
                 &st.pool,
+                st.nats.clone(),
                 owner_iid,
                 &body.tool_name,
                 &body.args_json,

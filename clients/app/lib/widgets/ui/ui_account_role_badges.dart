@@ -10,20 +10,30 @@ const _muted = Color(0xFF71717A);
 enum UiAccountRoleBadgeSize { menu, page }
 
 class UiAccountRoleBadgesAction {
-  const UiAccountRoleBadgesAction({this.onRootConsole, this.onFinancePayments, this.onFinanceReceiveAccounts});
+  const UiAccountRoleBadgesAction({
+    this.onRootConsole,
+    this.onFinancePayments,
+    this.onFinanceReceiveAccounts,
+    this.onMarketingGenerateVoucher,
+  });
 
   final VoidCallback? onRootConsole;
   final VoidCallback? onFinancePayments;
   final VoidCallback? onFinanceReceiveAccounts;
+  final VoidCallback? onMarketingGenerateVoucher;
 }
 
-bool uiAccountRoleHasFinanceNav(UiAccountRoleBadgesAction action) => action.onFinancePayments != null || action.onFinanceReceiveAccounts != null;
+bool uiAccountRoleHasFinanceNav(UiAccountRoleBadgesAction action) =>
+    action.onFinancePayments != null || action.onFinanceReceiveAccounts != null;
+
+bool uiAccountRoleHasMarketingNav(UiAccountRoleBadgesAction action) => action.onMarketingGenerateVoucher != null;
 
 List<String> uiAccountRoleBadgeLabels(Session s, UiAccountRoleBadgesAction action) => [
       if (s.isRoot) referralGlobalRoleLabel('root'),
       ...s.globalRoles.where((role) {
         if (role == 'root') return false;
         if (uiAccountRoleHasFinanceNav(action) && (role == 'finance' || role == 'director')) return false;
+        if (uiAccountRoleHasMarketingNav(action) && role == 'marketing') return false;
         return true;
       }).map(referralGlobalRoleLabel),
     ];
@@ -45,7 +55,8 @@ class UiAccountRoleBadges extends StatelessWidget {
     final s = Session.instance;
     final labels = uiAccountRoleBadgeLabels(s, action);
     final hasFinanceNav = uiAccountRoleHasFinanceNav(action);
-    if (labels.isEmpty && !hasFinanceNav) return const SizedBox.shrink();
+    final hasMarketingNav = uiAccountRoleHasMarketingNav(action);
+    if (labels.isEmpty && !hasFinanceNav && !hasMarketingNav) return const SizedBox.shrink();
     return Wrap(
       spacing: _large ? 6 : 4,
       runSpacing: _large ? 6 : 4,
@@ -60,6 +71,7 @@ class UiAccountRoleBadges extends StatelessWidget {
           );
         }),
         if (hasFinanceNav) _FinanceBadge(action: action, fontSize: _fontSize, padding: _pad),
+        if (hasMarketingNav) _MarketingBadge(action: action, fontSize: _fontSize, padding: _pad),
       ],
     );
   }
@@ -129,6 +141,17 @@ class _FinanceBadgeState extends State<_FinanceBadge> {
               ],
             ),
           ),
+        if (widget.action.onMarketingGenerateVoucher != null)
+          const PopupMenuItem(
+            value: 'voucher',
+            child: Row(
+              children: [
+                Icon(Icons.card_giftcard_outlined, size: 16, color: _muted),
+                SizedBox(width: 10),
+                Text('Generate voucher', style: TextStyle(color: _badgeText, fontSize: 13)),
+              ],
+            ),
+          ),
       ],
     );
     switch (selected) {
@@ -136,6 +159,8 @@ class _FinanceBadgeState extends State<_FinanceBadge> {
         widget.action.onFinancePayments?.call();
       case 'receive':
         widget.action.onFinanceReceiveAccounts?.call();
+      case 'voucher':
+        widget.action.onMarketingGenerateVoucher?.call();
     }
   }
 
@@ -151,6 +176,63 @@ class _FinanceBadgeState extends State<_FinanceBadge> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(referralGlobalRoleLabel('finance'), style: TextStyle(color: _badgeText, fontSize: widget.fontSize, fontWeight: FontWeight.w600)),
+              Icon(Icons.expand_more_rounded, size: widget.fontSize + 2, color: _muted),
+            ],
+          ),
+        ),
+      );
+}
+
+class _MarketingBadge extends StatefulWidget {
+  const _MarketingBadge({required this.action, required this.fontSize, required this.padding});
+
+  final UiAccountRoleBadgesAction action;
+  final double fontSize;
+  final EdgeInsets padding;
+
+  @override
+  State<_MarketingBadge> createState() => _MarketingBadgeState();
+}
+
+class _MarketingBadgeState extends State<_MarketingBadge> {
+  final _anchorKey = GlobalKey();
+
+  Future<void> _openMenu(BuildContext menuCtx) async {
+    final box = _anchorKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
+    final selected = await showMenu<String>(
+      context: menuCtx,
+      color: const Color(0xFF18181B),
+      position: uiMenuPositionBelow(menuCtx, box),
+      items: [
+        if (widget.action.onMarketingGenerateVoucher != null)
+          const PopupMenuItem(
+            value: 'voucher',
+            child: Row(
+              children: [
+                Icon(Icons.card_giftcard_outlined, size: 16, color: _muted),
+                SizedBox(width: 10),
+                Text('Generate voucher', style: TextStyle(color: _badgeText, fontSize: 13)),
+              ],
+            ),
+          ),
+      ],
+    );
+    if (selected == 'voucher') widget.action.onMarketingGenerateVoucher?.call();
+  }
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+        onTap: () => _openMenu(context),
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          key: _anchorKey,
+          padding: widget.padding,
+          decoration: BoxDecoration(color: _badgeBg, borderRadius: BorderRadius.circular(999)),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(referralGlobalRoleLabel('marketing'), style: TextStyle(color: _badgeText, fontSize: widget.fontSize, fontWeight: FontWeight.w600)),
               Icon(Icons.expand_more_rounded, size: widget.fontSize + 2, color: _muted),
             ],
           ),

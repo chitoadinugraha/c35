@@ -118,6 +118,7 @@ async fn mcp_turn_trace(pool: &PgPool, owner_iid: i64, req_id: &str) -> Value {
 
 pub async fn mcp_tool_exec(
     pool: &PgPool,
+    nats: Option<async_nats::Client>,
     owner_iid: i64,
     tool_name: &str,
     args_json: &Value,
@@ -131,7 +132,7 @@ pub async fn mcp_tool_exec(
     let tool_call_id = snowflake_id().to_string();
     let ctx = ToolContext::new(
         pool.clone(),
-        None,
+        nats,
         owner_iid,
         0,
         None,

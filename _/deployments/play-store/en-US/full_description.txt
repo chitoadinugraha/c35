@@ -1,0 +1,40 @@
+Alien AI is your personal assistant and control center for bots, paired computers, and prompt-built sites - one app for chat, automation, and everyday tracking.
+
+Talk to Alien AI on Home like a smart coworker: ask questions, run tools, attach photos and files, use voice input, and switch between full Agent mode or read-only Ask mode when you just need answers fast.
+
+What you can do today
+
+Home - personal AI chat
+- Multi-turn conversations with tools, rich UI cards, and usage transparency
+- @ mentions to point the assistant at a device, site, or tool
+- Canvas side panel for documents, code, and markdown you can edit and iterate with AI
+- Built-in hints for meal logging, expenses, and your sites
+
+Bots - customer chat on autopilot
+- Create bots and connect WhatsApp and Telegram
+- One inbox for all channel conversations per bot
+- Pause AI on any thread when you want to reply yourself, then resume auto-reply
+
+Devices - remote Windows PCs (and more)
+- Pair a Windows agent to view and control the desktop over WebRTC
+- Browse, upload, download, and manage files on the remote machine
+- Schedule tasks and teach device skills; browse and install skills from the catalog
+
+Sites
+- Manage prompt-built websites from the app - open admin tabs and guest pages
+
+Everyday tools (via chat)
+- Track meals and nutrition (consumption)
+- Log and review expenses with receipt-style blocks
+
+Account and platform
+- Referral tree and wallet billing with clear quota
+- Settings, session lock, Android / Windows / web - same Alien AI account
+
+Getting started with remote control
+Install the Alien AI Remote agent on the PC you want to pair (download from https://alienai.id/download/agent.exe), pair from Devices in the app, then open Remote or Files.
+
+Alien AI keeps improving - download once and stay on the latest features through Play updates.
+
+Privacy: https://alienai.id/privacy.html
+Terms: https://alienai.id/terms.html

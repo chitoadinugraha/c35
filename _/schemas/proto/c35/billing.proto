@@ -438,6 +438,9 @@ message ResBillingPackageRedeem {
   // Authoritative wallet snapshot after debit (same as plan change response).
   double balance_usd = 7;
   double balance_idr = 8;
+  repeated BillingEntitlementDoc entitlements = 9;
+  int64 entitlement_id = 10;
+  int64 expires_ts_ms = 11;
 }
 
 message ReqBillingPackagePreview {
@@ -704,4 +707,152 @@ message ResBillingSummary {
   string billing_period = 30;
   string pending_plan_slug = 31;
   string pending_billing_period = 32;
+}
+
+// Active plan / voucher grants (stacking). Sorted by expires_ts asc in list API.
+message BillingEntitlementDoc {
+  int64 id = 1;
+  string plan_slug = 2;
+  string plan_name = 3;
+  int64 expires_ts_ms = 4;
+  int64 purchased_ts_ms = 5;
+  string source = 6;
+  string referral_code = 7;
+  double credit_idr = 8;
+  bool highlight = 9;
+}
+
+message ReqBillingVoucherIssue {
+  string kind = 1;
+  string plan_slug = 2;
+  int32 duration_months = 3;
+  double credit_idr = 4;
+  double face_value_idr = 5;
+  int32 max_uses = 6;
+  int64 expires_at_ms = 7;
+  string payment_ref = 8;
+  string code = 9;
+  string name = 10;
+  string scope = 11;              // user | bot
+  string billing_period = 12;     // monthly | yearly
+  double list_price_idr = 13;     // optional strikethrough on redeem
+  double alien_pool_limit_idr = 14;
+  double frontier_pool_limit_idr = 15;
+  int32 quantity = 16;            // batch issue (default 1)
+}
+
+message ResBillingVoucherIssue {
+  string code = 1;
+  double face_value_idr = 2;
+  repeated string codes = 3;
+}
+
+message BillingVoucherDoc {
+  string code = 1;
+  string kind = 2;
+  string name = 3;
+  string status = 4;              // active | redeemed | expired | void
+  double face_value_idr = 5;
+  double list_price_idr = 6;
+  int64 expires_at_ms = 7;        // 0 = no expiry
+  string scope = 8;
+  string plan_slug = 9;
+  int32 duration_months = 10;
+  double credit_idr = 11;
+  int64 redeemed_ts_ms = 12;
+  int64 redeemed_by_iid = 13;
+  string redeemed_by_name = 14;
+  int32 used_count = 15;
+  int32 max_uses = 16;
+  string billing_period = 17;
+}
+
+message ReqBillingVoucherList {}
+
+message ResBillingVoucherList {
+  repeated BillingVoucherDoc items = 1;
+  ResBillingVoucherLimit limit = 2;
+}
+
+message BillingVoucherRedeemDoc {
+  int64 id = 1;
+  string code = 2;
+  int64 buyer_iid = 3;
+  string buyer_name = 4;
+  double face_value_idr = 5;
+  double list_price_idr = 6;
+  int64 redeemed_ts_ms = 7;
+}
+
+message ReqBillingVoucherRedeemList {
+  int32 limit = 1;
+}
+
+message ResBillingVoucherRedeemList {
+  repeated BillingVoucherRedeemDoc items = 1;
+}
+
+message ReqBillingVoucherVoid {
+  string code = 1;
+}
+
+message ResBillingVoucherVoid {
+  bool ok = 1;
+}
+
+message ReqBillingEntitlementList {}
+
+message ResBillingEntitlementList {
+  repeated BillingEntitlementDoc items = 1;
+}
+
+// Google Play in-app billing (Android package id.alienai)
+message BillingPlayProductDoc {
+  string product_id = 1;
+  string kind = 2;              // plan | credit
+  string plan_slug = 3;
+  string billing_period = 4;    // monthly | yearly
+  double credit_idr = 5;
+  double web_price_idr = 6;
+  double play_price_idr = 7;    // web × PLAY_MARKUP (display only)
+}
+
+message ReqBillingPlayVerify {
+  string product_id = 1;
+  string purchase_token = 2;
+  string package_name = 3;      // empty → server default (PLAY_STORE_PACKAGE_NAME)
+}
+
+message ResBillingPlayVerify {
+  string status = 1;            // ok | already_redeemed
+  string product_id = 2;
+  string plan_slug = 3;
+  int32 duration_months = 4;
+  double credit_idr = 5;
+  int64 entitlement_id = 6;
+  int64 play_purchase_id = 7;
+  double balance_idr = 8;
+  repeated BillingEntitlementDoc entitlements = 9;
+  int64 expires_ts_ms = 10;
+}
+
+message ReqBillingPlayProductList {}
+
+message ResBillingPlayProductList {
+  repeated BillingPlayProductDoc products = 1;
+}
+
+message ReqBillingVoucherLimitGet {
+  int64 target_iid = 1;
+}
+
+message ReqBillingVoucherLimitPut {
+  int64 target_iid = 1;
+  double limit_idr = 2;
+}
+
+message ResBillingVoucherLimit {
+  int64 target_iid = 1;
+  double limit_idr = 2;
+  double used_idr = 3;
 }

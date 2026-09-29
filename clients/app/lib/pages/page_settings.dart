@@ -433,6 +433,7 @@ class _PageSettingsState extends State<PageSettings> {
         onRootConsole: Session.instance.isRoot && widget.chatConn != null ? _openRootConsole : null,
         onFinancePayments: _financeStaff ? _openFinancePayments : null,
         onFinanceReceiveAccounts: _financeStaff ? _openFinanceReceiveAccounts : null,
+        onMarketingGenerateVoucher: null,
       );
 
   InputDecoration _fieldDecoration(String label) => InputDecoration(

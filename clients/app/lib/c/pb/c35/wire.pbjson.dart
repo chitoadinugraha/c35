@@ -489,6 +489,87 @@ const InvokeReq$json = {
       '9': 0,
       '10': 'billingPlanChange'
     },
+    {
+      '1': 'billing_voucher_issue',
+      '3': 132,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqBillingVoucherIssue',
+      '9': 0,
+      '10': 'billingVoucherIssue'
+    },
+    {
+      '1': 'billing_entitlement_list',
+      '3': 133,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqBillingEntitlementList',
+      '9': 0,
+      '10': 'billingEntitlementList'
+    },
+    {
+      '1': 'billing_play_verify',
+      '3': 134,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqBillingPlayVerify',
+      '9': 0,
+      '10': 'billingPlayVerify'
+    },
+    {
+      '1': 'billing_play_product_list',
+      '3': 135,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqBillingPlayProductList',
+      '9': 0,
+      '10': 'billingPlayProductList'
+    },
+    {
+      '1': 'billing_voucher_limit_get',
+      '3': 136,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqBillingVoucherLimitGet',
+      '9': 0,
+      '10': 'billingVoucherLimitGet'
+    },
+    {
+      '1': 'billing_voucher_limit_put',
+      '3': 137,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqBillingVoucherLimitPut',
+      '9': 0,
+      '10': 'billingVoucherLimitPut'
+    },
+    {
+      '1': 'billing_voucher_list',
+      '3': 138,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqBillingVoucherList',
+      '9': 0,
+      '10': 'billingVoucherList'
+    },
+    {
+      '1': 'billing_voucher_redeem_list',
+      '3': 139,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqBillingVoucherRedeemList',
+      '9': 0,
+      '10': 'billingVoucherRedeemList'
+    },
+    {
+      '1': 'billing_voucher_void',
+      '3': 140,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqBillingVoucherVoid',
+      '9': 0,
+      '10': 'billingVoucherVoid'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -568,7 +649,21 @@ final $typed_data.Uint8List invokeReqDescriptor = $convert.base64Decode(
     'NS5SZXFBZG1pbk9wc1BlYWtzSABSDWFkbWluT3BzUGVha3MSSQoSYmlsbGluZ19wbGFuX3F1b3'
     'RlGIIBIAEoCzIYLmMzNS5SZXFCaWxsaW5nUGxhblF1b3RlSABSEGJpbGxpbmdQbGFuUXVvdGUS'
     'TAoTYmlsbGluZ19wbGFuX2NoYW5nZRiDASABKAsyGS5jMzUuUmVxQmlsbGluZ1BsYW5DaGFuZ2'
-    'VIAFIRYmlsbGluZ1BsYW5DaGFuZ2VCBgoEYm9keQ==');
+    'VIAFIRYmlsbGluZ1BsYW5DaGFuZ2USUgoVYmlsbGluZ192b3VjaGVyX2lzc3VlGIQBIAEoCzIb'
+    'LmMzNS5SZXFCaWxsaW5nVm91Y2hlcklzc3VlSABSE2JpbGxpbmdWb3VjaGVySXNzdWUSWwoYYm'
+    'lsbGluZ19lbnRpdGxlbWVudF9saXN0GIUBIAEoCzIeLmMzNS5SZXFCaWxsaW5nRW50aXRsZW1l'
+    'bnRMaXN0SABSFmJpbGxpbmdFbnRpdGxlbWVudExpc3QSTAoTYmlsbGluZ19wbGF5X3ZlcmlmeR'
+    'iGASABKAsyGS5jMzUuUmVxQmlsbGluZ1BsYXlWZXJpZnlIAFIRYmlsbGluZ1BsYXlWZXJpZnkS'
+    'XAoZYmlsbGluZ19wbGF5X3Byb2R1Y3RfbGlzdBiHASABKAsyHi5jMzUuUmVxQmlsbGluZ1BsYX'
+    'lQcm9kdWN0TGlzdEgAUhZiaWxsaW5nUGxheVByb2R1Y3RMaXN0ElwKGWJpbGxpbmdfdm91Y2hl'
+    'cl9saW1pdF9nZXQYiAEgASgLMh4uYzM1LlJlcUJpbGxpbmdWb3VjaGVyTGltaXRHZXRIAFIWYm'
+    'lsbGluZ1ZvdWNoZXJMaW1pdEdldBJcChliaWxsaW5nX3ZvdWNoZXJfbGltaXRfcHV0GIkBIAEo'
+    'CzIeLmMzNS5SZXFCaWxsaW5nVm91Y2hlckxpbWl0UHV0SABSFmJpbGxpbmdWb3VjaGVyTGltaX'
+    'RQdXQSTwoUYmlsbGluZ192b3VjaGVyX2xpc3QYigEgASgLMhouYzM1LlJlcUJpbGxpbmdWb3Vj'
+    'aGVyTGlzdEgAUhJiaWxsaW5nVm91Y2hlckxpc3QSYgobYmlsbGluZ192b3VjaGVyX3JlZGVlbV'
+    '9saXN0GIsBIAEoCzIgLmMzNS5SZXFCaWxsaW5nVm91Y2hlclJlZGVlbUxpc3RIAFIYYmlsbGlu'
+    'Z1ZvdWNoZXJSZWRlZW1MaXN0Ek8KFGJpbGxpbmdfdm91Y2hlcl92b2lkGIwBIAEoCzIaLmMzNS'
+    '5SZXFCaWxsaW5nVm91Y2hlclZvaWRIAFISYmlsbGluZ1ZvdWNoZXJWb2lkQgYKBGJvZHk=');
 
 @$core.Deprecated('Use invokeResDescriptor instead')
 const InvokeRes$json = {
@@ -1036,6 +1131,87 @@ const InvokeRes$json = {
       '9': 0,
       '10': 'billingPlanChange'
     },
+    {
+      '1': 'billing_voucher_issue',
+      '3': 132,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResBillingVoucherIssue',
+      '9': 0,
+      '10': 'billingVoucherIssue'
+    },
+    {
+      '1': 'billing_entitlement_list',
+      '3': 133,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResBillingEntitlementList',
+      '9': 0,
+      '10': 'billingEntitlementList'
+    },
+    {
+      '1': 'billing_play_verify',
+      '3': 134,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResBillingPlayVerify',
+      '9': 0,
+      '10': 'billingPlayVerify'
+    },
+    {
+      '1': 'billing_play_product_list',
+      '3': 135,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResBillingPlayProductList',
+      '9': 0,
+      '10': 'billingPlayProductList'
+    },
+    {
+      '1': 'billing_voucher_limit_get',
+      '3': 136,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResBillingVoucherLimit',
+      '9': 0,
+      '10': 'billingVoucherLimitGet'
+    },
+    {
+      '1': 'billing_voucher_limit_put',
+      '3': 137,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResBillingVoucherLimit',
+      '9': 0,
+      '10': 'billingVoucherLimitPut'
+    },
+    {
+      '1': 'billing_voucher_list',
+      '3': 138,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResBillingVoucherList',
+      '9': 0,
+      '10': 'billingVoucherList'
+    },
+    {
+      '1': 'billing_voucher_redeem_list',
+      '3': 139,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResBillingVoucherRedeemList',
+      '9': 0,
+      '10': 'billingVoucherRedeemList'
+    },
+    {
+      '1': 'billing_voucher_void',
+      '3': 140,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResBillingVoucherVoid',
+      '9': 0,
+      '10': 'billingVoucherVoid'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -1114,7 +1290,22 @@ final $typed_data.Uint8List invokeResDescriptor = $convert.base64Decode(
     'iBASABKAsyFS5jMzUuUmVzQWRtaW5PcHNQZWFrc0gAUg1hZG1pbk9wc1BlYWtzEkkKEmJpbGxp'
     'bmdfcGxhbl9xdW90ZRiCASABKAsyGC5jMzUuUmVzQmlsbGluZ1BsYW5RdW90ZUgAUhBiaWxsaW'
     '5nUGxhblF1b3RlEkwKE2JpbGxpbmdfcGxhbl9jaGFuZ2UYgwEgASgLMhkuYzM1LlJlc0JpbGxp'
-    'bmdQbGFuQ2hhbmdlSABSEWJpbGxpbmdQbGFuQ2hhbmdlQgYKBGJvZHk=');
+    'bmdQbGFuQ2hhbmdlSABSEWJpbGxpbmdQbGFuQ2hhbmdlElIKFWJpbGxpbmdfdm91Y2hlcl9pc3'
+    'N1ZRiEASABKAsyGy5jMzUuUmVzQmlsbGluZ1ZvdWNoZXJJc3N1ZUgAUhNiaWxsaW5nVm91Y2hl'
+    'cklzc3VlElsKGGJpbGxpbmdfZW50aXRsZW1lbnRfbGlzdBiFASABKAsyHi5jMzUuUmVzQmlsbG'
+    'luZ0VudGl0bGVtZW50TGlzdEgAUhZiaWxsaW5nRW50aXRsZW1lbnRMaXN0EkwKE2JpbGxpbmdf'
+    'cGxheV92ZXJpZnkYhgEgASgLMhkuYzM1LlJlc0JpbGxpbmdQbGF5VmVyaWZ5SABSEWJpbGxpbm'
+    'dQbGF5VmVyaWZ5ElwKGWJpbGxpbmdfcGxheV9wcm9kdWN0X2xpc3QYhwEgASgLMh4uYzM1LlJl'
+    'c0JpbGxpbmdQbGF5UHJvZHVjdExpc3RIAFIWYmlsbGluZ1BsYXlQcm9kdWN0TGlzdBJZChliaW'
+    'xsaW5nX3ZvdWNoZXJfbGltaXRfZ2V0GIgBIAEoCzIbLmMzNS5SZXNCaWxsaW5nVm91Y2hlckxp'
+    'bWl0SABSFmJpbGxpbmdWb3VjaGVyTGltaXRHZXQSWQoZYmlsbGluZ192b3VjaGVyX2xpbWl0X3'
+    'B1dBiJASABKAsyGy5jMzUuUmVzQmlsbGluZ1ZvdWNoZXJMaW1pdEgAUhZiaWxsaW5nVm91Y2hl'
+    'ckxpbWl0UHV0Ek8KFGJpbGxpbmdfdm91Y2hlcl9saXN0GIoBIAEoCzIaLmMzNS5SZXNCaWxsaW'
+    '5nVm91Y2hlckxpc3RIAFISYmlsbGluZ1ZvdWNoZXJMaXN0EmIKG2JpbGxpbmdfdm91Y2hlcl9y'
+    'ZWRlZW1fbGlzdBiLASABKAsyIC5jMzUuUmVzQmlsbGluZ1ZvdWNoZXJSZWRlZW1MaXN0SABSGG'
+    'JpbGxpbmdWb3VjaGVyUmVkZWVtTGlzdBJPChRiaWxsaW5nX3ZvdWNoZXJfdm9pZBiMASABKAsy'
+    'Gi5jMzUuUmVzQmlsbGluZ1ZvdWNoZXJWb2lkSABSEmJpbGxpbmdWb3VjaGVyVm9pZEIGCgRib2'
+    'R5');
 
 @$core.Deprecated('Use wsReqDescriptor instead')
 const WsReq$json = {

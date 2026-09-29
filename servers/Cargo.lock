@@ -477,6 +477,7 @@ dependencies = [
  "c35_wire",
  "chrono",
  "futures-util",
+ "jsonwebtoken",
  "prost 0.13.5",
  "reqwest",
  "serde",

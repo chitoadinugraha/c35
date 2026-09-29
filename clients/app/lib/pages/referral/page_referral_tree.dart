@@ -4,9 +4,10 @@ import 'package:alienai_c35/c/pb/c35/wire.pb.dart';
 import 'package:alienai_c35/c/pb/c35/referral.pb.dart';
 import 'package:alienai_c35/c/referral/referral_forest.dart';
 import 'package:alienai_c35/c/referral/referral_shares.dart';
+import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/referral/ui_referral_forest_chart.dart';
-import 'package:alienai_c35/widgets/referral/ui_referral_code_list.dart';
+import 'package:alienai_c35/widgets/referral/ui_referral_codes_vouchers_dialog.dart';
 import 'package:alienai_c35/widgets/referral/ui_referral_user_profile_dialog.dart';
 import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:alienai_c35/widgets/ui/ui_page.dart';
@@ -267,7 +268,16 @@ class _PageReferralTreeState extends State<PageReferralTree> {
                 ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _accent))
                 : const Icon(Icons.refresh),
           ),
-          uiIconButton(tooltip: 'Referral codes', onPressed: () => referralCodeListDialog(context, conn: widget.conn), icon: const Icon(Icons.confirmation_number_outlined)),
+          uiIconButton(
+            tooltip: 'Codes & vouchers',
+            onPressed: () => referralCodesVouchersDialog(
+              context,
+              conn: widget.conn,
+              viewerIid: widget.viewerId,
+              canIssue: Session.instance.canIssueBillingVoucher,
+            ),
+            icon: const Icon(Icons.confirmation_number_outlined),
+          ),
         ],
       );
 

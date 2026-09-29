@@ -1,5 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { spawn, type ChildProcess } from 'node:child_process';
 import * as net from 'node:net';
 import { chromium, type Browser, type BrowserContext, type Download, type Page } from 'playwright';
@@ -72,7 +74,84 @@ const resolveLaunchMode = (): 'cdp' | 'playwright' => {
   return process.platform === 'win32' ? 'cdp' : 'playwright';
 };
 
+/** Defer connectOverCDP so the user can navigate and pass Cloudflare without Playwright attached. */
+const delayCdpAttach = (headed: boolean): boolean => {
+  const v = (process.env.C35_BROWSER_DELAY_CDP_ATTACH ?? '').trim().toLowerCase();
+  if (v === '0' || v === 'false' || v === 'off') return false;
+  if (v === '1' || v === 'true' || v === 'on') return headed && resolveLaunchMode() === 'cdp';
+  return headed && resolveLaunchMode() === 'cdp' && process.platform === 'win32';
+};
+
+const delayAttachWaitMs = (): number => {
+  const n = Number(process.env.C35_BROWSER_DELAY_ATTACH_MS ?? '120000');
+  return Math.min(Math.max(Number.isFinite(n) ? n : 120_000, 10_000), 600_000);
+};
+
+const noPlaywrightFallback = (): boolean => {
+  const v = (process.env.C35_BROWSER_NO_PW_FALLBACK ?? '').trim().toLowerCase();
+  if (v === '0' || v === 'false') return false;
+  return delayCdpAttach(true);
+};
+
+const useNativeMouseInput = (headed: boolean, cdpAttached: boolean): boolean => {
+  const v = (process.env.C35_BROWSER_NATIVE_INPUT ?? '').trim().toLowerCase();
+  if (v === '0' || v === 'false' || v === 'off') return false;
+  if (v === '1' || v === 'true' || v === 'on') return headed && cdpAttached && process.platform === 'win32';
+  return headed && cdpAttached && process.platform === 'win32';
+};
+
+const execFileP = promisify(execFile);
+
 const sleepMs = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+
+type CdpTarget = { type?: string; url?: string };
+
+const fetchCdpTargets = async (cdpUrl: string): Promise<CdpTarget[]> => {
+  const res = await fetch(cdpUrl.replace(/\/$/, '') + '/json/list');
+  if (!res.ok) return [];
+  return (await res.json()) as CdpTarget[];
+};
+
+const waitForCdpPage = async (cdpUrl: string, timeoutMs: number): Promise<void> => {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const targets = await fetchCdpTargets(cdpUrl);
+    if (targets.some((t) => t.type === 'page')) return;
+    await sleepMs(400);
+  }
+  throw new Error('CDP trust mode: no page target (open a tab in the Chrome window)');
+};
+
+const trustModeUserWait = async (cdpUrl: string, waitMs: number): Promise<void> => {
+  const urlNeedle = (process.env.C35_BROWSER_DELAY_ATTACH_URL ?? '').trim().toLowerCase();
+  const settleMs = Math.min(
+    Math.max(Number(process.env.C35_BROWSER_DELAY_ATTACH_SETTLE_MS ?? '0') || 0, 0),
+    waitMs,
+  );
+  const deadline = Date.now() + waitMs;
+  let navAt = 0;
+  console.error(
+    `[c35] Trust mode: Playwright not attached for up to ${Math.round(waitMs / 1000)}s — ` +
+      'navigate and complete Cloudflare in the Chrome window, then automation will attach.',
+  );
+  while (Date.now() < deadline) {
+    const targets = await fetchCdpTargets(cdpUrl);
+    const pages = targets.filter((t) => t.type === 'page');
+    const hit = pages.find((t) => {
+      const u = (t.url ?? '').toLowerCase();
+      if (!u || u === 'about:blank') return false;
+      if (urlNeedle) return u.includes(urlNeedle);
+      return u.startsWith('http://') || u.startsWith('https://');
+    });
+    if (hit && !navAt) navAt = Date.now();
+    if (navAt && Date.now() - navAt >= settleMs) {
+      console.error('[c35] Trust mode: page open — attaching Playwright shortly.');
+      return;
+    }
+    await sleepMs(1000);
+  }
+  console.error('[c35] Trust mode: wait elapsed — attaching Playwright (complete Cloudflare before using Remote tab).');
+};
 
 const resolveChromeExecutable = (): string => {
   const fromEnv = process.env.C35_CHROME_PATH?.trim();

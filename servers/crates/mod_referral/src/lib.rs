@@ -280,6 +280,7 @@ pub async fn referral_code_list(pool: &PgPool, iid: i64) -> Vec<ReferralCodeDoc>
                COALESCE(meta, '{}'::jsonb) AS meta
         FROM ai.referral_code
         WHERE issued_by_iid = $1
+          AND COALESCE((meta->>'prepaid')::boolean, false) = false
         ORDER BY created_ts DESC
         LIMIT 50
         "#,

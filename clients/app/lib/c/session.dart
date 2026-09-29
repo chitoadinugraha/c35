@@ -47,6 +47,11 @@ class Session {
 
   bool get isFinanceStaff => isRoot || globalRoles.any((r) => r == 'finance' || r == 'director');
 
+  bool get canIssueBillingVoucher =>
+      isRoot || globalRoles.any((r) => r == 'marketing' || r == 'finance' || r == 'director');
+
+  bool get canSetVoucherIssueLimit => isRoot || globalRoles.contains('director');
+
   static const _partnerMenuRoles = {'partner', 'finance', 'director', 'marketing'};
 
   bool get canUseMail => isRoot || globalRoles.any(_partnerMenuRoles.contains);

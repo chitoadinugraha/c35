@@ -1,5 +1,7 @@
 use std::sync::{Arc, Mutex};
 
+use serde_json::Value;
+
 use super::engine::process::EngineProcess;
 
 pub struct ScreencastFrame {
@@ -11,6 +13,7 @@ pub struct ScreencastFrame {
 pub struct BrowserState {
     pub engine: Mutex<Option<EngineProcess>>,
     pub frame: Mutex<Option<ScreencastFrame>>,
+    pub extension_tabs: Mutex<Option<Value>>,
 }
 
 impl BrowserState {
@@ -18,6 +21,7 @@ impl BrowserState {
         Arc::new(Self {
             engine: Mutex::new(None),
             frame: Mutex::new(None),
+            extension_tabs: Mutex::new(None),
         })
     }
 

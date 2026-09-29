@@ -228,6 +228,13 @@ async fn run() -> anyhow::Result<()> {
 
 #[tokio::main]
 async fn main() {
+    if std::env::args().any(|a| a == "--chrome-native-host") {
+        c_remote_core::log_local::boot_append(
+            "refused --chrome-native-host: this is the desktop Windows agent; \
+             point Chrome native messaging at c_remote_browser (alienai_remote_browser from remotes build)",
+        );
+        std::process::exit(2);
+    }
     let _ = c_remote_core::log_local::console_attach_from_parent();
     #[cfg(windows)]
     unsafe {

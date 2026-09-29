@@ -88,6 +88,15 @@ message InvokeReq {
     ReqAdminOpsPeaks admin_ops_peaks = 129;
     ReqBillingPlanQuote billing_plan_quote = 130;
     ReqBillingPlanChange billing_plan_change = 131;
+    ReqBillingVoucherIssue billing_voucher_issue = 132;
+    ReqBillingEntitlementList billing_entitlement_list = 133;
+    ReqBillingPlayVerify billing_play_verify = 134;
+    ReqBillingPlayProductList billing_play_product_list = 135;
+    ReqBillingVoucherLimitGet billing_voucher_limit_get = 136;
+    ReqBillingVoucherLimitPut billing_voucher_limit_put = 137;
+    ReqBillingVoucherList billing_voucher_list = 138;
+    ReqBillingVoucherRedeemList billing_voucher_redeem_list = 139;
+    ReqBillingVoucherVoid billing_voucher_void = 140;
   }
 }
 
@@ -148,6 +157,15 @@ message InvokeRes {
     ResAdminOpsPeaks admin_ops_peaks = 129;
     ResBillingPlanQuote billing_plan_quote = 130;
     ResBillingPlanChange billing_plan_change = 131;
+    ResBillingVoucherIssue billing_voucher_issue = 132;
+    ResBillingEntitlementList billing_entitlement_list = 133;
+    ResBillingPlayVerify billing_play_verify = 134;
+    ResBillingPlayProductList billing_play_product_list = 135;
+    ResBillingVoucherLimit billing_voucher_limit_get = 136;
+    ResBillingVoucherLimit billing_voucher_limit_put = 137;
+    ResBillingVoucherList billing_voucher_list = 138;
+    ResBillingVoucherRedeemList billing_voucher_redeem_list = 139;
+    ResBillingVoucherVoid billing_voucher_void = 140;
   }
 }
 

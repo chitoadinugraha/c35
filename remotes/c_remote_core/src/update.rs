@@ -302,9 +302,32 @@ pub fn update_staged_version() -> Option<i64> {
     }
 }
 
+/// Chrome extension install must not self-replace via browser/desktop OTA staging.
+pub fn ota_apply_skipped() -> bool {
+    if std::env::var("C35_SKIP_OTA").as_deref() == Ok("1") {
+        return true;
+    }
+    match std::env::var("C35_BROWSER_ENGINE").as_deref() {
+        Ok("extension" | "ext") => return true,
+        Ok(s) if s.eq_ignore_ascii_case("extension") => return true,
+        _ => {}
+    }
+    if let Ok(exe) = std::env::current_exe() {
+        let p = exe.to_string_lossy().to_lowercase();
+        if p.contains("chrome_extension\\install") || p.contains("chrome_extension/install") {
+            return true;
+        }
+    }
+    false
+}
+
 pub fn update_apply(version: i64) -> Result<(), anyhow::Error> {
     if is_dev_mode() {
         info!(version, "Dev mode active; skipping update_apply to protect development environment");
+        return Ok(());
+    }
+    if ota_apply_skipped() {
+        info!(version, "OTA apply skipped (chrome extension / C35_SKIP_OTA)");
         return Ok(());
     }
 

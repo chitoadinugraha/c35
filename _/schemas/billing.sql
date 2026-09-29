@@ -973,3 +973,89 @@ UPDATE ai.billing_profile SET
     plan_expires_ts = NOW() + INTERVAL '10 years',
     updated_ts = NOW()
 WHERE owner_iid IN (33000, 99000) AND deleted_ts IS NULL;
+
+-- ------------------------------------------------------------------------------
+-- Stacked plan / voucher entitlements (user scope; multiple active rows)
+-- ------------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS ai.billing_entitlement (
+    id                          BIGINT PRIMARY KEY,
+    owner_iid                   BIGINT NOT NULL REFERENCES ai.identity(id),
+    source                      VARCHAR(32) NOT NULL DEFAULT 'voucher',
+    referral_code               VARCHAR(64) REFERENCES ai.referral_code(code),
+    purchase_id                 BIGINT,
+    plan_slug                   VARCHAR(32) NOT NULL DEFAULT '',
+    billing_period              VARCHAR(16) NOT NULL DEFAULT 'monthly',
+    duration_months             INT NOT NULL DEFAULT 0,
+    credit_idr                  NUMERIC(16, 2) NOT NULL DEFAULT 0,
+    alien_pool_limit_idr        NUMERIC(16, 2) NOT NULL DEFAULT 0,
+    frontier_pool_limit_idr     NUMERIC(16, 2) NOT NULL DEFAULT 0,
+    alien_allow_5h_limit        NUMERIC(12, 6) NOT NULL DEFAULT 0,
+    alien_allow_weekly_limit    NUMERIC(12, 6) NOT NULL DEFAULT 0,
+    starts_ts                   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_ts                  TIMESTAMPTZ NOT NULL,
+    revoked_ts                  TIMESTAMPTZ,
+    meta                        JSONB NOT NULL DEFAULT '{}',
+    created_ts                  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_ts                  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_billing_entitlement_owner_active
+    ON ai.billing_entitlement (owner_iid, expires_ts DESC)
+    WHERE revoked_ts IS NULL;
+
+-- ------------------------------------------------------------------------------
+-- Prepaid voucher redeem audit (issuer-facing history)
+-- ------------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS ai.billing_voucher_redeem (
+    id                  BIGINT PRIMARY KEY,
+    referral_code       VARCHAR(64) NOT NULL REFERENCES ai.referral_code(code),
+    issuer_iid          BIGINT NOT NULL REFERENCES ai.identity(id),
+    buyer_iid           BIGINT NOT NULL REFERENCES ai.identity(id),
+    purchase_id         BIGINT,
+    face_value_idr      NUMERIC(16, 2) NOT NULL DEFAULT 0,
+    list_price_idr      NUMERIC(16, 2) NOT NULL DEFAULT 0,
+    redeemed_ts         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_billing_voucher_redeem_issuer
+    ON ai.billing_voucher_redeem (issuer_iid, redeemed_ts DESC);
+
+CREATE INDEX IF NOT EXISTS idx_billing_voucher_redeem_code
+    ON ai.billing_voucher_redeem (referral_code);
+
+-- ------------------------------------------------------------------------------
+-- Google Play purchase verification (idempotent by purchase_token)
+-- ------------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS ai.billing_play_purchase (
+    id                  BIGINT PRIMARY KEY,
+    owner_iid           BIGINT NOT NULL REFERENCES ai.identity(id),
+    product_id          VARCHAR(128) NOT NULL,
+    purchase_token      VARCHAR(512) NOT NULL,
+    order_id            VARCHAR(128) NOT NULL DEFAULT '',
+    package_name        VARCHAR(128) NOT NULL DEFAULT 'id.alienai',
+    kind                VARCHAR(16) NOT NULL,
+    plan_slug           VARCHAR(32) NOT NULL DEFAULT '',
+    billing_period      VARCHAR(16) NOT NULL DEFAULT '',
+    credit_idr          NUMERIC(16, 2) NOT NULL DEFAULT 0,
+    duration_months     INT NOT NULL DEFAULT 0,
+    entitlement_id      BIGINT,
+    google_response     JSONB NOT NULL DEFAULT '{}',
+    status              VARCHAR(16) NOT NULL DEFAULT 'verified',
+    created_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT chk_billing_play_purchase_kind CHECK (kind IN ('plan', 'credit')),
+    CONSTRAINT chk_billing_play_purchase_status CHECK (
+        status IN ('verified', 'stub', 'failed')
+    )
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_billing_play_purchase_token
+    ON ai.billing_play_purchase (purchase_token);
+
+CREATE INDEX IF NOT EXISTS idx_billing_play_purchase_owner
+    ON ai.billing_play_purchase (owner_iid, created_ts DESC);

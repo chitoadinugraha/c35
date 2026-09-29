@@ -26,3 +26,7 @@ image = { version = "0.25", default-features = false, features = ["jpeg"] }
 # Non-Windows CI builds omit this path dep; SCTP JPEG fallback remains available.
 [target.'cfg(windows)'.dependencies]
 c_remote_windows = { path = "../c_remote_windows" }
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_System_Diagnostics_ToolHelp",
+] }

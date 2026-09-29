@@ -10,7 +10,10 @@ mod billing_history;
 mod billing_http;
 mod billing_midtrans;
 mod billing_on_demand;
+mod billing_entitlement;
 mod billing_package;
+mod billing_play;
+mod billing_voucher;
 mod billing_pool;
 mod billing_profile;
 mod billing_promotion;
@@ -36,7 +39,14 @@ pub use billing_cost::{
     IMAGE_GEN_RETAIL_USD, IMAGE_GEN_WHOLESALE_USD, RETAIL_MARKUP, VOICE_STT_HOLD_USD,
     VOICE_STT_USD_PER_MIN, VOICE_TTS_HOLD_USD, VOICE_TTS_USD_PER_1K_CHARS,
 };
+pub use billing_entitlement::{billing_entitlement_list, billing_entitlement_recompute};
 pub use billing_package::{billing_package_preview, billing_package_redeem};
+pub use billing_play::{billing_play_product_list, billing_play_verify, play_price_idr, PLAY_MARKUP};
+pub use billing_voucher::{
+    billing_voucher_before_code_delete, billing_voucher_issue, billing_voucher_limit_get,
+    billing_voucher_limit_put, billing_voucher_list, billing_voucher_redeem_list, billing_voucher_void,
+    voucher_log_redeem, voucher_on_redeemed, voucher_settle_expired_code,
+};
 pub use billing_pool::{
     pool_alien_deduct_idr, pool_alien_deduct_usd, pool_apply_deduct, pool_deduct_apply,
     pool_deduct_idr, pool_frontier_deduct_idr, pool_frontier_deduct_usd, pool_limits_from_multiplier,

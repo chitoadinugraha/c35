@@ -1,0 +1,10 @@
+{
+  "name": "com.alienai.c35.remote",
+  "description": "Alien AI Remote - native messaging bridge to alienai_remote_browser.exe",
+  "path": "REPLACE_WITH_HOST_EXE",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://REPLACE_WITH_EXTENSION_ID/"
+  ],
+  "args": ["--chrome-native-host"]
+}

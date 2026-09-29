@@ -22,6 +22,7 @@ Run from `_/scripts/deploy` after `dart pub get`. Set env vars (see below) or us
 | `play_store_upload_prod.dart` | AAB + APK | Play prod + CAS | `android` | Once |
 | `play_store_upload_promote_prod.dart` | AAB (+ APK on full run) | internal → prod | `android` | Once |
 | `play_store_upload_promote_prod.dart --finish-cas-only N` | *(existing APK)* | S3/CAS + `/version` | `android` | Unless skipped |
+| `play_store_listing_sync.dart` | *(text only)* | Play listing fields | **No** | **No** |
 | `windows_upload_prod.dart` | Windows ZIP | CAS | `windows` | Once |
 
 **PowerShell:** `.\_\scripts\deploy\publish_app_release.ps1 -AndroidPromote` (same as promote script row).
@@ -112,6 +113,8 @@ Web upload does **not** require `DEPLOY_AUTH_TOKEN` (S3 only). Version publish s
 | Keystore alias | `alien` |
 
 Play credentials resolution order: `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` → `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH` → default file above.
+
+**Store listing copy** lives in [`_/deployments/play-store/`](../../_/deployments/play-store/README.md). Push with `dart run deploy_app/play_store_listing_sync.dart` (optional locale arg, default `en-US`).
 
 ---
 

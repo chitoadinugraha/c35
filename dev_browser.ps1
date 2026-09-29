@@ -26,6 +26,14 @@ $env:C35_SERVER_URL = $ServerUrl.TrimEnd('/')
 $env:C35_AGENT_STORAGE = 'browser-dev'
 Remove-Item Env:C35_BROWSER_ENGINE -ErrorAction SilentlyContinue
 $env:C35_BROWSER_ENGINE_WORKER = $workerJs
+$devCfgDir = Join-Path $env:LOCALAPPDATA 'AlienAI\browser-dev'
+$devCfg = Join-Path $devCfgDir 'config.json'
+$prodCfg = Join-Path $env:LOCALAPPDATA 'AlienAI\browser\config.json'
+if (-not (Test-Path $devCfg) -and (Test-Path $prodCfg) -and -not $Unpair) {
+    Write-Host "==> first dev run: copy paired config from browser\ to browser-dev\"
+    New-Item -ItemType Directory -Force -Path $devCfgDir | Out-Null
+    Copy-Item -LiteralPath $prodCfg -Destination $devCfg -Force
+}
 if ($Unpair) {
     foreach ($cfg in @(
             (Join-Path $env:LOCALAPPDATA 'AlienAI\browser\config.json'),
@@ -69,7 +77,7 @@ Write-Host ''
 try {
     $null = Invoke-WebRequest -Uri "$($env:C35_SERVER_URL)/health" -UseBasicParsing -TimeoutSec 3
 } catch {
-    Write-Warning "Dev server not reachable at $($env:C35_SERVER_URL) — start .\dev_server.ps1 in another terminal."
+    Write-Warning ('Dev server not reachable at ' + $env:C35_SERVER_URL + '; start .\dev_server.ps1 in another terminal.')
 }
 Write-Host 'Tip: run .\dev_server.ps1 in another terminal; pair device_type=browser; use MCP tool_exec browser.page.screenshot / browser.page.observe.'
 Write-Host '      Re-pair locally: .\dev_browser.ps1 -Unpair'

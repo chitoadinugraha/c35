@@ -20,15 +20,17 @@ use c_remote_core::pair::{pair_poll, pair_register_meta, pair_should_reroll, Pai
 
 use serde_json::{json, Value};
 
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 
 
-use super::ipc::{agent_ipc_to_ext_push, HostIpcClient};
+use super::ipc::{spawn_agent_ipc_forward, ExtRpcResponse, HostIpcClient};
 
-use super::messages::{ExtRequest, ExtResponse};
+use super::messages::{AgentIpcMsg, ExtRequest, ExtResponse};
 
-use crate::extension_agent::ensure_extension_agent_running;
+use crate::extension_ipc::EXTENSION_IPC_NOT_READY_MSG;
+
+use crate::extension_agent::wait_for_extension_agent;
 use crate::pair_loop::chrome_extension_device_name;
 
 
@@ -88,30 +90,30 @@ impl Default for PairHostState {
 
 
 pub fn run_chrome_native_host() -> anyhow::Result<()> {
-    std::env::set_var("C35_NATIVE_MESSAGING_HOST", "1");
     c_remote_core::log_local::init();
-    ensure_extension_agent_running();
-
-
 
     let pair_state = Arc::new(Mutex::new(PairHostState::default()));
-
-    let ipc = {
-        let mut client = None;
-        for _ in 0..12 {
+    let ipc_slot: Arc<Mutex<Option<HostIpcClient>>> = Arc::new(Mutex::new(None));
+    let ipc_bg = Arc::clone(&ipc_slot);
+    thread::spawn(move || {
+        wait_for_extension_agent(Duration::from_secs(2));
+        for attempt in 0..30 {
             match HostIpcClient::connect() {
                 Ok(c) => {
-                    client = Some(c);
-                    break;
+                    if let Ok(mut g) = ipc_bg.lock() {
+                        *g = Some(c);
+                    }
+                    return;
                 }
                 Err(e) => {
-                    warn!("extension ipc not connected (retry): {e:#}");
-                    thread::sleep(Duration::from_millis(350));
+                    if attempt == 0 {
+                        debug!("extension ipc not connected (retry): {e:#}");
+                    }
+                    thread::sleep(Duration::from_millis(200));
                 }
             }
         }
-        client
-    };
+    });
 
 
 
@@ -129,38 +131,14 @@ pub fn run_chrome_native_host() -> anyhow::Result<()> {
 
 
 
+    let stdout = Arc::new(Mutex::new(std::io::stdout()));
+    spawn_agent_ipc_forward(Arc::clone(&ipc_slot), Arc::clone(&stdout));
     let pair_state_poll = pair_state.clone();
-
     thread::spawn(move || pair_poll_thread(pair_state_poll));
-
-
 
     let mut stdin = std::io::stdin();
 
-    let mut stdout = std::io::stdout();
-
-
-
     loop {
-
-        if let Some(ipc) = &ipc {
-
-            for cmd in ipc.drain_agent_commands().unwrap_or_default() {
-
-                if let Some(push) = agent_ipc_to_ext_push(&cmd) {
-
-                    let v = serde_json::to_value(&push)?;
-
-                    write_message(&mut stdout, &v)?;
-
-                }
-
-            }
-
-        }
-
-
-
         let req = match read_message(&mut stdin) {
 
             Ok(Some(v)) => v,
@@ -184,21 +162,29 @@ pub fn run_chrome_native_host() -> anyhow::Result<()> {
             Ok(r) => r,
 
             Err(e) => {
-
-                write_response(&mut stdout, ExtResponse::err(format!("invalid request: {e}")))?;
-
+                if let Ok(mut w) = stdout.lock() {
+                    let _ = write_response(
+                        &mut *w,
+                        ExtResponse::err(format!("invalid request: {e}")),
+                    );
+                }
                 continue;
-
             }
-
         };
 
-
-
-        let resp = handle_request(&req, &pair_state, ipc.as_ref())?;
-
-        write_response(&mut stdout, resp)?;
-
+        let resp = match ipc_slot.lock() {
+            Ok(guard) => match handle_request(&req, &pair_state, guard.as_ref()) {
+                Ok(r) => r,
+                Err(e) => ExtResponse::err(format!("{e:#}")),
+            },
+            Err(_) => ExtResponse::err("ipc lock"),
+        };
+        if let Ok(mut w) = stdout.lock() {
+            if let Err(e) = write_response(&mut *w, resp) {
+                warn!("native host write: {e:#}");
+                break;
+            }
+        }
     }
 
 
@@ -286,7 +272,7 @@ fn pair_poll_thread(pair_state: Arc<Mutex<PairHostState>>) {
             }
 
             info!(device_iid, "chrome extension paired");
-            ensure_extension_agent_running();
+            wait_for_extension_agent(Duration::from_secs(3));
 
             continue;
 
@@ -337,13 +323,16 @@ fn handle_request(
         }
 
         "pair.start" => {
+            if session_key_load().is_some() {
+                let mut r = ExtResponse::ok();
+                r.status = Some("claimed".into());
+                r.device_iid = Some(c_remote_core::config::device_iid_load().unwrap_or(0));
+                return Ok(r);
+            }
 
             let rt = tokio::runtime::Builder::new_current_thread()
-
                 .enable_all()
-
                 .build()
-
                 .context("tokio")?;
 
             let name = req
@@ -506,6 +495,37 @@ fn handle_request(
 
         "tabs.activate" => Ok(ExtResponse::ok()),
 
+        "agent.status" => {
+            let mut r = ExtResponse::ok();
+            r.data = agent_status_payload(ipc);
+            Ok(r)
+        }
+
+        "rpc.result" => {
+            let req_id = req
+                .extra
+                .get("req_id")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("req_id required"))?;
+            let ok = req.extra.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
+            let error = req
+                .extra
+                .get("error")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            let result = req.extra.get("result").cloned();
+            if let Some(ipc) = ipc {
+                let resp = ExtRpcResponse {
+                    req_id: req_id.to_string(),
+                    ok,
+                    error,
+                    result,
+                };
+                let _ = ipc.send_rpc_response(&resp);
+            }
+            Ok(ExtResponse::ok())
+        }
+
         other => Ok(ExtResponse::err(format!("unknown cmd: {other}"))),
 
     }
@@ -513,6 +533,56 @@ fn handle_request(
 }
 
 
+
+fn agent_status_payload(ipc: Option<&HostIpcClient>) -> Value {
+    let fetch = |c: &HostIpcClient| -> Value {
+        match c.fetch_agent_status(Duration::from_secs(2)) {
+            Ok(AgentIpcMsg::StatusResult {
+                ws_connected,
+                webrtc_sessions,
+                webrtc_connecting,
+                device_iid,
+                agent_version,
+                server_url,
+                log_lines,
+            }) => {
+                json!({
+                    "native_ipc": true,
+                    "agent_reachable": true,
+                    "ws_connected": ws_connected,
+                    "webrtc_sessions": webrtc_sessions,
+                    "webrtc_connecting": webrtc_connecting,
+                    "webrtc_subtitle": c_remote_core::agent_ui::user_app_subtitle(webrtc_connecting),
+                    "device_iid": device_iid,
+                    "agent_version": agent_version,
+                    "server_url": server_url,
+                    "log_lines": log_lines,
+                })
+            }
+            Ok(_) => json!({
+                "native_ipc": true,
+                "agent_reachable": false,
+                "agent_error": "unexpected status reply",
+            }),
+            Err(e) => json!({
+                "native_ipc": true,
+                "agent_reachable": false,
+                "agent_error": format!("{e:#}"),
+            }),
+        }
+    };
+    if let Some(c) = ipc {
+        return fetch(c);
+    }
+    if let Ok(c) = HostIpcClient::connect() {
+        return fetch(&c);
+    }
+    json!({
+        "native_ipc": false,
+        "agent_reachable": false,
+        "agent_error": EXTENSION_IPC_NOT_READY_MSG,
+    })
+}
 
 fn read_message(r: &mut impl Read) -> anyhow::Result<Option<Value>> {
 

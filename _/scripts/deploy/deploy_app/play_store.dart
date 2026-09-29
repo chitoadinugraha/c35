@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:googleapis/androidpublisher/v3.dart';
 import 'package:googleapis_auth/auth_io.dart';
+import 'package:path/path.dart' as p;
 
 import '../deploy_lib.dart';
 import 'build_android.dart';
@@ -10,12 +11,14 @@ import 'update_version.dart';
 
 String get _packageName => Platform.environment['PLAY_STORE_PACKAGE_NAME'] ?? playStorePackageName;
 
-Future<AndroidPublisherApi> _playStoreApi() async {
+Future<AndroidPublisherApi> playStoreApi() async {
   final json = await playStoreCredentialsJson();
   final creds = ServiceAccountCredentials.fromJson(json);
   final client = await clientViaServiceAccount(creds, [AndroidPublisherApi.androidpublisherScope]);
   return AndroidPublisherApi(client);
 }
+
+Future<AndroidPublisherApi> _playStoreApi() => playStoreApi();
 
 Future<int> uploadAabToPlayStore(String buildOutputDir, {required String track}) async {
   final api = await runStep('Load Play Store credentials', _playStoreApi);
@@ -371,4 +374,56 @@ Future<void> playStoreClearTrack(String track) async {
   });
 
   stdout.writeln('✓ Play Store: $track track cleared');
+}
+
+String _playListingDir(String locale) =>
+    p.join(repoRoot(), '_', 'deployments', 'play-store', locale);
+
+Future<String> _playReadListingField(String locale, String fileName) async {
+  final path = p.join(_playListingDir(locale), fileName);
+  final f = File(path);
+  if (!f.existsSync()) throw StateError('Missing listing file: $path');
+  return (await f.readAsString()).trim();
+}
+
+Future<void> playStoreListingSync({required String locale}) async {
+  final title = await _playReadListingField(locale, 'title.txt');
+  final shortDescription = await _playReadListingField(locale, 'short_description.txt');
+  final fullDescription = await _playReadListingField(locale, 'full_description.txt');
+  if (title.length > 30) throw StateError('title.txt is ${title.length} chars (max 30)');
+  if (shortDescription.length > 80) {
+    throw StateError('short_description.txt is ${shortDescription.length} chars (max 80)');
+  }
+  if (fullDescription.length > 4000) {
+    throw StateError('full_description.txt is ${fullDescription.length} chars (max 4000)');
+  }
+
+  final api = await runStep('Load Play Store credentials', playStoreApi);
+  final edit = await runStep('Create Play Store edit session (listing)', () async {
+    final res = await api.edits.insert(AppEdit(), _packageName);
+    if (res.id == null) throw StateError('Failed to create edit');
+    return res;
+  });
+  final editId = edit.id!;
+
+  await runStep('Update listing $locale', () async {
+    await api.edits.listings.update(
+      Listing(title: title, shortDescription: shortDescription, fullDescription: fullDescription),
+      _packageName,
+      editId,
+      locale,
+    );
+  });
+
+  await runStep('Commit Play Store edit (listing)', () async {
+    await api.edits.commit(_packageName, editId);
+  });
+
+  stdout.writeln('Play Store listing updated for $_packageName ($locale).');
+}
+
+Future<void> runPlayStoreListingSyncCli(List<String> args) async {
+  deployLoadEnvLocal();
+  final locale = args.isNotEmpty ? args.first : 'en-US';
+  await playStoreListingSync(locale: locale);
 }

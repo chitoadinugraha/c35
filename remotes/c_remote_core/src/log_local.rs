@@ -16,6 +16,9 @@ static CONSOLE_VISIBLE: OnceLock<bool> = OnceLock::new();
 /// Attach to parent console when launched from cmd/PowerShell; no-op window when started from Explorer.
 pub fn console_attach_from_parent() -> bool {
     *CONSOLE_VISIBLE.get_or_init(|| {
+        if std::env::var("C35_NATIVE_MESSAGING_HOST").as_deref() == Ok("1") {
+            return false;
+        }
         #[cfg(windows)]
         {
             use windows::Win32::System::Console::{AttachConsole, ATTACH_PARENT_PROCESS};

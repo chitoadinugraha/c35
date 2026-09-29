@@ -61,14 +61,16 @@ pub async fn conn_ws_run(
     let webrtc = WebrtcHub::new(device_iid, out_tx, dispatch_ctx);
 
     crate::update::active_sessions_set(0);
-    if let Some(v) = crate::update::update_staged_version() {
-        if crate::update::is_idle() {
-            info!(version = v, "staged update ready; applying after WS connect");
-            tokio::spawn(async move {
-                if let Err(e) = crate::update::update_apply(v) {
-                    warn!("apply staged update on connect failed: {e}");
-                }
-            });
+    if !crate::update::ota_apply_skipped() {
+        if let Some(v) = crate::update::update_staged_version() {
+            if crate::update::is_idle() {
+                info!(version = v, "staged update ready; applying after WS connect");
+                tokio::spawn(async move {
+                    if let Err(e) = crate::update::update_apply(v) {
+                        warn!("apply staged update on connect failed: {e}");
+                    }
+                });
+            }
         }
     }
     info!(device_iid, "==> [WS CONNECTED] Agent online & control socket ready");

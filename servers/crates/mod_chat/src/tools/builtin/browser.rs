@@ -3,9 +3,7 @@ use crate::tool;
 use crate::tools::context::ToolContext;
 use crate::tools::device_screenshot_artifact::device_screenshot_attach_artifact;
 use base64::Engine as _;
-use c35_mod_device::{
-    device_browser_engine, remote_device_browser_invoke, remote_device_task_run_enqueue,
-};
+use c35_mod_device::{remote_device_browser_invoke, remote_device_task_run_enqueue};
 use c35_mod_file::{cas_bytes_get, cas_dir_default};
 use serde_json::{json, Value};
 
@@ -86,7 +84,7 @@ tool! {
     struct: BrowserTaskRunTool,
     name: "browser.task.run",
     aliases: ["browser_task_run", "remote_browser_task"],
-    description: "Run Playwright automation steps on a paired Remote browser device (type=browser). Use slot_id for persistent pages and steps[] for navigate, click, fill, extract, and tab ops. Async on the agent; returns run_id.",
+    description: "Run automation steps on a paired Remote browser device (type=browser). Playwright or Chrome extension (MV3): navigate, click, fill, extract, wait, tab ops. Async on the agent; returns run_id.",
     topics: ["device", "browser"],
     always: ["device", "browser"],
     rag_phrases: ["remote browser", "browser automation", "playwright", "open url on browser", "scrape page", "browser task"],
@@ -103,14 +101,6 @@ tool! {
             Ok(iid) => iid,
             Err(v) => return Ok(v),
         };
-        if matches!(
-            device_browser_engine(&ctx.pool, device_iid).await,
-            Ok(ref engine) if engine.eq_ignore_ascii_case("extension")
-        ) {
-            return Ok(browser_fail(
-                "browser.task.run is not available on Chrome extension devices (Playwright only). Use the Remote tab for view and control.",
-            ));
-        }
         let slot_raw = arg_str(&args, "slot_id");
         let slot_id = if slot_raw.is_empty() { "default".to_string() } else { slot_raw };
         let steps = args.get("steps").cloned().unwrap_or(json!([]));
@@ -180,7 +170,7 @@ tool! {
     struct: BrowserPageScreenshotTool,
     name: "browser.page.screenshot",
     aliases: ["browser_page_screenshot", "remote_browser_screenshot"],
-    description: "Capture a JPEG screenshot of the active Remote browser tab (Playwright engine). Returns CAS artifact for vision/debug (e.g. Cloudflare Turnstile state).",
+    description: "Capture a JPEG screenshot of a Remote browser tab (Playwright or Chrome extension). Returns CAS artifact for vision/debug.",
     topics: ["device", "browser"],
     always: ["device", "browser"],
     rag_phrases: ["browser screenshot", "capture browser tab", "see browser page", "cloudflare check browser"],
@@ -197,14 +187,6 @@ tool! {
             Ok(iid) => iid,
             Err(v) => return Ok(v),
         };
-        if matches!(
-            device_browser_engine(&ctx.pool, device_iid).await,
-            Ok(ref engine) if engine.eq_ignore_ascii_case("extension")
-        ) {
-            return Ok(browser_fail(
-                "browser.page.screenshot is Playwright-only; use browser.page.observe or the Remote tab on extension devices.",
-            ));
-        }
         let mut params = json!({});
         let tab_id = arg_str(&args, "tab_id");
         if !tab_id.is_empty() {

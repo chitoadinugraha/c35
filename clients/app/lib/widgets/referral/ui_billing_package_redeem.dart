@@ -1,17 +1,17 @@
 import 'dart:async';
 
 import 'package:alienai_c35/c/api/referral_conn.dart';
-import 'package:alienai_c35/c/billing/billing_format.dart';
 import 'package:alienai_c35/c/billing/billing_store_sync.dart';
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
-import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/c/referral/referral_commission_api.dart';
 import 'package:alienai_c35/c/referral/referral_format.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/c/ui/ui_format.dart';
 import 'package:alienai_c35/widgets/io/in_referral_code.dart';
 import 'package:alienai_c35/widgets/referral/ui_referral_commission_breakdown.dart';
+import 'package:alienai_c35/widgets/billing/ui_billing_purchase_success_dialog.dart';
 import 'package:alienai_c35/widgets/ui/ui_error.dart';
+import 'package:fixnum/fixnum.dart';
 import 'package:flutter/material.dart';
 
 Future<bool> billingPackageRedeemDialog(BuildContext context, {required ReferralConn conn}) async {
@@ -102,16 +102,20 @@ class _BillingPackageRedeemDialogState extends State<_BillingPackageRedeemDialog
     try {
       final res = await billingPackageRedeemAndSync(widget.conn, code: norm);
       if (!mounted) return;
-      final remaining = billingWalletBalanceLabel(AppStore.instance.billing, billingPrimaryCurrency(AppStore.instance.billing ?? BillingAccount()));
+      final prepaid = res.amountIdr <= 0;
+      final previewCharge = _preview?.amountIdr ?? 0;
+      final charged = res.amountIdr > 0 ? res.amountIdr : previewCharge;
       Navigator.pop(context, true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            res.packageName.trim().isNotEmpty
-                ? 'Redeemed ${res.packageName} — Rp ${uiFmtGroupedInt(res.amountIdr.round())} charged · balance $remaining'
-                : 'Package redeemed — Rp ${uiFmtGroupedInt(res.amountIdr.round())} charged · balance $remaining',
-          ),
-        ),
+      final name = res.packageName.trim().isNotEmpty ? res.packageName : 'Package';
+      final subtitle = prepaid
+          ? 'Prepaid voucher — no wallet charge'
+          : 'Rp ${uiFmtGroupedInt(charged.round())} charged from wallet';
+      await billingPurchaseSuccessDialogShow(
+        context,
+        entitlements: res.entitlements,
+        highlightEntitlementId: res.entitlementId > Int64.ZERO ? res.entitlementId : Int64.ZERO,
+        title: 'Redeemed $name',
+        subtitle: subtitle,
       );
     } catch (e) {
       if (!mounted) return;

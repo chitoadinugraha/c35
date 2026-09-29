@@ -98,6 +98,15 @@ enum InvokeReq_Body {
   adminOpsPeaks,
   billingPlanQuote,
   billingPlanChange,
+  billingVoucherIssue,
+  billingEntitlementList,
+  billingPlayVerify,
+  billingPlayProductList,
+  billingVoucherLimitGet,
+  billingVoucherLimitPut,
+  billingVoucherList,
+  billingVoucherRedeemList,
+  billingVoucherVoid,
   notSet
 }
 
@@ -158,6 +167,15 @@ class InvokeReq extends $pb.GeneratedMessage {
     $12.ReqAdminOpsPeaks? adminOpsPeaks,
     $0.ReqBillingPlanQuote? billingPlanQuote,
     $0.ReqBillingPlanChange? billingPlanChange,
+    $0.ReqBillingVoucherIssue? billingVoucherIssue,
+    $0.ReqBillingEntitlementList? billingEntitlementList,
+    $0.ReqBillingPlayVerify? billingPlayVerify,
+    $0.ReqBillingPlayProductList? billingPlayProductList,
+    $0.ReqBillingVoucherLimitGet? billingVoucherLimitGet,
+    $0.ReqBillingVoucherLimitPut? billingVoucherLimitPut,
+    $0.ReqBillingVoucherList? billingVoucherList,
+    $0.ReqBillingVoucherRedeemList? billingVoucherRedeemList,
+    $0.ReqBillingVoucherVoid? billingVoucherVoid,
   }) {
     final result = InvokeReq._();
     if (reqId != null) result.reqId = reqId;
@@ -235,6 +253,23 @@ class InvokeReq extends $pb.GeneratedMessage {
     if (adminOpsPeaks != null) result.adminOpsPeaks = adminOpsPeaks;
     if (billingPlanQuote != null) result.billingPlanQuote = billingPlanQuote;
     if (billingPlanChange != null) result.billingPlanChange = billingPlanChange;
+    if (billingVoucherIssue != null)
+      result.billingVoucherIssue = billingVoucherIssue;
+    if (billingEntitlementList != null)
+      result.billingEntitlementList = billingEntitlementList;
+    if (billingPlayVerify != null) result.billingPlayVerify = billingPlayVerify;
+    if (billingPlayProductList != null)
+      result.billingPlayProductList = billingPlayProductList;
+    if (billingVoucherLimitGet != null)
+      result.billingVoucherLimitGet = billingVoucherLimitGet;
+    if (billingVoucherLimitPut != null)
+      result.billingVoucherLimitPut = billingVoucherLimitPut;
+    if (billingVoucherList != null)
+      result.billingVoucherList = billingVoucherList;
+    if (billingVoucherRedeemList != null)
+      result.billingVoucherRedeemList = billingVoucherRedeemList;
+    if (billingVoucherVoid != null)
+      result.billingVoucherVoid = billingVoucherVoid;
     return result;
   }
 
@@ -300,6 +335,15 @@ class InvokeReq extends $pb.GeneratedMessage {
     129: InvokeReq_Body.adminOpsPeaks,
     130: InvokeReq_Body.billingPlanQuote,
     131: InvokeReq_Body.billingPlanChange,
+    132: InvokeReq_Body.billingVoucherIssue,
+    133: InvokeReq_Body.billingEntitlementList,
+    134: InvokeReq_Body.billingPlayVerify,
+    135: InvokeReq_Body.billingPlayProductList,
+    136: InvokeReq_Body.billingVoucherLimitGet,
+    137: InvokeReq_Body.billingVoucherLimitPut,
+    138: InvokeReq_Body.billingVoucherList,
+    139: InvokeReq_Body.billingVoucherRedeemList,
+    140: InvokeReq_Body.billingVoucherVoid,
     0: InvokeReq_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -358,7 +402,16 @@ class InvokeReq extends $pb.GeneratedMessage {
       128,
       129,
       130,
-      131
+      131,
+      132,
+      133,
+      134,
+      135,
+      136,
+      137,
+      138,
+      139,
+      140
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aInt64(2, _omitFieldNames ? '' : 'callerIid')
@@ -492,6 +545,33 @@ class InvokeReq extends $pb.GeneratedMessage {
     ..aOM<$0.ReqBillingPlanChange>(
         131, _omitFieldNames ? '' : 'billingPlanChange',
         subBuilder: $0.ReqBillingPlanChange.$_createMessage)
+    ..aOM<$0.ReqBillingVoucherIssue>(
+        132, _omitFieldNames ? '' : 'billingVoucherIssue',
+        subBuilder: $0.ReqBillingVoucherIssue.$_createMessage)
+    ..aOM<$0.ReqBillingEntitlementList>(
+        133, _omitFieldNames ? '' : 'billingEntitlementList',
+        subBuilder: $0.ReqBillingEntitlementList.$_createMessage)
+    ..aOM<$0.ReqBillingPlayVerify>(
+        134, _omitFieldNames ? '' : 'billingPlayVerify',
+        subBuilder: $0.ReqBillingPlayVerify.$_createMessage)
+    ..aOM<$0.ReqBillingPlayProductList>(
+        135, _omitFieldNames ? '' : 'billingPlayProductList',
+        subBuilder: $0.ReqBillingPlayProductList.$_createMessage)
+    ..aOM<$0.ReqBillingVoucherLimitGet>(
+        136, _omitFieldNames ? '' : 'billingVoucherLimitGet',
+        subBuilder: $0.ReqBillingVoucherLimitGet.$_createMessage)
+    ..aOM<$0.ReqBillingVoucherLimitPut>(
+        137, _omitFieldNames ? '' : 'billingVoucherLimitPut',
+        subBuilder: $0.ReqBillingVoucherLimitPut.$_createMessage)
+    ..aOM<$0.ReqBillingVoucherList>(
+        138, _omitFieldNames ? '' : 'billingVoucherList',
+        subBuilder: $0.ReqBillingVoucherList.$_createMessage)
+    ..aOM<$0.ReqBillingVoucherRedeemList>(
+        139, _omitFieldNames ? '' : 'billingVoucherRedeemList',
+        subBuilder: $0.ReqBillingVoucherRedeemList.$_createMessage)
+    ..aOM<$0.ReqBillingVoucherVoid>(
+        140, _omitFieldNames ? '' : 'billingVoucherVoid',
+        subBuilder: $0.ReqBillingVoucherVoid.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -566,6 +646,15 @@ class InvokeReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(129)
   @$pb.TagNumber(130)
   @$pb.TagNumber(131)
+  @$pb.TagNumber(132)
+  @$pb.TagNumber(133)
+  @$pb.TagNumber(134)
+  @$pb.TagNumber(135)
+  @$pb.TagNumber(136)
+  @$pb.TagNumber(137)
+  @$pb.TagNumber(138)
+  @$pb.TagNumber(139)
+  @$pb.TagNumber(140)
   InvokeReq_Body whichBody() => _InvokeReq_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(10)
   @$pb.TagNumber(11)
@@ -619,6 +708,15 @@ class InvokeReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(129)
   @$pb.TagNumber(130)
   @$pb.TagNumber(131)
+  @$pb.TagNumber(132)
+  @$pb.TagNumber(133)
+  @$pb.TagNumber(134)
+  @$pb.TagNumber(135)
+  @$pb.TagNumber(136)
+  @$pb.TagNumber(137)
+  @$pb.TagNumber(138)
+  @$pb.TagNumber(139)
+  @$pb.TagNumber(140)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -1237,6 +1335,115 @@ class InvokeReq extends $pb.GeneratedMessage {
   void clearBillingPlanChange() => $_clearField(131);
   @$pb.TagNumber(131)
   $0.ReqBillingPlanChange ensureBillingPlanChange() => $_ensure(53);
+
+  @$pb.TagNumber(132)
+  $0.ReqBillingVoucherIssue get billingVoucherIssue => $_getN(54);
+  @$pb.TagNumber(132)
+  set billingVoucherIssue($0.ReqBillingVoucherIssue value) =>
+      $_setField(132, value);
+  @$pb.TagNumber(132)
+  $core.bool hasBillingVoucherIssue() => $_has(54);
+  @$pb.TagNumber(132)
+  void clearBillingVoucherIssue() => $_clearField(132);
+  @$pb.TagNumber(132)
+  $0.ReqBillingVoucherIssue ensureBillingVoucherIssue() => $_ensure(54);
+
+  @$pb.TagNumber(133)
+  $0.ReqBillingEntitlementList get billingEntitlementList => $_getN(55);
+  @$pb.TagNumber(133)
+  set billingEntitlementList($0.ReqBillingEntitlementList value) =>
+      $_setField(133, value);
+  @$pb.TagNumber(133)
+  $core.bool hasBillingEntitlementList() => $_has(55);
+  @$pb.TagNumber(133)
+  void clearBillingEntitlementList() => $_clearField(133);
+  @$pb.TagNumber(133)
+  $0.ReqBillingEntitlementList ensureBillingEntitlementList() => $_ensure(55);
+
+  @$pb.TagNumber(134)
+  $0.ReqBillingPlayVerify get billingPlayVerify => $_getN(56);
+  @$pb.TagNumber(134)
+  set billingPlayVerify($0.ReqBillingPlayVerify value) =>
+      $_setField(134, value);
+  @$pb.TagNumber(134)
+  $core.bool hasBillingPlayVerify() => $_has(56);
+  @$pb.TagNumber(134)
+  void clearBillingPlayVerify() => $_clearField(134);
+  @$pb.TagNumber(134)
+  $0.ReqBillingPlayVerify ensureBillingPlayVerify() => $_ensure(56);
+
+  @$pb.TagNumber(135)
+  $0.ReqBillingPlayProductList get billingPlayProductList => $_getN(57);
+  @$pb.TagNumber(135)
+  set billingPlayProductList($0.ReqBillingPlayProductList value) =>
+      $_setField(135, value);
+  @$pb.TagNumber(135)
+  $core.bool hasBillingPlayProductList() => $_has(57);
+  @$pb.TagNumber(135)
+  void clearBillingPlayProductList() => $_clearField(135);
+  @$pb.TagNumber(135)
+  $0.ReqBillingPlayProductList ensureBillingPlayProductList() => $_ensure(57);
+
+  @$pb.TagNumber(136)
+  $0.ReqBillingVoucherLimitGet get billingVoucherLimitGet => $_getN(58);
+  @$pb.TagNumber(136)
+  set billingVoucherLimitGet($0.ReqBillingVoucherLimitGet value) =>
+      $_setField(136, value);
+  @$pb.TagNumber(136)
+  $core.bool hasBillingVoucherLimitGet() => $_has(58);
+  @$pb.TagNumber(136)
+  void clearBillingVoucherLimitGet() => $_clearField(136);
+  @$pb.TagNumber(136)
+  $0.ReqBillingVoucherLimitGet ensureBillingVoucherLimitGet() => $_ensure(58);
+
+  @$pb.TagNumber(137)
+  $0.ReqBillingVoucherLimitPut get billingVoucherLimitPut => $_getN(59);
+  @$pb.TagNumber(137)
+  set billingVoucherLimitPut($0.ReqBillingVoucherLimitPut value) =>
+      $_setField(137, value);
+  @$pb.TagNumber(137)
+  $core.bool hasBillingVoucherLimitPut() => $_has(59);
+  @$pb.TagNumber(137)
+  void clearBillingVoucherLimitPut() => $_clearField(137);
+  @$pb.TagNumber(137)
+  $0.ReqBillingVoucherLimitPut ensureBillingVoucherLimitPut() => $_ensure(59);
+
+  @$pb.TagNumber(138)
+  $0.ReqBillingVoucherList get billingVoucherList => $_getN(60);
+  @$pb.TagNumber(138)
+  set billingVoucherList($0.ReqBillingVoucherList value) =>
+      $_setField(138, value);
+  @$pb.TagNumber(138)
+  $core.bool hasBillingVoucherList() => $_has(60);
+  @$pb.TagNumber(138)
+  void clearBillingVoucherList() => $_clearField(138);
+  @$pb.TagNumber(138)
+  $0.ReqBillingVoucherList ensureBillingVoucherList() => $_ensure(60);
+
+  @$pb.TagNumber(139)
+  $0.ReqBillingVoucherRedeemList get billingVoucherRedeemList => $_getN(61);
+  @$pb.TagNumber(139)
+  set billingVoucherRedeemList($0.ReqBillingVoucherRedeemList value) =>
+      $_setField(139, value);
+  @$pb.TagNumber(139)
+  $core.bool hasBillingVoucherRedeemList() => $_has(61);
+  @$pb.TagNumber(139)
+  void clearBillingVoucherRedeemList() => $_clearField(139);
+  @$pb.TagNumber(139)
+  $0.ReqBillingVoucherRedeemList ensureBillingVoucherRedeemList() =>
+      $_ensure(61);
+
+  @$pb.TagNumber(140)
+  $0.ReqBillingVoucherVoid get billingVoucherVoid => $_getN(62);
+  @$pb.TagNumber(140)
+  set billingVoucherVoid($0.ReqBillingVoucherVoid value) =>
+      $_setField(140, value);
+  @$pb.TagNumber(140)
+  $core.bool hasBillingVoucherVoid() => $_has(62);
+  @$pb.TagNumber(140)
+  void clearBillingVoucherVoid() => $_clearField(140);
+  @$pb.TagNumber(140)
+  $0.ReqBillingVoucherVoid ensureBillingVoucherVoid() => $_ensure(62);
 }
 
 enum InvokeRes_Body {
@@ -1291,6 +1498,15 @@ enum InvokeRes_Body {
   adminOpsPeaks,
   billingPlanQuote,
   billingPlanChange,
+  billingVoucherIssue,
+  billingEntitlementList,
+  billingPlayVerify,
+  billingPlayProductList,
+  billingVoucherLimitGet,
+  billingVoucherLimitPut,
+  billingVoucherList,
+  billingVoucherRedeemList,
+  billingVoucherVoid,
   notSet
 }
 
@@ -1350,6 +1566,15 @@ class InvokeRes extends $pb.GeneratedMessage {
     $12.ResAdminOpsPeaks? adminOpsPeaks,
     $0.ResBillingPlanQuote? billingPlanQuote,
     $0.ResBillingPlanChange? billingPlanChange,
+    $0.ResBillingVoucherIssue? billingVoucherIssue,
+    $0.ResBillingEntitlementList? billingEntitlementList,
+    $0.ResBillingPlayVerify? billingPlayVerify,
+    $0.ResBillingPlayProductList? billingPlayProductList,
+    $0.ResBillingVoucherLimit? billingVoucherLimitGet,
+    $0.ResBillingVoucherLimit? billingVoucherLimitPut,
+    $0.ResBillingVoucherList? billingVoucherList,
+    $0.ResBillingVoucherRedeemList? billingVoucherRedeemList,
+    $0.ResBillingVoucherVoid? billingVoucherVoid,
   }) {
     final result = InvokeRes._();
     if (reqId != null) result.reqId = reqId;
@@ -1426,6 +1651,23 @@ class InvokeRes extends $pb.GeneratedMessage {
     if (adminOpsPeaks != null) result.adminOpsPeaks = adminOpsPeaks;
     if (billingPlanQuote != null) result.billingPlanQuote = billingPlanQuote;
     if (billingPlanChange != null) result.billingPlanChange = billingPlanChange;
+    if (billingVoucherIssue != null)
+      result.billingVoucherIssue = billingVoucherIssue;
+    if (billingEntitlementList != null)
+      result.billingEntitlementList = billingEntitlementList;
+    if (billingPlayVerify != null) result.billingPlayVerify = billingPlayVerify;
+    if (billingPlayProductList != null)
+      result.billingPlayProductList = billingPlayProductList;
+    if (billingVoucherLimitGet != null)
+      result.billingVoucherLimitGet = billingVoucherLimitGet;
+    if (billingVoucherLimitPut != null)
+      result.billingVoucherLimitPut = billingVoucherLimitPut;
+    if (billingVoucherList != null)
+      result.billingVoucherList = billingVoucherList;
+    if (billingVoucherRedeemList != null)
+      result.billingVoucherRedeemList = billingVoucherRedeemList;
+    if (billingVoucherVoid != null)
+      result.billingVoucherVoid = billingVoucherVoid;
     return result;
   }
 
@@ -1490,6 +1732,15 @@ class InvokeRes extends $pb.GeneratedMessage {
     129: InvokeRes_Body.adminOpsPeaks,
     130: InvokeRes_Body.billingPlanQuote,
     131: InvokeRes_Body.billingPlanChange,
+    132: InvokeRes_Body.billingVoucherIssue,
+    133: InvokeRes_Body.billingEntitlementList,
+    134: InvokeRes_Body.billingPlayVerify,
+    135: InvokeRes_Body.billingPlayProductList,
+    136: InvokeRes_Body.billingVoucherLimitGet,
+    137: InvokeRes_Body.billingVoucherLimitPut,
+    138: InvokeRes_Body.billingVoucherList,
+    139: InvokeRes_Body.billingVoucherRedeemList,
+    140: InvokeRes_Body.billingVoucherVoid,
     0: InvokeRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -1547,7 +1798,16 @@ class InvokeRes extends $pb.GeneratedMessage {
       128,
       129,
       130,
-      131
+      131,
+      132,
+      133,
+      134,
+      135,
+      136,
+      137,
+      138,
+      139,
+      140
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aI(2, _omitFieldNames ? '' : 'statusCode')
@@ -1679,6 +1939,33 @@ class InvokeRes extends $pb.GeneratedMessage {
     ..aOM<$0.ResBillingPlanChange>(
         131, _omitFieldNames ? '' : 'billingPlanChange',
         subBuilder: $0.ResBillingPlanChange.$_createMessage)
+    ..aOM<$0.ResBillingVoucherIssue>(
+        132, _omitFieldNames ? '' : 'billingVoucherIssue',
+        subBuilder: $0.ResBillingVoucherIssue.$_createMessage)
+    ..aOM<$0.ResBillingEntitlementList>(
+        133, _omitFieldNames ? '' : 'billingEntitlementList',
+        subBuilder: $0.ResBillingEntitlementList.$_createMessage)
+    ..aOM<$0.ResBillingPlayVerify>(
+        134, _omitFieldNames ? '' : 'billingPlayVerify',
+        subBuilder: $0.ResBillingPlayVerify.$_createMessage)
+    ..aOM<$0.ResBillingPlayProductList>(
+        135, _omitFieldNames ? '' : 'billingPlayProductList',
+        subBuilder: $0.ResBillingPlayProductList.$_createMessage)
+    ..aOM<$0.ResBillingVoucherLimit>(
+        136, _omitFieldNames ? '' : 'billingVoucherLimitGet',
+        subBuilder: $0.ResBillingVoucherLimit.$_createMessage)
+    ..aOM<$0.ResBillingVoucherLimit>(
+        137, _omitFieldNames ? '' : 'billingVoucherLimitPut',
+        subBuilder: $0.ResBillingVoucherLimit.$_createMessage)
+    ..aOM<$0.ResBillingVoucherList>(
+        138, _omitFieldNames ? '' : 'billingVoucherList',
+        subBuilder: $0.ResBillingVoucherList.$_createMessage)
+    ..aOM<$0.ResBillingVoucherRedeemList>(
+        139, _omitFieldNames ? '' : 'billingVoucherRedeemList',
+        subBuilder: $0.ResBillingVoucherRedeemList.$_createMessage)
+    ..aOM<$0.ResBillingVoucherVoid>(
+        140, _omitFieldNames ? '' : 'billingVoucherVoid',
+        subBuilder: $0.ResBillingVoucherVoid.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1752,6 +2039,15 @@ class InvokeRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(129)
   @$pb.TagNumber(130)
   @$pb.TagNumber(131)
+  @$pb.TagNumber(132)
+  @$pb.TagNumber(133)
+  @$pb.TagNumber(134)
+  @$pb.TagNumber(135)
+  @$pb.TagNumber(136)
+  @$pb.TagNumber(137)
+  @$pb.TagNumber(138)
+  @$pb.TagNumber(139)
+  @$pb.TagNumber(140)
   InvokeRes_Body whichBody() => _InvokeRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(10)
   @$pb.TagNumber(11)
@@ -1804,6 +2100,15 @@ class InvokeRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(129)
   @$pb.TagNumber(130)
   @$pb.TagNumber(131)
+  @$pb.TagNumber(132)
+  @$pb.TagNumber(133)
+  @$pb.TagNumber(134)
+  @$pb.TagNumber(135)
+  @$pb.TagNumber(136)
+  @$pb.TagNumber(137)
+  @$pb.TagNumber(138)
+  @$pb.TagNumber(139)
+  @$pb.TagNumber(140)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -2419,6 +2724,115 @@ class InvokeRes extends $pb.GeneratedMessage {
   void clearBillingPlanChange() => $_clearField(131);
   @$pb.TagNumber(131)
   $0.ResBillingPlanChange ensureBillingPlanChange() => $_ensure(53);
+
+  @$pb.TagNumber(132)
+  $0.ResBillingVoucherIssue get billingVoucherIssue => $_getN(54);
+  @$pb.TagNumber(132)
+  set billingVoucherIssue($0.ResBillingVoucherIssue value) =>
+      $_setField(132, value);
+  @$pb.TagNumber(132)
+  $core.bool hasBillingVoucherIssue() => $_has(54);
+  @$pb.TagNumber(132)
+  void clearBillingVoucherIssue() => $_clearField(132);
+  @$pb.TagNumber(132)
+  $0.ResBillingVoucherIssue ensureBillingVoucherIssue() => $_ensure(54);
+
+  @$pb.TagNumber(133)
+  $0.ResBillingEntitlementList get billingEntitlementList => $_getN(55);
+  @$pb.TagNumber(133)
+  set billingEntitlementList($0.ResBillingEntitlementList value) =>
+      $_setField(133, value);
+  @$pb.TagNumber(133)
+  $core.bool hasBillingEntitlementList() => $_has(55);
+  @$pb.TagNumber(133)
+  void clearBillingEntitlementList() => $_clearField(133);
+  @$pb.TagNumber(133)
+  $0.ResBillingEntitlementList ensureBillingEntitlementList() => $_ensure(55);
+
+  @$pb.TagNumber(134)
+  $0.ResBillingPlayVerify get billingPlayVerify => $_getN(56);
+  @$pb.TagNumber(134)
+  set billingPlayVerify($0.ResBillingPlayVerify value) =>
+      $_setField(134, value);
+  @$pb.TagNumber(134)
+  $core.bool hasBillingPlayVerify() => $_has(56);
+  @$pb.TagNumber(134)
+  void clearBillingPlayVerify() => $_clearField(134);
+  @$pb.TagNumber(134)
+  $0.ResBillingPlayVerify ensureBillingPlayVerify() => $_ensure(56);
+
+  @$pb.TagNumber(135)
+  $0.ResBillingPlayProductList get billingPlayProductList => $_getN(57);
+  @$pb.TagNumber(135)
+  set billingPlayProductList($0.ResBillingPlayProductList value) =>
+      $_setField(135, value);
+  @$pb.TagNumber(135)
+  $core.bool hasBillingPlayProductList() => $_has(57);
+  @$pb.TagNumber(135)
+  void clearBillingPlayProductList() => $_clearField(135);
+  @$pb.TagNumber(135)
+  $0.ResBillingPlayProductList ensureBillingPlayProductList() => $_ensure(57);
+
+  @$pb.TagNumber(136)
+  $0.ResBillingVoucherLimit get billingVoucherLimitGet => $_getN(58);
+  @$pb.TagNumber(136)
+  set billingVoucherLimitGet($0.ResBillingVoucherLimit value) =>
+      $_setField(136, value);
+  @$pb.TagNumber(136)
+  $core.bool hasBillingVoucherLimitGet() => $_has(58);
+  @$pb.TagNumber(136)
+  void clearBillingVoucherLimitGet() => $_clearField(136);
+  @$pb.TagNumber(136)
+  $0.ResBillingVoucherLimit ensureBillingVoucherLimitGet() => $_ensure(58);
+
+  @$pb.TagNumber(137)
+  $0.ResBillingVoucherLimit get billingVoucherLimitPut => $_getN(59);
+  @$pb.TagNumber(137)
+  set billingVoucherLimitPut($0.ResBillingVoucherLimit value) =>
+      $_setField(137, value);
+  @$pb.TagNumber(137)
+  $core.bool hasBillingVoucherLimitPut() => $_has(59);
+  @$pb.TagNumber(137)
+  void clearBillingVoucherLimitPut() => $_clearField(137);
+  @$pb.TagNumber(137)
+  $0.ResBillingVoucherLimit ensureBillingVoucherLimitPut() => $_ensure(59);
+
+  @$pb.TagNumber(138)
+  $0.ResBillingVoucherList get billingVoucherList => $_getN(60);
+  @$pb.TagNumber(138)
+  set billingVoucherList($0.ResBillingVoucherList value) =>
+      $_setField(138, value);
+  @$pb.TagNumber(138)
+  $core.bool hasBillingVoucherList() => $_has(60);
+  @$pb.TagNumber(138)
+  void clearBillingVoucherList() => $_clearField(138);
+  @$pb.TagNumber(138)
+  $0.ResBillingVoucherList ensureBillingVoucherList() => $_ensure(60);
+
+  @$pb.TagNumber(139)
+  $0.ResBillingVoucherRedeemList get billingVoucherRedeemList => $_getN(61);
+  @$pb.TagNumber(139)
+  set billingVoucherRedeemList($0.ResBillingVoucherRedeemList value) =>
+      $_setField(139, value);
+  @$pb.TagNumber(139)
+  $core.bool hasBillingVoucherRedeemList() => $_has(61);
+  @$pb.TagNumber(139)
+  void clearBillingVoucherRedeemList() => $_clearField(139);
+  @$pb.TagNumber(139)
+  $0.ResBillingVoucherRedeemList ensureBillingVoucherRedeemList() =>
+      $_ensure(61);
+
+  @$pb.TagNumber(140)
+  $0.ResBillingVoucherVoid get billingVoucherVoid => $_getN(62);
+  @$pb.TagNumber(140)
+  set billingVoucherVoid($0.ResBillingVoucherVoid value) =>
+      $_setField(140, value);
+  @$pb.TagNumber(140)
+  $core.bool hasBillingVoucherVoid() => $_has(62);
+  @$pb.TagNumber(140)
+  void clearBillingVoucherVoid() => $_clearField(140);
+  @$pb.TagNumber(140)
+  $0.ResBillingVoucherVoid ensureBillingVoucherVoid() => $_ensure(62);
 }
 
 enum WsReq_Body {

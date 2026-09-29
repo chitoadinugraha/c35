@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:alienai_c35/c/api/referral_conn.dart';
 import 'package:alienai_c35/c/billing/billing_api.dart';
 import 'package:alienai_c35/c/billing/billing_format.dart';
+import 'package:alienai_c35/c/billing/billing_platform.dart';
+import 'package:alienai_c35/c/billing/billing_play_api.dart';
+import 'package:alienai_c35/c/billing/billing_play_checkout.dart';
 import 'package:alienai_c35/c/billing/billing_store_sync.dart';
 import 'package:alienai_c35/c/billing/billing_summary_api.dart';
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
@@ -10,6 +13,7 @@ import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/billing/billing_plan_format.dart';
+import 'package:alienai_c35/widgets/billing/ui_billing_purchase_success_dialog.dart';
 import 'package:alienai_c35/widgets/referral/ui_billing_package_redeem.dart';
 import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:fixnum/fixnum.dart';
@@ -209,7 +213,9 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
     }
     if (kind == 'downgrade' || kind == 'cancel') return 'Schedule at period end';
     final charge = _quote?.chargeIdr ?? 0;
-    if (charge > 0 && _currency == 'IDR') return 'Pay ${billingFmtRp(charge)} from balance';
+    if (charge > 0 && _currency == 'IDR') {
+      return billingUsePlayCheckout() ? 'Pay ${billingFmtRp(charge)} with Google Play' : 'Pay ${billingFmtRp(charge)} from balance';
+    }
     return 'Confirm plan change';
   }
 
@@ -227,6 +233,34 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
       _successMessage = null;
     });
     try {
+      final kind = (_quote?.kind ?? '').trim().toLowerCase();
+      final charge = _quote?.chargeIdr ?? 0;
+      final usePlay = billingUsePlayCheckout() && !_selectionIsNoPlan && kind == 'upgrade' && charge > 0;
+      if (usePlay) {
+        final catalog = await billingPlayProductList(widget.conn);
+        final product = billingPlayProductMatch(
+          catalog.products,
+          planSlug: slug,
+          billingPeriod: _selectionPeriod,
+        );
+        if (product == null) throw 'This plan is not available on Google Play yet';
+        final verified = await billingPlayPurchaseAndVerify(
+          widget.conn,
+          product: product,
+          queryIds: catalog.products.map((p) => p.productId).toSet(),
+        );
+        if (!mounted) return;
+        await billingPurchaseSuccessDialogShow(
+          context,
+          entitlements: verified.entitlements,
+          highlightEntitlementId: verified.entitlementId,
+          title: 'Plan updated',
+          subtitle: _selectedPlan?.name ?? slug,
+        );
+        await _load();
+        _scheduleQuote();
+        return;
+      }
       await billingPlanChangeAndSync(
         widget.conn,
         planSlug: slug,

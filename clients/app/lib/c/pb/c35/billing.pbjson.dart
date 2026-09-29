@@ -1483,6 +1483,16 @@ const ResBillingPackageRedeem$json = {
     {'1': 'package_name', '3': 6, '4': 1, '5': 9, '10': 'packageName'},
     {'1': 'balance_usd', '3': 7, '4': 1, '5': 1, '10': 'balanceUsd'},
     {'1': 'balance_idr', '3': 8, '4': 1, '5': 1, '10': 'balanceIdr'},
+    {
+      '1': 'entitlements',
+      '3': 9,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.BillingEntitlementDoc',
+      '10': 'entitlements'
+    },
+    {'1': 'entitlement_id', '3': 10, '4': 1, '5': 3, '10': 'entitlementId'},
+    {'1': 'expires_ts_ms', '3': 11, '4': 1, '5': 3, '10': 'expiresTsMs'},
   ],
 };
 
@@ -1493,7 +1503,9 @@ final $typed_data.Uint8List resBillingPackageRedeemDescriptor = $convert.base64D
     'YW1vdW50SWRyEhsKCXBsYW5fdGllchgEIAEoCVIIcGxhblRpZXISJwoPZHVyYXRpb25fbW9udG'
     'hzGAUgASgFUg5kdXJhdGlvbk1vbnRocxIhCgxwYWNrYWdlX25hbWUYBiABKAlSC3BhY2thZ2VO'
     'YW1lEh8KC2JhbGFuY2VfdXNkGAcgASgBUgpiYWxhbmNlVXNkEh8KC2JhbGFuY2VfaWRyGAggAS'
-    'gBUgpiYWxhbmNlSWRy');
+    'gBUgpiYWxhbmNlSWRyEj4KDGVudGl0bGVtZW50cxgJIAMoCzIaLmMzNS5CaWxsaW5nRW50aXRs'
+    'ZW1lbnREb2NSDGVudGl0bGVtZW50cxIlCg5lbnRpdGxlbWVudF9pZBgKIAEoA1INZW50aXRsZW'
+    '1lbnRJZBIiCg1leHBpcmVzX3RzX21zGAsgASgDUgtleHBpcmVzVHNNcw==');
 
 @$core.Deprecated('Use reqBillingPackagePreviewDescriptor instead')
 const ReqBillingPackagePreview$json = {
@@ -2365,3 +2377,425 @@ final $typed_data.Uint8List resBillingSummaryDescriptor = $convert.base64Decode(
     'aWxsaW5nX3BlcmlvZBgeIAEoCVINYmlsbGluZ1BlcmlvZBIqChFwZW5kaW5nX3BsYW5fc2x1Zx'
     'gfIAEoCVIPcGVuZGluZ1BsYW5TbHVnEjQKFnBlbmRpbmdfYmlsbGluZ19wZXJpb2QYICABKAlS'
     'FHBlbmRpbmdCaWxsaW5nUGVyaW9k');
+
+@$core.Deprecated('Use billingEntitlementDocDescriptor instead')
+const BillingEntitlementDoc$json = {
+  '1': 'BillingEntitlementDoc',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 3, '10': 'id'},
+    {'1': 'plan_slug', '3': 2, '4': 1, '5': 9, '10': 'planSlug'},
+    {'1': 'plan_name', '3': 3, '4': 1, '5': 9, '10': 'planName'},
+    {'1': 'expires_ts_ms', '3': 4, '4': 1, '5': 3, '10': 'expiresTsMs'},
+    {'1': 'purchased_ts_ms', '3': 5, '4': 1, '5': 3, '10': 'purchasedTsMs'},
+    {'1': 'source', '3': 6, '4': 1, '5': 9, '10': 'source'},
+    {'1': 'referral_code', '3': 7, '4': 1, '5': 9, '10': 'referralCode'},
+    {'1': 'credit_idr', '3': 8, '4': 1, '5': 1, '10': 'creditIdr'},
+    {'1': 'highlight', '3': 9, '4': 1, '5': 8, '10': 'highlight'},
+  ],
+};
+
+/// Descriptor for `BillingEntitlementDoc`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List billingEntitlementDocDescriptor = $convert.base64Decode(
+    'ChVCaWxsaW5nRW50aXRsZW1lbnREb2MSDgoCaWQYASABKANSAmlkEhsKCXBsYW5fc2x1ZxgCIA'
+    'EoCVIIcGxhblNsdWcSGwoJcGxhbl9uYW1lGAMgASgJUghwbGFuTmFtZRIiCg1leHBpcmVzX3Rz'
+    'X21zGAQgASgDUgtleHBpcmVzVHNNcxImCg9wdXJjaGFzZWRfdHNfbXMYBSABKANSDXB1cmNoYX'
+    'NlZFRzTXMSFgoGc291cmNlGAYgASgJUgZzb3VyY2USIwoNcmVmZXJyYWxfY29kZRgHIAEoCVIM'
+    'cmVmZXJyYWxDb2RlEh0KCmNyZWRpdF9pZHIYCCABKAFSCWNyZWRpdElkchIcCgloaWdobGlnaH'
+    'QYCSABKAhSCWhpZ2hsaWdodA==');
+
+@$core.Deprecated('Use reqBillingVoucherIssueDescriptor instead')
+const ReqBillingVoucherIssue$json = {
+  '1': 'ReqBillingVoucherIssue',
+  '2': [
+    {'1': 'kind', '3': 1, '4': 1, '5': 9, '10': 'kind'},
+    {'1': 'plan_slug', '3': 2, '4': 1, '5': 9, '10': 'planSlug'},
+    {'1': 'duration_months', '3': 3, '4': 1, '5': 5, '10': 'durationMonths'},
+    {'1': 'credit_idr', '3': 4, '4': 1, '5': 1, '10': 'creditIdr'},
+    {'1': 'face_value_idr', '3': 5, '4': 1, '5': 1, '10': 'faceValueIdr'},
+    {'1': 'max_uses', '3': 6, '4': 1, '5': 5, '10': 'maxUses'},
+    {'1': 'expires_at_ms', '3': 7, '4': 1, '5': 3, '10': 'expiresAtMs'},
+    {'1': 'payment_ref', '3': 8, '4': 1, '5': 9, '10': 'paymentRef'},
+    {'1': 'code', '3': 9, '4': 1, '5': 9, '10': 'code'},
+    {'1': 'name', '3': 10, '4': 1, '5': 9, '10': 'name'},
+    {'1': 'scope', '3': 11, '4': 1, '5': 9, '10': 'scope'},
+    {'1': 'billing_period', '3': 12, '4': 1, '5': 9, '10': 'billingPeriod'},
+    {'1': 'list_price_idr', '3': 13, '4': 1, '5': 1, '10': 'listPriceIdr'},
+    {
+      '1': 'alien_pool_limit_idr',
+      '3': 14,
+      '4': 1,
+      '5': 1,
+      '10': 'alienPoolLimitIdr'
+    },
+    {
+      '1': 'frontier_pool_limit_idr',
+      '3': 15,
+      '4': 1,
+      '5': 1,
+      '10': 'frontierPoolLimitIdr'
+    },
+    {'1': 'quantity', '3': 16, '4': 1, '5': 5, '10': 'quantity'},
+  ],
+};
+
+/// Descriptor for `ReqBillingVoucherIssue`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqBillingVoucherIssueDescriptor = $convert.base64Decode(
+    'ChZSZXFCaWxsaW5nVm91Y2hlcklzc3VlEhIKBGtpbmQYASABKAlSBGtpbmQSGwoJcGxhbl9zbH'
+    'VnGAIgASgJUghwbGFuU2x1ZxInCg9kdXJhdGlvbl9tb250aHMYAyABKAVSDmR1cmF0aW9uTW9u'
+    'dGhzEh0KCmNyZWRpdF9pZHIYBCABKAFSCWNyZWRpdElkchIkCg5mYWNlX3ZhbHVlX2lkchgFIA'
+    'EoAVIMZmFjZVZhbHVlSWRyEhkKCG1heF91c2VzGAYgASgFUgdtYXhVc2VzEiIKDWV4cGlyZXNf'
+    'YXRfbXMYByABKANSC2V4cGlyZXNBdE1zEh8KC3BheW1lbnRfcmVmGAggASgJUgpwYXltZW50Um'
+    'VmEhIKBGNvZGUYCSABKAlSBGNvZGUSEgoEbmFtZRgKIAEoCVIEbmFtZRIUCgVzY29wZRgLIAEo'
+    'CVIFc2NvcGUSJQoOYmlsbGluZ19wZXJpb2QYDCABKAlSDWJpbGxpbmdQZXJpb2QSJAoObGlzdF'
+    '9wcmljZV9pZHIYDSABKAFSDGxpc3RQcmljZUlkchIvChRhbGllbl9wb29sX2xpbWl0X2lkchgO'
+    'IAEoAVIRYWxpZW5Qb29sTGltaXRJZHISNQoXZnJvbnRpZXJfcG9vbF9saW1pdF9pZHIYDyABKA'
+    'FSFGZyb250aWVyUG9vbExpbWl0SWRyEhoKCHF1YW50aXR5GBAgASgFUghxdWFudGl0eQ==');
+
+@$core.Deprecated('Use resBillingVoucherIssueDescriptor instead')
+const ResBillingVoucherIssue$json = {
+  '1': 'ResBillingVoucherIssue',
+  '2': [
+    {'1': 'code', '3': 1, '4': 1, '5': 9, '10': 'code'},
+    {'1': 'face_value_idr', '3': 2, '4': 1, '5': 1, '10': 'faceValueIdr'},
+    {'1': 'codes', '3': 3, '4': 3, '5': 9, '10': 'codes'},
+  ],
+};
+
+/// Descriptor for `ResBillingVoucherIssue`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resBillingVoucherIssueDescriptor =
+    $convert.base64Decode(
+        'ChZSZXNCaWxsaW5nVm91Y2hlcklzc3VlEhIKBGNvZGUYASABKAlSBGNvZGUSJAoOZmFjZV92YW'
+        'x1ZV9pZHIYAiABKAFSDGZhY2VWYWx1ZUlkchIUCgVjb2RlcxgDIAMoCVIFY29kZXM=');
+
+@$core.Deprecated('Use billingVoucherDocDescriptor instead')
+const BillingVoucherDoc$json = {
+  '1': 'BillingVoucherDoc',
+  '2': [
+    {'1': 'code', '3': 1, '4': 1, '5': 9, '10': 'code'},
+    {'1': 'kind', '3': 2, '4': 1, '5': 9, '10': 'kind'},
+    {'1': 'name', '3': 3, '4': 1, '5': 9, '10': 'name'},
+    {'1': 'status', '3': 4, '4': 1, '5': 9, '10': 'status'},
+    {'1': 'face_value_idr', '3': 5, '4': 1, '5': 1, '10': 'faceValueIdr'},
+    {'1': 'list_price_idr', '3': 6, '4': 1, '5': 1, '10': 'listPriceIdr'},
+    {'1': 'expires_at_ms', '3': 7, '4': 1, '5': 3, '10': 'expiresAtMs'},
+    {'1': 'scope', '3': 8, '4': 1, '5': 9, '10': 'scope'},
+    {'1': 'plan_slug', '3': 9, '4': 1, '5': 9, '10': 'planSlug'},
+    {'1': 'duration_months', '3': 10, '4': 1, '5': 5, '10': 'durationMonths'},
+    {'1': 'credit_idr', '3': 11, '4': 1, '5': 1, '10': 'creditIdr'},
+    {'1': 'redeemed_ts_ms', '3': 12, '4': 1, '5': 3, '10': 'redeemedTsMs'},
+    {'1': 'redeemed_by_iid', '3': 13, '4': 1, '5': 3, '10': 'redeemedByIid'},
+    {'1': 'redeemed_by_name', '3': 14, '4': 1, '5': 9, '10': 'redeemedByName'},
+    {'1': 'used_count', '3': 15, '4': 1, '5': 5, '10': 'usedCount'},
+    {'1': 'max_uses', '3': 16, '4': 1, '5': 5, '10': 'maxUses'},
+    {'1': 'billing_period', '3': 17, '4': 1, '5': 9, '10': 'billingPeriod'},
+  ],
+};
+
+/// Descriptor for `BillingVoucherDoc`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List billingVoucherDocDescriptor = $convert.base64Decode(
+    'ChFCaWxsaW5nVm91Y2hlckRvYxISCgRjb2RlGAEgASgJUgRjb2RlEhIKBGtpbmQYAiABKAlSBG'
+    'tpbmQSEgoEbmFtZRgDIAEoCVIEbmFtZRIWCgZzdGF0dXMYBCABKAlSBnN0YXR1cxIkCg5mYWNl'
+    'X3ZhbHVlX2lkchgFIAEoAVIMZmFjZVZhbHVlSWRyEiQKDmxpc3RfcHJpY2VfaWRyGAYgASgBUg'
+    'xsaXN0UHJpY2VJZHISIgoNZXhwaXJlc19hdF9tcxgHIAEoA1ILZXhwaXJlc0F0TXMSFAoFc2Nv'
+    'cGUYCCABKAlSBXNjb3BlEhsKCXBsYW5fc2x1ZxgJIAEoCVIIcGxhblNsdWcSJwoPZHVyYXRpb2'
+    '5fbW9udGhzGAogASgFUg5kdXJhdGlvbk1vbnRocxIdCgpjcmVkaXRfaWRyGAsgASgBUgljcmVk'
+    'aXRJZHISJAoOcmVkZWVtZWRfdHNfbXMYDCABKANSDHJlZGVlbWVkVHNNcxImCg9yZWRlZW1lZF'
+    '9ieV9paWQYDSABKANSDXJlZGVlbWVkQnlJaWQSKAoQcmVkZWVtZWRfYnlfbmFtZRgOIAEoCVIO'
+    'cmVkZWVtZWRCeU5hbWUSHQoKdXNlZF9jb3VudBgPIAEoBVIJdXNlZENvdW50EhkKCG1heF91c2'
+    'VzGBAgASgFUgdtYXhVc2VzEiUKDmJpbGxpbmdfcGVyaW9kGBEgASgJUg1iaWxsaW5nUGVyaW9k');
+
+@$core.Deprecated('Use reqBillingVoucherListDescriptor instead')
+const ReqBillingVoucherList$json = {
+  '1': 'ReqBillingVoucherList',
+};
+
+/// Descriptor for `ReqBillingVoucherList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqBillingVoucherListDescriptor =
+    $convert.base64Decode('ChVSZXFCaWxsaW5nVm91Y2hlckxpc3Q=');
+
+@$core.Deprecated('Use resBillingVoucherListDescriptor instead')
+const ResBillingVoucherList$json = {
+  '1': 'ResBillingVoucherList',
+  '2': [
+    {
+      '1': 'items',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.BillingVoucherDoc',
+      '10': 'items'
+    },
+    {
+      '1': 'limit',
+      '3': 2,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResBillingVoucherLimit',
+      '10': 'limit'
+    },
+  ],
+};
+
+/// Descriptor for `ResBillingVoucherList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resBillingVoucherListDescriptor = $convert.base64Decode(
+    'ChVSZXNCaWxsaW5nVm91Y2hlckxpc3QSLAoFaXRlbXMYASADKAsyFi5jMzUuQmlsbGluZ1ZvdW'
+    'NoZXJEb2NSBWl0ZW1zEjEKBWxpbWl0GAIgASgLMhsuYzM1LlJlc0JpbGxpbmdWb3VjaGVyTGlt'
+    'aXRSBWxpbWl0');
+
+@$core.Deprecated('Use billingVoucherRedeemDocDescriptor instead')
+const BillingVoucherRedeemDoc$json = {
+  '1': 'BillingVoucherRedeemDoc',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 3, '10': 'id'},
+    {'1': 'code', '3': 2, '4': 1, '5': 9, '10': 'code'},
+    {'1': 'buyer_iid', '3': 3, '4': 1, '5': 3, '10': 'buyerIid'},
+    {'1': 'buyer_name', '3': 4, '4': 1, '5': 9, '10': 'buyerName'},
+    {'1': 'face_value_idr', '3': 5, '4': 1, '5': 1, '10': 'faceValueIdr'},
+    {'1': 'list_price_idr', '3': 6, '4': 1, '5': 1, '10': 'listPriceIdr'},
+    {'1': 'redeemed_ts_ms', '3': 7, '4': 1, '5': 3, '10': 'redeemedTsMs'},
+  ],
+};
+
+/// Descriptor for `BillingVoucherRedeemDoc`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List billingVoucherRedeemDocDescriptor = $convert.base64Decode(
+    'ChdCaWxsaW5nVm91Y2hlclJlZGVlbURvYxIOCgJpZBgBIAEoA1ICaWQSEgoEY29kZRgCIAEoCV'
+    'IEY29kZRIbCglidXllcl9paWQYAyABKANSCGJ1eWVySWlkEh0KCmJ1eWVyX25hbWUYBCABKAlS'
+    'CWJ1eWVyTmFtZRIkCg5mYWNlX3ZhbHVlX2lkchgFIAEoAVIMZmFjZVZhbHVlSWRyEiQKDmxpc3'
+    'RfcHJpY2VfaWRyGAYgASgBUgxsaXN0UHJpY2VJZHISJAoOcmVkZWVtZWRfdHNfbXMYByABKANS'
+    'DHJlZGVlbWVkVHNNcw==');
+
+@$core.Deprecated('Use reqBillingVoucherRedeemListDescriptor instead')
+const ReqBillingVoucherRedeemList$json = {
+  '1': 'ReqBillingVoucherRedeemList',
+  '2': [
+    {'1': 'limit', '3': 1, '4': 1, '5': 5, '10': 'limit'},
+  ],
+};
+
+/// Descriptor for `ReqBillingVoucherRedeemList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqBillingVoucherRedeemListDescriptor =
+    $convert.base64Decode(
+        'ChtSZXFCaWxsaW5nVm91Y2hlclJlZGVlbUxpc3QSFAoFbGltaXQYASABKAVSBWxpbWl0');
+
+@$core.Deprecated('Use resBillingVoucherRedeemListDescriptor instead')
+const ResBillingVoucherRedeemList$json = {
+  '1': 'ResBillingVoucherRedeemList',
+  '2': [
+    {
+      '1': 'items',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.BillingVoucherRedeemDoc',
+      '10': 'items'
+    },
+  ],
+};
+
+/// Descriptor for `ResBillingVoucherRedeemList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resBillingVoucherRedeemListDescriptor =
+    $convert.base64Decode(
+        'ChtSZXNCaWxsaW5nVm91Y2hlclJlZGVlbUxpc3QSMgoFaXRlbXMYASADKAsyHC5jMzUuQmlsbG'
+        'luZ1ZvdWNoZXJSZWRlZW1Eb2NSBWl0ZW1z');
+
+@$core.Deprecated('Use reqBillingVoucherVoidDescriptor instead')
+const ReqBillingVoucherVoid$json = {
+  '1': 'ReqBillingVoucherVoid',
+  '2': [
+    {'1': 'code', '3': 1, '4': 1, '5': 9, '10': 'code'},
+  ],
+};
+
+/// Descriptor for `ReqBillingVoucherVoid`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqBillingVoucherVoidDescriptor =
+    $convert.base64Decode(
+        'ChVSZXFCaWxsaW5nVm91Y2hlclZvaWQSEgoEY29kZRgBIAEoCVIEY29kZQ==');
+
+@$core.Deprecated('Use resBillingVoucherVoidDescriptor instead')
+const ResBillingVoucherVoid$json = {
+  '1': 'ResBillingVoucherVoid',
+  '2': [
+    {'1': 'ok', '3': 1, '4': 1, '5': 8, '10': 'ok'},
+  ],
+};
+
+/// Descriptor for `ResBillingVoucherVoid`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resBillingVoucherVoidDescriptor = $convert
+    .base64Decode('ChVSZXNCaWxsaW5nVm91Y2hlclZvaWQSDgoCb2sYASABKAhSAm9r');
+
+@$core.Deprecated('Use reqBillingEntitlementListDescriptor instead')
+const ReqBillingEntitlementList$json = {
+  '1': 'ReqBillingEntitlementList',
+};
+
+/// Descriptor for `ReqBillingEntitlementList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqBillingEntitlementListDescriptor =
+    $convert.base64Decode('ChlSZXFCaWxsaW5nRW50aXRsZW1lbnRMaXN0');
+
+@$core.Deprecated('Use resBillingEntitlementListDescriptor instead')
+const ResBillingEntitlementList$json = {
+  '1': 'ResBillingEntitlementList',
+  '2': [
+    {
+      '1': 'items',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.BillingEntitlementDoc',
+      '10': 'items'
+    },
+  ],
+};
+
+/// Descriptor for `ResBillingEntitlementList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resBillingEntitlementListDescriptor =
+    $convert.base64Decode(
+        'ChlSZXNCaWxsaW5nRW50aXRsZW1lbnRMaXN0EjAKBWl0ZW1zGAEgAygLMhouYzM1LkJpbGxpbm'
+        'dFbnRpdGxlbWVudERvY1IFaXRlbXM=');
+
+@$core.Deprecated('Use billingPlayProductDocDescriptor instead')
+const BillingPlayProductDoc$json = {
+  '1': 'BillingPlayProductDoc',
+  '2': [
+    {'1': 'product_id', '3': 1, '4': 1, '5': 9, '10': 'productId'},
+    {'1': 'kind', '3': 2, '4': 1, '5': 9, '10': 'kind'},
+    {'1': 'plan_slug', '3': 3, '4': 1, '5': 9, '10': 'planSlug'},
+    {'1': 'billing_period', '3': 4, '4': 1, '5': 9, '10': 'billingPeriod'},
+    {'1': 'credit_idr', '3': 5, '4': 1, '5': 1, '10': 'creditIdr'},
+    {'1': 'web_price_idr', '3': 6, '4': 1, '5': 1, '10': 'webPriceIdr'},
+    {'1': 'play_price_idr', '3': 7, '4': 1, '5': 1, '10': 'playPriceIdr'},
+  ],
+};
+
+/// Descriptor for `BillingPlayProductDoc`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List billingPlayProductDocDescriptor = $convert.base64Decode(
+    'ChVCaWxsaW5nUGxheVByb2R1Y3REb2MSHQoKcHJvZHVjdF9pZBgBIAEoCVIJcHJvZHVjdElkEh'
+    'IKBGtpbmQYAiABKAlSBGtpbmQSGwoJcGxhbl9zbHVnGAMgASgJUghwbGFuU2x1ZxIlCg5iaWxs'
+    'aW5nX3BlcmlvZBgEIAEoCVINYmlsbGluZ1BlcmlvZBIdCgpjcmVkaXRfaWRyGAUgASgBUgljcm'
+    'VkaXRJZHISIgoNd2ViX3ByaWNlX2lkchgGIAEoAVILd2ViUHJpY2VJZHISJAoOcGxheV9wcmlj'
+    'ZV9pZHIYByABKAFSDHBsYXlQcmljZUlkcg==');
+
+@$core.Deprecated('Use reqBillingPlayVerifyDescriptor instead')
+const ReqBillingPlayVerify$json = {
+  '1': 'ReqBillingPlayVerify',
+  '2': [
+    {'1': 'product_id', '3': 1, '4': 1, '5': 9, '10': 'productId'},
+    {'1': 'purchase_token', '3': 2, '4': 1, '5': 9, '10': 'purchaseToken'},
+    {'1': 'package_name', '3': 3, '4': 1, '5': 9, '10': 'packageName'},
+  ],
+};
+
+/// Descriptor for `ReqBillingPlayVerify`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqBillingPlayVerifyDescriptor = $convert.base64Decode(
+    'ChRSZXFCaWxsaW5nUGxheVZlcmlmeRIdCgpwcm9kdWN0X2lkGAEgASgJUglwcm9kdWN0SWQSJQ'
+    'oOcHVyY2hhc2VfdG9rZW4YAiABKAlSDXB1cmNoYXNlVG9rZW4SIQoMcGFja2FnZV9uYW1lGAMg'
+    'ASgJUgtwYWNrYWdlTmFtZQ==');
+
+@$core.Deprecated('Use resBillingPlayVerifyDescriptor instead')
+const ResBillingPlayVerify$json = {
+  '1': 'ResBillingPlayVerify',
+  '2': [
+    {'1': 'status', '3': 1, '4': 1, '5': 9, '10': 'status'},
+    {'1': 'product_id', '3': 2, '4': 1, '5': 9, '10': 'productId'},
+    {'1': 'plan_slug', '3': 3, '4': 1, '5': 9, '10': 'planSlug'},
+    {'1': 'duration_months', '3': 4, '4': 1, '5': 5, '10': 'durationMonths'},
+    {'1': 'credit_idr', '3': 5, '4': 1, '5': 1, '10': 'creditIdr'},
+    {'1': 'entitlement_id', '3': 6, '4': 1, '5': 3, '10': 'entitlementId'},
+    {'1': 'play_purchase_id', '3': 7, '4': 1, '5': 3, '10': 'playPurchaseId'},
+    {'1': 'balance_idr', '3': 8, '4': 1, '5': 1, '10': 'balanceIdr'},
+    {
+      '1': 'entitlements',
+      '3': 9,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.BillingEntitlementDoc',
+      '10': 'entitlements'
+    },
+    {'1': 'expires_ts_ms', '3': 10, '4': 1, '5': 3, '10': 'expiresTsMs'},
+  ],
+};
+
+/// Descriptor for `ResBillingPlayVerify`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resBillingPlayVerifyDescriptor = $convert.base64Decode(
+    'ChRSZXNCaWxsaW5nUGxheVZlcmlmeRIWCgZzdGF0dXMYASABKAlSBnN0YXR1cxIdCgpwcm9kdW'
+    'N0X2lkGAIgASgJUglwcm9kdWN0SWQSGwoJcGxhbl9zbHVnGAMgASgJUghwbGFuU2x1ZxInCg9k'
+    'dXJhdGlvbl9tb250aHMYBCABKAVSDmR1cmF0aW9uTW9udGhzEh0KCmNyZWRpdF9pZHIYBSABKA'
+    'FSCWNyZWRpdElkchIlCg5lbnRpdGxlbWVudF9pZBgGIAEoA1INZW50aXRsZW1lbnRJZBIoChBw'
+    'bGF5X3B1cmNoYXNlX2lkGAcgASgDUg5wbGF5UHVyY2hhc2VJZBIfCgtiYWxhbmNlX2lkchgIIA'
+    'EoAVIKYmFsYW5jZUlkchI+CgxlbnRpdGxlbWVudHMYCSADKAsyGi5jMzUuQmlsbGluZ0VudGl0'
+    'bGVtZW50RG9jUgxlbnRpdGxlbWVudHMSIgoNZXhwaXJlc190c19tcxgKIAEoA1ILZXhwaXJlc1'
+    'RzTXM=');
+
+@$core.Deprecated('Use reqBillingPlayProductListDescriptor instead')
+const ReqBillingPlayProductList$json = {
+  '1': 'ReqBillingPlayProductList',
+};
+
+/// Descriptor for `ReqBillingPlayProductList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqBillingPlayProductListDescriptor =
+    $convert.base64Decode('ChlSZXFCaWxsaW5nUGxheVByb2R1Y3RMaXN0');
+
+@$core.Deprecated('Use resBillingPlayProductListDescriptor instead')
+const ResBillingPlayProductList$json = {
+  '1': 'ResBillingPlayProductList',
+  '2': [
+    {
+      '1': 'products',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.BillingPlayProductDoc',
+      '10': 'products'
+    },
+  ],
+};
+
+/// Descriptor for `ResBillingPlayProductList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resBillingPlayProductListDescriptor =
+    $convert.base64Decode(
+        'ChlSZXNCaWxsaW5nUGxheVByb2R1Y3RMaXN0EjYKCHByb2R1Y3RzGAEgAygLMhouYzM1LkJpbG'
+        'xpbmdQbGF5UHJvZHVjdERvY1IIcHJvZHVjdHM=');
+
+@$core.Deprecated('Use reqBillingVoucherLimitGetDescriptor instead')
+const ReqBillingVoucherLimitGet$json = {
+  '1': 'ReqBillingVoucherLimitGet',
+  '2': [
+    {'1': 'target_iid', '3': 1, '4': 1, '5': 3, '10': 'targetIid'},
+  ],
+};
+
+/// Descriptor for `ReqBillingVoucherLimitGet`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqBillingVoucherLimitGetDescriptor =
+    $convert.base64Decode(
+        'ChlSZXFCaWxsaW5nVm91Y2hlckxpbWl0R2V0Eh0KCnRhcmdldF9paWQYASABKANSCXRhcmdldE'
+        'lpZA==');
+
+@$core.Deprecated('Use reqBillingVoucherLimitPutDescriptor instead')
+const ReqBillingVoucherLimitPut$json = {
+  '1': 'ReqBillingVoucherLimitPut',
+  '2': [
+    {'1': 'target_iid', '3': 1, '4': 1, '5': 3, '10': 'targetIid'},
+    {'1': 'limit_idr', '3': 2, '4': 1, '5': 1, '10': 'limitIdr'},
+  ],
+};
+
+/// Descriptor for `ReqBillingVoucherLimitPut`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqBillingVoucherLimitPutDescriptor =
+    $convert.base64Decode(
+        'ChlSZXFCaWxsaW5nVm91Y2hlckxpbWl0UHV0Eh0KCnRhcmdldF9paWQYASABKANSCXRhcmdldE'
+        'lpZBIbCglsaW1pdF9pZHIYAiABKAFSCGxpbWl0SWRy');
+
+@$core.Deprecated('Use resBillingVoucherLimitDescriptor instead')
+const ResBillingVoucherLimit$json = {
+  '1': 'ResBillingVoucherLimit',
+  '2': [
+    {'1': 'target_iid', '3': 1, '4': 1, '5': 3, '10': 'targetIid'},
+    {'1': 'limit_idr', '3': 2, '4': 1, '5': 1, '10': 'limitIdr'},
+    {'1': 'used_idr', '3': 3, '4': 1, '5': 1, '10': 'usedIdr'},
+  ],
+};
+
+/// Descriptor for `ResBillingVoucherLimit`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resBillingVoucherLimitDescriptor = $convert.base64Decode(
+    'ChZSZXNCaWxsaW5nVm91Y2hlckxpbWl0Eh0KCnRhcmdldF9paWQYASABKANSCXRhcmdldElpZB'
+    'IbCglsaW1pdF9pZHIYAiABKAFSCGxpbWl0SWRyEhkKCHVzZWRfaWRyGAMgASgBUgd1c2VkSWRy');

@@ -1,4 +1,8 @@
+import 'dart:async';
+
 import 'package:alienai_c35/c/billing/billing_admin_adjust.dart';
+import 'package:alienai_c35/c/billing/billing_voucher_api.dart';
+import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/admin/admin_api.dart';
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/api/referral_conn.dart';
@@ -230,6 +234,9 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
   bool get _canEditReferrer => referralCanEditReferrer() && !referralNodeIsRoot(_node);
   bool get _canEditRoles => referralCanEditRoles() && !referralNodeIsRoot(_node);
   bool get _canViewContact => Session.instance.isRoot || Session.instance.globalRoles.contains('director');
+  bool get _subjectIsMarketing => _node.globalRoles.any((r) => r.toLowerCase() == 'marketing');
+  bool get _showVoucherIssueLimit => _subjectIsMarketing && (Session.instance.isRoot || Session.instance.canSetVoucherIssueLimit);
+  bool get _canEditVoucherIssueLimit => Session.instance.canSetVoucherIssueLimit && !_busy;
 
   String get _platformLabel {
     final h = _node.handle.trim();
@@ -638,6 +645,14 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
                                   ? [const Text('No roles', style: TextStyle(color: _ReferralPalette.muted, fontSize: 12))]
                                   : _roles.map((r) => _RoleChip(label: r)).toList(),
                             ),
+                          ),
+                          const SizedBox(height: 10),
+                        ],
+                        if (_showVoucherIssueLimit) ...[
+                          _ProfileVoucherIssueLimitSection(
+                            conn: widget.conn,
+                            targetIid: _node.id.toInt(),
+                            canEdit: _canEditVoucherIssueLimit,
                           ),
                           const SizedBox(height: 10),
                         ],
@@ -1052,6 +1067,85 @@ class _RolesEditDialogState extends State<_RolesEditDialog> {
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           FilledButton(onPressed: () => Navigator.pop(context, _selected), child: const Text('Save')),
         ],
+      );
+}
+
+class _ProfileVoucherIssueLimitSection extends StatefulWidget {
+  const _ProfileVoucherIssueLimitSection({required this.conn, required this.targetIid, required this.canEdit});
+
+  final ReferralConn conn;
+  final int targetIid;
+  final bool canEdit;
+
+  @override
+  State<_ProfileVoucherIssueLimitSection> createState() => _ProfileVoucherIssueLimitSectionState();
+}
+
+class _ProfileVoucherIssueLimitSectionState extends State<_ProfileVoucherIssueLimitSection> {
+  var _loading = true;
+  double _limit = 0;
+  double _used = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_load());
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final res = await billingVoucherLimitGet(widget.conn, targetIid: widget.targetIid);
+      if (!mounted) return;
+      setState(() {
+        _limit = res.limitIdr;
+        _used = res.usedIdr;
+        _loading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _editLimit() async {
+    final next = await showDialog<String>(
+      context: context,
+      builder: (ctx) => _TextPromptDialog(
+        title: 'Voucher issue limit',
+        label: 'Limit IDR',
+        initial: _limit > 0 ? _limit.round().toString() : '',
+        keyboardType: TextInputType.number,
+        onSubmit: (v) {
+          final n = double.tryParse(v.replaceAll(RegExp(r'[^0-9]'), ''));
+          if (n == null || n < 0) return 'Enter a valid amount';
+          return null;
+        },
+      ),
+    );
+    if (next == null || !mounted) return;
+    final limit = double.parse(next.replaceAll(RegExp(r'[^0-9]'), ''));
+    await billingVoucherLimitPut(widget.conn, targetIid: widget.targetIid, limitIdr: limit);
+    await _load();
+  }
+
+  @override
+  Widget build(BuildContext context) => _ProfileSection(
+        title: 'Voucher issue limit',
+        onTap: widget.canEdit && !_loading ? _editLimit : null,
+        showTrailing: widget.canEdit,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Marketing prepaid issuance cap (IDR).', style: TextStyle(color: _ReferralPalette.muted, fontSize: 12)),
+            const SizedBox(height: 8),
+            if (_loading)
+              const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: _ReferralPalette.muted))
+            else ...[
+              Text('Limit: ${moneyFmtIdr(_limit)}', style: const TextStyle(color: _ReferralPalette.text, fontSize: 13, fontWeight: FontWeight.w500)),
+              Text('Used: ${moneyFmtIdr(_used)}', style: const TextStyle(color: _ReferralPalette.muted, fontSize: 12)),
+            ],
+          ],
+        ),
       );
 }
 
