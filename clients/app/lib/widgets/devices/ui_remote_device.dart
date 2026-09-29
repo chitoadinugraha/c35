@@ -195,6 +195,7 @@ class UiRemoteDevice extends StatefulWidget {
     this.updateVersion,
     this.onApplyUpdate,
     this.promptStore,
+    this.browserDevice = false,
   });
 
   final RemoteSession? session;
@@ -211,6 +212,7 @@ class UiRemoteDevice extends StatefulWidget {
   final bool updateReady;
   final int? updateVersion;
   final VoidCallback? onApplyUpdate;
+  final bool browserDevice;
 
   @override
   State<UiRemoteDevice> createState() => _UiRemoteDeviceState();
@@ -278,8 +280,12 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
     if (linking) return 'Connecting to ${widget.deviceName}…';
     if (sess.stoppedByUser) return 'Remote session stopped.';
     if (_error != null) return '${widget.deviceName} is offline';
+    if (widget.browserDevice && sess.connected.value) return 'Starting video stream…';
     return 'Screen stream idle.';
   }
+
+  bool _waitingBrowserVideo(RemoteSession sess, bool connected, bool hasVideoTrack, RemoteScreenFrame? frame) =>
+      widget.browserDevice && connected && !hasVideoTrack && frame == null && !sess.stoppedByUser;
 
   void _syncSessionControl() {
     final sess = widget.session;
@@ -473,13 +479,13 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
 
   Widget _buildStreamStatsOverlay(String label) => Positioned(
         left: 0,
-        top: 0,
+        bottom: 0,
         child: IgnorePointer(
           child: DecoratedBox(
             decoration: BoxDecoration(
               color: Colors.black.withValues(alpha: 0.5),
               borderRadius:
-                  const BorderRadius.only(bottomRight: Radius.circular(6)),
+                  const BorderRadius.only(topRight: Radius.circular(6)),
             ),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(8, 4, 10, 5),
@@ -1097,7 +1103,16 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                             color: _zinc400,
                           ),
                         ),
-                        if (sess.conn.connected) ...[
+                        if (_waitingBrowserVideo(sess, connected, hasVideoTrack, frame)) ...[
+                          const SizedBox(height: 12),
+                          const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: _amber),
+                          ),
+                        ],
+                        if (sess.conn.connected &&
+                            !_waitingBrowserVideo(sess, connected, hasVideoTrack, frame)) ...[
                           const SizedBox(height: 16),
                           FilledButton.icon(
                             onPressed: linking

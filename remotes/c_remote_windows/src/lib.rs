@@ -1,3 +1,4 @@
+pub mod agent_version;
 pub mod audio_capture;
 pub mod cursor_shape;
 pub mod dxgi_capture;

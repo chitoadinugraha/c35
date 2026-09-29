@@ -4,6 +4,7 @@ param(
     [switch]$Watch,
     [switch]$EngineWatch,
     [switch]$SctpScreen,
+    [switch]$RtpVideo,
     [string]$ServerUrl = '',
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$CargoArgs
@@ -28,7 +29,11 @@ $env:C35_BROWSER_HEADLESS = '0'
 if (-not $env:RUST_LOG) {
     $env:RUST_LOG = 'info,c_remote_browser=debug,c_remote_core::engine=debug,c_remote_core::task_run=debug,c_remote_core::webrtc=info'
 }
-if ($SctpScreen) { $env:C35_BROWSER_SCTP_SCREEN = '1' }
+if ($RtpVideo) {
+    $env:C35_BROWSER_SCTP_SCREEN = '0'
+} elseif ($SctpScreen -or -not $env:C35_BROWSER_SCTP_SCREEN) {
+    $env:C35_BROWSER_SCTP_SCREEN = '1'
+}
 
 $agentName = 'alienai_remote_browser'
 foreach ($p in @(Get-Process -Name $agentName -ErrorAction SilentlyContinue)) {

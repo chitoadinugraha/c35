@@ -349,12 +349,18 @@ impl WebrtcHub {
             return;
         }
         crate::agent_ui::webrtc_connecting_set(true);
-        let ice_servers = super::ice_config::ice_servers_fetch(
-            &self.dispatch_ctx.server_url,
-            &self.dispatch_ctx.session_key,
-        )
-        .await
-        .unwrap_or_else(ice_servers_load);
+        let ice_servers = if let Some(local) =
+            super::ice_config::ice_servers_local_dev(&self.dispatch_ctx.server_url)
+        {
+            local
+        } else {
+            super::ice_config::ice_servers_fetch(
+                &self.dispatch_ctx.server_url,
+                &self.dispatch_ctx.session_key,
+            )
+            .await
+            .unwrap_or_else(ice_servers_load)
+        };
         match WebrtcSession::create(
             self.device_iid,
             session_id.clone(),

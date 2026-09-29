@@ -17,6 +17,31 @@ const LAUNCH_ARGS = [
 
 export type TabInfo = { tabId: string; url: string; title: string; active: boolean };
 
+const isBlankPageUrl = (url: string): boolean => {
+  const u = url.trim().toLowerCase();
+  return (
+    !u ||
+    u === 'about:blank' ||
+    u === 'about:newtab' ||
+    u.startsWith('chrome://newtab') ||
+    u.startsWith('edge://newtab')
+  );
+};
+
+const STEALTH_INIT_SCRIPT = () => {
+  Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+  const originalQuery = window.navigator.permissions.query.bind(window.navigator.permissions);
+  window.navigator.permissions.query = (parameters: PermissionDescriptor) =>
+    parameters.name === 'notifications'
+      ? Promise.resolve({ state: Notification.permission } as PermissionStatus)
+      : originalQuery(parameters);
+  // @ts-expect-error playwright probe
+  delete window.__playwright;
+  // @ts-expect-error playwright probe
+  delete window.__pwInitScripts;
+};
+
+
 export class BrowserEngine {
   private browser: Browser | null = null;
   private context: BrowserContext | null = null;
@@ -49,30 +74,48 @@ export class BrowserEngine {
       this.context = await chromium.launchPersistentContext(params.userDataDir, {
         headless,
         args: LAUNCH_ARGS,
+        ignoreDefaultArgs: ['--enable-automation'],
         viewport,
         acceptDownloads: true,
         downloadsPath: this.downloadsDir,
       });
+      await this.context.addInitScript(STEALTH_INIT_SCRIPT);
     } else {
       this.browser = await chromium.launch({ headless, args: LAUNCH_ARGS });
       this.context = await this.browser.newContext({
         viewport,
         acceptDownloads: true,
       });
+      await this.context.addInitScript(STEALTH_INIT_SCRIPT);
     }
     this.context.on('page', (page) => this.wireDownloadHandler(page));
     const existing = this.context.pages();
-    const first = existing.length > 0 ? existing[0] : await this.context.newPage();
-    const tabId = this.nextTabId();
-    this.pages.set(tabId, first);
-    this.activeTabId = tabId;
-    this.wireDownloadHandler(first);
-    await first.addInitScript(() => {
-      Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-    });
-    const url = params.initialUrl ?? 'about:blank';
-    if (url !== 'about:blank' && url !== 'about:newtab') {
-      await first.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 }).catch(() => {});
+    let first: Page;
+    if (existing.length > 0) {
+      for (const page of existing) {
+        const tabId = this.nextTabId();
+        this.pages.set(tabId, page);
+        this.wireDownloadHandler(page);
+        await page.addInitScript(STEALTH_INIT_SCRIPT);
+      }
+      first = existing[0];
+      this.activeTabId = [...this.pages.keys()][this.pages.size - 1] ?? null;
+    } else {
+      first = await this.context.newPage();
+      const tabId = this.nextTabId();
+      this.pages.set(tabId, first);
+      this.activeTabId = tabId;
+      this.wireDownloadHandler(first);
+      await first.addInitScript(STEALTH_INIT_SCRIPT);
+    }
+    const restoredSession = existing.length > 0 && existing.some((pg) => !isBlankPageUrl(pg.url()));
+    const defaultUrl = params.initialUrl ?? 'about:blank';
+    const shouldOpenDefault =
+      defaultUrl !== 'about:blank' &&
+      defaultUrl !== 'about:newtab' &&
+      (!restoredSession || !isBlankPageUrl(first.url()));
+    if (shouldOpenDefault) {
+      await first.goto(defaultUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 }).catch(() => {});
     }
   }
 
@@ -113,9 +156,7 @@ export class BrowserEngine {
     if (!this.context) throw new Error('engine not launched');
     const page = await this.context.newPage();
     this.wireDownloadHandler(page);
-    await page.addInitScript(() => {
-      Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-    });
+    await page.addInitScript(STEALTH_INIT_SCRIPT);
     const tabId = this.nextTabId();
     this.pages.set(tabId, page);
     this.activeTabId = tabId;
@@ -184,6 +225,24 @@ export class BrowserEngine {
     const page = this.activePage();
     if (!page) throw new Error('no active tab');
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+  }
+
+  public async historyBack(): Promise<void> {
+    const page = this.activePage();
+    if (!page) throw new Error('no active tab');
+    await page.goBack({ waitUntil: 'domcontentloaded', timeout: 30_000 }).catch(() => undefined);
+  }
+
+  public async historyForward(): Promise<void> {
+    const page = this.activePage();
+    if (!page) throw new Error('no active tab');
+    await page.goForward({ waitUntil: 'domcontentloaded', timeout: 30_000 }).catch(() => undefined);
+  }
+
+  public async reload(): Promise<void> {
+    const page = this.activePage();
+    if (!page) throw new Error('no active tab');
+    await page.reload({ waitUntil: 'domcontentloaded', timeout: 60_000 });
   }
 
   public async pageObserve(

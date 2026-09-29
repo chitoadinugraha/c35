@@ -3,6 +3,7 @@ mod app_web;
 mod drive;
 mod catalog;
 mod device;
+mod guest_contact;
 mod guest_order;
 mod invoke;
 mod locale;
@@ -79,5 +80,6 @@ pub fn router(state: AppState) -> Router {
         .merge(c35_mod_billing::billing_webhook_router())
         .merge(c35_mod_mail::mail_router())
         .merge(guest_order::guest_order_router())
+        .merge(guest_contact::guest_contact_router())
         .with_state(state)
 }

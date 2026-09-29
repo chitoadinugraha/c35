@@ -322,3 +322,20 @@ message ResSiteQueryRun {
   repeated SiteQueryRow rows = 1;
   string result_json = 2;         // optional structured blob
 }
+
+// ================================= Guest Contact Lead Capture
+
+message ReqSiteGuestContactPut {
+  int64 site_iid = 1;
+  string name = 2;
+  string contact_val = 3;  // phone or email
+  string message = 4;
+  string meta_json = 5;
+}
+
+message ResSiteGuestContactPut {
+  bool ok = 1;
+  int64 contact_id = 2;
+  string error = 3;
+}
+

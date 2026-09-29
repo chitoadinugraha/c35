@@ -128,6 +128,15 @@ pub async fn stdout_reader_loop(bridge: std::sync::Arc<EngineBridge>, mut stdout
             }
         }
     }
+    let n = {
+        let mut guard = bridge.pending.lock().await;
+        let n = guard.len();
+        guard.clear();
+        n
+    };
+    if n > 0 {
+        tracing::warn!(pending = n, "engine worker exited; cancelled pending ipc calls");
+    }
 }
 
 fn try_parse_frame(buf: &[u8]) -> Option<(Value, Vec<u8>)> {

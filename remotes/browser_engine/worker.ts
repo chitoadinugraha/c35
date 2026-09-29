@@ -30,6 +30,9 @@ const handleReq = async (req: IpcReq): Promise<void> => {
       case 'tab.new': writeMessage(resOk(id, await engine.tabNew((params as { url?: string })?.url))); return;
       case 'tab.close': { const tabId = (params as { tabId?: string })?.tabId; if (!tabId) throw new Error('tabId required'); await engine.tabClose(tabId); writeMessage(resOk(id)); return; }
       case 'navigate': { const url = (params as { url?: string })?.url; if (!url) throw new Error('url required'); await engine.navigate(url); writeMessage(resOk(id)); return; }
+      case 'reload': { await engine.reload(); writeMessage(resOk(id)); return; }
+      case 'history.back': { await engine.historyBack(); writeMessage(resOk(id)); return; }
+      case 'history.forward': { await engine.historyForward(); writeMessage(resOk(id)); return; }
       case 'page.observe': {
         const p = params as { tab_id?: string; max_chars?: number };
         const maxChars = p?.max_chars ?? 8000;

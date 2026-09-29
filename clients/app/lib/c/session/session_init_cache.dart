@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:alienai_c35/c/app_id.dart';
 import 'package:alienai_c35/c/pb/c35/session.pb.dart';
 import 'package:alienai_c35/c/session.dart';
-import 'package:fixnum/fixnum.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 String sessionInitSinceKey(int uid) => '${C35AppId.id}_session_init_since_ms.$uid';

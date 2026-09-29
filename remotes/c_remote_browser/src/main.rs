@@ -1,3 +1,4 @@
+mod agent_version;
 mod browser_command;
 mod browser_download;
 mod browser_idle;
@@ -20,6 +21,7 @@ use tracing::info;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     log_local::init();
+    agent_version::register();
     let cli = std::env::args().any(|a| a == "--cli");
 
     println!(
@@ -44,13 +46,25 @@ async fn main() -> anyhow::Result<()> {
             continue;
         }
 
+        info!(
+            device_iid = device_iid_load().unwrap_or(0),
+            "already paired; pair window skipped (run dev_browser with -Unpair to re-pair)"
+        );
+
         {
             let mut slot = state.engine.lock().map_err(|_| anyhow::anyhow!("lock"))?;
             if slot.is_none() {
                 let headless = mode::headless_from_config();
+                info!(
+                    headless,
+                    "launching Playwright Chromium (headless=false shows a visible window)"
+                );
                 match engine::process::spawn_engine(headless, "default").await {
                     Ok(e) => *slot = Some(e),
-                    Err(e) => tracing::warn!("browser_engine not started: {e:#}"),
+                    Err(e) => {
+                        eprintln!("browser_engine not started: {e:#}");
+                        tracing::warn!("browser_engine not started: {e:#}");
+                    }
                 }
             }
         }

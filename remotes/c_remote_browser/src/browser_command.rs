@@ -42,6 +42,26 @@ async fn invoke_method(method: &str, params: Value) -> anyhow::Result<Value> {
 
     match method {
         "tabs" => crate::browser_tabs::tab_command(&bridge, &params).await,
+        "navigate" => {
+            let url = params
+                .get("url")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("url required"))?;
+            bridge.call("navigate", json!({ "url": url })).await?;
+            Ok(json!({ "ok": true }))
+        }
+        "reload" => {
+            bridge.call("reload", json!({})).await?;
+            Ok(json!({ "ok": true }))
+        }
+        "history.back" => {
+            bridge.call("history.back", json!({})).await?;
+            Ok(json!({ "ok": true }))
+        }
+        "history.forward" => {
+            bridge.call("history.forward", json!({})).await?;
+            Ok(json!({ "ok": true }))
+        }
         "page.extract" => {
             let selector = params
                 .get("selector")

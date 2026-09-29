@@ -656,9 +656,13 @@ Never invent checkout, prices, or stock — use site.tx.put for money/stock muta
     ],
     ARRAY[
         'tool_include:site.draft_put',
+        'tool_include:site.draft_get',
         'tool_include:site.publish',
         'tool_include:site.product_put',
-        'tool_include:site.contact_put'
+        'tool_include:site.product_patch',
+        'tool_include:site.contact_put',
+        'tool_include:site.domain_put',
+        'tool_include:site.domain_verify'
     ],
     120,
     'seed',
@@ -672,6 +676,34 @@ Never invent checkout, prices, or stock — use site.tx.put for money/stock muta
     priority = EXCLUDED.priority,
     updated_ts = NOW();
 
+-- Seed: site custom domain attachment & verification
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, topics, inst, phrases, triggers, priority, def_hash, updated_ts
+) VALUES (
+    'inst.site.domain',
+    'global',
+    'task',
+    '',
+    ARRAY['web.builder'],
+    '[SITE.DOMAIN] User wants to attach, verify, or check custom domain DNS / TLS status on a site. \
+Use site.domain_put to register the domain hostname and receive CNAME instructions; use site.domain_verify to test DNS resolution and check TLS certificate readiness.',
+    ARRAY['domain', 'custom domain', 'cname', 'verify domain', 'sambungkan domain'],
+    ARRAY[
+        'tool_include:site.domain_put',
+        'tool_include:site.domain_verify'
+    ],
+    125,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    topics = EXCLUDED.topics,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    kind = EXCLUDED.kind,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
 -- Seed: site commerce / POS topic steering
 INSERT INTO ai.inst (
     id, scope, kind, topic_id, inst, phrases, triggers, priority, def_hash, updated_ts
@@ -681,14 +713,15 @@ INSERT INTO ai.inst (
     'topic',
     'site.commerce',
     '[SITE.COMMERCE] User is working with POS / transactions on a site. \
-Use site.tx.put for sales, purchases, and stock movements; site.tx.preview before finalize; site.tx.debt_pay for debt or installment payments. \
+Use site.tx.put for sales, purchases, and stock movements; site.tx.preview before finalize; site.tx.debt_pay for debt or installment payments; site.order.status for changing order states. \
 Writes require exactly one site_iid per call — default from [SITE CONTEXTS] only when one site is mentioned; pass site_iid explicitly when multiple sites. \
 Never invent prices, stock, or totals — use tx tools only.',
     ARRAY[]::TEXT[],
     ARRAY[
         'tool_include:site.tx.put',
         'tool_include:site.tx.preview',
-        'tool_include:site.tx.debt_pay'
+        'tool_include:site.tx.debt_pay',
+        'tool_include:site.order.status'
     ],
     118,
     'seed',
@@ -699,6 +732,31 @@ Never invent prices, stock, or totals — use tx tools only.',
     triggers = EXCLUDED.triggers,
     kind = EXCLUDED.kind,
     topic_id = EXCLUDED.topic_id,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: site order status steering
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, topics, inst, phrases, triggers, priority, def_hash, updated_ts
+) VALUES (
+    'inst.site.order_status',
+    'global',
+    'task',
+    '',
+    ARRAY['site.commerce', 'web.builder'],
+    '[SITE.ORDER_STATUS] User wants to update the status or add fulfillment notes to an existing order or transaction. \
+Use site.order.status with tx_id and state (ok, pending, waiting_payment, cancelled).',
+    ARRAY['order status', 'selesaikan pesanan', 'batalkan pesanan', 'mark as completed', 'order selesai', 'pesanan siap'],
+    ARRAY['tool_include:site.order.status'],
+    126,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    topics = EXCLUDED.topics,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    kind = EXCLUDED.kind,
     priority = EXCLUDED.priority,
     updated_ts = NOW();
 

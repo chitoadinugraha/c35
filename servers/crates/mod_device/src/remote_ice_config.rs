@@ -56,8 +56,30 @@ fn unix_now() -> u64 {
         .unwrap_or(0)
 }
 
+/// Match agent `ice_servers_local_dev`: STUN-only on localhost dev (avoids Win TURN 10051).
+fn ice_local_dev_stun_only() -> bool {
+    if std::env::var("C35_ICE_LOCAL_DEV").as_deref() == Ok("1") {
+        return true;
+    }
+    let u = std::env::var("C35_SERVER_URL")
+        .or_else(|_| std::env::var("C35_PUBLIC_URL"))
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    u.contains("127.0.0.1") || u.contains("localhost")
+}
+
 /// Mint ephemeral ICE servers for WebRTC (STUN always; TURN when `C35_TURN_SECRET` is set).
 pub fn remote_ice_config(caller_iid: i64, _req: ReqRemoteIceConfig) -> ResRemoteIceConfig {
+    if ice_local_dev_stun_only() {
+        return ResRemoteIceConfig {
+            ice_servers: vec![IceServer {
+                urls: vec!["stun:stun.l.google.com:19302".into()],
+                username: String::new(),
+                credential: String::new(),
+            }],
+            ttl_sec: TTL_SEC,
+        };
+    }
     let _ = env_or("C35_TURN_REALM", "alienai.id");
     let stun_urls = default_stun_urls();
     let mut ice_servers = vec![IceServer {

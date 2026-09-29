@@ -929,3 +929,37 @@ const ResSiteQueryRun$json = {
 final $typed_data.Uint8List resSiteQueryRunDescriptor = $convert.base64Decode(
     'Cg9SZXNTaXRlUXVlcnlSdW4SJQoEcm93cxgBIAMoCzIRLmMzNS5TaXRlUXVlcnlSb3dSBHJvd3'
     'MSHwoLcmVzdWx0X2pzb24YAiABKAlSCnJlc3VsdEpzb24=');
+
+@$core.Deprecated('Use reqSiteGuestContactPutDescriptor instead')
+const ReqSiteGuestContactPut$json = {
+  '1': 'ReqSiteGuestContactPut',
+  '2': [
+    {'1': 'site_iid', '3': 1, '4': 1, '5': 3, '10': 'siteIid'},
+    {'1': 'name', '3': 2, '4': 1, '5': 9, '10': 'name'},
+    {'1': 'contact_val', '3': 3, '4': 1, '5': 9, '10': 'contactVal'},
+    {'1': 'message', '3': 4, '4': 1, '5': 9, '10': 'message'},
+    {'1': 'meta_json', '3': 5, '4': 1, '5': 9, '10': 'metaJson'},
+  ],
+};
+
+/// Descriptor for `ReqSiteGuestContactPut`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqSiteGuestContactPutDescriptor = $convert.base64Decode(
+    'ChZSZXFTaXRlR3Vlc3RDb250YWN0UHV0EhkKCHNpdGVfaWlkGAEgASgDUgdzaXRlSWlkEhIKBG'
+    '5hbWUYAiABKAlSBG5hbWUSHwoLY29udGFjdF92YWwYAyABKAlSCmNvbnRhY3RWYWwSGAoHbWVz'
+    'c2FnZRgEIAEoCVIHbWVzc2FnZRIbCgltZXRhX2pzb24YBSABKAlSCG1ldGFKc29u');
+
+@$core.Deprecated('Use resSiteGuestContactPutDescriptor instead')
+const ResSiteGuestContactPut$json = {
+  '1': 'ResSiteGuestContactPut',
+  '2': [
+    {'1': 'ok', '3': 1, '4': 1, '5': 8, '10': 'ok'},
+    {'1': 'contact_id', '3': 2, '4': 1, '5': 3, '10': 'contactId'},
+    {'1': 'error', '3': 3, '4': 1, '5': 9, '10': 'error'},
+  ],
+};
+
+/// Descriptor for `ResSiteGuestContactPut`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resSiteGuestContactPutDescriptor =
+    $convert.base64Decode(
+        'ChZSZXNTaXRlR3Vlc3RDb250YWN0UHV0Eg4KAm9rGAEgASgIUgJvaxIdCgpjb250YWN0X2lkGA'
+        'IgASgDUgljb250YWN0SWQSFAoFZXJyb3IYAyABKAlSBWVycm9y');

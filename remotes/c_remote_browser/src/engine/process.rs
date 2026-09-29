@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::Arc;
 
@@ -49,11 +49,55 @@ pub fn slot_paths(slot_id: &str) -> (PathBuf, PathBuf) {
     (user_data, downloads)
 }
 
+fn clear_profile_lock(profile: &Path) {
+    let lock = profile.join("SingletonLock");
+    if lock.is_file() {
+        let _ = std::fs::remove_file(&lock);
+        warn!(path = %lock.display(), "removed stale Chromium profile SingletonLock");
+    }
+}
+
+fn engine_running(child: &mut Child) -> bool {
+    matches!(child.try_wait(), Ok(None))
+}
+
+async fn wait_engine_ready(bridge: &EngineBridge) -> Result<()> {
+    for attempt in 0..80 {
+        match bridge.call("ping", serde_json::json!({})).await {
+            Ok(_) => return Ok(()),
+            Err(e) => {
+                if attempt + 1 >= 80 {
+                    return Err(e);
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            }
+        }
+    }
+    anyhow::bail!("engine worker ping timeout")
+}
+
+async fn launch_browser(bridge: &EngineBridge, headless: bool, profile: &Path, downloads: &Path, slot_id: &str) -> Result<()> {
+    bridge
+        .call(
+            "launch",
+            serde_json::json!({
+                "headless": headless,
+                "userDataDir": profile.to_string_lossy(),
+                "downloadsPath": downloads.to_string_lossy(),
+                "slot_id": slot_id,
+                "viewport": { "width": 1280, "height": 800 }
+            }),
+        )
+        .await?;
+    Ok(())
+}
+
 pub async fn spawn_engine(headless: bool, slot_id: &str) -> Result<EngineProcess> {
     let worker = resolve_worker_script()?;
     let node = std::env::var("C35_NODE").unwrap_or_else(|_| "node".into());
     let slot_id = sanitize_slot_id(slot_id);
     let (profile, downloads) = slot_paths(&slot_id);
+    clear_profile_lock(&profile);
     info!(
         worker = %worker.display(),
         headless,
@@ -77,20 +121,24 @@ pub async fn spawn_engine(headless: bool, slot_id: &str) -> Result<EngineProcess
     let bridge = Arc::new(EngineBridge::new(stdin));
     let reader = tokio::spawn(stdout_reader_loop(bridge.clone(), stdout));
 
-    tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+    wait_engine_ready(&bridge).await?;
 
-    bridge
-        .call(
-            "launch",
-            serde_json::json!({
-                "headless": headless,
-                "userDataDir": profile.to_string_lossy(),
-                "downloadsPath": downloads.to_string_lossy(),
-                "slot_id": slot_id,
-                "viewport": { "width": 1280, "height": 800 }
-            }),
-        )
-        .await?;
+    if let Err(e) = launch_browser(&bridge, headless, &profile, &downloads, &slot_id).await {
+        let msg = e.to_string().to_lowercase();
+        if msg.contains("in use") || msg.contains("singleton") || msg.contains("user data") {
+            warn!("launch failed ({e}); clearing profile lock and retrying once");
+            clear_profile_lock(&profile);
+            launch_browser(&bridge, headless, &profile, &downloads, &slot_id).await?;
+        } else {
+            return Err(e);
+        }
+    }
+
+    if !headless {
+        eprintln!(
+            "Playwright Chromium started (headed). Look for the taskbar window titled Alien AI Remote Browser."
+        );
+    }
 
     let _ = bridge.call("screencast.start", serde_json::json!({})).await;
 
@@ -113,11 +161,15 @@ pub async fn ensure_engine(
             .engine
             .lock()
             .map_err(|_| anyhow::anyhow!("engine lock"))?;
-        let restart = guard
-            .as_ref()
-            .map(|e| e.slot_id != slot_id)
-            .unwrap_or(true);
-        if guard.is_none() || restart {
+        let mut stale = false;
+        if let Some(proc) = guard.as_mut() {
+            if !engine_running(&mut proc.child) {
+                stale = true;
+            } else if proc.slot_id != slot_id {
+                stale = true;
+            }
+        }
+        if guard.is_none() || stale {
             (true, guard.take())
         } else {
             (false, None)

@@ -1,4 +1,10 @@
 fn main() {
+    {
+        mod embed {
+            include!("../agent_version_build.rs");
+        }
+        embed::embed_agent_version("../VERSION.windows");
+    }
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("windows") {
         return;
     }

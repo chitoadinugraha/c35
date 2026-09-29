@@ -124,3 +124,70 @@ pub async fn site_contact_put(
         site_contact_upsert(pool, owner_iid, site_iid, &contact, out_tx).await?;
     Ok(ResSiteContactPut { contact_id })
 }
+
+pub async fn guest_contact_put(
+    pool: &PgPool,
+    req: c35_proto::ReqSiteGuestContactPut,
+) -> Result<c35_proto::ResSiteGuestContactPut> {
+    let site_iid = req.site_iid;
+    let name = req.name.trim();
+    let contact_val = req.contact_val.trim();
+    let message = req.message.trim();
+
+    if site_iid == 0 {
+        return Ok(c35_proto::ResSiteGuestContactPut {
+            ok: false,
+            contact_id: 0,
+            error: "site_iid is required".into(),
+        });
+    }
+    if name.is_empty() && contact_val.is_empty() && message.is_empty() {
+        return Ok(c35_proto::ResSiteGuestContactPut {
+            ok: false,
+            contact_id: 0,
+            error: "name or contact info is required".into(),
+        });
+    }
+
+    let owner_iid: Option<i64> = sqlx::query_scalar("SELECT owner_iid FROM ai.identity WHERE id = $1 AND deleted_ts IS NULL")
+        .bind(site_iid)
+        .fetch_optional(pool)
+        .await?;
+    let owner_iid = owner_iid.unwrap_or(site_iid);
+
+    let is_email = contact_val.contains('@');
+    let phone = if is_email { "" } else { contact_val };
+    let email = if is_email { contact_val } else { "" };
+    let contact_id = snowflake_id();
+    let meta = serde_json::json!({
+        "source": "guest_form",
+        "raw_contact": contact_val,
+        "message": message,
+    });
+
+    sqlx::query(
+        r#"
+        INSERT INTO site.contact (
+            site_iid, contact_id, owner_iid, name, phone, email, address, note,
+            meta_json, is_archived, created_ts, updated_ts
+        ) VALUES ($1, $2, $3, $4, $5, $6, '', $7, $8, FALSE, NOW(), NOW())
+        "#,
+    )
+    .bind(site_iid)
+    .bind(contact_id)
+    .bind(owner_iid)
+    .bind(if name.is_empty() { "Guest Lead" } else { name })
+    .bind(phone)
+    .bind(email)
+    .bind(message)
+    .bind(meta)
+    .execute(pool)
+    .await?;
+
+    Ok(c35_proto::ResSiteGuestContactPut {
+        ok: true,
+        contact_id,
+        error: String::new(),
+    })
+}
+

@@ -197,4 +197,4 @@ Follow the same script pattern in `_\scripts\deploy\deploy_remote\`:
 3. Upload to CAS: `POST /v1/file/upload`
 4. Update `ai.config`: `app.release.c35.remote-{platform}`
 5. Broadcast over NATS: `c35.release.remote-{platform}`
-6. Bump `remotes/VERSION`
+6. Bump `remotes/VERSION.windows` (desktop agent) or `remotes/VERSION.browser` (remote browser agent)

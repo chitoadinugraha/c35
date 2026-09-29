@@ -8,7 +8,7 @@ use serde::Deserialize;
 use tokio::sync::{Mutex, Notify};
 use tracing::{info, warn};
 
-use crate::version::AGENT_BUILD;
+use crate::version::agent_build;
 
 pub(crate) const WINDOWS_AGENT_EXE: &str = "alienai_remote_windows.exe";
 pub(crate) const WINDOWS_WINFSP_DLL: &str = "winfsp-x64.dll";
@@ -189,7 +189,7 @@ pub async fn update_poll(base_url: &str) -> Result<Option<ReleaseRes>, anyhow::E
         return Ok(None);
     }
     let body: ReleaseRes = res.json().await?;
-    if release_requires_update(AGENT_BUILD, &body) {
+    if release_requires_update(agent_build(), &body) {
         Ok(Some(body))
     } else {
         Ok(None)
@@ -288,7 +288,7 @@ pub fn update_staged_version() -> Option<i64> {
             }
         }
     }
-    if best > AGENT_BUILD {
+    if best > agent_build() {
         Some(best)
     } else {
         None

@@ -8,7 +8,7 @@ use tracing::{info, warn};
 
 use crate::conn_exit::ConnExit;
 use crate::log_push;
-use crate::version::{AGENT_BUILD, AGENT_VERSION_NAME};
+use crate::version::{agent_build, agent_version_name};
 use crate::webrtc::WebrtcHub;
 
 pub fn is_invalid_session(err: &anyhow::Error) -> bool {
@@ -45,7 +45,7 @@ pub async fn conn_ws_run(
     session_key: &str,
     device_iid: i64,
 ) -> anyhow::Result<ConnExit> {
-    let url = agent_ws_url(server_url, session_key, AGENT_BUILD, AGENT_VERSION_NAME);
+    let url = agent_ws_url(server_url, session_key, agent_build(), agent_version_name());
     info!(device_iid, url = %url, "==> [WS CONNECTING] Opening agent control socket");
 
     let (ws, _) = connect_async(&url).await?;

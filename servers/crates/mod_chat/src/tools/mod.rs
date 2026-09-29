@@ -33,7 +33,8 @@ use builtin::{
     PresentationSourceExtractTool, PresentationSourceStructureTool,
     PresentationVideoExtractTool, PresentationVideoStructureTool,
     ReferralCodeDeleteTool, ReferralCodeListTool, ReferralCodePutTool, ReferralTreeGetTool, SiteContactPutTool,
-    SiteDraftPutTool, SiteObjectPutTool, SiteProductPatchTool, SiteProductPutTool, SitePublishTool, SiteQueryRunTool,
+    SiteDomainPutTool, SiteDomainVerifyTool, SiteDraftGetTool, SiteDraftPutTool, SiteObjectPutTool,
+    SiteOrderStatusTool, SiteProductPatchTool, SiteProductPutTool, SitePublishTool, SiteQueryRunTool,
     SiteTxDebtPayTool, SiteTxListTool, SiteTxPreviewTool, SiteTxPutTool, WebResearchTool,
     WebSearchTool, WebVisitTool,
 };
@@ -139,8 +140,11 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(DeviceFsReadTool));
     dispatcher.register(Arc::new(DeviceInputTool));
     dispatcher.register(Arc::new(DeviceScreenshotTool));
+    dispatcher.register(Arc::new(SiteDraftGetTool));
     dispatcher.register(Arc::new(SiteDraftPutTool));
     dispatcher.register(Arc::new(SitePublishTool));
+    dispatcher.register(Arc::new(SiteDomainPutTool));
+    dispatcher.register(Arc::new(SiteDomainVerifyTool));
     dispatcher.register(Arc::new(SiteProductPutTool));
     dispatcher.register(Arc::new(SiteProductPatchTool));
     dispatcher.register(Arc::new(SiteContactPutTool));
@@ -148,6 +152,7 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(SiteQueryRunTool));
     dispatcher.register(Arc::new(SiteTxPutTool));
     dispatcher.register(Arc::new(SiteTxPreviewTool));
+    dispatcher.register(Arc::new(SiteOrderStatusTool));
     dispatcher.register(Arc::new(SiteTxDebtPayTool));
     dispatcher.register(Arc::new(SiteTxListTool));
     dispatcher.register(Arc::new(ReferralCodePutTool));

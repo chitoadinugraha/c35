@@ -210,13 +210,31 @@ site.draft.doc_json
 
 Port compile/serve from `csa_site_published` `mod_site` (`publish_render`, `site_render_router`).
 
+### Guest Interactive Client Runtime
+
+The rendered HTML compiled by `render.rs` includes a lightweight, zero-build client-side runtime for visitor commerce and lead capture:
+
+1. **Guest Cart & Checkout Drawer**:
+   - `product_grid` cards include an **"Add to Cart" / "Pesan"** button.
+   - Sticky bottom bar shows running total, item count, and an expand button.
+   - Expanding opens a bottom sheet / drawer with:
+     - Item quantity steppers (`+` / `-`) and optional per-item note.
+     - Customer details: name, phone / WhatsApp, fulfillment mode (dine-in / room / table / delivery).
+     - Payment selection: Cash on Delivery / Counter, Bank Transfer, or QRIS.
+   - Submission: POST JSON payload to `https://api.alienai.id/v1/site/guest-order/put` (`ReqSiteGuestOrderPut`).
+   - Confirmation: Displays receipt card with order ID and summary.
+
+2. **Guest Contact / Lead Capture**:
+   - `contact_form` blocks submit via async POST to `https://api.alienai.id/v1/site/guest-contact/put`.
+   - Payload writes to `site.contact` (with `source = 'guest_form'`), and triggers notification to site staff.
+
 ## Wire
 
 | Proto | Purpose |
 |-------|---------|
-| [`site.proto`](../schemas/proto/c35/site.proto) | SiteDoc, draft, publish, product, contact, object RPC |
+| [`site.proto`](../schemas/proto/c35/site.proto) | SiteDoc, draft, publish, product, contact, object, guest contact RPC |
 | [`collection.proto`](../schemas/proto/c35/collection.proto) | `TableDef` / `ReqCollectionDefList` for UITable |
-| [`tx.proto`](../schemas/proto/c35/tx.proto) | POS + guest checkout |
+| [`tx.proto`](../schemas/proto/c35/tx.proto) | POS + guest checkout (`ReqSiteGuestOrderPut`, `ReqSiteGuestOrderGet`) |
 
 RPC summary:
 
@@ -224,11 +242,12 @@ RPC summary:
 - `ReqSiteDraftGet/Put` — prompt edits SiteDoc
 - `ReqSitePublish` — render + activate
 - `ReqSiteProduct*` / `ReqSiteContact*` / `ReqSiteObject*` — data CRUD
+- `ReqSiteDomainPut/Verify` — custom domain attachment and verification
 - `ReqCollectionDefList` — UITable column metadata
+- `ReqSiteGuestOrderPut/Get` — guest storefront checkout and order status
+- `ReqSiteGuestContactPut` — guest contact form submission
 
 Sync collections: `site_draft`, `site_product`, `site_product_embed`, `site_contact`, `site_object`, `site_domain`, `site_config`.
-
-Guest checkout: `ReqSiteGuestOrderPut` in `tx.proto` (HTTP on api host).
 
 ## UI
 

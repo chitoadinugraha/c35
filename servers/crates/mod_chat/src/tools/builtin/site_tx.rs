@@ -218,3 +218,79 @@ tool! {
         site_tx_list_exec(ctx, &args).await
     }
 }
+
+pub async fn site_order_status_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
+    let site_iid = site_iid_resolve(ctx, args)?;
+    let tx_id = args
+        .get("tx_id")
+        .and_then(|v| v.as_i64())
+        .ok_or_else(|| anyhow!("tx_id is required"))?;
+    let state_str = args
+        .get("state")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| anyhow!("state is required (e.g. ok, pending, cancelled, waiting_payment)"))?;
+    let new_state = tx_state_from_str(state_str);
+    let note = args.get("note").and_then(|v| v.as_str()).unwrap_or("");
+
+    let res = c35_mod_tx::tx_get(
+        &ctx.pool,
+        ctx.owner_iid,
+        c35_proto::ReqTxGet {
+            site_iid,
+            tx_id,
+        },
+    )
+    .await?;
+
+    let mut tx = res.tx.ok_or_else(|| anyhow!("transaction {} not found", tx_id))?;
+    tx.state = i32::from(new_state);
+    if !note.is_empty() {
+        if tx.desc.is_empty() {
+            tx.desc = note.to_string();
+        } else {
+            tx.desc = format!("{}\n{}", tx.desc, note);
+        }
+    }
+
+    let put_res = c35_mod_tx::tx_put(
+        &ctx.pool,
+        ctx.owner_iid,
+        c35_proto::ReqTxPut { tx: Some(tx) },
+        None,
+    )
+    .await?;
+
+    let updated_tx = put_res.tx.ok_or_else(|| anyhow!("tx update failed"))?;
+    Ok(json!({
+        "ok": true,
+        "site_iid": site_iid,
+        "tx_id": tx_id,
+        "state": state_str,
+        "total": updated_tx.total,
+        "desc": updated_tx.desc,
+    }))
+}
+
+tool! {
+    struct: SiteOrderStatusTool,
+    name: "site.order.status",
+    aliases: ["site_order_status", "site.order_status"],
+    description: "Update the fulfillment state (e.g. ok, pending, waiting_payment, cancelled) and optional note of a transaction / order.",
+    topics: ["site.commerce"],
+    requires_kinds: ["site"],
+    requires_capability: "commerce",
+    ui_calling_key: "tool.site.order.status.calling",
+    ui_done_key: "tool.site.order.status.done",
+    parameters: {
+        site_iid: (integer, "Site identity ID (resolved from @site when exactly one mentioned)", optional),
+        tx_id: (integer, "Transaction / order ID", required),
+        state: (string, "New transaction state (ok, pending, waiting_payment, cancelled)", required),
+        note: (string, "Optional note to append to the order", optional),
+    },
+    execute: |args, ctx| {
+        site_order_status_exec(ctx, &args).await
+    }
+}
+

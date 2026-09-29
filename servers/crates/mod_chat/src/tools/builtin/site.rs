@@ -485,3 +485,170 @@ tool! {
     }
 }
 
+pub async fn site_draft_get_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
+    let site_iid = site_iid_resolve(ctx, args)?;
+    let row = sqlx::query_scalar::<_, Value>(
+        "SELECT doc_json FROM site.draft WHERE site_iid = $1 AND deleted_ts IS NULL",
+    )
+    .bind(site_iid)
+    .fetch_optional(&ctx.pool)
+    .await?;
+
+    match row {
+        Some(doc) => Ok(json!({ "ok": true, "site_iid": site_iid, "doc": doc })),
+        None => Ok(json!({ "ok": false, "site_iid": site_iid, "error": "No draft found for site" })),
+    }
+}
+
+tool! {
+    struct: SiteDraftGetTool,
+    name: "site.draft_get",
+    aliases: ["site_draft_get", "site.draft.get"],
+    description: "Read the site's current draft SiteDoc (pages, blocks, theme, meta) for inspection.",
+    topics: ["web.builder"],
+    requires_kinds: ["site"],
+    ui_calling_key: "tool.site.draft_get.calling",
+    ui_done_key: "tool.site.draft_get.done",
+    readonly: true,
+    parameters: {
+        site_iid: (integer, "Site identity ID (resolved from @alien_id when omitted)", optional),
+    },
+    execute: |args, ctx| {
+        site_draft_get_exec(ctx, &args).await
+    }
+}
+
+pub async fn site_domain_put_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
+    let site_iid = site_iid_resolve(ctx, args)?;
+    let owner_iid = site_grant_owner(&ctx.pool, ctx.owner_iid, site_iid).await?;
+    let hostname = args
+        .get("hostname")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| anyhow!("hostname is required"))?;
+
+    let is_primary = args.get("is_primary").and_then(|v| v.as_bool()).unwrap_or(false);
+    let id = args.get("id").and_then(|v| v.as_i64()).unwrap_or(0);
+
+    let domain = c35_proto::SiteDomain {
+        id,
+        site_iid,
+        hostname: hostname.to_string(),
+        is_primary,
+        ..Default::default()
+    };
+
+    let res = c35_mod_site::site_domain_put(
+        &ctx.pool,
+        owner_iid,
+        c35_proto::ReqSiteDomainPut {
+            site_iid,
+            domain: Some(domain),
+        },
+        None,
+    )
+    .await?;
+
+    let cname_target = c35_mod_site::domain_cname_target();
+    Ok(json!({
+        "ok": true,
+        "site_iid": site_iid,
+        "domain_id": res.id,
+        "hostname": hostname,
+        "cname_target": cname_target,
+        "instructions": format!("Point a CNAME record for '{}' to '{}' (or A record to the platform origin IP), then run site.domain_verify.", hostname, cname_target),
+    }))
+}
+
+tool! {
+    struct: SiteDomainPutTool,
+    name: "site.domain_put",
+    aliases: ["site_domain_put", "site.domain.put"],
+    description: "Attach a custom domain hostname to a site and get DNS CNAME instructions.",
+    topics: ["web.builder"],
+    requires_kinds: ["site"],
+    ui_calling_key: "tool.site.domain_put.calling",
+    ui_done_key: "tool.site.domain_put.done",
+    parameters: {
+        site_iid: (integer, "Site identity ID (resolved from @alien_id when omitted)", optional),
+        hostname: (string, "Custom domain hostname (e.g. store.example.com or example.com)"),
+        is_primary: (boolean, "Set as primary domain for canonical redirects", optional),
+        id: (integer, "Existing domain row ID if updating", optional),
+    },
+    execute: |args, ctx| {
+        site_domain_put_exec(ctx, &args).await
+    }
+}
+
+pub async fn site_domain_verify_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
+    let site_iid = site_iid_resolve(ctx, args)?;
+    let owner_iid = site_grant_owner(&ctx.pool, ctx.owner_iid, site_iid).await?;
+
+    let domain_id = if let Some(id) = args.get("domain_id").and_then(|v| v.as_i64()).filter(|i| *i > 0) {
+        id
+    } else if let Some(hostname) = args.get("hostname").and_then(|v| v.as_str()).map(str::trim).filter(|s| !s.is_empty()) {
+        let id: i64 = sqlx::query_scalar(
+            "SELECT id FROM site.domain WHERE site_iid = $1 AND hostname = $2 AND deleted_ts IS NULL",
+        )
+        .bind(site_iid)
+        .bind(hostname)
+        .fetch_optional(&ctx.pool)
+        .await?
+        .ok_or_else(|| anyhow!("Domain '{}' not found for this site", hostname))?;
+        id
+    } else {
+        let id: i64 = sqlx::query_scalar(
+            "SELECT id FROM site.domain WHERE site_iid = $1 AND deleted_ts IS NULL ORDER BY is_primary DESC, id ASC LIMIT 1",
+        )
+        .bind(site_iid)
+        .fetch_optional(&ctx.pool)
+        .await?
+        .ok_or_else(|| anyhow!("No domain configured for this site"))?;
+        id
+    };
+
+    let force_tls = args.get("force_tls").and_then(|v| v.as_bool()).unwrap_or(false);
+    let res = c35_mod_site::site_domain_verify(
+        &ctx.pool,
+        owner_iid,
+        c35_proto::ReqSiteDomainVerify {
+            site_iid,
+            domain_id,
+            force_tls,
+        },
+        None,
+    )
+    .await?;
+
+    Ok(json!({
+        "ok": res.dns_verified,
+        "site_iid": site_iid,
+        "domain_id": domain_id,
+        "dns_verified": res.dns_verified,
+        "error": res.error,
+        "tls_status": res.tls_status,
+    }))
+}
+
+tool! {
+    struct: SiteDomainVerifyTool,
+    name: "site.domain_verify",
+    aliases: ["site_domain_verify", "site.domain.verify"],
+    description: "Verify DNS configuration and TLS certificate status for a site's custom domain.",
+    topics: ["web.builder"],
+    requires_kinds: ["site"],
+    ui_calling_key: "tool.site.domain_verify.calling",
+    ui_done_key: "tool.site.domain_verify.done",
+    parameters: {
+        site_iid: (integer, "Site identity ID (resolved from @alien_id when omitted)", optional),
+        domain_id: (integer, "Domain row ID to verify", optional),
+        hostname: (string, "Domain hostname to verify (alternative to domain_id)", optional),
+        force_tls: (boolean, "Re-trigger TLS certificate provisioning if DNS is already verified", optional),
+    },
+    execute: |args, ctx| {
+        site_domain_verify_exec(ctx, &args).await
+    }
+}
+
+

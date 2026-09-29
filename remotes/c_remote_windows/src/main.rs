@@ -235,6 +235,7 @@ async fn main() {
         let _ = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     }
     c_remote_core::log_local::init();
+    c_remote_windows::agent_version::register();
 
     if is_dev_mode() {
         tokio::select! {

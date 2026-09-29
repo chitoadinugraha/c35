@@ -291,20 +291,8 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
         builder: (context, _) => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (deviceType == 'browser') ...[
-              const Material(
-                color: Color(0xFF18181B),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  child: Text(
-                    'Remote browser — control this PC\'s Chromium from the stream below.',
-                    style: TextStyle(color: _muted, fontSize: 12),
-                    maxLines: 2,
-                  ),
-                ),
-              ),
-              UiBrowserTabStrip(session: _session),
-            ],
+            if (deviceType == 'browser')
+              UiBrowserTabStrip(session: _session, compact: _isMobile(context)),
             Expanded(
               child: Stack(
                 fit: StackFit.expand,
@@ -314,6 +302,7 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
                     promptStore: _promptStore,
                     deviceName: widget.row.identity.name,
                     online: online,
+                    browserDevice: deviceType == 'browser',
                     compact: _isMobile(context),
                     interactMode: _remoteInteractMode,
                     showStreamStats: _remoteShowStats,

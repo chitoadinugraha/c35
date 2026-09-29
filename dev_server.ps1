@@ -20,6 +20,10 @@ if (Test-Path $firebaseJson) {
 }
 
 $env:DEV_SERVER_PORT = $port
+$env:C35_ICE_LOCAL_DEV = '1'
+if (-not $env:C35_SERVER_URL) {
+    $env:C35_SERVER_URL = "http://127.0.0.1:$port"
+}
 
 & $stopScript -Port $port
 

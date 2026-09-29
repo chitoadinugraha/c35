@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use tokio::sync::Mutex;
 use tracing::{info, warn};
 use crate::update::{extract_zip, ReleaseRes};
-use crate::version::AGENT_BUILD;
+use crate::version::agent_build;
 
 pub const FFMPEG_VERSION_PLATFORM: &str = "ffmpeg-windows";
 static FFMPEG_DOWNLOAD_LOCK: Mutex<()> = Mutex::const_new(());
@@ -25,7 +25,7 @@ pub fn ffmpeg_local_version() -> i64 {
 pub fn ffmpeg_exe_path() -> PathBuf { ffmpeg_root().join(FFMPEG_EXE) }
 
 pub fn ffmpeg_release_requires_update(local: i64, rel: &ReleaseRes) -> bool {
-    rel.version > local && (rel.min <= 0 || AGENT_BUILD >= rel.min)
+    rel.version > local && (rel.min <= 0 || agent_build() >= rel.min)
 }
 
 pub async fn ffmpeg_poll(base_url: &str) -> Result<Option<ReleaseRes>, anyhow::Error> {

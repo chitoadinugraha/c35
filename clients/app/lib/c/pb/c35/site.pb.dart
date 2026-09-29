@@ -4012,6 +4012,196 @@ class ResSiteQueryRun extends $pb.GeneratedMessage {
   void clearResultJson() => $_clearField(2);
 }
 
+class ReqSiteGuestContactPut extends $pb.GeneratedMessage {
+  factory ReqSiteGuestContactPut({
+    $fixnum.Int64? siteIid,
+    $core.String? name,
+    $core.String? contactVal,
+    $core.String? message,
+    $core.String? metaJson,
+  }) {
+    final result = ReqSiteGuestContactPut._();
+    if (siteIid != null) result.siteIid = siteIid;
+    if (name != null) result.name = name;
+    if (contactVal != null) result.contactVal = contactVal;
+    if (message != null) result.message = message;
+    if (metaJson != null) result.metaJson = metaJson;
+    return result;
+  }
+
+  ReqSiteGuestContactPut._();
+
+  factory ReqSiteGuestContactPut.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteGuestContactPut()..mergeFromBuffer(data, registry);
+  factory ReqSiteGuestContactPut.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteGuestContactPut()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqSiteGuestContactPut',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqSiteGuestContactPut.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'siteIid')
+    ..aOS(2, _omitFieldNames ? '' : 'name')
+    ..aOS(3, _omitFieldNames ? '' : 'contactVal')
+    ..aOS(4, _omitFieldNames ? '' : 'message')
+    ..aOS(5, _omitFieldNames ? '' : 'metaJson')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteGuestContactPut clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteGuestContactPut copyWith(
+          void Function(ReqSiteGuestContactPut) updates) =>
+      super.copyWith((message) => updates(message as ReqSiteGuestContactPut))
+          as ReqSiteGuestContactPut;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqSiteGuestContactPut() / ReqSiteGuestContactPut.new instead')
+  static ReqSiteGuestContactPut create() => ReqSiteGuestContactPut._();
+  static $pb.GeneratedMessage $_createMessage() => ReqSiteGuestContactPut._();
+  @$core.override
+  ReqSiteGuestContactPut createEmptyInstance() => ReqSiteGuestContactPut._();
+  @$core.pragma('dart2js:noInline')
+  static ReqSiteGuestContactPut getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqSiteGuestContactPut>(
+          ReqSiteGuestContactPut.$_createMessage);
+  static ReqSiteGuestContactPut? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get siteIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set siteIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSiteIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSiteIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get name => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set name($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasName() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearName() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get contactVal => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set contactVal($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasContactVal() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearContactVal() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get message => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set message($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasMessage() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearMessage() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get metaJson => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set metaJson($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasMetaJson() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearMetaJson() => $_clearField(5);
+}
+
+class ResSiteGuestContactPut extends $pb.GeneratedMessage {
+  factory ResSiteGuestContactPut({
+    $core.bool? ok,
+    $fixnum.Int64? contactId,
+    $core.String? error,
+  }) {
+    final result = ResSiteGuestContactPut._();
+    if (ok != null) result.ok = ok;
+    if (contactId != null) result.contactId = contactId;
+    if (error != null) result.error = error;
+    return result;
+  }
+
+  ResSiteGuestContactPut._();
+
+  factory ResSiteGuestContactPut.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteGuestContactPut()..mergeFromBuffer(data, registry);
+  factory ResSiteGuestContactPut.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteGuestContactPut()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResSiteGuestContactPut',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResSiteGuestContactPut.$_createMessage)
+    ..aOB(1, _omitFieldNames ? '' : 'ok')
+    ..aInt64(2, _omitFieldNames ? '' : 'contactId')
+    ..aOS(3, _omitFieldNames ? '' : 'error')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteGuestContactPut clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteGuestContactPut copyWith(
+          void Function(ResSiteGuestContactPut) updates) =>
+      super.copyWith((message) => updates(message as ResSiteGuestContactPut))
+          as ResSiteGuestContactPut;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResSiteGuestContactPut() / ResSiteGuestContactPut.new instead')
+  static ResSiteGuestContactPut create() => ResSiteGuestContactPut._();
+  static $pb.GeneratedMessage $_createMessage() => ResSiteGuestContactPut._();
+  @$core.override
+  ResSiteGuestContactPut createEmptyInstance() => ResSiteGuestContactPut._();
+  @$core.pragma('dart2js:noInline')
+  static ResSiteGuestContactPut getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResSiteGuestContactPut>(
+          ResSiteGuestContactPut.$_createMessage);
+  static ResSiteGuestContactPut? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get ok => $_getBF(0);
+  @$pb.TagNumber(1)
+  set ok($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasOk() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOk() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get contactId => $_getI64(1);
+  @$pb.TagNumber(2)
+  set contactId($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasContactId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearContactId() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get error => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set error($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasError() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearError() => $_clearField(3);
+}
+
 const $core.bool _omitFieldNames =
     $core.bool.fromEnvironment('protobuf.omit_field_names');
 const $core.bool _omitMessageNames =

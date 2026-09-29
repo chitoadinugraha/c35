@@ -65,8 +65,8 @@ Compare / report turns use **all** `site_iids` from context via `site.query.run`
 
 | Topic | When active | Write tools | Read tools |
 |-------|-------------|-------------|------------|
-| `web.builder` | `@site` (layout/catalog) | `site.draft_put`, `site.publish`, `site.product_put`, `site.contact_put`, `site.object_put` | `site.collection.list` (optional) |
-| `site.commerce` | `@site` + `commerce` capability, or tx/report phrases | `site.tx.put`, `site.tx.preview`, `site.tx.debt_pay` | `site.query.run` |
+| `web.builder` | `@site` (layout/catalog/domains) | `site.draft_put`, `site.publish`, `site.product_put`, `site.contact_put`, `site.object_put`, `site.domain_put`, `site.domain_verify` | `site.draft_get`, `site.collection.list` |
+| `site.commerce` | `@site` + `commerce` capability, or tx/report phrases | `site.tx.put`, `site.tx.preview`, `site.tx.debt_pay`, `site.order_status` | `site.query.run`, `site.tx.list` |
 | `general` | no mention | — | global readonly only |
 
 `mention_active_topic`: first non-general resolved topic; commerce phrases may promote to `site.commerce` via `inst` task rows.
@@ -95,9 +95,15 @@ Extend `ToolDefinition` (see [inst.md](inst.md) triggers):
 site.<domain>.<verb>
 
 site.draft.put
+site.draft.get          readonly (inspect current SiteDoc blocks/theme)
+site.publish
 site.product.put
+site.product.patch
+site.domain.put         (attach custom hostname)
+site.domain.verify      (check CNAME/apex DNS propagation)
 site.tx.put
 site.tx.preview
+site.order.status       (shorthand order state update)
 site.query.run          readonly
 site.collection.list    readonly (optional thin list API)
 ```
