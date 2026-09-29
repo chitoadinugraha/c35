@@ -1,6 +1,6 @@
 use anyhow::{anyhow, bail, Result};
 
-use crate::mention_registry::{mention_device_iids, MentionResolved};
+use crate::mention_registry::{mention_device_iids, mention_ref_parse, MentionRef, MentionResolved};
 use crate::site_resolve::SiteContext;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -80,6 +80,36 @@ pub fn mention_context_sites_block(ctx: &MentionContext) -> String {
         .map(|s| format!("- site_iid={} alien_id={} name={}", s.site_iid, s.alien_id, s.name))
         .collect();
     format!("[SITE CONTEXTS]\n{}", lines.join("\n"))
+}
+
+pub fn device_iid_resolve(mention: &MentionContext, mention_ids: &[String], args_device_iid: i64) -> Result<i64> {
+    if args_device_iid > 0 {
+        return Ok(args_device_iid);
+    }
+    let devices: Vec<i64> = if !mention.devices.is_empty() {
+        mention.devices.clone()
+    } else {
+        mention_ids
+            .iter()
+            .filter_map(|raw| match mention_ref_parse(raw) {
+                Some(MentionRef::Iid(iid)) if iid > 0 => Some(iid),
+                _ => None,
+            })
+            .collect()
+    };
+    let devices: Vec<i64> = devices
+        .into_iter()
+        .fold(Vec::new(), |mut acc, iid| {
+            if !acc.contains(&iid) {
+                acc.push(iid);
+            }
+            acc
+        });
+    match devices.len() {
+        0 => bail!("device_iid is required — mention the device or pass device_iid"),
+        1 => Ok(devices[0]),
+        _ => bail!("device_iid is required — multiple devices mentioned, specify device_iid"),
+    }
 }
 
 pub fn site_iid_resolve(

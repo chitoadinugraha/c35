@@ -25,5 +25,9 @@ Install-WinFspIfNeeded -MsiPath $winfspMsi -Quiet:$Quiet
 $winfspDll = Join-Path $root 'winfsp-x64.dll'
 $destExe = Install-RemoteAgentTo -SourceExe $sourceExe -InstallDir $installDir -WinfspDllPath $winfspDll -Quiet:$Quiet
 
+try {
+    Start-Process -FilePath "netsh.exe" -ArgumentList "advfirewall firewall add rule name=`"AlienAI Remote Agent`" dir=in action=allow program=`"$destExe`" enable=yes profile=any" -WindowStyle Hidden -Wait -ErrorAction SilentlyContinue
+} catch {}
+
 if (-not $Quiet) { Write-Host "==> Starting $destExe" }
 Start-Process -FilePath $destExe

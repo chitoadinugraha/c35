@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:math' show max;
+import 'dart:math' show min;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -23,8 +23,8 @@ const _emerald = Color(0xFF10B981);
 const _amber = Color(0xFFF59E0B);
 const _red = Color(0xFFEF4444);
 
-const _trackpadSingleClickDelay = Duration(milliseconds: 280);
-const _trackpadDoubleTapWindowMs = 350;
+const _trackpadSingleClickDelay = Duration(milliseconds: 180);
+const _trackpadDoubleTapWindowMs = 280;
 
 enum RemoteInteractMode { view, mouse, trackpad }
 
@@ -46,24 +46,22 @@ class UiRemoteBottomSessionControl extends StatelessWidget {
   const UiRemoteBottomSessionControl({
     super.key,
     required this.mode,
-    required this.showStreamStats,
     required this.onModeChanged,
-    required this.onShowStreamStatsChanged,
     required this.onPanReset,
     required this.onTeach,
     required this.onFullscreen,
+    this.immersive = false,
     this.updateReady = false,
     this.updateVersion,
     this.onApplyUpdate,
   });
 
   final RemoteInteractMode mode;
-  final bool showStreamStats;
   final ValueChanged<RemoteInteractMode> onModeChanged;
-  final ValueChanged<bool> onShowStreamStatsChanged;
   final VoidCallback onPanReset;
   final VoidCallback onTeach;
   final VoidCallback onFullscreen;
+  final bool immersive;
   final bool updateReady;
   final int? updateVersion;
   final VoidCallback? onApplyUpdate;
@@ -117,13 +115,10 @@ class UiRemoteBottomSessionControl extends StatelessWidget {
           ),
         const Divider(height: 1, color: _border),
         MenuItemButton(
-          leadingIcon: Icon(Icons.insights_outlined,
-              size: 16, color: showStreamStats ? _amber : _zinc400),
-          trailingIcon: showStreamStats
-              ? const Icon(Icons.check_rounded, size: 16, color: _amber)
-              : null,
-          onPressed: () => onShowStreamStatsChanged(!showStreamStats),
-          child: const Text('Show stats',
+          leadingIcon: const Icon(Icons.auto_awesome_outlined,
+              size: 16, color: _zinc400),
+          onPressed: () => _onMenuSelected('teach'),
+          child: const Text('Teach skill',
               style: TextStyle(color: _zinc100, fontSize: 13)),
         ),
         if (updateReady) ...[
@@ -143,18 +138,13 @@ class UiRemoteBottomSessionControl extends StatelessWidget {
         ],
         const Divider(height: 1, color: _border),
         MenuItemButton(
-          leadingIcon: const Icon(Icons.auto_awesome_outlined,
-              size: 16, color: _zinc400),
-          onPressed: () => _onMenuSelected('teach'),
-          child: const Text('Teach skill',
-              style: TextStyle(color: _zinc100, fontSize: 13)),
-        ),
-        MenuItemButton(
-          leadingIcon:
-              const Icon(Icons.fullscreen_outlined, size: 16, color: _zinc400),
+          leadingIcon: Icon(
+              immersive ? Icons.fullscreen_exit_outlined : Icons.fullscreen_outlined,
+              size: 16,
+              color: _zinc400),
           onPressed: () => _onMenuSelected('fullscreen'),
-          child: const Text('Fullscreen',
-              style: TextStyle(color: _zinc100, fontSize: 13)),
+          child: Text(immersive ? 'Exit full screen' : 'Full screen',
+              style: const TextStyle(color: _zinc100, fontSize: 13)),
         ),
       ],
       builder: (context, controller, child) {
@@ -199,9 +189,9 @@ class UiRemoteDevice extends StatefulWidget {
     required this.interactMode,
     required this.showStreamStats,
     required this.onInteractModeChanged,
-    required this.onShowStreamStatsChanged,
     required this.onTeach,
     required this.onFullscreen,
+    this.immersive = false,
     this.updateReady = false,
     this.updateVersion,
     this.onApplyUpdate,
@@ -216,9 +206,9 @@ class UiRemoteDevice extends StatefulWidget {
   final RemoteInteractMode interactMode;
   final bool showStreamStats;
   final ValueChanged<RemoteInteractMode> onInteractModeChanged;
-  final ValueChanged<bool> onShowStreamStatsChanged;
   final VoidCallback onTeach;
   final VoidCallback onFullscreen;
+  final bool immersive;
   final bool updateReady;
   final int? updateVersion;
   final VoidCallback? onApplyUpdate;
@@ -258,6 +248,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
   Offset _edgeScrollVelocity = Offset.zero;
   Timer? _trackpadPendingClickTimer;
   int? _trackpadLastTapMs;
+  var _trackpadDragLock = false;
 
   bool get _controlInputEnabled =>
       widget.interactMode != RemoteInteractMode.view;
@@ -266,8 +257,13 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
   bool get _viewPanMode => widget.interactMode == RemoteInteractMode.view;
   bool _canvasDragPans({required bool ctrl, required bool middle}) =>
       _viewPanMode || ctrl || middle;
-  bool _canvasPinchZooms() =>
-      widget.interactMode != RemoteInteractMode.trackpad;
+
+  void _syncSessionControl() {
+    final sess = widget.session;
+    if (sess != null) {
+      sess.isControlEnabled.value = _controlInputEnabled;
+    }
+  }
 
   bool _onHardwareKeyEvent(KeyEvent event) {
     final ctrl = HardwareKeyboard.instance.isControlPressed;
@@ -317,7 +313,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
 
   (double scale, Offset offset) _coverLayout(Size viewport, Size content) {
     if (content.width <= 0 || content.height <= 0) return (1, Offset.zero);
-    final s = max(viewport.width / content.width, viewport.height / content.height);
+    final s = min(viewport.width / content.width, viewport.height / content.height);
     final dw = content.width * s;
     final dh = content.height * s;
     return (s, Offset((viewport.width - dw) / 2, (viewport.height - dh) / 2));
@@ -426,8 +422,17 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
     _edgeScrollVelocity = Offset.zero;
   }
 
+  String _formatBytesPerSec(int bps) {
+    if (bps < 1024) return '$bps B/s';
+    if (bps < 1024 * 1024) {
+      final k = bps / 1024;
+      return '${k >= 100 ? k.round() : k.toStringAsFixed(1)} KB/s';
+    }
+    return '${(bps / (1024 * 1024)).toStringAsFixed(1)} MB/s';
+  }
+
   String? _streamStatsLabel(
-      RemoteSession sess, bool hasVideo, RemoteScreenFrame? frame, int fps) {
+      RemoteSession sess, bool hasVideo, RemoteScreenFrame? frame, int fps, int? latencyMs, int bytesIn, int bytesOut) {
     final w = hasVideo && sess.videoRenderer.videoWidth > 0
         ? sess.videoRenderer.videoWidth
         : (frame?.width ?? 0);
@@ -435,8 +440,12 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
         ? sess.videoRenderer.videoHeight
         : (frame?.height ?? 0);
     if (w <= 0 || h <= 0) return null;
-    final codec = hasVideo ? 'H.264' : 'MJPEG';
-    return '$w×$h · $fps fps · $codec';
+    final codec = hasVideo
+        ? 'H.264'
+        : 'MJPEG ${sess.streamQuality.value}%';
+    final lat = latencyMs != null ? ' · $latencyMs ms' : '';
+    final bw = ' · ↓${_formatBytesPerSec(bytesIn)} · ↑${_formatBytesPerSec(bytesOut)}';
+    return '$w×$h · $fps fps · $codec$lat$bw';
   }
 
   Widget _buildStreamStatsOverlay(String label) => Positioned(
@@ -445,18 +454,18 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
         child: IgnorePointer(
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.18),
+              color: Colors.black.withValues(alpha: 0.5),
               borderRadius:
-                  const BorderRadius.only(bottomRight: Radius.circular(4)),
+                  const BorderRadius.only(bottomRight: Radius.circular(6)),
             ),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(4, 2, 6, 3),
+              padding: const EdgeInsets.fromLTRB(8, 4, 10, 5),
               child: Text(
                 label,
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w500,
-                  color: Colors.white.withValues(alpha: 0.72),
+                  color: Colors.white.withValues(alpha: 0.92),
                   letterSpacing: 0.1,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
@@ -470,18 +479,22 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
   void initState() {
     super.initState();
     HardwareKeyboard.instance.addHandler(_onHardwareKeyEvent);
-    widget.session?.isControlEnabled.value = _controlInputEnabled;
-    _connect();
+    _syncSessionControl();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _controlInputEnabled) _focusNode.requestFocus();
+    });
+    if (widget.session?.stoppedByUser != true) _connect();
   }
 
   @override
   void didUpdateWidget(UiRemoteDevice oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.session != widget.session) {
-      _connect();
+      _syncSessionControl();
+      if (widget.session?.stoppedByUser != true) _connect();
     }
     if (oldWidget.interactMode != widget.interactMode) {
-      widget.session?.isControlEnabled.value = _controlInputEnabled;
+      _syncSessionControl();
       if (widget.interactMode != RemoteInteractMode.view) {
         _focusNode.requestFocus();
       }
@@ -508,7 +521,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
     setState(() {
       _vkbOpen = !_vkbOpen;
       if (_vkbOpen) {
-        widget.promptStore?.composerOpenPut(false);
+        if (widget.promptStore?.isDisposed != true) widget.promptStore?.composerOpenPut(false);
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) _vkbFocus.requestFocus();
         });
@@ -522,7 +535,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
 
   void _togglePromptComposer() {
     final store = widget.promptStore;
-    if (store == null) return;
+    if (store == null || store.isDisposed) return;
     if (store.composerOpen) {
       store.composerOpenPut(false);
       return;
@@ -538,7 +551,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
 
   void _openPromptHistory() {
     final store = widget.promptStore;
-    if (store == null) return;
+    if (store == null || store.isDisposed) return;
     unawaited(
         showDevicePromptSheet(context, store, deviceName: widget.deviceName));
   }
@@ -632,13 +645,16 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
     final sess = widget.session;
     if (sess == null) return;
     if (!sess.conn.connected) return;
-    if (sess.connected.value || _connecting) return;
+    if (_connecting) return;
     setState(() {
       _connecting = true;
       _error = null;
     });
     try {
       sess.prepareUserReconnect();
+      if (sess.connected.value || sess.isLinking) {
+        await sess.stop(userInitiated: false);
+      }
       await sess.start();
     } catch (e) {
       lError('remote start failed: $e');
@@ -776,10 +792,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
         children: [
           if (!controlInput && connected) _buildViewOnlyNotice(),
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: _buildCanvasArea(sess, connected, controlInput),
-            ),
+            child: _buildCanvasArea(sess, connected, controlInput),
           ),
           if (connected) _buildBottomInputBar(),
         ],
@@ -840,9 +853,8 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: UiRemoteBottomSessionControl(
         mode: widget.interactMode,
-        showStreamStats: widget.showStreamStats,
+        immersive: widget.immersive,
         onModeChanged: _applyInteractMode,
-        onShowStreamStatsChanged: widget.onShowStreamStatsChanged,
         onPanReset: () => setState(() {
           _scale = 1.0;
           _panOffset = Offset.zero;
@@ -1022,13 +1034,10 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
   Widget _buildCanvasArea(
       RemoteSession sess, bool connected, bool controlEnabled) {
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: _panel,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _border),
+      decoration: const BoxDecoration(
+        color: Color(0xFF09090B),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(11),
+      child: ClipRect(
         child: SizedBox.expand(
           child: ValueListenableBuilder<bool>(
           valueListenable: sess.hasVideoTrack,
@@ -1036,7 +1045,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
               ValueListenableBuilder<RemoteScreenFrame?>(
             valueListenable: sess.screenFrame,
             builder: (context, frame, _) {
-              if (!connected || (!hasVideoTrack && frame == null)) {
+              if (sess.stoppedByUser || !connected || (!hasVideoTrack && frame == null)) {
                 final linking =
                     sess.conn.connected && (sess.isLinking || _connecting);
                 return Center(
@@ -1057,7 +1066,9 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                                   ? 'Server offline. Reconnect when signed in.'
                                   : linking
                                       ? 'Connecting to ${widget.deviceName}…'
-                                      : 'Screen stream idle.'),
+                                      : sess.stoppedByUser
+                                          ? 'Remote session stopped.'
+                                          : 'Screen stream idle.'),
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 13,
@@ -1120,13 +1131,14 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                               ? SystemMouseCursors.grab
                               : (widget.interactMode ==
                                       RemoteInteractMode.trackpad
-                                  ? SystemMouseCursors.none
+                                  ? SystemMouseCursors.basic
                                   : (controlEnabled
                                       ? remoteCursorFromShape(remoteShape)
                                       : SystemMouseCursors.basic));
 
                       return Focus(
                         focusNode: _focusNode,
+                        autofocus: controlEnabled,
                         onKeyEvent: _handleKeyEvent,
                         child: ValueListenableBuilder<String>(
                           valueListenable: sess.remoteCursorShape,
@@ -1171,22 +1183,26 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
 
                                 if (widget.interactMode ==
                                     RemoteInteractMode.trackpad) {
-                                  if (e.kind == PointerDeviceKind.mouse &&
-                                      e.buttons != 0 &&
-                                      _activePointers.length == 1) {
-                                    _trackpadCancelPendingClick();
-                                    final btn = (e.buttons &
-                                                kSecondaryMouseButton !=
-                                            0)
-                                        ? 2
-                                        : ((e.buttons & kMiddleMouseButton != 0)
-                                            ? 1
-                                            : 0);
-                                    _heldButtons = e.buttons;
+                                  _trackpadCancelPendingClick();
+                                  final now =
+                                      DateTime.now().millisecondsSinceEpoch;
+                                  final isQuickDouble =
+                                      _trackpadLastTapMs != null &&
+                                          (now - _trackpadLastTapMs! <
+                                              _trackpadDoubleTapWindowMs);
+
+                                  if (isQuickDouble &&
+                                      _activePointers.length == 1 &&
+                                      (e.buttons & kSecondaryMouseButton == 0)) {
+                                    // Engaged tap-and-drag (drag lock)!
+                                    _trackpadDragLock = true;
                                     _sendPointerNorm(
                                         'mouse_down', _virtualCursorNorm,
-                                        button: btn);
+                                        button: 0);
+                                  } else {
+                                    _trackpadDragLock = false;
                                   }
+                                  _heldButtons = e.buttons;
                                   return;
                                 }
 
@@ -1206,11 +1222,19 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
 
                                 if (_activePointers.length >= 2) {
                                   final pts = _activePointers.values.toList();
-                                  if (_canvasPinchZooms() &&
-                                      _initialPinchDistance != null &&
-                                      _initialPinchDistance! > 10) {
-                                    final currentDist =
-                                        (pts[0] - pts[1]).distance;
+                                  final currentDist =
+                                      (pts[0] - pts[1]).distance;
+                                  final isPinching = _initialPinchDistance !=
+                                          null &&
+                                      (_initialPinchDistance! - currentDist)
+                                              .abs() >
+                                          12;
+
+                                  if (_initialPinchDistance != null &&
+                                      _initialPinchDistance! > 10 &&
+                                      (widget.interactMode !=
+                                              RemoteInteractMode.trackpad ||
+                                          isPinching)) {
                                     final focal = (pts[0] + pts[1]) / 2;
                                     final scaleRatio =
                                         currentDist / _initialPinchDistance!;
@@ -1225,9 +1249,10 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
 
                                   if (widget.interactMode ==
                                       RemoteInteractMode.trackpad) {
-                                    final currentCenter = (pts[0] + pts[1]) / 2;
-                                    final dy =
-                                        currentCenter.dy - _twoFingerPrevPos.dy;
+                                    final currentCenter =
+                                        (pts[0] + pts[1]) / 2;
+                                    final dy = currentCenter.dy -
+                                        _twoFingerPrevPos.dy;
                                     _twoFingerPrevPos = currentCenter;
                                     if (dy.abs() > 1.0) {
                                       _touchMoved = true;
@@ -1268,7 +1293,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                                   if (_touchStart != null &&
                                       (e.localPosition - _touchStart!)
                                               .distance >
-                                          6.0) {
+                                          5.0) {
                                     _touchMoved = true;
                                     _trackpadCancelPendingClick();
                                   }
@@ -1284,7 +1309,8 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                               onPointerHover: (e) {
                                 if (widget.interactMode ==
                                     RemoteInteractMode.trackpad) {
-                                  _trackpadApplyDelta(e.delta, renderSize);
+                                  // In trackpad mode, hover is ignored so that the virtual cursor
+                                  // only navigates via deliberate gestures on the trackpad surface.
                                   return;
                                 }
                                 _updateEdgeScrolling(
@@ -1313,22 +1339,16 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
 
                                 if (widget.interactMode ==
                                     RemoteInteractMode.trackpad) {
-                                  if (e.kind == PointerDeviceKind.mouse &&
-                                      (_heldButtons & ~e.buttons) != 0) {
-                                    final released = _heldButtons & ~e.buttons;
-                                    final btn =
-                                        (released & kSecondaryMouseButton != 0)
-                                            ? 2
-                                            : ((released & kMiddleMouseButton !=
-                                                    0)
-                                                ? 1
-                                                : 0);
-                                    _heldButtons = e.buttons;
+                                  if (_trackpadDragLock) {
+                                    _trackpadDragLock = false;
                                     _sendPointerNorm(
                                         'mouse_up', _virtualCursorNorm,
-                                        button: btn);
+                                        button: 0);
+                                    _trackpadLastTapMs = null;
+                                    _heldButtons = e.buttons;
                                     return;
                                   }
+
                                   if (!_touchMoved && !_tapClickDispatched) {
                                     _tapClickDispatched = true;
                                     final btn = (hadTwoOrMorePointers ||
@@ -1400,27 +1420,29 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                                       child: Transform(
                                         // ignore: deprecated_member_use
                                         transform: Matrix4.identity()
+                                          // ignore: deprecated_member_use
                                           ..translate(
                                               _panOffset.dx, _panOffset.dy)
+                                          // ignore: deprecated_member_use
                                           ..scale(_scale),
                                         alignment: Alignment.topLeft,
                                         child: hasVideoTrack
                                             ? RTCVideoView(
                                                 sess.videoRenderer,
                                                 objectFit: RTCVideoViewObjectFit
-                                                    .RTCVideoViewObjectFitCover,
+                                                    .RTCVideoViewObjectFitContain,
                                               )
                                             : (frame != null
                                                 ? Image.memory(
                                                     frame.jpegBytes,
                                                     gaplessPlayback: true,
-                                                    fit: BoxFit.cover,
+                                                    fit: BoxFit.contain,
                                                     width: renderSize.width,
                                                     height: renderSize.height,
                                                     filterQuality:
                                                         FilterQuality.high,
                                                     isAntiAlias: true,
-                                                  )
+                                                )
                                                 : const SizedBox.shrink()),
                                       ),
                                     ),
@@ -1443,15 +1465,29 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                                           .clamp(-24.0, renderSize.height),
                                       child: const _VirtualCursorWidget(),
                                     ),
-                                  ValueListenableBuilder<int>(
-                                    valueListenable: sess.fps,
-                                    builder: (context, fps, _) {
+                                  ListenableBuilder(
+                                    listenable: Listenable.merge([
+                                      sess.fps,
+                                      sess.latencyMs,
+                                      sess.bytesInPerSec,
+                                      sess.bytesOutPerSec,
+                                      sess.streamQuality,
+                                    ]),
+                                    builder: (context, _) {
                                       final statsLabel = widget.showStreamStats
                                           ? _streamStatsLabel(
-                                              sess, hasVideoTrack, frame, fps)
+                                              sess,
+                                              hasVideoTrack,
+                                              frame,
+                                              sess.fps.value,
+                                              sess.latencyMs.value,
+                                              sess.bytesInPerSec.value,
+                                              sess.bytesOutPerSec.value,
+                                            )
                                           : null;
-                                      if (statsLabel == null)
+                                      if (statsLabel == null) {
                                         return const SizedBox.shrink();
+                                      }
                                       return _buildStreamStatsOverlay(
                                           statsLabel);
                                     },
@@ -1474,7 +1510,9 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
 
   int _windowsVkForLogicalKey(LogicalKeyboardKey key) {
     if (key == LogicalKeyboardKey.enter ||
-        key == LogicalKeyboardKey.numpadEnter) return 0x0D;
+        key == LogicalKeyboardKey.numpadEnter) {
+      return 0x0D;
+    }
     if (key == LogicalKeyboardKey.tab) return 0x09;
     if (key == LogicalKeyboardKey.escape) return 0x1B;
     if (key == LogicalKeyboardKey.backspace) return 0x08;
@@ -1485,13 +1523,20 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
     if (key == LogicalKeyboardKey.arrowRight) return 0x27;
     if (key == LogicalKeyboardKey.arrowDown) return 0x28;
     if (key == LogicalKeyboardKey.controlLeft ||
-        key == LogicalKeyboardKey.controlRight) return 0x11;
+        key == LogicalKeyboardKey.controlRight) {
+      return 0x11;
+    }
     if (key == LogicalKeyboardKey.shiftLeft ||
-        key == LogicalKeyboardKey.shiftRight) return 0x10;
-    if (key == LogicalKeyboardKey.altLeft || key == LogicalKeyboardKey.altRight)
+        key == LogicalKeyboardKey.shiftRight) {
+      return 0x10;
+    }
+    if (key == LogicalKeyboardKey.altLeft || key == LogicalKeyboardKey.altRight) {
       return 0x12;
+    }
     if (key == LogicalKeyboardKey.metaLeft ||
-        key == LogicalKeyboardKey.metaRight) return 0x5B;
+        key == LogicalKeyboardKey.metaRight) {
+      return 0x5B;
+    }
 
     // Navigation & editing keys
     if (key == LogicalKeyboardKey.home) return 0x24;

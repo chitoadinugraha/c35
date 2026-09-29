@@ -108,7 +108,8 @@ pub async fn billing_package_redeem(
     }
 
     let account = sqlx::query(
-        r#"SELECT id, balance_idr::float8 AS balance_idr, balance_usd::float8 AS balance_usd, plan_tier
+        r#"SELECT id, balance_idr::float8 AS balance_idr, balance_usd::float8 AS balance_usd,
+                  plan_tier, billing_currency
            FROM ai.billing_account
            WHERE owner_iid = $1 AND deleted_ts IS NULL LIMIT 1 FOR UPDATE"#,
     )
@@ -121,14 +122,36 @@ pub async fn billing_package_redeem(
     };
     let account_id: i64 = account.get("id");
     let balance_idr: f64 = account.get("balance_idr");
-    let (_held_usd, held_idr) = crate::billing_reservation::billing_held_totals_exec(&mut *tx, account_id)
+    let balance_usd: f64 = account.get("balance_usd");
+    let billing_currency: String = account.get("billing_currency");
+    let (held_usd, held_idr) = crate::billing_reservation::billing_held_totals_exec(&mut *tx, account_id)
         .await
         .map_err(|e| e.to_string())?;
-    let avail_idr = (balance_idr - held_idr).max(0.0);
     let charge_idr = pkg.price_idr.round();
-    if avail_idr + 0.001 < charge_idr {
+    let charge_usd = pkg.price_usd;
+    let avail = crate::billing_wallet::billing_wallet_available(
+        &billing_currency,
+        balance_usd,
+        balance_idr,
+        held_usd,
+        held_idr,
+    );
+    let need = if crate::billing_wallet::billing_wallet_use_idr(&billing_currency) {
+        charge_idr
+    } else {
+        charge_usd
+    };
+    if avail + 0.001 < need {
         return Err("insufficient unreserved balance".into());
     }
+
+    let (new_usd, new_idr) = crate::billing_wallet::billing_wallet_after_charge(
+        &billing_currency,
+        balance_usd,
+        balance_idr,
+        charge_usd,
+        charge_idr,
+    )?;
 
     let purchase_id = snowflake_id();
     let plan_tier = if pkg.base_plan_slug.trim().is_empty() {
@@ -140,14 +163,16 @@ pub async fn billing_package_redeem(
     sqlx::query(
         r#"
         UPDATE ai.billing_account
-        SET balance_idr = balance_idr - $2,
-            plan_tier = $3,
+        SET balance_usd = $2,
+            balance_idr = $3,
+            plan_tier = $4,
             updated_ts = NOW()
         WHERE id = $1
         "#,
     )
     .bind(account_id)
-    .bind(charge_idr)
+    .bind(new_usd)
+    .bind(new_idr)
     .bind(&plan_tier)
     .execute(&mut *tx)
     .await
@@ -201,5 +226,7 @@ pub async fn billing_package_redeem(
         plan_tier,
         duration_months: pkg.duration_months,
         package_name: pkg.name,
+        balance_usd: new_usd,
+        balance_idr: new_idr,
     })
 }

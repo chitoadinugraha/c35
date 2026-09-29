@@ -176,6 +176,40 @@ bool composerMentionTextNonempty(String text) =>
     composerMentionIdsParse(text).isNotEmpty ||
     composerMentionIdsCollect(text).isNotEmpty;
 
+bool _composerMentionStickyId(String id) {
+  final t = id.trim();
+  if (t.isEmpty || t == 'image') return false;
+  return t.startsWith('iid:') || t.startsWith('catalog:') || t.startsWith('drive:');
+}
+
+/// Draft prefix from per-chat sticky mention ids (device / site / bot chips).
+String composerMentionDraftFromStickyIds(Iterable<String> mentionIds, List<CatalogMention> mentions) {
+  final parts = <String>[];
+  final seen = <String>{};
+  for (final raw in mentionIds) {
+    final id = raw.trim();
+    if (!_composerMentionStickyId(id) || !seen.add(id)) continue;
+    if (composerMentionLookup(mentions, id) != null || id.startsWith('iid:') || id.startsWith('catalog:') || id.startsWith('drive:')) {
+      parts.add(composerMentionToken(id));
+    }
+  }
+  return parts.join(' ');
+}
+
+/// Keeps sticky chips at the start of the composer after send; preserves typed follow-up text.
+String composerMentionDraftMergeSticky(String userText, Iterable<String> stickyIds, List<CatalogMention> mentions) {
+  final sticky = composerMentionDraftFromStickyIds(stickyIds, mentions);
+  var body = userText.trimLeft();
+  for (final raw in stickyIds) {
+    final id = raw.trim();
+    if (id.isEmpty) continue;
+    body = body.replaceAll(composerMentionToken(id), '').trimLeft();
+  }
+  if (sticky.isEmpty) return body;
+  if (body.isEmpty) return sticky;
+  return '$sticky $body';
+}
+
 List<String> msgMentionIdsDecode(String mentionIdsJson) {
   final raw = mentionIdsJson.trim();
   if (raw.isEmpty || raw == '[]') return const [];

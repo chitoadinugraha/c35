@@ -9,7 +9,7 @@ use tracing::debug;
 use uiautomation::controls::ControlType;
 use uiautomation::types::Handle;
 use uiautomation::{UIAutomation, UIElement};
-use windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
+use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowTextW};
 
 const WALK_CAP: usize = 40;
 const WALK_DEPTH: i32 = 12;
@@ -100,6 +100,48 @@ pub fn uia_walk() -> Vec<Mark> {
     }
 
     out
+}
+
+pub fn uia_foreground_title() -> String {
+    unsafe {
+        let hwnd = GetForegroundWindow();
+        if hwnd.is_invalid() {
+            return String::new();
+        }
+        let mut buf = [0u16; 256];
+        let n = GetWindowTextW(hwnd, &mut buf);
+        if n <= 0 {
+            return String::new();
+        }
+        String::from_utf16_lossy(&buf[..n as usize])
+    }
+}
+
+/// UIA name at pixel + foreground window title (for teach step labels).
+pub fn resolve_element_at(x: i32, y: i32) -> (String, String) {
+    let window = uia_foreground_title();
+    if let Ok(auto) = UIAutomation::new() {
+        if let Ok(el) = auto.element_from_point(uiautomation::types::Point::new(x, y)) {
+            let name = el.get_name().unwrap_or_default();
+            if !name.trim().is_empty() {
+                return (name, window);
+            }
+        }
+    }
+    let marks = uia_walk();
+    let mut best: Option<(i64, String)> = None;
+    for m in marks {
+        let dx = (m.center_x - x) as i64;
+        let dy = (m.center_y - y) as i64;
+        let d = dx * dx + dy * dy;
+        if best.as_ref().map(|(bd, _)| d < *bd).unwrap_or(true) {
+            best = Some((d, m.name));
+        }
+    }
+    match best {
+        Some((_, name)) if !name.trim().is_empty() => (name, window),
+        _ => (String::new(), window),
+    }
 }
 
 fn uia_root(auto: &UIAutomation) -> anyhow::Result<UIElement> {

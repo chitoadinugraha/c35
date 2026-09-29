@@ -22,11 +22,30 @@ pub fn is_control_allowed() -> bool {
     CONTROL_ALLOWED.load(Ordering::SeqCst)
 }
 
+#[cfg(windows)]
+struct TeachHookSkipGuard;
+
+#[cfg(windows)]
+impl Drop for TeachHookSkipGuard {
+    fn drop(&mut self) {
+        c_remote_core::skill_teach::teach_skip_hooks(false);
+    }
+}
+
 pub fn execute_input(evt: &RemoteInputEvent) {
     if !is_control_allowed() {
         warn!("remote input event ignored: host remote control is disabled");
         return;
     }
+
+    #[cfg(windows)]
+    let _teach_hook_guard = {
+        c_remote_core::skill_teach::teach_skip_hooks(true);
+        TeachHookSkipGuard
+    };
+
+    #[cfg(windows)]
+    crate::skill_teach_remote::observe_remote_input(evt);
 
     // Primary monitor bounds matching DXGI display 0 capture
     let screen_w = unsafe { GetSystemMetrics(SM_CXSCREEN) };

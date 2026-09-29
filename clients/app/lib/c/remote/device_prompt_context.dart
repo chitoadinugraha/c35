@@ -63,6 +63,20 @@ class DevicePromptContextStore extends ChangeNotifier {
   SharedPreferences? _prefs;
   var _msgsBeforeId = Int64.ZERO;
   var _msgsHasMore = false;
+  var _disposed = false;
+
+  bool get isDisposed => _disposed;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  void _safeNotify() {
+    if (_disposed) return;
+    notifyListeners();
+  }
 
   Chat? get activeChat {
     final id = activeChatId;
@@ -82,14 +96,16 @@ class DevicePromptContextStore extends ChangeNotifier {
   bool get sendEnabled => chatConn.connected && !streaming && activeChatId != null && activeChatId! > 0;
 
   Future<void> init() async {
-    if (loading) return;
+    if (_disposed || loading) return;
     loading = true;
     error = null;
-    notifyListeners();
+    _safeNotify();
     try {
       _prefs ??= await SharedPreferences.getInstance();
+      if (_disposed) return;
       final stored = _prefs!.getInt(_prefsKeyActiveChat(deviceIid));
       await _contextListReload();
+      if (_disposed) return;
       if (contexts.isEmpty) {
         await contextCreate();
       } else {
@@ -101,66 +117,79 @@ class DevicePromptContextStore extends ChangeNotifier {
         }
       }
     } catch (e) {
+      if (_disposed) return;
       error = '$e';
       lError('device prompt init: $e');
     } finally {
-      loading = false;
-      notifyListeners();
+      if (!_disposed) {
+        loading = false;
+        _safeNotify();
+      }
     }
   }
 
   void composerOpenPut(bool open) {
-    if (composerOpen == open) return;
+    if (_disposed || composerOpen == open) return;
     composerOpen = open;
-    notifyListeners();
+    _safeNotify();
   }
 
   void toolModeToggle() {
+    if (_disposed) return;
     toolMode = toolMode == 'ask' ? 'agent' : 'ask';
-    notifyListeners();
+    _safeNotify();
   }
 
   Future<void> _contextListReload() async {
+    if (_disposed) return;
     final res = await chatConn.chatDeviceContextList(deviceIid: Int64(deviceIid), includeArchived: true, limit: 50);
+    if (_disposed) return;
     contexts
       ..clear()
       ..addAll(res.chats);
     membersByChatId
       ..clear()
       ..addEntries([for (final m in res.members) MapEntry(m.chatId.toInt(), m)]);
-    notifyListeners();
+    _safeNotify();
   }
 
   Future<void> contextCreate({String title = ''}) async {
+    if (_disposed) return;
     await chatConn.chatDeviceContextCreate(deviceIid: Int64(deviceIid), title: title);
+    if (_disposed) return;
     await _contextListReload();
+    if (_disposed) return;
     final newest = contexts.isNotEmpty ? contexts.first.id.toInt() : 0;
     if (newest > 0) await contextSelect(newest);
   }
 
   Future<void> contextSelect(int chatId, {bool persist = true}) async {
-    if (chatId <= 0) return;
+    if (_disposed || chatId <= 0) return;
     activeChatId = chatId;
     if (persist) {
       _prefs ??= await SharedPreferences.getInstance();
+      if (_disposed) return;
       await _prefs!.setInt(_prefsKeyActiveChat(deviceIid), chatId);
     }
+    if (_disposed) return;
     _msgsBeforeId = Int64.ZERO;
     messages.clear();
     streamingTail = '';
-    notifyListeners();
+    _safeNotify();
     await messagesReload();
   }
 
   Future<void> messagesReload({bool loadMore = false}) async {
+    if (_disposed) return;
     final cid = activeChatId;
     if (cid == null || cid <= 0) return;
     if (messagesLoading) return;
     messagesLoading = true;
-    notifyListeners();
+    _safeNotify();
     try {
       final before = loadMore ? _msgsBeforeId : Int64.ZERO;
       final res = await chatConn.chatMsgList(chatId: Int64(cid), beforeId: before, limit: 80);
+      if (_disposed) return;
       final batch = res.messages.toList();
       if (batch.isNotEmpty) {
         _msgsBeforeId = batch.last.id;
@@ -179,14 +208,17 @@ class DevicePromptContextStore extends ChangeNotifier {
     } catch (e) {
       lError('device prompt msgs: $e');
     } finally {
-      messagesLoading = false;
-      notifyListeners();
+      if (!_disposed) {
+        messagesLoading = false;
+        _safeNotify();
+      }
     }
   }
 
   bool get messagesCanLoadMore => _msgsHasMore;
 
   Future<void> promptSend(String text, {String? toolMode}) async {
+    if (_disposed) return;
     final trimmed = text.trim();
     final turnToolMode = toolMode ?? this.toolMode;
     final cid = activeChatId;
@@ -227,7 +259,7 @@ class DevicePromptContextStore extends ChangeNotifier {
     streaming = true;
     streamingTail = '';
     error = null;
-    notifyListeners();
+    _safeNotify();
 
     final stream = chatConn.promptSend(
       text: trimmed,
@@ -240,11 +272,13 @@ class DevicePromptContextStore extends ChangeNotifier {
     );
     try {
       await for (final ev in stream) {
+        if (_disposed) break;
         if (ev.kind == 'start' && ev.chatId > Int64.ZERO) {
           final startId = ev.chatId.toInt();
           if (startId != cid) {
             activeChatId = startId;
             _prefs ??= await SharedPreferences.getInstance();
+            if (_disposed) break;
             await _prefs!.setInt(_prefsKeyActiveChat(deviceIid), startId);
           }
           continue;
@@ -253,7 +287,7 @@ class DevicePromptContextStore extends ChangeNotifier {
           streamingTail += ev.text;
           final i = messages.indexWhere((m) => m.reqId == reqId && m.role == ChatMsgRole.CHAT_MSG_ROLE_ASSISTANT);
           if (i >= 0) messages[i].content = streamingTail;
-          notifyListeners();
+          _safeNotify();
           continue;
         }
         if (ev.kind == 'end' && ev.end != null) {
@@ -268,13 +302,17 @@ class DevicePromptContextStore extends ChangeNotifier {
         }
       }
     } catch (e) {
-      error = '$e';
-      lError('device prompt send: $e');
+      if (!_disposed) {
+        error = '$e';
+        lError('device prompt send: $e');
+      }
     } finally {
-      streaming = false;
-      streamingTail = '';
-      notifyListeners();
-      unawaited(_contextListReload());
+      if (!_disposed) {
+        streaming = false;
+        streamingTail = '';
+        _safeNotify();
+        unawaited(_contextListReload());
+      }
     }
   }
 }

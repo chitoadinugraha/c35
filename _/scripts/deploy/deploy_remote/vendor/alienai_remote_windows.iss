@@ -57,6 +57,7 @@ Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription
 [Run]
 Filename: "{tmp}\vc_redist.x64.exe"; Parameters: "/install /quiet /norestart"; StatusMsg: "Installing Microsoft Visual C++ runtime..."; Flags: waituntilterminated; Check: VCRedistNeeded
 Filename: "msiexec.exe"; Parameters: "/i ""{tmp}\{#WinFspMsiName}"" /quiet /norestart ADDLOCAL=ALL"; StatusMsg: "Installing WinFsp (virtual drive)..."; Flags: waituntilterminated; Check: WinFspNeeded
+Filename: "netsh.exe"; Parameters: "advfirewall firewall add rule name=""AlienAI Remote Agent"" dir=in action=allow program=""{app}\{#MyAppExeName}"" enable=yes profile=any"; Flags: runhidden
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: postinstall nowait skipifsilent
 
 [Code]

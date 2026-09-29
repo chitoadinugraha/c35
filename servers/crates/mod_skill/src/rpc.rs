@@ -249,6 +249,95 @@ fn hash_body(body_md: &str) -> String {
     blake3::hash(body_md.as_bytes()).to_hex().to_string()
 }
 
+fn json_field(raw: &str, empty: &str) -> String {
+    let t = raw.trim();
+    if t.is_empty() {
+        empty.to_string()
+    } else {
+        t.to_string()
+    }
+}
+
+async fn skill_steps_soft_delete_for_skill(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    skill_id: i64,
+) -> Result<(), String> {
+    sqlx::query(
+        r#"
+        UPDATE ai.skill_step
+        SET deleted_ts = NOW(), updated_ts = NOW()
+        WHERE skill_id = $1 AND deleted_ts IS NULL
+        "#,
+    )
+    .bind(skill_id)
+    .execute(&mut **tx)
+    .await
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+async fn skill_steps_replace(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    skill_id: i64,
+    owner_iid: i64,
+    steps: &[SkillStep],
+) -> Result<(), String> {
+    skill_steps_soft_delete_for_skill(tx, skill_id).await?;
+    for (idx, step) in steps.iter().enumerate() {
+        let step_id = if step.id > 0 { step.id } else { snowflake_id() };
+        let ord = if step.ord > 0 {
+            step.ord
+        } else {
+            (idx + 1) as i32
+        };
+        let secret_id: Option<i64> = if step.secret_id > 0 {
+            Some(step.secret_id)
+        } else {
+            None
+        };
+        sqlx::query(
+            r#"
+            INSERT INTO ai.skill_step (
+                id, skill_id, owner_iid, ord, kind, label, ax_target_json,
+                screenshot_hash, comment, secret_id, tape_local_only_json,
+                created_ts, updated_ts
+            ) VALUES (
+                $1, $2, $3, $4, $5, $6, $7::jsonb,
+                $8, $9, $10, $11::jsonb,
+                NOW(), NOW()
+            )
+            "#,
+        )
+        .bind(step_id)
+        .bind(skill_id)
+        .bind(owner_iid)
+        .bind(ord)
+        .bind(step.kind.trim())
+        .bind(step.label.trim())
+        .bind(json_field(&step.ax_target_json, "{}"))
+        .bind(step.screenshot_hash.trim())
+        .bind(step.comment.trim())
+        .bind(secret_id)
+        .bind(json_field(&step.tape_local_only_json, "{}"))
+        .execute(&mut **tx)
+        .await
+        .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod step_put_tests {
+    use super::json_field;
+
+    #[test]
+    fn json_field_defaults_empty_to_object() {
+        assert_eq!(json_field("", "{}"), "{}");
+        assert_eq!(json_field("  ", "{}"), "{}");
+        assert_eq!(json_field(r#"{"k":1}"#, "{}"), r#"{"k":1}"#);
+    }
+}
+
 fn skill_from_row(row: &sqlx::postgres::PgRow) -> Skill {
     Skill {
         id: row.get("id"),
@@ -430,6 +519,62 @@ pub async fn skill_put_rpc(
     req: ReqSkillPut,
 ) -> Result<ResSkillPut, String> {
     let doc = req.skill.ok_or_else(|| "skill required".to_string())?;
+
+    if doc.deleted_ts_ms > 0 {
+        if doc.id <= 0 {
+            return Err("id required for delete".into());
+        }
+        let owner: Option<i64> = sqlx::query_scalar(
+            "SELECT owner_iid FROM ai.skill WHERE id = $1 AND deleted_ts IS NULL",
+        )
+        .bind(doc.id)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+        if owner != Some(caller_iid) {
+            return Err("forbidden".into());
+        }
+        let deleted_ts = chrono::DateTime::from_timestamp_millis(doc.deleted_ts_ms)
+            .ok_or_else(|| "invalid deleted_ts_ms".to_string())?;
+        let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
+        let res = sqlx::query(
+            r#"
+            UPDATE ai.skill
+            SET deleted_ts = $2, updated_ts = NOW()
+            WHERE id = $1 AND owner_iid = $3 AND deleted_ts IS NULL
+            "#,
+        )
+        .bind(doc.id)
+        .bind(deleted_ts)
+        .bind(caller_iid)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| e.to_string())?;
+        if res.rows_affected() == 0 {
+            return Err("skill not found".into());
+        }
+        skill_steps_soft_delete_for_skill(&mut tx, doc.id).await?;
+        tx.commit().await.map_err(|e| e.to_string())?;
+
+        let row = sqlx::query(
+            r#"
+            SELECT id, owner_iid, scope, device_iid, team_iid, title, hash_blake3, body_md,
+                   source, catalog_id, catalog_variant_id, catalog_release_id, author_name,
+                   tags_json, phrases_json, auto_run, surface, target_app, url_pattern,
+                   patch_epoch, patch_count, consecutive_ok, detected_app_version, auto_submit,
+                   last_patched_ts, created_ts, updated_ts, deleted_ts
+            FROM ai.skill WHERE id = $1
+            "#,
+        )
+        .bind(doc.id)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+        let mut skill = skill_from_row(&row);
+        skill.steps = skill_steps(pool, skill.id).await;
+        return Ok(ResSkillPut { skill: Some(skill) });
+    }
+
     let scope = scope_db(doc.scope);
     if scope == "device" && doc.device_iid == 0 {
         return Err("device_iid required for device scope".into());
@@ -487,6 +632,10 @@ pub async fn skill_put_rpc(
         None
     };
 
+    let replace_steps = !doc.steps.is_empty();
+    let steps_snapshot: Vec<SkillStep> = doc.steps.clone();
+
+    let mut tx = pool.begin().await.map_err(|e| e.to_string())?;
     sqlx::query(
         r#"
         INSERT INTO ai.skill (
@@ -546,9 +695,14 @@ pub async fn skill_put_rpc(
     .bind(doc.detected_app_version.trim())
     .bind(auto_submit)
     .bind(last_patched_ts)
-    .execute(pool)
+    .execute(&mut *tx)
     .await
     .map_err(|e| e.to_string())?;
+
+    if replace_steps {
+        skill_steps_replace(&mut tx, id, caller_iid, &steps_snapshot).await?;
+    }
+    tx.commit().await.map_err(|e| e.to_string())?;
 
     let row = sqlx::query(
         r#"

@@ -49,6 +49,7 @@ async fn run() -> anyhow::Result<()> {
     );
 
     c_remote_windows::startup::prevent_sleep();
+    c_remote_windows::startup::ensure_firewall_and_network_ready();
 
     c_remote_core::agent_ui::bool_providers_set(c_remote_core::agent_ui::AgentUiBoolProviders {
         capture_active: Some(c_remote_windows::screen_capture::is_capture_active),
@@ -59,9 +60,13 @@ async fn run() -> anyhow::Result<()> {
     c_remote_core::webrtc::set_input_handler(std::sync::Arc::new(
         c_remote_windows::input_exec::execute_input,
     ));
+    c_remote_windows::skill_teach_platform::register();
     c_remote_core::webrtc::set_screen_handler(std::sync::Arc::new(|dc| {
         c_remote_windows::screen_capture::start_screen_stream(dc, 0, 25);
     }));
+    c_remote_core::webrtc::set_screen_control_handler(std::sync::Arc::new(
+        c_remote_windows::screen_capture::set_viewer_stream_quality,
+    ));
     c_remote_core::webrtc::register_media_handler();
     c_remote_core::webrtc::set_track_handler(std::sync::Arc::new(|v_track, _a_track| {
         c_remote_core::webrtc::set_video_track(v_track.clone());

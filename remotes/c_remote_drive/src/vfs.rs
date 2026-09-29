@@ -5,6 +5,7 @@ use tracing::{info, warn};
 /// Visible seed folders from an older layout. We do **not** create them:
 /// a fresh A:\ is an empty user cloud disk (browser profile lives outside the mount).
 const SEED_VISIBLE: &[&str] = &["Downloads", "Reports", "Projects"];
+const DRIVE_ICO_BYTES: &[u8] = include_bytes!("../../c_remote_windows/resources/alien_rounded.ico");
 
 pub struct VfsDriveManager {
     pub drive_letter: String,
@@ -171,22 +172,27 @@ impl VfsDriveManager {
     }
 
     fn copy_icon(&self, icon_dest: &Path) {
-        if icon_dest.exists() {
-            return;
-        }
-        let candidates = [
-            PathBuf::from("../../clients/app/windows/runner/resources/app_icon.ico"),
-            PathBuf::from(r"D:\cs\cs_ai\clients\app_alienai\windows\runner\resources\app_icon.ico"),
-            PathBuf::from(r"D:\products\alienai\clients\app\windows\runner\resources\app_icon.ico"),
-        ];
-        for candidate in candidates {
-            if candidate.exists() {
-                if fs::copy(&candidate, icon_dest).is_ok() {
+        let needs_write = match fs::read(icon_dest) {
+            Ok(existing) => existing != DRIVE_ICO_BYTES,
+            Err(_) => true,
+        };
+        if needs_write {
+            if let Some(parent) = icon_dest.parent() {
+                let _ = fs::create_dir_all(parent);
+            }
+            if fs::write(icon_dest, DRIVE_ICO_BYTES).is_ok() {
+                info!("Wrote VFS drive icon to {:?}", icon_dest);
+                return;
+            }
+            if let Ok(local) = std::env::var("LOCALAPPDATA") {
+                let local_ico = PathBuf::from(local).join("AlienAI").join("alien_rounded.ico");
+                if local_ico.exists() && fs::copy(&local_ico, icon_dest).is_ok() {
+                    info!("Copied VFS drive icon from {:?}", local_ico);
                     return;
                 }
             }
+            warn!("VFS drive icon missing at {:?}; skipping icon copy", icon_dest);
         }
-        warn!("VFS drive icon missing at {:?}; skipping icon copy", icon_dest);
     }
 
     fn write_autorun(&self) {
@@ -212,7 +218,7 @@ impl VfsDriveManager {
     }
 
     #[cfg(target_os = "windows")]
-    fn configure_windows_drive_icons(&self, icon_path: &Path) {
+    pub fn configure_windows_drive_icons(&self, icon_path: &Path) {
         let drive_clean = self.drive_letter.trim_end_matches(':').trim_end_matches('\\');
         let icon_str = icon_path.to_str().unwrap_or_default().replace('\\', "\\\\");
         let has_icon = icon_path.exists();
@@ -234,7 +240,11 @@ impl VfsDriveManager {
              New-Item -Path \"$expPath\\DefaultLabel\" -Force | Out-Null; \
              Set-ItemProperty -Path \"$regPath\\DefaultLabel\" -Name '(Default)' -Value 'Alien AI'; \
              Set-ItemProperty -Path \"$expPath\\DefaultLabel\" -Name '(Default)' -Value 'Alien AI'; \
-             {icon_cmds}",
+             {icon_cmds} \
+             try {{ \
+                 Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class ShellNotify {{ [DllImport(\"shell32.dll\")] public static extern void SHChangeNotify(int eventId, int flags, IntPtr item1, IntPtr item2); }}' -ErrorAction SilentlyContinue; \
+                 [ShellNotify]::SHChangeNotify(0x08000000, 0, [IntPtr]::Zero, [IntPtr]::Zero); \
+             }} catch {{}}",
             d = drive_clean,
         );
         let _ = c_remote_core::win_powershell::command_status(&ps_script);

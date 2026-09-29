@@ -284,6 +284,18 @@ pub async fn billing_gate_with_hold_custom(
         crate::billing_freemium::billing_freemium_reserve_turn(pool, owner_iid).await?;
         return Ok(());
     }
+    if let Ok(Some(profile)) = crate::billing_profile::billing_profile_fetch(pool, owner_iid).await {
+        if crate::billing_profile::profile_has_pools(&profile) {
+            let (alien_rem, frontier_rem) = crate::billing_profile::profile_pool_remaining(&profile);
+            let min_hold = crate::billing_on_demand::usd_to_native(
+                crate::billing_on_demand::DEFAULT_HOLD_USD,
+                crate::fx_live::fx_live_micro_per_usd(),
+            );
+            if alien_rem + frontier_rem >= min_hold {
+                return Ok(());
+            }
+        }
+    }
     let extra = sqlx::query_as::<_, (String, String, i64)>(
         r#"
         SELECT balance_idr::text, billing_currency, fx_micro_per_usd

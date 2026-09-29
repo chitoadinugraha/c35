@@ -50,16 +50,22 @@ enum BotBillingPackage {
         BotBillingPackage.small => 'botCreate.packageSmallInfo',
       };
 
-  String line1Key() => switch (this) {
-        BotBillingPackage.shared => 'botCreate.packageFreeLine1',
-        BotBillingPackage.lite => 'botCreate.packageLiteLine1',
-        BotBillingPackage.small => 'botCreate.packageSmallLine1',
-      };
-
-  String line2Key() => switch (this) {
-        BotBillingPackage.shared => 'botCreate.packageFreeLine2',
-        BotBillingPackage.lite => 'botCreate.packageLiteLine2',
-        BotBillingPackage.small => 'botCreate.packageSmallLine2',
+  List<String> pointKeys() => switch (this) {
+        BotBillingPackage.shared => [
+            'botCreate.packageFreePoint1',
+            'botCreate.packageFreePoint2',
+            'botCreate.packageFreePoint3',
+          ],
+        BotBillingPackage.lite => [
+            'botCreate.packageLitePoint1',
+            'botCreate.packageLitePoint2',
+            'botCreate.packageLitePoint3',
+          ],
+        BotBillingPackage.small => [
+            'botCreate.packageSmallPoint1',
+            'botCreate.packageSmallPoint2',
+            'botCreate.packageSmallPoint3',
+          ],
       };
 }
 
@@ -373,6 +379,31 @@ class _PackagePrice extends StatelessWidget {
   }
 }
 
+class _PackagePointList extends StatelessWidget {
+  const _PackagePointList({required this.keys, required this.style});
+
+  final List<String> keys;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final key in keys)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('•  ', style: style.copyWith(fontStyle: FontStyle.normal)),
+                  Expanded(child: Text(key.tr(), style: style.copyWith(fontStyle: FontStyle.normal))),
+                ],
+              ),
+            ),
+        ],
+      );
+}
+
 class _PackageTile extends StatelessWidget {
   const _PackageTile({
     required this.pkg,
@@ -440,9 +471,7 @@ class _PackageTile extends StatelessWidget {
                       const SizedBox(height: 6),
                       Text(pkg.infoKey().tr(), style: infoStyle),
                       const SizedBox(height: 6),
-                      Text(pkg.line1Key().tr(), style: detailStyle),
-                      const SizedBox(height: 4),
-                      Text(pkg.line2Key().tr(), style: detailStyle),
+                      _PackagePointList(keys: pkg.pointKeys(), style: detailStyle),
                     ],
                   ),
                 ),

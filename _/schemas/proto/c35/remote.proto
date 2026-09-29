@@ -166,6 +166,11 @@ message RemoteCursorEvent {
   string shape = 1; // arrow | text | click | wait | progress | help | forbidden | move | precise | resize_ns | resize_ew | resize_nesw | resize_nwse
 }
 
+// Viewer → agent on `remote-screen` (MJPEG stream tuning; not CS35/CS36 frame packets).
+message RemoteScreenControl {
+  uint32 quality = 1; // JPEG 40..95 (0 = ignore)
+}
+
 // ---------------------------------------------------------------------------
 // WebRTC data channel `remote-fs` (binary frame = protobuf encode)
 // ---------------------------------------------------------------------------
@@ -298,4 +303,47 @@ message RemoteMediaStatusRes {
   string path = 2;
   string error = 3;
   RemoteMediaEncoder encoder = 4;
+}
+
+// ---------------------------------------------------------------------------
+// WebRTC data channel `remote-teach` (binary frame = protobuf encode)
+// Field tags 31–34 avoid collision with RemoteFs* / RemoteMedia* shapes.
+// ---------------------------------------------------------------------------
+
+message RemoteTeachStep {
+  int32 ord = 1;
+  string kind = 2;
+  string label = 3;
+  string ax_target_json = 4;
+}
+
+message RemoteTeachStartReq {
+  string title = 1;
+  int64 device_iid = 2;
+}
+
+message RemoteTeachStartRes {
+  bool ok = 1;
+  string error = 2;
+}
+
+message RemoteTeachStopReq {
+  bool stop = 31;
+}
+
+message RemoteTeachStopRes {
+  repeated RemoteTeachStep steps = 1;
+  string error = 2;
+}
+
+message RemoteTeachStatusReq {
+  bool poll = 32;
+}
+
+message RemoteTeachStatusRes {
+  bool recording = 1;
+  repeated RemoteTeachStep steps = 2;
+  uint64 duration_sec = 3;
+  string last_label = 4;
+  string error = 5;
 }

@@ -67,7 +67,7 @@ import 'package:alienai_c35/widgets/ai/ui_msg_usage.dart';
 import 'package:alienai_c35/widgets/ai/ui_subagent_run_card.dart';
 import 'package:alienai_c35/widgets/ai/ui_user_bubble.dart';
 import 'package:alienai_c35/widgets/billing/ui_billing_history_sheet.dart';
-import 'package:alienai_c35/widgets/billing/ui_billing_package_sheet.dart';
+import 'package:alienai_c35/widgets/billing/ui_billing_plan_sheet.dart';
 import 'package:alienai_c35/widgets/chat/ui_chat_timeline.dart';
 import 'package:alienai_c35/widgets/ui/ui_account_menu.dart';
 import 'package:alienai_c35/widgets/ui/ui_conn_wifi.dart';
@@ -432,7 +432,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         }
       }
       if (mounted) {
-        setState(_mentionIdsSyncFromChat);
+        setState(() => _mentionContextSyncFromChat(restoreComposer: true));
       }
       if (mounted) _model = AgentModel.of(Session.instance.modelId, _store.models);
       _syncSub = _conn.onSyncPush.listen(_onSyncPush);
@@ -567,6 +567,20 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     _mentionIds.addAll(chat.stickyMentionIds);
   }
 
+  void _composerStickyMentionsRestore() {
+    if (_mentionIds.isEmpty) return;
+    final catalog = _store.mentionCatalog.mentions;
+    final merged = composerMentionDraftMergeSticky(_composerCtrl.text, _mentionIds, catalog);
+    if (merged == _composerCtrl.text) return;
+    _composerCtrl.text = merged;
+    _composerCtrl.selection = TextSelection.collapsed(offset: merged.length);
+  }
+
+  void _mentionContextSyncFromChat({bool restoreComposer = false}) {
+    _mentionIdsSyncFromChat();
+    if (restoreComposer) _composerStickyMentionsRestore();
+  }
+
   void _closeHistoryDrawerIfNarrow() {
     if (MediaQuery.sizeOf(context).width >= 720) return;
     final state = _scaffoldKey.currentState;
@@ -606,7 +620,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     _closeHistoryDrawerIfNarrow();
     _store.chatSelect(id);
     _composerReset();
-    _mentionIdsSyncFromChat();
+    _mentionContextSyncFromChat(restoreComposer: true);
     _canvasStore.close();
     try {
       final res = await _conn.chatMsgList(chatId: Int64(id));
@@ -614,6 +628,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       _store.promptReconcileFromServerMsgs(id, _store.msgs.where((m) => m.chatId == id));
     } catch (_) {}
     if (!mounted) return;
+    setState(() => _mentionContextSyncFromChat(restoreComposer: true));
     _timeline.scrollToBottom(force: true);
   }
 
@@ -767,7 +782,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
           onSettings: _openSettings,
           onReferralTree: _openReferralTree,
           onBalance: () => billingHistorySheet(context, conn: ReferralConn(uid: Session.instance.uid)),
-          onPackage: () => billingPackageSheet(context, conn: ReferralConn(uid: Session.instance.uid)),
+          onPackage: () => showBillingPlanSheet(context, ReferralConn(uid: Session.instance.uid)),
           onCommissionTap: _openCommissionSheet,
           onFinancePayments: _financeStaff ? _openFinancePayments : null,
           onFinanceReceiveAccounts: _financeStaff ? _openFinanceReceiveAccounts : null,
@@ -785,7 +800,20 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         ),
       );
 
-  void _mentionToggle(String id) => setState(() => _mentionIds.contains(id) ? _mentionIds.remove(id) : _mentionIds.add(id));
+  void _mentionToggle(String id) {
+    setState(() {
+      final removing = _mentionIds.contains(id);
+      if (removing) {
+        _mentionIds.remove(id);
+        _composerCtrl.text = _composerCtrl.text.replaceAll(composerMentionToken(id), '').trimLeft();
+      } else {
+        _mentionIds.add(id);
+        _composerStickyMentionsRestore();
+      }
+      final chatId = _store.activeChatId;
+      if (chatId != null) _store.chatStickyMentionsPut(chatId, _mentionIds.toList());
+    });
+  }
 
   void _toolModeToggle() => setState(() => _toolMode = _toolMode == 'ask' ? 'agent' : 'ask');
 
@@ -902,9 +930,11 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     }
     if (chatId == null) return;
 
-    if (mids.isNotEmpty) {
-      _store.chatStickyMentionsMerge(chatId, [...mids, ...composerMentionIdsCollect(uiContent)]);
-      _mentionIdsSyncFromChat();
+    if (wireMentionIds.isNotEmpty) {
+      _store.chatStickyMentionsMerge(chatId, wireMentionIds);
+    }
+    if (mounted) {
+      setState(() => _mentionContextSyncFromChat(restoreComposer: true));
     }
 
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -988,6 +1018,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
             );
             _store.promptBusyPut(true, chatId: startId, reqId: _conn.lastPromptReqId);
             if (_store.activeChatId == localChatId || _store.activeChatId == null) _store.chatSelect(startId);
+            if (mounted) setState(() => _mentionContextSyncFromChat(restoreComposer: true));
           }
           _store.msgStreamStart(chatId: streamChatId, reqId: _conn.lastPromptReqId ?? '', model: ev.model.isNotEmpty ? ev.model : _model.id);
           continue;
@@ -1427,20 +1458,12 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
           if (hasError && hasAnswerBody)
             Padding(
               padding: const EdgeInsets.only(top: 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      msgPromptErrorMessage(err),
-                      style: const TextStyle(fontSize: 12, height: 1.4, color: Color(0xFF71717A)),
-                    ),
-                  ),
-                  if (showRetry)
-                    TextButton(
-                      onPressed: _retrying ? null : _retryLastTurn,
-                      child: Text(_retrying ? 'Retrying…' : 'Retry'),
-                    ),
-                ],
+              child: UiMsgError(
+                message: msgPromptErrorMessage(err),
+                detail: sessionViewerIsRoot() ? err : null,
+                onRetry: showRetry ? _retryLastTurn : null,
+                retrying: _retrying,
+                showIcon: false,
               ),
             ),
           if ((!hasError || hasAnswerBody) && blocks.isNotEmpty)

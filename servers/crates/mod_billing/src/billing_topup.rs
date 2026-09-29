@@ -419,7 +419,7 @@ pub async fn billing_topup_settle(pool: &PgPool, n: &Notification, raw: &[u8]) -
     .fetch_optional(pool)
     .await
     .map_err(|e| e.to_string())?;
-    let (_owner_iid, account_id, _amount_usd, amount_idr, status) = match &row {
+    let (owner_iid, account_id, _amount_usd, amount_idr, status) = match &row {
         Some(r) => (
             r.get::<i64, _>("owner_iid"),
             r.get::<i64, _>("billing_account_id"),
@@ -486,6 +486,20 @@ pub async fn billing_topup_settle(pool: &PgPool, n: &Notification, raw: &[u8]) -
                 return Ok("already-settled".into());
             }
             let credited_owner = topup_credit_and_accrue(&mut tx, account_id, amount_idr, "IDR", &n.order_id).await?;
+            let wallet_id = snowflake_id();
+            let _ = sqlx::query(
+                r#"
+                INSERT INTO ai.billing_wallet (id, owner_iid, currency, balance, is_default, name)
+                VALUES ($1, $2, 'IDR', $3, FALSE, 'Personal IDR')
+                ON CONFLICT (owner_iid, currency) WHERE deleted_ts IS NULL
+                DO UPDATE SET balance = ai.billing_wallet.balance + EXCLUDED.balance, updated_ts = NOW()
+                "#,
+            )
+            .bind(wallet_id)
+            .bind(owner_iid)
+            .bind(amount_idr)
+            .execute(&mut *tx)
+            .await;
             tx.commit().await.map_err(|e| e.to_string())?;
             if credited_owner > 0 {
                 crate::billing_push::billing_notify_owner(pool, None, credited_owner, None).await;

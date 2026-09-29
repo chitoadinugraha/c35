@@ -107,6 +107,24 @@ String billingPlanPoolsLabel(BillingPlanDoc plan) {
   return lines.map((l) => '${l.label}: ${l.value}').join(' · ');
 }
 
+/// Short labels for collapsed plan cards (max 4).
+List<String> billingPlanSummaryChips(BillingPlanDoc plan, {bool yearly = false}) {
+  final alienBase = plan.alienPoolIdrMonthly;
+  final alien = yearly ? alienBase * billingPlanYearlyAlienBonus : alienBase;
+  final frontier = plan.frontierPoolIdrMonthly;
+  final mult = billingPlanQuotaMultiplier(plan);
+  final iot = billingPlanIotDeviceLimit(plan);
+  final chips = <String>[
+    if (mult > 1) '$mult× pools',
+    if (alien > 0) '${billingFmtRp(alien, compact: true)} Alien/mo',
+    if (frontier > 0) '${billingFmtRp(frontier, compact: true)} API/mo',
+    '$iot devices',
+    if (plan.overageEnabled) 'Wallet overage',
+    if (billingPlanPriorityBadge(plan) != null) 'Priority queue',
+  ];
+  return chips.length > 4 ? chips.sublist(0, 4) : chips;
+}
+
 enum BillingPlanLineKind { sectionHeader, row }
 
 class BillingPlanQuotaLine {
@@ -187,7 +205,12 @@ List<BillingPlanQuotaLine> billingPlanQuotaLines(BillingPlanDoc plan, {BillingPl
     const BillingPlanQuotaLine(label: 'Features', kind: BillingPlanLineKind.sectionHeader),
     const BillingPlanQuotaLine(label: 'Computer use', value: 'Included', showsIncluded: false),
     const BillingPlanQuotaLine(label: 'Image generation', value: 'Included', showsIncluded: false),
-    BillingPlanQuotaLine(label: 'Multiple models', value: billingPlanModelsValue(plan), showsIncluded: true),
+    BillingPlanQuotaLine(
+      label: 'Multiple models',
+      value: 'Included',
+      info: billingPlanModelsValue(plan),
+      showsIncluded: false,
+    ),
     BillingPlanQuotaLine(
       label: 'IoT devices',
       value: '$iot device${iot == 1 ? '' : 's'}',

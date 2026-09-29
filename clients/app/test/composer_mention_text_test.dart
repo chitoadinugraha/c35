@@ -11,6 +11,17 @@ void main() {
     );
   });
 
+  test('composerMentionDraftMergeSticky keeps chips after send', () {
+    const deviceId = 'iid:42';
+    final sticky = composerMentionDraftFromStickyIds([deviceId], const []);
+    expect(sticky, composerMentionToken(deviceId));
+    final merged = composerMentionDraftMergeSticky('', [deviceId], const []);
+    expect(merged, sticky);
+    final withText = composerMentionDraftMergeSticky('clear recycle bin', [deviceId], const []);
+    expect(withText, startsWith(sticky));
+    expect(withText, contains('clear recycle bin'));
+  });
+
   test('composerMentionTextForWire emits bracket mention', () {
     const deviceId = 'iid:97279816209936384';
     final draft = 'berapa ping ${composerMentionToken(deviceId)} ke google ?';

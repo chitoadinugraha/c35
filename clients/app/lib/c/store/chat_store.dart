@@ -687,6 +687,16 @@ class ChatStore extends ChangeNotifier {
     }
   }
 
+  void chatStickyMentionsPut(int chatId, List<String> mentionIds) {
+    final next = mentionIds.map((e) => e.trim()).where((e) => e.isNotEmpty && e != 'image').toList(growable: false);
+    for (final c in chats) {
+      if (c.id != chatId) continue;
+      c.stickyMentionIds = next;
+      _touch();
+      return;
+    }
+  }
+
   List<String> chatStickyMentionsFor(int chatId) {
     for (final c in chats) {
       if (c.id == chatId) return List<String>.from(c.stickyMentionIds);

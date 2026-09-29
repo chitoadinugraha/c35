@@ -320,55 +320,6 @@ fn freemium_rejection(msgs_used: i32, tokens_used: i32) -> String {
     }
 }
 
-async fn freemium_profile_lock(pool: &PgPool, owner_iid: i64) -> Result<FreemiumProfile> {
-    let _ = crate::billing_profile::billing_profile_ensure(pool, owner_iid).await?;
-    let row = sqlx::query_as::<_, (
-        i64,
-        String,
-        Option<chrono::DateTime<Utc>>,
-        Option<NaiveDate>,
-        i32,
-        i32,
-    )>(
-        r#"
-        SELECT id, plan_tier, trial_expires_ts, freemium_day, freemium_msgs_used, freemium_tokens_used
-        FROM ai.billing_profile
-        WHERE owner_iid = $1 AND deleted_ts IS NULL
-        LIMIT 1
-        FOR UPDATE
-        "#,
-    )
-    .bind(owner_iid)
-    .fetch_one(pool)
-    .await?;
-    Ok(FreemiumProfile {
-        id: row.0,
-        plan_tier: row.1,
-        trial_expires_ts: row.2,
-        freemium_day: row.3,
-        freemium_msgs_used: row.4,
-        freemium_tokens_used: row.5,
-    })
-}
-
-async fn freemium_counters_roll(pool: &PgPool, profile_id: i64, row: &FreemiumProfile) -> Result<(i32, i32)> {
-    let today = utc_day();
-    if row.freemium_day == Some(today) {
-        return Ok((row.freemium_msgs_used, row.freemium_tokens_used));
-    }
-    sqlx::query(
-        r#"
-        UPDATE ai.billing_profile
-        SET freemium_day = $2, freemium_msgs_used = 0, freemium_tokens_used = 0, updated_ts = NOW()
-        WHERE id = $1
-        "#,
-    )
-    .bind(profile_id)
-    .bind(today)
-    .execute(pool)
-    .await?;
-    Ok((0, 0))
-}
 
 /// Check remaining freemium quota (no mutation).
 pub async fn billing_freemium_check(pool: &PgPool, owner_iid: i64) -> Result<()> {
@@ -472,21 +423,49 @@ pub async fn billing_freemium_add_tokens(pool: &PgPool, owner_iid: i64, tokens: 
     if tokens <= 0 || !billing_freemium_applies(pool, owner_iid).await? {
         return Ok(());
     }
-    let row = freemium_profile_lock(pool, owner_iid).await?;
-    let (msgs_used, mut tokens_used) = freemium_counters_roll(pool, row.id, &row).await?;
-    tokens_used = (tokens_used + tokens).min(i32::MAX);
-    sqlx::query(
+    let _ = crate::billing_profile::billing_profile_ensure(pool, owner_iid).await?;
+    let mut tx = pool.begin().await?;
+    let row = sqlx::query_as::<_, (i64, String, Option<chrono::DateTime<Utc>>, Option<NaiveDate>, i32, i32)>(
         r#"
-        UPDATE ai.billing_profile
-        SET freemium_tokens_used = $2, updated_ts = NOW()
-        WHERE id = $1
+        SELECT id, plan_tier, trial_expires_ts, freemium_day, freemium_msgs_used, freemium_tokens_used
+        FROM ai.billing_profile
+        WHERE owner_iid = $1 AND deleted_ts IS NULL
+        LIMIT 1
+        FOR UPDATE
         "#,
     )
-    .bind(row.id)
-    .bind(tokens_used)
-    .execute(pool)
+    .bind(owner_iid)
+    .fetch_one(&mut *tx)
     .await?;
-    let _ = msgs_used;
+    let profile = FreemiumProfile {
+        id: row.0,
+        plan_tier: row.1,
+        trial_expires_ts: row.2,
+        freemium_day: row.3,
+        freemium_msgs_used: row.4,
+        freemium_tokens_used: row.5,
+    };
+    let today = utc_day();
+    let tokens_used = if profile.freemium_day == Some(today) {
+        (profile.freemium_tokens_used + tokens).min(i32::MAX)
+    } else {
+        sqlx::query(
+            r#"UPDATE ai.billing_profile SET freemium_day = $2, freemium_msgs_used = 0, freemium_tokens_used = 0, updated_ts = NOW() WHERE id = $1"#,
+        )
+        .bind(profile.id)
+        .bind(today)
+        .execute(&mut *tx)
+        .await?;
+        tokens.min(i32::MAX)
+    };
+    sqlx::query(
+        r#"UPDATE ai.billing_profile SET freemium_tokens_used = $2, updated_ts = NOW() WHERE id = $1"#,
+    )
+    .bind(profile.id)
+    .bind(tokens_used)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
     crate::billing_push::billing_notify_owner(pool, None, owner_iid, None).await;
     Ok(())
 }

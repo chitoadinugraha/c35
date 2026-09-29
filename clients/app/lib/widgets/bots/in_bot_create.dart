@@ -31,7 +31,7 @@ const _title = Color(0xFFF4F4F5);
 const _muted = Color(0xFF71717A);
 const _dialogW = 400.0;
 const _dialogH = 580.0;
-const _stepTotal = 4;
+const _stepTotal = 5;
 
 class InBotCreateResult {
   const InBotCreateResult({required this.botIid, required this.name});
@@ -243,13 +243,10 @@ class _InBotCreateState extends State<InBotCreate> {
     }
   }
 
-  bool get _welcomeEditable => _billingPackage != null && !_billingPackage!.usesOwnerQuota;
+  bool get _welcomeFieldEditable => _billingPackage == null || !_billingPackage!.usesOwnerQuota;
 
-  String _welcomeSharedPreview() {
-    final name = _name.text.trim();
-    if (name.isEmpty) return 'botCreate.welcomeSharedPreview'.tr();
-    return 'botCreate.welcomeSharedPreviewNamed'.tr(namedArgs: {'name': name});
-  }
+  bool get _welcomeSavedToMeta => _billingPackage != null && !_billingPackage!.usesOwnerQuota;
+
 
   String _botMetaJson({required bool active}) {
     final map = <String, dynamic>{
@@ -261,7 +258,7 @@ class _InBotCreateState extends State<InBotCreate> {
       'billing_period': _billingYearly ? 'yearly' : 'monthly',
       'active': active,
     };
-    if (_welcomeEditable) {
+    if (_welcomeSavedToMeta) {
       map['welcome_message'] = _welcomeMessage.text.trim();
     }
     return jsonEncode(map);
@@ -296,27 +293,29 @@ class _InBotCreateState extends State<InBotCreate> {
   }
 
   String get _stepTitle => switch (_step) {
-        0 => _isEditing ? 'botCreate.editTitle'.tr() : 'New Chat Bot',
-        1 => 'Connect channels',
-        2 => 'Assets',
+        0 => 'botCreate.stepWelcome'.tr(),
+        1 => _isEditing ? 'botCreate.editTitle'.tr() : 'New Chat Bot',
+        2 => 'Connect channels',
+        3 => 'Assets',
         _ => 'botCreate.stepBehavior'.tr(),
       };
 
   String _stepMenuLabel(int index) => switch (index) {
-        0 => 'botCreate.stepInfo'.tr(),
-        1 => 'botCreate.stepChannels'.tr(),
-        2 => 'botCreate.stepAssets'.tr(),
+        0 => 'botCreate.stepWelcome'.tr(),
+        1 => 'botCreate.stepInfo'.tr(),
+        2 => 'botCreate.stepChannels'.tr(),
+        3 => 'botCreate.stepAssets'.tr(),
         _ => 'botCreate.stepBehavior'.tr(),
       };
 
   bool get _canStepForward =>
-      _step == 0 ? _name.text.trim().isNotEmpty && _billingPackage != null : true;
+      _step == 1 ? _name.text.trim().isNotEmpty && _billingPackage != null : true;
 
   bool _canGoToStep(int target) {
     if (target == _step) return false;
-    if (target == 0) return true;
+    if (target <= 1) return true;
     if (_botIid == null) return false;
-    if (_step == 0 && _name.text.trim().isEmpty) return false;
+    if (_name.text.trim().isEmpty || _billingPackage == null) return false;
     return true;
   }
 
@@ -341,6 +340,13 @@ class _InBotCreateState extends State<InBotCreate> {
 
   Future<void> _next() async {
     if (_step == 0) {
+      setState(() {
+        _error = null;
+        _step = 1;
+      });
+      return;
+    }
+    if (_step == 1) {
       final name = _name.text.trim();
       if (name.isEmpty) {
         setState(() => _error = 'Name is required');
@@ -358,7 +364,7 @@ class _InBotCreateState extends State<InBotCreate> {
         if (_botIid != null && !_step0Changed) {
           if (!mounted) return;
           setState(() {
-            _step = 1;
+            _step = 2;
             _saving = false;
           });
           return;
@@ -368,7 +374,7 @@ class _InBotCreateState extends State<InBotCreate> {
           _markStep0Saved();
           if (!mounted) return;
           setState(() {
-            _step = 1;
+            _step = 2;
             _saving = false;
           });
           return;
@@ -380,7 +386,7 @@ class _InBotCreateState extends State<InBotCreate> {
         if (!mounted) return;
         setState(() {
           _botIid = iid;
-          _step = 1;
+          _step = 2;
           _saving = false;
         });
         _markStep0Saved();
@@ -394,7 +400,7 @@ class _InBotCreateState extends State<InBotCreate> {
       }
       return;
     }
-    if (_step == 1 || _step == 2) {
+    if (_step == 2 || _step == 3) {
       setState(() {
         _error = null;
         _step += 1;
@@ -605,6 +611,14 @@ class _InBotCreateState extends State<InBotCreate> {
     return UiUserAvatar(name: name, pic: _pic, size: 64);
   }
 
+  Widget _stepWelcome() => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _stepIntro('botCreate.welcomeStepHint'.tr()),
+          _welcomeMessageField(),
+        ],
+      );
+
   Widget _stepBasics() => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -648,7 +662,7 @@ class _InBotCreateState extends State<InBotCreate> {
             planExpiresTsMs: _planExpiresTsMs,
             onChanged: (v) => setState(() {
               _billingPackage = v;
-              if (! _welcomeEditable) _welcomeMessage.clear();
+              if (!_welcomeFieldEditable) _welcomeMessage.clear();
               _error = null;
             }),
             onYearlyChanged: (v) => setState(() => _billingYearly = v),
@@ -657,7 +671,7 @@ class _InBotCreateState extends State<InBotCreate> {
       );
 
   Widget _welcomeMessageField() {
-    final editable = _welcomeEditable;
+    final editable = _welcomeFieldEditable;
     if (!editable) {
       return uiTooltip(
         message: 'botCreate.welcomeLockedHint'.tr(),
@@ -680,7 +694,7 @@ class _InBotCreateState extends State<InBotCreate> {
               suffixIcon: const Icon(Icons.lock_outline, size: 18, color: _muted),
             ),
             child: Text(
-              _welcomeSharedPreview(),
+              'botCreate.welcomeSharedNone'.tr(),
               style: const TextStyle(color: _muted, fontSize: 13, height: 1.4),
             ),
           ),
@@ -711,8 +725,6 @@ class _InBotCreateState extends State<InBotCreate> {
             'Tell the bot how to reply. You can edit this anytime in bot settings.',
             style: TextStyle(color: _muted.withValues(alpha: 0.95), fontSize: 12, height: 1.35),
           ),
-          const SizedBox(height: 12),
-          _welcomeMessageField(),
           const SizedBox(height: 12),
           TextField(
             controller: _instructions,
@@ -833,9 +845,10 @@ class _InBotCreateState extends State<InBotCreate> {
                       child: Padding(
                         padding: const EdgeInsets.only(right: 12),
                         child: switch (_step) {
-                          0 => _stepBasics(),
-                          1 => _stepChannels(),
-                          2 => _stepAssets(),
+                          0 => _stepWelcome(),
+                          1 => _stepBasics(),
+                          2 => _stepChannels(),
+                          3 => _stepAssets(),
                           _ => _stepBehavior(),
                         },
                       ),

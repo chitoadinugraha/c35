@@ -433,7 +433,7 @@ Device detail tabs per [ui.md](ui.md):
 | Remote | WebRTC screen + input (`remote-input`) |
 | Files | WebRTC file browse/upload/copy/preview (`remote-fs`) |
 | Task | `ReqTaskList`, run history, start/cancel |
-| Skill | Teach + list (see [skill.md](skill.md)) |
+| Skill | Teach on **Remote** (HUD + agent overlay); tab = library — [skill.md](skill.md), [teach plan](plans/2026-09-29-remote-skill-teach-multitask.md) |
 | Settings | Name, instructions, agent version |
 
 ## Server crates

@@ -180,11 +180,109 @@ async fn billing_gate(pool: &PgPool, owner_iid: i64) -> Result<BillingRow> {
     crate::billing_turn::billing_gate(pool, owner_iid).await
 }
 
+pub async fn billing_subscription_deduct_turn(
+    pool: &PgPool,
+    scope: &str,
+    scope_iid: i64,
+    model: &str,
+    tokens_in: i32,
+    tokens_out: i32,
+    fx_micro: i64,
+) -> Result<Option<f64>> {
+    use crate::billing_pool::{pool_alien_deduct_idr, pool_deduct_apply, pool_frontier_deduct_idr, PoolSnapshot};
+    use crate::billing_cost::billing_cost_wholesale_usd;
+    use crate::billing_profile::model_uses_alien_pool;
+
+    let use_alien = model_uses_alien_pool(model);
+    let charge_idr = if use_alien {
+        pool_alien_deduct_idr(tokens_in, tokens_out, fx_micro)
+    } else {
+        pool_frontier_deduct_idr(billing_cost_wholesale_usd(model, tokens_in, tokens_out), fx_micro)
+    };
+    if charge_idr <= 0.0 {
+        return Ok(None);
+    }
+
+    let mut tx = pool.begin().await?;
+    let row = sqlx::query(
+        r#"
+        SELECT id, alien_pool_limit_idr::float8 AS alien_pool_limit_idr,
+               alien_pool_used_idr::float8 AS alien_pool_used_idr,
+               frontier_pool_limit_idr::float8 AS frontier_pool_limit_idr,
+               frontier_pool_used_idr::float8 AS frontier_pool_used_idr
+        FROM ai.billing_subscription
+        WHERE scope = $1 AND scope_iid = $2 AND deleted_ts IS NULL
+        LIMIT 1 FOR UPDATE
+        "#,
+    )
+    .bind(scope)
+    .bind(scope_iid)
+    .fetch_optional(&mut *tx)
+    .await?;
+    let Some(row) = row else {
+        return Ok(None);
+    };
+    use sqlx::Row;
+    let id: i64 = row.get("id");
+    let snap = PoolSnapshot {
+        alien_used_idr: row.try_get::<f64, _>("alien_pool_used_idr").unwrap_or(0.0),
+        alien_limit_idr: row.try_get::<f64, _>("alien_pool_limit_idr").unwrap_or(0.0),
+        frontier_used_idr: row.try_get::<f64, _>("frontier_pool_used_idr").unwrap_or(0.0),
+        frontier_limit_idr: row.try_get::<f64, _>("frontier_pool_limit_idr").unwrap_or(0.0),
+    };
+    if snap.alien_limit_idr <= 0.0 && snap.frontier_limit_idr <= 0.0 {
+        return Ok(None);
+    }
+    let applied = pool_deduct_apply(&snap, charge_idr, use_alien);
+    sqlx::query(
+        r#"
+        UPDATE ai.billing_subscription
+        SET alien_pool_used_idr = $2, frontier_pool_used_idr = $3, updated_ts = NOW()
+        WHERE id = $1
+        "#,
+    )
+    .bind(id)
+    .bind(applied.alien_used_idr)
+    .bind(applied.frontier_used_idr)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    Ok(Some(applied.wallet_overflow_idr))
+}
+
 pub async fn billing_deduct_scoped(pool: &PgPool, bctx: &BillingContext, cost_usd: f64, model: &str) -> Result<()> {
     if cost_usd <= 0.0 {
         return Ok(());
     }
-    if let Some(sub_id) = bctx.subscription_id {
+    if let Some(_sub_id) = bctx.subscription_id {
+        let fx_micro = crate::fx_live::fx_live_micro_per_usd();
+        // Rough token estimate from USD cost for subscription pool deduction
+        let tokens_est = (cost_usd * 1_000_000.0) as i32;
+        if let Some(overflow_idr) = billing_subscription_deduct_turn(
+            pool,
+            &bctx.scope,
+            bctx.scope_iid,
+            model,
+            tokens_est,
+            0,
+            fx_micro,
+        )
+        .await?
+        {
+            if overflow_idr > 0.0 {
+                // Deduct overflow from owner's billing_account.balance_idr
+                let row = crate::billing_turn::billing_account_ensure(pool, bctx.owner_iid).await?;
+                sqlx::query(
+                    "UPDATE ai.billing_account SET balance_idr = balance_idr - $2, updated_ts = NOW() WHERE id = $1",
+                )
+                .bind(row.id)
+                .bind(overflow_idr)
+                .execute(pool)
+                .await?;
+            }
+            return Ok(());
+        }
+        // No subscription pools — fall through to legacy allowance path below
         if model == "alienai" || model.is_empty() {
             if let Some(sub) = subscription_fetch(pool, &bctx.scope, bctx.scope_iid).await? {
                 let sub = subscription_windows_roll(pool, sub).await?;
@@ -203,7 +301,7 @@ pub async fn billing_deduct_scoped(pool: &PgPool, bctx: &BillingContext, cost_us
                         WHERE id = $1
                         "#,
                     )
-                    .bind(sub_id)
+                    .bind(sub.id)
                     .bind(cost_usd)
                     .execute(pool)
                     .await?;
@@ -215,3 +313,4 @@ pub async fn billing_deduct_scoped(pool: &PgPool, bctx: &BillingContext, cost_us
     billing_deduct(pool, bctx.owner_iid, cost_usd).await?;
     Ok(())
 }
+

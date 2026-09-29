@@ -18,10 +18,10 @@ pub fn bot_billing_plan_slug(meta: Option<&Value>) -> &str {
         .unwrap_or(BOT_BILLING_SHARED)
 }
 
-pub fn bot_welcome_message_resolve(meta: Option<&Value>, bot_name: &str) -> Option<String> {
+pub fn bot_welcome_message_resolve(meta: Option<&Value>, _bot_name: &str) -> Option<String> {
     let slug = bot_billing_plan_slug(meta);
     if slug == BOT_BILLING_SHARED || slug.is_empty() {
-        return Some(bot_welcome_shared_text(bot_name));
+        return None;
     }
     meta.and_then(|m| m.get("welcome_message"))
         .and_then(|v| v.as_str())
@@ -64,10 +64,8 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn shared_uses_alien_ai_template() {
-        let t = bot_welcome_message_resolve(Some(&json!({"billing_plan_slug": "shared"})), "Test Cafe").unwrap();
-        assert!(t.contains("Alien AI"));
-        assert!(t.contains("Test Cafe"));
+    fn shared_skips_auto_welcome() {
+        assert!(bot_welcome_message_resolve(Some(&json!({"billing_plan_slug": "shared"})), "Test Cafe").is_none());
     }
 
     #[test]

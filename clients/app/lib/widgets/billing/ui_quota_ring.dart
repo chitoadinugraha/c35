@@ -248,6 +248,13 @@ class UiQuotaPackagePanel extends StatelessWidget {
     this.freemiumMsgsLimit = billingFreemiumMsgsLimit,
     this.freemiumTokensUsed = 0,
     this.freemiumTokensLimit = billingFreemiumTokensLimit,
+    // IDR pool fields (v3 Phase 4b)
+    this.alienPoolUsedIdr = 0.0,
+    this.alienPoolLimitIdr = 0.0,
+    this.frontierPoolUsedIdr = 0.0,
+    this.frontierPoolLimitIdr = 0.0,
+    this.trialExpiresTsMs,
+    this.planExpiresTsMs,
   });
 
   final String planTier;
@@ -269,111 +276,185 @@ class UiQuotaPackagePanel extends StatelessWidget {
   final int freemiumMsgsLimit;
   final int freemiumTokensUsed;
   final int freemiumTokensLimit;
+  // IDR pool fields (v3 Phase 4b)
+  final double alienPoolUsedIdr;
+  final double alienPoolLimitIdr;
+  final double frontierPoolUsedIdr;
+  final double frontierPoolLimitIdr;
+  final int? trialExpiresTsMs;
+  final int? planExpiresTsMs;
+
+  bool get _hasIdrPools => alienPoolLimitIdr > 0 || frontierPoolLimitIdr > 0;
+
+  bool get _isPaidPlan => planTier.isNotEmpty && planTier != 'free';
+
+  Widget _poolBar(String label, double used, double limit, Color color) {
+    final remaining = (limit - used).clamp(0.0, limit);
+    final ratio = limit > 0 ? (used / limit).clamp(0.0, 1.0) : 0.0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Text(label, style: const TextStyle(color: Color(0xFF71717A), fontSize: 10, fontWeight: FontWeight.w500)),
+            const Spacer(),
+            Text(
+              '${moneyFmtIdr(remaining)} left',
+              style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: ratio,
+            minHeight: 5,
+            backgroundColor: color.withValues(alpha: 0.14),
+            valueColor: AlwaysStoppedAnimation(color),
+          ),
+        ),
+      ],
+    );
+  }
 
   @override
-  Widget build(BuildContext context) => Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (onBalanceTap != null) ...[
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: onBalanceTap,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.account_balance_wallet_outlined, size: 15, color: Color(0xFF71717A)),
-                      const SizedBox(width: 8),
-                      const Text('Balance', style: TextStyle(color: Color(0xFF71717A), fontSize: 11, fontWeight: FontWeight.w500)),
-                      const Spacer(),
-                      Text(balanceLabel, style: const TextStyle(color: Color(0xFFF4F4F5), fontSize: 12, fontWeight: FontWeight.w600)),
-                      const SizedBox(width: 4),
-                      const Icon(Icons.chevron_right, size: 16, color: Color(0xFF71717A)),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            const Divider(height: 1, color: Color(0xFF27272A)),
-          ],
+  Widget build(BuildContext context) {
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final trialTs = trialExpiresTsMs;
+    final showTrial = !_isPaidPlan && trialTs != null && trialTs > 0;
+    final trialDaysLeft = showTrial ? ((trialTs - nowMs) / 86400000).ceil().clamp(0, 9999) : 0;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (onBalanceTap != null) ...[
           Material(
             color: Colors.transparent,
             child: InkWell(
-              onTap: onPackageTap,
+              onTap: onBalanceTap,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
                 child: Row(
                   children: [
-                    const Icon(Icons.workspace_premium_outlined, size: 15, color: Color(0xFFFBBF24)),
+                    const Icon(Icons.account_balance_wallet_outlined, size: 15, color: Color(0xFF71717A)),
                     const SizedBox(width: 8),
-                    const Text('Package', style: TextStyle(color: Color(0xFF71717A), fontSize: 11, fontWeight: FontWeight.w500)),
+                    const Text('Balance', style: TextStyle(color: Color(0xFF71717A), fontSize: 11, fontWeight: FontWeight.w500)),
                     const Spacer(),
-                    Text(
-                      planTierLoading ? '…' : billingPlanTierLabel(planTier),
-                      style: const TextStyle(color: Color(0xFFF4F4F5), fontSize: 12, fontWeight: FontWeight.w600),
-                    ),
-                    if (onPackageTap != null) ...[const SizedBox(width: 4), const Icon(Icons.chevron_right, size: 16, color: Color(0xFF71717A))],
+                    Text(balanceLabel, style: const TextStyle(color: Color(0xFFF4F4F5), fontSize: 12, fontWeight: FontWeight.w600)),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.chevron_right, size: 16, color: Color(0xFF71717A)),
                   ],
                 ),
               ),
             ),
           ),
           const Divider(height: 1, color: Color(0xFF27272A)),
-          if (freemiumActive)
-            UiFreemiumQuotaPanel(
-              msgsUsed: freemiumMsgsUsed,
-              msgsLimit: freemiumMsgsLimit,
-              tokensUsed: freemiumTokensUsed,
-              tokensLimit: freemiumTokensLimit,
-              meterState: meterState,
-              onSubscribeTap: onPackageTap,
-            )
-          else
-            Padding(
-              padding: const EdgeInsets.fromLTRB(0, 6, 0, 2),
-              child: IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: Center(
-                        child: UiQuotaDualRing(
-                          size: 38,
-                          title: 'Alien AI',
-                          titleColor: const Color(0xFFF4F4F5),
-                          centerIcon: const UiAlienIcon(size: 14),
-                          allow5hUsed: alien5hUsed,
-                          allow5hLimit: alien5hLimit,
-                          allowWeeklyUsed: alienWeeklyUsed,
-                          allowWeeklyLimit: alienWeeklyLimit,
-                          meterState: meterState,
-                        ),
-                      ),
-                    ),
-                    const VerticalDivider(width: 1, color: Color(0xFF27272A)),
-                    Expanded(
-                      child: Center(
-                        child: UiQuotaDualRing(
-                          size: 38,
-                          title: 'API',
-                          titleColor: const Color(0xFFF4F4F5),
-                          centerIcon: const Icon(Icons.api, size: 14, color: Color(0xFFF4F4F5)),
-                          allow5hUsed: api5hUsed,
-                          allow5hLimit: api5hLimit,
-                          allowWeeklyUsed: apiWeeklyUsed,
-                          allowWeeklyLimit: apiWeeklyLimit,
-                          meterState: meterState,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+        ],
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onPackageTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.workspace_premium_outlined, size: 15, color: Color(0xFFFBBF24)),
+                  const SizedBox(width: 8),
+                  const Text('Package', style: TextStyle(color: Color(0xFF71717A), fontSize: 11, fontWeight: FontWeight.w500)),
+                  const Spacer(),
+                  Text(
+                    planTierLoading ? '…' : billingPlanTierLabel(planTier),
+                    style: const TextStyle(color: Color(0xFFF4F4F5), fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                  if (onPackageTap != null) ...[const SizedBox(width: 4), const Icon(Icons.chevron_right, size: 16, color: Color(0xFF71717A))],
+                ],
               ),
             ),
-        ],
-      );
+          ),
+        ),
+        const Divider(height: 1, color: Color(0xFF27272A)),
+        if (freemiumActive)
+          UiFreemiumQuotaPanel(
+            msgsUsed: freemiumMsgsUsed,
+            msgsLimit: freemiumMsgsLimit,
+            tokensUsed: freemiumTokensUsed,
+            tokensLimit: freemiumTokensLimit,
+            meterState: meterState,
+            onSubscribeTap: onPackageTap,
+          )
+        else if (_hasIdrPools)
+          // v3 IDR pool bars
+          Padding(
+            padding: const EdgeInsets.fromLTRB(0, 8, 0, 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (alienPoolLimitIdr > 0) ...[
+                  _poolBar('Alien AI', alienPoolUsedIdr, alienPoolLimitIdr, quotaRingColor(meterState)),
+                  const SizedBox(height: 8),
+                ],
+                if (frontierPoolLimitIdr > 0) ...[
+                  _poolBar('Frontier', frontierPoolUsedIdr, frontierPoolLimitIdr, quotaRingWeeklyColor),
+                  const SizedBox(height: 8),
+                ],
+                if (showTrial)
+                  _poolBar(
+                    'Trial · $trialDaysLeft day${trialDaysLeft == 1 ? '' : 's'} left',
+                    0,
+                    1,
+                    const Color(0xFFA78BFA),
+                  ),
+              ],
+            ),
+          )
+        else
+          // Legacy 5h / weekly rings (fallback when no IDR pools assigned)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(0, 6, 0, 2),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: Center(
+                      child: UiQuotaDualRing(
+                        size: 38,
+                        title: 'Alien AI',
+                        titleColor: const Color(0xFFF4F4F5),
+                        centerIcon: const UiAlienIcon(size: 14),
+                        allow5hUsed: alien5hUsed,
+                        allow5hLimit: alien5hLimit,
+                        allowWeeklyUsed: alienWeeklyUsed,
+                        allowWeeklyLimit: alienWeeklyLimit,
+                        meterState: meterState,
+                      ),
+                    ),
+                  ),
+                  const VerticalDivider(width: 1, color: Color(0xFF27272A)),
+                  Expanded(
+                    child: Center(
+                      child: UiQuotaDualRing(
+                        size: 38,
+                        title: 'API',
+                        titleColor: const Color(0xFFF4F4F5),
+                        centerIcon: const Icon(Icons.api, size: 14, color: Color(0xFFF4F4F5)),
+                        allow5hUsed: api5hUsed,
+                        allow5hLimit: api5hLimit,
+                        allowWeeklyUsed: apiWeeklyUsed,
+                        allowWeeklyLimit: apiWeeklyLimit,
+                        meterState: meterState,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
 }
 
 UiQuotaPackagePanel uiQuotaPackagePanelLimitPlaceholder({bool planTierLoading = false, VoidCallback? onPackageTap}) => UiQuotaPackagePanel(
@@ -437,6 +518,9 @@ UiQuotaPackagePanel uiQuotaPackagePanelFromSummary(
       freemiumMsgsLimit: summary.freemiumMsgsLimit > 0 ? summary.freemiumMsgsLimit : billingFreemiumMsgsLimit,
       freemiumTokensUsed: summary.freemiumTokensUsed,
       freemiumTokensLimit: summary.freemiumTokensLimit > 0 ? summary.freemiumTokensLimit : billingFreemiumTokensLimit,
+      // ResBillingSummary does not carry IDR pool fields; pools arrive via BillingPushQuota NATS push.
+      trialExpiresTsMs: summary.hasTrialExpiresTsMs() ? summary.trialExpiresTsMs.toInt() : null,
+      planExpiresTsMs: summary.hasPlanExpiresTsMs() ? summary.planExpiresTsMs.toInt() : null,
     );
 
 UiQuotaPackagePanel uiQuotaPackagePanelFromAccount(
@@ -465,4 +549,7 @@ UiQuotaPackagePanel uiQuotaPackagePanelFromAccount(
       freemiumMsgsLimit: account.freemiumMsgsLimit > 0 ? account.freemiumMsgsLimit : billingFreemiumMsgsLimit,
       freemiumTokensUsed: account.freemiumTokensUsed,
       freemiumTokensLimit: account.freemiumTokensLimit > 0 ? account.freemiumTokensLimit : billingFreemiumTokensLimit,
+      // BillingAccount proto does not carry IDR pool fields; pools arrive via BillingPushQuota NATS push.
+      trialExpiresTsMs: account.hasTrialExpiresTsMs() ? account.trialExpiresTsMs.toInt() : null,
+      planExpiresTsMs: account.hasPlanExpiresTsMs() ? account.planExpiresTsMs.toInt() : null,
     );

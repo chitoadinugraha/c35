@@ -241,30 +241,22 @@ class _UiBotConversationState extends State<UiBotConversation> {
       size: _msgAvatarSize,
     );
     final avatar = isCustomer ? peerAvatar : (isStaff ? staffAvatar : botAvatar);
-    final time = _msgTimeLabel(m.createdAtMs, leading: !alignEnd);
+    final time = _msgTimeLabel(m.createdAtMs, leading: alignEnd);
     final row = Row(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: alignEnd
           ? [
-              Flexible(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Flexible(child: bubble),
-                    _msgTimeLabel(m.createdAtMs, leading: false),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              avatar,
-            ]
-          : [
               time,
               Flexible(child: bubble),
               const SizedBox(width: 8),
               avatar,
+            ]
+          : [
+              avatar,
+              const SizedBox(width: 8),
+              Flexible(child: bubble),
+              _msgTimeLabel(m.createdAtMs, leading: false),
             ],
     );
 
@@ -305,14 +297,13 @@ class _UiBotConversationState extends State<UiBotConversation> {
     final alignEnd = _msgAlignEnd(isPeerSide: isPeer);
     final peerAvatar = UiBotPeerAvatar(name: peerName, pic: peerPic, platform: platform, size: _msgAvatarSize);
     final botAvatar = UiUserAvatar(name: botName, pic: botPic, size: _msgAvatarSize);
+    final avatar = isPeer ? peerAvatar : botAvatar;
     final row = Row(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        bubble,
-        const SizedBox(width: 8),
-        isPeer ? peerAvatar : botAvatar,
-      ],
+      children: alignEnd
+          ? [bubble, const SizedBox(width: 8), avatar]
+          : [avatar, const SizedBox(width: 8), bubble],
     );
 
     return Semantics(

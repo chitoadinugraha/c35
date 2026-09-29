@@ -1,7 +1,10 @@
 import 'dart:async';
 
 import 'package:alienai_c35/c/api/referral_conn.dart';
+import 'package:alienai_c35/c/billing/billing_format.dart';
+import 'package:alienai_c35/c/billing/billing_store_sync.dart';
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
+import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/c/referral/referral_commission_api.dart';
 import 'package:alienai_c35/c/referral/referral_format.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
@@ -97,15 +100,16 @@ class _BillingPackageRedeemDialogState extends State<_BillingPackageRedeemDialog
       _error = null;
     });
     try {
-      final res = await billingPackageRedeem(widget.conn, code: norm);
+      final res = await billingPackageRedeemAndSync(widget.conn, code: norm);
       if (!mounted) return;
+      final remaining = billingWalletBalanceLabel(AppStore.instance.billing, billingPrimaryCurrency(AppStore.instance.billing ?? BillingAccount()));
       Navigator.pop(context, true);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             res.packageName.trim().isNotEmpty
-                ? 'Redeemed ${res.packageName} — Rp ${uiFmtGroupedInt(res.amountIdr.round())}'
-                : 'Package redeemed — Rp ${uiFmtGroupedInt(res.amountIdr.round())}',
+                ? 'Redeemed ${res.packageName} — Rp ${uiFmtGroupedInt(res.amountIdr.round())} charged · balance $remaining'
+                : 'Package redeemed — Rp ${uiFmtGroupedInt(res.amountIdr.round())} charged · balance $remaining',
           ),
         ),
       );

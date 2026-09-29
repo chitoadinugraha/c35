@@ -18,6 +18,7 @@ import 'package:alienai_c35/c/location/location_permission.dart';
 import 'package:alienai_c35/c/location/location_service.dart';
 import 'package:alienai_c35/c/location/user_location_prefs.dart';
 import 'package:alienai_c35/c/settings/user_locale_prefs.dart';
+import 'package:alienai_c35/c/billing/billing_format.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/settings/voice_prefs.dart';
 import 'package:alienai_c35/c/task/task_trigger_cron.dart';
@@ -526,7 +527,7 @@ class _PageSettingsState extends State<PageSettings> {
                             UiSettingsTile(
                               icon: Icons.account_balance_wallet_outlined,
                               title: 'settings.balance'.tr(),
-                              subtitle: moneyBalanceLabel(widget.store.wallet.balanceUsd, currency: widget.store.wallet.billingCurrency, fxMicroPerUsd: widget.store.wallet.fxMicroPerUsd),
+                              subtitle: billingBalanceLabel(widget.store.billing),
                             ),
                             if (widget.store.wallet.allow5hLimit > 0) ...[
                               uiSettingsDivider(),

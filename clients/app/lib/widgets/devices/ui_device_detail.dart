@@ -7,6 +7,11 @@ import 'package:alienai_c35/c/pb/c35/skill.pb.dart';
 import 'package:alienai_c35/c/remote/device_prompt_context.dart';
 import 'package:alienai_c35/c/remote/remote_session.dart';
 import 'package:alienai_c35/c/settings/remote_prefs.dart';
+import 'package:alienai_c35/c/skill/skill_api.dart';
+import 'package:alienai_c35/c/skill/skill_md.dart';
+import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
+import 'package:alienai_c35/widgets/devices/ui_remote_teach_hud.dart';
+import 'package:alienai_c35/widgets/skill/io_skill_review.dart';
 import 'dart:async';
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/widgets/devices/ui_device_files.dart';
@@ -17,7 +22,7 @@ import 'package:alienai_c35/widgets/ui/ui_safe_area.dart';
 import 'package:alienai_c35/widgets/ui/ui_window_bar.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:window_manager/window_manager.dart';
+import 'package:flutter/services.dart';
 
 const _border = Color(0xFF27272A);
 const _muted = Color(0xFF71717A);
@@ -47,6 +52,7 @@ class UiDeviceDetail extends StatefulWidget {
 class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProviderStateMixin {
   var _remoteInteractMode = RemoteInteractMode.mouse;
   var _remoteShowStats = false;
+  var _remoteImmersive = false;
   final _skillKey = GlobalKey<UiSkillMasterDetailState>();
   late final RemoteSession _session;
   DevicePromptContextStore? _promptStore;
@@ -73,7 +79,10 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
       );
       unawaited(_promptStore!.init());
     }
-    if (widget.row.identity.kind.toLowerCase() == 'remote' && widget.chatConn.connected && !_session.connected.value) {
+    if (widget.row.identity.kind.toLowerCase() == 'remote' &&
+        widget.chatConn.connected &&
+        !_session.connected.value &&
+        !_session.stoppedByUser) {
       _session.start().catchError((e) {
         lError('device detail auto-connect failed: $e');
       });
@@ -90,6 +99,8 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
             _remoteShowStats = RemotePrefs.instance.showStreamStats;
             _remoteInteractMode = mode;
           });
+          _session.streamQuality.value = RemotePrefs.instance.streamQuality;
+          _session.sendStreamQuality(RemotePrefs.instance.streamQuality);
           _session.isControlEnabled.value = mode != RemoteInteractMode.view;
         }
       }),
@@ -113,64 +124,120 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
     final activeTab = _tabs[tabIndex];
     final isRemote = kind == 'remote' && activeTab == 'Remote';
     final isSkill = kind == 'remote' && activeTab == 'Skill';
-    return ColoredBox(
-      color: const Color(0xFF08080A),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (widget.onBack != null || widget.title != null) _navBarWrap(),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 0, 4, 0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TabBar(
-                    controller: _tabController,
-                    isScrollable: true,
-                    tabAlignment: TabAlignment.start,
-                    labelColor: _text,
-                    unselectedLabelColor: _muted,
-                    indicatorColor: _accent,
-                    dividerColor: _border,
-                    tabs: [for (final t in _tabs) Tab(text: t)],
+    final immersiveRemote = _remoteImmersive && kind == 'remote';
+    return CallbackShortcuts(
+      bindings: immersiveRemote
+          ? {const SingleActivator(LogicalKeyboardKey.escape): () => _setRemoteImmersive(false)}
+          : const {},
+      child: Focus(
+        autofocus: immersiveRemote,
+        child: ColoredBox(
+          color: const Color(0xFF08080A),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (!immersiveRemote && (widget.onBack != null || widget.title != null)) _navBarWrap(),
+              if (!immersiveRemote)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 0, 12, 0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TabBar(
+                          controller: _tabController,
+                          isScrollable: true,
+                          tabAlignment: TabAlignment.start,
+                          labelColor: _text,
+                          unselectedLabelColor: _muted,
+                          indicatorColor: _accent,
+                          dividerColor: _border,
+                          tabs: [for (final t in _tabs) Tab(text: t)],
+                        ),
+                      ),
+                      if (isSkill)
+                        Builder(
+                          builder: (ctx) => _toolBtn(
+                            icon: Icons.add,
+                            tooltip: 'Add skill',
+                            onPressed: () {
+                              final box = ctx.findRenderObject() as RenderBox?;
+                              if (box == null) return;
+                              final anchor = box.localToGlobal(Offset(box.size.width, box.size.height));
+                              _skillKey.currentState?.showAddMenu(ctx, anchor: anchor);
+                            },
+                          ),
+                        ),
+                      if (isRemote) ...[
+                        ListenableBuilder(
+                          listenable: Listenable.merge([_session.connected, _session.mode, _session.status]),
+                          builder: (context, _) {
+                            final showStop = _session.connected.value || _session.isLinking;
+                            if (mobile && !_session.connected.value && widget.chatConn.connected && !_session.isLinking) {
+                              return _toolBtn(
+                                icon: Icons.refresh_rounded,
+                                tooltip: 'Reconnect',
+                                onPressed: () {
+                                  _session.prepareUserReconnect();
+                                  _session.start().catchError((e) => lError('device reconnect: $e'));
+                                },
+                              );
+                            }
+                            return Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _remoteBadge(_session),
+                                if (showStop) ...[
+                                  const SizedBox(width: 10),
+                                  _remoteStopBtn(
+                                    onPressed: () {
+                                      unawaited(_session.stop().catchError((e) => lError('remote stop: $e')));
+                                    },
+                                  ),
+                                ],
+                              ],
+                            );
+                          },
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-                if (isSkill)
-                  Builder(
-                    builder: (ctx) => _toolBtn(
-                      icon: Icons.add,
-                      tooltip: 'Add skill',
-                      onPressed: () {
-                        final box = ctx.findRenderObject() as RenderBox?;
-                        if (box == null) return;
-                        final anchor = box.localToGlobal(Offset(box.size.width, box.size.height));
-                        _skillKey.currentState?.showAddMenu(ctx, anchor: anchor);
-                      },
-                    ),
-                  ),
-                if (isRemote) ...[
-                  ListenableBuilder(
-                    listenable: Listenable.merge([_session.connected, _session.mode, _session.status]),
-                    builder: (context, _) {
-                      if (mobile && !_session.connected.value && widget.chatConn.connected) {
-                        return _toolBtn(
-                          icon: Icons.refresh_rounded,
-                          tooltip: 'Reconnect',
-                          onPressed: () {
-                            _session.prepareUserReconnect();
-                            _session.start().catchError((e) => lError('device reconnect: $e'));
-                          },
-                        );
-                      }
-                      return _remoteBadge(_session);
-                    },
-                  ),
-                ],
-              ],
-            ),
+              Expanded(
+                child: immersiveRemote
+                    ? Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          _tabBody(kind, 'Remote', online),
+                          Positioned(
+                            left: 8,
+                            top: 8,
+                            child: Material(
+                              color: Colors.black.withValues(alpha: 0.55),
+                              borderRadius: BorderRadius.circular(8),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(8),
+                                onTap: () => _setRemoteImmersive(false),
+                                child: const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.fullscreen_exit_outlined, size: 16, color: _text),
+                                      SizedBox(width: 6),
+                                      Text('Exit full screen (Esc)', style: TextStyle(color: _text, fontSize: 12)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : _tabBody(kind, activeTab, online),
+              ),
+            ],
           ),
-          Expanded(child: _tabBody(kind, activeTab, online)),
-        ],
+        ),
       ),
     );
   }
@@ -211,38 +278,46 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
       );
   Widget _tabBody(String kind, String tab, bool online) {
     if (kind == 'remote' && tab == 'Remote') {
+      final deviceIid = widget.row.identity.iid.toInt();
       return ListenableBuilder(
         listenable: Listenable.merge([_session.updateReady, _session.updateVersion]),
-        builder: (context, _) => UiRemoteDevice(
-          session: _session,
-          promptStore: _promptStore,
-          deviceName: widget.row.identity.name,
-          online: online,
-          compact: _isMobile(context),
-          interactMode: _remoteInteractMode,
-          showStreamStats: _remoteShowStats,
-          onInteractModeChanged: (m) {
-            setState(() => _remoteInteractMode = m);
-            _session.isControlEnabled.value = m != RemoteInteractMode.view;
-            unawaited(RemotePrefs.instance.setInteractMode(m.name));
-          },
-          onShowStreamStatsChanged: (v) {
-            setState(() => _remoteShowStats = v);
-            unawaited(RemotePrefs.instance.setShowStreamStats(v));
-          },
-          onTeach: () => _remoteTeach(context),
-          onFullscreen: _remoteFullscreen,
-          updateReady: _session.updateReady.value,
-          updateVersion: _session.updateVersion.value,
-          onApplyUpdate: () {
-            _session.triggerUpdate();
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Agent update triggered. It will reconnect once restarted.'),
-                duration: Duration(seconds: 4),
-              ),
-            );
-          },
+        builder: (context, _) => Stack(
+          fit: StackFit.expand,
+          children: [
+            UiRemoteDevice(
+              session: _session,
+              promptStore: _promptStore,
+              deviceName: widget.row.identity.name,
+              online: online,
+              compact: _isMobile(context),
+              interactMode: _remoteInteractMode,
+              showStreamStats: _remoteShowStats,
+              onInteractModeChanged: (m) {
+                setState(() => _remoteInteractMode = m);
+                _session.isControlEnabled.value = m != RemoteInteractMode.view;
+                unawaited(RemotePrefs.instance.setInteractMode(m.name));
+              },
+              onTeach: () => unawaited(_startRemoteTeach(context)),
+              onFullscreen: _toggleRemoteImmersive,
+              immersive: _remoteImmersive,
+              updateReady: _session.updateReady.value,
+              updateVersion: _session.updateVersion.value,
+              onApplyUpdate: () {
+                _session.triggerUpdate();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Agent update triggered. It will reconnect once restarted.'),
+                    duration: Duration(seconds: 4),
+                  ),
+                );
+              },
+            ),
+            UiRemoteTeachHud(
+              session: _session,
+              deviceIid: deviceIid,
+              onStop: () => unawaited(_stopRemoteTeach(context)),
+            ),
+          ],
         ),
       );
     }
@@ -256,6 +331,16 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
         deviceIid: widget.row.identity.iid.toInt(),
         showTeach: true,
         hideBarActions: true,
+        onTeachRemote: () {
+          _tabController.animateTo(0);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) unawaited(_startRemoteTeach(context));
+          });
+        },
+        onDevicePrompt: (text) async {
+          await _promptStore?.promptSend(text);
+          _promptStore?.composerOpenPut(true);
+        },
       );
     }
     return Center(
@@ -266,46 +351,251 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
     );
   }
 
-  void _remoteTeach(BuildContext context) {
-    _tabController.animateTo(3);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _skillKey.currentState?.teach();
-    });
+  Future<String?> _askTeachTitle(BuildContext context) async {
+    final ctrl = TextEditingController();
+    final title = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF18181B),
+        title: const Text('Teach skill', style: TextStyle(color: _text, fontSize: 16, fontWeight: FontWeight.bold)),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          style: const TextStyle(color: _text),
+          decoration: const InputDecoration(
+            labelText: 'Skill title',
+            labelStyle: TextStyle(color: _muted),
+            hintText: 'e.g. Export report in Excel',
+            hintStyle: TextStyle(color: _muted, fontSize: 12),
+          ),
+          onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+            style: FilledButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.black),
+            child: const Text('Start recording'),
+          ),
+        ],
+      ),
+    );
+    ctrl.dispose();
+    return title != null && title.isNotEmpty ? title : null;
   }
 
-  Future<void> _remoteFullscreen() async {
-    if (kIsWeb || !uiDesktopWindow) return;
-    try {
-      final full = await windowManager.isFullScreen();
-      await windowManager.setFullScreen(!full);
-    } catch (e) {
-      lError('remote fullscreen: $e');
+  Future<void> _startRemoteTeach(BuildContext context) async {
+    if (!_session.connected.value) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Connect Remote first, then start teach mode.'), behavior: SnackBarBehavior.floating),
+      );
+      return;
     }
+    final title = await _askTeachTitle(context);
+    if (title == null || !mounted) return;
+    try {
+      await _session.remoteTeachStart(title);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Recording "$title" — use Stop on the HUD or F9 on the PC.'), behavior: SnackBarBehavior.floating),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating));
+      }
+    }
+  }
+
+  Future<void> _stopRemoteTeach(BuildContext context) async {
+    try {
+      final steps = await _session.remoteTeachStop();
+      final title = _session.teach?.title.value ?? 'Taught skill';
+      if (!mounted) return;
+      final review = await ioSkillReviewShow(context, title: title, steps: steps);
+      if (review == null || !mounted) return;
+      final skill = skillFromTeachReview(
+        ownerIid: Session.instance.uid,
+        scope: SkillScope.SKILL_SCOPE_DEVICE,
+        deviceIid: widget.row.identity.iid.toInt(),
+        title: review.title,
+        bodyMd: review.bodyMd,
+        steps: review.steps,
+        autoSubmit: review.autoSubmit,
+      );
+      final api = SkillApi(widget.chatConn);
+      final saved = await api.put(skill);
+      _skillKey.currentState?.absorbSkill(saved);
+      if (!mounted) return;
+      _tabController.animateTo(3);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _skillKey.currentState?.selectSkill('${saved.id}');
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Saved skill "${saved.title}"'), behavior: SnackBarBehavior.floating),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating));
+      }
+    }
+  }
+
+  void _toggleStreamStats() {
+    final v = !_remoteShowStats;
+    setState(() => _remoteShowStats = v);
+    unawaited(RemotePrefs.instance.setShowStreamStats(v));
+  }
+
+  void _toggleRemoteImmersive() => _setRemoteImmersive(!_remoteImmersive);
+
+  void _setRemoteImmersive(bool v) {
+    if (_remoteImmersive == v) return;
+    setState(() => _remoteImmersive = v);
+    if (v && _tabController.index != 0) _tabController.index = 0;
+  }
+
+  void _setStreamQuality(RemoteSession session, int quality) {
+    session.sendStreamQuality(quality);
+    unawaited(RemotePrefs.instance.setStreamQuality(quality));
+    setState(() {});
   }
 
   Widget _remoteBadge(RemoteSession session) {
     if (!widget.chatConn.connected) {
-      return _pillBadge('Offline', fg: _muted, bg: const Color(0xFF27272A), border: const Color(0xFF3F3F46));
+      return _connectionMenu(session, label: 'Offline', fg: _muted, bg: const Color(0xFF27272A), border: const Color(0xFF3F3F46));
     }
     if (session.connected.value) {
       final relay = session.mode.value == RemoteConnectionMode.REMOTE_CONNECTION_MODE_RELAY;
-      if (!relay) return const SizedBox.shrink();
-      return _pillBadge('Relay', fg: const Color(0xFFFDE68A), bg: const Color(0xFF422006), border: const Color(0xFFF59E0B));
+      if (relay) {
+        return _connectionMenu(
+          session,
+          label: 'Relay',
+          fg: const Color(0xFFFDE68A),
+          bg: const Color(0xFF422006),
+          border: const Color(0xFFF59E0B),
+        );
+      }
+      return _connectionMenu(
+        session,
+        label: 'Direct',
+        fg: const Color(0xFF86EFAC),
+        bg: const Color(0xFF14532D),
+        border: const Color(0xFF22C55E),
+      );
     }
     if (session.isLinking) {
-      return _pillBadge('Connecting…', fg: const Color(0xFFFDE68A), bg: const Color(0xFF422006), border: const Color(0xFFF59E0B));
+      return _connectionMenu(
+        session,
+        label: 'Connecting…',
+        fg: const Color(0xFFFDE68A),
+        bg: const Color(0xFF422006),
+        border: const Color(0xFFF59E0B),
+      );
     }
     return const SizedBox.shrink();
   }
 
-  Widget _pillBadge(String label, {required Color fg, required Color bg, required Color border}) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: border),
+  static const _qualityPresets = [95, 80, 65, 50];
+
+  Widget _connectionMenu(
+    RemoteSession session, {
+    required String label,
+    required Color fg,
+    required Color bg,
+    required Color border,
+  }) =>
+      ListenableBuilder(
+        listenable: session.streamQuality,
+        builder: (context, _) {
+          final q = session.streamQuality.value;
+          return MenuAnchor(
+            style: MenuStyle(
+              backgroundColor: const WidgetStatePropertyAll(Color(0xFF18181B)),
+              surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+              padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(vertical: 6)),
+              shape: WidgetStatePropertyAll(RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: const BorderSide(color: _border),
+              )),
+            ),
+            menuChildren: [
+              MenuItemButton(
+                trailingIcon: _remoteShowStats
+                    ? const Icon(Icons.check_rounded, size: 16, color: Color(0xFFF59E0B))
+                    : null,
+                onPressed: _toggleStreamStats,
+                child: const Text('Show stats', style: TextStyle(color: _text, fontSize: 13)),
+              ),
+              SubmenuButton(
+                menuStyle: MenuStyle(
+                  backgroundColor: const WidgetStatePropertyAll(Color(0xFF18181B)),
+                  surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+                  shape: WidgetStatePropertyAll(RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: const BorderSide(color: _border),
+                  )),
+                ),
+                menuChildren: [
+                  for (final preset in _qualityPresets)
+                    MenuItemButton(
+                      trailingIcon: q == preset
+                          ? const Icon(Icons.check_rounded, size: 16, color: Color(0xFFF59E0B))
+                          : null,
+                      onPressed: () => _setStreamQuality(session, preset),
+                      child: Text('Quality $preset%', style: const TextStyle(color: _text, fontSize: 13)),
+                    ),
+                ],
+                child: Text('Quality ($q%)', style: const TextStyle(color: _text, fontSize: 13)),
+              ),
+            ],
+            builder: (context, controller, child) {
+              final pill = Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: bg,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: border),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(label, style: TextStyle(color: fg, fontSize: 11, fontWeight: FontWeight.w500)),
+                    Icon(Icons.arrow_drop_down, size: 16, color: fg),
+                  ],
+                ),
+              );
+              return Tooltip(
+                message: uiPopupMenuTooltipText('Connection — stats & MJPEG quality'),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(999),
+                    onTap: () => controller.isOpen ? controller.close() : controller.open(),
+                    child: pill,
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      );
+
+  static const _stopRed = Color(0xFFEF4444);
+
+  Widget _remoteStopBtn({required VoidCallback? onPressed}) => uiIconButton(
+        tooltip: 'Stop remote session',
+        onPressed: onPressed,
+        icon: const Icon(Icons.stop_rounded, size: 20, color: _stopRed),
+        style: IconButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          disabledBackgroundColor: Colors.transparent,
+          foregroundColor: _stopRed,
+          minimumSize: const Size(32, 32),
+          padding: EdgeInsets.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          shape: const RoundedRectangleBorder(),
         ),
-        child: Text(label, style: TextStyle(color: fg, fontSize: 11, fontWeight: FontWeight.w500)),
       );
 
   Widget _toolBtn({required IconData icon, required String tooltip, required VoidCallback? onPressed}) => uiIconButton(

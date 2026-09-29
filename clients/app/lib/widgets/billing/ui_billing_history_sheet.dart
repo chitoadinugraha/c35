@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alienai_c35/c/api/referral_conn.dart';
 import 'package:alienai_c35/c/billing/billing_format.dart';
 import 'package:alienai_c35/c/billing/billing_history_api.dart';
+import 'package:alienai_c35/c/billing/billing_store_sync.dart';
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
@@ -118,6 +119,11 @@ class _BillingHistorySheetState extends State<_BillingHistorySheet> {
         _error = uiReferralError(e, fallback: 'Failed to load history');
       });
     }
+  }
+
+  Future<void> _afterTopup() async {
+    await billingStoreRefresh(widget.conn);
+    await _load();
   }
 
   void _onCurrency(String cur) {
@@ -266,7 +272,12 @@ class _BillingHistorySheetState extends State<_BillingHistorySheet> {
                 ),
                 const SizedBox(width: 4),
                 FilledButton.icon(
-                  onPressed: () => billingTopupDialog(context, conn: widget.conn, currency: _currency, onSubmitted: _load),
+                  onPressed: () => billingTopupDialog(
+                    context,
+                    conn: widget.conn,
+                    currency: _currency,
+                    onSubmitted: () => unawaited(_afterTopup()),
+                  ),
                   style: _headerTopupStyle,
                   icon: const Icon(Icons.add_rounded, size: 18),
                   label: const Text('Top up', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),

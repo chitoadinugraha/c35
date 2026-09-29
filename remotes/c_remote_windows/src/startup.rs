@@ -79,6 +79,43 @@ pub fn prevent_sleep() {
     info!("Power state configured: system and network stay awake for remote automation");
 }
 
+#[cfg(windows)]
+pub fn ensure_firewall_and_network_ready() {
+    // 1. Try to register firewall rule silently via netsh (effective if run with administrative privileges or service).
+    if let Ok(exe) = std::env::current_exe() {
+        let exe_str = exe.to_string_lossy().to_string();
+        std::thread::spawn(move || {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+            let _ = std::process::Command::new("netsh")
+                .args(&[
+                    "advfirewall",
+                    "firewall",
+                    "add",
+                    "rule",
+                    "name=AlienAI Remote Agent",
+                    "dir=in",
+                    "action=allow",
+                    &format!("program={}", exe_str),
+                    "enable=yes",
+                    "profile=any",
+                ])
+                .creation_flags(CREATE_NO_WINDOW)
+                .output();
+        });
+    }
+
+    // 2. Pre-bind a UDP listener on startup so Windows Firewall triggers its
+    // permission prompt immediately upon application launch while the user is present,
+    // rather than hours later during an unattended incoming WebRTC session.
+    std::thread::spawn(|| {
+        if let Ok(socket) = std::net::UdpSocket::bind("0.0.0.0:0") {
+            std::thread::sleep(std::time::Duration::from_millis(1500));
+            drop(socket);
+        }
+    });
+}
+
 #[cfg(not(windows))]
 pub fn is_autostart_enabled() -> bool {
     false
@@ -91,6 +128,9 @@ pub fn set_autostart_enabled(_enabled: bool) -> Result<()> {
 
 #[cfg(not(windows))]
 pub fn prevent_sleep() {}
+
+#[cfg(not(windows))]
+pub fn ensure_firewall_and_network_ready() {}
 
 /// Spawn a fresh agent process (same exe + args), then exit the current process.
 pub fn agent_restart_spawn() -> Result<()> {

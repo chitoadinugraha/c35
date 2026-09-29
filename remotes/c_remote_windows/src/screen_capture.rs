@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU8, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -20,6 +20,18 @@ static CAPTURE_ACTIVE: AtomicBool = AtomicBool::new(false);
 static CAPTURE_FAIL_COUNT: AtomicU32 = AtomicU32::new(0);
 static CAPTURE_FAIL_WARNED: AtomicBool = AtomicBool::new(false);
 static SCREEN_DIRTY: AtomicBool = AtomicBool::new(true);
+static NEXT_FRAME_ID: AtomicU32 = AtomicU32::new(1);
+static VIEWER_STREAM_QUALITY: AtomicU8 = AtomicU8::new(80);
+static VIEWER_STREAM_QUALITY_GEN: AtomicU32 = AtomicU32::new(0);
+
+pub fn set_viewer_stream_quality(q: u8) {
+    VIEWER_STREAM_QUALITY.store(q.clamp(40, 95), Ordering::Relaxed);
+    VIEWER_STREAM_QUALITY_GEN.fetch_add(1, Ordering::Relaxed);
+}
+
+pub fn viewer_stream_quality() -> u8 {
+    VIEWER_STREAM_QUALITY.load(Ordering::Relaxed)
+}
 
 pub fn is_capture_active() -> bool {
     CAPTURE_ACTIVE.load(Ordering::SeqCst)
@@ -581,8 +593,9 @@ pub fn desktop_width_cap() -> u32 {
 /// [6..8]: height (u16 be)
 /// [8..16]: timestamp_ms (u64 be)
 /// [16..]: jpeg payload
-/// WebRTC SCTP ordered channel reliably delivers larger messages; allow up to 120KB for high-DPI desktop frames.
-pub const REMOTE_SCREEN_SCTP_MAX_BYTES: usize = 120_000;
+/// WebRTC SCTP data channels enforce standard 64KB MTU; keep packets strictly under 60KB.
+pub const REMOTE_SCREEN_SCTP_MAX_BYTES: usize = 60_000;
+pub const REMOTE_SCREEN_CHUNK_PAYLOAD_BYTES: usize = 48_000;
 
 pub fn make_screen_packet(w: u16, h: u16, ts_ms: u64, jpeg: &[u8]) -> Vec<u8> {
     let mut packet = Vec::with_capacity(16 + jpeg.len());
@@ -594,7 +607,40 @@ pub fn make_screen_packet(w: u16, h: u16, ts_ms: u64, jpeg: &[u8]) -> Vec<u8> {
     packet
 }
 
-/// `max_w == 0` → capture up to native desktop width; SCTP backpressure + packet-size retries shrink as needed.
+/// Encode large frame into chunked CS36 packets:
+/// [0..4]: b"CS36"
+/// [4..8]: frame_id (u32 be)
+/// [8..10]: chunk_idx (u16 be)
+/// [10..12]: total_chunks (u16 be)
+/// [12..14]: width (u16 be)
+/// [14..16]: height (u16 be)
+/// [16..24]: timestamp_ms (u64 be)
+/// [24..]: chunk payload
+pub fn make_screen_chunks(
+    frame_id: u32,
+    w: u16,
+    h: u16,
+    ts_ms: u64,
+    jpeg: &[u8],
+) -> Vec<Vec<u8>> {
+    let total_chunks = ((jpeg.len() + REMOTE_SCREEN_CHUNK_PAYLOAD_BYTES - 1) / REMOTE_SCREEN_CHUNK_PAYLOAD_BYTES).max(1) as u16;
+    let mut chunks = Vec::with_capacity(total_chunks as usize);
+    for (idx, slice) in jpeg.chunks(REMOTE_SCREEN_CHUNK_PAYLOAD_BYTES).enumerate() {
+        let mut packet = Vec::with_capacity(24 + slice.len());
+        packet.extend_from_slice(b"CS36");
+        packet.extend_from_slice(&frame_id.to_be_bytes());
+        packet.extend_from_slice(&(idx as u16).to_be_bytes());
+        packet.extend_from_slice(&total_chunks.to_be_bytes());
+        packet.extend_from_slice(&w.to_be_bytes());
+        packet.extend_from_slice(&h.to_be_bytes());
+        packet.extend_from_slice(&ts_ms.to_be_bytes());
+        packet.extend_from_slice(slice);
+        chunks.push(packet);
+    }
+    chunks
+}
+
+/// `max_w == 0` → capture up to native desktop width; SCTP backpressure + chunking preserves crisp detail.
 pub fn start_screen_stream(dc: Arc<RTCDataChannel>, max_w: u32, target_fps: u32) {
     let fps = target_fps.clamp(5, 30);
     let frame_interval = Duration::from_millis(1000 / fps as u64);
@@ -615,10 +661,17 @@ pub fn start_screen_stream(dc: Arc<RTCDataChannel>, max_w: u32, target_fps: u32)
         let mut prev_hash: Option<[u8; 32]> = None;
         let mut last_sent_time = SystemTime::now();
         let mut stream_max_w = ceiling;
-        let mut stream_quality: u8 = 80;
+        let mut stream_quality: u8 = viewer_stream_quality();
+        let mut stream_quality_gen = VIEWER_STREAM_QUALITY_GEN.load(Ordering::Relaxed);
 
         loop {
             interval.tick().await;
+
+            let gen = VIEWER_STREAM_QUALITY_GEN.load(Ordering::Relaxed);
+            if gen != stream_quality_gen {
+                stream_quality_gen = gen;
+                stream_quality = viewer_stream_quality();
+            }
 
             if c_remote_core::webrtc::is_file_media_active() {
                 continue;
@@ -657,39 +710,54 @@ pub fn start_screen_stream(dc: Arc<RTCDataChannel>, max_w: u32, target_fps: u32)
                             .duration_since(UNIX_EPOCH)
                             .unwrap_or_default()
                             .as_millis() as u64;
-                        let packet = make_screen_packet(w, h, ts_ms, &jpeg);
-                        if packet.len() > REMOTE_SCREEN_SCTP_MAX_BYTES {
-                            stream_quality = stream_quality.saturating_sub(12).max(40);
-                            stream_max_w = (stream_max_w * 3 / 4).max(640);
-                            debug!(
-                                bytes = packet.len(),
-                                attempt,
-                                stream_max_w,
-                                stream_quality,
-                                "remote-screen frame too large for SCTP; retry smaller"
-                            );
-                            continue;
-                        }
-                        prev_hash = Some(new_hash);
-                        last_sent_time = SystemTime::now();
-                        let packet_len = packet.len();
-                        if let Err(e) = dc.send(&bytes::Bytes::from(packet)).await {
-                            if dc.ready_state() == webrtc::data_channel::data_channel_state::RTCDataChannelState::Closed {
-                                info!("remote-screen data channel closed, stopping stream");
-                                stop_stream = true;
+
+                        let send_res: Result<(), String> = if jpeg.len() + 16 <= REMOTE_SCREEN_SCTP_MAX_BYTES {
+                            let packet = make_screen_packet(w, h, ts_ms, &jpeg);
+                            dc.send(&bytes::Bytes::from(packet))
+                                .await
+                                .map(|_| ())
+                                .map_err(|e| e.to_string())
+                        } else {
+                            let frame_id = NEXT_FRAME_ID.fetch_add(1, Ordering::Relaxed);
+                            let chunks = make_screen_chunks(frame_id, w, h, ts_ms, &jpeg);
+                            let mut chunk_res = Ok(());
+                            for chunk in chunks {
+                                if let Err(e) = dc.send(&bytes::Bytes::from(chunk)).await {
+                                    chunk_res = Err(e.to_string());
+                                    break;
+                                }
+                            }
+                            chunk_res
+                        };
+
+                        match send_res {
+                            Ok(()) => {
+                                prev_hash = Some(new_hash);
+                                last_sent_time = SystemTime::now();
+                                sent = true;
                                 break;
                             }
-                            debug!("remote-screen send transient error: {e}, will retry next tick");
-                            break;
+                            Err(err_str) => {
+                                if dc.ready_state() == webrtc::data_channel::data_channel_state::RTCDataChannelState::Closed {
+                                    info!("remote-screen data channel closed, stopping stream");
+                                    stop_stream = true;
+                                    break;
+                                }
+                                if err_str.contains("larger than maximum message size") {
+                                    stream_quality = stream_quality.saturating_sub(10).max(40);
+                                    stream_max_w = (stream_max_w * 3 / 4).max(640);
+                                    debug!(
+                                        attempt,
+                                        stream_max_w,
+                                        stream_quality,
+                                        "remote-screen frame rejected by SCTP MTU; retrying smaller"
+                                    );
+                                    continue;
+                                }
+                                debug!("remote-screen send transient error: {err_str}, will retry next tick");
+                                break;
+                            }
                         }
-                        if stream_max_w < ceiling && packet_len < REMOTE_SCREEN_SCTP_MAX_BYTES / 2 {
-                            stream_max_w = (stream_max_w + 64).min(ceiling);
-                        }
-                        if stream_quality < 80 {
-                            stream_quality = (stream_quality + 2).min(88);
-                        }
-                        sent = true;
-                        break;
                     }
                     Ok(Ok((None, new_hash))) => {
                         prev_hash = Some(new_hash);

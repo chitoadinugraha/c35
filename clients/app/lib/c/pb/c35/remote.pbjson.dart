@@ -428,6 +428,19 @@ const RemoteCursorEvent$json = {
 final $typed_data.Uint8List remoteCursorEventDescriptor = $convert
     .base64Decode('ChFSZW1vdGVDdXJzb3JFdmVudBIUCgVzaGFwZRgBIAEoCVIFc2hhcGU=');
 
+@$core.Deprecated('Use remoteScreenControlDescriptor instead')
+const RemoteScreenControl$json = {
+  '1': 'RemoteScreenControl',
+  '2': [
+    {'1': 'quality', '3': 1, '4': 1, '5': 13, '10': 'quality'},
+  ],
+};
+
+/// Descriptor for `RemoteScreenControl`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List remoteScreenControlDescriptor =
+    $convert.base64Decode(
+        'ChNSZW1vdGVTY3JlZW5Db250cm9sEhgKB3F1YWxpdHkYASABKA1SB3F1YWxpdHk=');
+
 @$core.Deprecated('Use remoteFsEntryDescriptor instead')
 const RemoteFsEntry$json = {
   '1': 'RemoteFsEntry',
@@ -744,3 +757,119 @@ final $typed_data.Uint8List remoteMediaStatusResDescriptor = $convert.base64Deco
     'ChRSZW1vdGVNZWRpYVN0YXR1c1JlcxIrCgVzdGF0ZRgBIAEoDjIVLmMzNS5SZW1vdGVNZWRpYV'
     'N0YXRlUgVzdGF0ZRISCgRwYXRoGAIgASgJUgRwYXRoEhQKBWVycm9yGAMgASgJUgVlcnJvchIx'
     'CgdlbmNvZGVyGAQgASgOMhcuYzM1LlJlbW90ZU1lZGlhRW5jb2RlclIHZW5jb2Rlcg==');
+
+@$core.Deprecated('Use remoteTeachStepDescriptor instead')
+const RemoteTeachStep$json = {
+  '1': 'RemoteTeachStep',
+  '2': [
+    {'1': 'ord', '3': 1, '4': 1, '5': 5, '10': 'ord'},
+    {'1': 'kind', '3': 2, '4': 1, '5': 9, '10': 'kind'},
+    {'1': 'label', '3': 3, '4': 1, '5': 9, '10': 'label'},
+    {'1': 'ax_target_json', '3': 4, '4': 1, '5': 9, '10': 'axTargetJson'},
+  ],
+};
+
+/// Descriptor for `RemoteTeachStep`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List remoteTeachStepDescriptor = $convert.base64Decode(
+    'Cg9SZW1vdGVUZWFjaFN0ZXASEAoDb3JkGAEgASgFUgNvcmQSEgoEa2luZBgCIAEoCVIEa2luZB'
+    'IUCgVsYWJlbBgDIAEoCVIFbGFiZWwSJAoOYXhfdGFyZ2V0X2pzb24YBCABKAlSDGF4VGFyZ2V0'
+    'SnNvbg==');
+
+@$core.Deprecated('Use remoteTeachStartReqDescriptor instead')
+const RemoteTeachStartReq$json = {
+  '1': 'RemoteTeachStartReq',
+  '2': [
+    {'1': 'title', '3': 1, '4': 1, '5': 9, '10': 'title'},
+    {'1': 'device_iid', '3': 2, '4': 1, '5': 3, '10': 'deviceIid'},
+  ],
+};
+
+/// Descriptor for `RemoteTeachStartReq`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List remoteTeachStartReqDescriptor = $convert.base64Decode(
+    'ChNSZW1vdGVUZWFjaFN0YXJ0UmVxEhQKBXRpdGxlGAEgASgJUgV0aXRsZRIdCgpkZXZpY2VfaW'
+    'lkGAIgASgDUglkZXZpY2VJaWQ=');
+
+@$core.Deprecated('Use remoteTeachStartResDescriptor instead')
+const RemoteTeachStartRes$json = {
+  '1': 'RemoteTeachStartRes',
+  '2': [
+    {'1': 'ok', '3': 1, '4': 1, '5': 8, '10': 'ok'},
+    {'1': 'error', '3': 2, '4': 1, '5': 9, '10': 'error'},
+  ],
+};
+
+/// Descriptor for `RemoteTeachStartRes`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List remoteTeachStartResDescriptor = $convert.base64Decode(
+    'ChNSZW1vdGVUZWFjaFN0YXJ0UmVzEg4KAm9rGAEgASgIUgJvaxIUCgVlcnJvchgCIAEoCVIFZX'
+    'Jyb3I=');
+
+@$core.Deprecated('Use remoteTeachStopReqDescriptor instead')
+const RemoteTeachStopReq$json = {
+  '1': 'RemoteTeachStopReq',
+  '2': [
+    {'1': 'stop', '3': 31, '4': 1, '5': 8, '10': 'stop'},
+  ],
+};
+
+/// Descriptor for `RemoteTeachStopReq`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List remoteTeachStopReqDescriptor = $convert
+    .base64Decode('ChJSZW1vdGVUZWFjaFN0b3BSZXESEgoEc3RvcBgfIAEoCFIEc3RvcA==');
+
+@$core.Deprecated('Use remoteTeachStopResDescriptor instead')
+const RemoteTeachStopRes$json = {
+  '1': 'RemoteTeachStopRes',
+  '2': [
+    {
+      '1': 'steps',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.RemoteTeachStep',
+      '10': 'steps'
+    },
+    {'1': 'error', '3': 2, '4': 1, '5': 9, '10': 'error'},
+  ],
+};
+
+/// Descriptor for `RemoteTeachStopRes`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List remoteTeachStopResDescriptor = $convert.base64Decode(
+    'ChJSZW1vdGVUZWFjaFN0b3BSZXMSKgoFc3RlcHMYASADKAsyFC5jMzUuUmVtb3RlVGVhY2hTdG'
+    'VwUgVzdGVwcxIUCgVlcnJvchgCIAEoCVIFZXJyb3I=');
+
+@$core.Deprecated('Use remoteTeachStatusReqDescriptor instead')
+const RemoteTeachStatusReq$json = {
+  '1': 'RemoteTeachStatusReq',
+  '2': [
+    {'1': 'poll', '3': 32, '4': 1, '5': 8, '10': 'poll'},
+  ],
+};
+
+/// Descriptor for `RemoteTeachStatusReq`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List remoteTeachStatusReqDescriptor = $convert
+    .base64Decode('ChRSZW1vdGVUZWFjaFN0YXR1c1JlcRISCgRwb2xsGCAgASgIUgRwb2xs');
+
+@$core.Deprecated('Use remoteTeachStatusResDescriptor instead')
+const RemoteTeachStatusRes$json = {
+  '1': 'RemoteTeachStatusRes',
+  '2': [
+    {'1': 'recording', '3': 1, '4': 1, '5': 8, '10': 'recording'},
+    {
+      '1': 'steps',
+      '3': 2,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.RemoteTeachStep',
+      '10': 'steps'
+    },
+    {'1': 'duration_sec', '3': 3, '4': 1, '5': 4, '10': 'durationSec'},
+    {'1': 'last_label', '3': 4, '4': 1, '5': 9, '10': 'lastLabel'},
+    {'1': 'error', '3': 5, '4': 1, '5': 9, '10': 'error'},
+  ],
+};
+
+/// Descriptor for `RemoteTeachStatusRes`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List remoteTeachStatusResDescriptor = $convert.base64Decode(
+    'ChRSZW1vdGVUZWFjaFN0YXR1c1JlcxIcCglyZWNvcmRpbmcYASABKAhSCXJlY29yZGluZxIqCg'
+    'VzdGVwcxgCIAMoCzIULmMzNS5SZW1vdGVUZWFjaFN0ZXBSBXN0ZXBzEiEKDGR1cmF0aW9uX3Nl'
+    'YxgDIAEoBFILZHVyYXRpb25TZWMSHQoKbGFzdF9sYWJlbBgEIAEoCVIJbGFzdExhYmVsEhQKBW'
+    'Vycm9yGAUgASgJUgVlcnJvcg==');

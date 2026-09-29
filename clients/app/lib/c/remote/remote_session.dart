@@ -5,6 +5,7 @@ import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/c/pb/c35/remote.pb.dart';
 import 'package:alienai_c35/c/pb/c35/wire.pb.dart';
 import 'package:alienai_c35/c/remote/remote_fs_api.dart';
+import 'package:alienai_c35/c/remote/remote_teach.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -27,21 +28,88 @@ class RemoteScreenFrame {
   final int timestampMs;
   final Uint8List jpegBytes;
 
+  static final Map<int, _FrameReassembly> _pendingFrames = {};
+
   static RemoteScreenFrame? parse(Uint8List raw) {
     if (raw.length < 16) return null;
-    if (raw[0] != 0x43 || raw[1] != 0x53 || raw[2] != 0x33 || raw[3] != 0x35) return null; // "CS35"
-    final bd = ByteData.view(raw.buffer, raw.offsetInBytes, raw.lengthInBytes);
-    final w = bd.getUint16(4, Endian.big);
-    final h = bd.getUint16(6, Endian.big);
-    final ts = bd.getUint64(8, Endian.big);
-    final jpeg = Uint8List.sublistView(raw, 16);
-    return RemoteScreenFrame(
-      width: w,
-      height: h,
-      timestampMs: ts,
-      jpegBytes: jpeg,
-    );
+    final b0 = raw[0];
+    final b1 = raw[1];
+    final b2 = raw[2];
+    final b3 = raw[3];
+
+    // CS35: unfragmented single-packet frame
+    if (b0 == 0x43 && b1 == 0x53 && b2 == 0x33 && b3 == 0x35) {
+      final bd = ByteData.view(raw.buffer, raw.offsetInBytes, raw.lengthInBytes);
+      final w = bd.getUint16(4, Endian.big);
+      final h = bd.getUint16(6, Endian.big);
+      final ts = bd.getUint64(8, Endian.big);
+      final jpeg = Uint8List.sublistView(raw, 16);
+      return RemoteScreenFrame(
+        width: w,
+        height: h,
+        timestampMs: ts,
+        jpegBytes: jpeg,
+      );
+    }
+
+    // CS36: chunked frame
+    if (b0 == 0x43 && b1 == 0x53 && b2 == 0x33 && b3 == 0x36 && raw.length >= 24) {
+      final bd = ByteData.view(raw.buffer, raw.offsetInBytes, raw.lengthInBytes);
+      final frameId = bd.getUint32(4, Endian.big);
+      final chunkIdx = bd.getUint16(8, Endian.big);
+      final totalChunks = bd.getUint16(10, Endian.big);
+      final w = bd.getUint16(12, Endian.big);
+      final h = bd.getUint16(14, Endian.big);
+      final ts = bd.getUint64(16, Endian.big);
+      final payload = Uint8List.sublistView(raw, 24);
+
+      if (_pendingFrames.length > 10) {
+        _pendingFrames.remove(_pendingFrames.keys.first);
+      }
+
+      final entry = _pendingFrames.putIfAbsent(
+        frameId,
+        () => _FrameReassembly(w: w, h: h, ts: ts, totalChunks: totalChunks),
+      );
+      entry.chunks[chunkIdx] = payload;
+
+      if (entry.chunks.length == totalChunks) {
+        _pendingFrames.remove(frameId);
+        final totalLen = entry.chunks.values.fold<int>(0, (sum, c) => sum + c.length);
+        final fullJpeg = Uint8List(totalLen);
+        var offset = 0;
+        for (var i = 0; i < totalChunks; i++) {
+          final c = entry.chunks[i];
+          if (c == null) return null;
+          fullJpeg.setRange(offset, offset + c.length, c);
+          offset += c.length;
+        }
+        return RemoteScreenFrame(
+          width: entry.w,
+          height: entry.h,
+          timestampMs: entry.ts,
+          jpegBytes: fullJpeg,
+        );
+      }
+    }
+
+    return null;
   }
+}
+
+class _FrameReassembly {
+  _FrameReassembly({
+    required this.w,
+    required this.h,
+    required this.ts,
+    required this.totalChunks,
+  });
+
+  final int w;
+  final int h;
+  final int ts;
+  final int totalChunks;
+  final Map<int, Uint8List> chunks = {};
 }
 
 enum RemoteSessionStatus {
@@ -66,6 +134,12 @@ class RemoteSession {
   final screenFrame = ValueNotifier<RemoteScreenFrame?>(null);
   final isControlEnabled = ValueNotifier<bool>(true);
   final fps = ValueNotifier<int>(0);
+  /// End-to-end frame age (MJPEG) or ICE RTT (H.264), milliseconds.
+  final latencyMs = ValueNotifier<int?>(null);
+  final bytesInPerSec = ValueNotifier<int>(0);
+  final bytesOutPerSec = ValueNotifier<int>(0);
+  /// MJPEG JPEG quality (40–95) sent to agent via `remote-screen`.
+  final streamQuality = ValueNotifier<int>(80);
   final hasVideoTrack = ValueNotifier<bool>(false);
   final updateReady = ValueNotifier<bool>(false);
   final updateVersion = ValueNotifier<int?>(null);
@@ -76,9 +150,17 @@ class RemoteSession {
 
   String? sessionId;
   RemoteFsApi? fs;
+  RemoteTeachApi? teach;
+
+  /// Teach HUD state (recording, steps, last label, duration).
+  Listenable? get teachListenable => teach?.listenable;
+  ValueNotifier<bool>? get teachRecording => teach?.recording;
+  ValueNotifier<List<RemoteTeachStep>>? get teachSteps => teach?.steps;
+  ValueNotifier<String>? get teachLastLabel => teach?.lastLabel;
 
   RTCPeerConnection? _pc;
   RTCDataChannel? _fsChannel;
+  RTCDataChannel? _teachChannel;
   RTCDataChannel? _inputChannel;
   RTCDataChannel? _screenChannel;
   StreamSubscription<WsRes>? _signalSub;
@@ -88,10 +170,16 @@ class RemoteSession {
   static Timer? _leaveDevicesTimer;
   var _frameCount = 0;
   var _lastDecodedFrames = 0;
+  var _statsBytesIn = 0;
+  var _statsBytesOut = 0;
+  var _bandwidthPrimed = false;
   var _starting = false;
   var _retryCount = 0;
   var _manualStop = false;
   var _forceRelayIce = false;
+  var _startSeq = 0;
+
+  bool get stoppedByUser => _manualStop;
 
   bool get isLinking =>
       status.value == RemoteSessionStatus.connecting || status.value == RemoteSessionStatus.reconnecting;
@@ -168,6 +256,7 @@ class RemoteSession {
   // -------------------------------------------------------------------------
 
   void prepareUserReconnect() {
+    _manualStop = false;
     _retryCount = 0;
     _forceRelayIce = false;
     _reconnectTimer?.cancel();
@@ -175,6 +264,8 @@ class RemoteSession {
     _linkTimeout?.cancel();
     _linkTimeout = null;
   }
+
+  bool _startAborted(int seq) => _manualStop || seq != _startSeq;
 
   bool get _peerLive => _pc != null && connected.value;
 
@@ -190,6 +281,7 @@ class RemoteSession {
 
   Future<void> start({bool forceRelay = false}) async {
     if (kIsWeb) throw UnsupportedError('WebRTC remote session is not supported on web');
+    if (_manualStop) return;
     if (_starting) return;
     if (_peerLive) return;
     if (forceRelay) _forceRelayIce = true;
@@ -198,22 +290,26 @@ class RemoteSession {
       status.value = RemoteSessionStatus.disconnected;
       return;
     }
-    _manualStop = false;
     _starting = true;
+    final mySeq = _startSeq;
     status.value = RemoteSessionStatus.connecting;
     try {
       if (!_rendererInitialized && !kIsWeb) {
         await videoRenderer.initialize();
+        if (_startAborted(mySeq)) return;
         _rendererInitialized = true;
       }
       await _teardownPc();
+      if (_startAborted(mySeq)) return;
       sessionId = Ulid().toString();
       l('remote session start device=$deviceIid session=$sessionId');
 
       await _signalSub?.cancel();
+      if (_startAborted(mySeq)) return;
       _signalSub = conn.onRemoteSignal.listen(_onSignal, onError: (e) => lError('remote signal: $e'));
 
       final iceRes = await conn.remoteIceConfig();
+      if (_startAborted(mySeq)) return;
       final iceServers = iceRes.iceServers
           .map((s) => {
                 'urls': s.urls.toList(),
@@ -223,6 +319,7 @@ class RemoteSession {
           .toList();
 
       final startRes = await conn.remoteSessionStart(deviceIid, sessionId!);
+      if (_startAborted(mySeq)) return;
       if (!startRes.ok) throw startRes.error.isNotEmpty ? startRes.error : 'session start failed';
 
       _armLinkTimeout();
@@ -233,18 +330,24 @@ class RemoteSession {
         l('remote session using TURN relay (iceTransportPolicy=relay)');
       }
       _pc = await createPeerConnection(pcConfig);
+      if (_startAborted(mySeq)) return;
       _pc!.onIceCandidate = (c) => unawaited(_sendIce(c));
       _pc!.onTrack = (event) async {
+        if (_manualStop) return;
         l('remote onTrack: ${event.track.kind} streams=${event.streams.length}');
         if (event.track.kind == 'video') {
-          if (event.streams.isNotEmpty) {
-            videoRenderer.srcObject = event.streams[0];
-          } else {
-            final stream = await createLocalMediaStream('remote_video_stream');
-            stream.addTrack(event.track);
-            videoRenderer.srcObject = stream;
+          try {
+            if (event.streams.isNotEmpty) {
+              videoRenderer.srcObject = event.streams[0];
+            } else {
+              final stream = await createLocalMediaStream('remote_video_stream');
+              stream.addTrack(event.track);
+              videoRenderer.srcObject = stream;
+            }
+            hasVideoTrack.value = true;
+          } catch (e) {
+            lError('remote onTrack video attach failed: $e');
           }
-          hasVideoTrack.value = true;
         }
       };
       _pc!.onConnectionState = (s) {
@@ -259,6 +362,7 @@ class RemoteSession {
           _linkTimeout = null;
           _retryCount = 0;
           status.value = RemoteSessionStatus.connected;
+          isControlEnabled.value = true;
         } else if (s == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
           _linkTimeout?.cancel();
           _linkTimeout = null;
@@ -284,6 +388,7 @@ class RemoteSession {
       };
       _pc!.onDataChannel = (ch) {
         if (ch.label == _fsChannelLabel) _bindFsChannel(ch);
+        if (ch.label == remoteTeachChannelLabel) _bindTeachChannel(ch);
         if (ch.label == _inputChannelLabel) _bindInputChannel(ch);
         if (ch.label == _screenChannelLabel) _bindScreenChannel(ch);
       };
@@ -291,18 +396,26 @@ class RemoteSession {
       _fsChannel = await _pc!.createDataChannel(_fsChannelLabel, RTCDataChannelInit());
       _bindFsChannel(_fsChannel!);
 
+      _teachChannel = await _pc!.createDataChannel(remoteTeachChannelLabel, RTCDataChannelInit()..ordered = true);
+      _bindTeachChannel(_teachChannel!);
+
       _inputChannel = await _pc!.createDataChannel(_inputChannelLabel, RTCDataChannelInit()..ordered = true);
       _bindInputChannel(_inputChannel!);
       _screenChannel = await _pc!.createDataChannel(_screenChannelLabel, RTCDataChannelInit()..ordered = true);
+      if (_startAborted(mySeq)) return;
       _bindScreenChannel(_screenChannel!);
 
       _startFpsTimer();
 
       final offer = await _pc!.createOffer({'offerToReceiveVideo': true, 'offerToReceiveAudio': true});
+      if (_startAborted(mySeq)) return;
       await _pc!.setLocalDescription(offer);
+      if (_startAborted(mySeq)) return;
       await conn.rtcSignalOffer(RtcSignalOffer(deviceIid: Int64(deviceIid), sessionId: sessionId!, sdp: offer.sdp ?? ''));
+      if (_startAborted(mySeq)) return;
       l('remote offer sent (video+audio enabled)');
     } catch (e) {
+      if (_startAborted(mySeq)) return;
       lError('remote session start: $e');
       status.value = RemoteSessionStatus.failed;
       await _teardownPc();
@@ -312,12 +425,18 @@ class RemoteSession {
     }
   }
 
-  Future<void> stop() async {
-    _manualStop = true;
+  /// [userInitiated] false when reconnecting (Connect / Retry) — does not latch [stoppedByUser].
+  Future<void> stop({bool userInitiated = true}) async {
+    if (userInitiated) _manualStop = true;
+    _startSeq++;
+    _starting = false;
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
+    _linkTimeout?.cancel();
+    _linkTimeout = null;
     status.value = RemoteSessionStatus.disconnected;
     final sid = sessionId;
+    await _teardownPc();
     if (sid != null) {
       try {
         await conn.remoteSessionStop(deviceIid, sid);
@@ -325,8 +444,6 @@ class RemoteSession {
         lError('remote session stop: $e');
       }
     }
-    await _teardownPc();
-    sessionId = null;
   }
 
   Future<void> _teardownPc({bool keepSessionId = false}) async {
@@ -337,6 +454,12 @@ class RemoteSession {
     _frameCount = 0;
     _lastDecodedFrames = 0;
     fps.value = 0;
+    latencyMs.value = null;
+    bytesInPerSec.value = 0;
+    bytesOutPerSec.value = 0;
+    _statsBytesIn = 0;
+    _statsBytesOut = 0;
+    _bandwidthPrimed = false;
     screenFrame.value = null;
     remoteCursorShape.value = 'arrow';
     hasVideoTrack.value = false;
@@ -347,7 +470,10 @@ class RemoteSession {
     updateVersion.value = null;
     fs?.dispose();
     fs = null;
+    teach?.dispose();
+    teach = null;
     _fsChannel = null;
+    _teachChannel = null;
     _inputChannel = null;
     _screenChannel = null;
     await _signalSub?.cancel();
@@ -373,8 +499,47 @@ class RemoteSession {
     };
   }
 
+  void _bindTeachChannel(RTCDataChannel ch) {
+    _teachChannel = ch;
+    ch.onDataChannelState = (s) {
+      l('remote-teach channel state=$s');
+      if (s == RTCDataChannelState.RTCDataChannelOpen) {
+        teach = RemoteTeachApi(ch, deviceIid);
+      }
+    };
+  }
+
+  void _requireTeachReady() {
+    if (!connected.value) throw StateError('WebRTC not connected');
+    if (teach == null) throw StateError('remote-teach channel not open');
+  }
+
+  Future<void> remoteTeachStart(String title) async {
+    _requireTeachReady();
+    final res = await teach!.teachStart(title);
+    if (!res.ok) throw StateError(res.error.isNotEmpty ? res.error : 'teach start failed');
+  }
+
+  Future<List<RemoteTeachStep>> remoteTeachStop() async {
+    _requireTeachReady();
+    final res = await teach!.teachStop();
+    if (res.error.isNotEmpty) throw StateError(res.error);
+    return List<RemoteTeachStep>.from(res.steps);
+  }
+
+  Future<RemoteTeachStatusRes> remoteTeachStatus() async {
+    _requireTeachReady();
+    return teach!.teachStatus();
+  }
+
   void _bindInputChannel(RTCDataChannel ch) {
     _inputChannel = ch;
+    ch.onDataChannelState = (s) {
+      l('remote-input channel state=$s');
+      if (s == RTCDataChannelState.RTCDataChannelOpen) {
+        isControlEnabled.value = true;
+      }
+    };
     ch.onMessage = (msg) {
       if (!msg.isBinary) return;
       try {
@@ -388,12 +553,18 @@ class RemoteSession {
 
   void _bindScreenChannel(RTCDataChannel ch) {
     _screenChannel = ch;
+    ch.onDataChannelState = (s) {
+      if (s == RTCDataChannelState.RTCDataChannelOpen) {
+        sendStreamQuality(streamQuality.value);
+      }
+    };
     ch.onMessage = (msg) {
-      if (!msg.isBinary) return;
+      if (_manualStop || !msg.isBinary) return;
       final frame = RemoteScreenFrame.parse(msg.binary);
       if (frame != null) {
         screenFrame.value = frame;
         _frameCount++;
+        _noteFrameLatency(frame);
       }
     };
   }
@@ -403,17 +574,22 @@ class RemoteSession {
     _frameCount = 0;
     _lastDecodedFrames = 0;
     _fpsTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
-      if (hasVideoTrack.value && _pc != null) {
+      final pc = _pc;
+      if (pc != null) {
         try {
-          final stats = await _pc!.getStats();
-          for (final r in stats) {
-            if (r.type == 'inbound-rtp' && r.values['kind'] == 'video') {
-              final frames = int.tryParse(r.values['framesDecoded']?.toString() ?? '') ?? 0;
-              if (_lastDecodedFrames > 0 && frames >= _lastDecodedFrames) {
-                fps.value = frames - _lastDecodedFrames;
+          final stats = await pc.getStats();
+          _pollRtcLatency(stats);
+          _pollBandwidth(stats);
+          if (hasVideoTrack.value) {
+            for (final r in stats) {
+              if (r.type == 'inbound-rtp' && r.values['kind'] == 'video') {
+                final frames = int.tryParse(r.values['framesDecoded']?.toString() ?? '') ?? 0;
+                if (_lastDecodedFrames > 0 && frames >= _lastDecodedFrames) {
+                  fps.value = frames - _lastDecodedFrames;
+                }
+                _lastDecodedFrames = frames;
+                return;
               }
-              _lastDecodedFrames = frames;
-              return;
             }
           }
         } catch (_) {}
@@ -423,11 +599,68 @@ class RemoteSession {
     });
   }
 
+  void _noteFrameLatency(RemoteScreenFrame frame) {
+    final lat = DateTime.now().millisecondsSinceEpoch - frame.timestampMs;
+    if (lat >= 0 && lat < 60000) latencyMs.value = lat;
+  }
+
+  void _pollRtcLatency(List<StatsReport> stats) {
+    for (final r in stats) {
+      if (r.type != 'candidate-pair' && r.type != 'googCandidatePair') continue;
+      final selected = r.values['selected'];
+      if (selected != true && selected != 'true') continue;
+      final rtt = r.values['currentRoundTripTime'] ?? r.values['roundTripTime'];
+      if (rtt == null) continue;
+      final sec = rtt is num ? rtt.toDouble() : double.tryParse(rtt.toString());
+      if (sec == null || sec <= 0) continue;
+      latencyMs.value = (sec * 1000).round();
+      return;
+    }
+  }
+
+  void _pollBandwidth(List<StatsReport> stats) {
+    var inTot = 0;
+    var outTot = 0;
+    for (final r in stats) {
+      switch (r.type) {
+        case 'inbound-rtp':
+        case 'remote-inbound-rtp':
+          inTot += _statBytes(r.values['bytesReceived']);
+        case 'outbound-rtp':
+          outTot += _statBytes(r.values['bytesSent']);
+        case 'data-channel':
+          inTot += _statBytes(r.values['bytesReceived']);
+          outTot += _statBytes(r.values['bytesSent']);
+      }
+    }
+    if (_bandwidthPrimed) {
+      bytesInPerSec.value = (inTot - _statsBytesIn).clamp(0, 1 << 30);
+      bytesOutPerSec.value = (outTot - _statsBytesOut).clamp(0, 1 << 30);
+    } else {
+      _bandwidthPrimed = true;
+    }
+    _statsBytesIn = inTot;
+    _statsBytesOut = outTot;
+  }
+
+  int _statBytes(Object? v) => v is num ? v.toInt() : int.tryParse(v?.toString() ?? '') ?? 0;
+
   void sendInput(RemoteInputEvent evt) {
     if (!isControlEnabled.value) return;
     final ch = _inputChannel;
     if (ch != null && ch.state == RTCDataChannelState.RTCDataChannelOpen) {
       ch.send(RTCDataChannelMessage.fromBinary(evt.writeToBuffer()));
+    }
+  }
+
+  void sendStreamQuality(int quality) {
+    final q = quality.clamp(40, 95);
+    streamQuality.value = q;
+    final ch = _screenChannel;
+    if (ch != null && ch.state == RTCDataChannelState.RTCDataChannelOpen) {
+      ch.send(RTCDataChannelMessage.fromBinary(
+        RemoteScreenControl(quality: q).writeToBuffer(),
+      ));
     }
   }
 

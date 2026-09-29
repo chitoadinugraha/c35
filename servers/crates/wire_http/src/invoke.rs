@@ -155,12 +155,15 @@ pub async fn dispatch_invoke(state: &AppState, req: InvokeReq) -> InvokeRes {
         }
         Some(invoke_req::Body::BillingPackageRedeem(r)) => {
             match billing_package_redeem(pool, iid, &r.code).await {
-                Ok(res) => InvokeRes {
-                    req_id,
-                    status_code: 200,
-                    error_message: String::new(),
-                    body: Some(invoke_res::Body::BillingPackageRedeem(res)),
-                },
+                Ok(res) => {
+                    billing_notify_owner(pool, state.nats.as_ref(), iid, None).await;
+                    InvokeRes {
+                        req_id,
+                        status_code: 200,
+                        error_message: String::new(),
+                        body: Some(invoke_res::Body::BillingPackageRedeem(res)),
+                    }
+                }
                 Err(msg) => invoke_error(&req_id, 400, msg),
             }
         }

@@ -24,6 +24,7 @@ mod billing_signup_credit;
 mod billing_summary;
 mod billing_topup;
 mod billing_turn;
+mod billing_wallet;
 mod billing_webhook;
 mod bot_usage;
 

@@ -41,6 +41,32 @@ Proto: [`../schemas/proto/c35/skill.proto`](../schemas/proto/c35/skill.proto)
 
 Sync collection name: `skill` (includes steps inline on full get).
 
+### Remote teach (`remote-teach` data channel)
+
+Interactive teach on a paired Windows remote uses a WebRTC data channel (label `remote-teach`), same trust boundary as Files (`remote-fs`). Protobuf messages live in [`../schemas/proto/c35/remote.proto`](../schemas/proto/c35/remote.proto) (wired in implementation wave W3).
+
+| Message | Direction | Purpose |
+|---------|-----------|---------|
+| `RemoteTeachStartReq` | viewer → agent | `title`, `device_iid` |
+| `RemoteTeachStartRes` | agent → viewer | `ok`, `error` |
+| `RemoteTeachStopReq` | viewer → agent | — |
+| `RemoteTeachStopRes` | agent → viewer | `steps[]` as `RemoteTeachStep` |
+| `RemoteTeachStatusReq` | viewer → agent | poll while recording |
+| `RemoteTeachStatusRes` | agent → viewer | `recording`, `steps[]`, `duration_sec` |
+| `RemoteTeachStep` | — | `ord`, `kind`, `label`, optional `ax_target_json` |
+
+Flow: viewer starts teach on **Remote** tab → agent records low-level UI events → viewer **Stop** → review dialog → `ReqSkillPut` with `steps[]` persisted to `ai.skill_step`.
+
+Master implementation plan: [`plans/2026-09-29-remote-skill-teach-multitask.md`](plans/2026-09-29-remote-skill-teach-multitask.md).
+
+### `hash_blake3` on put
+
+When the client leaves `hash_blake3` empty, the server hashes **`body_md` only** (blake3 hex). Replacing the step tape via `ReqSkillPut` does **not** auto-recompute `hash_blake3`; send an explicit hash if the client needs body+steps identity (e.g. catalog dedup).
+
+### Soft delete
+
+Set `Skill.deleted_ts_ms > 0` on `ReqSkillPut` (existing skill `id` required). Server soft-deletes the skill row and all `ai.skill_step` rows for that `skill_id`. List RPCs omit deleted skills.
+
 ---
 
 ## Self-Learning Execution Loop (Phase 7)
@@ -296,7 +322,18 @@ Implementation: `servers/crates/mod_skill/src/rpc.rs` (`openskill` submodule).
 
 ## UI (Phase 7)
 
-- **Teach mode** on Devices page → Skill tab: record steps → `ReqSkillPut`.
+### Teach mode (Remote) vs Skill tab (library)
+
+| Surface | Role |
+|---------|------|
+| **Devices → Remote** | Start/stop interactive teach; draggable HUD (default top-right) with **Stop**, live step count, last step label; pointer hits only the HUD (full-screen layer ignores input). |
+| **Target PC (agent)** | cs_agent-style **green border** + native stop chip (**F9**) while recording. |
+| **After Stop** | Review dialog: editable markdown + step list → `ReqSkillPut` with `steps[]` and `source=taught`. |
+| **Devices → Skill** | Library only: list, detail (markdown + numbered steps), **Edit** / **Delete** / **Run** — no tab-switch “record” flow. |
+| **Settings → Skills** | Same detail actions for user-scoped skills where applicable. |
+
+Legacy behavior (tab switch + markdown-only teach dialog) is replaced by Remote HUD + review per [remote teach plan](plans/2026-09-29-remote-skill-teach-multitask.md).
+
 - **Skill picker** in prompt tools: match `phrases_json`, `url_pattern`, `target_app` against user request.
 - **Catalog browser** (Skill marketplace dialog): `ReqSkillCatalogList` search; install via `ReqSkillCatalogInstall` (internal id or OpenSkill slug fields).
 - **`needs_review` banner** on skill row: "Auto-repair paused — this skill needs attention."

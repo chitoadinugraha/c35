@@ -95,6 +95,7 @@ async fn successful_redeem_in_transaction() {
     assert!(res.purchase_id > 0);
     assert!((res.amount_idr - price).abs() < 1.0);
     assert_eq!(res.plan_tier, "plus");
+    assert!((res.balance_idr - (start_balance - price)).abs() < 1.0);
 
     let balance_after = sqlx::query_scalar::<_, f64>(
         "SELECT balance_idr::float8 FROM ai.billing_account WHERE owner_iid = $1 AND deleted_ts IS NULL",

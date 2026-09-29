@@ -109,9 +109,10 @@ pub fn run(
         RegisterClassExW, SendMessageW, SetForegroundWindow, SetWindowLongPtrW, SetWindowPos,
         ShowWindow, TranslateMessage, CS_HREDRAW, CS_VREDRAW, GWLP_USERDATA, HICON, HMENU,
         HWND_TOP, ICON_BIG, ICON_SMALL, IDC_ARROW, SM_CXSCREEN, SM_CYSCREEN, SW_HIDE, SW_SHOW,
-        SWP_NOSIZE, WM_CLOSE, WM_CREATE, WM_DESTROY, WM_ERASEBKGND, WM_LBUTTONDOWN,
-        WM_MOUSEMOVE, WM_NCHITTEST, WM_PAINT, WM_SETICON, WM_SIZE, WM_TIMER, WM_USER,
-        WNDCLASSEXW, WS_EX_APPWINDOW, WS_POPUP, HTCAPTION, HTCLIENT, WINDOW_EX_STYLE,
+        SWP_NOSIZE, WM_CLOSE, WM_CREATE, WM_DESTROY, WM_ERASEBKGND, WM_GETMINMAXINFO,
+        WM_LBUTTONDOWN, WM_MOUSEMOVE, WM_NCHITTEST, WM_PAINT, WM_SETICON, WM_SIZE, WM_TIMER,
+        WM_USER, WNDCLASSEXW, WS_EX_APPWINDOW, WS_MINIMIZEBOX, WS_POPUP, WS_THICKFRAME,
+        HTCAPTION, HTCLIENT, MINMAXINFO, WINDOW_EX_STYLE,
     };
 
     const WM_AGENT_SHOW: u32 = WM_USER + 302;
@@ -136,8 +137,12 @@ pub fn run(
     const CLR_DOT_OFF: u32 = 0x00E81123;
     const CLR_LOG_BG: u32 = 0x0010100E;
 
-    const WIN_W: i32 = 480;
-    const WIN_H: i32 = 588;
+    const WIN_W: i32 = 360;
+    const WIN_H: i32 = 300;
+    const WIN_MIN_W: i32 = 300;
+    const WIN_MIN_H: i32 = 240;
+    const TAB_STATUS: u8 = 0;
+    const TAB_LOGS: u8 = 1;
 
     struct UiScale {
         dpi: u32,
@@ -211,12 +216,13 @@ pub fn run(
         scale: UiScale,
         fonts: Fonts,
         action_tx: Option<tokio::sync::mpsc::UnboundedSender<crate::tray::TrayAction>>,
+        active_tab: u8,
         close_hover: bool,
+        unpair_hover: bool,
+        tab_status_hover: bool,
+        tab_logs_hover: bool,
         drive_toggle_hover: bool,
-        btn_log_hover: bool,
-        btn_folder_hover: bool,
-        btn_update_hover: bool,
-        btn_unpair_hover: bool,
+        btn_footer_hover: [bool; 3],
     }
 
     unsafe fn ctx_get(hwnd: HWND) -> Option<&'static mut Ctx> {
@@ -282,7 +288,15 @@ pub fn run(
     }
 
     fn footer_h(scale: &UiScale) -> i32 {
-        scale.px(52)
+        scale.px(48)
+    }
+
+    fn tab_bar_h(scale: &UiScale) -> i32 {
+        scale.px(32)
+    }
+
+    fn content_top(scale: &UiScale) -> i32 {
+        title_h(scale) + tab_bar_h(scale)
     }
 
     fn close_rect(scale: &UiScale, rc: &RECT) -> RECT {
@@ -295,24 +309,62 @@ pub fn run(
         }
     }
 
-    fn btn_row(scale: &UiScale, rc: &RECT) -> [RECT; 4] {
+    fn unpair_rect(scale: &UiScale, rc: &RECT) -> RECT {
+        let close = close_rect(scale, rc);
+        let w = scale.px(56);
+        RECT {
+            left: close.left - w,
+            top: 0,
+            right: close.left,
+            bottom: title_h(scale),
+        }
+    }
+
+    fn tab_rects(scale: &UiScale, rc: &RECT) -> (RECT, RECT) {
+        let top = title_h(scale);
+        let h = tab_bar_h(scale);
+        let mid = rc.right / 2;
+        (
+            RECT {
+                left: 0,
+                top,
+                right: mid,
+                bottom: top + h,
+            },
+            RECT {
+                left: mid,
+                top,
+                right: rc.right,
+                bottom: top + h,
+            },
+        )
+    }
+
+    fn footer_labels(tab: u8) -> &'static [&'static str] {
+        match tab {
+            TAB_STATUS => &["Update"],
+            _ => &["Open log", "Logs"],
+        }
+    }
+
+    fn btn_row(scale: &UiScale, rc: &RECT, labels: &[&str]) -> Vec<RECT> {
         let fh = footer_h(scale);
         let margin = scale.px(10);
         let gap = scale.px(6);
-        let btn_h = scale.px(32);
+        let btn_h = scale.px(30);
         let y = rc.bottom - fh + (fh - btn_h) / 2;
-        let count: i32 = 4;
+        let count = labels.len().max(1) as i32;
         let w = (rc.right - margin * 2 - gap * (count - 1)) / count;
-        let mut out = [RECT::default(), RECT::default(), RECT::default(), RECT::default()];
-        for i in 0..count as usize {
-            out[i] = RECT {
+        labels
+            .iter()
+            .enumerate()
+            .map(|(i, _)| RECT {
                 left: margin + (i as i32) * (w + gap),
                 top: y,
                 right: margin + (i as i32) * (w + gap) + w,
                 bottom: y + btn_h,
-            };
-        }
-        out
+            })
+            .collect()
     }
 
     unsafe fn confirm_unpair(hwnd: HWND, action_tx: &Option<tokio::sync::mpsc::UnboundedSender<crate::tray::TrayAction>>) {
@@ -410,6 +462,22 @@ pub fn run(
         }
     }
 
+    fn status_drive_switch_rect(scale: &UiScale, rc: &RECT, snap: &StatusCopy) -> RECT {
+        let ct = content_top(scale);
+        let card_y = ct + scale.px(10);
+        let card_h = scale.px(72);
+        let info_y = card_y + card_h + scale.px(12);
+        let mut info_count = 6i32;
+        if snap.update_staged.is_some() {
+            info_count += 1;
+        }
+        if !snap.update_check_msg.is_empty() {
+            info_count += 1;
+        }
+        let drive_top = info_y + info_count * scale.px(17) + scale.px(8);
+        drive_row(scale, rc, drive_top).1
+    }
+
     unsafe fn paint(hwnd: HWND) {
         let ctx = match ctx_get(hwnd) {
             Some(c) => c,
@@ -485,10 +553,25 @@ pub fn run(
             DI_NORMAL,
         );
 
+        let unpair = unpair_rect(scale, &rc);
+        if ctx.unpair_hover {
+            let h = CreateSolidBrush(COLORREF(CLR_BTN_HOVER));
+            let _ = FillRect(hdc, &unpair, h);
+            let _ = DeleteObject(HGDIOBJ(h.0));
+        }
+        draw_text(
+            hdc,
+            ctx.fonts.small,
+            if ctx.unpair_hover { CLR_TEXT } else { CLR_MUTED },
+            "Unpair",
+            unpair,
+            DT_CENTER | DT_SINGLELINE | DT_VCENTER,
+        );
+
         let title_text_rc = RECT {
             left: scale.px(38),
             top: 0,
-            right: close.left,
+            right: unpair.left,
             bottom: th,
         };
         draw_text(
@@ -500,9 +583,56 @@ pub fn run(
             DT_LEFT | DT_SINGLELINE | DT_VCENTER,
         );
 
-        let card_y = th + scale.px(12);
-        let card_h = scale.px(72);
+        let (tab_status, tab_logs) = tab_rects(scale, &rc);
+        let tab_bg = CreateSolidBrush(COLORREF(CLR_TITLE));
+        let tab_bar = RECT {
+            left: 0,
+            top: th,
+            right: rc.right,
+            bottom: content_top(scale),
+        };
+        let _ = FillRect(hdc, &tab_bar, tab_bg);
+        let _ = DeleteObject(HGDIOBJ(tab_bg.0));
+        for (i, tab_rc) in [(TAB_STATUS, tab_status), (TAB_LOGS, tab_logs)] {
+            let active = ctx.active_tab == i;
+            let hover = if i == TAB_STATUS {
+                ctx.tab_status_hover
+            } else {
+                ctx.tab_logs_hover
+            };
+            if active || hover {
+                let fill = CreateSolidBrush(COLORREF(if active { CLR_CARD } else { CLR_BTN_HOVER }));
+                let _ = FillRect(hdc, &tab_rc, fill);
+                let _ = DeleteObject(HGDIOBJ(fill.0));
+            }
+            if active {
+                let accent = CreateSolidBrush(COLORREF(CLR_DOT_ON));
+                let accent_rc = RECT {
+                    left: tab_rc.left,
+                    top: tab_rc.bottom - scale.px(2),
+                    right: tab_rc.right,
+                    bottom: tab_rc.bottom,
+                };
+                let _ = FillRect(hdc, &accent_rc, accent);
+                let _ = DeleteObject(HGDIOBJ(accent.0));
+            }
+            let label = if i == TAB_STATUS { "Status" } else { "Logs" };
+            draw_text(
+                hdc,
+                ctx.fonts.body,
+                if active { CLR_TEXT } else { CLR_MUTED },
+                label,
+                tab_rc,
+                DT_CENTER | DT_SINGLELINE | DT_VCENTER,
+            );
+        }
+
+        let ct = content_top(scale);
         let margin = scale.px(16);
+
+        if ctx.active_tab == TAB_STATUS {
+        let card_y = ct + scale.px(10);
+        let card_h = scale.px(72);
         let card_w = (rc.right - margin * 3) / 2;
         let cards = [
             RECT {
@@ -552,7 +682,7 @@ pub fn run(
                 )
             } else {
                 (
-                    "User App",
+                    "App",
                     snap.user_app_subtitle.clone(),
                     user_app_dot_color(snap.user_app_connected, snap.webrtc_connecting),
                 )
@@ -592,123 +722,120 @@ pub fn run(
             );
         }
 
-        let info_y = card_y + card_h + scale.px(16);
-        let mut info_lines = vec![
-            format!("Device: {}", snap.device),
-            format!("Account: {}", snap.account),
-            snap.version.clone(),
-            format!("Package (personal): {}", snap.personal_package),
-            format!("Package (device): {}", snap.device_package),
-            format!(
-                "Control: {} · Boot: {}",
-                if snap.control_allowed { "allowed" } else { "blocked" },
-                if snap.autostart { "on" } else { "off" }
-            ),
-        ];
-        if let Some(v) = snap.update_staged {
-            info_lines.push(format!("Update ready: build {v} (tray when idle)"));
-        }
-        if !snap.update_check_msg.is_empty() {
-            info_lines.push(format!("Last update check: {}", snap.update_check_msg));
-        }
-        for (i, line) in info_lines.iter().enumerate() {
-            let line_rc = RECT {
-                left: margin,
-                top: info_y + (i as i32) * scale.px(18),
-                right: rc.right - margin,
-                bottom: info_y + (i as i32 + 1) * scale.px(18),
-            };
-            draw_text(hdc, ctx.fonts.small, CLR_MUTED, line, line_rc, DT_LEFT | DT_SINGLELINE);
-        }
+            let info_y = card_y + card_h + scale.px(12);
+            let mut info_lines = vec![
+                format!("Device: {}", snap.device),
+                format!("Account: {}", snap.account),
+                snap.version.clone(),
+                format!("Package (personal): {}", snap.personal_package),
+                format!("Package (device): {}", snap.device_package),
+                format!(
+                    "Control: {} · Boot: {}",
+                    if snap.control_allowed { "allowed" } else { "blocked" },
+                    if snap.autostart { "on" } else { "off" }
+                ),
+            ];
+            if let Some(v) = snap.update_staged {
+                info_lines.push(format!("Update ready: build {v} (tray when idle)"));
+            }
+            if !snap.update_check_msg.is_empty() {
+                info_lines.push(format!("Last update check: {}", snap.update_check_msg));
+            }
+            for (i, line) in info_lines.iter().enumerate() {
+                let line_rc = RECT {
+                    left: margin,
+                    top: info_y + (i as i32) * scale.px(17),
+                    right: rc.right - margin,
+                    bottom: info_y + (i as i32 + 1) * scale.px(17),
+                };
+                draw_text(hdc, ctx.fonts.small, CLR_MUTED, line, line_rc, DT_LEFT | DT_SINGLELINE);
+            }
 
-        let drive_top = info_y + (info_lines.len() as i32) * scale.px(18) + scale.px(10);
-        let (drive_row, drive_switch) = drive_row(scale, &rc, drive_top);
-        draw_text(
-            hdc,
-            ctx.fonts.body,
-            CLR_TEXT,
-            "Alien AI Drive",
-            RECT {
-                left: drive_row.left,
-                top: drive_row.top + scale.px(2),
-                right: drive_switch.left - scale.px(8),
-                bottom: drive_row.top + scale.px(22),
-            },
-            DT_LEFT | DT_SINGLELINE | DT_VCENTER,
-        );
-        if let Some(label) = snap.drive_storage.as_deref() {
+            let drive_top = info_y + (info_lines.len() as i32) * scale.px(17) + scale.px(8);
+            let (drive_row, drive_switch) = drive_row(scale, &rc, drive_top);
+            draw_text(
+                hdc,
+                ctx.fonts.body,
+                CLR_TEXT,
+                "Alien AI Drive",
+                RECT {
+                    left: drive_row.left,
+                    top: drive_row.top + scale.px(2),
+                    right: drive_switch.left - scale.px(8),
+                    bottom: drive_row.top + scale.px(22),
+                },
+                DT_LEFT | DT_SINGLELINE | DT_VCENTER,
+            );
+            if let Some(label) = snap.drive_storage.as_deref() {
+                draw_text(
+                    hdc,
+                    ctx.fonts.small,
+                    CLR_MUTED,
+                    label,
+                    RECT {
+                        left: drive_row.left,
+                        top: drive_row.top + scale.px(20),
+                        right: drive_switch.left - scale.px(8),
+                        bottom: drive_row.bottom,
+                    },
+                    DT_LEFT | DT_SINGLELINE | DT_VCENTER,
+                );
+            }
+            draw_toggle(hdc, scale, &drive_switch, snap.drive_enabled, ctx.drive_toggle_hover);
+        } else {
+            let log_top = ct + scale.px(8);
+            let log_bottom = rc.bottom - fh - scale.px(6);
+            let log_box = RECT {
+                left: margin,
+                top: log_top,
+                right: rc.right - margin,
+                bottom: log_bottom,
+            };
+            let log_bg = CreateSolidBrush(COLORREF(CLR_LOG_BG));
+            let _ = FillRect(hdc, &log_box, log_bg);
+            let _ = DeleteObject(HGDIOBJ(log_bg.0));
+
             draw_text(
                 hdc,
                 ctx.fonts.small,
                 CLR_MUTED,
-                label,
+                "Recent activity",
                 RECT {
-                    left: drive_row.left,
-                    top: drive_row.top + scale.px(20),
-                    right: drive_switch.left - scale.px(8),
-                    bottom: drive_row.bottom,
+                    left: log_box.left + scale.px(8),
+                    top: log_box.top + scale.px(6),
+                    right: log_box.right,
+                    bottom: log_box.top + scale.px(20),
                 },
-                DT_LEFT | DT_SINGLELINE | DT_VCENTER,
+                DT_LEFT | DT_SINGLELINE,
             );
-        }
-        draw_toggle(hdc, scale, &drive_switch, snap.drive_enabled, ctx.drive_toggle_hover);
 
-        let log_top = drive_top + scale.px(52) + scale.px(4);
-        let log_bottom = rc.bottom - fh - scale.px(8);
-        let log_box = RECT {
-            left: margin,
-            top: log_top,
-            right: rc.right - margin,
-            bottom: log_bottom,
-        };
-        let log_bg = CreateSolidBrush(COLORREF(CLR_LOG_BG));
-        let _ = FillRect(hdc, &log_box, log_bg);
-        let _ = DeleteObject(HGDIOBJ(log_bg.0));
-
-        draw_text(
-            hdc,
-            ctx.fonts.small,
-            CLR_MUTED,
-            "Recent activity",
-            RECT {
-                left: log_box.left + scale.px(8),
-                top: log_box.top + scale.px(6),
-                right: log_box.right,
-                bottom: log_box.top + scale.px(22),
-            },
-            DT_LEFT | DT_SINGLELINE,
-        );
-
-        let mut y = log_box.top + scale.px(26);
-        for line in snap.log_lines.iter().rev().take(12).rev() {
-            if y + scale.px(14) > log_box.bottom - scale.px(4) {
-                break;
+            let line_h = scale.px(13);
+            let mut y = log_box.top + scale.px(24);
+            for line in snap.log_lines.iter().rev() {
+                if y + line_h > log_box.bottom - scale.px(4) {
+                    break;
+                }
+                let line_rc = RECT {
+                    left: log_box.left + scale.px(8),
+                    top: y,
+                    right: log_box.right - scale.px(8),
+                    bottom: y + line_h,
+                };
+                draw_text(hdc, ctx.fonts.log, CLR_TEXT, line, line_rc, DT_LEFT | DT_SINGLELINE);
+                y += line_h;
             }
-            let line_rc = RECT {
-                left: log_box.left + scale.px(8),
-                top: y,
-                right: log_box.right - scale.px(8),
-                bottom: y + scale.px(14),
-            };
-            draw_text(hdc, ctx.fonts.log, CLR_TEXT, line, line_rc, DT_LEFT | DT_SINGLELINE);
-            y += scale.px(14);
         }
 
-        let btns = btn_row(scale, &rc);
-        let labels = ["Open log", "Logs", "Update", "Unpair"];
-        let hovers = [
-            ctx.btn_log_hover,
-            ctx.btn_folder_hover,
-            ctx.btn_update_hover,
-            ctx.btn_unpair_hover,
-        ];
+        let footer_labels = footer_labels(ctx.active_tab);
+        let btns = btn_row(scale, &rc, footer_labels);
         for (i, btn_rc) in btns.iter().enumerate() {
-            draw_round_btn(hdc, scale, btn_rc, hovers[i]);
+            let hover = ctx.btn_footer_hover.get(i).copied().unwrap_or(false);
+            draw_round_btn(hdc, scale, btn_rc, hover);
             draw_text(
                 hdc,
                 ctx.fonts.small,
                 CLR_TEXT,
-                labels[i],
+                footer_labels[i],
                 *btn_rc,
                 DT_CENTER | DT_SINGLELINE | DT_VCENTER,
             );
@@ -745,12 +872,13 @@ pub fn run(
                     scale,
                     fonts,
                     action_tx: ACTION_TX.get().cloned().unwrap_or(None),
+                    active_tab: TAB_STATUS,
                     close_hover: false,
+                    unpair_hover: false,
+                    tab_status_hover: false,
+                    tab_logs_hover: false,
                     drive_toggle_hover: false,
-                    btn_log_hover: false,
-                    btn_folder_hover: false,
-                    btn_update_hover: false,
-                    btn_unpair_hover: false,
+                    btn_footer_hover: [false, false, false],
                 });
                 SetWindowLongPtrW(hwnd, GWLP_USERDATA, Box::into_raw(ctx) as isize);
                 let _ = SetTimer(hwnd, TIMER_ID, 1000, None);
@@ -783,6 +911,15 @@ pub fn run(
                 invalidate_all(hwnd);
                 LRESULT(0)
             }
+            WM_GETMINMAXINFO => {
+                let scale = UiScale::from_hwnd(hwnd);
+                let info = lparam.0 as *mut MINMAXINFO;
+                if !info.is_null() {
+                    (*info).ptMinTrackSize.x = scale.px(WIN_MIN_W);
+                    (*info).ptMinTrackSize.y = scale.px(WIN_MIN_H);
+                }
+                LRESULT(0)
+            }
             WM_MOUSEMOVE => {
                 let x = (lparam.0 & 0xFFFF) as i16 as i32;
                 let y = ((lparam.0 >> 16) & 0xFFFF) as i16 as i32;
@@ -791,37 +928,38 @@ pub fn run(
                 let _ = GetClientRect(hwnd, &mut rc);
                 if let Some(ctx) = ctx_get(hwnd) {
                     let scale = &ctx.scale;
+                    let snap = status_copy();
                     let close = close_rect(scale, &rc);
-                    let btns = btn_row(scale, &rc);
-                    let info_y = title_h(scale) + scale.px(12) + scale.px(72) + scale.px(16);
-                    let info_count = 6i32
-                        + if status_copy().update_staged.is_some() { 1 } else { 0 }
-                        + if status_copy().update_check_msg.is_empty() { 0 } else { 1 };
-                    let drive_top = info_y + info_count * scale.px(18) + scale.px(10);
-                    let (_, drive_switch) = drive_row(scale, &rc, drive_top);
-                    let nh = (
-                        in_rect(pt, &close),
-                        in_rect(pt, &drive_switch),
-                        in_rect(pt, &btns[0]),
-                        in_rect(pt, &btns[1]),
-                        in_rect(pt, &btns[2]),
-                        in_rect(pt, &btns[3]),
-                    );
-                    let oh = (
-                        ctx.close_hover,
-                        ctx.drive_toggle_hover,
-                        ctx.btn_log_hover,
-                        ctx.btn_folder_hover,
-                        ctx.btn_update_hover,
-                        ctx.btn_unpair_hover,
-                    );
-                    if nh != oh {
-                        ctx.close_hover = nh.0;
-                        ctx.drive_toggle_hover = nh.1;
-                        ctx.btn_log_hover = nh.2;
-                        ctx.btn_folder_hover = nh.3;
-                        ctx.btn_update_hover = nh.4;
-                        ctx.btn_unpair_hover = nh.5;
+                    let unpair = unpair_rect(scale, &rc);
+                    let (tab_status, tab_logs) = tab_rects(scale, &rc);
+                    let drive_switch = if ctx.active_tab == TAB_STATUS {
+                        Some(status_drive_switch_rect(scale, &rc, &snap))
+                    } else {
+                        None
+                    };
+                    let footer_btns = btn_row(scale, &rc, footer_labels(ctx.active_tab));
+                    let nh_close = in_rect(pt, &close);
+                    let nh_unpair = in_rect(pt, &unpair);
+                    let nh_tab_status = in_rect(pt, &tab_status);
+                    let nh_tab_logs = in_rect(pt, &tab_logs);
+                    let nh_drive = drive_switch.is_some_and(|r| in_rect(pt, &r));
+                    let mut nh_footer = [false, false, false];
+                    for (i, btn) in footer_btns.iter().enumerate().take(3) {
+                        nh_footer[i] = in_rect(pt, btn);
+                    }
+                    let changed = nh_close != ctx.close_hover
+                        || nh_unpair != ctx.unpair_hover
+                        || nh_tab_status != ctx.tab_status_hover
+                        || nh_tab_logs != ctx.tab_logs_hover
+                        || nh_drive != ctx.drive_toggle_hover
+                        || nh_footer != ctx.btn_footer_hover;
+                    if changed {
+                        ctx.close_hover = nh_close;
+                        ctx.unpair_hover = nh_unpair;
+                        ctx.tab_status_hover = nh_tab_status;
+                        ctx.tab_logs_hover = nh_tab_logs;
+                        ctx.drive_toggle_hover = nh_drive;
+                        ctx.btn_footer_hover = nh_footer;
                         invalidate_all(hwnd);
                     }
                 }
@@ -839,46 +977,66 @@ pub fn run(
                     let _ = ShowWindow(hwnd, SW_HIDE);
                     return LRESULT(0);
                 }
-                let snap = status_copy();
-                let info_y = title_h(&scale) + scale.px(12) + scale.px(72) + scale.px(16);
-                let mut info_count = 6i32;
-                if snap.update_staged.is_some() {
-                    info_count += 1;
-                }
-                if !snap.update_check_msg.is_empty() {
-                    info_count += 1;
-                }
-                let drive_top = info_y + info_count * scale.px(18) + scale.px(10);
-                let (_, drive_switch) = drive_row(&scale, &rc, drive_top);
-                if in_rect(pt, &drive_switch) {
-                    let new_on = !snap.drive_enabled;
-                    if let Err(e) = c_remote_core::config::drive_enabled_save(new_on) {
-                        tracing::warn!("drive_enabled_save: {e:#}");
-                    } else {
-                        c_remote_core::agent_ui::drive_enabled_set(new_on);
-                        if let Some(ctx) = ctx_get(hwnd) {
-                            if let Some(tx) = &ctx.action_tx {
-                                let _ = tx.send(crate::tray::TrayAction::DriveSet(new_on));
-                            }
-                        }
-                        invalidate_all(hwnd);
-                    }
-                    return LRESULT(0);
-                }
-                let btns = btn_row(&scale, &rc);
-                if in_rect(pt, &btns[0]) {
-                    let _ = c_remote_core::log_local::log_open();
-                } else if in_rect(pt, &btns[1]) {
-                    let dir = c_remote_core::log_local::log_dir();
-                    let _ = std::process::Command::new("explorer.exe")
-                        .arg(dir.display().to_string())
-                        .spawn();
-                } else if in_rect(pt, &btns[2]) {
-                    c_remote_core::update::update_check_now();
-                } else if in_rect(pt, &btns[3]) {
+                let unpair = unpair_rect(&scale, &rc);
+                if in_rect(pt, &unpair) {
                     if let Some(ctx) = ctx_get(hwnd) {
                         let tx = ctx.action_tx.clone();
                         confirm_unpair(hwnd, &tx);
+                    }
+                    return LRESULT(0);
+                }
+                let (tab_status, tab_logs) = tab_rects(&scale, &rc);
+                if in_rect(pt, &tab_status) {
+                    if let Some(ctx) = ctx_get(hwnd) {
+                        if ctx.active_tab != TAB_STATUS {
+                            ctx.active_tab = TAB_STATUS;
+                            invalidate_all(hwnd);
+                        }
+                    }
+                    return LRESULT(0);
+                }
+                if in_rect(pt, &tab_logs) {
+                    if let Some(ctx) = ctx_get(hwnd) {
+                        if ctx.active_tab != TAB_LOGS {
+                            ctx.active_tab = TAB_LOGS;
+                            invalidate_all(hwnd);
+                        }
+                    }
+                    return LRESULT(0);
+                }
+                let snap = status_copy();
+                if let Some(ctx) = ctx_get(hwnd) {
+                    if ctx.active_tab == TAB_STATUS {
+                        let drive_switch = status_drive_switch_rect(&scale, &rc, &snap);
+                        if in_rect(pt, &drive_switch) {
+                            let new_on = !snap.drive_enabled;
+                            if let Err(e) = c_remote_core::config::drive_enabled_save(new_on) {
+                                tracing::warn!("drive_enabled_save: {e:#}");
+                            } else {
+                                c_remote_core::agent_ui::drive_enabled_set(new_on);
+                                if let Some(tx) = &ctx.action_tx {
+                                    let _ = tx.send(crate::tray::TrayAction::DriveSet(new_on));
+                                }
+                                invalidate_all(hwnd);
+                            }
+                            return LRESULT(0);
+                        }
+                    }
+                }
+                let active_tab = ctx_get(hwnd).map(|c| c.active_tab).unwrap_or(TAB_STATUS);
+                let btns = btn_row(&scale, &rc, footer_labels(active_tab));
+                if active_tab == TAB_STATUS {
+                    if btns.first().is_some_and(|b| in_rect(pt, b)) {
+                        c_remote_core::update::update_check_now();
+                    }
+                } else {
+                    if btns.first().is_some_and(|b| in_rect(pt, b)) {
+                        let _ = c_remote_core::log_local::log_open();
+                    } else if btns.get(1).is_some_and(|b| in_rect(pt, b)) {
+                        let dir = c_remote_core::log_local::log_dir();
+                        let _ = std::process::Command::new("explorer.exe")
+                            .arg(dir.display().to_string())
+                            .spawn();
                     }
                 }
                 LRESULT(0)
@@ -894,7 +1052,8 @@ pub fn run(
                 }
                 let scale = UiScale::from_hwnd(hwnd);
                 let close = close_rect(&scale, &rc);
-                if in_rect(pt, &close) {
+                let unpair = unpair_rect(&scale, &rc);
+                if in_rect(pt, &close) || in_rect(pt, &unpair) {
                     return LRESULT(HTCLIENT as isize);
                 }
                 if pt.y < title_h(&scale) {
@@ -945,7 +1104,7 @@ pub fn run(
             WS_EX_APPWINDOW,
             class_name,
             w!("Alien AI Agent"),
-            WS_POPUP,
+            WS_POPUP | WS_THICKFRAME | WS_MINIMIZEBOX,
             (cw - WIN_W) / 2,
             (ch - WIN_H) / 2,
             WIN_W,

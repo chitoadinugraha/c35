@@ -39,7 +39,7 @@ class _IoSkillTeachDialogState extends State<_IoSkillTeachDialog> {
   @override
   Widget build(BuildContext context) => AlertDialog(
         backgroundColor: const Color(0xFF18181B),
-        title: const Text('Teach skill', style: TextStyle(color: Color(0xFFF4F4F5), fontSize: 16, fontWeight: FontWeight.bold)),
+        title: const Text('Write skill', style: TextStyle(color: Color(0xFFF4F4F5), fontSize: 16, fontWeight: FontWeight.bold)),
         content: SizedBox(
           width: 420,
           child: Column(

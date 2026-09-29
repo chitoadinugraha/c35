@@ -435,6 +435,9 @@ message ResBillingPackageRedeem {
   string plan_tier = 4;
   int32 duration_months = 5;
   string package_name = 6;
+  // Authoritative wallet snapshot after debit (same as plan change response).
+  double balance_usd = 7;
+  double balance_idr = 8;
 }
 
 message ReqBillingPackagePreview {

@@ -84,13 +84,26 @@ String billingMeterState(double used, double limit) {
   return 'green';
 }
 
+int _billingUpdatedTsMs(BillingAccount account) => account.hasUpdatedTsMs() ? account.updatedTsMs.toInt() : 0;
+
+bool billingPushBalanceIsStale(BillingAccount base, BillingPushBalance push) {
+  final pushTs = push.hasUpdatedTsMs() ? push.updatedTsMs.toInt() : 0;
+  final baseTs = _billingUpdatedTsMs(base);
+  return pushTs > 0 && baseTs > pushTs;
+}
+
 BillingAccount billingAccountMerge(BillingAccount base, {BillingPushBalance? balance, BillingPushQuota? quota, BillingPushCommission? commission}) {
   final out = base.deepCopy();
-  if (balance != null) {
+  if (balance != null && !billingPushBalanceIsStale(base, balance)) {
     out.balanceUsd = balance.balanceUsd;
     out.balanceIdr = balance.balanceIdr;
     if (balance.hasUpdatedTsMs()) out.updatedTsMs = balance.updatedTsMs;
     if (balance.hasCurrency() && balance.currency.isNotEmpty) out.billingCurrency = balance.currency;
+    if (balance.hasBalance()) {
+      final cur = billingCurrencyResolve(fromAccount: out.billingCurrency);
+      if (cur == 'IDR') out.balanceIdr = balance.balance;
+      if (cur == 'USD') out.balanceUsd = balance.balance;
+    }
   }
   if (quota != null) {
     out.alienAllow5hUsed = quota.alienAllow5hUsed;

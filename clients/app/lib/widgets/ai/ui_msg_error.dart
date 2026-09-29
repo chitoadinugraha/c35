@@ -3,13 +3,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 class UiMsgError extends StatelessWidget {
-  const UiMsgError({super.key, required this.message, this.detail, this.messageId, this.onRetry, this.retrying = false});
+  const UiMsgError({
+    super.key,
+    required this.message,
+    this.detail,
+    this.messageId,
+    this.onRetry,
+    this.retrying = false,
+    this.showIcon = true,
+  });
 
   final String message;
   final String? detail;
   final String? messageId;
   final VoidCallback? onRetry;
   final bool retrying;
+  final bool showIcon;
 
   @override
   Widget build(BuildContext context) {
@@ -20,11 +29,13 @@ class UiMsgError extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Padding(
-              padding: EdgeInsets.only(top: 2),
-              child: Icon(Icons.cloud_off_rounded, size: 16, color: Color(0xFFF87171)),
-            ),
-            const SizedBox(width: 8),
+            if (showIcon) ...[
+              const Padding(
+                padding: EdgeInsets.only(top: 2),
+                child: Icon(Icons.cloud_off_rounded, size: 16, color: Color(0xFFF87171)),
+              ),
+              const SizedBox(width: 8),
+            ],
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alienai_c35/c/api/referral_conn.dart';
 import 'package:alienai_c35/c/billing/billing_api.dart';
 import 'package:alienai_c35/c/billing/billing_format.dart';
+import 'package:alienai_c35/c/billing/billing_store_sync.dart';
 import 'package:alienai_c35/c/billing/billing_summary_api.dart';
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
@@ -14,12 +15,22 @@ import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/material.dart';
 
+const _sheetBg = Color(0xFF121215);
+const _cardBg = Color(0xFF18181B);
+const _panelBg = Color(0xFF0F0F12);
+const _text = Color(0xFFE4E4E7);
+const _muted = Color(0xFFA1A1AA);
+const _border = Color(0xFF27272A);
+const _ok = Color(0xFF34D399);
+const _danger = Color(0xFFF87171);
+const _warn = Color(0xFFFBBF24);
+
 Future<void> billingPackageSheet(BuildContext context, {required ReferralConn conn}) async {
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    backgroundColor: const Color(0xFF121215),
+    backgroundColor: _sheetBg,
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
     builder: (ctx) => Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
@@ -38,16 +49,12 @@ class _BillingPackageSheet extends StatefulWidget {
 }
 
 class _BillingPackageSheetState extends State<_BillingPackageSheet> {
-  static const _text = Color(0xFFE4E4E7);
-  static const _muted = Color(0xFFA1A1AA);
-  static const _border = Color(0xFF27272A);
-
   var _loading = true;
   var _subscribing = false;
   var _yearly = false;
   var _quoteLoading = false;
   String? _error;
-  String? _success;
+  String? _successMessage;
   ResBillingSummary? _summary;
   ResBillingPlanQuote? _quote;
   String? _selectedSlug;
@@ -76,10 +83,12 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
       final summary = await billingSummaryGet(widget.conn);
       if (!mounted) return;
       AppStore.instance.billingPut(billingAccountFromSummary(summary, base: AppStore.instance.billing));
+      final yearly = summary.billingPeriod.trim().toLowerCase() == 'yearly';
       setState(() {
         _summary = summary;
         _loading = false;
-        _yearly = (summary.billingPeriod.trim().toLowerCase() == 'yearly');
+        _yearly = yearly;
+        _selectedSlug ??= _defaultSelectedSlug(summary);
       });
       _scheduleQuote();
     } catch (e) {
@@ -89,6 +98,23 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
         _error = uiReferralError(e, fallback: 'Failed to load billing');
       });
     }
+  }
+
+  String _defaultSelectedSlug(ResBillingSummary summary) {
+    final plans = billingPlanCatalogNormalize(
+      (summary.plans.isNotEmpty ? summary.plans : billingPlanCatalogFallback()).where((p) => !billingPlanIsFree(p.slug)),
+    );
+    final tier = (summary.planTier.trim().isEmpty ? AppStore.instance.planTier : summary.planTier).trim().toLowerCase();
+    final active = billingPlanIsFree(tier) ? '' : tier;
+    if (active.isNotEmpty) {
+      for (final p in plans) {
+        if (p.slug.trim().toLowerCase() == active) return p.slug;
+      }
+    }
+    for (final p in plans) {
+      if (billingPlanIsRecommended(p.slug)) return p.slug;
+    }
+    return plans.isNotEmpty ? plans.first.slug : 'lite';
   }
 
   List<BillingPlanDoc> get _plans {
@@ -198,10 +224,10 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
     setState(() {
       _subscribing = true;
       _error = null;
-      _success = null;
+      _successMessage = null;
     });
     try {
-      await billingPlanChange(
+      await billingPlanChangeAndSync(
         widget.conn,
         planSlug: slug,
         billingPeriod: _selectionPeriod,
@@ -209,7 +235,7 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
       );
       if (!mounted) return;
       final label = _selectionIsNoPlan ? 'No plan scheduled' : (_selectedPlan?.name ?? slug);
-      setState(() => _success = 'Updated: $label');
+      setState(() => _successMessage = 'Updated: $label');
       await _load();
       _scheduleQuote();
     } catch (e) {
@@ -220,10 +246,15 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
     }
   }
 
+  void _selectSlug(String slug) => setState(() {
+        _selectedSlug = slug;
+        _scheduleQuote();
+      });
+
   @override
   Widget build(BuildContext context) {
     final billing = AppStore.instance.billing;
-    final maxHeight = MediaQuery.sizeOf(context).height * 0.9;
+    final maxHeight = MediaQuery.sizeOf(context).height * 0.92;
     final balanceAccount = billing ??
         (_summary != null
             ? BillingAccount(
@@ -235,14 +266,14 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
             : null);
     final balanceLabel = balanceAccount != null ? billingWalletBalanceLabel(balanceAccount, _currency) : '';
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       child: ConstrainedBox(
         constraints: BoxConstraints(maxHeight: maxHeight),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: _border, borderRadius: BorderRadius.circular(99)))),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -250,11 +281,11 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Plans', style: TextStyle(color: _text, fontSize: 18, fontWeight: FontWeight.w700)),
+                      const Text('Plans', style: TextStyle(color: _text, fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: -0.3)),
                       const SizedBox(height: 4),
                       Text(
-                        _currency == 'IDR' ? 'Monthly included usage quotas in IDR' : 'Monthly included usage quotas in $_currency',
-                        style: const TextStyle(color: _muted, fontSize: 12),
+                        _currency == 'IDR' ? 'Monthly usage quotas · prices in IDR' : 'Monthly usage quotas · $_currency',
+                        style: const TextStyle(color: _muted, fontSize: 12, height: 1.3),
                       ),
                     ],
                   ),
@@ -263,116 +294,97 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
                   onPressed: _redeemPackage,
                   style: TextButton.styleFrom(
                     visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     foregroundColor: _muted,
+                    backgroundColor: _cardBg,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: const BorderSide(color: _border)),
                     textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
                   ),
                   icon: const Icon(Icons.redeem_outlined, size: 15),
-                  label: const Text('Redeem code'),
+                  label: const Text('Redeem'),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            if (_loading)
-              const Expanded(child: Center(child: UILoading()))
-            else if (_error != null && _summary == null)
-              Expanded(
-                child: Center(
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Text(_error!, style: const TextStyle(color: Color(0xFFF87171))),
-                    const SizedBox(height: 12),
-                    OutlinedButton(onPressed: _load, child: const Text('Retry')),
-                  ]),
-                ),
-              )
-            else ...[
-              SegmentedButton<bool>(
-                segments: const [
-                  ButtonSegment(value: false, label: Text('Monthly')),
-                  ButtonSegment(value: true, label: Text('Yearly')),
-                ],
-                selected: {_yearly},
-                onSelectionChanged: (s) => setState(() {
-                  _yearly = s.first;
-                  _scheduleQuote();
-                }),
-                style: ButtonStyle(
-                  visualDensity: VisualDensity.compact,
-                  foregroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? _text : _muted),
-                ),
-              ),
-              const SizedBox(height: 8),
-              if (_success != null) Text(_success!, style: const TextStyle(color: Color(0xFF34D399), fontSize: 12)),
-              if (_error != null && _summary != null) Text(_error!, style: const TextStyle(color: Color(0xFFF87171), fontSize: 12)),
-              if ((_summary?.pendingPlanSlug ?? '').trim().isNotEmpty) ...[
-                Text(
-                  _pendingPlanHint(_summary!),
-                  style: const TextStyle(color: Color(0xFFFBBF24), fontSize: 11, height: 1.35),
-                ),
-                const SizedBox(height: 6),
-              ],
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.only(top: 4, bottom: 8),
-                  children: [
-                    ..._plans.map(
-                      (plan) => _BillingPlanCard(
-                        plan: plan,
-                        litePlan: _litePlan,
-                        currency: _currency,
-                        yearly: _yearly,
-                        selected: plan.slug == _selectedSlug,
-                        isCurrent: plan.slug.trim().toLowerCase() == _activePlanSlug && _activeBillingPeriod == _selectionPeriod,
-                        recommended: billingPlanIsRecommended(plan.slug),
-                        onTap: () => setState(() {
-                          _selectedSlug = plan.slug;
-                          _scheduleQuote();
-                        }),
-                      ),
-                    ),
-                    if (billingPlanIsPaidTier(_activePlanSlug) || (_summary?.pendingPlanSlug ?? '').isNotEmpty)
-                      _BillingNoPlanCard(
-                        selected: _selectionIsNoPlan,
-                        onTap: () => setState(() {
-                          _selectedSlug = billingPlanNoPlanSlug;
-                          _scheduleQuote();
-                        }),
-                      ),
-                  ],
-                ),
-              ),
-              if (_quote != null && _selectedSlug != null) ...[
-                _BillingPlanQuotePanel(quote: _quote!, currency: _currency, loading: _quoteLoading),
-                const SizedBox(height: 8),
-              ] else if (_quoteLoading) ...[
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
-                ),
-                const SizedBox(height: 8),
-              ],
-              if (balanceLabel.isNotEmpty) ...[
-                Row(
-                  children: [
-                    const Icon(Icons.account_balance_wallet_outlined, size: 14, color: _muted),
-                    const SizedBox(width: 6),
-                    Text('Balance $balanceLabel', style: const TextStyle(color: _muted, fontSize: 11)),
-                  ],
-                ),
-                const SizedBox(height: 8),
-              ],
-              FilledButton(
-                onPressed: _subscribing || _selectedSlug == null || _selectedIsCurrent || (_quote?.kind == 'same') ? null : _applyPlanChange,
-                child: _subscribing
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                    : Text(_primaryButtonLabel),
-              ),
-            ],
+            const SizedBox(height: 14),
+            Expanded(child: _buildBody(balanceLabel)),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildBody(String balanceLabel) {
+    if (_loading) return const Center(child: UILoading());
+    if (_error != null && _summary == null) {
+      return Center(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(_error!, style: const TextStyle(color: _danger)),
+          const SizedBox(height: 12),
+          OutlinedButton(onPressed: _load, child: const Text('Retry')),
+        ]),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _BillingPeriodToggle(
+          yearly: _yearly,
+          onChanged: (y) => setState(() {
+            _yearly = y;
+            _scheduleQuote();
+          }),
+        ),
+        const SizedBox(height: 10),
+        if (_successMessage != null) _BillingBanner(message: _successMessage!, color: _ok, icon: Icons.check_circle_outline),
+        if (_error != null && _summary != null) ...[
+          if (_successMessage != null) const SizedBox(height: 6),
+          _BillingBanner(message: _error!, color: _danger, icon: Icons.error_outline),
+        ],
+        if ((_summary?.pendingPlanSlug ?? '').trim().isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _BillingBanner(message: _pendingPlanHint(_summary!), color: _warn, icon: Icons.schedule_outlined),
+        ],
+        const SizedBox(height: 8),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.only(top: 2, bottom: 12),
+            children: [
+              ..._plans.map(
+                (plan) => _BillingPlanCard(
+                  plan: plan,
+                  litePlan: _litePlan,
+                  currency: _currency,
+                  yearly: _yearly,
+                  selected: plan.slug == _selectedSlug,
+                  expanded: plan.slug == _selectedSlug,
+                  isCurrent: plan.slug.trim().toLowerCase() == _activePlanSlug && _activeBillingPeriod == _selectionPeriod,
+                  recommended: billingPlanIsRecommended(plan.slug),
+                  onTap: () => _selectSlug(plan.slug),
+                ),
+              ),
+              if (billingPlanIsPaidTier(_activePlanSlug) || (_summary?.pendingPlanSlug ?? '').isNotEmpty)
+                _BillingNoPlanCard(
+                  selected: _selectionIsNoPlan,
+                  expanded: _selectionIsNoPlan,
+                  onTap: () => _selectSlug(billingPlanNoPlanSlug),
+                ),
+            ],
+          ),
+        ),
+        _BillingCheckoutBar(
+          quote: _quote,
+          quoteLoading: _quoteLoading,
+          selectedSlug: _selectedSlug,
+          currency: _currency,
+          balanceLabel: balanceLabel,
+          buttonLabel: _primaryButtonLabel,
+          subscribing: _subscribing,
+          buttonEnabled: !_subscribing && _selectedSlug != null && !_selectedIsCurrent && (_quote?.kind != 'same'),
+          onConfirm: _applyPlanChange,
+        ),
+      ],
     );
   }
 
@@ -385,6 +397,145 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
   }
 }
 
+class _BillingPeriodToggle extends StatelessWidget {
+  const _BillingPeriodToggle({required this.yearly, required this.onChanged});
+
+  final bool yearly;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SegmentedButton<bool>(
+            segments: [
+              const ButtonSegment(value: false, label: Text('Monthly')),
+              ButtonSegment(
+                value: true,
+                label: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Yearly'),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                      decoration: BoxDecoration(color: _ok.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(4)),
+                      child: const Text('−20%', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: _ok)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            selected: {yearly},
+            onSelectionChanged: (s) => onChanged(s.first),
+            style: ButtonStyle(
+              visualDensity: VisualDensity.compact,
+              foregroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? _text : _muted),
+            ),
+          ),
+          if (yearly)
+            const Padding(
+              padding: EdgeInsets.only(top: 6, left: 2),
+              child: Text('+20% Alien AI pool on yearly billing', style: TextStyle(color: _ok, fontSize: 10, height: 1.25)),
+            ),
+        ],
+      );
+}
+
+class _BillingBanner extends StatelessWidget {
+  const _BillingBanner({required this.message, required this.color, required this.icon});
+
+  final String message;
+  final Color color;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: double.infinity,
+        margin: const EdgeInsets.only(bottom: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withValues(alpha: 0.35)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message, style: TextStyle(color: color, fontSize: 11, height: 1.35, fontWeight: FontWeight.w500))),
+          ],
+        ),
+      );
+}
+
+class _BillingCheckoutBar extends StatelessWidget {
+  const _BillingCheckoutBar({
+    required this.quote,
+    required this.quoteLoading,
+    required this.selectedSlug,
+    required this.currency,
+    required this.balanceLabel,
+    required this.buttonLabel,
+    required this.subscribing,
+    required this.buttonEnabled,
+    required this.onConfirm,
+  });
+
+  final ResBillingPlanQuote? quote;
+  final bool quoteLoading;
+  final String? selectedSlug;
+  final String currency;
+  final String balanceLabel;
+  final String buttonLabel;
+  final bool subscribing;
+  final bool buttonEnabled;
+  final VoidCallback onConfirm;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: EdgeInsets.fromLTRB(0, 12, 0, 12 + MediaQuery.paddingOf(context).bottom),
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: _border)),
+          color: _sheetBg,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (quote != null && selectedSlug != null)
+              _BillingPlanQuotePanel(quote: quote!, currency: currency, loading: quoteLoading)
+            else if (quoteLoading)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                ),
+              ),
+            if (balanceLabel.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.account_balance_wallet_outlined, size: 14, color: _muted),
+                  const SizedBox(width: 6),
+                  Text('Balance $balanceLabel', style: const TextStyle(color: _muted, fontSize: 11)),
+                ],
+              ),
+            ],
+            const SizedBox(height: 10),
+            FilledButton(
+              onPressed: buttonEnabled ? onConfirm : null,
+              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              child: subscribing
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                  : Text(buttonLabel, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+            ),
+          ],
+        ),
+      );
+}
+
 class _BillingPlanCard extends StatelessWidget {
   const _BillingPlanCard({
     required this.plan,
@@ -392,6 +543,7 @@ class _BillingPlanCard extends StatelessWidget {
     required this.currency,
     required this.yearly,
     required this.selected,
+    required this.expanded,
     required this.isCurrent,
     required this.recommended,
     required this.onTap,
@@ -402,13 +554,10 @@ class _BillingPlanCard extends StatelessWidget {
   final String currency;
   final bool yearly;
   final bool selected;
+  final bool expanded;
   final bool isCurrent;
   final bool recommended;
   final VoidCallback onTap;
-
-  static const _text = Color(0xFFE4E4E7);
-  static const _muted = Color(0xFFA1A1AA);
-  static const _border = Color(0xFF27272A);
 
   @override
   Widget build(BuildContext context) {
@@ -416,105 +565,88 @@ class _BillingPlanCard extends StatelessWidget {
     final price = billingPlanPriceLabel(plan, currency: currency, yearly: yearly);
     final priceSub = billingPlanPriceSubLabel(plan, currency: currency, yearly: yearly);
     final quotaLines = billingPlanQuotaLines(plan, litePlan: litePlan, yearly: yearly);
+    final chips = billingPlanSummaryChips(plan, yearly: yearly);
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           onTap: onTap,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: selected ? accent : _border, width: selected ? 1.5 : 1),
-              color: selected ? accent.withValues(alpha: 0.06) : const Color(0xFF18181B),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: selected ? accent : _border, width: selected ? 2 : 1),
+              color: selected ? Color.alphaBlend(accent.withValues(alpha: 0.08), _cardBg) : _cardBg,
+              boxShadow: selected ? [BoxShadow(color: accent.withValues(alpha: 0.12), blurRadius: 16, offset: const Offset(0, 4))] : null,
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Text(plan.name, style: TextStyle(color: accent, fontWeight: FontWeight.w800, fontSize: 16)),
-                            if (recommended) ...[
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                decoration: BoxDecoration(color: accent.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(99)),
-                                child: Text('Popular', style: TextStyle(color: accent, fontSize: 10, fontWeight: FontWeight.w700)),
-                              ),
-                            ],
-                            if (isCurrent) ...[
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                decoration: BoxDecoration(color: const Color(0xFF27272A), borderRadius: BorderRadius.circular(99)),
-                                child: const Text('Current', style: TextStyle(color: _text, fontSize: 10, fontWeight: FontWeight.w600)),
-                              ),
-                            ],
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(price, style: const TextStyle(color: _text, fontWeight: FontWeight.w700, fontSize: 17)),
-                        if (priceSub != null) Text(priceSub, style: const TextStyle(color: _muted, fontSize: 11)),
-                        if (quotaLines.isNotEmpty) ...[
-                          const SizedBox(height: 10),
-                          ...quotaLines.map(
-                            (line) => line.kind == BillingPlanLineKind.sectionHeader
-                                ? Padding(
-                                    padding: EdgeInsets.only(top: line.label == 'Limits' ? 6 : 0, bottom: 4),
-                                    child: Text(
-                                      line.label,
-                                      style: const TextStyle(
-                                        color: _muted,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: 0.4,
-                                        height: 1.2,
-                                      ),
-                                    ),
-                                  )
-                                : Padding(
-                                    padding: const EdgeInsets.only(bottom: 5),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                                      children: [
-                                        Row(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Expanded(child: _BillingPlanQuotaLabel(line: line, accent: accent)),
-                                            _BillingPlanQuotaValue(line: line, accent: accent),
-                                          ],
-                                        ),
-                                        if (line.info != null && line.info!.trim().isNotEmpty)
-                                          Padding(
-                                            padding: const EdgeInsets.only(top: 3),
-                                            child: Text(
-                                              line.info!,
-                                              style: const TextStyle(color: _muted, fontSize: 10, height: 1.35),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                          ),
-                        ],
-                      ],
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (selected)
+                  Container(
+                    height: 3,
+                    decoration: BoxDecoration(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+                      gradient: LinearGradient(colors: [accent.withValues(alpha: 0.2), accent]),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Icon(selected ? Icons.radio_button_checked : Icons.radio_button_off, color: selected ? accent : _muted, size: 22),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 4,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    Text(plan.name, style: TextStyle(color: accent, fontWeight: FontWeight.w800, fontSize: 17, letterSpacing: -0.2)),
+                                    if (recommended) _BillingPlanBadge(label: 'Popular', color: accent),
+                                    if (isCurrent) const _BillingPlanBadge(label: 'Current', color: _text, filled: true),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Text(price, style: const TextStyle(color: _text, fontWeight: FontWeight.w800, fontSize: 20, letterSpacing: -0.4)),
+                                if (priceSub != null) Text(priceSub, style: const TextStyle(color: _muted, fontSize: 11, height: 1.3)),
+                              ],
+                            ),
+                          ),
+                          Icon(selected ? Icons.radio_button_checked : Icons.radio_button_off, color: selected ? accent : _muted, size: 24),
+                        ],
+                      ),
+                      if (!expanded && chips.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        _BillingPlanChipRow(chips: chips, accent: accent),
+                      ],
+                      AnimatedCrossFade(
+                        duration: const Duration(milliseconds: 220),
+                        crossFadeState: expanded && quotaLines.isNotEmpty ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+                        sizeCurve: Curves.easeOutCubic,
+                        firstChild: const SizedBox(width: double.infinity),
+                        secondChild: Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: _BillingPlanDetailPanel(lines: quotaLines, accent: accent),
+                        ),
+                      ),
+                      if (!expanded)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text('Tap to compare features', style: TextStyle(color: _muted.withValues(alpha: 0.85), fontSize: 10, fontWeight: FontWeight.w500)),
+                        ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
@@ -523,63 +655,151 @@ class _BillingPlanCard extends StatelessWidget {
   }
 }
 
+class _BillingPlanBadge extends StatelessWidget {
+  const _BillingPlanBadge({required this.label, required this.color, this.filled = false});
+
+  final String label;
+  final Color color;
+  final bool filled;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        decoration: BoxDecoration(
+          color: filled ? _border : color.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(99),
+        ),
+        child: Text(label, style: TextStyle(color: filled ? _text : color, fontSize: 10, fontWeight: FontWeight.w700)),
+      );
+}
+
+class _BillingPlanChipRow extends StatelessWidget {
+  const _BillingPlanChipRow({required this.chips, required this.accent});
+
+  final List<String> chips;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) => Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: chips
+            .map(
+              (c) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                decoration: BoxDecoration(
+                  color: _panelBg,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: _border),
+                ),
+                child: Text(c, style: const TextStyle(color: _text, fontSize: 10, fontWeight: FontWeight.w600, height: 1.2)),
+              ),
+            )
+            .toList(),
+      );
+}
+
+class _BillingPlanDetailPanel extends StatelessWidget {
+  const _BillingPlanDetailPanel({required this.lines, required this.accent});
+
+  final List<BillingPlanQuotaLine> lines;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: _panelBg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: _border.withValues(alpha: 0.85)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < lines.length; i++) ...[
+              if (lines[i].kind == BillingPlanLineKind.sectionHeader)
+                Padding(
+                  padding: EdgeInsets.only(top: lines[i].label == 'Limits' ? 8 : 0, bottom: 8),
+                  child: _BillingSectionHeader(title: lines[i].label),
+                )
+              else
+                Padding(
+                  padding: EdgeInsets.only(bottom: i == lines.length - 1 ? 0 : 8),
+                  child: _BillingPlanQuotaRow(line: lines[i], accent: accent),
+                ),
+            ],
+          ],
+        ),
+      );
+}
+
+class _BillingSectionHeader extends StatelessWidget {
+  const _BillingSectionHeader({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          Text(title.toUpperCase(), style: const TextStyle(color: _muted, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 0.6)),
+          const SizedBox(width: 8),
+          const Expanded(child: Divider(color: _border, height: 1)),
+        ],
+      );
+}
+
 class _BillingNoPlanCard extends StatelessWidget {
-  const _BillingNoPlanCard({required this.selected, required this.onTap});
+  const _BillingNoPlanCard({required this.selected, required this.expanded, required this.onTap});
 
   final bool selected;
+  final bool expanded;
   final VoidCallback onTap;
 
-  static const _text = Color(0xFFE4E4E7);
-  static const _muted = Color(0xFFA1A1AA);
-  static const _border = Color(0xFF27272A);
   static const _accent = Color(0xFF71717A);
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: onTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: selected ? _accent : _border, width: selected ? 1.5 : 1),
-              color: selected ? _accent.withValues(alpha: 0.06) : const Color(0xFF18181B),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('No plan', style: TextStyle(color: _text, fontWeight: FontWeight.w800, fontSize: 16)),
-                        const SizedBox(height: 4),
-                        const Text(
-                          'Cancel paid plan at period end — freemium limits after.',
-                          style: TextStyle(color: _muted, fontSize: 11, height: 1.35),
-                        ),
-                      ],
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: onTap,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: selected ? _accent : _border, width: selected ? 2 : 1),
+                color: selected ? _accent.withValues(alpha: 0.06) : _cardBg,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('No plan', style: TextStyle(color: _text, fontWeight: FontWeight.w800, fontSize: 16)),
+                          const SizedBox(height: 4),
+                          Text(
+                            expanded
+                                ? 'Your paid plan stays active until the period ends. After that, daily free limits apply (Alien AI only).'
+                                : 'Cancel paid plan at period end',
+                            style: const TextStyle(color: _muted, fontSize: 11, height: 1.35),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Icon(selected ? Icons.radio_button_checked : Icons.radio_button_off, color: selected ? _accent : _muted, size: 22),
-                  ),
-                ],
+                    Icon(selected ? Icons.radio_button_checked : Icons.radio_button_off, color: selected ? _accent : _muted, size: 24),
+                  ],
+                ),
               ),
             ),
           ),
         ),
-      ),
-    );
-  }
+      );
 }
 
 class _BillingPlanQuotePanel extends StatelessWidget {
@@ -589,111 +809,142 @@ class _BillingPlanQuotePanel extends StatelessWidget {
   final String currency;
   final bool loading;
 
-  static const _text = Color(0xFFE4E4E7);
-  static const _muted = Color(0xFFA1A1AA);
-  static const _border = Color(0xFF27272A);
-
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _border),
-        color: const Color(0xFF18181B),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(quote.summary, style: const TextStyle(color: _text, fontSize: 12, height: 1.35)),
-          if (quote.lines.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            ...quote.lines.map(
-              (line) => Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  children: [
-                    Expanded(child: Text(line.label, style: const TextStyle(color: _muted, fontSize: 11))),
-                    Text(
-                      line.isCredit ? '−${billingFmtRp(line.amountIdr)}' : billingFmtRp(line.amountIdr),
-                      style: TextStyle(
-                        color: line.isCredit ? const Color(0xFF34D399) : _text,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: _border),
+          color: _cardBg,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(quote.summary, style: const TextStyle(color: _text, fontSize: 12, height: 1.35, fontWeight: FontWeight.w500)),
+            if (quote.lines.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              ...quote.lines.map(
+                (line) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    children: [
+                      Expanded(child: Text(line.label, style: const TextStyle(color: _muted, fontSize: 11))),
+                      Text(
+                        line.isCredit ? '−${billingFmtRp(line.amountIdr)}' : billingFmtRp(line.amountIdr),
+                        style: TextStyle(
+                          color: line.isCredit ? _ok : _text,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
-          if (quote.yearlyAlienBonus)
-            const Padding(
-              padding: EdgeInsets.only(top: 4),
-              child: Text(
-                'Yearly billing: +20% Alien AI pool, 5h, and weekly allowance.',
-                style: TextStyle(color: Color(0xFF34D399), fontSize: 10, height: 1.3),
+            ],
+            if (quote.yearlyAlienBonus)
+              const Padding(
+                padding: EdgeInsets.only(top: 4),
+                child: Text(
+                  'Yearly billing: +20% Alien AI pool, 5h, and weekly allowance.',
+                  style: TextStyle(color: _ok, fontSize: 10, height: 1.3),
+                ),
               ),
-            ),
-          if (loading)
-            const Padding(
-              padding: EdgeInsets.only(top: 6),
-              child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
-            ),
-        ],
-      ),
-    );
-  }
+            if (loading)
+              const Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+              ),
+          ],
+        ),
+      );
 }
 
-class _BillingPlanQuotaLabel extends StatelessWidget {
-  const _BillingPlanQuotaLabel({required this.line, required this.accent});
+class _BillingPlanQuotaRow extends StatelessWidget {
+  const _BillingPlanQuotaRow({required this.line, required this.accent});
 
   final BillingPlanQuotaLine line;
   final Color accent;
-
-  static const _muted = Color(0xFFA1A1AA);
 
   @override
   Widget build(BuildContext context) {
     final cmp = billingPlanQuotaLineSkipsComparison(line.label) ? null : line.comparison;
-    if (cmp == null) return Text(line.label, style: const TextStyle(color: _muted, fontSize: 12, height: 1.25));
-    return Text.rich(
-      TextSpan(
-        style: const TextStyle(color: _muted, fontSize: 12, height: 1.25),
-        children: [
-          TextSpan(text: line.label),
-          TextSpan(
-            text: ' $cmp',
-            style: TextStyle(color: accent, fontSize: 11, fontWeight: FontWeight.w700, height: 1.25),
+    final value = line.value.trim();
+    final isIncludedOnly = value.toLowerCase() == 'included';
+    final showIncludedTag = line.showsIncluded && value.isNotEmpty && !isIncludedOnly;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(line.label, style: const TextStyle(color: _text, fontSize: 12, height: 1.3, fontWeight: FontWeight.w500)),
+                  if (cmp != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(cmp, style: TextStyle(color: accent, fontSize: 10, fontWeight: FontWeight.w600, height: 1.25)),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            if (isIncludedOnly)
+              _BillingIncludedPill(accent: accent)
+            else if (value.isNotEmpty)
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      value,
+                      textAlign: TextAlign.end,
+                      style: TextStyle(
+                        color: line.valueAccent ? accent : _text,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        height: 1.3,
+                      ),
+                    ),
+                    if (showIncludedTag) Padding(padding: const EdgeInsets.only(top: 4), child: _BillingIncludedPill(accent: accent)),
+                  ],
+                ),
+              ),
+          ],
+        ),
+        if (line.info != null && line.info!.trim().isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 5, left: 0),
+            child: Text(line.info!, style: const TextStyle(color: _muted, fontSize: 10, height: 1.4)),
           ),
-        ],
-      ),
+      ],
     );
   }
 }
 
-class _BillingPlanQuotaValue extends StatelessWidget {
-  const _BillingPlanQuotaValue({required this.line, required this.accent});
+class _BillingIncludedPill extends StatelessWidget {
+  const _BillingIncludedPill({required this.accent});
 
-  final BillingPlanQuotaLine line;
   final Color accent;
 
-  static const _text = Color(0xFFE4E4E7);
-
   @override
-  Widget build(BuildContext context) {
-    final valueText = line.showsIncluded && line.value.isNotEmpty ? '${line.value} · Included' : line.value;
-    if (valueText.isEmpty) return const SizedBox.shrink();
-    return Text(
-        valueText,
-        textAlign: TextAlign.end,
-        style: TextStyle(
-          color: line.valueAccent ? accent : _text,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          height: 1.25,
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: accent.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: accent.withValues(alpha: 0.35)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.check_rounded, size: 12, color: accent),
+            const SizedBox(width: 3),
+            Text('Included', style: TextStyle(color: accent, fontSize: 10, fontWeight: FontWeight.w700)),
+          ],
         ),
       );
-  }
 }

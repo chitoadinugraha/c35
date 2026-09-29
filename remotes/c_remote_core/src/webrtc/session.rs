@@ -7,6 +7,7 @@ use bytes::Bytes;
 
 use c35_proto::{
     pb_decode, pb_encode, RemoteConnectionMode, RemoteCursorEvent, RemoteFsListReq,
+    RemoteScreenControl,
     RemoteFsListRes, RemoteFsReadReq, RemoteFsReadRes, RemoteSessionPush, ReqRemoteCommand,
     ReqRemoteFsList, ReqRemoteFsRead, ReqRemoteScreenshot, ReqRemoteSessionStart,
     ResRemoteCommand, ResRemoteScreenshot, RtcSignalAnswer, RtcSignalIce, RtcSignalOffer, WsReq,
@@ -28,6 +29,8 @@ use webrtc::track::track_local::track_local_static_sample::TrackLocalStaticSampl
 use webrtc::track::track_local::TrackLocal;
 
 use super::fs::{fs_dispatch, fs_list, fs_read, recycle_bin_list_powershell_command, FS_READ_WS_MAX};
+use super::teach::teach_dispatch;
+use crate::skill_teach;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -507,10 +510,10 @@ impl WebrtcSession {
             ))
         });
         if let Some(v) = &video_track {
-            let _ = pc.add_track(Arc::clone(v) as Arc<dyn TrackLocal + Send + Sync>);
+            let _ = pc.add_track(Arc::clone(v) as Arc<dyn TrackLocal + Send + Sync>).await;
         }
         if let Some(a) = &audio_track {
-            let _ = pc.add_track(Arc::clone(a) as Arc<dyn TrackLocal + Send + Sync>);
+            let _ = pc.add_track(Arc::clone(a) as Arc<dyn TrackLocal + Send + Sync>).await;
         }
 
         let connected_pushed = Arc::new(RwLock::new(false));
@@ -585,6 +588,8 @@ impl WebrtcSession {
             info!(session_id = %sid_dc, label = %label, "==> [WEBRTC DATA CHANNEL OPENED] Channel '{}' ready", label);
             if label == "remote-fs" {
                 wire_fs_channel(dc);
+            } else if label == "remote-teach" {
+                wire_teach_channel(dc);
             } else if label == "remote-input" {
                 wire_input_channel(dc);
             } else if label == "remote-screen" {
@@ -644,6 +649,20 @@ pub fn dispatch_screen_channel(dc: Arc<webrtc::data_channel::RTCDataChannel>) {
     }
 }
 
+pub type ScreenControlHandler = Arc<dyn Fn(u8) + Send + Sync>;
+static SCREEN_CONTROL_HANDLER: std::sync::OnceLock<ScreenControlHandler> =
+    std::sync::OnceLock::new();
+
+pub fn set_screen_control_handler(handler: ScreenControlHandler) {
+    let _ = SCREEN_CONTROL_HANDLER.set(handler);
+}
+
+pub fn dispatch_screen_control(quality: u8) {
+    if let Some(h) = SCREEN_CONTROL_HANDLER.get() {
+        h(quality);
+    }
+}
+
 pub type TrackHandler = Arc<
     dyn Fn(Arc<TrackLocalStaticSample>, Option<Arc<TrackLocalStaticSample>>) + Send + Sync,
 >;
@@ -687,6 +706,16 @@ pub fn dispatch_screenshot(
 }
 
 fn wire_screen_channel(dc: Arc<webrtc::data_channel::RTCDataChannel>) {
+    dc.on_message(Box::new(|msg: DataChannelMessage| {
+        let data = msg.data.to_vec();
+        Box::pin(async move {
+            if let Ok(ctrl) = pb_decode::<RemoteScreenControl>(&data) {
+                if ctrl.quality > 0 {
+                    dispatch_screen_control(ctrl.quality.min(100) as u8);
+                }
+            }
+        })
+    }));
     dc.on_open(Box::new({
         let dc = Arc::clone(&dc);
         move || {
@@ -763,6 +792,26 @@ fn wire_fs_channel(dc: Arc<webrtc::data_channel::RTCDataChannel>) {
                 let resp = fs_dispatch(&data);
                 if let Err(e) = ch.send(&Bytes::from(resp)).await {
                     warn!("remote-fs send failed: {e}");
+                }
+            })
+        }
+    }));
+}
+
+fn wire_teach_channel(dc: Arc<webrtc::data_channel::RTCDataChannel>) {
+    dc.on_close(Box::new(|| {
+        skill_teach::teach_discard();
+        Box::pin(async {})
+    }));
+    dc.on_message(Box::new({
+        let dc = Arc::clone(&dc);
+        move |msg: DataChannelMessage| {
+            let data = msg.data.to_vec();
+            let ch = Arc::clone(&dc);
+            Box::pin(async move {
+                let resp = teach_dispatch(&data);
+                if let Err(e) = ch.send(&Bytes::from(resp)).await {
+                    warn!("remote-teach send failed: {e}");
                 }
             })
         }

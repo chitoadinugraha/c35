@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 class WalletRow {
   WalletRow({
     this.balanceUsd = 0,
+    this.balanceIdr = 0,
     this.allow5hUsed = 0,
     this.allow5hLimit = 0,
     this.allowWeeklyUsed = 0,
@@ -15,6 +16,7 @@ class WalletRow {
   });
 
   final double balanceUsd;
+  final double balanceIdr;
   final double allow5hUsed;
   final double allow5hLimit;
   final double allowWeeklyUsed;
@@ -36,6 +38,7 @@ class AppStore extends ChangeNotifier {
     if (b == null) return WalletRow();
     return WalletRow(
       balanceUsd: b.balanceUsd,
+      balanceIdr: b.balanceIdr,
       allow5hUsed: b.alienAllow5hUsed,
       allow5hLimit: b.alienAllow5hLimit,
       allowWeeklyUsed: b.alienAllowWeeklyUsed,
@@ -55,14 +58,18 @@ class AppStore extends ChangeNotifier {
     return billingMeterState(b.alienAllow5hUsed, b.alienAllow5hLimit);
   }
 
-  void billingPut(BillingAccount account) {
+  void billingPut(BillingAccount account, {bool force = false}) {
+    final cur = billing;
+    if (!force && cur != null && _billingUpdatedTsMs(cur) > _billingUpdatedTsMs(account) && _billingUpdatedTsMs(account) > 0) return;
     billing = account;
     notifyListeners();
   }
 
+  int _billingUpdatedTsMs(BillingAccount account) => account.hasUpdatedTsMs() ? account.updatedTsMs.toInt() : 0;
+
   void billingBalancePush(BillingPushBalance push) {
-    if (billing == null) return;
-    billing = billingAccountMerge(billing!, balance: push);
+    final base = billing ?? BillingAccount(billingCurrency: push.hasCurrency() && push.currency.isNotEmpty ? push.currency : 'IDR');
+    billing = billingAccountMerge(base, balance: push);
     notifyListeners();
   }
 
@@ -81,6 +88,7 @@ class AppStore extends ChangeNotifier {
   void walletPut(WalletRow row) {
     billing = BillingAccount(
       balanceUsd: row.balanceUsd,
+      balanceIdr: row.balanceIdr,
       alienAllow5hUsed: row.allow5hUsed,
       alienAllow5hLimit: row.allow5hLimit,
       alienAllowWeeklyUsed: row.allowWeeklyUsed,

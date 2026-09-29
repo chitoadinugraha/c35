@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:alienai_c35/c/api/referral_conn.dart';
 import 'package:alienai_c35/c/billing/billing_api.dart';
+import 'package:alienai_c35/c/billing/billing_store_sync.dart';
 import 'package:alienai_c35/c/billing/finance_api.dart';
 import 'package:alienai_c35/c/cas/cas_client.dart';
 import 'package:alienai_c35/c/media/ask_media.dart';
@@ -181,7 +182,10 @@ class _UiBillingTopupPanelState extends State<UiBillingTopupPanel> {
       setState(() => _pollStatus = status);
       if (status == 'settled' || status == 'failed' || status == 'expired' || status == 'rejected') {
         _pollTimer?.cancel();
-        if (status == 'settled') widget.onSubmitted?.call();
+        if (status == 'settled') {
+          unawaited(billingStoreRefresh(widget.conn));
+          widget.onSubmitted?.call();
+        }
       }
     } catch (_) {}
   }

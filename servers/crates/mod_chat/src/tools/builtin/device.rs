@@ -1,4 +1,6 @@
+use crate::mention_context::device_iid_resolve;
 use crate::tool;
+use crate::tools::context::ToolContext;
 use crate::tools::device_screenshot_artifact::device_screenshot_attach_artifact;
 use c35_mod_device::{
     remote_device_command_run, remote_device_fs_list, remote_device_fs_read, remote_device_input_send,
@@ -43,6 +45,11 @@ fn device_fail(error: impl Into<String>) -> Value {
     })
 }
 
+fn resolve_device_iid(args: &Value, ctx: &ToolContext) -> Result<i64, Value> {
+    let direct = arg_i64(args, "device_iid");
+    device_iid_resolve(&ctx.mention, &ctx.mention_ids, direct).map_err(|e| device_fail(e.to_string()))
+}
+
 tool! {
     struct: ShellRunTool,
     name: "shell.run",
@@ -59,12 +66,12 @@ tool! {
         timeout_sec: (integer, "Execution timeout in seconds (default 15, max 60)", optional),
     },
     execute: |args, ctx| {
-        let device_iid = arg_i64(&args, "device_iid");
+        let device_iid = match resolve_device_iid(&args, ctx) {
+            Ok(iid) => iid,
+            Err(v) => return Ok(v),
+        };
         let command = args["command"].as_str().unwrap_or_default().trim();
         let timeout_sec = args["timeout_sec"].as_i64().unwrap_or(15).clamp(1, 60) as u32;
-        if device_iid <= 0 {
-            return Ok(device_fail("device_iid is required"));
-        }
         if command.is_empty() {
             return Ok(device_fail("command cannot be empty"));
         }
@@ -115,10 +122,10 @@ tool! {
         som: (boolean, "Optional Set-of-Mark (SoM) visual tags and accessibility tree extraction. When true, labels interactive controls with numbered badges and returns exact coordinates.", optional),
     },
     execute: |args, ctx| {
-        let device_iid = arg_i64(&args, "device_iid");
-        if device_iid <= 0 {
-            return Ok(device_fail("device_iid is required"));
-        }
+        let device_iid = match resolve_device_iid(&args, ctx) {
+            Ok(iid) => iid,
+            Err(v) => return Ok(v),
+        };
         let max_width = args["max_width"].as_i64().unwrap_or(1280).clamp(320, 3840) as u32;
         let quality = args["quality"].as_i64().unwrap_or(72).clamp(20, 100) as u32;
         let som = args["som"].as_bool().unwrap_or(false);
@@ -198,10 +205,10 @@ tool! {
         screenshot_after: (boolean, "If true, captures and returns a new screenshot with a red target marker showing where the click landed to verify action", optional),
     },
     execute: |args, ctx| {
-        let device_iid = arg_i64(&args, "device_iid");
-        if device_iid <= 0 {
-            return Ok(device_fail("device_iid is required"));
-        }
+        let device_iid = match resolve_device_iid(&args, ctx) {
+            Ok(iid) => iid,
+            Err(v) => return Ok(v),
+        };
         let mut event_type = args["event_type"].as_str().unwrap_or_default().trim().to_lowercase();
         if event_type.is_empty() {
             return Ok(device_fail("event_type is required"));
@@ -307,10 +314,10 @@ tool! {
         path: (string, "Directory path on the device (empty string lists drives)", optional),
     },
     execute: |args, ctx| {
-        let device_iid = arg_i64(&args, "device_iid");
-        if device_iid <= 0 {
-            return Ok(device_fail("device_iid is required"));
-        }
+        let device_iid = match resolve_device_iid(&args, ctx) {
+            Ok(iid) => iid,
+            Err(v) => return Ok(v),
+        };
         let path = args["path"].as_str().unwrap_or_default();
 
         match remote_device_fs_list(
@@ -361,10 +368,10 @@ tool! {
         max_bytes: (integer, "Max bytes to read (default 256KB, server cap 256KB)", optional),
     },
     execute: |args, ctx| {
-        let device_iid = arg_i64(&args, "device_iid");
-        if device_iid <= 0 {
-            return Ok(device_fail("device_iid is required"));
-        }
+        let device_iid = match resolve_device_iid(&args, ctx) {
+            Ok(iid) => iid,
+            Err(v) => return Ok(v),
+        };
         let path = args["path"].as_str().unwrap_or_default().trim();
         if path.is_empty() {
             return Ok(device_fail("path is required"));

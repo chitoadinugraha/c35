@@ -333,6 +333,7 @@ pub fn start_video_stream(video_track: Arc<TrackLocalStaticSample>) {
             // 1. Capture screen frame (shared GPU DXGI first, fallback to GDI raw at native res)
             let captured = match crate::dxgi_capture::shared_capture_frame(10) {
                 Ok(Some((src_w, src_h, bgra))) => Some((src_w, src_h, bgra)),
+                Ok(None) if last_frame.is_none() => crate::screen_capture::capture_screen_gdi_raw(0).ok(),
                 Ok(None) => None,
                 Err(_) => crate::screen_capture::capture_screen_gdi_raw(0).ok(),
             };
@@ -390,6 +391,11 @@ pub fn start_video_stream(video_track: Arc<TrackLocalStaticSample>) {
                         consecutive_failures += 1;
                         if consecutive_failures < 3 {
                             warn!("failed to initialize H.264 encoder: {e}");
+                        }
+                        if consecutive_failures >= 5 {
+                            warn!("H.264 encoder failed repeatedly ({e}); falling back to SCTP data channel stream");
+                            VIDEO_STREAM_ACTIVE.store(false, Ordering::SeqCst);
+                            break;
                         }
                         tokio::time::sleep(Duration::from_millis(100)).await;
                         continue;

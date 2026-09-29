@@ -1665,6 +1665,65 @@ class RemoteCursorEvent extends $pb.GeneratedMessage {
   void clearShape() => $_clearField(1);
 }
 
+/// Viewer → agent on `remote-screen` (MJPEG stream tuning; not CS35/CS36 frame packets).
+class RemoteScreenControl extends $pb.GeneratedMessage {
+  factory RemoteScreenControl({
+    $core.int? quality,
+  }) {
+    final result = RemoteScreenControl._();
+    if (quality != null) result.quality = quality;
+    return result;
+  }
+
+  RemoteScreenControl._();
+
+  factory RemoteScreenControl.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteScreenControl()..mergeFromBuffer(data, registry);
+  factory RemoteScreenControl.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteScreenControl()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'RemoteScreenControl',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: RemoteScreenControl.$_createMessage)
+    ..aI(1, _omitFieldNames ? '' : 'quality', fieldType: $pb.PbFieldType.OU3)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteScreenControl clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteScreenControl copyWith(void Function(RemoteScreenControl) updates) =>
+      super.copyWith((message) => updates(message as RemoteScreenControl))
+          as RemoteScreenControl;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core
+      .Deprecated('Use RemoteScreenControl() / RemoteScreenControl.new instead')
+  static RemoteScreenControl create() => RemoteScreenControl._();
+  static $pb.GeneratedMessage $_createMessage() => RemoteScreenControl._();
+  @$core.override
+  RemoteScreenControl createEmptyInstance() => RemoteScreenControl._();
+  @$core.pragma('dart2js:noInline')
+  static RemoteScreenControl getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<RemoteScreenControl>(
+          RemoteScreenControl.$_createMessage);
+  static RemoteScreenControl? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.int get quality => $_getIZ(0);
+  @$pb.TagNumber(1)
+  set quality($core.int value) => $_setUnsignedInt32(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasQuality() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearQuality() => $_clearField(1);
+}
+
 class RemoteFsEntry extends $pb.GeneratedMessage {
   factory RemoteFsEntry({
     $core.String? name,
@@ -3043,6 +3102,521 @@ class RemoteMediaStatusRes extends $pb.GeneratedMessage {
   $core.bool hasEncoder() => $_has(3);
   @$pb.TagNumber(4)
   void clearEncoder() => $_clearField(4);
+}
+
+class RemoteTeachStep extends $pb.GeneratedMessage {
+  factory RemoteTeachStep({
+    $core.int? ord,
+    $core.String? kind,
+    $core.String? label,
+    $core.String? axTargetJson,
+  }) {
+    final result = RemoteTeachStep._();
+    if (ord != null) result.ord = ord;
+    if (kind != null) result.kind = kind;
+    if (label != null) result.label = label;
+    if (axTargetJson != null) result.axTargetJson = axTargetJson;
+    return result;
+  }
+
+  RemoteTeachStep._();
+
+  factory RemoteTeachStep.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteTeachStep()..mergeFromBuffer(data, registry);
+  factory RemoteTeachStep.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteTeachStep()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'RemoteTeachStep',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: RemoteTeachStep.$_createMessage)
+    ..aI(1, _omitFieldNames ? '' : 'ord')
+    ..aOS(2, _omitFieldNames ? '' : 'kind')
+    ..aOS(3, _omitFieldNames ? '' : 'label')
+    ..aOS(4, _omitFieldNames ? '' : 'axTargetJson')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteTeachStep clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteTeachStep copyWith(void Function(RemoteTeachStep) updates) =>
+      super.copyWith((message) => updates(message as RemoteTeachStep))
+          as RemoteTeachStep;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use RemoteTeachStep() / RemoteTeachStep.new instead')
+  static RemoteTeachStep create() => RemoteTeachStep._();
+  static $pb.GeneratedMessage $_createMessage() => RemoteTeachStep._();
+  @$core.override
+  RemoteTeachStep createEmptyInstance() => RemoteTeachStep._();
+  @$core.pragma('dart2js:noInline')
+  static RemoteTeachStep getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<RemoteTeachStep>(
+          RemoteTeachStep.$_createMessage);
+  static RemoteTeachStep? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.int get ord => $_getIZ(0);
+  @$pb.TagNumber(1)
+  set ord($core.int value) => $_setSignedInt32(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasOrd() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOrd() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get kind => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set kind($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasKind() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearKind() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get label => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set label($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasLabel() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearLabel() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get axTargetJson => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set axTargetJson($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasAxTargetJson() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearAxTargetJson() => $_clearField(4);
+}
+
+class RemoteTeachStartReq extends $pb.GeneratedMessage {
+  factory RemoteTeachStartReq({
+    $core.String? title,
+    $fixnum.Int64? deviceIid,
+  }) {
+    final result = RemoteTeachStartReq._();
+    if (title != null) result.title = title;
+    if (deviceIid != null) result.deviceIid = deviceIid;
+    return result;
+  }
+
+  RemoteTeachStartReq._();
+
+  factory RemoteTeachStartReq.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteTeachStartReq()..mergeFromBuffer(data, registry);
+  factory RemoteTeachStartReq.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteTeachStartReq()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'RemoteTeachStartReq',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: RemoteTeachStartReq.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'title')
+    ..aInt64(2, _omitFieldNames ? '' : 'deviceIid')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteTeachStartReq clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteTeachStartReq copyWith(void Function(RemoteTeachStartReq) updates) =>
+      super.copyWith((message) => updates(message as RemoteTeachStartReq))
+          as RemoteTeachStartReq;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core
+      .Deprecated('Use RemoteTeachStartReq() / RemoteTeachStartReq.new instead')
+  static RemoteTeachStartReq create() => RemoteTeachStartReq._();
+  static $pb.GeneratedMessage $_createMessage() => RemoteTeachStartReq._();
+  @$core.override
+  RemoteTeachStartReq createEmptyInstance() => RemoteTeachStartReq._();
+  @$core.pragma('dart2js:noInline')
+  static RemoteTeachStartReq getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<RemoteTeachStartReq>(
+          RemoteTeachStartReq.$_createMessage);
+  static RemoteTeachStartReq? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get title => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set title($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasTitle() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearTitle() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get deviceIid => $_getI64(1);
+  @$pb.TagNumber(2)
+  set deviceIid($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasDeviceIid() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearDeviceIid() => $_clearField(2);
+}
+
+class RemoteTeachStartRes extends $pb.GeneratedMessage {
+  factory RemoteTeachStartRes({
+    $core.bool? ok,
+    $core.String? error,
+  }) {
+    final result = RemoteTeachStartRes._();
+    if (ok != null) result.ok = ok;
+    if (error != null) result.error = error;
+    return result;
+  }
+
+  RemoteTeachStartRes._();
+
+  factory RemoteTeachStartRes.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteTeachStartRes()..mergeFromBuffer(data, registry);
+  factory RemoteTeachStartRes.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteTeachStartRes()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'RemoteTeachStartRes',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: RemoteTeachStartRes.$_createMessage)
+    ..aOB(1, _omitFieldNames ? '' : 'ok')
+    ..aOS(2, _omitFieldNames ? '' : 'error')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteTeachStartRes clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteTeachStartRes copyWith(void Function(RemoteTeachStartRes) updates) =>
+      super.copyWith((message) => updates(message as RemoteTeachStartRes))
+          as RemoteTeachStartRes;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core
+      .Deprecated('Use RemoteTeachStartRes() / RemoteTeachStartRes.new instead')
+  static RemoteTeachStartRes create() => RemoteTeachStartRes._();
+  static $pb.GeneratedMessage $_createMessage() => RemoteTeachStartRes._();
+  @$core.override
+  RemoteTeachStartRes createEmptyInstance() => RemoteTeachStartRes._();
+  @$core.pragma('dart2js:noInline')
+  static RemoteTeachStartRes getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<RemoteTeachStartRes>(
+          RemoteTeachStartRes.$_createMessage);
+  static RemoteTeachStartRes? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get ok => $_getBF(0);
+  @$pb.TagNumber(1)
+  set ok($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasOk() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOk() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get error => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set error($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasError() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearError() => $_clearField(2);
+}
+
+class RemoteTeachStopReq extends $pb.GeneratedMessage {
+  factory RemoteTeachStopReq({
+    $core.bool? stop,
+  }) {
+    final result = RemoteTeachStopReq._();
+    if (stop != null) result.stop = stop;
+    return result;
+  }
+
+  RemoteTeachStopReq._();
+
+  factory RemoteTeachStopReq.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteTeachStopReq()..mergeFromBuffer(data, registry);
+  factory RemoteTeachStopReq.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteTeachStopReq()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'RemoteTeachStopReq',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: RemoteTeachStopReq.$_createMessage)
+    ..aOB(31, _omitFieldNames ? '' : 'stop')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteTeachStopReq clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteTeachStopReq copyWith(void Function(RemoteTeachStopReq) updates) =>
+      super.copyWith((message) => updates(message as RemoteTeachStopReq))
+          as RemoteTeachStopReq;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use RemoteTeachStopReq() / RemoteTeachStopReq.new instead')
+  static RemoteTeachStopReq create() => RemoteTeachStopReq._();
+  static $pb.GeneratedMessage $_createMessage() => RemoteTeachStopReq._();
+  @$core.override
+  RemoteTeachStopReq createEmptyInstance() => RemoteTeachStopReq._();
+  @$core.pragma('dart2js:noInline')
+  static RemoteTeachStopReq getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<RemoteTeachStopReq>(
+          RemoteTeachStopReq.$_createMessage);
+  static RemoteTeachStopReq? _defaultInstance;
+
+  @$pb.TagNumber(31)
+  $core.bool get stop => $_getBF(0);
+  @$pb.TagNumber(31)
+  set stop($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(31)
+  $core.bool hasStop() => $_has(0);
+  @$pb.TagNumber(31)
+  void clearStop() => $_clearField(31);
+}
+
+class RemoteTeachStopRes extends $pb.GeneratedMessage {
+  factory RemoteTeachStopRes({
+    $core.Iterable<RemoteTeachStep>? steps,
+    $core.String? error,
+  }) {
+    final result = RemoteTeachStopRes._();
+    if (steps != null) result.steps.addAll(steps);
+    if (error != null) result.error = error;
+    return result;
+  }
+
+  RemoteTeachStopRes._();
+
+  factory RemoteTeachStopRes.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteTeachStopRes()..mergeFromBuffer(data, registry);
+  factory RemoteTeachStopRes.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteTeachStopRes()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'RemoteTeachStopRes',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: RemoteTeachStopRes.$_createMessage)
+    ..pPM<RemoteTeachStep>(1, _omitFieldNames ? '' : 'steps',
+        subBuilder: RemoteTeachStep.$_createMessage)
+    ..aOS(2, _omitFieldNames ? '' : 'error')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteTeachStopRes clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteTeachStopRes copyWith(void Function(RemoteTeachStopRes) updates) =>
+      super.copyWith((message) => updates(message as RemoteTeachStopRes))
+          as RemoteTeachStopRes;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use RemoteTeachStopRes() / RemoteTeachStopRes.new instead')
+  static RemoteTeachStopRes create() => RemoteTeachStopRes._();
+  static $pb.GeneratedMessage $_createMessage() => RemoteTeachStopRes._();
+  @$core.override
+  RemoteTeachStopRes createEmptyInstance() => RemoteTeachStopRes._();
+  @$core.pragma('dart2js:noInline')
+  static RemoteTeachStopRes getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<RemoteTeachStopRes>(
+          RemoteTeachStopRes.$_createMessage);
+  static RemoteTeachStopRes? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<RemoteTeachStep> get steps => $_getList(0);
+
+  @$pb.TagNumber(2)
+  $core.String get error => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set error($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasError() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearError() => $_clearField(2);
+}
+
+class RemoteTeachStatusReq extends $pb.GeneratedMessage {
+  factory RemoteTeachStatusReq({
+    $core.bool? poll,
+  }) {
+    final result = RemoteTeachStatusReq._();
+    if (poll != null) result.poll = poll;
+    return result;
+  }
+
+  RemoteTeachStatusReq._();
+
+  factory RemoteTeachStatusReq.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteTeachStatusReq()..mergeFromBuffer(data, registry);
+  factory RemoteTeachStatusReq.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteTeachStatusReq()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'RemoteTeachStatusReq',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: RemoteTeachStatusReq.$_createMessage)
+    ..aOB(32, _omitFieldNames ? '' : 'poll')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteTeachStatusReq clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteTeachStatusReq copyWith(void Function(RemoteTeachStatusReq) updates) =>
+      super.copyWith((message) => updates(message as RemoteTeachStatusReq))
+          as RemoteTeachStatusReq;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use RemoteTeachStatusReq() / RemoteTeachStatusReq.new instead')
+  static RemoteTeachStatusReq create() => RemoteTeachStatusReq._();
+  static $pb.GeneratedMessage $_createMessage() => RemoteTeachStatusReq._();
+  @$core.override
+  RemoteTeachStatusReq createEmptyInstance() => RemoteTeachStatusReq._();
+  @$core.pragma('dart2js:noInline')
+  static RemoteTeachStatusReq getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<RemoteTeachStatusReq>(
+          RemoteTeachStatusReq.$_createMessage);
+  static RemoteTeachStatusReq? _defaultInstance;
+
+  @$pb.TagNumber(32)
+  $core.bool get poll => $_getBF(0);
+  @$pb.TagNumber(32)
+  set poll($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(32)
+  $core.bool hasPoll() => $_has(0);
+  @$pb.TagNumber(32)
+  void clearPoll() => $_clearField(32);
+}
+
+class RemoteTeachStatusRes extends $pb.GeneratedMessage {
+  factory RemoteTeachStatusRes({
+    $core.bool? recording,
+    $core.Iterable<RemoteTeachStep>? steps,
+    $fixnum.Int64? durationSec,
+    $core.String? lastLabel,
+    $core.String? error,
+  }) {
+    final result = RemoteTeachStatusRes._();
+    if (recording != null) result.recording = recording;
+    if (steps != null) result.steps.addAll(steps);
+    if (durationSec != null) result.durationSec = durationSec;
+    if (lastLabel != null) result.lastLabel = lastLabel;
+    if (error != null) result.error = error;
+    return result;
+  }
+
+  RemoteTeachStatusRes._();
+
+  factory RemoteTeachStatusRes.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteTeachStatusRes()..mergeFromBuffer(data, registry);
+  factory RemoteTeachStatusRes.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      RemoteTeachStatusRes()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'RemoteTeachStatusRes',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: RemoteTeachStatusRes.$_createMessage)
+    ..aOB(1, _omitFieldNames ? '' : 'recording')
+    ..pPM<RemoteTeachStep>(2, _omitFieldNames ? '' : 'steps',
+        subBuilder: RemoteTeachStep.$_createMessage)
+    ..a<$fixnum.Int64>(
+        3, _omitFieldNames ? '' : 'durationSec', $pb.PbFieldType.OU6,
+        defaultOrMaker: $fixnum.Int64.ZERO)
+    ..aOS(4, _omitFieldNames ? '' : 'lastLabel')
+    ..aOS(5, _omitFieldNames ? '' : 'error')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteTeachStatusRes clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  RemoteTeachStatusRes copyWith(void Function(RemoteTeachStatusRes) updates) =>
+      super.copyWith((message) => updates(message as RemoteTeachStatusRes))
+          as RemoteTeachStatusRes;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use RemoteTeachStatusRes() / RemoteTeachStatusRes.new instead')
+  static RemoteTeachStatusRes create() => RemoteTeachStatusRes._();
+  static $pb.GeneratedMessage $_createMessage() => RemoteTeachStatusRes._();
+  @$core.override
+  RemoteTeachStatusRes createEmptyInstance() => RemoteTeachStatusRes._();
+  @$core.pragma('dart2js:noInline')
+  static RemoteTeachStatusRes getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<RemoteTeachStatusRes>(
+          RemoteTeachStatusRes.$_createMessage);
+  static RemoteTeachStatusRes? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get recording => $_getBF(0);
+  @$pb.TagNumber(1)
+  set recording($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasRecording() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearRecording() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $pb.PbList<RemoteTeachStep> get steps => $_getList(1);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get durationSec => $_getI64(2);
+  @$pb.TagNumber(3)
+  set durationSec($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasDurationSec() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearDurationSec() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get lastLabel => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set lastLabel($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasLastLabel() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearLastLabel() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get error => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set error($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasError() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearError() => $_clearField(5);
 }
 
 const $core.bool _omitFieldNames =

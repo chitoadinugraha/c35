@@ -51,7 +51,7 @@ mod turn_tracer;
 pub use catalog::{mention_list, topic_list, translation_get, translation_rev, CatalogMentionRow, CatalogTopicRow};
 pub use mention::{mention_list_enabled, MentionRow};
 pub use mention_context::{
-    mention_context_build, mention_context_sites_block, site_iid_resolve, MentionContext,
+    device_iid_resolve, mention_context_build, mention_context_sites_block, site_iid_resolve, MentionContext,
 };
 pub use mention_bundle::{mention_bundle_get, mention_list_bundle_rpc};
 pub use mention_registry::{

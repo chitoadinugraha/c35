@@ -47,7 +47,11 @@ pub fn ensure_icon_file() -> std::path::PathBuf {
     p.push("AlienAI");
     let _ = std::fs::create_dir_all(&p);
     p.push("alien_rounded.ico");
-    if !p.exists() || std::fs::metadata(&p).map(|m| m.len() == 0).unwrap_or(true) {
+    let needs_write = match std::fs::read(&p) {
+        Ok(existing) => existing != ICO_BYTES,
+        Err(_) => true,
+    };
+    if needs_write {
         let _ = std::fs::write(&p, ICO_BYTES);
     }
     p

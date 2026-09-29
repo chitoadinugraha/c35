@@ -109,6 +109,11 @@ pub fn mount_virtual_drive(vfs: &VfsDriveManager, quota: Option<QuotaSnapshot>) 
         used_bytes: 0,
         limit_bytes: 1024 * 1024 * 1024,
     });
+    #[cfg(target_os = "windows")]
+    {
+        let icon_dest = vfs.system_dir().join("alienai.ico");
+        vfs.configure_windows_drive_icons(&icon_dest);
+    }
     #[cfg(all(target_os = "windows", feature = "winfsp"))]
     {
         if std::env::var("ALIENAI_VFS_WINFSP").map(|v| v != "0").unwrap_or(true) {
@@ -122,6 +127,7 @@ pub fn mount_virtual_drive(vfs: &VfsDriveManager, quota: Option<QuotaSnapshot>) 
                     Ok(host) => {
                         Box::leak(Box::new(host));
                         info!("WinFsp mount active for {}", vfs.drive_letter);
+                        update_explorer_quota_label(vfs, &quota);
                         return Ok(());
                     }
                     Err(e) => warn!("WinFsp mount failed ({e:#}); falling back to subst"),

@@ -644,7 +644,7 @@ pub async fn billing_plan_change(pool: &PgPool, owner_iid: i64, req: ReqBillingP
     let charge_usd = if currency.eq_ignore_ascii_case("IDR") {
         0.0
     } else {
-        (list_usd - calc.credit_idr / 17_630.0).max(0.0)
+        (list_usd - calc.credit_idr / crate::fx_live::fx_live_idr_per_usd()).max(0.0)
     };
     let use_idr = currency.eq_ignore_ascii_case("IDR") && charge_idr > 0.0;
 
@@ -691,7 +691,7 @@ pub async fn billing_plan_change(pool: &PgPool, owner_iid: i64, req: ReqBillingP
         let commission_idr = if use_idr {
             charge_idr.round() as i64
         } else {
-            (charge_usd * 17_630.0).round() as i64
+            (charge_usd * crate::fx_live::fx_live_idr_per_usd()).round() as i64
         };
         let _ = c35_mod_referral::commission_accrue_on_purchase(
             pool,

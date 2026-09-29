@@ -17,3 +17,11 @@ pub mod drive;
 pub mod tray;
 pub mod uia;
 pub mod video_stream;
+#[cfg(windows)]
+pub mod skill_teach_hook;
+#[cfg(windows)]
+pub mod skill_teach_overlay;
+#[cfg(windows)]
+pub mod skill_teach_platform;
+#[cfg(windows)]
+pub mod skill_teach_remote;
