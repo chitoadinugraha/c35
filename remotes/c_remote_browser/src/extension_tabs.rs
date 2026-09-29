@@ -24,19 +24,11 @@ async fn extension_tab_command_bridge(
     let url = body.get("url").and_then(|v| v.as_str());
     match op {
         "list" => {
-            let state = crate::browser_state::global()
-                .ok_or_else(|| anyhow::anyhow!("browser state not init"))?;
-            tokio::task::spawn_blocking(move || bridge.tabs_list()).await??;
-            let deadline = std::time::Instant::now() + TAB_RPC_TIMEOUT;
-            while std::time::Instant::now() < deadline {
-                if let Ok(g) = state.extension_tabs.lock() {
-                    if let Some(v) = g.as_ref() {
-                        return Ok(v.clone());
-                    }
-                }
-                std::thread::sleep(std::time::Duration::from_millis(40));
-            }
-            anyhow::bail!("tabs list timeout (extension did not respond)")
+            let result = tokio::task::spawn_blocking(move || {
+                bridge.call("tabs.list", json!({}), TAB_RPC_TIMEOUT)
+            })
+            .await??;
+            Ok(result)
         }
         "activate" => {
             let tab_id = tab_id.ok_or_else(|| anyhow::anyhow!("tab_id required"))?;

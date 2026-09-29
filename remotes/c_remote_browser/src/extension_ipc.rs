@@ -6,6 +6,7 @@ use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::mpsc::{self, Receiver, SyncSender};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
+use std::io::Stdout;
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -102,21 +103,87 @@ pub enum ExtensionIpcCmd {
     Rpc(ExtRpcRequest),
 }
 
+static NATIVE_HOST_STDOUT: OnceLock<Arc<Mutex<Stdout>>> = OnceLock::new();
+
+/// Chrome native host (embedded agent): push host→extension on NM stdout without TCP hop.
+pub fn extension_ipc_register_native_stdout(out: Arc<Mutex<Stdout>>) {
+    let _ = NATIVE_HOST_STDOUT.set(out);
+}
+
+pub fn extension_ipc_rpc_complete(resp: ExtRpcResponse) {
+    rpc_complete(resp);
+}
+
+fn push_cmd_to_native_host(cmd: &ExtensionIpcCmd) -> bool {
+    let out = match NATIVE_HOST_STDOUT.get() {
+        Some(o) => o,
+        None => return false,
+    };
+    let push = match cmd {
+        ExtensionIpcCmd::Legacy(m) => agent_ipc_to_ext_push(m),
+        ExtensionIpcCmd::Rpc(r) => Some(rpc_request_to_ext_push(r)),
+    };
+    let push = match push {
+        Some(p) => p,
+        None => return false,
+    };
+    let v = match serde_json::to_value(&push) {
+        Ok(v) => v,
+        Err(_) => return false,
+    };
+    let mut w = match out.lock() {
+        Ok(w) => w,
+        Err(_) => return false,
+    };
+    write_framed_json(&mut *w, &v).is_ok()
+}
+
+struct ExtensionIpcHub {
+    subs: Mutex<Vec<SyncSender<ExtensionIpcCmd>>>,
+}
+
+impl ExtensionIpcHub {
+    fn publish(&self, cmd: ExtensionIpcCmd) -> anyhow::Result<()> {
+        if push_cmd_to_native_host(&cmd) {
+            return Ok(());
+        }
+        let subs = self
+            .subs
+            .lock()
+            .map_err(|_| anyhow::anyhow!("extension ipc hub lock"))?;
+        let mut delivered = false;
+        for tx in subs.iter() {
+            if tx.try_send(cmd.clone()).is_ok() {
+                delivered = true;
+            }
+        }
+        if delivered {
+            Ok(())
+        } else {
+            anyhow::bail!("extension ipc disconnected")
+        }
+    }
+
+    fn subscribe(&self) -> Receiver<ExtensionIpcCmd> {
+        let (tx, rx) = mpsc::sync_channel(64);
+        if let Ok(mut subs) = self.subs.lock() {
+            subs.push(tx);
+        }
+        rx
+    }
+}
+
 pub struct ExtensionBridge {
-    tx: SyncSender<ExtensionIpcCmd>,
+    hub: Arc<ExtensionIpcHub>,
 }
 
 impl ExtensionBridge {
     pub fn send_legacy(&self, msg: AgentIpcMsg) -> anyhow::Result<()> {
-        self.tx
-            .send(ExtensionIpcCmd::Legacy(msg))
-            .map_err(|_| anyhow::anyhow!("extension ipc disconnected"))
+        self.hub.publish(ExtensionIpcCmd::Legacy(msg))
     }
 
     pub fn send_rpc(&self, req: ExtRpcRequest) -> anyhow::Result<()> {
-        self.tx
-            .send(ExtensionIpcCmd::Rpc(req))
-            .map_err(|_| anyhow::anyhow!("extension ipc disconnected"))
+        self.hub.publish(ExtensionIpcCmd::Rpc(req))
     }
 
     pub fn call(&self, op: &str, params: Value, timeout: Duration) -> anyhow::Result<Value> {
@@ -187,20 +254,24 @@ pub fn spawn_extension_ipc_server(state: Arc<BrowserState>) -> anyhow::Result<Ar
     let listener = TcpListener::bind(addr).context("bind extension ipc")?;
     info!(%addr, "extension ipc server listening");
 
-    let (cmd_tx, cmd_rx) = mpsc::sync_channel::<ExtensionIpcCmd>(64);
-    let bridge = Arc::new(ExtensionBridge { tx: cmd_tx });
+    let hub = Arc::new(ExtensionIpcHub {
+        subs: Mutex::new(Vec::new()),
+    });
+    let bridge = Arc::new(ExtensionBridge {
+        hub: Arc::clone(&hub),
+    });
 
     let state_bg = Arc::clone(&state);
-    let cmd_rx = Arc::new(Mutex::new(cmd_rx));
+    let hub_bg = Arc::clone(&hub);
     thread::spawn(move || {
         for stream in listener.incoming() {
             match stream {
                 Ok(s) => {
                     info!("extension ipc client connected");
                     let state_conn = Arc::clone(&state_bg);
-                    let cmd_rx_conn = Arc::clone(&cmd_rx);
+                    let cmd_rx_conn = hub_bg.subscribe();
                     thread::spawn(move || {
-                        if let Err(e) = ipc_session(&state_conn, &cmd_rx_conn, s) {
+                        if let Err(e) = ipc_session(&state_conn, cmd_rx_conn, s) {
                             warn!("extension ipc session ended: {e:#}");
                         }
                     });
@@ -219,7 +290,7 @@ pub fn spawn_extension_ipc_server(state: Arc<BrowserState>) -> anyhow::Result<Ar
 
 fn ipc_session(
     state: &Arc<BrowserState>,
-    cmd_rx: &Arc<Mutex<Receiver<ExtensionIpcCmd>>>,
+    cmd_rx: Receiver<ExtensionIpcCmd>,
     stream: TcpStream,
 ) -> anyhow::Result<()> {
     stream.set_read_timeout(Some(Duration::from_millis(500)))?;
@@ -227,11 +298,7 @@ fn ipc_session(
     let mut stream = stream;
 
     loop {
-        while let Ok(cmd) = cmd_rx
-            .lock()
-            .map_err(|_| anyhow::anyhow!("cmd_rx lock"))?
-            .try_recv()
-        {
+        while let Ok(cmd) = cmd_rx.try_recv() {
             let v = match cmd {
                 ExtensionIpcCmd::Legacy(msg) => serde_json::to_value(&msg)?,
                 ExtensionIpcCmd::Rpc(req) => serde_json::to_value(&req)?,

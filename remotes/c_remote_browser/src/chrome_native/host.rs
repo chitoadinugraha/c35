@@ -143,6 +143,7 @@ pub fn run_chrome_native_host() -> anyhow::Result<()> {
 
 
     let stdout = Arc::new(Mutex::new(std::io::stdout()));
+    crate::extension_ipc::extension_ipc_register_native_stdout(Arc::clone(&stdout));
     spawn_agent_ipc_forward(Arc::clone(&ipc_slot), Arc::clone(&stdout));
     let pair_state_poll = pair_state.clone();
     thread::spawn(move || pair_poll_thread(pair_state_poll));
@@ -524,14 +525,16 @@ fn handle_request(
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
             let result = req.extra.get("result").cloned();
-            if let Ok(g) = ipc_slot.lock() {
+            let resp = ExtRpcResponse {
+                req_id: req_id.to_string(),
+                ok,
+                error,
+                result,
+            };
+            if embedded_agent_active() {
+                crate::extension_ipc::extension_ipc_rpc_complete(resp);
+            } else if let Ok(g) = ipc_slot.lock() {
                 if let Some(ipc) = g.as_ref() {
-                    let resp = ExtRpcResponse {
-                        req_id: req_id.to_string(),
-                        ok,
-                        error,
-                        result,
-                    };
                     let _ = ipc.send_rpc_response(&resp);
                 }
             }
