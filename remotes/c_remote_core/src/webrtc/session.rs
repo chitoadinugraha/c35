@@ -1,6 +1,8 @@
 //! WebRTC peer sessions — signaling relay + `remote-fs` data channel.
 
 use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
 use bytes::Bytes;
@@ -194,9 +196,21 @@ impl WebrtcHub {
 
     async fn handle_command(&self, req_id: String, req: ReqRemoteCommand) {
         let _task_guard = crate::update::task_start();
-        let cmd = command_prepare_shell(req.command.trim());
+        let raw_cmd = req.command.trim();
         let timeout_secs = if req.timeout_sec == 0 { 15 } else { req.timeout_sec.min(60) };
 
+        if let Some(handler) = command_handler_get() {
+            if let Some(res_body) = handler(raw_cmd.to_string(), timeout_secs).await {
+                let res = WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::ResRemoteCommand(res_body)),
+                };
+                let _ = self.out_tx.send(pb_encode(&res));
+                return;
+            }
+        }
+
+        let cmd = command_prepare_shell(raw_cmd);
         let res_body = if cmd.is_empty() {
             ResRemoteCommand {
                 ok: false,
@@ -690,6 +704,26 @@ static SCREENSHOT_HANDLER: std::sync::OnceLock<ScreenshotHandler> = std::sync::O
 
 pub fn set_screenshot_handler(handler: ScreenshotHandler) {
     let _ = SCREENSHOT_HANDLER.set(handler);
+}
+
+pub type CommandHandler = Arc<
+    dyn Fn(String, u32) -> Pin<Box<dyn Future<Output = Option<ResRemoteCommand>> + Send>>
+        + Send
+        + Sync,
+>;
+
+static COMMAND_HANDLER: std::sync::RwLock<Option<CommandHandler>> =
+    std::sync::RwLock::new(None);
+
+fn command_handler_get() -> Option<CommandHandler> {
+    COMMAND_HANDLER.read().ok().and_then(|g| g.clone())
+}
+
+/// When set, handles matching remote commands before the desktop shell path.
+pub fn set_command_handler(handler: CommandHandler) {
+    if let Ok(mut g) = COMMAND_HANDLER.write() {
+        *g = Some(handler);
+    }
 }
 
 pub fn dispatch_screenshot(

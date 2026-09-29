@@ -672,6 +672,34 @@ class ChatConn {
         (_) {},
       );
 
+  Future<ResRemoteAgentPush> remoteAgentPush(int deviceIid, String payload) => _rpc<ResRemoteAgentPush>(
+        WsReq(
+          reqRemoteAgentPush: ReqRemoteAgentPush(
+            deviceIid: Int64(deviceIid),
+            payload: payload,
+          ),
+        ),
+        (res) => res.resRemoteAgentPush,
+      );
+
+  Future<ResRemoteBrowserInvoke> remoteBrowserInvoke({
+    required int deviceIid,
+    required String method,
+    String paramsJson = '{}',
+    int timeoutSec = 45,
+  }) =>
+      _rpc<ResRemoteBrowserInvoke>(
+        WsReq(
+          reqRemoteBrowserInvoke: ReqRemoteBrowserInvoke(
+            deviceIid: Int64(deviceIid),
+            method: method,
+            paramsJson: paramsJson,
+            timeoutSec: timeoutSec,
+          ),
+        ),
+        (res) => res.resRemoteBrowserInvoke,
+      );
+
   Future<ResSkillCatalogInstall> skillCatalogInstall({
     required int catalogId,
     SkillScope scope = SkillScope.SKILL_SCOPE_USER,

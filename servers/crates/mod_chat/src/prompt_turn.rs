@@ -26,7 +26,10 @@ use crate::inst_cache::inst_list_cached;
 use crate::mention::mention_list_enabled;
 use crate::context_billing::ContextBillingExtra;
 use crate::context_compact::prepare_prompt_history;
-use crate::device_context::{bound_device_prompt_prepare, chat_mention_context_commit};
+use crate::device_context::{
+    bound_device_prompt_prepare, chat_bound_device_iid_for_owner, chat_mention_context_commit,
+    tool_exclude_browser_devices,
+};
 use crate::mention_content::mention_content_normalize;
 use crate::memory::{memory_prompt_merge, memory_retrieve};
 use crate::memory_extract::memory_extract_turn_gate;
@@ -307,6 +310,9 @@ where
     let inst_scopes = inst_scopes_home();
     let user_ctx = user_prompt_context_get(pool, owner_iid).await;
     let locale_eff = if locale.trim().is_empty() { user_ctx.locale.as_str() } else { locale };
+    let bound_device_iid = chat_bound_device_iid_for_owner(pool, owner_iid, chat_id).await;
+    let browser_tool_exclude =
+        tool_exclude_browser_devices(pool, owner_iid, &mention_ctx.devices, bound_device_iid).await;
     let http = http_client(std::time::Duration::from_secs(30));
     let composed = compose_tools_and_inst_async(
         pool,
@@ -324,6 +330,7 @@ where
         &caps,
         ComposeTurnOpts {
             attachments_json: &req.attachments_json,
+            extra_tool_exclude: &browser_tool_exclude,
             ..ComposeTurnOpts::default()
         },
         owner_iid,

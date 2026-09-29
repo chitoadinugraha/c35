@@ -78,7 +78,10 @@ pub use chat_history_clear::chat_history_clear;
 pub use data_source_rpc::{data_source_check, data_source_delete, data_source_list, data_source_put, data_source_sync};
 pub use chat_patch::chat_patch;
 pub use chat_sync::chat_title_set;
-pub use device_context::{bound_device_prompt_prepare, chat_device_context_create, chat_device_context_list, chat_mention_context_commit};
+pub use device_context::{
+    bound_device_prompt_prepare, chat_device_context_create, chat_device_context_list,
+    chat_mention_context_commit, BROWSER_DEVICE_TOOL_EXCLUDE,
+};
 pub use channel_prompt_turn::channel_prompt_turn;
 pub use inbox::{chat_msg_list, inbox_list};
 pub use log_list::log_list;

@@ -20,7 +20,7 @@ message ResDevicePair {
 
 message ReqDevicePairRegister {
   string device_name = 1;   // hostname
-  string device_type = 2;   // windows | android | …
+  string device_type = 2;   // windows | browser | android | macos | linux | …
 }
 
 message ResDevicePairRegister {

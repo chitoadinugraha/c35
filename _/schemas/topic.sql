@@ -99,6 +99,24 @@ UPDATE ai.topic SET
     updated_ts = NOW()
 WHERE id = 'device';
 
+-- Seed: remote browser topic (type=browser paired agent — Playwright, no desktop shell)
+INSERT INTO ai.topic (
+    id, label_key, inst, extend, sort, def_hash, updated_ts
+) VALUES (
+    'browser',
+    'topic.browser.label',
+    'Remote browser automation on a paired type=browser agent. Use browser.* tools (task.run, tabs, page.extract, page.act) — never shell.run, device.screenshot, device.input, computer_use.delegate, or device.fs.*. Pass device_iid from mention targets; use slot_id for persistent pages and tab_id when switching tabs. For captcha or 2FA, tell the user to complete it on the Remote tab — do not use device.input.',
+    'device',
+    26,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    label_key = EXCLUDED.label_key,
+    extend = EXCLUDED.extend,
+    sort = EXCLUDED.sort,
+    updated_ts = NOW();
+
 -- Seed: computer use topic (desktop automation subagent)
 INSERT INTO ai.topic (
     id, label_key, inst, extend, sort, def_hash, updated_ts

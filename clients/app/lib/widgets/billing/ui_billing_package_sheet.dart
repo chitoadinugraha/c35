@@ -34,7 +34,7 @@ Future<void> billingPackageSheet(BuildContext context, {required ReferralConn co
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
     builder: (ctx) => Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
-      child: _BillingPackageSheet(conn: conn),
+      child: SafeArea(child: _BillingPackageSheet(conn: conn)),
     ),
   );
 }
@@ -495,7 +495,7 @@ class _BillingCheckoutBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: EdgeInsets.fromLTRB(0, 12, 0, 12 + MediaQuery.paddingOf(context).bottom),
+        padding: const EdgeInsets.fromLTRB(0, 12, 0, 12),
         decoration: const BoxDecoration(
           border: Border(top: BorderSide(color: _border)),
           color: _sheetBg,

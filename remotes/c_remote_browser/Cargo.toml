@@ -1,0 +1,28 @@
+[package]
+name = "c_remote_browser"
+version.workspace = true
+edition.workspace = true
+description = "c35 remote browser agent (Rust control + WebRTC)"
+
+[[bin]]
+name = "alienai_remote_browser"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+c_remote_core = { path = "../c_remote_core" }
+hostname = "0.4"
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+base64 = { workspace = true }
+bytes = "1"
+webrtc = { workspace = true }
+image = { version = "0.25", default-features = false, features = ["jpeg"] }
+
+# Windows: reuse MFT H.264 encoder from the desktop agent (video_stream.rs).
+# Non-Windows CI builds omit this path dep; SCTP JPEG fallback remains available.
+[target.'cfg(windows)'.dependencies]
+c_remote_windows = { path = "../c_remote_windows" }

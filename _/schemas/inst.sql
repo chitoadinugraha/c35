@@ -123,6 +123,111 @@ Multi-step UI automation (click/type flows) is computer_use / delegate — not t
     priority = EXCLUDED.priority,
     updated_ts = NOW();
 
+-- Seed: remote browser topic persona (@browser / type=browser devices)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.browser.topic',
+    'global',
+    'topic',
+    'browser',
+    '[REMOTE BROWSER] Use browser.task.run for multi-step flows, browser.tabs for tab control, browser.page.extract / browser.page.act for single reads or clicks. Never shell.run, device.screenshot, device.input, computer_use.delegate, or device.fs.* on browser agents. Use slot_id (default default) and tab_id when the user names a tab. For login captcha or 2FA, ask the user to finish on the app Remote tab — not device.input.',
+    ARRAY[]::TEXT[],
+    ARRAY[]::TEXT[],
+    ARRAY[
+        'browser.task.run',
+        'browser.tabs',
+        'browser.page.extract',
+        'browser.page.act',
+        'browser.page.observe',
+        'browser.file.upload'
+    ],
+    ARRAY[
+        'shell.run',
+        'device.screenshot',
+        'device.input',
+        'computer_use.delegate',
+        'device.fs.list',
+        'device.fs.read'
+    ],
+    145,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    kind = EXCLUDED.kind,
+    topic_id = EXCLUDED.topic_id,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: phrase steering for @browser / remote browser mentions
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.mention.browser',
+    'global',
+    'task',
+    'browser',
+    '[BROWSER MENTION] User targets a Remote browser device. Prefer browser.task.run for workflows; browser.page.extract for one-off text; browser.tabs to list or switch tabs. Exclude desktop remote tools.',
+    ARRAY[
+        '@browser', 'remote browser', 'browser agent', 'automated browser',
+        'buka di browser', 'browser remote', 'playwright'
+    ],
+    ARRAY[
+        'tool_include:browser.task.run',
+        'tool_include:browser.tabs',
+        'tool_include:browser.page.extract',
+        'tool_include:browser.page.act',
+        'tool_exclude:shell.run',
+        'tool_exclude:device.screenshot',
+        'tool_exclude:device.input',
+        'tool_exclude:computer_use.delegate',
+        'tool_exclude:device.fs.list',
+        'tool_exclude:device.fs.read'
+    ],
+    ARRAY['browser.task.run', 'browser.tabs', 'browser.page.extract', 'browser.page.act'],
+    ARRAY['shell.run', 'device.screenshot', 'device.input', 'computer_use.delegate', 'device.fs.list', 'device.fs.read'],
+    135,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    kind = EXCLUDED.kind,
+    topic_id = EXCLUDED.topic_id,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: 2FA / captcha on browser — human Remote tab, not device.input
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.browser.2fa',
+    'global',
+    'task',
+    'browser',
+    '[BROWSER 2FA] Captcha, OTP, or bank 2FA on a remote browser page requires the human to complete it on the Remote tab in the app. Do not call device.input. After the user confirms, continue with browser.page.extract or browser.task.run.',
+    ARRAY[
+        'captcha', 'otp', '2fa', 'two factor', 'verifikasi', 'kode sms', 'authenticator'
+    ],
+    ARRAY['tool_exclude:device.input', 'tool_exclude:computer_use.delegate'],
+    ARRAY['device.input', 'computer_use.delegate'],
+    130,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
 -- Seed: device read-only screen queries (screenshot only, no input/command)
 INSERT INTO ai.inst (
     id, scope, kind, topic_id, inst, phrases, triggers, priority, def_hash, updated_ts

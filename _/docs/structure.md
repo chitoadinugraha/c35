@@ -177,9 +177,32 @@ remotes/
       input_dc.rs
   c_remote_android/
     src/ …
+  c_remote_browser/             # Remote browser agent (Rust) — pair, WS, WebRTC, encode
+    src/
+      main.rs
+      pair_loop.rs
+      engine/
+        ipc.rs                  # localhost bridge to Node worker
+        process.rs
+      webrtc/
+        browser_input.rs
+        browser_video.rs        # JPEG → NV12 → H.264 (reuse video_stream patterns)
+      task/
+        browser_task.rs
+  browser_engine/               # Node + Playwright only (no server network)
+    package.json
+    src/
+      worker.ts
+      browser.ts
+      tabs.ts
+      slots.ts
+      steps.ts
+      screencast.ts
 ```
 
-Agent UI is **Rust-only** (no Flutter on device). Pair window: port `cs_bots/agents/desktop_node/src/pair_window.rs`.
+Agent UI is **Rust-only** on device (no Flutter on device). Desktop pair window: port `cs_bots/agents/desktop_node/src/pair_window.rs`. Remote browser: same pairing flow; v1 pair code in console or shared pair window skin.
+
+Implementation plan: [`plans/2026-09-29-remote-browser-multitask.md`](plans/2026-09-29-remote-browser-multitask.md). Spec: [`browser-remote.md`](browser-remote.md).
 
 Proto: path-dep `../servers/crates/proto` or `_/scripts/protoc.ps1`.
 

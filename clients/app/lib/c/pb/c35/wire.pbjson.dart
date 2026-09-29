@@ -2102,6 +2102,24 @@ const WsReq$json = {
       '9': 0,
       '10': 'botPeerDelete'
     },
+    {
+      '1': 'req_remote_agent_push',
+      '3': 169,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqRemoteAgentPush',
+      '9': 0,
+      '10': 'reqRemoteAgentPush'
+    },
+    {
+      '1': 'req_remote_browser_invoke',
+      '3': 170,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqRemoteBrowserInvoke',
+      '9': 0,
+      '10': 'reqRemoteBrowserInvoke'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -2238,7 +2256,11 @@ final $typed_data.Uint8List wsReqDescriptor = $convert.base64Decode(
     '91cmNlQ2hlY2sSQAoPYm90X3BlZXJfY3JlYXRlGKYBIAEoCzIVLmMzNS5SZXFCb3RQZWVyQ3Jl'
     'YXRlSABSDWJvdFBlZXJDcmVhdGUSRAoRYm90X3BlZXJfYXBwX3NlbmQYpwEgASgLMhYuYzM1Ll'
     'JlcUJvdFBlZXJBcHBTZW5kSABSDmJvdFBlZXJBcHBTZW5kEkAKD2JvdF9wZWVyX2RlbGV0ZRio'
-    'ASABKAsyFS5jMzUuUmVxQm90UGVlckRlbGV0ZUgAUg1ib3RQZWVyRGVsZXRlQgYKBGJvZHk=');
+    'ASABKAsyFS5jMzUuUmVxQm90UGVlckRlbGV0ZUgAUg1ib3RQZWVyRGVsZXRlEk0KFXJlcV9yZW'
+    '1vdGVfYWdlbnRfcHVzaBipASABKAsyFy5jMzUuUmVxUmVtb3RlQWdlbnRQdXNoSABSEnJlcVJl'
+    'bW90ZUFnZW50UHVzaBJZChlyZXFfcmVtb3RlX2Jyb3dzZXJfaW52b2tlGKoBIAEoCzIbLmMzNS'
+    '5SZXFSZW1vdGVCcm93c2VySW52b2tlSABSFnJlcVJlbW90ZUJyb3dzZXJJbnZva2VCBgoEYm9k'
+    'eQ==');
 
 @$core.Deprecated('Use wsResDescriptor instead')
 const WsRes$json = {
@@ -3308,6 +3330,24 @@ const WsRes$json = {
       '9': 0,
       '10': 'botPeerDelete'
     },
+    {
+      '1': 'res_remote_agent_push',
+      '3': 169,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResRemoteAgentPush',
+      '9': 0,
+      '10': 'resRemoteAgentPush'
+    },
+    {
+      '1': 'res_remote_browser_invoke',
+      '3': 170,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResRemoteBrowserInvoke',
+      '9': 0,
+      '10': 'resRemoteBrowserInvoke'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -3455,4 +3495,7 @@ final $typed_data.Uint8List wsResDescriptor = $convert.base64Decode(
     'ASgLMhUuYzM1LlJlc0JvdFBlZXJDcmVhdGVIAFINYm90UGVlckNyZWF0ZRJEChFib3RfcGVlcl'
     '9hcHBfc2VuZBinASABKAsyFi5jMzUuUmVzQm90UGVlckFwcFNlbmRIAFIOYm90UGVlckFwcFNl'
     'bmQSQAoPYm90X3BlZXJfZGVsZXRlGKgBIAEoCzIVLmMzNS5SZXNCb3RQZWVyRGVsZXRlSABSDW'
-    'JvdFBlZXJEZWxldGVCBgoEYm9keQ==');
+    'JvdFBlZXJEZWxldGUSTQoVcmVzX3JlbW90ZV9hZ2VudF9wdXNoGKkBIAEoCzIXLmMzNS5SZXNS'
+    'ZW1vdGVBZ2VudFB1c2hIAFIScmVzUmVtb3RlQWdlbnRQdXNoElkKGXJlc19yZW1vdGVfYnJvd3'
+    'Nlcl9pbnZva2UYqgEgASgLMhsuYzM1LlJlc1JlbW90ZUJyb3dzZXJJbnZva2VIAFIWcmVzUmVt'
+    'b3RlQnJvd3Nlckludm9rZUIGCgRib2R5');

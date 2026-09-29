@@ -1,0 +1,356 @@
+use crate::mention_context::device_iid_resolve;
+use crate::tool;
+use crate::tools::context::ToolContext;
+use base64::Engine as _;
+use c35_mod_device::{remote_device_browser_invoke, remote_device_task_run_enqueue};
+use c35_mod_file::{cas_bytes_get, cas_dir_default};
+use serde_json::{json, Value};
+
+const MAX_BROWSER_UPLOAD_BYTES: usize = 32 * 1024 * 1024;
+
+fn arg_i64(v: &Value, key: &str) -> i64 {
+    match v.get(key) {
+        Some(x) if x.is_i64() => x.as_i64().unwrap_or(0),
+        Some(x) if x.is_u64() => x.as_u64().unwrap_or(0) as i64,
+        Some(x) => x.as_str().and_then(|s| s.trim().parse().ok()).unwrap_or(0),
+        None => 0,
+    }
+}
+
+fn arg_str(v: &Value, key: &str) -> String {
+    v.get(key)
+        .and_then(|x| x.as_str())
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default()
+}
+
+fn browser_fail(error: impl Into<String>) -> Value {
+    json!({
+        "ok": false,
+        "error": error.into(),
+        "fail_class": "fatal_env",
+        "retryable": false,
+    })
+}
+
+fn resolve_device_iid(args: &Value, ctx: &ToolContext) -> Result<i64, Value> {
+    let direct = arg_i64(args, "device_iid");
+    device_iid_resolve(&ctx.mention, &ctx.mention_ids, direct).map_err(|e| browser_fail(e.to_string()))
+}
+
+async fn browser_invoke(
+    args: &Value,
+    ctx: &ToolContext,
+    method: &str,
+    params: Value,
+    timeout_sec: u32,
+) -> Value {
+    let device_iid = match resolve_device_iid(args, ctx) {
+        Ok(iid) => iid,
+        Err(v) => return v,
+    };
+    match remote_device_browser_invoke(
+        &ctx.pool,
+        ctx.nats.as_ref(),
+        ctx.owner_iid,
+        device_iid,
+        method,
+        params,
+        timeout_sec,
+    )
+    .await
+    {
+        Ok(v) => {
+            if v.get("ok").and_then(|x| x.as_bool()) == Some(false) {
+                return browser_fail(
+                    v.get("error")
+                        .and_then(|x| x.as_str())
+                        .unwrap_or("browser command failed"),
+                );
+            }
+            let mut out = v;
+            if out.get("device_iid").is_none() {
+                if let Some(obj) = out.as_object_mut() {
+                    obj.insert("device_iid".into(), json!(device_iid));
+                }
+            }
+            out
+        }
+        Err(e) => browser_fail(e),
+    }
+}
+tool! {
+    struct: BrowserTaskRunTool,
+    name: "browser.task.run",
+    aliases: ["browser_task_run", "remote_browser_task"],
+    description: "Run Playwright automation steps on a paired Remote browser device (type=browser). Use slot_id for persistent pages and steps[] for navigate, click, fill, extract, and tab ops. Async on the agent; returns run_id.",
+    topics: ["device", "browser"],
+    always: ["device", "browser"],
+    rag_phrases: ["remote browser", "browser automation", "playwright", "open url on browser", "scrape page", "browser task"],
+    ui_calling_key: "tool.browser.task.run.calling",
+    ui_done_key: "tool.browser.task.run.done",
+    parameters: {
+        device_iid: (integer, "Target remote browser device identity ID", required),
+        slot_id: (string, "Named browser slot profile (default: default)", optional),
+        tab_id: (string, "Optional active tab id for the run", optional),
+        steps: (array, "Automation steps (navigate, click, fill, extract, tab_* ops)", required),
+    },
+    execute: |args, ctx| {
+        let device_iid = match resolve_device_iid(&args, ctx) {
+            Ok(iid) => iid,
+            Err(v) => return Ok(v),
+        };
+        let slot_raw = arg_str(&args, "slot_id");
+        let slot_id = if slot_raw.is_empty() { "default".to_string() } else { slot_raw };
+        let steps = args.get("steps").cloned().unwrap_or(json!([]));
+        if !steps.is_array() || steps.as_array().map(|a| a.is_empty()).unwrap_or(true) {
+            return Ok(browser_fail("steps must be a non-empty array"));
+        }
+        let mut prompt = json!({ "slot_id": slot_id.as_str(), "steps": steps });
+        let tab_id = arg_str(&args, "tab_id");
+        if !tab_id.is_empty() {
+            prompt["tab_id"] = json!(tab_id);
+        }
+        let prompt_str = prompt.to_string();
+        match remote_device_task_run_enqueue(
+            &ctx.pool,
+            ctx.nats.as_ref(),
+            ctx.owner_iid,
+            device_iid,
+            ctx.chat_id,
+            &ctx.req_id,
+            &prompt_str,
+            0,
+            "",
+        ).await {
+            Ok(run_id) => Ok(json!({
+                "ok": true,
+                "device_iid": device_iid,
+                "run_id": run_id,
+                "status": "queued",
+                "slot_id": slot_id,
+            })),
+            Err(e) => Ok(browser_fail(e)),
+        }
+    }
+}
+
+tool! {
+    struct: BrowserPageObserveTool,
+    name: "browser.page.observe",
+    aliases: ["browser_page_observe"],
+    description: "Accessibility snapshot (ARIA tree or body text) plus url/title from a Remote browser tab.",
+    topics: ["device", "browser"],
+    always: ["device", "browser"],
+    rag_phrases: ["what is on the browser page", "browser snapshot", "page structure"],
+    ui_calling_key: "tool.browser.page.observe.calling",
+    ui_done_key: "tool.browser.page.observe.done",
+    readonly: true,
+    parameters: {
+        device_iid: (integer, "Target remote browser device identity ID", required),
+        tab_id: (string, "Optional tab id (active tab if omitted)", optional),
+        max_chars: (integer, "Max characters in snapshot (default 8000)", optional),
+    },
+    execute: |args, ctx| {
+        let mut params = json!({});
+        let tab_id = arg_str(&args, "tab_id");
+        if !tab_id.is_empty() {
+            params["tab_id"] = json!(tab_id);
+        }
+        let max_chars = arg_i64(&args, "max_chars");
+        if max_chars > 0 {
+            params["max_chars"] = json!(max_chars);
+        }
+        Ok(browser_invoke(&args, ctx, "page.observe", params, 90).await)
+    }
+}
+
+tool! {
+    struct: BrowserPageExtractTool,
+    name: "browser.page.extract",
+    aliases: ["browser_page_extract"],
+    description: "Extract visible text from a CSS selector on a Remote browser tab.",
+    topics: ["device", "browser"],
+    always: ["device", "browser"],
+    rag_phrases: ["extract from page", "read selector", "scrape element", "get text from browser"],
+    ui_calling_key: "tool.browser.page.extract.calling",
+    ui_done_key: "tool.browser.page.extract.done",
+    readonly: true,
+    parameters: {
+        device_iid: (integer, "Target remote browser device identity ID", required),
+        selector: (string, "CSS selector to read", required),
+        tab_id: (string, "Optional tab id", optional),
+        result_key: (string, "Result key name (default: selector)", optional),
+    },
+    execute: |args, ctx| {
+        let selector = arg_str(&args, "selector");
+        if selector.is_empty() {
+            return Ok(browser_fail("selector required"));
+        }
+        let mut params = json!({ "selector": selector });
+        let tab_id = arg_str(&args, "tab_id");
+        if !tab_id.is_empty() {
+            params["tab_id"] = json!(tab_id);
+        }
+        let as_key = arg_str(&args, "result_key");
+        if !as_key.is_empty() {
+            params["as"] = json!(as_key);
+        }
+        Ok(browser_invoke(&args, ctx, "page.extract", params, 90).await)
+    }
+}
+
+tool! {
+    struct: BrowserPageActTool,
+    name: "browser.page.act",
+    aliases: ["browser_page_act"],
+    description: "Single UI action on a Remote browser tab: click, fill, or press (press requires selector until key IPC ships).",
+    topics: ["device", "browser"],
+    always: ["device", "browser"],
+    rag_phrases: ["click button in browser", "fill form browser", "browser click", "type in browser"],
+    ui_calling_key: "tool.browser.page.act.calling",
+    ui_done_key: "tool.browser.page.act.done",
+    parameters: {
+        device_iid: (integer, "Target remote browser device identity ID", required),
+        action: (string, "click | fill | press", required),
+        selector: (string, "CSS selector target", optional),
+        text: (string, "Text for fill or press", optional),
+        tab_id: (string, "Optional tab id", optional),
+    },
+    execute: |args, ctx| {
+        let action = arg_str(&args, "action");
+        if action.is_empty() {
+            return Ok(browser_fail("action required"));
+        }
+        let mut params = json!({ "action": action });
+        let selector = arg_str(&args, "selector");
+        if !selector.is_empty() {
+            params["selector"] = json!(selector);
+        }
+        let text = arg_str(&args, "text");
+        if !text.is_empty() {
+            params["text"] = json!(text);
+        }
+        let tab_id = arg_str(&args, "tab_id");
+        if !tab_id.is_empty() {
+            params["tab_id"] = json!(tab_id);
+        }
+        Ok(browser_invoke(&args, ctx, "page.act", params, 90).await)
+    }
+}
+
+tool! {
+    struct: BrowserTabsTool,
+    name: "browser.tabs",
+    aliases: ["browser_tabs"],
+    description: "List, open, activate, or close tabs on a paired Remote browser device.",
+    topics: ["device", "browser"],
+    always: ["device", "browser"],
+    rag_phrases: ["browser tabs", "open tab", "close tab", "switch tab", "new browser tab"],
+    ui_calling_key: "tool.browser.tabs.calling",
+    ui_done_key: "tool.browser.tabs.done",
+    parameters: {
+        device_iid: (integer, "Target remote browser device identity ID", required),
+        op: (string, "list | new | activate | close", required),
+        tab_id: (string, "Tab id for activate/close", optional),
+        url: (string, "URL for op=new", optional),
+    },
+    execute: |args, ctx| {
+        let op = arg_str(&args, "op");
+        if op.is_empty() {
+            return Ok(browser_fail("op required"));
+        }
+        let mut params = json!({ "op": op });
+        let tab_id = arg_str(&args, "tab_id");
+        if !tab_id.is_empty() {
+            params["tab_id"] = json!(tab_id);
+        }
+        let url = arg_str(&args, "url");
+        if !url.is_empty() {
+            params["url"] = json!(url);
+        }
+        Ok(browser_invoke(&args, ctx, "tabs", params, 45).await)
+    }
+}
+
+tool! {
+    struct: BrowserFileUploadTool,
+    name: "browser.file.upload",
+    aliases: ["browser_file_upload"],
+    description: "Upload a chat attachment into a file input on a Remote browser page (CAS fetch to agent file.upload).",
+    topics: ["device", "browser"],
+    always: ["device", "browser"],
+    rag_phrases: ["upload file browser", "attach file to form", "file input"],
+    ui_calling_key: "tool.browser.file.upload.calling",
+    ui_done_key: "tool.browser.file.upload.done",
+    parameters: {
+        device_iid: (integer, "Target remote browser device identity ID", required),
+        selector: (string, "CSS selector for file input", required),
+        attachment_id: (string, "Chat attachment id from the user message", required),
+        tab_id: (string, "Optional tab id", optional),
+    },
+    execute: |args, ctx| {
+        let selector = arg_str(&args, "selector");
+        let attachment_id = arg_str(&args, "attachment_id");
+        if selector.is_empty() || attachment_id.is_empty() {
+            return Ok(browser_fail("selector and attachment_id required"));
+        }
+        let att = match attachment_resolve(&ctx.attachments_json, &attachment_id) {
+            Some(a) => a,
+            None => return Ok(browser_fail("attachment not found on this turn")),
+        };
+        let (bytes, _mime) = match cas_bytes_get(&ctx.pool, &cas_dir_default(), &att.hash).await {
+            Ok(v) => v,
+            Err(e) => return Ok(browser_fail(e.to_string())),
+        };
+        if bytes.len() > MAX_BROWSER_UPLOAD_BYTES {
+            return Ok(browser_fail(format!(
+                "attachment exceeds {} byte upload cap",
+                MAX_BROWSER_UPLOAD_BYTES
+            )));
+        }
+        let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+        let mut params = json!({
+            "selector": selector,
+            "file_name": att.name,
+            "bytes_b64": b64,
+        });
+        let tab_id = arg_str(&args, "tab_id");
+        if !tab_id.is_empty() {
+            params["tab_id"] = json!(tab_id);
+        }
+        Ok(browser_invoke(&args, ctx, "file.upload", params, 120).await)
+    }
+}
+
+struct ResolvedAttachment {
+    hash: String,
+    name: String,
+}
+
+fn attachment_resolve(attachments_json: &str, attachment_id: &str) -> Option<ResolvedAttachment> {
+    let Ok(items) = serde_json::from_str::<Vec<Value>>(attachments_json) else {
+        return None;
+    };
+    let id = attachment_id.trim();
+    for a in items {
+        let hash = a.get("hash").and_then(|x| x.as_str()).unwrap_or("").trim();
+        if hash.is_empty() {
+            continue;
+        }
+        let aid = a.get("id").and_then(|x| x.as_str()).unwrap_or("").trim();
+        if aid != id && hash != id {
+            continue;
+        }
+        let name = a
+            .get("name")
+            .and_then(|x| x.as_str())
+            .filter(|s| !s.is_empty())
+            .unwrap_or("upload.bin");
+        return Some(ResolvedAttachment {
+            hash: hash.to_string(),
+            name: name.to_string(),
+        });
+    }
+    None
+}

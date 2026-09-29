@@ -23,8 +23,10 @@ pub use dispatcher::{tool_topic_eligible, ToolDispatcher};
 use crate::mention_context::MentionContext;
 
 use builtin::{
-    DriveListTool, DriveReadTool, GsheetAppendTool, GsheetReadTool, GsheetUpdateTool,
-    ComputerUseDelegateTool, ConsumptionAddTool, ConsumptionDeleteTool, ConsumptionTodayTool,
+    BrowserFileUploadTool, BrowserPageActTool, BrowserPageExtractTool, BrowserPageObserveTool,
+    BrowserTabsTool, BrowserTaskRunTool, DriveListTool, DriveReadTool, GsheetAppendTool,
+    GsheetReadTool, GsheetUpdateTool, ComputerUseDelegateTool, ConsumptionAddTool,
+    ConsumptionDeleteTool, ConsumptionTodayTool,
     ConsumptionUpdateTool, DelegateRunTool, DeviceFsListTool, DeviceFsReadTool, ShellRunTool,
     DeviceInputTool, DeviceScreenshotTool,
     ExpenseAddTool, ExpenseDeleteTool, ExpenseSummaryTool, ImgEditTool, ImgGenerateTool, PresentationExportTool,
@@ -126,6 +128,12 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(ExpenseAddTool));
     dispatcher.register(Arc::new(ExpenseSummaryTool));
     dispatcher.register(Arc::new(ExpenseDeleteTool));
+    dispatcher.register(Arc::new(BrowserTaskRunTool));
+    dispatcher.register(Arc::new(BrowserPageObserveTool));
+    dispatcher.register(Arc::new(BrowserPageExtractTool));
+    dispatcher.register(Arc::new(BrowserPageActTool));
+    dispatcher.register(Arc::new(BrowserTabsTool));
+    dispatcher.register(Arc::new(BrowserFileUploadTool));
     dispatcher.register(Arc::new(ShellRunTool));
     dispatcher.register(Arc::new(DeviceFsListTool));
     dispatcher.register(Arc::new(DeviceFsReadTool));

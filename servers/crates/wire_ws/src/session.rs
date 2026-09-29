@@ -873,6 +873,49 @@ async fn dispatch(
                 Err(e) => err_res(req_id, WireErr::client("rtc_signal_ice_failed", e)),
             }
         },
+        Some(ws_req::Body::ReqRemoteAgentPush(r)) => {
+            let ok = c35_mod_device::remote_device_agent_push(
+                &state.pool,
+                state.nats.as_ref(),
+                ctx.caller_iid,
+                r.device_iid,
+                &r.payload,
+            )
+            .await;
+            WsRes {
+                req_id,
+                body: Some(ws_res::Body::ResRemoteAgentPush(match ok {
+                    Ok(()) => c35_proto::ResRemoteAgentPush {
+                        ok: true,
+                        error: String::new(),
+                    },
+                    Err(e) => c35_proto::ResRemoteAgentPush {
+                        ok: false,
+                        error: e,
+                    },
+                })),
+            }
+        },
+        Some(ws_req::Body::ReqRemoteBrowserInvoke(r)) => WsRes {
+            req_id,
+            body: Some(ws_res::Body::ResRemoteBrowserInvoke(
+                c35_mod_device::remote_device_browser_invoke_app(
+                    &state.pool,
+                    state.nats.as_ref(),
+                    ctx.caller_iid,
+                    r.device_iid,
+                    &r.method,
+                    &r.params_json,
+                    r.timeout_sec,
+                )
+                .await
+                .unwrap_or_else(|e| c35_proto::ResRemoteBrowserInvoke {
+                    ok: false,
+                    error: e,
+                    result_json: String::new(),
+                }),
+            )),
+        },
         Some(ws_req::Body::MentionList(r)) => {
             let list =
                 c35_mod_chat::mention_list_bundle_rpc(&state.pool, ctx.caller_iid, r.since_ms).await;

@@ -4,6 +4,7 @@ use anyhow::anyhow;
 use c_remote_core::config::{session_key_load, session_key_save, server_url};
 use c_remote_core::pair::{pair_poll, pair_register, pair_should_reroll, PairPoll};
 use crate::pair_ui::PairUi;
+use crate::pair_window::PairAgentKind;
 use crate::tray::TrayAction;
 
 pub async fn pair_until_claimed(
@@ -15,7 +16,7 @@ pub async fn pair_until_claimed(
     }
 
     let base_url = server_url();
-    let ui = PairUi::spawn(cli);
+    let ui = PairUi::spawn(cli, PairAgentKind::WindowsRemote);
     ui.set_connecting();
     let device_name = device_name();
 

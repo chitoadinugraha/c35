@@ -21,9 +21,18 @@ fn cloud_online_from_meta(meta: &Value) -> bool {
     now - last < 120_000
 }
 
-async fn device_release_fields_async(pool: &PgPool, meta: &Value) -> Value {
+fn release_platform_key(device_type: &str) -> &'static str {
+    if device_type.eq_ignore_ascii_case("browser") {
+        "remote-browser"
+    } else {
+        "remote-windows"
+    }
+}
+
+async fn device_release_fields_async(pool: &PgPool, device_type: &str, meta: &Value) -> Value {
     let agent_build = meta.get("agent_build").and_then(|v| v.as_i64()).unwrap_or(0);
-    let rel = release_config_get(pool, "remote-windows").await.ok().flatten();
+    let platform = release_platform_key(device_type);
+    let rel = release_config_get(pool, platform).await.ok().flatten();
     let Some(rel) = rel else {
         return json!({
             "agent_build": agent_build,
@@ -60,7 +69,7 @@ pub async fn mcp_device_list(pool: &PgPool, owner_iid: i64) -> Value {
         Ok(list) => {
             let mut devices = Vec::new();
             for (id, name, typ, meta) in list {
-                let release = device_release_fields_async(pool, &meta).await;
+                let release = device_release_fields_async(pool, &typ, &meta).await;
                 devices.push(json!({
                     "device_iid": id,
                     "name": name,
@@ -91,7 +100,7 @@ pub async fn mcp_device_get(pool: &PgPool, owner_iid: i64, device_iid: i64) -> V
 
     match row {
         Ok(Some((id, row_owner, name, typ, meta))) if row_owner == owner_iid => {
-            let release = device_release_fields_async(pool, &meta).await;
+            let release = device_release_fields_async(pool, &typ, &meta).await;
             json!({
                 "ok": true,
                 "device_iid": id,

@@ -5240,6 +5240,8 @@ class ResBillingPackageRedeem extends $pb.GeneratedMessage {
     $core.String? planTier,
     $core.int? durationMonths,
     $core.String? packageName,
+    $core.double? balanceUsd,
+    $core.double? balanceIdr,
   }) {
     final result = ResBillingPackageRedeem._();
     if (purchaseId != null) result.purchaseId = purchaseId;
@@ -5248,6 +5250,8 @@ class ResBillingPackageRedeem extends $pb.GeneratedMessage {
     if (planTier != null) result.planTier = planTier;
     if (durationMonths != null) result.durationMonths = durationMonths;
     if (packageName != null) result.packageName = packageName;
+    if (balanceUsd != null) result.balanceUsd = balanceUsd;
+    if (balanceIdr != null) result.balanceIdr = balanceIdr;
     return result;
   }
 
@@ -5270,6 +5274,8 @@ class ResBillingPackageRedeem extends $pb.GeneratedMessage {
     ..aOS(4, _omitFieldNames ? '' : 'planTier')
     ..aI(5, _omitFieldNames ? '' : 'durationMonths')
     ..aOS(6, _omitFieldNames ? '' : 'packageName')
+    ..aD(7, _omitFieldNames ? '' : 'balanceUsd')
+    ..aD(8, _omitFieldNames ? '' : 'balanceIdr')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -5349,6 +5355,25 @@ class ResBillingPackageRedeem extends $pb.GeneratedMessage {
   $core.bool hasPackageName() => $_has(5);
   @$pb.TagNumber(6)
   void clearPackageName() => $_clearField(6);
+
+  /// Authoritative wallet snapshot after debit (same as plan change response).
+  @$pb.TagNumber(7)
+  $core.double get balanceUsd => $_getN(6);
+  @$pb.TagNumber(7)
+  set balanceUsd($core.double value) => $_setDouble(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasBalanceUsd() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearBalanceUsd() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.double get balanceIdr => $_getN(7);
+  @$pb.TagNumber(8)
+  set balanceIdr($core.double value) => $_setDouble(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasBalanceIdr() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearBalanceIdr() => $_clearField(8);
 }
 
 class ReqBillingPackagePreview extends $pb.GeneratedMessage {

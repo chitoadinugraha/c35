@@ -1481,6 +1481,8 @@ const ResBillingPackageRedeem$json = {
     {'1': 'plan_tier', '3': 4, '4': 1, '5': 9, '10': 'planTier'},
     {'1': 'duration_months', '3': 5, '4': 1, '5': 5, '10': 'durationMonths'},
     {'1': 'package_name', '3': 6, '4': 1, '5': 9, '10': 'packageName'},
+    {'1': 'balance_usd', '3': 7, '4': 1, '5': 1, '10': 'balanceUsd'},
+    {'1': 'balance_idr', '3': 8, '4': 1, '5': 1, '10': 'balanceIdr'},
   ],
 };
 
@@ -1490,7 +1492,8 @@ final $typed_data.Uint8List resBillingPackageRedeemDescriptor = $convert.base64D
     'VJZBIdCgphbW91bnRfdXNkGAIgASgBUglhbW91bnRVc2QSHQoKYW1vdW50X2lkchgDIAEoAVIJ'
     'YW1vdW50SWRyEhsKCXBsYW5fdGllchgEIAEoCVIIcGxhblRpZXISJwoPZHVyYXRpb25fbW9udG'
     'hzGAUgASgFUg5kdXJhdGlvbk1vbnRocxIhCgxwYWNrYWdlX25hbWUYBiABKAlSC3BhY2thZ2VO'
-    'YW1l');
+    'YW1lEh8KC2JhbGFuY2VfdXNkGAcgASgBUgpiYWxhbmNlVXNkEh8KC2JhbGFuY2VfaWRyGAggAS'
+    'gBUgpiYWxhbmNlSWRy');
 
 @$core.Deprecated('Use reqBillingPackagePreviewDescriptor instead')
 const ReqBillingPackagePreview$json = {

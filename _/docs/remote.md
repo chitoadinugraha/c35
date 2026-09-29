@@ -13,6 +13,20 @@ Remote PCs/phones (`identity.kind = remote`) expose two **separate** planes. Do 
 
 **Server role on data plane:** signaling + ephemeral ICE credentials only. File bytes are **app ↔ device** direct (or via TURN relay when NAT requires it). c35 does not persist device files unless user explicitly saves to CAS.
 
+### Remote browser (`type=browser`)
+
+Same **two-plane** rule; different capture/input backend. Full spec: [browser-remote.md](browser-remote.md).
+
+| | Desktop (`type=windows`, …) | Remote browser (`type=browser`) |
+|---|---------------------------|----------------------------------|
+| Control | Agent WS + NATS tasks | Same |
+| Human display | WebRTC (DXGI → H.264, `input_exec`) | WebRTC (CDP screencast → Rust H.264, Playwright input via IPC) |
+| Runner | `c_remote_windows` (Rust) | `c_remote_browser` (Rust) + `browser_engine` (Node sidecar) |
+| Files tab | WebRTC `remote-fs` | **Not v1** |
+| Devices dots | Cloud + Direct (WebRTC) | **Same** |
+
+Playwright does not provide WebRTC to the app; Rust owns encode and `c_remote_core::webrtc`.
+
 ## Reference
 
 | Project | Borrow |

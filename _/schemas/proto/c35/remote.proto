@@ -131,6 +131,31 @@ message ResRemoteCommand {
   string stderr = 5;
 }
 
+// App → server → agent WS text push (e.g. c35.browser.mode:background).
+message ReqRemoteAgentPush {
+  int64 device_iid = 1;
+  string payload = 2;
+}
+
+message ResRemoteAgentPush {
+  bool ok = 1;
+  string error = 2;
+}
+
+// App → server → agent browser engine RPC (__c35_browser__ JSON command).
+message ReqRemoteBrowserInvoke {
+  int64 device_iid = 1;
+  string method = 2;
+  string params_json = 3;
+  uint32 timeout_sec = 4;
+}
+
+message ResRemoteBrowserInvoke {
+  bool ok = 1;
+  string error = 2;
+  string result_json = 3;
+}
+
 // ---------------------------------------------------------------------------
 // Remote filesystem list/read (agent control session RPC — not WebRTC)
 // ---------------------------------------------------------------------------

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/log.dart';
@@ -201,8 +202,20 @@ class RemoteSession {
       await s.stop();
       if (s._rendererInitialized) {
         await s.videoRenderer.dispose();
+        s._rendererInitialized = false;
       }
     }
+  }
+
+  Future<void> _ensureVideoRenderer() async {
+    if (kIsWeb || _rendererInitialized) return;
+    await videoRenderer.initialize();
+    _rendererInitialized = true;
+  }
+
+  void _clearVideoRendererStream() {
+    if (!_rendererInitialized) return;
+    videoRenderer.srcObject = null;
   }
 
   /// Devices page opened — keep WebRTC alive while user is on the page.
@@ -294,11 +307,8 @@ class RemoteSession {
     final mySeq = _startSeq;
     status.value = RemoteSessionStatus.connecting;
     try {
-      if (!_rendererInitialized && !kIsWeb) {
-        await videoRenderer.initialize();
-        if (_startAborted(mySeq)) return;
-        _rendererInitialized = true;
-      }
+      await _ensureVideoRenderer();
+      if (_startAborted(mySeq)) return;
       await _teardownPc();
       if (_startAborted(mySeq)) return;
       sessionId = Ulid().toString();
@@ -337,6 +347,8 @@ class RemoteSession {
         l('remote onTrack: ${event.track.kind} streams=${event.streams.length}');
         if (event.track.kind == 'video') {
           try {
+            await _ensureVideoRenderer();
+            if (_manualStop || _pc == null) return;
             if (event.streams.isNotEmpty) {
               videoRenderer.srcObject = event.streams[0];
             } else {
@@ -463,7 +475,7 @@ class RemoteSession {
     screenFrame.value = null;
     remoteCursorShape.value = 'arrow';
     hasVideoTrack.value = false;
-    videoRenderer.srcObject = null;
+    _clearVideoRendererStream();
     isControlEnabled.value = false;
     connected.value = false;
     updateReady.value = false;
@@ -671,6 +683,26 @@ class RemoteSession {
       ch.send(RTCDataChannelMessage.fromBinary(evt.writeToBuffer()));
       l('triggerUpdate sent to remote agent on remote-input data channel');
     }
+  }
+
+  Future<void> sendBrowserMode(String mode) async {
+    final m = mode == 'background' ? 'background' : 'interactive';
+    final res = await conn.remoteAgentPush(deviceIid, 'c35.browser.mode:$m');
+    if (!res.ok) throw res.error;
+  }
+
+  Future<Map<String, dynamic>> browserInvoke(String method, Map<String, dynamic> params) async {
+    final res = await conn.remoteBrowserInvoke(
+      deviceIid: deviceIid,
+      method: method,
+      paramsJson: jsonEncode(params),
+    );
+    if (!res.ok) throw res.error;
+    if (res.resultJson.isEmpty) return {};
+    final decoded = jsonDecode(res.resultJson);
+    if (decoded is Map<String, dynamic>) return decoded;
+    if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    return {'result': decoded};
   }
 
   // -------------------------------------------------------------------------

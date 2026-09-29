@@ -2,5 +2,5 @@
 //
 
 // ================================================================ Version
-const csaiVersion = '254';
-const csaiVersionFull = '20.254.0+254';
+const csaiVersion = '257';
+const csaiVersionFull = '20.257.0+257';

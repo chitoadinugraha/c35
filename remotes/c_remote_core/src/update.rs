@@ -110,6 +110,19 @@ pub fn release_requires_update(agent_build: i64, rel: &ReleaseRes) -> bool {
 }
 
 pub fn current_platform() -> &'static str {
+    if let Ok(p) = std::env::var("C35_RELEASE_PLATFORM") {
+        match p.trim() {
+            "remote-browser" => return "remote-browser",
+            "remote-windows" => return "remote-windows",
+            _ => {}
+        }
+    }
+    if std::env::var("C35_AGENT_STORAGE")
+        .map(|v| v.eq_ignore_ascii_case("browser"))
+        .unwrap_or(false)
+    {
+        return "remote-browser";
+    }
     #[cfg(target_os = "windows")]
     return "remote-windows";
     #[cfg(target_os = "macos")]
@@ -289,9 +302,25 @@ pub fn update_apply(version: i64) -> Result<(), anyhow::Error> {
     }
 
     let staging = staging_dir(version);
-    let exe = staging.join(WINDOWS_AGENT_EXE);
+    let browser_ota = current_platform() == "remote-browser";
+    let (primary_exe, legacy_exe, process_name, legacy_process) = if browser_ota {
+        (
+            "alienai_remote_browser.exe",
+            "alienai_remote_browser.exe",
+            "alienai_remote_browser",
+            "alienai_remote_browser",
+        )
+    } else {
+        (
+            WINDOWS_AGENT_EXE,
+            WINDOWS_LEGACY_AGENT_EXE,
+            WINDOWS_AGENT_PROCESS,
+            WINDOWS_LEGACY_AGENT_PROCESS,
+        )
+    };
+    let exe = staging.join(primary_exe);
     if !exe.exists() {
-        let legacy = staging.join(WINDOWS_LEGACY_AGENT_EXE);
+        let legacy = staging.join(legacy_exe);
         if legacy.exists() {
             std::fs::copy(&legacy, &exe)?;
         }
@@ -302,11 +331,7 @@ pub fn update_apply(version: i64) -> Result<(), anyhow::Error> {
     let install = install_dir();
     let dest_exe = std::env::current_exe()?;
     let script = updates_root().join("apply.ps1");
-    let staged_name = if exe.exists() {
-        WINDOWS_AGENT_EXE
-    } else {
-        WINDOWS_LEGACY_AGENT_EXE
-    };
+    let staged_name = primary_exe;
     let script_body = format!(
         r#"
 $staging = '{staging}'
@@ -339,15 +364,11 @@ exit 0
         dest_exe = dest_exe.display().to_string().replace('\'', "''"),
         install = install.display().to_string().replace('\'', "''"),
         staged_name = staged_name,
-        alt_name = if staged_name == WINDOWS_AGENT_EXE {
-            WINDOWS_LEGACY_AGENT_EXE
-        } else {
-            WINDOWS_AGENT_EXE
-        },
-        legacy_exe = WINDOWS_LEGACY_AGENT_EXE,
+        alt_name = legacy_exe,
+        legacy_exe = legacy_exe,
         winfsp_dll = WINDOWS_WINFSP_DLL,
-        process = WINDOWS_AGENT_PROCESS,
-        legacy_process = WINDOWS_LEGACY_AGENT_PROCESS,
+        process = process_name,
+        legacy_process = legacy_process,
     );
     std::fs::create_dir_all(script.parent().unwrap())?;
     std::fs::write(&script, script_body)?;

@@ -244,6 +244,8 @@ Tabs:
 | Skill | Manual + automatic (self-learned) skills; Teach button |
 | Settings | Name, instructions, device config |
 
+**`type=browser` (Remote browser):** same **two connection dots** (Cloud + Direct WebRTC). Remote tab reuses `UIRemoteDevice`; add tab strip for browser pages when shipped. **No Files tab in v1.** Subtitle: “Remote browser”. See [browser-remote.md](browser-remote.md).
+
 Remote agent attaches skills/tasks to device **identity id**.
 
 ### Files tab (remote)

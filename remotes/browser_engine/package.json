@@ -1,0 +1,23 @@
+{
+  "name": "c35-browser-engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Playwright sidecar for c_remote_browser (localhost IPC only)",
+  "type": "module",
+  "main": "dist/worker.js",
+  "bin": {
+    "c35-browser-engine": "dist/worker.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w --preserveWatchOutput",
+    "start": "node dist/worker.js"
+  },
+  "dependencies": {
+    "playwright": "1.49.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0"
+  }
+}

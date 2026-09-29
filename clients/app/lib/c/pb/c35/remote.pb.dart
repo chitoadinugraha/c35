@@ -1316,6 +1316,324 @@ class ResRemoteCommand extends $pb.GeneratedMessage {
   void clearStderr() => $_clearField(5);
 }
 
+/// App → server → agent WS text push (e.g. c35.browser.mode:background).
+class ReqRemoteAgentPush extends $pb.GeneratedMessage {
+  factory ReqRemoteAgentPush({
+    $fixnum.Int64? deviceIid,
+    $core.String? payload,
+  }) {
+    final result = ReqRemoteAgentPush._();
+    if (deviceIid != null) result.deviceIid = deviceIid;
+    if (payload != null) result.payload = payload;
+    return result;
+  }
+
+  ReqRemoteAgentPush._();
+
+  factory ReqRemoteAgentPush.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqRemoteAgentPush()..mergeFromBuffer(data, registry);
+  factory ReqRemoteAgentPush.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqRemoteAgentPush()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqRemoteAgentPush',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqRemoteAgentPush.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'deviceIid')
+    ..aOS(2, _omitFieldNames ? '' : 'payload')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqRemoteAgentPush clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqRemoteAgentPush copyWith(void Function(ReqRemoteAgentPush) updates) =>
+      super.copyWith((message) => updates(message as ReqRemoteAgentPush))
+          as ReqRemoteAgentPush;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqRemoteAgentPush() / ReqRemoteAgentPush.new instead')
+  static ReqRemoteAgentPush create() => ReqRemoteAgentPush._();
+  static $pb.GeneratedMessage $_createMessage() => ReqRemoteAgentPush._();
+  @$core.override
+  ReqRemoteAgentPush createEmptyInstance() => ReqRemoteAgentPush._();
+  @$core.pragma('dart2js:noInline')
+  static ReqRemoteAgentPush getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqRemoteAgentPush>(
+          ReqRemoteAgentPush.$_createMessage);
+  static ReqRemoteAgentPush? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get deviceIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set deviceIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasDeviceIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearDeviceIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get payload => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set payload($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasPayload() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearPayload() => $_clearField(2);
+}
+
+class ResRemoteAgentPush extends $pb.GeneratedMessage {
+  factory ResRemoteAgentPush({
+    $core.bool? ok,
+    $core.String? error,
+  }) {
+    final result = ResRemoteAgentPush._();
+    if (ok != null) result.ok = ok;
+    if (error != null) result.error = error;
+    return result;
+  }
+
+  ResRemoteAgentPush._();
+
+  factory ResRemoteAgentPush.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResRemoteAgentPush()..mergeFromBuffer(data, registry);
+  factory ResRemoteAgentPush.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResRemoteAgentPush()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResRemoteAgentPush',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResRemoteAgentPush.$_createMessage)
+    ..aOB(1, _omitFieldNames ? '' : 'ok')
+    ..aOS(2, _omitFieldNames ? '' : 'error')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResRemoteAgentPush clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResRemoteAgentPush copyWith(void Function(ResRemoteAgentPush) updates) =>
+      super.copyWith((message) => updates(message as ResRemoteAgentPush))
+          as ResRemoteAgentPush;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResRemoteAgentPush() / ResRemoteAgentPush.new instead')
+  static ResRemoteAgentPush create() => ResRemoteAgentPush._();
+  static $pb.GeneratedMessage $_createMessage() => ResRemoteAgentPush._();
+  @$core.override
+  ResRemoteAgentPush createEmptyInstance() => ResRemoteAgentPush._();
+  @$core.pragma('dart2js:noInline')
+  static ResRemoteAgentPush getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResRemoteAgentPush>(
+          ResRemoteAgentPush.$_createMessage);
+  static ResRemoteAgentPush? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get ok => $_getBF(0);
+  @$pb.TagNumber(1)
+  set ok($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasOk() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOk() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get error => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set error($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasError() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearError() => $_clearField(2);
+}
+
+/// App → server → agent browser engine RPC (__c35_browser__ JSON command).
+class ReqRemoteBrowserInvoke extends $pb.GeneratedMessage {
+  factory ReqRemoteBrowserInvoke({
+    $fixnum.Int64? deviceIid,
+    $core.String? method,
+    $core.String? paramsJson,
+    $core.int? timeoutSec,
+  }) {
+    final result = ReqRemoteBrowserInvoke._();
+    if (deviceIid != null) result.deviceIid = deviceIid;
+    if (method != null) result.method = method;
+    if (paramsJson != null) result.paramsJson = paramsJson;
+    if (timeoutSec != null) result.timeoutSec = timeoutSec;
+    return result;
+  }
+
+  ReqRemoteBrowserInvoke._();
+
+  factory ReqRemoteBrowserInvoke.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqRemoteBrowserInvoke()..mergeFromBuffer(data, registry);
+  factory ReqRemoteBrowserInvoke.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqRemoteBrowserInvoke()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqRemoteBrowserInvoke',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqRemoteBrowserInvoke.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'deviceIid')
+    ..aOS(2, _omitFieldNames ? '' : 'method')
+    ..aOS(3, _omitFieldNames ? '' : 'paramsJson')
+    ..aI(4, _omitFieldNames ? '' : 'timeoutSec', fieldType: $pb.PbFieldType.OU3)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqRemoteBrowserInvoke clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqRemoteBrowserInvoke copyWith(
+          void Function(ReqRemoteBrowserInvoke) updates) =>
+      super.copyWith((message) => updates(message as ReqRemoteBrowserInvoke))
+          as ReqRemoteBrowserInvoke;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqRemoteBrowserInvoke() / ReqRemoteBrowserInvoke.new instead')
+  static ReqRemoteBrowserInvoke create() => ReqRemoteBrowserInvoke._();
+  static $pb.GeneratedMessage $_createMessage() => ReqRemoteBrowserInvoke._();
+  @$core.override
+  ReqRemoteBrowserInvoke createEmptyInstance() => ReqRemoteBrowserInvoke._();
+  @$core.pragma('dart2js:noInline')
+  static ReqRemoteBrowserInvoke getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqRemoteBrowserInvoke>(
+          ReqRemoteBrowserInvoke.$_createMessage);
+  static ReqRemoteBrowserInvoke? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get deviceIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set deviceIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasDeviceIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearDeviceIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get method => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set method($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasMethod() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearMethod() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get paramsJson => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set paramsJson($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasParamsJson() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearParamsJson() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.int get timeoutSec => $_getIZ(3);
+  @$pb.TagNumber(4)
+  set timeoutSec($core.int value) => $_setUnsignedInt32(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasTimeoutSec() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearTimeoutSec() => $_clearField(4);
+}
+
+class ResRemoteBrowserInvoke extends $pb.GeneratedMessage {
+  factory ResRemoteBrowserInvoke({
+    $core.bool? ok,
+    $core.String? error,
+    $core.String? resultJson,
+  }) {
+    final result = ResRemoteBrowserInvoke._();
+    if (ok != null) result.ok = ok;
+    if (error != null) result.error = error;
+    if (resultJson != null) result.resultJson = resultJson;
+    return result;
+  }
+
+  ResRemoteBrowserInvoke._();
+
+  factory ResRemoteBrowserInvoke.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResRemoteBrowserInvoke()..mergeFromBuffer(data, registry);
+  factory ResRemoteBrowserInvoke.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResRemoteBrowserInvoke()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResRemoteBrowserInvoke',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResRemoteBrowserInvoke.$_createMessage)
+    ..aOB(1, _omitFieldNames ? '' : 'ok')
+    ..aOS(2, _omitFieldNames ? '' : 'error')
+    ..aOS(3, _omitFieldNames ? '' : 'resultJson')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResRemoteBrowserInvoke clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResRemoteBrowserInvoke copyWith(
+          void Function(ResRemoteBrowserInvoke) updates) =>
+      super.copyWith((message) => updates(message as ResRemoteBrowserInvoke))
+          as ResRemoteBrowserInvoke;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResRemoteBrowserInvoke() / ResRemoteBrowserInvoke.new instead')
+  static ResRemoteBrowserInvoke create() => ResRemoteBrowserInvoke._();
+  static $pb.GeneratedMessage $_createMessage() => ResRemoteBrowserInvoke._();
+  @$core.override
+  ResRemoteBrowserInvoke createEmptyInstance() => ResRemoteBrowserInvoke._();
+  @$core.pragma('dart2js:noInline')
+  static ResRemoteBrowserInvoke getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResRemoteBrowserInvoke>(
+          ResRemoteBrowserInvoke.$_createMessage);
+  static ResRemoteBrowserInvoke? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get ok => $_getBF(0);
+  @$pb.TagNumber(1)
+  set ok($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasOk() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOk() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get error => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set error($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasError() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearError() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get resultJson => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set resultJson($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasResultJson() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearResultJson() => $_clearField(3);
+}
+
 class ReqRemoteFsList extends $pb.GeneratedMessage {
   factory ReqRemoteFsList({
     $fixnum.Int64? deviceIid,

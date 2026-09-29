@@ -25,8 +25,10 @@ pub use mcp_device::{mcp_device_get, mcp_device_list};
 pub use release_config::{release_config_get, release_needs_update};
 pub use remote_ice_config::remote_ice_config;
 pub use remote_signaling::{
-    remote_agent_send_raw, remote_device_command_run, remote_device_fs_list, remote_device_fs_read,
-    remote_device_input_send, remote_device_screenshot_capture, remote_session_start,
+    remote_agent_send_raw, remote_device_agent_push, remote_device_browser_invoke,
+    remote_device_browser_invoke_app, remote_device_command_run,
+    remote_device_fs_list, remote_device_fs_read, remote_device_input_send,
+    remote_device_screenshot_capture, remote_device_task_run_enqueue, remote_session_start,
     remote_session_stop,
     remote_signaling_agent_frame, remote_signaling_agent_register,
     remote_signaling_agent_unregister, remote_signaling_app_conn_register,

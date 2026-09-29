@@ -1,4 +1,4 @@
-use crate::pair_window::PairWindow;
+use crate::pair_window::{PairAgentKind, PairWindow};
 
 pub enum PairUi {
     Window(PairWindow),
@@ -6,11 +6,11 @@ pub enum PairUi {
 }
 
 impl PairUi {
-    pub fn spawn(cli: bool) -> Self {
+    pub fn spawn(cli: bool, kind: PairAgentKind) -> Self {
         if cli {
             Self::Cli
         } else {
-            Self::Window(PairWindow::spawn())
+            Self::Window(PairWindow::spawn(kind))
         }
     }
 
@@ -52,7 +52,7 @@ impl PairUi {
 fn print_code(code: &str, expires_in_sec: i64) {
     println!();
     println!("============================================================");
-    println!(">>> Alien AI Remote Agent - Pairing Required");
+    println!(">>> Alien AI - Pairing Required");
     println!(">>> Enter this in Alien AI -> Devices -> Pair with Code");
     println!(">>> [ {} ]  (refresh in {}s)", code, expires_in_sec);
     println!("============================================================");

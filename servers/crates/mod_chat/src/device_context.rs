@@ -352,3 +352,75 @@ pub async fn bound_device_prompt_prepare(
     }
     Ok(())
 }
+
+/// Desktop-only remote tools (shell, vision, computer_use, host fs) — not on `type=browser` agents.
+pub const BROWSER_DEVICE_TOOL_EXCLUDE: &[&str] = &[
+    "shell.run",
+    "device.screenshot",
+    "device.input",
+    "computer_use.delegate",
+    "device.fs.list",
+    "device.fs.read",
+];
+
+/// When every device in scope is `type=browser`, exclude desktop remote tools from compose.
+pub async fn tool_exclude_browser_devices(
+    pool: &PgPool,
+    owner_iid: i64,
+    mention_device_iids: &[i64],
+    bound_device_iid: i64,
+) -> Vec<String> {
+    let mut ids: Vec<i64> = mention_device_iids
+        .iter()
+        .copied()
+        .filter(|i| *i > 0)
+        .collect();
+    if bound_device_iid > 0 && !ids.contains(&bound_device_iid) {
+        ids.push(bound_device_iid);
+    }
+    ids.sort_unstable();
+    ids.dedup();
+    if ids.is_empty() {
+        return Vec::new();
+    }
+    let rows = sqlx::query_scalar::<_, String>(
+        r#"
+        SELECT type
+        FROM ai.identity
+        WHERE id = ANY($1::bigint[])
+          AND owner_iid = $2
+          AND kind = 'remote'
+          AND deleted_ts IS NULL
+        "#,
+    )
+    .bind(&ids)
+    .bind(owner_iid)
+    .fetch_all(pool)
+    .await
+    .unwrap_or_default();
+    if rows.is_empty() || rows.len() != ids.len() {
+        return Vec::new();
+    }
+    if rows.iter().all(|t| t.eq_ignore_ascii_case("browser")) {
+        return BROWSER_DEVICE_TOOL_EXCLUDE.iter().map(|s| s.to_string()).collect();
+    }
+    Vec::new()
+}
+
+pub async fn chat_bound_device_iid_for_owner(pool: &PgPool, owner_iid: i64, chat_id: i64) -> i64 {
+    let row: Option<(i64, Value)> = sqlx::query_as(
+        r#"
+        SELECT owner_iid, COALESCE(meta, '{}'::jsonb)
+        FROM ai.chat
+        WHERE id = $1 AND deleted_ts IS NULL
+        "#,
+    )
+    .bind(chat_id)
+    .fetch_optional(pool)
+    .await
+    .unwrap_or(None);
+    match row {
+        Some((oid, meta)) if oid == owner_iid => chat_bound_device_iid(&meta),
+        _ => 0,
+    }
+}

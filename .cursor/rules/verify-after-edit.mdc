@@ -48,6 +48,16 @@ flutter analyze
 
 Run `flutter test` when tests exist for changed code.
 
+## Text encoding (all platforms)
+
+After creating or editing `.rs`, `.md`, `.dart`, `.sql`, `.toml`, `.proto`, `.mdc`, or `.ps1`:
+
+```powershell
+.\_\scripts\dev\check_utf8_sources.ps1 -Changed
+```
+
+See `utf8-source-files.mdc` — never write those files with default PowerShell `Set-Content` (UTF-16 on Windows).
+
 ## General
 
 - Do not claim "fixed" or "ready to test" without running the relevant check above

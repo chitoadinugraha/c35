@@ -31,7 +31,6 @@ struct StatusCopy {
     user_app_subtitle: String,
     user_app_connected: usize,
     webrtc_connecting: bool,
-    capture_active: bool,
     control_allowed: bool,
     autostart: bool,
     update_staged: Option<i64>,
@@ -67,7 +66,6 @@ fn status_copy() -> StatusCopy {
         user_app_subtitle: c_remote_core::agent_ui::user_app_subtitle(snap.webrtc_connecting),
         user_app_connected: snap.user_app_lines.len(),
         webrtc_connecting: snap.webrtc_connecting,
-        capture_active: snap.capture_active,
         control_allowed: snap.control_allowed,
         autostart: snap.autostart_enabled,
         update_staged: snap.update_staged_version,
@@ -95,10 +93,10 @@ pub fn run(
     use windows::Win32::Foundation::{COLORREF, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM};
     use windows::Win32::Graphics::Gdi::{
         BeginPaint, CreateFontW, CreatePen, CreateSolidBrush, DeleteObject, DrawTextW, Ellipse,
-        EndPaint, FillRect, GetStockObject, InvalidateRect, RoundRect, SelectObject, SetBkMode,
+        EndPaint, FillRect, InvalidateRect, RoundRect, SelectObject, SetBkMode,
         SetTextColor, DEFAULT_CHARSET, DRAW_TEXT_FORMAT, DT_CENTER, DT_LEFT, DT_SINGLELINE,
-        DT_VCENTER, DT_WORDBREAK, FW_BOLD, FW_NORMAL, FW_SEMIBOLD, HDC, HFONT, HGDIOBJ,
-        NULL_BRUSH, OUT_DEFAULT_PRECIS, PAINTSTRUCT, PS_SOLID, TRANSPARENT,
+        DT_VCENTER, FW_NORMAL, FW_SEMIBOLD, HDC, HFONT, HGDIOBJ,
+        OUT_DEFAULT_PRECIS, PAINTSTRUCT, PS_SOLID, TRANSPARENT,
         CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, FF_DONTCARE,
     };
     use windows::Win32::System::LibraryLoader::GetModuleHandleW;
@@ -112,7 +110,7 @@ pub fn run(
         SWP_NOSIZE, WM_CLOSE, WM_CREATE, WM_DESTROY, WM_ERASEBKGND, WM_GETMINMAXINFO,
         WM_LBUTTONDOWN, WM_MOUSEMOVE, WM_NCHITTEST, WM_PAINT, WM_SETICON, WM_SIZE, WM_TIMER,
         WM_USER, WNDCLASSEXW, WS_EX_APPWINDOW, WS_MINIMIZEBOX, WS_POPUP, WS_THICKFRAME,
-        HTCAPTION, HTCLIENT, MINMAXINFO, WINDOW_EX_STYLE,
+        HTCAPTION, HTCLIENT, MINMAXINFO,
     };
 
     const WM_AGENT_SHOW: u32 = WM_USER + 302;

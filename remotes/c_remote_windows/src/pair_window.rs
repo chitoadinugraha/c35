@@ -8,7 +8,22 @@ use c_remote_core::version::agent_version_label;
 
 const INSTRUCTION: &str = "Enter this code in Alien AI app -> Device -> Pair with Code";
 const SITE_URL: &str = "https://alienai.id";
-const WINDOW_TITLE: &str = "Alien AI - Pair Device";
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum PairAgentKind {
+    #[default]
+    WindowsRemote,
+    Browser,
+}
+
+impl PairAgentKind {
+    pub fn window_title(self) -> &'static str {
+        match self {
+            Self::WindowsRemote => "Alien AI - Pair Windows Agent",
+            Self::Browser => "Alien AI - Pair Remote Browser",
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum PairPhase {
@@ -18,6 +33,7 @@ enum PairPhase {
 
 #[derive(Clone, Debug)]
 struct PairUiState {
+    kind: PairAgentKind,
     phase: PairPhase,
     code: String,
     status: String,
@@ -26,9 +42,10 @@ struct PairUiState {
     spinner: u8,
 }
 
-impl Default for PairUiState {
-    fn default() -> Self {
+impl PairUiState {
+    fn new(kind: PairAgentKind) -> Self {
         Self {
+            kind,
             phase: PairPhase::Connecting,
             code: String::new(),
             status: "Connecting…".into(),
@@ -51,8 +68,8 @@ pub struct PairWindow {
 }
 
 impl PairWindow {
-    pub fn spawn() -> Self {
-        let inner = Arc::new(Mutex::new(PairUiState::default()));
+    pub fn spawn(kind: PairAgentKind) -> Self {
+        let inner = Arc::new(Mutex::new(PairUiState::new(kind)));
         let user_quit = Arc::new(AtomicBool::new(false));
         #[cfg(target_os = "windows")]
         {
@@ -64,10 +81,13 @@ impl PairWindow {
             let ready_t = ready.clone();
             let user_quit_t = user_quit.clone();
             let programmatic_close_t = programmatic_close.clone();
+            let kind = inner.lock().unwrap().kind;
             let _ = std::thread::Builder::new()
                 .name("c35-pair-ui".into())
                 .spawn(move || {
-                    if let Err(e) = run_pair_window(inner_t, hwnd_t, ready_t, user_quit_t, programmatic_close_t) {
+                    if let Err(e) =
+                        run_pair_window(inner_t, hwnd_t, ready_t, user_quit_t, programmatic_close_t, kind)
+                    {
                         warn!("Pairing window failed ({e}); use --cli for console pairing or check logs");
                     }
                 });
@@ -188,6 +208,7 @@ fn run_pair_window(
     ready: Arc<(Mutex<bool>, Condvar)>,
     user_quit: Arc<AtomicBool>,
     programmatic_close: Arc<AtomicBool>,
+    agent_kind: PairAgentKind,
 ) -> anyhow::Result<()> {
     use windows::core::w;
     use windows::Win32::Foundation::{COLORREF, HANDLE, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM};
@@ -402,7 +423,7 @@ fn run_pair_window(
     fn copy_rect(scale: &UiScale, rc: &RECT) -> RECT {
         let w = scale.px(76);
         let h = scale.px(28);
-        let top = scale.px(124);
+        let top = scale.px(132);
         RECT {
             left: (rc.right - w) / 2,
             top,
@@ -480,6 +501,41 @@ fn run_pair_window(
         let _ = DeleteObject(HGDIOBJ(pen.0));
     }
 
+    unsafe fn draw_agent_icon(hdc: HDC, scale: &UiScale, cx: i32, cy: i32, kind: PairAgentKind) {
+        let pen_w = scale.px(2).max(1);
+        let pen = CreatePen(PS_SOLID, pen_w, COLORREF(CLR_TEXT));
+        let hollow = SelectObject(hdc, GetStockObject(NULL_BRUSH));
+        let old_pen = SelectObject(hdc, HGDIOBJ(pen.0));
+        match kind {
+            PairAgentKind::Browser => {
+                let r = scale.px(13);
+                let _ = Ellipse(hdc, cx - r, cy - r, cx + r, cy + r);
+                let _ = MoveToEx(hdc, cx - r, cy, None);
+                let _ = LineTo(hdc, cx + r, cy);
+                let _ = MoveToEx(hdc, cx, cy - r, None);
+                let _ = LineTo(hdc, cx, cy + r);
+            }
+            PairAgentKind::WindowsRemote => {
+                let w = scale.px(26);
+                let h = scale.px(17);
+                let rad = scale.px(3);
+                let left = cx - w / 2;
+                let top = cy - h / 2 - scale.px(2);
+                let _ = RoundRect(hdc, left, top, left + w, top + h, rad, rad);
+                let stand_w = scale.px(10);
+                let base_w = scale.px(18);
+                let foot_y = top + h + scale.px(2);
+                let _ = MoveToEx(hdc, cx - stand_w / 2, foot_y, None);
+                let _ = LineTo(hdc, cx + stand_w / 2, foot_y);
+                let _ = MoveToEx(hdc, cx - base_w / 2, foot_y + scale.px(3), None);
+                let _ = LineTo(hdc, cx + base_w / 2, foot_y + scale.px(3));
+            }
+        }
+        SelectObject(hdc, old_pen);
+        SelectObject(hdc, hollow);
+        let _ = DeleteObject(HGDIOBJ(pen.0));
+    }
+
     unsafe fn draw_spinner(hdc: HDC, scale: &UiScale, cx: i32, cy: i32, r: i32, frame: u8) {
         let pen = CreatePen(PS_SOLID, scale.px(2).max(1), COLORREF(CLR_ACCENT));
         let hollow = SelectObject(hdc, GetStockObject(NULL_BRUSH));
@@ -517,7 +573,7 @@ fn run_pair_window(
         let count = (chars1.len() + chars2.len()) as i32;
         let total_w = count * box_w + (count - 1) * gap + group_gap;
         let mut x = (rc.right - total_w) / 2;
-        let y = scale.px(48);
+        let y = scale.px(56);
 
         let pen = CreatePen(PS_SOLID, 1, COLORREF(CLR_PIN_BORDER));
         let brush = CreateSolidBrush(COLORREF(CLR_PIN_BG));
@@ -662,7 +718,7 @@ fn run_pair_window(
             hdc,
             ctx.fonts.title,
             CLR_TEXT,
-            WINDOW_TITLE,
+            snap.kind.window_title(),
             RECT {
                 left: scale.px(14),
                 top: 0,
@@ -696,7 +752,8 @@ fn run_pair_window(
         );
 
         if snap.phase == PairPhase::Connecting {
-            draw_spinner(hdc, scale, rc.right / 2, scale.px(88), scale.px(18), snap.spinner);
+            draw_agent_icon(hdc, scale, rc.right / 2, scale.px(52), snap.kind);
+            draw_spinner(hdc, scale, rc.right / 2, scale.px(96), scale.px(16), snap.spinner);
             draw_text(
                 hdc,
                 ctx.fonts.body,
@@ -714,6 +771,7 @@ fn run_pair_window(
         }
 
         if snap.phase == PairPhase::Code {
+            draw_agent_icon(hdc, scale, rc.right / 2, scale.px(38), snap.kind);
             draw_pin_boxes(hdc, scale, ctx.fonts.code, &rc, &snap.code);
         }
 
@@ -739,9 +797,9 @@ fn run_pair_window(
             &snap.status,
             RECT {
                 left: scale.px(24),
-                top: scale.px(94),
+                top: scale.px(104),
                 right: rc.right - scale.px(24),
-                bottom: scale.px(122),
+                bottom: scale.px(130),
             },
             DT_CENTER | DT_WORDBREAK,
         );
@@ -970,10 +1028,11 @@ fn run_pair_window(
         let win_h = initial_scale.px(WIN_H_BASE);
         let cw = GetSystemMetrics(SM_CXSCREEN);
         let ch = GetSystemMetrics(SM_CYSCREEN);
+        let title_wide: Vec<u16> = agent_kind.window_title().encode_utf16().chain([0]).collect();
         let hwnd = CreateWindowExW(
             WS_EX_TOPMOST | WS_EX_APPWINDOW,
             class_name,
-            w!("Alien AI - Pair Device"),
+            windows::core::PCWSTR(title_wide.as_ptr()),
             WS_POPUP | WS_VISIBLE,
             (cw - win_w) / 2,
             (ch - win_h) / 2,

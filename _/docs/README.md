@@ -31,6 +31,7 @@ When code and docs disagree, fix the code to match these docs (or explicitly rev
 | [roadmap.md](roadmap.md) | Phase 0→9 start/end goals |
 | [skill.md](skill.md) | Skill scope, catalog, automation |
 | [remote.md](remote.md) | Remote device: agent control session + WebRTC data plane (files, screen, media) |
+| [browser-remote.md](browser-remote.md) | Remote browser (`type=browser`) — Rust agent + Playwright sidecar, WebRTC stream; plans: [phase 1](plans/2026-09-29-remote-browser-multitask.md), [phase 2](plans/2026-09-29-remote-browser-phase2-multitask.md) |
 | [inst.md](inst.md) | Instruction macros (`ai.inst`) — phrase steering + tool include/exclude |
 | [image.md](image.md) | Image gen/edit tiers, `@image-high`, billing |
 | [hint.md](hint.md) | Home hint chips — precompiled catalog, site shortcuts, SessionInit cache |
@@ -50,4 +51,4 @@ Schemas live in [`../schemas/`](../schemas/). Boot apply + version hash: [schema
 
 Working multitask / implementation plans live in [`plans/`](plans/). These are ephemeral execution docs — not locked specs. Update or archive when work completes.
 
-Active: [Event bus + MCP log grep](plans/2026-09-26-event-bus-multitask.md), [Bot data sources / Google Sheets](plans/2026-09-27-data-source-google-sheet-multitask.md).
+Active: [Event bus + MCP log grep](plans/2026-09-26-event-bus-multitask.md), [Bot data sources / Google Sheets](plans/2026-09-27-data-source-google-sheet-multitask.md), [Remote browser](plans/2026-09-29-remote-browser-multitask.md).

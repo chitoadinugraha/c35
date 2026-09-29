@@ -13,12 +13,27 @@ use tokio::sync::mpsc;
 use tracing::{info, warn};
 
 const RELEASE_NUDGE_PAYLOAD: &[u8] = b"c35.release:remote-windows";
+const REMOTE_BROWSER_NUDGE_PAYLOAD: &[u8] = b"c35.release:remote-browser";
 const FFMPEG_RELEASE_NUDGE_PAYLOAD: &[u8] = b"c35.release:ffmpeg-windows";
 const RELEASE_NUDGE_INTERVAL: Duration = Duration::from_secs(90);
+
+async fn remote_device_type(pool: &sqlx::PgPool, device_iid: i64) -> String {
+    let row = sqlx::query_scalar::<_, String>(
+        "SELECT type FROM ai.identity WHERE id = $1 AND deleted_ts IS NULL",
+    )
+    .bind(device_iid)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten();
+    row.unwrap_or_default()
+}
 
 fn spawn_release_nudge_loop(
     pool: sqlx::PgPool,
     agent_build: i64,
+    platform: &'static str,
+    nudge_payload: &'static [u8],
     tx: mpsc::UnboundedSender<Vec<u8>>,
 ) {
     if agent_build <= 0 {
@@ -26,14 +41,14 @@ fn spawn_release_nudge_loop(
     }
     tokio::spawn(async move {
         loop {
-            let needs = match release_config_get(&pool, "remote-windows").await {
+            let needs = match release_config_get(&pool, platform).await {
                 Ok(Some(rel)) => release_needs_update(agent_build, &rel),
                 _ => false,
             };
             if !needs {
                 break;
             }
-            if tx.send(RELEASE_NUDGE_PAYLOAD.to_vec()).is_err() {
+            if tx.send(nudge_payload.to_vec()).is_err() {
                 break;
             }
             tokio::time::sleep(RELEASE_NUDGE_INTERVAL).await;
@@ -88,7 +103,20 @@ pub async fn handle(
     let (agent_out_tx, mut agent_out_rx) = mpsc::unbounded_channel::<Vec<u8>>();
     remote_signaling_agent_register(session.device_iid, agent_out_tx.clone());
 
-    spawn_release_nudge_loop(state.pool.clone(), agent_build, agent_out_tx.clone());
+    let device_type = remote_device_type(&state.pool, session.device_iid).await;
+    let browser_agent = device_type.eq_ignore_ascii_case("browser");
+    let (release_platform, nudge_payload) = if browser_agent {
+        ("remote-browser", REMOTE_BROWSER_NUDGE_PAYLOAD)
+    } else {
+        ("remote-windows", RELEASE_NUDGE_PAYLOAD)
+    };
+    spawn_release_nudge_loop(
+        state.pool.clone(),
+        agent_build,
+        release_platform,
+        nudge_payload,
+        agent_out_tx.clone(),
+    );
 
     if let Some(nats) = state.nats.as_ref() {
         let nats_sub = nats.clone();
@@ -105,23 +133,43 @@ pub async fn handle(
             }
         });
 
-        let nats_release = nats.clone();
-        let tx_release = agent_out_tx.clone();
-        tokio::spawn(async move {
-            let subject = "c35.release.remote-windows";
-            if let Ok(mut sub) = nats_release.subscribe(subject.to_string()).await {
-                while let Some(msg) = sub.next().await {
-                    let notification = if msg.payload.is_empty() {
-                        RELEASE_NUDGE_PAYLOAD.to_vec()
-                    } else {
-                        msg.payload.to_vec()
-                    };
-                    if tx_release.send(notification).is_err() {
-                        break;
+        if browser_agent {
+            let nats_release = nats.clone();
+            let tx_release = agent_out_tx.clone();
+            tokio::spawn(async move {
+                let subject = "c35.release.remote-browser";
+                if let Ok(mut sub) = nats_release.subscribe(subject.to_string()).await {
+                    while let Some(msg) = sub.next().await {
+                        let notification = if msg.payload.is_empty() {
+                            REMOTE_BROWSER_NUDGE_PAYLOAD.to_vec()
+                        } else {
+                            msg.payload.to_vec()
+                        };
+                        if tx_release.send(notification).is_err() {
+                            break;
+                        }
                     }
                 }
-            }
-        });
+            });
+        } else {
+            let nats_release = nats.clone();
+            let tx_release = agent_out_tx.clone();
+            tokio::spawn(async move {
+                let subject = "c35.release.remote-windows";
+                if let Ok(mut sub) = nats_release.subscribe(subject.to_string()).await {
+                    while let Some(msg) = sub.next().await {
+                        let notification = if msg.payload.is_empty() {
+                            RELEASE_NUDGE_PAYLOAD.to_vec()
+                        } else {
+                            msg.payload.to_vec()
+                        };
+                        if tx_release.send(notification).is_err() {
+                            break;
+                        }
+                    }
+                }
+            });
+        }
 
         let nats_ffmpeg = nats.clone();
         let tx_ffmpeg = agent_out_tx.clone();

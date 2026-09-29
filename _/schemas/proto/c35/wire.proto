@@ -273,6 +273,8 @@ message WsReq {
     ReqBotPeerCreate bot_peer_create = 166;
     ReqBotPeerAppSend bot_peer_app_send = 167;
     ReqBotPeerDelete bot_peer_delete = 168;
+    ReqRemoteAgentPush req_remote_agent_push = 169;
+    ReqRemoteBrowserInvoke req_remote_browser_invoke = 170;
   }
 }
 
@@ -418,5 +420,7 @@ message WsRes {
     ResBotPeerCreate bot_peer_create = 166;
     ResBotPeerAppSend bot_peer_app_send = 167;
     ResBotPeerDelete bot_peer_delete = 168;
+    ResRemoteAgentPush res_remote_agent_push = 169;
+    ResRemoteBrowserInvoke res_remote_browser_invoke = 170;
   }
 }

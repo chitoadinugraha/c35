@@ -21,7 +21,6 @@ const _zinc400 = Color(0xFFA1A1AA);
 const _zinc500 = Color(0xFF71717A);
 const _emerald = Color(0xFF10B981);
 const _amber = Color(0xFFF59E0B);
-const _red = Color(0xFFEF4444);
 
 const _trackpadSingleClickDelay = Duration(milliseconds: 180);
 const _trackpadDoubleTapWindowMs = 280;
@@ -257,6 +256,30 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
   bool get _viewPanMode => widget.interactMode == RemoteInteractMode.view;
   bool _canvasDragPans({required bool ctrl, required bool middle}) =>
       _viewPanMode || ctrl || middle;
+
+  bool _agentOfflineError(String? err) {
+    if (err == null) return false;
+    final lower = err.toLowerCase();
+    return lower.contains('agent offline') ||
+        lower.contains('agent unreachable') ||
+        lower.contains('no response from agent');
+  }
+
+  bool _showDeviceOffline(RemoteSession sess, bool linking) =>
+      !linking && (!widget.online || _agentOfflineError(_error));
+
+  String _placeholderMessage(RemoteSession sess, bool linking) {
+    if (!sess.conn.connected) {
+      return 'Server offline. Reconnect when signed in.';
+    }
+    if (_showDeviceOffline(sess, linking)) {
+      return '${widget.deviceName} is offline';
+    }
+    if (linking) return 'Connecting to ${widget.deviceName}…';
+    if (sess.stoppedByUser) return 'Remote session stopped.';
+    if (_error != null) return '${widget.deviceName} is offline';
+    return 'Screen stream idle.';
+  }
 
   void _syncSessionControl() {
     final sess = widget.session;
@@ -641,18 +664,25 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
     }
   }
 
-  Future<void> _connect() async {
+  Future<void> _connect({bool forceRestart = false}) async {
     final sess = widget.session;
     if (sess == null) return;
     if (!sess.conn.connected) return;
     if (_connecting) return;
+    if (!forceRestart) {
+      if (sess.connected.value) {
+        if (mounted) setState(() => _error = null);
+        return;
+      }
+      if (sess.isLinking) return;
+    }
     setState(() {
       _connecting = true;
       _error = null;
     });
     try {
       sess.prepareUserReconnect();
-      if (sess.connected.value || sess.isLinking) {
+      if (forceRestart || sess.connected.value || sess.isLinking) {
         await sess.stop(userInitiated: false);
       }
       await sess.start();
@@ -1060,25 +1090,22 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          _error != null
-                              ? 'Connection Error: $_error'
-                              : (!sess.conn.connected
-                                  ? 'Server offline. Reconnect when signed in.'
-                                  : linking
-                                      ? 'Connecting to ${widget.deviceName}…'
-                                      : sess.stoppedByUser
-                                          ? 'Remote session stopped.'
-                                          : 'Screen stream idle.'),
+                          _placeholderMessage(sess, linking),
                           textAlign: TextAlign.center,
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 13,
-                            color: _error != null ? _red : _zinc400,
+                            color: _zinc400,
                           ),
                         ),
                         if (sess.conn.connected) ...[
                           const SizedBox(height: 16),
                           FilledButton.icon(
-                            onPressed: linking ? null : _connect,
+                            onPressed: linking
+                                ? null
+                                : () => _connect(
+                                      forceRestart:
+                                          _error != null || !widget.online,
+                                    ),
                             style: FilledButton.styleFrom(
                               backgroundColor: _amber,
                               foregroundColor: const Color(0xFF09090B),
@@ -1103,7 +1130,11 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                             label: Text(
                               linking
                                   ? 'Connecting…'
-                                  : (_error != null ? 'Retry' : 'Connect'),
+                                  : (_error != null ||
+                                          !widget.online ||
+                                          sess.stoppedByUser
+                                      ? 'Retry'
+                                      : 'Connect'),
                               style: const TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,

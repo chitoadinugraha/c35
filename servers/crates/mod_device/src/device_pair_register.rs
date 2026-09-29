@@ -21,6 +21,8 @@ pub async fn device_pair_register(
         let t = req.device_type.trim();
         if t.is_empty() {
             "windows"
+        } else if !is_allowed_device_type(t) {
+            return Err(format!("unsupported device_type: {t}"));
         } else {
             t
         }
@@ -103,4 +105,11 @@ fn random_hex() -> String {
     let mut rng_bytes = [0u8; 32];
     rand::rngs::OsRng.fill_bytes(&mut rng_bytes);
     blake3::hash(&rng_bytes).to_hex().to_string()
+}
+
+fn is_allowed_device_type(t: &str) -> bool {
+    matches!(
+        t,
+        "windows" | "browser" | "android" | "macos" | "linux" | "ios"
+    )
 }

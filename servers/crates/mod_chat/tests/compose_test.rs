@@ -1,6 +1,7 @@
 use c35_mod_chat::compose::{
     compose_force_tool_call, compose_tools_and_inst, tool_mention_eligible, ComposeTurnOpts,
 };
+use c35_mod_chat::BROWSER_DEVICE_TOOL_EXCLUDE;
 use c35_mod_chat::inst_macro::{inst_scopes_channel, inst_scopes_home, InstRow, SCOPE_GLOBAL, SCOPE_ROLE_PERSONAL_ASSISTANT};
 use c35_mod_chat::tool_rag::{tool_trim_ranked, ToolCandidate, DEFAULT_TOOL_SIM_GAP, DEFAULT_TOOL_SIM_THRESHOLD, DEFAULT_TOOL_TOP_K};
 use c35_mod_chat::{MentionContext, MentionRow, SiteCapabilityView, SiteContext};
@@ -947,6 +948,85 @@ fn compose_multitask_inst_force_feeds_delegate_run() {
         .map(|c| c.fed)
         .unwrap_or(false);
     assert!(delegate_fed, "delegate.run should be fed when multitask inst matches");
+}
+
+fn inst_browser_device_tool_probe() -> InstRow {
+    InstRow {
+        id: "inst.test.browser_device_tools".into(),
+        scope: SCOPE_GLOBAL.into(),
+        kind: "trigger".into(),
+        topic_id: "".into(),
+        topics: vec![],
+        inst: "browser device tools".into(),
+        phrases: vec![],
+        triggers: vec!["always".into()],
+        include_tools: BROWSER_DEVICE_TOOL_EXCLUDE
+            .iter()
+            .map(|s| (*s).to_string())
+            .collect(),
+        exclude_tools: vec![],
+        priority: 50,
+    }
+}
+
+#[test]
+fn compose_browser_only_device_scope_excludes_desktop_and_fs_tools() {
+    let catalog = cluster_tools();
+    let browser_exclude: Vec<String> =
+        BROWSER_DEVICE_TOOL_EXCLUDE.iter().map(|s| (*s).to_string()).collect();
+    let mention = MentionContext {
+        sites: vec![],
+        devices: vec![88001],
+        default_site_iid: None,
+    };
+    let scopes = inst_scopes_home();
+    let inst_rows = &[inst_core_assistant(), inst_browser_device_tool_probe()];
+    let baseline = compose_tools_and_inst(
+        inst_rows,
+        "use the remote browser",
+        catalog.clone(),
+        &[],
+        &[],
+        &["device".into()],
+        "agent",
+        &[],
+        &scopes,
+        &mention,
+        &SiteCapabilityView::empty(),
+        ComposeTurnOpts::default(),
+    );
+    assert!(
+        baseline.tools.iter().any(|t| t.name == "shell.run"),
+        "without browser exclude, forced desktop tools should be eligible"
+    );
+    assert!(
+        baseline.tools.iter().any(|t| t.name == "device.fs.list"),
+        "without browser exclude, device.fs.list should be eligible"
+    );
+    let out = compose_tools_and_inst(
+        inst_rows,
+        "use the remote browser",
+        catalog,
+        &[],
+        &[],
+        &["device".into()],
+        "agent",
+        &[],
+        &scopes,
+        &mention,
+        &SiteCapabilityView::empty(),
+        ComposeTurnOpts {
+            extra_tool_exclude: &browser_exclude,
+            ..ComposeTurnOpts::default()
+        },
+    );
+    for tool in BROWSER_DEVICE_TOOL_EXCLUDE {
+        assert!(
+            !out.tools.iter().any(|t| t.name == *tool),
+            "browser-only scope must exclude {}",
+            tool
+        );
+    }
 }
 
 #[test]

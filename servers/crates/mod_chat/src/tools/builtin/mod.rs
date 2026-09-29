@@ -1,3 +1,4 @@
+mod browser;
 mod consumption;
 mod expense;
 mod delegate;
@@ -15,6 +16,10 @@ mod web_research;
 mod web_search;
 mod web_visit;
 
+pub use browser::{
+    BrowserFileUploadTool, BrowserPageActTool, BrowserPageExtractTool, BrowserPageObserveTool,
+    BrowserTabsTool, BrowserTaskRunTool,
+};
 pub use consumption::{ConsumptionAddTool, ConsumptionDeleteTool, ConsumptionTodayTool, ConsumptionUpdateTool};
 pub use expense::{ExpenseAddTool, ExpenseDeleteTool, ExpenseSummaryTool};
 pub use delegate::{

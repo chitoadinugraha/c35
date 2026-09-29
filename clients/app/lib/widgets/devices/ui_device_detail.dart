@@ -15,6 +15,7 @@ import 'package:alienai_c35/widgets/skill/io_skill_review.dart';
 import 'dart:async';
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/widgets/devices/ui_device_files.dart';
+import 'package:alienai_c35/widgets/devices/ui_browser_tab_strip.dart';
 import 'package:alienai_c35/widgets/devices/ui_remote_device.dart';
 import 'package:alienai_c35/widgets/skill/ui_skill_master_detail.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
@@ -64,7 +65,12 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
     super.initState();
     final deviceIid = widget.row.identity.iid.toInt();
     final kind = widget.row.identity.kind.toLowerCase();
-    _tabs = kind == 'iot' ? const ['Control', 'Wiring'] : const ['Remote', 'Files', 'Task', 'Skill', 'Settings'];
+    final deviceType = widget.row.identity.type.toLowerCase();
+    _tabs = kind == 'iot'
+        ? const ['Control', 'Wiring']
+        : deviceType == 'browser'
+            ? const ['Remote', 'Task', 'Skill', 'Settings']
+            : const ['Remote', 'Files', 'Task', 'Skill', 'Settings'];
     _tabController = TabController(length: _tabs.length, vsync: this);
     _tabController.addListener(() {
       if (_tabController.indexIsChanging) return;
@@ -279,47 +285,75 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
   Widget _tabBody(String kind, String tab, bool online) {
     if (kind == 'remote' && tab == 'Remote') {
       final deviceIid = widget.row.identity.iid.toInt();
+      final deviceType = widget.row.identity.type.toLowerCase();
       return ListenableBuilder(
         listenable: Listenable.merge([_session.updateReady, _session.updateVersion]),
-        builder: (context, _) => Stack(
-          fit: StackFit.expand,
+        builder: (context, _) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            UiRemoteDevice(
-              session: _session,
-              promptStore: _promptStore,
-              deviceName: widget.row.identity.name,
-              online: online,
-              compact: _isMobile(context),
-              interactMode: _remoteInteractMode,
-              showStreamStats: _remoteShowStats,
-              onInteractModeChanged: (m) {
-                setState(() => _remoteInteractMode = m);
-                _session.isControlEnabled.value = m != RemoteInteractMode.view;
-                unawaited(RemotePrefs.instance.setInteractMode(m.name));
-              },
-              onTeach: () => unawaited(_startRemoteTeach(context)),
-              onFullscreen: _toggleRemoteImmersive,
-              immersive: _remoteImmersive,
-              updateReady: _session.updateReady.value,
-              updateVersion: _session.updateVersion.value,
-              onApplyUpdate: () {
-                _session.triggerUpdate();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Agent update triggered. It will reconnect once restarted.'),
-                    duration: Duration(seconds: 4),
+            if (deviceType == 'browser') ...[
+              const Material(
+                color: Color(0xFF18181B),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  child: Text(
+                    'Remote browser — control this PC\'s Chromium from the stream below.',
+                    style: TextStyle(color: _muted, fontSize: 12),
+                    maxLines: 2,
                   ),
-                );
-              },
-            ),
-            UiRemoteTeachHud(
-              session: _session,
-              deviceIid: deviceIid,
-              onStop: () => unawaited(_stopRemoteTeach(context)),
+                ),
+              ),
+              UiBrowserTabStrip(session: _session),
+            ],
+            Expanded(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  UiRemoteDevice(
+                    session: _session,
+                    promptStore: _promptStore,
+                    deviceName: widget.row.identity.name,
+                    online: online,
+                    compact: _isMobile(context),
+                    interactMode: _remoteInteractMode,
+                    showStreamStats: _remoteShowStats,
+                    onInteractModeChanged: (m) {
+                      setState(() => _remoteInteractMode = m);
+                      _session.isControlEnabled.value = m != RemoteInteractMode.view;
+                      unawaited(RemotePrefs.instance.setInteractMode(m.name));
+                    },
+                    onTeach: () => unawaited(_startRemoteTeach(context)),
+                    onFullscreen: _toggleRemoteImmersive,
+                    immersive: _remoteImmersive,
+                    updateReady: _session.updateReady.value,
+                    updateVersion: _session.updateVersion.value,
+                    onApplyUpdate: () {
+                      _session.triggerUpdate();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Agent update triggered. It will reconnect once restarted.'),
+                          duration: Duration(seconds: 4),
+                        ),
+                      );
+                    },
+                  ),
+                  UiRemoteTeachHud(
+                    session: _session,
+                    deviceIid: deviceIid,
+                    onStop: () => unawaited(_stopRemoteTeach(context)),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
       );
+    }
+    if (kind == 'remote' && tab == 'Settings') {
+      final deviceType = widget.row.identity.type.toLowerCase();
+      if (deviceType == 'browser') {
+        return _BrowserAgentSettings(session: _session);
+      }
     }
     if (kind == 'remote' && tab == 'Files') return UiDeviceFiles(session: _session);
     if (kind == 'remote' && tab == 'Skill') {
@@ -427,7 +461,7 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
       final saved = await api.put(skill);
       _skillKey.currentState?.absorbSkill(saved);
       if (!mounted) return;
-      _tabController.animateTo(3);
+      _tabController.animateTo(_tabs.indexOf('Skill'));
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _skillKey.currentState?.selectSkill('${saved.id}');
       });
@@ -609,5 +643,62 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
           padding: EdgeInsets.zero,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: const BorderSide(color: _border)),
         ),
+      );
+}
+
+class _BrowserAgentSettings extends StatefulWidget {
+  const _BrowserAgentSettings({required this.session});
+
+  final RemoteSession session;
+
+  @override
+  State<_BrowserAgentSettings> createState() => _BrowserAgentSettingsState();
+}
+
+class _BrowserAgentSettingsState extends State<_BrowserAgentSettings> {
+  var _background = false;
+  var _busy = false;
+
+  Future<void> _setMode(bool background) async {
+    setState(() => _busy = true);
+    try {
+      await widget.session.sendBrowserMode(background ? 'background' : 'interactive');
+      if (mounted) {
+        setState(() => _background = background);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Browser mode sent to agent. Restart the Remote browser agent on the PC to apply.'),
+            duration: Duration(seconds: 5),
+          ),
+        );
+      }
+    } catch (e) {
+      lError('browser mode push: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to send mode: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Text('Browser agent', style: TextStyle(color: _text, fontSize: 15, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          const Text(
+            'Interactive shows Chromium on the PC. Background runs headless (control from Remote tab only).',
+            style: TextStyle(color: _muted, fontSize: 13, height: 1.45),
+          ),
+          const SizedBox(height: 16),
+          SwitchListTile(
+            title: const Text('Background (headless)', style: TextStyle(color: _text)),
+            subtitle: const Text('Sends c35.browser.mode to the paired agent', style: TextStyle(color: _muted, fontSize: 12)),
+            value: _background,
+            onChanged: _busy ? null : (v) => unawaited(_setMode(v)),
+          ),
+        ],
       );
 }

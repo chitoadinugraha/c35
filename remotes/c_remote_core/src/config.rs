@@ -104,19 +104,47 @@ pub fn decrypt_secret(enc: &str) -> anyhow::Result<String> {
     Ok(enc.to_string())
 }
 
-pub fn config_path() -> PathBuf {
+/// Optional subdir under `%LOCALAPPDATA%/AlienAI` (e.g. `browser` for remote browser agent).
+pub fn agent_storage_subdir() -> Option<String> {
+    std::env::var("C35_AGENT_STORAGE")
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+}
+
+fn agent_storage_dir() -> PathBuf {
     #[cfg(target_os = "windows")]
     {
         if let Ok(appdata) = std::env::var("LOCALAPPDATA") {
             let mut p = PathBuf::from(appdata);
             p.push("AlienAI");
+            if let Some(sub) = agent_storage_subdir() {
+                p.push(sub);
+            }
             let _ = std::fs::create_dir_all(&p);
-            p.push("config.json");
             return p;
         }
     }
     let mut p = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    p.push(".alienai_config.json");
+    p.push(".alienai");
+    if let Some(sub) = agent_storage_subdir() {
+        p.push(sub);
+    }
+    let _ = std::fs::create_dir_all(&p);
+    p
+}
+
+pub fn config_path() -> PathBuf {
+    #[cfg(target_os = "windows")]
+    {
+        if std::env::var("LOCALAPPDATA").is_ok() {
+            let mut p = agent_storage_dir();
+            p.push("config.json");
+            return p;
+        }
+    }
+    let mut p = agent_storage_dir();
+    p.push("config.json");
     p
 }
 
@@ -279,6 +307,15 @@ pub fn drive_enabled_load() -> bool {
 
 pub fn drive_enabled_save(enabled: bool) -> anyhow::Result<()> {
     merge_config_field("drive_enabled", serde_json::json!(enabled))
+}
+
+/// Remote browser agent: `interactive` (headed) or `background` (headless). Restart agent to apply.
+pub fn browser_mode_save(mode: &str) -> anyhow::Result<()> {
+    let m = mode.trim();
+    if m != "interactive" && m != "background" {
+        anyhow::bail!("browser_mode must be interactive or background");
+    }
+    merge_config_field("browser_mode", serde_json::json!(m))
 }
 
 pub fn device_package_name_load() -> Option<String> {

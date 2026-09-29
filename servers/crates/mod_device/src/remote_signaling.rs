@@ -7,12 +7,13 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock};
 
 use c35_proto::{
-    pb_decode, pb_encode, RemoteConnectionMode, RemoteFsListRes, RemoteFsReadRes,
+    pb_decode, pb_encode, ActDeviceTaskRun, RemoteConnectionMode, RemoteFsListRes, RemoteFsReadRes,
     RemoteSessionPush, ReqRemoteCommand, ReqRemoteFsList, ReqRemoteFsRead, ReqRemoteScreenshot,
     ReqRemoteSessionStart, ReqRemoteSessionStop, ResRemoteCommand, ResRemoteScreenshot,
     ResRemoteSessionStart, ResRemoteSessionStop, RtcSignalAnswer, RtcSignalIce, RtcSignalOffer,
     WsReq, WsRes, ws_req, ws_res,
 };
+use serde_json::Value;
 use dashmap::DashMap;
 use sqlx::PgPool;
 use tokio::sync::mpsc;
@@ -946,5 +947,151 @@ pub async fn remote_device_fs_read(
         "filesystem read",
     )
     .await
+}
+
+const BROWSER_COMMAND_PREFIX: &str = "__c35_browser__:";
+
+/// Enqueue `ActDeviceTaskRun` on the paired agent session (JetStream-free v1: direct agent WS).
+pub async fn remote_device_task_run_enqueue(
+    pool: &PgPool,
+    nats: Option<&async_nats::Client>,
+    caller_iid: i64,
+    device_iid: i64,
+    chat_id: i64,
+    req_id: &str,
+    prompt: &str,
+    skill_id: i64,
+    model: &str,
+) -> Result<i64, String> {
+    device_remote_allowed(pool, caller_iid, device_iid).await?;
+    match agent_cluster_online(pool, device_iid).await {
+        Ok(true) => {}
+        Ok(false) => return Err("agent offline".into()),
+        Err(e) => return Err(e),
+    }
+    let run_id = c35_store::snowflake_id() as i64;
+    let act = ActDeviceTaskRun {
+        run_id,
+        device_iid,
+        owner_iid: caller_iid,
+        task_id: 0,
+        req_id: req_id.to_string(),
+        prompt: prompt.to_string(),
+        skill_id,
+        model: model.to_string(),
+        step_index: 0,
+        chat_id,
+    };
+    remote_agent_send_raw(nats, device_iid, pb_encode(&act)).await?;
+    Ok(run_id)
+}
+
+/// Synchronous browser engine RPC via `ReqRemoteCommand` (remote browser agent only).
+pub async fn remote_device_browser_invoke(
+    pool: &PgPool,
+    nats: Option<&async_nats::Client>,
+    caller_iid: i64,
+    device_iid: i64,
+    method: &str,
+    params: Value,
+    timeout_sec: u32,
+) -> Result<Value, String> {
+    let command = format!(
+        "{}{}",
+        BROWSER_COMMAND_PREFIX,
+        serde_json::json!({ "method": method, "params": params })
+    );
+    let res = remote_device_command_run(
+        pool,
+        nats,
+        caller_iid,
+        device_iid,
+        &command,
+        timeout_sec.clamp(5, 120),
+    )
+    .await?;
+    if !res.ok {
+        let err = if res.error.is_empty() {
+            res.stderr.trim().to_string()
+        } else {
+            res.error
+        };
+        return Err(if err.is_empty() {
+            "browser command failed".into()
+        } else {
+            err
+        });
+    }
+    let stdout = res.stdout.trim();
+    if stdout.is_empty() {
+        return Ok(serde_json::json!({ "ok": true }));
+    }
+    serde_json::from_str(stdout).map_err(|e| format!("invalid browser response json: {e}"))
+}
+
+pub async fn remote_device_agent_push(
+    pool: &PgPool,
+    nats: Option<&async_nats::Client>,
+    caller_iid: i64,
+    device_iid: i64,
+    payload: &str,
+) -> Result<(), String> {
+    device_remote_allowed(pool, caller_iid, device_iid).await?;
+    match agent_cluster_online(pool, device_iid).await {
+        Ok(true) => {}
+        Ok(false) => return Err("agent offline".into()),
+        Err(e) => return Err(e),
+    }
+    let text = payload.trim();
+    if text.is_empty() {
+        return Err("payload cannot be empty".into());
+    }
+    remote_agent_send_raw(nats, device_iid, text.as_bytes().to_vec()).await
+}
+
+pub async fn remote_device_browser_invoke_app(
+    pool: &PgPool,
+    nats: Option<&async_nats::Client>,
+    caller_iid: i64,
+    device_iid: i64,
+    method: &str,
+    params_json: &str,
+    timeout_sec: u32,
+) -> Result<c35_proto::ResRemoteBrowserInvoke, String> {
+    let method = method.trim();
+    if method.is_empty() {
+        return Ok(c35_proto::ResRemoteBrowserInvoke {
+            ok: false,
+            error: "method required".into(),
+            result_json: String::new(),
+        });
+    }
+    let params: Value = if params_json.trim().is_empty() {
+        Value::Object(serde_json::Map::new())
+    } else {
+        serde_json::from_str(params_json).map_err(|e| format!("invalid params_json: {e}"))?
+    };
+    match remote_device_browser_invoke(
+        pool,
+        nats,
+        caller_iid,
+        device_iid,
+        method,
+        params,
+        timeout_sec,
+    )
+    .await
+    {
+        Ok(v) => Ok(c35_proto::ResRemoteBrowserInvoke {
+            ok: true,
+            error: String::new(),
+            result_json: v.to_string(),
+        }),
+        Err(e) => Ok(c35_proto::ResRemoteBrowserInvoke {
+            ok: false,
+            error: e,
+            result_json: String::new(),
+        }),
+    }
 }
 

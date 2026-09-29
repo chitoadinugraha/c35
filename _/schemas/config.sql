@@ -50,6 +50,12 @@ INSERT INTO ai.config (key, value) VALUES (
 )
 ON CONFLICT (key) DO NOTHING;
 
+INSERT INTO ai.config (key, value) VALUES (
+    'app.release.c35.remote-browser',
+    '{"version":1,"versionName":"0.1.0","min":0,"hash":"","size":0}'::jsonb
+)
+ON CONFLICT (key) DO NOTHING;
+
 -- c35-server cluster image generation (GET /version/server). Bump on publish_server.ps1.
 INSERT INTO ai.config (key, value) VALUES (
     'app.release.c35.server',

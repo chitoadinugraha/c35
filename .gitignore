@@ -27,6 +27,7 @@ clients/app/.pub/
 
 # Node / Python
 **/node_modules/
+remotes/browser_engine/dist/
 **/__pycache__/
 **/*.pyc
 

@@ -364,6 +364,67 @@ final $typed_data.Uint8List resRemoteCommandDescriptor = $convert.base64Decode(
     'ISGwoJZXhpdF9jb2RlGAMgASgFUghleGl0Q29kZRIWCgZzdGRvdXQYBCABKAlSBnN0ZG91dBIW'
     'CgZzdGRlcnIYBSABKAlSBnN0ZGVycg==');
 
+@$core.Deprecated('Use reqRemoteAgentPushDescriptor instead')
+const ReqRemoteAgentPush$json = {
+  '1': 'ReqRemoteAgentPush',
+  '2': [
+    {'1': 'device_iid', '3': 1, '4': 1, '5': 3, '10': 'deviceIid'},
+    {'1': 'payload', '3': 2, '4': 1, '5': 9, '10': 'payload'},
+  ],
+};
+
+/// Descriptor for `ReqRemoteAgentPush`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqRemoteAgentPushDescriptor = $convert.base64Decode(
+    'ChJSZXFSZW1vdGVBZ2VudFB1c2gSHQoKZGV2aWNlX2lpZBgBIAEoA1IJZGV2aWNlSWlkEhgKB3'
+    'BheWxvYWQYAiABKAlSB3BheWxvYWQ=');
+
+@$core.Deprecated('Use resRemoteAgentPushDescriptor instead')
+const ResRemoteAgentPush$json = {
+  '1': 'ResRemoteAgentPush',
+  '2': [
+    {'1': 'ok', '3': 1, '4': 1, '5': 8, '10': 'ok'},
+    {'1': 'error', '3': 2, '4': 1, '5': 9, '10': 'error'},
+  ],
+};
+
+/// Descriptor for `ResRemoteAgentPush`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resRemoteAgentPushDescriptor = $convert.base64Decode(
+    'ChJSZXNSZW1vdGVBZ2VudFB1c2gSDgoCb2sYASABKAhSAm9rEhQKBWVycm9yGAIgASgJUgVlcn'
+    'Jvcg==');
+
+@$core.Deprecated('Use reqRemoteBrowserInvokeDescriptor instead')
+const ReqRemoteBrowserInvoke$json = {
+  '1': 'ReqRemoteBrowserInvoke',
+  '2': [
+    {'1': 'device_iid', '3': 1, '4': 1, '5': 3, '10': 'deviceIid'},
+    {'1': 'method', '3': 2, '4': 1, '5': 9, '10': 'method'},
+    {'1': 'params_json', '3': 3, '4': 1, '5': 9, '10': 'paramsJson'},
+    {'1': 'timeout_sec', '3': 4, '4': 1, '5': 13, '10': 'timeoutSec'},
+  ],
+};
+
+/// Descriptor for `ReqRemoteBrowserInvoke`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqRemoteBrowserInvokeDescriptor = $convert.base64Decode(
+    'ChZSZXFSZW1vdGVCcm93c2VySW52b2tlEh0KCmRldmljZV9paWQYASABKANSCWRldmljZUlpZB'
+    'IWCgZtZXRob2QYAiABKAlSBm1ldGhvZBIfCgtwYXJhbXNfanNvbhgDIAEoCVIKcGFyYW1zSnNv'
+    'bhIfCgt0aW1lb3V0X3NlYxgEIAEoDVIKdGltZW91dFNlYw==');
+
+@$core.Deprecated('Use resRemoteBrowserInvokeDescriptor instead')
+const ResRemoteBrowserInvoke$json = {
+  '1': 'ResRemoteBrowserInvoke',
+  '2': [
+    {'1': 'ok', '3': 1, '4': 1, '5': 8, '10': 'ok'},
+    {'1': 'error', '3': 2, '4': 1, '5': 9, '10': 'error'},
+    {'1': 'result_json', '3': 3, '4': 1, '5': 9, '10': 'resultJson'},
+  ],
+};
+
+/// Descriptor for `ResRemoteBrowserInvoke`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resRemoteBrowserInvokeDescriptor =
+    $convert.base64Decode(
+        'ChZSZXNSZW1vdGVCcm93c2VySW52b2tlEg4KAm9rGAEgASgIUgJvaxIUCgVlcnJvchgCIAEoCV'
+        'IFZXJyb3ISHwoLcmVzdWx0X2pzb24YAyABKAlSCnJlc3VsdEpzb24=');
+
 @$core.Deprecated('Use reqRemoteFsListDescriptor instead')
 const ReqRemoteFsList$json = {
   '1': 'ReqRemoteFsList',

@@ -30,6 +30,8 @@ class UiDeviceRow extends StatelessWidget {
   final bool selected;
   final VoidCallback? onTap;
 
+  String get _subtitle => type.toLowerCase() == 'browser' ? 'Remote browser' : type;
+
   @override
   Widget build(BuildContext context) {
     final bg = selected ? const Color(0xFF18181B) : Colors.transparent;
@@ -61,9 +63,9 @@ class UiDeviceRow extends StatelessWidget {
                         Expanded(child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: titleColor, fontSize: 13, fontWeight: FontWeight.w500))),
                       ],
                     ),
-                    if (type.isNotEmpty) ...[
+                    if (_subtitle.isNotEmpty) ...[
                       const SizedBox(height: 2),
-                      Text(type, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _muted, fontSize: 12)),
+                      Text(_subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _muted, fontSize: 12)),
                     ],
                   ],
                 ),
@@ -122,12 +124,15 @@ class UiDeviceRow extends StatelessWidget {
         width: 36,
         height: 36,
         decoration: BoxDecoration(color: const Color(0xFF18181B), borderRadius: BorderRadius.circular(8), border: Border.all(color: _border)),
-        child: Icon(_iconForKind(kind), size: 18, color: const Color(0xFFA1A1AA)),
+        child: Icon(_iconForKind(kind, type), size: 18, color: const Color(0xFFA1A1AA)),
       );
 
-  IconData _iconForKind(String k) => switch (k.toLowerCase()) {
-        'iot' => Icons.sensors_outlined,
-        'remote' => Icons.laptop_mac_outlined,
-        _ => Icons.devices_other_outlined,
+  IconData _iconForKind(String k, String deviceType) => switch (deviceType.toLowerCase()) {
+        'browser' => Icons.public_outlined,
+        _ => switch (k.toLowerCase()) {
+            'iot' => Icons.sensors_outlined,
+            'remote' => Icons.laptop_mac_outlined,
+            _ => Icons.devices_other_outlined,
+          },
       };
 }

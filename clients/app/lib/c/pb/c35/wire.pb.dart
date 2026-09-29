@@ -2531,6 +2531,8 @@ enum WsReq_Body {
   botPeerCreate,
   botPeerAppSend,
   botPeerDelete,
+  reqRemoteAgentPush,
+  reqRemoteBrowserInvoke,
   notSet
 }
 
@@ -2647,6 +2649,8 @@ class WsReq extends $pb.GeneratedMessage {
     $15.ReqBotPeerCreate? botPeerCreate,
     $15.ReqBotPeerAppSend? botPeerAppSend,
     $15.ReqBotPeerDelete? botPeerDelete,
+    $20.ReqRemoteAgentPush? reqRemoteAgentPush,
+    $20.ReqRemoteBrowserInvoke? reqRemoteBrowserInvoke,
   }) {
     final result = WsReq._();
     if (reqId != null) result.reqId = reqId;
@@ -2773,6 +2777,10 @@ class WsReq extends $pb.GeneratedMessage {
     if (botPeerCreate != null) result.botPeerCreate = botPeerCreate;
     if (botPeerAppSend != null) result.botPeerAppSend = botPeerAppSend;
     if (botPeerDelete != null) result.botPeerDelete = botPeerDelete;
+    if (reqRemoteAgentPush != null)
+      result.reqRemoteAgentPush = reqRemoteAgentPush;
+    if (reqRemoteBrowserInvoke != null)
+      result.reqRemoteBrowserInvoke = reqRemoteBrowserInvoke;
     return result;
   }
 
@@ -2895,6 +2903,8 @@ class WsReq extends $pb.GeneratedMessage {
     166: WsReq_Body.botPeerCreate,
     167: WsReq_Body.botPeerAppSend,
     168: WsReq_Body.botPeerDelete,
+    169: WsReq_Body.reqRemoteAgentPush,
+    170: WsReq_Body.reqRemoteBrowserInvoke,
     0: WsReq_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -3010,7 +3020,9 @@ class WsReq extends $pb.GeneratedMessage {
       165,
       166,
       167,
-      168
+      168,
+      169,
+      170
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$13.ReqSessionInit>(2, _omitFieldNames ? '' : 'sessionInit',
@@ -3258,6 +3270,12 @@ class WsReq extends $pb.GeneratedMessage {
         subBuilder: $15.ReqBotPeerAppSend.$_createMessage)
     ..aOM<$15.ReqBotPeerDelete>(168, _omitFieldNames ? '' : 'botPeerDelete',
         subBuilder: $15.ReqBotPeerDelete.$_createMessage)
+    ..aOM<$20.ReqRemoteAgentPush>(
+        169, _omitFieldNames ? '' : 'reqRemoteAgentPush',
+        subBuilder: $20.ReqRemoteAgentPush.$_createMessage)
+    ..aOM<$20.ReqRemoteBrowserInvoke>(
+        170, _omitFieldNames ? '' : 'reqRemoteBrowserInvoke',
+        subBuilder: $20.ReqRemoteBrowserInvoke.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -3389,6 +3407,8 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(166)
   @$pb.TagNumber(167)
   @$pb.TagNumber(168)
+  @$pb.TagNumber(169)
+  @$pb.TagNumber(170)
   WsReq_Body whichBody() => _WsReq_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(3)
@@ -3499,6 +3519,8 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(166)
   @$pb.TagNumber(167)
   @$pb.TagNumber(168)
+  @$pb.TagNumber(169)
+  @$pb.TagNumber(170)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -4732,6 +4754,30 @@ class WsReq extends $pb.GeneratedMessage {
   void clearBotPeerDelete() => $_clearField(168);
   @$pb.TagNumber(168)
   $15.ReqBotPeerDelete ensureBotPeerDelete() => $_ensure(109);
+
+  @$pb.TagNumber(169)
+  $20.ReqRemoteAgentPush get reqRemoteAgentPush => $_getN(110);
+  @$pb.TagNumber(169)
+  set reqRemoteAgentPush($20.ReqRemoteAgentPush value) =>
+      $_setField(169, value);
+  @$pb.TagNumber(169)
+  $core.bool hasReqRemoteAgentPush() => $_has(110);
+  @$pb.TagNumber(169)
+  void clearReqRemoteAgentPush() => $_clearField(169);
+  @$pb.TagNumber(169)
+  $20.ReqRemoteAgentPush ensureReqRemoteAgentPush() => $_ensure(110);
+
+  @$pb.TagNumber(170)
+  $20.ReqRemoteBrowserInvoke get reqRemoteBrowserInvoke => $_getN(111);
+  @$pb.TagNumber(170)
+  set reqRemoteBrowserInvoke($20.ReqRemoteBrowserInvoke value) =>
+      $_setField(170, value);
+  @$pb.TagNumber(170)
+  $core.bool hasReqRemoteBrowserInvoke() => $_has(111);
+  @$pb.TagNumber(170)
+  void clearReqRemoteBrowserInvoke() => $_clearField(170);
+  @$pb.TagNumber(170)
+  $20.ReqRemoteBrowserInvoke ensureReqRemoteBrowserInvoke() => $_ensure(111);
 }
 
 enum WsRes_Body {
@@ -4854,6 +4900,8 @@ enum WsRes_Body {
   botPeerCreate,
   botPeerAppSend,
   botPeerDelete,
+  resRemoteAgentPush,
+  resRemoteBrowserInvoke,
   notSet
 }
 
@@ -4980,6 +5028,8 @@ class WsRes extends $pb.GeneratedMessage {
     $15.ResBotPeerCreate? botPeerCreate,
     $15.ResBotPeerAppSend? botPeerAppSend,
     $15.ResBotPeerDelete? botPeerDelete,
+    $20.ResRemoteAgentPush? resRemoteAgentPush,
+    $20.ResRemoteBrowserInvoke? resRemoteBrowserInvoke,
   }) {
     final result = WsRes._();
     if (reqId != null) result.reqId = reqId;
@@ -5117,6 +5167,10 @@ class WsRes extends $pb.GeneratedMessage {
     if (botPeerCreate != null) result.botPeerCreate = botPeerCreate;
     if (botPeerAppSend != null) result.botPeerAppSend = botPeerAppSend;
     if (botPeerDelete != null) result.botPeerDelete = botPeerDelete;
+    if (resRemoteAgentPush != null)
+      result.resRemoteAgentPush = resRemoteAgentPush;
+    if (resRemoteBrowserInvoke != null)
+      result.resRemoteBrowserInvoke = resRemoteBrowserInvoke;
     return result;
   }
 
@@ -5249,6 +5303,8 @@ class WsRes extends $pb.GeneratedMessage {
     166: WsRes_Body.botPeerCreate,
     167: WsRes_Body.botPeerAppSend,
     168: WsRes_Body.botPeerDelete,
+    169: WsRes_Body.resRemoteAgentPush,
+    170: WsRes_Body.resRemoteBrowserInvoke,
     0: WsRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -5374,7 +5430,9 @@ class WsRes extends $pb.GeneratedMessage {
       165,
       166,
       167,
-      168
+      168,
+      169,
+      170
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$25.Err>(2, _omitFieldNames ? '' : 'err',
@@ -5643,6 +5701,12 @@ class WsRes extends $pb.GeneratedMessage {
         subBuilder: $15.ResBotPeerAppSend.$_createMessage)
     ..aOM<$15.ResBotPeerDelete>(168, _omitFieldNames ? '' : 'botPeerDelete',
         subBuilder: $15.ResBotPeerDelete.$_createMessage)
+    ..aOM<$20.ResRemoteAgentPush>(
+        169, _omitFieldNames ? '' : 'resRemoteAgentPush',
+        subBuilder: $20.ResRemoteAgentPush.$_createMessage)
+    ..aOM<$20.ResRemoteBrowserInvoke>(
+        170, _omitFieldNames ? '' : 'resRemoteBrowserInvoke',
+        subBuilder: $20.ResRemoteBrowserInvoke.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -5784,6 +5848,8 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(166)
   @$pb.TagNumber(167)
   @$pb.TagNumber(168)
+  @$pb.TagNumber(169)
+  @$pb.TagNumber(170)
   WsRes_Body whichBody() => _WsRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(10)
@@ -5904,6 +5970,8 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(166)
   @$pb.TagNumber(167)
   @$pb.TagNumber(168)
+  @$pb.TagNumber(169)
+  @$pb.TagNumber(170)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -7246,6 +7314,30 @@ class WsRes extends $pb.GeneratedMessage {
   void clearBotPeerDelete() => $_clearField(168);
   @$pb.TagNumber(168)
   $15.ResBotPeerDelete ensureBotPeerDelete() => $_ensure(119);
+
+  @$pb.TagNumber(169)
+  $20.ResRemoteAgentPush get resRemoteAgentPush => $_getN(120);
+  @$pb.TagNumber(169)
+  set resRemoteAgentPush($20.ResRemoteAgentPush value) =>
+      $_setField(169, value);
+  @$pb.TagNumber(169)
+  $core.bool hasResRemoteAgentPush() => $_has(120);
+  @$pb.TagNumber(169)
+  void clearResRemoteAgentPush() => $_clearField(169);
+  @$pb.TagNumber(169)
+  $20.ResRemoteAgentPush ensureResRemoteAgentPush() => $_ensure(120);
+
+  @$pb.TagNumber(170)
+  $20.ResRemoteBrowserInvoke get resRemoteBrowserInvoke => $_getN(121);
+  @$pb.TagNumber(170)
+  set resRemoteBrowserInvoke($20.ResRemoteBrowserInvoke value) =>
+      $_setField(170, value);
+  @$pb.TagNumber(170)
+  $core.bool hasResRemoteBrowserInvoke() => $_has(121);
+  @$pb.TagNumber(170)
+  void clearResRemoteBrowserInvoke() => $_clearField(170);
+  @$pb.TagNumber(170)
+  $20.ResRemoteBrowserInvoke ensureResRemoteBrowserInvoke() => $_ensure(121);
 }
 
 const $core.bool _omitFieldNames =

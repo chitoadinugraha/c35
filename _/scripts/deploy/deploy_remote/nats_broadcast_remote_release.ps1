@@ -12,7 +12,8 @@ param(
     [int]$Size,
     [string]$Namespace = 'c35',
     [string]$NatsUrl = 'tls://nats-client.nats.svc.cluster.local:4222',
-    [string]$Subject = 'c35.release.remote-windows'
+    [string]$Subject = 'c35.release.remote-windows',
+    [string]$Platform = 'remote-windows'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -28,7 +29,7 @@ $pass = Get-SecretEnv 'c35-server-env' 'NATS_PASS'
 if (-not $user -or -not $pass) { throw 'NATS_USER/NATS_PASS missing from c35-server-env (kubectl + c35 namespace)' }
 
 $payloadObj = @{
-    platform    = 'remote-windows'
+    platform    = $Platform
     version     = $Version
     versionName = $VersionName
     hash        = $Hash.Trim().ToLower()
