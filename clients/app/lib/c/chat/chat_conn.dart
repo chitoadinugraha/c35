@@ -171,7 +171,7 @@ class ChatConn {
     status.value = ChatConnStatus.connecting;
     await _tearDownSocket(failPending: true);
     try {
-      _attachSocket(locale: locale, tz: tz, appBuild: appBuild, appVersionName: appVersionName);
+      await _attachSocket(locale: locale, tz: tz, appBuild: appBuild, appVersionName: appVersionName);
     } catch (e) {
       lError('chat ws connect: $e');
       if (Session.instance.token.trim().isEmpty) {
@@ -219,12 +219,12 @@ class ChatConn {
     _rpcPending.clear();
   }
 
-  void _attachSocket({
+  Future<void> _attachSocket({
     required String locale,
     String tz = '',
     int appBuild = 0,
     String appVersionName = '',
-  }) {
+  }) async {
     final token = Session.instance.token.trim();
     if (token.isEmpty) throw 'not signed in';
     final gen = ++_socketGen;
@@ -236,6 +236,22 @@ class ChatConn {
       onError: (e) => _onWsError(e, gen),
       onDone: () => _onWsDone(gen),
     );
+    try {
+      await _ch!.ready;
+      _markConnected(gen);
+    } catch (e) {
+      if (gen != _socketGen) return;
+      rethrow;
+    }
+  }
+
+  void _markConnected(int gen) {
+    if (gen != _socketGen || _ch == null) return;
+    if (status.value == ChatConnStatus.connected && _retryCount == 0) return;
+    final wasReconnecting = _retryCount > 0 || status.value == ChatConnStatus.reconnecting;
+    _retryCount = 0;
+    status.value = ChatConnStatus.connected;
+    if (wasReconnecting && !_reconnectedCtrl.isClosed) _reconnectedCtrl.add(null);
   }
 
   void _emitSocketAttached() {
@@ -277,7 +293,7 @@ class ChatConn {
       try {
         status.value = ChatConnStatus.connecting;
         await _tearDownSocket(failPending: false);
-        _attachSocket(
+        await _attachSocket(
           locale: _locale,
           tz: _tz,
           appBuild: _appBuild,
@@ -299,7 +315,12 @@ class ChatConn {
     Object? lastSendErr;
     for (var attempt = 0; attempt < 2; attempt++) {
       if (_ch == null || status.value != ChatConnStatus.connected) {
-        await reconnect();
+        if (_ch != null && (status.value == ChatConnStatus.connecting || status.value == ChatConnStatus.reconnecting)) {
+          try {
+            await _ch!.ready;
+          } catch (_) {}
+        }
+        if (_ch == null || status.value != ChatConnStatus.connected) await reconnect();
       }
       final reqId = req.reqId.isNotEmpty ? req.reqId : const Uuid().v4();
       req.reqId = reqId;
@@ -336,14 +357,7 @@ class ChatConn {
   void _onData(dynamic data, int gen) {
     if (gen != _socketGen) return;
     if (data is! List<int>) return;
-    if (status.value != ChatConnStatus.connected || _retryCount > 0) {
-      final wasReconnecting = _retryCount > 0 || status.value == ChatConnStatus.reconnecting;
-      _retryCount = 0;
-      status.value = ChatConnStatus.connected;
-      if (wasReconnecting && !_reconnectedCtrl.isClosed) {
-        _reconnectedCtrl.add(null);
-      }
-    }
+    _markConnected(gen);
     final res = WsRes.fromBuffer(data);
     final reqId = res.reqId;
 

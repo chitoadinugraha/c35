@@ -14,18 +14,21 @@ const _outColor = Color(0xFFA78BFA);
 class UiAppBarVersionLabel extends StatelessWidget {
   const UiAppBarVersionLabel({super.key});
 
-  static const _labelStyle = TextStyle(color: _muted, fontSize: 10, fontWeight: FontWeight.w500, height: 1.15);
-  static const _versionStyle = TextStyle(color: _muted, fontSize: 9, height: 1.15, fontFeatures: [FontFeature.tabularFigures()]);
+  static const _labelStyle = TextStyle(color: _muted, fontSize: 10, fontWeight: FontWeight.w500, height: 1.0);
+  static const _versionStyle = TextStyle(color: _muted, fontSize: 9, height: 1.0, fontFeatures: [FontFeature.tabularFigures()]);
 
   @override
-  Widget build(BuildContext context) => Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text('Alien AI', textAlign: TextAlign.right, style: _labelStyle),
-          Text('Version ${csaiVersionBuild()}', textAlign: TextAlign.right, style: _versionStyle),
-        ],
+  Widget build(BuildContext context) => DefaultTextStyle.merge(
+        style: const TextStyle(height: 1.0, leadingDistribution: TextLeadingDistribution.even),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Alien AI', textAlign: TextAlign.right, style: _labelStyle),
+            Text('Version ${csaiVersionBuild()}', textAlign: TextAlign.right, style: _versionStyle),
+          ],
+        ),
       );
 }
 

@@ -1166,7 +1166,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
               builder: (context, _) {
                 if (!PromptUsagePrefs.instance.showUsageStats) return const SizedBox.shrink();
                 return Padding(
-                  padding: const EdgeInsets.only(left: 8),
+                  padding: const EdgeInsets.only(left: 6),
                   child: UiContextMeter(
                     tokensIn: _threadTokensIn,
                     tokensOut: _threadTokensOut,
@@ -1174,11 +1174,12 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
                     contextLimit: _model.gemini ? 1000000 : 128000,
                     billingCurrency: AppStore.instance.wallet.billingCurrency,
                     fxMicroPerUsd: AppStore.instance.wallet.fxMicroPerUsd,
-                    tapPadding: const EdgeInsets.fromLTRB(6, 6, 0, 6),
+                    tapPadding: const EdgeInsets.fromLTRB(4, 6, 2, 6),
                   ),
                 );
               },
             ),
+          const SizedBox(width: 14),
           UiAccountBtn(
             tooltip: 'Account',
             onTap: () => _avatarMenu(menuCtx),
