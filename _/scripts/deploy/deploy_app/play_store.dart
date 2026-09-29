@@ -54,7 +54,7 @@ Future<int> uploadAabToPlayStore(String buildOutputDir, {required String track})
   });
 
   await runStep('Commit Play Store edit', () async {
-    await api.edits.commit(_packageName, editId, changesNotSentForReview: true);
+    await api.edits.commit(_packageName, editId);
   });
 
   stdout.writeln('✓ Play Store: $track track updated with versionCode $versionCode');
@@ -84,7 +84,7 @@ Future<void> promotePlayStoreReleaseToProduction(int versionCode) async {
   });
 
   await runStep('Commit Play Store edit (production)', () async {
-    await api.edits.commit(_packageName, editId, changesNotSentForReview: true);
+    await api.edits.commit(_packageName, editId);
   });
 
   stdout.writeln('✓ Play Store: $track track updated with versionCode $versionCode');
@@ -370,7 +370,7 @@ Future<void> playStoreClearTrack(String track) async {
   });
 
   await runStep('Commit Play Store edit (clear $track)', () async {
-    await api.edits.commit(_packageName, editId, changesNotSentForReview: true);
+    await api.edits.commit(_packageName, editId);
   });
 
   stdout.writeln('✓ Play Store: $track track cleared');
