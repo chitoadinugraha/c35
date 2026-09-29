@@ -1,7 +1,9 @@
 import 'dart:async';
 
+import 'package:alienai_c35/c/browser/browser_search_engine.dart';
 import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/c/remote/remote_session.dart';
+import 'package:alienai_c35/widgets/devices/ui_browser_search_engine_dialog.dart';
 import 'package:flutter/material.dart';
 
 const _barBg = Color(0xFF18181B);
@@ -13,18 +15,29 @@ const _text = Color(0xFFF4F4F5);
 const _accent = Color(0xFF34D399);
 
 class BrowserTabInfo {
-  const BrowserTabInfo({required this.tabId, required this.title, required this.url, required this.active});
+  const BrowserTabInfo({
+    required this.tabId,
+    required this.title,
+    required this.url,
+    required this.active,
+    this.loading = false,
+    this.favicon = '',
+  });
 
   final String tabId;
   final String title;
   final String url;
   final bool active;
+  final bool loading;
+  final String favicon;
 
   factory BrowserTabInfo.fromJson(Map<String, dynamic> j) => BrowserTabInfo(
         tabId: j['tabId']?.toString() ?? j['tab_id']?.toString() ?? '',
         title: j['title']?.toString() ?? '',
         url: j['url']?.toString() ?? '',
         active: j['active'] == true,
+        loading: j['loading'] == true,
+        favicon: j['favicon']?.toString() ?? '',
       );
 }
 
@@ -45,17 +58,30 @@ class _UiBrowserTabStripState extends State<UiBrowserTabStrip> {
   var _refreshGen = 0;
   late final TextEditingController _urlCtrl;
   var _urlDirty = false;
+  Timer? _pollTimer;
+  BrowserSearchEngine _engine = browserSearchEnginesFallback.first;
 
   @override
   void initState() {
     super.initState();
     _urlCtrl = TextEditingController();
     widget.session.connected.addListener(_onSessionLink);
+    unawaited(_loadEngine());
     unawaited(_refresh(retryOnEngine: true));
+    _pollTimer = Timer.periodic(const Duration(milliseconds: 1500), (_) {
+      if (widget.session.connected.value) unawaited(_refresh());
+    });
+  }
+
+  Future<void> _loadEngine() async {
+    final id = await browserSearchEngineIdLoad();
+    if (!mounted) return;
+    setState(() => _engine = browserSearchEngineById(id));
   }
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     widget.session.connected.removeListener(_onSessionLink);
     _urlCtrl.dispose();
     super.dispose();
@@ -79,7 +105,8 @@ class _UiBrowserTabStripState extends State<UiBrowserTabStrip> {
     if (_urlDirty) return;
     final t = _activeTab;
     final u = t?.url ?? '';
-    if (_urlCtrl.text != u) _urlCtrl.text = u;
+    final shown = browserTabIsHome(u) ? '' : u;
+    if (_urlCtrl.text != shown) _urlCtrl.text = shown;
   }
 
   bool _engineRetryable(Object e) {
@@ -138,7 +165,7 @@ class _UiBrowserTabStripState extends State<UiBrowserTabStrip> {
   }
 
   Future<void> _newTab() async {
-    await widget.session.browserInvoke('tabs', {'op': 'new', 'url': 'about:blank'});
+    await widget.session.browserInvoke('tabs', {'op': 'new', 'url': browserHomeUrl});
     _urlDirty = false;
     await _refresh();
   }
@@ -148,15 +175,8 @@ class _UiBrowserTabStripState extends State<UiBrowserTabStrip> {
     await _refresh();
   }
 
-  String _normalizeUrl(String raw) {
-    final t = raw.trim();
-    if (t.isEmpty) return t;
-    if (t.startsWith('http://') || t.startsWith('https://') || t.startsWith('about:')) return t;
-    return 'https://$t';
-  }
-
   Future<void> _navigate() async {
-    final url = _normalizeUrl(_urlCtrl.text);
+    final url = browserOmniboxTarget(_urlCtrl.text, engine: _engine);
     if (url.isEmpty) return;
     try {
       await widget.session.browserInvoke('navigate', {'url': url});
@@ -207,10 +227,35 @@ class _UiBrowserTabStripState extends State<UiBrowserTabStrip> {
         icon: Icon(icon, color: _muted),
       );
 
+  Widget _tabFavicon(BrowserTabInfo t) {
+    if (t.loading) {
+      return const SizedBox(
+        width: 14,
+        height: 14,
+        child: CircularProgressIndicator(strokeWidth: 1.5, color: _muted),
+      );
+    }
+    final src = browserTabFaviconUrl(t.url, favicon: t.favicon);
+    const globe = Icon(Icons.public, size: 14, color: _muted);
+    if (src.isEmpty) return globe;
+    return Image.network(
+      src,
+      width: 14,
+      height: 14,
+      errorBuilder: (_, __, ___) => globe,
+      frameBuilder: (_, child, frame, __) => frame == null ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5)) : child,
+    );
+  }
+
+  Future<void> _pickSearchEngine() async {
+    final picked = await browserSearchEngineDialogShow(context, selectedId: _engine.id);
+    if (!mounted || picked == null) return;
+    await browserSearchEngineIdSave(picked.id);
+    setState(() => _engine = picked);
+  }
+
   Widget _tabChip(BrowserTabInfo t, {VoidCallback? onClose}) {
-    final label = t.title.isNotEmpty
-        ? t.title
-        : (t.url.isNotEmpty && !t.url.startsWith('data:') ? t.url : 'New tab');
+    final label = t.title.isNotEmpty ? t.title : browserTabTitleFromUrl(t.url);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -231,7 +276,7 @@ class _UiBrowserTabStripState extends State<UiBrowserTabStrip> {
           ),
           child: Row(
             children: [
-              Icon(Icons.public, size: 14, color: t.active ? _muted : const Color(0xFF52525B)),
+              _tabFavicon(t),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
@@ -261,6 +306,8 @@ class _UiBrowserTabStripState extends State<UiBrowserTabStrip> {
     );
   }
 
+  bool get _onHome => browserTabIsHome(_activeTab?.url ?? '');
+
   Widget _omnibox() => DecoratedBox(
         decoration: BoxDecoration(
           color: _tabBg,
@@ -269,24 +316,31 @@ class _UiBrowserTabStripState extends State<UiBrowserTabStrip> {
         ),
         child: Row(
           children: [
-            const Padding(
-              padding: EdgeInsets.only(left: 10),
-              child: Icon(Icons.lock_outline, size: 16, color: _muted),
+            Padding(
+              padding: const EdgeInsets.only(left: 10),
+              child: Icon(_onHome ? Icons.search_rounded : Icons.lock_outline, size: 16, color: _muted),
             ),
             Expanded(
               child: TextField(
                 controller: _urlCtrl,
                 style: const TextStyle(color: _text, fontSize: 13),
-                decoration: const InputDecoration(
-                  hintText: 'Search or enter URL',
-                  hintStyle: TextStyle(color: _muted, fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: browserOmniboxHintFor(_engine),
+                  hintStyle: const TextStyle(color: _muted, fontSize: 13),
                   border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
                   isDense: true,
                 ),
                 onChanged: (_) => _urlDirty = true,
                 onSubmitted: (_) => unawaited(_navigate()),
               ),
+            ),
+            IconButton(
+              tooltip: 'Search engine: ${_engine.name}',
+              iconSize: 18,
+              visualDensity: VisualDensity.compact,
+              onPressed: () => unawaited(_pickSearchEngine()),
+              icon: const Icon(Icons.manage_search_rounded, color: _muted),
             ),
             IconButton(
               tooltip: 'Go',
@@ -372,9 +426,9 @@ class _UiBrowserTabStripState extends State<UiBrowserTabStrip> {
                   itemBuilder: (_, i) {
                     final t = _tabs[i];
                     return ListTile(
-                      leading: Icon(Icons.public, color: t.active ? _accent : _muted, size: 20),
+                      leading: SizedBox(width: 20, height: 20, child: _tabFavicon(t)),
                       title: Text(
-                        t.title.isNotEmpty ? t.title : (t.url.isNotEmpty ? t.url : 'New tab'),
+                        t.title.isNotEmpty ? t.title : browserTabTitleFromUrl(t.url),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(color: t.active ? _text : _muted),

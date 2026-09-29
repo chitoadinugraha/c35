@@ -9,7 +9,7 @@
     "c35-browser-engine": "dist/worker.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node -e \"const fs=require('fs');fs.copyFileSync('home.html','dist/home.html');if(fs.existsSync('home_icon.png'))fs.copyFileSync('home_icon.png','dist/home_icon.png');\"",
     "watch": "tsc -w --preserveWatchOutput",
     "start": "node dist/worker.js"
   },

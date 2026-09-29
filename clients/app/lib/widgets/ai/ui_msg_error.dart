@@ -60,7 +60,7 @@ class UiMsgError extends StatelessWidget {
                       ),
                     ),
                   ],
-                  if (detail != null && detail!.trim().isNotEmpty) ...[
+                  if (detail != null && detail!.trim().isNotEmpty && detail!.trim() != message.trim()) ...[
                     const SizedBox(height: 8),
                     UiRootErrorDetail(detail: detail!),
                   ],

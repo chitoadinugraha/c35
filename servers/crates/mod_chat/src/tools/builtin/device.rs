@@ -29,6 +29,8 @@ fn device_fail_class(error: &str) -> (&'static str, bool) {
         ("fatal_offline", false)
     } else if e.contains("timeout") || e.contains("timed out") {
         ("transient", true)
+    } else if e.contains("device_iid is required") || e.contains("device_iid required") {
+        ("transient", true)
     } else {
         ("fatal_env", false)
     }

@@ -275,6 +275,36 @@ To allow the Flutter client on Pod A to connect with an agent on Pod B:
 - `c35.signal.user.{owner_iid}` — Agent answers/ICE forwarded to user app sessions.
 No in-memory single-pod DashMap locks.
 
+### Flutter Remote interact modes (`UiRemoteDevice`)
+
+Toolbar menu: **Pan (view only)** · **Mouse** · **Trackpad**. Implementation: [`clients/app/lib/widgets/devices/ui_remote_device.dart`](../clients/app/lib/widgets/devices/ui_remote_device.dart).
+
+| Mode | Pointer on stream | Remote input |
+|------|-------------------|--------------|
+| **Pan** | None | Disabled — drag / pinch zoom the local view only |
+| **Mouse** | OS cursor follows finger/mouse on the video | Absolute position: move, click, wheel at contact point |
+| **Trackpad** | **Virtual pointer** overlay (RDP-style) | Relative touch gestures only — **no** mouse-style hover or click-at-contact |
+
+#### Trackpad mode (locked)
+
+Parity target: **Microsoft Remote Desktop mobile trackpad** — visible remote cursor, not VirtualBox absolute trackpad.
+
+- **Surface:** the full remote video area; no separate trackpad strip.
+- **Devices:** **touch** on mobile/tablet; on **Windows**, **mouse** works too (hover does not move the remote pointer). While dragging with the mouse, the **local** cursor is hidden and clamped in place until release. Mouse wheel scrolls at the virtual pointer; double-click uses the same timing as touch double-tap.
+- **Local canvas cursor:** always basic arrow. **Overlay** reflects agent `remoteCursorShape` (I-beam, hand, resize, …).
+- **Virtual pointer** moves only while **one finger is down and dragging** (relative deltas). Hover / finger in the air does nothing.
+- **Gestures** (at virtual pointer position):
+  - Single tap → left click (short delay to allow double-tap)
+  - Double tap → double click
+  - One-finger drag → move pointer; press-drag-release selects/drags on Windows
+  - Two-finger tap (minimal movement) → right click
+  - Two-finger vertical drag → mouse wheel
+  - Two-finger pinch → **local** view zoom only (not sent to Windows)
+- **Zoomed view:** when local scale &gt; 1, **edge auto-pan** follows the **virtual pointer** near the viewport edge; speed increases closer to the edge (quadratic ramp). Ctrl+drag and middle-click pan are disabled in trackpad mode.
+- **Mouse mode** is unchanged when trackpad is not selected.
+
+Cursor shape wire: agent publishes shape on the remote-input channel; Flutter maps shapes in [`remote_cursor.dart`](../clients/app/lib/c/remote/remote_cursor.dart), overlay in [`remote_virtual_cursor.dart`](../clients/app/lib/c/remote/remote_virtual_cursor.dart).
+
 ### Unified agent input executor (`input_exec`)
 
 Both Human remote interaction and Alien AI automation converge on the exact same OS input executor on the agent (`c_remote_windows`):

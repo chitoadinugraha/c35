@@ -27,12 +27,19 @@ export type IpcEvt = {
 
 export type IpcMessage = IpcReq | IpcRes | IpcEvt;
 
+export type HomeContext = {
+  userName?: string;
+  alienId?: string;
+  packageName?: string;
+};
+
 export type LaunchParams = {
   headless?: boolean;
   userDataDir?: string;
   downloadsPath?: string;
   viewport?: { width: number; height: number };
   initialUrl?: string;
+  homeContext?: HomeContext;
 };
 
 export type ScreencastFrameParams = {

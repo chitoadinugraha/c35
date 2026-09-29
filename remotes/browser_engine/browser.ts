@@ -1,7 +1,13 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { chromium, type Browser, type BrowserContext, type Download, type Page } from 'playwright';
-import type { InputEvent, LaunchParams } from './protocol.js';
+import type { HomeContext, InputEvent, LaunchParams } from './protocol.js';
+import {
+  BROWSER_HOME_URL,
+  canonicalTabUrl,
+  isBlankOrHomeUrl,
+  resolveNavigateUrl,
+} from './home.js';
 import { Screencast } from './screencast.js';
 import { runSteps, type BrowserStep } from './steps.js';
 
@@ -15,18 +21,16 @@ const LAUNCH_ARGS = [
   '--window-position=0,0',
 ];
 
-export type TabInfo = { tabId: string; url: string; title: string; active: boolean };
-
-const isBlankPageUrl = (url: string): boolean => {
-  const u = url.trim().toLowerCase();
-  return (
-    !u ||
-    u === 'about:blank' ||
-    u === 'about:newtab' ||
-    u.startsWith('chrome://newtab') ||
-    u.startsWith('edge://newtab')
-  );
+export type TabInfo = {
+  tabId: string;
+  url: string;
+  title: string;
+  active: boolean;
+  loading?: boolean;
+  favicon?: string;
 };
+
+type TabMeta = { loading: boolean; favicon: string };
 
 const STEALTH_INIT_SCRIPT = () => {
   Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
@@ -56,6 +60,9 @@ export class BrowserEngine {
     reject: (err: Error) => void;
     timer: ReturnType<typeof setTimeout>;
   } | null = null;
+  private tabMeta = new Map<string, TabMeta>();
+  private profileDir = '';
+  private homeContext: HomeContext | undefined;
 
   public width = 1280;
   public height = 800;
@@ -69,6 +76,8 @@ export class BrowserEngine {
     const headless = params.headless ?? false;
     const viewport = { width: this.width, height: this.height };
     this.downloadsDir = params.downloadsPath?.trim() || path.join(params.userDataDir ?? '.', 'downloads');
+    this.profileDir = params.userDataDir?.trim() || '';
+    this.homeContext = params.homeContext;
     fs.mkdirSync(this.downloadsDir, { recursive: true });
     if (params.userDataDir) {
       this.context = await chromium.launchPersistentContext(params.userDataDir, {
@@ -108,13 +117,21 @@ export class BrowserEngine {
       this.wireDownloadHandler(first);
       await first.addInitScript(STEALTH_INIT_SCRIPT);
     }
-    const restoredSession = existing.length > 0 && existing.some((pg) => !isBlankPageUrl(pg.url()));
-    const defaultUrl = params.initialUrl ?? 'about:blank';
-    const shouldOpenDefault =
+    for (const [tabId, page] of this.pages) {
+      this.wireTabMeta(tabId, page);
+    }
+    const restoredSession = existing.length > 0 && existing.some((pg) => !isBlankOrHomeUrl(pg.url()));
+    const defaultUrl = params.initialUrl ?? (headless ? 'about:blank' : BROWSER_HOME_URL);
+    const openHome = !headless && (!restoredSession || isBlankOrHomeUrl(first.url()));
+    if (openHome) {
+      const home = resolveNavigateUrl(BROWSER_HOME_URL, this.profileDir || this.downloadsDir, this.homeContext);
+      await first.goto(home, { waitUntil: 'domcontentloaded', timeout: 30_000 }).catch(() => {});
+    } else if (
       defaultUrl !== 'about:blank' &&
       defaultUrl !== 'about:newtab' &&
-      (!restoredSession || !isBlankPageUrl(first.url()));
-    if (shouldOpenDefault) {
+      defaultUrl !== BROWSER_HOME_URL &&
+      (!restoredSession || isBlankOrHomeUrl(first.url()))
+    ) {
       await first.goto(defaultUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 }).catch(() => {});
     }
   }
@@ -136,11 +153,17 @@ export class BrowserEngine {
     const active = this.activeTabId;
     const out: TabInfo[] = [];
     for (const [tabId, page] of this.pages) {
+      const rawUrl = page.url();
+      const meta = this.tabMeta.get(tabId) ?? { loading: false, favicon: '' };
+      let title = await page.title().catch(() => '');
+      if (isBlankOrHomeUrl(rawUrl)) title = title.trim() || 'Alien AI';
       out.push({
         tabId,
-        url: page.url(),
-        title: await page.title().catch(() => ''),
+        url: canonicalTabUrl(rawUrl),
+        title,
         active: tabId === active,
+        loading: meta.loading,
+        favicon: meta.favicon,
       });
     }
     return out;
@@ -160,9 +183,9 @@ export class BrowserEngine {
     const tabId = this.nextTabId();
     this.pages.set(tabId, page);
     this.activeTabId = tabId;
-    if (url && url !== 'about:blank') {
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 }).catch(() => {});
-    }
+    this.wireTabMeta(tabId, page);
+    const dest = resolveNavigateUrl(url ?? BROWSER_HOME_URL, this.profileDir || this.downloadsDir, this.homeContext);
+    await page.goto(dest, { waitUntil: 'domcontentloaded', timeout: 30_000 }).catch(() => {});
     await this.rebindScreencast();
     return { tabId };
   }
@@ -224,7 +247,11 @@ export class BrowserEngine {
   public async navigate(url: string): Promise<void> {
     const page = this.activePage();
     if (!page) throw new Error('no active tab');
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+    const dest = resolveNavigateUrl(url, this.profileDir || this.downloadsDir, this.homeContext);
+    const tabId = this.activeTabId;
+    if (tabId) this.setTabLoading(tabId, true);
+    await page.goto(dest, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
+    if (tabId) void this.refreshTabFavicon(tabId, page);
   }
 
   public async historyBack(): Promise<void> {
@@ -363,11 +390,44 @@ export class BrowserEngine {
     await this.screencastStop();
     for (const p of this.pages.values()) await p.close().catch(() => {});
     this.pages.clear();
+    this.tabMeta.clear();
     this.activeTabId = null;
     if (this.context) await this.context.close().catch(() => {});
     if (this.browser) await this.browser.close().catch(() => {});
     this.context = null;
     this.browser = null;
+  }
+
+
+  private setTabLoading(tabId: string, loading: boolean): void {
+    const cur = this.tabMeta.get(tabId) ?? { loading: false, favicon: '' };
+    this.tabMeta.set(tabId, { ...cur, loading });
+  }
+
+  private async refreshTabFavicon(tabId: string, page: Page): Promise<void> {
+    const cur = this.tabMeta.get(tabId) ?? { loading: false, favicon: '' };
+    let favicon = '';
+    try {
+      favicon = await page.evaluate(() => {
+        const link =
+          document.querySelector<HTMLLinkElement>('link[rel~="icon"]') ||
+          document.querySelector<HTMLLinkElement>('link[rel="shortcut icon"]');
+        return link?.href?.trim() ?? '';
+      });
+    } catch {
+      favicon = '';
+    }
+    this.tabMeta.set(tabId, { ...cur, loading: false, favicon });
+  }
+
+  private wireTabMeta(tabId: string, page: Page): void {
+    if (!this.tabMeta.has(tabId)) this.tabMeta.set(tabId, { loading: false, favicon: '' });
+    page.on('domcontentloaded', () => void this.refreshTabFavicon(tabId, page));
+    page.on('framenavigated', (frame) => {
+      if (frame !== page.mainFrame()) return;
+      this.setTabLoading(tabId, true);
+    });
+    page.on('load', () => void this.refreshTabFavicon(tabId, page));
   }
 
   private nextTabId(): string {

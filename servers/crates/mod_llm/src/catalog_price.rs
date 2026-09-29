@@ -2,6 +2,10 @@
 pub const DEFAULT_INPUT_MICRO_PER_M: i64 = 150_000;
 pub const DEFAULT_OUTPUT_MICRO_PER_M: i64 = 600_000;
 
+/// Alien AI included-pool deduct rates for UI (`prompt_models`). Keep in sync with `c35_mod_billing::billing_pool`.
+pub const ALIEN_POOL_USD_IN_PER_1M: f64 = 1.50;
+pub const ALIEN_POOL_USD_OUT_PER_1M: f64 = 7.00;
+
 pub fn price_for_model_id(model: &str) -> Option<(i64, i64)> {
     let m = model.trim().to_ascii_lowercase();
     if m.is_empty() {

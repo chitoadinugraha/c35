@@ -76,6 +76,27 @@ async fn wait_engine_ready(bridge: &EngineBridge) -> Result<()> {
     anyhow::bail!("engine worker ping timeout")
 }
 
+fn browser_home_context() -> serde_json::Value {
+    let j = c_remote_core::config::config_load().unwrap_or_else(|| serde_json::json!({}));
+    let user_name = j
+        .get("owner_name")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    let alien_id = j
+        .get("owner_alien_id")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    let package = c_remote_core::config::personal_package_name_load()
+        .or_else(c_remote_core::config::device_package_name_load);
+    serde_json::json!({
+        "userName": user_name,
+        "alienId": alien_id,
+        "packageName": package,
+    })
+}
+
 async fn launch_browser(bridge: &EngineBridge, headless: bool, profile: &Path, downloads: &Path, slot_id: &str) -> Result<()> {
     bridge
         .call(
@@ -85,7 +106,8 @@ async fn launch_browser(bridge: &EngineBridge, headless: bool, profile: &Path, d
                 "userDataDir": profile.to_string_lossy(),
                 "downloadsPath": downloads.to_string_lossy(),
                 "slot_id": slot_id,
-                "viewport": { "width": 1280, "height": 800 }
+                "viewport": { "width": 1280, "height": 800 },
+                "homeContext": browser_home_context(),
             }),
         )
         .await?;

@@ -9,6 +9,8 @@ import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:alienai_c35/c/pb/c35/remote.pb.dart';
 import 'package:alienai_c35/c/remote/device_prompt_context.dart';
 import 'package:alienai_c35/c/remote/remote_cursor.dart';
+import 'package:alienai_c35/c/remote/remote_trackpad_cursor_lock.dart';
+import 'package:alienai_c35/c/remote/remote_virtual_cursor.dart';
 import 'package:alienai_c35/c/remote/remote_session.dart';
 import 'package:alienai_c35/widgets/devices/in_device_prompt_composer.dart';
 import 'package:alienai_c35/widgets/devices/ui_device_prompt_sheet.dart';
@@ -149,7 +151,9 @@ class UiRemoteBottomSessionControl extends StatelessWidget {
       builder: (context, controller, child) {
         final tip = mode == RemoteInteractMode.view
             ? 'Pan (view only) — drag & pinch zoom; no remote input'
-            : '${mode.label} — Ctrl+drag or middle-click to pan when zoomed';
+            : mode == RemoteInteractMode.trackpad
+                ? 'Trackpad — touch on stream; virtual pointer; pinch to zoom view'
+                : '${mode.label} — Ctrl+drag or middle-click to pan when zoomed';
         return Tooltip(
           message: uiPopupMenuTooltipText(tip),
           child: Material(
@@ -250,14 +254,32 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
   Timer? _trackpadPendingClickTimer;
   int? _trackpadLastTapMs;
   var _trackpadDragLock = false;
+  var _trackpadSuppressClickUp = false;
+  final RemoteTrackpadCursorLock _trackpadCursorLock =
+      createRemoteTrackpadCursorLock();
 
   bool get _controlInputEnabled =>
       widget.interactMode != RemoteInteractMode.view;
   bool get _keyboardInputEnabled =>
       widget.interactMode != RemoteInteractMode.view;
   bool get _viewPanMode => widget.interactMode == RemoteInteractMode.view;
+  bool get _trackpadMode =>
+      widget.interactMode == RemoteInteractMode.trackpad;
   bool _canvasDragPans({required bool ctrl, required bool middle}) =>
-      _viewPanMode || ctrl || middle;
+      _viewPanMode || (!_trackpadMode && (ctrl || middle));
+  bool _trackpadGesturePointer(PointerEvent e) =>
+      !_trackpadMode ||
+      e.kind == PointerDeviceKind.touch ||
+      e.kind == PointerDeviceKind.mouse;
+
+  void _trackpadReleaseCursorLock() => _trackpadCursorLock.release();
+
+  void _trackpadSyncCursorLock(PointerEvent e) {
+    if (!_trackpadMode || e.kind != PointerDeviceKind.mouse) return;
+    if (e.buttons == 0 || (!_touchMoved && !_trackpadDragLock)) return;
+    _trackpadCursorLock.engage(e.position);
+    _trackpadCursorLock.sustain();
+  }
 
   bool _agentOfflineError(String? err) {
     if (err == null) return false;
@@ -539,6 +561,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
     HardwareKeyboard.instance.removeHandler(_onHardwareKeyEvent);
     _stopEdgeScrolling();
     _trackpadCancelPendingClick();
+    _trackpadReleaseCursorLock();
     _releaseAllModifiers(silent: true);
     _focusNode.dispose();
     _vkbCtrl.dispose();
@@ -732,6 +755,20 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
     _trackpadPendingClickTimer = null;
   }
 
+  Offset _virtualCursorViewportLocal(Size renderSize) {
+    final content = _lastStreamContentSize;
+    return _normToViewportLocal(
+      _virtualCursorNorm,
+      renderSize,
+      content == Size.zero ? renderSize : content,
+    );
+  }
+
+  void _trackpadSyncEdgeScroll(Size renderSize) {
+    if (!_trackpadMode || _scale <= 1.0) return;
+    _updateEdgeScrolling(_virtualCursorViewportLocal(renderSize), renderSize);
+  }
+
   void _trackpadApplyDelta(Offset delta, Size renderSize) {
     if (delta.dx == 0 && delta.dy == 0) return;
     final content = _lastStreamContentSize;
@@ -745,27 +782,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
       (_virtualCursorNorm.dy + dNormY).clamp(0.0, 1.0),
     );
     _sendPointerNorm('mouse_move', _virtualCursorNorm);
-
-    if (_scale > 1.0) {
-      final cursorLocal = _normToViewportLocal(_virtualCursorNorm, renderSize, content == Size.zero ? renderSize : content);
-      final curScreenX = cursorLocal.dx;
-      final curScreenY = cursorLocal.dy;
-      const pad = 48.0;
-      var nPanX = _panOffset.dx;
-      var nPanY = _panOffset.dy;
-      if (curScreenX < pad) {
-        nPanX += (pad - curScreenX);
-      } else if (curScreenX > renderSize.width - pad) {
-        nPanX -= (curScreenX - (renderSize.width - pad));
-      }
-      if (curScreenY < pad) {
-        nPanY += (pad - curScreenY);
-      } else if (curScreenY > renderSize.height - pad) {
-        nPanY -= (curScreenY - (renderSize.height - pad));
-      }
-      _panOffset = Offset(nPanX, nPanY);
-      _clampPan(renderSize);
-    }
+    _trackpadSyncEdgeScroll(renderSize);
     setState(() {});
   }
 
@@ -1194,6 +1211,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                             child: Listener(
                               onPointerDown: (e) {
                                 if (controlEnabled) _focusNode.requestFocus();
+                                if (!_trackpadGesturePointer(e)) return;
                                 _activePointers[e.pointer] = e.localPosition;
                                 if (_activePointers.length == 1) {
                                   _touchStart = e.localPosition;
@@ -1240,11 +1258,19 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                                   if (isQuickDouble &&
                                       _activePointers.length == 1 &&
                                       (e.buttons & kSecondaryMouseButton == 0)) {
-                                    // Engaged tap-and-drag (drag lock)!
-                                    _trackpadDragLock = true;
-                                    _sendPointerNorm(
-                                        'mouse_down', _virtualCursorNorm,
-                                        button: 0);
+                                    if (e.kind == PointerDeviceKind.mouse) {
+                                      _trackpadCancelPendingClick();
+                                      _trackpadLastTapMs = null;
+                                      _trackpadSuppressClickUp = true;
+                                      _sendPointerNorm('double_click',
+                                          _virtualCursorNorm,
+                                          button: 0);
+                                    } else {
+                                      _trackpadDragLock = true;
+                                      _sendPointerNorm(
+                                          'mouse_down', _virtualCursorNorm,
+                                          button: 0);
+                                    }
                                   } else {
                                     _trackpadDragLock = false;
                                   }
@@ -1264,6 +1290,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                                     button: btn);
                               },
                               onPointerMove: (e) {
+                                if (!_trackpadGesturePointer(e)) return;
                                 _activePointers[e.pointer] = e.localPosition;
 
                                 if (_activePointers.length >= 2) {
@@ -1336,6 +1363,10 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
 
                                 if (widget.interactMode ==
                                     RemoteInteractMode.trackpad) {
+                                  if (e.kind == PointerDeviceKind.mouse &&
+                                      e.buttons == 0) {
+                                    return;
+                                  }
                                   if (_touchStart != null &&
                                       (e.localPosition - _touchStart!)
                                               .distance >
@@ -1344,6 +1375,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                                     _trackpadCancelPendingClick();
                                   }
                                   _trackpadApplyDelta(e.delta, renderSize);
+                                  _trackpadSyncCursorLock(e);
                                   return;
                                 }
 
@@ -1366,6 +1398,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                               },
                               onPointerUp: (e) {
                                 _stopEdgeScrolling();
+                                if (!_trackpadGesturePointer(e)) return;
                                 final hadTwoOrMorePointers =
                                     _maxPointersInGesture >= 2;
                                 _activePointers.remove(e.pointer);
@@ -1385,6 +1418,12 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
 
                                 if (widget.interactMode ==
                                     RemoteInteractMode.trackpad) {
+                                  _trackpadReleaseCursorLock();
+                                  if (_trackpadSuppressClickUp) {
+                                    _trackpadSuppressClickUp = false;
+                                    _heldButtons = e.buttons;
+                                    return;
+                                  }
                                   if (_trackpadDragLock) {
                                     _trackpadDragLock = false;
                                     _sendPointerNorm(
@@ -1423,6 +1462,8 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                               },
                               onPointerCancel: (e) {
                                 _stopEdgeScrolling();
+                                _trackpadReleaseCursorLock();
+                                if (!_trackpadGesturePointer(e)) return;
                                 _activePointers.remove(e.pointer);
                                 if (_activePointers.length < 2) {
                                   _initialPinchDistance = null;
@@ -1433,7 +1474,9 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                                   final isDesktopCtrl = HardwareKeyboard
                                           .instance.isControlPressed ||
                                       _modCtrlLocked;
-                                  if (isDesktopCtrl) {
+                                  if (isDesktopCtrl &&
+                                      widget.interactMode !=
+                                          RemoteInteractMode.trackpad) {
                                     final factor =
                                         e.scrollDelta.dy < 0 ? 1.15 : 0.87;
                                     _zoomAt(
@@ -1509,7 +1552,8 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                                               _lastStreamContentSize)
                                           .dy
                                           .clamp(-24.0, renderSize.height),
-                                      child: const _VirtualCursorWidget(),
+                                      child: UiRemoteVirtualCursor(
+                                          shape: remoteShape),
                                     ),
                                   ListenableBuilder(
                                     listenable: Listenable.merge([
@@ -1650,50 +1694,3 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
   }
 }
 
-class _VirtualCursorWidget extends StatelessWidget {
-  const _VirtualCursorWidget();
-
-  @override
-  Widget build(BuildContext context) {
-    return const IgnorePointer(
-      child: CustomPaint(
-        size: Size(20, 24),
-        painter: _VirtualCursorPainter(),
-      ),
-    );
-  }
-}
-
-class _VirtualCursorPainter extends CustomPainter {
-  const _VirtualCursorPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(0, 18.5)
-      ..lineTo(4.8, 14.5)
-      ..lineTo(8.5, 22.5)
-      ..lineTo(11.8, 21.0)
-      ..lineTo(8.2, 13.2)
-      ..lineTo(14.0, 13.2)
-      ..close();
-
-    canvas.drawShadow(path, Colors.black.withValues(alpha: 0.6), 3.0, true);
-
-    final strokePaint = Paint()
-      ..color = const Color(0xFF18181B)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0
-      ..strokeJoin = StrokeJoin.round;
-    canvas.drawPath(path, strokePaint);
-
-    final fillPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-    canvas.drawPath(path, fillPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}

@@ -11,6 +11,7 @@ import 'package:alienai_c35/c/media/media_types.dart';
 import 'package:alienai_c35/c/settings/voice_prefs.dart';
 import 'package:alienai_c35/c/stt/stt_mic_permission.dart';
 import 'package:alienai_c35/c/stt/stt_service.dart';
+import 'package:alienai_c35/widgets/ai/composer_attachment_history.dart';
 import 'package:alienai_c35/widgets/ai/composer_mention_text.dart';
 import 'package:alienai_c35/widgets/ai/composer_action.dart';
 import 'package:alienai_c35/widgets/ai/ui_assistant_model_chip.dart';
@@ -23,6 +24,7 @@ import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:extended_text_field/extended_text_field.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pasteboard/pasteboard.dart';
@@ -165,7 +167,9 @@ class _InComposerState extends State<InComposer> {
 
   FocusNode? _internalFocus;
   FocusNode get _focus => widget.focusNode ?? (_internalFocus ??= FocusNode());
-  final _attachments = <StagedMedia>[];
+  final _attachmentHistory = ComposerAttachmentHistory();
+  List<StagedMedia> get _attachments => _attachmentHistory.current;
+  var _composerLastEditAttachments = false;
   var _focused = false;
   var _recording = false;
   var _submitting = false;
@@ -175,6 +179,8 @@ class _InComposerState extends State<InComposer> {
   var _highlightedSlashIndex = 0;
   var _wasStacked = false;
   double _inputAreaWidth = 0;
+  ComposerMentionSpanBuilder? _composerSpanBuilder;
+  List<CatalogMention> _composerSpanBuilderMentions = const [];
   double _composerShellHeight = 0;
   final _composerShellKey = GlobalKey();
   final _mentionLayerLink = LayerLink();
@@ -302,6 +308,48 @@ class _InComposerState extends State<InComposer> {
       }
     });
   }
+
+  void _restoreComposerFocus([TextSelection? selection]) {
+    final sel = selection ?? _controller.selection;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_focus.canRequestFocus) return;
+      _focus.requestFocus();
+      if (!sel.isValid) return;
+      final len = _controller.text.length;
+      _controller.selection = TextSelection(
+        baseOffset: sel.baseOffset.clamp(0, len),
+        extentOffset: sel.extentOffset.clamp(0, len),
+      );
+    });
+  }
+
+  void _syncComposerStackedLayout(bool nextStacked) {
+    if (nextStacked == _wasStacked) return;
+    final hadFocus = _focus.hasFocus;
+    final sel = _controller.selection;
+    _wasStacked = nextStacked;
+    if (hadFocus) _restoreComposerFocus(sel);
+  }
+
+  void _scheduleComposerStackedSync() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _syncComposerStackedLayout(_shouldUseStackedLayout(context, _inputAreaWidth));
+    });
+  }
+
+  ComposerMentionSpanBuilder _composerSpecialTextSpanBuilder() {
+    final mentions = _composerMentions;
+    if (_composerSpanBuilder == null || !listEquals(_composerSpanBuilderMentions, mentions)) {
+      _composerSpanBuilderMentions = mentions;
+      _composerSpanBuilder = ComposerMentionSpanBuilder(mentions: mentions);
+    }
+    return _composerSpanBuilder!;
+  }
+
+  Widget _composerFieldChrome({required Widget child}) => ClipRect(
+        child: Align(alignment: Alignment.topCenter, child: child),
+      );
 
   void _clearActiveMentionQuery() {
     final sel = _controller.selection;
@@ -501,6 +549,43 @@ class _InComposerState extends State<InComposer> {
     setState(() => _focused = _focus.hasFocus);
   }
 
+  void _attachmentHistoryRecord() => _attachmentHistory.record();
+
+  void _attachmentHistoryClear() => _attachmentHistory.clear();
+
+  bool _attachmentHistoryUndo() => _attachmentHistory.undo();
+
+  bool _attachmentHistoryRedo() => _attachmentHistory.redo();
+
+  void _composerMarkAttachmentEdit() => _composerLastEditAttachments = true;
+
+  void _composerMarkTextEdit() => _composerLastEditAttachments = false;
+
+  bool _composerEditShortcut(KeyDownEvent event) {
+    final mod = HardwareKeyboard.instance.isControlPressed || HardwareKeyboard.instance.isMetaPressed;
+    if (!mod) return false;
+    if (event.logicalKey == LogicalKeyboardKey.keyZ && HardwareKeyboard.instance.isShiftPressed) {
+      if (_attachmentHistoryRedo()) {
+        setState(() {});
+        return true;
+      }
+      return false;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.keyY) {
+      if (_attachmentHistoryRedo()) {
+        setState(() {});
+        return true;
+      }
+      return false;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.keyZ && _composerLastEditAttachments && _attachmentHistoryUndo()) {
+      _composerLastEditAttachments = false;
+      setState(() {});
+      return true;
+    }
+    return false;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -527,6 +612,7 @@ class _InComposerState extends State<InComposer> {
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    if (_composerEditShortcut(event)) return KeyEventResult.handled;
 
     if (widget.compact) {
       if (event.logicalKey == LogicalKeyboardKey.enter && !HardwareKeyboard.instance.isShiftPressed && _canSubmit) {
@@ -651,6 +737,8 @@ class _InComposerState extends State<InComposer> {
 
   void _stageItems(List<StagedMedia> items) {
     if (!mounted || items.isEmpty) return;
+    _attachmentHistoryRecord();
+    _composerMarkAttachmentEdit();
     setState(() {
       _historyIndex = -1;
       _draftText = '';
@@ -663,6 +751,8 @@ class _InComposerState extends State<InComposer> {
 
   void _replaceItem(int i, StagedMedia next) {
     if (!mounted || i < 0 || i >= _attachments.length) return;
+    _attachmentHistoryRecord();
+    _composerMarkAttachmentEdit();
     setState(() => _attachments[i] = next);
     unawaited(_uploadItem(next));
   }
@@ -705,14 +795,14 @@ class _InComposerState extends State<InComposer> {
     final raw = _controller.text.trim();
     if (raw == '/clear') {
       _controller.clear();
-      _attachments.clear();
+      _attachmentHistoryClear();
       setState(() => _submitting = false);
       widget.onNewChat?.call();
       return;
     }
     if (raw == '/model') {
       _controller.clear();
-      _attachments.clear();
+      _attachmentHistoryClear();
       setState(() => _submitting = false);
       _modelTap()?.call();
       return;
@@ -748,7 +838,7 @@ class _InComposerState extends State<InComposer> {
     }
 
     _controller.clear();
-    _attachments.clear();
+    _attachmentHistoryClear();
     setState(() {});
 
     try {
@@ -1158,8 +1248,6 @@ class _InComposerState extends State<InComposer> {
     return painter.computeLineMetrics().length > 1;
   }
 
-  void _restoreComposerFocus([TextSelection? selection]) => _requestComposerFocus(selection?.baseOffset);
-
   VoidCallback? _modelTap() => widget.enabled
       ? () async {
           final next = await agentModelPick(context, widget.model, widget.models, modelsLoading: widget.modelsLoading);
@@ -1254,7 +1342,8 @@ class _InComposerState extends State<InComposer> {
     if (widget.compact) {
       return Padding(
         padding: const EdgeInsets.fromLTRB(0, 4, 4, 4),
-        child: TextField(
+        child: _composerFieldChrome(
+          child: TextField(
           key: const ValueKey('composer_text_field'),
           controller: _controller,
           focusNode: _focus,
@@ -1263,16 +1352,21 @@ class _InComposerState extends State<InComposer> {
           maxLines: 6,
           keyboardType: TextInputType.multiline,
           textInputAction: TextInputAction.newline,
+          textAlignVertical: TextAlignVertical.top,
           style: const TextStyle(color: zinc100, fontSize: 14, height: 1.35),
           cursorColor: zinc100,
           onChanged: (_) {
+            _composerMarkTextEdit();
             final hadFocus = _focus.hasFocus;
             final sel = _controller.selection;
-            final prevStacked = _wasStacked;
             setState(() {});
-            final nextStacked = _shouldUseStackedLayout(context, _inputAreaWidth);
-            _wasStacked = nextStacked;
-            if (prevStacked != nextStacked && hadFocus) _restoreComposerFocus(sel);
+            _syncComposerStackedLayout(_shouldUseStackedLayout(context, _inputAreaWidth));
+            if (hadFocus) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted || _focus.hasFocus) return;
+                _restoreComposerFocus(sel);
+              });
+            }
           },
           decoration: InputDecoration(
             hintText: _hintText,
@@ -1283,6 +1377,7 @@ class _InComposerState extends State<InComposer> {
             focusedBorder: InputBorder.none,
             contentPadding: EdgeInsets.fromLTRB(2, stacked ? 10 : 8, 4, stacked ? 10 : 6),
           ),
+        ),
         ),
       );
     }
@@ -1295,20 +1390,25 @@ class _InComposerState extends State<InComposer> {
       maxLines: 6,
       keyboardType: TextInputType.multiline,
       textInputAction: TextInputAction.newline,
+      textAlignVertical: TextAlignVertical.top,
       style: const TextStyle(color: zinc100, fontSize: 14, height: 1.35),
       cursorColor: zinc100,
-      specialTextSpanBuilder: ComposerMentionSpanBuilder(mentions: _composerMentions),
+      specialTextSpanBuilder: _composerSpecialTextSpanBuilder(),
       onChanged: (_) {
+        _composerMarkTextEdit();
         final hadFocus = _focus.hasFocus;
         final sel = _controller.selection;
-        final prevStacked = _wasStacked;
         _mentionMenuHighlight.value = 0;
         setState(() {});
         _syncMentionMenuOverlay();
         if (_mentionPickerActive) _measureComposerShell();
-        final nextStacked = _shouldUseStackedLayout(context, _inputAreaWidth);
-        _wasStacked = nextStacked;
-        if (prevStacked != nextStacked && hadFocus) _restoreComposerFocus(sel);
+        _syncComposerStackedLayout(_shouldUseStackedLayout(context, _inputAreaWidth));
+        if (hadFocus) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted || _focus.hasFocus) return;
+            _restoreComposerFocus(sel);
+          });
+        }
       },
       decoration: InputDecoration(
         hintText: _hintText,
@@ -1320,7 +1420,7 @@ class _InComposerState extends State<InComposer> {
         contentPadding: EdgeInsets.fromLTRB(2, stacked ? 10 : 8, 4, stacked ? 10 : 6),
       ),
     );
-    return Padding(padding: const EdgeInsets.fromLTRB(0, 4, 4, 4), child: field);
+    return Padding(padding: const EdgeInsets.fromLTRB(0, 4, 4, 4), child: _composerFieldChrome(child: field));
   }
 
   Widget _inputArea(double maxWidth) {
@@ -1342,12 +1442,13 @@ class _InComposerState extends State<InComposer> {
     }
     _inputAreaWidth = maxWidth;
     final stacked = _shouldUseStackedLayout(context, maxWidth);
+    if (stacked != _wasStacked) _scheduleComposerStackedSync();
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(
               width: stacked ? 0 : _leadingActionsWidth,
@@ -1414,7 +1515,13 @@ class _InComposerState extends State<InComposer> {
                   if (_attachments[i].isImage)
                     UiStagedShot(
                       item: _attachments[i],
-                      onRemove: widget.enabled && !widget.busy ? () => setState(() => _attachments.removeAt(i)) : null,
+                      onRemove: widget.enabled && !widget.busy
+                          ? () {
+                              _attachmentHistoryRecord();
+                              _composerMarkAttachmentEdit();
+                              setState(() => _attachments.removeAt(i));
+                            }
+                          : null,
                       onReplace: widget.enabled && !widget.busy ? (next) => _replaceItem(i, next) : null,
                     ),
               ],
@@ -1428,7 +1535,11 @@ class _InComposerState extends State<InComposer> {
               onRemove: (i) {
                 final doc = docs[i];
                 final idx = _attachments.indexWhere((m) => m.id == doc.id);
-                if (idx >= 0) setState(() => _attachments.removeAt(idx));
+                if (idx >= 0) {
+                  _attachmentHistoryRecord();
+                  _composerMarkAttachmentEdit();
+                  setState(() => _attachments.removeAt(idx));
+                }
               },
             ),
           ],

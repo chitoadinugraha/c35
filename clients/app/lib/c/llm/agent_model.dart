@@ -75,7 +75,7 @@ class AgentModel {
         _ => const Color(0xFFA1A1AA),
       };
 
-  static const alien = AgentModel(id: 'auto', chip: 'Alien AI', label: 'Alien AI', provider: 'alienai', providerModel: 'auto', isDefault: true, supportsThinking: true, usdInPer1m: 0.075, usdOutPer1m: 0.3);
+  static const alien = AgentModel(id: 'auto', chip: 'Alien AI', label: 'Alien AI', provider: 'alienai', providerModel: 'auto', isDefault: true, supportsThinking: true, usdInPer1m: 1.5, usdOutPer1m: 7);
   static const gemini31 = AgentModel(id: 'gemini-3.1-flash-lite', chip: 'Gemini 3.1', label: 'Gemini 3.1 Flash Lite', provider: 'google', providerModel: 'gemini-3.1-flash-lite', supportsThinking: true, usdInPer1m: 75000, usdOutPer1m: 300000);
   static const gpt4o = AgentModel(id: 'gpt-4o', chip: 'GPT-4o', label: 'GPT-4o', provider: 'openai', providerModel: 'gpt-4o');
   static const claude = AgentModel(id: 'claude-sonnet-4-5', chip: 'Claude', label: 'Claude Sonnet 4.5', provider: 'anthropic', providerModel: 'anthropic/claude-sonnet-4-5');
@@ -116,7 +116,7 @@ class AgentModel {
   }
 
   String priceLabel({String currency = moneyDefaultCurrency, int fxMicroPerUsd = moneyDefaultFxMicroPerUsd}) =>
-      agentModelPriceLabel(usdInPer1m, usdOutPer1m, currency: currency, fxMicroPerUsd: fxMicroPerUsd);
+      agentModelPriceLabel(usdInPer1m, usdOutPer1m, currency: currency, fxMicroPerUsd: fxMicroPerUsd, retailMarkup: provider != 'alienai');
 
   AgentModel copyWith({AgentThinking? thinking}) => AgentModel(
         id: id,
@@ -146,9 +146,9 @@ const agentModelRetailMarkup = 1.5;
 
 double agentModelRetailPer1m(double wholesale) => wholesale * agentModelRetailMarkup;
 
-String agentModelTokenRateLabel(double usdPer1m, {String currency = moneyDefaultCurrency, int fxMicroPerUsd = moneyDefaultFxMicroPerUsd}) {
+String agentModelTokenRateLabel(double usdPer1m, {String currency = moneyDefaultCurrency, int fxMicroPerUsd = moneyDefaultFxMicroPerUsd, bool retailMarkup = true}) {
   if (usdPer1m <= 0) return '—';
-  final retail = agentModelRetailPer1m(usdPer1m);
+  final retail = retailMarkup ? agentModelRetailPer1m(usdPer1m) : usdPer1m;
   final cur = currency.toUpperCase();
   if (cur == 'USD') return '\$${retail.toStringAsFixed(2)}';
   if (cur == 'IDR') return moneyFmtIdrDetail(moneyUsdToLocal(retail, fxMicroPerUsd));
@@ -160,10 +160,11 @@ String agentModelPriceLabel(
   double usdOutPer1m, {
   String currency = moneyDefaultCurrency,
   int fxMicroPerUsd = moneyDefaultFxMicroPerUsd,
+  bool retailMarkup = true,
 }) {
   if (usdInPer1m <= 0 && usdOutPer1m <= 0) return 'Auto';
-  final inLabel = agentModelTokenRateLabel(usdInPer1m, currency: currency, fxMicroPerUsd: fxMicroPerUsd);
-  final outLabel = agentModelTokenRateLabel(usdOutPer1m, currency: currency, fxMicroPerUsd: fxMicroPerUsd);
+  final inLabel = agentModelTokenRateLabel(usdInPer1m, currency: currency, fxMicroPerUsd: fxMicroPerUsd, retailMarkup: retailMarkup);
+  final outLabel = agentModelTokenRateLabel(usdOutPer1m, currency: currency, fxMicroPerUsd: fxMicroPerUsd, retailMarkup: retailMarkup);
   return '$inLabel / $outLabel per 1M';
 }
 

@@ -167,5 +167,30 @@ Widget msgBubbleContextMenu(
     conn: conn,
   );
 
-  return ChatMessageContextMenu(anchors: selectableRegionState.contextMenuAnchors, items: items);
+  return _MsgBubbleContextMenuOverlay(
+    anchors: selectableRegionState.contextMenuAnchors,
+    items: items,
+  );
+}
+
+/// Dismisses on any pointer down outside menu rows (message body taps included).
+class _MsgBubbleContextMenuOverlay extends StatelessWidget {
+  const _MsgBubbleContextMenuOverlay({required this.anchors, required this.items});
+
+  final TextSelectionToolbarAnchors anchors;
+  final List<ChatMessageMenuItem> items;
+
+  @override
+  Widget build(BuildContext context) => Stack(
+        fit: StackFit.expand,
+        children: [
+          Positioned.fill(
+            child: Listener(
+              behavior: HitTestBehavior.translucent,
+              onPointerDown: (_) => ContextMenuController.removeAny(),
+            ),
+          ),
+          ChatMessageContextMenu(anchors: anchors, items: items),
+        ],
+      );
 }

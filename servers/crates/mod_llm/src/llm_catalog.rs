@@ -7,6 +7,7 @@ use c35_store::db_retry;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
+use crate::catalog_price::{ALIEN_POOL_USD_IN_PER_1M, ALIEN_POOL_USD_OUT_PER_1M};
 use crate::runtime_config::runtime_config_reload;
 pub use crate::catalog_types::LlmModelRow;
 
@@ -58,14 +59,17 @@ pub fn prompt_models() -> Vec<PromptModelOption> {
     g.models
         .iter()
         .filter(|m| m.enabled)
-        .map(|m| PromptModelOption {
-            id: m.id.clone(),
-            label: m.label.clone(),
-            provider: m.provider.clone(),
-            is_default: m.is_default,
-            usd_in_per_1m: micro_per_m_to_usd(m.input_micro_per_m),
-            usd_out_per_1m: micro_per_m_to_usd(m.output_micro_per_m),
-            supports_thinking: m.supports_thinking,
+        .map(|m| {
+            let (usd_in_per_1m, usd_out_per_1m) = prompt_model_usd_per_1m(m);
+            PromptModelOption {
+                id: m.id.clone(),
+                label: m.label.clone(),
+                provider: m.provider.clone(),
+                is_default: m.is_default,
+                usd_in_per_1m,
+                usd_out_per_1m,
+                supports_thinking: m.supports_thinking,
+            }
         })
         .collect()
 }
@@ -262,14 +266,25 @@ fn micro_per_m_to_usd(micro_per_m: i64) -> f64 {
     micro_per_m as f64 / 1_000_000.0
 }
 
+/// User-facing $/M in model picker. Frontier uses catalog wholesale; Alien AI uses locked pool rates (not DB wholesale).
+fn prompt_model_usd_per_1m(m: &LlmModelRow) -> (f64, f64) {
+    if m.id == "alienai" || m.provider == "alienai" {
+        return (ALIEN_POOL_USD_IN_PER_1M, ALIEN_POOL_USD_OUT_PER_1M);
+    }
+    (
+        micro_per_m_to_usd(m.input_micro_per_m),
+        micro_per_m_to_usd(m.output_micro_per_m),
+    )
+}
+
 fn fallback_models() -> Vec<PromptModelOption> {
     vec![PromptModelOption {
         id: "alienai".into(),
         label: "Alien AI".into(),
         provider: "alienai".into(),
         is_default: true,
-        usd_in_per_1m: 0.0,
-        usd_out_per_1m: 0.0,
+        usd_in_per_1m: ALIEN_POOL_USD_IN_PER_1M,
+        usd_out_per_1m: ALIEN_POOL_USD_OUT_PER_1M,
         supports_thinking: true,
     }]
 }
@@ -321,5 +336,27 @@ mod tests {
     #[test]
     fn provider_fallback_local_is_free() {
         assert_eq!(provider_fallback_price("local"), Some((0, 0)));
+    }
+
+    #[test]
+    fn alienai_prompt_uses_pool_rates_not_wholesale() {
+        let m = LlmModelRow {
+            id: "alienai".into(),
+            provider: "alienai".into(),
+            label: "Alien AI".into(),
+            provider_model: String::new(),
+            input_micro_per_m: 75_000,
+            output_micro_per_m: 300_000,
+            supports_thinking: true,
+            enabled: true,
+            is_default: true,
+            sort_order: 0,
+            family: "flash-lite".into(),
+            version_rank: 0,
+            source: "pinned".into(),
+        };
+        let (in_usd, out_usd) = prompt_model_usd_per_1m(&m);
+        assert_eq!(in_usd, ALIEN_POOL_USD_IN_PER_1M);
+        assert_eq!(out_usd, ALIEN_POOL_USD_OUT_PER_1M);
     }
 }

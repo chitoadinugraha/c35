@@ -304,6 +304,31 @@ pub async fn chat_mention_context_commit(
     Ok(())
 }
 
+/// When the user has exactly one paired remote device, inject it like a bound chat (no @mention needed).
+pub async fn prompt_single_paired_device_inject(pool: &PgPool, owner_iid: i64, req: &mut ReqPrompt) -> Result<()> {
+    if !mention_device_iids_from_req(&req.mention_ids).is_empty() || req.device_iids.iter().any(|i| *i > 0) {
+        return Ok(());
+    }
+    let ids: Vec<i64> = sqlx::query_scalar(
+        r#"
+        SELECT id
+        FROM ai.identity
+        WHERE owner_iid = $1 AND kind = 'remote' AND deleted_ts IS NULL
+        ORDER BY id
+        "#,
+    )
+    .bind(owner_iid)
+    .fetch_all(pool)
+    .await?;
+    if ids.len() != 1 {
+        return Ok(());
+    }
+    let device = ids[0];
+    req.mention_ids.push(mention_ref_iid(device));
+    req.device_iids.push(device);
+    Ok(())
+}
+
 pub async fn bound_device_prompt_prepare(
     pool: &PgPool,
     owner_iid: i64,
@@ -324,7 +349,7 @@ pub async fn bound_device_prompt_prepare(
     }
     let bound = if bound_col > 0 { bound_col } else { chat_bound_device_iid(&meta) };
     if bound <= 0 {
-        return Ok(());
+        return prompt_single_paired_device_inject(pool, owner_iid, req).await;
     }
     let mentioned = mention_device_iids_from_req(&req.mention_ids);
     for other in &mentioned {

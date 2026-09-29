@@ -78,6 +78,9 @@ String uiFriendlyError(Object error, {String fallback = 'Something went wrong. P
   if (lower.contains('quota exceeded')) {
     return "Quota limit reached. Please top up your wallet balance or wait for your quota to reset.";
   }
+  if (lower.contains('device_iid is required') || lower.contains('device_iid required')) {
+    return fallback;
+  }
   if (RegExp(r'https?://|\d{1,3}(?:\.\d{1,3}){3}|localhost|status=\d|errno|socketexception').hasMatch(lower)) {
     if (lower.contains('timeout') || lower.contains('timed out')) return 'Request timed out. Check your internet and try again.';
     if (lower.contains('refused') || lower.contains('failed host lookup') || lower.contains('unreachable')) {
