@@ -38,6 +38,36 @@ const nmSend = (msg) => {
   }
 };
 
+/** Status/ping on the long-lived native port (agent runs in the connectNative process). */
+const nmPortRequest = (msg, timeoutMs = 12000) =>
+  new Promise((resolve, reject) => {
+    nmConnect();
+    if (!nativePort) {
+      reject(new Error("native port not connected"));
+      return;
+    }
+    let done = false;
+    const timer = setTimeout(() => {
+      if (done) return;
+      done = true;
+      nativePort.onMessage.removeListener(onReply);
+      reject(new Error(`native port timeout (${timeoutMs}ms)`));
+    }, timeoutMs);
+    const onReply = (response) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      nativePort.onMessage.removeListener(onReply);
+      resolve(response ?? {});
+    };
+    nativePort.onMessage.addListener(onReply);
+    if (!nmSend(msg)) {
+      clearTimeout(timer);
+      nativePort.onMessage.removeListener(onReply);
+      reject(new Error("native postMessage failed"));
+    }
+  });
+
 /** One-shot native host call (pair/ping). Reliable vs long-lived port + MV3 sleep. */
 const nmRequest = (msg, timeoutMs = 12000) =>
   new Promise((resolve, reject) => {
@@ -73,8 +103,15 @@ const collectDiagnostics = async () => {
     extLog("error", `native ping: ${nativePingError}`);
   }
   try {
-    agent = await nmRequest({ type: "agent.status" }, 10000);
-    extLog("info", `agent.status ws=${agent.ws_connected} ipc=${agent.native_ipc}`);
+    const raw = await nmPortRequest({ type: "agent.status" }, 10000);
+    agent =
+      raw?.data && typeof raw.data === "object" && Object.keys(raw.data).length
+        ? { ...raw.data, ...raw }
+        : raw || {};
+    extLog(
+      "info",
+      `agent.status ws=${agent.ws_connected} reachable=${agent.agent_reachable}`
+    );
   } catch (e) {
     agent = { agent_error: String(e.message || e) };
     extLog("error", `agent.status: ${agent.agent_error}`);
@@ -462,6 +499,17 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       return true;
     case "diagnostics.logs":
       sendResponse({ ok: true, extLogs: extLogs.slice(), captureActive });
+      return true;
+    case "agent.status":
+      nmPortRequest({ type: "agent.status" }, 10000)
+        .then((raw) => {
+          const agent =
+            raw?.data && typeof raw.data === "object" && Object.keys(raw.data).length
+              ? { ...raw.data, ...raw }
+              : raw || {};
+          sendResponse({ ok: true, agent });
+        })
+        .catch((e) => sendResponse({ ok: false, error: String(e.message || e) }));
       return true;
     case "diagnostics.get":
       return collectDiagnostics().catch((e) => {

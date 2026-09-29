@@ -43,10 +43,16 @@ class BrowserTabInfo {
 
 /// Chrome-like remote browser chrome: tabs + omnibox with back / forward / reload.
 class UiBrowserTabStrip extends StatefulWidget {
-  const UiBrowserTabStrip({super.key, required this.session, this.compact = false});
+  const UiBrowserTabStrip({
+    super.key,
+    required this.session,
+    this.compact = false,
+    this.onLoadingChanged,
+  });
 
   final RemoteSession session;
   final bool compact;
+  final ValueChanged<bool>? onLoadingChanged;
 
   @override
   State<UiBrowserTabStrip> createState() => _UiBrowserTabStripState();
@@ -121,13 +127,21 @@ class _UiBrowserTabStripState extends State<UiBrowserTabStrip> {
     final s = e.toString().toLowerCase();
     return s.contains('agent offline') ||
         s.contains('agent unreachable') ||
-        s.contains('no response from agent');
+        s.contains('no response from agent') ||
+        s.contains('rpc timeout') ||
+        s.contains('tabs list timeout');
+  }
+
+  void _setLoading(bool loading) {
+    if (_loading == loading) return;
+    setState(() => _loading = loading);
+    widget.onLoadingChanged?.call(loading);
   }
 
   Future<void> _refresh({bool retryOnEngine = false}) async {
     if (!widget.session.connected.value) return;
     final gen = ++_refreshGen;
-    setState(() => _loading = true);
+    _setLoading(true);
     const attempts = 6;
     for (var i = 0; i < attempts; i++) {
       if (!mounted || gen != _refreshGen) return;
@@ -140,8 +154,8 @@ class _UiBrowserTabStripState extends State<UiBrowserTabStrip> {
               .map((e) => BrowserTabInfo.fromJson(Map<String, dynamic>.from(e as Map)))
               .where((t) => t.tabId.isNotEmpty)
               .toList();
-          _loading = false;
         });
+        _setLoading(false);
         _syncUrlField();
         return;
       } catch (e) {
@@ -152,7 +166,7 @@ class _UiBrowserTabStripState extends State<UiBrowserTabStrip> {
           continue;
         }
         if (!mounted || gen != _refreshGen) return;
-        setState(() => _loading = false);
+        _setLoading(false);
         return;
       }
     }
@@ -376,7 +390,7 @@ class _UiBrowserTabStripState extends State<UiBrowserTabStrip> {
               iconSize: 18,
               visualDensity: VisualDensity.compact,
               onPressed: () => unawaited(_navigate()),
-              icon: const Icon(Icons.arrow_forward, color: _accent),
+              icon: const Icon(Icons.arrow_forward, color: _muted),
             ),
           ],
         ),
@@ -486,9 +500,7 @@ class _UiBrowserTabStripState extends State<UiBrowserTabStrip> {
         child: Row(
           children: [
             Expanded(
-              child: _loading && _tabs.isEmpty
-                  ? const Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)))
-                      : _tabs.isEmpty
+              child: _tabs.isEmpty
                       ? Padding(
                           padding: const EdgeInsets.only(left: 8, top: 4),
                           child: Align(

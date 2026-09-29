@@ -79,18 +79,6 @@
       background: linear-gradient(90deg, #00e599, #34d399);
       transition: width 0.35s linear;
     }
-    #pairedPanel {
-      display: none;
-      padding: 10px 12px;
-      border-radius: 10px;
-      background: rgba(52,211,153,0.08);
-      border: 1px solid rgba(52,211,153,0.25);
-      font-size: 12px;
-      color: #34d399;
-      text-align: center;
-      margin-bottom: 8px;
-    }
-    #pairedPanel.active { display: block; }
     #diagPanel {
       margin-top: 4px;
       padding: 10px;
@@ -145,12 +133,53 @@
     .warn { color: #fbbf24; }
     .err { color: #f87171; }
     .hidden { display: none !important; }
+    #identityPanel {
+      margin-bottom: 10px;
+      padding: 10px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    #identityPanel h2 {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #64748b;
+      margin: 0 0 8px;
+    }
+    .id-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 11px;
+      line-height: 1.4;
+      margin-bottom: 4px;
+    }
+    .id-row:last-child { margin-bottom: 0; }
+    .id-row .k { color: #64748b; flex-shrink: 0; }
+    .id-row .v {
+      color: #e2e8f0;
+      text-align: right;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 220px;
+    }
+    .id-row .v.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; }
+    .live-hint { font-size: 10px; color: #64748b; margin: 0 0 8px; line-height: 1.35; }
   </style>
 </head>
 <body>
   <h1><img src="../icons/icon32.png" alt="" width="20" height="20"> Alien AI Remote</h1>
   <p class="sub" id="subtitle">Remote your daily Chrome profile from Alien AI → Devices.</p>
-  <div id="pairedPanel">Paired — open <strong>Devices → Remote</strong> in the app.</div>
+  <div id="identityPanel">
+    <h2>Device</h2>
+    <div class="id-row"><span class="k">Device ID</span><span class="v mono" id="idDeviceIid">—</span></div>
+    <div class="id-row"><span class="k">Name</span><span class="v" id="idDeviceName">—</span></div>
+    <div class="id-row"><span class="k">Account</span><span class="v" id="idOwner">—</span></div>
+    <div class="id-row"><span class="k">Server</span><span class="v mono" id="idServer">—</span></div>
+  </div>
   <div id="pairPanel">
     <div id="pairCode">··· ···</div>
     <p id="pairHint">Enter this code in the Alien AI app<br><strong>Devices → Pair with Code</strong></p>
@@ -158,6 +187,7 @@
   </div>
   <div id="status" class="hidden"></div>
   <div id="diagPanel">
+    <p class="live-hint">Connection dots are live checks (native host ping, agent IPC, cloud WebSocket, WebRTC viewers).</p>
     <h2>Connection</h2>
     <div class="status-grid">
       <div class="status-row">

@@ -34,17 +34,25 @@ bool deviceClusterOnline(String metaJson, {bool remoteSessionActive = false}) =>
     deviceOnlineFromMeta(metaJson) || remoteSessionActive;
 
 /// `playwright` when absent — see _/docs/browser-extension.md.
-String deviceBrowserEngineFromMeta(String metaJson) {
-  if (metaJson.trim().isEmpty) return 'playwright';
-  try {
-    final m = jsonDecode(metaJson);
-    if (m is! Map) return 'playwright';
-    final engine = m['browser_engine']?.toString().trim().toLowerCase();
-    if (engine == 'extension' || engine == 'playwright') return engine!;
-    return 'playwright';
-  } catch (_) {
-    return 'playwright';
+String deviceBrowserEngineFromMeta(
+  String metaJson, {
+  String deviceName = '',
+  String deviceType = '',
+}) {
+  if (metaJson.trim().isNotEmpty) {
+    try {
+      final m = jsonDecode(metaJson);
+      if (m is Map) {
+        final engine = m['browser_engine']?.toString().trim().toLowerCase();
+        if (engine == 'extension' || engine == 'playwright') return engine!;
+      }
+    } catch (_) {}
   }
+  if (deviceType.toLowerCase() == 'browser' &&
+      deviceName.toLowerCase().contains('google chrome')) {
+    return 'extension';
+  }
+  return 'playwright';
 }
 
 class DeviceStore extends ChangeNotifier {

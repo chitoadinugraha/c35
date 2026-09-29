@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::mpsc::{self, Receiver, SyncSender};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -164,6 +165,11 @@ impl ExtensionBridge {
 }
 
 static EXTENSION_BRIDGE: OnceLock<Mutex<Option<Arc<ExtensionBridge>>>> = OnceLock::new();
+static STATUS_FETCH_ACTIVE: AtomicBool = AtomicBool::new(false);
+
+pub fn extension_ipc_status_fetch_active() -> bool {
+    STATUS_FETCH_ACTIVE.load(Ordering::SeqCst)
+}
 
 fn extension_bridge_slot() -> &'static Mutex<Option<Arc<ExtensionBridge>>> {
     EXTENSION_BRIDGE.get_or_init(|| Mutex::new(None))
@@ -185,14 +191,19 @@ pub fn spawn_extension_ipc_server(state: Arc<BrowserState>) -> anyhow::Result<Ar
     let bridge = Arc::new(ExtensionBridge { tx: cmd_tx });
 
     let state_bg = Arc::clone(&state);
+    let cmd_rx = Arc::new(Mutex::new(cmd_rx));
     thread::spawn(move || {
         for stream in listener.incoming() {
             match stream {
                 Ok(s) => {
                     info!("extension ipc client connected");
-                    if let Err(e) = ipc_session(&state_bg, &cmd_rx, s) {
-                        warn!("extension ipc session ended: {e:#}");
-                    }
+                    let state_conn = Arc::clone(&state_bg);
+                    let cmd_rx_conn = Arc::clone(&cmd_rx);
+                    thread::spawn(move || {
+                        if let Err(e) = ipc_session(&state_conn, &cmd_rx_conn, s) {
+                            warn!("extension ipc session ended: {e:#}");
+                        }
+                    });
                 }
                 Err(e) => warn!("extension ipc accept: {e}"),
             }
@@ -208,7 +219,7 @@ pub fn spawn_extension_ipc_server(state: Arc<BrowserState>) -> anyhow::Result<Ar
 
 fn ipc_session(
     state: &Arc<BrowserState>,
-    cmd_rx: &Receiver<ExtensionIpcCmd>,
+    cmd_rx: &Arc<Mutex<Receiver<ExtensionIpcCmd>>>,
     stream: TcpStream,
 ) -> anyhow::Result<()> {
     stream.set_read_timeout(Some(Duration::from_millis(500)))?;
@@ -216,7 +227,11 @@ fn ipc_session(
     let mut stream = stream;
 
     loop {
-        while let Ok(cmd) = cmd_rx.try_recv() {
+        while let Ok(cmd) = cmd_rx
+            .lock()
+            .map_err(|_| anyhow::anyhow!("cmd_rx lock"))?
+            .try_recv()
+        {
             let v = match cmd {
                 ExtensionIpcCmd::Legacy(msg) => serde_json::to_value(&msg)?,
                 ExtensionIpcCmd::Rpc(req) => serde_json::to_value(&req)?,
@@ -260,14 +275,21 @@ fn ipc_session(
                             .collect();
                         let resp = AgentIpcMsg::StatusResult {
                             ws_connected: snap.ws_connected,
-                            webrtc_sessions: snap.webrtc_sessions,
+                            webrtc_sessions: c_remote_core::agent_ui::user_app_connected_count(),
                             webrtc_connecting: snap.webrtc_connecting,
                             device_iid,
                             agent_version: c_remote_core::version::agent_version_label(),
                             server_url: c_remote_core::config::server_url(),
                             log_lines,
                         };
-                        let v = serde_json::to_value(&resp)?;
+                        let mut v = serde_json::to_value(&resp)?;
+                        if let Some(obj) = v.as_object_mut() {
+                            obj.insert(
+                                "device_iid_str".into(),
+                                serde_json::json!(device_iid.to_string()),
+                            );
+                            obj.remove("device_iid");
+                        }
                         write_framed_json(&mut stream, &v)?;
                     }
                     other => debug!(?other, "unexpected ipc from host"),
@@ -293,9 +315,20 @@ pub struct HostIpcClient {
 
 impl HostIpcClient {
     pub fn connect() -> anyhow::Result<Self> {
+        Self::connect_budget(Duration::from_secs(10))
+    }
+
+    /// Fast connect for native-host status polls (must finish under Chrome NM timeout).
+    pub fn connect_quick() -> anyhow::Result<Self> {
+        Self::connect_budget(Duration::from_millis(900))
+    }
+
+    fn connect_budget(max_wait: Duration) -> anyhow::Result<Self> {
         let addr = extension_ipc_addr();
-        for attempt in 0..40 {
-            match TcpStream::connect(addr) {
+        let deadline = Instant::now() + max_wait;
+        let mut attempt = 0u32;
+        while Instant::now() < deadline {
+            match TcpStream::connect_timeout(&addr, Duration::from_millis(200)) {
                 Ok(s) => {
                     s.set_read_timeout(Some(Duration::from_millis(500)))?;
                     s.set_write_timeout(Some(Duration::from_secs(5)))?;
@@ -308,7 +341,8 @@ impl HostIpcClient {
                     if attempt == 0 {
                         debug!(%addr, "extension ipc connect retry: {e}");
                     }
-                    thread::sleep(Duration::from_millis(250));
+                    attempt += 1;
+                    thread::sleep(Duration::from_millis(50));
                 }
             }
         }
@@ -360,6 +394,13 @@ impl HostIpcClient {
     }
 
     pub fn fetch_agent_status(&self, timeout: Duration) -> anyhow::Result<AgentIpcMsg> {
+        STATUS_FETCH_ACTIVE.store(true, Ordering::SeqCst);
+        let out = self.fetch_agent_status_inner(timeout);
+        STATUS_FETCH_ACTIVE.store(false, Ordering::SeqCst);
+        out
+    }
+
+    fn fetch_agent_status_inner(&self, timeout: Duration) -> anyhow::Result<AgentIpcMsg> {
         let v = serde_json::to_value(&AgentIpcMsg::StatusQuery)?;
         let mut s = self.stream.lock().map_err(|_| anyhow::anyhow!("lock"))?;
         write_framed_json(&mut *s, &v)?;
@@ -444,6 +485,9 @@ pub fn spawn_agent_ipc_forward(
         let started = Instant::now();
         while started.elapsed() < Duration::from_secs(3600 * 24) {
             thread::sleep(Duration::from_millis(25));
+            if extension_ipc_status_fetch_active() {
+                continue;
+            }
             let inbound = match ipc_slot.lock() {
                 Ok(g) => g.as_ref().and_then(|c| c.drain_agent_inbound().ok()),
                 Err(_) => None,

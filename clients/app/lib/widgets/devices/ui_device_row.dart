@@ -34,12 +34,12 @@ class UiDeviceRow extends StatelessWidget {
   final VoidCallback? onTap;
 
   String get _subtitle => switch (type.toLowerCase()) {
-        'browser' => browserEngine.toLowerCase() == 'extension' ? 'Chrome extension' : 'Remote browser',
+        'browser' => browserEngine.toLowerCase() == 'extension' ? 'Chrome Extension' : 'Remote browser',
         _ => type,
       };
 
   String? get _engineBadge => type.toLowerCase() == 'browser'
-      ? (browserEngine.toLowerCase() == 'extension' ? 'Chrome' : 'Automated')
+      ? (browserEngine.toLowerCase() == 'extension' ? 'Extension' : 'Automated')
       : null;
 
   @override
@@ -157,7 +157,20 @@ class UiDeviceRow extends StatelessWidget {
       height: 36,
       decoration: BoxDecoration(color: const Color(0xFF18181B), borderRadius: BorderRadius.circular(8), border: Border.all(color: _border)),
       child: isChromeExt
-          ? Padding(padding: const EdgeInsets.all(7), child: Image.asset('assets/icons/alien.png', fit: BoxFit.contain))
+          ? Padding(
+              padding: const EdgeInsets.all(6),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: Image.network(
+                  'https://www.google.com/s2/favicons?domain=chrome.google.com&sz=64',
+                  width: 22,
+                  height: 22,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) =>
+                      const Icon(Icons.public, size: 18, color: Color(0xFFA1A1AA)),
+                ),
+              ),
+            )
           : Icon(_iconForKind(kind, type), size: 18, color: const Color(0xFFA1A1AA)),
     );
   }

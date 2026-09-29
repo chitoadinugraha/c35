@@ -30,7 +30,10 @@ use super::messages::{AgentIpcMsg, ExtRequest, ExtResponse};
 
 use crate::extension_ipc::EXTENSION_IPC_NOT_READY_MSG;
 
-use crate::extension_agent::wait_for_extension_agent;
+use crate::extension_agent::{
+    ensure_detached_extension_agent, embedded_agent_active, spawn_embedded_extension_agent,
+    wait_for_extension_agent,
+};
 use crate::pair_loop::chrome_extension_device_name;
 
 
@@ -91,13 +94,23 @@ impl Default for PairHostState {
 
 pub fn run_chrome_native_host() -> anyhow::Result<()> {
     c_remote_core::log_local::init();
+    crate::mode::hydrate_agent_ui_from_config();
+
+    // Must run before stdin loop: `agent.status` uses `embedded_agent_active()` for a fast UI snapshot.
+    spawn_embedded_extension_agent();
+    thread::spawn(|| {
+        wait_for_extension_agent(Duration::from_secs(15));
+        if !embedded_agent_active() && !crate::extension_ipc::extension_ipc_port_in_use() {
+            ensure_detached_extension_agent();
+        }
+    });
 
     let pair_state = Arc::new(Mutex::new(PairHostState::default()));
     let ipc_slot: Arc<Mutex<Option<HostIpcClient>>> = Arc::new(Mutex::new(None));
     let ipc_bg = Arc::clone(&ipc_slot);
     thread::spawn(move || {
-        wait_for_extension_agent(Duration::from_secs(2));
-        for attempt in 0..30 {
+        loop {
+            wait_for_extension_agent(Duration::from_secs(8));
             match HostIpcClient::connect() {
                 Ok(c) => {
                     if let Ok(mut g) = ipc_bg.lock() {
@@ -106,10 +119,8 @@ pub fn run_chrome_native_host() -> anyhow::Result<()> {
                     return;
                 }
                 Err(e) => {
-                    if attempt == 0 {
-                        debug!("extension ipc not connected (retry): {e:#}");
-                    }
-                    thread::sleep(Duration::from_millis(200));
+                    debug!("extension ipc not connected (retry): {e:#}");
+                    thread::sleep(Duration::from_millis(500));
                 }
             }
         }
@@ -172,12 +183,9 @@ pub fn run_chrome_native_host() -> anyhow::Result<()> {
             }
         };
 
-        let resp = match ipc_slot.lock() {
-            Ok(guard) => match handle_request(&req, &pair_state, guard.as_ref()) {
-                Ok(r) => r,
-                Err(e) => ExtResponse::err(format!("{e:#}")),
-            },
-            Err(_) => ExtResponse::err("ipc lock"),
+        let resp = match handle_request(&req, &pair_state, &ipc_slot) {
+            Ok(r) => r,
+            Err(e) => ExtResponse::err(format!("{e:#}")),
         };
         if let Ok(mut w) = stdout.lock() {
             if let Err(e) = write_response(&mut *w, resp) {
@@ -301,13 +309,9 @@ fn pair_poll_thread(pair_state: Arc<Mutex<PairHostState>>) {
 
 
 fn handle_request(
-
     req: &ExtRequest,
-
     pair_state: &Arc<Mutex<PairHostState>>,
-
-    ipc: Option<&HostIpcClient>,
-
+    ipc_slot: &Arc<Mutex<Option<HostIpcClient>>>,
 ) -> anyhow::Result<ExtResponse> {
 
     match req.cmd.as_str() {
@@ -455,10 +459,10 @@ fn handle_request(
 
                 .ok_or_else(|| anyhow::anyhow!("jpeg_b64 required"))?;
 
-            if let Some(ipc) = ipc {
-
-                let _ = ipc.send_frame(width, height, b64);
-
+            if let Ok(g) = ipc_slot.lock() {
+                if let Some(ipc) = g.as_ref() {
+                    let _ = ipc.send_frame(width, height, b64);
+                }
             }
 
             Ok(ExtResponse::ok())
@@ -479,10 +483,10 @@ fn handle_request(
 
                 .unwrap_or_else(|| json!([]));
 
-            if let Some(ipc) = ipc {
-
-                let _ = ipc.send_tabs_result(json!({ "tabs": tabs }));
-
+            if let Ok(g) = ipc_slot.lock() {
+                if let Some(ipc) = g.as_ref() {
+                    let _ = ipc.send_tabs_result(json!({ "tabs": tabs }));
+                }
             }
 
             let mut r = ExtResponse::ok();
@@ -497,7 +501,13 @@ fn handle_request(
 
         "agent.status" => {
             let mut r = ExtResponse::ok();
-            r.data = agent_status_payload(ipc);
+            r.data = agent_status_response(ipc_slot);
+            Ok(r)
+        }
+
+        "identity.get" => {
+            let mut r = ExtResponse::ok();
+            r.data = agent_status_merge_identity(json!({}));
             Ok(r)
         }
 
@@ -514,14 +524,16 @@ fn handle_request(
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
             let result = req.extra.get("result").cloned();
-            if let Some(ipc) = ipc {
-                let resp = ExtRpcResponse {
-                    req_id: req_id.to_string(),
-                    ok,
-                    error,
-                    result,
-                };
-                let _ = ipc.send_rpc_response(&resp);
+            if let Ok(g) = ipc_slot.lock() {
+                if let Some(ipc) = g.as_ref() {
+                    let resp = ExtRpcResponse {
+                        req_id: req_id.to_string(),
+                        ok,
+                        error,
+                        result,
+                    };
+                    let _ = ipc.send_rpc_response(&resp);
+                }
             }
             Ok(ExtResponse::ok())
         }
@@ -534,9 +546,189 @@ fn handle_request(
 
 
 
-fn agent_status_payload(ipc: Option<&HostIpcClient>) -> Value {
+fn agent_status_merge_identity(status: Value) -> Value {
+    let mut status = status;
+    let cfg = c_remote_core::config::config_load();
+    let device_name = cfg
+        .as_ref()
+        .and_then(|j| j.get("device_name"))
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    let owner_name = cfg
+        .as_ref()
+        .and_then(|j| j.get("owner_name"))
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    let owner_alien_id = cfg
+        .as_ref()
+        .and_then(|j| j.get("owner_alien_id"))
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    if let Some(obj) = status.as_object_mut() {
+        let name: Option<String> = device_name
+            .map(|s| s.to_string())
+            .or_else(|| {
+                let n = c_remote_core::agent_ui::device_name();
+                let t = n.trim();
+                if t.is_empty() {
+                    None
+                } else {
+                    Some(t.to_string())
+                }
+            });
+        if let Some(s) = name {
+            obj.insert("device_name".into(), json!(s));
+        }
+        if let Some(s) = owner_name {
+            obj.insert("owner_name".into(), json!(s));
+        } else {
+            let label = c_remote_core::agent_ui::owner_label();
+            let t = label.trim();
+            if !t.is_empty() {
+                obj.insert("owner_name".into(), json!(t));
+            }
+        }
+        if let Some(s) = owner_alien_id {
+            obj.insert("owner_alien_id".into(), json!(s));
+        }
+        let srv = cfg
+            .as_ref()
+            .and_then(|j| j.get("server_url"))
+            .and_then(|v| v.as_str())
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string())
+            .or_else(|| {
+                let u = c_remote_core::config::server_url();
+                let t = u.trim();
+                if t.is_empty() {
+                    None
+                } else {
+                    Some(t.to_string())
+                }
+            });
+        if let Some(s) = srv {
+            obj.insert("server_url".into(), json!(s));
+        }
+        let iid = obj
+            .get("device_iid")
+            .and_then(|v| v.as_i64())
+            .filter(|id| *id > 0)
+            .or_else(c_remote_core::config::device_iid_load);
+        if let Some(id) = iid {
+            obj.insert("device_iid_str".into(), json!(id.to_string()));
+            obj.remove("device_iid");
+        }
+    }
+    status
+}
+
+fn agent_status_from_ui_snapshot() -> Value {
+    let snap = c_remote_core::agent_ui::snapshot();
+    let device_iid = c_remote_core::config::device_iid_load().unwrap_or(0);
+    let log_lines: Vec<String> = c_remote_core::log_ring::tail(40)
+        .iter()
+        .map(c_remote_core::log_ring::format_line)
+        .collect();
+    agent_status_merge_identity(json!({
+        "native_ipc": true,
+        "agent_reachable": true,
+        "ws_connected": snap.ws_connected,
+        "webrtc_sessions": c_remote_core::agent_ui::user_app_connected_count(),
+        "webrtc_connecting": snap.webrtc_connecting,
+        "webrtc_subtitle": c_remote_core::agent_ui::user_app_subtitle(snap.webrtc_connecting),
+        "device_iid": device_iid,
+        "agent_version": c_remote_core::version::agent_version_label(),
+        "server_url": c_remote_core::config::server_url(),
+        "log_lines": log_lines,
+    }))
+}
+
+fn agent_status_response(slot: &Arc<Mutex<Option<HostIpcClient>>>) -> Value {
+    if embedded_agent_active() {
+        return agent_status_from_ui_snapshot();
+    }
+    if let Ok(c) = HostIpcClient::connect_quick() {
+        if let Ok(mut g) = slot.lock() {
+            *g = Some(c);
+        }
+    }
+    let out = agent_status_with_slot(slot);
+    let reachable = out
+        .get("agent_reachable")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    if reachable {
+        return out;
+    }
+    if crate::extension_ipc::extension_ipc_port_in_use() {
+        if let Ok(c) = HostIpcClient::connect_quick() {
+            let direct = agent_status_payload_quick(Some(&c));
+            let ok = direct
+                .get("agent_reachable")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            if ok {
+                return direct;
+            }
+        }
+        return agent_status_merge_identity(json!({
+            "native_ipc": true,
+            "agent_reachable": false,
+            "ws_connected": false,
+            "agent_error": out
+                .get("agent_error")
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .unwrap_or("extension agent busy — retry"),
+        }));
+    }
+    out
+}
+
+fn agent_status_with_slot(slot: &Arc<Mutex<Option<HostIpcClient>>>) -> Value {
+    for attempt in 0..8 {
+        if let Ok(mut g) = slot.lock() {
+            if g.is_none() {
+                if let Ok(c) = HostIpcClient::connect_quick() {
+                    *g = Some(c);
+                }
+            }
+        }
+        let out = slot
+            .lock()
+            .ok()
+            .and_then(|g| g.as_ref().map(|c| agent_status_payload_quick(Some(c))));
+        if let Some(out) = out {
+            let reachable = out
+                .get("agent_reachable")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            if reachable || attempt >= 7 {
+                return out;
+            }
+            if let Ok(mut g) = slot.lock() {
+                *g = None;
+            }
+        }
+        thread::sleep(Duration::from_millis(40));
+    }
+    if let Ok(c) = HostIpcClient::connect_quick() {
+        return agent_status_payload_quick(Some(&c));
+    }
+    agent_status_payload_quick(None)
+}
+
+fn agent_status_payload_quick(ipc: Option<&HostIpcClient>) -> Value {
+    agent_status_payload(ipc, Duration::from_millis(1500))
+}
+
+fn agent_status_payload(ipc: Option<&HostIpcClient>, fetch_timeout: Duration) -> Value {
     let fetch = |c: &HostIpcClient| -> Value {
-        match c.fetch_agent_status(Duration::from_secs(2)) {
+        let base = match c.fetch_agent_status(fetch_timeout) {
             Ok(AgentIpcMsg::StatusResult {
                 ws_connected,
                 webrtc_sessions,
@@ -550,7 +742,7 @@ fn agent_status_payload(ipc: Option<&HostIpcClient>) -> Value {
                     "native_ipc": true,
                     "agent_reachable": true,
                     "ws_connected": ws_connected,
-                    "webrtc_sessions": webrtc_sessions,
+                    "webrtc_sessions": c_remote_core::agent_ui::user_app_connected_count(),
                     "webrtc_connecting": webrtc_connecting,
                     "webrtc_subtitle": c_remote_core::agent_ui::user_app_subtitle(webrtc_connecting),
                     "device_iid": device_iid,
@@ -569,19 +761,20 @@ fn agent_status_payload(ipc: Option<&HostIpcClient>) -> Value {
                 "agent_reachable": false,
                 "agent_error": format!("{e:#}"),
             }),
-        }
+        };
+        agent_status_merge_identity(base)
     };
     if let Some(c) = ipc {
         return fetch(c);
     }
-    if let Ok(c) = HostIpcClient::connect() {
+    if let Ok(c) = HostIpcClient::connect_quick() {
         return fetch(&c);
     }
-    json!({
+    agent_status_merge_identity(json!({
         "native_ipc": false,
         "agent_reachable": false,
         "agent_error": EXTENSION_IPC_NOT_READY_MSG,
-    })
+    }))
 }
 
 fn read_message(r: &mut impl Read) -> anyhow::Result<Option<Value>> {

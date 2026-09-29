@@ -51,8 +51,27 @@ async fn run_agent_async() -> anyhow::Result<()> {
     run_agent().await
 }
 
+pub(crate) fn run_agent_blocking() -> anyhow::Result<()> {
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .map_err(|e| anyhow::anyhow!("tokio runtime: {e}"))?
+        .block_on(run_agent())
+}
+
 async fn run_agent() -> anyhow::Result<()> {
     log_local::init();
+    if mode::is_extension_engine() {
+        if let Ok(url) = std::env::var("C35_SERVER_URL") {
+            let t = url.trim();
+            if !t.is_empty() {
+                if let Err(e) = c_remote_core::config::server_url_save(t) {
+                    warn!("server_url_save: {e:#}");
+                }
+            }
+        }
+    }
+    mode::hydrate_agent_ui_from_config();
     agent_version::register();
     let cli = std::env::args().any(|a| a == "--cli");
     let extension_engine = mode::is_extension_engine();
@@ -64,12 +83,14 @@ async fn run_agent() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    println!(
-        "Alien AI Remote browser {} - server {} ({})",
-        c_remote_core::version::agent_version_label(),
-        server_url(),
-        if extension_engine { "chrome extension" } else { "playwright" }
-    );
+    if std::env::var("C35_NATIVE_MESSAGING_HOST").as_deref() != Ok("1") {
+        println!(
+            "Alien AI Remote browser {} - server {} ({})",
+            c_remote_core::version::agent_version_label(),
+            server_url(),
+            if extension_engine { "chrome extension" } else { "playwright" }
+        );
+    }
 
     let state = browser_state::BrowserState::new();
     browser_state::init(state.clone());

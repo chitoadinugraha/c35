@@ -1338,10 +1338,16 @@ class _InComposerState extends State<InComposer> {
 
   Widget _actionButton() => _ActionButton(kind: composerActionKind(streaming: widget.busy, recording: _recording, hasText: _hasText), onAction: _onAction);
 
+  EdgeInsets _composerTextAreaPadding(bool stacked) =>
+      EdgeInsets.fromLTRB(0, stacked ? 4 : 0, 4, stacked ? 4 : 0);
+
+  EdgeInsets _composerFieldContentPadding(bool stacked) =>
+      EdgeInsets.fromLTRB(2, stacked ? 10 : 7, 4, stacked ? 10 : 7);
+
   Widget _composerTextArea({required bool stacked}) {
     if (widget.compact) {
       return Padding(
-        padding: const EdgeInsets.fromLTRB(0, 4, 4, 4),
+        padding: _composerTextAreaPadding(stacked),
         child: _composerFieldChrome(
           child: TextField(
           key: const ValueKey('composer_text_field'),
@@ -1352,7 +1358,7 @@ class _InComposerState extends State<InComposer> {
           maxLines: 6,
           keyboardType: TextInputType.multiline,
           textInputAction: TextInputAction.newline,
-          textAlignVertical: TextAlignVertical.top,
+          textAlignVertical: stacked ? TextAlignVertical.top : TextAlignVertical.center,
           style: const TextStyle(color: zinc100, fontSize: 14, height: 1.35),
           cursorColor: zinc100,
           onChanged: (_) {
@@ -1375,7 +1381,7 @@ class _InComposerState extends State<InComposer> {
             border: InputBorder.none,
             enabledBorder: InputBorder.none,
             focusedBorder: InputBorder.none,
-            contentPadding: EdgeInsets.fromLTRB(2, stacked ? 10 : 8, 4, stacked ? 10 : 6),
+            contentPadding: _composerFieldContentPadding(stacked),
           ),
         ),
         ),
@@ -1390,7 +1396,7 @@ class _InComposerState extends State<InComposer> {
       maxLines: 6,
       keyboardType: TextInputType.multiline,
       textInputAction: TextInputAction.newline,
-      textAlignVertical: TextAlignVertical.top,
+      textAlignVertical: stacked ? TextAlignVertical.top : TextAlignVertical.center,
       style: const TextStyle(color: zinc100, fontSize: 14, height: 1.35),
       cursorColor: zinc100,
       specialTextSpanBuilder: _composerSpecialTextSpanBuilder(),
@@ -1417,10 +1423,10 @@ class _InComposerState extends State<InComposer> {
         border: InputBorder.none,
         enabledBorder: InputBorder.none,
         focusedBorder: InputBorder.none,
-        contentPadding: EdgeInsets.fromLTRB(2, stacked ? 10 : 8, 4, stacked ? 10 : 6),
+        contentPadding: _composerFieldContentPadding(stacked),
       ),
     );
-    return Padding(padding: const EdgeInsets.fromLTRB(0, 4, 4, 4), child: _composerFieldChrome(child: field));
+    return Padding(padding: _composerTextAreaPadding(stacked), child: _composerFieldChrome(child: field));
   }
 
   Widget _inputArea(double maxWidth) {
@@ -1448,7 +1454,7 @@ class _InComposerState extends State<InComposer> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: stacked ? CrossAxisAlignment.start : CrossAxisAlignment.center,
           children: [
             SizedBox(
               width: stacked ? 0 : _leadingActionsWidth,

@@ -1,7 +1,7 @@
 use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Mutex, Once, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use tracing_subscriber::layer::SubscriberExt;
@@ -127,7 +127,13 @@ pub fn boot_append(msg: &str) {
 }
 
 
+static LOG_INIT: Once = Once::new();
+
 pub fn init() {
+    LOG_INIT.call_once(|| log_init_inner());
+}
+
+fn log_init_inner() {
     let path = log_session_path();
     let filter = EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| EnvFilter::new("info,c_remote_core=debug,c_remote_windows=debug"));

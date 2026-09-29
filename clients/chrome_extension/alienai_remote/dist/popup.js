@@ -7,7 +7,6 @@ const LOG_POLL_MS = 12000;
 
 const statusEl = document.getElementById("status");
 const pairPanel = document.getElementById("pairPanel");
-const pairedPanel = document.getElementById("pairedPanel");
 const subtitleEl = document.getElementById("subtitle");
 const pairCodeEl = document.getElementById("pairCode");
 const pairProgressEl = document.getElementById("pairProgress");
@@ -25,6 +24,10 @@ const detailNative = document.getElementById("detailNative");
 const detailAgent = document.getElementById("detailAgent");
 const detailCloud = document.getElementById("detailCloud");
 const detailWebrtc = document.getElementById("detailWebrtc");
+const idDeviceIid = document.getElementById("idDeviceIid");
+const idDeviceName = document.getElementById("idDeviceName");
+const idOwner = document.getElementById("idOwner");
+const idServer = document.getElementById("idServer");
 
 let progressTimer = null;
 let statusTimer = null;
@@ -120,8 +123,27 @@ const loadMoreLogs = () => {
   renderLogPanel();
 };
 
+const formatDeviceIid = (a) => {
+  if (a.device_iid_str) return String(a.device_iid_str);
+  if (typeof a.device_iid === "string" && a.device_iid.trim()) return a.device_iid.trim();
+  return "—";
+};
+
+const renderIdentity = (agent) => {
+  const a = agent || {};
+  idDeviceIid.textContent = formatDeviceIid(a);
+  idDeviceName.textContent = a.device_name?.trim() || "—";
+  const ownerParts = [];
+  if (a.owner_name?.trim()) ownerParts.push(a.owner_name.trim());
+  if (a.owner_alien_id?.trim()) ownerParts.push(`@${a.owner_alien_id.trim()}`);
+  idOwner.textContent = ownerParts.length ? ownerParts.join(" · ") : "—";
+  const srv = a.server_url?.trim() || "";
+  idServer.textContent = srv ? srv.replace(/^https?:\/\//i, "") : "—";
+};
+
 const renderStatus = (res) => {
   const agent = res?.agent || {};
+  renderIdentity(agent);
   const nativeOk = res?.nativePing === true;
 
   if (nativeOk) {
@@ -145,7 +167,8 @@ const renderStatus = (res) => {
 
   if (agent.agent_reachable && agent.ws_connected) {
     setDot(dotCloud, "on");
-    detailCloud.textContent = "connected";
+    const acct = agent.owner_alien_id?.trim();
+    detailCloud.textContent = acct ? `connected · @${acct}` : "connected";
   } else if (agent.agent_reachable) {
     setDot(dotCloud, "warn");
     detailCloud.textContent = "offline";
@@ -155,19 +178,21 @@ const renderStatus = (res) => {
   }
 
   const sessions = Number(agent.webrtc_sessions || 0);
+  const webrtcLabel = (agent.webrtc_subtitle || "").trim();
+  const webrtcLive =
+    sessions > 0 && webrtcLabel && !/^not connected$/i.test(webrtcLabel);
   if (agent.webrtc_connecting) {
     setDot(dotWebrtc, "warn");
     detailWebrtc.textContent = "connecting…";
-  } else if (sessions > 0) {
+  } else if (webrtcLive) {
     setDot(dotWebrtc, "on");
-    detailWebrtc.textContent =
-      agent.webrtc_subtitle || `${sessions} viewer${sessions === 1 ? "" : "s"}`;
+    detailWebrtc.textContent = webrtcLabel;
   } else if (res?.captureActive) {
     setDot(dotWebrtc, "warn");
     detailWebrtc.textContent = "capture active";
   } else if (agent.agent_reachable) {
     setDot(dotWebrtc, "off");
-    detailWebrtc.textContent = "idle";
+    detailWebrtc.textContent = webrtcLabel || "idle (open Remote in app)";
   } else {
     setDot(dotWebrtc, "off");
     detailWebrtc.textContent = "—";
@@ -190,9 +215,24 @@ const fetchDiagnosticsPayload = async () => {
   }
 
   try {
-    agent = await nmRequest({ type: "agent.status" }, 10000);
+    const viaSw = await chrome.runtime.sendMessage({ type: "agent.status" });
+    if (viaSw?.ok && viaSw.agent) {
+      agent = viaSw.agent;
+    } else {
+      const raw = await nmRequest({ type: "agent.status" }, 10000);
+      agent =
+        raw?.data && typeof raw.data === "object" ? { ...raw.data, ...raw } : raw || {};
+    }
   } catch (e) {
     agent = { agent_error: String(e.message || e) };
+  }
+  try {
+    const idRaw = await nmRequest({ type: "identity.get" }, 5000);
+    const idPayload =
+      idRaw?.data && typeof idRaw.data === "object" ? { ...idRaw.data, ...idRaw } : idRaw || {};
+    agent = { ...agent, ...idPayload };
+  } catch {
+    /* identity.get needs updated native host */
   }
 
   try {
@@ -277,16 +317,13 @@ const updateProgress = (expiresAt, expiresTotalSec) => {
 };
 
 const showPaired = () => {
-  pairedPanel.classList.add("active");
   pairPanel.classList.remove("active");
   statusEl.classList.add("hidden");
-  subtitleEl.classList.add("hidden");
   stopProgressTimer();
   startDiagPoll();
 };
 
 const showPairing = (code, expiresAt, expiresTotalSec, mode) => {
-  pairedPanel.classList.remove("active");
   pairPanel.classList.add("active");
   statusEl.classList.add("hidden");
   subtitleEl.classList.remove("hidden");
@@ -302,7 +339,6 @@ const showPairing = (code, expiresAt, expiresTotalSec, mode) => {
 };
 
 const showError = (text) => {
-  pairedPanel.classList.remove("active");
   pairPanel.classList.remove("active");
   statusEl.classList.remove("hidden");
   statusEl.textContent = text;

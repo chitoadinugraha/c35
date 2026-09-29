@@ -15,7 +15,7 @@ import 'package:alienai_c35/widgets/skill/io_skill_review.dart';
 import 'dart:async';
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/widgets/devices/ui_device_files.dart';
-import 'package:alienai_c35/widgets/devices/ui_browser_tab_strip.dart';
+import 'package:alienai_c35/widgets/devices/ui_remote_browser_pane.dart';
 import 'package:alienai_c35/widgets/devices/ui_remote_device.dart';
 import 'package:alienai_c35/widgets/skill/ui_skill_master_detail.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
@@ -125,7 +125,6 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
     final id = widget.row.identity;
     final kind = id.kind.toLowerCase();
     final online = deviceOnlineFromMeta(id.metaJson);
-    final mobile = _isMobile(context);
     final tabIndex = _tabController.index;
     final activeTab = _tabs[tabIndex];
     final isRemote = kind == 'remote' && activeTab == 'Remote';
@@ -178,16 +177,6 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
                           listenable: Listenable.merge([_session.connected, _session.mode, _session.status]),
                           builder: (context, _) {
                             final showStop = _session.connected.value || _session.isLinking;
-                            if (mobile && !_session.connected.value && widget.chatConn.connected && !_session.isLinking) {
-                              return _toolBtn(
-                                icon: Icons.refresh_rounded,
-                                tooltip: 'Reconnect',
-                                onPressed: () {
-                                  _session.prepareUserReconnect();
-                                  _session.start().catchError((e) => lError('device reconnect: $e'));
-                                },
-                              );
-                            }
                             return Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -286,55 +275,70 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
     if (kind == 'remote' && tab == 'Remote') {
       final deviceIid = widget.row.identity.iid.toInt();
       final deviceType = widget.row.identity.type.toLowerCase();
+      if (deviceType == 'browser') {
+        return ListenableBuilder(
+          listenable: Listenable.merge([_session.updateReady, _session.updateVersion]),
+          builder: (context, _) => UiRemoteBrowserPane(
+            session: _session,
+            deviceIid: deviceIid,
+            deviceName: widget.row.identity.name,
+            online: online,
+            compact: _isMobile(context),
+            interactMode: _remoteInteractMode,
+            showStreamStats: _remoteShowStats,
+            onInteractModeChanged: (m) {
+              setState(() => _remoteInteractMode = m);
+              _session.isControlEnabled.value = m != RemoteInteractMode.view;
+              unawaited(RemotePrefs.instance.setInteractMode(m.name));
+            },
+            onTeach: () => unawaited(_startRemoteTeach(context)),
+            onFullscreen: _toggleRemoteImmersive,
+            immersive: _remoteImmersive,
+            updateReady: _session.updateReady.value,
+            updateVersion: _session.updateVersion.value,
+            onApplyUpdate: () {
+              _session.triggerUpdate();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Agent update triggered. It will reconnect once restarted.'),
+                  duration: Duration(seconds: 4),
+                ),
+              );
+            },
+            promptStore: _promptStore,
+            onStopTeach: () => unawaited(_stopRemoteTeach(context)),
+          ),
+        );
+      }
       return ListenableBuilder(
         listenable: Listenable.merge([_session.updateReady, _session.updateVersion]),
-        builder: (context, _) => Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (deviceType == 'browser')
-              UiBrowserTabStrip(session: _session, compact: _isMobile(context)),
-            Expanded(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  UiRemoteDevice(
-                    session: _session,
-                    promptStore: _promptStore,
-                    deviceName: widget.row.identity.name,
-                    online: online,
-                    browserDevice: deviceType == 'browser',
-                    compact: _isMobile(context),
-                    interactMode: _remoteInteractMode,
-                    showStreamStats: _remoteShowStats,
-                    onInteractModeChanged: (m) {
-                      setState(() => _remoteInteractMode = m);
-                      _session.isControlEnabled.value = m != RemoteInteractMode.view;
-                      unawaited(RemotePrefs.instance.setInteractMode(m.name));
-                    },
-                    onTeach: () => unawaited(_startRemoteTeach(context)),
-                    onFullscreen: _toggleRemoteImmersive,
-                    immersive: _remoteImmersive,
-                    updateReady: _session.updateReady.value,
-                    updateVersion: _session.updateVersion.value,
-                    onApplyUpdate: () {
-                      _session.triggerUpdate();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Agent update triggered. It will reconnect once restarted.'),
-                          duration: Duration(seconds: 4),
-                        ),
-                      );
-                    },
-                  ),
-                  UiRemoteTeachHud(
-                    session: _session,
-                    deviceIid: deviceIid,
-                    onStop: () => unawaited(_stopRemoteTeach(context)),
-                  ),
-                ],
+        builder: (context, _) => UiRemoteDevice(
+          session: _session,
+          promptStore: _promptStore,
+          deviceName: widget.row.identity.name,
+          online: online,
+          compact: _isMobile(context),
+          interactMode: _remoteInteractMode,
+          showStreamStats: _remoteShowStats,
+          onInteractModeChanged: (m) {
+            setState(() => _remoteInteractMode = m);
+            _session.isControlEnabled.value = m != RemoteInteractMode.view;
+            unawaited(RemotePrefs.instance.setInteractMode(m.name));
+          },
+          onTeach: () => unawaited(_startRemoteTeach(context)),
+          onFullscreen: _toggleRemoteImmersive,
+          immersive: _remoteImmersive,
+          updateReady: _session.updateReady.value,
+          updateVersion: _session.updateVersion.value,
+          onApplyUpdate: () {
+            _session.triggerUpdate();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Agent update triggered. It will reconnect once restarted.'),
+                duration: Duration(seconds: 4),
               ),
-            ),
-          ],
+            );
+          },
         ),
       );
     }
@@ -487,6 +491,22 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
   Widget _remoteBadge(RemoteSession session) {
     if (!widget.chatConn.connected) {
       return _connectionMenu(session, label: 'Offline', fg: _muted, bg: const Color(0xFF27272A), border: const Color(0xFF3F3F46));
+    }
+    if (!session.connected.value && !session.isLinking) {
+      return FilledButton.icon(
+        onPressed: () {
+          session.prepareUserReconnect();
+          session.start().catchError((e) => lError('remote start: $e'));
+        },
+        style: FilledButton.styleFrom(
+          backgroundColor: _accent,
+          foregroundColor: const Color(0xFF09090B),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          visualDensity: VisualDensity.compact,
+        ),
+        icon: const Icon(Icons.play_arrow_rounded, size: 18),
+        label: const Text('Start', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+      );
     }
     if (session.connected.value) {
       final relay = session.mode.value == RemoteConnectionMode.REMOTE_CONNECTION_MODE_RELAY;

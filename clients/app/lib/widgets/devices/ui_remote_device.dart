@@ -199,6 +199,8 @@ class UiRemoteDevice extends StatefulWidget {
     this.onApplyUpdate,
     this.promptStore,
     this.browserDevice = false,
+    this.deferInlineLoading = false,
+    this.onShellBusyChanged,
   });
 
   final RemoteSession? session;
@@ -216,6 +218,8 @@ class UiRemoteDevice extends StatefulWidget {
   final int? updateVersion;
   final VoidCallback? onApplyUpdate;
   final bool browserDevice;
+  final bool deferInlineLoading;
+  final void Function(bool busy, String message)? onShellBusyChanged;
 
   @override
   State<UiRemoteDevice> createState() => _UiRemoteDeviceState();
@@ -255,6 +259,8 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
   var _trackpadDragLock = false;
   var _trackpadSuppressClickUp = false;
   var _trackpadSurfaceCursorHidden = false;
+  bool? _lastShellBusy;
+  String _lastShellMessage = '';
 
   bool get _controlInputEnabled =>
       widget.interactMode != RemoteInteractMode.view;
@@ -302,6 +308,9 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
     }
     if (linking) return 'Connecting to ${widget.deviceName}…';
     if (sess.stoppedByUser) return 'Remote session stopped.';
+    if (!sess.connected.value && widget.online && _error == null) {
+      return 'Press Start to open Remote.';
+    }
     if (_error != null) return '${widget.deviceName} is offline';
     if (widget.browserDevice && sess.connected.value) return 'Starting video stream…';
     return 'Screen stream idle.';
@@ -309,6 +318,13 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
 
   bool _waitingBrowserVideo(RemoteSession sess, bool connected, bool hasVideoTrack, RemoteScreenFrame? frame) =>
       widget.browserDevice && connected && !hasVideoTrack && frame == null && !sess.stoppedByUser;
+
+  void _reportShellBusy(bool busy, String message) {
+    if (_lastShellBusy == busy && _lastShellMessage == message) return;
+    _lastShellBusy = busy;
+    _lastShellMessage = message;
+    widget.onShellBusyChanged?.call(busy, message);
+  }
 
   void _syncSessionControl() {
     final sess = widget.session;
@@ -535,7 +551,6 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && _controlInputEnabled) _focusNode.requestFocus();
     });
-    if (widget.session?.stoppedByUser != true) _connect();
   }
 
   @override
@@ -543,7 +558,6 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.session != widget.session) {
       _syncSessionControl();
-      if (widget.session?.stoppedByUser != true) _connect();
     }
     if (oldWidget.interactMode != widget.interactMode) {
       _syncSessionControl();
@@ -1102,6 +1116,16 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
               if (sess.stoppedByUser || !connected || (!hasVideoTrack && frame == null)) {
                 final linking =
                     sess.conn.connected && (sess.isLinking || _connecting);
+                final waitingVideo =
+                    _waitingBrowserVideo(sess, connected, hasVideoTrack, frame);
+                final shellBusy = widget.deferInlineLoading && (linking || waitingVideo);
+                final shellMessage = linking
+                    ? 'Connecting to ${widget.deviceName}...'
+                    : (waitingVideo ? 'Starting video stream...' : '');
+                _reportShellBusy(shellBusy, shellMessage);
+                if (widget.deferInlineLoading && shellBusy) {
+                  return const SizedBox.shrink();
+                }
                 return Center(
                   child: SingleChildScrollView(
                     child: Column(
@@ -1121,7 +1145,8 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                             color: _zinc400,
                           ),
                         ),
-                        if (_waitingBrowserVideo(sess, connected, hasVideoTrack, frame)) ...[
+                        if (!widget.deferInlineLoading &&
+                            _waitingBrowserVideo(sess, connected, hasVideoTrack, frame)) ...[
                           const SizedBox(height: 12),
                           const SizedBox(
                             width: 22,
@@ -1130,6 +1155,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                           ),
                         ],
                         if (sess.conn.connected &&
+                            !(widget.deferInlineLoading && waitingVideo) &&
                             !_waitingBrowserVideo(sess, connected, hasVideoTrack, frame)) ...[
                           const SizedBox(height: 16),
                           FilledButton.icon(
@@ -1150,7 +1176,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                                 borderRadius: BorderRadius.circular(8),
                               ),
                             ),
-                            icon: linking
+                            icon: (linking && !widget.deferInlineLoading)
                                 ? const SizedBox(
                                     width: 16,
                                     height: 16,
@@ -1167,7 +1193,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                                           !widget.online ||
                                           sess.stoppedByUser
                                       ? 'Retry'
-                                      : 'Connect'),
+                                      : 'Start'),
                               style: const TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
@@ -1181,6 +1207,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                 );
               }
 
+              _reportShellBusy(false, '');
               return LayoutBuilder(
                 builder: (context, constraints) {
                   final renderSize =

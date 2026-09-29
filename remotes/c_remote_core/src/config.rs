@@ -366,6 +366,16 @@ pub fn session_key_clear() -> anyhow::Result<()> {
 
 pub fn server_url() -> String {
     const DEFAULT: &str = "https://alienai.id";
+    let from_config = config_load()
+        .and_then(|j| {
+            j.get("server_url")
+                .and_then(|v| v.as_str())
+                .map(|s| s.trim().trim_end_matches('/').to_string())
+        })
+        .filter(|s| !s.is_empty());
+    if let Some(url) = from_config {
+        return url;
+    }
     let from_env = || {
         std::env::var("C35_SERVER_URL")
             .or_else(|_| std::env::var("C35_SERVER"))
@@ -379,6 +389,27 @@ pub fn server_url() -> String {
     } else {
         DEFAULT.to_string()
     }
+}
+
+pub fn server_url_save(url: &str) -> anyhow::Result<()> {
+    let trimmed = url.trim().trim_end_matches('/');
+    if trimmed.is_empty() {
+        anyhow::bail!("server_url is empty");
+    }
+    let path = config_path();
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir)
+            .with_context(|| format!("create config dir {}", dir.display()))?;
+    }
+    let mut json = config_load().unwrap_or_else(|| serde_json::json!({}));
+    if let Some(obj) = json.as_object_mut() {
+        obj.insert("server_url".into(), serde_json::Value::String(trimmed.to_string()));
+    } else {
+        json = serde_json::json!({ "server_url": trimmed });
+    }
+    let text = serde_json::to_string_pretty(&json)?;
+    std::fs::write(&path, text).with_context(|| format!("write config {}", path.display()))?;
+    Ok(())
 }
 
 fn unix_now_secs() -> u64 {
