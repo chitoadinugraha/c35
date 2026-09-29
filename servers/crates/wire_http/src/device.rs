@@ -15,6 +15,8 @@ pub struct DevicePairRegisterBody {
     pub device_name: String,
     #[serde(default)]
     pub device_type: String,
+    #[serde(default)]
+    pub meta_json: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -81,6 +83,7 @@ async fn pair_register(
     let req = ReqDevicePairRegister {
         device_name: body.device_name,
         device_type: body.device_type,
+        meta_json: body.meta_json,
     };
     match device_pair_register(&st.pool, req).await {
         Ok(res) => (

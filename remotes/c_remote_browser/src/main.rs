@@ -19,7 +19,14 @@ use c_remote_core::ConnExit;
 use tracing::info;
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() {
+    if let Err(e) = run_agent().await {
+        eprintln!("alienai_remote_browser exited: {e:#}");
+        std::process::exit(1);
+    }
+}
+
+async fn run_agent() -> anyhow::Result<()> {
     log_local::init();
     agent_version::register();
     let cli = std::env::args().any(|a| a == "--cli");
@@ -86,7 +93,9 @@ async fn main() -> anyhow::Result<()> {
                                     engine::process::shutdown_engine(&mut e).await;
                                 }
                             }
-                            session_key_clear()?;
+                            if let Err(clear_err) = session_key_clear() {
+                                tracing::warn!("session_key_clear: {clear_err:#}");
+                            }
                         }
                         Ok(Ok(ConnExit::Completed)) => tracing::warn!("conn_ws exited"),
                         Ok(Err(e)) if is_invalid_session(&e) => {
@@ -95,7 +104,10 @@ async fn main() -> anyhow::Result<()> {
                                     engine::process::shutdown_engine(&mut e).await;
                                 }
                             }
-                            session_key_clear()?;
+                            tracing::warn!("session invalid for {}: {e:#}", server_url());
+                            if let Err(clear_err) = session_key_clear() {
+                                tracing::warn!("session_key_clear: {clear_err:#}");
+                            }
                         }
                         Ok(Err(e)) => tracing::warn!("conn_ws error: {e}"),
                         Err(e) => tracing::warn!("conn_ws join: {e}"),

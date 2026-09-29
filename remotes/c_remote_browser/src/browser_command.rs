@@ -139,6 +139,19 @@ async fn invoke_method(method: &str, params: Value) -> anyhow::Result<Value> {
             let observe = bridge.call("page.observe", ipc).await?;
             Ok(json!({ "ok": true, "observe": observe }))
         }
+        "page.screenshot" => {
+            let quality = params
+                .get("quality")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(80)
+                .clamp(40, 95);
+            let mut ipc = json!({ "quality": quality });
+            if let Some(tab_id) = params.get("tab_id").and_then(|v| v.as_str()) {
+                ipc["tab_id"] = json!(tab_id);
+            }
+            let screenshot = bridge.call("page.screenshot", ipc).await?;
+            Ok(json!({ "ok": true, "screenshot": screenshot }))
+        }
         "file.upload" => {
             let selector = params
                 .get("selector")

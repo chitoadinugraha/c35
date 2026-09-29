@@ -85,14 +85,27 @@ pub async fn pair_register(
     device_name: &str,
     device_type: &str,
 ) -> anyhow::Result<PairPending> {
+    pair_register_meta(base_url, device_name, device_type, None).await
+}
+
+pub async fn pair_register_meta(
+    base_url: &str,
+    device_name: &str,
+    device_type: &str,
+    meta_json: Option<&Value>,
+) -> anyhow::Result<PairPending> {
     let client = reqwest::Client::new();
     let url = format!("{}/v1/device/pair/register", base_url.trim_end_matches('/'));
+    let mut body = serde_json::json!({
+        "device_name": device_name,
+        "device_type": device_type,
+    });
+    if let Some(meta) = meta_json {
+        body["meta_json"] = meta.clone();
+    }
     let res = client
         .post(&url)
-        .json(&serde_json::json!({
-            "device_name": device_name,
-            "device_type": device_type,
-        }))
+        .json(&body)
         .send()
         .await?
         .error_for_status()?

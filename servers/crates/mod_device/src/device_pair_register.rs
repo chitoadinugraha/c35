@@ -2,7 +2,7 @@ use c35_proto::{ReqDevicePairRegister, ResDevicePairRegister};
 use c35_store::snowflake_id;
 use chrono::Utc;
 use rand::{Rng, RngCore};
-use serde_json::json;
+use serde_json::{json, Value};
 use sqlx::PgPool;
 
 const PAIR_CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -56,11 +56,15 @@ pub async fn device_pair_register(
         }
 
         let id = snowflake_id();
-        let meta = json!({
-            "pairing_code": code,
-            "device_secret": device_secret,
-            "pairing_expires_ms": pairing_expires_ms,
-        });
+        let meta = pair_register_meta_merge(
+            json!({
+                "pairing_code": code,
+                "device_secret": device_secret,
+                "pairing_expires_ms": pairing_expires_ms,
+            }),
+            &req.meta_json,
+            device_type,
+        );
 
         sqlx::query(
             r#"
@@ -112,4 +116,22 @@ fn is_allowed_device_type(t: &str) -> bool {
         t,
         "windows" | "browser" | "android" | "macos" | "linux" | "ios"
     )
+}
+
+fn pair_register_meta_merge(base: Value, meta_json: &str, device_type: &str) -> Value {
+    let mut merged = base;
+    if device_type.eq_ignore_ascii_case("browser") && !merged.as_object().map(|o| o.contains_key("browser_engine")).unwrap_or(false) {
+        merged["browser_engine"] = json!("playwright");
+    }
+    let raw = meta_json.trim();
+    if raw.is_empty() {
+        return merged;
+    }
+    let extra = serde_json::from_str::<Value>(raw).unwrap_or(Value::Null);
+    if let Some(engine) = extra.get("browser_engine").and_then(|v| v.as_str()) {
+        if engine.eq_ignore_ascii_case("extension") || engine.eq_ignore_ascii_case("playwright") {
+            merged["browser_engine"] = json!(engine.to_ascii_lowercase());
+        }
+    }
+    merged
 }

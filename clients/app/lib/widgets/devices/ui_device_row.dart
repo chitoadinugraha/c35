@@ -10,6 +10,7 @@ class UiDeviceRow extends StatelessWidget {
     required this.name,
     this.kind = 'remote',
     this.type = '',
+    this.browserEngine = '',
     this.pinned = false,
     this.clusterOnline = false,
     this.webrtcConnected = false,
@@ -21,6 +22,8 @@ class UiDeviceRow extends StatelessWidget {
   final String name;
   final String kind;
   final String type;
+  /// `extension` | `playwright` for `type=browser`; empty otherwise.
+  final String browserEngine;
   final bool pinned;
   /// Agent session: device ↔ Alien AI Cloud (control plane, presence, tasks).
   final bool clusterOnline;
@@ -30,7 +33,14 @@ class UiDeviceRow extends StatelessWidget {
   final bool selected;
   final VoidCallback? onTap;
 
-  String get _subtitle => type.toLowerCase() == 'browser' ? 'Remote browser' : type;
+  String get _subtitle => switch (type.toLowerCase()) {
+        'browser' => browserEngine.toLowerCase() == 'extension' ? 'Chrome extension' : 'Remote browser',
+        _ => type,
+      };
+
+  String? get _engineBadge => type.toLowerCase() == 'browser'
+      ? (browserEngine.toLowerCase() == 'extension' ? 'Chrome' : 'Automated')
+      : null;
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +75,17 @@ class UiDeviceRow extends StatelessWidget {
                     ),
                     if (_subtitle.isNotEmpty) ...[
                       const SizedBox(height: 2),
-                      Text(_subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _muted, fontSize: 12)),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(_subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _muted, fontSize: 12)),
+                          ),
+                          if (_engineBadge != null) ...[
+                            const SizedBox(width: 6),
+                            _engineBadgeChip(_engineBadge!),
+                          ],
+                        ],
+                      ),
                     ],
                   ],
                 ),
@@ -120,12 +140,27 @@ class UiDeviceRow extends StatelessWidget {
         ),
       );
 
-  Widget _kindIcon() => Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(color: const Color(0xFF18181B), borderRadius: BorderRadius.circular(8), border: Border.all(color: _border)),
-        child: Icon(_iconForKind(kind, type), size: 18, color: const Color(0xFFA1A1AA)),
+  Widget _engineBadgeChip(String label) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: const Color(0xFF27272A),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: _border),
+        ),
+        child: Text(label, style: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 10, fontWeight: FontWeight.w500)),
       );
+
+  Widget _kindIcon() {
+    final isChromeExt = type.toLowerCase() == 'browser' && browserEngine.toLowerCase() == 'extension';
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(color: const Color(0xFF18181B), borderRadius: BorderRadius.circular(8), border: Border.all(color: _border)),
+      child: isChromeExt
+          ? Padding(padding: const EdgeInsets.all(7), child: Image.asset('assets/icons/alien.png', fit: BoxFit.contain))
+          : Icon(_iconForKind(kind, type), size: 18, color: const Color(0xFFA1A1AA)),
+    );
+  }
 
   IconData _iconForKind(String k, String deviceType) => switch (deviceType.toLowerCase()) {
         'browser' => Icons.public_outlined,

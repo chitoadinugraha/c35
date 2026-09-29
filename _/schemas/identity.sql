@@ -6,6 +6,7 @@
 -- Rules:
 --   - Every actor is one row: user | team | bot | remote | iot | site
 --   - Subtypes via `type` column (NOT compound kind like remote-windows)
+--   - Remote browser engines: meta.browser_engine = playwright | extension (see _/docs/browser-extension.md)
 --   - handle renamed to alien_id
 --   - org/group renamed to team
 --   - All syncable tables use created_ts, updated_ts, deleted_ts

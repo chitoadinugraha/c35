@@ -113,6 +113,8 @@ Full UI spec: [`_/docs/ui.md`](_/docs/ui.md)
 | [`_/docs/ui.md`](_/docs/ui.md) | Pages, navigation, components |
 | [`_/docs/remote.md`](_/docs/remote.md) | Remote: agent control session + WebRTC data plane (screen, files, media) |
 | [`_/docs/browser-remote.md`](_/docs/browser-remote.md) | Remote browser (`type=browser`): Rust agent + Playwright sidecar, same WebRTC UX |
+| [`_/docs/plans/2026-09-29-chrome-extension-remote-multitask.md`](_/docs/plans/2026-09-29-chrome-extension-remote-multitask.md) | Chrome extension remote (daily profile): native host, pair web page, OTA, alienai.id download |
+| [`_/docs/browser-extension.md`](_/docs/browser-extension.md) | Chrome extension remote (locked spec) — created in CE-W1 Track A |
 | [`_/docs/remote-agent.md`](_/docs/remote-agent.md) | Remote agent architecture, multi-platform porting, OTA & watchdog spec |
 | [`_/schemas/identity.sql`](_/schemas/identity.sql) | Identity + grants DDL |
 | [`_/schemas/chat.sql`](_/schemas/chat.sql) | Chat + messages |

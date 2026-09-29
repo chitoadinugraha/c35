@@ -274,11 +274,10 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
 
   void _trackpadReleaseCursorLock() => _trackpadCursorLock.release();
 
-  void _trackpadSyncCursorLock(PointerEvent e) {
+  void _trackpadTryEngageCursorLock(PointerEvent e) {
     if (!_trackpadMode || e.kind != PointerDeviceKind.mouse) return;
     if (e.buttons == 0 || (!_touchMoved && !_trackpadDragLock)) return;
     _trackpadCursorLock.engage(e.position);
-    _trackpadCursorLock.sustain();
   }
 
   bool _agentOfflineError(String? err) {
@@ -1375,7 +1374,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                                     _trackpadCancelPendingClick();
                                   }
                                   _trackpadApplyDelta(e.delta, renderSize);
-                                  _trackpadSyncCursorLock(e);
+                                  _trackpadTryEngageCursorLock(e);
                                   return;
                                 }
 

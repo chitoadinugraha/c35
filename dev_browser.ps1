@@ -5,6 +5,7 @@ param(
     [switch]$EngineWatch,
     [switch]$SctpScreen,
     [switch]$RtpVideo,
+    [switch]$Unpair,
     [string]$ServerUrl = '',
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$CargoArgs
@@ -21,8 +22,21 @@ if (-not $ServerUrl) {
     $ServerUrl = if ($env:C35_SERVER_URL) { $env:C35_SERVER_URL } else { "http://127.0.0.1:$port" }
 }
 $env:C35_SERVER_URL = $ServerUrl.TrimEnd('/')
-$env:C35_AGENT_STORAGE = 'browser'
+# Isolated from Chrome extension agent (`AlienAI\config.json`) and prod browser OTA (`browser\`).
+$env:C35_AGENT_STORAGE = 'browser-dev'
+Remove-Item Env:C35_BROWSER_ENGINE -ErrorAction SilentlyContinue
 $env:C35_BROWSER_ENGINE_WORKER = $workerJs
+if ($Unpair) {
+    foreach ($cfg in @(
+            (Join-Path $env:LOCALAPPDATA 'AlienAI\browser\config.json'),
+            (Join-Path $env:LOCALAPPDATA 'AlienAI\browser-dev\config.json')
+        )) {
+        if (Test-Path $cfg) {
+            Write-Host "==> unpair: remove $cfg"
+            Remove-Item -LiteralPath $cfg -Force
+        }
+    }
+}
 # Dev: visible Chromium + pairing window (not console-only unless -Cli).
 $env:C35_BROWSER_HEADLESS = '0'
 
@@ -44,7 +58,7 @@ Start-Sleep -Milliseconds 200
 
 Write-Host '==> remote browser dev'
 Write-Host "    server:     $env:C35_SERVER_URL"
-Write-Host "    config:     %LOCALAPPDATA%\AlienAI\browser\"
+Write-Host "    config:     %LOCALAPPDATA%\AlienAI\browser-dev\"
 Write-Host "    engine:     $workerJs"
 Write-Host "    RUST_LOG:   $env:RUST_LOG"
 if ($Cli) { Write-Host '    pair:       console only (-Cli)' } else { Write-Host '    pair:       GUI window with code + refresh timer (default)' }
@@ -52,7 +66,14 @@ Write-Host '    chromium:   headed (C35_BROWSER_HEADLESS=0)'
 if ($Watch) { Write-Host '    rust:       cargo-watch' }
 if ($EngineWatch) { Write-Host '    engine:     tsc -w (restart agent after TS changes)' }
 Write-Host ''
-Write-Host 'Tip: run .\dev_server.ps1 in another terminal; pair device_type=browser; use MCP prompt_compose / tool_exec.'
+try {
+    $null = Invoke-WebRequest -Uri "$($env:C35_SERVER_URL)/health" -UseBasicParsing -TimeoutSec 3
+} catch {
+    Write-Warning "Dev server not reachable at $($env:C35_SERVER_URL) — start .\dev_server.ps1 in another terminal."
+}
+Write-Host 'Tip: run .\dev_server.ps1 in another terminal; pair device_type=browser; use MCP tool_exec browser.page.screenshot / browser.page.observe.'
+Write-Host '      Re-pair locally: .\dev_browser.ps1 -Unpair'
+Write-Host '      Dev JPEG: node _\scripts\dev\browser_page_screenshot_ipc_test.mjs  (worker IPC smoke)'
 Write-Host ''
 
 Push-Location $engineDir

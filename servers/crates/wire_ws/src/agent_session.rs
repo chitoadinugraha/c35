@@ -4,29 +4,51 @@ use axum::body::Bytes;
 use axum::extract::ws::{Message, WebSocket};
 use c35_ctx::AppState;
 use c35_mod_device::{
-    agent_log_put, agent_presence_put, agent_session_resolve, release_config_get,
-    release_needs_update, remote_signaling_agent_frame, remote_signaling_agent_register,
-    remote_signaling_agent_unregister, AgentVersionReport,
+    agent_log_put, agent_presence_put, agent_session_resolve, device_release_platform_key,
+    release_config_get, release_needs_update, remote_signaling_agent_frame,
+    remote_signaling_agent_register, remote_signaling_agent_unregister, AgentVersionReport,
 };
+use serde_json::Value;
 use futures_util::StreamExt;
 use tokio::sync::mpsc;
 use tracing::{info, warn};
 
 const RELEASE_NUDGE_PAYLOAD: &[u8] = b"c35.release:remote-windows";
 const REMOTE_BROWSER_NUDGE_PAYLOAD: &[u8] = b"c35.release:remote-browser";
+const CHROME_EXTENSION_NUDGE_PAYLOAD: &[u8] = b"c35.release:chrome-extension";
 const FFMPEG_RELEASE_NUDGE_PAYLOAD: &[u8] = b"c35.release:ffmpeg-windows";
 const RELEASE_NUDGE_INTERVAL: Duration = Duration::from_secs(90);
 
-async fn remote_device_type(pool: &sqlx::PgPool, device_iid: i64) -> String {
-    let row = sqlx::query_scalar::<_, String>(
-        "SELECT type FROM ai.identity WHERE id = $1 AND deleted_ts IS NULL",
+async fn remote_device_type_meta(pool: &sqlx::PgPool, device_iid: i64) -> (String, Value) {
+    let row = sqlx::query_as::<_, (String, Value)>(
+        r#"
+        SELECT type, COALESCE(meta, '{}'::jsonb)
+        FROM ai.identity
+        WHERE id = $1 AND deleted_ts IS NULL
+        "#,
     )
     .bind(device_iid)
     .fetch_optional(pool)
     .await
     .ok()
     .flatten();
-    row.unwrap_or_default()
+    row.unwrap_or_else(|| (String::new(), Value::Object(Default::default())))
+}
+
+fn release_nudge_payload(platform: &str) -> &'static [u8] {
+    match platform {
+        "chrome-extension" => CHROME_EXTENSION_NUDGE_PAYLOAD,
+        "remote-browser" => REMOTE_BROWSER_NUDGE_PAYLOAD,
+        _ => RELEASE_NUDGE_PAYLOAD,
+    }
+}
+
+fn release_nats_subject(platform: &str) -> &'static str {
+    match platform {
+        "chrome-extension" => "c35.release.chrome-extension",
+        "remote-browser" => "c35.release.remote-browser",
+        _ => "c35.release.remote-windows",
+    }
 }
 
 fn spawn_release_nudge_loop(
@@ -103,13 +125,10 @@ pub async fn handle(
     let (agent_out_tx, mut agent_out_rx) = mpsc::unbounded_channel::<Vec<u8>>();
     remote_signaling_agent_register(session.device_iid, agent_out_tx.clone());
 
-    let device_type = remote_device_type(&state.pool, session.device_iid).await;
-    let browser_agent = device_type.eq_ignore_ascii_case("browser");
-    let (release_platform, nudge_payload) = if browser_agent {
-        ("remote-browser", REMOTE_BROWSER_NUDGE_PAYLOAD)
-    } else {
-        ("remote-windows", RELEASE_NUDGE_PAYLOAD)
-    };
+    let (device_type, device_meta) =
+        remote_device_type_meta(&state.pool, session.device_iid).await;
+    let release_platform = device_release_platform_key(&device_type, &device_meta);
+    let nudge_payload = release_nudge_payload(release_platform);
     spawn_release_nudge_loop(
         state.pool.clone(),
         agent_build,
@@ -133,15 +152,16 @@ pub async fn handle(
             }
         });
 
-        if browser_agent {
+        if device_type.eq_ignore_ascii_case("browser") {
             let nats_release = nats.clone();
             let tx_release = agent_out_tx.clone();
+            let subject = release_nats_subject(release_platform);
+            let default_nudge = nudge_payload;
             tokio::spawn(async move {
-                let subject = "c35.release.remote-browser";
                 if let Ok(mut sub) = nats_release.subscribe(subject.to_string()).await {
                     while let Some(msg) = sub.next().await {
                         let notification = if msg.payload.is_empty() {
-                            REMOTE_BROWSER_NUDGE_PAYLOAD.to_vec()
+                            default_nudge.to_vec()
                         } else {
                             msg.payload.to_vec()
                         };

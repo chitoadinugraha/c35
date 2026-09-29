@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Alien AI Remote</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+      width: 320px;
+      padding: 14px;
+      background: #0f1014;
+      color: #e2e8f0;
+    }
+    h1 { font-size: 15px; margin: 0 0 8px; color: #fff; display: flex; align-items: center; gap: 8px; }
+    h1 img { width: 20px; height: 20px; border-radius: 4px; }
+    p { font-size: 12px; line-height: 1.45; color: #94a3b8; margin: 0 0 12px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+    button, a.btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(0,229,153,0.15);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    button.secondary, a.secondary {
+      background: rgba(255,255,255,0.08);
+    }
+    #status {
+      font-size: 11px;
+      font-family: ui-monospace, monospace;
+      padding: 8px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      margin-bottom: 10px;
+    }
+    .ok { color: #34d399; }
+    .warn { color: #fbbf24; }
+    .err { color: #f87171; }
+  </style>
+</head>
+<body>
+  <h1><img src="../icons/icon32.png" alt="" width="20" height="20"> Alien AI Remote</h1>
+  <p>Pair this Chrome profile with the Alien AI app, then remote the active tab from Devices.</p>
+  <div id="status">Checking native host…</div>
+  <div class="row">
+    <button type="button" id="btnPair">Pair device</button>
+    <button type="button" id="btnPing" class="secondary">Test host</button>
+  </div>
+  <a class="btn secondary" href="https://alienai.id/download/chrome-extension" target="_blank" rel="noopener">Install help</a>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -39,6 +39,12 @@ const handleReq = async (req: IpcReq): Promise<void> => {
         writeMessage(resOk(id, await engine.pageObserve(p?.tab_id, maxChars)));
         return;
       }
+      case 'page.screenshot': {
+        const p = params as { tab_id?: string; quality?: number };
+        const quality = p?.quality ?? 80;
+        writeMessage(resOk(id, await engine.pageScreenshot(p?.tab_id, quality)));
+        return;
+      }
       case 'task.run': {
         const p = params as { steps?: BrowserStep[]; slot_id?: string; tab_id?: string };
         const steps = p?.steps ?? [];

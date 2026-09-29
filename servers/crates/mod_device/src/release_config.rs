@@ -3,6 +3,26 @@ use sqlx::PgPool;
 
 const CONFIG_PREFIX: &str = "app.release.c35.";
 
+/// `playwright` when absent — see _/docs/browser-extension.md.
+pub fn meta_browser_engine(meta: &Value) -> &str {
+    meta.get("browser_engine")
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or("playwright")
+}
+
+pub fn device_release_platform_key(device_type: &str, meta: &Value) -> &'static str {
+    if device_type.eq_ignore_ascii_case("browser") {
+        if meta_browser_engine(meta).eq_ignore_ascii_case("extension") {
+            "chrome-extension"
+        } else {
+            "remote-browser"
+        }
+    } else {
+        "remote-windows"
+    }
+}
+
 pub async fn release_config_get(pool: &PgPool, platform_key: &str) -> Result<Option<Value>, String> {
     let key = format!("{CONFIG_PREFIX}{platform_key}");
     let row = sqlx::query_scalar::<_, Value>(r#"SELECT value FROM ai.config WHERE key = $1"#)

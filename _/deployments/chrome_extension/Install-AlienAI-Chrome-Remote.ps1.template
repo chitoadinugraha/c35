@@ -1,0 +1,88 @@
+# Alien AI Chrome Remote - one-click install (HKCU).
+$ErrorActionPreference = 'Stop'
+$here = Split-Path -Parent $MyInvocation.MyCommand.Path
+$destRoot = Join-Path $env:LOCALAPPDATA 'AlienAI\chrome_extension\install'
+$extDir = Join-Path $destRoot 'alienai_remote'
+$nmName = 'com.alienai.c35.remote'
+$nmReg = "HKCU:\Software\Google\Chrome\NativeMessagingHosts\$nmName"
+$extId = '@EXT_ID@'
+
+Write-Host "==> Alien AI Chrome Remote install (extension $extId)"
+New-Item -ItemType Directory -Force -Path $destRoot | Out-Null
+robocopy $here $destRoot /E /XF 'Install-AlienAI-Chrome-Remote.ps1' /NFL /NDL /NJH /NJS /nc /ns /np | Out-Null
+if ($LASTEXITCODE -ge 8) { throw "robocopy failed ($LASTEXITCODE)" }
+
+$hostExe = Join-Path $destRoot 'alienai_remote_browser.exe'
+$nmDir = Join-Path $destRoot 'native_host'
+New-Item -ItemType Directory -Force -Path $nmDir | Out-Null
+$nmFile = Join-Path $nmDir "$nmName.json"
+$nm = @{
+  name            = $nmName
+  description     = 'Alien AI Remote native host'
+  path            = $hostExe
+  type            = 'stdio'
+  allowed_origins = @("chrome-extension://$extId/")
+  args            = @('--chrome-native-host')
+} | ConvertTo-Json -Compress
+[System.IO.File]::WriteAllText($nmFile, $nm, [System.Text.UTF8Encoding]::new($false))
+New-Item -Path $nmReg -Force | Out-Null
+Set-ItemProperty -Path $nmReg -Name '(default)' -Value $nmFile
+
+$updatesFile = Join-Path $destRoot 'updates.xml'
+$crxFile = Join-Path $destRoot 'alienai_remote.crx'
+$crxUri = ([Uri]$crxFile).AbsoluteUri
+$ver = '@VERSION@'
+$updatesXml = @"
+<?xml version="1.0" encoding="UTF-8"?>
+<gupdate xmlns="http://www.google.com/update2/response" protocol="2.0">
+  <app appid="$extId">
+    <updatecheck codebase="$crxUri" version="$ver" />
+  </app>
+</gupdate>
+"@
+[System.IO.File]::WriteAllText($updatesFile, $updatesXml, [System.Text.UTF8Encoding]::new($false))
+$policyKey = 'HKCU:\Software\Policies\Google\Chrome\ExtensionInstallForcelist'
+New-Item -Path $policyKey -Force | Out-Null
+$updatesUri = ([Uri]$updatesFile).AbsoluteUri
+Set-ItemProperty -Path $policyKey -Name '1' -Value "$extId;$updatesUri"
+
+$agentDir = Join-Path $destRoot 'agent'
+New-Item -ItemType Directory -Force -Path $agentDir | Out-Null
+$agentCmd = Join-Path $agentDir 'Start-ChromeRemoteAgent.cmd'
+$cmdContent = "@echo off`r`nset C35_BROWSER_ENGINE=extension`r`nstart `"`" `"$hostExe`"`r`n"
+[System.IO.File]::WriteAllText($agentCmd, $cmdContent, [System.Text.UTF8Encoding]::new($false))
+$runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+Set-ItemProperty -Path $runKey -Name 'AlienAIChromeRemoteAgent' -Value $agentCmd
+
+$chromePf86 = Join-Path ${env:ProgramFiles(x86)} 'Google\Chrome\Application\chrome.exe'
+$chromeCandidates = @(
+  (Join-Path $env:ProgramFiles 'Google\Chrome\Application\chrome.exe'),
+  $chromePf86,
+  (Join-Path $env:LOCALAPPDATA 'Google\Chrome\Application\chrome.exe')
+)
+$chrome = $chromeCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+if ($chrome) {
+  $lnk = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Chrome (Alien AI Remote).lnk'
+  $wsh = New-Object -ComObject WScript.Shell
+  $sc = $wsh.CreateShortcut($lnk)
+  $sc.TargetPath = $chrome
+  $sc.Arguments = "--load-extension=`"$extDir`""
+  $sc.Save()
+  Write-Host "==> Desktop shortcut: $lnk"
+}
+
+Write-Host ''
+Write-Host '=== ADD EXTENSION IN CHROME (one time, Developer mode ON) ==='
+Write-Host '  Option A - Load unpacked (recommended):'
+Write-Host "    Folder: $extDir"
+Write-Host '  Option B - Drag alienai_remote.crx onto chrome://extensions'
+Write-Host '  Option C - Quit ALL Chrome windows, then open desktop shortcut'
+Write-Host '           Chrome (Alien AI Remote) - normal Chrome icon will NOT load it.'
+Write-Host ''
+Write-Host '(Policy auto-install needs HTTPS from alienai.id; file:// is ignored by Chrome.)'
+Write-Host ''
+Write-Host "Start agent after extension shows: $agentCmd"
+Write-Host 'Extension popup: Test native host -> Pair device'
+
+Start-Process explorer.exe -ArgumentList $extDir
+Start-Process 'chrome://extensions'

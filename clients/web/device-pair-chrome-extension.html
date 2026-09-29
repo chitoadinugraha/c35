@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pair Chrome extension — Alien AI</title>
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/svg+xml" href="/alien.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { 400: '#22ec9e', 500: '#00e599' },
+            dark: { bg: '#0f1014', card: '#181924' }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-dark-bg text-slate-200 font-sans antialiased min-h-screen flex flex-col">
+  <header class="border-b border-white/5 bg-dark-bg/90 backdrop-blur-xl">
+    <div class="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-2 text-white font-bold text-sm">
+        <img src="/alien.svg" alt="" class="w-5 h-5"> Alien AI
+      </a>
+      <a href="/download/chrome-extension" class="text-xs text-slate-400 hover:text-white">Install help</a>
+    </div>
+  </header>
+  <main class="flex-grow max-w-2xl mx-auto px-4 py-10 w-full text-center">
+    <h1 class="text-2xl sm:text-3xl font-bold text-white mb-2">Pair Chrome extension</h1>
+    <p class="text-sm text-slate-400 mb-8 max-w-md mx-auto">
+      Enter this code in the Alien AI app. The pairing secret stays on your PC in the native host — it is never shown in the browser.
+    </p>
+    <div id="codeBox" class="rounded-2xl border border-white/10 bg-dark-card/80 p-8 sm:p-10 mb-6">
+      <p id="codeMissing" class="hidden text-amber-400 text-sm mb-4">No code in the URL. Start pairing from the extension popup or native host.</p>
+      <p class="text-[10px] uppercase tracking-widest text-slate-500 font-mono mb-3">Pairing code</p>
+      <p id="pairCode" class="text-4xl sm:text-5xl md:text-6xl font-mono font-bold text-brand-400 tracking-wider break-all select-all">—</p>
+    </div>
+    <ol class="text-left text-sm text-slate-300 space-y-3 max-w-md mx-auto mb-8 list-decimal list-inside">
+      <li>Open <strong class="text-white">Alien AI</strong> on your phone or desktop.</li>
+      <li>Go to <strong class="text-white">Devices</strong> → <strong class="text-white">Pair with code</strong>.</li>
+      <li>Type the code above and confirm.</li>
+    </ol>
+    <div id="extStatus" class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-mono border border-white/10 bg-white/5 text-slate-400">
+      <span id="extDot" class="w-2 h-2 rounded-full bg-slate-500"></span>
+      <span id="extStatusText">Checking extension…</span>
+    </div>
+  </main>
+  <script>
+    (function () {
+      const params = new URLSearchParams(location.search);
+      const raw = (params.get("code") || "").trim();
+      const codeEl = document.getElementById("pairCode");
+      const missingEl = document.getElementById("codeMissing");
+      if (raw) {
+        codeEl.textContent = raw;
+      } else {
+        missingEl.classList.remove("hidden");
+        codeEl.textContent = "····";
+      }
+
+      const dot = document.getElementById("extDot");
+      const statusText = document.getElementById("extStatusText");
+
+      const setExtStatus = (state, detail) => {
+        const map = {
+          idle: ["bg-slate-500", "Extension idle"],
+          pairing: ["bg-amber-400 animate-pulse", "Pairing in progress…"],
+          paired: ["bg-emerald-400", "Paired — you can close this tab."],
+          error: ["bg-red-400", "Error: " + (detail || "unknown")],
+          unknown: ["bg-slate-500", "Extension status unknown"],
+        };
+        const row = map[state] || map.unknown;
+        dot.className = "w-2 h-2 rounded-full " + row[0];
+        statusText.textContent = row[1];
+      };
+
+      window.addEventListener("message", (ev) => {
+        if (ev.origin !== "https://alienai.id" && ev.origin !== location.origin) return;
+        const data = ev.data;
+        if (!data || data.source !== "alienai-chrome-extension") return;
+        if (data.type === "pair.status") setExtStatus(data.state, data.error);
+      });
+
+      const extId = params.get("ext");
+      const queryExt = () => {
+        if (!extId || !chrome?.runtime?.sendMessage) {
+          setExtStatus("unknown", "Install extension for live status");
+          return;
+        }
+        try {
+          chrome.runtime.sendMessage(extId, { type: "pair.page.ready" }, (res) => {
+            if (chrome.runtime.lastError || !res) {
+              setExtStatus("unknown");
+              return;
+            }
+            setExtStatus(res.state || "idle", res.error);
+          });
+        } catch (_) {
+          setExtStatus("unknown");
+        }
+      };
+
+      if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.sendMessage) {
+        chrome.runtime.sendMessage({ type: "pair.page.ready" }, (res) => {
+          if (!chrome.runtime.lastError && res) setExtStatus(res.state || "idle", res.error);
+          else queryExt();
+        });
+      } else {
+        setExtStatus("unknown", "Open in Chrome with extension installed");
+      }
+    })();
+  </script>
+</body>
+</html>

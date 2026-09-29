@@ -102,7 +102,13 @@ pub async fn task_run_handle(
             crate::update::trigger_background_update(dispatch_ctx.server_url.clone());
             return Ok(());
         }
-        if (cmd.starts_with("c35.release:") && !cmd.contains("remote-browser"))
+        if cmd.contains("\"platform\":\"chrome-extension\"") || cmd.starts_with("c35.release:chrome-extension") {
+            info!("Received chrome-extension release notification; triggering background update");
+            std::env::set_var("C35_RELEASE_PLATFORM", "chrome-extension");
+            crate::update::trigger_background_update(dispatch_ctx.server_url.clone());
+            return Ok(());
+        }
+        if (cmd.starts_with("c35.release:") && !cmd.contains("remote-browser") && !cmd.contains("chrome-extension"))
             || cmd.starts_with("{\"platform\":\"remote-windows\"")
         {
             info!("Received release notification over agent session; triggering immediate background update");

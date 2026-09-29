@@ -31,10 +31,15 @@ export type HomeContext = {
   userName?: string;
   alienId?: string;
   packageName?: string;
+  deviceName?: string;
+  agentVersion?: string;
+  cloudOnline?: boolean;
 };
 
 export type LaunchParams = {
   headless?: boolean;
+  /** Playwright `channel` — e.g. `chrome`, `msedge` (installed browser; better for Turnstile than bundled Chromium). */
+  channel?: string;
   userDataDir?: string;
   downloadsPath?: string;
   viewport?: { width: number; height: number };
@@ -54,6 +59,7 @@ export type InputEvent =
   | { type: 'mouseMove'; x: number; y: number }
   | { type: 'mouseDown'; button: 'left' | 'right' | 'middle'; x: number; y: number }
   | { type: 'mouseUp'; button: 'left' | 'right' | 'middle'; x: number; y: number }
+  | { type: 'mouseClick'; button: 'left' | 'right' | 'middle'; x: number; y: number; clickCount?: number }
   | { type: 'wheel'; x: number; y: number; deltaX: number; deltaY: number }
   | { type: 'keyDown'; key: string }
   | { type: 'keyUp'; key: string }

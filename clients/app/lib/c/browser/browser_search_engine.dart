@@ -65,9 +65,17 @@ BrowserSearchEngine browserSearchEngineById(String id, [List<BrowserSearchEngine
 
 String browserOmniboxHintFor(BrowserSearchEngine engine) => 'Search ${engine.name} or type a URL';
 
+const browserHomeHttps = 'https://alienai.id/search';
+
 bool browserTabIsHome(String url) {
   final u = url.trim().toLowerCase();
-  return u.isEmpty || u == 'about:blank' || u == 'about:newtab' || u == browserHomeUrl || u.contains('/_c35/home.html');
+  return u.isEmpty ||
+      u == 'about:blank' ||
+      u == 'about:newtab' ||
+      u == browserHomeUrl ||
+      u == browserHomeHttps ||
+      u.contains('alienai.id/search') ||
+      u.contains('/_c35/home.html');
 }
 
 String browserTabTitleFromUrl(String url) {
@@ -98,7 +106,7 @@ bool _browserLooksLikeUrl(String t) {
 
 String browserOmniboxTarget(String raw, {required BrowserSearchEngine engine}) {
   final t = raw.trim();
-  if (t.isEmpty || browserTabIsHome(t)) return browserHomeUrl;
+  if (t.isEmpty || browserTabIsHome(t)) return browserHomeHttps;
   if (t.contains('://')) return t;
   if (_browserLooksLikeUrl(t)) return t.startsWith('http') ? t : 'https://$t';
   return engine.search(t);

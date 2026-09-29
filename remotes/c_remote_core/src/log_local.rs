@@ -38,6 +38,9 @@ pub fn console_visible() -> bool {
 }
 
 fn log_to_stdout_enabled() -> bool {
+    if std::env::var("C35_NATIVE_MESSAGING_HOST").as_deref() == Ok("1") {
+        return false;
+    }
     console_visible()
 }
 

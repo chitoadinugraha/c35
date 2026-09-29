@@ -33,6 +33,20 @@ bool deviceOnlineFromMeta(String metaJson) {
 bool deviceClusterOnline(String metaJson, {bool remoteSessionActive = false}) =>
     deviceOnlineFromMeta(metaJson) || remoteSessionActive;
 
+/// `playwright` when absent — see _/docs/browser-extension.md.
+String deviceBrowserEngineFromMeta(String metaJson) {
+  if (metaJson.trim().isEmpty) return 'playwright';
+  try {
+    final m = jsonDecode(metaJson);
+    if (m is! Map) return 'playwright';
+    final engine = m['browser_engine']?.toString().trim().toLowerCase();
+    if (engine == 'extension' || engine == 'playwright') return engine!;
+    return 'playwright';
+  } catch (_) {
+    return 'playwright';
+  }
+}
+
 class DeviceStore extends ChangeNotifier {
   DeviceStore({ChatConn? conn, ReferralConn? invoke}) : _conn = conn ?? ChatConn(), _invoke = invoke ?? ReferralConn();
 

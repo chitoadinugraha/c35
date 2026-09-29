@@ -114,8 +114,15 @@ pub fn current_platform() -> &'static str {
         match p.trim() {
             "remote-browser" => return "remote-browser",
             "remote-windows" => return "remote-windows",
+            "chrome-extension" => return "chrome-extension",
             _ => {}
         }
+    }
+    if std::env::var("C35_BROWSER_ENGINE")
+        .map(|v| v.eq_ignore_ascii_case("extension"))
+        .unwrap_or(false)
+    {
+        return "chrome-extension";
     }
     if std::env::var("C35_AGENT_STORAGE")
         .map(|v| v.eq_ignore_ascii_case("browser"))

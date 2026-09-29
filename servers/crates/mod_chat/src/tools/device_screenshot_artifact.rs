@@ -102,6 +102,9 @@ pub fn tool_result_preview_trim(result: &Value) -> Value {
 fn strip_image_base64(v: &mut Value) {
     if let Some(obj) = v.as_object_mut() {
         obj.remove("image_base64");
+        if let Some(sc) = obj.get_mut("screenshot").and_then(|x| x.as_object_mut()) {
+            sc.remove("jpeg_b64");
+        }
         if let Some(llm) = obj.get_mut("llm").and_then(|x| x.as_object_mut()) {
             llm.remove("image_base64");
         }

@@ -2,7 +2,10 @@ use chrono::Utc;
 use serde_json::{json, Value};
 use sqlx::PgPool;
 
-use crate::release_config::{release_config_get, release_needs_update, release_summary};
+use crate::release_config::{
+    device_release_platform_key, meta_browser_engine, release_config_get, release_needs_update,
+    release_summary,
+};
 
 fn cloud_online_from_meta(meta: &Value) -> bool {
     if meta.get("online").and_then(|v| v.as_bool()) == Some(false) {
@@ -21,17 +24,9 @@ fn cloud_online_from_meta(meta: &Value) -> bool {
     now - last < 120_000
 }
 
-fn release_platform_key(device_type: &str) -> &'static str {
-    if device_type.eq_ignore_ascii_case("browser") {
-        "remote-browser"
-    } else {
-        "remote-windows"
-    }
-}
-
 async fn device_release_fields_async(pool: &PgPool, device_type: &str, meta: &Value) -> Value {
     let agent_build = meta.get("agent_build").and_then(|v| v.as_i64()).unwrap_or(0);
-    let platform = release_platform_key(device_type);
+    let platform = device_release_platform_key(device_type, meta);
     let rel = release_config_get(pool, platform).await.ok().flatten();
     let Some(rel) = rel else {
         return json!({
@@ -74,6 +69,7 @@ pub async fn mcp_device_list(pool: &PgPool, owner_iid: i64) -> Value {
                     "device_iid": id,
                     "name": name,
                     "type": typ,
+                    "browser_engine": meta_browser_engine(&meta),
                     "cloud_online": cloud_online_from_meta(&meta),
                     "online": meta.get("online"),
                     "last_seen_ts_ms": meta.get("last_seen_ts_ms"),

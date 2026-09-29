@@ -21,6 +21,7 @@ message ResDevicePair {
 message ReqDevicePairRegister {
   string device_name = 1;   // hostname
   string device_type = 2;   // windows | browser | android | macos | linux | …
+  string meta_json = 3;     // optional JSON merged at register — e.g. {"browser_engine":"extension"}
 }
 
 message ResDevicePairRegister {

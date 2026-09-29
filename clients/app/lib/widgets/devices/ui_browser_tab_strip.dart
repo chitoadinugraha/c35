@@ -132,7 +132,7 @@ class _UiBrowserTabStripState extends State<UiBrowserTabStrip> {
     for (var i = 0; i < attempts; i++) {
       if (!mounted || gen != _refreshGen) return;
       try {
-        final raw = await widget.session.browserInvoke('tabs', {'op': 'list'});
+        final raw = await _browserInvoke('tabs', {'op': 'list'}, retryOnEngine: retryOnEngine);
         final list = (raw['tabs'] as List?) ?? [];
         if (!mounted || gen != _refreshGen) return;
         setState(() {
@@ -158,20 +158,41 @@ class _UiBrowserTabStripState extends State<UiBrowserTabStrip> {
     }
   }
 
+  Future<Map<String, dynamic>> _browserInvoke(
+    String method,
+    Map<String, dynamic> params, {
+    bool retryOnEngine = true,
+  }) async {
+    const attempts = 6;
+    for (var i = 0; i < attempts; i++) {
+      try {
+        return await widget.session.browserInvoke(method, params);
+      } catch (e) {
+        final retry = retryOnEngine && _engineRetryable(e) && i + 1 < attempts;
+        if (retry) {
+          await Future<void>.delayed(Duration(milliseconds: 400 * (i + 1)));
+          continue;
+        }
+        rethrow;
+      }
+    }
+    return {};
+  }
+
   Future<void> _activate(String tabId) async {
-    await widget.session.browserInvoke('tabs', {'op': 'activate', 'tab_id': tabId});
+    await _browserInvoke('tabs', {'op': 'activate', 'tab_id': tabId});
     _urlDirty = false;
     await _refresh();
   }
 
   Future<void> _newTab() async {
-    await widget.session.browserInvoke('tabs', {'op': 'new', 'url': browserHomeUrl});
+    await _browserInvoke('tabs', {'op': 'new', 'url': browserHomeUrl});
     _urlDirty = false;
     await _refresh();
   }
 
   Future<void> _close(String tabId) async {
-    await widget.session.browserInvoke('tabs', {'op': 'close', 'tab_id': tabId});
+    await _browserInvoke('tabs', {'op': 'close', 'tab_id': tabId});
     await _refresh();
   }
 
@@ -179,7 +200,7 @@ class _UiBrowserTabStripState extends State<UiBrowserTabStrip> {
     final url = browserOmniboxTarget(_urlCtrl.text, engine: _engine);
     if (url.isEmpty) return;
     try {
-      await widget.session.browserInvoke('navigate', {'url': url});
+      await _browserInvoke('navigate', {'url': url});
       _urlDirty = false;
       await _refresh();
     } catch (e) {
@@ -189,7 +210,7 @@ class _UiBrowserTabStripState extends State<UiBrowserTabStrip> {
 
   Future<void> _historyBack() async {
     try {
-      await widget.session.browserInvoke('history.back', {});
+      await _browserInvoke('history.back', {});
       _urlDirty = false;
       await _refresh();
     } catch (e) {
@@ -199,7 +220,7 @@ class _UiBrowserTabStripState extends State<UiBrowserTabStrip> {
 
   Future<void> _historyForward() async {
     try {
-      await widget.session.browserInvoke('history.forward', {});
+      await _browserInvoke('history.forward', {});
       _urlDirty = false;
       await _refresh();
     } catch (e) {
@@ -209,7 +230,7 @@ class _UiBrowserTabStripState extends State<UiBrowserTabStrip> {
 
   Future<void> _reload() async {
     try {
-      await widget.session.browserInvoke('reload', {});
+      await _browserInvoke('reload', {});
       _urlDirty = false;
       await _refresh();
     } catch (e) {
@@ -254,6 +275,12 @@ class _UiBrowserTabStripState extends State<UiBrowserTabStrip> {
     setState(() => _engine = picked);
   }
 
+  BoxDecoration _tabShellDecoration(bool active) => BoxDecoration(
+        color: active ? _tabActive : _tabBg,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+        border: Border.all(color: _border),
+      );
+
   Widget _tabChip(BrowserTabInfo t, {VoidCallback? onClose}) {
     final label = t.title.isNotEmpty ? t.title : browserTabTitleFromUrl(t.url);
     return Material(
@@ -264,41 +291,43 @@ class _UiBrowserTabStripState extends State<UiBrowserTabStrip> {
         child: Container(
           constraints: BoxConstraints(maxWidth: widget.compact ? 200 : 168, minWidth: 72),
           height: 32,
-          padding: const EdgeInsets.only(left: 10, right: 4),
-          decoration: BoxDecoration(
-            color: t.active ? _tabActive : _tabBg,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
-            border: Border(
-              top: BorderSide(color: t.active ? _accent : _border, width: t.active ? 2 : 1),
-              left: const BorderSide(color: _border),
-              right: const BorderSide(color: _border),
-            ),
-          ),
-          child: Row(
+          decoration: _tabShellDecoration(t.active),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _tabFavicon(t),
-              const SizedBox(width: 6),
+              if (t.active) const ColoredBox(color: _accent, child: SizedBox(height: 2)),
               Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: t.active ? _text : _muted,
-                    fontSize: 12,
-                    fontWeight: t.active ? FontWeight.w500 : FontWeight.w400,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 10, right: 4),
+                  child: Row(
+                    children: [
+                      _tabFavicon(t),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: t.active ? _text : _muted,
+                            fontSize: 12,
+                            fontWeight: t.active ? FontWeight.w500 : FontWeight.w400,
+                          ),
+                        ),
+                      ),
+                      if (onClose != null)
+                        InkWell(
+                          onTap: onClose,
+                          borderRadius: BorderRadius.circular(4),
+                          child: const Padding(
+                            padding: EdgeInsets.all(4),
+                            child: Icon(Icons.close, size: 14, color: _muted),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ),
-              if (onClose != null)
-                InkWell(
-                  onTap: onClose,
-                  borderRadius: BorderRadius.circular(4),
-                  child: const Padding(
-                    padding: EdgeInsets.all(4),
-                    child: Icon(Icons.close, size: 14, color: _muted),
-                  ),
-                ),
             ],
           ),
         ),
@@ -471,14 +500,18 @@ class _UiBrowserTabStripState extends State<UiBrowserTabStrip> {
                                 borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
                                 child: Container(
                                   height: 32,
-                                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    color: _tabActive,
-                                    borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
-                                    border: const Border(top: BorderSide(color: _accent, width: 2), left: BorderSide(color: _border), right: BorderSide(color: _border)),
+                                  decoration: _tabShellDecoration(true),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      const ColoredBox(color: _accent, child: SizedBox(height: 2)),
+                                      const Expanded(
+                                        child: Center(
+                                          child: Text('New tab', style: TextStyle(color: _text, fontSize: 12)),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  child: const Text('New tab', style: TextStyle(color: _text, fontSize: 12)),
                                 ),
                               ),
                             ),

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Download Chrome extension — Alien AI</title>
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/svg+xml" href="/alien.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: { brand: { 500: '#00e599' }, dark: { bg: '#0f1014', card: '#181924' } },
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-dark-bg text-slate-200 font-sans antialiased min-h-screen">
+  <header class="border-b border-white/5">
+    <div class="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-2 text-white font-bold text-sm">
+        <img src="/alien.svg" alt="" class="w-5 h-5"> Alien AI
+      </a>
+      <a href="/" class="text-xs text-slate-400 hover:text-white">Home</a>
+    </div>
+  </header>
+  <main class="max-w-3xl mx-auto px-4 py-10">
+    <h1 class="text-3xl font-bold text-white mb-2">Chrome extension (daily profile)</h1>
+    <p class="text-slate-400 text-sm mb-10 leading-relaxed">
+      Remote your <strong class="text-slate-200">default Chrome</strong> with saved logins — for sites that block automated browsers.
+      Requires Windows desktop Chrome and the Alien AI app to pair.
+    </p>
+
+    <section class="mb-10 p-6 rounded-2xl border border-white/10 bg-dark-card/60">
+      <h2 class="text-lg font-semibold text-white mb-3">1. Native host + browser agent</h2>
+      <p class="text-sm text-slate-400 mb-4">
+        Install <code class="text-brand-500">alienai_remote_browser</code> and register the native messaging host
+        <code class="text-slate-300">com.alienai.c35.remote</code> (included in the extension zip when published).
+      </p>
+      <a href="/download/agent.exe" class="inline-flex px-4 py-2.5 rounded-xl bg-emerald-500/20 border border-emerald-400/30 text-white text-sm font-semibold hover:bg-emerald-500/30">
+        Download Windows remote agent
+      </a>
+      <p class="text-xs text-slate-500 mt-3">Or use the remote-browser OTA bundle when chrome-extension zip is published.</p>
+    </section>
+
+    <section class="mb-10 p-6 rounded-2xl border border-white/10 bg-dark-card/60">
+      <h2 class="text-lg font-semibold text-white mb-3">2. Load the extension</h2>
+      <ol class="text-sm text-slate-300 space-y-2 list-decimal list-inside">
+        <li>Download <a href="/download/chrome-extension.zip" class="text-brand-500 hover:underline">chrome-extension.zip</a> (when available).</li>
+        <li>Unzip to a folder, e.g. <code class="text-slate-400">%LOCALAPPDATA%\AlienAI\chrome_extension\</code>.</li>
+        <li>Open <code class="text-slate-400">chrome://extensions</code> → Developer mode → <strong>Load unpacked</strong> → select the folder with <code class="text-slate-400">manifest.json</code>.</li>
+      </ol>
+    </section>
+
+    <section class="mb-10 p-6 rounded-2xl border border-white/10 bg-dark-card/60">
+      <h2 class="text-lg font-semibold text-white mb-3">3. Pair with Alien AI</h2>
+      <p class="text-sm text-slate-400 mb-4">
+        Click <strong class="text-white">Pair device</strong> in the extension popup. A tab opens with your code — or open
+        <a href="/device/pair/chrome-extension" class="text-brand-500 hover:underline">the pair page</a> after the host starts pairing.
+      </p>
+      <p class="text-sm text-slate-400">In the app: <strong class="text-white">Devices → Pair with code</strong>.</p>
+    </section>
+
+    <section class="p-6 rounded-2xl border border-white/10 bg-dark-card/40">
+      <h2 class="text-lg font-semibold text-white mb-3">Troubleshooting</h2>
+      <ul class="text-sm text-slate-400 space-y-2 list-disc list-inside">
+        <li><strong class="text-slate-300">Native host not reachable</strong> — reinstall host manifest for your user; path must point to <code class="text-slate-500">alienai_remote_browser.exe</code>.</li>
+        <li><strong class="text-slate-300">No video in app</strong> — ensure a WebRTC Remote session is open; capture runs only while viewing.</li>
+        <li><strong class="text-slate-300">Policy installs</strong> — use <a href="/chrome-extension/updates.xml" class="text-brand-500 hover:underline">updates.xml</a> + packed <code class="text-slate-500">.crx</code> after publish.</li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>

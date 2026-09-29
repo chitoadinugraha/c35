@@ -205,6 +205,7 @@ class _PageDevicesState extends State<PageDevices> {
                                       name: id.name.isNotEmpty ? id.name : id.type,
                                       kind: id.kind,
                                       type: id.type,
+                                      browserEngine: deviceBrowserEngineFromMeta(id.metaJson),
                                       pinned: row.isPinned,
                                       clusterOnline: deviceClusterOnline(id.metaJson, remoteSessionActive: session.connected.value),
                                       webrtcConnected: session.connected.value,

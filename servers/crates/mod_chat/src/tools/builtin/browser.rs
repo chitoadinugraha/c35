@@ -1,8 +1,11 @@
 use crate::mention_context::device_iid_resolve;
 use crate::tool;
 use crate::tools::context::ToolContext;
+use crate::tools::device_screenshot_artifact::device_screenshot_attach_artifact;
 use base64::Engine as _;
-use c35_mod_device::{remote_device_browser_invoke, remote_device_task_run_enqueue};
+use c35_mod_device::{
+    device_browser_engine, remote_device_browser_invoke, remote_device_task_run_enqueue,
+};
 use c35_mod_file::{cas_bytes_get, cas_dir_default};
 use serde_json::{json, Value};
 
@@ -100,6 +103,14 @@ tool! {
             Ok(iid) => iid,
             Err(v) => return Ok(v),
         };
+        if matches!(
+            device_browser_engine(&ctx.pool, device_iid).await,
+            Ok(ref engine) if engine.eq_ignore_ascii_case("extension")
+        ) {
+            return Ok(browser_fail(
+                "browser.task.run is not available on Chrome extension devices (Playwright only). Use the Remote tab for view and control.",
+            ));
+        }
         let slot_raw = arg_str(&args, "slot_id");
         let slot_id = if slot_raw.is_empty() { "default".to_string() } else { slot_raw };
         let steps = args.get("steps").cloned().unwrap_or(json!([]));
@@ -162,6 +173,88 @@ tool! {
             params["max_chars"] = json!(max_chars);
         }
         Ok(browser_invoke(&args, ctx, "page.observe", params, 90).await)
+    }
+}
+
+tool! {
+    struct: BrowserPageScreenshotTool,
+    name: "browser.page.screenshot",
+    aliases: ["browser_page_screenshot", "remote_browser_screenshot"],
+    description: "Capture a JPEG screenshot of the active Remote browser tab (Playwright engine). Returns CAS artifact for vision/debug (e.g. Cloudflare Turnstile state).",
+    topics: ["device", "browser"],
+    always: ["device", "browser"],
+    rag_phrases: ["browser screenshot", "capture browser tab", "see browser page", "cloudflare check browser"],
+    ui_calling_key: "tool.browser.page.screenshot.calling",
+    ui_done_key: "tool.browser.page.screenshot.done",
+    readonly: true,
+    parameters: {
+        device_iid: (integer, "Target remote browser device identity ID", required),
+        tab_id: (string, "Optional tab id (active tab if omitted)", optional),
+        quality: (integer, "JPEG quality 40-95 (default 80)", optional),
+    },
+    execute: |args, ctx| {
+        let device_iid = match resolve_device_iid(&args, ctx) {
+            Ok(iid) => iid,
+            Err(v) => return Ok(v),
+        };
+        if matches!(
+            device_browser_engine(&ctx.pool, device_iid).await,
+            Ok(ref engine) if engine.eq_ignore_ascii_case("extension")
+        ) {
+            return Ok(browser_fail(
+                "browser.page.screenshot is Playwright-only; use browser.page.observe or the Remote tab on extension devices.",
+            ));
+        }
+        let mut params = json!({});
+        let tab_id = arg_str(&args, "tab_id");
+        if !tab_id.is_empty() {
+            params["tab_id"] = json!(tab_id);
+        }
+        let quality = arg_i64(&args, "quality");
+        if quality > 0 {
+            params["quality"] = json!(quality);
+        }
+        let mut out = browser_invoke(&args, ctx, "page.screenshot", params, 90).await;
+        if out.get("ok").and_then(|x| x.as_bool()) != Some(true) {
+            return Ok(out);
+        }
+        let shot = out.get("screenshot").cloned().unwrap_or(Value::Null);
+        let jpeg_b64 = shot.get("jpeg_b64").and_then(|x| x.as_str()).unwrap_or("");
+        let width = shot.get("width").and_then(|x| x.as_u64()).unwrap_or(0) as u32;
+        let height = shot.get("height").and_then(|x| x.as_u64()).unwrap_or(0) as u32;
+        if !jpeg_b64.is_empty() {
+            if let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(jpeg_b64) {
+                device_screenshot_attach_artifact(
+                    &ctx,
+                    "browser.page.screenshot",
+                    device_iid,
+                    &bytes,
+                    width,
+                    height,
+                    false,
+                    false,
+                    0,
+                    &mut out,
+                )
+                .await;
+                if let Some(obj) = out.as_object_mut() {
+                    if let Some(sc) = obj.get_mut("screenshot").and_then(|v| v.as_object_mut()) {
+                        sc.remove("jpeg_b64");
+                    }
+                    obj.insert("width".into(), json!(width));
+                    obj.insert("height".into(), json!(height));
+                    obj.insert(
+                        "hint".into(),
+                        json!(format!(
+                            "Captured {}x{} browser tab screenshot (artifact attached).",
+                            width,
+                            height
+                        )),
+                    );
+                }
+            }
+        }
+        Ok(out)
     }
 }
 

@@ -8,17 +8,27 @@ import '../deploy_lib.dart';
 final _versionRegex = RegExp(r'^(\d+\.\d+\.\d+)\+(\d+)$');
 
 /// Windows desktop remote agent (`/version/remote-windows`, agent.exe).
-enum RemoteAgentProduct { windows, browser }
+enum RemoteAgentProduct { windows, browser, chromeExtension }
 
 String remotesDir(String root) => p.join(root, 'remotes');
+
+String chromeExtensionDir(String root) => p.join(root, 'clients', 'chrome_extension');
 
 String agentVersionFileName(RemoteAgentProduct product) => switch (product) {
       RemoteAgentProduct.windows => 'VERSION.windows',
       RemoteAgentProduct.browser => 'VERSION.browser',
+      RemoteAgentProduct.chromeExtension => 'VERSION',
     };
 
 String versionFilePath(String root, [RemoteAgentProduct product = RemoteAgentProduct.windows]) =>
-    p.join(remotesDir(root), agentVersionFileName(product));
+    switch (product) {
+      RemoteAgentProduct.chromeExtension => p.join(chromeExtensionDir(root), 'VERSION'),
+      _ => p.join(remotesDir(root), agentVersionFileName(product)),
+    };
+
+const chromeExtensionConfigKey = 'app.release.c35.chrome-extension';
+
+String chromeExtensionZipFileName(int version) => 'alienai_chrome_extension-$version.zip';
 
 (int build, String name) agentVersionRead(String root, [RemoteAgentProduct product = RemoteAgentProduct.windows]) {
   final path = versionFilePath(root, product);
@@ -72,6 +82,10 @@ void agentVersionBump(String root, [RemoteAgentProduct product = RemoteAgentProd
   final patch = parts.length > 2 ? parts[2] : '0';
   final nextName = '$major.$next.$patch';
   agentVersionWrite(root, nextName, next, product);
-  final label = product == RemoteAgentProduct.browser ? 'remote-browser' : 'remote-windows';
+  final label = switch (product) {
+    RemoteAgentProduct.browser => 'remote-browser',
+    RemoteAgentProduct.chromeExtension => 'chrome-extension',
+    RemoteAgentProduct.windows => 'remote-windows',
+  };
   stdout.writeln('✓ $label version bumped to $nextName+$next');
 }

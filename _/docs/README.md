@@ -32,6 +32,7 @@ When code and docs disagree, fix the code to match these docs (or explicitly rev
 | [skill.md](skill.md) | Skill scope, catalog, automation |
 | [remote.md](remote.md) | Remote device: agent control session + WebRTC data plane (files, screen, media) |
 | [browser-remote.md](browser-remote.md) | Remote browser (`type=browser`) — Rust agent + Playwright sidecar, WebRTC stream; plans: [phase 1](plans/2026-09-29-remote-browser-multitask.md), [phase 2](plans/2026-09-29-remote-browser-phase2-multitask.md) |
+| [browser-extension.md](browser-extension.md) | Chrome extension remote (daily profile) — native host `com.alienai.c35.remote`, plan: [chrome-extension multitask](plans/2026-09-29-chrome-extension-remote-multitask.md) |
 | [inst.md](inst.md) | Instruction macros (`ai.inst`) — phrase steering + tool include/exclude |
 | [image.md](image.md) | Image gen/edit tiers, `@image-high`, billing |
 | [hint.md](hint.md) | Home hint chips — precompiled catalog, site shortcuts, SessionInit cache |

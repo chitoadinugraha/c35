@@ -11,6 +11,7 @@
 #   (if Play OK but CAS failed) dart run deploy_app/play_store_upload_promote_prod.dart --finish-cas-only <N>
 #   .\_\scripts\deploy\publish_app_release.ps1 -RemoteAgent
 #   .\_\scripts\deploy\publish_app_release.ps1 -RemoteBrowser
+#   .\_\scripts\deploy\publish_app_release.ps1 -ChromeExtension
 #   .\_\scripts\deploy\publish_app_release.ps1 -MintToken
 #
 # Env: repo-root .env.local (YB_PASSWORD, DEPLOY_AUTH_TOKEN, Play JSON path, S3_*).
@@ -25,6 +26,7 @@ param(
     [int]$PromoteOnly = 0,
     [switch]$RemoteAgent,
     [switch]$RemoteBrowser,
+    [switch]$ChromeExtension,
     [switch]$MintToken,
     [switch]$SkipDartGet
 )
@@ -85,6 +87,7 @@ function Resolve-AppPublishPerfTarget {
     if ($AndroidOnly) { return 'android-release' }
     if ($RemoteAgent) { return 'remote-windows-agent' }
     if ($RemoteBrowser) { return 'remote-browser' }
+    if ($ChromeExtension) { return 'chrome-extension' }
     return 'app-release'
 }
 
@@ -129,6 +132,15 @@ try {
         Remove-Item Env:C35_SERVER_URL -ErrorAction SilentlyContinue
         $env:C35_SERVER = 'https://alienai.id'
         Invoke-DeployDart @('run', 'deploy_remote/remote_browser_upload_prod.dart')
+        return
+    }
+
+    if ($ChromeExtension) {
+        Write-Host '==> chrome extension OTA (CAS + ai.config)'
+        Remove-Item Env:C35_SERVER -ErrorAction SilentlyContinue
+        Remove-Item Env:C35_SERVER_URL -ErrorAction SilentlyContinue
+        $env:C35_SERVER = 'https://alienai.id'
+        Invoke-DeployDart @('run', 'deploy_remote/chrome_extension_upload_prod.dart')
         return
     }
 

@@ -290,7 +290,7 @@ Toolbar menu: **Pan (view only)** · **Mouse** · **Trackpad**. Implementation: 
 Parity target: **Microsoft Remote Desktop mobile trackpad** — visible remote cursor, not VirtualBox absolute trackpad.
 
 - **Surface:** the full remote video area; no separate trackpad strip.
-- **Devices:** **touch** on mobile/tablet; on **Windows**, **mouse** works too (hover does not move the remote pointer). While dragging with the mouse, the **local** cursor is hidden and clamped in place until release. Mouse wheel scrolls at the virtual pointer; double-click uses the same timing as touch double-tap.
+- **Devices:** **touch** on mobile/tablet; on **Windows**, **mouse** works too (hover does not move the remote pointer). While dragging with the mouse, the **local** cursor is hidden until release (movement uses pointer deltas only — no OS cursor warp). Mouse wheel scrolls at the virtual pointer; double-click uses the same timing as touch double-tap.
 - **Local canvas cursor:** always basic arrow. **Overlay** reflects agent `remoteCursorShape` (I-beam, hand, resize, …).
 - **Virtual pointer** moves only while **one finger is down and dragging** (relative deltas). Hover / finger in the air does nothing.
 - **Gestures** (at virtual pointer position):

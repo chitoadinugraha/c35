@@ -258,6 +258,28 @@ pub fn web_router() -> Router<AppState> {
         .route("/tts.html", get(|| page_get("tts.html")))
         .route("/status", get(|| page_get("status.html")))
         .route("/status.html", get(|| page_get("status.html")))
+        .route("/search", get(|| page_get("search.html")))
+        .route("/search.html", get(|| page_get("search.html")))
+        .route(
+            "/device/pair/chrome-extension",
+            get(|| page_get("device-pair-chrome-extension.html")),
+        )
+        .route(
+            "/device/pair/chrome-extension.html",
+            get(|| page_get("device-pair-chrome-extension.html")),
+        )
+        .route(
+            "/download/chrome-extension",
+            get(|| page_get("download-chrome-extension.html")),
+        )
+        .route(
+            "/download/chrome-extension.html",
+            get(|| page_get("download-chrome-extension.html")),
+        )
+        .route(
+            "/chrome-extension/updates.xml",
+            get(|| page_get("chrome-extension-updates.xml")),
+        )
         .route("/alien.svg", get(|| page_get("alien.svg")))
         .route("/favicon.ico", get(|| page_get("favicon.ico")))
         .route("/favicon-32x32.png", get(|| page_get("favicon-32x32.png")))
@@ -296,6 +318,19 @@ mod tests {
         assert!(dir.join("delete.html").is_file(), "delete.html must exist");
         assert!(dir.join("tts.html").is_file(), "tts.html must exist");
         assert!(dir.join("status.html").is_file(), "status.html must exist");
+        assert!(dir.join("search.html").is_file(), "search.html must exist");
+        assert!(
+            dir.join("device-pair-chrome-extension.html").is_file(),
+            "device-pair-chrome-extension.html must exist"
+        );
+        assert!(
+            dir.join("download-chrome-extension.html").is_file(),
+            "download-chrome-extension.html must exist"
+        );
+        assert!(
+            dir.join("chrome-extension-updates.xml").is_file(),
+            "chrome-extension-updates.xml must exist"
+        );
         assert!(dir.join("alien.svg").is_file(), "alien.svg must exist");
         assert!(dir.join("favicon.ico").is_file(), "favicon.ico must exist");
         assert!(dir.join("favicon-32x32.png").is_file(), "favicon-32x32.png must exist");
