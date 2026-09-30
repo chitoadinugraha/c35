@@ -667,6 +667,73 @@ async fn dispatch(
                 c35_mod_skill::skill_list_rpc(&state.pool, ctx.caller_iid, r).await,
             )),
         },
+        Some(ws_req::Body::TaskList(r)) => WsRes {
+            req_id,
+            body: Some(ws_res::Body::TaskList(
+                c35_mod_task::task_list_rpc(&state.pool, ctx.caller_iid, r).await,
+            )),
+        },
+        Some(ws_req::Body::TaskPut(r)) => match c35_mod_task::task_put_rpc(&state.pool, ctx.caller_iid, r).await {
+            Ok(res) => WsRes {
+                req_id,
+                body: Some(ws_res::Body::TaskPut(res)),
+            },
+            Err(e) => err_res(req_id, WireErr::client("task_put_failed", e)),
+        },
+        Some(ws_req::Body::TaskRunStart(r)) => {
+            match c35_mod_task::task_run_start_rpc(
+                &state.pool,
+                state.nats.as_ref(),
+                ctx.caller_iid,
+                r,
+            )
+            .await
+            {
+                Ok(res) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::TaskRunStart(res)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("task_run_start_failed", e)),
+            }
+        }
+        Some(ws_req::Body::TaskRunCancel(r)) => {
+            match c35_mod_task::task_run_cancel_rpc(
+                &state.pool,
+                state.nats.as_ref(),
+                ctx.caller_iid,
+                r,
+            )
+            .await
+            {
+                Ok(res) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::TaskRunCancel(res)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("task_run_cancel_failed", e)),
+            }
+        }
+        Some(ws_req::Body::TaskRunCancelDevice(r)) => {
+            match c35_mod_task::task_run_cancel_device_rpc(
+                &state.pool,
+                state.nats.as_ref(),
+                ctx.caller_iid,
+                r,
+            )
+            .await
+            {
+                Ok(res) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::TaskRunCancelDevice(res)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("task_run_cancel_device_failed", e)),
+            }
+        }
+        Some(ws_req::Body::TaskRunList(r)) => WsRes {
+            req_id,
+            body: Some(ws_res::Body::TaskRunList(
+                c35_mod_task::task_run_list_rpc(&state.pool, ctx.caller_iid, r).await,
+            )),
+        },
         Some(ws_req::Body::SkillPut(r)) => match c35_mod_skill::skill_put_rpc(&state.pool, ctx.caller_iid, r).await {
             Ok(res) => WsRes {
                 req_id,

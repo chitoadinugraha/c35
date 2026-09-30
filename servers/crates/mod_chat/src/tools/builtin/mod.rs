@@ -1,3 +1,4 @@
+mod bot_inbox;
 mod browser;
 mod consumption;
 mod expense;
@@ -12,14 +13,17 @@ mod site_query;
 mod site_tx;
 mod drive;
 mod gsheet;
+mod task;
 mod web_research;
 mod web_search;
 mod web_visit;
 
+pub use bot_inbox::BotInboxQueryTool;
 pub use browser::{
     BrowserFileUploadTool, BrowserPageActTool, BrowserPageExtractTool, BrowserPageObserveTool,
-    BrowserPageScreenshotTool,     BrowserSheetsAppendRowTool, BrowserExtensionTool, BrowserSheetsCellSetTool,
-    BrowserSheetsRangeReadTool, BrowserSheetsRowReadTool, BrowserTabsTool,
+    BrowserPageScreenshotTool,     BrowserSheetsAppendRowTool, BrowserAgentRestartTool, BrowserExtensionTool,
+    BrowserSheetsCellSetTool,
+    BrowserSheetsRowSetTool, BrowserSheetsRangeReadTool, BrowserTabsTool,
     BrowserTaskRunTool,
 };
 pub use consumption::{ConsumptionAddTool, ConsumptionDeleteTool, ConsumptionTodayTool, ConsumptionUpdateTool};
@@ -46,6 +50,9 @@ pub use site::{
 pub use site_query::SiteQueryRunTool;
 pub use site_tx::{
     SiteOrderStatusTool, SiteTxDebtPayTool, SiteTxListTool, SiteTxPreviewTool, SiteTxPutTool,
+};
+pub use task::{
+    TaskRunCancelDeviceTool, TaskRunCancelTool, TaskRunStartTool, TaskRunStatusTool,
 };
 pub use drive::{DriveListTool, DriveReadTool};
 pub use gsheet::{GsheetAppendTool, GsheetReadTool, GsheetUpdateTool};

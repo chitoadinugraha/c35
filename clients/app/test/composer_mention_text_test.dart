@@ -53,6 +53,20 @@ void main() {
     expect(out, 'berapa ping ${composerMentionToken(deviceId)} ke google ?');
   });
 
+  test('msgUserContentForDisplay strips bracket shell around chip token', () {
+    const deviceId = 'iid:98348080882880512';
+    final token = composerMentionToken(deviceId);
+    final out = msgUserContentForDisplay(
+      content: 'apa saja tab terbuka [@ $token ]',
+      mentionIdsJson: msgMentionIdsEncode([deviceId]),
+      mentions: const [],
+    );
+    expect(out, isNot(contains('[@')));
+    expect(out, isNot(contains(' ]')));
+    expect(out, contains(token));
+    expect(out.trim(), 'apa saja tab terbuka $token');
+  });
+
   test('msgUserContentForDisplay drops bracket when chip token already present', () {
     const deviceId = 'iid:42';
     final token = composerMentionToken(deviceId);

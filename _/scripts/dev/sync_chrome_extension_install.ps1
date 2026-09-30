@@ -24,7 +24,7 @@ if (Test-Path (Join-Path $extSrc 'icons')) {
 
 $configPath = Join-Path $extDst 'config.json'
 $serverUrl = $env:C35_SERVER_URL
-if (-not $serverUrl) { $serverUrl = 'http://127.0.0.1:8080' }
+if (-not $serverUrl) { $serverUrl = 'https://alienai.id' }
 @{ server_url = $serverUrl } | ConvertTo-Json | Set-Content -Path $configPath -Encoding utf8
 
 Write-Host "==> synced extension -> $extDst"

@@ -11,6 +11,8 @@ import {
   sheetsCellRead,
   sheetsCellSet,
   sheetsRangeRead,
+  sheetsRangeSet,
+  sheetsRowSet,
   sheetsRowRead,
 } from "./input_cdp.js";
 import { resolveTabId } from "./automation.js";
@@ -428,6 +430,18 @@ const extensionRpcHandle = async (req) => {
         const tabId = await resolveTabId(req.params || {});
         const tab = await chrome.tabs.get(tabId);
         result = await sheetsCellSet(tabId, tab, req.params || {});
+        break;
+      }
+      case "sheets.range_set": {
+        const tabId = await resolveTabId(req.params || {});
+        const tab = await chrome.tabs.get(tabId);
+        result = await sheetsRangeSet(tabId, tab, req.params || {});
+        break;
+      }
+      case "sheets.row_set": {
+        const tabId = await resolveTabId(req.params || {});
+        const tab = await chrome.tabs.get(tabId);
+        result = await sheetsRowSet(tabId, tab, req.params || {});
         break;
       }
       case "sheets.cell_read": {

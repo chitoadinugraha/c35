@@ -2311,6 +2311,15 @@ const WsReq$json = {
       '9': 0,
       '10': 'reqRemoteBrowserInvoke'
     },
+    {
+      '1': 'task_run_cancel_device',
+      '3': 171,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqTaskRunCancelDevice',
+      '9': 0,
+      '10': 'taskRunCancelDevice'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -2450,8 +2459,9 @@ final $typed_data.Uint8List wsReqDescriptor = $convert.base64Decode(
     'ASABKAsyFS5jMzUuUmVxQm90UGVlckRlbGV0ZUgAUg1ib3RQZWVyRGVsZXRlEk0KFXJlcV9yZW'
     '1vdGVfYWdlbnRfcHVzaBipASABKAsyFy5jMzUuUmVxUmVtb3RlQWdlbnRQdXNoSABSEnJlcVJl'
     'bW90ZUFnZW50UHVzaBJZChlyZXFfcmVtb3RlX2Jyb3dzZXJfaW52b2tlGKoBIAEoCzIbLmMzNS'
-    '5SZXFSZW1vdGVCcm93c2VySW52b2tlSABSFnJlcVJlbW90ZUJyb3dzZXJJbnZva2VCBgoEYm9k'
-    'eQ==');
+    '5SZXFSZW1vdGVCcm93c2VySW52b2tlSABSFnJlcVJlbW90ZUJyb3dzZXJJbnZva2USUwoWdGFz'
+    'a19ydW5fY2FuY2VsX2RldmljZRirASABKAsyGy5jMzUuUmVxVGFza1J1bkNhbmNlbERldmljZU'
+    'gAUhN0YXNrUnVuQ2FuY2VsRGV2aWNlQgYKBGJvZHk=');
 
 @$core.Deprecated('Use wsResDescriptor instead')
 const WsRes$json = {
@@ -3539,6 +3549,15 @@ const WsRes$json = {
       '9': 0,
       '10': 'resRemoteBrowserInvoke'
     },
+    {
+      '1': 'task_run_cancel_device',
+      '3': 171,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResTaskRunCancelDevice',
+      '9': 0,
+      '10': 'taskRunCancelDevice'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -3689,4 +3708,5 @@ final $typed_data.Uint8List wsResDescriptor = $convert.base64Decode(
     'JvdFBlZXJEZWxldGUSTQoVcmVzX3JlbW90ZV9hZ2VudF9wdXNoGKkBIAEoCzIXLmMzNS5SZXNS'
     'ZW1vdGVBZ2VudFB1c2hIAFIScmVzUmVtb3RlQWdlbnRQdXNoElkKGXJlc19yZW1vdGVfYnJvd3'
     'Nlcl9pbnZva2UYqgEgASgLMhsuYzM1LlJlc1JlbW90ZUJyb3dzZXJJbnZva2VIAFIWcmVzUmVt'
-    'b3RlQnJvd3Nlckludm9rZUIGCgRib2R5');
+    'b3RlQnJvd3Nlckludm9rZRJTChZ0YXNrX3J1bl9jYW5jZWxfZGV2aWNlGKsBIAEoCzIbLmMzNS'
+    '5SZXNUYXNrUnVuQ2FuY2VsRGV2aWNlSABSE3Rhc2tSdW5DYW5jZWxEZXZpY2VCBgoEYm9keQ==');

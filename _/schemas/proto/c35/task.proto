@@ -74,6 +74,11 @@ message TaskRun {
   int64 created_ts_ms = 20;
   int64 updated_ts_ms = 21;
   int64 deleted_ts_ms = 22;
+  string meta_json = 23;
+  int32 tokens_in = 24;
+  int32 tokens_out = 25;
+  double cost_usd = 26;
+  int64 duration_ms = 27;
 }
 
 // ---------------------------------------------------------------------------
@@ -119,10 +124,21 @@ message ResTaskRunCancel {
   TaskRun run = 1;
 }
 
+// Cancel every queued/leased/running task_run for a device (Stop all).
+message ReqTaskRunCancelDevice {
+  int64 device_iid = 1;
+}
+
+message ResTaskRunCancelDevice {
+  int32 cancelled_count = 1;
+  repeated TaskRun runs = 2;
+}
+
 message ReqTaskRunList {
   int64 device_iid = 1;
   int64 since_ms = 2;
   int32 limit = 3;
+  int64 task_id = 4;
 }
 
 message ResTaskRunList {

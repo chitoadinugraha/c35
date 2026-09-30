@@ -87,6 +87,30 @@ String composerMentionPlainText(String text) =>
 
 String composerMentionInlineIidTokenize(String text) => text.replaceAllMapped(_composerMentionPlainIidRe, (m) => composerMentionToken(m.group(0)!));
 
+/// `[@` … chip token … `]` — bracket shell left when @ picker inserts a token after typed `[@`.
+final RegExp _composerMentionBracketAroundTokenRe = RegExp(r'\[@\s*(\uFFFC[^\uFFFD]+\uFFFD)\s*\]');
+final RegExp _composerMentionBracketOpenBeforeTokenRe = RegExp(r'\[@\s*(\uFFFC[^\uFFFD]+\uFFFD)');
+final RegExp _composerMentionBracketCloseAfterTokenRe = RegExp(r'(\uFFFC[^\uFFFD]+\uFFFD)\s+\]');
+
+String composerMentionStripBracketShellAroundTokens(String text) {
+  var out = text;
+  for (var i = 0; i < 8; i++) {
+    final next = out.replaceAllMapped(_composerMentionBracketAroundTokenRe, (m) => m.group(1)!);
+    if (next == out) break;
+    out = next;
+  }
+  out = out.replaceAllMapped(_composerMentionBracketOpenBeforeTokenRe, (m) => m.group(1)!);
+  out = out.replaceAllMapped(_composerMentionBracketCloseAfterTokenRe, (m) => m.group(1)!);
+  return out;
+}
+
+String composerMentionDisplayFinalize(String text, List<CatalogMention> mentions) {
+  var out = composerMentionStripBracketShellAroundTokens(text);
+  out = composerMentionStripOrphanBrackets(out);
+  out = composerMentionStripDuplicateLabelsAfterTokens(out, mentions);
+  return out;
+}
+
 /// Remove literal `[@kind:…]` when that id is already a chip token (avoids badge + bracket text).
 String composerMentionStripOrphanBrackets(String text) {
   final idsInTokens = composerMentionIdsParse(text).toSet();
@@ -129,7 +153,7 @@ String composerMentionDisplayRestore(String plain, List<CatalogMention> mentions
   final iidLead = RegExp(r'^(iid:\d+)(?=\s|$)', caseSensitive: false);
   final iidMatch = iidLead.firstMatch(rest);
   if (iidMatch != null) {
-    return composerMentionToken(iidMatch.group(1)!) + rest.substring(iidMatch.end);
+    return composerMentionDisplayFinalize(composerMentionToken(iidMatch.group(1)!) + rest.substring(iidMatch.end), mentions);
   }
   final tryIds = mentionIds ?? composerMentionIdsCollect(plain);
   for (final id in tryIds) {
@@ -138,18 +162,16 @@ String composerMentionDisplayRestore(String plain, List<CatalogMention> mentions
     final label = m.displayLabel.trim();
     if (label.isEmpty) continue;
     if (!rest.toLowerCase().startsWith(label.toLowerCase())) continue;
-    return composerMentionToken(id) + rest.substring(label.length);
+    return composerMentionDisplayFinalize(composerMentionToken(id) + rest.substring(label.length), mentions);
   }
   for (final m in mentions) {
     if (!m.isDevice) continue;
     final label = m.displayLabel.trim();
     if (label.isEmpty) continue;
     if (!rest.toLowerCase().startsWith(label.toLowerCase())) continue;
-    return composerMentionToken(m.id) + rest.substring(label.length);
+    return composerMentionDisplayFinalize(composerMentionToken(m.id) + rest.substring(label.length), mentions);
   }
-  out = composerMentionStripOrphanBrackets(out);
-  out = composerMentionStripDuplicateLabelsAfterTokens(out, mentions);
-  return out;
+  return composerMentionDisplayFinalize(out, mentions);
 }
 
 /// Plain text safe for [Text] when mention chips cannot render (empty catalog, reload).
@@ -286,7 +308,7 @@ String msgUserContentForDisplay({
   if (!composerMentionTextHasTokens(out) && ids.isNotEmpty) {
     out = composerMentionDisplayRestore(out, mentions, mentionIds: ids);
   }
-  return out;
+  return composerMentionDisplayFinalize(out, mentions);
 }
 
 CatalogMention? composerMentionLookup(List<CatalogMention> mentions, String id) {

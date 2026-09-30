@@ -24,6 +24,43 @@ fn tab_id_in(params: &Value, ipc: &mut Value) {
     }
 }
 
+fn page_act_ipc(params: &Value, action: &str, needs_selector: bool) -> anyhow::Result<Value> {
+    let mut ipc = json!({ "action": action });
+    if needs_selector {
+        let selector = params
+            .get("selector")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| anyhow::anyhow!("selector required"))?;
+        ipc["selector"] = json!(selector);
+    }
+    if let Some(text) = params.get("text").and_then(|v| v.as_str()) {
+        ipc["text"] = json!(text);
+    }
+    if let Some(url) = params.get("url").and_then(|v| v.as_str()) {
+        ipc["url"] = json!(url);
+    }
+    if action == "epus_pasien_search" || action == "epus_pasien_fetch" {
+        let search_by = params
+            .get("search_by")
+            .or_else(|| params.get("searchBy"))
+            .cloned()
+            .unwrap_or(json!("nama"));
+        ipc["search_by"] = search_by;
+        for key in ["wait_ms", "waitMs", "open_detail", "openDetail"] {
+            if let Some(v) = params.get(key) {
+                ipc[key] = v.clone();
+            }
+        }
+    }
+    for key in ["focus", "activate"] {
+        if let Some(v) = params.get(key) {
+            ipc[key] = v.clone();
+        }
+    }
+    tab_id_in(params, &mut ipc);
+    Ok(ipc)
+}
+
 pub async fn extension_page_method(method: &str, params: &Value) -> anyhow::Result<Value> {
     match method {
         "navigate" => {
@@ -100,19 +137,20 @@ pub async fn extension_page_method(method: &str, params: &Value) -> anyhow::Resu
                 .get("action")
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| anyhow::anyhow!("action required"))?;
-            let selector = params
-                .get("selector")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| anyhow::anyhow!("selector required"))?;
-            let mut ipc = json!({ "action": action, "selector": selector });
-            if let Some(text) = params.get("text").and_then(|v| v.as_str()) {
-                ipc["text"] = json!(text);
-            }
-            tab_id_in(params, &mut ipc);
+            let needs_selector = action != "list_inputs"
+                && action != "click_text"
+                && action != "goto"
+                && action != "epus_pasien_search"
+                && action != "epus_pasien_fetch";
+            let ipc = page_act_ipc(params, action, needs_selector)?;
             let result = rpc_call("page.act", ipc).await?;
             Ok(json!({ "ok": true, "result": result }))
         }
         "extension.version" | "extension.reload" => rpc_call(method, json!({})).await,
+        "agent.restart" => {
+            crate::extension_agent::restart_extension_agent()?;
+            Ok(json!({ "ok": true, "restarting": true }))
+        }
         other => anyhow::bail!("unknown browser method: {other}"),
     }
 }

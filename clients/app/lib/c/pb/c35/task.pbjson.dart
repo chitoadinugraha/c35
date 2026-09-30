@@ -165,6 +165,11 @@ const TaskRun$json = {
     {'1': 'created_ts_ms', '3': 20, '4': 1, '5': 3, '10': 'createdTsMs'},
     {'1': 'updated_ts_ms', '3': 21, '4': 1, '5': 3, '10': 'updatedTsMs'},
     {'1': 'deleted_ts_ms', '3': 22, '4': 1, '5': 3, '10': 'deletedTsMs'},
+    {'1': 'meta_json', '3': 23, '4': 1, '5': 9, '10': 'metaJson'},
+    {'1': 'tokens_in', '3': 24, '4': 1, '5': 5, '10': 'tokensIn'},
+    {'1': 'tokens_out', '3': 25, '4': 1, '5': 5, '10': 'tokensOut'},
+    {'1': 'cost_usd', '3': 26, '4': 1, '5': 1, '10': 'costUsd'},
+    {'1': 'duration_ms', '3': 27, '4': 1, '5': 3, '10': 'durationMs'},
   ],
 };
 
@@ -181,7 +186,10 @@ final $typed_data.Uint8List taskRunDescriptor = $convert.base64Decode(
     'EGxlYXNlRXhwaXJlc1RzTXMSIgoNc3RhcnRlZF90c19tcxgRIAEoA1ILc3RhcnRlZFRzTXMSJA'
     'oOZmluaXNoZWRfdHNfbXMYEiABKANSDGZpbmlzaGVkVHNNcxIiCg1jcmVhdGVkX3RzX21zGBQg'
     'ASgDUgtjcmVhdGVkVHNNcxIiCg11cGRhdGVkX3RzX21zGBUgASgDUgt1cGRhdGVkVHNNcxIiCg'
-    '1kZWxldGVkX3RzX21zGBYgASgDUgtkZWxldGVkVHNNcw==');
+    '1kZWxldGVkX3RzX21zGBYgASgDUgtkZWxldGVkVHNNcxIbCgltZXRhX2pzb24YFyABKAlSCG1l'
+    'dGFKc29uEhsKCXRva2Vuc19pbhgYIAEoBVIIdG9rZW5zSW4SHQoKdG9rZW5zX291dBgZIAEoBV'
+    'IJdG9rZW5zT3V0EhkKCGNvc3RfdXNkGBogASgBUgdjb3N0VXNkEh8KC2R1cmF0aW9uX21zGBsg'
+    'ASgDUgpkdXJhdGlvbk1z');
 
 @$core.Deprecated('Use reqTaskListDescriptor instead')
 const ReqTaskList$json = {
@@ -290,6 +298,35 @@ const ResTaskRunCancel$json = {
 final $typed_data.Uint8List resTaskRunCancelDescriptor = $convert.base64Decode(
     'ChBSZXNUYXNrUnVuQ2FuY2VsEh4KA3J1bhgBIAEoCzIMLmMzNS5UYXNrUnVuUgNydW4=');
 
+@$core.Deprecated('Use reqTaskRunCancelDeviceDescriptor instead')
+const ReqTaskRunCancelDevice$json = {
+  '1': 'ReqTaskRunCancelDevice',
+  '2': [
+    {'1': 'device_iid', '3': 1, '4': 1, '5': 3, '10': 'deviceIid'},
+  ],
+};
+
+/// Descriptor for `ReqTaskRunCancelDevice`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqTaskRunCancelDeviceDescriptor =
+    $convert.base64Decode(
+        'ChZSZXFUYXNrUnVuQ2FuY2VsRGV2aWNlEh0KCmRldmljZV9paWQYASABKANSCWRldmljZUlpZA'
+        '==');
+
+@$core.Deprecated('Use resTaskRunCancelDeviceDescriptor instead')
+const ResTaskRunCancelDevice$json = {
+  '1': 'ResTaskRunCancelDevice',
+  '2': [
+    {'1': 'cancelled_count', '3': 1, '4': 1, '5': 5, '10': 'cancelledCount'},
+    {'1': 'runs', '3': 2, '4': 3, '5': 11, '6': '.c35.TaskRun', '10': 'runs'},
+  ],
+};
+
+/// Descriptor for `ResTaskRunCancelDevice`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resTaskRunCancelDeviceDescriptor =
+    $convert.base64Decode(
+        'ChZSZXNUYXNrUnVuQ2FuY2VsRGV2aWNlEicKD2NhbmNlbGxlZF9jb3VudBgBIAEoBVIOY2FuY2'
+        'VsbGVkQ291bnQSIAoEcnVucxgCIAMoCzIMLmMzNS5UYXNrUnVuUgRydW5z');
+
 @$core.Deprecated('Use reqTaskRunListDescriptor instead')
 const ReqTaskRunList$json = {
   '1': 'ReqTaskRunList',
@@ -297,13 +334,15 @@ const ReqTaskRunList$json = {
     {'1': 'device_iid', '3': 1, '4': 1, '5': 3, '10': 'deviceIid'},
     {'1': 'since_ms', '3': 2, '4': 1, '5': 3, '10': 'sinceMs'},
     {'1': 'limit', '3': 3, '4': 1, '5': 5, '10': 'limit'},
+    {'1': 'task_id', '3': 4, '4': 1, '5': 3, '10': 'taskId'},
   ],
 };
 
 /// Descriptor for `ReqTaskRunList`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List reqTaskRunListDescriptor = $convert.base64Decode(
     'Cg5SZXFUYXNrUnVuTGlzdBIdCgpkZXZpY2VfaWlkGAEgASgDUglkZXZpY2VJaWQSGQoIc2luY2'
-    'VfbXMYAiABKANSB3NpbmNlTXMSFAoFbGltaXQYAyABKAVSBWxpbWl0');
+    'VfbXMYAiABKANSB3NpbmNlTXMSFAoFbGltaXQYAyABKAVSBWxpbWl0EhcKB3Rhc2tfaWQYBCAB'
+    'KANSBnRhc2tJZA==');
 
 @$core.Deprecated('Use resTaskRunListDescriptor instead')
 const ResTaskRunList$json = {

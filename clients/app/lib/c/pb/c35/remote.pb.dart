@@ -1805,6 +1805,7 @@ class RemoteInputEvent extends $pb.GeneratedMessage {
     $core.int? keyCode,
     $core.String? text,
     $core.int? deltaY,
+    $core.String? tabId,
   }) {
     final result = RemoteInputEvent._();
     if (eventType != null) result.eventType = eventType;
@@ -1814,6 +1815,7 @@ class RemoteInputEvent extends $pb.GeneratedMessage {
     if (keyCode != null) result.keyCode = keyCode;
     if (text != null) result.text = text;
     if (deltaY != null) result.deltaY = deltaY;
+    if (tabId != null) result.tabId = tabId;
     return result;
   }
 
@@ -1837,6 +1839,7 @@ class RemoteInputEvent extends $pb.GeneratedMessage {
     ..aI(5, _omitFieldNames ? '' : 'keyCode')
     ..aOS(6, _omitFieldNames ? '' : 'text')
     ..aI(7, _omitFieldNames ? '' : 'deltaY')
+    ..aOS(8, _omitFieldNames ? '' : 'tabId')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1923,6 +1926,15 @@ class RemoteInputEvent extends $pb.GeneratedMessage {
   $core.bool hasDeltaY() => $_has(6);
   @$pb.TagNumber(7)
   void clearDeltaY() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.String get tabId => $_getSZ(7);
+  @$pb.TagNumber(8)
+  set tabId($core.String value) => $_setString(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasTabId() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearTabId() => $_clearField(8);
 }
 
 /// Agent → viewer on `remote-input` (viewer sends RemoteInputEvent only).

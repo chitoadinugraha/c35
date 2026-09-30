@@ -44,6 +44,10 @@ async fn invoke_method(method: &str, params: Value) -> anyhow::Result<Value> {
         if method.starts_with("sheets.") {
             return crate::extension_sheets::extension_sheets_method(method, &params).await;
         }
+        if method == "agent.restart" {
+            crate::extension_agent::restart_extension_agent()?;
+            return Ok(json!({ "ok": true, "restarting": true }));
+        }
         if method.starts_with("extension.") {
             return crate::extension_page::extension_page_method(method, &params).await;
         }

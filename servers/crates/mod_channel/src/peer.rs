@@ -1,6 +1,8 @@
 use anyhow::Result;
+use c35_mod_chat::bot_inbox::bot_inbox_user_msg_record;
 use c35_mod_log::{log_put, LogPut};
 use c35_store::snowflake_id;
+use chrono::Utc;
 use sqlx::{PgPool, Row};
 
 use crate::policy::AUTO_BLOCK_OOS_THRESHOLD;
@@ -213,6 +215,7 @@ pub async fn chat_msg_external_put(
     .execute(&mut *tx)
     .await?;
     tx.commit().await?;
+    let _ = bot_inbox_user_msg_record(pool, chat_id, content, Utc::now()).await;
     Ok(msg_id)
 }
 

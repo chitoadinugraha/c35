@@ -93,8 +93,8 @@ const cdpMouseAt = async (tabId, nx, ny, button = "left", clicks = 1) => {
 };
 
 const KEY_DEFS = {
-  enter: { key: "Enter", code: "Enter", windowsVirtualKeyCode: 13 },
-  tab: { key: "Tab", code: "Tab", windowsVirtualKeyCode: 9 },
+  enter: { key: "Enter", code: "Enter", windowsVirtualKeyCode: 13, text: "\r", unmodifiedText: "\r" },
+  tab: { key: "Tab", code: "Tab", windowsVirtualKeyCode: 9, text: "\t", unmodifiedText: "\t" },
   escape: { key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 },
   backspace: { key: "Backspace", code: "Backspace", windowsVirtualKeyCode: 8 },
   delete: { key: "Delete", code: "Delete", windowsVirtualKeyCode: 46 },
@@ -124,8 +124,12 @@ const cdpKeyTap = async (tabId, def, mods = {}) => {
     windowsVirtualKeyCode: def.windowsVirtualKeyCode,
     nativeVirtualKeyCode: def.windowsVirtualKeyCode,
     modifiers,
+    ...(def.text ? { text: def.text, unmodifiedText: def.unmodifiedText || def.text } : {}),
   };
   await sendCdp(tabId, "Input.dispatchKeyEvent", { type: "keyDown", ...base });
+  if (def.text && !modifiers) {
+    await sendCdp(tabId, "Input.dispatchKeyEvent", { type: "char", ...base });
+  }
   await sendCdp(tabId, "Input.dispatchKeyEvent", { type: "keyUp", ...base });
 };
 
@@ -303,39 +307,6 @@ const readNameBoxRef = async (tabId) => {
   const raw = String(v || "").trim().toUpperCase();
   return raw.split(":")[0].replace(/\$/g, "");
 };
-
-const setNameBoxRefDom = async (tabId, ref) => {
-  const hit = await execFirstFrame(tabId, (cellRef) => {
-    const sels = [
-      "#docs-name-box input",
-      "input#t-name-box",
-      'input[aria-label="Name box"]',
-      'input[aria-label="Kotak nama"]',
-      "#t-name-box",
-    ];
-    let el = null;
-    for (const sel of sels) {
-      el = document.querySelector(sel);
-      if (el) break;
-    }
-    if (!el) return null;
-    el.focus();
-    if (el.tagName === "INPUT") {
-      el.select();
-      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
-      if (setter) setter.call(el, cellRef);
-      else el.value = cellRef;
-      el.dispatchEvent(new Event("input", { bubbles: true }));
-      el.dispatchEvent(new Event("change", { bubbles: true }));
-    } else {
-      el.textContent = cellRef;
-      el.dispatchEvent(new Event("input", { bubbles: true }));
-    }
-    return { ok: true };
-  }, [ref]);
-  return hit || { ok: false, error: "name box not found" };
-};
-
 const normalizeCellRef = (ref) => String(ref || "").trim().toUpperCase().split(":")[0].replace(/\$/g, "");
 
 /** Click the name box (DOM rect in any frame, else fixed toolbar guess). */
@@ -347,32 +318,187 @@ const focusNameBoxCdp = async (tabId) => {
 };
 
 const sheetsNameBoxGotoCdp = async (tabId, ref) => {
-  await focusNameBoxCdp(tabId);
-  await cdpShortcut(tabId, "ctrl+a");
+  await sheetsLeaveEdit(tabId);
   await delay(60);
+  await focusNameBoxCdp(tabId);
+  await delay(80);
+  await cdpShortcut(tabId, "ctrl+a");
+  await delay(50);
+  await cdpShortcut(tabId, "backspace");
+  await delay(40);
   await cdpInsertText(tabId, ref);
   await delay(80);
   await cdpShortcut(tabId, "enter");
-  await delay(450);
+  await delay(400);
   await sheetsLeaveEdit(tabId);
+  await delay(60);
 };
 
 const sheetsNameBoxGoto = async (tabId, ref) => {
-  let set = await setNameBoxRefDom(tabId, ref);
-  if (!set?.ok) {
-    await focusNameBoxCdp(tabId);
-    await delay(100);
-    set = await setNameBoxRefDom(tabId, ref);
-  }
-  if (set?.ok) {
-    await delay(80);
-    await cdpShortcut(tabId, "enter");
-    await delay(450);
-    await sheetsLeaveEdit(tabId);
-    return { via: "dom" };
-  }
   await sheetsNameBoxGotoCdp(tabId, ref);
   return { via: "cdp" };
+};
+
+const sheetsScrollColIntoView = async (tabId, colIdx) => {
+  if (colIdx <= colLetterToIndex("F")) return false;
+  return execFirstFrame(tabId, (idx) => {
+    const candidates = [...document.querySelectorAll("div")].filter(
+      (e) => e.scrollWidth > e.clientWidth + 24 && e.clientWidth > 280
+    );
+    const el = candidates.sort((a, b) => b.clientWidth - a.clientWidth)[0];
+    if (!el) return false;
+    el.scrollLeft = Math.max(0, (idx - 2) * 105);
+    return true;
+  }, [colIdx]);
+};
+
+const sheetsCsvGridCacheClear = (tabId) => {
+  for (const key of [...sheetsCsvGridCache.keys()]) {
+    if (key.startsWith(`${tabId}:`)) sheetsCsvGridCache.delete(key);
+  }
+};
+
+const sheetsCellValueFromExport = async (tabId, cellRef) => {
+  const ref = normalizeCellRef(cellRef);
+  const p = parseCellRef(ref);
+  const pack = await sheetsCsvGridGet(tabId);
+  const line = pack?.grid?.[p.row - 1] || [];
+  return String(line[colLetterToIndex(p.col)] ?? "").trim();
+};
+
+const sheetsFocusGrid = async (tabId) => {
+  await sheetsLeaveEdit(tabId);
+  await delay(60);
+  await cdpShortcut(tabId, "escape");
+  await delay(80);
+};
+
+const sheetsPasteClipboardText = async (tabId, text, opts = {}) => {
+  const clip = await execFirstFrame(tabId, async (t) => {
+    try {
+      await navigator.clipboard.writeText(String(t ?? ""));
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: String(e?.message || e) };
+    }
+  }, [text]);
+  if (!clip?.ok) return { ok: false, write_via: "clipboard_paste", error: clip?.error };
+  await sheetsFocusGrid(tabId);
+  await cdpShortcut(tabId, "ctrl+v");
+  await delay(opts.range ? 720 : 480);
+  if (!opts.range) {
+    await cdpShortcut(tabId, "enter");
+    await delay(220);
+  }
+  return { ok: true, write_via: "clipboard_paste" };
+};
+
+const sheetsValueMatchLoose = (expected, got) => {
+  const e = String(expected ?? "").trim();
+  const g = String(got ?? "").trim();
+  if (e === g) return true;
+  if (!e && !g) return true;
+  if (/^\d+$/.test(e) && /^\d+$/.test(g) && Number(e) === Number(g)) return true;
+  return false;
+};
+
+const sheetsExpectedValues = (params) => {
+  if (!Array.isArray(params.values)) return [];
+  const rows = params.values;
+  if (!rows.length) return [];
+  return rows.length && Array.isArray(rows[0]) ? rows[0].map((c) => String(c ?? "")) : rows.map((c) => String(c ?? ""));
+};
+
+const sheetsVerifyRowExport = async (tabId, row, startCol, expected) => {
+  const mismatches = [];
+  for (let i = 0; i < expected.length; i += 1) {
+    const exp = expected[i] ?? "";
+    if (!exp) continue;
+    const col = colIndexToLetter(colLetterToIndex(startCol) + i);
+    const cell = `${col}${row}`;
+    const got = await sheetsCellValueFromExport(tabId, cell);
+    if (!sheetsValueMatchLoose(exp, got)) mismatches.push({ cell, expected: exp, got });
+  }
+  return { ok: mismatches.length === 0, mismatches };
+};
+
+const sheetsNormKey = (s) => String(s ?? "").trim().replace(/\s+/g, " ").toUpperCase();
+
+const sheetsGoToCellVerified = async (tabId, tab, cellRef) => {
+  const want = normalizeCellRef(cellRef);
+  await sheetsGoToCell(tabId, tab, want);
+  await delay(140);
+  let nb = normalizeCellRef(await readNameBoxRef(tabId));
+  if (nb !== want) {
+    await maybeFocusTab(tabId, tab, { focus: true });
+    await sheetsLeaveEdit(tabId);
+    await delay(80);
+    await sheetsNameBoxGoto(tabId, want);
+    await delay(350);
+    nb = normalizeCellRef(await readNameBoxRef(tabId));
+  }
+  if (nb !== want) {
+    throw new Error(`goto ${want} failed (name box shows ${nb}, preventing write on wrong cell)`);
+  }
+  return { cell: want, name_box: nb };
+};
+
+const sheetsAssertWriteRow = async (tabId, tab, row, startCol, expectedKey) => {
+  const key = String(expectedKey ?? "").trim();
+  if (key) {
+    const gotKey = await sheetsCellValueFromExport(tabId, `B${row}`);
+    if (!gotKey) throw new Error(`row ${row}: column B is empty (cannot anchor to "${key}")`);
+    if (sheetsNormKey(gotKey) !== sheetsNormKey(key)) {
+      throw new Error(`row ${row} name mismatch: sheet B${row} is "${gotKey}", expected "${key}"`);
+    }
+  }
+  await sheetsGoToCellVerified(tabId, tab, `${startCol}${row}`);
+};
+
+const sheetsWriteRowSequential = async (tabId, tab, row, startCol, expected) => {
+  const writes = [];
+  const wideFrom = colLetterToIndex("G");
+  for (let i = 0; i < expected.length; i += 1) {
+    const col = colIndexToLetter(colLetterToIndex(startCol) + i);
+    const cell = `${col}${row}`;
+    const val = String(expected[i] ?? "");
+    if (!val) {
+      writes.push({ cell, skipped: true });
+      continue;
+    }
+    const verified = await sheetsGoToCellVerified(tabId, tab, cell);
+    const p = parseCellRef(verified.cell);
+    if (p.row !== row) {
+      throw new Error(`Row mismatch before write: target is row ${row} (${cell}), but active cell is ${verified.cell}`);
+    }
+    const wide = colLetterToIndex(col) >= wideFrom;
+    const w = wide
+      ? await sheetsWriteFormulaBar(tabId, val)
+      : await sheetsWriteActiveCell(tabId, val, "enter");
+    await delay(wide ? 280 : 160);
+    writes.push({ cell, write: w, wide });
+  }
+  return writes;
+};
+
+/** Goto cell then commit value via formula bar (works when G+ cols are off-screen). */
+const sheetsWriteFormulaBar = async (tabId, value) => {
+  const s = String(value ?? "");
+  const pt = await execFirstFrame(tabId, formulaBarRectScript);
+  if (pt?.x != null && pt?.y != null) await cdpMouseAt(tabId, pt.x, pt.y, "left", 1);
+  else await cdpMouseAt(tabId, 0.42, 0.118, "left", 1);
+  await delay(120);
+  await cdpShortcut(tabId, "ctrl+a");
+  await delay(50);
+  await cdpShortcut(tabId, "backspace");
+  await delay(40);
+  if (s) {
+    await cdpInsertText(tabId, s);
+    await delay(60);
+  }
+  await cdpShortcut(tabId, "enter");
+  await delay(380);
+  return { write_via: "formula_bar_cdp" };
 };
 
 export const sheetsGoToCell = async (tabId, tab, cellRef) => {
@@ -385,26 +511,13 @@ export const sheetsGoToCell = async (tabId, tab, cellRef) => {
   await sendCdp(tabId, "Input.setIgnoreInputEvents", { ignore: false });
   await sheetsLeaveEdit(tabId);
   await delay(100);
+  const parsed = parseCellRef(ref);
+  const colIdx = colLetterToIndex(parsed.col);
+  await sheetsScrollColIntoView(tabId, colIdx);
+  await delay(80);
   const nav = await sheetsNameBoxGoto(tabId, ref);
   const current = await readNameBoxRef(tabId);
   return { cell: ref, via: "namebox", nav_via: nav.via, name_box: current };
-};
-
-const sheetsInsertTextDom = async (tabId, text) => {
-  const ok = await execFirstFrame(tabId, (t) => {
-    const s = String(t ?? "");
-    const el = document.activeElement;
-    if (!el) return null;
-    el.focus();
-    if (typeof document.execCommand === "function" && document.execCommand("insertText", false, s)) return true;
-    if (el.isContentEditable) {
-      el.textContent = s;
-      el.dispatchEvent(new InputEvent("input", { bubbles: true, data: s, inputType: "insertText" }));
-      return true;
-    }
-    return null;
-  }, [text]);
-  return ok === true;
 };
 
 const formulaBarRectScript = () => {
@@ -413,6 +526,8 @@ const formulaBarRectScript = () => {
     "#formula-bar input",
     '[aria-label="Formula bar"]',
     '[aria-label="Bar formula"]',
+    '[aria-label="Baris rumus"]',
+    '[aria-label="Rumus"]',
   ];
   let el = null;
   for (const sel of sels) {
@@ -421,92 +536,30 @@ const formulaBarRectScript = () => {
   }
   if (!el) return null;
   const r = el.getBoundingClientRect();
+  if (r.width < 5 || r.height < 5) return null;
   return {
-    x: (r.left + r.width / 2) / window.innerWidth,
+    x: (r.left + Math.min(60, r.width / 4)) / window.innerWidth,
     y: (r.top + r.height / 2) / window.innerHeight,
   };
-};
-
-const setFormulaBarDom = async (tabId, value) => {
-  const hit = await execFirstFrame(tabId, (val) => {
-    const setVal = (el) => {
-      if (!el) return false;
-      el.focus();
-      const text = String(val ?? "");
-      if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") {
-        const proto = el.tagName === "TEXTAREA" ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
-        const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
-        if (setter) setter.call(el, text);
-        else el.value = text;
-      } else if (el.isContentEditable) {
-        el.textContent = text;
-      } else return false;
-      el.dispatchEvent(new Event("input", { bubbles: true }));
-      el.dispatchEvent(new Event("change", { bubbles: true }));
-      return true;
-    };
-    const sels = [
-      "#t-formula-bar-input",
-      "#formula-bar input",
-      '[aria-label="Formula bar"]',
-      '[aria-label="Bar formula"]',
-    ];
-    for (const sel of sels) {
-      const el = document.querySelector(sel);
-      if (el && setVal(el)) return { ok: true, where: "formula_bar" };
-    }
-    return null;
-  }, [value]);
-  return hit?.ok === true;
-};
-
-/** Replace in-cell / formula-bar editor (F2) — no CDP typing (avoids concat + stray keys). */
-const setSheetEditValueDom = async (tabId, value) => {
-  const hit = await execFirstFrame(tabId, (val) => {
-    const setVal = (el) => {
-      if (!el) return false;
-      el.focus();
-      const text = String(val ?? "");
-      if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") {
-        const proto = el.tagName === "TEXTAREA" ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
-        const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
-        if (setter) setter.call(el, text);
-        else el.value = text;
-      } else if (el.isContentEditable) {
-        el.textContent = text;
-      } else return false;
-      el.dispatchEvent(new Event("input", { bubbles: true }));
-      el.dispatchEvent(new Event("change", { bubbles: true }));
-      return true;
-    };
-    if (setVal(document.activeElement)) return { ok: true, where: "active" };
-    const sels = [
-      "#t-formula-bar-input",
-      "#formula-bar input",
-      '[aria-label="Formula bar"]',
-      '[aria-label="Bar formula"]',
-    ];
-    for (const sel of sels) {
-      const el = document.querySelector(sel);
-      if (el && setVal(el)) return { ok: true, where: "formula_bar" };
-    }
-    return null;
-  }, [value]);
-  return hit?.ok === true;
 };
 
 const sheetsCommitEdit = async (tabId, value, commitKey = "tab") => {
   const s = String(value ?? "");
   await sheetsLeaveEdit(tabId);
-  await delay(80);
-  await cdpShortcut(tabId, "f2");
-  await delay(200);
-  const domOk = await setSheetEditValueDom(tabId, s);
-  if (!domOk && s) await cdpInsertText(tabId, s);
   await delay(60);
+  await cdpShortcut(tabId, "f2");
+  await delay(120);
+  await cdpShortcut(tabId, "ctrl+a");
+  await delay(50);
+  await cdpShortcut(tabId, "backspace");
+  await delay(40);
+  if (s) {
+    await cdpInsertText(tabId, s);
+    await delay(60);
+  }
   await cdpShortcut(tabId, commitKey === "enter" ? "enter" : "tab");
   await delay(commitKey === "enter" ? 320 : 380);
-  return { write_via: domOk ? "f2_dom_replace" : "f2_insertText", commit: commitKey, dom_ok: domOk };
+  return { write_via: "f2_cdp_insertText", commit: commitKey };
 };
 
 /** Edit active cell; Tab moves selection right (pair write), Enter stays on cell (cell_set). */
@@ -637,21 +690,27 @@ const parseCsvText = (text) => {
 };
 
 const sheetsRangeFromCsvGrid = (grid, productCol, stockCol, opts = {}) => {
+  const wideCols = Number(opts.columns);
+  const useWide = Number.isFinite(wideCols) && wideCols > 0;
+  const startColWide = String(opts.start_col || "A").trim().toUpperCase();
+  const keyCol = String(opts.key_col || productCol || "B").trim().toUpperCase();
   const pIdx = colLetterToIndex(productCol);
   const sIdx = colLetterToIndex(stockCol);
+  const keyIdx = colLetterToIndex(keyCol);
   const startRow = Math.max(2, Number(opts.from_row) || 2);
-  const maxSheetRow = Math.min(
-    grid.length,
-    Math.max(startRow, Number(opts.to_row) || 500)
-  );
+  const toRow = Number(opts.to_row);
+  const maxSheetRow =
+    Number.isFinite(toRow) && toRow >= startRow
+      ? Math.min(grid.length, toRow)
+      : grid.length;
   const stopEmpty = Math.max(1, Number(opts.stop_empty) || 2);
   const rows = [];
   let lastFilled = Math.max(1, startRow - 1);
   let emptyStreak = 0;
   for (let sheetRow = startRow; sheetRow <= maxSheetRow; sheetRow += 1) {
     const line = grid[sheetRow - 1] || [];
-    const product = String(line[pIdx] ?? "").trim();
-    if (!product) {
+    const keyVal = String(line[keyIdx] ?? "").trim();
+    if (!keyVal) {
       if (lastFilled >= startRow) {
         emptyStreak += 1;
         if (emptyStreak >= stopEmpty) break;
@@ -660,8 +719,19 @@ const sheetsRangeFromCsvGrid = (grid, productCol, stockCol, opts = {}) => {
     }
     lastFilled = sheetRow;
     emptyStreak = 0;
-    const stockVal = String(line[sIdx] ?? "").trim();
-    rows.push({ row: sheetRow, product, stock: stockVal });
+    if (useWide) {
+      const startIdx = colLetterToIndex(startColWide);
+      const cells = {};
+      for (let c = 0; c < Math.min(26, wideCols); c += 1) {
+        const col = colIndexToLetter(startIdx + c);
+        cells[col] = String(line[colLetterToIndex(col)] ?? "").trim();
+      }
+      rows.push({ row: sheetRow, cells, key_col: keyCol, key: keyVal });
+    } else {
+      const product = String(line[pIdx] ?? "").trim();
+      const stockVal = String(line[sIdx] ?? "").trim();
+      rows.push({ row: sheetRow, product, stock: stockVal });
+    }
   }
   return {
     rows,
@@ -669,25 +739,131 @@ const sheetsRangeFromCsvGrid = (grid, productCol, stockCol, opts = {}) => {
     next_row: lastFilled + 1,
     product_col: productCol,
     stock_col: stockCol,
+    key_col: keyCol,
+    start_col: useWide ? startColWide : undefined,
+    columns: useWide ? Math.min(26, wideCols) : undefined,
   };
+};
+
+const sheetsCsvGridCache = new Map();
+const SHEETS_CSV_CACHE_MS = 45_000;
+
+const sheetsCsvGridGet = async (tabId) => {
+  const tabNow = await chrome.tabs.get(tabId);
+  sheetsRequireSpreadsheetTab(tabNow);
+  const gid = tabNow.url?.match(/[#?&]gid=(\d+)/)?.[1] || "0";
+  const key = `${tabId}:${gid}`;
+  const hit = sheetsCsvGridCache.get(key);
+  if (hit && Date.now() - hit.at < SHEETS_CSV_CACHE_MS) return hit;
+  const fetched = await sheetsFetchSpreadsheetCsv(tabId);
+  if (!fetched?.ok || !fetched.text) return null;
+  const grid = parseCsvText(fetched.text);
+  const pack = { grid, via: fetched.via || "export_csv", gid: fetched.gid, at: Date.now() };
+  sheetsCsvGridCache.set(key, pack);
+  return pack;
+};
+
+const sheetsRowReadViaExport = async (tabId, row, startCol, columns, cellArg) => {
+  const pack = await sheetsCsvGridGet(tabId);
+  if (!pack?.grid?.length || row < 1 || row > pack.grid.length) return null;
+  const startIdx = colLetterToIndex(startCol);
+  const line = pack.grid[row - 1] || [];
+  const values = [];
+  const cells = {};
+  for (let c = 0; c < columns; c += 1) {
+    const col = colIndexToLetter(startIdx + c);
+    const v = String(line[colLetterToIndex(col)] ?? "").trim();
+    values.push(v);
+    cells[col] = v;
+  }
+  const out = {
+    ok: true,
+    mode: "export",
+    read_via: pack.via,
+    nav: "v27-row-export",
+    row,
+    start_col: startCol,
+    columns,
+    values,
+    cells,
+    formula_bar_found: false,
+    grid_rows: pack.grid.length,
+  };
+  if (CELL_REF_RE.test(cellArg)) {
+    out.cell = cellArg;
+    out.value = values[0] ?? "";
+  }
+  return out;
 };
 
 const sheetsRangeReadViaExport = async (tabId, tab, productCol, stockCol, opts) => {
   const tabNow = tab || (await chrome.tabs.get(tabId));
   sheetsRequireSpreadsheetTab(tabNow);
-  await maybeFocusTab(tabId, tabNow, { focus: true });
-  const fetched = await sheetsFetchSpreadsheetCsv(tabId);
-  if (!fetched?.ok || !fetched.text) return null;
-  const grid = parseCsvText(fetched.text);
-  if (!grid.length) return null;
+  if (opts.row_align) await maybeFocusTab(tabId, tabNow, { focus: true });
+  let fetched = null;
+  const cached = await sheetsCsvGridGet(tabId);
+  if (cached?.grid?.length) {
+    fetched = { ok: true, text: null, via: cached.via, gid: cached.gid, grid: cached.grid };
+  } else {
+    fetched = await sheetsFetchSpreadsheetCsv(tabId);
+  }
+  if (!fetched?.ok && !fetched?.grid) {
+    return {
+      rows: [],
+      ok: false,
+      error: `csv_export_failed:${fetched?.reason || "unknown"}`,
+      read_via: "export_failed",
+      grid_rows: 0,
+    };
+  }
+  const grid = fetched.grid?.length ? fetched.grid : parseCsvText(fetched.text || "");
+  if (!grid.length) {
+    return {
+      rows: [],
+      ok: false,
+      error: "csv_export_empty",
+      read_via: "export_empty",
+      grid_rows: 0,
+    };
+  }
   const scan = sheetsRangeFromCsvGrid(grid, productCol, stockCol, opts);
-  if (!scan.rows.length) return null;
   const csvRows = scan.rows.filter((r) => !/^product$/i.test(String(r.product ?? "").trim()));
-  if (!csvRows.length) return null;
+  const maxRows = Math.min(Math.max(Number(opts.max_rows) || 0, 0), 50_000);
+  const limitedRows = maxRows > 0 ? csvRows.slice(0, maxRows) : csvRows;
+  const via = fetched.via || "export_csv";
+  if (!opts.row_align) {
+    return {
+      rows: limitedRows,
+      last_filled_row: scan.last_filled_row,
+      next_row: scan.next_row,
+      product_col: productCol,
+      stock_col: stockCol,
+      read_via: via,
+      row_aligned: false,
+      sheet_gid: fetched.gid,
+      grid_rows: grid.length,
+      row_count: limitedRows.length,
+      truncated: maxRows > 0 && csvRows.length > maxRows,
+    };
+  }
+  if (!limitedRows.length) {
+    return {
+      rows: [],
+      last_filled_row: scan.last_filled_row,
+      next_row: scan.next_row,
+      product_col: productCol,
+      stock_col: stockCol,
+      read_via: via,
+      row_aligned: false,
+      sheet_gid: fetched.gid,
+      grid_rows: grid.length,
+      row_count: 0,
+    };
+  }
+  await maybeFocusTab(tabId, tabNow, { focus: true });
   const sheetScan = await sheetsScanProductColRows(tabId, tabNow, productCol, opts);
   if (!sheetScan?.rows?.length) return null;
-  const aligned = sheetsMergeCsvRowsWithSheetRows(csvRows, sheetScan.rows);
-  const via = fetched.via || "export_csv";
+  const aligned = sheetsMergeCsvRowsWithSheetRows(limitedRows, sheetScan.rows);
   return {
     ...aligned,
     product_col: productCol,
@@ -695,6 +871,8 @@ const sheetsRangeReadViaExport = async (tabId, tab, productCol, stockCol, opts) 
     read_via: `${via}+sheet_rows`,
     row_aligned: true,
     sheet_gid: fetched.gid,
+    grid_rows: grid.length,
+    truncated: maxRows > 0 && csvRows.length > maxRows,
   };
 };
 
@@ -754,7 +932,11 @@ const sheetsScanDataRows = async (tabId, tab, productCol, stockCol, opts = {}) =
   const col = String(productCol || "B").trim().toUpperCase();
   const stock = String(stockCol || "C").trim().toUpperCase();
   const startRow = Math.max(2, Number(opts.from_row) || 2);
-  const maxRow = Math.min(500, Math.max(startRow, Number(opts.to_row) || 500));
+  const toRow = Number(opts.to_row);
+  const maxRow =
+    Number.isFinite(toRow) && toRow >= startRow
+      ? Math.min(20_000, toRow)
+      : Math.min(20_000, Math.max(startRow, 500));
   const stopEmpty = Math.max(1, Number(opts.stop_empty) || 2);
   const readStock = opts.read_stock !== false;
   const rows = [];
@@ -1155,6 +1337,9 @@ export const sheetsAppendRow = (tabId, tab, params = {}) =>
     return { ok: true, summary, row, row_auto, nav: "v19" };
   });
 
+const sheetsParamTruthy = (params, key) =>
+  params[key] === true || params[key] === 1 || String(params[key] || "").toLowerCase() === "true";
+
 export const sheetsCellSet = (tabId, tab, params = {}) =>
   sheetsWithQueue(tabId, async () => {
     const tabNow = await chrome.tabs.get(tabId);
@@ -1162,15 +1347,182 @@ export const sheetsCellSet = (tabId, tab, params = {}) =>
     const cell = String(params.cell || params.cell_ref || "").trim().toUpperCase();
     const value = String(params.value ?? "");
     if (!CELL_REF_RE.test(cell)) throw new Error("cell required (e.g. A7)");
+    const writeMode = String(params.write_mode || "cell").toLowerCase();
+    const doVerify = sheetsParamTruthy(params, "verify");
     await sheetsGoToCell(tabId, tab, cell);
-    const write = await sheetsWriteActiveCell(tabId, value, "enter");
-    const got = await sheetsReadActiveCell(tabId);
-    if (got === value) {
-      return { ok: true, summary: `${cell} set to "${value}"`, write, nav: "v19" };
+    let write;
+    if (writeMode === "paste") write = await sheetsPasteClipboardText(tabId, value);
+    else if (writeMode === "formula_bar" || writeMode === "formula")
+      write = await sheetsWriteFormulaBar(tabId, value);
+    else write = await sheetsWriteActiveCell(tabId, value, "enter");
+    sheetsCsvGridCacheClear(tabId);
+    if (!doVerify) {
+      return {
+        ok: true,
+        summary: `${cell} set to "${value}"`,
+        write,
+        nav: "v32-enter-commit",
+        verify: false,
+      };
+    }
+    await delay(280);
+    const gotBar = await sheetsReadActiveCell(tabId);
+    let got = await sheetsCellValueFromExport(tabId, cell);
+    if (!got && gotBar) got = gotBar;
+    const ok = got === value || gotBar === value;
+    if (ok) {
+      return {
+        ok: true,
+        summary: `${cell} set to "${value}"`,
+        write,
+        nav: "v32-enter-commit",
+        verify_via: gotBar === value ? "formula_bar" : "export_csv",
+      };
     }
     return {
       ok: false,
-      error: `Could not set ${cell} to "${value}" (sheet shows "${got}")`,
+      error: `Could not set ${cell} to "${value}" (sheet shows "${gotBar}"; export "${got}")`,
+      write,
+      nav: "v32-enter-commit",
+    };
+  });
+
+const sheetsTsvFromValues = (params) => {
+  const raw = String(params.tsv ?? "").trimEnd();
+  if (raw) return raw;
+  if (!Array.isArray(params.values)) return "";
+  const rows = params.values;
+  if (!rows.length) return "";
+  return rows.length && Array.isArray(rows[0])
+    ? rows.map((row) => row.map((c) => String(c ?? "")).join("\t")).join("\n")
+    : rows.map((c) => String(c ?? "")).join("\t");
+};
+
+/** Paste TSV into a selected range (e.g. G3:L3). Verifies export; falls back to per-cell F2. */
+export const sheetsRangeSet = (tabId, tab, params = {}) =>
+  sheetsWithQueue(tabId, async () => {
+    const tabNow = await chrome.tabs.get(tabId);
+    sheetsRequireSpreadsheetTab(tabNow);
+    const range = String(params.range || "").trim().toUpperCase();
+    if (!range.includes(":")) throw new Error("range required (e.g. G3:L3)");
+    const tsv = sheetsTsvFromValues(params);
+    if (!tsv) throw new Error("tsv or values required");
+    const parsed = range.split(":");
+    const startRef = parsed[0];
+    const row = parseCellRef(startRef).row;
+    const startCol = parseCellRef(startRef).col;
+    const expected = sheetsExpectedValues(params);
+    const endCol = parseCellRef(parsed[1] || startRef).col;
+    const expectedKey = params.key ?? params.expected_key ?? params.name ?? "";
+    const skipVerify = sheetsParamTruthy(params, "skip_verify");
+    const runVerify = !skipVerify && expected.length > 0;
+
+    if (expectedKey) await sheetsAssertWriteRow(tabId, tabNow, row, startCol, expectedKey);
+
+    const attemptPaste = async () => {
+      await sheetsScrollColIntoView(tabId, colLetterToIndex(startCol));
+      await sheetsNameBoxGotoRange(tabId, range);
+      await delay(200);
+      await sheetsFocusGrid(tabId);
+      return sheetsPasteClipboardText(tabId, tsv, { range: true });
+    };
+
+    let write = await attemptPaste();
+    if (!write?.ok) {
+      return { ok: false, error: write?.error || "paste failed", range, write, nav: "v35-row-anchor" };
+    }
+    sheetsCsvGridCacheClear(tabId);
+    await delay(runVerify ? 520 : 200);
+
+    let verify = runVerify ? await sheetsVerifyRowExport(tabId, row, startCol, expected) : { ok: true, mismatches: [] };
+    if (runVerify && !verify.ok) {
+      write = await attemptPaste();
+      sheetsCsvGridCacheClear(tabId);
+      await delay(520);
+      verify = await sheetsVerifyRowExport(tabId, row, startCol, expected);
+    }
+    if (runVerify && !verify.ok) {
+      const seq = await sheetsWriteRowSequential(tabId, tabNow, row, startCol, expected);
+      sheetsCsvGridCacheClear(tabId);
+      await delay(480);
+      verify = await sheetsVerifyRowExport(tabId, row, startCol, expected);
+      if (!verify.ok) {
+        const miss = verify.mismatches?.slice(0, 3) || [];
+        return {
+          ok: false,
+          error: `row paste incomplete for ${range} (${miss.map((m) => `${m.cell} expected "${m.expected}" got "${m.got}"`).join("; ")})`,
+          range,
+          write: { paste: write, sequential: seq },
+          mismatches: verify.mismatches,
+          nav: "v35-row-anchor",
+        };
+      }
+      return {
+        ok: true,
+        summary: `${range} filled (sequential fallback)`,
+        range,
+        write: { paste: write, sequential: seq },
+        verify_via: "export_csv",
+        row,
+        key: expectedKey || undefined,
+        nav: "v35-row-anchor",
+      };
+    }
+
+    return {
+      ok: true,
+      summary: `${range} filled`,
+      range,
+      write,
+      verify_via: runVerify ? "export_csv" : "none",
+      row,
+      key: expectedKey || undefined,
+      nav: "v35-row-anchor",
+    };
+  });
+
+/** One row G{n}:L{n} — sequential cell writes only (no clipboard paste). */
+export const sheetsRowSet = (tabId, tab, params = {}) =>
+  sheetsWithQueue(tabId, async () => {
+    const tabNow = await chrome.tabs.get(tabId);
+    sheetsRequireSpreadsheetTab(tabNow);
+    const row = Math.floor(Number(params.row));
+    if (!Number.isFinite(row) || row < 1) throw new Error("row required (e.g. 4)");
+    const startCol = sheetsColLetter(params, "start_col", "G");
+    const expected = sheetsExpectedValues(params);
+    if (!expected.length) throw new Error("values required");
+    const defaultEndCol = colIndexToLetter(colLetterToIndex(startCol) + expected.length - 1);
+    const endCol = params.end_col ? sheetsColLetter(params, "end_col", defaultEndCol) : defaultEndCol;
+    const range = `${startCol}${row}:${endCol}${row}`;
+    const expectedKey =
+      params.key ?? params.expected_key ?? params.name ?? params.key_name ?? params.expected_name ?? "";
+    await sheetsAssertWriteRow(tabId, tabNow, row, startCol, expectedKey);
+    const write = await sheetsWriteRowSequential(tabId, tabNow, row, startCol, expected);
+    sheetsCsvGridCacheClear(tabId);
+    await delay(480);
+    const verify = await sheetsVerifyRowExport(tabId, row, startCol, expected);
+    if (!verify.ok) {
+      const miss = verify.mismatches?.slice(0, 4) || [];
+      return {
+        ok: false,
+        error: `row ${row} write incomplete (${miss.map((m) => `${m.cell} expected "${m.expected}" got "${m.got}"`).join("; ")})`,
+        range,
+        row,
+        key: expectedKey,
+        mismatches: verify.mismatches,
+        write,
+        nav: "v36-sequential-row",
+      };
+    }
+    return {
+      ok: true,
+      summary: `row ${row} ${range} filled`,
+      range,
+      row,
+      key: expectedKey,
+      write,
+      verify_via: "export_csv",
+      nav: "v36-sequential-row",
     };
   });
 
@@ -1183,21 +1535,39 @@ export const sheetsRangeRead = (tabId, tab, params = {}) =>
     const stockCol = sheetsColLetter(params, "stock_col", "C");
     const fromRow = Math.max(2, Number(params.from_row) || 2);
     const toRow = Number(params.to_row);
+    const maxRows = Number(params.max_rows ?? params.limit);
+    const columns = Number(params.columns);
+    const startCol = String(params.start_col || "A").trim().toUpperCase();
+    const keyCol = params.key_col ? sheetsColLetter(params, "key_col", productCol) : productCol;
     const scanOpts = {
       from_row: fromRow,
-      to_row: Number.isFinite(toRow) && toRow >= fromRow ? toRow : 500,
+      to_row: Number.isFinite(toRow) && toRow >= fromRow ? toRow : undefined,
+      max_rows: Number.isFinite(maxRows) && maxRows > 0 ? maxRows : undefined,
+      columns: Number.isFinite(columns) && columns > 0 ? columns : undefined,
+      start_col: startCol,
+      key_col: keyCol,
       read_stock: true,
       stop_empty: 2,
+      row_align:
+        params.row_align === true ||
+        params.row_align === 1 ||
+        String(params.row_align || "").toLowerCase() === "true",
     };
     const readMode = String(params.read_mode || params.scan_mode || "auto").toLowerCase();
+    const preferExport = readMode === "export" || readMode === "auto";
     let scan = null;
     if (readMode !== "cdp") {
+      const exportOpts = { ...scanOpts };
+      if (preferExport) exportOpts.row_align = false;
+      if (readMode === "align") exportOpts.row_align = true;
       try {
-        scan = await sheetsRangeReadViaExport(tabId, tabNow, productCol, stockCol, scanOpts);
-      } catch {
-        scan = null;
+        scan = await sheetsRangeReadViaExport(tabId, tabNow, productCol, stockCol, exportOpts);
+      } catch (e) {
+        scan = preferExport
+          ? { rows: [], ok: false, error: String(e?.message || e), read_via: "export_error" }
+          : null;
       }
-      if (!scan && readMode === "clipboard") {
+      if ((!scan || scan.ok === false) && readMode === "clipboard") {
         try {
           scan = await sheetsRangeReadViaClipboard(tabId, tabNow, productCol, stockCol, scanOpts);
         } catch {
@@ -1205,21 +1575,32 @@ export const sheetsRangeRead = (tabId, tab, params = {}) =>
         }
       }
     }
-    if (!scan) {
-      scan = await sheetsScanDataRows(tabId, tabNow, productCol, stockCol, scanOpts);
-      scan.read_via = "cdp_scan";
+    if (!scan || (scan.ok === false && preferExport)) {
+      if (preferExport && scan?.error) {
+        throw new Error(
+          `${scan.error} (read_mode=${readMode}; no per-row CDP fallback). Open the spreadsheet tab and retry.`
+        );
+      }
+      if (readMode === "cdp" || readMode === "align") {
+        scan = await sheetsScanDataRows(tabId, tabNow, productCol, stockCol, scanOpts);
+        scan.read_via = "cdp_scan";
+      } else if (!scan) {
+        throw new Error("sheets range_read failed; use read_mode=cdp only for small ranges");
+      }
     }
-    const lines = scan.rows.map((r) => `${r.row}:${r.product}/${r.stock}`);
+    const lines = scan.rows.map((r) =>
+      r.cells ? `${r.row}:${Object.values(r.cells).join("|")}` : `${r.row}:${r.product}/${r.stock}`
+    );
     const via = scan.read_via || "cdp_scan";
     const summary = scan.rows.length
       ? `${scan.rows.length} row(s); next_row=${scan.next_row}; via=${via}. ${lines.slice(-8).join("; ")}`
       : `empty from row ${fromRow}; next_row=${scan.next_row}; via=${via}`;
     return {
       ok: true,
-      nav: "v24",
+      nav: "v28-range-only",
       ...scan,
       summary,
-      row_count: scan.rows.length,
+      row_count: scan.rows?.length ?? 0,
     };
   });
 
@@ -1249,6 +1630,14 @@ export const sheetsRowRead = (tabId, tab, params = {}) =>
       startCol = String(params.start_col || "A").trim().toUpperCase();
       if (!/^[A-Z]{1,3}$/.test(startCol)) startCol = "A";
       columns = Math.min(26, Math.max(1, Number(params.columns) || 6));
+    }
+    const readMode = String(params.read_mode || params.scan_mode || "auto").toLowerCase();
+    if (readMode !== "cdp") {
+      const exported = await sheetsRowReadViaExport(tabId, row, startCol, columns, cellArg);
+      if (exported) return exported;
+      if (readMode === "export") {
+        throw new Error("row_read CSV export failed (no cdp fallback in export mode)");
+      }
     }
     const startIdx = colLetterToIndex(startCol);
     const values = [];

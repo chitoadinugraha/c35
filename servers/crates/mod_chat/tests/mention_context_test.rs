@@ -1,5 +1,5 @@
 use c35_mod_chat::{
-    mention_context_build, mention_context_sites_block, site_iid_resolve, MentionContext,
+    mention_bot_iids, mention_context_build, mention_context_sites_block, site_iid_resolve, MentionContext,
     MentionResolved, SiteContext,
 };
 use c35_proto::MentionItem;
@@ -28,6 +28,41 @@ fn site_mention(iid: i64, alien_id: &str, name: &str) -> MentionResolved {
         identity_type: None,
         device_engine: None,
     }
+}
+
+fn bot_mention(iid: i64, name: &str) -> MentionResolved {
+    MentionResolved {
+        item: MentionItem {
+            id: format!("iid:{iid}"),
+            topic_id: "bot".into(),
+            inst_id: String::new(),
+            icon: "bot".into(),
+            color: "#a78bfa".into(),
+            sort: 50,
+            label_key: name.into(),
+            caption_key: "Bot".into(),
+            search_terms: vec![name.to_lowercase(), iid.to_string()],
+            enabled: true,
+            title: name.into(),
+            scope_label: String::new(),
+            label: name.into(),
+            scope_ref: String::new(),
+            kind: "identity".into(),
+            root_only: false,
+        },
+        identity_iid: Some(iid),
+        identity_kind: Some("bot".into()),
+        identity_type: Some("chat".into()),
+        device_engine: None,
+    }
+}
+
+#[test]
+fn mention_context_build_collects_bots() {
+    let resolved = vec![bot_mention(555, "Warung Bot")];
+    let ctx = mention_context_build(&resolved);
+    assert_eq!(ctx.bots, vec![555]);
+    assert_eq!(mention_bot_iids(&resolved), vec![555]);
 }
 
 #[test]
@@ -60,6 +95,7 @@ fn mention_context_sites_block_lists_both_sites() {
             },
         ],
         devices: vec![],
+        bots: vec![],
         default_site_iid: None,
     };
     let block = mention_context_sites_block(&ctx);
@@ -77,6 +113,7 @@ fn site_iid_resolve_single_site_defaults() {
             name: "Warung A".into(),
         }],
         devices: vec![],
+        bots: vec![],
         default_site_iid: Some(111),
     };
     assert_eq!(site_iid_resolve(&ctx, None, None).unwrap(), 111);
@@ -98,6 +135,7 @@ fn site_iid_resolve_ambiguous_without_arg_fails() {
             },
         ],
         devices: vec![],
+        bots: vec![],
         default_site_iid: None,
     };
     let err = site_iid_resolve(&ctx, None, None).unwrap_err().to_string();
@@ -120,6 +158,7 @@ fn site_iid_resolve_explicit_arg_wins() {
             },
         ],
         devices: vec![],
+        bots: vec![],
         default_site_iid: None,
     };
     assert_eq!(

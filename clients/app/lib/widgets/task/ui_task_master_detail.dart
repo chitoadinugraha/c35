@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/pb/c35/task.pb.dart';
@@ -19,6 +20,32 @@ const _text = Color(0xFFF4F4F5);
 const _accent = Color(0xFF34D399);
 const _danger = Color(0xFFEF4444);
 const _cardBg = Color(0xFF141418);
+
+class _TaskRunProgressMeta {
+  const _TaskRunProgressMeta({required this.total, required this.done, required this.pct});
+
+  final int total;
+  final int done;
+  final double pct;
+}
+
+_TaskRunProgressMeta? _taskRunProgressMeta(String metaJson) {
+  if (metaJson.isEmpty) return null;
+  try {
+    final m = jsonDecode(metaJson) as Map<String, dynamic>;
+    final total = (m['total'] as num?)?.toInt() ?? 0;
+    final done = (m['done'] as num?)?.toInt() ?? 0;
+    final pct = (m['pct'] as num?)?.toDouble() ?? (total > 0 ? (done / total) * 100.0 : 0.0);
+    return _TaskRunProgressMeta(total: total, done: done, pct: pct);
+  } catch (_) {
+    return null;
+  }
+}
+
+bool _taskRunIsActive(TaskRunStatus status) =>
+    status == TaskRunStatus.TASK_RUN_STATUS_RUNNING ||
+    status == TaskRunStatus.TASK_RUN_STATUS_LEASED ||
+    status == TaskRunStatus.TASK_RUN_STATUS_QUEUED;
 
 class UiTaskMasterDetail extends StatefulWidget {
   const UiTaskMasterDetail({
@@ -49,12 +76,13 @@ class UiTaskMasterDetail extends StatefulWidget {
 }
 
 class UiTaskMasterDetailState extends State<UiTaskMasterDetail> {
-  late final _api = TaskApi(widget.conn);
+  late TaskApi _api = TaskApi(widget.conn);
   var _loading = true;
   var _busy = false;
   var _tasks = <Task>[];
   String? _selectedId;
   StreamSubscription<TaskRunPush>? _pushSub;
+  final _deviceActiveRunIds = <Int64>{};
 
   // Detail editing controllers & draft
   final _nameCtrl = TextEditingController();
@@ -68,7 +96,22 @@ class UiTaskMasterDetailState extends State<UiTaskMasterDetail> {
   void initState() {
     super.initState();
     _load();
-    _pushSub = _api.onTaskRunPush.listen(_onTaskRunPush);
+    _pushSub = widget.conn?.onTaskRunPush.listen(_onTaskRunPush);
+  }
+
+  void createTask() => unawaited(_createTask());
+
+  @override
+  void didUpdateWidget(covariant UiTaskMasterDetail oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.conn != widget.conn) {
+      _api = TaskApi(widget.conn);
+      _pushSub?.cancel();
+      _pushSub = widget.conn?.onTaskRunPush.listen(_onTaskRunPush);
+    }
+    if (oldWidget.deviceIid != widget.deviceIid || oldWidget.scope != widget.scope) {
+      _deviceActiveRunIds.clear();
+    }
   }
 
   @override
@@ -82,16 +125,37 @@ class UiTaskMasterDetailState extends State<UiTaskMasterDetail> {
   void _onTaskRunPush(TaskRunPush push) {
     if (!mounted) return;
     final run = push.run;
-    if (_selectedId != null && run.taskId.toString() == _selectedId) {
+    if (widget.scope == TaskScope.TASK_SCOPE_DEVICE &&
+        widget.deviceIid > 0 &&
+        run.deviceIid.toInt() != widget.deviceIid) {
+      return;
+    }
+    _trackDeviceActiveRun(run);
+    final onSelected = _selectedId != null && run.taskId.toString() == _selectedId;
+    if (onSelected || widget.scope == TaskScope.TASK_SCOPE_DEVICE) {
       setState(() {
-        final idx = _runs.indexWhere((r) => r.id == run.id);
-        if (idx >= 0) {
-          _runs[idx] = run;
-        } else {
-          _runs.insert(0, run);
-        }
+        if (onSelected) _mergeRun(run);
       });
     }
+  }
+
+  void _trackDeviceActiveRun(TaskRun run) {
+    if (widget.scope != TaskScope.TASK_SCOPE_DEVICE) return;
+    if (_taskRunIsActive(run.status)) {
+      _deviceActiveRunIds.add(run.id);
+    } else {
+      _deviceActiveRunIds.remove(run.id);
+    }
+  }
+
+  void _mergeRun(TaskRun run) {
+    final idx = _runs.indexWhere((r) => r.id == run.id);
+    if (idx >= 0) {
+      _runs[idx] = run;
+    } else {
+      _runs.insert(0, run);
+    }
+    _trackDeviceActiveRun(run);
   }
 
   Future<void> _load() async {
@@ -148,9 +212,17 @@ class UiTaskMasterDetailState extends State<UiTaskMasterDetail> {
   Future<void> _loadRuns(int taskId) async {
     setState(() => _runsLoading = true);
     try {
-      final runs = await _api.runList(taskId: taskId);
+      final runs = await _api.runList(
+        taskId: taskId,
+        deviceIid: widget.scope == TaskScope.TASK_SCOPE_DEVICE ? widget.deviceIid : 0,
+      );
       if (mounted && _selectedId == '$taskId') {
-        setState(() => _runs = runs);
+        setState(() {
+          _runs = runs;
+          for (final r in runs) {
+            _trackDeviceActiveRun(r);
+          }
+        });
       }
     } catch (_) {
       // Non-fatal
@@ -161,9 +233,8 @@ class UiTaskMasterDetailState extends State<UiTaskMasterDetail> {
 
   Future<void> _createTask() async {
     if (_busy) return;
-    final newId = DateTime.now().millisecondsSinceEpoch;
     final draft = Task(
-      id: Int64(newId),
+      id: Int64.ZERO,
       ownerIid: Int64(widget.ownerIid),
       deviceIid: Int64(widget.deviceIid),
       name: 'New Scheduled Task',
@@ -171,8 +242,8 @@ class UiTaskMasterDetailState extends State<UiTaskMasterDetail> {
       isActive: true,
       triggers: [
         TaskTrigger(
-          id: Int64(newId + 1),
-          taskId: Int64(newId),
+          id: Int64.ZERO,
+          taskId: Int64.ZERO,
           kind: TaskTriggerKind.TASK_TRIGGER_KIND_CRON,
           cronExpr: '0 9 * * *',
           timezone: taskTimezoneLocal(),
@@ -320,9 +391,15 @@ class UiTaskMasterDetailState extends State<UiTaskMasterDetail> {
     if (_busy) return;
     setState(() => _busy = true);
     try {
+      final deviceIid = widget.deviceIid > 0
+          ? widget.deviceIid
+          : (task.deviceIid.toInt() > 0 ? task.deviceIid.toInt() : 0);
+      if (deviceIid <= 0) {
+        throw 'Select a device for this task run';
+      }
       final req = ReqTaskRunStart(
         taskId: task.id,
-        deviceIid: Int64(widget.deviceIid),
+        deviceIid: Int64(deviceIid),
         prompt: task.prompt,
         skillId: task.skillId,
         model: task.model,
@@ -354,8 +431,9 @@ class UiTaskMasterDetailState extends State<UiTaskMasterDetail> {
 
   Future<void> _cancelRun(TaskRun run) async {
     try {
-      await _api.runCancel(run.id.toInt(), taskId: run.taskId.toInt());
+      final updated = await _api.runCancel(run.id.toInt(), taskId: run.taskId.toInt());
       if (mounted) {
+        setState(() => _mergeRun(updated));
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Run cancelled'), behavior: SnackBarBehavior.floating),
         );
@@ -368,6 +446,46 @@ class UiTaskMasterDetailState extends State<UiTaskMasterDetail> {
       }
     }
   }
+
+  Future<void> _stopAllOnDevice() async {
+    if (widget.deviceIid <= 0 || _busy) return;
+    setState(() => _busy = true);
+    try {
+      final res = await _api.runCancelDevice(widget.deviceIid);
+      if (mounted) {
+        setState(() {
+          for (final run in res.runs) {
+            if (_selectedId != null && run.taskId.toString() == _selectedId) {
+              _mergeRun(run);
+            } else {
+              _trackDeviceActiveRun(run);
+            }
+          }
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              res.cancelledCount > 0
+                  ? 'Stopped ${res.cancelledCount} run(s) on this device'
+                  : 'No active runs on this device',
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  bool _deviceHasActiveRuns() =>
+      widget.scope == TaskScope.TASK_SCOPE_DEVICE && widget.deviceIid > 0 && _deviceActiveRunIds.isNotEmpty;
 
   Future<void> _toggleTaskActive(Task task, bool active) async {
     final updated = task.clone()..isActive = active;
@@ -402,6 +520,16 @@ class UiTaskMasterDetailState extends State<UiTaskMasterDetail> {
                 style: const TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w600),
               ),
             ),
+            if (widget.scope == TaskScope.TASK_SCOPE_DEVICE && widget.deviceIid > 0 && _deviceHasActiveRuns())
+              TextButton(
+                onPressed: _busy ? null : _stopAllOnDevice,
+                style: TextButton.styleFrom(
+                  foregroundColor: _danger,
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+                child: const Text('Stop all', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              ),
             if (!widget.hideBarActions) ...[
               uiIconButton(
                 tooltip: 'Refresh tasks',
@@ -811,9 +939,14 @@ class UiTaskMasterDetailState extends State<UiTaskMasterDetail> {
 
   Widget _buildRunRow(TaskRun run) {
     final status = run.status;
-    final isRunning = status == TaskRunStatus.TASK_RUN_STATUS_RUNNING ||
-        status == TaskRunStatus.TASK_RUN_STATUS_LEASED ||
-        status == TaskRunStatus.TASK_RUN_STATUS_QUEUED;
+    final isRunning = _taskRunIsActive(status);
+    final progress = _taskRunProgressMeta(run.metaJson);
+    final usageParts = <String>[];
+    if (run.tokensIn > 0 || run.tokensOut > 0) {
+      usageParts.add('${run.tokensIn} in · ${run.tokensOut} out');
+    }
+    if (run.costUsd > 0) usageParts.add('\$${run.costUsd.toStringAsFixed(4)}');
+    if (run.durationMs > 0 && !isRunning) usageParts.add('${run.durationMs} ms');
 
     final statusIcon = switch (status) {
       TaskRunStatus.TASK_RUN_STATUS_DONE => const Icon(Icons.check_circle_outline, size: 16, color: _accent),
@@ -889,6 +1022,27 @@ class UiTaskMasterDetailState extends State<UiTaskMasterDetail> {
                   const SizedBox(height: 2),
                   Text(run.summary, style: const TextStyle(color: Color(0xFFD4D4D8), fontSize: 12)),
                 ],
+                if (progress != null && (isRunning || progress.total > 0)) ...[
+                  const SizedBox(height: 6),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: progress.total > 0 ? (progress.pct / 100.0).clamp(0.0, 1.0) : null,
+                      minHeight: 4,
+                      backgroundColor: const Color(0xFF27272A),
+                      color: _accent,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    progress.total > 0 ? '${progress.done}/${progress.total} (${progress.pct.toStringAsFixed(0)}%)' : '${progress.pct.toStringAsFixed(0)}%',
+                    style: const TextStyle(color: _muted, fontSize: 10),
+                  ),
+                ],
+                if (usageParts.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(usageParts.join(' · '), style: const TextStyle(color: _muted, fontSize: 10)),
+                ],
                 if (run.error.isNotEmpty) ...[
                   const SizedBox(height: 2),
                   Text(run.error, style: const TextStyle(color: _danger, fontSize: 11)),
@@ -904,7 +1058,7 @@ class UiTaskMasterDetailState extends State<UiTaskMasterDetail> {
                 visualDensity: VisualDensity.compact,
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               ),
-              child: const Text('Cancel', style: TextStyle(fontSize: 11)),
+              child: const Text('Stop', style: TextStyle(fontSize: 11)),
             ),
         ],
       ),

@@ -1,4 +1,4 @@
-# Build (optional), deploy extension agent + popup dist, restart single IPC listener.
+﻿# Build (optional), deploy extension agent + popup dist, restart single IPC listener.
 param(
     [switch]$SkipBuild,
     [switch]$StandaloneAgent,
@@ -49,7 +49,7 @@ New-Item -ItemType Directory -Force -Path $distDst | Out-Null
 Copy-Item -Path (Join-Path $distSrc '*') -Destination $distDst -Recurse -Force
 Copy-Item -Path (Join-Path $extSrc 'manifest.json') -Destination (Join-Path $extDst 'manifest.json') -Force
 
-if (-not $env:C35_SERVER_URL) { $env:C35_SERVER_URL = 'http://127.0.0.1:8080' }
+if (-not $env:C35_SERVER_URL) { $env:C35_SERVER_URL = 'https://alienai.id' }
 $configPath = Join-Path $env:LOCALAPPDATA 'AlienAI\config.json'
 if (Test-Path -LiteralPath $configPath) {
     try {

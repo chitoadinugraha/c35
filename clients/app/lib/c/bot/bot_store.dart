@@ -39,9 +39,10 @@ String botPeerTimeLabel(Int64 tsMs) {
 }
 
 class BotStore extends ChangeNotifier {
-  BotStore({ChatConn? conn}) : _conn = conn ?? ChatConn();
+  BotStore({ChatConn? conn, ChatStore? shellStore}) : _conn = conn ?? ChatConn(), _shellStore = shellStore;
 
   final ChatConn _conn;
+  final ChatStore? _shellStore;
   StreamSubscription<SyncPush>? _syncSub;
 
   ChatConn get conn => _conn;
@@ -60,6 +61,8 @@ class BotStore extends ChangeNotifier {
   String? _selectedChatId;
   String? _botActiveBusyId;
   var _cacheRestored = false;
+
+  void _shellBotsCountSync() => unawaited(_shellStore?.navCountsBotPut(_bots.length));
 
   bool botActiveBusy(String botId) => _botActiveBusyId == botId;
 
@@ -268,7 +271,6 @@ class BotStore extends ChangeNotifier {
       ..clear()
       ..addAll(cached);
     _sortBots();
-    if (_selectedBotId == null && _bots.isNotEmpty) _selectedBotId = _bots.first.identity.iid.toString();
     notifyListeners();
   }
 
@@ -352,9 +354,13 @@ class BotStore extends ChangeNotifier {
         ..clear()
         ..addAll(res.rows);
       _sortBots();
-      if (_selectedBotId != null && botById(_selectedBotId) == null) _selectedBotId = null;
-      if (_selectedBotId == null && _bots.isNotEmpty) _selectedBotId = _bots.first.identity.iid.toString();
+      if (_selectedBotId != null && botById(_selectedBotId) == null) {
+        _selectedBotId = null;
+        _selectedChatId = null;
+        _peers.clear();
+      }
       await _persistBots();
+      _shellBotsCountSync();
       if (_selectedBotId != null) await refreshPeers();
     } catch (e) {
       lError('bot list: $e');
@@ -618,12 +624,12 @@ class BotStore extends ChangeNotifier {
       await identityDelete(_conn, iid);
       _bots.removeWhere((b) => b.identity.iid.toString() == id);
       if (_selectedBotId == id) {
-        _selectedBotId = _bots.isNotEmpty ? _bots.first.identity.iid.toString() : null;
+        _selectedBotId = null;
         _selectedChatId = null;
         _peers.clear();
-        if (_selectedBotId != null) await refreshPeers();
       }
       await _persistBots();
+      _shellBotsCountSync();
       notifyListeners();
     } catch (e) {
       lError('bot delete: $e');
@@ -644,13 +650,14 @@ class BotStore extends ChangeNotifier {
       if (req.hasArchived() && req.archived) {
         _bots.removeWhere((r) => r.identity.iid.toString() == id);
         if (_selectedBotId == id) {
-          _selectedBotId = _bots.isNotEmpty ? _bots.first.identity.iid.toString() : null;
+          _selectedBotId = null;
           _selectedChatId = null;
           _peers.clear();
         }
       }
       _sortBots();
       await _persistBots();
+      _shellBotsCountSync();
       if (notify) notifyListeners();
     } catch (e) {
       lError('bot grant patch: $e');

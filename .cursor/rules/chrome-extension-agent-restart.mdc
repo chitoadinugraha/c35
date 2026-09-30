@@ -1,0 +1,27 @@
+---
+description: Chrome extension sheet/automation — auto-restart remote agent; extension reload only when needed
+globs:
+  - clients/chrome_extension/**
+  - remotes/c_remote_browser/**
+  - servers/crates/mod_chat/src/tools/builtin/browser.rs
+---
+
+# Chrome extension dev — agent vs extension reload
+
+## Agents (automatic — do not ask the user to restart the agent)
+
+After changing `remotes/c_remote_browser/**` or before sheet batch writes when IPC/sheets ops fail:
+
+1. Run from repo root: `.\_\scripts\dev\restart_chrome_remote_agent.ps1`
+2. Call `browser.agent.restart` on the paired device (or rely on `browser.sheets.row_set` auto-retry).
+3. Wait ~5s, then retry.
+
+`browser.sheets.row_set` calls `agent.restart` and retries once on stale agent errors.
+
+## Extension reload (tell the user only when needed)
+
+Ask the user to reload Alien AI Remote on chrome://extensions only when `dist/` or `manifest.json` changed and `browser.extension` version is still old after `sync_chrome_extension_install.ps1`.
+
+## Sheet writes
+
+Prefer `browser.sheets.row_set` for G-L, not six `cell_set` calls.

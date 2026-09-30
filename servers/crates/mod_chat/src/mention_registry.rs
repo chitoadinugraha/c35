@@ -456,6 +456,19 @@ pub fn mention_prompt_block(resolved: &[MentionResolved]) -> String {
     format!("[MENTION TARGETS]\n{}", lines.join("\n"))
 }
 
+pub fn mention_bot_iids(resolved: &[MentionResolved]) -> Vec<i64> {
+    resolved
+        .iter()
+        .filter(|r| r.identity_kind.as_deref() == Some("bot"))
+        .filter_map(|r| r.identity_iid.filter(|i| *i > 0))
+        .fold(Vec::new(), |mut acc, iid| {
+            if !acc.contains(&iid) {
+                acc.push(iid);
+            }
+            acc
+        })
+}
+
 pub fn mention_device_iids(resolved: &[MentionResolved]) -> Vec<i64> {
     resolved
         .iter()

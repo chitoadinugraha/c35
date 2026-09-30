@@ -6,6 +6,7 @@ fn mention_kind_present(mention: &MentionContext, kind: &str) -> bool {
     match kind {
         "site" => !mention.sites.is_empty(),
         "device" => !mention.devices.is_empty(),
+        "bot" => !mention.bots.is_empty(),
         _ => false,
     }
 }

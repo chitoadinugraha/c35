@@ -467,6 +467,7 @@ const RemoteInputEvent$json = {
     {'1': 'key_code', '3': 5, '4': 1, '5': 5, '10': 'keyCode'},
     {'1': 'text', '3': 6, '4': 1, '5': 9, '10': 'text'},
     {'1': 'delta_y', '3': 7, '4': 1, '5': 5, '10': 'deltaY'},
+    {'1': 'tab_id', '3': 8, '4': 1, '5': 9, '10': 'tabId'},
   ],
 };
 
@@ -475,7 +476,7 @@ final $typed_data.Uint8List remoteInputEventDescriptor = $convert.base64Decode(
     'ChBSZW1vdGVJbnB1dEV2ZW50Eh0KCmV2ZW50X3R5cGUYASABKAlSCWV2ZW50VHlwZRIMCgF4GA'
     'IgASgBUgF4EgwKAXkYAyABKAFSAXkSFgoGYnV0dG9uGAQgASgFUgZidXR0b24SGQoIa2V5X2Nv'
     'ZGUYBSABKAVSB2tleUNvZGUSEgoEdGV4dBgGIAEoCVIEdGV4dBIXCgdkZWx0YV95GAcgASgFUg'
-    'ZkZWx0YVk=');
+    'ZkZWx0YVkSFQoGdGFiX2lkGAggASgJUgV0YWJJZA==');
 
 @$core.Deprecated('Use remoteCursorEventDescriptor instead')
 const RemoteCursorEvent$json = {

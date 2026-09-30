@@ -74,7 +74,7 @@ Single cluster tool surface for `type=browser` devices. Branch on `meta.browser_
 | `browser.extension` | `extension.version` / `extension.reload` | **no** | **yes** | **yes** | MV3 dev: confirm manifest version or reload service worker after `sync_chrome_extension_install.ps1`. |
 | `input.inject` (via `device.input` on browser device) | `input.inject` | yes | **yes** | **yes** | Default **CDP** on all sites; `input_mode: dom` for synthetic DOM. |
 | `browser.sheets.cell_set` | `sheets.cell_set` | **no** | **yes** | **yes** | Open Google Sheet tab only. Name-box goto + F2 + `insertText` + Tab commit. |
-| `browser.sheets.row_read` | `sheets.row_read` | **no** | **yes** | **yes** | Read one cell (`cell=B7`) or a row slice (`row`, `start_col`, `columns`). Replaces separate `cell_read` tool. |
+| `browser.sheets.row_read` | `sheets.row_read` | **no** | **removed** | **no** | **Removed from LLM tools** — use `range_read` with `start_col` + `columns` + `from_row`/`to_row`. Extension IPC op kept for debug only. |
 | `browser.sheets.append_row` | `sheets.append_row` | **no** | **yes** | **yes** | Product + stock on one row (default cols **B/C**). |
 
 **Not an LLM tool:** Remote tab **WebRTC video + input** works on extension devices today (human plane). That is required for daily-profile control when `browser.page.act` is unavailable.
@@ -228,8 +228,8 @@ Paired device: `type=browser`, `meta.browser_engine=extension`. User’s **daily
 | **`browser.page.extract`** | Selector text extraction. |
 | **`browser.page.screenshot`** | JPEG capture (cluster artifact path). |
 | **`browser.sheets.cell_set`** | Write one cell; extension verifies; **`llm.summary`** e.g. `B2 set to "text"` on success (no follow-up read). |
-| **`browser.sheets.range_read`** | One **LLM tool call**; bulk read in the extension (not server `gsheet.*`). **`read_mode=auto`**: hybrid **`export_csv`** / **`gviz_csv`** for values + **product-column CDP scan** for physical row numbers (`read_via` e.g. `export_csv+sheet_rows`); **`llm.next_row`** is safe for **`append_row`**. Fallback **`cdp_scan`** (slow). Optional **`read_mode=clipboard`** for local debug only (Chrome clipboard-read prompt). Also **`clipboard_tsv`**. |
-| **`browser.sheets.row_read`** | Single cell or one row slice — prefer `range_read` for inventory. |
+| **`browser.sheets.range_read`** | One **LLM tool call**; bulk read in the extension (not server `gsheet.*`). **`read_mode=auto`** or **`export`**: single **`export_csv`** / **`gviz_csv`** fetch for **all rows** (no per-row CDP); row numbers match sheet rows on normal tabs (`read_via` `export_csv` / `gviz_csv`). **`row_align=true`** or **`read_mode=align`**: old hybrid + CDP scan (slow; avoid on 1000+ rows). Fallback **`cdp_scan`** only if export fails. Optional **`read_mode=clipboard`** for local debug. |
+| **`browser.sheets.row_read`** | **Not an LLM tool** — use **`range_read`** (`columns` + `start_col` for wide rows; `from_row`=`to_row` for one row). |
 | **`browser.sheets.append_row`** | Product + stock row (default **B/C**); verifies both cells; **`llm.summary`** e.g. `Row 11: B11="Es teler", C11="5"`. |
 
 **Not on extension:** `browser.task.run` (use Playwright device or stepwise `page.*` + sheets tools). **`browser.file.upload`** deferred.

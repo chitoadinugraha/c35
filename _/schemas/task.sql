@@ -97,6 +97,11 @@ CREATE TABLE IF NOT EXISTS ai.task_run (
     step_index          INT NOT NULL DEFAULT 0,
     summary             TEXT NOT NULL DEFAULT '',
     error               TEXT NOT NULL DEFAULT '',
+    meta_json           JSONB NOT NULL DEFAULT '{}',
+    tokens_in           INT NOT NULL DEFAULT 0,
+    tokens_out          INT NOT NULL DEFAULT 0,
+    cost_usd            NUMERIC(12, 6) NOT NULL DEFAULT 0,
+    duration_ms         INT NOT NULL DEFAULT 0,
 
     lease_pod           VARCHAR(64) NOT NULL DEFAULT '',
     lease_expires_ts    TIMESTAMPTZ,
@@ -124,3 +129,9 @@ CREATE INDEX IF NOT EXISTS idx_task_run_device_status
 CREATE INDEX IF NOT EXISTS idx_task_run_task
     ON ai.task_run (task_id, created_ts DESC)
     WHERE task_id <> 0;
+
+ALTER TABLE ai.task_run ADD COLUMN IF NOT EXISTS meta_json JSONB NOT NULL DEFAULT '{}';
+ALTER TABLE ai.task_run ADD COLUMN IF NOT EXISTS tokens_in INT NOT NULL DEFAULT 0;
+ALTER TABLE ai.task_run ADD COLUMN IF NOT EXISTS tokens_out INT NOT NULL DEFAULT 0;
+ALTER TABLE ai.task_run ADD COLUMN IF NOT EXISTS cost_usd NUMERIC(12, 6) NOT NULL DEFAULT 0;
+ALTER TABLE ai.task_run ADD COLUMN IF NOT EXISTS duration_ms INT NOT NULL DEFAULT 0;

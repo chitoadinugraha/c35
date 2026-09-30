@@ -18,6 +18,7 @@ import 'package:alienai_c35/c/pb/c35/log.pb.dart';
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/pb/c35/skill.pb.dart';
 import 'package:alienai_c35/c/pb/c35/stats.pb.dart';
+import 'package:alienai_c35/c/pb/c35/task.pb.dart';
 import 'package:alienai_c35/c/pb/c35/sync.pb.dart';
 import 'package:alienai_c35/c/pb/c35/tx.pb.dart';
 import 'package:alienai_c35/c/pb/c35/wire.pb.dart';
@@ -104,6 +105,7 @@ class ChatConn {
   final _logPushCtrl = StreamController<LogPush>.broadcast();
   final _promptRunPushCtrl = StreamController<PromptRunPush>.broadcast();
   final _promptFollowupPushCtrl = StreamController<PromptFollowupPush>.broadcast();
+  final _taskRunPushCtrl = StreamController<TaskRunPush>.broadcast();
   final _traceCache = <String, List<TraceLogDoc>>{};
   final _tracePrefetchInflight = <String, Future<void>>{};
   final _traceCacheCtrl = StreamController<String>.broadcast();
@@ -119,6 +121,7 @@ class ChatConn {
   Stream<LogPush> get onLogPush => _logPushCtrl.stream;
   Stream<PromptRunPush> get onPromptRunPush => _promptRunPushCtrl.stream;
   Stream<PromptFollowupPush> get onPromptFollowupPush => _promptFollowupPushCtrl.stream;
+  Stream<TaskRunPush> get onTaskRunPush => _taskRunPushCtrl.stream;
   Stream<void> get onReconnected => _reconnectedCtrl.stream;
   /// Fires after auto-reconnect attaches a socket (before first frame); run session init.
   Stream<void> get onSocketAttached => _socketAttachedCtrl.stream;
@@ -378,6 +381,10 @@ class ChatConn {
     if (res.hasPromptFollowupPush()) {
       final push = res.promptFollowupPush;
       if (!_promptFollowupPushCtrl.isClosed) _promptFollowupPushCtrl.add(push);
+    }
+    if (res.hasTaskRunPush()) {
+      final push = res.taskRunPush;
+      if (!_taskRunPushCtrl.isClosed) _taskRunPushCtrl.add(push);
     }
     if (_isRemoteSignal(res) && !_remoteSignalCtrl.isClosed) _remoteSignalCtrl.add(res);
 
@@ -641,6 +648,43 @@ class ChatConn {
   Future<ResSkillList> skillList({SkillScope scope = SkillScope.SKILL_SCOPE_USER, int deviceIid = 0, int teamIid = 0, int sinceMs = 0}) => _rpc<ResSkillList>(
         WsReq(skillList: ReqSkillList(scope: scope, deviceIid: Int64(deviceIid), teamIid: Int64(teamIid), sinceMs: Int64(sinceMs))),
         (res) => res.skillList,
+      );
+
+  Future<ResTaskList> taskList({int deviceIid = 0, bool includeInactive = true}) => _rpc<ResTaskList>(
+        WsReq(taskList: ReqTaskList(deviceIid: Int64(deviceIid), includeInactive: includeInactive)),
+        (res) => res.taskList,
+      );
+
+  Future<ResTaskPut> taskPut(Task task) => _rpc<ResTaskPut>(
+        WsReq(taskPut: ReqTaskPut(task: task)),
+        (res) => res.taskPut,
+      );
+
+  Future<ResTaskRunStart> taskRunStart(ReqTaskRunStart req) => _rpc<ResTaskRunStart>(
+        WsReq(taskRunStart: req),
+        (res) => res.taskRunStart,
+      );
+
+  Future<ResTaskRunCancel> taskRunCancel(int runId) => _rpc<ResTaskRunCancel>(
+        WsReq(taskRunCancel: ReqTaskRunCancel(runId: Int64(runId))),
+        (res) => res.taskRunCancel,
+      );
+
+  Future<ResTaskRunCancelDevice> taskRunCancelDevice(int deviceIid) => _rpc<ResTaskRunCancelDevice>(
+        WsReq(taskRunCancelDevice: ReqTaskRunCancelDevice(deviceIid: Int64(deviceIid))),
+        (res) => res.taskRunCancelDevice,
+      );
+
+  Future<ResTaskRunList> taskRunList({int deviceIid = 0, int taskId = 0, int sinceMs = 0, int limit = 50}) => _rpc<ResTaskRunList>(
+        WsReq(
+          taskRunList: ReqTaskRunList(
+            deviceIid: Int64(deviceIid),
+            taskId: Int64(taskId),
+            sinceMs: Int64(sinceMs),
+            limit: limit,
+          ),
+        ),
+        (res) => res.taskRunList,
       );
 
   Future<ResSkillPut> skillPut(Skill skill) => _rpc<ResSkillPut>(

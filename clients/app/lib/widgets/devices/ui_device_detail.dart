@@ -10,14 +10,15 @@ import 'package:alienai_c35/c/settings/remote_prefs.dart';
 import 'package:alienai_c35/c/skill/skill_api.dart';
 import 'package:alienai_c35/c/skill/skill_md.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
-import 'package:alienai_c35/widgets/devices/ui_remote_teach_hud.dart';
 import 'package:alienai_c35/widgets/skill/io_skill_review.dart';
 import 'dart:async';
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/widgets/devices/ui_device_files.dart';
 import 'package:alienai_c35/widgets/devices/ui_remote_browser_pane.dart';
 import 'package:alienai_c35/widgets/devices/ui_remote_device.dart';
+import 'package:alienai_c35/c/task/task_api.dart';
 import 'package:alienai_c35/widgets/skill/ui_skill_master_detail.dart';
+import 'package:alienai_c35/widgets/task/ui_task_master_detail.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:alienai_c35/widgets/ui/ui_safe_area.dart';
 import 'package:alienai_c35/widgets/ui/ui_window_bar.dart';
@@ -55,6 +56,7 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
   var _remoteShowStats = false;
   var _remoteImmersive = false;
   final _skillKey = GlobalKey<UiSkillMasterDetailState>();
+  final _taskKey = GlobalKey<UiTaskMasterDetailState>();
   late final RemoteSession _session;
   DevicePromptContextStore? _promptStore;
   late final TabController _tabController;
@@ -129,6 +131,7 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
     final activeTab = _tabs[tabIndex];
     final isRemote = kind == 'remote' && activeTab == 'Remote';
     final isSkill = kind == 'remote' && activeTab == 'Skill';
+    final isTask = kind == 'remote' && activeTab == 'Task';
     final immersiveRemote = _remoteImmersive && kind == 'remote';
     return CallbackShortcuts(
       bindings: immersiveRemote
@@ -171,6 +174,12 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
                               _skillKey.currentState?.showAddMenu(ctx, anchor: anchor);
                             },
                           ),
+                        ),
+                      if (isTask)
+                        _toolBtn(
+                          icon: Icons.add,
+                          tooltip: 'Add task',
+                          onPressed: () => _taskKey.currentState?.createTask(),
                         ),
                       if (isRemote) ...[
                         ListenableBuilder(
@@ -349,6 +358,17 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
       }
     }
     if (kind == 'remote' && tab == 'Files') return UiDeviceFiles(session: _session);
+    if (kind == 'remote' && tab == 'Task') {
+      return UiTaskMasterDetail(
+        key: _taskKey,
+        conn: widget.chatConn,
+        ownerIid: Session.instance.uid,
+        scope: TaskScope.TASK_SCOPE_DEVICE,
+        deviceIid: widget.row.identity.iid.toInt(),
+        hideBarActions: true,
+        agentOnline: online,
+      );
+    }
     if (kind == 'remote' && tab == 'Skill') {
       return UiSkillMasterDetail(
         key: _skillKey,

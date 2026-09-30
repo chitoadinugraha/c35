@@ -5,8 +5,11 @@ use c35_wire::WireResult;
 pub async fn identity_nav_counts(ctx: &Ctx) -> WireResult<NavCounts> {
     let bots: i64 = sqlx::query_scalar(
         r#"
-        SELECT COUNT(*) FROM ai.identity
-        WHERE owner_iid = $1 AND kind = 'bot' AND deleted_ts IS NULL
+        SELECT COUNT(*)::bigint FROM ai.identity i
+        LEFT JOIN ai.identity_grant g
+          ON g.resource_iid = i.id AND g.grantee_iid = $1 AND g.deleted_ts IS NULL
+        WHERE i.owner_iid = $1 AND i.kind = 'bot' AND i.deleted_ts IS NULL
+          AND COALESCE((g.meta->>'archived_ts_ms')::bigint, 0) = 0
         "#,
     )
     .bind(ctx.caller_iid)

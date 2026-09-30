@@ -293,6 +293,7 @@ message WsReq {
     ReqBotPeerDelete bot_peer_delete = 168;
     ReqRemoteAgentPush req_remote_agent_push = 169;
     ReqRemoteBrowserInvoke req_remote_browser_invoke = 170;
+    ReqTaskRunCancelDevice task_run_cancel_device = 171;
   }
 }
 
@@ -440,5 +441,6 @@ message WsRes {
     ResBotPeerDelete bot_peer_delete = 168;
     ResRemoteAgentPush res_remote_agent_push = 169;
     ResRemoteBrowserInvoke res_remote_browser_invoke = 170;
+    ResTaskRunCancelDevice task_run_cancel_device = 171;
   }
 }

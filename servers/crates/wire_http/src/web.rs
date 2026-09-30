@@ -49,6 +49,13 @@ fn mime_type(path: &StdPath) -> &'static str {
 }
 
 pub async fn root_get(State(state): State<AppState>, headers: HeaderMap) -> Response {
+    let host = headers
+        .get(header::HOST)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    if c35_mod_site::host_is_api(host) {
+        return page_get("api.html").await;
+    }
     if let Some(res) = c35_mod_site::try_custom_domain_root(State(state), headers).await {
         return res;
     }
@@ -314,6 +321,7 @@ mod tests {
         assert!(dir.is_dir(), "web_root_dir {:?} should be a directory", dir);
         assert!(dir.join("index.html").is_file(), "index.html must exist");
         assert!(dir.join("terms.html").is_file(), "terms.html must exist");
+        assert!(dir.join("api.html").is_file(), "api.html must exist");
         assert!(dir.join("privacy.html").is_file(), "privacy.html must exist");
         assert!(dir.join("delete.html").is_file(), "delete.html must exist");
         assert!(dir.join("tts.html").is_file(), "tts.html must exist");

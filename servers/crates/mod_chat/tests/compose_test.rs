@@ -716,6 +716,41 @@ fn compose_requires_kinds_drops_site_tools_without_mention() {
 }
 
 #[test]
+fn compose_requires_kinds_drops_bot_inbox_without_bot_mention() {
+    let catalog = cluster_tools();
+    let out = compose_default(&[], "berapa chat hari ini di bot", catalog, &[]);
+    assert!(!out.tools.iter().any(|t| t.name == "bot.inbox.query"));
+}
+
+#[test]
+fn compose_requires_kinds_keeps_bot_inbox_with_bot_mention() {
+    let catalog = cluster_tools();
+    let mention = MentionContext {
+        sites: vec![],
+        devices: vec![],
+        bots: vec![77001],
+        default_site_iid: None,
+    };
+    let scopes = inst_scopes_home();
+    let inst_rows = &[inst_core_assistant()];
+    let out = compose_tools_and_inst(
+        inst_rows,
+        "berapa chat hari ini",
+        catalog,
+        &[],
+        &[],
+        &["general".into()],
+        "agent",
+        &[],
+        &scopes,
+        &mention,
+        &SiteCapabilityView::empty(),
+        ComposeTurnOpts::default(),
+    );
+    assert!(out.tools.iter().any(|t| t.name == "bot.inbox.query"));
+}
+
+#[test]
 fn compose_requires_kinds_keeps_site_tools_with_site_mention() {
     let mention = site_mention_ctx(111);
     let scopes = inst_scopes_home();
@@ -776,6 +811,7 @@ fn tool_mention_capability_read_needs_any_site() {
             },
         ],
         devices: vec![],
+        bots: vec![],
         default_site_iid: None,
     };
     assert!(tool_mention_eligible(&tool, &two_sites, &caps));
@@ -810,6 +846,7 @@ fn tool_mention_capability_write_needs_default_site() {
             },
         ],
         devices: vec![],
+        bots: vec![],
         default_site_iid: None,
     };
     assert!(!tool_mention_eligible(&tool, &multi_site, &caps));
@@ -985,6 +1022,7 @@ fn compose_browser_only_device_scope_excludes_desktop_and_fs_tools() {
     let mention = MentionContext {
         sites: vec![],
         devices: vec![88001],
+        bots: vec![],
         default_site_iid: None,
     };
     let scopes = inst_scopes_home();

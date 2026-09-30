@@ -661,24 +661,6 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     await _store.chatDeleteRemote(_conn, id);
   }
 
-  Future<void> _chatClear(int id) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF18181B),
-        title: const Text('Clear messages?', style: TextStyle(color: Color(0xFFF4F4F5), fontSize: 16)),
-        content: const Text('All messages in this chat will be cleared.', style: TextStyle(color: Color(0xFFA1A1AA))),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(style: FilledButton.styleFrom(backgroundColor: const Color(0xFFDC2626)), onPressed: () => Navigator.pop(ctx, true), child: const Text('Clear')),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    _store.chatClearMsgs(id);
-    _timeline.scrollToBottom(force: true);
-  }
-
   void _chatMenu(int id, Offset global) {
     ChatRow? row;
     for (final c in _store.chats) {
@@ -714,11 +696,6 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
             icon: Icons.archive_outlined,
             onPressed: () => _store.chatArchiveRemote(_conn, below, archived: true),
           ),
-        ChatMessageMenuAction(
-          label: 'Clear messages',
-          icon: Icons.cleaning_services_outlined,
-          onPressed: () => _chatClear(id),
-        ),
         const ChatMessageMenuDivider(),
         ChatMessageMenuAction(
           label: 'Delete',
@@ -750,7 +727,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
 
   void _lockSession() => widget.auth.lockSession();
 
-  void _openBots() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageBots(chatConn: _conn)));
+  void _openBots() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageBots(chatConn: _conn, shellStore: _store)));
 
   void _openDevices() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageDevices(chatConn: _conn)));
 

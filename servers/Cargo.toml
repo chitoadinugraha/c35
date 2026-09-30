@@ -24,6 +24,7 @@ members = [
     "crates/mod_channel",
     "crates/mod_device",
     "crates/mod_skill",
+    "crates/mod_task",
     "crates/mod_site",
     "crates/mod_mail",
     "crates/mod_tx",

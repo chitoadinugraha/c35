@@ -255,13 +255,12 @@ INSERT INTO ai.inst (
     'global',
     'topic',
     'sheets',
-    '[GOOGLE SHEETS] User works on a Google Sheet in the Chrome extension remote browser. Use browser.sheets.append_row for product+stock rows; browser.sheets.cell_set to write one cell; browser.sheets.row_read to read (single cell: cell=B7; row slice: row + start_col + columns). Pass device_iid (string) and tab_id from browser.tabs. Do not use device.input on Sheets — CDP sheet tools are faster and reliable. For API/bulk on bot-attached sheets use gsheet.*.',
+    '[GOOGLE SHEETS] Chrome extension spreadsheet. Read only browser.sheets.range_read (read_mode export). Wide row: start_col A + columns 12 + key_col C; one row: from_row=to_row=N. Inventory: product_col + stock_col. Writes: cell_set / append_row. device_iid string + tab_id from browser.tabs. gsheet.* for bot API sheets.',
     ARRAY[]::TEXT[],
     ARRAY[]::TEXT[],
     ARRAY[
         'browser.sheets.append_row',
         'browser.sheets.cell_set',
-        'browser.sheets.row_read',
         'browser.tabs'
     ],
     ARRAY['device.input'],
@@ -285,7 +284,7 @@ INSERT INTO ai.inst (
     'global',
     'task',
     'sheets',
-    '[GOOGLE SHEETS] Open spreadsheet in Chrome remote — never web.search/web.visit. Steps: browser.tabs list → browser.sheets.range_read once (llm.rows + llm.next_row). Append: browser.sheets.append_row with row=next_row. Edit stock: range_read to find product row, then browser.sheets.cell_set on stock column (default C, e.g. C12). Trust llm.summary on write ok; do not row_read after success.',
+    '[GOOGLE SHEETS] Open spreadsheet in Chrome remote — never web.search/web.visit. Read only range_read (export). One full row: from_row=to_row, start_col, columns, key_col. Bulk: max_rows + from_row/to_row. Append: append_row with row=next_row. Writes: cell_set. Trust llm.summary on write ok.',
     ARRAY[
         'google sheet', 'google sheets', 'spreadsheet', 'googlesheet',
         'feuille de calcul', 'lembar kerja', 'sheet test stock', 'test stock sheet',
@@ -296,7 +295,6 @@ INSERT INTO ai.inst (
         'tool_include:browser.sheets.append_row',
         'tool_include:browser.sheets.cell_set',
         'tool_include:browser.sheets.range_read',
-        'tool_include:browser.sheets.row_read',
         'tool_include:browser.tabs',
         'tool_exclude:device.input',
         'tool_exclude:web.search',
@@ -306,7 +304,6 @@ INSERT INTO ai.inst (
         'browser.sheets.append_row',
         'browser.sheets.cell_set',
         'browser.sheets.range_read',
-        'browser.sheets.row_read',
         'browser.tabs'
     ],
     ARRAY['device.input'],
@@ -498,6 +495,53 @@ UPDATE ai.inst SET
     enabled = true,
     updated_ts = NOW()
 WHERE id = 'inst.task.multitask_delegate';
+
+-- Seed: durable browser task worker (task.run_* — not delegate.run)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.task.browser_worker',
+    'global',
+    'task',
+    'device',
+    '[TASK WORKER] For durable batch work on a paired browser device (Google Sheet row backfill, e-Pus lookup, many rows with parallel slots), call task.run_start with recipe JSON (recipe browser.sheet_row_backfill: tab_id, sheet columns, parallel 1-10, limits.max_rows_per_run). This runs on the server Task tab — not delegate.run (LLM subagents). Poll progress with task.run_status (meta done/total/pct, tokens, cost). Stop one run: task.run_cancel(run_id). Stop every active run on a device: task.run_cancel_device. If start fails on balance or quota, tell the user to top up — do not retry in a tight loop.',
+    ARRAY[
+        'sheet backfill', 'backfill sheet', 'e-pus', 'epus', 'batch rows', 'parallel rows',
+        'task tab', 'task run', 'browser.sheet_row_backfill', 'isi sheet', 'baris sheet',
+        'task progress', 'berapa persen', 'stop task', 'cancel task', 'hentikan task'
+    ],
+    ARRAY[
+        'tool_include:task.run_start',
+        'tool_include:task.run_status',
+        'tool_include:task.run_cancel',
+        'tool_include:task.run_cancel_device'
+    ],
+    ARRAY['task.run_start', 'task.run_status', 'task.run_cancel', 'task.run_cancel_device'],
+    126,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO NOTHING;
+
+UPDATE ai.inst SET
+    kind = 'task',
+    topic_id = 'device',
+    inst = '[TASK WORKER] For durable batch work on a paired browser device (Google Sheet row backfill, e-Pus lookup, many rows with parallel slots), call task.run_start with recipe JSON (recipe browser.sheet_row_backfill: tab_id, sheet columns, parallel 1-10, limits.max_rows_per_run). This runs on the server Task tab — not delegate.run (LLM subagents). Poll progress with task.run_status (meta done/total/pct, tokens, cost). Stop one run: task.run_cancel(run_id). Stop every active run on a device: task.run_cancel_device. If start fails on balance or quota, tell the user to top up — do not retry in a tight loop.',
+    phrases = ARRAY[
+        'sheet backfill', 'backfill sheet', 'e-pus', 'epus', 'batch rows', 'parallel rows',
+        'task tab', 'task run', 'browser.sheet_row_backfill', 'isi sheet', 'baris sheet',
+        'task progress', 'berapa persen', 'stop task', 'cancel task', 'hentikan task'
+    ],
+    triggers = ARRAY[
+        'tool_include:task.run_start',
+        'tool_include:task.run_status',
+        'tool_include:task.run_cancel',
+        'tool_include:task.run_cancel_device'
+    ],
+    include_tools = ARRAY['task.run_start', 'task.run_status', 'task.run_cancel', 'task.run_cancel_device'],
+    priority = 126,
+    enabled = true,
+    updated_ts = NOW()
+WHERE id = 'inst.task.browser_worker';
 
 -- Seed: @image mention steering
 INSERT INTO ai.inst (
@@ -1116,4 +1160,42 @@ UPDATE ai.inst SET
     priority = 180,
     updated_ts = NOW()
 WHERE id = 'inst.bot.web_search';
+
+-- Seed: @bot owner inbox analytics (Home prompt + @bot mention)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.task.bot_inbox',
+    'global',
+    'task',
+    '',
+    '[BOT INBOX] Owner asks about channel user traffic for a @mentioned bot. Call bot.inbox.query with the right query_id. top_questions: common user questions (params days, limit). peer_messages: list what a peer asked today (params peer, day, tz). stats_today: user message counts today grouped by channel platform (WhatsApp, Telegram, …); when show_total is true, reply with each channel line then total (e.g. 5 dari WhatsApp, 4 dari Telegram, 9 total). stats_daily_avg: average user messages per day (params days). Default exclude_app=true skips Bots app test chats. Requires @bot mention.',
+    ARRAY[
+        'apa yang biasa ditanya user', 'pertanyaan user', 'yang sering ditanya',
+        'hari ini tanya apa', 'tanya apa saja', 'chito tanya',
+        'berapa chat hari ini', 'jumlah chat hari ini', 'berapa pesan hari ini',
+        'rata-rata chat', 'rata rata chat per hari', 'average chat per day',
+        'analitik bot', 'statistik bot', 'inbox bot'
+    ],
+    ARRAY['tool_include:bot.inbox.query'],
+    ARRAY['bot.inbox.query'],
+    125,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO NOTHING;
+
+UPDATE ai.inst SET
+    inst = '[BOT INBOX] Owner asks about channel user traffic for a @mentioned bot. Call bot.inbox.query with the right query_id. top_questions: common user questions (params days, limit). peer_messages: list what a peer asked today (params peer, day, tz). stats_today: user message counts today grouped by channel platform (WhatsApp, Telegram, …); when show_total is true, reply with each channel line then total (e.g. 5 dari WhatsApp, 4 dari Telegram, 9 total). stats_daily_avg: average user messages per day (params days). Default exclude_app=true skips Bots app test chats. Requires @bot mention.',
+    phrases = ARRAY[
+        'apa yang biasa ditanya user', 'pertanyaan user', 'yang sering ditanya',
+        'hari ini tanya apa', 'tanya apa saja', 'chito tanya',
+        'berapa chat hari ini', 'jumlah chat hari ini', 'berapa pesan hari ini',
+        'rata-rata chat', 'rata rata chat per hari', 'average chat per day',
+        'analitik bot', 'statistik bot', 'inbox bot'
+    ],
+    triggers = ARRAY['tool_include:bot.inbox.query'],
+    include_tools = ARRAY['bot.inbox.query'],
+    priority = 125,
+    updated_ts = NOW()
+WHERE id = 'inst.task.bot_inbox';
 

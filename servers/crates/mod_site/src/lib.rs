@@ -22,7 +22,7 @@ mod tls_sync;
 mod ts;
 
 pub use collection_def::{collection_def_list, collection_def_list_rpc, collection_def_list_static};
-pub use http::{host_is_primary, site_render_router, try_custom_domain_root};
+pub use http::{host_is_api, host_is_primary, site_render_router, try_custom_domain_root};
 pub use site_config::{
     site_capability_check, site_capability_enabled, site_capabilities_get, site_config_put,
 };

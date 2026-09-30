@@ -1,6 +1,7 @@
 pub const IDENTITY_SQL: &str = include_str!("../../../../_/schemas/identity.sql");
 pub const BILLING_SQL: &str = include_str!("../../../../_/schemas/billing.sql");
 pub const CHAT_SQL: &str = include_str!("../../../../_/schemas/chat.sql");
+pub const BOT_INBOX_SQL: &str = include_str!("../../../../_/schemas/bot_inbox.sql");
 pub const PROMPT_RUN_SQL: &str = include_str!("../../../../_/schemas/prompt_run.sql");
 pub const PROMPT_FOLLOWUP_SQL: &str = include_str!("../../../../_/schemas/prompt_followup.sql");
 pub const ASSET_TAG_SQL: &str = include_str!("../../../../_/schemas/asset_tag.sql");
@@ -33,6 +34,7 @@ pub const SCHEMA_APPLY_ORDER: &[(&str, &str)] = &[
     ("mail", MAIL_SQL),
     ("billing", BILLING_SQL),
     ("chat", CHAT_SQL),
+    ("bot_inbox", BOT_INBOX_SQL),
     ("prompt_run", PROMPT_RUN_SQL),
     ("prompt_followup", PROMPT_FOLLOWUP_SQL),
     ("asset_tag", ASSET_TAG_SQL),

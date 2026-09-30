@@ -2947,6 +2947,7 @@ enum WsReq_Body {
   botPeerDelete,
   reqRemoteAgentPush,
   reqRemoteBrowserInvoke,
+  taskRunCancelDevice,
   notSet
 }
 
@@ -3065,6 +3066,7 @@ class WsReq extends $pb.GeneratedMessage {
     $15.ReqBotPeerDelete? botPeerDelete,
     $20.ReqRemoteAgentPush? reqRemoteAgentPush,
     $20.ReqRemoteBrowserInvoke? reqRemoteBrowserInvoke,
+    $19.ReqTaskRunCancelDevice? taskRunCancelDevice,
   }) {
     final result = WsReq._();
     if (reqId != null) result.reqId = reqId;
@@ -3195,6 +3197,8 @@ class WsReq extends $pb.GeneratedMessage {
       result.reqRemoteAgentPush = reqRemoteAgentPush;
     if (reqRemoteBrowserInvoke != null)
       result.reqRemoteBrowserInvoke = reqRemoteBrowserInvoke;
+    if (taskRunCancelDevice != null)
+      result.taskRunCancelDevice = taskRunCancelDevice;
     return result;
   }
 
@@ -3319,6 +3323,7 @@ class WsReq extends $pb.GeneratedMessage {
     168: WsReq_Body.botPeerDelete,
     169: WsReq_Body.reqRemoteAgentPush,
     170: WsReq_Body.reqRemoteBrowserInvoke,
+    171: WsReq_Body.taskRunCancelDevice,
     0: WsReq_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -3436,7 +3441,8 @@ class WsReq extends $pb.GeneratedMessage {
       167,
       168,
       169,
-      170
+      170,
+      171
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$13.ReqSessionInit>(2, _omitFieldNames ? '' : 'sessionInit',
@@ -3690,6 +3696,9 @@ class WsReq extends $pb.GeneratedMessage {
     ..aOM<$20.ReqRemoteBrowserInvoke>(
         170, _omitFieldNames ? '' : 'reqRemoteBrowserInvoke',
         subBuilder: $20.ReqRemoteBrowserInvoke.$_createMessage)
+    ..aOM<$19.ReqTaskRunCancelDevice>(
+        171, _omitFieldNames ? '' : 'taskRunCancelDevice',
+        subBuilder: $19.ReqTaskRunCancelDevice.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -3823,6 +3832,7 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(168)
   @$pb.TagNumber(169)
   @$pb.TagNumber(170)
+  @$pb.TagNumber(171)
   WsReq_Body whichBody() => _WsReq_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(3)
@@ -3935,6 +3945,7 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(168)
   @$pb.TagNumber(169)
   @$pb.TagNumber(170)
+  @$pb.TagNumber(171)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -5192,6 +5203,18 @@ class WsReq extends $pb.GeneratedMessage {
   void clearReqRemoteBrowserInvoke() => $_clearField(170);
   @$pb.TagNumber(170)
   $20.ReqRemoteBrowserInvoke ensureReqRemoteBrowserInvoke() => $_ensure(111);
+
+  @$pb.TagNumber(171)
+  $19.ReqTaskRunCancelDevice get taskRunCancelDevice => $_getN(112);
+  @$pb.TagNumber(171)
+  set taskRunCancelDevice($19.ReqTaskRunCancelDevice value) =>
+      $_setField(171, value);
+  @$pb.TagNumber(171)
+  $core.bool hasTaskRunCancelDevice() => $_has(112);
+  @$pb.TagNumber(171)
+  void clearTaskRunCancelDevice() => $_clearField(171);
+  @$pb.TagNumber(171)
+  $19.ReqTaskRunCancelDevice ensureTaskRunCancelDevice() => $_ensure(112);
 }
 
 enum WsRes_Body {
@@ -5316,6 +5339,7 @@ enum WsRes_Body {
   botPeerDelete,
   resRemoteAgentPush,
   resRemoteBrowserInvoke,
+  taskRunCancelDevice,
   notSet
 }
 
@@ -5444,6 +5468,7 @@ class WsRes extends $pb.GeneratedMessage {
     $15.ResBotPeerDelete? botPeerDelete,
     $20.ResRemoteAgentPush? resRemoteAgentPush,
     $20.ResRemoteBrowserInvoke? resRemoteBrowserInvoke,
+    $19.ResTaskRunCancelDevice? taskRunCancelDevice,
   }) {
     final result = WsRes._();
     if (reqId != null) result.reqId = reqId;
@@ -5585,6 +5610,8 @@ class WsRes extends $pb.GeneratedMessage {
       result.resRemoteAgentPush = resRemoteAgentPush;
     if (resRemoteBrowserInvoke != null)
       result.resRemoteBrowserInvoke = resRemoteBrowserInvoke;
+    if (taskRunCancelDevice != null)
+      result.taskRunCancelDevice = taskRunCancelDevice;
     return result;
   }
 
@@ -5719,6 +5746,7 @@ class WsRes extends $pb.GeneratedMessage {
     168: WsRes_Body.botPeerDelete,
     169: WsRes_Body.resRemoteAgentPush,
     170: WsRes_Body.resRemoteBrowserInvoke,
+    171: WsRes_Body.taskRunCancelDevice,
     0: WsRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -5846,7 +5874,8 @@ class WsRes extends $pb.GeneratedMessage {
       167,
       168,
       169,
-      170
+      170,
+      171
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$25.Err>(2, _omitFieldNames ? '' : 'err',
@@ -6121,6 +6150,9 @@ class WsRes extends $pb.GeneratedMessage {
     ..aOM<$20.ResRemoteBrowserInvoke>(
         170, _omitFieldNames ? '' : 'resRemoteBrowserInvoke',
         subBuilder: $20.ResRemoteBrowserInvoke.$_createMessage)
+    ..aOM<$19.ResTaskRunCancelDevice>(
+        171, _omitFieldNames ? '' : 'taskRunCancelDevice',
+        subBuilder: $19.ResTaskRunCancelDevice.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -6264,6 +6296,7 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(168)
   @$pb.TagNumber(169)
   @$pb.TagNumber(170)
+  @$pb.TagNumber(171)
   WsRes_Body whichBody() => _WsRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(10)
@@ -6386,6 +6419,7 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(168)
   @$pb.TagNumber(169)
   @$pb.TagNumber(170)
+  @$pb.TagNumber(171)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -7752,6 +7786,18 @@ class WsRes extends $pb.GeneratedMessage {
   void clearResRemoteBrowserInvoke() => $_clearField(170);
   @$pb.TagNumber(170)
   $20.ResRemoteBrowserInvoke ensureResRemoteBrowserInvoke() => $_ensure(121);
+
+  @$pb.TagNumber(171)
+  $19.ResTaskRunCancelDevice get taskRunCancelDevice => $_getN(122);
+  @$pb.TagNumber(171)
+  set taskRunCancelDevice($19.ResTaskRunCancelDevice value) =>
+      $_setField(171, value);
+  @$pb.TagNumber(171)
+  $core.bool hasTaskRunCancelDevice() => $_has(122);
+  @$pb.TagNumber(171)
+  void clearTaskRunCancelDevice() => $_clearField(171);
+  @$pb.TagNumber(171)
+  $19.ResTaskRunCancelDevice ensureTaskRunCancelDevice() => $_ensure(122);
 }
 
 const $core.bool _omitFieldNames =

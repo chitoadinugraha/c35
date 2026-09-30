@@ -53,13 +53,15 @@ const ReqDevicePairRegister$json = {
   '2': [
     {'1': 'device_name', '3': 1, '4': 1, '5': 9, '10': 'deviceName'},
     {'1': 'device_type', '3': 2, '4': 1, '5': 9, '10': 'deviceType'},
+    {'1': 'meta_json', '3': 3, '4': 1, '5': 9, '10': 'metaJson'},
   ],
 };
 
 /// Descriptor for `ReqDevicePairRegister`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List reqDevicePairRegisterDescriptor = $convert.base64Decode(
     'ChVSZXFEZXZpY2VQYWlyUmVnaXN0ZXISHwoLZGV2aWNlX25hbWUYASABKAlSCmRldmljZU5hbW'
-    'USHwoLZGV2aWNlX3R5cGUYAiABKAlSCmRldmljZVR5cGU=');
+    'USHwoLZGV2aWNlX3R5cGUYAiABKAlSCmRldmljZVR5cGUSGwoJbWV0YV9qc29uGAMgASgJUght'
+    'ZXRhSnNvbg==');
 
 @$core.Deprecated('Use resDevicePairRegisterDescriptor instead')
 const ResDevicePairRegister$json = {

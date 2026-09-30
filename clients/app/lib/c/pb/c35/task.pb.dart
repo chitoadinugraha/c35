@@ -428,6 +428,11 @@ class TaskRun extends $pb.GeneratedMessage {
     $fixnum.Int64? createdTsMs,
     $fixnum.Int64? updatedTsMs,
     $fixnum.Int64? deletedTsMs,
+    $core.String? metaJson,
+    $core.int? tokensIn,
+    $core.int? tokensOut,
+    $core.double? costUsd,
+    $fixnum.Int64? durationMs,
   }) {
     final result = TaskRun._();
     if (id != null) result.id = id;
@@ -451,6 +456,11 @@ class TaskRun extends $pb.GeneratedMessage {
     if (createdTsMs != null) result.createdTsMs = createdTsMs;
     if (updatedTsMs != null) result.updatedTsMs = updatedTsMs;
     if (deletedTsMs != null) result.deletedTsMs = deletedTsMs;
+    if (metaJson != null) result.metaJson = metaJson;
+    if (tokensIn != null) result.tokensIn = tokensIn;
+    if (tokensOut != null) result.tokensOut = tokensOut;
+    if (costUsd != null) result.costUsd = costUsd;
+    if (durationMs != null) result.durationMs = durationMs;
     return result;
   }
 
@@ -489,6 +499,11 @@ class TaskRun extends $pb.GeneratedMessage {
     ..aInt64(20, _omitFieldNames ? '' : 'createdTsMs')
     ..aInt64(21, _omitFieldNames ? '' : 'updatedTsMs')
     ..aInt64(22, _omitFieldNames ? '' : 'deletedTsMs')
+    ..aOS(23, _omitFieldNames ? '' : 'metaJson')
+    ..aI(24, _omitFieldNames ? '' : 'tokensIn')
+    ..aI(25, _omitFieldNames ? '' : 'tokensOut')
+    ..aD(26, _omitFieldNames ? '' : 'costUsd')
+    ..aInt64(27, _omitFieldNames ? '' : 'durationMs')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -699,6 +714,51 @@ class TaskRun extends $pb.GeneratedMessage {
   $core.bool hasDeletedTsMs() => $_has(20);
   @$pb.TagNumber(22)
   void clearDeletedTsMs() => $_clearField(22);
+
+  @$pb.TagNumber(23)
+  $core.String get metaJson => $_getSZ(21);
+  @$pb.TagNumber(23)
+  set metaJson($core.String value) => $_setString(21, value);
+  @$pb.TagNumber(23)
+  $core.bool hasMetaJson() => $_has(21);
+  @$pb.TagNumber(23)
+  void clearMetaJson() => $_clearField(23);
+
+  @$pb.TagNumber(24)
+  $core.int get tokensIn => $_getIZ(22);
+  @$pb.TagNumber(24)
+  set tokensIn($core.int value) => $_setSignedInt32(22, value);
+  @$pb.TagNumber(24)
+  $core.bool hasTokensIn() => $_has(22);
+  @$pb.TagNumber(24)
+  void clearTokensIn() => $_clearField(24);
+
+  @$pb.TagNumber(25)
+  $core.int get tokensOut => $_getIZ(23);
+  @$pb.TagNumber(25)
+  set tokensOut($core.int value) => $_setSignedInt32(23, value);
+  @$pb.TagNumber(25)
+  $core.bool hasTokensOut() => $_has(23);
+  @$pb.TagNumber(25)
+  void clearTokensOut() => $_clearField(25);
+
+  @$pb.TagNumber(26)
+  $core.double get costUsd => $_getN(24);
+  @$pb.TagNumber(26)
+  set costUsd($core.double value) => $_setDouble(24, value);
+  @$pb.TagNumber(26)
+  $core.bool hasCostUsd() => $_has(24);
+  @$pb.TagNumber(26)
+  void clearCostUsd() => $_clearField(26);
+
+  @$pb.TagNumber(27)
+  $fixnum.Int64 get durationMs => $_getI64(25);
+  @$pb.TagNumber(27)
+  set durationMs($fixnum.Int64 value) => $_setInt64(25, value);
+  @$pb.TagNumber(27)
+  $core.bool hasDurationMs() => $_has(25);
+  @$pb.TagNumber(27)
+  void clearDurationMs() => $_clearField(27);
 }
 
 class ReqTaskList extends $pb.GeneratedMessage {
@@ -1244,16 +1304,144 @@ class ResTaskRunCancel extends $pb.GeneratedMessage {
   TaskRun ensureRun() => $_ensure(0);
 }
 
+/// Cancel every queued/leased/running task_run for a device (Stop all).
+class ReqTaskRunCancelDevice extends $pb.GeneratedMessage {
+  factory ReqTaskRunCancelDevice({
+    $fixnum.Int64? deviceIid,
+  }) {
+    final result = ReqTaskRunCancelDevice._();
+    if (deviceIid != null) result.deviceIid = deviceIid;
+    return result;
+  }
+
+  ReqTaskRunCancelDevice._();
+
+  factory ReqTaskRunCancelDevice.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqTaskRunCancelDevice()..mergeFromBuffer(data, registry);
+  factory ReqTaskRunCancelDevice.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqTaskRunCancelDevice()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqTaskRunCancelDevice',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqTaskRunCancelDevice.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'deviceIid')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqTaskRunCancelDevice clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqTaskRunCancelDevice copyWith(
+          void Function(ReqTaskRunCancelDevice) updates) =>
+      super.copyWith((message) => updates(message as ReqTaskRunCancelDevice))
+          as ReqTaskRunCancelDevice;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqTaskRunCancelDevice() / ReqTaskRunCancelDevice.new instead')
+  static ReqTaskRunCancelDevice create() => ReqTaskRunCancelDevice._();
+  static $pb.GeneratedMessage $_createMessage() => ReqTaskRunCancelDevice._();
+  @$core.override
+  ReqTaskRunCancelDevice createEmptyInstance() => ReqTaskRunCancelDevice._();
+  @$core.pragma('dart2js:noInline')
+  static ReqTaskRunCancelDevice getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqTaskRunCancelDevice>(
+          ReqTaskRunCancelDevice.$_createMessage);
+  static ReqTaskRunCancelDevice? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get deviceIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set deviceIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasDeviceIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearDeviceIid() => $_clearField(1);
+}
+
+class ResTaskRunCancelDevice extends $pb.GeneratedMessage {
+  factory ResTaskRunCancelDevice({
+    $core.int? cancelledCount,
+    $core.Iterable<TaskRun>? runs,
+  }) {
+    final result = ResTaskRunCancelDevice._();
+    if (cancelledCount != null) result.cancelledCount = cancelledCount;
+    if (runs != null) result.runs.addAll(runs);
+    return result;
+  }
+
+  ResTaskRunCancelDevice._();
+
+  factory ResTaskRunCancelDevice.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResTaskRunCancelDevice()..mergeFromBuffer(data, registry);
+  factory ResTaskRunCancelDevice.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResTaskRunCancelDevice()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResTaskRunCancelDevice',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResTaskRunCancelDevice.$_createMessage)
+    ..aI(1, _omitFieldNames ? '' : 'cancelledCount')
+    ..pPM<TaskRun>(2, _omitFieldNames ? '' : 'runs',
+        subBuilder: TaskRun.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResTaskRunCancelDevice clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResTaskRunCancelDevice copyWith(
+          void Function(ResTaskRunCancelDevice) updates) =>
+      super.copyWith((message) => updates(message as ResTaskRunCancelDevice))
+          as ResTaskRunCancelDevice;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResTaskRunCancelDevice() / ResTaskRunCancelDevice.new instead')
+  static ResTaskRunCancelDevice create() => ResTaskRunCancelDevice._();
+  static $pb.GeneratedMessage $_createMessage() => ResTaskRunCancelDevice._();
+  @$core.override
+  ResTaskRunCancelDevice createEmptyInstance() => ResTaskRunCancelDevice._();
+  @$core.pragma('dart2js:noInline')
+  static ResTaskRunCancelDevice getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResTaskRunCancelDevice>(
+          ResTaskRunCancelDevice.$_createMessage);
+  static ResTaskRunCancelDevice? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.int get cancelledCount => $_getIZ(0);
+  @$pb.TagNumber(1)
+  set cancelledCount($core.int value) => $_setSignedInt32(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasCancelledCount() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearCancelledCount() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $pb.PbList<TaskRun> get runs => $_getList(1);
+}
+
 class ReqTaskRunList extends $pb.GeneratedMessage {
   factory ReqTaskRunList({
     $fixnum.Int64? deviceIid,
     $fixnum.Int64? sinceMs,
     $core.int? limit,
+    $fixnum.Int64? taskId,
   }) {
     final result = ReqTaskRunList._();
     if (deviceIid != null) result.deviceIid = deviceIid;
     if (sinceMs != null) result.sinceMs = sinceMs;
     if (limit != null) result.limit = limit;
+    if (taskId != null) result.taskId = taskId;
     return result;
   }
 
@@ -1273,6 +1461,7 @@ class ReqTaskRunList extends $pb.GeneratedMessage {
     ..aInt64(1, _omitFieldNames ? '' : 'deviceIid')
     ..aInt64(2, _omitFieldNames ? '' : 'sinceMs')
     ..aI(3, _omitFieldNames ? '' : 'limit')
+    ..aInt64(4, _omitFieldNames ? '' : 'taskId')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1323,6 +1512,15 @@ class ReqTaskRunList extends $pb.GeneratedMessage {
   $core.bool hasLimit() => $_has(2);
   @$pb.TagNumber(3)
   void clearLimit() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $fixnum.Int64 get taskId => $_getI64(3);
+  @$pb.TagNumber(4)
+  set taskId($fixnum.Int64 value) => $_setInt64(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasTaskId() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearTaskId() => $_clearField(4);
 }
 
 class ResTaskRunList extends $pb.GeneratedMessage {

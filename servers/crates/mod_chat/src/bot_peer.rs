@@ -13,7 +13,7 @@ use sqlx::{PgPool, Row};
 
 use crate::inbox::ts_ms;
 
-pub(crate) async fn bot_access_verify(pool: &PgPool, caller_iid: i64, bot_iid: i64) -> Result<()> {
+pub async fn bot_access_verify(pool: &PgPool, caller_iid: i64, bot_iid: i64) -> Result<()> {
     if bot_iid == 0 {
         return Err(anyhow!("bot_iid required"));
     }

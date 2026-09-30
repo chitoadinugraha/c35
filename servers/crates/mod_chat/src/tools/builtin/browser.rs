@@ -114,6 +114,96 @@ fn browser_sheets_range_read_result(raw: Value) -> Value {
     browser_sheets_llm_fail(err)
 }
 
+fn sheets_col_offset(base: &str, offset: usize) -> String {
+    let b = if base.is_empty() { "G" } else { base };
+    let mut n = 0usize;
+    for ch in b.chars() {
+        n = n * 26 + (ch as u8 as usize - b'A' as usize + 1);
+    }
+    n += offset;
+    let mut s = String::new();
+    while n > 0 {
+        let rem = (n - 1) % 26;
+        s.insert(0, (b'A' + rem as u8) as char);
+        n = (n - 1) / 26;
+    }
+    s
+}
+
+fn browser_invoke_error(raw: &Value) -> String {
+    raw.get("error")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string()
+}
+
+fn browser_needs_agent_restart(err: &str) -> bool {
+    let e = err.to_lowercase();
+    e.contains("unknown sheets method")
+        || e.contains("extension ipc")
+        || e.contains("not ready")
+        || e.contains("agent offline")
+}
+
+async fn browser_agent_restart_and_wait(args: &Value, ctx: &ToolContext) {
+    let _ = browser_invoke(args, ctx, "agent.restart", json!({}), 25).await;
+    tokio::time::sleep(std::time::Duration::from_secs(4)).await;
+}
+
+async fn browser_sheets_row_set_cell_fallback(
+    args: &Value,
+    ctx: &ToolContext,
+    tab_id: &str,
+    row: i64,
+    start_col: &str,
+    values: &Value,
+) -> Value {
+    let start = if start_col.is_empty() { "G" } else { start_col };
+    let arr = values.as_array().cloned().unwrap_or_default();
+    for (i, v) in arr.iter().enumerate() {
+        let cell = format!("{}{}", sheets_col_offset(start, i), row);
+        let value = v
+            .as_str()
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| v.to_string());
+        let params = json!({ "tab_id": tab_id, "cell": cell, "value": value });
+        let raw = browser_invoke(args, ctx, "sheets.cell_set", params, 60).await;
+        if raw.get("ok").and_then(|x| x.as_bool()) != Some(true) {
+            return browser_sheets_llm_fail(&browser_invoke_error(&raw));
+        }
+    }
+    let end = sheets_col_offset(start, arr.len().saturating_sub(1));
+    browser_sheets_row_set_result(
+        json!({
+            "ok": true,
+            "summary": format!("row {} {}:{} written (cell_set fallback)", row, start, end),
+        }),
+        row,
+    )
+}
+
+fn browser_sheets_row_set_result(raw: Value, row: i64) -> Value {
+    if raw.get("ok").and_then(|v| v.as_bool()) == Some(true) {
+        let summary = raw
+            .get("summary")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| format!("row {} G:L pasted", row));
+        let verify = raw.get("verify_via").and_then(|v| v.as_str()).unwrap_or("");
+        if verify == "none" {
+            return browser_sheets_llm_fail(
+                "row_set returned without export verify; reload extension 1.0.29+",
+            );
+        }
+        return browser_sheets_llm_ok(&summary);
+    }
+    let err = raw
+        .get("error")
+        .and_then(|v| v.as_str())
+        .unwrap_or("row_set failed");
+    browser_sheets_llm_fail(err)
+}
+
 fn browser_sheets_append_row_result(raw: Value) -> Value {
     if raw.get("ok").and_then(|v| v.as_bool()) == Some(true) {
         let summary = raw
@@ -394,7 +484,7 @@ tool! {
     struct: BrowserPageActTool,
     name: "browser.page.act",
     aliases: ["browser_page_act"],
-    description: "Single UI action on a Remote browser tab: click, fill, or press (press requires selector until key IPC ships).",
+    description: "UI action on a Remote browser tab: click, fill, press; list_inputs (no selector); click_text with text=Cari.",
     topics: ["device", "browser"],
     always: ["device", "browser"],
     rag_phrases: ["click button in browser", "fill form browser", "browser click", "type in browser"],
@@ -402,7 +492,7 @@ tool! {
     ui_done_key: "tool.browser.page.act.done",
     parameters: {
         device_iid: (integer, "Target remote browser device identity ID", required),
-        action: (string, "click | fill | press", required),
+        action: (string, "click | fill | press | list_inputs | click_text", required),
         selector: (string, "CSS selector target", optional),
         text: (string, "Text for fill or press", optional),
         tab_id: (string, "Optional tab id", optional),
@@ -460,6 +550,32 @@ tool! {
             params["url"] = json!(url);
         }
         Ok(browser_invoke(&args, ctx, "tabs", params, 45).await)
+    }
+}
+
+tool! {
+    struct: BrowserAgentRestartTool,
+    name: "browser.agent.restart",
+    aliases: ["browser_agent_restart"],
+    description: "Restart the Chrome extension remote agent on the paired device (picks up new alienai_remote_browser.exe). Does not reload the MV3 extension — use browser.extension reload only when JS/dist changed.",
+    topics: ["device", "browser"],
+    rag_phrases: ["restart remote agent", "restart browser agent", "reload extension agent"],
+    ui_calling_key: "tool.browser.agent.restart.calling",
+    ui_done_key: "tool.browser.agent.restart.done",
+    parameters: {
+        device_iid: (integer, "Target remote browser device identity ID", required),
+    },
+    execute: |args, ctx| {
+        let raw = browser_invoke(&args, ctx, "agent.restart", json!({}), 25).await;
+        if raw.get("ok").and_then(|v| v.as_bool()) == Some(true)
+            || raw.get("restarting").and_then(|v| v.as_bool()) == Some(true)
+        {
+            return Ok(json!({
+                "ok": true,
+                "llm": { "ok": true, "summary": "Remote agent restart requested; wait ~5s before sheets.row_set." },
+            }));
+        }
+        Ok(browser_fail(browser_invoke_error(&raw)))
     }
 }
 
@@ -541,7 +657,7 @@ tool! {
     struct: BrowserSheetsCellSetTool,
     name: "browser.sheets.cell_set",
     aliases: ["browser_sheets_cell_set", "browser_sheets_set_cell"],
-    description: "Set one cell on an open Google Sheet tab. Success response is verified: llm.summary like B2 set to \"text\". Do not row_read to confirm after ok:true.",
+    description: "Set one cell (goto, F2, Enter). For G-L address columns use browser.sheets.row_set instead (one paste per row). ok:true = commit ran unless verify:true.",
     topics: ["browser", "sheets"],
     rag_phrases: ["google sheet", "set cell", "write cell spreadsheet", "update cell sheets"],
     ui_calling_key: "tool.browser.sheets.cell_set.calling",
@@ -551,6 +667,8 @@ tool! {
         tab_id: (string, "Chrome tab id for the spreadsheet", required),
         cell: (string, "Cell reference e.g. A7 or B3", required),
         value: (string, "Value to write", required),
+        verify: (boolean, "When true, re-read cell after Enter (slower; strict match)", optional),
+        write_mode: (string, "cell (default) | formula_bar | paste", optional),
     },
     execute: |args, ctx| {
         let tab_id = arg_str(&args, "tab_id");
@@ -559,9 +677,87 @@ tool! {
         if tab_id.is_empty() || cell.is_empty() {
             return Ok(browser_fail("tab_id and cell are required"));
         }
-        let params = json!({ "tab_id": tab_id, "cell": cell, "value": value });
+        let mut params = json!({ "tab_id": tab_id, "cell": cell, "value": value });
+        if args.get("verify").and_then(|v| v.as_bool()) == Some(true) {
+            params["verify"] = json!(true);
+        }
+        let write_mode = arg_str(&args, "write_mode");
+        if !write_mode.is_empty() {
+            params["write_mode"] = json!(write_mode);
+        }
         let raw = browser_invoke(&args, ctx, "sheets.cell_set", params, 60).await;
         Ok(browser_sheets_cell_set_result(raw, &cell, &value))
+    }
+}
+
+tool! {
+    struct: BrowserSheetsRowSetTool,
+    name: "browser.sheets.row_set",
+    aliases: ["browser_sheets_row_set", "browser_sheets_row_fill"],
+    description: "Batch-write one sheet row block via clipboard paste (default G{n}:L{n}). Six values: dusun, RT, RW, desa, kecamatan, faskes. One round-trip; prefer over repeated cell_set.",
+    topics: ["browser", "sheets"],
+    rag_phrases: [
+        "google sheet", "fill row", "paste row", "write address columns", "batch sheet write",
+    ],
+    ui_calling_key: "tool.browser.sheets.row_set.calling",
+    ui_done_key: "tool.browser.sheets.row_set.done",
+    parameters: {
+        device_iid: (integer, "Target remote browser device identity ID", required),
+        tab_id: (string, "Chrome tab id for the spreadsheet", required),
+        row: (integer, "Sheet row number (e.g. 4)", required),
+        key: (string, "Column B name on that row (recommended); extension anchors from B{row} if omitted", optional),
+        values: (array, "Cell values left-to-right for start_col..end_col (default six: G-L)", required),
+        start_col: (string, "First column letter (default G)", optional),
+        end_col: (string, "Last column letter (default L)", optional),
+        verify: (boolean, "When true, re-read first cell via export after paste", optional),
+    },
+    execute: |args, ctx| {
+        let tab_id = arg_str(&args, "tab_id");
+        let row = args.get("row").and_then(|v| v.as_i64()).unwrap_or(0);
+        if tab_id.is_empty() || row < 1 {
+            return Ok(browser_fail("tab_id and row (>=1) are required"));
+        }
+        let values = args.get("values").cloned().unwrap_or(json!([]));
+        if !values.is_array() || values.as_array().is_some_and(|a| a.is_empty()) {
+            return Ok(browser_fail("values array required"));
+        }
+        let mut params = json!({ "tab_id": tab_id, "row": row, "values": values });
+        let key = arg_str(&args, "key");
+        if key.is_empty() {
+            let alt = arg_str(&args, "key_name");
+            if !alt.is_empty() {
+                params["key"] = json!(alt);
+            }
+        } else {
+            params["key"] = json!(key);
+        }
+        if args.get("verify").and_then(|v| v.as_bool()) == Some(true) {
+            params["verify"] = json!(true);
+        }
+        let start_col = arg_str(&args, "start_col");
+        if !start_col.is_empty() {
+            params["start_col"] = json!(start_col);
+        }
+        let end_col = arg_str(&args, "end_col");
+        if !end_col.is_empty() {
+            params["end_col"] = json!(end_col);
+        }
+        let mut raw = browser_invoke(&args, ctx, "sheets.row_set", params.clone(), 60).await;
+        if raw.get("ok").and_then(|v| v.as_bool()) != Some(true) {
+            let err = browser_invoke_error(&raw);
+            if browser_needs_agent_restart(&err) {
+                browser_agent_restart_and_wait(&args, ctx).await;
+                raw = browser_invoke(&args, ctx, "sheets.row_set", params, 90).await;
+            }
+        }
+        if raw.get("ok").and_then(|v| v.as_bool()) != Some(true) {
+            let err = browser_invoke_error(&raw);
+            if browser_needs_agent_restart(&err) || err.contains("unknown sheets method") {
+                let start = arg_str(&args, "start_col");
+                return Ok(browser_sheets_row_set_cell_fallback(&args, ctx, &tab_id, row, &start, &values).await);
+            }
+        }
+        Ok(browser_sheets_row_set_result(raw, row))
     }
 }
 
@@ -569,7 +765,7 @@ tool! {
     struct: BrowserSheetsRangeReadTool,
     name: "browser.sheets.range_read",
     aliases: ["browser_sheets_range_read", "browser_sheets_read_range"],
-    description: "Read product+stock rows in one call (default cols B/C). Hybrid: CSV/gviz export for values + product-column CDP scan for physical row numbers; else full cdp_scan. Returns llm.rows, llm.next_row (safe for append_row), read_via (e.g. export_csv+sheet_rows). Prefer over many row_read calls.",
+    description: "Only sheet read tool. One CSV/gviz fetch (read_mode auto|export). Two cols: product_col + stock_col (default B/C). Wide rows: start_col + columns + key_col (row kept when key_col non-empty). Single row: from_row=to_row=N. Page with max_rows. No per-cell CDP.",
     topics: ["browser", "sheets"],
     rag_phrases: [
         "google sheet", "read sheet", "list stock", "sheet range", "what rows", "inventory sheet",
@@ -583,8 +779,13 @@ tool! {
         from_row: (integer, "First row (default 2, below header)", optional),
         to_row: (integer, "Last row to scan (optional; default until 2 empty product cells)", optional),
         product_col: (string, "Product column (default B)", optional),
-        stock_col: (string, "Stock column (default C)", optional),
-        read_mode: (string, "auto (export CSV then cdp_scan) | export | cdp | clipboard (needs user clipboard permission)", optional),
+        stock_col: (string, "Second column when columns omitted (default C)", optional),
+        start_col: (string, "Wide mode: first column letter (default A)", optional),
+        columns: (integer, "Wide mode: column count (max 26); returns llm.rows[].cells", optional),
+        key_col: (string, "Wide mode: non-empty key to include row (default product_col)", optional),
+        read_mode: (string, "auto|export (CSV only, fast) | align (CSV + CDP row numbers) | cdp (slow) | clipboard", optional),
+        row_align: (boolean, "When true with auto/export, run per-row CDP alignment (slow; large sheets)", optional),
+        max_rows: (integer, "Cap rows returned after CSV parse (export is still one fetch; use with from_row/to_row for paging)", optional),
     },
     execute: |args, ctx| {
         let tab_id = arg_str(&args, "tab_id");
@@ -612,51 +813,12 @@ tool! {
         if !stock_col.is_empty() {
             params["stock_col"] = json!(stock_col);
         }
-        let raw = browser_invoke(&args, ctx, "sheets.range_read", params, 90).await;
-        Ok(browser_sheets_range_read_result(raw))
-    }
-}
-
-tool! {
-    struct: BrowserSheetsRowReadTool,
-    name: "browser.sheets.row_read",
-    aliases: [
-        "browser_sheets_row_read",
-        "browser_sheets_read_row",
-        "browser_sheets_cell_read",
-        "browser_sheets_read_cell",
-    ],
-    description: "Read cells on an open Google Sheet (Chrome extension). One cell: cell=B7. Row slice: row + start_col (default A) + columns (default 6). Test Stock product+stock: row, start_col B, columns 2.",
-    topics: ["browser", "sheets"],
-    rag_phrases: [
-        "google sheet", "read row", "read cell", "get cell value spreadsheet", "stock list row",
-    ],
-    ui_calling_key: "tool.browser.sheets.row_read.calling",
-    ui_done_key: "tool.browser.sheets.row_read.done",
-    readonly: true,
-    parameters: {
-        device_iid: (integer, "Target remote browser device identity ID", required),
-        tab_id: (string, "Chrome tab id for the spreadsheet", required),
-        cell: (string, "Single cell e.g. B7 (alternative to row)", optional),
-        row: (integer, "Sheet row number (1-based); required if cell omitted", optional),
-        start_col: (string, "First column letter when using row (default A)", optional),
-        columns: (integer, "Column count from start_col (default 6, max 26; default 1 when cell set)", optional),
-    },
-    execute: |args, ctx| {
-        let tab_id = arg_str(&args, "tab_id");
-        if tab_id.is_empty() {
-            return Ok(browser_fail("tab_id is required"));
+        if args.get("row_align").and_then(|v| v.as_bool()).unwrap_or(false) {
+            params["row_align"] = json!(true);
         }
-        let cell = arg_str(&args, "cell");
-        let row = arg_i64(&args, "row");
-        if cell.is_empty() && row < 1 {
-            return Ok(browser_fail("cell (e.g. B7) or row (>=1) is required"));
-        }
-        let mut params = json!({ "tab_id": tab_id });
-        if !cell.is_empty() {
-            params["cell"] = json!(cell);
-        } else {
-            params["row"] = json!(row);
+        let max_rows = arg_i64(&args, "max_rows");
+        if max_rows > 0 {
+            params["max_rows"] = json!(max_rows);
         }
         let start_col = arg_str(&args, "start_col");
         if !start_col.is_empty() {
@@ -666,7 +828,12 @@ tool! {
         if columns > 0 {
             params["columns"] = json!(columns);
         }
-        Ok(browser_invoke(&args, ctx, "sheets.row_read", params, 90).await)
+        let key_col = arg_str(&args, "key_col");
+        if !key_col.is_empty() {
+            params["key_col"] = json!(key_col);
+        }
+        let raw = browser_invoke(&args, ctx, "sheets.range_read", params, 90).await;
+        Ok(browser_sheets_range_read_result(raw))
     }
 }
 

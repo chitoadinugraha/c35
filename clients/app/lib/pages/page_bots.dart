@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alienai_c35/c/bot/bot_store.dart';
 import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
+import 'package:alienai_c35/c/store/chat_store.dart';
 import 'package:alienai_c35/widgets/bots/ui_bot_add_menu.dart';
 import 'package:alienai_c35/widgets/bots/ui_bot_conversation.dart';
 import 'package:alienai_c35/widgets/bots/ui_bot_nav_list.dart';
@@ -15,16 +16,17 @@ const _muted = Color(0xFF71717A);
 const _masterBreakpoint = 720.0;
 
 class PageBots extends StatefulWidget {
-  const PageBots({super.key, required this.chatConn});
+  const PageBots({super.key, required this.chatConn, this.shellStore});
 
   final ChatConn chatConn;
+  final ChatStore? shellStore;
 
   @override
   State<PageBots> createState() => _PageBotsState();
 }
 
 class _PageBotsState extends State<PageBots> {
-  late final _store = BotStore(conn: widget.chatConn);
+  late final _store = BotStore(conn: widget.chatConn, shellStore: widget.shellStore);
   StreamSubscription? _billingBalanceSub;
   StreamSubscription? _billingQuotaSub;
   StreamSubscription? _billingCommissionSub;

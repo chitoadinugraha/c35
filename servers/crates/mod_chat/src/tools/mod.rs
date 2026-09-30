@@ -23,9 +23,10 @@ pub use dispatcher::{tool_topic_eligible, ToolDispatcher};
 use crate::mention_context::MentionContext;
 
 use builtin::{
-    BrowserFileUploadTool, BrowserPageActTool, BrowserPageExtractTool, BrowserPageObserveTool,
-    BrowserExtensionTool, BrowserPageScreenshotTool,     BrowserSheetsAppendRowTool, BrowserSheetsCellSetTool,
-    BrowserSheetsRangeReadTool, BrowserSheetsRowReadTool, BrowserTabsTool,
+    BotInboxQueryTool, BrowserFileUploadTool, BrowserPageActTool, BrowserPageExtractTool, BrowserPageObserveTool,
+    BrowserAgentRestartTool, BrowserExtensionTool, BrowserPageScreenshotTool,
+    BrowserSheetsAppendRowTool, BrowserSheetsCellSetTool, BrowserSheetsRowSetTool,
+    BrowserSheetsRangeReadTool, BrowserTabsTool,
     BrowserTaskRunTool, DriveListTool,
     DriveReadTool, GsheetAppendTool,
     GsheetReadTool, GsheetUpdateTool, ComputerUseDelegateTool, ConsumptionAddTool,
@@ -38,8 +39,9 @@ use builtin::{
     ReferralCodeDeleteTool, ReferralCodeListTool, ReferralCodePutTool, ReferralTreeGetTool, SiteContactPutTool,
     SiteDomainPutTool, SiteDomainVerifyTool, SiteDraftGetTool, SiteDraftPutTool, SiteObjectPutTool,
     SiteOrderStatusTool, SiteProductPatchTool, SiteProductPutTool, SitePublishTool, SiteQueryRunTool,
-    SiteTxDebtPayTool, SiteTxListTool, SiteTxPreviewTool, SiteTxPutTool, WebResearchTool,
-    WebSearchTool, WebVisitTool,
+    SiteTxDebtPayTool, SiteTxListTool, SiteTxPreviewTool, SiteTxPutTool, TaskRunCancelDeviceTool,
+    TaskRunCancelTool, TaskRunStartTool, TaskRunStatusTool, WebResearchTool, WebSearchTool,
+    WebVisitTool,
 };
 
 #[derive(Debug, Clone)]
@@ -115,6 +117,7 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(GsheetReadTool));
     dispatcher.register(Arc::new(GsheetAppendTool));
     dispatcher.register(Arc::new(GsheetUpdateTool));
+    dispatcher.register(Arc::new(BotInboxQueryTool));
     dispatcher.register(Arc::new(WebSearchTool));
     dispatcher.register(Arc::new(WebVisitTool));
     dispatcher.register(Arc::new(WebResearchTool));
@@ -138,11 +141,12 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(BrowserPageExtractTool));
     dispatcher.register(Arc::new(BrowserPageActTool));
     dispatcher.register(Arc::new(BrowserTabsTool));
+    dispatcher.register(Arc::new(BrowserAgentRestartTool));
     dispatcher.register(Arc::new(BrowserExtensionTool));
     dispatcher.register(Arc::new(BrowserSheetsAppendRowTool));
     dispatcher.register(Arc::new(BrowserSheetsCellSetTool));
+    dispatcher.register(Arc::new(BrowserSheetsRowSetTool));
     dispatcher.register(Arc::new(BrowserSheetsRangeReadTool));
-    dispatcher.register(Arc::new(BrowserSheetsRowReadTool));
     dispatcher.register(Arc::new(BrowserFileUploadTool));
     dispatcher.register(Arc::new(ShellRunTool));
     dispatcher.register(Arc::new(DeviceFsListTool));
@@ -170,6 +174,10 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(ReferralTreeGetTool));
     dispatcher.register(Arc::new(DelegateRunTool));
     dispatcher.register(Arc::new(ComputerUseDelegateTool));
+    dispatcher.register(Arc::new(TaskRunStartTool));
+    dispatcher.register(Arc::new(TaskRunCancelTool));
+    dispatcher.register(Arc::new(TaskRunCancelDeviceTool));
+    dispatcher.register(Arc::new(TaskRunStatusTool));
     dispatcher
 }
 

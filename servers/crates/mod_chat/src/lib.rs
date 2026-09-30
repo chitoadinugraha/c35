@@ -2,6 +2,7 @@ mod asset_tag;
 mod bot_meta;
 mod bot_welcome;
 mod bot_peer;
+pub mod bot_inbox;
 mod catalog;
 mod chat_history_clear;
 mod chat_patch;
@@ -56,7 +57,7 @@ pub use mention_context::{
 pub use mention_bundle::{mention_bundle_get, mention_list_bundle_rpc};
 pub use mention_registry::{
     mention_active_topic, mention_active_topic_with_commerce, mention_active_topics,
-    mention_device_iids, mention_has_device, mention_list_rpc, mention_prompt_block,
+    mention_bot_iids, mention_device_iids, mention_has_device, mention_list_rpc, mention_prompt_block,
     mention_ref_parse, mention_resolve_all, mention_search_rpc, MentionRef, MentionResolved,
 };
 pub use mention_tool_registry::mention_force_tools;

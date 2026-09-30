@@ -123,7 +123,7 @@ INSERT INTO ai.topic (
 ) VALUES (
     'sheets',
     'topic.sheets.label',
-    'Google Sheets open in the user''s Chrome extension remote browser. Prefer browser.sheets.* (cell_set, row_read, append_row) with device_iid and tab_id. Read one cell via row_read cell=B7. For bulk/API writes on bot-attached sheets use gsheet.*. Generic pointer/keyboard on any site: device.input (CDP).',
+    'Google Sheets in Chrome extension remote browser. Read only browser.sheets.range_read; write cell_set / append_row. device_iid + tab_id. Bot-attached API sheets: gsheet.*. Other sites: device.input.',
     'browser',
     27,
     'seed',

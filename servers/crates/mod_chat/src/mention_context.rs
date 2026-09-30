@@ -1,12 +1,13 @@
 use anyhow::{anyhow, bail, Result};
 
-use crate::mention_registry::{mention_device_iids, mention_ref_parse, MentionRef, MentionResolved};
+use crate::mention_registry::{mention_bot_iids, mention_device_iids, mention_ref_parse, MentionRef, MentionResolved};
 use crate::site_resolve::SiteContext;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct MentionContext {
     pub sites: Vec<SiteContext>,
     pub devices: Vec<i64>,
+    pub bots: Vec<i64>,
     pub default_site_iid: Option<i64>,
 }
 
@@ -19,6 +20,7 @@ impl MentionContext {
         Self {
             sites: vec![site.clone()],
             devices: vec![],
+            bots: vec![],
             default_site_iid: Some(site.site_iid),
         }
     }
@@ -62,12 +64,26 @@ pub fn mention_context_build(resolved: &[MentionResolved]) -> MentionContext {
         }
     }
     let devices = mention_device_iids(resolved);
+    let bots = mention_bot_iids(resolved);
     let default_site_iid = (sites.len() == 1).then(|| sites[0].site_iid);
     MentionContext {
         sites,
         devices,
+        bots,
         default_site_iid,
     }
+}
+
+pub fn mention_context_bots_block(ctx: &MentionContext) -> String {
+    if ctx.bots.is_empty() {
+        return String::new();
+    }
+    let lines: Vec<String> = ctx
+        .bots
+        .iter()
+        .map(|iid| format!("- bot_iid={}", iid))
+        .collect();
+    format!("[BOT CONTEXTS]\n{}", lines.join("\n"))
 }
 
 pub fn mention_context_sites_block(ctx: &MentionContext) -> String {

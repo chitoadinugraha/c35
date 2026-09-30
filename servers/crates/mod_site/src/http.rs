@@ -76,7 +76,7 @@ fn request_host(headers: &HeaderMap) -> String {
         .to_string()
 }
 
-fn host_is_api(host: &str) -> bool {
+pub fn host_is_api(host: &str) -> bool {
     normalize_hostname(host) == "api.alienai.id"
 }
 

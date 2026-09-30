@@ -23,6 +23,13 @@ spec:
     - host: api.alienai.id
       http:
         paths:
+          - path: /
+            pathType: Exact
+            backend:
+              service:
+                name: c35-server
+                port:
+                  name: http
           - path: /a
             pathType: Prefix
             backend:

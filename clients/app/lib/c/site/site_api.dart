@@ -68,7 +68,7 @@ String siteAlienIdSlug(String name) {
   return s;
 }
 
-String siteTaglineSuggest({required String name, required String locale}) {
+String siteTaglineSuggest({required String name, required String locale, int pick = 0}) {
   final n = name.trim();
   if (n.isEmpty) return '';
   final id = locale.toLowerCase().startsWith('id');
@@ -85,7 +85,8 @@ String siteTaglineSuggest({required String name, required String locale}) {
           '$n is here for you every day.',
           'Discover what $n has to offer.',
         ];
-  return templates[n.hashCode.abs() % templates.length];
+  final i = (n.hashCode + pick) % templates.length;
+  return templates[i < 0 ? i + templates.length : i];
 }
 
 SiteDraft siteCreateDraft({required Int64 siteIid, required String name, required String tagline, String pic = ''}) {

@@ -141,10 +141,12 @@ class ReqDevicePairRegister extends $pb.GeneratedMessage {
   factory ReqDevicePairRegister({
     $core.String? deviceName,
     $core.String? deviceType,
+    $core.String? metaJson,
   }) {
     final result = ReqDevicePairRegister._();
     if (deviceName != null) result.deviceName = deviceName;
     if (deviceType != null) result.deviceType = deviceType;
+    if (metaJson != null) result.metaJson = metaJson;
     return result;
   }
 
@@ -163,6 +165,7 @@ class ReqDevicePairRegister extends $pb.GeneratedMessage {
       createEmptyInstance: ReqDevicePairRegister.$_createMessage)
     ..aOS(1, _omitFieldNames ? '' : 'deviceName')
     ..aOS(2, _omitFieldNames ? '' : 'deviceType')
+    ..aOS(3, _omitFieldNames ? '' : 'metaJson')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -206,6 +209,15 @@ class ReqDevicePairRegister extends $pb.GeneratedMessage {
   $core.bool hasDeviceType() => $_has(1);
   @$pb.TagNumber(2)
   void clearDeviceType() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get metaJson => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set metaJson($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasMetaJson() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearMetaJson() => $_clearField(3);
 }
 
 class ResDevicePairRegister extends $pb.GeneratedMessage {

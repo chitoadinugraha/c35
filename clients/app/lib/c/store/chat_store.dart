@@ -1475,6 +1475,25 @@ class ChatStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> navCountsBotPut(int bots) async {
+    if (navCounts.bots == bots) return;
+    navCounts = NavCounts(
+      bots: bots,
+      devices: navCounts.devices,
+      sites: navCounts.sites,
+      mailInboxUnread: navCounts.mailInboxUnread,
+      mailMenuVisible: navCounts.mailMenuVisible,
+    );
+    notifyListeners();
+    await _navCountsPersistShell();
+  }
+
+  Future<void> _navCountsPersistShell() async {
+    final cached = await SessionInitCache.load();
+    if (cached == null) return;
+    await SessionInitCache.persist(cached.clone()..nav = navCounts);
+  }
+
   final mentionCatalog = MentionCatalogStore();
 
   List<String>? _sessionInitProfileRoles(IdentityProfile profile) {

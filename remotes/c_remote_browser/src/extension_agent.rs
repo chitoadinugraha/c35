@@ -1,13 +1,14 @@
 //! Extension mode: embedded agent in the Chrome native-host process + optional detached child.
 
 use std::net::TcpStream;
+use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
 
-use tracing::warn;
+use tracing::{info, warn};
 
 use crate::extension_ipc::{extension_ipc_addr, extension_ipc_port_in_use};
 
@@ -52,19 +53,17 @@ pub fn spawn_embedded_extension_agent() {
     });
 }
 
-/// Fallback: detached hidden agent when IPC is still down (e.g. dev `start_chrome_remote_agent.ps1` not run).
-pub fn ensure_detached_extension_agent() {
-    if ipc_reachable() {
-        return;
-    }
-    let _guard = SPAWN_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    if ipc_reachable() {
-        return;
-    }
-    let exe = match std::env::current_exe() {
-        Ok(p) => p,
-        Err(_) => return,
-    };
+fn install_agent_exe() -> Option<PathBuf> {
+    let local = std::env::var_os("LOCALAPPDATA")?;
+    let p = PathBuf::from(local)
+        .join("AlienAI")
+        .join("chrome_extension")
+        .join("install")
+        .join("alienai_remote_browser.exe");
+    if p.is_file() { Some(p) } else { None }
+}
+
+fn spawn_detached_agent_exe(exe: &std::path::Path) -> bool {
     let mut cmd = Command::new(exe);
     cmd.env("C35_BROWSER_ENGINE", "extension");
     cmd.env("C35_SKIP_OTA", "1");
@@ -75,9 +74,40 @@ pub fn ensure_detached_extension_agent() {
     {
         use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
+        const DETACHED_PROCESS: u32 = 0x00000008;
+        cmd.creation_flags(CREATE_NO_WINDOW | DETACHED_PROCESS);
     }
-    if cmd.spawn().is_err() {
+    cmd.spawn().is_ok()
+}
+
+/// Spawn a fresh extension agent (install dir exe or current exe), then exit this process so IPC can rebind.
+pub fn restart_extension_agent() -> anyhow::Result<()> {
+    let exe = install_agent_exe()
+        .or_else(|| std::env::current_exe().ok())
+        .ok_or_else(|| anyhow::anyhow!("agent exe not found"))?;
+    if !spawn_detached_agent_exe(&exe) {
+        anyhow::bail!("failed to spawn extension agent");
+    }
+    info!(path = %exe.display(), "agent.restart: spawned replacement");
+    thread::spawn(|| {
+        thread::sleep(Duration::from_millis(800));
+        std::process::exit(0);
+    });
+    Ok(())
+}
+
+/// Fallback: detached hidden agent when IPC is still down (e.g. dev `start_chrome_remote_agent.ps1` not run).
+pub fn ensure_detached_extension_agent() {
+    if ipc_reachable() {
+        return;
+    }
+    let _guard = SPAWN_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    if ipc_reachable() {
+        return;
+    }
+    let exe = install_agent_exe().or_else(|| std::env::current_exe().ok());
+    let Some(exe) = exe else { return };
+    if !spawn_detached_agent_exe(&exe) {
         return;
     }
     wait_for_extension_agent(Duration::from_secs(12));
