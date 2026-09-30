@@ -117,6 +117,24 @@ INSERT INTO ai.topic (
     sort = EXCLUDED.sort,
     updated_ts = NOW();
 
+-- Seed: Google Sheets in Chrome extension (browser.sheets.* tools; not general device.input)
+INSERT INTO ai.topic (
+    id, label_key, inst, extend, sort, def_hash, updated_ts
+) VALUES (
+    'sheets',
+    'topic.sheets.label',
+    'Google Sheets open in the user''s Chrome extension remote browser. Prefer browser.sheets.* (cell_set, row_read, append_row) with device_iid and tab_id. Read one cell via row_read cell=B7. For bulk/API writes on bot-attached sheets use gsheet.*. Generic pointer/keyboard on any site: device.input (CDP).',
+    'browser',
+    27,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    label_key = EXCLUDED.label_key,
+    extend = EXCLUDED.extend,
+    sort = EXCLUDED.sort,
+    updated_ts = NOW();
+
 -- Seed: computer use topic (desktop automation subagent)
 INSERT INTO ai.topic (
     id, label_key, inst, extend, sort, def_hash, updated_ts

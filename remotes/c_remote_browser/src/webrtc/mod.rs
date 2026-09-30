@@ -9,8 +9,8 @@ fn sctp_screen_enabled() -> bool {
 
 pub fn register_handlers() {
     c_remote_core::webrtc::set_input_handler(Arc::new(crate::browser_input::execute));
-    c_remote_core::webrtc::set_screenshot_handler(Arc::new(|_max_w, _q, _m, _som| {
-        anyhow::bail!("screenshot not supported on remote browser; use Remote tab or task extract")
+    c_remote_core::webrtc::set_screenshot_handler(Arc::new(|max_w, q, m, som| {
+        crate::browser_screenshot::webrtc_capture(max_w, q, m, som)
     }));
 
     if sctp_screen_enabled() {

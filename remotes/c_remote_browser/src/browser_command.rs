@@ -41,6 +41,12 @@ async fn invoke_method(method: &str, params: Value) -> anyhow::Result<Value> {
                 "browser.file.upload is not supported in chrome extension mode (deferred v1; use Remote tab for manual file pick)"
             );
         }
+        if method.starts_with("sheets.") {
+            return crate::extension_sheets::extension_sheets_method(method, &params).await;
+        }
+        if method.starts_with("extension.") {
+            return crate::extension_page::extension_page_method(method, &params).await;
+        }
         return crate::extension_page::extension_page_method(method, &params).await;
     }
     let st = crate::browser_state::global().ok_or_else(|| anyhow::anyhow!("browser state not init"))?;
@@ -160,7 +166,13 @@ async fn invoke_method(method: &str, params: Value) -> anyhow::Result<Value> {
             if let Some(tab_id) = params.get("tab_id").and_then(|v| v.as_str()) {
                 ipc["tab_id"] = json!(tab_id);
             }
-            let screenshot = bridge.call("page.screenshot", ipc).await?;
+            let mut screenshot = bridge.call("page.screenshot", ipc).await?;
+            let coords = crate::browser_screenshot::marker_coords(&params);
+            crate::browser_screenshot::apply_marker_to_screenshot_json(
+                &mut screenshot,
+                quality as u8,
+                coords,
+            );
             Ok(json!({ "ok": true, "screenshot": screenshot }))
         }
         "file.upload" => {

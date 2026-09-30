@@ -71,6 +71,11 @@ Single cluster tool surface for `type=browser` devices. Branch on `meta.browser_
 | `browser.page.screenshot` | `page.screenshot` | yes | **no** | **yes** | Server pre-check blocks extension today; target CAS artifact same shape as Playwright tool (CE-A2 + CE-A5 H.1). |
 | `browser.task.run` | task queue / steps | yes | **no** | **subset** | Shipped: agent + server reject extension. Target: queued steps (navigate, click, fill, extract, wait, tab ops) inside MV3 — not 100% Playwright step parity (CE-A5 / Track I). |
 | `browser.file.upload` | `file.upload` | yes | **no** | **no** | Deferred Track G (MV3 file input). Playwright-only until product needs extension upload. |
+| `browser.extension` | `extension.version` / `extension.reload` | **no** | **yes** | **yes** | MV3 dev: confirm manifest version or reload service worker after `sync_chrome_extension_install.ps1`. |
+| `input.inject` (via `device.input` on browser device) | `input.inject` | yes | **yes** | **yes** | Default **CDP** on all sites; `input_mode: dom` for synthetic DOM. |
+| `browser.sheets.cell_set` | `sheets.cell_set` | **no** | **yes** | **yes** | Open Google Sheet tab only. Name-box goto + F2 + `insertText` + Tab commit. |
+| `browser.sheets.row_read` | `sheets.row_read` | **no** | **yes** | **yes** | Read one cell (`cell=B7`) or a row slice (`row`, `start_col`, `columns`). Replaces separate `cell_read` tool. |
+| `browser.sheets.append_row` | `sheets.append_row` | **no** | **yes** | **yes** | Product + stock on one row (default cols **B/C**). |
 
 **Not an LLM tool:** Remote tab **WebRTC video + input** works on extension devices today (human plane). That is required for daily-profile control when `browser.page.act` is unavailable.
 
@@ -204,6 +209,53 @@ Automation tools will use **request/response** over the IPC socket (and mirrored
 ```
 
 Initial `op` set (CE-A1 B.2): `tabs.list`, `tabs.activate`, `tabs.new`, `tabs.close`, `page.observe`, `page.act`, `page.extract`, `page.screenshot`, `navigate`, `reload`, plus `input.inject` (CE-A4). Agent `browser_command` maps cluster methods to these ops when `browser_engine=extension`.
+
+**Input (CE-A4):** `device.input` → `input.inject` defaults to **CDP** (`Input.dispatchKeyEvent` / `dispatchMouseEvent` / `insertText`) on all sites; pass `input_mode: dom` to force synthetic DOM events. Optional `focus: false` skips raising the window when the tab is already active.
+
+## Extension automation — shipped (2026-09)
+
+Paired device: `type=browser`, `meta.browser_engine=extension`. User’s **daily Chrome** profile (logins, cookies). Control plane: agent WS + native messaging; data plane: WebRTC Remote tab unchanged.
+
+### Cluster tools (extension branch)
+
+| Tool | Purpose |
+|------|---------|
+| **`browser.tabs`** | `list` / `activate` / `new` / `close` — resolve `tab_id` for other calls. |
+| **`browser.extension`** | `version` \| `reload` — MV3 service worker after syncing install dir. |
+| **`device.input`** → **`input.inject`** | Trusted **CDP** mouse/keyboard/text on any URL (`input_mode: dom` optional). |
+| **`browser.page.observe`** | URL, title, simplified DOM text (accessibility-oriented slice). |
+| **`browser.page.act`** | `click` / `fill` / `press` via injected script. |
+| **`browser.page.extract`** | Selector text extraction. |
+| **`browser.page.screenshot`** | JPEG capture (cluster artifact path). |
+| **`browser.sheets.cell_set`** | Write one cell on an **open** `docs.google.com/spreadsheets` tab. |
+| **`browser.sheets.row_read`** | Read one cell (`cell`) or contiguous columns (`row`, `start_col`, `columns`). Aliases include legacy `browser_sheets_cell_read`. |
+| **`browser.sheets.append_row`** | One row: product + stock (default **B/C**, override `product_col` / `stock_col`). |
+
+**Not on extension:** `browser.task.run` (use Playwright device or stepwise `page.*` + sheets tools). **`browser.file.upload`** deferred.
+
+### Google Sheets CDP path (extension)
+
+- **Goto:** name box (all frames DOM, else CDP click + type ref + Enter) — **no** `#range=` URL navigation (avoids full reload).
+- **Write:** F2 → `Input.insertText` → **Tab** to commit (then re-goto to verify).
+- **Read:** formula bar across frames after goto each cell.
+- **Guard:** RPC fails fast if `tab.url` is not a spreadsheet (wrong tab or missing `tab_id`).
+- **Queue:** per-tab mutex so parallel tool calls do not interleave CDP.
+- **Values only:** no cell formatting (bold, colors, number format, column width). Plain text/numbers via CDP; use **`gsheet.*`** or Sheets API if you need format metadata.
+
+**vs `gsheet.*`:** API tools on bot-attached spreadsheet IDs — bulk, no UI, no open tab. Use **`browser.sheets.*`** for the user’s visible Chrome sheet (e.g. Test Stock).
+
+### Compose / eligibility (today)
+
+- Topic **`sheets`** + **`inst.mention.sheets`** / phrases (“google sheet”, …) — tools are **not** `always`.
+- **Deferred:** compose-time filter “only when active tab is a spreadsheet” (device `active_tab` meta + `requires_capability` or inst gate). Until then, wrong-tab calls fail at execute with a clear error; steering still limits how often tools appear in the prompt.
+
+### Dev loop (extension JS / MV3)
+
+After editing `clients/chrome_extension/alienai_remote/dist/`:
+
+1. `.\_\scripts\dev\sync_chrome_extension_install.ps1` → `%LOCALAPPDATA%\AlienAI\chrome_extension\install\alienai_remote\`
+2. **`browser.extension`** `op: reload` on the paired Chrome device (`extension.reload` → `chrome.runtime.reload()`). MCP may **timeout** on reload; wait ~15s and `op: version` to confirm.
+3. Rebuild **`c_remote_browser`** only when Rust IPC changes (`restart_chrome_remote_agent.ps1` or copy `.exe` when unlocked).
 
 ---
 

@@ -22,6 +22,8 @@ class BrowserTabInfo {
     required this.active,
     this.loading = false,
     this.favicon = '',
+    this.windowFocused = false,
+    this.windowId,
   });
 
   final String tabId;
@@ -30,6 +32,8 @@ class BrowserTabInfo {
   final bool active;
   final bool loading;
   final String favicon;
+  final bool windowFocused;
+  final int? windowId;
 
   factory BrowserTabInfo.fromJson(Map<String, dynamic> j) => BrowserTabInfo(
         tabId: j['tabId']?.toString() ?? j['tab_id']?.toString() ?? '',
@@ -38,6 +42,8 @@ class BrowserTabInfo {
         active: j['active'] == true,
         loading: j['loading'] == true,
         favicon: j['favicon']?.toString() ?? '',
+        windowFocused: j['windowFocused'] == true,
+        windowId: j['windowId'] is int ? j['windowId'] as int : int.tryParse('${j['windowId']}'),
       );
 }
 
@@ -99,6 +105,9 @@ class _UiBrowserTabStripState extends State<UiBrowserTabStrip> {
   }
 
   BrowserTabInfo? get _activeTab {
+    for (final t in _tabs) {
+      if (t.windowFocused && t.active) return t;
+    }
     for (final t in _tabs) {
       if (t.active) return t;
     }

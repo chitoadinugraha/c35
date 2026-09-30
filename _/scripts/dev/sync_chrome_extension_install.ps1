@@ -1,62 +1,34 @@
-# Build + copy Chrome extension + native host to %LOCALAPPDATA%\AlienAI\chrome_extension\install
-# After this: reload extension in chrome://extensions (agent restarts if it was running).
+# Copy repo extension dist + manifest to %LOCALAPPDATA% install (no native host kill).
+# Pair with browser.extension.reload on the paired Chrome device to pick up JS changes.
 param(
-    [switch]$SkipBuild,
-    [switch]$SkipAgentRestart
+    [switch]$ReloadHint
 )
 
 $ErrorActionPreference = 'Stop'
-$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
-$srcPkg = Join-Path $repoRoot 'clients\chrome_extension\alienai_remote'
-$installRoot = Join-Path $env:LOCALAPPDATA 'AlienAI\chrome_extension\install'
-$extDir = Join-Path $installRoot 'alienai_remote'
-$hostDest = Join-Path $installRoot 'alienai_remote_browser.exe'
-$hostBuilt = Join-Path $repoRoot '.cache\c_remote\release\alienai_remote_browser.exe'
+$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
+$extSrc = Join-Path $RepoRoot 'clients\chrome_extension\alienai_remote'
+$installDir = Join-Path $env:LOCALAPPDATA 'AlienAI\chrome_extension\install'
+$extDst = Join-Path $installDir 'alienai_remote'
+$distSrc = Join-Path $extSrc 'dist'
+$distDst = Join-Path $extDst 'dist'
 
-if (-not $SkipBuild) {
-    Write-Host '==> cargo build --release -p c_remote_browser'
-    Push-Location (Join-Path $repoRoot 'remotes')
-    cargo build --release -p c_remote_browser
-    if ($LASTEXITCODE -ne 0) { Pop-Location; exit $LASTEXITCODE }
-    Pop-Location
-}
-if (-not (Test-Path $hostBuilt)) {
-    throw "missing build output: $hostBuilt"
-}
+if (-not (Test-Path $distSrc)) { throw "missing dist: $distSrc" }
+New-Item -ItemType Directory -Force -Path $extDst | Out-Null
+New-Item -ItemType Directory -Force -Path $distDst | Out-Null
 
-Write-Host "==> extension -> $extDir"
-New-Item -ItemType Directory -Force -Path $extDir | Out-Null
-robocopy $srcPkg $extDir /E /NFL /NDL /NJH /NJS /nc /ns /np | Out-Null
-if ($LASTEXITCODE -ge 8) { throw "robocopy extension failed ($LASTEXITCODE)" }
-
-Write-Host '==> stop agent (unlock host exe)'
-$stopScript = Join-Path $PSScriptRoot 'stop_chrome_extension_extras.ps1'
-if (Test-Path $stopScript) { & $stopScript }
-Start-Sleep -Milliseconds 800
-
-Write-Host "==> host exe -> $hostDest"
-Copy-Item -LiteralPath $hostBuilt -Destination $hostDest -Force
-
-$nmReg = 'HKCU:\Software\Google\Chrome\NativeMessagingHosts\com.alienai.c35.remote'
-if (Test-Path $nmReg) {
-    $nmFile = (Get-ItemProperty -Path $nmReg -Name '(default)' -ErrorAction SilentlyContinue).'(default)'
-    if ($nmFile -and (Test-Path $nmFile)) {
-        $json = Get-Content -LiteralPath $nmFile -Raw | ConvertFrom-Json
-        if ($json.path -ne $hostDest) {
-            Write-Host "==> update native host path in $nmFile"
-            $json.path = $hostDest
-            [IO.File]::WriteAllText($nmFile, ($json | ConvertTo-Json -Compress), [Text.UTF8Encoding]::new($false))
-        }
-    }
+Copy-Item -Path (Join-Path $extSrc 'manifest.json') -Destination (Join-Path $extDst 'manifest.json') -Force
+Copy-Item -Path (Join-Path $distSrc '*') -Destination $distDst -Recurse -Force
+if (Test-Path (Join-Path $extSrc 'icons')) {
+    Copy-Item -Path (Join-Path $extSrc 'icons') -Destination (Join-Path $extDst 'icons') -Recurse -Force
 }
 
-if (-not $SkipAgentRestart) {
-    $agentScript = Join-Path $PSScriptRoot 'start_chrome_remote_agent.ps1'
-    if (Test-Path $agentScript) {
-        Write-Host '==> restart extension background agent'
-        & $agentScript
-    }
-}
+$configPath = Join-Path $extDst 'config.json'
+$serverUrl = $env:C35_SERVER_URL
+if (-not $serverUrl) { $serverUrl = 'http://127.0.0.1:8080' }
+@{ server_url = $serverUrl } | ConvertTo-Json | Set-Content -Path $configPath -Encoding utf8
 
-Write-Host ''
-Write-Host 'Done. Reload the extension in chrome://extensions (Developer mode -> Reload).'
+Write-Host "==> synced extension -> $extDst"
+Write-Host "    manifest: $((Get-Content (Join-Path $extDst 'manifest.json') -Raw | ConvertFrom-Json).version)"
+if ($ReloadHint) {
+    Write-Host "==> call browser.extension op=reload on your Chrome extension device (or reload once manually)"
+}

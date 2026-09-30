@@ -181,6 +181,9 @@ tool! {
         device_iid: (integer, "Target remote browser device identity ID", required),
         tab_id: (string, "Optional tab id (active tab if omitted)", optional),
         quality: (integer, "JPEG quality 40-95 (default 80)", optional),
+        marker: (boolean, "Draw red action marker at marker_x/marker_y or last pointer input on the agent (default true)", optional),
+        marker_x: (number, "Normalized X (0..1) for the red marker", optional),
+        marker_y: (number, "Normalized Y (0..1) for the red marker", optional),
     },
     execute: |args, ctx| {
         let device_iid = match resolve_device_iid(&args, ctx) {
@@ -196,6 +199,13 @@ tool! {
         if quality > 0 {
             params["quality"] = json!(quality);
         }
+        params["marker"] = json!(args.get("marker").and_then(|v| v.as_bool()).unwrap_or(true));
+        if let Some(mx) = args.get("marker_x").and_then(|v| v.as_f64()) {
+            params["marker_x"] = json!(mx);
+        }
+        if let Some(my) = args.get("marker_y").and_then(|v| v.as_f64()) {
+            params["marker_y"] = json!(my);
+        }
         let mut out = browser_invoke(&args, ctx, "page.screenshot", params, 90).await;
         if out.get("ok").and_then(|x| x.as_bool()) != Some(true) {
             return Ok(out);
@@ -204,6 +214,10 @@ tool! {
         let jpeg_b64 = shot.get("jpeg_b64").and_then(|x| x.as_str()).unwrap_or("");
         let width = shot.get("width").and_then(|x| x.as_u64()).unwrap_or(0) as u32;
         let height = shot.get("height").and_then(|x| x.as_u64()).unwrap_or(0) as u32;
+        let marker_applied = shot
+            .get("marker_applied")
+            .and_then(|x| x.as_bool())
+            .unwrap_or(false);
         if !jpeg_b64.is_empty() {
             if let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(jpeg_b64) {
                 device_screenshot_attach_artifact(
@@ -214,7 +228,7 @@ tool! {
                     width,
                     height,
                     false,
-                    false,
+                    marker_applied,
                     0,
                     &mut out,
                 )
@@ -345,6 +359,159 @@ tool! {
             params["url"] = json!(url);
         }
         Ok(browser_invoke(&args, ctx, "tabs", params, 45).await)
+    }
+}
+
+tool! {
+    struct: BrowserExtensionTool,
+    name: "browser.extension",
+    aliases: ["browser_extension"],
+    description: "Chrome MV3 extension on a paired type=browser device: read manifest version or reload the service worker after syncing dist/ to the install folder (no chrome://extensions click).",
+    topics: ["device", "browser"],
+    rag_phrases: [
+        "reload chrome extension", "reload extension", "extension version", "refresh alien ai remote",
+        "mv3 reload", "service worker reload"
+    ],
+    ui_calling_key: "tool.browser.extension.calling",
+    ui_done_key: "tool.browser.extension.done",
+    parameters: {
+        device_iid: (integer, "Target remote browser device identity ID", required),
+        op: (string, "version | reload", required),
+    },
+    execute: |args, ctx| {
+        let op = arg_str(&args, "op").to_lowercase();
+        let method = match op.as_str() {
+            "version" | "get_version" => "extension.version",
+            "reload" | "refresh" => "extension.reload",
+            "" => return Ok(browser_fail("op required (version | reload)")),
+            _ => return Ok(browser_fail("op must be version or reload")),
+        };
+        Ok(browser_invoke(&args, ctx, method, json!({}), 20).await)
+    }
+}
+
+tool! {
+    struct: BrowserSheetsAppendRowTool,
+    name: "browser.sheets.append_row",
+    aliases: ["browser_sheets_append_row"],
+    description: "Fast path: append product + stock on an open Google Sheet (Chrome extension). Default columns B/C (Test Stock layout); override with product_col/stock_col.",
+    topics: ["browser", "sheets"],
+    rag_phrases: [
+        "google sheet", "google sheets", "spreadsheet", "test stock", "append row sheet",
+        "add row sheet", "stock sheet", "update inventory sheet"
+    ],
+    ui_calling_key: "tool.browser.sheets.append_row.calling",
+    ui_done_key: "tool.browser.sheets.append_row.done",
+    parameters: {
+        device_iid: (integer, "Target remote browser device identity ID", required),
+        tab_id: (string, "Chrome tab id for the spreadsheet", required),
+        product: (string, "Product name", required),
+        stock: (string, "Stock count", required),
+        row: (integer, "Sheet row number (default 7)", optional),
+        product_col: (string, "Product column letter (default B)", optional),
+        stock_col: (string, "Stock column letter (default C)", optional),
+    },
+    execute: |args, ctx| {
+        let product = arg_str(&args, "product");
+        let stock = arg_str(&args, "stock");
+        let tab_id = arg_str(&args, "tab_id");
+        if product.is_empty() || stock.is_empty() || tab_id.is_empty() {
+            return Ok(browser_fail("tab_id, product, and stock are required"));
+        }
+        let mut params = json!({ "product": product, "stock": stock, "tab_id": tab_id });
+        let row = arg_i64(&args, "row");
+        if row > 0 {
+            params["row"] = json!(row);
+        }
+        let product_col = arg_str(&args, "product_col");
+        if !product_col.is_empty() {
+            params["product_col"] = json!(product_col);
+        }
+        let stock_col = arg_str(&args, "stock_col");
+        if !stock_col.is_empty() {
+            params["stock_col"] = json!(stock_col);
+        }
+        Ok(browser_invoke(&args, ctx, "sheets.append_row", params, 60).await)
+    }
+}
+
+tool! {
+    struct: BrowserSheetsCellSetTool,
+    name: "browser.sheets.cell_set",
+    aliases: ["browser_sheets_cell_set", "browser_sheets_set_cell"],
+    description: "Set one cell value on an open Google Sheet tab (Chrome extension CDP).",
+    topics: ["browser", "sheets"],
+    rag_phrases: ["google sheet", "set cell", "write cell spreadsheet", "update cell sheets"],
+    ui_calling_key: "tool.browser.sheets.cell_set.calling",
+    ui_done_key: "tool.browser.sheets.cell_set.done",
+    parameters: {
+        device_iid: (integer, "Target remote browser device identity ID", required),
+        tab_id: (string, "Chrome tab id for the spreadsheet", required),
+        cell: (string, "Cell reference e.g. A7 or B3", required),
+        value: (string, "Value to write", required),
+    },
+    execute: |args, ctx| {
+        let tab_id = arg_str(&args, "tab_id");
+        let cell = arg_str(&args, "cell");
+        let value = args.get("value").map(|v| v.as_str().unwrap_or("").to_string()).unwrap_or_default();
+        if tab_id.is_empty() || cell.is_empty() {
+            return Ok(browser_fail("tab_id and cell are required"));
+        }
+        let params = json!({ "tab_id": tab_id, "cell": cell, "value": value });
+        Ok(browser_invoke(&args, ctx, "sheets.cell_set", params, 60).await)
+    }
+}
+
+tool! {
+    struct: BrowserSheetsRowReadTool,
+    name: "browser.sheets.row_read",
+    aliases: [
+        "browser_sheets_row_read",
+        "browser_sheets_read_row",
+        "browser_sheets_cell_read",
+        "browser_sheets_read_cell",
+    ],
+    description: "Read cells on an open Google Sheet (Chrome extension). One cell: cell=B7. Row slice: row + start_col (default A) + columns (default 6). Test Stock product+stock: row, start_col B, columns 2.",
+    topics: ["browser", "sheets"],
+    rag_phrases: [
+        "google sheet", "read row", "read cell", "get cell value spreadsheet", "stock list row",
+    ],
+    ui_calling_key: "tool.browser.sheets.row_read.calling",
+    ui_done_key: "tool.browser.sheets.row_read.done",
+    readonly: true,
+    parameters: {
+        device_iid: (integer, "Target remote browser device identity ID", required),
+        tab_id: (string, "Chrome tab id for the spreadsheet", required),
+        cell: (string, "Single cell e.g. B7 (alternative to row)", optional),
+        row: (integer, "Sheet row number (1-based); required if cell omitted", optional),
+        start_col: (string, "First column letter when using row (default A)", optional),
+        columns: (integer, "Column count from start_col (default 6, max 26; default 1 when cell set)", optional),
+    },
+    execute: |args, ctx| {
+        let tab_id = arg_str(&args, "tab_id");
+        if tab_id.is_empty() {
+            return Ok(browser_fail("tab_id is required"));
+        }
+        let cell = arg_str(&args, "cell");
+        let row = arg_i64(&args, "row");
+        if cell.is_empty() && row < 1 {
+            return Ok(browser_fail("cell (e.g. B7) or row (>=1) is required"));
+        }
+        let mut params = json!({ "tab_id": tab_id });
+        if !cell.is_empty() {
+            params["cell"] = json!(cell);
+        } else {
+            params["row"] = json!(row);
+        }
+        let start_col = arg_str(&args, "start_col");
+        if !start_col.is_empty() {
+            params["start_col"] = json!(start_col);
+        }
+        let columns = arg_i64(&args, "columns");
+        if columns > 0 {
+            params["columns"] = json!(columns);
+        }
+        Ok(browser_invoke(&args, ctx, "sheets.row_read", params, 90).await)
     }
 }
 

@@ -24,7 +24,10 @@ use crate::mention_context::MentionContext;
 
 use builtin::{
     BrowserFileUploadTool, BrowserPageActTool, BrowserPageExtractTool, BrowserPageObserveTool,
-    BrowserPageScreenshotTool, BrowserTabsTool, BrowserTaskRunTool, DriveListTool, DriveReadTool, GsheetAppendTool,
+    BrowserExtensionTool, BrowserPageScreenshotTool, BrowserSheetsAppendRowTool, BrowserSheetsCellSetTool,
+    BrowserSheetsRowReadTool, BrowserTabsTool,
+    BrowserTaskRunTool, DriveListTool,
+    DriveReadTool, GsheetAppendTool,
     GsheetReadTool, GsheetUpdateTool, ComputerUseDelegateTool, ConsumptionAddTool,
     ConsumptionDeleteTool, ConsumptionTodayTool,
     ConsumptionUpdateTool, DelegateRunTool, DeviceFsListTool, DeviceFsReadTool, ShellRunTool,
@@ -135,6 +138,10 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(BrowserPageExtractTool));
     dispatcher.register(Arc::new(BrowserPageActTool));
     dispatcher.register(Arc::new(BrowserTabsTool));
+    dispatcher.register(Arc::new(BrowserExtensionTool));
+    dispatcher.register(Arc::new(BrowserSheetsAppendRowTool));
+    dispatcher.register(Arc::new(BrowserSheetsCellSetTool));
+    dispatcher.register(Arc::new(BrowserSheetsRowReadTool));
     dispatcher.register(Arc::new(BrowserFileUploadTool));
     dispatcher.register(Arc::new(ShellRunTool));
     dispatcher.register(Arc::new(DeviceFsListTool));

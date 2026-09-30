@@ -1,8 +1,8 @@
-// CE-A4: WebRTC remote input - synthetic DOM events on the active / target tab.
+// CE-A4: remote input - CDP (trusted) on Google editors; DOM fallback elsewhere.
 
 import { resolveTabId } from "./automation.js";
+import { cdpInject, isCdpPreferred } from "./input_cdp.js";
 
-/** Matches Playwright launch viewport in alienai_remote_browser (browser_input.rs). */
 export const REF_VIEWPORT_W = 1280;
 export const REF_VIEWPORT_H = 800;
 
@@ -25,7 +25,7 @@ const execInTab = (tabId, func, args = []) =>
     );
   });
 
-const injectRemoteInput = (p) => {
+const injectRemoteInputDom = (p) => {
   const clamp01 = (v) => Math.min(1, Math.max(0, Number(v) || 0));
   const nx = clamp01(p.x);
   const ny = clamp01(p.y);
@@ -50,16 +50,33 @@ const injectRemoteInput = (p) => {
     buttons: buttonsHeld ?? (type === "mouseup" ? 0 : buttonsMask),
   });
 
-  const fireMouse = (type, el, extra = {}) => {
-    const held = type === "mouseup" ? 0 : buttonsMask;
-    el.dispatchEvent(new MouseEvent(type, { ...mouseOpts(type, held), ...extra }));
+  const firePointer = (type, el, extra = {}) => {
+    const held = type.includes("up") ? 0 : buttonsMask;
+    const pe = new PointerEvent(type, {
+      bubbles: true,
+      cancelable: true,
+      view: window,
+      clientX: x,
+      clientY: y,
+      button: mouseButton,
+      buttons: held,
+      pointerId: 1,
+      pointerType: "mouse",
+      isPrimary: true,
+      ...extra,
+    });
+    el.dispatchEvent(pe);
+    const me = type.replace("pointer", "mouse");
+    if (me !== type) {
+      el.dispatchEvent(new MouseEvent(me, { ...mouseOpts(me, held), ...extra }));
+    }
   };
 
   const clickAt = (detail = 1) => {
     const el = targetAt();
-    fireMouse("mousemove", el);
-    fireMouse("mousedown", el);
-    fireMouse("mouseup", el);
+    firePointer("pointermove", el);
+    firePointer("pointerdown", el);
+    firePointer("pointerup", el);
     el.dispatchEvent(
       new MouseEvent("click", { ...mouseOpts("click", 0), detail })
     );
@@ -69,17 +86,17 @@ const injectRemoteInput = (p) => {
   switch (eventType) {
     case "mouse_move": {
       const el = targetAt();
-      fireMouse("mousemove", el, { buttons: 0 });
+      firePointer("pointermove", el, { buttons: 0 });
       break;
     }
     case "mouse_down": {
       const el = targetAt();
-      fireMouse("mousedown", el);
+      firePointer("pointerdown", el);
       break;
     }
     case "mouse_up": {
       const el = targetAt();
-      fireMouse("mouseup", el);
+      firePointer("pointerup", el);
       break;
     }
     case "mouse_click":
@@ -159,17 +176,51 @@ const injectRemoteInput = (p) => {
     default:
       throw new Error(`unknown input event_type: ${eventType}`);
   }
-  return { ok: true };
+  return { ok: true, mode: "dom" };
 };
 
-export const inputInject = async (params = {}) => {
+const maybeFocusTabDom = async (tabId, tab, params) => {
+  if (params.focus === false) return;
+  if (params.focus !== true) {
+    const win = await chrome.windows.get(tab.windowId);
+    if (tab.active && win.focused) return;
+  }
+  await chrome.windows.update(tab.windowId, { focused: true });
+  await chrome.tabs.update(tabId, { active: true });
+};
+
+const domInject = async (tabId, tab, params) => {
+  await maybeFocusTabDom(tabId, tab, params);
+  return execInTab(tabId, injectRemoteInputDom, [params]);
+};
+
+const inputQueues = new Map();
+
+const inputInjectInner = async (params = {}) => {
   const tabId = await resolveTabId(params);
   const tab = await chrome.tabs.get(tabId);
   if (tab.url?.startsWith("chrome://") || tab.url?.startsWith("chrome-extension://")) {
     throw new Error("permission denied for restricted page");
   }
-  await chrome.tabs.update(tabId, { active: true });
-  return execInTab(tabId, injectRemoteInput, [params]);
+  const mode = params.input_mode;
+  const wantCdp = mode !== "dom";
+  if (wantCdp) {
+    try {
+      return await cdpInject(tabId, tab, params);
+    } catch (e) {
+      if (mode === "cdp") throw e;
+      return domInject(tabId, tab, { ...params, cdp_error: String(e?.message || e) });
+    }
+  }
+  return domInject(tabId, tab, params);
+};
+
+export const inputInject = async (params = {}) => {
+  const tabId = await resolveTabId(params);
+  const prev = inputQueues.get(tabId) || Promise.resolve();
+  const next = prev.then(() => inputInjectInner(params));
+  inputQueues.set(tabId, next.catch(() => {}));
+  return next;
 };
 
 export const handleInputRpc = async (req) => {

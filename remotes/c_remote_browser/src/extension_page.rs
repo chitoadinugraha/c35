@@ -73,7 +73,13 @@ pub async fn extension_page_method(method: &str, params: &Value) -> anyhow::Resu
                 .clamp(40, 95);
             let mut ipc = json!({ "quality": quality });
             tab_id_in(params, &mut ipc);
-            let screenshot = rpc_call("page.screenshot", ipc).await?;
+            let mut screenshot = rpc_call("page.screenshot", ipc).await?;
+            let coords = crate::browser_screenshot::marker_coords(params);
+            crate::browser_screenshot::apply_marker_to_screenshot_json(
+                &mut screenshot,
+                quality as u8,
+                coords,
+            );
             Ok(json!({ "ok": true, "screenshot": screenshot }))
         }
         "page.extract" => {
@@ -106,6 +112,7 @@ pub async fn extension_page_method(method: &str, params: &Value) -> anyhow::Resu
             let result = rpc_call("page.act", ipc).await?;
             Ok(json!({ "ok": true, "result": result }))
         }
+        "extension.version" | "extension.reload" => rpc_call(method, json!({})).await,
         other => anyhow::bail!("unknown browser method: {other}"),
     }
 }

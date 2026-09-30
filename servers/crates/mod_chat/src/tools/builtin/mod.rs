@@ -18,7 +18,9 @@ mod web_visit;
 
 pub use browser::{
     BrowserFileUploadTool, BrowserPageActTool, BrowserPageExtractTool, BrowserPageObserveTool,
-    BrowserPageScreenshotTool, BrowserTabsTool, BrowserTaskRunTool,
+    BrowserPageScreenshotTool, BrowserSheetsAppendRowTool, BrowserExtensionTool, BrowserSheetsCellSetTool,
+    BrowserSheetsRowReadTool, BrowserTabsTool,
+    BrowserTaskRunTool,
 };
 pub use consumption::{ConsumptionAddTool, ConsumptionDeleteTool, ConsumptionTodayTool, ConsumptionUpdateTool};
 pub use expense::{ExpenseAddTool, ExpenseDeleteTool, ExpenseSummaryTool};

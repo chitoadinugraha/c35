@@ -12,11 +12,45 @@ export const automationOps = new Set([
   "task.run",
 ]);
 
-export const activeTabId = async () => {
-  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+export const focusedActiveTabId = async () => {
+  const win = await chrome.windows.getLastFocused({ windowTypes: ["normal"] }).catch(() => null);
+  if (win?.id == null) throw new Error("no focused window");
+  const tabs = await chrome.tabs.query({ active: true, windowId: win.id });
   const id = tabs[0]?.id;
   if (id == null) throw new Error("no active tab");
   return id;
+};
+
+export const activeTabId = async () => focusedActiveTabId();
+
+const tabToRecord = (t, focusedWindowId) => ({
+  tabId: String(t.id ?? ""),
+  id: t.id,
+  title: t.title || "",
+  url: t.url || "",
+  active: !!t.active,
+  windowId: t.windowId,
+  windowFocused: focusedWindowId != null && t.windowId === focusedWindowId,
+  index: t.index,
+  favicon: t.favIconUrl || "",
+});
+
+/** All normal windows; last-focused window first, then tab index. */
+export const tabsListAll = async () => {
+  const win = await chrome.windows.getLastFocused({ windowTypes: ["normal"] }).catch(() => null);
+  const focusedWindowId = win?.id ?? null;
+  const tabs = await chrome.tabs.query({});
+  return tabs
+    .slice()
+    .sort((a, b) => {
+      const aF = a.windowId === focusedWindowId ? 0 : 1;
+      const bF = b.windowId === focusedWindowId ? 0 : 1;
+      if (aF !== bF) return aF - bF;
+      if (a.windowId !== b.windowId) return a.windowId - b.windowId;
+      if (a.active !== b.active) return a.active ? -1 : 1;
+      return a.index - b.index;
+    })
+    .map((t) => tabToRecord(t, focusedWindowId));
 };
 
 export const resolveTabId = async (params) => {

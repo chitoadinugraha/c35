@@ -203,6 +203,78 @@ INSERT INTO ai.inst (
     priority = EXCLUDED.priority,
     updated_ts = NOW();
 
+-- Seed: Google Sheets topic persona (@topic:sheets / sheets topic chain)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.sheets.topic',
+    'global',
+    'topic',
+    'sheets',
+    '[GOOGLE SHEETS] User works on a Google Sheet in the Chrome extension remote browser. Use browser.sheets.append_row for product+stock rows; browser.sheets.cell_set to write one cell; browser.sheets.row_read to read (single cell: cell=B7; row slice: row + start_col + columns). Pass device_iid (string) and tab_id from browser.tabs. Do not use device.input on Sheets — CDP sheet tools are faster and reliable. For API/bulk on bot-attached sheets use gsheet.*.',
+    ARRAY[]::TEXT[],
+    ARRAY[]::TEXT[],
+    ARRAY[
+        'browser.sheets.append_row',
+        'browser.sheets.cell_set',
+        'browser.sheets.row_read',
+        'browser.tabs'
+    ],
+    ARRAY['device.input'],
+    146,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    kind = EXCLUDED.kind,
+    topic_id = EXCLUDED.topic_id,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: phrase steering — Google Sheet / spreadsheet (tools gated off general topic)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.mention.sheets',
+    'global',
+    'task',
+    'sheets',
+    '[GOOGLE SHEETS] Spreadsheet in Chrome remote. Prefer browser.sheets.* with device_iid and tab_id; list tabs with browser.tabs if tab_id unknown.',
+    ARRAY[
+        'google sheet', 'google sheets', 'spreadsheet', 'googlesheet',
+        'feuille de calcul', 'lembar kerja', 'sheet test stock', 'test stock sheet',
+        'append row', 'tambah baris', 'isi sel', 'update stock sheet'
+    ],
+    ARRAY[
+        'tool_include:browser.sheets.append_row',
+        'tool_include:browser.sheets.cell_set',
+        'tool_include:browser.sheets.row_read',
+        'tool_include:browser.tabs',
+        'tool_exclude:device.input'
+    ],
+    ARRAY[
+        'browser.sheets.append_row',
+        'browser.sheets.cell_set',
+        'browser.sheets.row_read',
+        'browser.tabs'
+    ],
+    ARRAY['device.input'],
+    136,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    kind = EXCLUDED.kind,
+    topic_id = EXCLUDED.topic_id,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
 -- Seed: 2FA / captcha on browser — human Remote tab, not device.input
 INSERT INTO ai.inst (
     id, scope, kind, topic_id, inst, phrases, triggers, exclude_tools, priority, def_hash, updated_ts

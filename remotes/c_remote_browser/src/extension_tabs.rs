@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 
 use crate::extension_ipc::extension_bridge_get;
 
-const TAB_RPC_TIMEOUT: Duration = Duration::from_secs(4);
+const TAB_RPC_TIMEOUT: Duration = Duration::from_secs(15);
 
 pub async fn extension_tab_command(body: &Value) -> anyhow::Result<Value> {
     let bridge = extension_bridge_get().ok_or_else(crate::extension_ipc::extension_ipc_not_ready_err)?;

@@ -184,6 +184,7 @@ message RemoteInputEvent {
   int32 key_code = 5;
   string text = 6;
   int32 delta_y = 7;          // wheel
+  string tab_id = 8;          // Chrome extension: target tab (empty = last-focused tab)
 }
 
 // Agent → viewer on `remote-input` (viewer sends RemoteInputEvent only).

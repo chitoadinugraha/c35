@@ -190,7 +190,7 @@ tool! {
     struct: DeviceInputTool,
     name: "device.input",
     aliases: ["device_input", "device_computer_use"],
-    description: "Send mouse or keyboard input (mouse_click, double_click, triple_click, right_click, middle_click, mouse_move, mouse_down, mouse_up, mouse_drag, wheel, key_down, key_up, type_text, shortcut) to a user's paired remote device. Coordinates (x, y) are normalized between 0.0 (top-left) and 1.0 (bottom-right) across the desktop/virtual screen. For shortcut, specify key combos in text (e.g. 'ctrl+c', 'alt+tab', 'win+r'). If screenshot_after=true, draws a red action marker showing where the action landed.",
+    description: "Send mouse or keyboard input (mouse_click, type_text, shortcut, etc.) to a paired remote device. Coordinates (x, y) are normalized 0.0–1.0. Chrome extension browser devices use CDP trusted keys/clicks (not OS SendKeys); pass tab_id for the target tab. For Google Sheets prefer browser.sheets.* tools. Desktop agents use OS input. screenshot_after=true captures a follow-up JPEG with a red marker when supported.",
     topics: ["computer_use"],
     always: ["computer_use"],
     ui_calling_key: "tool.device.input.calling",
@@ -205,6 +205,7 @@ tool! {
         button: (integer, "Mouse button (0: left, 1: middle, 2: right)", optional),
         delta_y: (integer, "Wheel scroll delta (positive = up, negative = down)", optional),
         screenshot_after: (boolean, "If true, captures and returns a new screenshot with a red target marker showing where the click landed to verify action", optional),
+        tab_id: (string, "Chrome extension remote browser: target tab id (empty = agent default tab)", optional),
     },
     execute: |args, ctx| {
         let device_iid = match resolve_device_iid(&args, ctx) {
@@ -230,6 +231,7 @@ tool! {
         let delta_y = args["delta_y"].as_i64().unwrap_or(0) as i32;
         let screenshot_after = args["screenshot_after"].as_bool().unwrap_or(false);
 
+        let tab_id = args["tab_id"].as_str().unwrap_or_default().trim().to_string();
         let event = c35_proto::RemoteInputEvent {
             event_type: event_type.clone(),
             x,
@@ -238,6 +240,7 @@ tool! {
             key_code,
             text,
             delta_y,
+            tab_id,
         };
 
         if let Err(e) = remote_device_input_send(

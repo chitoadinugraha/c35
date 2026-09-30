@@ -3,8 +3,16 @@ import {
   automationOps,
   handleAutomationRpc,
   activeTabId as automationActiveTabId,
+  tabsListAll,
 } from "./automation.js";
 import { inputInject } from "./input.js";
+import {
+  sheetsAppendRow,
+  sheetsCellRead,
+  sheetsCellSet,
+  sheetsRowRead,
+} from "./input_cdp.js";
+import { resolveTabId } from "./automation.js";
 
 const NATIVE_HOST = "com.alienai.c35.remote";
 const EXT_LOG_MAX = 80;
@@ -211,7 +219,7 @@ const onNativeMessage = (msg) => {
       stopCapture();
       break;
     case "tabs.list":
-      tabsList().then((tabs) => nmSend({ type: "tabs.list", tabs }));
+      tabsListAll().then((tabs) => nmSend({ type: "tabs.list", tabs }));
       break;
     case "tabs.activate":
       tabsActivate(msg.tabId);
@@ -378,7 +386,7 @@ const extensionRpcHandle = async (req) => {
     let result;
     switch (op) {
       case "tabs.list":
-        result = { tabs: await tabsList() };
+        result = { tabs: await tabsListAll() };
         break;
       case "tabs.activate": {
         const tabId = Number(req.params?.tab_id ?? req.params?.tabId);
@@ -402,6 +410,41 @@ const extensionRpcHandle = async (req) => {
       case "input.inject":
         result = await inputInject(req.params || {});
         break;
+      case "sheets.append_row": {
+        const tabId = await resolveTabId(req.params || {});
+        const tab = await chrome.tabs.get(tabId);
+        result = await sheetsAppendRow(tabId, tab, req.params || {});
+        break;
+      }
+      case "sheets.cell_set": {
+        const tabId = await resolveTabId(req.params || {});
+        const tab = await chrome.tabs.get(tabId);
+        result = await sheetsCellSet(tabId, tab, req.params || {});
+        break;
+      }
+      case "sheets.cell_read": {
+        const tabId = await resolveTabId(req.params || {});
+        const tab = await chrome.tabs.get(tabId);
+        result = await sheetsCellRead(tabId, tab, req.params || {});
+        break;
+      }
+      case "sheets.row_read": {
+        const tabId = await resolveTabId(req.params || {});
+        const tab = await chrome.tabs.get(tabId);
+        result = await sheetsRowRead(tabId, tab, req.params || {});
+        break;
+      }
+      case "extension.version": {
+        const m = chrome.runtime.getManifest();
+        result = { ok: true, version: m.version, name: m.name, manifest_version: m.manifest_version };
+        break;
+      }
+      case "extension.reload": {
+        const m = chrome.runtime.getManifest();
+        result = { ok: true, version: m.version, reloading: true };
+        queueMicrotask(() => chrome.runtime.reload());
+        break;
+      }
       default:
         throw new Error(`unknown op: ${op}`);
     }
@@ -431,22 +474,11 @@ const onExtensionIpcRpc = (req) =>
     return reply;
   });
 
-// --- Tabs stub (Track I) ---
-const tabsList = async () => {
-  const tabs = await chrome.tabs.query({ currentWindow: true });
-  return tabs.map((t) => ({
-    tabId: String(t.id ?? ""),
-    id: t.id,
-    title: t.title || "",
-    url: t.url || "",
-    active: t.active,
-    windowId: t.windowId,
-    favicon: t.favIconUrl || "",
-  }));
-};
-
+// --- Tabs (all windows) ---
 const tabsActivate = async (tabId) => {
   if (tabId == null) return;
+  const tab = await chrome.tabs.get(tabId);
+  await chrome.windows.update(tab.windowId, { focused: true });
   await chrome.tabs.update(tabId, { active: true });
   nmSend({ type: "tabs.activated", tabId });
 };
