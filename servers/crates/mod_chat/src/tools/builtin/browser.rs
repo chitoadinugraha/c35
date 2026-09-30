@@ -77,6 +77,31 @@ fn browser_sheets_cell_set_result(raw: Value, cell: &str, value: &str) -> Value 
     browser_sheets_llm_fail(err)
 }
 
+fn browser_sheets_range_read_result(raw: Value) -> Value {
+    if raw.get("ok").and_then(|v| v.as_bool()) == Some(true) {
+        let summary = raw
+            .get("summary")
+            .and_then(|v| v.as_str())
+            .unwrap_or("range read");
+        let next_row = raw.get("next_row").cloned().unwrap_or(json!(null));
+        let rows = raw.get("rows").cloned().unwrap_or(json!([]));
+        return json!({
+            "ok": true,
+            "llm": {
+                "ok": true,
+                "summary": summary,
+                "next_row": next_row,
+                "rows": rows,
+            },
+        });
+    }
+    let err = raw
+        .get("error")
+        .and_then(|v| v.as_str())
+        .unwrap_or("range_read failed");
+    browser_sheets_llm_fail(err)
+}
+
 fn browser_sheets_append_row_result(raw: Value) -> Value {
     if raw.get("ok").and_then(|v| v.as_bool()) == Some(true) {
         let summary = raw
@@ -452,7 +477,7 @@ tool! {
     struct: BrowserSheetsAppendRowTool,
     name: "browser.sheets.append_row",
     aliases: ["browser_sheets_append_row"],
-    description: "Append product + stock on an open Google Sheet tab. Omit row to append after last filled product column row. On success llm.summary confirms both cells (no row_read needed). List browser.tabs first if tab_id unknown.",
+    description: "Append product + stock on an open Google Sheet tab. Prefer row from browser.sheets.range_read llm.next_row (fast, no column scan). Omit row only when cache is warm. On success llm.summary confirms both cells.",
     topics: ["browser", "sheets"],
     rag_phrases: [
         "google sheet", "google sheets", "spreadsheet", "test stock", "append row sheet",
@@ -519,6 +544,53 @@ tool! {
         let params = json!({ "tab_id": tab_id, "cell": cell, "value": value });
         let raw = browser_invoke(&args, ctx, "sheets.cell_set", params, 60).await;
         Ok(browser_sheets_cell_set_result(raw, &cell, &value))
+    }
+}
+
+tool! {
+    struct: BrowserSheetsRangeReadTool,
+    name: "browser.sheets.range_read",
+    aliases: ["browser_sheets_range_read", "browser_sheets_read_range"],
+    description: "Read product+stock rows in one call (default cols B/C). Returns llm.rows and llm.next_row — pass next_row to append_row to avoid re-scanning. Use instead of many row_read calls.",
+    topics: ["browser", "sheets"],
+    rag_phrases: [
+        "google sheet", "read sheet", "list stock", "sheet range", "what rows", "inventory sheet",
+    ],
+    ui_calling_key: "tool.browser.sheets.range_read.calling",
+    ui_done_key: "tool.browser.sheets.range_read.done",
+    readonly: true,
+    parameters: {
+        device_iid: (integer, "Target remote browser device identity ID", required),
+        tab_id: (string, "Chrome tab id for the spreadsheet", required),
+        from_row: (integer, "First row (default 2, below header)", optional),
+        to_row: (integer, "Last row to scan (optional; default until 2 empty product cells)", optional),
+        product_col: (string, "Product column (default B)", optional),
+        stock_col: (string, "Stock column (default C)", optional),
+    },
+    execute: |args, ctx| {
+        let tab_id = arg_str(&args, "tab_id");
+        if tab_id.is_empty() {
+            return Ok(browser_fail("tab_id is required"));
+        }
+        let mut params = json!({ "tab_id": tab_id });
+        let from_row = arg_i64(&args, "from_row");
+        if from_row > 0 {
+            params["from_row"] = json!(from_row);
+        }
+        let to_row = arg_i64(&args, "to_row");
+        if to_row > 0 {
+            params["to_row"] = json!(to_row);
+        }
+        let product_col = arg_str(&args, "product_col");
+        if !product_col.is_empty() {
+            params["product_col"] = json!(product_col);
+        }
+        let stock_col = arg_str(&args, "stock_col");
+        if !stock_col.is_empty() {
+            params["stock_col"] = json!(stock_col);
+        }
+        let raw = browser_invoke(&args, ctx, "sheets.range_read", params, 90).await;
+        Ok(browser_sheets_range_read_result(raw))
     }
 }
 

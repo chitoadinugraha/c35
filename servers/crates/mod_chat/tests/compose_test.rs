@@ -904,6 +904,14 @@ fn compose_force_tool_call_when_web_search_inst_and_tool() {
     assert!(!compose_force_tool_call(&["inst.web_search".into()], &[]));
 }
 
+#[test]
+fn compose_force_tool_call_skipped_when_sheets_inst_matched() {
+    let tools = vec![ToolDef::new("web.search".into(), "Search".into(), json!({}))];
+    let ids = ["inst.web_search".into(), "inst.mention.sheets".into()];
+    assert!(!compose_force_tool_call(&ids, &tools));
+    assert!(!compose_force_tool_call(&["inst.sheets.topic".into()], &tools));
+}
+
 fn inst_multitask_delegate() -> InstRow {
     InstRow {
         id: "inst.task.multitask_delegate".into(),

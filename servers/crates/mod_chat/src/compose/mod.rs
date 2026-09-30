@@ -50,7 +50,14 @@ impl<'a> Default for ComposeTurnOpts<'a> {
 
 /// First LLM hop must call a tool when web-search inst matched and web.search is available.
 pub fn compose_force_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> bool {
-    matched_ids.iter().any(|id| id == "inst.web_search") && tools.iter().any(|t| t.name == "web.search")
+    if matched_ids
+        .iter()
+        .any(|id| id == "inst.mention.sheets" || id == "inst.sheets.topic")
+    {
+        return false;
+    }
+    matched_ids.iter().any(|id| id == "inst.web_search")
+        && tools.iter().any(|t| t.name == "web.search")
 }
 
 #[derive(Debug, Clone, serde::Serialize)]

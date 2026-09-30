@@ -10,6 +10,7 @@ import {
   sheetsAppendRow,
   sheetsCellRead,
   sheetsCellSet,
+  sheetsRangeRead,
   sheetsRowRead,
 } from "./input_cdp.js";
 import { resolveTabId } from "./automation.js";
@@ -432,6 +433,12 @@ const extensionRpcHandle = async (req) => {
         const tabId = await resolveTabId(req.params || {});
         const tab = await chrome.tabs.get(tabId);
         result = await sheetsRowRead(tabId, tab, req.params || {});
+        break;
+      }
+      case "sheets.range_read": {
+        const tabId = await resolveTabId(req.params || {});
+        const tab = await chrome.tabs.get(tabId);
+        result = await sheetsRangeRead(tabId, tab, req.params || {});
         break;
       }
       case "extension.version": {

@@ -227,16 +227,19 @@ Paired device: `type=browser`, `meta.browser_engine=extension`. User’s **daily
 | **`browser.page.act`** | `click` / `fill` / `press` via injected script. |
 | **`browser.page.extract`** | Selector text extraction. |
 | **`browser.page.screenshot`** | JPEG capture (cluster artifact path). |
-| **`browser.sheets.cell_set`** | Write one cell on an **open** `docs.google.com/spreadsheets` tab. |
-| **`browser.sheets.row_read`** | Read one cell (`cell`) or contiguous columns (`row`, `start_col`, `columns`). Aliases include legacy `browser_sheets_cell_read`. |
-| **`browser.sheets.append_row`** | One row: product + stock (default **B/C**, override `product_col` / `stock_col`). |
+| **`browser.sheets.cell_set`** | Write one cell; extension verifies; **`llm.summary`** e.g. `B2 set to "text"` on success (no follow-up read). |
+| **`browser.sheets.range_read`** | One call: product+stock rows + **`next_row`** for append (replaces many `row_read`). |
+| **`browser.sheets.row_read`** | Single cell or one row slice — prefer `range_read` for inventory. |
+| **`browser.sheets.append_row`** | Product + stock row (default **B/C**); verifies both cells; **`llm.summary`** e.g. `Row 11: B11="Es teler", C11="5"`. |
 
 **Not on extension:** `browser.task.run` (use Playwright device or stepwise `page.*` + sheets tools). **`browser.file.upload`** deferred.
 
 ### Google Sheets CDP path (extension)
 
 - **Goto:** name box (all frames DOM, else CDP click + type ref + Enter) — **no** `#range=` URL navigation (avoids full reload).
-- **Write:** F2 → `Input.insertText` → **Tab** to commit (then re-goto to verify).
+- **Write:** name-box goto → F2 → DOM replace → **Tab** (next col) or **Enter** (stay); one read-back on active cell — no extra name-box hop for verify.
+- **`append_row`:** caches last row per tab/column so auto-row is usually **one** goto; pair write uses **one** goto (Tab B→C); verify reads stock cell only (already selected).
+- **`cell_set` / `append_row`:** extension returns `ok` + `summary`; server exposes `llm.summary` — model should not `row_read` after `ok:true`.
 - **Read:** formula bar across frames after goto each cell.
 - **Guard:** RPC fails fast if `tab.url` is not a spreadsheet (wrong tab or missing `tab_id`).
 - **Queue:** per-tab mutex so parallel tool calls do not interleave CDP.
@@ -246,8 +249,10 @@ Paired device: `type=browser`, `meta.browser_engine=extension`. User’s **daily
 
 ### Compose / eligibility (today)
 
-- Topic **`sheets`** + **`inst.mention.sheets`** / phrases (“google sheet”, …) — tools are **not** `always`.
-- **Deferred:** compose-time filter “only when active tab is a spreadsheet” (device `active_tab` meta + `requires_capability` or inst gate). Until then, wrong-tab calls fail at execute with a clear error; steering still limits how often tools appear in the prompt.
+- Topic **`sheets`** + **`inst.mention.sheets`** / phrases (“google sheet”, “tambah baris”, …) — tools are **not** `always`.
+- **`@iid` device mention alone** does **not** disable web search; you need **sheet** steering (`inst.mention.sheets` / topic `sheets`) so compose skips forced **`web.search`** preflight and excludes `web.search` / `web.visit` via inst triggers.
+- Inst body: **`browser.tabs` first** when `tab_id` unknown; **`append_row` without `row`** auto-fills the next empty product column.
+- **Deferred:** hide `browser.sheets.*` unless the paired browser’s **active tab** is a spreadsheet URL.
 
 ### Dev loop (extension JS / MV3)
 

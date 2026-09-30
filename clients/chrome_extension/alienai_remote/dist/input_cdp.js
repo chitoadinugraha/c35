@@ -177,13 +177,6 @@ const findFormulaBarInPage = () => {
 
 const readFormulaBar = async (tabId) => {
   const r = await execFirstFrame(tabId, () => {
-    let best = { value: "", found: false };
-    const pick = (el) => {
-      if (!el) return;
-      const raw = el.value ?? el.textContent ?? el.innerText ?? "";
-      const v = String(raw).trim();
-      if (v.length >= best.value.length) best = { value: v, found: true };
-    };
     const sels = [
       "#t-formula-bar-input",
       "#formula-bar input",
@@ -193,13 +186,18 @@ const readFormulaBar = async (tabId) => {
       '[aria-label="Rumus"]',
     ];
     for (const sel of sels) {
-      for (const el of document.querySelectorAll(sel)) pick(el);
+      const el = document.querySelector(sel);
+      if (!el) continue;
+      const raw = el.value ?? el.textContent ?? el.innerText ?? "";
+      return { value: String(raw).trim(), found: true };
     }
     for (const el of document.querySelectorAll('[role="textbox"], [contenteditable="true"]')) {
       const a = (el.getAttribute("aria-label") || "").toLowerCase();
-      if (a.includes("formula") || a.includes("rumus")) pick(el);
+      if (!a.includes("formula") && !a.includes("rumus")) continue;
+      const raw = el.value ?? el.textContent ?? el.innerText ?? "";
+      return { value: String(raw).trim(), found: true };
     }
-    return best.found ? best : null;
+    return null;
   });
   return r ?? { value: "", found: false };
 };
@@ -431,68 +429,167 @@ const formulaBarRectScript = () => {
 
 const setFormulaBarDom = async (tabId, value) => {
   const hit = await execFirstFrame(tabId, (val) => {
+    const setVal = (el) => {
+      if (!el) return false;
+      el.focus();
+      const text = String(val ?? "");
+      if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") {
+        const proto = el.tagName === "TEXTAREA" ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+        const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+        if (setter) setter.call(el, text);
+        else el.value = text;
+      } else if (el.isContentEditable) {
+        el.textContent = text;
+      } else return false;
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+      return true;
+    };
     const sels = [
       "#t-formula-bar-input",
       "#formula-bar input",
       '[aria-label="Formula bar"]',
       '[aria-label="Bar formula"]',
     ];
-    let el = null;
     for (const sel of sels) {
-      el = document.querySelector(sel);
-      if (el) break;
+      const el = document.querySelector(sel);
+      if (el && setVal(el)) return { ok: true, where: "formula_bar" };
     }
-    if (!el) return null;
-    el.focus();
-    const text = String(val ?? "");
-    if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") {
-      const proto = el.tagName === "TEXTAREA" ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
-      const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
-      if (setter) setter.call(el, text);
-      else el.value = text;
-    } else if (el.isContentEditable) {
-      el.textContent = text;
-    } else return null;
-    el.dispatchEvent(new Event("input", { bubbles: true }));
-    el.dispatchEvent(new Event("change", { bubbles: true }));
-    return { ok: true, len: text.length };
+    return null;
   }, [value]);
   return hit?.ok === true;
 };
 
-const sheetsCommitEdit = async (tabId, value) => {
-  const s = String(value ?? "");
-  await sheetsLeaveEdit(tabId);
-  await delay(120);
-  await cdpShortcut(tabId, "f2");
-  await delay(280);
-  if (s) {
-    await cdpInsertText(tabId, s);
-  } else {
-    await cdpShortcut(tabId, "delete");
-  }
-  await delay(120);
-  await cdpShortcut(tabId, "tab");
-  await delay(800);
-  return { write_via: "f2_insert_tab" };
+/** Replace in-cell / formula-bar editor (F2) — no CDP typing (avoids concat + stray keys). */
+const setSheetEditValueDom = async (tabId, value) => {
+  const hit = await execFirstFrame(tabId, (val) => {
+    const setVal = (el) => {
+      if (!el) return false;
+      el.focus();
+      const text = String(val ?? "");
+      if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") {
+        const proto = el.tagName === "TEXTAREA" ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+        const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+        if (setter) setter.call(el, text);
+        else el.value = text;
+      } else if (el.isContentEditable) {
+        el.textContent = text;
+      } else return false;
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+      return true;
+    };
+    if (setVal(document.activeElement)) return { ok: true, where: "active" };
+    const sels = [
+      "#t-formula-bar-input",
+      "#formula-bar input",
+      '[aria-label="Formula bar"]',
+      '[aria-label="Bar formula"]',
+    ];
+    for (const sel of sels) {
+      const el = document.querySelector(sel);
+      if (el && setVal(el)) return { ok: true, where: "formula_bar" };
+    }
+    return null;
+  }, [value]);
+  return hit?.ok === true;
 };
 
-/** Edit active cell: F2 → insertText → Tab commit. */
-const sheetsWriteActiveCell = async (tabId, value) => sheetsCommitEdit(tabId, value);
+const sheetsCommitEdit = async (tabId, value, commitKey = "tab") => {
+  const s = String(value ?? "");
+  await sheetsLeaveEdit(tabId);
+  await delay(80);
+  await cdpShortcut(tabId, "f2");
+  await delay(200);
+  const domOk = await setSheetEditValueDom(tabId, s);
+  if (!domOk && s) await cdpInsertText(tabId, s);
+  await delay(60);
+  await cdpShortcut(tabId, commitKey === "enter" ? "enter" : "tab");
+  await delay(commitKey === "enter" ? 320 : 380);
+  return { write_via: domOk ? "f2_dom_replace" : "f2_insertText", commit: commitKey, dom_ok: domOk };
+};
 
-/** Product col then stock col — two F2+insertText+Tab commits (same path as cell_set). */
+/** Edit active cell; Tab moves selection right (pair write), Enter stays on cell (cell_set). */
+const sheetsWriteActiveCell = (tabId, value, commitKey = "tab") => sheetsCommitEdit(tabId, value, commitKey);
+
+/** Product col then stock col — one goto; Tab after product lands on stock col. */
 const sheetsWriteRowPair = async (tabId, tab, productCol, stockCol, row, product, stock) => {
   const productCell = `${productCol}${row}`;
-  const stockCell = `${stockCol}${row}`;
   await sheetsGoToCell(tabId, tab, productCell);
-  await sheetsWriteActiveCell(tabId, product);
-  await sheetsGoToCell(tabId, tab, stockCell);
-  await sheetsWriteActiveCell(tabId, stock);
+  const w1 = await sheetsWriteActiveCell(tabId, product, "tab");
+  const w2 = await sheetsWriteActiveCell(tabId, stock, "enter");
+  return { product: w1, stock: w2 };
+};
+
+const sheetsRowCache = new Map();
+
+const sheetsRowCacheKey = (tabId, col) => `${tabId}:${String(col || "B").toUpperCase()}`;
+
+const sheetsRowCacheSet = (tabId, col, row) => {
+  if (Number.isFinite(row) && row >= 1) sheetsRowCache.set(sheetsRowCacheKey(tabId, col), Math.floor(row));
+};
+
+const sheetsReadActiveCell = async (tabId) => {
+  await sheetsLeaveEdit(tabId);
+  await delay(50);
+  return String((await readFormulaBar(tabId)).value ?? "");
 };
 
 const sheetsColLetter = (params, key, fallback) => {
   const v = String(params[key] ?? fallback).trim().toUpperCase();
   return /^[A-Z]{1,3}$/.test(v) ? v : fallback;
+};
+
+/** Scan product (+ optional stock) column; stop after [stopEmpty] empty rows below last data. */
+const sheetsScanDataRows = async (tabId, tab, productCol, stockCol, opts = {}) => {
+  const col = String(productCol || "B").trim().toUpperCase();
+  const stock = String(stockCol || "C").trim().toUpperCase();
+  const startRow = Math.max(2, Number(opts.from_row) || 2);
+  const maxRow = Math.min(500, Math.max(startRow, Number(opts.to_row) || 500));
+  const stopEmpty = Math.max(1, Number(opts.stop_empty) || 2);
+  const readStock = opts.read_stock !== false;
+  const rows = [];
+  let lastFilled = Math.max(1, startRow - 1);
+  let emptyStreak = 0;
+  for (let row = startRow; row <= maxRow; row += 1) {
+    await sheetsGoToCell(tabId, tab, `${col}${row}`);
+    const product = await sheetsReadActiveCell(tabId);
+    if (!product.trim()) {
+      if (lastFilled >= startRow) {
+        emptyStreak += 1;
+        if (emptyStreak >= stopEmpty) break;
+      }
+      continue;
+    }
+    lastFilled = row;
+    emptyStreak = 0;
+    let stockVal = "";
+    if (readStock && stock) {
+      await sheetsGoToCell(tabId, tab, `${stock}${row}`);
+      stockVal = await sheetsReadActiveCell(tabId);
+    }
+    rows.push({ row, product, stock: stockVal });
+  }
+  sheetsRowCacheSet(tabId, col, lastFilled);
+  return { rows, last_filled_row: lastFilled, next_row: lastFilled + 1, product_col: col, stock_col: stock };
+};
+
+/** Append row after last filled cell in product column (cached per tab when possible). */
+const sheetsFindNextEmptyRow = async (tabId, tab, productCol, startRow = 2) => {
+  const col = String(productCol || "B").trim().toUpperCase();
+  const cached = sheetsRowCache.get(sheetsRowCacheKey(tabId, col));
+  if (cached != null && cached >= 2) {
+    const guess = cached + 1;
+    await sheetsGoToCell(tabId, tab, `${col}${guess}`);
+    const v = await sheetsReadActiveCell(tabId);
+    if (!v.trim()) return { row: guess, col, row_cache: true };
+  }
+  const scan = await sheetsScanDataRows(tabId, tab, col, null, {
+    from_row: cached != null && cached >= 2 ? cached : startRow,
+    read_stock: false,
+    stop_empty: 2,
+  });
+  return { row: scan.next_row, col, row_cache: false };
 };
 
 const focusNameBox = (tabId) =>
@@ -650,17 +747,27 @@ const cdpShortcut = async (tabId, combo) => {
   }
   if (keyToken.length === 1) {
     const ch = keyToken;
+    const u = ch.toUpperCase();
     const modifiers = modifierMask(mods);
+    const hasMod = modifiers !== 0;
     await sendCdp(tabId, "Input.dispatchKeyEvent", {
       type: "keyDown",
       key: ch,
-      text: ch,
+      code: `Key${u}`,
+      windowsVirtualKeyCode: u.charCodeAt(0),
+      nativeVirtualKeyCode: u.charCodeAt(0),
       modifiers,
+      ...(hasMod ? {} : { text: ch }),
     });
-    await sendCdp(tabId, "Input.dispatchKeyEvent", { type: "char", text: ch, modifiers });
+    if (!hasMod) {
+      await sendCdp(tabId, "Input.dispatchKeyEvent", { type: "char", text: ch, modifiers });
+    }
     await sendCdp(tabId, "Input.dispatchKeyEvent", {
       type: "keyUp",
       key: ch,
+      code: `Key${u}`,
+      windowsVirtualKeyCode: u.charCodeAt(0),
+      nativeVirtualKeyCode: u.charCodeAt(0),
       modifiers,
     });
   }
@@ -766,25 +873,38 @@ export const sheetsAppendRow = (tabId, tab, params = {}) =>
   sheetsWithQueue(tabId, async () => {
     const tabNow = await chrome.tabs.get(tabId);
     sheetsRequireSpreadsheetTab(tabNow);
-    const row = Math.max(1, Number(params.row) || 7);
     const product = String(params.product || "").trim();
     const stock = String(params.stock ?? "").trim();
     if (!product) throw new Error("product required");
     const productCol = sheetsColLetter(params, "product_col", "B");
     const stockCol = sheetsColLetter(params, "stock_col", "C");
-    const cellRef = `${productCol}${row}`;
-    await sheetsWriteRowPair(tabId, tab, productCol, stockCol, row, product, stock);
-    return {
-      ok: true,
-      mode: "cdp",
-      nav: "v13",
-      row,
-      product_col: productCol,
-      stock_col: stockCol,
-      cell: cellRef,
-      product,
-      stock,
-    };
+    const rowParam = Number(params.row);
+    let row;
+    let row_auto = false;
+    if (Number.isFinite(rowParam) && rowParam >= 1) {
+      row = Math.floor(rowParam);
+    } else {
+      const found = await sheetsFindNextEmptyRow(tabId, tabNow, productCol, 2);
+      row = found.row;
+      row_auto = true;
+    }
+    const productCell = `${productCol}${row}`;
+    const stockCell = `${stockCol}${row}`;
+    const writes = await sheetsWriteRowPair(tabId, tabNow, productCol, stockCol, row, product, stock);
+    const gotStock = await sheetsReadActiveCell(tabId);
+    const ok =
+      writes.product?.dom_ok !== false &&
+      writes.stock?.dom_ok !== false &&
+      gotStock === stock;
+    if (!ok) {
+      return {
+        ok: false,
+        error: `append_row verify failed row ${row}: expected ${stockCell}="${stock}", got "${gotStock}"`,
+      };
+    }
+    sheetsRowCacheSet(tabId, productCol, row);
+    const summary = `Row ${row}: ${productCell}="${product}", ${stockCell}="${stock}"`;
+    return { ok: true, summary, row, row_auto, nav: "v19" };
   });
 
 export const sheetsCellSet = (tabId, tab, params = {}) =>
@@ -794,23 +914,43 @@ export const sheetsCellSet = (tabId, tab, params = {}) =>
     const cell = String(params.cell || params.cell_ref || "").trim().toUpperCase();
     const value = String(params.value ?? "");
     if (!CELL_REF_RE.test(cell)) throw new Error("cell required (e.g. A7)");
-    const goto = await sheetsGoToCell(tabId, tab, cell);
-    const write = await sheetsWriteActiveCell(tabId, value);
     await sheetsGoToCell(tabId, tab, cell);
-    await delay(250);
-    const verify = await readFormulaBar(tabId);
-    const committed = verify.value === value || (value && verify.value.includes(value));
+    const write = await sheetsWriteActiveCell(tabId, value, "enter");
+    const got = await sheetsReadActiveCell(tabId);
+    if (got === value) {
+      return { ok: true, summary: `${cell} set to "${value}"`, write, nav: "v19" };
+    }
     return {
-      ok: committed,
-      mode: "cdp",
-      nav: "v11",
-      cell,
-      value,
-      goto,
-      write,
-      verify_value: verify.value,
-      formula_bar_found: verify.found,
-      committed,
+      ok: false,
+      error: `Could not set ${cell} to "${value}" (sheet shows "${got}")`,
+    };
+  });
+
+/** Read product/stock slice in one op; returns next_row for append_row (pass row= to skip auto-scan). */
+export const sheetsRangeRead = (tabId, tab, params = {}) =>
+  sheetsWithQueue(tabId, async () => {
+    const tabNow = await chrome.tabs.get(tabId);
+    sheetsRequireSpreadsheetTab(tabNow);
+    const productCol = sheetsColLetter(params, "product_col", "B");
+    const stockCol = sheetsColLetter(params, "stock_col", "C");
+    const fromRow = Math.max(2, Number(params.from_row) || 2);
+    const toRow = Number(params.to_row);
+    const scan = await sheetsScanDataRows(tabId, tabNow, productCol, stockCol, {
+      from_row: fromRow,
+      to_row: Number.isFinite(toRow) && toRow >= fromRow ? toRow : 500,
+      read_stock: true,
+      stop_empty: 2,
+    });
+    const lines = scan.rows.map((r) => `${r.row}:${r.product}/${r.stock}`);
+    const summary = scan.rows.length
+      ? `${scan.rows.length} row(s); next_row=${scan.next_row}. ${lines.slice(-8).join("; ")}`
+      : `empty from row ${fromRow}; next_row=${scan.next_row}`;
+    return {
+      ok: true,
+      nav: "v19",
+      ...scan,
+      summary,
+      row_count: scan.rows.length,
     };
   });
 

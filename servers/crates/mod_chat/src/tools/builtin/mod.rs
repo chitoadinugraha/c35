@@ -18,8 +18,8 @@ mod web_visit;
 
 pub use browser::{
     BrowserFileUploadTool, BrowserPageActTool, BrowserPageExtractTool, BrowserPageObserveTool,
-    BrowserPageScreenshotTool, BrowserSheetsAppendRowTool, BrowserExtensionTool, BrowserSheetsCellSetTool,
-    BrowserSheetsRowReadTool, BrowserTabsTool,
+    BrowserPageScreenshotTool,     BrowserSheetsAppendRowTool, BrowserExtensionTool, BrowserSheetsCellSetTool,
+    BrowserSheetsRangeReadTool, BrowserSheetsRowReadTool, BrowserTabsTool,
     BrowserTaskRunTool,
 };
 pub use consumption::{ConsumptionAddTool, ConsumptionDeleteTool, ConsumptionTodayTool, ConsumptionUpdateTool};

@@ -241,7 +241,7 @@ INSERT INTO ai.inst (
     'global',
     'task',
     'sheets',
-    '[GOOGLE SHEETS] Spreadsheet in Chrome remote. Prefer browser.sheets.* with device_iid and tab_id; list tabs with browser.tabs if tab_id unknown.',
+    '[GOOGLE SHEETS] Open spreadsheet in Chrome remote — never web.search/web.visit. Steps: browser.tabs list → optional browser.sheets.range_read once (get llm.next_row) → browser.sheets.append_row with row=next_row (faster than omitting row). cell_set for one cell. Trust llm.summary on write ok; do not row_read after success.',
     ARRAY[
         'google sheet', 'google sheets', 'spreadsheet', 'googlesheet',
         'feuille de calcul', 'lembar kerja', 'sheet test stock', 'test stock sheet',
@@ -250,13 +250,17 @@ INSERT INTO ai.inst (
     ARRAY[
         'tool_include:browser.sheets.append_row',
         'tool_include:browser.sheets.cell_set',
+        'tool_include:browser.sheets.range_read',
         'tool_include:browser.sheets.row_read',
         'tool_include:browser.tabs',
-        'tool_exclude:device.input'
+        'tool_exclude:device.input',
+        'tool_exclude:web.search',
+        'tool_exclude:web.visit'
     ],
     ARRAY[
         'browser.sheets.append_row',
         'browser.sheets.cell_set',
+        'browser.sheets.range_read',
         'browser.sheets.row_read',
         'browser.tabs'
     ],
