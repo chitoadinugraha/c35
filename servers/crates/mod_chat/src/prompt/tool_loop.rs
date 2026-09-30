@@ -293,16 +293,15 @@ pub async fn prompt_cluster_turn(
                     );
                     anyhow::bail!(reason);
                 }
-                if fail_class.starts_with("fatal_") {
-                    let err = result
-                        .get("error")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("device fatal error");
-                    let missing_device = err.contains("device_iid is required") || err.contains("device_iid required");
-                    if !missing_device {
-                        hop_checkpoint(turn_ctx.as_deref(), &on_hop, hop as i32, hop as i32, tokens_in, tokens_out, tools_cost_usd, &blocks_json, fail_class);
-                        anyhow::bail!(err.to_string());
-                    }
+                let err = result
+                    .get("error")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                let missing_device = err.contains("device_iid is required") || err.contains("device_iid required");
+                if fail_class.starts_with("fatal_") && !missing_device {
+                    let err = if err.is_empty() { "device fatal error" } else { err };
+                    hop_checkpoint(turn_ctx.as_deref(), &on_hop, hop as i32, hop as i32, tokens_in, tokens_out, tools_cost_usd, &blocks_json, fail_class);
+                    anyhow::bail!(err.to_string());
                 }
                 let mut llm_result = result.get("llm").cloned().unwrap_or(result.clone());
                 if !ok && (name == "gsheet.update" || name == "gsheet.append") {

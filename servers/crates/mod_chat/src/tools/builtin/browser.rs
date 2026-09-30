@@ -1,4 +1,4 @@
-use crate::mention_context::device_iid_resolve;
+use crate::mention_context::{device_iid_resolve, json_device_iid_field};
 use crate::tool;
 use crate::tools::context::ToolContext;
 use crate::tools::device_screenshot_artifact::device_screenshot_attach_artifact;
@@ -26,16 +26,74 @@ fn arg_str(v: &Value, key: &str) -> String {
 }
 
 fn browser_fail(error: impl Into<String>) -> Value {
+    let error = error.into();
+    let e = error.to_lowercase();
+    let (fail_class, retryable) = if e.contains("device_iid is required") || e.contains("device_iid required") {
+        ("transient", true)
+    } else {
+        ("fatal_env", false)
+    };
     json!({
         "ok": false,
-        "error": error.into(),
-        "fail_class": "fatal_env",
-        "retryable": false,
+        "error": error,
+        "fail_class": fail_class,
+        "retryable": retryable,
     })
 }
 
+const SHEETS_WRITE_FAIL_RULE: &str =
+    "The Google Sheet was NOT updated. Tell the user the write failed; do not claim success.";
+
+fn browser_sheets_llm_ok(summary: &str) -> Value {
+    json!({
+        "ok": true,
+        "llm": { "ok": true, "summary": summary },
+    })
+}
+
+fn browser_sheets_llm_fail(error: &str) -> Value {
+    json!({
+        "ok": false,
+        "error": error,
+        "llm": {
+            "ok": false,
+            "error": error,
+            "reply_rule": SHEETS_WRITE_FAIL_RULE,
+        },
+    })
+}
+
+fn browser_sheets_cell_set_result(raw: Value, cell: &str, value: &str) -> Value {
+    if raw.get("ok").and_then(|v| v.as_bool()) == Some(true) {
+        let c = cell.trim().to_uppercase();
+        let summary = format!("{} set to \"{}\"", c, value);
+        return browser_sheets_llm_ok(&summary);
+    }
+    let err = raw
+        .get("error")
+        .and_then(|v| v.as_str())
+        .or_else(|| raw.get("llm").and_then(|l| l.get("error")).and_then(|v| v.as_str()))
+        .unwrap_or("cell_set failed");
+    browser_sheets_llm_fail(err)
+}
+
+fn browser_sheets_append_row_result(raw: Value) -> Value {
+    if raw.get("ok").and_then(|v| v.as_bool()) == Some(true) {
+        let summary = raw
+            .get("summary")
+            .and_then(|v| v.as_str())
+            .unwrap_or("row appended");
+        return browser_sheets_llm_ok(summary);
+    }
+    let err = raw
+        .get("error")
+        .and_then(|v| v.as_str())
+        .unwrap_or("append_row failed");
+    browser_sheets_llm_fail(err)
+}
+
 fn resolve_device_iid(args: &Value, ctx: &ToolContext) -> Result<i64, Value> {
-    let direct = arg_i64(args, "device_iid");
+    let direct = json_device_iid_field(args, "device_iid");
     device_iid_resolve(&ctx.mention, &ctx.mention_ids, direct).map_err(|e| browser_fail(e.to_string()))
 }
 
@@ -394,7 +452,7 @@ tool! {
     struct: BrowserSheetsAppendRowTool,
     name: "browser.sheets.append_row",
     aliases: ["browser_sheets_append_row"],
-    description: "Fast path: append product + stock on an open Google Sheet (Chrome extension). Default columns B/C (Test Stock layout); override with product_col/stock_col.",
+    description: "Append product + stock on an open Google Sheet tab. Omit row to append after last filled product column row. On success llm.summary confirms both cells (no row_read needed). List browser.tabs first if tab_id unknown.",
     topics: ["browser", "sheets"],
     rag_phrases: [
         "google sheet", "google sheets", "spreadsheet", "test stock", "append row sheet",
@@ -407,7 +465,7 @@ tool! {
         tab_id: (string, "Chrome tab id for the spreadsheet", required),
         product: (string, "Product name", required),
         stock: (string, "Stock count", required),
-        row: (integer, "Sheet row number (default 7)", optional),
+        row: (integer, "Sheet row (optional; omit for first empty product column row)", optional),
         product_col: (string, "Product column letter (default B)", optional),
         stock_col: (string, "Stock column letter (default C)", optional),
     },
@@ -431,7 +489,8 @@ tool! {
         if !stock_col.is_empty() {
             params["stock_col"] = json!(stock_col);
         }
-        Ok(browser_invoke(&args, ctx, "sheets.append_row", params, 60).await)
+        let raw = browser_invoke(&args, ctx, "sheets.append_row", params, 60).await;
+        Ok(browser_sheets_append_row_result(raw))
     }
 }
 
@@ -439,7 +498,7 @@ tool! {
     struct: BrowserSheetsCellSetTool,
     name: "browser.sheets.cell_set",
     aliases: ["browser_sheets_cell_set", "browser_sheets_set_cell"],
-    description: "Set one cell value on an open Google Sheet tab (Chrome extension CDP).",
+    description: "Set one cell on an open Google Sheet tab. Success response is verified: llm.summary like B2 set to \"text\". Do not row_read to confirm after ok:true.",
     topics: ["browser", "sheets"],
     rag_phrases: ["google sheet", "set cell", "write cell spreadsheet", "update cell sheets"],
     ui_calling_key: "tool.browser.sheets.cell_set.calling",
@@ -458,7 +517,8 @@ tool! {
             return Ok(browser_fail("tab_id and cell are required"));
         }
         let params = json!({ "tab_id": tab_id, "cell": cell, "value": value });
-        Ok(browser_invoke(&args, ctx, "sheets.cell_set", params, 60).await)
+        let raw = browser_invoke(&args, ctx, "sheets.cell_set", params, 60).await;
+        Ok(browser_sheets_cell_set_result(raw, &cell, &value))
     }
 }
 
@@ -595,4 +655,33 @@ fn attachment_resolve(attachments_json: &str, attachment_id: &str) -> Option<Res
         });
     }
     None
+}
+
+#[cfg(test)]
+mod browser_sheets_llm_tests {
+    use super::{browser_sheets_append_row_result, browser_sheets_cell_set_result};
+    use serde_json::json;
+
+    #[test]
+    fn cell_set_llm_ok_summary() {
+        let raw = json!({ "ok": true, "summary": "B2 set to \"x\"" });
+        let out = browser_sheets_cell_set_result(raw, "b2", "x");
+        assert_eq!(out["ok"], true);
+        assert_eq!(out["llm"]["summary"], "B2 set to \"x\"");
+    }
+
+    #[test]
+    fn cell_set_llm_fail_reply_rule() {
+        let raw = json!({ "ok": false, "error": "nope" });
+        let out = browser_sheets_cell_set_result(raw, "B2", "x");
+        assert_eq!(out["ok"], false);
+        assert!(out["llm"]["reply_rule"].is_string());
+    }
+
+    #[test]
+    fn append_row_llm_ok_passes_summary() {
+        let raw = json!({ "ok": true, "summary": "Row 3: B3=\"a\", C3=\"1\"" });
+        let out = browser_sheets_append_row_result(raw);
+        assert_eq!(out["llm"]["summary"], "Row 3: B3=\"a\", C3=\"1\"");
+    }
 }

@@ -32,7 +32,7 @@ class UiUserBubble extends StatelessWidget {
                   UiMsgCopyPrefix(text: copyPrefix, leadingNewline: leadingNewline),
                   if (attachments.isNotEmpty) ...[UiAttachChips(attachments: attachments), if (content.trim().isNotEmpty) const SizedBox(height: 8)],
                   if (content.trim().isNotEmpty)
-                    composerMentionTextHasTokens(content) && mentions.isNotEmpty
+                    composerMentionHasChipTokens(content)
                         ? ComposerMentionMessageText(text: content, mentions: mentions)
                         : Text(
                             composerMentionUserContentDisplay(content, mentions),

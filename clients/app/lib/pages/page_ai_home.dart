@@ -32,6 +32,7 @@ import 'package:alienai_c35/c/settings/user_locale_prefs.dart';
 import 'package:alienai_c35/c/settings/voice_prefs.dart';
 import 'package:alienai_c35/c/mention/composer_test_commands.dart';
 import 'package:alienai_c35/c/store/chat_store.dart';
+import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/c/store/prompt_followup_store.dart';
 import 'package:alienai_c35/widgets/ai/prompt_followup_format.dart';
 import 'package:alienai_c35/c/store/prompt_run_store.dart';
@@ -1154,39 +1155,39 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     );
   }
 
-  Widget _chatHeaderAccountTrailing(BuildContext menuCtx) => Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          UiConnWifi(conn: _conn, onReconnect: _connConnect),
-          const SizedBox(width: 10),
-          const UiAppBarVersionLabel(),
-          if (Session.instance.isRoot || Session.instance.isTester)
-            ListenableBuilder(
-              listenable: PromptUsagePrefs.instance,
-              builder: (context, _) {
-                if (!PromptUsagePrefs.instance.showUsageStats) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.only(left: 6),
-                  child: UiContextMeter(
-                    tokensIn: _threadTokensIn,
-                    tokensOut: _threadTokensOut,
-                    costUsd: _threadCostUsd,
-                    contextLimit: _model.gemini ? 1000000 : 128000,
-                    billingCurrency: AppStore.instance.wallet.billingCurrency,
-                    fxMicroPerUsd: AppStore.instance.wallet.fxMicroPerUsd,
-                    tapPadding: const EdgeInsets.fromLTRB(4, 6, 2, 6),
-                  ),
-                );
-              },
-            ),
-          const SizedBox(width: 14),
-          UiAccountBtn(
-            tooltip: 'Account',
-            onTap: () => _avatarMenu(menuCtx),
-            child: UiUserAvatar(name: Session.instance.name, email: Session.instance.email, handle: Session.instance.handle, pic: Session.instance.pic, size: 28),
-          ),
-        ],
+  Widget _chatHeaderAccountTrailing(BuildContext menuCtx) => ListenableBuilder(
+        listenable: PromptUsagePrefs.instance,
+        builder: (context, _) {
+          final showMeter = (Session.instance.isRoot || Session.instance.isTester) &&
+              PromptUsagePrefs.instance.showUsageStats &&
+              _threadTokenTotal > 0;
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              UiConnWifi(conn: _conn, onReconnect: _connConnect),
+              const SizedBox(width: 6),
+              if (showMeter)
+                UiContextMeter(
+                  tokensIn: _threadTokensIn,
+                  tokensOut: _threadTokensOut,
+                  costUsd: _threadCostUsd,
+                  contextLimit: _model.gemini ? 1000000 : 128000,
+                  billingCurrency: AppStore.instance.wallet.billingCurrency,
+                  fxMicroPerUsd: AppStore.instance.wallet.fxMicroPerUsd,
+                  tapPadding: const EdgeInsets.fromLTRB(4, 6, 2, 6),
+                )
+              else
+                const UiAppBarVersionLabel(),
+              SizedBox(width: showMeter ? 10 : 6),
+              UiAccountBtn(
+                tooltip: 'Account',
+                onTap: () => _avatarMenu(menuCtx),
+                child: UiUserAvatar(name: Session.instance.name, email: Session.instance.email, handle: Session.instance.handle, pic: Session.instance.pic, size: 28),
+              ),
+            ],
+          );
+        },
       );
 
   Widget _historySidebar() => UiChatHistorySidebar(
@@ -1328,6 +1329,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
 
   int get _threadTokensIn => _store.activeMsgs.fold(0, (acc, m) => acc + m.tokensIn);
   int get _threadTokensOut => _store.activeMsgs.fold(0, (acc, m) => acc + m.tokensOut);
+  int get _threadTokenTotal => _threadTokensIn + _threadTokensOut;
   double get _threadCostUsd => _store.activeMsgs.fold(0.0, (acc, m) => acc + m.costUsd);
 
   Widget _chatColumn({required bool wide}) => Column(
@@ -1404,7 +1406,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       final showTraceChips = m.reqId.isNotEmpty && (!inThoughtPhase || msgThoughtStripPlaceholders(m.thought.trim()).isNotEmpty);
       final blocks = ChatBlock.decodeList(m.blocksJson);
       final hasAnswerBody = content.trim().isNotEmpty || m.thought.trim().isNotEmpty || blocks.isNotEmpty;
-      final showFatalError = hasError && !hasAnswerBody;
+      final showFatalError = hasError && !hasAnswerBody && !uiIsRecoverableDeviceContextError(err);
       final locale = CatalogTranslationCache.instance.lang;
       final showRetry = hasError && !_store.promptBusyFor(m.chatId) && i == lastAssistantIdx;
       body = Column(
@@ -1457,7 +1459,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
                 code: const TextStyle(color: _text, fontSize: 13, fontFamily: 'Consolas', backgroundColor: Color(0xFF1A1A1D)),
               ),
             ),
-          if (hasError && hasAnswerBody)
+          if (hasError && hasAnswerBody && !uiIsRecoverableDeviceContextError(err))
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: UiMsgError(

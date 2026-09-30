@@ -82,10 +82,7 @@ pub fn mention_context_sites_block(ctx: &MentionContext) -> String {
     format!("[SITE CONTEXTS]\n{}", lines.join("\n"))
 }
 
-pub fn device_iid_resolve(mention: &MentionContext, mention_ids: &[String], args_device_iid: i64) -> Result<i64> {
-    if args_device_iid > 0 {
-        return Ok(args_device_iid);
-    }
+fn device_iids_collect(mention: &MentionContext, mention_ids: &[String]) -> Vec<i64> {
     let devices: Vec<i64> = if !mention.devices.is_empty() {
         mention.devices.clone()
     } else {
@@ -97,18 +94,67 @@ pub fn device_iid_resolve(mention: &MentionContext, mention_ids: &[String], args
             })
             .collect()
     };
-    let devices: Vec<i64> = devices
+    devices
         .into_iter()
         .fold(Vec::new(), |mut acc, iid| {
             if !acc.contains(&iid) {
                 acc.push(iid);
             }
             acc
-        });
+        })
+}
+
+/// Parse `device_iid` from tool args. Snowflake IDs exceed JS `Number` precision — prefer string; ignore lossy floats.
+pub fn json_device_iid_field(args: &serde_json::Value, key: &str) -> i64 {
+    match args.get(key) {
+        None => 0,
+        Some(v) if v.is_string() => v
+            .as_str()
+            .and_then(|s| s.trim().parse::<i64>().ok())
+            .filter(|i| *i > 0)
+            .unwrap_or(0),
+        Some(v) if v.is_i64() => v.as_i64().filter(|i| *i > 0).unwrap_or(0),
+        Some(v) if v.is_u64() => v.as_u64().map(|u| u as i64).filter(|i| *i > 0).unwrap_or(0),
+        Some(v) if v.is_f64() => {
+            let f = v.as_f64().unwrap_or(0.0);
+            if f <= 0.0 {
+                0
+            } else {
+                let n = f as i64;
+                if (n as f64) == f && n > 0 { n } else { 0 }
+            }
+        }
+        _ => 0,
+    }
+}
+
+pub fn device_iid_resolve(mention: &MentionContext, mention_ids: &[String], args_device_iid: i64) -> Result<i64> {
+    let devices = device_iids_collect(mention, mention_ids);
+    if devices.len() == 1 {
+        return Ok(devices[0]);
+    }
+    if args_device_iid > 0 {
+        if devices.is_empty() || devices.contains(&args_device_iid) {
+            return Ok(args_device_iid);
+        }
+        bail!("device_iid is required — multiple devices mentioned, specify device_iid");
+    }
     match devices.len() {
         0 => bail!("device_iid is required — mention the device or pass device_iid"),
         1 => Ok(devices[0]),
         _ => bail!("device_iid is required — multiple devices mentioned, specify device_iid"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn json_device_iid_field_parses_string_snowflake() {
+        let args = json!({ "device_iid": "98348080882880512" });
+        assert_eq!(json_device_iid_field(&args, "device_iid"), 98348080882880512);
     }
 }
 

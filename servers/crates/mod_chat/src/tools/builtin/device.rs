@@ -1,4 +1,4 @@
-use crate::mention_context::device_iid_resolve;
+use crate::mention_context::{device_iid_resolve, json_device_iid_field};
 use crate::tool;
 use crate::tools::context::ToolContext;
 use crate::tools::device_screenshot_artifact::device_screenshot_attach_artifact;
@@ -7,15 +7,6 @@ use c35_mod_device::{
     remote_device_screenshot_capture,
 };
 use serde_json::{json, Value};
-
-fn arg_i64(v: &Value, key: &str) -> i64 {
-    match v.get(key) {
-        Some(x) if x.is_i64() => x.as_i64().unwrap_or(0),
-        Some(x) if x.is_u64() => x.as_u64().unwrap_or(0) as i64,
-        Some(x) => x.as_str().and_then(|s| s.trim().parse().ok()).unwrap_or(0),
-        None => 0,
-    }
-}
 
 fn device_fail_class(error: &str) -> (&'static str, bool) {
     let e = error.to_lowercase();
@@ -48,7 +39,7 @@ fn device_fail(error: impl Into<String>) -> Value {
 }
 
 fn resolve_device_iid(args: &Value, ctx: &ToolContext) -> Result<i64, Value> {
-    let direct = arg_i64(args, "device_iid");
+    let direct = json_device_iid_field(args, "device_iid");
     device_iid_resolve(&ctx.mention, &ctx.mention_ids, direct).map_err(|e| device_fail(e.to_string()))
 }
 

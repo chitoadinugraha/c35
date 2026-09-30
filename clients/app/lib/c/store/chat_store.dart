@@ -1099,6 +1099,7 @@ class ChatStore extends ChangeNotifier {
     final m = _turnAssistant(chatId: cid, reqId: rid);
     if (m != null) {
       if (rid.isNotEmpty && m.reqId.isNotEmpty && m.reqId != rid) return;
+      if (m.error.isNotEmpty) m.error = '';
       if (text.startsWith(m.content) && text.length > m.content.length) {
         m.content = text;
       } else {
@@ -1161,6 +1162,7 @@ class ChatStore extends ChangeNotifier {
   void msgStreamFail(String error, {int? chatId, int startedAtMs = 0}) {
     final text = error.trim();
     if (text.isEmpty) return;
+    if (uiIsRecoverableDeviceContextError(text)) return;
     final cid = chatId ?? promptChatId;
     if (cid == null) return;
     final rid = pendingPromptReqId ?? '';

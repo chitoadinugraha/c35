@@ -53,6 +53,19 @@ void main() {
     expect(out, 'berapa ping ${composerMentionToken(deviceId)} ke google ?');
   });
 
+  test('msgUserContentForDisplay drops bracket when chip token already present', () {
+    const deviceId = 'iid:42';
+    final token = composerMentionToken(deviceId);
+    final out = msgUserContentForDisplay(
+      content: '$token tambah baris [@iid:42]',
+      mentionIdsJson: msgMentionIdsEncode([deviceId]),
+      mentions: const [],
+    );
+    expect(out, isNot(contains('[@')));
+    expect(out, contains(token));
+    expect(out, contains('tambah baris'));
+  });
+
   test('msgUserContentForDisplay wraps inline iid using stored mention ids', () {
     const deviceId = 'iid:97279816209936384';
     final out = msgUserContentForDisplay(

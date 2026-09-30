@@ -30,7 +30,12 @@ final RegExp _composerMentionPlainIidRe = RegExp(r'\biid:\d+\b', caseSensitive: 
 final RegExp composerMentionBracketRe = RegExp(r'\[@(iid|catalog|drive):([^\]]+)\]', caseSensitive: false);
 
 String composerMentionBracketForId(String canonicalId) {
-  final t = canonicalId.trim();
+  var t = canonicalId.trim();
+  final bracketed = composerMentionBracketRe.firstMatch(t);
+  if (bracketed != null) {
+    final id = composerMentionIdFromBracket(bracketed.group(1)!, bracketed.group(2)!);
+    if (id != null) t = id;
+  }
   if (t.startsWith('iid:')) return '[@iid:${t.substring(4)}]';
   if (t.startsWith('catalog:')) return '[@catalog:${t.substring(8)}]';
   if (t.startsWith('drive:')) return '[@drive:${t.substring(6)}]';
@@ -70,8 +75,10 @@ List<String> composerMentionIdsCollect(String text) {
   return out;
 }
 
+bool composerMentionHasChipTokens(String text) => _composerMentionTokenRe.hasMatch(text);
+
 bool composerMentionTextHasTokens(String text) =>
-    _composerMentionTokenRe.hasMatch(text) ||
+    composerMentionHasChipTokens(text) ||
     text.contains(composerMentionStart) ||
     composerMentionBracketRe.hasMatch(text);
 
@@ -80,13 +87,44 @@ String composerMentionPlainText(String text) =>
 
 String composerMentionInlineIidTokenize(String text) => text.replaceAllMapped(_composerMentionPlainIidRe, (m) => composerMentionToken(m.group(0)!));
 
+/// Remove literal `[@kind:…]` when that id is already a chip token (avoids badge + bracket text).
+String composerMentionStripOrphanBrackets(String text) {
+  final idsInTokens = composerMentionIdsParse(text).toSet();
+  return text.replaceAllMapped(composerMentionBracketRe, (m) {
+    final id = composerMentionIdFromBracket(m.group(1)!, m.group(2)!);
+    if (id == null) return '';
+    if (idsInTokens.contains(id)) return '';
+    return composerMentionToken(id);
+  });
+}
+
+/// Drop duplicate device label right after its chip (wire bracket + composer label).
+String composerMentionStripDuplicateLabelsAfterTokens(String text, List<CatalogMention> mentions) {
+  var out = text;
+  for (final id in composerMentionIdsParse(out)) {
+    final label = composerMentionLookup(mentions, id)?.displayLabel.trim() ?? '';
+    if (label.isEmpty) continue;
+    final token = composerMentionToken(id);
+    for (final gap in [' ', '  ']) {
+      final dup = '$token$gap$label';
+      while (out.contains(dup)) {
+        out = out.replaceAll(dup, token);
+      }
+      final dupAt = '$dup ';
+      while (out.contains(dupAt)) {
+        out = out.replaceAll(dupAt, '$token ');
+      }
+    }
+  }
+  return out;
+}
+
 /// Re-wrap device mention labels as composer tokens after retry / server plain text.
 String composerMentionDisplayRestore(String plain, List<CatalogMention> mentions, {List<String>? mentionIds}) {
-  if (composerMentionTextHasTokens(plain) && _composerMentionTokenRe.hasMatch(plain)) return plain;
   var out = composerMentionBracketTokenize(plain);
-  if (_composerMentionTokenRe.hasMatch(out)) return out;
-  out = composerMentionInlineIidTokenize(out);
-  if (_composerMentionTokenRe.hasMatch(out)) return out;
+  if (!_composerMentionTokenRe.hasMatch(out)) {
+    out = composerMentionInlineIidTokenize(out);
+  }
   var rest = out.trimLeft();
   final iidLead = RegExp(r'^(iid:\d+)(?=\s|$)', caseSensitive: false);
   final iidMatch = iidLead.firstMatch(rest);
@@ -109,6 +147,8 @@ String composerMentionDisplayRestore(String plain, List<CatalogMention> mentions
     if (!rest.toLowerCase().startsWith(label.toLowerCase())) continue;
     return composerMentionToken(m.id) + rest.substring(label.length);
   }
+  out = composerMentionStripOrphanBrackets(out);
+  out = composerMentionStripDuplicateLabelsAfterTokens(out, mentions);
   return out;
 }
 

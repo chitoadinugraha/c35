@@ -1,13 +1,18 @@
 ﻿use c35_mod_chat::{device_iid_resolve, MentionContext};
 
 #[test]
-fn device_iid_resolve_prefers_explicit_arg() {
+fn device_iid_resolve_single_mention_overrides_wrong_llm_arg() {
     let mention = MentionContext {
         sites: vec![],
         devices: vec![42],
         default_site_iid: None,
     };
-    assert_eq!(device_iid_resolve(&mention, &[], 99).unwrap(), 99);
+    assert_eq!(device_iid_resolve(&mention, &[], 99).unwrap(), 42);
+}
+
+#[test]
+fn device_iid_resolve_explicit_arg_when_no_device_context() {
+    assert_eq!(device_iid_resolve(&MentionContext::empty(), &[], 99).unwrap(), 99);
 }
 
 #[test]

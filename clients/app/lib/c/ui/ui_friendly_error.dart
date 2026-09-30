@@ -8,6 +8,11 @@ class ApiException implements Exception {
 const uiConnectionProblem = 'Connection Problem';
 const uiCannotConnectToAlienAi = 'Cannot connect to Alien AI';
 
+bool uiIsRecoverableDeviceContextError(String raw) {
+  final lower = raw.trim().toLowerCase();
+  return lower.contains('device_iid is required') || lower.contains('device_iid required');
+}
+
 bool uiIsConnectionError(String raw) {
   final lower = raw.trim().toLowerCase();
   if (lower.isEmpty) return false;
@@ -78,7 +83,7 @@ String uiFriendlyError(Object error, {String fallback = 'Something went wrong. P
   if (lower.contains('quota exceeded')) {
     return "Quota limit reached. Please top up your wallet balance or wait for your quota to reset.";
   }
-  if (lower.contains('device_iid is required') || lower.contains('device_iid required')) {
+  if (uiIsRecoverableDeviceContextError(s)) {
     return fallback;
   }
   if (RegExp(r'https?://|\d{1,3}(?:\.\d{1,3}){3}|localhost|status=\d|errno|socketexception').hasMatch(lower)) {

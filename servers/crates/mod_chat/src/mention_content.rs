@@ -61,7 +61,38 @@ fn plain_iid_replace(text: &str) -> String {
     out
 }
 
+fn mention_bracket_fixup_nesting(text: &str) -> String {
+    let mut s = text.to_string();
+    for _ in 0..8 {
+        let prev = s.clone();
+        s = s.replace("[@@[@[@iid:", "[@iid:");
+        s = s.replace("[@@[@iid:", "[@iid:");
+        s = s.replace("[@[@iid:", "[@iid:");
+        if s.starts_with("[@") && s.contains("[@iid:") && !s.starts_with("[@iid:") {
+            let idx = s.find("[@iid:").unwrap_or(0);
+            if idx > 0 {
+                s = s[idx..].to_string();
+            }
+        }
+        while let Some(pos) = s.find("[@iid:") {
+            let tail = &s[pos..];
+            let Some(r) = tail.find(']') else { break };
+            let after = pos + r + 1;
+            if after < s.len() && s.as_bytes()[after] == b']' {
+                s.remove(after);
+                continue;
+            }
+            break;
+        }
+        if s == prev {
+            break;
+        }
+    }
+    s
+}
+
 pub fn mention_content_normalize(text: &str, _mention_ids: &[String]) -> String {
+    let text = mention_bracket_fixup_nesting(text);
     let mut out = String::new();
     let bytes = text.as_bytes();
     let mut i = 0;
@@ -115,6 +146,13 @@ mod tests {
         let out = mention_content_normalize("ping iid:42 ke google", &[]);
         assert!(out.contains("[@iid:42]"));
         assert!(!out.contains(" ping iid:42"));
+    }
+
+    #[test]
+    fn fixup_collapses_nested_device_brackets() {
+        let out = mention_bracket_fixup_nesting("[@@[@[@iid:98348080882880512]]] tab list");
+        assert!(out.starts_with("[@iid:98348080882880512]"), "got: {out}");
+        assert!(!out.contains("[@["), "got: {out}");
     }
 
     #[test]

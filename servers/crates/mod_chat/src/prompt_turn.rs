@@ -407,7 +407,7 @@ where
         chat_id,
         site_iid,
         mention: mention_ctx,
-        mention_ids: &inst_mention_ids,
+        mention_ids: &mention_ids,
         user_text: &req.text,
         locale,
         location_city: &user_ctx.location_city,
