@@ -131,7 +131,7 @@ INSERT INTO ai.inst (
     'global',
     'topic',
     'browser',
-    '[REMOTE BROWSER] Use browser.task.run for multi-step flows, browser.tabs for tab control, browser.page.extract / browser.page.act for single reads or clicks. Never shell.run, device.screenshot, device.input, computer_use.delegate, or device.fs.* on browser agents. Use slot_id (default default) and tab_id when the user names a tab. For login captcha or 2FA, ask the user to finish on the app Remote tab — not device.input.',
+    '[REMOTE BROWSER] Use browser.task.run for multi-step flows on Playwright devices (engine=playwright); for Chrome extension devices (engine=extension), use stepwise browser.page.act / page.observe / page.extract / browser.sheets.* (browser.task.run and file.upload are NOT supported on extension). Use browser.tabs for tab control. Never shell.run, device.screenshot, device.input, computer_use.delegate, or device.fs.* on browser agents. Use slot_id (default default) and tab_id when the user names a tab. For login captcha or 2FA, ask the user to finish on the app Remote tab — not device.input.',
     ARRAY[]::TEXT[],
     ARRAY[]::TEXT[],
     ARRAY[
@@ -203,6 +203,50 @@ INSERT INTO ai.inst (
     priority = EXCLUDED.priority,
     updated_ts = NOW();
 
+-- Seed: phrase steering for Chrome extension remote browser (@chrome / extension mentions)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.mention.browser_extension',
+    'global',
+    'task',
+    'browser',
+    '[CHROME EXTENSION REMOTE] User targets a Chrome extension remote browser (engine=extension, user daily profile). Multi-step browser.task.run and browser.file.upload are NOT supported on extension devices. Use stepwise browser.page.act (click/fill/press), browser.page.observe, browser.page.extract, browser.tabs (list/activate/new/close), and browser.page.screenshot. For Google Sheets use browser.sheets.*. Exclude desktop tools and browser.task.run.',
+    ARRAY[
+        'chrome extension', 'chrome remote', 'google chrome', 'browser extension',
+        'ekstensi chrome', 'remote chrome'
+    ],
+    ARRAY[
+        'tool_include:browser.tabs',
+        'tool_include:browser.page.observe',
+        'tool_include:browser.page.act',
+        'tool_include:browser.page.extract',
+        'tool_include:browser.page.screenshot',
+        'tool_exclude:browser.task.run',
+        'tool_exclude:browser.file.upload',
+        'tool_exclude:shell.run',
+        'tool_exclude:device.screenshot',
+        'tool_exclude:device.input',
+        'tool_exclude:computer_use.delegate',
+        'tool_exclude:device.fs.list',
+        'tool_exclude:device.fs.read'
+    ],
+    ARRAY['browser.tabs', 'browser.page.observe', 'browser.page.act', 'browser.page.extract', 'browser.page.screenshot'],
+    ARRAY['browser.task.run', 'browser.file.upload', 'shell.run', 'device.screenshot', 'device.input', 'computer_use.delegate', 'device.fs.list', 'device.fs.read'],
+    137,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    kind = EXCLUDED.kind,
+    topic_id = EXCLUDED.topic_id,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
 -- Seed: Google Sheets topic persona (@topic:sheets / sheets topic chain)
 INSERT INTO ai.inst (
     id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
@@ -241,11 +285,12 @@ INSERT INTO ai.inst (
     'global',
     'task',
     'sheets',
-    '[GOOGLE SHEETS] Open spreadsheet in Chrome remote — never web.search/web.visit. Steps: browser.tabs list → optional browser.sheets.range_read once (get llm.next_row) → browser.sheets.append_row with row=next_row (faster than omitting row). cell_set for one cell. Trust llm.summary on write ok; do not row_read after success.',
+    '[GOOGLE SHEETS] Open spreadsheet in Chrome remote — never web.search/web.visit. Steps: browser.tabs list → browser.sheets.range_read once (llm.rows + llm.next_row). Append: browser.sheets.append_row with row=next_row. Edit stock: range_read to find product row, then browser.sheets.cell_set on stock column (default C, e.g. C12). Trust llm.summary on write ok; do not row_read after success.',
     ARRAY[
         'google sheet', 'google sheets', 'spreadsheet', 'googlesheet',
         'feuille de calcul', 'lembar kerja', 'sheet test stock', 'test stock sheet',
-        'append row', 'tambah baris', 'isi sel', 'update stock sheet'
+        'append row', 'tambah baris', 'isi sel', 'update stock sheet',
+        'ubah stock', 'ganti stock', 'edit stock', 'update stok'
     ],
     ARRAY[
         'tool_include:browser.sheets.append_row',

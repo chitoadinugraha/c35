@@ -85,6 +85,17 @@ fn browser_sheets_range_read_result(raw: Value) -> Value {
             .unwrap_or("range read");
         let next_row = raw.get("next_row").cloned().unwrap_or(json!(null));
         let rows = raw.get("rows").cloned().unwrap_or(json!([]));
+        let read_via = raw
+            .get("read_via")
+            .and_then(|v| v.as_str())
+            .or_else(|| {
+                summary.split("via=").nth(1).and_then(|s| {
+                    s.split(|c: char| c.is_whitespace() || c == '.' || c == ';')
+                        .next()
+                        .filter(|t| !t.is_empty())
+                })
+            })
+            .unwrap_or("cdp_scan");
         return json!({
             "ok": true,
             "llm": {
@@ -92,6 +103,7 @@ fn browser_sheets_range_read_result(raw: Value) -> Value {
                 "summary": summary,
                 "next_row": next_row,
                 "rows": rows,
+                "read_via": read_via,
             },
         });
     }
@@ -167,7 +179,7 @@ tool! {
     struct: BrowserTaskRunTool,
     name: "browser.task.run",
     aliases: ["browser_task_run", "remote_browser_task"],
-    description: "Run automation steps on a paired Remote browser device (type=browser). Playwright or Chrome extension (MV3): navigate, click, fill, extract, wait, tab ops. Async on the agent; returns run_id.",
+    description: "Run automation steps on a paired Playwright Remote browser device (type=browser, engine=playwright). Not supported on Chrome extension devices — use browser.page.* / browser.sheets.* stepwise. Async on the agent; returns run_id.",
     topics: ["device", "browser"],
     always: ["device", "browser"],
     rag_phrases: ["remote browser", "browser automation", "playwright", "open url on browser", "scrape page", "browser task"],
@@ -184,6 +196,12 @@ tool! {
             Ok(iid) => iid,
             Err(v) => return Ok(v),
         };
+        let engine = c35_mod_device::device_browser_engine(&ctx.pool, device_iid).await.unwrap_or_default();
+        if engine.eq_ignore_ascii_case("extension") {
+            return Ok(browser_fail(
+                "browser.task.run is not supported on Chrome extension devices (browser_engine=extension); use browser.page.act, browser.page.observe, browser.page.extract, or browser.sheets.* stepwise"
+            ));
+        }
         let slot_raw = arg_str(&args, "slot_id");
         let slot_id = if slot_raw.is_empty() { "default".to_string() } else { slot_raw };
         let steps = args.get("steps").cloned().unwrap_or(json!([]));
@@ -551,7 +569,7 @@ tool! {
     struct: BrowserSheetsRangeReadTool,
     name: "browser.sheets.range_read",
     aliases: ["browser_sheets_range_read", "browser_sheets_read_range"],
-    description: "Read product+stock rows in one call (default cols B/C). Returns llm.rows and llm.next_row — pass next_row to append_row to avoid re-scanning. Use instead of many row_read calls.",
+    description: "Read product+stock rows in one call (default cols B/C). Hybrid: CSV/gviz export for values + product-column CDP scan for physical row numbers; else full cdp_scan. Returns llm.rows, llm.next_row (safe for append_row), read_via (e.g. export_csv+sheet_rows). Prefer over many row_read calls.",
     topics: ["browser", "sheets"],
     rag_phrases: [
         "google sheet", "read sheet", "list stock", "sheet range", "what rows", "inventory sheet",
@@ -566,6 +584,7 @@ tool! {
         to_row: (integer, "Last row to scan (optional; default until 2 empty product cells)", optional),
         product_col: (string, "Product column (default B)", optional),
         stock_col: (string, "Stock column (default C)", optional),
+        read_mode: (string, "auto (export CSV then cdp_scan) | export | cdp | clipboard (needs user clipboard permission)", optional),
     },
     execute: |args, ctx| {
         let tab_id = arg_str(&args, "tab_id");
@@ -573,6 +592,10 @@ tool! {
             return Ok(browser_fail("tab_id is required"));
         }
         let mut params = json!({ "tab_id": tab_id });
+        let read_mode = arg_str(&args, "read_mode");
+        if !read_mode.is_empty() {
+            params["read_mode"] = json!(read_mode);
+        }
         let from_row = arg_i64(&args, "from_row");
         if from_row > 0 {
             params["from_row"] = json!(from_row);
@@ -651,7 +674,7 @@ tool! {
     struct: BrowserFileUploadTool,
     name: "browser.file.upload",
     aliases: ["browser_file_upload"],
-    description: "Upload a chat attachment into a file input on a Remote browser page (CAS fetch to agent file.upload).",
+    description: "Upload a chat attachment into a file input on a Remote browser page (Playwright only; not supported on Chrome extension).",
     topics: ["device", "browser"],
     always: ["device", "browser"],
     rag_phrases: ["upload file browser", "attach file to form", "file input"],
@@ -664,6 +687,16 @@ tool! {
         tab_id: (string, "Optional tab id", optional),
     },
     execute: |args, ctx| {
+        let device_iid = match resolve_device_iid(&args, ctx) {
+            Ok(iid) => iid,
+            Err(v) => return Ok(v),
+        };
+        let engine = c35_mod_device::device_browser_engine(&ctx.pool, device_iid).await.unwrap_or_default();
+        if engine.eq_ignore_ascii_case("extension") {
+            return Ok(browser_fail(
+                "browser.file.upload is not supported on Chrome extension devices (browser_engine=extension); use the Remote tab for manual file upload"
+            ));
+        }
         let selector = arg_str(&args, "selector");
         let attachment_id = arg_str(&args, "attachment_id");
         if selector.is_empty() || attachment_id.is_empty() {

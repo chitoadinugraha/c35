@@ -512,11 +512,13 @@ const sheetsCommitEdit = async (tabId, value, commitKey = "tab") => {
 /** Edit active cell; Tab moves selection right (pair write), Enter stays on cell (cell_set). */
 const sheetsWriteActiveCell = (tabId, value, commitKey = "tab") => sheetsCommitEdit(tabId, value, commitKey);
 
-/** Product col then stock col — one goto; Tab after product lands on stock col. */
+/** Product cell then stock cell — explicit goto each (Tab after F2 is unreliable in Sheets). */
 const sheetsWriteRowPair = async (tabId, tab, productCol, stockCol, row, product, stock) => {
   const productCell = `${productCol}${row}`;
+  const stockCell = `${stockCol}${row}`;
   await sheetsGoToCell(tabId, tab, productCell);
-  const w1 = await sheetsWriteActiveCell(tabId, product, "tab");
+  const w1 = await sheetsWriteActiveCell(tabId, product, "enter");
+  await sheetsGoToCell(tabId, tab, stockCell);
   const w2 = await sheetsWriteActiveCell(tabId, stock, "enter");
   return { product: w1, stock: w2 };
 };
@@ -538,6 +540,213 @@ const sheetsReadActiveCell = async (tabId) => {
 const sheetsColLetter = (params, key, fallback) => {
   const v = String(params[key] ?? fallback).trim().toUpperCase();
   return /^[A-Z]{1,3}$/.test(v) ? v : fallback;
+};
+
+/** One in-tab fetch (cookies + full location.href). Fast path for range_read. */
+const sheetsFetchSpreadsheetCsv = (tabId) =>
+  new Promise((resolve, reject) => {
+    chrome.scripting.executeScript(
+      {
+        target: { tabId },
+        world: "MAIN",
+        func: async () => {
+          const href = String(location.href || "");
+          const idM = href.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+          if (!idM) return { ok: false, reason: "not_spreadsheet" };
+          const gidM = href.match(/[#?&]gid=(\d+)/);
+          let gid = gidM ? gidM[1] : null;
+          if (!gid) {
+            const tab =
+              document.querySelector(".docs-sheet-tab.docs-sheet-active-tab") ||
+              document.querySelector(".docs-sheet-tab[aria-selected='true']");
+            const fromDom = tab?.getAttribute("data-sheet-id") || tab?.getAttribute("data-gid");
+            if (fromDom && /^\d+$/.test(fromDom)) gid = fromDom;
+          }
+          if (!gid) gid = "0";
+          const id = idM[1];
+          const urls = [
+            `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`,
+            `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&gid=${gid}`,
+          ];
+          for (const u of urls) {
+            try {
+              const r = await fetch(u, { credentials: "include", redirect: "follow" });
+              const t = await r.text();
+              if (!r.ok) continue;
+              const head = t.slice(0, 120).toLowerCase();
+              if (head.includes("<!doctype") || head.includes("<html")) continue;
+              if (!t.trim()) continue;
+              const via = u.includes("/gviz/") ? "gviz_csv" : "export_csv";
+              return { ok: true, text: t, gid, via };
+            } catch {
+              /* try next */
+            }
+          }
+          return { ok: false, reason: "fetch_failed", gid };
+        },
+      },
+      (results) => {
+        if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+        else resolve(results?.[0]?.result);
+      }
+    );
+  });
+
+const parseCsvText = (text) => {
+  const out = [];
+  let row = [];
+  let cell = "";
+  let inQ = false;
+  const s = String(text || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  for (let i = 0; i < s.length; i += 1) {
+    const ch = s[i];
+    if (inQ) {
+      if (ch === '"') {
+        if (s[i + 1] === '"') {
+          cell += '"';
+          i += 1;
+        } else inQ = false;
+        continue;
+      }
+      cell += ch;
+      continue;
+    }
+    if (ch === '"') {
+      inQ = true;
+      continue;
+    }
+    if (ch === ",") {
+      row.push(cell);
+      cell = "";
+      continue;
+    }
+    if (ch === "\n") {
+      row.push(cell);
+      out.push(row);
+      row = [];
+      cell = "";
+      continue;
+    }
+    cell += ch;
+  }
+  if (cell.length || row.length) {
+    row.push(cell);
+    out.push(row);
+  }
+  return out;
+};
+
+const sheetsRangeFromCsvGrid = (grid, productCol, stockCol, opts = {}) => {
+  const pIdx = colLetterToIndex(productCol);
+  const sIdx = colLetterToIndex(stockCol);
+  const startRow = Math.max(2, Number(opts.from_row) || 2);
+  const maxSheetRow = Math.min(
+    grid.length,
+    Math.max(startRow, Number(opts.to_row) || 500)
+  );
+  const stopEmpty = Math.max(1, Number(opts.stop_empty) || 2);
+  const rows = [];
+  let lastFilled = Math.max(1, startRow - 1);
+  let emptyStreak = 0;
+  for (let sheetRow = startRow; sheetRow <= maxSheetRow; sheetRow += 1) {
+    const line = grid[sheetRow - 1] || [];
+    const product = String(line[pIdx] ?? "").trim();
+    if (!product) {
+      if (lastFilled >= startRow) {
+        emptyStreak += 1;
+        if (emptyStreak >= stopEmpty) break;
+      }
+      continue;
+    }
+    lastFilled = sheetRow;
+    emptyStreak = 0;
+    const stockVal = String(line[sIdx] ?? "").trim();
+    rows.push({ row: sheetRow, product, stock: stockVal });
+  }
+  return {
+    rows,
+    last_filled_row: lastFilled,
+    next_row: lastFilled + 1,
+    product_col: productCol,
+    stock_col: stockCol,
+  };
+};
+
+const sheetsRangeReadViaExport = async (tabId, tab, productCol, stockCol, opts) => {
+  const tabNow = tab || (await chrome.tabs.get(tabId));
+  sheetsRequireSpreadsheetTab(tabNow);
+  await maybeFocusTab(tabId, tabNow, { focus: true });
+  const fetched = await sheetsFetchSpreadsheetCsv(tabId);
+  if (!fetched?.ok || !fetched.text) return null;
+  const grid = parseCsvText(fetched.text);
+  if (!grid.length) return null;
+  const scan = sheetsRangeFromCsvGrid(grid, productCol, stockCol, opts);
+  if (!scan.rows.length) return null;
+  const csvRows = scan.rows.filter((r) => !/^product$/i.test(String(r.product ?? "").trim()));
+  if (!csvRows.length) return null;
+  const sheetScan = await sheetsScanProductColRows(tabId, tabNow, productCol, opts);
+  if (!sheetScan?.rows?.length) return null;
+  const aligned = sheetsMergeCsvRowsWithSheetRows(csvRows, sheetScan.rows);
+  const via = fetched.via || "export_csv";
+  return {
+    ...aligned,
+    product_col: productCol,
+    stock_col: stockCol,
+    read_via: `${via}+sheet_rows`,
+    row_aligned: true,
+    sheet_gid: fetched.gid,
+  };
+};
+
+const parseTsvText = (text) =>
+  String(text || "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .filter((line) => line.length > 0)
+    .map((line) => line.split("\t"));
+
+/** Select B2:C{n}, Ctrl+C, clipboard.readText — interactive only (permission prompt). */
+const sheetsNameBoxGotoRange = async (tabId, rangeRef) => {
+  const ref = String(rangeRef || "").trim().toUpperCase();
+  if (!ref.includes(":")) return sheetsNameBoxGoto(tabId, ref);
+  const tabNow = await chrome.tabs.get(tabId);
+  await maybeFocusTab(tabId, tabNow, { focus: true });
+  await attachTab(tabId);
+  await sendCdp(tabId, "Page.bringToFront", {});
+  await sheetsLeaveEdit(tabId);
+  await delay(80);
+  const nav = await sheetsNameBoxGoto(tabId, ref);
+  return { ref, nav };
+};
+
+const sheetsRangeReadViaClipboard = async (tabId, tab, productCol, stockCol, opts) => {
+  const fromRow = Math.max(2, Number(opts.from_row) || 2);
+  const toRow = Math.min(500, Math.max(fromRow, Number(opts.to_row) || 500));
+  const rangeRef = `${productCol}${fromRow}:${stockCol}${toRow}`;
+  await sheetsNameBoxGotoRange(tabId, rangeRef);
+  await delay(120);
+  await cdpShortcut(tabId, "ctrl+c");
+  await delay(200);
+  const clip = await execFirstFrame(tabId, async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      return { ok: true, text: String(text ?? "") };
+    } catch (e) {
+      return { ok: false, error: String(e?.message || e) };
+    }
+  });
+  if (!clip?.ok || !clip.text?.trim()) return null;
+  const grid = parseTsvText(clip.text);
+  if (!grid.length) return null;
+  const colCount = Math.max(...grid.map((r) => r.length));
+  if (colCount < 2) return null;
+  const scan = sheetsRangeFromCsvGrid(grid, productCol, stockCol, {
+    ...opts,
+    from_row: fromRow,
+    to_row: fromRow + grid.length,
+  });
+  return { ...scan, read_via: "clipboard_tsv" };
 };
 
 /** Scan product (+ optional stock) column; stop after [stopEmpty] empty rows below last data. */
@@ -572,6 +781,44 @@ const sheetsScanDataRows = async (tabId, tab, productCol, stockCol, opts = {}) =
   }
   sheetsRowCacheSet(tabId, col, lastFilled);
   return { rows, last_filled_row: lastFilled, next_row: lastFilled + 1, product_col: col, stock_col: stock };
+};
+
+/** CDP scan product column only (name box + formula bar per row). */
+const sheetsScanProductColRows = async (tabId, tab, productCol, opts = {}) =>
+  sheetsScanDataRows(tabId, tab, productCol, null, { ...opts, read_stock: false });
+
+/** Align CSV export rows with physical sheet rows (product column CDP scan). */
+const sheetsMergeCsvRowsWithSheetRows = (csvRows, sheetRows) => {
+  const csv = Array.isArray(csvRows) ? csvRows : [];
+  const sheet = Array.isArray(sheetRows) ? sheetRows : [];
+  const stockOf = (r) => String(r?.stock ?? "");
+  let merged;
+  if (csv.length === sheet.length) {
+    merged = csv.map((c, i) => ({
+      row: sheet[i].row,
+      product: c.product,
+      stock: stockOf(c),
+    }));
+  } else {
+    const pool = sheet.map((s, i) => ({ ...s, _i: i }));
+    const used = new Set();
+    merged = [];
+    for (const c of csv) {
+      const prod = String(c.product ?? "").trim();
+      let pick = pool.find(
+        (s) => !used.has(s._i) && String(s.product ?? "").trim() === prod
+      );
+      if (!pick) pick = pool.find((s) => !used.has(s._i));
+      if (pick) {
+        used.add(pick._i);
+        merged.push({ row: pick.row, product: c.product, stock: stockOf(c) });
+      } else {
+        merged.push({ row: c.row, product: c.product, stock: stockOf(c) });
+      }
+    }
+  }
+  const lastFilled = merged.reduce((m, r) => (r.row > m ? r.row : m), 1);
+  return { rows: merged, last_filled_row: lastFilled, next_row: lastFilled + 1 };
 };
 
 /** Append row after last filled cell in product column (cached per tab when possible). */
@@ -891,6 +1138,7 @@ export const sheetsAppendRow = (tabId, tab, params = {}) =>
     const productCell = `${productCol}${row}`;
     const stockCell = `${stockCol}${row}`;
     const writes = await sheetsWriteRowPair(tabId, tabNow, productCol, stockCol, row, product, stock);
+    await sheetsGoToCell(tabId, tabNow, stockCell);
     const gotStock = await sheetsReadActiveCell(tabId);
     const ok =
       writes.product?.dom_ok !== false &&
@@ -935,19 +1183,40 @@ export const sheetsRangeRead = (tabId, tab, params = {}) =>
     const stockCol = sheetsColLetter(params, "stock_col", "C");
     const fromRow = Math.max(2, Number(params.from_row) || 2);
     const toRow = Number(params.to_row);
-    const scan = await sheetsScanDataRows(tabId, tabNow, productCol, stockCol, {
+    const scanOpts = {
       from_row: fromRow,
       to_row: Number.isFinite(toRow) && toRow >= fromRow ? toRow : 500,
       read_stock: true,
       stop_empty: 2,
-    });
+    };
+    const readMode = String(params.read_mode || params.scan_mode || "auto").toLowerCase();
+    let scan = null;
+    if (readMode !== "cdp") {
+      try {
+        scan = await sheetsRangeReadViaExport(tabId, tabNow, productCol, stockCol, scanOpts);
+      } catch {
+        scan = null;
+      }
+      if (!scan && readMode === "clipboard") {
+        try {
+          scan = await sheetsRangeReadViaClipboard(tabId, tabNow, productCol, stockCol, scanOpts);
+        } catch {
+          scan = null;
+        }
+      }
+    }
+    if (!scan) {
+      scan = await sheetsScanDataRows(tabId, tabNow, productCol, stockCol, scanOpts);
+      scan.read_via = "cdp_scan";
+    }
     const lines = scan.rows.map((r) => `${r.row}:${r.product}/${r.stock}`);
+    const via = scan.read_via || "cdp_scan";
     const summary = scan.rows.length
-      ? `${scan.rows.length} row(s); next_row=${scan.next_row}. ${lines.slice(-8).join("; ")}`
-      : `empty from row ${fromRow}; next_row=${scan.next_row}`;
+      ? `${scan.rows.length} row(s); next_row=${scan.next_row}; via=${via}. ${lines.slice(-8).join("; ")}`
+      : `empty from row ${fromRow}; next_row=${scan.next_row}; via=${via}`;
     return {
       ok: true,
-      nav: "v19",
+      nav: "v24",
       ...scan,
       summary,
       row_count: scan.rows.length,

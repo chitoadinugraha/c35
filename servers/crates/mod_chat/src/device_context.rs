@@ -408,9 +408,9 @@ pub async fn tool_exclude_browser_devices(
     if ids.is_empty() {
         return Vec::new();
     }
-    let rows = sqlx::query_scalar::<_, String>(
+    let rows = sqlx::query_as::<_, (String, Value)>(
         r#"
-        SELECT type
+        SELECT type, COALESCE(meta, '{}'::jsonb)
         FROM ai.identity
         WHERE id = ANY($1::bigint[])
           AND owner_iid = $2
@@ -426,8 +426,13 @@ pub async fn tool_exclude_browser_devices(
     if rows.is_empty() || rows.len() != ids.len() {
         return Vec::new();
     }
-    if rows.iter().all(|t| t.eq_ignore_ascii_case("browser")) {
-        return BROWSER_DEVICE_TOOL_EXCLUDE.iter().map(|s| s.to_string()).collect();
+    if rows.iter().all(|(t, _)| t.eq_ignore_ascii_case("browser")) {
+        let mut out: Vec<String> = BROWSER_DEVICE_TOOL_EXCLUDE.iter().map(|s| s.to_string()).collect();
+        if rows.iter().all(|(_, m)| c35_mod_device::meta_browser_engine(m).eq_ignore_ascii_case("extension")) {
+            out.push("browser.task.run".to_string());
+            out.push("browser.file.upload".to_string());
+        }
+        return out;
     }
     Vec::new()
 }

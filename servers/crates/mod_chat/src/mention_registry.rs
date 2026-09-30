@@ -17,6 +17,8 @@ pub struct MentionResolved {
     pub item: MentionItem,
     pub identity_iid: Option<i64>,
     pub identity_kind: Option<String>,
+    pub identity_type: Option<String>,
+    pub device_engine: Option<String>,
 }
 
 pub fn mention_ref_parse(raw: &str) -> Option<MentionRef> {
@@ -308,7 +310,8 @@ pub async fn mention_search_rpc(
 async fn identity_resolve(pool: &PgPool, caller_iid: i64, iid: i64) -> Option<MentionResolved> {
     let row = sqlx::query(
         r#"
-        SELECT i.id, i.kind, COALESCE(i.name, '') AS name, COALESCE(i.alien_id, '') AS alien_id,
+        SELECT i.id, i.kind, COALESCE(i.type, '') AS type, COALESCE(i.name, '') AS name, COALESCE(i.alien_id, '') AS alien_id,
+               COALESCE(i.meta, '{}'::jsonb) AS meta,
                i.owner_iid, g.role
         FROM ai.identity i
         LEFT JOIN ai.identity_grant g
@@ -332,6 +335,13 @@ async fn identity_resolve(pool: &PgPool, caller_iid: i64, iid: i64) -> Option<Me
         return None;
     }
     let kind: String = row.get("kind");
+    let identity_type: String = row.get("type");
+    let meta: serde_json::Value = row.get("meta");
+    let device_engine = if kind == "remote" && identity_type == "browser" {
+        Some(c35_mod_device::meta_browser_engine(&meta).to_string())
+    } else {
+        None
+    };
     let rows = identity_rows(pool, caller_iid).await;
     rows.into_iter()
         .find(|item| item.id == mention_ref_iid(iid))
@@ -339,6 +349,8 @@ async fn identity_resolve(pool: &PgPool, caller_iid: i64, iid: i64) -> Option<Me
             item,
             identity_iid: Some(iid),
             identity_kind: Some(kind),
+            identity_type: if identity_type.is_empty() { None } else { Some(identity_type) },
+            device_engine,
         })
 }
 
@@ -353,6 +365,8 @@ async fn catalog_resolve(pool: &PgPool, caller_iid: i64, id: &str) -> Option<Men
             item,
             identity_iid: None,
             identity_kind: None,
+            identity_type: None,
+            device_engine: None,
         })
 }
 
@@ -385,6 +399,8 @@ pub async fn mention_resolve_one(
             },
             identity_iid: None,
             identity_kind: None,
+            identity_type: None,
+            device_engine: None,
         }),
     }
 }
@@ -417,9 +433,20 @@ pub fn mention_prompt_block(resolved: &[MentionResolved]) -> String {
                     .item
                     .topic_id
                     .clone();
+                let mut extra = String::new();
+                if let Some(ref dt) = r.identity_type {
+                    if !dt.is_empty() {
+                        extra.push_str(&format!(", type={dt}"));
+                    }
+                }
+                if let Some(ref eng) = r.device_engine {
+                    if !eng.is_empty() {
+                        extra.push_str(&format!(", engine={eng}"));
+                    }
+                }
                 format!(
-                    "- {} (ref={}, iid={}, topic={})",
-                    r.item.label, r.item.id, iid, kind
+                    "- {} (ref={}, iid={}, topic={}{})",
+                    r.item.label, r.item.id, iid, kind, extra
                 )
             } else {
                 format!("- {} (ref={}, topic={})", r.item.label, r.item.id, r.item.topic_id)

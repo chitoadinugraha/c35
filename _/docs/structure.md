@@ -220,6 +220,7 @@ Implementation plan: [`plans/2026-09-21-remote-agent-pairing.md`](plans/2026-09-
 | `PG_SLOW_STATEMENT_MS` | Log SQL slower than this at `WARN` via `sqlx::query` (default `1000`) |
 | `PG_SLOW_ACQUIRE_MS` | Log pool acquire slower than this (default `3000`) |
 | `PROMPT_RUN_MAX_CONCURRENT` | Max parallel JetStream prompt jobs per `server_ai` pod (default `8`) |
+| `IMAGE_OPTIMIZE_MAX_CONCURRENT` | Max parallel CAS image variant jobs per process (default `3`, clamp `1`–`8`) |
 | `C35_JWT_SECRET` | WS `?jwt=` validation |
 
 **Slow SQL:** app logs via `sqlx::query` when `duration >= PG_SLOW_STATEMENT_MS`. On pool saturation, `server_ai` also dumps `pg_stat_activity` in-flight queries and active `ai.prompt_run` rows (req_id + prompt preview). Yugabyte YSQL (Postgres-compatible) also supports cluster-side `log_min_duration_statement` and the `pg_stat_statements` extension — see [Yugabyte slow queries](https://docs.yugabyte.com/preview/explore/observability/pg-stat-statements/).

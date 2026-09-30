@@ -31,7 +31,7 @@ const _title = Color(0xFFF4F4F5);
 const _muted = Color(0xFF71717A);
 const _dialogW = 400.0;
 const _dialogH = 580.0;
-const _stepTotal = 5;
+const _stepTotal = 4;
 
 class InBotCreateResult {
   const InBotCreateResult({required this.botIid, required this.name});
@@ -293,27 +293,25 @@ class _InBotCreateState extends State<InBotCreate> {
   }
 
   String get _stepTitle => switch (_step) {
-        0 => 'botCreate.stepWelcome'.tr(),
-        1 => _isEditing ? 'botCreate.editTitle'.tr() : 'New Chat Bot',
-        2 => 'Connect channels',
-        3 => 'Assets',
+        0 => _isEditing ? 'botCreate.editTitle'.tr() : 'New Chat Bot',
+        1 => 'botCreate.stepChannels'.tr(),
+        2 => 'botCreate.stepAssets'.tr(),
         _ => 'botCreate.stepBehavior'.tr(),
       };
 
   String _stepMenuLabel(int index) => switch (index) {
-        0 => 'botCreate.stepWelcome'.tr(),
-        1 => 'botCreate.stepInfo'.tr(),
-        2 => 'botCreate.stepChannels'.tr(),
-        3 => 'botCreate.stepAssets'.tr(),
+        0 => 'botCreate.stepInfo'.tr(),
+        1 => 'botCreate.stepChannels'.tr(),
+        2 => 'botCreate.stepAssets'.tr(),
         _ => 'botCreate.stepBehavior'.tr(),
       };
 
   bool get _canStepForward =>
-      _step == 1 ? _name.text.trim().isNotEmpty && _billingPackage != null : true;
+      _step == 0 ? _name.text.trim().isNotEmpty && _billingPackage != null : true;
 
   bool _canGoToStep(int target) {
     if (target == _step) return false;
-    if (target <= 1) return true;
+    if (target == 0) return true;
     if (_botIid == null) return false;
     if (_name.text.trim().isEmpty || _billingPackage == null) return false;
     return true;
@@ -340,13 +338,6 @@ class _InBotCreateState extends State<InBotCreate> {
 
   Future<void> _next() async {
     if (_step == 0) {
-      setState(() {
-        _error = null;
-        _step = 1;
-      });
-      return;
-    }
-    if (_step == 1) {
       final name = _name.text.trim();
       if (name.isEmpty) {
         setState(() => _error = 'Name is required');
@@ -364,7 +355,7 @@ class _InBotCreateState extends State<InBotCreate> {
         if (_botIid != null && !_step0Changed) {
           if (!mounted) return;
           setState(() {
-            _step = 2;
+            _step = 1;
             _saving = false;
           });
           return;
@@ -374,7 +365,7 @@ class _InBotCreateState extends State<InBotCreate> {
           _markStep0Saved();
           if (!mounted) return;
           setState(() {
-            _step = 2;
+            _step = 1;
             _saving = false;
           });
           return;
@@ -386,7 +377,7 @@ class _InBotCreateState extends State<InBotCreate> {
         if (!mounted) return;
         setState(() {
           _botIid = iid;
-          _step = 2;
+          _step = 1;
           _saving = false;
         });
         _markStep0Saved();
@@ -400,7 +391,7 @@ class _InBotCreateState extends State<InBotCreate> {
       }
       return;
     }
-    if (_step == 2 || _step == 3) {
+    if (_step == 1 || _step == 2) {
       setState(() {
         _error = null;
         _step += 1;
@@ -611,14 +602,6 @@ class _InBotCreateState extends State<InBotCreate> {
     return UiUserAvatar(name: name, pic: _pic, size: 64);
   }
 
-  Widget _stepWelcome() => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _stepIntro('botCreate.welcomeStepHint'.tr()),
-          _welcomeMessageField(),
-        ],
-      );
-
   Widget _stepBasics() => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -667,6 +650,9 @@ class _InBotCreateState extends State<InBotCreate> {
             }),
             onYearlyChanged: (v) => setState(() => _billingYearly = v),
           ),
+          const SizedBox(height: 16),
+          _stepIntro('botCreate.welcomeStepHint'.tr()),
+          _welcomeMessageField(),
         ],
       );
 
@@ -845,10 +831,9 @@ class _InBotCreateState extends State<InBotCreate> {
                       child: Padding(
                         padding: const EdgeInsets.only(right: 12),
                         child: switch (_step) {
-                          0 => _stepWelcome(),
-                          1 => _stepBasics(),
-                          2 => _stepChannels(),
-                          3 => _stepAssets(),
+                          0 => _stepBasics(),
+                          1 => _stepChannels(),
+                          2 => _stepAssets(),
                           _ => _stepBehavior(),
                         },
                       ),

@@ -354,6 +354,13 @@ const startCapture = async (tabId) => {
   stopCapture();
   captureActive = true;
   captureTabId = tabId ?? (await activeTabId());
+  if (captureTabId != null) {
+    const tab = await chrome.tabs.get(captureTabId).catch(() => null);
+    if (tab?.width && tab?.height) {
+      msgWidth = tab.width;
+      msgHeight = tab.height;
+    }
+  }
   const intervalMs = Math.max(1, Math.floor(1000 / CAPTURE_MAX_FPS));
   captureTimer = setInterval(() => captureOnce(), intervalMs);
   nmSend({ type: "capture.started", tabId: captureTabId });

@@ -25,6 +25,8 @@ fn site_mention(iid: i64, alien_id: &str, name: &str) -> MentionResolved {
         },
         identity_iid: Some(iid),
         identity_kind: Some("site".into()),
+        identity_type: None,
+        device_engine: None,
     }
 }
 
