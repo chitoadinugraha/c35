@@ -1,5 +1,6 @@
 mod config;
 mod db;
+mod inbound_filter;
 mod manager;
 mod media;
 mod nats;

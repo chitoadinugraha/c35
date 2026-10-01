@@ -26,6 +26,7 @@ import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:alienai_c35/widgets/ui/ui_safe_area.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:alienai_c35/widgets/ai/ui_markdown_body.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
 const _bg = Color(0xFF08080A);
@@ -197,10 +198,10 @@ class _UiBotConversationState extends State<UiBotConversation> {
                   if (m.reqId.isNotEmpty)
                     UiMsgTraceLoader(conn: widget.store.conn, reqId: m.reqId, part: MsgTracePart.chips),
                   if (m.content.trim().isNotEmpty)
-                    MarkdownBody(
+                    UiMarkdownBody(
                       data: m.content,
                       selectable: false,
-                      styleSheet: MarkdownStyleSheet(
+                      styleSheet: uiMarkdownChatStyleSheet(
                         p: const TextStyle(color: _text, fontSize: 15, height: 1.45),
                         code: const TextStyle(color: _text, fontSize: 13, fontFamily: 'Consolas', backgroundColor: Color(0xFF1A1A1D)),
                       ),

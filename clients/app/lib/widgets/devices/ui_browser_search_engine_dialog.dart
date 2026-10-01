@@ -1,18 +1,13 @@
 import 'package:alienai_c35/c/browser/browser_search_engine.dart';
+import 'package:alienai_c35/widgets/ui/ui_dialog.dart';
 import 'package:flutter/material.dart';
-
-const _bg = Color(0xFF18181B);
-const _border = Color(0xFF3F3F46);
-const _muted = Color(0xFF71717A);
-const _text = Color(0xFFF4F4F5);
-const _accent = Color(0xFF34D399);
 
 Future<BrowserSearchEngine?> browserSearchEngineDialogShow(
   BuildContext context, {
   required String selectedId,
   List<BrowserSearchEngine> engines = browserSearchEnginesFallback,
 }) =>
-    showDialog<BrowserSearchEngine>(
+    uiDialogShow<BrowserSearchEngine>(
       context: context,
       builder: (ctx) => _BrowserSearchEngineDialog(selectedId: selectedId, engines: engines),
     );
@@ -53,104 +48,78 @@ class _BrowserSearchEngineDialogState extends State<_BrowserSearchEngineDialog> 
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-        backgroundColor: _bg,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: _border)),
-        titlePadding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
-        contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-        actionsPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-        title: const Text('Search engine', style: TextStyle(color: _text, fontSize: 17, fontWeight: FontWeight.w600)),
-        content: SizedBox(
-          width: 360,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextField(
-                controller: _query,
-                autofocus: true,
-                style: const TextStyle(color: _text, fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: 'Filter engines…',
-                  hintStyle: const TextStyle(color: _muted, fontSize: 14),
-                  prefixIcon: const Icon(Icons.search_rounded, size: 20, color: _muted),
-                  filled: true,
-                  fillColor: const Color(0xFF27272A),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _border)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _border)),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _accent)),
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                ),
-                onChanged: (v) => setState(() => _filter = v),
-              ),
-              const SizedBox(height: 10),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 280),
-                child: _visible.isEmpty
-                    ? const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 24),
-                        child: Center(child: Text('No matches', style: TextStyle(color: _muted, fontSize: 13))),
-                      )
-                    : ListView.separated(
-                        shrinkWrap: true,
-                        itemCount: _visible.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 4),
-                        itemBuilder: (_, i) {
-                          final e = _visible[i];
-                          final selected = e.id == widget.selectedId;
-                          return Material(
-                            color: selected ? const Color(0xFF27272A) : Colors.transparent,
+  Widget build(BuildContext context) => UiDialog(
+        maxWidth: 400,
+        padding: uiDialogInsetCompact,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            UiDialogSearchHeader(
+              controller: _query,
+              hintText: 'Filter engines…',
+              onChanged: (v) => setState(() => _filter = v),
+            ),
+            const SizedBox(height: 10),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 280),
+              child: _visible.isEmpty
+                  ? const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: Center(child: Text('No matches', style: TextStyle(color: uiDialogMuted, fontSize: 13))),
+                    )
+                  : ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: _visible.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 4),
+                      itemBuilder: (_, i) {
+                        final e = _visible[i];
+                        final selected = e.id == widget.selectedId;
+                        return Material(
+                          color: selected ? const Color(0xFF27272A) : Colors.transparent,
+                          borderRadius: BorderRadius.circular(10),
+                          child: InkWell(
                             borderRadius: BorderRadius.circular(10),
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(10),
-                              onTap: () => Navigator.pop(context, e),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                                child: Row(
-                                  children: [
-                                    _EngineFavicon(engine: e),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            e.name,
-                                            style: TextStyle(
-                                              color: _text,
-                                              fontSize: 14,
-                                              fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                                            ),
+                            onTap: () => Navigator.pop(context, e),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                              child: Row(
+                                children: [
+                                  _EngineFavicon(engine: e),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          e.name,
+                                          style: TextStyle(
+                                            color: uiDialogTitleColor,
+                                            fontSize: 14,
+                                            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                                           ),
-                                          if (e.description.isNotEmpty)
-                                            Text(
-                                              e.description,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: const TextStyle(color: _muted, fontSize: 12),
-                                            ),
-                                        ],
-                                      ),
+                                        ),
+                                        if (e.description.isNotEmpty)
+                                          Text(
+                                            e.description,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(color: uiDialogMuted, fontSize: 12),
+                                          ),
+                                      ],
                                     ),
-                                    if (selected) const Icon(Icons.check_rounded, size: 20, color: _accent),
-                                  ],
-                                ),
+                                  ),
+                                  if (selected) const Icon(Icons.check_rounded, size: 20, color: uiDialogAccent),
+                                ],
                               ),
                             ),
-                          );
-                        },
-                      ),
-              ),
-            ],
-          ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: _muted)),
-          ),
-        ],
       );
 }
 
@@ -161,10 +130,10 @@ class _EngineFavicon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const fallback = Icon(Icons.public, size: 20, color: _muted);
+    const fallback = Icon(Icons.public, size: 20, color: uiDialogMuted);
     final url = engine.faviconUrl.trim();
     if (url.isEmpty) {
-      return SizedBox(width: 24, height: 24, child: Center(child: fallback));
+      return const SizedBox(width: 24, height: 24, child: Center(child: fallback));
     }
     return ClipRRect(
       borderRadius: BorderRadius.circular(4),

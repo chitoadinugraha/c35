@@ -1,3 +1,4 @@
+import 'package:alienai_c35/widgets/ui/ui_dialog.dart';
 import 'package:flutter/material.dart';
 
 /// Shows a generic confirmation dialog across the app.
@@ -13,55 +14,44 @@ Future<bool> askConfirm(
   Widget? contentExtra,
 }) async {
   final isId = Localizations.maybeLocaleOf(context)?.languageCode == 'id';
-  final defaultCancel = isId ? 'Batal' : 'Cancel';
   final defaultConfirm = isDestructive
       ? (isId ? 'Hapus' : 'Delete')
       : (isId ? 'Ya, Lanjutkan' : 'Confirm');
 
-  final result = await showDialog<bool>(
+  final result = await uiDialogShow<bool>(
     context: context,
     builder: (ctx) {
       final theme = Theme.of(ctx);
       final cs = theme.colorScheme;
-      return AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          title,
-          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-        ),
-        content: Column(
+      return UiDialog(
+        maxWidth: 400,
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            UiDialogHeader(title: title, onClose: () => Navigator.of(ctx).pop(false)),
+            const SizedBox(height: 12),
             Text(
               message,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: cs.onSurfaceVariant,
-                height: 1.4,
-              ),
+              style: theme.textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant, height: 1.4),
             ),
             if (contentExtra != null) ...[
               const SizedBox(height: 12),
               contentExtra,
             ],
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton(
+                style: isDestructive
+                    ? FilledButton.styleFrom(backgroundColor: cs.error, foregroundColor: cs.onError)
+                    : null,
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: Text(confirmLabel ?? defaultConfirm),
+              ),
+            ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(cancelLabel ?? defaultCancel),
-          ),
-          FilledButton(
-            style: isDestructive
-                ? FilledButton.styleFrom(
-                    backgroundColor: cs.error,
-                    foregroundColor: cs.onError,
-                  )
-                : null,
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(confirmLabel ?? defaultConfirm),
-          ),
-        ],
       );
     },
   );

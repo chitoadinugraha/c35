@@ -11,6 +11,7 @@ use serde::Serialize;
 use tracing::warn;
 
 use crate::inbound::channel_inbound_from_webhook;
+use crate::inbound_gate::is_ignored_err;
 use crate::peer::bot_peer_chat_id_get;
 use crate::policy::CHANNEL_INBOUND_IMAGE_MAX_BYTES;
 use crate::store::{bot_channel_get, bot_owner_iid, STATUS_CONNECTED};
@@ -89,7 +90,12 @@ async fn telegram_webhook_scoped(
     }
     let inbound = match parse_telegram_payload(&body) {
         Ok(v) => v,
-        Err(e) => return webhook_err(StatusCode::BAD_REQUEST, format!("Payload parse error: {e:#}")),
+        Err(e) => {
+            if is_ignored_err(&e) {
+                return webhook_ok(0, 0);
+            }
+            return webhook_err(StatusCode::BAD_REQUEST, format!("Payload parse error: {e:#}"));
+        }
     };
     match channel_inbound_from_webhook(&state, bot_iid, &channel_id, &inbound).await {
         Ok((chat_id, peer_iid)) => webhook_ok(chat_id, peer_iid),
@@ -195,7 +201,12 @@ async fn whatsapp_webhook_scoped(
     }
     let inbound = match parse_whatsapp_payload(&body) {
         Ok(v) => v,
-        Err(e) => return webhook_err(StatusCode::BAD_REQUEST, format!("Payload parse error: {e:#}")),
+        Err(e) => {
+            if is_ignored_err(&e) {
+                return webhook_ok(0, 0);
+            }
+            return webhook_err(StatusCode::BAD_REQUEST, format!("Payload parse error: {e:#}"));
+        }
     };
     match channel_inbound_from_webhook(&state, bot_iid, &channel_id, &inbound).await {
         Ok((chat_id, peer_iid)) => webhook_ok(chat_id, peer_iid),

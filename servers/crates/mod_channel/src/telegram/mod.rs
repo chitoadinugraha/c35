@@ -6,8 +6,9 @@ pub use connect::{
     tg_send_voice_reply,
 };
 
+use crate::inbound_gate::{IGNORED_PREFIX, telegram_chat_type_private};
 use crate::types::ChannelInboundAttachment;
-use anyhow::Result;
+use anyhow::{bail, Result};
 
 /// Telegram `message` updates with `chat_action.type = typing` (no text body).
 pub fn parse_telegram_typing_peer(bytes: &[u8]) -> Option<String> {
@@ -37,8 +38,14 @@ pub fn parse_telegram_payload(bytes: &[u8]) -> Result<crate::types::ChannelInbou
     let msg = v
         .get("message")
         .or_else(|| v.get("edited_message"))
-        .or_else(|| v.get("channel_post"))
         .ok_or_else(|| anyhow::anyhow!("No message object in Telegram update"))?;
+    let chat = msg
+        .get("chat")
+        .ok_or_else(|| anyhow::anyhow!("No chat object in Telegram message"))?;
+    if !telegram_chat_type_private(chat) {
+        let ty = chat.get("type").and_then(|t| t.as_str()).unwrap_or("unknown");
+        bail!("{IGNORED_PREFIX} telegram chat type {ty}");
+    }
 
     let text = msg
         .get("text")

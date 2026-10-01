@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:alienai_c35/c/bot/data_source_api.dart';
 import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/pb/c35/data_source.pb.dart';
+import 'package:alienai_c35/widgets/ui/ui_dialog.dart';
 import 'package:alienai_c35/widgets/ui/ui_input_decoration.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -160,11 +161,7 @@ Future<BotAssetDraft?> ioGoogleAssetConnectShow(
   required ChatConn conn,
   required GoogleAssetConnectKind kind,
 }) =>
-    showDialog<BotAssetDraft>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => _IoGoogleAssetConnectDialog(conn: conn, kind: kind),
-    );
+    uiDialogShow<BotAssetDraft>(context: context, builder: (_) => _IoGoogleAssetConnectDialog(conn: conn, kind: kind));
 
 class _IoGoogleAssetConnectDialog extends StatefulWidget {
   const _IoGoogleAssetConnectDialog({required this.conn, required this.kind});
@@ -295,19 +292,7 @@ class _IoGoogleAssetConnectDialogState extends State<_IoGoogleAssetConnectDialog
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(headerTitle, style: const TextStyle(color: _title, fontSize: 16, fontWeight: FontWeight.w600)),
-                  ),
-                  uiIconButton(
-                    tooltip: 'Close',
-                    visualDensity: VisualDensity.compact,
-                    onPressed: _busy ? null : () => Navigator.pop(context),
-                    icon: const Icon(Icons.close, color: _muted, size: 20),
-                  ),
-                ],
-              ),
+              UiDialogHeader(title: headerTitle, closeEnabled: !_busy),
               const SizedBox(height: 16),
               TextField(
                 controller: _url,

@@ -42,8 +42,7 @@ If the change ships to paired devices (not local-only dev), run `.\_\scripts\dep
 ## Dart / Flutter (`clients/app/**`)
 
 ```powershell
-cd clients/app
-flutter analyze
+.\_\scripts\dev\verify_flutter_app.ps1
 ```
 
 Run `flutter test` when tests exist for changed code.
@@ -53,7 +52,7 @@ Run `flutter test` when tests exist for changed code.
 After creating or editing `.rs`, `.md`, `.dart`, `.sql`, `.toml`, `.proto`, `.mdc`, or `.ps1`:
 
 ```powershell
-.\_\scripts\dev\check_utf8_sources.ps1 -Changed
+.\_\scripts\dev\check_utf8_sources.ps1 -Changed -Fix
 ```
 
 See `utf8-source-files.mdc` — never write those files with default PowerShell `Set-Content` (UTF-16 on Windows).

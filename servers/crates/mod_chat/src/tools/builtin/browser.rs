@@ -515,6 +515,27 @@ tool! {
         if !tab_id.is_empty() {
             params["tab_id"] = json!(tab_id);
         }
+        if action == "epus_pasien_search" || action == "epus_pasien_fetch" {
+            for key in [
+                "search_by",
+                "searchBy",
+                "wait_ms",
+                "waitMs",
+                "open_detail",
+                "openDetail",
+                "no_kartu",
+                "noKartu",
+                "nama",
+                "expected_name",
+                "name",
+                "focus",
+                "activate",
+            ] {
+                if let Some(v) = args.get(key) {
+                    params[key] = v.clone();
+                }
+            }
+        }
         Ok(browser_invoke(&args, ctx, "page.act", params, 90).await)
     }
 }

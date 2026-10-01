@@ -424,6 +424,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "wa-rs",
+ "wa-rs-binary",
  "wa-rs-core",
  "wa-rs-sqlite-storage",
  "wa-rs-tokio-transport",

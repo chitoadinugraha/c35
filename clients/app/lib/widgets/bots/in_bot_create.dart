@@ -18,6 +18,7 @@ import 'package:alienai_c35/widgets/bots/io_google_asset_connect.dart';
 import 'package:alienai_c35/widgets/bots/io_channel_telegram_connect.dart';
 import 'package:alienai_c35/widgets/bots/io_channel_whatsapp_meta_connect.dart';
 import 'package:alienai_c35/widgets/bots/io_channel_whatsapp_pair.dart';
+import 'package:alienai_c35/widgets/ui/ui_dialog.dart';
 import 'package:alienai_c35/widgets/ui/ui_input_decoration.dart';
 import 'package:alienai_c35/widgets/ui/ui_user_avatar.dart';
 import 'package:file_picker/file_picker.dart';
@@ -57,9 +58,8 @@ Future<InBotCreateResult?> inBotCreateShow(
   ChannelWhatsappPairAbortFn? onWhatsappPairAbort,
 }) {
   final conn = store.conn;
-  return showDialog<InBotCreateResult>(
+  return uiDialogShow<InBotCreateResult>(
     context: context,
-    barrierDismissible: false,
     builder: (_) => InBotCreate(
       store: store,
       editBotIid: editBotIid,

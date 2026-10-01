@@ -7,8 +7,9 @@ pub use pair::{
     pair_res_from_channel, pair_res_from_error, worker_post, ActChannelWhatsappPair, SUBJ_PAIR,
 };
 
+use crate::inbound_gate::{meta_cloud_message_ignored, IGNORED_PREFIX};
 use crate::types::ChannelInboundAttachment;
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 
 pub fn parse_whatsapp_payload(bytes: &[u8]) -> Result<crate::types::ChannelInboundMessage> {
     let v: serde_json::Value = serde_json::from_slice(bytes)?;
@@ -35,6 +36,9 @@ pub fn parse_meta_cloud_payload(v: &serde_json::Value) -> Result<crate::types::C
         .and_then(|m| m.as_array())
         .and_then(|a| a.first())
         .context("meta cloud missing messages")?;
+    if let Some(kind) = meta_cloud_message_ignored(msg) {
+        bail!("{IGNORED_PREFIX} meta_cloud message type {kind}");
+    }
     let from = msg.get("from").and_then(|f| f.as_str()).context("meta cloud missing from")?;
     let msg_id = msg.get("id").and_then(|f| f.as_str()).unwrap_or_default();
     let profile_name = value

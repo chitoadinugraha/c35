@@ -69,6 +69,7 @@ When `identity.meta.active` is **false**, `channel_inbound_handle` still resolve
 ## 4. Media Pipeline (Images only)
 
 ### Inbound
+- **1:1 only** — ignore WhatsApp Status (`status@broadcast`), groups, newsletters, broadcast lists, and Meta Cloud reactions; Telegram non-`private` chats and channel posts.
 - **Images only** (`image/*`), max **5 MiB** per file (`CHANNEL_INBOUND_IMAGE_MAX_BYTES`).
 - Voice, video, documents, stickers: not downloaded for LLM; unsupported-only messages get `CHANNEL_UNSUPPORTED_REPLY`.
 - **CAS Resolution**: `resolve_inbound_attachments_cas` downloads raw bytes from Telegram or WhatsApp and saves into Content Addressable Storage (`cas_put`), setting `item.hash`. The multimodal LLM turn receives the CAS hash for vision/multimodal processing.

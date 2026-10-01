@@ -77,14 +77,12 @@ import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:alienai_c35/widgets/ui/ui_user_avatar.dart';
 import 'package:alienai_c35/c/store/canvas_store.dart';
 import 'package:alienai_c35/widgets/ai/ui_canvas_panel.dart';
-import 'package:alienai_c35/widgets/ai/ui_markdown_code_block.dart';
+import 'package:alienai_c35/widgets/ai/ui_markdown_body.dart';
 import 'package:alienai_c35/widgets/ai/ui_context_meter.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
-
 class PageAIHome extends StatefulWidget {
   const PageAIHome({super.key, required this.auth});
 
@@ -1413,28 +1411,24 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
               retrying: _retrying,
             )
           else if (content.trim().isNotEmpty)
-            MarkdownBody(
+            UiMarkdownBody(
               data: content,
               selectable: false,
-              builders: {
-                'code': UiMarkdownCodeBlockBuilder(
-                  onOpenInCanvas: (title, code, language) {
-                    _canvasStore.openCode(
-                      title: title,
-                      code: code,
-                      language: language,
-                      open: true,
-                    );
-                    if (MediaQuery.sizeOf(context).width < 720) {
-                      _scaffoldKey.currentState?.openEndDrawer();
-                    }
-                  },
-                ),
-              },
-              styleSheet: MarkdownStyleSheet(
+              styleSheet: uiMarkdownChatStyleSheet(
                 p: const TextStyle(color: _text, fontSize: 15, height: 1.45),
                 code: const TextStyle(color: _text, fontSize: 13, fontFamily: 'Consolas', backgroundColor: Color(0xFF1A1A1D)),
               ),
+              onOpenInCanvas: (title, code, language) {
+                _canvasStore.openCode(
+                  title: title,
+                  code: code,
+                  language: language,
+                  open: true,
+                );
+                if (MediaQuery.sizeOf(context).width < 720) {
+                  _scaffoldKey.currentState?.openEndDrawer();
+                }
+              },
             ),
           if (hasError && hasAnswerBody && !uiIsRecoverableDeviceContextError(err))
             Padding(

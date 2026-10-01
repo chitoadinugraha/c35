@@ -1,6 +1,7 @@
 import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/c/pb/c35/channel.pb.dart';
 import 'package:alienai_c35/widgets/bots/io_channel_telegram_connect.dart';
+import 'package:alienai_c35/widgets/ui/ui_dialog.dart';
 import 'package:alienai_c35/widgets/ui/ui_input_decoration.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -27,7 +28,7 @@ Future<ChannelWhatsappMetaConnectResult?> ioChannelWhatsappMetaConnectShow(
   required int botIid,
   ChannelWhatsappMetaConnectFn? onConnect,
 }) =>
-    showDialog<ChannelWhatsappMetaConnectResult>(
+    uiDialogShow<ChannelWhatsappMetaConnectResult>(
       context: context,
       builder: (_) => IoChannelWhatsappMetaConnect(botIid: botIid, onConnect: onConnect ?? _stubWhatsappMetaConnect),
     );
@@ -216,19 +217,14 @@ class _IoChannelWhatsappMetaConnectState extends State<IoChannelWhatsappMetaConn
   }
 
   @override
-  Widget build(BuildContext context) => Dialog(
-        backgroundColor: const Color(0xFF18181B),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: Color(0xFF27272A))),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 460),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text('Connect WhatsApp Cloud', style: TextStyle(color: Color(0xFFF4F4F5), fontSize: 16, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 6),
+  Widget build(BuildContext context) => UiDialog(
+          maxWidth: 460,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              UiDialogHeader(title: 'Connect WhatsApp Cloud', closeEnabled: !_connecting),
+              const SizedBox(height: 6),
                 Wrap(
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
@@ -262,22 +258,26 @@ class _IoChannelWhatsappMetaConnectState extends State<IoChannelWhatsappMetaConn
                 if (_error != null) Padding(padding: const EdgeInsets.only(top: 4), child: Text(_error!, style: const TextStyle(color: Color(0xFFEF4444), fontSize: 11))),
                 _logPanel(),
                 const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(onPressed: _connecting ? null : () => Navigator.pop(context), child: Text(_connected ? 'Close' : 'Cancel')),
-                    if (!_connected) ...[
-                      const SizedBox(width: 8),
-                      FilledButton(onPressed: _connecting ? null : _connect, style: FilledButton.styleFrom(backgroundColor: const Color(0xFF25D366), foregroundColor: Colors.black), child: Text(_connecting ? 'Connecting…' : 'Connect')),
-                    ] else ...[
-                      const SizedBox(width: 8),
-                      FilledButton(onPressed: _channel == null ? null : () => Navigator.pop(context, ChannelWhatsappMetaConnectResult(channel: _channel!, webhookUrl: _webhookUrl, verifyToken: _verifyToken)), style: FilledButton.styleFrom(backgroundColor: const Color(0xFF25D366), foregroundColor: Colors.black), child: const Text('Done')),
-                    ],
-                  ],
-                ),
-              ],
-            ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: !_connected
+                    ? FilledButton(
+                        onPressed: _connecting ? null : _connect,
+                        style: FilledButton.styleFrom(backgroundColor: const Color(0xFF25D366), foregroundColor: Colors.black),
+                        child: Text(_connecting ? 'Connecting…' : 'Connect'),
+                      )
+                    : FilledButton(
+                        onPressed: _channel == null
+                            ? null
+                            : () => Navigator.pop(
+                                  context,
+                                  ChannelWhatsappMetaConnectResult(channel: _channel!, webhookUrl: _webhookUrl, verifyToken: _verifyToken),
+                                ),
+                        style: FilledButton.styleFrom(backgroundColor: const Color(0xFF25D366), foregroundColor: Colors.black),
+                        child: const Text('Done'),
+                      ),
+              ),
+            ],
           ),
-        ),
-      );
+        );
 }

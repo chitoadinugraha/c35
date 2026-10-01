@@ -1,0 +1,42 @@
+---
+description: Consistent modal dialogs (close top-right, overlay dismiss, search-as-title)
+globs: clients/app/lib/widgets/**/*.dart,clients/app/lib/pages/**/*.dart
+alwaysApply: false
+---
+
+# UiDialog (modal chrome)
+
+Use shared helpers from `widgets/ui/ui_dialog.dart` for custom `Dialog` content — not raw one-off padding and Cancel rows.
+
+## Shell
+
+- **`uiDialogShow`** — prefer over raw `showDialog`; default **`barrierDismissible: true`** (tap outside = cancel / `null`).
+- **`UiDialog`** — zinc panel, 14px radius, border `uiDialogBorder`, default inset `uiDialogInset` (`20,16,12,20` — matches Google asset connect).
+- **Close** — **`UiDialogClose`** or **`UiDialogHeader`** (title + close). **No bottom Cancel / Close text buttons** when the only dismiss action is cancel.
+
+## Title vs search
+
+| Pattern | Chrome |
+|--------|--------|
+| Form / confirm / connect | `UiDialogHeader(title: …)` at top |
+| Searchable picker (channels, assets, skills, locale, …) | **`UiDialogSearchHeader`** only — **no separate title** above search; hint carries context (`Search assets…`) |
+| Compact list picker | `padding: uiDialogInsetCompact` on `UiDialog` |
+
+## Actions
+
+- Primary action stays bottom-right (`FilledButton`).
+- Destructive flows may keep slide-confirm + single danger button; still use top-right close (disabled while busy).
+
+## Exceptions (`barrierDismissible: false`)
+
+- Boot / session gate (`main.dart`)
+- Force-update modals
+- Full-screen capture flows where accidental dismiss loses work (`ui_staged_shot` when documented)
+
+Do not set `barrierDismissible: false` on ordinary forms, pickers, or confirms.
+
+## Examples
+
+- Asset URL connect: `io_google_asset_connect.dart` (`UiDialogHeader` + fields)
+- Search picker: `io_ask_items.dart` (`UiDialogSearchHeader`)
+- Confirm: `ask_confirm.dart` (`UiDialogHeader` + one confirm button)

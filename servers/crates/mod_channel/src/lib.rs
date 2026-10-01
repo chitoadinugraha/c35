@@ -6,6 +6,7 @@ mod dedup;
 mod format;
 mod hub;
 mod inbound;
+mod inbound_gate;
 mod limit;
 mod media;
 mod policy;

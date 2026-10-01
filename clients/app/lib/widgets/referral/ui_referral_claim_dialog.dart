@@ -1,5 +1,6 @@
 import 'package:alienai_c35/c/auth/auth_service.dart';
 import 'package:alienai_c35/widgets/io/in_referral_code.dart';
+import 'package:alienai_c35/widgets/ui/ui_dialog.dart';
 import 'package:flutter/material.dart';
 
 class UiReferralClaimDialog extends StatefulWidget {
@@ -8,11 +9,7 @@ class UiReferralClaimDialog extends StatefulWidget {
   final AuthService auth;
 
   static Future<bool?> show(BuildContext context, {required AuthService auth}) {
-    return showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => UiReferralClaimDialog(auth: auth),
-    );
+    return uiDialogShow<bool>(context: context, builder: (ctx) => UiReferralClaimDialog(auth: auth));
   }
 
   @override
@@ -97,6 +94,7 @@ class _UiReferralClaimDialogState extends State<UiReferralClaimDialog> {
               style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
             ),
           ),
+          UiDialogClose(onPressed: _skip, enabled: !_busy),
         ],
       ),
       content: SizedBox(

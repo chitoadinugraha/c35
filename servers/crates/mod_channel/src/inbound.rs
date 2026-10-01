@@ -11,6 +11,7 @@ use reqwest::Client;
 use tracing::info;
 
 use crate::dedup::{channel_dedup_try_mark, channel_inbound_msg_put};
+use crate::inbound_gate::channel_inbound_accept;
 use crate::hub::channel_hub_init;
 use crate::media::channel_voice_placeholder;
 use crate::outbound::{channel_reply_nats, outbound_ctx_with_msg, ChannelCasCtx};
@@ -35,6 +36,14 @@ pub async fn channel_inbound_handle(
     channel: &ChannelDoc,
     inbound: &ChannelInboundMessage,
 ) -> Result<(i64, i64)> {
+    if !channel_inbound_accept(inbound) {
+        tracing::debug!(
+            "[c35:channel] inbound ignored platform={} peer={}",
+            inbound.platform,
+            inbound.external_user_id
+        );
+        return Ok((0, 0));
+    }
     if let Some(msg_id) = inbound.external_msg_id.as_deref().filter(|s| !s.is_empty()) {
         if !channel_dedup_try_mark(&state.pool, bot_iid, &channel.id, msg_id).await {
             return Ok((0, 0));

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/c/pb/c35/channel.pb.dart';
 import 'package:fixnum/fixnum.dart';
+import 'package:alienai_c35/widgets/ui/ui_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -179,19 +180,14 @@ class _IoChannelWhatsappPairState extends State<IoChannelWhatsappPair> {
         onPopInvokedWithResult: (didPop, _) {
           if (!didPop) _cancel();
         },
-        child: Dialog(
-          backgroundColor: const Color(0xFF18181B),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: Color(0xFF27272A))),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 380),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Text('Link WhatsApp', style: TextStyle(color: Color(0xFFF4F4F5), fontSize: 16, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
+        child: UiDialog(
+          maxWidth: 380,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              UiDialogHeader(title: 'Link WhatsApp', onClose: _cancel),
+              const SizedBox(height: 8),
                   const Text('Open WhatsApp on your phone → Linked devices → Link a device, then scan this QR.', style: TextStyle(color: Color(0xFF71717A), fontSize: 12, height: 1.4)),
                   const SizedBox(height: 16),
                   if (_starting)
@@ -209,16 +205,7 @@ class _IoChannelWhatsappPairState extends State<IoChannelWhatsappPair> {
                   if (_error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(_error!, style: const TextStyle(color: Color(0xFFEF4444), fontSize: 11))),
                   if (_phone.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 8), child: Text('Phone: $_phone', style: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 11))),
                   Padding(padding: const EdgeInsets.only(top: 8), child: Text('Status: $_status', style: const TextStyle(color: Color(0xFF52525B), fontSize: 10))),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(onPressed: _cancel, child: const Text('Cancel')),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+            ],
           ),
         ),
       );

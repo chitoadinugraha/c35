@@ -1,5 +1,6 @@
 import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/c/pb/c35/channel.pb.dart';
+import 'package:alienai_c35/widgets/ui/ui_dialog.dart';
 import 'package:alienai_c35/widgets/ui/ui_input_decoration.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -18,10 +19,7 @@ Future<BotChannelDoc?> ioChannelTelegramConnectShow(
   required int botIid,
   ChannelTelegramConnectFn? onConnect,
 }) =>
-    showDialog<BotChannelDoc>(
-      context: context,
-      builder: (_) => IoChannelTelegramConnect(botIid: botIid, onConnect: onConnect ?? _stubTelegramConnect),
-    );
+    uiDialogShow<BotChannelDoc>(context: context, builder: (_) => IoChannelTelegramConnect(botIid: botIid, onConnect: onConnect ?? _stubTelegramConnect));
 
 Future<BotChannelDoc?> _stubTelegramConnect({
   required int botIid,
@@ -162,19 +160,14 @@ class _IoChannelTelegramConnectState extends State<IoChannelTelegramConnect> {
   }
 
   @override
-  Widget build(BuildContext context) => Dialog(
-        backgroundColor: const Color(0xFF18181B),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: Color(0xFF27272A))),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 440),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text('Connect Telegram', style: TextStyle(color: Color(0xFFF4F4F5), fontSize: 16, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 6),
+  Widget build(BuildContext context) => UiDialog(
+        maxWidth: 440,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            UiDialogHeader(title: 'Connect Telegram', closeEnabled: !_connecting),
+            const SizedBox(height: 6),
                 Wrap(
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
@@ -197,17 +190,15 @@ class _IoChannelTelegramConnectState extends State<IoChannelTelegramConnect> {
                 if (_error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_error!, style: const TextStyle(color: Color(0xFFEF4444), fontSize: 11))),
                 _logPanel(),
                 const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(onPressed: _connecting ? null : () => Navigator.pop(context), child: const Text('Cancel')),
-                    const SizedBox(width: 8),
-                    FilledButton(onPressed: _connecting ? null : _connect, style: FilledButton.styleFrom(backgroundColor: const Color(0xFF38BDF8), foregroundColor: Colors.black), child: Text(_connecting ? 'Connecting…' : 'Connect')),
-                  ],
-                ),
-              ],
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton(
+                onPressed: _connecting ? null : _connect,
+                style: FilledButton.styleFrom(backgroundColor: const Color(0xFF38BDF8), foregroundColor: Colors.black),
+                child: Text(_connecting ? 'Connecting…' : 'Connect'),
+              ),
             ),
-          ),
+          ],
         ),
       );
 }

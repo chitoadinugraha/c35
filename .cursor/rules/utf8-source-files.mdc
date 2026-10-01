@@ -9,6 +9,17 @@ Rust, Dart, markdown, SQL, proto, and most repo text **must be UTF-8** (BOM opti
 
 Mirrored for Antigravity: [`.agents/rules/utf8-source-files.md`](../../.agents/rules/utf8-source-files.md)
 
+## Why it spikes on Windows (especially with Cursor Agent)
+
+| Cause | What happens |
+|--------|----------------|
+| **PowerShell 5.1** (default Cursor shell on Windows) | `Set-Content`, `Out-File`, and `>` / `>>` write **UTF-16 LE** unless overridden. |
+| **Agent shell writes** | Repair scripts that use default cmdlets re-corrupt or new files land as UTF-16. |
+| **Some editor/agent writes** | Occasional UTF-16 LE **without BOM** on new files (`import` looks fine in UI, Dart sees `U+0000` between letters). |
+| **Checks missed untracked files** | `git diff` does not list `??` files — fixed: `-Changed` now includes `git ls-files --others`. |
+
+**Repo defenses (use all):** `.editorconfig` + `.vscode/settings.json` (`files.encoding: utf8`), **`.cursor/hooks.json`** `afterFileEdit` → auto `-Changed -Fix`, **pre-commit** (`setup_githooks.ps1`), `check_utf8_sources.ps1 -Changed` before done.
+
 ## Agents — hard rules
 
 1. **Prefer the editor / Write / ApplyPatch tools** to create or change `.rs`, `.md`, `.dart`, `.sql`, `.toml`, `.proto`, `.mdc`, `.ps1`. Do **not** write source via shell redirects (`>`, `>>`) or default `Set-Content` / `Out-File`.
@@ -22,10 +33,10 @@ Mirrored for Antigravity: [`.agents/rules/utf8-source-files.md`](../../.agents/r
 4. After editing any of the extensions above (or before claiming done), run:
 
 ```powershell
-.\_\scripts\dev\check_utf8_sources.ps1 -Changed
+.\_\scripts\dev\check_utf8_sources.ps1 -Changed -Fix
 ```
 
-If it fails, run `-Fix` on the listed paths or re-save from git/UTF-8.
+Dart/Flutter: `.\_\scripts\dev\verify_flutter_app.ps1` (UTF-8 check + `flutter analyze`).
 
 ## Humans — UTF-8 PowerShell (Windows)
 

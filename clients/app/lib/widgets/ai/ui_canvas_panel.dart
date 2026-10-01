@@ -4,6 +4,7 @@ import 'package:alienai_c35/widgets/ai/ui_canvas_diff_view.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:alienai_c35/widgets/ai/ui_markdown_body.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
 class UiCanvasPanel extends StatefulWidget {
@@ -435,7 +436,7 @@ class _UiCanvasPanelState extends State<UiCanvasPanel> {
       color: _bg,
       padding: const EdgeInsets.all(16),
       child: SingleChildScrollView(
-        child: MarkdownBody(
+        child: UiMarkdownBody(
           data: content.isNotEmpty ? content : '_Empty content_',
           selectable: true,
           styleSheet: MarkdownStyleSheet(
@@ -579,7 +580,7 @@ class _UiCanvasPanelState extends State<UiCanvasPanel> {
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(24, 20, 24, 36),
                       child: SingleChildScrollView(
-                        child: MarkdownBody(
+                        child: UiMarkdownBody(
                           data: slideContent,
                           selectable: true,
                           styleSheet: MarkdownStyleSheet(
@@ -656,7 +657,7 @@ class _UiCanvasPanelState extends State<UiCanvasPanel> {
                 ],
               ),
               const SizedBox(height: 12),
-              MarkdownBody(
+              UiMarkdownBody(
                 data: slides[i],
                 selectable: true,
                 styleSheet: MarkdownStyleSheet(

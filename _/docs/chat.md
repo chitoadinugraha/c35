@@ -92,6 +92,7 @@ chat_member: one row (member_iid = owner)
 ```
 
 - User ↔ AI; assistant uses `role=assistant`.
+- Assistant **markdown** in the app (`UiMarkdownBody`) renders GFM plus LaTeX (`$…$`, `$$…$$`, `\(\)`, `\[ \]`) via `flutter_math_fork` — no WebView; LaTeX stays in `content`.
 - Canvas / UI blocks on assistant messages (`blocks_json`).
 - Billing trace on assistant turns (see [billing.md](billing.md)).
 - No `ai_reply_enabled` (abort in-flight turn only).

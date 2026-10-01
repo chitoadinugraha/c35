@@ -71,9 +71,11 @@ function Get-TargetPaths {
     if ($Changed) {
         Push-Location $Root
         try {
+            # Include untracked paths — agent-created files are often UTF-16 and never appear in git diff alone.
             $names = @(
                 git diff --name-only --diff-filter=ACM 2>$null
                 git diff --cached --name-only --diff-filter=ACM 2>$null
+                git ls-files --others --exclude-standard 2>$null
             ) | Select-Object -Unique
         } finally {
             Pop-Location
@@ -98,7 +100,6 @@ foreach ($full in $targets) {
     $bytes = [IO.File]::ReadAllBytes($full)
     if (-not (Test-IsUtf16Bytes $bytes)) { continue }
 
-    $bad += $full
     if ($Fix) {
         $text = if ($bytes[0] -eq 0xFF -and $bytes[1] -eq 0xFE) {
             [IO.File]::ReadAllText($full, [Text.Encoding]::Unicode)
@@ -109,7 +110,11 @@ foreach ($full in $targets) {
         }
         [IO.File]::WriteAllText($full, $text, $utf8NoBom)
         Write-Host "Fixed UTF-16 -> UTF-8: $full"
+        $bytes = [IO.File]::ReadAllBytes($full)
+        if (-not (Test-IsUtf16Bytes $bytes)) { continue }
     }
+
+    $bad += $full
 }
 
 if ($bad.Count -eq 0) {

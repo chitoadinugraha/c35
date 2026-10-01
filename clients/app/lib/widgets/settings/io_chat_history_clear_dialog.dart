@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/c/store/chat_store.dart';
+import 'package:alienai_c35/widgets/ui/ui_dialog.dart';
 import 'package:alienai_c35/widgets/ui/ui_slide_confirm.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -19,11 +20,7 @@ Future<bool> chatHistoryClearConfirmShow(
   required ChatConn conn,
   required ChatStore store,
 }) async {
-  final result = await showDialog<bool>(
-    context: context,
-    barrierDismissible: false,
-    builder: (_) => IoChatHistoryClearDialog(conn: conn, store: store),
-  );
+  final result = await uiDialogShow<bool>(context: context, builder: (_) => IoChatHistoryClearDialog(conn: conn, store: store));
   return result == true;
 }
 

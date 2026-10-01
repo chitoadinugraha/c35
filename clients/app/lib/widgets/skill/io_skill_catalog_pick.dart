@@ -4,16 +4,15 @@ import 'package:alienai_c35/c/pb/c35/skill.pb.dart';
 import 'package:alienai_c35/c/skill/skill_api.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
+import 'package:alienai_c35/widgets/ui/ui_dialog.dart';
 import 'package:flutter/material.dart';
 
 const _border = Color(0xFF27272A);
 const _title = Color(0xFFF4F4F5);
 const _muted = Color(0xFF71717A);
 
-Future<SkillCatalog?> ioSkillCatalogPick(BuildContext context, {required SkillApi api}) => showDialog<SkillCatalog>(
-      context: context,
-      builder: (_) => _IoSkillCatalogDialog(api: api),
-    );
+Future<SkillCatalog?> ioSkillCatalogPick(BuildContext context, {required SkillApi api}) =>
+    uiDialogShow<SkillCatalog>(context: context, builder: (_) => _IoSkillCatalogDialog(api: api));
 
 class _IoSkillCatalogDialog extends StatefulWidget {
   const _IoSkillCatalogDialog({required this.api});
@@ -83,39 +82,15 @@ class _IoSkillCatalogDialogState extends State<_IoSkillCatalogDialog> {
   @override
   Widget build(BuildContext context) {
     final currency = AppStore.instance.wallet.billingCurrency;
-    return Dialog(
-      backgroundColor: const Color(0xFF18181B),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: _border)),
-      child: SizedBox(
-        width: 420,
-        height: 480,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text('Skill marketplace', style: TextStyle(color: _title, fontSize: 15, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 4),
-              const Text('Alien catalog + OpenSkill', style: TextStyle(color: _muted, fontSize: 11)),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _search,
-                autofocus: true,
-                style: const TextStyle(color: _title, fontSize: 13),
-                decoration: InputDecoration(
-                  hintText: 'Search skills…',
-                  hintStyle: const TextStyle(color: _muted),
-                  prefixIcon: const Icon(Icons.search, size: 18, color: _muted),
-                  isDense: true,
-                  filled: true,
-                  fillColor: const Color(0xFF100F12),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _border)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _border)),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF34D399))),
-                ),
-                onChanged: _onSearchChanged,
-              ),
-              const SizedBox(height: 10),
+    return UiDialog(
+      width: 420,
+      height: 480,
+      padding: uiDialogInsetCompact,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          UiDialogSearchHeader(controller: _search, hintText: 'Search skills…', onChanged: _onSearchChanged),
+          const SizedBox(height: 10),
               Expanded(
                 child: _loading
                     ? const Center(child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF34D399)))
@@ -173,13 +148,7 @@ class _IoSkillCatalogDialogState extends State<_IoSkillCatalogDialog> {
                                 },
                               ),
               ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-              ),
-            ],
-          ),
-        ),
+        ],
       ),
     );
   }

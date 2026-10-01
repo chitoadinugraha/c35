@@ -13,6 +13,7 @@ import 'package:alienai_c35/widgets/ui/ui_page.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:alienai_c35/widgets/ai/ui_markdown_body.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
 const _border = Color(0xFF27272A);
@@ -503,7 +504,7 @@ class UiSkillMasterDetailState extends State<UiSkillMasterDetail> {
                   const Text('No recorded steps yet — use Teach on Remote to capture a tape.', style: TextStyle(color: _muted, fontSize: 12)),
                   const SizedBox(height: 16),
                 ],
-                MarkdownBody(
+                UiMarkdownBody(
                   data: skill.bodyMd.isNotEmpty ? skill.bodyMd : '_No content_',
                   styleSheet: MarkdownStyleSheet(
                     p: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 14, height: 1.5),

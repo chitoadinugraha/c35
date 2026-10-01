@@ -55,6 +55,8 @@ dependencies:
       ref: 240aa1bacc3f339e2968891b11f71dda070ba07c
   extended_text_field: ^17.0.0
   extended_text: ^15.0.2
+  flutter_markdown_latex: ^0.3.4
+  flutter_math_fork: ^0.7.4
 dev_dependencies:
   flutter_test:
     sdk: flutter

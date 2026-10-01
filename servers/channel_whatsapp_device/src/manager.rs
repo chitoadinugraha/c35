@@ -1,4 +1,5 @@
 use crate::db;
+use crate::inbound_filter::wa_linked_inbound_accept;
 use crate::media::extract_message_payload;
 use crate::nats::{ActChannelWhatsappPair, EvChannelAttachment, EvChannelMsgIn, EvChannelPairUpdate, NatsService, SUBJ_PAIR};
 use crate::outbound::start_outbound_worker;
@@ -772,6 +773,13 @@ async fn run_channel_bot(
                     }
                     Event::Message(msg, info) => {
                         if info.source.is_from_me {
+                            return;
+                        }
+                        if !wa_linked_inbound_accept(&info.source, &msg) {
+                            debug!(
+                                "[wa-device] inbound ignored channel_id={channel_id} chat={}",
+                                info.source.chat
+                            );
                             return;
                         }
                         let payload = match extract_message_payload(&http, &client, bot_iid, &channel_id, &webhook_secret, &msg).await {

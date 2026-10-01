@@ -125,7 +125,7 @@ const epusPasienSearchInPage = (query, searchBy) => {
   const clear = (el) => {
     if (el) setVal(el, "");
   };
-  const isNikPenjamin = (el) => /typetypesearch/i.test(`${el.name || ""} ${el.id || ""}`);
+  const isPenjaminValue = (el) => /typetypesearchvalue/i.test(`${el.name || ""} ${el.id || ""}`);
   const isTglLahir = (el) => /cari\s*tanggal/i.test(el.placeholder || "");
   const inputs = () =>
     Array.from(document.querySelectorAll("input[type=text], input:not([type]), textarea")).filter(
@@ -135,25 +135,54 @@ const epusPasienSearchInPage = (query, searchBy) => {
     const byPh = list.find((el) => /cari\s*nama/i.test(el.placeholder || ""));
     if (byPh) return byPh;
     const byName = list.find(
-      (el) => /typename/i.test(`${el.name || ""} ${el.id || ""}`) && !isNikPenjamin(el)
+      (el) => /typename/i.test(`${el.name || ""} ${el.id || ""}`) && !isPenjaminValue(el)
     );
     if (byName) return byName;
     const byPos = list
-      .filter((el) => !isNikPenjamin(el) && !isTglLahir(el))
+      .filter((el) => !isPenjaminValue(el) && !isTglLahir(el))
       .map((el) => ({ el, r: el.getBoundingClientRect() }))
       .filter((x) => x.r.width > 8 && x.r.height > 8)
       .sort((a, b) => a.r.top - b.r.top || a.r.left - b.r.left);
     return byPos[0]?.el || null;
   };
-  const nikPenjaminEl = (list) => list.find((el) => isNikPenjamin(el)) || null;
+  const nikPenjaminEl = () =>
+    document.querySelector(
+      'input[name*="typeTypeSearchValue" i], input[id*="typeTypeSearchValue" i], input[name*="typetypesearchvalue" i]'
+    ) ||
+    Array.from(document.querySelectorAll("input[type=text], input:not([type])")).find((el) =>
+      isPenjaminValue(el)
+    ) ||
+    null;
+  const ensurePenjaminDropdown = () => {
+    const sel = document.querySelector(
+      'select[name*="typeTypeSearch" i], select[id*="typeTypeSearch" i], select[name*="typetypesearch" i]'
+    );
+    if (!sel) return false;
+    const opts = Array.from(sel.options || []);
+    const hit = opts.find((o) => {
+      const v = `${o.value || ""}`.toLowerCase();
+      const t = `${o.text || ""}`.toLowerCase();
+      return v.includes("nik") || v.includes("asuransi") || t.includes("nik") || t.includes("asuransi");
+    });
+    if (!hit) return false;
+    sel.value = hit.value;
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+    return true;
+  };
   const mode = String(searchBy || "nama").toLowerCase();
+  const penjamin = mode === "kartu" || mode === "penjamin" || mode === "nik";
   const all = inputs();
   let pick = null;
   const nama = cariNamaEl(all);
-  const nik = nikPenjaminEl(all);
-  if (mode === "kartu") {
-    clear(nama);
+  const nik = nikPenjaminEl();
+  if (penjamin) {
+    ensurePenjaminDropdown();
+    all.forEach((el) => {
+      if (isPenjaminValue(el)) return;
+      clear(el);
+    });
     pick = nik;
+    if (!pick) throw new Error("NIK / No Asuransi input not found");
   } else {
     if (!nama) throw new Error("Cari Nama input not found");
     all.forEach((el) => {
@@ -172,7 +201,9 @@ const epusPasienSearchInPage = (query, searchBy) => {
     ok: true,
     search_by: mode,
     input: pick.placeholder || pick.name || pick.id || "input",
-    input_is_nik: isNikPenjamin(pick),
+    input_is_nik: isPenjaminValue(pick),
+    penjamin_dropdown: penjamin,
+    value_set: String(pick.value || ""),
     cari: !!cari,
   };
 };
@@ -222,6 +253,14 @@ const epusPasienFetchInPage = async (
     if (!dataRows?.length) return { row: null, ambiguous: false, matches: 0 };
     const kartu = digits(expKartu) || (/^\d{8,}$/.test(digits(q)) ? digits(q) : "");
     const name = String(expName || "").trim() || (kartu ? "" : String(q || "").trim());
+    if (kartu) {
+      const rowHay = (r) => `${rowCells(r).join(" ")} ${(r.textContent || "").trim()}`;
+      const withKartu = dataRows.filter((r) => kartuMatch(rowHay(r), kartu));
+      if (withKartu.length === 1) {
+        return { row: withKartu[0], ambiguous: false, matches: withKartu.length };
+      }
+      if (withKartu.length > 1) dataRows = withKartu;
+    }
     const scored = dataRows.map((row) => {
       const cells = rowCells(row);
       const text = cells.join(" ") || (row.textContent || "").trim();
@@ -497,16 +536,15 @@ export const pageAct = async (params = {}) => {
       const openDetail = params.open_detail !== false;
       const waitMs = Math.min(10_000, Math.max(600, Number(params.wait_ms) || 2400));
       const mode = String(searchBy || "nama").toLowerCase();
-      if (mode !== "kartu") {
-        await execInTab(tabId, () => {
-          const reset = Array.from(document.querySelectorAll("button, a, input[type=button]")).find((el) =>
-            /^reset$/i.test((el.textContent || el.value || "").trim())
-          );
-          if (reset) reset.click();
-          return { ok: true };
-        });
-        await new Promise((r) => setTimeout(r, 600));
-      }
+      const penjamin = mode === "kartu" || mode === "penjamin" || mode === "nik";
+      await execInTab(tabId, () => {
+        const reset = Array.from(document.querySelectorAll("button, a, input[type=button]")).find((el) =>
+          /^reset$/i.test((el.textContent || el.value || "").trim())
+        );
+        if (reset) reset.click();
+        return { ok: true };
+      });
+      await new Promise((r) => setTimeout(r, penjamin ? 800 : 600));
       const searchMeta = await execInTab(tabId, epusPasienSearchInPage, [q, searchBy]);
       await new Promise((r) => setTimeout(r, waitMs));
       const cariClicked = !!searchMeta?.cari;

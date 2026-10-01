@@ -140,17 +140,15 @@ class IoBotPackagePick extends StatelessWidget {
             decoration: UiInputDecoration.of(
               context,
               labelText: packageLabelKey.tr(),
+              hintText: hasValue ? null : 'botCreate.packageChoosePrompt'.tr(),
               floatingLabel: true,
               suffixIcon: const Icon(Icons.chevron_right_rounded, color: _muted, size: 22),
               suffixIconConstraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-            ),
+            ).copyWith(floatingLabelBehavior: FloatingLabelBehavior.always),
             isEmpty: !hasValue,
             child: hasValue
                 ? Text(line, style: const TextStyle(color: _title, fontSize: 14, fontWeight: FontWeight.w500))
-                : Text(
-                    'botCreate.packageChoosePrompt'.tr(),
-                    style: TextStyle(color: _muted.withValues(alpha: 0.65), fontSize: 14),
-                  ),
+                : const SizedBox.shrink(),
           ),
         ),
       ),

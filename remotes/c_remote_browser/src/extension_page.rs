@@ -46,7 +46,17 @@ fn page_act_ipc(params: &Value, action: &str, needs_selector: bool) -> anyhow::R
             .cloned()
             .unwrap_or(json!("nama"));
         ipc["search_by"] = search_by;
-        for key in ["wait_ms", "waitMs", "open_detail", "openDetail"] {
+        for key in [
+            "wait_ms",
+            "waitMs",
+            "open_detail",
+            "openDetail",
+            "no_kartu",
+            "noKartu",
+            "nama",
+            "expected_name",
+            "name",
+        ] {
             if let Some(v) = params.get(key) {
                 ipc[key] = v.clone();
             }

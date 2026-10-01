@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alienai_c35/c/chat/chat_inbox.dart';
 import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:flutter/material.dart';
+import 'package:alienai_c35/widgets/ai/ui_markdown_body.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
 const uiMsgThoughtColor = Color(0xFF6BA8C8);
@@ -126,7 +127,7 @@ class _UiMsgThoughtState extends State<UiMsgThought> {
           if (_expanded && _hasBody)
             Padding(
               padding: const EdgeInsets.only(top: 4, left: 22),
-              child: MarkdownBody(data: widget.text, selectable: false, styleSheet: _styleSheet),
+              child: UiMarkdownBody(data: widget.text, selectable: false, styleSheet: _styleSheet),
             ),
         ],
       ),
