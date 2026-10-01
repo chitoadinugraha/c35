@@ -608,8 +608,8 @@ class _UiBillingTopupPanelState extends State<UiBillingTopupPanel> {
             border: Border.all(color: _border),
           ),
           child: const Text(
-            'Adding credit in the Android app is not available. '
-            'Use Plans to pay with Google Play, spend existing credit on plans and packages, or add credit on the web (QRIS / bank transfer).',
+            'Available credit is used for usage and eligible in-app purchases. '
+            'To subscribe or change plans, open Plans. To apply a referral or voucher code, use Redeem on that screen.',
             style: TextStyle(color: _muted, fontSize: 12, height: 1.4),
           ),
         ),

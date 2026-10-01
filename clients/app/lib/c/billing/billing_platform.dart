@@ -7,3 +7,6 @@ bool billingUsePlayCheckout() => !kIsWeb && Platform.isAndroid && kReleaseMode;
 
 /// Subscription plans via Play (not wallet top-up).
 bool billingUsePlayPlans() => billingUsePlayCheckout();
+
+/// QRIS / bank / web top-up UI (forbidden on Play release builds — no external purchase steering).
+bool billingShowInAppTopup() => !billingUsePlayCheckout();

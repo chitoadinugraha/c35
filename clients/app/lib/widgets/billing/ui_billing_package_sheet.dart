@@ -167,16 +167,21 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
             )
           : BillingAccount(billingCurrency: _currency));
 
+  /// Play Billing only supports fixed subscription SKUs (full monthly/yearly list price).
   bool _usePlayForCharge(String kind, double chargeIdr) {
     final k = kind.trim().toLowerCase();
     if (!billingUsePlayPlans() || _selectionIsNoPlan || chargeIdr <= 0) return false;
-    if (k != 'subscribe' && k != 'upgrade') return false;
+    if (k != 'subscribe') return false;
     if (_currency != 'IDR') return false;
+    final list = _quote?.listPriceIdr ?? 0;
+    if (list <= 0 || chargeIdr.round() != list.round()) return false;
     return !billingCreditCoversCharge(_balanceAccount, currency: _currency, chargeIdr: chargeIdr);
   }
 
   String _payButtonSuffix(double chargeIdr, String kind) {
     if (chargeIdr <= 0 || _currency != 'IDR') return '';
+    final k = kind.trim().toLowerCase();
+    if (k == 'upgrade') return ' from credit';
     if (_usePlayForCharge(kind, chargeIdr)) return ' with Google Play';
     return ' from credit';
   }
@@ -286,6 +291,12 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
         await _load();
         _scheduleQuote();
         return;
+      }
+      if (billingUsePlayPlans() &&
+          kind == 'upgrade' &&
+          charge > 0 &&
+          !billingCreditCoversCharge(_balanceAccount, currency: _currency, chargeIdr: charge)) {
+        throw 'Not enough credit for this upgrade. Prorated plan changes on Android use account credit only.';
       }
       await billingPlanChangeAndSync(
         widget.conn,
