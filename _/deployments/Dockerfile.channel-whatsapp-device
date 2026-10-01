@@ -18,13 +18,15 @@ RUN chmod +x /usr/local/bin/workspace-stub.sh \
     && workspace-stub.sh server_ai fetcher node_stats
 COPY _/schemas /app/_/schemas
 WORKDIR /app/servers
-RUN cargo chef prepare --recipe-path /tmp/recipe.json
+ARG WA_DEVICE_PLANNER_REV=1
+RUN echo "wa-device planner rev ${WA_DEVICE_PLANNER_REV}" \
+    && cargo chef prepare --recipe-path /tmp/recipe.json
 
 FROM chef AS rust-build
 WORKDIR /app
 
 # Bust Buildkit layer cache when worker sources change (avoid shipping chef stub binary).
-ARG WA_DEVICE_BUILD_REV=5
+ARG WA_DEVICE_BUILD_REV=6
 RUN echo "wa-device build rev ${WA_DEVICE_BUILD_REV}"
 
 COPY servers/Cargo.toml servers/Cargo.lock /app/servers/
@@ -47,11 +49,13 @@ ENV CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1
 WORKDIR /app/servers
 RUN --mount=type=cache,target=/usr/local/cargo/registry,id=c35-wa-device-cargo-registry,sharing=locked \
     --mount=type=cache,target=/usr/local/cargo/git,id=c35-wa-device-cargo-git,sharing=locked \
-    --mount=type=cache,target=/app/target,id=c35-wa-device-rust-target-v4,sharing=locked \
+    --mount=type=cache,target=/app/target,id=c35-wa-device-rust-target-v5,sharing=locked \
     cargo chef cook --release --recipe-path recipe.json -p c35_channel_whatsapp_device \
-    && cargo build --release -p c35_channel_whatsapp_device --manifest-path Cargo.toml \
+    && cargo clean -p c35_channel_whatsapp_device \
+    && cargo build --release -p c35_channel_whatsapp_device --bin channel_whatsapp_device --manifest-path Cargo.toml \
     && cp /app/target/release/channel_whatsapp_device /app/channel_whatsapp_device \
     && test "$(stat -c%s /app/channel_whatsapp_device)" -gt 5000000 \
+    && strings /app/channel_whatsapp_device | grep -q 'wa-device' \
     && sha256sum /app/channel_whatsapp_device > /app/channel_whatsapp_device.sha
 
 FROM debian:bookworm-slim AS runtime
