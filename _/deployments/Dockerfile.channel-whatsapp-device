@@ -25,13 +25,13 @@ WORKDIR /app
 
 COPY servers/Cargo.toml servers/Cargo.lock /app/servers/
 COPY servers/crates /app/servers/crates
-COPY servers/channel_whatsapp_device/Cargo.toml /app/servers/channel_whatsapp_device/
+COPY servers/channel_whatsapp_device /app/servers/channel_whatsapp_device
 COPY servers/server_ai/Cargo.toml /app/servers/server_ai/
 COPY servers/fetcher/Cargo.toml /app/servers/fetcher/
 COPY servers/node_stats/Cargo.toml /app/servers/node_stats/
 COPY _/deployments/docker/workspace-stub.sh /usr/local/bin/workspace-stub.sh
 RUN chmod +x /usr/local/bin/workspace-stub.sh \
-    && workspace-stub.sh server_ai fetcher node_stats channel_whatsapp_device
+    && workspace-stub.sh server_ai fetcher node_stats
 
 COPY _/schemas /app/_/schemas
 COPY --from=planner /tmp/recipe.json /app/servers/recipe.json
@@ -46,17 +46,10 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,id=c35-wa-device-cargo-r
     --mount=type=cache,target=/app/target,id=c35-wa-device-rust-target,sharing=locked \
     cargo chef cook --release --recipe-path recipe.json -p c35_channel_whatsapp_device
 
-COPY servers/channel_whatsapp_device /app/servers/channel_whatsapp_device
-# Bust stale target cache for path crates (chef cook only linked the stub bin).
-RUN touch /app/servers/crates/mod_log/src/lib.rs \
-    /app/servers/crates/store/src/lib.rs \
-    /app/servers/crates/proto/src/lib.rs
-
 RUN --mount=type=cache,target=/usr/local/cargo/registry,id=c35-wa-device-cargo-registry,sharing=locked \
     --mount=type=cache,target=/usr/local/cargo/git,id=c35-wa-device-cargo-git,sharing=locked \
     --mount=type=cache,target=/app/target,id=c35-wa-device-rust-target,sharing=locked \
-    cargo build --release -p c35_store -p c35_mod_log \
-    && cargo build --release -p c35_channel_whatsapp_device --manifest-path Cargo.toml \
+    cargo build --release -p c35_channel_whatsapp_device --manifest-path Cargo.toml \
     && cp /app/target/release/channel_whatsapp_device /app/channel_whatsapp_device \
     && sha256sum /app/channel_whatsapp_device > /app/channel_whatsapp_device.sha
 
