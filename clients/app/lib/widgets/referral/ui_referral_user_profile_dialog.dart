@@ -796,7 +796,7 @@ class _ProfileWalletSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => _StatsCard(
-        title: 'Wallet',
+        title: 'Credit',
         icon: Icons.account_balance_wallet_outlined,
         child: Column(
           children: [

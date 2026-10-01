@@ -27,7 +27,6 @@ const DEFAULT_PACKAGE: &str = "id.alienai";
 const PLAN_PREFIX: &str = "id.alienai.plan.";
 const CREDIT_PREFIX: &str = "id.alienai.credit.";
 const USER_PLAN_SLUGS: &[&str] = &["lite", "plus", "pro", "ultra"];
-const PLAY_CREDIT_AMOUNTS_IDR: &[i64] = &[50_000, 100_000, 200_000, 500_000, 1_000_000];
 
 #[derive(Clone, Debug)]
 enum PlayProduct {
@@ -100,6 +99,26 @@ static PLAY_API: OnceLock<Option<Arc<PlayApi>>> = OnceLock::new();
 
 pub fn play_price_idr(web_idr: f64) -> f64 {
     (web_idr * PLAY_MARKUP).round()
+}
+
+async fn plan_web_price_idr(pool: &PgPool, slug: &str, period: &str) -> Result<i64, String> {
+    let amount: Option<f64> = sqlx::query_scalar(
+        r#"
+        SELECT amount::float8
+        FROM ai.billing_plan_price
+        WHERE plan_slug = $1 AND billing_period = $2 AND currency = 'IDR' AND is_active = TRUE
+        LIMIT 1
+        "#,
+    )
+    .bind(slug.trim())
+    .bind(period.trim())
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+    amount
+        .filter(|v| *v > 0.0)
+        .map(|v| v.round() as i64)
+        .ok_or_else(|| "plan price not found".into())
 }
 
 pub fn play_stub_enabled() -> bool {
@@ -515,6 +534,26 @@ pub async fn billing_play_verify(
         }
     })?;
 
+    if kind == "plan" && !plan_slug.is_empty() {
+        let commission_idr = plan_web_price_idr(pool, &plan_slug, &billing_period)
+            .await
+            .unwrap_or(0);
+        if commission_idr > 0 {
+            let purchase_ref = format!("play:{play_purchase_id}");
+            if let Err(e) = c35_mod_referral::commission_accrue_on_purchase(
+                pool,
+                owner_iid,
+                commission_idr,
+                &purchase_ref,
+                "plan_subscribe",
+            )
+            .await
+            {
+                tracing::warn!("commission accrue on play plan: {e}");
+            }
+        }
+    }
+
     finish_verify_response(
         pool,
         owner_iid,
@@ -550,7 +589,7 @@ pub async fn billing_play_product_list(
     .await
     .map_err(|e| e.to_string())?;
 
-    let mut products: Vec<BillingPlayProductDoc> = rows
+    let products: Vec<BillingPlayProductDoc> = rows
         .into_iter()
         .map(|r| {
             let slug: String = r.get("plan_slug");
@@ -567,19 +606,6 @@ pub async fn billing_play_product_list(
             }
         })
         .collect();
-
-    for &amount in PLAY_CREDIT_AMOUNTS_IDR {
-        let web = amount as f64;
-        products.push(BillingPlayProductDoc {
-            product_id: format!("{CREDIT_PREFIX}{amount}"),
-            kind: "credit".into(),
-            plan_slug: String::new(),
-            billing_period: String::new(),
-            credit_idr: web,
-            web_price_idr: web,
-            play_price_idr: play_price_idr(web),
-        });
-    }
 
     Ok(ResBillingPlayProductList { products })
 }

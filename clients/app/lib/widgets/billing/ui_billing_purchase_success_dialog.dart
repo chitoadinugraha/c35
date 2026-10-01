@@ -58,7 +58,7 @@ class _BillingPurchaseSuccessDialog extends StatelessWidget {
   String _titleFor(BillingEntitlementDoc doc) {
     if (doc.planName.trim().isNotEmpty) return doc.planName;
     if (doc.planSlug.trim().isNotEmpty) return billingPlanTierLabel(doc.planSlug);
-    if (doc.creditIdr > 0) return 'Wallet credit';
+    if (doc.creditIdr > 0) return 'Credit';
     return 'Entitlement';
   }
 

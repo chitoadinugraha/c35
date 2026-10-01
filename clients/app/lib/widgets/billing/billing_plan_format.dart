@@ -119,7 +119,7 @@ List<String> billingPlanSummaryChips(BillingPlanDoc plan, {bool yearly = false})
     if (alien > 0) '${billingFmtRp(alien, compact: true)} Alien/mo',
     if (frontier > 0) '${billingFmtRp(frontier, compact: true)} API/mo',
     '$iot devices',
-    if (plan.overageEnabled) 'Wallet overage',
+    if (plan.overageEnabled) 'Credit overage',
     if (billingPlanPriorityBadge(plan) != null) 'Priority queue',
   ];
   return chips.length > 4 ? chips.sublist(0, 4) : chips;
@@ -218,7 +218,7 @@ List<BillingPlanQuotaLine> billingPlanQuotaLines(BillingPlanDoc plan, {BillingPl
       comparison: billingPlanTierComparison(iot, liteIot),
     ),
     if (plan.overageEnabled)
-      const BillingPlanQuotaLine(label: 'Wallet overage', value: 'Enabled', showsIncluded: false, valueAccent: true),
+      const BillingPlanQuotaLine(label: 'Credit overage', value: 'Enabled', showsIncluded: false, valueAccent: true),
     const BillingPlanQuotaLine(label: 'Limits', kind: BillingPlanLineKind.sectionHeader),
     if (alien > 0)
       BillingPlanQuotaLine(

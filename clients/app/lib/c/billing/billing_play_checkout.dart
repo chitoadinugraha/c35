@@ -5,19 +5,33 @@ import 'package:alienai_c35/c/billing/billing_play_api.dart';
 import 'package:alienai_c35/c/billing/billing_store_sync.dart';
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_android/in_app_purchase_android.dart';
+
+ProductDetails? billingPlayProductDetailsPick(ProductDetailsResponse catalog, String productId) {
+  final matches = catalog.productDetails.where((p) => p.id == productId).toList();
+  if (matches.isEmpty) return null;
+  for (final p in matches) {
+    if (p is GooglePlayProductDetails && (p.offerToken ?? '').isNotEmpty) return p;
+  }
+  return matches.first;
+}
 
 Future<ResBillingPlayVerify> billingPlayPurchaseAndVerify(
   ReferralConn conn, {
   required BillingPlayProductDoc product,
-  Set<String>? queryIds,
 }) async {
   final iap = InAppPurchase.instance;
   if (!await iap.isAvailable()) throw 'Google Play Billing is not available';
-  final ids = queryIds ?? {product.productId};
-  final catalog = await iap.queryProductDetails(ids);
+  final productId = product.productId.trim();
+  if (productId.isEmpty) throw 'Missing Play product id';
+  final catalog = await iap.queryProductDetails({productId});
   if (catalog.error != null) throw catalog.error!.message;
-  final details = catalog.productDetails.where((p) => p.id == product.productId).firstOrNull;
-  if (details == null) throw 'Product not found in Play Store (${product.productId})';
+  final details = billingPlayProductDetailsPick(catalog, productId);
+  if (details == null) {
+    final missing = catalog.notFoundIDs.isEmpty ? productId : catalog.notFoundIDs.join(', ');
+    throw 'Subscription not found in Google Play ($missing). '
+        'Confirm SKU "$productId" is active in Play Console for id.alienai and this app build is on internal/testing or production.';
+  }
 
   final purchase = await _awaitPurchase(iap, details, product.kind == 'credit');
   final token = purchase.verificationData.serverVerificationData.trim().isNotEmpty
@@ -25,7 +39,7 @@ Future<ResBillingPlayVerify> billingPlayPurchaseAndVerify(
       : purchase.verificationData.localVerificationData;
   if (token.trim().isEmpty) throw 'Missing purchase token from Google Play';
 
-  final verified = await billingPlayVerify(conn, productId: product.productId, purchaseToken: token);
+  final verified = await billingPlayVerify(conn, productId: productId, purchaseToken: token);
   if (purchase.pendingCompletePurchase) await iap.completePurchase(purchase);
   if (verified.balanceIdr > 0) await billingStoreRefresh(conn);
   return verified;
@@ -52,7 +66,9 @@ Future<PurchaseDetails> _awaitPurchase(InAppPurchase iap, ProductDetails details
   });
 
   try {
-    final param = PurchaseParam(productDetails: details);
+    final param = details is GooglePlayProductDetails
+        ? GooglePlayPurchaseParam(productDetails: details)
+        : PurchaseParam(productDetails: details);
     final started = consumable ? await iap.buyConsumable(purchaseParam: param) : await iap.buyNonConsumable(purchaseParam: param);
     if (!started) throw 'Could not start Google Play purchase';
     return await completer.future.timeout(const Duration(minutes: 8));
@@ -78,3 +94,6 @@ BillingPlayProductDoc? billingPlayProductMatch(
   }
   return null;
 }
+
+List<BillingPlayProductDoc> billingPlayPlanProducts(List<BillingPlayProductDoc> products) =>
+    products.where((p) => p.kind == 'plan').toList();

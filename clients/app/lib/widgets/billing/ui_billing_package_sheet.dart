@@ -156,6 +156,31 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
 
   String get _currency => billingPrimaryCurrency(AppStore.instance.billing ?? BillingAccount(billingCurrency: moneyDefaultCurrency));
 
+  BillingAccount get _balanceAccount =>
+      AppStore.instance.billing ??
+      (_summary != null
+          ? BillingAccount(
+              balanceUsd: _summary!.balanceUsd,
+              balanceIdr: _summary!.balanceIdr,
+              billingCurrency: billingCurrencyResolve(fromSummary: _summary!.hasBillingCurrency() ? _summary!.billingCurrency : null),
+              fxMicroPerUsd: _summary!.hasFxMicroPerUsd() ? _summary!.fxMicroPerUsd : Int64(moneyDefaultFxMicroPerUsd),
+            )
+          : BillingAccount(billingCurrency: _currency));
+
+  bool _usePlayForCharge(String kind, double chargeIdr) {
+    final k = kind.trim().toLowerCase();
+    if (!billingUsePlayPlans() || _selectionIsNoPlan || chargeIdr <= 0) return false;
+    if (k != 'subscribe' && k != 'upgrade') return false;
+    if (_currency != 'IDR') return false;
+    return !billingCreditCoversCharge(_balanceAccount, currency: _currency, chargeIdr: chargeIdr);
+  }
+
+  String _payButtonSuffix(double chargeIdr, String kind) {
+    if (chargeIdr <= 0 || _currency != 'IDR') return '';
+    if (_usePlayForCharge(kind, chargeIdr)) return ' with Google Play';
+    return ' from credit';
+  }
+
   bool get _selectedIsCurrent {
     if (_selectedSlug == null) return false;
     if (_selectionIsNoPlan) {
@@ -208,13 +233,15 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
     if (kind == 'same') return 'Current plan';
     if (kind == 'upgrade') {
       final charge = _quote?.chargeIdr ?? 0;
-      if (charge > 0 && _currency == 'IDR') return 'Pay ${billingFmtRp(charge)} (prorated)';
+      if (charge > 0 && _currency == 'IDR') {
+        return 'Pay ${billingFmtRp(charge)}${_payButtonSuffix(charge, kind)} (prorated)';
+      }
       return 'Upgrade now';
     }
     if (kind == 'downgrade' || kind == 'cancel') return 'Schedule at period end';
     final charge = _quote?.chargeIdr ?? 0;
     if (charge > 0 && _currency == 'IDR') {
-      return billingUsePlayCheckout() ? 'Pay ${billingFmtRp(charge)} with Google Play' : 'Pay ${billingFmtRp(charge)} from balance';
+      return 'Pay ${billingFmtRp(charge)}${_payButtonSuffix(charge, kind)}';
     }
     return 'Confirm plan change';
   }
@@ -235,11 +262,11 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
     try {
       final kind = (_quote?.kind ?? '').trim().toLowerCase();
       final charge = _quote?.chargeIdr ?? 0;
-      final usePlay = billingUsePlayCheckout() && !_selectionIsNoPlan && kind == 'upgrade' && charge > 0;
-      if (usePlay) {
+      if (_usePlayForCharge(kind, charge)) {
         final catalog = await billingPlayProductList(widget.conn);
+        final plans = billingPlayPlanProducts(catalog.products);
         final product = billingPlayProductMatch(
-          catalog.products,
+          plans,
           planSlug: slug,
           billingPeriod: _selectionPeriod,
         );
@@ -247,7 +274,6 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
         final verified = await billingPlayPurchaseAndVerify(
           widget.conn,
           product: product,
-          queryIds: catalog.products.map((p) => p.productId).toSet(),
         );
         if (!mounted) return;
         await billingPurchaseSuccessDialogShow(
@@ -298,7 +324,7 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
                 fxMicroPerUsd: _summary!.hasFxMicroPerUsd() ? _summary!.fxMicroPerUsd : Int64(moneyDefaultFxMicroPerUsd),
               )
             : null);
-    final balanceLabel = balanceAccount != null ? billingWalletBalanceLabel(balanceAccount, _currency) : '';
+    final balanceLabel = balanceAccount != null ? billingCreditBalanceLabel(balanceAccount, _currency) : '';
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       child: ConstrainedBox(
@@ -553,7 +579,7 @@ class _BillingCheckoutBar extends StatelessWidget {
                 children: [
                   const Icon(Icons.account_balance_wallet_outlined, size: 14, color: _muted),
                   const SizedBox(width: 6),
-                  Text('Balance $balanceLabel', style: const TextStyle(color: _muted, fontSize: 11)),
+                  Text('Credit $balanceLabel', style: const TextStyle(color: _muted, fontSize: 11)),
                 ],
               ),
             ],

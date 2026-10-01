@@ -26,6 +26,7 @@ dependencies:
   archive: ^4.3.0
   in_app_update: ^4.2.3
   in_app_purchase: ^3.2.3
+  in_app_purchase_android: ^0.5.3
   open_filex: ^4.7.0
   web_socket_channel: ^3.0.1
   scrollable_positioned_list: ^0.3.8

@@ -10,9 +10,10 @@ import 'package:alienai_c35/c/media/media_types.dart';
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
+import 'package:alienai_c35/c/billing/billing_format.dart';
 import 'package:alienai_c35/c/billing/billing_platform.dart';
+import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/widgets/billing/billing_topup.dart';
-import 'package:alienai_c35/widgets/billing/ui_billing_play_topup_panel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -345,7 +346,7 @@ class _UiBillingTopupPanelState extends State<UiBillingTopupPanel> {
       decoration: BoxDecoration(color: const Color(0xFF1A1A1E), borderRadius: BorderRadius.circular(10), border: Border.all(color: _border)),
       child: Column(
         children: [
-          _feeRow('Wallet credit', billingTopupIdrLabel(_amountIdr)),
+          _feeRow('Credit added', billingTopupIdrLabel(_amountIdr)),
           const SizedBox(height: 4),
           _feeRow('Payment fee', billingTopupIdrLabel(_feeIdr)),
           const Divider(color: _border, height: 16),
@@ -582,11 +583,43 @@ class _UiBillingTopupPanelState extends State<UiBillingTopupPanel> {
     );
   }
 
+  Widget _buildAndroidCreditBalanceOnly() {
+    final billing = AppStore.instance.billing;
+    final account = billing ??
+        BillingAccount(
+          balanceIdr: 0,
+          balanceUsd: 0,
+          billingCurrency: widget.currency,
+        );
+    final balanceLabel = billingCreditBalanceLabel(account, widget.currency);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text('Credit balance', style: TextStyle(color: _muted, fontSize: 12)),
+        const SizedBox(height: 8),
+        Text(balanceLabel, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 14),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A1A1E),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: _border),
+          ),
+          child: const Text(
+            'Adding credit in the Android app is not available. '
+            'Use Plans to pay with Google Play, spend existing credit on plans and packages, or add credit on the web (QRIS / bank transfer).',
+            style: TextStyle(color: _muted, fontSize: 12, height: 1.4),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (billingUsePlayCheckout() && _usesIdr) {
-      return UiBillingPlayTopupPanel(conn: widget.conn, onSubmitted: widget.onSubmitted);
-    }
+    if (billingUsePlayCheckout() && _usesIdr) return _buildAndroidCreditBalanceOnly();
     return _step == 0 ? _buildSetupStep() : _buildPaymentStep();
   }
 }

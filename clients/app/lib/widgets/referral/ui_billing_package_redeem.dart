@@ -108,8 +108,8 @@ class _BillingPackageRedeemDialogState extends State<_BillingPackageRedeemDialog
       Navigator.pop(context, true);
       final name = res.packageName.trim().isNotEmpty ? res.packageName : 'Package';
       final subtitle = prepaid
-          ? 'Prepaid voucher — no wallet charge'
-          : 'Rp ${uiFmtGroupedInt(charged.round())} charged from wallet';
+          ? 'Prepaid voucher — no credit charge'
+          : 'Rp ${uiFmtGroupedInt(charged.round())} charged from credit';
       await billingPurchaseSuccessDialogShow(
         context,
         entitlements: res.entitlements,

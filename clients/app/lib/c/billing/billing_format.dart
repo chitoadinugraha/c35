@@ -37,32 +37,45 @@ String billingCurrencyResolve({String? fromAccount, String? fromSummary}) {
 
 String billingPrimaryCurrency(BillingAccount account) => billingCurrencyResolve(fromAccount: account.billingCurrency);
 
-List<String> billingWalletCurrencies(BillingAccount? account) {
+List<String> billingCreditCurrencies(BillingAccount? account) {
   if (account == null) return [moneyDefaultCurrency];
   final primary = billingPrimaryCurrency(account);
   return {primary, 'IDR', 'USD'}.toList();
 }
 
-double billingWalletBalance(BillingAccount account, String currency) {
+List<String> billingWalletCurrencies(BillingAccount? account) => billingCreditCurrencies(account);
+
+double billingCreditBalance(BillingAccount account, String currency) {
   final cur = currency.toUpperCase();
   if (cur == 'IDR') return account.balanceIdr;
   if (cur == 'USD') return account.balanceUsd;
   return account.balanceUsd;
 }
 
-/// Single-currency balance for a wallet.
-String billingWalletBalanceLabel(BillingAccount? account, String currency) {
+double billingWalletBalance(BillingAccount account, String currency) => billingCreditBalance(account, currency);
+
+/// Single-currency prepaid credit balance (IDR / USD).
+String billingCreditBalanceLabel(BillingAccount? account, String currency) {
   if (account == null) return '';
   final cur = currency.toUpperCase();
-  if (cur == 'IDR') return moneyFmtIdr(billingWalletBalance(account, cur));
-  if (cur == 'USD') return moneyFmtUsd(billingWalletBalance(account, cur));
+  if (cur == 'IDR') return moneyFmtIdr(billingCreditBalance(account, cur));
+  if (cur == 'USD') return moneyFmtUsd(billingCreditBalance(account, cur));
   final fx = account.hasFxMicroPerUsd() ? account.fxMicroPerUsd.toInt() : moneyDefaultFxMicroPerUsd;
   return moneyBalanceLabel(account.balanceUsd, currency: cur, fxMicroPerUsd: fx);
 }
 
-/// Default (primary) wallet balance.
+String billingWalletBalanceLabel(BillingAccount? account, String currency) =>
+    billingCreditBalanceLabel(account, currency);
+
+/// Default (primary) credit balance.
 String billingBalanceLabel(BillingAccount? account) =>
-    billingWalletBalanceLabel(account, billingPrimaryCurrency(account ?? BillingAccount()));
+    billingCreditBalanceLabel(account, billingPrimaryCurrency(account ?? BillingAccount()));
+
+bool billingCreditCoversCharge(BillingAccount account, {required String currency, double chargeIdr = 0, double chargeUsd = 0}) {
+  final cur = currency.toUpperCase();
+  if (cur == 'IDR') return chargeIdr <= 0 || billingCreditBalance(account, 'IDR') + 0.01 >= chargeIdr;
+  return chargeUsd <= 0 || billingCreditBalance(account, 'USD') + 0.001 >= chargeUsd;
+}
 
 String billingHistoryAmountLabel(BillingHistoryRow row) {
   if (row.hasCurrency() && row.currency.isNotEmpty) {

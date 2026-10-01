@@ -176,7 +176,7 @@ class _ReferralWithdrawSheetState extends State<_ReferralWithdrawSheet> {
               SegmentedButton<String>(
                 segments: const [
                   ButtonSegment(value: referralWithdrawPayoutBank, label: Text('Bank transfer'), icon: Icon(Icons.account_balance_outlined, size: 14)),
-                  ButtonSegment(value: referralWithdrawPayoutWallet, label: Text('Wallet credit'), icon: Icon(Icons.account_balance_wallet_outlined, size: 14)),
+                  ButtonSegment(value: referralWithdrawPayoutWallet, label: Text('Credit balance'), icon: Icon(Icons.account_balance_wallet_outlined, size: 14)),
                 ],
                 selected: {_payoutMethod},
                 onSelectionChanged: _busy ? null : (s) => setState(() => _payoutMethod = s.first),
@@ -219,7 +219,7 @@ class _ReferralWithdrawSheetState extends State<_ReferralWithdrawSheet> {
                 ),
               ] else ...[
                 const SizedBox(height: 12),
-                const Text('Credit commission to your wallet balance.', style: TextStyle(color: _muted, fontSize: 12, height: 1.4)),
+                const Text('Credit commission to your account credit balance.', style: TextStyle(color: _muted, fontSize: 12, height: 1.4)),
               ],
               const SizedBox(height: 12),
               TextField(

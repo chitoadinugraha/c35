@@ -63,8 +63,7 @@ class _UiBillingPlayTopupPanelState extends State<UiBillingPlayTopupPanel> {
       _error = null;
     });
     try {
-      final ids = _credits.map((p) => p.productId).toSet();
-      final verified = await billingPlayPurchaseAndVerify(widget.conn, product: product, queryIds: ids);
+      final verified = await billingPlayPurchaseAndVerify(widget.conn, product: product);
       if (!mounted) return;
       widget.onSubmitted?.call();
       await billingPurchaseSuccessDialogShow(
