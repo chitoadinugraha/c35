@@ -23,6 +23,10 @@ RUN cargo chef prepare --recipe-path /tmp/recipe.json
 FROM chef AS rust-build
 WORKDIR /app
 
+# Bust Buildkit layer cache when worker sources change (avoid shipping chef stub binary).
+ARG WA_DEVICE_BUILD_REV=3
+RUN echo "wa-device build rev ${WA_DEVICE_BUILD_REV}"
+
 COPY servers/Cargo.toml servers/Cargo.lock /app/servers/
 COPY servers/crates /app/servers/crates
 COPY servers/channel_whatsapp_device /app/servers/channel_whatsapp_device
