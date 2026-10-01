@@ -1,4 +1,4 @@
-﻿use std::collections::HashMap;
+use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 pub type MailUserNotifyFn = Arc<dyn Fn(i64, serde_json::Value) + Send + Sync>;
 pub type MailPushOfflineFn = Arc<dyn Fn(i64, String, String, HashMap<String, String>) + Send + Sync>;

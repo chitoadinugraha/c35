@@ -1,4 +1,4 @@
-﻿use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Result};
 use async_nats::Client;
 use c35_mod_log::{log_put, LogPut};
 use c35_proto::{ReqIdentityPut, ResIdentityPut};

@@ -311,7 +311,7 @@ class _InComposerState extends State<InComposer> {
 
   void _restoreComposerFocus([TextSelection? selection]) {
     final sel = selection ?? _controller.selection;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    void apply() {
       if (!mounted || !_focus.canRequestFocus) return;
       _focus.requestFocus();
       if (!sel.isValid) return;
@@ -320,6 +320,17 @@ class _InComposerState extends State<InComposer> {
         baseOffset: sel.baseOffset.clamp(0, len),
         extentOffset: sel.extentOffset.clamp(0, len),
       );
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      apply();
+      if (defaultTargetPlatform != TargetPlatform.android || !mounted) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        apply();
+        if (_focus.hasFocus) {
+          unawaited(SystemChannels.textInput.invokeMethod<void>('TextInput.show'));
+        }
+      });
     });
   }
 
@@ -1232,21 +1243,13 @@ class _InComposerState extends State<InComposer> {
 
   bool _shouldUseStackedLayout(BuildContext context, double totalWidth) {
     if (totalWidth < _inlineMinWidth) return true;
-    if (_controller.text.contains('\n')) return true;
     final modelW = widget.compact ? 0.0 : _modelChipWidth;
     final textWidth = totalWidth - _leadingActionsWidth - _modePillLayoutWidth - modelW - _actionBtnWidth - 32;
-    if (textWidth <= 48) return true;
-    final painter = TextPainter(
-      text: TextSpan(
-        text: composerMentionPlainText(_controller.text).isEmpty && _controller.text.isEmpty ? ' ' : _controller.text,
-        style: const TextStyle(fontSize: 14, height: 1.35),
-      ),
-      textDirection: Directionality.of(context),
-      maxLines: 6,
-    );
-    painter.layout(maxWidth: textWidth);
-    return painter.computeLineMetrics().length > 1;
+    return textWidth <= 48;
   }
+
+  Duration get _composerShellAnimDuration =>
+      _focus.hasFocus ? Duration.zero : const Duration(milliseconds: 120);
 
   VoidCallback? _modelTap() => widget.enabled
       ? () async {
@@ -1593,7 +1596,7 @@ class _InComposerState extends State<InComposer> {
               },
               child: AnimatedContainer(
                 key: _composerShellKey,
-                duration: const Duration(milliseconds: 120),
+                duration: _composerShellAnimDuration,
                 decoration: BoxDecoration(
                   color: _isDragging ? const Color(0xFF0F172A) : const Color(0xFF18181B),
                   borderRadius: BorderRadius.circular(16),

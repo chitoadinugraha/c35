@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:alienai_c35/c/cas/cas_client.dart';
 import 'package:alienai_c35/c/files/file_path.dart';

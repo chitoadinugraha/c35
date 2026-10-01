@@ -1,4 +1,4 @@
-﻿use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Result};
 use async_nats::Client as NatsClient;
 use c35_mod_log::{log_put, LogPut};
 use serde_json::{json, Value};

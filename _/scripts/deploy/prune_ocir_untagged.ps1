@@ -1,4 +1,4 @@
-﻿# Delete untagged container images in OCIR (version=null). Keeps tagged images (e.g. :latest).
+# Delete untagged container images in OCIR (version=null). Keeps tagged images (e.g. :latest).
 param(
     [switch]$Apply,
     [string]$CompartmentId = 'ocid1.tenancy.oc1..aaaaaaaaey3wfzt4f7jp72r74wtu4m24hx35pafnagjbajgwn6us2s6nwpba',

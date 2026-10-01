@@ -1,4 +1,4 @@
-﻿import 'package:flutter/services.dart';
+import 'package:flutter/services.dart';
 
 MouseCursor remoteCursorFromShape(String shape) => switch (shape) {
       'text' => SystemMouseCursors.text,

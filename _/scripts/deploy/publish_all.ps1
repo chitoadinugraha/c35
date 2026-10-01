@@ -1,4 +1,4 @@
-﻿# Parallel server + app publish. Remote Windows agent is opt-in: pass -RemoteAgent only when needed.
+# Parallel server + app publish. Remote Windows agent is opt-in: pass -RemoteAgent only when needed.
 param(
     [switch]$SkipServer,
     [switch]$SkipApp,

@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 /// In-app mail open while [PageMail] is mounted (notification tap without re-push).
 class MailOpenBridge {

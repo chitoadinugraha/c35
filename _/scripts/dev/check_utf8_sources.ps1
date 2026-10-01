@@ -33,6 +33,10 @@ function Test-PathUnderExcludedDir([string]$fullPath, [string]$rootPath) {
     return $false
 }
 
+function Test-IsUtf8Bom([byte[]]$bytes) {
+    return $bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF
+}
+
 function Test-IsUtf16Bytes([byte[]]$bytes) {
     if ($bytes.Length -lt 4) { return $false }
     if ($bytes[0] -eq 0xFF -and $bytes[1] -eq 0xFE) { return $true }
@@ -98,6 +102,18 @@ foreach ($full in $targets) {
     if (-not (Test-TextExtension $full)) { continue }
 
     $bytes = [IO.File]::ReadAllBytes($full)
+
+    if (Test-IsUtf8Bom $bytes) {
+        if ($Fix) {
+            $text = [IO.File]::ReadAllText($full, $utf8NoBom)
+            [IO.File]::WriteAllText($full, $text, $utf8NoBom)
+            Write-Host "Fixed UTF-8 BOM -> UTF-8 (no BOM): $full"
+            continue
+        }
+        $bad += $full
+        continue
+    }
+
     if (-not (Test-IsUtf16Bytes $bytes)) { continue }
 
     if ($Fix) {

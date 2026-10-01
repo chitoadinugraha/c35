@@ -1,4 +1,4 @@
-﻿import 'dart:typed_data';
+import 'dart:typed_data';
 
 import 'package:alienai_c35/c/config.dart';
 import 'package:alienai_c35/c/files/file_path.dart';

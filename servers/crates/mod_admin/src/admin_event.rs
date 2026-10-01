@@ -1,4 +1,4 @@
-﻿use async_nats::Client;
+use async_nats::Client;
 use c35_mod_event::{event_emit, kinds, EventCtx};
 use serde_json::json;
 use sqlx::PgPool;

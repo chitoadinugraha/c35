@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "hooks": {
+    "afterFileEdit": [
+      {
+        "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/after_file_edit_utf8.ps1"
+      }
+    ]
+  }
+}

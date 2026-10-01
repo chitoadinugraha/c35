@@ -1,4 +1,4 @@
-﻿# Copy cs_bots Firebase service account into c35 and sync GOOGLE_APPLICATION_CREDENTIALS_JSON to cluster.
+# Copy cs_bots Firebase service account into c35 and sync GOOGLE_APPLICATION_CREDENTIALS_JSON to cluster.
 # Usage:
 #   .\_\scripts\deploy\sync_gsheet_service_account.ps1
 #   .\_\scripts\deploy\sync_gsheet_service_account.ps1 -Restart

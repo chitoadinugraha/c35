@@ -1,4 +1,4 @@
-﻿use std::sync::Mutex;
+use std::sync::Mutex;
 
 use c35_mod_billing::billing_cost_usd;
 use c35_mod_log::{log_put, LogPut};

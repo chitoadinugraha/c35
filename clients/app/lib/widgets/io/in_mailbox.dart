@@ -1,4 +1,4 @@
-﻿import 'package:alienai_c35/widgets/ui/ui_input_decoration.dart';
+import 'package:alienai_c35/widgets/ui/ui_input_decoration.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 

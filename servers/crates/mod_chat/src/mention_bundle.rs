@@ -1,4 +1,4 @@
-﻿use anyhow::{Context, Result};
+use anyhow::{Context, Result};
 use c35_proto::MentionCatalog;
 use c35_store::missing_table;
 use chrono::Utc;

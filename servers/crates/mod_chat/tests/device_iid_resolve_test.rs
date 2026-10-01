@@ -1,4 +1,4 @@
-﻿use c35_mod_chat::{device_iid_resolve, MentionContext};
+use c35_mod_chat::{device_iid_resolve, MentionContext};
 
 #[test]
 fn device_iid_resolve_single_mention_overrides_wrong_llm_arg() {

@@ -1,4 +1,4 @@
-﻿use c35_mod_log::{log_put, LogPut};
+use c35_mod_log::{log_put, LogPut};
 use c35_proto::ResChannelWhatsappPair;
 use serde::Serialize;
 use sqlx::PgPool;

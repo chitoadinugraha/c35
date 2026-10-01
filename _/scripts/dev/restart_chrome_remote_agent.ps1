@@ -1,4 +1,4 @@
-﻿# Build (optional), deploy extension agent + popup dist, restart single IPC listener.
+# Build (optional), deploy extension agent + popup dist, restart single IPC listener.
 param(
     [switch]$SkipBuild,
     [switch]$StandaloneAgent,

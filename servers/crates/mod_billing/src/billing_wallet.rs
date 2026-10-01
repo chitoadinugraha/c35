@@ -1,4 +1,4 @@
-﻿//! Dual-wallet charge helpers (legacy billing_account USD + IDR legs).
+//! Dual-wallet charge helpers (legacy billing_account USD + IDR legs).
 
 pub fn billing_wallet_use_idr(billing_currency: &str) -> bool {
     billing_currency.trim().eq_ignore_ascii_case("IDR")

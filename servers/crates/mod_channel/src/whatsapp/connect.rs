@@ -1,4 +1,4 @@
-﻿use crate::channel_event::channel_connected_emit;
+use crate::channel_event::channel_connected_emit;
 use c35_mod_log::{log_put, LogPut};
 use c35_proto::{ReqChannelWhatsappMetaConnect, ResChannelWhatsappMetaConnect};
 use serde::Deserialize;

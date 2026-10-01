@@ -1,4 +1,4 @@
-﻿use windows::core::PCWSTR;
+use windows::core::PCWSTR;
 use windows::Win32::UI::WindowsAndMessaging::{
     GetCursorInfo, LoadCursorW, CURSORINFO, CURSOR_SHOWING, IDC_APPSTARTING, IDC_ARROW, IDC_CROSS,
     IDC_HAND, IDC_HELP, IDC_IBEAM, IDC_NO, IDC_SIZEALL, IDC_SIZENESW, IDC_SIZENS, IDC_SIZENWSE,

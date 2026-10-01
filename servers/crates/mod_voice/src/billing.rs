@@ -1,4 +1,4 @@
-﻿use anyhow::Result;
+use anyhow::Result;
 use async_nats::Client;
 use c35_mod_billing::{
     billing_account_ensure, billing_deduct_allowance, billing_gate_with_hold_custom,

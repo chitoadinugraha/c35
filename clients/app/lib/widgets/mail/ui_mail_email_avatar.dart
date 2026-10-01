@@ -1,4 +1,4 @@
-﻿import 'package:alienai_c35/c/mail/mail_email_avatar.dart';
+import 'package:alienai_c35/c/mail/mail_email_avatar.dart';
 import 'package:alienai_c35/widgets/ai/ui_serve_image.dart';
 import 'package:flutter/material.dart';
 

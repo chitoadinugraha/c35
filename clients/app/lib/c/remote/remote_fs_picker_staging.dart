@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:alienai_c35/c/media/ask_media.dart';
 import 'package:file_picker/file_picker.dart';

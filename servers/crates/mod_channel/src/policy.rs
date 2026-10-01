@@ -1,4 +1,4 @@
-﻿use crate::types::ChannelInboundAttachment;
+use crate::types::ChannelInboundAttachment;
 
 pub const BOT_OOS_MARKER: &str = "[bot-oos]";
 pub const AUTO_BLOCK_OOS_THRESHOLD: u32 = 10;

@@ -38,6 +38,8 @@ Mirrored for Antigravity: [`.agents/rules/utf8-source-files.md`](../../.agents/r
 
 Dart/Flutter: `.\_\scripts\dev\verify_flutter_app.ps1` (UTF-8 check + `flutter analyze`).
 
+Full tree repair: `.\_\scripts\dev\force_utf8_worktree.ps1` (all text sources → UTF-8 no BOM).
+
 ## Humans — UTF-8 PowerShell (Windows)
 
 Windows **PowerShell 5.1** defaults file cmdlets to **UTF-16 LE** (legacy Windows `WCHAR` behavior). Almost nothing in this repo should ever be UTF-16.

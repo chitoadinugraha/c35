@@ -1,4 +1,4 @@
-﻿# Mentions — composer, wire, and message brackets (LOCKED)
+# Mentions — composer, wire, and message brackets (LOCKED)
 
 Status: **locked** 2026-09-27
 

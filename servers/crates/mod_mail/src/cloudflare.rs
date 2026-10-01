@@ -1,4 +1,4 @@
-﻿//! Cloudflare zone lookup, Email Sending onboard, Email Routing catch-all.
+//! Cloudflare zone lookup, Email Sending onboard, Email Routing catch-all.
 
 use serde::Deserialize;
 

@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:alienai_c35/c/app_id.dart';
 import 'package:alienai_c35/c/pb/c35/identity.pb.dart';

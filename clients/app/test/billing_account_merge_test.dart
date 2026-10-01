@@ -1,4 +1,4 @@
-﻿import 'package:alienai_c35/c/billing/billing_format.dart';
+import 'package:alienai_c35/c/billing/billing_format.dart';
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter_test/flutter_test.dart';

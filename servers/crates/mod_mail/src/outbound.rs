@@ -1,4 +1,4 @@
-﻿//! Outbound relay ΓÇö SMTP (lettre) or Cloudflare Worker (`send_email`).
+//! Outbound relay ΓÇö SMTP (lettre) or Cloudflare Worker (`send_email`).
 
 use base64::Engine;
 use lettre::message::header::ContentType;

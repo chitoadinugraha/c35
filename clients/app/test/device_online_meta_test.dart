@@ -1,4 +1,4 @@
-﻿import 'package:alienai_c35/c/device/device_store.dart';
+import 'package:alienai_c35/c/device/device_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

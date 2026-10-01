@@ -1,4 +1,4 @@
-﻿use serde_json::Value;
+use serde_json::Value;
 use sqlx::PgPool;
 
 pub fn bot_active_parse(meta: Option<&Value>) -> bool {

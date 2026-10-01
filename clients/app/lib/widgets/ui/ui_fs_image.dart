@@ -1,4 +1,4 @@
-﻿import 'package:alienai_c35/widgets/ai/ui_serve_image.dart';
+import 'package:alienai_c35/widgets/ai/ui_serve_image.dart';
 import 'package:flutter/material.dart';
 
 /// `/fs/{hash}` image tile — wraps [UiServeImage].
