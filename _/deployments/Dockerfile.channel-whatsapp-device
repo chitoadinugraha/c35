@@ -47,11 +47,16 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry,id=c35-wa-device-cargo-r
     cargo chef cook --release --recipe-path recipe.json -p c35_channel_whatsapp_device
 
 COPY servers/channel_whatsapp_device /app/servers/channel_whatsapp_device
+# Bust stale target cache for path crates (chef cook only linked the stub bin).
+RUN touch /app/servers/crates/mod_log/src/lib.rs \
+    /app/servers/crates/store/src/lib.rs \
+    /app/servers/crates/proto/src/lib.rs
 
 RUN --mount=type=cache,target=/usr/local/cargo/registry,id=c35-wa-device-cargo-registry,sharing=locked \
     --mount=type=cache,target=/usr/local/cargo/git,id=c35-wa-device-cargo-git,sharing=locked \
     --mount=type=cache,target=/app/target,id=c35-wa-device-rust-target,sharing=locked \
-    cargo build --release -p c35_channel_whatsapp_device --manifest-path Cargo.toml \
+    cargo build --release -p c35_store -p c35_mod_log \
+    && cargo build --release -p c35_channel_whatsapp_device --manifest-path Cargo.toml \
     && cp /app/target/release/channel_whatsapp_device /app/channel_whatsapp_device \
     && sha256sum /app/channel_whatsapp_device > /app/channel_whatsapp_device.sha
 
