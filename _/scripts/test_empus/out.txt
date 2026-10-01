@@ -1,0 +1,4 @@
+﻿sheet_pending: skip 3 rows with FASKES already set; 3621 to run
+start rows=1 workers=3 (ePus serial, API parallel)
+
+=== [1/1] ePus sheet_row=33 RIKA PURNAMASARI 0003813483936 ===

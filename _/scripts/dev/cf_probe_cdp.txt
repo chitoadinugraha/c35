@@ -1,0 +1,11 @@
+url: https://malang.epuskesmas.id/login
+title: e-Puskesmas - Masuk
+launchMode: cdp
+headless: false
+cf_success_text: false
+cf_challenge_hints: false
+--- body (first 4000 chars) ---
+KABUPATEN MALANG
+LOGIN
+Compliance  | Integrated 
+Powered By : PT INFOKES INDONESIA

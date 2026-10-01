@@ -1,0 +1,15 @@
+{
+  "server_url": "https://alienai.id",
+  "owner_iid": 99000,
+  "device_iid": "98348080882880512",
+  "epus_tab_id": "1273699670",
+  "sheet_tab_id": "1273699666",
+  "batch_size": 5,
+  "wait_ms": 3200,
+  "limit": 0,
+  "sheet_export_url": "https://docs.google.com/spreadsheets/d/1XDNFZmTI-QBXjvPZQji9K4Mw7sI_7gY7DPTyQonTwjg/export?format=csv&gid=0",
+  "participants_jsonl": "data/participants.jsonl",
+  "queue_json": "data/queue.json",
+  "output_jsonl": "data/peserta.jsonl",
+  "done_json": "data/done_no_kartu.json"
+}

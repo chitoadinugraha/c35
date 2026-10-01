@@ -1,0 +1,15 @@
+{
+  "owner_iid": 99000,
+  "device_iid": "98257835757273088",
+  "epus_tab_id": "",
+  "epus_url": "https://malang.epuskesmas.id/pasien?broadcastNotif=1",
+  "batch_size": 5,
+  "wait_ms": 2400,
+  "limit": 0,
+  "sheet_export_url": "https://docs.google.com/spreadsheets/d/1XDNFZmTI-QBXjvPZQji9K4Mw7sI_7gY7DPTyQonTwjg/export?format=csv&gid=0",
+  "participants_jsonl": "data/participants.jsonl",
+  "shard_json": "",
+  "queue_json": "data/queue.json",
+  "output_jsonl": "data/peserta.jsonl",
+  "done_json": "data/done_no_kartu.json"
+}

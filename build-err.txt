@@ -1,0 +1,24 @@
+warning: field `id` is never read
+  --> crates\mod_billing\src\billing_plan_change.rs:35:5
+   |
+34 | struct ProfileSub {
+   |        ---------- field in this struct
+35 |     id: i64,
+   |     ^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `c35_mod_billing` (lib) generated 1 warning
+   Compiling c35_mod_channel v0.1.0 (D:\c35\servers\crates\mod_channel)
+error: lifetime may not live long enough
+  --> crates\mod_channel\src\inbound_gate.rs:46:62
+   |
+43 | pub fn meta_cloud_message_ignored(msg: &serde_json::Value) -> Option<&'static str> {
+   |                                        - let's call the lifetime of this reference `'1`
+...
+46 |         "reaction" | "unsupported" | "system" | "unknown" => Some(ty),
+   |                                                              ^^^^^^^^ returning this value requires that `'1` must outlive `'static`
+
+error: could not compile `c35_mod_channel` (lib) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `c35_mod_channel` (lib test) due to 1 previous error
