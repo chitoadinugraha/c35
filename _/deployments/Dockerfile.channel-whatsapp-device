@@ -1,88 +1,69 @@
-# syntax=docker/dockerfile:1.7
-# Build from c35 repo root:
-#   docker build --platform linux/arm64 -f _/deployments/Dockerfile.channel-whatsapp-device -t channel-whatsapp-device .
-
-ARG RUST_CHEF_IMAGE=hsg.ocir.io/axr8wqrrukgm/c35-rust-chef:1.89-bookworm
-FROM ${RUST_CHEF_IMAGE} AS chef
-WORKDIR /app
-
-FROM chef AS planner
-COPY servers/Cargo.toml servers/Cargo.lock /app/servers/
-COPY servers/crates /app/servers/crates
-COPY servers/channel_whatsapp_device /app/servers/channel_whatsapp_device
-COPY servers/server_ai/Cargo.toml /app/servers/server_ai/
-COPY servers/fetcher/Cargo.toml /app/servers/fetcher/
-COPY servers/node_stats/Cargo.toml /app/servers/node_stats/
-COPY _/deployments/docker/workspace-stub.sh /usr/local/bin/workspace-stub.sh
-RUN chmod +x /usr/local/bin/workspace-stub.sh \
-    && workspace-stub.sh server_ai fetcher node_stats
-COPY _/schemas /app/_/schemas
-WORKDIR /app/servers
-ARG WA_DEVICE_PLANNER_REV=1
-RUN echo "wa-device planner rev ${WA_DEVICE_PLANNER_REV}" \
-    && cargo chef prepare --recipe-path /tmp/recipe.json
-
-FROM chef AS rust-build
-WORKDIR /app
-
-# Bust Buildkit layer cache when worker sources change (avoid shipping chef stub binary).
-ARG WA_DEVICE_BUILD_REV=7
-RUN echo "wa-device build rev ${WA_DEVICE_BUILD_REV}"
-
-COPY servers/Cargo.toml servers/Cargo.lock /app/servers/
-COPY servers/crates /app/servers/crates
-COPY servers/channel_whatsapp_device /app/servers/channel_whatsapp_device
-COPY servers/server_ai/Cargo.toml /app/servers/server_ai/
-COPY servers/fetcher/Cargo.toml /app/servers/fetcher/
-COPY servers/node_stats/Cargo.toml /app/servers/node_stats/
-COPY _/deployments/docker/workspace-stub.sh /usr/local/bin/workspace-stub.sh
-RUN chmod +x /usr/local/bin/workspace-stub.sh \
-    && workspace-stub.sh server_ai fetcher node_stats
-
-COPY _/schemas /app/_/schemas
-COPY --from=planner /tmp/recipe.json /app/servers/recipe.json
-
-ENV CARGO_TARGET_DIR=/app/target
-ENV CARGO_BUILD_JOBS=4
-ENV CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1
-
-WORKDIR /app/servers
-RUN --mount=type=cache,target=/usr/local/cargo/registry,id=c35-wa-device-cargo-registry,sharing=locked \
-    --mount=type=cache,target=/usr/local/cargo/git,id=c35-wa-device-cargo-git,sharing=locked \
-    --mount=type=cache,target=/app/target,id=c35-wa-device-rust-target-v5,sharing=locked \
-    cargo chef cook --release --recipe-path recipe.json -p c35_channel_whatsapp_device \
-    && rm -f /app/target/release/channel_whatsapp_device \
-    && touch /app/servers/channel_whatsapp_device/src/main.rs \
-    && cargo build --release -p c35_channel_whatsapp_device --bin channel_whatsapp_device --manifest-path Cargo.toml \
-    && cp /app/target/release/channel_whatsapp_device /app/channel_whatsapp_device \
-    && test "$(stat -c%s /app/channel_whatsapp_device)" -gt 5000000 \
-    && sha256sum /app/channel_whatsapp_device > /app/channel_whatsapp_device.sha
-
-FROM debian:bookworm-slim AS runtime
-
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-
-ENV PORT=8080
-ENV WA_SESSIONS_DIR=/app/sessions
-ENV YB_DATABASE=c35
-ENV RUST_LOG=info,c35_channel_whatsapp_device=debug,whatsapp_rust=debug
-
-RUN mkdir -p /app/sessions
-
-ARG WA_DEVICE_RUNTIME_REV=1
-RUN echo "wa-device runtime rev ${WA_DEVICE_RUNTIME_REV}"
-
-COPY --from=rust-build /app/channel_whatsapp_device /app/channel_whatsapp_device
-COPY --from=rust-build /app/channel_whatsapp_device.sha /app/channel_whatsapp_device.sha
-RUN sha256sum -c /app/channel_whatsapp_device.sha
-
-EXPOSE 8080
-
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD curl -fsS http://127.0.0.1:8080/healthz || exit 1
-
-ENTRYPOINT ["/app/channel_whatsapp_device"]
+# syntax=docker/dockerfile:1.7
+# Build from c35 repo root:
+#   docker build --platform linux/arm64 -f _/deployments/Dockerfile.channel-whatsapp-device -t channel-whatsapp-device .
+
+ARG RUST_CHEF_IMAGE=hsg.ocir.io/axr8wqrrukgm/c35-rust-chef:1.89-bookworm
+FROM ${RUST_CHEF_IMAGE} AS chef
+WORKDIR /app
+
+FROM chef AS rust-build
+WORKDIR /app
+
+ARG WA_DEVICE_BUILD_REV=8
+RUN echo "wa-device build rev ${WA_DEVICE_BUILD_REV}"
+
+COPY servers/Cargo.toml servers/Cargo.lock /app/servers/
+COPY servers/crates /app/servers/crates
+COPY servers/channel_whatsapp_device /app/servers/channel_whatsapp_device
+COPY servers/server_ai/Cargo.toml /app/servers/server_ai/
+COPY servers/fetcher/Cargo.toml /app/servers/fetcher/
+COPY servers/node_stats/Cargo.toml /app/servers/node_stats/
+COPY _/deployments/docker/workspace-stub.sh /usr/local/bin/workspace-stub.sh
+RUN chmod +x /usr/local/bin/workspace-stub.sh \
+    && workspace-stub.sh server_ai fetcher node_stats
+
+COPY _/schemas /app/_/schemas
+
+ENV CARGO_TARGET_DIR=/app/target
+ENV CARGO_BUILD_JOBS=4
+ENV CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1
+
+WORKDIR /app/servers
+# No Buildkit target cache mount — shared cache kept shipping a stub channel_whatsapp_device binary.
+RUN --mount=type=cache,target=/usr/local/cargo/registry,id=c35-wa-device-cargo-registry,sharing=locked \
+    --mount=type=cache,target=/usr/local/cargo/git,id=c35-wa-device-cargo-git,sharing=locked \
+    grep -q 'async fn main' channel_whatsapp_device/src/main.rs \
+    && cargo build --release -p c35_channel_whatsapp_device --bin channel_whatsapp_device --manifest-path Cargo.toml \
+    && cp /app/target/release/channel_whatsapp_device /app/channel_whatsapp_device \
+    && test "$(stat -c%s /app/channel_whatsapp_device)" -gt 5000000 \
+    && sha256sum /app/channel_whatsapp_device > /app/channel_whatsapp_device.sha
+
+FROM debian:bookworm-slim AS runtime
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+ENV PORT=8080
+ENV WA_SESSIONS_DIR=/app/sessions
+ENV YB_DATABASE=c35
+ENV RUST_LOG=info,c35_channel_whatsapp_device=debug,whatsapp_rust=debug
+
+RUN mkdir -p /app/sessions
+
+ARG WA_DEVICE_RUNTIME_REV=2
+RUN echo "wa-device runtime rev ${WA_DEVICE_RUNTIME_REV}"
+
+COPY --from=rust-build /app/channel_whatsapp_device /app/channel_whatsapp_device
+COPY --from=rust-build /app/channel_whatsapp_device.sha /app/channel_whatsapp_device.sha
+RUN sha256sum -c /app/channel_whatsapp_device.sha
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD curl -fsS http://127.0.0.1:8080/healthz || exit 1
+
+ENTRYPOINT ["/app/channel_whatsapp_device"]
+
