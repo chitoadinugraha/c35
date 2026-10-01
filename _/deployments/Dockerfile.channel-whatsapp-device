@@ -24,7 +24,7 @@ FROM chef AS rust-build
 WORKDIR /app
 
 # Bust Buildkit layer cache when worker sources change (avoid shipping chef stub binary).
-ARG WA_DEVICE_BUILD_REV=3
+ARG WA_DEVICE_BUILD_REV=4
 RUN echo "wa-device build rev ${WA_DEVICE_BUILD_REV}"
 
 COPY servers/Cargo.toml servers/Cargo.lock /app/servers/
@@ -47,12 +47,12 @@ ENV CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1
 WORKDIR /app/servers
 RUN --mount=type=cache,target=/usr/local/cargo/registry,id=c35-wa-device-cargo-registry,sharing=locked \
     --mount=type=cache,target=/usr/local/cargo/git,id=c35-wa-device-cargo-git,sharing=locked \
-    --mount=type=cache,target=/app/target,id=c35-wa-device-rust-target-v2,sharing=locked \
+    --mount=type=cache,target=/app/target,id=c35-wa-device-rust-target-v3,sharing=locked \
     cargo chef cook --release --recipe-path recipe.json -p c35_channel_whatsapp_device
 
 RUN --mount=type=cache,target=/usr/local/cargo/registry,id=c35-wa-device-cargo-registry,sharing=locked \
     --mount=type=cache,target=/usr/local/cargo/git,id=c35-wa-device-cargo-git,sharing=locked \
-    --mount=type=cache,target=/app/target,id=c35-wa-device-rust-target-v2,sharing=locked \
+    --mount=type=cache,target=/app/target,id=c35-wa-device-rust-target-v3,sharing=locked \
     cargo build --release -p c35_channel_whatsapp_device --manifest-path Cargo.toml \
     && cp /app/target/release/channel_whatsapp_device /app/channel_whatsapp_device \
     && sha256sum /app/channel_whatsapp_device > /app/channel_whatsapp_device.sha
