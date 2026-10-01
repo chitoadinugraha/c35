@@ -10,8 +10,8 @@ const uiDialogAccent = Color(0xFF34D399);
 const uiDialogInset = EdgeInsets.fromLTRB(20, 16, 12, 20);
 const uiDialogInsetCompact = EdgeInsets.fromLTRB(16, 12, 8, 12);
 
-Future<T?> uiDialogShow<T>(
-  BuildContext context, {
+Future<T?> uiDialogShow<T>({
+  required BuildContext context,
   required WidgetBuilder builder,
   bool barrierDismissible = true,
 }) =>
