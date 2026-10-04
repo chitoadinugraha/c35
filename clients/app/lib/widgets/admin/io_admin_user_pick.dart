@@ -17,12 +17,14 @@ class IoAdminUserPick extends StatefulWidget {
     this.value,
     this.onChanged,
     this.width = 220,
+    this.compactSelected = false,
   });
 
   final AdminApi api;
   final AdminUserHit? value;
   final ValueChanged<AdminUserHit?>? onChanged;
   final double width;
+  final bool compactSelected;
 
   @override
   State<IoAdminUserPick> createState() => _IoAdminUserPickState();
@@ -90,7 +92,37 @@ class _IoAdminUserPickState extends State<IoAdminUserPick> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (selected != null)
+          if (selected != null && widget.compactSelected)
+            Material(
+              color: _bg,
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(8, 6, 4, 6),
+                decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), border: Border.all(color: _border)),
+                child: Row(
+                  children: [
+                    UiUserAvatar(name: selected.name, email: selected.email, handle: selected.handle, pic: selected.avatarUrl, size: 22),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        selected.name.isNotEmpty ? selected.name : selected.email,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: _text, fontSize: 13),
+                      ),
+                    ),
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                      icon: const Icon(Icons.close, size: 16, color: _muted),
+                      onPressed: _clear,
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else if (selected != null)
             Material(
               color: _hover,
               borderRadius: BorderRadius.circular(8),
@@ -110,12 +142,13 @@ class _IoAdminUserPickState extends State<IoAdminUserPick> {
                 isDense: true,
                 hintText: 'User search',
                 hintStyle: const TextStyle(color: _muted, fontSize: 13),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 prefixIcon: _loading ? const Padding(padding: EdgeInsets.all(12), child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: _muted))) : const Icon(Icons.person_search_outlined, size: 18, color: _muted),
                 filled: true,
                 fillColor: _bg,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _accent)),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _border)),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _border)),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _accent)),
               ),
               onChanged: _search,
             ),

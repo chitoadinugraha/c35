@@ -39,11 +39,27 @@ pub async fn data_source_prompt_for_bot(
     if bindings.is_empty() {
         return String::new();
     }
-    let mut blocks: Vec<String> = Vec::new();
-    for row in &bindings {
+    if bindings.len() == 1 {
+        let row = &bindings[0];
         if let Err(e) = data_source_sync_if_stale(http, pool, row.id).await {
             warn!("[c35:data_source] sync failed id={}: {e:#}", row.id);
         }
+    } else {
+        let mut set = tokio::task::JoinSet::new();
+        for row in &bindings {
+            let id = row.id;
+            let http = http.clone();
+            let pool = pool.clone();
+            set.spawn(async move {
+                if let Err(e) = data_source_sync_if_stale(&http, &pool, id).await {
+                    warn!("[c35:data_source] sync failed id={}: {e:#}", id);
+                }
+            });
+        }
+        while let Some(_) = set.join_next().await {}
+    }
+    let mut blocks: Vec<String> = Vec::new();
+    for row in &bindings {
         let row_count = sync_row_count(pool, row.id).await;
         let title = format!("Sheet data ({})", row.name);
         if row_count <= DATA_SOURCE_SMALL_ROW_LIMIT {

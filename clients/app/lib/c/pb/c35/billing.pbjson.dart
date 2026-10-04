@@ -1735,6 +1735,9 @@ const BillingHistoryRow$json = {
     {'1': 'ts_ms', '3': 6, '4': 1, '5': 3, '10': 'tsMs'},
     {'1': 'currency', '3': 7, '4': 1, '5': 9, '10': 'currency'},
     {'1': 'amount', '3': 8, '4': 1, '5': 1, '10': 'amount'},
+    {'1': 'chat_id', '3': 9, '4': 1, '5': 3, '10': 'chatId'},
+    {'1': 'req_id', '3': 10, '4': 1, '5': 9, '10': 'reqId'},
+    {'1': 'prompt', '3': 11, '4': 1, '5': 9, '10': 'prompt'},
   ],
 };
 
@@ -1743,7 +1746,9 @@ final $typed_data.Uint8List billingHistoryRowDescriptor = $convert.base64Decode(
     'ChFCaWxsaW5nSGlzdG9yeVJvdxISCgRraW5kGAEgASgJUgRraW5kEhQKBXRpdGxlGAIgASgJUg'
     'V0aXRsZRIdCgphbW91bnRfdXNkGAMgASgBUglhbW91bnRVc2QSHQoKYW1vdW50X2lkchgEIAEo'
     'AVIJYW1vdW50SWRyEhYKBnN0YXR1cxgFIAEoCVIGc3RhdHVzEhMKBXRzX21zGAYgASgDUgR0c0'
-    '1zEhoKCGN1cnJlbmN5GAcgASgJUghjdXJyZW5jeRIWCgZhbW91bnQYCCABKAFSBmFtb3VudA==');
+    '1zEhoKCGN1cnJlbmN5GAcgASgJUghjdXJyZW5jeRIWCgZhbW91bnQYCCABKAFSBmFtb3VudBIX'
+    'CgdjaGF0X2lkGAkgASgDUgZjaGF0SWQSFQoGcmVxX2lkGAogASgJUgVyZXFJZBIWCgZwcm9tcH'
+    'QYCyABKAlSBnByb21wdA==');
 
 @$core.Deprecated('Use reqBillingHistoryDescriptor instead')
 const ReqBillingHistory$json = {

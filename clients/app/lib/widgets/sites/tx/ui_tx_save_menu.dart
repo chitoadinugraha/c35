@@ -1,3 +1,4 @@
+import 'package:alienai_c35/widgets/sites/tx/dialog/transaksi_printer_settings_dialog.dart';
 import 'package:flutter/material.dart';
 
 const _accent = Color(0xFF34D399);
@@ -11,7 +12,10 @@ class UiTxSaveMenu extends StatelessWidget {
     required this.onViewReceipt,
     required this.printReceipt,
     required this.onPrintReceiptChanged,
+    this.onPrinterSettings,
     this.onDelete,
+    this.onHold,
+    this.canHold = false,
     this.canSave = true,
     this.saveBlockReason,
     this.busy = false,
@@ -22,7 +26,10 @@ class UiTxSaveMenu extends StatelessWidget {
   final VoidCallback onViewReceipt;
   final bool printReceipt;
   final ValueChanged<bool> onPrintReceiptChanged;
+  final VoidCallback? onPrinterSettings;
   final VoidCallback? onDelete;
+  final VoidCallback? onHold;
+  final bool canHold;
   final bool canSave;
   final String? saveBlockReason;
   final bool busy;
@@ -58,6 +65,11 @@ class UiTxSaveMenu extends StatelessWidget {
             onPressed: busy ? null : () => _saveTap(context, onSaveNew),
             child: _menuRow(Icons.post_add_outlined, 'Save & new', enabled: _saveEnabled),
           ),
+          if (onHold != null)
+            MenuItemButton(
+              onPressed: (busy || !canHold) ? null : onHold,
+              child: _menuRow(Icons.pause_circle_outline, 'Hold order', enabled: canHold && !busy),
+            ),
           const SizedBox(height: 6),
           const Divider(height: 1),
           const SizedBox(height: 6),
@@ -73,6 +85,12 @@ class UiTxSaveMenu extends StatelessWidget {
           MenuItemButton(
             onPressed: busy ? null : onViewReceipt,
             child: _menuRow(Icons.receipt_long_outlined, 'View receipt', enabled: !busy),
+          ),
+          MenuItemButton(
+            onPressed: busy
+                ? null
+                : (onPrinterSettings ?? () => showTransaksiPrinterSettingsDialog(context: context)),
+            child: _menuRow(Icons.settings_outlined, 'Printer settings', enabled: !busy),
           ),
           if (onDelete != null) ...[
             const Divider(height: 1),

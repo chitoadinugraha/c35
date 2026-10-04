@@ -1,0 +1,243 @@
+{
+  "cost_usd": 0.0,
+  "ok": true,
+  "owner_iid": 99000,
+  "req_id": "99289017532256256",
+  "result": {
+    "device_iid": 98348080882880512,
+    "ok": true,
+    "result": [
+      {
+        "aria": "",
+        "i": 0,
+        "id": "",
+        "name": "_token",
+        "placeholder": "",
+        "tag": "input",
+        "type": "hidden",
+        "value": "lV2AwimPcwgSEXKBJe6l6yDUs8qyIkqeqmf85e74"
+      },
+      {
+        "aria": "",
+        "i": 1,
+        "id": "",
+        "name": "typeName",
+        "placeholder": "Cari Nama",
+        "tag": "input",
+        "type": "text",
+        "value": ""
+      },
+      {
+        "aria": "",
+        "i": 2,
+        "id": "",
+        "name": "typeSearch",
+        "placeholder": "",
+        "tag": "select",
+        "type": "select-one",
+        "value": "nik_no_asuransi"
+      },
+      {
+        "aria": "",
+        "i": 3,
+        "id": "",
+        "name": "typeSearchValue",
+        "placeholder": "Cari NIK / No Asuransi",
+        "tag": "input",
+        "type": "text",
+        "value": ""
+      },
+      {
+        "aria": "",
+        "i": 4,
+        "id": "",
+        "name": "birthDate",
+        "placeholder": "Cari Tanggal lahir",
+        "tag": "input",
+        "type": "text",
+        "value": ""
+      },
+      {
+        "aria": "",
+        "i": 5,
+        "id": "",
+        "name": "typeRecord",
+        "placeholder": "",
+        "tag": "select",
+        "type": "select-one",
+        "value": ""
+      },
+      {
+        "aria": "",
+        "i": 6,
+        "id": "",
+        "name": "typeVerification",
+        "placeholder": "",
+        "tag": "select",
+        "type": "select-one",
+        "value": ""
+      },
+      {
+        "aria": "",
+        "i": 7,
+        "id": "check_all",
+        "name": "",
+        "placeholder": "",
+        "tag": "input",
+        "type": "checkbox",
+        "value": "1"
+      },
+      {
+        "aria": "",
+        "i": 8,
+        "id": "",
+        "name": "check[]",
+        "placeholder": "",
+        "tag": "input",
+        "type": "checkbox",
+        "value": "0000000000000001"
+      },
+      {
+        "aria": "",
+        "i": 9,
+        "id": "",
+        "name": "check[]",
+        "placeholder": "",
+        "tag": "input",
+        "type": "checkbox",
+        "value": "0000000000000002"
+      },
+      {
+        "aria": "",
+        "i": 10,
+        "id": "",
+        "name": "check[]",
+        "placeholder": "",
+        "tag": "input",
+        "type": "checkbox",
+        "value": "0000000000000003"
+      },
+      {
+        "aria": "",
+        "i": 11,
+        "id": "",
+        "name": "check[]",
+        "placeholder": "",
+        "tag": "input",
+        "type": "checkbox",
+        "value": "0000000000000005"
+      },
+      {
+        "aria": "",
+        "i": 12,
+        "id": "",
+        "name": "check[]",
+        "placeholder": "",
+        "tag": "input",
+        "type": "checkbox",
+        "value": "0000000000000006"
+      },
+      {
+        "aria": "",
+        "i": 13,
+        "id": "",
+        "name": "check[]",
+        "placeholder": "",
+        "tag": "input",
+        "type": "checkbox",
+        "value": "0000000000000007"
+      },
+      {
+        "aria": "",
+        "i": 14,
+        "id": "",
+        "name": "check[]",
+        "placeholder": "",
+        "tag": "input",
+        "type": "checkbox",
+        "value": "0000000000000008"
+      },
+      {
+        "aria": "",
+        "i": 15,
+        "id": "",
+        "name": "check[]",
+        "placeholder": "",
+        "tag": "input",
+        "type": "checkbox",
+        "value": "0000000000000009"
+      },
+      {
+        "aria": "",
+        "i": 16,
+        "id": "",
+        "name": "check[]",
+        "placeholder": "",
+        "tag": "input",
+        "type": "checkbox",
+        "value": "0000000000000010"
+      },
+      {
+        "aria": "",
+        "i": 17,
+        "id": "",
+        "name": "check[]",
+        "placeholder": "",
+        "tag": "input",
+        "type": "checkbox",
+        "value": "0000000000000011"
+      },
+      {
+        "aria": "",
+        "i": 18,
+        "id": "",
+        "name": "limitPerPage",
+        "placeholder": "",
+        "tag": "select",
+        "type": "select-one",
+        "value": "10"
+      },
+      {
+        "aria": "",
+        "i": 19,
+        "id": "pegawai_nama",
+        "name": "pegawai_nama",
+        "placeholder": "🔍 Nama Petugas/Operator",
+        "tag": "input",
+        "type": "text",
+        "value": "Maulidya Ilham Alifia Yuliarini, A.Md.Kes"
+      },
+      {
+        "aria": "",
+        "i": 20,
+        "id": "pegawai_id",
+        "name": "pegawai_id",
+        "placeholder": "",
+        "tag": "input",
+        "type": "text",
+        "value": "0000000000002007"
+      },
+      {
+        "aria": "",
+        "i": 21,
+        "id": "pegawai_nik",
+        "name": "pegawai_nik",
+        "placeholder": "",
+        "tag": "input",
+        "type": "text",
+        "value": "3507014207980001"
+      },
+      {
+        "aria": "",
+        "i": 22,
+        "id": "pegawai_ihs",
+        "name": "pegawai_ihs",
+        "placeholder": "",
+        "tag": "input",
+        "type": "text",
+        "value": "10015833408"
+      }
+    ]
+  },
+  "tool_name": "browser.page.act"
+}

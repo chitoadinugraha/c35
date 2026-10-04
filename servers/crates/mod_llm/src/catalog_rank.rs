@@ -9,21 +9,64 @@ const BAND_CLOUDFLARE: i32 = 140;
 const BAND_GOOGLE: i32 = 200;
 const BAND_HIDDEN: i32 = 900;
 
+fn id_tokens(id: &str) -> Vec<String> {
+    id.to_ascii_lowercase()
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+        .collect()
+}
+
+/// Product line from the provider id. Patterns only — no pinned model list.
 pub fn family_of(id: &str) -> String {
-    let m = id.to_ascii_lowercase();
-    if m.contains("flash-lite") || m.contains("flash_lite") {
+    let tokens = id_tokens(id);
+    let has = |t: &str| tokens.iter().any(|x| x == t);
+    if tokens.windows(2).any(|w| w[0] == "flash" && w[1] == "lite") || has("flashlite") {
         return "flash-lite".into();
     }
-    if m.contains("flash") {
+    for t in ["haiku", "sonnet", "opus", "reasoner", "mini", "nano", "luna", "grok"] {
+        if has(t) {
+            return t.into();
+        }
+    }
+    if tokens.iter().any(|t| t == "o1" || t == "o3" || t == "o4") {
+        return "reasoner".into();
+    }
+    if has("flash") {
         return "flash".into();
     }
-    if m.contains("pro") {
+    if has("pro") {
         return "pro".into();
     }
-    if m.starts_with("@cf/") {
+    if has("chat") {
+        return "chat".into();
+    }
+    if has("gpt") {
+        return "gpt".into();
+    }
+    if has("llama") || id.to_ascii_lowercase().contains("@cf/") {
         return "llama".into();
     }
     "other".into()
+}
+
+/// 0 daily, 1 standard, 2 heavy, 3 other.
+pub fn tier_of_family(family: &str) -> i32 {
+    match family {
+        "flash-lite" | "mini" | "nano" | "haiku" => 0,
+        "flash" | "sonnet" | "gpt" | "luna" | "grok" | "chat" | "llama" => 1,
+        "pro" | "opus" | "reasoner" => 2,
+        _ => 3,
+    }
+}
+
+fn tier_rank(family: &str, daily_lead: bool) -> i32 {
+    let tier = tier_of_family(family);
+    if daily_lead || tier >= 2 {
+        tier
+    } else {
+        1 - tier
+    }
 }
 
 pub fn version_rank_of(id: &str) -> i32 {
@@ -69,13 +112,8 @@ pub fn provider_band(provider: &str) -> i32 {
     }
 }
 
-pub fn family_priority(family: &str) -> i32 {
-    match family {
-        "flash-lite" => 0,
-        "flash" => 10,
-        "pro" => 20,
-        _ => 90,
-    }
+pub fn is_rolling_alias(id: &str) -> bool {
+    id_tokens(id).iter().any(|t| t == "latest")
 }
 
 pub fn is_preview_id(id: &str) -> bool {
@@ -87,16 +125,28 @@ pub fn is_preview_id(id: &str) -> bool {
         || m.ends_with("-preview")
 }
 
-pub fn model_list_sort_cmp(a: &LlmModelRow, b: &LlmModelRow) -> std::cmp::Ordering {
+fn daily_lead_providers(models: &[LlmModelRow]) -> std::collections::HashSet<String> {
+    models.iter().filter(|m| m.family == "flash-lite").map(|m| m.provider.clone()).collect()
+}
+
+fn picker_cmp(a: &LlmModelRow, b: &LlmModelRow, daily_lead: &std::collections::HashSet<String>) -> std::cmp::Ordering {
+    let tier = |m: &LlmModelRow| tier_rank(&m.family, daily_lead.contains(&m.provider));
     provider_band(&a.provider)
         .cmp(&provider_band(&b.provider))
-        .then_with(|| family_priority(&a.family).cmp(&family_priority(&b.family)))
         .then_with(|| is_preview_id(&a.id).cmp(&is_preview_id(&b.id)))
+        .then_with(|| tier(a).cmp(&tier(b)))
         .then_with(|| b.version_rank.cmp(&a.version_rank))
         .then_with(|| a.label.cmp(&b.label))
 }
 
+#[cfg(test)]
+pub fn model_list_sort_cmp(a: &LlmModelRow, b: &LlmModelRow) -> std::cmp::Ordering {
+    let daily = daily_lead_providers(&[a.clone(), b.clone()]);
+    picker_cmp(a, b, &daily)
+}
+
 /// Picker order: Alien AI first, then CF frontier providers, then explicit Gemini pins.
+#[cfg(test)]
 pub fn model_picker_sort_cmp(a: &LlmModelRow, b: &LlmModelRow) -> std::cmp::Ordering {
     if a.id == "alienai" {
         return std::cmp::Ordering::Less;
@@ -107,37 +157,83 @@ pub fn model_picker_sort_cmp(a: &LlmModelRow, b: &LlmModelRow) -> std::cmp::Orde
     model_list_sort_cmp(a, b)
 }
 
-pub fn sort_order_for(m: &LlmModelRow, index: i32) -> i32 {
-    if !m.enabled {
-        return BAND_HIDDEN + index;
+const PICKER_STABLE_KEEP: usize = 2;
+const PICKER_PREVIEW_KEEP: usize = 1;
+const SORT_DISABLED: i32 = 1000;
+
+fn refresh_rank_fields(models: &mut [LlmModelRow]) {
+    for m in models.iter_mut() {
+        if m.source == "pinned" || m.id == "alienai" {
+            continue;
+        }
+        m.family = family_of(&m.id);
+        m.version_rank = version_rank_of(&m.id);
     }
-    if m.id == "alienai" {
-        return 0;
-    }
-    provider_band(&m.provider) + family_priority(&m.family) * 10 + index
 }
 
-pub fn apply_cf_enabled(models: &mut [LlmModelRow]) {
-    use std::collections::HashMap;
-    models.sort_by(model_list_sort_cmp);
-    let mut by_provider: HashMap<String, Vec<usize>> = HashMap::new();
-    for (i, m) in models.iter().enumerate() {
-        by_provider.entry(m.provider.clone()).or_default().push(i);
+fn picker_family_ok(m: &LlmModelRow) -> bool {
+    if m.provider != "google" {
+        return true;
     }
-    for indices in by_provider.values_mut() {
-        indices.sort_by(|&a, &b| model_list_sort_cmp(&models[a], &models[b]));
+    matches!(m.family.as_str(), "flash-lite" | "flash" | "pro")
+}
+
+fn apply_picker_window(models: &mut [LlmModelRow]) {
+    use std::collections::HashMap;
+    let mut groups: HashMap<(String, String), Vec<usize>> = HashMap::new();
+    for (i, m) in models.iter().enumerate() {
+        if m.source == "pinned" || m.source == "manual" || m.id == "alienai" {
+            continue;
+        }
+        groups.entry((m.provider.clone(), m.family.clone())).or_default().push(i);
+    }
+    for indices in groups.values_mut() {
+        indices.sort_by(|&a, &b| {
+            let (a, b) = (&models[a], &models[b]);
+            is_rolling_alias(&a.id)
+                .cmp(&is_rolling_alias(&b.id))
+                .then_with(|| is_preview_id(&a.id).cmp(&is_preview_id(&b.id)))
+                .then_with(|| b.version_rank.cmp(&a.version_rank))
+                .then_with(|| a.id.cmp(&b.id))
+        });
+        let has_concrete = indices.iter().any(|&i| !is_rolling_alias(&models[i].id) && !is_preview_id(&models[i].id));
         let mut stable_n = 0usize;
         let mut preview_n = 0usize;
         for &i in indices.iter() {
-            let m = &models[i];
-            if is_preview_id(&m.id) {
-                preview_n += 1;
-                models[i].enabled = preview_n <= 1;
-            } else {
-                stable_n += 1;
-                models[i].enabled = stable_n <= 6;
+            if !picker_family_ok(&models[i]) {
+                models[i].enabled = false;
+                continue;
             }
+            let alias = is_rolling_alias(&models[i].id);
+            if is_preview_id(&models[i].id) {
+                preview_n += 1;
+                models[i].enabled = !alias && preview_n <= PICKER_PREVIEW_KEEP;
+                continue;
+            }
+            if alias && has_concrete {
+                models[i].enabled = false;
+                continue;
+            }
+            stable_n += 1;
+            models[i].enabled = stable_n <= PICKER_STABLE_KEEP;
         }
+    }
+}
+
+/// Recompute family and version from each id, keep the newest rows per line, write `sort_order`.
+pub fn assign_picker_order(models: &mut [LlmModelRow]) {
+    refresh_rank_fields(models);
+    apply_picker_window(models);
+    let daily_lead = daily_lead_providers(models);
+    let mut enabled: Vec<usize> = (0..models.len()).filter(|&i| models[i].enabled).collect();
+    enabled.sort_by(|&a, &b| picker_cmp(&models[a], &models[b], &daily_lead));
+    for (n, i) in enabled.into_iter().enumerate() {
+        models[i].sort_order = n as i32;
+    }
+    let mut disabled_n = 0i32;
+    for m in models.iter_mut().filter(|m| !m.enabled) {
+        m.sort_order = SORT_DISABLED + disabled_n;
+        disabled_n += 1;
     }
 }
 
@@ -201,28 +297,6 @@ pub fn pick_default_provider(models: &[LlmModelRow], provider: &str) -> Option<S
         .filter(|m| m.provider == provider && m.enabled && m.source != "pinned" && !is_preview_id(&m.id))
         .max_by_key(|m| (m.version_rank, m.family == "flash-lite", m.family == "flash"))
         .map(|m| m.id.clone())
-}
-
-pub fn apply_gemini_enabled(models: &mut [LlmModelRow]) {
-    const FAMILIES: &[&str] = &["flash-lite", "flash", "pro"];
-    models.sort_by(model_list_sort_cmp);
-    let mut stable_n: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
-    let mut preview_n: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
-    for m in models.iter_mut() {
-        if !FAMILIES.contains(&m.family.as_str()) {
-            m.enabled = false;
-            continue;
-        }
-        if is_preview_id(&m.id) {
-            let n = preview_n.entry(m.family.clone()).or_insert(0);
-            *n += 1;
-            m.enabled = *n <= 1;
-        } else {
-            let n = stable_n.entry(m.family.clone()).or_insert(0);
-            *n += 1;
-            m.enabled = *n <= 4;
-        }
-    }
 }
 
 #[cfg(test)]
@@ -325,6 +399,85 @@ mod tests {
             source: "api".into(),
         };
         assert_eq!(model_picker_sort_cmp(&alien, &gemini), std::cmp::Ordering::Less);
+    }
+
+    fn sample(id: &str, provider: &str) -> LlmModelRow {
+        LlmModelRow {
+            id: id.into(),
+            provider: provider.into(),
+            label: id.into(),
+            provider_model: id.into(),
+            input_micro_per_m: 0,
+            output_micro_per_m: 0,
+            supports_thinking: false,
+            enabled: true,
+            is_default: false,
+            sort_order: 0,
+            family: String::new(),
+            version_rank: 0,
+            source: "api".into(),
+        }
+    }
+
+    #[test]
+    fn family_reads_product_line_from_id() {
+        assert_eq!(family_of("gpt-5.2-luna"), "luna");
+        assert_eq!(family_of("gpt-5-mini"), "mini");
+        assert_eq!(family_of("claude-sonnet-4-5"), "sonnet");
+        assert_eq!(family_of("claude-3-5-haiku-latest"), "haiku");
+        assert_eq!(family_of("o3-mini"), "mini");
+        assert_eq!(family_of("o3"), "reasoner");
+    }
+
+    #[test]
+    fn picker_puts_current_common_models_first() {
+        let mut models = vec![
+            sample("gemini-2.5-flash", "google"),
+            sample("gemini-flash-latest", "google"),
+            sample("gemini-2.5-flash-lite", "google"),
+            sample("gemini-flash-lite-latest", "google"),
+            sample("gemini-3.1-flash-lite-preview", "google"),
+            sample("gemini-3.5-flash-lite", "google"),
+            sample("gemini-3.1-flash-lite", "google"),
+            sample("gemini-3.8-flash", "google"),
+            sample("gemini-3.7-flash", "google"),
+            sample("gemini-3.6-flash", "google"),
+            sample("gemini-2.5-pro", "google"),
+            sample("gemini-pro-latest", "google"),
+            sample("gpt-4.1", "openai"),
+            sample("gpt-4.1-mini", "openai"),
+            sample("gpt-4o", "openai"),
+            sample("gpt-5.2-luna", "openai"),
+            sample("gpt-5-mini", "openai"),
+            sample("grok-2-latest", "xai"),
+        ];
+        assign_picker_order(&mut models);
+        let enabled: Vec<&str> = models.iter().filter(|m| m.enabled).map(|m| m.id.as_str()).collect();
+        assert!(!enabled.contains(&"gemini-flash-latest"));
+        assert!(!enabled.contains(&"gemini-flash-lite-latest"));
+        assert!(!enabled.contains(&"gemini-2.5-flash"));
+        assert!(!enabled.contains(&"gemini-3.6-flash"));
+        assert!(enabled.contains(&"grok-2-latest"));
+        let mut shown: Vec<&LlmModelRow> = models.iter().filter(|m| m.enabled).collect();
+        shown.sort_by_key(|m| m.sort_order);
+        let ids: Vec<&str> = shown.iter().map(|m| m.id.as_str()).collect();
+        assert_eq!(
+            ids,
+            vec![
+                "gpt-5.2-luna",
+                "gpt-4.1",
+                "gpt-4o",
+                "gpt-5-mini",
+                "gpt-4.1-mini",
+                "grok-2-latest",
+                "gemini-3.5-flash-lite",
+                "gemini-3.1-flash-lite",
+                "gemini-3.8-flash",
+                "gemini-3.7-flash",
+                "gemini-2.5-pro",
+                "gemini-3.1-flash-lite-preview",
+            ]
+        );
     }
 
     #[test]

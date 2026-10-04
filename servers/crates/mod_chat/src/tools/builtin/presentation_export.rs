@@ -75,9 +75,11 @@ pub async fn presentation_export_exec(
 
     let (program, args) = resolve_presentation_runner()?;
 
+    let resolved = crate::presentation_theme_resolve(pool, theme).await;
     let input_payload = json!({
         "title": if title.trim().is_empty() { "Presentation" } else { title.trim() },
-        "theme": if theme.trim().is_empty() { "dark" } else { theme.trim() },
+        "theme": resolved.id,
+        "theme_tokens": resolved.tokens,
         "slides_markdown": slides_markdown,
     });
     let input_bytes = serde_json::to_vec(&input_payload)?;
@@ -138,13 +140,14 @@ pub async fn presentation_export_exec(
     .collect::<String>();
 
     let filename = format!("{safe_title}.pptx");
+    let download_url = format!("{}/{}", put.url.trim_end_matches('/'), filename);
 
     Ok(json!({
         "ok": true,
         "runner": "cluster",
         "tool": "presentation.export",
         "file_hash": put.hash,
-        "download_url": put.url,
+        "download_url": download_url,
         "filename": filename,
         "mime": put.mime_type,
         "title": if clean_title.is_empty() { "Presentation" } else { clean_title },
@@ -154,7 +157,7 @@ pub async fn presentation_export_exec(
             "collapsed": false,
             "body": {
                 "hash": put.hash,
-                "url": put.url,
+                "url": download_url,
                 "mime": put.mime_type,
                 "name": filename,
                 "size": put.size_bytes,
@@ -288,6 +291,129 @@ tool! {
     }
 }
 
+tool! {
+    struct: PresentationCreateTool,
+    name: "presentation.create",
+    aliases: ["presentation_create", "slide.create", "slides.create", "presentation.deck"],
+    description: "Create and present a visual, interactive slide deck. Renders a native presentation card directly in the chat with pagination, slide count, and fullscreen presentation view.",
+    topics: ["presentation"],
+    always: ["presentation"],
+    rag_phrases: ["create presentation", "generate slides", "make slide deck", "bikin slide", "buat presentasi", "slide deck"],
+    ui_calling_key: "tool.presentation.create.calling",
+    ui_done_key: "tool.presentation.create.done",
+    parameters: {
+        title: (string, "Presentation title", required),
+        slides_markdown: (string, "Slide markdown text where each slide is separated by '---'. Each slide starts with a bold heading '# Slide Title' and bullet points.", optional, default = ""),
+        theme: (string, "Visual theme: 'dark' (default Alien AI dark neon), 'light', or 'corporate'", optional, default = "dark"),
+    },
+    execute: |args, _ctx| {
+        let title = args["title"].as_str().unwrap_or("Presentation").trim();
+        let clean_title = if title.is_empty() { "Presentation" } else { title };
+        let theme = args["theme"].as_str().unwrap_or("dark").trim();
+
+        let mut slides: Vec<String> = Vec::new();
+        if let Some(arr) = args["slides"].as_array() {
+            for item in arr {
+                if let Some(s) = item.as_str() {
+                    let st = s.trim();
+                    if !st.is_empty() {
+                        slides.push(st.to_string());
+                    }
+                }
+            }
+        }
+        if slides.is_empty() {
+            if let Some(md) = args["slides_markdown"].as_str() {
+                for s in md.split("\n---") {
+                    let st = s.trim().trim_start_matches("---").trim();
+                    if !st.is_empty() {
+                        slides.push(st.to_string());
+                    }
+                }
+            }
+        }
+        if slides.is_empty() {
+            slides.push(format!("# {clean_title}\n- Overview"));
+        }
+
+        let now_ms = chrono::Utc::now().timestamp_millis();
+        let slide_count = slides.len();
+
+        Ok(json!({
+            "ok": true,
+            "tool": "presentation.create",
+            "title": clean_title,
+            "slide_count": slide_count,
+            "block": {
+                "kind": "presentation.deck",
+                "collapsed": false,
+                "body": {
+                    "title": clean_title,
+                    "slides": slides,
+                    "created_at_ms": now_ms,
+                    "theme": theme,
+                }
+            }
+        }))
+    }
+}
+
+tool! {
+    struct: PresentationPatchTool,
+    name: "presentation.patch",
+    aliases: ["presentation_patch", "slide.patch", "slides.patch"],
+    description: "Apply a targeted edit or patch to an existing slide deck (replace, insert, or delete a slide) without regenerating the entire presentation.",
+    topics: ["presentation"],
+    always: ["presentation"],
+    rag_phrases: ["edit slide", "update slide", "patch slide", "tambah slide", "hapus slide", "ubah slide", "ganti slide"],
+    ui_calling_key: "tool.presentation.patch.calling",
+    ui_done_key: "tool.presentation.patch.done",
+    parameters: {
+        slide_index: (integer, "1-indexed slide number to modify or delete, or after which to insert", required),
+        action: (string, "Patch action: 'replace' (default), 'insert', or 'delete'", optional, default = "replace"),
+        content: (string, "Markdown content for the replaced or inserted slide (not needed for delete)", optional, default = ""),
+        title: (string, "Optional presentation title", optional, default = "Presentation"),
+    },
+    execute: |args, _ctx| {
+        let slide_index = args["slide_index"].as_u64().unwrap_or(1) as usize;
+        let action = args["action"].as_str().unwrap_or("replace").trim().to_ascii_lowercase();
+        let content = args["content"].as_str().unwrap_or("").trim();
+        let title = args["title"].as_str().unwrap_or("Presentation").trim();
+
+        let patch_comment = match action.as_str() {
+            "delete" => format!("<!-- slide-patch:delete {slide_index} -->"),
+            "insert" | "add" => format!("<!-- slide-patch:add after={slide_index} -->\n{content}"),
+            _ => format!("<!-- slide-patch:{slide_index} -->\n{content}"),
+        };
+
+        let eyebrow = match action.as_str() {
+            "delete" => format!("SLIDE {slide_index} DELETED"),
+            "insert" | "add" => format!("SLIDE ADDED AFTER {slide_index}"),
+            _ => format!("SLIDE {slide_index} UPDATED"),
+        };
+
+        let now_ms = chrono::Utc::now().timestamp_millis();
+
+        Ok(json!({
+            "ok": true,
+            "tool": "presentation.patch",
+            "slide_index": slide_index,
+            "action": action,
+            "patch": patch_comment,
+            "block": {
+                "kind": "presentation.deck",
+                "collapsed": false,
+                "body": {
+                    "title": if title.is_empty() || title == "Presentation" { format!("Slide {slide_index} Updated") } else { title.to_string() },
+                    "content": patch_comment,
+                    "created_at_ms": now_ms,
+                    "eyebrow": eyebrow,
+                }
+            }
+        }))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -310,6 +436,89 @@ mod tests {
         assert!(res.is_ok());
         let (cmd, _args) = res.unwrap();
         assert!(!cmd.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_presentation_create_execution() {
+        let tool = PresentationCreateTool;
+        let def = tool.definition();
+        assert_eq!(def.name, "presentation.create");
+        assert!(def.always.contains(&"presentation".to_string()));
+
+        let ctx = crate::tools::ToolContext::new(
+            sqlx::PgPool::connect_lazy("postgres://localhost/test").unwrap(),
+            None,
+            1,
+            1,
+            None,
+            crate::mention_context::MentionContext::default(),
+            vec![],
+            "",
+            "en-US",
+            "",
+            "",
+            "",
+            "",
+            "req1",
+            reqwest::Client::new(),
+        );
+        let res = tool
+            .execute(
+                json!({
+                    "title": "Cooking Guide",
+                    "slides_markdown": "# Step 1: Boil Water\n- 400ml\n---\n# Step 2: Add Noodles\n- 3 mins"
+                }),
+                &ctx,
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(res["ok"], true);
+        assert_eq!(res["slide_count"], 2);
+        assert_eq!(res["block"]["kind"], "presentation.deck");
+        assert_eq!(res["block"]["body"]["title"], "Cooking Guide");
+    }
+
+    #[tokio::test]
+    async fn test_presentation_patch_execution() {
+        let tool = PresentationPatchTool;
+        let def = tool.definition();
+        assert_eq!(def.name, "presentation.patch");
+        assert!(def.always.contains(&"presentation".to_string()));
+
+        let ctx = crate::tools::ToolContext::new(
+            sqlx::PgPool::connect_lazy("postgres://localhost/test").unwrap(),
+            None,
+            1,
+            1,
+            None,
+            crate::mention_context::MentionContext::default(),
+            vec![],
+            "",
+            "en-US",
+            "",
+            "",
+            "",
+            "",
+            "req1",
+            reqwest::Client::new(),
+        );
+        let res = tool
+            .execute(
+                json!({
+                    "slide_index": 2,
+                    "action": "replace",
+                    "content": "# Updated Step 2\n- 4 minutes"
+                }),
+                &ctx,
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(res["ok"], true);
+        assert_eq!(res["slide_index"], 2);
+        assert_eq!(res["block"]["kind"], "presentation.deck");
+        assert!(res["patch"].as_str().unwrap().contains("slide-patch:2"));
     }
 }
 

@@ -20,18 +20,19 @@ Registered in `servers/crates/store/src/schema.rs` (`SCHEMA_APPLY_ORDER`). On bo
 11. topic.sql
 12. mention.sql
 13. translation.sql
-14. hint.sql
-15. memory.sql
-16. skill.sql
-17. task.sql
-18. consumption.sql
-19. object_normalizer.sql
-20. site.sql         ← creates YSQL schema site
-21. tx.sql           ← site.tx_* (requires site.sql)
-22. file.sql
-23. drive.sql         ← owner drive path index (requires file.sql / CAS)
-24. channel.sql
-25. config.sql
+14. presentation_theme.sql
+15. hint.sql
+16. memory.sql
+17. skill.sql
+18. task.sql
+19. consumption.sql
+20. object_normalizer.sql
+21. site.sql         ← creates YSQL schema site
+22. tx.sql           ← site.tx_* (requires site.sql)
+23. file.sql
+24. drive.sql         ← owner drive path index (requires file.sql / CAS)
+25. channel.sql
+26. config.sql
 ```
 
 One-time data migrations live in `_/schemas/migrations/` — run manually when upgrading legacy DBs (not on every boot).

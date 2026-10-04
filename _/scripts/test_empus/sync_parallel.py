@@ -24,7 +24,14 @@ from typing import Any
 
 
 
-from extract import epus_not_found_fields, epus_tab_pool_fresh, fetch_one, load_config, wake_extension
+from extract import (
+    ensure_browser_online,
+    epus_not_found_fields,
+    epus_tab_pool_fresh,
+    fetch_one,
+    load_config,
+    wake_extension,
+)
 
 from sheet_pending import filter_pending_empty_faskes, filter_pending_participants
 
@@ -286,8 +293,8 @@ def main() -> int:
     p.add_argument(
         "--search-by",
         default="nama",
-        choices=("nama", "penjamin", "kartu"),
-        help="epus field: nama=Cari Nama, penjamin/kartu=NIK/No Asuransi (No. Penjamin)",
+        choices=("nama", "nik", "penjamin", "kartu"),
+        help="nama=Cari Nama; nik=NIK dropdown + value; penjamin/kartu=No Asuransi/penjamin",
     )
 
     args = p.parse_args()
@@ -394,7 +401,9 @@ def main() -> int:
 
 
 
-    wake_extension()
+    if not ensure_browser_online(cfg, owner):
+        print("abort: browser agent still offline", flush=True)
+        return 2
 
     wave = max(1, args.wave_size)
 

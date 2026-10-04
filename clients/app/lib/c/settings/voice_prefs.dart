@@ -13,6 +13,7 @@ class VoicePrefs extends ChangeNotifier {
   static const _keyTts = 'voice_tts_engine';
   static const _keySpeak = 'csai_voice_speak_enabled';
   static const speakEnabledDefault = false;
+  static const sttAutoSendDefault = true;
   static const _keyRate = 'voice_speech_rate';
   static const _keyPitch = 'voice_speech_pitch';
   static const _keyMicId = 'voice_mic_device_id';
@@ -32,7 +33,7 @@ class VoicePrefs extends ChangeNotifier {
   var _speechPitch = 1.0;
   var _micDeviceId = '';
   var _micDeviceLabel = '';
-  var _sttAutoSend = false;
+  var _sttAutoSend = sttAutoSendDefault;
 
   String get speechLang => _speechLang;
   String get lastLang => _lastLang;
@@ -60,7 +61,7 @@ class VoicePrefs extends ChangeNotifier {
     _speechPitch = _prefs!.getDouble(_keyPitch) ?? 1.0;
     _micDeviceId = _prefs!.getString(_keyMicId) ?? '';
     _micDeviceLabel = _prefs!.getString(_keyMicLabel) ?? '';
-    _sttAutoSend = _prefs!.getBool(_keySttAutoSend) ?? false;
+    _sttAutoSend = _prefs!.getBool(_keySttAutoSend) ?? sttAutoSendDefault;
     notifyListeners();
   }
 

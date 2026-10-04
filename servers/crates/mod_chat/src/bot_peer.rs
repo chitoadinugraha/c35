@@ -148,7 +148,7 @@ pub async fn bot_peer_create(pool: &PgPool, caller_iid: i64, req: ReqBotPeerCrea
     let row = sqlx::query(
         r#"
         SELECT id, kind, owner_iid, title, model, bot_iid, channel_id, peer_key, peer_name, peer_pic,
-               ai_reply_enabled, last_msg_ts, last_msg_preview, meta, created_ts, updated_ts, deleted_ts
+               ai_reply_enabled, last_msg_ts, last_msg_preview, meta, context_window, created_ts, updated_ts, deleted_ts
         FROM ai.chat WHERE id = $1
         "#,
     )
@@ -303,7 +303,7 @@ pub async fn bot_peer_list(pool: &PgPool, caller_iid: i64, req: ReqBotPeerList) 
     let rows = sqlx::query(
         r#"
         SELECT id, kind, owner_iid, title, model, bot_iid, channel_id, peer_key, peer_name, peer_pic,
-               ai_reply_enabled, last_msg_ts, last_msg_preview, meta, created_ts, updated_ts, deleted_ts
+               ai_reply_enabled, last_msg_ts, last_msg_preview, meta, context_window, created_ts, updated_ts, deleted_ts
         FROM ai.chat
         WHERE kind = 'bot_peer' AND bot_iid = $1 AND deleted_ts IS NULL
         ORDER BY last_msg_ts DESC
@@ -446,6 +446,7 @@ fn row_to_chat(r: sqlx::postgres::PgRow) -> Chat {
         last_msg_ts_ms: ts_ms(r.get("last_msg_ts")),
         last_msg_preview: r.get("last_msg_preview"),
         meta_json: meta.to_string(),
+        context_window: r.get("context_window"),
         created_ts_ms: ts_ms(r.get("created_ts")),
         updated_ts_ms: ts_ms(r.get("updated_ts")),
         deleted_ts_ms: ts_ms(r.get("deleted_ts")),

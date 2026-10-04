@@ -516,6 +516,9 @@ message BillingHistoryRow {
   int64 ts_ms = 6;
   string currency = 7;
   double amount = 8;        // signed native amount in currency
+  int64 chat_id = 9;
+  string req_id = 10;
+  string prompt = 11;
 }
 
 message ReqBillingHistory {

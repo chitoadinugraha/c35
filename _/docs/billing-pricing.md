@@ -79,6 +79,19 @@ Example — Gemini 3.5 Flash Lite (catalog wholesale $0.30 / $2.50):
 
 Display as Rp using same FX rate.
 
+### Cached Read Tokens & Retail Markup (LOCKED)
+
+When LLM requests hit provider prompt/context cache (e.g. Gemini cached tokens, Anthropic cache read, OpenAI cached prompt tokens, DeepSeek hit):
+
+1. **Wholesale Rate**: The provider catalog defines wholesale cached read pricing (typically 25%–50% of regular input token price).
+2. **Retail Markup**: All cached read tokens are multiplied by the platform retail markup:
+   ```
+   cached_read_deduct = wholesale_cached_read_usd × RETAIL_MARKUP (1.50)
+   ```
+3. **Turn Trace Display**:
+   Turns with cached tokens report the complete sequence:
+   `[cached_read] [tokens_in] [tokens_out] [duration_ms] [cost_usd]`
+
 ---
 
 ## Model comparison (retail / 1M tokens)

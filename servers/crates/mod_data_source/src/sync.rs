@@ -35,7 +35,13 @@ pub async fn data_source_sync_run(http: &Client, pool: &PgPool, data_source_id: 
         .await?
         .context("data_source not found")?;
     match row.source_kind.as_str() {
-        SOURCE_KIND_GOOGLE_SHEET => google_sheet_sync_run(http, pool, &row).await,
+        SOURCE_KIND_GOOGLE_SHEET => {
+            if let Err(e) = google_sheet_sync_run(http, pool, &row).await {
+                let _ = sync_upsert_error(pool, data_source_id, &row.source_kind, &format!("{e:#}")).await;
+                return Err(e);
+            }
+            Ok(())
+        }
         other => {
             let msg = format!("unsupported source_kind: {other}");
             let _ = sync_upsert_error(pool, data_source_id, other, &msg).await;

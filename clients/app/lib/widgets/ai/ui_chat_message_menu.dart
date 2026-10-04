@@ -35,6 +35,12 @@ class ChatMessageMenuDivider extends ChatMessageMenuItem {
   const ChatMessageMenuDivider();
 }
 
+class ChatMessageMenuButtonRow extends ChatMessageMenuItem {
+  const ChatMessageMenuButtonRow({required this.actions});
+
+  final List<ChatMessageMenuAction> actions;
+}
+
 class ChatMessageContextMenu extends StatelessWidget {
   const ChatMessageContextMenu({super.key, required this.anchors, required this.items});
 
@@ -112,12 +118,63 @@ class _ChatMessageMenuPanel extends StatelessWidget {
                       child: Divider(height: 1, thickness: 1, color: ChatMessageMenuStyle.panelBorder),
                     )
                   else if (item is ChatMessageMenuAction)
-                    _ChatMessageMenuRow(action: item),
+                    _ChatMessageMenuRow(action: item)
+                  else if (item is ChatMessageMenuButtonRow && item.actions.length == 2)
+                    Row(
+                      children: [
+                        for (final action in item.actions) Expanded(child: _ChatMessageMenuHalfButton(action: action)),
+                      ],
+                    ),
               ],
             ),
           ),
         ),
       );
+}
+
+class _ChatMessageMenuHalfButton extends StatefulWidget {
+  const _ChatMessageMenuHalfButton({required this.action});
+
+  final ChatMessageMenuAction action;
+
+  @override
+  State<_ChatMessageMenuHalfButton> createState() => _ChatMessageMenuHalfButtonState();
+}
+
+class _ChatMessageMenuHalfButtonState extends State<_ChatMessageMenuHalfButton> {
+  var _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final act = widget.action;
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: Material(
+        color: _hovered ? ChatMessageMenuStyle.rowHover : Colors.transparent,
+        child: InkWell(
+          onTap: act.onPressed,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            child: Row(
+              children: [
+                Icon(act.icon, size: 16, color: ChatMessageMenuStyle.rowText),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    act.label,
+                    style: const TextStyle(color: ChatMessageMenuStyle.rowText, fontSize: 13, fontWeight: FontWeight.w500, height: 1.2),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _ChatMessageMenuRow extends StatefulWidget {

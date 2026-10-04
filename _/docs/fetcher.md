@@ -100,7 +100,7 @@ Domain logic stays in `mod_billing` / `mod_llm` — they own API contracts and D
 |------|----------|--------|---------|--------------|
 | `fx_rate` | 1h (`:05` past hour) | [Open Exchange Rates](https://openexchangerates.org/) `latest.json?symbols=IDR` | `ai.billing_fx_rate` | `c35.fetch.fx` |
 | `llm_catalog` | 30m | Google Gemini models API (existing `gemini_fetch`) | `ai.llm_model` upsert/prune | `c35.fetch.llm_catalog` |
-| `context_idle` | 5m | `mod_chat` idle context sweep | `ai.chat_context` prune | — |
+| `context_idle` | 15m, **off** unless `C35_CONTEXT_IDLE_COMPACT=1` | `mod_chat` idle context sweep | `ai.chat.context_summary` | — |
 | `vendor_bill_oci` | 24h (stagger +0m) | OCI Usage API | `ai.platform_vendor_cost` | — |
 | `vendor_bill_gcp` | 24h (stagger +15m) | GCP BigQuery billing export | `ai.platform_vendor_cost` | — |
 | `vendor_bill_cf` | 24h (stagger +30m) | Cloudflare GraphQL (+ CSV import for close) | `ai.platform_vendor_cost` | — |

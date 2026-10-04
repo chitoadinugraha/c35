@@ -31,6 +31,7 @@ void main() {
           home: Scaffold(
             body: Center(
               child: UiContextMeter(
+                promptTokens: 24500,
                 tokensIn: 20000,
                 tokensOut: 4500,
                 contextLimit: 128000,
@@ -71,16 +72,18 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsNothing);
     });
 
-    testWidgets('shows detail dialog on tap', (tester) async {
+    testWidgets('shows context menu on tap', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
             body: Center(
               child: UiContextMeter(
+                promptTokens: 24500,
                 tokensIn: 20000,
                 tokensOut: 4500,
                 contextLimit: 128000,
                 costUsd: 0.0034,
+                windowOptions: [131072],
               ),
             ),
           ),
@@ -90,9 +93,38 @@ void main() {
       await tester.tap(find.byType(UiContextMeter));
       await tester.pumpAndSettle();
 
-      expect(find.text('Context Usage'), findsOneWidget);
-      expect(find.text('Input'), findsOneWidget);
-      expect(find.text('Output'), findsOneWidget);
+      expect(find.text('Context usage'), findsOneWidget);
+      expect(find.text('19% full'), findsOneWidget);
+      expect(find.text('24.5K / 128.0K'), findsOneWidget);
+      expect(find.text('Conversation'), findsOneWidget);
+      expect(find.text('128K'), findsOneWidget);
+      expect(find.text('Summarize earlier messages'), findsOneWidget);
+    });
+
+    testWidgets('menu lists a window option', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: UiContextMeter(
+                promptTokens: 1000,
+                contextLimit: 131072,
+                windowOptions: const [32768, 65536, 131072],
+                onWindowSelected: (_) {},
+                onSummarize: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.byType(UiContextMeter));
+      await tester.pumpAndSettle();
+
+      expect(find.text('32K'), findsOneWidget);
+      expect(find.text('64K'), findsOneWidget);
+      expect(find.text('128K'), findsOneWidget);
+      expect(find.text('256K'), findsNothing);
     });
   });
 }

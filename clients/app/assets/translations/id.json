@@ -4,6 +4,10 @@
                  "heroSubtitle":  "Mulai obrolan baru atau pilih dari riwayat.",
                  "heroLoading":  "Memuat katalog…"
              },
+    "chat":  {
+                 "copySemua":  "Copy Semua",
+                 "copySemuaDone":  "Obrolan disalin ke clipboard"
+             },
     "common":  {
                    "cancel":  "Batal",
                    "delete":  "Hapus",
@@ -115,7 +119,7 @@
                  },
     "composer":  {
                      "listening":  "Mendengarkan...",
-                     "autoSend":  "Kirim otomatis",
+                     "autoSend":  "Kirim Langsung",
                      "preparing":  "Menyiapkan...",
                      "finishRecording":  "Selesai merekam"
                  },

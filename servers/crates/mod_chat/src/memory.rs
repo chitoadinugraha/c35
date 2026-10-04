@@ -3,16 +3,19 @@ use std::time::{Duration, Instant};
 use anyhow::Result;
 use c35_mod_billing::billing_embed_cost_usd;
 use c35_mod_llm::{
-    embed_cache_key, embed_cached, embed_cache_put, embed_model_tag, embed_text, EMBED_MODEL, EMBED_TASK_DOCUMENT,
-    EMBED_TASK_QUERY,
+    embed_cached, embed_model_tag, embed_text, EMBED_MODEL, EMBED_TASK_DOCUMENT, EMBED_TASK_QUERY,
 };
 use c35_store::snowflake_id;
 use reqwest::Client;
+use sqlx::types::Json;
 use sqlx::PgPool;
 use tracing::warn;
 
 const MEMORY_CANDIDATE_LIMIT: i64 = 32;
-const MEMORY_RETRIEVE_TIMEOUT: Duration = Duration::from_millis(800);
+const MEMORY_PINNED_LIMIT: i64 = 4;
+const MEMORY_SIM_FLOOR: f32 = 0.50;
+const MEMORY_RETRIEVE_TIMEOUT: Duration = Duration::from_millis(3500);
+const MEMORY_EMBED_TIMEOUT: Duration = Duration::from_millis(2000);
 const EMBED_DIMS: i32 = 768;
 
 #[derive(Clone, Debug, Default, serde::Serialize)]
@@ -25,6 +28,8 @@ pub struct MemoryRetrieveTrace {
     pub embed_token_in: i32,
     pub embed_cost_usd: f64,
     pub embed_model: String,
+    pub pinned_count: i32,
+    pub active_count: i32,
 }
 
 pub struct MemoryRetrieveResult {
@@ -56,7 +61,10 @@ pub fn memory_prompt_block(rows: &[(String, String)]) -> String {
     if lines.is_empty() {
         String::new()
     } else {
-        format!("## Memory\n{}", lines.join("\n"))
+        format!(
+            "## Memory\nKnown facts about the user. Use naturally without reciting. If the user's current message contradicts a stored fact, follow the user.\n{}",
+            lines.join("\n")
+        )
     }
 }
 
@@ -80,7 +88,37 @@ pub async fn memory_put(
     category: &str,
     source_req_id: &str,
 ) -> Result<i64> {
+    let http = Client::builder().timeout(Duration::from_secs(15)).build().unwrap_or_default();
+    memory_put_with_client(pool, &http, owner_iid, bot_iid, key, content, category, source_req_id).await
+}
+
+pub async fn memory_put_with_client(
+    pool: &PgPool,
+    http: &Client,
+    owner_iid: i64,
+    bot_iid: Option<i64>,
+    key: &str,
+    content: &str,
+    category: &str,
+    source_req_id: &str,
+) -> Result<i64> {
     let content_hash = blake3::hash(format!("{}: {}", key.trim(), content.trim()).as_bytes()).to_hex().to_string();
+    let payload = format!("{}: {}", key.trim(), content.trim());
+    let embed_vec = match embed_cached(pool, http, &payload, EMBED_TASK_DOCUMENT, EMBED_DIMS).await {
+        Ok(r) => Some(r.embedding),
+        Err(e) => {
+            warn!("[c35:memory] embed_cached failed for '{payload}': {e}");
+            match embed_text(http, &payload, EMBED_TASK_DOCUMENT, EMBED_DIMS).await {
+                Ok(r) => Some(r.embedding),
+                Err(e2) => {
+                    warn!("[c35:memory] embed_text fallback failed: {e2:#}");
+                    None
+                }
+            }
+        }
+    };
+    let embed_json = embed_vec.and_then(|v| serde_json::to_value(v).ok()).map(Json);
+
     let existing: Option<i64> = if let Some(bid) = bot_iid {
         sqlx::query_scalar(
             "SELECT id FROM ai.memory WHERE owner_iid = $1 AND bot_iid = $2 AND key = $3 AND deleted_ts IS NULL",
@@ -101,13 +139,14 @@ pub async fn memory_put(
     };
     if let Some(id) = existing {
         sqlx::query(
-            "UPDATE ai.memory SET content = $2, category = $3, source_req_id = $4, content_hash = $5, updated_ts = NOW() WHERE id = $1",
+            "UPDATE ai.memory SET content = $2, category = $3, source_req_id = $4, content_hash = $5, embedding_json = $6, is_active = true, updated_ts = NOW() WHERE id = $1",
         )
         .bind(id)
         .bind(content)
         .bind(category)
         .bind(source_req_id)
         .bind(&content_hash)
+        .bind(embed_json)
         .execute(pool)
         .await?;
         return Ok(id);
@@ -115,8 +154,8 @@ pub async fn memory_put(
     let id = snowflake_id();
     sqlx::query(
         r#"
-        INSERT INTO ai.memory (id, owner_iid, bot_iid, category, key, content, source_req_id, content_hash, updated_ts)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+        INSERT INTO ai.memory (id, owner_iid, bot_iid, category, key, content, source_req_id, content_hash, embedding_json, is_active, updated_ts)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, NOW())
         "#,
     )
     .bind(id)
@@ -127,9 +166,68 @@ pub async fn memory_put(
     .bind(content)
     .bind(source_req_id)
     .bind(&content_hash)
+    .bind(embed_json)
     .execute(pool)
     .await?;
     Ok(id)
+}
+
+pub async fn memory_delete(
+    pool: &PgPool,
+    owner_iid: i64,
+    bot_iid: Option<i64>,
+    key: &str,
+) -> Result<bool> {
+    let res = if let Some(bid) = bot_iid {
+        sqlx::query(
+            "UPDATE ai.memory SET is_active = false, deleted_ts = NOW(), updated_ts = NOW() \
+             WHERE owner_iid = $1 AND bot_iid = $2 AND key = $3 AND deleted_ts IS NULL",
+        )
+        .bind(owner_iid)
+        .bind(bid)
+        .bind(key)
+        .execute(pool)
+        .await?
+    } else {
+        sqlx::query(
+            "UPDATE ai.memory SET is_active = false, deleted_ts = NOW(), updated_ts = NOW() \
+             WHERE owner_iid = $1 AND bot_iid IS NULL AND key = $2 AND deleted_ts IS NULL",
+        )
+        .bind(owner_iid)
+        .bind(key)
+        .execute(pool)
+        .await?
+    };
+    Ok(res.rows_affected() > 0)
+}
+
+pub async fn memory_list_active(
+    pool: &PgPool,
+    owner_iid: i64,
+    bot_iid: Option<i64>,
+    limit: i64,
+) -> Result<Vec<(String, String)>> {
+    let rows = if let Some(bid) = bot_iid {
+        sqlx::query_as::<_, (String, String)>(
+            "SELECT key, content FROM ai.memory WHERE owner_iid = $1 AND (bot_iid IS NULL OR bot_iid = $2) \
+             AND is_active = true AND deleted_ts IS NULL ORDER BY updated_ts DESC LIMIT $3",
+        )
+        .bind(owner_iid)
+        .bind(bid)
+        .bind(limit)
+        .fetch_all(pool)
+        .await?
+    } else {
+        sqlx::query_as::<_, (String, String)>(
+            "SELECT key, content FROM ai.memory WHERE owner_iid = $1 AND bot_iid IS NULL \
+             AND is_active = true AND deleted_ts IS NULL ORDER BY updated_ts DESC LIMIT $2",
+        )
+        .bind(owner_iid)
+        .bind(limit)
+        .fetch_all(pool)
+        .await?
+    };
+    Ok(rows)
 }
 
 pub async fn memory_retrieve(
@@ -171,60 +269,205 @@ async fn memory_retrieve_impl(
     limit: usize,
 ) -> Result<(String, MemoryRetrieveTrace)> {
     let mut trace = MemoryRetrieveTrace::default();
-    let cands = memory_candidates(pool, owner_iid, bot_iid, query_text).await?;
-    if cands.is_empty() {
-        return Ok((String::new(), trace));
-    }
     let q = query_text.trim();
+
+    // 1. Core/pinned memories (identity, preference, and key user traits)
+    let pinned_rows = match memory_pinned(pool, owner_iid, bot_iid, MEMORY_PINNED_LIMIT).await {
+        Ok(rows) => {
+            trace.pinned_count = rows.len() as i32;
+            rows
+        }
+        Err(e) => {
+            warn!("[c35:memory] memory_pinned failed owner_iid={owner_iid}: {e:#}");
+            Vec::new()
+        }
+    };
+
     if q.is_empty() {
-        let rows: Vec<(String, String)> = cands.into_iter().take(limit).map(|c| (c.key, c.content)).collect();
-        trace.memory_count = rows.len() as i32;
-        return Ok((memory_prompt_block(&rows), trace));
+        let mut combined = pinned_rows;
+        let recent = memory_list_active(pool, owner_iid, bot_iid, limit as i64).await.unwrap_or_default();
+        for r in recent {
+            if !combined.iter().any(|(k, _)| k == &r.0) {
+                combined.push(r);
+            }
+        }
+        combined.truncate(limit);
+        trace.memory_count = combined.len() as i32;
+        return Ok((memory_prompt_block(&combined), trace));
+    }
+
+    // 2. Load active memories for the user
+    let all_active = match memory_active_with_embed(pool, owner_iid, bot_iid, 64).await {
+        Ok(rows) => {
+            trace.active_count = rows.len() as i32;
+            rows
+        }
+        Err(e) => {
+            warn!("[c35:memory] memory_active_with_embed failed owner_iid={owner_iid}: {e:#}");
+            Vec::new()
+        }
+    };
+
+    if all_active.is_empty() {
+        if !pinned_rows.is_empty() {
+            trace.memory_count = pinned_rows.len() as i32;
+            return Ok((memory_prompt_block(&pinned_rows), trace));
+        }
+        return Ok((String::new(), trace));
     }
 
     let embed_t0 = Instant::now();
     let model = embed_model_tag(EMBED_MODEL, EMBED_DIMS);
     trace.embed_model = model.clone();
-    let query_vec = match embed_cached(pool, http, q, EMBED_TASK_QUERY, EMBED_DIMS).await {
-        Ok(r) => {
+
+    let query_vec = match tokio::time::timeout(
+        MEMORY_EMBED_TIMEOUT,
+        embed_cached(pool, http, q, EMBED_TASK_QUERY, EMBED_DIMS),
+    )
+    .await
+    {
+        Ok(Ok(r)) => {
             trace.embed_cached = r.cached;
             trace.embed_ms = embed_t0.elapsed().as_millis() as i64;
             trace.embed_token_in = r.token_in;
             trace.embed_cost_usd = billing_embed_cost_usd(&model, r.token_in);
-            r.embedding
+            Some(r.embedding)
         }
-        Err(_) => {
+        _ => {
             trace.embed_skipped = true;
-            let rows: Vec<(String, String)> = cands.into_iter().take(limit).map(|c| (c.key, c.content)).collect();
-            trace.memory_count = rows.len() as i32;
-            return Ok((memory_prompt_block(&rows), trace));
+            None
         }
     };
 
     let mut scored: Vec<(String, String, f32)> = Vec::new();
-    for cand in &cands {
-        let payload = format!("{}: {}", cand.key, cand.content);
-        let dkey = embed_cache_key(&payload, EMBED_TASK_DOCUMENT, EMBED_DIMS);
-        let doc_vec = if let Ok(r) = embed_cached(pool, http, &payload, EMBED_TASK_DOCUMENT, EMBED_DIMS).await {
-            r.embedding
-        } else if let Ok(out) = embed_text(http, &payload, EMBED_TASK_DOCUMENT, EMBED_DIMS).await {
-            let _ = embed_cache_put(pool, &model, &dkey, &payload, EMBED_TASK_DOCUMENT, &out.embedding, out.token_in).await;
-            out.embedding
-        } else {
-            continue;
-        };
-        scored.push((cand.key.clone(), cand.content.clone(), cosine_similarity(&query_vec, &doc_vec)));
+
+    // In-memory vector comparison against stored embedding_json
+    if let Some(ref q_vec) = query_vec {
+        for row in &all_active {
+            if let Some(ref emb_val) = row.embedding_json {
+                if let Ok(emb_vec) = serde_json::from_value::<Vec<f32>>(emb_val.clone()) {
+                    let sim = cosine_similarity(q_vec, &emb_vec);
+                    if sim >= MEMORY_SIM_FLOOR {
+                        scored.push((row.key.clone(), row.content.clone(), sim));
+                    }
+                }
+            } else {
+                // If embedding not yet cached, still include as candidate
+                scored.push((row.key.clone(), row.content.clone(), 0.55));
+            }
+        }
+    } else {
+        // Embed skipped: include all active memories as candidates
+        for row in &all_active {
+            scored.push((row.key.clone(), row.content.clone(), 0.55));
+        }
     }
 
-    if scored.is_empty() {
-        let rows: Vec<(String, String)> = cands.into_iter().take(limit).map(|c| (c.key, c.content)).collect();
-        trace.memory_count = rows.len() as i32;
-        return Ok((memory_prompt_block(&rows), trace));
+    // 3. FTS keyword fallback
+    let fts_cands = match memory_candidates(pool, owner_iid, bot_iid, q).await {
+        Ok(rows) => rows,
+        Err(e) => {
+            warn!("[c35:memory] memory_candidates failed owner_iid={owner_iid}: {e:#}");
+            Vec::new()
+        }
+    };
+    for f in fts_cands {
+        if !scored.iter().any(|(k, _, _)| k == &f.key) {
+            scored.push((f.key, f.content, 0.60));
+        }
     }
+
     scored.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal));
-    let rows: Vec<(String, String)> = scored.into_iter().take(limit).map(|(k, c, _)| (k, c)).collect();
-    trace.memory_count = rows.len() as i32;
-    Ok((memory_prompt_block(&rows), trace))
+
+    // 4. Merge: pinned first, then top scored
+    let mut result_rows: Vec<(String, String)> = Vec::new();
+    for p in pinned_rows {
+        result_rows.push(p);
+    }
+    for (k, c, _) in scored {
+        if !result_rows.iter().any(|(rk, _)| rk == &k) {
+            result_rows.push((k, c));
+        }
+    }
+    result_rows.truncate(limit);
+    trace.memory_count = result_rows.len() as i32;
+    Ok((memory_prompt_block(&result_rows), trace))
+}
+
+struct ActiveMemoryRow {
+    key: String,
+    content: String,
+    #[allow(dead_code)]
+    category: String,
+    embedding_json: Option<serde_json::Value>,
+}
+
+async fn memory_pinned(
+    pool: &PgPool,
+    owner_iid: i64,
+    bot_iid: Option<i64>,
+    limit: i64,
+) -> Result<Vec<(String, String)>> {
+    let rows = if let Some(bid) = bot_iid {
+        sqlx::query_as::<_, (String, String)>(
+            "SELECT key, content FROM ai.memory WHERE owner_iid = $1 AND (bot_iid IS NULL OR bot_iid = $2) \
+             AND (category IN ('identity', 'preference') OR key IN ('user_name', 'name', 'diet', 'dietary_restriction', 'language', 'city', 'location')) \
+             AND is_active = true AND deleted_ts IS NULL \
+             ORDER BY updated_ts DESC LIMIT $3",
+        )
+        .bind(owner_iid)
+        .bind(bid)
+        .bind(limit)
+        .fetch_all(pool)
+        .await?
+    } else {
+        sqlx::query_as::<_, (String, String)>(
+            "SELECT key, content FROM ai.memory WHERE owner_iid = $1 AND bot_iid IS NULL \
+             AND (category IN ('identity', 'preference') OR key IN ('user_name', 'name', 'diet', 'dietary_restriction', 'language', 'city', 'location')) \
+             AND is_active = true AND deleted_ts IS NULL \
+             ORDER BY updated_ts DESC LIMIT $2",
+        )
+        .bind(owner_iid)
+        .bind(limit)
+        .fetch_all(pool)
+        .await?
+    };
+    Ok(rows)
+}
+
+async fn memory_active_with_embed(
+    pool: &PgPool,
+    owner_iid: i64,
+    bot_iid: Option<i64>,
+    limit: i64,
+) -> Result<Vec<ActiveMemoryRow>> {
+    let rows = if let Some(bid) = bot_iid {
+        sqlx::query_as::<_, (String, String, String, Option<Json<serde_json::Value>>)>(
+            "SELECT key, content, category, embedding_json FROM ai.memory \
+             WHERE owner_iid = $1 AND (bot_iid IS NULL OR bot_iid = $2) \
+             AND is_active = true AND deleted_ts IS NULL \
+             ORDER BY updated_ts DESC LIMIT $3",
+        )
+        .bind(owner_iid)
+        .bind(bid)
+        .bind(limit)
+        .fetch_all(pool)
+        .await?
+    } else {
+        sqlx::query_as::<_, (String, String, String, Option<Json<serde_json::Value>>)>(
+            "SELECT key, content, category, embedding_json FROM ai.memory \
+             WHERE owner_iid = $1 AND bot_iid IS NULL \
+             AND is_active = true AND deleted_ts IS NULL \
+             ORDER BY updated_ts DESC LIMIT $2",
+        )
+        .bind(owner_iid)
+        .bind(limit)
+        .fetch_all(pool)
+        .await?
+    };
+    Ok(rows.into_iter().map(|(key, content, category, embedding_json)| ActiveMemoryRow {
+        key, content, category, embedding_json: embedding_json.map(|j| j.0),
+    }).collect())
 }
 
 struct MemoryCand {
@@ -300,3 +543,39 @@ fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
         dot / (na * nb)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cosine_similarity() {
+        let v1 = vec![1.0, 0.0, 0.0];
+        let v2 = vec![1.0, 0.0, 0.0];
+        let v3 = vec![0.0, 1.0, 0.0];
+        assert!((cosine_similarity(&v1, &v2) - 1.0).abs() < 1e-5);
+        assert!((cosine_similarity(&v1, &v3) - 0.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn test_memory_prompt_block() {
+        let items = vec![
+            ("name".to_string(), "Alex".to_string()),
+            ("diet".to_string(), "vegetarian".to_string()),
+        ];
+        let block = memory_prompt_block(&items);
+        assert!(block.contains("## Memory"));
+        assert!(block.contains("- name: Alex"));
+        assert!(block.contains("- diet: vegetarian"));
+    }
+
+    #[test]
+    fn test_memory_prompt_merge() {
+        let base = "System instructions.";
+        let block = "## Memory\n- user_name: Alex";
+        let merged = memory_prompt_merge(base, block);
+        assert!(merged.contains("System instructions."));
+        assert!(merged.contains("## Memory\n- user_name: Alex"));
+    }
+}
+

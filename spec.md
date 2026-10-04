@@ -111,11 +111,13 @@ Full UI spec: [`_/docs/ui.md`](_/docs/ui.md)
 | [`_/docs/server.md`](_/docs/server.md) | Crate workspace layout |
 | [`_/docs/schema-migrate.md`](_/docs/schema-migrate.md) | YSQL schema bundle hash, boot skip, `c35_migrate` |
 | [`_/docs/ui.md`](_/docs/ui.md) | Pages, navigation, components |
+| [`_/docs/presentation.md`](_/docs/presentation.md) | Presentations — native Flutter slide decks, 16:9 preview, Option C patching, PPTX export |
 | [`_/docs/remote.md`](_/docs/remote.md) | Remote: agent control session + WebRTC data plane (screen, files, media) |
 | [`_/docs/browser-remote.md`](_/docs/browser-remote.md) | Remote browser (`type=browser`): Rust agent + Playwright sidecar, same WebRTC UX |
 | [`_/docs/plans/2026-09-29-chrome-extension-remote-multitask.md`](_/docs/plans/2026-09-29-chrome-extension-remote-multitask.md) | Chrome extension remote (daily profile): native host, pair web page, OTA, alienai.id download |
 | [`_/docs/browser-extension.md`](_/docs/browser-extension.md) | Chrome extension remote (locked spec) — created in CE-W1 Track A |
 | [`_/docs/remote-agent.md`](_/docs/remote-agent.md) | Remote agent architecture, multi-platform porting, OTA & watchdog spec |
+| [`_/docs/remote-android.md`](_/docs/remote-android.md) | Android Remote Agent (`id.alienai.remote`): dual-app model, WebRTC, MediaProjection, Accessibility & SoM |
 | [`_/schemas/identity.sql`](_/schemas/identity.sql) | Identity + grants DDL |
 | [`_/schemas/chat.sql`](_/schemas/chat.sql) | Chat + messages |
 | [`_/docs/billing.md`](_/docs/billing.md) | Multi-wallet billing, quota, commission |
@@ -126,6 +128,7 @@ Full UI spec: [`_/docs/ui.md`](_/docs/ui.md)
 | [`_/docs/site.md`](_/docs/site.md) | Sites — `site.*` schema, UITable, guest URLs |
 | [`_/docs/mail.md`](_/docs/mail.md) | Platform mail — `mail.*`, CF onboard, vs `site.domain` HTTP |
 | [`_/docs/site-ai.md`](_/docs/site-ai.md) | Site @mentions, multi-site context, `site.query.run` catalog |
+| [`_/docs/site-builder.md`](_/docs/site-builder.md) | Conversational Site Builder — slide-deck pattern, Rust handle generator, block patching, token cache spec |
 | [`_/docs/tx.md`](_/docs/tx.md) | POS — `site.tx_*`, id.alienai UI + model |
 | [`_/schemas/site.sql`](_/schemas/site.sql) | Site DDL (`site` schema) |
 | [`_/schemas/tx.sql`](_/schemas/tx.sql) | POS DDL (`site.tx_*`) |

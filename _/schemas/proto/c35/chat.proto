@@ -59,6 +59,7 @@ message Chat {
   int64 created_ts_ms = 16;
   int64 updated_ts_ms = 17;
   int64 deleted_ts_ms = 18;
+  int32 context_window = 19;
 }
 
 message ChatMember {
@@ -145,6 +146,15 @@ message ResPromptDelta {
   string blocks_json = 3;
 }
 
+// Token counts only. Never carries instruction text, tool schemas, or memory.
+message ContextUsage {
+  int32 instructions = 1;
+  int32 memory = 2;
+  int32 context = 3;
+  int32 tools = 4;
+  int32 conversation = 5;
+}
+
 message ResPromptEnd {
   int64 msg_id = 1;
   int32 tokens_in = 2;
@@ -155,6 +165,9 @@ message ResPromptEnd {
   string req_id = 7;
   string trace_json = 8;
   string error_message = 9;      // post-turn failure; LLM reply may still be present
+  int32 prompt_tokens = 10;      // next-prompt context estimate
+  int32 context_window = 11;
+  ContextUsage usage = 12;
 }
 
 message ResPromptFail {
@@ -382,4 +395,101 @@ message ChatTyping {
   int64 chat_id = 1;
   string party = 2;
   bool active = 3;
+}
+
+enum ChatFeedbackVote {
+  CHAT_FEEDBACK_VOTE_UNSPECIFIED = 0;
+  CHAT_FEEDBACK_VOTE_GOOD = 1;
+  CHAT_FEEDBACK_VOTE_BAD = 2;
+}
+
+enum ChatFeedbackAuthorRole {
+  CHAT_FEEDBACK_AUTHOR_ROLE_UNSPECIFIED = 0;
+  CHAT_FEEDBACK_AUTHOR_ROLE_SYSTEM = 1;
+  CHAT_FEEDBACK_AUTHOR_ROLE_USER = 2;
+  CHAT_FEEDBACK_AUTHOR_ROLE_STAFF = 3;
+}
+
+message ChatFeedbackReason {
+  int32 id = 1;
+  string slug = 2;
+  ChatFeedbackVote vote = 3;
+  string label = 4;
+  int32 sort = 5;
+}
+
+message ChatFeedbackPost {
+  int64 id = 1;
+  int64 feedback_id = 2;
+  int64 author_iid = 3;
+  ChatFeedbackAuthorRole author_role = 4;
+  string text = 5;
+  int64 created_ts_ms = 6;
+}
+
+message ChatMsgFeedback {
+  int64 id = 1;
+  int64 msg_id = 2;
+  int64 chat_id = 3;
+  ChatFeedbackVote vote = 4;
+  int32 reason_id = 5;
+  string reason_slug = 6;
+  string reason_label = 7;
+  string comment = 8;
+  int64 updated_ts_ms = 9;
+  repeated ChatFeedbackPost posts = 10;
+}
+
+message ReqChatFeedbackReasonList {
+  string locale = 1;
+  ChatFeedbackVote vote = 2;
+}
+
+message ResChatFeedbackReasonList {
+  repeated ChatFeedbackReason reasons = 1;
+}
+
+message ReqChatMsgFeedbackPut {
+  int64 msg_id = 1;
+  int64 chat_id = 2;
+  ChatFeedbackVote vote = 3;
+  int32 reason_id = 4;
+  string comment = 5;
+  string locale = 6;
+}
+
+message ResChatMsgFeedbackPut {
+  ChatMsgFeedback feedback = 1;
+}
+
+message ReqChatMsgFeedbackList {
+  int64 chat_id = 1;
+  string locale = 2;
+}
+
+message ResChatMsgFeedbackList {
+  repeated ChatMsgFeedback feedback = 1;
+}
+
+message ReqChatContextWindowSet {
+  int64 chat_id = 1;
+  int32 context_window = 2;
+}
+
+message ResChatContextWindowSet {
+  int32 context_window = 1;
+  int32 prompt_tokens = 2;
+  ContextUsage usage = 3;
+}
+
+message ReqChatCompact {
+  int64 chat_id = 1;
+}
+
+message ResChatCompact {
+  bool ran = 1;
+  string title = 2;
+  int32 prompt_tokens = 3;
+  double cost_usd = 4;
+  ContextUsage usage = 5;
 }

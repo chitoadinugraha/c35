@@ -24,8 +24,8 @@ Long prompt threads exceed model context windows. c35 manages this with **three 
 |-------|--------|
 | History | Last **20 messages** hard count (`prompt_turn.rs`, `channel_prompt_turn.rs`) |
 | Screenshot prune | `prune_previous_screenshots()` in tool loop (computer use) |
-| Memory retrieve | `memory_retrieve()` → system prompt block |
-| Memory write | `memory_put()` exists; **no extraction wired** |
+| Memory retrieve | `memory_retrieve()` (hybrid: pinned + vector + FTS) → system prompt block |
+| Memory write | `memory_put()` with write-time embedding; extracted via turn gate, compaction, and idle backfill |
 | Context meter UI | `UiContextMeter` — hidden at 0 tokens; determinate ring when > 0 |
 
 ---
@@ -52,6 +52,7 @@ context_summary           TEXT NOT NULL DEFAULT '',
 context_summary_upto_msg_id BIGINT NOT NULL DEFAULT 0,  -- msgs with id <= this are summarized
 context_compact_ts        TIMESTAMPTZ,                  -- last successful compact
 context_compact_req_id    TEXT NOT NULL DEFAULT ''      -- req_id that last compacted
+context_window            INT NOT NULL DEFAULT 0        -- 0 = default at read time
 ```
 
 - `context_summary_upto_msg_id = 0` → no summary yet.
@@ -88,22 +89,29 @@ Canonical DDL: extend [`../schemas/chat.sql`](../schemas/chat.sql).
 
 | Constant | Value | Notes |
 |----------|-------|-------|
-| `CONTEXT_PACK_BUDGET_RATIO` | `0.65` | Fraction of model limit for history + summary |
-| `CONTEXT_COMPACT_THRESHOLD_RATIO` | `0.70` | Compact when estimate exceeds this |
+| `CONTEXT_PACK_BUDGET_RATIO` | `0.65` | Fraction of the **selected** context window for history + summary |
+| `CONTEXT_COMPACT_THRESHOLD_RATIO` | `0.70` | Compact when the **full unsummarized** estimate is >= this fraction of the selected window |
 | `CONTEXT_RECENT_MSG_MIN` | `8` | Always keep at least this many recent msgs verbatim |
 | `CONTEXT_RECENT_MSG_MAX` | `12` | Cap verbatim tail after packing |
 | `CONTEXT_COMPACT_MODEL` | `gemini-2.0-flash` | Cheap model for summarize + extract |
-| `CONTEXT_IDLE_MINUTES` | `45` | Idle backfill after last message |
+| `CONTEXT_IDLE_MINUTES` | `45` | Idle backfill after last message. **Disabled** unless `C35_CONTEXT_IDLE_COMPACT=1` (fetcher does not register the task). Per-turn memory extract stays on |
 | `CONTEXT_IDLE_MIN_MSGS` | `4` | Minimum msgs before idle extract |
 | `MEMORY_EXTRACT_MAX_PER_TURN` | `2` | Cap writes per turn |
 | `MEMORY_EXTRACT_CONFIDENCE_MIN` | `0.85` | Below → skip write |
 
-Model context limits (client meter + server pack):
+Per-chat window (`ai.chat.context_window`, `0` = default at read time; do not backfill):
 
-| Model family | Limit |
-|--------------|-------|
-| Default (non-Gemini) | `128_000` |
-| Gemini | `1_000_000` |
+| | |
+|--|--|
+| Allowed steps | `32768`, `65536`, `131072`, `262144`, `524288` |
+| Default (`stored = 0`) | `min(128_000, model ceiling)`. Alien slugs and Gemini still default to **128_000** |
+| Alien slugs (`alienai`, `auto`, `alien`, `cloud`, empty) | Picker ceiling `1_000_000` |
+| Gemini (`model` contains `gemini`) | Model ceiling `1_048_576`; picker max **512k** (`524288`) |
+| Other models | Picker ceiling = `model_context_limit` (128_000) |
+
+A set above the picker ceiling is rejected. Packing uses `0.65` of the **resolved** window, not the raw model ceiling.
+
+`ResPromptEnd.usage` carries token counts only (`ceil(chars/4)`), never instruction text, tool schemas, or memory. Slices: instructions, memory, context (mentions, site, time, location), tools, conversation. The meter bar is each slice divided by the selected window.
 
 ---
 
@@ -113,8 +121,8 @@ Replace `LIMIT 20` with **token budget packing**.
 
 ### Algorithm (`context_pack`)
 
-1. Resolve `model_limit` from `ChatReq.model` (same rules as `UiContextMeter`).
-2. `budget = model_limit * CONTEXT_PACK_BUDGET_RATIO`.
+1. Resolve the selected window: `context_window_resolve(model, ai.chat.context_window)`.
+2. `budget = selected_window * CONTEXT_PACK_BUDGET_RATIO`.
 3. Load candidate history: all msgs with `id > context_summary_upto_msg_id`, `id < user_msg_id`, `deleted_ts IS NULL`, `status <> 'error'`, `ORDER BY id DESC`.
 4. **Pre-prune** each candidate (prompt-only; DB unchanged):
    - Strip `blocks_json` tool blobs → `[tool output omitted from history]`
@@ -135,13 +143,19 @@ If packing fails, fall back to `LIMIT 20` (current behavior) and log warning.
 
 ### When to compact
 
-Before building `ChatReq`, estimate:
+Before building `ChatReq`, estimate the **full unsummarized thread** (not the packed tail of 8–12 messages):
 
 ```
-total = system + memory + summary + packed_history + user_message
+total = system + summary + token_estimate(all history rows not yet summarized) + user_message
 ```
 
-If `total > model_limit * CONTEXT_COMPACT_THRESHOLD_RATIO` → run `context_compact(chat_id, req_id, trigger="threshold")`.
+If `total >= selected_window * CONTEXT_COMPACT_THRESHOLD_RATIO` → run `context_compact(chat_id, req_id, trigger="threshold")`, then repack.
+
+Manual compact (`ReqChatCompact`, wire field 176) uses the same `context_compact` path even under 70%. If there are fewer unsummarized rows than `CONTEXT_RECENT_MSG_MIN`, the response is `ran=false` (not an error). Billing uses `billing_usage_report` with `req_id` `compact-{chat_id}-{snowflake}`.
+
+### Title refresh (same compact call)
+
+Compact JSON includes `title` (<= 48 characters). Apply it only when `ai.chat.meta` does not contain `title_locked: true` and the current title is empty, `Chat`, or equal to `chat_title_from_text` of the first user message. Fan out like `chat_title_set`. A title written from the tool loop sets `meta.title_locked = true` so meal/expense titles are not overwritten.
 
 Compaction is **synchronous** on the critical path only when threshold hit; must complete before LLM turn. Target &lt; 3s (flash model).
 
@@ -156,7 +170,8 @@ Compaction is **synchronous** on the critical path only when threshold hit; must
   "summary": "…",
   "decisions": ["…"],
   "open_tasks": ["…"],
-  "entities": { "site_iid": "…", "names": ["…"] }
+  "entities": { "site_iid": "…", "names": ["…"] },
+  "title": "short title"
 }
 ```
 
@@ -183,18 +198,45 @@ Compaction is **synchronous** on the critical path only when threshold hit; must
 
 ---
 
-## Phase 3 — Memory extraction
+## Phase 3 — Memory extraction & recall (v2)
 
 ### Categories (`ai.memory.category`)
 
 | Category | Examples | Write? |
 |----------|----------|--------|
-| `preference` | "always use IDR", "prefer concise answers" | Yes |
+| `identity` | "user name is Alice", "lives in Singapore" | Yes (pinned recall) |
+| `preference` | "always use IDR", "prefer concise answers" | Yes (pinned recall) |
 | `fact` | "calorie goal 2000", "shop PID xyz" | Yes |
 | `task` | "open task: fix login bug" | Yes (compact mainly) |
 | `ephemeral` | weather, one-off trivia | **Never** |
 
-Dedup: `memory_put` uses `content_hash` (blake3 of `key:content`) — upsert on key per owner.
+Dedup & Embedding: `memory_put` uses `content_hash` (blake3 of `key:content`) — upsert on key per owner, computing document embedding at write time into `embedding_json`.
+
+### Model & Billing
+
+- Extractor model: `gemini_model("gemini-3.1-flash-lite")` (Alien AI default light model).
+- Billing cost computed using the actual resolved model name via `billing_cost_usd(&resolved_model, in_tok, out_tok)`.
+
+### Extractor v2 Actions
+
+The extractor receives recent conversation plus top existing memories for context, outputting structured JSON actions:
+
+```json
+{
+  "actions": [
+    { "op": "add", "category": "preference", "key": "diet_preference", "content": "vegetarian", "confidence": 0.95 },
+    { "op": "delete", "category": "preference", "key": "old_diet", "content": "", "confidence": 0.95 }
+  ]
+}
+```
+
+Legacy `candidates` output is also supported for backward compatibility:
+```json
+{ "candidates": [{ "category": "fact", "key": "calorie_goal", "content": "2000 kcal/day", "confidence": 0.92 }] }
+```
+
+- `op = "add" | "update"`: writes via `memory_put` when `confidence >= MEMORY_EXTRACT_CONFIDENCE_MIN` (0.85) and category ≠ `ephemeral`.
+- `op = "delete"`: soft-deletes (`deleted_ts = NOW()`) only on explicit user contradiction/retraction with `confidence >= 0.90`.
 
 ### Triggers (hybrid — locked)
 
@@ -202,31 +244,26 @@ Dedup: `memory_put` uses `content_hash` (blake3 of `key:content`) — upsert on 
 |---------|------|----------------|---------|
 | **On compact** | `context_compact()` after summarize | High — extract from batch being summarized | Parent `req_id` |
 | **Per-turn gate** | End of successful `prompt_turn` | Low — max 2 high-confidence facts | Same `req_id` |
-| **Idle backfill** | `last_msg_ts` &gt; 45 min, ≥ 4 msgs, unprocessed | Medium | Separate `req_id`; best-effort |
+| **Idle backfill** | `last_msg_ts` > 45 min, ≥ 4 msgs, unprocessed. **Off** unless `C35_CONTEXT_IDLE_COMPACT=1` | Medium | Separate `req_id`; best-effort |
 
 ### Per-turn gate
 
-After assistant message saved, optional cheap LLM call:
+After assistant message saved, cheap LLM call against last turn(s).
+Skip gate when: `tool_mode = ask`, turn errored, or `assistant_text` is empty.
 
-```json
-{ "candidates": [{ "category": "fact", "key": "calorie_goal", "content": "2000 kcal/day", "confidence": 0.92 }] }
+### Hybrid Retrieval (`memory_retrieve`)
+
+1. **Pinned / Core Facts**: Load up to 3 active memories where `category IN ('identity', 'preference')` ordered by `updated_ts DESC`.
+2. **Vector Similarity Search**: One query embedding computed via `embed_cached`. Cosine similarity against stored `embedding_json` of owner's active memories, keeping candidates with similarity >= `MEMORY_SIM_FLOOR` (0.50).
+3. **FTS Search (Keyword fallback)**: Query via `plainto_tsquery('english', $q)` for lexical matches.
+4. **Merge & Deduplicate**: Merge pinned + vector matches + FTS matches, deduplicating by key, capped at `MEMORY_RECALL_LIMIT` (8) rows.
+
+System prompt injection:
+```markdown
+## Memory
+Known facts about the user. Use naturally without reciting. If the user's current message contradicts a stored fact, follow the user.
+- key: content
 ```
-
-Only write when `confidence >= MEMORY_EXTRACT_CONFIDENCE_MIN` and category ≠ `ephemeral`.
-
-Skip gate when: `tool_mode = ask`, turn errored, or `tokens_out < 50`.
-
-### Idle backfill
-
-- NATS subject: `c35.chat.compact.idle` (JetStream or core + fetcher-style worker).
-- Body: `{ "chat_id", "owner_iid" }`.
-- Enqueue: cron in `c35-fetcher` every 15m scanning `ai.chat` where `kind='prompt'` and idle criteria met.
-- **No billing gate** — skip job if allowance + wallet cannot cover estimated cost; do not error.
-- Does **not** block user turns.
-
-### Retrieve (unchanged)
-
-`memory_retrieve()` at turn start → `## Memory` block in system prompt. Embeddings: **not billed** (platform COGS) unless abuse detected later.
 
 ---
 

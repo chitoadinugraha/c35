@@ -84,7 +84,7 @@ async fn chat_patch_get(pool: &PgPool, member_iid: i64, chat_id: i64, deleted: b
     let row = sqlx::query(
         r#"
         SELECT c.id, c.kind, c.owner_iid, c.title, c.model, c.last_msg_ts, c.last_msg_preview,
-               c.created_ts, c.updated_ts, c.deleted_ts,
+               c.context_window, c.created_ts, c.updated_ts, c.deleted_ts,
                m.last_read_msg_id, m.unread_count, m.last_msg_ts AS member_last_msg_ts, m.last_msg_preview AS member_preview,
                m.pinned_ts, m.archived_ts, m.created_ts AS member_created_ts, m.updated_ts AS member_updated_ts, m.deleted_ts AS member_deleted_ts,
                COALESCE(m.last_msg_status, 'done') AS last_msg_status
@@ -117,6 +117,7 @@ async fn chat_patch_get(pool: &PgPool, member_iid: i64, chat_id: i64, deleted: b
         model: row.get("model"),
         last_msg_ts_ms: ts_ms(last_at),
         last_msg_preview: preview.clone(),
+        context_window: row.get("context_window"),
         created_ts_ms: ts_ms(row.get("created_ts")),
         updated_ts_ms: ts_ms(row.get("updated_ts")),
         deleted_ts_ms: if deleted { Utc::now().timestamp_millis() } else { ts_ms(row.get("deleted_ts")) },

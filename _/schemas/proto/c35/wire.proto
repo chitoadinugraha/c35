@@ -294,6 +294,11 @@ message WsReq {
     ReqRemoteAgentPush req_remote_agent_push = 169;
     ReqRemoteBrowserInvoke req_remote_browser_invoke = 170;
     ReqTaskRunCancelDevice task_run_cancel_device = 171;
+    ReqChatFeedbackReasonList chat_feedback_reason_list = 172;
+    ReqChatMsgFeedbackPut chat_msg_feedback_put = 173;
+    ReqChatMsgFeedbackList chat_msg_feedback_list = 174;
+    ReqChatContextWindowSet chat_context_window_set = 175;
+    ReqChatCompact chat_compact = 176;
   }
 }
 
@@ -442,5 +447,10 @@ message WsRes {
     ResRemoteAgentPush res_remote_agent_push = 169;
     ResRemoteBrowserInvoke res_remote_browser_invoke = 170;
     ResTaskRunCancelDevice task_run_cancel_device = 171;
+    ResChatFeedbackReasonList chat_feedback_reason_list = 172;
+    ResChatMsgFeedbackPut chat_msg_feedback_put = 173;
+    ResChatMsgFeedbackList chat_msg_feedback_list = 174;
+    ResChatContextWindowSet chat_context_window_set = 175;
+    ResChatCompact chat_compact = 176;
   }
 }

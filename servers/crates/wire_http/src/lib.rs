@@ -11,6 +11,7 @@ mod mcp_agent;
 mod status;
 mod version;
 mod web;
+mod presentation;
 
 use axum::{
     extract::Query,
@@ -81,5 +82,6 @@ pub fn router(state: AppState) -> Router {
         .merge(c35_mod_mail::mail_router())
         .merge(guest_order::guest_order_router())
         .merge(guest_contact::guest_contact_router())
+        .merge(presentation::presentation_router())
         .with_state(state)
 }

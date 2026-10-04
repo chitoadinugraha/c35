@@ -217,11 +217,13 @@ impl TurnTracer {
             obj.insert("embed_ms".into(), serde_json::json!(trace.embed_ms));
             obj.insert("embed_cached".into(), serde_json::json!(trace.embed_cached));
             obj.insert("embed_skipped".into(), serde_json::json!(trace.embed_skipped));
+            obj.insert("pinned_count".into(), serde_json::json!(trace.pinned_count));
+            obj.insert("active_count".into(), serde_json::json!(trace.active_count));
         }
         self.put(
             "system",
             "trace_memory",
-            &format!("Memory Â· {} rows", trace.memory_count),
+            &format!("Memory · {} rows", trace.memory_count),
             meta,
             &trace.embed_model,
             trace.embed_token_in,

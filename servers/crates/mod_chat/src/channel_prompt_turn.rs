@@ -6,17 +6,19 @@ use sqlx::PgPool;
 use tokio_util::sync::CancellationToken;
 
 use crate::bot_meta::{bot_turn_meta_parse, bot_turn_signals, BOT_GSHEET_WRITE_TOOL_EXCLUDE, BOT_TOPIC, BOT_WEB_TOOL_EXCLUDE};
+use crate::catalog_web::{catalog_skip_web_prefetch, catalog_web_phase};
 use crate::compose::{compose_tools_and_inst_async, ComposeTurnOpts};
 use crate::inst_macro::inst_scopes_channel;
 use crate::inst_cache::inst_list_cached;
 use crate::context_billing::ContextBillingExtra;
-use crate::context_compact::prepare_prompt_history;
+use crate::context_compact::{prepare_prompt_history, PreparedPromptHistory};
+use crate::context_pack::{context_window_resolve, token_estimate};
 use crate::memory::{memory_prompt_merge, memory_retrieve};
 use crate::memory_extract::memory_extract_turn_gate;
 use crate::prompt::gemini::gemini_api_key;
 use crate::prompt::thought::thinking_level;
 use crate::prompt::time::{
-    location_prompt_block, prompt_context_prepend, time_prompt_block, time_timezone_resolve,
+    location_prompt_block, prompt_context_append, time_prompt_block, time_timezone_resolve,
 };
 use crate::prompt::user_context::user_prompt_context_get;
 use crate::prompt::tool_loop::prompt_cluster_turn;
@@ -112,17 +114,24 @@ pub async fn channel_prompt_turn(
         &user_ctx.location_region,
         &user_ctx.location_country,
     );
-    let mut system = prompt_context_prepend(&time_block, &location_block, "");
+    let mut system = String::new();
     if let Some(inst_base) = bot_inst_base(pool, bot_iid).await {
-        system = format!("{inst_base}\n\n{system}");
+        system = inst_base;
     }
     if !composed.inst_block.is_empty() {
-        system = format!("{system}\n\n{}", composed.inst_block);
+        if !system.is_empty() {
+            system.push_str("\n\n");
+        }
+        system.push_str(&composed.inst_block);
     }
     let ds_block = c35_mod_data_source::data_source_prompt_for_bot(pool, &http, bot_iid, &prompt_text).await;
     system = c35_mod_data_source::data_source_prompt_merge(&system, &ds_block);
     let memory = memory_retrieve(pool, &http, owner_iid, Some(bot_iid), &prompt_text, 8).await;
     system = memory_prompt_merge(&system, &memory.block);
+
+    // Keep dynamic volatile context (time and location) at the tail of the system prompt
+    // to preserve KV prefix cache across turns.
+    system = prompt_context_append(&system, &time_block, &location_block);
 
     let tracer = TurnTracer::new(pool.clone(), nats.cloned(), owner_iid, chat_id, req_id);
     tracer.trace_prepare(&composed.trace, &prompt_text, 0, 0).await;
@@ -135,9 +144,10 @@ pub async fn channel_prompt_turn(
     .fetch_one(pool)
     .await
     .unwrap_or(0);
-    let (history, mut context_billing) = prepare_prompt_history(
+    let prepared = prepare_prompt_history(
         pool,
         &http,
+        nats,
         chat_id,
         owner_iid,
         user_msg_id + 1,
@@ -150,9 +160,27 @@ pub async fn channel_prompt_turn(
     .await
     .unwrap_or_else(|e| {
         tracing::warn!("[c35:context_prepare] bot chat_id={chat_id}: {e:#}");
-        (Vec::new(), ContextBillingExtra::default())
+        PreparedPromptHistory {
+            messages: Vec::new(),
+            billing: ContextBillingExtra::default(),
+            prompt_tokens: token_estimate(&system) + token_estimate(&user),
+            context_window: context_window_resolve(&model, 0),
+        }
     });
+    let history = prepared.messages;
+    let mut context_billing = prepared.billing;
 
+    let mention = crate::mention_context::MentionContext::empty();
+    let has_site = !mention.sites.is_empty()
+        || match c35_mod_site::site_granted_iids(pool, owner_iid).await {
+            Ok(ids) => !ids.is_empty(),
+            Err(e) => {
+                tracing::warn!("[c35:catalog_web] site_granted_iids failed owner_iid={owner_iid}: {e:#}");
+                false
+            }
+        };
+    let catalog_web = catalog_web_phase(&composed.matched_ids, has_site);
+    let skip_web_prefetch = catalog_skip_web_prefetch(&composed.matched_ids, catalog_web);
     let chat_req = ChatReq {
         model,
         system,
@@ -161,6 +189,8 @@ pub async fn channel_prompt_turn(
         tools: composed.tools.clone(),
         history,
         force_tool_call: crate::compose::compose_force_tool_call(&composed.matched_ids, &composed.tools),
+        catalog_web,
+        skip_web_prefetch,
     };
     let mut turn_ctx = TurnCtx {
         pool,
@@ -168,7 +198,7 @@ pub async fn channel_prompt_turn(
         owner_iid,
         chat_id,
         site_iid: None,
-        mention: crate::mention_context::MentionContext::empty(),
+        mention,
         mention_ids: &[],
         user_text: &prompt_text,
         locale,

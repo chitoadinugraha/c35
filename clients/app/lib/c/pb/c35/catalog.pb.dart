@@ -647,6 +647,400 @@ class ResTopicList extends $pb.GeneratedMessage {
   $pb.PbList<TopicItem> get topics => $_getList(0);
 }
 
+class PresentationThemeTokens extends $pb.GeneratedMessage {
+  factory PresentationThemeTokens({
+    $core.String? canvasBg,
+    $core.String? cardBg,
+    $core.String? border,
+    $core.String? accent,
+    $core.String? accent2,
+    $core.String? text,
+    $core.String? subtext,
+    $core.String? badgeBg,
+    $core.String? bulletCardBg,
+    $core.String? gradientFrom,
+    $core.String? gradientTo,
+  }) {
+    final result = PresentationThemeTokens._();
+    if (canvasBg != null) result.canvasBg = canvasBg;
+    if (cardBg != null) result.cardBg = cardBg;
+    if (border != null) result.border = border;
+    if (accent != null) result.accent = accent;
+    if (accent2 != null) result.accent2 = accent2;
+    if (text != null) result.text = text;
+    if (subtext != null) result.subtext = subtext;
+    if (badgeBg != null) result.badgeBg = badgeBg;
+    if (bulletCardBg != null) result.bulletCardBg = bulletCardBg;
+    if (gradientFrom != null) result.gradientFrom = gradientFrom;
+    if (gradientTo != null) result.gradientTo = gradientTo;
+    return result;
+  }
+
+  PresentationThemeTokens._();
+
+  factory PresentationThemeTokens.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      PresentationThemeTokens()..mergeFromBuffer(data, registry);
+  factory PresentationThemeTokens.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      PresentationThemeTokens()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'PresentationThemeTokens',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: PresentationThemeTokens.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'canvasBg')
+    ..aOS(2, _omitFieldNames ? '' : 'cardBg')
+    ..aOS(3, _omitFieldNames ? '' : 'border')
+    ..aOS(4, _omitFieldNames ? '' : 'accent')
+    ..aOS(5, _omitFieldNames ? '' : 'accent2')
+    ..aOS(6, _omitFieldNames ? '' : 'text')
+    ..aOS(7, _omitFieldNames ? '' : 'subtext')
+    ..aOS(8, _omitFieldNames ? '' : 'badgeBg')
+    ..aOS(9, _omitFieldNames ? '' : 'bulletCardBg')
+    ..aOS(10, _omitFieldNames ? '' : 'gradientFrom')
+    ..aOS(11, _omitFieldNames ? '' : 'gradientTo')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  PresentationThemeTokens clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  PresentationThemeTokens copyWith(
+          void Function(PresentationThemeTokens) updates) =>
+      super.copyWith((message) => updates(message as PresentationThemeTokens))
+          as PresentationThemeTokens;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use PresentationThemeTokens() / PresentationThemeTokens.new instead')
+  static PresentationThemeTokens create() => PresentationThemeTokens._();
+  static $pb.GeneratedMessage $_createMessage() => PresentationThemeTokens._();
+  @$core.override
+  PresentationThemeTokens createEmptyInstance() => PresentationThemeTokens._();
+  @$core.pragma('dart2js:noInline')
+  static PresentationThemeTokens getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<PresentationThemeTokens>(
+          PresentationThemeTokens.$_createMessage);
+  static PresentationThemeTokens? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get canvasBg => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set canvasBg($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasCanvasBg() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearCanvasBg() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get cardBg => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set cardBg($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasCardBg() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearCardBg() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get border => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set border($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasBorder() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearBorder() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get accent => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set accent($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasAccent() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearAccent() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get accent2 => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set accent2($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasAccent2() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearAccent2() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get text => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set text($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasText() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearText() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.String get subtext => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set subtext($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasSubtext() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearSubtext() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.String get badgeBg => $_getSZ(7);
+  @$pb.TagNumber(8)
+  set badgeBg($core.String value) => $_setString(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasBadgeBg() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearBadgeBg() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.String get bulletCardBg => $_getSZ(8);
+  @$pb.TagNumber(9)
+  set bulletCardBg($core.String value) => $_setString(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasBulletCardBg() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearBulletCardBg() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $core.String get gradientFrom => $_getSZ(9);
+  @$pb.TagNumber(10)
+  set gradientFrom($core.String value) => $_setString(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasGradientFrom() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearGradientFrom() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $core.String get gradientTo => $_getSZ(10);
+  @$pb.TagNumber(11)
+  set gradientTo($core.String value) => $_setString(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasGradientTo() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearGradientTo() => $_clearField(11);
+}
+
+class PresentationThemeItem extends $pb.GeneratedMessage {
+  factory PresentationThemeItem({
+    $core.String? id,
+    $core.String? labelKey,
+    $core.int? sort,
+    PresentationThemeTokens? tokens,
+    $core.Iterable<$core.String>? aliases,
+    $core.String? icon,
+  }) {
+    final result = PresentationThemeItem._();
+    if (id != null) result.id = id;
+    if (labelKey != null) result.labelKey = labelKey;
+    if (sort != null) result.sort = sort;
+    if (tokens != null) result.tokens = tokens;
+    if (aliases != null) result.aliases.addAll(aliases);
+    if (icon != null) result.icon = icon;
+    return result;
+  }
+
+  PresentationThemeItem._();
+
+  factory PresentationThemeItem.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      PresentationThemeItem()..mergeFromBuffer(data, registry);
+  factory PresentationThemeItem.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      PresentationThemeItem()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'PresentationThemeItem',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: PresentationThemeItem.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'id')
+    ..aOS(2, _omitFieldNames ? '' : 'labelKey')
+    ..aI(3, _omitFieldNames ? '' : 'sort')
+    ..aOM<PresentationThemeTokens>(4, _omitFieldNames ? '' : 'tokens',
+        subBuilder: PresentationThemeTokens.$_createMessage)
+    ..pPS(5, _omitFieldNames ? '' : 'aliases')
+    ..aOS(6, _omitFieldNames ? '' : 'icon')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  PresentationThemeItem clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  PresentationThemeItem copyWith(
+          void Function(PresentationThemeItem) updates) =>
+      super.copyWith((message) => updates(message as PresentationThemeItem))
+          as PresentationThemeItem;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use PresentationThemeItem() / PresentationThemeItem.new instead')
+  static PresentationThemeItem create() => PresentationThemeItem._();
+  static $pb.GeneratedMessage $_createMessage() => PresentationThemeItem._();
+  @$core.override
+  PresentationThemeItem createEmptyInstance() => PresentationThemeItem._();
+  @$core.pragma('dart2js:noInline')
+  static PresentationThemeItem getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<PresentationThemeItem>(
+          PresentationThemeItem.$_createMessage);
+  static PresentationThemeItem? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get id => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set id($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get labelKey => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set labelKey($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasLabelKey() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearLabelKey() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.int get sort => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set sort($core.int value) => $_setSignedInt32(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasSort() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearSort() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  PresentationThemeTokens get tokens => $_getN(3);
+  @$pb.TagNumber(4)
+  set tokens(PresentationThemeTokens value) => $_setField(4, value);
+  @$pb.TagNumber(4)
+  $core.bool hasTokens() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearTokens() => $_clearField(4);
+  @$pb.TagNumber(4)
+  PresentationThemeTokens ensureTokens() => $_ensure(3);
+
+  @$pb.TagNumber(5)
+  $pb.PbList<$core.String> get aliases => $_getList(4);
+
+  @$pb.TagNumber(6)
+  $core.String get icon => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set icon($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasIcon() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearIcon() => $_clearField(6);
+}
+
+class ReqPresentationThemeList extends $pb.GeneratedMessage {
+  factory ReqPresentationThemeList() => ReqPresentationThemeList._();
+
+  ReqPresentationThemeList._();
+
+  factory ReqPresentationThemeList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqPresentationThemeList()..mergeFromBuffer(data, registry);
+  factory ReqPresentationThemeList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqPresentationThemeList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqPresentationThemeList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqPresentationThemeList.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqPresentationThemeList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqPresentationThemeList copyWith(
+          void Function(ReqPresentationThemeList) updates) =>
+      super.copyWith((message) => updates(message as ReqPresentationThemeList))
+          as ReqPresentationThemeList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqPresentationThemeList() / ReqPresentationThemeList.new instead')
+  static ReqPresentationThemeList create() => ReqPresentationThemeList._();
+  static $pb.GeneratedMessage $_createMessage() => ReqPresentationThemeList._();
+  @$core.override
+  ReqPresentationThemeList createEmptyInstance() =>
+      ReqPresentationThemeList._();
+  @$core.pragma('dart2js:noInline')
+  static ReqPresentationThemeList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqPresentationThemeList>(
+          ReqPresentationThemeList.$_createMessage);
+  static ReqPresentationThemeList? _defaultInstance;
+}
+
+class ResPresentationThemeList extends $pb.GeneratedMessage {
+  factory ResPresentationThemeList({
+    $core.Iterable<PresentationThemeItem>? themes,
+  }) {
+    final result = ResPresentationThemeList._();
+    if (themes != null) result.themes.addAll(themes);
+    return result;
+  }
+
+  ResPresentationThemeList._();
+
+  factory ResPresentationThemeList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResPresentationThemeList()..mergeFromBuffer(data, registry);
+  factory ResPresentationThemeList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResPresentationThemeList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResPresentationThemeList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResPresentationThemeList.$_createMessage)
+    ..pPM<PresentationThemeItem>(1, _omitFieldNames ? '' : 'themes',
+        subBuilder: PresentationThemeItem.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResPresentationThemeList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResPresentationThemeList copyWith(
+          void Function(ResPresentationThemeList) updates) =>
+      super.copyWith((message) => updates(message as ResPresentationThemeList))
+          as ResPresentationThemeList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResPresentationThemeList() / ResPresentationThemeList.new instead')
+  static ResPresentationThemeList create() => ResPresentationThemeList._();
+  static $pb.GeneratedMessage $_createMessage() => ResPresentationThemeList._();
+  @$core.override
+  ResPresentationThemeList createEmptyInstance() =>
+      ResPresentationThemeList._();
+  @$core.pragma('dart2js:noInline')
+  static ResPresentationThemeList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResPresentationThemeList>(
+          ResPresentationThemeList.$_createMessage);
+  static ResPresentationThemeList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<PresentationThemeItem> get themes => $_getList(0);
+}
+
 class ReqMentionList extends $pb.GeneratedMessage {
   factory ReqMentionList({
     $fixnum.Int64? sinceMs,

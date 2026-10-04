@@ -6,7 +6,7 @@ use c35_proto::{
 };
 use c35_mod_data_source::{
     config_merge_doc_url, config_merge_sheet_url, config_merge_slide_url, config_normalize_access_mode,
-    data_source_check_run, SOURCE_KIND_GOOGLE_DOC,
+    data_source_check_run, data_source_sync_invalidate, SOURCE_KIND_GOOGLE_DOC,
     SOURCE_KIND_GOOGLE_SLIDE,
 };
 use c35_store::snowflake_id;
@@ -168,6 +168,7 @@ pub async fn data_source_put(pool: &PgPool, caller_iid: i64, req: ReqDataSourceP
         .bind(config)
         .execute(pool)
         .await?;
+        data_source_sync_invalidate(pool, doc.id).await;
         doc.id
     } else {
         let id = snowflake_id();

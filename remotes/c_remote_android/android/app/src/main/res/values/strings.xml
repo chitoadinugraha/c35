@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Alien Remote Agent</string>
+    <string name="accessibility_service_desc">Enables Alien AI Remote Agent to perform authorized remote gestures (taps, scrolls) and discover UI elements for automated assistance.</string>
+    <string name="notification_channel_name">Alien Remote Agent Service</string>
+    <string name="notification_channel_desc">Keeps the remote background agent connection and WebRTC streaming active.</string>
+    <string name="notification_title">Alien Remote Agent is Active</string>
+    <string name="notification_text">Ready for remote sessions and AI automation.</string>
+</resources>

@@ -303,6 +303,9 @@ fn prompt_req_put(
                         req_id: req_id_spawn.clone(),
                         trace_json: String::new(),
                         error_message: turn.error_text,
+                        prompt_tokens: turn.prompt_tokens,
+                        context_window: turn.context_window,
+                        usage: Some(turn.usage.proto()),
                     })),
                 });
                 c35_mod_billing::billing_notify_owner(&pool, nats.as_ref(), owner_iid, Some(&out_tx)).await;
@@ -414,6 +417,51 @@ async fn dispatch(
             },
             Err(e) => err_res(req_id, WireErr::client("chat_patch_failed", e.to_string())),
         },
+        Some(ws_req::Body::ChatFeedbackReasonList(r)) => {
+            match c35_mod_chat::chat_feedback_reason_list(&state.pool, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::ChatFeedbackReasonList(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("chat_feedback_reason_list_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::ChatMsgFeedbackPut(r)) => {
+            match c35_mod_chat::chat_msg_feedback_put(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::ChatMsgFeedbackPut(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("chat_msg_feedback_put_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::ChatMsgFeedbackList(r)) => {
+            match c35_mod_chat::chat_msg_feedback_list(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::ChatMsgFeedbackList(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("chat_msg_feedback_list_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::ChatContextWindowSet(r)) => {
+            match c35_mod_chat::chat_context_window_set(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::ChatContextWindowSet(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("chat_context_window_set_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::ChatCompact(r)) => {
+            match c35_mod_chat::chat_compact_manual(&state.pool, state.nats.as_ref(), ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::ChatCompact(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("chat_compact_failed", e.to_string())),
+            }
+        }
         Some(ws_req::Body::ChatDeviceContextList(r)) => {
             match c35_mod_chat::chat_device_context_list(&state.pool, ctx.caller_iid, r).await {
                 Ok(body) => WsRes {

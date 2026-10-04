@@ -118,6 +118,7 @@ class ChatRow {
     this.lastMsgStatus = 'done',
     this.unreadStatus = false,
     this.contextSummaryPresent = false,
+    this.contextWindow = 0,
     this.boundDeviceIid = 0,
     List<String>? stickyMentionIds,
   })  : tags = tags ?? const [],
@@ -134,6 +135,7 @@ class ChatRow {
   String lastMsgStatus;
   bool unreadStatus;
   bool contextSummaryPresent;
+  int contextWindow;
   int boundDeviceIid;
   List<String> stickyMentionIds;
 
@@ -152,6 +154,7 @@ class ChatRow {
         'lastMsgStatus': lastMsgStatus,
         'unreadStatus': unreadStatus,
         'contextSummaryPresent': contextSummaryPresent,
+        if (contextWindow > 0) 'contextWindow': contextWindow,
         if (boundDeviceIid > 0) 'boundDeviceIid': boundDeviceIid,
         if (stickyMentionIds.isNotEmpty) 'stickyMentionIds': stickyMentionIds,
       };
@@ -168,6 +171,7 @@ class ChatRow {
         lastMsgStatus: '${j['lastMsgStatus'] ?? 'done'}',
         unreadStatus: j['unreadStatus'] as bool? ?? false,
         contextSummaryPresent: j['contextSummaryPresent'] as bool? ?? false,
+        contextWindow: j['contextWindow'] as int? ?? 0,
         boundDeviceIid: j['boundDeviceIid'] as int? ?? 0,
         stickyMentionIds: j['stickyMentionIds'] is List ? [for (final t in j['stickyMentionIds'] as List) '$t'] : const [],
       );
@@ -341,6 +345,7 @@ class ChatStore extends ChangeNotifier {
   String? pendingPromptReqId;
   String? promptLiveReqId;
   final Set<int> _deletingChatIds = {};
+  final Map<int, ChatMsgFeedback> _feedbackByMsg = {};
 
   bool promptBusyFor(int? chatId) => promptBusy && chatId != null && chatId == promptChatId;
 
@@ -443,11 +448,16 @@ class ChatStore extends ChangeNotifier {
     if (raw != null && raw.isNotEmpty) {
       try {
         final rows = jsonDecode(raw) as List;
-        chats = [for (final item in rows) if (item is Map) ChatRow.fromJson(Map<String, dynamic>.from(item))];
+        chats = [
+          for (final item in rows)
+            if (item is Map)
+              ChatRow.fromJson(Map<String, dynamic>.from(item))
+        ]..removeWhere((c) => c.id <= 0);
       } catch (_) {}
     }
     final loadedMsgs = <MsgRow>[];
     for (final c in chats) {
+      if (c.id <= 0) continue;
       final key = _chatMsgsKey(c.id);
       final msgRaw = _prefs!.getString(key);
       if (msgRaw == null || msgRaw.isEmpty) continue;
@@ -456,11 +466,19 @@ class ChatStore extends ChangeNotifier {
         loadedMsgs.addAll([for (final item in rows) if (item is Map) MsgRow.fromJson(Map<String, dynamic>.from(item))]);
       } catch (_) {}
     }
-    msgs = loadedMsgs;
-    for (final cid in loadedMsgs.map((m) => m.chatId).toSet()) {
+    msgs = loadedMsgs.where((m) => m.chatId > 0).toList();
+    for (final cid in msgs.map((m) => m.chatId).toSet()) {
       _msgsSortChat(cid);
     }
     chatStatusStaleClear();
+    final legacyKeys = _prefs!.getKeys().where((k) => k.startsWith('c35_chat_msgs_-') || k == 'c35_chat_msgs_0').toList();
+    for (final k in legacyKeys) {
+      unawaited(_prefs!.remove(k));
+    }
+    if (activeChatId != null && activeChatId! <= 0) {
+      activeChatId = null;
+    }
+    _nextLocalId = -1;
     _loaded = true;
     notifyListeners();
   }
@@ -468,11 +486,11 @@ class ChatStore extends ChangeNotifier {
   Future<void> _persistChats() async {
     if (!_loaded) return;
     _prefs ??= await SharedPreferences.getInstance();
-    await _prefs!.setString(_chatRowsKey, jsonEncode(chats.map((c) => c.toJson()).toList()));
+    await _prefs!.setString(_chatRowsKey, jsonEncode(chats.where((c) => c.id > 0).map((c) => c.toJson()).toList()));
   }
 
   Future<void> _persistMsgs(int chatId) async {
-    if (!_loaded) return;
+    if (!_loaded || chatId <= 0) return;
     _prefs ??= await SharedPreferences.getInstance();
     final rows = msgs.where((m) => m.chatId == chatId).map((m) => m.toJson()).toList();
     await _prefs!.setString(_chatMsgsKey(chatId), jsonEncode(rows));
@@ -482,6 +500,7 @@ class ChatStore extends ChangeNotifier {
   final Set<int> _dirtyMsgChatIds = {};
 
   void _debouncePersistMsgs(int chatId) {
+    if (chatId <= 0) return;
     _dirtyMsgChatIds.add(chatId);
     if (_msgPersistDebounce?.isActive ?? false) return;
     _msgPersistDebounce = Timer(const Duration(milliseconds: 1200), () {
@@ -580,6 +599,16 @@ class ChatStore extends ChangeNotifier {
   }
 
   void chatNew() {
+    if (activeChatId != null && activeChatId! < 0) {
+      final pid = activeChatId!;
+      chats.removeWhere((c) => c.id == pid);
+      msgs.removeWhere((m) => m.chatId == pid);
+      _promptClear();
+      activeChatId = null;
+      if (!chats.any((c) => c.id < 0)) _nextLocalId = -1;
+      notifyListeners();
+      return;
+    }
     if (_chatDraftEmpty) return;
     activeChatId = null;
     notifyListeners();
@@ -786,6 +815,22 @@ class ChatStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  void chatContextWindowPut(int id, int window) {
+    if (id == 0 || window <= 0) return;
+    final i = chats.indexWhere((c) => c.id == id);
+    if (i < 0 || chats[i].contextWindow == window) return;
+    chats[i].contextWindow = window;
+    _touch();
+  }
+
+  void chatContextSummaryPresentPut(int id, bool present) {
+    if (id == 0) return;
+    final i = chats.indexWhere((c) => c.id == id);
+    if (i < 0 || chats[i].contextSummaryPresent == present) return;
+    chats[i].contextSummaryPresent = present;
+    _touch();
+  }
+
   void chatTitlePut(int id, String title) {
     if (id == 0) return;
     final t = title.trim();
@@ -822,6 +867,7 @@ class ChatStore extends ChangeNotifier {
     final mergedSticky = {...prevSticky, ...metaSticky}.toList();
     final unread = member.unreadCount > 0 || (prevUnread && id != activeChatId);
     final bound = chatMetaBoundDeviceIid(chat.metaJson);
+    final prevWindow = existingIdx >= 0 ? chats[existingIdx].contextWindow : 0;
     final row = ChatRow(
       id: id,
       title: title.isNotEmpty ? title : 'Chat',
@@ -833,7 +879,10 @@ class ChatStore extends ChangeNotifier {
       pending: false,
       lastMsgStatus: status,
       unreadStatus: unread,
-      contextSummaryPresent: chatMetaContextSummaryPresent(chat.metaJson),
+      contextSummaryPresent: chat.metaJson.isEmpty
+          ? existingIdx >= 0 && chats[existingIdx].contextSummaryPresent
+          : chatMetaContextSummaryPresent(chat.metaJson),
+      contextWindow: chat.contextWindow > 0 ? chat.contextWindow : prevWindow,
       boundDeviceIid: bound > 0 ? bound : (existingIdx >= 0 ? chats[existingIdx].boundDeviceIid : 0),
       stickyMentionIds: mergedSticky,
     );
@@ -868,24 +917,56 @@ class ChatStore extends ChangeNotifier {
     }
   }
 
-  Future<void> msgsPullFromServer(ChatConn conn, int chatId) async {
+  ChatMsgFeedback? feedbackFor(int msgId) {
+    if (msgId == 0) return null;
+    final row = _feedbackByMsg[msgId];
+    if (row == null || row.id.toInt() == 0) return null;
+    return row;
+  }
+
+  void feedbackReplace(ChatMsgFeedback row) {
+    final msgId = row.msgId.toInt();
+    if (msgId == 0 || row.id.toInt() == 0) return;
+    _feedbackByMsg[msgId] = row;
+    notifyListeners();
+  }
+
+  void feedbackClear(int msgId) {
+    if (msgId == 0 || _feedbackByMsg.remove(msgId) == null) return;
+    notifyListeners();
+  }
+
+  Future<void> feedbackPull(ChatConn conn, int chatId, {required String locale}) async {
+    if (chatId <= 0) return;
+    final res = await conn.chatMsgFeedbackList(chatId: chatId, locale: locale);
+    _feedbackByMsg.removeWhere((_, row) => row.chatId.toInt() == chatId);
+    for (final row in res.feedback) {
+      final msgId = row.msgId.toInt();
+      if (msgId == 0 || row.id.toInt() == 0) continue;
+      _feedbackByMsg[msgId] = row;
+    }
+    notifyListeners();
+  }
+
+  Future<void> msgsPullFromServer(ChatConn conn, int chatId, {String locale = ''}) async {
     if (chatId <= 0 || promptBusyFor(chatId)) return;
     try {
       final res = await conn.chatMsgList(chatId: Int64(chatId));
       msgsReloadFromServer(chatId, res.messages);
+      await feedbackPull(conn, chatId, locale: locale);
     } catch (_) {}
   }
 
-  Future<void> msgsSyncStaleFromServer(ChatConn conn) async {
+  Future<void> msgsSyncStaleFromServer(ChatConn conn, {String locale = ''}) async {
     for (final c in chats) {
       if (c.id <= 0 || promptBusyFor(c.id)) continue;
       final hasLocal = msgs.any((m) => m.chatId == c.id);
       if (hasLocal && c.lastMsgAt == 0 && c.lastMsgPreview.trim().isEmpty) {
-        await msgsPullFromServer(conn, c.id);
+        await msgsPullFromServer(conn, c.id, locale: locale);
       }
     }
     final active = activeChatId;
-    if (active != null && active > 0) await msgsPullFromServer(conn, active);
+    if (active != null && active > 0) await msgsPullFromServer(conn, active, locale: locale);
   }
 
   MsgRow? _turnAssistant({required int chatId, String reqId = ''}) {
@@ -1281,6 +1362,9 @@ class ChatStore extends ChangeNotifier {
         if (c.id == existing) return c.pending ? 0 : existing;
       }
     }
+    chats.removeWhere((c) => c.id < 0);
+    msgs.removeWhere((m) => m.chatId < 0);
+    if (!chats.any((c) => c.id < 0)) _nextLocalId = -1;
     final id = _nextLocalId--;
     chats.insert(0, ChatRow(id: id, title: 'New chat', pending: true, lastMsgAt: DateTime.now().millisecondsSinceEpoch));
     activeChatId = id;
@@ -1600,7 +1684,7 @@ class ChatStore extends ChangeNotifier {
     try {
       inboxMerge(await conn.inboxList(includeArchived: true));
     } catch (_) {}
-    await msgsSyncStaleFromServer(conn);
+    await msgsSyncStaleFromServer(conn, locale: locale);
     chatStatusStaleClear();
     notifyListeners();
   }

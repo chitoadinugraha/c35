@@ -207,6 +207,8 @@ ALTER TABLE ai.chat ADD COLUMN IF NOT EXISTS context_summary TEXT NOT NULL DEFAU
 ALTER TABLE ai.chat ADD COLUMN IF NOT EXISTS context_summary_upto_msg_id BIGINT NOT NULL DEFAULT 0;
 ALTER TABLE ai.chat ADD COLUMN IF NOT EXISTS context_compact_ts TIMESTAMPTZ;
 ALTER TABLE ai.chat ADD COLUMN IF NOT EXISTS context_compact_req_id TEXT NOT NULL DEFAULT '';
+-- 0 = default at read time (min(128000, model ceiling)). Do not backfill existing rows.
+ALTER TABLE ai.chat ADD COLUMN IF NOT EXISTS context_window INT NOT NULL DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS ai.chat_compact_log (
     id                  BIGINT PRIMARY KEY,

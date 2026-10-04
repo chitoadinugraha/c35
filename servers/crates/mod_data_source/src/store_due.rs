@@ -12,12 +12,17 @@ pub async fn sync_due_claim_batch(pool: &PgPool, ttl_sec: i64, limit: i64) -> Re
             FROM ai.data_source d
             INNER JOIN ai.data_source_sync s ON s.data_source_id = d.id
             WHERE d.deleted_ts IS NULL
-              AND s.synced_ts < NOW() - make_interval(secs => $1)
               AND (
-                s.status IN ('ok', 'error', 'stale')
-                OR (s.status = 'syncing' AND s.updated_ts < NOW() - make_interval(secs => $3))
+                s.status = 'stale'
+                OR (
+                  s.synced_ts < NOW() - make_interval(secs => $1)
+                  AND (
+                    s.status IN ('ok', 'error')
+                    OR (s.status = 'syncing' AND s.updated_ts < NOW() - make_interval(secs => $3))
+                  )
+                )
               )
-            ORDER BY s.synced_ts ASC
+            ORDER BY (s.status = 'stale') DESC, s.synced_ts ASC
             LIMIT $2
             FOR UPDATE OF s SKIP LOCKED
         )

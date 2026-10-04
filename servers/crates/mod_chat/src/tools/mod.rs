@@ -33,12 +33,15 @@ use builtin::{
     ConsumptionDeleteTool, ConsumptionTodayTool,
     ConsumptionUpdateTool, DelegateRunTool, DeviceFsListTool, DeviceFsReadTool, ShellRunTool,
     DeviceInputTool, DeviceScreenshotTool,
-    ExpenseAddTool, ExpenseDeleteTool, ExpenseSummaryTool, ImgEditTool, ImgGenerateTool, PresentationExportTool,
+    ExpenseAddTool, ExpenseDeleteTool, ExpenseSummaryTool, ImgEditTool, ImgGenerateTool,
+    ChatMessagesTool, ChatSearchTool, MemoryForgetTool, MemoryListTool, MemorySaveTool,
+    PresentationCreateTool, PresentationExportTool, PresentationPatchTool,
     PresentationSourceExtractTool, PresentationSourceStructureTool,
     PresentationVideoExtractTool, PresentationVideoStructureTool,
     ReferralCodeDeleteTool, ReferralCodeListTool, ReferralCodePutTool, ReferralTreeGetTool, SiteContactPutTool,
-    SiteDomainPutTool, SiteDomainVerifyTool, SiteDraftGetTool, SiteDraftPutTool, SiteObjectPutTool,
-    SiteOrderStatusTool, SiteProductPatchTool, SiteProductPutTool, SitePublishTool, SiteQueryRunTool,
+    SiteCreateTool, SiteDomainPutTool, SiteDomainVerifyTool, SiteDraftGetTool, SiteDraftPutTool,
+    SiteHandleUpdateTool, SiteObjectPutTool, SiteOrderStatusTool, SitePatchTool, SiteProductPatchTool,
+    SiteProductPutTool, SitePublishTool, SiteQueryRunTool,
     SiteTxDebtPayTool, SiteTxListTool, SiteTxPreviewTool, SiteTxPutTool, TaskRunCancelDeviceTool,
     TaskRunCancelTool, TaskRunStartTool, TaskRunStatusTool, WebResearchTool, WebSearchTool,
     WebVisitTool,
@@ -123,6 +126,8 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(WebResearchTool));
     dispatcher.register(Arc::new(ImgGenerateTool));
     dispatcher.register(Arc::new(ImgEditTool));
+    dispatcher.register(Arc::new(PresentationCreateTool));
+    dispatcher.register(Arc::new(PresentationPatchTool));
     dispatcher.register(Arc::new(PresentationExportTool));
     dispatcher.register(Arc::new(PresentationSourceStructureTool));
     dispatcher.register(Arc::new(PresentationSourceExtractTool));
@@ -153,6 +158,9 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(DeviceFsReadTool));
     dispatcher.register(Arc::new(DeviceInputTool));
     dispatcher.register(Arc::new(DeviceScreenshotTool));
+    dispatcher.register(Arc::new(SiteCreateTool));
+    dispatcher.register(Arc::new(SitePatchTool));
+    dispatcher.register(Arc::new(SiteHandleUpdateTool));
     dispatcher.register(Arc::new(SiteDraftGetTool));
     dispatcher.register(Arc::new(SiteDraftPutTool));
     dispatcher.register(Arc::new(SitePublishTool));
@@ -177,6 +185,11 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(TaskRunStartTool));
     dispatcher.register(Arc::new(TaskRunCancelTool));
     dispatcher.register(Arc::new(TaskRunCancelDeviceTool));
+    dispatcher.register(Arc::new(ChatSearchTool));
+    dispatcher.register(Arc::new(ChatMessagesTool));
+    dispatcher.register(Arc::new(MemorySaveTool));
+    dispatcher.register(Arc::new(MemoryForgetTool));
+    dispatcher.register(Arc::new(MemoryListTool));
     dispatcher.register(Arc::new(TaskRunStatusTool));
     dispatcher
 }

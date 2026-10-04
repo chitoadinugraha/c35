@@ -1090,3 +1090,75 @@ fn compose_meal_recommendation_matches_consumption_coach() {
     assert!(out.matched_ids.iter().any(|id| id == "inst.consumption_coach"));
     assert!(out.tools.iter().any(|t| t.name == "consumption.today"));
 }
+
+fn inst_site_catalog_price() -> InstRow {
+    InstRow {
+        id: "inst.site.catalog.price".into(),
+        scope: SCOPE_GLOBAL.into(),
+        kind: "task".into(),
+        topic_id: "".into(),
+        topics: vec!["web.builder".into(), "site.commerce".into(), "general".into()],
+        inst: "[SITE.CATALOG.PRICE] Call site.query.run query_id product.stock with params.q set to the product name. Omit site_iids. If rows come back, answer each site name and price. Do not call web.search when rows exist. If rows are empty, the server will search the web.".into(),
+        phrases: vec!["harga".into(), "price".into(), "berapa harga".into(), "how much is".into()],
+        triggers: vec![],
+        include_tools: vec!["site.query.run".into()],
+        exclude_tools: vec![],
+        priority: 130,
+    }
+}
+
+fn inst_web_search_fixture() -> InstRow {
+    InstRow {
+        id: "inst.web_search".into(),
+        scope: SCOPE_GLOBAL.into(),
+        kind: "task".into(),
+        topic_id: "".into(),
+        topics: vec![],
+        inst: "web".into(),
+        phrases: vec!["harga".into()],
+        triggers: vec![],
+        include_tools: vec!["web.search".into()],
+        exclude_tools: vec![],
+        priority: 100,
+    }
+}
+
+fn site_query_tool() -> ToolDef {
+    ToolDef {
+        name: "site.query.run".into(),
+        description: "Run a site query".into(),
+        parameters: json!({}),
+        aliases: vec![],
+        topics: vec!["site.commerce".into(), "web.builder".into()],
+        always: vec![],
+        readonly: true,
+        requires_kinds: vec![],
+        rag_phrases: vec![],
+        requires_capability: None,
+    }
+}
+
+fn web_search_tool() -> ToolDef {
+    ToolDef::new("web.search".into(), "Search the live web".into(), json!({}))
+}
+
+#[test]
+fn compose_price_phrase_includes_site_query_without_mention() {
+    let mention = MentionContext::empty();
+    let out = compose_tools_and_inst(
+        &[inst_site_catalog_price(), inst_web_search_fixture()],
+        "berapa harga indomie",
+        vec![site_query_tool(), web_search_tool()],
+        &[],
+        &[],
+        &["general".into()],
+        "agent",
+        &[],
+        &inst_scopes_home(),
+        &mention,
+        &SiteCapabilityView::empty(),
+        ComposeTurnOpts::default(),
+    );
+    assert!(out.matched_ids.iter().any(|id| id == "inst.site.catalog.price"));
+    assert!(out.tools.iter().any(|t| t.name == "site.query.run"));
+}

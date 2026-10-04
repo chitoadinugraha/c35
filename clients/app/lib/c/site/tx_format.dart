@@ -46,7 +46,33 @@ Int64 txItemLineNominal(TxItem item) {
   return Int64(item.qty) * item.price * Int64(multiplier);
 }
 
-Int64 txItemsNominal(Tx tx) => tx.items.fold(Int64.ZERO, (sum, item) => sum + txItemLineNominal(item));
+Int64 txItemDiscountNominal(TxItem item) =>
+    item.totalDiscount > Int64.ZERO ? item.totalDiscount : Int64.ZERO;
+
+Int64 txItemLineNet(TxItem item) {
+  final line = txItemLineNominal(item);
+  final disc = txItemDiscountNominal(item);
+  final net = line - disc;
+  return net > Int64.ZERO ? net : Int64.ZERO;
+}
+
+Int64 txCartDiscountsTotal(Tx tx) =>
+    tx.discounts.fold(Int64.ZERO, (sum, d) => sum + (d.amount > Int64.ZERO ? d.amount : Int64.ZERO));
+
+Int64 txItemsGrossNominal(Tx tx) =>
+    tx.items.fold(Int64.ZERO, (sum, item) => sum + txItemLineNominal(item));
+
+Int64 txItemsDiscountNominal(Tx tx) =>
+    tx.items.fold(Int64.ZERO, (sum, item) => sum + txItemDiscountNominal(item));
+
+Int64 txTotalDiscounts(Tx tx) => txItemsDiscountNominal(tx) + txCartDiscountsTotal(tx);
+
+Int64 txItemsNominal(Tx tx) {
+  final itemsNet = tx.items.fold(Int64.ZERO, (sum, item) => sum + txItemLineNet(item));
+  final cartDisc = txCartDiscountsTotal(tx);
+  final net = itemsNet - cartDisc;
+  return net > Int64.ZERO ? net : Int64.ZERO;
+}
 
 Int64 txPaymentsTotal(Tx tx) => tx.payments.fold(Int64.ZERO, (sum, p) => sum + p.amount);
 
@@ -66,15 +92,29 @@ String? txValidateSale(Tx tx) {
     if (item.qty == 0) return 'Quantity cannot be zero';
   }
   final nominal = txItemsNominal(tx);
-  if (tx.payments.isEmpty) return 'Add a payment';
-  if (txPaymentsTotal(tx) != nominal) return 'Payment total must match items total';
+  if (nominal > Int64.ZERO) {
+    if (tx.payments.isEmpty) return 'Add a payment';
+    if (txPaymentsTotal(tx) != nominal) return 'Payment total must match items total';
+  } else {
+    if (txPaymentsTotal(tx) != Int64.ZERO) return 'Payment total must match items total';
+  }
   return null;
 }
 
 Tx txEnsureCashPayment(Tx tx) {
   final out = tx.clone();
+  for (final item in out.items) {
+    item.totalPrice = txItemLineNominal(item);
+    item.totalDiscount = txItemDiscountNominal(item);
+    item.totalNet = txItemLineNet(item);
+  }
+  out.totalDiscounts = txTotalDiscounts(out);
   final nominal = txItemsNominal(out);
-  if (nominal <= Int64.ZERO) return out;
+  out.total = nominal;
+  if (nominal <= Int64.ZERO) {
+    out.payments.clear();
+    return out;
+  }
   if (txPaymentsTotal(out) == nominal) return out;
   out.payments.clear();
   out.payments.add(TxPayment(

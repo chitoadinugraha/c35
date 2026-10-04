@@ -8,6 +8,7 @@ pub mod tool_loop;
 pub mod user_context;
 pub mod web_grounding;
 
+use crate::catalog_web::CatalogWebPhase;
 use crate::tools::ToolDef;
 
 #[derive(Debug, Clone, Default)]
@@ -26,6 +27,8 @@ pub struct ChatReq {
     pub history: Vec<ChatHistoryMsg>,
     /// When true, first tool hop uses Gemini function-calling mode ANY (web-search inst).
     pub force_tool_call: bool,
+    pub catalog_web: CatalogWebPhase,
+    pub skip_web_prefetch: bool,
 }
 
 #[derive(Debug, Clone, Default)]

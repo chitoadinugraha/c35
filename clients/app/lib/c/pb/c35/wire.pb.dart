@@ -2948,6 +2948,11 @@ enum WsReq_Body {
   reqRemoteAgentPush,
   reqRemoteBrowserInvoke,
   taskRunCancelDevice,
+  chatFeedbackReasonList,
+  chatMsgFeedbackPut,
+  chatMsgFeedbackList,
+  chatContextWindowSet,
+  chatCompact,
   notSet
 }
 
@@ -3067,6 +3072,11 @@ class WsReq extends $pb.GeneratedMessage {
     $20.ReqRemoteAgentPush? reqRemoteAgentPush,
     $20.ReqRemoteBrowserInvoke? reqRemoteBrowserInvoke,
     $19.ReqTaskRunCancelDevice? taskRunCancelDevice,
+    $15.ReqChatFeedbackReasonList? chatFeedbackReasonList,
+    $15.ReqChatMsgFeedbackPut? chatMsgFeedbackPut,
+    $15.ReqChatMsgFeedbackList? chatMsgFeedbackList,
+    $15.ReqChatContextWindowSet? chatContextWindowSet,
+    $15.ReqChatCompact? chatCompact,
   }) {
     final result = WsReq._();
     if (reqId != null) result.reqId = reqId;
@@ -3199,6 +3209,15 @@ class WsReq extends $pb.GeneratedMessage {
       result.reqRemoteBrowserInvoke = reqRemoteBrowserInvoke;
     if (taskRunCancelDevice != null)
       result.taskRunCancelDevice = taskRunCancelDevice;
+    if (chatFeedbackReasonList != null)
+      result.chatFeedbackReasonList = chatFeedbackReasonList;
+    if (chatMsgFeedbackPut != null)
+      result.chatMsgFeedbackPut = chatMsgFeedbackPut;
+    if (chatMsgFeedbackList != null)
+      result.chatMsgFeedbackList = chatMsgFeedbackList;
+    if (chatContextWindowSet != null)
+      result.chatContextWindowSet = chatContextWindowSet;
+    if (chatCompact != null) result.chatCompact = chatCompact;
     return result;
   }
 
@@ -3324,6 +3343,11 @@ class WsReq extends $pb.GeneratedMessage {
     169: WsReq_Body.reqRemoteAgentPush,
     170: WsReq_Body.reqRemoteBrowserInvoke,
     171: WsReq_Body.taskRunCancelDevice,
+    172: WsReq_Body.chatFeedbackReasonList,
+    173: WsReq_Body.chatMsgFeedbackPut,
+    174: WsReq_Body.chatMsgFeedbackList,
+    175: WsReq_Body.chatContextWindowSet,
+    176: WsReq_Body.chatCompact,
     0: WsReq_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -3442,7 +3466,12 @@ class WsReq extends $pb.GeneratedMessage {
       168,
       169,
       170,
-      171
+      171,
+      172,
+      173,
+      174,
+      175,
+      176
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$13.ReqSessionInit>(2, _omitFieldNames ? '' : 'sessionInit',
@@ -3699,6 +3728,20 @@ class WsReq extends $pb.GeneratedMessage {
     ..aOM<$19.ReqTaskRunCancelDevice>(
         171, _omitFieldNames ? '' : 'taskRunCancelDevice',
         subBuilder: $19.ReqTaskRunCancelDevice.$_createMessage)
+    ..aOM<$15.ReqChatFeedbackReasonList>(
+        172, _omitFieldNames ? '' : 'chatFeedbackReasonList',
+        subBuilder: $15.ReqChatFeedbackReasonList.$_createMessage)
+    ..aOM<$15.ReqChatMsgFeedbackPut>(
+        173, _omitFieldNames ? '' : 'chatMsgFeedbackPut',
+        subBuilder: $15.ReqChatMsgFeedbackPut.$_createMessage)
+    ..aOM<$15.ReqChatMsgFeedbackList>(
+        174, _omitFieldNames ? '' : 'chatMsgFeedbackList',
+        subBuilder: $15.ReqChatMsgFeedbackList.$_createMessage)
+    ..aOM<$15.ReqChatContextWindowSet>(
+        175, _omitFieldNames ? '' : 'chatContextWindowSet',
+        subBuilder: $15.ReqChatContextWindowSet.$_createMessage)
+    ..aOM<$15.ReqChatCompact>(176, _omitFieldNames ? '' : 'chatCompact',
+        subBuilder: $15.ReqChatCompact.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -3833,6 +3876,11 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(169)
   @$pb.TagNumber(170)
   @$pb.TagNumber(171)
+  @$pb.TagNumber(172)
+  @$pb.TagNumber(173)
+  @$pb.TagNumber(174)
+  @$pb.TagNumber(175)
+  @$pb.TagNumber(176)
   WsReq_Body whichBody() => _WsReq_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(3)
@@ -3946,6 +3994,11 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(169)
   @$pb.TagNumber(170)
   @$pb.TagNumber(171)
+  @$pb.TagNumber(172)
+  @$pb.TagNumber(173)
+  @$pb.TagNumber(174)
+  @$pb.TagNumber(175)
+  @$pb.TagNumber(176)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -5215,6 +5268,65 @@ class WsReq extends $pb.GeneratedMessage {
   void clearTaskRunCancelDevice() => $_clearField(171);
   @$pb.TagNumber(171)
   $19.ReqTaskRunCancelDevice ensureTaskRunCancelDevice() => $_ensure(112);
+
+  @$pb.TagNumber(172)
+  $15.ReqChatFeedbackReasonList get chatFeedbackReasonList => $_getN(113);
+  @$pb.TagNumber(172)
+  set chatFeedbackReasonList($15.ReqChatFeedbackReasonList value) =>
+      $_setField(172, value);
+  @$pb.TagNumber(172)
+  $core.bool hasChatFeedbackReasonList() => $_has(113);
+  @$pb.TagNumber(172)
+  void clearChatFeedbackReasonList() => $_clearField(172);
+  @$pb.TagNumber(172)
+  $15.ReqChatFeedbackReasonList ensureChatFeedbackReasonList() => $_ensure(113);
+
+  @$pb.TagNumber(173)
+  $15.ReqChatMsgFeedbackPut get chatMsgFeedbackPut => $_getN(114);
+  @$pb.TagNumber(173)
+  set chatMsgFeedbackPut($15.ReqChatMsgFeedbackPut value) =>
+      $_setField(173, value);
+  @$pb.TagNumber(173)
+  $core.bool hasChatMsgFeedbackPut() => $_has(114);
+  @$pb.TagNumber(173)
+  void clearChatMsgFeedbackPut() => $_clearField(173);
+  @$pb.TagNumber(173)
+  $15.ReqChatMsgFeedbackPut ensureChatMsgFeedbackPut() => $_ensure(114);
+
+  @$pb.TagNumber(174)
+  $15.ReqChatMsgFeedbackList get chatMsgFeedbackList => $_getN(115);
+  @$pb.TagNumber(174)
+  set chatMsgFeedbackList($15.ReqChatMsgFeedbackList value) =>
+      $_setField(174, value);
+  @$pb.TagNumber(174)
+  $core.bool hasChatMsgFeedbackList() => $_has(115);
+  @$pb.TagNumber(174)
+  void clearChatMsgFeedbackList() => $_clearField(174);
+  @$pb.TagNumber(174)
+  $15.ReqChatMsgFeedbackList ensureChatMsgFeedbackList() => $_ensure(115);
+
+  @$pb.TagNumber(175)
+  $15.ReqChatContextWindowSet get chatContextWindowSet => $_getN(116);
+  @$pb.TagNumber(175)
+  set chatContextWindowSet($15.ReqChatContextWindowSet value) =>
+      $_setField(175, value);
+  @$pb.TagNumber(175)
+  $core.bool hasChatContextWindowSet() => $_has(116);
+  @$pb.TagNumber(175)
+  void clearChatContextWindowSet() => $_clearField(175);
+  @$pb.TagNumber(175)
+  $15.ReqChatContextWindowSet ensureChatContextWindowSet() => $_ensure(116);
+
+  @$pb.TagNumber(176)
+  $15.ReqChatCompact get chatCompact => $_getN(117);
+  @$pb.TagNumber(176)
+  set chatCompact($15.ReqChatCompact value) => $_setField(176, value);
+  @$pb.TagNumber(176)
+  $core.bool hasChatCompact() => $_has(117);
+  @$pb.TagNumber(176)
+  void clearChatCompact() => $_clearField(176);
+  @$pb.TagNumber(176)
+  $15.ReqChatCompact ensureChatCompact() => $_ensure(117);
 }
 
 enum WsRes_Body {
@@ -5340,6 +5452,11 @@ enum WsRes_Body {
   resRemoteAgentPush,
   resRemoteBrowserInvoke,
   taskRunCancelDevice,
+  chatFeedbackReasonList,
+  chatMsgFeedbackPut,
+  chatMsgFeedbackList,
+  chatContextWindowSet,
+  chatCompact,
   notSet
 }
 
@@ -5469,6 +5586,11 @@ class WsRes extends $pb.GeneratedMessage {
     $20.ResRemoteAgentPush? resRemoteAgentPush,
     $20.ResRemoteBrowserInvoke? resRemoteBrowserInvoke,
     $19.ResTaskRunCancelDevice? taskRunCancelDevice,
+    $15.ResChatFeedbackReasonList? chatFeedbackReasonList,
+    $15.ResChatMsgFeedbackPut? chatMsgFeedbackPut,
+    $15.ResChatMsgFeedbackList? chatMsgFeedbackList,
+    $15.ResChatContextWindowSet? chatContextWindowSet,
+    $15.ResChatCompact? chatCompact,
   }) {
     final result = WsRes._();
     if (reqId != null) result.reqId = reqId;
@@ -5612,6 +5734,15 @@ class WsRes extends $pb.GeneratedMessage {
       result.resRemoteBrowserInvoke = resRemoteBrowserInvoke;
     if (taskRunCancelDevice != null)
       result.taskRunCancelDevice = taskRunCancelDevice;
+    if (chatFeedbackReasonList != null)
+      result.chatFeedbackReasonList = chatFeedbackReasonList;
+    if (chatMsgFeedbackPut != null)
+      result.chatMsgFeedbackPut = chatMsgFeedbackPut;
+    if (chatMsgFeedbackList != null)
+      result.chatMsgFeedbackList = chatMsgFeedbackList;
+    if (chatContextWindowSet != null)
+      result.chatContextWindowSet = chatContextWindowSet;
+    if (chatCompact != null) result.chatCompact = chatCompact;
     return result;
   }
 
@@ -5747,6 +5878,11 @@ class WsRes extends $pb.GeneratedMessage {
     169: WsRes_Body.resRemoteAgentPush,
     170: WsRes_Body.resRemoteBrowserInvoke,
     171: WsRes_Body.taskRunCancelDevice,
+    172: WsRes_Body.chatFeedbackReasonList,
+    173: WsRes_Body.chatMsgFeedbackPut,
+    174: WsRes_Body.chatMsgFeedbackList,
+    175: WsRes_Body.chatContextWindowSet,
+    176: WsRes_Body.chatCompact,
     0: WsRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -5875,7 +6011,12 @@ class WsRes extends $pb.GeneratedMessage {
       168,
       169,
       170,
-      171
+      171,
+      172,
+      173,
+      174,
+      175,
+      176
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$25.Err>(2, _omitFieldNames ? '' : 'err',
@@ -6153,6 +6294,20 @@ class WsRes extends $pb.GeneratedMessage {
     ..aOM<$19.ResTaskRunCancelDevice>(
         171, _omitFieldNames ? '' : 'taskRunCancelDevice',
         subBuilder: $19.ResTaskRunCancelDevice.$_createMessage)
+    ..aOM<$15.ResChatFeedbackReasonList>(
+        172, _omitFieldNames ? '' : 'chatFeedbackReasonList',
+        subBuilder: $15.ResChatFeedbackReasonList.$_createMessage)
+    ..aOM<$15.ResChatMsgFeedbackPut>(
+        173, _omitFieldNames ? '' : 'chatMsgFeedbackPut',
+        subBuilder: $15.ResChatMsgFeedbackPut.$_createMessage)
+    ..aOM<$15.ResChatMsgFeedbackList>(
+        174, _omitFieldNames ? '' : 'chatMsgFeedbackList',
+        subBuilder: $15.ResChatMsgFeedbackList.$_createMessage)
+    ..aOM<$15.ResChatContextWindowSet>(
+        175, _omitFieldNames ? '' : 'chatContextWindowSet',
+        subBuilder: $15.ResChatContextWindowSet.$_createMessage)
+    ..aOM<$15.ResChatCompact>(176, _omitFieldNames ? '' : 'chatCompact',
+        subBuilder: $15.ResChatCompact.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -6297,6 +6452,11 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(169)
   @$pb.TagNumber(170)
   @$pb.TagNumber(171)
+  @$pb.TagNumber(172)
+  @$pb.TagNumber(173)
+  @$pb.TagNumber(174)
+  @$pb.TagNumber(175)
+  @$pb.TagNumber(176)
   WsRes_Body whichBody() => _WsRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(10)
@@ -6420,6 +6580,11 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(169)
   @$pb.TagNumber(170)
   @$pb.TagNumber(171)
+  @$pb.TagNumber(172)
+  @$pb.TagNumber(173)
+  @$pb.TagNumber(174)
+  @$pb.TagNumber(175)
+  @$pb.TagNumber(176)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -7798,6 +7963,65 @@ class WsRes extends $pb.GeneratedMessage {
   void clearTaskRunCancelDevice() => $_clearField(171);
   @$pb.TagNumber(171)
   $19.ResTaskRunCancelDevice ensureTaskRunCancelDevice() => $_ensure(122);
+
+  @$pb.TagNumber(172)
+  $15.ResChatFeedbackReasonList get chatFeedbackReasonList => $_getN(123);
+  @$pb.TagNumber(172)
+  set chatFeedbackReasonList($15.ResChatFeedbackReasonList value) =>
+      $_setField(172, value);
+  @$pb.TagNumber(172)
+  $core.bool hasChatFeedbackReasonList() => $_has(123);
+  @$pb.TagNumber(172)
+  void clearChatFeedbackReasonList() => $_clearField(172);
+  @$pb.TagNumber(172)
+  $15.ResChatFeedbackReasonList ensureChatFeedbackReasonList() => $_ensure(123);
+
+  @$pb.TagNumber(173)
+  $15.ResChatMsgFeedbackPut get chatMsgFeedbackPut => $_getN(124);
+  @$pb.TagNumber(173)
+  set chatMsgFeedbackPut($15.ResChatMsgFeedbackPut value) =>
+      $_setField(173, value);
+  @$pb.TagNumber(173)
+  $core.bool hasChatMsgFeedbackPut() => $_has(124);
+  @$pb.TagNumber(173)
+  void clearChatMsgFeedbackPut() => $_clearField(173);
+  @$pb.TagNumber(173)
+  $15.ResChatMsgFeedbackPut ensureChatMsgFeedbackPut() => $_ensure(124);
+
+  @$pb.TagNumber(174)
+  $15.ResChatMsgFeedbackList get chatMsgFeedbackList => $_getN(125);
+  @$pb.TagNumber(174)
+  set chatMsgFeedbackList($15.ResChatMsgFeedbackList value) =>
+      $_setField(174, value);
+  @$pb.TagNumber(174)
+  $core.bool hasChatMsgFeedbackList() => $_has(125);
+  @$pb.TagNumber(174)
+  void clearChatMsgFeedbackList() => $_clearField(174);
+  @$pb.TagNumber(174)
+  $15.ResChatMsgFeedbackList ensureChatMsgFeedbackList() => $_ensure(125);
+
+  @$pb.TagNumber(175)
+  $15.ResChatContextWindowSet get chatContextWindowSet => $_getN(126);
+  @$pb.TagNumber(175)
+  set chatContextWindowSet($15.ResChatContextWindowSet value) =>
+      $_setField(175, value);
+  @$pb.TagNumber(175)
+  $core.bool hasChatContextWindowSet() => $_has(126);
+  @$pb.TagNumber(175)
+  void clearChatContextWindowSet() => $_clearField(175);
+  @$pb.TagNumber(175)
+  $15.ResChatContextWindowSet ensureChatContextWindowSet() => $_ensure(126);
+
+  @$pb.TagNumber(176)
+  $15.ResChatCompact get chatCompact => $_getN(127);
+  @$pb.TagNumber(176)
+  set chatCompact($15.ResChatCompact value) => $_setField(176, value);
+  @$pb.TagNumber(176)
+  $core.bool hasChatCompact() => $_has(127);
+  @$pb.TagNumber(176)
+  void clearChatCompact() => $_clearField(176);
+  @$pb.TagNumber(176)
+  $15.ResChatCompact ensureChatCompact() => $_ensure(127);
 }
 
 const $core.bool _omitFieldNames =

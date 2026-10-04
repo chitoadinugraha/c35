@@ -23,7 +23,12 @@ async fn main() -> anyhow::Result<()> {
     let mut tasks: Vec<Box<dyn FetchTask>> = Vec::new();
     tasks.push(Box::new(FxRateFetchTask::from_env()));
     tasks.push(Box::new(LlmCatalogFetchTask));
-    tasks.push(Box::new(ContextIdleFetchTask));
+    if c35_mod_chat::context_idle_compact_enabled() {
+        tracing::info!("context_idle compact enabled");
+        tasks.push(Box::new(ContextIdleFetchTask));
+    } else {
+        tracing::info!("context_idle compact disabled (set C35_CONTEXT_IDLE_COMPACT=1 to enable)");
+    }
     if oci_from_env().is_none() && env_enabled("OCI_VENDOR_BILL_ENABLED") {
         tracing::warn!("vendor_bill_oci skipped: check OCI_* env and OCI_PRIVATE_KEY_PATH");
     }

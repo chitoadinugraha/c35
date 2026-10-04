@@ -5,6 +5,7 @@ import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/chat/chat_inbox.dart';
 import 'package:alienai_c35/widgets/ai/ui_chat_message_menu.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_trace_sheet.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -22,7 +23,7 @@ List<ChatMessageMenuItem> msgBubbleMenuItems(
   BuildContext context, {
   required String plainText,
   String? selectedText,
-  VoidCallback? onSelectAll,
+  VoidCallback? onCopySemua,
   required bool viewerIsRoot,
   required bool isAssistant,
   required String reqId,
@@ -32,15 +33,46 @@ List<ChatMessageMenuItem> msgBubbleMenuItems(
   VoidCallback? onRetryLastTurn,
   VoidCallback? onImageUpgradeHd,
   ChatConn? conn,
+  VoidCallback? onGoodAnswer,
+  VoidCallback? onBadAnswer,
 }) {
   final loc = MaterialLocalizations.of(context);
   final text = plainText.trim();
   final selected = selectedText?.trim() ?? '';
   final copyOut = selected.isNotEmpty ? selectedText! : text;
   final traceConn = conn;
-  final canTrace = msgCanTrace(viewerIsRoot: viewerIsRoot, isAssistant: isAssistant, reqId: reqId) && traceConn != null;
+  final canTrace = msgCanTrace(viewerIsRoot: viewerIsRoot, isAssistant: isAssistant, reqId: reqId);
+  final traceAction = canTrace
+      ? ChatMessageMenuAction(
+          label: 'Trace',
+          icon: Icons.bolt_rounded,
+          onPressed: () {
+            ContextMenuController.removeAny();
+            final opened = traceConn;
+            if (opened == null || !context.mounted) return;
+            unawaited(showMsgTraceBottomSheet(context, reqId: reqId, conn: opened, msgId: msgId));
+          },
+        )
+      : null;
+  final copyIdAction = (msgId > 0 || reqId.trim().isNotEmpty)
+      ? ChatMessageMenuAction(
+          label: msgId > 0 ? 'Copy message ID' : 'Copy request ID',
+          icon: Icons.tag_rounded,
+          onPressed: () {
+            ContextMenuController.removeAny();
+            final copyId = msgId > 0 ? '$msgId' : reqId.trim();
+            Clipboard.setData(ClipboardData(text: copyId));
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('${msgId > 0 ? 'Message' : 'Request'} ID copied: $copyId'), behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 1)),
+            );
+          },
+        )
+      : null;
+  final good = onGoodAnswer;
+  final bad = onBadAnswer;
+  final showFeedback = good != null && bad != null && isAssistant && msgId > 0;
 
-  return [
+  final items = <ChatMessageMenuItem>[
     ChatMessageMenuAction(
       label: loc.copyButtonLabel,
       icon: Icons.content_copy_rounded,
@@ -66,12 +98,14 @@ List<ChatMessageMenuItem> msgBubbleMenuItems(
           );
         },
       ),
-    if (onSelectAll != null)
+    if (onCopySemua != null)
       ChatMessageMenuAction(
-        label: loc.selectAllButtonLabel,
-        icon: Icons.select_all_rounded,
-        shortcut: 'Ctrl+A',
-        onPressed: onSelectAll,
+        label: 'chat.copySemua'.tr(),
+        icon: Icons.copy_all_rounded,
+        onPressed: () {
+          ContextMenuController.removeAny();
+          onCopySemua();
+        },
       ),
     if (text.isNotEmpty || (showRetry && onRetryLastTurn != null)) ...[
       const ChatMessageMenuDivider(),
@@ -102,34 +136,41 @@ List<ChatMessageMenuItem> msgBubbleMenuItems(
         },
       ),
     ],
-    if (canTrace) ...[
-      const ChatMessageMenuDivider(),
-      ChatMessageMenuAction(
-        label: 'Trace',
-        icon: Icons.bolt_rounded,
-        onPressed: () {
-          ContextMenuController.removeAny();
-          if (!context.mounted) return;
-          unawaited(showMsgTraceBottomSheet(context, reqId: reqId, conn: traceConn, msgId: msgId));
-        },
-      ),
-    ],
-    if (msgId > 0 || reqId.trim().isNotEmpty) ...[
-      const ChatMessageMenuDivider(),
-      ChatMessageMenuAction(
-        label: msgId > 0 ? 'Copy message ID' : 'Copy request ID',
-        icon: Icons.tag_rounded,
-        onPressed: () {
-          ContextMenuController.removeAny();
-          final copyId = msgId > 0 ? '$msgId' : reqId.trim();
-          Clipboard.setData(ClipboardData(text: copyId));
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${msgId > 0 ? 'Message' : 'Request'} ID copied: $copyId'), behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 1)),
-          );
-        },
-      ),
-    ],
   ];
+
+  final idActions = <ChatMessageMenuAction>[
+    if (traceAction != null) traceAction,
+    if (copyIdAction != null) copyIdAction,
+  ];
+  if (idActions.isNotEmpty || showFeedback) {
+    if (items.isEmpty || items.last is! ChatMessageMenuDivider) items.add(const ChatMessageMenuDivider());
+    if (idActions.length == 2) {
+      items.add(ChatMessageMenuButtonRow(actions: idActions));
+    } else if (idActions.length == 1) {
+      items.add(idActions.single);
+    }
+    if (showFeedback) {
+      items.add(ChatMessageMenuButtonRow(actions: [
+        ChatMessageMenuAction(
+          label: 'Good Answer',
+          icon: Icons.thumb_up_alt_outlined,
+          onPressed: () {
+            ContextMenuController.removeAny();
+            good();
+          },
+        ),
+        ChatMessageMenuAction(
+          label: 'Bad Answer',
+          icon: Icons.thumb_down_alt_outlined,
+          onPressed: () {
+            ContextMenuController.removeAny();
+            bad();
+          },
+        ),
+      ]));
+    }
+  }
+  return items;
 }
 
 Widget msgBubbleContextMenu(
@@ -137,6 +178,7 @@ Widget msgBubbleContextMenu(
   SelectableRegionState selectableRegionState, {
   required String plainText,
   String? selectedText,
+  VoidCallback? onCopySemua,
   required bool viewerIsRoot,
   required bool isAssistant,
   required String reqId,
@@ -146,16 +188,14 @@ Widget msgBubbleContextMenu(
   VoidCallback? onRetryLastTurn,
   VoidCallback? onImageUpgradeHd,
   ChatConn? conn,
+  VoidCallback? onGoodAnswer,
+  VoidCallback? onBadAnswer,
 }) {
-  void closeMenu() => ContextMenuController.removeAny();
   final items = msgBubbleMenuItems(
     context,
     plainText: plainText,
     selectedText: selectedText,
-    onSelectAll: () {
-      closeMenu();
-      selectableRegionState.selectAll(SelectionChangedCause.toolbar);
-    },
+    onCopySemua: onCopySemua,
     viewerIsRoot: viewerIsRoot,
     isAssistant: isAssistant,
     reqId: reqId,
@@ -165,6 +205,8 @@ Widget msgBubbleContextMenu(
     onRetryLastTurn: onRetryLastTurn,
     onImageUpgradeHd: onImageUpgradeHd,
     conn: conn,
+    onGoodAnswer: onGoodAnswer,
+    onBadAnswer: onBadAnswer,
   );
 
   return _MsgBubbleContextMenuOverlay(

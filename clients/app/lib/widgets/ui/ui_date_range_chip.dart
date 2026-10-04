@@ -51,10 +51,11 @@ Future<DateRange?> dateRangeSheet(BuildContext context, {required DateRange init
     );
 
 class UiDateRangeChip extends StatelessWidget {
-  const UiDateRangeChip({super.key, required this.range, required this.onChanged});
+  const UiDateRangeChip({super.key, required this.range, required this.onChanged, this.compact = false});
 
   final DateRange range;
   final ValueChanged<DateRange> onChanged;
+  final bool compact;
 
   Future<void> _open(BuildContext context) async {
     final picked = await dateRangeSheet(context, initial: range);
@@ -62,13 +63,42 @@ class UiDateRangeChip extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => ActionChip(
+  Widget build(BuildContext context) {
+    if (!compact) {
+      return ActionChip(
         label: Text(dateRangeShortLabel(range), style: const TextStyle(color: _text, fontSize: 12)),
         avatar: const Icon(Icons.calendar_today_outlined, size: 14, color: _muted),
         backgroundColor: _section,
         side: const BorderSide(color: _border),
         onPressed: () => _open(context),
       );
+    }
+    return Material(
+      color: _bg,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: () => _open(context),
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: _border),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.calendar_today_outlined, size: 16, color: _muted),
+              const SizedBox(width: 8),
+              Text(dateRangeShortLabel(range), style: const TextStyle(color: _text, fontSize: 13)),
+              const SizedBox(width: 4),
+              const Icon(Icons.expand_more, size: 16, color: _muted),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _DateRangeSheet extends StatefulWidget {

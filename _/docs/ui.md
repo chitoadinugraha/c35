@@ -85,8 +85,9 @@ On avatar tap:
 - Features: pinned, archived, `#tag` search
 - **Empty-state hints** — server-precompiled chips (Track Consumption, Track Expense, recent sites with Visit/POS); cached in `SessionInit` — see [hint.md](hint.md)
 - Message renderer: input/output tokens, duration, cost (copy cs_agent `msg_trace_view`)
-- Custom **UI blocks** renderable inside messages
-- Canvas: document/slide editor when AI produces canvas content
+- Custom **UI blocks** renderable inside messages (`presentation.deck`, `consumption.food`, `expense.glance`, `image`, `file`).
+- Presentation slide decks: rendered via `UiSlideDeckCard` (100% native Flutter, zero WebView). Collapses into a small card with slide count and timestamp; expands to a 16:9 widescreen preview with pagination and slide-level patching (`presentation.md`).
+- Canvas: document/slide editor when AI produces canvas content.
 
 ### Chat row menu
 

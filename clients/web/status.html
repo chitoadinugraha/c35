@@ -1,9 +1,15 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en" class="dark" data-site-locale="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>System Status — Alien AI</title>
+  <title>System Status â€” Alien AI</title>
+  <meta name="description" content="Live uptime for Alien AI core services.">
+  <link rel="canonical" href="https://alienai.id/status">
+  <!-- hreflang:begin -->
+  <link rel="alternate" hreflang="en" href="https://alienai.id/status">
+  <link rel="alternate" hreflang="id" href="https://alienai.id/id/status">
+  <link rel="alternate" hreflang="x-default" href="https://alienai.id/status">  <!-- hreflang:end -->
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png">
@@ -90,7 +96,7 @@
         <img src="/alien.svg" alt="" class="w-4 h-4 shrink-0" aria-hidden="true">
         <span class="font-bold text-white shrink-0">AlienAI</span>
         <span class="hidden sm:inline text-slate-600 shrink-0" aria-hidden="true">·</span>
-        <span class="text-slate-500" data-i18n="footer.rights">© 2026 AlienAI. All rights reserved.</span>
+        <span class="text-slate-500" data-i18n="footer.rights">&#169; 2026 AlienAI. All rights reserved.</span>
       </div>
       <div class="flex items-center gap-4 text-slate-400">
         <a href="/terms.html" class="hover:text-white transition" data-i18n="footer.terms">Terms</a>
@@ -100,6 +106,7 @@
     </div>
   </footer>
 
+  <script src="/static/locale-detect.js"></script>
   <script>
     let currentLang = 'en';
     const localeCache = {};
@@ -133,17 +140,8 @@
     }
 
     async function initLang() {
-      const urlLang = new URLSearchParams(window.location.search).get('lang');
-      const savedLang = localStorage.getItem('alienai_lang');
-      const cookieLang = (document.cookie.match(/alienai_lang=([^;]+)/) || [])[1];
-      let initial = urlLang || savedLang || cookieLang;
-      if (!initial) {
-        try {
-          const res = await fetch('/locale/detect');
-          if (res.ok) { const d = await res.json(); initial = d.lang; }
-        } catch (_) {}
-      }
-      await applyLocale(initial === 'id' ? 'id' : 'en');
+      const siteLocale = document.documentElement.getAttribute('data-site-locale') || 'en';
+      await applyLocale(siteLocale);
     }
 
     const STATUS_STYLE = {

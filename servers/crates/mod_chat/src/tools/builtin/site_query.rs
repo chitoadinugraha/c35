@@ -1,26 +1,28 @@
-use anyhow::{anyhow, bail, Result};
-use c35_mod_site::site_query_run;
+use anyhow::{anyhow, Result};
+use c35_mod_site::{site_granted_iids, site_query_run};
 use serde_json::{json, Value};
 
+use crate::site_scope::site_scope_pick;
 use crate::tool;
 use crate::tools::ToolContext;
 
-fn site_iids_resolve(ctx: &ToolContext, args: &Value) -> Result<Vec<i64>> {
-    if let Some(arr) = args.get("site_iids").and_then(|v| v.as_array()) {
-        let ids: Vec<i64> = arr
-            .iter()
-            .filter_map(|v| v.as_i64())
-            .filter(|i| *i > 0)
-            .collect();
-        if !ids.is_empty() {
-            return Ok(ids);
-        }
-    }
-    let from_mention = ctx.mention.site_iids();
-    if !from_mention.is_empty() {
-        return Ok(from_mention);
-    }
-    bail!("site_iids required — mention @site or pass site_iids")
+fn args_site_iids(args: &Value) -> Vec<i64> {
+    args.get("site_iids")
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.iter().filter_map(|v| v.as_i64()).filter(|i| *i > 0).collect())
+        .unwrap_or_default()
+}
+
+async fn site_iids_resolve(ctx: &ToolContext, args: &Value) -> Result<Vec<i64>> {
+    let arg_iids = args_site_iids(args);
+    let mentioned = ctx.mention.site_iids();
+    let granted = if mentioned.is_empty() && arg_iids.is_empty() {
+        site_granted_iids(&ctx.pool, ctx.owner_iid).await?
+    } else {
+        Vec::new()
+    };
+    let ids = site_scope_pick(&mentioned, &granted, &arg_iids).map_err(|e| anyhow!(e))?;
+    Ok(ids)
 }
 
 fn params_json_resolve(args: &Value) -> Result<String> {
@@ -40,7 +42,7 @@ pub async fn site_query_run_exec(ctx: &ToolContext, args: &Value) -> Result<Valu
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .ok_or_else(|| anyhow!("query_id is required"))?;
-    let site_iids = site_iids_resolve(ctx, args)?;
+    let site_iids = site_iids_resolve(ctx, args).await?;
     let params_json = params_json_resolve(args)?;
     let res = site_query_run(
         &ctx.pool,
@@ -73,9 +75,8 @@ tool! {
     struct: SiteQueryRunTool,
     name: "site.query.run",
     aliases: ["site_query_run"],
-    description: "Run a readonly site query from the catalog (product.list, tx summaries, …). Multi-site compare uses all @mentioned sites when site_iids is omitted.",
-    topics: ["site.commerce", "web.builder", "general"],
-    requires_kinds: ["site"],
+    description: "Readonly site query. Omit site_iids to use @mentioned sites, or every site the caller can access when nothing is mentioned. product.stock params.q matches name, sku, or category.",
+    topics: ["site.commerce", "web.builder"],
     ui_calling_key: "tool.site.query.run.calling",
     ui_done_key: "tool.site.query.run.done",
     readonly: true,

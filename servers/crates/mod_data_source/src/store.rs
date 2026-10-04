@@ -188,6 +188,7 @@ pub async fn sync_upsert_error(pool: &PgPool, data_source_id: i64, source_kind: 
         ON CONFLICT (data_source_id) DO UPDATE SET
             status = 'error',
             error_msg = EXCLUDED.error_msg,
+            synced_ts = NOW(),
             updated_ts = NOW()
         "#,
     )

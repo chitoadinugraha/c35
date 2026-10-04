@@ -42,6 +42,7 @@ class Chat extends $pb.GeneratedMessage {
     $fixnum.Int64? createdTsMs,
     $fixnum.Int64? updatedTsMs,
     $fixnum.Int64? deletedTsMs,
+    $core.int? contextWindow,
   }) {
     final result = Chat._();
     if (id != null) result.id = id;
@@ -62,6 +63,7 @@ class Chat extends $pb.GeneratedMessage {
     if (createdTsMs != null) result.createdTsMs = createdTsMs;
     if (updatedTsMs != null) result.updatedTsMs = updatedTsMs;
     if (deletedTsMs != null) result.deletedTsMs = deletedTsMs;
+    if (contextWindow != null) result.contextWindow = contextWindow;
     return result;
   }
 
@@ -97,6 +99,7 @@ class Chat extends $pb.GeneratedMessage {
     ..aInt64(16, _omitFieldNames ? '' : 'createdTsMs')
     ..aInt64(17, _omitFieldNames ? '' : 'updatedTsMs')
     ..aInt64(18, _omitFieldNames ? '' : 'deletedTsMs')
+    ..aI(19, _omitFieldNames ? '' : 'contextWindow')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -274,6 +277,15 @@ class Chat extends $pb.GeneratedMessage {
   $core.bool hasDeletedTsMs() => $_has(17);
   @$pb.TagNumber(18)
   void clearDeletedTsMs() => $_clearField(18);
+
+  @$pb.TagNumber(19)
+  $core.int get contextWindow => $_getIZ(18);
+  @$pb.TagNumber(19)
+  set contextWindow($core.int value) => $_setSignedInt32(18, value);
+  @$pb.TagNumber(19)
+  $core.bool hasContextWindow() => $_has(18);
+  @$pb.TagNumber(19)
+  void clearContextWindow() => $_clearField(19);
 }
 
 class ChatMember extends $pb.GeneratedMessage {
@@ -1314,6 +1326,112 @@ class ResPromptDelta extends $pb.GeneratedMessage {
   void clearBlocksJson() => $_clearField(3);
 }
 
+/// Token counts only. Never carries instruction text, tool schemas, or memory.
+class ContextUsage extends $pb.GeneratedMessage {
+  factory ContextUsage({
+    $core.int? instructions,
+    $core.int? memory,
+    $core.int? context,
+    $core.int? tools,
+    $core.int? conversation,
+  }) {
+    final result = ContextUsage._();
+    if (instructions != null) result.instructions = instructions;
+    if (memory != null) result.memory = memory;
+    if (context != null) result.context = context;
+    if (tools != null) result.tools = tools;
+    if (conversation != null) result.conversation = conversation;
+    return result;
+  }
+
+  ContextUsage._();
+
+  factory ContextUsage.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ContextUsage()..mergeFromBuffer(data, registry);
+  factory ContextUsage.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ContextUsage()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ContextUsage',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ContextUsage.$_createMessage)
+    ..aI(1, _omitFieldNames ? '' : 'instructions')
+    ..aI(2, _omitFieldNames ? '' : 'memory')
+    ..aI(3, _omitFieldNames ? '' : 'context')
+    ..aI(4, _omitFieldNames ? '' : 'tools')
+    ..aI(5, _omitFieldNames ? '' : 'conversation')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ContextUsage clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ContextUsage copyWith(void Function(ContextUsage) updates) =>
+      super.copyWith((message) => updates(message as ContextUsage))
+          as ContextUsage;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ContextUsage() / ContextUsage.new instead')
+  static ContextUsage create() => ContextUsage._();
+  static $pb.GeneratedMessage $_createMessage() => ContextUsage._();
+  @$core.override
+  ContextUsage createEmptyInstance() => ContextUsage._();
+  @$core.pragma('dart2js:noInline')
+  static ContextUsage getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ContextUsage>(
+          ContextUsage.$_createMessage);
+  static ContextUsage? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.int get instructions => $_getIZ(0);
+  @$pb.TagNumber(1)
+  set instructions($core.int value) => $_setSignedInt32(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasInstructions() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearInstructions() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.int get memory => $_getIZ(1);
+  @$pb.TagNumber(2)
+  set memory($core.int value) => $_setSignedInt32(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasMemory() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearMemory() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.int get context => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set context($core.int value) => $_setSignedInt32(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasContext() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearContext() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.int get tools => $_getIZ(3);
+  @$pb.TagNumber(4)
+  set tools($core.int value) => $_setSignedInt32(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasTools() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearTools() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.int get conversation => $_getIZ(4);
+  @$pb.TagNumber(5)
+  set conversation($core.int value) => $_setSignedInt32(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasConversation() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearConversation() => $_clearField(5);
+}
+
 class ResPromptEnd extends $pb.GeneratedMessage {
   factory ResPromptEnd({
     $fixnum.Int64? msgId,
@@ -1325,6 +1443,9 @@ class ResPromptEnd extends $pb.GeneratedMessage {
     $core.String? reqId,
     $core.String? traceJson,
     $core.String? errorMessage,
+    $core.int? promptTokens,
+    $core.int? contextWindow,
+    ContextUsage? usage,
   }) {
     final result = ResPromptEnd._();
     if (msgId != null) result.msgId = msgId;
@@ -1336,6 +1457,9 @@ class ResPromptEnd extends $pb.GeneratedMessage {
     if (reqId != null) result.reqId = reqId;
     if (traceJson != null) result.traceJson = traceJson;
     if (errorMessage != null) result.errorMessage = errorMessage;
+    if (promptTokens != null) result.promptTokens = promptTokens;
+    if (contextWindow != null) result.contextWindow = contextWindow;
+    if (usage != null) result.usage = usage;
     return result;
   }
 
@@ -1361,6 +1485,10 @@ class ResPromptEnd extends $pb.GeneratedMessage {
     ..aOS(7, _omitFieldNames ? '' : 'reqId')
     ..aOS(8, _omitFieldNames ? '' : 'traceJson')
     ..aOS(9, _omitFieldNames ? '' : 'errorMessage')
+    ..aI(10, _omitFieldNames ? '' : 'promptTokens')
+    ..aI(11, _omitFieldNames ? '' : 'contextWindow')
+    ..aOM<ContextUsage>(12, _omitFieldNames ? '' : 'usage',
+        subBuilder: ContextUsage.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1465,6 +1593,35 @@ class ResPromptEnd extends $pb.GeneratedMessage {
   $core.bool hasErrorMessage() => $_has(8);
   @$pb.TagNumber(9)
   void clearErrorMessage() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $core.int get promptTokens => $_getIZ(9);
+  @$pb.TagNumber(10)
+  set promptTokens($core.int value) => $_setSignedInt32(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasPromptTokens() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearPromptTokens() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $core.int get contextWindow => $_getIZ(10);
+  @$pb.TagNumber(11)
+  set contextWindow($core.int value) => $_setSignedInt32(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasContextWindow() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearContextWindow() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  ContextUsage get usage => $_getN(11);
+  @$pb.TagNumber(12)
+  set usage(ContextUsage value) => $_setField(12, value);
+  @$pb.TagNumber(12)
+  $core.bool hasUsage() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearUsage() => $_clearField(12);
+  @$pb.TagNumber(12)
+  ContextUsage ensureUsage() => $_ensure(11);
 }
 
 class ResPromptFail extends $pb.GeneratedMessage {
@@ -4401,6 +4558,1150 @@ class ChatTyping extends $pb.GeneratedMessage {
   $core.bool hasActive() => $_has(2);
   @$pb.TagNumber(3)
   void clearActive() => $_clearField(3);
+}
+
+class ChatFeedbackReason extends $pb.GeneratedMessage {
+  factory ChatFeedbackReason({
+    $core.int? id,
+    $core.String? slug,
+    ChatFeedbackVote? vote,
+    $core.String? label,
+    $core.int? sort,
+  }) {
+    final result = ChatFeedbackReason._();
+    if (id != null) result.id = id;
+    if (slug != null) result.slug = slug;
+    if (vote != null) result.vote = vote;
+    if (label != null) result.label = label;
+    if (sort != null) result.sort = sort;
+    return result;
+  }
+
+  ChatFeedbackReason._();
+
+  factory ChatFeedbackReason.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ChatFeedbackReason()..mergeFromBuffer(data, registry);
+  factory ChatFeedbackReason.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ChatFeedbackReason()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ChatFeedbackReason',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ChatFeedbackReason.$_createMessage)
+    ..aI(1, _omitFieldNames ? '' : 'id')
+    ..aOS(2, _omitFieldNames ? '' : 'slug')
+    ..aE<ChatFeedbackVote>(3, _omitFieldNames ? '' : 'vote',
+        enumValues: ChatFeedbackVote.values)
+    ..aOS(4, _omitFieldNames ? '' : 'label')
+    ..aI(5, _omitFieldNames ? '' : 'sort')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ChatFeedbackReason clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ChatFeedbackReason copyWith(void Function(ChatFeedbackReason) updates) =>
+      super.copyWith((message) => updates(message as ChatFeedbackReason))
+          as ChatFeedbackReason;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ChatFeedbackReason() / ChatFeedbackReason.new instead')
+  static ChatFeedbackReason create() => ChatFeedbackReason._();
+  static $pb.GeneratedMessage $_createMessage() => ChatFeedbackReason._();
+  @$core.override
+  ChatFeedbackReason createEmptyInstance() => ChatFeedbackReason._();
+  @$core.pragma('dart2js:noInline')
+  static ChatFeedbackReason getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ChatFeedbackReason>(
+          ChatFeedbackReason.$_createMessage);
+  static ChatFeedbackReason? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.int get id => $_getIZ(0);
+  @$pb.TagNumber(1)
+  set id($core.int value) => $_setSignedInt32(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get slug => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set slug($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasSlug() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearSlug() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  ChatFeedbackVote get vote => $_getN(2);
+  @$pb.TagNumber(3)
+  set vote(ChatFeedbackVote value) => $_setField(3, value);
+  @$pb.TagNumber(3)
+  $core.bool hasVote() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearVote() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get label => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set label($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasLabel() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearLabel() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.int get sort => $_getIZ(4);
+  @$pb.TagNumber(5)
+  set sort($core.int value) => $_setSignedInt32(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasSort() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearSort() => $_clearField(5);
+}
+
+class ChatFeedbackPost extends $pb.GeneratedMessage {
+  factory ChatFeedbackPost({
+    $fixnum.Int64? id,
+    $fixnum.Int64? feedbackId,
+    $fixnum.Int64? authorIid,
+    ChatFeedbackAuthorRole? authorRole,
+    $core.String? text,
+    $fixnum.Int64? createdTsMs,
+  }) {
+    final result = ChatFeedbackPost._();
+    if (id != null) result.id = id;
+    if (feedbackId != null) result.feedbackId = feedbackId;
+    if (authorIid != null) result.authorIid = authorIid;
+    if (authorRole != null) result.authorRole = authorRole;
+    if (text != null) result.text = text;
+    if (createdTsMs != null) result.createdTsMs = createdTsMs;
+    return result;
+  }
+
+  ChatFeedbackPost._();
+
+  factory ChatFeedbackPost.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ChatFeedbackPost()..mergeFromBuffer(data, registry);
+  factory ChatFeedbackPost.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ChatFeedbackPost()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ChatFeedbackPost',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ChatFeedbackPost.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'id')
+    ..aInt64(2, _omitFieldNames ? '' : 'feedbackId')
+    ..aInt64(3, _omitFieldNames ? '' : 'authorIid')
+    ..aE<ChatFeedbackAuthorRole>(4, _omitFieldNames ? '' : 'authorRole',
+        enumValues: ChatFeedbackAuthorRole.values)
+    ..aOS(5, _omitFieldNames ? '' : 'text')
+    ..aInt64(6, _omitFieldNames ? '' : 'createdTsMs')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ChatFeedbackPost clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ChatFeedbackPost copyWith(void Function(ChatFeedbackPost) updates) =>
+      super.copyWith((message) => updates(message as ChatFeedbackPost))
+          as ChatFeedbackPost;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ChatFeedbackPost() / ChatFeedbackPost.new instead')
+  static ChatFeedbackPost create() => ChatFeedbackPost._();
+  static $pb.GeneratedMessage $_createMessage() => ChatFeedbackPost._();
+  @$core.override
+  ChatFeedbackPost createEmptyInstance() => ChatFeedbackPost._();
+  @$core.pragma('dart2js:noInline')
+  static ChatFeedbackPost getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ChatFeedbackPost>(
+          ChatFeedbackPost.$_createMessage);
+  static ChatFeedbackPost? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get id => $_getI64(0);
+  @$pb.TagNumber(1)
+  set id($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get feedbackId => $_getI64(1);
+  @$pb.TagNumber(2)
+  set feedbackId($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasFeedbackId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearFeedbackId() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get authorIid => $_getI64(2);
+  @$pb.TagNumber(3)
+  set authorIid($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasAuthorIid() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearAuthorIid() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  ChatFeedbackAuthorRole get authorRole => $_getN(3);
+  @$pb.TagNumber(4)
+  set authorRole(ChatFeedbackAuthorRole value) => $_setField(4, value);
+  @$pb.TagNumber(4)
+  $core.bool hasAuthorRole() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearAuthorRole() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get text => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set text($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasText() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearText() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $fixnum.Int64 get createdTsMs => $_getI64(5);
+  @$pb.TagNumber(6)
+  set createdTsMs($fixnum.Int64 value) => $_setInt64(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasCreatedTsMs() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearCreatedTsMs() => $_clearField(6);
+}
+
+class ChatMsgFeedback extends $pb.GeneratedMessage {
+  factory ChatMsgFeedback({
+    $fixnum.Int64? id,
+    $fixnum.Int64? msgId,
+    $fixnum.Int64? chatId,
+    ChatFeedbackVote? vote,
+    $core.int? reasonId,
+    $core.String? reasonSlug,
+    $core.String? reasonLabel,
+    $core.String? comment,
+    $fixnum.Int64? updatedTsMs,
+    $core.Iterable<ChatFeedbackPost>? posts,
+  }) {
+    final result = ChatMsgFeedback._();
+    if (id != null) result.id = id;
+    if (msgId != null) result.msgId = msgId;
+    if (chatId != null) result.chatId = chatId;
+    if (vote != null) result.vote = vote;
+    if (reasonId != null) result.reasonId = reasonId;
+    if (reasonSlug != null) result.reasonSlug = reasonSlug;
+    if (reasonLabel != null) result.reasonLabel = reasonLabel;
+    if (comment != null) result.comment = comment;
+    if (updatedTsMs != null) result.updatedTsMs = updatedTsMs;
+    if (posts != null) result.posts.addAll(posts);
+    return result;
+  }
+
+  ChatMsgFeedback._();
+
+  factory ChatMsgFeedback.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ChatMsgFeedback()..mergeFromBuffer(data, registry);
+  factory ChatMsgFeedback.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ChatMsgFeedback()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ChatMsgFeedback',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ChatMsgFeedback.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'id')
+    ..aInt64(2, _omitFieldNames ? '' : 'msgId')
+    ..aInt64(3, _omitFieldNames ? '' : 'chatId')
+    ..aE<ChatFeedbackVote>(4, _omitFieldNames ? '' : 'vote',
+        enumValues: ChatFeedbackVote.values)
+    ..aI(5, _omitFieldNames ? '' : 'reasonId')
+    ..aOS(6, _omitFieldNames ? '' : 'reasonSlug')
+    ..aOS(7, _omitFieldNames ? '' : 'reasonLabel')
+    ..aOS(8, _omitFieldNames ? '' : 'comment')
+    ..aInt64(9, _omitFieldNames ? '' : 'updatedTsMs')
+    ..pPM<ChatFeedbackPost>(10, _omitFieldNames ? '' : 'posts',
+        subBuilder: ChatFeedbackPost.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ChatMsgFeedback clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ChatMsgFeedback copyWith(void Function(ChatMsgFeedback) updates) =>
+      super.copyWith((message) => updates(message as ChatMsgFeedback))
+          as ChatMsgFeedback;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ChatMsgFeedback() / ChatMsgFeedback.new instead')
+  static ChatMsgFeedback create() => ChatMsgFeedback._();
+  static $pb.GeneratedMessage $_createMessage() => ChatMsgFeedback._();
+  @$core.override
+  ChatMsgFeedback createEmptyInstance() => ChatMsgFeedback._();
+  @$core.pragma('dart2js:noInline')
+  static ChatMsgFeedback getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ChatMsgFeedback>(
+          ChatMsgFeedback.$_createMessage);
+  static ChatMsgFeedback? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get id => $_getI64(0);
+  @$pb.TagNumber(1)
+  set id($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get msgId => $_getI64(1);
+  @$pb.TagNumber(2)
+  set msgId($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasMsgId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearMsgId() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get chatId => $_getI64(2);
+  @$pb.TagNumber(3)
+  set chatId($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasChatId() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearChatId() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  ChatFeedbackVote get vote => $_getN(3);
+  @$pb.TagNumber(4)
+  set vote(ChatFeedbackVote value) => $_setField(4, value);
+  @$pb.TagNumber(4)
+  $core.bool hasVote() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearVote() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.int get reasonId => $_getIZ(4);
+  @$pb.TagNumber(5)
+  set reasonId($core.int value) => $_setSignedInt32(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasReasonId() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearReasonId() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get reasonSlug => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set reasonSlug($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasReasonSlug() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearReasonSlug() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.String get reasonLabel => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set reasonLabel($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasReasonLabel() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearReasonLabel() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.String get comment => $_getSZ(7);
+  @$pb.TagNumber(8)
+  set comment($core.String value) => $_setString(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasComment() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearComment() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $fixnum.Int64 get updatedTsMs => $_getI64(8);
+  @$pb.TagNumber(9)
+  set updatedTsMs($fixnum.Int64 value) => $_setInt64(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasUpdatedTsMs() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearUpdatedTsMs() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $pb.PbList<ChatFeedbackPost> get posts => $_getList(9);
+}
+
+class ReqChatFeedbackReasonList extends $pb.GeneratedMessage {
+  factory ReqChatFeedbackReasonList({
+    $core.String? locale,
+    ChatFeedbackVote? vote,
+  }) {
+    final result = ReqChatFeedbackReasonList._();
+    if (locale != null) result.locale = locale;
+    if (vote != null) result.vote = vote;
+    return result;
+  }
+
+  ReqChatFeedbackReasonList._();
+
+  factory ReqChatFeedbackReasonList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqChatFeedbackReasonList()..mergeFromBuffer(data, registry);
+  factory ReqChatFeedbackReasonList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqChatFeedbackReasonList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqChatFeedbackReasonList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqChatFeedbackReasonList.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'locale')
+    ..aE<ChatFeedbackVote>(2, _omitFieldNames ? '' : 'vote',
+        enumValues: ChatFeedbackVote.values)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqChatFeedbackReasonList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqChatFeedbackReasonList copyWith(
+          void Function(ReqChatFeedbackReasonList) updates) =>
+      super.copyWith((message) => updates(message as ReqChatFeedbackReasonList))
+          as ReqChatFeedbackReasonList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqChatFeedbackReasonList() / ReqChatFeedbackReasonList.new instead')
+  static ReqChatFeedbackReasonList create() => ReqChatFeedbackReasonList._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ReqChatFeedbackReasonList._();
+  @$core.override
+  ReqChatFeedbackReasonList createEmptyInstance() =>
+      ReqChatFeedbackReasonList._();
+  @$core.pragma('dart2js:noInline')
+  static ReqChatFeedbackReasonList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqChatFeedbackReasonList>(
+          ReqChatFeedbackReasonList.$_createMessage);
+  static ReqChatFeedbackReasonList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get locale => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set locale($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasLocale() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearLocale() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  ChatFeedbackVote get vote => $_getN(1);
+  @$pb.TagNumber(2)
+  set vote(ChatFeedbackVote value) => $_setField(2, value);
+  @$pb.TagNumber(2)
+  $core.bool hasVote() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearVote() => $_clearField(2);
+}
+
+class ResChatFeedbackReasonList extends $pb.GeneratedMessage {
+  factory ResChatFeedbackReasonList({
+    $core.Iterable<ChatFeedbackReason>? reasons,
+  }) {
+    final result = ResChatFeedbackReasonList._();
+    if (reasons != null) result.reasons.addAll(reasons);
+    return result;
+  }
+
+  ResChatFeedbackReasonList._();
+
+  factory ResChatFeedbackReasonList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResChatFeedbackReasonList()..mergeFromBuffer(data, registry);
+  factory ResChatFeedbackReasonList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResChatFeedbackReasonList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResChatFeedbackReasonList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResChatFeedbackReasonList.$_createMessage)
+    ..pPM<ChatFeedbackReason>(1, _omitFieldNames ? '' : 'reasons',
+        subBuilder: ChatFeedbackReason.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResChatFeedbackReasonList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResChatFeedbackReasonList copyWith(
+          void Function(ResChatFeedbackReasonList) updates) =>
+      super.copyWith((message) => updates(message as ResChatFeedbackReasonList))
+          as ResChatFeedbackReasonList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResChatFeedbackReasonList() / ResChatFeedbackReasonList.new instead')
+  static ResChatFeedbackReasonList create() => ResChatFeedbackReasonList._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ResChatFeedbackReasonList._();
+  @$core.override
+  ResChatFeedbackReasonList createEmptyInstance() =>
+      ResChatFeedbackReasonList._();
+  @$core.pragma('dart2js:noInline')
+  static ResChatFeedbackReasonList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResChatFeedbackReasonList>(
+          ResChatFeedbackReasonList.$_createMessage);
+  static ResChatFeedbackReasonList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<ChatFeedbackReason> get reasons => $_getList(0);
+}
+
+class ReqChatMsgFeedbackPut extends $pb.GeneratedMessage {
+  factory ReqChatMsgFeedbackPut({
+    $fixnum.Int64? msgId,
+    $fixnum.Int64? chatId,
+    ChatFeedbackVote? vote,
+    $core.int? reasonId,
+    $core.String? comment,
+    $core.String? locale,
+  }) {
+    final result = ReqChatMsgFeedbackPut._();
+    if (msgId != null) result.msgId = msgId;
+    if (chatId != null) result.chatId = chatId;
+    if (vote != null) result.vote = vote;
+    if (reasonId != null) result.reasonId = reasonId;
+    if (comment != null) result.comment = comment;
+    if (locale != null) result.locale = locale;
+    return result;
+  }
+
+  ReqChatMsgFeedbackPut._();
+
+  factory ReqChatMsgFeedbackPut.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqChatMsgFeedbackPut()..mergeFromBuffer(data, registry);
+  factory ReqChatMsgFeedbackPut.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqChatMsgFeedbackPut()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqChatMsgFeedbackPut',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqChatMsgFeedbackPut.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'msgId')
+    ..aInt64(2, _omitFieldNames ? '' : 'chatId')
+    ..aE<ChatFeedbackVote>(3, _omitFieldNames ? '' : 'vote',
+        enumValues: ChatFeedbackVote.values)
+    ..aI(4, _omitFieldNames ? '' : 'reasonId')
+    ..aOS(5, _omitFieldNames ? '' : 'comment')
+    ..aOS(6, _omitFieldNames ? '' : 'locale')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqChatMsgFeedbackPut clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqChatMsgFeedbackPut copyWith(
+          void Function(ReqChatMsgFeedbackPut) updates) =>
+      super.copyWith((message) => updates(message as ReqChatMsgFeedbackPut))
+          as ReqChatMsgFeedbackPut;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqChatMsgFeedbackPut() / ReqChatMsgFeedbackPut.new instead')
+  static ReqChatMsgFeedbackPut create() => ReqChatMsgFeedbackPut._();
+  static $pb.GeneratedMessage $_createMessage() => ReqChatMsgFeedbackPut._();
+  @$core.override
+  ReqChatMsgFeedbackPut createEmptyInstance() => ReqChatMsgFeedbackPut._();
+  @$core.pragma('dart2js:noInline')
+  static ReqChatMsgFeedbackPut getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqChatMsgFeedbackPut>(
+          ReqChatMsgFeedbackPut.$_createMessage);
+  static ReqChatMsgFeedbackPut? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get msgId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set msgId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasMsgId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearMsgId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get chatId => $_getI64(1);
+  @$pb.TagNumber(2)
+  set chatId($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasChatId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearChatId() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  ChatFeedbackVote get vote => $_getN(2);
+  @$pb.TagNumber(3)
+  set vote(ChatFeedbackVote value) => $_setField(3, value);
+  @$pb.TagNumber(3)
+  $core.bool hasVote() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearVote() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.int get reasonId => $_getIZ(3);
+  @$pb.TagNumber(4)
+  set reasonId($core.int value) => $_setSignedInt32(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasReasonId() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearReasonId() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get comment => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set comment($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasComment() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearComment() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get locale => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set locale($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasLocale() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearLocale() => $_clearField(6);
+}
+
+class ResChatMsgFeedbackPut extends $pb.GeneratedMessage {
+  factory ResChatMsgFeedbackPut({
+    ChatMsgFeedback? feedback,
+  }) {
+    final result = ResChatMsgFeedbackPut._();
+    if (feedback != null) result.feedback = feedback;
+    return result;
+  }
+
+  ResChatMsgFeedbackPut._();
+
+  factory ResChatMsgFeedbackPut.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResChatMsgFeedbackPut()..mergeFromBuffer(data, registry);
+  factory ResChatMsgFeedbackPut.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResChatMsgFeedbackPut()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResChatMsgFeedbackPut',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResChatMsgFeedbackPut.$_createMessage)
+    ..aOM<ChatMsgFeedback>(1, _omitFieldNames ? '' : 'feedback',
+        subBuilder: ChatMsgFeedback.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResChatMsgFeedbackPut clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResChatMsgFeedbackPut copyWith(
+          void Function(ResChatMsgFeedbackPut) updates) =>
+      super.copyWith((message) => updates(message as ResChatMsgFeedbackPut))
+          as ResChatMsgFeedbackPut;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResChatMsgFeedbackPut() / ResChatMsgFeedbackPut.new instead')
+  static ResChatMsgFeedbackPut create() => ResChatMsgFeedbackPut._();
+  static $pb.GeneratedMessage $_createMessage() => ResChatMsgFeedbackPut._();
+  @$core.override
+  ResChatMsgFeedbackPut createEmptyInstance() => ResChatMsgFeedbackPut._();
+  @$core.pragma('dart2js:noInline')
+  static ResChatMsgFeedbackPut getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResChatMsgFeedbackPut>(
+          ResChatMsgFeedbackPut.$_createMessage);
+  static ResChatMsgFeedbackPut? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  ChatMsgFeedback get feedback => $_getN(0);
+  @$pb.TagNumber(1)
+  set feedback(ChatMsgFeedback value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasFeedback() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearFeedback() => $_clearField(1);
+  @$pb.TagNumber(1)
+  ChatMsgFeedback ensureFeedback() => $_ensure(0);
+}
+
+class ReqChatMsgFeedbackList extends $pb.GeneratedMessage {
+  factory ReqChatMsgFeedbackList({
+    $fixnum.Int64? chatId,
+    $core.String? locale,
+  }) {
+    final result = ReqChatMsgFeedbackList._();
+    if (chatId != null) result.chatId = chatId;
+    if (locale != null) result.locale = locale;
+    return result;
+  }
+
+  ReqChatMsgFeedbackList._();
+
+  factory ReqChatMsgFeedbackList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqChatMsgFeedbackList()..mergeFromBuffer(data, registry);
+  factory ReqChatMsgFeedbackList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqChatMsgFeedbackList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqChatMsgFeedbackList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqChatMsgFeedbackList.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'chatId')
+    ..aOS(2, _omitFieldNames ? '' : 'locale')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqChatMsgFeedbackList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqChatMsgFeedbackList copyWith(
+          void Function(ReqChatMsgFeedbackList) updates) =>
+      super.copyWith((message) => updates(message as ReqChatMsgFeedbackList))
+          as ReqChatMsgFeedbackList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqChatMsgFeedbackList() / ReqChatMsgFeedbackList.new instead')
+  static ReqChatMsgFeedbackList create() => ReqChatMsgFeedbackList._();
+  static $pb.GeneratedMessage $_createMessage() => ReqChatMsgFeedbackList._();
+  @$core.override
+  ReqChatMsgFeedbackList createEmptyInstance() => ReqChatMsgFeedbackList._();
+  @$core.pragma('dart2js:noInline')
+  static ReqChatMsgFeedbackList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqChatMsgFeedbackList>(
+          ReqChatMsgFeedbackList.$_createMessage);
+  static ReqChatMsgFeedbackList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get chatId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set chatId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasChatId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearChatId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get locale => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set locale($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasLocale() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearLocale() => $_clearField(2);
+}
+
+class ResChatMsgFeedbackList extends $pb.GeneratedMessage {
+  factory ResChatMsgFeedbackList({
+    $core.Iterable<ChatMsgFeedback>? feedback,
+  }) {
+    final result = ResChatMsgFeedbackList._();
+    if (feedback != null) result.feedback.addAll(feedback);
+    return result;
+  }
+
+  ResChatMsgFeedbackList._();
+
+  factory ResChatMsgFeedbackList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResChatMsgFeedbackList()..mergeFromBuffer(data, registry);
+  factory ResChatMsgFeedbackList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResChatMsgFeedbackList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResChatMsgFeedbackList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResChatMsgFeedbackList.$_createMessage)
+    ..pPM<ChatMsgFeedback>(1, _omitFieldNames ? '' : 'feedback',
+        subBuilder: ChatMsgFeedback.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResChatMsgFeedbackList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResChatMsgFeedbackList copyWith(
+          void Function(ResChatMsgFeedbackList) updates) =>
+      super.copyWith((message) => updates(message as ResChatMsgFeedbackList))
+          as ResChatMsgFeedbackList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResChatMsgFeedbackList() / ResChatMsgFeedbackList.new instead')
+  static ResChatMsgFeedbackList create() => ResChatMsgFeedbackList._();
+  static $pb.GeneratedMessage $_createMessage() => ResChatMsgFeedbackList._();
+  @$core.override
+  ResChatMsgFeedbackList createEmptyInstance() => ResChatMsgFeedbackList._();
+  @$core.pragma('dart2js:noInline')
+  static ResChatMsgFeedbackList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResChatMsgFeedbackList>(
+          ResChatMsgFeedbackList.$_createMessage);
+  static ResChatMsgFeedbackList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<ChatMsgFeedback> get feedback => $_getList(0);
+}
+
+class ReqChatContextWindowSet extends $pb.GeneratedMessage {
+  factory ReqChatContextWindowSet({
+    $fixnum.Int64? chatId,
+    $core.int? contextWindow,
+  }) {
+    final result = ReqChatContextWindowSet._();
+    if (chatId != null) result.chatId = chatId;
+    if (contextWindow != null) result.contextWindow = contextWindow;
+    return result;
+  }
+
+  ReqChatContextWindowSet._();
+
+  factory ReqChatContextWindowSet.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqChatContextWindowSet()..mergeFromBuffer(data, registry);
+  factory ReqChatContextWindowSet.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqChatContextWindowSet()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqChatContextWindowSet',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqChatContextWindowSet.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'chatId')
+    ..aI(2, _omitFieldNames ? '' : 'contextWindow')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqChatContextWindowSet clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqChatContextWindowSet copyWith(
+          void Function(ReqChatContextWindowSet) updates) =>
+      super.copyWith((message) => updates(message as ReqChatContextWindowSet))
+          as ReqChatContextWindowSet;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqChatContextWindowSet() / ReqChatContextWindowSet.new instead')
+  static ReqChatContextWindowSet create() => ReqChatContextWindowSet._();
+  static $pb.GeneratedMessage $_createMessage() => ReqChatContextWindowSet._();
+  @$core.override
+  ReqChatContextWindowSet createEmptyInstance() => ReqChatContextWindowSet._();
+  @$core.pragma('dart2js:noInline')
+  static ReqChatContextWindowSet getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqChatContextWindowSet>(
+          ReqChatContextWindowSet.$_createMessage);
+  static ReqChatContextWindowSet? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get chatId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set chatId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasChatId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearChatId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.int get contextWindow => $_getIZ(1);
+  @$pb.TagNumber(2)
+  set contextWindow($core.int value) => $_setSignedInt32(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasContextWindow() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearContextWindow() => $_clearField(2);
+}
+
+class ResChatContextWindowSet extends $pb.GeneratedMessage {
+  factory ResChatContextWindowSet({
+    $core.int? contextWindow,
+    $core.int? promptTokens,
+    ContextUsage? usage,
+  }) {
+    final result = ResChatContextWindowSet._();
+    if (contextWindow != null) result.contextWindow = contextWindow;
+    if (promptTokens != null) result.promptTokens = promptTokens;
+    if (usage != null) result.usage = usage;
+    return result;
+  }
+
+  ResChatContextWindowSet._();
+
+  factory ResChatContextWindowSet.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResChatContextWindowSet()..mergeFromBuffer(data, registry);
+  factory ResChatContextWindowSet.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResChatContextWindowSet()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResChatContextWindowSet',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResChatContextWindowSet.$_createMessage)
+    ..aI(1, _omitFieldNames ? '' : 'contextWindow')
+    ..aI(2, _omitFieldNames ? '' : 'promptTokens')
+    ..aOM<ContextUsage>(3, _omitFieldNames ? '' : 'usage',
+        subBuilder: ContextUsage.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResChatContextWindowSet clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResChatContextWindowSet copyWith(
+          void Function(ResChatContextWindowSet) updates) =>
+      super.copyWith((message) => updates(message as ResChatContextWindowSet))
+          as ResChatContextWindowSet;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResChatContextWindowSet() / ResChatContextWindowSet.new instead')
+  static ResChatContextWindowSet create() => ResChatContextWindowSet._();
+  static $pb.GeneratedMessage $_createMessage() => ResChatContextWindowSet._();
+  @$core.override
+  ResChatContextWindowSet createEmptyInstance() => ResChatContextWindowSet._();
+  @$core.pragma('dart2js:noInline')
+  static ResChatContextWindowSet getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResChatContextWindowSet>(
+          ResChatContextWindowSet.$_createMessage);
+  static ResChatContextWindowSet? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.int get contextWindow => $_getIZ(0);
+  @$pb.TagNumber(1)
+  set contextWindow($core.int value) => $_setSignedInt32(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasContextWindow() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearContextWindow() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.int get promptTokens => $_getIZ(1);
+  @$pb.TagNumber(2)
+  set promptTokens($core.int value) => $_setSignedInt32(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasPromptTokens() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearPromptTokens() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  ContextUsage get usage => $_getN(2);
+  @$pb.TagNumber(3)
+  set usage(ContextUsage value) => $_setField(3, value);
+  @$pb.TagNumber(3)
+  $core.bool hasUsage() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearUsage() => $_clearField(3);
+  @$pb.TagNumber(3)
+  ContextUsage ensureUsage() => $_ensure(2);
+}
+
+class ReqChatCompact extends $pb.GeneratedMessage {
+  factory ReqChatCompact({
+    $fixnum.Int64? chatId,
+  }) {
+    final result = ReqChatCompact._();
+    if (chatId != null) result.chatId = chatId;
+    return result;
+  }
+
+  ReqChatCompact._();
+
+  factory ReqChatCompact.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqChatCompact()..mergeFromBuffer(data, registry);
+  factory ReqChatCompact.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqChatCompact()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqChatCompact',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqChatCompact.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'chatId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqChatCompact clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqChatCompact copyWith(void Function(ReqChatCompact) updates) =>
+      super.copyWith((message) => updates(message as ReqChatCompact))
+          as ReqChatCompact;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqChatCompact() / ReqChatCompact.new instead')
+  static ReqChatCompact create() => ReqChatCompact._();
+  static $pb.GeneratedMessage $_createMessage() => ReqChatCompact._();
+  @$core.override
+  ReqChatCompact createEmptyInstance() => ReqChatCompact._();
+  @$core.pragma('dart2js:noInline')
+  static ReqChatCompact getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ReqChatCompact>(
+          ReqChatCompact.$_createMessage);
+  static ReqChatCompact? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get chatId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set chatId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasChatId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearChatId() => $_clearField(1);
+}
+
+class ResChatCompact extends $pb.GeneratedMessage {
+  factory ResChatCompact({
+    $core.bool? ran,
+    $core.String? title,
+    $core.int? promptTokens,
+    $core.double? costUsd,
+    ContextUsage? usage,
+  }) {
+    final result = ResChatCompact._();
+    if (ran != null) result.ran = ran;
+    if (title != null) result.title = title;
+    if (promptTokens != null) result.promptTokens = promptTokens;
+    if (costUsd != null) result.costUsd = costUsd;
+    if (usage != null) result.usage = usage;
+    return result;
+  }
+
+  ResChatCompact._();
+
+  factory ResChatCompact.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResChatCompact()..mergeFromBuffer(data, registry);
+  factory ResChatCompact.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResChatCompact()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResChatCompact',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResChatCompact.$_createMessage)
+    ..aOB(1, _omitFieldNames ? '' : 'ran')
+    ..aOS(2, _omitFieldNames ? '' : 'title')
+    ..aI(3, _omitFieldNames ? '' : 'promptTokens')
+    ..aD(4, _omitFieldNames ? '' : 'costUsd')
+    ..aOM<ContextUsage>(5, _omitFieldNames ? '' : 'usage',
+        subBuilder: ContextUsage.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResChatCompact clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResChatCompact copyWith(void Function(ResChatCompact) updates) =>
+      super.copyWith((message) => updates(message as ResChatCompact))
+          as ResChatCompact;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResChatCompact() / ResChatCompact.new instead')
+  static ResChatCompact create() => ResChatCompact._();
+  static $pb.GeneratedMessage $_createMessage() => ResChatCompact._();
+  @$core.override
+  ResChatCompact createEmptyInstance() => ResChatCompact._();
+  @$core.pragma('dart2js:noInline')
+  static ResChatCompact getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ResChatCompact>(
+          ResChatCompact.$_createMessage);
+  static ResChatCompact? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get ran => $_getBF(0);
+  @$pb.TagNumber(1)
+  set ran($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasRan() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearRan() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get title => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set title($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasTitle() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearTitle() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.int get promptTokens => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set promptTokens($core.int value) => $_setSignedInt32(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasPromptTokens() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearPromptTokens() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.double get costUsd => $_getN(3);
+  @$pb.TagNumber(4)
+  set costUsd($core.double value) => $_setDouble(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasCostUsd() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearCostUsd() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  ContextUsage get usage => $_getN(4);
+  @$pb.TagNumber(5)
+  set usage(ContextUsage value) => $_setField(5, value);
+  @$pb.TagNumber(5)
+  $core.bool hasUsage() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearUsage() => $_clearField(5);
+  @$pb.TagNumber(5)
+  ContextUsage ensureUsage() => $_ensure(4);
 }
 
 const $core.bool _omitFieldNames =

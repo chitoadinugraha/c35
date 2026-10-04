@@ -4,6 +4,10 @@ mod bot_welcome;
 mod bot_peer;
 pub mod bot_inbox;
 mod catalog;
+mod catalog_web;
+mod presentation_theme;
+mod chat_feedback;
+mod chat_history;
 mod chat_history_clear;
 mod chat_patch;
 mod chat_sync;
@@ -30,6 +34,8 @@ mod site_validate;
 pub mod inst_macro;
 mod mention;
 pub mod mention_context;
+pub mod site_scope;
+pub mod site_product_match;
 mod mention_content;
 mod mention_bundle;
 mod mention_registry;
@@ -50,6 +56,9 @@ pub mod tools;
 mod turn_tracer;
 
 pub use catalog::{mention_list, topic_list, translation_get, translation_rev, CatalogMentionRow, CatalogTopicRow};
+pub use presentation_theme::{
+    presentation_theme_fallback, presentation_theme_list, presentation_theme_resolve, PresentationThemeRow,
+};
 pub use mention::{mention_list_enabled, MentionRow};
 pub use mention_context::{
     device_iid_resolve, mention_context_build, mention_context_sites_block, site_iid_resolve, MentionContext,
@@ -63,6 +72,7 @@ pub use mention_registry::{
 pub use mention_tool_registry::mention_force_tools;
 pub use site_capability::{site_capability_view_for_mention, SiteCapabilityView};
 pub use tools::ToolDef;
+pub use tools::builtin::presentation_export_exec;
 
 pub use asset_tag::asset_tag_list;
 pub use bot_welcome::{bot_welcome_shared_text, bot_welcome_text, BOT_BILLING_SHARED};
@@ -74,6 +84,9 @@ pub use bot_peer::{
     bot_peer_app_send_ack, bot_peer_app_send_verify, bot_peer_create, bot_peer_delete, bot_peer_list, bot_peer_msg_fanout,
     bot_peer_typing_fanout,
     bot_peer_msg_list, chat_send, chat_stop, BOT_APP_CHANNEL_ID,
+};
+pub use chat_feedback::{
+    chat_feedback_reason_list, chat_msg_feedback_list, chat_msg_feedback_put, feedback_comment_ok, feedback_thanks,
 };
 pub use chat_history_clear::chat_history_clear;
 pub use data_source_rpc::{data_source_check, data_source_delete, data_source_list, data_source_put, data_source_sync};
@@ -103,11 +116,12 @@ pub use inst_cache::{
     inst_list_cached, NATS_SUBJECT_WILDCARD,
 };
 pub use inst_macro::{InstMatchCtx, InstRow};
+pub use chat_history::{chat_messages, chat_search, ChatHistoryQuery};
 pub use context_billing::ContextBillingExtra;
-pub use context_compact::{prepare_prompt_history, CONTEXT_COMPACT_MODEL};
-pub use context_idle::ContextIdleFetchTask;
-pub use context_pack::{model_context_limit, token_estimate};
-pub use memory::{memory_prompt_merge, memory_put, memory_retrieve, MemoryRetrieveResult};
+pub use context_compact::{chat_compact_manual, chat_context_window_set, prepare_prompt_history, CONTEXT_COMPACT_MODEL};
+pub use context_idle::{context_idle_compact_enabled, ContextIdleFetchTask};
+pub use context_pack::{context_window_options, context_window_resolve, model_context_limit, token_estimate};
+pub use memory::{memory_delete, memory_list_active, memory_prompt_merge, memory_put, memory_retrieve, MemoryRetrieveResult};
 pub use memory_extract::memory_extract_turn_gate;
 pub use prompt::audio;
 pub use prompt::gemini::gemini_api_key;

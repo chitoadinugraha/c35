@@ -18,6 +18,21 @@ const _muted = Color(0xFF71717A);
 const _text = Color(0xFFF4F4F5);
 const _border = Color(0xFF27272A);
 const _bg = Color(0xFF18181B);
+const _bar = Color(0xFF111114);
+const _accent = Color(0xFF34D399);
+
+InputDecoration _logFilterDecoration({required String hint, Widget? prefixIcon}) => InputDecoration(
+      isDense: true,
+      hintText: hint,
+      hintStyle: const TextStyle(color: _muted, fontSize: 13),
+      prefixIcon: prefixIcon,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      filled: true,
+      fillColor: _bg,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _border)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _border)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _accent)),
+    );
 
 class PageRootLogs extends StatefulWidget {
   const PageRootLogs({super.key, required this.chatConn});
@@ -99,6 +114,8 @@ class _PageRootLogsState extends State<PageRootLogs> {
     return {_user!.identityId.toInt(): _user!.name.isNotEmpty ? _user!.name : _user!.email};
   }
 
+  bool _busy() => _reportLoading || _stream.loading;
+
   @override
   Widget build(BuildContext context) {
     if (!Session.instance.isRoot) {
@@ -111,76 +128,72 @@ class _PageRootLogsState extends State<PageRootLogs> {
     return UiPage(
       title: 'Logs',
       onBack: () => Navigator.pop(context),
-      body: Column(
+      body: ListenableBuilder(
+        listenable: _stream,
+        builder: (context, _) => Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _searchCtrl,
-                    style: const TextStyle(color: _text, fontSize: 13),
-                    decoration: InputDecoration(
-                      isDense: true,
-                      hintText: 'Search logs',
-                      hintStyle: const TextStyle(color: _muted, fontSize: 13),
-                      prefixIcon: const Icon(Icons.search, size: 18, color: _muted),
-                      filled: true,
-                      fillColor: _bg,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
-                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _border)),
+          DecoratedBox(
+            decoration: const BoxDecoration(color: _bar, border: Border(bottom: BorderSide(color: _border))),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: TextField(
+                      controller: _searchCtrl,
+                      style: const TextStyle(color: _text, fontSize: 13),
+                      decoration: _logFilterDecoration(
+                        hint: 'Search logs',
+                        prefixIcon: const Icon(Icons.search, size: 18, color: _muted),
+                      ),
+                      onChanged: (_) => _scheduleReload(),
                     ),
-                    onChanged: (_) => _scheduleReload(),
                   ),
-                ),
-                const SizedBox(width: 8),
-                IoAdminUserPick(
-                  api: _api,
-                  value: _user,
-                  onChanged: (u) {
-                    setState(() => _user = u);
-                    unawaited(_reload());
-                  },
-                ),
-                const SizedBox(width: 8),
-                UiDateRangeChip(
-                  range: _range,
-                  onChanged: (r) {
+                  const SizedBox(width: 8),
+                  IoAdminUserPick(
+                    api: _api,
+                    value: _user,
+                    compactSelected: true,
+                    onChanged: (u) {
+                      setState(() => _user = u);
+                      unawaited(_reload());
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  UiDateRangeChip(range: _range, compact: true, onChanged: (r) {
                     setState(() => _range = r);
                     unawaited(_reload());
-                  },
-                ),
-              ],
+                  }),
+                  if (_busy()) ...[
+                    const SizedBox(width: 10),
+                    const Padding(
+                      padding: EdgeInsets.only(top: 10),
+                      child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: _muted)),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
           if (_stream.error != null)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
               child: Text(_stream.error!, style: const TextStyle(color: Color(0xFFF87171), fontSize: 12)),
             ),
           if (_reportError != null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
               child: Text(_reportError!, style: const TextStyle(color: Color(0xFFF87171), fontSize: 12)),
             ),
-          if (_reportLoading)
-            const Padding(
-              padding: EdgeInsets.fromLTRB(12, 0, 12, 8),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: _muted)),
-              ),
-            )
-          else
+          if (_reportWidgets.isNotEmpty)
             UiReportWidgetView(widgets: _reportWidgets),
           Expanded(
-            child: ListenableBuilder(
-              listenable: _stream,
-              builder: (context, _) => UiAdminLogTable(logs: _stream.logs, userNames: _userNames(), loading: _stream.loading),
-            ),
+            child: UiAdminLogTable(logs: _stream.logs, userNames: _userNames(), loading: _stream.loading && _stream.logs.isEmpty),
           ),
         ],
+        ),
       ),
     );
   }

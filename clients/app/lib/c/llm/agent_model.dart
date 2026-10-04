@@ -59,6 +59,10 @@ class AgentModel {
   final AgentThinking thinking;
 
   bool get gemini => provider == 'google';
+  bool get wideContextWindow {
+    final slug = id.toLowerCase();
+    return provider == 'alienai' || slug == 'auto' || provider == 'google' || slug.contains('gemini');
+  }
   bool get canThink {
     if (local) return false;
     if (supportsThinking) return true;

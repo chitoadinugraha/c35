@@ -1,5 +1,6 @@
 mod bot_inbox;
 mod browser;
+mod chat_history;
 mod consumption;
 mod expense;
 mod delegate;
@@ -13,12 +14,15 @@ mod site_query;
 mod site_tx;
 mod drive;
 mod gsheet;
+mod memory;
 mod task;
 mod web_research;
 mod web_search;
 mod web_visit;
 
 pub use bot_inbox::BotInboxQueryTool;
+pub use chat_history::{ChatMessagesTool, ChatSearchTool};
+pub use memory::{MemoryForgetTool, MemoryListTool, MemorySaveTool};
 pub use browser::{
     BrowserFileUploadTool, BrowserPageActTool, BrowserPageExtractTool, BrowserPageObserveTool,
     BrowserPageScreenshotTool,     BrowserSheetsAppendRowTool, BrowserAgentRestartTool, BrowserExtensionTool,
@@ -37,6 +41,8 @@ pub use device::{
 pub use img_edit::ImgEditTool;
 pub use img_generate::ImgGenerateTool;
 pub use presentation_export::{
+    presentation_export_exec,
+    PresentationCreateTool, PresentationPatchTool,
     PresentationExportTool, PresentationSourceExtractTool, PresentationSourceStructureTool,
     PresentationVideoExtractTool, PresentationVideoStructureTool,
 };
@@ -44,8 +50,9 @@ pub use referral::{
     ReferralCodeDeleteTool, ReferralCodeListTool, ReferralCodePutTool, ReferralTreeGetTool,
 };
 pub use site::{
-    SiteContactPutTool, SiteDomainPutTool, SiteDomainVerifyTool, SiteDraftGetTool,
-    SiteDraftPutTool, SiteObjectPutTool, SiteProductPatchTool, SiteProductPutTool, SitePublishTool,
+    SiteContactPutTool, SiteCreateTool, SiteDomainPutTool, SiteDomainVerifyTool, SiteDraftGetTool,
+    SiteDraftPutTool, SiteHandleUpdateTool, SiteObjectPutTool, SitePatchTool, SiteProductPatchTool,
+    SiteProductPutTool, SitePublishTool,
 };
 pub use site_query::SiteQueryRunTool;
 pub use site_tx::{

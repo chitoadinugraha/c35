@@ -548,6 +548,42 @@ class ChatConn {
         (res) => res.chatHistoryClear,
       );
 
+  Future<ResChatFeedbackReasonList> chatFeedbackReasonList({
+    String locale = '',
+    ChatFeedbackVote vote = ChatFeedbackVote.CHAT_FEEDBACK_VOTE_UNSPECIFIED,
+  }) =>
+      _rpc<ResChatFeedbackReasonList>(
+        WsReq(chatFeedbackReasonList: ReqChatFeedbackReasonList(locale: locale, vote: vote)),
+        (res) => res.chatFeedbackReasonList,
+      );
+
+  Future<ResChatMsgFeedbackPut> chatMsgFeedbackPut({
+    required int msgId,
+    required int chatId,
+    required ChatFeedbackVote vote,
+    int reasonId = 0,
+    String comment = '',
+    String locale = '',
+  }) =>
+      _rpc<ResChatMsgFeedbackPut>(
+        WsReq(
+          chatMsgFeedbackPut: ReqChatMsgFeedbackPut(
+            msgId: Int64(msgId),
+            chatId: Int64(chatId),
+            vote: vote,
+            reasonId: reasonId,
+            comment: comment,
+            locale: locale,
+          ),
+        ),
+        (res) => res.chatMsgFeedbackPut,
+      );
+
+  Future<ResChatMsgFeedbackList> chatMsgFeedbackList({required int chatId, String locale = ''}) => _rpc<ResChatMsgFeedbackList>(
+        WsReq(chatMsgFeedbackList: ReqChatMsgFeedbackList(chatId: Int64(chatId), locale: locale)),
+        (res) => res.chatMsgFeedbackList,
+      );
+
   Future<ResChatPatch> chatPatch({
     required Int64 chatId,
     bool? pinned,
@@ -565,6 +601,16 @@ class ChatConn {
       (res) => res.chatPatch,
     );
   }
+
+  Future<ResChatContextWindowSet> chatContextWindowSet({required int chatId, required int contextWindow}) => _rpc<ResChatContextWindowSet>(
+        WsReq(chatContextWindowSet: ReqChatContextWindowSet(chatId: Int64(chatId), contextWindow: contextWindow)),
+        (res) => res.chatContextWindowSet,
+      );
+
+  Future<ResChatCompact> chatCompact({required int chatId}) => _rpc<ResChatCompact>(
+        WsReq(chatCompact: ReqChatCompact(chatId: Int64(chatId))),
+        (res) => res.chatCompact,
+      );
 
   Future<ResAssetTagList> assetTagList({required String kind, String prefix = '', int limit = 20}) => _rpc<ResAssetTagList>(
         WsReq(assetTagList: ReqAssetTagList(kind: kind, prefix: prefix, limit: limit)),

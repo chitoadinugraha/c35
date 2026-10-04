@@ -977,6 +977,118 @@ Pass all site_iids from [SITE CONTEXTS] (or the single default site when only on
     priority = EXCLUDED.priority,
     updated_ts = NOW();
 
+-- Seed: catalog stock lookup (omit site_iids; do not search the web)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.site.catalog.stock',
+    'global',
+    'task',
+    '',
+    ARRAY['web.builder', 'site.commerce', 'general'],
+    '[SITE.CATALOG.STOCK] Call site.query.run query_id product.stock with params.q set to the product name. Omit site_iids. Answer each row as site name and stock. Do not call web.search.',
+    ARRAY['stok', 'stock', 'sisa barang'],
+    ARRAY['tool_include:site.query.run'],
+    ARRAY['site.query.run'],
+    ARRAY[]::TEXT[],
+    128,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    topics = EXCLUDED.topics,
+    kind = EXCLUDED.kind,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: catalog price lookup (web search only when the store has no rows)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.site.catalog.price',
+    'global',
+    'task',
+    '',
+    ARRAY['web.builder', 'site.commerce', 'general'],
+    '[SITE.CATALOG.PRICE] Call site.query.run query_id product.stock with params.q set to the product name. Omit site_iids. If rows come back, answer each site name and price. Do not call web.search when rows exist. If rows are empty, the server will search the web.',
+    ARRAY['harga', 'price', 'berapa harga', 'how much is'],
+    ARRAY[]::TEXT[],
+    ARRAY['site.query.run'],
+    ARRAY[]::TEXT[],
+    130,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    topics = EXCLUDED.topics,
+    kind = EXCLUDED.kind,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: store price compared with the web
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.site.price_compare',
+    'global',
+    'task',
+    '',
+    ARRAY['web.builder', 'site.commerce', 'general'],
+    '[SITE.PRICE.COMPARE] Call site.query.run query_id product.stock first (params.q = product name, omit site_iids). Then the server searches the web for the same product. Answer with the store price and the web price. Say the product is not in the stores when the catalog is empty.',
+    ARRAY['reasonable', 'kemahalan', 'harga pasaran', 'too expensive', 'my price', 'harga saya', 'compare to the web', 'bandingkan harga'],
+    ARRAY[]::TEXT[],
+    ARRAY['site.query.run'],
+    ARRAY[]::TEXT[],
+    135,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    topics = EXCLUDED.topics,
+    kind = EXCLUDED.kind,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: catalog write (ask which site when the patch is ambiguous)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.site.catalog.write',
+    'global',
+    'task',
+    '',
+    ARRAY['web.builder', 'site.commerce', 'general'],
+    '[SITE.CATALOG.WRITE] Call site.product.patch with q or name and the new field. Omit site_iid. If the tool returns ambiguous true, ask which site. Do not pick a site. Do not call web.search.',
+    ARRAY['ubah harga', 'ganti harga', 'change price', 'set price', 'update price', 'ubah stok', 'change stock'],
+    ARRAY['tool_include:site.product.patch', 'tool_exclude:web.search', 'tool_exclude:web.visit'],
+    ARRAY['site.product.patch'],
+    ARRAY['web.search', 'web.visit'],
+    140,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    topics = EXCLUDED.topics,
+    kind = EXCLUDED.kind,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
 -- Seed: referral code create / update via Home prompt
 INSERT INTO ai.inst (
     id, scope, kind, topic_id, inst, phrases, triggers, priority, def_hash, updated_ts
@@ -1049,20 +1161,70 @@ INSERT INTO ai.inst (
     'task',
     '',
     '[PRESENTATION] User wants to create a presentation, slide deck, pitch deck, or PowerPoint. \
-Follow this strict workflow in order: \
-0. SOURCES FIRST (turn 1): Ask whether they have source material (attach PDF, YouTube link, Google Doc/Slides, notes) or are building from scratch. If [ENRICH:presentation.pdf] is present, show section titles + page numbers; if [ENRICH:presentation.youtube] is present, show chapters/timestamps. Ask which sections OR page range (PDF) OR time range / chapters (YouTube). Do not write slides from unread sources. \
-1. SCOPE: PDF: presentation.source.extract with file_hash and page_from/page_to. YouTube: presentation.source.video_extract with video_id, start_sec, end_sec. Run extract before outline. \
-2. CLARIFY: Ask 2-4 questions: target audience, core objective, tone, slide count, must-include metrics (combine with scope when natural). Never output final slides on turn 1. \
-3. OUTLINE & BLUEPRINT: Slide-by-slide outline (Title, Core Message, Layout/Visual cue). Ask: "Does this outline look good before Canvas?" \
-4. CANVAS STAGING: After approval, full deck in Canvas (kind: ''canvas.artifact'', language: ''slide''), slides separated by ''---'', headlines, bullets, speaker notes. \
-5. EXPORT & BUILD: (a) Build on PC via @Device if connected, (b) presentation.export for PPTX, or (c) Google Slides.',
+0. STRUCTURE & FAST PATH: \
+- Slide 1 is ALWAYS the Title / Cover slide: `# Presentation Title\nSubheadline or tagline` (NO bullet points on slide 1 so it renders as a dedicated cover slide). \
+- Slides 2+ are Content slides: `# Section Title\n- Key point 1\n- Key point 2`. \
+- Pictures: Add photos / illustrations to any slide using markdown `![caption](image_url)` (e.g. Unsplash URL, attachment, or generate with img.generate). \
+- Immediately call tool presentation.create(title, slides_markdown) or output in a ```slide code block with slides separated by "---". Do not delay with clarifying questions when the request is clear. \
+1. SLIDE PATCHING (CRITICAL): When the user asks to edit, tweak, add a picture, or update a slide, NEVER rewrite the entire presentation. Call tool presentation.patch(slide_index, action, content) or output ONLY a targeted patch: \
+<!-- slide-patch:<slide_number> --> \
+# Slide Title \
+- updated bullet 1 \
+- updated bullet 2 \
+![Photo description](image_url) \
+To add: <!-- slide-patch:add after=<slide_number> -->. To remove: <!-- slide-patch:delete <slide_number> -->. \
+2. SOURCES: If source materials are attached (PDF, YouTube link, notes), inspect section titles / chapters first before writing. \
+3. EXPORT & BUILD: (a) Export to PowerPoint (.pptx) via presentation.export, (b) Copy Markdown, or (c) Google Slides.',
     ARRAY[
         'presentation', 'presentasi', 'slide', 'slides', 'slide deck',
         'bikin slide', 'buat slide', 'bikin presentasi', 'buat presentasi',
-        'pitch deck', 'powerpoint', 'keynote', 'deck', 'marp'
+        'pitch deck', 'powerpoint', 'keynote', 'deck', 'marp', 'slide-patch'
     ],
-    ARRAY[]::TEXT[],
-    ARRAY['presentation.export', 'presentation.source.structure', 'presentation.source.extract', 'presentation.source.video_structure', 'presentation.source.video_extract'],
+    ARRAY['tool_include:presentation.create', 'tool_include:presentation.patch']::TEXT[],
+    ARRAY['presentation.create', 'presentation.patch', 'presentation.export', 'img.generate', 'presentation.source.structure', 'presentation.source.extract', 'presentation.source.video_structure', 'presentation.source.video_extract'],
+    150,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    kind = EXCLUDED.kind,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: conversational site builder workflow (name -> auto slug -> site.create -> site.patch -> site.publish)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.site.builder',
+    'global',
+    'task',
+    '',
+    '[SITE BUILDER] User wants to create or edit a website, landing page, or web catalog. \
+0. CREATION & HANDLE: \
+- If the user has not mentioned a site name or brand, ask for the site/business name before creating. \
+- As soon as the name is given, immediately call tool site.create(name, tagline, theme). \
+- After site.create returns, tell the user their site was created and inform them of their assigned URL handle @<handle> (live at alienai.id/<handle>). Mention that they can change the handle anytime. \
+1. CHANGEABLE HANDLE: \
+- If the user asks to change the handle/URL, ask for confirmation first, then call site.handle.update(new_alien_id). \
+2. ATOMIC SITE PATCHING (CRITICAL): \
+- When the user asks to edit text, add an image, add a section, delete a section, or change colors/theme, NEVER rewrite the entire site. Call tool site.patch(action, block_id, ...): \
+  * To update a section: site.patch(action="update_block", block_id="hero1", props={title: "..."}) \
+  * To add a section: site.patch(action="insert_block", after_block_id="hero1", block={id: "gallery1", type: "gallery", props: {...}}) \
+  * To remove a section: site.patch(action="delete_block", block_id="contact1") \
+  * To change theme colors: site.patch(action="patch_theme", theme={accent: "#10B981"}) \
+- Pictures: Suggest generating custom visuals with img.generate and attach them to blocks. \
+3. PUBLISH: \
+- When the user is satisfied, call site.publish to publish the draft to production.',
+    ARRAY[
+        'bikin web', 'buat web', 'bikin website', 'buat website',
+        'bikin landing page', 'buat landing page', 'create site', 'build website',
+        'create website', 'make website', 'site builder', 'website builder'
+    ],
+    ARRAY['tool_include:site.create', 'tool_include:site.patch', 'tool_include:site.handle.update']::TEXT[],
+    ARRAY['site.create', 'site.patch', 'site.handle.update', 'site.publish', 'img.generate'],
     150,
     'seed',
     NOW()
@@ -1198,4 +1360,48 @@ UPDATE ai.inst SET
     priority = 125,
     updated_ts = NOW()
 WHERE id = 'inst.task.bot_inbox';
+
+-- Seed: past conversation lookup (summary vs exact lines)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.chat.history',
+    'global',
+    'task',
+    '',
+    '[CHAT HISTORY] The user is asking about a past conversation. Do not answer from memory alone and do not use web.search. Topic, remember, or based on our conversation: call chat.search with topic keywords (not the question words) and since/until as YYYY-MM-DD when they name a day. When, exact words, or a quote: call chat.messages with chat_id from chat.search, or omit chat_id for the current chat. Times in the tool result are already in the user timezone. Quote that time and text. If nothing matches, say the conversation was not found.',
+    ARRAY[
+        'based on our conversation', 'do you remember', 'remember our conversation',
+        'conversation yesterday', 'what did we discuss', 'when did i ask', 'when did i say',
+        'exact words', 'quote what i said',
+        'berdasarkan percakapan', 'berdasarkan obrolan', 'apakah kamu ingat', 'kamu ingat',
+        'percakapan kemarin', 'obrolan kemarin', 'percakapan kita', 'obrolan kita',
+        'apa yang kita bahas', 'kapan saya minta', 'kapan saya bilang', 'kapan aku minta',
+        'kapan aku bilang', 'kata persis'
+    ],
+    ARRAY['tool_include:chat.search', 'tool_include:chat.messages', 'tool_exclude:web.search', 'tool_exclude:web.visit'],
+    ARRAY['chat.search', 'chat.messages'],
+    ARRAY['web.search', 'web.visit'],
+    130,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO NOTHING;
+
+UPDATE ai.inst SET
+    inst = '[CHAT HISTORY] The user is asking about a past conversation. Do not answer from memory alone and do not use web.search. Topic, remember, or based on our conversation: call chat.search with topic keywords (not the question words) and since/until as YYYY-MM-DD when they name a day. When, exact words, or a quote: call chat.messages with chat_id from chat.search, or omit chat_id for the current chat. Times in the tool result are already in the user timezone. Quote that time and text. If nothing matches, say the conversation was not found.',
+    phrases = ARRAY[
+        'based on our conversation', 'do you remember', 'remember our conversation',
+        'conversation yesterday', 'what did we discuss', 'when did i ask', 'when did i say',
+        'exact words', 'quote what i said',
+        'berdasarkan percakapan', 'berdasarkan obrolan', 'apakah kamu ingat', 'kamu ingat',
+        'percakapan kemarin', 'obrolan kemarin', 'percakapan kita', 'obrolan kita',
+        'apa yang kita bahas', 'kapan saya minta', 'kapan saya bilang', 'kapan aku minta',
+        'kapan aku bilang', 'kata persis'
+    ],
+    triggers = ARRAY['tool_include:chat.search', 'tool_include:chat.messages', 'tool_exclude:web.search', 'tool_exclude:web.visit'],
+    include_tools = ARRAY['chat.search', 'chat.messages'],
+    exclude_tools = ARRAY['web.search', 'web.visit'],
+    priority = 130,
+    updated_ts = NOW()
+WHERE id = 'inst.chat.history';
 

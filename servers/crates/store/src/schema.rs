@@ -1,6 +1,7 @@
 pub const IDENTITY_SQL: &str = include_str!("../../../../_/schemas/identity.sql");
 pub const BILLING_SQL: &str = include_str!("../../../../_/schemas/billing.sql");
 pub const CHAT_SQL: &str = include_str!("../../../../_/schemas/chat.sql");
+pub const CHAT_FEEDBACK_SQL: &str = include_str!("../../../../_/schemas/chat_feedback.sql");
 pub const BOT_INBOX_SQL: &str = include_str!("../../../../_/schemas/bot_inbox.sql");
 pub const PROMPT_RUN_SQL: &str = include_str!("../../../../_/schemas/prompt_run.sql");
 pub const PROMPT_FOLLOWUP_SQL: &str = include_str!("../../../../_/schemas/prompt_followup.sql");
@@ -22,6 +23,7 @@ pub const INST_SQL: &str = include_str!("../../../../_/schemas/inst.sql");
 pub const TOPIC_SQL: &str = include_str!("../../../../_/schemas/topic.sql");
 pub const MENTION_SQL: &str = include_str!("../../../../_/schemas/mention.sql");
 pub const TRANSLATION_SQL: &str = include_str!("../../../../_/schemas/translation.sql");
+pub const PRESENTATION_THEME_SQL: &str = include_str!("../../../../_/schemas/presentation_theme.sql");
 pub const HINT_SQL: &str = include_str!("../../../../_/schemas/hint.sql");
 pub const MEMORY_SQL: &str = include_str!("../../../../_/schemas/memory.sql");
 pub const OBJECT_NORMALIZER_SQL: &str = include_str!("../../../../_/schemas/object_normalizer.sql");
@@ -34,6 +36,7 @@ pub const SCHEMA_APPLY_ORDER: &[(&str, &str)] = &[
     ("mail", MAIL_SQL),
     ("billing", BILLING_SQL),
     ("chat", CHAT_SQL),
+    ("chat_feedback", CHAT_FEEDBACK_SQL),
     ("bot_inbox", BOT_INBOX_SQL),
     ("prompt_run", PROMPT_RUN_SQL),
     ("prompt_followup", PROMPT_FOLLOWUP_SQL),
@@ -46,6 +49,7 @@ pub const SCHEMA_APPLY_ORDER: &[(&str, &str)] = &[
     ("topic", TOPIC_SQL),
     ("mention", MENTION_SQL),
     ("translation", TRANSLATION_SQL),
+    ("presentation_theme", PRESENTATION_THEME_SQL),
     ("hint", HINT_SQL),
     ("memory", MEMORY_SQL),
     ("skill", SKILL_SQL),

@@ -6261,6 +6261,9 @@ class BillingHistoryRow extends $pb.GeneratedMessage {
     $fixnum.Int64? tsMs,
     $core.String? currency,
     $core.double? amount,
+    $fixnum.Int64? chatId,
+    $core.String? reqId,
+    $core.String? prompt,
   }) {
     final result = BillingHistoryRow._();
     if (kind != null) result.kind = kind;
@@ -6271,6 +6274,9 @@ class BillingHistoryRow extends $pb.GeneratedMessage {
     if (tsMs != null) result.tsMs = tsMs;
     if (currency != null) result.currency = currency;
     if (amount != null) result.amount = amount;
+    if (chatId != null) result.chatId = chatId;
+    if (reqId != null) result.reqId = reqId;
+    if (prompt != null) result.prompt = prompt;
     return result;
   }
 
@@ -6295,6 +6301,9 @@ class BillingHistoryRow extends $pb.GeneratedMessage {
     ..aInt64(6, _omitFieldNames ? '' : 'tsMs')
     ..aOS(7, _omitFieldNames ? '' : 'currency')
     ..aD(8, _omitFieldNames ? '' : 'amount')
+    ..aInt64(9, _omitFieldNames ? '' : 'chatId')
+    ..aOS(10, _omitFieldNames ? '' : 'reqId')
+    ..aOS(11, _omitFieldNames ? '' : 'prompt')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -6390,6 +6399,33 @@ class BillingHistoryRow extends $pb.GeneratedMessage {
   $core.bool hasAmount() => $_has(7);
   @$pb.TagNumber(8)
   void clearAmount() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $fixnum.Int64 get chatId => $_getI64(8);
+  @$pb.TagNumber(9)
+  set chatId($fixnum.Int64 value) => $_setInt64(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasChatId() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearChatId() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $core.String get reqId => $_getSZ(9);
+  @$pb.TagNumber(10)
+  set reqId($core.String value) => $_setString(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasReqId() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearReqId() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $core.String get prompt => $_getSZ(10);
+  @$pb.TagNumber(11)
+  set prompt($core.String value) => $_setString(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasPrompt() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearPrompt() => $_clearField(11);
 }
 
 class ReqBillingHistory extends $pb.GeneratedMessage {

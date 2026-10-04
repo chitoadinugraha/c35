@@ -2320,6 +2320,51 @@ const WsReq$json = {
       '9': 0,
       '10': 'taskRunCancelDevice'
     },
+    {
+      '1': 'chat_feedback_reason_list',
+      '3': 172,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqChatFeedbackReasonList',
+      '9': 0,
+      '10': 'chatFeedbackReasonList'
+    },
+    {
+      '1': 'chat_msg_feedback_put',
+      '3': 173,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqChatMsgFeedbackPut',
+      '9': 0,
+      '10': 'chatMsgFeedbackPut'
+    },
+    {
+      '1': 'chat_msg_feedback_list',
+      '3': 174,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqChatMsgFeedbackList',
+      '9': 0,
+      '10': 'chatMsgFeedbackList'
+    },
+    {
+      '1': 'chat_context_window_set',
+      '3': 175,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqChatContextWindowSet',
+      '9': 0,
+      '10': 'chatContextWindowSet'
+    },
+    {
+      '1': 'chat_compact',
+      '3': 176,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqChatCompact',
+      '9': 0,
+      '10': 'chatCompact'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -2461,7 +2506,14 @@ final $typed_data.Uint8List wsReqDescriptor = $convert.base64Decode(
     'bW90ZUFnZW50UHVzaBJZChlyZXFfcmVtb3RlX2Jyb3dzZXJfaW52b2tlGKoBIAEoCzIbLmMzNS'
     '5SZXFSZW1vdGVCcm93c2VySW52b2tlSABSFnJlcVJlbW90ZUJyb3dzZXJJbnZva2USUwoWdGFz'
     'a19ydW5fY2FuY2VsX2RldmljZRirASABKAsyGy5jMzUuUmVxVGFza1J1bkNhbmNlbERldmljZU'
-    'gAUhN0YXNrUnVuQ2FuY2VsRGV2aWNlQgYKBGJvZHk=');
+    'gAUhN0YXNrUnVuQ2FuY2VsRGV2aWNlElwKGWNoYXRfZmVlZGJhY2tfcmVhc29uX2xpc3QYrAEg'
+    'ASgLMh4uYzM1LlJlcUNoYXRGZWVkYmFja1JlYXNvbkxpc3RIAFIWY2hhdEZlZWRiYWNrUmVhc2'
+    '9uTGlzdBJQChVjaGF0X21zZ19mZWVkYmFja19wdXQYrQEgASgLMhouYzM1LlJlcUNoYXRNc2dG'
+    'ZWVkYmFja1B1dEgAUhJjaGF0TXNnRmVlZGJhY2tQdXQSUwoWY2hhdF9tc2dfZmVlZGJhY2tfbG'
+    'lzdBiuASABKAsyGy5jMzUuUmVxQ2hhdE1zZ0ZlZWRiYWNrTGlzdEgAUhNjaGF0TXNnRmVlZGJh'
+    'Y2tMaXN0ElYKF2NoYXRfY29udGV4dF93aW5kb3dfc2V0GK8BIAEoCzIcLmMzNS5SZXFDaGF0Q2'
+    '9udGV4dFdpbmRvd1NldEgAUhRjaGF0Q29udGV4dFdpbmRvd1NldBI5CgxjaGF0X2NvbXBhY3QY'
+    'sAEgASgLMhMuYzM1LlJlcUNoYXRDb21wYWN0SABSC2NoYXRDb21wYWN0QgYKBGJvZHk=');
 
 @$core.Deprecated('Use wsResDescriptor instead')
 const WsRes$json = {
@@ -3558,6 +3610,51 @@ const WsRes$json = {
       '9': 0,
       '10': 'taskRunCancelDevice'
     },
+    {
+      '1': 'chat_feedback_reason_list',
+      '3': 172,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResChatFeedbackReasonList',
+      '9': 0,
+      '10': 'chatFeedbackReasonList'
+    },
+    {
+      '1': 'chat_msg_feedback_put',
+      '3': 173,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResChatMsgFeedbackPut',
+      '9': 0,
+      '10': 'chatMsgFeedbackPut'
+    },
+    {
+      '1': 'chat_msg_feedback_list',
+      '3': 174,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResChatMsgFeedbackList',
+      '9': 0,
+      '10': 'chatMsgFeedbackList'
+    },
+    {
+      '1': 'chat_context_window_set',
+      '3': 175,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResChatContextWindowSet',
+      '9': 0,
+      '10': 'chatContextWindowSet'
+    },
+    {
+      '1': 'chat_compact',
+      '3': 176,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResChatCompact',
+      '9': 0,
+      '10': 'chatCompact'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -3709,4 +3806,12 @@ final $typed_data.Uint8List wsResDescriptor = $convert.base64Decode(
     'ZW1vdGVBZ2VudFB1c2hIAFIScmVzUmVtb3RlQWdlbnRQdXNoElkKGXJlc19yZW1vdGVfYnJvd3'
     'Nlcl9pbnZva2UYqgEgASgLMhsuYzM1LlJlc1JlbW90ZUJyb3dzZXJJbnZva2VIAFIWcmVzUmVt'
     'b3RlQnJvd3Nlckludm9rZRJTChZ0YXNrX3J1bl9jYW5jZWxfZGV2aWNlGKsBIAEoCzIbLmMzNS'
-    '5SZXNUYXNrUnVuQ2FuY2VsRGV2aWNlSABSE3Rhc2tSdW5DYW5jZWxEZXZpY2VCBgoEYm9keQ==');
+    '5SZXNUYXNrUnVuQ2FuY2VsRGV2aWNlSABSE3Rhc2tSdW5DYW5jZWxEZXZpY2USXAoZY2hhdF9m'
+    'ZWVkYmFja19yZWFzb25fbGlzdBisASABKAsyHi5jMzUuUmVzQ2hhdEZlZWRiYWNrUmVhc29uTG'
+    'lzdEgAUhZjaGF0RmVlZGJhY2tSZWFzb25MaXN0ElAKFWNoYXRfbXNnX2ZlZWRiYWNrX3B1dBit'
+    'ASABKAsyGi5jMzUuUmVzQ2hhdE1zZ0ZlZWRiYWNrUHV0SABSEmNoYXRNc2dGZWVkYmFja1B1dB'
+    'JTChZjaGF0X21zZ19mZWVkYmFja19saXN0GK4BIAEoCzIbLmMzNS5SZXNDaGF0TXNnRmVlZGJh'
+    'Y2tMaXN0SABSE2NoYXRNc2dGZWVkYmFja0xpc3QSVgoXY2hhdF9jb250ZXh0X3dpbmRvd19zZX'
+    'QYrwEgASgLMhwuYzM1LlJlc0NoYXRDb250ZXh0V2luZG93U2V0SABSFGNoYXRDb250ZXh0V2lu'
+    'ZG93U2V0EjkKDGNoYXRfY29tcGFjdBiwASABKAsyEy5jMzUuUmVzQ2hhdENvbXBhY3RIAFILY2'
+    'hhdENvbXBhY3RCBgoEYm9keQ==');

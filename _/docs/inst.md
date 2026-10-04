@@ -88,8 +88,15 @@ Entries in `triggers[]`:
 | `inst.site.commerce` | topic | `site.commerce` | `site.tx.put`, `site.tx.preview`, `site.tx.debt_pay` |
 | `inst.site.compare` | task | compare, lebih untung, which is more profitable | `site.query.run` |
 | `inst.site.report` | task | laporan, report, sales today | `site.query.run` |
+| `inst.site.catalog.stock` | task | stok, stock, sisa barang | `site.query.run` |
+| `inst.site.catalog.price` | task | harga, price, berapa harga, how much is | `site.query.run` |
+| `inst.site.price_compare` | task | reasonable, kemahalan, harga pasaran, too expensive, my price, harga saya, compare to the web, bandingkan harga | `site.query.run` |
+| `inst.site.catalog.write` | task | ubah harga, ganti harga, change price, set price, update price, ubah stok, change stock | `site.product.patch` |
 
-Steering detail: [site-ai.md](site-ai.md). Compare inst must instruct the model to pass **all** `site_iids` from `[SITE CONTEXTS]`.
+Steering detail: [site-ai.md](site-ai.md).
+
+- Compare / report: when `[SITE CONTEXTS]` is present, pass those sites. When it is absent, omit `site_iids` so the server aggregates every granted site.
+- Catalog: `inst.site.catalog.stock` is stock lookup, `inst.site.catalog.price` is price lookup, `inst.site.price_compare` is store-vs-web price compare, and `inst.site.catalog.write` patches price or stock. Inst tells the model to call the tool and to ask when a write returns `ambiguous`. Inst does not pick a site and does not invent an `@site` mention. A price lookup checks `product.stock` before `web.search` and stops when the store has the product. A vs-market question (reasonable, kemahalan, harga pasaran) still runs `web.search` after the store price is known. Stock questions do not fall through to the web. `inst.web_search` still owns `harga` for callers with no site.
 
 ### Device topic (`topic_id=device`)
 
@@ -111,6 +118,32 @@ ReqPrompt.text + mention_ids + topic_id
 Implementation: `servers/crates/mod_chat` — `inst.rs`, `inst_macro.rs`, `compose/mod.rs`, `prompt_turn.rs`.
 
 Trace: turn tracer records `inst_ids` for debugging.
+
+---
+
+## System Prompt Assembly & KV Prefix Cache Ordering (LOCKED)
+
+Model providers (Google Gemini context caching, Anthropic prompt caching, OpenAI prefix caching, DeepSeek prompt caching) match prompt cache sequentially starting from **token index 0**. Any change in prefix tokens invalidates the cache for all subsequent tokens.
+
+To maximize prefix cache hit rates (>80%) across conversation turns, the system prompt is assembled with **static guidelines at the head and dynamic volatile context at the tail**:
+
+```
+┌────────────────────────────────────────────────────────┐  ← Token Index 0
+│ 1. Base Instructions (composed.inst_block)             │  STABLE PREFIX
+│ 2. Topic Instructions (topic_block)                    │  Identical across turns
+│ 3. Mention / Site Context (sites_block, mention_block) │  Cached by provider
+├────────────────────────────────────────────────────────┤
+│ 4. Memory Block (retrieved memory snippets)            │  SEMI-STABLE
+├────────────────────────────────────────────────────────┤
+│ 5. Location Block (location_prompt_block)              │  VOLATILE TAIL
+│ 6. Current Time Block (time_prompt_block)              │  Changes every minute
+└────────────────────────────────────────────────────────┘
+```
+
+- **Head (`inst_block`, `topic_block`)**: Static platform instructions and topic behaviors stay invariant across turns.
+- **Tail (`location_block`, `time_block`)**: Appended at the end via `prompt_context_append(&system, &time_block, &location_block)`. Placing the current time (which changes every minute) at the head would invalidate the KV cache on every turn. Appending it at the tail preserves the entire instruction prefix.
+
+---
 
 ## Inst enrich (data injection)
 
@@ -231,6 +264,7 @@ kind = 'task'
 | Doc | Link |
 |-----|------|
 | Consumption tools | [consumption.md](consumption.md) |
+| Past chats | [chat.md](chat.md) — `inst.chat.history` → `chat.search` / `chat.messages` |
 | Composer @mentions | [`../schemas/mention.sql`](../schemas/mention.sql), **[mention.md](../mention.md)** (bracket text + wire ids) |
 | Image gen / edit tiers | [`image.md`](image.md) |
 | Topics | [`../schemas/topic.sql`](../schemas/topic.sql) (if present) / catalog proto |

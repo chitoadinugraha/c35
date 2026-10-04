@@ -1,12 +1,13 @@
 use std::path::{Path as StdPath, PathBuf};
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::{header, HeaderMap, HeaderValue, StatusCode},
     response::{IntoResponse, Redirect, Response},
     routing::get,
     Router,
 };
 use c35_ctx::AppState;
+use serde::Deserialize;
 use c35_mod_file::cas_bytes_get;
 
 use crate::version::{DownloadKind, version_download_blob_resolve, version_download_resolve};
@@ -48,7 +49,16 @@ fn mime_type(path: &StdPath) -> &'static str {
     }
 }
 
-pub async fn root_get(State(state): State<AppState>, headers: HeaderMap) -> Response {
+#[derive(Deserialize)]
+pub(crate) struct RootQuery {
+    lang: Option<String>,
+}
+
+pub async fn root_get(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Query(q): Query<RootQuery>,
+) -> Response {
     let host = headers
         .get(header::HOST)
         .and_then(|v| v.to_str().ok())
@@ -58,6 +68,12 @@ pub async fn root_get(State(state): State<AppState>, headers: HeaderMap) -> Resp
     }
     if let Some(res) = c35_mod_site::try_custom_domain_root(State(state), headers).await {
         return res;
+    }
+    if q.lang.as_deref().is_some_and(|l| {
+        let t = l.trim().to_lowercase();
+        t == "id" || t == "in" || t.starts_with("id-")
+    }) {
+        return Redirect::temporary("/id/").into_response();
     }
     let web_dir = web_root_dir();
     let index_file = web_dir.join("index.html");
@@ -265,6 +281,9 @@ pub fn web_router() -> Router<AppState> {
         .route("/tts.html", get(|| page_get("tts.html")))
         .route("/status", get(|| page_get("status.html")))
         .route("/status.html", get(|| page_get("status.html")))
+        .route("/id", get(|| page_get("id/index.html")))
+        .route("/id/", get(|| page_get("id/index.html")))
+        .route("/id/status", get(|| page_get("id/status.html")))
         .route("/search", get(|| page_get("search.html")))
         .route("/search.html", get(|| page_get("search.html")))
         .route(
@@ -320,6 +339,8 @@ mod tests {
         let dir = web_root_dir();
         assert!(dir.is_dir(), "web_root_dir {:?} should be a directory", dir);
         assert!(dir.join("index.html").is_file(), "index.html must exist");
+        assert!(dir.join("id/index.html").is_file(), "id/index.html must exist");
+        assert!(dir.join("id/status.html").is_file(), "id/status.html must exist");
         assert!(dir.join("terms.html").is_file(), "terms.html must exist");
         assert!(dir.join("api.html").is_file(), "api.html must exist");
         assert!(dir.join("privacy.html").is_file(), "privacy.html must exist");

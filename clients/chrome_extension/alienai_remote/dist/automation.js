@@ -114,7 +114,60 @@ const observeInPage = (maxChars) => {
   return { snapshot, truncated };
 };
 
-/** ePus list: left "Cari Nama" (typeName) — not NIK / No Asuransi (typeTypeSearchValue). */
+/** ePus list search via stable form names (typeName / typeSearch / typeSearchValue / birthDate). */
+const epusSearchBySelectors = async (tabId, query, searchBy) => {
+  const mode = String(searchBy || "nama").toLowerCase();
+  const typeSearch = mode === "kartu" || mode === "penjamin" || mode === "nik";
+  const q = String(query || "").trim();
+  if (!q) throw new Error("text required for epus search");
+  if (typeSearch) {
+    await execInTab(tabId, () => {
+      const sel = document.querySelector('select[name="typeSearch"]');
+      if (!sel) return { ok: false, reason: "no typeSearch select" };
+      const opts = Array.from(sel.options || []);
+      const qDigits = q.replace(/\D/g, "");
+      const prefer = qDigits.length >= 10 ? "nik_no_asuransi" : "nik";
+      let hit =
+        opts.find((o) => String(o.value || "").toLowerCase() === prefer) ||
+        opts.find((o) => /asuransi|nik_no/i.test(`${o.value || ""} ${o.text || ""}`));
+      if (!hit) return { ok: false, reason: "no dropdown option" };
+      sel.value = hit.value;
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+      return { ok: true, dropdown: hit.value };
+    });
+    await execInTab(tabId, actFill, ['input[name="typeName"]', ""]);
+    await execInTab(tabId, actFill, ['input[name="birthDate"]', ""]);
+    await execInTab(tabId, actFill, ['input[name="typeSearchValue"]', q]);
+  } else {
+    await execInTab(tabId, actFill, ['input[name="typeSearchValue"]', ""]);
+    await execInTab(tabId, actFill, ['input[name="birthDate"]', ""]);
+    await execInTab(tabId, actFill, ['input[name="typeName"]', q]);
+  }
+  const cariMeta = await execInTab(tabId, () => {
+    const cari = Array.from(document.querySelectorAll("button, a, input[type=button], input[type=submit]")).find(
+      (el) => /^cari$/i.test((el.textContent || el.value || "").trim())
+    );
+    if (cari) cari.click();
+    const nikEl = document.querySelector('input[name="typeSearchValue"]');
+    const tglEl = document.querySelector('input[name="birthDate"]');
+    return {
+      ok: true,
+      cari: !!cari,
+      type_search_value: (nikEl?.value || "").slice(0, 40),
+      birth_date_value: (tglEl?.value || "").slice(0, 40),
+    };
+  });
+  return {
+    ok: true,
+    search_by: mode,
+    type_search: typeSearch,
+    query: q,
+    input: typeSearch ? "typeSearchValue" : "typeName",
+    ...cariMeta,
+  };
+};
+
+/** Legacy in-page search (kept for reference); prefer epusSearchBySelectors. */
 const epusPasienSearchInPage = (query, searchBy) => {
   const setVal = (el, v) => {
     el.focus();
@@ -125,12 +178,28 @@ const epusPasienSearchInPage = (query, searchBy) => {
   const clear = (el) => {
     if (el) setVal(el, "");
   };
-  const isPenjaminValue = (el) => /typetypesearchvalue/i.test(`${el.name || ""} ${el.id || ""}`);
-  const isTglLahir = (el) => /cari\s*tanggal/i.test(el.placeholder || "");
-  const inputs = () =>
-    Array.from(document.querySelectorAll("input[type=text], input:not([type]), textarea")).filter(
-      (el) => el.offsetParent !== null
+  const isPenjaminValue = (el) => {
+    const n = `${el.name || ""} ${el.id || ""}`.toLowerCase();
+    return n.includes("typesearchvalue") || n.includes("typetypesearchvalue");
+  };
+  const isNikPenjaminPh = (el) => /cari\s*(nik\s*\/\s*no\s*asuransi|nik|no\s*asuransi)/i.test(el.placeholder || "");
+  const isCariNamaPh = (el) => /cari\s*nama/i.test(el.placeholder || "");
+  const isTglLahir = (el) => {
+    const ph = (el.placeholder || "").toLowerCase();
+    const typ = String(el.type || "").toLowerCase();
+    const aria = (el.getAttribute("aria-label") || "").toLowerCase();
+    return /cari\s*tanggal|tanggal\s*lahir/i.test(ph) || /tanggal\s*lahir/i.test(aria) || typ === "date";
+  };
+  const visibleInputs = (sel = "input[type=text], input:not([type]), textarea") =>
+    Array.from(document.querySelectorAll(sel)).filter((el) => el.offsetParent !== null);
+  const inputs = () => visibleInputs();
+  const tanggalEl = (list) => {
+    const fromList = (list || inputs()).find((el) => isTglLahir(el));
+    if (fromList) return fromList;
+    return document.querySelector(
+      'input[type=date], input[placeholder*="Tanggal" i], input[placeholder*="tanggal lahir" i]'
     );
+  };
   const cariNamaEl = (list) => {
     const byPh = list.find((el) => /cari\s*nama/i.test(el.placeholder || ""));
     if (byPh) return byPh;
@@ -145,45 +214,92 @@ const epusPasienSearchInPage = (query, searchBy) => {
       .sort((a, b) => a.r.top - b.r.top || a.r.left - b.r.left);
     return byPos[0]?.el || null;
   };
-  const nikPenjaminEl = () =>
-    document.querySelector(
-      'input[name*="typeTypeSearchValue" i], input[id*="typeTypeSearchValue" i], input[name*="typetypesearchvalue" i]'
-    ) ||
-    Array.from(document.querySelectorAll("input[type=text], input:not([type])")).find((el) =>
-      isPenjaminValue(el)
-    ) ||
-    null;
-  const ensurePenjaminDropdown = () => {
+  const nikPenjaminEl = (list) => {
+    const visible = (list || inputs()).filter((el) => !isTglLahir(el));
+    const byPh = visible.find((el) => isNikPenjaminPh(el));
+    if (byPh) return byPh;
+    const byName = visible.find((el) => isPenjaminValue(el));
+    if (byName) return byName;
+    const tgl = tanggalEl(list);
+    if (tgl) {
+      const tr = tgl.getBoundingClientRect();
+      const nama = cariNamaEl(list);
+      const leftOfTgl = visible
+        .filter((el) => el !== nama && !isCariNamaPh(el))
+        .map((el) => ({ el, r: el.getBoundingClientRect() }))
+        .filter(
+          (x) =>
+            x.r.width > 8 &&
+            x.r.height > 8 &&
+            Math.abs(x.r.top - tr.top) < 48 &&
+            x.r.right <= tr.left + 4 &&
+            !isTglLahir(x.el)
+        )
+        .sort((a, b) => b.r.left - a.r.left);
+      if (leftOfTgl[0]) return leftOfTgl[0].el;
+    }
+    return (
+      document.querySelector(
+        'input[name="typeSearchValue"], input[name*="typeSearchValue" i]:not([type=date]), input[name*="typeTypeSearchValue" i]:not([type=date])'
+      ) || null
+    );
+  };
+  const ensureTypeSearchDropdown = (mode, query) => {
     const sel = document.querySelector(
-      'select[name*="typeTypeSearch" i], select[id*="typeTypeSearch" i], select[name*="typetypesearch" i]'
+      'select[name="typeSearch"], select[name*="typeTypeSearch" i], select[id*="typeTypeSearch" i], select[name*="typetypesearch" i]'
     );
     if (!sel) return false;
     const opts = Array.from(sel.options || []);
-    const hit = opts.find((o) => {
-      const v = `${o.value || ""}`.toLowerCase();
-      const t = `${o.text || ""}`.toLowerCase();
-      return v.includes("nik") || v.includes("asuransi") || t.includes("nik") || t.includes("asuransi");
-    });
+    const m = String(mode || "").toLowerCase();
+    const qDigits = String(query || "").replace(/\D/g, "");
+    const asuransiQ = qDigits.length >= 10;
+    let hit = null;
+    if (m === "nik" && !asuransiQ) {
+      hit = opts.find((o) => {
+        const v = `${o.value || ""}`.toLowerCase();
+        const t = `${o.text || ""}`.toLowerCase();
+        return v === "nik" || /^\s*nik\s*$/i.test(t);
+      });
+    }
+    if (!hit && (m === "nik" || m === "kartu" || m === "penjamin" || asuransiQ)) {
+      hit = opts.find((o) => {
+        const v = `${o.value || ""}`.toLowerCase();
+        const t = `${o.text || ""}`.toLowerCase();
+        return v.includes("asuransi") || v.includes("nik_no") || t.includes("asuransi") || t.includes("penjamin");
+      });
+    }
+    if (!hit) {
+      hit = opts.find((o) => {
+        const v = `${o.value || ""}`.toLowerCase();
+        const t = `${o.text || ""}`.toLowerCase();
+        return v.includes("nik") || v.includes("asuransi") || t.includes("nik") || t.includes("asuransi");
+      });
+    }
     if (!hit) return false;
     sel.value = hit.value;
     sel.dispatchEvent(new Event("change", { bubbles: true }));
     return true;
   };
   const mode = String(searchBy || "nama").toLowerCase();
-  const penjamin = mode === "kartu" || mode === "penjamin" || mode === "nik";
-  const all = inputs();
+  const typeSearch = mode === "kartu" || mode === "penjamin" || mode === "nik";
   let pick = null;
-  const nama = cariNamaEl(all);
-  const nik = nikPenjaminEl();
-  if (penjamin) {
-    ensurePenjaminDropdown();
+  if (typeSearch) {
+    ensureTypeSearchDropdown(mode, query);
+    const all = inputs();
+    const tgl = tanggalEl(all);
+    const nama = cariNamaEl(all);
+    pick = nikPenjaminEl(all);
+    if (!pick || isTglLahir(pick) || isCariNamaPh(pick)) throw new Error("NIK / No Asuransi input not found");
     all.forEach((el) => {
-      if (isPenjaminValue(el)) return;
+      if (el === pick) return;
       clear(el);
     });
-    pick = nik;
-    if (!pick) throw new Error("NIK / No Asuransi input not found");
+    if (tgl && tgl !== pick) clear(tgl);
+    if (nama && nama !== pick) clear(nama);
   } else {
+    const all = inputs();
+    const nama = cariNamaEl(all);
+    const nik = nikPenjaminEl(all);
     if (!nama) throw new Error("Cari Nama input not found");
     all.forEach((el) => {
       if (el !== nama) clear(el);
@@ -192,6 +308,8 @@ const epusPasienSearchInPage = (query, searchBy) => {
     pick = nama;
   }
   if (!pick) throw new Error("no search input found");
+  if (typeSearch && (isTglLahir(pick) || isCariNamaPh(pick))) throw new Error("refusing wrong search input");
+  if (!typeSearch && isTglLahir(pick)) throw new Error("refusing Cari Tanggal lahir input");
   setVal(pick, query);
   const cari = Array.from(document.querySelectorAll("button, a, input[type=button], input[type=submit]")).find(
     (el) => /^cari$/i.test((el.textContent || el.value || "").trim())
@@ -201,8 +319,10 @@ const epusPasienSearchInPage = (query, searchBy) => {
     ok: true,
     search_by: mode,
     input: pick.placeholder || pick.name || pick.id || "input",
-    input_is_nik: isPenjaminValue(pick),
-    penjamin_dropdown: penjamin,
+    input_is_nik: isPenjaminValue(pick) || isNikPenjaminPh(pick),
+    refused_tanggal: isTglLahir(pick),
+    type_search: typeSearch,
+    dropdown_mode: mode,
     value_set: String(pick.value || ""),
     cari: !!cari,
   };
@@ -236,12 +356,27 @@ const epusPasienFetchInPage = async (
       .filter(Boolean);
   };
   const digits = (s) => String(s || "").replace(/\D/g, "");
+  const kartuNorm = (d) => {
+    const x = digits(d);
+    return x.replace(/^0+/, "") || x;
+  };
+  const kartuExactInRow = (rowEl, kartu) => {
+    const k = digits(kartu);
+    if (!k) return false;
+    const want = kartuNorm(k);
+    for (const c of rowCells(rowEl)) {
+      const d = digits(c);
+      if (!d) continue;
+      if (d === k || kartuNorm(d) === want) return true;
+    }
+    return false;
+  };
   const kartuMatch = (hay, kartu) => {
     const k = digits(kartu);
     if (!k) return false;
     const h = digits(hay);
     if (!h) return false;
-    const kTrim = k.replace(/^0+/, "") || k;
+    const kTrim = kartuNorm(k);
     return h.includes(k) || h.includes(kTrim);
   };
   const nameExact = (cells, name) => {
@@ -254,10 +389,15 @@ const epusPasienFetchInPage = async (
     const kartu = digits(expKartu) || (/^\d{8,}$/.test(digits(q)) ? digits(q) : "");
     const name = String(expName || "").trim() || (kartu ? "" : String(q || "").trim());
     if (kartu) {
+      const exactRows = dataRows.filter((r) => kartuExactInRow(r, kartu));
+      if (exactRows.length === 1) {
+        return { row: exactRows[0], ambiguous: false, matches: dataRows.length };
+      }
+      if (exactRows.length > 1) dataRows = exactRows;
       const rowHay = (r) => `${rowCells(r).join(" ")} ${(r.textContent || "").trim()}`;
       const withKartu = dataRows.filter((r) => kartuMatch(rowHay(r), kartu));
       if (withKartu.length === 1) {
-        return { row: withKartu[0], ambiguous: false, matches: withKartu.length };
+        return { row: withKartu[0], ambiguous: false, matches: dataRows.length };
       }
       if (withKartu.length > 1) dataRows = withKartu;
     }
@@ -527,7 +667,7 @@ export const pageAct = async (params = {}) => {
       const q = String(params.text ?? "").trim();
       if (!q) throw new Error("text required for epus_pasien_search");
       const searchBy = String(params.search_by ?? params.searchBy ?? "nama");
-      return execInTab(tabId, epusPasienSearchInPage, [q, searchBy]);
+      return epusSearchBySelectors(tabId, q, searchBy);
     }
     case "epus_pasien_fetch": {
       const q = String(params.text ?? "").trim();
@@ -536,7 +676,7 @@ export const pageAct = async (params = {}) => {
       const openDetail = params.open_detail !== false;
       const waitMs = Math.min(10_000, Math.max(600, Number(params.wait_ms) || 2400));
       const mode = String(searchBy || "nama").toLowerCase();
-      const penjamin = mode === "kartu" || mode === "penjamin" || mode === "nik";
+      const typeSearch = mode === "kartu" || mode === "penjamin" || mode === "nik";
       await execInTab(tabId, () => {
         const reset = Array.from(document.querySelectorAll("button, a, input[type=button]")).find((el) =>
           /^reset$/i.test((el.textContent || el.value || "").trim())
@@ -544,8 +684,8 @@ export const pageAct = async (params = {}) => {
         if (reset) reset.click();
         return { ok: true };
       });
-      await new Promise((r) => setTimeout(r, penjamin ? 800 : 600));
-      const searchMeta = await execInTab(tabId, epusPasienSearchInPage, [q, searchBy]);
+      await new Promise((r) => setTimeout(r, typeSearch ? 800 : 600));
+      const searchMeta = await epusSearchBySelectors(tabId, q, searchBy);
       await new Promise((r) => setTimeout(r, waitMs));
       const cariClicked = !!searchMeta?.cari;
       const expectedName = String(

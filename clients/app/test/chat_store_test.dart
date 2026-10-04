@@ -774,4 +774,48 @@ void main() {
     expect(store.msgs.where((m) => m.chatId == 5), isEmpty);
     expect(store.chats.single.lastMsgPreview, '');
   });
+
+  test('chatNew with negative activeChatId purges orphan pending chat and messages', () {
+    final store = ChatStore();
+    store.chats = [ChatRow(id: -1, title: 'New chat', pending: true)];
+    store.msgs = [MsgRow(id: -2, chatId: -1, role: 'user', content: 'sekarang hari apa?')];
+    store.activeChatId = -1;
+
+    store.chatNew();
+
+    expect(store.chats, isEmpty);
+    expect(store.msgs, isEmpty);
+    expect(store.activeChatId, isNull);
+  });
+
+  test('chatEnsurePending purges prior uncommitted negative ID chats', () {
+    final store = ChatStore();
+    store.chats = [ChatRow(id: -1, title: 'New chat', pending: true)];
+    store.msgs = [MsgRow(id: -2, chatId: -1, role: 'user', content: 'old orphan')];
+    store.activeChatId = null;
+
+    store.chatEnsurePending();
+
+    expect(store.chats.length, 1);
+    expect(store.chats.single.id, -1);
+    expect(store.msgs, isEmpty);
+  });
+
+  test('load ignores negative chat IDs and clears legacy negative msg keys', () async {
+    SharedPreferences.setMockInitialValues({
+      'c35_chat_rows': '[{"id": -1, "title": "Orphan", "pending": true}, {"id": 42, "title": "Valid"}]',
+      'c35_chat_msgs_-1': '[{"id": -2, "chatId": -1, "role": "user", "content": "stale"}]',
+      'c35_chat_msgs_42': '[{"id": 100, "chatId": 42, "role": "user", "content": "hello"}]',
+    });
+
+    final store = ChatStore();
+    await store.load();
+
+    expect(store.chats.map((c) => c.id), [42]);
+    expect(store.msgs.map((m) => m.chatId), [42]);
+    expect(store.activeChatId, isNull);
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.containsKey('c35_chat_msgs_-1'), isFalse);
+  });
 }

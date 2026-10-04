@@ -340,6 +340,9 @@ async fn process_prompt_job(
                     req_id: req_id.clone(),
                     trace_json: String::new(),
                     error_message: turn.error_text,
+                    prompt_tokens: turn.prompt_tokens,
+                    context_window: turn.context_window,
+                    usage: Some(turn.usage.proto()),
                 },
             )
             .await;

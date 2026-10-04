@@ -149,6 +149,30 @@ def wake_extension() -> None:
         pass
 
 
+def browser_agent_online(cfg: dict, owner: int) -> bool:
+    dev = int(cfg["device_iid"])
+    raw = tool_exec("browser.tabs", {"device_iid": dev, "op": "list"}, owner)
+    inner = raw.get("result") if isinstance(raw.get("result"), dict) else {}
+    err = str(inner.get("error") or raw.get("error") or "")
+    if inner.get("ok") is False and "offline" in err.lower():
+        return False
+    if isinstance(inner.get("tabs"), list):
+        return True
+    return "offline" not in err.lower() and bool(inner.get("ok"))
+
+
+def ensure_browser_online(cfg: dict, owner: int, *, tries: int = 30, delay_s: float = 4.0) -> bool:
+    for i in range(tries):
+        wake_extension()
+        if browser_agent_online(cfg, owner):
+            if i:
+                print(f"browser agent online after {i + 1} attempt(s)", flush=True)
+            return True
+        print(f"browser agent offline — retry {i + 1}/{tries} (reload extension if needed)", flush=True)
+        time.sleep(delay_s)
+    return False
+
+
 EPUS_LIST_URL = "https://malang.epuskesmas.id/pasien?broadcastNotif=1"
 
 
@@ -342,7 +366,7 @@ def fetch_one(
 
     kartu_q = (no_kartu or "").strip()
     sb = (search_by or "nama").strip().lower()
-    if sb in ("penjamin", "nik", "asuransi"):
+    if sb in ("penjamin", "asuransi"):
         sb = "kartu"
     phases: list[tuple[str, str, int]] = [(kartu_q, sb, 3)]
 

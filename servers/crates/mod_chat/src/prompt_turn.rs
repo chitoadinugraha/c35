@@ -9,6 +9,7 @@ use sqlx::types::Json;
 use sqlx::PgPool;
 use tokio_util::sync::CancellationToken;
 
+use crate::catalog_web::{catalog_skip_web_prefetch, catalog_web_phase};
 use crate::compose::{compose_force_tool_call, compose_tools_and_inst_async, ComposeTurnOpts};
 use crate::prompt_run::prompt_run_get;
 use crate::mention_registry::{
@@ -25,7 +26,8 @@ use crate::topic::topic_inst_block;
 use crate::inst_cache::inst_list_cached;
 use crate::mention::mention_list_enabled;
 use crate::context_billing::ContextBillingExtra;
-use crate::context_compact::prepare_prompt_history;
+use crate::context_compact::{prepare_prompt_history, PreparedPromptHistory};
+use crate::context_pack::{context_window_resolve, token_estimate, ContextUsageEst};
 use crate::device_context::{
     bound_device_prompt_prepare, chat_bound_device_iid_for_owner, chat_mention_context_commit,
     tool_exclude_browser_devices,
@@ -35,12 +37,12 @@ use crate::memory::{memory_prompt_merge, memory_retrieve};
 use crate::memory_extract::memory_extract_turn_gate;
 use crate::prompt::thought::thinking_level;
 use crate::prompt::time::{
-    location_prompt_block, prompt_context_prepend, time_prompt_block, time_timezone_resolve, user_asks_time,
+    location_prompt_block, prompt_context_append, time_prompt_block, time_timezone_resolve, user_asks_time,
 };
 use crate::prompt::user_context::user_prompt_context_get;
 use crate::prompt::tool_loop::{prompt_cluster_turn, user_wants_search};
 use crate::prompt::ChatReq;
-use crate::tools::{cluster_tools, http_client, TurnCtx};
+use crate::tools::{cluster_tools, http_client, tool_decls, TurnCtx};
 use crate::turn_tracer::TurnTracer;
 
 pub struct PromptTurn {
@@ -56,6 +58,9 @@ pub struct PromptTurn {
     pub model: String,
     pub duration_ms: i32,
     pub error_text: String,
+    pub prompt_tokens: i32,
+    pub context_window: i32,
+    pub usage: ContextUsageEst,
 }
 
 pub use crate::prompt::hooks::PromptHopCheckpoint;
@@ -338,7 +343,9 @@ where
     )
     .await;
     let site_iid = mention_ctx.default_site_iid;
+    let instructions_base = token_estimate(&composed.inst_block);
     let topic_block = topic_inst_block(pool, &topic_id).await;
+    let instructions_base = instructions_base + token_estimate(&topic_block);
     let tz = time_timezone_resolve(&user_ctx.tz, locale_eff, &req.text);
     let time_block = time_prompt_block(&tz);
     let location_block = location_prompt_block(
@@ -346,31 +353,55 @@ where
         &user_ctx.location_region,
         &user_ctx.location_country,
     );
-    let mut system = prompt_context_prepend(&time_block, &location_block, "");
-    if !topic_block.is_empty() {
-        system = format!("{system}\n\n{topic_block}");
-    }
+    let mut system = String::new();
     if !composed.inst_block.is_empty() {
-        system = format!("{system}\n\n{}", composed.inst_block);
+        system = composed.inst_block.clone();
+    }
+    if !topic_block.is_empty() {
+        if !system.is_empty() {
+            system.push_str("\n\n");
+        }
+        system.push_str(&topic_block);
     }
     let sites_block = mention_context_sites_block(&mention_ctx);
     if !sites_block.is_empty() {
-        system = format!("{system}\n\n{sites_block}");
+        if !system.is_empty() {
+            system.push_str("\n\n");
+        }
+        system.push_str(&sites_block);
     }
     let mention_block = mention_prompt_block(&resolved);
     if !mention_block.is_empty() {
-        system = format!("{system}\n\n{mention_block}");
+        if !system.is_empty() {
+            system.push_str("\n\n");
+        }
+        system.push_str(&mention_block);
     }
+    let context_named = token_estimate(&sites_block) + token_estimate(&mention_block) + token_estimate(&time_block) + token_estimate(&location_block);
     let memory = memory_retrieve(pool, &http, owner_iid, None, &req.text, 8).await;
+    let memory_tokens = token_estimate(&memory.block);
     system = memory_prompt_merge(&system, &memory.block);
 
-    let (history, mut context_billing) =
-        prepare_prompt_history(pool, &http, chat_id, owner_iid, user_msg_id, req_id, &model, &system, &user, None)
-            .await
-            .unwrap_or_else(|e| {
-                tracing::warn!("[c35:context_prepare] fail open chat_id={chat_id}: {e:#}");
-                (Vec::new(), ContextBillingExtra::default())
-            });
+    // Keep dynamic volatile context (time and location) at the tail of the system prompt
+    // to preserve KV prefix cache across turns.
+    system = prompt_context_append(&system, &time_block, &location_block);
+
+    let prepared = prepare_prompt_history(
+        pool, &http, nats, chat_id, owner_iid, user_msg_id, req_id, &model, &system, &user, None,
+    )
+    .await
+    .unwrap_or_else(|e| {
+        tracing::warn!("[c35:context_prepare] fail open chat_id={chat_id}: {e:#}");
+        PreparedPromptHistory {
+            messages: Vec::new(),
+            billing: ContextBillingExtra::default(),
+            prompt_tokens: token_estimate(&system) + token_estimate(&user),
+            context_window: context_window_resolve(&model, 0),
+        }
+    });
+    let history = prepared.messages;
+    let mut context_billing = prepared.billing;
+    let context_window = prepared.context_window;
 
     let prepare_ms = prepare_started.elapsed().as_millis() as i64;
     let context_tokens_est = ((system.len() + user.len()) as f64 / 4.0).ceil() as i32;
@@ -390,6 +421,28 @@ where
     if force_tool_call {
         system = format!("{system}{}", crate::prompt::web_grounding::WEB_GROUNDED_REPLY_RULE);
     }
+    let system_tokens = token_estimate(&system);
+    let named = instructions_base + context_named + memory_tokens + if force_tool_call { token_estimate(crate::prompt::web_grounding::WEB_GROUNDED_REPLY_RULE) } else { 0 };
+    let slack = system_tokens.saturating_sub(named);
+    let usage_base = ContextUsageEst {
+        instructions: instructions_base + if force_tool_call { token_estimate(crate::prompt::web_grounding::WEB_GROUNDED_REPLY_RULE) } else { 0 },
+        memory: memory_tokens,
+        context: context_named + slack,
+        tools: token_estimate(&tool_decls(&tools).to_string()),
+        conversation: prepared.prompt_tokens.saturating_sub(system_tokens),
+    };
+    let prompt_tokens = usage_base.total();
+    let usage = usage_base;
+    let has_site = !mention_ctx.sites.is_empty()
+        || match c35_mod_site::site_granted_iids(pool, owner_iid).await {
+            Ok(ids) => !ids.is_empty(),
+            Err(e) => {
+                tracing::warn!("[c35:catalog_web] site_granted_iids failed owner_iid={owner_iid}: {e:#}");
+                false
+            }
+        };
+    let catalog_web = catalog_web_phase(&composed.matched_ids, has_site);
+    let skip_web_prefetch = catalog_skip_web_prefetch(&composed.matched_ids, catalog_web);
     let chat_req = ChatReq {
         model: model.clone(),
         system,
@@ -398,6 +451,8 @@ where
         tools,
         history,
         force_tool_call,
+        catalog_web,
+        skip_web_prefetch,
     };
     let attachments_json = req.attachments_json.as_str();
     let mut turn_ctx = TurnCtx {
@@ -538,6 +593,9 @@ where
         model: res.model_used,
         duration_ms,
         error_text,
+        prompt_tokens,
+        context_window,
+        usage,
     })
 }
 

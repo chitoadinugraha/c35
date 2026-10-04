@@ -100,6 +100,39 @@ final $typed_data.Uint8List promptFollowupKindDescriptor = $convert.base64Decode
     'QQABIeChpQUk9NUFRfRk9MTE9XVVBfS0lORF9TVEVFUhABEh4KGlBST01QVF9GT0xMT1dVUF9L'
     'SU5EX1FVRVVFEAI=');
 
+@$core.Deprecated('Use chatFeedbackVoteDescriptor instead')
+const ChatFeedbackVote$json = {
+  '1': 'ChatFeedbackVote',
+  '2': [
+    {'1': 'CHAT_FEEDBACK_VOTE_UNSPECIFIED', '2': 0},
+    {'1': 'CHAT_FEEDBACK_VOTE_GOOD', '2': 1},
+    {'1': 'CHAT_FEEDBACK_VOTE_BAD', '2': 2},
+  ],
+};
+
+/// Descriptor for `ChatFeedbackVote`. Decode as a `google.protobuf.EnumDescriptorProto`.
+final $typed_data.Uint8List chatFeedbackVoteDescriptor = $convert.base64Decode(
+    'ChBDaGF0RmVlZGJhY2tWb3RlEiIKHkNIQVRfRkVFREJBQ0tfVk9URV9VTlNQRUNJRklFRBAAEh'
+    'sKF0NIQVRfRkVFREJBQ0tfVk9URV9HT09EEAESGgoWQ0hBVF9GRUVEQkFDS19WT1RFX0JBRBAC');
+
+@$core.Deprecated('Use chatFeedbackAuthorRoleDescriptor instead')
+const ChatFeedbackAuthorRole$json = {
+  '1': 'ChatFeedbackAuthorRole',
+  '2': [
+    {'1': 'CHAT_FEEDBACK_AUTHOR_ROLE_UNSPECIFIED', '2': 0},
+    {'1': 'CHAT_FEEDBACK_AUTHOR_ROLE_SYSTEM', '2': 1},
+    {'1': 'CHAT_FEEDBACK_AUTHOR_ROLE_USER', '2': 2},
+    {'1': 'CHAT_FEEDBACK_AUTHOR_ROLE_STAFF', '2': 3},
+  ],
+};
+
+/// Descriptor for `ChatFeedbackAuthorRole`. Decode as a `google.protobuf.EnumDescriptorProto`.
+final $typed_data.Uint8List chatFeedbackAuthorRoleDescriptor = $convert.base64Decode(
+    'ChZDaGF0RmVlZGJhY2tBdXRob3JSb2xlEikKJUNIQVRfRkVFREJBQ0tfQVVUSE9SX1JPTEVfVU'
+    '5TUEVDSUZJRUQQABIkCiBDSEFUX0ZFRURCQUNLX0FVVEhPUl9ST0xFX1NZU1RFTRABEiIKHkNI'
+    'QVRfRkVFREJBQ0tfQVVUSE9SX1JPTEVfVVNFUhACEiMKH0NIQVRfRkVFREJBQ0tfQVVUSE9SX1'
+    'JPTEVfU1RBRkYQAw==');
+
 @$core.Deprecated('Use chatDescriptor instead')
 const Chat$json = {
   '1': 'Chat',
@@ -122,6 +155,7 @@ const Chat$json = {
     {'1': 'created_ts_ms', '3': 16, '4': 1, '5': 3, '10': 'createdTsMs'},
     {'1': 'updated_ts_ms', '3': 17, '4': 1, '5': 3, '10': 'updatedTsMs'},
     {'1': 'deleted_ts_ms', '3': 18, '4': 1, '5': 3, '10': 'deletedTsMs'},
+    {'1': 'context_window', '3': 19, '4': 1, '5': 5, '10': 'contextWindow'},
   ],
 };
 
@@ -136,7 +170,8 @@ final $typed_data.Uint8List chatDescriptor = $convert.base64Decode(
     'Cg5sYXN0X21zZ190c19tcxgNIAEoA1ILbGFzdE1zZ1RzTXMSKAoQbGFzdF9tc2dfcHJldmlldx'
     'gOIAEoCVIObGFzdE1zZ1ByZXZpZXcSGwoJbWV0YV9qc29uGA8gASgJUghtZXRhSnNvbhIiCg1j'
     'cmVhdGVkX3RzX21zGBAgASgDUgtjcmVhdGVkVHNNcxIiCg11cGRhdGVkX3RzX21zGBEgASgDUg'
-    't1cGRhdGVkVHNNcxIiCg1kZWxldGVkX3RzX21zGBIgASgDUgtkZWxldGVkVHNNcw==');
+    't1cGRhdGVkVHNNcxIiCg1kZWxldGVkX3RzX21zGBIgASgDUgtkZWxldGVkVHNNcxIlCg5jb250'
+    'ZXh0X3dpbmRvdxgTIAEoBVINY29udGV4dFdpbmRvdw==');
 
 @$core.Deprecated('Use chatMemberDescriptor instead')
 const ChatMember$json = {
@@ -355,6 +390,24 @@ final $typed_data.Uint8List resPromptDeltaDescriptor = $convert.base64Decode(
     'Cg5SZXNQcm9tcHREZWx0YRISCgR0ZXh0GAEgASgJUgR0ZXh0EhgKB3Rob3VnaHQYAiABKAhSB3'
     'Rob3VnaHQSHwoLYmxvY2tzX2pzb24YAyABKAlSCmJsb2Nrc0pzb24=');
 
+@$core.Deprecated('Use contextUsageDescriptor instead')
+const ContextUsage$json = {
+  '1': 'ContextUsage',
+  '2': [
+    {'1': 'instructions', '3': 1, '4': 1, '5': 5, '10': 'instructions'},
+    {'1': 'memory', '3': 2, '4': 1, '5': 5, '10': 'memory'},
+    {'1': 'context', '3': 3, '4': 1, '5': 5, '10': 'context'},
+    {'1': 'tools', '3': 4, '4': 1, '5': 5, '10': 'tools'},
+    {'1': 'conversation', '3': 5, '4': 1, '5': 5, '10': 'conversation'},
+  ],
+};
+
+/// Descriptor for `ContextUsage`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List contextUsageDescriptor = $convert.base64Decode(
+    'CgxDb250ZXh0VXNhZ2USIgoMaW5zdHJ1Y3Rpb25zGAEgASgFUgxpbnN0cnVjdGlvbnMSFgoGbW'
+    'Vtb3J5GAIgASgFUgZtZW1vcnkSGAoHY29udGV4dBgDIAEoBVIHY29udGV4dBIUCgV0b29scxgE'
+    'IAEoBVIFdG9vbHMSIgoMY29udmVyc2F0aW9uGAUgASgFUgxjb252ZXJzYXRpb24=');
+
 @$core.Deprecated('Use resPromptEndDescriptor instead')
 const ResPromptEnd$json = {
   '1': 'ResPromptEnd',
@@ -368,6 +421,16 @@ const ResPromptEnd$json = {
     {'1': 'req_id', '3': 7, '4': 1, '5': 9, '10': 'reqId'},
     {'1': 'trace_json', '3': 8, '4': 1, '5': 9, '10': 'traceJson'},
     {'1': 'error_message', '3': 9, '4': 1, '5': 9, '10': 'errorMessage'},
+    {'1': 'prompt_tokens', '3': 10, '4': 1, '5': 5, '10': 'promptTokens'},
+    {'1': 'context_window', '3': 11, '4': 1, '5': 5, '10': 'contextWindow'},
+    {
+      '1': 'usage',
+      '3': 12,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ContextUsage',
+      '10': 'usage'
+    },
   ],
 };
 
@@ -377,7 +440,9 @@ final $typed_data.Uint8List resPromptEndDescriptor = $convert.base64Decode(
     'VSCHRva2Vuc0luEh0KCnRva2Vuc19vdXQYAyABKAVSCXRva2Vuc091dBIZCghjb3N0X3VzZBgE'
     'IAEoAVIHY29zdFVzZBIfCgtkdXJhdGlvbl9tcxgFIAEoBVIKZHVyYXRpb25NcxIUCgVtb2RlbB'
     'gGIAEoCVIFbW9kZWwSFQoGcmVxX2lkGAcgASgJUgVyZXFJZBIdCgp0cmFjZV9qc29uGAggASgJ'
-    'Ugl0cmFjZUpzb24SIwoNZXJyb3JfbWVzc2FnZRgJIAEoCVIMZXJyb3JNZXNzYWdl');
+    'Ugl0cmFjZUpzb24SIwoNZXJyb3JfbWVzc2FnZRgJIAEoCVIMZXJyb3JNZXNzYWdlEiMKDXByb2'
+    '1wdF90b2tlbnMYCiABKAVSDHByb21wdFRva2VucxIlCg5jb250ZXh0X3dpbmRvdxgLIAEoBVIN'
+    'Y29udGV4dFdpbmRvdxInCgV1c2FnZRgMIAEoCzIRLmMzNS5Db250ZXh0VXNhZ2VSBXVzYWdl');
 
 @$core.Deprecated('Use resPromptFailDescriptor instead')
 const ResPromptFail$json = {
@@ -1042,3 +1107,296 @@ const ChatTyping$json = {
 final $typed_data.Uint8List chatTypingDescriptor = $convert.base64Decode(
     'CgpDaGF0VHlwaW5nEhcKB2NoYXRfaWQYASABKANSBmNoYXRJZBIUCgVwYXJ0eRgCIAEoCVIFcG'
     'FydHkSFgoGYWN0aXZlGAMgASgIUgZhY3RpdmU=');
+
+@$core.Deprecated('Use chatFeedbackReasonDescriptor instead')
+const ChatFeedbackReason$json = {
+  '1': 'ChatFeedbackReason',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 5, '10': 'id'},
+    {'1': 'slug', '3': 2, '4': 1, '5': 9, '10': 'slug'},
+    {
+      '1': 'vote',
+      '3': 3,
+      '4': 1,
+      '5': 14,
+      '6': '.c35.ChatFeedbackVote',
+      '10': 'vote'
+    },
+    {'1': 'label', '3': 4, '4': 1, '5': 9, '10': 'label'},
+    {'1': 'sort', '3': 5, '4': 1, '5': 5, '10': 'sort'},
+  ],
+};
+
+/// Descriptor for `ChatFeedbackReason`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List chatFeedbackReasonDescriptor = $convert.base64Decode(
+    'ChJDaGF0RmVlZGJhY2tSZWFzb24SDgoCaWQYASABKAVSAmlkEhIKBHNsdWcYAiABKAlSBHNsdW'
+    'cSKQoEdm90ZRgDIAEoDjIVLmMzNS5DaGF0RmVlZGJhY2tWb3RlUgR2b3RlEhQKBWxhYmVsGAQg'
+    'ASgJUgVsYWJlbBISCgRzb3J0GAUgASgFUgRzb3J0');
+
+@$core.Deprecated('Use chatFeedbackPostDescriptor instead')
+const ChatFeedbackPost$json = {
+  '1': 'ChatFeedbackPost',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 3, '10': 'id'},
+    {'1': 'feedback_id', '3': 2, '4': 1, '5': 3, '10': 'feedbackId'},
+    {'1': 'author_iid', '3': 3, '4': 1, '5': 3, '10': 'authorIid'},
+    {
+      '1': 'author_role',
+      '3': 4,
+      '4': 1,
+      '5': 14,
+      '6': '.c35.ChatFeedbackAuthorRole',
+      '10': 'authorRole'
+    },
+    {'1': 'text', '3': 5, '4': 1, '5': 9, '10': 'text'},
+    {'1': 'created_ts_ms', '3': 6, '4': 1, '5': 3, '10': 'createdTsMs'},
+  ],
+};
+
+/// Descriptor for `ChatFeedbackPost`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List chatFeedbackPostDescriptor = $convert.base64Decode(
+    'ChBDaGF0RmVlZGJhY2tQb3N0Eg4KAmlkGAEgASgDUgJpZBIfCgtmZWVkYmFja19pZBgCIAEoA1'
+    'IKZmVlZGJhY2tJZBIdCgphdXRob3JfaWlkGAMgASgDUglhdXRob3JJaWQSPAoLYXV0aG9yX3Jv'
+    'bGUYBCABKA4yGy5jMzUuQ2hhdEZlZWRiYWNrQXV0aG9yUm9sZVIKYXV0aG9yUm9sZRISCgR0ZX'
+    'h0GAUgASgJUgR0ZXh0EiIKDWNyZWF0ZWRfdHNfbXMYBiABKANSC2NyZWF0ZWRUc01z');
+
+@$core.Deprecated('Use chatMsgFeedbackDescriptor instead')
+const ChatMsgFeedback$json = {
+  '1': 'ChatMsgFeedback',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 3, '10': 'id'},
+    {'1': 'msg_id', '3': 2, '4': 1, '5': 3, '10': 'msgId'},
+    {'1': 'chat_id', '3': 3, '4': 1, '5': 3, '10': 'chatId'},
+    {
+      '1': 'vote',
+      '3': 4,
+      '4': 1,
+      '5': 14,
+      '6': '.c35.ChatFeedbackVote',
+      '10': 'vote'
+    },
+    {'1': 'reason_id', '3': 5, '4': 1, '5': 5, '10': 'reasonId'},
+    {'1': 'reason_slug', '3': 6, '4': 1, '5': 9, '10': 'reasonSlug'},
+    {'1': 'reason_label', '3': 7, '4': 1, '5': 9, '10': 'reasonLabel'},
+    {'1': 'comment', '3': 8, '4': 1, '5': 9, '10': 'comment'},
+    {'1': 'updated_ts_ms', '3': 9, '4': 1, '5': 3, '10': 'updatedTsMs'},
+    {
+      '1': 'posts',
+      '3': 10,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.ChatFeedbackPost',
+      '10': 'posts'
+    },
+  ],
+};
+
+/// Descriptor for `ChatMsgFeedback`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List chatMsgFeedbackDescriptor = $convert.base64Decode(
+    'Cg9DaGF0TXNnRmVlZGJhY2sSDgoCaWQYASABKANSAmlkEhUKBm1zZ19pZBgCIAEoA1IFbXNnSW'
+    'QSFwoHY2hhdF9pZBgDIAEoA1IGY2hhdElkEikKBHZvdGUYBCABKA4yFS5jMzUuQ2hhdEZlZWRi'
+    'YWNrVm90ZVIEdm90ZRIbCglyZWFzb25faWQYBSABKAVSCHJlYXNvbklkEh8KC3JlYXNvbl9zbH'
+    'VnGAYgASgJUgpyZWFzb25TbHVnEiEKDHJlYXNvbl9sYWJlbBgHIAEoCVILcmVhc29uTGFiZWwS'
+    'GAoHY29tbWVudBgIIAEoCVIHY29tbWVudBIiCg11cGRhdGVkX3RzX21zGAkgASgDUgt1cGRhdG'
+    'VkVHNNcxIrCgVwb3N0cxgKIAMoCzIVLmMzNS5DaGF0RmVlZGJhY2tQb3N0UgVwb3N0cw==');
+
+@$core.Deprecated('Use reqChatFeedbackReasonListDescriptor instead')
+const ReqChatFeedbackReasonList$json = {
+  '1': 'ReqChatFeedbackReasonList',
+  '2': [
+    {'1': 'locale', '3': 1, '4': 1, '5': 9, '10': 'locale'},
+    {
+      '1': 'vote',
+      '3': 2,
+      '4': 1,
+      '5': 14,
+      '6': '.c35.ChatFeedbackVote',
+      '10': 'vote'
+    },
+  ],
+};
+
+/// Descriptor for `ReqChatFeedbackReasonList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqChatFeedbackReasonListDescriptor =
+    $convert.base64Decode(
+        'ChlSZXFDaGF0RmVlZGJhY2tSZWFzb25MaXN0EhYKBmxvY2FsZRgBIAEoCVIGbG9jYWxlEikKBH'
+        'ZvdGUYAiABKA4yFS5jMzUuQ2hhdEZlZWRiYWNrVm90ZVIEdm90ZQ==');
+
+@$core.Deprecated('Use resChatFeedbackReasonListDescriptor instead')
+const ResChatFeedbackReasonList$json = {
+  '1': 'ResChatFeedbackReasonList',
+  '2': [
+    {
+      '1': 'reasons',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.ChatFeedbackReason',
+      '10': 'reasons'
+    },
+  ],
+};
+
+/// Descriptor for `ResChatFeedbackReasonList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resChatFeedbackReasonListDescriptor =
+    $convert.base64Decode(
+        'ChlSZXNDaGF0RmVlZGJhY2tSZWFzb25MaXN0EjEKB3JlYXNvbnMYASADKAsyFy5jMzUuQ2hhdE'
+        'ZlZWRiYWNrUmVhc29uUgdyZWFzb25z');
+
+@$core.Deprecated('Use reqChatMsgFeedbackPutDescriptor instead')
+const ReqChatMsgFeedbackPut$json = {
+  '1': 'ReqChatMsgFeedbackPut',
+  '2': [
+    {'1': 'msg_id', '3': 1, '4': 1, '5': 3, '10': 'msgId'},
+    {'1': 'chat_id', '3': 2, '4': 1, '5': 3, '10': 'chatId'},
+    {
+      '1': 'vote',
+      '3': 3,
+      '4': 1,
+      '5': 14,
+      '6': '.c35.ChatFeedbackVote',
+      '10': 'vote'
+    },
+    {'1': 'reason_id', '3': 4, '4': 1, '5': 5, '10': 'reasonId'},
+    {'1': 'comment', '3': 5, '4': 1, '5': 9, '10': 'comment'},
+    {'1': 'locale', '3': 6, '4': 1, '5': 9, '10': 'locale'},
+  ],
+};
+
+/// Descriptor for `ReqChatMsgFeedbackPut`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqChatMsgFeedbackPutDescriptor = $convert.base64Decode(
+    'ChVSZXFDaGF0TXNnRmVlZGJhY2tQdXQSFQoGbXNnX2lkGAEgASgDUgVtc2dJZBIXCgdjaGF0X2'
+    'lkGAIgASgDUgZjaGF0SWQSKQoEdm90ZRgDIAEoDjIVLmMzNS5DaGF0RmVlZGJhY2tWb3RlUgR2'
+    'b3RlEhsKCXJlYXNvbl9pZBgEIAEoBVIIcmVhc29uSWQSGAoHY29tbWVudBgFIAEoCVIHY29tbW'
+    'VudBIWCgZsb2NhbGUYBiABKAlSBmxvY2FsZQ==');
+
+@$core.Deprecated('Use resChatMsgFeedbackPutDescriptor instead')
+const ResChatMsgFeedbackPut$json = {
+  '1': 'ResChatMsgFeedbackPut',
+  '2': [
+    {
+      '1': 'feedback',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ChatMsgFeedback',
+      '10': 'feedback'
+    },
+  ],
+};
+
+/// Descriptor for `ResChatMsgFeedbackPut`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resChatMsgFeedbackPutDescriptor = $convert.base64Decode(
+    'ChVSZXNDaGF0TXNnRmVlZGJhY2tQdXQSMAoIZmVlZGJhY2sYASABKAsyFC5jMzUuQ2hhdE1zZ0'
+    'ZlZWRiYWNrUghmZWVkYmFjaw==');
+
+@$core.Deprecated('Use reqChatMsgFeedbackListDescriptor instead')
+const ReqChatMsgFeedbackList$json = {
+  '1': 'ReqChatMsgFeedbackList',
+  '2': [
+    {'1': 'chat_id', '3': 1, '4': 1, '5': 3, '10': 'chatId'},
+    {'1': 'locale', '3': 2, '4': 1, '5': 9, '10': 'locale'},
+  ],
+};
+
+/// Descriptor for `ReqChatMsgFeedbackList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqChatMsgFeedbackListDescriptor =
+    $convert.base64Decode(
+        'ChZSZXFDaGF0TXNnRmVlZGJhY2tMaXN0EhcKB2NoYXRfaWQYASABKANSBmNoYXRJZBIWCgZsb2'
+        'NhbGUYAiABKAlSBmxvY2FsZQ==');
+
+@$core.Deprecated('Use resChatMsgFeedbackListDescriptor instead')
+const ResChatMsgFeedbackList$json = {
+  '1': 'ResChatMsgFeedbackList',
+  '2': [
+    {
+      '1': 'feedback',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.ChatMsgFeedback',
+      '10': 'feedback'
+    },
+  ],
+};
+
+/// Descriptor for `ResChatMsgFeedbackList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resChatMsgFeedbackListDescriptor =
+    $convert.base64Decode(
+        'ChZSZXNDaGF0TXNnRmVlZGJhY2tMaXN0EjAKCGZlZWRiYWNrGAEgAygLMhQuYzM1LkNoYXRNc2'
+        'dGZWVkYmFja1IIZmVlZGJhY2s=');
+
+@$core.Deprecated('Use reqChatContextWindowSetDescriptor instead')
+const ReqChatContextWindowSet$json = {
+  '1': 'ReqChatContextWindowSet',
+  '2': [
+    {'1': 'chat_id', '3': 1, '4': 1, '5': 3, '10': 'chatId'},
+    {'1': 'context_window', '3': 2, '4': 1, '5': 5, '10': 'contextWindow'},
+  ],
+};
+
+/// Descriptor for `ReqChatContextWindowSet`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqChatContextWindowSetDescriptor =
+    $convert.base64Decode(
+        'ChdSZXFDaGF0Q29udGV4dFdpbmRvd1NldBIXCgdjaGF0X2lkGAEgASgDUgZjaGF0SWQSJQoOY2'
+        '9udGV4dF93aW5kb3cYAiABKAVSDWNvbnRleHRXaW5kb3c=');
+
+@$core.Deprecated('Use resChatContextWindowSetDescriptor instead')
+const ResChatContextWindowSet$json = {
+  '1': 'ResChatContextWindowSet',
+  '2': [
+    {'1': 'context_window', '3': 1, '4': 1, '5': 5, '10': 'contextWindow'},
+    {'1': 'prompt_tokens', '3': 2, '4': 1, '5': 5, '10': 'promptTokens'},
+    {
+      '1': 'usage',
+      '3': 3,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ContextUsage',
+      '10': 'usage'
+    },
+  ],
+};
+
+/// Descriptor for `ResChatContextWindowSet`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resChatContextWindowSetDescriptor = $convert.base64Decode(
+    'ChdSZXNDaGF0Q29udGV4dFdpbmRvd1NldBIlCg5jb250ZXh0X3dpbmRvdxgBIAEoBVINY29udG'
+    'V4dFdpbmRvdxIjCg1wcm9tcHRfdG9rZW5zGAIgASgFUgxwcm9tcHRUb2tlbnMSJwoFdXNhZ2UY'
+    'AyABKAsyES5jMzUuQ29udGV4dFVzYWdlUgV1c2FnZQ==');
+
+@$core.Deprecated('Use reqChatCompactDescriptor instead')
+const ReqChatCompact$json = {
+  '1': 'ReqChatCompact',
+  '2': [
+    {'1': 'chat_id', '3': 1, '4': 1, '5': 3, '10': 'chatId'},
+  ],
+};
+
+/// Descriptor for `ReqChatCompact`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqChatCompactDescriptor = $convert
+    .base64Decode('Cg5SZXFDaGF0Q29tcGFjdBIXCgdjaGF0X2lkGAEgASgDUgZjaGF0SWQ=');
+
+@$core.Deprecated('Use resChatCompactDescriptor instead')
+const ResChatCompact$json = {
+  '1': 'ResChatCompact',
+  '2': [
+    {'1': 'ran', '3': 1, '4': 1, '5': 8, '10': 'ran'},
+    {'1': 'title', '3': 2, '4': 1, '5': 9, '10': 'title'},
+    {'1': 'prompt_tokens', '3': 3, '4': 1, '5': 5, '10': 'promptTokens'},
+    {'1': 'cost_usd', '3': 4, '4': 1, '5': 1, '10': 'costUsd'},
+    {
+      '1': 'usage',
+      '3': 5,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ContextUsage',
+      '10': 'usage'
+    },
+  ],
+};
+
+/// Descriptor for `ResChatCompact`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resChatCompactDescriptor = $convert.base64Decode(
+    'Cg5SZXNDaGF0Q29tcGFjdBIQCgNyYW4YASABKAhSA3JhbhIUCgV0aXRsZRgCIAEoCVIFdGl0bG'
+    'USIwoNcHJvbXB0X3Rva2VucxgDIAEoBVIMcHJvbXB0VG9rZW5zEhkKCGNvc3RfdXNkGAQgASgB'
+    'Ugdjb3N0VXNkEicKBXVzYWdlGAUgASgLMhEuYzM1LkNvbnRleHRVc2FnZVIFdXNhZ2U=');

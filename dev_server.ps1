@@ -48,7 +48,7 @@ $cargoWatchArgs = @(
     '-w', 'crates',
     '-w', $schemasDir,
     '-x', 'build -p server_ai',
-    '-s', ('"' + $loopCmd + '"')
+    '-s', $loopCmd
 )
 if ($CargoArgs) { $cargoWatchArgs += $CargoArgs }
 & cargo @cargoWatchArgs

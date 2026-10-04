@@ -39,11 +39,11 @@ class _UiAdminLogTableState extends State<UiAdminLogTable> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.loading) {
-      return const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _muted)));
+    if (widget.loading && widget.logs.isEmpty) {
+      return const Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: _muted)));
     }
     if (widget.logs.isEmpty) {
-      return const Center(child: Text('No logs', style: TextStyle(color: _muted, fontSize: 13)));
+      return const Center(child: Text('No logs in this range', style: TextStyle(color: _muted, fontSize: 13)));
     }
     return ColoredBox(
       color: _panel,

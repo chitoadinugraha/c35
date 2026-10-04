@@ -13,4 +13,40 @@ void main() {
     expect(chatTitleDisplay('New chat'), '');
     expect(chatTitleDisplay('hello world'), 'Hello world');
   });
+
+  test('chatTitleOnPromptStart keeps title on follow-up', () {
+    expect(
+      chatTitleOnPromptStart(
+        localChatId: 42,
+        serverChatId: 42,
+        existingTitle: 'What is rust?',
+        previewLine: 'thanks',
+      ),
+      'What is rust?',
+    );
+  });
+
+  test('chatTitleOnPromptStart uses first line for new server chat', () {
+    expect(
+      chatTitleOnPromptStart(
+        localChatId: -1,
+        serverChatId: 99,
+        existingTitle: 'New chat',
+        previewLine: 'hello there',
+      ),
+      'Hello there',
+    );
+  });
+
+  test('chatTitleOnPromptStart fills placeholder on same id', () {
+    expect(
+      chatTitleOnPromptStart(
+        localChatId: 10,
+        serverChatId: 10,
+        existingTitle: 'New chat',
+        previewLine: 'first message',
+      ),
+      'First message',
+    );
+  });
 }

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:alienai_c35/c/catalog/catalog_translation_cache.dart';
+import 'package:alienai_c35/c/presentation/presentation_theme_item.dart';
 import 'package:alienai_c35/c/config.dart';
 import 'package:alienai_c35/c/pb/c35/catalog.pb.dart';
 import 'package:alienai_c35/c/session.dart';
@@ -122,4 +123,15 @@ Future<List<CatalogMention>> catalogMentionsFetch() async {
   final rows = j['mentions'];
   if (rows is! List) return const [];
   return rows.map((e) => CatalogMention.fromJson(Map<String, dynamic>.from(e as Map))).toList();
+}
+
+Future<List<PresentationThemeCatalogItem>> catalogPresentationThemesFetch() async {
+  final res = await http
+      .get(Uri.parse('${_catalogBase()}/v1/catalog/presentation-themes'), headers: _authHeaders())
+      .timeout(const Duration(seconds: 20));
+  if (res.statusCode != 200) throw 'presentation themes fetch failed (${res.statusCode})';
+  final j = jsonDecode(res.body) as Map<String, dynamic>;
+  final rows = j['themes'];
+  if (rows is! List) return const [];
+  return rows.map((e) => PresentationThemeCatalogItem.fromJson(Map<String, dynamic>.from(e as Map))).toList();
 }

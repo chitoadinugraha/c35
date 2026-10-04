@@ -32,7 +32,6 @@ impl PlanChangeKind {
 }
 
 struct ProfileSub {
-    id: i64,
     plan_tier: String,
     billing_period: String,
     plan_expires_ts: Option<DateTime<Utc>>,
@@ -117,7 +116,7 @@ fn classify_change(
 async fn profile_sub_fetch(pool: &PgPool, owner_iid: i64) -> Result<Option<ProfileSub>, String> {
     let row = sqlx::query(
         r#"
-        SELECT id, plan_tier,
+        SELECT plan_tier,
                COALESCE(NULLIF(TRIM(billing_period), ''), 'monthly') AS billing_period,
                plan_expires_ts,
                NULLIF(TRIM(pending_plan_slug), '') AS pending_plan_slug,
@@ -132,7 +131,6 @@ async fn profile_sub_fetch(pool: &PgPool, owner_iid: i64) -> Result<Option<Profi
     .await
     .map_err(|e| e.to_string())?;
     Ok(row.map(|r| ProfileSub {
-        id: r.get("id"),
         plan_tier: r.get("plan_tier"),
         billing_period: r.get("billing_period"),
         plan_expires_ts: r.get("plan_expires_ts"),

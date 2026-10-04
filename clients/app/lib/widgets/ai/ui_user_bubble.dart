@@ -6,11 +6,11 @@ import 'package:alienai_c35/widgets/ai/ui_msg_copy_prefix.dart';
 import 'package:flutter/material.dart';
 
 class UiUserBubble extends StatelessWidget {
-  const UiUserBubble({super.key, required this.content, required this.copyPrefix, this.attachments = const [], this.leadingNewline = false, this.mentions = const []});
+  const UiUserBubble({super.key, required this.content, required this.copyPrefix, this.attachments = const [], this.leadingNewlines = 0, this.mentions = const []});
   final String content;
   final String copyPrefix;
   final List<MsgAttachment> attachments;
-  final bool leadingNewline;
+  final int leadingNewlines;
   final List<CatalogMention> mentions;
 
   @override
@@ -29,7 +29,7 @@ class UiUserBubble extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  UiMsgCopyPrefix(text: copyPrefix, leadingNewline: leadingNewline),
+                  UiMsgCopyPrefix(text: copyPrefix, leadingNewlines: leadingNewlines),
                   if (attachments.isNotEmpty) ...[UiAttachChips(attachments: attachments), if (content.trim().isNotEmpty) const SizedBox(height: 8)],
                   if (content.trim().isNotEmpty)
                     composerMentionHasChipTokens(content)

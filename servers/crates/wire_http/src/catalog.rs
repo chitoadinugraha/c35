@@ -2,7 +2,9 @@ use axum::extract::{Path, Query, State};
 use axum::routing::get;
 use axum::{Json, Router};
 use c35_ctx::AppState;
-use c35_mod_chat::{mention_list, topic_list, translation_get, translation_rev};
+use c35_mod_chat::{
+    mention_list, presentation_theme_list, topic_list, translation_get, translation_rev,
+};
 use serde::Deserialize;
 use serde_json::{json, Value};
 
@@ -16,6 +18,7 @@ pub fn catalog_router() -> Router<AppState> {
         .route("/v1/translations/{lang}", get(translations_handler))
         .route("/v1/catalog/mentions", get(mentions_handler))
         .route("/v1/catalog/topics", get(topics_handler))
+        .route("/v1/catalog/presentation-themes", get(presentation_themes_handler))
 }
 
 async fn translations_handler(
@@ -44,4 +47,9 @@ async fn mentions_handler(State(st): State<AppState>) -> Json<Value> {
 async fn topics_handler(State(st): State<AppState>) -> Json<Value> {
     let topics = topic_list(&st.pool).await;
     Json(json!({ "topics": topics }))
+}
+
+async fn presentation_themes_handler(State(st): State<AppState>) -> Json<Value> {
+    let themes = presentation_theme_list(&st.pool).await;
+    Json(json!({ "themes": themes }))
 }

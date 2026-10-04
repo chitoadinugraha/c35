@@ -1,12 +1,17 @@
 use anyhow::{anyhow, bail, Result};
-use c35_mod_site::{site_contact_upsert, site_object_upsert, site_publish_from_draft};
+use c35_mod_site::{
+    site_contact_upsert, site_granted_iids, site_object_upsert, site_publish_from_draft,
+    site_slug_ensure_unique, site_slug_generate,
+};
 use c35_proto::{SiteContact, SiteObject};
 use c35_store::snowflake_id;
 use serde_json::{json, Value};
 use sqlx::{Postgres, Row, Transaction};
 
 use crate::mention_context::site_iid_resolve as mention_site_iid_resolve;
+use crate::site_product_match::{product_match_classify, ProductHit, ProductMatch};
 use crate::site_resolve::site_grant_owner;
+use crate::site_scope::site_scope_pick;
 use crate::site_validate::validate_sitedoc;
 use crate::tool;
 use crate::tools::ToolContext;
@@ -357,11 +362,29 @@ tool! {
     }
 }
 
+fn arg_text<'a>(args: &'a Value, key: &str) -> Option<&'a str> {
+    args.get(key).and_then(|v| v.as_str()).map(str::trim).filter(|s| !s.is_empty())
+}
+
+struct ProductPatchRow {
+    site_iid: i64,
+    product_id: i64,
+    name: String,
+    price: i64,
+    site_name: String,
+}
+
 pub async fn site_product_patch_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
-    let site_iid = site_iid_resolve(ctx, args)?;
+    if let Ok(site_iid) = site_iid_resolve(ctx, args) {
+        return site_product_patch_on_site(ctx, site_iid, args).await;
+    }
+    site_product_patch_scoped(ctx, args).await
+}
+
+async fn site_product_patch_on_site(ctx: &ToolContext, site_iid: i64, args: &Value) -> Result<Value> {
     let _owner_iid = site_grant_owner(&ctx.pool, ctx.owner_iid, site_iid).await?;
     let product_id_opt = args.get("product_id").and_then(|v| v.as_i64()).filter(|i| *i > 0);
-    let name_opt = args.get("name").and_then(|v| v.as_str()).map(str::trim).filter(|s| !s.is_empty());
+    let name_opt = arg_text(args, "name").or_else(|| arg_text(args, "q"));
 
     if product_id_opt.is_none() && name_opt.is_none() {
         bail!("product_id or name is required to identify the product to update");
@@ -371,7 +394,7 @@ pub async fn site_product_patch_exec(ctx: &ToolContext, args: &Value) -> Result<
         Some(id) => id,
         None => {
             let name_query = name_opt.unwrap();
-            let row = sqlx::query_scalar::<_, i64>(
+            sqlx::query_scalar::<_, i64>(
                 r#"
                 SELECT product_id
                 FROM site.product
@@ -385,11 +408,85 @@ pub async fn site_product_patch_exec(ctx: &ToolContext, args: &Value) -> Result<
             .bind(name_query)
             .fetch_optional(&ctx.pool)
             .await?
-            .ok_or_else(|| anyhow!("product '{name_query}' not found at site {site_iid}"))?;
-            row
+            .ok_or_else(|| anyhow!("product '{name_query}' not found at site {site_iid}"))?
         }
     };
 
+    site_product_patch_write(ctx, site_iid, target_product_id, args).await
+}
+
+async fn site_product_patch_scoped(ctx: &ToolContext, args: &Value) -> Result<Value> {
+    let q = arg_text(args, "name")
+        .or_else(|| arg_text(args, "q"))
+        .ok_or_else(|| anyhow!("name or q is required to identify the product"))?;
+    let mentioned = ctx.mention.site_iids();
+    let granted = if mentioned.is_empty() {
+        site_granted_iids(&ctx.pool, ctx.owner_iid).await?
+    } else {
+        Vec::new()
+    };
+    let site_iids = site_scope_pick(&mentioned, &granted, &[]).map_err(|e| anyhow!(e))?;
+    let rows = sqlx::query(
+        r#"
+        SELECT p.site_iid, p.product_id, p.name, p.price, i.name AS site_name
+        FROM site.product p
+        JOIN ai.identity i ON i.id = p.site_iid
+        WHERE p.site_iid = ANY($1)
+          AND p.deleted_ts IS NULL AND p.is_archived = false
+          AND (p.name ILIKE ('%' || $2 || '%') OR p.sku ILIKE ('%' || $2 || '%'))
+        ORDER BY p.site_iid, p.product_id
+        LIMIT 20
+        "#,
+    )
+    .bind(&site_iids)
+    .bind(q)
+    .fetch_all(&ctx.pool)
+    .await?;
+    let found: Vec<ProductPatchRow> = rows
+        .iter()
+        .map(|r| ProductPatchRow {
+            site_iid: r.get("site_iid"),
+            product_id: r.get("product_id"),
+            name: r.get("name"),
+            price: r.get("price"),
+            site_name: r.get("site_name"),
+        })
+        .collect();
+    let hits = found
+        .iter()
+        .map(|r| ProductHit {
+            site_iid: r.site_iid,
+            product_id: r.product_id,
+            name: r.name.clone(),
+            price: r.price,
+        })
+        .collect();
+    match product_match_classify(hits) {
+        ProductMatch::None => bail!("product not found"),
+        ProductMatch::Many(_) => Ok(json!({
+            "ok": false,
+            "ambiguous": true,
+            "matches": found.iter().map(|r| json!({
+                "site_iid": r.site_iid,
+                "site_name": r.site_name,
+                "product_id": r.product_id,
+                "name": r.name,
+                "price": r.price,
+            })).collect::<Vec<_>>(),
+        })),
+        ProductMatch::One(hit) => {
+            let _owner_iid = site_grant_owner(&ctx.pool, ctx.owner_iid, hit.site_iid).await?;
+            site_product_patch_write(ctx, hit.site_iid, hit.product_id, args).await
+        }
+    }
+}
+
+async fn site_product_patch_write(
+    ctx: &ToolContext,
+    site_iid: i64,
+    target_product_id: i64,
+    args: &Value,
+) -> Result<Value> {
     let price = args.get("price").and_then(|v| v.as_i64());
     let cost_price = args.get("cost_price").and_then(|v| v.as_i64());
     let stock_qty = args.get("stock_qty").and_then(|v| v.as_i64()).map(|n| n as i32);
@@ -398,7 +495,7 @@ pub async fn site_product_patch_exec(ctx: &ToolContext, args: &Value) -> Result<
     let can_sell = args.get("can_sell").and_then(|v| v.as_bool());
     let can_reserve = args.get("can_reserve").and_then(|v| v.as_bool());
     let is_archived = args.get("is_archived").and_then(|v| v.as_bool());
-    let new_name = args.get("new_name").and_then(|v| v.as_str()).map(str::trim).filter(|s| !s.is_empty());
+    let new_name = arg_text(args, "new_name");
 
     let row = sqlx::query(
         r#"
@@ -461,15 +558,15 @@ tool! {
     struct: SiteProductPatchTool,
     name: "site.product.patch",
     aliases: ["site_product_patch", "site.product_patch"],
-    description: "Safely update specific product fields (price, cost_price, stock_qty, stock_delta, can_sell) without overwriting other catalog details. Lookup by product_id or name.",
-    topics: ["site.commerce", "web.builder", "general"],
-    requires_kinds: ["site"],
+    description: "Safely update specific product fields (price, cost_price, stock_qty, stock_delta, can_sell) without overwriting other catalog details. Lookup by product_id or name. When site_iid is omitted and several sites match, returns ambiguous and does not write.",
+    topics: ["site.commerce", "web.builder"],
     ui_calling_key: "tool.site.product.patch.calling",
     ui_done_key: "tool.site.product.patch.done",
     parameters: {
         site_iid: (integer, "Site identity ID (resolved from @alien_id when omitted)", optional),
         product_id: (integer, "Product ID; if omitted, resolved from name", optional),
         name: (string, "Product name to look up if product_id is not passed", optional),
+        q: (string, "Alias of name", optional),
         new_name: (string, "Rename product to new name", optional),
         price: (integer, "New retail price in minor units (e.g. 54000 for 54k IDR)", optional),
         cost_price: (integer, "New cost/purchase price (for margin tracking)", optional),
@@ -650,5 +747,588 @@ tool! {
         site_domain_verify_exec(ctx, &args).await
     }
 }
+
+fn apply_site_patch(
+    doc: &mut Value,
+    action: &str,
+    block_id: &str,
+    after_block_id: &str,
+    block: Option<&Value>,
+    props: Option<&Value>,
+    theme: Option<&Value>,
+    meta: Option<&Value>,
+) -> Result<String> {
+    match action {
+        "patch_theme" => {
+            let t = theme.ok_or_else(|| anyhow!("theme object required for patch_theme"))?;
+            let t_obj = t.as_object().ok_or_else(|| anyhow!("theme must be an object"))?;
+            let doc_obj = doc.as_object_mut().ok_or_else(|| anyhow!("doc must be an object"))?;
+            if !doc_obj.contains_key("theme") || !doc_obj["theme"].is_object() {
+                doc_obj.insert("theme".into(), json!({}));
+            }
+            if let Some(target) = doc_obj.get_mut("theme").and_then(|v| v.as_object_mut()) {
+                for (k, v) in t_obj {
+                    target.insert(k.clone(), v.clone());
+                }
+            }
+            Ok("Theme updated".to_string())
+        }
+        "patch_meta" => {
+            let m = meta.ok_or_else(|| anyhow!("meta object required for patch_meta"))?;
+            let m_obj = m.as_object().ok_or_else(|| anyhow!("meta must be an object"))?;
+            let doc_obj = doc.as_object_mut().ok_or_else(|| anyhow!("doc must be an object"))?;
+            if !doc_obj.contains_key("meta") || !doc_obj["meta"].is_object() {
+                doc_obj.insert("meta".into(), json!({}));
+            }
+            if let Some(target) = doc_obj.get_mut("meta").and_then(|v| v.as_object_mut()) {
+                for (k, v) in m_obj {
+                    target.insert(k.clone(), v.clone());
+                }
+            }
+            Ok("Metadata updated".to_string())
+        }
+        "delete_block" => {
+            if block_id.trim().is_empty() {
+                bail!("block_id is required for delete_block");
+            }
+            let pages = doc.get_mut("pages").and_then(|v| v.as_array_mut()).ok_or_else(|| anyhow!("doc.pages required"))?;
+            let page = pages.first_mut().ok_or_else(|| anyhow!("at least one page required"))?;
+            let blocks = page.get_mut("blocks").and_then(|v| v.as_array_mut()).ok_or_else(|| anyhow!("page.blocks required"))?;
+            if blocks.len() <= 1 {
+                bail!("cannot delete the only remaining block on the page");
+            }
+            let pos = blocks.iter().position(|b| {
+                b.get("id").and_then(|v| v.as_str()).map(|s| s == block_id).unwrap_or(false)
+            });
+            match pos {
+                Some(idx) => {
+                    blocks.remove(idx);
+                    Ok(format!("Block '{block_id}' deleted"))
+                }
+                None => bail!("Block '{block_id}' not found"),
+            }
+        }
+        "insert_block" => {
+            let new_block = block.ok_or_else(|| anyhow!("block object required for insert_block"))?;
+            let pages = doc.get_mut("pages").and_then(|v| v.as_array_mut()).ok_or_else(|| anyhow!("doc.pages required"))?;
+            let page = pages.first_mut().ok_or_else(|| anyhow!("at least one page required"))?;
+            let blocks = page.get_mut("blocks").and_then(|v| v.as_array_mut()).ok_or_else(|| anyhow!("page.blocks required"))?;
+
+            if !after_block_id.trim().is_empty() {
+                let pos = blocks.iter().position(|b| {
+                    b.get("id").and_then(|v| v.as_str()).map(|s| s == after_block_id).unwrap_or(false)
+                });
+                if let Some(idx) = pos {
+                    blocks.insert(idx + 1, new_block.clone());
+                    return Ok(format!("Block inserted after '{after_block_id}'"));
+                }
+            }
+            blocks.push(new_block.clone());
+            Ok("Block inserted".to_string())
+        }
+        _ => {
+            // default: "update_block"
+            let pages = doc.get_mut("pages").and_then(|v| v.as_array_mut()).ok_or_else(|| anyhow!("doc.pages required"))?;
+            let page = pages.first_mut().ok_or_else(|| anyhow!("at least one page required"))?;
+            let blocks = page.get_mut("blocks").and_then(|v| v.as_array_mut()).ok_or_else(|| anyhow!("page.blocks required"))?;
+
+            let effective_id = if block_id.trim().is_empty() && blocks.len() == 1 {
+                blocks[0].get("id").and_then(|v| v.as_str()).unwrap_or("").to_string()
+            } else {
+                block_id.trim().to_string()
+            };
+
+            if effective_id.is_empty() {
+                bail!("block_id is required to update a block");
+            }
+
+            let pos = blocks.iter().position(|b| {
+                b.get("id").and_then(|v| v.as_str()).map(|s| s == effective_id).unwrap_or(false)
+            });
+
+            match pos {
+                Some(idx) => {
+                    if let Some(nb) = block {
+                        blocks[idx] = nb.clone();
+                    } else if let Some(p) = props {
+                        let p_obj = p.as_object().ok_or_else(|| anyhow!("props must be an object"))?;
+                        let existing = &mut blocks[idx];
+                        if !existing.as_object().unwrap().contains_key("props") {
+                            existing.as_object_mut().unwrap().insert("props".into(), json!({}));
+                        }
+                        if let Some(target_props) = existing.get_mut("props").and_then(|v| v.as_object_mut()) {
+                            for (k, v) in p_obj {
+                                target_props.insert(k.clone(), v.clone());
+                            }
+                        }
+                    } else {
+                        bail!("either 'block' or 'props' is required to update a block");
+                    }
+                    Ok(format!("Block '{effective_id}' updated"))
+                }
+                None => bail!("Block '{effective_id}' not found in page blocks"),
+            }
+        }
+    }
+}
+
+pub async fn site_create_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
+    let name = args.get("name").and_then(|v| v.as_str()).unwrap_or("").trim();
+    if name.is_empty() {
+        bail!("name is required to create a site");
+    }
+    let tagline = args.get("tagline").and_then(|v| v.as_str()).unwrap_or("").trim();
+    let theme_name = args.get("theme").and_then(|v| v.as_str()).unwrap_or("dark").trim();
+    let requested_alien_id = args.get("alien_id").and_then(|v| v.as_str()).map(str::trim).filter(|s| !s.is_empty());
+
+    let base_slug = match requested_alien_id {
+        Some(req) => site_slug_generate(req),
+        None => site_slug_generate(name),
+    };
+    let alien_id = site_slug_ensure_unique(&ctx.pool, &base_slug, None).await?;
+    let site_iid = snowflake_id();
+    let owner_iid = ctx.owner_iid;
+
+    let mut tx = ctx.pool.begin().await?;
+
+    // 1. ai.identity
+    sqlx::query(
+        r#"
+        INSERT INTO ai.identity (id, kind, type, alien_id, name, pic, owner_iid, locale, tz, created_ts, updated_ts)
+        VALUES ($1, 'site', 'web', $2, $3, '', $4, 'en_US', 'UTC', NOW(), NOW())
+        "#,
+    )
+    .bind(site_iid)
+    .bind(&alien_id)
+    .bind(name)
+    .bind(owner_iid)
+    .execute(&mut *tx)
+    .await?;
+
+    // 2. ai.identity_grant
+    let grant_id = snowflake_id();
+    sqlx::query(
+        r#"
+        INSERT INTO ai.identity_grant (id, resource_iid, grantee_iid, role, permissions, is_pinned, created_ts, updated_ts)
+        VALUES ($1, $2, $3, 'owner', '{}', true, NOW(), NOW())
+        ON CONFLICT (resource_iid, grantee_iid) DO NOTHING
+        "#,
+    )
+    .bind(grant_id)
+    .bind(site_iid)
+    .bind(owner_iid)
+    .execute(&mut *tx)
+    .await?;
+
+    // 3. site.config
+    let cap_json = serde_json::json!({
+        "commerce": true,
+        "booking": false,
+        "queue": false,
+        "attendance": false
+    });
+    sqlx::query(
+        r#"
+        INSERT INTO site.config (site_iid, owner_iid, capabilities_json, created_ts, updated_ts)
+        VALUES ($1, $2, $3, NOW(), NOW())
+        ON CONFLICT (site_iid) DO UPDATE SET
+            owner_iid = EXCLUDED.owner_iid,
+            updated_ts = NOW(),
+            deleted_ts = NULL
+        "#,
+    )
+    .bind(site_iid)
+    .bind(owner_iid)
+    .bind(&cap_json)
+    .execute(&mut *tx)
+    .await?;
+
+    // 4. Initial SiteDoc
+    let accent_color = match theme_name.to_lowercase().as_str() {
+        "emerald" => "#10B981",
+        "indigo" | "midnight" => "#6366F1",
+        "sunset" => "#EC4899",
+        _ => "#F97316",
+    };
+
+    let initial_doc = json!({
+        "pages": [
+            {
+                "path": "/",
+                "title": name,
+                "blocks": [
+                    {
+                        "id": "hero1",
+                        "type": "hero",
+                        "props": {
+                            "title": name,
+                            "subtitle": if tagline.is_empty() { format!("Selamat datang di {name}") } else { tagline.to_string() },
+                            "cta_label": "Kunjungi",
+                            "cta_href": "#contact"
+                        }
+                    },
+                    {
+                        "id": "features1",
+                        "type": "markdown",
+                        "props": {
+                            "content": format!("### Tentang {name}\nKualitas dan pelayanan terbaik untuk Anda.")
+                        }
+                    },
+                    {
+                        "id": "contact1",
+                        "type": "contact_form",
+                        "props": {
+                            "title": "Hubungi Kami",
+                            "submit_label": "Kirim Pesan"
+                        }
+                    }
+                ]
+            }
+        ],
+        "theme": {
+            "accent": accent_color,
+            "layout": "clean"
+        },
+        "meta": {
+            "seo_title": name,
+            "seo_desc": tagline
+        }
+    });
+
+    validate_sitedoc(&initial_doc)?;
+    let doc_str = serde_json::to_string(&initial_doc)?;
+
+    sqlx::query(
+        r#"
+        INSERT INTO site.draft (site_iid, owner_iid, doc_json, created_ts, updated_ts)
+        VALUES ($1, $2, $3::jsonb, NOW(), NOW())
+        ON CONFLICT (site_iid) DO UPDATE SET
+            doc_json = EXCLUDED.doc_json,
+            owner_iid = EXCLUDED.owner_iid,
+            updated_ts = NOW(),
+            deleted_ts = NULL
+        "#,
+    )
+    .bind(site_iid)
+    .bind(owner_iid)
+    .bind(&doc_str)
+    .execute(&mut *tx)
+    .await?;
+
+    tx.commit().await?;
+
+    Ok(json!({
+        "ok": true,
+        "site_iid": site_iid,
+        "alien_id": alien_id,
+        "name": name,
+        "url": format!("alienai.id/{alien_id}"),
+        "block": {
+            "kind": "site.preview",
+            "collapsed": false,
+            "body": {
+                "site_iid": site_iid,
+                "alien_id": alien_id,
+                "name": name,
+                "url": format!("alienai.id/{alien_id}"),
+                "theme": theme_name,
+                "doc": initial_doc
+            }
+        }
+    }))
+}
+
+pub async fn site_patch_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
+    let site_iid = site_iid_resolve(ctx, args)?;
+    let owner_iid = site_grant_owner(&ctx.pool, ctx.owner_iid, site_iid).await?;
+    let action = args.get("action").and_then(|v| v.as_str()).unwrap_or("update_block").trim().to_lowercase();
+    let block_id = args.get("block_id").and_then(|v| v.as_str()).unwrap_or("").trim();
+    let after_block_id = args.get("after_block_id").and_then(|v| v.as_str()).unwrap_or("").trim();
+    let block = args.get("block");
+    let props = args.get("props");
+    let theme = args.get("theme");
+    let meta = args.get("meta");
+
+    let draft_row = sqlx::query_scalar::<_, Value>(
+        "SELECT doc_json FROM site.draft WHERE site_iid = $1 AND deleted_ts IS NULL",
+    )
+    .bind(site_iid)
+    .fetch_optional(&ctx.pool)
+    .await?
+    .ok_or_else(|| anyhow!("No draft found for site {site_iid}"))?;
+
+    let mut doc = draft_row;
+    let summary = apply_site_patch(
+        &mut doc,
+        &action,
+        block_id,
+        after_block_id,
+        block,
+        props,
+        theme,
+        meta,
+    )?;
+
+    validate_sitedoc(&doc)?;
+    let doc_str = serde_json::to_string(&doc)?;
+
+    sqlx::query(
+        "UPDATE site.draft SET doc_json = $1::jsonb, updated_ts = NOW() WHERE site_iid = $2 AND owner_iid = $3",
+    )
+    .bind(&doc_str)
+    .bind(site_iid)
+    .bind(owner_iid)
+    .execute(&ctx.pool)
+    .await?;
+
+    let ident_row = sqlx::query("SELECT alien_id, name FROM ai.identity WHERE id = $1 AND deleted_ts IS NULL")
+        .bind(site_iid)
+        .fetch_optional(&ctx.pool)
+        .await?;
+    let alien_id = ident_row
+        .as_ref()
+        .and_then(|r| r.get::<Option<String>, _>("alien_id"))
+        .unwrap_or_default();
+    let name = ident_row
+        .as_ref()
+        .map(|r| r.get::<String, _>("name"))
+        .unwrap_or_else(|| "Site".to_string());
+
+    Ok(json!({
+        "ok": true,
+        "site_iid": site_iid,
+        "alien_id": alien_id,
+        "action": action,
+        "summary": summary,
+        "block": {
+            "kind": "site.preview",
+            "collapsed": false,
+            "body": {
+                "site_iid": site_iid,
+                "alien_id": alien_id,
+                "name": name,
+                "url": format!("alienai.id/{alien_id}"),
+                "doc": doc
+            }
+        }
+    }))
+}
+
+pub async fn site_handle_update_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
+    let site_iid = site_iid_resolve(ctx, args)?;
+    let _ = site_grant_owner(&ctx.pool, ctx.owner_iid, site_iid).await?;
+    let new_alien_id_raw = args.get("new_alien_id")
+        .or_else(|| args.get("alien_id"))
+        .or_else(|| args.get("handle"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim();
+    if new_alien_id_raw.is_empty() {
+        bail!("new_alien_id is required");
+    }
+    let clean_slug = site_slug_generate(new_alien_id_raw);
+    let unique_slug = site_slug_ensure_unique(&ctx.pool, &clean_slug, Some(site_iid)).await?;
+    if unique_slug != clean_slug {
+        bail!("Handle '@{clean_slug}' is already taken. Suggested available alternative: '@{unique_slug}'");
+    }
+
+    let mut tx = ctx.pool.begin().await?;
+    sqlx::query("UPDATE ai.identity SET alien_id = $1, updated_ts = NOW() WHERE id = $2")
+        .bind(&unique_slug)
+        .bind(site_iid)
+        .execute(&mut *tx)
+        .await?;
+
+    sqlx::query("UPDATE site.config SET alien_id_changed_ts = NOW(), updated_ts = NOW() WHERE site_iid = $1")
+        .bind(site_iid)
+        .execute(&mut *tx)
+        .await?;
+
+    tx.commit().await?;
+
+    Ok(json!({
+        "ok": true,
+        "site_iid": site_iid,
+        "alien_id": unique_slug,
+        "url": format!("alienai.id/{unique_slug}"),
+        "message": format!("Site handle updated to @{unique_slug} (URL: alienai.id/{unique_slug})")
+    }))
+}
+
+tool! {
+    struct: SiteCreateTool,
+    name: "site.create",
+    aliases: ["site_create", "site.new"],
+    description: "Create a new website identity, draft, and live preview block. Automatically generates a unique URL handle/slug from the name.",
+    topics: ["web.builder"],
+    always: ["web.builder"],
+    ui_calling_key: "tool.site.create.calling",
+    ui_done_key: "tool.site.create.done",
+    parameters: {
+        name: (string, "Brand or website name", required),
+        alien_id: (string, "Optional custom handle/slug for URL (alienai.id/handle)", optional, default = ""),
+        tagline: (string, "Short tagline or business description", optional, default = ""),
+        theme: (string, "Visual theme: 'dark' (default), 'emerald', 'indigo', or 'sunset'", optional, default = "dark"),
+    },
+    execute: |args, ctx| {
+        site_create_exec(ctx, &args).await
+    }
+}
+
+tool! {
+    struct: SitePatchTool,
+    name: "site.patch",
+    aliases: ["site_patch", "site.block_patch"],
+    description: "Apply a targeted edit or patch to the site draft (update, insert, or delete a block, or update theme/metadata) without regenerating the entire website.",
+    topics: ["web.builder"],
+    always: ["web.builder"],
+    requires_kinds: ["site"],
+    ui_calling_key: "tool.site.patch.calling",
+    ui_done_key: "tool.site.patch.done",
+    parameters: {
+        site_iid: (integer, "Site identity ID (resolved from active @site when omitted)", optional),
+        action: (string, "Patch action: 'update_block' (default), 'insert_block', 'delete_block', 'patch_theme', or 'patch_meta'", optional, default = "update_block"),
+        block_id: (string, "Target block ID to update or delete (e.g. 'hero1', 'features1')", optional, default = ""),
+        after_block_id: (string, "Block ID after which to insert a new block (for 'insert_block')", optional, default = ""),
+        block: (object, "Block JSON object containing 'id', 'type', and 'props' (for update_block or insert_block)", optional),
+        props: (object, "Shortcut block props object to merge into existing block (for update_block)", optional),
+        theme: (object, "Theme settings object e.g. {'accent': '#10B981', 'layout': 'clean'}", optional),
+        meta: (object, "Metadata settings object e.g. {'seo_title': '...', 'seo_desc': '...'}", optional),
+    },
+    execute: |args, ctx| {
+        site_patch_exec(ctx, &args).await
+    }
+}
+
+tool! {
+    struct: SiteHandleUpdateTool,
+    name: "site.handle.update",
+    aliases: ["site_handle_update", "site.handle_update", "site.alien_id_update"],
+    description: "Update the public URL handle/slug (alien_id) of a site (e.g. alienai.id/new-handle). Ask for user confirmation before changing if site is already active.",
+    topics: ["web.builder"],
+    always: ["web.builder"],
+    requires_kinds: ["site"],
+    ui_calling_key: "tool.site.handle.update.calling",
+    ui_done_key: "tool.site.handle.update.done",
+    parameters: {
+        site_iid: (integer, "Site identity ID (resolved from active @site when omitted)", optional),
+        new_alien_id: (string, "New unique slug/handle for the site URL", required),
+    },
+    execute: |args, ctx| {
+        site_handle_update_exec(ctx, &args).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tools::Tool;
+
+    #[test]
+    fn test_site_create_definition() {
+        let tool = SiteCreateTool;
+        let def = tool.definition();
+        assert_eq!(def.name, "site.create");
+        assert!(def.aliases.contains(&"site_create".to_string()));
+        assert!(def.requires_kinds.is_empty());
+        assert_eq!(def.parameters["properties"]["name"]["type"], "string");
+    }
+
+    #[test]
+    fn test_site_patch_definition() {
+        let tool = SitePatchTool;
+        let def = tool.definition();
+        assert_eq!(def.name, "site.patch");
+        assert!(def.aliases.contains(&"site_patch".to_string()));
+        assert_eq!(def.requires_kinds, vec!["site".to_string()]);
+    }
+
+    #[test]
+    fn test_apply_site_patch_update_and_insert() {
+        let mut doc = json!({
+            "pages": [{
+                "path": "/",
+                "title": "Test",
+                "blocks": [
+                    {
+                        "id": "hero1",
+                        "type": "hero",
+                        "props": { "title": "Old Title", "subtitle": "Old Sub" }
+                    },
+                    {
+                        "id": "contact1",
+                        "type": "contact_form",
+                        "props": { "title": "Contact Us" }
+                    }
+                ]
+            }],
+            "theme": { "accent": "#F97316" }
+        });
+
+        // 1. Update block props
+        let res = apply_site_patch(
+            &mut doc,
+            "update_block",
+            "hero1",
+            "",
+            None,
+            Some(&json!({ "title": "New Title" })),
+            None,
+            None,
+        );
+        assert!(res.is_ok());
+        assert_eq!(doc["pages"][0]["blocks"][0]["props"]["title"], "New Title");
+        assert_eq!(doc["pages"][0]["blocks"][0]["props"]["subtitle"], "Old Sub");
+
+        // 2. Insert block after hero1
+        let new_block = json!({
+            "id": "feat1",
+            "type": "markdown",
+            "props": { "content": "Hello Markdown" }
+        });
+        let res = apply_site_patch(
+            &mut doc,
+            "insert_block",
+            "",
+            "hero1",
+            Some(&new_block),
+            None,
+            None,
+            None,
+        );
+        assert!(res.is_ok());
+        assert_eq!(doc["pages"][0]["blocks"].as_array().unwrap().len(), 3);
+        assert_eq!(doc["pages"][0]["blocks"][1]["id"], "feat1");
+
+        // 3. Patch theme
+        let res = apply_site_patch(
+            &mut doc,
+            "patch_theme",
+            "",
+            "",
+            None,
+            None,
+            Some(&json!({ "accent": "#10B981" })),
+            None,
+        );
+        assert!(res.is_ok());
+        assert_eq!(doc["theme"]["accent"], "#10B981");
+
+        // 4. Delete block
+        let res = apply_site_patch(
+            &mut doc,
+            "delete_block",
+            "feat1",
+            "",
+            None,
+            None,
+            None,
+            None,
+        );
+        assert!(res.is_ok());
+        assert_eq!(doc["pages"][0]["blocks"].as_array().unwrap().len(), 2);
+    }
+}
+
 
 

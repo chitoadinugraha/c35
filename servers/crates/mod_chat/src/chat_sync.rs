@@ -14,17 +14,26 @@ pub async fn chat_title_set(
     owner_iid: i64,
     chat_id: i64,
     title: &str,
+    lock: bool,
 ) -> Result<()> {
     let title: String = title.trim().chars().take(128).collect();
     if chat_id == 0 || title.is_empty() {
         return Ok(());
     }
-    let updated = sqlx::query(
+    let sql = if lock {
+        r#"
+        UPDATE ai.chat SET title = $3,
+            meta = COALESCE(meta, '{}'::jsonb) || '{"title_locked":true}'::jsonb,
+            updated_ts = NOW()
+        WHERE id = $1 AND owner_iid = $2 AND kind = 'prompt' AND deleted_ts IS NULL
+        "#
+    } else {
         r#"
         UPDATE ai.chat SET title = $3, updated_ts = NOW()
         WHERE id = $1 AND owner_iid = $2 AND kind = 'prompt' AND deleted_ts IS NULL
-        "#,
-    )
+        "#
+    };
+    let updated = sqlx::query(sql)
     .bind(chat_id)
     .bind(owner_iid)
     .bind(&title)
@@ -43,7 +52,7 @@ async fn chat_title_fanout(pool: &PgPool, nats: &Client, owner_iid: i64, chat_id
     let row = sqlx::query(
         r#"
         SELECT c.id, c.kind, c.owner_iid, c.title, c.model, c.last_msg_ts, c.last_msg_preview, c.meta,
-               c.created_ts, c.updated_ts, c.deleted_ts
+               c.context_window, c.created_ts, c.updated_ts, c.deleted_ts
         FROM ai.chat c
         WHERE c.id = $1 AND c.owner_iid = $2 AND c.kind = 'prompt' AND c.deleted_ts IS NULL
         "#,
@@ -70,6 +79,7 @@ async fn chat_title_fanout(pool: &PgPool, nats: &Client, owner_iid: i64, chat_id
         last_msg_ts_ms: ts_ms(last_at),
         last_msg_preview: preview,
         meta_json: meta.to_string(),
+        context_window: r.get("context_window"),
         created_ts_ms: ts_ms(r.get("created_ts")),
         updated_ts_ms: ts_ms(r.get("updated_ts")),
         deleted_ts_ms: ts_ms(r.get("deleted_ts")),

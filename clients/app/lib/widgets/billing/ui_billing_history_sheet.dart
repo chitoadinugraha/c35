@@ -13,7 +13,11 @@ import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:alienai_c35/widgets/ui/ui_menu_position.dart';
 import 'package:flutter/material.dart';
 
-Future<void> billingHistorySheet(BuildContext context, {required ReferralConn conn}) async {
+Future<void> billingHistorySheet(
+  BuildContext context, {
+  required ReferralConn conn,
+  void Function(int chatId, String reqId)? onNavigateToMessage,
+}) async {
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -22,15 +26,16 @@ Future<void> billingHistorySheet(BuildContext context, {required ReferralConn co
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
     builder: (ctx) => Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
-      child: _BillingHistorySheet(conn: conn),
+      child: _BillingHistorySheet(conn: conn, onNavigateToMessage: onNavigateToMessage),
     ),
   );
 }
 
 class _BillingHistorySheet extends StatefulWidget {
-  const _BillingHistorySheet({required this.conn});
+  const _BillingHistorySheet({required this.conn, this.onNavigateToMessage});
 
   final ReferralConn conn;
+  final void Function(int chatId, String reqId)? onNavigateToMessage;
 
   @override
   State<_BillingHistorySheet> createState() => _BillingHistorySheetState();
@@ -98,7 +103,13 @@ class _BillingHistorySheetState extends State<_BillingHistorySheet> {
   List<BillingHistoryRow> get _filtered {
     final q = _search.trim().toLowerCase();
     if (q.isEmpty) return _history;
-    return _history.where((r) => r.title.toLowerCase().contains(q) || r.status.toLowerCase().contains(q) || r.kind.toLowerCase().contains(q)).toList();
+    return _history.where((r) {
+      final promptMatch = r.hasPrompt() && r.prompt.toLowerCase().contains(q);
+      return r.title.toLowerCase().contains(q) ||
+          r.status.toLowerCase().contains(q) ||
+          r.kind.toLowerCase().contains(q) ||
+          promptMatch;
+    }).toList();
   }
 
   Future<void> _load() async {
@@ -321,16 +332,32 @@ class _BillingHistorySheetState extends State<_BillingHistorySheet> {
     return ListView.separated(
       itemCount: rows.length,
       separatorBuilder: (_, __) => const SizedBox(height: 6),
-      itemBuilder: (_, i) => _HistoryTile(row: rows[i], date: _rowDate(rows[i])),
+      itemBuilder: (_, i) {
+        final row = rows[i];
+        final canNavigate = row.kind == 'usage' &&
+            widget.onNavigateToMessage != null &&
+            ((row.hasChatId() && row.chatId.toInt() > 0) || (row.hasReqId() && row.reqId.isNotEmpty));
+        return _HistoryTile(
+          row: row,
+          date: _rowDate(row),
+          onTap: canNavigate
+              ? () {
+                  Navigator.of(context).pop();
+                  widget.onNavigateToMessage!(row.chatId.toInt(), row.reqId);
+                }
+              : null,
+        );
+      },
     );
   }
 }
 
 class _HistoryTile extends StatelessWidget {
-  const _HistoryTile({required this.row, required this.date});
+  const _HistoryTile({required this.row, required this.date, this.onTap});
 
   final BillingHistoryRow row;
   final String date;
+  final VoidCallback? onTap;
 
   static const _text = Color(0xFFE4E4E7);
   static const _muted = Color(0xFFA1A1AA);
@@ -343,8 +370,17 @@ class _HistoryTile extends StatelessWidget {
     final isUsage = row.kind == 'usage';
     final icon = isUsage ? Icons.bolt_outlined : Icons.add_card_outlined;
     final iconColor = isUsage ? const Color(0xFFFBBF24) : const Color(0xFF60A5FA);
-    return DecoratedBox(
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), color: const Color(0xFF18181B), border: Border.all(color: _border)),
+
+    final subtitle = (row.hasPrompt() && row.prompt.trim().isNotEmpty)
+        ? row.prompt.trim()
+        : row.status;
+
+    final content = DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: const Color(0xFF18181B),
+        border: Border.all(color: _border),
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
         child: Row(
@@ -352,34 +388,69 @@ class _HistoryTile extends StatelessWidget {
             Container(
               width: 36,
               height: 36,
-              decoration: BoxDecoration(color: iconColor.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(9)),
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(9),
+              ),
               child: Icon(icon, size: 18, color: iconColor),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(row.title, style: const TextStyle(color: _text, fontWeight: FontWeight.w600, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text(
+                    row.title,
+                    style: const TextStyle(color: _text, fontWeight: FontWeight.w600, fontSize: 13),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   const SizedBox(height: 3),
-                  Row(
-                    children: [
-                      Text(row.status, style: const TextStyle(color: _muted, fontSize: 11)),
-                      if (date.isNotEmpty) ...[
-                        const Text(' · ', style: TextStyle(color: _border, fontSize: 11)),
-                        Text(date, style: const TextStyle(color: _muted, fontSize: 11)),
-                      ],
-                    ],
+                  Text(
+                    subtitle,
+                    style: const TextStyle(color: _muted, fontSize: 11),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             ),
-            Text(
-              '$sign${billingHistoryAmountLabel(row)}',
-              style: TextStyle(color: sign == '-' ? const Color(0xFFF87171) : const Color(0xFF34D399), fontWeight: FontWeight.w700, fontSize: 13),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '$sign${billingHistoryAmountLabel(row)}',
+                  style: TextStyle(
+                    color: sign == '-' ? const Color(0xFFF87171) : const Color(0xFF34D399),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+                if (date.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    date,
+                    style: const TextStyle(color: _muted, fontSize: 11),
+                  ),
+                ],
+              ],
             ),
           ],
         ),
+      ),
+    );
+
+    if (onTap == null) return content;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: content,
       ),
     );
   }

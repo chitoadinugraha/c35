@@ -93,7 +93,8 @@ chat_member: one row (member_iid = owner)
 
 - User ↔ AI; assistant uses `role=assistant`.
 - Assistant **markdown** in the app (`UiMarkdownBody`) renders GFM plus LaTeX (`$…$`, `$$…$$`, `\(\)`, `\[ \]`) via `flutter_math_fork` — no WebView; LaTeX stays in `content`.
-- Canvas / UI blocks on assistant messages (`blocks_json`).
+- Canvas / UI blocks on assistant messages (`blocks_json`) including native slide decks (`presentation.deck`), food nutrition cards, and expense receipts (see [presentation.md](presentation.md)).
+- Assistant markdown code blocks for `slide`, `slides`, `presentation`, `marp`, and `slide-patch` automatically render as native interactive `UiSlideDeckCard` components.
 - Billing trace on assistant turns (see [billing.md](billing.md)).
 - No `ai_reply_enabled` (abort in-flight turn only).
 
@@ -197,6 +198,26 @@ Bot LLM model is fixed on the **bot identity** (`identity.meta.model`), not per 
 
 ---
 
+## Answer feedback
+
+Owner rating of one assistant `ai.chat_msg`. Not a transcript row. `context_pack_history` must not read these tables.
+
+| Table | Holds |
+|-------|--------|
+| `ai.chat_feedback_reason` | Seeded good/bad reasons |
+| `ai.chat_msg_feedback` | One vote per `(msg_id, rater_iid)` |
+| `ai.chat_feedback_post` | Thread. v1 inserts one `author_role=system` thank-you. `author_iid` NULL. |
+
+| RPC | Wire |
+|-----|------|
+| `ReqChatFeedbackReasonList` | 172 |
+| `ReqChatMsgFeedbackPut` | 173. `vote=0` clears (`deleted_ts` on the vote and its posts). |
+| `ReqChatMsgFeedbackList` | 174. Active votes for one `chat_id`. |
+
+Home bubble menu only. Trace stays root-only. Good / Bad require `msg.id > 0`.
+
+---
+
 ## Sync
 
 See [sync.md](sync.md).
@@ -247,6 +268,17 @@ Prompt threads can exceed model context limits. Server-side **compaction** keeps
 | Memory | Durable facts extracted to `ai.memory` on compact + per-turn gate + idle backfill |
 
 Full spec: [context-compaction.md](context-compaction.md).
+
+### Past conversation lookup
+
+Compaction does not delete `ai.chat_msg`. Two read-only tools read that history for the current owner. Times in the tool result use the user timezone (`identity.tz`, otherwise locale).
+
+| Tool | Returns |
+|------|---------|
+| `chat.search` | Matching chats: title, local time, stored `context_summary`, one snippet. Empty summary includes a few recent lines. |
+| `chat.messages` | Exact lines from one `chat_id` (or the current chat): role, local time, text. |
+
+Steering: `inst.chat.history`. Memory stays for durable user facts, not transcripts.
 
 ---
 

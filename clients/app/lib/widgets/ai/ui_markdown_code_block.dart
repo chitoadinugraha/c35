@@ -1,3 +1,4 @@
+import 'package:alienai_c35/widgets/ai/ui_slide_deck_card.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -47,8 +48,27 @@ class _UiMarkdownCodeBlockState extends State<UiMarkdownCodeBlock> {
     widget.onOpenInCanvas?.call(title, widget.code, widget.language);
   }
 
+  bool get _isSlideLanguage {
+    final l = widget.language.trim().toLowerCase();
+    return l == 'slide' || l == 'slides' || l == 'presentation' || l == 'marp';
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isSlideLanguage) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: UiSlideDeckCard(
+          deck: SlideDeckData.fromContent(
+            title: '',
+            content: widget.code,
+          ),
+          initiallyExpanded: false,
+          onOpenInCanvas: widget.onOpenInCanvas != null ? _openInCanvas : null,
+        ),
+      );
+    }
+
     final displayLang = widget.language.isNotEmpty ? widget.language.toUpperCase() : 'CODE';
 
     return Container(

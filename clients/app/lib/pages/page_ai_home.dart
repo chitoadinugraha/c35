@@ -61,6 +61,8 @@ import 'package:alienai_c35/widgets/ai/ui_chat_history_sidebar.dart';
 import 'package:alienai_c35/widgets/ai/ui_chat_message_menu.dart';
 import 'package:alienai_c35/widgets/ai/ui_hints.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_context_menu.dart';
+import 'package:alienai_c35/widgets/ai/ui_msg_feedback_sheet.dart';
+import 'package:alienai_c35/widgets/ai/ui_msg_feedback_thread.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_copy_prefix.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_blocks.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_thought.dart';
@@ -83,6 +85,8 @@ import 'package:fixnum/fixnum.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
 class PageAIHome extends StatefulWidget {
   const PageAIHome({super.key, required this.auth});
 
@@ -122,6 +126,9 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   StreamSubscription? _followupPushSub;
   StreamSubscription? _promptRunPushSub;
   var _menuMsgIndex = 0;
+  var _promptTokens = 0;
+  ContextUsageParts _usage = const ContextUsageParts();
+  int? _summarizeChatId;
   var _retrying = false;
   var _hintRunning = false;
   String? _selectedPlain;
@@ -296,6 +303,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
             model: end.model,
             error: end.hasErrorMessage() ? end.errorMessage : '',
           );
+          _promptEstimateApply(chatId, end);
           continue;
         }
         if (ev.kind == 'fail') {
@@ -340,9 +348,10 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   Future<void> _reconcilePromptState() async {
     final cid = _store.activeChatId;
     if (cid == null || cid <= 0) return;
+    final locale = CatalogTranslationCache.instance.lang;
     try {
-      final res = await _conn.chatMsgList(chatId: Int64(cid));
-      _store.msgsReloadFromServer(cid, res.messages);
+      await _store.msgsPullFromServer(_conn, cid, locale: locale);
+      if (_store.promptBusyFor(cid)) await _store.feedbackPull(_conn, cid, locale: locale);
     } catch (e) {
       lError('prompt reconcile: $e');
     }
@@ -352,9 +361,10 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
 
   Future<bool> _promptStreamRecoverFromServer(int chatId, String reqId) async {
     if (chatId <= 0) return false;
+    final locale = CatalogTranslationCache.instance.lang;
     try {
-      final res = await _conn.chatMsgList(chatId: Int64(chatId));
-      _store.msgsReloadFromServer(chatId, res.messages);
+      await _store.msgsPullFromServer(_conn, chatId, locale: locale);
+      if (_store.promptBusyFor(chatId)) await _store.feedbackPull(_conn, chatId, locale: locale);
       final rid = reqId.trim();
       _store.promptReconcileFromServerMsgs(chatId, _store.msgs.where((m) => m.chatId == chatId));
       for (final row in _store.msgs) {
@@ -588,6 +598,8 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   }
 
   void _newChat() {
+    _promptTokens = 0;
+    _usage = const ContextUsageParts();
     _store.chatNew();
     _mentionIds.clear();
     _composerReset();
@@ -616,14 +628,17 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   }
 
   Future<void> _selectChat(int id) async {
+    _promptTokens = 0;
+    _usage = const ContextUsageParts();
     _closeHistoryDrawerIfNarrow();
     _store.chatSelect(id);
     _composerReset();
     _mentionContextSyncFromChat(restoreComposer: true);
     _canvasStore.close();
+    final locale = CatalogTranslationCache.instance.lang;
     try {
-      final res = await _conn.chatMsgList(chatId: Int64(id));
-      _store.msgsReloadFromServer(id, res.messages);
+      await _store.msgsPullFromServer(_conn, id, locale: locale);
+      if (_store.promptBusyFor(id)) await _store.feedbackPull(_conn, id, locale: locale);
       _store.promptReconcileFromServerMsgs(id, _store.msgs.where((m) => m.chatId == id));
     } catch (_) {}
     if (!mounted) return;
@@ -700,6 +715,17 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
           icon: Icons.delete_outline_rounded,
           onPressed: () => _chatDelete(id, row!.title),
         ),
+        ChatMessageMenuAction(
+          label: 'Copy Chat ID',
+          icon: Icons.copy_rounded,
+          onPressed: () {
+            final copyId = '$id';
+            Clipboard.setData(ClipboardData(text: copyId));
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Chat ID copied: $copyId'), behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 1)),
+            );
+          },
+        ),
       ],
     );
   }
@@ -751,13 +777,31 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
 
   void _openCommissionSheet() => referralCommissionSheet(context, conn: ReferralConn(uid: Session.instance.uid));
 
+  Future<void> _navigateToChatMessage(int chatId, String reqId) async {
+    if (chatId <= 0) return;
+    if (_store.activeChatId != chatId) {
+      await _selectChat(chatId);
+    }
+    if (reqId.isEmpty) return;
+
+    final msgs = _store.msgs.where((m) => m.chatId == chatId).toList();
+    final idx = msgs.indexWhere((m) => m.reqId == reqId);
+    if (idx >= 0) {
+      _timeline.scrollToChronologicalIndex(idx, itemCount: msgs.length, alignment: 0.5);
+    }
+  }
+
   void _avatarMenu(BuildContext anchorCtx) => uiAccountMenuShow(
         anchorCtx,
         action: UiAccountMenuAction(
           conn: ReferralConn(uid: Session.instance.uid),
           onSettings: _openSettings,
           onReferralTree: _openReferralTree,
-          onBalance: () => billingHistorySheet(context, conn: ReferralConn(uid: Session.instance.uid)),
+          onBalance: () => billingHistorySheet(
+            context,
+            conn: ReferralConn(uid: Session.instance.uid),
+            onNavigateToMessage: _navigateToChatMessage,
+          ),
           onPackage: () => showBillingPlanSheet(context, ReferralConn(uid: Session.instance.uid)),
           onCommissionTap: _openCommissionSheet,
           onFinancePayments: _financeStaff ? _openFinancePayments : null,
@@ -987,7 +1031,13 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
           if (ev.chatId != Int64.ZERO) {
             final startId = ev.chatId.toInt();
             streamChatId = startId;
-            final title = previewLine.isNotEmpty ? chatTitleFromText(previewLine.split('\n').first) : 'New chat';
+            final existingTitle = _store.chats.where((c) => c.id == startId).map((c) => c.title).firstOrNull ?? '';
+            final title = chatTitleOnPromptStart(
+              localChatId: localChatId,
+              serverChatId: startId,
+              existingTitle: existingTitle,
+              previewLine: previewLine,
+            );
             if (startId != localChatId) _store.chatIdMigrate(localChatId, startId);
             _store.chatPutFromServer(
               Chat(id: ev.chatId, title: title),
@@ -1035,6 +1085,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
             model: end.model,
             error: err,
           );
+          _promptEstimateApply(streamChatId, end);
           if (VoicePrefs.instance.speakEnabled && err.trim().isEmpty) {
             final rid = end.reqId.isNotEmpty ? end.reqId : (_conn.lastPromptReqId ?? '');
             MsgRow? spoken;
@@ -1135,7 +1186,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         builder: (context, _) {
           final showMeter = (Session.instance.isRoot || Session.instance.isTester) &&
               PromptUsagePrefs.instance.showUsageStats &&
-              _threadTokenTotal > 0;
+              (_threadTokenTotal > 0 || _promptTokens > 0);
           return Row(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -1144,10 +1195,16 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
               const SizedBox(width: 6),
               if (showMeter)
                 UiContextMeter(
+                  promptTokens: _promptTokens,
+                  usage: _usage,
                   tokensIn: _threadTokensIn,
                   tokensOut: _threadTokensOut,
                   costUsd: _threadCostUsd,
-                  contextLimit: _model.gemini ? 1000000 : 128000,
+                  contextLimit: _contextLimit,
+                  windowOptions: _contextWindowOptions,
+                  onWindowSelected: _contextWindowSet,
+                  onSummarize: _chatCompact,
+                  summarizeBusy: _summarizeChatId != null && _summarizeChatId == _store.activeChatId,
                   billingCurrency: AppStore.instance.wallet.billingCurrency,
                   fxMicroPerUsd: AppStore.instance.wallet.fxMicroPerUsd,
                   tapPadding: const EdgeInsets.fromLTRB(4, 6, 2, 6),
@@ -1205,6 +1262,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       state,
       plainText: plain,
       selectedText: _selectedPlain,
+      onCopySemua: () => _copyChatSemua(messages),
       viewerIsRoot: sessionViewerIsRoot(),
       isAssistant: !isUser,
       reqId: m.reqId,
@@ -1224,7 +1282,27 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
             }
           : null,
       conn: _conn,
+      onGoodAnswer: !isUser && m.id > 0 ? () => unawaited(_feedback(m, ChatFeedbackVote.CHAT_FEEDBACK_VOTE_GOOD)) : null,
+      onBadAnswer: !isUser && m.id > 0 ? () => unawaited(_feedback(m, ChatFeedbackVote.CHAT_FEEDBACK_VOTE_BAD)) : null,
     );
+  }
+
+  Future<void> _feedback(MsgRow m, ChatFeedbackVote vote) async {
+    final result = await showMsgFeedbackSheet(
+      context,
+      conn: _conn,
+      msgId: m.id,
+      chatId: m.chatId,
+      vote: vote,
+      locale: CatalogTranslationCache.instance.lang,
+    );
+    if (!mounted || result == null) return;
+    if (result.id.toInt() == 0) {
+      _store.feedbackClear(m.id);
+    } else {
+      _store.feedbackReplace(result);
+    }
+    setState(() {});
   }
 
   Widget _chatHeader({required bool wide}) {
@@ -1302,6 +1380,75 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     );
   }
 
+  static const _contextWindowDefault = 131072;
+  static const _contextWindowCap = 131072;
+
+  int get _contextLimit {
+    final stored = _activeChat?.contextWindow ?? 0;
+    return stored > 0 ? stored : _contextWindowDefault;
+  }
+
+  List<int> get _contextWindowOptions => _model.wideContextWindow ? contextWindowChoices : [for (final w in contextWindowChoices) if (w <= _contextWindowCap) w];
+
+  ContextUsageParts _usageParts(ContextUsage u) => ContextUsageParts(
+        instructions: u.instructions,
+        memory: u.memory,
+        context: u.context,
+        tools: u.tools,
+        conversation: u.conversation,
+      );
+
+  void _promptEstimateApply(int chatId, ResPromptEnd end) {
+    if (end.contextWindow > 0) _store.chatContextWindowPut(chatId, end.contextWindow);
+    if (!mounted || _store.activeChatId != chatId) return;
+    setState(() {
+      if (end.hasUsage()) {
+        _usage = _usageParts(end.usage);
+        _promptTokens = _usage.total > 0 ? _usage.total : end.promptTokens;
+      } else {
+        _promptTokens = end.promptTokens;
+        _usage = ContextUsageParts(conversation: end.promptTokens);
+      }
+    });
+  }
+
+  Future<void> _contextWindowSet(int window) async {
+    final id = _store.activeChatId;
+    if (id == null || id <= 0) return;
+    try {
+      final res = await _conn.chatContextWindowSet(chatId: id, contextWindow: window);
+      final applied = res.contextWindow > 0 ? res.contextWindow : window;
+      _store.chatContextWindowPut(id, applied);
+      if (!mounted || _store.activeChatId != id) return;
+      setState(() {
+        _usage = _usage.copyConversation(res.promptTokens);
+        _promptTokens = _usage.total;
+      });
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'), behavior: SnackBarBehavior.floating));
+    }
+  }
+
+  Future<void> _chatCompact() async {
+    final id = _store.activeChatId;
+    if (id == null || id <= 0 || _summarizeChatId != null) return;
+    setState(() => _summarizeChatId = id);
+    try {
+      final res = await _conn.chatCompact(chatId: id);
+      if (res.title.isNotEmpty) _store.chatTitlePut(id, res.title);
+      if (res.ran) _store.chatContextSummaryPresentPut(id, true);
+      if (!mounted || _store.activeChatId != id) return;
+      setState(() {
+        _usage = _usage.copyConversation(res.promptTokens);
+        _promptTokens = _usage.total;
+      });
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'), behavior: SnackBarBehavior.floating));
+    } finally {
+      if (mounted) setState(() { if (_summarizeChatId == id) _summarizeChatId = null; });
+    }
+  }
+
   int get _threadTokensIn => _store.activeMsgs.fold(0, (acc, m) => acc + m.tokensIn);
   int get _threadTokensOut => _store.activeMsgs.fold(0, (acc, m) => acc + m.tokensOut);
   int get _threadTokenTotal => _threadTokensIn + _threadTokensOut;
@@ -1344,6 +1491,22 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         ],
       );
 
+  void _copyChatSemua(List<MsgRow> messages) {
+    final text = msgCopyTranscript(
+      messages: messages,
+      plainText: _plainForMsg,
+      userName: Session.instance.name,
+      models: _store.models,
+      modelId: (m) => m.role == 'assistant' ? (m.model.isNotEmpty ? m.model : _model.id) : '',
+    );
+    if (text.isEmpty) return;
+    Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('chat.copySemuaDone'.tr()), behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 1)),
+    );
+  }
+
   String _plainForMsg(MsgRow m) {
     final parts = <String>[];
     var content = msgDisplayContent(m).trim();
@@ -1361,7 +1524,14 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     final liveReqId = _store.promptLiveReqId ?? _store.pendingPromptReqId ?? '';
     final promptingThis = !isUser && _store.promptBusyFor(m.chatId) && m.reqId.isNotEmpty && m.reqId == liveReqId;
     final usageStreaming = !isUser && msgUsageStreaming(busy: _store.promptBusyFor(m.chatId), msgReqId: m.reqId, liveReqId: liveReqId);
-    final copyPrefix = msgCopyPrefix(role: m.role, userName: Session.instance.name, createdAtMs: m.createdAtMs);
+    final copyHeader = msgCopyHeader(
+      role: m.role,
+      userName: Session.instance.name,
+      createdAtMs: m.createdAtMs,
+      modelId: isUser ? '' : (m.model.isNotEmpty ? m.model : _model.id),
+      models: _store.models,
+    );
+    final copyGap = i > 0 ? 2 : 0;
 
     Widget body;
     if (isUser) {
@@ -1371,7 +1541,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         mentionIdsJson: m.mentionIdsJson,
         mentions: catalogMentions,
       );
-      body = UiUserBubble(content: userContent, copyPrefix: copyPrefix, attachments: m.attachments, mentions: catalogMentions);
+      body = UiUserBubble(content: userContent, copyPrefix: copyHeader, leadingNewlines: copyGap, attachments: m.attachments, mentions: catalogMentions);
     } else {
       final content = msgDisplayContent(m);
       final err = msgRowError(m).trim();
@@ -1387,7 +1557,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       body = Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          UiMsgCopyPrefix(text: copyPrefix),
+          UiMsgCopyPrefix(text: copyHeader, leadingNewlines: copyGap),
           if (thoughtView.thought != null)
             UiMsgThought(
               text: thoughtView.thought!,
@@ -1467,11 +1637,18 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
               final usageMsg = m.model.isNotEmpty || i != lastAssistantIdx
                   ? m
                   : m.copyWith(model: m.model.isNotEmpty ? m.model : _model.id);
-              return UiMsgUsage(
-                msg: usageMsg,
-                streaming: usageStreaming,
-                billingCurrency: AppStore.instance.wallet.billingCurrency,
-                fxMicroPerUsd: AppStore.instance.wallet.fxMicroPerUsd,
+              final feedback = _store.feedbackFor(m.id);
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  UiMsgUsage(
+                    msg: usageMsg,
+                    streaming: usageStreaming,
+                    billingCurrency: AppStore.instance.wallet.billingCurrency,
+                    fxMicroPerUsd: AppStore.instance.wallet.fxMicroPerUsd,
+                  ),
+                  if (feedback != null) UiMsgFeedbackThread(feedback: feedback),
+                ],
               );
             }),
         ],

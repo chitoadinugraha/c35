@@ -174,6 +174,29 @@ pub fn prompt_context_prepend(time_block: &str, location_block: &str, base: &str
     out
 }
 
+/// Appends location and time blocks to the tail of the system prompt.
+/// Keeping static system instructions and topic blocks at the prefix head
+/// ensures KV prompt caching (Gemini, Anthropic, OpenAI, DeepSeek) remains valid across turns.
+pub fn prompt_context_append(base: &str, time_block: &str, location_block: &str) -> String {
+    let mut out = base.trim().to_string();
+    let loc = location_block.trim();
+    if !loc.is_empty() {
+        if !out.is_empty() {
+            out.push_str("\n\n");
+        }
+        out.push_str(loc);
+    }
+    let time = time_block.trim();
+    if !time.is_empty() {
+        if !out.is_empty() {
+            out.push_str("\n\n");
+        }
+        out.push_str(time);
+    }
+    out
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;

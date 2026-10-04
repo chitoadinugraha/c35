@@ -20,6 +20,9 @@ mod sync;
 mod sync_push;
 mod tls_sync;
 mod ts;
+pub mod slug;
+
+pub use slug::{site_slug_ensure_unique, site_slug_generate};
 
 pub use collection_def::{collection_def_list, collection_def_list_rpc, collection_def_list_static};
 pub use http::{host_is_api, host_is_primary, site_render_router, try_custom_domain_root};
@@ -30,6 +33,7 @@ pub use site_contact::{guest_contact_put, site_contact_list, site_contact_put, s
 pub use site_domain::{site_domain_list, site_domain_put, site_domain_verify};
 pub use dns_verify::{cname_destination_matches, domain_cname_target};
 pub use site_draft::{site_draft_get, site_draft_put};
+pub use grant::site_granted_iids;
 pub use site_list::site_list;
 pub use site_object::{site_object_list, site_object_put, site_object_upsert};
 pub use site_preview::{site_draft_html_render, site_preview_token, site_preview_token_issue, site_preview_token_verify};

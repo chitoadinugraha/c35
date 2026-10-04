@@ -21,7 +21,7 @@ remotes/
 ├── c_remote_windows/       # Windows executor (Win32, DXGI, WASAPI, UIA)
 ├── c_remote_macos/         # Planned macOS executor (ScreenCaptureKit, CoreAudio)
 ├── c_remote_linux/         # Planned Linux executor (Wayland PipeWire, uinput)
-└── c_remote_android/       # Planned Android service (MediaProjection, Accessibility)
+└── c_remote_android/       # Android service (MediaProjection, Accessibility) — see [remote-android.md](remote-android.md)
 ```
 
 ---

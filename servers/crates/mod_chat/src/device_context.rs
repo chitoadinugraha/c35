@@ -101,7 +101,7 @@ pub async fn chat_device_context_list(
     let sql = format!(
         r#"
         SELECT c.id, c.kind, c.owner_iid, c.title, c.model, c.last_msg_ts, c.last_msg_preview, c.meta,
-               c.created_ts, c.updated_ts, c.deleted_ts,
+               c.context_window, c.created_ts, c.updated_ts, c.deleted_ts,
                m.last_read_msg_id, m.unread_count, m.last_msg_ts AS member_last_msg_ts,
                m.last_msg_preview AS member_preview,
                m.pinned_ts, m.archived_ts, m.created_ts AS member_created_ts, m.updated_ts AS member_updated_ts,
@@ -146,6 +146,7 @@ pub async fn chat_device_context_list(
             last_msg_ts_ms: ts_ms(last_at),
             last_msg_preview: preview.clone(),
             meta_json: meta.to_string(),
+            context_window: r.get("context_window"),
             created_ts_ms: ts_ms(r.get("created_ts")),
             updated_ts_ms: ts_ms(r.get("updated_ts")),
             deleted_ts_ms: ts_ms(r.get("deleted_ts")),

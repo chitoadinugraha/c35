@@ -12,6 +12,7 @@ use super::llm_route::{bill_model_slug, llm_stream_chain};
 use super::thought::{thought_push, thinking_level};
 use super::web_grounding::{pick_visit_url, reply_looks_like_web_placeholder, search_payload};
 use super::{ChatReq, ChatRes};
+use crate::catalog_web::{catalog_web_after_stock, CatalogWebPhase};
 use crate::prompt::hooks::PromptHopCheckpoint;
 use crate::prompt_run::{
     chat_tool_rounds_max, checkpoint_record_tool, checkpoint_set_fatal, checkpoint_tool_should_stop,
@@ -127,7 +128,8 @@ pub async fn prompt_cluster_turn(
     let mut prev_calls: Vec<(String, Value)> = Vec::new();
     let mut used_tool = false;
     let mut web_grounded = false;
-    if req.force_tool_call && tools.iter().any(|t| t.name == "web.search") {
+    let mut stock_returned = false;
+    if req.force_tool_call && !req.skip_web_prefetch && tools.iter().any(|t| t.name == "web.search") {
         let q = search_query_from_user(&req.user);
         if tool_loop_run_web_search(
             &client,
@@ -242,14 +244,23 @@ pub async fn prompt_cluster_turn(
             if let Some(ctx) = turn_ctx.as_ref() {
                 let title = ctx.title_slot.lock().ok().and_then(|g| g.clone());
                 if let Some(title) = title {
-                    let _ = chat_title_set(ctx.pool, ctx.nats, ctx.owner_iid, ctx.chat_id, &title).await;
+                    let _ = chat_title_set(ctx.pool, ctx.nats, ctx.owner_iid, ctx.chat_id, &title, true).await;
                 }
             }
 
             let mut function_parts = Vec::with_capacity(executions.len());
             let mut latest_img_b64 = None;
+            let mut catalog_stock_rows: Option<usize> = None;
 
             for (name, args, result, tool_cost, tool_ms, tool_call_id) in executions {
+                if name == "site.query.run"
+                    && args.get("query_id").and_then(|v| v.as_str()) == Some("product.stock")
+                {
+                    stock_returned = true;
+                    catalog_stock_rows = Some(
+                        result.get("rows").and_then(|v| v.as_array()).map(|a| a.len()).unwrap_or(0),
+                    );
+                }
                 tools_cost_usd += tool_cost;
                 let ok = result.get("ok").and_then(|v| v.as_bool()).unwrap_or(true);
                 if let Some(tr) = tracer {
@@ -358,6 +369,32 @@ pub async fn prompt_cluster_turn(
                 ensure_web_visit_tool(&mut tools, &mut tool_json);
             }
 
+            if let Some(row_count) = catalog_stock_rows {
+                if catalog_web_after_stock(req.catalog_web, row_count) {
+                    let q = search_query_from_user(&req.user);
+                    if tool_loop_run_web_search(
+                        &client,
+                        &q,
+                        req.force_tool_call,
+                        &mut contents,
+                        &mut tools,
+                        &mut tool_json,
+                        &mut tools_cost_usd,
+                        &mut thought,
+                        on_delta,
+                        turn_ctx.as_deref(),
+                        tracer,
+                    )
+                    .await?
+                    {
+                        web_grounded = true;
+                    }
+                } else if req.catalog_web == CatalogWebPhase::PriceLookup && row_count > 0 {
+                    tools.retain(|t| t.name != "web.search" && t.name != "web.visit");
+                    tool_json = tool_decls(&tools);
+                }
+            }
+
             prev_calls = out.function_calls;
             continue;
         }
@@ -396,8 +433,12 @@ pub async fn prompt_cluster_turn(
             prev_calls = vec![("consumption.today".into(), args)];
             continue;
         }
+        let catalog_defer_web = req.catalog_web == CatalogWebPhase::Stock
+            || (matches!(req.catalog_web, CatalogWebPhase::PriceLookup | CatalogWebPhase::PriceCompare)
+                && !stock_returned);
         if round == 0
             && !used_tool
+            && !catalog_defer_web
             && tools.iter().any(|t| t.name == "web.search")
             && (req.force_tool_call || user_wants_search(&req.user))
         {

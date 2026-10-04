@@ -1,6 +1,8 @@
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/pb/c35/tx.pb.dart';
+import 'package:alienai_c35/c/site/tx_format.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
+import 'package:alienai_c35/widgets/sites/tx/dialog/transaksi_discount_dialog.dart';
 import 'package:alienai_c35/widgets/sites/tx/dialog/transaksi_item_numpad.dart';
 import 'package:alienai_c35/widgets/sites/tx/dialog/transaksi_reserve_dialog.dart';
 import 'package:fixnum/fixnum.dart';
@@ -18,12 +20,16 @@ class SectionTxItems extends StatefulWidget {
     required this.products,
     required this.onChanged,
     this.onCheckout,
+    this.discounts = const [],
+    this.onDiscountsChanged,
   });
 
   final List<TxItem> items;
   final List<SiteProduct> products;
   final ValueChanged<List<TxItem>> onChanged;
   final VoidCallback? onCheckout;
+  final List<TxDiscount> discounts;
+  final ValueChanged<List<TxDiscount>>? onDiscountsChanged;
 
   @override
   State<SectionTxItems> createState() => _SectionTxItemsState();
@@ -55,14 +61,6 @@ class _SectionTxItemsState extends State<SectionTxItems> {
 
   Map<Int64, SiteProduct> get _productById => {for (final p in widget.products) p.productId: p};
 
-  Int64 _lineTotal(TxItem item) {
-    var multiplier = 1;
-    if (item.reservations.isNotEmpty) {
-      multiplier = item.reservations.fold(0, (sum, r) => sum + (r.durationQty > 0 ? r.durationQty : 1));
-      if (multiplier <= 0) multiplier = 1;
-    }
-    return Int64(item.qty) * item.price * Int64(multiplier);
-  }
 
   void _addProduct(SiteProduct product) {
     final existingIndex = widget.items.indexWhere((i) => i.productId == product.productId);
@@ -71,13 +69,17 @@ class _SectionTxItemsState extends State<SectionTxItems> {
       _updateQty(existingIndex, existing.qty + 1);
       return;
     }
+    final price = product.price > Int64.ZERO ? product.price : Int64.ZERO;
+    final item = TxItem(
+      productId: product.productId,
+      qty: 1,
+      price: price,
+      totalPrice: price,
+      totalNet: price,
+    );
     widget.onChanged([
       ...widget.items,
-      TxItem(
-        productId: product.productId,
-        qty: 1,
-        price: product.price > Int64.ZERO ? product.price : Int64.ZERO,
-      ),
+      item,
     ]);
   }
 
@@ -87,7 +89,19 @@ class _SectionTxItemsState extends State<SectionTxItems> {
       return;
     }
     widget.onChanged(
-      widget.items.asMap().entries.map((e) => e.key == index ? (e.value.clone()..qty = qty) : e.value).toList(growable: false),
+      widget.items.asMap().entries.map((e) {
+        if (e.key == index) {
+          final updated = e.value.clone()..qty = qty;
+          final gross = txItemLineNominal(updated);
+          if (updated.totalDiscount > gross) {
+            updated.totalDiscount = gross;
+          }
+          updated.totalPrice = gross;
+          updated.totalNet = txItemLineNet(updated);
+          return updated;
+        }
+        return e.value;
+      }).toList(growable: false),
     );
   }
 
@@ -103,9 +117,72 @@ class _SectionTxItemsState extends State<SectionTxItems> {
       if (updated.qty <= 0) {
         _updateQty(index, 0);
       } else {
+        final gross = txItemLineNominal(updated);
+        if (updated.totalDiscount > gross) {
+          updated.totalDiscount = gross;
+        }
+        updated.totalPrice = gross;
+        updated.totalNet = txItemLineNet(updated);
         widget.onChanged(
           widget.items.asMap().entries.map((e) => e.key == index ? updated : e.value).toList(growable: false),
         );
+      }
+    }
+  }
+
+  Future<void> _editItemDiscount(int index) async {
+    final item = widget.items[index];
+    final product = _productById[item.productId];
+    final originalAmount = txItemLineNominal(item);
+    if (originalAmount <= Int64.ZERO) return;
+
+    final initialDiscount = item.totalDiscount > Int64.ZERO
+        ? TxDiscount(
+            discountType: 'fixed',
+            amount: item.totalDiscount,
+          )
+        : null;
+
+    final discount = await showTransaksiDiscountDialog(
+      context: context,
+      originalAmount: originalAmount,
+      initialDiscount: initialDiscount,
+      title: 'Diskon ${product?.name ?? "Item"}',
+    );
+
+    if (discount != null && mounted) {
+      final updated = item.clone();
+      if (discount.amount <= Int64.ZERO) {
+        updated.totalDiscount = Int64.ZERO;
+        updated.totalNet = txItemLineNominal(updated);
+      } else {
+        updated.totalDiscount = discount.amount;
+        updated.totalNet = txItemLineNet(updated);
+      }
+      widget.onChanged(
+        widget.items.asMap().entries.map((e) => e.key == index ? updated : e.value).toList(growable: false),
+      );
+    }
+  }
+
+  Future<void> _editCartDiscount() async {
+    if (widget.onDiscountsChanged == null) return;
+    final itemsSubtotal = widget.items.fold(Int64.ZERO, (s, i) => s + txItemLineNet(i));
+    if (itemsSubtotal <= Int64.ZERO) return;
+
+    final initialDiscount = widget.discounts.isNotEmpty ? widget.discounts.first : null;
+    final discount = await showTransaksiDiscountDialog(
+      context: context,
+      originalAmount: itemsSubtotal,
+      initialDiscount: initialDiscount,
+      title: 'Diskon Transaksi (Nota)',
+    );
+
+    if (discount != null && mounted) {
+      if (discount.amount <= Int64.ZERO) {
+        widget.onDiscountsChanged!(const []);
+      } else {
+        widget.onDiscountsChanged!([discount]);
       }
     }
   }
@@ -157,7 +234,13 @@ class _SectionTxItemsState extends State<SectionTxItems> {
       filtered = filtered.where((p) => p.name.toLowerCase().contains(q) || p.sku.toLowerCase().contains(q)).toList();
     }
 
-    final totalCart = widget.items.fold<int>(0, (s, i) => s + _lineTotal(i).toInt());
+    final grossSubtotal = widget.items.fold(Int64.ZERO, (s, i) => s + txItemLineNominal(i));
+    final itemsDiscountTotal = widget.items.fold(Int64.ZERO, (s, i) => s + txItemDiscountNominal(i));
+    final itemsNetTotal = widget.items.fold(Int64.ZERO, (s, i) => s + txItemLineNet(i));
+    final cartDiscountTotal = widget.discounts.fold(Int64.ZERO, (s, d) => s + (d.amount > Int64.ZERO ? d.amount : Int64.ZERO));
+    final finalTotal = (itemsNetTotal - cartDiscountTotal) > Int64.ZERO
+        ? (itemsNetTotal - cartDiscountTotal)
+        : Int64.ZERO;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -341,9 +424,12 @@ class _SectionTxItemsState extends State<SectionTxItems> {
                           final item = widget.items[i];
                           final product = _productById[item.productId];
                           final name = product?.name ?? 'Item ${item.productId}';
-                          final lineTotal = _lineTotal(item);
+                          final lineGross = txItemLineNominal(item);
+                          final lineDisc = txItemDiscountNominal(item);
+                          final lineNet = txItemLineNet(item);
                           final hasRes = item.reservations.isNotEmpty;
                           final hasNote = item.note.trim().isNotEmpty;
+                          final hasDisc = lineDisc > Int64.ZERO;
 
                           return Container(
                             margin: const EdgeInsets.symmetric(vertical: 2),
@@ -359,31 +445,91 @@ class _SectionTxItemsState extends State<SectionTxItems> {
                                   Expanded(
                                     child: Text(name, style: const TextStyle(color: _text, fontSize: 13, fontWeight: FontWeight.w600)),
                                   ),
-                                  Text(
-                                    moneyFmtIdr(lineTotal.toInt()),
-                                    style: const TextStyle(color: _text, fontSize: 13, fontWeight: FontWeight.w600),
-                                  ),
+                                  if (hasDisc) ...[
+                                    Text(
+                                      moneyFmtIdr(lineGross.toInt()),
+                                      style: const TextStyle(
+                                        color: _muted,
+                                        fontSize: 11,
+                                        decoration: TextDecoration.lineThrough,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      moneyFmtIdr(lineNet.toInt()),
+                                      style: const TextStyle(color: _accent, fontSize: 13, fontWeight: FontWeight.w600),
+                                    ),
+                                  ] else ...[
+                                    Text(
+                                      moneyFmtIdr(lineGross.toInt()),
+                                      style: const TextStyle(color: _text, fontSize: 13, fontWeight: FontWeight.w600),
+                                    ),
+                                  ],
                                 ],
                               ),
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  InkWell(
-                                    onTap: () => _editItem(i),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(vertical: 2),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            '${moneyFmtIdr(item.price.toInt())} × ${item.qty}',
-                                            style: const TextStyle(color: _muted, fontSize: 12),
+                                  Wrap(
+                                    crossAxisAlignment: WrapCrossAlignment.center,
+                                    spacing: 8,
+                                    children: [
+                                      InkWell(
+                                        onTap: () => _editItem(i),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(vertical: 2),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                '${moneyFmtIdr(item.price.toInt())} × ${item.qty}',
+                                                style: const TextStyle(color: _muted, fontSize: 12),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              const Icon(Icons.edit_note, size: 14, color: _accent),
+                                            ],
                                           ),
-                                          const SizedBox(width: 4),
-                                          const Icon(Icons.edit_note, size: 14, color: _accent),
-                                        ],
+                                        ),
                                       ),
-                                    ),
+                                      if (hasDisc)
+                                        InkWell(
+                                          onTap: () => _editItemDiscount(i),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: Colors.redAccent.withValues(alpha: 0.15),
+                                              borderRadius: BorderRadius.circular(4),
+                                              border: Border.all(color: Colors.redAccent.withValues(alpha: 0.4)),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(Icons.local_offer_outlined, size: 10, color: Colors.redAccent),
+                                                const SizedBox(width: 3),
+                                                Text(
+                                                  '-${moneyFmtIdr(lineDisc.toInt())}',
+                                                  style: const TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        )
+                                      else
+                                        InkWell(
+                                          onTap: () => _editItemDiscount(i),
+                                          child: const Padding(
+                                            padding: EdgeInsets.symmetric(vertical: 2),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(Icons.discount_outlined, size: 11, color: _muted),
+                                                SizedBox(width: 2),
+                                                Text('+ Diskon', style: TextStyle(color: _muted, fontSize: 11)),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                   if (hasNote)
                                     Padding(
@@ -466,9 +612,82 @@ class _SectionTxItemsState extends State<SectionTxItems> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
+                        const Text('Subtotal Produk', style: TextStyle(color: _muted, fontSize: 12)),
+                        Text(
+                          moneyFmtIdr(grossSubtotal.toInt()),
+                          style: const TextStyle(color: _text, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                    if (itemsDiscountTotal > Int64.ZERO) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Diskon Produk', style: TextStyle(color: Colors.redAccent, fontSize: 12)),
+                          Text(
+                            '- ${moneyFmtIdr(itemsDiscountTotal.toInt())}',
+                            style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        InkWell(
+                          onTap: widget.items.isEmpty ? null : _editCartDiscount,
+                          borderRadius: BorderRadius.circular(4),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.local_offer_outlined,
+                                  size: 13,
+                                  color: cartDiscountTotal > Int64.ZERO ? Colors.redAccent : _accent,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  cartDiscountTotal > Int64.ZERO ? 'Diskon Transaksi' : '+ Diskon Transaksi',
+                                  style: TextStyle(
+                                    color: cartDiscountTotal > Int64.ZERO ? Colors.redAccent : _accent,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                if (cartDiscountTotal > Int64.ZERO) ...[
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.edit, size: 11, color: _muted),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (cartDiscountTotal > Int64.ZERO)
+                          InkWell(
+                            onTap: _editCartDiscount,
+                            child: Text(
+                              '- ${moneyFmtIdr(cartDiscountTotal.toInt())}',
+                              style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w600),
+                            ),
+                          )
+                        else
+                          const Text('Rp 0', style: TextStyle(color: _muted, fontSize: 12)),
+                      ],
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Divider(height: 1, color: _border),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
                         const Text('Total Pembayaran', style: TextStyle(color: _muted, fontSize: 13)),
                         Text(
-                          moneyFmtIdr(totalCart),
+                          moneyFmtIdr(finalTotal.toInt()),
                           style: const TextStyle(color: _accent, fontSize: 18, fontWeight: FontWeight.bold),
                         ),
                       ],
@@ -481,10 +700,12 @@ class _SectionTxItemsState extends State<SectionTxItems> {
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      onPressed: totalCart <= 0 || widget.onCheckout == null ? null : widget.onCheckout,
+                      onPressed: finalTotal < Int64.ZERO || widget.items.isEmpty || widget.onCheckout == null
+                          ? null
+                          : widget.onCheckout,
                       icon: const Icon(Icons.payments_outlined, size: 20),
                       label: Text(
-                        'Bayar  •  ${moneyFmtIdr(totalCart)}',
+                        'Bayar  •  ${moneyFmtIdr(finalTotal.toInt())}',
                         style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                       ),
                     ),

@@ -145,5 +145,58 @@ class PromptFollowupKind extends $pb.ProtobufEnum {
   const PromptFollowupKind._(super.value, super.name);
 }
 
+class ChatFeedbackVote extends $pb.ProtobufEnum {
+  static const ChatFeedbackVote CHAT_FEEDBACK_VOTE_UNSPECIFIED =
+      ChatFeedbackVote._(
+          0, _omitEnumNames ? '' : 'CHAT_FEEDBACK_VOTE_UNSPECIFIED');
+  static const ChatFeedbackVote CHAT_FEEDBACK_VOTE_GOOD =
+      ChatFeedbackVote._(1, _omitEnumNames ? '' : 'CHAT_FEEDBACK_VOTE_GOOD');
+  static const ChatFeedbackVote CHAT_FEEDBACK_VOTE_BAD =
+      ChatFeedbackVote._(2, _omitEnumNames ? '' : 'CHAT_FEEDBACK_VOTE_BAD');
+
+  static const $core.List<ChatFeedbackVote> values = <ChatFeedbackVote>[
+    CHAT_FEEDBACK_VOTE_UNSPECIFIED,
+    CHAT_FEEDBACK_VOTE_GOOD,
+    CHAT_FEEDBACK_VOTE_BAD,
+  ];
+
+  static final $core.List<ChatFeedbackVote?> _byValue =
+      $pb.ProtobufEnum.$_initByValueList(values, 2);
+  static ChatFeedbackVote? valueOf($core.int value) =>
+      value < 0 || value >= _byValue.length ? null : _byValue[value];
+
+  const ChatFeedbackVote._(super.value, super.name);
+}
+
+class ChatFeedbackAuthorRole extends $pb.ProtobufEnum {
+  static const ChatFeedbackAuthorRole CHAT_FEEDBACK_AUTHOR_ROLE_UNSPECIFIED =
+      ChatFeedbackAuthorRole._(
+          0, _omitEnumNames ? '' : 'CHAT_FEEDBACK_AUTHOR_ROLE_UNSPECIFIED');
+  static const ChatFeedbackAuthorRole CHAT_FEEDBACK_AUTHOR_ROLE_SYSTEM =
+      ChatFeedbackAuthorRole._(
+          1, _omitEnumNames ? '' : 'CHAT_FEEDBACK_AUTHOR_ROLE_SYSTEM');
+  static const ChatFeedbackAuthorRole CHAT_FEEDBACK_AUTHOR_ROLE_USER =
+      ChatFeedbackAuthorRole._(
+          2, _omitEnumNames ? '' : 'CHAT_FEEDBACK_AUTHOR_ROLE_USER');
+  static const ChatFeedbackAuthorRole CHAT_FEEDBACK_AUTHOR_ROLE_STAFF =
+      ChatFeedbackAuthorRole._(
+          3, _omitEnumNames ? '' : 'CHAT_FEEDBACK_AUTHOR_ROLE_STAFF');
+
+  static const $core.List<ChatFeedbackAuthorRole> values =
+      <ChatFeedbackAuthorRole>[
+    CHAT_FEEDBACK_AUTHOR_ROLE_UNSPECIFIED,
+    CHAT_FEEDBACK_AUTHOR_ROLE_SYSTEM,
+    CHAT_FEEDBACK_AUTHOR_ROLE_USER,
+    CHAT_FEEDBACK_AUTHOR_ROLE_STAFF,
+  ];
+
+  static final $core.List<ChatFeedbackAuthorRole?> _byValue =
+      $pb.ProtobufEnum.$_initByValueList(values, 3);
+  static ChatFeedbackAuthorRole? valueOf($core.int value) =>
+      value < 0 || value >= _byValue.length ? null : _byValue[value];
+
+  const ChatFeedbackAuthorRole._(super.value, super.name);
+}
+
 const $core.bool _omitEnumNames =
     $core.bool.fromEnvironment('protobuf.omit_enum_names');

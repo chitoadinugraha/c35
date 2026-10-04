@@ -11,6 +11,8 @@ import 'package:alienai_c35/widgets/ai/ui_consumption_glance_card.dart';
 import 'package:alienai_c35/widgets/ai/ui_expense_glance_card.dart';
 import 'package:alienai_c35/widgets/ai/ui_attach_chips.dart';
 import 'package:alienai_c35/widgets/ai/ui_expense_receipt_card.dart';
+import 'package:alienai_c35/widgets/ai/ui_slide_deck_card.dart';
+import 'package:alienai_c35/widgets/ai/ui_site_preview_card.dart';
 import 'package:flutter/material.dart';
 
 typedef ConsumptionBlockSaved = void Function(int msgId, ChatBlock block);
@@ -155,6 +157,28 @@ class UiMsgBlocks extends StatelessWidget {
           padding: const EdgeInsets.only(top: 8),
           child: UiAttachChips(
             attachments: [MsgAttachment(hash: hash, name: name, mime: mime, url: url)],
+          ),
+        );
+      case 'presentation.deck':
+      case 'slide.deck':
+      case 'presentation':
+        final deck = SlideDeckData.fromJson(b.body);
+        return Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: UiSlideDeckCard(
+            deck: deck,
+            initiallyExpanded: !b.collapsed || primary,
+          ),
+        );
+      case 'site.preview':
+      case 'site.builder':
+      case 'site.deck':
+        final data = SitePreviewData.fromJson(b.body);
+        return Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: UiSitePreviewCard(
+            data: data,
+            initiallyExpanded: !b.collapsed || primary,
           ),
         );
       default:

@@ -152,6 +152,91 @@ const ResTopicList$json = {
 final $typed_data.Uint8List resTopicListDescriptor = $convert.base64Decode(
     'CgxSZXNUb3BpY0xpc3QSJgoGdG9waWNzGAEgAygLMg4uYzM1LlRvcGljSXRlbVIGdG9waWNz');
 
+@$core.Deprecated('Use presentationThemeTokensDescriptor instead')
+const PresentationThemeTokens$json = {
+  '1': 'PresentationThemeTokens',
+  '2': [
+    {'1': 'canvas_bg', '3': 1, '4': 1, '5': 9, '10': 'canvasBg'},
+    {'1': 'card_bg', '3': 2, '4': 1, '5': 9, '10': 'cardBg'},
+    {'1': 'border', '3': 3, '4': 1, '5': 9, '10': 'border'},
+    {'1': 'accent', '3': 4, '4': 1, '5': 9, '10': 'accent'},
+    {'1': 'accent2', '3': 5, '4': 1, '5': 9, '10': 'accent2'},
+    {'1': 'text', '3': 6, '4': 1, '5': 9, '10': 'text'},
+    {'1': 'subtext', '3': 7, '4': 1, '5': 9, '10': 'subtext'},
+    {'1': 'badge_bg', '3': 8, '4': 1, '5': 9, '10': 'badgeBg'},
+    {'1': 'bullet_card_bg', '3': 9, '4': 1, '5': 9, '10': 'bulletCardBg'},
+    {'1': 'gradient_from', '3': 10, '4': 1, '5': 9, '10': 'gradientFrom'},
+    {'1': 'gradient_to', '3': 11, '4': 1, '5': 9, '10': 'gradientTo'},
+  ],
+};
+
+/// Descriptor for `PresentationThemeTokens`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List presentationThemeTokensDescriptor = $convert.base64Decode(
+    'ChdQcmVzZW50YXRpb25UaGVtZVRva2VucxIbCgljYW52YXNfYmcYASABKAlSCGNhbnZhc0JnEh'
+    'cKB2NhcmRfYmcYAiABKAlSBmNhcmRCZxIWCgZib3JkZXIYAyABKAlSBmJvcmRlchIWCgZhY2Nl'
+    'bnQYBCABKAlSBmFjY2VudBIYCgdhY2NlbnQyGAUgASgJUgdhY2NlbnQyEhIKBHRleHQYBiABKA'
+    'lSBHRleHQSGAoHc3VidGV4dBgHIAEoCVIHc3VidGV4dBIZCghiYWRnZV9iZxgIIAEoCVIHYmFk'
+    'Z2VCZxIkCg5idWxsZXRfY2FyZF9iZxgJIAEoCVIMYnVsbGV0Q2FyZEJnEiMKDWdyYWRpZW50X2'
+    'Zyb20YCiABKAlSDGdyYWRpZW50RnJvbRIfCgtncmFkaWVudF90bxgLIAEoCVIKZ3JhZGllbnRU'
+    'bw==');
+
+@$core.Deprecated('Use presentationThemeItemDescriptor instead')
+const PresentationThemeItem$json = {
+  '1': 'PresentationThemeItem',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 9, '10': 'id'},
+    {'1': 'label_key', '3': 2, '4': 1, '5': 9, '10': 'labelKey'},
+    {'1': 'sort', '3': 3, '4': 1, '5': 5, '10': 'sort'},
+    {
+      '1': 'tokens',
+      '3': 4,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.PresentationThemeTokens',
+      '10': 'tokens'
+    },
+    {'1': 'aliases', '3': 5, '4': 3, '5': 9, '10': 'aliases'},
+    {'1': 'icon', '3': 6, '4': 1, '5': 9, '10': 'icon'},
+  ],
+};
+
+/// Descriptor for `PresentationThemeItem`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List presentationThemeItemDescriptor = $convert.base64Decode(
+    'ChVQcmVzZW50YXRpb25UaGVtZUl0ZW0SDgoCaWQYASABKAlSAmlkEhsKCWxhYmVsX2tleRgCIA'
+    'EoCVIIbGFiZWxLZXkSEgoEc29ydBgDIAEoBVIEc29ydBI0CgZ0b2tlbnMYBCABKAsyHC5jMzUu'
+    'UHJlc2VudGF0aW9uVGhlbWVUb2tlbnNSBnRva2VucxIYCgdhbGlhc2VzGAUgAygJUgdhbGlhc2'
+    'VzEhIKBGljb24YBiABKAlSBGljb24=');
+
+@$core.Deprecated('Use reqPresentationThemeListDescriptor instead')
+const ReqPresentationThemeList$json = {
+  '1': 'ReqPresentationThemeList',
+};
+
+/// Descriptor for `ReqPresentationThemeList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqPresentationThemeListDescriptor =
+    $convert.base64Decode('ChhSZXFQcmVzZW50YXRpb25UaGVtZUxpc3Q=');
+
+@$core.Deprecated('Use resPresentationThemeListDescriptor instead')
+const ResPresentationThemeList$json = {
+  '1': 'ResPresentationThemeList',
+  '2': [
+    {
+      '1': 'themes',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.PresentationThemeItem',
+      '10': 'themes'
+    },
+  ],
+};
+
+/// Descriptor for `ResPresentationThemeList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resPresentationThemeListDescriptor =
+    $convert.base64Decode(
+        'ChhSZXNQcmVzZW50YXRpb25UaGVtZUxpc3QSMgoGdGhlbWVzGAEgAygLMhouYzM1LlByZXNlbn'
+        'RhdGlvblRoZW1lSXRlbVIGdGhlbWVz');
+
 @$core.Deprecated('Use reqMentionListDescriptor instead')
 const ReqMentionList$json = {
   '1': 'ReqMentionList',

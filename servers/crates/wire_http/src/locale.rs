@@ -58,13 +58,13 @@ pub fn detect_locale(headers: &HeaderMap, query_lang: Option<&str>) -> String {
                 .find_map(|s| s.trim().strip_prefix("q="))
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(1.0);
-            if tag.starts_with("id") || tag.starts_with("in") {
+            if tag.starts_with("id") || tag == "in" {
                 id_score = id_score.max(q);
             } else if tag.starts_with("en") {
                 en_score = en_score.max(q);
             }
         }
-        if id_score > en_score {
+        if id_score >= en_score && id_score > 0.0 {
             return "id".into();
         }
     }

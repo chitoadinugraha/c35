@@ -286,6 +286,31 @@ User-facing cost label: format `cost_usd` in **default wallet currency** using l
 
 Compaction cost is included in the turn total when rolled into `extra_cost_usd`; optional UI line "includes ~X compaction" for tester/root usage stats.
 
+### Cached Read Tokens & Retail Markup (LOCKED)
+
+Metered LLM turns with cached prefix tokens apply the platform retail markup across all token dimensions:
+```
+prompt_cost = wholesale_input_cost × 1.50
+completion_cost = wholesale_output_cost × 1.50
+cached_read_cost = wholesale_cached_read_cost × 1.50
+```
+Display metrics in trace view: `(cached_read_tokens) (tokens_in) (tokens_out) (duration_ms) (cost_usd)`.
+
+---
+
+## Transaction & Usage History (`UiBillingHistorySheet`)
+
+The billing history modal (`UiBillingHistorySheet`) provides transparent financial auditing of platform spending:
+
+1. **Wire Model (`BillingHistoryRow`)**:
+   Carries `tx_id`, `created_ts`, `amount`, `currency`, `kind`, `title`, `description`, `chat_id`, `req_id`, `prompt`.
+2. **Layout Standard**:
+   - **Right Side (2 lines, right-aligned)**: Formatted cost on the top line (`-Rp 450`), formatted timestamp on the bottom line (`3 Oct, 06:11`).
+   - **Left Side**: Title on top; truncated user prompt as the subtitle (max 2 lines with ellipsis).
+3. **Click-to-Message Navigation**:
+   Tapping any prompt transaction row closes the history sheet, switches the active conversation to `chat_id`, and automatically scrolls the timeline to the message's chronological index.
+
+
 ---
 
 ## NATS subjects

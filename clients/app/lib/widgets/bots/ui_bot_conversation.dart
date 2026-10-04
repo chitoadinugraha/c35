@@ -26,6 +26,7 @@ import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:alienai_c35/widgets/ui/ui_safe_area.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:alienai_c35/widgets/ai/ui_markdown_body.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
@@ -102,6 +103,31 @@ class _UiBotConversationState extends State<UiBotConversation> {
     } catch (_) {}
   }
 
+  void _copyChatSemua(List<MsgRow> messages) {
+    final peer = widget.store.peerById(widget.chatId);
+    final peerName = peer?.peerName.isNotEmpty == true ? peer!.peerName : (peer?.title ?? 'Customer');
+    final bot = widget.store.botById(widget.store.selectedBotId);
+    final botName = bot?.identity.name.isNotEmpty == true ? bot!.identity.name : 'Bot';
+    final staffName = Session.instance.name.trim().isNotEmpty ? Session.instance.name : 'Staff';
+    final text = msgCopyTranscript(
+      messages: messages,
+      plainText: _plainForMsg,
+      userName: peerName,
+      userNameFor: (m) => m.role == 'user' && m.source == 'staff' ? staffName : peerName,
+      assistantName: (m, _) {
+        if (m.role != 'assistant' || m.source == 'staff') return '';
+        return botName;
+      },
+      modelId: (m) => m.model,
+    );
+    if (text.isEmpty) return;
+    Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('chat.copySemuaDone'.tr()), behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 1)),
+    );
+  }
+
   String _plainForMsg(MsgRow m) {
     final parts = <String>[];
     final content = msgDisplayContent(m).trim();
@@ -138,6 +164,7 @@ class _UiBotConversationState extends State<UiBotConversation> {
       state,
       plainText: plain,
       selectedText: _selectedPlain,
+      onCopySemua: () => _copyChatSemua(msgs),
       viewerIsRoot: sessionViewerIsRoot(),
       isAssistant: isAssistant,
       reqId: m.reqId,
@@ -166,15 +193,17 @@ class _UiBotConversationState extends State<UiBotConversation> {
     final isStaff = m.source == 'staff';
     final isBotAi = m.role == 'assistant' && !isStaff;
     final staffName = Session.instance.name.trim().isNotEmpty ? Session.instance.name : 'Staff';
-    final copyPrefix = msgCopyPrefix(
+    final copyHeader = msgCopyHeader(
       role: m.role,
-      userName: isCustomer ? peerName : (isStaff ? staffName : (isBotAi ? botName : 'Staff')),
+      userName: isCustomer ? peerName : (isStaff ? staffName : staffName),
       createdAtMs: m.createdAtMs,
+      assistantName: isBotAi ? botName : '',
     );
+    final copyGap = i > 0 ? 2 : 0;
 
     Widget bubble;
     if (isCustomer || isStaff) {
-      bubble = UiUserBubble(content: m.content, copyPrefix: copyPrefix, attachments: m.attachments);
+      bubble = UiUserBubble(content: m.content, copyPrefix: copyHeader, leadingNewlines: copyGap, attachments: m.attachments);
     } else {
       final thoughtView = msgThoughtView(thought: m.thought, content: m.content, thinking: false);
       final blocks = ChatBlock.decodeList(m.blocksJson);
@@ -193,7 +222,7 @@ class _UiBotConversationState extends State<UiBotConversation> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  UiMsgCopyPrefix(text: copyPrefix),
+                  UiMsgCopyPrefix(text: copyHeader, leadingNewlines: copyGap),
                   if (thoughtView.thought != null) UiMsgThought(text: thoughtView.thought!, thinking: false),
                   if (m.reqId.isNotEmpty)
                     UiMsgTraceLoader(conn: widget.store.conn, reqId: m.reqId, part: MsgTracePart.chips),

@@ -4,6 +4,10 @@
                  "heroSubtitle":  "Start a new chat or pick one from history.",
                  "heroLoading":  "Loading catalog…"
              },
+    "chat":  {
+                 "copySemua":  "Copy all",
+                 "copySemuaDone":  "Chat copied to clipboard"
+             },
     "common":  {
                    "cancel":  "Cancel",
                    "delete":  "Delete",
@@ -115,7 +119,7 @@
                  },
     "composer":  {
                      "listening":  "Listening...",
-                     "autoSend":  "Auto Send",
+                     "autoSend":  "Send directly",
                      "preparing":  "Preparing...",
                      "finishRecording":  "Finish recording"
                  },

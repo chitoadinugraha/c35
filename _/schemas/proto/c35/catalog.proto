@@ -53,6 +53,35 @@ message ResTopicList {
   repeated TopicItem topics = 1;
 }
 
+message PresentationThemeTokens {
+  string canvas_bg = 1;
+  string card_bg = 2;
+  string border = 3;
+  string accent = 4;
+  string accent2 = 5;
+  string text = 6;
+  string subtext = 7;
+  string badge_bg = 8;
+  string bullet_card_bg = 9;
+  string gradient_from = 10;
+  string gradient_to = 11;
+}
+
+message PresentationThemeItem {
+  string id = 1;
+  string label_key = 2;
+  int32 sort = 3;
+  PresentationThemeTokens tokens = 4;
+  repeated string aliases = 5;
+  string icon = 6;
+}
+
+message ReqPresentationThemeList {}
+
+message ResPresentationThemeList {
+  repeated PresentationThemeItem themes = 1;
+}
+
 message ReqMentionList {
   int64 since_ms = 1;
 }

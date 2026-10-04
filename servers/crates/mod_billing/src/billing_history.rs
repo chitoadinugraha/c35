@@ -43,9 +43,13 @@ pub async fn billing_history(pool: &PgPool, owner_iid: i64, req: ReqBillingHisto
     let usage = sqlx::query(
         r#"
         SELECT d.amount_native::float8 AS amount_native, d.cost_usd::float8 AS cost_usd,
-               COALESCE(l.model, '') AS model, d.created_ts
+               COALESCE(l.model, '') AS model, d.created_ts,
+               COALESCE(l.chat_id, m.chat_id, 0) AS chat_id,
+               COALESCE(d.req_id, '') AS req_id,
+               COALESCE(NULLIF(l.text, ''), m.content, '') AS prompt
         FROM ai.billing_usage_dedupe d
         LEFT JOIN ai.log l ON l.id = d.log_id
+        LEFT JOIN ai.chat_msg m ON m.req_id = d.req_id AND m.role = 'user'
         WHERE d.owner_iid = $1 AND d.currency = $2 AND d.amount_native > 0
         ORDER BY d.created_ts DESC
         LIMIT $3
@@ -72,6 +76,9 @@ pub async fn billing_history(pool: &PgPool, owner_iid: i64, req: ReqBillingHisto
             ts_ms: ts.timestamp_millis(),
             currency: currency.clone(),
             amount,
+            chat_id: 0,
+            req_id: String::new(),
+            prompt: String::new(),
         });
     }
     for r in usage {
@@ -79,6 +86,9 @@ pub async fn billing_history(pool: &PgPool, owner_iid: i64, req: ReqBillingHisto
         let amount_native: f64 = r.get("amount_native");
         let cost_usd: f64 = r.get("cost_usd");
         let ts: chrono::DateTime<chrono::Utc> = r.get("created_ts");
+        let chat_id: i64 = r.get("chat_id");
+        let req_id: String = r.get("req_id");
+        let prompt: String = r.get("prompt");
         rows.push(BillingHistoryRow {
             kind: "usage".into(),
             title: if model.is_empty() { "AI usage".into() } else { format!("AI usage · {model}") },
@@ -88,6 +98,9 @@ pub async fn billing_history(pool: &PgPool, owner_iid: i64, req: ReqBillingHisto
             ts_ms: ts.timestamp_millis(),
             currency: currency.clone(),
             amount: -amount_native,
+            chat_id,
+            req_id,
+            prompt,
         });
     }
     rows.sort_by(|a, b| b.ts_ms.cmp(&a.ts_ms));

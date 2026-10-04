@@ -7,7 +7,7 @@ use serde_json::Value;
 use sqlx::PgPool;
 
 use crate::catalog_price::{price_for_model_id, DEFAULT_INPUT_MICRO_PER_M, DEFAULT_OUTPUT_MICRO_PER_M};
-use crate::catalog_rank::{alien_chain_sort_cmp, apply_cf_enabled, apply_gemini_enabled, family_of, gemini_chat_eligible, model_list_sort_cmp, model_picker_sort_cmp, pick_default_provider, sort_order_for, version_rank_of};
+use crate::catalog_rank::{alien_chain_sort_cmp, assign_picker_order, family_of, gemini_chat_eligible, pick_default_provider, version_rank_of};
 use crate::runtime_config::{cf_gateway_config, cf_gateway_ready};
 use crate::embed_gemini::gemini_api_key;
 use crate::catalog_types::LlmModelRow;
@@ -36,6 +36,7 @@ pub async fn llm_catalog_sync(pool: &PgPool) -> Result<()> {
 }
 
 pub async fn llm_catalog_sync_force(pool: &PgPool) -> Result<usize> {
+    runtime_config_reload(pool).await;
     let synced_at = Utc::now();
     let mut fetched = gemini_fetch().await?;
     let cf = cf_models_fetch().await?;
@@ -295,10 +296,7 @@ async fn gemini_fetch() -> Result<Vec<LlmModelRow>> {
             source: "api".into(),
         });
     }
-    apply_gemini_enabled(&mut out);
-    for (idx, m) in out.iter_mut().enumerate() {
-        m.sort_order = sort_order_for(m, idx as i32);
-    }
+    assign_picker_order(&mut out);
     Ok(out)
 }
 
@@ -368,11 +366,7 @@ async fn cf_models_fetch() -> Result<Vec<LlmModelRow>> {
             source: "cf_api".into(),
         });
     }
-    apply_cf_enabled(&mut out);
-    out.sort_by(model_list_sort_cmp);
-    for (idx, m) in out.iter_mut().enumerate() {
-        m.sort_order = sort_order_for(m, idx as i32);
-    }
+    assign_picker_order(&mut out);
     tracing::info!(cf_models = out.len(), enabled = out.iter().filter(|m| m.enabled).count(), "cf_models_fetch");
     Ok(out)
 }
@@ -455,18 +449,10 @@ fn usd_per_token_to_micro_per_m(usd_per_token: f64) -> i64 {
 }
 
 async fn catalog_reindex_sort_orders(pool: &PgPool) -> Result<()> {
-    db_retry(pool, || async {
-        sqlx::query(
-            "UPDATE ai.llm_model SET sort_order = 0, updated_at = NOW() WHERE id = 'alienai' AND deleted_at IS NULL",
-        )
-        .execute(pool)
-        .await
-    })
-    .await?;
     let rows = db_retry(pool, || async {
         sqlx::query_as::<_, (String, String, String, String, i64, i64, bool, bool, bool, i32, String, i32, String)>(
             "SELECT id, provider, label, provider_model, input_micro_per_m, output_micro_per_m, supports_thinking, enabled, is_default, sort_order, family, version_rank, source \
-             FROM ai.llm_model WHERE deleted_at IS NULL AND enabled = true",
+             FROM ai.llm_model WHERE deleted_at IS NULL",
         )
         .fetch_all(pool)
         .await
@@ -494,15 +480,30 @@ async fn catalog_reindex_sort_orders(pool: &PgPool) -> Result<()> {
             },
         )
         .collect::<Vec<_>>();
-    models.sort_by(model_picker_sort_cmp);
-    for (i, m) in models.iter().enumerate() {
-        let order = i as i32;
+    assign_picker_order(&mut models);
+    for m in &models {
+        let enabled = m.enabled;
+        let sort_order = m.sort_order;
+        let family = m.family.clone();
+        let version_rank = m.version_rank;
+        let id = m.id.clone();
         db_retry(pool, || async {
-            sqlx::query("UPDATE ai.llm_model SET sort_order = $1, updated_at = NOW() WHERE id = $2 AND deleted_at IS NULL")
-                .bind(order)
-                .bind(&m.id)
-                .execute(pool)
-                .await
+            sqlx::query(
+                "UPDATE ai.llm_model SET \
+                   sort_order = $1, \
+                   family = CASE WHEN source IN ('pinned', 'manual') THEN family ELSE $2 END, \
+                   version_rank = CASE WHEN source IN ('pinned', 'manual') THEN version_rank ELSE $3 END, \
+                   enabled = CASE WHEN source IN ('pinned', 'manual') THEN enabled ELSE $4 END, \
+                   updated_at = NOW() \
+                 WHERE id = $5 AND deleted_at IS NULL",
+            )
+            .bind(sort_order)
+            .bind(&family)
+            .bind(version_rank)
+            .bind(enabled)
+            .bind(&id)
+            .execute(pool)
+            .await
         })
         .await?;
     }

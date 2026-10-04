@@ -140,6 +140,8 @@ Context is lost when mentions exist only in UI state or human labels. Use **all*
 
 **Retry safety:** Retry updates the **same user row** (`msgUserTurnRetry`); wire text stays bracket-normalized; do not duplicate user bubbles.
 
+**Site product resolution does not create a mention.** Looking up "product A" across stores fills tool scope on the server ([site-ai.md](site-ai.md)). It must not write `ReqPrompt.mention_ids`, message brackets, or `sticky_mention_ids`. A sticky `@site` would pin later turns to one store. The user opts into a site by mentioning it.
+
 ---
 
 ## LLM-visible text

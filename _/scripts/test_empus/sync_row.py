@@ -59,8 +59,8 @@ def main() -> int:
     p.add_argument(
         "--search-by",
         default="nama",
-        choices=("nama", "penjamin", "kartu"),
-        help="penjamin/kartu = NIK/No Asuransi field (No. Penjamin)",
+        choices=("nama", "nik", "penjamin", "kartu"),
+        help="nik = NIK field; penjamin/kartu = No Asuransi",
     )
     args = p.parse_args()
     cfg = load_config()
