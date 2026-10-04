@@ -1196,7 +1196,7 @@ To add: <!-- slide-patch:add after=<slide_number> -->. To remove: <!-- slide-pat
 
 -- Seed: conversational site builder workflow (name -> auto slug -> site.create -> site.patch -> site.publish)
 INSERT INTO ai.inst (
-    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, priority, def_hash, updated_ts
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
 ) VALUES (
     'inst.site.builder',
     'global',
@@ -1223,8 +1223,12 @@ INSERT INTO ai.inst (
         'bikin landing page', 'buat landing page', 'create site', 'build website',
         'create website', 'make website', 'site builder', 'website builder'
     ],
-    ARRAY['tool_include:site.create', 'tool_include:site.patch', 'tool_include:site.handle.update']::TEXT[],
+    ARRAY[
+        'tool_include:site.create', 'tool_include:site.patch', 'tool_include:site.handle.update',
+        'tool_exclude:web.search', 'tool_exclude:web.visit'
+    ]::TEXT[],
     ARRAY['site.create', 'site.patch', 'site.handle.update', 'site.publish', 'img.generate'],
+    ARRAY['web.search', 'web.visit'],
     150,
     'seed',
     NOW()
@@ -1233,6 +1237,7 @@ INSERT INTO ai.inst (
     phrases = EXCLUDED.phrases,
     triggers = EXCLUDED.triggers,
     include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
     kind = EXCLUDED.kind,
     priority = EXCLUDED.priority,
     updated_ts = NOW();
@@ -1404,4 +1409,34 @@ UPDATE ai.inst SET
     priority = 130,
     updated_ts = NOW()
 WHERE id = 'inst.chat.history';
+
+-- Seed: draft a chat bot from Home chat
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.bot.draft',
+    'global',
+    'task',
+    '',
+    '[BOT DRAFT] The user wants a chat bot. Call bot.draft. Do not call site.create or web.search. If they have not said what the bot is for (only "buat bot", or only a sheet link), call bot.draft with an empty purpose and do not invent one. If the purpose is clear, call bot.draft immediately and leave the bot off. Do not ask whether they want a channel or a sheet before the call. Pass purpose in their words. Pass name only if they named the bot. Pass channel whatsapp or telegram only if they named one. Pass each Google Sheet, Doc, or Slide URL in sheets as {url, name, tab}. Omit access_mode unless they explicitly said read only or read write. If this chat already returned a bot_iid, pass that bot_iid on later turns (a new link, or turning it on). Do not create a second bot. Pass activate=true only when they say to turn it on. Pass web_search=true only when they want the web. After the tool returns, reply with summary and nothing else.',
+    ARRAY[
+        'buat bot', 'bikin bot', 'create a bot', 'create bot', 'new bot', 'bot baru', 'bot untuk',
+        'spreadsheets/d/', 'document/d/', 'presentation/d/',
+        'aktifkan bot', 'hidupkan bot', 'turn the bot on',
+        'sambungkan whatsapp', 'sambungkan telegram', 'connect whatsapp', 'connect telegram'
+    ],
+    ARRAY['tool_include:bot.draft', 'tool_exclude:web.search', 'tool_exclude:web.visit'],
+    ARRAY['bot.draft'],
+    ARRAY['web.search', 'web.visit'],
+    132,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
 

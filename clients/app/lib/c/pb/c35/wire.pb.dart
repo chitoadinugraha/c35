@@ -5457,6 +5457,7 @@ enum WsRes_Body {
   chatMsgFeedbackList,
   chatContextWindowSet,
   chatCompact,
+  devicePresencePush,
   notSet
 }
 
@@ -5591,6 +5592,7 @@ class WsRes extends $pb.GeneratedMessage {
     $15.ResChatMsgFeedbackList? chatMsgFeedbackList,
     $15.ResChatContextWindowSet? chatContextWindowSet,
     $15.ResChatCompact? chatCompact,
+    $5.DevicePresencePush? devicePresencePush,
   }) {
     final result = WsRes._();
     if (reqId != null) result.reqId = reqId;
@@ -5743,6 +5745,8 @@ class WsRes extends $pb.GeneratedMessage {
     if (chatContextWindowSet != null)
       result.chatContextWindowSet = chatContextWindowSet;
     if (chatCompact != null) result.chatCompact = chatCompact;
+    if (devicePresencePush != null)
+      result.devicePresencePush = devicePresencePush;
     return result;
   }
 
@@ -5883,6 +5887,7 @@ class WsRes extends $pb.GeneratedMessage {
     174: WsRes_Body.chatMsgFeedbackList,
     175: WsRes_Body.chatContextWindowSet,
     176: WsRes_Body.chatCompact,
+    177: WsRes_Body.devicePresencePush,
     0: WsRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -6016,7 +6021,8 @@ class WsRes extends $pb.GeneratedMessage {
       173,
       174,
       175,
-      176
+      176,
+      177
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$25.Err>(2, _omitFieldNames ? '' : 'err',
@@ -6308,6 +6314,9 @@ class WsRes extends $pb.GeneratedMessage {
         subBuilder: $15.ResChatContextWindowSet.$_createMessage)
     ..aOM<$15.ResChatCompact>(176, _omitFieldNames ? '' : 'chatCompact',
         subBuilder: $15.ResChatCompact.$_createMessage)
+    ..aOM<$5.DevicePresencePush>(
+        177, _omitFieldNames ? '' : 'devicePresencePush',
+        subBuilder: $5.DevicePresencePush.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -6457,6 +6466,7 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(174)
   @$pb.TagNumber(175)
   @$pb.TagNumber(176)
+  @$pb.TagNumber(177)
   WsRes_Body whichBody() => _WsRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(10)
@@ -6585,6 +6595,7 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(174)
   @$pb.TagNumber(175)
   @$pb.TagNumber(176)
+  @$pb.TagNumber(177)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -8022,6 +8033,17 @@ class WsRes extends $pb.GeneratedMessage {
   void clearChatCompact() => $_clearField(176);
   @$pb.TagNumber(176)
   $15.ResChatCompact ensureChatCompact() => $_ensure(127);
+
+  @$pb.TagNumber(177)
+  $5.DevicePresencePush get devicePresencePush => $_getN(128);
+  @$pb.TagNumber(177)
+  set devicePresencePush($5.DevicePresencePush value) => $_setField(177, value);
+  @$pb.TagNumber(177)
+  $core.bool hasDevicePresencePush() => $_has(128);
+  @$pb.TagNumber(177)
+  void clearDevicePresencePush() => $_clearField(177);
+  @$pb.TagNumber(177)
+  $5.DevicePresencePush ensureDevicePresencePush() => $_ensure(128);
 }
 
 const $core.bool _omitFieldNames =

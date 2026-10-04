@@ -10,6 +10,7 @@
 #   .\_\scripts\deploy\publish_app_release.ps1 -AndroidPromote
 #   (if Play OK but CAS failed) dart run deploy_app/play_store_upload_promote_prod.dart --finish-cas-only <N>
 #   .\_\scripts\deploy\publish_app_release.ps1 -RemoteAgent
+#   .\_\scripts\deploy\publish_app_release.ps1 -RemoteAndroid
 #   .\_\scripts\deploy\publish_app_release.ps1 -RemoteBrowser
 #   .\_\scripts\deploy\publish_app_release.ps1 -ChromeExtension
 #   .\_\scripts\deploy\publish_app_release.ps1 -MintToken
@@ -25,6 +26,7 @@ param(
     [switch]$AndroidPromote,
     [int]$PromoteOnly = 0,
     [switch]$RemoteAgent,
+    [switch]$RemoteAndroid,
     [switch]$RemoteBrowser,
     [switch]$ChromeExtension,
     [switch]$MintToken,
@@ -86,6 +88,7 @@ function Resolve-AppPublishPerfTarget {
     if ($WebOnly) { return 'web-release' }
     if ($AndroidOnly) { return 'android-release' }
     if ($RemoteAgent) { return 'remote-windows-agent' }
+    if ($RemoteAndroid) { return 'remote-android-agent' }
     if ($RemoteBrowser) { return 'remote-browser' }
     if ($ChromeExtension) { return 'chrome-extension' }
     return 'app-release'
@@ -123,6 +126,15 @@ try {
         Remove-Item Env:C35_SERVER_URL -ErrorAction SilentlyContinue
         $env:C35_SERVER = 'https://alienai.id'
         Invoke-DeployDart @('run', 'deploy_remote/remote_windows_upload_prod.dart')
+        return
+    }
+
+    if ($RemoteAndroid) {
+        Write-Host '==> remote Android agent (APK + CAS + ai.config + NATS)'
+        Remove-Item Env:C35_SERVER -ErrorAction SilentlyContinue
+        Remove-Item Env:C35_SERVER_URL -ErrorAction SilentlyContinue
+        $env:C35_SERVER = 'https://alienai.id'
+        Invoke-DeployDart @('run', 'deploy_remote/remote_android_upload_prod.dart')
         return
     }
 

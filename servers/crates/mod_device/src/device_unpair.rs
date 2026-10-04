@@ -47,7 +47,7 @@ pub async fn device_unpair(
     .map_err(|e| e.to_string())?;
     tx.commit().await.map_err(|e| e.to_string())?;
 
-    let _ = agent_presence_put(pool, device_iid, false, None).await;
+    let _ = agent_presence_put(pool, nats, device_iid, false, None).await;
     let _ = agent_log_put(
         pool,
         nats,

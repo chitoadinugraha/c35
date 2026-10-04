@@ -1,7 +1,11 @@
+import 'dart:io' show Platform;
+
 import 'package:alienai_c35/c/device/device_store.dart';
+import 'package:alienai_c35/c/update/remote_agent_apk_install.dart';
 import 'package:alienai_c35/widgets/devices/in_device_pair.dart';
 import 'package:alienai_c35/widgets/ui/ui_alert.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 class UiDeviceAddMenu extends StatelessWidget {
@@ -22,6 +26,14 @@ class UiDeviceAddMenu extends StatelessWidget {
 
   Future<void> _onFlashComingSoon(BuildContext context) => uiAlertInfo(context, title: 'Coming soon', message: 'Flash IoT Device is not available yet.');
 
+  Future<void> _onInstallRemoteAndroid(BuildContext context) async {
+    try {
+      await remoteAgentAndroidInstall();
+    } catch (e) {
+      if (context.mounted) await uiAlertError(context, e);
+    }
+  }
+
   @override
   Widget build(BuildContext context) => uiPopupMenuTooltipWrap(
         tooltip: 'Add device',
@@ -32,11 +44,12 @@ class UiDeviceAddMenu extends StatelessWidget {
           iconSize: 18,
           onSelected: (v) => switch (v) {
             'pair' => _onAddPair(context),
+            'remote_android' => _onInstallRemoteAndroid(context),
             'flash' => _onFlashComingSoon(context),
             _ => null,
           },
-          itemBuilder: (_) => const [
-            PopupMenuItem(
+          itemBuilder: (_) => [
+            const PopupMenuItem(
               value: 'pair',
               child: ListTile(
                 leading: Icon(Icons.link),
@@ -44,7 +57,16 @@ class UiDeviceAddMenu extends StatelessWidget {
                 subtitle: Text('Enter pairing code'),
               ),
             ),
-            PopupMenuItem(
+            if (!kIsWeb && Platform.isAndroid)
+              const PopupMenuItem(
+                value: 'remote_android',
+                child: ListTile(
+                  leading: Icon(Icons.android),
+                  title: Text('Install Remote Agent'),
+                  subtitle: Text('id.alienai.remote APK'),
+                ),
+              ),
+            const PopupMenuItem(
               value: 'flash',
               child: ListTile(
                 leading: Icon(Icons.usb),

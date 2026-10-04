@@ -1,4 +1,4 @@
-use axum::extract::{DefaultBodyLimit, State};
+use axum::extract::{DefaultBodyLimit, Query, State};
 use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
@@ -6,17 +6,21 @@ use axum::{Json, Router};
 use c35_ctx::AppState;
 use c35_mod_device::{agent_session_resolve, AgentSession};
 use c35_mod_drive::{
-    drive_file_delete, drive_file_put, drive_normalize_path, drive_storage_snapshot, drive_tree_list,
+    drive_changes_list, drive_file_delete, drive_file_put, drive_normalize_path,
+    drive_path_updated_ts_ms, drive_storage_snapshot, drive_sync_cursor_ms, drive_tree_list,
     DriveFileOpResponse, DrivePutError,
 };
-use c35_mod_file::{upload_file_session_handler, CAS_UPLOAD_MAX_BYTES};
-use c35_mod_identity::auth_session_caller_iid;
 use serde::Deserialize;
 
+use crate::drive_notify::drive_mutation_notify;
+use c35_mod_file::{upload_file_session_handler, CAS_UPLOAD_MAX_BYTES};
+use c35_mod_identity::auth_session_caller_iid;
 pub fn drive_router() -> Router<AppState> {
     Router::new()
         .route("/v1/agent/storage", get(agent_storage))
         .route("/v1/file/tree", get(file_tree))
+        .route("/v1/file/changes", get(file_changes))
+        .route("/v1/file/sync_cursor", get(file_sync_cursor))
         .route(
             "/v1/file/upload",
             post(file_upload).layer(DefaultBodyLimit::max(CAS_UPLOAD_MAX_BYTES)),
@@ -72,6 +76,40 @@ async fn file_tree(State(st): State<AppState>, headers: HeaderMap) -> impl IntoR
     }
 }
 
+#[derive(Debug, Deserialize)]
+struct FileChangesQuery {
+    since_ms: Option<i64>,
+    limit: Option<i64>,
+}
+
+async fn file_changes(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    Query(q): Query<FileChangesQuery>,
+) -> impl IntoResponse {
+    let session = match resolve_agent_owner(&st, &headers).await {
+        Ok(s) => s,
+        Err(e) => return e.into_response(),
+    };
+    let since_ms = q.since_ms.unwrap_or(0);
+    let limit = q.limit.unwrap_or(500);
+    match drive_changes_list(&st.pool, session.owner_iid, since_ms, limit).await {
+        Ok(page) => Json(page).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+async fn file_sync_cursor(State(st): State<AppState>, headers: HeaderMap) -> impl IntoResponse {
+    let session = match resolve_agent_owner(&st, &headers).await {
+        Ok(s) => s,
+        Err(e) => return e.into_response(),
+    };
+    match drive_sync_cursor_ms(&st.pool, session.owner_iid).await {
+        Ok(ms) => Json(serde_json::json!({ "since_ms": ms })).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
 async fn file_upload(
     State(st): State<AppState>,
     headers: HeaderMap,
@@ -79,7 +117,7 @@ async fn file_upload(
 ) -> impl IntoResponse {
     if session_key_from_headers(&headers).is_some() {
         if let Ok(session) = resolve_agent_owner(&st, &headers).await {
-            return drive_upload_inner(&st, session.owner_iid, &headers, body).await;
+            return drive_upload_inner(&st, session.owner_iid, &headers, body, "agent").await;
         }
     }
     upload_file_session_handler(State(st), headers, body).await.into_response()
@@ -94,7 +132,7 @@ async fn file_delete(
         Ok(s) => s,
         Err(e) => return e.into_response(),
     };
-    drive_delete_inner(&st, session.owner_iid, body).await
+    drive_delete_inner(&st, session.owner_iid, body, "agent").await
 }
 
 
@@ -132,7 +170,7 @@ async fn drive_upload_user(
         Some(id) if id > 0 => id,
         _ => return (StatusCode::UNAUTHORIZED, "unauthorized").into_response(),
     };
-    drive_upload_inner(&st, owner_iid, &headers, body).await
+    drive_upload_inner(&st, owner_iid, &headers, body, "app").await
 }
 
 async fn drive_delete_user(
@@ -144,7 +182,7 @@ async fn drive_delete_user(
         Some(id) if id > 0 => id,
         _ => return (StatusCode::UNAUTHORIZED, "unauthorized").into_response(),
     };
-    drive_delete_inner(&st, owner_iid, body).await
+    drive_delete_inner(&st, owner_iid, body, "app").await
 }
 
 async fn drive_upload_inner(
@@ -152,6 +190,7 @@ async fn drive_upload_inner(
     owner_iid: i64,
     headers: &HeaderMap,
     body: axum::body::Bytes,
+    source: &str,
 ) -> axum::response::Response {
     if body.is_empty() {
         return (StatusCode::BAD_REQUEST, "File body is empty").into_response();
@@ -173,6 +212,7 @@ async fn drive_upload_inner(
     let path = file_path
         .or(file_name.map(|n| format!("/{n}")))
         .unwrap_or_default();
+    let norm_path = drive_normalize_path(&path);
     match drive_file_put(
         &st.pool,
         &st.cas_dir,
@@ -185,7 +225,12 @@ async fn drive_upload_inner(
     )
     .await
     {
-        Ok(resp) => Json(resp).into_response(),
+        Ok(resp) => {
+            if let Ok(since_ms) = drive_path_updated_ts_ms(&st.pool, owner_iid, &norm_path).await {
+                drive_mutation_notify(st, owner_iid, &norm_path, since_ms, false, source).await;
+            }
+            Json(resp).into_response()
+        }
         Err(DrivePutError::InvalidPath) => (StatusCode::BAD_REQUEST, "path required").into_response(),
         Err(DrivePutError::EmptyBody) => (StatusCode::BAD_REQUEST, "empty body").into_response(),
         Err(DrivePutError::Quota(q)) => (
@@ -210,17 +255,24 @@ async fn drive_delete_inner(
     st: &AppState,
     owner_iid: i64,
     body: axum::body::Bytes,
+    source: &str,
 ) -> axum::response::Response {
     let req: FilePathBody = match serde_json::from_slice(&body) {
         Ok(v) => v,
         Err(e) => return (StatusCode::BAD_REQUEST, format!("invalid json: {e}")).into_response(),
     };
+    let norm_path = drive_normalize_path(&req.path);
     match drive_file_delete(&st.pool, owner_iid, &req.path).await {
-        Ok(true) => Json(DriveFileOpResponse {
-            ok: true,
-            path: drive_normalize_path(&req.path),
-        })
-            .into_response(),
+        Ok(true) => {
+            if let Ok(since_ms) = drive_path_updated_ts_ms(&st.pool, owner_iid, &norm_path).await {
+                drive_mutation_notify(st, owner_iid, &norm_path, since_ms, true, source).await;
+            }
+            Json(DriveFileOpResponse {
+                ok: true,
+                path: norm_path,
+            })
+                .into_response()
+        }
         Ok(false) => (StatusCode::NOT_FOUND, "file not found").into_response(),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     }

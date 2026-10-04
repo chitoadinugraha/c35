@@ -220,6 +220,10 @@ async fn download_app_apk(State(st): State<AppState>) -> Response {
     download_serve(st, "android", DownloadKind::Apk, "alienai.apk").await
 }
 
+async fn download_remote_agent_apk(State(st): State<AppState>) -> Response {
+    download_serve(st, "remote-android", DownloadKind::Apk, "alienai-remote.apk").await
+}
+
 async fn download_app_zip(State(st): State<AppState>) -> Response {
     download_serve(st, "windows", DownloadKind::WindowsZip, "alienai-app.zip").await
 }
@@ -320,6 +324,8 @@ pub fn web_router() -> Router<AppState> {
         }))
         .route("/download/app.apk", get(download_app_apk))
         .route("/download/alienai.apk", get(download_app_apk))
+        .route("/download/remote.apk", get(download_remote_agent_apk))
+        .route("/download/agent.apk", get(download_remote_agent_apk))
         .route("/download/app.exe", get(download_app_zip))
         .route("/download/alienai-app.zip", get(download_app_zip))
         .route("/download/app.msi", get(download_app_msi))

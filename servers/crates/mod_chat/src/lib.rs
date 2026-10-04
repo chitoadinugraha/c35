@@ -1,4 +1,5 @@
 mod asset_tag;
+mod bot_draft;
 mod bot_meta;
 mod bot_welcome;
 mod bot_peer;

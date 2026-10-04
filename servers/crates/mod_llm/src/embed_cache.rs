@@ -135,7 +135,9 @@ pub async fn embed_cached(
     let out = embed_text(http, trimmed, task, dimensions)
         .await
         .map_err(|e| e.to_string())?;
-    let _ = embed_cache_put(pool, &model, &key, trimmed, task, &out.embedding, out.token_in).await;
+    embed_cache_put(pool, &model, &key, trimmed, task, &out.embedding, out.token_in)
+        .await
+        .map_err(|e| format!("embed_cache_put: {e}"))?;
     Ok(EmbedCacheResult {
         embedding: out.embedding,
         cached: false,

@@ -4,6 +4,7 @@ import 'package:alienai_c35/c/catalog/catalog_translation_cache.dart';
 import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/chat/chat_inbox.dart';
 import 'package:alienai_c35/widgets/ai/ui_chat_message_menu.dart';
+import 'package:alienai_c35/widgets/ai/ui_msg_copy_prefix.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_trace_sheet.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
@@ -60,10 +61,12 @@ List<ChatMessageMenuItem> msgBubbleMenuItems(
           icon: Icons.tag_rounded,
           onPressed: () {
             ContextMenuController.removeAny();
-            final copyId = msgId > 0 ? '$msgId' : reqId.trim();
+            final label = msgId > 0 ? 'Message ID' : 'Request ID';
+            final rawId = msgId > 0 ? '$msgId' : reqId.trim();
+            final copyId = msgCopyClipboardId(label, rawId);
             Clipboard.setData(ClipboardData(text: copyId));
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('${msgId > 0 ? 'Message' : 'Request'} ID copied: $copyId'), behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 1)),
+              SnackBar(content: Text('$label copied'), behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 1)),
             );
           },
         )

@@ -77,7 +77,7 @@ Rules:
 
 - Paths are **relative** to drive root, `/` separators in wire JSON, normalized on server (no `..`, no leading `/`).
 - Content addressed by **blake3** hex (`hash_blake3`); pull via signed `/fs/{hash}`.
-- Sync loop interval ~30s (implementation default; match cs_bots `sync.rs`).
+- Agent sync: **OS watcher** + **WS/NATS `c35.drive` nudge** wake; incremental `/v1/file/changes` with `remote_since_ms` in manifest; full tree heal on 404 or legacy server.
 
 ---
 
@@ -141,7 +141,9 @@ Auth patterns match [`remote.md`](remote.md) agent session (`X-Device-Session: {
 | Method | Path | Auth | Body / response |
 |--------|------|------|-----------------|
 | GET | `/v1/agent/storage` | Device session | `ResDriveStorage` JSON keys: `storage_used_bytes`, `storage_limit_bytes` |
-| GET | `/v1/file/tree` | Device session | Remote file list `{ path, hash, size }[]` (cs_bots-compatible JSON) |
+| GET | `/v1/file/tree` | Device session | Remote file list `{ path, hash, size }[]` (cs_bots-compatible JSON); **heal / legacy** only when incremental unavailable |
+| GET | `/v1/file/changes` | Device session | Query `since_ms`, `limit` — delta rows `{ path, hash, size, updated_ts_ms, deleted }[]` + `next_since_ms`, `has_more` |
+| GET | `/v1/file/sync_cursor` | Device session | `{ since_ms }` max `updated_ts` watermark for owner |
 | POST | `/v1/file/upload` | Device session | Path + bytes or CAS hash after put |
 | POST | `/v1/file/delete` | Device session | Path |
 | GET | `/v1/drive/tree` | User session | App browser (phase 2) |

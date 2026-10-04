@@ -1,3 +1,4 @@
+mod bot_draft;
 mod bot_inbox;
 mod browser;
 mod chat_history;
@@ -20,6 +21,7 @@ mod web_research;
 mod web_search;
 mod web_visit;
 
+pub use bot_draft::BotDraftTool;
 pub use bot_inbox::BotInboxQueryTool;
 pub use chat_history::{ChatMessagesTool, ChatSearchTool};
 pub use memory::{MemoryForgetTool, MemoryListTool, MemorySaveTool};

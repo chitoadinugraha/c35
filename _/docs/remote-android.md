@@ -123,7 +123,20 @@ Matching `c_remote_windows`:
 
 ---
 
-## 6. Background Lifecycle & Autostart
+## 6. Distribution & publish
+
+| Channel | URL / command |
+|---------|----------------|
+| Website | `GET https://alienai.id/download/remote.apk` (alias `/download/agent.apk`) |
+| Main app | Devices → **Install Remote Agent** (Android only; sideload `id.alienai.remote`) |
+| OTA | `GET /version/remote-android` + NATS `c35.release.remote-android` |
+| Publish | `.\_\scripts\deploy\publish_remote_android.ps1` |
+
+Config: `ai.config` → `app.release.c35.remote-android` (`apkHash`, `apkSize`, mirrored `hash`/`size` for agent OTA).
+
+---
+
+## 7. Background Lifecycle & Autostart
 
 - **Foreground Service**: Persistent ongoing notification prevents OS task-killing.
 - **WakeLock**: Holds `PARTIAL_WAKE_LOCK` during active WebRTC or automation tasks.

@@ -1,23 +1,28 @@
 //! Boot tool embed index — DB cache + in-memory vectors for vector tool RAG.
 
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 use std::time::Instant;
 
 use c35_mod_billing::billing_embed_cost_usd;
+use futures_util::future::join_all;
 use reqwest::Client;
 use sqlx::PgPool;
+use tokio::sync::Semaphore;
 use tracing::{info, warn};
 
 use c35_mod_llm::{
-    embed_cache_get_many_touch, embed_cache_key, embed_cache_put, embed_cached, embed_model_tag,
-    EMBED_DIMENSIONS_DEFAULT, EMBED_MODEL, EMBED_TASK_DOCUMENT, EMBED_TASK_QUERY,
+    embed_cache_get_many_touch, embed_cache_key, embed_cached, embed_model_tag, EMBED_DIMENSIONS_DEFAULT,
+    EMBED_MODEL, EMBED_TASK_DOCUMENT, EMBED_TASK_QUERY,
 };
-use c35_mod_llm::embed_text;
 
-use crate::tool_rag::{cosine_similarity, ToolCandidate, DEFAULT_TOOL_SIM_GAP, DEFAULT_TOOL_SIM_THRESHOLD, DEFAULT_TOOL_TOP_K};
+use crate::tool_rag::{
+    cosine_similarity, ToolCandidate, DEFAULT_TOOL_SIM_GAP, DEFAULT_TOOL_SIM_THRESHOLD, DEFAULT_TOOL_TOP_K,
+};
 use crate::tools::{default_dispatcher, ToolDef};
 
 static TOOL_INDEX: OnceLock<Vec<IndexedTool>> = OnceLock::new();
+
+const TOOL_INDEX_EMBED_PARALLEL_DEFAULT: usize = 8;
 
 #[derive(Clone)]
 struct IndexedTool {
@@ -46,7 +51,15 @@ pub fn tool_definition_text(def: &ToolDef) -> String {
     parts.join("\n")
 }
 
-/// Boot: load tool vectors from embed cache; embed and store misses.
+fn tool_index_embed_parallel() -> usize {
+    std::env::var("C35_TOOL_INDEX_EMBED_PARALLEL")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .filter(|&n| (1..=32).contains(&n))
+        .unwrap_or(TOOL_INDEX_EMBED_PARALLEL_DEFAULT)
+}
+
+/// Boot: load tool vectors from embed cache; embed and store misses (parallel API, durable cache).
 pub async fn tool_index_init(pool: &PgPool, http: &Client) -> Result<usize, String> {
     if TOOL_INDEX.get().is_some() {
         return Ok(TOOL_INDEX.get().map(|v| v.len()).unwrap_or(0));
@@ -73,36 +86,62 @@ pub async fn tool_index_init(pool: &PgPool, http: &Client) -> Result<usize, Stri
         .await
         .map_err(|e| e.to_string())?;
 
-    let mut indexed: Vec<IndexedTool> = Vec::new();
+    let mut indexed: Vec<IndexedTool> = Vec::with_capacity(defs.len());
     let mut cache_hits = 0usize;
-    let mut cache_misses = 0usize;
+    let mut misses: Vec<(String, String)> = Vec::new();
 
     for (i, def) in defs.iter().enumerate() {
-        let text = &texts[i];
-        let key = &keys[i];
-        let embedding = if let Some(vec) = cached.get(i).and_then(|v| v.clone()) {
+        if let Some(vec) = cached.get(i).and_then(|v| v.clone()) {
             cache_hits += 1;
-            vec
-        } else {
-            cache_misses += 1;
-            let out = embed_text(http, text, task, EMBED_DIMENSIONS_DEFAULT)
-                .await
-                .map_err(|e| format!("tool index embed {}: {e}", def.name))?;
-            let _ = embed_cache_put(pool, &model, key, text, task, &out.embedding, out.token_in).await;
-            out.embedding
-        };
-        if !embedding.is_empty() {
-            indexed.push(IndexedTool {
-                tool_id: def.name.clone(),
-                embedding,
-            });
+            if !vec.is_empty() {
+                indexed.push(IndexedTool {
+                    tool_id: def.name.clone(),
+                    embedding: vec,
+                });
+            }
+            continue;
+        }
+        misses.push((def.name.clone(), texts[i].clone()));
+    }
+
+    let cache_misses = misses.len();
+    if !misses.is_empty() {
+        let parallel = tool_index_embed_parallel();
+        let sem = Arc::new(Semaphore::new(parallel));
+        let pool = pool.clone();
+        let http = http.clone();
+        let fetched = join_all(misses.into_iter().map(|(tool_id, text)| {
+            let sem = sem.clone();
+            let pool = pool.clone();
+            let http = http.clone();
+            async move {
+                let _permit = sem
+                    .acquire()
+                    .await
+                    .map_err(|e| format!("tool index embed {tool_id}: {e}"))?;
+                let out = embed_cached(&pool, &http, &text, task, EMBED_DIMENSIONS_DEFAULT)
+                    .await
+                    .map_err(|e| format!("tool index embed {tool_id}: {e}"))?;
+                if out.embedding.is_empty() {
+                    return Err(format!("tool index embed {tool_id}: empty vector"));
+                }
+                Ok(IndexedTool {
+                    tool_id,
+                    embedding: out.embedding,
+                })
+            }
+        }))
+        .await;
+        for item in fetched {
+            indexed.push(item?);
         }
     }
 
     let n = indexed.len();
     let _ = TOOL_INDEX.set(indexed);
     info!(
-        "tool_index: {n} tools ({cache_hits} cache hits, {cache_misses} embed API calls)"
+        "tool_index: {n} tools ({cache_hits} cache hits, {cache_misses} embed API calls, parallel={})",
+        if cache_misses > 0 { tool_index_embed_parallel() } else { 0 }
     );
     Ok(n)
 }
@@ -216,5 +255,21 @@ pub async fn tool_find_vector(
         embed_token_in,
         embed_cost_usd,
         embed_model,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tool_index_embed_parallel_default_and_env() {
+        std::env::remove_var("C35_TOOL_INDEX_EMBED_PARALLEL");
+        assert_eq!(tool_index_embed_parallel(), TOOL_INDEX_EMBED_PARALLEL_DEFAULT);
+        std::env::set_var("C35_TOOL_INDEX_EMBED_PARALLEL", "4");
+        assert_eq!(tool_index_embed_parallel(), 4);
+        std::env::set_var("C35_TOOL_INDEX_EMBED_PARALLEL", "99");
+        assert_eq!(tool_index_embed_parallel(), TOOL_INDEX_EMBED_PARALLEL_DEFAULT);
+        std::env::remove_var("C35_TOOL_INDEX_EMBED_PARALLEL");
     }
 }

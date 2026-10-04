@@ -467,8 +467,30 @@ Devices page → remote device row shows **two status dots** (trailing):
 
 | Dot | Position | Meaning |
 |-----|----------|---------|
-| Left | WebRTC | App ↔ device data plane connected |
-| Right | Alien AI Cloud | Agent ↔ server control session online |
+| Left | WebRTC | App ↔ device **data plane** (screen, files, media) |
+| Right | Alien AI Cloud | Agent ↔ server **control plane** (presence, tasks) |
+
+### WebRTC dot colors (left) — connect-first (LOCKED)
+
+WebRTC **never** auto-starts when the user opens a device. User taps **Connect** (device toolbar, Remote tab, or Files **Connect**). Colors match `UiDeviceRow` / `RemoteSessionStatus`:
+
+| Color | Hex (fill) | When |
+|-------|------------|------|
+| **Grey** | `#3F3F46` | Idle — no session yet, or user stopped and returned to idle |
+| **Orange** | `#F59E0B` | Connecting or reconnecting (`connecting` / `reconnecting`) |
+| **Green** | `#22C55E` | WebRTC peer connected (`connected.value`) |
+| **Red** | `#EF4444` | Last connect attempt failed (`RemoteSessionStatus.failed`) — use **Retry** |
+
+Tooltip copy: grey = “Not connected — tap Connect in device view”; orange = “Connecting (WebRTC)”; green = “Connected (WebRTC)”; red = “Could not connect (WebRTC)”.
+
+### Cloud dot colors (right)
+
+| Color | When |
+|-------|------|
+| **Green** | Agent control session online (`meta.last_seen_ts_ms` fresh, or `meta.online`) |
+| **Grey** | Agent offline or stale presence |
+
+Presence updates: server writes `ai.identity.meta` on agent WS connect/disconnect and pushes `DevicePresencePush` on `c35.user.{owner_iid}.app.device_presence` (app WS fanout). Devices page applies push locally; full `identity_list` reconcile every **5 min** as backup (not 30s poll). See [sync.md](sync.md).
 
 Device detail tabs per [ui.md](ui.md):
 

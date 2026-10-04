@@ -15,6 +15,7 @@ class UiDeviceRow extends StatelessWidget {
     this.clusterOnline = false,
     this.webrtcConnected = false,
     this.webrtcConnecting = false,
+    this.webrtcFailed = false,
     this.selected = false,
     this.onTap,
   });
@@ -30,6 +31,8 @@ class UiDeviceRow extends StatelessWidget {
   /// WebRTC data plane: app ↔ device (screen, files, media — P2P or TURN).
   final bool webrtcConnected;
   final bool webrtcConnecting;
+  /// Last WebRTC attempt failed (idle until user taps Connect / Retry).
+  final bool webrtcFailed;
   final bool selected;
   final VoidCallback? onTap;
 
@@ -113,10 +116,12 @@ class UiDeviceRow extends StatelessWidget {
 
   Widget _webrtcDot() {
     final (color, border, tooltip) = webrtcConnected
-        ? (const Color(0xFF22C55E), const Color(0xFF14532D), 'Direct link (WebRTC)')
+        ? (const Color(0xFF22C55E), const Color(0xFF14532D), 'Connected (WebRTC)')
         : webrtcConnecting
             ? (const Color(0xFFF59E0B), const Color(0xFF78350F), 'Connecting (WebRTC)')
-            : (const Color(0xFF3F3F46), const Color(0xFF27272A), 'Direct link (WebRTC)');
+            : webrtcFailed
+                ? (const Color(0xFFEF4444), const Color(0xFF7F1D1D), 'Could not connect (WebRTC)')
+                : (const Color(0xFF3F3F46), const Color(0xFF27272A), 'Not connected — tap Connect in device view');
     return uiTooltip(
       message: tooltip,
       child: Container(

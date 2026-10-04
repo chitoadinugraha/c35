@@ -719,10 +719,9 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
           label: 'Copy Chat ID',
           icon: Icons.copy_rounded,
           onPressed: () {
-            final copyId = '$id';
-            Clipboard.setData(ClipboardData(text: copyId));
+            Clipboard.setData(ClipboardData(text: msgCopyClipboardId('Chat ID', '$id')));
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Chat ID copied: $copyId'), behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 1)),
+              SnackBar(content: Text('Chat ID copied'), behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 1)),
             );
           },
         ),
@@ -1456,9 +1455,10 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
 
   Widget _chatColumn({required bool wide}) => Column(
         children: [
-          _chatHeader(wide: wide),
-          Expanded(child: _threadBody()),
-          Padding(
+          RepaintBoundary(child: _chatHeader(wide: wide)),
+          Expanded(child: RepaintBoundary(child: _threadBody())),
+          RepaintBoundary(
+            child: Padding(
             padding: EdgeInsets.fromLTRB(16, 0, 16, uiSafeBottomInset(context, 16)),
             child: InComposer(
               key: ValueKey(_store.activeChatId ?? 'new'),
@@ -1487,6 +1487,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
               onFollowupRemove: _followupRemove,
               enabled: _catalogReady,
             ),
+          ),
           ),
         ],
       );
@@ -1655,17 +1656,19 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       );
     }
 
-    return Align(
-      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: isUser
-            ? body
-            : FractionallySizedBox(
-                widthFactor: 0.8,
-                alignment: Alignment.centerLeft,
-                child: body,
-              ),
+    return RepaintBoundary(
+      child: Align(
+        alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: isUser
+              ? body
+              : FractionallySizedBox(
+                  widthFactor: 0.8,
+                  alignment: Alignment.centerLeft,
+                  child: body,
+                ),
+        ),
       ),
     );
   }
@@ -1826,11 +1829,13 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
               ? SafeArea(
                   child: Row(
                     children: [
-                      SizedBox(
-                        width: 280,
-                        child: DecoratedBox(
-                          decoration: const BoxDecoration(border: Border(right: BorderSide(color: _border))),
-                          child: _historySidebar(),
+                      RepaintBoundary(
+                        child: SizedBox(
+                          width: 280,
+                          child: DecoratedBox(
+                            decoration: const BoxDecoration(border: Border(right: BorderSide(color: _border))),
+                            child: _historySidebar(),
+                          ),
                         ),
                       ),
                       Expanded(child: _chatColumn(wide: true)),

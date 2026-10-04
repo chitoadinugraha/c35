@@ -6,6 +6,7 @@ import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/device/device_api.dart';
 import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/c/remote/remote_session.dart';
+import 'package:alienai_c35/c/pb/c35/device.pb.dart';
 import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
 import 'package:alienai_c35/c/session.dart';
 import 'package:fixnum/fixnum.dart';
@@ -131,6 +132,29 @@ class DeviceStore extends ChangeNotifier {
     _sortRows();
     if (_selectedId == null && _rows.isNotEmpty) _selectedId = _rows.first.identity.iid.toString();
     notifyListeners();
+  }
+
+  void applyPresencePush(DevicePresencePush push) {
+    final id = push.deviceIid.toString();
+    final i = _rows.indexWhere((r) => r.identity.iid.toString() == id);
+    if (i < 0) {
+      unawaited(refresh());
+      return;
+    }
+    final row = _rows[i];
+    final identity = row.identity;
+    _rows[i] = IdentityListRow(
+      identity: identity.rebuild((b) {
+        b.metaJson = push.metaJson;
+        if (push.updatedTsMs > Int64.ZERO) b.updatedTsMs = push.updatedTsMs;
+      }),
+      grantRole: row.grantRole,
+      isPinned: row.isPinned,
+      sortOrder: row.sortOrder,
+      archivedTsMs: row.archivedTsMs,
+    );
+    notifyListeners();
+    unawaited(deviceListCacheSave(Session.instance.uid, _rows));
   }
 
   Future<void> refresh({bool includeArchived = false}) async {

@@ -1,0 +1,87 @@
+---
+description: New LLM tools — register, inst.sql seed, cluster apply, embed cache behavior
+alwaysApply: true
+---
+
+# New LLM tools — inst seed + deploy
+
+Mirrored for Cursor: [`.cursor/rules/tools-inst-seed.mdc`](../../.cursor/rules/tools-inst-seed.mdc)
+
+Read [`_/docs/inst.md`](../../_/docs/inst.md) and [`.agents/rules/prompt-steering.md`](prompt-steering.md) first.
+
+Scoped files when editing: `servers/crates/mod_chat/src/tools/**`, `tool_index.rs`, `_/schemas/inst.sql`.
+
+## When you add or change a tool
+
+| Change | `inst.sql` seed | Apply row to cluster | `server_ai` rollout |
+|--------|-----------------|----------------------|---------------------|
+| **New** user-facing tool | **Required** if the model should call it from free text | **Yes** — row in `ai.inst` | **Yes** — tool RAG index builds at boot |
+| Tool **description**, **aliases**, or **`rag_phrases`** | Update steering copy if needed | Only if inst body/phrases/triggers changed | **Yes** — document embed text changed |
+| Tool **parameters** / handler only | No | No | **No** |
+| New **`inst.*`** only | **Yes** | **Yes** | **No** unless tool defs changed |
+
+**Git seeds are not live.** Apply via `migrate_db.ps1`, MCP `inst_put`, or SQL `ON CONFLICT DO UPDATE` plus NATS invalidation or rollout.
+
+Verify: `prompt_compose` / `prompt_run` — check `inst_ids` and `selected_tools` in trace.
+
+## Inst checklist (every new tool)
+
+- [ ] `ToolDefinition` in `mod_chat` (`topics`, `readonly`, `rag_phrases`)
+- [ ] `inst.sql`: phrases (ID+EN), `include_tools` / `exclude_tools`, `tool_include:` / `tool_exclude:`
+- [ ] `kind=task` for phrase match; `kind=mention` only for `@mention` gating (phrases ignored)
+- [ ] Compose test when pairing is fragile (`inst.bot.draft`, `inst.site.builder`)
+- [ ] Cluster row applied; `prompt_compose` before claiming fixed
+
+## Embedding cache (what is recomputed)
+
+| Layer | Input | When | Storage |
+|-------|--------|------|---------|
+| Tool **document** vector | name + description + aliases + `rag_phrases` (not JSON params) | `tool_index_init` at **pod boot** | `ai.embed_cache` + in-memory `TOOL_INDEX` |
+| User **query** vector | trimmed user text | each turn | `ai.embed_cache` (`embed_cached`, QUERY task) |
+| **Inst** rows | phrases / triggers | each turn | not embedded |
+
+Unchanged tool document text → boot log `tool_index: N tools (X cache hits, Y embed API calls)` with **Y only for new/changed** tools.
+
+## Optimize inst seeding
+
+1. **Steer with inst, not hope-RAG** — `tool_include` + `tool_exclude` (e.g. site builder excludes `web.search`) so the right tool is **force-fed** even when ranker is lexical.
+2. **Apply one row, not full reseed** — `inst_put` or targeted SQL + NATS `c35.inst.{id}`; `inst_cache` reloads that id (no server restart for inst-only).
+3. **Phrase design** — short ID+EN substrings users actually type; avoid overlapping inst rows with conflicting priorities.
+4. **Mention vs task** — `inst.web.builder` is `kind=mention` only; phrases do not match. Use `kind=task` (e.g. `inst.site.builder`) for Home free text.
+5. **Smaller fed set** — `tool_exclude` competing tools cuts tokens and wrong-tool calls.
+6. **Ship seed + cluster apply in the same change** — compose tests use fixtures; production needs the row in `ai.inst`.
+
+## Optimize `embed_cache` and tool index
+
+**Already in place**
+
+- Document vectors: batch DB read (`embed_cache_get_many_touch`), embed API **only on misses**, persist to `ai.embed_cache`.
+- Keys: blake3(text + task + dimensions) — stable copy → stable key → no repeat API for that text.
+- Tool document keys are **touched on every pod boot** — stay inside the **30-day sliding** access window (`EMBED_CACHE_RETENTION_DAYS`).
+- Query embeds per turn: cache hit → trace `embed_cached: true`.
+- Daily eviction (`embed_cache_evict_spawn`) drops rows not accessed in 30d.
+- `embed_cached` **fails** if `ai.embed_cache` write fails after a successful API embed (no silent drop).
+
+**Do**
+
+- Keep **description + rag_phrases** stable; cosmetic edits churn keys and force re-embed on next boot.
+- Short **description**; put extra match phrases in **`rag_phrases`** (all feed the same document embed string).
+- After adding tools, first rollout log: misses should equal **new/changed** tools only.
+- On **embed model or dimension** change, expect a one-time re-embed wave; rollout off-peak.
+
+**Avoid**
+
+- Frequent description churn without behavior need.
+- Relying on vector RAG alone — if `tool_index_init` fails, compose uses **lexical** fallback.
+- `DELETE FROM ai.embed_cache` unless migrating embed model.
+
+**Shipped / ops**
+
+- Parallel boot embed misses (`tool_index_init`, env `C35_TOOL_INDEX_EMBED_PARALLEL`, default 8).
+- Dev warm-up: run `tool_index_init` against cluster DB before rollout to fill cache without user cold start.
+- NATS tool-index reload without full pod restart (today needs rollout).
+
+## Agents
+
+- No new Home-routable tool without `inst.sql` + cluster apply.
+- No "fixed" steering without `prompt_compose` on the user phrase against **production** `ai.inst`.

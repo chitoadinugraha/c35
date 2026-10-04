@@ -171,6 +171,8 @@ Reuse slugs already in [server.md](server.md) channel log table where possible; 
 | `channel.disconnected` | `disconnected` | Channel |
 | `device.agent_connected` | `agent-connected` | Device |
 | `device.agent_disconnected` | `agent-disconnected` | Device |
+| `drive.file_updated` | `drive-file-updated` | User |
+| `drive.file_deleted` | `drive-file-deleted` | User |
 
 ---
 

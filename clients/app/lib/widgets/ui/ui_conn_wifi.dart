@@ -15,12 +15,30 @@ class UiConnWifi extends StatefulWidget {
 }
 
 class _UiConnWifiState extends State<UiConnWifi> with SingleTickerProviderStateMixin {
-  late final AnimationController _blink = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))..repeat(reverse: true);
+  late final AnimationController _blink = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
   late final Animation<double> _opacity = Tween<double>(begin: 0.35, end: 1).animate(CurvedAnimation(parent: _blink, curve: Curves.easeInOut));
   var _reconnectBusy = false;
 
   @override
+  void initState() {
+    super.initState();
+    widget.conn.status.addListener(_syncBlink);
+    _syncBlink();
+  }
+
+  void _syncBlink() {
+    final offline = widget.conn.status.value != ChatConnStatus.connected;
+    if (offline) {
+      if (!_blink.isAnimating) _blink.repeat(reverse: true);
+    } else {
+      _blink.stop();
+      _blink.value = 1;
+    }
+  }
+
+  @override
   void dispose() {
+    widget.conn.status.removeListener(_syncBlink);
     _blink.dispose();
     super.dispose();
   }

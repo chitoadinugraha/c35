@@ -106,3 +106,20 @@ const ResDevicePairPoll$json = {
 final $typed_data.Uint8List resDevicePairPollDescriptor = $convert.base64Decode(
     'ChFSZXNEZXZpY2VQYWlyUG9sbBIWCgZzdGF0dXMYAiABKAlSBnN0YXR1cxIfCgtzZXNzaW9uX2'
     'tleRgDIAEoCVIKc2Vzc2lvbktleRIdCgpkZXZpY2VfaWlkGAQgASgDUglkZXZpY2VJaWQ=');
+
+@$core.Deprecated('Use devicePresencePushDescriptor instead')
+const DevicePresencePush$json = {
+  '1': 'DevicePresencePush',
+  '2': [
+    {'1': 'device_iid', '3': 1, '4': 1, '5': 3, '10': 'deviceIid'},
+    {'1': 'online', '3': 2, '4': 1, '5': 8, '10': 'online'},
+    {'1': 'meta_json', '3': 3, '4': 1, '5': 9, '10': 'metaJson'},
+    {'1': 'updated_ts_ms', '3': 4, '4': 1, '5': 3, '10': 'updatedTsMs'},
+  ],
+};
+
+/// Descriptor for `DevicePresencePush`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List devicePresencePushDescriptor = $convert.base64Decode(
+    'ChJEZXZpY2VQcmVzZW5jZVB1c2gSHQoKZGV2aWNlX2lpZBgBIAEoA1IJZGV2aWNlSWlkEhYKBm'
+    '9ubGluZRgCIAEoCFIGb25saW5lEhsKCW1ldGFfanNvbhgDIAEoCVIIbWV0YUpzb24SIgoNdXBk'
+    'YXRlZF90c19tcxgEIAEoA1ILdXBkYXRlZFRzTXM=');

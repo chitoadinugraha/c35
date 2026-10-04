@@ -222,7 +222,11 @@ Linked spreadsheets and similar knowledge **do not** live in `meta.assets` strin
 - **`active`**: when `false`, the bot does not run channel AI turns (inbound may still be stored). Default **true** if omitted. The create wizard sets **`active: false`** until the owner finishes setup or toggles on in the Bots UI.
 - Stop/intervention is **per `bot_peer` chat row** (`ai.chat.ai_reply_enabled`) — not the same as **`meta.active`** (whole bot).
 
-Attach sheets via app `data_source_put` or bot wizard after create; `bot_iid` on each `data_source` row.
+Attach sheets via app `data_source_put`, the bot wizard, or Home chat `bot.draft`. `bot_iid` is set on each `data_source` row.
+
+### Create from chat
+
+Home chat calls **`bot.draft`** when the user asks for a bot (`inst.bot.draft`). The server writes an inactive bot (`meta.active=false`) as soon as the purpose is clear, drafts `inst_base`, and attaches Google Sheet / Doc / Slide URLs. Access is **read only** unless the purpose describes a write (reserve, record, reduce stock). A purpose that both answers and writes is a split: two bindings, or one question. Docs and Slides stay read only. The tool does not connect a channel; the summary points at the Bots page. The bot stays off until the user says to turn it on.
 
 ## Remote device model
 

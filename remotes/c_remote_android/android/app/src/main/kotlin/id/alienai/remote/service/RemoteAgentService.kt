@@ -8,18 +8,22 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.hardware.display.DisplayManager
 import android.media.projection.MediaProjection
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import android.util.DisplayMetrics
 import android.util.Log
+import android.view.Display
 import android.view.WindowManager
 import androidx.core.app.NotificationCompat
 import id.alienai.remote.R
+import id.alienai.remote.bridge.AgentStatus
 import id.alienai.remote.bridge.NativeBridge
 import id.alienai.remote.bridge.RustCallback
 import id.alienai.remote.ui.MainActivity
+import org.json.JSONObject
 import java.io.File
 
 class RemoteAgentService : Service(), RustCallback {
@@ -31,6 +35,8 @@ class RemoteAgentService : Service(), RustCallback {
 
         var instance: RemoteAgentService? = null
             private set
+
+        var onStatusUpdateListener: ((AgentStatus) -> Unit)? = null
 
         fun start(context: Context) {
             val intent = Intent(context, RemoteAgentService::class.java)
@@ -44,15 +50,34 @@ class RemoteAgentService : Service(), RustCallback {
 
     private var wakeLock: PowerManager.WakeLock? = null
     private var projectionService: ProjectionService? = null
+    private var activeMediaProjection: MediaProjection? = null
+    private var displayManager: DisplayManager? = null
+
+    var latestStatus = AgentStatus()
+        private set
+
+    private val displayListener = object : DisplayManager.DisplayListener {
+        override fun onDisplayAdded(displayId: Int) {}
+        override fun onDisplayRemoved(displayId: Int) {}
+        override fun onDisplayChanged(displayId: Int) {
+            if (displayId == Display.DEFAULT_DISPLAY) {
+                handleOrientationChange()
+            }
+        }
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
+        NativeBridge.appContext = applicationContext
         instance = this
         startForeground(NOTIFICATION_ID, createNotification())
         acquireWakeLock()
         initRustCore()
+
+        displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
+        displayManager?.registerDisplayListener(displayListener, null)
     }
 
     private fun createNotification(): Notification {
@@ -109,8 +134,28 @@ class RemoteAgentService : Service(), RustCallback {
     }
 
     fun attachMediaProjection(projection: MediaProjection, width: Int, height: Int, dpi: Int) {
+        activeMediaProjection = projection
         projectionService?.stop()
         projectionService = ProjectionService(projection, width, height, dpi).apply {
+            start()
+        }
+    }
+
+    private fun handleOrientationChange() {
+        val projection = activeMediaProjection ?: return
+        val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        val metrics = DisplayMetrics()
+        @Suppress("DEPRECATION")
+        wm.defaultDisplay.getRealMetrics(metrics)
+
+        Log.i(TAG, "Display rotated: re-anchoring projection to ${metrics.widthPixels}x${metrics.heightPixels}")
+        projectionService?.stop()
+        projectionService = ProjectionService(
+            projection,
+            metrics.widthPixels,
+            metrics.heightPixels,
+            metrics.densityDpi
+        ).apply {
             start()
         }
     }
@@ -152,15 +197,37 @@ class RemoteAgentService : Service(), RustCallback {
                 AccessControlService.instance?.performGlobal(AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS)
             }
             else -> {
-                Log.d(TAG, "Unhandled input event type: $eventType")
+                Log.d(TAG, "Unhandled input event: $eventType")
             }
+        }
+    }
+
+    override fun onStatusChanged(statusJson: String) {
+        try {
+            val json = JSONObject(statusJson)
+            latestStatus = AgentStatus(
+                paired = json.optBoolean("paired", false),
+                online = json.optBoolean("online", false),
+                status = json.optString("status", ""),
+                pairing_code = json.optString("pairing_code", ""),
+                pairing_seconds_remaining = json.optLong("pairing_seconds_remaining", 0),
+                owner_label = json.optString("owner_label", ""),
+                device_name = json.optString("device_name", ""),
+                package_name = json.optString("package_name", ""),
+                active_viewers = json.optInt("active_viewers", 0)
+            )
+            onStatusUpdateListener?.invoke(latestStatus)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to parse status JSON: ${e.message}")
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        displayManager?.unregisterDisplayListener(displayListener)
         projectionService?.stop()
         projectionService = null
+        activeMediaProjection = null
         wakeLock?.let { if (it.isHeld) it.release() }
         wakeLock = null
         if (instance == this) {

@@ -81,6 +81,15 @@ pub async fn task_run_handle(
     // Release notification or legacy raw text command
     if let Ok(cmd_str) = std::str::from_utf8(payload) {
         let cmd = cmd_str.trim();
+        if cmd.starts_with("c35.drive:") {
+            if let Ok(handler) = WS_TEXT_COMMAND_HANDLER.read() {
+                if let Some(h) = handler.as_ref() {
+                    if h(cmd) {
+                        return Ok(());
+                    }
+                }
+            }
+        }
         if cmd == "c35.unpair" {
             info!("Received c35.unpair over agent session; clearing local pairing");
             crate::conn_exit::request_unpair();

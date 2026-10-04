@@ -61,6 +61,113 @@ pub async fn drive_storage_snapshot(
     })
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct DriveChangeEntry {
+    pub path: String,
+    pub hash: String,
+    pub size: i64,
+    pub updated_ts_ms: i64,
+    pub deleted: bool,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct DriveChangesPage {
+    pub entries: Vec<DriveChangeEntry>,
+    pub next_since_ms: i64,
+    pub has_more: bool,
+}
+
+pub async fn drive_sync_cursor_ms(pool: &PgPool, owner_iid: i64) -> Result<i64, sqlx::Error> {
+    let ms: Option<i64> = sqlx::query_scalar(
+        r#"
+        SELECT COALESCE(
+            (EXTRACT(EPOCH FROM MAX(updated_ts)) * 1000)::bigint,
+            0
+        )
+        FROM ai.drive_file
+        WHERE owner_iid = $1
+        "#,
+    )
+    .bind(owner_iid)
+    .fetch_one(pool)
+    .await?;
+    Ok(ms.unwrap_or(0))
+}
+
+pub async fn drive_path_updated_ts_ms(
+    pool: &PgPool,
+    owner_iid: i64,
+    path: &str,
+) -> Result<i64, sqlx::Error> {
+    let path = drive_normalize_path(path);
+    sqlx::query_scalar(
+        r#"
+        SELECT (EXTRACT(EPOCH FROM updated_ts) * 1000)::bigint
+        FROM ai.drive_file
+        WHERE owner_iid = $1 AND path = $2
+        ORDER BY updated_ts DESC
+        LIMIT 1
+        "#,
+    )
+    .bind(owner_iid)
+    .bind(&path)
+    .fetch_one(pool)
+    .await
+}
+
+pub async fn drive_changes_list(
+    pool: &PgPool,
+    owner_iid: i64,
+    since_ms: i64,
+    limit: i64,
+) -> Result<DriveChangesPage, sqlx::Error> {
+    let limit = limit.clamp(1, 2000);
+    let since_ms = since_ms.max(0);
+    let rows = sqlx::query(
+        r#"
+        SELECT path, hash_blake3, size_bytes,
+               (EXTRACT(EPOCH FROM updated_ts) * 1000)::bigint AS updated_ts_ms,
+               (deleted_ts IS NOT NULL) AS deleted
+        FROM ai.drive_file
+        WHERE owner_iid = $1
+          AND updated_ts > to_timestamp($2::double precision / 1000.0)
+        ORDER BY updated_ts ASC
+        LIMIT $3
+        "#,
+    )
+    .bind(owner_iid)
+    .bind(since_ms)
+    .bind(limit)
+    .fetch_all(pool)
+    .await?;
+
+    let mut entries = Vec::with_capacity(rows.len());
+    let mut next_since_ms = since_ms;
+    for r in rows {
+        let path: String = r.get("path");
+        let updated_ts_ms: i64 = r.get("updated_ts_ms");
+        next_since_ms = next_since_ms.max(updated_ts_ms);
+        let deleted: bool = r.get("deleted");
+        entries.push(DriveChangeEntry {
+            path,
+            hash: if deleted {
+                String::new()
+            } else {
+                r.get::<String, _>("hash_blake3")
+            },
+            size: r.get("size_bytes"),
+            updated_ts_ms,
+            deleted,
+        });
+    }
+    let has_more = entries.len() as i64 >= limit;
+    Ok(DriveChangesPage {
+        entries,
+        next_since_ms,
+        has_more,
+    })
+}
+
 pub async fn drive_tree_list(pool: &PgPool, owner_iid: i64) -> Result<Vec<DriveFileEntry>, sqlx::Error> {
     let rows = sqlx::query(
         r#"

@@ -18,6 +18,17 @@ pub(crate) const WINDOWS_LEGACY_AGENT_PROCESS: &str = "c_remote_windows";
 
 static DOWNLOAD_LOCK: Mutex<()> = Mutex::const_new(());
 
+#[cfg(target_os = "android")]
+type AndroidApkInstaller = fn(&Path) -> Result<(), anyhow::Error>;
+
+#[cfg(target_os = "android")]
+static ANDROID_APK_INSTALLER: std::sync::OnceLock<AndroidApkInstaller> = std::sync::OnceLock::new();
+
+#[cfg(target_os = "android")]
+pub fn register_android_apk_installer(f: AndroidApkInstaller) {
+    let _ = ANDROID_APK_INSTALLER.set(f);
+}
+
 static ACTIVE_TASKS: AtomicUsize = AtomicUsize::new(0);
 static ACTIVE_SESSIONS: AtomicUsize = AtomicUsize::new(0);
 static IDLE_NOTIFY: Notify = Notify::const_new();
@@ -253,6 +264,14 @@ async fn update_download_once(rel: &ReleaseRes) -> Result<(), anyhow::Error> {
         anyhow::bail!("blake3 mismatch: got {hash} expected {expect}");
     }
 
+    if current_platform() == "remote-android" {
+        let apk_path = staging.join("update.apk");
+        std::fs::write(&apk_path, &bytes)?;
+        std::fs::write(ready_marker(rel.version), b"ok")?;
+        info!(version = rel.version, "==> [AUTO-UPDATE STAGED] APK verified with Blake3; ready to apply");
+        return Ok(());
+    }
+
     let zip_path = staging.join("bundle.zip");
     std::fs::write(&zip_path, &bytes)?;
     extract_zip(&zip_path, &staging)?;
@@ -332,6 +351,24 @@ pub fn update_apply(version: i64) -> Result<(), anyhow::Error> {
     }
 
     let staging = staging_dir(version);
+    #[cfg(target_os = "android")]
+    if current_platform() == "remote-android" {
+        let apk = staging.join("update.apk");
+        if !apk.exists() {
+            anyhow::bail!("staged apk missing: {}", apk.display());
+        }
+        let installer = ANDROID_APK_INSTALLER
+            .get()
+            .ok_or_else(|| anyhow::anyhow!("android apk installer not registered"))?;
+        info!(version, path = %apk.display(), "==> [AUTO-UPDATE APPLYING] Launching APK install intent");
+        return installer(&apk);
+    }
+
+    #[cfg(target_os = "android")]
+    {
+        anyhow::bail!("auto-update apply not supported on this android build");
+    }
+
     let browser_ota = current_platform() == "remote-browser";
     let (primary_exe, legacy_exe, process_name, legacy_process) = if browser_ota {
         (
@@ -440,7 +477,7 @@ exit 0
         Command::new("sh").arg(script.to_str().unwrap()).spawn()?;
         std::process::exit(0);
     }
-    #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
+    #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos", target_os = "android")))]
     {
         anyhow::bail!("auto-update not yet supported on this OS");
     }

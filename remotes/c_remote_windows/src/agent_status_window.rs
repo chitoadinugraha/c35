@@ -103,11 +103,12 @@ pub fn run(
     use windows::Win32::UI::HiDpi::GetDpiForWindow;
     use windows::Win32::UI::WindowsAndMessaging::{
         CreateWindowExW, DefWindowProcW, DispatchMessageW, GetClientRect, GetMessageW,
-        GetSystemMetrics, GetWindowLongPtrW, KillTimer, LoadCursorW, PostQuitMessage,
+        GetSystemMetrics, GetWindowLongPtrW, KillTimer, LoadCursorW, PostQuitMessage, SetTimer,
         RegisterClassExW, SendMessageW, SetForegroundWindow, SetWindowLongPtrW, SetWindowPos,
         ShowWindow, TranslateMessage, CS_HREDRAW, CS_VREDRAW, GWLP_USERDATA, HICON, HMENU,
-        HWND_TOP, ICON_BIG, ICON_SMALL, IDC_ARROW, SM_CXSCREEN, SM_CYSCREEN, SW_HIDE, SW_SHOW,
-        SWP_NOSIZE, WM_CLOSE, WM_CREATE, WM_DESTROY, WM_ERASEBKGND, WM_GETMINMAXINFO,
+        HWND_TOP, ICON_BIG, ICON_SMALL, IDC_ARROW, IsWindowVisible, SM_CXSCREEN, SM_CYSCREEN,
+        SW_HIDE, SW_SHOW, SWP_NOSIZE, WM_CLOSE, WM_CREATE, WM_DESTROY, WM_ERASEBKGND,
+        WM_GETMINMAXINFO,
         WM_LBUTTONDOWN, WM_MOUSEMOVE, WM_NCHITTEST, WM_PAINT, WM_SETICON, WM_SIZE, WM_TIMER,
         WM_USER, WNDCLASSEXW, WS_EX_APPWINDOW, WS_MINIMIZEBOX, WS_POPUP, WS_THICKFRAME,
         HTCAPTION, HTCLIENT, MINMAXINFO,
@@ -846,9 +847,20 @@ pub fn run(
         let _ = InvalidateRect(hwnd, None, false);
     }
 
+    unsafe fn refresh_timer_start(hwnd: HWND) {
+        if IsWindowVisible(hwnd).as_bool() {
+            let _ = SetTimer(hwnd, TIMER_ID, 1000, None);
+        }
+    }
+
+    unsafe fn refresh_timer_stop(hwnd: HWND) {
+        let _ = KillTimer(hwnd, TIMER_ID);
+    }
+
     unsafe fn present(hwnd: HWND) {
         let _ = ShowWindow(hwnd, SW_SHOW);
         let _ = SetForegroundWindow(hwnd);
+        refresh_timer_start(hwnd);
         invalidate_all(hwnd);
     }
 
@@ -858,8 +870,6 @@ pub fn run(
         wparam: WPARAM,
         lparam: LPARAM,
     ) -> LRESULT {
-        use windows::Win32::UI::WindowsAndMessaging::SetTimer;
-
         match msg {
             WM_CREATE => {
                 let app_icon = crate::icon::load_app_icon(24, 24);
@@ -879,7 +889,6 @@ pub fn run(
                     btn_footer_hover: [false, false, false],
                 });
                 SetWindowLongPtrW(hwnd, GWLP_USERDATA, Box::into_raw(ctx) as isize);
-                let _ = SetTimer(hwnd, TIMER_ID, 1000, None);
                 if WANT_SHOW.load(Ordering::SeqCst) {
                     present(hwnd);
                 } else {
@@ -897,7 +906,11 @@ pub fn run(
                 LRESULT(0)
             }
             WM_TIMER if wparam.0 == TIMER_ID => {
-                invalidate_all(hwnd);
+                if IsWindowVisible(hwnd).as_bool() {
+                    invalidate_all(hwnd);
+                } else {
+                    refresh_timer_stop(hwnd);
+                }
                 LRESULT(0)
             }
             WM_SIZE => {
@@ -972,6 +985,7 @@ pub fn run(
                 let scale = UiScale::from_hwnd(hwnd);
                 let close = close_rect(&scale, &rc);
                 if in_rect(pt, &close) {
+                    refresh_timer_stop(hwnd);
                     let _ = ShowWindow(hwnd, SW_HIDE);
                     return LRESULT(0);
                 }
@@ -1060,6 +1074,7 @@ pub fn run(
                 LRESULT(DefWindowProcW(hwnd, msg, wparam, lparam).0)
             }
             WM_CLOSE => {
+                refresh_timer_stop(hwnd);
                 let _ = ShowWindow(hwnd, SW_HIDE);
                 LRESULT(0)
             }

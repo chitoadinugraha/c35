@@ -18,5 +18,6 @@ pub use streams::jetstream_streams_ensure;
 pub use user_app::{
     user_app_fanout_decode, user_app_subject_balance, user_app_subject_chat, user_app_subject_commission,
     user_app_subject_inbox, user_app_subject_profile, user_app_subject_quota, user_app_subject_settings,
-    user_app_subject_task_run, user_app_subscribe_subject, user_app_tail, APP_SEGMENT,
+    user_app_subject_device_presence, user_app_subject_task_run, user_app_subscribe_subject,
+    user_app_tail, APP_SEGMENT,
 };

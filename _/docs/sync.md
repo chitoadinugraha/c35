@@ -140,6 +140,7 @@ c35.user.{owner_iid}.app.>
 | `c35.user.{iid}.app.profile` | `WsRes` | Profile row delta (future) |
 | `c35.user.{iid}.app.settings` | `WsRes` | Settings delta (future) |
 | `c35.user.{iid}.app.task_run` | `WsRes` (`TaskRunPush`) | Task run progress (future) |
+| `c35.user.{iid}.app.device_presence` | `WsRes` (`DevicePresencePush`) | Remote/IoT agent online + `meta_json` (presence dot) |
 | `c35.user.{iid}.app.inbox` | `WsRes` (`SyncPush`) | New chat, `chat_member`, committed `chat_msg` (future) |
 | `c35.user.{iid}.app.chat.{chat_id}` | `WsRes` | Prompt stream (`PromptStart` / `Delta` / `End`) + per-chat `SyncPush` |
 

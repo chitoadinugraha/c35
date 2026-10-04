@@ -19,7 +19,7 @@ class UiAuthLogo extends StatefulWidget {
   State<UiAuthLogo> createState() => _UiAuthLogoState();
 }
 
-class _UiAuthLogoState extends State<UiAuthLogo> with SingleTickerProviderStateMixin {
+class _UiAuthLogoState extends State<UiAuthLogo> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   static const _accent = Color(0xFFD4D4D8);
   static const _accentBright = Colors.white;
 
@@ -53,6 +53,7 @@ class _UiAuthLogoState extends State<UiAuthLogo> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _randomizeWave();
     _controller = AnimationController(vsync: this, duration: _cycle);
 
@@ -71,6 +72,20 @@ class _UiAuthLogoState extends State<UiAuthLogo> with SingleTickerProviderStateM
 
     _controller.addListener(_onTick);
     _controller.repeat();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.resumed:
+        if (!_controller.isAnimating) _controller.repeat();
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.detached:
+        _controller.stop();
+      case AppLifecycleState.inactive:
+        break;
+    }
   }
 
   void _onTick() {
@@ -107,6 +122,7 @@ class _UiAuthLogoState extends State<UiAuthLogo> with SingleTickerProviderStateM
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller.removeListener(_onTick);
     _controller.dispose();
     super.dispose();

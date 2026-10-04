@@ -6,7 +6,8 @@ mod win_impl {
     use std::os::windows::fs::MetadataExt;
     use std::path::{Path, PathBuf};
     use std::sync::{Arc, Mutex};
-    use tracing::info;
+    use tracing::{info, warn};
+    use winfsp::constants::FspCleanupFlags;
     use widestring::U16CStr;
     use windows::Win32::Storage::FileSystem::FILE_ATTRIBUTE_DIRECTORY;
     use winfsp::filesystem::{
@@ -72,6 +73,18 @@ mod win_impl {
 
         fn new_handle(path: PathBuf, is_dir: bool, file: Option<File>) -> Arc<FileHandle> {
             Arc::new(FileHandle { path, is_dir, file: Mutex::new(file), dir_buffer: DirBuffer::new() })
+        }
+
+        fn dir_has_visible_children(&self, dir: &Path) -> bool {
+            fs::read_dir(dir)
+                .map(|rd| {
+                    rd.flatten().any(|e| {
+                        let full = e.path();
+                        let rel = full.strip_prefix(&self.backing_dir).unwrap_or(&full);
+                        !VfsDriveManager::is_internal_path(rel)
+                    })
+                })
+                .unwrap_or(false)
         }
     }
 
@@ -170,9 +183,41 @@ mod win_impl {
             }
         }
 
-        fn cleanup(&self, context: &Self::FileContext, _file_name: Option<&U16CStr>, _flags: u32) {
+        fn cleanup(&self, context: &Self::FileContext, file_name: Option<&U16CStr>, flags: u32) {
             let mut file = context.file.lock().unwrap();
             *file = None;
+
+            if !FspCleanupFlags::FspCleanupDelete.is_flagged(flags) {
+                return;
+            }
+            if let Some(name) = file_name {
+                if Self::is_denied_user_path(name) {
+                    return;
+                }
+            }
+            let path = &context.path;
+            let result = if context.is_dir { fs::remove_dir(path) } else { fs::remove_file(path) };
+            if let Err(e) = result {
+                warn!("VFS WinFsp delete {:?}: {e}", path);
+            }
+        }
+
+        fn set_delete(
+            &self,
+            context: &Self::FileContext,
+            file_name: &U16CStr,
+            delete_file: bool,
+        ) -> winfsp::Result<()> {
+            if Self::is_denied_user_path(file_name) {
+                return Err(std::io::Error::from(std::io::ErrorKind::PermissionDenied).into());
+            }
+            if !delete_file {
+                return Ok(());
+            }
+            if context.is_dir && self.dir_has_visible_children(&context.path) {
+                return Err(std::io::Error::from(std::io::ErrorKind::DirectoryNotEmpty).into());
+            }
+            Ok(())
         }
 
         fn close(&self, _context: Self::FileContext) {}

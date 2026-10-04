@@ -441,6 +441,100 @@ class ResDevicePairPoll extends $pb.GeneratedMessage {
   void clearDeviceIid() => $_clearField(4);
 }
 
+/// App WS fanout: `c35.user.{owner_iid}.app.device_presence` (agent connect/disconnect).
+class DevicePresencePush extends $pb.GeneratedMessage {
+  factory DevicePresencePush({
+    $fixnum.Int64? deviceIid,
+    $core.bool? online,
+    $core.String? metaJson,
+    $fixnum.Int64? updatedTsMs,
+  }) {
+    final result = DevicePresencePush._();
+    if (deviceIid != null) result.deviceIid = deviceIid;
+    if (online != null) result.online = online;
+    if (metaJson != null) result.metaJson = metaJson;
+    if (updatedTsMs != null) result.updatedTsMs = updatedTsMs;
+    return result;
+  }
+
+  DevicePresencePush._();
+
+  factory DevicePresencePush.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      DevicePresencePush()..mergeFromBuffer(data, registry);
+  factory DevicePresencePush.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      DevicePresencePush()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'DevicePresencePush',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: DevicePresencePush.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'deviceIid')
+    ..aOB(2, _omitFieldNames ? '' : 'online')
+    ..aOS(3, _omitFieldNames ? '' : 'metaJson')
+    ..aInt64(4, _omitFieldNames ? '' : 'updatedTsMs')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  DevicePresencePush clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  DevicePresencePush copyWith(void Function(DevicePresencePush) updates) =>
+      super.copyWith((message) => updates(message as DevicePresencePush))
+          as DevicePresencePush;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use DevicePresencePush() / DevicePresencePush.new instead')
+  static DevicePresencePush create() => DevicePresencePush._();
+  static $pb.GeneratedMessage $_createMessage() => DevicePresencePush._();
+  @$core.override
+  DevicePresencePush createEmptyInstance() => DevicePresencePush._();
+  @$core.pragma('dart2js:noInline')
+  static DevicePresencePush getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<DevicePresencePush>(
+          DevicePresencePush.$_createMessage);
+  static DevicePresencePush? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get deviceIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set deviceIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasDeviceIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearDeviceIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.bool get online => $_getBF(1);
+  @$pb.TagNumber(2)
+  set online($core.bool value) => $_setBool(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasOnline() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearOnline() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get metaJson => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set metaJson($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasMetaJson() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearMetaJson() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $fixnum.Int64 get updatedTsMs => $_getI64(3);
+  @$pb.TagNumber(4)
+  set updatedTsMs($fixnum.Int64 value) => $_setInt64(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasUpdatedTsMs() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearUpdatedTsMs() => $_clearField(4);
+}
+
 const $core.bool _omitFieldNames =
     $core.bool.fromEnvironment('protobuf.omit_field_names');
 const $core.bool _omitMessageNames =

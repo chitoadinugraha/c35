@@ -157,5 +157,9 @@ INSERT INTO ai.translation (lang, key, category, text) VALUES
 ('id', 'tool.web.visit.calling', 'tool', 'Membaca {{source}}…'),
 ('id', 'tool.web.visit.done', 'tool', 'Baca {{source}}'),
 ('id', 'tool.web.research.calling', 'tool', 'Meneliti {{query}}…'),
-('id', 'tool.web.research.done', 'tool', 'Teliti {{query}}')
+('id', 'tool.web.research.done', 'tool', 'Teliti {{query}}'),
+('en', 'tool.bot.draft.calling', 'tool', 'Drafting bot…'),
+('en', 'tool.bot.draft.done', 'tool', 'Drafted bot'),
+('id', 'tool.bot.draft.calling', 'tool', 'Menyusun bot…'),
+('id', 'tool.bot.draft.done', 'tool', 'Bot tersusun')
 ON CONFLICT (lang, key) DO UPDATE SET text = EXCLUDED.text, updated_ts = NOW();

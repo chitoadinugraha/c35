@@ -33,6 +33,7 @@ pub async fn drive_mount(session_key: &str, base_url: &str) -> anyhow::Result<()
     let quota = vfs_winfsp::quota_from_agent_storage(&client, base_url, key).await;
     vfs_winfsp::mount_virtual_drive(&vfs, quota)?;
     let file_base = vfs_winfsp::file_service_url(base_url);
+    crate::watch_windows::start_drive_watcher(vfs.backing_dir.clone());
     let engine = SyncEngine::from_session(key, &file_base, vfs.backing_dir.clone());
     let sync_handle = tokio::spawn(async move {
         engine.run_loop().await;

@@ -172,6 +172,7 @@ Lists `identity(kind=bot, type=chat)` for current owner. Each row = one bot iden
 
 #### Bot Creation Wizard (`InBotCreate`)
 - 4-step wizard: Basic info (name, avatar) → Connect channels (Telegram, WhatsApp Meta, WhatsApp Device) → Assets → Instructions & behavior (instructions, strict mode, block spammer, web search).
+- Home chat can draft the same bot (`bot.draft`): purpose, instruction, and sheet access. The bot stays off. Channel connect stays in this wizard.
 - **Draft Cancellation**: If setup is cancelled or dismissed after channels have been added, the client automatically triggers draft cleanup (`_cleanupDraft`), disconnecting all channels (deleting Telegram webhooks and terminating WhatsApp sessions) and deleting the draft identity to prevent orphaned sessions.
 
 #### Bot Deletion Dialog (`IoBotDeleteDialog`)
@@ -222,7 +223,11 @@ Each remote row shows name + type subtitle (e.g. `CHITO` / `windows`) and **two 
 | Left (WebRTC) | App ↔ device data plane — files, screen, media |
 | Right (cluster) | Agent ↔ server — presence, tasks |
 
-IoT rows keep a single online dot.
+**WebRTC dot (left):** grey idle → orange connecting → green connected → red failed. **Connect-first:** no auto WebRTC on device select; **Connect** / **Retry** in detail toolbar and Remote tab. Full color table: [remote.md § WebRTC dot colors](remote.md#webrtc-dot-colors-left--connect-first-locked).
+
+**Cloud dot (right):** green when agent online, grey when offline (NATS `device_presence` push + `meta.last_seen_ts_ms`).
+
+IoT rows keep a single online dot (green/grey).
 
 ### IoT device (`kind=iot`)
 

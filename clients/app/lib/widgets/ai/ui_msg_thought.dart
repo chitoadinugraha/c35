@@ -150,7 +150,7 @@ class _ThoughtElapsedState extends State<_ThoughtElapsed> {
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(milliseconds: 50), (_) {
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       setState(() {});
     });

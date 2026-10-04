@@ -9,6 +9,7 @@ import 'package:alienai_c35/c/pb/c35/catalog.pb.dart';
 import 'package:alienai_c35/c/pb/c35/channel.pb.dart';
 import 'package:alienai_c35/c/pb/c35/chat.pb.dart';
 import 'package:alienai_c35/c/pb/c35/data_source.pb.dart';
+import 'package:alienai_c35/c/pb/c35/device.pb.dart';
 import 'package:alienai_c35/c/pb/c35/collection.pb.dart';
 import 'package:alienai_c35/c/pb/c35/hint.pb.dart';
 import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
@@ -106,6 +107,7 @@ class ChatConn {
   final _promptRunPushCtrl = StreamController<PromptRunPush>.broadcast();
   final _promptFollowupPushCtrl = StreamController<PromptFollowupPush>.broadcast();
   final _taskRunPushCtrl = StreamController<TaskRunPush>.broadcast();
+  final _devicePresencePushCtrl = StreamController<DevicePresencePush>.broadcast();
   final _traceCache = <String, List<TraceLogDoc>>{};
   final _tracePrefetchInflight = <String, Future<void>>{};
   final _traceCacheCtrl = StreamController<String>.broadcast();
@@ -122,6 +124,7 @@ class ChatConn {
   Stream<PromptRunPush> get onPromptRunPush => _promptRunPushCtrl.stream;
   Stream<PromptFollowupPush> get onPromptFollowupPush => _promptFollowupPushCtrl.stream;
   Stream<TaskRunPush> get onTaskRunPush => _taskRunPushCtrl.stream;
+  Stream<DevicePresencePush> get onDevicePresencePush => _devicePresencePushCtrl.stream;
   Stream<void> get onReconnected => _reconnectedCtrl.stream;
   /// Fires after auto-reconnect attaches a socket (before first frame); run session init.
   Stream<void> get onSocketAttached => _socketAttachedCtrl.stream;
@@ -385,6 +388,10 @@ class ChatConn {
     if (res.hasTaskRunPush()) {
       final push = res.taskRunPush;
       if (!_taskRunPushCtrl.isClosed) _taskRunPushCtrl.add(push);
+    }
+    if (res.hasDevicePresencePush()) {
+      final push = res.devicePresencePush;
+      if (!_devicePresencePushCtrl.isClosed) _devicePresencePushCtrl.add(push);
     }
     if (_isRemoteSignal(res) && !_remoteSignalCtrl.isClosed) _remoteSignalCtrl.add(res);
 

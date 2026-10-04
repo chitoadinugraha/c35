@@ -39,3 +39,11 @@ message ResDevicePairPoll {
   string session_key = 3;     // set when claimed
   int64 device_iid = 4;
 }
+
+// App WS fanout: `c35.user.{owner_iid}.app.device_presence` (agent connect/disconnect).
+message DevicePresencePush {
+  int64 device_iid = 1;
+  bool online = 2;
+  string meta_json = 3;       // identity.meta after presence merge
+  int64 updated_ts_ms = 4;
+}

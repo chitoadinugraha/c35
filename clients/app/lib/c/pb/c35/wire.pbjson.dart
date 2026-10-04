@@ -3655,6 +3655,15 @@ const WsRes$json = {
       '9': 0,
       '10': 'chatCompact'
     },
+    {
+      '1': 'device_presence_push',
+      '3': 177,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.DevicePresencePush',
+      '9': 0,
+      '10': 'devicePresencePush'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -3814,4 +3823,5 @@ final $typed_data.Uint8List wsResDescriptor = $convert.base64Decode(
     'Y2tMaXN0SABSE2NoYXRNc2dGZWVkYmFja0xpc3QSVgoXY2hhdF9jb250ZXh0X3dpbmRvd19zZX'
     'QYrwEgASgLMhwuYzM1LlJlc0NoYXRDb250ZXh0V2luZG93U2V0SABSFGNoYXRDb250ZXh0V2lu'
     'ZG93U2V0EjkKDGNoYXRfY29tcGFjdBiwASABKAsyEy5jMzUuUmVzQ2hhdENvbXBhY3RIAFILY2'
-    'hhdENvbXBhY3RCBgoEYm9keQ==');
+    'hhdENvbXBhY3QSTAoUZGV2aWNlX3ByZXNlbmNlX3B1c2gYsQEgASgLMhcuYzM1LkRldmljZVBy'
+    'ZXNlbmNlUHVzaEgAUhJkZXZpY2VQcmVzZW5jZVB1c2hCBgoEYm9keQ==');

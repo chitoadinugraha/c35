@@ -39,6 +39,10 @@ pub fn user_app_subject_task_run(owner_iid: i64) -> String {
     format!("c35.user.{owner_iid}.{APP_SEGMENT}.task_run")
 }
 
+pub fn user_app_subject_device_presence(owner_iid: i64) -> String {
+    format!("c35.user.{owner_iid}.{APP_SEGMENT}.device_presence")
+}
+
 /// Inbox sidebar: `WsRes` with `SyncPush` (`chat`, `chat_member`, `chat_msg`).
 pub fn user_app_subject_inbox(owner_iid: i64) -> String {
     format!("c35.user.{owner_iid}.{APP_SEGMENT}.inbox")
@@ -82,6 +86,14 @@ pub fn user_app_fanout_decode(subject: &str, payload: &[u8]) -> Option<WsRes> {
             .map(ws_res::Body::BillingCommission)?;
         return Some(WsRes {
             req_id: String::new(),
+            body: Some(body),
+        });
+    }
+    if tail == "device_presence" {
+        let ws = WsRes::decode(payload).ok()?;
+        let body = ws.body?;
+        return Some(WsRes {
+            req_id: ws.req_id,
             body: Some(body),
         });
     }

@@ -61,6 +61,7 @@ class _UiStarryBackgroundState extends State<UiStarryBackground>
       case AppLifecycleState.resumed:
         if (!_foreground) {
           _foreground = true;
+          _resumeStarfield();
           _scheduleNextComet(initialDelayMs: 600 + _rng.nextInt(1400));
         }
       case AppLifecycleState.paused:
@@ -68,19 +69,24 @@ class _UiStarryBackgroundState extends State<UiStarryBackground>
       case AppLifecycleState.detached:
         if (_foreground) {
           _foreground = false;
-          _pauseComets();
+          _pauseStarfield();
         }
       case AppLifecycleState.inactive:
         break;
     }
   }
 
-  void _pauseComets() {
+  void _pauseStarfield() {
+    if (_repaintTicker.isActive) _repaintTicker.stop();
     _cometTimer?.cancel();
     _cometTimer = null;
     _cometController.stop();
     _cometController.reset();
     if (_currentComet != null) setState(() => _currentComet = null);
+  }
+
+  void _resumeStarfield() {
+    if (!_repaintTicker.isActive) _repaintTicker.start();
   }
 
   void _scheduleNextComet({int? initialDelayMs}) {
@@ -174,19 +180,21 @@ class _UiStarryBackgroundState extends State<UiStarryBackground>
             ),
           ),
         ),
-        AnimatedBuilder(
-          animation: _cometController,
-          builder: (context, _) {
-            return CustomPaint(
-              painter: _StarfieldPainter(
-                stars: _stars,
-                starProgress: _starProgress,
-                comet: _cometController.isAnimating ? _currentComet : null,
-                cometProgress: _cometController.value,
-              ),
-              size: Size.infinite,
-            );
-          },
+        RepaintBoundary(
+          child: AnimatedBuilder(
+            animation: _cometController,
+            builder: (context, _) {
+              return CustomPaint(
+                painter: _StarfieldPainter(
+                  stars: _stars,
+                  starProgress: _starProgress,
+                  comet: _cometController.isAnimating ? _currentComet : null,
+                  cometProgress: _cometController.value,
+                ),
+                size: Size.infinite,
+              );
+            },
+          ),
         ),
         if (widget.child != null) widget.child!,
       ],

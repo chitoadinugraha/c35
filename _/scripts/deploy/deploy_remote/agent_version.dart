@@ -8,7 +8,7 @@ import '../deploy_lib.dart';
 final _versionRegex = RegExp(r'^(\d+\.\d+\.\d+)\+(\d+)$');
 
 /// Windows desktop remote agent (`/version/remote-windows`, agent.exe).
-enum RemoteAgentProduct { windows, browser, chromeExtension }
+enum RemoteAgentProduct { windows, browser, android, chromeExtension }
 
 String remotesDir(String root) => p.join(root, 'remotes');
 
@@ -17,6 +17,7 @@ String chromeExtensionDir(String root) => p.join(root, 'clients', 'chrome_extens
 String agentVersionFileName(RemoteAgentProduct product) => switch (product) {
       RemoteAgentProduct.windows => 'VERSION.windows',
       RemoteAgentProduct.browser => 'VERSION.browser',
+      RemoteAgentProduct.android => 'VERSION.android',
       RemoteAgentProduct.chromeExtension => 'VERSION',
     };
 
@@ -55,6 +56,10 @@ const remoteWindowsLegacyExeName = 'c_remote_windows.exe';
 String remoteWindowsZipFileName(int version) => 'alienai_remote_windows-$version.zip';
 String remoteWindowsSetupFileName(int version) => 'AlienAI_Remote_Windows_Setup-$version.exe';
 const remoteAgentMinBuild = 2;
+const remoteAndroidMinBuild = 1;
+const remoteAndroidConfigKey = 'app.release.c35.remote-android';
+
+String remoteAndroidApkFileName(int version) => 'alienai_remote_android-$version.apk';
 
 int remoteReleaseMinResolve({int min = 0}) {
   final env = int.tryParse(deployEnv('REMOTE_AGENT_MIN', '')) ?? 0;
@@ -84,6 +89,7 @@ void agentVersionBump(String root, [RemoteAgentProduct product = RemoteAgentProd
   agentVersionWrite(root, nextName, next, product);
   final label = switch (product) {
     RemoteAgentProduct.browser => 'remote-browser',
+    RemoteAgentProduct.android => 'remote-android',
     RemoteAgentProduct.chromeExtension => 'chrome-extension',
     RemoteAgentProduct.windows => 'remote-windows',
   };

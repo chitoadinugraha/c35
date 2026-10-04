@@ -56,6 +56,12 @@ INSERT INTO ai.config (key, value) VALUES (
 )
 ON CONFLICT (key) DO NOTHING;
 
+INSERT INTO ai.config (key, value) VALUES (
+    'app.release.c35.remote-android',
+    '{"version":0,"versionName":"0.0.0","min":0,"apkHash":"","apkSize":0}'::jsonb
+)
+ON CONFLICT (key) DO NOTHING;
+
 -- c35-server cluster image generation (GET /version/server). Bump on publish_server.ps1.
 INSERT INTO ai.config (key, value) VALUES (
     'app.release.c35.server',

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:alienai_c35/widgets/ai/ui_msg_copy_prefix.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_usage.dart';
 
 class UiMsgId extends StatelessWidget {
@@ -19,7 +20,7 @@ class UiMsgId extends StatelessWidget {
         alignment: alignment,
         child: InkWell(
           onTap: () {
-            Clipboard.setData(ClipboardData(text: msgId));
+            Clipboard.setData(ClipboardData(text: msgCopyClipboardId('Message ID', msgId)));
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('Message ID copied'), behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 1)),
             );

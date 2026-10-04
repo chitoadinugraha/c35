@@ -1,6 +1,7 @@
 mod agent;
 mod app_web;
 mod drive;
+mod drive_notify;
 mod catalog;
 mod device;
 mod guest_contact;

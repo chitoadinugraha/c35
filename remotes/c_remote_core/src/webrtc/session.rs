@@ -30,7 +30,9 @@ use webrtc::rtp_transceiver::rtp_codec::RTCRtpCodecCapability;
 use webrtc::track::track_local::track_local_static_sample::TrackLocalStaticSample;
 use webrtc::track::track_local::TrackLocal;
 
-use super::fs::{fs_dispatch, fs_list, fs_read, recycle_bin_list_powershell_command, FS_READ_WS_MAX};
+use super::fs::{fs_dispatch, fs_list, fs_read, FS_READ_WS_MAX};
+#[cfg(windows)]
+use super::fs::recycle_bin_list_powershell_command;
 use super::teach::teach_dispatch;
 use crate::skill_teach;
 
@@ -943,6 +945,7 @@ fn command_prepare_shell(raw: &str) -> String {
         return String::new();
     }
     let lower = cmd.to_ascii_lowercase();
+    #[cfg(windows)]
     if lower.contains("shell:recyclebinfolder")
         || (lower.contains("get-childitem") && lower.contains("recycle"))
     {

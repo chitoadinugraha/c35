@@ -143,6 +143,22 @@ const CATALOG: &[EventDef] = &[
         txt_en: "Device unpaired",
     },
     EventDef {
+        kind: "drive.file_updated",
+        slug: "drive-file-updated",
+        scope: EventScope::User,
+        class: EventClass::Event,
+        desc: "Alien AI Drive file created or updated",
+        txt_en: "Drive file updated ($path)",
+    },
+    EventDef {
+        kind: "drive.file_deleted",
+        slug: "drive-file-deleted",
+        scope: EventScope::User,
+        class: EventClass::Event,
+        desc: "Alien AI Drive file deleted",
+        txt_en: "Drive file deleted ($path)",
+    },
+    EventDef {
         kind: "admin.user_profile_updated",
         slug: "user-profile-updated",
         scope: EventScope::User,

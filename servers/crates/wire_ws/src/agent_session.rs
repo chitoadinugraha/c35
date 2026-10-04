@@ -14,6 +14,7 @@ use tokio::sync::mpsc;
 use tracing::{info, warn};
 
 const RELEASE_NUDGE_PAYLOAD: &[u8] = b"c35.release:remote-windows";
+const REMOTE_ANDROID_NUDGE_PAYLOAD: &[u8] = b"c35.release:remote-android";
 const REMOTE_BROWSER_NUDGE_PAYLOAD: &[u8] = b"c35.release:remote-browser";
 const CHROME_EXTENSION_NUDGE_PAYLOAD: &[u8] = b"c35.release:chrome-extension";
 const FFMPEG_RELEASE_NUDGE_PAYLOAD: &[u8] = b"c35.release:ffmpeg-windows";
@@ -39,6 +40,7 @@ fn release_nudge_payload(platform: &str) -> &'static [u8] {
     match platform {
         "chrome-extension" => CHROME_EXTENSION_NUDGE_PAYLOAD,
         "remote-browser" => REMOTE_BROWSER_NUDGE_PAYLOAD,
+        "remote-android" => REMOTE_ANDROID_NUDGE_PAYLOAD,
         _ => RELEASE_NUDGE_PAYLOAD,
     }
 }
@@ -47,6 +49,7 @@ fn release_nats_subject(platform: &str) -> &'static str {
     match platform {
         "chrome-extension" => "c35.release.chrome-extension",
         "remote-browser" => "c35.release.remote-browser",
+        "remote-android" => "c35.release.remote-android",
         _ => "c35.release.remote-windows",
     }
 }
@@ -109,7 +112,14 @@ pub async fn handle(
     } else {
         None
     };
-    let _ = agent_presence_put(&state.pool, session.device_iid, true, version).await;
+    let _ = agent_presence_put(
+        &state.pool,
+        state.nats.as_ref(),
+        session.device_iid,
+        true,
+        version,
+    )
+    .await;
     let _ = agent_log_put(
         &state.pool,
         state.nats.as_ref(),
@@ -152,44 +162,38 @@ pub async fn handle(
             }
         });
 
-        if device_type.eq_ignore_ascii_case("browser") {
-            let nats_release = nats.clone();
-            let tx_release = agent_out_tx.clone();
-            let subject = release_nats_subject(release_platform);
-            let default_nudge = nudge_payload;
-            tokio::spawn(async move {
-                if let Ok(mut sub) = nats_release.subscribe(subject.to_string()).await {
-                    while let Some(msg) = sub.next().await {
-                        let notification = if msg.payload.is_empty() {
-                            default_nudge.to_vec()
-                        } else {
-                            msg.payload.to_vec()
-                        };
-                        if tx_release.send(notification).is_err() {
-                            break;
-                        }
+        let nats_release = nats.clone();
+        let tx_release = agent_out_tx.clone();
+        let subject = release_nats_subject(release_platform);
+        let default_nudge = nudge_payload;
+        tokio::spawn(async move {
+            if let Ok(mut sub) = nats_release.subscribe(subject.to_string()).await {
+                while let Some(msg) = sub.next().await {
+                    let notification = if msg.payload.is_empty() {
+                        default_nudge.to_vec()
+                    } else {
+                        msg.payload.to_vec()
+                    };
+                    if tx_release.send(notification).is_err() {
+                        break;
                     }
                 }
-            });
-        } else {
-            let nats_release = nats.clone();
-            let tx_release = agent_out_tx.clone();
-            tokio::spawn(async move {
-                let subject = "c35.release.remote-windows";
-                if let Ok(mut sub) = nats_release.subscribe(subject.to_string()).await {
-                    while let Some(msg) = sub.next().await {
-                        let notification = if msg.payload.is_empty() {
-                            RELEASE_NUDGE_PAYLOAD.to_vec()
-                        } else {
-                            msg.payload.to_vec()
-                        };
-                        if tx_release.send(notification).is_err() {
-                            break;
-                        }
+            }
+        });
+
+        let nats_drive = nats.clone();
+        let tx_drive = agent_out_tx.clone();
+        let owner_iid = session.owner_iid;
+        tokio::spawn(async move {
+            let subject = format!("c35.user.{owner_iid}.drive-sync");
+            if let Ok(mut sub) = nats_drive.subscribe(subject).await {
+                while let Some(msg) = sub.next().await {
+                    if tx_drive.send(msg.payload.to_vec()).is_err() {
+                        break;
                     }
                 }
-            });
-        }
+            }
+        });
 
         let nats_ffmpeg = nats.clone();
         let tx_ffmpeg = agent_out_tx.clone();
@@ -251,7 +255,14 @@ pub async fn handle(
 
     remote_signaling_agent_unregister(session.device_iid);
 
-    let _ = agent_presence_put(&state.pool, session.device_iid, false, None).await;
+    let _ = agent_presence_put(
+        &state.pool,
+        state.nats.as_ref(),
+        session.device_iid,
+        false,
+        None,
+    )
+    .await;
     let _ = agent_log_put(
         &state.pool,
         state.nats.as_ref(),

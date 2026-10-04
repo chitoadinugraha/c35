@@ -18,6 +18,8 @@ pub fn device_release_platform_key(device_type: &str, meta: &Value) -> &'static 
         } else {
             "remote-browser"
         }
+    } else if device_type.eq_ignore_ascii_case("android") {
+        "remote-android"
     } else {
         "remote-windows"
     }

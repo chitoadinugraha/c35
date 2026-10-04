@@ -452,5 +452,6 @@ message WsRes {
     ResChatMsgFeedbackList chat_msg_feedback_list = 174;
     ResChatContextWindowSet chat_context_window_set = 175;
     ResChatCompact chat_compact = 176;
+    DevicePresencePush device_presence_push = 177;
   }
 }

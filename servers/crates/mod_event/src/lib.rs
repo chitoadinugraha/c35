@@ -23,4 +23,6 @@ pub mod kinds {
     pub const ADMIN_USER_PROFILE_UPDATED: &str = "admin.user_profile_updated";
     pub const ADMIN_USER_REFERRER_UPDATED: &str = "admin.user_referrer_updated";
     pub const ADMIN_USER_ROLES_UPDATED: &str = "admin.user_roles_updated";
+    pub const DRIVE_FILE_UPDATED: &str = "drive.file_updated";
+    pub const DRIVE_FILE_DELETED: &str = "drive.file_deleted";
 }

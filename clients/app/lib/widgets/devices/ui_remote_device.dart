@@ -309,7 +309,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
     if (linking) return 'Connecting to ${widget.deviceName}…';
     if (sess.stoppedByUser) return 'Remote session stopped.';
     if (!sess.connected.value && widget.online && _error == null) {
-      return 'Press Start to open Remote.';
+      return 'Press Connect to open Remote.';
     }
     if (_error != null) return '${widget.deviceName} is offline';
     if (widget.browserDevice && sess.connected.value) return 'Starting video stream…';
@@ -1190,10 +1190,10 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                               linking
                                   ? 'Connecting…'
                                   : (_error != null ||
-                                          !widget.online ||
-                                          sess.stoppedByUser
+                                          sess.status.value == RemoteSessionStatus.failed ||
+                                          !widget.online
                                       ? 'Retry'
-                                      : 'Start'),
+                                      : 'Connect'),
                               style: const TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,

@@ -1,14 +1,18 @@
 //! Android Native JNI exports for Alien AI Remote Agent (id.alienai.remote).
 
+pub mod agent_version;
+pub mod daemon;
 pub mod som_overlay;
 pub mod webrtc_bridge;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};
 use jni::objects::{JByteArray, JClass, JObject, JString};
-use jni::sys::{jboolean, jint};
+use jni::sys::{jboolean, jint, jobjectArray, jstring};
 use jni::{JNIEnv, JavaVM};
 use tracing::info;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 
 static JAVA_VM: OnceLock<JavaVM> = OnceLock::new();
 static CALLBACK_OBJ: Mutex<Option<jni::objects::GlobalRef>> = Mutex::new(None);
@@ -38,9 +42,14 @@ pub extern "system" fn Java_id_alienai_remote_bridge_NativeBridge_nativeInit(
     device_name: JString,
     callback: JObject,
 ) -> jboolean {
-    let _ = tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
+    let _ = tracing_subscriber::registry()
+        .with(c_remote_core::log_ring::layer())
+        .with(tracing_subscriber::fmt::layer())
         .try_init();
+
+    agent_version::register();
+    #[cfg(target_os = "android")]
+    c_remote_core::update::register_android_apk_installer(install_apk_from_rust);
 
     if let Ok(vm) = env.get_java_vm() {
         let _ = JAVA_VM.set(vm);
@@ -78,7 +87,62 @@ pub extern "system" fn Java_id_alienai_remote_bridge_NativeBridge_nativeInit(
         dispatch_input_to_java(&evt_type, x, y, &text, button, key_code);
     }));
 
+    // Start background daemon loop (pairing & reconnecting) on tokio runtime
+    let _rt = get_runtime();
+    daemon::start_daemon_loop(
+        url_str,
+        dir_str,
+        dev_str,
+        Box::new(|json_status| {
+            dispatch_status_to_java(&json_status);
+        }),
+    );
+
     1
+}
+
+#[no_mangle]
+pub extern "system" fn Java_id_alienai_remote_bridge_NativeBridge_nativeGetStatusJson(
+    env: JNIEnv,
+    _class: JClass,
+) -> jstring {
+    let json = daemon::status_snapshot_json();
+    match env.new_string(json) {
+        Ok(s) => s.into_raw(),
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_id_alienai_remote_bridge_NativeBridge_nativeGetLogTail(
+    mut env: JNIEnv,
+    _class: JClass,
+    max_lines: jint,
+) -> jobjectArray {
+    let lines = c_remote_core::log_ring::tail(max_lines.max(1) as usize);
+    let string_class = match env.find_class("java/lang/String") {
+        Ok(c) => c,
+        Err(_) => return std::ptr::null_mut(),
+    };
+
+    let empty_str = match env.new_string("") {
+        Ok(s) => s,
+        Err(_) => return std::ptr::null_mut(),
+    };
+
+    let array = match env.new_object_array(lines.len() as i32, &string_class, &empty_str) {
+        Ok(a) => a,
+        Err(_) => return std::ptr::null_mut(),
+    };
+
+    for (i, l) in lines.iter().enumerate() {
+        let formatted = c_remote_core::log_ring::format_line(l);
+        if let Ok(js) = env.new_string(formatted) {
+            let _ = env.set_object_array_element(&array, i as i32, &js);
+        }
+    }
+
+    array.into_raw()
 }
 
 #[no_mangle]
@@ -152,7 +216,26 @@ pub extern "system" fn Java_id_alienai_remote_bridge_NativeBridge_nativeUnpair(
     _env: JNIEnv,
     _class: JClass,
 ) {
-    let _ = c_remote_core::config::session_key_clear();
+    daemon::trigger_unpair();
+}
+
+#[cfg(target_os = "android")]
+fn install_apk_from_rust(path: &std::path::Path) -> Result<(), anyhow::Error> {
+    let vm = JAVA_VM.get().ok_or_else(|| anyhow::anyhow!("java vm not ready"))?;
+    let mut env = vm.attach_current_thread()?;
+    let jclass = env.find_class("id/alienai/remote/bridge/NativeBridge")?;
+    let jpath = env.new_string(path.to_string_lossy().as_ref())?;
+    let ok = env.call_static_method(
+        &jclass,
+        "installApkFromRust",
+        "(Ljava/lang/String;)Z",
+        &[(&jpath).into()],
+    )?;
+    if ok.z()? {
+        Ok(())
+    } else {
+        anyhow::bail!("installApkFromRust returned false");
+    }
 }
 
 fn dispatch_input_to_java(evt_type: &str, x: f64, y: f64, text: &str, button: i32, key_code: i32) {
@@ -192,5 +275,31 @@ fn dispatch_input_to_java(evt_type: &str, x: f64, y: f64, text: &str, button: i3
                 key_code.into(),
             ],
         );
+    }
+}
+
+fn dispatch_status_to_java(status_json: &str) {
+    let vm = match JAVA_VM.get() {
+        Some(v) => v,
+        None => return,
+    };
+    let guard = match CALLBACK_OBJ.lock() {
+        Ok(g) => g,
+        Err(_) => return,
+    };
+    let global_ref = match guard.as_ref() {
+        Some(r) => r,
+        None => return,
+    };
+
+    if let Ok(mut env) = vm.attach_current_thread() {
+        if let Ok(j_json) = env.new_string(status_json) {
+            let _ = env.call_method(
+                global_ref,
+                "onStatusChanged",
+                "(Ljava/lang/String;)V",
+                &[(&j_json).into()],
+            );
+        }
     }
 }

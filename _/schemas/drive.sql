@@ -23,3 +23,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_drive_file_owner_path
 CREATE INDEX IF NOT EXISTS idx_drive_file_owner
     ON ai.drive_file (owner_iid)
     WHERE deleted_ts IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_drive_file_sync
+    ON ai.drive_file (owner_iid, updated_ts);

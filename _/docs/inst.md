@@ -22,7 +22,7 @@ All platform steering lives in **`ai.inst`** (database). Seeds ship in [`../sche
 | Layer | Store | Purpose |
 |-------|-------|---------|
 | Topic chain | `ai.topic.inst` | Inherited topic instructions (`extend` chain) |
-| Bot personality | `identity.meta_json.inst_base` | Per-bot base prompt (Bots page) |
+| Bot personality | `identity.meta_json.inst_base` | Per-bot base prompt (Bots page, or drafted by `bot.draft`) |
 
 ---
 
@@ -97,6 +97,10 @@ Steering detail: [site-ai.md](site-ai.md).
 
 - Compare / report: when `[SITE CONTEXTS]` is present, pass those sites. When it is absent, omit `site_iids` so the server aggregates every granted site.
 - Catalog: `inst.site.catalog.stock` is stock lookup, `inst.site.catalog.price` is price lookup, `inst.site.price_compare` is store-vs-web price compare, and `inst.site.catalog.write` patches price or stock. Inst tells the model to call the tool and to ask when a write returns `ambiguous`. Inst does not pick a site and does not invent an `@site` mention. A price lookup checks `product.stock` before `web.search` and stops when the store has the product. A vs-market question (reasonable, kemahalan, harga pasaran) still runs `web.search` after the store price is known. Stock questions do not fall through to the web. `inst.web_search` still owns `harga` for callers with no site.
+
+### Bot draft (`inst.bot.draft`)
+
+Home chat phrase match (`buat bot`, `bikin bot`, `create a bot`, a Google Sheet / Doc / Slide URL, or turning a draft on). Forces `bot.draft` and drops `web.search` / `web.visit` on that turn. The tool writes the inactive bot and the sheet access mode. The model replies with the tool `summary`.
 
 ### Device topic (`topic_id=device`)
 

@@ -29,5 +29,6 @@ Read [`_/docs/inst.md`](../../_/docs/inst.md) before changing prompt steering.
 
 - [ ] Seed row in `inst.sql` with `inst`, `phrases`, `triggers`, `scope`, `priority`
 - [ ] Tool exists and is registered in `mod_chat` tools
+- [ ] **Apply row to cluster** + verify `prompt_compose` — see [`tools-inst-seed.md`](tools-inst-seed.md)
 - [ ] Compose test in `mod_chat/tests/compose_test.rs` if phrase/tool pairing is non-obvious
 - [ ] No duplicate steering in `tool_loop.rs` system string

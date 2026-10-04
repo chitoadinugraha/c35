@@ -1162,3 +1162,95 @@ fn compose_price_phrase_includes_site_query_without_mention() {
     assert!(out.matched_ids.iter().any(|id| id == "inst.site.catalog.price"));
     assert!(out.tools.iter().any(|t| t.name == "site.query.run"));
 }
+
+fn inst_bot_draft() -> InstRow {
+    InstRow {
+        id: "inst.bot.draft".into(),
+        scope: SCOPE_GLOBAL.into(),
+        kind: "task".into(),
+        topic_id: "".into(),
+        topics: vec![],
+        inst: "[BOT DRAFT] Call bot.draft.".into(),
+        phrases: vec!["buat bot".into(), "bikin bot".into(), "create a bot".into(), "bot untuk".into()],
+        triggers: vec![],
+        include_tools: vec!["bot.draft".into()],
+        exclude_tools: vec!["web.search".into(), "web.visit".into()],
+        priority: 132,
+    }
+}
+
+fn bot_draft_tool() -> ToolDef {
+    ToolDef {
+        name: "bot.draft".into(),
+        description: "Draft a chat bot".into(),
+        parameters: json!({}),
+        aliases: vec![],
+        topics: vec!["general".into()],
+        always: vec![],
+        readonly: false,
+        requires_kinds: vec![],
+        rag_phrases: vec!["buat bot".into()],
+        requires_capability: None,
+    }
+}
+
+fn inst_site_builder() -> InstRow {
+    InstRow {
+        id: "inst.site.builder".into(),
+        scope: SCOPE_GLOBAL.into(),
+        kind: "task".into(),
+        topic_id: "".into(),
+        topics: vec![],
+        inst: "[SITE BUILDER] Call site.create when the user gives a site name.".into(),
+        phrases: vec!["buat website".into(), "bikin website".into(), "buat web".into()],
+        triggers: vec![],
+        include_tools: vec![
+            "site.create".into(),
+            "site.patch".into(),
+            "site.publish".into(),
+        ],
+        exclude_tools: vec!["web.search".into(), "web.visit".into()],
+        priority: 150,
+    }
+}
+
+fn site_create_tool() -> ToolDef {
+    ToolDef {
+        name: "site.create".into(),
+        description: "Create a new site".into(),
+        parameters: json!({}),
+        aliases: vec![],
+        topics: vec!["web.builder".into(), "general".into()],
+        always: vec![],
+        readonly: false,
+        requires_kinds: vec![],
+        rag_phrases: vec!["buat website".into()],
+        requires_capability: None,
+    }
+}
+
+#[test]
+fn compose_site_builder_phrase_includes_site_create_excludes_web_search() {
+    let out = compose_default(
+        &[inst_core_assistant(), inst_site_builder()],
+        "buat website grosirprakarya",
+        vec![site_create_tool(), web_search_tool()],
+        &[],
+    );
+    assert!(out.matched_ids.iter().any(|id| id == "inst.site.builder"));
+    assert!(out.tools.iter().any(|t| t.name == "site.create"));
+    assert!(out.tools.iter().all(|t| t.name != "web.search"));
+}
+
+#[test]
+fn compose_bot_draft_phrase_excludes_web_search() {
+    let out = compose_default(
+        &[inst_core_assistant(), inst_bot_draft(), inst_web_search_fixture()],
+        "buat bot jawab harga menu",
+        vec![bot_draft_tool(), web_search_tool()],
+        &[],
+    );
+    assert!(out.matched_ids.iter().any(|id| id == "inst.bot.draft"));
+    assert!(out.tools.iter().any(|t| t.name == "bot.draft"));
+    assert!(out.tools.iter().all(|t| t.name != "web.search"));
+}

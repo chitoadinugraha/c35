@@ -23,7 +23,7 @@ pub use dispatcher::{tool_topic_eligible, ToolDispatcher};
 use crate::mention_context::MentionContext;
 
 use builtin::{
-    BotInboxQueryTool, BrowserFileUploadTool, BrowserPageActTool, BrowserPageExtractTool, BrowserPageObserveTool,
+    BotDraftTool, BotInboxQueryTool, BrowserFileUploadTool, BrowserPageActTool, BrowserPageExtractTool, BrowserPageObserveTool,
     BrowserAgentRestartTool, BrowserExtensionTool, BrowserPageScreenshotTool,
     BrowserSheetsAppendRowTool, BrowserSheetsCellSetTool, BrowserSheetsRowSetTool,
     BrowserSheetsRangeReadTool, BrowserTabsTool,
@@ -120,6 +120,7 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(GsheetReadTool));
     dispatcher.register(Arc::new(GsheetAppendTool));
     dispatcher.register(Arc::new(GsheetUpdateTool));
+    dispatcher.register(Arc::new(BotDraftTool));
     dispatcher.register(Arc::new(BotInboxQueryTool));
     dispatcher.register(Arc::new(WebSearchTool));
     dispatcher.register(Arc::new(WebVisitTool));

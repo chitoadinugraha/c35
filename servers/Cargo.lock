@@ -542,6 +542,7 @@ dependencies = [
  "c35_mod_fetch",
  "c35_mod_file",
  "c35_mod_hint",
+ "c35_mod_identity",
  "c35_mod_llm",
  "c35_mod_log",
  "c35_mod_referral",
@@ -620,6 +621,7 @@ dependencies = [
  "c35_mod_drive",
  "c35_mod_event",
  "c35_mod_log",
+ "c35_nats",
  "c35_proto",
  "c35_store",
  "chrono",
@@ -632,6 +634,7 @@ dependencies = [
  "sha1",
  "sqlx",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -1056,6 +1059,7 @@ dependencies = [
  "c35_mod_consumption",
  "c35_mod_device",
  "c35_mod_drive",
+ "c35_mod_event",
  "c35_mod_expense",
  "c35_mod_file",
  "c35_mod_identity",

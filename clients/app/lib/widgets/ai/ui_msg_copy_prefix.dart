@@ -7,6 +7,8 @@ String msgCopyTimestamp(DateTime dt) => '${dt.day} ${_msgCopyMonths[dt.month - 1
 
 String msgCopyPad2(int n) => n.toString().padLeft(2, '0');
 
+String msgCopyClipboardId(String kind, String id) => '[$kind: $id]';
+
 String? msgCopyModelProvider(String modelId, List<AgentModel> models) {
   final id = modelId.trim();
   if (id.isEmpty) return null;

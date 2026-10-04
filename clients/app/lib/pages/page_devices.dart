@@ -34,19 +34,23 @@ class PageDevices extends StatefulWidget {
 
 class _PageDevicesState extends State<PageDevices> {
   late final _store = DeviceStore(conn: widget.chatConn);
-  Timer? _presenceTimer;
+  Timer? _presenceReconcileTimer;
+  StreamSubscription? _presencePushSub;
 
   @override
   void initState() {
     super.initState();
     RemoteSession.devicesPageVisible();
     _store.refresh();
-    _presenceTimer = Timer.periodic(const Duration(seconds: 30), (_) => _store.refresh());
+    _presencePushSub = widget.chatConn.onDevicePresencePush.listen(_store.applyPresencePush);
+    // Slow reconcile if a push was missed (offline WS, deploy skew).
+    _presenceReconcileTimer = Timer.periodic(const Duration(minutes: 5), (_) => _store.refresh());
   }
 
   @override
   void dispose() {
-    _presenceTimer?.cancel();
+    _presencePushSub?.cancel();
+    _presenceReconcileTimer?.cancel();
     RemoteSession.devicesPageHidden();
     super.dispose();
   }
@@ -211,9 +215,10 @@ class _PageDevicesState extends State<PageDevices> {
                                         deviceType: id.type,
                                       ),
                                       pinned: row.isPinned,
-                                      clusterOnline: deviceClusterOnline(id.metaJson, remoteSessionActive: session.connected.value),
+                                      clusterOnline: deviceOnlineFromMeta(id.metaJson),
                                       webrtcConnected: session.connected.value,
                                       webrtcConnecting: session.isLinking,
+                                      webrtcFailed: session.status.value == RemoteSessionStatus.failed,
                                       selected: _store.selectedId == sid,
                                       onTap: () => _store.select(sid),
                                     ),

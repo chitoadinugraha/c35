@@ -87,14 +87,6 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
       );
       unawaited(_promptStore!.init());
     }
-    if (widget.row.identity.kind.toLowerCase() == 'remote' &&
-        widget.chatConn.connected &&
-        !_session.connected.value &&
-        !_session.stoppedByUser) {
-      _session.start().catchError((e) {
-        lError('device detail auto-connect failed: $e');
-      });
-    }
     unawaited(
       RemotePrefs.instance.load().then((_) {
         if (mounted) {
@@ -513,19 +505,20 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
       return _connectionMenu(session, label: 'Offline', fg: _muted, bg: const Color(0xFF27272A), border: const Color(0xFF3F3F46));
     }
     if (!session.connected.value && !session.isLinking) {
+      final failed = session.status.value == RemoteSessionStatus.failed;
       return FilledButton.icon(
         onPressed: () {
           session.prepareUserReconnect();
           session.start().catchError((e) => lError('remote start: $e'));
         },
         style: FilledButton.styleFrom(
-          backgroundColor: _accent,
-          foregroundColor: const Color(0xFF09090B),
+          backgroundColor: failed ? const Color(0xFF7F1D1D) : _accent,
+          foregroundColor: failed ? const Color(0xFFFECACA) : const Color(0xFF09090B),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           visualDensity: VisualDensity.compact,
         ),
-        icon: const Icon(Icons.play_arrow_rounded, size: 18),
-        label: const Text('Start', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        icon: Icon(failed ? Icons.refresh_rounded : Icons.play_arrow_rounded, size: 18),
+        label: Text(failed ? 'Retry' : 'Connect', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
       );
     }
     if (session.connected.value) {
