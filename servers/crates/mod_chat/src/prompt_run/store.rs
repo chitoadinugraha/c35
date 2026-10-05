@@ -130,6 +130,7 @@ impl PromptRunRow {
             topic_id: self.topic_id.clone(),
             tool_mode: self.tool_mode.clone(),
             device_iids: if self.device_iid > 0 { vec![self.device_iid] } else { vec![] },
+            talk: false,
         }
     }
 }

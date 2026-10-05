@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 const _menuPadH = 16.0;
 
-class UiSpeakToggleRow extends StatelessWidget {
-  const UiSpeakToggleRow({super.key, required this.enabled, this.onChanged});
+class UiTalkToggleRow extends StatelessWidget {
+  const UiTalkToggleRow({super.key, required this.enabled, this.onChanged});
 
   final bool enabled;
   final ValueChanged<bool>? onChanged;
@@ -18,9 +18,9 @@ class UiSpeakToggleRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Speak', style: TextStyle(color: Color(0xFFE4E4E7), fontSize: 14, fontWeight: FontWeight.w500)),
+                  Text('Talk', style: TextStyle(color: Color(0xFFE4E4E7), fontSize: 14, fontWeight: FontWeight.w500)),
                   SizedBox(height: 2),
-                  Text('Shorter response and read aloud', style: TextStyle(color: Color(0xFF71717A), fontSize: 12, height: 1.25)),
+                  Text('Shorter replies, voice input', style: TextStyle(color: Color(0xFF71717A), fontSize: 12, height: 1.25)),
                 ],
               ),
             ),

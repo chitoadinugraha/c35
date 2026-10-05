@@ -1440,3 +1440,24 @@ INSERT INTO ai.inst (
     priority = EXCLUDED.priority,
     updated_ts = NOW();
 
+-- Seed: Talk mode brief replies (ReqPrompt.talk, not a stored mention)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, priority, def_hash, updated_ts
+) VALUES (
+    'inst.talk.brief',
+    'global',
+    'trigger',
+    '',
+    'The user is in Talk mode. Reply in short spoken sentences. Two to four sentences. No headings, no markdown lists, unless the user asked for steps or a tool result needs a card. Skip preamble.',
+    '{}',
+    ARRAY['mention:talk'],
+    80,
+    '',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    triggers = EXCLUDED.triggers,
+    kind = EXCLUDED.kind,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+

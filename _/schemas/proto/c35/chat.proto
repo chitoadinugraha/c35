@@ -132,6 +132,7 @@ message ReqPrompt {
   string topic_id = 7;
   string tool_mode = 8;          // ask | agent
   repeated int64 device_iids = 9;
+  bool talk = 10;                 // Talk surface only. Not stored on the user message.
 }
 
 message ResPromptStart {

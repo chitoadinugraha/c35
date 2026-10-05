@@ -275,6 +275,7 @@ pub async fn mcp_prompt_run(
         topic_id: String::new(),
         tool_mode: "agent".into(),
         device_iids: vec![],
+        talk: false,
     };
     let cancel = CancellationToken::new();
     let hooks = PromptTurnHooks {

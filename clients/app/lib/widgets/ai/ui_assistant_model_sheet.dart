@@ -33,9 +33,27 @@ class _UiAssistantModelSheetState extends State<UiAssistantModelSheet> {
   late final _listScrollCtrl = ScrollController();
   var _query = '';
   var _provider = '';
+  final _expandedProviders = <String>{};
 
   void _onSearch() => setState(() => _query = _searchCtrl.text);
   void _pick(AgentModel m, [AgentThinking? thinking]) => Navigator.of(context).pop(thinking == null ? m : m.copyWith(thinking: thinking));
+
+  AgentModel get _current {
+    final c = widget.current;
+    for (final m in widget.models) {
+      if (m.id == c.id) return m.copyWith(thinking: c.thinking);
+    }
+    return c;
+  }
+
+  bool _isCurrent(AgentModel m) => m.id == _current.id;
+
+  @override
+  void initState() {
+    super.initState();
+    final p = _current.provider;
+    if (p.isNotEmpty && p != 'alienai') _expandedProviders.add(p);
+  }
 
   @override
   void dispose() {
@@ -48,6 +66,9 @@ class _UiAssistantModelSheetState extends State<UiAssistantModelSheet> {
   Widget build(BuildContext context) {
     final providers = agentModelProviders(widget.models);
     final items = agentModelFilter(widget.models, _query, provider: _provider);
+    final useGroups = _provider.isEmpty && _query.isEmpty;
+    final alienRows = agentModelPickerAlien(items);
+    final providerGroups = useGroups ? agentModelPickerByProvider(items) : <String, List<AgentModel>>{};
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: SafeArea(
@@ -113,11 +134,20 @@ class _UiAssistantModelSheetState extends State<UiAssistantModelSheet> {
                         behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
                         child: Scrollbar(
                           controller: _listScrollCtrl,
-                          child: ListView.builder(
+                          child: ListView(
                             controller: _listScrollCtrl,
                             padding: const EdgeInsets.only(right: 8),
-                            itemCount: items.length,
-                            itemBuilder: (_, i) => _tile(items[i]),
+                            children: [
+                              _activeCard(_current),
+                              if (useGroups) ...[
+                                for (final m in alienRows.where((m) => !_isCurrent(m))) _tile(m),
+                                for (final p in providerGroups.keys) ...[
+                                  _groupHeader(p, providerGroups[p]!.where((m) => !_isCurrent(m)).length),
+                                  if (_groupExpanded(p)) for (final m in providerGroups[p]!.where((m) => !_isCurrent(m))) _tile(m),
+                                ],
+                              ] else
+                                for (final m in items.where((m) => !_isCurrent(m))) _tile(m),
+                            ],
                           ),
                         ),
                       ),
@@ -126,6 +156,44 @@ class _UiAssistantModelSheetState extends State<UiAssistantModelSheet> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  bool _groupExpanded(String provider) => _expandedProviders.contains(provider);
+
+  void _toggleGroup(String provider) => setState(() {
+        if (_groupExpanded(provider)) {
+          _expandedProviders.remove(provider);
+        } else {
+          _expandedProviders
+            ..clear()
+            ..add(provider);
+        }
+      });
+
+  Widget _groupHeader(String provider, int count) {
+    final expanded = _groupExpanded(provider);
+    return InkWell(
+      onTap: () => _toggleGroup(provider),
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        child: Row(
+          children: [
+            UiAssistantProviderIcon(provider: provider, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                agentModelProviderLabel(provider),
+                style: const TextStyle(color: Color(0xFFF4F4F5), fontWeight: FontWeight.w600, fontSize: 13),
+              ),
+            ),
+            Text('$count', style: const TextStyle(color: Color(0xFF71717A), fontSize: 12)),
+            const SizedBox(width: 2),
+            Icon(expanded ? Icons.expand_more_rounded : Icons.chevron_right_rounded, size: 18, color: const Color(0xFFA1A1AA)),
+          ],
         ),
       ),
     );
@@ -180,62 +248,71 @@ class _UiAssistantModelSheetState extends State<UiAssistantModelSheet> {
     );
   }
 
-  Widget _tile(AgentModel m) {
-    final selected = m.id == widget.current.id;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Material(
-        color: selected ? const Color(0xFF27272A) : Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: () => _pick(m, m.canThink ? AgentThinking.off : null),
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+  Widget _activeCard(AgentModel m) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: const Color(0xFF27272A),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: m.accent.withValues(alpha: 0.55)),
+          ),
+          child: _tile(m, active: true),
+        ),
+      );
+
+  Widget _tile(AgentModel m, {bool active = false}) {
+    final selected = active || _isCurrent(m);
+    final price = m.local ? 'This PC' : m.priceLabel(currency: AppStore.instance.wallet.billingCurrency, fxMicroPerUsd: AppStore.instance.wallet.fxMicroPerUsd);
+    return InkWell(
+      onTap: () => _pick(m, m.canThink ? AgentThinking.off : null),
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          UiAssistantProviderIcon(provider: m.provider, size: 22, accent: m.accent),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(m.label, style: TextStyle(color: selected ? m.accent : const Color(0xFFF4F4F5), fontWeight: FontWeight.w600, fontSize: 14)),
-                                Text(
-                                  m.local ? 'This PC' : m.priceLabel(currency: AppStore.instance.wallet.billingCurrency, fxMicroPerUsd: AppStore.instance.wallet.fxMicroPerUsd),
-                                  style: const TextStyle(color: Color(0xFF71717A), fontSize: 12),
-                                ),
-                              ],
+                      UiAssistantProviderIcon(provider: m.provider, size: 22, accent: m.accent),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              m.label,
+                              style: TextStyle(color: selected ? m.accent : const Color(0xFFF4F4F5), fontWeight: FontWeight.w600, fontSize: 14),
                             ),
-                          ),
-                        ],
+                            Text(price, style: const TextStyle(color: Color(0xFF71717A), fontSize: 12)),
+                          ],
+                        ),
                       ),
-                      if (m.canThink) ...[
-                        const SizedBox(height: 8),
-                        Row(children: [for (final level in AgentThinking.values) _badge(m, level)]),
-                      ],
                     ],
                   ),
-                ),
-                if (selected) Padding(padding: const EdgeInsets.only(left: 8), child: Icon(Icons.check_rounded, color: m.accent, size: 18)),
-              ],
+                  if (m.canThink && selected) ...[
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 34),
+                      child: Row(children: [for (final level in AgentThinking.values) _badge(m, level)]),
+                    ),
+                  ],
+                ],
+              ),
             ),
-          ),
+            if (selected) Padding(padding: const EdgeInsets.only(left: 8, top: 2), child: Icon(Icons.check_rounded, color: m.accent, size: 18)),
+          ],
         ),
       ),
     );
   }
 
   Widget _badge(AgentModel m, AgentThinking level) {
-    final on = m.id == widget.current.id && widget.current.thinking == level;
+    final on = _isCurrent(m) && _current.thinking == level;
     return Padding(
       padding: const EdgeInsets.only(right: 4),
       child: uiTooltip(

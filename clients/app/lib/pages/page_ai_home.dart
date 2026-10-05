@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import 'package:alienai_c35/c/api/settings_conn.dart';
 import 'package:alienai_c35/c/api/referral_conn.dart';
 import 'package:alienai_c35/c/auth/auth_service.dart';
+import 'package:alienai_c35/c/cas/cas_client.dart';
 import 'package:alienai_c35/c/catalog/catalog_translation_cache.dart';
 import 'package:alienai_c35/c/chat/chat_block.dart';
 import 'package:alienai_c35/c/chat/chat_conn.dart';
@@ -22,6 +23,8 @@ import 'package:alienai_c35/c/pb/c35/chat.pb.dart';
 import 'package:alienai_c35/c/pb/c35/sync.pb.dart';
 import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/c/mail/mail_inbox_bus.dart';
+import 'package:alienai_c35/c/media/ask_media.dart';
+import 'package:alienai_c35/c/media/media_types.dart';
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/c/settings/prompt_usage_prefs.dart';
@@ -36,6 +39,7 @@ import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/c/store/prompt_followup_store.dart';
 import 'package:alienai_c35/widgets/ai/prompt_followup_format.dart';
 import 'package:alienai_c35/c/store/prompt_run_store.dart';
+import 'package:alienai_c35/c/stt/stt_mic_permission.dart';
 import 'package:alienai_c35/c/stt/stt_service.dart';
 import 'package:alienai_c35/c/tts/tts_service.dart';
 import 'package:alienai_c35/c/voice/voice_api.dart';
@@ -52,6 +56,8 @@ import 'package:alienai_c35/widgets/referral/ui_referral_claim_dialog.dart';
 import 'package:alienai_c35/widgets/settings/ui_location_consent_dialog.dart';
 import 'package:alienai_c35/widgets/referral/ui_referral_commission_sheet.dart';
 import 'package:alienai_c35/widgets/ai/composer_mention_text.dart';
+import 'package:alienai_c35/widgets/ai/ui_assistant_model_chip.dart';
+import 'package:alienai_c35/widgets/ai/ui_talk_stage.dart';
 import 'package:alienai_c35/widgets/ai/in_composer.dart';
 import 'package:alienai_c35/widgets/ai/msg_trace_view.dart';
 import 'package:alienai_c35/widgets/ai/ui_alien_icon.dart';
@@ -134,6 +140,8 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   String? _selectedPlain;
   String? _uiLang;
   Timer? _promptWatchdog;
+  var _talkRecording = false;
+  final _talkStaged = <StagedMedia>[];
 
   @override
   void initState() {
@@ -162,6 +170,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       }
     });
     PromptFollowupStore.instance.addListener(_onFollowupStoreChanged);
+    VoicePrefs.instance.addListener(_onTalkPrefs);
     serverHostTick.addListener(_onServerHostChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_boot());
@@ -408,6 +417,9 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     _followupPushSub?.cancel();
     _promptRunPushSub?.cancel();
     PromptFollowupStore.instance.removeListener(_onFollowupStoreChanged);
+    VoicePrefs.instance.removeListener(_onTalkPrefs);
+    SttService.instance.onAutoStop = null;
+    SttService.instance.liveTranscript.removeListener(_onTalkLiveTranscript);
     serverHostTick.removeListener(_onServerHostChanged);
     _timeline.dispose();
     _conn.disconnect();
@@ -887,7 +899,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
 
   Future<void> _runTestMultitask() => _composerSend(composerTestMultitaskSlash, const []);
 
-  Future<void> _composerSend(String text, List<MsgAttachment> attachments, {bool retry = false, String? toolMode, List<String>? mentionIds, String? displayContent}) async {
+  Future<void> _composerSend(String text, List<MsgAttachment> attachments, {bool retry = false, String? toolMode, List<String>? mentionIds, String? displayContent, bool talk = false}) async {
     var trimmed = text.trim();
     var mids = (mentionIds ?? _mentionIds.toList()).where((id) => id != 'image').toList(growable: false);
     var uiContent = (displayContent ?? trimmed).trim();
@@ -1018,6 +1030,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         toolMode: turnToolMode,
         locale: CatalogTranslationCache.instance.lang,
         reqId: reqId,
+        talk: talk,
       );
     _store.promptBusyPut(true, chatId: chatId, reqId: reqId);
     _promptWatchdogStart(reqId);
@@ -1453,14 +1466,204 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   int get _threadTokenTotal => _threadTokensIn + _threadTokensOut;
   double get _threadCostUsd => _store.activeMsgs.fold(0.0, (acc, m) => acc + m.costUsd);
 
-  Widget _chatColumn({required bool wide}) => Column(
-        children: [
-          RepaintBoundary(child: _chatHeader(wide: wide)),
-          Expanded(child: RepaintBoundary(child: _threadBody())),
-          RepaintBoundary(
-            child: Padding(
-            padding: EdgeInsets.fromLTRB(16, 0, 16, uiSafeBottomInset(context, 16)),
-            child: InComposer(
+  void _onTalkPrefs() {
+    if (!VoicePrefs.instance.talkEnabled && _talkRecording) unawaited(_talkMicCancel());
+  }
+
+  void _onTalkLiveTranscript() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _talkMic() async {
+    if (_store.promptBusyFor(_store.activeChatId)) {
+      await _abortPrompt();
+      return;
+    }
+    if (_talkRecording) {
+      await _talkMicStop();
+      return;
+    }
+    await _talkMicStart();
+  }
+
+  Future<void> _talkMicStart() async {
+    await TtsService.instance.stop();
+    SttService.instance.liveTranscript.removeListener(_onTalkLiveTranscript);
+    SttService.instance.liveTranscript.addListener(_onTalkLiveTranscript);
+    SttService.instance.onAutoStop = () {
+      if (mounted && _talkRecording) unawaited(_talkMicStop());
+    };
+    final ok = await SttService.instance.startRecording();
+    if (!mounted) return;
+    if (!ok) {
+      SttService.instance.onAutoStop = null;
+      SttService.instance.liveTranscript.removeListener(_onTalkLiveTranscript);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(SttService.instance.lastStartError ?? sttMicErrorMessage()),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    setState(() => _talkRecording = true);
+  }
+
+  Future<void> _talkMicStop() async {
+    if (!_talkRecording) return;
+    SttService.instance.onAutoStop = null;
+    SttService.instance.liveTranscript.removeListener(_onTalkLiveTranscript);
+    final text = await SttService.instance.stopAndTranscribe(lang: VoicePrefs.instance.speechLang);
+    if (!mounted) return;
+    setState(() => _talkRecording = false);
+    final transcript = (text ?? SttService.instance.liveTranscript.value).trim();
+    if (transcript.isEmpty) {
+      final err = SttService.instance.lastTranscribeError;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(err ?? 'No speech detected'),
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+    final staged = List<StagedMedia>.from(_talkStaged);
+    setState(() => _talkStaged.clear());
+    final atts = await _talkAttachments(staged);
+    if (!mounted) return;
+    await _composerSend(transcript, atts, talk: true);
+  }
+
+  Future<void> _talkMicCancel() async {
+    SttService.instance.onAutoStop = null;
+    SttService.instance.liveTranscript.removeListener(_onTalkLiveTranscript);
+    if (_talkRecording) await SttService.instance.cancel();
+    if (mounted) setState(() => _talkRecording = false);
+  }
+
+  Future<void> _talkUpload(StagedMedia item) async {
+    if (item.bytes.isEmpty) return;
+    try {
+      final res = await casUpload(bytes: item.bytes, mime: item.mime, name: item.name);
+      if (!mounted || res == null) return;
+      final i = _talkStaged.indexWhere((m) => m.id == item.id);
+      if (i >= 0) setState(() => _talkStaged[i] = _talkStaged[i].copyWith(hash: res.hash, uploadProgress: 1.0));
+    } catch (_) {}
+  }
+
+  void _talkStageItems(List<StagedMedia> items) {
+    if (!mounted || items.isEmpty) return;
+    setState(() => _talkStaged.addAll(items));
+    for (final item in items) {
+      unawaited(_talkUpload(item));
+    }
+  }
+
+  Future<List<MsgAttachment>> _talkAttachments(List<StagedMedia> staged) async {
+    final atts = <MsgAttachment>[];
+    for (var item in staged) {
+      if ((item.hash == null || item.hash!.isEmpty) && item.bytes.isNotEmpty) {
+        final res = await casUpload(bytes: item.bytes, mime: item.mime, name: item.name);
+        if (res != null) item = item.copyWith(hash: res.hash, uploadProgress: 1.0);
+      }
+      if (item.bytes.isNotEmpty || (item.hash != null && item.hash!.isNotEmpty)) {
+        atts.add(MsgAttachment.fromStaged(item));
+      }
+    }
+    return atts;
+  }
+
+  Future<void> _talkAttachImage() async {
+    final picked = await askMedia(context: context, types: const [MediaType.image], allowMultiple: true);
+    if (picked != null) _talkStageItems(picked.map((m) => m.copyWith(uploadProgress: 0.05)).toList());
+  }
+
+  Future<void> _talkAttachFile() async {
+    final picked = await askMedia(context: context, types: const [MediaType.document, MediaType.any], allowMultiple: true);
+    if (picked != null) _talkStageItems(picked.map((m) => m.copyWith(uploadProgress: 0.05)).toList());
+  }
+
+  Future<void> _talkAttach() async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: const Color(0xFF27272A),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.image_outlined, color: Color(0xFFA1A1AA)),
+              title: const Text('Photo', style: TextStyle(color: Color(0xFFF4F4F5))),
+              onTap: () => Navigator.pop(ctx, 'image'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.attach_file_rounded, color: Color(0xFFA1A1AA)),
+              title: const Text('File', style: TextStyle(color: Color(0xFFF4F4F5))),
+              onTap: () => Navigator.pop(ctx, 'file'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || action == null) return;
+    if (action == 'image') await _talkAttachImage();
+    if (action == 'file') await _talkAttachFile();
+  }
+
+  Future<void> _talkModel() async {
+    final next = await agentModelPick(context, _model, _store.models, modelsLoading: !_modelsReady);
+    if (next != null) _modelPut(next);
+  }
+
+  Widget _talkStage() {
+    final msgs = _store.activeMsgs;
+    MsgRow? assistant;
+    MsgRow? user;
+    for (final m in msgs.reversed) {
+      if (assistant == null && m.role == 'assistant') assistant = m;
+      if (user == null && m.role == 'user') user = m;
+      if (assistant != null && user != null) break;
+    }
+    final userText = _talkRecording
+        ? SttService.instance.liveTranscript.value
+        : (user == null
+            ? ''
+            : msgUserContentForDisplay(
+                content: user.content,
+                mentionIdsJson: user.mentionIdsJson,
+                mentions: _store.mentionCatalog.mentions,
+              ));
+    final busy = _store.promptBusyFor(_store.activeChatId);
+    final showWelcome = user == null && assistant == null && !busy;
+    return UiTalkStage(
+      assistant: assistant,
+      userText: userText,
+      welcome: showWelcome ? _threadHero() : null,
+      listening: _talkRecording,
+      busy: busy,
+      speakEnabled: VoicePrefs.instance.speakEnabled,
+      onMic: () => unawaited(_talkMic()),
+      onSpeak: () => unawaited(VoicePrefs.instance.setSpeakEnabled(!VoicePrefs.instance.speakEnabled)),
+      onAttach: () => unawaited(_talkAttach()),
+      onModel: () => unawaited(_talkModel()),
+      blocks: assistant == null ? const <ChatBlock>[] : ChatBlock.decodeList(assistant.blocksJson),
+      usage: assistant == null ? null : msgUsageStats(assistant),
+      consumptionApi: _consumptionApi,
+      expenseApi: _expenseApi,
+      locale: CatalogTranslationCache.instance.lang,
+      onConsumptionSaved: _onConsumptionBlockSaved,
+      onExpenseSaved: _onExpenseBlockSaved,
+      onBlockCollapsedChanged: (msgId, blockIndex, collapsed) =>
+          _store.msgBlockCollapsedPut(msgId: msgId, blockIndex: blockIndex, collapsed: collapsed),
+      onImageUpgradeHd: busy ? null : _imageUpgradeHd,
+      stagedCount: _talkStaged.length,
+      modelProvider: _model.provider,
+      modelAccent: _model.accent,
+    );
+  }
+
+  Widget _chatComposer() => RepaintBoundary(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(16, 0, 16, uiSafeBottomInset(context, 16)),
+          child: InComposer(
               key: ValueKey(_store.activeChatId ?? 'new'),
               controller: _composerCtrl,
               focusNode: _composerFocus,
@@ -1487,7 +1690,27 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
               onFollowupRemove: _followupRemove,
               enabled: _catalogReady,
             ),
-          ),
+        ),
+      );
+
+  Widget _chatColumn({required bool wide}) => Column(
+        children: [
+          RepaintBoundary(child: _chatHeader(wide: wide)),
+          Expanded(
+            child: ListenableBuilder(
+              listenable: VoicePrefs.instance,
+              builder: (context, _) {
+                if (!VoicePrefs.instance.talkEnabled) {
+                  return Column(
+                    children: [
+                      Expanded(child: RepaintBoundary(child: _threadBody())),
+                      _chatComposer(),
+                    ],
+                  );
+                }
+                return _talkStage();
+              },
+            ),
           ),
         ],
       );
@@ -1696,7 +1919,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   }
 
   Widget _threadHero() => ListenableBuilder(
-        listenable: HintStore.instance,
+        listenable: Listenable.merge([HintStore.instance, _store]),
         builder: (context, _) {
           final hints = HintStore.instance.items.isNotEmpty ? HintStore.instance.items : hintsOfflineFallbackItems();
           return Center(

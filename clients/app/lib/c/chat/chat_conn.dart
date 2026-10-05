@@ -483,6 +483,9 @@ class ChatConn {
     bool includeBilling = false,
     Int64 hintsSinceMs = Int64.ZERO,
     Int64 mentionsSinceMs = Int64.ZERO,
+    String generationImage = '',
+    String generationVideo = '',
+    String generationMusic = '',
   }) =>
       _rpc<ResSessionInit>(
         WsReq(
@@ -503,6 +506,9 @@ class ChatConn {
             includeBilling: includeBilling,
             hintsSinceMs: hintsSinceMs,
             mentionsSinceMs: mentionsSinceMs,
+            generationImage: generationImage,
+            generationVideo: generationVideo,
+            generationMusic: generationMusic,
           ),
         ),
         (res) => res.sessionInit,
@@ -1159,6 +1165,7 @@ class ChatConn {
     String toolMode = 'agent',
     String locale = 'en',
     String? reqId,
+    bool talk = false,
   }) async* {
     if (_ch == null) await connect(locale: locale);
     final id = reqId != null && reqId.isNotEmpty ? reqId : const Uuid().v4();
@@ -1177,6 +1184,7 @@ class ChatConn {
         deviceIids: deviceIids,
         topicId: topicId,
         toolMode: toolMode,
+        talk: talk,
       ),
     );
     _send(req);

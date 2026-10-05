@@ -40,9 +40,18 @@ Single entry points for the app — pages bind `VoiceApi` once per chat session.
 - Tracks continuous ambient noise floor (`_noiseFloorDb`).
 - Detects human voice via dynamic Signal-to-Noise Ratio (SNR) delta: $\max(\text{Ambient Floor} + 8.5\text{ dB}, -42.0\text{ dB})$.
 - Filters out static hiss, fan/AC hum, and transient clicks.
-- Automatically triggers `onAutoStop` after **1300ms** of silence following active speech.
+- Automatically triggers `onAutoStop` after **700ms** of silence following speech with live text (**1100ms** with no text yet).
 
-**Prefs:** `VoicePrefs` — `sttEngine`, `ttsEngine`, `speakEnabled`, `speechLang`, rate/pitch.
+**Latency optimizations (STT):**
+- `SttService.prewarm()` (called on composer focus) resolves and caches the mic device (60s TTL); the last working PCM stream config is tried first on `startRecording`.
+- Interim snapshots tick every 250ms (min 0.6s audio) and use a **sliding window**: text is committed at a pause once the window passes 6s (forced at 12s) so each upload stays small.
+- Leading/trailing silence is trimmed (`trimSilence`, 250ms pad) from interim and final audio before upload.
+- `stopAndTranscribe` sets `isTranscribing` immediately so the UI shows feedback during recorder shutdown.
+- Server: `voice_stt` runs the billing hold concurrently with the upstream call; shared `reqwest` client uses keep-alive pooling and `TCP_NODELAY`.
+
+**Prefs:** `VoicePrefs` — `sttEngine`, `ttsEngine`, `speakEnabled`, `speechLang`, rate/pitch, `talkEnabled`.
+
+**Talk** (`talkEnabled`, key `voice_talk_enabled`, default false) is the Home surface switch, not an engine. Off is Chat mode. On replaces the thread and composer with the one-page stage in [ui.md](ui.md#talk). The same `SttService` / `TtsService` path runs. `speakEnabled` is read-aloud only (the stage speaker icon, and auto-speak when a turn ends). It does not select Talk. Starting the Talk mic stops TTS. Idle / listening / thinking / usage copy for the status row above the controls is defined in [ui.md](ui.md#talk).
 
 **Binding:** `page_ai_home` creates `VoiceApi(chatConn)` and calls `SttService.instance.bindVoiceApi` / `TtsService.instance.bindVoiceApi` in `initState`; clears on `dispose`.
 
@@ -58,7 +67,8 @@ Single entry points for the app — pages bind `VoiceApi` once per chat session.
 | `clients/app/lib/c/stt/stt_service.dart` | Recording + adaptive VAD + STT router |
 | `clients/app/lib/c/tts/tts_service.dart` | TTS router + playback |
 | `clients/app/lib/c/voice/voice_api.dart` | Cloud invoke client |
-| `clients/app/lib/c/settings/voice_prefs.dart` | Persisted engine + speak toggle |
+| `clients/app/lib/c/settings/voice_prefs.dart` | Persisted engine, speak toggle, Talk surface |
+| `clients/app/lib/widgets/ai/ui_talk_stage.dart` | Talk layout. No STT, TTS, or prompt I/O |
 
 Cloud errors surface via `ResVoiceStt.error` / `ResVoiceTts.error` and `ui_friendly_error` (e.g. insufficient balance).
 

@@ -302,6 +302,10 @@ Following the principle *"No schema migration. Tools and citations reconstruct f
 
 ---
 
+## Talk surface
+
+Talk is a Home presentation of a `prompt` thread, not a `chat.kind`. The active `chat_id` and `ai.chat_msg` rows stay the same when the avatar sheet toggles Talk. Spoken turns are ordinary user and assistant messages. `ReqPrompt.talk` steers that turn toward a short spoken reply and is not a column on `ai.chat_msg`. Layout, mic, and the speaker icon: [ui.md](ui.md#talk).
+
 ## Flutter Home client (prompt thread UI)
 
 Server rows in `ai.chat_msg` are authoritative. The app keeps a local `ChatStore` cache and optimistic rows while a turn streams.

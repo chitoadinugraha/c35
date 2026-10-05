@@ -292,6 +292,7 @@ where
             _ => None,
         })
         .collect();
+    let inst_match_ids = crate::inst_macro::inst_mention_ids(&inst_mention_ids, req.talk);
     let force_tools = mention_force_tools(&resolved);
     let mention_ctx = mention_context_build(&resolved);
     let mention_ctx = if mention_ctx.sites.is_empty() {
@@ -326,7 +327,7 @@ where
         &req.text,
         cluster_tools(),
         &force_tools,
-        &inst_mention_ids,
+        &inst_match_ids,
         &active_topics,
         tool_mode,
         &mentions,

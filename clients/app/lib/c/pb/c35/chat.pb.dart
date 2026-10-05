@@ -1035,6 +1035,7 @@ class ReqPrompt extends $pb.GeneratedMessage {
     $core.String? topicId,
     $core.String? toolMode,
     $core.Iterable<$fixnum.Int64>? deviceIids,
+    $core.bool? talk,
   }) {
     final result = ReqPrompt._();
     if (chatId != null) result.chatId = chatId;
@@ -1046,6 +1047,7 @@ class ReqPrompt extends $pb.GeneratedMessage {
     if (topicId != null) result.topicId = topicId;
     if (toolMode != null) result.toolMode = toolMode;
     if (deviceIids != null) result.deviceIids.addAll(deviceIids);
+    if (talk != null) result.talk = talk;
     return result;
   }
 
@@ -1072,6 +1074,7 @@ class ReqPrompt extends $pb.GeneratedMessage {
     ..aOS(8, _omitFieldNames ? '' : 'toolMode')
     ..p<$fixnum.Int64>(
         9, _omitFieldNames ? '' : 'deviceIids', $pb.PbFieldType.K6)
+    ..aOB(10, _omitFieldNames ? '' : 'talk')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1162,6 +1165,15 @@ class ReqPrompt extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(9)
   $pb.PbList<$fixnum.Int64> get deviceIids => $_getList(8);
+
+  @$pb.TagNumber(10)
+  $core.bool get talk => $_getBF(9);
+  @$pb.TagNumber(10)
+  set talk($core.bool value) => $_setBool(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasTalk() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearTalk() => $_clearField(10);
 }
 
 class ResPromptStart extends $pb.GeneratedMessage {

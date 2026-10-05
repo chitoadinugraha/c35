@@ -43,7 +43,7 @@ When code and docs disagree, fix the code to match these docs (or explicitly rev
 | [tx.md](tx.md) | POS / transactions (`site.tx_*`, id.alienai model) |
 | [channels.md](channels.md) | Messaging channels (Telegram, WhatsApp Cloud, WhatsApp Device) |
 | [data_source.md](data_source.md) | Bot data sources — Sheets/chunks in YB; plans in [`plans/2026-09-27-data-source-all-waves-multitask.md`](plans/2026-09-27-data-source-all-waves-multitask.md) |
-| [voice.md](voice.md) | STT/TTS engines (web / local / cloud), billing, cs_bots parity |
+| [voice.md](voice.md) | STT/TTS engines (web / local / cloud), Talk surface, billing |
 | [location.md](location.md) | Device / manual / IP city context, consent, SearXNG locale |
 
 Schemas live in [`../schemas/`](../schemas/). Boot apply + version hash: [schema-migrate.md](schema-migrate.md).

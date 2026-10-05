@@ -80,6 +80,19 @@ Entries in `triggers[]`:
 | `mention:<id>` | Match when mention id present |
 | `topic:<id>` | Match when topic id active |
 
+`mention:talk` is set from `ReqPrompt.talk` for the in-memory inst match only. It is not a user-visible mention and is not stored on the user message.
+
+### Talk (`inst.talk.brief`)
+
+| | |
+|---|---|
+| id | `inst.talk.brief` |
+| kind | `trigger` |
+| trigger | `mention:talk` |
+| priority | 80 |
+
+Applies when Home sends from the Talk surface (`ReqPrompt.talk = true`). `prompt_turn` clones the turn's mention ids and appends `talk` only for `inst_pick`. The stored user message keeps the original mention ids. Body: short spoken sentences, two to four, no headings or markdown lists unless the user asked for steps or a tool result needs a card. Chat sends do not match this row. Surface rules: [ui.md](ui.md#talk).
+
 ### Site / commerce (Phase 9)
 
 | `inst` id | `kind` | `topic_id` / phrases | `tool_include` |

@@ -23,6 +23,11 @@ pub fn inst_scopes_home() -> Vec<String> {
     vec![SCOPE_GLOBAL.into(), SCOPE_ROLE_PERSONAL_ASSISTANT.into()]
 }
 
+/// In-memory mention ids for inst pick. Does not mutate the persisted list.
+pub fn inst_mention_ids(mention_ids: &[String], talk: bool) -> Vec<String> {
+    mention_ids.iter().cloned().chain(talk.then(|| "talk".to_string())).collect()
+}
+
 pub fn inst_scopes_channel() -> Vec<String> {
     vec![SCOPE_ROLE_BOT.into()]
 }
@@ -283,5 +288,50 @@ mod tests {
         };
         assert_eq!(inst_pick(&rows, &ctx).len(), 1);
         assert_eq!(inst_pick(&rows, &ctx)[0].id, "inst.core.assistant");
+    }
+
+    fn talk_row() -> InstRow {
+        InstRow {
+            id: "inst.talk.brief".into(),
+            scope: SCOPE_GLOBAL.into(),
+            kind: "trigger".into(),
+            topic_id: "".into(),
+            topics: vec![],
+            inst: "short spoken sentences".into(),
+            phrases: vec![],
+            triggers: vec!["mention:talk".into()],
+            include_tools: vec![],
+            exclude_tools: vec![],
+            priority: 80,
+        }
+    }
+
+    #[test]
+    fn inst_talk_brief_matches_mention_talk() {
+        let rows = vec![talk_row()];
+        let scopes = vec![SCOPE_GLOBAL.into()];
+        let persisted = vec!["web.builder".to_string()];
+        let with_talk = inst_mention_ids(&persisted, true);
+        let without = inst_mention_ids(&persisted, false);
+        // Persisted mention list is unchanged; talk is only on the inst-match copy.
+        assert_eq!(persisted, vec!["web.builder".to_string()]);
+        assert_eq!(without, vec!["web.builder".to_string()]);
+        assert_eq!(with_talk, vec!["web.builder".to_string(), "talk".to_string()]);
+        let ctx_on = InstMatchCtx {
+            scopes: &scopes,
+            topic_id: "general",
+            text: "hello",
+            mention_ids: &with_talk,
+            signals: &[],
+        };
+        let ctx_off = InstMatchCtx {
+            scopes: &scopes,
+            topic_id: "general",
+            text: "hello",
+            mention_ids: &without,
+            signals: &[],
+        };
+        assert!(inst_pick(&rows, &ctx_on).iter().any(|r| r.id == "inst.talk.brief"));
+        assert!(inst_pick(&rows, &ctx_off).iter().all(|r| r.id != "inst.talk.brief"));
     }
 }

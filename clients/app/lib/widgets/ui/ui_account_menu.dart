@@ -274,9 +274,9 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
                     const Divider(height: 1, color: _border),
                     ListenableBuilder(
                       listenable: VoicePrefs.instance,
-                      builder: (context, _) => UiSpeakToggleRow(
-                        enabled: VoicePrefs.instance.speakEnabled,
-                        onChanged: (v) => VoicePrefs.instance.setSpeakEnabled(v),
+                      builder: (context, _) => UiTalkToggleRow(
+                        enabled: VoicePrefs.instance.talkEnabled,
+                        onChanged: (v) => VoicePrefs.instance.setTalkEnabled(v),
                       ),
                     ),
                     const Divider(height: 1, color: _border),

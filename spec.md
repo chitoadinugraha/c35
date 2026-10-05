@@ -71,7 +71,7 @@ Self-learning skills, IoT firmware + Alien Beacon, MCP tools, skill marketplace,
 
 Avatar menu: profile/settings · partner/root · quota rings · (bots)(devices)(sites) with counts · referral · lock · logout.
 
-- Home = personal AI chat (binds to `user` identity, not a space)
+- Home = personal AI chat (binds to `user` identity, not a space). **Chat** and **Talk** are two surfaces on that same thread ([`_/docs/ui.md`](_/docs/ui.md#talk))
 - Master/detail on large screens; drawer on small screens
 - Canvas = end drawer on mobile; toggle hidden when no canvas content
 - Chat: pin, archive, `#tag` from title, archive-below

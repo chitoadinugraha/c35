@@ -349,6 +349,7 @@ const ReqPrompt$json = {
     {'1': 'topic_id', '3': 7, '4': 1, '5': 9, '10': 'topicId'},
     {'1': 'tool_mode', '3': 8, '4': 1, '5': 9, '10': 'toolMode'},
     {'1': 'device_iids', '3': 9, '4': 3, '5': 3, '10': 'deviceIids'},
+    {'1': 'talk', '3': 10, '4': 1, '5': 8, '10': 'talk'},
   ],
 };
 
@@ -358,7 +359,8 @@ final $typed_data.Uint8List reqPromptDescriptor = $convert.base64Decode(
     'RlbBISCgR0ZXh0GAMgASgJUgR0ZXh0EikKEGF0dGFjaG1lbnRzX2pzb24YBCABKAlSD2F0dGFj'
     'aG1lbnRzSnNvbhIaCgh0aGlua2luZxgFIAEoCVIIdGhpbmtpbmcSHwoLbWVudGlvbl9pZHMYBi'
     'ADKAlSCm1lbnRpb25JZHMSGQoIdG9waWNfaWQYByABKAlSB3RvcGljSWQSGwoJdG9vbF9tb2Rl'
-    'GAggASgJUgh0b29sTW9kZRIfCgtkZXZpY2VfaWlkcxgJIAMoA1IKZGV2aWNlSWlkcw==');
+    'GAggASgJUgh0b29sTW9kZRIfCgtkZXZpY2VfaWlkcxgJIAMoA1IKZGV2aWNlSWlkcxISCgR0YW'
+    'xrGAogASgIUgR0YWxr');
 
 @$core.Deprecated('Use resPromptStartDescriptor instead')
 const ResPromptStart$json = {

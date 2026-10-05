@@ -63,6 +63,7 @@ On avatar tap:
 | Site icon + count | Sites page |
 | Mail (staff / shared mailbox) | `PageMail` — CSA parity inbox + composer; see [mail.md](mail.md) |
 | Referral tree | Referral page (copy cs_agent) |
+| Talk | Home surface switch. Same thread as Chat. See [Talk](#talk). |
 | Lock | Session lock |
 | Logout | Sign out |
 
@@ -88,6 +89,37 @@ On avatar tap:
 - Custom **UI blocks** renderable inside messages (`presentation.deck`, `consumption.food`, `expense.glance`, `image`, `file`).
 - Presentation slide decks: rendered via `UiSlideDeckCard` (100% native Flutter, zero WebView). Collapses into a small card with slide count and timestamp; expands to a 16:9 widescreen preview with pagination and slide-level patching (`presentation.md`).
 - Canvas: document/slide editor when AI produces canvas content.
+
+### Talk
+
+Talk and Chat are two surfaces on one Home thread (`chat.kind = prompt`, same `chat_id`, same `ai.chat_msg` rows). Talk does not create a chat, a topic, or a message role. Turning Talk off shows the turns that were spoken in the normal transcript. Voice engines and billing stay in [voice.md](voice.md). Live Call is a separate realtime session ([live-call.md](live-call.md)).
+
+| | Chat | Talk |
+|---|---|---|
+| Surface | Thread plus `InComposer` | `UiTalkStage` — latest exchange only |
+| Entry | Default (`talkEnabled` false) | Avatar sheet **Talk** |
+| Send | Composer, including its mic | Stage mic. Sets `ReqPrompt.talk` |
+| Reply length | Unchanged | `inst.talk.brief` on that turn |
+| Read aloud | `VoicePrefs.speakEnabled` after the turn, when on | Same pref, speaker icon on the stage |
+
+**Prefs.** `VoicePrefs.talkEnabled`, key `voice_talk_enabled`, default false. Device-local, same store as the other voice prefs. The sheet subtitle is **Shorter replies, voice input**.
+
+**Page.** The existing home header stays. Leave Talk from the avatar sheet. On an empty thread (no user or assistant rows yet, not busy), the main area shows the same welcome as Chat (`home.heroTitle`, `home.heroSubtitle`, Alien icon, hint chips) via `_threadHero()`. Once there is a turn, the scroll shows the latest assistant text at a large size. That text is the live `msgStreamContent` stream. `UiMsgBlocks` for that assistant row render in the same scroll when `blocks_json` is non-empty.
+
+**Status row** (centered, above the transcript strip and controls; same slot as Chat usage):
+
+| State | Copy |
+|--------|------|
+| Idle, no usage yet | **Tap** (mic icon) **to start** |
+| Mic open, no interim text | **Listening...** |
+| Prompt in flight | **Thinking...** |
+| Turn finished, usage setting on | `{in} · {out} · {duration}` |
+
+**Transcript strip.** Rounded chip above the bottom bar. Shown only after the user has spoken text (including live STT while recording). Not shown on the empty idle state.
+
+**Bottom bar.** Mic is centered; attach is bottom-aligned on the left screen edge; speaker and model icons are bottom-aligned on the right. Attach stages files until the next voice send, then the turn uses the same `_composerSend` as Chat. Mic uses `SttService` (VAD auto-stop). A second tap, or silence, transcribes and sends with `talk: true`. While a prompt is busy, the mic is Stop and calls `_abortPrompt`. The speaker icon toggles `speakEnabled`. Starting the mic calls `TtsService.stop`. The model icon opens the same model sheet as Chat; the **active** model is pinned at the top in a card (checkmark, thinking chips when supported), with its provider group expanded.
+
+**Wire.** `ReqPrompt.talk` (field 10) is true only for sends from this surface. Compose appends mention id `talk` to the in-memory inst match list. The id is not written onto the user message and is not a catalog mention. Inst id `inst.talk.brief`, kind `trigger`, trigger `mention:talk`. Chat sends leave `talk` false. See [inst.md](inst.md).
 
 ### Chat row menu
 
