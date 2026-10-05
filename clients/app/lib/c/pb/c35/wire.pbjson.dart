@@ -2365,6 +2365,24 @@ const WsReq$json = {
       '9': 0,
       '10': 'chatCompact'
     },
+    {
+      '1': 'media_regenerate',
+      '3': 177,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqMediaRegenerate',
+      '9': 0,
+      '10': 'mediaRegenerate'
+    },
+    {
+      '1': 'live_start',
+      '3': 179,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqLiveStart',
+      '9': 0,
+      '10': 'liveStart'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -2513,7 +2531,10 @@ final $typed_data.Uint8List wsReqDescriptor = $convert.base64Decode(
     'lzdBiuASABKAsyGy5jMzUuUmVxQ2hhdE1zZ0ZlZWRiYWNrTGlzdEgAUhNjaGF0TXNnRmVlZGJh'
     'Y2tMaXN0ElYKF2NoYXRfY29udGV4dF93aW5kb3dfc2V0GK8BIAEoCzIcLmMzNS5SZXFDaGF0Q2'
     '9udGV4dFdpbmRvd1NldEgAUhRjaGF0Q29udGV4dFdpbmRvd1NldBI5CgxjaGF0X2NvbXBhY3QY'
-    'sAEgASgLMhMuYzM1LlJlcUNoYXRDb21wYWN0SABSC2NoYXRDb21wYWN0QgYKBGJvZHk=');
+    'sAEgASgLMhMuYzM1LlJlcUNoYXRDb21wYWN0SABSC2NoYXRDb21wYWN0EkUKEG1lZGlhX3JlZ2'
+    'VuZXJhdGUYsQEgASgLMhcuYzM1LlJlcU1lZGlhUmVnZW5lcmF0ZUgAUg9tZWRpYVJlZ2VuZXJh'
+    'dGUSMwoKbGl2ZV9zdGFydBizASABKAsyES5jMzUuUmVxTGl2ZVN0YXJ0SABSCWxpdmVTdGFydE'
+    'IGCgRib2R5');
 
 @$core.Deprecated('Use wsResDescriptor instead')
 const WsRes$json = {
@@ -3656,13 +3677,31 @@ const WsRes$json = {
       '10': 'chatCompact'
     },
     {
-      '1': 'device_presence_push',
+      '1': 'media_regenerate',
       '3': 177,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResMediaRegenerate',
+      '9': 0,
+      '10': 'mediaRegenerate'
+    },
+    {
+      '1': 'device_presence_push',
+      '3': 178,
       '4': 1,
       '5': 11,
       '6': '.c35.DevicePresencePush',
       '9': 0,
       '10': 'devicePresencePush'
+    },
+    {
+      '1': 'live_start',
+      '3': 179,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResLiveStart',
+      '9': 0,
+      '10': 'liveStart'
     },
   ],
   '8': [
@@ -3823,5 +3862,7 @@ final $typed_data.Uint8List wsResDescriptor = $convert.base64Decode(
     'Y2tMaXN0SABSE2NoYXRNc2dGZWVkYmFja0xpc3QSVgoXY2hhdF9jb250ZXh0X3dpbmRvd19zZX'
     'QYrwEgASgLMhwuYzM1LlJlc0NoYXRDb250ZXh0V2luZG93U2V0SABSFGNoYXRDb250ZXh0V2lu'
     'ZG93U2V0EjkKDGNoYXRfY29tcGFjdBiwASABKAsyEy5jMzUuUmVzQ2hhdENvbXBhY3RIAFILY2'
-    'hhdENvbXBhY3QSTAoUZGV2aWNlX3ByZXNlbmNlX3B1c2gYsQEgASgLMhcuYzM1LkRldmljZVBy'
-    'ZXNlbmNlUHVzaEgAUhJkZXZpY2VQcmVzZW5jZVB1c2hCBgoEYm9keQ==');
+    'hhdENvbXBhY3QSRQoQbWVkaWFfcmVnZW5lcmF0ZRixASABKAsyFy5jMzUuUmVzTWVkaWFSZWdl'
+    'bmVyYXRlSABSD21lZGlhUmVnZW5lcmF0ZRJMChRkZXZpY2VfcHJlc2VuY2VfcHVzaBiyASABKA'
+    'syFy5jMzUuRGV2aWNlUHJlc2VuY2VQdXNoSABSEmRldmljZVByZXNlbmNlUHVzaBIzCgpsaXZl'
+    'X3N0YXJ0GLMBIAEoCzIRLmMzNS5SZXNMaXZlU3RhcnRIAFIJbGl2ZVN0YXJ0QgYKBGJvZHk=');

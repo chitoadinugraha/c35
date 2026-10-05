@@ -76,6 +76,8 @@ class AgentModel {
         'ollama' => const Color(0xFF34D399),
         'anthropic' => const Color(0xFFD97706),
         'openai' || 'xai' => const Color(0xFFE4E4E7),
+        'moonshot' => const Color(0xFFFBBF24),
+        'meta' || 'mistral' || 'qwen' => const Color(0xFF38BDF8),
         _ => const Color(0xFFA1A1AA),
       };
 
@@ -119,8 +121,11 @@ class AgentModel {
     );
   }
 
-  String priceLabel({String currency = moneyDefaultCurrency, int fxMicroPerUsd = moneyDefaultFxMicroPerUsd}) =>
-      agentModelPriceLabel(usdInPer1m, usdOutPer1m, currency: currency, fxMicroPerUsd: fxMicroPerUsd, retailMarkup: provider != 'alienai');
+  String priceLabel({String currency = moneyDefaultCurrency, int fxMicroPerUsd = moneyDefaultFxMicroPerUsd}) {
+    final wholesale = agentModelPriceLabel(usdInPer1m, usdOutPer1m, currency: currency, fxMicroPerUsd: fxMicroPerUsd, retailMarkup: false);
+    if (provider == 'alienai') return '$wholesale · Included';
+    return wholesale;
+  }
 
   AgentModel copyWith({AgentThinking? thinking}) => AgentModel(
         id: id,
@@ -172,7 +177,14 @@ String agentModelPriceLabel(
   return '$inLabel / $outLabel per 1M';
 }
 
+bool agentModelPickerSlugEligible(String slug) {
+  final s = slug.toLowerCase();
+  if (s.contains('(batch)')) return false;
+  return !RegExp(r'(?:^|[/:\-_])batch(?:$|[/:\-_])').hasMatch(s);
+}
+
 bool agentModelChatEligible(AgentModel m) {
+  if (!agentModelPickerSlugEligible('${m.id} ${m.label} ${m.providerModel}')) return false;
   if (m.provider != 'google') return true;
   final s = m.id.toLowerCase();
   const skip = ['transcribe', 'computer-use', 'robotics', 'deep-research', 'lyria', 'nano-banana', 'omni', 'customtools'];
@@ -203,6 +215,11 @@ int agentModelProviderBand(String provider) => switch (provider) {
       'anthropic' => 110,
       'deepseek' => 120,
       'xai' => 130,
+      'moonshot' => 135,
+      'meta' => 136,
+      'mistral' => 137,
+      'qwen' => 138,
+      'cohere' => 139,
       'cloudflare' => 140,
       'google' => 200,
       _ => 900,
@@ -252,11 +269,31 @@ String agentModelProviderLabel(String provider) => switch (provider) {
       'anthropic' => 'Claude',
       'deepseek' => 'Deepseek',
       'xai' => 'Grok',
+      'moonshot' => 'Kimi',
+      'meta' => 'Meta Llama',
+      'mistral' => 'Mistral',
+      'qwen' => 'Qwen',
+      'cohere' => 'Cohere',
+      'perplexity' => 'Perplexity',
       'cloudflare' => 'Cloudflare',
       _ => provider,
     };
 
-const _agentModelProviderOrder = ['alienai', 'openai', 'anthropic', 'deepseek', 'xai', 'cloudflare', 'google'];
+const _agentModelProviderOrder = [
+  'alienai',
+  'openai',
+  'anthropic',
+  'deepseek',
+  'xai',
+  'moonshot',
+  'meta',
+  'mistral',
+  'qwen',
+  'cohere',
+  'perplexity',
+  'cloudflare',
+  'google',
+];
 
 List<String> agentModelProviders(List<AgentModel> models) {
   final seen = <String>{};
@@ -274,6 +311,26 @@ List<String> agentModelProviders(List<AgentModel> models) {
     if (bi >= 0) return 1;
     return a.compareTo(b);
   });
+  return out;
+}
+
+List<AgentModel> agentModelPickerAlien(List<AgentModel> models) => models.where((m) => m.provider == 'alienai').toList();
+
+Map<String, List<AgentModel>> agentModelPickerByProvider(List<AgentModel> models) {
+  final map = <String, List<AgentModel>>{};
+  for (final m in models) {
+    if (m.provider == 'alienai') continue;
+    (map[m.provider] ??= []).add(m);
+  }
+  final out = <String, List<AgentModel>>{};
+  for (final p in agentModelProviders(models)) {
+    if (p.isEmpty || p == 'alienai') continue;
+    final list = map[p];
+    if (list != null && list.isNotEmpty) out[p] = list;
+  }
+  for (final e in map.entries) {
+    out.putIfAbsent(e.key, () => e.value);
+  }
   return out;
 }
 

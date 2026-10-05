@@ -53,6 +53,7 @@ const HintItem$json = {
       '6': '.c35.HintItem',
       '10': 'items'
     },
+    {'1': 'theme', '3': 7, '4': 1, '5': 9, '10': 'theme'},
   ],
 };
 
@@ -60,8 +61,8 @@ const HintItem$json = {
 final $typed_data.Uint8List hintItemDescriptor = $convert.base64Decode(
     'CghIaW50SXRlbRIOCgJpZBgBIAEoCVICaWQSFAoFbGFiZWwYAiABKAlSBWxhYmVsEhIKBGljb2'
     '4YAyABKAlSBGljb24SEgoEc29ydBgEIAEoBVIEc29ydBInCgZhY3Rpb24YBSABKAsyDy5jMzUu'
-    'SGludEFjdGlvblIGYWN0aW9uEiMKBWl0ZW1zGAYgAygLMg0uYzM1LkhpbnRJdGVtUgVpdGVtcw'
-    '==');
+    'SGludEFjdGlvblIGYWN0aW9uEiMKBWl0ZW1zGAYgAygLMg0uYzM1LkhpbnRJdGVtUgVpdGVtcx'
+    'IUCgV0aGVtZRgHIAEoCVIFdGhlbWU=');
 
 @$core.Deprecated('Use hintCatalogDescriptor instead')
 const HintCatalog$json = {

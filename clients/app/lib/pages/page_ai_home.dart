@@ -20,6 +20,7 @@ import 'package:alienai_c35/c/expense/expense_api.dart';
 import 'package:alienai_c35/c/files/msg_attachment.dart';
 import 'package:alienai_c35/c/llm/agent_model.dart';
 import 'package:alienai_c35/c/pb/c35/chat.pb.dart';
+import 'package:alienai_c35/c/pb/c35/live.pb.dart';
 import 'package:alienai_c35/c/pb/c35/sync.pb.dart';
 import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/c/mail/mail_inbox_bus.dart';
@@ -45,6 +46,7 @@ import 'package:alienai_c35/c/tts/tts_service.dart';
 import 'package:alienai_c35/c/voice/voice_api.dart';
 import 'package:alienai_c35/pages/finance/page_finance_payments.dart';
 import 'package:alienai_c35/pages/finance/page_finance_receive_accounts.dart';
+import 'package:alienai_c35/pages/page_live_call.dart';
 import 'package:alienai_c35/pages/page_bots.dart';
 import 'package:alienai_c35/pages/page_devices.dart';
 import 'package:alienai_c35/pages/page_root_console.dart';
@@ -66,6 +68,7 @@ import 'package:alienai_c35/widgets/ai/ui_msg_error.dart';
 import 'package:alienai_c35/widgets/ai/ui_chat_history_sidebar.dart';
 import 'package:alienai_c35/widgets/ai/ui_chat_message_menu.dart';
 import 'package:alienai_c35/widgets/ai/ui_hints.dart';
+import 'package:alienai_c35/widgets/ai/ui_live_call_chip.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_context_menu.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_feedback_sheet.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_feedback_thread.dart';
@@ -1918,6 +1921,13 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     }
   }
 
+  void _liveCallStart(LiveOffer offer) => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          fullscreenDialog: true,
+          builder: (_) => PageLiveCall(conn: _conn, offer: offer),
+        ),
+      );
+
   Widget _threadHero() => ListenableBuilder(
         listenable: Listenable.merge([HintStore.instance, _store]),
         builder: (context, _) {
@@ -1933,10 +1943,16 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
                   Text('home.heroTitle'.tr(), style: const TextStyle(color: _text, fontSize: 20, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   Text(_catalogReady ? 'home.heroSubtitle'.tr() : 'home.heroLoading'.tr(), textAlign: TextAlign.center, style: const TextStyle(color: _muted, fontSize: 14)),
-                  if (hints.isNotEmpty) ...[
-                    const SizedBox(height: 20),
-                    UiHints(hints: hints, onPick: _hintPick),
-                  ],
+                  const SizedBox(height: 20),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.center,
+                    children: [
+                      UiLiveCallChip(composerModel: _model, offers: _store.liveOffers, onStart: _liveCallStart),
+                      if (hints.isNotEmpty) UiHints(hints: hints, onPick: _hintPick),
+                    ],
+                  ),
                 ],
               ),
             ),

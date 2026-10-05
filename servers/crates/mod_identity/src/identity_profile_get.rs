@@ -82,5 +82,6 @@ pub async fn identity_profile_get(ctx: &Ctx) -> WireResult<IdentityProfile> {
         location_source: row.try_get::<String, _>("location_source").unwrap_or_default(),
         email: meta_email(&meta),
         global_roles: meta_global_roles(&meta, is_root),
+        meta_json: meta.to_string(),
     })
 }

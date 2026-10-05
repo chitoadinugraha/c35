@@ -1,5 +1,7 @@
+import 'package:alienai_c35/widgets/ui/ui_icon.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 const _border = Color(0xFF27272A);
 const _muted = Color(0xFF71717A);
@@ -38,6 +40,8 @@ class UiDeviceRow extends StatelessWidget {
 
   String get _subtitle => switch (type.toLowerCase()) {
         'browser' => browserEngine.toLowerCase() == 'extension' ? 'Chrome Extension' : 'Remote browser',
+        'android' => 'Android',
+        'windows' => 'Windows',
         _ => type,
       };
 
@@ -155,29 +159,40 @@ class UiDeviceRow extends StatelessWidget {
         child: Text(label, style: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 10, fontWeight: FontWeight.w500)),
       );
 
-  Widget _kindIcon() {
-    final isChromeExt = type.toLowerCase() == 'browser' && browserEngine.toLowerCase() == 'extension';
-    return Container(
-      width: 36,
-      height: 36,
-      decoration: BoxDecoration(color: const Color(0xFF18181B), borderRadius: BorderRadius.circular(8), border: Border.all(color: _border)),
-      child: isChromeExt
-          ? Padding(
-              padding: const EdgeInsets.all(6),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: Image.network(
-                  'https://www.google.com/s2/favicons?domain=chrome.google.com&sz=64',
-                  width: 22,
-                  height: 22,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) =>
-                      const Icon(Icons.public, size: 18, color: Color(0xFFA1A1AA)),
-                ),
-              ),
-            )
-          : Icon(_iconForKind(kind, type), size: 18, color: const Color(0xFFA1A1AA)),
-    );
+  Widget _kindIcon() => Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(color: const Color(0xFF18181B), borderRadius: BorderRadius.circular(8), border: Border.all(color: _border)),
+        child: Center(child: _kindIconInner()),
+      );
+
+  Widget _kindIconInner() {
+    final t = type.toLowerCase();
+    if (t == 'browser' && browserEngine.toLowerCase() == 'extension') {
+      return Padding(
+        padding: const EdgeInsets.all(6),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: Image.network(
+            'https://www.google.com/s2/favicons?domain=chrome.google.com&sz=64',
+            width: 22,
+            height: 22,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => const Icon(Icons.public, size: 18, color: Color(0xFFA1A1AA)),
+          ),
+        ),
+      );
+    }
+    if (t == 'android') {
+      return Padding(padding: const EdgeInsets.all(6), child: UiIcon('logos:android-icon', size: 22, recolor: false));
+    }
+    if (t == 'windows') {
+      return Padding(
+        padding: const EdgeInsets.all(5),
+        child: SvgPicture.asset('assets/icons/windows.svg', width: 24, height: 24, fit: BoxFit.contain),
+      );
+    }
+    return Icon(_iconForKind(kind, type), size: 18, color: const Color(0xFFA1A1AA));
   }
 
   IconData _iconForKind(String k, String deviceType) => switch (deviceType.toLowerCase()) {

@@ -56,7 +56,7 @@ void main() {
     );
     expect(find.text('Hello there'), findsOneWidget);
     expect(find.text('what time is it'), findsOneWidget);
-    expect(find.byIcon(Icons.volume_up), findsOneWidget);
+    expect(find.byIcon(Icons.volume_up_rounded), findsOneWidget);
     expect(find.textContaining(' in'), findsNothing);
     expect(find.textContaining(' out'), findsNothing);
   });
@@ -92,12 +92,12 @@ void main() {
     expect(find.text('Listening...'), findsOneWidget);
   });
 
-  testWidgets('shows tap mic hint when idle', (tester) async {
+  testWidgets('shows mic without idle hint copy when idle', (tester) async {
     await PromptUsagePrefs.instance.setShowUsageStats(false);
     await pump(tester, row: null, listening: false, userText: '');
-    expect(find.text('Tap '), findsOneWidget);
-    expect(find.text(' to start'), findsOneWidget);
-    expect(find.byIcon(Icons.mic_rounded), findsWidgets);
+    expect(find.textContaining('Tap'), findsNothing);
+    expect(find.textContaining('to start'), findsNothing);
+    expect(find.byIcon(Icons.mic_rounded), findsOneWidget);
   });
 
   testWidgets('scrolls tall assistant text without overflow', (tester) async {

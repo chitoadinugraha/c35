@@ -28,6 +28,8 @@ cd servers
 cargo build -p server_ai
 ```
 
+Run Cargo from `servers/` or `remotes/` so output stays in `.cache/` (not `servers/target/` or `remotes/target/`).
+
 Run `cargo test -p CRATE` when the edited crate has tests.
 
 ## Remote agent (`remotes/**`)

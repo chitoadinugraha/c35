@@ -558,6 +558,7 @@ class _InComposerState extends State<InComposer> {
   void _onFocusChange() {
     if (!mounted) return;
     setState(() => _focused = _focus.hasFocus);
+    if (_focus.hasFocus) unawaited(SttService.instance.prewarm());
   }
 
   void _attachmentHistoryRecord() => _attachmentHistory.record();

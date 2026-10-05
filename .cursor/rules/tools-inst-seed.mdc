@@ -1,6 +1,7 @@
 ---
 description: New LLM tools — register, inst.sql seed, cluster apply, embed cache behavior
-alwaysApply: true
+globs: servers/crates/mod_chat/src/tools/**,servers/crates/mod_chat/src/tool_index.rs,_/schemas/inst.sql
+alwaysApply: false
 ---
 
 # New LLM tools — inst seed + deploy
@@ -74,12 +75,6 @@ Unchanged tool document text → boot log `tool_index: N tools (X cache hits, Y 
 - Frequent description churn without behavior need.
 - Relying on vector RAG alone — if `tool_index_init` fails, compose uses **lexical** fallback.
 - `DELETE FROM ai.embed_cache` unless migrating embed model.
-
-**Future code wins**
-
-- Parallel boot embed misses (`tool_index_init`, env `C35_TOOL_INDEX_EMBED_PARALLEL`, default 8).
-- Dev warm-up: run `tool_index_init` against cluster DB before rollout to fill cache without user cold start.
-- NATS tool-index reload without full pod restart (today needs rollout).
 
 ## Agents
 

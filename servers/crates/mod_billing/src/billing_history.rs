@@ -42,7 +42,8 @@ pub async fn billing_history(pool: &PgPool, owner_iid: i64, req: ReqBillingHisto
 
     let usage = sqlx::query(
         r#"
-        SELECT d.amount_native::float8 AS amount_native, d.cost_usd::float8 AS cost_usd,
+        SELECT d.amount_native::float8 AS amount_native, d.deducted_native::float8 AS deducted_native,
+               d.cost_usd::float8 AS cost_usd,
                COALESCE(l.model, '') AS model, d.created_ts,
                COALESCE(l.chat_id, m.chat_id, 0) AS chat_id,
                COALESCE(d.req_id, '') AS req_id,
@@ -84,7 +85,14 @@ pub async fn billing_history(pool: &PgPool, owner_iid: i64, req: ReqBillingHisto
     for r in usage {
         let model: String = r.get("model");
         let amount_native: f64 = r.get("amount_native");
+        let deducted_native: f64 = r.get("deducted_native");
         let cost_usd: f64 = r.get("cost_usd");
+        let wallet_charged = deducted_native.abs() > 0.000_1;
+        let status = if amount_native > 0.0 && !wallet_charged {
+            "included"
+        } else {
+            "settled"
+        };
         let ts: chrono::DateTime<chrono::Utc> = r.get("created_ts");
         let chat_id: i64 = r.get("chat_id");
         let req_id: String = r.get("req_id");
@@ -94,10 +102,10 @@ pub async fn billing_history(pool: &PgPool, owner_iid: i64, req: ReqBillingHisto
             title: if model.is_empty() { "AI usage".into() } else { format!("AI usage · {model}") },
             amount_usd: -cost_usd,
             amount_idr: 0.0,
-            status: "settled".into(),
+            status: status.into(),
             ts_ms: ts.timestamp_millis(),
             currency: currency.clone(),
-            amount: -amount_native,
+            amount: if wallet_charged { -deducted_native } else { -amount_native },
             chat_id,
             req_id,
             prompt,

@@ -462,6 +462,22 @@ async fn dispatch(
                 Err(e) => err_res(req_id, WireErr::client("chat_compact_failed", e.to_string())),
             }
         }
+        Some(ws_req::Body::MediaRegenerate(r)) => {
+            let http = c35_mod_chat::tools::http_client(std::time::Duration::from_secs(180));
+            match c35_mod_chat::media_regenerate(&state.pool, ctx.caller_iid, &http, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::MediaRegenerate(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("media_regenerate_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::LiveStart(r)) => WsRes {
+            req_id,
+            body: Some(ws_res::Body::LiveStart(
+                c35_mod_live::live_start_rpc(&state.pool, ctx.caller_iid, r).await,
+            )),
+        },
         Some(ws_req::Body::ChatDeviceContextList(r)) => {
             match c35_mod_chat::chat_device_context_list(&state.pool, ctx.caller_iid, r).await {
                 Ok(body) => WsRes {
@@ -1366,6 +1382,7 @@ async fn session_init(
         let _ = c35_mod_llm::llm_catalog_reload(&ctx.pool).await;
     }
     res.models = c35_mod_llm::prompt_models();
+    res.live = Some(c35_mod_live::live_catalog_proto());
     if include_inbox {
         if let Ok(inbox) = c35_mod_chat::inbox_list(
             &ctx.pool,

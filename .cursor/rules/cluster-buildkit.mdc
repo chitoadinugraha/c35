@@ -11,7 +11,10 @@ alwaysApply: true
 
 - **Never** run `docker build --platform linux/arm64` (or `-LocalBuild` on publish scripts) to ship c35 cluster images.
 - **Never** suggest local Docker as a workaround when Buildkit fails — fix Buildkit (disk, OOM, OCIR secret in cluster) or retry; use `cleanup_buildkit.ps1` if cache is full.
-- **Always** use the publish scripts **without** `-LocalBuild`:
+- **Always** use the publish scripts **without** `-LocalBuild`.
+- GCP static egress is the local-build exception (`linux/amd64` only): `publish_gcp_static_egress.ps1`. Never compile on the `c-personal` VM.
+- After any publish, end the reply with a **Publish summary** from `.cache/publish-perf/latest.json` (target, version, image, size, duration, artifacts). Do not prune Buildkit unless asked.
+- Remote-agent changes that ship to paired PCs: `publish_remote_agent.ps1`.
 
 ```powershell
 .\_\scripts\deploy\publish_server.ps1

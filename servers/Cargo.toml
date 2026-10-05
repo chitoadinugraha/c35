@@ -29,6 +29,7 @@ members = [
     "crates/mod_mail",
     "crates/mod_tx",
     "crates/mod_voice",
+    "crates/mod_live",
     "crates/mod_hint",
     "crates/mod_fetch",
     "crates/mod_data_source",
@@ -72,6 +73,8 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 dashmap = "6"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "system-proxy"] }
 urlencoding = "2"
+tokio-tungstenite = { version = "0.26", features = ["rustls-tls-webpki-roots"] }
+base64 = "0.22"
 
 [profile.dev]
 debug = 1

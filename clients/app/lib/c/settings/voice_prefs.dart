@@ -13,7 +13,7 @@ class VoicePrefs extends ChangeNotifier {
   static const _keyTts = 'voice_tts_engine';
   static const _keySpeak = 'csai_voice_speak_enabled';
   static const _keyTalk = 'voice_talk_enabled';
-  static const speakEnabledDefault = false;
+  static const speakEnabledDefault = true;
   static const talkEnabledDefault = false;
   static const sttAutoSendDefault = true;
   static const _keyRate = 'voice_speech_rate';

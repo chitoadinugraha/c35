@@ -14,6 +14,7 @@ import 'package:alienai_c35/c/billing/billing_format.dart';
 import 'package:alienai_c35/c/billing/billing_platform.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/widgets/billing/billing_topup.dart';
+import 'package:alienai_c35/widgets/billing/ui_billing_purchase_disclaimer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -519,6 +520,7 @@ class _UiBillingTopupPanelState extends State<UiBillingTopupPanel> {
           style: FilledButton.styleFrom(backgroundColor: _accent, foregroundColor: const Color(0xFF09090B), padding: const EdgeInsets.symmetric(vertical: 14)),
           child: const Text('Continue'),
         ),
+        const UiBillingPurchaseDisclaimer(),
       ],
     );
   }
@@ -579,6 +581,7 @@ class _UiBillingTopupPanelState extends State<UiBillingTopupPanel> {
             Text(_error!, style: const TextStyle(color: Color(0xFFF87171), fontSize: 12)),
           ],
         ],
+        const UiBillingPurchaseDisclaimer(padding: EdgeInsets.only(top: 12)),
       ],
     );
   }
@@ -613,6 +616,7 @@ class _UiBillingTopupPanelState extends State<UiBillingTopupPanel> {
             style: TextStyle(color: _muted, fontSize: 12, height: 1.4),
           ),
         ),
+        const UiBillingPurchaseDisclaimer(padding: EdgeInsets.only(top: 12)),
       ],
     );
   }

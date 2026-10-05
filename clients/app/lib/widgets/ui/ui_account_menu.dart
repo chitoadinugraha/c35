@@ -144,6 +144,11 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
     fn?.call();
   }
 
+  Future<void> _onTalkToggle(bool value) async {
+    await VoicePrefs.instance.setTalkEnabled(value);
+    if (mounted) Navigator.pop(context);
+  }
+
   String _accountName() {
     final name = Session.instance.name.trim();
     return name.isNotEmpty ? name : 'Account';
@@ -276,7 +281,7 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
                       listenable: VoicePrefs.instance,
                       builder: (context, _) => UiTalkToggleRow(
                         enabled: VoicePrefs.instance.talkEnabled,
-                        onChanged: (v) => VoicePrefs.instance.setTalkEnabled(v),
+                        onChanged: _onTalkToggle,
                       ),
                     ),
                     const Divider(height: 1, color: _border),

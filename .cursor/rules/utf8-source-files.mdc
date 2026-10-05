@@ -9,16 +9,7 @@ Rust, Dart, markdown, SQL, proto, and most repo text **must be UTF-8** (BOM opti
 
 Mirrored for Antigravity: [`.agents/rules/utf8-source-files.md`](../../.agents/rules/utf8-source-files.md)
 
-## Why it spikes on Windows (especially with Cursor Agent)
-
-| Cause | What happens |
-|--------|----------------|
-| **PowerShell 5.1** (default Cursor shell on Windows) | `Set-Content`, `Out-File`, and `>` / `>>` write **UTF-16 LE** unless overridden. |
-| **Agent shell writes** | Repair scripts that use default cmdlets re-corrupt or new files land as UTF-16. |
-| **Some editor/agent writes** | Occasional UTF-16 LE **without BOM** on new files (`import` looks fine in UI, Dart sees `U+0000` between letters). |
-| **Checks missed untracked files** | `git diff` does not list `??` files — fixed: `-Changed` now includes `git ls-files --others`. |
-
-**Repo defenses (use all):** `.editorconfig` + `.vscode/settings.json` (`files.encoding: utf8`), **`.cursor/hooks.json`** `afterFileEdit` → auto `-Changed -Fix`, **pre-commit** (`setup_githooks.ps1`), `check_utf8_sources.ps1 -Changed` before done.
+PowerShell 5.1 writes UTF-16 via `Set-Content`, `Out-File`, and `>` / `>>`. Editor writes sometimes land as UTF-16 LE without BOM.
 
 ## Agents — hard rules
 
@@ -38,34 +29,4 @@ Mirrored for Antigravity: [`.agents/rules/utf8-source-files.md`](../../.agents/r
 
 Dart/Flutter: `.\_\scripts\dev\verify_flutter_app.ps1` (UTF-8 check + `flutter analyze`).
 
-Full tree repair: `.\_\scripts\dev\force_utf8_worktree.ps1` (all text sources → UTF-8 no BOM).
-
-## Humans — UTF-8 PowerShell (Windows)
-
-Windows **PowerShell 5.1** defaults file cmdlets to **UTF-16 LE** (legacy Windows `WCHAR` behavior). Almost nothing in this repo should ever be UTF-16.
-
-**Once per machine** (Cursor terminal + Agent Shell when profile loads):
-
-```powershell
-.\_\scripts\dev\install_powershell_utf8_profile.ps1
-```
-
-That dot-sources `_/scripts/dev/powershell_utf8.ps1` from your `$PROFILE` so `Set-Content` / `Out-File` / `Add-Content` use UTF-8.
-
-**Strongly recommended:** install **PowerShell 7** (`pwsh`) and set Cursor’s default terminal to it — PS 7 defaults to UTF-8 (including `>` / `>>` redirects). PS 5.1 **cannot** make redirection UTF-8 via profile alone.
-
-Optional Windows setting (system-wide, many apps): *Settings → Time & language → Language → Administrative language settings → Change system locale → Beta: Use Unicode UTF-8 for worldwide language support* — helps some APIs; still use the profile + PS 7 for shells.
-
-## Humans — optional git hook
-
-One-time per clone (local only):
-
-```powershell
-.\_\scripts\dev\setup_githooks.ps1
-```
-
-That sets `core.hooksPath` to `_/githooks` so **pre-commit** blocks staged UTF-16 text.
-
-## Detection
-
-`check_utf8_sources.ps1` flags UTF-16 BOM and UTF-16 LE **without BOM** (null byte every other character in ASCII-heavy headers — typical agent/PowerShell accident).
+Full tree repair: `.\_\scripts\dev\force_utf8_worktree.ps1`. The checker flags UTF-16 BOM and UTF-16 LE without BOM.

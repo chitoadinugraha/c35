@@ -161,6 +161,24 @@ void main() {
     expect(resampled.length, 16000 * 2);
   });
 
+  test('trimSilence strips leading/trailing silence but keeps speech with padding', () {
+    // 16kHz mono: 1s silence + 0.5s loud tone + 1s silence
+    final pcm = Uint8List(16000 * 2 * 5 ~/ 2); // 2.5s
+    final data = ByteData.sublistView(pcm);
+    for (var i = 16000; i < 24000; i++) {
+      data.setInt16(i * 2, i.isEven ? 8000 : -8000, Endian.little);
+    }
+    final trimmed = SttService.trimSilence(pcm);
+    expect(trimmed.length, lessThan(pcm.length));
+    // 25 speech frames + 2 * 12 pad frames (20ms each) = 49 frames * 640 bytes
+    expect(trimmed.length, 49 * 640);
+  });
+
+  test('trimSilence returns input unchanged for pure silence', () {
+    final pcm = Uint8List(16000 * 2);
+    expect(SttService.trimSilence(pcm).length, pcm.length);
+  });
+
   test('VoicePrefs saves, loads, and clears mic device preferences', () async {
     expect(VoicePrefs.instance.micDeviceId, '');
     expect(VoicePrefs.instance.micDeviceLabel, '');

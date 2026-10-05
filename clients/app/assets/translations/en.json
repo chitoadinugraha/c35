@@ -33,6 +33,11 @@
                      "learnedMemoriesSubtitle":  "Facts and preferences distilled from your chats",
                      "showUsage":  "Show usage",
                      "showUsageSubtitle":  "Token counts and timing on AI replies",
+                     "sectionGeneration":  "GENERATION",
+                     "generationSubtitle":  "Default providers for image, video, and music tools (separate from chat model)",
+                     "generationImage":  "Image provider",
+                     "generationVideo":  "Video provider",
+                     "generationMusic":  "Music provider",
                      "balance":  "Balance",
                      "changePassword":  "Change password",
                      "setPassword":  "Set password",
@@ -249,6 +254,22 @@
                       "assetRemoveTitle":  "Remove asset?",
                       "assetRemoveMessage":  "Remove {name} from this bot? You can add it again later."
                   },
+    "billing":  {
+                    "purchaseNonRefundable":  "All purchases (plans, wallet credit, and add-ons) are final and non-refundable unless required by law or stated otherwise at checkout."
+                },
+    "media":  {
+                  "providerAuto":  "Auto",
+                  "providerGemini":  "Gemini",
+                  "providerGrok":  "Grok",
+                  "providerSeedance":  "Seedance",
+                  "providerMinimax":  "MiniMax",
+                  "providerElevenlabs":  "ElevenLabs",
+                  "generatedWith":  "Generated with {provider}",
+                  "estimatedCost":  "Estimated ~${cost} per generation",
+                  "providerSheetTitle":  "Generation provider",
+                  "regenerate":  "Regenerate",
+                  "setDefault":  "Set as default"
+              },
     "bots":  {
                  "activeLabel":  "Active",
                  "activeHint":  "Replies on all channels when on",

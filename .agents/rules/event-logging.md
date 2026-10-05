@@ -1,6 +1,7 @@
 ---
 description: Event-based logging — catalog, NATS subjects, no LLM trace on bus; triggers
-alwaysApply: true
+globs: servers/crates/mod_event/**,servers/crates/mod_consumption/**,_/docs/event.md,_/docs/log.md
+alwaysApply: false
 ---
 
 # Event-based logging
@@ -31,7 +32,7 @@ Do **not** emit for: LLM turns, tool hops, token usage, routine reads (`consumpt
 | `c35.ev.device.*`, `c35.ev.channel.*` for scoped facts | Put `dv` in the subject |
 | Publish `EventPush` on exact `subject` | Publish `class=trace` rows |
 
-State deltas stay on existing subjects (`c35.user.{iid}.balance`, `.chat.{chat_id}`, `.task_run`).
+App UI state (balance, chat, task run) publishes on `c35.user.{iid}.app.*`, not the legacy flat subjects. See `user-app-nats.md`.
 
 ## Code rules
 

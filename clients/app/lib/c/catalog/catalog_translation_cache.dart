@@ -54,6 +54,13 @@ const _enFallback = <String, String>{
   'hint.consumption_add.send_text': 'Track food consumption',
   'hint.expense_add.label': 'Track Expense',
   'hint.expense_add.send_text': 'Track expense',
+  'live.alienai.label': 'Call Alien AI',
+  'live.gemini.label': 'Call Gemini',
+  'live.gemini.thinker.label': 'Call Gemini Thinker',
+  'live.chatgpt.label': 'Call ChatGPT',
+  'live.grok.label': 'Call Grok',
+  'home.liveCall': 'Live Call',
+  'live.soon': 'Coming soon',
 };
 
 const _idFallback = <String, String>{
@@ -96,6 +103,13 @@ const _idFallback = <String, String>{
   'hint.consumption_add.send_text': 'Catat konsumsi makanan',
   'hint.expense_add.label': 'Catat pengeluaran',
   'hint.expense_add.send_text': 'Catat pengeluaran',
+  'live.alienai.label': 'Call Alien AI',
+  'live.gemini.label': 'Call Gemini',
+  'live.gemini.thinker.label': 'Call Gemini Thinker',
+  'live.chatgpt.label': 'Call ChatGPT',
+  'live.grok.label': 'Call Grok',
+  'home.liveCall': 'Panggilan Live',
+  'live.soon': 'Segera hadir',
 };
 
 Map<String, String> catalogLocaleFallback(String lang) =>

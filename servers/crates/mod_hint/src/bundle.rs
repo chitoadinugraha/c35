@@ -108,6 +108,7 @@ pub async fn hint_bundle_compile(pool: &PgPool, user_iid: i64, locale: &str) -> 
                 .enumerate()
                 .map(|(idx, site)| site_hint_item(site, &tr, idx as i32))
                 .collect(),
+            theme: String::new(),
         });
     }
 
@@ -243,6 +244,7 @@ fn catalog_leaf_item(r: &HintRow, tr: &dyn Fn(&str) -> String) -> HintItem {
             payload_json,
         }),
         items: vec![],
+        theme: String::new(),
     }
 }
 
@@ -322,6 +324,7 @@ fn site_hint_item(site: &SiteRow, tr: &dyn Fn(&str) -> String, sort: i32) -> Hin
             .to_string(),
         }),
         items: vec![],
+        theme: String::new(),
     }];
     if capability_enabled(&site.capabilities_json, "commerce") {
         children.push(HintItem {
@@ -339,6 +342,7 @@ fn site_hint_item(site: &SiteRow, tr: &dyn Fn(&str) -> String, sort: i32) -> Hin
                 .to_string(),
             }),
             items: vec![],
+            theme: String::new(),
         });
     }
     HintItem {
@@ -348,5 +352,6 @@ fn site_hint_item(site: &SiteRow, tr: &dyn Fn(&str) -> String, sort: i32) -> Hin
         sort,
         action: None,
         items: children,
+        theme: String::new(),
     }
 }

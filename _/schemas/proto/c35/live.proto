@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package c35;
+
+message LiveOffer {
+  string id = 1;
+  string family = 2;
+  string label = 3;
+  string label_key = 4;
+  string provider = 5;
+  bool enabled = 6;
+  double retail_usd_per_min = 7;
+  double input_usd_per_min = 8;
+  double output_usd_per_min = 9;
+}
+
+message LiveCatalog {
+  int64 updated_ts_ms = 1;
+  repeated LiveOffer offers = 2;
+}
+
+message ReqLiveStart {
+  string offer_id = 1;
+  string locale = 2;
+  string req_id = 3;
+}
+
+message ResLiveStart {
+  string error = 1;
+  string live_session_id = 2;
+  string ws_path = 3;
+}

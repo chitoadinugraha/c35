@@ -8,11 +8,16 @@ use sqlx::PgPool;
 use tokio::time::Duration;
 
 use crate::prompt::gemini::gemini_api_key;
-use crate::tools::image_tier::{image_default_draft_tier, image_tier_resolve, ImageTier, MODEL_IMAGEN};
+use crate::generation::{generation_prefs_get, provider_normalize};
+use crate::tools::image_tier::{
+    image_default_draft_tier, image_provider_allows_grok_auto, image_provider_forces_gemini,
+    image_provider_forces_grok, image_tier_resolve, ImageTier, MODEL_IMAGEN,
+};
 
 #[derive(Debug, Clone)]
 pub struct ImageRunMeta {
     pub image_tier: String,
+    pub media_provider: String,
     pub provider_model: String,
     pub image_size: String,
     pub wholesale_usd: f64,
@@ -279,6 +284,7 @@ async fn gemini_image_run(
                     bytes,
                     ImageRunMeta {
                         image_tier: tier.id.to_string(),
+                        media_provider: "gemini".into(),
                         provider_model: model.to_string(),
                         image_size: size.to_string(),
                         wholesale_usd: image_tool_wholesale_usd(tier.quality, model),
@@ -294,6 +300,7 @@ async fn gemini_image_run(
                     bytes,
                     ImageRunMeta {
                         image_tier: tier.id.to_string(),
+                        media_provider: "gemini".into(),
                         provider_model: model.to_string(),
                         image_size: size.to_string(),
                         wholesale_usd: image_tool_wholesale_usd(tier.quality, model),
@@ -312,24 +319,32 @@ async fn image_run(
     aspect_ratio: &str,
     tier: &ImageTier,
     source: Option<(Vec<u8>, String)>,
+    provider_pref: &str,
 ) -> Result<(Vec<u8>, ImageRunMeta)> {
-    if tier.id == "lite_draft"
-        && cf_image_provider_enabled()
-        && source.is_none()
-    {
+    let pref = provider_normalize(provider_pref);
+    let try_grok = source.is_none()
+        && (image_provider_forces_grok(&pref)
+            || (image_provider_allows_grok_auto(&pref, tier) && cf_image_provider_enabled()));
+    if try_grok && !image_provider_forces_gemini(&pref) {
         match cf_grok_image_run(client, prompt, aspect_ratio, tier.quality, None).await {
             Ok((bytes, model)) => {
                 return Ok((
                     bytes,
                     ImageRunMeta {
                         image_tier: "grok_draft".into(),
+                        media_provider: "grok".into(),
                         provider_model: model.clone(),
                         image_size: tier.image_size.to_string(),
                         wholesale_usd: image_tool_wholesale_usd(tier.quality, &model),
                     },
                 ));
             }
-            Err(e) => tracing::warn!(error = %e, "grok image failed; falling back to gemini"),
+            Err(e) => {
+                if image_provider_forces_grok(&pref) {
+                    bail!("grok image failed: {e:#}");
+                }
+                tracing::warn!(error = %e, "grok image failed; falling back to gemini");
+            }
         }
     }
     gemini_image_run(client, prompt, aspect_ratio, tier, source).await
@@ -355,6 +370,7 @@ fn img_tool_response(
         "aspect_ratio": aspect_ratio,
         "quality": quality,
         "image_tier": meta.image_tier,
+        "media_provider": meta.media_provider,
         "provider_model": meta.provider_model,
         "image_size": meta.image_size,
         "wholesale_usd": meta.wholesale_usd,
@@ -368,6 +384,11 @@ fn img_tool_response(
                 "prompt": prompt,
                 "quality": quality,
                 "image_size": meta.image_size,
+                "media_provider": meta.media_provider,
+                "media_model": meta.provider_model,
+                "tool": tool,
+                "aspect_ratio": aspect_ratio,
+                "source_hash": source_hash,
             }
         }
     });
@@ -377,15 +398,29 @@ fn img_tool_response(
     out
 }
 
+async fn image_provider_pref(pool: &PgPool, owner_iid: i64, override_provider: &str) -> String {
+    if !override_provider.trim().is_empty() {
+        return provider_normalize(override_provider);
+    }
+    if owner_iid <= 0 {
+        return "auto".into();
+    }
+    generation_prefs_get(pool, owner_iid)
+        .await
+        .map(|p| p.image)
+        .unwrap_or_else(|_| "auto".into())
+}
+
 pub async fn img_generate_exec(
     pool: &PgPool,
-    _owner_iid: i64,
+    owner_iid: i64,
     client: &reqwest::Client,
     prompt: &str,
     aspect_ratio: &str,
     quality: &str,
     mention_ids: &[String],
     user_text: &str,
+    provider_override: &str,
 ) -> Result<Value> {
     let prompt = prompt.trim();
     if prompt.is_empty() {
@@ -399,7 +434,8 @@ pub async fn img_generate_exec(
     let q = if quality.trim().is_empty() { "draft" } else { quality.trim() };
     let default_draft = image_default_draft_tier(pool).await;
     let tier = image_tier_resolve(mention_ids, user_text, prompt, q, false, &default_draft);
-    let (bytes, meta) = image_run(client, prompt, ar, &tier, None).await?;
+    let provider_pref = image_provider_pref(pool, owner_iid, provider_override).await;
+    let (bytes, meta) = image_run(client, prompt, ar, &tier, None, &provider_pref).await?;
     let mime = infer_mime(&bytes);
     let (bytes, mime) = cas_image_bytes_fit_inline(bytes, mime).map_err(|e| anyhow::anyhow!(e))?;
     let secret = cas_secret_from_env();
@@ -417,7 +453,7 @@ pub async fn img_generate_exec(
 
 pub async fn img_edit_exec(
     pool: &PgPool,
-    _owner_iid: i64,
+    owner_iid: i64,
     client: &reqwest::Client,
     prompt: &str,
     source_hash: &str,
@@ -426,6 +462,7 @@ pub async fn img_edit_exec(
     quality: &str,
     mention_ids: &[String],
     user_text: &str,
+    provider_override: &str,
 ) -> Result<Value> {
     let prompt = prompt.trim();
     if prompt.is_empty() {
@@ -449,6 +486,7 @@ pub async fn img_edit_exec(
     let q = if quality.trim().is_empty() { "draft" } else { quality.trim() };
     let default_draft = image_default_draft_tier(pool).await;
     let tier = image_tier_resolve(mention_ids, user_text, prompt, q, true, &default_draft);
+    let provider_pref = image_provider_pref(pool, owner_iid, provider_override).await;
     let (source_bytes, source_mime) = img_load_cas(pool, &hash).await?;
     let (bytes, meta) = image_run(
         client,
@@ -456,6 +494,7 @@ pub async fn img_edit_exec(
         ar,
         &tier,
         Some((source_bytes, source_mime)),
+        &provider_pref,
     )
     .await?;
     let mime = infer_mime(&bytes);

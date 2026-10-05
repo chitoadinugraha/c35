@@ -23,6 +23,8 @@ pub mod prompt_run;
 pub mod prompt_followup;
 mod pdf_cas;
 mod video_source;
+mod generation;
+mod media_regenerate;
 mod inst_admin;
 mod object_admin;
 mod mcp_agent;
@@ -120,6 +122,10 @@ pub use inst_macro::{InstMatchCtx, InstRow};
 pub use chat_history::{chat_messages, chat_search, ChatHistoryQuery};
 pub use context_billing::ContextBillingExtra;
 pub use context_compact::{chat_compact_manual, chat_context_window_set, prepare_prompt_history, CONTEXT_COMPACT_MODEL};
+pub use generation::{
+    generation_prefs_get, media_provider_label, provider_normalize, GenerationPrefs, GENERATION_DEFAULT,
+};
+pub use media_regenerate::media_regenerate;
 pub use context_idle::{context_idle_compact_enabled, ContextIdleFetchTask};
 pub use context_pack::{context_window_options, context_window_resolve, model_context_limit, token_estimate};
 pub use memory::{memory_delete, memory_list_active, memory_prompt_merge, memory_put, memory_retrieve, MemoryRetrieveResult};

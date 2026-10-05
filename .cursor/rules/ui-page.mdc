@@ -1,6 +1,6 @@
 ---
 description: Use UiPage for full-screen Flutter pages (consistent app bar chrome)
-globs: clients/app/lib/pages/**/*.dart,clients/app/lib/widgets/**/ui_account_live_conns.dart
+globs: clients/app/lib/pages/**/*.dart,clients/app/lib/widgets/**/*.dart
 alwaysApply: false
 ---
 
@@ -17,7 +17,7 @@ import 'package:alienai_c35/widgets/ui/ui_page.dart';
 
 UiPage(
   title: 'Devices',
-  subtitle: 'Coming soon', // optional
+  subtitle: 'Paired computers', // optional
   onBack: () => Navigator.pop(context),
   trailing: myActions, // optional right-side actions
   onSearch: store.searchPut, // optional — adds search icon to actions
@@ -25,6 +25,10 @@ UiPage(
   body: ...,
 )
 ```
+
+## First frame
+
+The first build must show the page chrome plus real content, a cached snapshot, or the `overlay` loading bar. Do not render an empty body and fill it after the first frame. Assign `late` fields before `build`.
 
 ## Search
 

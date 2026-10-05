@@ -4,14 +4,36 @@ use serde_json::{json, Value};
 
 use crate::runtime_config::{cf_gateway_config, cf_gateway_ready, CfGatewayRuntime};
 
+fn cf_chat_openrouter_route(provider: &str) -> bool {
+    matches!(
+        provider,
+        "openrouter"
+            | "anthropic"
+            | "moonshot"
+            | "meta"
+            | "mistral"
+            | "qwen"
+            | "cohere"
+            | "perplexity"
+            | "nvidia"
+            | "microsoft"
+            | "zai"
+            | "minimax"
+            | "baidu"
+            | "amazon"
+    )
+}
+
 fn cf_chat_url(cfg: &CfGatewayRuntime, provider: &str) -> Result<String> {
     if cfg.account_id.is_empty() {
         anyhow::bail!("CLOUDFLARE_ACCOUNT_ID missing");
     }
-    let path = match provider {
-        "openai" => "openai/chat/completions",
-        "openrouter" | "anthropic" => "openrouter/chat/completions",
-        _ => "compat/chat/completions",
+    let path = if provider == "openai" {
+        "openai/chat/completions"
+    } else if cf_chat_openrouter_route(provider) {
+        "openrouter/chat/completions"
+    } else {
+        "compat/chat/completions"
     };
     Ok(format!(
         "https://gateway.ai.cloudflare.com/v1/{}/{}/{}",
@@ -42,7 +64,7 @@ pub async fn cf_chat_generate(
             }
         }
     }
-    if provider == "openrouter" || provider == "anthropic" {
+    if cf_chat_openrouter_route(provider) {
         if let Ok(k) = std::env::var("OPENROUTER_API_KEY") {
             if !k.is_empty() {
                 headers.push(("Authorization".to_string(), format!("Bearer {k}")));

@@ -14,11 +14,22 @@ pub use billing::{
     voice_billing_gate, voice_billing_settle, voice_req_id, voice_stt_wholesale_usd,
     voice_tts_wholesale_usd, VOICE_STT_HOLD, VOICE_TTS_HOLD,
 };
+pub use tts::google_tts;
 
 static HTTP: std::sync::OnceLock<reqwest::Client> = std::sync::OnceLock::new();
 
 fn http_client() -> &'static reqwest::Client {
-    HTTP.get_or_init(|| reqwest::Client::new())
+    HTTP.get_or_init(|| {
+        reqwest::Client::builder()
+            .connect_timeout(std::time::Duration::from_secs(5))
+            .timeout(std::time::Duration::from_secs(30))
+            .tcp_nodelay(true)
+            .tcp_keepalive(std::time::Duration::from_secs(30))
+            .pool_idle_timeout(std::time::Duration::from_secs(90))
+            .pool_max_idle_per_host(8)
+            .build()
+            .unwrap_or_else(|_| reqwest::Client::new())
+    })
 }
 
 pub async fn voice_stt(
@@ -39,11 +50,6 @@ pub async fn voice_stt(
         anyhow::bail!("audio required");
     }
     let is_interim = req_id.contains("interim");
-    let row = if is_interim {
-        None
-    } else {
-        Some(voice_billing_gate(pool, owner_iid, &req_id, VOICE_STT_HOLD).await?)
-    };
     let has_cf_token = std::env::var("CLOUDFLARE_API_TOKEN").is_ok()
         || std::env::var("CLOUDFLARE_TOKEN").is_ok()
         || std::env::var("CF_API_TOKEN").is_ok();
@@ -51,15 +57,33 @@ pub async fn voice_stt(
         || std::env::var("GOOGLE_API_KEY").is_ok();
 
     let mut provider_used = "gemini.stt";
-    let text_res = if has_cf_token {
+    // Billing hold and upstream transcription run concurrently (latency).
+    let gate_fut = async {
+        if is_interim {
+            Ok(None)
+        } else {
+            voice_billing_gate(pool, owner_iid, &req_id, VOICE_STT_HOLD)
+                .await
+                .map(Some)
+        }
+    };
+    let stt_fut = async {
+        if has_cf_token {
+            stt::cf_whisper_stt(http_client(), audio, mime, lang, is_interim).await
+        } else if has_google_key {
+            stt::google_stt(http_client(), audio, mime, lang).await
+        } else {
+            stt::gemini_stt(http_client(), audio, mime, lang).await
+        }
+    };
+    if has_cf_token {
         provider_used = "cloudflare.whisper";
-        stt::cf_whisper_stt(http_client(), audio, mime, lang, is_interim).await
     } else if has_google_key {
         provider_used = "google.speech";
-        stt::google_stt(http_client(), audio, mime, lang).await
-    } else {
-        stt::gemini_stt(http_client(), audio, mime, lang).await
-    };
+    }
+    let (gate_res, text_res) = tokio::join!(gate_fut, stt_fut);
+    // Gate failure (e.g. insufficient balance) wins; no hold exists so nothing to refund.
+    let row = gate_res?;
     let text = match text_res {
         Ok(t) => t,
         Err(e) => {

@@ -13,6 +13,7 @@ import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/billing/billing_plan_format.dart';
+import 'package:alienai_c35/widgets/billing/ui_billing_purchase_disclaimer.dart';
 import 'package:alienai_c35/widgets/billing/ui_billing_purchase_success_dialog.dart';
 import 'package:alienai_c35/widgets/referral/ui_billing_package_redeem.dart';
 import 'package:alienai_c35/widgets/ui/ui_loading.dart';
@@ -602,6 +603,7 @@ class _BillingCheckoutBar extends StatelessWidget {
                   ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                   : Text(buttonLabel, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
             ),
+            const UiBillingPurchaseDisclaimer(padding: EdgeInsets.only(top: 10)),
           ],
         ),
       );

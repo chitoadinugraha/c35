@@ -20,7 +20,7 @@ ON CONFLICT (key) DO UPDATE SET
 -- CF AI Gateway: DB overrides env when fields are set. Secrets usually stay in env.
 INSERT INTO ai.config (key, value) VALUES (
     'llm.cf_gateway',
-    '{"enabled":true,"gateway_id":"default"}'::jsonb
+    '{"enabled":true,"gateway_id":"default","account_id":"13bbda4c964029cb15bb16c7d57ec548"}'::jsonb
 )
 ON CONFLICT (key) DO UPDATE SET
     value = EXCLUDED.value,

@@ -16,6 +16,7 @@ message HintItem {
   int32 sort = 4;
   HintAction action = 5;
   repeated HintItem items = 6;
+  string theme = 7;          // optional chip style: default | live_call | ...
 }
 
 message HintCatalog {

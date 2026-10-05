@@ -106,11 +106,11 @@ Talk and Chat are two surfaces on one Home thread (`chat.kind = prompt`, same `c
 
 **Page.** The existing home header stays. Leave Talk from the avatar sheet. On an empty thread (no user or assistant rows yet, not busy), the main area shows the same welcome as Chat (`home.heroTitle`, `home.heroSubtitle`, Alien icon, hint chips) via `_threadHero()`. Once there is a turn, the scroll shows the latest assistant text at a large size. That text is the live `msgStreamContent` stream. `UiMsgBlocks` for that assistant row render in the same scroll when `blocks_json` is non-empty.
 
-**Status row** (centered, above the transcript strip and controls; same slot as Chat usage):
+**Status row** (centered above the transcript when listening, thinking, or usage stats; empty when idle):
 
 | State | Copy |
 |--------|------|
-| Idle, no usage yet | **Tap** (mic icon) **to start** |
+| Idle | *(empty)* |
 | Mic open, no interim text | **Listening...** |
 | Prompt in flight | **Thinking...** |
 | Turn finished, usage setting on | `{in} · {out} · {duration}` |

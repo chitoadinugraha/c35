@@ -30,6 +30,15 @@ pub const IMAGE_GROK_DRAFT_WHOLESALE_USD: f64 = 0.02;
 /// Grok Imagine 2.0 via CF.
 pub const IMAGE_GROK_2_WHOLESALE_USD: f64 = 0.04;
 
+/// Seedance 2.0-mini clip via CF Workers AI.
+pub const VIDEO_SEEDANCE_MINI_WHOLESALE_USD: f64 = 0.12;
+/// ElevenLabs music-v2 ~30s via CF.
+pub const MUSIC_ELEVENLABS_30S_WHOLESALE_USD: f64 = 0.08;
+/// Gemini Lyria clip preview.
+pub const MUSIC_LYRIA_CLIP_WHOLESALE_USD: f64 = 0.06;
+/// MiniMax music-2.6 per track via CF.
+pub const MUSIC_MINIMAX_TRACK_WHOLESALE_USD: f64 = 0.15;
+
 pub fn billing_to_retail_usd(wholesale_usd: f64) -> f64 { wholesale_usd * RETAIL_MARKUP }
 
 pub fn billing_cost_wholesale_usd(model: &str, tokens_in: i32, tokens_out: i32) -> f64 {
@@ -77,6 +86,37 @@ pub fn image_tool_retail_usd(quality: &str, provider_model: &str) -> f64 {
     billing_to_retail_usd(image_tool_wholesale_usd(quality, provider_model))
 }
 
+pub fn video_tool_wholesale_usd(provider: &str, model: &str) -> f64 {
+    let p = provider.trim().to_ascii_lowercase();
+    let m = model.trim().to_ascii_lowercase();
+    if p == "gemini" || m.contains("veo") {
+        return 0.18;
+    }
+    VIDEO_SEEDANCE_MINI_WHOLESALE_USD
+}
+
+pub fn music_tool_wholesale_usd(provider: &str, model: &str, duration_sec: i32) -> f64 {
+    let p = provider.trim().to_ascii_lowercase();
+    let m = model.trim().to_ascii_lowercase();
+    let scale = (duration_sec.max(1) as f64 / 30.0).clamp(0.5, 4.0);
+    if p == "gemini" || p == "lyria" || m.contains("lyria") {
+        return MUSIC_LYRIA_CLIP_WHOLESALE_USD * scale;
+    }
+    if p == "minimax" || m.contains("minimax") {
+        return MUSIC_MINIMAX_TRACK_WHOLESALE_USD;
+    }
+    MUSIC_ELEVENLABS_30S_WHOLESALE_USD * scale
+}
+
+pub fn media_regenerate_retail_usd(kind: &str, provider: &str, model: &str, quality: &str, duration_sec: i32) -> f64 {
+    match kind.trim().to_ascii_lowercase().as_str() {
+        "image" => image_tool_retail_usd(quality, model),
+        "video" => billing_to_retail_usd(video_tool_wholesale_usd(provider, model)),
+        "music" => billing_to_retail_usd(music_tool_wholesale_usd(provider, model, duration_sec)),
+        _ => 0.0,
+    }
+}
+
 pub fn billing_tool_cost_usd(tool_name: &str, ok: bool) -> f64 {
     if !ok {
         return 0.0;
@@ -85,6 +125,8 @@ pub fn billing_tool_cost_usd(tool_name: &str, ok: bool) -> f64 {
         "img.generate" | "image.generate" | "img_generate" | "img.edit" | "image.edit" | "img_edit" => {
             IMAGE_GEN_RETAIL_USD
         }
+        "vid.generate" | "video.generate" | "vid_generate" => billing_to_retail_usd(VIDEO_SEEDANCE_MINI_WHOLESALE_USD),
+        "music.generate" | "music_generate" => billing_to_retail_usd(MUSIC_ELEVENLABS_30S_WHOLESALE_USD),
         _ => 0.0,
     }
 }

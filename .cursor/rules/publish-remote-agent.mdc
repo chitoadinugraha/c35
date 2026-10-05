@@ -1,6 +1,7 @@
 ---
 description: After remote agent Rust changes, publish Windows OTA to alienai.id
-alwaysApply: true
+globs: remotes/c_remote_core/**,remotes/c_remote_windows/**
+alwaysApply: false
 ---
 
 # Publish remote Windows agent

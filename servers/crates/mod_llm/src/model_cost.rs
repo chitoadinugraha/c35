@@ -10,9 +10,7 @@ pub fn model_cost_usd(model: &str, tokens_in: i32, tokens_out: i32) -> f64 {
     if model.trim().eq_ignore_ascii_case("local") || (tokens_in == 0 && tokens_out == 0) {
         return 0.0;
     }
-    let Some((in_ppm, out_ppm)) = catalog_price(model)
-        .or_else(|| crate::catalog_price::price_for_model_id(model))
-    else {
+    let Some((in_ppm, out_ppm)) = catalog_price(model) else {
         tracing::warn!(model, "model_cost_usd: unknown model, billing 0");
         return 0.0;
     };

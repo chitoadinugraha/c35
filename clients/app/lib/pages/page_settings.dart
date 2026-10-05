@@ -13,6 +13,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:alienai_c35/c/profile/profile_api.dart';
 import 'package:alienai_c35/c/profile/profile_handle.dart';
 import 'package:alienai_c35/c/session.dart';
+import 'package:alienai_c35/c/generation/media_provider_labels.dart';
+import 'package:alienai_c35/c/settings/media_generation_prefs.dart';
 import 'package:alienai_c35/c/settings/prompt_usage_prefs.dart';
 import 'package:alienai_c35/c/location/location_permission.dart';
 import 'package:alienai_c35/c/location/location_service.dart';
@@ -100,6 +102,9 @@ class _PageSettingsState extends State<PageSettings> {
   late double _speechRate = VoicePrefs.instance.speechRate;
   late double _speechPitch = VoicePrefs.instance.speechPitch;
   late bool _showUsageStats = PromptUsagePrefs.instance.showUsageStats;
+  late String _genImage = MediaGenerationPrefs.instance.image;
+  late String _genVideo = MediaGenerationPrefs.instance.video;
+  late String _genMusic = MediaGenerationPrefs.instance.music;
   late String _tz = UserLocalePrefs.instance.tz;
   late String _locationCity = UserLocalePrefs.instance.locationCity;
   late String _locationRegion = UserLocalePrefs.instance.locationRegion;
@@ -122,6 +127,7 @@ class _PageSettingsState extends State<PageSettings> {
     sessionTick.addListener(_onSessionTick);
     VoicePrefs.instance.addListener(_onVoiceChanged);
     PromptUsagePrefs.instance.addListener(_onUsagePrefsChanged);
+    MediaGenerationPrefs.instance.addListener(_onMediaGenPrefsChanged);
     UserLocalePrefs.instance.addListener(_onLocalePrefsChanged);
     unawaited(_loadAudioDevices());
     unawaited(_hydrate());
@@ -199,6 +205,7 @@ class _PageSettingsState extends State<PageSettings> {
     sessionTick.removeListener(_onSessionTick);
     VoicePrefs.instance.removeListener(_onVoiceChanged);
     PromptUsagePrefs.instance.removeListener(_onUsagePrefsChanged);
+    MediaGenerationPrefs.instance.removeListener(_onMediaGenPrefsChanged);
     UserLocalePrefs.instance.removeListener(_onLocalePrefsChanged);
     super.dispose();
   }
@@ -229,6 +236,15 @@ class _PageSettingsState extends State<PageSettings> {
     setState(() => _showUsageStats = PromptUsagePrefs.instance.showUsageStats);
   }
 
+  void _onMediaGenPrefsChanged() {
+    if (!mounted) return;
+    setState(() {
+      _genImage = MediaGenerationPrefs.instance.image;
+      _genVideo = MediaGenerationPrefs.instance.video;
+      _genMusic = MediaGenerationPrefs.instance.music;
+    });
+  }
+
   void _onLocalePrefsChanged() {
     if (!mounted) return;
     setState(() {
@@ -248,6 +264,33 @@ class _PageSettingsState extends State<PageSettings> {
     if (s == 'user') return 'settings.locationSourceUser'.tr();
     return 'settings.locationSourceUnknown'.tr();
   }
+
+  Widget _mediaGenDropdown(String label, String value, List<String> providers, String kind, Future<void> Function(String) onPick) =>
+      DropdownButtonFormField<String>(
+        key: ValueKey('media_gen_${kind}_$value'),
+        initialValue: value,
+        dropdownColor: const Color(0xFF18181B),
+        style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 14),
+        decoration: _fieldDecoration(label),
+        items: providers.map((id) => DropdownMenuItem(value: id, child: Text(mediaProviderLabel(kind, id)))).toList(),
+        onChanged: _busy ? null : (v) async {
+          if (v == null) return;
+          setState(() {
+            if (kind == 'video') {
+              _genVideo = v;
+            } else if (kind == 'music') {
+              _genMusic = v;
+            } else {
+              _genImage = v;
+            }
+          });
+          await onPick(v);
+          if (widget.chatConn != null && widget.chatStore != null) {
+            final locale = mounted ? context.locale.toString() : 'en';
+            unawaited(widget.chatStore!.refreshFromConn(widget.chatConn!, locale: locale));
+          }
+        },
+      );
 
   String _locationPlaceSummary() {
     final parts = [_locationCity, _locationRegion, _locationCountry].map((s) => s.trim()).where((s) => s.isNotEmpty);
@@ -608,6 +651,44 @@ class _PageSettingsState extends State<PageSettings> {
                               onTap: widget.chatConn == null || widget.chatStore == null ? null : _clearChatHistory,
                             ),
                           ]),
+                        ),
+                        const SizedBox(height: 28),
+                        _SectionLabel('settings.sectionGeneration'.tr()),
+                        const SizedBox(height: 8),
+                        _Card(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Text('settings.generationSubtitle'.tr(), style: const TextStyle(color: Color(0xFF71717A), fontSize: 12)),
+                                const SizedBox(height: 12),
+                                _mediaGenDropdown(
+                                  'settings.generationImage'.tr(),
+                                  _genImage,
+                                  MediaGenerationPrefs.imageProviders,
+                                  'image',
+                                  (v) => MediaGenerationPrefs.instance.setImage(v),
+                                ),
+                                const SizedBox(height: 12),
+                                _mediaGenDropdown(
+                                  'settings.generationVideo'.tr(),
+                                  _genVideo,
+                                  MediaGenerationPrefs.videoProviders,
+                                  'video',
+                                  (v) => MediaGenerationPrefs.instance.setVideo(v),
+                                ),
+                                const SizedBox(height: 12),
+                                _mediaGenDropdown(
+                                  'settings.generationMusic'.tr(),
+                                  _genMusic,
+                                  MediaGenerationPrefs.musicProviders,
+                                  'music',
+                                  (v) => MediaGenerationPrefs.instance.setMusic(v),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                         if (account != null) ...[
                           const SizedBox(height: 28),

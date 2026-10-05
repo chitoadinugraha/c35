@@ -69,6 +69,8 @@ class UiTalkStage extends StatelessWidget {
   static const _chip = Color(0xFF18181B);
   static const _accent = Color(0xFF06B6D4);
   static const _stop = Color(0xFFEF4444);
+  static const _speakOnBg = Color(0xFF27272A);
+  static const _speakOnBorder = Color(0xFF52525B);
 
   @override
   Widget build(BuildContext context) {
@@ -88,14 +90,14 @@ class UiTalkStage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Expanded(child: Align(alignment: Alignment.centerLeft, child: _side(onPressed: onAttach, icon: Icons.attach_file_rounded, tooltip: 'Attach', badge: stagedCount))),
-              _mic(),
+              Expanded(child: Center(child: _mic())),
               Expanded(
                 child: Align(
                   alignment: Alignment.centerRight,
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      _side(onPressed: onSpeak, icon: speakEnabled ? Icons.volume_up : Icons.volume_off, tooltip: 'Speak', active: speakEnabled),
+                      _speakButton(),
                       const SizedBox(width: 10),
                       _side(
                         onPressed: onModel,
@@ -204,16 +206,6 @@ class UiTalkStage extends StatelessWidget {
         style: const TextStyle(color: _user, fontSize: 14, height: 1.35),
       );
 
-  Widget _usageStatus({double size = 12}) => Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text('Tap ', style: TextStyle(color: _muted, fontSize: size, height: 1.2)),
-          Icon(Icons.mic_rounded, size: size + 2, color: _muted),
-          Text(' to start', style: TextStyle(color: _muted, fontSize: size, height: 1.2)),
-        ],
-      );
-
   Widget _mic() {
     final color = busy ? _stop : (listening ? _accent : _text);
     final iconColor = busy || listening ? _text : const Color(0xFF18181B);
@@ -234,6 +226,31 @@ class UiTalkStage extends StatelessWidget {
       ),
     );
   }
+
+  Widget _speakButton() => Tooltip(
+        message: 'Speak',
+        child: Material(
+          color: speakEnabled ? _speakOnBg : _chip,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onSpeak,
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: speakEnabled ? _speakOnBorder : _line, width: speakEnabled ? 1.5 : 1),
+              ),
+              child: Icon(
+                speakEnabled ? Icons.volume_up_rounded : Icons.volume_off_rounded,
+                size: 21,
+                color: speakEnabled ? _text : _muted,
+              ),
+            ),
+          ),
+        ),
+      );
 
   Widget _side({required VoidCallback onPressed, IconData? icon, Widget? child, required String tooltip, bool active = false, int badge = 0}) => Tooltip(
         message: tooltip,
@@ -297,8 +314,7 @@ class UiTalkStage extends StatelessWidget {
               child: Text(text, textAlign: TextAlign.center, style: const TextStyle(color: _muted, fontSize: 12, fontFeatures: [FontFeature.tabularFigures()])),
             );
           }
-          return Padding(padding: const EdgeInsets.fromLTRB(24, 0, 24, 4), child: _usageStatus());
+          return const SizedBox(height: 4);
         },
       );
-
 }

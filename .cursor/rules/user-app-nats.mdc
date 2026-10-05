@@ -1,3 +1,9 @@
+---
+description: App UI pushes go on c35.user.{iid}.app.* — not the event lane
+globs: servers/crates/system/nats/**,servers/crates/wire_ws/**,servers/crates/mod_billing/**,servers/crates/mod_chat/**
+alwaysApply: false
+---
+
 # App realtime NATS lane (`c35.user.{owner_iid}.app.*`)
 
 Mirrored for Antigravity: [`.agents/rules/user-app-nats.md`](../../.agents/rules/user-app-nats.md)

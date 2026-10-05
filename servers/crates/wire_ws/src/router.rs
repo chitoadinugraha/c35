@@ -9,6 +9,7 @@ use c35_ctx::AppState;
 use c35_mod_device::agent_session_resolve;
 use serde::Deserialize;
 
+use crate::live_ws;
 use crate::{agent_session, session};
 
 #[derive(Debug, Deserialize)]
@@ -33,6 +34,7 @@ pub struct AgentWsQuery {
 pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/v1/ws", get(ws_handler))
+        .route("/v1/live/ws", get(live_ws::live_ws_handler))
         .route("/v1/agent/ws", get(agent_ws_handler))
         .with_state(state)
 }

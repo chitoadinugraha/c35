@@ -1,0 +1,36 @@
+[package]
+name = "c35_mod_live"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "live_realtime_smoke"
+path = "src/bin/live_realtime_smoke.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+async-nats = { workspace = true }
+base64 = "0.22"
+blake3 = { workspace = true }
+c35_mod_billing = { path = "../mod_billing", package = "c35_mod_billing" }
+c35_mod_chat = { path = "../mod_chat", package = "c35_mod_chat" }
+c35_mod_llm = { path = "../mod_llm", package = "c35_mod_llm" }
+c35_mod_log = { path = "../mod_log", package = "c35_mod_log" }
+c35_mod_voice = { path = "../mod_voice", package = "c35_mod_voice" }
+c35_proto = { path = "../proto", package = "c35_proto" }
+c35_store = { path = "../store", package = "c35_store" }
+chrono = { workspace = true }
+dashmap = { workspace = true }
+dotenvy = { workspace = true }
+futures-util = { workspace = true }
+http = "1"
+rand = "0.8"
+reqwest = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+tokio = { workspace = true }
+tokio-tungstenite = { workspace = true }
+tracing = { workspace = true }
+urlencoding = { workspace = true }
+axum = { workspace = true }

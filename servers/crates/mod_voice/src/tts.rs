@@ -7,7 +7,10 @@ use crate::stt::lang_normalize;
 pub async fn google_tts(client: &reqwest::Client, text: &str, lang: &str) -> Result<(Vec<u8>, String)> {
     let key = std::env::var("GOOGLE_CLOUD_API_KEY")
         .or_else(|_| std::env::var("GOOGLE_API_KEY"))
-        .context("GOOGLE_CLOUD_API_KEY not set")?;
+        .or_else(|_| std::env::var("GEMINI_API_KEY"))
+        .context("GOOGLE_CLOUD_API_KEY / GOOGLE_API_KEY / GEMINI_API_KEY not set")?
+        .trim()
+        .to_string();
     let language = lang_normalize(lang);
     let body = json!({
         "input": { "text": text },

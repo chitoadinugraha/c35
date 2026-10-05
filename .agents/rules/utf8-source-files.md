@@ -27,32 +27,4 @@ Mirrored for Cursor: [`.cursor/rules/utf8-source-files.mdc`](../../.cursor/rules
 
 If it fails, run `-Fix` on the listed paths or re-save from git/UTF-8.
 
-## Humans — UTF-8 PowerShell (Windows)
-
-Windows **PowerShell 5.1** defaults file cmdlets to **UTF-16 LE** (legacy Windows `WCHAR` behavior). Almost nothing in this repo should ever be UTF-16.
-
-**Once per machine** (Cursor terminal + Agent Shell when profile loads):
-
-```powershell
-.\_\scripts\dev\install_powershell_utf8_profile.ps1
-```
-
-That dot-sources `_/scripts/dev/powershell_utf8.ps1` from your `$PROFILE` so `Set-Content` / `Out-File` / `Add-Content` use UTF-8.
-
-**Strongly recommended:** install **PowerShell 7** (`pwsh`) and set Cursor’s default terminal to it — PS 7 defaults to UTF-8 (including `>` / `>>` redirects). PS 5.1 **cannot** make redirection UTF-8 via profile alone.
-
-Optional Windows setting (system-wide, many apps): *Settings → Time & language → Language → Administrative language settings → Change system locale → Beta: Use Unicode UTF-8 for worldwide language support* — helps some APIs; still use the profile + PS 7 for shells.
-
-## Humans — optional git hook
-
-One-time per clone (local only):
-
-```powershell
-.\_\scripts\dev\setup_githooks.ps1
-```
-
-That sets `core.hooksPath` to `_/githooks` so **pre-commit** blocks staged UTF-16 text.
-
-## Detection
-
-`check_utf8_sources.ps1` flags UTF-16 BOM and UTF-16 LE **without BOM** (null byte every other character in ASCII-heavy headers — typical agent/PowerShell accident).
+The checker flags UTF-16 BOM and UTF-16 LE without BOM.

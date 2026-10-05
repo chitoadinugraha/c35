@@ -1,6 +1,7 @@
 ---
 description: New LLM tools — register, inst.sql seed, cluster apply, embed cache behavior
-alwaysApply: true
+globs: servers/crates/mod_chat/src/tools/**,servers/crates/mod_chat/src/tool_index.rs,_/schemas/inst.sql
+alwaysApply: false
 ---
 
 # New LLM tools — inst seed + deploy

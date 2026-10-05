@@ -104,6 +104,8 @@ spec:
                   name: coturn-secret
                   key: static-auth-secret
                   optional: true
+            - name: C35_LIVE_ENABLED
+              value: "1"
           startupProbe:
             httpGet:
               path: /livez

@@ -15,11 +15,13 @@ tool! {
         prompt: (string, "Expanded, highly descriptive English visual prompt describing the subject, style, composition, lighting, and colors.", required),
         aspect_ratio: (string, "Aspect ratio: '1:1' (square / icons / logos), '16:9' (landscape), '9:16' (portrait), '4:3', or '3:4'. Default '1:1'.", optional, default = "1:1"),
         quality: (string, "Image quality mode: 'draft' (Flash Image 1K default) or 'hd' (Flash Image 2K). Use hd only when the user asked for HD or @image-high.", optional, default = "draft"),
+        provider: (string, "Provider override: auto, gemini, or grok. Default follows user generation.image pref.", optional, default = ""),
     },
     execute: |args, ctx| {
         let prompt = args["prompt"].as_str().unwrap_or_default();
         let aspect_ratio = args["aspect_ratio"].as_str().unwrap_or("1:1");
         let quality = args["quality"].as_str().unwrap_or("draft");
+        let provider = args["provider"].as_str().unwrap_or("");
         let default_draft = image_default_draft_tier(&ctx.pool).await;
         let tier = image_tier_resolve(&ctx.mention_ids, &ctx.user_text, prompt, quality, false, &default_draft);
         if ctx.owner_iid > 0 {
@@ -40,6 +42,7 @@ tool! {
             quality,
             &ctx.mention_ids,
             &ctx.user_text,
+            provider,
         )
         .await
     }

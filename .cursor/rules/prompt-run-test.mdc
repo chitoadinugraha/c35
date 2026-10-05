@@ -60,3 +60,7 @@ prompt_run {
 ## Do not skip
 
 Do not claim "fixed" or "should work now" for prompt/tool bugs without at least **`prompt_compose`** on the failing phrase. Prefer **`prompt_run`** when the bug is "model didn't call tool" or wrong answer text.
+
+New Home-routable tool: `ToolDefinition` + `inst.sql` + a live `ai.inst` row (a git seed is not live). Keep the tool description stable; put extra match text in `rag_phrases`.
+
+Wrong tool: topic eligibility, then tool metadata, then inst. Do not start at inst.

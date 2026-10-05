@@ -1,6 +1,7 @@
 mod agent_session;
 mod admin_fanout;
 mod router;
+mod live_ws;
 mod session;
 
 pub use admin_fanout::admin_stats_warm;

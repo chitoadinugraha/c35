@@ -20,6 +20,7 @@ import 'catalog.pb.dart' as $4;
 import 'chat.pb.dart' as $2;
 import 'hint.pb.dart' as $5;
 import 'identity.pb.dart' as $0;
+import 'live.pb.dart' as $6;
 import 'sync.pb.dart' as $3;
 
 export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
@@ -171,6 +172,9 @@ class ReqSessionInit extends $pb.GeneratedMessage {
     $fixnum.Int64? appBuild,
     $core.String? appVersionName,
     $fixnum.Int64? mentionsSinceMs,
+    $core.String? generationImage,
+    $core.String? generationVideo,
+    $core.String? generationMusic,
   }) {
     final result = ReqSessionInit._();
     if (sinceMs != null) result.sinceMs = sinceMs;
@@ -189,6 +193,9 @@ class ReqSessionInit extends $pb.GeneratedMessage {
     if (appBuild != null) result.appBuild = appBuild;
     if (appVersionName != null) result.appVersionName = appVersionName;
     if (mentionsSinceMs != null) result.mentionsSinceMs = mentionsSinceMs;
+    if (generationImage != null) result.generationImage = generationImage;
+    if (generationVideo != null) result.generationVideo = generationVideo;
+    if (generationMusic != null) result.generationMusic = generationMusic;
     return result;
   }
 
@@ -221,6 +228,9 @@ class ReqSessionInit extends $pb.GeneratedMessage {
     ..aInt64(14, _omitFieldNames ? '' : 'appBuild')
     ..aOS(15, _omitFieldNames ? '' : 'appVersionName')
     ..aInt64(16, _omitFieldNames ? '' : 'mentionsSinceMs')
+    ..aOS(17, _omitFieldNames ? '' : 'generationImage')
+    ..aOS(18, _omitFieldNames ? '' : 'generationVideo')
+    ..aOS(19, _omitFieldNames ? '' : 'generationMusic')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -390,6 +400,34 @@ class ReqSessionInit extends $pb.GeneratedMessage {
   $core.bool hasMentionsSinceMs() => $_has(15);
   @$pb.TagNumber(16)
   void clearMentionsSinceMs() => $_clearField(16);
+
+  /// Client media generation defaults (auto | gemini | grok | seedance | minimax | elevenlabs)
+  @$pb.TagNumber(17)
+  $core.String get generationImage => $_getSZ(16);
+  @$pb.TagNumber(17)
+  set generationImage($core.String value) => $_setString(16, value);
+  @$pb.TagNumber(17)
+  $core.bool hasGenerationImage() => $_has(16);
+  @$pb.TagNumber(17)
+  void clearGenerationImage() => $_clearField(17);
+
+  @$pb.TagNumber(18)
+  $core.String get generationVideo => $_getSZ(17);
+  @$pb.TagNumber(18)
+  set generationVideo($core.String value) => $_setString(17, value);
+  @$pb.TagNumber(18)
+  $core.bool hasGenerationVideo() => $_has(17);
+  @$pb.TagNumber(18)
+  void clearGenerationVideo() => $_clearField(18);
+
+  @$pb.TagNumber(19)
+  $core.String get generationMusic => $_getSZ(18);
+  @$pb.TagNumber(19)
+  set generationMusic($core.String value) => $_setString(18, value);
+  @$pb.TagNumber(19)
+  $core.bool hasGenerationMusic() => $_has(18);
+  @$pb.TagNumber(19)
+  void clearGenerationMusic() => $_clearField(19);
 }
 
 class ResSessionInit extends $pb.GeneratedMessage {
@@ -407,6 +445,7 @@ class ResSessionInit extends $pb.GeneratedMessage {
     $core.Iterable<PromptModelOption>? models,
     $4.MentionCatalog? mentions,
     $5.HintCatalog? hints,
+    $6.LiveCatalog? live,
   }) {
     final result = ResSessionInit._();
     if (serverTimeMs != null) result.serverTimeMs = serverTimeMs;
@@ -422,6 +461,7 @@ class ResSessionInit extends $pb.GeneratedMessage {
     if (models != null) result.models.addAll(models);
     if (mentions != null) result.mentions = mentions;
     if (hints != null) result.hints = hints;
+    if (live != null) result.live = live;
     return result;
   }
 
@@ -460,6 +500,8 @@ class ResSessionInit extends $pb.GeneratedMessage {
         subBuilder: $4.MentionCatalog.$_createMessage)
     ..aOM<$5.HintCatalog>(13, _omitFieldNames ? '' : 'hints',
         subBuilder: $5.HintCatalog.$_createMessage)
+    ..aOM<$6.LiveCatalog>(14, _omitFieldNames ? '' : 'live',
+        subBuilder: $6.LiveCatalog.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -600,6 +642,18 @@ class ResSessionInit extends $pb.GeneratedMessage {
   void clearHints() => $_clearField(13);
   @$pb.TagNumber(13)
   $5.HintCatalog ensureHints() => $_ensure(12);
+
+  /// Live Call offers (ai.live_offer) — not in chat model picker
+  @$pb.TagNumber(14)
+  $6.LiveCatalog get live => $_getN(13);
+  @$pb.TagNumber(14)
+  set live($6.LiveCatalog value) => $_setField(14, value);
+  @$pb.TagNumber(14)
+  $core.bool hasLive() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearLive() => $_clearField(14);
+  @$pb.TagNumber(14)
+  $6.LiveCatalog ensureLive() => $_ensure(13);
 }
 
 const $core.bool _omitFieldNames =

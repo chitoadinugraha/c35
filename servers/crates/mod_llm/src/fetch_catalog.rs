@@ -25,7 +25,7 @@ impl FetchTask for LlmCatalogFetchTask {
     }
 
     fn interval(&self) -> Duration {
-        Duration::from_secs(crate::llm_catalog::SYNC_INTERVAL_SECS)
+        Duration::from_secs(crate::llm_catalog::sync_interval_secs())
     }
 
     async fn run(&self, ctx: &FetchCtx) -> Result<FetchOutcome> {

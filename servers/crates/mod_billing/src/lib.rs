@@ -36,6 +36,7 @@ pub use billing_cost::{
     billing_cost_usd, billing_cost_wholesale_usd, billing_embed_cost_usd, billing_to_retail_usd,
     billing_tool_cost_usd,
     image_tool_retail_usd, image_tool_wholesale_usd,
+    media_regenerate_retail_usd, music_tool_wholesale_usd, video_tool_wholesale_usd,
     IMAGE_GEN_RETAIL_USD, IMAGE_GEN_WHOLESALE_USD, RETAIL_MARKUP, VOICE_STT_HOLD_USD,
     VOICE_STT_USD_PER_MIN, VOICE_TTS_HOLD_USD, VOICE_TTS_USD_PER_1K_CHARS,
 };

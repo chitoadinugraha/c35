@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#020617"/>
+      <stop offset="100%" stop-color="#0B0F19"/>
+    </linearGradient>
+
+    <!-- Browser Window Header Gradient -->
+    <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#152033"/>
+    </linearGradient>
+
+    <!-- Viewport Emerald Glow Rim -->
+    <linearGradient id="emeraldRim" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#10B981" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#059669" stop-opacity="0.25"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 1. Squircle App Icon Base -->
+  <rect width="512" height="512" rx="116" ry="116" fill="url(#bgGrad)"/>
+
+  <!-- 2. Browser Window Body in Background -->
+  <!-- Outer Frame -->
+  <rect x="68" y="56" width="376" height="400" rx="42" ry="42" fill="#0B132B" stroke="#334155" stroke-width="3"/>
+
+  <!-- Top Title Bar -->
+  <path d="M 68,98 L 68,98 A 42,42 0 0,1 110,56 L 402,56 A 42,42 0 0,1 444,98 L 444,116 L 68,116 Z" fill="url(#headerGrad)" />
+
+  <!-- 3 Window Control Dots -->
+  <circle cx="106" cy="86" r="6" fill="#EF4444"/>
+  <circle cx="126" cy="86" r="6" fill="#F59E0B"/>
+  <circle cx="146" cy="86" r="6" fill="#10B981"/>
+
+  <!-- URL Address Bar Capsule -->
+  <rect x="172" y="72" width="220" height="28" rx="14" fill="#0A0F1D" stroke="#334155" stroke-width="1.5"/>
+  <circle cx="190" cy="86" r="3.5" fill="#10B981"/>
+  <rect x="204" y="83" width="96" height="6" rx="3" fill="#64748B"/>
+
+  <!-- Web Viewport Screen Area -->
+  <rect x="84" y="126" width="344" height="316" rx="30" ry="30" fill="#030712" stroke="url(#emeraldRim)" stroke-width="2.5"/>
+
+  <!-- 3. Remote Viewfinder Reticle Brackets (Emerald) -->
+  <g stroke="#10B981" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <!-- Top-Left -->
+    <path d="M 112 172 L 112 148 L 136 148"/>
+    <!-- Top-Right -->
+    <path d="M 376 148 L 400 148 L 400 172"/>
+    <!-- Bottom-Left -->
+    <path d="M 112 396 L 112 420 L 136 420"/>
+    <!-- Bottom-Right -->
+    <path d="M 376 420 L 400 420 L 400 396"/>
+  </g>
+
+  <!-- 4. Official Alien AI Logo in Foreground (Centered in Viewport) -->
+  <!-- Scale 24x24 path by 9.0 (216x216), centered at (256, 284) -> translate(148, 176) -->
+  <g transform="translate(148, 176) scale(9.0)">
+    <path fill="#FFFFFF" fill-rule="evenodd" d="M12 3c4.97 0 9 3.58 9 8s-6 10-9 10s-9-5.58-9-10s4.03-8 9-8m-1.69 7.93C9.29 9.29 7.47 8.58 6.25 9.34s-1.38 2.71-.36 4.35c1.03 1.64 2.85 2.35 4.07 1.59c1.22-.78 1.37-2.71.35-4.35m3.38 0c-1.02 1.64-.87 3.57.35 4.35c1.22.76 3.04.05 4.07-1.59c1.02-1.64.86-3.59-.36-4.35s-3.04-.05-4.06 1.59M12 17.75c-2 0-2.5-.75-2.5-.75c0 .03.5 2 2.5 2s2.5-2 2.5-2s-.5.75-2.5.75"/>
+  </g>
+</svg>

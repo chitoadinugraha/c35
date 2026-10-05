@@ -49,7 +49,7 @@ Single entry points for the app — pages bind `VoiceApi` once per chat session.
 - `stopAndTranscribe` sets `isTranscribing` immediately so the UI shows feedback during recorder shutdown.
 - Server: `voice_stt` runs the billing hold concurrently with the upstream call; shared `reqwest` client uses keep-alive pooling and `TCP_NODELAY`.
 
-**Prefs:** `VoicePrefs` — `sttEngine`, `ttsEngine`, `speakEnabled`, `speechLang`, rate/pitch, `talkEnabled`.
+**Prefs:** `VoicePrefs` — `sttEngine`, `ttsEngine`, `speakEnabled` (default **on** for new installs; stored key preserves explicit off), `speechLang`, rate/pitch, `talkEnabled`.
 
 **Talk** (`talkEnabled`, key `voice_talk_enabled`, default false) is the Home surface switch, not an engine. Off is Chat mode. On replaces the thread and composer with the one-page stage in [ui.md](ui.md#talk). The same `SttService` / `TtsService` path runs. `speakEnabled` is read-aloud only (the stage speaker icon, and auto-speak when a turn ends). It does not select Talk. Starting the Talk mic stops TTS. Idle / listening / thinking / usage copy for the status row above the controls is defined in [ui.md](ui.md#talk).
 

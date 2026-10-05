@@ -1,0 +1,35 @@
+---
+description: Show retail and billing prices in the user's billing currency, not raw USD.
+globs: clients/app/**/*.dart
+alwaysApply: false
+---
+
+# User currency for prices
+
+Retail amounts on the server are often stored as **USD** (`retail_usd`, `retailUsdPerMin`, `cost_usd`, etc.). **Never show `$` / USD to users** unless `billingCurrency == 'USD'`.
+
+## Source of truth
+
+- `AppStore.instance.wallet.billingCurrency`
+- `AppStore.instance.wallet.fxMicroPerUsd`
+
+Use `ListenableBuilder(listenable: AppStore.instance, …)` when the UI must update after billing push.
+
+## Formatting
+
+Use helpers in `clients/app/lib/c/ui/money_format.dart`:
+
+| Helper | Use |
+|--------|-----|
+| `moneyCostLabel(usd, currency:, fxMicroPerUsd:)` | One-off cost |
+| `moneyUsdPerMinLabel(usdPerMin, currency:, fxMicroPerUsd:)` | Live / metered **per minute** |
+| `moneyBalanceLabel` / `billingCreditBalanceLabel` | Wallet |
+
+Live Call: `liveOfferPricePerMinLocal(offer, currency:, fxMicroPerUsd:)` in `live_offer.dart`.
+
+## Do not
+
+- Hardcode `~\$0.03/min` or `USD` in widgets
+- Use `liveOfferPricePerMin` with dollar formatting (removed — local only)
+
+Internal logs, admin, and server-side billing math may stay USD.

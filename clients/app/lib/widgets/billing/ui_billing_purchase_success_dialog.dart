@@ -1,6 +1,7 @@
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:alienai_c35/c/ui/ui_format.dart';
 import 'package:alienai_c35/widgets/billing/billing_plan_format.dart';
+import 'package:alienai_c35/widgets/billing/ui_billing_purchase_disclaimer.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/material.dart';
 
@@ -161,6 +162,10 @@ class _BillingPurchaseSuccessDialog extends StatelessWidget {
                           );
                         },
                       ),
+              ),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 0, 16, 4),
+                child: UiBillingPurchaseDisclaimer(),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),

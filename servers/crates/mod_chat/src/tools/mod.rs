@@ -6,6 +6,9 @@ pub mod egress_http;
 pub mod device_screenshot_artifact;
 pub mod img;
 pub mod image_tier;
+pub mod media;
+pub mod music;
+pub mod vid;
 pub mod macros;
 pub mod web;
 
@@ -33,7 +36,8 @@ use builtin::{
     ConsumptionDeleteTool, ConsumptionTodayTool,
     ConsumptionUpdateTool, DelegateRunTool, DeviceFsListTool, DeviceFsReadTool, ShellRunTool,
     DeviceInputTool, DeviceScreenshotTool,
-    ExpenseAddTool, ExpenseDeleteTool, ExpenseSummaryTool, ImgEditTool, ImgGenerateTool,
+    ExpenseAddTool, ExpenseDeleteTool, ExpenseSummaryTool, ImgEditTool, ImgGenerateTool, MusicGenerateTool,
+    VidGenerateTool,
     ChatMessagesTool, ChatSearchTool, MemoryForgetTool, MemoryListTool, MemorySaveTool,
     PresentationCreateTool, PresentationExportTool, PresentationPatchTool,
     PresentationSourceExtractTool, PresentationSourceStructureTool,
@@ -127,6 +131,8 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(WebResearchTool));
     dispatcher.register(Arc::new(ImgGenerateTool));
     dispatcher.register(Arc::new(ImgEditTool));
+    dispatcher.register(Arc::new(VidGenerateTool));
+    dispatcher.register(Arc::new(MusicGenerateTool));
     dispatcher.register(Arc::new(PresentationCreateTool));
     dispatcher.register(Arc::new(PresentationPatchTool));
     dispatcher.register(Arc::new(PresentationExportTool));

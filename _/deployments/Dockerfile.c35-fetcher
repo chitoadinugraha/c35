@@ -25,7 +25,7 @@ WORKDIR /app
 
 COPY servers/Cargo.toml servers/Cargo.lock /app/servers/
 COPY servers/crates /app/servers/crates
-COPY servers/fetcher/Cargo.toml /app/servers/fetcher/
+COPY servers/fetcher /app/servers/fetcher/
 COPY servers/server_ai/Cargo.toml /app/servers/server_ai/
 COPY servers/node_stats/Cargo.toml /app/servers/node_stats/
 COPY servers/channel_whatsapp_device/Cargo.toml /app/servers/channel_whatsapp_device/
@@ -44,9 +44,7 @@ WORKDIR /app/servers
 RUN --mount=type=cache,target=/usr/local/cargo/registry,id=c35-fetcher-cargo-registry,sharing=locked \
     --mount=type=cache,target=/usr/local/cargo/git,id=c35-fetcher-cargo-git,sharing=locked \
     --mount=type=cache,target=/app/target,id=c35-fetcher-rust-target,sharing=locked \
-    cargo chef cook --release --recipe-path recipe.json -p server_fetcher
-
-COPY servers/fetcher /app/servers/fetcher
+    cargo chef cook --release --recipe-path recipe.json
 
 RUN --mount=type=cache,target=/usr/local/cargo/registry,id=c35-fetcher-cargo-registry,sharing=locked \
     --mount=type=cache,target=/usr/local/cargo/git,id=c35-fetcher-cargo-git,sharing=locked \

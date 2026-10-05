@@ -16,7 +16,10 @@ import 'package:alienai_c35/widgets/ai/composer_mention_text.dart';
 import 'package:alienai_c35/c/pb/c35/chat.pb.dart';
 import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
 import 'package:alienai_c35/c/pb/c35/session.pb.dart';
+import 'package:alienai_c35/c/pb/c35/live.pb.dart';
+import 'package:alienai_c35/c/live/live_offer.dart';
 import 'package:alienai_c35/c/location/user_location_prefs.dart';
+import 'package:alienai_c35/c/settings/media_generation_prefs.dart';
 import 'package:alienai_c35/c/settings/user_locale_prefs.dart';
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/session/session_init_cache.dart';
@@ -336,6 +339,7 @@ class ChatStore extends ChangeNotifier {
   List<ChatRow> chats = [];
   List<MsgRow> msgs = [];
   List<AgentModel> models = const [AgentModel.alien];
+  List<LiveOffer> liveOffers = liveOffersOfflineFallback();
   NavCounts navCounts = NavCounts();
   String search = '';
   int? activeChatId;
@@ -1601,6 +1605,7 @@ class ChatStore extends ChangeNotifier {
       locationCountry: profile.locationCountry,
       locationSource: profile.locationSource,
     ));
+    unawaited(MediaGenerationPrefs.instance.mergeFromProfileMeta(profile.metaJson));
   }
 
   void applySessionInitShell(ResSessionInit init) {
@@ -1620,19 +1625,26 @@ class ChatStore extends ChangeNotifier {
     if (next.isNotEmpty && (next.length >= models.length || models.length <= 1)) models = next;
   }
 
+  void _sessionInitLiveApply(LiveCatalog? catalog) {
+    if (catalog == null || catalog.offers.isEmpty) return;
+    liveOffers = catalog.offers;
+  }
+
   Future<void> sessionInitCacheRestore() async {
     final init = await SessionInitCache.load();
-    if (init != null) applySessionInitShell(init);
-    final cachedModels = await SessionInitCache.loadModels();
-    if (cachedModels.isNotEmpty) {
-      _sessionInitModelsApply(cachedModels);
-      notifyListeners();
+    if (init != null) {
+      applySessionInitShell(init);
+      if (init.hasLive()) _sessionInitLiveApply(init.live);
     }
+    final cachedModels = await SessionInitCache.loadModels();
+    if (cachedModels.isNotEmpty) _sessionInitModelsApply(cachedModels);
+    if (init != null || cachedModels.isNotEmpty) notifyListeners();
   }
 
   void sessionInitMerge(ResSessionInit init) {
     applySessionInitShell(init);
     _sessionInitModelsApply(init.models);
+    if (init.hasLive()) _sessionInitLiveApply(init.live);
     if (init.hasMentions()) {
       unawaited(mentionCatalog.mergeCatalog(init.mentions, sinceMs: mentionCatalog.rev));
     }
@@ -1658,6 +1670,7 @@ class ChatStore extends ChangeNotifier {
     try {
       final prefs = UserLocalePrefs.instance;
       final locPrefs = UserLocationPrefs.instance;
+      final mediaPrefs = MediaGenerationPrefs.instance;
       final hasLoc = prefs.locationCity.isNotEmpty || prefs.locationRegion.isNotEmpty || prefs.locationCountry.isNotEmpty;
       final dv = await deviceInstallId();
       final appBuild = int.tryParse(csaiVersion) ?? 0;
@@ -1678,6 +1691,9 @@ class ChatStore extends ChangeNotifier {
         includeBilling: true,
         hintsSinceMs: Int64(HintStore.instance.rev),
         mentionsSinceMs: Int64(mentionCatalog.rev),
+        generationImage: mediaPrefs.generationImageWire,
+        generationVideo: mediaPrefs.generationVideoWire,
+        generationMusic: mediaPrefs.generationMusicWire,
       );
       sessionInitMerge(init);
     } catch (_) {}

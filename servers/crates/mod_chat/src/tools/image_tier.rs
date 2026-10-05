@@ -153,6 +153,18 @@ pub fn image_tier_retail_usd(tier: &ImageTier) -> f64 {
     c35_mod_billing::image_tool_retail_usd(tier.quality, tier.primary_model)
 }
 
+pub fn image_provider_forces_grok(provider_pref: &str) -> bool {
+    provider_pref.trim().eq_ignore_ascii_case("grok")
+}
+
+pub fn image_provider_forces_gemini(provider_pref: &str) -> bool {
+    provider_pref.trim().eq_ignore_ascii_case("gemini")
+}
+
+pub fn image_provider_allows_grok_auto(provider_pref: &str, tier: &ImageTier) -> bool {
+    provider_pref.trim().eq_ignore_ascii_case("auto") && tier.id == "lite_draft"
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

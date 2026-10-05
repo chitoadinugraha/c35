@@ -35,6 +35,7 @@ const IdentityProfile$json = {
     {'1': 'location_source', '3': 14, '4': 1, '5': 9, '10': 'locationSource'},
     {'1': 'email', '3': 15, '4': 1, '5': 9, '10': 'email'},
     {'1': 'global_roles', '3': 16, '4': 3, '5': 9, '10': 'globalRoles'},
+    {'1': 'meta_json', '3': 17, '4': 1, '5': 9, '10': 'metaJson'},
   ],
 };
 
@@ -48,7 +49,7 @@ final $typed_data.Uint8List identityProfileDescriptor = $convert.base64Decode(
     'oPbG9jYXRpb25fcmVnaW9uGAwgASgJUg5sb2NhdGlvblJlZ2lvbhIpChBsb2NhdGlvbl9jb3Vu'
     'dHJ5GA0gASgJUg9sb2NhdGlvbkNvdW50cnkSJwoPbG9jYXRpb25fc291cmNlGA4gASgJUg5sb2'
     'NhdGlvblNvdXJjZRIUCgVlbWFpbBgPIAEoCVIFZW1haWwSIQoMZ2xvYmFsX3JvbGVzGBAgAygJ'
-    'UgtnbG9iYWxSb2xlcw==');
+    'UgtnbG9iYWxSb2xlcxIbCgltZXRhX2pzb24YESABKAlSCG1ldGFKc29u');
 
 @$core.Deprecated('Use navCountsDescriptor instead')
 const NavCounts$json = {

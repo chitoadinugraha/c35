@@ -28,6 +28,23 @@ class SttService {
 
   static const maxRecordingSeconds = 30;
 
+  /// End-of-speech silence before auto-stop (ms).
+  static const silenceTimeoutWithTextMs = 700;
+  static const silenceTimeoutNoTextMs = 1100;
+
+  /// Interim window: commit text at a pause once the window passes this length;
+  /// force a commit at the max so each snapshot stays small.
+  static const interimWindowSeconds = 6.0;
+  static const interimWindowMaxSeconds = 12.0;
+
+  /// How long a resolved mic device stays cached.
+  static const _micCacheTtl = Duration(seconds: 60);
+
+  ({InputDevice? device, String savedId, DateTime at})? _micCache;
+  ({int sampleRate, int numChannels})? _workingStreamConfig;
+  int _windowStartByte = 0;
+  String _committedText = '';
+
   AudioRecorder? _recorder;
   StreamSubscription<Amplitude>? _ampSub;
   StreamSubscription<Uint8List>? _streamSub;
@@ -191,6 +208,63 @@ class SttService {
     final rms = count > 0 ? sqrt(sumSq / count) : 0.0;
     final levelDb = rms > 1e-5 ? (20 * log(rms) / ln10) : -100.0;
     return (norm: norm, levelDb: levelDb);
+  }
+
+  /// Joins committed text with the current window text.
+  static String _joinTranscript(String committed, String window) {
+    final a = committed.trim();
+    final b = window.trim();
+    if (a.isEmpty) return b;
+    if (b.isEmpty) return a;
+    return '$a $b';
+  }
+
+  /// Trims leading/trailing silence from 16-bit 16kHz mono PCM, keeping
+  /// [padMs] of context on each side. Smaller uploads transcribe faster.
+  /// Returns [pcm] unchanged when no speech frame is found.
+  static Uint8List trimSilence(Uint8List pcm, {int sampleRate = 16000, double thresholdDb = -48.0, int padMs = 250}) {
+    final frameSamples = sampleRate ~/ 50; // 20 ms
+    final frameBytes = frameSamples * 2;
+    final frames = pcm.length ~/ frameBytes;
+    if (frames < 4) return pcm;
+    var first = -1;
+    var last = -1;
+    for (var f = 0; f < frames; f++) {
+      final db = pcmAmplitude(Uint8List.sublistView(pcm, f * frameBytes, (f + 1) * frameBytes)).levelDb;
+      if (db > thresholdDb) {
+        if (first < 0) first = f;
+        last = f;
+      }
+    }
+    if (first < 0) return pcm;
+    final padFrames = padMs ~/ 20;
+    final from = max(0, first - padFrames) * frameBytes;
+    final to = min(frames, last + 1 + padFrames) * frameBytes;
+    if (from == 0 && to >= pcm.length - frameBytes) return pcm;
+    return Uint8List.sublistView(pcm, from, to);
+  }
+
+  Future<InputDevice?> _cachedActiveMic() async {
+    final saved = VoicePrefs.instance.micDeviceId.trim();
+    final c = _micCache;
+    if (c != null && c.savedId == saved && DateTime.now().difference(c.at) < _micCacheTtl) {
+      return c.device;
+    }
+    final device = await resolveActiveMicDevice();
+    _micCache = (device: device, savedId: saved, at: DateTime.now());
+    return device;
+  }
+
+  /// Warms recorder, permission check and mic resolution so the next
+  /// [startRecording] is fast. Never prompts for permission.
+  Future<void> prewarm() async {
+    if (isRecording.value) return;
+    try {
+      if (!await hasPermission()) return;
+      await _cachedActiveMic();
+    } catch (e) {
+      debugPrint('[SttService] prewarm: $e');
+    }
   }
 
   Future<void> _init() async => _recorder ??= AudioRecorder();
@@ -410,22 +484,29 @@ class SttService {
       _interimTimer?.cancel();
       _interimCounter = 0;
       _interimInFlight = false;
-      _interimTimer = Timer.periodic(const Duration(milliseconds: 350), (_) async {
+      _windowStartByte = 0;
+      _committedText = '';
+      _interimTimer = Timer.periodic(const Duration(milliseconds: 250), (_) async {
         if (!isRecording.value || _interimInFlight) return;
         // Don't send interim snapshots if speech hasn't begun yet (prevents sending pure silence to Whisper)
         if (!_speechDetected && audioAmplitude.value < 0.02) return;
-        final rawPcm = _pcmBuffer.toBytes();
-        // At least 0.75s of audio so the first full word is complete (avoids hallucinating on incomplete phonemes)
-        final minBytes = (_streamSampleRate * _streamChannels * 2 * 0.75).toInt();
-        if (rawPcm.length < minBytes) return;
+        final allPcm = _pcmBuffer.toBytes();
+        final frame = _streamChannels * 2;
+        final start = _windowStartByte - (_windowStartByte % frame);
+        final snapshotEnd = allPcm.length - (allPcm.length % frame);
+        // At least 0.6s of new audio so the first full word is complete (avoids hallucinating on incomplete phonemes)
+        final minBytes = (_streamSampleRate * _streamChannels * 2 * 0.6).toInt();
+        if (snapshotEnd - start < minBytes) return;
+        final rawPcm = Uint8List.sublistView(allPcm, start, snapshotEnd);
 
         _interimInFlight = true;
         _interimCounter++;
         final currentCounter = _interimCounter;
-        final reqId = 'interim_${_sessionReqId}_$currentCounter';
+        final session = _sessionReqId;
+        final reqId = 'interim_${session}_$currentCounter';
         try {
           debugPrint('[SttService] sending interim snapshot #$currentCounter (${rawPcm.length} bytes)...');
-          final pcm16k = resampleTo16kMono(rawPcm, srcRate: _streamSampleRate, srcChannels: _streamChannels);
+          final pcm16k = trimSilence(resampleTo16kMono(rawPcm, srcRate: _streamSampleRate, srcChannels: _streamChannels));
           final wav = pcmToWav(pcm16k, sampleRate: 16000, channels: 1);
           final pref = VoicePrefs.instance.speechLang;
           final effectiveLang = speechLangSttLocale(pref, last: VoicePrefs.instance.lastLang);
@@ -437,11 +518,19 @@ class SttService {
             reqId: reqId,
           );
           debugPrint('[SttService] interim #$currentCounter result: "${text ?? ''}"');
-          if (isRecording.value && text != null && text.trim().isNotEmpty) {
+          if (isRecording.value && session == _sessionReqId && text != null && text.trim().isNotEmpty) {
             final clean = sanitizeTranscript(text.trim());
             if (clean.isNotEmpty) {
-              liveTranscript.value = clean;
+              liveTranscript.value = _joinTranscript(_committedText, clean);
               isLiveInterim.value = true;
+              // Commit the window at a pause (or when it grows too long) so later snapshots stay small.
+              final windowBytes = snapshotEnd - start;
+              final windowSeconds = windowBytes / (_streamSampleRate * _streamChannels * 2);
+              final atPause = _silenceSince != null;
+              if ((windowSeconds >= interimWindowSeconds && atPause) || windowSeconds >= interimWindowMaxSeconds) {
+                _committedText = liveTranscript.value;
+                _windowStartByte = snapshotEnd;
+              }
             }
           }
         } catch (e) {
@@ -484,7 +573,7 @@ class SttService {
     final dynamicSpeechDb = max(ambientFloor + 4.0, -54.0);
     final isSpeechFrame = level > dynamicSpeechDb || norm >= 0.02;
 
-    final silenceTimeoutMs = liveTranscript.value.isNotEmpty ? 900 : 1300;
+    final silenceTimeoutMs = liveTranscript.value.isNotEmpty ? silenceTimeoutWithTextMs : silenceTimeoutNoTextMs;
     const initialSilenceTimeoutMs = 5000;
 
     if (isSpeechFrame) {
@@ -536,7 +625,7 @@ class SttService {
       _windowPeak = 0.0;
       _stopTimers();
 
-      final activeMic = await resolveActiveMicDevice();
+      final activeMic = await _cachedActiveMic();
       debugPrint('[SttService] Using microphone: "${activeMic?.label ?? 'system default'}" (id: ${activeMic?.id})');
 
       // Try streaming PCM first (low latency, continuous interim snapshots, no file locks)
@@ -549,6 +638,12 @@ class SttService {
         (sampleRate: 16000, numChannels: 1, bitRate: 256000),
         (sampleRate: 16000, numChannels: 2, bitRate: 512000),
       ];
+      // Try the config that worked last time first (skips failing candidates on every start).
+      final cachedCand = _workingStreamConfig;
+      if (cachedCand != null) {
+        candidates.removeWhere((c) => c.sampleRate == cachedCand.sampleRate && c.numChannels == cachedCand.numChannels);
+        candidates.insert(0, (sampleRate: cachedCand.sampleRate, numChannels: cachedCand.numChannels, bitRate: cachedCand.sampleRate * cachedCand.numChannels * 16));
+      }
       for (final cand in candidates) {
         try {
           final pcmConfig = RecordConfig(
@@ -575,6 +670,7 @@ class SttService {
 
           _startRecordingTimers();
           isRecording.value = true;
+          _workingStreamConfig = (sampleRate: cand.sampleRate, numChannels: cand.numChannels);
           debugPrint('[SttService] startStream (${cand.sampleRate}Hz, ${cand.numChannels}ch) active! PCM streaming running.');
           return true;
         } catch (streamErr) {
@@ -582,6 +678,8 @@ class SttService {
         }
       }
       _isStreamingPcm = false;
+      _workingStreamConfig = null;
+      _micCache = null;
 
       // Fallback: file recording
       final formats = await _recordingFormats(activeMic);
@@ -643,9 +741,20 @@ class SttService {
     audioAmplitude.value = 0.0;
   }
 
+  /// Stops recording and returns the final transcript. [isTranscribing] flips on
+  /// immediately so the UI can show feedback while the recorder shuts down.
   Future<String?> stopAndTranscribe({String? lang}) async {
     _stopTimers();
     if (!isRecording.value && _recorder == null && _pcmBuffer.isEmpty) return null;
+    isTranscribing.value = true;
+    try {
+      return await _stopAndTranscribeImpl(lang: lang);
+    } finally {
+      isTranscribing.value = false;
+    }
+  }
+
+  Future<String?> _stopAndTranscribeImpl({String? lang}) async {
     isRecording.value = false;
 
     Uint8List? audioBytes;
@@ -667,7 +776,7 @@ class SttService {
         await _recorder?.stop();
       } catch (_) {}
       if (pcm.isNotEmpty) {
-        final pcm16k = resampleTo16kMono(pcm, srcRate: _streamSampleRate, srcChannels: _streamChannels);
+        final pcm16k = trimSilence(resampleTo16kMono(pcm, srcRate: _streamSampleRate, srcChannels: _streamChannels));
         audioBytes = pcmToWav(pcm16k, sampleRate: 16000, channels: 1);
         mime = 'audio/wav';
       }
@@ -723,7 +832,6 @@ class SttService {
       return null;
     }
 
-    isTranscribing.value = true;
     lastTranscribeError = null;
 
     try {
@@ -755,8 +863,6 @@ class SttService {
       lastTranscribeError = uiFriendlyError(e, fallback: 'Speech recognition failed. Please try again.');
       debugPrint('[SttService] Transcription error: $e');
       return null;
-    } finally {
-      isTranscribing.value = false;
     }
   }
 

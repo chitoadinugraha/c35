@@ -5,7 +5,11 @@ mod catalog_sync;
 mod fetch_catalog;
 mod catalog_types;
 mod cf_gateway;
+mod cf_realtime;
 mod cf_image;
+mod cf_music;
+mod cf_video;
+mod lyria;
 mod embed_cache;
 mod embed_gemini;
 mod llm_catalog;
@@ -16,7 +20,13 @@ mod runtime_config;
 use sqlx::PgPool;
 
 pub use cf_gateway::cf_chat_generate;
+pub use cf_realtime::{
+    cf_realtime_via_cf, cf_realtime_ws_header_pairs, cf_realtime_ws_url, CfRealtimeUpstream,
+};
 pub use cf_image::{cf_grok_image_run, cf_image_provider_enabled};
+pub use cf_music::{cf_music_run, CF_MUSIC_DURATION_SEC_DEFAULT, CF_MUSIC_MODEL_DEFAULT};
+pub use cf_video::{cf_video_run, CF_VIDEO_MODEL_DEFAULT};
+pub use lyria::{lyria_run, LYRIA_MODEL_DEFAULT};
 pub use embed_cache::{
     embed_cache_evict_spawn, embed_cache_evict_stale, embed_cache_get_many_touch, embed_cache_get_touch,
     embed_cache_put, embed_cached, EmbedCacheResult, EMBED_CACHE_RETENTION_DAYS, EMBED_DIMENSIONS_DEFAULT,
@@ -25,7 +35,7 @@ pub use embed_gemini::{embed_text, embed_token_est, EmbedTextResult, EMBED_MODEL
 pub use model_catalog::{
     model_chain_for_slug, model_is_alien, model_log_label, model_resolve_target, ModelTarget,
 };
-pub use catalog_sync::llm_catalog_spawn;
+pub use catalog_sync::{llm_catalog_spawn, llm_catalog_sync_force};
 pub use fetch_catalog::{llm_catalog_nats_subscribe, LlmCatalogFetchTask};
 pub use catalog_resolve::{catalog_alien_chain_build, catalog_alien_chain_effective, catalog_alien_default, catalog_provider_model};
 pub use llm_catalog::{

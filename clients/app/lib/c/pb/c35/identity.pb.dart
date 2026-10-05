@@ -35,6 +35,7 @@ class IdentityProfile extends $pb.GeneratedMessage {
     $core.String? locationSource,
     $core.String? email,
     $core.Iterable<$core.String>? globalRoles,
+    $core.String? metaJson,
   }) {
     final result = IdentityProfile._();
     if (iid != null) result.iid = iid;
@@ -53,6 +54,7 @@ class IdentityProfile extends $pb.GeneratedMessage {
     if (locationSource != null) result.locationSource = locationSource;
     if (email != null) result.email = email;
     if (globalRoles != null) result.globalRoles.addAll(globalRoles);
+    if (metaJson != null) result.metaJson = metaJson;
     return result;
   }
 
@@ -85,6 +87,7 @@ class IdentityProfile extends $pb.GeneratedMessage {
     ..aOS(14, _omitFieldNames ? '' : 'locationSource')
     ..aOS(15, _omitFieldNames ? '' : 'email')
     ..pPS(16, _omitFieldNames ? '' : 'globalRoles')
+    ..aOS(17, _omitFieldNames ? '' : 'metaJson')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -248,6 +251,15 @@ class IdentityProfile extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(16)
   $pb.PbList<$core.String> get globalRoles => $_getList(15);
+
+  @$pb.TagNumber(17)
+  $core.String get metaJson => $_getSZ(16);
+  @$pb.TagNumber(17)
+  set metaJson($core.String value) => $_setString(16, value);
+  @$pb.TagNumber(17)
+  $core.bool hasMetaJson() => $_has(16);
+  @$pb.TagNumber(17)
+  void clearMetaJson() => $_clearField(17);
 }
 
 class NavCounts extends $pb.GeneratedMessage {

@@ -6,6 +6,7 @@ import 'package:alienai_c35/c/billing/billing_play_checkout.dart';
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/billing/billing_topup.dart';
+import 'package:alienai_c35/widgets/billing/ui_billing_purchase_disclaimer.dart';
 import 'package:alienai_c35/widgets/billing/ui_billing_purchase_success_dialog.dart';
 import 'package:flutter/material.dart';
 
@@ -122,6 +123,7 @@ class _UiBillingPlayTopupPanelState extends State<UiBillingPlayTopupPanel> {
           const SizedBox(height: 6),
           const Text('Waiting for Google Play…', textAlign: TextAlign.center, style: TextStyle(color: _muted, fontSize: 12)),
         ],
+        const UiBillingPurchaseDisclaimer(padding: EdgeInsets.only(top: 14)),
       ],
     );
   }

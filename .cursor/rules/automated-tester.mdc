@@ -1,6 +1,7 @@
 ---
 description: Fixed test identity (iid 33000) for agents, MCP, and integration tests
-alwaysApply: true
+globs: servers/**/tests/**,clients/app/test/**,_/schemas/identity.sql
+alwaysApply: false
 ---
 
 # Alien AI Automated Tester

@@ -18,57 +18,12 @@ Default **message / trace inspection** for “what did I see in the app?” → 
 
 Default **automated regression** → **`owner_iid = 33000`**.
 
-## Inspecting a turn today (no dedicated MCP yet)
+## Inspecting a turn
 
-Trace is **not** returned by a prompt MCP tool yet. It is stored server-side:
+Prefer `msg_get` / `trace_get` / `msg_find` / `log_tail` on the `c35` MCP. Fall back to `yb` SQL on `ai.chat_msg` and `ai.log` (`database=c35`).
 
-| Store | Key | Contents |
-|-------|-----|----------|
-| `ai.chat_msg` | `id` (msg id), `req_id`, `chat_id` | `content`, `blocks_json`, tokens, cost |
-| `ai.log` | `req_id`, `owner_iid` | `trace_tool_filter`, `trace_prepare`, `llm_call`, `tool`, … with `meta` JSON |
+1. Message id → that row plus the same `req_id` in `ai.log`.
+2. `req_id` → `chat_msg` + `log`.
+3. Text only to discover ids → `owner_iid = 99000`, `content ILIKE`, newest first.
 
-**Best workflow:**
-
-1. **You have a message id** (from UI / copy) → query that row + same `req_id` log lines.
-2. **You have req_id** (from usage detail / tester UI) → join `chat_msg` + `log`.
-3. **Search by text** → `owner_iid = 99000`, `content ILIKE`, recent first, then drill into `req_id`.
-
-Example (via global `yb` MCP, `database=c35`):
-
-```sql
--- By message id
-SELECT id, chat_id, req_id, role, content, blocks_json, cost_usd, created_ts
-FROM ai.chat_msg WHERE owner_iid = 99000 AND id = $msg_id AND deleted_ts IS NULL;
-
--- Trace for that turn
-SELECT kind, topic, text, model, tokens_in, tokens_out, duration_ms, cost_usd, meta, created_ts
-FROM ai.log WHERE owner_iid = 99000 AND req_id = $req_id ORDER BY created_ts;
-
--- Recent search (last 7 days)
-SELECT id, chat_id, req_id, role, left(content, 120) AS preview, created_ts
-FROM ai.chat_msg
-WHERE owner_iid = 99000 AND deleted_ts IS NULL AND content ILIKE '%what do I eat%'
-ORDER BY created_ts DESC LIMIT 20;
-```
-
-## `c35` MCP tools (shipped)
-
-| Tool | Purpose |
-|------|---------|
-| `log_tail` | Tail `ai.log` **DESC** by `created_ts`; default owner **99000**; `global=true` for all owners; optional `q` grep. Domain **events**: `text` is **English** at emit; filter `meta` / `event_kind` when added — see [`_/docs/event.md`](../../_/docs/event.md) |
-| `trace_get` | Full turn trace from `ai.log` by `req_id` (ASC) |
-| `msg_get` | `{ msg_id }` or `{ req_id }` → message + blocks + trace |
-| `msg_find` | Search messages (default `owner_iid=99000`) |
-| `tool_exec` | Cluster tool via server HTTP — default **33000**, **99000** allowed; see [`_/docs/mcp-security.md`](../../_/docs/mcp-security.md) |
-| `prompt_compose` | Inst + tool selection preview + compose trace — default **33000**, **99000** allowed |
-| `prompt_run` | Full prompt turn + inline **trace** — default **33000**, use **99000** for chito data (see `prompt-run-test.md`) |
-| `inst_*` | CRUD on `ai.inst` |
-| `device_list` / `device_get` / `device_log_tail` | Remote presence + agent logs (default **99000**) |
-| `device_screenshot` / `device_command` / `device_input` | Typed device tools (default **99000**) |
-| `device_list_http` / `device_get_http` | Same via `/v1/mcp/agent` without SQL |
-
-Global **`yb`** MCP still useful for ad-hoc SQL and `meta` joins.
-
-**Remote device control:** see `device-control-chito.md` — **99000** only unless user explicitly names another owner.
-
-Prefer **msg id** when you have it (exact). Use **text search** only to discover ids.
+`prompt_run` / `prompt_compose` default to **33000**. Pass **99000** for Chito's data. Device tools default to **99000**; do not drive another owner's devices (`device-control-chito.md`).

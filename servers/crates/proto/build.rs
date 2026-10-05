@@ -26,6 +26,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "device.proto",
         "catalog.proto",
         "hint.proto",
+        "live.proto",
         "session.proto",
         "voice.proto",
         "stats.proto",

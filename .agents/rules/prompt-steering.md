@@ -1,6 +1,7 @@
 ---
 description: Topic / tool / inst steering — confine with topic, steer with inst, fix wrong tools in order
-alwaysApply: true
+globs: servers/crates/mod_chat/**,_/schemas/inst.sql,_/schemas/topic.sql,_/docs/inst.md
+alwaysApply: false
 ---
 
 # Prompt steering (topic · tool · inst)

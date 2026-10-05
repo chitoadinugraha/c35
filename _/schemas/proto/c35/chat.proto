@@ -494,3 +494,27 @@ message ResChatCompact {
   double cost_usd = 4;
   ContextUsage usage = 5;
 }
+
+// Regenerate one media block (image / video / music) with optional provider override.
+message ReqMediaRegenerate {
+  int64 msg_id = 1;
+  int32 block_index = 2;
+  string provider = 3;       // media provider slug (empty = saved pref or auto)
+  bool set_default = 4;      // persist provider override to identity meta
+  int64 chat_id = 5;
+  string media_model = 6;
+  string aspect_ratio = 7;
+  int32 duration_sec = 8;
+  bool instrumental = 9;
+}
+
+message ResMediaRegenerate {
+  string blocks_json = 1;
+  double retail_usd = 2;
+  string media_provider = 3;
+  string generation_image = 4;
+  string generation_video = 5;
+  string generation_music = 6;
+  string req_id = 7;
+  int64 msg_id = 8;
+}

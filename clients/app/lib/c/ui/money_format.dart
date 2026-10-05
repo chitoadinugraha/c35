@@ -68,3 +68,15 @@ String moneyAllowanceLabel(double usd, {String currency = moneyDefaultCurrency, 
   if (cur == 'IDR') return moneyFmtIdr(local);
   return '$cur ${local.toStringAsFixed(2)}';
 }
+
+/// User-facing rate from wholesale/retail stored as USD (e.g. live $/min).
+String moneyUsdPerMinLabel(
+  double usdPerMin, {
+  String currency = moneyDefaultCurrency,
+  int fxMicroPerUsd = moneyDefaultFxMicroPerUsd,
+}) {
+  if (usdPerMin <= 0) return '';
+  final unit = moneyCostLabel(usdPerMin, currency: currency, fxMicroPerUsd: fxMicroPerUsd);
+  if (unit.isEmpty) return '';
+  return '~$unit/min';
+}

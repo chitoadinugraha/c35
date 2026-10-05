@@ -11,6 +11,7 @@ use crate::catalog_resolve::catalog_alien_chain_effective;
 
 pub const CONFIG_KEY_ALIEN_CHAIN: &str = "llm.alien_chain";
 pub const CONFIG_KEY_CF_GATEWAY: &str = "llm.cf_gateway";
+pub const CF_ACCOUNT_ID_DEFAULT: &str = "13bbda4c964029cb15bb16c7d57ec548";
 
 #[derive(Clone, Debug, Default)]
 pub struct CfGatewayRuntime {
@@ -57,17 +58,75 @@ fn env_or(key: &str) -> String {
     std::env::var(key).unwrap_or_default().trim().to_string()
 }
 
+fn cf_account_id_from_env() -> String {
+    env_or("CLOUDFLARE_ACCOUNT_ID").if_empty_then(&env_or("CF_ACCOUNT_ID"))
+}
+
+fn cf_api_token_from_env() -> String {
+    std::env::var("CLOUDFLARE_AIG_API_TOKEN")
+        .or_else(|_| std::env::var("CLOUDFLARE_API_TOKEN"))
+        .or_else(|_| std::env::var("CF_API_TOKEN"))
+        .unwrap_or_default()
+        .trim()
+        .to_string()
+}
+
 pub fn cf_gateway_from_env() -> CfGatewayRuntime {
+    let api_token = cf_api_token_from_env();
+    let account_id = cf_account_id_from_env();
+    let account_id = if account_id.is_empty() && !api_token.is_empty() {
+        CF_ACCOUNT_ID_DEFAULT.to_string()
+    } else {
+        account_id
+    };
     CfGatewayRuntime {
         enabled: true,
-        account_id: env_or("CLOUDFLARE_ACCOUNT_ID"),
+        account_id,
         gateway_id: env_or("CLOUDFLARE_AI_GATEWAY_ID").if_empty_then("default"),
-        api_token: std::env::var("CLOUDFLARE_AIG_API_TOKEN")
-            .or_else(|_| std::env::var("CLOUDFLARE_API_TOKEN"))
-            .unwrap_or_default()
-            .trim()
-            .to_string(),
+        api_token,
     }
+}
+
+pub async fn cf_account_id_from_token(token: &str) -> Option<String> {
+    let token = token.trim();
+    if token.is_empty() {
+        return None;
+    }
+    let resp = reqwest::Client::new()
+        .get("https://api.cloudflare.com/client/v4/accounts?per_page=1")
+        .header("Authorization", format!("Bearer {}", token))
+        .timeout(Duration::from_secs(15))
+        .send()
+        .await;
+    let resp = match resp {
+        Ok(r) if r.status().is_success() => r,
+        Ok(r) => {
+            warn!(status = %r.status(), "cf account lookup failed");
+            return None;
+        }
+        Err(e) => {
+            warn!(error = %e, "cf account lookup request failed");
+            return None;
+        }
+    };
+    let v: serde_json::Value = resp.json().await.ok()?;
+    v.get("result")
+        .and_then(|r| r.as_array())
+        .and_then(|a| a.first())
+        .and_then(|o| o.get("id"))
+        .and_then(|id| id.as_str())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+}
+
+async fn cf_gateway_finalize(mut cfg: CfGatewayRuntime) -> CfGatewayRuntime {
+    if !cfg.enabled || cfg.api_token.is_empty() || !cfg.account_id.is_empty() {
+        return cfg;
+    }
+    cfg.account_id = cf_account_id_from_token(&cfg.api_token)
+        .await
+        .unwrap_or_else(|| CF_ACCOUNT_ID_DEFAULT.to_string());
+    cfg
 }
 
 trait StrEmpty {
@@ -160,6 +219,7 @@ pub async fn runtime_config_reload(pool: &PgPool) {
             cf_gateway_from_env()
         }
     };
+    let cf = cf_gateway_finalize(cf).await;
     {
         let mut state = RUNTIME.write().expect("runtime lock");
         state.alien_models = alien;

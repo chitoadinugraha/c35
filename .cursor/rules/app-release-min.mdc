@@ -1,6 +1,7 @@
 ---
 description: When to bump app release min build and C35AppId on breaking changes
-alwaysApply: true
+globs: _/scripts/deploy/publish_app_release.ps1,_/scripts/deploy/deploy_app/**,clients/app/lib/**/app_id*.dart
+alwaysApply: false
 ---
 
 # App release `min` and `C35AppId`

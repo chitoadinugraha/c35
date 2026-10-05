@@ -365,8 +365,9 @@ class _HistoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final included = billingHistoryIncluded(row);
     final amt = row.hasAmount() ? row.amount : (row.amountUsd != 0 ? row.amountUsd : -row.amountIdr);
-    final sign = amt < 0 ? '-' : '+';
+    final sign = included ? '' : (amt < 0 ? '-' : '+');
     final isUsage = row.kind == 'usage';
     final icon = isUsage ? Icons.bolt_outlined : Icons.add_card_outlined;
     final iconColor = isUsage ? const Color(0xFFFBBF24) : const Color(0xFF60A5FA);
@@ -422,10 +423,12 @@ class _HistoryTile extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '$sign${billingHistoryAmountLabel(row)}',
+                  included ? 'Included' : '$sign${billingHistoryAmountLabel(row)}',
                   style: TextStyle(
-                    color: sign == '-' ? const Color(0xFFF87171) : const Color(0xFF34D399),
-                    fontWeight: FontWeight.w700,
+                    color: included
+                        ? _muted
+                        : (sign == '-' ? const Color(0xFFF87171) : const Color(0xFF34D399)),
+                    fontWeight: included ? FontWeight.w600 : FontWeight.w700,
                     fontSize: 13,
                   ),
                 ),

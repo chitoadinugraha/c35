@@ -25,6 +25,7 @@ pub const MENTION_SQL: &str = include_str!("../../../../_/schemas/mention.sql");
 pub const TRANSLATION_SQL: &str = include_str!("../../../../_/schemas/translation.sql");
 pub const PRESENTATION_THEME_SQL: &str = include_str!("../../../../_/schemas/presentation_theme.sql");
 pub const HINT_SQL: &str = include_str!("../../../../_/schemas/hint.sql");
+pub const LIVE_OFFER_SQL: &str = include_str!("../../../../_/schemas/live_offer.sql");
 pub const MEMORY_SQL: &str = include_str!("../../../../_/schemas/memory.sql");
 pub const OBJECT_NORMALIZER_SQL: &str = include_str!("../../../../_/schemas/object_normalizer.sql");
 pub const CHANNEL_SQL: &str = include_str!("../../../../_/schemas/channel.sql");
@@ -51,6 +52,7 @@ pub const SCHEMA_APPLY_ORDER: &[(&str, &str)] = &[
     ("translation", TRANSLATION_SQL),
     ("presentation_theme", PRESENTATION_THEME_SQL),
     ("hint", HINT_SQL),
+    ("live_offer", LIVE_OFFER_SQL),
     ("memory", MEMORY_SQL),
     ("skill", SKILL_SQL),
     ("task", TASK_SQL),

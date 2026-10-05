@@ -29,6 +29,7 @@ c35_mod_drive = { path = "../crates/mod_drive", package = "c35_mod_drive" }
 c35_mod_site = { path = "../crates/mod_site", package = "c35_mod_site" }
 c35_mod_mail = { path = "../crates/mod_mail", package = "c35_mod_mail" }
 c35_mod_llm = { path = "../crates/mod_llm", package = "c35_mod_llm" }
+c35_mod_live = { path = "../crates/mod_live", package = "c35_mod_live" }
 c35_mod_log = { path = "../crates/mod_log", package = "c35_mod_log" }
 tokio = { workspace = true }
 tower-http = { workspace = true }

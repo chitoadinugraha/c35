@@ -34,3 +34,7 @@ prompt_run {
 - `trace.trace[].meta` — `trace_tool_filter` with `fed`, `sim`, `ranker`
 
 Do not claim fixed without at least `prompt_compose` on the failing phrase; prefer `prompt_run` for tool-call bugs.
+
+New Home-routable tool: `ToolDefinition` + `inst.sql` + a live `ai.inst` row (a git seed is not live). Keep the tool description stable; put extra match text in `rag_phrases`.
+
+Wrong tool: topic eligibility, then tool metadata, then inst. Do not start at inst.

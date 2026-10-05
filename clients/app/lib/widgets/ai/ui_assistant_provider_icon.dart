@@ -8,16 +8,44 @@ String? assistantProviderIconifyId(String provider) => switch (provider) {
       'openai' => 'logos:openai-icon',
       'anthropic' => 'logos:claude-icon',
       'deepseek' => 'logos:deepseek-icon',
+      'moonshot' => 'simple-icons:moonshotai',
+      'meta' => 'logos:meta-icon',
+      'mistral' => 'logos:mistral-ai-icon',
+      'qwen' => 'simple-icons:alibabacloud',
+      'cohere' => 'mdi:creation-outline',
+      'perplexity' => 'simple-icons:perplexity',
+      'nvidia' => 'simple-icons:nvidia',
+      'microsoft' => 'simple-icons:microsoft',
+      'amazon' => 'simple-icons:amazon',
+      'baidu' => 'simple-icons:baidu',
+      'minimax' => 'simple-icons:minimax',
+      'zai' => 'mdi:sparkles',
       'ollama' => 'simple-icons:ollama',
       'cloudflare' => 'simple-icons:cloudflare',
       'openrouter' => 'simple-icons:openrouter',
       _ => null,
     };
 
-bool assistantProviderUsesLightTile(String provider) => provider == 'xai' || provider == 'openai';
+bool assistantProviderUsesLightTile(String provider) =>
+    provider == 'xai' || provider == 'openai' || provider == 'meta' || provider == 'mistral';
 
 bool assistantProviderRecolor(String provider) => switch (provider) {
-      'google' || 'ollama' || 'cloudflare' || 'openrouter' || 'xai' => true,
+      'google' ||
+      'ollama' ||
+      'cloudflare' ||
+      'openrouter' ||
+      'xai' ||
+      'moonshot' ||
+      'qwen' ||
+      'perplexity' ||
+      'nvidia' ||
+      'microsoft' ||
+      'amazon' ||
+      'baidu' ||
+      'minimax' ||
+      'zai' ||
+      'cohere' =>
+        true,
       _ => false,
     };
 
@@ -27,6 +55,16 @@ Color? assistantProviderIconColor(String provider) => switch (provider) {
       'cloudflare' => const Color(0xFFF38020),
       'openrouter' => const Color(0xFFF4F4F5),
       'xai' => const Color(0xFF18181B),
+      'moonshot' => const Color(0xFFFBBF24),
+      'qwen' => const Color(0xFFFF6A00),
+      'perplexity' => const Color(0xFF22B8CD),
+      'nvidia' => const Color(0xFF76B900),
+      'microsoft' => const Color(0xFF00A4EF),
+      'amazon' => const Color(0xFFFF9900),
+      'baidu' => const Color(0xFF2932E1),
+      'minimax' => const Color(0xFFA78BFA),
+      'zai' => const Color(0xFF38BDF8),
+      'cohere' => const Color(0xFFD18EE2),
       _ => null,
     };
 

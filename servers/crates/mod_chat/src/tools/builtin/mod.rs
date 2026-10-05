@@ -8,6 +8,8 @@ mod delegate;
 mod device;
 mod img_edit;
 mod img_generate;
+mod music_generate;
+mod vid_generate;
 mod presentation_export;
 mod referral;
 mod site;
@@ -42,6 +44,8 @@ pub use device::{
 };
 pub use img_edit::ImgEditTool;
 pub use img_generate::ImgGenerateTool;
+pub use music_generate::MusicGenerateTool;
+pub use vid_generate::VidGenerateTool;
 pub use presentation_export::{
     presentation_export_exec,
     PresentationCreateTool, PresentationPatchTool,

@@ -10,6 +10,7 @@ Before implementing features, changing behavior, or making architectural decisio
 1. Read [`spec.md`](../../spec.md) for locked decisions, phase scope, and the docs index
 2. Read the relevant module doc(s) under `_/docs/` (e.g. `identity.md`, `chat.md`, `ui.md`)
 3. Check `_/schemas/` for SQL and proto contracts when touching data or wire types
+4. App UI pushes use `c35.user.{iid}.app.*`. Lifecycle events use `.ev.*` or `c35.ev.*`. Do not publish LLM or tool traces on NATS.
 
 If code and docs disagree, match the docs — or revise the doc first, then implement.
 

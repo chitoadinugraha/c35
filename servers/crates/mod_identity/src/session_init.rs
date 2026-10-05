@@ -25,6 +25,9 @@ pub async fn session_init(ctx: &Ctx, req: ReqSessionInit, geo: Option<&GeoHint>)
         &req.location_region,
         &req.location_country,
         &req.location_source,
+        &req.generation_image,
+        &req.generation_video,
+        &req.generation_music,
     )
     .await;
     if !client_set_location {
@@ -69,5 +72,6 @@ pub async fn session_init(ctx: &Ctx, req: ReqSessionInit, geo: Option<&GeoHint>)
         models: vec![],
         mentions: None,
         hints: None,
+        live: None,
     })
 }

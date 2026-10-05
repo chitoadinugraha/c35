@@ -9,15 +9,15 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     await VoicePrefs.instance.load();
     expect(VoicePrefs.instance.talkEnabled, isFalse);
-    expect(VoicePrefs.instance.speakEnabled, isFalse);
+    expect(VoicePrefs.instance.speakEnabled, isTrue);
 
     await VoicePrefs.instance.setTalkEnabled(true);
     expect(VoicePrefs.instance.talkEnabled, isTrue);
-    expect(VoicePrefs.instance.speakEnabled, isFalse);
+    expect(VoicePrefs.instance.speakEnabled, isTrue);
 
     await VoicePrefs.instance.load();
     expect(VoicePrefs.instance.talkEnabled, isTrue);
-    expect(VoicePrefs.instance.speakEnabled, isFalse);
+    expect(VoicePrefs.instance.speakEnabled, isTrue);
 
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getBool('voice_talk_enabled'), isTrue);

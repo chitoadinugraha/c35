@@ -8,6 +8,7 @@ import "c35/chat.proto";
 import "c35/sync.proto";
 import "c35/catalog.proto";
 import "c35/hint.proto";
+import "c35/live.proto";
 
 // Connect: /v1/ws?since=<ms>&jwt=...&locale=...&tz=...&build=<n>&version_name=...
 // `v` is an alias for `build` on the query string.
@@ -42,6 +43,10 @@ message ReqSessionInit {
   string location_source = 13;
   int64 app_build = 14;
   string app_version_name = 15;
+  // Client media generation defaults (auto | gemini | grok | seedance | minimax | elevenlabs)
+  string generation_image = 17;
+  string generation_video = 18;
+  string generation_music = 19;
 }
 
 message ResSessionInit {
@@ -71,4 +76,7 @@ message ResSessionInit {
 
   // Precompiled home hints (ai.hint_bundle)
   HintCatalog hints = 13;
+
+  // Live Call offers (ai.live_offer) — not in chat model picker
+  LiveCatalog live = 14;
 }

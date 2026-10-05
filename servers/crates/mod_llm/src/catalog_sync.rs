@@ -1,3 +1,4 @@
+use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 
 use anyhow::{Context, Result};
@@ -6,12 +7,15 @@ use c35_store::db_retry;
 use serde_json::Value;
 use sqlx::PgPool;
 
-use crate::catalog_price::{price_for_model_id, DEFAULT_INPUT_MICRO_PER_M, DEFAULT_OUTPUT_MICRO_PER_M};
-use crate::catalog_rank::{alien_chain_sort_cmp, assign_picker_order, family_of, gemini_chat_eligible, pick_default_provider, version_rank_of};
+use crate::catalog_price::{ALIEN_POOL_USD_IN_PER_1M, ALIEN_POOL_USD_OUT_PER_1M};
+use crate::catalog_rank::{
+    alien_chain_sort_cmp, assign_picker_order, chat_picker_id_eligible, chat_picker_label_eligible, family_of,
+    gemini_chat_eligible, pick_default_provider, version_rank_of,
+};
 use crate::runtime_config::{cf_gateway_config, cf_gateway_ready};
 use crate::embed_gemini::gemini_api_key;
 use crate::catalog_types::LlmModelRow;
-use crate::llm_catalog::{llm_catalog_reload, sync_enabled, upsert_model, SYNC_INTERVAL_SECS};
+use crate::llm_catalog::{llm_catalog_reload, sync_enabled, sync_interval_secs, upsert_model};
 use crate::runtime_config::{runtime_config_reload, CONFIG_KEY_ALIEN_CHAIN};
 
 pub fn llm_catalog_spawn(pool: PgPool) {
@@ -19,7 +23,7 @@ pub fn llm_catalog_spawn(pool: PgPool) {
         return;
     }
     tokio::spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_secs(SYNC_INTERVAL_SECS));
+        let mut interval = tokio::time::interval(Duration::from_secs(sync_interval_secs()));
         interval.tick().await;
         loop {
             interval.tick().await;
@@ -38,11 +42,21 @@ pub async fn llm_catalog_sync(pool: &PgPool) -> Result<()> {
 pub async fn llm_catalog_sync_force(pool: &PgPool) -> Result<usize> {
     runtime_config_reload(pool).await;
     let synced_at = Utc::now();
-    let mut fetched = gemini_fetch().await?;
-    let cf = cf_models_fetch().await?;
+    let mut cf = cf_models_fetch().await?;
+    if cf.is_empty() {
+        cf = openrouter_catalog_fetch().await?;
+    }
+    if cf.is_empty() && !cf_gateway_ready() {
+        tracing::warn!(
+            "llm_catalog sync: CF AI gateway not configured — set CLOUDFLARE_API_TOKEN + account (env or ai.config llm.cf_gateway)"
+        );
+    }
     prune_stale_cf(pool, &cf).await?;
-    prune_stale_seed_frontier(pool, &cf).await?;
-    fetched.extend(cf);
+    prune_stale_manual_seed(pool, &cf).await?;
+    let cf_ids: HashSet<String> = cf.iter().map(|m| m.id.clone()).collect();
+    let price_index = pricing_index_from_rows(&cf);
+    let mut fetched = cf;
+    fetched.extend(gemini_fetch(&price_index, &cf_ids).await?);
     for m in fetched.iter_mut() {
         upsert_model(pool, m, synced_at).await?;
     }
@@ -70,7 +84,7 @@ pub async fn llm_catalog_sync_force(pool: &PgPool) -> Result<usize> {
 
 pub fn pinned_seed_fingerprint() -> String {
     let mut h = blake3::Hasher::new();
-    for m in pinned_models().into_iter().chain(frontier_seed_models()) {
+    for m in pinned_models() {
         h.update(m.id.as_bytes());
         h.update(m.provider.as_bytes());
         h.update(m.label.as_bytes());
@@ -94,8 +108,8 @@ pub fn pinned_models() -> Vec<LlmModelRow> {
         provider: "alienai".into(),
         label: "Alien AI".into(),
         provider_model: String::new(),
-        input_micro_per_m: DEFAULT_INPUT_MICRO_PER_M,
-        output_micro_per_m: DEFAULT_OUTPUT_MICRO_PER_M,
+        input_micro_per_m: (ALIEN_POOL_USD_IN_PER_1M * 1_000_000.0).round() as i64,
+        output_micro_per_m: (ALIEN_POOL_USD_OUT_PER_1M * 1_000_000.0).round() as i64,
         supports_thinking: true,
         enabled: true,
         is_default: true,
@@ -106,80 +120,27 @@ pub fn pinned_models() -> Vec<LlmModelRow> {
     }]
 }
 
-fn frontier_seed_row(
-    id: &str,
-    provider: &str,
-    label: &str,
-    provider_model: &str,
-    family: &str,
-    supports_thinking: bool,
-    version_rank: i32,
-) -> LlmModelRow {
-    let (input_micro_per_m, output_micro_per_m) = price_for_model_id(id)
-        .or_else(|| price_for_model_id(provider_model))
-        .unwrap_or((DEFAULT_INPUT_MICRO_PER_M, DEFAULT_OUTPUT_MICRO_PER_M));
-    LlmModelRow {
-        id: id.into(),
-        provider: provider.into(),
-        label: label.into(),
-        provider_model: provider_model.into(),
-        input_micro_per_m,
-        output_micro_per_m,
-        supports_thinking,
-        enabled: true,
-        is_default: false,
-        sort_order: 0,
-        family: family.into(),
-        version_rank,
-        source: "seed".into(),
+fn pricing_index_from_rows(rows: &[LlmModelRow]) -> HashMap<String, (i64, i64)> {
+    let mut out = HashMap::new();
+    for m in rows {
+        out.insert(m.id.clone(), (m.input_micro_per_m, m.output_micro_per_m));
+        if m.provider == "google" {
+            out.insert(format!("google/{}", m.id), (m.input_micro_per_m, m.output_micro_per_m));
+        }
     }
+    out
 }
 
-/// Popular frontier models (Cloudflare gateway slugs). Kept when CF catalog sync is unavailable.
-pub fn frontier_seed_models() -> Vec<LlmModelRow> {
-    vec![
-        frontier_seed_row("gpt-4o", "openai", "GPT-4o", "openai/gpt-4o", "gpt-4o", false, 0),
-        frontier_seed_row("gpt-4o-mini", "openai", "GPT-4o mini", "openai/gpt-4o-mini", "gpt-4o", false, 0),
-        frontier_seed_row("gpt-4.1", "openai", "GPT-4.1", "openai/gpt-4.1", "gpt-4", false, 41),
-        frontier_seed_row("gpt-4.1-mini", "openai", "GPT-4.1 mini", "openai/gpt-4.1-mini", "gpt-4", false, 41),
-        frontier_seed_row(
-            "claude-sonnet-4-5",
-            "anthropic",
-            "Claude Sonnet 4.5",
-            "anthropic/claude-sonnet-4-5",
-            "claude",
-            false,
-            45,
-        ),
-        frontier_seed_row(
-            "claude-3-5-haiku-latest",
-            "anthropic",
-            "Claude 3.5 Haiku",
-            "anthropic/claude-3-5-haiku-latest",
-            "claude",
-            false,
-            35,
-        ),
-        frontier_seed_row(
-            "deepseek-chat",
-            "deepseek",
-            "DeepSeek Chat",
-            "deepseek/deepseek-chat",
-            "chat",
-            false,
-            0,
-        ),
-        frontier_seed_row(
-            "deepseek-reasoner",
-            "deepseek",
-            "DeepSeek Reasoner",
-            "deepseek/deepseek-reasoner",
-            "reasoner",
-            true,
-            0,
-        ),
-        frontier_seed_row("grok-2-latest", "xai", "Grok 2", "x-ai/grok-2-latest", "grok", false, 2),
-    ]
+fn pricing_lookup(index: &HashMap<String, (i64, i64)>, id: &str) -> Option<(i64, i64)> {
+    let key = id.trim();
+    index
+        .get(key)
+        .copied()
+        .or_else(|| {
+            index
+                .get(&format!("google/{}", key.strip_prefix("models/").unwrap_or(key)))
+                .copied()
+        })
 }
 
 async fn prune_stale_google(pool: &PgPool, fetched: &[LlmModelRow]) -> Result<()> {
@@ -213,6 +174,11 @@ async fn sync_alien_meta(pool: &PgPool, fetched: &[LlmModelRow]) -> Result<()> {
         return Ok(());
     }
     let default = chain[0].clone();
+    let wholesale = fetched
+        .iter()
+        .find(|m| m.id == default || m.provider_model == default)
+        .map(|m| (m.input_micro_per_m, m.output_micro_per_m))
+        .unwrap_or((0, 0));
     db_retry(pool, || async {
         sqlx::query(
             "UPDATE ai.llm_model SET provider_model = $1, input_micro_per_m = $2, output_micro_per_m = $3, \
@@ -220,8 +186,8 @@ async fn sync_alien_meta(pool: &PgPool, fetched: &[LlmModelRow]) -> Result<()> {
              WHERE id = 'alienai' AND source = 'pinned'",
         )
         .bind(&default)
-        .bind(price_for_model_id(&default).map(|p| p.0).unwrap_or(DEFAULT_INPUT_MICRO_PER_M))
-        .bind(price_for_model_id(&default).map(|p| p.1).unwrap_or(DEFAULT_OUTPUT_MICRO_PER_M))
+        .bind(wholesale.0)
+        .bind(wholesale.1)
         .bind(version_rank_of(&default))
         .execute(pool)
         .await
@@ -242,7 +208,7 @@ async fn sync_alien_meta(pool: &PgPool, fetched: &[LlmModelRow]) -> Result<()> {
     Ok(())
 }
 
-async fn gemini_fetch() -> Result<Vec<LlmModelRow>> {
+async fn gemini_fetch(price_index: &HashMap<String, (i64, i64)>, cf_ids: &HashSet<String>) -> Result<Vec<LlmModelRow>> {
     let key = gemini_api_key();
     if key.is_empty() {
         return Ok(Vec::new());
@@ -275,8 +241,13 @@ async fn gemini_fetch() -> Result<Vec<LlmModelRow>> {
             continue;
         }
         let family = family_of(&id);
+        if cf_ids.contains(&id) {
+            continue;
+        }
         let label = raw["displayName"].as_str().unwrap_or(&id).to_string();
-        let (in_ppm, out_ppm) = price_for_model_id(&id).unwrap_or((DEFAULT_INPUT_MICRO_PER_M, DEFAULT_OUTPUT_MICRO_PER_M));
+        let Some((in_ppm, out_ppm)) = pricing_lookup(price_index, &id) else {
+            continue;
+        };
         let version_rank = version_rank_of(&id);
         let supports_thinking = id.contains("gemini-3") || id.contains("2.5");
         let provider_model = id.clone();
@@ -305,31 +276,53 @@ async fn cf_models_fetch() -> Result<Vec<LlmModelRow>> {
         return Ok(Vec::new());
     }
     let cfg = cf_gateway_config();
-    let url = format!(
-        "https://api.cloudflare.com/client/v4/accounts/{}/ai/models/search?format=openrouter&per_page=200&hide_experimental=true",
-        cfg.account_id
-    );
-    let resp = reqwest::Client::new()
-        .get(&url)
-        .header("Authorization", format!("Bearer {}", cfg.api_token))
-        .timeout(Duration::from_secs(45))
-        .send()
-        .await
-        .context("cf models search")?;
-    if !resp.status().is_success() {
-        let status = resp.status();
-        let body = resp.text().await.unwrap_or_default();
-        tracing::warn!(
-            status = %status,
-            hint = %cf_api_error_hint(&body),
-            "cf models search failed; skipping CF catalog (CLOUDFLARE_ACCOUNT_ID + token with Workers AI Read)"
+    let client = reqwest::Client::new();
+    let mut raw_rows: Vec<Value> = Vec::new();
+    const PER_PAGE: u32 = 200;
+    const MAX_PAGES: u32 = 40;
+    for page in 1..=MAX_PAGES {
+        let url = format!(
+            "https://api.cloudflare.com/client/v4/accounts/{}/ai/models/search?format=openrouter&per_page={}&page={}",
+            cfg.account_id,
+            PER_PAGE,
+            page
         );
-        return Ok(Vec::new());
+        let resp = client
+            .get(&url)
+            .header("Authorization", format!("Bearer {}", cfg.api_token))
+            .timeout(Duration::from_secs(45))
+            .send()
+            .await
+            .with_context(|| format!("cf models search page {page}"))?;
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            tracing::warn!(
+                status = %status,
+                page,
+                hint = %cf_api_error_hint(&body),
+                "cf models search failed"
+            );
+            break;
+        }
+        let v: Value = resp.json().await.context("cf models search json")?;
+        let batch = cf_search_result_rows(&v);
+        if batch.is_empty() {
+            break;
+        }
+        let n = batch.len();
+        raw_rows.extend(batch);
+        if n < PER_PAGE as usize {
+            break;
+        }
     }
-    let v: Value = resp.json().await.context("cf models search json")?;
-    let rows = cf_search_result_rows(&v);
+    if raw_rows.is_empty() {
+        tracing::warn!("cf_models_fetch: zero rows from Cloudflare models search (check token Workers AI Read + account id)");
+    } else {
+        tracing::info!(cf_raw_rows = raw_rows.len(), "cf_models_fetch pages merged");
+    }
     let mut out = Vec::new();
-    for raw in rows {
+    for raw in raw_rows {
         let id = raw["id"].as_str().or_else(|| raw["name"].as_str()).unwrap_or("").trim().to_string();
         if id.is_empty() || !cf_chat_eligible(&id) {
             continue;
@@ -340,13 +333,17 @@ async fn cf_models_fetch() -> Result<Vec<LlmModelRow>> {
             .or_else(|| raw["display_name"].as_str())
             .unwrap_or(&slug)
             .to_string();
+        if !chat_picker_label_eligible(&label) {
+            continue;
+        }
         let family = family_of(&slug);
         let version_rank = version_rank_of(&slug);
-        let (in_ppm, out_ppm) = cf_pricing_micro_per_m(&raw)
-            .or_else(|| price_for_model_id(&slug))
-            .unwrap_or((DEFAULT_INPUT_MICRO_PER_M, DEFAULT_OUTPUT_MICRO_PER_M));
+        let Some((in_ppm, out_ppm)) = cf_pricing_micro_per_m(&raw) else {
+            continue;
+        };
         let thinks = slug.contains("gemini-3")
             || slug.contains("claude")
+            || slug.contains("kimi")
             || slug.contains("o1")
             || slug.contains("reasoner")
             || slug.contains("grok");
@@ -371,32 +368,111 @@ async fn cf_models_fetch() -> Result<Vec<LlmModelRow>> {
     Ok(out)
 }
 
-fn cf_provider_slug(id: &str) -> Result<(String, String)> {
-    let lower = id.to_ascii_lowercase();
-    if lower.starts_with("openai/") {
-        return Ok(("openai".into(), lower.strip_prefix("openai/").unwrap_or(&lower).to_string()));
-    }
-    if lower.starts_with("anthropic/") {
-        return Ok(("anthropic".into(), lower.strip_prefix("anthropic/").unwrap_or(&lower).to_string()));
-    }
-    if lower.starts_with("deepseek/") {
-        return Ok(("deepseek".into(), lower.strip_prefix("deepseek/").unwrap_or(&lower).to_string()));
-    }
-    if lower.starts_with("x-ai/") || lower.starts_with("xai/") {
-        let slug = lower
-            .strip_prefix("x-ai/")
-            .or_else(|| lower.strip_prefix("xai/"))
-            .unwrap_or(&lower)
+/// Public OpenRouter model list (live $/token). Used when CF models search returns no rows.
+async fn openrouter_catalog_fetch() -> Result<Vec<LlmModelRow>> {
+    let v: Value = reqwest::Client::new()
+        .get("https://openrouter.ai/api/v1/models")
+        .timeout(Duration::from_secs(60))
+        .send()
+        .await
+        .context("openrouter models")?
+        .error_for_status()
+        .context("openrouter models status")?
+        .json()
+        .await
+        .context("openrouter models json")?;
+    let rows = v.get("data").and_then(|d| d.as_array()).cloned().unwrap_or_default();
+    let out = catalog_rows_from_openrouter_raw(rows)?;
+    tracing::info!(openrouter_models = out.len(), "openrouter_catalog_fetch");
+    Ok(out)
+}
+
+fn catalog_rows_from_openrouter_raw(rows: Vec<Value>) -> Result<Vec<LlmModelRow>> {
+    let mut out = Vec::new();
+    for raw in rows {
+        let id = raw["id"].as_str().or_else(|| raw["name"].as_str()).unwrap_or("").trim().to_string();
+        if id.is_empty() || !cf_chat_eligible(&id) {
+            continue;
+        }
+        let (provider, slug) = cf_provider_slug(&id)?;
+        let label = raw["name"]
+            .as_str()
+            .or_else(|| raw.get("canonical_slug").and_then(|x| x.as_str()))
+            .unwrap_or(&slug)
             .to_string();
-        return Ok(("xai".into(), slug));
+        if !chat_picker_label_eligible(&label) {
+            continue;
+        }
+        let family = family_of(&slug);
+        let version_rank = version_rank_of(&slug);
+        let Some((in_ppm, out_ppm)) = cf_pricing_micro_per_m(&raw) else {
+            continue;
+        };
+        let thinks = slug.contains("gemini-3")
+            || slug.contains("claude")
+            || slug.contains("kimi")
+            || slug.contains("o1")
+            || slug.contains("reasoner")
+            || slug.contains("grok");
+        out.push(LlmModelRow {
+            id: slug,
+            provider,
+            label,
+            provider_model: id,
+            input_micro_per_m: in_ppm,
+            output_micro_per_m: out_ppm,
+            supports_thinking: thinks,
+            enabled: true,
+            is_default: false,
+            sort_order: 0,
+            family,
+            version_rank,
+            source: "cf_api".into(),
+        });
     }
-    if lower.starts_with("google/") {
-        return Err(anyhow::anyhow!("skip google cf model"));
-    }
+    assign_picker_order(&mut out);
+    Ok(out)
+}
+
+/// OpenRouter-style ids from CF models search (`format=openrouter`).
+const CF_CHAT_ID_PREFIXES: &[(&str, &str)] = &[
+    ("openai/", "openai"),
+    ("anthropic/", "anthropic"),
+    ("deepseek/", "deepseek"),
+    ("google/", "google"),
+    ("x-ai/", "xai"),
+    ("xai/", "xai"),
+    ("moonshotai/", "moonshot"),
+    ("meta-llama/", "meta"),
+    ("mistralai/", "mistral"),
+    ("qwen/", "qwen"),
+    ("cohere/", "cohere"),
+    ("perplexity/", "perplexity"),
+    ("nvidia/", "nvidia"),
+    ("microsoft/", "microsoft"),
+    ("z-ai/", "zai"),
+    ("minimax/", "minimax"),
+    ("baidu/", "baidu"),
+    ("amazon/", "amazon"),
+];
+
+pub(crate) fn cf_provider_slug_opt(id: &str) -> Option<(String, String)> {
+    let lower = id.trim().to_ascii_lowercase();
     if lower.starts_with("@cf/") {
-        return Ok(("cloudflare".into(), lower.to_string()));
+        return Some(("cloudflare".into(), lower));
     }
-    Err(anyhow::anyhow!("unsupported cf model id: {id}"))
+    for (pfx, provider) in CF_CHAT_ID_PREFIXES {
+        if let Some(rest) = lower.strip_prefix(pfx) {
+            if !rest.is_empty() {
+                return Some((provider.to_string(), rest.to_string()));
+            }
+        }
+    }
+    None
+}
+
+fn cf_provider_slug(id: &str) -> Result<(String, String)> {
+    cf_provider_slug_opt(id).ok_or_else(|| anyhow::anyhow!("unsupported cf model id: {id}"))
 }
 
 fn cf_search_result_rows(v: &Value) -> Vec<Value> {
@@ -510,28 +586,26 @@ async fn catalog_reindex_sort_orders(pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
-async fn prune_stale_seed_frontier(pool: &PgPool, cf: &[LlmModelRow]) -> Result<()> {
+async fn prune_stale_manual_seed(pool: &PgPool, cf: &[LlmModelRow]) -> Result<()> {
     if cf.is_empty() {
         return Ok(());
     }
-    use std::collections::HashSet;
-    let providers: HashSet<String> = cf.iter().map(|m| m.provider.clone()).collect();
-    for provider in providers {
-        db_retry(pool, || async {
-            sqlx::query(
-                "UPDATE ai.llm_model SET enabled = false, updated_at = NOW() \
-                 WHERE source = 'seed' AND provider = $1 AND deleted_at IS NULL",
-            )
-            .bind(&provider)
-            .execute(pool)
-            .await
-        })
-        .await?;
-    }
+    db_retry(pool, || async {
+        sqlx::query(
+            "UPDATE ai.llm_model SET deleted_at = NOW(), enabled = false, updated_at = NOW() \
+             WHERE source = 'seed' AND deleted_at IS NULL",
+        )
+        .execute(pool)
+        .await
+    })
+    .await?;
     Ok(())
 }
 
 fn cf_chat_eligible(id: &str) -> bool {
+    if !chat_picker_id_eligible(id) {
+        return false;
+    }
     let m = id.to_ascii_lowercase();
     const SKIP: &[&str] = &[
         "embed", "embedding", "whisper", "tts", "dall-e", "image", "moderation", "transcribe", "realtime",
@@ -539,12 +613,7 @@ fn cf_chat_eligible(id: &str) -> bool {
     if SKIP.iter().any(|s| m.contains(s)) {
         return false;
     }
-    m.starts_with("openai/")
-        || m.starts_with("anthropic/")
-        || m.starts_with("deepseek/")
-        || m.starts_with("x-ai/")
-        || m.starts_with("xai/")
-        || m.starts_with("@cf/")
+    cf_provider_slug_opt(id).is_some()
 }
 
 #[cfg(test)]
@@ -571,14 +640,21 @@ mod cf_search_tests {
     }
 
     #[test]
+    fn moonshot_slug_maps_to_provider() {
+        let (p, slug) = super::cf_provider_slug_opt("moonshotai/kimi-k2").expect("moonshot");
+        assert_eq!(p, "moonshot");
+        assert_eq!(slug, "kimi-k2");
+    }
+
+    #[test]
     fn cf_pricing_openrouter_to_micro_per_m() {
         let row = json!({
             "id": "openai/gpt-4o",
-            "pricing": { "prompt": "0.00000025", "completion": "0.000001" }
+            "pricing": { "prompt": "0.0000025", "completion": "0.00001" }
         });
         let (in_ppm, out_ppm) = cf_pricing_micro_per_m(&row).expect("pricing");
-        assert_eq!(in_ppm, 250_000);
-        assert_eq!(out_ppm, 1_000_000);
+        assert_eq!(in_ppm, 2_500_000);
+        assert_eq!(out_ppm, 10_000_000);
     }
 }
 

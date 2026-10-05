@@ -1,6 +1,7 @@
 ---
 description: Keep Cursor and Antigravity MCP configs in sync when editing c35 MCP servers
-alwaysApply: true
+globs: .cursor/mcp.json,.agents/plugins/c35/mcp_config.json,_/mcps/**
+alwaysApply: false
 ---
 
 # c35 MCP config (Cursor + Antigravity)

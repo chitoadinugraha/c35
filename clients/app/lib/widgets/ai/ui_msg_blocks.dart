@@ -6,11 +6,14 @@ import 'package:alienai_c35/c/consumption/consumption_glance.dart';
 import 'package:alienai_c35/c/expense/expense_api.dart';
 import 'package:alienai_c35/c/expense/expense_glance.dart';
 import 'package:alienai_c35/c/expense/expense_receipt.dart';
+import 'package:alienai_c35/c/generation/media_provider_labels.dart';
 import 'package:alienai_c35/widgets/ai/ui_consumption_food_card.dart';
 import 'package:alienai_c35/widgets/ai/ui_consumption_glance_card.dart';
 import 'package:alienai_c35/widgets/ai/ui_expense_glance_card.dart';
 import 'package:alienai_c35/widgets/ai/ui_attach_chips.dart';
 import 'package:alienai_c35/widgets/ai/ui_expense_receipt_card.dart';
+import 'package:alienai_c35/widgets/ai/ui_media_provider_chip.dart';
+import 'package:alienai_c35/widgets/ai/ui_media_provider_sheet.dart';
 import 'package:alienai_c35/widgets/ai/ui_slide_deck_card.dart';
 import 'package:alienai_c35/widgets/ai/ui_site_preview_card.dart';
 import 'package:flutter/material.dart';
@@ -18,6 +21,7 @@ import 'package:flutter/material.dart';
 typedef ConsumptionBlockSaved = void Function(int msgId, ChatBlock block);
 typedef ExpenseBlockSaved = void Function(int msgId, ChatBlock block);
 typedef BlockCollapsedChanged = void Function(int msgId, int blockIndex, bool collapsed);
+typedef MediaRegenerateHandler = Future<void> Function(int msgId, int blockIndex, ChatBlock block, String provider, {required bool setDefault});
 
 class UiMsgBlocks extends StatelessWidget {
   const UiMsgBlocks({
@@ -31,6 +35,7 @@ class UiMsgBlocks extends StatelessWidget {
     this.onExpenseSaved,
     this.onBlockCollapsedChanged,
     this.onImageUpgradeHd,
+    this.onMediaRegenerate,
     this.primary = false,
   });
 
@@ -43,6 +48,7 @@ class UiMsgBlocks extends StatelessWidget {
   final ExpenseBlockSaved? onExpenseSaved;
   final BlockCollapsedChanged? onBlockCollapsedChanged;
   final void Function(ChatBlock block)? onImageUpgradeHd;
+  final MediaRegenerateHandler? onMediaRegenerate;
   final bool primary;
 
   @override
@@ -131,21 +137,12 @@ class UiMsgBlocks extends StatelessWidget {
           ),
         );
       case 'image':
-        final hash = b.body['hash']?.toString() ?? '';
-        final url = b.body['url']?.toString() ?? '';
-        if (hash.isEmpty && url.isEmpty) return const SizedBox.shrink();
-        final mime = b.body['mime']?.toString() ?? 'image/png';
-        final prompt = b.body['prompt']?.toString().trim() ?? '';
-        final name = prompt.isNotEmpty ? prompt : 'image.png';
-        final canUpgrade = onImageUpgradeHd != null && !ChatBlock.imageIsHd(b);
-        return Padding(
-          padding: const EdgeInsets.only(top: 8),
-          child: UiAttachChips(
-            attachments: [MsgAttachment(hash: hash, name: name, mime: mime, url: url)],
-            showUpgradeHd: canUpgrade,
-            onUpgradeHd: canUpgrade ? () => onImageUpgradeHd!(b) : null,
-          ),
-        );
+        return _mediaAttachmentBlock(context, b, blockIndex, defaultMime: 'image/png', defaultName: 'image.png', showUpgradeHd: true);
+      case 'video':
+        return _mediaAttachmentBlock(context, b, blockIndex, defaultMime: 'video/mp4', defaultName: 'video.mp4');
+      case 'music':
+      case 'audio':
+        return _mediaAttachmentBlock(context, b, blockIndex, defaultMime: 'audio/mpeg', defaultName: 'audio.mp3');
       case 'file':
       case 'attachment':
         final hash = b.body['hash']?.toString() ?? '';
@@ -184,5 +181,54 @@ class UiMsgBlocks extends StatelessWidget {
       default:
         return const SizedBox.shrink();
     }
+  }
+
+  Widget _mediaAttachmentBlock(
+    BuildContext context,
+    ChatBlock b,
+    int blockIndex, {
+    required String defaultMime,
+    required String defaultName,
+    bool showUpgradeHd = false,
+  }) {
+    final hash = b.body['hash']?.toString() ?? '';
+    final url = b.body['url']?.toString() ?? '';
+    if (hash.isEmpty && url.isEmpty && !ChatBlock.mediaHasProviderChip(b)) return const SizedBox.shrink();
+    final mime = b.body['mime']?.toString() ?? defaultMime;
+    final prompt = b.body['prompt']?.toString().trim() ?? '';
+    final name = prompt.isNotEmpty ? prompt : defaultName;
+    final canUpgrade = showUpgradeHd && onImageUpgradeHd != null && !ChatBlock.imageIsHd(b);
+    final kind = mediaBlockKind(b.kind);
+    final provider = ChatBlock.mediaProvider(b);
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (hash.isNotEmpty || url.isNotEmpty)
+            UiAttachChips(
+              attachments: [MsgAttachment(hash: hash, name: name, mime: mime, url: url)],
+              showUpgradeHd: canUpgrade,
+              onUpgradeHd: canUpgrade ? () => onImageUpgradeHd!(b) : null,
+            ),
+          if (provider.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: UiMediaProviderChip(
+                kind: kind,
+                providerId: provider,
+                onTap: onMediaRegenerate == null
+                    ? null
+                    : () => uiMediaProviderSheetShow(
+                          context,
+                          blockKind: b.kind,
+                          block: b,
+                          onRegenerate: (p, {required setDefault}) => onMediaRegenerate!(msgId, blockIndex, b, p, setDefault: setDefault),
+                        ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }

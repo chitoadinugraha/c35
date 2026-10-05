@@ -92,6 +92,7 @@ class HintItem extends $pb.GeneratedMessage {
     $core.int? sort,
     HintAction? action,
     $core.Iterable<HintItem>? items,
+    $core.String? theme,
   }) {
     final result = HintItem._();
     if (id != null) result.id = id;
@@ -100,6 +101,7 @@ class HintItem extends $pb.GeneratedMessage {
     if (sort != null) result.sort = sort;
     if (action != null) result.action = action;
     if (items != null) result.items.addAll(items);
+    if (theme != null) result.theme = theme;
     return result;
   }
 
@@ -124,6 +126,7 @@ class HintItem extends $pb.GeneratedMessage {
         subBuilder: HintAction.$_createMessage)
     ..pPM<HintItem>(6, _omitFieldNames ? '' : 'items',
         subBuilder: HintItem.$_createMessage)
+    ..aOS(7, _omitFieldNames ? '' : 'theme')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -195,6 +198,15 @@ class HintItem extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(6)
   $pb.PbList<HintItem> get items => $_getList(5);
+
+  @$pb.TagNumber(7)
+  $core.String get theme => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set theme($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasTheme() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearTheme() => $_clearField(7);
 }
 
 class HintCatalog extends $pb.GeneratedMessage {

@@ -77,6 +77,9 @@ bool billingCreditCoversCharge(BillingAccount account, {required String currency
   return chargeUsd <= 0 || billingCreditBalance(account, 'USD') + 0.001 >= chargeUsd;
 }
 
+bool billingHistoryIncluded(BillingHistoryRow row) =>
+    row.kind == 'usage' && row.status.trim().toLowerCase() == 'included';
+
 String billingHistoryAmountLabel(BillingHistoryRow row) {
   if (row.hasCurrency() && row.currency.isNotEmpty) {
     final cur = row.currency.toUpperCase();

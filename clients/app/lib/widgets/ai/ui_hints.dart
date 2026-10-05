@@ -1,10 +1,10 @@
 import 'package:alienai_c35/c/catalog/catalog_translation_cache.dart';
 import 'package:alienai_c35/c/chat/space_hints.dart';
+import 'package:alienai_c35/c/hint/hint_chip_theme.dart';
 import 'package:alienai_c35/c/pb/c35/hint.pb.dart';
+import 'package:alienai_c35/widgets/ai/ui_hint_chip.dart';
 import 'package:flutter/material.dart';
 
-const _chipBg = Color(0xFF18181B);
-const _chipBorder = Color(0xFF27272A);
 const _chipText = Color(0xFFE4E4E7);
 const _menuIcon = Color(0xFFA1A1AA);
 
@@ -26,6 +26,7 @@ class UiHints extends StatelessWidget {
       );
 
   Widget _hintChip(BuildContext context, HintItem item) {
+    final theme = HintChipTheme.forKey(item.theme);
     if (item.items.isNotEmpty) {
       return MenuAnchor(
         style: const MenuStyle(
@@ -34,11 +35,11 @@ class UiHints extends StatelessWidget {
           elevation: WidgetStatePropertyAll(6),
         ),
         menuChildren: _menuChildren(item.items),
-        builder: (context, controller, child) => ActionChip(
-          label: _chipLabel(item),
-          backgroundColor: _chipBg,
-          side: const BorderSide(color: _chipBorder),
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+        builder: (context, controller, child) => UiHintChip(
+          theme: theme,
+          icon: hintMenuIcon(item),
+          showChevron: true,
+          label: Text(hintItemLabel(item)),
           onPressed: () {
             if (controller.isOpen) {
               controller.close();
@@ -49,11 +50,10 @@ class UiHints extends StatelessWidget {
         ),
       );
     }
-    return ActionChip(
-      label: _chipLabel(item),
-      backgroundColor: _chipBg,
-      side: const BorderSide(color: _chipBorder),
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+    return UiHintChip(
+      theme: theme,
+      icon: hintMenuIcon(item),
+      label: Text(hintItemLabel(item)),
       onPressed: () => onPick(item),
     );
   }
@@ -77,19 +77,6 @@ class UiHints extends StatelessWidget {
               child: _menuRow(child),
             ),
       ];
-
-  Widget _chipLabel(HintItem item) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(hintMenuIcon(item), size: 15, color: const Color(0xFF71717A)),
-          const SizedBox(width: 6),
-          Text(hintItemLabel(item), style: const TextStyle(color: _chipText, fontSize: 13)),
-          if (item.items.isNotEmpty) ...[
-            const SizedBox(width: 4),
-            const Icon(Icons.arrow_drop_down, size: 16, color: Color(0xFF71717A)),
-          ],
-        ],
-      );
 
   Widget _menuRow(HintItem item) => Row(
         children: [

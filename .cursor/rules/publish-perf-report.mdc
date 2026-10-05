@@ -1,6 +1,7 @@
 ---
 description: After cluster or app publish, report wall time, image size, version, and per-stage marks
-alwaysApply: true
+globs: _/scripts/deploy/**/publish_*.ps1,_/scripts/deploy/deploy_app/**
+alwaysApply: false
 ---
 
 # Publish perf report (agent)

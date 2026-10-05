@@ -13,6 +13,7 @@ import 'package:alienai_c35/c/pb/c35/device.pb.dart';
 import 'package:alienai_c35/c/pb/c35/collection.pb.dart';
 import 'package:alienai_c35/c/pb/c35/hint.pb.dart';
 import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
+import 'package:alienai_c35/c/pb/c35/live.pb.dart';
 import 'package:alienai_c35/c/pb/c35/remote.pb.dart';
 import 'package:alienai_c35/c/pb/c35/session.pb.dart';
 import 'package:alienai_c35/c/pb/c35/log.pb.dart';
@@ -517,6 +518,11 @@ class ChatConn {
   Future<ResHintTouch> hintTouch({required Int64 assetIid, required String assetKind}) => _rpc<ResHintTouch>(
         WsReq(hintTouch: ReqHintTouch(assetIid: assetIid, assetKind: assetKind)),
         (res) => res.hintTouch,
+      );
+
+  Future<ResLiveStart> liveStart({required String offerId, String locale = ''}) => _rpc<ResLiveStart>(
+        WsReq(liveStart: ReqLiveStart(offerId: offerId, locale: locale, reqId: const Uuid().v4())),
+        (res) => res.liveStart,
       );
 
   Future<ResInboxList> inboxList({bool includeArchived = false, int limit = 100}) => _rpc<ResInboxList>(

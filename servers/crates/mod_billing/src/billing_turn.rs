@@ -364,11 +364,17 @@ pub async fn billing_usage_report(
     } else {
         cost
     };
-    let pool_used = pool_overflow.is_some();
-    let effective_allowance = if pool_used { 0.0 } else { allowance_rem };
-    let (charge_usd, charge_idr) =
-        crate::billing_on_demand::wallet_charge_native(cost, effective_allowance, &currency, fx);
-    let deducted_native = if currency.eq_ignore_ascii_case("IDR") { charge_idr } else { charge_usd };
+    let deducted_native = if let Some(overflow_idr) = pool_overflow {
+        if currency.eq_ignore_ascii_case("IDR") {
+            overflow_idr.max(0.0)
+        } else {
+            crate::billing_on_demand::native_to_usd(overflow_idr.max(0.0), fx)
+        }
+    } else {
+        let (charge_usd, charge_idr) =
+            crate::billing_on_demand::wallet_charge_native(cost, allowance_rem, &currency, fx);
+        if currency.eq_ignore_ascii_case("IDR") { charge_idr } else { charge_usd }
+    };
     sqlx::query(
         r#"
         UPDATE ai.billing_usage_dedupe SET

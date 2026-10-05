@@ -20,5 +20,10 @@ prost = { workspace = true }
 c35_mod_fetch = { path = "../mod_fetch", package = "c35_mod_fetch" }
 c35_proto = { path = "../proto", package = "c35_proto" }
 c35_store = { path = "../store", package = "c35_store" }
+urlencoding = { workspace = true }
+
+[[example]]
+name = "sync_llm_catalog"
+path = "examples/sync_llm_catalog.rs"
 
 [dev-dependencies]

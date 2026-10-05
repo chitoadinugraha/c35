@@ -23,6 +23,7 @@ message IdentityProfile {
   string location_source = 14;
   string email = 15;                 // meta.email — display / avatar
   repeated string global_roles = 16; // meta.global_roles — root, finance, partner, …
+  string meta_json = 17;             // identity.meta_json (generation prefs, …)
 }
 
 message NavCounts {

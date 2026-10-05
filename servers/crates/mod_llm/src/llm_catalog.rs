@@ -8,10 +8,20 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
 use crate::catalog_price::{ALIEN_POOL_USD_IN_PER_1M, ALIEN_POOL_USD_OUT_PER_1M};
+use crate::catalog_rank::chat_picker_row_eligible;
 use crate::runtime_config::runtime_config_reload;
 pub use crate::catalog_types::LlmModelRow;
 
-pub const SYNC_INTERVAL_SECS: u64 = 30 * 60;
+/// Default catalog sync interval (CF models search / OpenRouter fallback).
+pub const SYNC_INTERVAL_SECS: u64 = 24 * 60 * 60;
+
+pub fn sync_interval_secs() -> u64 {
+    std::env::var("LLM_CATALOG_SYNC_INTERVAL_SECS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .filter(|&n| n > 0)
+        .unwrap_or(SYNC_INTERVAL_SECS)
+}
 
 struct CatalogCache {
     models: Vec<LlmModelRow>,
@@ -58,7 +68,7 @@ pub fn prompt_models() -> Vec<PromptModelOption> {
     }
     g.models
         .iter()
-        .filter(|m| m.enabled)
+        .filter(|m| m.enabled && chat_picker_row_eligible(m))
         .map(|m| {
             let (usd_in_per_1m, usd_out_per_1m) = prompt_model_usd_per_1m(m);
             PromptModelOption {
@@ -218,10 +228,7 @@ pub async fn llm_catalog_pinned_ensure(pool: &PgPool) -> Result<()> {
 }
 
 async fn llm_catalog_seed(pool: &PgPool) -> Result<()> {
-    let pinned = crate::catalog_sync::pinned_models()
-        .into_iter()
-        .chain(crate::catalog_sync::frontier_seed_models())
-        .collect::<Vec<_>>();
+    let pinned = crate::catalog_sync::pinned_models();
     for m in pinned {
         db_retry(pool, || async {
             sqlx::query(

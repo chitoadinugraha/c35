@@ -16,12 +16,14 @@ tool! {
         source_hash: (string, "CAS file hash of the source image; defaults to the first attached image.", optional),
         aspect_ratio: (string, "Aspect ratio: '1:1', '16:9', '9:16', '4:3', or '3:4'. Default '1:1'.", optional, default = "1:1"),
         quality: (string, "Image quality mode: 'draft' (Flash 1K) or 'hd' (Flash 2K). Default 'draft'.", optional, default = "draft"),
+        provider: (string, "Provider override: auto, gemini, or grok.", optional, default = ""),
     },
     execute: |args, ctx| {
         let prompt = args["prompt"].as_str().unwrap_or_default();
         let source_hash = args["source_hash"].as_str().unwrap_or("");
         let aspect_ratio = args["aspect_ratio"].as_str().unwrap_or("1:1");
         let quality = args["quality"].as_str().unwrap_or("draft");
+        let provider = args["provider"].as_str().unwrap_or("");
         let default_draft = image_default_draft_tier(&ctx.pool).await;
         let tier = image_tier_resolve(&ctx.mention_ids, &ctx.user_text, prompt, quality, true, &default_draft);
         if ctx.owner_iid > 0 {
@@ -44,6 +46,7 @@ tool! {
             quality,
             &ctx.mention_ids,
             &ctx.user_text,
+            provider,
         )
         .await
     }

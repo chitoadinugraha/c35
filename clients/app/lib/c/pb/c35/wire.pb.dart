@@ -27,7 +27,8 @@ import 'device.pb.dart' as $5;
 import 'hint.pb.dart' as $22;
 import 'identity.pb.dart' as $18;
 import 'inst.pb.dart' as $6;
-import 'log.pb.dart' as $26;
+import 'live.pb.dart' as $25;
+import 'log.pb.dart' as $27;
 import 'mail.pb.dart' as $23;
 import 'object.pb.dart' as $9;
 import 'referral.pb.dart' as $2;
@@ -40,7 +41,7 @@ import 'stats.pb.dart' as $12;
 import 'sync.pb.dart' as $14;
 import 'task.pb.dart' as $19;
 import 'tx.pb.dart' as $11;
-import 'types.pb.dart' as $25;
+import 'types.pb.dart' as $26;
 import 'voice.pb.dart' as $7;
 
 export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
@@ -2953,6 +2954,8 @@ enum WsReq_Body {
   chatMsgFeedbackList,
   chatContextWindowSet,
   chatCompact,
+  mediaRegenerate,
+  liveStart,
   notSet
 }
 
@@ -3077,6 +3080,8 @@ class WsReq extends $pb.GeneratedMessage {
     $15.ReqChatMsgFeedbackList? chatMsgFeedbackList,
     $15.ReqChatContextWindowSet? chatContextWindowSet,
     $15.ReqChatCompact? chatCompact,
+    $15.ReqMediaRegenerate? mediaRegenerate,
+    $25.ReqLiveStart? liveStart,
   }) {
     final result = WsReq._();
     if (reqId != null) result.reqId = reqId;
@@ -3218,6 +3223,8 @@ class WsReq extends $pb.GeneratedMessage {
     if (chatContextWindowSet != null)
       result.chatContextWindowSet = chatContextWindowSet;
     if (chatCompact != null) result.chatCompact = chatCompact;
+    if (mediaRegenerate != null) result.mediaRegenerate = mediaRegenerate;
+    if (liveStart != null) result.liveStart = liveStart;
     return result;
   }
 
@@ -3348,6 +3355,8 @@ class WsReq extends $pb.GeneratedMessage {
     174: WsReq_Body.chatMsgFeedbackList,
     175: WsReq_Body.chatContextWindowSet,
     176: WsReq_Body.chatCompact,
+    177: WsReq_Body.mediaRegenerate,
+    179: WsReq_Body.liveStart,
     0: WsReq_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -3471,7 +3480,9 @@ class WsReq extends $pb.GeneratedMessage {
       173,
       174,
       175,
-      176
+      176,
+      177,
+      179
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$13.ReqSessionInit>(2, _omitFieldNames ? '' : 'sessionInit',
@@ -3742,6 +3753,10 @@ class WsReq extends $pb.GeneratedMessage {
         subBuilder: $15.ReqChatContextWindowSet.$_createMessage)
     ..aOM<$15.ReqChatCompact>(176, _omitFieldNames ? '' : 'chatCompact',
         subBuilder: $15.ReqChatCompact.$_createMessage)
+    ..aOM<$15.ReqMediaRegenerate>(177, _omitFieldNames ? '' : 'mediaRegenerate',
+        subBuilder: $15.ReqMediaRegenerate.$_createMessage)
+    ..aOM<$25.ReqLiveStart>(179, _omitFieldNames ? '' : 'liveStart',
+        subBuilder: $25.ReqLiveStart.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -3881,6 +3896,8 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(174)
   @$pb.TagNumber(175)
   @$pb.TagNumber(176)
+  @$pb.TagNumber(177)
+  @$pb.TagNumber(179)
   WsReq_Body whichBody() => _WsReq_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(3)
@@ -3999,6 +4016,8 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(174)
   @$pb.TagNumber(175)
   @$pb.TagNumber(176)
+  @$pb.TagNumber(177)
+  @$pb.TagNumber(179)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -5327,6 +5346,28 @@ class WsReq extends $pb.GeneratedMessage {
   void clearChatCompact() => $_clearField(176);
   @$pb.TagNumber(176)
   $15.ReqChatCompact ensureChatCompact() => $_ensure(117);
+
+  @$pb.TagNumber(177)
+  $15.ReqMediaRegenerate get mediaRegenerate => $_getN(118);
+  @$pb.TagNumber(177)
+  set mediaRegenerate($15.ReqMediaRegenerate value) => $_setField(177, value);
+  @$pb.TagNumber(177)
+  $core.bool hasMediaRegenerate() => $_has(118);
+  @$pb.TagNumber(177)
+  void clearMediaRegenerate() => $_clearField(177);
+  @$pb.TagNumber(177)
+  $15.ReqMediaRegenerate ensureMediaRegenerate() => $_ensure(118);
+
+  @$pb.TagNumber(179)
+  $25.ReqLiveStart get liveStart => $_getN(119);
+  @$pb.TagNumber(179)
+  set liveStart($25.ReqLiveStart value) => $_setField(179, value);
+  @$pb.TagNumber(179)
+  $core.bool hasLiveStart() => $_has(119);
+  @$pb.TagNumber(179)
+  void clearLiveStart() => $_clearField(179);
+  @$pb.TagNumber(179)
+  $25.ReqLiveStart ensureLiveStart() => $_ensure(119);
 }
 
 enum WsRes_Body {
@@ -5457,7 +5498,9 @@ enum WsRes_Body {
   chatMsgFeedbackList,
   chatContextWindowSet,
   chatCompact,
+  mediaRegenerate,
   devicePresencePush,
+  liveStart,
   notSet
 }
 
@@ -5465,7 +5508,7 @@ enum WsRes_Body {
 class WsRes extends $pb.GeneratedMessage {
   factory WsRes({
     $core.String? reqId,
-    $25.Err? err,
+    $26.Err? err,
     $13.ResSessionInit? sessionInit,
     $14.ResSync? sync,
     $15.ResInboxList? inboxList,
@@ -5493,7 +5536,7 @@ class WsRes extends $pb.GeneratedMessage {
     $0.BillingPushBalance? billingBalance,
     $0.BillingPushQuota? billingQuota,
     $0.BillingPushCommission? billingCommission,
-    $26.LogPush? logPush,
+    $27.LogPush? logPush,
     $4.ChannelPairPush? channelPairPush,
     $12.StatsPush? statsPush,
     $16.ResSkillList? skillList,
@@ -5592,7 +5635,9 @@ class WsRes extends $pb.GeneratedMessage {
     $15.ResChatMsgFeedbackList? chatMsgFeedbackList,
     $15.ResChatContextWindowSet? chatContextWindowSet,
     $15.ResChatCompact? chatCompact,
+    $15.ResMediaRegenerate? mediaRegenerate,
     $5.DevicePresencePush? devicePresencePush,
+    $25.ResLiveStart? liveStart,
   }) {
     final result = WsRes._();
     if (reqId != null) result.reqId = reqId;
@@ -5745,8 +5790,10 @@ class WsRes extends $pb.GeneratedMessage {
     if (chatContextWindowSet != null)
       result.chatContextWindowSet = chatContextWindowSet;
     if (chatCompact != null) result.chatCompact = chatCompact;
+    if (mediaRegenerate != null) result.mediaRegenerate = mediaRegenerate;
     if (devicePresencePush != null)
       result.devicePresencePush = devicePresencePush;
+    if (liveStart != null) result.liveStart = liveStart;
     return result;
   }
 
@@ -5887,7 +5934,9 @@ class WsRes extends $pb.GeneratedMessage {
     174: WsRes_Body.chatMsgFeedbackList,
     175: WsRes_Body.chatContextWindowSet,
     176: WsRes_Body.chatCompact,
-    177: WsRes_Body.devicePresencePush,
+    177: WsRes_Body.mediaRegenerate,
+    178: WsRes_Body.devicePresencePush,
+    179: WsRes_Body.liveStart,
     0: WsRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -6022,11 +6071,13 @@ class WsRes extends $pb.GeneratedMessage {
       174,
       175,
       176,
-      177
+      177,
+      178,
+      179
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
-    ..aOM<$25.Err>(2, _omitFieldNames ? '' : 'err',
-        subBuilder: $25.Err.$_createMessage)
+    ..aOM<$26.Err>(2, _omitFieldNames ? '' : 'err',
+        subBuilder: $26.Err.$_createMessage)
     ..aOM<$13.ResSessionInit>(10, _omitFieldNames ? '' : 'sessionInit',
         subBuilder: $13.ResSessionInit.$_createMessage)
     ..aOM<$14.ResSync>(11, _omitFieldNames ? '' : 'sync',
@@ -6086,8 +6137,8 @@ class WsRes extends $pb.GeneratedMessage {
     ..aOM<$0.BillingPushCommission>(
         62, _omitFieldNames ? '' : 'billingCommission',
         subBuilder: $0.BillingPushCommission.$_createMessage)
-    ..aOM<$26.LogPush>(70, _omitFieldNames ? '' : 'logPush',
-        subBuilder: $26.LogPush.$_createMessage)
+    ..aOM<$27.LogPush>(70, _omitFieldNames ? '' : 'logPush',
+        subBuilder: $27.LogPush.$_createMessage)
     ..aOM<$4.ChannelPairPush>(71, _omitFieldNames ? '' : 'channelPairPush',
         subBuilder: $4.ChannelPairPush.$_createMessage)
     ..aOM<$12.StatsPush>(72, _omitFieldNames ? '' : 'statsPush',
@@ -6314,9 +6365,13 @@ class WsRes extends $pb.GeneratedMessage {
         subBuilder: $15.ResChatContextWindowSet.$_createMessage)
     ..aOM<$15.ResChatCompact>(176, _omitFieldNames ? '' : 'chatCompact',
         subBuilder: $15.ResChatCompact.$_createMessage)
+    ..aOM<$15.ResMediaRegenerate>(177, _omitFieldNames ? '' : 'mediaRegenerate',
+        subBuilder: $15.ResMediaRegenerate.$_createMessage)
     ..aOM<$5.DevicePresencePush>(
-        177, _omitFieldNames ? '' : 'devicePresencePush',
+        178, _omitFieldNames ? '' : 'devicePresencePush',
         subBuilder: $5.DevicePresencePush.$_createMessage)
+    ..aOM<$25.ResLiveStart>(179, _omitFieldNames ? '' : 'liveStart',
+        subBuilder: $25.ResLiveStart.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -6467,6 +6522,8 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(175)
   @$pb.TagNumber(176)
   @$pb.TagNumber(177)
+  @$pb.TagNumber(178)
+  @$pb.TagNumber(179)
   WsRes_Body whichBody() => _WsRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(10)
@@ -6596,6 +6653,8 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(175)
   @$pb.TagNumber(176)
   @$pb.TagNumber(177)
+  @$pb.TagNumber(178)
+  @$pb.TagNumber(179)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -6608,15 +6667,15 @@ class WsRes extends $pb.GeneratedMessage {
   void clearReqId() => $_clearField(1);
 
   @$pb.TagNumber(2)
-  $25.Err get err => $_getN(1);
+  $26.Err get err => $_getN(1);
   @$pb.TagNumber(2)
-  set err($25.Err value) => $_setField(2, value);
+  set err($26.Err value) => $_setField(2, value);
   @$pb.TagNumber(2)
   $core.bool hasErr() => $_has(1);
   @$pb.TagNumber(2)
   void clearErr() => $_clearField(2);
   @$pb.TagNumber(2)
-  $25.Err ensureErr() => $_ensure(1);
+  $26.Err ensureErr() => $_ensure(1);
 
   @$pb.TagNumber(10)
   $13.ResSessionInit get sessionInit => $_getN(2);
@@ -6921,15 +6980,15 @@ class WsRes extends $pb.GeneratedMessage {
   $0.BillingPushCommission ensureBillingCommission() => $_ensure(28);
 
   @$pb.TagNumber(70)
-  $26.LogPush get logPush => $_getN(29);
+  $27.LogPush get logPush => $_getN(29);
   @$pb.TagNumber(70)
-  set logPush($26.LogPush value) => $_setField(70, value);
+  set logPush($27.LogPush value) => $_setField(70, value);
   @$pb.TagNumber(70)
   $core.bool hasLogPush() => $_has(29);
   @$pb.TagNumber(70)
   void clearLogPush() => $_clearField(70);
   @$pb.TagNumber(70)
-  $26.LogPush ensureLogPush() => $_ensure(29);
+  $27.LogPush ensureLogPush() => $_ensure(29);
 
   @$pb.TagNumber(71)
   $4.ChannelPairPush get channelPairPush => $_getN(30);
@@ -8035,15 +8094,37 @@ class WsRes extends $pb.GeneratedMessage {
   $15.ResChatCompact ensureChatCompact() => $_ensure(127);
 
   @$pb.TagNumber(177)
-  $5.DevicePresencePush get devicePresencePush => $_getN(128);
+  $15.ResMediaRegenerate get mediaRegenerate => $_getN(128);
   @$pb.TagNumber(177)
-  set devicePresencePush($5.DevicePresencePush value) => $_setField(177, value);
+  set mediaRegenerate($15.ResMediaRegenerate value) => $_setField(177, value);
   @$pb.TagNumber(177)
-  $core.bool hasDevicePresencePush() => $_has(128);
+  $core.bool hasMediaRegenerate() => $_has(128);
   @$pb.TagNumber(177)
-  void clearDevicePresencePush() => $_clearField(177);
+  void clearMediaRegenerate() => $_clearField(177);
   @$pb.TagNumber(177)
-  $5.DevicePresencePush ensureDevicePresencePush() => $_ensure(128);
+  $15.ResMediaRegenerate ensureMediaRegenerate() => $_ensure(128);
+
+  @$pb.TagNumber(178)
+  $5.DevicePresencePush get devicePresencePush => $_getN(129);
+  @$pb.TagNumber(178)
+  set devicePresencePush($5.DevicePresencePush value) => $_setField(178, value);
+  @$pb.TagNumber(178)
+  $core.bool hasDevicePresencePush() => $_has(129);
+  @$pb.TagNumber(178)
+  void clearDevicePresencePush() => $_clearField(178);
+  @$pb.TagNumber(178)
+  $5.DevicePresencePush ensureDevicePresencePush() => $_ensure(129);
+
+  @$pb.TagNumber(179)
+  $25.ResLiveStart get liveStart => $_getN(130);
+  @$pb.TagNumber(179)
+  set liveStart($25.ResLiveStart value) => $_setField(179, value);
+  @$pb.TagNumber(179)
+  $core.bool hasLiveStart() => $_has(130);
+  @$pb.TagNumber(179)
+  void clearLiveStart() => $_clearField(179);
+  @$pb.TagNumber(179)
+  $25.ResLiveStart ensureLiveStart() => $_ensure(130);
 }
 
 const $core.bool _omitFieldNames =

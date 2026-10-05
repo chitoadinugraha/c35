@@ -1,3 +1,9 @@
+---
+description: Rust build caches live under .cache/ only — never workspace target/
+globs: servers/**/*.rs,remotes/**/*.rs,servers/.cargo/**,remotes/.cargo/**
+alwaysApply: false
+---
+
 # Rust build cache
 
 All local Cargo output goes under **`.cache/`** (gitignored, cursorignored). Never commit or index `**/target/`.

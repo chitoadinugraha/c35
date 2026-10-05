@@ -1402,3 +1402,52 @@ final $typed_data.Uint8List resChatCompactDescriptor = $convert.base64Decode(
     'Cg5SZXNDaGF0Q29tcGFjdBIQCgNyYW4YASABKAhSA3JhbhIUCgV0aXRsZRgCIAEoCVIFdGl0bG'
     'USIwoNcHJvbXB0X3Rva2VucxgDIAEoBVIMcHJvbXB0VG9rZW5zEhkKCGNvc3RfdXNkGAQgASgB'
     'Ugdjb3N0VXNkEicKBXVzYWdlGAUgASgLMhEuYzM1LkNvbnRleHRVc2FnZVIFdXNhZ2U=');
+
+@$core.Deprecated('Use reqMediaRegenerateDescriptor instead')
+const ReqMediaRegenerate$json = {
+  '1': 'ReqMediaRegenerate',
+  '2': [
+    {'1': 'msg_id', '3': 1, '4': 1, '5': 3, '10': 'msgId'},
+    {'1': 'block_index', '3': 2, '4': 1, '5': 5, '10': 'blockIndex'},
+    {'1': 'provider', '3': 3, '4': 1, '5': 9, '10': 'provider'},
+    {'1': 'set_default', '3': 4, '4': 1, '5': 8, '10': 'setDefault'},
+    {'1': 'chat_id', '3': 5, '4': 1, '5': 3, '10': 'chatId'},
+    {'1': 'media_model', '3': 6, '4': 1, '5': 9, '10': 'mediaModel'},
+    {'1': 'aspect_ratio', '3': 7, '4': 1, '5': 9, '10': 'aspectRatio'},
+    {'1': 'duration_sec', '3': 8, '4': 1, '5': 5, '10': 'durationSec'},
+    {'1': 'instrumental', '3': 9, '4': 1, '5': 8, '10': 'instrumental'},
+  ],
+};
+
+/// Descriptor for `ReqMediaRegenerate`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqMediaRegenerateDescriptor = $convert.base64Decode(
+    'ChJSZXFNZWRpYVJlZ2VuZXJhdGUSFQoGbXNnX2lkGAEgASgDUgVtc2dJZBIfCgtibG9ja19pbm'
+    'RleBgCIAEoBVIKYmxvY2tJbmRleBIaCghwcm92aWRlchgDIAEoCVIIcHJvdmlkZXISHwoLc2V0'
+    'X2RlZmF1bHQYBCABKAhSCnNldERlZmF1bHQSFwoHY2hhdF9pZBgFIAEoA1IGY2hhdElkEh8KC2'
+    '1lZGlhX21vZGVsGAYgASgJUgptZWRpYU1vZGVsEiEKDGFzcGVjdF9yYXRpbxgHIAEoCVILYXNw'
+    'ZWN0UmF0aW8SIQoMZHVyYXRpb25fc2VjGAggASgFUgtkdXJhdGlvblNlYxIiCgxpbnN0cnVtZW'
+    '50YWwYCSABKAhSDGluc3RydW1lbnRhbA==');
+
+@$core.Deprecated('Use resMediaRegenerateDescriptor instead')
+const ResMediaRegenerate$json = {
+  '1': 'ResMediaRegenerate',
+  '2': [
+    {'1': 'blocks_json', '3': 1, '4': 1, '5': 9, '10': 'blocksJson'},
+    {'1': 'retail_usd', '3': 2, '4': 1, '5': 1, '10': 'retailUsd'},
+    {'1': 'media_provider', '3': 3, '4': 1, '5': 9, '10': 'mediaProvider'},
+    {'1': 'generation_image', '3': 4, '4': 1, '5': 9, '10': 'generationImage'},
+    {'1': 'generation_video', '3': 5, '4': 1, '5': 9, '10': 'generationVideo'},
+    {'1': 'generation_music', '3': 6, '4': 1, '5': 9, '10': 'generationMusic'},
+    {'1': 'req_id', '3': 7, '4': 1, '5': 9, '10': 'reqId'},
+    {'1': 'msg_id', '3': 8, '4': 1, '5': 3, '10': 'msgId'},
+  ],
+};
+
+/// Descriptor for `ResMediaRegenerate`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resMediaRegenerateDescriptor = $convert.base64Decode(
+    'ChJSZXNNZWRpYVJlZ2VuZXJhdGUSHwoLYmxvY2tzX2pzb24YASABKAlSCmJsb2Nrc0pzb24SHQ'
+    'oKcmV0YWlsX3VzZBgCIAEoAVIJcmV0YWlsVXNkEiUKDm1lZGlhX3Byb3ZpZGVyGAMgASgJUg1t'
+    'ZWRpYVByb3ZpZGVyEikKEGdlbmVyYXRpb25faW1hZ2UYBCABKAlSD2dlbmVyYXRpb25JbWFnZR'
+    'IpChBnZW5lcmF0aW9uX3ZpZGVvGAUgASgJUg9nZW5lcmF0aW9uVmlkZW8SKQoQZ2VuZXJhdGlv'
+    'bl9tdXNpYxgGIAEoCVIPZ2VuZXJhdGlvbk11c2ljEhUKBnJlcV9pZBgHIAEoCVIFcmVxSWQSFQ'
+    'oGbXNnX2lkGAggASgDUgVtc2dJZA==');

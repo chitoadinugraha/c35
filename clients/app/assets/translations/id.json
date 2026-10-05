@@ -33,6 +33,11 @@
                      "learnedMemoriesSubtitle":  "Fakta dan preferensi dari percakapan Anda",
                      "showUsage":  "Tampilkan pemakaian",
                      "showUsageSubtitle":  "Jumlah token dan durasi pada balasan AI",
+                     "sectionGeneration":  "GENERASI",
+                     "generationSubtitle":  "Penyedia default untuk gambar, video, dan musik (terpisah dari model chat)",
+                     "generationImage":  "Penyedia gambar",
+                     "generationVideo":  "Penyedia video",
+                     "generationMusic":  "Penyedia musik",
                      "balance":  "Saldo",
                      "changePassword":  "Ubah password",
                      "setPassword":  "Atur password",
@@ -249,6 +254,22 @@
                       "assetRemoveTitle":  "Hapus aset?",
                       "assetRemoveMessage":  "Hapus {name} dari bot ini? Anda bisa menambahkannya lagi nanti."
                   },
+    "billing":  {
+                    "purchaseNonRefundable":  "Semua pembelian (paket, kredit dompet, dan add-on) bersifat final dan tidak dapat dikembalikan kecuali diwajibkan oleh hukum atau dinyatakan lain pada saat checkout."
+                },
+    "media":  {
+                  "providerAuto":  "Otomatis",
+                  "providerGemini":  "Gemini",
+                  "providerGrok":  "Grok",
+                  "providerSeedance":  "Seedance",
+                  "providerMinimax":  "MiniMax",
+                  "providerElevenlabs":  "ElevenLabs",
+                  "generatedWith":  "Dibuat dengan {provider}",
+                  "estimatedCost":  "Perkiraan ~${cost} per generasi",
+                  "providerSheetTitle":  "Penyedia generasi",
+                  "regenerate":  "Buat ulang",
+                  "setDefault":  "Jadikan default"
+              },
     "bots":  {
                  "activeLabel":  "Aktif",
                  "activeHint":  "Membalas di semua saluran saat aktif",

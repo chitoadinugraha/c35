@@ -5716,6 +5716,301 @@ class ResChatCompact extends $pb.GeneratedMessage {
   ContextUsage ensureUsage() => $_ensure(4);
 }
 
+/// Regenerate one media block (image / video / music) with optional provider override.
+class ReqMediaRegenerate extends $pb.GeneratedMessage {
+  factory ReqMediaRegenerate({
+    $fixnum.Int64? msgId,
+    $core.int? blockIndex,
+    $core.String? provider,
+    $core.bool? setDefault,
+    $fixnum.Int64? chatId,
+    $core.String? mediaModel,
+    $core.String? aspectRatio,
+    $core.int? durationSec,
+    $core.bool? instrumental,
+  }) {
+    final result = ReqMediaRegenerate._();
+    if (msgId != null) result.msgId = msgId;
+    if (blockIndex != null) result.blockIndex = blockIndex;
+    if (provider != null) result.provider = provider;
+    if (setDefault != null) result.setDefault = setDefault;
+    if (chatId != null) result.chatId = chatId;
+    if (mediaModel != null) result.mediaModel = mediaModel;
+    if (aspectRatio != null) result.aspectRatio = aspectRatio;
+    if (durationSec != null) result.durationSec = durationSec;
+    if (instrumental != null) result.instrumental = instrumental;
+    return result;
+  }
+
+  ReqMediaRegenerate._();
+
+  factory ReqMediaRegenerate.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqMediaRegenerate()..mergeFromBuffer(data, registry);
+  factory ReqMediaRegenerate.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqMediaRegenerate()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqMediaRegenerate',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqMediaRegenerate.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'msgId')
+    ..aI(2, _omitFieldNames ? '' : 'blockIndex')
+    ..aOS(3, _omitFieldNames ? '' : 'provider')
+    ..aOB(4, _omitFieldNames ? '' : 'setDefault')
+    ..aInt64(5, _omitFieldNames ? '' : 'chatId')
+    ..aOS(6, _omitFieldNames ? '' : 'mediaModel')
+    ..aOS(7, _omitFieldNames ? '' : 'aspectRatio')
+    ..aI(8, _omitFieldNames ? '' : 'durationSec')
+    ..aOB(9, _omitFieldNames ? '' : 'instrumental')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqMediaRegenerate clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqMediaRegenerate copyWith(void Function(ReqMediaRegenerate) updates) =>
+      super.copyWith((message) => updates(message as ReqMediaRegenerate))
+          as ReqMediaRegenerate;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqMediaRegenerate() / ReqMediaRegenerate.new instead')
+  static ReqMediaRegenerate create() => ReqMediaRegenerate._();
+  static $pb.GeneratedMessage $_createMessage() => ReqMediaRegenerate._();
+  @$core.override
+  ReqMediaRegenerate createEmptyInstance() => ReqMediaRegenerate._();
+  @$core.pragma('dart2js:noInline')
+  static ReqMediaRegenerate getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqMediaRegenerate>(
+          ReqMediaRegenerate.$_createMessage);
+  static ReqMediaRegenerate? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get msgId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set msgId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasMsgId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearMsgId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.int get blockIndex => $_getIZ(1);
+  @$pb.TagNumber(2)
+  set blockIndex($core.int value) => $_setSignedInt32(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasBlockIndex() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearBlockIndex() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get provider => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set provider($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasProvider() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearProvider() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.bool get setDefault => $_getBF(3);
+  @$pb.TagNumber(4)
+  set setDefault($core.bool value) => $_setBool(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasSetDefault() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearSetDefault() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $fixnum.Int64 get chatId => $_getI64(4);
+  @$pb.TagNumber(5)
+  set chatId($fixnum.Int64 value) => $_setInt64(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasChatId() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearChatId() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get mediaModel => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set mediaModel($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasMediaModel() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearMediaModel() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.String get aspectRatio => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set aspectRatio($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasAspectRatio() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearAspectRatio() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.int get durationSec => $_getIZ(7);
+  @$pb.TagNumber(8)
+  set durationSec($core.int value) => $_setSignedInt32(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasDurationSec() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearDurationSec() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.bool get instrumental => $_getBF(8);
+  @$pb.TagNumber(9)
+  set instrumental($core.bool value) => $_setBool(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasInstrumental() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearInstrumental() => $_clearField(9);
+}
+
+class ResMediaRegenerate extends $pb.GeneratedMessage {
+  factory ResMediaRegenerate({
+    $core.String? blocksJson,
+    $core.double? retailUsd,
+    $core.String? mediaProvider,
+    $core.String? generationImage,
+    $core.String? generationVideo,
+    $core.String? generationMusic,
+    $core.String? reqId,
+    $fixnum.Int64? msgId,
+  }) {
+    final result = ResMediaRegenerate._();
+    if (blocksJson != null) result.blocksJson = blocksJson;
+    if (retailUsd != null) result.retailUsd = retailUsd;
+    if (mediaProvider != null) result.mediaProvider = mediaProvider;
+    if (generationImage != null) result.generationImage = generationImage;
+    if (generationVideo != null) result.generationVideo = generationVideo;
+    if (generationMusic != null) result.generationMusic = generationMusic;
+    if (reqId != null) result.reqId = reqId;
+    if (msgId != null) result.msgId = msgId;
+    return result;
+  }
+
+  ResMediaRegenerate._();
+
+  factory ResMediaRegenerate.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResMediaRegenerate()..mergeFromBuffer(data, registry);
+  factory ResMediaRegenerate.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResMediaRegenerate()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResMediaRegenerate',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResMediaRegenerate.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'blocksJson')
+    ..aD(2, _omitFieldNames ? '' : 'retailUsd')
+    ..aOS(3, _omitFieldNames ? '' : 'mediaProvider')
+    ..aOS(4, _omitFieldNames ? '' : 'generationImage')
+    ..aOS(5, _omitFieldNames ? '' : 'generationVideo')
+    ..aOS(6, _omitFieldNames ? '' : 'generationMusic')
+    ..aOS(7, _omitFieldNames ? '' : 'reqId')
+    ..aInt64(8, _omitFieldNames ? '' : 'msgId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResMediaRegenerate clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResMediaRegenerate copyWith(void Function(ResMediaRegenerate) updates) =>
+      super.copyWith((message) => updates(message as ResMediaRegenerate))
+          as ResMediaRegenerate;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResMediaRegenerate() / ResMediaRegenerate.new instead')
+  static ResMediaRegenerate create() => ResMediaRegenerate._();
+  static $pb.GeneratedMessage $_createMessage() => ResMediaRegenerate._();
+  @$core.override
+  ResMediaRegenerate createEmptyInstance() => ResMediaRegenerate._();
+  @$core.pragma('dart2js:noInline')
+  static ResMediaRegenerate getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResMediaRegenerate>(
+          ResMediaRegenerate.$_createMessage);
+  static ResMediaRegenerate? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get blocksJson => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set blocksJson($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasBlocksJson() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearBlocksJson() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.double get retailUsd => $_getN(1);
+  @$pb.TagNumber(2)
+  set retailUsd($core.double value) => $_setDouble(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasRetailUsd() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearRetailUsd() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get mediaProvider => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set mediaProvider($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasMediaProvider() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearMediaProvider() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get generationImage => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set generationImage($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasGenerationImage() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearGenerationImage() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get generationVideo => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set generationVideo($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasGenerationVideo() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearGenerationVideo() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get generationMusic => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set generationMusic($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasGenerationMusic() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearGenerationMusic() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.String get reqId => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set reqId($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasReqId() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearReqId() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $fixnum.Int64 get msgId => $_getI64(7);
+  @$pb.TagNumber(8)
+  set msgId($fixnum.Int64 value) => $_setInt64(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasMsgId() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearMsgId() => $_clearField(8);
+}
+
 const $core.bool _omitFieldNames =
     $core.bool.fromEnvironment('protobuf.omit_field_names');
 const $core.bool _omitMessageNames =

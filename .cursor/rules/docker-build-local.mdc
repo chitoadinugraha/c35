@@ -1,6 +1,7 @@
 ---
 description: Build amd64 images locally for GCP VMs — never docker build on c-personal
-alwaysApply: true
+globs: _/scripts/deploy/publish_gcp_static_egress.ps1,_/deployments/gcp-static-egress/**
+alwaysApply: false
 ---
 
 # Docker builds (GCP amd64 local; cluster arm64 via buildkit)

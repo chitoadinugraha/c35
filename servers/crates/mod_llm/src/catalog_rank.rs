@@ -5,6 +5,11 @@ const BAND_OPENAI: i32 = 100;
 const BAND_ANTHROPIC: i32 = 110;
 const BAND_DEEPSEEK: i32 = 120;
 const BAND_XAI: i32 = 130;
+const BAND_MOONSHOT: i32 = 135;
+const BAND_META: i32 = 136;
+const BAND_MISTRAL: i32 = 137;
+const BAND_QWEN: i32 = 138;
+const BAND_COHERE: i32 = 139;
 const BAND_CLOUDFLARE: i32 = 140;
 const BAND_GOOGLE: i32 = 200;
 const BAND_HIDDEN: i32 = 900;
@@ -106,6 +111,18 @@ pub fn provider_band(provider: &str) -> i32 {
         "anthropic" => BAND_ANTHROPIC,
         "deepseek" => BAND_DEEPSEEK,
         "xai" => BAND_XAI,
+        "moonshot" => BAND_MOONSHOT,
+        "meta" => BAND_META,
+        "mistral" => BAND_MISTRAL,
+        "qwen" => BAND_QWEN,
+        "cohere" => BAND_COHERE,
+        "perplexity" => BAND_COHERE,
+        "nvidia" => BAND_COHERE,
+        "microsoft" => BAND_COHERE,
+        "zai" => BAND_COHERE,
+        "minimax" => BAND_COHERE,
+        "baidu" => BAND_COHERE,
+        "amazon" => BAND_COHERE,
         "cloudflare" => BAND_CLOUDFLARE,
         "google" => BAND_GOOGLE,
         _ => BAND_HIDDEN,
@@ -237,6 +254,38 @@ pub fn assign_picker_order(models: &mut [LlmModelRow]) {
     }
 }
 
+/// Interactive chat / prompt picker only (not batch jobs, embeddings, etc.).
+pub fn chat_picker_id_eligible(id: &str) -> bool {
+    let m = id.to_ascii_lowercase();
+    if m.contains("(batch)") {
+        return false;
+    }
+    if id_tokens(id).iter().any(|t| t == "batch") {
+        return false;
+    }
+    true
+}
+
+pub fn chat_picker_label_eligible(label: &str) -> bool {
+    !label.to_ascii_lowercase().contains("(batch)")
+}
+
+pub fn chat_picker_row_eligible(m: &LlmModelRow) -> bool {
+    if m.provider == "alienai" || m.id == "alienai" {
+        return true;
+    }
+    if !chat_picker_id_eligible(&m.id) || !chat_picker_id_eligible(&m.provider_model) {
+        return false;
+    }
+    if !chat_picker_label_eligible(&m.label) {
+        return false;
+    }
+    if m.provider == "google" {
+        return gemini_chat_eligible(&m.id, &["generateContent".into()]);
+    }
+    true
+}
+
 pub fn gemini_chat_eligible(id: &str, methods: &[String]) -> bool {
     let m = id.to_ascii_lowercase();
     if !methods.iter().any(|x| x == "generateContent") {
@@ -311,6 +360,13 @@ mod tests {
     #[test]
     fn family_detects_flash_lite() {
         assert_eq!(family_of("gemini-3.1-flash-lite"), "flash-lite");
+    }
+
+    #[test]
+    fn batch_slug_not_picker_eligible() {
+        assert!(!chat_picker_id_eligible("openai/gpt-oss-120b-batch"));
+        assert!(!chat_picker_label_eligible("OpenAI: gpt-oss-120b (batch)"));
+        assert!(chat_picker_id_eligible("openai/gpt-oss-120b"));
     }
 
     #[test]
