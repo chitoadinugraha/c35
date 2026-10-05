@@ -1,7 +1,7 @@
 name: alienai_c35
 description: "Alien AI — c35 client (auth + referral)"
 publish_to: 'none'
-version: 20.270.0+270
+version: 20.271.0+271
 
 environment:
   sdk: ^3.5.0
