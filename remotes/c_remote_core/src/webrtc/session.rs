@@ -151,7 +151,16 @@ impl WebrtcHub {
             Some(ws_req::Body::ReqRemoteFsRead(fs)) => {
                 self.handle_fs_read(req.req_id, fs).await;
             }
-            _ => {}
+            None => {
+                if !req.req_id.is_empty() {
+                    tracing::warn!(req_id = %req.req_id, "WsReq with empty body (no RPC response)");
+                }
+            }
+            _ => {
+                if !req.req_id.is_empty() {
+                    tracing::warn!(req_id = %req.req_id, "unhandled WsReq body");
+                }
+            }
         }
     }
 
@@ -171,8 +180,13 @@ impl WebrtcHub {
         } else {
             None
         };
-        let res_body = match dispatch_screenshot(max_w, quality, marker, req.som) {
-            Ok((w, h, bytes, axtree)) => ResRemoteScreenshot {
+        let som = req.som;
+        let res_body = match tokio::task::spawn_blocking(move || {
+            dispatch_screenshot(max_w, quality, marker, som)
+        })
+        .await
+        {
+            Ok(Ok((w, h, bytes, axtree))) => ResRemoteScreenshot {
                 ok: true,
                 error: String::new(),
                 width: w as u32,
@@ -180,9 +194,17 @@ impl WebrtcHub {
                 jpeg_bytes: bytes,
                 axtree_text: axtree,
             },
-            Err(e) => ResRemoteScreenshot {
+            Ok(Err(e)) => ResRemoteScreenshot {
                 ok: false,
                 error: e.to_string(),
+                width: 0,
+                height: 0,
+                jpeg_bytes: Vec::new(),
+                axtree_text: String::new(),
+            },
+            Err(e) => ResRemoteScreenshot {
+                ok: false,
+                error: format!("screenshot task failed: {e}"),
                 width: 0,
                 height: 0,
                 jpeg_bytes: Vec::new(),
