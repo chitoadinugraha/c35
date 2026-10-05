@@ -193,7 +193,9 @@ impl WebrtcHub {
             req_id,
             body: Some(ws_res::Body::ResRemoteScreenshot(res_body)),
         };
-        let _ = self.out_tx.send(pb_encode(&res));
+        if self.out_tx.send(pb_encode(&res)).is_err() {
+            tracing::warn!("screenshot response dropped: agent out channel closed");
+        }
     }
 
     async fn handle_command(&self, req_id: String, req: ReqRemoteCommand) {

@@ -81,7 +81,11 @@ pub async fn conn_ws_run(
         "conn",
         "agent.ws",
         "connected",
-        Some(serde_json::json!({ "device_iid": device_iid })),
+        Some(serde_json::json!({
+            "device_iid": device_iid,
+            "agent_build": agent_build(),
+            "agent_version_name": agent_version_name(),
+        })),
     )
     .await;
 

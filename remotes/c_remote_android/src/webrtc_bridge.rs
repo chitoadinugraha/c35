@@ -113,7 +113,7 @@ pub fn init_webrtc_handlers() {
 
     // 3. Screen streaming handler over SCTP data channel "remote-screen"
     c_remote_core::webrtc::set_screen_handler(Arc::new(|dc| {
-        tokio::spawn(async move {
+        crate::get_runtime().spawn(async move {
             let mut interval = tokio::time::interval(std::time::Duration::from_millis(66)); // ~15 FPS SCTP
             loop {
                 interval.tick().await;

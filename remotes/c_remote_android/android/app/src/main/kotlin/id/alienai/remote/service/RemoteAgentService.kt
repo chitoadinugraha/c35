@@ -103,7 +103,7 @@ class RemoteAgentService : Service(), RustCallback {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.notification_title))
             .setContentText(getString(R.string.notification_text))
-            .setSmallIcon(android.R.drawable.ic_menu_compass)
+            .setSmallIcon(R.drawable.ic_alien_remote)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .build()

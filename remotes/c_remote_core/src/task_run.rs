@@ -56,8 +56,10 @@ pub async fn task_run_handle(
     dispatch_ctx: &crate::skill_dispatch::DispatchCtx,
 ) -> anyhow::Result<()> {
     if let Ok(input) = pb_decode::<RemoteInputEvent>(payload) {
-        crate::webrtc::dispatch_input(&input);
-        return Ok(());
+        if !input.event_type.is_empty() {
+            crate::webrtc::dispatch_input(&input);
+            return Ok(());
+        }
     }
 
     if let Ok(act) = pb_decode::<ActDeviceTaskRun>(payload) {

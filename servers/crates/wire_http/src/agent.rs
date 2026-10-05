@@ -4,7 +4,10 @@ use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use c35_ctx::AppState;
-use c35_mod_device::{agent_log_put, agent_profile_get, agent_session_resolve, remote_ice_config};
+use c35_mod_device::{
+    agent_log_put, agent_presence_put, agent_profile_get, agent_session_resolve, remote_ice_config,
+    AgentVersionReport,
+};
 use c35_proto::ReqRemoteIceConfig;
 use serde::Deserialize;
 
@@ -103,6 +106,45 @@ async fn agent_log(
         Ok(None) => return (StatusCode::UNAUTHORIZED, "invalid session").into_response(),
         Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
     };
+
+    let presence_online = body.topic == "agent.ws" && body.text == "connected";
+    let presence_offline = body.topic == "agent.ws" && body.text == "disconnected";
+    if presence_online || presence_offline {
+        let version = if presence_online {
+            let build = body
+                .meta
+                .as_ref()
+                .and_then(|m| m.get("agent_build"))
+                .and_then(|v| v.as_i64())
+                .unwrap_or(0);
+            let version_name = body
+                .meta
+                .as_ref()
+                .and_then(|m| m.get("agent_version_name"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            if build > 0 {
+                Some(AgentVersionReport {
+                    build,
+                    version_name,
+                })
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        let _ = agent_presence_put(
+            &st.pool,
+            st.nats.as_ref(),
+            session.device_iid,
+            presence_online,
+            version,
+        )
+        .await;
+    }
+
     match agent_log_put(
         &st.pool,
         st.nats.as_ref(),

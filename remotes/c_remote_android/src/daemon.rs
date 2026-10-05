@@ -74,11 +74,11 @@ pub fn start_daemon_loop(
     std::env::set_var("C35_AGENT_STORAGE", &data_dir);
 
     let update_base = server_url.clone();
-    tokio::spawn(async move {
+    crate::get_runtime().spawn(async move {
         c_remote_core::update::update_run_loop(update_base).await;
     });
 
-    tokio::spawn(async move {
+    crate::get_runtime().spawn(async move {
         info!(server = %server_url, dev = %device_name, "Starting Android Agent Daemon Loop");
 
         update_snapshot(|s| {
@@ -228,7 +228,7 @@ pub fn start_daemon_loop(
 
             let ws_url = server_url.clone();
             let sess = session_key.clone();
-            let mut conn = tokio::spawn(async move {
+            let mut conn = crate::get_runtime().spawn(async move {
                 conn_ws_run_reconnect(&ws_url, &sess, device_iid).await
             });
 

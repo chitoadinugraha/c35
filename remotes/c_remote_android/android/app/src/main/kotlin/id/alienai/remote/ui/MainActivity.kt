@@ -195,6 +195,14 @@ class MainActivity : AppCompatActivity() {
             setPadding(40, 36, 40, 36)
         }
 
+        val appIcon = android.widget.ImageView(this).apply {
+            setImageResource(R.drawable.ic_alien_remote)
+            layoutParams = LinearLayout.LayoutParams(96, 96).apply {
+                setMargins(0, 0, 24, 0)
+            }
+        }
+        header.addView(appIcon)
+
         val titleCol = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
