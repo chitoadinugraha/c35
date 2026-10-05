@@ -97,68 +97,76 @@ async fn require_scope_access(
     Ok(())
 }
 
-type InstAdminDbRow = (
-    String,
-    String,
-    String,
-    String,
-    Vec<String>,
-    String,
-    Vec<String>,
-    Vec<String>,
-    Vec<String>,
-    Vec<String>,
-    i32,
-    bool,
-    String,
-    DateTime<Utc>,
-    DateTime<Utc>,
-    Option<DateTime<Utc>>,
-);
+struct InstAdminDbRow {
+    id: String,
+    scope: String,
+    kind: String,
+    topic_id: String,
+    topics: Vec<String>,
+    inst: String,
+    phrases: Vec<String>,
+    triggers: Vec<String>,
+    include_tools: Vec<String>,
+    exclude_tools: Vec<String>,
+    requires_global_roles: Vec<String>,
+    priority: i32,
+    enabled: bool,
+    def_hash: String,
+    created_ts: DateTime<Utc>,
+    updated_ts: DateTime<Utc>,
+    deleted_ts: Option<DateTime<Utc>>,
+}
 
-fn inst_doc_map(
-    (
-        id,
-        scope,
-        kind,
-        topic_id,
-        topics,
-        inst,
-        phrases,
-        triggers,
-        include_tools,
-        exclude_tools,
-        priority,
-        enabled,
-        def_hash,
-        created_ts,
-        updated_ts,
-        deleted_ts,
-    ): InstAdminDbRow,
-) -> InstDoc {
+impl sqlx::FromRow<'_, sqlx::postgres::PgRow> for InstAdminDbRow {
+    fn from_row(row: &sqlx::postgres::PgRow) -> sqlx::Result<Self> {
+        use sqlx::Row;
+        Ok(Self {
+            id: row.try_get("id")?,
+            scope: row.try_get("scope")?,
+            kind: row.try_get("kind")?,
+            topic_id: row.try_get("topic_id")?,
+            topics: row.try_get("topics")?,
+            inst: row.try_get("inst")?,
+            phrases: row.try_get("phrases")?,
+            triggers: row.try_get("triggers")?,
+            include_tools: row.try_get("include_tools")?,
+            exclude_tools: row.try_get("exclude_tools")?,
+            requires_global_roles: row.try_get("requires_global_roles")?,
+            priority: row.try_get("priority")?,
+            enabled: row.try_get("enabled")?,
+            def_hash: row.try_get("def_hash")?,
+            created_ts: row.try_get("created_ts")?,
+            updated_ts: row.try_get("updated_ts")?,
+            deleted_ts: row.try_get("deleted_ts")?,
+        })
+    }
+}
+
+fn inst_doc_map(row: InstAdminDbRow) -> InstDoc {
     InstDoc {
-        id,
-        scope,
-        kind,
-        topic_id,
-        topics,
-        inst,
-        phrases,
-        triggers,
-        include_tools,
-        exclude_tools,
-        priority,
-        enabled: Some(enabled),
-        def_hash,
-        created_ts_ms: created_ts.timestamp_millis(),
-        updated_ts_ms: updated_ts.timestamp_millis(),
-        deleted_ts_ms: deleted_ts.map(|t| t.timestamp_millis()),
+        id: row.id,
+        scope: row.scope,
+        kind: row.kind,
+        topic_id: row.topic_id,
+        topics: row.topics,
+        inst: row.inst,
+        phrases: row.phrases,
+        triggers: row.triggers,
+        include_tools: row.include_tools,
+        exclude_tools: row.exclude_tools,
+        requires_global_roles: row.requires_global_roles,
+        priority: row.priority,
+        enabled: Some(row.enabled),
+        def_hash: row.def_hash,
+        created_ts_ms: row.created_ts.timestamp_millis(),
+        updated_ts_ms: row.updated_ts.timestamp_millis(),
+        deleted_ts_ms: row.deleted_ts.map(|t| t.timestamp_millis()),
     }
 }
 
 async fn inst_fetch_doc(pool: &PgPool, id: &str) -> Result<InstDoc, InstAdminError> {
     let row = sqlx::query_as::<_, InstAdminDbRow>(
-        "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
+        "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, requires_global_roles, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
          FROM ai.inst WHERE id = $1",
     )
     .bind(id)
@@ -200,7 +208,7 @@ pub async fn inst_list(
 
     let rows = match (scope_filter, kind_filter, req.enabled) {
         (Some(scope), Some(kind), Some(enabled)) => sqlx::query_as::<_, InstAdminDbRow>(
-            "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
+            "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, requires_global_roles, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
              FROM ai.inst WHERE ($1::bool OR deleted_ts IS NULL) AND scope = $2 AND kind = $3 AND enabled = $4 \
              ORDER BY priority DESC, id ASC",
         )
@@ -211,7 +219,7 @@ pub async fn inst_list(
         .fetch_all(pool)
         .await,
         (Some(scope), Some(kind), None) => sqlx::query_as::<_, InstAdminDbRow>(
-            "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
+            "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, requires_global_roles, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
              FROM ai.inst WHERE ($1::bool OR deleted_ts IS NULL) AND scope = $2 AND kind = $3 \
              ORDER BY priority DESC, id ASC",
         )
@@ -221,7 +229,7 @@ pub async fn inst_list(
         .fetch_all(pool)
         .await,
         (Some(scope), None, Some(enabled)) => sqlx::query_as::<_, InstAdminDbRow>(
-            "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
+            "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, requires_global_roles, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
              FROM ai.inst WHERE ($1::bool OR deleted_ts IS NULL) AND scope = $2 AND enabled = $3 \
              ORDER BY priority DESC, id ASC",
         )
@@ -231,7 +239,7 @@ pub async fn inst_list(
         .fetch_all(pool)
         .await,
         (Some(scope), None, None) => sqlx::query_as::<_, InstAdminDbRow>(
-            "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
+            "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, requires_global_roles, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
              FROM ai.inst WHERE ($1::bool OR deleted_ts IS NULL) AND scope = $2 \
              ORDER BY priority DESC, id ASC",
         )
@@ -240,7 +248,7 @@ pub async fn inst_list(
         .fetch_all(pool)
         .await,
         (None, Some(kind), Some(enabled)) => sqlx::query_as::<_, InstAdminDbRow>(
-            "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
+            "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, requires_global_roles, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
              FROM ai.inst WHERE ($1::bool OR deleted_ts IS NULL) AND kind = $2 AND enabled = $3 \
              ORDER BY priority DESC, id ASC",
         )
@@ -250,7 +258,7 @@ pub async fn inst_list(
         .fetch_all(pool)
         .await,
         (None, Some(kind), None) => sqlx::query_as::<_, InstAdminDbRow>(
-            "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
+            "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, requires_global_roles, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
              FROM ai.inst WHERE ($1::bool OR deleted_ts IS NULL) AND kind = $2 \
              ORDER BY priority DESC, id ASC",
         )
@@ -259,7 +267,7 @@ pub async fn inst_list(
         .fetch_all(pool)
         .await,
         (None, None, Some(enabled)) => sqlx::query_as::<_, InstAdminDbRow>(
-            "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
+            "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, requires_global_roles, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
              FROM ai.inst WHERE ($1::bool OR deleted_ts IS NULL) AND enabled = $2 \
              ORDER BY priority DESC, id ASC",
         )
@@ -268,7 +276,7 @@ pub async fn inst_list(
         .fetch_all(pool)
         .await,
         (None, None, None) => sqlx::query_as::<_, InstAdminDbRow>(
-            "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
+            "SELECT id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, requires_global_roles, priority, enabled, def_hash, created_ts, updated_ts, deleted_ts \
              FROM ai.inst WHERE ($1::bool OR deleted_ts IS NULL) \
              ORDER BY priority DESC, id ASC",
         )
@@ -337,9 +345,9 @@ pub async fn inst_put(
     sqlx::query(
         r#"
         INSERT INTO ai.inst (
-            id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, enabled, def_hash, updated_ts, deleted_ts
+            id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, requires_global_roles, priority, enabled, def_hash, updated_ts, deleted_ts
         ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NULL
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NULL
         )
         ON CONFLICT (id) DO UPDATE SET
             scope = EXCLUDED.scope,
@@ -351,6 +359,7 @@ pub async fn inst_put(
             triggers = EXCLUDED.triggers,
             include_tools = EXCLUDED.include_tools,
             exclude_tools = EXCLUDED.exclude_tools,
+            requires_global_roles = EXCLUDED.requires_global_roles,
             priority = EXCLUDED.priority,
             enabled = EXCLUDED.enabled,
             def_hash = EXCLUDED.def_hash,
@@ -368,6 +377,7 @@ pub async fn inst_put(
     .bind(&doc.triggers)
     .bind(&doc.include_tools)
     .bind(&doc.exclude_tools)
+    .bind(&doc.requires_global_roles)
     .bind(doc.priority)
     .bind(enabled)
     .bind(doc.def_hash.trim())

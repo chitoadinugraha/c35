@@ -11,6 +11,14 @@ void main() {
     );
   });
 
+  test('composerMentionContentSameTurn matches chip draft to bracket wire', () {
+    const deviceId = 'iid:42';
+    final local = 'buat referral code untuk ${composerMentionToken(deviceId)}';
+    const server = 'buat referral code untuk [@iid:42]';
+    expect(composerMentionContentSameTurn(local, server), isTrue);
+    expect(composerMentionContentSameTurn(local, 'besok hari apa'), isFalse);
+  });
+
   test('composerMentionDraftMergeSticky keeps chips after send', () {
     const deviceId = 'iid:42';
     final sticky = composerMentionDraftFromStickyIds([deviceId], const []);

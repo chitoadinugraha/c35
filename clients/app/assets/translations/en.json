@@ -286,5 +286,14 @@
                  "chatDeleteMessage":  "\"{name}\" and all messages will be permanently deleted.",
                  "typingBot":  "Bot is typing…",
                  "typingPeer":  "Customer is typing…"
-             }
+             },
+    "legal":  {
+                  "aiDisclaimerTitle":  "Before you continue",
+                  "aiDisclaimerAccuracy":  "Alien AI can make mistakes. Double-check important facts before you rely on them.",
+                  "aiDisclaimerResponsibility":  "The assistant only acts on your requests and instructions. You take full responsibility for reviewing its outputs and for any actions you take—or ask it to take—through the Service.",
+                  "aiDisclaimerTermsPrefix":  "This notice is part of our ",
+                  "aiDisclaimerTermsLink":  "Terms of Service",
+                  "aiDisclaimerTermsSuffix":  ".",
+                  "aiDisclaimerAccept":  "I understand"
+              }
 }

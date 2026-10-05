@@ -15,6 +15,7 @@ message InstDoc {
   repeated string triggers = 8;
   repeated string include_tools = 15;
   repeated string exclude_tools = 16;
+  repeated string requires_global_roles = 17;
   int32 priority = 9;
   optional bool enabled = 10;
   string def_hash = 11;

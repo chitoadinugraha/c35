@@ -27,11 +27,13 @@ mod billing_signup_credit;
 mod billing_summary;
 mod billing_topup;
 mod billing_turn;
+mod rate_card;
 mod billing_wallet;
 mod billing_webhook;
 mod bot_usage;
 
 pub use billing_account_get::billing_account_get;
+pub use rate_card::{rate_card_retail_usd, rate_card_rows, RateCardRow};
 pub use billing_cost::{
     billing_cost_usd, billing_cost_wholesale_usd, billing_embed_cost_usd, billing_to_retail_usd,
     billing_tool_cost_usd,

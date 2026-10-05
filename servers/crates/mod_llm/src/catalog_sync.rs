@@ -2,12 +2,13 @@ use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 
 use anyhow::{Context, Result};
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use c35_store::db_retry;
 use serde_json::Value;
 use sqlx::PgPool;
 
 use crate::catalog_price::{ALIEN_POOL_USD_IN_PER_1M, ALIEN_POOL_USD_OUT_PER_1M};
+use crate::catalog_pricing::{apply_openrouter_pricing, pricing_from_model_row, CatalogPricing};
 use crate::catalog_rank::{
     alien_chain_sort_cmp, assign_picker_order, chat_picker_id_eligible, chat_picker_label_eligible, family_of,
     gemini_chat_eligible, pick_default_provider, version_rank_of,
@@ -42,9 +43,14 @@ pub async fn llm_catalog_sync(pool: &PgPool) -> Result<()> {
 pub async fn llm_catalog_sync_force(pool: &PgPool) -> Result<usize> {
     runtime_config_reload(pool).await;
     let synced_at = Utc::now();
+    let or_raw = openrouter_models_raw().await?;
+    let or_prices = openrouter_pricing_index_from_raw(&or_raw);
     let mut cf = cf_models_fetch().await?;
     if cf.is_empty() {
-        cf = openrouter_catalog_fetch().await?;
+        cf = catalog_rows_from_openrouter_raw(or_raw.clone())?;
+    }
+    for m in cf.iter_mut() {
+        apply_openrouter_pricing(m, &or_prices);
     }
     if cf.is_empty() && !cf_gateway_ready() {
         tracing::warn!(
@@ -55,10 +61,17 @@ pub async fn llm_catalog_sync_force(pool: &PgPool) -> Result<usize> {
     prune_stale_manual_seed(pool, &cf).await?;
     let cf_ids: HashSet<String> = cf.iter().map(|m| m.id.clone()).collect();
     let price_index = pricing_index_from_rows(&cf);
+    upsert_openrouter_embed_models(pool, &or_raw, &or_prices, synced_at).await?;
     let mut fetched = cf;
     fetched.extend(gemini_fetch(&price_index, &cf_ids).await?);
     for m in fetched.iter_mut() {
+        apply_openrouter_pricing(m, &or_prices);
         upsert_model(pool, m, synced_at).await?;
+    }
+    let reconciled = llm_catalog_reconcile_or_prices(pool, &or_prices, synced_at).await?;
+    disable_duplicate_seed_models(pool).await?;
+    if reconciled > 0 {
+        tracing::info!(reconciled, "llm_catalog openrouter price reconcile");
     }
     prune_stale_google(pool, &fetched).await?;
     sync_alien_meta(pool, &fetched).await?;
@@ -90,6 +103,7 @@ pub fn pinned_seed_fingerprint() -> String {
         h.update(m.label.as_bytes());
         h.update(m.provider_model.as_bytes());
         h.update(&m.input_micro_per_m.to_le_bytes());
+        h.update(&m.input_cache_micro_per_m.to_le_bytes());
         h.update(&m.output_micro_per_m.to_le_bytes());
         h.update(&[m.supports_thinking as u8]);
         h.update(&[m.enabled as u8]);
@@ -109,6 +123,7 @@ pub fn pinned_models() -> Vec<LlmModelRow> {
         label: "Alien AI".into(),
         provider_model: String::new(),
         input_micro_per_m: (ALIEN_POOL_USD_IN_PER_1M * 1_000_000.0).round() as i64,
+        input_cache_micro_per_m: 0,
         output_micro_per_m: (ALIEN_POOL_USD_OUT_PER_1M * 1_000_000.0).round() as i64,
         supports_thinking: true,
         enabled: true,
@@ -120,18 +135,23 @@ pub fn pinned_models() -> Vec<LlmModelRow> {
     }]
 }
 
-fn pricing_index_from_rows(rows: &[LlmModelRow]) -> HashMap<String, (i64, i64)> {
+fn pricing_index_from_rows(rows: &[LlmModelRow]) -> HashMap<String, CatalogPricing> {
     let mut out = HashMap::new();
     for m in rows {
-        out.insert(m.id.clone(), (m.input_micro_per_m, m.output_micro_per_m));
+        let p = CatalogPricing {
+            input_micro_per_m: m.input_micro_per_m,
+            output_micro_per_m: m.output_micro_per_m,
+            input_cache_micro_per_m: m.input_cache_micro_per_m,
+        };
+        out.insert(m.id.clone(), p);
         if m.provider == "google" {
-            out.insert(format!("google/{}", m.id), (m.input_micro_per_m, m.output_micro_per_m));
+            out.insert(format!("google/{}", m.id), p);
         }
     }
     out
 }
 
-fn pricing_lookup(index: &HashMap<String, (i64, i64)>, id: &str) -> Option<(i64, i64)> {
+fn pricing_lookup(index: &HashMap<String, CatalogPricing>, id: &str) -> Option<CatalogPricing> {
     let key = id.trim();
     index
         .get(key)
@@ -208,7 +228,7 @@ async fn sync_alien_meta(pool: &PgPool, fetched: &[LlmModelRow]) -> Result<()> {
     Ok(())
 }
 
-async fn gemini_fetch(price_index: &HashMap<String, (i64, i64)>, cf_ids: &HashSet<String>) -> Result<Vec<LlmModelRow>> {
+async fn gemini_fetch(price_index: &HashMap<String, CatalogPricing>, cf_ids: &HashSet<String>) -> Result<Vec<LlmModelRow>> {
     let key = gemini_api_key();
     if key.is_empty() {
         return Ok(Vec::new());
@@ -245,7 +265,7 @@ async fn gemini_fetch(price_index: &HashMap<String, (i64, i64)>, cf_ids: &HashSe
             continue;
         }
         let label = raw["displayName"].as_str().unwrap_or(&id).to_string();
-        let Some((in_ppm, out_ppm)) = pricing_lookup(price_index, &id) else {
+        let Some(p) = pricing_lookup(price_index, &id) else {
             continue;
         };
         let version_rank = version_rank_of(&id);
@@ -256,8 +276,9 @@ async fn gemini_fetch(price_index: &HashMap<String, (i64, i64)>, cf_ids: &HashSe
             provider: "google".into(),
             label,
             provider_model,
-            input_micro_per_m: in_ppm,
-            output_micro_per_m: out_ppm,
+            input_micro_per_m: p.input_micro_per_m,
+            input_cache_micro_per_m: p.input_cache_micro_per_m,
+            output_micro_per_m: p.output_micro_per_m,
             supports_thinking,
             enabled: false,
             is_default: false,
@@ -338,7 +359,7 @@ async fn cf_models_fetch() -> Result<Vec<LlmModelRow>> {
         }
         let family = family_of(&slug);
         let version_rank = version_rank_of(&slug);
-        let Some((in_ppm, out_ppm)) = cf_pricing_micro_per_m(&raw) else {
+        let Some(p) = pricing_from_model_row(&raw) else {
             continue;
         };
         let thinks = slug.contains("gemini-3")
@@ -352,8 +373,9 @@ async fn cf_models_fetch() -> Result<Vec<LlmModelRow>> {
             provider,
             label,
             provider_model: id,
-            input_micro_per_m: in_ppm,
-            output_micro_per_m: out_ppm,
+            input_micro_per_m: p.input_micro_per_m,
+            input_cache_micro_per_m: p.input_cache_micro_per_m,
+            output_micro_per_m: p.output_micro_per_m,
             supports_thinking: thinks,
             enabled: true,
             is_default: false,
@@ -368,8 +390,7 @@ async fn cf_models_fetch() -> Result<Vec<LlmModelRow>> {
     Ok(out)
 }
 
-/// Public OpenRouter model list (live $/token). Used when CF models search returns no rows.
-async fn openrouter_catalog_fetch() -> Result<Vec<LlmModelRow>> {
+async fn openrouter_models_raw() -> Result<Vec<Value>> {
     let v: Value = reqwest::Client::new()
         .get("https://openrouter.ai/api/v1/models")
         .timeout(Duration::from_secs(60))
@@ -381,10 +402,28 @@ async fn openrouter_catalog_fetch() -> Result<Vec<LlmModelRow>> {
         .json()
         .await
         .context("openrouter models json")?;
-    let rows = v.get("data").and_then(|d| d.as_array()).cloned().unwrap_or_default();
-    let out = catalog_rows_from_openrouter_raw(rows)?;
-    tracing::info!(openrouter_models = out.len(), "openrouter_catalog_fetch");
-    Ok(out)
+    Ok(v.get("data").and_then(|d| d.as_array()).cloned().unwrap_or_default())
+}
+
+fn openrouter_pricing_index_from_raw(rows: &[Value]) -> HashMap<String, CatalogPricing> {
+    let mut out = HashMap::new();
+    for raw in rows {
+        let id = raw["id"].as_str().or_else(|| raw["name"].as_str()).unwrap_or("").trim();
+        if id.is_empty() {
+            continue;
+        }
+        let Some(p) = pricing_from_model_row(raw) else {
+            continue;
+        };
+        out.insert(id.to_string(), p);
+        if let Some((provider, slug)) = cf_provider_slug_opt(id) {
+            out.insert(slug.clone(), p);
+            if provider == "google" {
+                out.insert(format!("google/{}", slug), p);
+            }
+        }
+    }
+    out
 }
 
 fn catalog_rows_from_openrouter_raw(rows: Vec<Value>) -> Result<Vec<LlmModelRow>> {
@@ -405,7 +444,7 @@ fn catalog_rows_from_openrouter_raw(rows: Vec<Value>) -> Result<Vec<LlmModelRow>
         }
         let family = family_of(&slug);
         let version_rank = version_rank_of(&slug);
-        let Some((in_ppm, out_ppm)) = cf_pricing_micro_per_m(&raw) else {
+        let Some(p) = pricing_from_model_row(&raw) else {
             continue;
         };
         let thinks = slug.contains("gemini-3")
@@ -419,8 +458,9 @@ fn catalog_rows_from_openrouter_raw(rows: Vec<Value>) -> Result<Vec<LlmModelRow>
             provider,
             label,
             provider_model: id,
-            input_micro_per_m: in_ppm,
-            output_micro_per_m: out_ppm,
+            input_micro_per_m: p.input_micro_per_m,
+            input_cache_micro_per_m: p.input_cache_micro_per_m,
+            output_micro_per_m: p.output_micro_per_m,
             supports_thinking: thinks,
             enabled: true,
             is_default: false,
@@ -505,29 +545,10 @@ fn cf_api_error_hint(body: &str) -> String {
     }
 }
 
-fn cf_pricing_micro_per_m(raw: &Value) -> Option<(i64, i64)> {
-    let pricing = raw.get("pricing")?;
-    let in_s = pricing.get("prompt").and_then(|v| v.as_str()).or_else(|| pricing.get("input").and_then(|v| v.as_str()))?;
-    let out_s = pricing
-        .get("completion")
-        .and_then(|v| v.as_str())
-        .or_else(|| pricing.get("output").and_then(|v| v.as_str()))?;
-    let in_tok = in_s.trim().parse::<f64>().ok().filter(|&n| n >= 0.0)?;
-    let out_tok = out_s.trim().parse::<f64>().ok().filter(|&n| n >= 0.0)?;
-    if in_tok == 0.0 && out_tok == 0.0 {
-        return None;
-    }
-    Some((usd_per_token_to_micro_per_m(in_tok), usd_per_token_to_micro_per_m(out_tok)))
-}
-
-fn usd_per_token_to_micro_per_m(usd_per_token: f64) -> i64 {
-    (usd_per_token * 1_000_000.0 * 1_000_000.0).round() as i64
-}
-
 async fn catalog_reindex_sort_orders(pool: &PgPool) -> Result<()> {
     let rows = db_retry(pool, || async {
-        sqlx::query_as::<_, (String, String, String, String, i64, i64, bool, bool, bool, i32, String, i32, String)>(
-            "SELECT id, provider, label, provider_model, input_micro_per_m, output_micro_per_m, supports_thinking, enabled, is_default, sort_order, family, version_rank, source \
+        sqlx::query_as::<_, (String, String, String, String, i64, i64, i64, bool, bool, bool, i32, String, i32, String)>(
+            "SELECT id, provider, label, provider_model, input_micro_per_m, input_cache_micro_per_m, output_micro_per_m, supports_thinking, enabled, is_default, sort_order, family, version_rank, source \
              FROM ai.llm_model WHERE deleted_at IS NULL",
         )
         .fetch_all(pool)
@@ -537,13 +558,14 @@ async fn catalog_reindex_sort_orders(pool: &PgPool) -> Result<()> {
     let mut models = rows
         .into_iter()
         .map(
-            |(id, provider, label, provider_model, input_micro_per_m, output_micro_per_m, supports_thinking, enabled, is_default, sort_order, family, version_rank, source)| {
+            |(id, provider, label, provider_model, input_micro_per_m, input_cache_micro_per_m, output_micro_per_m, supports_thinking, enabled, is_default, sort_order, family, version_rank, source)| {
                 LlmModelRow {
                     id,
                     provider,
                     label,
                     provider_model,
                     input_micro_per_m,
+                    input_cache_micro_per_m,
                     output_micro_per_m,
                     supports_thinking,
                     enabled,
@@ -586,6 +608,144 @@ async fn catalog_reindex_sort_orders(pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
+fn openrouter_embed_eligible(id: &str) -> bool {
+    let lower = id.trim().to_ascii_lowercase();
+    if lower.is_empty() {
+        return false;
+    }
+    if lower.contains("image") || lower.contains("transcribe") || lower.contains("whisper") {
+        return false;
+    }
+    lower.contains("embed") || lower.contains("embedding")
+}
+
+async fn upsert_openrouter_embed_models(
+    pool: &PgPool,
+    or_raw: &[Value],
+    or_prices: &HashMap<String, CatalogPricing>,
+    synced_at: DateTime<Utc>,
+) -> Result<()> {
+    for raw in or_raw {
+        let id = raw["id"].as_str().or_else(|| raw["name"].as_str()).unwrap_or("").trim();
+        if id.is_empty() || !openrouter_embed_eligible(id) {
+            continue;
+        }
+        let (provider, slug) = match cf_provider_slug_opt(id) {
+            Some(p) => p,
+            None => continue,
+        };
+        let label = raw["name"]
+            .as_str()
+            .or_else(|| raw.get("canonical_slug").and_then(|x| x.as_str()))
+            .unwrap_or(slug.as_str())
+            .to_string();
+        let version_rank = version_rank_of(&slug);
+        let mut row = LlmModelRow {
+            id: slug,
+            provider,
+            label,
+            provider_model: id.to_string(),
+            input_micro_per_m: 0,
+            input_cache_micro_per_m: 0,
+            output_micro_per_m: 0,
+            supports_thinking: false,
+            enabled: false,
+            is_default: false,
+            sort_order: 9000,
+            family: "embed".into(),
+            version_rank,
+            source: "or_api".into(),
+        };
+        apply_openrouter_pricing(&mut row, or_prices);
+        if let Some(p) = pricing_from_model_row(raw) {
+            row.input_micro_per_m = p.input_micro_per_m;
+            row.output_micro_per_m = p.output_micro_per_m;
+            row.input_cache_micro_per_m = p.input_cache_micro_per_m;
+        }
+        if row.input_micro_per_m == 0 && row.output_micro_per_m == 0 {
+            continue;
+        }
+        upsert_model(pool, &row, synced_at).await?;
+    }
+    Ok(())
+}
+
+async fn llm_catalog_reconcile_or_prices(
+    pool: &PgPool,
+    or_prices: &HashMap<String, CatalogPricing>,
+    synced_at: DateTime<Utc>,
+) -> Result<usize> {
+    let rows = db_retry(pool, || async {
+        sqlx::query_as::<_, (String, String, String, String, i64, i64, i64, bool, bool, bool, i32, String, i32, String)>(
+            "SELECT id, provider, label, provider_model, input_micro_per_m, input_cache_micro_per_m, output_micro_per_m, supports_thinking, enabled, is_default, sort_order, family, version_rank, source \
+             FROM ai.llm_model WHERE deleted_at IS NULL",
+        )
+        .fetch_all(pool)
+        .await
+    })
+    .await?;
+    let mut updated = 0usize;
+    for (id, provider, label, provider_model, in_ppm, cache_ppm, out_ppm, supports_thinking, enabled, is_default, sort_order, family, version_rank, source) in rows {
+        if id == "alienai" || provider == "alienai" {
+            continue;
+        }
+        let mut row = LlmModelRow {
+            id,
+            provider,
+            label,
+            provider_model,
+            input_micro_per_m: in_ppm,
+            input_cache_micro_per_m: cache_ppm,
+            output_micro_per_m: out_ppm,
+            supports_thinking,
+            enabled,
+            is_default,
+            sort_order,
+            family,
+            version_rank,
+            source,
+        };
+        let before = (row.input_micro_per_m, row.input_cache_micro_per_m, row.output_micro_per_m);
+        apply_openrouter_pricing(&mut row, or_prices);
+        let after = (row.input_micro_per_m, row.input_cache_micro_per_m, row.output_micro_per_m);
+        if before == after {
+            continue;
+        }
+        db_retry(pool, || async {
+            sqlx::query(
+                "UPDATE ai.llm_model SET input_micro_per_m = $1, input_cache_micro_per_m = $2, output_micro_per_m = $3, synced_at = $4, updated_at = NOW() \
+                 WHERE id = $5 AND deleted_at IS NULL AND provider <> 'alienai' AND id <> 'alienai'",
+            )
+            .bind(after.0)
+            .bind(after.1)
+            .bind(after.2)
+            .bind(synced_at)
+            .bind(&row.id)
+            .execute(pool)
+            .await
+        })
+        .await?;
+        updated += 1;
+    }
+    Ok(updated)
+}
+
+async fn disable_duplicate_seed_models(pool: &PgPool) -> Result<()> {
+    db_retry(pool, || async {
+        sqlx::query(
+            "UPDATE ai.llm_model AS s SET enabled = false, updated_at = NOW() \
+             FROM ai.llm_model AS c \
+             WHERE s.source = 'seed' AND s.deleted_at IS NULL AND s.enabled = true \
+               AND c.deleted_at IS NULL AND c.source IN ('cf_api', 'api', 'or_api') \
+               AND c.provider_model <> '' AND s.provider_model = c.provider_model AND s.id <> c.id",
+        )
+        .execute(pool)
+        .await
+    })
+    .await?;
+    Ok(())
+}
+
 async fn prune_stale_manual_seed(pool: &PgPool, cf: &[LlmModelRow]) -> Result<()> {
     if cf.is_empty() {
         return Ok(());
@@ -618,7 +778,8 @@ fn cf_chat_eligible(id: &str) -> bool {
 
 #[cfg(test)]
 mod cf_search_tests {
-    use super::{cf_api_error_hint, cf_pricing_micro_per_m, cf_search_result_rows};
+    use super::{cf_api_error_hint, cf_search_result_rows};
+    use crate::catalog_pricing::pricing_from_model_row;
     use serde_json::json;
 
     #[test]
@@ -650,11 +811,33 @@ mod cf_search_tests {
     fn cf_pricing_openrouter_to_micro_per_m() {
         let row = json!({
             "id": "openai/gpt-4o",
-            "pricing": { "prompt": "0.0000025", "completion": "0.00001" }
+            "pricing": {
+                "prompt": "0.0000025",
+                "completion": "0.00001",
+                "input_cache_read": "0.000000625"
+            }
         });
-        let (in_ppm, out_ppm) = cf_pricing_micro_per_m(&row).expect("pricing");
-        assert_eq!(in_ppm, 2_500_000);
-        assert_eq!(out_ppm, 10_000_000);
+        let p = pricing_from_model_row(&row).expect("pricing");
+        assert_eq!(p.input_micro_per_m, 2_500_000);
+        assert_eq!(p.output_micro_per_m, 10_000_000);
+        assert_eq!(p.input_cache_micro_per_m, 625_000);
+    }
+
+    #[test]
+    fn openrouter_pricing_index_resolves_google_slug() {
+        let rows = vec![json!({
+            "id": "google/gemini-3.5-flash-lite",
+            "pricing": {
+                "prompt": "0.0000003",
+                "completion": "0.0000025",
+                "input_cache_read": "0.00000003"
+            }
+        })];
+        let idx = super::openrouter_pricing_index_from_raw(&rows);
+        let p = idx.get("gemini-3.5-flash-lite").expect("slug");
+        assert_eq!(p.input_micro_per_m, 300_000);
+        assert_eq!(p.output_micro_per_m, 2_500_000);
+        assert_eq!(p.input_cache_micro_per_m, 30_000);
     }
 }
 

@@ -55,3 +55,39 @@ message ReqAdminLogList {
 message ResAdminLogList {
   repeated Log logs = 1;
 }
+
+// Root-only LLM catalog wholesale + retail ($/1M tokens). Cache column 0 = unknown.
+message AdminLlmCatalogRow {
+  string id = 1;
+  string provider = 2;
+  string label = 3;
+  string source = 4;
+  bool enabled = 5;
+  double usd_in_per_1m = 6;
+  double usd_in_cache_per_1m = 7;
+  double usd_out_per_1m = 8;
+  double retail_usd_in_per_1m = 9;
+  double retail_usd_in_cache_per_1m = 10;
+  double retail_usd_out_per_1m = 11;
+}
+
+message ReqAdminLlmCatalogList {
+  bool enabled_only = 1;
+}
+
+message AdminServiceRateRow {
+  string category = 1;
+  string id = 2;
+  string label = 3;
+  string unit = 4;
+  double wholesale_usd = 5;
+  double retail_usd = 6;
+  string detail = 7;
+}
+
+message ResAdminLlmCatalogList {
+  repeated AdminLlmCatalogRow models = 1;
+  double retail_markup = 2;
+  repeated AdminServiceRateRow services = 3;
+  repeated AdminServiceRateRow live = 4;
+}

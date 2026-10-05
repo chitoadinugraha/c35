@@ -54,6 +54,7 @@ fn inst_core_assistant() -> InstRow {
         triggers: vec!["always".into()],
         include_tools: vec![],
         exclude_tools: vec![],
+        requires_global_roles: vec![],
         priority: 200,
     }
 }
@@ -81,6 +82,7 @@ fn inst_web_search() -> InstRow {
         triggers: vec![],
         include_tools: vec!["web.search".into()],
         exclude_tools: vec![],
+        requires_global_roles: vec![],
         priority: 100,
     }
 }
@@ -97,6 +99,7 @@ fn inst_consumption_coach() -> InstRow {
         triggers: vec![],
         include_tools: vec!["consumption.today".into()],
         exclude_tools: vec!["img.generate".into()],
+        requires_global_roles: vec![],
         priority: 135,
     }
 }
@@ -118,6 +121,7 @@ fn inst_consumption() -> InstRow {
         triggers: vec![],
         include_tools: vec!["consumption.add".into()],
         exclude_tools: vec!["img.generate".into()],
+        requires_global_roles: vec![],
         priority: 140,
     }
 }
@@ -139,6 +143,7 @@ fn inst_consumption_delete() -> InstRow {
         triggers: vec![],
         include_tools: vec!["consumption.delete".into()],
         exclude_tools: vec!["img.generate".into()],
+        requires_global_roles: vec![],
         priority: 140,
     }
 }
@@ -156,6 +161,7 @@ fn health_catalog() -> Vec<ToolDef> {
             requires_kinds: vec![],
             rag_phrases: vec![],
             requires_capability: None,
+            requires_global_roles: vec![],
         },
         ToolDef {
             name: "img.generate".into(),
@@ -168,6 +174,7 @@ fn health_catalog() -> Vec<ToolDef> {
             requires_kinds: vec![],
             rag_phrases: vec![],
             requires_capability: None,
+            requires_global_roles: vec![],
         },
         ToolDef {
             name: "web.visit".into(),
@@ -180,6 +187,7 @@ fn health_catalog() -> Vec<ToolDef> {
             requires_kinds: vec![],
             rag_phrases: vec![],
             requires_capability: None,
+            requires_global_roles: vec![],
         },
         ToolDef {
             name: "consumption.add".into(),
@@ -192,6 +200,7 @@ fn health_catalog() -> Vec<ToolDef> {
             requires_kinds: vec![],
             rag_phrases: vec![],
             requires_capability: None,
+            requires_global_roles: vec![],
         },
         ToolDef {
             name: "consumption.today".into(),
@@ -204,6 +213,7 @@ fn health_catalog() -> Vec<ToolDef> {
             requires_kinds: vec![],
             rag_phrases: vec![],
             requires_capability: None,
+            requires_global_roles: vec![],
         },
         ToolDef {
             name: "web.research".into(),
@@ -216,6 +226,7 @@ fn health_catalog() -> Vec<ToolDef> {
             requires_kinds: vec![],
             rag_phrases: vec![],
             requires_capability: None,
+            requires_global_roles: vec![],
         },
         ToolDef {
             name: "consumption.update".into(),
@@ -228,6 +239,7 @@ fn health_catalog() -> Vec<ToolDef> {
             requires_kinds: vec![],
             rag_phrases: vec![],
             requires_capability: None,
+            requires_global_roles: vec![],
         },
         ToolDef {
             name: "consumption.delete".into(),
@@ -240,6 +252,7 @@ fn health_catalog() -> Vec<ToolDef> {
             requires_kinds: vec![],
             rag_phrases: vec![],
             requires_capability: None,
+            requires_global_roles: vec![],
         },
     ]
 }
@@ -282,6 +295,7 @@ fn inst_web_search_cinema() -> InstRow {
         triggers: vec!["tool_include:web.search".into()],
         include_tools: vec![],
         exclude_tools: vec![],
+        requires_global_roles: vec![],
         priority: 100,
     }
 }
@@ -334,6 +348,7 @@ fn compose_inst_exclude_drops_web_search() {
         triggers: vec![],
         include_tools: vec![],
         exclude_tools: vec!["web.search".into()],
+        requires_global_roles: vec![],
         priority: 50,
     };
     let out = compose_default(&[inst], "offline only please", pa_catalog(), &[]);
@@ -512,6 +527,7 @@ fn compose_ask_mode_keeps_readonly_consumption_today() {
         requires_kinds: vec![],
         rag_phrases: vec![],
         requires_capability: None,
+        requires_global_roles: vec![],
     });
     let scopes = inst_scopes_home();
     let out = compose_tools_and_inst(
@@ -548,6 +564,7 @@ fn inst_mention_research() -> InstRow {
             "web.search".into(),
         ],
         exclude_tools: vec![],
+        requires_global_roles: vec![],
         priority: 125,
     }
 }
@@ -586,6 +603,7 @@ fn inst_referral_put() -> InstRow {
         triggers: vec![],
         include_tools: vec!["referral.code.put".into()],
         exclude_tools: vec![],
+        requires_global_roles: vec![],
         priority: 130,
     }
 }
@@ -602,6 +620,7 @@ fn inst_referral_list() -> InstRow {
         triggers: vec![],
         include_tools: vec!["referral.code.list".into()],
         exclude_tools: vec![],
+        requires_global_roles: vec![],
         priority: 125,
     }
 }
@@ -692,6 +711,7 @@ fn site_catalog() -> Vec<ToolDef> {
             requires_kinds: vec!["site".into()],
             rag_phrases: vec![],
             requires_capability: None,
+            requires_global_roles: vec![],
         },
         ToolDef {
             name: "web.search".into(),
@@ -704,6 +724,7 @@ fn site_catalog() -> Vec<ToolDef> {
             requires_kinds: vec![],
             rag_phrases: vec![],
             requires_capability: None,
+            requires_global_roles: vec![],
         },
     ]
 }
@@ -792,6 +813,7 @@ fn tool_mention_capability_read_needs_any_site() {
         requires_kinds: vec!["site".into()],
         rag_phrases: vec![],
         requires_capability: Some("commerce".into()),
+        requires_global_roles: vec![],
     };
     let caps = SiteCapabilityView::from_map(HashMap::from([
         (111, json!({ "commerce": true })),
@@ -830,6 +852,7 @@ fn tool_mention_capability_write_needs_default_site() {
         requires_kinds: vec!["site".into()],
         rag_phrases: vec![],
         requires_capability: Some("commerce".into()),
+        requires_global_roles: vec![],
     };
     let caps = SiteCapabilityView::from_map(HashMap::from([(111, json!({ "commerce": true }))]));
     let multi_site = MentionContext {
@@ -865,6 +888,7 @@ fn inst_img_edit() -> InstRow {
         triggers: vec![],
         include_tools: vec!["img.edit".into()],
         exclude_tools: vec!["img.generate".into()],
+        requires_global_roles: vec![],
         priority: 145,
     }
 }
@@ -881,6 +905,7 @@ fn inst_mention_image_high() -> InstRow {
         triggers: vec![],
         include_tools: vec!["img.generate".into()],
         exclude_tools: vec![],
+        requires_global_roles: vec![],
         priority: 130,
     }
 }
@@ -966,6 +991,7 @@ fn inst_multitask_delegate() -> InstRow {
         triggers: vec!["tool_include:delegate.run".into()],
         include_tools: vec!["delegate.run".into()],
         exclude_tools: vec![],
+        requires_global_roles: vec![],
         priority: 127,
     }
 }
@@ -1010,6 +1036,7 @@ fn inst_browser_device_tool_probe() -> InstRow {
             .map(|s| (*s).to_string())
             .collect(),
         exclude_tools: vec![],
+        requires_global_roles: vec![],
         priority: 50,
     }
 }
@@ -1103,6 +1130,7 @@ fn inst_site_catalog_price() -> InstRow {
         triggers: vec![],
         include_tools: vec!["site.query.run".into()],
         exclude_tools: vec![],
+        requires_global_roles: vec![],
         priority: 130,
     }
 }
@@ -1119,6 +1147,7 @@ fn inst_web_search_fixture() -> InstRow {
         triggers: vec![],
         include_tools: vec!["web.search".into()],
         exclude_tools: vec![],
+        requires_global_roles: vec![],
         priority: 100,
     }
 }
@@ -1135,6 +1164,7 @@ fn site_query_tool() -> ToolDef {
         requires_kinds: vec![],
         rag_phrases: vec![],
         requires_capability: None,
+        requires_global_roles: vec![],
     }
 }
 
@@ -1175,6 +1205,7 @@ fn inst_bot_draft() -> InstRow {
         triggers: vec![],
         include_tools: vec!["bot.draft".into()],
         exclude_tools: vec!["web.search".into(), "web.visit".into()],
+        requires_global_roles: vec![],
         priority: 132,
     }
 }
@@ -1191,6 +1222,7 @@ fn bot_draft_tool() -> ToolDef {
         requires_kinds: vec![],
         rag_phrases: vec!["buat bot".into()],
         requires_capability: None,
+        requires_global_roles: vec![],
     }
 }
 
@@ -1210,6 +1242,7 @@ fn inst_site_builder() -> InstRow {
             "site.publish".into(),
         ],
         exclude_tools: vec!["web.search".into(), "web.visit".into()],
+        requires_global_roles: vec![],
         priority: 150,
     }
 }
@@ -1226,6 +1259,7 @@ fn site_create_tool() -> ToolDef {
         requires_kinds: vec![],
         rag_phrases: vec!["buat website".into()],
         requires_capability: None,
+        requires_global_roles: vec![],
     }
 }
 

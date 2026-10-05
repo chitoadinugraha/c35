@@ -570,6 +570,15 @@ const InvokeReq$json = {
       '9': 0,
       '10': 'billingVoucherVoid'
     },
+    {
+      '1': 'admin_llm_catalog_list',
+      '3': 141,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqAdminLlmCatalogList',
+      '9': 0,
+      '10': 'adminLlmCatalogList'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -663,7 +672,9 @@ final $typed_data.Uint8List invokeReqDescriptor = $convert.base64Decode(
     'aGVyTGlzdEgAUhJiaWxsaW5nVm91Y2hlckxpc3QSYgobYmlsbGluZ192b3VjaGVyX3JlZGVlbV'
     '9saXN0GIsBIAEoCzIgLmMzNS5SZXFCaWxsaW5nVm91Y2hlclJlZGVlbUxpc3RIAFIYYmlsbGlu'
     'Z1ZvdWNoZXJSZWRlZW1MaXN0Ek8KFGJpbGxpbmdfdm91Y2hlcl92b2lkGIwBIAEoCzIaLmMzNS'
-    '5SZXFCaWxsaW5nVm91Y2hlclZvaWRIAFISYmlsbGluZ1ZvdWNoZXJWb2lkQgYKBGJvZHk=');
+    '5SZXFCaWxsaW5nVm91Y2hlclZvaWRIAFISYmlsbGluZ1ZvdWNoZXJWb2lkElMKFmFkbWluX2xs'
+    'bV9jYXRhbG9nX2xpc3QYjQEgASgLMhsuYzM1LlJlcUFkbWluTGxtQ2F0YWxvZ0xpc3RIAFITYW'
+    'RtaW5MbG1DYXRhbG9nTGlzdEIGCgRib2R5');
 
 @$core.Deprecated('Use invokeResDescriptor instead')
 const InvokeRes$json = {
@@ -1212,6 +1223,15 @@ const InvokeRes$json = {
       '9': 0,
       '10': 'billingVoucherVoid'
     },
+    {
+      '1': 'admin_llm_catalog_list',
+      '3': 141,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResAdminLlmCatalogList',
+      '9': 0,
+      '10': 'adminLlmCatalogList'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -1304,8 +1324,9 @@ final $typed_data.Uint8List invokeResDescriptor = $convert.base64Decode(
     '5nVm91Y2hlckxpc3RIAFISYmlsbGluZ1ZvdWNoZXJMaXN0EmIKG2JpbGxpbmdfdm91Y2hlcl9y'
     'ZWRlZW1fbGlzdBiLASABKAsyIC5jMzUuUmVzQmlsbGluZ1ZvdWNoZXJSZWRlZW1MaXN0SABSGG'
     'JpbGxpbmdWb3VjaGVyUmVkZWVtTGlzdBJPChRiaWxsaW5nX3ZvdWNoZXJfdm9pZBiMASABKAsy'
-    'Gi5jMzUuUmVzQmlsbGluZ1ZvdWNoZXJWb2lkSABSEmJpbGxpbmdWb3VjaGVyVm9pZEIGCgRib2'
-    'R5');
+    'Gi5jMzUuUmVzQmlsbGluZ1ZvdWNoZXJWb2lkSABSEmJpbGxpbmdWb3VjaGVyVm9pZBJTChZhZG'
+    '1pbl9sbG1fY2F0YWxvZ19saXN0GI0BIAEoCzIbLmMzNS5SZXNBZG1pbkxsbUNhdGFsb2dMaXN0'
+    'SABSE2FkbWluTGxtQ2F0YWxvZ0xpc3RCBgoEYm9keQ==');
 
 @$core.Deprecated('Use wsReqDescriptor instead')
 const WsReq$json = {

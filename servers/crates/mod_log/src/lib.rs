@@ -19,6 +19,11 @@ fn key_sensitive(key: &str) -> bool {
         .any(|s| k.contains(s))
 }
 
+/// Redact sensitive keys in log meta before returning to clients or staff tools.
+pub fn log_meta_redact(v: &Value) -> Value {
+    meta_sanitize(v)
+}
+
 fn meta_sanitize(v: &Value) -> Value {
     match v {
         Value::Object(map) => Value::Object(

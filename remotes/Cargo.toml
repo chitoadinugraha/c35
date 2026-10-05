@@ -22,7 +22,8 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "net", "time", "sync", "process", "io-util"] }
-tokio-tungstenite = { version = "0.24", features = ["rustls-tls-native-roots"] }
+# webpki-roots: Android has no native CA store for rustls (native-roots fails WS TLS).
+tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "registry"] }
 urlencoding = "2"

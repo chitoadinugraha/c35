@@ -40,6 +40,7 @@ ai.inst (
   triggers    TEXT[],                -- signal triggers (always, mention:, topic:)
   include_tools TEXT[],              -- force tool into turn when inst matches
   exclude_tools TEXT[],              -- drop tool when inst matches
+  requires_global_roles TEXT[],      -- staff OR-gate; empty = all users; root (`is_root`) passes all
   priority    INT,
   enabled     BOOLEAN,
   def_hash    TEXT,                  -- seed provenance
@@ -67,6 +68,8 @@ Multiple rows can match one turn. Higher `priority` wins ordering; all matched `
 ## Tool steering (`include_tools` / `exclude_tools`)
 
 When an inst row matches, `include_tools[]` forces tools into the turn catalog; `exclude_tools[]` drops them. Tool names use dot form: `consumption.add`, `web.search`.
+
+`requires_global_roles[]` uses the same OR semantics as tool metadata (`partner`, `director`, `finance`, `root`, …). Rows with a non-empty array only match when the viewer passes the gate (compose loads `StaffView` from `owner_iid`). `inst` cannot bypass tool `requires_global_roles`; both must pass.
 
 Legacy `tool_include:` / `tool_exclude:` entries in `triggers[]` are still read for backward compatibility; prefer the dedicated columns in new seeds.
 

@@ -98,6 +98,7 @@ message InvokeReq {
     ReqBillingVoucherList billing_voucher_list = 138;
     ReqBillingVoucherRedeemList billing_voucher_redeem_list = 139;
     ReqBillingVoucherVoid billing_voucher_void = 140;
+    ReqAdminLlmCatalogList admin_llm_catalog_list = 141;
   }
 }
 
@@ -167,6 +168,7 @@ message InvokeRes {
     ResBillingVoucherList billing_voucher_list = 138;
     ResBillingVoucherRedeemList billing_voucher_redeem_list = 139;
     ResBillingVoucherVoid billing_voucher_void = 140;
+    ResAdminLlmCatalogList admin_llm_catalog_list = 141;
   }
 }
 

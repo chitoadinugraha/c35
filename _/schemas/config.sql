@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS ai.llm_model (
     label               VARCHAR(128) NOT NULL,
     provider_model      TEXT NOT NULL,
     input_micro_per_m   BIGINT NOT NULL DEFAULT 150000,
+    input_cache_micro_per_m BIGINT NOT NULL DEFAULT 0,
     output_micro_per_m  BIGINT NOT NULL DEFAULT 600000,
     supports_thinking   BOOL NOT NULL DEFAULT false,
     enabled             BOOL NOT NULL DEFAULT true,

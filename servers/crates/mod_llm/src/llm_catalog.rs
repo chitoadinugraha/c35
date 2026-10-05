@@ -147,6 +147,7 @@ pub async fn llm_catalog_reload(pool: &PgPool) -> Result<()> {
             String,
             i64,
             i64,
+            i64,
             bool,
             bool,
             bool,
@@ -155,7 +156,7 @@ pub async fn llm_catalog_reload(pool: &PgPool) -> Result<()> {
             i32,
             String,
         )>(
-            "SELECT id, provider, label, provider_model, input_micro_per_m, output_micro_per_m, supports_thinking, enabled, is_default, sort_order, family, version_rank, source \
+            "SELECT id, provider, label, provider_model, input_micro_per_m, input_cache_micro_per_m, output_micro_per_m, supports_thinking, enabled, is_default, sort_order, family, version_rank, source \
              FROM ai.llm_model WHERE deleted_at IS NULL ORDER BY sort_order ASC, label ASC",
         )
         .fetch_all(pool)
@@ -165,13 +166,14 @@ pub async fn llm_catalog_reload(pool: &PgPool) -> Result<()> {
     let models = rows
         .into_iter()
         .map(
-            |(id, provider, label, provider_model, input_micro_per_m, output_micro_per_m, supports_thinking, enabled, is_default, sort_order, family, version_rank, source)| {
+            |(id, provider, label, provider_model, input_micro_per_m, input_cache_micro_per_m, output_micro_per_m, supports_thinking, enabled, is_default, sort_order, family, version_rank, source)| {
                 LlmModelRow {
                     id,
                     provider,
                     label,
                     provider_model,
                     input_micro_per_m,
+                    input_cache_micro_per_m,
                     output_micro_per_m,
                     supports_thinking,
                     enabled,
@@ -232,11 +234,11 @@ async fn llm_catalog_seed(pool: &PgPool) -> Result<()> {
     for m in pinned {
         db_retry(pool, || async {
             sqlx::query(
-                "INSERT INTO ai.llm_model (id, provider, label, provider_model, input_micro_per_m, output_micro_per_m, supports_thinking, enabled, is_default, sort_order, family, version_rank, source, updated_at) \
-                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,NOW()) \
+                "INSERT INTO ai.llm_model (id, provider, label, provider_model, input_micro_per_m, input_cache_micro_per_m, output_micro_per_m, supports_thinking, enabled, is_default, sort_order, family, version_rank, source, updated_at) \
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NOW()) \
                  ON CONFLICT (id) DO UPDATE SET \
                  label = EXCLUDED.label, provider_model = EXCLUDED.provider_model, \
-                 input_micro_per_m = EXCLUDED.input_micro_per_m, output_micro_per_m = EXCLUDED.output_micro_per_m, \
+                 input_micro_per_m = EXCLUDED.input_micro_per_m, input_cache_micro_per_m = EXCLUDED.input_cache_micro_per_m, output_micro_per_m = EXCLUDED.output_micro_per_m, \
                  supports_thinking = EXCLUDED.supports_thinking, enabled = EXCLUDED.enabled, is_default = EXCLUDED.is_default, \
                  sort_order = EXCLUDED.sort_order, family = EXCLUDED.family, version_rank = EXCLUDED.version_rank, source = EXCLUDED.source, \
                  updated_at = NOW()",
@@ -246,6 +248,7 @@ async fn llm_catalog_seed(pool: &PgPool) -> Result<()> {
             .bind(&m.label)
             .bind(&m.provider_model)
             .bind(m.input_micro_per_m)
+            .bind(m.input_cache_micro_per_m)
             .bind(m.output_micro_per_m)
             .bind(m.supports_thinking)
             .bind(m.enabled)
@@ -299,11 +302,11 @@ fn fallback_models() -> Vec<PromptModelOption> {
 pub(crate) async fn upsert_model(pool: &PgPool, m: &LlmModelRow, synced_at: DateTime<Utc>) -> Result<()> {
     db_retry(pool, || async {
         sqlx::query(
-            "INSERT INTO ai.llm_model (id, provider, label, provider_model, input_micro_per_m, output_micro_per_m, supports_thinking, enabled, is_default, sort_order, family, version_rank, source, synced_at, updated_at) \
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NOW()) \
+            "INSERT INTO ai.llm_model (id, provider, label, provider_model, input_micro_per_m, input_cache_micro_per_m, output_micro_per_m, supports_thinking, enabled, is_default, sort_order, family, version_rank, source, synced_at, updated_at) \
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,NOW()) \
              ON CONFLICT (id) DO UPDATE SET \
              label = EXCLUDED.label, provider_model = EXCLUDED.provider_model, \
-             input_micro_per_m = EXCLUDED.input_micro_per_m, output_micro_per_m = EXCLUDED.output_micro_per_m, \
+             input_micro_per_m = EXCLUDED.input_micro_per_m, input_cache_micro_per_m = EXCLUDED.input_cache_micro_per_m, output_micro_per_m = EXCLUDED.output_micro_per_m, \
              supports_thinking = EXCLUDED.supports_thinking, \
              enabled = CASE WHEN ai.llm_model.source IN ('pinned', 'manual') THEN ai.llm_model.enabled ELSE EXCLUDED.enabled END, \
              family = EXCLUDED.family, version_rank = EXCLUDED.version_rank, \
@@ -315,6 +318,7 @@ pub(crate) async fn upsert_model(pool: &PgPool, m: &LlmModelRow, synced_at: Date
         .bind(&m.label)
         .bind(&m.provider_model)
         .bind(m.input_micro_per_m)
+        .bind(m.input_cache_micro_per_m)
         .bind(m.output_micro_per_m)
         .bind(m.supports_thinking)
         .bind(m.enabled)
@@ -353,6 +357,7 @@ mod tests {
             label: "Alien AI".into(),
             provider_model: String::new(),
             input_micro_per_m: 75_000,
+            input_cache_micro_per_m: 0,
             output_micro_per_m: 300_000,
             supports_thinking: true,
             enabled: true,

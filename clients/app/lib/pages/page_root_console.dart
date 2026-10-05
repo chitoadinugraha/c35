@@ -10,6 +10,7 @@ import 'package:fixnum/fixnum.dart';
 import 'package:alienai_c35/pages/page_root_inst.dart';
 import 'package:alienai_c35/pages/page_root_logs.dart';
 import 'package:alienai_c35/pages/page_root_objects.dart';
+import 'package:alienai_c35/pages/page_root_llm_prices.dart';
 import 'package:alienai_c35/pages/page_root_pnl.dart';
 import 'package:alienai_c35/widgets/admin/ui_admin_action_tile.dart';
 import 'package:alienai_c35/widgets/admin/ui_admin_network_row.dart';
@@ -89,6 +90,8 @@ class _PageRootConsoleState extends State<PageRootConsole> {
   void _openObjects() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageRootObjects(chatConn: widget.chatConn)));
 
   void _openPnl() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageRootPnl(chatConn: widget.chatConn)));
+
+  void _openLlmPrices() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageRootLlmPrices(chatConn: widget.chatConn)));
 
   DiskDeviceStat? _bootStorage(NodeStat node) {
     final storages = _stats.storagesFor(node);
@@ -247,6 +250,13 @@ class _PageRootConsoleState extends State<PageRootConsole> {
                         subtitle: 'revenue & COGS',
                         compact: true,
                         onTap: _openPnl,
+                      ),
+                      UiAdminActionTile(
+                        icon: Icons.payments_outlined,
+                        title: 'Catalog prices',
+                        subtitle: 'LLM, voice, media, live',
+                        compact: true,
+                        onTap: _openLlmPrices,
                       ),
                     ],
                   ),

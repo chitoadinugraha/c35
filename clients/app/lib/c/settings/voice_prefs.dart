@@ -13,8 +13,10 @@ class VoicePrefs extends ChangeNotifier {
   static const _keyTts = 'voice_tts_engine';
   static const _keySpeak = 'csai_voice_speak_enabled';
   static const _keyTalk = 'voice_talk_enabled';
-  static const speakEnabledDefault = true;
+  static const _keyTalkSpeak = 'voice_talk_speak_enabled';
+  static const speakEnabledDefault = false;
   static const talkEnabledDefault = false;
+  static const talkSpeakEnabledDefault = true;
   static const sttAutoSendDefault = true;
   static const _keyRate = 'voice_speech_rate';
   static const _keyPitch = 'voice_speech_pitch';
@@ -32,6 +34,7 @@ class VoicePrefs extends ChangeNotifier {
   var _ttsEngine = 'cloud';
   var _speakEnabled = speakEnabledDefault;
   var _talkEnabled = talkEnabledDefault;
+  var _talkSpeakEnabled = talkSpeakEnabledDefault;
   var _speechRate = 1.4;
   var _speechPitch = 1.0;
   var _micDeviceId = '';
@@ -44,6 +47,7 @@ class VoicePrefs extends ChangeNotifier {
   String get ttsEngine => _ttsEngine;
   bool get speakEnabled => _speakEnabled;
   bool get talkEnabled => _talkEnabled;
+  bool get talkSpeakEnabled => _talkSpeakEnabled;
   double get speechRate => _speechRate;
   double get speechPitch => _speechPitch;
   String get micDeviceId => _micDeviceId;
@@ -62,6 +66,7 @@ class VoicePrefs extends ChangeNotifier {
     }
     _speakEnabled = _prefs!.getBool(_keySpeak) ?? speakEnabledDefault;
     _talkEnabled = _prefs!.getBool(_keyTalk) ?? talkEnabledDefault;
+    _talkSpeakEnabled = _prefs!.getBool(_keyTalkSpeak) ?? talkSpeakEnabledDefault;
     _speechRate = _prefs!.getDouble(_keyRate) ?? 1.4;
     _speechPitch = _prefs!.getDouble(_keyPitch) ?? 1.0;
     _micDeviceId = _prefs!.getString(_keyMicId) ?? '';
@@ -122,6 +127,14 @@ class VoicePrefs extends ChangeNotifier {
     _talkEnabled = value;
     _prefs ??= await SharedPreferences.getInstance();
     await _prefs!.setBool(_keyTalk, value);
+    notifyListeners();
+  }
+
+  Future<void> setTalkSpeakEnabled(bool value) async {
+    if (_talkSpeakEnabled == value) return;
+    _talkSpeakEnabled = value;
+    _prefs ??= await SharedPreferences.getInstance();
+    await _prefs!.setBool(_keyTalkSpeak, value);
     notifyListeners();
   }
 

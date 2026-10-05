@@ -538,6 +538,41 @@ void main() {
     expect(store.chats.single.lastMsgAt, 2100);
   });
 
+  test('msgPut merge keeps chip draft when server wire matches same turn', () {
+    final store = ChatStore();
+    const deviceId = 'iid:42';
+    final local = 'buat referral code untuk ${composerMentionToken(deviceId)}';
+    store.msgs = [
+      MsgRow(id: -1, chatId: 5, role: 'user', content: local, reqId: 'r1'),
+    ];
+    store.msgPut(MsgRow(
+      id: 100,
+      chatId: 5,
+      role: 'user',
+      content: 'buat referral code untuk [@iid:42]',
+      reqId: 'r1',
+    ));
+    expect(composerMentionTextHasTokens(store.msgs.single.content), isTrue);
+    expect(composerMentionComparePlain(store.msgs.single.content), contains('buat referral code untuk'));
+  });
+
+  test('msgPut merge replaces chip draft when server text is a different message', () {
+    final store = ChatStore();
+    const deviceId = 'iid:42';
+    final local = 'buat referral code untuk ${composerMentionToken(deviceId)}';
+    store.msgs = [
+      MsgRow(id: -1, chatId: 5, role: 'user', content: local, reqId: 'r1'),
+    ];
+    store.msgPut(MsgRow(
+      id: 101,
+      chatId: 5,
+      role: 'user',
+      content: 'besok hari apa',
+      reqId: 'r1',
+    ));
+    expect(store.msgs.single.content, 'besok hari apa');
+  });
+
   test('msgPut merges optimistic user message by reqId on server fetch', () {
     final store = ChatStore();
     final localUserMsg = MsgRow(

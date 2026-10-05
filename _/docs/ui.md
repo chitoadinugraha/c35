@@ -100,7 +100,7 @@ Talk and Chat are two surfaces on one Home thread (`chat.kind = prompt`, same `c
 | Entry | Default (`talkEnabled` false) | Avatar sheet **Talk** |
 | Send | Composer, including its mic | Stage mic. Sets `ReqPrompt.talk` |
 | Reply length | Unchanged | `inst.talk.brief` on that turn |
-| Read aloud | `VoicePrefs.speakEnabled` after the turn, when on | Same pref, speaker icon on the stage |
+| Read aloud | Bubble menu **Read aloud** only (no auto TTS) | `VoicePrefs.talkSpeakEnabled` (default on); stage speaker toggles it; auto TTS after each Talk turn when on |
 
 **Prefs.** `VoicePrefs.talkEnabled`, key `voice_talk_enabled`, default false. Device-local, same store as the other voice prefs. The sheet subtitle is **Shorter replies, voice input**.
 
@@ -117,7 +117,7 @@ Talk and Chat are two surfaces on one Home thread (`chat.kind = prompt`, same `c
 
 **Transcript strip.** Rounded chip above the bottom bar. Shown only after the user has spoken text (including live STT while recording). Not shown on the empty idle state.
 
-**Bottom bar.** Mic is centered; attach is bottom-aligned on the left screen edge; speaker and model icons are bottom-aligned on the right. Attach stages files until the next voice send, then the turn uses the same `_composerSend` as Chat. Mic uses `SttService` (VAD auto-stop). A second tap, or silence, transcribes and sends with `talk: true`. While a prompt is busy, the mic is Stop and calls `_abortPrompt`. The speaker icon toggles `speakEnabled`. Starting the mic calls `TtsService.stop`. The model icon opens the same model sheet as Chat; the **active** model is pinned at the top in a card (checkmark, thinking chips when supported), with its provider group expanded.
+**Bottom bar.** Mic is centered; attach is bottom-aligned on the left screen edge; speaker and model icons are bottom-aligned on the right. Attach stages files until the next voice send, then the turn uses the same `_composerSend` as Chat. Mic uses `SttService` (VAD auto-stop). A second tap, or silence, transcribes and sends with `talk: true`. While a prompt is busy, the mic is Stop and calls `_abortPrompt`. The speaker icon toggles `talkSpeakEnabled` (Talk-only auto read-aloud). Starting the mic calls `TtsService.stop`. The model icon opens the same model sheet as Chat; the **active** model is pinned at the top in a card (checkmark, thinking chips when supported), with its provider group expanded.
 
 **Wire.** `ReqPrompt.talk` (field 10) is true only for sends from this surface. Compose appends mention id `talk` to the in-memory inst match list. The id is not written onto the user message and is not a catalog mention. Inst id `inst.talk.brief`, kind `trigger`, trigger `mention:talk`. Chat sends leave `talk` false. See [inst.md](inst.md).
 

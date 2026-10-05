@@ -4,16 +4,22 @@ use c35_proto::{
 use std::collections::HashSet;
 
 mod admin_event;
+mod staff_view;
 mod log_admin;
+mod msg_admin;
 mod log_report;
 mod ops_peaks;
 mod platform_pnl;
+mod llm_catalog_admin;
 
 pub use admin_event::{admin_event_profile_updated, admin_event_referrer_updated, admin_event_roles_updated};
+pub use staff_view::{staff_tool_eligible, staff_view_load, StaffView};
 pub use log_admin::admin_log_list;
+pub use msg_admin::{admin_log_trace, admin_msg_find, admin_msg_get};
 pub use log_report::admin_log_report;
 pub use ops_peaks::admin_ops_peaks;
 pub use platform_pnl::admin_platform_pnl;
+pub use llm_catalog_admin::admin_llm_catalog_list;
 use sqlx::{PgPool, Row};
 
 #[derive(Debug)]

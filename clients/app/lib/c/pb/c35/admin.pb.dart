@@ -712,6 +712,458 @@ class ResAdminLogList extends $pb.GeneratedMessage {
   $pb.PbList<$0.Log> get logs => $_getList(0);
 }
 
+/// Root-only LLM catalog wholesale + retail ($/1M tokens). Cache column 0 = unknown.
+class AdminLlmCatalogRow extends $pb.GeneratedMessage {
+  factory AdminLlmCatalogRow({
+    $core.String? id,
+    $core.String? provider,
+    $core.String? label,
+    $core.String? source,
+    $core.bool? enabled,
+    $core.double? usdInPer1m,
+    $core.double? usdInCachePer1m,
+    $core.double? usdOutPer1m,
+    $core.double? retailUsdInPer1m,
+    $core.double? retailUsdInCachePer1m,
+    $core.double? retailUsdOutPer1m,
+  }) {
+    final result = AdminLlmCatalogRow._();
+    if (id != null) result.id = id;
+    if (provider != null) result.provider = provider;
+    if (label != null) result.label = label;
+    if (source != null) result.source = source;
+    if (enabled != null) result.enabled = enabled;
+    if (usdInPer1m != null) result.usdInPer1m = usdInPer1m;
+    if (usdInCachePer1m != null) result.usdInCachePer1m = usdInCachePer1m;
+    if (usdOutPer1m != null) result.usdOutPer1m = usdOutPer1m;
+    if (retailUsdInPer1m != null) result.retailUsdInPer1m = retailUsdInPer1m;
+    if (retailUsdInCachePer1m != null)
+      result.retailUsdInCachePer1m = retailUsdInCachePer1m;
+    if (retailUsdOutPer1m != null) result.retailUsdOutPer1m = retailUsdOutPer1m;
+    return result;
+  }
+
+  AdminLlmCatalogRow._();
+
+  factory AdminLlmCatalogRow.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      AdminLlmCatalogRow()..mergeFromBuffer(data, registry);
+  factory AdminLlmCatalogRow.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      AdminLlmCatalogRow()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'AdminLlmCatalogRow',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: AdminLlmCatalogRow.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'id')
+    ..aOS(2, _omitFieldNames ? '' : 'provider')
+    ..aOS(3, _omitFieldNames ? '' : 'label')
+    ..aOS(4, _omitFieldNames ? '' : 'source')
+    ..aOB(5, _omitFieldNames ? '' : 'enabled')
+    ..aD(6, _omitFieldNames ? '' : 'usdInPer1m', protoName: 'usd_in_per_1m')
+    ..aD(7, _omitFieldNames ? '' : 'usdInCachePer1m',
+        protoName: 'usd_in_cache_per_1m')
+    ..aD(8, _omitFieldNames ? '' : 'usdOutPer1m', protoName: 'usd_out_per_1m')
+    ..aD(9, _omitFieldNames ? '' : 'retailUsdInPer1m',
+        protoName: 'retail_usd_in_per_1m')
+    ..aD(10, _omitFieldNames ? '' : 'retailUsdInCachePer1m',
+        protoName: 'retail_usd_in_cache_per_1m')
+    ..aD(11, _omitFieldNames ? '' : 'retailUsdOutPer1m',
+        protoName: 'retail_usd_out_per_1m')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  AdminLlmCatalogRow clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  AdminLlmCatalogRow copyWith(void Function(AdminLlmCatalogRow) updates) =>
+      super.copyWith((message) => updates(message as AdminLlmCatalogRow))
+          as AdminLlmCatalogRow;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use AdminLlmCatalogRow() / AdminLlmCatalogRow.new instead')
+  static AdminLlmCatalogRow create() => AdminLlmCatalogRow._();
+  static $pb.GeneratedMessage $_createMessage() => AdminLlmCatalogRow._();
+  @$core.override
+  AdminLlmCatalogRow createEmptyInstance() => AdminLlmCatalogRow._();
+  @$core.pragma('dart2js:noInline')
+  static AdminLlmCatalogRow getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<AdminLlmCatalogRow>(
+          AdminLlmCatalogRow.$_createMessage);
+  static AdminLlmCatalogRow? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get id => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set id($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get provider => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set provider($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasProvider() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearProvider() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get label => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set label($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasLabel() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearLabel() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get source => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set source($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasSource() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearSource() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.bool get enabled => $_getBF(4);
+  @$pb.TagNumber(5)
+  set enabled($core.bool value) => $_setBool(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasEnabled() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearEnabled() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.double get usdInPer1m => $_getN(5);
+  @$pb.TagNumber(6)
+  set usdInPer1m($core.double value) => $_setDouble(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasUsdInPer1m() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearUsdInPer1m() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.double get usdInCachePer1m => $_getN(6);
+  @$pb.TagNumber(7)
+  set usdInCachePer1m($core.double value) => $_setDouble(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasUsdInCachePer1m() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearUsdInCachePer1m() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.double get usdOutPer1m => $_getN(7);
+  @$pb.TagNumber(8)
+  set usdOutPer1m($core.double value) => $_setDouble(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasUsdOutPer1m() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearUsdOutPer1m() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.double get retailUsdInPer1m => $_getN(8);
+  @$pb.TagNumber(9)
+  set retailUsdInPer1m($core.double value) => $_setDouble(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasRetailUsdInPer1m() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearRetailUsdInPer1m() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $core.double get retailUsdInCachePer1m => $_getN(9);
+  @$pb.TagNumber(10)
+  set retailUsdInCachePer1m($core.double value) => $_setDouble(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasRetailUsdInCachePer1m() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearRetailUsdInCachePer1m() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $core.double get retailUsdOutPer1m => $_getN(10);
+  @$pb.TagNumber(11)
+  set retailUsdOutPer1m($core.double value) => $_setDouble(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasRetailUsdOutPer1m() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearRetailUsdOutPer1m() => $_clearField(11);
+}
+
+class ReqAdminLlmCatalogList extends $pb.GeneratedMessage {
+  factory ReqAdminLlmCatalogList({
+    $core.bool? enabledOnly,
+  }) {
+    final result = ReqAdminLlmCatalogList._();
+    if (enabledOnly != null) result.enabledOnly = enabledOnly;
+    return result;
+  }
+
+  ReqAdminLlmCatalogList._();
+
+  factory ReqAdminLlmCatalogList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqAdminLlmCatalogList()..mergeFromBuffer(data, registry);
+  factory ReqAdminLlmCatalogList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqAdminLlmCatalogList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqAdminLlmCatalogList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqAdminLlmCatalogList.$_createMessage)
+    ..aOB(1, _omitFieldNames ? '' : 'enabledOnly')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqAdminLlmCatalogList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqAdminLlmCatalogList copyWith(
+          void Function(ReqAdminLlmCatalogList) updates) =>
+      super.copyWith((message) => updates(message as ReqAdminLlmCatalogList))
+          as ReqAdminLlmCatalogList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqAdminLlmCatalogList() / ReqAdminLlmCatalogList.new instead')
+  static ReqAdminLlmCatalogList create() => ReqAdminLlmCatalogList._();
+  static $pb.GeneratedMessage $_createMessage() => ReqAdminLlmCatalogList._();
+  @$core.override
+  ReqAdminLlmCatalogList createEmptyInstance() => ReqAdminLlmCatalogList._();
+  @$core.pragma('dart2js:noInline')
+  static ReqAdminLlmCatalogList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqAdminLlmCatalogList>(
+          ReqAdminLlmCatalogList.$_createMessage);
+  static ReqAdminLlmCatalogList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get enabledOnly => $_getBF(0);
+  @$pb.TagNumber(1)
+  set enabledOnly($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasEnabledOnly() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearEnabledOnly() => $_clearField(1);
+}
+
+class AdminServiceRateRow extends $pb.GeneratedMessage {
+  factory AdminServiceRateRow({
+    $core.String? category,
+    $core.String? id,
+    $core.String? label,
+    $core.String? unit,
+    $core.double? wholesaleUsd,
+    $core.double? retailUsd,
+    $core.String? detail,
+  }) {
+    final result = AdminServiceRateRow._();
+    if (category != null) result.category = category;
+    if (id != null) result.id = id;
+    if (label != null) result.label = label;
+    if (unit != null) result.unit = unit;
+    if (wholesaleUsd != null) result.wholesaleUsd = wholesaleUsd;
+    if (retailUsd != null) result.retailUsd = retailUsd;
+    if (detail != null) result.detail = detail;
+    return result;
+  }
+
+  AdminServiceRateRow._();
+
+  factory AdminServiceRateRow.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      AdminServiceRateRow()..mergeFromBuffer(data, registry);
+  factory AdminServiceRateRow.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      AdminServiceRateRow()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'AdminServiceRateRow',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: AdminServiceRateRow.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'category')
+    ..aOS(2, _omitFieldNames ? '' : 'id')
+    ..aOS(3, _omitFieldNames ? '' : 'label')
+    ..aOS(4, _omitFieldNames ? '' : 'unit')
+    ..aD(5, _omitFieldNames ? '' : 'wholesaleUsd')
+    ..aD(6, _omitFieldNames ? '' : 'retailUsd')
+    ..aOS(7, _omitFieldNames ? '' : 'detail')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  AdminServiceRateRow clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  AdminServiceRateRow copyWith(void Function(AdminServiceRateRow) updates) =>
+      super.copyWith((message) => updates(message as AdminServiceRateRow))
+          as AdminServiceRateRow;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core
+      .Deprecated('Use AdminServiceRateRow() / AdminServiceRateRow.new instead')
+  static AdminServiceRateRow create() => AdminServiceRateRow._();
+  static $pb.GeneratedMessage $_createMessage() => AdminServiceRateRow._();
+  @$core.override
+  AdminServiceRateRow createEmptyInstance() => AdminServiceRateRow._();
+  @$core.pragma('dart2js:noInline')
+  static AdminServiceRateRow getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<AdminServiceRateRow>(
+          AdminServiceRateRow.$_createMessage);
+  static AdminServiceRateRow? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get category => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set category($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasCategory() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearCategory() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get id => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set id($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearId() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get label => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set label($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasLabel() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearLabel() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get unit => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set unit($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasUnit() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearUnit() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.double get wholesaleUsd => $_getN(4);
+  @$pb.TagNumber(5)
+  set wholesaleUsd($core.double value) => $_setDouble(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasWholesaleUsd() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearWholesaleUsd() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.double get retailUsd => $_getN(5);
+  @$pb.TagNumber(6)
+  set retailUsd($core.double value) => $_setDouble(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasRetailUsd() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearRetailUsd() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.String get detail => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set detail($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasDetail() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearDetail() => $_clearField(7);
+}
+
+class ResAdminLlmCatalogList extends $pb.GeneratedMessage {
+  factory ResAdminLlmCatalogList({
+    $core.Iterable<AdminLlmCatalogRow>? models,
+    $core.double? retailMarkup,
+    $core.Iterable<AdminServiceRateRow>? services,
+    $core.Iterable<AdminServiceRateRow>? live,
+  }) {
+    final result = ResAdminLlmCatalogList._();
+    if (models != null) result.models.addAll(models);
+    if (retailMarkup != null) result.retailMarkup = retailMarkup;
+    if (services != null) result.services.addAll(services);
+    if (live != null) result.live.addAll(live);
+    return result;
+  }
+
+  ResAdminLlmCatalogList._();
+
+  factory ResAdminLlmCatalogList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResAdminLlmCatalogList()..mergeFromBuffer(data, registry);
+  factory ResAdminLlmCatalogList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResAdminLlmCatalogList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResAdminLlmCatalogList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResAdminLlmCatalogList.$_createMessage)
+    ..pPM<AdminLlmCatalogRow>(1, _omitFieldNames ? '' : 'models',
+        subBuilder: AdminLlmCatalogRow.$_createMessage)
+    ..aD(2, _omitFieldNames ? '' : 'retailMarkup')
+    ..pPM<AdminServiceRateRow>(3, _omitFieldNames ? '' : 'services',
+        subBuilder: AdminServiceRateRow.$_createMessage)
+    ..pPM<AdminServiceRateRow>(4, _omitFieldNames ? '' : 'live',
+        subBuilder: AdminServiceRateRow.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResAdminLlmCatalogList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResAdminLlmCatalogList copyWith(
+          void Function(ResAdminLlmCatalogList) updates) =>
+      super.copyWith((message) => updates(message as ResAdminLlmCatalogList))
+          as ResAdminLlmCatalogList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResAdminLlmCatalogList() / ResAdminLlmCatalogList.new instead')
+  static ResAdminLlmCatalogList create() => ResAdminLlmCatalogList._();
+  static $pb.GeneratedMessage $_createMessage() => ResAdminLlmCatalogList._();
+  @$core.override
+  ResAdminLlmCatalogList createEmptyInstance() => ResAdminLlmCatalogList._();
+  @$core.pragma('dart2js:noInline')
+  static ResAdminLlmCatalogList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResAdminLlmCatalogList>(
+          ResAdminLlmCatalogList.$_createMessage);
+  static ResAdminLlmCatalogList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<AdminLlmCatalogRow> get models => $_getList(0);
+
+  @$pb.TagNumber(2)
+  $core.double get retailMarkup => $_getN(1);
+  @$pb.TagNumber(2)
+  set retailMarkup($core.double value) => $_setDouble(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasRetailMarkup() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearRetailMarkup() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $pb.PbList<AdminServiceRateRow> get services => $_getList(2);
+
+  @$pb.TagNumber(4)
+  $pb.PbList<AdminServiceRateRow> get live => $_getList(3);
+}
+
 const $core.bool _omitFieldNames =
     $core.bool.fromEnvironment('protobuf.omit_field_names');
 const $core.bool _omitMessageNames =

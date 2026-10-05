@@ -49,9 +49,9 @@ Single entry points for the app — pages bind `VoiceApi` once per chat session.
 - `stopAndTranscribe` sets `isTranscribing` immediately so the UI shows feedback during recorder shutdown.
 - Server: `voice_stt` runs the billing hold concurrently with the upstream call; shared `reqwest` client uses keep-alive pooling and `TCP_NODELAY`.
 
-**Prefs:** `VoicePrefs` — `sttEngine`, `ttsEngine`, `speakEnabled` (default **on** for new installs; stored key preserves explicit off), `speechLang`, rate/pitch, `talkEnabled`.
+**Prefs:** `VoicePrefs` — `sttEngine`, `ttsEngine`, `speechLang`, rate/pitch, `talkEnabled`, `talkSpeakEnabled` (key `voice_talk_speak_enabled`, default **on** for Talk auto read-aloud).
 
-**Talk** (`talkEnabled`, key `voice_talk_enabled`, default false) is the Home surface switch, not an engine. Off is Chat mode. On replaces the thread and composer with the one-page stage in [ui.md](ui.md#talk). The same `SttService` / `TtsService` path runs. `speakEnabled` is read-aloud only (the stage speaker icon, and auto-speak when a turn ends). It does not select Talk. Starting the Talk mic stops TTS. Idle / listening / thinking / usage copy for the status row above the controls is defined in [ui.md](ui.md#talk).
+**Talk** (`talkEnabled`, key `voice_talk_enabled`, default false) is the Home surface switch, not an engine. Off is Chat mode. On replaces the thread and composer with the one-page stage in [ui.md](ui.md#talk). The same `SttService` / `TtsService` path runs. `talkSpeakEnabled` controls the stage speaker icon and auto TTS after each Talk turn. **Chat** does not auto read aloud; use the assistant bubble menu **Read aloud**. Starting the Talk mic stops TTS. Idle / listening / thinking / usage copy for the status row above the controls is defined in [ui.md](ui.md#talk).
 
 **Binding:** `page_ai_home` creates `VoiceApi(chatConn)` and calls `SttService.instance.bindVoiceApi` / `TtsService.instance.bindVoiceApi` in `initState`; clears on `dispose`.
 
@@ -164,7 +164,7 @@ Reference: `D:\cs_bots` — copy behavior, not imports.
 |---------|--------------|--------|
 | Composer mic (STT) | `widgets/ai/in_composer.dart` + `SttService` | Done |
 | Read aloud (assistant context menu) | `page_ai_home.dart` → `onSpeak` → `TtsService.speak` | Done |
-| Auto-speak on assistant reply | `page_ai_home.dart` when `VoicePrefs.speakEnabled` | Done |
+| Auto-speak on assistant reply | `page_ai_home.dart` when Talk on and `talkSpeakEnabled` | Done |
 | Stop TTS when user sends new message | `page_ai_home.dart` prompt send | Done |
 | Speak toggle in avatar menu | `widgets/ui/ui_account_menu.dart` + `UiAppToggle` | Done |
 | Engine pickers (web / local / cloud) | `pages/page_settings.dart` | Done |

@@ -108,6 +108,7 @@ enum InvokeReq_Body {
   billingVoucherList,
   billingVoucherRedeemList,
   billingVoucherVoid,
+  adminLlmCatalogList,
   notSet
 }
 
@@ -177,6 +178,7 @@ class InvokeReq extends $pb.GeneratedMessage {
     $0.ReqBillingVoucherList? billingVoucherList,
     $0.ReqBillingVoucherRedeemList? billingVoucherRedeemList,
     $0.ReqBillingVoucherVoid? billingVoucherVoid,
+    $3.ReqAdminLlmCatalogList? adminLlmCatalogList,
   }) {
     final result = InvokeReq._();
     if (reqId != null) result.reqId = reqId;
@@ -271,6 +273,8 @@ class InvokeReq extends $pb.GeneratedMessage {
       result.billingVoucherRedeemList = billingVoucherRedeemList;
     if (billingVoucherVoid != null)
       result.billingVoucherVoid = billingVoucherVoid;
+    if (adminLlmCatalogList != null)
+      result.adminLlmCatalogList = adminLlmCatalogList;
     return result;
   }
 
@@ -345,6 +349,7 @@ class InvokeReq extends $pb.GeneratedMessage {
     138: InvokeReq_Body.billingVoucherList,
     139: InvokeReq_Body.billingVoucherRedeemList,
     140: InvokeReq_Body.billingVoucherVoid,
+    141: InvokeReq_Body.adminLlmCatalogList,
     0: InvokeReq_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -412,7 +417,8 @@ class InvokeReq extends $pb.GeneratedMessage {
       137,
       138,
       139,
-      140
+      140,
+      141
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aInt64(2, _omitFieldNames ? '' : 'callerIid')
@@ -573,6 +579,9 @@ class InvokeReq extends $pb.GeneratedMessage {
     ..aOM<$0.ReqBillingVoucherVoid>(
         140, _omitFieldNames ? '' : 'billingVoucherVoid',
         subBuilder: $0.ReqBillingVoucherVoid.$_createMessage)
+    ..aOM<$3.ReqAdminLlmCatalogList>(
+        141, _omitFieldNames ? '' : 'adminLlmCatalogList',
+        subBuilder: $3.ReqAdminLlmCatalogList.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -656,6 +665,7 @@ class InvokeReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(138)
   @$pb.TagNumber(139)
   @$pb.TagNumber(140)
+  @$pb.TagNumber(141)
   InvokeReq_Body whichBody() => _InvokeReq_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(10)
   @$pb.TagNumber(11)
@@ -718,6 +728,7 @@ class InvokeReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(138)
   @$pb.TagNumber(139)
   @$pb.TagNumber(140)
+  @$pb.TagNumber(141)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -1445,6 +1456,18 @@ class InvokeReq extends $pb.GeneratedMessage {
   void clearBillingVoucherVoid() => $_clearField(140);
   @$pb.TagNumber(140)
   $0.ReqBillingVoucherVoid ensureBillingVoucherVoid() => $_ensure(62);
+
+  @$pb.TagNumber(141)
+  $3.ReqAdminLlmCatalogList get adminLlmCatalogList => $_getN(63);
+  @$pb.TagNumber(141)
+  set adminLlmCatalogList($3.ReqAdminLlmCatalogList value) =>
+      $_setField(141, value);
+  @$pb.TagNumber(141)
+  $core.bool hasAdminLlmCatalogList() => $_has(63);
+  @$pb.TagNumber(141)
+  void clearAdminLlmCatalogList() => $_clearField(141);
+  @$pb.TagNumber(141)
+  $3.ReqAdminLlmCatalogList ensureAdminLlmCatalogList() => $_ensure(63);
 }
 
 enum InvokeRes_Body {
@@ -1508,6 +1531,7 @@ enum InvokeRes_Body {
   billingVoucherList,
   billingVoucherRedeemList,
   billingVoucherVoid,
+  adminLlmCatalogList,
   notSet
 }
 
@@ -1576,6 +1600,7 @@ class InvokeRes extends $pb.GeneratedMessage {
     $0.ResBillingVoucherList? billingVoucherList,
     $0.ResBillingVoucherRedeemList? billingVoucherRedeemList,
     $0.ResBillingVoucherVoid? billingVoucherVoid,
+    $3.ResAdminLlmCatalogList? adminLlmCatalogList,
   }) {
     final result = InvokeRes._();
     if (reqId != null) result.reqId = reqId;
@@ -1669,6 +1694,8 @@ class InvokeRes extends $pb.GeneratedMessage {
       result.billingVoucherRedeemList = billingVoucherRedeemList;
     if (billingVoucherVoid != null)
       result.billingVoucherVoid = billingVoucherVoid;
+    if (adminLlmCatalogList != null)
+      result.adminLlmCatalogList = adminLlmCatalogList;
     return result;
   }
 
@@ -1742,6 +1769,7 @@ class InvokeRes extends $pb.GeneratedMessage {
     138: InvokeRes_Body.billingVoucherList,
     139: InvokeRes_Body.billingVoucherRedeemList,
     140: InvokeRes_Body.billingVoucherVoid,
+    141: InvokeRes_Body.adminLlmCatalogList,
     0: InvokeRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -1808,7 +1836,8 @@ class InvokeRes extends $pb.GeneratedMessage {
       137,
       138,
       139,
-      140
+      140,
+      141
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aI(2, _omitFieldNames ? '' : 'statusCode')
@@ -1967,6 +1996,9 @@ class InvokeRes extends $pb.GeneratedMessage {
     ..aOM<$0.ResBillingVoucherVoid>(
         140, _omitFieldNames ? '' : 'billingVoucherVoid',
         subBuilder: $0.ResBillingVoucherVoid.$_createMessage)
+    ..aOM<$3.ResAdminLlmCatalogList>(
+        141, _omitFieldNames ? '' : 'adminLlmCatalogList',
+        subBuilder: $3.ResAdminLlmCatalogList.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -2049,6 +2081,7 @@ class InvokeRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(138)
   @$pb.TagNumber(139)
   @$pb.TagNumber(140)
+  @$pb.TagNumber(141)
   InvokeRes_Body whichBody() => _InvokeRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(10)
   @$pb.TagNumber(11)
@@ -2110,6 +2143,7 @@ class InvokeRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(138)
   @$pb.TagNumber(139)
   @$pb.TagNumber(140)
+  @$pb.TagNumber(141)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -2834,6 +2868,18 @@ class InvokeRes extends $pb.GeneratedMessage {
   void clearBillingVoucherVoid() => $_clearField(140);
   @$pb.TagNumber(140)
   $0.ResBillingVoucherVoid ensureBillingVoucherVoid() => $_ensure(62);
+
+  @$pb.TagNumber(141)
+  $3.ResAdminLlmCatalogList get adminLlmCatalogList => $_getN(63);
+  @$pb.TagNumber(141)
+  set adminLlmCatalogList($3.ResAdminLlmCatalogList value) =>
+      $_setField(141, value);
+  @$pb.TagNumber(141)
+  $core.bool hasAdminLlmCatalogList() => $_has(63);
+  @$pb.TagNumber(141)
+  void clearAdminLlmCatalogList() => $_clearField(141);
+  @$pb.TagNumber(141)
+  $3.ResAdminLlmCatalogList ensureAdminLlmCatalogList() => $_ensure(63);
 }
 
 enum WsReq_Body {

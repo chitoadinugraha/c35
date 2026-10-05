@@ -12,6 +12,8 @@ mod music_generate;
 mod vid_generate;
 mod presentation_export;
 mod referral;
+mod staff;
+mod staff_debug;
 mod site;
 mod site_query;
 mod site_tx;
@@ -54,6 +56,15 @@ pub use presentation_export::{
 };
 pub use referral::{
     ReferralCodeDeleteTool, ReferralCodeListTool, ReferralCodePutTool, ReferralTreeGetTool,
+};
+pub use staff::{
+    AdminBotListTool, AdminChatMessagesTool, AdminChatSearchTool, AdminClientListTool,
+    AdminDeviceListTool, AdminTaskListTool, AdminUserSearchTool, BillingTopupListTool,
+    BillingTopupReviewTool, BillingWithdrawListTool, BillingWithdrawReviewTool,
+    ReferralCommissionSimulateTool, ReferralUserStatsStaffTool,
+};
+pub use staff_debug::{
+    AdminLogTailTool, AdminMsgFindTool, AdminMsgGetTool, AdminTraceGetTool,
 };
 pub use site::{
     SiteContactPutTool, SiteCreateTool, SiteDomainPutTool, SiteDomainVerifyTool, SiteDraftGetTool,

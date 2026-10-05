@@ -30,6 +30,7 @@ CREATE INDEX IF NOT EXISTS idx_inst_enabled
 
 ALTER TABLE ai.inst ADD COLUMN IF NOT EXISTS include_tools TEXT[] NOT NULL DEFAULT '{}';
 ALTER TABLE ai.inst ADD COLUMN IF NOT EXISTS exclude_tools TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE ai.inst ADD COLUMN IF NOT EXISTS requires_global_roles TEXT[] NOT NULL DEFAULT '{}';
 
 -- Seed: platform baseline assistant (every turn)
 INSERT INTO ai.inst (
@@ -1458,6 +1459,189 @@ INSERT INTO ai.inst (
     inst = EXCLUDED.inst,
     triggers = EXCLUDED.triggers,
     kind = EXCLUDED.kind,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Staff inst (requires_global_roles + tool_include)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, requires_global_roles, priority, def_hash, updated_ts
+) VALUES (
+    'inst.staff.root_chat',
+    'global',
+    'task',
+    '',
+    '[ROOT CHAT AUDIT] The operator is asking about another user''s chats. Do not use chat.search or chat.messages (those are caller-only). Resolve the user with subject_handle (alien_id) or subject_uid from admin.user.search. Call admin.chat.search with empty query and limit 1 for the latest thread, or a higher limit to browse. For exact lines, call admin.chat.messages with the same subject and chat_id from admin.chat.search. Quote times and text from tool results.',
+    ARRAY[
+        'chat terakhir user', 'obrolan terakhir user', 'apa chat terakhir', 'last chat of',
+        'riwayat chat user', 'percakapan terakhir user', 'what did user chat',
+        'chat terakhir chito', 'obrolan terakhir chito'
+    ],
+    ARRAY['tool_include:admin.chat.search', 'tool_include:admin.chat.messages', 'tool_include:admin.user.search'],
+    ARRAY['admin.chat.search', 'admin.chat.messages', 'admin.user.search'],
+    ARRAY['web.search', 'web.visit', 'chat.search', 'chat.messages'],
+    ARRAY['root'],
+    145,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    requires_global_roles = EXCLUDED.requires_global_roles,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, requires_global_roles, priority, def_hash, updated_ts
+) VALUES (
+    'inst.staff.user_search',
+    'global',
+    'task',
+    '',
+    '[STAFF USER SEARCH] Find a user by name, email, handle, or numeric id before referral or billing staff actions. Call admin.user.search with a short query.',
+    ARRAY['cari user', 'search user', 'find user', 'cari akun', 'siapa uid', 'user id'],
+    ARRAY['tool_include:admin.user.search'],
+    ARRAY['admin.user.search'],
+    ARRAY[]::TEXT[],
+    ARRAY['partner', 'director'],
+    140,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    requires_global_roles = EXCLUDED.requires_global_roles,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, requires_global_roles, priority, def_hash, updated_ts
+) VALUES (
+    'inst.staff.finance_queues',
+    'global',
+    'task',
+    '',
+    '[FINANCE QUEUES] Manual top-up or commission withdrawal queues. List with billing.topup.list or billing.withdraw.list (status pending or history). Approve or reject only when the operator clearly asks; use billing.topup.review or billing.withdraw.review with request_id.',
+    ARRAY[
+        'antrian topup', 'topup pending', 'withdraw pending', 'antrian withdraw',
+        'commission withdraw', 'pencairan komisi', 'bukti topup'
+    ],
+    ARRAY[
+        'tool_include:billing.topup.list',
+        'tool_include:billing.withdraw.list'
+    ],
+    ARRAY['billing.topup.list', 'billing.withdraw.list'],
+    ARRAY[]::TEXT[],
+    ARRAY['finance', 'director'],
+    138,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    requires_global_roles = EXCLUDED.requires_global_roles,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, requires_global_roles, priority, def_hash, updated_ts
+) VALUES (
+    'inst.staff.devices_bots',
+    'global',
+    'task',
+    '',
+    '[STAFF ASSETS] List another user''s paired devices or bots. Resolve user with subject_handle or subject_uid (admin.user.search). Devices: admin.device.list. Bots: admin.bot.list. App installs: admin.client.list. Read-only; do not start task runs or device commands unless the operator is root and explicitly asks.',
+    ARRAY[
+        'list devices', 'daftar device', 'device user', 'paired devices',
+        'list bots', 'daftar bot', 'bot milik', 'bots user',
+        'client installs', 'app version user'
+    ],
+    ARRAY[
+        'tool_include:admin.device.list',
+        'tool_include:admin.bot.list',
+        'tool_include:admin.client.list'
+    ],
+    ARRAY['admin.device.list', 'admin.bot.list', 'admin.client.list'],
+    ARRAY[]::TEXT[],
+    ARRAY['partner', 'director'],
+    137,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    requires_global_roles = EXCLUDED.requires_global_roles,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, requires_global_roles, priority, def_hash, updated_ts
+) VALUES (
+    'inst.staff.automation_tasks',
+    'global',
+    'task',
+    '',
+    '[ROOT AUTOMATION] List saved automation recipes (ai.task) for a user. Call admin.task.list with subject_handle or subject_uid; optional device_iid. Root only — prompts may contain secrets.',
+    ARRAY[
+        'automation task list', 'daftar task otomasi', 'saved tasks',
+        'task recipes user', 'ai.task user'
+    ],
+    ARRAY['tool_include:admin.task.list'],
+    ARRAY['admin.task.list'],
+    ARRAY[]::TEXT[],
+    ARRAY['root'],
+    136,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    requires_global_roles = EXCLUDED.requires_global_roles,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, requires_global_roles, priority, def_hash, updated_ts
+) VALUES (
+    'inst.staff.debug',
+    'global',
+    'task',
+    '',
+    '[ROOT DEBUG] Investigate a bad turn or platform error. Resolve the user with subject_handle or subject_uid. Flow: admin.msg.find or admin.chat.messages to get req_id -> admin.trace.get (pass subject when known) -> admin.msg.get for full message+trace. Platform errors: admin.log.tail with exclude_trace true; use global true only for cross-user scans (root only). Never expose log meta secrets to end users. Root shell.run on another user''s device is audited in ai.log (admin/device.remote).',
+    ARRAY[
+        'debug trace', 'analisa trace', 'kenapa error', 'cek log error', 'req_id',
+        'lihat trace turn', 'investigate bug', 'debug turn', 'ai.log error',
+        'pesan error user', 'trace req'
+    ],
+    ARRAY[
+        'tool_include:admin.trace.get',
+        'tool_include:admin.msg.get',
+        'tool_include:admin.msg.find',
+        'tool_include:admin.log.tail'
+    ],
+    ARRAY['admin.trace.get', 'admin.msg.get', 'admin.msg.find', 'admin.log.tail', 'admin.user.search'],
+    ARRAY[]::TEXT[],
+    ARRAY['root'],
+    148,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    requires_global_roles = EXCLUDED.requires_global_roles,
     priority = EXCLUDED.priority,
     updated_ts = NOW();
 

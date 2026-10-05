@@ -1,5 +1,7 @@
 //! Inst macros — phrase/trigger match for prompt steering.
 
+use c35_mod_admin::{staff_tool_eligible, StaffView};
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InstRow {
     pub id: String,
@@ -12,6 +14,7 @@ pub struct InstRow {
     pub triggers: Vec<String>,
     pub include_tools: Vec<String>,
     pub exclude_tools: Vec<String>,
+    pub requires_global_roles: Vec<String>,
     pub priority: i32,
 }
 
@@ -38,6 +41,7 @@ pub struct InstMatchCtx<'a> {
     pub text: &'a str,
     pub mention_ids: &'a [String],
     pub signals: &'a [String],
+    pub staff: Option<&'a StaffView>,
 }
 
 pub fn inst_pick(rows: &[InstRow], ctx: &InstMatchCtx<'_>) -> Vec<InstRow> {
@@ -95,7 +99,20 @@ fn scope_applies(row_scope: &str, active: &[String]) -> bool {
     active.iter().any(|s| s == row_scope)
 }
 
+fn inst_staff_eligible(row: &InstRow, ctx: &InstMatchCtx<'_>) -> bool {
+    if row.requires_global_roles.is_empty() {
+        return true;
+    }
+    match ctx.staff {
+        Some(staff) => staff_tool_eligible(staff, &row.requires_global_roles),
+        None => staff_tool_eligible(&StaffView::default(), &row.requires_global_roles),
+    }
+}
+
 fn inst_applies(row: &InstRow, ctx: &InstMatchCtx<'_>) -> bool {
+    if !inst_staff_eligible(row, ctx) {
+        return false;
+    }
     if ctx.topic_id == "bot" && row.scope == SCOPE_GLOBAL && row.kind != "trigger" {
         return false;
     }
@@ -142,6 +159,8 @@ fn topic_applies(topics: &[String], topic_id: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use super::*;
 
     fn row(id: &str, phrases: &[&str]) -> InstRow {
@@ -156,6 +175,7 @@ mod tests {
             triggers: vec![],
             include_tools: vec!["web.search".into()],
             exclude_tools: vec![],
+            requires_global_roles: vec![],
             priority: 100,
         }
     }
@@ -173,11 +193,55 @@ mod tests {
             triggers: vec![],
             include_tools: vec!["consumption.today".into()],
             exclude_tools: vec!["img.generate".into()],
+            requires_global_roles: vec![],
             priority: 1,
         }];
         let (inc, exc) = inst_tool_directives(&rows);
         assert_eq!(inc, vec!["consumption.today"]);
         assert_eq!(exc, vec!["img.generate"]);
+    }
+
+    #[test]
+    fn inst_pick_requires_global_roles() {
+        let rows = vec![InstRow {
+            id: "inst.staff.root_chat".into(),
+            scope: SCOPE_GLOBAL.into(),
+            kind: "task".into(),
+            topic_id: "".into(),
+            topics: vec![],
+            inst: "root chat".into(),
+            phrases: vec!["chat terakhir chito".into()],
+            triggers: vec![],
+            include_tools: vec!["admin.chat.search".into()],
+            exclude_tools: vec![],
+            requires_global_roles: vec!["root".into()],
+            priority: 145,
+        }];
+        let empty: [String; 0] = [];
+        let scopes = vec![SCOPE_GLOBAL.into()];
+        let staff_user = StaffView::default();
+        let staff_root = StaffView {
+            is_root: true,
+            global_roles: HashSet::new(),
+        };
+        let ctx_user = InstMatchCtx {
+            scopes: &scopes,
+            topic_id: "general",
+            text: "apa chat terakhir chito",
+            mention_ids: &empty,
+            signals: &empty,
+            staff: Some(&staff_user),
+        };
+        let ctx_root = InstMatchCtx {
+            scopes: &scopes,
+            topic_id: "general",
+            text: "apa chat terakhir chito",
+            mention_ids: &empty,
+            signals: &empty,
+            staff: Some(&staff_root),
+        };
+        assert!(inst_pick(&rows, &ctx_user).is_empty());
+        assert_eq!(inst_pick(&rows, &ctx_root).len(), 1);
     }
 
     #[test]
@@ -191,6 +255,7 @@ mod tests {
             text: "cari info rust",
             mention_ids: &empty,
             signals: &empty,
+            staff: None,
         };
         assert_eq!(inst_pick(&rows, &ctx).len(), 1);
     }
@@ -208,6 +273,7 @@ mod tests {
             triggers: vec![],
             include_tools: vec![],
             exclude_tools: vec![],
+            requires_global_roles: vec![],
             priority: 140,
         }];
         let empty: [String; 0] = [];
@@ -219,6 +285,7 @@ mod tests {
             text: "track food",
             mention_ids: &empty,
             signals: &empty,
+            staff: None,
         };
         let ctx_home = InstMatchCtx {
             scopes: &home,
@@ -226,6 +293,7 @@ mod tests {
             text: "track food",
             mention_ids: &empty,
             signals: &empty,
+            staff: None,
         };
         assert!(inst_pick(&rows, &ctx_global).is_empty());
         assert_eq!(inst_pick(&rows, &ctx_home).len(), 1);
@@ -244,6 +312,7 @@ mod tests {
             triggers: vec!["tool_include:delegate.run".into()],
             include_tools: vec!["delegate.run".into()],
             exclude_tools: vec![],
+            requires_global_roles: vec![],
             priority: 127,
         }];
         let empty: [String; 0] = [];
@@ -254,6 +323,7 @@ mod tests {
             text: "can you multitask 2 times",
             mention_ids: &empty,
             signals: &empty,
+            staff: None,
         };
         let picked = inst_pick(&rows, &ctx);
         assert_eq!(picked.len(), 1);
@@ -275,6 +345,7 @@ mod tests {
             triggers: vec!["always".into()],
             include_tools: vec![],
             exclude_tools: vec![],
+            requires_global_roles: vec![],
             priority: 200,
         }];
         let empty: [String; 0] = [];
@@ -285,6 +356,7 @@ mod tests {
             text: "hello",
             mention_ids: &empty,
             signals: &empty,
+            staff: None,
         };
         assert_eq!(inst_pick(&rows, &ctx).len(), 1);
         assert_eq!(inst_pick(&rows, &ctx)[0].id, "inst.core.assistant");
@@ -302,6 +374,7 @@ mod tests {
             triggers: vec!["mention:talk".into()],
             include_tools: vec![],
             exclude_tools: vec![],
+            requires_global_roles: vec![],
             priority: 80,
         }
     }
@@ -323,6 +396,7 @@ mod tests {
             text: "hello",
             mention_ids: &with_talk,
             signals: &[],
+            staff: None,
         };
         let ctx_off = InstMatchCtx {
             scopes: &scopes,
@@ -330,6 +404,7 @@ mod tests {
             text: "hello",
             mention_ids: &without,
             signals: &[],
+            staff: None,
         };
         assert!(inst_pick(&rows, &ctx_on).iter().any(|r| r.id == "inst.talk.brief"));
         assert!(inst_pick(&rows, &ctx_off).iter().all(|r| r.id != "inst.talk.brief"));

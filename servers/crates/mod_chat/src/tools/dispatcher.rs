@@ -97,6 +97,20 @@ impl ToolDispatcher {
         };
 
         let def = tool.definition();
+        if ctx.owner_iid > 0 && !def.requires_global_roles.is_empty() {
+            let staff = c35_mod_admin::staff_view_load(&ctx.pool, ctx.owner_iid).await;
+            if !c35_mod_admin::staff_tool_eligible(&staff, &def.requires_global_roles) {
+                return (
+                    json!({
+                        "ok": false,
+                        "runner": "cluster",
+                        "tool": def.name,
+                        "error": "forbidden: staff role required",
+                    }),
+                    0.0,
+                );
+            }
+        }
         let mcp_device_exempt = ctx.mcp_agent && mcp_operator_device_tool(&def.name);
         if ctx.owner_iid > 0
             && !mcp_device_exempt
@@ -167,6 +181,7 @@ mod tests {
             rag_phrases: vec![],
             requires_kinds: vec![],
             requires_capability: None,
+            requires_global_roles: vec![],
             ui_keys: None,
         }
     }

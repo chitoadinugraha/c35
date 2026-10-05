@@ -1,6 +1,7 @@
 //! Compose inst match + vector/lexical tool filter per turn.
 
 mod mention_gate;
+mod staff_gate;
 mod topic;
 mod tool_select;
 
@@ -16,6 +17,8 @@ use super::tool_rag::{
     tool_find_lexical, tool_select as rag_tool_select, tool_trim_ranked, ToolCandidate, DEFAULT_TOOL_SIM_GAP,
     DEFAULT_TOOL_SIM_THRESHOLD, DEFAULT_TOOL_TOP_K, LEXICAL_SIM_THRESHOLD, TOOL_RAG_MIN,
 };
+use c35_mod_admin::StaffView;
+
 use crate::mention_context::MentionContext;
 use crate::site_capability::SiteCapabilityView;
 use crate::tools::ToolDef;
@@ -23,6 +26,7 @@ use crate::tools::ToolDef;
 pub use mention_gate::{
     tool_mention_capability_eligible, tool_mention_eligible, tool_mention_kinds_eligible,
 };
+pub use staff_gate::tool_staff_eligible;
 pub use topic::{tool_topic_eligible, topic_resolve};
 pub use tool_select::{
     compose_bot_web_tools_inject, compose_force_bot_web, compose_force_general_web,
@@ -215,6 +219,7 @@ fn compose_prepare_scoped(
     scopes: &[String],
     mention: &MentionContext,
     caps: &SiteCapabilityView,
+    staff: &StaffView,
     opts: ComposeTurnOpts<'_>,
 ) -> Result<ComposePrep, ComposeOutput> {
     let topics: Vec<String> = if active_topics.is_empty() {
@@ -237,6 +242,7 @@ fn compose_prepare_scoped(
             text,
             mention_ids,
             signals: signal_slice,
+            staff: Some(staff),
         },
     );
     let matched_ids: Vec<String> = matched.iter().map(|r| r.id.clone()).collect();
@@ -257,6 +263,7 @@ fn compose_prepare_scoped(
     let eligible_tools: Vec<ToolDef> = eligible_tools
         .into_iter()
         .filter(|t| tool_mention_eligible(t, mention, caps))
+        .filter(|t| tool_staff_eligible(t, staff))
         .filter(|t| !ask_mode || t.readonly)
         .collect();
     compose_force_general_web(&eligible_tools, &topic_refs, &mut force_include);
@@ -378,6 +385,7 @@ pub async fn compose_tools_and_inst_async(
     locale: &str,
 ) -> ComposeOutput {
     let started = Instant::now();
+    let staff = c35_mod_admin::staff_view_load(pool, owner_iid).await;
     let prep = match compose_prepare_scoped(
         inst_rows,
         text,
@@ -390,6 +398,7 @@ pub async fn compose_tools_and_inst_async(
         scopes,
         mention,
         caps,
+        &staff,
         opts,
     ) {
         Ok(p) => p,
@@ -468,6 +477,7 @@ pub fn compose_tools_and_inst(
     opts: ComposeTurnOpts<'_>,
 ) -> ComposeOutput {
     let started = Instant::now();
+    let staff = StaffView::default();
     let prep = match compose_prepare_scoped(
         inst_rows,
         text,
@@ -480,6 +490,7 @@ pub fn compose_tools_and_inst(
         scopes,
         mention,
         caps,
+        &staff,
         opts,
     ) {
         Ok(p) => p,

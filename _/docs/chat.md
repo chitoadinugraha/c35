@@ -277,6 +277,14 @@ Compaction does not delete `ai.chat_msg`. Two read-only tools read that history 
 |------|---------|
 | `chat.search` | Matching chats: title, local time, stored `context_summary`, one snippet. Empty summary includes a few recent lines. |
 | `chat.messages` | Exact lines from one `chat_id` (or the current chat): role, local time, text. |
+| `admin.chat.search` | **Root only:** same as `chat.search` for another user (`subject_uid` or `subject_handle`). |
+| `admin.chat.messages` | **Root only:** same as `chat.messages` for another user's `chat_id`. |
+| `admin.trace.get` | **Root only:** `ai.log` rows for a `req_id` (tool filter, LLM, tools). Optional `subject_uid` / `subject_handle` to scope owner. Meta secrets redacted. |
+| `admin.msg.get` | **Root only:** message(s) by `msg_id` or `req_id` for a subject user, with linked trace. |
+| `admin.msg.find` | **Root only:** ILIKE search on a subject user's message content. |
+| `admin.log.tail` | **Root only:** tail `ai.log` for one user or `global: true` platform scan. `exclude_trace` for domain events only. |
+
+Root **device control** on any user's paired remote: allowed when `require_root` passes; each access writes an `admin/device.remote` event to `ai.log` under the root operator's `owner_iid`. Normal users remain owner-or-grant only.
 
 Steering: `inst.chat.history`. Memory stays for durable user facts, not transcripts.
 

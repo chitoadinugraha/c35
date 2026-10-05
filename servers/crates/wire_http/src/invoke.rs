@@ -543,6 +543,17 @@ pub async fn dispatch_invoke(state: &AppState, req: InvokeReq) -> InvokeRes {
                 Err(e) => invoke_error(&req_id, e.status_code, e.message),
             }
         }
+        Some(invoke_req::Body::AdminLlmCatalogList(r)) => {
+            match crate::admin_catalog::admin_catalog_prices_list(pool, iid, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::AdminLlmCatalogList(res)),
+                },
+                Err(e) => invoke_error(&req_id, e.status_code, e.message),
+            }
+        }
         Some(invoke_req::Body::ChannelTelegramConnect(r)) => {
             match channel_telegram_connect(&state.pool, iid, &state.public_origin, r, state.nats.as_ref()).await {
                 Ok(res) => InvokeRes {

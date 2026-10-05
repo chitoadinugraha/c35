@@ -99,8 +99,69 @@ pub fn remote_signaling_agent_connected(device_iid: i64) -> bool {
     hub().agents.contains_key(&device_iid)
 }
 
+async fn device_root_remote_audit(
+    pool: &PgPool,
+    caller_iid: i64,
+    device_iid: i64,
+    device_owner_iid: i64,
+) {
+    let meta = serde_json::json!({
+        "action": "root_device_remote",
+        "caller_iid": caller_iid,
+        "device_iid": device_iid,
+        "device_owner_iid": device_owner_iid,
+    });
+    let text = format!(
+        "root remote access device_iid={} owner_iid={}",
+        device_iid,
+        device_owner_iid
+    );
+    let _ = c35_mod_log::log_put(
+        pool,
+        None,
+        c35_mod_log::LogPut {
+            owner_iid: caller_iid,
+            class: Some("event"),
+            kind: "admin",
+            topic: "device.remote",
+            dv: "",
+            req_id: None,
+            chat_id: None,
+            task_id: None,
+            device_iid: Some(device_iid),
+            text: &text,
+            model: "",
+            tokens_in: 0,
+            tokens_out: 0,
+            duration_ms: 0,
+            cost_usd: 0.0,
+            meta,
+        },
+    )
+    .await;
+}
+
 async fn device_remote_allowed(pool: &PgPool, caller_iid: i64, device_iid: i64) -> Result<(), String> {
     if device_iid <= 0 {
+        return Err("invalid device".into());
+    }
+    if c35_mod_admin::require_root(pool, caller_iid).await.is_ok() {
+        let owner: Option<i64> = sqlx::query_scalar(
+            r#"
+            SELECT owner_iid
+            FROM ai.identity
+            WHERE id = $1 AND kind = 'remote' AND deleted_ts IS NULL
+            LIMIT 1
+            "#,
+        )
+        .bind(device_iid)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+        if let Some(device_owner_iid) = owner {
+            device_root_remote_audit(pool, caller_iid, device_iid, device_owner_iid).await;
+            return Ok(());
+        }
         return Err("invalid device".into());
     }
     let row = sqlx::query_scalar::<_, i64>(

@@ -34,12 +34,31 @@ static DAEMON_RUNNING: AtomicBool = AtomicBool::new(false);
 static UNPAIR_NOTIFY: OnceLock<Arc<Notify>> = OnceLock::new();
 
 pub fn status_snapshot_json() -> String {
-    if let Ok(guard) = STATUS_SNAPSHOT.read() {
-        if let Some(ref snap) = *guard {
-            return serde_json::to_string(snap).unwrap_or_else(|_| "{}".into());
-        }
+    let snap = if let Ok(guard) = STATUS_SNAPSHOT.read() {
+        guard.clone().unwrap_or_default()
+    } else {
+        DaemonStatusSnapshot::default()
+    };
+    let snap = merge_ws_presence(snap);
+    serde_json::to_string(&snap).unwrap_or_else(|_| "{}".into())
+}
+
+fn merge_ws_presence(snap: DaemonStatusSnapshot) -> DaemonStatusSnapshot {
+    if !snap.paired {
+        return snap;
     }
-    serde_json::to_string(&DaemonStatusSnapshot::default()).unwrap_or_else(|_| "{}".into())
+    let connected = c_remote_core::agent_ui::ws_connected();
+    DaemonStatusSnapshot {
+        online: connected,
+        status: if connected {
+            "Connected to Alien AI Cloud".into()
+        } else if snap.status.is_empty() {
+            "Connecting to Alien AI Cloud…".into()
+        } else {
+            snap.status
+        },
+        ..snap
+    }
 }
 
 fn update_snapshot<F: FnOnce(&mut DaemonStatusSnapshot)>(f: F) {
@@ -221,8 +240,8 @@ pub fn start_daemon_loop(
 
             update_snapshot(|s| {
                 s.paired = true;
-                s.online = true;
-                s.status = "Connected to Alien AI Cloud".into();
+                s.online = false;
+                s.status = "Connecting to Alien AI Cloud…".into();
             });
             status_change_cb(status_snapshot_json());
 

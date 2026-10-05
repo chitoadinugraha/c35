@@ -286,5 +286,14 @@
                  "chatDeleteMessage":  "\"{name}\" dan semua pesan akan dihapus permanen.",
                  "typingBot":  "Bot mengetik…",
                  "typingPeer":  "Pelanggan mengetik…"
-             }
+             },
+    "legal":  {
+                  "aiDisclaimerTitle":  "Sebelum melanjutkan",
+                  "aiDisclaimerAccuracy":  "Alien AI dapat salah. Periksa kembali fakta penting sebelum Anda mengandalkannya.",
+                  "aiDisclaimerResponsibility":  "Asisten hanya bertindak berdasarkan permintaan dan instruksi Anda. Anda bertanggung jawab penuh untuk meninjau hasilnya serta segala tindakan yang Anda lakukan—atau minta asisten lakukan—melalui Layanan.",
+                  "aiDisclaimerTermsPrefix":  "Pemberitahuan ini merupakan bagian dari ",
+                  "aiDisclaimerTermsLink":  "Ketentuan Layanan",
+                  "aiDisclaimerTermsSuffix":  " kami.",
+                  "aiDisclaimerAccept":  "Saya mengerti"
+              }
 }

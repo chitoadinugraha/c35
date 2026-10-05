@@ -151,6 +151,16 @@ class AdminApi {
 
   Future<void> logUnsubscribe() => chatConn.logUnsubscribe();
 
+  Future<ResAdminLlmCatalogList> adminLlmCatalogList({bool enabledOnly = true}) async {
+    final res = await _invoke(InvokeReq(
+      reqId: const Uuid().v4(),
+      adminLlmCatalogList: ReqAdminLlmCatalogList(enabledOnly: enabledOnly),
+    ));
+    invokeResThrow(res, fallback: 'Failed to load LLM catalog prices');
+    if (!res.hasAdminLlmCatalogList()) throw 'Failed to load LLM catalog prices';
+    return res.adminLlmCatalogList;
+  }
+
   Future<ResAdminOpsPeaks> adminOpsPeaks({
     required Int64 sinceMs,
     required Int64 untilMs,

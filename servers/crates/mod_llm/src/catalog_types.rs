@@ -5,6 +5,7 @@ pub struct LlmModelRow {
     pub label: String,
     pub provider_model: String,
     pub input_micro_per_m: i64,
+    pub input_cache_micro_per_m: i64,
     pub output_micro_per_m: i64,
     pub supports_thinking: bool,
     pub enabled: bool,

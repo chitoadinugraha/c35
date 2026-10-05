@@ -28,6 +28,7 @@ import 'package:alienai_c35/c/media/ask_media.dart';
 import 'package:alienai_c35/c/media/media_types.dart';
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
+import 'package:alienai_c35/c/settings/ai_disclaimer_prefs.dart';
 import 'package:alienai_c35/c/settings/prompt_usage_prefs.dart';
 import 'package:alienai_c35/c/location/location_permission.dart';
 import 'package:alienai_c35/c/location/location_service.dart';
@@ -54,6 +55,7 @@ import 'package:alienai_c35/pages/page_sites.dart';
 import 'package:alienai_c35/pages/mail/page_mail.dart';
 import 'package:alienai_c35/pages/page_settings.dart';
 import 'package:alienai_c35/pages/referral/page_referral_tree.dart';
+import 'package:alienai_c35/widgets/auth/ui_ai_disclaimer_dialog.dart';
 import 'package:alienai_c35/widgets/referral/ui_referral_claim_dialog.dart';
 import 'package:alienai_c35/widgets/settings/ui_location_consent_dialog.dart';
 import 'package:alienai_c35/widgets/referral/ui_referral_commission_sheet.dart';
@@ -177,7 +179,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     serverHostTick.addListener(_onServerHostChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_boot());
-      _checkReferralPrompt();
+      unawaited(_checkPostSignInPrompts());
     });
   }
 
@@ -331,6 +333,16 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       PromptFollowupStore.instance.clear();
       if (mounted) setState(() {});
     }
+  }
+
+  Future<void> _checkPostSignInPrompts() async {
+    if (!mounted || !Session.instance.signedIn) return;
+    if (!await AiDisclaimerPrefs.instance.acknowledged) {
+      if (!mounted) return;
+      await UiAiDisclaimerDialog.show(context);
+    }
+    if (!mounted) return;
+    _checkReferralPrompt();
   }
 
   void _checkReferralPrompt() {
@@ -969,7 +981,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       _store.chatStickyMentionsMerge(chatId, wireMentionIds);
     }
     if (mounted) {
-      setState(() => _mentionContextSyncFromChat(restoreComposer: true));
+      setState(() => _mentionContextSyncFromChat(restoreComposer: false));
     }
 
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -1101,7 +1113,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
             error: err,
           );
           _promptEstimateApply(streamChatId, end);
-          if (VoicePrefs.instance.speakEnabled && err.trim().isEmpty) {
+          if (VoicePrefs.instance.talkEnabled && VoicePrefs.instance.talkSpeakEnabled && err.trim().isEmpty) {
             final rid = end.reqId.isNotEmpty ? end.reqId : (_conn.lastPromptReqId ?? '');
             MsgRow? spoken;
             for (final row in _store.activeMsgs.reversed) {
@@ -1642,9 +1654,9 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       welcome: showWelcome ? _threadHero() : null,
       listening: _talkRecording,
       busy: busy,
-      speakEnabled: VoicePrefs.instance.speakEnabled,
+      speakEnabled: VoicePrefs.instance.talkSpeakEnabled,
       onMic: () => unawaited(_talkMic()),
-      onSpeak: () => unawaited(VoicePrefs.instance.setSpeakEnabled(!VoicePrefs.instance.speakEnabled)),
+      onSpeak: () => unawaited(VoicePrefs.instance.setTalkSpeakEnabled(!VoicePrefs.instance.talkSpeakEnabled)),
       onAttach: () => unawaited(_talkAttach()),
       onModel: () => unawaited(_talkModel()),
       blocks: assistant == null ? const <ChatBlock>[] : ChatBlock.decodeList(assistant.blocksJson),

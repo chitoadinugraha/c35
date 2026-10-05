@@ -42,7 +42,13 @@ use builtin::{
     PresentationCreateTool, PresentationExportTool, PresentationPatchTool,
     PresentationSourceExtractTool, PresentationSourceStructureTool,
     PresentationVideoExtractTool, PresentationVideoStructureTool,
-    ReferralCodeDeleteTool, ReferralCodeListTool, ReferralCodePutTool, ReferralTreeGetTool, SiteContactPutTool,
+    ReferralCodeDeleteTool, ReferralCodeListTool, ReferralCodePutTool, ReferralTreeGetTool,
+    AdminBotListTool, AdminChatMessagesTool, AdminChatSearchTool, AdminClientListTool,
+    AdminDeviceListTool, AdminLogTailTool, AdminMsgFindTool, AdminMsgGetTool, AdminTaskListTool,
+    AdminTraceGetTool, AdminUserSearchTool, BillingTopupListTool,
+    BillingTopupReviewTool, BillingWithdrawListTool, BillingWithdrawReviewTool,
+    ReferralCommissionSimulateTool, ReferralUserStatsStaffTool,
+    SiteContactPutTool,
     SiteCreateTool, SiteDomainPutTool, SiteDomainVerifyTool, SiteDraftGetTool, SiteDraftPutTool,
     SiteHandleUpdateTool, SiteObjectPutTool, SiteOrderStatusTool, SitePatchTool, SiteProductPatchTool,
     SiteProductPutTool, SitePublishTool, SiteQueryRunTool,
@@ -62,6 +68,7 @@ pub struct ToolDef {
     pub readonly: bool,
     pub requires_kinds: Vec<String>,
     pub requires_capability: Option<String>,
+    pub requires_global_roles: Vec<String>,
     pub rag_phrases: Vec<String>,
 }
 
@@ -77,6 +84,7 @@ impl ToolDef {
             readonly: false,
             requires_kinds: vec![],
             requires_capability: None,
+            requires_global_roles: vec![],
             rag_phrases: vec![],
         }
     }
@@ -92,6 +100,7 @@ impl ToolDef {
             readonly: def.readonly,
             requires_kinds: def.requires_kinds.clone(),
             requires_capability: def.requires_capability.clone(),
+            requires_global_roles: def.requires_global_roles.clone(),
             rag_phrases: def.rag_phrases.clone(),
         }
     }
@@ -187,6 +196,23 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(ReferralCodeListTool));
     dispatcher.register(Arc::new(ReferralCodeDeleteTool));
     dispatcher.register(Arc::new(ReferralTreeGetTool));
+    dispatcher.register(Arc::new(AdminUserSearchTool));
+    dispatcher.register(Arc::new(AdminChatSearchTool));
+    dispatcher.register(Arc::new(AdminChatMessagesTool));
+    dispatcher.register(Arc::new(AdminDeviceListTool));
+    dispatcher.register(Arc::new(AdminBotListTool));
+    dispatcher.register(Arc::new(AdminClientListTool));
+    dispatcher.register(Arc::new(AdminTaskListTool));
+    dispatcher.register(Arc::new(AdminLogTailTool));
+    dispatcher.register(Arc::new(AdminTraceGetTool));
+    dispatcher.register(Arc::new(AdminMsgGetTool));
+    dispatcher.register(Arc::new(AdminMsgFindTool));
+    dispatcher.register(Arc::new(ReferralUserStatsStaffTool));
+    dispatcher.register(Arc::new(ReferralCommissionSimulateTool));
+    dispatcher.register(Arc::new(BillingTopupListTool));
+    dispatcher.register(Arc::new(BillingTopupReviewTool));
+    dispatcher.register(Arc::new(BillingWithdrawListTool));
+    dispatcher.register(Arc::new(BillingWithdrawReviewTool));
     dispatcher.register(Arc::new(DelegateRunTool));
     dispatcher.register(Arc::new(ComputerUseDelegateTool));
     dispatcher.register(Arc::new(TaskRunStartTool));

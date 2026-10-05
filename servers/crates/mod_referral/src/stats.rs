@@ -40,6 +40,26 @@ async fn viewer_is_root_or_director(pool: &PgPool, viewer_iid: i64) -> bool {
         .unwrap_or(false)
 }
 
+async fn viewer_has_finance_role(pool: &PgPool, viewer_iid: i64) -> bool {
+    if viewer_iid <= 0 {
+        return false;
+    }
+    let row = sqlx::query("SELECT meta FROM ai.identity WHERE id = $1 AND deleted_ts IS NULL")
+        .bind(viewer_iid)
+        .fetch_optional(pool)
+        .await
+        .ok()
+        .flatten();
+    let Some(row) = row else {
+        return false;
+    };
+    let meta: serde_json::Value = row.try_get("meta").unwrap_or(serde_json::json!({}));
+    meta.get("global_roles")
+        .and_then(|v| v.as_array())
+        .map(|a| a.iter().any(|x| x.as_str() == Some("finance")))
+        .unwrap_or(false)
+}
+
 async fn stats_can_view(pool: &PgPool, viewer_iid: i64, subject_iid: i64) -> bool {
     if viewer_iid <= 0 || subject_iid <= 0 {
         return false;
@@ -50,7 +70,10 @@ async fn stats_can_view(pool: &PgPool, viewer_iid: i64, subject_iid: i64) -> boo
     if require_admin(pool, viewer_iid).await.is_ok() {
         return true;
     }
-    viewer_is_root_or_director(pool, viewer_iid).await
+    if viewer_is_root_or_director(pool, viewer_iid).await {
+        return true;
+    }
+    viewer_has_finance_role(pool, viewer_iid).await
 }
 
 fn period_bounds(

@@ -244,3 +244,130 @@ const ResAdminLogList$json = {
 /// Descriptor for `ResAdminLogList`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List resAdminLogListDescriptor = $convert.base64Decode(
     'Cg9SZXNBZG1pbkxvZ0xpc3QSHAoEbG9ncxgBIAMoCzIILmMzNS5Mb2dSBGxvZ3M=');
+
+@$core.Deprecated('Use adminLlmCatalogRowDescriptor instead')
+const AdminLlmCatalogRow$json = {
+  '1': 'AdminLlmCatalogRow',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 9, '10': 'id'},
+    {'1': 'provider', '3': 2, '4': 1, '5': 9, '10': 'provider'},
+    {'1': 'label', '3': 3, '4': 1, '5': 9, '10': 'label'},
+    {'1': 'source', '3': 4, '4': 1, '5': 9, '10': 'source'},
+    {'1': 'enabled', '3': 5, '4': 1, '5': 8, '10': 'enabled'},
+    {'1': 'usd_in_per_1m', '3': 6, '4': 1, '5': 1, '10': 'usdInPer1m'},
+    {
+      '1': 'usd_in_cache_per_1m',
+      '3': 7,
+      '4': 1,
+      '5': 1,
+      '10': 'usdInCachePer1m'
+    },
+    {'1': 'usd_out_per_1m', '3': 8, '4': 1, '5': 1, '10': 'usdOutPer1m'},
+    {
+      '1': 'retail_usd_in_per_1m',
+      '3': 9,
+      '4': 1,
+      '5': 1,
+      '10': 'retailUsdInPer1m'
+    },
+    {
+      '1': 'retail_usd_in_cache_per_1m',
+      '3': 10,
+      '4': 1,
+      '5': 1,
+      '10': 'retailUsdInCachePer1m'
+    },
+    {
+      '1': 'retail_usd_out_per_1m',
+      '3': 11,
+      '4': 1,
+      '5': 1,
+      '10': 'retailUsdOutPer1m'
+    },
+  ],
+};
+
+/// Descriptor for `AdminLlmCatalogRow`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List adminLlmCatalogRowDescriptor = $convert.base64Decode(
+    'ChJBZG1pbkxsbUNhdGFsb2dSb3cSDgoCaWQYASABKAlSAmlkEhoKCHByb3ZpZGVyGAIgASgJUg'
+    'hwcm92aWRlchIUCgVsYWJlbBgDIAEoCVIFbGFiZWwSFgoGc291cmNlGAQgASgJUgZzb3VyY2US'
+    'GAoHZW5hYmxlZBgFIAEoCFIHZW5hYmxlZBIhCg11c2RfaW5fcGVyXzFtGAYgASgBUgp1c2RJbl'
+    'BlcjFtEiwKE3VzZF9pbl9jYWNoZV9wZXJfMW0YByABKAFSD3VzZEluQ2FjaGVQZXIxbRIjCg51'
+    'c2Rfb3V0X3Blcl8xbRgIIAEoAVILdXNkT3V0UGVyMW0SLgoUcmV0YWlsX3VzZF9pbl9wZXJfMW'
+    '0YCSABKAFSEHJldGFpbFVzZEluUGVyMW0SOQoacmV0YWlsX3VzZF9pbl9jYWNoZV9wZXJfMW0Y'
+    'CiABKAFSFXJldGFpbFVzZEluQ2FjaGVQZXIxbRIwChVyZXRhaWxfdXNkX291dF9wZXJfMW0YCy'
+    'ABKAFSEXJldGFpbFVzZE91dFBlcjFt');
+
+@$core.Deprecated('Use reqAdminLlmCatalogListDescriptor instead')
+const ReqAdminLlmCatalogList$json = {
+  '1': 'ReqAdminLlmCatalogList',
+  '2': [
+    {'1': 'enabled_only', '3': 1, '4': 1, '5': 8, '10': 'enabledOnly'},
+  ],
+};
+
+/// Descriptor for `ReqAdminLlmCatalogList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqAdminLlmCatalogListDescriptor =
+    $convert.base64Decode(
+        'ChZSZXFBZG1pbkxsbUNhdGFsb2dMaXN0EiEKDGVuYWJsZWRfb25seRgBIAEoCFILZW5hYmxlZE'
+        '9ubHk=');
+
+@$core.Deprecated('Use adminServiceRateRowDescriptor instead')
+const AdminServiceRateRow$json = {
+  '1': 'AdminServiceRateRow',
+  '2': [
+    {'1': 'category', '3': 1, '4': 1, '5': 9, '10': 'category'},
+    {'1': 'id', '3': 2, '4': 1, '5': 9, '10': 'id'},
+    {'1': 'label', '3': 3, '4': 1, '5': 9, '10': 'label'},
+    {'1': 'unit', '3': 4, '4': 1, '5': 9, '10': 'unit'},
+    {'1': 'wholesale_usd', '3': 5, '4': 1, '5': 1, '10': 'wholesaleUsd'},
+    {'1': 'retail_usd', '3': 6, '4': 1, '5': 1, '10': 'retailUsd'},
+    {'1': 'detail', '3': 7, '4': 1, '5': 9, '10': 'detail'},
+  ],
+};
+
+/// Descriptor for `AdminServiceRateRow`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List adminServiceRateRowDescriptor = $convert.base64Decode(
+    'ChNBZG1pblNlcnZpY2VSYXRlUm93EhoKCGNhdGVnb3J5GAEgASgJUghjYXRlZ29yeRIOCgJpZB'
+    'gCIAEoCVICaWQSFAoFbGFiZWwYAyABKAlSBWxhYmVsEhIKBHVuaXQYBCABKAlSBHVuaXQSIwoN'
+    'd2hvbGVzYWxlX3VzZBgFIAEoAVIMd2hvbGVzYWxlVXNkEh0KCnJldGFpbF91c2QYBiABKAFSCX'
+    'JldGFpbFVzZBIWCgZkZXRhaWwYByABKAlSBmRldGFpbA==');
+
+@$core.Deprecated('Use resAdminLlmCatalogListDescriptor instead')
+const ResAdminLlmCatalogList$json = {
+  '1': 'ResAdminLlmCatalogList',
+  '2': [
+    {
+      '1': 'models',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.AdminLlmCatalogRow',
+      '10': 'models'
+    },
+    {'1': 'retail_markup', '3': 2, '4': 1, '5': 1, '10': 'retailMarkup'},
+    {
+      '1': 'services',
+      '3': 3,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.AdminServiceRateRow',
+      '10': 'services'
+    },
+    {
+      '1': 'live',
+      '3': 4,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.AdminServiceRateRow',
+      '10': 'live'
+    },
+  ],
+};
+
+/// Descriptor for `ResAdminLlmCatalogList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resAdminLlmCatalogListDescriptor = $convert.base64Decode(
+    'ChZSZXNBZG1pbkxsbUNhdGFsb2dMaXN0Ei8KBm1vZGVscxgBIAMoCzIXLmMzNS5BZG1pbkxsbU'
+    'NhdGFsb2dSb3dSBm1vZGVscxIjCg1yZXRhaWxfbWFya3VwGAIgASgBUgxyZXRhaWxNYXJrdXAS'
+    'NAoIc2VydmljZXMYAyADKAsyGC5jMzUuQWRtaW5TZXJ2aWNlUmF0ZVJvd1IIc2VydmljZXMSLA'
+    'oEbGl2ZRgEIAMoCzIYLmMzNS5BZG1pblNlcnZpY2VSYXRlUm93UgRsaXZl');

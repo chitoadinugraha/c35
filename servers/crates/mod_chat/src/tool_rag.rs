@@ -241,6 +241,7 @@ mod tests {
                 requires_kinds: vec![],
                 rag_phrases: vec!["film bioskop".into(), "apa yang tayang".into()],
                 requires_capability: None,
+                requires_global_roles: vec![],
             },
             ToolDef {
                 name: "web.visit".into(),
@@ -253,6 +254,7 @@ mod tests {
                 requires_kinds: vec![],
                 rag_phrases: vec![],
                 requires_capability: None,
+                requires_global_roles: vec![],
             },
             ToolDef {
                 name: "expense.add".into(),
@@ -265,6 +267,7 @@ mod tests {
                 requires_kinds: vec![],
                 rag_phrases: vec![],
                 requires_capability: None,
+                requires_global_roles: vec![],
             },
         ];
         let ranked = tool_find_lexical(

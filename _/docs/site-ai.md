@@ -118,6 +118,7 @@ Extend `ToolDefinition` (see [inst.md](inst.md) triggers):
 | `readonly` | Allowed in `tool_mode = ask` |
 | `requires_kinds` | Hard gate: `["site"]`, `["device"]`, … — only when mention resolves that kind |
 | `requires_capability` | e.g. `"commerce"` on site config |
+| `requires_global_roles` | Staff badge OR-gate (`partner`, `director`, `finance`, …); `is_root` passes all |
 
 **Do not** add a general-topic twin (`stock.check`, `product.find`, …). Multi-site reads stay on `site.query.run`. Price and stock edits stay on `site.product.patch`.
 

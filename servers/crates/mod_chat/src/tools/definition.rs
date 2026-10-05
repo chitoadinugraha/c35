@@ -46,6 +46,9 @@ pub struct ToolDefinition {
     /// Site capability required when `site` is in scope (e.g. `commerce`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub requires_capability: Option<String>,
+    /// Staff global_roles required (OR); empty = no gate. Root (`is_root`) passes all gates.
+    #[serde(default)]
+    pub requires_global_roles: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ui_keys: Option<ToolUiKeys>,
 }

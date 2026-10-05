@@ -1019,7 +1019,8 @@ class ChatStore extends ChangeNotifier {
     if (row.id > 0 && row.content.trim().isNotEmpty) {
       if (old.role == 'user' &&
           composerMentionTextHasTokens(old.content) &&
-          !composerMentionTextHasTokens(row.content)) {
+          !composerMentionTextHasTokens(row.content) &&
+          composerMentionContentSameTurn(old.content, row.content)) {
         return old.content;
       }
       return row.content;
@@ -1068,12 +1069,13 @@ class ChatStore extends ChangeNotifier {
       if (byReq >= 0) {
         final old = msgs[byReq];
         if (old.id > 0 && row.id > 0 && old.id != row.id) _tombstonedMsgIds.add(old.id);
-        msgs[byReq] = _msgMerge(old, row);
+        final merged = _msgMerge(old, row);
+        msgs[byReq] = merged;
         if (touchPreview) {
           _chatPreviewTouch(
-            row.chatId,
-            row.content,
-            atMs: row.createdAtMs > 0 ? row.createdAtMs : DateTime.now().millisecondsSinceEpoch,
+            merged.chatId,
+            merged.content,
+            atMs: merged.createdAtMs > 0 ? merged.createdAtMs : DateTime.now().millisecondsSinceEpoch,
           );
         }
         if (notify) _touchMsgs(row.chatId);
@@ -1087,12 +1089,13 @@ class ChatStore extends ChangeNotifier {
         localIdx = msgs.lastIndexWhere((m) => m.chatId == row.chatId && m.role == 'assistant' && m.id != row.id && sameTurn(m));
       }
       if (localIdx >= 0) {
-        msgs[localIdx] = _msgMerge(msgs[localIdx], row);
+        final merged = _msgMerge(msgs[localIdx], row);
+        msgs[localIdx] = merged;
         if (touchPreview) {
           _chatPreviewTouch(
-            row.chatId,
-            row.content,
-            atMs: row.createdAtMs > 0 ? row.createdAtMs : DateTime.now().millisecondsSinceEpoch,
+            merged.chatId,
+            merged.content,
+            atMs: merged.createdAtMs > 0 ? merged.createdAtMs : DateTime.now().millisecondsSinceEpoch,
           );
         }
         if (notify) _touchMsgs(row.chatId);
@@ -1101,12 +1104,13 @@ class ChatStore extends ChangeNotifier {
     }
     final i = msgs.indexWhere((m) => m.id == row.id && row.id != 0);
     if (i >= 0) {
-      msgs[i] = _msgMerge(msgs[i], row);
+      final merged = _msgMerge(msgs[i], row);
+      msgs[i] = merged;
       if (touchPreview) {
         _chatPreviewTouch(
-          row.chatId,
-          row.content,
-          atMs: row.createdAtMs > 0 ? row.createdAtMs : DateTime.now().millisecondsSinceEpoch,
+          merged.chatId,
+          merged.content,
+          atMs: merged.createdAtMs > 0 ? merged.createdAtMs : DateTime.now().millisecondsSinceEpoch,
         );
       }
       if (notify) _touchMsgs(row.chatId);
@@ -1492,6 +1496,7 @@ class ChatStore extends ChangeNotifier {
         attachments: attachments,
         attachmentsJson: MsgAttachment.encode(attachments),
         reqId: reqId,
+        clientKey: msgClientKeyNew(role: 'user', reqId: reqId),
         createdAtMs: createdAtMs,
         mentionIdsJson: mentionIdsJson != '[]' ? mentionIdsJson : old.mentionIdsJson,
         error: '',

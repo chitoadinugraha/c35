@@ -12,6 +12,7 @@ macro_rules! tool {
         $(rag_phrases: [$($rag_phrase:expr),* $(,)?],)?
         $(requires_kinds: [$($kind:expr),* $(,)?],)?
         $(requires_capability: $capability:expr,)?
+        $(requires_global_roles: [$($staff_role:expr),* $(,)?],)?
         $(ui_label_key: $ui_label:expr,)?
         $(ui_calling_key: $ui_calling:expr,)?
         $(ui_done_key: $ui_done:expr,)?
@@ -95,6 +96,12 @@ macro_rules! tool {
                 .flatten();
 
                 #[allow(unused_mut)]
+                let mut requires_global_roles: Vec<String> = Vec::new();
+                $($(
+                    requires_global_roles.push($staff_role.to_string());
+                )*)?
+
+                #[allow(unused_mut)]
                 let mut ui_keys = $crate::tools::ToolUiKeys::default();
                 $(ui_keys.ui_label_key = Some($ui_label.to_string());)?
                 $(ui_keys.ui_calling_key = Some($ui_calling.to_string());)?
@@ -125,6 +132,7 @@ macro_rules! tool {
                     rag_phrases,
                     requires_kinds,
                     requires_capability,
+                    requires_global_roles,
                     ui_keys,
                 }
             }

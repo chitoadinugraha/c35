@@ -37,6 +37,7 @@ import id.alienai.remote.bridge.NativeBridge
 import id.alienai.remote.service.AccessControlService
 import id.alienai.remote.service.OverlayMarkerService
 import id.alienai.remote.service.RemoteAgentService
+import org.json.JSONObject
 
 class MainActivity : AppCompatActivity() {
 
@@ -101,8 +102,11 @@ class MainActivity : AppCompatActivity() {
 
     private val logRefreshRunnable = object : Runnable {
         override fun run() {
-            if (activeTab == 1 && !isFinishing) {
-                refreshLogs()
+            if (!isFinishing) {
+                refreshStatusFromNative()
+                if (activeTab == 1) {
+                    refreshLogs()
+                }
             }
             handler.postDelayed(this, 2000)
         }
@@ -175,7 +179,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         updatePermissionsState()
-        RemoteAgentService.instance?.latestStatus?.let { applyStatusToUi(it) }
+        refreshStatusFromNative()
         handler.post(logRefreshRunnable)
     }
 
@@ -698,6 +702,26 @@ class MainActivity : AppCompatActivity() {
             logsConsoleView.text = lines.joinToString("\n")
         } else {
             logsConsoleView.text = "No log records available yet."
+        }
+    }
+
+    private fun refreshStatusFromNative() {
+        try {
+            val json = JSONObject(NativeBridge.nativeGetStatusJson())
+            applyStatusToUi(
+                AgentStatus(
+                    paired = json.optBoolean("paired", false),
+                    online = json.optBoolean("online", false),
+                    status = json.optString("status", ""),
+                    pairing_code = json.optString("pairing_code", ""),
+                    pairing_seconds_remaining = json.optLong("pairing_seconds_remaining", 0),
+                    owner_label = json.optString("owner_label", ""),
+                    device_name = json.optString("device_name", ""),
+                    package_name = json.optString("package_name", ""),
+                    active_viewers = json.optInt("active_viewers", 0),
+                )
+            )
+        } catch (_: Exception) {
         }
     }
 

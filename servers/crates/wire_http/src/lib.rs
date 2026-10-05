@@ -1,3 +1,4 @@
+mod admin_catalog;
 mod agent;
 mod app_web;
 mod drive;

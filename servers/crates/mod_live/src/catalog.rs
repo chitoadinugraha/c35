@@ -151,6 +151,10 @@ fn live_catalog_defaults() -> Vec<LiveOfferRow> {
     ]
 }
 
+pub fn live_catalog_rows() -> Vec<LiveOfferRow> {
+    cache().read().expect("live cache lock").clone()
+}
+
 pub fn live_offer_get(id: &str) -> Option<LiveOfferRow> {
     let key = id.trim();
     cache().read().expect("live cache lock").iter().find(|r| r.id == key).cloned()

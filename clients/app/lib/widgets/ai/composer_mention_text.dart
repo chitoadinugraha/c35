@@ -85,6 +85,21 @@ bool composerMentionTextHasTokens(String text) =>
 String composerMentionPlainText(String text) =>
     text.replaceAll(_composerMentionTokenRe, '').replaceAll(RegExp(r'[ \t]+\n'), '\n').trim();
 
+String composerMentionComparePlain(String text) {
+  var out = composerMentionBracketTokenize(text);
+  out = out.replaceAll(_composerMentionTokenRe, ' ');
+  out = out.replaceAll(composerMentionBracketRe, ' ');
+  return out.replaceAll(RegExp(r'\s+'), ' ').trim().toLowerCase();
+}
+
+/// Local chip draft vs server `chat_msg.content` for the same turn (not a different user message).
+bool composerMentionContentSameTurn(String localDraft, String serverContent) {
+  final a = composerMentionComparePlain(localDraft);
+  final b = composerMentionComparePlain(serverContent);
+  if (a.isEmpty || b.isEmpty) return a == b;
+  return a == b;
+}
+
 String composerMentionInlineIidTokenize(String text) => text.replaceAllMapped(_composerMentionPlainIidRe, (m) => composerMentionToken(m.group(0)!));
 
 /// `[@` … chip token … `]` — bracket shell left when @ picker inserts a token after typed `[@`.
