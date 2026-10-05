@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 1. Phone Remote Device Body in Background -->
+    <!-- Outer Bezel -->
+    <path
+        android:fillColor="#1E293B"
+        android:strokeColor="#334155"
+        android:strokeWidth="1"
+        android:pathData="M 34,17 L 74,17 A 10,10 0 0,1 84,27 L 84,81 A 10,10 0 0,1 74,91 L 34,91 A 10,10 0 0,1 24,81 L 24,27 A 10,10 0 0,1 34,17 Z" />
+
+    <!-- Phone Screen Area -->
+    <path
+        android:fillColor="#030712"
+        android:strokeColor="#10B981"
+        android:strokeWidth="0.8"
+        android:strokeAlpha="0.6"
+        android:pathData="M 34,20 L 74,20 A 8,8 0 0,1 82,28 L 82,80 A 8,8 0 0,1 74,88 L 34,88 A 8,8 0 0,1 26,80 L 26,28 A 8,8 0 0,1 34,20 Z" />
+
+    <!-- Top Speaker Notch -->
+    <path
+        android:fillColor="#1E293B"
+        android:pathData="M 47,22 L 61,22 A 1.5,1.5 0 0,1 62.5,23.5 L 62.5,23.5 A 1.5,1.5 0 0,1 61,25 L 47,25 A 1.5,1.5 0 0,1 45.5,23.5 L 45.5,23.5 A 1.5,1.5 0 0,1 47,22 Z" />
+
+    <!-- 2. Remote Viewfinder Reticle Brackets (Emerald) -->
+    <path
+        android:strokeColor="#10B981"
+        android:strokeWidth="1.2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M 31,33 L 31,27 L 37,27 M 77,27 L 83,27 L 83,33 M 31,75 L 31,81 L 37,81 M 77,81 L 83,81 L 83,75" />
+
+    <!-- 3. Red Remote Recording / Marker Indicator Dot -->
+    <path
+        android:fillColor="#EF4444"
+        android:pathData="M 75,27 m -2,0 a 2,2 0 1,0 4,0 a 2,2 0 1,0 -4,0" />
+
+    <!-- 4. Official Alien AI Logo in Foreground (Centered) -->
+    <group
+        android:pivotX="0"
+        android:pivotY="0"
+        android:scaleX="1.75"
+        android:scaleY="1.75"
+        android:translateX="33"
+        android:translateY="33">
+        <path
+            android:fillColor="#FFFFFF"
+            android:fillType="evenOdd"
+            android:pathData="M12,3c4.97,0 9,3.58 9,8s-6,10 -9,10s-9,-5.58 -9,-10s4.03,-8 9,-8m-1.69,7.93C9.29,9.29 7.47,8.58 6.25,9.34s-1.38,2.71 -0.36,4.35c1.03,1.64 2.85,2.35 4.07,1.59c1.22,-0.78 1.37,-2.71 0.35,-4.35m3.38,0c-1.02,1.64 -0.87,3.57 0.35,4.35c1.22,0.76 3.04,0.05 4.07,-1.59c1.02,-1.64 0.86,-3.59 -0.36,-4.35s-3.04,-0.05 -4.06,1.59M12,17.75c-2,0 -2.5,-0.75 -2.5,-0.75c0,0.03 0.5,2 2.5,2s2.5,-2 2.5,-2s-0.5,0.75 -2.5,0.75" />
+    </group>
+
+</vector>

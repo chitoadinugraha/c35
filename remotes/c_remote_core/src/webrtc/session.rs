@@ -113,8 +113,10 @@ impl WebrtcHub {
 
     pub async fn handle_frame(&self, data: &[u8]) {
         if let Ok(req) = pb_decode::<WsReq>(data) {
-            self.handle_req(req).await;
-            return;
+            if req.body.is_some() || !req.req_id.is_empty() {
+                self.handle_req(req).await;
+                return;
+            }
         }
         if let Ok(res) = pb_decode::<WsRes>(data) {
             self.handle_res(res).await;
@@ -180,13 +182,8 @@ impl WebrtcHub {
         } else {
             None
         };
-        let som = req.som;
-        let res_body = match tokio::task::spawn_blocking(move || {
-            dispatch_screenshot(max_w, quality, marker, som)
-        })
-        .await
-        {
-            Ok(Ok((w, h, bytes, axtree))) => ResRemoteScreenshot {
+        let res_body = match dispatch_screenshot(max_w, quality, marker, req.som) {
+            Ok((w, h, bytes, axtree)) => ResRemoteScreenshot {
                 ok: true,
                 error: String::new(),
                 width: w as u32,
@@ -194,17 +191,9 @@ impl WebrtcHub {
                 jpeg_bytes: bytes,
                 axtree_text: axtree,
             },
-            Ok(Err(e)) => ResRemoteScreenshot {
-                ok: false,
-                error: e.to_string(),
-                width: 0,
-                height: 0,
-                jpeg_bytes: Vec::new(),
-                axtree_text: String::new(),
-            },
             Err(e) => ResRemoteScreenshot {
                 ok: false,
-                error: format!("screenshot task failed: {e}"),
+                error: e.to_string(),
                 width: 0,
                 height: 0,
                 jpeg_bytes: Vec::new(),

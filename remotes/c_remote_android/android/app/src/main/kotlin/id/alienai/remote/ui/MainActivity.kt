@@ -1,5 +1,6 @@
 package id.alienai.remote.ui
 
+import id.alienai.remote.R
 import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -209,7 +210,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         val title = TextView(this).apply {
-            text = "Alien AI Agent"
+            text = getString(R.string.app_name)
             textSize = 20f
             setTextColor(Color.WHITE)
             typeface = Typeface.DEFAULT_BOLD

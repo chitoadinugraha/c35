@@ -174,3 +174,44 @@ pub async fn task_run_handle(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use c35_proto::{
+        pb_decode, pb_encode, RemoteInputEvent, ReqRemoteScreenshot, WsReq, ws_req,
+    };
+
+    #[test]
+    fn ws_req_screenshot_roundtrip() {
+        let req = WsReq {
+            req_id: "100419954668314624".into(),
+            body: Some(ws_req::Body::ReqRemoteScreenshot(ReqRemoteScreenshot {
+                device_iid: 100383566648971264,
+                max_width: 800,
+                quality: 70,
+                marker_x: 0.5,
+                marker_y: 0.25,
+                som: false,
+            })),
+        };
+        let bytes = pb_encode(&req);
+        let decoded = pb_decode::<WsReq>(&bytes).expect("decode WsReq");
+        assert!(matches!(
+            decoded.body,
+            Some(ws_req::Body::ReqRemoteScreenshot(_))
+        ));
+    }
+
+    #[test]
+    fn remote_input_is_not_empty_ws_req() {
+        let input = RemoteInputEvent {
+            event_type: "mouse_click".into(),
+            x: 0.5,
+            y: 0.5,
+            ..Default::default()
+        };
+        let bytes = pb_encode(&input);
+        let ws = pb_decode::<WsReq>(&bytes).expect("ws decode");
+        assert!(ws.body.is_none() && ws.req_id.is_empty());
+    }
+}
