@@ -569,6 +569,8 @@ pub async fn billing_play_verify(
     .await
 }
 
+pub const PLAY_CREDIT_PACKS: &[f64] = &[50_000.0, 100_000.0, 200_000.0, 500_000.0, 1_000_000.0];
+
 pub async fn billing_play_product_list(
     pool: &PgPool,
     _req: ReqBillingPlayProductList,
@@ -589,7 +591,7 @@ pub async fn billing_play_product_list(
     .await
     .map_err(|e| e.to_string())?;
 
-    let products: Vec<BillingPlayProductDoc> = rows
+    let mut products: Vec<BillingPlayProductDoc> = rows
         .into_iter()
         .map(|r| {
             let slug: String = r.get("plan_slug");
@@ -606,6 +608,18 @@ pub async fn billing_play_product_list(
             }
         })
         .collect();
+
+    for &credit in PLAY_CREDIT_PACKS {
+        products.push(BillingPlayProductDoc {
+            product_id: format!("{CREDIT_PREFIX}{}", credit.round() as i64),
+            kind: "credit".into(),
+            plan_slug: String::new(),
+            billing_period: String::new(),
+            credit_idr: credit,
+            web_price_idr: credit,
+            play_price_idr: play_price_idr(credit),
+        });
+    }
 
     Ok(ResBillingPlayProductList { products })
 }

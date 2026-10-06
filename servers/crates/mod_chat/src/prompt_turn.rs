@@ -10,7 +10,10 @@ use sqlx::PgPool;
 use tokio_util::sync::CancellationToken;
 
 use crate::catalog_web::{catalog_skip_web_prefetch, catalog_web_phase};
-use crate::compose::{compose_force_tool_call, compose_tools_and_inst_async, ComposeTurnOpts};
+use crate::compose::{
+    compose_force_tool_call, compose_force_web_tool_call, compose_tools_and_inst_async, ComposeTurnOpts,
+};
+use crate::inst_cache::inst_list_for_turn;
 use crate::prompt_run::prompt_run_get;
 use crate::mention_registry::{
     mention_active_topics, mention_prompt_block, mention_ref_parse, mention_resolve_all, MentionRef,
@@ -23,7 +26,6 @@ use crate::mention_context::{
 };
 use crate::site_resolve::site_context_resolve;
 use crate::topic::topic_inst_block;
-use crate::inst_cache::inst_list_cached;
 use crate::mention::mention_list_enabled;
 use crate::context_billing::ContextBillingExtra;
 use crate::context_compact::{prepare_prompt_history, PreparedPromptHistory};
@@ -269,7 +271,7 @@ where
         req.model.clone()
     };
     let user = attach_prompt(&user_content, &req.attachments_json);
-    let inst_rows = inst_list_cached();
+    let inst_rows = inst_list_for_turn(pool).await;
     let mentions = mention_list_enabled(pool).await;
     let mention_ids: Vec<String> = req.mention_ids.clone();
     let prompt_run = prompt_run_get(pool, req_id).await.ok().flatten();
@@ -419,14 +421,15 @@ where
             .collect()
     };
     let force_tool_call = compose_force_tool_call(&composed.matched_ids, &tools);
-    if force_tool_call {
+    let force_web_tool_call = compose_force_web_tool_call(&composed.matched_ids, &tools);
+    if force_web_tool_call {
         system = format!("{system}{}", crate::prompt::web_grounding::WEB_GROUNDED_REPLY_RULE);
     }
     let system_tokens = token_estimate(&system);
-    let named = instructions_base + context_named + memory_tokens + if force_tool_call { token_estimate(crate::prompt::web_grounding::WEB_GROUNDED_REPLY_RULE) } else { 0 };
+    let named = instructions_base + context_named + memory_tokens + if force_web_tool_call { token_estimate(crate::prompt::web_grounding::WEB_GROUNDED_REPLY_RULE) } else { 0 };
     let slack = system_tokens.saturating_sub(named);
     let usage_base = ContextUsageEst {
-        instructions: instructions_base + if force_tool_call { token_estimate(crate::prompt::web_grounding::WEB_GROUNDED_REPLY_RULE) } else { 0 },
+        instructions: instructions_base + if force_web_tool_call { token_estimate(crate::prompt::web_grounding::WEB_GROUNDED_REPLY_RULE) } else { 0 },
         memory: memory_tokens,
         context: context_named + slack,
         tools: token_estimate(&tool_decls(&tools).to_string()),

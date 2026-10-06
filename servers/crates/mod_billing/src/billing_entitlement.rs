@@ -113,6 +113,22 @@ async fn credit_wallet_idr(pool: &PgPool, owner_iid: i64, amount_idr: f64) -> Re
     .bind(amount_idr)
     .execute(pool)
     .await?;
+
+    let wallet_id = snowflake_id();
+    let _ = sqlx::query(
+        r#"
+        INSERT INTO ai.billing_wallet (id, owner_iid, currency, balance, is_default, name)
+        VALUES ($1, $2, 'IDR', $3, TRUE, 'Personal IDR')
+        ON CONFLICT (owner_iid, currency) WHERE deleted_ts IS NULL
+        DO UPDATE SET balance = ai.billing_wallet.balance + EXCLUDED.balance, updated_ts = NOW()
+        "#,
+    )
+    .bind(wallet_id)
+    .bind(owner_iid)
+    .bind(amount_idr)
+    .execute(pool)
+    .await;
+
     Ok(())
 }
 

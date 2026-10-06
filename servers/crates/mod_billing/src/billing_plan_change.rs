@@ -441,10 +441,10 @@ pub async fn billing_plan_quote(pool: &PgPool, owner_iid: i64, req: ReqBillingPl
 }
 
 struct ApplyLimits {
-    alien_pool: f64,
-    frontier_pool: f64,
     alien_5h: f64,
     alien_week: f64,
+    frontier_5h: f64,
+    frontier_week: f64,
     tier: String,
 }
 
@@ -464,11 +464,19 @@ async fn limits_for_plan(pool: &PgPool, slug: &str, billing_period: &str) -> Res
     .ok_or_else(|| "plan not found".to_string())?;
     let (alien_pool, frontier_pool, tier) = billing_plan_pool_template(pool, slug).await?;
     let mult = alien_yearly_multiplier(billing_period);
-    Ok(ApplyLimits {
-        alien_pool: alien_pool * mult,
+    let alien_5h = plan.get::<f64, _>("alien_5h") * mult;
+    let alien_week = plan.get::<f64, _>("alien_week") * mult;
+    let (frontier_5h, frontier_week) = crate::billing_profile::frontier_rings_from_alien(
+        alien_5h,
+        alien_week,
+        alien_pool * mult,
         frontier_pool,
-        alien_5h: plan.get::<f64, _>("alien_5h") * mult,
-        alien_week: plan.get::<f64, _>("alien_week") * mult,
+    );
+    Ok(ApplyLimits {
+        alien_5h,
+        alien_week,
+        frontier_5h,
+        frontier_week,
         tier,
     })
 }
@@ -499,12 +507,6 @@ async fn apply_immediate_plan(
         SET plan_tier = $2,
             balance_usd = $3,
             balance_idr = $4,
-            alien_allow_5h_limit = $5,
-            alien_allow_weekly_limit = $6,
-            alien_allow_5h_used = 0,
-            alien_allow_weekly_used = 0,
-            window_5h_start = NOW(),
-            window_weekly_start = NOW(),
             updated_ts = NOW()
         WHERE id = $1
         "#,
@@ -513,11 +515,29 @@ async fn apply_immediate_plan(
     .bind(slug)
     .bind(new_usd)
     .bind(new_idr)
-    .bind(limits.alien_5h)
-    .bind(limits.alien_week)
     .execute(&mut **tx)
     .await
     .map_err(|e| e.to_string())?;
+
+    let (charge_native, wallet_currency) = if use_idr {
+        (charge_idr, "IDR")
+    } else {
+        (charge_usd, "USD")
+    };
+    if charge_native > 0.0 {
+        let _ = sqlx::query(
+            r#"
+            UPDATE ai.billing_wallet
+            SET balance = GREATEST(balance - $2, 0), updated_ts = NOW()
+            WHERE owner_iid = $1 AND currency = $3 AND deleted_ts IS NULL
+            "#,
+        )
+        .bind(owner_iid)
+        .bind(charge_native)
+        .bind(wallet_currency)
+        .execute(&mut **tx)
+        .await;
+    }
 
     let plan_expires = keep_expires.unwrap_or_else(|| plan_expires_from_period(billing_period));
     sqlx::query(
@@ -525,15 +545,24 @@ async fn apply_immediate_plan(
         UPDATE ai.billing_profile
         SET plan_tier = $2,
             billing_period = $3,
-            alien_pool_limit_idr = $4,
+            alien_allow_5h_limit = $4,
+            alien_allow_weekly_limit = $5,
+            frontier_allow_5h_limit = $6,
+            frontier_allow_weekly_limit = $7,
+            alien_allow_5h_used = 0,
+            alien_allow_weekly_used = 0,
+            frontier_allow_5h_used = 0,
+            frontier_allow_weekly_used = 0,
+            alien_pool_limit_idr = 0,
             alien_pool_used_idr = 0,
-            frontier_pool_limit_idr = $5,
+            frontier_pool_limit_idr = 0,
             frontier_pool_used_idr = 0,
-            pool_period_start = NOW(),
-            plan_expires_ts = $6,
+            window_5h_start = NOW(),
+            window_weekly_start = NOW(),
+            plan_expires_ts = $8,
             pending_plan_slug = NULL,
             pending_billing_period = NULL,
-            default_wallet_currency = $7,
+            default_wallet_currency = $9,
             updated_ts = NOW()
         WHERE owner_iid = $1 AND deleted_ts IS NULL
         "#,
@@ -541,8 +570,10 @@ async fn apply_immediate_plan(
     .bind(owner_iid)
     .bind(&limits.tier)
     .bind(billing_period)
-    .bind(limits.alien_pool)
-    .bind(limits.frontier_pool)
+    .bind(limits.alien_5h)
+    .bind(limits.alien_week)
+    .bind(limits.frontier_5h)
+    .bind(limits.frontier_week)
     .bind(plan_expires)
     .bind(billing_currency)
     .execute(&mut **tx)

@@ -284,18 +284,25 @@ pub async fn billing_gate_with_hold_custom(
         crate::billing_freemium::billing_freemium_reserve_turn(pool, owner_iid).await?;
         return Ok(());
     }
-    if let Ok(Some(profile)) = crate::billing_profile::billing_profile_fetch(pool, owner_iid).await {
-        if crate::billing_profile::profile_has_pools(&profile) {
-            let (alien_rem, frontier_rem) = crate::billing_profile::profile_pool_remaining(&profile);
-            let min_hold = crate::billing_on_demand::usd_to_native(
-                crate::billing_on_demand::DEFAULT_HOLD_USD,
-                crate::fx_live::fx_live_micro_per_usd(),
-            );
-            if alien_rem + frontier_rem >= min_hold {
+    let allowance_rem = match crate::billing_profile::billing_profile_fetch(pool, owner_iid).await? {
+        Some(profile) if crate::billing_profile::profile_has_rings(&profile) => {
+            let profile = crate::billing_profile::billing_profile_windows_roll(pool, profile).await?;
+            let (alien_rem, frontier_rem) =
+                crate::billing_profile::profile_ring_remaining_usd(&profile.rings);
+            let ring_rem = alien_rem + frontier_rem;
+            if ring_rem >= hold_usd {
                 return Ok(());
             }
+            ring_rem
         }
-    }
+        Some(_) => 0.0,
+        None => allowance_remaining(
+            row.alien_allow_5h_used,
+            row.alien_allow_5h_limit,
+            row.alien_allow_weekly_used,
+            row.alien_allow_weekly_limit,
+        ),
+    };
     let extra = sqlx::query_as::<_, (String, String, i64)>(
         r#"
         SELECT balance_idr::text, billing_currency, fx_micro_per_usd
@@ -308,12 +315,6 @@ pub async fn billing_gate_with_hold_custom(
     let balance_idr = f(extra.0);
     let currency = extra.1;
     let fx = extra.2;
-    let allowance_rem = allowance_remaining(
-        row.alien_allow_5h_used,
-        row.alien_allow_5h_limit,
-        row.alien_allow_weekly_used,
-        row.alien_allow_weekly_limit,
-    );
     let balance_native = if currency.eq_ignore_ascii_case("IDR") { balance_idr } else { row.balance_usd };
     let (held_usd, held_idr) = billing_held_totals(pool, row.id).await?;
     let held_native = if currency.eq_ignore_ascii_case("IDR") { held_idr } else { held_usd };

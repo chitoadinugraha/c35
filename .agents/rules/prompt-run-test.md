@@ -1,40 +1,43 @@
-# Prompt run testing (MCP)
+# Prompt pipeline verification (MCP)
 
-After changing **inst**, **tool selection**, **consumption/expense tools**, or **compose/RAG** behavior, verify with the **`c35` MCP `prompt_run`** tool.
+Spec: [`_/docs/inst.md`](../../_/docs/inst.md). Cursor: [`.cursor/rules/prompt-run-test.mdc`](../../.cursor/rules/prompt-run-test.mdc).
 
-## When to run
+## Verify (hard rule)
 
-- Fixed wrong tool fed / missing tool call
-- Added or changed `inst` phrases / triggers
-- Changed tool descriptions, `rag_phrases`, or vector index
-- User reports "AI should have called X but didn't"
+Wrong chat / missing tool / pipeline bug: reproduce → fix in correct layer → **`prompt_compose`** → **`prompt_run`** before claiming fixed.
 
-## How to run
+`owner_iid`: 99000 app-like, 33000 regression.
 
-```
-prompt_run {
-  text: "<exact user phrase>",
-  locale: "id-ID",
-  owner_iid: 99000
-}
-```
+## Where steering lives
 
-| owner_iid | Use |
-|-----------|-----|
-| **33000** (default) | Automated regression |
-| **99000** (`uid` alias ok) | Chito real data |
+- **`ai.inst`**: when/how; tool **`description`** = what; **`rag_phrases`** = discovery
+- **Not** new steering in `prompt_turn` except time/memory merge
+- Git **`inst.sql`** → live **`inst_put`** (+ NATS cache)
 
-`prompt_compose` — inst + tool filter only (no LLM).
+## Excluded from no-hardcode: web tools
 
-## Read the response
+**`web.search`**, **`web.visit`**, **`web.research`** — Rust pipeline is allowed and expected:
 
-- `text` — assistant reply
-- `blocks_json` — UI blocks
-- `trace.lines` / `trace.trace` — tool filter, prepare, llm_call, tool execution
-- `trace.trace[].meta` — `trace_tool_filter` with `fed`, `sim`, `ranker`
+- `WEB_GROUNDED_REPLY_RULE`, `user_wants_search`, prefetch/visit chain in `tool_loop.rs`
+- `pick_visit_url`, `catalog_web_*`
 
-Do not claim fixed without at least `prompt_compose` on the failing phrase; prefer `prompt_run` for tool-call bugs.
+Still use **`inst.web_search`** (and related inst rows) for phrases, include/exclude, and *when* to search.
 
-New Home-routable tool: `ToolDefinition` + `inst.sql` + a live `ai.inst` row (a git seed is not live). Keep the tool description stable; put extra match text in `rag_phrases`.
+**Every other tool:** inst + `compose_force_*` only — no Rust phrase prefetch, no `reply_rule` in tool JSON.
 
-Wrong tool: topic eligibility, then tool metadata, then inst. Do not start at inst.
+## Missing tools (compose first)
+
+| Symptom | Fix layer |
+|---------|-----------|
+| `inst_ids: []` | Inst cache / pod |
+| No inst match | `phrases`, scope, live row |
+| Tool not eligible | `topics`, `always`; inst `include_tools` |
+| Not fed | `rag_phrases`, `exclude_tools` |
+| Fed, not called (non-web) | Inst + `compose_force_*` |
+| Web not grounded | `inst.web_search` + Rust prefetch/defer |
+
+Order: cache → eligibility → inst → RAG → force_* (web: also check Rust pipeline).
+
+## Assert (`prompt_run`)
+
+Tool fed + hop 1 tool when needed; `blocks_json`; honest `text`.

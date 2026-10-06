@@ -1,9 +1,25 @@
 use anyhow::Result;
+use chrono::{Duration, Utc};
 use c35_store::snowflake_id;
 use sqlx::{PgPool, Row};
 
-use crate::billing_cost::billing_cost_wholesale_usd;
-use crate::billing_pool::{pool_alien_deduct_idr, pool_deduct_apply, pool_frontier_deduct_idr, PoolSnapshot};
+use crate::billing_cost::billing_cost_usd;
+use crate::billing_on_demand::allowance_remaining;
+use crate::billing_pool::{LITE_ALIEN_POOL_IDR, LITE_FRONTIER_POOL_IDR};
+
+#[derive(Debug, Clone)]
+pub struct ProfileRingRow {
+    pub alien_allow_5h_used: f64,
+    pub alien_allow_5h_limit: f64,
+    pub alien_allow_weekly_used: f64,
+    pub alien_allow_weekly_limit: f64,
+    pub frontier_allow_5h_used: f64,
+    pub frontier_allow_5h_limit: f64,
+    pub frontier_allow_weekly_used: f64,
+    pub frontier_allow_weekly_limit: f64,
+    pub window_5h_start: chrono::DateTime<Utc>,
+    pub window_weekly_start: chrono::DateTime<Utc>,
+}
 
 #[derive(Debug, Clone)]
 pub struct ProfilePoolRow {
@@ -14,10 +30,26 @@ pub struct ProfilePoolRow {
     pub alien_pool_used_idr: f64,
     pub frontier_pool_limit_idr: f64,
     pub frontier_pool_used_idr: f64,
+    pub rings: ProfileRingRow,
 }
 
 fn f64_col(row: &sqlx::postgres::PgRow, col: &str) -> f64 {
     row.try_get::<f64, _>(col).unwrap_or(0.0)
+}
+
+fn rings_from_row(row: &sqlx::postgres::PgRow) -> ProfileRingRow {
+    ProfileRingRow {
+        alien_allow_5h_used: f64_col(row, "alien_allow_5h_used"),
+        alien_allow_5h_limit: f64_col(row, "alien_allow_5h_limit"),
+        alien_allow_weekly_used: f64_col(row, "alien_allow_weekly_used"),
+        alien_allow_weekly_limit: f64_col(row, "alien_allow_weekly_limit"),
+        frontier_allow_5h_used: f64_col(row, "frontier_allow_5h_used"),
+        frontier_allow_5h_limit: f64_col(row, "frontier_allow_5h_limit"),
+        frontier_allow_weekly_used: f64_col(row, "frontier_allow_weekly_used"),
+        frontier_allow_weekly_limit: f64_col(row, "frontier_allow_weekly_limit"),
+        window_5h_start: row.get("window_5h_start"),
+        window_weekly_start: row.get("window_weekly_start"),
+    }
 }
 
 fn profile_from_row(row: sqlx::postgres::PgRow) -> ProfilePoolRow {
@@ -29,17 +61,26 @@ fn profile_from_row(row: sqlx::postgres::PgRow) -> ProfilePoolRow {
         alien_pool_used_idr: f64_col(&row, "alien_pool_used_idr"),
         frontier_pool_limit_idr: f64_col(&row, "frontier_pool_limit_idr"),
         frontier_pool_used_idr: f64_col(&row, "frontier_pool_used_idr"),
+        rings: rings_from_row(&row),
     }
 }
 
-pub fn profile_pool_snapshot(row: &ProfilePoolRow) -> PoolSnapshot {
-    PoolSnapshot {
-        alien_used_idr: row.alien_pool_used_idr,
-        alien_limit_idr: row.alien_pool_limit_idr,
-        frontier_used_idr: row.frontier_pool_used_idr,
-        frontier_limit_idr: row.frontier_pool_limit_idr,
-    }
-}
+const PROFILE_RING_SELECT: &str = r#"
+        id, owner_iid, plan_tier,
+        alien_pool_limit_idr::float8 AS alien_pool_limit_idr,
+        alien_pool_used_idr::float8 AS alien_pool_used_idr,
+        frontier_pool_limit_idr::float8 AS frontier_pool_limit_idr,
+        frontier_pool_used_idr::float8 AS frontier_pool_used_idr,
+        alien_allow_5h_used::float8 AS alien_allow_5h_used,
+        alien_allow_5h_limit::float8 AS alien_allow_5h_limit,
+        alien_allow_weekly_used::float8 AS alien_allow_weekly_used,
+        alien_allow_weekly_limit::float8 AS alien_allow_weekly_limit,
+        frontier_allow_5h_used::float8 AS frontier_allow_5h_used,
+        frontier_allow_5h_limit::float8 AS frontier_allow_5h_limit,
+        frontier_allow_weekly_used::float8 AS frontier_allow_weekly_used,
+        frontier_allow_weekly_limit::float8 AS frontier_allow_weekly_limit,
+        window_5h_start, window_weekly_start
+"#;
 
 pub fn profile_pool_remaining(row: &ProfilePoolRow) -> (f64, f64) {
     (
@@ -52,24 +93,64 @@ pub fn profile_has_pools(row: &ProfilePoolRow) -> bool {
     row.alien_pool_limit_idr > 0.0 || row.frontier_pool_limit_idr > 0.0
 }
 
+pub fn profile_has_rings(row: &ProfilePoolRow) -> bool {
+    let r = &row.rings;
+    r.alien_allow_5h_limit > 0.0
+        || r.alien_allow_weekly_limit > 0.0
+        || r.frontier_allow_5h_limit > 0.0
+        || r.frontier_allow_weekly_limit > 0.0
+}
+
+pub fn profile_ring_remaining_usd(rings: &ProfileRingRow) -> (f64, f64) {
+    let alien = allowance_remaining(
+        rings.alien_allow_5h_used,
+        rings.alien_allow_5h_limit,
+        rings.alien_allow_weekly_used,
+        rings.alien_allow_weekly_limit,
+    );
+    let frontier = allowance_remaining(
+        rings.frontier_allow_5h_used,
+        rings.frontier_allow_5h_limit,
+        rings.frontier_allow_weekly_used,
+        rings.frontier_allow_weekly_limit,
+    );
+    (alien, frontier)
+}
+
+pub fn frontier_rings_from_alien(
+    alien_5h: f64,
+    alien_week: f64,
+    alien_pool_idr: f64,
+    frontier_pool_idr: f64,
+) -> (f64, f64) {
+    if alien_pool_idr > 0.0 && frontier_pool_idr > 0.0 {
+        let ratio = frontier_pool_idr / alien_pool_idr;
+        return (alien_5h * ratio, alien_week * ratio);
+    }
+    (0.0, 0.0)
+}
+
+/// Signup trial ring caps: 0.25× lite USD rings with frontier scaled like monthly pools.
+pub fn signup_trial_ring_caps() -> (f64, f64, f64, f64) {
+    const MULT: f64 = 0.25;
+    const LITE_ALIEN_5H: f64 = 0.05;
+    const LITE_ALIEN_WEEK: f64 = 1.00;
+    let alien_5h = LITE_ALIEN_5H * MULT;
+    let alien_week = LITE_ALIEN_WEEK * MULT;
+    let (frontier_5h, frontier_week) =
+        frontier_rings_from_alien(alien_5h, alien_week, LITE_ALIEN_POOL_IDR, LITE_FRONTIER_POOL_IDR);
+    (alien_5h, alien_week, frontier_5h, frontier_week)
+}
+
 pub fn model_uses_alien_pool(model: &str) -> bool {
     let m = model.trim().to_lowercase();
     m.is_empty() || m == "alienai" || m == "auto"
 }
 
 pub async fn billing_profile_fetch(pool: &PgPool, owner_iid: i64) -> Result<Option<ProfilePoolRow>> {
-    let row = sqlx::query(
-        r#"
-        SELECT id, owner_iid, plan_tier,
-               alien_pool_limit_idr::float8 AS alien_pool_limit_idr,
-               alien_pool_used_idr::float8 AS alien_pool_used_idr,
-               frontier_pool_limit_idr::float8 AS frontier_pool_limit_idr,
-               frontier_pool_used_idr::float8 AS frontier_pool_used_idr
-        FROM ai.billing_profile
-        WHERE owner_iid = $1 AND deleted_ts IS NULL
-        LIMIT 1
-        "#,
-    )
+    let row = sqlx::query(&format!(
+        "SELECT {PROFILE_RING_SELECT} FROM ai.billing_profile WHERE owner_iid = $1 AND deleted_ts IS NULL LIMIT 1"
+    ))
     .bind(owner_iid)
     .fetch_optional(pool)
     .await?;
@@ -93,6 +174,72 @@ pub async fn billing_profile_ensure(pool: &PgPool, owner_iid: i64) -> Result<Pro
         .ok_or_else(|| anyhow::anyhow!("billing_profile missing after insert"))
 }
 
+pub async fn billing_profile_windows_roll(pool: &PgPool, mut row: ProfilePoolRow) -> Result<ProfilePoolRow> {
+    let now = Utc::now();
+    let mut sql = "UPDATE ai.billing_profile SET updated_ts = NOW()".to_string();
+    let r = &mut row.rings;
+    if now - r.window_5h_start >= Duration::hours(5) {
+        sql.push_str(", alien_allow_5h_used = 0, frontier_allow_5h_used = 0, window_5h_start = NOW()");
+        r.alien_allow_5h_used = 0.0;
+        r.frontier_allow_5h_used = 0.0;
+        r.window_5h_start = now;
+    }
+    if now - r.window_weekly_start >= Duration::days(7) {
+        sql.push_str(", alien_allow_weekly_used = 0, frontier_allow_weekly_used = 0, window_weekly_start = NOW()");
+        r.alien_allow_weekly_used = 0.0;
+        r.frontier_allow_weekly_used = 0.0;
+        r.window_weekly_start = now;
+    }
+    sql.push_str(" WHERE id = $1");
+    sqlx::query(&sql).bind(row.id).execute(pool).await?;
+    Ok(row)
+}
+
+pub async fn billing_profile_apply_plan_rings(
+    pool: &PgPool,
+    owner_iid: i64,
+    alien_5h: f64,
+    alien_week: f64,
+    frontier_5h: f64,
+    frontier_week: f64,
+    tier: &str,
+) -> Result<ProfilePoolRow> {
+    let _ = billing_profile_ensure(pool, owner_iid).await?;
+    sqlx::query(
+        r#"
+        UPDATE ai.billing_profile
+        SET plan_tier = $2,
+            alien_allow_5h_limit = $3,
+            alien_allow_weekly_limit = $4,
+            frontier_allow_5h_limit = $5,
+            frontier_allow_weekly_limit = $6,
+            alien_allow_5h_used = 0,
+            alien_allow_weekly_used = 0,
+            frontier_allow_5h_used = 0,
+            frontier_allow_weekly_used = 0,
+            alien_pool_limit_idr = 0,
+            alien_pool_used_idr = 0,
+            frontier_pool_limit_idr = 0,
+            frontier_pool_used_idr = 0,
+            window_5h_start = NOW(),
+            window_weekly_start = NOW(),
+            updated_ts = NOW()
+        WHERE owner_iid = $1 AND deleted_ts IS NULL
+        "#,
+    )
+    .bind(owner_iid)
+    .bind(tier)
+    .bind(alien_5h)
+    .bind(alien_week)
+    .bind(frontier_5h)
+    .bind(frontier_week)
+    .execute(pool)
+    .await?;
+    billing_profile_fetch(pool, owner_iid)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("billing_profile missing after ring apply"))
+}
+
 pub async fn billing_profile_apply_plan_pools(
     pool: &PgPool,
     owner_iid: i64,
@@ -100,29 +247,28 @@ pub async fn billing_profile_apply_plan_pools(
     alien_limit_idr: f64,
     frontier_limit_idr: f64,
 ) -> Result<ProfilePoolRow> {
-    let _ = billing_profile_ensure(pool, owner_iid).await?;
-    sqlx::query(
-        r#"
-        UPDATE ai.billing_profile
-        SET plan_tier = $2,
-            alien_pool_limit_idr = $3,
-            alien_pool_used_idr = 0,
-            frontier_pool_limit_idr = $4,
-            frontier_pool_used_idr = 0,
-            pool_period_start = NOW(),
-            updated_ts = NOW()
-        WHERE owner_iid = $1 AND deleted_ts IS NULL
-        "#,
+    let (alien_5h_usd, alien_week_usd) = if alien_limit_idr > 0.0 {
+        let ratio = alien_limit_idr / LITE_ALIEN_POOL_IDR;
+        (0.05 * ratio, 1.0 * ratio)
+    } else {
+        (0.0, 0.0)
+    };
+    let (frontier_5h, frontier_week) = frontier_rings_from_alien(
+        alien_5h_usd,
+        alien_week_usd,
+        alien_limit_idr.max(LITE_ALIEN_POOL_IDR),
+        frontier_limit_idr.max(LITE_FRONTIER_POOL_IDR),
+    );
+    billing_profile_apply_plan_rings(
+        pool,
+        owner_iid,
+        alien_5h_usd,
+        alien_week_usd,
+        frontier_5h,
+        frontier_week,
+        plan_tier,
     )
-    .bind(owner_iid)
-    .bind(plan_tier)
-    .bind(alien_limit_idr)
-    .bind(frontier_limit_idr)
-    .execute(pool)
-    .await?;
-    billing_profile_fetch(pool, owner_iid)
-        .await?
-        .ok_or_else(|| anyhow::anyhow!("billing_profile missing after pool apply"))
+    .await
 }
 
 async fn owner_email(pool: &PgPool, owner_iid: i64) -> Option<String> {
@@ -163,7 +309,7 @@ pub async fn billing_signup_trial_autoclaim(pool: &PgPool, owner_iid: i64) -> Re
         return Ok(());
     }
     let profile = billing_profile_ensure(pool, owner_iid).await?;
-    if profile_has_pools(&profile) {
+    if profile_has_rings(&profile) {
         return Ok(());
     }
     let Some(email) = owner_email(pool, owner_iid).await else {
@@ -184,7 +330,108 @@ pub fn normalize_billing_period(raw: &str) -> &'static str {
     }
 }
 
-/// Deduct one LLM turn from profile IDR pools. Returns wallet overflow IDR when pools exhausted.
+pub fn ring_deduct_pair(
+    used_5h: f64,
+    limit_5h: f64,
+    used_week: f64,
+    limit_week: f64,
+    cost_usd: f64,
+) -> (f64, f64, f64, f64) {
+    let rem = allowance_remaining(used_5h, limit_5h, used_week, limit_week);
+    let take = cost_usd.min(rem);
+    let overflow = cost_usd - take;
+    (used_5h + take, used_week + take, take, overflow)
+}
+
+/// Deduct retail `cost_usd` from profile rings. Returns wallet overflow USD (0 when fully covered).
+pub async fn billing_profile_deduct_rings(
+    pool: &PgPool,
+    owner_iid: i64,
+    model: &str,
+    cost_usd: f64,
+) -> Result<Option<f64>> {
+    if cost_usd <= 0.0 {
+        return Ok(Some(0.0));
+    }
+    let mut tx = pool.begin().await?;
+    let row = sqlx::query(&format!(
+        "SELECT {PROFILE_RING_SELECT} FROM ai.billing_profile WHERE owner_iid = $1 AND deleted_ts IS NULL LIMIT 1 FOR UPDATE"
+    ))
+    .bind(owner_iid)
+    .fetch_optional(&mut *tx)
+    .await?;
+    let Some(row) = row else {
+        return Ok(None);
+    };
+    let mut profile = profile_from_row(row);
+    if !profile_has_rings(&profile) {
+        return Ok(None);
+    }
+    let now = Utc::now();
+    let r = &mut profile.rings;
+    if now - r.window_5h_start >= Duration::hours(5) {
+        r.alien_allow_5h_used = 0.0;
+        r.frontier_allow_5h_used = 0.0;
+        r.window_5h_start = now;
+    }
+    if now - r.window_weekly_start >= Duration::days(7) {
+        r.alien_allow_weekly_used = 0.0;
+        r.frontier_allow_weekly_used = 0.0;
+        r.window_weekly_start = now;
+    }
+    let use_alien = model_uses_alien_pool(model);
+    let r = &mut profile.rings;
+    let (new_5h, new_week, _, overflow) = if use_alien {
+        ring_deduct_pair(
+            r.alien_allow_5h_used,
+            r.alien_allow_5h_limit,
+            r.alien_allow_weekly_used,
+            r.alien_allow_weekly_limit,
+            cost_usd,
+        )
+    } else {
+        ring_deduct_pair(
+            r.frontier_allow_5h_used,
+            r.frontier_allow_5h_limit,
+            r.frontier_allow_weekly_used,
+            r.frontier_allow_weekly_limit,
+            cost_usd,
+        )
+    };
+    if use_alien {
+        r.alien_allow_5h_used = new_5h;
+        r.alien_allow_weekly_used = new_week;
+    } else {
+        r.frontier_allow_5h_used = new_5h;
+        r.frontier_allow_weekly_used = new_week;
+    }
+    sqlx::query(
+        r#"
+        UPDATE ai.billing_profile
+        SET alien_allow_5h_used = $2,
+            alien_allow_weekly_used = $3,
+            frontier_allow_5h_used = $4,
+            frontier_allow_weekly_used = $5,
+            window_5h_start = $6,
+            window_weekly_start = $7,
+            updated_ts = NOW()
+        WHERE id = $1
+        "#,
+    )
+    .bind(profile.id)
+    .bind(r.alien_allow_5h_used)
+    .bind(r.alien_allow_weekly_used)
+    .bind(r.frontier_allow_5h_used)
+    .bind(r.frontier_allow_weekly_used)
+    .bind(r.window_5h_start)
+    .bind(r.window_weekly_start)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    Ok(Some(overflow.max(0.0)))
+}
+
+/// Deduct one LLM turn from profile rings. Returns wallet overflow USD when rings exhausted.
 pub async fn billing_profile_deduct_turn(
     pool: &PgPool,
     owner_iid: i64,
@@ -193,57 +440,9 @@ pub async fn billing_profile_deduct_turn(
     tokens_out: i32,
     fx_micro: i64,
 ) -> Result<Option<f64>> {
-    let use_alien = model_uses_alien_pool(model);
-    let charge_idr = if use_alien {
-        pool_alien_deduct_idr(tokens_in, tokens_out, fx_micro)
-    } else {
-        pool_frontier_deduct_idr(billing_cost_wholesale_usd(model, tokens_in, tokens_out), fx_micro)
-    };
-    if charge_idr <= 0.0 {
-        return Ok(None);
-    }
-
-    let mut tx = pool.begin().await?;
-    let row = sqlx::query(
-        r#"
-        SELECT id, owner_iid, plan_tier,
-               alien_pool_limit_idr::float8 AS alien_pool_limit_idr,
-               alien_pool_used_idr::float8 AS alien_pool_used_idr,
-               frontier_pool_limit_idr::float8 AS frontier_pool_limit_idr,
-               frontier_pool_used_idr::float8 AS frontier_pool_used_idr
-        FROM ai.billing_profile
-        WHERE owner_iid = $1 AND deleted_ts IS NULL
-        LIMIT 1
-        FOR UPDATE
-        "#,
-    )
-    .bind(owner_iid)
-    .fetch_optional(&mut *tx)
-    .await?;
-    let Some(row) = row else {
-        return Ok(None);
-    };
-    let profile = profile_from_row(row);
-    if !profile_has_pools(&profile) {
-        return Ok(None);
-    }
-    let applied = pool_deduct_apply(&profile_pool_snapshot(&profile), charge_idr, use_alien);
-    sqlx::query(
-        r#"
-        UPDATE ai.billing_profile
-        SET alien_pool_used_idr = $2,
-            frontier_pool_used_idr = $3,
-            updated_ts = NOW()
-        WHERE id = $1
-        "#,
-    )
-    .bind(profile.id)
-    .bind(applied.alien_used_idr)
-    .bind(applied.frontier_used_idr)
-    .execute(&mut *tx)
-    .await?;
-    tx.commit().await?;
-    Ok(Some(applied.wallet_overflow_idr))
+    let cost_usd = billing_cost_usd(model, tokens_in, tokens_out);
+    let overflow_usd = billing_profile_deduct_rings(pool, owner_iid, model, cost_usd).await?;
+    Ok(overflow_usd.map(|usd| crate::billing_on_demand::usd_to_native(usd, fx_micro)))
 }
 
 pub async fn billing_plan_pool_template(
@@ -289,9 +488,28 @@ mod tests {
     }
 
     #[test]
-    fn signup_trial_constants_match_lite_quarter() {
-        use crate::billing_pool::{SIGNUP_TRIAL_ALIEN_IDR, SIGNUP_TRIAL_FRONTIER_IDR};
-        assert_eq!(SIGNUP_TRIAL_ALIEN_IDR, 25_000.0);
-        assert_eq!(SIGNUP_TRIAL_FRONTIER_IDR, 5_000.0);
+    fn signup_trial_ring_caps_match_quarter_lite() {
+        let (a5, aw, f5, fw) = signup_trial_ring_caps();
+        assert!((a5 - 0.0125).abs() < 1e-9);
+        assert!((aw - 0.25).abs() < 1e-9);
+        assert!((f5 - 0.0025).abs() < 1e-9);
+        assert!((fw - 0.05).abs() < 1e-9);
+    }
+
+    #[test]
+    fn ring_deduct_respects_both_windows() {
+        let (u5, uw, _, ov) = ring_deduct_pair(0.04, 0.05, 0.0, 1.0, 0.02);
+        assert!((u5 - 0.05).abs() < 1e-9);
+        assert!((uw - 0.01).abs() < 1e-9);
+        assert!((ov - 0.01).abs() < 1e-9);
+        let (_, _, _, ov2) = ring_deduct_pair(0.04, 0.05, 0.99, 1.0, 0.02);
+        assert!((ov2 - 0.01).abs() < 1e-9);
+    }
+
+    #[test]
+    fn frontier_rings_scale_with_pool_ratio() {
+        let (f5, fw) = frontier_rings_from_alien(0.05, 1.0, 100_000.0, 20_000.0);
+        assert!((f5 - 0.01).abs() < 1e-9);
+        assert!((fw - 0.2).abs() < 1e-9);
     }
 }

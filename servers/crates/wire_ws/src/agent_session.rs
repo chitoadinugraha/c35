@@ -4,9 +4,10 @@ use axum::body::Bytes;
 use axum::extract::ws::{Message, WebSocket};
 use c35_ctx::AppState;
 use c35_mod_device::{
-    agent_log_put, agent_presence_put, agent_session_resolve, device_release_platform_key,
-    release_config_get, release_needs_update, remote_signaling_agent_frame,
-    remote_signaling_agent_register, remote_signaling_agent_unregister, AgentVersionReport,
+    agent_log_put, agent_presence_heartbeat, agent_presence_put, agent_session_resolve,
+    device_release_platform_key, release_config_get, release_needs_update,
+    remote_signaling_agent_frame, remote_signaling_agent_register, remote_signaling_agent_unregister,
+    remote_signaling_agent_connected, AgentVersionReport,
 };
 use serde_json::Value;
 use futures_util::StreamExt;
@@ -133,7 +134,8 @@ pub async fn handle(
     .await;
 
     let (agent_out_tx, mut agent_out_rx) = mpsc::unbounded_channel::<Vec<u8>>();
-    remote_signaling_agent_register(session.device_iid, agent_out_tx.clone());
+    let agent_conn_id =
+        remote_signaling_agent_register(session.device_iid, agent_out_tx.clone());
 
     let (device_type, device_meta) =
         remote_device_type_meta(&state.pool, session.device_iid).await;
@@ -216,6 +218,8 @@ pub async fn handle(
 
     let mut ping = tokio::time::interval(Duration::from_secs(30));
     ping.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    let mut presence_db_tick = 0u32;
+    const PRESENCE_DB_EVERY_N_PINGS: u32 = 2;
 
     loop {
         tokio::select! {
@@ -223,6 +227,19 @@ pub async fn handle(
                 if socket.send(Message::Ping(Bytes::new())).await.is_err() {
                     break;
                 }
+                presence_db_tick += 1;
+                let persist_db = presence_db_tick >= PRESENCE_DB_EVERY_N_PINGS;
+                if persist_db {
+                    presence_db_tick = 0;
+                }
+                let _ = agent_presence_heartbeat(
+                    &state.pool,
+                    state.nats.as_ref(),
+                    session.device_iid,
+                    session.owner_iid,
+                    persist_db,
+                )
+                .await;
             }
             Some(frame) = agent_out_rx.recv() => {
                 if socket.send(Message::Binary(frame.into())).await.is_err() {
@@ -253,7 +270,14 @@ pub async fn handle(
         }
     }
 
-    remote_signaling_agent_unregister(session.device_iid);
+    remote_signaling_agent_unregister(session.device_iid, agent_conn_id);
+    if remote_signaling_agent_connected(session.device_iid) {
+        info!(
+            device_iid = session.device_iid,
+            "agent ws closed; newer control socket still registered"
+        );
+        return;
+    }
 
     let _ = agent_presence_put(
         &state.pool,

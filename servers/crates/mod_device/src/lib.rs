@@ -16,7 +16,9 @@ mod remote_signaling;
 pub use agent_auth::{agent_session_resolve, AgentSession};
 pub use agent_log_put::agent_log_put;
 pub use agent_profile::{agent_profile_get, AgentProfile};
-pub use agent_presence::{agent_meta_get, agent_presence_put, AgentVersionReport};
+pub use agent_presence::{
+    agent_meta_get, agent_presence_heartbeat, agent_presence_put, AgentVersionReport,
+};
 pub use mcp_client::mcp_client_list;
 pub use device_pair::device_pair;
 pub use device_pair_poll::device_pair_poll;
@@ -34,7 +36,7 @@ pub use remote_signaling::{
     remote_device_fs_list, remote_device_fs_read, remote_device_input_send,
     remote_device_screenshot_capture, remote_device_task_run_enqueue, remote_session_start,
     remote_session_stop,
-    remote_signaling_agent_frame, remote_signaling_agent_register,
+    remote_signaling_agent_connected, remote_signaling_agent_frame, remote_signaling_agent_register,
     remote_signaling_agent_unregister, remote_signaling_app_conn_register,
     remote_signaling_app_conn_unregister, rtc_signal_answer_from_app, rtc_signal_ice_from_app,
     rtc_signal_offer_from_app,

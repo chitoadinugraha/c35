@@ -219,6 +219,7 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
                       child: billing != null
                           ? uiQuotaPackagePanelFromAccount(
                               billing,
+                              quota: AppStore.instance.quota,
                               planTierLoading: _billingLoading,
                               onBalanceTap: acts.onBalance == null ? null : () => _popThen(acts.onBalance),
                               onPackageTap: acts.onPackage == null ? null : () => _popThen(acts.onPackage),

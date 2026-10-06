@@ -97,7 +97,7 @@ Talk and Chat are two surfaces on one Home thread (`chat.kind = prompt`, same `c
 | | Chat | Talk |
 |---|---|---|
 | Surface | Thread plus `InComposer` | `UiTalkStage` — latest exchange only |
-| Entry | Default (`talkEnabled` false) | Avatar sheet **Talk** |
+| Entry | Default (`talkEnabled` false) | Avatar sheet **Talk Mode** |
 | Send | Composer, including its mic | Stage mic. Sets `ReqPrompt.talk` |
 | Reply length | Unchanged | `inst.talk.brief` on that turn |
 | Read aloud | Bubble menu **Read aloud** only (no auto TTS) | `VoicePrefs.talkSpeakEnabled` (default on); stage speaker toggles it; auto TTS after each Talk turn when on |
@@ -117,7 +117,7 @@ Talk and Chat are two surfaces on one Home thread (`chat.kind = prompt`, same `c
 
 **Transcript strip.** Rounded chip above the bottom bar. Shown only after the user has spoken text (including live STT while recording). Not shown on the empty idle state.
 
-**Bottom bar.** Mic is centered; attach is bottom-aligned on the left screen edge; speaker and model icons are bottom-aligned on the right. Attach stages files until the next voice send, then the turn uses the same `_composerSend` as Chat. Mic uses `SttService` (VAD auto-stop). A second tap, or silence, transcribes and sends with `talk: true`. While a prompt is busy, the mic is Stop and calls `_abortPrompt`. The speaker icon toggles `talkSpeakEnabled` (Talk-only auto read-aloud). Starting the mic calls `TtsService.stop`. The model icon opens the same model sheet as Chat; the **active** model is pinned at the top in a card (checkmark, thinking chips when supported), with its provider group expanded.
+**Bottom bar.** Mic is centered; attach is bottom-aligned on the left screen edge; speaker and model icons are bottom-aligned on the right. Attach stages files until the next voice send, then the turn uses the same `_composerSend` as Chat. Mic uses `SttService` with **Talk VAD** (no silence auto-stop in noisy environments; tap mic again or **Send** on the transcript chip when text is visible). Max recording **60s** then auto-send. Composer Chat mic keeps silence VAD (700ms / 1100ms). While a prompt is busy, the mic is Stop and calls `_abortPrompt`. The speaker icon toggles `talkSpeakEnabled` (Talk-only auto read-aloud). Starting the mic calls `TtsService.stop`. The model icon opens the same model sheet as Chat; the **active** model is pinned at the top in a card (checkmark, thinking chips when supported), with its provider group expanded.
 
 **Wire.** `ReqPrompt.talk` (field 10) is true only for sends from this surface. Compose appends mention id `talk` to the in-memory inst match list. The id is not written onto the user message and is not a catalog mention. Inst id `inst.talk.brief`, kind `trigger`, trigger `mention:talk`. Chat sends leave `talk` false. See [inst.md](inst.md).
 
@@ -252,12 +252,14 @@ Each remote row shows name + type subtitle (e.g. `CHITO` / `windows`) and **two 
 
 | Dot | Meaning |
 |-----|---------|
-| Left (WebRTC) | App ↔ device data plane — files, screen, media |
-| Right (cluster) | Agent ↔ server — presence, tasks |
+| Left (Alien AI Cloud) | Agent ↔ server — presence, tasks |
+| Right (WebRTC) | App ↔ device data plane — files, screen, media |
 
-**WebRTC dot (left):** grey idle → orange connecting → green connected → red failed. **Connect-first:** no auto WebRTC on device select; **Connect** / **Retry** in detail toolbar and Remote tab. Full color table: [remote.md § WebRTC dot colors](remote.md#webrtc-dot-colors-left--connect-first-locked).
+When Alien AI Cloud is down, the type subtitle is **Device is offline**.
 
-**Cloud dot (right):** green when agent online, grey when offline (NATS `device_presence` push + `meta.last_seen_ts_ms`).
+**WebRTC dot (right):** grey idle → orange connecting → green connected → red failed. **Connect-first:** no auto WebRTC on device select; **Connect** / **Retry** in detail toolbar and Remote tab. Full color table: [remote.md § WebRTC dot colors](remote.md#webrtc-dot-colors-right--connect-first-locked).
+
+**Cloud dot (left):** green when agent online, grey when offline (NATS `device_presence` push + `meta.last_seen_ts_ms`). Tooltip **Device is offline** when grey.
 
 IoT rows keep a single online dot (green/grey).
 
@@ -288,7 +290,7 @@ Remote agent attaches skills/tasks to device **identity id**.
 
 ### Files tab (remote)
 
-**Transport:** SCTP data channel `remote-fs` (protobuf `RemoteFs*`). Requires **WebRTC connected** (left dot on device row). Bytes are app ↔ device direct — not stored on cluster unless user saves elsewhere. See [`remote.md`](remote.md#files-tab--browse-copy-stream).
+**Transport:** SCTP data channel `remote-fs` (protobuf `RemoteFs*`). Requires **WebRTC connected** (right dot on device row). Bytes are app ↔ device direct — not stored on cluster unless user saves elsewhere. See [`remote.md`](remote.md#files-tab--browse-copy-stream).
 
 **Devices master column:** while a device is selected, **Transfers** shows slim progress bars for active uploads/copies (queued jobs for that device).
 

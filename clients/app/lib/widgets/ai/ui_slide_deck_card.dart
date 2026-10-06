@@ -7,6 +7,7 @@ import 'package:alienai_c35/c/presentation/slide_theme_catalog.dart';
 import 'package:alienai_c35/widgets/ai/io_slide_theme_pick.dart';
 import 'package:alienai_c35/widgets/ai/slide_deck_pdf_exporter.dart';
 import 'package:alienai_c35/widgets/ui/ui_img.dart';
+import 'package:alienai_c35/widgets/ui/ui_menu_position.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -128,6 +129,17 @@ class SlideDeckData {
     final raw = content.split(RegExp(r'(?:^|\n)---\s*(?:\n|$)'));
     final list = raw.map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
 
+    var resolvedTheme = theme;
+    final themeComment = RegExp(r'<!--\s*theme:\s*([a-zA-Z0-9_\-]+)\s*-->', caseSensitive: false).firstMatch(content);
+    if (themeComment != null) {
+      resolvedTheme = themeComment.group(1)?.trim() ?? resolvedTheme;
+    } else {
+      final frontmatterMatch = RegExp(r'(?:^|\n)(?:theme|style):\s*([a-zA-Z0-9_\-]+)', caseSensitive: false).firstMatch(content);
+      if (frontmatterMatch != null) {
+        resolvedTheme = frontmatterMatch.group(1)?.trim() ?? resolvedTheme;
+      }
+    }
+
     var resolvedTitle = title.trim();
     if (resolvedTitle.isEmpty ||
         resolvedTitle.toLowerCase() == 'presentation' ||
@@ -147,7 +159,7 @@ class SlideDeckData {
       slides: list.isEmpty ? [content] : list,
       createdAt: createdAt ?? DateTime.now(),
       eyebrow: eyebrow,
-      theme: theme,
+      theme: resolvedTheme,
     );
   }
 
@@ -394,31 +406,43 @@ class _UiSlideDeckCardState extends State<UiSlideDeckCard> {
     }
   }
 
+  PopupMenuItem<String> _deckMenuItem(String value, IconData icon, String label) => PopupMenuItem(
+        value: value,
+        height: 40,
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: _theme.textSecondary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(color: _theme.textPrimary, fontSize: 13, fontWeight: FontWeight.w500),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ),
+          ],
+        ),
+      );
+
   Future<void> _openDeckMenu(BuildContext anchorContext) async {
     final box = anchorContext.findRenderObject() as RenderBox?;
     if (box == null) return;
-    final offset = box.localToGlobal(Offset.zero);
     final action = await showMenu<String>(
       context: anchorContext,
       color: _theme.cardBg,
-      position: RelativeRect.fromLTRB(
-        offset.dx - 180,
-        offset.dy + box.size.height + 4,
-        offset.dx + box.size.width,
-        offset.dy,
-      ),
+      position: uiMenuPositionBelow(anchorContext, box),
       items: [
-        PopupMenuItem(value: 'theme', child: Text('Theme', style: TextStyle(color: _theme.textPrimary))),
+        _deckMenuItem('theme', Icons.palette_outlined, 'Theme'),
         const PopupMenuDivider(),
-        PopupMenuItem(value: 'fullscreen', child: Text('Fullscreen Presentation', style: TextStyle(color: _theme.textPrimary))),
+        _deckMenuItem('fullscreen', Icons.fullscreen_rounded, 'Fullscreen Presentation'),
+        _deckMenuItem('collapse', Icons.unfold_less_rounded, 'Minimize'),
         if (widget.onOpenInCanvas != null)
-          PopupMenuItem(value: 'canvas', child: Text('Open in Canvas', style: TextStyle(color: _theme.textPrimary))),
+          _deckMenuItem('canvas', Icons.dashboard_customize_outlined, 'Open in Canvas'),
         const PopupMenuDivider(),
-        PopupMenuItem(value: 'pptx', child: Text('Export to PowerPoint (.pptx)', style: TextStyle(color: _theme.textPrimary))),
-        PopupMenuItem(value: 'pdf', child: Text('Export to PDF (.pdf)', style: TextStyle(color: _theme.textPrimary))),
-        PopupMenuItem(value: 'copy', child: Text('Copy Slides Markdown', style: TextStyle(color: _theme.textPrimary))),
-        const PopupMenuDivider(),
-        PopupMenuItem(value: 'collapse', child: Text('Collapse Preview', style: TextStyle(color: _theme.textPrimary))),
+        _deckMenuItem('pptx', Icons.slideshow_outlined, 'Export to PowerPoint (.pptx)'),
+        _deckMenuItem('pdf', Icons.picture_as_pdf_outlined, 'Export to PDF (.pdf)'),
+        _deckMenuItem('copy', Icons.content_copy_outlined, 'Copy Slides Markdown'),
       ],
     );
     if (!mounted || action == null) return;
@@ -538,7 +562,7 @@ class _UiSlideDeckCardState extends State<UiSlideDeckCard> {
                   ),
                   const SizedBox(height: 3),
                   Text(
-                    '$slideCount slides • $timeStr',
+                    '$slideCount slides • ${_theme.label.isNotEmpty ? _theme.label : _theme.id} • $timeStr',
                     style: TextStyle(
                       color: _theme.textSecondary,
                       fontSize: 12,
@@ -651,6 +675,51 @@ class _UiSlideDeckCardState extends State<UiSlideDeckCard> {
                       onPressed: _currentSlide < total - 1 ? () => _goToSlide(_currentSlide + 1) : null,
                     ),
                   ],
+                ),
+              ),
+              const SizedBox(width: 6),
+
+              // Theme Pill Button: [ • ThemeName ]
+              InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: () async {
+                  final picked = await ioSlideThemePick(context, current: _theme);
+                  if (picked != null && mounted) {
+                    setState(() {
+                      _theme = picked;
+                      widget.deck.theme = picked.id;
+                    });
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: _theme.accent,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _theme.label.isNotEmpty ? _theme.label : _theme.id,
+                        style: TextStyle(
+                          color: _theme.textPrimary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(width: 6),

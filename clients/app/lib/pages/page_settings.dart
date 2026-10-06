@@ -21,7 +21,7 @@ import 'package:alienai_c35/c/location/location_service.dart';
 import 'package:alienai_c35/c/location/user_location_prefs.dart';
 import 'package:alienai_c35/c/settings/user_locale_prefs.dart';
 import 'package:alienai_c35/c/billing/billing_format.dart';
-import 'package:alienai_c35/c/ui/money_format.dart';
+import 'package:alienai_c35/widgets/billing/billing_plan_format.dart';
 import 'package:alienai_c35/c/settings/voice_prefs.dart';
 import 'package:alienai_c35/c/task/task_trigger_cron.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
@@ -52,6 +52,7 @@ import 'package:alienai_c35/widgets/settings/ui_settings_tile.dart';
 import 'package:alienai_c35/widgets/settings/ui_settings_unlock_mode.dart';
 import 'package:alienai_c35/widgets/ui/ui_account_role_badges.dart';
 import 'package:alienai_c35/widgets/ui/ui_img.dart';
+import 'package:alienai_c35/widgets/ui/ui_input_decoration.dart';
 import 'package:alienai_c35/widgets/ui/ui_locale_picker_dialog.dart';
 import 'package:alienai_c35/widgets/ui/ui_page.dart';
 import 'package:alienai_c35/widgets/ui/ui_speak_toggle.dart' show UiAppToggle;
@@ -265,13 +266,13 @@ class _PageSettingsState extends State<PageSettings> {
     return 'settings.locationSourceUnknown'.tr();
   }
 
-  Widget _mediaGenDropdown(String label, String value, List<String> providers, String kind, Future<void> Function(String) onPick) =>
+  Widget _mediaGenDropdown(String label, IconData icon, String value, List<String> providers, String kind, Future<void> Function(String) onPick) =>
       DropdownButtonFormField<String>(
         key: ValueKey('media_gen_${kind}_$value'),
         initialValue: value,
         dropdownColor: const Color(0xFF18181B),
         style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 14),
-        decoration: _fieldDecoration(label),
+        decoration: _fieldDecoration(context, label, prefixIcon: Icon(icon, size: 20, color: const Color(0xFF71717A))),
         items: providers.map((id) => DropdownMenuItem(value: id, child: Text(mediaProviderLabel(kind, id)))).toList(),
         onChanged: _busy ? null : (v) async {
           if (v == null) return;
@@ -479,14 +480,8 @@ class _PageSettingsState extends State<PageSettings> {
         onMarketingGenerateVoucher: null,
       );
 
-  InputDecoration _fieldDecoration(String label) => InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(color: Color(0xFF71717A), fontSize: 13),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _border)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _border)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _accent)),
-      );
+  InputDecoration _fieldDecoration(BuildContext context, String label, {Widget? prefixIcon}) =>
+      UiInputDecoration.of(context, labelText: label, prefixIcon: prefixIcon);
 
   @override
   Widget build(BuildContext context) {
@@ -569,18 +564,16 @@ class _PageSettingsState extends State<PageSettings> {
                         _Card(
                           child: Column(children: [
                             UiSettingsTile(
+                              icon: Icons.workspace_premium_outlined,
+                              title: 'settings.package'.tr(),
+                              subtitle: billingPlanTierLabel(widget.store.planTier),
+                            ),
+                            uiSettingsDivider(),
+                            UiSettingsTile(
                               icon: Icons.account_balance_wallet_outlined,
                               title: 'settings.balance'.tr(),
                               subtitle: billingBalanceLabel(widget.store.billing),
                             ),
-                            if (widget.store.wallet.allow5hLimit > 0) ...[
-                              uiSettingsDivider(),
-                              UiSettingsTile(
-                                icon: Icons.hourglass_top_outlined,
-                                title: 'Free allowance',
-                                subtitle: '${moneyAllowanceLabel((widget.store.wallet.allow5hLimit - widget.store.wallet.allow5hUsed).clamp(0.0, widget.store.wallet.allow5hLimit), currency: widget.store.wallet.billingCurrency, fxMicroPerUsd: widget.store.wallet.fxMicroPerUsd)} remaining of ${moneyAllowanceLabel(widget.store.wallet.allow5hLimit, currency: widget.store.wallet.billingCurrency, fxMicroPerUsd: widget.store.wallet.fxMicroPerUsd)} (5h)',
-                              ),
-                            ],
                             if (_driveStorage != null) ...[
                               uiSettingsDivider(),
                               Padding(
@@ -596,11 +589,11 @@ class _PageSettingsState extends State<PageSettings> {
                                         borderRadius: BorderRadius.circular(4),
                                         child: LinearProgressIndicator(
                                           minHeight: 6,
-                                          value: _driveStorage!.limitBytes > 0
-                                              ? (_driveStorage!.usedBytes / _driveStorage!.limitBytes).clamp(0.0, 1.0)
-                                              : null,
+                                          value: driveStorageUsageFraction(_driveStorage!.usedBytes, _driveStorage!.limitBytes),
                                           backgroundColor: const Color(0xFF3F3F46),
-                                          color: const Color(0xFF34D399),
+                                          color: driveStorageUsageHigh(_driveStorage!.usedBytes, _driveStorage!.limitBytes)
+                                              ? const Color(0xFFEF4444)
+                                              : const Color(0xFF34D399),
                                         ),
                                       ),
                                       const SizedBox(height: 6),
@@ -665,6 +658,7 @@ class _PageSettingsState extends State<PageSettings> {
                                 const SizedBox(height: 12),
                                 _mediaGenDropdown(
                                   'settings.generationImage'.tr(),
+                                  Icons.image_outlined,
                                   _genImage,
                                   MediaGenerationPrefs.imageProviders,
                                   'image',
@@ -673,6 +667,7 @@ class _PageSettingsState extends State<PageSettings> {
                                 const SizedBox(height: 12),
                                 _mediaGenDropdown(
                                   'settings.generationVideo'.tr(),
+                                  Icons.videocam_outlined,
                                   _genVideo,
                                   MediaGenerationPrefs.videoProviders,
                                   'video',
@@ -681,6 +676,7 @@ class _PageSettingsState extends State<PageSettings> {
                                 const SizedBox(height: 12),
                                 _mediaGenDropdown(
                                   'settings.generationMusic'.tr(),
+                                  Icons.audiotrack_outlined,
                                   _genMusic,
                                   MediaGenerationPrefs.musicProviders,
                                   'music',
@@ -779,7 +775,7 @@ class _PageSettingsState extends State<PageSettings> {
                                       initialValue: _tz.isEmpty ? UserLocalePrefs.deviceTimezoneDetect() : _tz,
                                       dropdownColor: const Color(0xFF18181B),
                                       style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 14),
-                                      decoration: _fieldDecoration('settings.locationFieldTimezone'.tr()),
+                                      decoration: _fieldDecoration(context, 'settings.locationFieldTimezone'.tr()),
                                       items: [
                                         if (_tz.isNotEmpty && !kCommonTimezones.contains(_tz)) DropdownMenuItem(value: _tz, child: Text(_tz)),
                                         ...kCommonTimezones.map((tz) => DropdownMenuItem(value: tz, child: Text(tz))),
@@ -805,7 +801,7 @@ class _PageSettingsState extends State<PageSettings> {
                                         key: ValueKey('city_$_locationCity'),
                                         initialValue: _locationCity,
                                         style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 14),
-                                        decoration: _fieldDecoration('settings.locationFieldCity'.tr()),
+                                        decoration: _fieldDecoration(context, 'settings.locationFieldCity'.tr()),
                                         onChanged: (v) => _locationCity = v,
                                         onFieldSubmitted: (_) => _run(_locationManualSave),
                                       ),
@@ -814,7 +810,7 @@ class _PageSettingsState extends State<PageSettings> {
                                         key: ValueKey('region_$_locationRegion'),
                                         initialValue: _locationRegion,
                                         style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 14),
-                                        decoration: _fieldDecoration('settings.locationFieldRegion'.tr()),
+                                        decoration: _fieldDecoration(context, 'settings.locationFieldRegion'.tr()),
                                         onChanged: (v) => _locationRegion = v,
                                         onFieldSubmitted: (_) => _run(_locationManualSave),
                                       ),
@@ -823,7 +819,7 @@ class _PageSettingsState extends State<PageSettings> {
                                         key: ValueKey('country_$_locationCountry'),
                                         initialValue: _locationCountry,
                                         style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 14),
-                                        decoration: _fieldDecoration('settings.locationFieldCountry'.tr()),
+                                        decoration: _fieldDecoration(context, 'settings.locationFieldCountry'.tr()),
                                         onChanged: (v) => _locationCountry = v,
                                         onFieldSubmitted: (_) => _run(_locationManualSave),
                                       ),
@@ -860,7 +856,7 @@ class _PageSettingsState extends State<PageSettings> {
                                 initialValue: _speechLang,
                                 dropdownColor: const Color(0xFF18181B),
                                 style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 14),
-                                decoration: _fieldDecoration('Language'),
+                                decoration: _fieldDecoration(context, 'Language'),
                                 selectedItemBuilder: (ctx) => speechLangOptions.map((lang) => _SpeechLangDropdownRow(lang: lang)).toList(),
                                 items: speechLangOptions.map((lang) => DropdownMenuItem(value: lang, child: _SpeechLangDropdownRow(lang: lang))).toList(),
                                 onChanged: (v) => v != null ? VoicePrefs.instance.setSpeechLang(v) : null,
@@ -876,7 +872,7 @@ class _PageSettingsState extends State<PageSettings> {
                                     : '',
                                 dropdownColor: const Color(0xFF18181B),
                                 style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 14),
-                                decoration: _fieldDecoration('Microphone'),
+                                decoration: _fieldDecoration(context, 'Microphone'),
                                 isExpanded: true,
                                 selectedItemBuilder: (ctx) => [
                                   Row(children: [
@@ -938,14 +934,7 @@ class _PageSettingsState extends State<PageSettings> {
                                     initialValue: _sttEngine,
                                     dropdownColor: const Color(0xFF18181B),
                                     style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 14),
-                                    decoration: _fieldDecoration('Speech to text'),
-                                    selectedItemBuilder: (ctx) => const [
-                                      Row(children: [
-                                        Icon(Icons.cloud_outlined, size: 18, color: Color(0xFFA1A1AA)),
-                                        SizedBox(width: 10),
-                                        Text('Cloud'),
-                                      ]),
-                                    ],
+                                    decoration: _fieldDecoration(context, 'Speech to text'),
                                     items: const [
                                       DropdownMenuItem(value: 'cloud', child: Row(children: [
                                         Icon(Icons.cloud_outlined, size: 18, color: Color(0xFFA1A1AA)),
@@ -953,13 +942,21 @@ class _PageSettingsState extends State<PageSettings> {
                                         Text('Cloud'),
                                       ])),
                                     ],
-                                    onChanged: (v) => v != null ? VoicePrefs.instance.setSttEngine(v) : null,
+                                    onChanged: null,
                                   ),
                                 ),
                                 const SizedBox(width: 8),
                                 uiIconButton(icon: const Icon(Icons.hearing_rounded, color: _accent), tooltip: 'Test speech to text', onPressed: () => showDialog<void>(context: context, builder: (ctx) => _SttTestDialog(speechLang: _speechLang, chatConn: widget.chatConn))),
                               ]),
                             ),
+                            if (_sttEngine == 'cloud')
+                              const Padding(
+                                padding: EdgeInsets.fromLTRB(16, 0, 16, 4),
+                                child: Text(
+                                  'Uses Alien AI cloud voice — charged to your balance.',
+                                  style: TextStyle(color: Color(0xFF71717A), fontSize: 12, height: 1.35),
+                                ),
+                              ),
                             Padding(
                               padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                               child: Row(children: [
@@ -969,28 +966,43 @@ class _PageSettingsState extends State<PageSettings> {
                                     initialValue: _ttsEngine,
                                     dropdownColor: const Color(0xFF18181B),
                                     style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 14),
-                                    decoration: _fieldDecoration('Text to speech'),
-                                    selectedItemBuilder: (ctx) => const [
-                                      Row(children: [
-                                        Icon(Icons.cloud_outlined, size: 18, color: Color(0xFFA1A1AA)),
-                                        SizedBox(width: 10),
-                                        Text('Cloud'),
-                                      ]),
-                                    ],
+                                    decoration: _fieldDecoration(context, 'Text to speech'),
                                     items: const [
                                       DropdownMenuItem(value: 'cloud', child: Row(children: [
                                         Icon(Icons.cloud_outlined, size: 18, color: Color(0xFFA1A1AA)),
                                         SizedBox(width: 10),
-                                        Text('Cloud'),
+                                        Text('Cloud (billed)'),
+                                      ])),
+                                      DropdownMenuItem(value: 'web', child: Row(children: [
+                                        Icon(Icons.language_outlined, size: 18, color: Color(0xFFA1A1AA)),
+                                        SizedBox(width: 10),
+                                        Text('Web (free)'),
+                                      ])),
+                                      DropdownMenuItem(value: 'local', child: Row(children: [
+                                        Icon(Icons.devices_outlined, size: 18, color: Color(0xFFA1A1AA)),
+                                        SizedBox(width: 10),
+                                        Text('Local (device TTS)'),
                                       ])),
                                     ],
-                                    onChanged: (v) => v != null ? VoicePrefs.instance.setTtsEngine(v) : null,
+                                    onChanged: (v) {
+                                      if (v == null) return;
+                                      setState(() => _ttsEngine = v);
+                                      VoicePrefs.instance.setTtsEngine(v);
+                                    },
                                   ),
                                 ),
                                 const SizedBox(width: 8),
                                 uiIconButton(icon: const Icon(Icons.record_voice_over_rounded, color: _accent), tooltip: 'Test text to speech', onPressed: () => showDialog<void>(context: context, builder: (ctx) => _TtsTestDialog(speechLang: _speechLang, chatConn: widget.chatConn))),
                               ]),
                             ),
+                            if (_ttsEngine == 'cloud')
+                              const Padding(
+                                padding: EdgeInsets.fromLTRB(16, 0, 16, 4),
+                                child: Text(
+                                  'Uses Alien AI cloud voice — charged to your balance.',
+                                  style: TextStyle(color: Color(0xFF71717A), fontSize: 12, height: 1.35),
+                                ),
+                              ),
                             Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 4), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Speech speed', style: TextStyle(color: Color(0xFFE4E4E7), fontSize: 13, fontWeight: FontWeight.w500)), Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: const Color(0xFF18181B), borderRadius: BorderRadius.circular(6), border: Border.all(color: _border)), child: Text('${_speechRate.toStringAsFixed(2)}x', style: const TextStyle(color: _accent, fontSize: 12, fontFamily: 'monospace', fontWeight: FontWeight.w600)))])),
                             SliderTheme(data: SliderTheme.of(context).copyWith(activeTrackColor: _accent, inactiveTrackColor: const Color(0xFF27272A), thumbColor: const Color(0xFFF4F4F5), trackHeight: 3), child: Slider(value: _speechRate.clamp(0.75, 2.0), min: 0.75, max: 2.0, divisions: 25, onChanged: VoicePrefs.instance.setSpeechRate)),
                             Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 4), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Speech pitch', style: TextStyle(color: Color(0xFFE4E4E7), fontSize: 13, fontWeight: FontWeight.w500)), Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: const Color(0xFF18181B), borderRadius: BorderRadius.circular(6), border: Border.all(color: _border)), child: Text('${_speechPitch.toStringAsFixed(2)}x', style: const TextStyle(color: _accent, fontSize: 12, fontFamily: 'monospace', fontWeight: FontWeight.w600)))])),
@@ -1075,7 +1087,7 @@ class _ProfileTextDialogState extends State<_ProfileTextDialog> {
   Widget build(BuildContext context) => AlertDialog(
         backgroundColor: const Color(0xFF18181B),
         title: Text(widget.title, style: const TextStyle(color: Color(0xFFF4F4F5), fontSize: 16, fontWeight: FontWeight.bold)),
-        content: TextField(controller: _ctrl, autofocus: true, style: const TextStyle(color: Color(0xFFF4F4F5)), decoration: InputDecoration(labelText: widget.label, labelStyle: const TextStyle(color: Color(0xFF71717A))), onSubmitted: (_) => _submit()),
+        content: TextField(controller: _ctrl, autofocus: true, style: const TextStyle(color: Color(0xFFF4F4F5)), decoration: UiInputDecoration.of(context, labelText: widget.label), onSubmitted: (_) => _submit()),
         actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')), FilledButton(onPressed: _submit, style: FilledButton.styleFrom(backgroundColor: const Color(0xFF34D399), foregroundColor: Colors.black), child: const Text('Save'))],
       );
 }
@@ -1258,7 +1270,7 @@ class _TtsTestDialogState extends State<_TtsTestDialog> {
         backgroundColor: const Color(0xFF18181B),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Color(0xFF27272A))),
         title: const Text('Test text to speech', style: TextStyle(color: Color(0xFFF4F4F5), fontSize: 16, fontWeight: FontWeight.bold)),
-        content: SizedBox(width: 360, child: TextField(controller: _ctrl, maxLines: 3, style: const TextStyle(color: Color(0xFFF4F4F5), fontSize: 14), decoration: InputDecoration(hintText: 'Enter text to read aloud…', hintStyle: const TextStyle(color: Color(0xFF71717A)), contentPadding: const EdgeInsets.all(12), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF27272A)))))),
+        content: SizedBox(width: 360, child: TextField(controller: _ctrl, maxLines: 3, style: const TextStyle(color: Color(0xFFF4F4F5), fontSize: 14), decoration: UiInputDecoration.of(context, hintText: 'Enter text to read aloud…', alignLabelWithHint: true))),
         actions: [
           SizedBox(
             width: double.infinity,

@@ -320,11 +320,7 @@ pub async fn prompt_cluster_turn(
                         .get("error")
                         .and_then(|v| v.as_str())
                         .unwrap_or("sheet write failed");
-                    llm_result = json!({
-                        "ok": false,
-                        "error": err,
-                        "reply_rule": "The spreadsheet was NOT updated. Tell the customer the save failed and do not claim stock or data changed.",
-                    });
+                    llm_result = json!({ "ok": false, "error": err });
                 }
                 let maybe_img = llm_result.as_object_mut().and_then(|obj| {
                     obj.remove("image_base64").and_then(|v| v.as_str().map(|s| s.to_string()))
@@ -396,41 +392,6 @@ pub async fn prompt_cluster_turn(
             }
 
             prev_calls = out.function_calls;
-            continue;
-        }
-        if round == 0
-            && !used_tool
-            && user_wants_consumption_recap(&req.user)
-            && tools.iter().any(|t| t.name == "consumption.today")
-        {
-            let locale = turn_ctx.as_ref().map(|t| t.locale).unwrap_or("id-ID");
-            let args = consumption_recap_args_from_user(&req.user, locale);
-            emit_thought(on_delta, &mut thought, "Using consumption.today…\n");
-            let tool_started = Instant::now();
-            let (result, tool_cost) =
-                cluster_tool_exec(&client, "consumption.today", &args, turn_ctx.as_deref(), None).await;
-            tools_cost_usd += tool_cost;
-            let tool_ms = tool_started.elapsed().as_millis() as i64;
-            let ok = result.get("ok").and_then(|v| v.as_bool()).unwrap_or(true);
-            if let Some(tr) = tracer {
-                tr.tool_result("consumption.today", &snowflake_id().to_string(), &args, &result, ok, tool_ms).await;
-            }
-            if let Some(block) = result.get("block") {
-                blocks_json = append_block(&blocks_json, block.clone());
-                on_blocks(blocks_json.clone());
-            }
-            used_tool = true;
-            let day_id = args.get("day_id").and_then(|v| v.as_str()).unwrap_or("today");
-            contents.push(json!({
-                "role": "model",
-                "parts": [{ "functionCall": { "name": "consumption_today", "args": { "day_id": day_id } } }]
-            }));
-            let llm_result = result.get("llm").cloned().unwrap_or(result.clone());
-            contents.push(json!({
-                "role": "function",
-                "parts": [{ "functionResponse": { "name": "consumption_today", "response": llm_result } }]
-            }));
-            prev_calls = vec![("consumption.today".into(), args)];
             continue;
         }
         let catalog_defer_web = req.catalog_web == CatalogWebPhase::Stock
@@ -686,43 +647,6 @@ pub fn search_query_from_user(text: &str) -> String {
         }
     }
     text.trim().to_string()
-}
-
-pub fn user_wants_consumption_recap(text: &str) -> bool {
-    let t = text.trim().to_ascii_lowercase();
-    if t.is_empty() {
-        return false;
-    }
-    if ["catat ", "track food", "log meal", "log food", "hapus ", "delete meal", "berapa kalori"]
-        .iter()
-        .any(|k| t.contains(k))
-    {
-        return false;
-    }
-    [
-        "apa aja yang aku makan",
-        "apa yang aku makan",
-        "riwayat makan",
-        "makan hari ini",
-        "makan kemarin",
-        "what did i eat",
-        "food history",
-        "meal recap",
-        "nutrition recap",
-        "ringkasan nutrisi",
-        "cek makanan",
-        "konsumsi makanan",
-        "minggu lalu",
-        "minggu ini",
-    ]
-    .iter()
-    .any(|k| t.contains(k))
-        || (t.contains("makan") && (t.contains("hari ini") || t.contains("kemarin") || t.contains("yesterday")))
-}
-
-pub fn consumption_recap_args_from_user(text: &str, locale: &str) -> Value {
-    let day_id = c35_mod_consumption::day_id_from_query(text, locale);
-    json!({ "day_id": day_id, "days": 1 })
 }
 
 #[cfg(test)]

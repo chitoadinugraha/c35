@@ -29,6 +29,13 @@ const InstDoc$json = {
     {'1': 'triggers', '3': 8, '4': 3, '5': 9, '10': 'triggers'},
     {'1': 'include_tools', '3': 15, '4': 3, '5': 9, '10': 'includeTools'},
     {'1': 'exclude_tools', '3': 16, '4': 3, '5': 9, '10': 'excludeTools'},
+    {
+      '1': 'requires_global_roles',
+      '3': 17,
+      '4': 3,
+      '5': 9,
+      '10': 'requiresGlobalRoles'
+    },
     {'1': 'priority', '3': 9, '4': 1, '5': 5, '10': 'priority'},
     {
       '1': 'enabled',
@@ -64,11 +71,12 @@ final $typed_data.Uint8List instDocDescriptor = $convert.base64Decode(
     'gDIAEoCVIEa2luZBIZCgh0b3BpY19pZBgEIAEoCVIHdG9waWNJZBIWCgZ0b3BpY3MYBSADKAlS'
     'BnRvcGljcxISCgRpbnN0GAYgASgJUgRpbnN0EhgKB3BocmFzZXMYByADKAlSB3BocmFzZXMSGg'
     'oIdHJpZ2dlcnMYCCADKAlSCHRyaWdnZXJzEiMKDWluY2x1ZGVfdG9vbHMYDyADKAlSDGluY2x1'
-    'ZGVUb29scxIjCg1leGNsdWRlX3Rvb2xzGBAgAygJUgxleGNsdWRlVG9vbHMSGgoIcHJpb3JpdH'
-    'kYCSABKAVSCHByaW9yaXR5Eh0KB2VuYWJsZWQYCiABKAhIAFIHZW5hYmxlZIgBARIZCghkZWZf'
-    'aGFzaBgLIAEoCVIHZGVmSGFzaBIiCg1jcmVhdGVkX3RzX21zGAwgASgDUgtjcmVhdGVkVHNNcx'
-    'IiCg11cGRhdGVkX3RzX21zGA0gASgDUgt1cGRhdGVkVHNNcxInCg1kZWxldGVkX3RzX21zGA4g'
-    'ASgDSAFSC2RlbGV0ZWRUc01ziAEBQgoKCF9lbmFibGVkQhAKDl9kZWxldGVkX3RzX21z');
+    'ZGVUb29scxIjCg1leGNsdWRlX3Rvb2xzGBAgAygJUgxleGNsdWRlVG9vbHMSMgoVcmVxdWlyZX'
+    'NfZ2xvYmFsX3JvbGVzGBEgAygJUhNyZXF1aXJlc0dsb2JhbFJvbGVzEhoKCHByaW9yaXR5GAkg'
+    'ASgFUghwcmlvcml0eRIdCgdlbmFibGVkGAogASgISABSB2VuYWJsZWSIAQESGQoIZGVmX2hhc2'
+    'gYCyABKAlSB2RlZkhhc2gSIgoNY3JlYXRlZF90c19tcxgMIAEoA1ILY3JlYXRlZFRzTXMSIgoN'
+    'dXBkYXRlZF90c19tcxgNIAEoA1ILdXBkYXRlZFRzTXMSJwoNZGVsZXRlZF90c19tcxgOIAEoA0'
+    'gBUgtkZWxldGVkVHNNc4gBAUIKCghfZW5hYmxlZEIQCg5fZGVsZXRlZF90c19tcw==');
 
 @$core.Deprecated('Use reqInstListDescriptor instead')
 const ReqInstList$json = {

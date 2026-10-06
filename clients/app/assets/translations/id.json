@@ -5,7 +5,7 @@
                  "heroLoading":  "Memuat katalog…"
              },
     "chat":  {
-                 "copySemua":  "Copy Semua",
+                 "copySemua":  "Copy Chat",
                  "copySemuaDone":  "Obrolan disalin ke clipboard"
              },
     "common":  {
@@ -33,12 +33,14 @@
                      "learnedMemoriesSubtitle":  "Fakta dan preferensi dari percakapan Anda",
                      "showUsage":  "Tampilkan pemakaian",
                      "showUsageSubtitle":  "Jumlah token dan durasi pada balasan AI",
-                     "sectionGeneration":  "GENERASI",
+                     "sectionGeneration":  "CONTENT GENERATOR",
                      "generationSubtitle":  "Penyedia default untuk gambar, video, dan musik (terpisah dari model chat)",
-                     "generationImage":  "Penyedia gambar",
-                     "generationVideo":  "Penyedia video",
-                     "generationMusic":  "Penyedia musik",
+                     "generationImage":  "Gambar",
+                     "generationVideo":  "Video",
+                     "generationMusic":  "Music",
                      "balance":  "Saldo",
+                     "package":  "Paket",
+                     "allowance5h":  "Kuota 5 jam",
                      "changePassword":  "Ubah password",
                      "setPassword":  "Atur password",
                      "currentPassword":  "Password saat ini",

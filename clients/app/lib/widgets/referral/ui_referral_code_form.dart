@@ -38,6 +38,7 @@ class _ReferralCodeFormDialogState extends State<_ReferralCodeFormDialog> {
   late final _durationCtrl = TextEditingController(text: (widget.existing?.durationMonths ?? 0) > 0 ? '${widget.existing!.durationMonths}' : '');
   late final _maxUsesCtrl = TextEditingController(text: (widget.existing?.maxUses ?? 0) > 0 ? '${widget.existing!.maxUses}' : '');
   late var _type = widget.existing?.type.trim().isNotEmpty == true ? widget.existing!.type : 'referral';
+  late var _basePlanSlug = widget.existing?.basePlanSlug.trim().isNotEmpty == true ? widget.existing!.basePlanSlug : 'lite';
   var _saving = false;
   String? _error;
 
@@ -71,7 +72,7 @@ class _ReferralCodeFormDialogState extends State<_ReferralCodeFormDialog> {
       maxUses: int.tryParse(_maxUsesCtrl.text.trim()) ?? 0,
       usedCount: widget.existing?.usedCount ?? 0,
       expiresAtMs: widget.existing?.expiresAtMs ?? Int64.ZERO,
-      basePlanSlug: widget.existing?.basePlanSlug ?? '',
+      basePlanSlug: _type == 'package' ? _basePlanSlug : '',
     );
     try {
       final res = await widget.conn.invoke(InvokeReq(reqId: const Uuid().v4(), referralCodePut: ReqReferralCodePut(code: doc)));
@@ -124,6 +125,22 @@ class _ReferralCodeFormDialogState extends State<_ReferralCodeFormDialog> {
                   ],
                   onChanged: _saving ? null : (v) { if (v != null) setState(() => _type = v); },
                 ),
+                if (_type == 'package') ...[
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: _basePlanSlug,
+                    dropdownColor: _bg,
+                    style: const TextStyle(color: _text),
+                    decoration: UiInputDecoration.of(context, labelText: 'Package Plan'),
+                    items: const [
+                      DropdownMenuItem(value: 'lite', child: Text('Lite')),
+                      DropdownMenuItem(value: 'plus', child: Text('Plus')),
+                      DropdownMenuItem(value: 'pro', child: Text('Pro')),
+                      DropdownMenuItem(value: 'ultra', child: Text('Ultra')),
+                    ],
+                    onChanged: _saving ? null : (v) { if (v != null) setState(() => _basePlanSlug = v); },
+                  ),
+                ],
                 const SizedBox(height: 12),
                 TextField(
                   controller: _priceCtrl,

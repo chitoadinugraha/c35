@@ -5,6 +5,7 @@ import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:alienai_c35/widgets/ui/ui_page.dart';
+import 'package:alienai_c35/widgets/ui/ui_input_decoration.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
@@ -219,7 +220,7 @@ class _DeviceRenameDialogState extends State<_DeviceRenameDialog> {
   Widget build(BuildContext context) => AlertDialog(
         backgroundColor: const Color(0xFF18181B),
         title: Text('settings.deviceName'.tr(), style: const TextStyle(color: Color(0xFFF4F4F5))),
-        content: TextField(controller: _ctrl, autofocus: true, style: const TextStyle(color: Color(0xFFF4F4F5)), decoration: InputDecoration(labelText: 'settings.deviceName'.tr())),
+        content: TextField(controller: _ctrl, autofocus: true, style: const TextStyle(color: Color(0xFFF4F4F5)), decoration: UiInputDecoration.of(context, labelText: 'settings.deviceName'.tr())),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: Text('common.cancel'.tr())),
           FilledButton(onPressed: () => Navigator.pop(context, _ctrl.text.trim()), style: FilledButton.styleFrom(backgroundColor: const Color(0xFF34D399), foregroundColor: Colors.black), child: Text('common.save'.tr())),

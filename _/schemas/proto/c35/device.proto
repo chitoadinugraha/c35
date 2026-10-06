@@ -40,7 +40,7 @@ message ResDevicePairPoll {
   int64 device_iid = 4;
 }
 
-// App WS fanout: `c35.user.{owner_iid}.app.device_presence` (agent connect/disconnect).
+// App WS fanout: `c35.user.{owner_iid}.app.device_presence` (connect/disconnect + ~30s heartbeat).
 message DevicePresencePush {
   int64 device_iid = 1;
   bool online = 2;

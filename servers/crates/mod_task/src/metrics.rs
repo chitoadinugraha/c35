@@ -1,5 +1,5 @@
 use c35_mod_billing::{
-    billing_deduct_allowance, billing_reservation_refund, billing_reservation_settle,
+    billing_deduct_personal_profile, billing_reservation_refund, billing_reservation_settle,
 };
 use sqlx::PgPool;
 use tracing::warn;
@@ -61,7 +61,7 @@ pub async fn task_run_billing_settle(pool: &PgPool, owner_iid: i64, req_id: &str
         }
         return;
     }
-    let row_after = match billing_deduct_allowance(pool, owner_iid, cost_usd).await {
+    let row_after = match billing_deduct_personal_profile(pool, owner_iid, "frontier", cost_usd).await {
         Ok(r) => r,
         Err(e) => {
             warn!(owner_iid, req_id, "task_run billing deduct: {e}");

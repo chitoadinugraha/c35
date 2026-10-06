@@ -1,7 +1,5 @@
-import 'dart:async';
-
 import 'package:alienai_c35/c/chat/chat_inbox.dart';
-import 'package:alienai_c35/widgets/ui/ui_loading.dart';
+import 'package:alienai_c35/widgets/ui/ui_loading.dart' show UiLiveElapsed, UiThinkingDots;
 import 'package:flutter/material.dart';
 import 'package:alienai_c35/widgets/ai/ui_markdown_body.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
@@ -22,6 +20,31 @@ MsgThoughtView msgThoughtView({required String thought, required String content,
   if (visibleThought.isNotEmpty) return MsgThoughtView(thought: visibleThought, content: content);
   if (thinking && content.trim().isEmpty) return MsgThoughtView(thought: 'Thinking', content: content);
   return MsgThoughtView(thought: null, content: content);
+}
+
+/// Live prompt thinking row (label, floating dots, elapsed). Same on mobile, desktop, and web.
+class UiPromptThinkingIndicator extends StatelessWidget {
+  const UiPromptThinkingIndicator({
+    super.key,
+    this.startedAtMs,
+    this.stopping = false,
+    this.align = Alignment.centerLeft,
+  });
+
+  final int? startedAtMs;
+  final bool stopping;
+  final Alignment align;
+
+  @override
+  Widget build(BuildContext context) => Align(
+        alignment: align,
+        child: UiMsgThought(
+          text: 'Thinking',
+          thinking: !stopping,
+          stopping: stopping,
+          startedAtMs: startedAtMs,
+        ),
+      );
 }
 
 class UiMsgThought extends StatefulWidget {
@@ -102,9 +125,22 @@ class _UiMsgThoughtState extends State<UiMsgThought> {
                         _headerLabel,
                         style: const TextStyle(color: uiMsgThoughtColor, fontSize: 12, fontWeight: FontWeight.w600, height: 1.2),
                       ),
+                      if (_live) ...[
+                        const SizedBox(width: 8),
+                        UiThinkingDots(color: uiMsgThoughtColor, size: 4, spacing: 2.5, bounceHeight: 3),
+                      ],
                       if (_live && widget.startedAtMs != null) ...[
                         const SizedBox(width: 8),
-                        _ThoughtElapsed(startedAtMs: widget.startedAtMs!),
+                        UiLiveElapsed(
+                          startedAtMs: widget.startedAtMs!,
+                          style: const TextStyle(
+                            color: Color(0xFF71717A),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            height: 1.2,
+                            fontFeatures: [FontFeature.tabularFigures()],
+                          ),
+                        ),
                       ],
                       if (!_expanded && _hasBody) ...[
                         const SizedBox(width: 8),
@@ -136,38 +172,3 @@ class _UiMsgThoughtState extends State<UiMsgThought> {
   }
 }
 
-class _ThoughtElapsed extends StatefulWidget {
-  const _ThoughtElapsed({required this.startedAtMs});
-  final int startedAtMs;
-
-  @override
-  State<_ThoughtElapsed> createState() => _ThoughtElapsedState();
-}
-
-class _ThoughtElapsedState extends State<_ThoughtElapsed> {
-  Timer? _timer;
-
-  @override
-  void initState() {
-    super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      setState(() {});
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final elapsed = DateTime.now().millisecondsSinceEpoch - widget.startedAtMs;
-    return Text(
-      uiLoadingElapsedLabel(elapsed, compact: false),
-      style: const TextStyle(color: Color(0xFF71717A), fontSize: 12, fontWeight: FontWeight.w500, height: 1.2, fontFeatures: [FontFeature.tabularFigures()]),
-    );
-  }
-}

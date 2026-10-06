@@ -40,6 +40,23 @@ void main() {
     expect(store.msgs.single.content, 'hi');
   });
 
+  test('retryLastTurnPrep uses explicit chatId when activeChatId differs', () {
+    final store = ChatStore();
+    store.chats = [ChatRow(id: 1, title: 'A'), ChatRow(id: 2, title: 'B')];
+    store.activeChatId = 2;
+    store.msgs = [
+      MsgRow(id: 10, chatId: 1, role: 'user', content: 'retry me'),
+      MsgRow(id: 11, chatId: 1, role: 'assistant', content: 'old', error: 'failed'),
+      MsgRow(id: 20, chatId: 2, role: 'user', content: 'other chat'),
+    ];
+
+    final turn = store.retryLastTurnPrep(chatId: 1);
+
+    expect(turn?.text, 'retry me');
+    expect(store.msgs.where((m) => m.chatId == 1).map((m) => m.role).toList(), ['user']);
+    expect(store.msgs.where((m) => m.chatId == 2).length, 1);
+  });
+
   test('retryLastTurnPrep drops trailing assistant when other chat messages follow in msgs', () {
     final store = ChatStore();
     store.chats = [ChatRow(id: 1, title: 'A'), ChatRow(id: 2, title: 'B')];
@@ -109,6 +126,18 @@ void main() {
     expect(out.length, 2);
     expect(out.last.id, 12);
     expect(out.last.error, isEmpty);
+  });
+
+  test('msgsCollapseRetriedAssistants prefers in-flight assistant while prompting', () {
+    final rows = [
+      MsgRow(id: 10, chatId: 1, role: 'user', content: 'slides'),
+      MsgRow(id: 11, chatId: 1, role: 'assistant', content: 'old answer', reqId: 'r1'),
+      MsgRow(id: 12, chatId: 1, role: 'assistant', content: '', reqId: 'r2'),
+    ];
+    final out = msgsCollapseRetriedAssistants(rows, liveReqId: 'r2', prompting: true);
+    expect(out.length, 2);
+    expect(out.last.id, 12);
+    expect(out.last.content, isEmpty);
   });
 
   test('msgsCollapseRetriedAssistants keeps latest failed assistant when all attempts fail', () {

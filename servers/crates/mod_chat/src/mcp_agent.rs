@@ -5,7 +5,7 @@ use sqlx::PgPool;
 use tokio_util::sync::CancellationToken;
 
 use crate::compose::{compose_tools_and_inst_async, ComposeTurnOpts};
-use crate::inst_cache::inst_list_cached;
+use crate::inst_cache::inst_list_for_turn;
 use crate::inst_macro::inst_scopes_home;
 use crate::log_list::log_list;
 use crate::mention::mention_list_enabled;
@@ -202,7 +202,7 @@ async fn mcp_compose_for_mentions(
     mention_ids: &[String],
     tool_mode: &str,
 ) -> (crate::compose::ComposeOutput, Vec<String>) {
-    let inst_rows = inst_list_cached();
+    let inst_rows = inst_list_for_turn(pool).await;
     let mentions = mention_list_enabled(pool).await;
     let resolved = mention_resolve_all(pool, owner_iid, mention_ids).await;
     let inst_mention_ids: Vec<String> = mention_ids

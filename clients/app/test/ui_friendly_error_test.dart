@@ -7,4 +7,13 @@ void main() {
     expect(uiFriendlyError(raw), uiCannotConnectToAlienAi);
     expect(uiIsConnectionError(raw), isTrue);
   });
+
+  test('uiFriendlyError maps a closed socket send to connection failed', () {
+    const raw = 'Bad state: Cannot add event after closing.';
+    expect(uiFriendlyError(raw), uiConnectionFailed);
+    expect(uiPromptErrorMessage(raw), uiConnectionFailed);
+    expect(uiIsConnectionError(raw), isTrue);
+    expect(uiFriendlyError('disconnected'), uiConnectionFailed);
+    expect(uiFriendlyError('Bad state: Connection failed'), uiConnectionFailed);
+  });
 }

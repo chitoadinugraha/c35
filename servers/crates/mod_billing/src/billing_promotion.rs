@@ -367,6 +367,12 @@ pub async fn billing_promotion_claim(
     } else {
         promotion_resolve_pools(&mut tx, &promo).await?
     };
+    let (trial_alien_5h, trial_alien_week, trial_frontier_5h, trial_frontier_week) =
+        if promo_type == "signup_trial" {
+            crate::billing_profile::signup_trial_ring_caps()
+        } else {
+            (0.0, 0.0, 0.0, 0.0)
+        };
 
     let duration_days = if promo_type == "signup_trial" {
         if i32_col(&promo, "duration_days") > 0 {
@@ -423,30 +429,68 @@ pub async fn billing_promotion_claim(
             new_id
         };
 
-        sqlx::query(
-            r#"
-            UPDATE ai.billing_profile
-            SET alien_pool_limit_idr = $2,
-                alien_pool_used_idr = 0,
-                frontier_pool_limit_idr = $3,
-                frontier_pool_used_idr = 0,
-                pool_period_start = NOW(),
-                trial_expires_ts = $4,
-                active_promotion_id = $5,
-                plan_tier = $6,
-                updated_ts = NOW()
-            WHERE id = $1
-            "#,
-        )
-        .bind(profile_id)
-        .bind(alien_pool)
-        .bind(frontier_pool)
-        .bind(expires_ts)
-        .bind(promo_id)
-        .bind(&plan_tier)
-        .execute(&mut *tx)
-        .await
-        .map_err(|e| e.to_string())?;
+        if promo_type == "signup_trial" {
+            sqlx::query(
+                r#"
+                UPDATE ai.billing_profile
+                SET alien_allow_5h_limit = $2,
+                    alien_allow_weekly_limit = $3,
+                    frontier_allow_5h_limit = $4,
+                    frontier_allow_weekly_limit = $5,
+                    alien_allow_5h_used = 0,
+                    alien_allow_weekly_used = 0,
+                    frontier_allow_5h_used = 0,
+                    frontier_allow_weekly_used = 0,
+                    alien_pool_limit_idr = 0,
+                    alien_pool_used_idr = 0,
+                    frontier_pool_limit_idr = 0,
+                    frontier_pool_used_idr = 0,
+                    window_5h_start = NOW(),
+                    window_weekly_start = NOW(),
+                    trial_expires_ts = $6,
+                    active_promotion_id = $7,
+                    plan_tier = $8,
+                    updated_ts = NOW()
+                WHERE id = $1
+                "#,
+            )
+            .bind(profile_id)
+            .bind(trial_alien_5h)
+            .bind(trial_alien_week)
+            .bind(trial_frontier_5h)
+            .bind(trial_frontier_week)
+            .bind(expires_ts)
+            .bind(promo_id)
+            .bind(&plan_tier)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| e.to_string())?;
+        } else {
+            sqlx::query(
+                r#"
+                UPDATE ai.billing_profile
+                SET alien_pool_limit_idr = $2,
+                    alien_pool_used_idr = 0,
+                    frontier_pool_limit_idr = $3,
+                    frontier_pool_used_idr = 0,
+                    pool_period_start = NOW(),
+                    trial_expires_ts = $4,
+                    active_promotion_id = $5,
+                    plan_tier = $6,
+                    updated_ts = NOW()
+                WHERE id = $1
+                "#,
+            )
+            .bind(profile_id)
+            .bind(alien_pool)
+            .bind(frontier_pool)
+            .bind(expires_ts)
+            .bind(promo_id)
+            .bind(&plan_tier)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| e.to_string())?;
+        }
     }
 
     let meta = if promo_type == "demo_trial" {
@@ -508,9 +552,9 @@ pub async fn billing_promotion_claim(
             plan_tier: plan_tier.clone(),
             default_wallet_currency: "IDR".into(),
             alien_allow_5h_used: 0.0,
-            alien_allow_5h_limit: 0.0,
+            alien_allow_5h_limit: if promo_type == "signup_trial" { trial_alien_5h } else { 0.0 },
             alien_allow_weekly_used: 0.0,
-            alien_allow_weekly_limit: 0.0,
+            alien_allow_weekly_limit: if promo_type == "signup_trial" { trial_alien_week } else { 0.0 },
             window_5h_start_ms: 0,
             window_weekly_start_ms: 0,
             commission_available_usd: 0.0,
@@ -518,9 +562,9 @@ pub async fn billing_promotion_claim(
             commission_available_idr: 0.0,
             commission_earned_idr: 0.0,
             updated_ts_ms: Utc::now().timestamp_millis(),
-            alien_pool_limit_idr: alien_pool,
+            alien_pool_limit_idr: if promo_type == "signup_trial" { 0.0 } else { alien_pool },
             alien_pool_used_idr: 0.0,
-            frontier_pool_limit_idr: frontier_pool,
+            frontier_pool_limit_idr: if promo_type == "signup_trial" { 0.0 } else { frontier_pool },
             frontier_pool_used_idr: 0.0,
             pool_period_start_ms: Utc::now().timestamp_millis(),
             trial_expires_ts_ms: expires_ts.timestamp_millis(),

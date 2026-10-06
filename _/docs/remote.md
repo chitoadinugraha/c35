@@ -467,10 +467,12 @@ Devices page → remote device row shows **two status dots** (trailing):
 
 | Dot | Position | Meaning |
 |-----|----------|---------|
-| Left | WebRTC | App ↔ device **data plane** (screen, files, media) |
-| Right | Alien AI Cloud | Agent ↔ server **control plane** (presence, tasks) |
+| Left | Alien AI Cloud | Agent ↔ server **control plane** (presence, tasks) |
+| Right | WebRTC | App ↔ device **data plane** (screen, files, media) |
 
-### WebRTC dot colors (left) — connect-first (LOCKED)
+When Alien AI Cloud is down, the type subtitle is replaced with **Device is offline** (tooltip on the cloud dot matches). Remote and Files show **Refresh** (reloads device presence) instead of **Connect**.
+
+### WebRTC dot colors (right) — connect-first (LOCKED)
 
 WebRTC **never** auto-starts when the user opens a device. User taps **Connect** (device toolbar, Remote tab, or Files **Connect**). Colors match `UiDeviceRow` / `RemoteSessionStatus`:
 
@@ -483,14 +485,14 @@ WebRTC **never** auto-starts when the user opens a device. User taps **Connect**
 
 Tooltip copy: grey = “Not connected — tap Connect in device view”; orange = “Connecting (WebRTC)”; green = “Connected (WebRTC)”; red = “Could not connect (WebRTC)”.
 
-### Cloud dot colors (right)
+### Cloud dot colors (left)
 
 | Color | When |
 |-------|------|
 | **Green** | Agent control session online (`meta.last_seen_ts_ms` fresh, or `meta.online`) |
-| **Grey** | Agent offline or stale presence |
+| **Grey** | Agent offline or stale presence. Row subtitle and tooltip: **Device is offline** |
 
-Presence updates: server writes `ai.identity.meta` on agent WS connect/disconnect and pushes `DevicePresencePush` on `c35.user.{owner_iid}.app.device_presence` (app WS fanout). Devices page applies push locally; full `identity_list` reconcile every **5 min** as backup (not 30s poll). See [sync.md](sync.md).
+Presence updates: server writes `ai.identity.meta` on agent WS connect/disconnect, **~30s NATS heartbeats** while the control socket is up (`DevicePresencePush` on `c35.user.{owner_iid}.app.device_presence`, app WS fanout). YB `last_seen_ts_ms` is refreshed on connect and every ~60s during the session. Devices page applies push locally; full `identity_list` reconcile every **5 min** as backup. See [sync.md](sync.md).
 
 Device detail tabs per [ui.md](ui.md):
 

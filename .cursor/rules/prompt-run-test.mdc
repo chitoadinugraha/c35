@@ -1,66 +1,89 @@
 ---
-description: Use MCP prompt_run to verify prompt/tool behavior before claiming a fix works
+description: MCP verify prompt fixes; steer via ai.inst — web.search/visit exempt from no-hardcode rule
 alwaysApply: true
 ---
 
-# Prompt run testing (MCP)
+# Prompt pipeline verification (MCP)
 
-Mirrored for Antigravity: [`.agents/rules/prompt-run-test.md`](../../.agents/rules/prompt-run-test.md)
+Mirrored for Antigravity: [`.agents/rules/prompt-run-test.md`](../../.agents/rules/prompt-run-test.md). Spec: [`_/docs/inst.md`](../../_/docs/inst.md).
 
-After changing **inst**, **tool selection**, **consumption/expense tools**, or **compose/RAG** behavior, verify with the **`c35` MCP `prompt_run`** tool (not just reading code).
+## Hard rule (verify)
 
-## When to run
+When fixing **wrong chat results**, **tool not called**, **wrong blocks/UI**, **inst/compose/RAG**, or any **prompt-turn** bug:
 
-- Fixed wrong tool fed / missing tool call
-- Added or changed `inst` phrases / triggers
-- Changed tool descriptions, `rag_phrases`, or vector index
-- User reports "AI should have called X but didn't"
+1. Reproduce — **exact user phrase**, or `msg_get` / `trace_get` on failing `msg_id`.
+2. Fix in the **right layer** (below) — not a one-off string in `prompt_turn.rs`.
+3. **`prompt_compose`** while iterating; **`prompt_run`** before **fixed / ready to test**.
 
-## How to run
+| MCP tool | Use |
+|----------|-----|
+| `prompt_compose` | `inst_ids`, `inst_block`, `selected_tools` — no LLM |
+| `prompt_run` | Full turn: tool hop, `blocks_json`, `text`, `trace` |
 
-```
-prompt_run {
-  text: "<exact user phrase>",
-  locale: "id-ID",
-  owner_iid: 99000   // chito — real consumption/expense data
-}
-```
+`owner_iid`: **99000** app-like · **33000** seed regression. Only those two on `/v1/mcp/agent`.
 
-| owner_iid | Use |
-|-----------|-----|
-| **33000** (default) | Automated regression, seeds, no production side effects |
-| **99000** (`uid` alias ok) | Chito's real data — consumption, billing, app-like behavior |
+## Where steering lives (do not hardcode)
 
-`prompt_compose` — faster check for **inst + tool filter only** (no LLM). Use first when iterating on RAG.
+| What | Where | Not here |
+|------|--------|----------|
+| **When** to call a tool, reply shape, exclusions | **`ai.inst`** — `phrases`, `inst` body, `include_tools`, `exclude_tools` | Rust system prompt strings, `prompt_turn` one-offs |
+| **What** the tool does (API, params) | **`ToolDefinition`** — `description`, JSON schema | Duplicated paragraphs in inst (inst = *when/how*, tool desc = *what*) |
+| **Discovery** (RAG / filter) | Tool `topics`, `always`, **`rag_phrases`** | Extra keywords only in inst unless steering |
+| Baseline persona | **`inst.core.assistant`** (`trigger: always`) in DB | Removed `inst!` Rust macros |
+| Topic inheritance | **`ai.topic.inst`** chain | Ad-hoc topic text in code |
+| Bot voice | **`identity.meta_json.inst_base`** | Home assistant pipeline |
 
-## Read the response
+**Never add new steering in Rust/Dart for Home compose** except:
 
-`prompt_run` returns:
+1. **Mechanical context** — time/location/memory merge, tool-round wrapup hints  
+2. **Web tools only** — see **Excluded: web pipeline** below  
 
-| Field | Check |
-|-------|--------|
-| `text` | Assistant reply — correct tone, no hallucinated "no data" when tool ran |
-| `blocks_json` | UI blocks (meal cards, expense receipts) |
-| `thought` | Which tool the model chose |
-| `trace.lines` | Compact turn log (tool filter, prepare, llm_call, tool exec) |
-| `trace.trace[].meta` | `trace_tool_filter` candidates (`fed`, `sim`, `ranker`), compose inst_ids |
+Everything else: **`inst.sql` + live `inst_put`**, tool metadata, **`compose_force_*_tool_call`** (not Rust phrase lists or `reply_rule` in tool JSON).
 
-**Assert:**
+### Excluded: web pipeline (`web.search`, `web.visit`, `web.research`)
 
-1. `trace` contains `system/trace_tool_filter` with expected tool **fed: true**
-2. If answer needs data, `trace` contains `tool/` or `llm` hop after tool call — not LLM-only on first hop
-3. `text` matches tool result (empty history → "belum ada catatan", not "saya tidak bisa akses")
+These tools are **exempt from the no-hardcode steering rule**. Shared Rust orchestration is intentional; do not move into `ai.inst` or delete when auditing hardcoded prompts.
 
-## If prompt_run fails
+| Rust (keep) | Role |
+|-------------|------|
+| `WEB_GROUNDED_REPLY_RULE` | Anti-placeholder when `compose_force_web_tool_call` |
+| `user_wants_search` | Prefetch / defer pairing with `inst.web_search` and catalog |
+| Pre-hop `web.search` / chained `web.visit` in `tool_loop.rs` | Grounding before LLM hop 1 |
+| `pick_visit_url` | Visit target after search |
+| `catalog_web_*` | Site catalog phases keyed off `inst.site.catalog.*` |
 
-- `404` / unauthorized → `C35_MCP_AGENT_ENABLED=1`, `C35_MCP_AGENT_KEY` on server_ai; reload MCP
-- Wrong owner → only **33000** and **99000** allowed on `/v1/mcp/agent`
-- Still wrong tool → `prompt_compose` same text → inspect `trace.ranker`, `trace.candidates`, `selected_tools`
+**Still use `ai.inst` for web:** `inst.web_search` (phrases, when to search, local city in query, `include_tools` / `exclude_tools`). Inst steers *intent*; Rust runs the *pipeline*.
+
+**All other tools** (presentation, consumption, expense, site.create, gsheet, device, …): no Rust phrase prefetch, no steering in tool result JSON — **`ai.inst`** + **`compose_force_*`** only.
+
+**Inst enrich** — facts only, not steering.
+
+## Fixing missing or wrong tools
+
+Use **`prompt_compose`** on the failing phrase and read `inst_ids` + `selected_tools` + trace candidates (`fed`, `sim`).
+
+| Symptom | Check first | Fix |
+|---------|-------------|-----|
+| **`inst_ids: []`** (no `inst.core.assistant`) | Inst cache empty / pod | `inst_list_for_turn` reload; rollout; boot `inst_cache_init` |
+| Phrase should match, no `inst.*` | `phrases[]` substring, `kind`, `scope`, `topics[]` | Update row; **`inst_put` live** (git seed alone is not live) |
+| Tool never in catalog | Tool `topics` / `always` vs `active_topics` | Tool def metadata; compose `compose_inject_force_tools` via **`include_tools`** |
+| Tool in catalog, not **fed** | RAG rank, `rag_phrases`, `exclude_tools` | Extend `rag_phrases`; inst `include_tools`; drop rivals with `exclude_tools` |
+| Tool **fed**, model skips hop 1 | Weak `inst` body | Inst + **`compose_force_*_tool_call`** (non-web only; web uses web pipeline above) |
+| Wrong tool wins | Competing inst / general web force | `exclude_tools` on winning inst; priority |
+
+Debug order: **infra** → **eligibility** → **inst** → **RAG** → **inst wording / force_***. For web misses, check **inst.web_search** *and* prefetch/defer in Rust — not inst-only.
+
+New Home tool: **`ToolDefinition` + `inst.sql` + live `ai.inst` row**. Stable **`description`**; extra match language in **`rag_phrases`**.
+
+## Assert on `prompt_run`
+
+1. Expected tool **`fed: true`** in `trace_tool_filter`
+2. Hop 1 **`tool/`** when UI/data comes from a tool (not prose-only)
+3. **`blocks_json`** — e.g. `presentation.deck`, meal/expense blocks
+4. **`text`** matches tool result (no false "no access" / empty-data)
 
 ## Do not skip
 
-Do not claim "fixed" or "should work now" for prompt/tool bugs without at least **`prompt_compose`** on the failing phrase. Prefer **`prompt_run`** when the bug is "model didn't call tool" or wrong answer text.
+No **fixed** claim without at least **`prompt_compose`** on the failing phrase; **`prompt_run`** for tool-call and chat-result bugs.
 
-New Home-routable tool: `ToolDefinition` + `inst.sql` + a live `ai.inst` row (a git seed is not live). Keep the tool description stable; put extra match text in `rag_phrases`.
-
-Wrong tool: topic eligibility, then tool metadata, then inst. Do not start at inst.
+MCP errors: `C35_MCP_AGENT_ENABLED=1`, `C35_MCP_AGENT_KEY` on server_ai; reload MCP.

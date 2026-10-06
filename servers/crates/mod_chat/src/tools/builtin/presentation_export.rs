@@ -179,7 +179,7 @@ tool! {
     parameters: {
         slides_markdown: (string, "Markdown or Marp formatted text representing the complete slide deck, where each slide is separated by '---'.", required),
         title: (string, "Presentation title used on the title slide and for the file download name.", optional, default = "Presentation"),
-        theme: (string, "Visual theme: 'dark' (default Alien AI dark neon), 'light' (clean white/slate), or 'corporate' (navy/emerald).", optional, default = "dark"),
+        theme: (string, "Visual theme: 'dark' (cyber/tech/gaming), 'midnight' (software/executive), 'emerald' (business/corporate/finance), 'sunset' (dating/romance/lifestyle), 'ocean' (science/maritime/cloud), 'ruby' (passion/food/arts), 'gold' (luxury/awards/prestige), 'arctic' (academic/formal daylight light-mode), 'lavender' (creative/design/AI), 'cream' (editorial/warm paper), 'monochrome' (bauhaus b&w/minimal), 'forest' (nature/botanical/sustainability), 'sakura' (soft blossom/beauty), 'cyberpunk' (synthwave/nightlife/crypto), 'coffee' (artisan/cafe/history), 'aurora' (boreal teal/clean data). Pick the most suitable theme matching topic tone, or respect user preference.", optional, default = "dark"),
     },
     execute: |args, ctx| {
         let slides_markdown = args["slides_markdown"].as_str().unwrap_or_default();
@@ -304,7 +304,7 @@ tool! {
     parameters: {
         title: (string, "Presentation title", required),
         slides_markdown: (string, "Slide markdown text where each slide is separated by '---'. Each slide starts with a bold heading '# Slide Title' and bullet points.", optional, default = ""),
-        theme: (string, "Visual theme: 'dark' (default Alien AI dark neon), 'light', or 'corporate'", optional, default = "dark"),
+        theme: (string, "Visual theme: 'dark' (cyber/tech/gaming), 'midnight' (software/executive), 'emerald' (business/corporate/finance), 'sunset' (dating/romance/lifestyle), 'ocean' (science/maritime/cloud), 'ruby' (passion/food/arts), 'gold' (luxury/awards/prestige), 'arctic' (academic/formal daylight light-mode), 'lavender' (creative/design/AI), 'cream' (editorial/warm paper), 'monochrome' (bauhaus b&w/minimal), 'forest' (nature/botanical/sustainability), 'sakura' (soft blossom/beauty), 'cyberpunk' (synthwave/nightlife/crypto), 'coffee' (artisan/cafe/history), 'aurora' (boreal teal/clean data). Pick the most suitable theme matching topic tone, or respect user preference.", optional, default = "dark"),
     },
     execute: |args, _ctx| {
         let title = args["title"].as_str().unwrap_or("Presentation").trim();

@@ -15,15 +15,11 @@ pub async fn billing_notify_owner(
         r#"
         SELECT id, balance_usd::float8 AS balance_usd, balance_idr::float8 AS balance_idr,
                billing_currency,
-               alien_allow_5h_used::float8 AS alien_allow_5h_used,
-               alien_allow_5h_limit::float8 AS alien_allow_5h_limit,
-               alien_allow_weekly_used::float8 AS alien_allow_weekly_used,
-               alien_allow_weekly_limit::float8 AS alien_allow_weekly_limit,
                commission_available_usd::float8 AS commission_available_usd,
                commission_earned_usd::float8 AS commission_earned_usd,
                commission_available_idr::float8 AS commission_available_idr,
                commission_earned_idr::float8 AS commission_earned_idr,
-               window_5h_start, window_weekly_start, updated_ts
+               updated_ts
         FROM ai.billing_account
         WHERE owner_iid = $1 AND deleted_ts IS NULL
         LIMIT 1
@@ -38,9 +34,19 @@ pub async fn billing_notify_owner(
     let Some(row) = row else { return };
 
     let freemium = crate::billing_freemium::billing_freemium_wire(pool, owner_iid).await;
-    let profile_ts = sqlx::query_as::<_, (Option<chrono::DateTime<chrono::Utc>>, Option<chrono::DateTime<chrono::Utc>>)>(
+    let profile_row = sqlx::query(
         r#"
-        SELECT trial_expires_ts, plan_expires_ts
+        SELECT trial_expires_ts, plan_expires_ts,
+               COALESCE(alien_allow_5h_used::float8, 0.0) AS alien_allow_5h_used,
+               COALESCE(alien_allow_5h_limit::float8, 0.0) AS alien_allow_5h_limit,
+               COALESCE(alien_allow_weekly_used::float8, 0.0) AS alien_allow_weekly_used,
+               COALESCE(alien_allow_weekly_limit::float8, 0.0) AS alien_allow_weekly_limit,
+               COALESCE(frontier_allow_5h_used::float8, 0.0) AS frontier_allow_5h_used,
+               COALESCE(frontier_allow_5h_limit::float8, 0.0) AS frontier_allow_5h_limit,
+               COALESCE(frontier_allow_weekly_used::float8, 0.0) AS frontier_allow_weekly_used,
+               COALESCE(frontier_allow_weekly_limit::float8, 0.0) AS frontier_allow_weekly_limit,
+               window_5h_start, window_weekly_start,
+               pool_period_start
         FROM ai.billing_profile
         WHERE owner_iid = $1 AND deleted_ts IS NULL
         LIMIT 1
@@ -50,13 +56,18 @@ pub async fn billing_notify_owner(
     .fetch_optional(pool)
     .await
     .ok()
-    .flatten()
-    .unwrap_or((None, None));
+    .flatten();
 
     let account_id: i64 = row.get("id");
     let updated: chrono::DateTime<chrono::Utc> = row.get("updated_ts");
-    let w5: chrono::DateTime<chrono::Utc> = row.get("window_5h_start");
-    let ww: chrono::DateTime<chrono::Utc> = row.get("window_weekly_start");
+    let w5 = profile_row
+        .as_ref()
+        .map(|r| r.get::<chrono::DateTime<chrono::Utc>, _>("window_5h_start"))
+        .unwrap_or_else(|| updated);
+    let ww = profile_row
+        .as_ref()
+        .map(|r| r.get::<chrono::DateTime<chrono::Utc>, _>("window_weekly_start"))
+        .unwrap_or_else(|| updated);
 
     let currency: String = row.get("billing_currency");
     let balance_usd: f64 = row.get("balance_usd");
@@ -72,24 +83,28 @@ pub async fn billing_notify_owner(
         balance: primary_balance,
     };
     let quota = BillingPushQuota {
-        alien_allow_5h_used: row.get("alien_allow_5h_used"),
-        alien_allow_5h_limit: row.get("alien_allow_5h_limit"),
-        alien_allow_weekly_used: row.get("alien_allow_weekly_used"),
-        alien_allow_weekly_limit: row.get("alien_allow_weekly_limit"),
+        alien_allow_5h_used: profile_row.as_ref().map(|r| r.get("alien_allow_5h_used")).unwrap_or(0.0),
+        alien_allow_5h_limit: profile_row.as_ref().map(|r| r.get("alien_allow_5h_limit")).unwrap_or(0.0),
+        alien_allow_weekly_used: profile_row.as_ref().map(|r| r.get("alien_allow_weekly_used")).unwrap_or(0.0),
+        alien_allow_weekly_limit: profile_row.as_ref().map(|r| r.get("alien_allow_weekly_limit")).unwrap_or(0.0),
         window_5h_start_ms: w5.timestamp_millis(),
         window_weekly_start_ms: ww.timestamp_millis(),
         alien_pool_limit_idr: 0.0,
         alien_pool_used_idr: 0.0,
         frontier_pool_limit_idr: 0.0,
         frontier_pool_used_idr: 0.0,
-        pool_period_start_ms: 0,
-        trial_expires_ts_ms: profile_ts.0.map(|t| t.timestamp_millis()).unwrap_or(0),
+        pool_period_start_ms: profile_row.as_ref().and_then(|r| r.get::<Option<chrono::DateTime<chrono::Utc>>, _>("pool_period_start")).map(|t| t.timestamp_millis()).unwrap_or(0),
+        trial_expires_ts_ms: profile_row.as_ref().and_then(|r| r.get::<Option<chrono::DateTime<chrono::Utc>>, _>("trial_expires_ts")).map(|t| t.timestamp_millis()).unwrap_or(0),
         freemium_active: freemium.active,
         freemium_msgs_used: freemium.msgs_used,
         freemium_msgs_limit: freemium.msgs_limit,
         freemium_tokens_used: freemium.tokens_used,
         freemium_tokens_limit: freemium.tokens_limit,
-        plan_expires_ts_ms: profile_ts.1.map(|t| t.timestamp_millis()).unwrap_or(0),
+        plan_expires_ts_ms: profile_row.as_ref().and_then(|r| r.get::<Option<chrono::DateTime<chrono::Utc>>, _>("plan_expires_ts")).map(|t| t.timestamp_millis()).unwrap_or(0),
+        frontier_allow_5h_used: profile_row.as_ref().map(|r| r.get("frontier_allow_5h_used")).unwrap_or(0.0),
+        frontier_allow_5h_limit: profile_row.as_ref().map(|r| r.get("frontier_allow_5h_limit")).unwrap_or(0.0),
+        frontier_allow_weekly_used: profile_row.as_ref().map(|r| r.get("frontier_allow_weekly_used")).unwrap_or(0.0),
+        frontier_allow_weekly_limit: profile_row.as_ref().map(|r| r.get("frontier_allow_weekly_limit")).unwrap_or(0.0),
     };
     let commission = BillingPushCommission {
         commission_available_usd: row.get("commission_available_usd"),

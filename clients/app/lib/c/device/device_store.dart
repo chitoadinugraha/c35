@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:alienai_c35/c/api/referral_conn.dart';
 import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/device/device_api.dart';
+import 'package:alienai_c35/c/device/device_presence_cache.dart';
 import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/c/remote/remote_session.dart';
 import 'package:alienai_c35/c/pb/c35/device.pb.dart';
@@ -135,6 +136,7 @@ class DeviceStore extends ChangeNotifier {
   }
 
   void applyPresencePush(DevicePresencePush push) {
+    DevicePresenceCache.instance.apply(push);
     final id = push.deviceIid.toString();
     final i = _rows.indexWhere((r) => r.identity.iid.toString() == id);
     if (i < 0) {
@@ -142,12 +144,10 @@ class DeviceStore extends ChangeNotifier {
       return;
     }
     final row = _rows[i];
-    final identity = row.identity;
+    final identity = row.identity.clone()..metaJson = push.metaJson;
+    if (push.updatedTsMs > Int64.ZERO) identity.updatedTsMs = push.updatedTsMs;
     _rows[i] = IdentityListRow(
-      identity: identity.rebuild((b) {
-        b.metaJson = push.metaJson;
-        if (push.updatedTsMs > Int64.ZERO) b.updatedTsMs = push.updatedTsMs;
-      }),
+      identity: identity,
       grantRole: row.grantRole,
       isPinned: row.isPinned,
       sortOrder: row.sortOrder,
@@ -172,6 +172,9 @@ class DeviceStore extends ChangeNotifier {
         ..clear()
         ..addAll(res.rows);
       _sortRows();
+      DevicePresenceCache.instance.metasPut({
+        for (final row in _rows) row.identity.iid.toString(): row.identity.metaJson,
+      });
       if (_selectedId != null && rowById(_selectedId) == null) _selectedId = null;
       if (_selectedId == null && _rows.isNotEmpty) _selectedId = _rows.first.identity.iid.toString();
       await deviceListCacheSave(Session.instance.uid, _rows);

@@ -144,7 +144,12 @@ class _UiBrowserTabStripState extends State<UiBrowserTabStrip> {
   void _setLoading(bool loading) {
     if (_loading == loading) return;
     setState(() => _loading = loading);
-    widget.onLoadingChanged?.call(loading);
+    final cb = widget.onLoadingChanged;
+    if (cb == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _loading != loading) return;
+      cb(loading);
+    });
   }
 
   Future<void> _refresh({bool retryOnEngine = false}) async {

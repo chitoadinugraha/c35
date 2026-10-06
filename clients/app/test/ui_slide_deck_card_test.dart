@@ -35,7 +35,7 @@ Trik memasak mie instan favorit untuk hasil kenyal maksimal.
 
       // Verify collapsed small card content
       expect(find.text('Cara Memasak Indomie Sempurna'), findsOneWidget);
-      expect(find.text('3 slides • 3 Oct, 6:11 am'), findsOneWidget);
+      expect(find.text('3 slides • Dark Neon • 3 Oct, 6:11 am'), findsOneWidget);
       expect(find.text('Open'), findsOneWidget);
       expect(find.byIcon(Icons.slideshow_rounded), findsOneWidget);
 
@@ -79,12 +79,12 @@ Trik memasak mie instan favorit untuk hasil kenyal maksimal.
 
       await tester.tap(find.byIcon(Icons.menu_rounded));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Collapse Preview'));
+      await tester.tap(find.text('Minimize'));
       await tester.pumpAndSettle();
 
       // Returns to collapsed small card
       expect(find.text('Open'), findsOneWidget);
-      expect(find.text('3 slides • 3 Oct, 6:11 am'), findsOneWidget);
+      expect(find.text('3 slides • Dark Neon • 3 Oct, 6:11 am'), findsOneWidget);
     });
 
     testWidgets('opens deck menu and theme dialog updates deck theme', (tester) async {

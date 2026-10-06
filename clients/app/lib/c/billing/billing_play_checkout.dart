@@ -41,7 +41,7 @@ Future<ResBillingPlayVerify> billingPlayPurchaseAndVerify(
 
   final verified = await billingPlayVerify(conn, productId: productId, purchaseToken: token);
   if (purchase.pendingCompletePurchase) await iap.completePurchase(purchase);
-  if (verified.balanceIdr > 0) await billingStoreRefresh(conn);
+  await billingStoreRefresh(conn);
   return verified;
 }
 

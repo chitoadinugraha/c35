@@ -1,6 +1,7 @@
 import 'package:alienai_c35/c/account/account_api.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/settings/ui_settings_tile.dart';
+import 'package:alienai_c35/widgets/ui/ui_input_decoration.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -45,11 +46,11 @@ class _UiSettingsPinState extends State<UiSettingsPin> {
               width: 340,
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 if (_hasPin)
-                  TextField(controller: currentCtrl, obscureText: true, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], style: const TextStyle(color: Color(0xFFF4F4F5)), decoration: InputDecoration(labelText: 'settings.currentPin'.tr()), onChanged: (_) => setDialogState(() {})),
+                  TextField(controller: currentCtrl, obscureText: true, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], style: const TextStyle(color: Color(0xFFF4F4F5)), decoration: UiInputDecoration.of(ctx, labelText: 'settings.currentPin'.tr()), onChanged: (_) => setDialogState(() {})),
                 if (_hasPin) const SizedBox(height: 12),
-                TextField(controller: pinCtrl, obscureText: true, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], style: const TextStyle(color: Color(0xFFF4F4F5)), decoration: InputDecoration(labelText: 'settings.newPin'.tr(), errorText: newPin.isNotEmpty && !pinOk ? 'settings.pinMinError'.tr() : null), onChanged: (_) => setDialogState(() {})),
+                TextField(controller: pinCtrl, obscureText: true, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], style: const TextStyle(color: Color(0xFFF4F4F5)), decoration: UiInputDecoration.of(ctx, labelText: 'settings.newPin'.tr()).copyWith(errorText: newPin.isNotEmpty && !pinOk ? 'settings.pinMinError'.tr() : null), onChanged: (_) => setDialogState(() {})),
                 const SizedBox(height: 12),
-                TextField(controller: confirmCtrl, obscureText: true, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], style: const TextStyle(color: Color(0xFFF4F4F5)), decoration: InputDecoration(labelText: 'settings.confirmPin'.tr(), errorText: confirm.isNotEmpty && !match ? 'settings.pinMismatch'.tr() : null), onChanged: (_) => setDialogState(() {})),
+                TextField(controller: confirmCtrl, obscureText: true, keyboardType: TextInputType.number, inputFormatters: [FilteringTextInputFormatter.digitsOnly], style: const TextStyle(color: Color(0xFFF4F4F5)), decoration: UiInputDecoration.of(ctx, labelText: 'settings.confirmPin'.tr()).copyWith(errorText: confirm.isNotEmpty && !match ? 'settings.pinMismatch'.tr() : null), onChanged: (_) => setDialogState(() {})),
               ]),
             ),
             actions: [

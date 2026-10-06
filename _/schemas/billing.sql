@@ -588,6 +588,10 @@ ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS pending_plan_slug VARCHA
 ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS pending_billing_period VARCHAR(16);
 ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS freemium_msgs_used INT NOT NULL DEFAULT 0;
 ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS freemium_tokens_used INT NOT NULL DEFAULT 0;
+ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS frontier_allow_5h_used NUMERIC(12, 6) NOT NULL DEFAULT 0;
+ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS frontier_allow_5h_limit NUMERIC(12, 6) NOT NULL DEFAULT 0;
+ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS frontier_allow_weekly_used NUMERIC(12, 6) NOT NULL DEFAULT 0;
+ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS frontier_allow_weekly_limit NUMERIC(12, 6) NOT NULL DEFAULT 0;
 
 -- ------------------------------------------------------------------------------
 -- v2: Wallet (native balance per owner_iid + currency)

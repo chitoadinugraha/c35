@@ -1,10 +1,11 @@
+import 'package:alienai_c35/c/stt/stt_service.dart';
 import 'package:alienai_c35/widgets/ai/ui_audio_waveform.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   testWidgets('UiAudioWaveform displays duration timer and triggers cancel / commit', (tester) async {
-    final recordingSeconds = ValueNotifier<int>(65);
+    final recordingElapsedMs = ValueNotifier<int>(65000);
     final amplitude = ValueNotifier<double>(0.75);
     final amplitudeHistory = ValueNotifier<List<double>>([0.2, 0.5, 0.75]);
     var cancelled = false;
@@ -14,7 +15,7 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: UiAudioWaveform(
-            recordingSeconds: recordingSeconds,
+            recordingElapsedMs: recordingElapsedMs,
             amplitude: amplitude,
             amplitudeHistory: amplitudeHistory,
             onCancel: () => cancelled = true,
@@ -24,24 +25,40 @@ void main() {
       ),
     );
 
-    // 65 seconds -> 01:05
-    expect(find.text('01:05'), findsOneWidget);
+    expect(find.text('01:05.000'), findsOneWidget);
+    expect(find.text('/ 00:30.000'), findsOneWidget);
 
-    // Tap cancel button (Icons.close_rounded)
     await tester.tap(find.byIcon(Icons.close_rounded));
     expect(cancelled, isTrue);
 
-    // Tap commit button (Icons.arrow_upward_rounded)
     await tester.tap(find.byIcon(Icons.arrow_upward_rounded));
     expect(committed, isTrue);
   });
 
-  testWidgets('UiAudioWaveform shows cloud icon when transcribing with cloud engine', (tester) async {
+  testWidgets('UiAudioWaveform shows talk max duration cap', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
           body: UiAudioWaveform(
-            recordingSeconds: ValueNotifier(5),
+            recordingElapsedMs: ValueNotifier(1000),
+            amplitude: ValueNotifier(0.5),
+            maxRecordingSeconds: SttService.maxRecordingSecondsTalk,
+            onCancel: () {},
+            onCommit: () {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('/ 01:00.000'), findsOneWidget);
+  });
+
+  testWidgets('UiAudioWaveform shows spinner while transcribing', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: UiAudioWaveform(
+            recordingElapsedMs: ValueNotifier(5000),
             amplitude: ValueNotifier(0.5),
             isTranscribing: ValueNotifier(true),
             engine: 'cloud',
@@ -52,36 +69,16 @@ void main() {
       ),
     );
 
-    expect(find.byIcon(Icons.cloud_outlined), findsOneWidget);
-    expect(find.text('Recognizing…'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsWidgets);
+    expect(find.byIcon(Icons.arrow_upward_rounded), findsNothing);
   });
 
-  testWidgets('UiAudioWaveform shows web icon when transcribing with web engine', (tester) async {
+  testWidgets('UiAudioWaveform shows preparing state without elapsed timer', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
           body: UiAudioWaveform(
-            recordingSeconds: ValueNotifier(5),
-            amplitude: ValueNotifier(0.5),
-            isTranscribing: ValueNotifier(true),
-            engine: 'web',
-            onCancel: () {},
-            onCommit: () {},
-          ),
-        ),
-      ),
-    );
-
-    expect(find.byIcon(Icons.language_outlined), findsOneWidget);
-    expect(find.text('Recognizing…'), findsOneWidget);
-  });
-
-  testWidgets('UiAudioWaveform shows preparing state without timer', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: UiAudioWaveform(
-            recordingSeconds: ValueNotifier(0),
+            recordingElapsedMs: ValueNotifier(0),
             amplitude: ValueNotifier(0.0),
             isPreparing: ValueNotifier(true),
             engine: 'web',
@@ -92,27 +89,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Preparing…'), findsOneWidget);
-    expect(find.text('00:00'), findsNothing);
-  });
-
-  testWidgets('UiAudioWaveform shows device icon when transcribing with local engine', (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: UiAudioWaveform(
-            recordingSeconds: ValueNotifier(5),
-            amplitude: ValueNotifier(0.5),
-            isTranscribing: ValueNotifier(true),
-            engine: 'local',
-            onCancel: () {},
-            onCommit: () {},
-          ),
-        ),
-      ),
-    );
-
-    expect(find.byIcon(Icons.devices_outlined), findsOneWidget);
-    expect(find.text('Recognizing…'), findsOneWidget);
+    expect(find.text('composer.preparing'), findsOneWidget);
+    expect(find.text('00:00.000'), findsNothing);
   });
 }

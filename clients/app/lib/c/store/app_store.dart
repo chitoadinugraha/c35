@@ -11,6 +11,10 @@ class WalletRow {
     this.allow5hLimit = 0,
     this.allowWeeklyUsed = 0,
     this.allowWeeklyLimit = 0,
+    this.frontierAllow5hUsed = 0,
+    this.frontierAllow5hLimit = 0,
+    this.frontierAllowWeeklyUsed = 0,
+    this.frontierAllowWeeklyLimit = 0,
     this.billingCurrency = 'IDR',
     this.fxMicroPerUsd = 17630000000,
   });
@@ -21,6 +25,10 @@ class WalletRow {
   final double allow5hLimit;
   final double allowWeeklyUsed;
   final double allowWeeklyLimit;
+  final double frontierAllow5hUsed;
+  final double frontierAllow5hLimit;
+  final double frontierAllowWeeklyUsed;
+  final double frontierAllowWeeklyLimit;
   final String billingCurrency;
   final int fxMicroPerUsd;
 }
@@ -30,6 +38,7 @@ class AppStore extends ChangeNotifier {
   static final AppStore instance = AppStore._();
 
   BillingAccount? billing;
+  BillingPushQuota? quota;
   var thisPcOnRail = false;
   var thisPcPending = false;
 
@@ -43,6 +52,10 @@ class AppStore extends ChangeNotifier {
       allow5hLimit: b.alienAllow5hLimit,
       allowWeeklyUsed: b.alienAllowWeeklyUsed,
       allowWeeklyLimit: b.alienAllowWeeklyLimit,
+      frontierAllow5hUsed: b.frontierAllow5hUsed,
+      frontierAllow5hLimit: b.frontierAllow5hLimit,
+      frontierAllowWeeklyUsed: b.frontierAllowWeeklyUsed,
+      frontierAllowWeeklyLimit: b.frontierAllowWeeklyLimit,
       billingCurrency: b.billingCurrency.isNotEmpty ? b.billingCurrency : 'IDR',
       fxMicroPerUsd: b.hasFxMicroPerUsd() ? b.fxMicroPerUsd.toInt() : 17630000000,
     );
@@ -74,7 +87,11 @@ class AppStore extends ChangeNotifier {
   }
 
   void billingQuotaPush(BillingPushQuota push) {
-    if (billing == null) return;
+    quota = push;
+    if (billing == null) {
+      notifyListeners();
+      return;
+    }
     billing = billingAccountMerge(billing!, quota: push);
     notifyListeners();
   }
@@ -93,6 +110,10 @@ class AppStore extends ChangeNotifier {
       alienAllow5hLimit: row.allow5hLimit,
       alienAllowWeeklyUsed: row.allowWeeklyUsed,
       alienAllowWeeklyLimit: row.allowWeeklyLimit,
+      frontierAllow5hUsed: row.frontierAllow5hUsed,
+      frontierAllow5hLimit: row.frontierAllow5hLimit,
+      frontierAllowWeeklyUsed: row.frontierAllowWeeklyUsed,
+      frontierAllowWeeklyLimit: row.frontierAllowWeeklyLimit,
       billingCurrency: row.billingCurrency,
       fxMicroPerUsd: Int64(row.fxMicroPerUsd),
     );

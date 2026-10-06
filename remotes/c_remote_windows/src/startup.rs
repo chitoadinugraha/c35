@@ -35,6 +35,19 @@ pub fn is_autostart_enabled() -> bool {
 }
 
 #[cfg(windows)]
+pub fn ensure_autostart_when_paired(paired: bool) {
+    if !paired {
+        return;
+    }
+    if let Err(e) = set_autostart_enabled(true) {
+        tracing::warn!(error = %e, "failed to register Windows logon autostart (HKCU Run)");
+    }
+}
+
+#[cfg(not(windows))]
+pub fn ensure_autostart_when_paired(_paired: bool) {}
+
+#[cfg(windows)]
 pub fn set_autostart_enabled(enabled: bool) -> Result<()> {
     use windows::Win32::System::Registry::{
         RegCloseKey, RegDeleteValueW, RegOpenKeyExW, RegSetValueExW, HKEY_CURRENT_USER, KEY_WRITE,

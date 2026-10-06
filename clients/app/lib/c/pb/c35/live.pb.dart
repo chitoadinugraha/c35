@@ -237,11 +237,15 @@ class ReqLiveStart extends $pb.GeneratedMessage {
     $core.String? offerId,
     $core.String? locale,
     $core.String? reqId,
+    $fixnum.Int64? chatId,
+    $core.Iterable<$core.String>? mentionIds,
   }) {
     final result = ReqLiveStart._();
     if (offerId != null) result.offerId = offerId;
     if (locale != null) result.locale = locale;
     if (reqId != null) result.reqId = reqId;
+    if (chatId != null) result.chatId = chatId;
+    if (mentionIds != null) result.mentionIds.addAll(mentionIds);
     return result;
   }
 
@@ -261,6 +265,8 @@ class ReqLiveStart extends $pb.GeneratedMessage {
     ..aOS(1, _omitFieldNames ? '' : 'offerId')
     ..aOS(2, _omitFieldNames ? '' : 'locale')
     ..aOS(3, _omitFieldNames ? '' : 'reqId')
+    ..aInt64(4, _omitFieldNames ? '' : 'chatId')
+    ..pPS(5, _omitFieldNames ? '' : 'mentionIds')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -311,6 +317,18 @@ class ReqLiveStart extends $pb.GeneratedMessage {
   $core.bool hasReqId() => $_has(2);
   @$pb.TagNumber(3)
   void clearReqId() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $fixnum.Int64 get chatId => $_getI64(3);
+  @$pb.TagNumber(4)
+  set chatId($fixnum.Int64 value) => $_setInt64(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasChatId() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearChatId() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $pb.PbList<$core.String> get mentionIds => $_getList(4);
 }
 
 class ResLiveStart extends $pb.GeneratedMessage {

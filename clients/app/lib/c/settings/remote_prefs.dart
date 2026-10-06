@@ -1,5 +1,5 @@
-import 'dart:ui';
-
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class RemotePrefs {
@@ -15,15 +15,28 @@ class RemotePrefs {
 
   SharedPreferences? _prefs;
   var showStreamStats = false;
-  var interactMode = 'control';
+  var interactMode = 'mouse';
   var streamQuality = 80;
+
+  static String get defaultInteractModeName => switch (defaultTargetPlatform) {
+        TargetPlatform.android || TargetPlatform.iOS => 'trackpad',
+        _ => 'mouse',
+      };
 
   Future<void> load() async {
     _prefs ??= await SharedPreferences.getInstance();
     showStreamStats = _prefs!.getBool(_keyShowStreamStats) ?? false;
-    interactMode = _prefs!.getString(_keyInteractMode) ?? 'control';
+    final stored = _prefs!.getString(_keyInteractMode);
+    interactMode = _normalizeInteractMode(stored);
     streamQuality = _prefs!.getInt(_keyStreamQuality) ?? 80;
     if (streamQuality < 40 || streamQuality > 95) streamQuality = 80;
+  }
+
+  String _normalizeInteractMode(String? stored) {
+    if (stored == null || stored.isEmpty || stored == 'control') {
+      return defaultInteractModeName;
+    }
+    return stored;
   }
 
   Future<void> setShowStreamStats(bool value) async {

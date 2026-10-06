@@ -135,6 +135,11 @@ message BillingAccount {
   int32 freemium_tokens_limit = 27;
   int64 plan_expires_ts_ms = 28;
   int64 trial_expires_ts_ms = 29;
+
+  double frontier_allow_5h_used = 30;
+  double frontier_allow_5h_limit = 31;
+  double frontier_allow_weekly_used = 32;
+  double frontier_allow_weekly_limit = 33;
 }
 
 message BillingTopupRequest {
@@ -189,6 +194,11 @@ message BillingPushQuota {
   int32 freemium_tokens_used = 16;
   int32 freemium_tokens_limit = 17;
   int64 plan_expires_ts_ms = 18;
+
+  double frontier_allow_5h_used = 19;
+  double frontier_allow_5h_limit = 20;
+  double frontier_allow_weekly_used = 21;
+  double frontier_allow_weekly_limit = 22;
 }
 
 message BillingPushCommission {

@@ -51,6 +51,7 @@ class BotStore extends ChangeNotifier {
   var _loadingPeers = false;
   var _loadingMsgs = false;
   var _composerSending = false;
+  int _composerBusySinceMs = 0;
   var _search = '';
   final _bots = <IdentityListRow>[];
   final _peers = <Chat>[];
@@ -93,6 +94,17 @@ class BotStore extends ChangeNotifier {
   bool get loadingPeers => _loadingPeers;
   bool get loadingMsgs => _loadingMsgs;
   bool get composerBusy => _composerSending;
+  int get composerBusySinceMs => _composerBusySinceMs;
+
+  void _composerBusyBegin() {
+    if (!_composerSending) _composerBusySinceMs = DateTime.now().millisecondsSinceEpoch;
+    _composerSending = true;
+  }
+
+  void _composerBusyEnd() {
+    _composerSending = false;
+    _composerBusySinceMs = 0;
+  }
   String get search => _search;
   List<IdentityListRow> get bots => List.unmodifiable(_bots);
 
@@ -490,7 +502,7 @@ class BotStore extends ChangeNotifier {
     if (botId == null) return;
     final iid = int.tryParse(botId) ?? 0;
     if (iid <= 0) return;
-    _composerSending = true;
+    _composerBusyBegin();
     notifyListeners();
     try {
       await ensureConnected();
@@ -505,7 +517,7 @@ class BotStore extends ChangeNotifier {
       lError('bot peer create: $e');
       rethrow;
     } finally {
-      _composerSending = false;
+      _composerBusyEnd();
       notifyListeners();
     }
   }
@@ -548,7 +560,7 @@ class BotStore extends ChangeNotifier {
     if (trimmed.isEmpty && attachments.isEmpty) return;
     final id = int.tryParse(chatId) ?? 0;
     if (id <= 0) return;
-    _composerSending = true;
+    _composerBusyBegin();
     _typingPut(id, 'bot');
     notifyListeners();
     try {
@@ -566,7 +578,7 @@ class BotStore extends ChangeNotifier {
       lError('bot app send: $e');
       rethrow;
     } finally {
-      _composerSending = false;
+      _composerBusyEnd();
       notifyListeners();
     }
   }
@@ -576,7 +588,7 @@ class BotStore extends ChangeNotifier {
     if (trimmed.isEmpty && attachments.isEmpty) return;
     final id = int.tryParse(chatId) ?? 0;
     if (id <= 0) return;
-    _composerSending = true;
+    _composerBusyBegin();
     notifyListeners();
     try {
       await ensureConnected();
@@ -591,7 +603,7 @@ class BotStore extends ChangeNotifier {
       lError('chat send: $e');
       rethrow;
     } finally {
-      _composerSending = false;
+      _composerBusyEnd();
       notifyListeners();
     }
   }

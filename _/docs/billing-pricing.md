@@ -147,17 +147,28 @@ Ultra's 40× is promotional face value — heavy usage hits **wallet top-up** or
 
 ## Debit order
 
-Per LLM turn (`req_id`):
+Per LLM turn or Live Call session (`req_id`):
 
 ```
-1. If model is alienai → deduct Alien pool (IDR accounting at $1.50 / $7 rates)
-2. If pinned frontier model → deduct Frontier pool (catalog × 1.50)
-3. If promo-scoped demo session → deduct promo ephemeral pool (not user profile)
-4. Else if overage_enabled → deduct billing_wallet (native currency via FX)
-5. Else reject / slow mode (tier-dependent)
+1. If model is alienai (text chat) → deduct Alien pool (IDR accounting at $1.50 / $7 rates)
+2. If pinned frontier model (text chat) → deduct Frontier pool (catalog × 1.50)
+3. If Live Call (voice session) → ALWAYS deduct Frontier pool (wholesale duration × 1.50)
+4. If promo-scoped demo session → deduct promo ephemeral pool (not user profile)
+5. Else if overage_enabled → deduct billing_wallet (native currency via FX)
+6. Else reject / slow mode (tier-dependent)
 ```
 
 Never double-charge: `billing_usage_dedupe (owner_iid, req_id)`.
+
+---
+
+## Live Call (Voice) & Frontier Pool (LOCKED)
+
+Live voice calls (`ai.live_offer`, see [live-call.md](live-call.md)) utilize multimodal audio streaming (Google Gemini Live API):
+- **Upstream Wholesale**: ~$0.023 / min (~Rp 405 / min at Rp 17.630 / USD).
+- **Retail Billing**: Billed per elapsed second at **catalog wholesale × 1.50** = ~$0.0345 / min (~Rp 608 / min, ~Rp 10.13 / s).
+- **Pool Invariant**: Live calls **must always debit the Frontier Pool**, never the Alien AI pool. Because the Frontier pool is capped to smaller IDR allowances (e.g. Rp 20.000 / mo on Lite), a user can consume at most ~33 minutes of live calls per month, limiting maximum Google API costs to ~Rp 13.365 on a Rp 59.000 plan (guaranteeing a **77%+ plan margin**).
+- **Margin Expansion**: Continuous elapsed second billing over variable conversational audio pauses (dead air) widens effective gross margins to **70%–120%+**.
 
 ---
 

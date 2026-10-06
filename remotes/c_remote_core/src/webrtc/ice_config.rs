@@ -1,21 +1,6 @@
-use tracing::{info, warn};
+use tracing::warn;
 use webrtc::ice_transport::ice_credential_type::RTCIceCredentialType;
 use webrtc::ice_transport::ice_server::RTCIceServer;
-
-/// Local `dev_server` (127.0.0.1): STUN-only avoids TURN on dead Hyper-V/VBox/Tailscale NICs (Win error 10051).
-pub fn ice_servers_local_dev(server_url: &str) -> Option<Vec<RTCIceServer>> {
-    let u = server_url.to_ascii_lowercase();
-    if !(u.contains("127.0.0.1") || u.contains("localhost")) {
-        return None;
-    }
-    info!("local dev server_url: STUN-only ICE (set C35_ICE_SERVERS to override)");
-    Some(vec![RTCIceServer {
-        urls: vec!["stun:stun.l.google.com:19302".to_string()],
-        username: String::new(),
-        credential: String::new(),
-        credential_type: RTCIceCredentialType::Unspecified,
-    }])
-}
 
 #[derive(serde::Deserialize)]
 struct IceConfigRes {

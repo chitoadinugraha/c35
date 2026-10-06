@@ -1,7 +1,6 @@
 import 'package:alienai_c35/c/live/live_call_ui.dart';
 import 'package:alienai_c35/c/live/live_offer.dart';
 import 'package:alienai_c35/c/llm/agent_model.dart';
-import 'package:alienai_c35/c/pb/c35/live.pb.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

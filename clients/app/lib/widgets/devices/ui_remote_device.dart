@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' show min;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -29,8 +30,13 @@ const _trackpadDoubleTapWindowMs = 280;
 enum RemoteInteractMode { view, mouse, trackpad }
 
 extension RemoteInteractModeUi on RemoteInteractMode {
+  static RemoteInteractMode defaultForPlatform() => switch (defaultTargetPlatform) {
+        TargetPlatform.android || TargetPlatform.iOS => RemoteInteractMode.trackpad,
+        _ => RemoteInteractMode.mouse,
+      };
+
   String get label => switch (this) {
-        RemoteInteractMode.view => 'Pan (view only)',
+        RemoteInteractMode.view => 'View',
         RemoteInteractMode.mouse => 'Mouse',
         RemoteInteractMode.trackpad => 'Trackpad',
       };
@@ -41,6 +47,24 @@ extension RemoteInteractModeUi on RemoteInteractMode {
         RemoteInteractMode.trackpad => Icons.touch_app_outlined,
       };
 }
+
+const _menuItemPadding = EdgeInsets.symmetric(horizontal: 14, vertical: 8);
+
+Widget _modeSelectDot({required bool selected}) => SizedBox(
+      width: 16,
+      height: 16,
+      child: Center(
+        child: Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: selected ? _amber : Colors.transparent,
+            border: selected ? null : Border.all(color: _zinc500, width: 1.5),
+          ),
+        ),
+      ),
+    );
 
 class UiRemoteBottomSessionControl extends StatelessWidget {
   const UiRemoteBottomSessionControl({
@@ -101,11 +125,14 @@ class UiRemoteBottomSessionControl extends StatelessWidget {
       menuChildren: [
         for (final m in RemoteInteractMode.values)
           MenuItemButton(
+            style: MenuItemButton.styleFrom(
+              padding: _menuItemPadding,
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
             leadingIcon:
                 Icon(m.icon, size: 16, color: m == mode ? _amber : _zinc400),
-            trailingIcon: m == mode
-                ? const Icon(Icons.check_rounded, size: 16, color: _amber)
-                : null,
+            trailingIcon: _modeSelectDot(selected: m == mode),
             onPressed: () => _onMenuSelected(m.name),
             child: Text(m.label,
                 style: TextStyle(
@@ -115,6 +142,11 @@ class UiRemoteBottomSessionControl extends StatelessWidget {
           ),
         const Divider(height: 1, color: _border),
         MenuItemButton(
+          style: MenuItemButton.styleFrom(
+            padding: _menuItemPadding,
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
           leadingIcon: const Icon(Icons.auto_awesome_outlined,
               size: 16, color: _zinc400),
           onPressed: () => _onMenuSelected('teach'),
@@ -124,6 +156,11 @@ class UiRemoteBottomSessionControl extends StatelessWidget {
         if (updateReady) ...[
           const Divider(height: 1, color: _border),
           MenuItemButton(
+            style: MenuItemButton.styleFrom(
+              padding: _menuItemPadding,
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
             leadingIcon: const Icon(Icons.system_update_rounded,
                 size: 16, color: _emerald),
             onPressed: () => _onMenuSelected('update'),
@@ -138,6 +175,11 @@ class UiRemoteBottomSessionControl extends StatelessWidget {
         ],
         const Divider(height: 1, color: _border),
         MenuItemButton(
+          style: MenuItemButton.styleFrom(
+            padding: _menuItemPadding,
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
           leadingIcon: Icon(
               immersive ? Icons.fullscreen_exit_outlined : Icons.fullscreen_outlined,
               size: 16,
@@ -149,7 +191,7 @@ class UiRemoteBottomSessionControl extends StatelessWidget {
       ],
       builder: (context, controller, child) {
         final tip = mode == RemoteInteractMode.view
-            ? 'Pan (view only) — drag & pinch zoom; no remote input'
+            ? 'View — drag & pinch zoom; no remote input'
             : mode == RemoteInteractMode.trackpad
                 ? 'Trackpad — touch on stream; virtual pointer; pinch to zoom view'
                 : '${mode.label} — Ctrl+drag or middle-click to pan when zoomed';
@@ -201,6 +243,7 @@ class UiRemoteDevice extends StatefulWidget {
     this.browserDevice = false,
     this.deferInlineLoading = false,
     this.onShellBusyChanged,
+    this.onPresenceRefresh,
   });
 
   final RemoteSession? session;
@@ -220,6 +263,7 @@ class UiRemoteDevice extends StatefulWidget {
   final bool browserDevice;
   final bool deferInlineLoading;
   final void Function(bool busy, String message)? onShellBusyChanged;
+  final Future<void> Function()? onPresenceRefresh;
 
   @override
   State<UiRemoteDevice> createState() => _UiRemoteDeviceState();
@@ -230,6 +274,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
   final _vkbCtrl = TextEditingController();
   final _vkbFocus = FocusNode();
   var _connecting = false;
+  var _presenceRefreshing = false;
   var _vkbOpen = false;
   var _vkbPrevLen = 0;
   var _modCtrlLocked = false;
@@ -261,6 +306,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
   var _trackpadSurfaceCursorHidden = false;
   bool? _lastShellBusy;
   String _lastShellMessage = '';
+  var _shellBusyNotifyScheduled = false;
 
   bool get _controlInputEnabled =>
       widget.interactMode != RemoteInteractMode.view;
@@ -297,21 +343,21 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
   }
 
   bool _showDeviceOffline(RemoteSession sess, bool linking) =>
-      !linking && (!widget.online || _agentOfflineError(_error));
+      !widget.online || (!linking && _agentOfflineError(_error));
 
   String _placeholderMessage(RemoteSession sess, bool linking) {
     if (!sess.conn.connected) {
       return 'Server offline. Reconnect when signed in.';
     }
     if (_showDeviceOffline(sess, linking)) {
-      return '${widget.deviceName} is offline';
+      return 'Device is offline';
     }
     if (linking) return 'Connecting to ${widget.deviceName}…';
     if (sess.stoppedByUser) return 'Remote session stopped.';
     if (!sess.connected.value && widget.online && _error == null) {
       return 'Press Connect to open Remote.';
     }
-    if (_error != null) return '${widget.deviceName} is offline';
+    if (_error != null) return 'Device is offline';
     if (widget.browserDevice && sess.connected.value) return 'Starting video stream…';
     return 'Screen stream idle.';
   }
@@ -323,7 +369,14 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
     if (_lastShellBusy == busy && _lastShellMessage == message) return;
     _lastShellBusy = busy;
     _lastShellMessage = message;
-    widget.onShellBusyChanged?.call(busy, message);
+    if (widget.onShellBusyChanged == null) return;
+    if (_shellBusyNotifyScheduled) return;
+    _shellBusyNotifyScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _shellBusyNotifyScheduled = false;
+      if (!mounted) return;
+      widget.onShellBusyChanged?.call(_lastShellBusy ?? false, _lastShellMessage);
+    });
   }
 
   void _syncSessionControl() {
@@ -738,6 +791,38 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
     }
   }
 
+  Future<void> _recheckPresence() async {
+    final refresh = widget.onPresenceRefresh;
+    if (refresh == null || _presenceRefreshing) return;
+    setState(() => _presenceRefreshing = true);
+    try {
+      await refresh();
+    } catch (e) {
+      lError('presence refresh: $e');
+    } finally {
+      if (mounted) setState(() => _presenceRefreshing = false);
+    }
+  }
+
+  Widget _presenceRefreshButton() => FilledButton.icon(
+        onPressed: _presenceRefreshing ? null : () => unawaited(_recheckPresence()),
+        style: FilledButton.styleFrom(
+          backgroundColor: const Color(0xFF27272A),
+          foregroundColor: _zinc100,
+          disabledBackgroundColor: const Color(0xFF27272A),
+          disabledForegroundColor: _zinc500,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        icon: _presenceRefreshing
+            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: _zinc400))
+            : const Icon(Icons.refresh_rounded, size: 18),
+        label: Text(
+          _presenceRefreshing ? 'Checking…' : 'Refresh',
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+        ),
+      );
+
   void _sendPointerNorm(String eventType, Offset norm,
       {int button = 0, int deltaY = 0}) {
     final sess = widget.session;
@@ -1080,7 +1165,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
           const SizedBox(width: 8),
           const Expanded(
             child: Text(
-              'Pan (view only) — local pan/zoom only. Remote mouse and keyboard are disabled.',
+              'View — local pan/zoom only. Remote mouse and keyboard are disabled.',
               style: TextStyle(fontSize: 12, color: _zinc400),
             ),
           ),
@@ -1114,8 +1199,9 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
             valueListenable: sess.screenFrame,
             builder: (context, frame, _) {
               if (sess.stoppedByUser || !connected || (!hasVideoTrack && frame == null)) {
-                final linking =
-                    sess.conn.connected && (sess.isLinking || _connecting);
+                final linking = widget.online &&
+                    sess.conn.connected &&
+                    (sess.isLinking || _connecting);
                 final waitingVideo =
                     _waitingBrowserVideo(sess, connected, hasVideoTrack, frame);
                 final shellBusy = widget.deferInlineLoading && (linking || waitingVideo);
@@ -1158,12 +1244,14 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                             !(widget.deferInlineLoading && waitingVideo) &&
                             !_waitingBrowserVideo(sess, connected, hasVideoTrack, frame)) ...[
                           const SizedBox(height: 16),
+                          if (!widget.online || _agentOfflineError(_error))
+                            _presenceRefreshButton()
+                          else
                           FilledButton.icon(
                             onPressed: linking
                                 ? null
                                 : () => _connect(
-                                      forceRestart:
-                                          _error != null || !widget.online,
+                                      forceRestart: _error != null,
                                     ),
                             style: FilledButton.styleFrom(
                               backgroundColor: _amber,
@@ -1187,13 +1275,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                                   )
                                 : const Icon(Icons.play_arrow_rounded, size: 18),
                             label: Text(
-                              linking
-                                  ? 'Connecting…'
-                                  : (_error != null ||
-                                          sess.status.value == RemoteSessionStatus.failed ||
-                                          !widget.online
-                                      ? 'Retry'
-                                      : 'Connect'),
+                              linking ? 'Connecting…' : 'Connect',
                               style: const TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,

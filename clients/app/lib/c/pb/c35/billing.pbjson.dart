@@ -457,6 +457,34 @@ const BillingAccount$json = {
       '5': 3,
       '10': 'trialExpiresTsMs'
     },
+    {
+      '1': 'frontier_allow_5h_used',
+      '3': 30,
+      '4': 1,
+      '5': 1,
+      '10': 'frontierAllow5hUsed'
+    },
+    {
+      '1': 'frontier_allow_5h_limit',
+      '3': 31,
+      '4': 1,
+      '5': 1,
+      '10': 'frontierAllow5hLimit'
+    },
+    {
+      '1': 'frontier_allow_weekly_used',
+      '3': 32,
+      '4': 1,
+      '5': 1,
+      '10': 'frontierAllowWeeklyUsed'
+    },
+    {
+      '1': 'frontier_allow_weekly_limit',
+      '3': 33,
+      '4': 1,
+      '5': 1,
+      '10': 'frontierAllowWeeklyLimit'
+    },
   ],
 };
 
@@ -484,7 +512,11 @@ final $typed_data.Uint8List billingAccountDescriptor = $convert.base64Decode(
     'ltaXQSMAoUZnJlZW1pdW1fdG9rZW5zX3VzZWQYGiABKAVSEmZyZWVtaXVtVG9rZW5zVXNlZBIy'
     'ChVmcmVlbWl1bV90b2tlbnNfbGltaXQYGyABKAVSE2ZyZWVtaXVtVG9rZW5zTGltaXQSKwoScG'
     'xhbl9leHBpcmVzX3RzX21zGBwgASgDUg9wbGFuRXhwaXJlc1RzTXMSLQoTdHJpYWxfZXhwaXJl'
-    'c190c19tcxgdIAEoA1IQdHJpYWxFeHBpcmVzVHNNcw==');
+    'c190c19tcxgdIAEoA1IQdHJpYWxFeHBpcmVzVHNNcxIzChZmcm9udGllcl9hbGxvd181aF91c2'
+    'VkGB4gASgBUhNmcm9udGllckFsbG93NWhVc2VkEjUKF2Zyb250aWVyX2FsbG93XzVoX2xpbWl0'
+    'GB8gASgBUhRmcm9udGllckFsbG93NWhMaW1pdBI7Chpmcm9udGllcl9hbGxvd193ZWVrbHlfdX'
+    'NlZBggIAEoAVIXZnJvbnRpZXJBbGxvd1dlZWtseVVzZWQSPQobZnJvbnRpZXJfYWxsb3dfd2Vl'
+    'a2x5X2xpbWl0GCEgASgBUhhmcm9udGllckFsbG93V2Vla2x5TGltaXQ=');
 
 @$core.Deprecated('Use billingTopupRequestDescriptor instead')
 const BillingTopupRequest$json = {
@@ -679,6 +711,34 @@ const BillingPushQuota$json = {
       '5': 3,
       '10': 'planExpiresTsMs'
     },
+    {
+      '1': 'frontier_allow_5h_used',
+      '3': 19,
+      '4': 1,
+      '5': 1,
+      '10': 'frontierAllow5hUsed'
+    },
+    {
+      '1': 'frontier_allow_5h_limit',
+      '3': 20,
+      '4': 1,
+      '5': 1,
+      '10': 'frontierAllow5hLimit'
+    },
+    {
+      '1': 'frontier_allow_weekly_used',
+      '3': 21,
+      '4': 1,
+      '5': 1,
+      '10': 'frontierAllowWeeklyUsed'
+    },
+    {
+      '1': 'frontier_allow_weekly_limit',
+      '3': 22,
+      '4': 1,
+      '5': 1,
+      '10': 'frontierAllowWeeklyLimit'
+    },
   ],
 };
 
@@ -700,7 +760,11 @@ final $typed_data.Uint8List billingPushQuotaDescriptor = $convert.base64Decode(
     'VtX21zZ3NfbGltaXQYDyABKAVSEWZyZWVtaXVtTXNnc0xpbWl0EjAKFGZyZWVtaXVtX3Rva2Vu'
     'c191c2VkGBAgASgFUhJmcmVlbWl1bVRva2Vuc1VzZWQSMgoVZnJlZW1pdW1fdG9rZW5zX2xpbW'
     'l0GBEgASgFUhNmcmVlbWl1bVRva2Vuc0xpbWl0EisKEnBsYW5fZXhwaXJlc190c19tcxgSIAEo'
-    'A1IPcGxhbkV4cGlyZXNUc01z');
+    'A1IPcGxhbkV4cGlyZXNUc01zEjMKFmZyb250aWVyX2FsbG93XzVoX3VzZWQYEyABKAFSE2Zyb2'
+    '50aWVyQWxsb3c1aFVzZWQSNQoXZnJvbnRpZXJfYWxsb3dfNWhfbGltaXQYFCABKAFSFGZyb250'
+    'aWVyQWxsb3c1aExpbWl0EjsKGmZyb250aWVyX2FsbG93X3dlZWtseV91c2VkGBUgASgBUhdmcm'
+    '9udGllckFsbG93V2Vla2x5VXNlZBI9Chtmcm9udGllcl9hbGxvd193ZWVrbHlfbGltaXQYFiAB'
+    'KAFSGGZyb250aWVyQWxsb3dXZWVrbHlMaW1pdA==');
 
 @$core.Deprecated('Use billingPushCommissionDescriptor instead')
 const BillingPushCommission$json = {

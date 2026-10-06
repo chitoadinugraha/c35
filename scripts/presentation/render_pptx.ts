@@ -85,6 +85,42 @@ const THEMES: Record<string, ThemeConfig> = {
     accent2: "F59E0B", // Amber
     badgeBg: "3B0764",
   },
+  ocean: {
+    id: "ocean",
+    name: "Ocean Deep",
+    bg: "030712",
+    cardBg: "0B1220",
+    border: "1E3A5F",
+    text: "F0F9FF",
+    subtext: "7DD3FC",
+    accent: "22D3EE",
+    accent2: "3B82F6",
+    badgeBg: "0C4A6E",
+  },
+  ruby: {
+    id: "ruby",
+    name: "Ruby Noir",
+    bg: "0F0507",
+    cardBg: "1A0A0E",
+    border: "4A1D28",
+    text: "FFF1F2",
+    subtext: "FDA4AF",
+    accent: "FB7185",
+    accent2: "F43F5E",
+    badgeBg: "4C0519",
+  },
+  gold: {
+    id: "gold",
+    name: "Royal Gold",
+    bg: "0A0908",
+    cardBg: "14110E",
+    border: "3D3428",
+    text: "FEFCE8",
+    subtext: "FDE68A",
+    accent: "FACC15",
+    accent2: "F59E0B",
+    badgeBg: "422006",
+  },
   light: {
     id: "light",
     name: "Light Minimal",
@@ -96,6 +132,102 @@ const THEMES: Record<string, ThemeConfig> = {
     accent: "2563EB",
     accent2: "0284C7",
     badgeBg: "EFF6FF",
+  },
+  lavender: {
+    id: "lavender",
+    name: "Lavender Amethyst",
+    bg: "0E0C1A",
+    cardBg: "161326",
+    border: "2E254C",
+    text: "FAF5FF",
+    subtext: "D8B4FE",
+    accent: "A855F7",
+    accent2: "EC4899",
+    badgeBg: "3B185F",
+  },
+  cream: {
+    id: "cream",
+    name: "Editorial Cream",
+    bg: "FDFBF7",
+    cardBg: "FFFFFF",
+    border: "E7E1D8",
+    text: "1C1917",
+    subtext: "78716C",
+    accent: "C2410C",
+    accent2: "D97706",
+    badgeBg: "FFEDD5",
+  },
+  monochrome: {
+    id: "monochrome",
+    name: "Bauhaus Slate",
+    bg: "09090B",
+    cardBg: "131316",
+    border: "27272A",
+    text: "FAFAFA",
+    subtext: "A1A1AA",
+    accent: "E4E4E7",
+    accent2: "71717A",
+    badgeBg: "27272A",
+  },
+  forest: {
+    id: "forest",
+    name: "Forest Botanical",
+    bg: "08130B",
+    cardBg: "102014",
+    border: "1E3A24",
+    text: "F7FEE7",
+    subtext: "BEF264",
+    accent: "84CC16",
+    accent2: "A3E635",
+    badgeBg: "1A2E05",
+  },
+  sakura: {
+    id: "sakura",
+    name: "Sakura Blossom",
+    bg: "FFF5F5",
+    cardBg: "FFFFFF",
+    border: "FED7D7",
+    text: "1C1917",
+    subtext: "831843",
+    accent: "E11D48",
+    accent2: "FB7185",
+    badgeBg: "FFE4E6",
+  },
+  cyberpunk: {
+    id: "cyberpunk",
+    name: "Neo Cyberpunk",
+    bg: "070614",
+    cardBg: "100E26",
+    border: "282054",
+    text: "FDF4FF",
+    subtext: "E879F9",
+    accent: "F43F5E",
+    accent2: "00F5FF",
+    badgeBg: "3B0764",
+  },
+  coffee: {
+    id: "coffee",
+    name: "Artisan Coffee",
+    bg: "120C0A",
+    cardBg: "1C1411",
+    border: "362520",
+    text: "FEF3C7",
+    subtext: "D1A074",
+    accent: "D97706",
+    accent2: "EA580C",
+    badgeBg: "2C1810",
+  },
+  aurora: {
+    id: "aurora",
+    name: "Boreal Aurora",
+    bg: "040E1A",
+    cardBg: "091B30",
+    border: "13365C",
+    text: "F0FDFA",
+    subtext: "5EEAD4",
+    accent: "2DD4BF",
+    accent2: "818CF8",
+    badgeBg: "134E4A",
   },
 };
 
@@ -136,9 +268,67 @@ function resolveTheme(name?: string, tokens?: ThemeTokensInput): ThemeConfig {
     case "corporate":
     case "mint":
       return THEMES.emerald;
+    case "ocean":
+    case "cyan":
+    case "aqua":
+      return THEMES.ocean;
+    case "ruby":
+    case "rose":
+    case "red":
+      return THEMES.ruby;
+    case "gold":
+    case "amber":
+    case "yellow":
+      return THEMES.gold;
     case "light":
     case "white":
+    case "arctic":
       return THEMES.light;
+    case "lavender":
+    case "amethyst":
+    case "purple":
+    case "violet":
+      return THEMES.lavender;
+    case "cream":
+    case "editorial":
+    case "paper":
+    case "warm":
+      return THEMES.cream;
+    case "monochrome":
+    case "bw":
+    case "slate":
+    case "silver":
+    case "zinc":
+      return THEMES.monochrome;
+    case "forest":
+    case "moss":
+    case "nature":
+    case "sage":
+    case "botanical":
+      return THEMES.forest;
+    case "sakura":
+    case "blossom":
+    case "rose-light":
+    case "pastel":
+    case "floral":
+      return THEMES.sakura;
+    case "cyberpunk":
+    case "synthwave":
+    case "neon":
+    case "tokyo":
+    case "gaming":
+      return THEMES.cyberpunk;
+    case "coffee":
+    case "mocha":
+    case "espresso":
+    case "leather":
+    case "artisan":
+      return THEMES.coffee;
+    case "aurora":
+    case "teal":
+    case "boreal":
+    case "nordic":
+      return THEMES.aurora;
     default:
       return THEMES.dark;
   }

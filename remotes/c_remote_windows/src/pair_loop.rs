@@ -105,7 +105,7 @@ pub async fn pair_until_claimed(
                     "==> [PAIRED SUCCESSFULLY] Device claimed! Encrypting credentials and starting remote session"
                 );
                 session_key_save(&session_key, device_iid)?;
-                let _ = crate::startup::set_autostart_enabled(true);
+                crate::startup::ensure_autostart_when_paired(true);
                 ui.close();
                 return Ok(());
             }

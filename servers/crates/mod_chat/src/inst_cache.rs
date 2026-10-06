@@ -22,6 +22,18 @@ pub fn inst_list_cached() -> Vec<InstRow> {
     rows
 }
 
+/// Inst rows for compose / prompt turns. Reloads from DB when the in-memory cache is empty
+/// (e.g. pod started before DB was reachable, or cache never warmed).
+pub async fn inst_list_for_turn(pool: &PgPool) -> Vec<InstRow> {
+    let cached = inst_list_cached();
+    if !cached.is_empty() {
+        return cached;
+    }
+    warn!("[c35:inst] cache empty — reloading from database");
+    inst_cache_reload_all(pool).await;
+    inst_list_cached()
+}
+
 pub async fn inst_cache_reload_all(pool: &PgPool) {
     let rows = inst_fetch_enabled(pool).await;
     let map = rows.into_iter().map(|r| (r.id.clone(), r)).collect();

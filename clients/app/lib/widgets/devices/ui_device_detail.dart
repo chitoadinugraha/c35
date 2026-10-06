@@ -1,4 +1,5 @@
 import 'package:alienai_c35/c/chat/chat_conn.dart';
+import 'package:alienai_c35/c/device/device_presence_cache.dart';
 import 'package:alienai_c35/c/device/device_store.dart';
 import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
@@ -40,19 +41,20 @@ bool _isMobile(BuildContext context) {
 }
 
 class UiDeviceDetail extends StatefulWidget {
-  const UiDeviceDetail({super.key, required this.row, required this.chatConn, this.onBack, this.title});
+  const UiDeviceDetail({super.key, required this.row, required this.chatConn, this.onBack, this.title, this.onPresenceRefresh});
 
   final IdentityListRow row;
   final ChatConn chatConn;
   final VoidCallback? onBack;
   final String? title;
+  final Future<void> Function()? onPresenceRefresh;
 
   @override
   State<UiDeviceDetail> createState() => _UiDeviceDetailState();
 }
 
 class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProviderStateMixin {
-  var _remoteInteractMode = RemoteInteractMode.mouse;
+  var _remoteInteractMode = RemoteInteractModeUi.defaultForPlatform();
   var _remoteShowStats = false;
   var _remoteImmersive = false;
   final _skillKey = GlobalKey<UiSkillMasterDetailState>();
@@ -93,7 +95,7 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
           final modeName = RemotePrefs.instance.interactMode;
           final mode = RemoteInteractMode.values.firstWhere(
             (m) => m.name == modeName,
-            orElse: () => RemoteInteractMode.mouse,
+            orElse: RemoteInteractModeUi.defaultForPlatform,
           );
           setState(() {
             _remoteShowStats = RemotePrefs.instance.showStreamStats;
@@ -115,10 +117,15 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: DevicePresenceCache.instance,
+        builder: (context, _) => _buildBody(context),
+      );
+
+  Widget _buildBody(BuildContext context) {
     final id = widget.row.identity;
     final kind = id.kind.toLowerCase();
-    final online = deviceOnlineFromMeta(id.metaJson);
+    final online = deviceOnlineFromMeta(DevicePresenceCache.instance.metaFor(id.iid, id.metaJson));
     final tabIndex = _tabController.index;
     final activeTab = _tabs[tabIndex];
     final isRemote = kind == 'remote' && activeTab == 'Remote';
@@ -181,7 +188,7 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
                             return Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                _remoteBadge(_session),
+                                _remoteBadge(_session, online),
                                 if (showStop) ...[
                                   const SizedBox(width: 10),
                                   _remoteStopBtn(
@@ -306,6 +313,7 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
                 ),
               );
             },
+            onPresenceRefresh: widget.onPresenceRefresh,
             promptStore: _promptStore,
             onStopTeach: () => unawaited(_stopRemoteTeach(context)),
           ),
@@ -340,6 +348,7 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
               ),
             );
           },
+          onPresenceRefresh: widget.onPresenceRefresh,
         ),
       );
     }
@@ -349,7 +358,9 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
         return _BrowserAgentSettings(session: _session);
       }
     }
-    if (kind == 'remote' && tab == 'Files') return UiDeviceFiles(session: _session);
+    if (kind == 'remote' && tab == 'Files') {
+      return UiDeviceFiles(session: _session, online: online, onPresenceRefresh: widget.onPresenceRefresh);
+    }
     if (kind == 'remote' && tab == 'Task') {
       return UiTaskMasterDetail(
         key: _taskKey,
@@ -500,9 +511,12 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
     setState(() {});
   }
 
-  Widget _remoteBadge(RemoteSession session) {
+  Widget _remoteBadge(RemoteSession session, bool online) {
     if (!widget.chatConn.connected) {
       return _connectionMenu(session, label: 'Offline', fg: _muted, bg: const Color(0xFF27272A), border: const Color(0xFF3F3F46));
+    }
+    if (!online && !session.connected.value) {
+      return _connectionMenu(session, label: 'Device is offline', fg: _muted, bg: const Color(0xFF27272A), border: const Color(0xFF3F3F46));
     }
     if (!session.connected.value && !session.isLinking) {
       final failed = session.status.value == RemoteSessionStatus.failed;

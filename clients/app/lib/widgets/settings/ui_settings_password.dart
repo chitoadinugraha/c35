@@ -1,6 +1,7 @@
 import 'package:alienai_c35/c/account/account_api.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/settings/ui_settings_tile.dart';
+import 'package:alienai_c35/widgets/ui/ui_input_decoration.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
@@ -91,15 +92,15 @@ class _PasswordSetDialogState extends State<_PasswordSetDialog> {
     super.dispose();
   }
 
-  InputDecoration _dec({required String label, required bool obscure, required VoidCallback onToggle, String? errorText}) => InputDecoration(
+  InputDecoration _dec(BuildContext context, {required String label, required bool obscure, required VoidCallback onToggle, String? errorText}) =>
+      UiInputDecoration.of(
+        context,
         labelText: label,
-        labelStyle: const TextStyle(color: Color(0xFF71717A)),
-        errorText: errorText,
         suffixIcon: IconButton(
           icon: Icon(obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: const Color(0xFF8E8E98), size: 20),
           onPressed: onToggle,
         ),
-      );
+      ).copyWith(errorText: errorText);
 
   @override
   Widget build(BuildContext context) {
@@ -116,7 +117,7 @@ class _PasswordSetDialogState extends State<_PasswordSetDialog> {
         width: 360,
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           if (widget.hasPassword) ...[
-            TextField(controller: _currentCtrl, autofocus: true, obscureText: _obscureCurrent, style: const TextStyle(color: Color(0xFFF4F4F5)), decoration: _dec(label: 'settings.currentPassword'.tr(), obscure: _obscureCurrent, onToggle: () => setState(() => _obscureCurrent = !_obscureCurrent)), onChanged: (_) => setState(() {})),
+            TextField(controller: _currentCtrl, autofocus: true, obscureText: _obscureCurrent, style: const TextStyle(color: Color(0xFFF4F4F5)), decoration: _dec(context, label: 'settings.currentPassword'.tr(), obscure: _obscureCurrent, onToggle: () => setState(() => _obscureCurrent = !_obscureCurrent)), onChanged: (_) => setState(() {})),
             const SizedBox(height: 12),
           ],
           TextField(
@@ -124,7 +125,7 @@ class _PasswordSetDialogState extends State<_PasswordSetDialog> {
             autofocus: !widget.hasPassword,
             obscureText: _obscurePass,
             style: const TextStyle(color: Color(0xFFF4F4F5)),
-            decoration: _dec(label: 'settings.newPassword'.tr(), obscure: _obscurePass, onToggle: () => setState(() => _obscurePass = !_obscurePass), errorText: pass.isNotEmpty && !passOk ? 'settings.passwordMinError'.tr() : null),
+            decoration: _dec(context, label: 'settings.newPassword'.tr(), obscure: _obscurePass, onToggle: () => setState(() => _obscurePass = !_obscurePass), errorText: pass.isNotEmpty && !passOk ? 'settings.passwordMinError'.tr() : null),
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 12),
@@ -132,7 +133,7 @@ class _PasswordSetDialogState extends State<_PasswordSetDialog> {
             controller: _confirmCtrl,
             obscureText: _obscureConfirm,
             style: const TextStyle(color: Color(0xFFF4F4F5)),
-            decoration: _dec(label: 'settings.confirmPassword'.tr(), obscure: _obscureConfirm, onToggle: () => setState(() => _obscureConfirm = !_obscureConfirm), errorText: confirm.isNotEmpty && !match ? 'settings.passwordMismatch'.tr() : null),
+            decoration: _dec(context, label: 'settings.confirmPassword'.tr(), obscure: _obscureConfirm, onToggle: () => setState(() => _obscureConfirm = !_obscureConfirm), errorText: confirm.isNotEmpty && !match ? 'settings.passwordMismatch'.tr() : null),
             onChanged: (_) => setState(() {}),
           ),
         ]),

@@ -6,7 +6,9 @@ import 'package:alienai_c35/c/settings/prompt_usage_prefs.dart';
 import 'package:alienai_c35/c/store/chat_store.dart';
 import 'package:alienai_c35/c/ui/ui_format.dart';
 import 'package:alienai_c35/widgets/ai/ui_assistant_provider_icon.dart';
+import 'package:alienai_c35/widgets/ai/ui_mention_chip.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_blocks.dart';
+import 'package:alienai_c35/widgets/ai/ui_msg_thought.dart';
 import 'package:alienai_c35/widgets/ui/ui_safe_area.dart';
 import 'package:flutter/material.dart';
 
@@ -17,11 +19,13 @@ class UiTalkStage extends StatelessWidget {
     required this.userText,
     required this.listening,
     required this.busy,
+    this.busyStartedAtMs,
     required this.speakEnabled,
     required this.onMic,
     required this.onSpeak,
     required this.onAttach,
     required this.onModel,
+    this.onSendTranscript,
     this.blocks = const [],
     this.usage,
     this.consumptionApi,
@@ -36,17 +40,21 @@ class UiTalkStage extends StatelessWidget {
     this.modelProvider = 'alienai',
     this.modelAccent,
     this.welcome,
+    this.mentionLabel = '',
+    this.onMentionClear,
   });
 
   final MsgRow? assistant;
   final String userText;
   final bool listening;
   final bool busy;
+  final int? busyStartedAtMs;
   final bool speakEnabled;
   final VoidCallback onMic;
   final VoidCallback onSpeak;
   final VoidCallback onAttach;
   final VoidCallback onModel;
+  final VoidCallback? onSendTranscript;
   final List<ChatBlock> blocks;
   final MsgUsageStats? usage;
   final ConsumptionApi? consumptionApi;
@@ -61,6 +69,8 @@ class UiTalkStage extends StatelessWidget {
   final String modelProvider;
   final Color? modelAccent;
   final Widget? welcome;
+  final String mentionLabel;
+  final VoidCallback? onMentionClear;
 
   static const _text = Color(0xFFF4F4F5);
   static const _muted = Color(0xFF71717A);
@@ -81,6 +91,11 @@ class UiTalkStage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (mentionLabel.trim().isNotEmpty && onMentionClear != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Center(child: UiMentionChip(label: mentionLabel, onClear: onMentionClear!)),
+          ),
         Expanded(child: showWelcome ? _welcomeBody() : _answer(row, placeholder, assistantText.isEmpty && listening)),
         _usageLine(),
         if (userText.trim().isNotEmpty) _transcript(),
@@ -198,19 +213,48 @@ class UiTalkStage extends StatelessWidget {
         ),
       );
 
-  Widget _transcriptBody() => Text(
-        userText.trim(),
-        textAlign: TextAlign.center,
-        maxLines: 3,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(color: _user, fontSize: 14, height: 1.35),
+  Widget _transcriptBody() {
+    final text = userText.trim();
+    final showSend = listening && text.isNotEmpty && onSendTranscript != null;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Text(
+            text,
+            textAlign: showSend ? TextAlign.start : TextAlign.center,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: _user, fontSize: 14, height: 1.35),
+          ),
+        ),
+        if (showSend) ...[
+          const SizedBox(width: 8),
+          _transcriptSendButton(),
+        ],
+      ],
+    );
+  }
+
+  Widget _transcriptSendButton() => Material(
+        color: _accent,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onSendTranscript,
+          child: const SizedBox(
+            width: 36,
+            height: 36,
+            child: Icon(Icons.send_rounded, size: 18, color: Color(0xFF18181B)),
+          ),
+        ),
       );
 
   Widget _mic() {
     final color = busy ? _stop : (listening ? _accent : _text);
     final iconColor = busy || listening ? _text : const Color(0xFF18181B);
     return Tooltip(
-      message: busy ? 'Stop' : 'Mic',
+      message: busy ? 'Stop' : (listening ? 'Tap to send' : 'Mic'),
       child: Material(
         color: color,
         shape: const CircleBorder(),
@@ -292,9 +336,9 @@ class UiTalkStage extends StatelessWidget {
         listenable: PromptUsagePrefs.instance,
         builder: (context, _) {
           if (busy) {
-            return const Padding(
-              padding: EdgeInsets.fromLTRB(24, 0, 24, 4),
-              child: Text('Thinking...', textAlign: TextAlign.center, style: TextStyle(color: _muted, fontSize: 12)),
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 4),
+              child: UiPromptThinkingIndicator(startedAtMs: busyStartedAtMs, align: Alignment.center),
             );
           }
           if (listening) {

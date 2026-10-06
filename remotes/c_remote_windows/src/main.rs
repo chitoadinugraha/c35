@@ -21,6 +21,7 @@ async fn run() -> anyhow::Result<()> {
     let dev_name = c_remote_windows::pair_loop::device_name();
     let base_url = server_url();
     let paired = session_key_load().is_some();
+    c_remote_windows::startup::ensure_autostart_when_paired(paired);
 
     if c_remote_core::log_local::console_visible() {
         println!(

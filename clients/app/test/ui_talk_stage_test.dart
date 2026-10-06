@@ -24,6 +24,7 @@ void main() {
     bool speakEnabled = true,
     bool busy = false,
     String userText = 'what time is it',
+    VoidCallback? onSendTranscript,
   }) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -38,6 +39,7 @@ void main() {
             onSpeak: () {},
             onAttach: () {},
             onModel: () {},
+            onSendTranscript: onSendTranscript,
             usage: usage,
           ),
         ),
@@ -73,7 +75,7 @@ void main() {
     expect(find.textContaining(' out'), findsOneWidget);
   });
 
-  testWidgets('shows Thinking... in the usage slot while busy', (tester) async {
+  testWidgets('shows shared thinking indicator in the usage slot while busy', (tester) async {
     await PromptUsagePrefs.instance.setShowUsageStats(true);
     await pump(
       tester,
@@ -82,7 +84,7 @@ void main() {
       busy: true,
       usage: const MsgUsageStats(tokensIn: 10, tokensOut: 4, durationMs: 1500),
     );
-    expect(find.text('Thinking...'), findsOneWidget);
+    expect(find.text('Thinking'), findsOneWidget);
     expect(find.textContaining(' in'), findsNothing);
   });
 
@@ -90,6 +92,20 @@ void main() {
     await PromptUsagePrefs.instance.setShowUsageStats(false);
     await pump(tester, listening: true);
     expect(find.text('Listening...'), findsOneWidget);
+  });
+
+  testWidgets('shows send on transcript while listening with text', (tester) async {
+    await PromptUsagePrefs.instance.setShowUsageStats(false);
+    var sent = false;
+    await pump(
+      tester,
+      listening: true,
+      userText: 'sekarang tanggal berapa',
+      onSendTranscript: () => sent = true,
+    );
+    expect(find.byIcon(Icons.send_rounded), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.send_rounded));
+    expect(sent, isTrue);
   });
 
   testWidgets('shows mic without idle hint copy when idle', (tester) async {

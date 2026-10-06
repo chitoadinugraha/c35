@@ -224,26 +224,115 @@ pub fn drive_storage_limit_bytes() -> Option<i64> {
     DRIVE_STORAGE_LIMIT.read().ok().and_then(|g| *g)
 }
 
-/// Human-readable pair for status UI (GiB when ≥ 1 GiB, else MiB).
+/// Human-readable `used / limit` in one unit (scale follows limit), with digit grouping.
 pub fn drive_storage_label() -> Option<String> {
     let used = drive_storage_used_bytes()?;
     let limit = drive_storage_limit_bytes()?;
-    Some(format!(
-        "{} / {}",
-        format_storage_gib(used),
-        format_storage_gib(limit)
-    ))
+    Some(format_storage_pair(used, limit))
 }
 
-fn format_storage_gib(bytes: i64) -> String {
-    const GIB: f64 = 1024.0 * 1024.0 * 1024.0;
-    const MIB: f64 = 1024.0 * 1024.0;
-    let b = bytes.max(0) as f64;
-    if b >= GIB {
-        format!("{:.1} GiB", b / GIB)
-    } else if b >= MIB {
-        format!("{:.0} MiB", b / MIB)
+/// Fraction in `[0, 1]` for progress UI; `None` when limit is missing or zero.
+pub fn drive_storage_usage_fraction() -> Option<f64> {
+    let used = drive_storage_used_bytes()?;
+    let limit = drive_storage_limit_bytes()?;
+    if limit <= 0 {
+        return None;
+    }
+    Some((used as f64 / limit as f64).clamp(0.0, 1.0))
+}
+
+fn format_storage_pair(used: i64, limit: i64) -> String {
+    let scale = storage_unit_index(limit.max(0));
+    format!(
+        "{} / {}",
+        format_bytes_at_scale(used, scale),
+        format_bytes_at_scale(limit, scale)
+    )
+}
+
+fn storage_unit_index(limit_bytes: i64) -> u32 {
+    let mut idx = 0u32;
+    let mut n = limit_bytes.max(0) as f64;
+    while n >= 1024.0 && idx < 4 {
+        n /= 1024.0;
+        idx += 1;
+    }
+    idx
+}
+
+fn format_bytes_at_scale(bytes: i64, unit_index: u32) -> String {
+    const UNITS: [&str; 5] = ["B", "KB", "MB", "GB", "TB"];
+    let bytes = bytes.max(0);
+    let unit = UNITS[unit_index.min(4) as usize];
+    if unit_index == 0 {
+        return format!("{} {}", format_integer_grouped(bytes), unit);
+    }
+    let divisor = 1024u64.pow(unit_index) as f64;
+    let value = bytes as f64 / divisor;
+    let decimals = storage_decimal_places(value, unit_index);
+    format!("{} {}", format_decimal_grouped(value, decimals), unit)
+}
+
+fn storage_decimal_places(value: f64, unit_index: u32) -> u32 {
+    if value >= 100.0 {
+        0
+    } else if value >= 10.0 {
+        1
+    } else if value >= 1.0 {
+        1
+    } else if value > 0.0 && value < 0.01 && unit_index >= 2 {
+        4
     } else {
-        format!("{:.0} B", b)
+        2
+    }
+}
+
+fn format_integer_grouped(n: i64) -> String {
+    let s = n.abs().to_string();
+    let mut out = String::new();
+    for (i, ch) in s.chars().enumerate() {
+        if i > 0 && (s.len() - i) % 3 == 0 {
+            out.push(',');
+        }
+        out.push(ch);
+    }
+    if n < 0 {
+        format!("-{out}")
+    } else {
+        out
+    }
+}
+
+fn format_decimal_grouped(value: f64, decimals: u32) -> String {
+    let sign = if value < 0.0 { "-" } else { "" };
+    let scale = 10u64.pow(decimals.min(12));
+    let rounded = (value.abs() * scale as f64).round() as u64;
+    let int_part = (rounded / scale) as i64;
+    let frac_part = rounded % scale;
+    if decimals == 0 {
+        return format!("{sign}{}", format_integer_grouped(int_part));
+    }
+    let frac_s = format!("{:0width$}", frac_part, width = decimals as usize);
+    format!("{sign}{}.{}", format_integer_grouped(int_part), frac_s)
+}
+
+#[cfg(test)]
+mod drive_storage_format_tests {
+    use super::*;
+
+    #[test]
+    fn pair_uses_limit_unit() {
+        let limit = 15 * 1024 * 1024 * 1024;
+        let label = format_storage_pair(26_241, limit);
+        assert!(label.contains("GB"));
+        assert!(label.contains("/"));
+        assert!(!label.contains("GiB"));
+        assert!(!label.contains(" B /"));
+    }
+
+    #[test]
+    fn grouping_on_bytes() {
+        let s = format_bytes_at_scale(1_234_567, 0);
+        assert_eq!(s, "1,234,567 B");
     }
 }

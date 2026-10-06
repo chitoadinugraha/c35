@@ -1438,13 +1438,14 @@ class _InComposerState extends State<InComposer> {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
         child: UiAudioWaveform(
-          recordingSeconds: SttService.instance.recordingSeconds,
+          recordingElapsedMs: SttService.instance.recordingElapsedMs,
           amplitude: SttService.instance.audioAmplitude,
           amplitudeHistory: SttService.instance.amplitudeHistory,
           liveTranscript: SttService.instance.liveTranscript,
           isLiveInterim: SttService.instance.isLiveInterim,
           isTranscribing: SttService.instance.isTranscribing,
           engine: VoicePrefs.instance.sttEngine,
+          maxRecordingSeconds: SttService.instance.sessionMaxRecordingSeconds,
           onCancel: _cancelMic,
           onCommit: _stopMic,
         ),

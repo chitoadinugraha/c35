@@ -1,11 +1,11 @@
 -- Operator / test identities: fixed plan tiers (re-runnable).
--- 33000 automated-tester �! Pro; 99000 chito �! Ultra
+-- 33000 automated-tester -> Pro; 99000 chito -> Ultra
+-- Ring limits live on ai.billing_profile (not inflated billing_account alien_allow_*).
 -- Apply: run against c35 YSQL after identity + billing_plan seeds.
 
--- 99000   billing account (Ultra allowances)
+-- 99000 -- billing account (wallet + tier only; legacy account rings not used when profile exists)
 INSERT INTO ai.billing_account (
-    id, owner_iid, name, balance_usd, balance_idr, plan_tier,
-    alien_allow_5h_limit, alien_allow_weekly_limit, updated_ts
+    id, owner_iid, name, balance_usd, balance_idr, plan_tier, updated_ts
 ) VALUES (
     990000000000000001,
     99000,
@@ -13,40 +13,31 @@ INSERT INTO ai.billing_account (
     500,
     50000000,
     'ultra',
-    4.0,
-    80.0,
     NOW()
 ) ON CONFLICT (id) DO UPDATE SET
     owner_iid = EXCLUDED.owner_iid,
     plan_tier = 'ultra',
     balance_usd = GREATEST(ai.billing_account.balance_usd, EXCLUDED.balance_usd),
     balance_idr = GREATEST(ai.billing_account.balance_idr, EXCLUDED.balance_idr),
-    alien_allow_5h_limit = GREATEST(ai.billing_account.alien_allow_5h_limit, EXCLUDED.alien_allow_5h_limit),
-    alien_allow_weekly_limit = GREATEST(ai.billing_account.alien_allow_weekly_limit, EXCLUDED.alien_allow_weekly_limit),
     updated_ts = NOW(),
     deleted_ts = NULL;
 
 UPDATE ai.billing_account SET
     plan_tier = 'ultra',
-    alien_allow_5h_limit = GREATEST(alien_allow_5h_limit, 4.0),
-    alien_allow_weekly_limit = GREATEST(alien_allow_weekly_limit, 80.0),
     updated_ts = NOW(),
     deleted_ts = NULL
 WHERE owner_iid = 99000;
 
--- 33000   ensure Pro on legacy account
+-- 33000 -- ensure Pro on legacy account (wallet/tier only)
 UPDATE ai.billing_account SET
     plan_tier = 'pro',
-    alien_allow_5h_limit = GREATEST(alien_allow_5h_limit, 1.0),
-    alien_allow_weekly_limit = GREATEST(alien_allow_weekly_limit, 20.0),
     updated_ts = NOW(),
     deleted_ts = NULL
 WHERE owner_iid = 33000;
 
--- billing_profile 99000 Ultra pools (from ai.billing_plan slug ultra)
+-- billing_profile 99000 Ultra (rings + monthly pools from plan)
 INSERT INTO ai.billing_profile (
     id, owner_iid, plan_tier, default_wallet_currency,
-    alien_allow_5h_limit, alien_allow_weekly_limit,
     alien_pool_limit_idr, alien_pool_used_idr,
     frontier_pool_limit_idr, frontier_pool_used_idr,
     pool_period_start, plan_expires_ts
@@ -55,8 +46,6 @@ INSERT INTO ai.billing_profile (
     99000,
     'ultra',
     'IDR',
-    4.0,
-    80.0,
     2000000,
     0,
     400000,
@@ -66,32 +55,15 @@ INSERT INTO ai.billing_profile (
 ) ON CONFLICT (id) DO UPDATE SET
     owner_iid = EXCLUDED.owner_iid,
     plan_tier = 'ultra',
-    alien_allow_5h_limit = EXCLUDED.alien_allow_5h_limit,
-    alien_allow_weekly_limit = EXCLUDED.alien_allow_weekly_limit,
     alien_pool_limit_idr = EXCLUDED.alien_pool_limit_idr,
     frontier_pool_limit_idr = EXCLUDED.frontier_pool_limit_idr,
     plan_expires_ts = EXCLUDED.plan_expires_ts,
     updated_ts = NOW(),
     deleted_ts = NULL;
 
-UPDATE ai.billing_profile SET
-    plan_tier = 'ultra',
-    alien_allow_5h_limit = 4.0,
-    alien_allow_weekly_limit = 80.0,
-    alien_pool_limit_idr = 2000000,
-    frontier_pool_limit_idr = 400000,
-    alien_pool_used_idr = 0,
-    frontier_pool_used_idr = 0,
-    pool_period_start = NOW(),
-    plan_expires_ts = NOW() + INTERVAL '10 years',
-    updated_ts = NOW(),
-    deleted_ts = NULL
-WHERE owner_iid = 99000 AND deleted_ts IS NULL;
-
--- billing_profile 33000 Pro pools
+-- billing_profile 33000 Pro pools shell
 INSERT INTO ai.billing_profile (
     id, owner_iid, plan_tier, default_wallet_currency,
-    alien_allow_5h_limit, alien_allow_weekly_limit,
     alien_pool_limit_idr, alien_pool_used_idr,
     frontier_pool_limit_idr, frontier_pool_used_idr,
     pool_period_start, plan_expires_ts
@@ -100,8 +72,6 @@ INSERT INTO ai.billing_profile (
     33000,
     'pro',
     'IDR',
-    1.0,
-    20.0,
     565000,
     0,
     115000,
@@ -111,25 +81,37 @@ INSERT INTO ai.billing_profile (
 ) ON CONFLICT (id) DO UPDATE SET
     owner_iid = EXCLUDED.owner_iid,
     plan_tier = 'pro',
-    alien_allow_5h_limit = EXCLUDED.alien_allow_5h_limit,
-    alien_allow_weekly_limit = EXCLUDED.alien_allow_weekly_limit,
     alien_pool_limit_idr = EXCLUDED.alien_pool_limit_idr,
     frontier_pool_limit_idr = EXCLUDED.frontier_pool_limit_idr,
     plan_expires_ts = EXCLUDED.plan_expires_ts,
     updated_ts = NOW(),
     deleted_ts = NULL;
 
-UPDATE ai.billing_profile SET
-    plan_tier = 'pro',
-    alien_allow_5h_limit = 1.0,
-    alien_allow_weekly_limit = 20.0,
-    alien_pool_limit_idr = 565000,
-    frontier_pool_limit_idr = 115000,
-    pool_period_start = NOW(),
-    plan_expires_ts = NOW() + INTERVAL '10 years',
-    updated_ts = NOW(),
-    deleted_ts = NULL
-WHERE owner_iid = 33000 AND deleted_ts IS NULL;
+-- Apply 5h/7d ring limits from ai.billing_plan (alien + scaled frontier rings)
+UPDATE ai.billing_profile p
+SET
+    plan_tier = bp.tier,
+    alien_allow_5h_limit = bp.alien_allow_5h_usd,
+    alien_allow_weekly_limit = bp.alien_allow_weekly_usd,
+    frontier_allow_5h_limit = CASE
+        WHEN bp.alien_pool_idr_monthly > 0 THEN
+            bp.alien_allow_5h_usd * (bp.frontier_pool_idr_monthly / bp.alien_pool_idr_monthly)
+        ELSE 0
+    END,
+    frontier_allow_weekly_limit = CASE
+        WHEN bp.alien_pool_idr_monthly > 0 THEN
+            bp.alien_allow_weekly_usd * (bp.frontier_pool_idr_monthly / bp.alien_pool_idr_monthly)
+        ELSE 0
+    END,
+    alien_pool_limit_idr = bp.alien_pool_idr_monthly,
+    frontier_pool_limit_idr = bp.frontier_pool_idr_monthly,
+    plan_expires_ts = COALESCE(p.plan_expires_ts, NOW() + INTERVAL '10 years'),
+    updated_ts = NOW()
+FROM ai.billing_plan bp
+WHERE p.owner_iid IN (33000, 99000)
+  AND p.deleted_ts IS NULL
+  AND bp.slug = p.plan_tier
+  AND bp.is_active = TRUE;
 
 UPDATE ai.identity i SET
     billing_profile_iid = p.id,

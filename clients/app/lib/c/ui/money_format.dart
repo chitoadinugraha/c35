@@ -80,3 +80,16 @@ String moneyUsdPerMinLabel(
   if (unit.isEmpty) return '';
   return '~$unit/min';
 }
+
+/// User-facing rate from wholesale/retail stored as USD (e.g. live $/sec).
+String moneyUsdPerSecLabel(
+  double usdPerMin, {
+  String currency = moneyDefaultCurrency,
+  int fxMicroPerUsd = moneyDefaultFxMicroPerUsd,
+}) {
+  if (usdPerMin <= 0) return '';
+  final usdPerSec = usdPerMin / 60.0;
+  final unit = moneyCostLabel(usdPerSec, currency: currency, fxMicroPerUsd: fxMicroPerUsd);
+  if (unit.isEmpty) return '';
+  return '~$unit/s';
+}

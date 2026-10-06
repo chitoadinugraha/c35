@@ -36,9 +36,12 @@ async fn subscribe_lite_monthly_applies_idr_pools() {
 
     let profile = billing_profile_fetch(&pool, user).await.expect("profile fetch").expect("profile row");
     assert_eq!(profile.plan_tier, "lite");
-    assert_eq!(profile.alien_pool_limit_idr, 100_000.0);
-    assert_eq!(profile.frontier_pool_limit_idr, 20_000.0);
-    assert_eq!(profile.alien_pool_used_idr, 0.0);
+    assert_eq!(profile.alien_pool_limit_idr, 0.0);
+    assert_eq!(profile.frontier_pool_limit_idr, 0.0);
+    assert!((profile.rings.alien_allow_5h_limit - 0.05).abs() < 1e-6);
+    assert!((profile.rings.alien_allow_weekly_limit - 1.0).abs() < 1e-6);
+    assert!((profile.rings.frontier_allow_5h_limit - 0.01).abs() < 1e-6);
+    assert!((profile.rings.frontier_allow_weekly_limit - 0.2).abs() < 1e-6);
 
     test_user_cleanup(&pool, user).await;
 }

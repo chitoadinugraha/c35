@@ -52,8 +52,8 @@ impl<'a> Default for ComposeTurnOpts<'a> {
     }
 }
 
-/// First LLM hop must call a tool when web-search inst matched and web.search is available.
-pub fn compose_force_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> bool {
+/// First LLM hop must call web.search when web-search inst matched.
+pub fn compose_force_web_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> bool {
     if matched_ids
         .iter()
         .any(|id| id == "inst.mention.sheets" || id == "inst.sheets.topic")
@@ -62,6 +62,25 @@ pub fn compose_force_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> boo
     }
     matched_ids.iter().any(|id| id == "inst.web_search")
         && tools.iter().any(|t| t.name == "web.search")
+}
+
+/// First LLM hop must call presentation.create when presentation inst matched.
+pub fn compose_force_presentation_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> bool {
+    matched_ids.iter().any(|id| id == "inst.presentation")
+        && tools.iter().any(|t| t.name == "presentation.create")
+}
+
+/// First LLM hop must call consumption.today when nutrition coach inst matched.
+pub fn compose_force_consumption_coach_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> bool {
+    matched_ids.iter().any(|id| id == "inst.consumption_coach")
+        && tools.iter().any(|t| t.name == "consumption.today")
+}
+
+/// First LLM hop must call a tool when a force-* inst matched and its tool is available.
+pub fn compose_force_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> bool {
+    compose_force_web_tool_call(matched_ids, tools)
+        || compose_force_presentation_tool_call(matched_ids, tools)
+        || compose_force_consumption_coach_tool_call(matched_ids, tools)
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -222,13 +241,12 @@ fn compose_prepare_scoped(
     staff: &StaffView,
     opts: ComposeTurnOpts<'_>,
 ) -> Result<ComposePrep, ComposeOutput> {
-    let topics: Vec<String> = if active_topics.is_empty() {
+    let mut topics: Vec<String> = if active_topics.is_empty() {
         vec![topic_resolve("", mention_ids, mentions)]
     } else {
         active_topics.to_vec()
     };
-    let topic_refs: Vec<&str> = topics.iter().map(|t| t.as_str()).collect();
-    let primary_topic = topic_refs.first().map(|t| *t).unwrap_or("general");
+    let primary_topic = topics.first().map(|t| t.as_str()).unwrap_or("general");
     let signal_slice: &[String] = if opts.extra_signals.is_empty() {
         &[]
     } else {
@@ -245,6 +263,11 @@ fn compose_prepare_scoped(
             staff: Some(staff),
         },
     );
+    if matched.iter().any(|r| r.id == "inst.presentation") && !topics.iter().any(|t| t == "presentation") {
+        topics.push("presentation".into());
+    }
+    let topic_refs: Vec<&str> = topics.iter().map(|t| t.as_str()).collect();
+    let primary_topic = topic_refs.first().map(|t| *t).unwrap_or("general");
     let matched_ids: Vec<String> = matched.iter().map(|r| r.id.clone()).collect();
     let inst_block = inst_matched_prompt(&matched);
     let (mut force_include, mut tool_exclude) = inst_tool_directives(&matched);

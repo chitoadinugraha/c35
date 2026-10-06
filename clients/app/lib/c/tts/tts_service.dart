@@ -19,7 +19,16 @@ class TtsService {
   void bindVoiceApi(VoiceApi? api) => _voiceApi = api;
 
   @visibleForTesting
-  static String ttsEngineRoute(String engine) => 'cloud';
+  static String ttsEngineRoute(String engine) {
+    switch (engine) {
+      case 'web':
+      case 'local':
+      case 'cloud':
+        return engine;
+      default:
+        return 'cloud';
+    }
+  }
 
   FlutterTts? _flutterTts;
   AudioPlayer? _audioPlayer;
@@ -63,11 +72,14 @@ class TtsService {
     _initialized = true;
   }
 
+  /// Text passed to TTS engines after [speechTextClean] — full message, no sentence cap.
+  @visibleForTesting
+  static String speakPreparedText(String text) => speechTextClean(text);
+
   Future<void> speak(String text, {String? lang}) async {
-    final clean = speechTextClean(text);
-    if (clean.isEmpty) return;
+    final spoken = speakPreparedText(text);
+    if (spoken.isEmpty) return;
     await _init();
-    final spoken = speechTextCap(clean);
     final prefs = VoicePrefs.instance;
     final localePref = (lang != null && lang != kSpeechLangAuto) ? lang : prefs.speechLang;
     final effectiveLang = (lang != null && lang != kSpeechLangAuto)
@@ -131,9 +143,19 @@ class TtsService {
       if (_voiceApi == null && cloudSynthesize == null) return false;
       try {
         lastSpeakError = null;
-        final audio = cloudSynthesize != null
-            ? await cloudSynthesize(text: spoken, lang: effectiveLang)
-            : await _voiceApi!.ttsSynthesize(text: spoken, lang: effectiveLang);
+        Future<({Uint8List bytes, String mime})?> synth() => cloudSynthesize != null
+            ? cloudSynthesize(text: spoken, lang: effectiveLang)
+            : _voiceApi!.ttsSynthesize(text: spoken, lang: effectiveLang);
+        ({Uint8List bytes, String mime})? audio;
+        try {
+          audio = await synth();
+        } catch (e) {
+          final msg = e.toString().toLowerCase();
+          if (msg.contains('balance') || msg.contains('top up') || msg.contains('quota')) rethrow;
+          debugPrint('[TtsService] Cloud TTS failed once, retrying: $e');
+          await Future<void>.delayed(const Duration(milliseconds: 400));
+          audio = await synth();
+        }
         if (audio != null && audio.bytes.isNotEmpty && _audioPlayer != null) {
           speakingLang.value = effectiveLang;
           isSpeaking.value = true;
@@ -195,5 +217,66 @@ class TtsService {
       debugPrint('[TtsService] FlutterTts stop error: $e');
     }
     isSpeaking.value = false;
+  }
+}
+
+/// Buffers streaming LLM deltas into sentences and feeds them into TTS sequentially,
+/// reducing perceived Time-To-First-Audio from ~8s to ~1.5s.
+class TtsStreamQueue {
+  TtsStreamQueue();
+
+  final List<String> _pending = [];
+  bool _running = false;
+  String _currentBuffer = '';
+  var _cancelled = false;
+
+  void feedChunk(String chunk) {
+    if (_cancelled) return;
+    _currentBuffer += chunk;
+    // Check if buffer contains sentence boundary: '.', '?', '!', '\n'
+    final match = RegExp(r'([.?!]\s+|\n+)').firstMatch(_currentBuffer);
+    if (match != null) {
+      final end = match.end;
+      final sentence = _currentBuffer.substring(0, end).trim();
+      _currentBuffer = _currentBuffer.substring(end);
+      if (sentence.isNotEmpty) {
+        _enqueue(sentence);
+      }
+    }
+  }
+
+  void flush() {
+    if (_cancelled) return;
+    final remaining = _currentBuffer.trim();
+    _currentBuffer = '';
+    if (remaining.isNotEmpty) {
+      _enqueue(remaining);
+    }
+  }
+
+  void _enqueue(String sentence) {
+    _pending.add(sentence);
+    unawaited(_drain());
+  }
+
+  Future<void> _drain() async {
+    if (_running) return;
+    _running = true;
+    while (_pending.isNotEmpty && !_cancelled) {
+      final next = _pending.removeAt(0);
+      await TtsService.instance.speak(next);
+      while (TtsService.instance.isSpeaking.value && !_cancelled) {
+        await Future.delayed(const Duration(milliseconds: 50));
+      }
+    }
+    _running = false;
+  }
+
+  void cancel() {
+    _cancelled = true;
+    _pending.clear();
+    _currentBuffer = '';
+    _running = false;
+    unawaited(TtsService.instance.stop());
   }
 }

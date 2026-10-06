@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/settings/voice_prefs.dart';
+import 'package:alienai_c35/c/tts/speech_lang.dart';
 import 'package:alienai_c35/c/tts/tts_service.dart';
 import 'package:alienai_c35/c/voice/voice_api.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -32,10 +33,17 @@ void main() {
     TtsService.instance.bindVoiceApi(null);
   });
 
-  test('ttsEngineRoute always routes to cloud', () {
-    expect(TtsService.ttsEngineRoute('web'), 'cloud');
-    expect(TtsService.ttsEngineRoute('local'), 'cloud');
+  test('speakPreparedText keeps full cleaned message', () {
+    const raw = 'One. Two. Three. Four.';
+    expect(TtsService.speakPreparedText(raw), 'One. Two. Three. Four.');
+    expect(speechTextCap(TtsService.speakPreparedText(raw)), 'One. Two.');
+  });
+
+  test('ttsEngineRoute returns persisted engine choice', () {
+    expect(TtsService.ttsEngineRoute('web'), 'web');
+    expect(TtsService.ttsEngineRoute('local'), 'local');
     expect(TtsService.ttsEngineRoute('cloud'), 'cloud');
+    expect(TtsService.ttsEngineRoute('unknown'), 'cloud');
   });
 
   test('speakRouted uses web fetch for web engine', () async {

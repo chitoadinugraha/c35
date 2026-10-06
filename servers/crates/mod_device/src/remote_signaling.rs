@@ -22,6 +22,7 @@ use crate::agent_meta_get;
 
 static HUB: OnceLock<Arc<RemoteSignalingHub>> = OnceLock::new();
 static APP_CONN_SEQ: AtomicU64 = AtomicU64::new(1);
+static AGENT_CONN_SEQ: AtomicU64 = AtomicU64::new(1);
 static PENDING_SCREENSHOTS: OnceLock<DashMap<String, tokio::sync::oneshot::Sender<ResRemoteScreenshot>>> = OnceLock::new();
 static PENDING_COMMANDS: OnceLock<DashMap<String, tokio::sync::oneshot::Sender<ResRemoteCommand>>> = OnceLock::new();
 static PENDING_FS_LIST: OnceLock<DashMap<String, tokio::sync::oneshot::Sender<RemoteFsListRes>>> =
@@ -61,6 +62,7 @@ struct RemoteSessionEntry {
 
 #[derive(Clone)]
 struct AgentRoute {
+    conn_id: u64,
     out_tx: mpsc::UnboundedSender<Vec<u8>>,
 }
 
@@ -87,12 +89,15 @@ pub fn remote_signaling_app_conn_unregister(app_conn_id: u64) {
 pub fn remote_signaling_agent_register(
     device_iid: i64,
     out_tx: mpsc::UnboundedSender<Vec<u8>>,
-) {
-    hub().agents.insert(device_iid, AgentRoute { out_tx });
+) -> u64 {
+    let conn_id = AGENT_CONN_SEQ.fetch_add(1, Ordering::Relaxed);
+    hub().agents.insert(device_iid, AgentRoute { conn_id, out_tx });
+    conn_id
 }
 
-pub fn remote_signaling_agent_unregister(device_iid: i64) {
-    hub().agents.remove(&device_iid);
+/// Drop this socket's route only. A newer agent WS for the same device keeps its route.
+pub fn remote_signaling_agent_unregister(device_iid: i64, conn_id: u64) {
+    hub().agents.remove_if(&device_iid, |_, route| route.conn_id == conn_id);
 }
 
 pub fn remote_signaling_agent_connected(device_iid: i64) -> bool {

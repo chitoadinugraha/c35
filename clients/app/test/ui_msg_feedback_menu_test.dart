@@ -23,7 +23,7 @@ void main() {
     final rows = items.whereType<ChatMessageMenuButtonRow>().toList();
     expect(rows, hasLength(2));
     expect(rows[0].actions.map((a) => a.label).toList(), ['Trace', 'Copy message ID']);
-    expect(rows[1].actions.map((a) => a.label).toList(), ['Good Answer', 'Bad Answer']);
+    expect(rows[1].actions.map((a) => a.label).toList(), ['Good', 'Bad']);
     final traceIndex = items.indexOf(rows[0]);
     final feedbackIndex = items.indexOf(rows[1]);
     expect(items[traceIndex - 1], isA<ChatMessageMenuDivider>());
@@ -46,6 +46,6 @@ void main() {
       return const SizedBox.shrink();
     })));
     expect(items.whereType<ChatMessageMenuButtonRow>().length, 1);
-    expect(items.any((i) => i is ChatMessageMenuAction && i.label == 'Good Answer'), isFalse);
+    expect(items.any((i) => i is ChatMessageMenuAction && i.label == 'Good'), isFalse);
   });
 }

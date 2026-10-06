@@ -6,7 +6,6 @@ mod common;
 use chrono::Utc;
 use c35_mod_billing::{
     billing_promotion_claim, billing_promotion_create, billing_promotion_get, PromotionCreateFields,
-    SIGNUP_TRIAL_ALIEN_IDR, SIGNUP_TRIAL_FRONTIER_IDR,
 };
 use common::{
     active_window, db_tests_enabled, expired_window, promo_code, test_pool, test_promotion_cleanup,
@@ -279,10 +278,11 @@ async fn signup_trial_applies_quarter_lite_pools() {
     let claim = billing_promotion_claim(&pool, user, "trial@example.com", &code)
         .await
         .expect("claim trial");
-    assert!((claim.alien_pool_limit_idr - SIGNUP_TRIAL_ALIEN_IDR).abs() < 0.01);
-    assert!((claim.frontier_pool_limit_idr - SIGNUP_TRIAL_FRONTIER_IDR).abs() < 0.01);
-    assert_eq!(claim.alien_pool_limit_idr, 25_000.0);
-    assert_eq!(claim.frontier_pool_limit_idr, 5_000.0);
+    assert_eq!(claim.alien_pool_limit_idr, 0.0);
+    assert_eq!(claim.frontier_pool_limit_idr, 0.0);
+    let profile = claim.profile.expect("profile");
+    assert!((profile.alien_allow_5h_limit - 0.0125).abs() < 1e-6);
+    assert!((profile.alien_allow_weekly_limit - 0.25).abs() < 1e-6);
     assert!(claim.expires_ts_ms > Utc::now().timestamp_millis());
 
     test_promotion_cleanup(&pool, promo_id).await;

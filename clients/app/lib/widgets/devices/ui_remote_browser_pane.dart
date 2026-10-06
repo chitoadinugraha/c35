@@ -27,6 +27,7 @@ class UiRemoteBrowserPane extends StatefulWidget {
     required this.onApplyUpdate,
     this.promptStore,
     required this.onStopTeach,
+    this.onPresenceRefresh,
   });
 
   final RemoteSession session;
@@ -45,6 +46,7 @@ class UiRemoteBrowserPane extends StatefulWidget {
   final VoidCallback onApplyUpdate;
   final DevicePromptContextStore? promptStore;
   final VoidCallback onStopTeach;
+  final Future<void> Function()? onPresenceRefresh;
 
   @override
   State<UiRemoteBrowserPane> createState() => _UiRemoteBrowserPaneState();
@@ -93,6 +95,7 @@ class _UiRemoteBrowserPaneState extends State<UiRemoteBrowserPane> {
                       updateVersion: widget.updateVersion,
                       onApplyUpdate: widget.onApplyUpdate,
                       deferInlineLoading: true,
+                      onPresenceRefresh: widget.onPresenceRefresh,
                       onShellBusyChanged: (busy, message) {
                         if (_remoteShellBusy == busy && _remoteShellMessage == message) return;
                         setState(() {

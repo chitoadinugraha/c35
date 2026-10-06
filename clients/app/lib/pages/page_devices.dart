@@ -1,4 +1,5 @@
 import 'package:alienai_c35/c/chat/chat_conn.dart';
+import 'package:alienai_c35/c/device/device_presence_cache.dart';
 import 'package:alienai_c35/c/device/device_store.dart';
 import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
 import 'package:alienai_c35/c/session.dart';
@@ -204,7 +205,7 @@ class _PageDevicesState extends State<PageDevices> {
                                   onSecondaryTapDown: (d) => _rowMenu(sid, d.globalPosition),
                                   onLongPress: () => _rowMenu(sid, Offset(MediaQuery.sizeOf(context).width / 2, 200)),
                                   child: ListenableBuilder(
-                                    listenable: session.presenceListenable,
+                                    listenable: Listenable.merge([session.presenceListenable, DevicePresenceCache.instance]),
                                     builder: (context, _) => UiDeviceRow(
                                       name: id.name.isNotEmpty ? id.name : id.type,
                                       kind: id.kind,
@@ -215,7 +216,9 @@ class _PageDevicesState extends State<PageDevices> {
                                         deviceType: id.type,
                                       ),
                                       pinned: row.isPinned,
-                                      clusterOnline: deviceOnlineFromMeta(id.metaJson),
+                                      clusterOnline: deviceOnlineFromMeta(
+                                        DevicePresenceCache.instance.metaFor(id.iid, id.metaJson),
+                                      ),
                                       webrtcConnected: session.connected.value,
                                       webrtcConnecting: session.isLinking,
                                       webrtcFailed: session.status.value == RemoteSessionStatus.failed,
@@ -251,6 +254,7 @@ class _PageDevicesState extends State<PageDevices> {
       chatConn: widget.chatConn,
       onBack: wide ? null : () => _store.select(null),
       title: wide ? null : (_deviceName(id) ?? 'Device'),
+      onPresenceRefresh: () => _store.refresh(),
     );
   }
 

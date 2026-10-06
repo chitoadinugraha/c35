@@ -23,8 +23,12 @@ class PresentationThemeCatalogItem {
 
   String get displayLabel {
     final key = labelKey.trim();
-    if (key.contains('.')) return catalogT(key);
-    return key.isEmpty ? id : key;
+    if (key.contains('.')) {
+      final t = catalogT(key);
+      if (t.isNotEmpty && t != key) return t;
+    }
+    if (key.isNotEmpty && !key.contains('.')) return key;
+    return id.isEmpty ? 'Theme' : id[0].toUpperCase() + id.substring(1);
   }
 
   SlideTheme toSlideTheme() => SlideTheme.fromTokens(id: id, label: displayLabel, raw: tokens);

@@ -244,7 +244,10 @@ async fn marketing_limit_charge(pool: &PgPool, issuer_iid: i64, face_idr: f64) -
         .get("voucher_issue_used_idr")
         .and_then(|v| v.as_f64())
         .unwrap_or(0.0);
-    if limit > 0.0 && used + face_idr > limit + 0.01 {
+    if limit <= 0.0 {
+        return Err("marketing voucher issue limit not allocated (limit is 0)".into());
+    }
+    if used + face_idr > limit + 0.01 {
         return Err("voucher issue credit limit exceeded".into());
     }
     if let Some(obj) = meta.as_object_mut() {

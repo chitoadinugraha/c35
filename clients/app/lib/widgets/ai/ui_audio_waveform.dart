@@ -10,7 +10,7 @@ import 'package:flutter/material.dart';
 class UiAudioWaveform extends StatefulWidget {
   const UiAudioWaveform({
     super.key,
-    required this.recordingSeconds,
+    required this.recordingElapsedMs,
     required this.amplitude,
     this.amplitudeHistory,
     this.liveTranscript,
@@ -20,9 +20,10 @@ class UiAudioWaveform extends StatefulWidget {
     this.engine,
     required this.onCancel,
     required this.onCommit,
+    this.maxRecordingSeconds = SttService.maxRecordingSeconds,
   });
 
-  final ValueListenable<int> recordingSeconds;
+  final ValueListenable<int> recordingElapsedMs;
   final ValueListenable<double> amplitude;
   final ValueListenable<List<double>>? amplitudeHistory;
   final ValueListenable<String>? liveTranscript;
@@ -32,6 +33,7 @@ class UiAudioWaveform extends StatefulWidget {
   final String? engine;
   final VoidCallback onCancel;
   final VoidCallback onCommit;
+  final int maxRecordingSeconds;
 
   @override
   State<UiAudioWaveform> createState() => _UiAudioWaveformState();
@@ -60,10 +62,13 @@ class _UiAudioWaveformState extends State<UiAudioWaveform> with SingleTickerProv
     super.dispose();
   }
 
-  String _formatDuration(int sec) {
-    final m = (sec ~/ 60).toString().padLeft(2, '0');
-    final s = (sec % 60).toString().padLeft(2, '0');
-    return '$m:$s';
+  String _formatDurationMs(int ms) {
+    final safe = ms < 0 ? 0 : ms;
+    final totalSec = safe ~/ 1000;
+    final m = (totalSec ~/ 60).toString().padLeft(2, '0');
+    final s = (totalSec % 60).toString().padLeft(2, '0');
+    final f = (safe % 1000).toString().padLeft(3, '0');
+    return '$m:$s.$f';
   }
 
   bool get _useDecorativeWave {
@@ -222,8 +227,8 @@ class _UiAudioWaveformState extends State<UiAudioWaveform> with SingleTickerProv
               },
             ),
             ValueListenableBuilder<int>(
-              valueListenable: widget.recordingSeconds,
-              builder: (ctx, sec, _) => Row(
+              valueListenable: widget.recordingElapsedMs,
+              builder: (ctx, ms, _) => Row(
                 children: [
                   FadeTransition(
                     opacity: Tween<double>(begin: 0.35, end: 1.0).animate(_animCtrl),
@@ -238,7 +243,7 @@ class _UiAudioWaveformState extends State<UiAudioWaveform> with SingleTickerProv
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    _formatDuration(sec),
+                    _formatDurationMs(ms),
                     style: const TextStyle(
                       fontFamily: 'Consolas',
                       color: _zinc100,
@@ -247,9 +252,9 @@ class _UiAudioWaveformState extends State<UiAudioWaveform> with SingleTickerProv
                     ),
                   ),
                   const SizedBox(width: 2),
-                  const Text(
-                    '/ 00:30',
-                    style: TextStyle(
+                  Text(
+                    '/ ${_formatDurationMs(widget.maxRecordingSeconds * 1000)}',
+                    style: const TextStyle(
                       fontFamily: 'Consolas',
                       color: _zinc500,
                       fontSize: 11,

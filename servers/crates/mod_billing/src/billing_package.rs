@@ -344,10 +344,15 @@ pub async fn billing_package_redeem(
         charge_idr,
     )?;
 
-    let plan_tier = if pkg.base_plan_slug.trim().is_empty() {
-        account.get::<String, _>("plan_tier")
-    } else {
+    let plan_tier = if !pkg.base_plan_slug.trim().is_empty() {
         pkg.base_plan_slug.trim().to_string()
+    } else {
+        let current_tier = account.get::<String, _>("plan_tier");
+        if !current_tier.trim().is_empty() && current_tier.trim() != "free" {
+            current_tier
+        } else {
+            "lite".to_string()
+        }
     };
 
     sqlx::query(
@@ -367,6 +372,21 @@ pub async fn billing_package_redeem(
     .execute(&mut *tx)
     .await
     .map_err(|e| e.to_string())?;
+
+    let charge_native = if crate::billing_wallet::billing_wallet_use_idr(&billing_currency) { charge_idr } else { charge_usd };
+    let wallet_currency = if crate::billing_wallet::billing_wallet_use_idr(&billing_currency) { "IDR" } else { "USD" };
+    let _ = sqlx::query(
+        r#"
+        UPDATE ai.billing_wallet
+        SET balance = GREATEST(balance - $2, 0), updated_ts = NOW()
+        WHERE owner_iid = $1 AND currency = $3 AND deleted_ts IS NULL
+        "#,
+    )
+    .bind(buyer_iid)
+    .bind(charge_native)
+    .bind(wallet_currency)
+    .execute(&mut *tx)
+    .await;
 
     sqlx::query(
         r#"
@@ -396,6 +416,35 @@ pub async fn billing_package_redeem(
 
     tx.commit().await.map_err(|e| e.to_string())?;
 
+    let ent_expires = row_expires_at(&ref_row).unwrap_or_else(|| {
+        Utc::now() + chrono::Duration::days(30 * pkg.duration_months.max(1) as i64)
+    });
+    let custom_alien = meta_f64(&meta, "alien_pool_limit_idr");
+    let custom_frontier = meta_f64(&meta, "frontier_pool_limit_idr");
+    let pool_over = if custom_alien > 0.0 || custom_frontier > 0.0 {
+        (Some(custom_alien), Some(custom_frontier))
+    } else {
+        (None, None)
+    };
+    let entitlement_id = billing_entitlement_grant(
+        pool,
+        EntitlementGrantSpec {
+            owner_iid: buyer_iid,
+            source: "referral_purchase".into(),
+            referral_code: Some(code.clone()),
+            purchase_id: Some(purchase_id),
+            plan_slug: plan_tier.clone(),
+            duration_months: pkg.duration_months.max(1),
+            credit_idr: 0.0,
+            highlight: true,
+            expires_ts: Some(ent_expires),
+            alien_pool_override: pool_over.0,
+            frontier_pool_override: pool_over.1,
+        },
+    )
+    .await
+    .map_err(|e| e.to_string())?;
+
     let amount_idr_i64 = charge_idr.round() as i64;
     if let Err(e) = commission_accrue_on_purchase(
         pool,
@@ -409,6 +458,10 @@ pub async fn billing_package_redeem(
         tracing::warn!("commission accrue on package redeem: {e}");
     }
 
+    crate::billing_push::billing_notify_owner(pool, None, buyer_iid, None).await;
+
+    let list = billing_entitlement_list(pool, buyer_iid).await.map_err(|e| e.to_string())?;
+
     Ok(ResBillingPackageRedeem {
         purchase_id,
         amount_usd: pkg.price_usd,
@@ -418,9 +471,9 @@ pub async fn billing_package_redeem(
         package_name: pkg.name,
         balance_usd: new_usd,
         balance_idr: new_idr,
-        entitlements: vec![],
-        entitlement_id: 0,
-        expires_ts_ms: 0,
+        entitlements: list.items,
+        entitlement_id,
+        expires_ts_ms: ent_expires.timestamp_millis(),
     })
 }
 

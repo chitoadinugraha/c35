@@ -35,7 +35,7 @@ void main() {
     SttService.instance.bindVoiceApi(null);
   });
 
-  test('sttEngineRoute always routes to cloud', () {
+  test('sttEngineRoute always uses cloud STT', () {
     expect(VoicePrefs.instance.sttEngine, VoicePrefs.defaultSttEngine);
     expect(SttService.sttEngineRoute('web'), 'cloud');
     expect(SttService.sttEngineRoute('local'), 'cloud');
@@ -43,13 +43,11 @@ void main() {
   });
 
   test('transcribeRouted uses VoiceApi when engine is cloud', () async {
-    await VoicePrefs.instance.setSttEngine('cloud');
     SttService.instance.bindVoiceApi(_FakeVoiceApi(sttResult: 'cloud transcript'));
     final result = await SttService.instance.transcribeRouted(
       bytes: Uint8List.fromList([4, 5]),
       lang: 'id-ID',
       mime: 'audio/ogg',
-      webTranscribe: (_, __, ___) async => 'should not run',
     );
     expect(result, 'cloud transcript');
   });
@@ -70,12 +68,10 @@ void main() {
   });
 
   test('transcribeRouted returns null for cloud without VoiceApi', () async {
-    await VoicePrefs.instance.setSttEngine('cloud');
     final result = await SttService.instance.transcribeRouted(
       bytes: Uint8List(0),
       lang: 'en-US',
       mime: 'audio/wav',
-      webTranscribe: (_, __, ___) async => 'web',
     );
     expect(result, isNull);
   });
@@ -132,18 +128,7 @@ void main() {
     expect(peakAmp.levelDb, closeTo(0.0, 0.1));
   });
 
-  test('transcribeRouted does not fall back to Gemini for web engine', () async {
-    await VoicePrefs.instance.setSttEngine('web');
-    final result = await SttService.instance.transcribeRouted(
-      bytes: Uint8List.fromList([1, 2, 3]),
-      lang: 'id-ID',
-      mime: 'audio/wav',
-    );
-    expect(result, isNull);
-  });
-
   test('transcribeRouted filters out 00:00 hallucinated response from cloud STT', () async {
-    await VoicePrefs.instance.setSttEngine('cloud');
     SttService.instance.bindVoiceApi(_FakeVoiceApi(sttResult: '00:00'));
     final result = await SttService.instance.transcribeRouted(
       bytes: Uint8List.fromList([4, 5]),
@@ -179,16 +164,19 @@ void main() {
     expect(SttService.trimSilence(pcm).length, pcm.length);
   });
 
-  test('VoicePrefs saves, loads, and clears mic device preferences', () async {
-    expect(VoicePrefs.instance.micDeviceId, '');
-    expect(VoicePrefs.instance.micDeviceLabel, '');
+  test('VoicePrefs forces cloud STT and persists TTS engine on load', () async {
+    await VoicePrefs.instance.setTtsEngine('local');
+    SharedPreferences.setMockInitialValues({
+      'voice_stt_engine': 'web',
+      'voice_tts_engine': 'local',
+    });
+    await VoicePrefs.instance.load();
+    expect(VoicePrefs.instance.sttEngine, 'cloud');
+    expect(VoicePrefs.instance.ttsEngine, 'local');
+  });
 
-    await VoicePrefs.instance.setMicDevice('test-id-123', 'USB Audio Device');
-    expect(VoicePrefs.instance.micDeviceId, 'test-id-123');
-    expect(VoicePrefs.instance.micDeviceLabel, 'USB Audio Device');
-
-    await VoicePrefs.instance.setMicDevice('', '');
-    expect(VoicePrefs.instance.micDeviceId, '');
-    expect(VoicePrefs.instance.micDeviceLabel, '');
+  test('pcm16MonoDurationMs from pcm payload', () {
+    final pcm = Uint8List.fromList(List<int>.filled(16000 * 2, 0));
+    expect(SttService.pcm16MonoDurationMs(pcm, sampleRate: 16000), 1000);
   });
 }

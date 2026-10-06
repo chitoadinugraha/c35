@@ -78,8 +78,8 @@ Same as desktop `kind=remote` ([`ui_device_row.dart`](../clients/app/lib/widgets
 
 | Dot | Meaning |
 |-----|---------|
-| **Left** | **Direct link (WebRTC)** -- app <-> runner video/input |
-| **Right** | **Alien AI Cloud** -- agent control WS / presence |
+| **Left** | **Alien AI Cloud** -- agent control WS / presence. Grey: subtitle **Device is offline** |
+| **Right** | **Direct link (WebRTC)** -- app <-> runner video/input |
 
 Optional: distinct icon for `type=browser` (e.g. globe); dots unchanged.
 

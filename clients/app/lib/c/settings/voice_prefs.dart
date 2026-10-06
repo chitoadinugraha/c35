@@ -27,6 +27,8 @@ class VoicePrefs extends ChangeNotifier {
   static String get defaultSttEngine => 'cloud';
   static String get defaultTtsEngine => 'cloud';
 
+  static bool _isTtsEngineChoice(String value) => value == 'web' || value == 'local' || value == 'cloud';
+
   SharedPreferences? _prefs;
   var _speechLang = kSpeechLangDefault;
   var _lastLang = '';
@@ -58,12 +60,13 @@ class VoicePrefs extends ChangeNotifier {
     _prefs ??= await SharedPreferences.getInstance();
     _speechLang = _prefs!.getString(_keyLang) ?? kSpeechLangDefault;
     _lastLang = _prefs!.getString(_keyLastLang) ?? '';
-    _sttEngine = 'cloud';
-    _ttsEngine = 'cloud';
-    final savedTts = _prefs!.getString(_keyTts);
-    if (savedTts != 'cloud') {
-      await _prefs!.setString(_keyTts, 'cloud');
+    _sttEngine = defaultSttEngine;
+    final savedStt = _prefs!.getString(_keyStt);
+    if (savedStt != null && savedStt != defaultSttEngine) {
+      await _prefs!.setString(_keyStt, defaultSttEngine);
     }
+    _ttsEngine = _prefs!.getString(_keyTts) ?? defaultTtsEngine;
+    if (!_isTtsEngineChoice(_ttsEngine)) _ttsEngine = defaultTtsEngine;
     _speakEnabled = _prefs!.getBool(_keySpeak) ?? speakEnabledDefault;
     _talkEnabled = _prefs!.getBool(_keyTalk) ?? talkEnabledDefault;
     _talkSpeakEnabled = _prefs!.getBool(_keyTalkSpeak) ?? talkSpeakEnabledDefault;
@@ -155,10 +158,10 @@ class VoicePrefs extends ChangeNotifier {
   }
 
   Future<void> setSttEngine(String value) async {
-    if (_sttEngine == value) return;
-    _sttEngine = value;
+    if (_sttEngine == defaultSttEngine) return;
+    _sttEngine = defaultSttEngine;
     _prefs ??= await SharedPreferences.getInstance();
-    await _prefs!.setString(_keyStt, value);
+    await _prefs!.setString(_keyStt, defaultSttEngine);
     notifyListeners();
   }
 

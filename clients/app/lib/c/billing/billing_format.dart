@@ -135,6 +135,10 @@ BillingAccount billingAccountMerge(BillingAccount base, {BillingPushBalance? bal
     out.freemiumTokensLimit = quota.freemiumTokensLimit;
     if (quota.hasPlanExpiresTsMs()) out.planExpiresTsMs = quota.planExpiresTsMs;
     if (quota.hasTrialExpiresTsMs()) out.trialExpiresTsMs = quota.trialExpiresTsMs;
+    out.frontierAllow5hUsed = quota.frontierAllow5hUsed;
+    out.frontierAllow5hLimit = quota.frontierAllow5hLimit;
+    out.frontierAllowWeeklyUsed = quota.frontierAllowWeeklyUsed;
+    out.frontierAllowWeeklyLimit = quota.frontierAllowWeeklyLimit;
   }
   if (commission != null) {
     out.commissionAvailableUsd = commission.commissionAvailableUsd;

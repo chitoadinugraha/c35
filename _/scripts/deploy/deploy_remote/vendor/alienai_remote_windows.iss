@@ -54,6 +54,9 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 [Tasks]
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Additional icons:"; Flags: unchecked
 
+[Registry]
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "AlienAI Remote Agent"; ValueData: """{app}\{#MyAppExeName}"""; Flags: uninsdeletevalue
+
 [Run]
 Filename: "{tmp}\vc_redist.x64.exe"; Parameters: "/install /quiet /norestart"; StatusMsg: "Installing Microsoft Visual C++ runtime..."; Flags: waituntilterminated; Check: VCRedistNeeded
 Filename: "msiexec.exe"; Parameters: "/i ""{tmp}\{#WinFspMsiName}"" /quiet /norestart ADDLOCAL=ALL"; StatusMsg: "Installing WinFsp (virtual drive)..."; Flags: waituntilterminated; Check: WinFspNeeded

@@ -7,6 +7,7 @@ class ApiException implements Exception {
 
 const uiConnectionProblem = 'Connection Problem';
 const uiCannotConnectToAlienAi = 'Cannot connect to Alien AI';
+const uiConnectionFailed = 'Connection failed';
 
 bool uiIsRecoverableDeviceContextError(String raw) {
   final lower = raw.trim().toLowerCase();
@@ -25,11 +26,13 @@ bool uiIsConnectionError(String raw) {
       lower.contains('timeoutexception') ||
       lower.contains('connection refused') ||
       lower.contains('connection closed') ||
+      lower.contains('cannot add event after closing') ||
       lower.contains('failed host lookup') ||
       lower.contains('socketexception') ||
       lower.contains('websocket') ||
       lower.contains('network is unreachable') ||
-      lower == 'disconnected';
+      lower == 'disconnected' ||
+      lower == 'connection failed';
 }
 
 String uiReferralError(Object error, {required String fallback}) {
@@ -47,6 +50,9 @@ String uiFriendlyError(Object error, {String fallback = 'Something went wrong. P
   s = s.trim();
   if (s.isEmpty) return fallback;
   final lower = s.toLowerCase();
+  if (lower.contains('cannot add event after closing') || lower == 'disconnected' || lower.contains('connection failed')) {
+    return uiConnectionFailed;
+  }
   if (lower.contains('websocketchannel') ||
       lower.contains('websocket') ||
       lower.contains('connection closed before full header') ||

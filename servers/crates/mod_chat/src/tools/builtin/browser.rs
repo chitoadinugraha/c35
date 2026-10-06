@@ -41,9 +41,6 @@ fn browser_fail(error: impl Into<String>) -> Value {
     })
 }
 
-const SHEETS_WRITE_FAIL_RULE: &str =
-    "The Google Sheet was NOT updated. Tell the user the write failed; do not claim success.";
-
 fn browser_sheets_llm_ok(summary: &str) -> Value {
     json!({
         "ok": true,
@@ -55,11 +52,7 @@ fn browser_sheets_llm_fail(error: &str) -> Value {
     json!({
         "ok": false,
         "error": error,
-        "llm": {
-            "ok": false,
-            "error": error,
-            "reply_rule": SHEETS_WRITE_FAIL_RULE,
-        },
+        "llm": { "ok": false, "error": error },
     })
 }
 
@@ -964,11 +957,11 @@ mod browser_sheets_llm_tests {
     }
 
     #[test]
-    fn cell_set_llm_fail_reply_rule() {
+    fn cell_set_llm_fail_error() {
         let raw = json!({ "ok": false, "error": "nope" });
         let out = browser_sheets_cell_set_result(raw, "B2", "x");
         assert_eq!(out["ok"], false);
-        assert!(out["llm"]["reply_rule"].is_string());
+        assert_eq!(out["llm"]["error"], "nope");
     }
 
     #[test]

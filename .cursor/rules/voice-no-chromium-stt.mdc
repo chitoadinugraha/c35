@@ -1,0 +1,51 @@
+---
+description: STT is cloud-only — never re-add Chromium / public Google web STT
+alwaysApply: true
+---
+
+# Voice STT — no Chromium / web public endpoint
+
+Mirrored for Antigravity: [`.agents/rules/voice-no-chromium-stt.md`](../../.agents/rules/voice-no-chromium-stt.md)
+
+## Hard rule
+
+**Do not implement, restore, suggest, or "try again" client-side STT via Google's undocumented Chromium endpoint** (including variants of):
+
+- `google.com/speech-api/v2/recognize`
+- `www.google.com/speech-api/v2/recognize`
+- `audio/l16` uploads to that URL with `client=chromium`
+- cs_bots-style `_transcribeWebEndpoint`, "web STT engine", or STT `local` -> public web route
+
+This path has been attempted multiple times; it is **deprecated, blocked, or unreliable**. The product decision is **final**: do not revisit unless the user explicitly requests a **different** technology (e.g. platform `speech_to_text`, on-device model) — not this URL.
+
+## What to use instead
+
+| Direction | Allowed |
+|-----------|---------|
+| **STT (composer, Talk, settings test)** | **Cloud only** — `VoiceApi.sttTranscribe` -> `ReqVoiceStt` -> `mod_voice` (Whisper / server fallbacks). Client: `SttService.transcribeRouted` -> cloud; `sttEngineRoute` -> `'cloud'`. |
+| **TTS** | Cloud (default), optional **web** `translate_tts` or **local** `flutter_tts` per `_/docs/voice.md` — **does not apply to STT**. |
+
+## Settings and prefs
+
+- Settings -> **Speech to text**: **Cloud only** (no web/local STT picker).
+- `VoicePrefs`: STT engine stays **`cloud`**; rewrite legacy `web`/`local` STT prefs on load.
+- Docs: `_/docs/voice.md` — STT cloud-only; do not document Chromium STT as supported.
+
+## Agent checklist (before claiming STT fixed)
+
+1. No new HTTP calls to `speech-api/v2/recognize` in `clients/**`.
+2. No STT engine router branch that bypasses `VoiceApi` for production paths.
+3. If "free STT" is requested, say **cloud billing** or propose **non-Chromium** alternatives — never the public Google speech-api URL.
+
+## Forbidden vs allowed
+
+```dart
+// BAD — do not add or restore
+final url = 'https://www.google.com/speech-api/v2/recognize?...';
+await http.post(Uri.parse(url), body: pcm, headers: {'Content-Type': 'audio/l16; rate=16000'});
+```
+
+```dart
+// GOOD — STT
+await _voiceApi!.sttTranscribe(audio: wav, mime: 'audio/wav', lang: lang, reqId: reqId);
+```

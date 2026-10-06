@@ -5,7 +5,7 @@
                  "heroLoading":  "Loading catalog…"
              },
     "chat":  {
-                 "copySemua":  "Copy all",
+                 "copySemua":  "Copy Chat",
                  "copySemuaDone":  "Chat copied to clipboard"
              },
     "common":  {
@@ -33,12 +33,14 @@
                      "learnedMemoriesSubtitle":  "Facts and preferences distilled from your chats",
                      "showUsage":  "Show usage",
                      "showUsageSubtitle":  "Token counts and timing on AI replies",
-                     "sectionGeneration":  "GENERATION",
+                     "sectionGeneration":  "CONTENT GENERATOR",
                      "generationSubtitle":  "Default providers for image, video, and music tools (separate from chat model)",
-                     "generationImage":  "Image provider",
-                     "generationVideo":  "Video provider",
-                     "generationMusic":  "Music provider",
+                     "generationImage":  "Image",
+                     "generationVideo":  "Video",
+                     "generationMusic":  "Music",
                      "balance":  "Balance",
+                     "package":  "Package",
+                     "allowance5h":  "5h allowance",
                      "changePassword":  "Change password",
                      "setPassword":  "Set password",
                      "currentPassword":  "Current password",

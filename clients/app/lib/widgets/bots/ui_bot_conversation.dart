@@ -318,8 +318,10 @@ class _UiBotConversationState extends State<UiBotConversation> {
           border: Border.all(color: isPeer ? _border.withValues(alpha: 0.85) : _botBubbleBorder.withValues(alpha: 0.45)),
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: UiThinkingDots(color: isPeer ? const Color(0xFFA1A1AA) : const Color(0xFFA78BFA), size: 4, spacing: 3),
+          padding: EdgeInsets.symmetric(horizontal: isPeer ? 16 : 10, vertical: isPeer ? 14 : 8),
+          child: isPeer
+              ? UiThinkingDots(color: const Color(0xFFA1A1AA), size: 4, spacing: 3)
+              : UiPromptThinkingIndicator(startedAtMs: widget.store.composerBusySinceMs),
         ),
       ),
     );

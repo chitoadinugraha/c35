@@ -54,7 +54,13 @@ pub fn billing_embed_cost_usd(model: &str, token_in: i32) -> f64 {
     if token_in <= 0 {
         return 0.0;
     }
-    billing_cost_usd(model, token_in, 0)
+    let cost = billing_cost_usd(model, token_in, 0);
+    if cost > 0.0 {
+        return cost;
+    }
+    // Default embedding rate fallback: $0.15/1M wholesale ($0.00015/1k) * retail markup (1.50)
+    let wholesale = (token_in as f64) * (0.15 / 1_000_000.0);
+    billing_to_retail_usd(wholesale)
 }
 
 pub fn image_tool_wholesale_usd(quality: &str, provider_model: &str) -> f64 {

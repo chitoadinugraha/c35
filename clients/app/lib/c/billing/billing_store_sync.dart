@@ -41,7 +41,9 @@ Future<ResBillingPlanChange> billingPlanChangeAndSync(
 
 Future<ResBillingPackageRedeem> billingPackageRedeemAndSync(ReferralConn conn, {required String code}) async {
   final redeem = await billingPackageRedeem(conn, code: code);
-  // v2: billing_profile/wallet updated via NATS push after server applies change.
+  try {
+    await billingStoreRefresh(conn);
+  } catch (_) {}
   return redeem;
 }
 

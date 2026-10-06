@@ -138,6 +138,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   StreamSubscription? _promptRunPushSub;
   var _menuMsgIndex = 0;
   var _promptTokens = 0;
+  TtsStreamQueue? _talkTtsQueue;
   ContextUsageParts _usage = const ContextUsageParts();
   int? _summarizeChatId;
   var _retrying = false;
@@ -847,6 +848,15 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         ),
       );
 
+  String _primaryMentionLabel() {
+    if (_mentionIds.isEmpty) return '';
+    final id = _mentionIds.first;
+    for (final m in _store.mentionCatalog.mentions) {
+      if (m.id == id) return m.displayLabel;
+    }
+    return '';
+  }
+
   void _mentionToggle(String id) {
     setState(() {
       final removing = _mentionIds.contains(id);
@@ -914,7 +924,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
 
   Future<void> _runTestMultitask() => _composerSend(composerTestMultitaskSlash, const []);
 
-  Future<void> _composerSend(String text, List<MsgAttachment> attachments, {bool retry = false, String? toolMode, List<String>? mentionIds, String? displayContent, bool talk = false}) async {
+  Future<void> _composerSend(String text, List<MsgAttachment> attachments, {bool retry = false, int? retryChatId, String? toolMode, List<String>? mentionIds, String? displayContent, bool talk = false}) async {
     var trimmed = text.trim();
     var mids = (mentionIds ?? _mentionIds.toList()).where((id) => id != 'image').toList(growable: false);
     var uiContent = (displayContent ?? trimmed).trim();
@@ -970,10 +980,17 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     }
     unawaited(TtsService.instance.stop());
 
-    var chatId = _store.activeChatId;
-    if (chatId == null) {
-      _store.chatEnsurePending();
+    int? chatId;
+    if (retry) {
+      chatId = retryChatId ?? _store.activeChatId;
+      if (chatId == null || chatId == 0) return;
+      if (_store.activeChatId != chatId) _store.chatSelect(chatId);
+    } else {
       chatId = _store.activeChatId;
+      if (chatId == null) {
+        _store.chatEnsurePending();
+        chatId = _store.activeChatId;
+      }
     }
     if (chatId == null) return;
 
@@ -1052,6 +1069,10 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     unawaited(_followupRefresh());
     _store.msgStreamStart(chatId: chatId, reqId: reqId, model: _model.id);
     final promptStartedAtMs = _store.promptStartedAtMs;
+    if (VoicePrefs.instance.talkEnabled && VoicePrefs.instance.talkSpeakEnabled) {
+      _talkTtsQueue?.cancel();
+      _talkTtsQueue = TtsStreamQueue();
+    }
     try {
       await for (final ev in promptStream) {
         if (ev.kind == 'start') {
@@ -1088,6 +1109,10 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
             _store.msgStreamBlocks(ev.blocksJson, chatId: streamChatId, reqId: rid);
           } else {
             _store.msgStreamContent(ev.text, chatId: streamChatId, reqId: rid);
+            if (VoicePrefs.instance.talkEnabled && VoicePrefs.instance.talkSpeakEnabled && !ev.thought && ev.text.isNotEmpty) {
+              _talkTtsQueue ??= TtsStreamQueue();
+              _talkTtsQueue!.feedChunk(ev.text);
+            }
           }
           if (_store.activeChatId == streamChatId) {
             if (_timeline.stickToBottom) {
@@ -1114,16 +1139,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
           );
           _promptEstimateApply(streamChatId, end);
           if (VoicePrefs.instance.talkEnabled && VoicePrefs.instance.talkSpeakEnabled && err.trim().isEmpty) {
-            final rid = end.reqId.isNotEmpty ? end.reqId : (_conn.lastPromptReqId ?? '');
-            MsgRow? spoken;
-            for (final row in _store.activeMsgs.reversed) {
-              if (row.role == 'assistant' && (rid.isEmpty || row.reqId == rid)) {
-                spoken = row;
-                break;
-              }
-            }
-            final assistantText = spoken != null ? msgDisplayContent(spoken).trim() : '';
-            if (assistantText.isNotEmpty) unawaited(_speak(assistantText));
+            _talkTtsQueue?.flush();
           }
           if (end.reqId.isNotEmpty) {
             unawaited(_conn.tracePrefetch(end.reqId).then((_) {
@@ -1161,6 +1177,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   }
 
   Future<void> _abortPrompt() async {
+    _talkTtsQueue?.cancel();
     final id = _store.promptChatId ?? _store.activeChatId;
     final reqId = _store.pendingPromptReqId ?? '';
     try {
@@ -1301,7 +1318,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
             }
           : null,
       showRetry: showRetry,
-      onRetryLastTurn: showRetry ? _retryLastTurn : null,
+      onRetryLastTurn: showRetry ? () => unawaited(_retryLastTurn(m.chatId)) : null,
       onImageUpgradeHd: showImageUpgrade
           ? () {
               final b = ChatBlock.imageFirst(m.blocksJson);
@@ -1508,7 +1525,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     SttService.instance.onAutoStop = () {
       if (mounted && _talkRecording) unawaited(_talkMicStop());
     };
-    final ok = await SttService.instance.startRecording();
+    final ok = await SttService.instance.startRecording(vadMode: SttVadMode.talk);
     if (!mounted) return;
     if (!ok) {
       SttService.instance.onAutoStop = null;
@@ -1654,11 +1671,15 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       welcome: showWelcome ? _threadHero() : null,
       listening: _talkRecording,
       busy: busy,
+      busyStartedAtMs: busy ? _store.promptStartedAtMs : null,
       speakEnabled: VoicePrefs.instance.talkSpeakEnabled,
       onMic: () => unawaited(_talkMic()),
+      onSendTranscript: _talkRecording ? () => unawaited(_talkMicStop()) : null,
       onSpeak: () => unawaited(VoicePrefs.instance.setTalkSpeakEnabled(!VoicePrefs.instance.talkSpeakEnabled)),
       onAttach: () => unawaited(_talkAttach()),
       onModel: () => unawaited(_talkModel()),
+      mentionLabel: _primaryMentionLabel(),
+      onMentionClear: _mentionIds.isEmpty ? null : () => _mentionToggle(_mentionIds.first),
       blocks: assistant == null ? const <ChatBlock>[] : ChatBlock.decodeList(assistant.blocksJson),
       usage: assistant == null ? null : msgUsageStats(assistant),
       consumptionApi: _consumptionApi,
@@ -1816,7 +1837,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
               message: msgPromptErrorMessage(err),
               detail: sessionViewerIsRoot() ? err : null,
               messageId: m.reqId,
-              onRetry: showRetry ? _retryLastTurn : null,
+              onRetry: showRetry ? () => unawaited(_retryLastTurn(m.chatId)) : null,
               retrying: _retrying,
             )
           else if (content.trim().isNotEmpty)
@@ -1845,7 +1866,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
               child: UiMsgError(
                 message: msgPromptErrorMessage(err),
                 detail: sessionViewerIsRoot() ? err : null,
-                onRetry: showRetry ? _retryLastTurn : null,
+                onRetry: showRetry ? () => unawaited(_retryLastTurn(m.chatId)) : null,
                 retrying: _retrying,
                 showIcon: false,
               ),
@@ -1911,10 +1932,11 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     );
   }
 
-  Future<void> _retryLastTurn() async {
-    if (_retrying) return;
+  Future<void> _retryLastTurn(int chatId) async {
+    if (_retrying || chatId == 0) return;
     ContextMenuController.removeAny();
-    final turn = _store.retryLastTurnPrep();
+    if (_store.activeChatId != chatId) _store.chatSelect(chatId);
+    final turn = _store.retryLastTurnPrep(chatId: chatId);
     if (turn == null) return;
     final mentions = _store.mentionCatalog.mentions;
     final mentionIds = composerMentionIdsCollect(turn.text);
@@ -1925,6 +1947,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         turn.text,
         turn.attachments,
         retry: true,
+        retryChatId: chatId,
         mentionIds: mentionIds,
         displayContent: displayContent,
       );
@@ -1936,7 +1959,24 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   void _liveCallStart(LiveOffer offer) => Navigator.of(context).push(
         MaterialPageRoute<void>(
           fullscreenDialog: true,
-          builder: (_) => PageLiveCall(conn: _conn, offer: offer),
+          builder: (_) => PageLiveCall(
+            conn: _conn,
+            offer: offer,
+            chatId: _store.activeChatId,
+            chatStore: _store,
+            mentionIds: _mentionIds.toList(),
+            mentionLabel: _primaryMentionLabel(),
+            onMentions: (ids) {
+              if (!mounted) return;
+              setState(() {
+                _mentionIds
+                  ..clear()
+                  ..addAll(ids);
+              });
+              final chatId = _store.activeChatId;
+              if (chatId != null) _store.chatStickyMentionsPut(chatId, ids);
+            },
+          ),
         ),
       );
 
@@ -2006,12 +2046,17 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         ),
       );
 
+  Widget _threadThinkingTail() => UiPromptThinkingIndicator(startedAtMs: _store.promptStartedAtMs);
+
   Widget _threadBody() => ListenableBuilder(
         listenable: _store,
         builder: (context, _) {
           final msgs = _store.activeMsgs;
           if (_store.activeChatId == null && msgs.isEmpty) return _threadHero();
           if (msgs.isEmpty) return _threadHero();
+          final cid = _store.activeChatId;
+          final showThinkingTail = cid != null && _store.promptBusyFor(cid) && !_store.threadPromptLiveVisible(cid);
+          final itemCount = msgs.length + (showThinkingTail ? 1 : 0);
           return Stack(
             children: [
               Positioned.fill(
@@ -2022,8 +2067,9 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
                     key: ValueKey(_store.activeChatId ?? 'hero'),
                     controller: _timeline,
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                    itemCount: msgs.length,
+                    itemCount: itemCount,
                     itemBuilder: (context, i) {
+                      if (showThinkingTail && i >= msgs.length) return _threadThinkingTail();
                       if (i >= msgs.length) return const SizedBox.shrink();
                       final m = msgs[i];
                       return Listener(

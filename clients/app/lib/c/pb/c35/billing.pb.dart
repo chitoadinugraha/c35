@@ -1020,6 +1020,10 @@ class BillingAccount extends $pb.GeneratedMessage {
     $core.int? freemiumTokensLimit,
     $fixnum.Int64? planExpiresTsMs,
     $fixnum.Int64? trialExpiresTsMs,
+    $core.double? frontierAllow5hUsed,
+    $core.double? frontierAllow5hLimit,
+    $core.double? frontierAllowWeeklyUsed,
+    $core.double? frontierAllowWeeklyLimit,
   }) {
     final result = BillingAccount._();
     if (id != null) result.id = id;
@@ -1060,6 +1064,14 @@ class BillingAccount extends $pb.GeneratedMessage {
       result.freemiumTokensLimit = freemiumTokensLimit;
     if (planExpiresTsMs != null) result.planExpiresTsMs = planExpiresTsMs;
     if (trialExpiresTsMs != null) result.trialExpiresTsMs = trialExpiresTsMs;
+    if (frontierAllow5hUsed != null)
+      result.frontierAllow5hUsed = frontierAllow5hUsed;
+    if (frontierAllow5hLimit != null)
+      result.frontierAllow5hLimit = frontierAllow5hLimit;
+    if (frontierAllowWeeklyUsed != null)
+      result.frontierAllowWeeklyUsed = frontierAllowWeeklyUsed;
+    if (frontierAllowWeeklyLimit != null)
+      result.frontierAllowWeeklyLimit = frontierAllowWeeklyLimit;
     return result;
   }
 
@@ -1108,6 +1120,12 @@ class BillingAccount extends $pb.GeneratedMessage {
     ..aI(27, _omitFieldNames ? '' : 'freemiumTokensLimit')
     ..aInt64(28, _omitFieldNames ? '' : 'planExpiresTsMs')
     ..aInt64(29, _omitFieldNames ? '' : 'trialExpiresTsMs')
+    ..aD(30, _omitFieldNames ? '' : 'frontierAllow5hUsed',
+        protoName: 'frontier_allow_5h_used')
+    ..aD(31, _omitFieldNames ? '' : 'frontierAllow5hLimit',
+        protoName: 'frontier_allow_5h_limit')
+    ..aD(32, _omitFieldNames ? '' : 'frontierAllowWeeklyUsed')
+    ..aD(33, _omitFieldNames ? '' : 'frontierAllowWeeklyLimit')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1393,6 +1411,42 @@ class BillingAccount extends $pb.GeneratedMessage {
   $core.bool hasTrialExpiresTsMs() => $_has(28);
   @$pb.TagNumber(29)
   void clearTrialExpiresTsMs() => $_clearField(29);
+
+  @$pb.TagNumber(30)
+  $core.double get frontierAllow5hUsed => $_getN(29);
+  @$pb.TagNumber(30)
+  set frontierAllow5hUsed($core.double value) => $_setDouble(29, value);
+  @$pb.TagNumber(30)
+  $core.bool hasFrontierAllow5hUsed() => $_has(29);
+  @$pb.TagNumber(30)
+  void clearFrontierAllow5hUsed() => $_clearField(30);
+
+  @$pb.TagNumber(31)
+  $core.double get frontierAllow5hLimit => $_getN(30);
+  @$pb.TagNumber(31)
+  set frontierAllow5hLimit($core.double value) => $_setDouble(30, value);
+  @$pb.TagNumber(31)
+  $core.bool hasFrontierAllow5hLimit() => $_has(30);
+  @$pb.TagNumber(31)
+  void clearFrontierAllow5hLimit() => $_clearField(31);
+
+  @$pb.TagNumber(32)
+  $core.double get frontierAllowWeeklyUsed => $_getN(31);
+  @$pb.TagNumber(32)
+  set frontierAllowWeeklyUsed($core.double value) => $_setDouble(31, value);
+  @$pb.TagNumber(32)
+  $core.bool hasFrontierAllowWeeklyUsed() => $_has(31);
+  @$pb.TagNumber(32)
+  void clearFrontierAllowWeeklyUsed() => $_clearField(32);
+
+  @$pb.TagNumber(33)
+  $core.double get frontierAllowWeeklyLimit => $_getN(32);
+  @$pb.TagNumber(33)
+  set frontierAllowWeeklyLimit($core.double value) => $_setDouble(32, value);
+  @$pb.TagNumber(33)
+  $core.bool hasFrontierAllowWeeklyLimit() => $_has(32);
+  @$pb.TagNumber(33)
+  void clearFrontierAllowWeeklyLimit() => $_clearField(33);
 }
 
 class BillingTopupRequest extends $pb.GeneratedMessage {
@@ -1772,6 +1826,10 @@ class BillingPushQuota extends $pb.GeneratedMessage {
     $core.int? freemiumTokensUsed,
     $core.int? freemiumTokensLimit,
     $fixnum.Int64? planExpiresTsMs,
+    $core.double? frontierAllow5hUsed,
+    $core.double? frontierAllow5hLimit,
+    $core.double? frontierAllowWeeklyUsed,
+    $core.double? frontierAllowWeeklyLimit,
   }) {
     final result = BillingPushQuota._();
     if (alienAllow5hUsed != null) result.alienAllow5hUsed = alienAllow5hUsed;
@@ -1799,6 +1857,14 @@ class BillingPushQuota extends $pb.GeneratedMessage {
     if (freemiumTokensLimit != null)
       result.freemiumTokensLimit = freemiumTokensLimit;
     if (planExpiresTsMs != null) result.planExpiresTsMs = planExpiresTsMs;
+    if (frontierAllow5hUsed != null)
+      result.frontierAllow5hUsed = frontierAllow5hUsed;
+    if (frontierAllow5hLimit != null)
+      result.frontierAllow5hLimit = frontierAllow5hLimit;
+    if (frontierAllowWeeklyUsed != null)
+      result.frontierAllowWeeklyUsed = frontierAllowWeeklyUsed;
+    if (frontierAllowWeeklyLimit != null)
+      result.frontierAllowWeeklyLimit = frontierAllowWeeklyLimit;
     return result;
   }
 
@@ -1836,6 +1902,12 @@ class BillingPushQuota extends $pb.GeneratedMessage {
     ..aI(16, _omitFieldNames ? '' : 'freemiumTokensUsed')
     ..aI(17, _omitFieldNames ? '' : 'freemiumTokensLimit')
     ..aInt64(18, _omitFieldNames ? '' : 'planExpiresTsMs')
+    ..aD(19, _omitFieldNames ? '' : 'frontierAllow5hUsed',
+        protoName: 'frontier_allow_5h_used')
+    ..aD(20, _omitFieldNames ? '' : 'frontierAllow5hLimit',
+        protoName: 'frontier_allow_5h_limit')
+    ..aD(21, _omitFieldNames ? '' : 'frontierAllowWeeklyUsed')
+    ..aD(22, _omitFieldNames ? '' : 'frontierAllowWeeklyLimit')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -2022,6 +2094,42 @@ class BillingPushQuota extends $pb.GeneratedMessage {
   $core.bool hasPlanExpiresTsMs() => $_has(17);
   @$pb.TagNumber(18)
   void clearPlanExpiresTsMs() => $_clearField(18);
+
+  @$pb.TagNumber(19)
+  $core.double get frontierAllow5hUsed => $_getN(18);
+  @$pb.TagNumber(19)
+  set frontierAllow5hUsed($core.double value) => $_setDouble(18, value);
+  @$pb.TagNumber(19)
+  $core.bool hasFrontierAllow5hUsed() => $_has(18);
+  @$pb.TagNumber(19)
+  void clearFrontierAllow5hUsed() => $_clearField(19);
+
+  @$pb.TagNumber(20)
+  $core.double get frontierAllow5hLimit => $_getN(19);
+  @$pb.TagNumber(20)
+  set frontierAllow5hLimit($core.double value) => $_setDouble(19, value);
+  @$pb.TagNumber(20)
+  $core.bool hasFrontierAllow5hLimit() => $_has(19);
+  @$pb.TagNumber(20)
+  void clearFrontierAllow5hLimit() => $_clearField(20);
+
+  @$pb.TagNumber(21)
+  $core.double get frontierAllowWeeklyUsed => $_getN(20);
+  @$pb.TagNumber(21)
+  set frontierAllowWeeklyUsed($core.double value) => $_setDouble(20, value);
+  @$pb.TagNumber(21)
+  $core.bool hasFrontierAllowWeeklyUsed() => $_has(20);
+  @$pb.TagNumber(21)
+  void clearFrontierAllowWeeklyUsed() => $_clearField(21);
+
+  @$pb.TagNumber(22)
+  $core.double get frontierAllowWeeklyLimit => $_getN(21);
+  @$pb.TagNumber(22)
+  set frontierAllowWeeklyLimit($core.double value) => $_setDouble(21, value);
+  @$pb.TagNumber(22)
+  $core.bool hasFrontierAllowWeeklyLimit() => $_has(21);
+  @$pb.TagNumber(22)
+  void clearFrontierAllowWeeklyLimit() => $_clearField(22);
 }
 
 class BillingPushCommission extends $pb.GeneratedMessage {

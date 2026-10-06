@@ -46,7 +46,19 @@ bool msgHasBody(MsgRow m) =>
     (m.role == 'user' && (m.content.trim().isNotEmpty || m.attachments.isNotEmpty)) ||
     (m.role == 'assistant' && (m.content.trim().isNotEmpty || m.thought.trim().isNotEmpty || m.blocksJson.trim().isNotEmpty));
 
-MsgRow _bestAssistantForTurn(List<MsgRow> assistants) {
+MsgRow _bestAssistantForTurn(List<MsgRow> assistants, {String liveReqId = '', bool prompting = false}) {
+  final rid = liveReqId.trim();
+  if (prompting && rid.isNotEmpty) {
+    for (var i = assistants.length - 1; i >= 0; i--) {
+      if (assistants[i].reqId == rid) return assistants[i];
+    }
+  }
+  if (prompting) {
+    for (var i = assistants.length - 1; i >= 0; i--) {
+      final m = assistants[i];
+      if (m.error.trim().isEmpty && !msgHasBody(m)) return m;
+    }
+  }
   for (var i = assistants.length - 1; i >= 0; i--) {
     final m = assistants[i];
     if (m.error.trim().isEmpty && msgHasBody(m)) return m;
@@ -73,7 +85,11 @@ int msgOrderCompare(MsgRow a, MsgRow b) {
   return _msgRoleOrder(a.role).compareTo(_msgRoleOrder(b.role));
 }
 
-List<MsgRow> msgsCollapseRetriedAssistants(List<MsgRow> chatMsgs) {
+List<MsgRow> msgsCollapseRetriedAssistants(
+  List<MsgRow> chatMsgs, {
+  String liveReqId = '',
+  bool prompting = false,
+}) {
   final out = <MsgRow>[];
   var i = 0;
   while (i < chatMsgs.length) {
@@ -90,7 +106,9 @@ List<MsgRow> msgsCollapseRetriedAssistants(List<MsgRow> chatMsgs) {
           out.add(row);
         }
       }
-      if (assistants.isNotEmpty) out.add(_bestAssistantForTurn(assistants));
+      if (assistants.isNotEmpty) {
+        out.add(_bestAssistantForTurn(assistants, liveReqId: liveReqId, prompting: prompting));
+      }
       continue;
     }
     out.add(m);
@@ -441,7 +459,14 @@ class ChatStore extends ChangeNotifier {
     if (id == null) return const [];
     final chatMsgs = [for (final m in msgs) if (m.chatId == id) m];
     chatMsgs.sort(msgOrderCompare);
-    return msgsCollapseRetriedAssistants(chatMsgs);
+    final liveReqId = promptLiveReqId ?? pendingPromptReqId ?? '';
+    return msgsCollapseRetriedAssistants(chatMsgs, liveReqId: liveReqId, prompting: promptBusyFor(id));
+  }
+
+  bool threadPromptLiveVisible(int chatId) {
+    final rid = (promptLiveReqId ?? pendingPromptReqId ?? '').trim();
+    if (!promptBusyFor(chatId) || rid.isEmpty) return false;
+    return activeMsgs.any((m) => m.role == 'assistant' && m.reqId == rid);
   }
 
   final Set<int> _tombstonedMsgIds = {};
@@ -1434,7 +1459,7 @@ class ChatStore extends ChangeNotifier {
   ({String text, List<MsgAttachment> attachments})? retryLastTurnPrep({int? chatId}) {
     if (promptBusy) return null;
     final cid = chatId ?? activeChatId;
-    if (cid == null) return null;
+    if (cid == null || cid == 0) return null;
     final lastUserIdx = msgs.lastIndexWhere(
       (m) => m.chatId == cid && m.role == 'user' && (m.content.trim().isNotEmpty || m.attachments.isNotEmpty),
     );

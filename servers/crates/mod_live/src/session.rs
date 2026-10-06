@@ -14,6 +14,8 @@ pub struct LiveSessionTicket {
     pub offer: LiveOfferRow,
     pub req_id: String,
     pub billing_row: BillingRow,
+    pub chat_id: Option<i64>,
+    pub mention_ids: Vec<String>,
     pub created: Instant,
 }
 
@@ -30,6 +32,8 @@ pub fn live_session_register(
     offer: LiveOfferRow,
     req_id: String,
     billing_row: BillingRow,
+    chat_id: Option<i64>,
+    mention_ids: Vec<String>,
 ) -> String {
     let token: String = rand::thread_rng()
         .sample_iter(&rand::distributions::Alphanumeric)
@@ -44,6 +48,8 @@ pub fn live_session_register(
             offer,
             req_id,
             billing_row,
+            chat_id,
+            mention_ids,
             created: Instant::now(),
         },
     );

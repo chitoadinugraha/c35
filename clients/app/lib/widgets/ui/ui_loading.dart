@@ -6,18 +6,65 @@ import 'package:flutter/material.dart';
 
 const _loadingFg = Color(0xFFA1A1AA);
 
+/// How often live elapsed labels refresh (loading, thinking, recording timers).
+const kUiElapsedTickMs = 50;
+
 String uiLoadingElapsedLabel(int ms, {required bool compact}) {
   final safe = ms < 0 ? 0 : ms;
   if (safe >= 60000) {
     final m = safe ~/ 60000;
     final s = (safe % 60000) ~/ 1000;
-    return '${m}m ${s}s';
+    final frac = safe % 1000;
+    if (compact || frac == 0) return '${m}m ${s}s';
+    return '${m}m ${s}.${frac.toString().padLeft(3, '0')}s';
   }
   if (safe >= 1000) {
-    if (compact) return '${safe ~/ 1000}s';
-    return '${safe ~/ 1000}.${(safe % 1000).toString().padLeft(3, '0')}s';
+    final whole = safe ~/ 1000;
+    final frac = (safe % 1000).toString().padLeft(3, '0');
+    if (compact) return '$whole.${frac.substring(0, 2)}s';
+    return '${whole}.${frac}s';
   }
   return compact ? '${safe}ms' : '0.${safe.toString().padLeft(3, '0')}s';
+}
+
+/// Live-updating elapsed time from a wall-clock [startedAtMs] (epoch ms).
+class UiLiveElapsed extends StatefulWidget {
+  const UiLiveElapsed({super.key, required this.startedAtMs, this.compact = false, this.style});
+
+  final int startedAtMs;
+  final bool compact;
+  final TextStyle? style;
+
+  @override
+  State<UiLiveElapsed> createState() => _UiLiveElapsedState();
+}
+
+class _UiLiveElapsedState extends State<UiLiveElapsed> {
+  late final Timer _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(milliseconds: kUiElapsedTickMs), (_) {
+      if (!mounted) return;
+      setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final elapsed = DateTime.now().millisecondsSinceEpoch - widget.startedAtMs;
+    return Text(
+      uiLoadingElapsedLabel(elapsed, compact: widget.compact),
+      style: widget.style,
+    );
+  }
 }
 
 class UILoadingIndicator extends StatelessWidget {
@@ -68,8 +115,8 @@ class _UILoadingState extends State<UILoading> {
   @override
   void initState() {
     super.initState();
-    _sw = Stopwatch();
-    _timer = Timer.periodic(const Duration(milliseconds: 50), _onTick);
+    _sw = Stopwatch()..start();
+    _timer = Timer.periodic(const Duration(milliseconds: kUiElapsedTickMs), _onTick);
   }
 
   void _onTick(Timer _) {

@@ -13,6 +13,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:ulid/ulid.dart';
 
+/// Composer: silence VAD auto-stops the mic. Talk: manual send / mic tap (noise-safe); max duration still applies.
+enum SttVadMode { composer, talk }
+
 class SttService {
   SttService._();
 
@@ -27,6 +30,10 @@ class SttService {
 
 
   static const maxRecordingSeconds = 30;
+  static const maxRecordingSecondsTalk = 60;
+
+  /// Speech must exceed the tracked ambient noise floor by this many dB.
+  static const vadSpeechMarginDb = 8.0;
 
   /// End-of-speech silence before auto-stop (ms).
   static const silenceTimeoutWithTextMs = 700;
@@ -37,7 +44,12 @@ class SttService {
   static const interimWindowSeconds = 6.0;
   static const interimWindowMaxSeconds = 12.0;
 
-  /// How long a resolved mic device stays cached.
+  /// Minimum captured speech before final STT (avoids empty Whisper results).
+  static const minFinalAudioMs = 400;
+
+  /// Wait for in-flight interim snapshot before final transcribe.
+  static const interimSettleMaxMs = 800;
+
   static const _micCacheTtl = Duration(seconds: 60);
 
   ({InputDevice? device, String savedId, DateTime at})? _micCache;
@@ -65,7 +77,7 @@ class SttService {
 
   final ValueNotifier<bool> isRecording = ValueNotifier(false);
   final ValueNotifier<bool> isTranscribing = ValueNotifier(false);
-  final ValueNotifier<int> recordingSeconds = ValueNotifier(0);
+  final ValueNotifier<int> recordingElapsedMs = ValueNotifier(0);
   final ValueNotifier<double> audioAmplitude = ValueNotifier(0.0);
   final ValueNotifier<List<double>> amplitudeHistory = ValueNotifier(const []);
   final ValueNotifier<String> liveTranscript = ValueNotifier('');
@@ -73,6 +85,12 @@ class SttService {
   String? lastStartError;
   String? lastTranscribeError;
   VoidCallback? onAutoStop;
+
+  SttVadMode _vadMode = SttVadMode.composer;
+
+  int _maxRecordingSecondsForSession() => _vadMode == SttVadMode.talk ? maxRecordingSecondsTalk : maxRecordingSeconds;
+
+  int get sessionMaxRecordingSeconds => _maxRecordingSecondsForSession();
 
   int _streamSampleRate = 16000;
   int _streamChannels = 1;
@@ -110,6 +128,24 @@ class SttService {
     if (RegExp(r'^[\d\s:\-–—]+$').hasMatch(t)) return '';
     return t;
   }
+
+  @visibleForTesting
+  static int? wavSampleRateHz(Uint8List wav) {
+    if (wav.length < 28) return null;
+    if (wav[0] != 0x52 || wav[1] != 0x49) return null;
+    return ByteData.sublistView(wav).getUint32(24, Endian.little);
+  }
+
+  @visibleForTesting
+  static Uint8List? wavPcmData(Uint8List wav) {
+    if (wav.length < 44) return null;
+    if (wav[0] != 0x52 || wav[1] != 0x49) return null;
+    return Uint8List.sublistView(wav, 44);
+  }
+
+  @visibleForTesting
+  static int pcm16MonoDurationMs(Uint8List pcm, {required int sampleRate}) =>
+      sampleRate <= 0 ? 0 : (pcm.length * 1000) ~/ (sampleRate * 2);
 
   /// Downsamples 16-bit linear PCM from any sample rate / channel count to 16kHz mono.
   static Uint8List resampleTo16kMono(Uint8List pcm, {required int srcRate, required int srcChannels}) {
@@ -243,6 +279,9 @@ class SttService {
     if (from == 0 && to >= pcm.length - frameBytes) return pcm;
     return Uint8List.sublistView(pcm, from, to);
   }
+
+  /// Silence-trim threshold: at least -48 dB, or 6 dB above the measured noise floor in loud rooms.
+  double get _trimThresholdDb => max(-48.0, (_noiseFloorDb ?? -60.0) + 6.0);
 
   Future<InputDevice?> _cachedActiveMic() async {
     final saved = VoicePrefs.instance.micDeviceId.trim();
@@ -471,10 +510,11 @@ class SttService {
 
   void _startRecordingTimers() {
     _recordSecondTimer?.cancel();
-    _recordSecondTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!isRecording.value) return;
-      recordingSeconds.value++;
-      if (recordingSeconds.value >= maxRecordingSeconds) {
+    _recordSecondTimer = Timer.periodic(const Duration(milliseconds: 50), (_) {
+      if (!isRecording.value || _recordingStartedAt == null) return;
+      final ms = DateTime.now().difference(_recordingStartedAt!).inMilliseconds;
+      recordingElapsedMs.value = ms;
+      if (ms >= _maxRecordingSecondsForSession() * 1000) {
         _stopTimers();
         onAutoStop?.call();
       }
@@ -506,7 +546,10 @@ class SttService {
         final reqId = 'interim_${session}_$currentCounter';
         try {
           debugPrint('[SttService] sending interim snapshot #$currentCounter (${rawPcm.length} bytes)...');
-          final pcm16k = trimSilence(resampleTo16kMono(rawPcm, srcRate: _streamSampleRate, srcChannels: _streamChannels));
+          final pcm16k = trimSilence(
+            resampleTo16kMono(rawPcm, srcRate: _streamSampleRate, srcChannels: _streamChannels),
+            thresholdDb: _trimThresholdDb,
+          );
           final wav = pcmToWav(pcm16k, sampleRate: 16000, channels: 1);
           final pref = VoicePrefs.instance.speechLang;
           final effectiveLang = speechLangSttLocale(pref, last: VoicePrefs.instance.lastLang);
@@ -556,30 +599,35 @@ class SttService {
       amplitudeHistory.value = List.of(history);
     }
 
-    // Adaptive noise floor tracking:
+    // Adaptive noise floor tracking (works for loud rooms: floor may rise to -25 dB):
     if (level > -90.0) {
-      if (_noiseFloorDb == null) {
-        _noiseFloorDb = level.clamp(-75.0, -50.0);
-      } else if (level < _noiseFloorDb!) {
-        _noiseFloorDb = _noiseFloorDb! * 0.70 + level * 0.30;
-      } else if (!_speechDetected && level < -48.0) {
-        _noiseFloorDb = _noiseFloorDb! * 0.95 + level * 0.05;
+      final floorNow = _noiseFloorDb;
+      if (floorNow == null) {
+        _noiseFloorDb = level.clamp(-80.0, -30.0);
+      } else if (level < floorNow) {
+        _noiseFloorDb = floorNow * 0.70 + level * 0.30;
+      } else if (level < floorNow + vadSpeechMarginDb) {
+        // Stationary noise near the floor: follow it upward.
+        _noiseFloorDb = floorNow * 0.97 + level * 0.03;
+      } else {
+        // Loud frame (speech or sudden noise): creep so a persistent new ambient level is eventually absorbed.
+        _noiseFloorDb = floorNow * 0.999 + level * 0.001;
       }
-      _noiseFloorDb = _noiseFloorDb!.clamp(-75.0, -48.0);
+      _noiseFloorDb = _noiseFloorDb!.clamp(-80.0, -25.0);
     }
 
     final ambientFloor = _noiseFloorDb ?? -60.0;
-    // Conversational speech threshold: +4 dB above ambient floor, minimum -54 dB (or norm >= 0.02)
-    final dynamicSpeechDb = max(ambientFloor + 4.0, -54.0);
-    final isSpeechFrame = level > dynamicSpeechDb || norm >= 0.02;
-
-    final silenceTimeoutMs = liveTranscript.value.isNotEmpty ? silenceTimeoutWithTextMs : silenceTimeoutNoTextMs;
-    const initialSilenceTimeoutMs = 5000;
+    final speechDbBoost = _vadMode == SttVadMode.talk ? vadSpeechMarginDb + 1.0 : vadSpeechMarginDb;
+    final dynamicSpeechDb = max(ambientFloor + speechDbBoost, -54.0);
+    // Peak shortcut only counts when also clearly above the ambient floor (steady noise can peak high).
+    final isSpeechFrame = level > dynamicSpeechDb || (norm >= 0.02 && level > ambientFloor + 5.0);
 
     if (isSpeechFrame) {
       _speechDetected = true;
       _silenceSince = null;
-    } else {
+    } else if (_vadMode == SttVadMode.composer) {
+      final silenceTimeoutMs = liveTranscript.value.isNotEmpty ? silenceTimeoutWithTextMs : silenceTimeoutNoTextMs;
+      const initialSilenceTimeoutMs = 5000;
       if (_speechDetected) {
         _silenceSince ??= DateTime.now();
         if (DateTime.now().difference(_silenceSince!).inMilliseconds >= silenceTimeoutMs) {
@@ -587,7 +635,6 @@ class SttService {
           onAutoStop?.call();
         }
       } else if (_recordingStartedAt != null) {
-        // If user started recording but no speech was detected after 4.5 seconds
         if (DateTime.now().difference(_recordingStartedAt!).inMilliseconds >= initialSilenceTimeoutMs) {
           _stopTimers();
           onAutoStop?.call();
@@ -596,9 +643,10 @@ class SttService {
     }
   }
 
-  Future<bool> startRecording() async {
+  Future<bool> startRecording({SttVadMode vadMode = SttVadMode.composer}) async {
     lastStartError = null;
     if (isRecording.value) return true;
+    _vadMode = vadMode;
 
     await _init();
     try {
@@ -611,7 +659,7 @@ class SttService {
         return false;
       }
 
-      recordingSeconds.value = 0;
+      recordingElapsedMs.value = 0;
       audioAmplitude.value = 0.05;
       amplitudeHistory.value = const [];
       liveTranscript.value = '';
@@ -652,6 +700,8 @@ class SttService {
             numChannels: cand.numChannels,
             bitRate: cand.bitRate,
             device: activeMic,
+            noiseSuppress: true,
+            echoCancel: true,
           );
           final stream = await _recorder!.startStream(pcmConfig);
           _streamSampleRate = cand.sampleRate;
@@ -758,14 +808,14 @@ class SttService {
     isRecording.value = false;
 
     Uint8List? audioBytes;
+    Uint8List? audioBytesUntrimmed;
     String mime = _recordingMime ?? 'audio/wav';
     _recordingMime = null;
 
     if (_isStreamingPcm) {
-      // If an interim snapshot is currently in-flight, give it a brief window (~350ms) to resolve:
       if (_interimInFlight) {
         final waitStart = DateTime.now();
-        while (_interimInFlight && DateTime.now().difference(waitStart).inMilliseconds < 350) {
+        while (_interimInFlight && DateTime.now().difference(waitStart).inMilliseconds < interimSettleMaxMs) {
           await Future.delayed(const Duration(milliseconds: 25));
         }
       }
@@ -776,8 +826,10 @@ class SttService {
         await _recorder?.stop();
       } catch (_) {}
       if (pcm.isNotEmpty) {
-        final pcm16k = trimSilence(resampleTo16kMono(pcm, srcRate: _streamSampleRate, srcChannels: _streamChannels));
-        audioBytes = pcmToWav(pcm16k, sampleRate: 16000, channels: 1);
+        final pcm16k = resampleTo16kMono(pcm, srcRate: _streamSampleRate, srcChannels: _streamChannels);
+        audioBytesUntrimmed = pcmToWav(pcm16k, sampleRate: 16000, channels: 1);
+        final trimmed = trimSilence(pcm16k, thresholdDb: _trimThresholdDb);
+        audioBytes = pcmToWav(trimmed, sampleRate: 16000, channels: 1);
         mime = 'audio/wav';
       }
     } else {
@@ -829,21 +881,42 @@ class SttService {
 
     if (audioBytes == null || audioBytes.isEmpty) {
       if (liveTranscript.value.isNotEmpty) return liveTranscript.value;
+      lastTranscribeError = 'No audio captured — check microphone permission and input device.';
       return null;
+    }
+
+    final pcmForDuration = wavPcmData(audioBytesUntrimmed ?? audioBytes);
+    if (pcmForDuration != null) {
+      final durMs = pcm16MonoDurationMs(pcmForDuration, sampleRate: wavSampleRateHz(audioBytesUntrimmed ?? audioBytes) ?? 16000);
+      if (durMs < minFinalAudioMs) {
+        lastTranscribeError = 'Recording too short — hold the mic and speak a bit longer.';
+        return null;
+      }
     }
 
     lastTranscribeError = null;
 
-    try {
+    Future<String?> runFinal(Uint8List bytes, {required String reqSuffix}) async {
       final transcript = await transcribeRouted(
-        bytes: audioBytes,
+        bytes: bytes,
         lang: effectiveLang,
         mime: mime,
         isInterim: false,
-        reqId: 'final_$_sessionReqId',
+        reqId: 'final_${reqSuffix}_$_sessionReqId',
       );
       final trimmed = transcript?.trim();
       final clean = (trimmed != null) ? sanitizeTranscript(trimmed) : null;
+      if (clean != null && clean.isNotEmpty) return clean;
+      return null;
+    }
+
+    try {
+      var clean = await runFinal(audioBytes, reqSuffix: 'trim');
+      final fallback = audioBytesUntrimmed;
+      if (clean == null && fallback != null && !_bytesEqual(fallback, audioBytes)) {
+        debugPrint('[SttService] final STT empty on trimmed audio, retrying full clip');
+        clean = await runFinal(fallback, reqSuffix: 'full');
+      }
       if (clean != null && clean.isNotEmpty) {
         liveTranscript.value = clean;
         isLiveInterim.value = false;
@@ -853,7 +926,7 @@ class SttService {
         isLiveInterim.value = false;
         return liveTranscript.value;
       }
-      lastTranscribeError = 'No speech detected';
+      lastTranscribeError ??= 'No speech detected — speak clearly, closer to the mic, or check Settings → Voice microphone.';
       return null;
     } catch (e) {
       if (liveTranscript.value.isNotEmpty) {
@@ -866,9 +939,18 @@ class SttService {
     }
   }
 
+  static bool _bytesEqual(Uint8List a, Uint8List b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
   Future<void> cancel() async {
     _stopTimers();
-    recordingSeconds.value = 0;
+    recordingElapsedMs.value = 0;
     amplitudeHistory.value = const [];
     liveTranscript.value = '';
     isLiveInterim.value = false;
@@ -902,51 +984,39 @@ class SttService {
     required String mime,
     bool isInterim = false,
     String? reqId,
-    Future<String?> Function(Uint8List bytes, String lang, String mime)? webTranscribe,
   }) async {
-    final route = sttEngineRoute(VoicePrefs.instance.sttEngine);
-    if (route == 'web') {
-      if (webTranscribe != null) {
-        final res = await webTranscribe(bytes, lang, mime);
-        return res != null ? sanitizeTranscript(res) : null;
+    assert(sttEngineRoute(VoicePrefs.instance.sttEngine) == 'cloud');
+    if (_voiceApi == null) {
+      debugPrint('[SttService] cloud STT requires VoiceApi (bind from page_ai_home)');
+      if (!isInterim) {
+        lastTranscribeError = 'Voice API not ready. Please try again.';
       }
       return null;
     }
-    if (route == 'cloud') {
-      if (_voiceApi == null) {
-        debugPrint('[SttService] cloud STT requires VoiceApi (bind from page_ai_home)');
-        if (!isInterim) {
-          lastTranscribeError = 'Voice API not ready. Please try again.';
-        }
-        return null;
+    try {
+      if (!isInterim) lastTranscribeError = null;
+      final timeout = isInterim ? const Duration(seconds: 8) : const Duration(seconds: 25);
+      final res = await _voiceApi!.sttTranscribe(
+        audio: bytes,
+        mime: mime,
+        lang: lang,
+        reqId: reqId,
+        timeout: timeout,
+      );
+      if (res != null && res.isNotEmpty) {
+        final clean = sanitizeTranscript(res);
+        if (clean.isNotEmpty) return clean;
       }
-      try {
-        if (!isInterim) lastTranscribeError = null;
-        final timeout = isInterim ? const Duration(seconds: 8) : const Duration(seconds: 25);
-        final res = await _voiceApi!.sttTranscribe(
-          audio: bytes,
-          mime: mime,
-          lang: lang,
-          reqId: reqId,
-          timeout: timeout,
-        );
-        if (res != null && res.isNotEmpty) {
-          final clean = sanitizeTranscript(res);
-          if (clean.isNotEmpty) return clean;
-        }
-        return null;
-      } catch (e) {
-        debugPrint('[SttService] cloud STT error: $e');
-        if (!isInterim) {
-          lastTranscribeError = uiFriendlyError(e, fallback: 'Speech recognition failed. Please try again.');
-        }
-        return null;
+      if (!isInterim) {
+        lastTranscribeError ??= 'Cloud could not recognize speech in this clip.';
       }
+      return null;
+    } catch (e) {
+      debugPrint('[SttService] cloud STT error: $e');
+      if (!isInterim) {
+        lastTranscribeError = uiFriendlyError(e, fallback: 'Speech recognition failed. Please try again.');
+      }
+      return null;
     }
-    if (webTranscribe != null) {
-      final res = await webTranscribe(bytes, lang, mime);
-      return res != null ? sanitizeTranscript(res) : null;
-    }
-    return null;
   }
 }

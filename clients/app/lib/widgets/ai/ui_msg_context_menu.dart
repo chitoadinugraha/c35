@@ -155,7 +155,7 @@ List<ChatMessageMenuItem> msgBubbleMenuItems(
     if (showFeedback) {
       items.add(ChatMessageMenuButtonRow(actions: [
         ChatMessageMenuAction(
-          label: 'Good Answer',
+          label: 'Good',
           icon: Icons.thumb_up_alt_outlined,
           onPressed: () {
             ContextMenuController.removeAny();
@@ -163,7 +163,7 @@ List<ChatMessageMenuItem> msgBubbleMenuItems(
           },
         ),
         ChatMessageMenuAction(
-          label: 'Bad Answer',
+          label: 'Bad',
           icon: Icons.thumb_down_alt_outlined,
           onPressed: () {
             ContextMenuController.removeAny();

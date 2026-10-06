@@ -1,7 +1,7 @@
 use anyhow::Result;
 use async_nats::Client;
 use c35_mod_billing::{
-    billing_account_ensure, billing_deduct_allowance, billing_gate_with_hold_custom,
+    billing_account_ensure, billing_deduct_personal_profile, billing_gate_with_hold_custom,
     billing_reservation_refund, billing_reservation_settle, billing_to_retail_usd, BillingRow,
 };
 use c35_mod_log::{log_put, LogPut};
@@ -137,7 +137,12 @@ async fn voice_style_settle(
         billing_reservation_refund(pool, req_id).await?;
         return Ok(0.0);
     }
-    let row_after = billing_deduct_allowance(pool, owner_iid, cost_usd).await?;
+    let deduct_model = if model.trim().is_empty() || model.eq_ignore_ascii_case("alienai") {
+        "frontier"
+    } else {
+        model
+    };
+    let row_after = billing_deduct_personal_profile(pool, owner_iid, deduct_model, cost_usd).await?;
     let acct = sqlx::query_as::<_, (String, String, i64)>(
         "SELECT balance_idr::text, billing_currency, fx_micro_per_usd FROM ai.billing_account WHERE id = $1",
     )

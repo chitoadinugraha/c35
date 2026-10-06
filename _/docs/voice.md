@@ -12,12 +12,12 @@ Proto: [`../schemas/proto/c35/voice.proto`](../schemas/proto/c35/voice.proto)
 
 ## Engines
 
-Engine choice is stored in `VoicePrefs` (`voice_stt_engine`, `voice_tts_engine`). **STT and TTS default to `cloud`**; on load, legacy `local` / `web` TTS prefs are rewritten to `cloud`. Settings → Voice shows **cloud** only for both directions (client routers ignore saved non-cloud values).
+Engine choice is stored in `VoicePrefs` (`voice_stt_engine`, `voice_tts_engine`). **STT is cloud-only** (legacy public Chromium STT is removed — endpoint no longer reliable). **TTS** supports **web**, **local**, and **cloud** in settings; default **cloud**. Only **cloud STT/TTS** hits the server and bills the user.
 
 | Engine | STT | TTS | Server / billing |
 |--------|-----|-----|------------------|
-| **web** | Chromium public endpoint (`google.com/speech-api/v2/recognize`) | Google Translate TTS URL (`translate_tts`) | None — client-only, **$0** |
-| **local** | Same as **web** on desktop (STT `local` is normalized to `web` in prefs) | `flutter_tts` on device | None — **$0** |
+| **web** | — (not supported; use **cloud**) | Google Translate TTS URL (`translate_tts`) | TTS only — client, **$0** |
+| **local** | — | `flutter_tts` on device | **$0** |
 | **cloud** | `ReqVoiceStt` → `mod_voice` → Cloudflare Whisper Large v3 Turbo (fallback Gemini / Google) | `ReqVoiceTts` → `mod_voice` → Google Cloud Text-to-Speech | Reserve → settle; see [Billing flow](#billing-flow-cloud) |
 
 **Web / local:** no `req_id`, no `billing_reservation`, no balance change.
@@ -38,9 +38,11 @@ Single entry points for the app — pages bind `VoiceApi` once per chat session.
 
 **Voice Activity Detection (VAD):**
 - Tracks continuous ambient noise floor (`_noiseFloorDb`).
-- Detects human voice via dynamic Signal-to-Noise Ratio (SNR) delta: $\max(\text{Ambient Floor} + 8.5\text{ dB}, -42.0\text{ dB})$.
+- Detects human voice via dynamic SNR delta: $\max(\text{Ambient Floor} + 8\text{ dB}, -54\text{ dB})$ (+1 dB in talk mode). The floor tracks up to −25 dB, follows stationary noise upward, and creeps up under sustained loud input, so noisy rooms don't read as endless speech. A high peak alone does not count as speech unless it is also >5 dB above the floor.
+- Recorder is opened with `noiseSuppress` + `echoCancel` (Android/iOS/web; ignored on desktop). `autoGain` stays off (it amplifies noise).
 - Filters out static hiss, fan/AC hum, and transient clicks.
-- Automatically triggers `onAutoStop` after **700ms** of silence following speech with live text (**1100ms** with no text yet).
+- **Composer** mic: triggers `onAutoStop` after **700ms** of silence following speech with live text (**1100ms** with no text yet).
+- **Talk** mic (`SttVadMode.talk`): silence VAD is off so background noise cannot block end-of-turn; user taps mic again, **Send** on the transcript chip, or hits the **60s** cap.
 
 **Latency optimizations (STT):**
 - `SttService.prewarm()` (called on composer focus) resolves and caches the mic device (60s TTL); the last working PCM stream config is tried first on `startRecording`.
@@ -57,7 +59,7 @@ Single entry points for the app — pages bind `VoiceApi` once per chat session.
 
 **Routing:**
 
-- STT: `sttEngine == 'cloud'` → `VoiceApi.sttTranscribe`; else `_transcribeWebEndpoint`.
+- STT: always **cloud** → `VoiceApi.sttTranscribe`.
 - TTS: `ttsEngine == 'cloud'` → synthesize + `audioplayers`; `web` → fetch MP3 + player; `local` → `flutter_tts` (web TTS falls through to local on failure).
 
 **Files:**

@@ -116,7 +116,7 @@ pub use object_admin::{
 pub use translation_admin::{translation_put, TranslationAdminError};
 pub use inst_cache::{
     inst_cache_init, inst_cache_nats_subscribe, inst_cache_reload_all, inst_cache_reload_one,
-    inst_list_cached, NATS_SUBJECT_WILDCARD,
+    inst_list_cached, inst_list_for_turn, NATS_SUBJECT_WILDCARD,
 };
 pub use inst_macro::{InstMatchCtx, InstRow};
 pub use chat_history::{chat_messages, chat_search, ChatHistoryQuery};

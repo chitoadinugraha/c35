@@ -20,6 +20,13 @@ String liveOfferPricePerMinLocal(
 }) =>
     moneyUsdPerMinLabel(offer.retailUsdPerMin, currency: currency, fxMicroPerUsd: fxMicroPerUsd);
 
+String liveOfferPricePerSecLocal(
+  LiveOffer offer, {
+  required String currency,
+  required int fxMicroPerUsd,
+}) =>
+    moneyUsdPerSecLabel(offer.retailUsdPerMin, currency: currency, fxMicroPerUsd: fxMicroPerUsd);
+
 String liveOfferSoonTag() => catalogT('live.soon');
 
 String liveOfferMenuLabel(LiveOffer offer) =>

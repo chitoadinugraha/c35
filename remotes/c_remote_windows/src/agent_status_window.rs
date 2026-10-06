@@ -135,6 +135,9 @@ pub fn run(
     const CLR_DOT_IDLE: u32 = 0x00666666;
     const CLR_DOT_OFF: u32 = 0x00E81123;
     const CLR_LOG_BG: u32 = 0x0010100E;
+    const CLR_DRIVE_BAR_BG: u32 = 0x00463F3F;
+    const CLR_DRIVE_BAR_OK: u32 = 0x0099D334;
+    const CLR_DRIVE_BAR_HIGH: u32 = 0x004444EF;
 
     const WIN_W: i32 = 360;
     const WIN_H: i32 = 300;
@@ -263,6 +266,44 @@ pub fn run(
         let ob = SelectObject(hdc, HGDIOBJ(brush.0));
         let op = SelectObject(hdc, HGDIOBJ(pen.0));
         let _ = Ellipse(hdc, cx - r, cy - r, cx + r, cy + r);
+        SelectObject(hdc, ob);
+        SelectObject(hdc, op);
+        let _ = DeleteObject(HGDIOBJ(brush.0));
+        let _ = DeleteObject(HGDIOBJ(pen.0));
+    }
+
+    unsafe fn draw_storage_bar(hdc: HDC, scale: &UiScale, rc: &RECT, fraction: f64, high_usage: bool) {
+        let radius = scale.px(3);
+        let pen = CreatePen(PS_SOLID, 1, COLORREF(CLR_DRIVE_BAR_BG));
+        let track = CreateSolidBrush(COLORREF(CLR_DRIVE_BAR_BG));
+        let op = SelectObject(hdc, HGDIOBJ(pen.0));
+        let ob = SelectObject(hdc, HGDIOBJ(track.0));
+        let _ = RoundRect(hdc, rc.left, rc.top, rc.right, rc.bottom, radius, radius);
+        SelectObject(hdc, ob);
+        SelectObject(hdc, op);
+        let _ = DeleteObject(HGDIOBJ(track.0));
+        let _ = DeleteObject(HGDIOBJ(pen.0));
+
+        let frac = fraction.clamp(0.0, 1.0);
+        if frac <= 0.0 {
+            return;
+        }
+        let fill_w = ((rc.right - rc.left) as f64 * frac).round() as i32;
+        if fill_w <= 0 {
+            return;
+        }
+        let fill = RECT {
+            left: rc.left,
+            top: rc.top,
+            right: rc.left + fill_w,
+            bottom: rc.bottom,
+        };
+        let fill_color = if high_usage { CLR_DRIVE_BAR_HIGH } else { CLR_DRIVE_BAR_OK };
+        let pen = CreatePen(PS_SOLID, 1, COLORREF(fill_color));
+        let brush = CreateSolidBrush(COLORREF(fill_color));
+        let op = SelectObject(hdc, HGDIOBJ(pen.0));
+        let ob = SelectObject(hdc, HGDIOBJ(brush.0));
+        let _ = RoundRect(hdc, fill.left, fill.top, fill.right, fill.bottom, radius, radius);
         SelectObject(hdc, ob);
         SelectObject(hdc, op);
         let _ = DeleteObject(HGDIOBJ(brush.0));
@@ -399,7 +440,7 @@ pub fn run(
         let margin = scale.px(16);
         let switch_w = scale.px(44);
         let switch_h = scale.px(22);
-        let row_h = scale.px(36);
+        let row_h = scale.px(50);
         let switch = RECT {
             left: rc.right - margin - switch_w,
             top: top + (row_h - switch_h) / 2,
@@ -765,6 +806,24 @@ pub fn run(
                 },
                 DT_LEFT | DT_SINGLELINE | DT_VCENTER,
             );
+            let bar_left = drive_row.left;
+            let bar_right = drive_switch.left - scale.px(8);
+            if bar_right > bar_left {
+                let bar_top = drive_row.top + scale.px(20);
+                let bar_h = scale.px(6);
+                let bar_rc = RECT {
+                    left: bar_left,
+                    top: bar_top,
+                    right: bar_right,
+                    bottom: bar_top + bar_h,
+                };
+                if let Some(frac) = c_remote_core::agent_ui::drive_storage_usage_fraction() {
+                    let used = c_remote_core::agent_ui::drive_storage_used_bytes().unwrap_or(0);
+                    let limit = c_remote_core::agent_ui::drive_storage_limit_bytes().unwrap_or(1);
+                    let high = limit > 0 && used as f64 / limit as f64 > 0.85;
+                    draw_storage_bar(hdc, scale, &bar_rc, frac, high);
+                }
+            }
             if let Some(label) = snap.drive_storage.as_deref() {
                 draw_text(
                     hdc,
@@ -773,7 +832,7 @@ pub fn run(
                     label,
                     RECT {
                         left: drive_row.left,
-                        top: drive_row.top + scale.px(20),
+                        top: drive_row.top + scale.px(30),
                         right: drive_switch.left - scale.px(8),
                         bottom: drive_row.bottom,
                     },

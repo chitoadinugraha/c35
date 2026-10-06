@@ -7,8 +7,6 @@ import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/material.dart';
 
-const billingApiAllow5hDefault = 0.01;
-const billingApiAllowWeeklyDefault = 0.2;
 const quotaRingWeeklyColor = Color(0xFF60A5FA);
 
 Color quotaRingColor(String meterState) => switch (meterState) {
@@ -16,141 +14,6 @@ Color quotaRingColor(String meterState) => switch (meterState) {
       'orange' => const Color(0xFFFBBF24),
       _ => const Color(0xFF34D399),
     };
-
-double quotaRingRatio(num used, num limit) {
-  if (limit <= 0) return 1;
-  return ((limit - used) / limit).clamp(0.0, 1.0);
-}
-
-int quotaRingRemainingPct(num used, num limit) => (quotaRingRatio(used, limit) * 100).round();
-
-class _QuotaRingLayout {
-  const _QuotaRingLayout({
-    required this.outerStroke,
-    required this.innerStroke,
-    required this.innerSize,
-    required this.hubSize,
-    required this.centerGap,
-  });
-
-  final double outerStroke;
-  final double innerStroke;
-  final double innerSize;
-  final double hubSize;
-  final double centerGap;
-
-  static _QuotaRingLayout dual(double size) {
-    final outerStroke = (size * 0.09).clamp(3.0, 3.8);
-    final innerStroke = (outerStroke * 0.78).clamp(2.4, 3.2);
-    const ringGap = 3.5;
-    const centerGap = 2.5;
-    final innerSize = size - 2 * outerStroke - 2 * ringGap;
-    final hubSize = (innerSize - 2 * innerStroke - 2 * centerGap).clamp(size * 0.26, size * 0.46);
-    return _QuotaRingLayout(outerStroke: outerStroke, innerStroke: innerStroke, innerSize: innerSize, hubSize: hubSize, centerGap: centerGap);
-  }
-}
-
-Widget _quotaRingArc(double size, double stroke, double ratio, Color color) => SizedBox(
-      width: size,
-      height: size,
-      child: CircularProgressIndicator(
-        value: ratio,
-        strokeWidth: stroke,
-        strokeCap: StrokeCap.round,
-        backgroundColor: color.withValues(alpha: 0.14),
-        valueColor: AlwaysStoppedAnimation(color),
-      ),
-    );
-
-Widget _quotaRingHub({required double hubSize, required double centerGap, required Widget icon}) => SizedBox(
-      width: hubSize + centerGap * 2,
-      height: hubSize + centerGap * 2,
-      child: Center(child: icon),
-    );
-
-class UiQuotaDualRing extends StatelessWidget {
-  const UiQuotaDualRing({
-    super.key,
-    required this.title,
-    required this.titleColor,
-    required this.centerIcon,
-    required this.allow5hUsed,
-    required this.allow5hLimit,
-    required this.allowWeeklyUsed,
-    required this.allowWeeklyLimit,
-    required this.meterState,
-    this.size = 48,
-    this.showLabels = true,
-    this.onTap,
-  });
-
-  final String title;
-  final Color titleColor;
-  final Widget centerIcon;
-  final double allow5hUsed;
-  final double allow5hLimit;
-  final double allowWeeklyUsed;
-  final double allowWeeklyLimit;
-  final String meterState;
-  final double size;
-  final bool showLabels;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final outerColor = quotaRingColor(meterState);
-    const innerColor = quotaRingWeeklyColor;
-    final pct5h = quotaRingRemainingPct(allow5hUsed, allow5hLimit);
-    final pctWeekly = quotaRingRemainingPct(allowWeeklyUsed, allowWeeklyLimit);
-    final layout = _QuotaRingLayout.dual(size);
-    TextStyle pctStyle(Color color) => TextStyle(color: color, fontSize: 9, fontWeight: FontWeight.w600, height: 1.25);
-    final ring = SizedBox(
-      width: size,
-      height: size,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          _quotaRingArc(size, layout.outerStroke, quotaRingRatio(allow5hUsed, allow5hLimit), outerColor),
-          _quotaRingArc(layout.innerSize, layout.innerStroke, quotaRingRatio(allowWeeklyUsed, allowWeeklyLimit), innerColor),
-          _quotaRingHub(hubSize: layout.hubSize, centerGap: layout.centerGap, icon: centerIcon),
-        ],
-      ),
-    );
-    Widget child = showLabels
-        ? Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              ring,
-              const SizedBox(width: 6),
-              Flexible(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(title, style: TextStyle(color: titleColor, fontSize: 10, fontWeight: FontWeight.w700, height: 1.2), overflow: TextOverflow.ellipsis),
-                    const SizedBox(height: 3),
-                    Text('5h: $pct5h%', style: pctStyle(outerColor), overflow: TextOverflow.ellipsis),
-                    Text('Wk: $pctWeekly%', style: pctStyle(innerColor), overflow: TextOverflow.ellipsis),
-                  ],
-                ),
-              ),
-            ],
-          )
-        : ring;
-    if (onTap != null) {
-      child = Material(
-        color: Colors.transparent,
-        child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(8), child: Padding(padding: const EdgeInsets.all(2), child: child)),
-      );
-    }
-    return uiTooltip(
-      message: '$title\n5 Hours · $pct5h% left\nWeekly · $pctWeekly% left',
-      preferBelow: false,
-      child: child,
-    );
-  }
-}
 
 class UiFreemiumQuotaPanel extends StatelessWidget {
   const UiFreemiumQuotaPanel({
@@ -240,6 +103,7 @@ class UiQuotaPackagePanel extends StatelessWidget {
     required this.apiWeeklyUsed,
     required this.apiWeeklyLimit,
     required this.meterState,
+    this.fxMicroPerUsd = moneyDefaultFxMicroPerUsd,
     this.balanceLabel = '',
     this.onBalanceTap,
     this.onPackageTap,
@@ -248,11 +112,6 @@ class UiQuotaPackagePanel extends StatelessWidget {
     this.freemiumMsgsLimit = billingFreemiumMsgsLimit,
     this.freemiumTokensUsed = 0,
     this.freemiumTokensLimit = billingFreemiumTokensLimit,
-    // IDR pool fields (v3 Phase 4b)
-    this.alienPoolUsedIdr = 0.0,
-    this.alienPoolLimitIdr = 0.0,
-    this.frontierPoolUsedIdr = 0.0,
-    this.frontierPoolLimitIdr = 0.0,
     this.trialExpiresTsMs,
     this.planExpiresTsMs,
   });
@@ -268,6 +127,7 @@ class UiQuotaPackagePanel extends StatelessWidget {
   final double apiWeeklyUsed;
   final double apiWeeklyLimit;
   final String meterState;
+  final int fxMicroPerUsd;
   final String balanceLabel;
   final VoidCallback? onBalanceTap;
   final VoidCallback? onPackageTap;
@@ -276,19 +136,12 @@ class UiQuotaPackagePanel extends StatelessWidget {
   final int freemiumMsgsLimit;
   final int freemiumTokensUsed;
   final int freemiumTokensLimit;
-  // IDR pool fields (v3 Phase 4b)
-  final double alienPoolUsedIdr;
-  final double alienPoolLimitIdr;
-  final double frontierPoolUsedIdr;
-  final double frontierPoolLimitIdr;
   final int? trialExpiresTsMs;
   final int? planExpiresTsMs;
 
-  bool get _hasIdrPools => alienPoolLimitIdr > 0 || frontierPoolLimitIdr > 0;
-
   bool get _isPaidPlan => planTier.isNotEmpty && planTier != 'free';
 
-  Widget _poolBar(String label, double used, double limit, Color color) {
+  Widget _allowanceBar(String label, double used, double limit, Color color) {
     final remaining = (limit - used).clamp(0.0, limit);
     final ratio = limit > 0 ? (used / limit).clamp(0.0, 1.0) : 0.0;
     return Column(
@@ -299,7 +152,7 @@ class UiQuotaPackagePanel extends StatelessWidget {
             Text(label, style: const TextStyle(color: Color(0xFF71717A), fontSize: 10, fontWeight: FontWeight.w500)),
             const Spacer(),
             Text(
-              '${moneyFmtIdr(remaining)} left',
+              '${moneyAllowanceLabel(remaining, currency: 'IDR', fxMicroPerUsd: fxMicroPerUsd)} left',
               style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600),
             ),
           ],
@@ -384,72 +237,27 @@ class UiQuotaPackagePanel extends StatelessWidget {
             meterState: meterState,
             onSubscribeTap: onPackageTap,
           )
-        else if (_hasIdrPools)
-          // v3 IDR pool bars
+        else
           Padding(
             padding: const EdgeInsets.fromLTRB(0, 8, 0, 4),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (alienPoolLimitIdr > 0) ...[
-                  _poolBar('Alien AI', alienPoolUsedIdr, alienPoolLimitIdr, quotaRingColor(meterState)),
+                _allowanceBar('Alien AI · 5h', alien5hUsed, alien5hLimit, quotaRingColor(meterState)),
+                const SizedBox(height: 8),
+                _allowanceBar('Alien AI · 7d', alienWeeklyUsed, alienWeeklyLimit, quotaRingWeeklyColor),
+                const SizedBox(height: 8),
+                _allowanceBar('API · 5h', api5hUsed, api5hLimit, quotaRingColor(meterState)),
+                const SizedBox(height: 8),
+                _allowanceBar('API · 7d', apiWeeklyUsed, apiWeeklyLimit, quotaRingWeeklyColor),
+                if (showTrial) ...[
                   const SizedBox(height: 8),
-                ],
-                if (frontierPoolLimitIdr > 0) ...[
-                  _poolBar('Frontier', frontierPoolUsedIdr, frontierPoolLimitIdr, quotaRingWeeklyColor),
-                  const SizedBox(height: 8),
-                ],
-                if (showTrial)
-                  _poolBar(
+                  Text(
                     'Trial · $trialDaysLeft day${trialDaysLeft == 1 ? '' : 's'} left',
-                    0,
-                    1,
-                    const Color(0xFFA78BFA),
-                  ),
-              ],
-            ),
-          )
-        else
-          // Legacy 5h / weekly rings (fallback when no IDR pools assigned)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(0, 6, 0, 2),
-            child: IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: Center(
-                      child: UiQuotaDualRing(
-                        size: 38,
-                        title: 'Alien AI',
-                        titleColor: const Color(0xFFF4F4F5),
-                        centerIcon: const UiAlienIcon(size: 14),
-                        allow5hUsed: alien5hUsed,
-                        allow5hLimit: alien5hLimit,
-                        allowWeeklyUsed: alienWeeklyUsed,
-                        allowWeeklyLimit: alienWeeklyLimit,
-                        meterState: meterState,
-                      ),
-                    ),
-                  ),
-                  const VerticalDivider(width: 1, color: Color(0xFF27272A)),
-                  Expanded(
-                    child: Center(
-                      child: UiQuotaDualRing(
-                        size: 38,
-                        title: 'API',
-                        titleColor: const Color(0xFFF4F4F5),
-                        centerIcon: const Icon(Icons.api, size: 14, color: Color(0xFFF4F4F5)),
-                        allow5hUsed: api5hUsed,
-                        allow5hLimit: api5hLimit,
-                        allowWeeklyUsed: apiWeeklyUsed,
-                        allowWeeklyLimit: apiWeeklyLimit,
-                        meterState: meterState,
-                      ),
-                    ),
+                    style: const TextStyle(color: Color(0xFFA78BFA), fontSize: 10, fontWeight: FontWeight.w600),
                   ),
                 ],
-              ),
+              ],
             ),
           ),
       ],
@@ -461,13 +269,13 @@ UiQuotaPackagePanel uiQuotaPackagePanelLimitPlaceholder({bool planTierLoading = 
       planTier: 'free',
       planTierLoading: planTierLoading,
       alien5hUsed: 0,
-      alien5hLimit: 0.05,
+      alien5hLimit: 0,
       alienWeeklyUsed: 0,
-      alienWeeklyLimit: 1,
+      alienWeeklyLimit: 0,
       api5hUsed: 0,
-      api5hLimit: billingApiAllow5hDefault,
+      api5hLimit: 0,
       apiWeeklyUsed: 0,
-      apiWeeklyLimit: billingApiAllowWeeklyDefault,
+      apiWeeklyLimit: 0,
       meterState: 'green',
       onPackageTap: onPackageTap,
       freemiumActive: true,
@@ -482,74 +290,83 @@ UiQuotaPackagePanel uiQuotaPackagePanelFromSummary(
   bool planTierLoading = false,
   VoidCallback? onBalanceTap,
   VoidCallback? onPackageTap,
-}) =>
-    UiQuotaPackagePanel(
-      planTier: summary.planTier,
-      planTierLoading: planTierLoading,
-      alien5hUsed: summary.alienAllow5hUsed,
-      alien5hLimit: summary.alienAllow5hLimit > 0 ? summary.alienAllow5hLimit : 0.05,
-      alienWeeklyUsed: summary.alienAllowWeeklyUsed,
-      alienWeeklyLimit: summary.alienAllowWeeklyLimit > 0 ? summary.alienAllowWeeklyLimit : 1,
-      api5hUsed: 0,
-      api5hLimit: billingApiAllow5hDefault,
-      apiWeeklyUsed: 0,
-      apiWeeklyLimit: billingApiAllowWeeklyDefault,
-      meterState: summary.freemiumActive
-          ? billingMeterStateFreemium(BillingAccount(
-              freemiumMsgsUsed: summary.freemiumMsgsUsed,
-              freemiumMsgsLimit: summary.freemiumMsgsLimit,
-              freemiumTokensUsed: summary.freemiumTokensUsed,
-              freemiumTokensLimit: summary.freemiumTokensLimit,
-            ))
-          : summary.meterState,
-      balanceLabel: billingWalletBalanceLabel(
-        BillingAccount(
-          balanceUsd: summary.balanceUsd,
-          balanceIdr: summary.balanceIdr,
-          billingCurrency: billingCurrencyResolve(fromSummary: summary.hasBillingCurrency() ? summary.billingCurrency : null),
-          fxMicroPerUsd: summary.hasFxMicroPerUsd() ? summary.fxMicroPerUsd : Int64(moneyDefaultFxMicroPerUsd),
-        ),
-        billingCurrencyResolve(fromSummary: summary.hasBillingCurrency() ? summary.billingCurrency : null),
+}) {
+  final fx = summary.hasFxMicroPerUsd() ? summary.fxMicroPerUsd.toInt() : moneyDefaultFxMicroPerUsd;
+  return UiQuotaPackagePanel(
+    planTier: summary.planTier,
+    planTierLoading: planTierLoading,
+    alien5hUsed: summary.alienAllow5hUsed,
+    alien5hLimit: summary.alienAllow5hLimit,
+    alienWeeklyUsed: summary.alienAllowWeeklyUsed,
+    alienWeeklyLimit: summary.alienAllowWeeklyLimit,
+    api5hUsed: 0,
+    api5hLimit: 0,
+    apiWeeklyUsed: 0,
+    apiWeeklyLimit: 0,
+    fxMicroPerUsd: fx,
+    meterState: summary.freemiumActive
+        ? billingMeterStateFreemium(BillingAccount(
+            freemiumMsgsUsed: summary.freemiumMsgsUsed,
+            freemiumMsgsLimit: summary.freemiumMsgsLimit,
+            freemiumTokensUsed: summary.freemiumTokensUsed,
+            freemiumTokensLimit: summary.freemiumTokensLimit,
+          ))
+        : summary.meterState,
+    balanceLabel: billingWalletBalanceLabel(
+      BillingAccount(
+        balanceUsd: summary.balanceUsd,
+        balanceIdr: summary.balanceIdr,
+        billingCurrency: billingCurrencyResolve(fromSummary: summary.hasBillingCurrency() ? summary.billingCurrency : null),
+        fxMicroPerUsd: summary.hasFxMicroPerUsd() ? summary.fxMicroPerUsd : Int64(moneyDefaultFxMicroPerUsd),
       ),
-      onBalanceTap: onBalanceTap,
-      onPackageTap: onPackageTap,
-      freemiumActive: summary.freemiumActive,
-      freemiumMsgsUsed: summary.freemiumMsgsUsed,
-      freemiumMsgsLimit: summary.freemiumMsgsLimit > 0 ? summary.freemiumMsgsLimit : billingFreemiumMsgsLimit,
-      freemiumTokensUsed: summary.freemiumTokensUsed,
-      freemiumTokensLimit: summary.freemiumTokensLimit > 0 ? summary.freemiumTokensLimit : billingFreemiumTokensLimit,
-      // ResBillingSummary does not carry IDR pool fields; pools arrive via BillingPushQuota NATS push.
-      trialExpiresTsMs: summary.hasTrialExpiresTsMs() ? summary.trialExpiresTsMs.toInt() : null,
-      planExpiresTsMs: summary.hasPlanExpiresTsMs() ? summary.planExpiresTsMs.toInt() : null,
-    );
+      billingCurrencyResolve(fromSummary: summary.hasBillingCurrency() ? summary.billingCurrency : null),
+    ),
+    onBalanceTap: onBalanceTap,
+    onPackageTap: onPackageTap,
+    freemiumActive: summary.freemiumActive,
+    freemiumMsgsUsed: summary.freemiumMsgsUsed,
+    freemiumMsgsLimit: summary.freemiumMsgsLimit > 0 ? summary.freemiumMsgsLimit : billingFreemiumMsgsLimit,
+    freemiumTokensUsed: summary.freemiumTokensUsed,
+    freemiumTokensLimit: summary.freemiumTokensLimit > 0 ? summary.freemiumTokensLimit : billingFreemiumTokensLimit,
+    trialExpiresTsMs: summary.hasTrialExpiresTsMs() ? summary.trialExpiresTsMs.toInt() : null,
+    planExpiresTsMs: summary.hasPlanExpiresTsMs() ? summary.planExpiresTsMs.toInt() : null,
+  );
+}
 
 UiQuotaPackagePanel uiQuotaPackagePanelFromAccount(
   BillingAccount account, {
+  BillingPushQuota? quota,
   bool planTierLoading = false,
   VoidCallback? onBalanceTap,
   VoidCallback? onPackageTap,
-}) =>
-    UiQuotaPackagePanel(
-      planTier: account.planTier.isNotEmpty ? account.planTier : 'free',
-      planTierLoading: planTierLoading,
-      alien5hUsed: account.alienAllow5hUsed,
-      alien5hLimit: account.alienAllow5hLimit > 0 ? account.alienAllow5hLimit : 0.05,
-      alienWeeklyUsed: account.alienAllowWeeklyUsed,
-      alienWeeklyLimit: account.alienAllowWeeklyLimit > 0 ? account.alienAllowWeeklyLimit : 1,
-      api5hUsed: 0,
-      api5hLimit: billingApiAllow5hDefault,
-      apiWeeklyUsed: 0,
-      apiWeeklyLimit: billingApiAllowWeeklyDefault,
-      meterState: billingFreemiumActive(account) ? billingMeterStateFreemium(account) : billingMeterState(account.alienAllow5hUsed, account.alienAllow5hLimit),
-      balanceLabel: billingWalletBalanceLabel(account, billingPrimaryCurrency(account)),
-      onBalanceTap: onBalanceTap,
-      onPackageTap: onPackageTap,
-      freemiumActive: billingFreemiumActive(account),
-      freemiumMsgsUsed: account.freemiumMsgsUsed,
-      freemiumMsgsLimit: account.freemiumMsgsLimit > 0 ? account.freemiumMsgsLimit : billingFreemiumMsgsLimit,
-      freemiumTokensUsed: account.freemiumTokensUsed,
-      freemiumTokensLimit: account.freemiumTokensLimit > 0 ? account.freemiumTokensLimit : billingFreemiumTokensLimit,
-      // BillingAccount proto does not carry IDR pool fields; pools arrive via BillingPushQuota NATS push.
-      trialExpiresTsMs: account.hasTrialExpiresTsMs() ? account.trialExpiresTsMs.toInt() : null,
-      planExpiresTsMs: account.hasPlanExpiresTsMs() ? account.planExpiresTsMs.toInt() : null,
-    );
+}) {
+  final fx = account.hasFxMicroPerUsd() ? account.fxMicroPerUsd.toInt() : moneyDefaultFxMicroPerUsd;
+  final frontier5hUsed = account.frontierAllow5hUsed;
+  final frontier5hLimit = account.frontierAllow5hLimit;
+  final frontierWeeklyUsed = account.frontierAllowWeeklyUsed;
+  final frontierWeeklyLimit = account.frontierAllowWeeklyLimit;
+  return UiQuotaPackagePanel(
+    planTier: account.planTier.isNotEmpty ? account.planTier : 'free',
+    planTierLoading: planTierLoading,
+    alien5hUsed: account.alienAllow5hUsed,
+    alien5hLimit: account.alienAllow5hLimit,
+    alienWeeklyUsed: account.alienAllowWeeklyUsed,
+    alienWeeklyLimit: account.alienAllowWeeklyLimit,
+    api5hUsed: frontier5hUsed,
+    api5hLimit: frontier5hLimit,
+    apiWeeklyUsed: frontierWeeklyUsed,
+    apiWeeklyLimit: frontierWeeklyLimit,
+    fxMicroPerUsd: fx,
+    meterState: billingFreemiumActive(account) ? billingMeterStateFreemium(account) : billingMeterState(account.alienAllow5hUsed, account.alienAllow5hLimit),
+    balanceLabel: billingWalletBalanceLabel(account, billingPrimaryCurrency(account)),
+    onBalanceTap: onBalanceTap,
+    onPackageTap: onPackageTap,
+    freemiumActive: billingFreemiumActive(account),
+    freemiumMsgsUsed: account.freemiumMsgsUsed,
+    freemiumMsgsLimit: account.freemiumMsgsLimit > 0 ? account.freemiumMsgsLimit : billingFreemiumMsgsLimit,
+    freemiumTokensUsed: account.freemiumTokensUsed,
+    freemiumTokensLimit: account.freemiumTokensLimit > 0 ? account.freemiumTokensLimit : billingFreemiumTokensLimit,
+    trialExpiresTsMs: quota?.hasTrialExpiresTsMs() == true ? quota!.trialExpiresTsMs.toInt() : (account.hasTrialExpiresTsMs() ? account.trialExpiresTsMs.toInt() : null),
+    planExpiresTsMs: quota?.hasPlanExpiresTsMs() == true ? quota!.planExpiresTsMs.toInt() : (account.hasPlanExpiresTsMs() ? account.planExpiresTsMs.toInt() : null),
+  );
+}

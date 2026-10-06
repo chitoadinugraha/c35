@@ -63,6 +63,10 @@ async fn admin_log_list_rejects_non_root() {
             limit: 10,
             before_id: None,
             owner_iid: None,
+            event_kind: None,
+            class: None,
+            subject_prefix: None,
+            exclude_trace: false,
         },
     )
     .await
@@ -123,6 +127,10 @@ async fn admin_log_list_root_filters_owner() {
             topic: None,
             limit: 10,
             before_id: None,
+            event_kind: None,
+            class: None,
+            subject_prefix: None,
+            exclude_trace: false,
         },
     )
     .await
@@ -157,6 +165,7 @@ async fn admin_log_report_rejects_non_root() {
             until_ms: 0,
             limit: 10,
             owner_iid: None,
+            group_tools: false,
         },
     )
     .await
@@ -217,6 +226,7 @@ async fn admin_log_report_aggregates_kinds() {
             since_ms: 0,
             until_ms: 0,
             limit: 10,
+            group_tools: false,
         },
     )
     .await

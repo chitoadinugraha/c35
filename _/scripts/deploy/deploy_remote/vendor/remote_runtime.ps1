@@ -64,6 +64,18 @@ function Install-WinFspIfNeeded {
     }
 }
 
+function Register-RemoteAgentAutostart {
+    param(
+        [Parameter(Mandatory = $true)][string]$ExePath,
+        [switch]$Quiet
+    )
+    $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+    $value = '"' + $ExePath + '"'
+    New-Item -Path $runKey -Force | Out-Null
+    Set-ItemProperty -LiteralPath $runKey -Name 'AlienAI Remote Agent' -Value $value -Type String
+    if (-not $Quiet) { Write-Host "==> Registered logon autostart: $value" }
+}
+
 function Install-RemoteAgentTo {
     param(
         [Parameter(Mandatory = $true)][string]$SourceExe,
@@ -81,6 +93,7 @@ function Install-RemoteAgentTo {
     if (Test-Path -LiteralPath $legacy) {
         Remove-Item -LiteralPath $legacy -Force -ErrorAction SilentlyContinue
     }
+    Register-RemoteAgentAutostart -ExePath $dest -Quiet:$Quiet
     if (-not $Quiet) { Write-Host "==> Installed to $dest" }
     return $dest
 }

@@ -789,6 +789,7 @@ dependencies = [
  "axum",
  "base64 0.22.1",
  "blake3",
+ "c35_mod_admin",
  "c35_mod_billing",
  "c35_mod_chat",
  "c35_mod_llm",

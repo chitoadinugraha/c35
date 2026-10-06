@@ -441,7 +441,7 @@ class ResDevicePairPoll extends $pb.GeneratedMessage {
   void clearDeviceIid() => $_clearField(4);
 }
 
-/// App WS fanout: `c35.user.{owner_iid}.app.device_presence` (agent connect/disconnect).
+/// App WS fanout: `c35.user.{owner_iid}.app.device_presence` (connect/disconnect + ~30s heartbeat).
 class DevicePresencePush extends $pb.GeneratedMessage {
   factory DevicePresencePush({
     $fixnum.Int64? deviceIid,

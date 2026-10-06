@@ -35,6 +35,7 @@ class InstDoc extends $pb.GeneratedMessage {
     $fixnum.Int64? deletedTsMs,
     $core.Iterable<$core.String>? includeTools,
     $core.Iterable<$core.String>? excludeTools,
+    $core.Iterable<$core.String>? requiresGlobalRoles,
   }) {
     final result = InstDoc._();
     if (id != null) result.id = id;
@@ -53,6 +54,8 @@ class InstDoc extends $pb.GeneratedMessage {
     if (deletedTsMs != null) result.deletedTsMs = deletedTsMs;
     if (includeTools != null) result.includeTools.addAll(includeTools);
     if (excludeTools != null) result.excludeTools.addAll(excludeTools);
+    if (requiresGlobalRoles != null)
+      result.requiresGlobalRoles.addAll(requiresGlobalRoles);
     return result;
   }
 
@@ -85,6 +88,7 @@ class InstDoc extends $pb.GeneratedMessage {
     ..aInt64(14, _omitFieldNames ? '' : 'deletedTsMs')
     ..pPS(15, _omitFieldNames ? '' : 'includeTools')
     ..pPS(16, _omitFieldNames ? '' : 'excludeTools')
+    ..pPS(17, _omitFieldNames ? '' : 'requiresGlobalRoles')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -220,6 +224,9 @@ class InstDoc extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(16)
   $pb.PbList<$core.String> get excludeTools => $_getList(15);
+
+  @$pb.TagNumber(17)
+  $pb.PbList<$core.String> get requiresGlobalRoles => $_getList(16);
 }
 
 class ReqInstList extends $pb.GeneratedMessage {

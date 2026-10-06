@@ -9,7 +9,7 @@ use crate::bot_meta::{bot_turn_meta_parse, bot_turn_signals, BOT_GSHEET_WRITE_TO
 use crate::catalog_web::{catalog_skip_web_prefetch, catalog_web_phase};
 use crate::compose::{compose_tools_and_inst_async, ComposeTurnOpts};
 use crate::inst_macro::inst_scopes_channel;
-use crate::inst_cache::inst_list_cached;
+use crate::inst_cache::inst_list_for_turn;
 use crate::context_billing::ContextBillingExtra;
 use crate::context_compact::{prepare_prompt_history, PreparedPromptHistory};
 use crate::context_pack::{context_window_resolve, token_estimate};
@@ -83,7 +83,7 @@ pub async fn channel_prompt_turn(
         attachments_json,
     };
 
-    let inst_rows = inst_list_cached();
+    let inst_rows = inst_list_for_turn(pool).await;
     let empty_mentions: [String; 0] = [];
     let inst_scopes = inst_scopes_channel();
     let http = crate::tools::http_client(std::time::Duration::from_secs(30));

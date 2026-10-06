@@ -7,11 +7,16 @@ edition.workspace = true
 name = "live_realtime_smoke"
 path = "src/bin/live_realtime_smoke.rs"
 
+[[bin]]
+name = "live_device_tool_smoke"
+path = "src/bin/live_device_tool_smoke.rs"
+
 [dependencies]
 anyhow = { workspace = true }
 async-nats = { workspace = true }
 base64 = "0.22"
 blake3 = { workspace = true }
+c35_mod_admin = { path = "../mod_admin", package = "c35_mod_admin" }
 c35_mod_billing = { path = "../mod_billing", package = "c35_mod_billing" }
 c35_mod_chat = { path = "../mod_chat", package = "c35_mod_chat" }
 c35_mod_llm = { path = "../mod_llm", package = "c35_mod_llm" }

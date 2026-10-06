@@ -364,18 +364,12 @@ impl WebrtcHub {
             return;
         }
         crate::agent_ui::webrtc_connecting_set(true);
-        let ice_servers = if let Some(local) =
-            super::ice_config::ice_servers_local_dev(&self.dispatch_ctx.server_url)
-        {
-            local
-        } else {
-            super::ice_config::ice_servers_fetch(
-                &self.dispatch_ctx.server_url,
-                &self.dispatch_ctx.session_key,
-            )
-            .await
-            .unwrap_or_else(ice_servers_load)
-        };
+        let ice_servers = super::ice_config::ice_servers_fetch(
+            &self.dispatch_ctx.server_url,
+            &self.dispatch_ctx.session_key,
+        )
+        .await
+        .unwrap_or_else(ice_servers_load);
         match WebrtcSession::create(
             self.device_iid,
             session_id.clone(),
@@ -515,7 +509,10 @@ impl WebrtcSession {
     ) -> anyhow::Result<Self> {
         let mut media_engine = MediaEngine::default();
         media_engine.register_default_codecs()?;
-        let api = APIBuilder::new().with_media_engine(media_engine).build();
+        let api = APIBuilder::new()
+            .with_media_engine(media_engine)
+            .with_setting_engine(super::ice_setting::setting_engine())
+            .build();
         let config = RTCConfiguration {
             ice_servers,
             ..Default::default()
@@ -878,7 +875,6 @@ fn ice_servers_load() -> Vec<RTCIceServer> {
         urls: vec![
             "stun:stun.alienai.id:3479".to_string(),
             "stun:turn.alienai.id:3479".to_string(),
-            "stun:stun.l.google.com:19302".to_string(),
         ],
         username: String::new(),
         credential: String::new(),

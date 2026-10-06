@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alienai_c35/c/config.dart';
+import 'package:alienai_c35/c/device/device_presence_cache.dart';
 import 'package:alienai_c35/c/parts/csai__version.dart';
 import 'package:flutter/foundation.dart';
 import 'package:alienai_c35/c/log.dart';
@@ -25,6 +26,7 @@ import 'package:alienai_c35/c/pb/c35/sync.pb.dart';
 import 'package:alienai_c35/c/pb/c35/tx.pb.dart';
 import 'package:alienai_c35/c/pb/c35/wire.pb.dart';
 import 'package:alienai_c35/c/trace/trace_log.dart';
+import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/c/trace/trace_view.dart';
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/store/prompt_run_store.dart';
@@ -216,8 +218,9 @@ class ChatConn {
     _ch = null;
     if (!failPending) return;
     for (final c in _promptPending.values) {
-      if (!c.isClosed) c.add(PromptStreamEvent.fail('disconnected'));
-      await c.close();
+      if (c.isClosed) continue;
+      c.add(PromptStreamEvent.fail(uiConnectionFailed));
+      if (!c.isClosed) await c.close();
     }
     _promptPending.clear();
     for (final c in _rpcPending.values) {
@@ -268,13 +271,13 @@ class ChatConn {
   void _onWsError(Object e, int gen) {
     if (gen != _socketGen) return;
     lError('chat ws: $e');
-    _failAll('$e');
+    _failAll(uiPromptErrorMessage('$e'));
     _scheduleReconnectIfNeeded();
   }
 
   void _onWsDone(int gen) {
     if (gen != _socketGen) return;
-    _failAll('connection closed');
+    _failAll(uiConnectionFailed);
     _scheduleReconnectIfNeeded();
   }
 
@@ -314,7 +317,17 @@ class ChatConn {
     });
   }
 
-  void _send(WsReq req) => _ch!.sink.add(req.writeToBuffer());
+  bool _trySend(WsReq req) {
+    final ch = _ch;
+    if (ch == null || ch.closeCode != null) return false;
+    try {
+      ch.sink.add(req.writeToBuffer());
+      return true;
+    } catch (e) {
+      lError('chat ws send skipped: $e');
+      return false;
+    }
+  }
 
   Future<T> rpc<T>(WsReq req, T Function(WsRes res) parse) => _rpc(req, parse);
 
@@ -334,7 +347,7 @@ class ChatConn {
       final completer = Completer<WsRes>();
       _rpcPending[reqId] = completer;
       try {
-        _ch!.sink.add(req.writeToBuffer());
+        if (!_trySend(req)) throw ApiException(uiConnectionFailed);
       } catch (e) {
         _rpcPending.remove(reqId);
         lastSendErr = e;
@@ -392,6 +405,7 @@ class ChatConn {
     }
     if (res.hasDevicePresencePush()) {
       final push = res.devicePresencePush;
+      DevicePresenceCache.instance.apply(push);
       if (!_devicePresencePushCtrl.isClosed) _devicePresencePushCtrl.add(push);
     }
     if (_isRemoteSignal(res) && !_remoteSignalCtrl.isClosed) _remoteSignalCtrl.add(res);
@@ -451,8 +465,9 @@ class ChatConn {
 
   void _failAll(String message) {
     for (final e in _promptPending.entries) {
-      if (!e.value.isClosed) e.value.add(PromptStreamEvent.fail(message));
-      e.value.close();
+      if (e.value.isClosed) continue;
+      e.value.add(PromptStreamEvent.fail(message));
+      if (!e.value.isClosed) e.value.close();
     }
     _promptPending.clear();
     for (final c in _rpcPending.values) {
@@ -520,8 +535,22 @@ class ChatConn {
         (res) => res.hintTouch,
       );
 
-  Future<ResLiveStart> liveStart({required String offerId, String locale = ''}) => _rpc<ResLiveStart>(
-        WsReq(liveStart: ReqLiveStart(offerId: offerId, locale: locale, reqId: const Uuid().v4())),
+  Future<ResLiveStart> liveStart({
+        required String offerId,
+        String locale = '',
+        int? chatId,
+        List<String> mentionIds = const [],
+      }) =>
+      _rpc<ResLiveStart>(
+        WsReq(
+          liveStart: ReqLiveStart(
+            offerId: offerId,
+            locale: locale,
+            reqId: const Uuid().v4(),
+            chatId: chatId != null ? Int64(chatId) : Int64.ZERO,
+            mentionIds: mentionIds,
+          ),
+        ),
         (res) => res.liveStart,
       );
 
@@ -1193,7 +1222,12 @@ class ChatConn {
         talk: talk,
       ),
     );
-    _send(req);
+    if (!_trySend(req)) {
+      _scheduleReconnectIfNeeded();
+      if (!ctrl.isClosed) ctrl.add(PromptStreamEvent.fail(uiConnectionFailed));
+      _promptPending.remove(id);
+      if (!ctrl.isClosed) await ctrl.close();
+    }
     yield* ctrl.stream;
   }
 }

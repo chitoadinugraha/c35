@@ -1,5 +1,7 @@
 use c35_mod_chat::compose::{
-    compose_force_tool_call, compose_tools_and_inst, tool_mention_eligible, ComposeTurnOpts,
+    compose_force_tool_call, compose_force_presentation_tool_call, compose_force_consumption_coach_tool_call,
+    compose_force_web_tool_call,
+    compose_tools_and_inst, tool_mention_eligible, ComposeTurnOpts,
 };
 use c35_mod_chat::BROWSER_DEVICE_TOOL_EXCLUDE;
 use c35_mod_chat::inst_macro::{inst_scopes_channel, inst_scopes_home, InstRow, SCOPE_GLOBAL, SCOPE_ROLE_PERSONAL_ASSISTANT};
@@ -961,9 +963,25 @@ fn tool_trim_ranked_drops_low_sim_gap() {
 #[test]
 fn compose_force_tool_call_when_web_search_inst_and_tool() {
     let tools = vec![ToolDef::new("web.search".into(), "Search".into(), json!({}))];
+    assert!(compose_force_web_tool_call(&["inst.web_search".into()], &tools));
     assert!(compose_force_tool_call(&["inst.web_search".into()], &tools));
     assert!(!compose_force_tool_call(&["inst.core.assistant".into()], &tools));
     assert!(!compose_force_tool_call(&["inst.web_search".into()], &[]));
+}
+
+#[test]
+fn compose_force_tool_call_when_presentation_inst_and_tool() {
+    let tools = vec![presentation_create_tool()];
+    assert!(compose_force_presentation_tool_call(&["inst.presentation".into()], &tools));
+    assert!(compose_force_tool_call(&["inst.presentation".into()], &tools));
+    assert!(!compose_force_presentation_tool_call(&["inst.core.assistant".into()], &tools));
+}
+
+#[test]
+fn compose_force_tool_call_when_consumption_coach_inst_and_tool() {
+    let tools = vec![ToolDef::new("consumption.today".into(), "Meals today".into(), json!({}))];
+    assert!(compose_force_consumption_coach_tool_call(&["inst.consumption_coach".into()], &tools));
+    assert!(compose_force_tool_call(&["inst.consumption_coach".into()], &tools));
 }
 
 #[test]
@@ -1172,6 +1190,10 @@ fn web_search_tool() -> ToolDef {
     ToolDef::new("web.search".into(), "Search the live web".into(), json!({}))
 }
 
+fn web_visit_tool() -> ToolDef {
+    ToolDef::new("web.visit".into(), "Fetch a URL".into(), json!({}))
+}
+
 #[test]
 fn compose_price_phrase_includes_site_query_without_mention() {
     let mention = MentionContext::empty();
@@ -1287,4 +1309,56 @@ fn compose_bot_draft_phrase_excludes_web_search() {
     assert!(out.matched_ids.iter().any(|id| id == "inst.bot.draft"));
     assert!(out.tools.iter().any(|t| t.name == "bot.draft"));
     assert!(out.tools.iter().all(|t| t.name != "web.search"));
+}
+
+fn inst_presentation() -> InstRow {
+    InstRow {
+        id: "inst.presentation".into(),
+        scope: SCOPE_GLOBAL.into(),
+        kind: "task".into(),
+        topic_id: "".into(),
+        topics: vec![],
+        inst: "[PRESENTATION] Call presentation.create immediately.".into(),
+        phrases: vec![
+            "presentasi".into(),
+            "slide".into(),
+            "buat presentasi".into(),
+            "bikin slide".into(),
+        ],
+        triggers: vec![],
+        include_tools: vec!["presentation.create".into(), "presentation.patch".into()],
+        exclude_tools: vec!["web.search".into(), "web.visit".into()],
+        requires_global_roles: vec![],
+        priority: 150,
+    }
+}
+
+fn presentation_create_tool() -> ToolDef {
+    ToolDef {
+        name: "presentation.create".into(),
+        description: "Create slide deck".into(),
+        parameters: json!({}),
+        aliases: vec![],
+        topics: vec!["presentation".into()],
+        always: vec!["presentation".into()],
+        readonly: false,
+        requires_kinds: vec![],
+        rag_phrases: vec!["buat presentasi".into()],
+        requires_capability: None,
+        requires_global_roles: vec![],
+    }
+}
+
+#[test]
+fn compose_presentation_phrase_includes_create_excludes_web_search() {
+    let out = compose_default(
+        &[inst_core_assistant(), inst_presentation()],
+        "buat 3 slide presentasi cara memasak nasi",
+        vec![presentation_create_tool(), web_search_tool(), web_visit_tool()],
+        &[],
+    );
+    assert!(out.matched_ids.iter().any(|id| id == "inst.presentation"));
+    assert!(out.tools.iter().any(|t| t.name == "presentation.create"));
+    assert!(out.tools.iter().all(|t| t.name != "web.search"));
+    assert!(out.tools.iter().all(|t| t.name != "web.visit"));
 }

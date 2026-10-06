@@ -64,11 +64,19 @@ When toggled open via `AnimatedSize`:
     - `ruby` (Ruby Noir) — `mdi:gem` · aliases `rose`, `red`
     - `gold` (Royal Gold) — `mdi:crown` · aliases `amber`, `yellow`
     - `arctic` (Arctic Light) — `mdi:snowflake` · aliases `light`, `white` (high-contrast light deck)
+    - `lavender` (Lavender Amethyst) — `mdi:auto-fix` · aliases `amethyst`, `purple`, `violet`
+    - `cream` (Editorial Cream) — `mdi:book-open-page-variant` · aliases `editorial`, `paper`, `minimal`, `warm`
+    - `monochrome` (Bauhaus Slate) — `mdi:circle-half-full` · aliases `bw`, `slate`, `silver`, `zinc`
+    - `forest` (Forest Botanical) — `mdi:pine-tree` · aliases `moss`, `nature`, `sage`, `botanical`
+    - `sakura` (Sakura Blossom) — `mdi:flower` · aliases `blossom`, `rose-light`, `pastel`, `floral`
+    - `cyberpunk` (Neo Cyberpunk) — `mdi:controller` · aliases `synthwave`, `neon`, `tokyo`, `gaming`
+    - `coffee` (Artisan Coffee) — `mdi:coffee` · aliases `mocha`, `espresso`, `leather`, `artisan`
+    - `aurora` (Boreal Aurora) — `mdi:weather-night` · aliases `teal`, `boreal`, `nordic`
   - **Export to PowerPoint (.pptx)**: Compiles slide deck into an editable `.pptx` presentation (13.333 in x 7.5 in widescreen) via `/v1/presentation/export` and saves with human-readable filename (e.g. `Cara_Menanam_Bunga.pptx`).
   - **Export to PDF (.pdf)**: Compiles 16:9 widescreen PDF slides (960 x 540 pt) via `SlideDeckPdfExporter` (`package:pdf` + `package:printing`) with identical badges, cards, progress capsules, and image layouts.
   - **Copy Slides Markdown**: Copies raw markdown formatted with `---` dividers.
   - **Open in Canvas**: Opens the presentation side-by-side in the canvas editing panel (when canvas is active).
-  - **Collapse Preview**: Folds the expanded preview back into the compact inline card.
+  - **Minimize**: Folds the expanded preview back into the compact inline card.
 - **Slide Canvas Hierarchy (Identical across Preview, PDF, PPTX)**:
   - **Top Accent Line**: 4 pt full-width bar in theme accent color.
   - **Cover Slide (Slide 1)**: Left-aligned eyebrow badge pill, 36 pt bold title, 16 pt subtitle, accent gradient divider line, bottom Alien AI branding and progress capsules, optional 60/40 split image.

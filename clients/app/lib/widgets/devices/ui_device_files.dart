@@ -47,9 +47,11 @@ class _PasteIntent extends Intent {
 }
 
 class UiDeviceFiles extends StatefulWidget {
-  const UiDeviceFiles({super.key, required this.session});
+  const UiDeviceFiles({super.key, required this.session, this.online = true, this.onPresenceRefresh});
 
   final RemoteSession session;
+  final bool online;
+  final Future<void> Function()? onPresenceRefresh;
 
   @override
   State<UiDeviceFiles> createState() => _UiDeviceFilesState();
@@ -73,6 +75,7 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> with WidgetsBindingObserv
   var _loadingDir = false;
   String? _listError;
   var _connecting = false;
+  var _presenceRefreshing = false;
   var _backgroundTransferWarned = false;
 
   var _previewLoading = false;
@@ -161,8 +164,21 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> with WidgetsBindingObserv
     _previewTruncated = false;
   }
 
+  Future<void> _recheckPresence() async {
+    final refresh = widget.onPresenceRefresh;
+    if (refresh == null || _presenceRefreshing) return;
+    setState(() => _presenceRefreshing = true);
+    try {
+      await refresh();
+    } catch (e) {
+      lError('presence refresh: $e');
+    } finally {
+      if (mounted) setState(() => _presenceRefreshing = false);
+    }
+  }
+
   Future<void> _connect() async {
-    if (_connecting) return;
+    if (!widget.online || _connecting) return;
     setState(() => _connecting = true);
     try {
       await widget.session.start();
@@ -422,17 +438,33 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> with WidgetsBindingObserv
                   child: const Icon(Icons.folder_open_outlined, size: 28, color: _muted),
                 ),
                 const SizedBox(height: 16),
-                const Text('Connect to browse files', textAlign: TextAlign.center, style: TextStyle(color: _text, fontSize: 15, fontWeight: FontWeight.w600)),
+                Text(widget.online ? 'Connect to browse files' : 'Device is offline', textAlign: TextAlign.center, style: const TextStyle(color: _text, fontSize: 15, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
-                const Text('Files stream directly to your device over WebRTC — nothing passes through the server.', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFFA1A1AA), fontSize: 13, height: 1.45)),
-                const SizedBox(height: 20),
-                FilledButton.icon(
-                  onPressed: _connecting ? null : _connect,
-                  icon: _connecting
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: _text))
-                      : const Icon(Icons.link, size: 18),
-                  label: Text(_connecting ? 'Connecting…' : 'Connect'),
+                Text(
+                  widget.online
+                      ? 'Files stream directly to your device over WebRTC — nothing passes through the server.'
+                      : 'Refresh to recheck whether the device is back on Alien AI Cloud.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 13, height: 1.45),
                 ),
+                const SizedBox(height: 20),
+                if (widget.online)
+                  FilledButton.icon(
+                    onPressed: _connecting ? null : _connect,
+                    icon: _connecting
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: _text))
+                        : const Icon(Icons.link, size: 18),
+                    label: Text(_connecting ? 'Connecting…' : 'Connect'),
+                  )
+                else
+                  FilledButton.icon(
+                    onPressed: _presenceRefreshing ? null : () => unawaited(_recheckPresence()),
+                    style: FilledButton.styleFrom(backgroundColor: const Color(0xFF27272A), foregroundColor: _text),
+                    icon: _presenceRefreshing
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: _muted))
+                        : const Icon(Icons.refresh_rounded, size: 18),
+                    label: Text(_presenceRefreshing ? 'Checking…' : 'Refresh'),
+                  ),
               ],
             ),
           ),

@@ -19,6 +19,7 @@ pub struct LiveOfferRow {
     pub output_usd_per_min: f64,
     pub enabled: bool,
     pub sort: i32,
+    pub tool_topics: Vec<String>,
 }
 
 fn cache() -> &'static RwLock<Vec<LiveOfferRow>> {
@@ -43,9 +44,9 @@ pub async fn live_catalog_init(pool: &PgPool) -> Result<()> {
 
 pub async fn live_catalog_reload(pool: &PgPool) -> Result<()> {
     let rows = db_retry(pool, || async {
-        sqlx::query_as::<_, (String, String, String, String, String, String, f64, f64, bool, i32)>(
+        sqlx::query_as::<_, (String, String, String, String, String, String, f64, f64, bool, i32, Vec<String>)>(
             "SELECT id, family, label_key, provider, provider_model, inst_id, \
-             input_usd_per_min, output_usd_per_min, enabled, sort \
+             input_usd_per_min, output_usd_per_min, enabled, sort, tool_topics \
              FROM ai.live_offer WHERE deleted_ts IS NULL ORDER BY sort, id",
         )
         .fetch_all(pool)
@@ -57,7 +58,7 @@ pub async fn live_catalog_reload(pool: &PgPool) -> Result<()> {
     } else {
         rows.into_iter()
             .map(
-                |(id, family, label_key, provider, provider_model, inst_id, input_usd_per_min, output_usd_per_min, enabled, sort)| {
+                |(id, family, label_key, provider, provider_model, inst_id, input_usd_per_min, output_usd_per_min, enabled, sort, tool_topics)| {
                     LiveOfferRow {
                         id,
                         family,
@@ -69,6 +70,7 @@ pub async fn live_catalog_reload(pool: &PgPool) -> Result<()> {
                         output_usd_per_min,
                         enabled,
                         sort,
+                        tool_topics,
                     }
                 },
             )
@@ -99,6 +101,7 @@ fn live_catalog_defaults() -> Vec<LiveOfferRow> {
             output_usd_per_min: 0.018,
             enabled: true,
             sort: 10,
+            tool_topics: vec!["general".into()],
         },
         LiveOfferRow {
             id: "live.gemini".into(),
@@ -111,6 +114,7 @@ fn live_catalog_defaults() -> Vec<LiveOfferRow> {
             output_usd_per_min: 0.018,
             enabled: true,
             sort: 20,
+            tool_topics: vec![],
         },
         LiveOfferRow {
             id: "live.gemini.thinker".into(),
@@ -123,6 +127,7 @@ fn live_catalog_defaults() -> Vec<LiveOfferRow> {
             output_usd_per_min: 0.018,
             enabled: true,
             sort: 21,
+            tool_topics: vec![],
         },
         LiveOfferRow {
             id: "live.chatgpt".into(),
@@ -135,6 +140,7 @@ fn live_catalog_defaults() -> Vec<LiveOfferRow> {
             output_usd_per_min: 0.024,
             enabled: false,
             sort: 30,
+            tool_topics: vec![],
         },
         LiveOfferRow {
             id: "live.grok".into(),
@@ -147,6 +153,7 @@ fn live_catalog_defaults() -> Vec<LiveOfferRow> {
             output_usd_per_min: 0.024,
             enabled: false,
             sort: 40,
+            tool_topics: vec![],
         },
     ]
 }

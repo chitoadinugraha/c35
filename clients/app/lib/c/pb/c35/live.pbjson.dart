@@ -80,13 +80,16 @@ const ReqLiveStart$json = {
     {'1': 'offer_id', '3': 1, '4': 1, '5': 9, '10': 'offerId'},
     {'1': 'locale', '3': 2, '4': 1, '5': 9, '10': 'locale'},
     {'1': 'req_id', '3': 3, '4': 1, '5': 9, '10': 'reqId'},
+    {'1': 'chat_id', '3': 4, '4': 1, '5': 3, '10': 'chatId'},
+    {'1': 'mention_ids', '3': 5, '4': 3, '5': 9, '10': 'mentionIds'},
   ],
 };
 
 /// Descriptor for `ReqLiveStart`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List reqLiveStartDescriptor = $convert.base64Decode(
     'CgxSZXFMaXZlU3RhcnQSGQoIb2ZmZXJfaWQYASABKAlSB29mZmVySWQSFgoGbG9jYWxlGAIgAS'
-    'gJUgZsb2NhbGUSFQoGcmVxX2lkGAMgASgJUgVyZXFJZA==');
+    'gJUgZsb2NhbGUSFQoGcmVxX2lkGAMgASgJUgVyZXFJZBIXCgdjaGF0X2lkGAQgASgDUgZjaGF0'
+    'SWQ=');
 
 @$core.Deprecated('Use resLiveStartDescriptor instead')
 const ResLiveStart$json = {

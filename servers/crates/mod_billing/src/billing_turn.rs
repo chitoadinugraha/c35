@@ -5,9 +5,11 @@ use c35_store::snowflake_id;
 use sqlx::PgPool;
 
 use crate::billing_cost::{billing_cost_usd, billing_cost_wholesale_usd, RETAIL_MARKUP};
+use crate::billing_on_demand::DEFAULT_HOLD_USD;
 use crate::billing_profile::{
-    billing_profile_deduct_turn, billing_profile_fetch, billing_profile_ensure,
-    billing_signup_trial_autoclaim, profile_has_pools, profile_pool_remaining,
+    billing_profile_deduct_rings, billing_profile_ensure, billing_profile_fetch,
+    billing_profile_windows_roll, billing_signup_trial_autoclaim, profile_has_rings,
+    profile_ring_remaining_usd,
 };
 
 #[derive(Debug, Clone)]
@@ -106,25 +108,28 @@ pub async fn billing_gate(pool: &PgPool, owner_iid: i64) -> Result<BillingRow> {
     .fetch_one(pool)
     .await?;
     let balance_idr = f(acct.0);
-    if let Ok(Some(profile)) = billing_profile_fetch(pool, owner_iid).await {
-        if profile_has_pools(&profile) {
-            let (alien_rem, frontier_rem) = profile_pool_remaining(&profile);
-            let min_hold = crate::billing_on_demand::usd_to_native(
-                crate::billing_on_demand::DEFAULT_HOLD_USD,
-                crate::fx_live::fx_live_micro_per_usd(),
-            );
-            if alien_rem + frontier_rem >= min_hold {
+    let profile_row = billing_profile_fetch(pool, owner_iid).await?;
+    let allowance_rem = if let Some(profile) = profile_row {
+        if profile_has_rings(&profile) {
+            let profile = billing_profile_windows_roll(pool, profile).await?;
+            let (alien_rem, frontier_rem) = profile_ring_remaining_usd(&profile.rings);
+            let ring_rem = alien_rem + frontier_rem;
+            if ring_rem >= DEFAULT_HOLD_USD {
                 return Ok(row);
             }
+            ring_rem
+        } else {
+            0.0
         }
-    }
-    let allowance_rem = crate::billing_on_demand::allowance_remaining(
-        row.alien_allow_5h_used,
-        row.alien_allow_5h_limit,
-        row.alien_allow_weekly_used,
-        row.alien_allow_weekly_limit,
-    );
-    if allowance_rem >= crate::billing_on_demand::DEFAULT_HOLD_USD {
+    } else {
+        crate::billing_on_demand::allowance_remaining(
+            row.alien_allow_5h_used,
+            row.alien_allow_5h_limit,
+            row.alien_allow_weekly_used,
+            row.alien_allow_weekly_limit,
+        )
+    };
+    if allowance_rem >= DEFAULT_HOLD_USD {
         return Ok(row);
     }
     let (held_usd, held_idr) = crate::billing_reservation::billing_held_totals(pool, row.id).await?;
@@ -171,6 +176,50 @@ pub async fn billing_deduct_allowance(pool: &PgPool, owner_iid: i64, cost_usd: f
 
 pub async fn billing_deduct(pool: &PgPool, owner_iid: i64, cost_usd: f64) -> Result<BillingRow> {
     billing_deduct_allowance(pool, owner_iid, cost_usd).await
+}
+
+/// Personal usage: profile rings when a billing_profile row exists, else legacy account allowance; wallet for ring overflow.
+pub async fn billing_deduct_personal_profile(
+    pool: &PgPool,
+    owner_iid: i64,
+    model: &str,
+    cost_usd: f64,
+) -> Result<BillingRow> {
+    let row = billing_account_ensure(pool, owner_iid).await?;
+    let profile_exists = billing_profile_fetch(pool, owner_iid).await?.is_some();
+    if !profile_exists {
+        return billing_deduct_allowance(pool, owner_iid, cost_usd).await;
+    }
+    let ring_overflow = billing_profile_deduct_rings(pool, owner_iid, model, cost_usd).await?;
+    let wallet_charge_usd = ring_overflow.unwrap_or(cost_usd);
+    if wallet_charge_usd > 0.0 {
+        let fx_micro = crate::fx_live::fx_live_micro_per_usd();
+        let acct_cur = sqlx::query_scalar::<_, String>(
+            "SELECT billing_currency FROM ai.billing_account WHERE id = $1",
+        )
+        .bind(row.id)
+        .fetch_one(pool)
+        .await?;
+        if acct_cur.eq_ignore_ascii_case("IDR") {
+            let overflow_idr = crate::billing_on_demand::usd_to_native(wallet_charge_usd, fx_micro);
+            sqlx::query(
+                "UPDATE ai.billing_account SET balance_idr = balance_idr - $2, updated_ts = NOW() WHERE id = $1",
+            )
+            .bind(row.id)
+            .bind(overflow_idr)
+            .execute(pool)
+            .await?;
+        } else {
+            sqlx::query(
+                "UPDATE ai.billing_account SET balance_usd = balance_usd - $2, updated_ts = NOW() WHERE id = $1",
+            )
+            .bind(row.id)
+            .bind(wallet_charge_usd)
+            .execute(pool)
+            .await?;
+        }
+    }
+    Ok(billing_fetch(pool, owner_iid).await?.unwrap_or(row))
 }
 
 pub async fn billing_usage_report(
@@ -316,21 +365,45 @@ pub async fn billing_usage_report(
         row.alien_allow_weekly_limit,
     );
     let fx_micro = crate::fx_live::fx_live_micro_per_usd();
-    let personal_pool = bctx.map(|b| b.scope == "personal").unwrap_or(true);
-    let pool_overflow = if personal_pool {
-        billing_profile_deduct_turn(pool, owner_iid, model, tokens_in, tokens_out, fx_micro).await?
+    let personal = bctx.map(|b| b.scope == "personal").unwrap_or(true);
+    let profile_exists = billing_profile_fetch(pool, owner_iid).await?.is_some();
+    let ring_overflow_usd = if personal {
+        billing_profile_deduct_rings(pool, owner_iid, model, cost).await?
     } else {
         None
     };
-    let row_after = if pool_overflow.is_some() {
-        if let Some(overflow_idr) = pool_overflow.filter(|v| *v > 0.0) {
-            sqlx::query(
-                "UPDATE ai.billing_account SET balance_idr = balance_idr - $2, updated_ts = NOW() WHERE id = $1",
+    let wallet_charge_usd = if personal && profile_exists {
+        ring_overflow_usd.unwrap_or(cost)
+    } else {
+        0.0
+    };
+    let row_after = if personal && profile_exists {
+        if wallet_charge_usd > 0.0 {
+            let overflow_usd = wallet_charge_usd;
+            let acct_cur = sqlx::query_scalar::<_, String>(
+                "SELECT billing_currency FROM ai.billing_account WHERE id = $1",
             )
             .bind(row.id)
-            .bind(overflow_idr)
-            .execute(pool)
+            .fetch_one(pool)
             .await?;
+            if acct_cur.eq_ignore_ascii_case("IDR") {
+                let overflow_idr = crate::billing_on_demand::usd_to_native(overflow_usd, fx_micro);
+                sqlx::query(
+                    "UPDATE ai.billing_account SET balance_idr = balance_idr - $2, updated_ts = NOW() WHERE id = $1",
+                )
+                .bind(row.id)
+                .bind(overflow_idr)
+                .execute(pool)
+                .await?;
+            } else {
+                sqlx::query(
+                    "UPDATE ai.billing_account SET balance_usd = balance_usd - $2, updated_ts = NOW() WHERE id = $1",
+                )
+                .bind(row.id)
+                .bind(overflow_usd)
+                .execute(pool)
+                .await?;
+            }
         }
         billing_fetch(pool, owner_iid).await?.unwrap_or(row)
     } else if let Some(b) = bctx {
@@ -364,11 +437,11 @@ pub async fn billing_usage_report(
     } else {
         cost
     };
-    let deducted_native = if let Some(overflow_idr) = pool_overflow {
+    let deducted_native = if personal && profile_exists {
         if currency.eq_ignore_ascii_case("IDR") {
-            overflow_idr.max(0.0)
+            crate::billing_on_demand::usd_to_native(wallet_charge_usd.max(0.0), fx)
         } else {
-            crate::billing_on_demand::native_to_usd(overflow_idr.max(0.0), fx)
+            wallet_charge_usd.max(0.0)
         }
     } else {
         let (charge_usd, charge_idr) =

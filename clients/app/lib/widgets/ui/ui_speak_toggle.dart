@@ -18,7 +18,7 @@ class UiTalkToggleRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Talk', style: TextStyle(color: Color(0xFFE4E4E7), fontSize: 14, fontWeight: FontWeight.w500)),
+                  Text('Talk Mode', style: TextStyle(color: Color(0xFFE4E4E7), fontSize: 14, fontWeight: FontWeight.w500)),
                   SizedBox(height: 2),
                   Text('Shorter replies, voice input', style: TextStyle(color: Color(0xFF71717A), fontSize: 12, height: 1.25)),
                 ],

@@ -23,6 +23,8 @@ message ReqLiveStart {
   string offer_id = 1;
   string locale = 2;
   string req_id = 3;
+  int64 chat_id = 4;
+  repeated string mention_ids = 5;
 }
 
 message ResLiveStart {

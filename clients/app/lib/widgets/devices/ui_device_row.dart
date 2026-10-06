@@ -38,12 +38,16 @@ class UiDeviceRow extends StatelessWidget {
   final bool selected;
   final VoidCallback? onTap;
 
-  String get _subtitle => switch (type.toLowerCase()) {
+  String get _typeSubtitle => switch (type.toLowerCase()) {
         'browser' => browserEngine.toLowerCase() == 'extension' ? 'Chrome Extension' : 'Remote browser',
         'android' => 'Android',
         'windows' => 'Windows',
         _ => type,
       };
+
+  /// Remote rows: Alien AI Cloud down replaces the type line.
+  String get _subtitle =>
+      kind.toLowerCase() == 'remote' && !clusterOnline ? 'Device is offline' : _typeSubtitle;
 
   String? get _engineBadge => type.toLowerCase() == 'browser'
       ? (browserEngine.toLowerCase() == 'extension' ? 'Extension' : 'Automated')
@@ -107,13 +111,15 @@ class UiDeviceRow extends StatelessWidget {
   }
 
   Widget _connectionDots() {
-    if (kind.toLowerCase() != 'remote') return _dot(clusterOnline, 'Online');
+    if (kind.toLowerCase() != 'remote') {
+      return _dot(clusterOnline, clusterOnline ? 'Online' : 'Device is offline');
+    }
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _webrtcDot(),
+        _dot(clusterOnline, clusterOnline ? 'Alien AI Cloud' : 'Device is offline'),
         const SizedBox(width: 5),
-        _dot(clusterOnline, 'Alien AI Cloud'),
+        _webrtcDot(),
       ],
     );
   }

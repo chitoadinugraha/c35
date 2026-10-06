@@ -2,6 +2,7 @@
 
 mod fs;
 mod ice_config;
+mod ice_setting;
 mod media;
 mod session;
 mod teach;

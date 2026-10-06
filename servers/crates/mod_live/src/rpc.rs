@@ -2,7 +2,7 @@ use c35_proto::{ReqLiveStart, ResLiveStart};
 use c35_store::snowflake_id;
 use sqlx::PgPool;
 
-use crate::billing::{live_billing_abort, live_billing_gate, live_req_id};
+use crate::billing::{live_billing_gate, live_req_id};
 use crate::catalog::live_offer_resolve;
 use crate::session::live_session_register;
 
@@ -55,7 +55,9 @@ pub async fn live_start_rpc(pool: &PgPool, owner_iid: i64, req: ReqLiveStart) ->
             };
         }
     };
-    let token = live_session_register(&sid, owner_iid, offer, req_id, billing_row);
+    let chat_id = (req.chat_id > 0).then_some(req.chat_id);
+    let mention_ids = live_mention_ids_resolve(pool, owner_iid, chat_id, &req.mention_ids).await;
+    let token = live_session_register(&sid, owner_iid, offer, req_id, billing_row, chat_id, mention_ids);
     ResLiveStart {
         live_session_id: sid.clone(),
         ws_path: format!("/v1/live/ws?sid={sid}&token={token}"),
@@ -63,7 +65,46 @@ pub async fn live_start_rpc(pool: &PgPool, owner_iid: i64, req: ReqLiveStart) ->
     }
 }
 
-pub async fn live_start_abort_unconnected(pool: &PgPool, sid: &str, req_id: &str) {
-    let _ = live_billing_abort(pool, req_id).await;
-    crate::session::live_session_drop(sid);
+/// Request `mention_ids` win. Otherwise use the chat's sticky mentions and bound device.
+pub async fn live_mention_ids_resolve(
+    pool: &PgPool,
+    owner_iid: i64,
+    chat_id: Option<i64>,
+    requested: &[String],
+) -> Vec<String> {
+    let explicit: Vec<String> = requested
+        .iter()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+    if !explicit.is_empty() {
+        return explicit;
+    }
+    let Some(chat_id) = chat_id.filter(|id| *id > 0) else {
+        return Vec::new();
+    };
+    let row: Option<(i64, serde_json::Value)> = sqlx::query_as(
+        "SELECT COALESCE(bound_device_iid, 0), COALESCE(meta, '{}'::jsonb) \
+         FROM ai.chat WHERE id = $1 AND owner_iid = $2 AND deleted_ts IS NULL",
+    )
+    .bind(chat_id)
+    .bind(owner_iid)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten();
+    let Some((bound, meta)) = row else {
+        return Vec::new();
+    };
+    let mut ids: Vec<String> = meta
+        .get("sticky_mention_ids")
+        .and_then(|v| serde_json::from_value(v.clone()).ok())
+        .unwrap_or_default();
+    if bound > 0 {
+        let id = format!("iid:{bound}");
+        if !ids.iter().any(|x| x == &id) {
+            ids.insert(0, id);
+        }
+    }
+    ids
 }
