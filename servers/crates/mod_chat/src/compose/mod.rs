@@ -41,6 +41,7 @@ pub struct ComposeTurnOpts<'a> {
     pub extra_inst_suffix: &'a str,
     pub bot_web_search: bool,
     pub attachments_json: &'a str,
+    pub skip_tool_rag: bool,
 }
 
 impl<'a> Default for ComposeTurnOpts<'a> {
@@ -52,6 +53,7 @@ impl<'a> Default for ComposeTurnOpts<'a> {
             extra_inst_suffix: "",
             bot_web_search: false,
             attachments_json: "[]",
+            skip_tool_rag: false,
         }
     }
 }
@@ -520,7 +522,7 @@ pub async fn compose_tools_and_inst_async(
             (r, t.elapsed().as_millis() as i64)
         },
         async {
-            if rag_skipped || !tool_index_ready() {
+            if rag_skipped || opts.skip_tool_rag || !tool_index_ready() {
                 None
             } else {
                 Some(tool_find_vector(pool, http, text, &eligible).await)

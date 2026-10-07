@@ -79,28 +79,9 @@ class UiMsgError extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(displayMessage, style: const TextStyle(fontSize: 14, height: 1.45, color: Color(0xFFF4F4F5))),
-                  if (id.isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    InkWell(
-                      onTap: () {
-                        Clipboard.setData(ClipboardData(text: id));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Message ID copied: $id'), behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 1)),
-                        );
-                      },
-                      borderRadius: BorderRadius.circular(4),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
-                        child: Text(
-                          'Message ID: $id',
-                          style: const TextStyle(fontSize: 12, height: 1.4, color: Color(0xFF71717A), fontFamily: 'Consolas', decoration: TextDecoration.underline, decorationColor: Color(0xFF52525B)),
-                        ),
-                      ),
-                    ),
-                  ],
                   if (detail != null && detail!.trim().isNotEmpty && detail!.trim() != message.trim()) ...[
                     const SizedBox(height: 8),
-                    UiRootErrorDetail(detail: detail!),
+                    UiRootErrorDetail(detail: detail!, messageId: id.isEmpty ? null : id),
                   ],
                   const SizedBox(height: 6),
                   if (quota)

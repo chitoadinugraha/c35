@@ -35,7 +35,7 @@ void main() {
     expect(find.byType(SelectableText), findsOneWidget);
   });
 
-  testWidgets('UiMsgError shows message id for reporting', (tester) async {
+  testWidgets('UiMsgError hides message id in UI', (tester) async {
     await tester.pumpWidget(const MaterialApp(
       home: Scaffold(
         body: UiMsgError(
@@ -44,15 +44,16 @@ void main() {
         ),
       ),
     ));
-    expect(find.text('Message ID: req-abc-123'), findsOneWidget);
+    expect(find.textContaining('Message ID'), findsNothing);
   });
 
-  testWidgets('UiMsgError copies message id on tap', (tester) async {
+  testWidgets('UiMsgError root copy includes message id', (tester) async {
     const msgId = 'req-abc-123';
+    const err = 'HTTP 404 from upstream';
     final binding = TestDefaultBinaryMessengerBinding.instance;
     binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
       if (call.method == 'Clipboard.setData') {
-        expect(call.arguments['text'], msgId);
+        expect(call.arguments['text'], '[Message ID $msgId]\n$err');
         return null;
       }
       return null;
@@ -62,12 +63,12 @@ void main() {
         body: UiMsgError(
           message: 'Cannot connect to Alien AI',
           messageId: msgId,
+          detail: err,
         ),
       ),
     ));
-    await tester.tap(find.text('Message ID: $msgId'));
+    await tester.tap(find.byIcon(Icons.copy_rounded));
     await tester.pump();
-    expect(find.text('Message ID copied: $msgId'), findsOneWidget);
     binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null);
   });
 

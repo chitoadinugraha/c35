@@ -1,6 +1,7 @@
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/ui/ui_error_fallback.dart';
+import 'package:alienai_c35/widgets/ui/ui_root_error_detail.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -70,6 +71,11 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: UiErrorFallback(error: StateError('boom'))));
     expect(find.text('Root only'), findsOneWidget);
     expect(find.textContaining('boom'), findsOneWidget);
+  });
+
+  test('rootErrorCopyText prefixes message id when set', () {
+    expect(rootErrorCopyText(detail: 'boom', messageId: '42'), '[Message ID 42]\nboom');
+    expect(rootErrorCopyText(detail: 'boom'), 'boom');
   });
 
   testWidgets('root detail copy puts full error on clipboard', (tester) async {

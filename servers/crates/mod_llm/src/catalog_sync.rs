@@ -188,7 +188,7 @@ async fn sync_alien_meta(pool: &PgPool, fetched: &[LlmModelRow]) -> Result<()> {
     let mut chain: Vec<String> = fetched
         .iter()
         .filter(|m| m.enabled && m.provider == "google" && m.family == "flash-lite")
-        .map(|m| m.provider_model.clone())
+        .map(|m| m.id.clone())
         .collect();
     chain.sort_by(|a, b| alien_chain_sort_cmp(a, b));
     chain.dedup();
@@ -483,11 +483,12 @@ async fn cf_models_fetch() -> Result<Vec<LlmModelRow>> {
             || slug.contains("o1")
             || slug.contains("reasoner")
             || slug.contains("grok");
+        let provider_model = if provider == "google" { slug.clone() } else { id.clone() };
         out.push(LlmModelRow {
             id: slug,
             provider,
             label,
-            provider_model: id,
+            provider_model,
             input_micro_per_m: p.input_micro_per_m,
             input_cache_micro_per_m: p.input_cache_micro_per_m,
             output_micro_per_m: p.output_micro_per_m,
@@ -568,11 +569,12 @@ fn catalog_rows_from_openrouter_raw(rows: Vec<Value>) -> Result<Vec<LlmModelRow>
             || slug.contains("o1")
             || slug.contains("reasoner")
             || slug.contains("grok");
+        let provider_model = if provider == "google" { slug.clone() } else { id.clone() };
         out.push(LlmModelRow {
             id: slug,
             provider,
             label,
-            provider_model: id,
+            provider_model,
             input_micro_per_m: p.input_micro_per_m,
             input_cache_micro_per_m: p.input_cache_micro_per_m,
             output_micro_per_m: p.output_micro_per_m,

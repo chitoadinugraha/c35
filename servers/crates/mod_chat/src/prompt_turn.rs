@@ -227,7 +227,11 @@ where
         .await?;
     }
     let prepare_started = Instant::now();
-    let title = chat_title_from_prompt(pool, &req.text, &req.mention_ids).await;
+    let title = if req.chat_id != 0 {
+        String::new()
+    } else {
+        chat_title_from_prompt(pool, &req.text, &req.mention_ids).await
+    };
     let chat_id = chat_ensure(pool, owner_iid, req.chat_id, &title).await?;
     bound_device_prompt_prepare(pool, owner_iid, chat_id, &mut req).await?;
     chat_mention_context_commit(pool, chat_id, owner_iid, &req.mention_ids).await?;
@@ -314,17 +318,37 @@ where
         req.model.clone()
     };
     let user = attach_prompt(&user_content, &req.attachments_json);
-    let inst_rows = inst_list_for_turn(pool).await;
+    let is_simple_time = user_asks_time(&req.text) && req.mention_ids.is_empty() && !user_wants_search(&req.text);
     let http = http_client(std::time::Duration::from_secs(30));
-    let memory_task = tokio::spawn({
-        let pool = pool.clone();
-        let http = http.clone();
-        let query = req.text.clone();
-        async move { memory_retrieve(&pool, &http, owner_iid, None, &query, 8).await }
-    });
-    let mentions = mention_list_enabled(pool).await;
     let mention_ids: Vec<String> = req.mention_ids.clone();
-    let prompt_run = prompt_run_get(pool, req_id).await.ok().flatten();
+
+    let (inst_rows, mentions, prompt_run_res, resolved, user_ctx, memory): (
+        Vec<crate::inst_macro::InstRow>,
+        Vec<crate::mention::MentionRow>,
+        Option<crate::prompt_run::PromptRunRow>,
+        Vec<crate::mention_registry::MentionResolved>,
+        crate::prompt::user_context::UserPromptContext,
+        MemoryRetrieveResult,
+    ) = tokio::join!(
+        inst_list_for_turn(pool),
+        mention_list_enabled(pool),
+        async { prompt_run_get(pool, req_id).await.ok().flatten() },
+        mention_resolve_all(pool, owner_iid, &mention_ids),
+        user_prompt_context_get(pool, owner_iid),
+        {
+            let pool = pool.clone();
+            let http = http.clone();
+            let query = req.text.clone();
+            async move {
+                if is_simple_time {
+                    MemoryRetrieveResult::default()
+                } else {
+                    memory_retrieve(&pool, &http, owner_iid, None, &query, 8).await
+                }
+            }
+        }
+    );
+    let prompt_run = prompt_run_res;
     let run_kind = prompt_run.as_ref().map(|r| r.kind.as_str()).unwrap_or("main");
     let mut checkpoint = prompt_run
         .as_ref()
@@ -335,7 +359,6 @@ where
     } else {
         req.topic_id.clone()
     };
-    let resolved = mention_resolve_all(pool, owner_iid, &mention_ids).await;
     let inst_mention_ids: Vec<String> = mention_ids
         .iter()
         .filter_map(|raw| match mention_ref_parse(raw) {
@@ -362,14 +385,16 @@ where
     let active_topics = mention_active_topics(&resolved, &explicit_topic, &commerce_site_iids);
     let tool_mode = if req.tool_mode.trim().is_empty() { "agent" } else { req.tool_mode.trim() };
     let inst_scopes = inst_scopes_home();
-    let user_ctx = user_prompt_context_get(pool, owner_iid).await;
     let locale_eff = if locale.trim().is_empty() { user_ctx.locale.as_str() } else { locale };
-    let bound_device_iid = chat_bound_device_iid_for_owner(pool, owner_iid, chat_id).await;
+    let (bound_device_iid, catalog_followup_raw) = tokio::join!(
+        chat_bound_device_iid_for_owner(pool, owner_iid, chat_id),
+        chat_last_assistant_content(pool, chat_id),
+    );
     let browser_tool_exclude =
         tool_exclude_browser_devices(pool, owner_iid, &mention_ctx.devices, bound_device_iid).await;
-    let catalog_followup = chat_last_assistant_content(pool, chat_id)
-        .await
-        .and_then(|prev| catalog_add_followup_boost(&prev, &req.text));
+    let catalog_followup = catalog_followup_raw
+        .as_deref()
+        .and_then(|prev| catalog_add_followup_boost(prev, &req.text));
     let catalog_force_tools: Vec<String> = catalog_followup
         .as_ref()
         .map(|b| b.force_tools.clone())
@@ -396,6 +421,7 @@ where
             extra_tool_include: &catalog_force_tools,
             extra_tool_exclude: &browser_tool_exclude,
             extra_inst_suffix: catalog_inst_suffix,
+            skip_tool_rag: is_simple_time,
             ..ComposeTurnOpts::default()
         },
         owner_iid,
@@ -407,7 +433,7 @@ where
     let topic_block = crate::topic::topics_inst_block(pool, &active_topics).await;
     let instructions_base = instructions_base + token_estimate(&topic_block);
 
-    let tools = if user_asks_time(&req.text) && mention_ids.is_empty() && !user_wants_search(&req.text) {
+    let tools = if is_simple_time {
         vec![]
     } else {
         composed.tools
@@ -456,10 +482,6 @@ where
         system.push_str(&mention_block);
     }
     let context_named = token_estimate(&sites_block) + token_estimate(&mention_block) + token_estimate(&time_block) + token_estimate(&location_block);
-    let memory = memory_task.await.unwrap_or_else(|e| {
-        tracing::warn!("[c35:memory] retrieve task failed: {e:#}");
-        MemoryRetrieveResult::default()
-    });
     let memory_tokens = token_estimate(&memory.block);
     system = memory_prompt_merge(&system, &memory.block);
 

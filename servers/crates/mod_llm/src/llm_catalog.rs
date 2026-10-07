@@ -109,13 +109,20 @@ pub fn catalog_row_resolve(slug: &str) -> Option<LlmModelRow> {
 }
 
 pub fn provider_model_resolve(model: &str) -> Option<String> {
-    use crate::catalog_resolve::catalog_row_by_provider_model;
+    use crate::catalog_resolve::{catalog_row_by_provider_model, google_gemini_api_model_id};
     let key = model.trim();
+    let google_row = |m: &LlmModelRow| -> String {
+        if m.provider == "google" {
+            google_gemini_api_model_id(&m.provider_model)
+        } else {
+            m.provider_model.clone()
+        }
+    };
     if key.is_empty() || key == "alienai" || key == "auto" {
-        return catalog_row_resolve("alienai").map(|m| m.provider_model);
+        return catalog_row_resolve("alienai").map(|m| google_row(&m));
     }
     if let Some(m) = catalog_row_resolve(key) {
-        return Some(m.provider_model);
+        return Some(google_row(&m));
     }
     if key == "google" {
         let g = cache().read().unwrap();
@@ -124,9 +131,9 @@ pub fn provider_model_resolve(model: &str) -> Option<String> {
             .iter()
             .find(|m| m.provider == "google" && m.is_default)
             .or_else(|| g.models.iter().find(|m| m.provider == "google" && m.enabled))
-            .map(|m| m.provider_model.clone());
+            .map(google_row);
     }
-    catalog_row_by_provider_model(key).map(|m| m.provider_model)
+    catalog_row_by_provider_model(key).map(|m| google_row(&m))
 }
 
 // ============================================================= Implementation

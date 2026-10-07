@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+String rootErrorCopyText({required String detail, String? messageId}) {
+  final text = detail.trim();
+  if (text.isEmpty) return '';
+  final id = messageId?.trim() ?? '';
+  if (id.isEmpty) return text;
+  return '[Message ID $id]\n$text';
+}
+
 class UiRootErrorDetail extends StatelessWidget {
-  const UiRootErrorDetail({super.key, required this.detail});
+  const UiRootErrorDetail({super.key, required this.detail, this.messageId});
 
   final String detail;
+  final String? messageId;
 
   Widget _copyButton(BuildContext context) {
     final btn = InkWell(
@@ -20,7 +29,7 @@ class UiRootErrorDetail extends StatelessWidget {
   }
 
   void _copy(BuildContext context) {
-    final text = detail.trim();
+    final text = rootErrorCopyText(detail: detail, messageId: messageId);
     if (text.isEmpty) return;
     Clipboard.setData(ClipboardData(text: text));
     final messenger = ScaffoldMessenger.maybeOf(context);

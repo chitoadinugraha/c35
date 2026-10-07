@@ -12,7 +12,12 @@ double uiStatusBarInset(BuildContext context) {
 double uiSafeBottomInset(BuildContext context, [double base = 0]) {
   if (uiDesktopWindow) return base;
   final m = MediaQuery.of(context);
-  return base + math.max(m.padding.bottom, m.viewPadding.bottom);
+  final keyboard = m.viewInsets.bottom;
+  // Scaffold resizeToAvoidBottomInset already lifts content for the IME. On some
+  // Android builds viewPadding.bottom includes the keyboard — adding it here
+  // double-offsets the composer above the keys.
+  final deviceBottom = math.max(m.padding.bottom, math.max(0, m.viewPadding.bottom - keyboard));
+  return base + deviceBottom;
 }
 
 Widget uiMobileTopBar(BuildContext context, Widget child) {

@@ -112,7 +112,7 @@ pub async fn billing_reservation_hold_custom(
 
     let mut tx = pool.begin().await?;
     let (bal_usd, bal_idr, cur, fx) = billing_account_lock(&mut *tx, row.id).await?;
-    let (held_usd, held_idr) = billing_held_totals(pool, row.id).await?;
+    let (held_usd, held_idr) = billing_held_totals_exec(&mut *tx, row.id).await?;
     let balance_native = if cur.eq_ignore_ascii_case("IDR") { bal_idr } else { bal_usd };
     let held_native = if cur.eq_ignore_ascii_case("IDR") { held_idr } else { held_usd };
     let hold_native = if cur.eq_ignore_ascii_case("IDR") { hold_idr } else { hold_usd };

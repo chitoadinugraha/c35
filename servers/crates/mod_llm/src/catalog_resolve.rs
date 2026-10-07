@@ -2,19 +2,43 @@ use crate::catalog_rank::alien_chain_sort_cmp;
 use crate::catalog_types::LlmModelRow;
 use crate::llm_catalog::catalog_models;
 
+/// Bare Gemini Developer API model id (no `models/` or `google/` OpenRouter prefix).
+pub fn google_gemini_api_model_id(model: &str) -> String {
+    let s = model.trim();
+    if s.is_empty() {
+        return String::new();
+    }
+    let s = s.strip_prefix("models/").unwrap_or(s);
+    s.strip_prefix("google/").unwrap_or(s).to_string()
+}
+
+fn google_provider_model(row: &LlmModelRow) -> String {
+    if row.provider == "google" {
+        google_gemini_api_model_id(&row.provider_model)
+    } else {
+        row.provider_model.clone()
+    }
+}
+
 pub fn catalog_row_by_provider_model(model: &str) -> Option<LlmModelRow> {
     let key = model.trim();
     if key.is_empty() {
         return None;
     }
-    let bare = key.strip_prefix("models/").unwrap_or(key);
+    let bare = google_gemini_api_model_id(key);
     catalog_models()
         .into_iter()
-        .find(|m| m.enabled && (m.id == key || m.id == bare || m.provider_model == key || m.provider_model == bare))
+        .find(|m| {
+            if !m.enabled {
+                return false;
+            }
+            let pm = google_gemini_api_model_id(&m.provider_model);
+            m.id == key || m.id == bare || pm == key || pm == bare || m.provider_model == key
+        })
 }
 
 pub fn catalog_provider_model(model: &str) -> Option<String> {
-    catalog_row_by_provider_model(model).map(|m| m.provider_model)
+    catalog_row_by_provider_model(model).map(|m| google_provider_model(&m))
 }
 
 pub fn catalog_alien_chain_build() -> Vec<String> {
@@ -24,7 +48,7 @@ pub fn catalog_alien_chain_build() -> Vec<String> {
         .filter(|m| m.enabled && m.provider == "google" && m.family == "flash-lite")
         .collect();
     rows.sort_by(|a, b| alien_chain_sort_cmp(&a.provider_model, &b.provider_model));
-    rows.into_iter().map(|m| m.provider_model.clone()).collect()
+    rows.into_iter().map(|m| google_provider_model(&m)).collect()
 }
 
 pub fn catalog_alien_default() -> Option<String> {
@@ -62,13 +86,23 @@ pub fn catalog_alien_chain_effective(configured: &[String]) -> Vec<String> {
     catalog_models()
         .into_iter()
         .find(|m| m.enabled && m.id == "alienai" && !m.provider_model.is_empty())
-        .map(|m| vec![m.provider_model])
+        .map(|m| vec![google_provider_model(&m)])
         .unwrap_or_default()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn google_gemini_api_model_strips_openrouter_prefix() {
+        assert_eq!(
+            google_gemini_api_model_id("google/gemini-3.1-flash-lite-preview"),
+            "gemini-3.1-flash-lite-preview"
+        );
+        assert_eq!(google_gemini_api_model_id("models/gemini-2.5-flash-lite"), "gemini-2.5-flash-lite");
+        assert_eq!(google_gemini_api_model_id("gemini-3.5-flash-lite"), "gemini-3.5-flash-lite");
+    }
 
     #[test]
     fn alien_chain_effective_falls_back_when_config_empty() {

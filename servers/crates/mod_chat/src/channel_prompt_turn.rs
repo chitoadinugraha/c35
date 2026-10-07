@@ -92,6 +92,7 @@ pub async fn channel_prompt_turn(
         extra_inst_suffix: "",
         bot_web_search: turn_meta.web_search,
         attachments_json,
+        ..ComposeTurnOpts::default()
     };
 
     let inst_rows = inst_list_for_turn(pool).await;

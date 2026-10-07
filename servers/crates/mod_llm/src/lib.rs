@@ -38,7 +38,10 @@ pub use model_catalog::{
 };
 pub use catalog_sync::{llm_catalog_spawn, llm_catalog_sync_force, sync_live_offers, PricingIndex};
 pub use fetch_catalog::{llm_catalog_nats_subscribe, LlmCatalogFetchTask};
-pub use catalog_resolve::{catalog_alien_chain_build, catalog_alien_chain_effective, catalog_alien_default, catalog_provider_model};
+pub use catalog_resolve::{
+    catalog_alien_chain_build, catalog_alien_chain_effective, catalog_alien_default, catalog_provider_model,
+    google_gemini_api_model_id,
+};
 pub use llm_catalog::{
     catalog_models, catalog_price, llm_catalog_ensure_memory, llm_catalog_init, llm_catalog_pinned_ensure, llm_catalog_reload,
     llm_catalog_warm, prompt_models, provider_model_resolve, LlmModelRow,

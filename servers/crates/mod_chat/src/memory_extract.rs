@@ -172,6 +172,27 @@ pub async fn memory_extract_batch(
     Ok((writes, tin, tout, cost))
 }
 
+pub fn memory_extract_should_skip(user_text: &str) -> bool {
+    let t = user_text.trim();
+    if t.is_empty() {
+        return true;
+    }
+    if crate::prompt::time::user_asks_time(t) {
+        return true;
+    }
+    let lower = t.to_ascii_lowercase();
+    const EPHEMERAL_EXACT: &[&str] = &[
+        "hi", "hello", "halo", "hai", "hey", "p", "test", "ping", "ok", "oke", "okay",
+        "thanks", "terima kasih", "makasih", "siap", "yes", "ya", "no", "tidak", "gak",
+        "nggak", "bye", "good morning", "selamat pagi", "selamat siang", "selamat sore",
+        "selamat malam",
+    ];
+    if EPHEMERAL_EXACT.iter().any(|&e| lower == e) {
+        return true;
+    }
+    false
+}
+
 pub async fn memory_extract_turn_gate(
     pool: &PgPool,
     _http: &Client,
@@ -181,7 +202,7 @@ pub async fn memory_extract_turn_gate(
     user_text: &str,
     assistant_text: &str,
 ) -> Result<(i32, i32, i32, f64)> {
-    if assistant_text.trim().is_empty() || user_text.trim().is_empty() {
+    if assistant_text.trim().is_empty() || user_text.trim().is_empty() || memory_extract_should_skip(user_text) {
         return Ok((0, 0, 0, 0.0));
     }
     let transcript = format!("User: {}\nAssistant: {}", user_text.trim(), assistant_text.trim());

@@ -1,0 +1,36 @@
+---
+description: Parallelize independent DB reads and background post-turn processing
+globs: servers/crates/**/*.rs
+alwaysApply: false
+---
+
+# Async Parallelization & DB Pool Guidelines
+
+## 1. Parallelize Independent Reads with `tokio::join!`
+When preparing a turn or handler requiring multiple independent data lookups, never await them serially.
+- Group independent reads:
+  ```rust
+  let (user_ctx, inst_rows, mentions, memory) = tokio::join!(
+      user_prompt_context_get(pool, owner_iid),
+      inst_list_for_turn(pool),
+      mention_list_enabled(pool),
+      memory_task,
+  );
+  ```
+- Maximum concurrent DB tasks per turn: 4 (ensures headroom within the 48-connection pool under full 8-turn concurrency).
+
+## 2. Fast-Path / Bypass Heavy I/O for Simple Turns
+When `user_asks_time(&req.text)` or trivial intents are detected:
+- Skip vector memory retrieval (`memory_retrieve`).
+- Skip tool RAG embedding searches (`gemini-embedding-2@768`).
+- Strip tools immediately (`tools = vec![]`).
+- Skip post-turn memory extraction (`memory_extract_turn_gate`).
+
+## 3. Background or Skip Non-Blocking Post-Turn Tasks
+Tasks that do not influence the current client response must never block `PromptEnd` or message delivery:
+- Skip memory extraction entirely for queries < 4 words, ephemeral questions, or known time/date checks.
+- If memory extraction is run, avoid blocking critical client response paths whenever possible.
+
+## 4. Connection Pool Safety
+- Inside transactions (`tx.begin().await?`), always pass `&mut *tx` (e.g. `billing_held_totals_exec(&mut *tx, ...)`). Never call functions that check out from `pool` while holding `tx` to prevent connection starvation deadlocks.
+- Never hold an open DB transaction across LLM calls or external HTTP requests.
