@@ -128,13 +128,14 @@ sequenceDiagram
 
 ### 1. Tool Declaration & Gating
 - At session setup, `live_tool_select` declares a topic bundle, not the full registry. Cap is 32.
-  1. `live.alienai` offer topics are `general`. Other offers with empty `tool_topics` declare no cluster tools.
+  1. `live.alienai` offer topics are `general` and `live`. Topic `live` adds session tools such as `call.end` (voice hang-up). Other offers with empty `tool_topics` declare no cluster tools.
   2. Device topics (`device`, `computer_use`) are added when the caller has a paired remote.
   3. Site topics (`web.builder`, `site.commerce`) are added only when the active mention resolves a site (`default_site_iid`).
   4. Staff tools (`requires_global_roles`) are never declared.
 - `ReqLiveStart.mention_ids` sets that mention. If the list is empty, the server reads the chat's sticky mentions and `bound_device_iid`.
 - A mention change sends `{"type":"mention","mention_ids":[...],"label":"..."}` on the app socket.
 - **Make-Before-Break Handover**: The server does NOT tear down the old Gemini connection before setting up the new one. The existing connection remains active and processes user audio with 0ms dead air while a background task pre-warms the new connection, executes DB hydration, sends setup with `sessionResumption.handle`, and awaits `setupComplete`. Once confirmed, sockets are atomically swapped and the old socket closes cleanly.
+- **Voice hang-up (`call.end`)**: When the user asks to end the call or say goodbye to disconnect, Gemini calls `call.end`. The server sends `{"live":"hangup"}` on the app socket and settles billing. The client tears down the session the same way as tapping Hang up.
 - **Autonomous Topic Reset & Drift Detection**:
   - When an active mention is set, Gemini Live is declared the `topic_reset` tool and given prompt steering (`[TOPIC FOCUS]`) to call `topic_reset` if the user naturally changes the subject to general matters.
   - As a deterministic safety net, if 5 consecutive conversation turns complete without any mention tools called, the server automatically demotes the session to general topic and broadcasts `{"live":"mention","mention_ids":[],"label":"","switching":false}` to clear the client chip.

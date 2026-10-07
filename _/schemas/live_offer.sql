@@ -26,7 +26,7 @@ CREATE INDEX IF NOT EXISTS idx_live_offer_list
     WHERE deleted_ts IS NULL;
 
 INSERT INTO ai.live_offer (id, family, label_key, provider, provider_model, inst_id, input_usd_per_min, output_usd_per_min, video_usd_per_min, enabled, sort, tool_topics) VALUES
-    ('live.alienai', 'alienai', 'live.alienai.label', 'google', 'gemini-3.8-live', 'inst.general', 0.005, 0.018, 0.00155, TRUE, 10, ARRAY['general']::TEXT[]),
+    ('live.alienai', 'alienai', 'live.alienai.label', 'google', 'gemini-3.8-live', 'inst.general', 0.005, 0.018, 0.00155, TRUE, 10, ARRAY['general', 'live']::TEXT[]),
     ('live.gemini', 'gemini', 'live.gemini.label', 'google', 'gemini-3.8-live', '', 0.005, 0.018, 0.00155, TRUE, 20, '{}'),
     ('live.gemini.thinker', 'gemini', 'live.gemini.thinker.label', 'google', 'gemini-3.8-live-extended-thinking', '', 0.005, 0.018, 0.00155, TRUE, 21, '{}'),
     ('live.chatgpt', 'openai', 'live.chatgpt.label', 'openai', 'gpt-4o-realtime-preview', '', 0.006, 0.024, 0.0255, TRUE, 30, '{}'),

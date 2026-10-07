@@ -4,6 +4,24 @@ use c35_mod_chat::{MentionContext, SiteCapabilityView, ToolDef};
 
 pub const LIVE_TOOL_DECL_CAP: usize = 32;
 
+/// Ends the live voice call when the user asks to hang up or say goodbye.
+pub fn call_end_tool() -> ToolDef {
+    ToolDef::new(
+        "call.end".into(),
+        "Ends the live voice call. Call when the user clearly wants to hang up, end the call, or say goodbye and disconnect.".into(),
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "reason": {
+                    "type": "string",
+                    "description": "Brief reason the user wanted to end the call (optional)."
+                }
+            },
+            "additionalProperties": false
+        }),
+    )
+}
+
 /// Standard Live tool to reset active topic back to general.
 pub fn topic_reset_tool() -> ToolDef {
     ToolDef::new(
@@ -22,6 +40,7 @@ pub fn topic_reset_tool() -> ToolDef {
 /// `offer_topics` empty means this offer declares no cluster tools.
 /// Device topics are added when `mention.devices` is non-empty.
 /// Site topics are added only when `mention.default_site_iid` is set.
+/// When the offer includes topic `live`, `call.end` is declared so the user can hang up by voice.
 /// When `has_active_mention` is true, the `topic_reset` tool is declared so the model can autonomously transition back to general conversation.
 pub fn live_tool_select(
     tools: &[ToolDef],
@@ -50,6 +69,7 @@ pub fn live_tool_select(
         }
     }
     let general = active.iter().any(|t| t == "general");
+    let live_session = active.iter().any(|t| t == "live");
     let mut out: Vec<ToolDef> = tools
         .iter()
         .filter(|t| t.requires_global_roles.is_empty())
@@ -63,12 +83,19 @@ pub fn live_tool_select(
         })
         .cloned()
         .collect();
+    if live_session {
+        out.push(call_end_tool());
+    }
     if has_active_mention {
         out.push(topic_reset_tool());
     }
     out.sort_by(|a, b| a.name.cmp(&b.name));
     if out.len() > LIVE_TOOL_DECL_CAP {
         out.truncate(LIVE_TOOL_DECL_CAP);
+        if live_session && !out.iter().any(|t| t.name == "call.end") {
+            out.pop();
+            out.push(call_end_tool());
+        }
         if has_active_mention && !out.iter().any(|t| t.name == "topic_reset") {
             out.pop();
             out.push(topic_reset_tool());
@@ -160,12 +187,30 @@ mod tests {
     }
 
     #[test]
-    fn live_tool_select_includes_topic_reset_when_mention_active() {
+    fn live_tool_select_includes_call_end_when_live_topic() {
+        let tools = vec![tool("web.search", &["general"], &[])];
+        let topics = vec!["general".to_string(), "live".to_string()];
+        let out = live_tool_select(&tools, &topics, &MentionContext::empty(), &staff(), &SiteCapabilityView::empty(), false);
+        let names: Vec<_> = out.iter().map(|t| t.name.as_str()).collect();
+        assert_eq!(names, vec!["call.end", "web.search"]);
+    }
+
+    #[test]
+    fn live_tool_select_omits_call_end_without_live_topic() {
         let tools = vec![tool("web.search", &["general"], &[])];
         let topics = vec!["general".to_string()];
+        let out = live_tool_select(&tools, &topics, &MentionContext::empty(), &staff(), &SiteCapabilityView::empty(), false);
+        let names: Vec<_> = out.iter().map(|t| t.name.as_str()).collect();
+        assert_eq!(names, vec!["web.search"]);
+    }
+
+    #[test]
+    fn live_tool_select_includes_topic_reset_when_mention_active() {
+        let tools = vec![tool("web.search", &["general"], &[])];
+        let topics = vec!["general".to_string(), "live".to_string()];
         let out = live_tool_select(&tools, &topics, &MentionContext::empty(), &staff(), &SiteCapabilityView::empty(), true);
         let names: Vec<_> = out.iter().map(|t| t.name.as_str()).collect();
-        assert_eq!(names, vec!["topic_reset", "web.search"]);
+        assert_eq!(names, vec!["call.end", "topic_reset", "web.search"]);
     }
 
     #[test]

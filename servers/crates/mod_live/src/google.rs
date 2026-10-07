@@ -660,7 +660,7 @@ pub fn live_video_frame(text: &str) -> Option<Value> {
 
 pub fn is_mention_tool_called(name: &str, eligible_tools: &[c35_mod_chat::ToolDef]) -> bool {
     let norm = name.replace('.', "_");
-    if norm == "topic_reset" {
+    if norm == "topic_reset" || norm == "call_end" {
         return false;
     }
     if norm.starts_with("device_")
@@ -870,6 +870,7 @@ async fn live_handle_tool_call(
 
     let dispatcher = c35_mod_chat::tools::default_dispatcher();
     let mut function_responses = Vec::with_capacity(function_calls.len());
+    let mut end_call_after_response = false;
 
     for fc in function_calls {
         let call_id = fc.get("id").and_then(|i| i.as_str()).unwrap_or("").to_string();
@@ -877,6 +878,34 @@ async fn live_handle_tool_call(
         let call_args = fc.get("args").cloned().unwrap_or(json!({}));
 
         tracing::info!(tool = %call_name, call_id = %call_id, req_id = %sid, "live: executing tool call");
+
+        if call_name == "call.end" {
+            let result = json!({
+                "status": "ok",
+                "message": "Live call ending"
+            });
+            turn_tool_blocks.push(json!({
+                "kind": "tool",
+                "collapsed": false,
+                "body": {
+                    "name": call_name,
+                    "args": call_args,
+                    "result": result.clone()
+                }
+            }));
+            let mut tr_entry = json!({
+                "name": call_name,
+                "response": {
+                    "output": result
+                }
+            });
+            if !call_id.is_empty() {
+                tr_entry.as_object_mut().unwrap().insert("id".to_string(), json!(call_id));
+            }
+            function_responses.push(tr_entry);
+            end_call_after_response = true;
+            continue;
+        }
 
         if call_name == "topic_reset" {
             let result = json!({
@@ -1007,6 +1036,13 @@ async fn live_handle_tool_call(
         warn!("live: failed to send toolResponse to Gemini Live");
         return Err(());
     }
+    if end_call_after_response {
+        let _ = client
+            .send(Message::Text(json!({"live":"hangup"}).to_string().into()))
+            .await;
+        tracing::info!(req_id = %sid, "live: call.end — ending session");
+        return Err(());
+    }
     Ok(())
 }
 
@@ -1038,7 +1074,7 @@ pub(crate) fn live_voice_system(
             "\n\n[TOPIC FOCUS]\nYou are currently focused on {trimmed_label}. If the conversation naturally transitions away and the user is no longer discussing {trimmed_label} for multiple turns, autonomously call topic_reset."
         ));
     }
-    full.push_str("\n\n[VOICE INTERACTION & TOOLS]\nYou are in a live voice call with the user. You have tools available to search the web, inspect and control paired remote devices, manage notes, etc. When the user asks you a question that requires real-time information, actions on their computer, or checking anything, call the appropriate tool. Once you receive the tool response, summarize and answer the user clearly and concisely in natural conversational speech. Do not read raw JSON aloud.");
+    full.push_str("\n\n[VOICE INTERACTION & TOOLS]\nYou are in a live voice call with the user. You have tools available to search the web, inspect and control paired remote devices, manage notes, etc. When the user asks you a question that requires real-time information, actions on their computer, or checking anything, call the appropriate tool. Once you receive the tool response, summarize and answer the user clearly and concisely in natural conversational speech. Do not read raw JSON aloud.\nIf the user wants to end the call, hang up, or says goodbye to disconnect, call call.end after a brief farewell (one short sentence). Do not keep chatting after call.end.");
     full
 }
 
@@ -1489,6 +1525,7 @@ mod tests {
         assert!(!is_mention_tool_called("web_search", &tools));
         assert!(!is_mention_tool_called("memory_save", &tools));
         assert!(!is_mention_tool_called("topic_reset", &tools));
+        assert!(!is_mention_tool_called("call.end", &tools));
     }
 
     #[test]
@@ -1498,6 +1535,7 @@ mod tests {
         let sys_no_mention = live_voice_system("Inst", "Time", "City", "", "", "");
         assert!(!sys_no_mention.contains("[TOPIC FOCUS]"));
         assert!(!sys_no_mention.contains("topic_reset"));
+        assert!(sys_no_mention.contains("call.end"));
 
         let sys_with_mention = live_voice_system("Inst", "Time", "City", "", "", "Desktop PC");
         assert!(sys_with_mention.contains("[TOPIC FOCUS]"));

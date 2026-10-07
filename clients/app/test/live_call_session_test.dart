@@ -210,4 +210,16 @@ void main() {
       expect(jpgBytes.isNotEmpty, isTrue);
     });
   });
+
+  group('LiveCallSession - server hangup', () {
+    test('live hangup message disconnects session', () async {
+      final session = LiveCallSession();
+      session.connected.value = true;
+      session.ready.value = true;
+      session.dispatchWsMessageForTesting('{"live":"hangup"}');
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(session.connected.value, isFalse);
+      expect(session.ready.value, isFalse);
+    });
+  });
 }

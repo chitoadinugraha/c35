@@ -203,6 +203,9 @@ class LiveCallSession {
     return null;
   }
 
+  @visibleForTesting
+  void dispatchWsMessageForTesting(dynamic data) => _onMessage(data);
+
   void _onMessage(dynamic data) {
     if (_disposed) return;
     if (data is Uint8List || data is List<int>) {
@@ -228,6 +231,10 @@ class LiveCallSession {
     if (text == null || text.isEmpty) return;
     if (text.contains('"live":"ready"') || text.contains('"live": "ready"')) {
       if (!_disposed) ready.value = true;
+      return;
+    }
+    if (text.contains('"live":"hangup"') || text.contains('"live": "hangup"')) {
+      unawaited(hangup());
       return;
     }
     if (text.contains('"live":"tool_start"') || text.contains('"live": "tool_start"')) {

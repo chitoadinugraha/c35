@@ -26,4 +26,4 @@ pub use openai::live_openai_run;
 pub use resume::{live_focus_pin, live_swap_should_run, live_text_seed, LiveResume};
 pub use rpc::live_start_rpc;
 pub use session::{live_session_drop, live_session_take};
-pub use tool_select::{live_tool_select, topic_reset_tool, LIVE_TOOL_DECL_CAP};
+pub use tool_select::{call_end_tool, live_tool_select, topic_reset_tool, LIVE_TOOL_DECL_CAP};

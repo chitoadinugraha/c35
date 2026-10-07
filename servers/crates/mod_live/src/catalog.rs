@@ -108,7 +108,7 @@ fn live_catalog_defaults() -> Vec<LiveOfferRow> {
             video_usd_per_min: 0.00155,
             enabled: true,
             sort: 10,
-            tool_topics: vec!["general".into()],
+            tool_topics: vec!["general".into(), "live".into()],
         },
         LiveOfferRow {
             id: "live.gemini".into(),
