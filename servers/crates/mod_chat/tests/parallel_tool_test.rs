@@ -57,16 +57,16 @@ fn test_parse_candidate_parallel_function_calls() {
 #[test]
 fn test_tool_calls_dup_detection() {
     let calls_1 = vec![
-        ("web.search".to_string(), json!({"query": "q1"})),
-        ("delegate.run".to_string(), json!({"topic_id": "t1"})),
+        ("web.search".to_string(), json!({"query": "q1"}), None),
+        ("delegate.run".to_string(), json!({"topic_id": "t1"}), None),
     ];
     let calls_2 = vec![
-        ("web.search".to_string(), json!({"query": "q1"})),
-        ("delegate.run".to_string(), json!({"topic_id": "t1"})),
+        ("web.search".to_string(), json!({"query": "q1"}), None),
+        ("delegate.run".to_string(), json!({"topic_id": "t1"}), None),
     ];
     let calls_3 = vec![
-        ("web.search".to_string(), json!({"query": "q2"})),
-        ("delegate.run".to_string(), json!({"topic_id": "t1"})),
+        ("web.search".to_string(), json!({"query": "q2"}), None),
+        ("delegate.run".to_string(), json!({"topic_id": "t1"}), None),
     ];
 
     assert!(tool_calls_dup(&calls_1, &calls_2));
@@ -119,12 +119,11 @@ async fn test_parallel_tool_dispatch_and_response_format() {
     assert_eq!(function_parts[0]["functionResponse"]["name"], "unknown_tool_a");
     assert_eq!(function_parts[1]["functionResponse"]["name"], "unknown_tool_b");
 
-    // Construct single role: 'function' message matching Gemini API specs
     let function_msg = json!({
-        "role": "function",
+        "role": "user",
         "parts": function_parts
     });
 
-    assert_eq!(function_msg["role"], "function");
+    assert_eq!(function_msg["role"], "user");
     assert_eq!(function_msg["parts"].as_array().unwrap().len(), 2);
 }

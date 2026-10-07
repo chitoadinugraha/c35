@@ -1,10 +1,12 @@
 use serde_json::{json, Value};
 
+pub type FunctionCallItem = (String, Value, Option<String>);
+
 pub struct ParseOut {
     pub text: String,
     pub thought: String,
-    pub function_call: Option<(String, Value)>,
-    pub function_calls: Vec<(String, Value)>,
+    pub function_call: Option<FunctionCallItem>,
+    pub function_calls: Vec<FunctionCallItem>,
     pub in_tok: i32,
     pub out_tok: i32,
     pub model_content: Value,
@@ -69,7 +71,13 @@ pub fn parse_candidate(v: &Value) -> ParseOut {
         if let Some(fc) = part.get("functionCall") {
             let name = fc.get("name").and_then(|n| n.as_str()).unwrap_or("").replace('_', ".");
             let args = fc.get("args").cloned().unwrap_or(json!({}));
-            function_calls.push((name, args));
+            let call_id = fc
+                .get("id")
+                .and_then(|n| n.as_str())
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string);
+            function_calls.push((name, args, call_id));
         }
     }
     let function_call = function_calls.first().cloned();
@@ -178,12 +186,14 @@ mod tests {
                         { "text": "I will execute two tools in parallel." },
                         {
                             "functionCall": {
+                                "id": "call_web",
                                 "name": "web_search",
                                 "args": { "query": "rust async" }
                             }
                         },
                         {
                             "functionCall": {
+                                "id": "call_delegate",
                                 "name": "delegate_run",
                                 "args": { "topic_id": "research", "goal": "benchmarks" }
                             }
@@ -204,8 +214,10 @@ mod tests {
         assert_eq!(out.function_calls.len(), 2);
         assert_eq!(out.function_calls[0].0, "web.search");
         assert_eq!(out.function_calls[0].1["query"], "rust async");
+        assert_eq!(out.function_calls[0].2.as_deref(), Some("call_web"));
         assert_eq!(out.function_calls[1].0, "delegate.run");
         assert_eq!(out.function_calls[1].1["topic_id"], "research");
+        assert_eq!(out.function_calls[1].2.as_deref(), Some("call_delegate"));
         // Check backward compatibility
         assert_eq!(out.function_call, Some(out.function_calls[0].clone()));
     }

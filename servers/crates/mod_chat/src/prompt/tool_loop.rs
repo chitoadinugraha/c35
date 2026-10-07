@@ -20,6 +20,7 @@ use crate::prompt_run::{
     chat_tool_rounds_max, checkpoint_record_tool, checkpoint_set_fatal, checkpoint_tool_should_stop,
 };
 use crate::chat_title_set;
+use crate::mention_context::{json_device_iid_field, mention_context_register_site};
 use crate::tools::{cluster_tool_def, cluster_tool_exec, http_client, tool_decls, TurnCtx};
 use crate::turn_tracer::TurnTracer;
 
@@ -37,8 +38,13 @@ pub fn tool_call_dup(prev: &Option<(String, Value)>, name: &str, args: &Value) -
     prev.as_ref().map(|(n, a)| n == name && a == args).unwrap_or(false)
 }
 
-pub fn tool_calls_dup(prev: &[(String, Value)], current: &[(String, Value)]) -> bool {
-    !prev.is_empty() && prev == current
+pub fn tool_calls_dup(prev: &[(String, Value, Option<String>)], current: &[(String, Value, Option<String>)]) -> bool {
+    !prev.is_empty()
+        && prev.len() == current.len()
+        && prev
+            .iter()
+            .zip(current)
+            .all(|(a, b)| a.0 == b.0 && a.1 == b.1)
 }
 
 fn append_block(blocks_json: &str, block: Value) -> String {
@@ -149,7 +155,7 @@ pub async fn prompt_cluster_turn(
         return Ok(ChatRes { text, thought, blocks_json, tokens_in, tokens_out, model_used, tools_cost_usd: 0.0 });
     }
 
-    let mut prev_calls: Vec<(String, Value)> = Vec::new();
+    let mut prev_calls: Vec<(String, Value, Option<String>)> = Vec::new();
     let mut used_tool = false;
     let mut web_grounded = false;
     let mut stock_returned = false;
@@ -172,7 +178,7 @@ pub async fn prompt_cluster_turn(
         {
             used_tool = true;
             web_grounded = true;
-            prev_calls = vec![("web.search".into(), json!({ "query": q, "limit": 6 }))];
+            prev_calls = vec![("web.search".into(), json!({ "query": q, "limit": 6 }), None)];
         }
     }
     for round in 0..rounds_max {
@@ -246,21 +252,22 @@ pub async fn prompt_cluster_turn(
                 )
                 .await;
             }
-            for (name, _) in &out.function_calls {
+            for (name, _, _) in &out.function_calls {
                 let label = format!("Using {name}…\n");
                 emit_thought(on_delta, &mut thought, &label);
             }
 
-            let executions = join_all(out.function_calls.iter().map(|(name, args)| {
+            let executions = join_all(out.function_calls.iter().map(|(name, args, gemini_call_id)| {
                 let client = &client;
                 let turn_ctx_ref = turn_ctx.as_deref();
+                let gemini_call_id = gemini_call_id.clone();
                 async move {
                     let tool_started = Instant::now();
                     let tool_call_id = snowflake_id().to_string();
                     let (result, tool_cost) =
                         cluster_tool_exec(client, name, args, turn_ctx_ref, Some(&tool_call_id)).await;
                     let tool_ms = tool_started.elapsed().as_millis() as i64;
-                    (name.clone(), args.clone(), result, tool_cost, tool_ms, tool_call_id)
+                    (name.clone(), args.clone(), gemini_call_id, result, tool_cost, tool_ms, tool_call_id)
                 }
             }))
             .await;
@@ -276,7 +283,7 @@ pub async fn prompt_cluster_turn(
             let mut latest_img_b64 = None;
             let mut catalog_stock_rows: Option<usize> = None;
 
-            for (name, args, result, tool_cost, tool_ms, tool_call_id) in executions {
+            for (name, args, gemini_call_id, result, tool_cost, tool_ms, tool_call_id) in executions {
                 if name == "site.query.run"
                     && args.get("query_id").and_then(|v| v.as_str()) == Some("product.stock")
                 {
@@ -293,6 +300,17 @@ pub async fn prompt_cluster_turn(
                 if let Some(block) = result.get("block") {
                     blocks_json = append_block(&blocks_json, block.clone());
                     on_blocks(blocks_json.clone());
+                }
+                if name == "site.create" && ok {
+                    if let Some(ctx) = turn_ctx.as_mut() {
+                        let site_iid = json_device_iid_field(&result, "site_iid");
+                        if site_iid > 0 {
+                            let alien_id = result.get("alien_id").and_then(|v| v.as_str()).unwrap_or("");
+                            let site_name = result.get("name").and_then(|v| v.as_str()).unwrap_or("");
+                            mention_context_register_site(&mut ctx.mention, site_iid, alien_id, site_name);
+                            ctx.site_iid = Some(site_iid);
+                        }
+                    }
                 }
                 let fail_class = result.get("fail_class").and_then(|v| v.as_str()).unwrap_or("");
                 let circuit_stop = if let Some(ctx) = turn_ctx.as_mut() {
@@ -356,18 +374,20 @@ pub async fn prompt_cluster_turn(
 
                 truncate_large_tool_payload(&mut llm_result, 24_000);
 
-                function_parts.push(json!({
-                    "functionResponse": {
-                        "name": name.replace('.', "_"),
-                        "response": llm_result
-                    }
-                }));
+                let mut function_response = json!({
+                    "name": name.replace('.', "_"),
+                    "response": llm_result
+                });
+                if let Some(id) = gemini_call_id {
+                    function_response["id"] = json!(id);
+                }
+                function_parts.push(json!({ "functionResponse": function_response }));
             }
 
             used_tool = true;
             contents.push(out.model_content);
             contents.push(json!({
-                "role": "function",
+                "role": "user",
                 "parts": function_parts
             }));
 
@@ -388,7 +408,7 @@ pub async fn prompt_cluster_turn(
                 }));
             }
 
-            if out.function_calls.iter().any(|(n, _)| n == "web.search" || n == "web.visit") {
+            if out.function_calls.iter().any(|(n, _, _)| n == "web.search" || n == "web.visit") {
                 ensure_web_visit_tool(&mut tools, &mut tool_json);
             }
 
@@ -448,7 +468,7 @@ pub async fn prompt_cluster_turn(
             .await?
             {
                 used_tool = true;
-                prev_calls = vec![("web.search".into(), json!({ "query": q, "limit": 6 }))];
+                prev_calls = vec![("web.search".into(), json!({ "query": q, "limit": 6 }), None)];
                 continue;
             }
         }

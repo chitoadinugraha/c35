@@ -10,7 +10,7 @@ use c35_store::snowflake_id;
 use serde_json::{json, Value};
 use sqlx::{Postgres, Row, Transaction};
 
-use crate::mention_context::site_iid_resolve as mention_site_iid_resolve;
+use crate::mention_context::{json_device_iid_field, site_iid_resolve as mention_site_iid_resolve};
 use crate::site_product_match::{product_match_classify, ProductHit, ProductMatch};
 use crate::site_resolve::site_grant_owner;
 use crate::site_scope::site_scope_pick;
@@ -19,10 +19,11 @@ use crate::tool;
 use crate::tools::ToolContext;
 
 fn site_iid_resolve(ctx: &ToolContext, args: &Value) -> Result<i64> {
+    let args_site = json_device_iid_field(args, "site_iid");
     mention_site_iid_resolve(
         &ctx.mention,
         ctx.site_iid,
-        args.get("site_iid").and_then(|v| v.as_i64()),
+        (args_site > 0).then_some(args_site),
     )
 }
 

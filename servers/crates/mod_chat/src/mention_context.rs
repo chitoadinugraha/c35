@@ -54,6 +54,20 @@ fn site_context_from_resolved(r: &MentionResolved) -> Option<SiteContext> {
     })
 }
 
+pub fn mention_context_register_site(ctx: &mut MentionContext, site_iid: i64, alien_id: &str, name: &str) {
+    if site_iid <= 0 {
+        return;
+    }
+    if !ctx.sites.iter().any(|s| s.site_iid == site_iid) {
+        ctx.sites.push(SiteContext {
+            site_iid,
+            alien_id: alien_id.to_string(),
+            name: name.to_string(),
+        });
+    }
+    ctx.default_site_iid = Some(site_iid);
+}
+
 pub fn mention_context_build(resolved: &[MentionResolved]) -> MentionContext {
     let mut sites: Vec<SiteContext> = Vec::new();
     for r in resolved {
@@ -120,7 +134,7 @@ fn device_iids_collect(mention: &MentionContext, mention_ids: &[String]) -> Vec<
         })
 }
 
-/// Parse `device_iid` from tool args. Snowflake IDs exceed JS `Number` precision — prefer string; ignore lossy floats.
+/// Parse snowflake id fields from tool args (`device_iid`, `site_iid`, …). IDs exceed JS `Number` precision — prefer string; ignore lossy floats.
 pub fn json_device_iid_field(args: &serde_json::Value, key: &str) -> i64 {
     match args.get(key) {
         None => 0,
@@ -171,6 +185,12 @@ mod tests {
     fn json_device_iid_field_parses_string_snowflake() {
         let args = json!({ "device_iid": "98348080882880512" });
         assert_eq!(json_device_iid_field(&args, "device_iid"), 98348080882880512);
+    }
+
+    #[test]
+    fn json_device_iid_field_parses_string_site_iid() {
+        let args = json!({ "site_iid": "101456339882426368" });
+        assert_eq!(json_device_iid_field(&args, "site_iid"), 101456339882426368);
     }
 }
 
