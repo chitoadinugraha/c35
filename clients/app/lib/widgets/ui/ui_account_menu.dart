@@ -7,7 +7,11 @@ import 'package:alienai_c35/c/mail/mail_inbox_bus.dart';
 import 'package:alienai_c35/c/session.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:alienai_c35/widgets/ui/ui_account_role_badges.dart';
+import 'package:alienai_c35/c/catalog/catalog_translation_cache.dart';
+import 'package:alienai_c35/c/llm/agent_model.dart';
+import 'package:alienai_c35/c/pb/c35/live.pb.dart';
 import 'package:alienai_c35/c/settings/voice_prefs.dart';
+import 'package:alienai_c35/widgets/ai/ui_live_call_chip.dart';
 import 'package:alienai_c35/c/billing/billing_store_sync.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/widgets/billing/ui_quota_ring.dart';
@@ -42,6 +46,9 @@ class UiAccountMenuAction {
     this.onSites,
     this.onRootConsole,
     this.onMail,
+    this.composerModel,
+    this.liveOffers = const [],
+    this.onLiveCallStart,
     this.botsCount,
     this.devicesCount,
     this.sitesCount,
@@ -64,6 +71,9 @@ class UiAccountMenuAction {
   final VoidCallback? onSites;
   final VoidCallback? onRootConsole;
   final VoidCallback? onMail;
+  final AgentModel? composerModel;
+  final List<LiveOffer> liveOffers;
+  final ValueChanged<LiveOffer>? onLiveCallStart;
   final int? botsCount;
   final int? devicesCount;
   final int? sitesCount;
@@ -147,9 +157,16 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
     fn?.call();
   }
 
-  Future<void> _onTalkToggle(bool value) async {
-    await VoicePrefs.instance.setTalkEnabled(value);
-    if (mounted) Navigator.pop(context);
+  Future<void> _onTalkTap() async {
+    await VoicePrefs.instance.setTalkEnabled(!VoicePrefs.instance.talkEnabled);
+  }
+
+  Future<void> _onLiveCallPick(LiveOffer offer) async {
+    if (!offer.enabled) return;
+    await VoicePrefs.instance.setTalkEnabled(false);
+    if (!mounted) return;
+    Navigator.pop(context);
+    widget.action.onLiveCallStart?.call(offer);
   }
 
   String _accountName() {
@@ -205,7 +222,12 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
                                 children: [
                                   Text(_accountName(), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w600)),
                                   const SizedBox(height: 2),
-                                  Text(profileAlienAddress(s.handle), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _muted, fontSize: 12)),
+                                  Text(
+                                    profileIdentityLabel(handle: s.handle, email: s.email),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(color: _muted, fontSize: 12),
+                                  ),
                                   const SizedBox(height: 4),
                                   UiAccountRoleBadges(action: badgeAction),
                                 ],
@@ -282,11 +304,23 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
                     ],
                     const Divider(height: 1, color: _border),
                     ListenableBuilder(
-                      listenable: VoicePrefs.instance,
-                      builder: (context, _) => UiTalkToggleRow(
-                        enabled: VoicePrefs.instance.talkEnabled,
-                        onChanged: _onTalkToggle,
-                      ),
+                      listenable: Listenable.merge([VoicePrefs.instance, catalogTranslationTick]),
+                      builder: (context, _) {
+                        final model = acts.composerModel;
+                        final callChip = acts.onLiveCallStart == null || model == null
+                            ? null
+                            : UiLiveCallChip(
+                                composerModel: model,
+                                offers: acts.liveOffers,
+                                expand: true,
+                                onStart: _onLiveCallPick,
+                              );
+                        return UiTalkCallToggleRow(
+                          talkEnabled: VoicePrefs.instance.talkEnabled,
+                          onTalkTap: _onTalkTap,
+                          callChip: callChip,
+                        );
+                      },
                     ),
                     const Divider(height: 1, color: _border),
                     Padding(

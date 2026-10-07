@@ -102,6 +102,12 @@ String referralGlobalRoleLabel(String role) => switch (role) {
       _ => role,
     };
 
+bool referralCodeAffiliateListHidden(int expiresAtMs, int maxUses, int usedCount) {
+  if (expiresAtMs > 0 && expiresAtMs <= DateTime.now().millisecondsSinceEpoch) return true;
+  if (maxUses > 0 && usedCount >= maxUses) return true;
+  return false;
+}
+
 String referralCodeExpiresLabelMs(int expiresAtMs) {
   if (expiresAtMs <= 0) return '';
   final at = DateTime.fromMillisecondsSinceEpoch(expiresAtMs);

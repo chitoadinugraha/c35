@@ -1,4 +1,5 @@
 import 'package:alienai_c35/c/catalog/catalog_translation_cache.dart';
+import 'package:alienai_c35/c/hint/hint_chip_theme.dart';
 import 'package:alienai_c35/c/live/live_call_ui.dart';
 import 'package:alienai_c35/c/live/live_offer.dart';
 import 'package:alienai_c35/c/llm/agent_model.dart';
@@ -11,24 +12,28 @@ const _chipText = Color(0xFFE4E4E7);
 const _muted = Color(0xFF71717A);
 
 class _UiLiveCallChipLabel extends StatelessWidget {
-  const _UiLiveCallChipLabel({this.offer, required this.enabled, this.soonSuffix, this.text});
+  const _UiLiveCallChipLabel({this.offer, required this.enabled, this.soonSuffix, this.text, this.ellipsis = false});
 
   final LiveOffer? offer;
   final bool enabled;
   final String? soonSuffix;
   final String? text;
+  final bool ellipsis;
 
   @override
   Widget build(BuildContext context) {
     final textColor = enabled ? _chipText : _muted;
     final style = TextStyle(color: textColor, fontSize: 13);
-    final title = text ?? liveOfferActionTitle(offer!);
+    final title = text ?? liveOfferActionTitle(offer ?? LiveOffer());
+    final suffix = soonSuffix != null && soonSuffix!.isNotEmpty ? ' ($soonSuffix)' : '';
+    if (ellipsis) {
+      return Text('$title$suffix', maxLines: 1, overflow: TextOverflow.ellipsis, style: style);
+    }
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(title, style: style),
-        if (soonSuffix != null && soonSuffix!.isNotEmpty)
-          Text(' ($soonSuffix)', style: TextStyle(color: _muted, fontSize: 13)),
+        if (suffix.isNotEmpty) Text(suffix, style: TextStyle(color: _muted, fontSize: 13)),
       ],
     );
   }
@@ -40,11 +45,13 @@ class UiLiveCallChip extends StatelessWidget {
     required this.composerModel,
     required this.offers,
     required this.onStart,
+    this.expand = false,
   });
 
   final AgentModel composerModel;
   final List<LiveOffer> offers;
   final ValueChanged<LiveOffer> onStart;
+  final bool expand;
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
@@ -59,20 +66,25 @@ class UiLiveCallChip extends StatelessWidget {
           final chipEnabled = showMenu ? anyEnabled : defaultOffer.enabled;
           final soonSuffix = chipEnabled ? null : liveOfferSoonTag();
           final chipTitle = genericChip ? liveCallGenericChipTitle() : null;
+          final expandTitle = liveCallChipTitle(composerModel, offers);
 
           void start(LiveOffer offer) {
             if (!offer.enabled) return;
             onStart(offer);
           }
 
-          Widget chipLabel({LiveOffer? offer, required bool enabled, String? suffix, String? title}) =>
-              _UiLiveCallChipLabel(offer: offer, enabled: enabled, soonSuffix: suffix, text: title);
+          Widget chipLabel({LiveOffer? offer, required bool enabled, String? suffix, String? title, bool lineEllipsis = false}) =>
+              _UiLiveCallChipLabel(offer: offer, enabled: enabled, soonSuffix: suffix, text: title, ellipsis: lineEllipsis);
 
           if (!showMenu) {
             return UiHintChip(
               icon: Icons.call_rounded,
               enabled: defaultOffer.enabled,
-              label: chipLabel(offer: defaultOffer, enabled: defaultOffer.enabled, suffix: soonSuffix),
+              theme: HintChipTheme.liveCall,
+              expand: expand,
+              label: expand
+                  ? chipLabel(enabled: defaultOffer.enabled, suffix: soonSuffix, title: expandTitle, lineEllipsis: true)
+                  : chipLabel(offer: defaultOffer, enabled: defaultOffer.enabled, suffix: soonSuffix),
               onPressed: defaultOffer.enabled ? () => start(defaultOffer) : null,
             );
           }
@@ -108,13 +120,12 @@ class UiLiveCallChip extends StatelessWidget {
             builder: (context, controller, child) => UiHintChip(
               icon: Icons.call_rounded,
               enabled: chipEnabled,
+              theme: HintChipTheme.liveCall,
+              expand: expand,
               showChevron: true,
-              label: chipLabel(
-                offer: genericChip ? null : defaultOffer,
-                enabled: chipEnabled,
-                suffix: soonSuffix,
-                title: chipTitle,
-              ),
+              label: expand
+                  ? chipLabel(enabled: chipEnabled, suffix: soonSuffix, title: expandTitle, lineEllipsis: true)
+                  : chipLabel(offer: genericChip ? null : defaultOffer, enabled: chipEnabled, suffix: soonSuffix, title: chipTitle),
               onPressed: chipEnabled
                   ? () {
                       if (controller.isOpen) {

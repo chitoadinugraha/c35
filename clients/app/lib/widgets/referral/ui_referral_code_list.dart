@@ -6,7 +6,6 @@ import 'package:alienai_c35/c/pb/c35/referral.pb.dart';
 import 'package:alienai_c35/c/referral/referral_format.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/referral/ui_referral_code_form.dart';
-import 'package:alienai_c35/widgets/ui/ui_input_decoration.dart';
 import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:flutter/material.dart';
@@ -27,7 +26,6 @@ class _UiReferralAffiliateCodesPanelState extends State<UiReferralAffiliateCodes
   Timer? _debounce;
   Timer? _copiedClear;
   var _loading = true;
-  var _showSearch = false;
   String _copiedCode = '';
   String? _error;
   List<ReferralCodeDoc> _codes = [];
@@ -48,8 +46,11 @@ class _UiReferralAffiliateCodesPanelState extends State<UiReferralAffiliateCodes
 
   List<ReferralCodeDoc> get _filtered {
     final q = _searchCtrl.text.trim().toLowerCase();
-    if (q.isEmpty) return _codes;
-    return _codes.where((c) => c.code.toLowerCase().contains(q) || c.name.toLowerCase().contains(q)).toList();
+    return _codes.where((c) {
+      if (referralCodeAffiliateListHidden(c.expiresAtMs.toInt(), c.maxUses, c.usedCount)) return false;
+      if (q.isEmpty) return true;
+      return c.code.toLowerCase().contains(q) || c.name.toLowerCase().contains(q);
+    }).toList();
   }
 
   Future<void> _load() async {
@@ -120,42 +121,54 @@ class _UiReferralAffiliateCodesPanelState extends State<UiReferralAffiliateCodes
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+          padding: const EdgeInsets.fromLTRB(12, 8, 8, 4),
           child: Row(
             children: [
+              Expanded(
+                child: TextField(
+                  controller: _searchCtrl,
+                  onChanged: (_) {
+                    _debounce?.cancel();
+                    _debounce = Timer(const Duration(milliseconds: 200), () {
+                      if (mounted) setState(() {});
+                    });
+                  },
+                  style: const TextStyle(color: Color(0xFFF4F4F5), fontSize: 13),
+                  decoration: InputDecoration(
+                    hintText: 'Search',
+                    hintStyle: const TextStyle(color: Color(0xFF71717A), fontSize: 13),
+                    prefixIcon: const Icon(Icons.search, size: 16, color: Color(0xFF71717A)),
+                    prefixIconConstraints: const BoxConstraints(minWidth: 36, minHeight: 32),
+                    suffixIcon: _loading
+                        ? const Padding(
+                            padding: EdgeInsets.all(9),
+                            child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.8, color: Color(0xFF71717A))),
+                          )
+                        : uiIconButton(
+                            tooltip: 'Refresh',
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                            icon: const Icon(Icons.refresh_rounded, size: 16, color: Color(0xFF71717A)),
+                            onPressed: _load,
+                          ),
+                    suffixIconConstraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    isDense: true,
+                    filled: true,
+                    fillColor: const Color(0xFF27272A),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
               uiIconButton(
                 onPressed: _loading ? null : () => _openForm(),
                 tooltip: 'Add code',
                 icon: const Icon(Icons.add, size: 20, color: Color(0xFFA1A1AA)),
               ),
-              uiIconButton(
-                onPressed: () => setState(() => _showSearch = !_showSearch),
-                tooltip: 'Search',
-                icon: const Icon(Icons.search, size: 20, color: Color(0xFFA1A1AA)),
-              ),
-              uiIconButton(
-                onPressed: _loading ? null : _load,
-                tooltip: 'Refresh',
-                icon: const Icon(Icons.refresh, size: 20, color: Color(0xFFA1A1AA)),
-              ),
             ],
           ),
         ),
-        if (_showSearch)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: TextField(
-              controller: _searchCtrl,
-              onChanged: (_) {
-                _debounce?.cancel();
-                _debounce = Timer(const Duration(milliseconds: 200), () {
-                  if (mounted) setState(() {});
-                });
-              },
-              style: const TextStyle(color: Color(0xFFF4F4F5)),
-              decoration: UiInputDecoration.of(context, hintText: 'Search codes…'),
-            ),
-          ),
         Expanded(
           child: _loading
               ? const UILoading(message: 'Loading codes…')
@@ -181,9 +194,9 @@ class _UiReferralAffiliateCodesPanelState extends State<UiReferralAffiliateCodes
                           ),
                         )
                       : ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                          padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
                           itemCount: filtered.length,
-                          separatorBuilder: (context, index) => const SizedBox(height: 10),
+                          separatorBuilder: (context, index) => const SizedBox(height: 6),
                           itemBuilder: (context, i) {
                             final code = filtered[i];
                             final copied = _copiedCode == code.code;
@@ -232,60 +245,64 @@ class _CodeTile extends StatelessWidget {
   Widget build(BuildContext context) {
     const accent = Color(0xFF22C55E);
     const muted = Color(0xFFA1A1AA);
+    final subline = [if (meta.isNotEmpty) meta, if (expires.isNotEmpty) expires].join(' · ');
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF18181B),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF3F3F46).withValues(alpha: 0.85)),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF3F3F46).withValues(alpha: 0.75)),
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+        padding: const EdgeInsets.fromLTRB(10, 8, 6, 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               children: [
-                Expanded(child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFFF4F4F5), fontWeight: FontWeight.w700))),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFFF4F4F5), fontWeight: FontWeight.w600, fontSize: 13)),
+                      if (subline.isNotEmpty)
+                        Text(subline, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: muted, fontSize: 10)),
+                    ],
+                  ),
+                ),
                 uiIconButton(
                   visualDensity: VisualDensity.compact,
                   tooltip: 'Edit',
                   onPressed: onEdit,
-                  icon: const Icon(Icons.edit_outlined, size: 18, color: muted),
+                  icon: const Icon(Icons.edit_outlined, size: 16, color: muted),
                 ),
                 uiIconButton(
                   visualDensity: VisualDensity.compact,
                   tooltip: 'Delete',
                   onPressed: onDelete,
-                  icon: const Icon(Icons.delete_outline, size: 18, color: muted),
+                  icon: const Icon(Icons.delete_outline, size: 16, color: muted),
                 ),
               ],
             ),
-            if (meta.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(meta, style: const TextStyle(color: accent, fontSize: 11, fontWeight: FontWeight.w600)),
-            ],
-            if (expires.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(expires, style: const TextStyle(color: muted, fontSize: 11)),
-            ],
-            const SizedBox(height: 10),
+            const SizedBox(height: 6),
             Material(
               color: const Color(0xFF27272A),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(8),
               child: InkWell(
                 onTap: onCopy,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(8),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                   child: Row(
                     children: [
                       Expanded(
                         child: Text(
                           formatted,
-                          style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.w700, letterSpacing: 1.5, color: Color(0xFFF4F4F5)),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.w700, fontSize: 12, letterSpacing: 1.2, color: Color(0xFFF4F4F5)),
                         ),
                       ),
-                      Icon(copied ? Icons.check_circle_outline : Icons.content_copy_outlined, size: 16, color: copied ? accent : muted),
+                      Icon(copied ? Icons.check_circle_outline : Icons.content_copy_outlined, size: 15, color: copied ? accent : muted),
                     ],
                   ),
                 ),

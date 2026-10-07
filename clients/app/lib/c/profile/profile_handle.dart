@@ -17,6 +17,21 @@ String profileAlienAddress(String handle) {
   return '$id@$profileAlienDomain';
 }
 
+bool profileHasAlienId(String handle) {
+  final id = alienIdNormalize(handle.trim().replaceFirst(RegExp(r'^@+'), ''));
+  return id.isNotEmpty && id != 'user';
+}
+
+/// Subtitle under the display name: Alien ID address, else login email or phone.
+String profileIdentityLabel({required String handle, String email = '', String phone = ''}) {
+  if (profileHasAlienId(handle)) return profileAlienAddress(handle);
+  final e = email.trim();
+  if (e.isNotEmpty && !e.toLowerCase().endsWith(_alienSuffix)) return e;
+  final p = phone.trim();
+  if (p.isNotEmpty) return p;
+  return '';
+}
+
 String? authPhoneNormalize(String raw) {
   final s = raw.trim();
   if (s.isEmpty || s.contains('@')) return null;

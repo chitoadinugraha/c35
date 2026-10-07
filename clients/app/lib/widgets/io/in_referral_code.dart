@@ -6,6 +6,7 @@ import 'package:alienai_c35/c/referral/referral_format.dart';
 import 'package:alienai_c35/widgets/ui/ui_input_decoration.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:alienai_c35/widgets/ui/ui_user_avatar.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -25,12 +26,12 @@ class InFormattedReferralCodeField extends StatefulWidget {
   const InFormattedReferralCodeField({
     super.key,
     this.autofocus = false,
-    this.labelText = 'Referral Code',
+    this.labelText,
     this.onChanged,
   });
 
   final bool autofocus;
-  final String labelText;
+  final String? labelText;
   final void Function(String norm)? onChanged;
 
   @override
@@ -75,11 +76,11 @@ class InFormattedReferralCodeFieldState extends State<InFormattedReferralCodeFie
       autofocus: widget.autofocus,
       decoration: UiInputDecoration.of(
         context,
-        labelText: widget.labelText,
+        labelText: widget.labelText ?? 'referral.label'.tr(),
         hintText: referralCodeHint,
         suffixIcon: _codeCtrl.text.isEmpty
             ? null
-            : uiIconButton(tooltip: 'Clear', onPressed: clear, icon: const Icon(Icons.clear, size: 18)),
+            : uiIconButton(tooltip: 'referral.clear'.tr(), onPressed: clear, icon: const Icon(Icons.clear, size: 18)),
       ),
       maxLength: referralCodeDisplayMaxLen(),
       buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
@@ -94,13 +95,13 @@ class InReferralCode extends StatefulWidget {
   const InReferralCode({
     super.key,
     this.autofocus = false,
-    this.labelText = 'Referral Code',
+    this.labelText,
     this.initial = '',
     this.onChanged,
   });
 
   final bool autofocus;
-  final String labelText;
+  final String? labelText;
   final String initial;
   final void Function(InReferralCodeState state)? onChanged;
 
@@ -267,12 +268,12 @@ class InReferralCodeState extends State<InReferralCode> {
           autofocus: widget.autofocus,
           decoration: UiInputDecoration.of(
             context,
-            labelText: widget.labelText,
+            labelText: widget.labelText ?? 'referral.label'.tr(),
             hintText: referralCodeHint,
             suffixIcon: _codeCtrl.text.isEmpty
                 ? null
                 : uiIconButton(
-                    tooltip: 'Clear',
+                    tooltip: 'referral.clear'.tr(),
                     onPressed: clear,
                     icon: const Icon(Icons.clear, size: 18),
                   ),
@@ -289,19 +290,19 @@ class InReferralCodeState extends State<InReferralCode> {
               children: [
                 const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF34D399))),
                 const SizedBox(width: 8),
-                Text('Checking code…', style: theme.textTheme.labelSmall?.copyWith(color: muted)),
+                Text('referral.checking'.tr(), style: theme.textTheme.labelSmall?.copyWith(color: muted)),
               ],
             ),
           ),
         if (_connError)
           Padding(
             padding: const EdgeInsets.only(top: 6),
-            child: Text('Network error checking referral code', style: theme.textTheme.labelSmall?.copyWith(color: errorColor)),
+            child: Text('referral.networkError'.tr(), style: theme.textTheme.labelSmall?.copyWith(color: errorColor)),
           ),
         if (_invalid && !_checking)
           Padding(
             padding: const EdgeInsets.only(top: 6),
-            child: Text('Invalid referral code', style: theme.textTheme.labelSmall?.copyWith(color: errorColor)),
+            child: Text('referral.invalid'.tr(), style: theme.textTheme.labelSmall?.copyWith(color: errorColor)),
           ),
         if (!_checking && !_invalid && !_connError && _codeValid && _issuerName.isNotEmpty)
           Padding(

@@ -149,6 +149,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   ChatConnStatus? _connStatusLast;
   VoidCallback? _connStatusListener;
   var _talkRecording = false;
+  var _talkMicStopInFlight = false;
   var _onboardingConsentInFlight = false;
   final _talkStaged = <StagedMedia>[];
 
@@ -183,6 +184,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     });
     PromptFollowupStore.instance.addListener(_onFollowupStoreChanged);
     VoicePrefs.instance.addListener(_onTalkPrefs);
+    SttService.instance.isTranscribing.addListener(_onTalkSttUi);
     serverHostTick.addListener(_onServerHostChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_boot());
@@ -458,6 +460,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     VoicePrefs.instance.removeListener(_onTalkPrefs);
     SttService.instance.onAutoStop = null;
     SttService.instance.liveTranscript.removeListener(_onTalkLiveTranscript);
+    SttService.instance.isTranscribing.removeListener(_onTalkSttUi);
     serverHostTick.removeListener(_onServerHostChanged);
     _timeline.dispose();
     _conn.disconnect();
@@ -892,6 +895,9 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
           onSites: _openSites,
           onRootConsole: Session.instance.isRoot ? _openRootConsole : null,
           onMail: Session.instance.canUseMail || mailInboxBus.menuVisible ? _openMail : null,
+          composerModel: _model,
+          liveOffers: _store.liveOffers,
+          onLiveCallStart: _liveCallStart,
           mailInboxCount: mailInboxBus.inboxCount,
           botsCount: _store.navCounts.bots,
           devicesCount: _store.navCounts.devices,
@@ -1545,6 +1551,10 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     if (mounted) setState(() {});
   }
 
+  void _onTalkSttUi() {
+    if (mounted) setState(() {});
+  }
+
   Future<void> _talkMic() async {
     if (_store.promptBusyFor(_store.activeChatId)) {
       await _abortPrompt();
@@ -1558,6 +1568,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   }
 
   Future<void> _talkMicStart() async {
+    if (_talkMicStopInFlight) return;
     await TtsService.instance.stop();
     SttService.instance.liveTranscript.removeListener(_onTalkLiveTranscript);
     SttService.instance.liveTranscript.addListener(_onTalkLiveTranscript);
@@ -1581,31 +1592,37 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   }
 
   Future<void> _talkMicStop() async {
-    if (!_talkRecording) return;
+    if (!_talkRecording || _talkMicStopInFlight) return;
+    _talkMicStopInFlight = true;
     SttService.instance.onAutoStop = null;
     SttService.instance.liveTranscript.removeListener(_onTalkLiveTranscript);
-    final text = await SttService.instance.stopAndTranscribe(lang: VoicePrefs.instance.speechLang);
-    if (!mounted) return;
-    setState(() => _talkRecording = false);
-    final transcript = (text ?? SttService.instance.liveTranscript.value).trim();
-    if (transcript.isEmpty) {
-      final err = SttService.instance.lastTranscribeError;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(err ?? 'No speech detected'),
-        behavior: SnackBarBehavior.floating,
-      ));
-      return;
+    if (mounted) setState(() => _talkRecording = false);
+    try {
+      final text = await SttService.instance.stopAndTranscribe(lang: VoicePrefs.instance.speechLang);
+      if (!mounted) return;
+      final transcript = (text ?? SttService.instance.liveTranscript.value).trim();
+      if (transcript.isEmpty) {
+        final err = SttService.instance.lastTranscribeError;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(err ?? 'No speech detected'),
+          behavior: SnackBarBehavior.floating,
+        ));
+        return;
+      }
+      final staged = List<StagedMedia>.from(_talkStaged);
+      setState(() => _talkStaged.clear());
+      final atts = await _talkAttachments(staged);
+      if (!mounted) return;
+      await _composerSend(transcript, atts, talk: true);
+    } finally {
+      _talkMicStopInFlight = false;
     }
-    final staged = List<StagedMedia>.from(_talkStaged);
-    setState(() => _talkStaged.clear());
-    final atts = await _talkAttachments(staged);
-    if (!mounted) return;
-    await _composerSend(transcript, atts, talk: true);
   }
 
   Future<void> _talkMicCancel() async {
     SttService.instance.onAutoStop = null;
     SttService.instance.liveTranscript.removeListener(_onTalkLiveTranscript);
+    _talkMicStopInFlight = false;
     if (_talkRecording) await SttService.instance.cancel();
     if (mounted) setState(() => _talkRecording = false);
   }
@@ -1693,7 +1710,8 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       if (user == null && m.role == 'user') user = m;
       if (assistant != null && user != null) break;
     }
-    final userText = _talkRecording
+    final liveStt = _talkRecording || SttService.instance.isTranscribing.value;
+    final userText = liveStt
         ? SttService.instance.liveTranscript.value
         : (user == null
             ? ''
@@ -1709,11 +1727,12 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       userText: userText,
       welcome: showWelcome ? _threadHero() : null,
       listening: _talkRecording,
+      transcribing: SttService.instance.isTranscribing.value,
       busy: busy,
       busyStartedAtMs: busy ? _store.promptStartedAtMs : null,
       speakEnabled: VoicePrefs.instance.talkSpeakEnabled,
       onMic: () => unawaited(_talkMic()),
-      onSendTranscript: _talkRecording ? () => unawaited(_talkMicStop()) : null,
+      onSendTranscript: _talkRecording && !_talkMicStopInFlight ? () => unawaited(_talkMicStop()) : null,
       onSpeak: () => unawaited(VoicePrefs.instance.setTalkSpeakEnabled(!VoicePrefs.instance.talkSpeakEnabled)),
       onAttach: () => unawaited(_talkAttach()),
       onModel: () => unawaited(_talkModel()),

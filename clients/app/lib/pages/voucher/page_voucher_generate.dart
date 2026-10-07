@@ -6,6 +6,7 @@ import 'package:alienai_c35/c/billing/billing_voucher_api.dart';
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
+import 'package:alienai_c35/widgets/billing/billing_plan_format.dart';
 import 'package:alienai_c35/widgets/io/in_money_idr.dart';
 import 'package:alienai_c35/widgets/ui/ui_input_decoration.dart';
 import 'package:alienai_c35/widgets/ui/ui_page.dart';
@@ -73,6 +74,7 @@ class _PageVoucherWizardState extends State<PageVoucherWizard> {
   bool get _isCustom => _kind == _VoucherWizardKind.customUserPackage || _kind == _VoucherWizardKind.customBotPackage;
   bool get _isPackage => _kind != _VoucherWizardKind.credit;
   bool get _scopeBot => _kind == _VoucherWizardKind.botPackage || _kind == _VoucherWizardKind.customBotPackage;
+  bool get _lockedPackageRetail => _isPackage && !_isCustom;
 
   @override
   void initState() {
@@ -126,25 +128,48 @@ class _PageVoucherWizardState extends State<PageVoucherWizard> {
   }
 
   void _applyRetailDefaults() {
-    if (!_isPackage || _isCustom) return;
+    if (!_lockedPackageRetail) return;
     final list = _planListIdr(_planSlug, _billingPeriod);
     if (list <= 0) return;
-    _listCtrl.text = list.round().toString();
-    if (_faceCtrl.text.trim().isEmpty) _faceCtrl.text = list.round().toString();
+    _faceCtrl.text = moneyFmtIdrGrouped(list.round());
+  }
+
+  String _planSlugLabel(String slug) => switch (slug.trim().toLowerCase()) {
+        'bot.lite' => 'Bot Lite',
+        'bot.small' => 'Bot Small',
+        _ => billingPlanTierLabel(slug),
+      };
+
+  String _planDropdownLabel(String slug) {
+    final idr = _planListIdr(slug, _billingPeriod);
+    final name = _planSlugLabel(slug);
+    if (idr <= 0) return name;
+    return '$name · ${moneyFmtIdr(idr)}';
+  }
+
+  double _effectiveListIdr() {
+    if (_lockedPackageRetail) return _planListIdr(_planSlug, _billingPeriod);
+    return _parseIdr(_listCtrl.text) ?? 0;
   }
 
   List<String> get _planOptions => _scopeBot ? const ['bot.lite', 'bot.small'] : const ['lite', 'plus', 'pro', 'ultra'];
 
   double? get _marginIdr {
     final face = _parseIdr(_faceCtrl.text);
-    final list = _parseIdr(_listCtrl.text);
-    if (face == null || list == null) return null;
+    if (face == null) return null;
+    final list = _effectiveListIdr();
+    if (list <= 0) return null;
     return list - face;
   }
 
   String? _validateStep0() {
+    if (_nameCtrl.text.trim().isEmpty) return 'Display name is required';
     final face = _parseIdr(_faceCtrl.text);
-    if (face == null || face <= 0) return 'Face value (IDR) is required';
+    if (face == null || face <= 0) return 'Customer price (IDR) is required';
+    if (!_lockedPackageRetail) {
+      final list = _parseIdr(_listCtrl.text);
+      if (list == null || list <= 0) return 'List price (IDR) is required';
+    }
     if (_kind == _VoucherWizardKind.credit) {
       final credit = _parseIdr(_creditCtrl.text);
       if (credit == null || credit <= 0) return 'Credit amount (IDR) is required';
@@ -182,7 +207,7 @@ class _PageVoucherWizardState extends State<PageVoucherWizard> {
       return;
     }
     final face = _parseIdr(_faceCtrl.text)!;
-    final list = _parseIdr(_listCtrl.text) ?? 0;
+    final list = _effectiveListIdr();
     final qty = int.parse(_qtyCtrl.text.trim());
     setState(() {
       _busy = true;
@@ -295,7 +320,7 @@ class _PageVoucherWizardState extends State<PageVoucherWizard> {
         children: [
           _kindDropdown(),
           const SizedBox(height: 12),
-          TextField(controller: _nameCtrl, style: const TextStyle(color: _text), decoration: UiInputDecoration.of(context, hintText: 'Display name (optional)')),
+          TextField(controller: _nameCtrl, style: const TextStyle(color: _text), decoration: UiInputDecoration.of(context, labelText: 'Display name')),
           const SizedBox(height: 10),
           if (_isPackage && !_isCustom) ...[
             DropdownButtonFormField<String>(
@@ -303,7 +328,7 @@ class _PageVoucherWizardState extends State<PageVoucherWizard> {
               dropdownColor: _card,
               style: const TextStyle(color: _text),
               decoration: UiInputDecoration.of(context, labelText: 'Plan'),
-              items: [for (final s in _planOptions) DropdownMenuItem(value: s, child: Text(s))],
+              items: [for (final s in _planOptions) DropdownMenuItem(value: s, child: Text(_planDropdownLabel(s)))],
               onChanged: _busy
                   ? null
                   : (v) {
@@ -326,6 +351,8 @@ class _PageVoucherWizardState extends State<PageVoucherWizard> {
                       _applyRetailDefaults();
                     },
             ),
+            const SizedBox(height: 8),
+            Text('Retail list price: ${moneyFmtIdr(_planListIdr(_planSlug, _billingPeriod))}', style: const TextStyle(color: _muted, fontSize: 12)),
             const SizedBox(height: 10),
           ],
           if (_kind == _VoucherWizardKind.credit) ...[
@@ -334,7 +361,7 @@ class _PageVoucherWizardState extends State<PageVoucherWizard> {
               keyboardType: TextInputType.number,
               inputFormatters: moneyIdrInputFormatters,
               style: const TextStyle(color: _text),
-              decoration: UiInputDecoration.of(context, hintText: 'Wallet credit IDR'),
+              decoration: UiInputDecoration.of(context, labelText: 'Wallet credit (IDR)'),
             ),
             const SizedBox(height: 10),
           ],
@@ -344,7 +371,7 @@ class _PageVoucherWizardState extends State<PageVoucherWizard> {
               keyboardType: TextInputType.number,
               inputFormatters: moneyIdrInputFormatters,
               style: const TextStyle(color: _text),
-              decoration: UiInputDecoration.of(context, hintText: 'Alien pool limit IDR'),
+              decoration: UiInputDecoration.of(context, labelText: 'Alien pool limit (IDR)'),
             ),
             const SizedBox(height: 10),
             TextField(
@@ -352,7 +379,7 @@ class _PageVoucherWizardState extends State<PageVoucherWizard> {
               keyboardType: TextInputType.number,
               inputFormatters: moneyIdrInputFormatters,
               style: const TextStyle(color: _text),
-              decoration: UiInputDecoration.of(context, hintText: 'Frontier pool limit IDR (optional)'),
+              decoration: UiInputDecoration.of(context, labelText: 'Frontier pool limit (IDR)', hintText: 'Optional'),
             ),
             const SizedBox(height: 10),
           ],
@@ -361,23 +388,29 @@ class _PageVoucherWizardState extends State<PageVoucherWizard> {
             keyboardType: TextInputType.number,
             inputFormatters: moneyIdrInputFormatters,
             style: const TextStyle(color: _text),
-            decoration: UiInputDecoration.of(context, hintText: 'Face value IDR (customer pays)'),
-          ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: _listCtrl,
-            keyboardType: TextInputType.number,
-            inputFormatters: moneyIdrInputFormatters,
-            style: const TextStyle(color: _text),
-            decoration: UiInputDecoration.of(context, hintText: 'List price IDR (retail)'),
+            decoration: UiInputDecoration.of(context, labelText: 'Customer price (IDR)', hintText: 'What the customer pays'),
             onChanged: (_) => setState(() {}),
           ),
+          if (!_lockedPackageRetail) ...[
+            const SizedBox(height: 10),
+            TextField(
+              controller: _listCtrl,
+              keyboardType: TextInputType.number,
+              inputFormatters: moneyIdrInputFormatters,
+              style: const TextStyle(color: _text),
+              decoration: UiInputDecoration.of(context, labelText: 'List price (IDR)', hintText: 'Retail reference for margin'),
+              onChanged: (_) => setState(() {}),
+            ),
+          ],
           if (_marginIdr != null) ...[
             const SizedBox(height: 6),
-            Text('Margin: ${moneyFmtIdr(_marginIdr!)}', style: TextStyle(color: _marginIdr! >= 0 ? _accent : const Color(0xFFF87171), fontSize: 12)),
+            Text(
+              'Your margin (list − customer): ${moneyFmtIdr(_marginIdr!)}',
+              style: TextStyle(color: _marginIdr! >= 0 ? _accent : const Color(0xFFF87171), fontSize: 12),
+            ),
           ],
           const SizedBox(height: 10),
-          TextField(controller: _paymentRefCtrl, style: const TextStyle(color: _text), decoration: UiInputDecoration.of(context, hintText: 'Payment reference (optional)')),
+          TextField(controller: _paymentRefCtrl, style: const TextStyle(color: _text), decoration: UiInputDecoration.of(context, labelText: 'Payment reference', hintText: 'Optional')),
           const SizedBox(height: 14),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,

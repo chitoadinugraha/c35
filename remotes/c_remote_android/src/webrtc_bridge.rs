@@ -145,11 +145,11 @@ pub fn init_webrtc_handlers() {
 }
 
 fn downscale_rgba(src: &[u8], src_w: u32, src_h: u32, dst_w: u32, dst_h: u32) -> Vec<u8> {
-    let mut dst = vec![0u8; (dst_w * dst_h * 4) as usize];
+    let mut dst = vec![0u8; ((dst_w as u64) * (dst_h as u64) * 4) as usize];
     for y in 0..dst_h {
         let src_y = (y as u64 * src_h as u64 / dst_h as u64) as u32;
-        let dst_row_start = (y * dst_w * 4) as usize;
-        let src_row_start = (src_y * src_w * 4) as usize;
+        let dst_row_start = ((y as u64) * (dst_w as u64) * 4) as usize;
+        let src_row_start = ((src_y as u64) * (src_w as u64) * 4) as usize;
         for x in 0..dst_w {
             let src_x = (x as u64 * src_w as u64 / dst_w as u64) as u32;
             let di = dst_row_start + (x * 4) as usize;

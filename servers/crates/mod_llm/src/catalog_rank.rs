@@ -101,7 +101,8 @@ pub fn version_rank_of(id: &str) -> i32 {
     if nums.len() > 2 {
         patch = nums[2].parse().unwrap_or(0);
     }
-    major * 1_000_000 + minor * 1_000 + patch
+    let rank = major as i64 * 1_000_000 + minor as i64 * 1_000 + patch as i64;
+    rank.clamp(i32::MIN as i64, i32::MAX as i64) as i32
 }
 
 pub fn provider_band(provider: &str) -> i32 {
@@ -355,6 +356,12 @@ mod tests {
     #[test]
     fn version_rank_orders_gemini() {
         assert!(version_rank_of("gemini-3.1-flash-lite") > version_rank_of("gemini-2.5-flash"));
+    }
+
+    #[test]
+    fn version_rank_large_numeric_segments_do_not_overflow() {
+        let rank = version_rank_of("provider-9999-9999-9999");
+        assert_eq!(rank, i32::MAX);
     }
 
     #[test]

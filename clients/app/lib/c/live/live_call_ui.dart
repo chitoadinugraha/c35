@@ -1,4 +1,5 @@
 import 'package:alienai_c35/c/catalog/catalog_translation_cache.dart';
+import 'package:alienai_c35/c/live/live_offer.dart';
 import 'package:alienai_c35/c/llm/agent_model.dart';
 import 'package:alienai_c35/c/pb/c35/live.pb.dart';
 
@@ -81,4 +82,29 @@ String liveCallPrimaryPriceLabel(List<LiveOffer> menu) {
   if (min.isInfinite || min <= 0) return '';
   final s = min >= 0.1 ? min.toStringAsFixed(2) : min.toStringAsFixed(3);
   return '~\$$s/min';
+}
+
+LiveOffer? liveCallChipDefaultOffer(AgentModel model, List<LiveOffer> all) {
+  final menu = liveCallMenuOffers(all, model);
+  if (menu.isEmpty) return null;
+  return liveCallDefaultOffer(menu, model) ?? menu.first;
+}
+
+String liveCallChipTitle(AgentModel model, List<LiveOffer> all) {
+  final menu = liveCallMenuOffers(all, model);
+  if (menu.isEmpty) return liveCallGenericChipTitle();
+  if (liveCallChipUsesGenericLabel(model, all)) return liveCallGenericChipTitle();
+  final offer = liveCallChipDefaultOffer(model, all);
+  return offer == null ? liveCallGenericChipTitle() : liveOfferActionTitle(offer);
+}
+
+/// Short label for tight layouts (avatar sheet); drops the call verb when generic.
+String liveCallChipCompactTitle() {
+  final full = liveCallGenericChipTitle().trim();
+  final verb = liveCallVerb().trim();
+  if (verb.isNotEmpty && full.length > verb.length && full.startsWith(verb)) {
+    final rest = full.substring(verb.length).trim();
+    if (rest.isNotEmpty) return rest;
+  }
+  return full;
 }

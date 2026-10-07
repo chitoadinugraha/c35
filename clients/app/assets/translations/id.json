@@ -262,6 +262,7 @@
                     "quotaPackageSection":  "PAKET",
                     "quotaAllowanceSection":  "KUOTA",
                     "quotaCurrentPackage":  "Paket saat ini",
+                    "freemiumPackageTooltip":  "Batas pesan dan token harian paket Trial. Ketuk untuk upgrade.",
                     "quotaUpgradeTap":  "Upgrade",
                     "quotaIncludedIdr":  "Nominal kuota ditampilkan dalam IDR.",
                     "quotaPeriodWeekly":  "Mingguan",
@@ -305,11 +306,24 @@
                  "typingBot":  "Bot mengetik…",
                  "typingPeer":  "Pelanggan mengetik…"
              },
+    "referral":  {
+                     "claimTitle":  "Apakah Anda punya kode referral?",
+                     "claimSubtitle":  "Dapatkan Rp 10.000 jika Anda memasukkan kode referral.",
+                     "label":  "Kode referral",
+                     "skip":  "Lewati",
+                     "claimButton":  "Klaim Rp 10.000",
+                     "claimedSnack":  "Bonus Rp {amount} dari {issuer} berhasil diklaim!",
+                     "checking":  "Memeriksa kode…",
+                     "networkError":  "Gagal memeriksa kode referral",
+                     "invalid":  "Kode referral tidak valid",
+                     "clear":  "Hapus",
+                     "unknownIssuer":  "pengundang Anda"
+                 },
     "legal":  {
                   "aiDisclaimerTitle":  "Sebelum melanjutkan",
                   "aiDisclaimerIntro":  "Centang setiap item di bawah, lalu lanjutkan.",
-                  "aiDisclaimerCheckTermsPrefix":  "Saya menerima ",
-                  "aiDisclaimerTermsLink":  "Ketentuan Layanan",
+                  "aiDisclaimerCheckTermsPrefix":  "Saya telah menyetujui ",
+                  "aiDisclaimerTermsLink":  "Syarat dan Ketentuan Layanan",
                   "aiDisclaimerCheckTermsSuffix":  ". AI bisa salah—saya memverifikasi hal penting dan bertanggung jawab atas cara saya memakai asisten.",
                   "aiDisclaimerCheckLocation":  "Saya mengizinkan perkiraan lokasi untuk tempat terdekat, cuaca, dan saran lokal. Tidak dipakai untuk pelacakan latar; bisa diubah di Pengaturan.",
                   "aiDisclaimerContinue":  "Lanjutkan"

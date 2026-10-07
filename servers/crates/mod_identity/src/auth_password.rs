@@ -243,7 +243,7 @@ pub async fn sign_up(
     let initial_balance = if iid == 99000 || iid == 30000 {
         100.0
     } else {
-        10.0
+        0.0
     };
     let mut balance_usd = initial_balance;
     let mut balance_idr = initial_balance * 17630.0;

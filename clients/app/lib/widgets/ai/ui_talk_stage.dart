@@ -19,6 +19,7 @@ class UiTalkStage extends StatelessWidget {
     required this.assistant,
     required this.userText,
     required this.listening,
+    this.transcribing = false,
     required this.busy,
     this.busyStartedAtMs,
     required this.speakEnabled,
@@ -49,6 +50,7 @@ class UiTalkStage extends StatelessWidget {
   final MsgRow? assistant;
   final String userText;
   final bool listening;
+  final bool transcribing;
   final bool busy;
   final int? busyStartedAtMs;
   final bool speakEnabled;
@@ -342,6 +344,12 @@ class UiTalkStage extends StatelessWidget {
             return Padding(
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 4),
               child: UiPromptThinkingIndicator(startedAtMs: busyStartedAtMs, align: Alignment.center, model: model),
+            );
+          }
+          if (transcribing) {
+            return const Padding(
+              padding: EdgeInsets.fromLTRB(24, 0, 24, 4),
+              child: Text('Transcribing...', textAlign: TextAlign.center, style: TextStyle(color: _muted, fontSize: 12)),
             );
           }
           if (listening) {

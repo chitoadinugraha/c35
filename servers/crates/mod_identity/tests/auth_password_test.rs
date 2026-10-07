@@ -95,10 +95,9 @@ async fn test_db_auth_signup_signin_referral_flow() {
     // Alien ID should be null / handle empty
     assert!(body["identity"]["alien_id"].is_null() || body["identity"]["alien_id"] == "");
     assert_eq!(body["identity"]["handle"], "");
-    // Default balance should be 10.0 USD = 176,300 IDR
     let balance_idr = body["identity"]["balance_idr"].as_f64().unwrap();
-    assert_eq!(balance_idr, 176300.0);
-    assert_eq!(body["identity"]["balance_usd"].as_f64().unwrap(), 10.0);
+    assert_eq!(balance_idr, 0.0);
+    assert_eq!(body["identity"]["balance_usd"].as_f64().unwrap(), 0.0);
     assert!(body["identity"]["referred_by_iid"].is_null());
 
     // 2. Sign in with email and password
@@ -143,7 +142,7 @@ async fn test_db_auth_signup_signin_referral_flow() {
     assert_eq!(claim_body["ok"], true);
     assert_eq!(claim_body["bonus_idr"].as_f64().unwrap(), 10000.0);
 
-    // Verify balance after claim via GET /v1/auth/me: 176300 + 10000 = 186300 IDR
+    // Verify balance after claim via GET /v1/auth/me: Rp 10.000 referral bonus only
     let me_res = router
         .clone()
         .oneshot(
@@ -159,7 +158,7 @@ async fn test_db_auth_signup_signin_referral_flow() {
     assert_eq!(me_res.status(), StatusCode::OK);
     let me_body: Value = serde_json::from_slice(&to_bytes(me_res.into_body(), usize::MAX).await.unwrap()).unwrap();
     assert_eq!(me_body["ok"], true);
-    assert_eq!(me_body["identity"]["balance_idr"].as_f64().unwrap(), 186300.0);
+    assert_eq!(me_body["identity"]["balance_idr"].as_f64().unwrap(), 10000.0);
     assert_eq!(me_body["identity"]["referred_by_iid"].as_i64().unwrap(), 99000);
 
     // 4. Claim Alien ID via POST /v1/auth/alien_id/claim
@@ -204,7 +203,7 @@ async fn test_db_auth_signup_signin_referral_flow() {
     let signin_id_body: Value = serde_json::from_slice(&to_bytes(signin_alien_id.into_body(), usize::MAX).await.unwrap()).unwrap();
     assert_eq!(signin_id_body["identity"]["alien_id"], test_alien_id);
     assert_eq!(signin_id_body["identity"]["handle"], format!("@{test_alien_id}"));
-    assert_eq!(signin_id_body["identity"]["balance_idr"].as_f64().unwrap(), 186300.0);
+    assert_eq!(signin_id_body["identity"]["balance_idr"].as_f64().unwrap(), 10000.0);
 
     // 6. Sign up WITH referral code directly at signup
     let email_with_ref = format!("test_withref_{ts}@alienai.id");
@@ -229,8 +228,7 @@ async fn test_db_auth_signup_signin_referral_flow() {
     assert_eq!(res.status(), StatusCode::OK);
     let body: Value = serde_json::from_slice(&to_bytes(res.into_body(), usize::MAX).await.unwrap()).unwrap();
     assert_eq!(body["ok"], true);
-    // Balance should immediately include Rp 10.000 bonus: 176300 + 10000 = 186300 IDR
-    assert_eq!(body["identity"]["balance_idr"].as_f64().unwrap(), 186300.0);
+    assert_eq!(body["identity"]["balance_idr"].as_f64().unwrap(), 10000.0);
     assert_eq!(body["identity"]["referred_by_iid"].as_i64().unwrap(), 99000);
 
     // 7. Test Account (ensure testaccount@alienai.id exists with password and alien_id)
@@ -323,7 +321,7 @@ async fn test_db_auth_signup_signin_referral_flow() {
     assert_eq!(b["identity"]["email"], test_acc_email);
     assert_eq!(b["identity"]["alien_id"], test_acc_id);
     assert_eq!(b["identity"]["handle"], format!("@{test_acc_id}"));
-    assert_eq!(b["identity"]["balance_idr"].as_f64().unwrap(), 186300.0);
+    assert_eq!(b["identity"]["balance_idr"].as_f64().unwrap(), 10000.0);
 
     // Verify signing in to Test Account with @handle
     let signin_via_handle = router

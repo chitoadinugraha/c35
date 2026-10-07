@@ -34,7 +34,7 @@ pub async fn live_ws_handler(
         _ => return axum::http::StatusCode::UNAUTHORIZED.into_response(),
     };
 
-    let Some(ticket) = live_session_take(sid, live_token, caller_iid) else {
+    let Some(ticket) = live_session_take(&state.pool, sid, live_token, caller_iid).await else {
         return axum::http::StatusCode::FORBIDDEN.into_response();
     };
 

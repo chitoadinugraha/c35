@@ -91,18 +91,21 @@ pub async fn google_start(
         .filter(|s| !s.is_empty())
         .map(str::to_string)
         .unwrap_or_else(random_token);
-    st.oauth.results.remove(&client_id);
+    let pool = &st.pool;
+    oauth_expired_purge(pool).await;
+    oauth_result_clear_client(pool, &client_id).await;
     let oauth_state = random_token();
     let exp = Utc::now() + Duration::minutes(15);
-    st.oauth.pending.insert(
-        oauth_state.clone(),
-        OAuthPending {
-            client_id: client_id.clone(),
-            return_path,
-            origin: origin.clone(),
-            expires_at: exp,
-        },
-    );
+    let pending = OAuthPending {
+        client_id: client_id.clone(),
+        return_path,
+        origin: origin.clone(),
+        expires_at: exp,
+    };
+    if let Err(e) = oauth_pending_put(pool, &oauth_state, &pending).await {
+        error!("[auth:google] pending store failed: {}", e);
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    }
     Ok(Redirect::temporary(&google_auth_url(
         &client_id_cfg,
         &callback_url(&origin),
@@ -132,16 +135,24 @@ pub async fn google_callback(
     if oauth_state.is_empty() || code.is_empty() {
         return (StatusCode::BAD_REQUEST, "Missing OAuth state or code").into_response();
     }
-    let pending = match st.oauth.pending.remove(oauth_state) {
-        Some((_, p)) if p.expires_at > Utc::now() => p,
-        _ => {
+    let pool = &st.pool;
+    let pending = match oauth_pending_take(pool, oauth_state).await {
+        Ok(Some(p)) => p,
+        Ok(None) => {
+            if let Ok(Some(done)) = oauth_completed_by_state(pool, oauth_state).await {
+                return oauth_success_response(&done, &origin).into_response();
+            }
             return (StatusCode::BAD_REQUEST, "Invalid or expired OAuth state").into_response();
+        }
+        Err(e) => {
+            error!("[auth:google] pending load failed: {}", e);
+            return (StatusCode::INTERNAL_SERVER_ERROR, "OAuth state error").into_response();
         }
     };
     let origin = if pending.origin.is_empty() {
         origin
     } else {
-        pending.origin
+        pending.origin.clone()
     };
     let access_token = match google_exchange_code(&callback_url(&origin), code).await {
         Ok(t) => t,
@@ -188,34 +199,29 @@ pub async fn google_callback(
     };
     crate::auth_event::auth_sign_in_emit(&st, iid, sess_id, "google");
     let exp = Utc::now() + Duration::minutes(10);
-    st.oauth.results.insert(
-        pending.client_id.clone(),
-        OAuthResult {
-            ready: true,
-            ok: true,
-            uid: Some(iid),
-            token: Some(token.clone()),
-            name: Some(profile.name.clone()),
-            email: Some(profile.email.clone()),
-            pic: Some(profile.picture.clone()),
-            handle: Some(handle.clone()),
-            expires_at: exp,
-        },
-    );
-    let redirect_q = vec![
-        ("google_auth".into(), "ok".into()),
-        ("uid".into(), iid.to_string()),
-        ("token".into(), token.clone()),
-        ("name".into(), profile.name.clone()),
-        ("pic".into(), profile.picture.clone()),
-    ];
-    let location = oauth_finish_redirect(&pending.return_path, &origin, &redirect_q, &profile.name);
-    let cookie = format!("cs_session={token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000");
-    let mut resp = Redirect::temporary(&location).into_response();
-    if let Ok(hv) = HeaderValue::from_str(&cookie) {
-        resp.headers_mut().insert(header::SET_COOKIE, hv);
+    let result = OAuthResult {
+        ready: true,
+        ok: true,
+        uid: Some(iid),
+        token: Some(token.clone()),
+        name: Some(profile.name.clone()),
+        email: Some(profile.email.clone()),
+        pic: Some(profile.picture.clone()),
+        handle: Some(handle.clone()),
+        expires_at: exp,
+    };
+    if let Err(e) = oauth_result_put(pool, oauth_state, &pending, &result).await {
+        error!("[auth:google] result store failed: {}", e);
+        return (StatusCode::INTERNAL_SERVER_ERROR, "OAuth result error").into_response();
     }
-    resp
+    oauth_success_response(
+        &OAuthCompleted {
+            pending,
+            result,
+        },
+        &origin,
+    )
+    .into_response()
 }
 
 #[derive(Serialize)]
@@ -257,20 +263,46 @@ pub async fn google_result(
     if client_id.is_empty() {
         return Json(out);
     }
-    if let Some((_, r)) = st.oauth.results.remove(client_id) {
-        if r.expires_at > Utc::now() {
-            out.ready = r.ready;
-            out.ok = r.ok;
-            out.uid = r.uid.map(|u| u.to_string());
-            out.session_id = r.token.clone();
-            out.token = r.token;
-            out.name = r.name;
-            out.email = r.email;
-            out.pic = r.pic;
-            out.handle = r.handle;
-        }
+    if let Ok(Some(r)) = oauth_result_take(&st.pool, client_id).await {
+        out.ready = r.ready;
+        out.ok = r.ok;
+        out.uid = r.uid.map(|u| u.to_string());
+        out.session_id = r.token.clone();
+        out.token = r.token;
+        out.name = r.name;
+        out.email = r.email;
+        out.pic = r.pic;
+        out.handle = r.handle;
     }
     Json(out)
+}
+
+fn oauth_success_response(done: &OAuthCompleted, fallback_origin: &str) -> Response {
+    let pending = &done.pending;
+    let result = &done.result;
+    let origin = if pending.origin.is_empty() {
+        fallback_origin
+    } else {
+        pending.origin.as_str()
+    };
+    let iid = result.uid.unwrap_or(0);
+    let token = result.token.clone().unwrap_or_default();
+    let name = result.name.clone().unwrap_or_default();
+    let pic = result.pic.clone().unwrap_or_default();
+    let redirect_q = vec![
+        ("google_auth".into(), "ok".into()),
+        ("uid".into(), iid.to_string()),
+        ("token".into(), token.clone()),
+        ("name".into(), name.clone()),
+        ("pic".into(), pic),
+    ];
+    let location = oauth_finish_redirect(&pending.return_path, origin, &redirect_q, &name);
+    let cookie = format!("cs_session={token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000");
+    let mut resp = Redirect::temporary(&location).into_response();
+    if let Ok(hv) = HeaderValue::from_str(&cookie) {
+        resp.headers_mut().insert(header::SET_COOKIE, hv);
+    }
+    resp
 }
 
 pub async fn google_done(Query(q): Query<std::collections::HashMap<String, String>>) -> Html<String> {
@@ -637,7 +669,7 @@ async fn get_or_create_google_identity(pool: &sqlx::PgPool, profile: &GoogleProf
     .bind(json!({ "google_sub": sub }))
     .execute(pool)
     .await?;
-    let _ = billing_signup_credit(pool, iid, 10.0).await;
+    let _ = billing_signup_credit(pool, iid, 0.0).await;
     Ok(iid)
 }
 
@@ -897,4 +929,163 @@ fn oauth_done_html(ok: bool, name: Option<&str>, pic: Option<&str>, reason: Opti
 h1{{margin:0 0 .4rem;font-size:1.55rem}}p{{margin:0;color:var(--muted);font-size:.875rem}}</style></head>
 <body><div class="card">{visual}<h1>{heading}</h1><p>{message}</p></div></body></html>"#
     )
+}
+
+struct OAuthCompleted {
+    pending: OAuthPending,
+    result: OAuthResult,
+}
+
+async fn oauth_expired_purge(pool: &sqlx::PgPool) {
+    let _ = sqlx::query("DELETE FROM ai.oauth_pending WHERE expires_at < NOW()")
+        .execute(pool)
+        .await;
+    let _ = sqlx::query("DELETE FROM ai.oauth_result WHERE expires_at < NOW()")
+        .execute(pool)
+        .await;
+}
+
+async fn oauth_result_clear_client(pool: &sqlx::PgPool, client_id: &str) {
+    let _ = sqlx::query("DELETE FROM ai.oauth_result WHERE client_id = $1")
+        .bind(client_id)
+        .execute(pool)
+        .await;
+}
+
+async fn oauth_pending_put(pool: &sqlx::PgPool, state: &str, pending: &OAuthPending) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        INSERT INTO ai.oauth_pending (state, client_id, return_path, origin, expires_at)
+        VALUES ($1, $2, $3, $4, $5)
+        "#,
+    )
+    .bind(state)
+    .bind(&pending.client_id)
+    .bind(&pending.return_path)
+    .bind(&pending.origin)
+    .bind(pending.expires_at)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+async fn oauth_pending_take(pool: &sqlx::PgPool, state: &str) -> Result<Option<OAuthPending>, sqlx::Error> {
+    let row = sqlx::query(
+        r#"
+        DELETE FROM ai.oauth_pending
+        WHERE state = $1 AND expires_at > NOW()
+        RETURNING client_id, return_path, origin, expires_at
+        "#,
+    )
+    .bind(state)
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.map(|r| OAuthPending {
+        client_id: r.get("client_id"),
+        return_path: r.get("return_path"),
+        origin: r.get("origin"),
+        expires_at: r.get("expires_at"),
+    }))
+}
+
+async fn oauth_completed_by_state(pool: &sqlx::PgPool, state: &str) -> Result<Option<OAuthCompleted>, sqlx::Error> {
+    let row = sqlx::query(
+        r#"
+        SELECT client_id, return_path, origin, ready, ok, uid, token, name, email, pic, handle, expires_at
+        FROM ai.oauth_result
+        WHERE oauth_state = $1 AND expires_at > NOW() AND ok = true
+        LIMIT 1
+        "#,
+    )
+    .bind(state)
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.map(|r| OAuthCompleted {
+        pending: OAuthPending {
+            client_id: r.get("client_id"),
+            return_path: r.get("return_path"),
+            origin: r.get("origin"),
+            expires_at: r.get("expires_at"),
+        },
+        result: OAuthResult {
+            ready: r.get("ready"),
+            ok: r.get("ok"),
+            uid: r.get("uid"),
+            token: r.get("token"),
+            name: r.get("name"),
+            email: r.get("email"),
+            pic: r.get("pic"),
+            handle: r.get("handle"),
+            expires_at: r.get("expires_at"),
+        },
+    }))
+}
+
+async fn oauth_result_put(
+    pool: &sqlx::PgPool,
+    oauth_state: &str,
+    pending: &OAuthPending,
+    result: &OAuthResult,
+) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        r#"
+        INSERT INTO ai.oauth_result (
+            client_id, oauth_state, return_path, origin, ready, ok, uid, token, name, email, pic, handle, expires_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        ON CONFLICT (client_id) DO UPDATE SET
+            oauth_state = EXCLUDED.oauth_state,
+            return_path = EXCLUDED.return_path,
+            origin = EXCLUDED.origin,
+            ready = EXCLUDED.ready,
+            ok = EXCLUDED.ok,
+            uid = EXCLUDED.uid,
+            token = EXCLUDED.token,
+            name = EXCLUDED.name,
+            email = EXCLUDED.email,
+            pic = EXCLUDED.pic,
+            handle = EXCLUDED.handle,
+            expires_at = EXCLUDED.expires_at
+        "#,
+    )
+    .bind(&pending.client_id)
+    .bind(oauth_state)
+    .bind(&pending.return_path)
+    .bind(&pending.origin)
+    .bind(result.ready)
+    .bind(result.ok)
+    .bind(result.uid)
+    .bind(result.token.as_deref())
+    .bind(result.name.as_deref())
+    .bind(result.email.as_deref())
+    .bind(result.pic.as_deref())
+    .bind(result.handle.as_deref())
+    .bind(result.expires_at)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+async fn oauth_result_take(pool: &sqlx::PgPool, client_id: &str) -> Result<Option<OAuthResult>, sqlx::Error> {
+    let row = sqlx::query(
+        r#"
+        DELETE FROM ai.oauth_result
+        WHERE client_id = $1 AND expires_at > NOW()
+        RETURNING ready, ok, uid, token, name, email, pic, handle, expires_at
+        "#,
+    )
+    .bind(client_id)
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.map(|r| OAuthResult {
+        ready: r.get("ready"),
+        ok: r.get("ok"),
+        uid: r.get("uid"),
+        token: r.get("token"),
+        name: r.get("name"),
+        email: r.get("email"),
+        pic: r.get("pic"),
+        handle: r.get("handle"),
+        expires_at: r.get("expires_at"),
+    }))
 }

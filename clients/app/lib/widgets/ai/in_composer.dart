@@ -895,10 +895,10 @@ class _InComposerState extends State<InComposer> {
     if (!_recording) return;
     SttService.instance.onAutoStop = null;
     SttService.instance.liveTranscript.removeListener(_onLiveTranscript);
+    if (mounted) setState(() => _recording = false);
 
     final text = await SttService.instance.stopAndTranscribe(lang: VoicePrefs.instance.speechLang);
     if (!mounted) return;
-    setState(() => _recording = false);
 
     final transcript = (text ?? SttService.instance.liveTranscript.value).trim();
     if (transcript.isEmpty) {

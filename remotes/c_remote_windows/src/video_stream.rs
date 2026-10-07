@@ -48,8 +48,9 @@ pub fn bgra_to_nv12_scaled(
     target_w: usize,
     target_h: usize,
 ) -> Vec<u8> {
-    let y_plane_size = target_w * target_h;
-    let uv_plane_size = target_w * (target_h / 2);
+    let pixels = (target_w as u64) * (target_h as u64);
+    let y_plane_size = pixels as usize;
+    let uv_plane_size = (pixels / 2) as usize;
     let mut nv12 = vec![0u8; y_plane_size + uv_plane_size];
 
     let (y_plane, uv_plane) = nv12.split_at_mut(y_plane_size);
@@ -59,7 +60,7 @@ pub fn bgra_to_nv12_scaled(
 
     for y in 0..target_h {
         let src_y = (((y as u64 * y_ratio) >> 16) as usize).min(src_h.saturating_sub(1));
-        let src_row = src_y * src_w * 4;
+        let src_row = (src_y as u64 * src_w as u64 * 4) as usize;
         let dst_y_row = y * target_w;
         let dst_uv_row = (y / 2) * target_w;
         let is_even_row = (y % 2) == 0;

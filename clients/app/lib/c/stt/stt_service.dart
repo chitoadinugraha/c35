@@ -13,7 +13,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:ulid/ulid.dart';
 
-/// Composer: silence VAD auto-stops the mic. Talk: manual send / mic tap (noise-safe); max duration still applies.
+/// Composer: silence VAD auto-stops the mic. Talk: silence VAD only when [VoicePrefs.sttAutoSend]; else mic tap / Send; max duration always applies.
 enum SttVadMode { composer, talk }
 
 class SttService {
@@ -87,6 +87,15 @@ class SttService {
   VoidCallback? onAutoStop;
 
   SttVadMode _vadMode = SttVadMode.composer;
+
+  bool get _vadSilenceAutoStopEnabled =>
+      _vadMode == SttVadMode.composer || (_vadMode == SttVadMode.talk && VoicePrefs.instance.sttAutoSend);
+
+  int get _silenceTimeoutWithTextMs => _vadMode == SttVadMode.talk ? 1100 : silenceTimeoutWithTextMs;
+
+  int get _silenceTimeoutNoTextMs => _vadMode == SttVadMode.talk ? 1400 : silenceTimeoutNoTextMs;
+
+  int get _initialSilenceTimeoutMs => _vadMode == SttVadMode.talk ? 6000 : 5000;
 
   int _maxRecordingSecondsForSession() => _vadMode == SttVadMode.talk ? maxRecordingSecondsTalk : maxRecordingSeconds;
 
@@ -625,9 +634,8 @@ class SttService {
     if (isSpeechFrame) {
       _speechDetected = true;
       _silenceSince = null;
-    } else if (_vadMode == SttVadMode.composer) {
-      final silenceTimeoutMs = liveTranscript.value.isNotEmpty ? silenceTimeoutWithTextMs : silenceTimeoutNoTextMs;
-      const initialSilenceTimeoutMs = 5000;
+    } else if (_vadSilenceAutoStopEnabled) {
+      final silenceTimeoutMs = liveTranscript.value.isNotEmpty ? _silenceTimeoutWithTextMs : _silenceTimeoutNoTextMs;
       if (_speechDetected) {
         _silenceSince ??= DateTime.now();
         if (DateTime.now().difference(_silenceSince!).inMilliseconds >= silenceTimeoutMs) {
@@ -635,7 +643,7 @@ class SttService {
           onAutoStop?.call();
         }
       } else if (_recordingStartedAt != null) {
-        if (DateTime.now().difference(_recordingStartedAt!).inMilliseconds >= initialSilenceTimeoutMs) {
+        if (DateTime.now().difference(_recordingStartedAt!).inMilliseconds >= _initialSilenceTimeoutMs) {
           _stopTimers();
           onAutoStop?.call();
         }
@@ -796,6 +804,7 @@ class SttService {
   Future<String?> stopAndTranscribe({String? lang}) async {
     _stopTimers();
     if (!isRecording.value && _recorder == null && _pcmBuffer.isEmpty) return null;
+    isRecording.value = false;
     isTranscribing.value = true;
     try {
       return await _stopAndTranscribeImpl(lang: lang);
@@ -805,7 +814,6 @@ class SttService {
   }
 
   Future<String?> _stopAndTranscribeImpl({String? lang}) async {
-    isRecording.value = false;
 
     Uint8List? audioBytes;
     Uint8List? audioBytesUntrimmed;

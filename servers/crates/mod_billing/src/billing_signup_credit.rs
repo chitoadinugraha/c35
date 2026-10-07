@@ -30,6 +30,7 @@ pub async fn billing_signup_credit(
         .bind(balance_idr)
         .execute(pool)
         .await?;
+        let _ = crate::billing_profile_ensure(pool, owner_iid).await;
         return Ok(());
     }
     let id = snowflake_id();
@@ -46,5 +47,6 @@ pub async fn billing_signup_credit(
     .bind(FX_MICRO_PER_USD)
     .execute(pool)
     .await?;
+    let _ = crate::billing_profile_ensure(pool, owner_iid).await;
     Ok(())
 }

@@ -1,34 +1,92 @@
+import 'package:alienai_c35/c/catalog/catalog_translation_cache.dart';
+import 'package:alienai_c35/c/hint/hint_chip_theme.dart';
+import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:flutter/material.dart';
 
-const _menuPadH = 16.0;
+String homeTalkSurfaceLabel(bool talkEnabled) {
+  final key = talkEnabled ? 'home.chatMode' : 'home.talkMode';
+  final t = catalogT(key);
+  if (t != key) return t;
+  return talkEnabled ? 'Chat Mode' : 'Talk Mode';
+}
 
-class UiTalkToggleRow extends StatelessWidget {
-  const UiTalkToggleRow({super.key, required this.enabled, this.onChanged});
+const _menuPadH = 12.0;
+const _talkActiveBorder = Color(0xFF06B6D4);
+const _talkActiveBg = Color(0xFF164E63);
 
-  final bool enabled;
-  final ValueChanged<bool>? onChanged;
+class UiTalkCallToggleRow extends StatelessWidget {
+  const UiTalkCallToggleRow({
+    super.key,
+    required this.talkEnabled,
+    required this.onTalkTap,
+    this.callChip,
+  });
+
+  final bool talkEnabled;
+  final VoidCallback? onTalkTap;
+  final Widget? callChip;
 
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.fromLTRB(_menuPadH, 10, _menuPadH, 10),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Talk Mode', style: TextStyle(color: Color(0xFFE4E4E7), fontSize: 14, fontWeight: FontWeight.w500)),
-                  SizedBox(height: 2),
-                  Text('Shorter replies, voice input', style: TextStyle(color: Color(0xFF71717A), fontSize: 12, height: 1.25)),
-                ],
-              ),
+            Expanded(
+              flex: 4,
+              child: _UiTalkModeChip(active: talkEnabled, onTap: onTalkTap),
             ),
-            const SizedBox(width: 8),
-            UiAppToggle(value: enabled, onChanged: onChanged),
+            if (callChip != null) ...[
+              const SizedBox(width: 8),
+              Expanded(flex: 6, child: callChip!),
+            ],
           ],
         ),
       );
+}
+
+class _UiTalkModeChip extends StatelessWidget {
+  const _UiTalkModeChip({required this.active, this.onTap});
+
+  final bool active;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = HintChipTheme.defaultTheme;
+    final border = active ? _talkActiveBorder : theme.border;
+    final bg = active ? _talkActiveBg : theme.background;
+    final iconColor = active ? const Color(0xFFFAFAFA) : theme.icon;
+    final labelColor = active ? const Color(0xFFFAFAFA) : theme.label;
+    final label = homeTalkSurfaceLabel(active);
+    return uiTooltip(
+      message: active ? homeTalkSurfaceLabel(false) : label,
+      child: Material(
+        color: bg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: border)),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+            child: Row(
+              children: [
+                Icon(active ? Icons.chat_bubble_outline_rounded : Icons.mic_rounded, size: 15, color: iconColor),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: labelColor, fontSize: 11, fontWeight: active ? FontWeight.w600 : FontWeight.w500, height: 1.15),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class UiAppToggle extends StatelessWidget {

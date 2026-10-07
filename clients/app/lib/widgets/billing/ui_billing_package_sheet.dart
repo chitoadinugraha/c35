@@ -19,6 +19,7 @@ import 'package:alienai_c35/widgets/referral/ui_billing_package_redeem.dart';
 import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:fixnum/fixnum.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 
@@ -529,13 +530,22 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
                 height: 206,
                 child: Stack(
                   children: [
-                    ListView.separated(
-                      controller: _planCarouselScroll,
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.fromLTRB(2, 2, 28, 2),
-                      itemCount: _planCarouselItemCount(),
-                      separatorBuilder: (_, __) => const SizedBox(width: _planCarouselGap),
-                      itemBuilder: (context, index) {
+                    ScrollConfiguration(
+                      behavior: ScrollConfiguration.of(context).copyWith(
+                        dragDevices: {
+                          PointerDeviceKind.touch,
+                          PointerDeviceKind.mouse,
+                          PointerDeviceKind.trackpad,
+                          PointerDeviceKind.stylus,
+                        },
+                      ),
+                      child: ListView.separated(
+                        controller: _planCarouselScroll,
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.fromLTRB(2, 2, 28, 2),
+                        itemCount: _planCarouselItemCount(),
+                        separatorBuilder: (_, __) => const SizedBox(width: _planCarouselGap),
+                        itemBuilder: (context, index) {
                     final showNoPlan = billingPlanIsPaidTier(_activePlanSlug) || (_summary?.pendingPlanSlug ?? '').trim().isNotEmpty;
                     if (showNoPlan && index == _plans.length) {
                       return SizedBox(
@@ -565,6 +575,7 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
                       ),
                     );
                   },
+                      ),
                     ),
                     Positioned(
                       right: 0,

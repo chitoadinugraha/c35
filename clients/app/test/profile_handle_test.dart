@@ -12,4 +12,12 @@ void main() {
     expect(profileAlienAddress('@chito'), 'chito@alienai.id');
     expect(profileAlienAddress('chito'), 'chito@alienai.id');
   });
+
+  test('profileIdentityLabel prefers alien id else email or phone', () {
+    expect(profileIdentityLabel(handle: '@chito', email: 'gucicha@gmail.com'), 'chito@alienai.id');
+    expect(profileIdentityLabel(handle: '', email: 'gucicha@gmail.com'), 'gucicha@gmail.com');
+    expect(profileIdentityLabel(handle: '@user', email: 'gucicha@gmail.com'), 'gucicha@gmail.com');
+    expect(profileIdentityLabel(handle: '', email: '', phone: '628123456789'), '628123456789');
+    expect(profileIdentityLabel(handle: '', email: '', phone: ''), '');
+  });
 }

@@ -173,10 +173,12 @@ class _VouchersTabState extends State<_VouchersTab> {
     super.dispose();
   }
 
-  List<BillingVoucherDoc> get _filtered {
-    if (_statusFilter.isEmpty) return _items;
-    return _items.where((v) => v.status == _statusFilter).toList();
-  }
+  List<BillingVoucherDoc> get _filtered => _items.where((v) {
+        final status = v.status.isEmpty ? 'active' : v.status;
+        if (status == 'expired') return false;
+        if (_statusFilter.isEmpty) return true;
+        return status == _statusFilter;
+      }).toList();
 
   Future<void> _load() async {
     setState(() {
@@ -270,7 +272,7 @@ class _VouchersTabState extends State<_VouchersTab> {
                   scrollDirection: Axis.horizontal,
                   child: Row(
                     children: [
-                      for (final s in ['', 'active', 'redeemed', 'expired', 'void'])
+                      for (final s in ['', 'active', 'redeemed', 'void'])
                         Padding(
                           padding: const EdgeInsets.only(right: 6),
                           child: FilterChip(

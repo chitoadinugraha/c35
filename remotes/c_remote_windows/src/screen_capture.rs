@@ -41,13 +41,23 @@ pub fn mark_screen_dirty() {
     SCREEN_DIRTY.store(true, Ordering::Relaxed);
 }
 
+#[inline]
+fn bgra_buf_len(w: u32, h: u32) -> usize {
+    ((w as u64) * (h as u64) * 4) as usize
+}
+
+#[inline]
+fn bgra_row_byte_offset(y: u32, w: u32) -> usize {
+    ((y as u64) * (w as u64) * 4) as usize
+}
+
 /// Downscale BGRA image using fast nearest-neighbor sampling.
 fn downscale_bgra(src: &[u8], src_w: u32, src_h: u32, dst_w: u32, dst_h: u32) -> Vec<u8> {
-    let mut dst = vec![0u8; (dst_w * dst_h * 4) as usize];
+    let mut dst = vec![0u8; bgra_buf_len(dst_w, dst_h)];
     for y in 0..dst_h {
         let src_y = (y as u64 * src_h as u64 / dst_h as u64) as u32;
-        let dst_row_start = (y * dst_w * 4) as usize;
-        let src_row_start = (src_y * src_w * 4) as usize;
+        let dst_row_start = bgra_row_byte_offset(y, dst_w);
+        let src_row_start = bgra_row_byte_offset(src_y, src_w);
         for x in 0..dst_w {
             let src_x = (x as u64 * src_w as u64 / dst_w as u64) as u32;
             let di = dst_row_start + (x * 4) as usize;
@@ -175,7 +185,7 @@ unsafe fn gdi_read_bgra(hdc_screen: HDC, src_w: i32, src_h: i32, dst_w: u32, dst
             (hdc_scaled, hbm_scaled, dst_w, dst_h, true)
         };
 
-    let mut bgra_buf = vec![0u8; (read_w * read_h * 4) as usize];
+    let mut bgra_buf = vec![0u8; bgra_buf_len(read_w, read_h)];
     let mut bmi = BITMAPINFO {
         bmiHeader: BITMAPINFOHEADER {
             biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
@@ -316,7 +326,8 @@ pub fn capture_screen_gdi(
             return Ok((None, hash));
         }
 
-        let mut jpeg_bytes = Vec::with_capacity((dst_w * dst_h / 2) as usize);
+        let mut jpeg_bytes =
+            Vec::with_capacity(((dst_w as u64 * dst_h as u64) / 2) as usize);
         let encoder = jpeg_encoder::Encoder::new(&mut jpeg_bytes, quality);
         encoder
             .encode(
@@ -374,7 +385,7 @@ fn encode_bgra_screenshot(
         return Ok((None, hash));
     }
 
-    let mut jpeg_bytes = Vec::with_capacity((dst_w * dst_h / 2) as usize);
+    let mut jpeg_bytes = Vec::with_capacity(((dst_w as u64 * dst_h as u64) / 2) as usize);
     let encoder = jpeg_encoder::Encoder::new(&mut jpeg_bytes, quality);
     encoder
         .encode(

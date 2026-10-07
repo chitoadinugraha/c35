@@ -1,6 +1,7 @@
 import 'package:alienai_c35/c/auth/auth_service.dart';
 import 'package:alienai_c35/widgets/io/in_referral_code.dart';
 import 'package:alienai_c35/widgets/ui/ui_dialog.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
 class UiReferralClaimDialog extends StatefulWidget {
@@ -39,9 +40,11 @@ class _UiReferralClaimDialogState extends State<UiReferralClaimDialog> {
     try {
       final res = await widget.auth.claimReferral(_code);
       if (!mounted) return;
+      final bonus = (res['bonus_idr'] ?? 10000).toInt();
+      final issuer = '${res['issuer_name'] ?? ''}'.trim().isEmpty ? 'referral.unknownIssuer'.tr() : '${res['issuer_name']}';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Claimed Rp ${(res['bonus_idr'] ?? 10000).toInt()} bonus from ${res['issuer_name'] ?? 'Referrer'}!'),
+          content: Text('referral.claimedSnack'.tr(namedArgs: {'amount': '$bonus', 'issuer': issuer})),
           backgroundColor: const Color(0xFF10B981),
           behavior: SnackBarBehavior.floating,
         ),
@@ -88,10 +91,10 @@ class _UiReferralClaimDialogState extends State<UiReferralClaimDialog> {
             child: const Icon(Icons.card_giftcard_rounded, color: Color(0xFF34D399), size: 24),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Do you have a Referral Code?',
-              style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
+              'referral.claimTitle'.tr(),
+              style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
             ),
           ),
           UiDialogClose(onPressed: _skip, enabled: !_busy),
@@ -103,14 +106,14 @@ class _UiReferralClaimDialogState extends State<UiReferralClaimDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'Get Rp. 10.000 if you enter the referral code.',
-              style: TextStyle(color: Color(0xFFA1A1AA), fontSize: 13, height: 1.4),
+            Text(
+              'referral.claimSubtitle'.tr(),
+              style: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 13, height: 1.4),
             ),
             const SizedBox(height: 16),
             InReferralCode(
               autofocus: true,
-              labelText: 'Referral Code',
+              labelText: 'referral.label'.tr(),
               onChanged: _onReferralChanged,
             ),
             if (_error != null) ...[
@@ -123,7 +126,7 @@ class _UiReferralClaimDialogState extends State<UiReferralClaimDialog> {
       actions: [
         TextButton(
           onPressed: _busy ? null : _skip,
-          child: const Text('Skip', style: TextStyle(color: Color(0xFF71717A))),
+          child: Text('referral.skip'.tr(), style: const TextStyle(color: Color(0xFF71717A))),
         ),
         FilledButton(
           style: FilledButton.styleFrom(
@@ -135,7 +138,7 @@ class _UiReferralClaimDialogState extends State<UiReferralClaimDialog> {
           onPressed: (_codeValid && !_busy) ? _claim : null,
           child: _busy
               ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-              : const Text('Claim Rp 10.000', style: TextStyle(fontWeight: FontWeight.bold)),
+              : Text('referral.claimButton'.tr(), style: const TextStyle(fontWeight: FontWeight.bold)),
         ),
       ],
     );

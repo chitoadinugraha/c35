@@ -333,6 +333,7 @@ pub async fn billing_freemium_check(pool: &PgPool, owner_iid: i64) -> Result<()>
     if !billing_freemium_applies(pool, owner_iid).await? {
         return Ok(());
     }
+    let _ = crate::billing_profile_ensure(pool, owner_iid).await;
     let row = freemium_profile_fetch(pool, owner_iid).await?.ok_or_else(|| anyhow::anyhow!("billing_profile missing"))?;
     let (msgs_used, tokens_used) = if row.freemium_day == Some(utc_day()) {
         (row.freemium_msgs_used, row.freemium_tokens_used)
@@ -353,6 +354,7 @@ pub async fn billing_freemium_reserve_turn(pool: &PgPool, owner_iid: i64) -> Res
     if !billing_freemium_applies(pool, owner_iid).await? {
         return Ok(());
     }
+    let _ = crate::billing_profile_ensure(pool, owner_iid).await;
     let mut tx = pool.begin().await?;
     let row = sqlx::query_as::<_, (
         i64,

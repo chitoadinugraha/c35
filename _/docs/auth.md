@@ -30,6 +30,12 @@ All authentication in c35 flows over **HTTPS REST endpoints** targeting `https:/
 | `GET` | `/v1/auth/alien_id/check` | No / Yes | Live check if an Alien ID is valid and available |
 | `POST` | `/v1/auth/alien_id/claim` | Yes | Set Alien ID for the current account |
 
+### Wallet on signup
+
+* New accounts get an empty `ai.billing_account` (**Rp 0** / **$0**). There is **no** automatic welcome cash credit.
+* **Rp 10.000** is credited only when a valid referral code is applied at signup or via `POST /v1/auth/referral/claim` (see below).
+* Internal test identities (`99000`, `30000`) may receive seeded dev balances in code; production users do not.
+
 ---
 
 ## 2. Nullable Alien ID (`alien_id`)

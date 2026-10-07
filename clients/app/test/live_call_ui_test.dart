@@ -36,6 +36,21 @@ void main() {
     expect(menu.length, offers.where((o) => o.enabled).length);
   });
 
+  test('liveCallChipCompactTitle drops call verb', () {
+    expect(liveCallChipCompactTitle(), 'AI');
+  });
+
+  test('liveCallChipTitle matches welcome chip for alienai composer', () {
+    const model = AgentModel(
+      id: 'alienai',
+      chip: 'Alien',
+      label: 'Alien AI',
+      provider: 'alienai',
+      providerModel: 'alienai',
+    );
+    expect(liveCallChipTitle(model, offers), 'Call Alien AI');
+  });
+
   test('live offer action title uses call verb and brand', () {
     final alien = offers.firstWhere((o) => o.id == 'live.alienai');
     expect(liveOfferActionTitle(alien), 'Call Alien AI');

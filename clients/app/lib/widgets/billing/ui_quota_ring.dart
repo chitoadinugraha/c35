@@ -40,6 +40,7 @@ class UiFreemiumQuotaPanel extends StatelessWidget {
     required this.tokensLimit,
     required this.meterState,
     this.onSubscribeTap,
+    this.embeddedInPackage = false,
   });
 
   final int msgsUsed;
@@ -48,6 +49,7 @@ class UiFreemiumQuotaPanel extends StatelessWidget {
   final int tokensLimit;
   final String meterState;
   final VoidCallback? onSubscribeTap;
+  final bool embeddedInPackage;
 
   @override
   Widget build(BuildContext context) {
@@ -71,14 +73,12 @@ class UiFreemiumQuotaPanel extends StatelessWidget {
             ),
           ],
         );
-    return uiTooltip(
-      message: 'Free daily limit\nSubscribe for full access',
-      preferBelow: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(0, 6, 0, 2),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+    final body = Padding(
+      padding: EdgeInsets.fromLTRB(embeddedInPackage ? 2 : 0, embeddedInPackage ? 2 : 6, 0, embeddedInPackage ? 4 : 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (!embeddedInPackage) ...[
             Row(
               children: [
                 const UiAlienIcon(size: 14),
@@ -95,12 +95,18 @@ class UiFreemiumQuotaPanel extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            bar('$msgsUsed/$msgsLimit msgs', msgRatio),
-            const SizedBox(height: 8),
-            bar('${billingFreemiumTokensShort(tokensUsed)}/${billingFreemiumTokensShort(tokensLimit)} tokens', tokRatio),
           ],
-        ),
+          bar('$msgsUsed/$msgsLimit msgs', msgRatio),
+          const SizedBox(height: 6),
+          bar('${billingFreemiumTokensShort(tokensUsed)}/${billingFreemiumTokensShort(tokensLimit)} tokens', tokRatio),
+        ],
       ),
+    );
+    if (embeddedInPackage) return body;
+    return uiTooltip(
+      message: 'Free daily limit\nSubscribe for full access',
+      preferBelow: false,
+      child: body,
     );
   }
 }
@@ -191,24 +197,43 @@ class UiQuotaPackagePanel extends StatelessWidget {
         fxMicroPerUsd: fxMicroPerUsd,
       );
 
-  Widget _packageHeaderRow() => Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onPackageTap,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(2, 8, 2, 4),
-            child: Row(
+  Widget _packageHeaderRow({bool includeBottomPadding = true}) => Padding(
+        padding: EdgeInsets.fromLTRB(2, 8, 2, includeBottomPadding ? 4 : 0),
+        child: Row(
+          children: [
+            const Icon(Icons.workspace_premium_outlined, size: 15, color: Color(0xFFFBBF24)),
+            const SizedBox(width: 8),
+            Text('settings.package'.tr(), style: const TextStyle(color: Color(0xFF71717A), fontSize: 11, fontWeight: FontWeight.w500)),
+            const Spacer(),
+            Text(
+              planTierLoading ? '…' : billingPlanTierLabel(planTier),
+              style: const TextStyle(color: Color(0xFFF4F4F5), fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+            if (onPackageTap != null) ...[const SizedBox(width: 4), const Icon(Icons.chevron_right, size: 16, color: Color(0xFF71717A))],
+          ],
+        ),
+      );
+
+  Widget _freemiumPackageBlock(BuildContext context) => uiTooltip(
+        message: 'billing.freemiumPackageTooltip'.tr(),
+        preferBelow: false,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onPackageTap,
+            borderRadius: BorderRadius.circular(8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(Icons.workspace_premium_outlined, size: 15, color: Color(0xFFFBBF24)),
-                const SizedBox(width: 8),
-                Text('settings.package'.tr(), style: const TextStyle(color: Color(0xFF71717A), fontSize: 11, fontWeight: FontWeight.w500)),
-                const Spacer(),
-                Text(
-                  planTierLoading ? '…' : billingPlanTierLabel(planTier),
-                  style: const TextStyle(color: Color(0xFFF4F4F5), fontSize: 12, fontWeight: FontWeight.w600),
+                _packageHeaderRow(includeBottomPadding: false),
+                UiFreemiumQuotaPanel(
+                  embeddedInPackage: true,
+                  msgsUsed: freemiumMsgsUsed,
+                  msgsLimit: freemiumMsgsLimit,
+                  tokensUsed: freemiumTokensUsed,
+                  tokensLimit: freemiumTokensLimit,
+                  meterState: meterState,
                 ),
-                if (onPackageTap != null) ...[const SizedBox(width: 4), const Icon(Icons.chevron_right, size: 16, color: Color(0xFF71717A))],
               ],
             ),
           ),
@@ -280,17 +305,17 @@ class UiQuotaPackagePanel extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _packageHeaderRow(),
               if (freemiumActive)
-                UiFreemiumQuotaPanel(
-                  msgsUsed: freemiumMsgsUsed,
-                  msgsLimit: freemiumMsgsLimit,
-                  tokensUsed: freemiumTokensUsed,
-                  tokensLimit: freemiumTokensLimit,
-                  meterState: meterState,
-                  onSubscribeTap: onPackageTap,
-                )
-              else
+                _freemiumPackageBlock(context)
+              else ...[
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: onPackageTap,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                    child: _packageHeaderRow(),
+                  ),
+                ),
                 Material(
                   color: Colors.transparent,
                   child: InkWell(
@@ -322,11 +347,14 @@ class UiQuotaPackagePanel extends StatelessWidget {
                     ),
                   ),
                 ),
+              ],
               if (showTrial) ...[
-                const SizedBox(height: 6),
-                Text(
-                  'Trial · $trialDaysLeft day${trialDaysLeft == 1 ? '' : 's'} left',
-                  style: const TextStyle(color: Color(0xFFA78BFA), fontSize: 10, fontWeight: FontWeight.w600),
+                Padding(
+                  padding: EdgeInsets.fromLTRB(2, freemiumActive ? 4 : 6, 2, 0),
+                  child: Text(
+                    'Trial · $trialDaysLeft day${trialDaysLeft == 1 ? '' : 's'} left',
+                    style: const TextStyle(color: Color(0xFFA78BFA), fontSize: 10, fontWeight: FontWeight.w600),
+                  ),
                 ),
               ],
             ],

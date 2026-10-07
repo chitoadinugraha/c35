@@ -240,20 +240,19 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
   bool get _canEditVoucherIssueLimit => Session.instance.canSetVoucherIssueLimit && !_busy;
 
   String get _platformLabel {
-    final h = _node.handle.trim();
-    if (h.isNotEmpty) return profileAlienAddress(h.replaceFirst('@', ''));
-    return '';
+    final email = _authEmail.trim().isNotEmpty ? _authEmail.trim() : _node.email.trim();
+    return profileIdentityLabel(handle: _node.handle, email: email, phone: _authPhone);
   }
 
   String? get _loginEmailLabel {
-    if (!_canViewContact) return null;
+    if (!_canViewContact || !profileHasAlienId(_node.handle)) return null;
     final email = _authEmail.trim().isNotEmpty ? _authEmail.trim() : _node.email.trim();
     if (email.isEmpty || email.endsWith('@$profileAlienDomain')) return null;
     return email;
   }
 
   String? get _loginPhoneLabel {
-    if (!_canViewContact) return null;
+    if (!_canViewContact || !profileHasAlienId(_node.handle)) return null;
     final phone = _authPhone.trim();
     return phone.isEmpty ? null : phone;
   }

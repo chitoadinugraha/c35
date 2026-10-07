@@ -355,11 +355,12 @@ impl DxgiCapturer {
                 .Map(&staging_tex, 0, D3D11_MAP_READ, 0, Some(&mut mapped))
                 .context("failed to map staging texture")?;
 
-            let row_bytes = (width * 4) as usize;
+            let row_bytes = ((width as u64) * 4) as usize;
             let src_pitch = mapped.RowPitch as usize;
             let src_ptr = mapped.pData as *const u8;
 
-            let mut bgra_buf = vec![0u8; (width * height * 4) as usize];
+            let mut bgra_buf =
+                vec![0u8; ((width as u64) * (height as u64) * 4) as usize];
             for y in 0..height as usize {
                 let src_row = std::slice::from_raw_parts(src_ptr.add(y * src_pitch), row_bytes);
                 let dst_offset = y * row_bytes;
