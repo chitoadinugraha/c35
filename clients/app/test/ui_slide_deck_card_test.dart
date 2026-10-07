@@ -1,4 +1,5 @@
 import 'package:alienai_c35/widgets/ai/ui_markdown_code_block.dart';
+import 'package:alienai_c35/c/presentation/slide_deck_theme_prefs.dart';
 import 'package:alienai_c35/widgets/ai/ui_slide_deck_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -120,6 +121,19 @@ Trik memasak mie instan favorit untuk hasil kenyal maksimal.
       expect(deck.theme, 'emerald');
     });
 
+    test('per-chat theme override applies on deck rebuild', () {
+      const chatId = 4242;
+      SlideDeckThemePrefs.instance.set(chatId, 'arctic');
+      final deck = SlideDeckData.fromJson({
+        'title': 'Deck',
+        'slides': ['# One'],
+        'theme': 'dark',
+      });
+      final themeOverride = SlideDeckThemePrefs.instance.themeFor(chatId);
+      if (themeOverride != null) deck.theme = themeOverride;
+      expect(deck.theme, 'arctic');
+    });
+
     testWidgets('UiMarkdownCodeBlock automatically renders UiSlideDeckCard for slide language', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -182,6 +196,41 @@ Cara masak cepat dan nikmat.
       // Apply delete
       deck.applyPatch(delete);
       expect(deck.slides.length, 3);
+    });
+
+    test('presentationDownloadUri fixes legacy signed URL with filename after query', () {
+      const hash = 'abc123';
+      const name = 'My_Deck.pptx';
+      const sig = 'deadbeef';
+      final legacy = '/fs/$hash?exp=99&sig=$sig/$name';
+      final uri = UiSlideDeckCard.presentationDownloadUri(
+        apiBase: 'http://127.0.0.1:8080',
+        fileHash: hash,
+        fileName: name,
+        downloadUrl: legacy,
+      );
+      expect(uri.path, '/fs/$hash/$name');
+      expect(uri.queryParameters['exp'], '99');
+      expect(uri.queryParameters['sig'], sig);
+    });
+
+    test('fromBlockBody merges patch onto prior deck', () {
+      final base = SlideDeckData.fromContent(
+        title: 'Cara Memasak Nasi',
+        content: '# S1\n---\n# S2\n---\n# S3\n---\n# S4\n---\n# S5',
+      );
+      expect(base.slides.length, 5);
+
+      final patched = SlideDeckData.fromBlockBody({
+        'title': 'Slide 1 Updated',
+        'content': '<!-- slide-patch:1 -->\n# Cara Memasak Nasi\nTakaran 1 cup beras : 1.5 cup air',
+        'eyebrow': 'SLIDE 1 UPDATED',
+        'theme': 'dark',
+      }, base);
+
+      expect(patched.slides.length, 5);
+      expect(patched.title, 'Cara Memasak Nasi');
+      expect(patched.slides.first, contains('Takaran'));
     });
 
     testWidgets('renders slide with embedded image in split layout', (tester) async {

@@ -30,7 +30,14 @@ pub fn catalog_web_after_stock(phase: CatalogWebPhase, row_count: usize) -> bool
 }
 
 pub fn catalog_skip_web_prefetch(matched_ids: &[String], phase: CatalogWebPhase) -> bool {
-    phase != CatalogWebPhase::Off || matched_ids.iter().any(|id| id == "inst.site.catalog.write")
+    phase != CatalogWebPhase::Off
+        || matched_ids.iter().any(|id| {
+            id == "inst.site.catalog.write"
+                || id == "inst.site.builder"
+                || id == "inst.device.facts"
+                || id.starts_with("inst.mention.device_")
+                || id == "inst.browser.topic"
+        })
 }
 
 #[cfg(test)]
@@ -71,6 +78,12 @@ mod tests {
             "inst.web_search".into(),
         ];
         assert_eq!(catalog_web_phase(&ids, true), CatalogWebPhase::Off);
+        assert!(catalog_skip_web_prefetch(&ids, CatalogWebPhase::Off));
+    }
+
+    #[test]
+    fn catalog_web_site_builder_skips_prefetch() {
+        let ids = vec!["inst.site.builder".into(), "inst.web_search".into()];
         assert!(catalog_skip_web_prefetch(&ids, CatalogWebPhase::Off));
     }
 }

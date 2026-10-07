@@ -11,7 +11,8 @@ use c35_mod_admin::{
     admin_user_search,
 };
 use c35_mod_billing::{
-    billing_admin_adjust, billing_admin_adjust_list, billing_history, billing_notify_owner,
+    billing_admin_adjust, billing_admin_adjust_list, billing_admin_plan_change, billing_history,
+    billing_notify_owner,
     billing_entitlement_list, billing_package_preview, billing_package_redeem, billing_play_product_list,
     billing_play_verify, billing_plan_change, billing_voucher_limit_get, billing_voucher_limit_put,
     billing_plan_quote, billing_voucher_before_code_delete, billing_voucher_issue, billing_voucher_list,
@@ -815,6 +816,17 @@ pub async fn dispatch_invoke(state: &AppState, req: InvokeReq) -> InvokeRes {
                     status_code: 200,
                     error_message: String::new(),
                     body: Some(invoke_res::Body::BillingAdminAdjustList(res)),
+                },
+                Err(e) => invoke_error(&req_id, e.status_code, e.message),
+            }
+        }
+        Some(invoke_req::Body::BillingAdminPlanChange(r)) => {
+            match billing_admin_plan_change(pool, iid, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::BillingAdminPlanChange(res)),
                 },
                 Err(e) => invoke_error(&req_id, e.status_code, e.message),
             }

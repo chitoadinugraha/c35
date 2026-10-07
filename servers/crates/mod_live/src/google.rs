@@ -197,6 +197,8 @@ pub async fn live_google_proxy_run(
     if let Some(tv) = tools_val.clone() {
         setup_obj["tools"] = tv;
     }
+    c35_mod_llm::gemini_request_reject_provider_grounding(&setup_obj)
+        .expect("Live setup must not enable provider web grounding; use cluster web.search");
     let setup = json!({ "setup": setup_obj });
     if g_tx.send(GMsg::Text(setup.to_string().into())).await.is_err() {
         let _ = live_billing_abort(&pool, &req_id).await;
@@ -1138,6 +1140,8 @@ fn live_setup_message(model: &str, voice_name: &str, system: &str, resume: &crat
     if let Some(tv) = tools {
         setup_obj["tools"] = tv.clone();
     }
+    c35_mod_llm::gemini_request_reject_provider_grounding(&setup_obj)
+        .expect("Live setup must not enable provider web grounding; use cluster web.search");
     json!({ "setup": setup_obj })
 }
 

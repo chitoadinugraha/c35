@@ -1,0 +1,55 @@
+---
+description: Web grounding via cluster web.search only — never provider Google Search / grounding APIs
+alwaysApply: true
+---
+
+# Web grounding — cluster tools only (no provider grounding)
+
+Mirrored for Antigravity: [`.agents/rules/web-grounding-cluster-only.md`](../../.agents/rules/web-grounding-cluster-only.md)
+
+## Hard rule
+
+**Do not enable, add, or suggest provider-native web grounding** on LLM requests. That includes opaque upstream search the provider bills and logs outside `ai.log`.
+
+Forbidden in **Gemini / Vertex** request bodies (generateContent, Live setup, etc.):
+
+- `googleSearch`, `enterpriseWebSearch`, `groundingConfig`
+- `google_search_retrieval`, `dynamicRetrievalConfig`
+
+Forbidden on **OpenAI / compatible** chat payloads:
+
+- `web_search_options`
+- Tools with `"type": "web_search"` or `"web_search_preview"`
+
+This is **final** for Home chat, channels, and Live Call unless the user explicitly asks to **change grounding architecture** (not a one-off model flag).
+
+## What to use instead
+
+| Need | Use |
+|------|-----|
+| Live facts, news, prices, local listings | **`web.search`** (SearXNG cluster) via tool catalog / Live `web_search` decl |
+| Page text | **`web.visit`** |
+| Multi-query dossier | **`web.research`** |
+| When to search / force hop | **`inst.web_search`** + Rust web pipeline (`prompt-run-test.mdc` **Excluded: web pipeline**) |
+
+Docs: [`_/docs/chat.md`](../../_/docs/chat.md) (Web Grounding), [`_/docs/live-call.md`](../../_/docs/live-call.md) section 4.
+
+## Agent checklist
+
+1. No forbidden keys in Gemini/OpenAI JSON under `servers/**` or `clients/**`.
+2. Outgoing Gemini bodies pass `gemini_request_reject_provider_grounding` (`c35_mod_llm`).
+3. Before claiming done on LLM/live changes: `.\_\scripts\dev\check_no_provider_grounding.ps1` (or `-Changed`).
+
+## Forbidden vs allowed
+
+```json
+// BAD — provider grounding
+{ "tools": [{ "googleSearch": {} }] }
+```
+
+```json
+// GOOD — cluster function tool (name may be web_search on wire)
+{ "tools": [{ "functionDeclarations": [{ "name": "web_search", ... }] }] }
+```
+
+Prefetch/inject results via `web_grounding_append_user_context` and `tool_loop_run_web_search` — not `groundingConfig`.

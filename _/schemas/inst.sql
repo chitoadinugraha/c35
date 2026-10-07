@@ -158,8 +158,8 @@ If a tool returns ok=false or empty output, say so plainly — do not invent con
 Multi-step UI automation (click/type flows) is computer_use / delegate — not this topic unless the user explicitly asks to operate the machine.',
     ARRAY[]::TEXT[],
     ARRAY[]::TEXT[],
-    ARRAY['device.screenshot', 'shell.run', 'device.fs.list'],
-    ARRAY['device.input'],
+    ARRAY['device.screenshot', 'shell.run', 'device.fs.list', 'device.fs.read'],
+    ARRAY['device.input', 'web.search', 'web.visit', 'web.research'],
     140,
     'seed',
     NOW()
@@ -1400,8 +1400,12 @@ INSERT INTO ai.inst (
     'task',
     '',
     '[SITE BUILDER] User wants to create or edit a website, landing page, or web catalog. \
-0. DISCOVERY BEFORE site.create (CRITICAL): \
-- Do NOT call site.create on the first turn or when the user only gives a business name or says "buat website". \
+0a. ONE-SHOT SITE + CATALOG (skip discovery): When the same message asks to create/buat a site AND lists products and/or prices, or mentions POS / fitur POS, skip section 0 questions. Same turn (multiple tool calls): \
+(1) site.create — use the business/site name from the message; if they give a slug/handle (e.g. test-site) pass alien_id (lowercase [a-z0-9_-] only). Commerce/POS is enabled on create. \
+(2) site.product_put once per product with site_iid from site.create — price in IDR rupiah as integer (20rb / 20 ribu -> 20000). \
+Reply briefly with site name, handle/URL, and products added. Offer site.publish if they want it live. \
+0. DISCOVERY BEFORE site.create (when 0a does not apply): \
+- Do NOT call site.create on the first turn when the user only gives a business name or says "buat website" without products/prices/POS. \
 - Ask one short message with numbered questions (Indonesian OK): \
   (1) Website ini untuk apa / jual apa? (wajib) \
   (2) Ada link referensi? Instagram, Linktree, Shopee, Tokopedia, atau URL lain (minta jika ada; boleh jawab tidak ada) \
@@ -1427,15 +1431,18 @@ INSERT INTO ai.inst (
 - When the user is satisfied, call site.publish to publish the draft to production.',
     ARRAY[
         'bikin web', 'buat web', 'bikin website', 'buat website',
+        'buat situs', 'bikin situs', 'buatkan situs',
+        'buatkan websitenya', 'buatkan sitenya', 'buatkan website',
         'bikin landing page', 'buat landing page', 'create site', 'build website',
-        'create website', 'make website', 'site builder', 'website builder'
+        'create website', 'make website', 'site builder', 'website builder',
+        'fitur pos'
     ],
     ARRAY[
         'tool_include:site.create', 'tool_include:site.patch', 'tool_include:site.handle.update',
         'tool_exclude:web.search', 'tool_exclude:web.visit'
     ]::TEXT[],
-    ARRAY['site.create', 'site.patch', 'site.handle.update', 'site.publish', 'img.generate'],
-    ARRAY['web.search', 'web.visit'],
+    ARRAY['site.create', 'site.patch', 'site.handle.update', 'site.publish', 'site.product_put', 'img.generate'],
+    ARRAY['web.search', 'web.visit', 'consumption.today'],
     150,
     'seed',
     NOW()
@@ -1765,9 +1772,9 @@ INSERT INTO ai.inst (
     '',
     '[STAFF ASSETS] List another user''s paired devices or bots. Resolve user with subject_handle or subject_uid (admin.user.search). Devices: admin.device.list. Bots: admin.bot.list. App installs: admin.client.list. Read-only; do not start task runs or device commands unless the operator is root and explicitly asks.',
     ARRAY[
-        'list devices', 'daftar device', 'device user', 'paired devices',
-        'list bots', 'daftar bot', 'bot milik', 'bots user',
-        'client installs', 'app version user'
+        'list devices for user', 'daftar device user', 'device user',
+        'list bots for user', 'daftar bot user', 'bot milik user', 'bots user',
+        'client installs user', 'app version user'
     ],
     ARRAY[
         'tool_include:admin.device.list',
@@ -1849,6 +1856,195 @@ INSERT INTO ai.inst (
     include_tools = EXCLUDED.include_tools,
     exclude_tools = EXCLUDED.exclude_tools,
     requires_global_roles = EXCLUDED.requires_global_roles,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: pair remote device via pairing code (Home prompt)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.device.pair',
+    'role:personal_assistant',
+    'task',
+    '',
+    '[DEVICE.PAIR] User wants to pair or add a PC, browser agent, or IoT device using a pairing code (often in quotes after "pair"). Extract the full code (XXXXX-XXXXX or 10 chars). Call device.pair with code. On success confirm device name and type; on error explain expired/claimed/invalid — do not guess.',
+    ARRAY[
+        'pair device', 'pairing code', 'pasangkan device', 'pasangkan pc',
+        'pair "', 'pair ''', 'add device', 'hubungkan device', 'kode pairing'
+    ],
+    ARRAY['tool_include:device.pair'],
+    ARRAY['device.pair'],
+    ARRAY[]::TEXT[],
+    132,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    scope = EXCLUDED.scope,
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: signed-in user profile (Home personal assistant)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.account.profile',
+    'role:personal_assistant',
+    'task',
+    '',
+    '[ACCOUNT PROFILE] User asks about their own profile or account identity (name, alien_id, email, phone, locale, timezone, location). Call account.get. Summarize from tool JSON only — never invent fields.',
+    ARRAY[
+        'profil saya', 'profile saya', 'my profile', 'lihat profil', 'data diri',
+        'akun saya siapa', 'who am i', 'info akun saya'
+    ],
+    ARRAY['tool_include:account.get'],
+    ARRAY['account.get'],
+    ARRAY[]::TEXT[],
+    127,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    scope = EXCLUDED.scope,
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: wallet balance, plan, and billing history (Home)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.account.billing',
+    'role:personal_assistant',
+    'task',
+    '',
+    '[ACCOUNT BILLING] User asks about wallet balance, saldo, plan tier, quota, trial/freemium, or recent top-ups and AI usage charges. \
+For balance or plan: account.billing.get. For transaction history: account.billing.history (limit 10 unless they ask for more). Reply with amounts and currency from tool results.',
+    ARRAY[
+        'berapa saldo saya', 'saldo saya', 'cek saldo', 'saldo dompet', 'saldo wallet',
+        'my balance', 'wallet balance', 'how much credit', 'plan saya', 'paket saya',
+        'riwayat topup', 'billing history', 'usage history', 'tagihan ai'
+    ],
+    ARRAY['tool_include:account.billing.get', 'tool_include:account.billing.history'],
+    ARRAY['account.billing.get', 'account.billing.history'],
+    ARRAY['web.search', 'web.visit', 'web.research'],
+    130,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    scope = EXCLUDED.scope,
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: referral wallet / commission stats for self (not code CRUD — see inst.referral_*)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.account.referral',
+    'role:personal_assistant',
+    'task',
+    '',
+    '[ACCOUNT REFERRAL STATS] User asks about referral earnings, commission wallet, downline counts, or commission ledger/history for themselves. \
+Stats and wallet: account.referral.stats. Ledger or transaction history: account.referral.ledger (limit 20 unless they ask for more). \
+Do not use referral.code.* unless they explicitly want to create or list signup codes.',
+    ARRAY[
+        'komisi saya', 'komisi referral', 'pendapatan referral', 'wallet referral',
+        'referral stats', 'statistik referral', 'berapa komisi', 'commission balance',
+        'berapa yang saya refer', 'referral earnings', 'riwayat komisi', 'mutasi komisi',
+        'commission ledger', 'referral transactions'
+    ],
+    ARRAY['tool_include:account.referral.stats', 'tool_include:account.referral.ledger'],
+    ARRAY['account.referral.stats', 'account.referral.ledger'],
+    ARRAY[]::TEXT[],
+    135,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    scope = EXCLUDED.scope,
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: bots, devices, sites, app installs owned by the signed-in user
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.account.assets',
+    'role:personal_assistant',
+    'task',
+    '',
+    '[ACCOUNT ASSETS] User wants to list their bots, paired devices, sites, or app installs. \
+Bots: bot.list. Devices: device.list. Sites: site.list. App clients: client.list. Pick the tool that matches what they asked; call one or more as needed. Summarize as a short list from tool JSON.',
+    ARRAY[
+        'daftar bot saya', 'daftar bot', 'bot saya', 'my bots', 'list bots', 'bots milik saya',
+        'daftar device', 'daftar perangkat', 'device saya', 'paired devices', 'my devices',
+        'daftar site', 'site saya', 'my sites', 'list sites',
+        'app install', 'client install', 'versi app saya'
+    ],
+    ARRAY[
+        'tool_include:bot.list',
+        'tool_include:device.list',
+        'tool_include:site.list',
+        'tool_include:client.list'
+    ],
+    ARRAY['bot.list', 'device.list', 'site.list', 'client.list'],
+    ARRAY[]::TEXT[],
+    139,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    scope = EXCLUDED.scope,
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: combined account snapshot (profile + billing + referral + recent history)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.account.snapshot',
+    'role:personal_assistant',
+    'task',
+    '',
+    '[ACCOUNT SNAPSHOT] User wants a full account overview in one shot (profile, saldo, referral stats, recent billing). Call account.snapshot. \
+Present a concise summary in the user language from the combined tool payload — do not call separate account.* tools unless snapshot fails.',
+    ARRAY[
+        'ringkasan akun', 'snapshot akun', 'account snapshot', 'overview akun',
+        'ringkasan saldo dan profil', 'status akun saya', 'cek semua akun'
+    ],
+    ARRAY['tool_include:account.snapshot'],
+    ARRAY['account.snapshot'],
+    ARRAY[]::TEXT[],
+    125,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    scope = EXCLUDED.scope,
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
     priority = EXCLUDED.priority,
     updated_ts = NOW();
 

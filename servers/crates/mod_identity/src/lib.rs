@@ -30,6 +30,8 @@ pub use auth_password::{
 pub use auth_session::{auth_session_caller_iid, auth_session_create, auth_session_resolve, auth_token_extract};
 pub use identity_grant_patch::identity_grant_patch;
 pub use identity_list::identity_list;
+pub use identity_nav_counts::identity_nav_counts;
+pub use identity_profile_get::identity_profile_get;
 pub use identity_delete::{identity_delete, identity_kind_get};
 pub use identity_put::identity_put;
 pub use session_init::session_init;

@@ -664,6 +664,14 @@ message ReqBillingAdminAdjust {
   string note = 8;
 }
 
+// Root / director staff: set personal plan for another root or director account.
+message ReqBillingAdminPlanChange {
+  int64 subject_uid = 1;
+  string plan_slug = 2;
+  string billing_period = 3;
+  string currency = 4;
+}
+
 message ResBillingAdminAdjust {
   double balance_idr = 1;
   double balance_usd = 2;

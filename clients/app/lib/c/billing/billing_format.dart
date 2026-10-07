@@ -1,12 +1,96 @@
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/ui/ui_format.dart';
+import 'package:fixnum/fixnum.dart';
 const billingFreemiumMsgsLimit = 30;
 const billingFreemiumTokensLimit = 30000;
 
 const _billingPaidPlanTiers = {'lite', 'plus', 'pro', 'ultra'};
 
+/// User-plan monthly pools: frontier_pool_idr / alien_pool_idr (same ratio all tiers).
+const billingFrontierAlienPoolRatio = 0.2;
+
 bool billingPlanTierIsPaid(String tier) => _billingPaidPlanTiers.contains(tier.trim().toLowerCase());
+
+/// Paid signup-trial caps are 0.0125 / 0.25 — below any retail plan ring row.
+bool billingAccountPaidEntitlement(BillingAccount? account) {
+  if (account == null) return false;
+  if (billingPlanTierIsPaid(account.planTier)) return true;
+  final now = DateTime.now().millisecondsSinceEpoch;
+  if (account.hasPlanExpiresTsMs() && account.planExpiresTsMs.toInt() > now && account.alienAllow5hLimit > 0.04) {
+    return true;
+  }
+  return account.alienAllow5hLimit >= 0.2 || account.alienAllowWeeklyLimit >= 4.0;
+}
+
+String billingPlanTierInferFromRings(double alien5h, double alienWeek) {
+  if (alien5h >= 3.5 && alienWeek >= 60) return 'ultra';
+  if (alien5h >= 0.75 && alienWeek >= 15) return 'pro';
+  if (alien5h >= 0.15 && alienWeek >= 3) return 'plus';
+  if (alien5h >= 0.04 && alienWeek >= 0.75) return 'lite';
+  return 'free';
+}
+
+String billingPlanTierDisplay(BillingAccount account) {
+  final reconciled = billingAccountPackageReconcile(account);
+  final tier = reconciled.planTier.trim();
+  return tier.isNotEmpty ? tier : 'free';
+}
+
+bool billingQuotaPushHasFrontierLimits(BillingPushQuota quota) =>
+    quota.frontierAllow5hLimit > 0 || quota.frontierAllowWeeklyLimit > 0;
+
+/// Backfill missing Frontier 5h/7d caps from Alien rings (matches server `frontier_rings_from_alien`).
+({double limit5h, double limitWeekly}) billingFrontierRingLimitsDerive({
+  required String planTier,
+  required double alien5hLimit,
+  required double alienWeeklyLimit,
+  required double frontier5hLimit,
+  required double frontierWeeklyLimit,
+}) {
+  if (frontier5hLimit > 0 || frontierWeeklyLimit > 0) {
+    return (limit5h: frontier5hLimit, limitWeekly: frontierWeeklyLimit);
+  }
+  if (!billingPlanTierIsPaid(planTier) || (alien5hLimit <= 0 && alienWeeklyLimit <= 0)) {
+    return (limit5h: frontier5hLimit, limitWeekly: frontierWeeklyLimit);
+  }
+  return (
+    limit5h: alien5hLimit * billingFrontierAlienPoolRatio,
+    limitWeekly: alienWeeklyLimit * billingFrontierAlienPoolRatio,
+  );
+}
+
+BillingAccount billingAccountPackageReconcile(BillingAccount account) {
+  var out = billingAccountFrontierRingsResolve(account);
+  if (billingAccountPaidEntitlement(out)) {
+    if (!billingPlanTierIsPaid(out.planTier)) {
+      out = out.deepCopy();
+      out.planTier = billingPlanTierInferFromRings(out.alienAllow5hLimit, out.alienAllowWeeklyLimit);
+    }
+    if (out.freemiumActive) {
+      out = out.deepCopy();
+      out.freemiumActive = false;
+    }
+  }
+  return out;
+}
+
+BillingAccount billingAccountFrontierRingsResolve(BillingAccount account) {
+  final derived = billingFrontierRingLimitsDerive(
+    planTier: account.planTier,
+    alien5hLimit: account.alienAllow5hLimit,
+    alienWeeklyLimit: account.alienAllowWeeklyLimit,
+    frontier5hLimit: account.frontierAllow5hLimit,
+    frontierWeeklyLimit: account.frontierAllowWeeklyLimit,
+  );
+  if (derived.limit5h == account.frontierAllow5hLimit && derived.limitWeekly == account.frontierAllowWeeklyLimit) {
+    return account;
+  }
+  final out = account.deepCopy();
+  out.frontierAllow5hLimit = derived.limit5h;
+  out.frontierAllowWeeklyLimit = derived.limitWeekly;
+  return out;
+}
 
 bool billingTrialActive(BillingAccount? account) {
   if (account == null || !account.hasTrialExpiresTsMs()) return false;
@@ -16,7 +100,7 @@ bool billingTrialActive(BillingAccount? account) {
 /// Daily free tier UI — not for paid plans, signup trial, or loading placeholders.
 bool billingFreemiumActive(BillingAccount? account) {
   if (account == null) return false;
-  if (billingPlanTierIsPaid(account.planTier)) return false;
+  if (billingAccountPaidEntitlement(account)) return false;
   if (billingTrialActive(account)) return false;
   return account.freemiumActive;
 }
@@ -134,9 +218,46 @@ bool billingPushBalanceIsStale(BillingAccount base, BillingPushBalance push) {
   return pushTs > 0 && baseTs > pushTs;
 }
 
+bool billingPushBalanceShouldApply(BillingAccount base, BillingPushBalance push) {
+  if (billingPushBalanceIsStale(base, push)) return false;
+  final pushTs = push.hasUpdatedTsMs() ? push.updatedTsMs.toInt() : 0;
+  if (pushTs > 0) return true;
+  return base.balanceIdr <= 0 && base.balanceUsd <= 0;
+}
+
+bool billingAccountPaidShell(BillingAccount account) =>
+    billingPlanTierIsPaid(account.planTier) || billingAccountPaidEntitlement(account);
+
+bool billingAccountIncomingDowngradesPaid(BillingAccount prev, BillingAccount incoming) {
+  if (!billingAccountPaidShell(prev)) return false;
+  return !billingPlanTierIsPaid(incoming.planTier) && !billingAccountPaidEntitlement(incoming);
+}
+
+double _billingMaxDouble(double a, double b) => a > b ? a : b;
+
+Int64 _billingMaxInt64(Int64 a, Int64 b) => a.toInt() >= b.toInt() ? a : b;
+
+/// Quota pushes are usage-only for paid users — never let them downgrade tier, rings, or balance.
+BillingAccount billingAccountPackageRetainPaid(BillingAccount prev, BillingAccount incoming) {
+  if (!billingAccountPaidShell(prev)) return incoming;
+  final out = incoming.deepCopy();
+  if (billingPlanTierIsPaid(prev.planTier)) out.planTier = prev.planTier;
+  out.alienAllow5hLimit = _billingMaxDouble(prev.alienAllow5hLimit, out.alienAllow5hLimit);
+  out.alienAllowWeeklyLimit = _billingMaxDouble(prev.alienAllowWeeklyLimit, out.alienAllowWeeklyLimit);
+  out.frontierAllow5hLimit = _billingMaxDouble(prev.frontierAllow5hLimit, out.frontierAllow5hLimit);
+  out.frontierAllowWeeklyLimit = _billingMaxDouble(prev.frontierAllowWeeklyLimit, out.frontierAllowWeeklyLimit);
+  out.balanceIdr = _billingMaxDouble(prev.balanceIdr, out.balanceIdr);
+  out.balanceUsd = _billingMaxDouble(prev.balanceUsd, out.balanceUsd);
+  if (prev.hasPlanExpiresTsMs()) {
+    out.planExpiresTsMs = _billingMaxInt64(prev.planExpiresTsMs, out.planExpiresTsMs);
+  }
+  out.freemiumActive = false;
+  return out;
+}
+
 BillingAccount billingAccountMerge(BillingAccount base, {BillingPushBalance? balance, BillingPushQuota? quota, BillingPushCommission? commission}) {
   final out = base.deepCopy();
-  if (balance != null && !billingPushBalanceIsStale(base, balance)) {
+  if (balance != null && billingPushBalanceShouldApply(base, balance)) {
     out.balanceUsd = balance.balanceUsd;
     out.balanceIdr = balance.balanceIdr;
     if (balance.hasUpdatedTsMs()) out.updatedTsMs = balance.updatedTsMs;
@@ -148,25 +269,32 @@ BillingAccount billingAccountMerge(BillingAccount base, {BillingPushBalance? bal
     }
   }
   if (quota != null) {
+    final paidShell = billingAccountPaidShell(base);
     out.alienAllow5hUsed = quota.alienAllow5hUsed;
-    out.alienAllow5hLimit = quota.alienAllow5hLimit;
     out.alienAllowWeeklyUsed = quota.alienAllowWeeklyUsed;
-    out.alienAllowWeeklyLimit = quota.alienAllowWeeklyLimit;
+    out.frontierAllow5hUsed = quota.frontierAllow5hUsed;
+    out.frontierAllowWeeklyUsed = quota.frontierAllowWeeklyUsed;
     if (quota.hasWindow5hStartMs()) out.window5hStartMs = quota.window5hStartMs;
     if (quota.hasWindowWeeklyStartMs()) out.windowWeeklyStartMs = quota.windowWeeklyStartMs;
-    final freemiumFromPush = quota.freemiumActive;
-    out.freemiumMsgsUsed = quota.freemiumMsgsUsed;
-    out.freemiumMsgsLimit = quota.freemiumMsgsLimit;
-    out.freemiumTokensUsed = quota.freemiumTokensUsed;
-    out.freemiumTokensLimit = quota.freemiumTokensLimit;
-    out.freemiumActive = freemiumFromPush;
-    if (quota.hasPlanExpiresTsMs()) out.planExpiresTsMs = quota.planExpiresTsMs;
-    if (quota.hasTrialExpiresTsMs()) out.trialExpiresTsMs = quota.trialExpiresTsMs;
-    out.frontierAllow5hUsed = quota.frontierAllow5hUsed;
-    out.frontierAllow5hLimit = quota.frontierAllow5hLimit;
-    out.frontierAllowWeeklyUsed = quota.frontierAllowWeeklyUsed;
-    out.frontierAllowWeeklyLimit = quota.frontierAllowWeeklyLimit;
-    if (!billingFreemiumActive(out)) out.freemiumActive = false;
+    if (!paidShell) {
+      out.alienAllow5hLimit = quota.alienAllow5hLimit;
+      out.alienAllowWeeklyLimit = quota.alienAllowWeeklyLimit;
+      out.freemiumMsgsUsed = quota.freemiumMsgsUsed;
+      out.freemiumMsgsLimit = quota.freemiumMsgsLimit;
+      out.freemiumTokensUsed = quota.freemiumTokensUsed;
+      out.freemiumTokensLimit = quota.freemiumTokensLimit;
+      out.freemiumActive = quota.freemiumActive;
+      if (quota.hasPlanExpiresTsMs()) out.planExpiresTsMs = quota.planExpiresTsMs;
+      if (quota.hasTrialExpiresTsMs()) out.trialExpiresTsMs = quota.trialExpiresTsMs;
+      if (billingQuotaPushHasFrontierLimits(quota)) {
+        out.frontierAllow5hLimit = quota.frontierAllow5hLimit;
+        out.frontierAllowWeeklyLimit = quota.frontierAllowWeeklyLimit;
+      }
+    } else {
+      out.freemiumActive = false;
+      final qPlanExp = quota.hasPlanExpiresTsMs() ? quota.planExpiresTsMs.toInt() : 0;
+      if (qPlanExp > 0) out.planExpiresTsMs = quota.planExpiresTsMs;
+    }
   }
   if (commission != null) {
     out.commissionAvailableUsd = commission.commissionAvailableUsd;
@@ -174,5 +302,5 @@ BillingAccount billingAccountMerge(BillingAccount base, {BillingPushBalance? bal
     out.commissionAvailableIdr = commission.commissionAvailableIdr;
     out.commissionEarnedIdr = commission.commissionEarnedIdr;
   }
-  return out;
+  return billingAccountPackageReconcile(billingAccountPackageRetainPaid(base, out));
 }

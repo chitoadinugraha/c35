@@ -1,19 +1,23 @@
+import 'package:alienai_c35/widgets/ai/ui_msg_copy_prefix.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-String rootErrorCopyText({required String detail, String? messageId}) {
+String rootErrorCopyText({required String detail, int msgId = 0, String reqId = ''}) {
   final text = detail.trim();
   if (text.isEmpty) return '';
-  final id = messageId?.trim() ?? '';
-  if (id.isEmpty) return text;
-  return '[Message ID $id]\n$text';
+  final idLine = msgId > 0
+      ? msgCopyClipboardId('Message ID', '$msgId')
+      : (reqId.trim().isNotEmpty ? msgCopyClipboardId('Request ID', reqId.trim()) : '');
+  if (idLine.isEmpty) return text;
+  return '$idLine\n$text';
 }
 
 class UiRootErrorDetail extends StatelessWidget {
-  const UiRootErrorDetail({super.key, required this.detail, this.messageId});
+  const UiRootErrorDetail({super.key, required this.detail, this.msgId = 0, this.reqId = ''});
 
   final String detail;
-  final String? messageId;
+  final int msgId;
+  final String reqId;
 
   Widget _copyButton(BuildContext context) {
     final btn = InkWell(
@@ -29,7 +33,7 @@ class UiRootErrorDetail extends StatelessWidget {
   }
 
   void _copy(BuildContext context) {
-    final text = rootErrorCopyText(detail: detail, messageId: messageId);
+    final text = rootErrorCopyText(detail: detail, msgId: msgId, reqId: reqId);
     if (text.isEmpty) return;
     Clipboard.setData(ClipboardData(text: text));
     final messenger = ScaffoldMessenger.maybeOf(context);

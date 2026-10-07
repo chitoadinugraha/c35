@@ -43,6 +43,33 @@ fn meta_is_root(meta: &serde_json::Value) -> bool {
         .unwrap_or(false)
 }
 
+fn meta_has_director(meta: &serde_json::Value) -> bool {
+    meta.get("global_roles")
+        .and_then(|v| v.as_array())
+        .map(|a| a.iter().any(|x| x.as_str() == Some("director")))
+        .unwrap_or(false)
+}
+
+async fn issuer_root_or_director(pool: &PgPool, issuer_iid: i64) -> bool {
+    if issuer_iid == 99_000 {
+        return true;
+    }
+    if issuer_iid <= 0 {
+        return false;
+    }
+    let row = sqlx::query("SELECT meta FROM ai.identity WHERE id = $1 AND deleted_ts IS NULL")
+        .bind(issuer_iid)
+        .fetch_optional(pool)
+        .await
+        .ok()
+        .flatten();
+    let Some(row) = row else {
+        return false;
+    };
+    let meta: serde_json::Value = row.try_get("meta").unwrap_or(serde_json::json!({}));
+    meta_is_root(&meta) || meta_has_director(&meta)
+}
+
 fn alien_id_handle(alien_id: Option<String>) -> String {
     let a = alien_id.unwrap_or_default();
     let a = a.trim().trim_start_matches('@');
@@ -307,6 +334,9 @@ pub async fn referral_code_put(
     iid: i64,
     doc: ReferralCodeDoc,
 ) -> Result<ReferralCodeDoc, String> {
+    if doc.r#type.trim().eq_ignore_ascii_case("package") && !issuer_root_or_director(pool, iid).await {
+        return Err("package codes require root or director".into());
+    }
     let code = normalize_code(&doc.code);
     if code.is_empty() {
         return Err("code required".into());

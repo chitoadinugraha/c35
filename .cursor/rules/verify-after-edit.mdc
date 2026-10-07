@@ -32,6 +32,14 @@ Run Cargo from `servers/` or `remotes/` so output stays in `.cache/` (not `serve
 
 Run `cargo test -p CRATE` when the edited crate has tests.
 
+LLM / Live / `web_grounding` / Gemini request paths (`mod_chat`, `mod_live`, `mod_llm`):
+
+```powershell
+.\_\scripts\dev\check_no_provider_grounding.ps1 -Changed
+```
+
+See `web-grounding-cluster-only.mdc` — no provider `googleSearch` / OpenAI `web_search` tool types.
+
 ## Remote agent (`remotes/**`)
 
 ```powershell

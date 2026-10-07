@@ -292,6 +292,8 @@ Steering: `inst.chat.history`. Memory stays for durable user facts, not transcri
 
 ## Web Grounding & Citations
 
+**Policy:** Factual grounding uses **cluster tools only** (`web.search` / `web.visit` / `web.research`). Do **not** enable provider-native grounding (Gemini `googleSearch`, Vertex retrieval config, OpenAI `web_search` tool type). Agents: `web-grounding-cluster-only.mdc`; CI/pre-commit: `check_no_provider_grounding.ps1`; runtime: `gemini_request_reject_provider_grounding` in `c35_mod_llm`.
+
 Ground factual queries using live web search and deep content scraping:
 
 | Tool | Implementation | Role |

@@ -11,6 +11,9 @@ import 'package:flutter/material.dart';
 const _chipText = Color(0xFFE4E4E7);
 const _muted = Color(0xFF71717A);
 
+Widget _liveCallExpandSlot({required bool expand, required Widget child}) =>
+    expand ? SizedBox(height: homeTalkCallChipHeight, width: double.infinity, child: child) : child;
+
 class _UiLiveCallChipLabel extends StatelessWidget {
   const _UiLiveCallChipLabel({this.offer, required this.enabled, this.soonSuffix, this.text, this.ellipsis = false});
 
@@ -77,19 +80,24 @@ class UiLiveCallChip extends StatelessWidget {
               _UiLiveCallChipLabel(offer: offer, enabled: enabled, soonSuffix: suffix, text: title, ellipsis: lineEllipsis);
 
           if (!showMenu) {
-            return UiHintChip(
-              icon: Icons.call_rounded,
-              enabled: defaultOffer.enabled,
-              theme: HintChipTheme.liveCall,
+            return _liveCallExpandSlot(
               expand: expand,
-              label: expand
-                  ? chipLabel(enabled: defaultOffer.enabled, suffix: soonSuffix, title: expandTitle, lineEllipsis: true)
-                  : chipLabel(offer: defaultOffer, enabled: defaultOffer.enabled, suffix: soonSuffix),
-              onPressed: defaultOffer.enabled ? () => start(defaultOffer) : null,
+              child: UiHintChip(
+                icon: Icons.call_rounded,
+                enabled: defaultOffer.enabled,
+                theme: HintChipTheme.liveCall,
+                expand: expand,
+                label: expand
+                    ? chipLabel(enabled: defaultOffer.enabled, suffix: soonSuffix, title: expandTitle, lineEllipsis: true)
+                    : chipLabel(offer: defaultOffer, enabled: defaultOffer.enabled, suffix: soonSuffix),
+                onPressed: defaultOffer.enabled ? () => start(defaultOffer) : null,
+              ),
             );
           }
 
-          return MenuAnchor(
+          return _liveCallExpandSlot(
+            expand: expand,
+            child: MenuAnchor(
             style: MenuStyle(
               backgroundColor: const WidgetStatePropertyAll(Color(0xFF18181B)),
               surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
@@ -135,6 +143,7 @@ class UiLiveCallChip extends StatelessWidget {
                       }
                     }
                   : null,
+            ),
             ),
           );
         },

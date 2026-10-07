@@ -1,16 +1,9 @@
 use anyhow::{bail, Context, Result};
-use serde_json::json;
+use serde_json::{json, Value};
 use std::path::Path;
 use crate::pdf_cas::{pdf_extract_for_hash, pdf_structure_for_hash, PDF_EXTRACT_DEFAULT_MAX_CHARS as EXTRACT_DEFAULT_MAX};
 use c35_mod_youtube::{video_extract_json, video_structure_json, EXTRACT_DEFAULT_MAX_CHARS as VIDEO_EXTRACT_DEFAULT};
 use crate::tool;
-
-fn cas_secret_from_env() -> String {
-    ["CAS_HMAC_SECRET", "C35_JWT_SECRET", "AGENT_SECRET_KEY"]
-        .into_iter()
-        .find_map(|k| std::env::var(k).ok())
-        .unwrap_or_default()
-}
 
 fn resolve_presentation_runner() -> Result<(String, Vec<String>)> {
     // 1. Direct binary env var
@@ -62,8 +55,152 @@ fn resolve_presentation_runner() -> Result<(String, Vec<String>)> {
     Ok(("bun".to_string(), vec!["run".to_string(), "scripts/presentation/render_pptx.ts".to_string()]))
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SlidePatchAction {
+    Replace,
+    Insert,
+    Delete,
+}
+
+#[derive(Debug, Clone)]
+struct SlidePatch {
+    action: SlidePatchAction,
+    slide_index: usize,
+    content: String,
+}
+
+fn slide_patch_digits_after(hay: &str, needle: &str) -> Option<usize> {
+    let h = hay.to_ascii_lowercase();
+    let n = needle.to_ascii_lowercase();
+    let at = h.find(&n)?;
+    let rest = hay[at + needle.len()..].trim();
+    let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+    digits.parse().ok().filter(|n| *n >= 1)
+}
+
+fn slide_patch_parse(raw: &str) -> Option<SlidePatch> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    if let Some(idx) = slide_patch_digits_after(trimmed, "slide-patch:delete") {
+        return Some(SlidePatch { action: SlidePatchAction::Delete, slide_index: idx, content: String::new() });
+    }
+    if let Some(idx) = slide_patch_digits_after(trimmed, "slide-patch:add after=") {
+        let body = trimmed
+            .split_once("-->")
+            .map(|(_, tail)| tail.trim())
+            .unwrap_or("")
+            .to_string();
+        return Some(SlidePatch { action: SlidePatchAction::Insert, slide_index: idx, content: body });
+    }
+    if let Some(idx) = slide_patch_digits_after(trimmed, "slide-patch:") {
+        let body = trimmed
+            .split_once("-->")
+            .map(|(_, tail)| tail.trim())
+            .unwrap_or("")
+            .to_string();
+        return Some(SlidePatch { action: SlidePatchAction::Replace, slide_index: idx, content: body });
+    }
+    None
+}
+
+fn slide_deck_apply(slides: &mut Vec<String>, patch: &SlidePatch) -> bool {
+    match patch.action {
+        SlidePatchAction::Replace => {
+            let idx = patch.slide_index - 1;
+            if idx < slides.len() {
+                slides[idx] = patch.content.clone();
+                true
+            } else {
+                false
+            }
+        }
+        SlidePatchAction::Insert => {
+            let idx = patch.slide_index;
+            if idx <= slides.len() {
+                slides.insert(idx, patch.content.clone());
+            } else {
+                slides.push(patch.content.clone());
+            }
+            true
+        }
+        SlidePatchAction::Delete => {
+            let idx = patch.slide_index - 1;
+            if idx < slides.len() && slides.len() > 1 {
+                slides.remove(idx);
+                true
+            } else {
+                false
+            }
+        }
+    }
+}
+
+fn presentation_deck_replay_block_body(body: &Value, title: &mut String, slides: &mut Vec<String>, theme: &mut String) {
+    if let Some(th) = body.get("theme").and_then(|v| v.as_str()) {
+        let tt = th.trim();
+        if !tt.is_empty() {
+            *theme = tt.to_string();
+        }
+    }
+    if let Some(arr) = body.get("slides").and_then(|v| v.as_array()) {
+        let list: Vec<String> = arr
+            .iter()
+            .filter_map(|v| v.as_str().map(|s| s.trim()).filter(|s| !s.is_empty()))
+            .map(|s| s.to_string())
+            .collect();
+        if !list.is_empty() {
+            *slides = list;
+            if let Some(t) = body.get("title").and_then(|v| v.as_str()) {
+                let tt = t.trim();
+                if !tt.is_empty() && tt != "Presentation" {
+                    *title = tt.to_string();
+                }
+            }
+        }
+        return;
+    }
+    if let Some(content) = body.get("content").and_then(|v| v.as_str()) {
+        if let Some(patch) = slide_patch_parse(content) {
+            slide_deck_apply(slides, &patch);
+        }
+    }
+}
+
+async fn presentation_deck_from_chat(pool: &sqlx::PgPool, owner_iid: i64, chat_id: i64) -> (String, Vec<String>, String) {
+    let mut title = "Presentation".to_string();
+    let mut slides: Vec<String> = Vec::new();
+    let mut theme = "dark".to_string();
+    if chat_id == 0 {
+        return (title, slides, theme);
+    }
+    let rows: Vec<Value> = sqlx::query_scalar(
+        "SELECT blocks_json FROM ai.chat_msg WHERE chat_id = $1 AND owner_iid = $2 AND deleted_ts IS NULL ORDER BY id ASC",
+    )
+    .bind(chat_id)
+    .bind(owner_iid)
+    .fetch_all(pool)
+    .await
+    .unwrap_or_default();
+    for blocks in rows {
+        let arr = blocks.as_array().cloned().unwrap_or_default();
+        for block in arr {
+            let kind = block.get("kind").and_then(|v| v.as_str()).unwrap_or("");
+            if !matches!(kind, "presentation.deck" | "slide.deck" | "presentation") {
+                continue;
+            }
+            if let Some(body) = block.get("body") {
+                presentation_deck_replay_block_body(body, &mut title, &mut slides, &mut theme);
+            }
+        }
+    }
+    (title, slides, theme)
+}
+
 pub async fn presentation_export_exec(
     pool: &sqlx::PgPool,
+    cas_secret: &str,
     slides_markdown: &str,
     title: &str,
     theme: &str,
@@ -117,7 +254,11 @@ pub async fn presentation_export_exec(
         bail!("Presentation generator returned empty output");
     }
 
-    let secret = cas_secret_from_env();
+    let secret = if cas_secret.trim().is_empty() {
+        c35_mod_file::cas_hmac_secret()
+    } else {
+        cas_secret.trim().to_string()
+    };
     let mime = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
     let put = c35_mod_file::cas_put(
         pool,
@@ -140,7 +281,8 @@ pub async fn presentation_export_exec(
     .collect::<String>();
 
     let filename = format!("{safe_title}.pptx");
-    let download_url = format!("{}/{}", put.url.trim_end_matches('/'), filename);
+    let download_url =
+        c35_mod_file::cas_sign_attachment(&secret, &put.hash, &filename, c35_mod_file::CAS_URL_TTL);
 
     Ok(json!({
         "ok": true,
@@ -185,7 +327,7 @@ tool! {
         let slides_markdown = args["slides_markdown"].as_str().unwrap_or_default();
         let title = args["title"].as_str().unwrap_or("Presentation");
         let theme = args["theme"].as_str().unwrap_or("dark");
-        presentation_export_exec(&ctx.pool, slides_markdown, title, theme).await
+        presentation_export_exec(&ctx.pool, &c35_mod_file::cas_hmac_secret(), slides_markdown, title, theme).await
     }
 }
 
@@ -373,12 +515,13 @@ tool! {
         action: (string, "Patch action: 'replace' (default), 'insert', or 'delete'", optional, default = "replace"),
         content: (string, "Markdown content for the replaced or inserted slide (not needed for delete)", optional, default = ""),
         title: (string, "Optional presentation title", optional, default = "Presentation"),
+        theme: (string, "Visual theme id to keep for the deck (e.g. arctic, dark). Omit to keep the theme from the existing deck.", optional, default = ""),
     },
-    execute: |args, _ctx| {
+    execute: |args, ctx| {
         let slide_index = args["slide_index"].as_u64().unwrap_or(1) as usize;
         let action = args["action"].as_str().unwrap_or("replace").trim().to_ascii_lowercase();
         let content = args["content"].as_str().unwrap_or("").trim();
-        let title = args["title"].as_str().unwrap_or("Presentation").trim();
+        let title_arg = args["title"].as_str().unwrap_or("Presentation").trim();
 
         let patch_comment = match action.as_str() {
             "delete" => format!("<!-- slide-patch:delete {slide_index} -->"),
@@ -386,12 +529,35 @@ tool! {
             _ => format!("<!-- slide-patch:{slide_index} -->\n{content}"),
         };
 
-        let eyebrow = match action.as_str() {
-            "delete" => format!("SLIDE {slide_index} DELETED"),
-            "insert" | "add" => format!("SLIDE ADDED AFTER {slide_index}"),
-            _ => format!("SLIDE {slide_index} UPDATED"),
+        let patch = slide_patch_parse(&patch_comment).unwrap_or(SlidePatch {
+            action: SlidePatchAction::Replace,
+            slide_index,
+            content: content.to_string(),
+        });
+
+        let eyebrow = match patch.action {
+            SlidePatchAction::Delete => format!("SLIDE {slide_index} DELETED"),
+            SlidePatchAction::Insert => format!("SLIDE ADDED AFTER {slide_index}"),
+            SlidePatchAction::Replace => format!("SLIDE {slide_index} UPDATED"),
         };
 
+        let (deck_title, mut slides, mut theme) =
+            presentation_deck_from_chat(&ctx.pool, ctx.owner_iid, ctx.chat_id).await;
+        if let Some(t) = args["theme"].as_str().map(|s| s.trim()).filter(|s| !s.is_empty()) {
+            theme = t.to_string();
+        }
+        if slides.is_empty() {
+            bail!("no presentation in this chat to patch; call presentation.create first");
+        }
+        if !slide_deck_apply(&mut slides, &patch) {
+            bail!("patch did not apply (slide_index={slide_index}, slide_count={})", slides.len());
+        }
+
+        let display_title = if title_arg.is_empty() || title_arg == "Presentation" {
+            deck_title
+        } else {
+            title_arg.to_string()
+        };
         let now_ms = chrono::Utc::now().timestamp_millis();
 
         Ok(json!({
@@ -399,12 +565,15 @@ tool! {
             "tool": "presentation.patch",
             "slide_index": slide_index,
             "action": action,
+            "slide_count": slides.len(),
             "patch": patch_comment,
             "block": {
                 "kind": "presentation.deck",
                 "collapsed": false,
                 "body": {
-                    "title": if title.is_empty() || title == "Presentation" { format!("Slide {slide_index} Updated") } else { title.to_string() },
+                    "title": display_title,
+                    "slides": slides,
+                    "theme": theme,
                     "content": patch_comment,
                     "created_at_ms": now_ms,
                     "eyebrow": eyebrow,
@@ -479,46 +648,50 @@ mod tests {
         assert_eq!(res["block"]["body"]["title"], "Cooking Guide");
     }
 
-    #[tokio::test]
-    async fn test_presentation_patch_execution() {
-        let tool = PresentationPatchTool;
-        let def = tool.definition();
-        assert_eq!(def.name, "presentation.patch");
-        assert!(def.always.contains(&"presentation".to_string()));
+    #[test]
+    fn presentation_deck_replay_applies_patch_on_existing_slides() {
+        let mut title = "Cooking".to_string();
+        let mut slides: Vec<String> = Vec::new();
+        let mut theme = "dark".to_string();
+        let create_body = json!({
+            "title": "Cooking",
+            "slides": ["# Step 1", "# Step 2", "# Step 3"],
+            "theme": "dark"
+        });
+        presentation_deck_replay_block_body(&create_body, &mut title, &mut slides, &mut theme);
+        assert_eq!(slides.len(), 3);
+        assert_eq!(title, "Cooking");
 
-        let ctx = crate::tools::ToolContext::new(
-            sqlx::PgPool::connect_lazy("postgres://localhost/test").unwrap(),
-            None,
-            1,
-            1,
-            None,
-            crate::mention_context::MentionContext::default(),
-            vec![],
-            "",
-            "en-US",
-            "",
-            "",
-            "",
-            "",
-            "req1",
-            reqwest::Client::new(),
-        );
-        let res = tool
-            .execute(
-                json!({
-                    "slide_index": 2,
-                    "action": "replace",
-                    "content": "# Updated Step 2\n- 4 minutes"
-                }),
-                &ctx,
-            )
-            .await
-            .unwrap();
+        let patch_body = json!({
+            "content": "<!-- slide-patch:2 -->\n# Updated Step 2\n- 4 minutes"
+        });
+        presentation_deck_replay_block_body(&patch_body, &mut title, &mut slides, &mut theme);
+        assert_eq!(slides.len(), 3);
+        assert!(slides[1].contains("Updated Step 2"));
 
-        assert_eq!(res["ok"], true);
-        assert_eq!(res["slide_index"], 2);
-        assert_eq!(res["block"]["kind"], "presentation.deck");
-        assert!(res["patch"].as_str().unwrap().contains("slide-patch:2"));
+        let theme_patch = json!({
+            "slides": slides.clone(),
+            "theme": "arctic",
+            "content": "<!-- slide-patch:1 -->\n# Step 1 revised"
+        });
+        presentation_deck_replay_block_body(&theme_patch, &mut title, &mut slides, &mut theme);
+        assert_eq!(theme, "arctic");
+    }
+
+    #[test]
+    fn slide_patch_parse_replace_insert_delete() {
+        let replace = slide_patch_parse("<!-- slide-patch:2 -->\n# New").expect("replace");
+        assert_eq!(replace.action, SlidePatchAction::Replace);
+        assert_eq!(replace.slide_index, 2);
+        assert_eq!(replace.content, "# New");
+
+        let insert = slide_patch_parse("<!-- slide-patch:add after=1 -->\n# Inserted").expect("insert");
+        assert_eq!(insert.action, SlidePatchAction::Insert);
+        assert_eq!(insert.slide_index, 1);
+
+        let delete = slide_patch_parse("<!-- slide-patch:delete 3 -->").expect("delete");
+        assert_eq!(delete.action, SlidePatchAction::Delete);
+        assert_eq!(delete.slide_index, 3);
     }
 }
 

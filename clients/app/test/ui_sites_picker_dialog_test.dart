@@ -1,38 +1,34 @@
-import 'package:alienai_c35/c/chat/chat_conn.dart';
-import 'package:alienai_c35/c/pb/c35/site.pb.dart';
-import 'package:alienai_c35/c/site/site_api.dart';
-import 'package:alienai_c35/widgets/sites/ui_sites_picker_dialog.dart';
-import 'package:fixnum/fixnum.dart';
+import 'package:alienai_c35/widgets/ui/io_ask_items.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('UiSitesPickerRows renders sites and Edit invokes callback', (tester) async {
+  testWidgets('ioAskItemTile with actions invokes Edit callback', (tester) async {
     String? editedId;
-    final rows = [
-      SiteRow(siteIid: Int64(42), alienId: 'kopi-demo', name: 'Kopi Demo'),
-      SiteRow(siteIid: Int64(99), alienId: 'bakery', name: 'Bakery'),
-    ];
+    final item = IoAskItem(
+      id: '42',
+      title: 'Kopi Demo',
+      subtitle: 'alienai.id/kopi-demo',
+      icon: Icons.language_outlined,
+      actions: [
+        IoAskItemAction(label: 'Visit', onTap: () {}),
+        IoAskItemAction(label: 'Edit', onTap: () => editedId = '42'),
+        IoAskItemAction(label: 'POS', onTap: () {}),
+      ],
+    );
 
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: UiSitesPickerRows(
-            rows: rows,
-            api: SiteApi(ChatConn()),
-            onVisit: (_) {},
-            onEdit: (id) => editedId = id,
-            onPos: (_) {},
-          ),
+          body: Builder(builder: (context) => ioAskItemTile(context, item)),
         ),
       ),
     );
 
     expect(find.text('Kopi Demo'), findsOneWidget);
     expect(find.text('alienai.id/kopi-demo'), findsOneWidget);
-    expect(find.text('Bakery'), findsOneWidget);
 
-    await tester.tap(find.text('Edit').first);
+    await tester.tap(find.text('Edit'));
     await tester.pump();
 
     expect(editedId, '42');

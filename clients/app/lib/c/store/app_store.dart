@@ -74,7 +74,11 @@ class AppStore extends ChangeNotifier {
   void billingPut(BillingAccount account, {bool force = false}) {
     final cur = billing;
     if (!force && cur != null && _billingUpdatedTsMs(cur) > _billingUpdatedTsMs(account) && _billingUpdatedTsMs(account) > 0) return;
-    billing = account;
+    var next = account;
+    if (cur != null && !force && billingAccountIncomingDowngradesPaid(cur, next)) {
+      next = billingAccountPackageRetainPaid(cur, next);
+    }
+    billing = billingAccountPackageReconcile(next);
     notifyListeners();
   }
 

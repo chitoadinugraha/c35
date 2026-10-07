@@ -3,9 +3,10 @@ use crate::tool;
 use crate::tools::context::ToolContext;
 use crate::tools::device_screenshot_artifact::device_screenshot_attach_artifact;
 use c35_mod_device::{
-    remote_device_command_run, remote_device_fs_list, remote_device_fs_read, remote_device_input_send,
-    remote_device_screenshot_capture,
+    device_pair, remote_device_command_run, remote_device_fs_list, remote_device_fs_read,
+    remote_device_input_send, remote_device_screenshot_capture,
 };
+use c35_proto::ReqDevicePair;
 use serde_json::{json, Value};
 
 fn device_fail_class(error: &str) -> (&'static str, bool) {
@@ -23,7 +24,7 @@ fn device_fail_class(error: &str) -> (&'static str, bool) {
     } else if e.contains("device_iid is required") || e.contains("device_iid required") {
         ("transient", true)
     } else {
-        ("fatal_env", false)
+        ("tool_error", false)
     }
 }
 
@@ -297,11 +298,105 @@ tool! {
     }
 }
 
+fn extract_user_subpath(path: &str) -> Option<String> {
+    let clean = path.trim().trim_matches('"').trim_matches('\'').trim();
+    if clean.is_empty() {
+        return None;
+    }
+    let norm = clean.replace('/', "\\");
+    let lower = norm.to_ascii_lowercase();
+
+    // Direct known folders or shell: shortcuts
+    for (name, canonical) in [
+        ("desktop", "Desktop"),
+        ("downloads", "Downloads"),
+        ("documents", "Documents"),
+        ("my documents", "Documents"),
+        ("personal", "Documents"),
+        ("pictures", "Pictures"),
+        ("videos", "Videos"),
+        ("music", "Music"),
+    ] {
+        if lower == name || lower == format!("shell:{name}") {
+            return Some(canonical.to_string());
+        }
+        if lower.starts_with(&format!("{name}\\")) {
+            let rest = &norm[name.len() + 1..];
+            return Some(format!("{}\\{}", canonical, rest));
+        }
+    }
+
+    // ~ or %userprofile% prefixes
+    for prefix in ["~\\", "%userprofile%\\"] {
+        if lower.starts_with(prefix) {
+            let rest = &norm[prefix.len()..];
+            return extract_user_subpath(rest);
+        }
+    }
+
+    // Full paths like C:\Users\<username>\<folder>[\<rest>]
+    if let Some(pos) = lower.find("\\users\\") {
+        let after_users = &lower[pos + 7..];
+        let after_users_norm = &norm[pos + 7..];
+        if let Some(slash_pos) = after_users.find('\\') {
+            let sub = &after_users[slash_pos + 1..];
+            let sub_norm = &after_users_norm[slash_pos + 1..];
+            for (name, canonical) in [
+                ("desktop", "Desktop"),
+                ("downloads", "Downloads"),
+                ("documents", "Documents"),
+                ("my documents", "Documents"),
+                ("pictures", "Pictures"),
+                ("videos", "Videos"),
+                ("music", "Music"),
+            ] {
+                if sub == name {
+                    return Some(canonical.to_string());
+                }
+                if sub.starts_with(&format!("{name}\\")) {
+                    let rest = &sub_norm[name.len() + 1..];
+                    return Some(format!("{}\\{}", canonical, rest));
+                }
+            }
+        }
+    }
+
+    None
+}
+
+async fn resolve_windows_user_path(
+    ctx: &ToolContext,
+    device_iid: i64,
+    sub_path: &str,
+) -> Option<String> {
+    if let Ok(users_res) = remote_device_fs_list(
+        &ctx.pool,
+        ctx.nats.as_ref(),
+        ctx.owner_iid,
+        device_iid,
+        "C:\\Users",
+    ).await {
+        for ent in users_res.entries {
+            if ent.is_dir {
+                let name = ent.name.trim();
+                let lower = name.to_ascii_lowercase();
+                if !matches!(
+                    lower.as_str(),
+                    "default" | "public" | "all users" | "default user"
+                ) && !name.starts_with('.') {
+                    return Some(format!("C:\\Users\\{}\\{}", name, sub_path));
+                }
+            }
+        }
+    }
+    None
+}
+
 tool! {
     struct: DeviceFsListTool,
     name: "device.fs.list",
     aliases: ["device_fs_list", "list_device_directory"],
-    description: "List files and folders on a paired remote device. Use normal paths (e.g. C:\\Users). Empty path lists drive roots. For Recycle Bin use path recycle bin or Shell:RecycleBinFolder (not $RecycleBin$). Do not use shell.run to list the bin.",
+    description: "List files and folders on a paired remote device. Use normal paths (e.g. C:\\Users, Desktop, Downloads). Empty path lists drive roots. For Recycle Bin use path recycle bin or Shell:RecycleBinFolder (not $RecycleBin$). Do not use shell.run to list the bin.",
     topics: ["device", "computer_use"],
     always: ["device", "computer_use"],
     readonly: true,
@@ -315,14 +410,34 @@ tool! {
             Err(v) => return Ok(v),
         };
         let path = args["path"].as_str().unwrap_or_default();
+        let mut list_path = path.to_string();
 
-        match remote_device_fs_list(
+        let mut res = remote_device_fs_list(
             &ctx.pool,
             ctx.nats.as_ref(),
             ctx.owner_iid,
             device_iid,
-            path,
-        ).await {
+            &list_path,
+        ).await;
+
+        if let Ok(ref r) = res {
+            if !r.error.is_empty() {
+                if let Some(folder) = extract_user_subpath(path) {
+                    if let Some(resolved) = resolve_windows_user_path(ctx, device_iid, &folder).await {
+                        list_path = resolved.clone();
+                        res = remote_device_fs_list(
+                            &ctx.pool,
+                            ctx.nats.as_ref(),
+                            ctx.owner_iid,
+                            device_iid,
+                            &list_path,
+                        ).await;
+                    }
+                }
+            }
+        }
+
+        match res {
             Ok(res) => {
                 if !res.error.is_empty() {
                     return Ok(device_fail(format!("Failed to list path: {}", res.error)));
@@ -340,7 +455,7 @@ tool! {
                     "ok": true,
                     "status": "ok",
                     "device_iid": device_iid,
-                    "path": path,
+                    "path": list_path,
                     "entries": entries,
                 }))
             }
@@ -374,16 +489,38 @@ tool! {
         }
         let offset = args["offset"].as_i64().unwrap_or(0).max(0);
         let max_bytes = args["max_bytes"].as_i64().unwrap_or(0) as i32;
+        let mut read_path = path.to_string();
 
-        match remote_device_fs_read(
+        let mut res = remote_device_fs_read(
             &ctx.pool,
             ctx.nats.as_ref(),
             ctx.owner_iid,
             device_iid,
-            path,
+            &read_path,
             offset,
             max_bytes,
-        ).await {
+        ).await;
+
+        if let Ok(ref r) = res {
+            if !r.error.is_empty() {
+                if let Some(sub_path) = extract_user_subpath(path) {
+                    if let Some(resolved) = resolve_windows_user_path(ctx, device_iid, &sub_path).await {
+                        read_path = resolved.clone();
+                        res = remote_device_fs_read(
+                            &ctx.pool,
+                            ctx.nats.as_ref(),
+                            ctx.owner_iid,
+                            device_iid,
+                            &read_path,
+                            offset,
+                            max_bytes,
+                        ).await;
+                    }
+                }
+            }
+        }
+
+        match res {
             Ok(res) => {
                 if !res.error.is_empty() {
                     return Ok(device_fail(format!("Failed to read file: {}", res.error)));
@@ -394,7 +531,7 @@ tool! {
                     "ok": true,
                     "status": "ok",
                     "device_iid": device_iid,
-                    "path": path,
+                    "path": read_path,
                     "offset": offset,
                     "eof": res.eof,
                     "mime": res.mime,
@@ -405,6 +542,55 @@ tool! {
             Err(e) => Ok(device_fail(format!("Failed to read file on device: {e}"))),
         }
     }
+}
+
+pub async fn device_pair_exec(ctx: &ToolContext, args: &Value) -> anyhow::Result<Value> {
+    let code = args
+        .get("code")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or("");
+    if code.is_empty() {
+        return Ok(json!({
+            "ok": false,
+            "tool": "device.pair",
+            "error": "code required (10 characters, with or without hyphen)",
+        }));
+    }
+    match device_pair(&ctx.pool, ctx.owner_iid, ReqDevicePair { code: code.to_string() }).await {
+        Ok(res) => {
+            let id = res.device.as_ref().and_then(|r| r.identity.as_ref());
+            let llm = json!({
+                "device_iid": id.map(|i| i.iid).unwrap_or(0),
+                "name": id.map(|i| i.name.as_str()).unwrap_or(""),
+                "type": id.map(|i| i.r#type.as_str()).unwrap_or(""),
+                "alien_id": id.map(|i| i.alien_id.as_str()).unwrap_or(""),
+            });
+            Ok(json!({
+                "ok": true,
+                "tool": "device.pair",
+                "device": llm,
+                "llm": llm,
+            }))
+        }
+        Err(e) => Ok(json!({ "ok": false, "tool": "device.pair", "error": e })),
+    }
+}
+
+tool! {
+    struct: DevicePairTool,
+    name: "device.pair",
+    aliases: ["device_pair", "pair device", "pairing code", "pasangkan device"],
+    description: "Claim a remote PC or IoT device using the pairing code shown on the agent screen (XXXXX-XXXXX or 10 letters/digits). Same as Devices → Add in the app.",
+    topics: ["general", "device"],
+    always: ["general", "device"],
+    ui_calling_key: "tool.device.pair.calling",
+    ui_done_key: "tool.device.pair.done",
+    parameters: {
+        code: (string, "Pairing code from the device agent (e.g. AB12C-D34EF or AB12CD34EF)", required),
+    },
+    execute: |args, ctx| device_pair_exec(ctx, &args).await
 }
 
 #[cfg(test)]
@@ -430,5 +616,23 @@ mod tests {
         let (c, r) = device_fail_class("screenshot capture timed out");
         assert_eq!(c, "transient");
         assert!(r);
+    }
+
+    #[test]
+    fn device_fail_class_maps_operational_error() {
+        let (c, r) = device_fail_class("The system cannot find the path specified. (os error 3)");
+        assert_eq!(c, "tool_error");
+        assert!(!r);
+    }
+
+    #[test]
+    fn test_extract_user_subpath() {
+        assert_eq!(extract_user_subpath("Desktop").as_deref(), Some("Desktop"));
+        assert_eq!(extract_user_subpath("\"downloads\"").as_deref(), Some("Downloads"));
+        assert_eq!(extract_user_subpath("shell:personal").as_deref(), Some("Documents"));
+        assert_eq!(extract_user_subpath(r"C:\Users\User\Desktop").as_deref(), Some("Desktop"));
+        assert_eq!(extract_user_subpath(r"C:\Users\Admin\Desktop\file.txt").as_deref(), Some("Desktop\\file.txt"));
+        assert_eq!(extract_user_subpath(r"Desktop\test.png").as_deref(), Some("Desktop\\test.png"));
+        assert_eq!(extract_user_subpath("C:\\foo"), None);
     }
 }

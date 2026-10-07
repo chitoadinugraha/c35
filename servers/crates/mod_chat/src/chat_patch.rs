@@ -1,12 +1,19 @@
 use anyhow::{anyhow, Result};
+use async_nats::Client;
 use chrono::Utc;
 use c35_proto::{Chat, ChatKind, ChatMember, ReqChatPatch, ResChatPatch};
 use sqlx::{PgPool, Row};
 
 use crate::asset_tag::{asset_tags_map, asset_tags_replace};
+use crate::chat_sync::chat_inbox_fanout;
 use crate::inbox::ts_ms;
 
-pub async fn chat_patch(pool: &PgPool, member_iid: i64, req: ReqChatPatch) -> Result<ResChatPatch> {
+pub async fn chat_patch(
+    pool: &PgPool,
+    nats: Option<&Client>,
+    member_iid: i64,
+    req: ReqChatPatch,
+) -> Result<ResChatPatch> {
     let chat_id = req.chat_id;
     if chat_id == 0 {
         return Err(anyhow!("chat_id required"));
@@ -34,7 +41,11 @@ pub async fn chat_patch(pool: &PgPool, member_iid: i64, req: ReqChatPatch) -> Re
             .bind(member_iid)
             .execute(pool)
             .await?;
-        return chat_patch_get(pool, member_iid, chat_id, true).await;
+        let res = chat_patch_get(pool, member_iid, chat_id, true).await?;
+        if let Some(nats) = nats {
+            let _ = chat_inbox_fanout(nats, owner_iid, &res).await;
+        }
+        return Ok(res);
     }
 
     if let Some(pinned) = req.pinned {
@@ -77,7 +88,11 @@ pub async fn chat_patch(pool: &PgPool, member_iid: i64, req: ReqChatPatch) -> Re
         asset_tags_replace(pool, owner_iid, "chat", chat_id, &tags.tags).await?;
     }
 
-    chat_patch_get(pool, member_iid, chat_id, false).await
+    let res = chat_patch_get(pool, member_iid, chat_id, false).await?;
+    if let Some(nats) = nats {
+        let _ = chat_inbox_fanout(nats, owner_iid, &res).await;
+    }
+    Ok(res)
 }
 
 async fn chat_patch_get(pool: &PgPool, member_iid: i64, chat_id: i64, deleted: bool) -> Result<ResChatPatch> {

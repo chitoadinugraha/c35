@@ -410,7 +410,7 @@ async fn dispatch(
             },
             Err(e) => err_res(req_id, WireErr::client("chat_msg_list_failed", e.to_string())),
         },
-        Some(ws_req::Body::ChatPatch(r)) => match c35_mod_chat::chat_patch(&state.pool, ctx.caller_iid, r).await {
+        Some(ws_req::Body::ChatPatch(r)) => match c35_mod_chat::chat_patch(&state.pool, state.nats.as_ref(), ctx.caller_iid, r).await {
             Ok(body) => WsRes {
                 req_id,
                 body: Some(ws_res::Body::ChatPatch(body)),

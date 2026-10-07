@@ -11,7 +11,7 @@ use crate::catalog_price::{ALIEN_POOL_USD_IN_PER_1M, ALIEN_POOL_USD_OUT_PER_1M};
 use crate::catalog_pricing::{apply_openrouter_pricing, pricing_from_model_row, CatalogPricing};
 use crate::catalog_rank::{
     alien_chain_sort_cmp, assign_picker_order, chat_picker_id_eligible, chat_picker_label_eligible, family_of,
-    gemini_chat_eligible, pick_default_provider, version_rank_of,
+    gemini_chat_eligible, is_preview_id, pick_default_provider, version_rank_of,
 };
 use crate::runtime_config::{cf_gateway_config, cf_gateway_ready};
 use crate::embed_gemini::gemini_api_key;
@@ -187,7 +187,7 @@ async fn prune_stale_google(pool: &PgPool, fetched: &[LlmModelRow]) -> Result<()
 async fn sync_alien_meta(pool: &PgPool, fetched: &[LlmModelRow]) -> Result<()> {
     let mut chain: Vec<String> = fetched
         .iter()
-        .filter(|m| m.enabled && m.provider == "google" && m.family == "flash-lite")
+        .filter(|m| m.enabled && m.provider == "google" && m.family == "flash-lite" && !is_preview_id(&m.id))
         .map(|m| m.id.clone())
         .collect();
     chain.sort_by(|a, b| alien_chain_sort_cmp(a, b));

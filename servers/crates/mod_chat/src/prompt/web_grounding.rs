@@ -1,4 +1,4 @@
-use serde_json::Value;
+use serde_json::{json, Value};
 
 pub const WEB_GROUNDED_REPLY_RULE: &str =
     "\n\n[WEB GROUNDING] Answer only from web.search / web.visit tool results in this conversation. Never invent schedules or use placeholder titles (Film A, Film B, Film C, etc.). If results are empty or unclear, say you could not load live listings and suggest official cinema apps.";
@@ -46,6 +46,45 @@ pub fn pick_visit_url(search_result: &Value) -> Option<String> {
     urls.first().cloned()
 }
 
+/// Append prefetch web.search / web.visit payloads to the latest user turn (Gemini 3-safe; no synthetic functionCall).
+pub fn web_grounding_append_user_context(contents: &mut Vec<Value>, search: &Value, visit: Option<&Value>) {
+    let root = search_payload(search);
+    let mut block = String::from("[WEB SEARCH RESULTS — answer only from this data]\n");
+    if let Some(results) = root.get("results").and_then(|r| r.as_array()) {
+        for (i, item) in results.iter().take(6).enumerate() {
+            let title = item.get("title").and_then(|v| v.as_str()).unwrap_or("").trim();
+            let url = item.get("url").and_then(|v| v.as_str()).unwrap_or("").trim();
+            let snippet = item.get("snippet").and_then(|v| v.as_str()).unwrap_or("").trim();
+            block.push_str(&format!("\n{}. {}\n   {}\n   {}\n", i + 1, title, url, snippet));
+        }
+    }
+    if let Some(visit) = visit {
+        let url = visit.get("url").and_then(|v| v.as_str()).unwrap_or("").trim();
+        let title = visit.get("title").and_then(|v| v.as_str()).unwrap_or("").trim();
+        let content = visit
+            .get("content")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .trim();
+        let clip = if content.len() > 12_000 {
+            format!("{}…", &content[..12_000])
+        } else {
+            content.to_string()
+        };
+        block.push_str(&format!("\n[WEB PAGE — {}]\n{}\n{}\n", url, title, clip));
+    }
+    let part = json!({ "text": block });
+    if let Some(last) = contents.last_mut() {
+        if last.get("role").and_then(|r| r.as_str()) == Some("user") {
+            if let Some(parts) = last.get_mut("parts").and_then(|p| p.as_array_mut()) {
+                parts.push(part);
+                return;
+            }
+        }
+    }
+    contents.push(json!({ "role": "user", "parts": [part] }));
+}
+
 pub fn reply_looks_like_web_placeholder(text: &str) -> bool {
     let t = text.to_ascii_lowercase();
     ["film a", "film b", "film c", "**film a**", "**film b**"]
@@ -76,5 +115,20 @@ mod tests {
     fn reply_placeholder_detected() {
         assert!(reply_looks_like_web_placeholder("Film A and Film B today"));
         assert!(!reply_looks_like_web_placeholder("Dune: Part Three — 14:30"));
+    }
+
+    #[test]
+    fn web_grounding_appends_to_last_user_turn() {
+        let search = json!({
+            "results": [{ "title": "T1", "url": "https://example.com", "snippet": "S1" }]
+        });
+        let mut contents = vec![
+            json!({ "role": "user", "parts": [{ "text": "hello" }] }),
+        ];
+        web_grounding_append_user_context(&mut contents, &search, None);
+        assert_eq!(contents.len(), 1);
+        let parts = contents[0]["parts"].as_array().unwrap();
+        assert_eq!(parts.len(), 2);
+        assert!(parts[1]["text"].as_str().unwrap().contains("WEB SEARCH RESULTS"));
     }
 }

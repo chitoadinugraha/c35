@@ -1,7 +1,8 @@
 use c35_mod_chat::compose::{
-    compose_force_tool_call, compose_force_presentation_tool_call, compose_force_consumption_coach_tool_call,
-    compose_force_web_tool_call,
-    compose_tools_and_inst, tool_mention_eligible, ComposeTurnOpts,
+    compose_force_account_tool_call, compose_force_consumption_coach_tool_call,
+    compose_force_presentation_tool_call, compose_force_site_builder_tool_call, compose_force_tool_call,
+    compose_force_web_tool_call, compose_tools_and_inst, site_builder_bootstrap_catalog,
+    site_builder_ready_to_create, tool_mention_eligible, ComposeTurnOpts,
 };
 use c35_mod_chat::BROWSER_DEVICE_TOOL_EXCLUDE;
 use c35_mod_chat::inst_macro::{
@@ -683,6 +684,136 @@ fn compose_referral_list_forces_list_tool() {
     assert!(out.tools.iter().any(|t| t.name == "referral.code.list"));
 }
 
+fn inst_account_billing() -> InstRow {
+    InstRow {
+        id: "inst.account.billing".into(),
+        scope: SCOPE_ROLE_PERSONAL_ASSISTANT.into(),
+        kind: "task".into(),
+        topic_id: String::new(),
+        topics: vec![],
+        inst: "[ACCOUNT BILLING]".into(),
+        phrases: vec![
+            "berapa saldo saya".into(),
+            "saldo saya".into(),
+            "my balance".into(),
+        ],
+        triggers: vec![],
+        include_tools: vec!["account.billing.get".into(), "account.billing.history".into()],
+        exclude_tools: vec![],
+        requires_global_roles: vec![],
+        priority: 130,
+    }
+}
+
+fn inst_account_assets() -> InstRow {
+    InstRow {
+        id: "inst.account.assets".into(),
+        scope: SCOPE_ROLE_PERSONAL_ASSISTANT.into(),
+        kind: "task".into(),
+        topic_id: String::new(),
+        topics: vec![],
+        inst: "[ACCOUNT ASSETS]".into(),
+        phrases: vec![
+            "daftar bot saya".into(),
+            "daftar bot".into(),
+            "my bots".into(),
+            "daftar device".into(),
+        ],
+        triggers: vec![],
+        include_tools: vec![
+            "bot.list".into(),
+            "device.list".into(),
+            "site.list".into(),
+            "client.list".into(),
+        ],
+        exclude_tools: vec![],
+        requires_global_roles: vec![],
+        priority: 128,
+    }
+}
+
+fn account_catalog() -> Vec<ToolDef> {
+    vec![
+        ToolDef::new(
+            "account.billing.get".into(),
+            "Wallet balance, plan tier, quota rings, and freemium/trial flags for the signed-in user.".into(),
+            json!({}),
+        ),
+        ToolDef::new(
+            "account.billing.history".into(),
+            "Recent billing top-ups and AI usage charges for the signed-in user.".into(),
+            json!({}),
+        ),
+        ToolDef::new(
+            "bot.list".into(),
+            "List chat bots owned by or granted to the signed-in user.".into(),
+            json!({}),
+        ),
+        ToolDef::new(
+            "device.list".into(),
+            "List paired remote devices for the signed-in user with online and version hints.".into(),
+            json!({}),
+        ),
+        ToolDef::new("web.search".into(), "Search the web".into(), json!({})),
+    ]
+}
+
+#[test]
+fn compose_account_billing_saldo_phrase() {
+    let out = compose_default(
+        &[inst_account_billing()],
+        "berapa saldo saya",
+        account_catalog(),
+        &[],
+    );
+    assert!(out.matched_ids.contains(&"inst.account.billing".into()));
+    assert!(out.tools.iter().any(|t| t.name == "account.billing.get"));
+}
+
+#[test]
+fn compose_account_assets_bot_list_phrase() {
+    let out = compose_default(
+        &[inst_account_assets()],
+        "daftar bot saya",
+        account_catalog(),
+        &[],
+    );
+    assert!(out.matched_ids.contains(&"inst.account.assets".into()));
+    assert!(out.tools.iter().any(|t| t.name == "bot.list"));
+}
+
+fn inst_device_pair() -> InstRow {
+    InstRow {
+        id: "inst.device.pair".into(),
+        scope: SCOPE_ROLE_PERSONAL_ASSISTANT.into(),
+        kind: "task".into(),
+        topic_id: String::new(),
+        topics: vec![],
+        inst: "[DEVICE.PAIR]".into(),
+        phrases: vec!["pair device".into(), "kode pairing".into()],
+        triggers: vec![],
+        include_tools: vec!["device.pair".into()],
+        exclude_tools: vec![],
+        requires_global_roles: vec![],
+        priority: 132,
+    }
+}
+
+#[test]
+fn compose_device_pair_phrase() {
+    let catalog = vec![
+        ToolDef::new(
+            "device.pair".into(),
+            "Claim a remote device with a pairing code.".into(),
+            json!({}),
+        ),
+        ToolDef::new("web.search".into(), "Search the web".into(), json!({})),
+    ];
+    let out = compose_default(&[inst_device_pair()], "pair device AB12C-D34EF", catalog, &[]);
+    assert!(out.matched_ids.contains(&"inst.device.pair".into()));
+    assert!(out.tools.iter().any(|t| t.name == "device.pair"));
+}
+
 #[test]
 fn compose_referral_list_lexical_without_inst() {
     let catalog = vec![
@@ -982,6 +1113,17 @@ fn compose_force_tool_call_when_presentation_inst_and_tool() {
 }
 
 #[test]
+fn compose_force_tool_call_when_account_billing_inst_and_tool() {
+    let tools = vec![ToolDef::new(
+        "account.billing.get".into(),
+        "Wallet balance".into(),
+        json!({}),
+    )];
+    assert!(compose_force_account_tool_call(&["inst.account.billing".into()], &tools));
+    assert!(compose_force_tool_call(&["inst.account.billing".into()], &tools));
+}
+
+#[test]
 fn compose_force_tool_call_when_consumption_coach_inst_and_tool() {
     let tools = vec![ToolDef::new("consumption.today".into(), "Meals today".into(), json!({}))];
     assert!(compose_force_consumption_coach_tool_call(&["inst.consumption_coach".into()], &tools));
@@ -1266,14 +1408,21 @@ fn inst_site_builder() -> InstRow {
         topic_id: "".into(),
         topics: vec![],
         inst: "[SITE BUILDER] Call site.create when the user gives a site name.".into(),
-        phrases: vec!["buat website".into(), "bikin website".into(), "buat web".into()],
+        phrases: vec![
+            "buat website".into(),
+            "bikin website".into(),
+            "buat web".into(),
+            "buat situs".into(),
+            "fitur pos".into(),
+        ],
         triggers: vec![],
         include_tools: vec![
             "site.create".into(),
             "site.patch".into(),
             "site.publish".into(),
+            "site.product_put".into(),
         ],
-        exclude_tools: vec!["web.search".into(), "web.visit".into()],
+        exclude_tools: vec!["web.search".into(), "web.visit".into(), "consumption.today".into()],
         requires_global_roles: vec![],
         priority: 150,
     }
@@ -1334,6 +1483,45 @@ fn compose_site_builder_injects_patch_without_site_mention() {
     );
     assert!(out.tools.iter().any(|t| t.name == "site.create"));
     assert!(out.tools.iter().any(|t| t.name == "site.patch"));
+}
+
+#[test]
+fn compose_site_bootstrap_pos_catalog_phrase() {
+    let user = "buat situs testing test-site dengan fitur POS, dengan produk indomie harga 20rb,mie goreng harga 15rb, es teh harga 10rb";
+    assert!(site_builder_bootstrap_catalog(user));
+    assert!(site_builder_ready_to_create(user));
+    let product_put = ToolDef {
+        name: "site.product_put".into(),
+        description: "Upsert product".into(),
+        parameters: json!({}),
+        aliases: vec![],
+        topics: vec!["web.builder".into()],
+        always: vec![],
+        readonly: false,
+        requires_kinds: vec!["site".into()],
+        rag_phrases: vec![],
+        requires_capability: None,
+        requires_global_roles: vec![],
+    };
+    let out = compose_default(
+        &[inst_core_assistant(), inst_site_builder(), inst_site_catalog_price(), inst_consumption_coach()],
+        user,
+        vec![
+            site_create_tool(),
+            site_patch_tool(),
+            product_put,
+            site_query_run_tool(),
+            ToolDef::new("consumption.today".into(), "Today nutrition".into(), json!({})),
+            web_search_tool(),
+        ],
+        &[],
+    );
+    assert!(out.matched_ids.iter().any(|id| id == "inst.site.builder"));
+    assert!(!out.matched_ids.iter().any(|id| id == "inst.site.catalog.price"));
+    assert!(!out.matched_ids.iter().any(|id| id == "inst.consumption_coach"));
+    assert!(out.tools.iter().any(|t| t.name == "site.create"));
+    assert!(out.tools.iter().any(|t| t.name == "site.product_put"));
+    assert!(compose_force_site_builder_tool_call(&out.matched_ids, &out.tools, user));
 }
 
 #[test]

@@ -13,6 +13,7 @@ mod cf_video;
 mod lyria;
 mod embed_cache;
 mod embed_gemini;
+mod gemini_no_provider_grounding;
 mod llm_catalog;
 mod model_catalog;
 mod model_cost;
@@ -33,6 +34,7 @@ pub use embed_cache::{
     embed_cache_put, embed_cached, EmbedCacheResult, EMBED_CACHE_RETENTION_DAYS, EMBED_DIMENSIONS_DEFAULT,
 };
 pub use embed_gemini::{embed_text, embed_token_est, EmbedTextResult, EMBED_MODEL};
+pub use gemini_no_provider_grounding::gemini_request_reject_provider_grounding;
 pub use model_catalog::{
     model_chain_for_slug, model_is_alien, model_log_label, model_resolve_target, ModelTarget,
 };

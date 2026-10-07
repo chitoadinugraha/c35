@@ -22,31 +22,12 @@ class UiSiteAddMenu extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => uiPopupMenuTooltipWrap(
-        tooltip: 'Add site',
-        menu: PopupMenuButton<String>(
-          tooltip: uiPopupMenuTooltipText('Add site'),
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-          icon: uiPopupMenuIcon(Icons.add, size: 20, color: uiDialogMuted),
-          iconSize: 20,
-          color: const Color(0xFF18181B),
-          onSelected: (v) => switch (v) {
-            'create' => _onCreate(context),
-            _ => null,
-          },
-          itemBuilder: (_) => const [
-            PopupMenuItem(
-              value: 'create',
-              child: ListTile(
-                leading: Icon(Icons.language_outlined),
-                title: Text('Create site'),
-                subtitle: Text(
-                  'Create website for personal or business (can use pos / queue / reservation, crm)',
-                ),
-              ),
-            ),
-          ],
-        ),
+  Widget build(BuildContext context) => uiIconButton(
+        tooltip: 'Create site',
+        onPressed: () => _onCreate(context),
+        icon: const Icon(Icons.add_rounded, size: 20, color: uiDialogMuted),
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+        visualDensity: VisualDensity.compact,
       );
 }

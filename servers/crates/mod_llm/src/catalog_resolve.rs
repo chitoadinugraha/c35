@@ -1,4 +1,4 @@
-use crate::catalog_rank::alien_chain_sort_cmp;
+use crate::catalog_rank::{alien_chain_sort_cmp, is_preview_id};
 use crate::catalog_types::LlmModelRow;
 use crate::llm_catalog::catalog_models;
 
@@ -45,7 +45,7 @@ pub fn catalog_alien_chain_build() -> Vec<String> {
     let models = catalog_models();
     let mut rows: Vec<&LlmModelRow> = models
         .iter()
-        .filter(|m| m.enabled && m.provider == "google" && m.family == "flash-lite")
+        .filter(|m| m.enabled && m.provider == "google" && m.family == "flash-lite" && !is_preview_id(&m.id))
         .collect();
     rows.sort_by(|a, b| alien_chain_sort_cmp(&a.provider_model, &b.provider_model));
     rows.into_iter().map(|m| google_provider_model(&m)).collect()

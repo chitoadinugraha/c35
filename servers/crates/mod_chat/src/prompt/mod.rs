@@ -27,6 +27,7 @@ pub struct ChatReq {
     pub history: Vec<ChatHistoryMsg>,
     /// When true, first tool hop uses Gemini function-calling mode ANY (web-search inst).
     pub force_tool_call: bool,
+    pub force_web_tool_call: bool,
     pub catalog_web: CatalogWebPhase,
     pub skip_web_prefetch: bool,
 }

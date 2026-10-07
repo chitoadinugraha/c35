@@ -75,6 +75,8 @@ import 'package:alienai_c35/widgets/ai/ui_msg_feedback_sheet.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_feedback_thread.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_copy_prefix.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_blocks.dart';
+import 'package:alienai_c35/c/presentation/slide_deck_theme_prefs.dart';
+import 'package:alienai_c35/widgets/ai/ui_slide_deck_card.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_thought.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_usage.dart';
 import 'package:alienai_c35/widgets/ai/ui_subagent_run_card.dart';
@@ -380,7 +382,11 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) return;
     unawaited(_reconcilePromptState());
-    if (_conn.status.value != ChatConnStatus.connected) unawaited(_connConnect());
+    if (_conn.status.value != ChatConnStatus.connected) {
+      unawaited(_connConnect());
+    } else {
+      unawaited(_refreshConnSession());
+    }
   }
 
   void _promptWatchdogCancel() {
@@ -604,18 +610,22 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     }
     if (push.hasChatMember()) {
       final m = push.chatMember;
-      ChatRow? chat;
-      for (final c in _store.chats) {
-        if (c.id == m.chatId.toInt()) {
-          chat = c;
-          break;
+      if (push.hasChat()) {
+        _store.chatPutFromServer(push.chat, m);
+      } else {
+        ChatRow? row;
+        for (final c in _store.chats) {
+          if (c.id == m.chatId.toInt()) {
+            row = c;
+            break;
+          }
         }
-      }
-      if (chat != null) {
-        _store.chatPutFromServer(
-          Chat(id: Int64(chat.id), title: chat.title, tags: chat.tags),
-          m,
-        );
+        if (row != null) {
+          _store.chatPutFromServer(
+            Chat(id: Int64(row.id), title: row.title, tags: row.tags),
+            m,
+          );
+        }
       }
     }
     if (push.hasChatMsg()) {
@@ -1821,6 +1831,27 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     return parts.join('\n\n');
   }
 
+  SlideDeckData? _presentationDeckBeforeMsgIndex(int index, int chatId) {
+    SlideDeckData? deck;
+    for (var j = 0; j < index; j++) {
+      final row = _store.activeMsgs[j];
+      if (row.role != 'assistant') continue;
+      for (final b in ChatBlock.decodeList(row.blocksJson)) {
+        switch (b.kind) {
+          case 'presentation.deck':
+          case 'slide.deck':
+          case 'presentation':
+            deck = SlideDeckData.fromBlockBody(b.body, deck);
+            if (deck != null) {
+              final themeOverride = SlideDeckThemePrefs.instance.themeFor(chatId);
+              if (themeOverride != null) deck.theme = themeOverride;
+            }
+        }
+      }
+    }
+    return deck;
+  }
+
   Widget _msgTile(MsgRow m, {required int i, required int count}) {
     final isUser = m.role == 'user';
     final lastAssistantIdx = _store.activeMsgs.lastIndexWhere((x) => x.role == 'assistant');
@@ -1880,7 +1911,8 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
             UiMsgError(
               message: msgPromptErrorMessage(err),
               detail: sessionViewerIsRoot() ? err : null,
-              messageId: m.reqId,
+              msgId: m.id,
+              reqId: m.reqId,
               onRetry: showRetry ? () => unawaited(_retryLastTurn(m.chatId)) : null,
               retrying: _retrying,
             )
@@ -1910,6 +1942,8 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
               child: UiMsgError(
                 message: msgPromptErrorMessage(err),
                 detail: sessionViewerIsRoot() ? err : null,
+                msgId: m.id,
+                reqId: m.reqId,
                 onRetry: showRetry ? () => unawaited(_retryLastTurn(m.chatId)) : null,
                 retrying: _retrying,
                 showIcon: false,
@@ -1919,6 +1953,8 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
             UiMsgBlocks(
               msgId: m.id,
               blocks: blocks,
+              chatId: m.chatId,
+              presentationDeckPrior: _presentationDeckBeforeMsgIndex(i, m.chatId),
               chatConn: _conn,
               consumptionApi: _consumptionApi,
               expenseApi: _expenseApi,

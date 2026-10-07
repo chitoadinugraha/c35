@@ -32,6 +32,8 @@ Run Cargo from `servers/` or `remotes/` so output stays in `.cache/` (not `serve
 
 Run `cargo test -p CRATE` when the edited crate has tests.
 
+LLM / Live / Gemini paths: `.\_\scripts\dev\check_no_provider_grounding.ps1 -Changed` (`web-grounding-cluster-only.md`).
+
 ## Dart / Flutter (`clients/app/**`)
 
 ```powershell

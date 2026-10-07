@@ -160,12 +160,12 @@ pub async fn billing_profile_repair_rings_v4(pool: &PgPool, owner_iid: i64) -> R
     sqlx::query(
         r#"
         UPDATE ai.billing_profile
-        SET frontier_allow_5h_limit = CASE WHEN $3 THEN $4 ELSE frontier_allow_5h_limit END,
-            frontier_allow_weekly_limit = CASE WHEN $3 THEN $5 ELSE frontier_allow_weekly_limit END,
-            alien_pool_limit_idr = CASE WHEN $6 THEN 0 ELSE alien_pool_limit_idr END,
-            alien_pool_used_idr = CASE WHEN $6 THEN 0 ELSE alien_pool_used_idr END,
-            frontier_pool_limit_idr = CASE WHEN $6 THEN 0 ELSE frontier_pool_limit_idr END,
-            frontier_pool_used_idr = CASE WHEN $6 THEN 0 ELSE frontier_pool_used_idr END,
+        SET frontier_allow_5h_limit = CASE WHEN $2 THEN $3 ELSE frontier_allow_5h_limit END,
+            frontier_allow_weekly_limit = CASE WHEN $2 THEN $4 ELSE frontier_allow_weekly_limit END,
+            alien_pool_limit_idr = CASE WHEN $5 THEN 0 ELSE alien_pool_limit_idr END,
+            alien_pool_used_idr = CASE WHEN $5 THEN 0 ELSE alien_pool_used_idr END,
+            frontier_pool_limit_idr = CASE WHEN $5 THEN 0 ELSE frontier_pool_limit_idr END,
+            frontier_pool_used_idr = CASE WHEN $5 THEN 0 ELSE frontier_pool_used_idr END,
             updated_ts = NOW()
         WHERE owner_iid = $1 AND deleted_ts IS NULL
         "#,

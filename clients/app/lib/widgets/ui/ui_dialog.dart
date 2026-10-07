@@ -9,6 +9,10 @@ const uiDialogAccent = Color(0xFF34D399);
 
 const uiDialogInset = EdgeInsets.fromLTRB(20, 16, 12, 20);
 const uiDialogInsetCompact = EdgeInsets.fromLTRB(16, 12, 8, 12);
+const uiDialogAskBodyInset = EdgeInsets.fromLTRB(16, 0, 8, 12);
+
+const uiDialogAskWidth = 360.0;
+const uiDialogAskHeight = 420.0;
 
 Future<T?> uiDialogShow<T>({
   required BuildContext context,
@@ -134,6 +138,7 @@ class UiDialogSearchHeader extends StatelessWidget {
               onChanged: onChanged,
             ),
           ),
+          if (searchSuffix != null) const SizedBox(width: 6),
           ...beforeClose.map((w) => uiDialogHeaderAction(w)),
           uiDialogHeaderAction(UiDialogClose(onPressed: onClose, enabled: closeEnabled)),
         ],
@@ -142,3 +147,72 @@ class UiDialogSearchHeader extends StatelessWidget {
 
 /// Keeps search-field trailing icons (+, close) vertically aligned with the field.
 Widget uiDialogHeaderAction(Widget child) => SizedBox(height: 40, child: Center(child: child));
+
+/// Fixed-size search + list shell shared by [ioAskItemsShow] and async pickers (e.g. sites).
+class UiDialogAskShell extends StatelessWidget {
+  const UiDialogAskShell({
+    super.key,
+    required this.searchController,
+    required this.hintText,
+    required this.body,
+    this.onSearchChanged,
+    this.searchSuffix,
+    this.beforeClose = const [],
+    this.onClose,
+    this.closeEnabled = true,
+    this.width = uiDialogAskWidth,
+    this.height = uiDialogAskHeight,
+    this.dividerBelowHeader = false,
+    this.bodyGap = 0,
+    this.bodyPadding = uiDialogAskBodyInset,
+  });
+
+  final TextEditingController searchController;
+  final String hintText;
+  final ValueChanged<String>? onSearchChanged;
+  final Widget? searchSuffix;
+  final List<Widget> beforeClose;
+  final VoidCallback? onClose;
+  final bool closeEnabled;
+  final double width;
+  final double height;
+  final bool dividerBelowHeader;
+  final double bodyGap;
+  final EdgeInsetsGeometry bodyPadding;
+  final Widget body;
+
+  @override
+  Widget build(BuildContext context) => UiDialog(
+        width: width,
+        height: height,
+        padding: EdgeInsets.zero,
+        inset: true,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: uiDialogInsetCompact,
+              child: UiDialogSearchHeader(
+                controller: searchController,
+                hintText: hintText,
+                onChanged: onSearchChanged,
+                onClose: onClose,
+                closeEnabled: closeEnabled,
+                beforeClose: beforeClose,
+                searchSuffix: searchSuffix,
+              ),
+            ),
+            if (dividerBelowHeader) const Divider(height: 1, color: uiDialogBorder),
+            if (bodyGap > 0) SizedBox(height: bodyGap),
+            Expanded(child: Padding(padding: bodyPadding, child: body)),
+          ],
+        ),
+      );
+}
+
+Widget uiDialogAskEmptyText(String text) =>
+    Center(child: Text(text, textAlign: TextAlign.center, style: const TextStyle(color: uiDialogMuted, fontSize: 13)));
+
+Widget uiDialogAskLoading() => const Center(
+      child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: uiDialogMuted)),
+    );

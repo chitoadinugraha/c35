@@ -25,7 +25,15 @@ async fn presentation_export_handler(
 ) -> Response {
     let title = req.title.unwrap_or_else(|| "Presentation".to_string());
     let theme = req.theme.unwrap_or_else(|| "dark".to_string());
-    match c35_mod_chat::presentation_export_exec(&state.pool, &req.slides_markdown, &title, &theme).await {
+    match c35_mod_chat::presentation_export_exec(
+        &state.pool,
+        &state.cas_secret,
+        &req.slides_markdown,
+        &title,
+        &theme,
+    )
+    .await
+    {
         Ok(res) => (StatusCode::OK, Json(res)).into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,

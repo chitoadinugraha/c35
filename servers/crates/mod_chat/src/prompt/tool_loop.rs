@@ -10,7 +10,9 @@ use tokio_util::sync::CancellationToken;
 
 use super::llm_route::{bill_model_slug, llm_stream_chain};
 use super::thought::{thought_push, thinking_level};
-use super::web_grounding::{pick_visit_url, reply_looks_like_web_placeholder, search_payload};
+use super::web_grounding::{
+    pick_visit_url, reply_looks_like_web_placeholder, search_payload, web_grounding_append_user_context,
+};
 use super::{ChatReq, ChatRes};
 use crate::catalog_web::{catalog_web_after_stock, CatalogWebPhase};
 use crate::prompt::hooks::PromptHopCheckpoint;
@@ -151,7 +153,7 @@ pub async fn prompt_cluster_turn(
     let mut used_tool = false;
     let mut web_grounded = false;
     let mut stock_returned = false;
-    if req.force_tool_call && !req.skip_web_prefetch && tools.iter().any(|t| t.name == "web.search") {
+    if req.force_web_tool_call && !req.skip_web_prefetch && tools.iter().any(|t| t.name == "web.search") {
         let q = search_query_from_user(&req.user);
         if tool_loop_run_web_search(
             &client,
@@ -331,7 +333,8 @@ pub async fn prompt_cluster_turn(
                     .and_then(|v| v.as_str())
                     .unwrap_or("");
                 let missing_device = err.contains("device_iid is required") || err.contains("device_iid required");
-                if fail_class.starts_with("fatal_") && !missing_device {
+                let fatal_unrecoverable = matches!(fail_class, "fatal_auth" | "fatal_offline");
+                if fatal_unrecoverable && !missing_device {
                     let err = if err.is_empty() { "device fatal error" } else { err };
                     hop_checkpoint(turn_ctx.as_deref(), &on_hop, hop as i32, hop as i32, tokens_in, tokens_out, tools_cost_usd, &blocks_json, fail_class);
                     anyhow::bail!(err.to_string());
@@ -424,14 +427,15 @@ pub async fn prompt_cluster_turn(
         if round == 0
             && !used_tool
             && !catalog_defer_web
+            && !req.skip_web_prefetch
             && tools.iter().any(|t| t.name == "web.search")
-            && (req.force_tool_call || user_wants_search(&req.user))
+            && (req.force_web_tool_call || user_wants_search(&req.user))
         {
             let q = search_query_from_user(&req.user);
             if tool_loop_run_web_search(
                 &client,
                 &q,
-                req.force_tool_call,
+                req.force_web_tool_call,
                 &mut contents,
                 &mut tools,
                 &mut tool_json,
@@ -449,8 +453,8 @@ pub async fn prompt_cluster_turn(
             }
         }
         if !out.text.is_empty() {
-            let reject_ungrounded = req.force_tool_call && !web_grounded && !used_tool;
-            let reject_placeholder = req.force_tool_call && reply_looks_like_web_placeholder(&out.text);
+            let reject_ungrounded = req.force_web_tool_call && !web_grounded && !used_tool;
+            let reject_placeholder = req.force_web_tool_call && reply_looks_like_web_placeholder(&out.text);
             if !reject_ungrounded && !reject_placeholder {
                 if !out.thought.is_empty() {
                     thought_push(&mut thought, &out.thought);
@@ -616,28 +620,25 @@ async fn tool_loop_run_web_search(
     if let Some(tr) = tracer {
         tr.tool_result("web.search", &snowflake_id().to_string(), &args, &result, ok, tool_ms).await;
     }
-    let mut model_parts = vec![json!({ "functionCall": { "name": "web_search", "args": { "query": q } } })];
-    let mut function_parts = vec![json!({ "functionResponse": { "name": "web_search", "response": result } })];
     ensure_web_visit_tool(tools, tool_json);
     let search_ok = search_payload(&result).get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
+    let mut visit_result: Option<Value> = None;
     if force_visit && search_ok && tools.iter().any(|t| t.name == "web.visit") {
         if let Some(url) = pick_visit_url(&result) {
             emit_thought(on_delta, thought, "Using web.visit…\n");
             let visit_args = json!({ "url": url });
             let visit_started = Instant::now();
-            let (visit_result, visit_cost) = cluster_tool_exec(client, "web.visit", &visit_args, turn_ctx, None).await;
+            let (visit_payload, visit_cost) = cluster_tool_exec(client, "web.visit", &visit_args, turn_ctx, None).await;
             *tools_cost_usd += visit_cost;
             let visit_ms = visit_started.elapsed().as_millis() as i64;
-            let visit_ok = visit_result.get("ok").and_then(|v| v.as_bool()).unwrap_or(true);
+            let visit_ok = visit_payload.get("ok").and_then(|v| v.as_bool()).unwrap_or(true);
             if let Some(tr) = tracer {
-                tr.tool_result("web.visit", &snowflake_id().to_string(), &visit_args, &visit_result, visit_ok, visit_ms).await;
+                tr.tool_result("web.visit", &snowflake_id().to_string(), &visit_args, &visit_payload, visit_ok, visit_ms).await;
             }
-            model_parts.push(json!({ "functionCall": { "name": "web_visit", "args": visit_args } }));
-            function_parts.push(json!({ "functionResponse": { "name": "web_visit", "response": visit_result } }));
+            visit_result = Some(visit_payload);
         }
     }
-    contents.push(json!({ "role": "model", "parts": model_parts }));
-    contents.push(json!({ "role": "function", "parts": function_parts }));
+    web_grounding_append_user_context(contents, &result, visit_result.as_ref());
     Ok(true)
 }
 
@@ -662,15 +663,32 @@ pub fn user_wants_search(text: &str) -> bool {
     .any(|k| t.contains(k))
 }
 
+pub fn strip_mentions_for_search(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rem = text;
+    while let Some(start) = rem.find("[@[@") {
+        out.push_str(&rem[..start]);
+        if let Some(end) = rem[start..].find("]]") {
+            rem = &rem[start + end + 2..];
+        } else {
+            rem = "";
+            break;
+        }
+    }
+    out.push_str(rem);
+    out.trim().to_string()
+}
+
 pub fn search_query_from_user(text: &str) -> String {
-    let lower = text.to_ascii_lowercase();
+    let cleaned = strip_mentions_for_search(text);
+    let lower = cleaned.to_ascii_lowercase();
     for key in ["cari ", "search ", "google ", "look up "] {
         if let Some(i) = lower.rfind(key) {
-            let q = text[i + key.len()..].trim();
+            let q = cleaned[i + key.len()..].trim();
             if !q.is_empty() { return q.to_string(); }
         }
     }
-    text.trim().to_string()
+    cleaned.trim().to_string()
 }
 
 #[cfg(test)]

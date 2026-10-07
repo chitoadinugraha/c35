@@ -8,9 +8,15 @@ String referralCodeNorm(String code) => code.replaceAll(RegExp(r'[^a-zA-Z0-9]'),
 
 String? referralCodeFormValidate(String code) => referralCodeNorm(code).isEmpty ? 'Code required' : null;
 
+bool referralCodeIsVoucher(String norm) => norm.startsWith('V') && norm.length > 1;
+
 String? referralPackageCodeFormValidate(String code) {
   final norm = referralCodeNorm(code);
   if (norm.isEmpty) return 'Code required';
+  if (referralCodeIsVoucher(norm)) {
+    if (norm.length < 11) return 'Enter the full voucher code';
+    return null;
+  }
   if (norm.length != referralCodeNormMaxLen) return 'Enter the full 20-character code';
   return null;
 }

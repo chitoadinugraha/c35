@@ -38,7 +38,7 @@ class UiHintChip extends StatelessWidget {
         if (expand) Expanded(child: text) else text,
         if (showChevron && enabled) ...[
           const SizedBox(width: 4),
-          Icon(Icons.arrow_drop_down, size: 16, color: HintChipTheme.defaultTheme.icon),
+          Icon(Icons.arrow_drop_down, size: 15, color: HintChipTheme.defaultTheme.icon),
         ],
       ],
     );
@@ -57,7 +57,12 @@ class UiHintChip extends StatelessWidget {
       child: InkWell(
         onTap: enabled ? onPressed : null,
         borderRadius: BorderRadius.circular(8),
-        child: Padding(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9), child: row),
+        child: SizedBox.expand(
+          child: Padding(
+            padding: homeTalkCallChipContentPadding,
+            child: Align(alignment: Alignment.centerLeft, child: row),
+          ),
+        ),
       ),
     );
   }

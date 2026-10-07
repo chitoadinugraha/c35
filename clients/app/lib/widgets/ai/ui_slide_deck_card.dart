@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
 import 'package:alienai_c35/c/config.dart';
+import 'package:alienai_c35/c/session.dart';
+import 'package:alienai_c35/c/presentation/slide_deck_theme_prefs.dart';
 import 'package:alienai_c35/c/presentation/slide_theme.dart';
 import 'package:alienai_c35/c/presentation/slide_theme_catalog.dart';
 import 'package:alienai_c35/widgets/ai/io_slide_theme_pick.dart';
@@ -103,6 +105,48 @@ class SlideDeckData {
     }
   }
 
+  /// Resolves a `presentation.deck` block body, applying [priorDeck] when [content] is a slide patch.
+  static SlideDeckData fromBlockBody(Map<String, dynamic> json, [SlideDeckData? priorDeck]) {
+    final slidesRaw = json['slides'];
+    if (slidesRaw is List) {
+      final slides = slidesRaw.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
+      if (slides.isNotEmpty) {
+        return SlideDeckData.fromJson(json);
+      }
+    }
+    final content = json['content']?.toString() ?? '';
+    final patch = SlidePatch.tryParse(content);
+    if (patch != null && priorDeck != null) {
+      final slides = List<String>.from(priorDeck.slides);
+      final deck = SlideDeckData(
+        title: priorDeck.title,
+        slides: slides,
+        createdAt: priorDeck.createdAt,
+        eyebrow: json['eyebrow']?.toString() ?? priorDeck.eyebrow,
+        theme: json['theme']?.toString() ?? priorDeck.theme,
+      );
+      deck.applyPatch(patch);
+      final title = json['title']?.toString().trim() ?? '';
+      if (title.isNotEmpty && title != 'Presentation' && !title.startsWith('Slide ') && !title.endsWith(' Updated')) {
+        deck.title = title;
+      }
+      return deck;
+    }
+    return SlideDeckData.fromContent(
+      title: json['title']?.toString() ?? 'Presentation',
+      content: content,
+      createdAt: json['created_at_ms'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(json['created_at_ms'] as int)
+          : (json['createdAtMs'] != null ? DateTime.fromMillisecondsSinceEpoch(json['createdAtMs'] as int) : null),
+      eyebrow: json['eyebrow']?.toString(),
+      theme: json['theme']?.toString() ?? 'dark',
+    );
+  }
+
+  static SlideDeckData? applyChatBlock(Map<String, dynamic> body, SlideDeckData? prior) {
+    return fromBlockBody(body, prior);
+  }
+
   factory SlideDeckData.fromContent({
     required String title,
     required String content,
@@ -110,22 +154,6 @@ class SlideDeckData {
     String? eyebrow,
     String theme = 'dark',
   }) {
-    final patch = SlidePatch.tryParse(content);
-    if (patch != null) {
-      final patchTitle = patch.action == SlidePatchAction.delete
-          ? 'Slide ${patch.slideIndex} Deleted'
-          : 'Slide ${patch.slideIndex} Updated';
-      return SlideDeckData(
-        title: title.isNotEmpty && title != 'Presentation' ? title : patchTitle,
-        slides: patch.action == SlidePatchAction.delete
-            ? ['_Slide ${patch.slideIndex} removed from presentation_']
-            : [patch.content],
-        createdAt: createdAt ?? DateTime.now(),
-        eyebrow: 'SLIDE ${patch.slideIndex} UPDATED',
-        theme: theme,
-      );
-    }
-
     final raw = content.split(RegExp(r'(?:^|\n)---\s*(?:\n|$)'));
     final list = raw.map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
 
@@ -176,13 +204,7 @@ class SlideDeckData {
     final dt = timeMs != null ? DateTime.fromMillisecondsSinceEpoch(timeMs) : DateTime.now();
 
     if (slides.isEmpty && content.isNotEmpty) {
-      return SlideDeckData.fromContent(
-        title: title,
-        content: content,
-        createdAt: dt,
-        eyebrow: json['eyebrow']?.toString(),
-        theme: theme,
-      );
+      return SlideDeckData.fromBlockBody(json);
     }
 
     return SlideDeckData(
@@ -199,15 +221,61 @@ class UiSlideDeckCard extends StatefulWidget {
   const UiSlideDeckCard({
     super.key,
     required this.deck,
+    this.chatId = 0,
     this.initiallyExpanded = false,
     this.onOpenInCanvas,
     this.onExport,
   });
 
   final SlideDeckData deck;
+  final int chatId;
   final bool initiallyExpanded;
   final VoidCallback? onOpenInCanvas;
   final VoidCallback? onExport;
+
+  /// Resolves `/fs/{hash}/{name}?exp=&sig=` even when the server returned a legacy
+  /// URL with the filename appended after the query string (which breaks the signature).
+  static Uri presentationDownloadUri({
+    required String apiBase,
+    required String fileHash,
+    required String fileName,
+    String? downloadUrl,
+  }) {
+    final base = apiBase.replaceAll(RegExp(r'/+$'), '');
+    final hash = fileHash.trim();
+    final name = fileName.split('/').last.trim();
+    final fallback = Uri.parse('$base/fs/$hash/$name');
+
+    if (downloadUrl == null || downloadUrl.isEmpty) return fallback;
+
+    final raw = downloadUrl.startsWith('http') ? downloadUrl : '$base$downloadUrl';
+    final parsed = Uri.parse(raw);
+    if (parsed.pathSegments.length >= 3 &&
+        parsed.pathSegments.first == 'fs' &&
+        parsed.pathSegments.last.toLowerCase().endsWith('.pptx')) {
+      return parsed;
+    }
+
+    var exp = parsed.queryParameters['exp'];
+    var sig = parsed.queryParameters['sig'];
+    if (sig != null && name.isNotEmpty) {
+      final legacySuffix = '/$name';
+      if (sig.endsWith(legacySuffix)) {
+        sig = sig.substring(0, sig.length - legacySuffix.length);
+      }
+    }
+    if (hash.isNotEmpty && exp != null && sig != null && sig.isNotEmpty) {
+      final origin = Uri.parse(base);
+      return Uri(
+        scheme: parsed.scheme.isNotEmpty ? parsed.scheme : origin.scheme,
+        host: parsed.host.isNotEmpty ? parsed.host : origin.host,
+        port: parsed.hasPort ? parsed.port : origin.port,
+        path: '/fs/$hash/$name',
+        queryParameters: {'exp': exp, 'sig': sig},
+      );
+    }
+    return parsed;
+  }
 
   @override
   State<UiSlideDeckCard> createState() => _UiSlideDeckCardState();
@@ -234,6 +302,19 @@ class _UiSlideDeckCardState extends State<UiSlideDeckCard> {
     super.dispose();
   }
 
+  @override
+  void didUpdateWidget(UiSlideDeckCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.deck.theme != widget.deck.theme) {
+      _theme = SlideThemeCatalog.resolve(widget.deck.theme);
+    }
+  }
+
+  void _persistThemePick(SlideTheme picked) {
+    if (widget.chatId > 0) {
+      SlideDeckThemePrefs.instance.set(widget.chatId, picked.id);
+    }
+  }
 
   String _formatTimestamp(DateTime dt) {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -268,6 +349,11 @@ class _UiSlideDeckCardState extends State<UiSlideDeckCard> {
     );
   }
 
+  Map<String, String> _authHeaders() {
+    final token = sessionAuthToken();
+    return token.isEmpty ? const {} : {'Authorization': 'Bearer $token'};
+  }
+
   Future<void> _exportToPptx(BuildContext context) async {
     if (widget.onExport != null) {
       widget.onExport!();
@@ -298,7 +384,7 @@ class _UiSlideDeckCardState extends State<UiSlideDeckCard> {
       final url = Uri.parse('$base/v1/presentation/export');
       final res = await http.post(
         url,
-        headers: {'Content-Type': 'application/json'},
+        headers: {'Content-Type': 'application/json', ..._authHeaders()},
         body: jsonEncode({
           'title': widget.deck.title,
           'eyebrow': widget.deck.eyebrow,
@@ -310,15 +396,20 @@ class _UiSlideDeckCardState extends State<UiSlideDeckCard> {
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         final downloadUrl = data['download_url']?.toString();
+        final fileHash = data['file_hash']?.toString() ?? '';
         final fileName = data['filename']?.toString() ?? '${_sanitizeFilename(widget.deck.title)}.pptx';
         if (downloadUrl != null && downloadUrl.isNotEmpty) {
-          final fullUrl = downloadUrl.startsWith('http') ? downloadUrl : '$base$downloadUrl';
-          final uri = Uri.parse(fullUrl);
+          final uri = UiSlideDeckCard.presentationDownloadUri(
+            apiBase: base,
+            fileHash: fileHash,
+            fileName: fileName,
+            downloadUrl: downloadUrl,
+          );
 
           // On mobile & desktop, save with human-readable filename and open
           if (!kIsWeb) {
             try {
-              final bytesRes = await http.get(uri);
+              final bytesRes = await http.get(uri, headers: _authHeaders());
               if (bytesRes.statusCode == 200) {
                 final dir = await getTemporaryDirectory();
                 final file = File('${dir.path}/$fileName');
@@ -453,6 +544,7 @@ class _UiSlideDeckCardState extends State<UiSlideDeckCard> {
           setState(() {
             _theme = picked;
             widget.deck.theme = picked.id;
+            _persistThemePick(picked);
           });
         }
       case 'fullscreen':
@@ -688,6 +780,7 @@ class _UiSlideDeckCardState extends State<UiSlideDeckCard> {
                     setState(() {
                       _theme = picked;
                       widget.deck.theme = picked.id;
+                      _persistThemePick(picked);
                     });
                   }
                 },

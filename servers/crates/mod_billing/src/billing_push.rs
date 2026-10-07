@@ -11,6 +11,7 @@ pub async fn billing_notify_owner(
     owner_iid: i64,
     out_tx: Option<&tokio::sync::mpsc::UnboundedSender<WsRes>>,
 ) {
+    let _ = crate::billing_profile::billing_profile_repair_rings_v4(pool, owner_iid).await;
     let row = sqlx::query(
         r#"
         SELECT id, balance_usd::float8 AS balance_usd, balance_idr::float8 AS balance_idr,

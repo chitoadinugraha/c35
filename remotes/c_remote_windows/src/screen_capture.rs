@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicU8, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -23,6 +23,35 @@ static SCREEN_DIRTY: AtomicBool = AtomicBool::new(true);
 static NEXT_FRAME_ID: AtomicU32 = AtomicU32::new(1);
 static VIEWER_STREAM_QUALITY: AtomicU8 = AtomicU8::new(80);
 static VIEWER_STREAM_QUALITY_GEN: AtomicU32 = AtomicU32::new(0);
+static LAST_GDI_CAPTURE_MS: AtomicU64 = AtomicU64::new(0);
+
+const GDI_STREAM_MIN_INTERVAL_MS: u64 = 750;
+
+#[inline]
+fn remote_view_capture_active() -> bool {
+    is_capture_active() || crate::video_stream::is_video_stream_active()
+}
+
+pub fn gdi_stream_capture_allowed() -> bool {
+    if !remote_view_capture_active() {
+        return true;
+    }
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+    let last = LAST_GDI_CAPTURE_MS.load(Ordering::Relaxed);
+    if now.saturating_sub(last) < GDI_STREAM_MIN_INTERVAL_MS {
+        return false;
+    }
+    LAST_GDI_CAPTURE_MS.store(now, Ordering::Relaxed);
+    true
+}
+
+#[inline]
+fn prev_hash_or_zero(prev_hash: Option<[u8; 32]>) -> [u8; 32] {
+    prev_hash.unwrap_or([0u8; 32])
+}
 
 pub fn set_viewer_stream_quality(q: u8) {
     VIEWER_STREAM_QUALITY.store(q.clamp(40, 95), Ordering::Relaxed);
@@ -399,6 +428,22 @@ fn encode_bgra_screenshot(
     Ok((Some((dst_w as u16, dst_h as u16, jpeg_bytes, axtree)), hash))
 }
 
+fn try_reuse_shared_last_bgra(
+    max_w: u32,
+    quality: u8,
+    prev_hash: Option<[u8; 32]>,
+    force: bool,
+    marker: Option<(f64, f64)>,
+    som: bool,
+    check_black: bool,
+) -> Option<Result<(Option<(u16, u16, Vec<u8>, String)>, [u8; 32])>> {
+    let (w, h, bgra) = crate::dxgi_capture::shared_last_bgra_clone()?;
+    debug!(w, h, "reusing last DXGI desktop frame (avoid GDI flicker)");
+    Some(encode_bgra_screenshot(
+        w, h, bgra, max_w, quality, prev_hash, force, marker, som, check_black,
+    ))
+}
+
 fn try_reuse_last_dxgi_frame(
     max_w: u32,
     quality: u8,
@@ -407,12 +452,38 @@ fn try_reuse_last_dxgi_frame(
     marker: Option<(f64, f64)>,
     som: bool,
 ) -> Option<Result<(Option<(u16, u16, Vec<u8>, String)>, [u8; 32])>> {
-    if !crate::video_stream::is_video_stream_active() {
+    if !remote_view_capture_active() {
         return None;
     }
-    let (w, h, bgra) = crate::dxgi_capture::shared_last_bgra_clone()?;
-    debug!(w, h, "screenshot reusing last DXGI desktop frame from WebRTC stream");
-    Some(encode_bgra_screenshot(w, h, bgra, max_w, quality, prev_hash, force, marker, som, false))
+    try_reuse_shared_last_bgra(max_w, quality, prev_hash, force, marker, som, false)
+}
+
+fn skip_gdi_use_cached_frame(
+    max_w: u32,
+    quality: u8,
+    prev_hash: Option<[u8; 32]>,
+    force: bool,
+    marker: Option<(f64, f64)>,
+    som: bool,
+) -> Result<(Option<(u16, u16, Vec<u8>, String)>, [u8; 32])> {
+    if let Some(res) = try_reuse_shared_last_bgra(max_w, quality, prev_hash, force, marker, som, false) {
+        return res;
+    }
+    if force {
+        for ms in [32u32, 120, 400] {
+            if let Ok(Some((w, h, bgra))) = crate::dxgi_capture::shared_capture_frame(ms) {
+                if let Ok(out) = encode_bgra_screenshot(
+                    w, h, bgra, max_w, quality, prev_hash, force, marker, som, true,
+                ) {
+                    return Ok(out);
+                }
+            }
+        }
+        if let Some(res) = try_reuse_shared_last_bgra(max_w, quality, prev_hash, force, marker, som, false) {
+            return res;
+        }
+    }
+    Ok((None, prev_hash_or_zero(prev_hash)))
 }
 
 /// Chat / `device.screenshot` path when WebRTC video is off — fresh agent capture only.
@@ -444,6 +515,9 @@ fn capture_tool_screenshot_agent_opt(
             }
             Err(e) => warn!("tool screenshot DXGI capture failed: {e}; falling back to GDI"),
         }
+    }
+    if !gdi_stream_capture_allowed() {
+        return skip_gdi_use_cached_frame(max_w, quality, prev_hash, true, marker, som);
     }
     capture_screen_gdi(max_w, quality, prev_hash, true, marker, som)
 }
@@ -555,6 +629,15 @@ pub fn capture_screen_diff_opt(
                 }
             }
         }
+    }
+
+    if remote_view_capture_active() && !crate::dxgi_capture::shared_dxgi_disabled() {
+        debug!("skipping GDI while DXGI session is active (remote view)");
+        return skip_gdi_use_cached_frame(max_w, quality, prev_hash, force, marker, som);
+    }
+
+    if !gdi_stream_capture_allowed() {
+        return skip_gdi_use_cached_frame(max_w, quality, prev_hash, force, marker, som);
     }
 
     match capture_screen_gdi(max_w, quality, prev_hash, force, marker, som) {

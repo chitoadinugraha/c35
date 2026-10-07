@@ -91,6 +91,7 @@ class ChatConn {
   var _manualDisconnect = false;
   var _retryCount = 0;
   var _socketGen = 0;
+  static const _wsReadyTimeout = Duration(seconds: 20);
   var _locale = 'en';
   var _tz = '';
   var _appBuild = 0;
@@ -260,12 +261,36 @@ class ChatConn {
       onDone: () => _onWsDone(gen),
     );
     try {
-      await _ch!.ready;
+      await _waitSocketReady(gen);
+      if (gen != _socketGen) return;
       _markConnected(gen);
     } catch (e) {
       if (gen != _socketGen) return;
+      await _dropSocketIfGen(gen);
       rethrow;
     }
+  }
+
+  Future<void> _waitSocketReady(int gen) async {
+    final ch = _ch;
+    if (ch == null) throw StateError('no socket');
+    try {
+      await ch.ready.timeout(_wsReadyTimeout);
+    } on TimeoutException {
+      if (gen != _socketGen) return;
+      await _dropSocketIfGen(gen);
+      throw StateError('chat ws ready timeout');
+    }
+  }
+
+  Future<void> _dropSocketIfGen(int gen) async {
+    if (gen != _socketGen || _ch == null) return;
+    await _sub?.cancel();
+    _sub = null;
+    try {
+      await _ch?.sink.close();
+    } catch (_) {}
+    _ch = null;
   }
 
   void _markConnected(int gen) {
@@ -274,7 +299,10 @@ class ChatConn {
     final wasReconnecting = _retryCount > 0 || status.value == ChatConnStatus.reconnecting;
     _retryCount = 0;
     _statusSet(ChatConnStatus.connected);
-    if (wasReconnecting && !_reconnectedCtrl.isClosed) _reconnectedCtrl.add(null);
+    if (wasReconnecting) {
+      l('chat ws reconnected');
+      if (!_reconnectedCtrl.isClosed) _reconnectedCtrl.add(null);
+    }
   }
 
   void _emitSocketAttached() {
@@ -332,14 +360,24 @@ class ChatConn {
 
   bool _trySend(WsReq req) {
     final ch = _ch;
-    if (ch == null || ch.closeCode != null) return false;
+    if (ch == null || ch.closeCode != null) {
+      unawaited(_nudgeReconnectAfterSendFailure());
+      return false;
+    }
     try {
       ch.sink.add(req.writeToBuffer());
       return true;
     } catch (e) {
       lError('chat ws send skipped: $e');
+      unawaited(_nudgeReconnectAfterSendFailure());
       return false;
     }
+  }
+
+  Future<void> _nudgeReconnectAfterSendFailure() async {
+    if (_manualDisconnect || Session.instance.token.trim().isEmpty) return;
+    await _dropSocketIfGen(_socketGen);
+    _scheduleReconnectIfNeeded();
   }
 
   Future<T> rpc<T>(WsReq req, T Function(WsRes res) parse) => _rpc(req, parse);
@@ -350,7 +388,7 @@ class ChatConn {
       if (_ch == null || status.value != ChatConnStatus.connected) {
         if (_ch != null && (status.value == ChatConnStatus.connecting || status.value == ChatConnStatus.reconnecting)) {
           try {
-            await _ch!.ready;
+            await _waitSocketReady(_socketGen);
           } catch (_) {}
         }
         if (_ch == null || status.value != ChatConnStatus.connected) await reconnect();

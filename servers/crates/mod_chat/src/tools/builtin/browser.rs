@@ -30,8 +30,12 @@ fn browser_fail(error: impl Into<String>) -> Value {
     let e = error.to_lowercase();
     let (fail_class, retryable) = if e.contains("device_iid is required") || e.contains("device_iid required") {
         ("transient", true)
+    } else if e.contains("offline") || e.contains("not connected") || e.contains("disconnected") {
+        ("fatal_offline", false)
+    } else if e.contains("forbidden") || e.contains("access denied") || e.contains("invalid device") {
+        ("fatal_auth", false)
     } else {
-        ("fatal_env", false)
+        ("tool_error", false)
     };
     json!({
         "ok": false,

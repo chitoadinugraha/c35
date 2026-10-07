@@ -23,6 +23,8 @@ Wrong chat / missing tool / pipeline bug: reproduce → fix in correct layer →
 
 Still use **`inst.web_search`** (and related inst rows) for phrases, include/exclude, and *when* to search.
 
+**Never provider grounding:** [`web-grounding-cluster-only.md`](web-grounding-cluster-only.md).
+
 **Every other tool:** inst + `compose_force_*` only — no Rust phrase prefetch, no `reply_rule` in tool JSON.
 
 ## Missing tools (compose first)

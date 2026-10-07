@@ -579,6 +579,15 @@ const InvokeReq$json = {
       '9': 0,
       '10': 'adminLlmCatalogList'
     },
+    {
+      '1': 'billing_admin_plan_change',
+      '3': 142,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqBillingAdminPlanChange',
+      '9': 0,
+      '10': 'billingAdminPlanChange'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -674,7 +683,9 @@ final $typed_data.Uint8List invokeReqDescriptor = $convert.base64Decode(
     'Z1ZvdWNoZXJSZWRlZW1MaXN0Ek8KFGJpbGxpbmdfdm91Y2hlcl92b2lkGIwBIAEoCzIaLmMzNS'
     '5SZXFCaWxsaW5nVm91Y2hlclZvaWRIAFISYmlsbGluZ1ZvdWNoZXJWb2lkElMKFmFkbWluX2xs'
     'bV9jYXRhbG9nX2xpc3QYjQEgASgLMhsuYzM1LlJlcUFkbWluTGxtQ2F0YWxvZ0xpc3RIAFITYW'
-    'RtaW5MbG1DYXRhbG9nTGlzdEIGCgRib2R5');
+    'RtaW5MbG1DYXRhbG9nTGlzdBJcChliaWxsaW5nX2FkbWluX3BsYW5fY2hhbmdlGI4BIAEoCzIe'
+    'LmMzNS5SZXFCaWxsaW5nQWRtaW5QbGFuQ2hhbmdlSABSFmJpbGxpbmdBZG1pblBsYW5DaGFuZ2'
+    'VCBgoEYm9keQ==');
 
 @$core.Deprecated('Use invokeResDescriptor instead')
 const InvokeRes$json = {
@@ -1232,6 +1243,15 @@ const InvokeRes$json = {
       '9': 0,
       '10': 'adminLlmCatalogList'
     },
+    {
+      '1': 'billing_admin_plan_change',
+      '3': 142,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResBillingPlanChange',
+      '9': 0,
+      '10': 'billingAdminPlanChange'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -1326,7 +1346,9 @@ final $typed_data.Uint8List invokeResDescriptor = $convert.base64Decode(
     'JpbGxpbmdWb3VjaGVyUmVkZWVtTGlzdBJPChRiaWxsaW5nX3ZvdWNoZXJfdm9pZBiMASABKAsy'
     'Gi5jMzUuUmVzQmlsbGluZ1ZvdWNoZXJWb2lkSABSEmJpbGxpbmdWb3VjaGVyVm9pZBJTChZhZG'
     '1pbl9sbG1fY2F0YWxvZ19saXN0GI0BIAEoCzIbLmMzNS5SZXNBZG1pbkxsbUNhdGFsb2dMaXN0'
-    'SABSE2FkbWluTGxtQ2F0YWxvZ0xpc3RCBgoEYm9keQ==');
+    'SABSE2FkbWluTGxtQ2F0YWxvZ0xpc3QSVwoZYmlsbGluZ19hZG1pbl9wbGFuX2NoYW5nZRiOAS'
+    'ABKAsyGS5jMzUuUmVzQmlsbGluZ1BsYW5DaGFuZ2VIAFIWYmlsbGluZ0FkbWluUGxhbkNoYW5n'
+    'ZUIGCgRib2R5');
 
 @$core.Deprecated('Use wsReqDescriptor instead')
 const WsReq$json = {

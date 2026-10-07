@@ -107,6 +107,14 @@ bool referralCanEditRoles() => Session.instance.isRoot || Session.instance.globa
 
 bool referralCanEditRolesGrantDirector() => Session.instance.isRoot;
 
+bool referralSubjectRootOrDirector(ReferralTreeNode node) =>
+    referralNodeIsRoot(node) || node.globalRoles.any((r) => r.toLowerCase() == 'director');
+
+bool referralCanAdminSetSubjectPackage(ReferralTreeNode node) =>
+    (Session.instance.isRoot || Session.instance.globalRoles.contains('director')) && referralSubjectRootOrDirector(node);
+
+bool referralCanIssuePackageCode() => Session.instance.isRoot || Session.instance.globalRoles.contains('director');
+
 ReferralTreeNode referralTreeNodeWithParent(ReferralTreeNode node, int referredBy) {
   if (node.parentId == referredBy) return node;
   return (ReferralTreeNode()..mergeFromMessage(node))..referredBy = Int64(referredBy);

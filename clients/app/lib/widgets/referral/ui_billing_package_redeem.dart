@@ -168,7 +168,7 @@ class _BillingPackageRedeemDialogState extends State<_BillingPackageRedeemDialog
                   InFormattedReferralCodeField(
                     key: _codeKey,
                     autofocus: true,
-                    labelText: 'Package code',
+                    labelText: 'Voucher or package code',
                     onChanged: _onCodeChanged,
                   ),
                   if (_loading)

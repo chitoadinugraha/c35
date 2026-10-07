@@ -7,6 +7,7 @@ import 'package:alienai_c35/c/consumption/consumption_glance.dart';
 import 'package:alienai_c35/c/expense/expense_api.dart';
 import 'package:alienai_c35/c/expense/expense_glance.dart';
 import 'package:alienai_c35/c/expense/expense_receipt.dart';
+import 'package:alienai_c35/c/presentation/slide_deck_theme_prefs.dart';
 import 'package:alienai_c35/c/generation/media_provider_labels.dart';
 import 'package:alienai_c35/widgets/ai/ui_consumption_food_card.dart';
 import 'package:alienai_c35/widgets/ai/ui_consumption_glance_card.dart';
@@ -29,6 +30,8 @@ class UiMsgBlocks extends StatelessWidget {
     super.key,
     required this.msgId,
     required this.blocks,
+    this.chatId = 0,
+    this.presentationDeckPrior,
     this.consumptionApi,
     this.expenseApi,
     this.locale = 'en-US',
@@ -43,6 +46,8 @@ class UiMsgBlocks extends StatelessWidget {
 
   final int msgId;
   final List<ChatBlock> blocks;
+  final int chatId;
+  final SlideDeckData? presentationDeckPrior;
   final ConsumptionApi? consumptionApi;
   final ExpenseApi? expenseApi;
   final String locale;
@@ -55,12 +60,23 @@ class UiMsgBlocks extends StatelessWidget {
   final ChatConn? chatConn;
 
   @override
-  Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [for (var i = 0; i < blocks.length; i++) _block(context, blocks[i], i)],
-      );
+  Widget build(BuildContext context) {
+    var presentationDeck = presentationDeckPrior;
+    final children = <Widget>[];
+    for (var i = 0; i < blocks.length; i++) {
+      final b = blocks[i];
+      children.add(_block(context, b, i, presentationDeck: presentationDeck, onPresentationDeck: (d) => presentationDeck = d));
+    }
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children);
+  }
 
-  Widget _block(BuildContext context, ChatBlock b, int blockIndex) {
+  Widget _block(
+    BuildContext context,
+    ChatBlock b,
+    int blockIndex, {
+    SlideDeckData? presentationDeck,
+    void Function(SlideDeckData deck)? onPresentationDeck,
+  }) {
     switch (b.kind) {
       case 'consumption.food':
         final card = ConsumptionFoodCard.fromBlockBody(b.body);
@@ -162,11 +178,15 @@ class UiMsgBlocks extends StatelessWidget {
       case 'presentation.deck':
       case 'slide.deck':
       case 'presentation':
-        final deck = SlideDeckData.fromJson(b.body);
+        final deck = SlideDeckData.fromBlockBody(b.body, presentationDeck);
+        final themeOverride = SlideDeckThemePrefs.instance.themeFor(chatId);
+        if (themeOverride != null) deck.theme = themeOverride;
+        onPresentationDeck?.call(deck);
         return Padding(
           padding: const EdgeInsets.only(top: 8),
           child: UiSlideDeckCard(
             deck: deck,
+            chatId: chatId,
             initiallyExpanded: !b.collapsed || primary,
           ),
         );

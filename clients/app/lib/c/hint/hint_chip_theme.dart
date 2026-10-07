@@ -34,3 +34,8 @@ class HintChipTheme {
         _ => defaultTheme,
       };
 }
+
+/// Shared height for account-menu Talk mode + Live call chips.
+const double homeTalkCallChipHeight = 36;
+
+const EdgeInsets homeTalkCallChipContentPadding = EdgeInsets.symmetric(horizontal: 10);

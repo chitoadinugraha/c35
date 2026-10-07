@@ -2181,6 +2181,23 @@ final $typed_data.Uint8List reqBillingAdminAdjustDescriptor = $convert.base64Dec
     'NkEhoKCGN1cnJlbmN5GAYgASgJUghjdXJyZW5jeRIWCgZyZWFzb24YByABKAlSBnJlYXNvbhIS'
     'CgRub3RlGAggASgJUgRub3Rl');
 
+@$core.Deprecated('Use reqBillingAdminPlanChangeDescriptor instead')
+const ReqBillingAdminPlanChange$json = {
+  '1': 'ReqBillingAdminPlanChange',
+  '2': [
+    {'1': 'subject_uid', '3': 1, '4': 1, '5': 3, '10': 'subjectUid'},
+    {'1': 'plan_slug', '3': 2, '4': 1, '5': 9, '10': 'planSlug'},
+    {'1': 'billing_period', '3': 3, '4': 1, '5': 9, '10': 'billingPeriod'},
+    {'1': 'currency', '3': 4, '4': 1, '5': 9, '10': 'currency'},
+  ],
+};
+
+/// Descriptor for `ReqBillingAdminPlanChange`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqBillingAdminPlanChangeDescriptor = $convert.base64Decode(
+    'ChlSZXFCaWxsaW5nQWRtaW5QbGFuQ2hhbmdlEh8KC3N1YmplY3RfdWlkGAEgASgDUgpzdWJqZW'
+    'N0VWlkEhsKCXBsYW5fc2x1ZxgCIAEoCVIIcGxhblNsdWcSJQoOYmlsbGluZ19wZXJpb2QYAyAB'
+    'KAlSDWJpbGxpbmdQZXJpb2QSGgoIY3VycmVuY3kYBCABKAlSCGN1cnJlbmN5');
+
 @$core.Deprecated('Use resBillingAdminAdjustDescriptor instead')
 const ResBillingAdminAdjust$json = {
   '1': 'ResBillingAdminAdjust',

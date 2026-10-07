@@ -109,6 +109,7 @@ enum InvokeReq_Body {
   billingVoucherRedeemList,
   billingVoucherVoid,
   adminLlmCatalogList,
+  billingAdminPlanChange,
   notSet
 }
 
@@ -179,6 +180,7 @@ class InvokeReq extends $pb.GeneratedMessage {
     $0.ReqBillingVoucherRedeemList? billingVoucherRedeemList,
     $0.ReqBillingVoucherVoid? billingVoucherVoid,
     $3.ReqAdminLlmCatalogList? adminLlmCatalogList,
+    $0.ReqBillingAdminPlanChange? billingAdminPlanChange,
   }) {
     final result = InvokeReq._();
     if (reqId != null) result.reqId = reqId;
@@ -275,6 +277,8 @@ class InvokeReq extends $pb.GeneratedMessage {
       result.billingVoucherVoid = billingVoucherVoid;
     if (adminLlmCatalogList != null)
       result.adminLlmCatalogList = adminLlmCatalogList;
+    if (billingAdminPlanChange != null)
+      result.billingAdminPlanChange = billingAdminPlanChange;
     return result;
   }
 
@@ -350,6 +354,7 @@ class InvokeReq extends $pb.GeneratedMessage {
     139: InvokeReq_Body.billingVoucherRedeemList,
     140: InvokeReq_Body.billingVoucherVoid,
     141: InvokeReq_Body.adminLlmCatalogList,
+    142: InvokeReq_Body.billingAdminPlanChange,
     0: InvokeReq_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -418,7 +423,8 @@ class InvokeReq extends $pb.GeneratedMessage {
       138,
       139,
       140,
-      141
+      141,
+      142
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aInt64(2, _omitFieldNames ? '' : 'callerIid')
@@ -582,6 +588,9 @@ class InvokeReq extends $pb.GeneratedMessage {
     ..aOM<$3.ReqAdminLlmCatalogList>(
         141, _omitFieldNames ? '' : 'adminLlmCatalogList',
         subBuilder: $3.ReqAdminLlmCatalogList.$_createMessage)
+    ..aOM<$0.ReqBillingAdminPlanChange>(
+        142, _omitFieldNames ? '' : 'billingAdminPlanChange',
+        subBuilder: $0.ReqBillingAdminPlanChange.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -666,6 +675,7 @@ class InvokeReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(139)
   @$pb.TagNumber(140)
   @$pb.TagNumber(141)
+  @$pb.TagNumber(142)
   InvokeReq_Body whichBody() => _InvokeReq_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(10)
   @$pb.TagNumber(11)
@@ -729,6 +739,7 @@ class InvokeReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(139)
   @$pb.TagNumber(140)
   @$pb.TagNumber(141)
+  @$pb.TagNumber(142)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -1468,6 +1479,18 @@ class InvokeReq extends $pb.GeneratedMessage {
   void clearAdminLlmCatalogList() => $_clearField(141);
   @$pb.TagNumber(141)
   $3.ReqAdminLlmCatalogList ensureAdminLlmCatalogList() => $_ensure(63);
+
+  @$pb.TagNumber(142)
+  $0.ReqBillingAdminPlanChange get billingAdminPlanChange => $_getN(64);
+  @$pb.TagNumber(142)
+  set billingAdminPlanChange($0.ReqBillingAdminPlanChange value) =>
+      $_setField(142, value);
+  @$pb.TagNumber(142)
+  $core.bool hasBillingAdminPlanChange() => $_has(64);
+  @$pb.TagNumber(142)
+  void clearBillingAdminPlanChange() => $_clearField(142);
+  @$pb.TagNumber(142)
+  $0.ReqBillingAdminPlanChange ensureBillingAdminPlanChange() => $_ensure(64);
 }
 
 enum InvokeRes_Body {
@@ -1532,6 +1555,7 @@ enum InvokeRes_Body {
   billingVoucherRedeemList,
   billingVoucherVoid,
   adminLlmCatalogList,
+  billingAdminPlanChange,
   notSet
 }
 
@@ -1601,6 +1625,7 @@ class InvokeRes extends $pb.GeneratedMessage {
     $0.ResBillingVoucherRedeemList? billingVoucherRedeemList,
     $0.ResBillingVoucherVoid? billingVoucherVoid,
     $3.ResAdminLlmCatalogList? adminLlmCatalogList,
+    $0.ResBillingPlanChange? billingAdminPlanChange,
   }) {
     final result = InvokeRes._();
     if (reqId != null) result.reqId = reqId;
@@ -1696,6 +1721,8 @@ class InvokeRes extends $pb.GeneratedMessage {
       result.billingVoucherVoid = billingVoucherVoid;
     if (adminLlmCatalogList != null)
       result.adminLlmCatalogList = adminLlmCatalogList;
+    if (billingAdminPlanChange != null)
+      result.billingAdminPlanChange = billingAdminPlanChange;
     return result;
   }
 
@@ -1770,6 +1797,7 @@ class InvokeRes extends $pb.GeneratedMessage {
     139: InvokeRes_Body.billingVoucherRedeemList,
     140: InvokeRes_Body.billingVoucherVoid,
     141: InvokeRes_Body.adminLlmCatalogList,
+    142: InvokeRes_Body.billingAdminPlanChange,
     0: InvokeRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -1837,7 +1865,8 @@ class InvokeRes extends $pb.GeneratedMessage {
       138,
       139,
       140,
-      141
+      141,
+      142
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aI(2, _omitFieldNames ? '' : 'statusCode')
@@ -1999,6 +2028,9 @@ class InvokeRes extends $pb.GeneratedMessage {
     ..aOM<$3.ResAdminLlmCatalogList>(
         141, _omitFieldNames ? '' : 'adminLlmCatalogList',
         subBuilder: $3.ResAdminLlmCatalogList.$_createMessage)
+    ..aOM<$0.ResBillingPlanChange>(
+        142, _omitFieldNames ? '' : 'billingAdminPlanChange',
+        subBuilder: $0.ResBillingPlanChange.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -2082,6 +2114,7 @@ class InvokeRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(139)
   @$pb.TagNumber(140)
   @$pb.TagNumber(141)
+  @$pb.TagNumber(142)
   InvokeRes_Body whichBody() => _InvokeRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(10)
   @$pb.TagNumber(11)
@@ -2144,6 +2177,7 @@ class InvokeRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(139)
   @$pb.TagNumber(140)
   @$pb.TagNumber(141)
+  @$pb.TagNumber(142)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -2880,6 +2914,18 @@ class InvokeRes extends $pb.GeneratedMessage {
   void clearAdminLlmCatalogList() => $_clearField(141);
   @$pb.TagNumber(141)
   $3.ResAdminLlmCatalogList ensureAdminLlmCatalogList() => $_ensure(63);
+
+  @$pb.TagNumber(142)
+  $0.ResBillingPlanChange get billingAdminPlanChange => $_getN(64);
+  @$pb.TagNumber(142)
+  set billingAdminPlanChange($0.ResBillingPlanChange value) =>
+      $_setField(142, value);
+  @$pb.TagNumber(142)
+  $core.bool hasBillingAdminPlanChange() => $_has(64);
+  @$pb.TagNumber(142)
+  void clearBillingAdminPlanChange() => $_clearField(142);
+  @$pb.TagNumber(142)
+  $0.ResBillingPlanChange ensureBillingAdminPlanChange() => $_ensure(64);
 }
 
 enum WsReq_Body {

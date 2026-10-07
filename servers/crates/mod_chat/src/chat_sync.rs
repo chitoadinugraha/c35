@@ -1,7 +1,8 @@
 use anyhow::Result;
 use async_nats::Client;
 use chrono::{DateTime, Utc};
-use c35_proto::{pb_encode, sync_push, Chat, ChatKind, SyncPush, WsRes, ws_res};
+use c35_nats::user_app_subject_inbox;
+use c35_proto::{pb_encode, sync_push, Chat, ChatKind, ResChatPatch, SyncPush, WsRes, ws_res};
 use sqlx::{PgPool, Row};
 
 use crate::asset_tag::asset_tags_map;
@@ -44,6 +45,31 @@ pub async fn chat_title_set(
     }
     if let Some(nats) = nats {
         chat_fanout(pool, nats, owner_iid, chat_id).await?;
+    }
+    Ok(())
+}
+
+/// Pin/archive/tags/delete — fanout to other app sessions (`c35.user.{iid}.app.inbox`).
+pub async fn chat_inbox_fanout(nats: &Client, owner_iid: i64, patch: &ResChatPatch) -> Result<()> {
+    if let Some(member) = patch.member.as_ref() {
+        let res = WsRes {
+            req_id: String::new(),
+            body: Some(ws_res::Body::SyncPush(SyncPush {
+                body: Some(sync_push::Body::ChatMember(member.clone())),
+            })),
+        };
+        nats.publish(user_app_subject_inbox(owner_iid), pb_encode(&res).into())
+            .await?;
+    }
+    if let Some(chat) = patch.chat.as_ref() {
+        let res = WsRes {
+            req_id: String::new(),
+            body: Some(ws_res::Body::SyncPush(SyncPush {
+                body: Some(sync_push::Body::Chat(chat.clone())),
+            })),
+        };
+        nats.publish(user_app_subject_inbox(owner_iid), pb_encode(&res).into())
+            .await?;
     }
     Ok(())
 }

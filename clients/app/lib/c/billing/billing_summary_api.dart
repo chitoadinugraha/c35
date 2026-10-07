@@ -16,9 +16,6 @@ Future<ResBillingSummary> billingSummaryGet(ReferralConn conn, {Int64 billingAcc
   return res.billingSummary;
 }
 
-double _summaryFrontierOrBase(double summaryVal, BillingAccount? base, double baseVal) =>
-    summaryVal > 0 ? summaryVal : (baseVal > 0 ? baseVal : summaryVal);
-
 BillingAccount billingAccountFromSummary(ResBillingSummary summary, {BillingAccount? base}) {
   final currency = billingCurrencyResolve(
     fromAccount: base?.billingCurrency,
@@ -28,7 +25,7 @@ BillingAccount billingAccountFromSummary(ResBillingSummary summary, {BillingAcco
       ? summary.fxMicroPerUsd
       : (base?.hasFxMicroPerUsd() == true ? base!.fxMicroPerUsd : Int64(moneyDefaultFxMicroPerUsd));
   final b = base;
-  return BillingAccount(
+  final account = BillingAccount(
     id: base?.id ?? Int64.ZERO,
     ownerIid: base?.ownerIid ?? Int64.ZERO,
     name: base?.name ?? '',
@@ -39,10 +36,10 @@ BillingAccount billingAccountFromSummary(ResBillingSummary summary, {BillingAcco
     alienAllow5hLimit: summary.alienAllow5hLimit,
     alienAllowWeeklyUsed: summary.alienAllowWeeklyUsed,
     alienAllowWeeklyLimit: summary.alienAllowWeeklyLimit,
-    frontierAllow5hUsed: _summaryFrontierOrBase(summary.frontierAllow5hUsed, b, b?.frontierAllow5hUsed ?? 0),
-    frontierAllow5hLimit: _summaryFrontierOrBase(summary.frontierAllow5hLimit, b, b?.frontierAllow5hLimit ?? 0),
-    frontierAllowWeeklyUsed: _summaryFrontierOrBase(summary.frontierAllowWeeklyUsed, b, b?.frontierAllowWeeklyUsed ?? 0),
-    frontierAllowWeeklyLimit: _summaryFrontierOrBase(summary.frontierAllowWeeklyLimit, b, b?.frontierAllowWeeklyLimit ?? 0),
+    frontierAllow5hUsed: summary.frontierAllow5hUsed > 0 ? summary.frontierAllow5hUsed : (b?.frontierAllow5hUsed ?? 0),
+    frontierAllow5hLimit: summary.frontierAllow5hLimit,
+    frontierAllowWeeklyUsed: summary.frontierAllowWeeklyUsed > 0 ? summary.frontierAllowWeeklyUsed : (b?.frontierAllowWeeklyUsed ?? 0),
+    frontierAllowWeeklyLimit: summary.frontierAllowWeeklyLimit,
     commissionAvailableUsd: summary.commissionAvailableUsd,
     commissionAvailableIdr: summary.commissionAvailableIdr,
     freemiumActive: summary.freemiumActive,
@@ -62,4 +59,5 @@ BillingAccount billingAccountFromSummary(ResBillingSummary summary, {BillingAcco
     createdTsMs: base?.createdTsMs ?? Int64.ZERO,
     metaJson: base?.metaJson ?? '{}',
   );
+  return billingAccountPackageReconcile(account);
 }

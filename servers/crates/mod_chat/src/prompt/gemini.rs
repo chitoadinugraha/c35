@@ -7,7 +7,10 @@ use reqwest::Client;
 use serde_json::{json, Value};
 use tokio_util::sync::CancellationToken;
 
-use c35_mod_llm::{alien_default_model, google_gemini_api_model_id, model_is_alien, provider_model_resolve};
+use c35_mod_llm::{
+    alien_default_model, gemini_request_reject_provider_grounding, google_gemini_api_model_id, model_is_alien,
+    provider_model_resolve,
+};
 use super::thought::{gemini_thinking_config, parse_candidate, part_is_thought, part_thought_text};
 
 /// Sampling for Gemini chat. Frontier (pinned models) keeps legacy 0.2 / 2048; Alien pool only is warmer.
@@ -71,9 +74,16 @@ pub async fn gemini_generate(
         let mode = if tool_call_mode.trim().is_empty() { "AUTO" } else { tool_call_mode.trim() };
         body["toolConfig"] = json!({ "functionCallingConfig": { "mode": mode } });
     }
+    gemini_request_reject_provider_grounding(&body)?;
     let api_model = google_gemini_api_model_id(provider_model);
     let url = format!("https://generativelanguage.googleapis.com/v1beta/models/{api_model}:generateContent?key={key}");
-    let v: Value = gemini_http().post(&url).json(&body).send().await?.error_for_status()?.json().await?;
+    let resp = gemini_http().post(&url).json(&body).send().await?;
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let err_body = resp.text().await.unwrap_or_default();
+        anyhow::bail!("gemini HTTP {status}: {err_body}");
+    }
+    let v: Value = resp.json().await?;
     gemini_response_check(&v)?;
     Ok(parse_candidate(&v))
 }
@@ -153,9 +163,16 @@ pub async fn gemini_generate_stream(
         let mode = if tool_call_mode.trim().is_empty() { "AUTO" } else { tool_call_mode.trim() };
         body["toolConfig"] = json!({ "functionCallingConfig": { "mode": mode } });
     }
+    gemini_request_reject_provider_grounding(&body)?;
     let api_model = google_gemini_api_model_id(provider_model);
     let url = format!("https://generativelanguage.googleapis.com/v1beta/models/{api_model}:streamGenerateContent?alt=sse&key={key}");
-    let mut stream = gemini_http().post(&url).json(&body).send().await?.error_for_status()?.bytes_stream();
+    let resp = gemini_http().post(&url).json(&body).send().await?;
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let err_body = resp.text().await.unwrap_or_default();
+        anyhow::bail!("gemini HTTP {status}: {err_body}");
+    }
+    let mut stream = resp.bytes_stream();
     let mut buf = String::new();
     let mut last = json!({});
     let mut acc_content = json!(null);

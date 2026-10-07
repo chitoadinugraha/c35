@@ -331,13 +331,25 @@ pub fn start_video_stream(video_track: Arc<TrackLocalStaticSample>) {
 
             let bitrate = TARGET_BITRATE_BPS.load(Ordering::Relaxed);
 
-            // 1. Capture screen frame (shared GPU DXGI first, fallback to GDI raw at native res)
-            let captured = match crate::dxgi_capture::shared_capture_frame(10) {
+            // 1. DXGI only during WebRTC video — GDI BitBlt flickers composited windows (e.g. Alien AI).
+            let captured = match crate::dxgi_capture::shared_capture_frame(16) {
                 Ok(Some((src_w, src_h, bgra))) => Some((src_w, src_h, bgra)),
-                Ok(None) if last_frame.is_none() => crate::screen_capture::capture_screen_gdi_raw(0).ok(),
-                Ok(None) => None,
-                Err(_) => crate::screen_capture::capture_screen_gdi_raw(0).ok(),
+                Ok(None) => last_frame
+                    .clone()
+                    .or_else(|| crate::dxgi_capture::shared_last_bgra_clone()),
+                Err(_) => last_frame
+                    .clone()
+                    .or_else(|| crate::dxgi_capture::shared_last_bgra_clone()),
             };
+            let captured = captured.or_else(|| {
+                if !crate::dxgi_capture::shared_dxgi_disabled() {
+                    return None;
+                }
+                if !crate::screen_capture::gdi_stream_capture_allowed() {
+                    return None;
+                }
+                crate::screen_capture::capture_screen_gdi_raw(0).ok()
+            });
 
             let (src_w, src_h, bgra_buf) = match captured {
                 Some(c) => {

@@ -542,6 +542,7 @@ where
         tools,
         history,
         force_tool_call,
+        force_web_tool_call,
         catalog_web,
         skip_web_prefetch,
     };

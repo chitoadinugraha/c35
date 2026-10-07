@@ -40,7 +40,7 @@ void main() {
       home: Scaffold(
         body: UiMsgError(
           message: 'Cannot connect to Alien AI',
-          messageId: 'req-abc-123',
+          reqId: 'req-abc-123',
         ),
       ),
     ));
@@ -48,12 +48,12 @@ void main() {
   });
 
   testWidgets('UiMsgError root copy includes message id', (tester) async {
-    const msgId = 'req-abc-123';
+    const msgId = 9900123456789;
     const err = 'HTTP 404 from upstream';
     final binding = TestDefaultBinaryMessengerBinding.instance;
     binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
       if (call.method == 'Clipboard.setData') {
-        expect(call.arguments['text'], '[Message ID $msgId]\n$err');
+        expect(call.arguments['text'], '[Message ID: $msgId]\n$err');
         return null;
       }
       return null;
@@ -62,7 +62,7 @@ void main() {
       home: Scaffold(
         body: UiMsgError(
           message: 'Cannot connect to Alien AI',
-          messageId: msgId,
+          msgId: msgId,
           detail: err,
         ),
       ),

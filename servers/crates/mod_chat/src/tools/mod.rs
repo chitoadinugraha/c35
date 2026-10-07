@@ -26,7 +26,10 @@ pub use dispatcher::{tool_topic_eligible, ToolDispatcher};
 use crate::mention_context::MentionContext;
 
 use builtin::{
-    BotDraftTool, BotInboxQueryTool, BrowserFileUploadTool, BrowserPageActTool, BrowserPageExtractTool, BrowserPageObserveTool,
+    AccountBillingGetTool, AccountBillingHistoryTool, AccountGetTool, AccountReferralLedgerTool,
+    AccountReferralStatsTool,
+    AccountSnapshotTool, BotListTool, BotDraftTool, BotInboxQueryTool, BrowserFileUploadTool,
+    ClientListTool, DeviceListTool, SiteListTool, BrowserPageActTool, BrowserPageExtractTool, BrowserPageObserveTool,
     BrowserAgentRestartTool, BrowserExtensionTool, BrowserPageScreenshotTool,
     BrowserSheetsAppendRowTool, BrowserSheetsCellSetTool, BrowserSheetsRowSetTool,
     BrowserSheetsRangeReadTool, BrowserTabsTool,
@@ -34,8 +37,8 @@ use builtin::{
     DriveReadTool, GsheetAppendTool,
     GsheetReadTool, GsheetUpdateTool, ComputerUseDelegateTool, ConsumptionAddTool,
     ConsumptionDeleteTool, ConsumptionTodayTool,
-    ConsumptionUpdateTool, DelegateRunTool, DeviceFsListTool, DeviceFsReadTool, ShellRunTool,
-    DeviceInputTool, DeviceScreenshotTool,
+    ConsumptionUpdateTool, DelegateRunTool,     DeviceFsListTool, DeviceFsReadTool, ShellRunTool,
+    DeviceInputTool, DevicePairTool, DeviceScreenshotTool,
     ExpenseAddTool, ExpenseDeleteTool, ExpenseSummaryTool, ImgEditTool, ImgGenerateTool, MusicGenerateTool,
     VidGenerateTool,
     ChatMessagesTool, ChatSearchTool, MemoryForgetTool, MemoryListTool, MemorySaveTool,
@@ -171,6 +174,7 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(BrowserSheetsRowSetTool));
     dispatcher.register(Arc::new(BrowserSheetsRangeReadTool));
     dispatcher.register(Arc::new(BrowserFileUploadTool));
+    dispatcher.register(Arc::new(DevicePairTool));
     dispatcher.register(Arc::new(ShellRunTool));
     dispatcher.register(Arc::new(DeviceFsListTool));
     dispatcher.register(Arc::new(DeviceFsReadTool));
@@ -207,6 +211,16 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(ReferralCodeListTool));
     dispatcher.register(Arc::new(ReferralCodeDeleteTool));
     dispatcher.register(Arc::new(ReferralTreeGetTool));
+    dispatcher.register(Arc::new(AccountGetTool));
+    dispatcher.register(Arc::new(AccountBillingGetTool));
+    dispatcher.register(Arc::new(AccountBillingHistoryTool));
+    dispatcher.register(Arc::new(AccountReferralStatsTool));
+    dispatcher.register(Arc::new(AccountReferralLedgerTool));
+    dispatcher.register(Arc::new(AccountSnapshotTool));
+    dispatcher.register(Arc::new(DeviceListTool));
+    dispatcher.register(Arc::new(BotListTool));
+    dispatcher.register(Arc::new(SiteListTool));
+    dispatcher.register(Arc::new(ClientListTool));
     dispatcher.register(Arc::new(AdminUserSearchTool));
     dispatcher.register(Arc::new(AdminChatSearchTool));
     dispatcher.register(Arc::new(AdminChatMessagesTool));

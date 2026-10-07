@@ -562,13 +562,83 @@ fn drive_volume_label_windows(_root: &str) -> Option<String> {
 }
 
 pub fn path_resolve(raw: &str) -> Result<PathBuf, String> {
-    let trimmed = raw.trim();
+    let mut trimmed = raw.trim().trim_matches('"').trim_matches('\'').trim().to_string();
     if trimmed.is_empty() {
         return Ok(PathBuf::new());
     }
     if trimmed.contains("..") {
         return Err("path traversal denied".into());
     }
+
+    #[cfg(windows)]
+    {
+        // Expand %VAR% environment variables if present
+        if trimmed.starts_with('%') && trimmed.contains('%') {
+            if let Some(second) = trimmed[1..].find('%') {
+                let var_name = &trimmed[1..1 + second];
+                if let Ok(val) = std::env::var(var_name) {
+                    trimmed = format!("{}{}", val, &trimmed[1 + second + 1..]);
+                }
+            }
+        }
+
+        let home_opt = std::env::var("USERPROFILE")
+            .or_else(|_| std::env::var("HOME"))
+            .ok()
+            .map(PathBuf::from);
+
+        if let Some(home) = &home_opt {
+            let lower = trimmed.to_ascii_lowercase();
+            // Handle ~
+            if trimmed == "~" {
+                return Ok(home.clone());
+            }
+            if trimmed.starts_with("~/") || trimmed.starts_with("~\\") {
+                return Ok(home.join(&trimmed[2..]));
+            }
+
+            // Known shell folder shortcuts
+            let folder_sub = match lower.as_str() {
+                "desktop" | "shell:desktop" => Some("Desktop"),
+                "downloads" | "shell:downloads" => Some("Downloads"),
+                "documents" | "shell:personal" | "shell:documents" | "my documents" => Some("Documents"),
+                "pictures" | "shell:mypictures" | "shell:pictures" => Some("Pictures"),
+                "videos" | "shell:myvideo" | "shell:videos" => Some("Videos"),
+                "music" | "shell:mymusic" | "shell:music" => Some("Music"),
+                "userprofile" | "home" | "profile" | "shell:profile" => return Ok(home.clone()),
+                _ => None,
+            };
+            if let Some(sub) = folder_sub {
+                return Ok(home.join(sub));
+            }
+
+            // Prefixes like Desktop\... or Downloads\...
+            if lower.starts_with("desktop\\") || lower.starts_with("desktop/") {
+                return Ok(home.join("Desktop").join(&trimmed[8..]));
+            }
+            if lower.starts_with("downloads\\") || lower.starts_with("downloads/") {
+                return Ok(home.join("Downloads").join(&trimmed[10..]));
+            }
+            if lower.starts_with("documents\\") || lower.starts_with("documents/") {
+                return Ok(home.join("Documents").join(&trimmed[10..]));
+            }
+            if lower.starts_with("pictures\\") || lower.starts_with("pictures/") {
+                return Ok(home.join("Pictures").join(&trimmed[9..]));
+            }
+            if lower.starts_with("videos\\") || lower.starts_with("videos/") {
+                return Ok(home.join("Videos").join(&trimmed[7..]));
+            }
+            if lower.starts_with("music\\") || lower.starts_with("music/") {
+                return Ok(home.join("Music").join(&trimmed[6..]));
+            }
+        }
+
+        // Bare drive letter like "C:" -> "C:\"
+        if trimmed.len() == 2 && trimmed.ends_with(':') && trimmed.chars().next().map_or(false, |c| c.is_ascii_alphabetic()) {
+            return Ok(PathBuf::from(format!("{}\\", trimmed)));
+        }
+    }
+
     let path = PathBuf::from(trimmed);
     for comp in path.components() {
         if comp == Component::ParentDir {
@@ -728,5 +798,37 @@ fn mime_guess(path: &Path) -> String {
         "mp4" => "video/mp4".into(),
         "mp3" => "audio/mpeg".into(),
         _ => "application/octet-stream".into(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_path_resolve_traversal_denied() {
+        assert!(path_resolve("../secret").is_err());
+        assert!(path_resolve("foo/../bar").is_err());
+    }
+
+    #[test]
+    fn test_path_resolve_quotes_and_empty() {
+        assert_eq!(path_resolve("").unwrap(), PathBuf::new());
+        assert_eq!(path_resolve("   ").unwrap(), PathBuf::new());
+        assert_eq!(path_resolve("\"\"").unwrap(), PathBuf::new());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn test_path_resolve_windows_shortcuts() {
+        if let Ok(home) = std::env::var("USERPROFILE") {
+            let home_p = PathBuf::from(&home);
+            assert_eq!(path_resolve("Desktop").unwrap(), home_p.join("Desktop"));
+            assert_eq!(path_resolve("\"desktop\"").unwrap(), home_p.join("Desktop"));
+            assert_eq!(path_resolve("shell:desktop").unwrap(), home_p.join("Desktop"));
+            assert_eq!(path_resolve("~/Desktop").unwrap(), home_p.join("Desktop"));
+            assert_eq!(path_resolve("~").unwrap(), home_p);
+            assert_eq!(path_resolve("C:").unwrap(), PathBuf::from("C:\\"));
+        }
     }
 }

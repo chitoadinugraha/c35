@@ -1,6 +1,7 @@
 import 'package:alienai_c35/c/api/referral_conn.dart';
 import 'package:alienai_c35/c/pb/c35/wire.pb.dart';
 import 'package:alienai_c35/c/pb/c35/referral.pb.dart';
+import 'package:alienai_c35/c/referral/referral_forest.dart';
 import 'package:alienai_c35/c/referral/referral_format.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/ui/ui_error.dart';
@@ -119,9 +120,10 @@ class _ReferralCodeFormDialogState extends State<_ReferralCodeFormDialog> {
                   dropdownColor: _bg,
                   style: const TextStyle(color: _text),
                   decoration: UiInputDecoration.of(context, labelText: 'Type'),
-                  items: const [
-                    DropdownMenuItem(value: 'referral', child: Text('Sign up')),
-                    DropdownMenuItem(value: 'package', child: Text('Package')),
+                  items: [
+                    const DropdownMenuItem(value: 'referral', child: Text('Sign up')),
+                    if (referralCanIssuePackageCode())
+                      const DropdownMenuItem(value: 'package', child: Text('Package')),
                   ],
                   onChanged: _saving ? null : (v) { if (v != null) setState(() => _type = v); },
                 ),

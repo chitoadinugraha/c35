@@ -214,6 +214,10 @@ pub async fn channel_prompt_turn(
             &composed.tools,
             &prompt_text,
         ),
+        force_web_tool_call: crate::compose::compose_force_web_tool_call(
+            &composed.matched_ids,
+            &composed.tools,
+        ),
         catalog_web,
         skip_web_prefetch,
     };

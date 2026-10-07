@@ -12,8 +12,11 @@ import 'package:alienai_c35/c/llm/agent_model.dart';
 import 'package:alienai_c35/c/pb/c35/live.pb.dart';
 import 'package:alienai_c35/c/settings/voice_prefs.dart';
 import 'package:alienai_c35/widgets/ai/ui_live_call_chip.dart';
+import 'package:alienai_c35/c/billing/billing_format.dart';
 import 'package:alienai_c35/c/billing/billing_store_sync.dart';
+import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
+import 'package:alienai_c35/widgets/billing/billing_plan_format.dart';
 import 'package:alienai_c35/widgets/billing/ui_quota_ring.dart';
 import 'package:alienai_c35/widgets/ui/ui_speak_toggle.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
@@ -133,23 +136,34 @@ class _UiAccountMenuDialog extends StatefulWidget {
 }
 
 class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
-  var _billingLoading = false;
+  var _billingHydrating = false;
+
+  bool _billingPlanTrustedPaid(BillingAccount? billing) =>
+      billing != null && billingAccountPaidEntitlement(billing);
 
   @override
   void initState() {
     super.initState();
-    _billingLoading = AppStore.instance.billing == null && widget.action.conn != null;
+    final conn = widget.action.conn;
+    _billingHydrating = conn != null && !_billingPlanTrustedPaid(AppStore.instance.billing);
     unawaited(_billingEnsure());
   }
 
   Future<void> _billingEnsure() async {
     final conn = widget.action.conn;
-    if (AppStore.instance.billing == null && conn != null) {
-      try {
-        await billingStoreRefresh(conn);
-      } catch (_) {}
+    if (conn == null) {
+      if (mounted && _billingHydrating) setState(() => _billingHydrating = false);
+      return;
     }
-    if (mounted && _billingLoading) setState(() => _billingLoading = false);
+    final trustedPaid = _billingPlanTrustedPaid(AppStore.instance.billing);
+    try {
+      if (trustedPaid) {
+        unawaited(billingStoreRefresh(conn));
+      } else {
+        await billingStoreRefresh(conn);
+      }
+    } catch (_) {}
+    if (mounted && _billingHydrating) setState(() => _billingHydrating = false);
   }
 
   void _popThen(VoidCallback? fn) {
@@ -204,6 +218,10 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
               listenable: Listenable.merge([AppStore.instance, mailInboxBus]),
               builder: (context, _) {
                 final billing = AppStore.instance.billing;
+                final trustedPaid = _billingPlanTrustedPaid(billing);
+                final planTierLoading = _billingHydrating && !trustedPaid;
+                final showBillingPanel = billing != null && (!_billingHydrating || trustedPaid);
+                final billingRow = billing;
                 return Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -241,16 +259,16 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
                     const Divider(height: 1, color: _border),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                      child: billing != null
+                      child: showBillingPanel && billingRow != null
                           ? uiQuotaPackagePanelFromAccount(
-                              billing,
+                              billingRow,
                               quota: AppStore.instance.quota,
-                              planTierLoading: _billingLoading,
+                              planTierLoading: planTierLoading,
                               onBalanceTap: acts.onBalance == null ? null : () => _popThen(acts.onBalance),
                               onPackageTap: acts.onPackage == null ? null : () => _popThen(acts.onPackage),
                             )
                           : uiQuotaPackagePanelLimitPlaceholder(
-                              planTierLoading: _billingLoading,
+                              planTierLoading: true,
                               onPackageTap: acts.onPackage == null ? null : () => _popThen(acts.onPackage),
                             ),
                     ),

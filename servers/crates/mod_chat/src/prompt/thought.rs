@@ -25,7 +25,8 @@ pub fn part_is_thought(part: &Value) -> bool {
 
 pub fn gemini_thinking_config(model: &str, level: &str) -> Value {
     let m = model.to_ascii_lowercase();
-    let gemini3 = m.contains("gemini-3") || (m.contains("flash-lite") && m.contains("3."));
+    // Gemini 3 `thinkingLevel` (incl. MINIMAL) is not supported on flash-lite models.
+    let gemini3 = m.contains("gemini-3") && !m.contains("flash-lite");
     let lvl = level.trim().to_ascii_lowercase();
     if gemini3 {
         let thinking_level = match lvl.as_str() {
@@ -207,6 +208,22 @@ mod tests {
         assert_eq!(out.function_calls[1].1["topic_id"], "research");
         // Check backward compatibility
         assert_eq!(out.function_call, Some(out.function_calls[0].clone()));
+    }
+
+    #[test]
+    fn gemini_thinking_config_flash_lite_uses_budget_not_minimal() {
+        let cfg = gemini_thinking_config("gemini-3.1-flash-lite", "off");
+        assert!(cfg.get("thinkingBudget").is_some());
+        assert!(cfg.get("thinkingLevel").is_none());
+        assert_eq!(cfg["thinkingBudget"], 0);
+        assert_eq!(cfg["includeThoughts"], false);
+    }
+
+    #[test]
+    fn gemini_thinking_config_gemini3_flash_uses_minimal_when_off() {
+        let cfg = gemini_thinking_config("gemini-3.1-flash", "off");
+        assert_eq!(cfg["thinkingLevel"], "MINIMAL");
+        assert_eq!(cfg["includeThoughts"], false);
     }
 
     #[test]

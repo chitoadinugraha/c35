@@ -54,6 +54,8 @@ These tools are **exempt from the no-hardcode steering rule**. Shared Rust orche
 
 **Still use `ai.inst` for web:** `inst.web_search` (phrases, when to search, local city in query, `include_tools` / `exclude_tools`). Inst steers *intent*; Rust runs the *pipeline*.
 
+**Never provider grounding:** `web-grounding-cluster-only.mdc` — no Gemini `googleSearch` / `groundingConfig` or OpenAI `web_search` tool type; cluster `web.search` only.
+
 **All other tools** (presentation, consumption, expense, site.create, gsheet, device, …): no Rust phrase prefetch, no steering in tool result JSON — **`ai.inst`** + **`compose_force_*`** only.
 
 **Inst enrich** — facts only, not steering.

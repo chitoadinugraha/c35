@@ -121,10 +121,25 @@ fn cas_mac(secret: &str, hash: &str, exp_ms: i64) -> String {
     hasher.finalize().to_hex().to_string()
 }
 
+pub fn cas_hmac_secret() -> String {
+    std::env::var("CAS_HMAC_SECRET")
+        .or_else(|_| std::env::var("C35_JWT_SECRET"))
+        .unwrap_or_else(|_| "dev-cas-hmac".into())
+}
+
 pub fn cas_sign(secret: &str, hash: &str, ttl: Duration) -> String {
     let exp = now_ms() + ttl.as_millis() as i64;
     let sig = cas_mac(secret, hash, exp);
     format!("/fs/{hash}?exp={exp}&sig={sig}")
+}
+
+/// Signed download path with a friendly filename segment (`/fs/{hash}/{filename}?exp=&sig=`).
+pub fn cas_sign_attachment(secret: &str, hash: &str, filename: &str, ttl: Duration) -> String {
+    let name = filename.trim();
+    let safe = if name.is_empty() { "download" } else { name };
+    let exp = now_ms() + ttl.as_millis() as i64;
+    let sig = cas_mac(secret, hash, exp);
+    format!("/fs/{hash}/{safe}?exp={exp}&sig={sig}")
 }
 
 pub fn cas_verify(secret: &str, hash: &str, exp: i64, sig: &str) -> bool {

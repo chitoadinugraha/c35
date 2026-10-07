@@ -1,3 +1,4 @@
+mod account;
 mod bot_draft;
 mod bot_inbox;
 mod browser;
@@ -25,6 +26,11 @@ mod web_research;
 mod web_search;
 mod web_visit;
 
+pub use account::{
+    AccountBillingGetTool, AccountBillingHistoryTool, AccountGetTool, AccountReferralLedgerTool,
+    AccountReferralStatsTool, AccountSnapshotTool, BotListTool, ClientListTool, DeviceListTool,
+    SiteListTool,
+};
 pub use bot_draft::BotDraftTool;
 pub use bot_inbox::BotInboxQueryTool;
 pub use chat_history::{ChatMessagesTool, ChatSearchTool};
@@ -42,7 +48,8 @@ pub use delegate::{
     delegate_child_row, delegate_result_json, ComputerUseDelegateTool, DelegateRunTool,
 };
 pub use device::{
-    DeviceFsListTool, DeviceFsReadTool, DeviceInputTool, DeviceScreenshotTool, ShellRunTool,
+    DeviceFsListTool, DeviceFsReadTool, DeviceInputTool, DevicePairTool, DeviceScreenshotTool,
+    ShellRunTool,
 };
 pub use img_edit::ImgEditTool;
 pub use img_generate::ImgGenerateTool;

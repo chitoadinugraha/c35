@@ -59,6 +59,52 @@ pub struct InstMatchCtx<'a> {
 
 const INST_SITE_CATALOG_STOCK: &str = "inst.site.catalog.stock";
 
+/// Site create / builder wording (keep in sync with `inst.site.builder` phrases in inst.sql).
+pub fn inst_text_site_builder_intent(text: &str) -> bool {
+    let lower = text.trim().to_lowercase();
+    [
+        "buat situs",
+        "bikin situs",
+        "buatkan situs",
+        "bikin web",
+        "buat web",
+        "bikin website",
+        "buat website",
+        "buatkan websitenya",
+        "buatkan sitenya",
+        "buatkan website",
+        "bikin landing page",
+        "buat landing page",
+        "create site",
+        "build website",
+        "create website",
+        "make website",
+        "site builder",
+        "website builder",
+        "fitur pos",
+    ]
+    .iter()
+    .any(|p| lower.contains(p))
+}
+
+/// Catalog/POS setup in chat — not personal nutrition logging.
+pub fn inst_text_site_product_setup(text: &str) -> bool {
+    let lower = text.trim().to_lowercase();
+    let site_ctx = lower.contains("situs")
+        || lower.contains("website")
+        || lower.contains("fitur pos")
+        || lower.contains("toko online")
+        || inst_text_site_builder_intent(text);
+    site_ctx && (lower.contains("produk") || lower.contains("katalog") || lower.contains("pos"))
+}
+
+fn inst_site_catalog_lookup_task(id: &str) -> bool {
+    matches!(
+        id,
+        "inst.site.catalog" | "inst.site.catalog.price" | "inst.site.catalog.stock"
+    )
+}
+
 /// Home-chat bot creation / draft-update wording (keep in sync with `inst.bot.draft` phrases in inst.sql).
 pub fn inst_text_bot_draft_intent(text: &str) -> bool {
     let lower = text.trim().to_lowercase();
@@ -180,8 +226,19 @@ fn inst_applies(row: &InstRow, ctx: &InstMatchCtx<'_>) -> bool {
             if row.id == INST_SITE_CATALOG_STOCK && inst_text_bot_draft_intent(ctx.text) {
                 return false;
             }
+            if inst_text_site_builder_intent(ctx.text)
+                && (row.id == "inst.consumption_coach" || inst_site_catalog_lookup_task(&row.id))
+            {
+                return false;
+            }
+            if row.id == "inst.consumption_coach" && inst_text_site_product_setup(ctx.text) {
+                return false;
+            }
             let lower = ctx.text.trim().to_lowercase();
-            row.phrases.is_empty() || row.phrases.iter().any(|p| lower.contains(&p.to_lowercase()))
+            let phrase_hit = row.phrases.is_empty()
+                || row.phrases.iter().any(|p| lower.contains(&p.to_lowercase()));
+            phrase_hit
+                || (row.id == "inst.site.builder" && inst_text_site_builder_intent(ctx.text))
         }
         _ => false,
     }
@@ -255,6 +312,70 @@ mod tests {
         let (inc, exc) = inst_tool_directives(&rows);
         assert_eq!(inc, vec!["consumption.today"]);
         assert_eq!(exc, vec!["img.generate"]);
+    }
+
+    #[test]
+    fn inst_pick_site_builder_suppresses_catalog_price_and_consumption_coach() {
+        let rows = vec![
+            InstRow {
+                id: "inst.site.builder".into(),
+                scope: SCOPE_GLOBAL.into(),
+                kind: "task".into(),
+                topic_id: "".into(),
+                topics: vec![],
+                inst: "builder".into(),
+                phrases: vec!["buat situs".into()],
+                triggers: vec![],
+                include_tools: vec![],
+                exclude_tools: vec![],
+                requires_global_roles: vec![],
+                priority: 150,
+            },
+            InstRow {
+                id: "inst.site.catalog.price".into(),
+                scope: SCOPE_GLOBAL.into(),
+                kind: "task".into(),
+                topic_id: "".into(),
+                topics: vec!["general".into()],
+                inst: "price".into(),
+                phrases: vec!["harga".into()],
+                triggers: vec![],
+                include_tools: vec![],
+                exclude_tools: vec![],
+                requires_global_roles: vec![],
+                priority: 130,
+            },
+            InstRow {
+                id: "inst.consumption_coach".into(),
+                scope: SCOPE_ROLE_PERSONAL_ASSISTANT.into(),
+                kind: "task".into(),
+                topic_id: "".into(),
+                topics: vec![],
+                inst: "coach".into(),
+                phrases: vec!["mie".into()],
+                triggers: vec![],
+                include_tools: vec![],
+                exclude_tools: vec![],
+                requires_global_roles: vec![],
+                priority: 135,
+            },
+        ];
+        let empty: [String; 0] = [];
+        let scopes = inst_scopes_home();
+        let text = "buat situs testing test-site dengan fitur POS, produk indomie harga 20rb, mie goreng 15rb";
+        let ctx = InstMatchCtx {
+            scopes: &scopes,
+            topic_id: "general",
+            active_topics: &[],
+            text,
+            mention_ids: &empty,
+            signals: &empty,
+            staff: None,
+        };
+        let picked = inst_pick(&rows, &ctx);
+        assert!(picked.iter().any(|r| r.id == "inst.site.builder"));
+        assert!(!picked.iter().any(|r| r.id == "inst.site.catalog.price"));
+        assert!(!picked.iter().any(|r| r.id == "inst.consumption_coach"));
     }
 
     #[test]

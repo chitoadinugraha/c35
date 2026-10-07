@@ -30,14 +30,21 @@ class UiTalkCallToggleRow extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.fromLTRB(_menuPadH, 10, _menuPadH, 10),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(
               flex: 9,
-              child: _UiTalkModeChip(active: talkEnabled, onTap: onTalkTap),
+              child: SizedBox(
+                height: homeTalkCallChipHeight,
+                child: _UiTalkModeChip(active: talkEnabled, onTap: onTalkTap),
+              ),
             ),
             if (callChip != null) ...[
               const SizedBox(width: 8),
-              Expanded(flex: 11, child: callChip!),
+              Expanded(
+                flex: 11,
+                child: SizedBox(height: homeTalkCallChipHeight, child: callChip!),
+              ),
             ],
           ],
         ),
@@ -66,26 +73,31 @@ class _UiTalkModeChip extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(8),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-            child: Row(
-              children: [
-                Icon(active ? Icons.chat_bubble_outline_rounded : Icons.mic_rounded, size: 15, color: iconColor),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: labelColor,
-                      fontSize: 13,
-                      fontWeight: active ? FontWeight.w600 : FontWeight.w500,
-                      height: 1.1,
+          child: SizedBox.expand(
+            child: Padding(
+              padding: homeTalkCallChipContentPadding,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Row(
+                  children: [
+                    Icon(active ? Icons.chat_bubble_outline_rounded : Icons.mic_rounded, size: 15, color: iconColor),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: labelColor,
+                          fontSize: 13,
+                          fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                          height: 1.1,
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),

@@ -23,14 +23,16 @@ class SiteStore extends ChangeNotifier {
   ChatConn get conn => _conn;
   SiteApi get api => _api;
 
-  var _loading = false;
+  var _refreshing = false;
+  var _refreshGen = 0;
   var _search = '';
   final _rows = <SiteRow>[];
   String? _selectedId;
   var _cacheRestored = false;
   String? _refreshError;
 
-  bool get loading => _loading;
+  bool get refreshing => _refreshing;
+  bool get loading => _refreshing && _rows.isEmpty;
   String? get refreshError => _refreshError;
   String get search => _search;
   String? get selectedId => _selectedId;
@@ -95,16 +97,24 @@ class SiteStore extends ChangeNotifier {
     }
   }
 
+  void refreshStop() {
+    if (!_refreshing) return;
+    _refreshGen++;
+    _refreshing = false;
+    notifyListeners();
+  }
+
   Future<void> refresh({bool archived = false}) async {
     await _restoreCacheIfNeeded();
-    final showSpinner = _rows.isEmpty;
-    if (showSpinner) {
-      _loading = true;
-      notifyListeners();
-    }
+    _refreshGen++;
+    final gen = _refreshGen;
+    _refreshing = true;
+    notifyListeners();
     try {
       await ensureConnected();
+      if (_refreshGen != gen) return;
       final sites = await _api.list(archived: archived);
+      if (_refreshGen != gen) return;
       _rows
         ..clear()
         ..addAll(sites);
@@ -113,6 +123,7 @@ class SiteStore extends ChangeNotifier {
       await _siteListCacheSave(Session.instance.uid, _rows);
       _refreshError = null;
     } catch (e) {
+      if (_refreshGen != gen) return;
       lError('site refresh: $e');
       _refreshError = '$e';
       if (_rows.isEmpty) {
@@ -120,8 +131,10 @@ class SiteStore extends ChangeNotifier {
         if (hints.isNotEmpty) _rows.addAll(hints);
       }
     } finally {
-      _loading = false;
-      notifyListeners();
+      if (_refreshGen == gen) {
+        _refreshing = false;
+        notifyListeners();
+      }
     }
   }
 

@@ -1,4 +1,5 @@
 mod billing_admin_adjust;
+mod billing_admin_plan_change;
 mod billing_account_get;
 mod billing_cost;
 mod fetch_fx;
@@ -95,6 +96,7 @@ pub use billing_finance::{
 pub use billing_admin_adjust::{
     billing_admin_adjust, billing_admin_adjust_list, ADMIN_ADJUST_REASONS,
 };
+pub use billing_admin_plan_change::billing_admin_plan_change;
 pub use billing_receive_account::{receive_account_list, receive_account_put};
 pub use fetch_fx::{fx_change_bps, fx_markup_apply, fx_micro_from_idr, FxRateFetchTask};
 pub use fx_live::{fx_live_idr_per_usd, fx_live_init, fx_live_micro_per_usd, fx_live_rate_id, fx_live_subscribe};

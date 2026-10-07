@@ -8243,6 +8243,104 @@ class ReqBillingAdminAdjust extends $pb.GeneratedMessage {
   void clearNote() => $_clearField(8);
 }
 
+/// Root / director staff: set personal plan for another root or director account.
+class ReqBillingAdminPlanChange extends $pb.GeneratedMessage {
+  factory ReqBillingAdminPlanChange({
+    $fixnum.Int64? subjectUid,
+    $core.String? planSlug,
+    $core.String? billingPeriod,
+    $core.String? currency,
+  }) {
+    final result = ReqBillingAdminPlanChange._();
+    if (subjectUid != null) result.subjectUid = subjectUid;
+    if (planSlug != null) result.planSlug = planSlug;
+    if (billingPeriod != null) result.billingPeriod = billingPeriod;
+    if (currency != null) result.currency = currency;
+    return result;
+  }
+
+  ReqBillingAdminPlanChange._();
+
+  factory ReqBillingAdminPlanChange.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingAdminPlanChange()..mergeFromBuffer(data, registry);
+  factory ReqBillingAdminPlanChange.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqBillingAdminPlanChange()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqBillingAdminPlanChange',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqBillingAdminPlanChange.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'subjectUid')
+    ..aOS(2, _omitFieldNames ? '' : 'planSlug')
+    ..aOS(3, _omitFieldNames ? '' : 'billingPeriod')
+    ..aOS(4, _omitFieldNames ? '' : 'currency')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingAdminPlanChange clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqBillingAdminPlanChange copyWith(
+          void Function(ReqBillingAdminPlanChange) updates) =>
+      super.copyWith((message) => updates(message as ReqBillingAdminPlanChange))
+          as ReqBillingAdminPlanChange;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqBillingAdminPlanChange() / ReqBillingAdminPlanChange.new instead')
+  static ReqBillingAdminPlanChange create() => ReqBillingAdminPlanChange._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ReqBillingAdminPlanChange._();
+  @$core.override
+  ReqBillingAdminPlanChange createEmptyInstance() =>
+      ReqBillingAdminPlanChange._();
+  @$core.pragma('dart2js:noInline')
+  static ReqBillingAdminPlanChange getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqBillingAdminPlanChange>(
+          ReqBillingAdminPlanChange.$_createMessage);
+  static ReqBillingAdminPlanChange? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get subjectUid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set subjectUid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSubjectUid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSubjectUid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get planSlug => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set planSlug($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasPlanSlug() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearPlanSlug() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get billingPeriod => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set billingPeriod($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasBillingPeriod() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearBillingPeriod() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get currency => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set currency($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasCurrency() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearCurrency() => $_clearField(4);
+}
+
 class ResBillingAdminAdjust extends $pb.GeneratedMessage {
   factory ResBillingAdminAdjust({
     $core.double? balanceIdr,

@@ -10,7 +10,9 @@ use std::time::Instant;
 use reqwest::Client;
 use sqlx::PgPool;
 
-use super::inst_macro::{inst_matched_prompt, inst_pick, inst_tool_directives, InstMatchCtx, InstRow};
+use super::inst_macro::{
+    inst_matched_prompt, inst_pick, inst_text_site_builder_intent, inst_tool_directives, InstMatchCtx, InstRow,
+};
 use super::mention::MentionRow;
 use super::tool_index::{tool_find_vector, tool_index_ready, ToolFindResult};
 use super::tool_rag::{
@@ -60,10 +62,13 @@ impl<'a> Default for ComposeTurnOpts<'a> {
 
 /// First LLM hop must call web.search when web-search inst matched.
 pub fn compose_force_web_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> bool {
-    if matched_ids
-        .iter()
-        .any(|id| id == "inst.mention.sheets" || id == "inst.sheets.topic")
-    {
+    if matched_ids.iter().any(|id| {
+        id == "inst.mention.sheets"
+            || id == "inst.sheets.topic"
+            || id == "inst.device.facts"
+            || id.starts_with("inst.mention.device_")
+            || id == "inst.browser.topic"
+    }) {
         return false;
     }
     matched_ids.iter().any(|id| id == "inst.web_search")
@@ -82,6 +87,32 @@ pub fn compose_force_consumption_coach_tool_call(matched_ids: &[String], tools: 
         && tools.iter().any(|t| t.name == "consumption.today")
 }
 
+fn tools_has(tools: &[ToolDef], name: &str) -> bool {
+    tools.iter().any(|t| t.name == name)
+}
+
+/// First LLM hop must call account / device.pair tools when matching inst rows are fed.
+pub fn compose_force_account_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> bool {
+    matched_ids.iter().any(|id| match id.as_str() {
+        "inst.account.profile" => tools_has(tools, "account.get"),
+        "inst.account.billing" => {
+            tools_has(tools, "account.billing.get") || tools_has(tools, "account.billing.history")
+        }
+        "inst.account.referral" => {
+            tools_has(tools, "account.referral.stats") || tools_has(tools, "account.referral.ledger")
+        }
+        "inst.account.snapshot" => tools_has(tools, "account.snapshot"),
+        "inst.account.assets" => {
+            tools_has(tools, "bot.list")
+                || tools_has(tools, "device.list")
+                || tools_has(tools, "site.list")
+                || tools_has(tools, "client.list")
+        }
+        "inst.device.pair" => tools_has(tools, "device.pair"),
+        _ => false,
+    })
+}
+
 /// Force site.create only after discovery — user explicitly asks to generate the site.
 pub fn compose_force_site_builder_tool_call(matched_ids: &[String], tools: &[ToolDef], user_text: &str) -> bool {
     if !matched_ids.iter().any(|id| id == "inst.site.builder") {
@@ -93,7 +124,21 @@ pub fn compose_force_site_builder_tool_call(matched_ids: &[String], tools: &[Too
     site_builder_ready_to_create(user_text)
 }
 
+/// User gave site-creation intent plus catalog/POS details — skip discovery and create in hop 1.
+pub fn site_builder_bootstrap_catalog(text: &str) -> bool {
+    if !inst_text_site_builder_intent(text) {
+        return false;
+    }
+    let lower = text.trim().to_lowercase();
+    lower.contains("fitur pos")
+        || (lower.contains("produk") && lower.contains("harga"))
+        || (lower.contains("pos") && lower.contains("produk"))
+}
+
 pub fn site_builder_ready_to_create(text: &str) -> bool {
+    if site_builder_bootstrap_catalog(text) {
+        return true;
+    }
     let lower = text.trim().to_lowercase();
     if lower.is_empty() {
         return false;
@@ -124,6 +169,7 @@ pub fn compose_force_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> boo
     compose_force_web_tool_call(matched_ids, tools)
         || compose_force_presentation_tool_call(matched_ids, tools)
         || compose_force_consumption_coach_tool_call(matched_ids, tools)
+        || compose_force_account_tool_call(matched_ids, tools)
 }
 
 pub fn compose_force_tool_call_with_text(matched_ids: &[String], tools: &[ToolDef], user_text: &str) -> bool {

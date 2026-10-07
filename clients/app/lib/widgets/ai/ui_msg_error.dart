@@ -12,7 +12,8 @@ class UiMsgError extends StatelessWidget {
     super.key,
     required this.message,
     this.detail,
-    this.messageId,
+    this.msgId = 0,
+    this.reqId = '',
     this.onRetry,
     this.retrying = false,
     this.showIcon = true,
@@ -21,7 +22,8 @@ class UiMsgError extends StatelessWidget {
 
   final String message;
   final String? detail;
-  final String? messageId;
+  final int msgId;
+  final String reqId;
   final VoidCallback? onRetry;
   final bool retrying;
   final bool showIcon;
@@ -51,7 +53,6 @@ class UiMsgError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final id = messageId?.trim() ?? '';
     final quota = _isQuota(message, detail);
     final displayMessage = quota && (message.contains('Something went wrong') || message.contains('timed out'))
         ? "You're out of quota. Upgrade your plan or top up your balance to continue."
@@ -81,7 +82,7 @@ class UiMsgError extends StatelessWidget {
                   Text(displayMessage, style: const TextStyle(fontSize: 14, height: 1.45, color: Color(0xFFF4F4F5))),
                   if (detail != null && detail!.trim().isNotEmpty && detail!.trim() != message.trim()) ...[
                     const SizedBox(height: 8),
-                    UiRootErrorDetail(detail: detail!, messageId: id.isEmpty ? null : id),
+                    UiRootErrorDetail(detail: detail!, msgId: msgId, reqId: reqId),
                   ],
                   const SizedBox(height: 6),
                   if (quota)

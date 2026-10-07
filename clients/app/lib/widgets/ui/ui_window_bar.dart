@@ -10,6 +10,8 @@ import 'package:window_manager/window_manager.dart';
 
 bool get uiDesktopWindow => defaultTargetPlatform == TargetPlatform.windows || defaultTargetPlatform == TargetPlatform.linux || defaultTargetPlatform == TargetPlatform.macOS;
 
+bool get uiCustomWindowBar => uiDesktopWindow && defaultTargetPlatform != TargetPlatform.windows;
+
 const _kTopResize = 12.0;
 
 class UiDesktopChrome extends StatefulWidget {
@@ -49,14 +51,14 @@ class _UiDesktopChromeState extends State<UiDesktopChrome> with WindowListener {
   }
 
   Widget _chrome() => Material(
-        color: const Color(0xFF08080A),
-        child: Column(
-          children: [
-            const SizedBox(height: 36, child: UiWindowBar()),
-            Expanded(child: widget.child),
-          ],
-        ),
-      );
+      color: const Color(0xFF08080A),
+      child: Column(
+        children: [
+          const SizedBox(height: 36, child: UiWindowBar()),
+          Expanded(child: widget.child),
+        ],
+      ),
+    );
 
   Widget _resize(Widget child) {
     if (_maximized || _fullScreen) return child;
@@ -74,6 +76,7 @@ class _UiDesktopChromeState extends State<UiDesktopChrome> with WindowListener {
   @override
   Widget build(BuildContext context) {
     if (!uiDesktopWindow) return widget.child;
+    if (!uiCustomWindowBar) return widget.child;
     return _resize(_chrome());
   }
 

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alienai_c35/c/billing/billing_admin_adjust.dart';
+import 'package:alienai_c35/c/billing/billing_admin_plan.dart';
 import 'package:alienai_c35/c/billing/billing_voucher_api.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/admin/admin_api.dart';
@@ -22,6 +23,7 @@ import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/referral/ui_referral_admin_adjust_history_sheet.dart';
 import 'package:alienai_c35/widgets/referral/ui_referral_admin_dialogs.dart';
 import 'package:alienai_c35/widgets/referral/ui_referral_wallet_adjust_dialog.dart';
+import 'package:alienai_c35/widgets/billing/billing_plan_format.dart';
 import 'package:alienai_c35/widgets/io/in_money_idr.dart';
 import 'package:alienai_c35/widgets/ui/ui_input_decoration.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
@@ -231,6 +233,9 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
   }
 
   bool get _canEdit => referralCanEditProfile() && !_busy;
+  bool get _hasAlienId => profileHasAlienId(_node.handle);
+  bool get _canSetPackage => referralCanAdminSetSubjectPackage(_node) && !_busy;
+  bool get _showProfileMenu => (_canEdit || _canSetPackage) && !_busy;
   bool get _canAdjust => (Session.instance.isRoot || Session.instance.globalRoles.contains('director')) && !_busy;
   bool get _canEditReferrer => referralCanEditReferrer() && !referralNodeIsRoot(_node);
   bool get _canEditRoles => referralCanEditRoles() && !referralNodeIsRoot(_node);
@@ -334,11 +339,11 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
 
   Future<void> _editHandle() async {
     if (!_canEdit) return;
-    final initial = _node.handle.trim().replaceFirst('@', '').toLowerCase();
+    final initial = _hasAlienId ? _node.handle.trim().replaceFirst('@', '').toLowerCase() : '';
     final trimmed = await showDialog<String>(
       context: context,
       builder: (ctx) => _TextPromptDialog(
-        title: 'Change Alien ID',
+        title: _hasAlienId ? 'Change Alien ID' : 'Add Alien ID',
         label: 'Alien ID',
         initial: initial,
         onSubmit: (v) {
@@ -350,7 +355,7 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
         },
       ),
     );
-    if (trimmed == null || trimmed == initial) return;
+    if (trimmed == null || (initial.isNotEmpty && trimmed == initial)) return;
     await _run(() async {
       final available = await _admin.handleAvailable(trimmed, excludeId: _node.id);
       if (!available) throw Exception('Handle already taken');
@@ -360,6 +365,30 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
         _reloadTree = true;
         _node = _patchNode(_node, handle: trimmed.startsWith('@') ? trimmed : '@$trimmed');
       });
+    });
+  }
+
+  Future<void> _setPackage() async {
+    if (!_canSetPackage) return;
+    final picked = await showDialog<({String slug, String period})>(
+      context: context,
+      builder: (ctx) => _PackagePlanDialog(),
+    );
+    if (picked == null || !mounted) return;
+    await _run(() async {
+      await billingAdminPlanChange(
+        widget.conn,
+        subjectUid: _node.id.toInt(),
+        planSlug: picked.slug,
+        billingPeriod: picked.period,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Package set to ${billingPlanTierLabel(picked.slug)}'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     });
   }
 
@@ -463,6 +492,8 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
         await _editEmail();
       case 'handle':
         await _editHandle();
+      case 'package':
+        await _setPackage();
       case 'pic':
         await _changePic();
       case 'set_referrer':
@@ -537,7 +568,7 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (_canEdit)
+                          if (_showProfileMenu)
                             PopupMenuButton<String>(
                               tooltip: uiPopupMenuTooltipText('Edit user'),
                               enabled: !_busy,
@@ -547,10 +578,14 @@ class _ReferralUserProfileDialogState extends State<_ReferralUserProfileDialog> 
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: _ReferralPalette.border)),
                               onSelected: _onEditAction,
                               itemBuilder: (ctx) => [
-                                const PopupMenuItem(value: 'name', child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.badge_outlined, size: 20, color: _ReferralPalette.muted), title: Text('Change name'), dense: true)),
-                                const PopupMenuItem(value: 'email', child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.mail_outline, size: 20, color: _ReferralPalette.muted), title: Text('Change email'), dense: true)),
-                                const PopupMenuItem(value: 'handle', child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.alternate_email_outlined, size: 20, color: _ReferralPalette.muted), title: Text('Change Alien ID'), dense: true)),
-                                const PopupMenuItem(value: 'pic', child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.photo_outlined, size: 20, color: _ReferralPalette.muted), title: Text('Change picture'), dense: true)),
+                                if (_canEdit) ...[
+                                  const PopupMenuItem(value: 'name', child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.badge_outlined, size: 20, color: _ReferralPalette.muted), title: Text('Change name'), dense: true)),
+                                  const PopupMenuItem(value: 'email', child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.mail_outline, size: 20, color: _ReferralPalette.muted), title: Text('Change email'), dense: true)),
+                                  PopupMenuItem(value: 'handle', child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.alternate_email_outlined, size: 20, color: _ReferralPalette.muted), title: Text(_hasAlienId ? 'Change Alien ID' : 'Add Alien ID'), dense: true)),
+                                  const PopupMenuItem(value: 'pic', child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.photo_outlined, size: 20, color: _ReferralPalette.muted), title: Text('Change picture'), dense: true)),
+                                ],
+                                if (_canSetPackage)
+                                  const PopupMenuItem(value: 'package', child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.inventory_2_outlined, size: 20, color: _ReferralPalette.muted), title: Text('Set package'), dense: true)),
                                 if (_canEditReferrer) ...[
                                   const PopupMenuItem(value: 'set_referrer', child: ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.person_add_alt_1_outlined, size: 20, color: _ReferralPalette.muted), title: Text('Set referred by'), dense: true)),
                                   if (_node.parentId != 0)
@@ -1148,6 +1183,61 @@ class _ProfileVoucherIssueLimitSectionState extends State<_ProfileVoucherIssueLi
             ],
           ],
         ),
+      );
+}
+
+class _PackagePlanDialog extends StatefulWidget {
+  @override
+  State<_PackagePlanDialog> createState() => _PackagePlanDialogState();
+}
+
+class _PackagePlanDialogState extends State<_PackagePlanDialog> {
+  var _slug = 'lite';
+  var _period = 'monthly';
+
+  static const _plans = ['free', 'lite', 'plus', 'pro', 'ultra'];
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        backgroundColor: _ReferralPalette.bg,
+        title: const Text('Set package', style: TextStyle(color: _ReferralPalette.text)),
+        content: SizedBox(
+          width: 320,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                initialValue: _slug,
+                dropdownColor: _ReferralPalette.bg,
+                style: const TextStyle(color: _ReferralPalette.text),
+                decoration: UiInputDecoration.of(context, labelText: 'Plan'),
+                items: _plans
+                    .map((s) => DropdownMenuItem(value: s, child: Text(billingPlanTierLabel(s))))
+                    .toList(),
+                onChanged: (v) => setState(() => _slug = v ?? _slug),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: _period,
+                dropdownColor: _ReferralPalette.bg,
+                style: const TextStyle(color: _ReferralPalette.text),
+                decoration: UiInputDecoration.of(context, labelText: 'Billing period'),
+                items: const [
+                  DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
+                  DropdownMenuItem(value: 'yearly', child: Text('Yearly')),
+                ],
+                onChanged: (v) => setState(() => _period = v ?? _period),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, (slug: _slug, period: _period)),
+            child: const Text('Apply'),
+          ),
+        ],
       );
 }
 

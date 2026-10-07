@@ -74,7 +74,7 @@ void main() {
   });
 
   test('rootErrorCopyText prefixes message id when set', () {
-    expect(rootErrorCopyText(detail: 'boom', messageId: '42'), '[Message ID 42]\nboom');
+    expect(rootErrorCopyText(detail: 'boom', msgId: 42), '[Message ID: 42]\nboom');
     expect(rootErrorCopyText(detail: 'boom'), 'boom');
   });
 

@@ -22,6 +22,7 @@ import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:alienai_c35/widgets/ui/ui_update_banner.dart';
 import 'package:alienai_c35/widgets/ui/ui_update_countdown_dialog.dart';
+import 'package:alienai_c35/widgets/ui/ui_windows_title_sync.dart';
 import 'package:alienai_c35/widgets/ui/ui_window_bar.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
@@ -58,7 +59,9 @@ Future<void> main() async {
     );
     if (_desktop) {
       final title = 'Alien AI ${appVersionLabel()}';
-      final opts = WindowOptions(title: title, titleBarStyle: TitleBarStyle.hidden, backgroundColor: _bg);
+      // Native title bar on Windows: hidden + window_manager NC hacks flash during screen capture.
+      final titleBarStyle = defaultTargetPlatform == TargetPlatform.windows ? TitleBarStyle.normal : TitleBarStyle.hidden;
+      final opts = WindowOptions(title: title, titleBarStyle: titleBarStyle, backgroundColor: _bg);
       await windowManager.waitUntilReadyToShow(opts, () async {
         await windowManager.setTitle(title);
         try {
@@ -183,7 +186,9 @@ class _C35AppState extends State<C35App> {
           child: Listener(
             onPointerDown: (_) => AppUpdateService.instance.recordUserActivity(),
             onPointerMove: (_) => AppUpdateService.instance.recordUserActivity(),
-            child: UiDesktopChrome(child: child ?? const SizedBox.shrink()),
+            child: UiWindowsTitleSync(
+              child: UiDesktopChrome(child: child ?? const SizedBox.shrink()),
+            ),
           ),
         )),
         home: ValueListenableBuilder<bool>(

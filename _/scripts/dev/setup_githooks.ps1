@@ -14,7 +14,7 @@ Push-Location $Root
 try {
     git config core.hooksPath $hooksRel
     Write-Host "core.hooksPath = $hooksRel (local clone only)"
-    Write-Host 'Pre-commit will run check_utf8_sources.ps1 on staged text files.'
+    Write-Host 'Pre-commit: check_utf8_sources.ps1 + check_no_provider_grounding.ps1 on staged files.'
 } finally {
     Pop-Location
 }

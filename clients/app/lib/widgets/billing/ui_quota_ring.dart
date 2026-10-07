@@ -270,7 +270,7 @@ class UiQuotaPackagePanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     final trialTs = trialExpiresTsMs;
-    final showTrial = !_isPaidPlan && trialTs != null && trialTs > 0;
+    final showTrial = !planTierLoading && !_isPaidPlan && trialTs != null && trialTs > 0;
     final trialDaysLeft = showTrial ? ((trialTs - nowMs) / 86400000).ceil().clamp(0, 9999) : 0;
 
     return Column(
@@ -305,7 +305,7 @@ class UiQuotaPackagePanel extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (freemiumActive)
+              if (freemiumActive && !planTierLoading)
                 _freemiumPackageBlock(context)
               else ...[
                 Material(
@@ -700,12 +700,13 @@ UiQuotaPackagePanel uiQuotaPackagePanelFromAccount(
   VoidCallback? onPackageTap,
 }) {
   final fx = account.hasFxMicroPerUsd() ? account.fxMicroPerUsd.toInt() : moneyDefaultFxMicroPerUsd;
-  final frontier5hUsed = account.frontierAllow5hUsed;
-  final frontier5hLimit = account.frontierAllow5hLimit;
-  final frontierWeeklyUsed = account.frontierAllowWeeklyUsed;
-  final frontierWeeklyLimit = account.frontierAllowWeeklyLimit;
+  final resolved = billingAccountPackageReconcile(account);
+  final frontier5hUsed = resolved.frontierAllow5hUsed;
+  final frontier5hLimit = resolved.frontierAllow5hLimit;
+  final frontierWeeklyUsed = resolved.frontierAllowWeeklyUsed;
+  final frontierWeeklyLimit = resolved.frontierAllowWeeklyLimit;
   return UiQuotaPackagePanel(
-    planTier: account.planTier.isNotEmpty ? account.planTier : 'free',
+    planTier: billingPlanTierDisplay(resolved),
     planTierLoading: planTierLoading,
     alien5hUsed: account.alienAllow5hUsed,
     alien5hLimit: account.alienAllow5hLimit,
@@ -720,7 +721,7 @@ UiQuotaPackagePanel uiQuotaPackagePanelFromAccount(
     balanceLabel: billingWalletBalanceLabel(account, billingPrimaryCurrency(account)),
     onBalanceTap: onBalanceTap,
     onPackageTap: onPackageTap,
-    freemiumActive: billingFreemiumActive(account),
+    freemiumActive: planTierLoading ? false : billingFreemiumActive(account),
     freemiumMsgsUsed: account.freemiumMsgsUsed,
     freemiumMsgsLimit: account.freemiumMsgsLimit > 0 ? account.freemiumMsgsLimit : billingFreemiumMsgsLimit,
     freemiumTokensUsed: account.freemiumTokensUsed,
