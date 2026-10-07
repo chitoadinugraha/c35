@@ -33,24 +33,26 @@ PopupMenuItem<T> uiBotMenuItem<T>({
   );
 }
 
+const PopupMenuDivider uiBotMenuDivider = PopupMenuDivider(height: 8);
+
 Future<T?> uiBotMenuShow<T>({
   required BuildContext context,
   required RelativeRect position,
-  required List<PopupMenuItem<T>> items,
+  required List<PopupMenuEntry<T>> items,
 }) =>
     showMenu<T>(context: context, position: position, color: uiBotMenuBg, items: items);
 
 Future<T?> uiBotMenuShowAt<T>({
   required BuildContext context,
   required Offset global,
-  required List<PopupMenuItem<T>> items,
+  required List<PopupMenuEntry<T>> items,
 }) =>
     uiBotMenuShow<T>(context: context, position: uiMenuPositionAt(context, global), items: items);
 
 Future<T?> uiBotMenuShowBelow<T>({
   required BuildContext context,
   required RenderBox anchor,
-  required List<PopupMenuItem<T>> items,
+  required List<PopupMenuEntry<T>> items,
   double gap = 4,
 }) =>
     uiBotMenuShow<T>(context: context, position: uiMenuPositionBelow(context, anchor, gap: gap), items: items);

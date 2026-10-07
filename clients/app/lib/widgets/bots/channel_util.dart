@@ -116,6 +116,7 @@ List<BotChannelDoc> botChannelsParse(String metaJson) {
 List<String> botChannelPlatforms(String metaJson) {
   final counts = <String, int>{};
   for (final ch in botChannelsParse(metaJson)) {
+    if (!channelIsActive(ch)) continue;
     final platform = ch.platform.trim().isEmpty ? 'unknown' : ch.platform.trim();
     counts[platform] = (counts[platform] ?? 0) + 1;
   }

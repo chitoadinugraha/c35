@@ -296,6 +296,8 @@
                  "menuTooltip":  "Aksi bot",
                  "menuNewChat":  "Chat baru",
                  "menuConfigure":  "Pengaturan",
+                 "menuCopyBotId":  "Salin ID bot",
+                 "copyBotIdDone":  "ID bot disalin",
                  "menuDelete":  "Hapus bot",
                  "messageHint":  "Ketik pesan…",
                  "staffHint":  "Kirim sebagai staf…",

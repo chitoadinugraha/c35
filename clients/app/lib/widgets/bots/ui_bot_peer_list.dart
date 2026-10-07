@@ -12,12 +12,19 @@ import 'package:alienai_c35/widgets/bots/ui_bot_menu.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 const _muted = Color(0xFF71717A);
 const _accent = Color(0xFF34D399);
 const _refreshColor = Color(0xFF34D399);
 
 bool _botCanDelete(IdentityListRow row) => row.identity.ownerIid.toInt() == Session.instance.uid;
+
+String _botCopyId(IdentityRow identity) {
+  final alienId = identity.alienId.trim();
+  if (alienId.isNotEmpty) return alienId;
+  return identity.iid.toString();
+}
 
 class UiBotPeerHeaderActions extends StatelessWidget {
   const UiBotPeerHeaderActions({super.key, required this.store});
@@ -37,6 +44,13 @@ class UiBotPeerHeaderActions extends StatelessWidget {
           await store.botPeerCreateApp();
         case 'configure':
           await store.showEditBot(context, botId);
+        case 'copy_id':
+          await Clipboard.setData(ClipboardData(text: _botCopyId(bot.identity)));
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('bots.copyBotIdDone'.tr()), behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 1)),
+            );
+          }
         case 'delete':
           await botDeleteConfirmShow(context, store: store, bot: bot);
       }
@@ -52,6 +66,8 @@ class UiBotPeerHeaderActions extends StatelessWidget {
       items: [
         uiBotMenuItem(value: 'new_chat', icon: Icons.add_comment_outlined, label: 'bots.menuNewChat'.tr()),
         uiBotMenuItem(value: 'configure', icon: Icons.settings_outlined, label: 'bots.menuConfigure'.tr()),
+        uiBotMenuDivider,
+        uiBotMenuItem(value: 'copy_id', icon: Icons.badge_outlined, label: 'bots.menuCopyBotId'.tr()),
         if (_botCanDelete(bot)) uiBotMenuItem(value: 'delete', icon: Icons.delete_outline, label: 'bots.menuDelete'.tr(), destructive: true),
       ],
     );

@@ -5,10 +5,9 @@ use sqlx::PgPool;
 use tracing::{info, warn};
 
 use crate::store::{
-    bot_channel_get, bot_channel_pair_watch_touch, bot_channel_patch_session,
-    bot_channel_upsert, bot_ensure, bot_linked_channel_get, channel_secret_generate,
-    channel_whatsapp_deactivate_siblings, new_channel_id, phone_jid_display, ChannelDoc, ChannelSession,
-    PROVIDER_LINKED, STATUS_DISCONNECTED, STATUS_PAIRING,
+    bot_channel_get, bot_channel_pair_watch_touch, bot_channel_remove, bot_channel_upsert, bot_ensure,
+    bot_linked_channel_get, channel_secret_generate, channel_whatsapp_deactivate_siblings, new_channel_id,
+    phone_jid_display, ChannelDoc, ChannelSession, PROVIDER_LINKED, STATUS_CONNECTED, STATUS_PAIRING,
 };
 
 pub const SUBJ_PAIR: &str = "c35.act.channel.whatsapp.device.pair";
@@ -216,36 +215,23 @@ pub async fn channel_whatsapp_pair_abort(
         return Err("bot_iid and channel_id required".into());
     }
     let channel_id = channel_id.trim();
-    if bot_linked_channel_get(pool, owner_iid, bot_iid, channel_id)
+    let ch = bot_linked_channel_get(pool, owner_iid, bot_iid, channel_id)
         .await
         .map_err(|e| e.to_string())?
-        .is_none()
-    {
-        return Err("WhatsApp linked channel not found".into());
+        .ok_or_else(|| "WhatsApp linked channel not found".to_string())?;
+
+    if let Err(e) = worker_post(worker_url, &format!("/v1/channel/{bot_iid}/{channel_id}/stop")).await {
+        warn!("[c35:whatsapp] worker stop failed channel_id={channel_id}: {e}");
     }
 
-    bot_channel_patch_session(
-        pool,
-        owner_iid,
-        bot_iid,
-        channel_id,
-        serde_json::json!({
-            "qr_raw": "",
-            "phone_jid": "",
-            "sqlite_session_b64": "",
-            "pair_watch_until_ms": 0,
-            "error_message": ""
-        }),
-    )
-    .await
-    .map_err(|e| e.to_string())?;
-
-    if let Some(mut ch) = bot_channel_get(pool, bot_iid, channel_id).await.map_err(|e| e.to_string())? {
-        ch.status = STATUS_DISCONNECTED.into();
-        ch.error_message.clear();
-        ch.session = ChannelSession::default();
-        bot_channel_upsert(pool, owner_iid, bot_iid, ch).await.map_err(|e| e.to_string())?;
+    if ch.status == STATUS_CONNECTED {
+        info!("[c35:whatsapp] pair_abort skip remove (connected) owner_iid={owner_iid} bot_iid={bot_iid} channel_id={channel_id}");
+        return Ok(());
     }
+
+    bot_channel_remove(pool, owner_iid, bot_iid, channel_id)
+        .await
+        .map_err(|e| e.to_string())?;
 
     let _ = log_put(
         pool,
@@ -275,11 +261,7 @@ pub async fn channel_whatsapp_pair_abort(
     )
     .await;
 
-    if let Err(e) = worker_post(worker_url, &format!("/v1/channel/{bot_iid}/{channel_id}/stop")).await {
-        warn!("[c35:whatsapp] worker stop failed channel_id={channel_id}: {e}");
-    }
-
-    info!("[c35:whatsapp] pair_abort owner_iid={owner_iid} bot_iid={bot_iid} channel_id={channel_id}");
+    info!("[c35:whatsapp] pair_abort removed channel owner_iid={owner_iid} bot_iid={bot_iid} channel_id={channel_id}");
     Ok(())
 }
 

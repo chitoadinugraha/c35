@@ -296,6 +296,8 @@
                  "menuTooltip":  "Bot actions",
                  "menuNewChat":  "New chat",
                  "menuConfigure":  "Settings",
+                 "menuCopyBotId":  "Copy bot ID",
+                 "copyBotIdDone":  "Bot ID copied",
                  "menuDelete":  "Delete bot",
                  "messageHint":  "Message…",
                  "staffHint":  "Send as staff…",
