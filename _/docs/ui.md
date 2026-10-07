@@ -102,7 +102,7 @@ Talk and Chat are two surfaces on one Home thread (`chat.kind = prompt`, same `c
 | Reply length | Unchanged | `inst.talk.brief` on that turn |
 | Read aloud | Bubble menu **Read aloud** only (no auto TTS) | `VoicePrefs.talkSpeakEnabled` (default on); stage speaker toggles it; auto TTS after each Talk turn when on |
 
-**Prefs.** `VoicePrefs.talkEnabled`, key `voice_talk_enabled`, default false. Device-local, same store as the other voice prefs. Avatar sheet: **Talk Mode** / **Chat Mode** chip (4/10 width; label is the mode you switch to; cyan when Talk is on; menu stays open) and full-title **Call** chip (6/10, one line e.g. Telepon Alien AI, same dropdown as welcome); picking an offer starts Live Call and turns Talk off.
+**Prefs.** `VoicePrefs.talkEnabled`, key `voice_talk_enabled`, default false. Device-local, same store as the other voice prefs. Avatar sheet: **Talk Mode** / **Chat Mode** chip (~55% width; single-line label e.g. Mode Bicara; cyan when Talk is on; menu stays open) and full-title **Call** chip (~45%, one line e.g. Telepon Alien AI, same dropdown as welcome); picking an offer starts Live Call and turns Talk off.
 
 **Page.** The existing home header stays. Leave Talk from the avatar sheet. On an empty thread (no user or assistant rows yet, not busy), the main area shows the same welcome as Chat (`home.heroTitle`, `home.heroSubtitle`, Alien icon, hint chips) via `_threadHero()`. Once there is a turn, the scroll shows the latest assistant text at a large size. That text is the live `msgStreamContent` stream. `UiMsgBlocks` for that assistant row render in the same scroll when `blocks_json` is non-empty.
 

@@ -32,12 +32,12 @@ class UiTalkCallToggleRow extends StatelessWidget {
         child: Row(
           children: [
             Expanded(
-              flex: 4,
+              flex: 11,
               child: _UiTalkModeChip(active: talkEnabled, onTap: onTalkTap),
             ),
             if (callChip != null) ...[
               const SizedBox(width: 8),
-              Expanded(flex: 6, child: callChip!),
+              Expanded(flex: 9, child: callChip!),
             ],
           ],
         ),
@@ -67,17 +67,17 @@ class _UiTalkModeChip extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(8),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 9),
             child: Row(
               children: [
-                Icon(active ? Icons.chat_bubble_outline_rounded : Icons.mic_rounded, size: 15, color: iconColor),
-                const SizedBox(width: 6),
+                Icon(active ? Icons.chat_bubble_outline_rounded : Icons.mic_rounded, size: 14, color: iconColor),
+                const SizedBox(width: 5),
                 Expanded(
                   child: Text(
                     label,
-                    maxLines: 2,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: labelColor, fontSize: 11, fontWeight: active ? FontWeight.w600 : FontWeight.w500, height: 1.15),
+                    style: TextStyle(color: labelColor, fontSize: 12, fontWeight: active ? FontWeight.w600 : FontWeight.w500, height: 1.1),
                   ),
                 ),
               ],
