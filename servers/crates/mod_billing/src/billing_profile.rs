@@ -101,6 +101,95 @@ pub fn profile_has_rings(row: &ProfilePoolRow) -> bool {
         || r.frontier_allow_weekly_limit > 0.0
 }
 
+pub fn profile_needs_frontier_ring_repair(row: &ProfilePoolRow) -> bool {
+    let tier = row.plan_tier.trim().to_lowercase();
+    if tier.is_empty() || tier == "free" {
+        return false;
+    }
+    let r = &row.rings;
+    let alien_on = r.alien_allow_5h_limit > 0.0 || r.alien_allow_weekly_limit > 0.0;
+    let frontier_off = r.frontier_allow_5h_limit <= 0.0 && r.frontier_allow_weekly_limit <= 0.0;
+    alien_on && frontier_off
+}
+
+pub fn profile_needs_pool_retire(row: &ProfilePoolRow) -> bool {
+    profile_has_pools(row) && profile_has_rings(row)
+}
+
+pub fn frontier_limits_derive_from_profile(
+    row: &ProfilePoolRow,
+    tpl_alien_pool_idr: f64,
+    tpl_frontier_pool_idr: f64,
+) -> (f64, f64) {
+    let alien_pool = if row.alien_pool_limit_idr > 0.0 {
+        row.alien_pool_limit_idr
+    } else {
+        tpl_alien_pool_idr
+    };
+    let frontier_pool = if row.frontier_pool_limit_idr > 0.0 {
+        row.frontier_pool_limit_idr
+    } else {
+        tpl_frontier_pool_idr
+    };
+    frontier_rings_from_alien(
+        row.rings.alien_allow_5h_limit,
+        row.rings.alien_allow_weekly_limit,
+        alien_pool,
+        frontier_pool,
+    )
+}
+
+/// Backfill missing frontier 5h/7d caps from plan template; clear legacy monthly pools when rings are active.
+pub async fn billing_profile_repair_rings_v4(pool: &PgPool, owner_iid: i64) -> Result<Option<ProfilePoolRow>> {
+    let Some(row) = billing_profile_fetch_inner(pool, owner_iid).await? else {
+        return Ok(None);
+    };
+    let repair_frontier = profile_needs_frontier_ring_repair(&row);
+    let retire_pools = profile_needs_pool_retire(&row);
+    if !repair_frontier && !retire_pools {
+        return Ok(Some(row));
+    }
+    let (frontier_5h, frontier_week) = if repair_frontier {
+        let (tpl_alien, tpl_frontier, _) = billing_plan_pool_template(pool, row.plan_tier.trim())
+            .await
+            .map_err(|e| anyhow::anyhow!(e))?;
+        frontier_limits_derive_from_profile(&row, tpl_alien, tpl_frontier)
+    } else {
+        (row.rings.frontier_allow_5h_limit, row.rings.frontier_allow_weekly_limit)
+    };
+    sqlx::query(
+        r#"
+        UPDATE ai.billing_profile
+        SET frontier_allow_5h_limit = CASE WHEN $3 THEN $4 ELSE frontier_allow_5h_limit END,
+            frontier_allow_weekly_limit = CASE WHEN $3 THEN $5 ELSE frontier_allow_weekly_limit END,
+            alien_pool_limit_idr = CASE WHEN $6 THEN 0 ELSE alien_pool_limit_idr END,
+            alien_pool_used_idr = CASE WHEN $6 THEN 0 ELSE alien_pool_used_idr END,
+            frontier_pool_limit_idr = CASE WHEN $6 THEN 0 ELSE frontier_pool_limit_idr END,
+            frontier_pool_used_idr = CASE WHEN $6 THEN 0 ELSE frontier_pool_used_idr END,
+            updated_ts = NOW()
+        WHERE owner_iid = $1 AND deleted_ts IS NULL
+        "#,
+    )
+    .bind(owner_iid)
+    .bind(repair_frontier)
+    .bind(frontier_5h)
+    .bind(frontier_week)
+    .bind(retire_pools)
+    .execute(pool)
+    .await?;
+    billing_profile_fetch_inner(pool, owner_iid).await
+}
+
+async fn billing_profile_fetch_inner(pool: &PgPool, owner_iid: i64) -> Result<Option<ProfilePoolRow>> {
+    let row = sqlx::query(&format!(
+        "SELECT {PROFILE_RING_SELECT} FROM ai.billing_profile WHERE owner_iid = $1 AND deleted_ts IS NULL LIMIT 1"
+    ))
+    .bind(owner_iid)
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.map(profile_from_row))
+}
+
 pub fn profile_ring_remaining_usd(rings: &ProfileRingRow) -> (f64, f64) {
     let alien = allowance_remaining(
         rings.alien_allow_5h_used,
@@ -148,13 +237,8 @@ pub fn model_uses_alien_pool(model: &str) -> bool {
 }
 
 pub async fn billing_profile_fetch(pool: &PgPool, owner_iid: i64) -> Result<Option<ProfilePoolRow>> {
-    let row = sqlx::query(&format!(
-        "SELECT {PROFILE_RING_SELECT} FROM ai.billing_profile WHERE owner_iid = $1 AND deleted_ts IS NULL LIMIT 1"
-    ))
-    .bind(owner_iid)
-    .fetch_optional(pool)
-    .await?;
-    Ok(row.map(profile_from_row))
+    let _ = billing_profile_repair_rings_v4(pool, owner_iid).await;
+    billing_profile_fetch_inner(pool, owner_iid).await
 }
 
 pub async fn billing_profile_ensure(pool: &PgPool, owner_iid: i64) -> Result<ProfilePoolRow> {
@@ -353,6 +437,7 @@ pub async fn billing_profile_deduct_rings(
     if cost_usd <= 0.0 {
         return Ok(Some(0.0));
     }
+    let _ = billing_profile_repair_rings_v4(pool, owner_iid).await;
     let mut tx = pool.begin().await?;
     let row = sqlx::query(&format!(
         "SELECT {PROFILE_RING_SELECT} FROM ai.billing_profile WHERE owner_iid = $1 AND deleted_ts IS NULL LIMIT 1 FOR UPDATE"
@@ -511,5 +596,35 @@ mod tests {
         let (f5, fw) = frontier_rings_from_alien(0.05, 1.0, 100_000.0, 20_000.0);
         assert!((f5 - 0.01).abs() < 1e-9);
         assert!((fw - 0.2).abs() < 1e-9);
+    }
+
+    #[test]
+    fn ultra_frontier_limits_derive_from_alien_rings() {
+        let row = ProfilePoolRow {
+            id: 1,
+            owner_iid: 99_000,
+            plan_tier: "ultra".into(),
+            alien_pool_limit_idr: 2_000_000.0,
+            alien_pool_used_idr: 0.0,
+            frontier_pool_limit_idr: 400_000.0,
+            frontier_pool_used_idr: 0.0,
+            rings: ProfileRingRow {
+                alien_allow_5h_used: 0.0,
+                alien_allow_5h_limit: 4.0,
+                alien_allow_weekly_used: 0.0,
+                alien_allow_weekly_limit: 80.0,
+                frontier_allow_5h_used: 0.0,
+                frontier_allow_5h_limit: 0.0,
+                frontier_allow_weekly_used: 0.0,
+                frontier_allow_weekly_limit: 0.0,
+                window_5h_start: Utc::now(),
+                window_weekly_start: Utc::now(),
+            },
+        };
+        assert!(profile_needs_frontier_ring_repair(&row));
+        assert!(profile_needs_pool_retire(&row));
+        let (f5, fw) = frontier_limits_derive_from_profile(&row, 2_000_000.0, 400_000.0);
+        assert!((f5 - 0.8).abs() < 1e-9);
+        assert!((fw - 16.0).abs() < 1e-9);
     }
 }

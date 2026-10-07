@@ -204,7 +204,23 @@ pub async fn resolve_site_by_alien_id(pool: &PgPool, alien_id: &str) -> Result<i
     )
     .bind(alien_id)
     .fetch_optional(pool)
-    .await?
-    .ok_or_else(|| anyhow!("site not found"))?;
-    Ok(row.get("id"))
+    .await?;
+    if let Some(row) = row {
+        return Ok(row.get("id"));
+    }
+    if let Ok(site_id) = alien_id.parse::<i64>() {
+        if let Some(row) = sqlx::query(
+            r#"
+            SELECT id FROM ai.identity
+            WHERE kind = 'site' AND id = $1 AND deleted_ts IS NULL
+            "#,
+        )
+        .bind(site_id)
+        .fetch_optional(pool)
+        .await?
+        {
+            return Ok(row.get("id"));
+        }
+    }
+    Err(anyhow!("site not found"))
 }

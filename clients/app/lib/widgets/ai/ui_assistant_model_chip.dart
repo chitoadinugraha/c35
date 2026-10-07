@@ -30,7 +30,7 @@ class UiAssistantModelChip extends StatelessWidget {
                 ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 140),
                   child: Text(
-                    model.canThink ? '${model.chip} · ${model.thinking.label}' : model.chip,
+                    model.chip,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(color: model.accent, fontSize: 12, fontWeight: FontWeight.w500, letterSpacing: 0.1),
                   ),

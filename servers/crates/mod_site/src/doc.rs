@@ -2,7 +2,24 @@ use anyhow::{anyhow, Result};
 use c35_proto::{SiteBlock, SiteDoc, SitePage};
 use serde_json::Value;
 
-const BLOCK_TYPES_V1: &[&str] = &["hero", "markdown", "product_grid", "spacer", "image"];
+pub const BLOCK_TYPES_V1: &[&str] = &[
+    "hero",
+    "markdown",
+    "image",
+    "gallery",
+    "links",
+    "product_grid",
+    "contact_form",
+    "map",
+    "hours",
+    "queue",
+    "hub_profile",
+    "social_feed",
+    "order_track",
+    "embed",
+    "spacer",
+    "custom_html",
+];
 
 pub fn site_doc_to_json(doc: &SiteDoc) -> Result<Value> {
     let pages: Vec<Value> = doc
@@ -125,22 +142,110 @@ fn block_props_validate(block_type: &str, props: &Value) -> Result<()> {
     match block_type {
         "hero" => {
             for k in obj.keys() {
-                if !matches!(k.as_str(), "title" | "subtitle" | "pic" | "cta" | "cta_url") {
+                if !matches!(
+                    k.as_str(),
+                    "title" | "subtitle" | "pic" | "cta" | "cta_url" | "cta_label" | "cta_href" | "align"
+                ) {
                     return Err(anyhow!("hero: unknown prop {k}"));
                 }
             }
         }
         "markdown" => {
             for k in obj.keys() {
-                if !matches!(k.as_str(), "content" | "body") {
+                if !matches!(k.as_str(), "content" | "body" | "align") {
                     return Err(anyhow!("markdown: unknown prop {k}"));
+                }
+            }
+        }
+        "image" => {
+            for k in obj.keys() {
+                if !matches!(k.as_str(), "pic" | "alt" | "caption" | "href") {
+                    return Err(anyhow!("image: unknown prop {k}"));
+                }
+            }
+        }
+        "gallery" => {
+            for k in obj.keys() {
+                if !matches!(k.as_str(), "pics" | "columns" | "title") {
+                    return Err(anyhow!("gallery: unknown prop {k}"));
+                }
+            }
+        }
+        "links" => {
+            for k in obj.keys() {
+                if !matches!(k.as_str(), "links" | "items" | "title") {
+                    return Err(anyhow!("links: unknown prop {k}"));
                 }
             }
         }
         "product_grid" => {
             for k in obj.keys() {
-                if !matches!(k.as_str(), "filter" | "category" | "limit") {
+                if !matches!(k.as_str(), "filter" | "category" | "limit" | "page_size" | "columns") {
                     return Err(anyhow!("product_grid: unknown prop {k}"));
+                }
+            }
+        }
+        "contact_form" => {
+            for k in obj.keys() {
+                if !matches!(k.as_str(), "title" | "fields" | "submit_label") {
+                    return Err(anyhow!("contact_form: unknown prop {k}"));
+                }
+            }
+        }
+        "map" => {
+            for k in obj.keys() {
+                if !matches!(k.as_str(), "lat" | "lng" | "zoom" | "address") {
+                    return Err(anyhow!("map: unknown prop {k}"));
+                }
+            }
+        }
+        "hours" => {
+            for k in obj.keys() {
+                if !matches!(k.as_str(), "hours" | "schedule" | "title") {
+                    return Err(anyhow!("hours: unknown prop {k}"));
+                }
+            }
+        }
+        "queue" => {
+            for k in obj.keys() {
+                if !matches!(k.as_str(), "title" | "mode" | "label" | "queue_id") {
+                    return Err(anyhow!("queue: unknown prop {k}"));
+                }
+            }
+        }
+        "hub_profile" => {
+            for k in obj.keys() {
+                if !matches!(
+                    k.as_str(),
+                    "title" | "subtitle" | "pic" | "location_label" | "location_href" | "show_hours"
+                ) {
+                    return Err(anyhow!("hub_profile: unknown prop {k}"));
+                }
+            }
+        }
+        "social_feed" => {
+            for k in obj.keys() {
+                if !matches!(k.as_str(), "title" | "limit") {
+                    return Err(anyhow!("social_feed: unknown prop {k}"));
+                }
+            }
+            if let Some(limit) = obj.get("limit").and_then(|x| x.as_i64()) {
+                if limit < 1 || limit > 20 {
+                    return Err(anyhow!("social_feed: limit must be 1..20"));
+                }
+            }
+        }
+        "order_track" => {
+            for k in obj.keys() {
+                if !matches!(k.as_str(), "title" | "hint") {
+                    return Err(anyhow!("order_track: unknown prop {k}"));
+                }
+            }
+        }
+        "embed" => {
+            for k in obj.keys() {
+                if !matches!(k.as_str(), "url" | "height" | "title") {
+                    return Err(anyhow!("embed: unknown prop {k}"));
                 }
             }
         }
@@ -151,14 +256,14 @@ fn block_props_validate(block_type: &str, props: &Value) -> Result<()> {
                 }
             }
         }
-        "image" => {
+        "custom_html" => {
             for k in obj.keys() {
-                if !matches!(k.as_str(), "pic" | "alt" | "caption") {
-                    return Err(anyhow!("image: unknown prop {k}"));
+                if !matches!(k.as_str(), "html") {
+                    return Err(anyhow!("custom_html: unknown prop {k}"));
                 }
             }
         }
-        _ => return Err(anyhow!("unsupported block type")),
+        _ => return Err(anyhow!("unsupported block type: {block_type}")),
     }
     Ok(())
 }

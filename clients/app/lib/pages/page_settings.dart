@@ -627,7 +627,7 @@ class _PageSettingsState extends State<PageSettings> {
                               icon: Icons.psychology_outlined,
                               title: 'Learned Memories',
                               subtitle: 'settings.learnedMemoriesSubtitle'.tr(),
-                              onTap: widget.conn == null ? null : () => UiBotMemoriesSheet.show(context, conn: widget.conn!),
+                              onTap: widget.chatConn == null ? null : () => UiBotMemoriesSheet.show(context, conn: widget.chatConn!),
                             ),
                             uiSettingsDivider(),
                             UiSettingsTile(

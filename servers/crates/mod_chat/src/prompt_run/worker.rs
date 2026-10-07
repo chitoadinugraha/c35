@@ -6,7 +6,7 @@ use anyhow::{Context as AnyhowCtx, Result};
 use async_nats::jetstream::message::AckKind;
 use async_nats::Client;
 use c35_mod_billing::{billing_gate_with_hold, billing_gate_scoped, billing_reservation_refund, billing_resolve, TurnBillingCtx};
-use c35_proto::{PromptRunJob, ResPromptEnd, ResPromptFail};
+use c35_proto::{PromptRunJob, ResPromptEnd, ResPromptFail, ResPromptStart};
 use futures_util::StreamExt;
 use serde::Deserialize;
 use sqlx::PgPool;
@@ -20,7 +20,7 @@ use super::checkpoint::{prompt_run_max_concurrent, prompt_run_should_stop};
 use super::concurrency::prompt_run_concurrency_acquire;
 use super::fanout::{
     prompt_run_fanout_delta, prompt_run_fanout_end, prompt_run_fanout_fail, prompt_run_fanout_publish,
-    prompt_run_push_from_row,
+    prompt_run_fanout_start, prompt_run_push_from_row,
 };
 use super::jetstream::{prompt_jetstream_consumer, prompt_jetstream_ensure};
 use super::store::{
@@ -154,17 +154,117 @@ async fn process_prompt_job(
     let _ = prompt_run_lease_touch(&pool, &req_id, &pod, 120).await?;
     let _ = prompt_run_status_set(&pool, &req_id, "running", None, None).await?;
 
-    let bctx = billing_resolve(
+    let owner_iid = row.owner_iid;
+    let chat_id = row.chat_id;
+    let locale = row.locale.clone();
+    let (_msg, acker) = async_nats::jetstream::Message::split(msg);
+    let acker_mutex = Arc::new(tokio::sync::Mutex::new(acker));
+
+    let bctx = match billing_resolve(
         &pool,
         TurnBillingCtx {
-            owner_iid: row.owner_iid,
+            owner_iid,
             bot_iid: None,
             device_iid: None,
         },
     )
-    .await?;
-    let brow = billing_gate_scoped(&pool, &bctx).await?;
-    billing_gate_with_hold(&pool, row.owner_iid, &brow, &req_id).await?;
+    .await
+    {
+        Ok(b) => b,
+        Err(e) => {
+            let err_msg = e.to_string();
+            let _ = prompt_run_finish(
+                &pool,
+                &req_id,
+                "failed",
+                0,
+                0,
+                0.0,
+                0,
+                Some("quota"),
+                Some(&err_msg),
+            )
+            .await;
+            if let Ok(Some(row)) = prompt_run_get(&pool, &req_id).await {
+                let _ = prompt_run_fanout_publish(&nats, owner_iid, chat_id, prompt_run_push_from_row(&row)).await;
+            }
+            let _ = prompt_run_fanout_fail(
+                &nats,
+                owner_iid,
+                chat_id,
+                &req_id,
+                ResPromptFail {
+                    message: err_msg,
+                },
+            )
+            .await;
+            let _ = acker_mutex.lock().await.ack().await;
+            return Ok(());
+        }
+    };
+    let brow = match billing_gate_scoped(&pool, &bctx).await {
+        Ok(b) => b,
+        Err(e) => {
+            let err_msg = e.to_string();
+            let _ = prompt_run_finish(
+                &pool,
+                &req_id,
+                "failed",
+                0,
+                0,
+                0.0,
+                0,
+                Some("quota"),
+                Some(&err_msg),
+            )
+            .await;
+            if let Ok(Some(row)) = prompt_run_get(&pool, &req_id).await {
+                let _ = prompt_run_fanout_publish(&nats, owner_iid, chat_id, prompt_run_push_from_row(&row)).await;
+            }
+            let _ = prompt_run_fanout_fail(
+                &nats,
+                owner_iid,
+                chat_id,
+                &req_id,
+                ResPromptFail {
+                    message: err_msg,
+                },
+            )
+            .await;
+            let _ = acker_mutex.lock().await.ack().await;
+            return Ok(());
+        }
+    };
+    if let Err(e) = billing_gate_with_hold(&pool, owner_iid, &brow, &req_id).await {
+        let err_msg = e.to_string();
+        let _ = prompt_run_finish(
+            &pool,
+            &req_id,
+            "failed",
+            0,
+            0,
+            0.0,
+            0,
+            Some("quota"),
+            Some(&err_msg),
+        )
+        .await;
+        if let Ok(Some(row)) = prompt_run_get(&pool, &req_id).await {
+            let _ = prompt_run_fanout_publish(&nats, owner_iid, chat_id, prompt_run_push_from_row(&row)).await;
+        }
+        let _ = prompt_run_fanout_fail(
+            &nats,
+            owner_iid,
+            chat_id,
+            &req_id,
+            ResPromptFail {
+                message: err_msg,
+            },
+        )
+        .await;
+        let _ = acker_mutex.lock().await.ack().await;
+        return Ok(());
+    }
 
     let cancel = CancellationToken::new();
     let cancel_token = cancel.clone();
@@ -187,8 +287,6 @@ async fn process_prompt_job(
         }
     });
 
-    let (_msg, acker) = async_nats::jetstream::Message::split(msg);
-    let acker_mutex = Arc::new(tokio::sync::Mutex::new(acker));
     let heartbeat_acker = Arc::clone(&acker_mutex);
     let heartbeat = tokio::spawn(async move {
         loop {
@@ -204,13 +302,7 @@ async fn process_prompt_job(
             }
         }
     });
-
-    let owner_iid = row.owner_iid;
-    let chat_id = row.chat_id;
-    let locale = row.locale.clone();
     let req = row.to_req_prompt();
-    let req_id_fanout = req_id.clone();
-    let nats_fanout = nats.clone();
 
     let pool_hop = pool.clone();
     let req_id_hop = req_id.clone();
@@ -253,6 +345,33 @@ async fn process_prompt_job(
         })),
     };
 
+    let _ = prompt_run_fanout_start(
+        &nats,
+        owner_iid,
+        chat_id,
+        &req_id,
+        ResPromptStart {
+            chat_id,
+            msg_id: 0,
+            model: row.model.clone(),
+        },
+    )
+    .await;
+
+    let (delta_tx, mut delta_rx) = tokio::sync::mpsc::unbounded_channel::<c35_proto::ResPromptDelta>();
+    let delta_forwarder = {
+        let nats = nats.clone();
+        let req_id = req_id.clone();
+        tokio::spawn(async move {
+            while let Some(delta) = delta_rx.recv().await {
+                let _ = prompt_run_fanout_delta(&nats, owner_iid, chat_id, &req_id, delta).await;
+            }
+        })
+    };
+
+    let tx_delta = delta_tx.clone();
+    let tx_blocks = delta_tx.clone();
+
     let turn_result = prompt_turn(
         &pool,
         Some(&nats),
@@ -260,46 +379,27 @@ async fn process_prompt_job(
         &req_id,
         req,
         &locale,
-        |thought, d| {
-            let nats = nats_fanout.clone();
-            let req_id = req_id_fanout.clone();
-            tokio::spawn(async move {
-                let _ = prompt_run_fanout_delta(
-                    &nats,
-                    owner_iid,
-                    chat_id,
-                    &req_id,
-                    c35_proto::ResPromptDelta {
-                        text: d,
-                        thought,
-                        blocks_json: String::new(),
-                    },
-                )
-                .await;
+        move |thought, d| {
+            let _ = tx_delta.send(c35_proto::ResPromptDelta {
+                text: d,
+                thought,
+                blocks_json: String::new(),
             });
         },
-        |blocks_json| {
-            let nats = nats_fanout.clone();
-            let req_id = req_id_fanout.clone();
-            tokio::spawn(async move {
-                let _ = prompt_run_fanout_delta(
-                    &nats,
-                    owner_iid,
-                    chat_id,
-                    &req_id,
-                    c35_proto::ResPromptDelta {
-                        text: String::new(),
-                        thought: false,
-                        blocks_json,
-                    },
-                )
-                .await;
+        move |blocks_json| {
+            let _ = tx_blocks.send(c35_proto::ResPromptDelta {
+                text: String::new(),
+                thought: false,
+                blocks_json,
             });
         },
         &cancel,
         hooks,
     )
     .await;
+
+    drop(delta_tx);
+    let _ = delta_forwarder.await;
 
     heartbeat.abort();
     cancel_watch.abort();

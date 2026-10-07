@@ -91,6 +91,31 @@ fn mention_bracket_fixup_nesting(text: &str) -> String {
     s
 }
 
+/// Strip bracket mentions for inbox titles (device names applied separately when known).
+pub fn mention_plain_for_title(text: &str) -> String {
+    let mut s = mention_bracket_fixup_nesting(text);
+    for _ in 0..16 {
+        let Some(start) = s.find("[@") else {
+            break;
+        };
+        let tail = &s[start..];
+        let Some(rel) = tail.find(']') else {
+            break;
+        };
+        let end = start + rel;
+        let before = s[..start].trim_end();
+        let after = s[end + 1..].trim_start();
+        s = if before.is_empty() {
+            after.to_string()
+        } else if after.is_empty() {
+            before.to_string()
+        } else {
+            format!("{before} {after}")
+        };
+    }
+    s.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
 pub fn mention_content_normalize(text: &str, _mention_ids: &[String]) -> String {
     let text = mention_bracket_fixup_nesting(text);
     let mut out = String::new();
@@ -153,6 +178,14 @@ mod tests {
         let out = mention_bracket_fixup_nesting("[@@[@[@iid:98348080882880512]]] tab list");
         assert!(out.starts_with("[@iid:98348080882880512]"), "got: {out}");
         assert!(!out.contains("[@["), "got: {out}");
+    }
+
+    #[test]
+    fn plain_for_title_strips_brackets() {
+        let out = mention_plain_for_title("[@iid:42] buka chrome");
+        assert_eq!(out, "buka chrome");
+        let nested = mention_plain_for_title("[@[@iid:42]] buka chrome");
+        assert_eq!(nested, "buka chrome");
     }
 
     #[test]

@@ -1,3 +1,6 @@
+import 'package:alienai_c35/c/catalog/catalog_api.dart';
+import 'package:alienai_c35/widgets/ai/composer_mention_text.dart';
+
 String chatTitleFromText(String text, {int maxLen = 48}) {
   final raw = text.trim();
   if (raw.isEmpty) return 'Chat';
@@ -6,10 +9,18 @@ String chatTitleFromText(String text, {int maxLen = 48}) {
   return lower[0].toUpperCase() + lower.substring(1);
 }
 
-String chatTitleDisplay(String title) {
+String chatTitleDisplay(String title, {List<CatalogMention> mentions = const []}) {
   final t = title.trim();
   if (t.isEmpty || t == 'New chat') return '';
-  return chatTitleFromText(t, maxLen: t.length);
+  final hasMentionWire = composerMentionTextHasTokens(t);
+  final resolved = hasMentionWire
+      ? composerMentionTextForPrompt(
+          composerMentionBracketFixupNesting(t),
+          mentions,
+          mentionIds: composerMentionIdsCollect(t),
+        )
+      : t;
+  return chatTitleFromText(resolved, maxLen: resolved.length);
 }
 
 bool chatTitleIsPlaceholder(String title) {

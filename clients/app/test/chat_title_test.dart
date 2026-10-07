@@ -1,4 +1,6 @@
+import 'package:alienai_c35/c/catalog/catalog_api.dart';
 import 'package:alienai_c35/c/chat/chat_title.dart';
+import 'package:alienai_c35/widgets/ai/composer_mention_text.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -12,6 +14,26 @@ void main() {
     expect(chatTitleDisplay(''), '');
     expect(chatTitleDisplay('New chat'), '');
     expect(chatTitleDisplay('hello world'), 'Hello world');
+  });
+
+  test('chatTitleDisplay resolves device bracket to label', () {
+    const deviceId = 'iid:98063412749627392';
+    const mentions = [
+      CatalogMention(
+        id: deviceId,
+        topicId: 'device',
+        icon: '',
+        color: '',
+        labelKey: '',
+        captionKey: '',
+        label: 'DESKTOP-D8406DF',
+        kind: 'identity',
+      ),
+    ];
+    expect(
+      chatTitleDisplay('[@iid:98063412749627392] buka google chrome', mentions: mentions),
+      'Desktop-d8406df buka google chrome',
+    );
   });
 
   test('chatTitleOnPromptStart keeps title on follow-up', () {

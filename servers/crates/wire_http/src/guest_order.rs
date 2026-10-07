@@ -80,15 +80,50 @@ async fn guest_order_put_handler(
     }
 }
 
-async fn guest_order_get_handler(State(st): State<AppState>, body: Bytes) -> Response {
-    let req = match ReqSiteGuestOrderGet::decode(body) {
-        Ok(r) => r,
-        Err(e) => return text_response(StatusCode::BAD_REQUEST, format!("protobuf decode error: {e}")),
+async fn guest_order_get_handler(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+    body: Bytes,
+) -> Response {
+    let is_json_req = headers
+        .get(header::CONTENT_TYPE)
+        .and_then(|h| h.to_str().ok())
+        .map(|ct| ct.contains("application/json"))
+        .unwrap_or(false);
+
+    let (req, from_json) = if let Ok(r) = ReqSiteGuestOrderGet::decode(body.clone()) {
+        (r, false)
+    } else if let Ok(val) = serde_json::from_slice::<serde_json::Value>(&body) {
+        (
+            ReqSiteGuestOrderGet {
+                site_iid: val.get("site_iid").and_then(|x| x.as_i64()).unwrap_or(0),
+                tx_id: val
+                    .get("tx_id")
+                    .or_else(|| val.get("order_id"))
+                    .and_then(|x| x.as_i64())
+                    .unwrap_or(0),
+            },
+            true,
+        )
+    } else {
+        return text_response(StatusCode::BAD_REQUEST, "protobuf or json decode error".into());
     };
     match c35_mod_tx::guest_order_get(&st.pool, req).await {
         Ok(res) => {
             if res.tx.is_none() {
                 return text_response(StatusCode::NOT_FOUND, "order not found".into());
+            }
+            if is_json_req || from_json {
+                let tx_json = res.tx.as_ref().map(c35_mod_tx::tx_to_json).unwrap_or_default();
+                return (
+                    StatusCode::OK,
+                    [(
+                        header::CONTENT_TYPE,
+                        header::HeaderValue::from_static("application/json"),
+                    )],
+                    serde_json::json!({ "tx": tx_json }).to_string(),
+                )
+                    .into_response();
             }
             protobuf_response(StatusCode::OK, &res)
         }

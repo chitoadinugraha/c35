@@ -1,6 +1,6 @@
 use chrono::Utc;
 use c35_proto::{
-    ReqSync, ResSync, SiteConfig, SiteContact, SiteDraft, SiteObject, SiteProduct,
+    ReqSync, ResSync, SiteConfig, SiteContact, SiteDraft, SiteLink, SiteObject, SiteProduct,
     SiteProductEmbed, SyncCollectionCursor,
 };
 use sqlx::{PgPool, Row};
@@ -17,6 +17,7 @@ const SITE_COLLECTIONS: &[&str] = &[
     "site_product",
     "site_product_embed",
     "site_contact",
+    "site_link",
     "site_object",
 ];
 
@@ -288,6 +289,46 @@ pub async fn sync_pull(pool: &PgPool, caller_iid: i64, req: ReqSync) -> ResSync 
             });
         }
         res.cursors.push(cursor("site_contact", max_ts, rows.len(), limit as usize));
+    }
+
+    if wants(&collections, "site_link") {
+        let rows = sqlx::query(
+            r#"
+            SELECT site_iid, link_id, sort_order, label, url, icon, is_pinned, active,
+                   created_ts, updated_ts, deleted_ts
+            FROM site.link
+            WHERE site_iid = ANY($1::bigint[])
+              AND updated_ts > to_timestamp($2::double precision / 1000.0)
+            ORDER BY updated_ts ASC
+            LIMIT $3
+            "#,
+        )
+        .bind(&site_ids)
+        .bind(since_ms)
+        .bind(limit)
+        .fetch_all(pool)
+        .await
+        .unwrap_or_default();
+
+        let mut max_ts = since_ms;
+        for r in &rows {
+            let updated = ts_ms(r.get("updated_ts"));
+            max_ts = max_ts.max(updated);
+            res.site_links.push(SiteLink {
+                site_iid: r.get("site_iid"),
+                link_id: r.get("link_id"),
+                sort_order: r.get("sort_order"),
+                label: r.get("label"),
+                url: r.get("url"),
+                icon: r.get("icon"),
+                is_pinned: r.get("is_pinned"),
+                active: r.get("active"),
+                created_ts_ms: ts_ms(r.get("created_ts")),
+                updated_ts_ms: updated,
+                deleted_ts_ms: ts_ms_opt(r.get("deleted_ts")),
+            });
+        }
+        res.cursors.push(cursor("site_link", max_ts, rows.len(), limit as usize));
     }
 
     if wants(&collections, "site_object") {

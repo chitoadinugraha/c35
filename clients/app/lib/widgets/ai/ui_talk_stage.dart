@@ -1,4 +1,5 @@
 import 'package:alienai_c35/c/chat/chat_block.dart';
+import 'package:alienai_c35/c/llm/agent_model.dart';
 import 'package:alienai_c35/c/chat/chat_inbox.dart';
 import 'package:alienai_c35/c/consumption/consumption_api.dart';
 import 'package:alienai_c35/c/expense/expense_api.dart';
@@ -39,6 +40,7 @@ class UiTalkStage extends StatelessWidget {
     this.stagedCount = 0,
     this.modelProvider = 'alienai',
     this.modelAccent,
+    this.model,
     this.welcome,
     this.mentionLabel = '',
     this.onMentionClear,
@@ -68,6 +70,7 @@ class UiTalkStage extends StatelessWidget {
   final int stagedCount;
   final String modelProvider;
   final Color? modelAccent;
+  final AgentModel? model;
   final Widget? welcome;
   final String mentionLabel;
   final VoidCallback? onMentionClear;
@@ -338,7 +341,7 @@ class UiTalkStage extends StatelessWidget {
           if (busy) {
             return Padding(
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 4),
-              child: UiPromptThinkingIndicator(startedAtMs: busyStartedAtMs, align: Alignment.center),
+              child: UiPromptThinkingIndicator(startedAtMs: busyStartedAtMs, align: Alignment.center, model: model),
             );
           }
           if (listening) {

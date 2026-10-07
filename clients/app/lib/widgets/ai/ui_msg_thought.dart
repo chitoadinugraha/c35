@@ -1,4 +1,5 @@
 import 'package:alienai_c35/c/chat/chat_inbox.dart';
+import 'package:alienai_c35/c/llm/agent_model.dart';
 import 'package:alienai_c35/widgets/ui/ui_loading.dart' show UiLiveElapsed, UiThinkingDots;
 import 'package:flutter/material.dart';
 import 'package:alienai_c35/widgets/ai/ui_markdown_body.dart';
@@ -29,31 +30,42 @@ class UiPromptThinkingIndicator extends StatelessWidget {
     this.startedAtMs,
     this.stopping = false,
     this.align = Alignment.centerLeft,
+    this.model,
   });
 
   final int? startedAtMs;
   final bool stopping;
   final Alignment align;
+  final AgentModel? model;
 
   @override
   Widget build(BuildContext context) => Align(
         alignment: align,
         child: UiMsgThought(
-          text: 'Thinking',
+          text: '',
           thinking: !stopping,
           stopping: stopping,
           startedAtMs: startedAtMs,
+          liveLabel: stopping ? null : (model?.thinkingStatusLabel ?? 'Thinking'),
         ),
       );
 }
 
 class UiMsgThought extends StatefulWidget {
-  const UiMsgThought({super.key, required this.text, this.thinking = false, this.stopping = false, this.startedAtMs});
+  const UiMsgThought({
+    super.key,
+    required this.text,
+    this.thinking = false,
+    this.stopping = false,
+    this.startedAtMs,
+    this.liveLabel,
+  });
 
   final String text;
   final bool thinking;
   final bool stopping;
   final int? startedAtMs;
+  final String? liveLabel;
 
   @override
   State<UiMsgThought> createState() => _UiMsgThoughtState();
@@ -79,7 +91,15 @@ class _UiMsgThoughtState extends State<UiMsgThought> {
 
   bool get _hasBody => widget.text.isNotEmpty && widget.text != 'Thinking' && widget.text != 'Stopping…';
 
-  String get _headerLabel => widget.stopping ? 'Stopping…' : widget.thinking ? 'Thinking' : 'Thought';
+  String get _headerLabel {
+    if (widget.stopping) return 'Stopping…';
+    if (widget.thinking) {
+      final custom = widget.liveLabel?.trim();
+      if (custom != null && custom.isNotEmpty) return custom;
+      return 'Thinking';
+    }
+    return 'Thought';
+  }
 
   bool get _live => widget.thinking || widget.stopping;
 

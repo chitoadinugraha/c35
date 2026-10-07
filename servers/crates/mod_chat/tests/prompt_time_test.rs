@@ -37,6 +37,7 @@ async fn live_prompt_time_question_streams_text() {
         &json!([]),
         "off",
         &model,
+        "alienai",
         &system,
         "AUTO",
         &mut on_delta,

@@ -282,7 +282,7 @@ class _BillingHistorySheetState extends State<_BillingHistorySheet> {
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: _headerBtnH, minHeight: _headerBtnH),
                 ),
-                if (billingShowInAppTopup()) ...[
+                if (billingShowInAppTopup() || billingUsePlayCheckout()) ...[
                   const SizedBox(width: 4),
                   FilledButton.icon(
                     onPressed: () => billingTopupDialog(

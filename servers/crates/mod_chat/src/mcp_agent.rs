@@ -5,6 +5,7 @@ use sqlx::PgPool;
 use tokio_util::sync::CancellationToken;
 
 use crate::compose::{compose_tools_and_inst_async, ComposeTurnOpts};
+use crate::inst_macro::inst_pool_signal;
 use crate::inst_cache::inst_list_for_turn;
 use crate::inst_macro::inst_scopes_home;
 use crate::log_list::log_list;
@@ -230,6 +231,7 @@ async fn mcp_compose_for_mentions(
     let active_topics = mention_active_topics(&resolved, "", &commerce_site_iids);
     let inst_scopes = inst_scopes_home();
     let http = http_client(std::time::Duration::from_secs(30));
+    let compose_signals = [inst_pool_signal("alienai").to_string()];
     let composed = compose_tools_and_inst_async(
         pool,
         &http,
@@ -244,7 +246,10 @@ async fn mcp_compose_for_mentions(
         &inst_scopes,
         &mention_ctx,
         &caps,
-        ComposeTurnOpts::default(),
+        ComposeTurnOpts {
+            extra_signals: &compose_signals,
+            ..ComposeTurnOpts::default()
+        },
         owner_iid,
         locale,
     )

@@ -36,7 +36,9 @@ pub use tool_select::{
 #[derive(Clone, Copy)]
 pub struct ComposeTurnOpts<'a> {
     pub extra_signals: &'a [String],
+    pub extra_tool_include: &'a [String],
     pub extra_tool_exclude: &'a [String],
+    pub extra_inst_suffix: &'a str,
     pub bot_web_search: bool,
     pub attachments_json: &'a str,
 }
@@ -45,7 +47,9 @@ impl<'a> Default for ComposeTurnOpts<'a> {
     fn default() -> Self {
         Self {
             extra_signals: &[],
+            extra_tool_include: &[],
             extra_tool_exclude: &[],
+            extra_inst_suffix: "",
             bot_web_search: false,
             attachments_json: "[]",
         }
@@ -76,11 +80,53 @@ pub fn compose_force_consumption_coach_tool_call(matched_ids: &[String], tools: 
         && tools.iter().any(|t| t.name == "consumption.today")
 }
 
+/// Force site.create only after discovery — user explicitly asks to generate the site.
+pub fn compose_force_site_builder_tool_call(matched_ids: &[String], tools: &[ToolDef], user_text: &str) -> bool {
+    if !matched_ids.iter().any(|id| id == "inst.site.builder") {
+        return false;
+    }
+    if !tools.iter().any(|t| t.name == "site.create") {
+        return false;
+    }
+    site_builder_ready_to_create(user_text)
+}
+
+pub fn site_builder_ready_to_create(text: &str) -> bool {
+    let lower = text.trim().to_lowercase();
+    if lower.is_empty() {
+        return false;
+    }
+    const READY: &[&str] = &[
+        "buat sitenya",
+        "bikin sitenya",
+        "buatkan sitenya",
+        "buatkan websitenya",
+        "lanjut buat",
+        "silakan buat",
+        "ok buat",
+        "oke buat",
+        "generate sitenya",
+        "create the site",
+        "build the site",
+        "build it now",
+        "just create",
+        "create now",
+        "generate the site",
+        "publish draft",
+    ];
+    READY.iter().any(|p| lower.contains(p))
+}
+
 /// First LLM hop must call a tool when a force-* inst matched and its tool is available.
 pub fn compose_force_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> bool {
     compose_force_web_tool_call(matched_ids, tools)
         || compose_force_presentation_tool_call(matched_ids, tools)
         || compose_force_consumption_coach_tool_call(matched_ids, tools)
+}
+
+pub fn compose_force_tool_call_with_text(matched_ids: &[String], tools: &[ToolDef], user_text: &str) -> bool {
+    compose_force_tool_call(matched_ids, tools)
+        || compose_force_site_builder_tool_call(matched_ids, tools, user_text)
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -257,6 +303,7 @@ fn compose_prepare_scoped(
         &InstMatchCtx {
             scopes,
             topic_id: primary_topic,
+            active_topics: &topics,
             text,
             mention_ids,
             signals: signal_slice,
@@ -269,11 +316,22 @@ fn compose_prepare_scoped(
     let topic_refs: Vec<&str> = topics.iter().map(|t| t.as_str()).collect();
     let primary_topic = topic_refs.first().map(|t| *t).unwrap_or("general");
     let matched_ids: Vec<String> = matched.iter().map(|r| r.id.clone()).collect();
-    let inst_block = inst_matched_prompt(&matched);
+    let mut inst_block = inst_matched_prompt(&matched);
+    if !opts.extra_inst_suffix.trim().is_empty() {
+        if !inst_block.is_empty() {
+            inst_block.push_str("\n\n");
+        }
+        inst_block.push_str(opts.extra_inst_suffix.trim());
+    }
     let (mut force_include, mut tool_exclude) = inst_tool_directives(&matched);
     for t in opts.extra_tool_exclude {
         if !t.is_empty() && !tool_exclude.iter().any(|x| x == t) {
             tool_exclude.push(t.to_string());
+        }
+    }
+    for t in opts.extra_tool_include {
+        if !t.is_empty() && !force_include.iter().any(|x| x == t) {
+            force_include.push(t.to_string());
         }
     }
     for t in skill_tools {
@@ -283,6 +341,7 @@ fn compose_prepare_scoped(
     }
 
     let ask_mode = tool_mode == "ask";
+    let tool_catalog = eligible_tools.clone();
     let eligible_tools: Vec<ToolDef> = eligible_tools
         .into_iter()
         .filter(|t| tool_mention_eligible(t, mention, caps))
@@ -315,8 +374,8 @@ fn compose_prepare_scoped(
         });
     }
 
-    let force = super::tool_rag::canonicalize_tool_ids(&eligible_tools, &force_include);
-    let exclude = super::tool_rag::canonicalize_tool_ids(&eligible_tools, &tool_exclude);
+    let force = super::tool_rag::canonicalize_tool_ids(&tool_catalog, &force_include);
+    let exclude = super::tool_rag::canonicalize_tool_ids(&tool_catalog, &tool_exclude);
     let mut eligible: Vec<ToolDef> = eligible_tools
         .iter()
         .filter(|t| !exclude.iter().any(|x| x == &t.name))
@@ -324,9 +383,12 @@ fn compose_prepare_scoped(
         .cloned()
         .collect();
     if opts.bot_web_search && primary_topic == "bot" {
-        compose_bot_web_tools_inject(&eligible_tools, &mut eligible, &exclude);
+        compose_bot_web_tools_inject(&tool_catalog, &mut eligible, &exclude);
     }
-    compose_inject_force_tools(&eligible_tools, &mut eligible, &force_include, &exclude);
+    compose_inject_force_tools(&tool_catalog, &mut eligible, &force_include, &exclude);
+    if ask_mode {
+        eligible.retain(|t| t.readonly);
+    }
     let force: Vec<String> = force.into_iter().filter(|id| eligible.iter().any(|t| &t.name == id)).collect();
     let rag_skipped = eligible.len() <= TOOL_RAG_MIN;
 

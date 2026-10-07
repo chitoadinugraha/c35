@@ -35,13 +35,57 @@ pub fn inst_scopes_channel() -> Vec<String> {
     vec![SCOPE_ROLE_BOT.into()]
 }
 
+/// Compose `extra_signals` entries; match `ai.inst` triggers (e.g. `model:alienai`).
+pub const INST_SIGNAL_MODEL_ALIEN: &str = "model:alienai";
+pub const INST_SIGNAL_MODEL_FRONTIER: &str = "model:frontier";
+
+pub fn inst_pool_signal(model: &str) -> &'static str {
+    if c35_mod_llm::model_is_alien(model) {
+        INST_SIGNAL_MODEL_ALIEN
+    } else {
+        INST_SIGNAL_MODEL_FRONTIER
+    }
+}
+
 pub struct InstMatchCtx<'a> {
     pub scopes: &'a [String],
     pub topic_id: &'a str,
+    pub active_topics: &'a [String],
     pub text: &'a str,
     pub mention_ids: &'a [String],
     pub signals: &'a [String],
     pub staff: Option<&'a StaffView>,
+}
+
+const INST_SITE_CATALOG_STOCK: &str = "inst.site.catalog.stock";
+
+/// Home-chat bot creation / draft-update wording (keep in sync with `inst.bot.draft` phrases in inst.sql).
+pub fn inst_text_bot_draft_intent(text: &str) -> bool {
+    let lower = text.trim().to_lowercase();
+    [
+        "buat chat bot",
+        "bikin chat bot",
+        "buat bot",
+        "bikin bot",
+        "create chat bot",
+        "create a bot",
+        "create bot",
+        "new bot",
+        "bot baru",
+        "bot untuk",
+        "spreadsheets/d/",
+        "document/d/",
+        "presentation/d/",
+        "aktifkan bot",
+        "hidupkan bot",
+        "turn the bot on",
+        "sambungkan whatsapp",
+        "sambungkan telegram",
+        "connect whatsapp",
+        "connect telegram",
+    ]
+    .iter()
+    .any(|p| lower.contains(p))
 }
 
 pub fn inst_pick(rows: &[InstRow], ctx: &InstMatchCtx<'_>) -> Vec<InstRow> {
@@ -120,14 +164,20 @@ fn inst_applies(row: &InstRow, ctx: &InstMatchCtx<'_>) -> bool {
         return false;
     }
     match row.kind.as_str() {
-        "topic" => row.topic_id == ctx.topic_id,
+        "topic" => {
+            let id = row.topic_id.trim();
+            !id.is_empty() && (id == ctx.topic_id || ctx.active_topics.iter().any(|t| t == id))
+        }
         "mention" => {
             let id = row.topic_id.trim();
             !id.is_empty() && ctx.mention_ids.iter().any(|m| m == id)
         }
         "trigger" => row.triggers.iter().any(|t| trigger_matches(t, ctx)),
         "task" => {
-            if !topic_applies(&row.topics, ctx.topic_id) {
+            if !topic_applies(&row.topics, ctx.topic_id, ctx.active_topics) {
+                return false;
+            }
+            if row.id == INST_SITE_CATALOG_STOCK && inst_text_bot_draft_intent(ctx.text) {
                 return false;
             }
             let lower = ctx.text.trim().to_lowercase();
@@ -148,13 +198,19 @@ fn trigger_matches(t: &str, ctx: &InstMatchCtx<'_>) -> bool {
         return ctx.mention_ids.iter().any(|x| x == s);
     }
     if let Some(s) = t.strip_prefix("topic:") {
-        return ctx.topic_id == s;
+        return ctx.topic_id == s || ctx.active_topics.iter().any(|t| t == s);
     }
     ctx.signals.iter().any(|x| x == t)
 }
 
-fn topic_applies(topics: &[String], topic_id: &str) -> bool {
-    topics.is_empty() || topics.iter().any(|t| t == topic_id || t == "*" || t == "general")
+fn topic_applies(topics: &[String], topic_id: &str, active_topics: &[String]) -> bool {
+    topics.is_empty()
+        || topics.iter().any(|t| {
+            t == "*"
+                || t == topic_id
+                || active_topics.iter().any(|a| a == t)
+                || (t == "general" && (topic_id == "general" || active_topics.iter().any(|a| a == "general")))
+        })
 }
 
 #[cfg(test)]
@@ -202,6 +258,41 @@ mod tests {
     }
 
     #[test]
+    fn inst_pick_bot_draft_suppresses_catalog_stock() {
+        let rows = vec![
+            row("inst.bot.draft", &["buat chat bot"]),
+            InstRow {
+                id: INST_SITE_CATALOG_STOCK.into(),
+                scope: SCOPE_GLOBAL.into(),
+                kind: "task".into(),
+                topic_id: "".into(),
+                topics: vec![],
+                inst: "stock".into(),
+                phrases: vec!["stock".into()],
+                triggers: vec![],
+                include_tools: vec![],
+                exclude_tools: vec![],
+                requires_global_roles: vec![],
+                priority: 128,
+            },
+        ];
+        let empty: [String; 0] = [];
+        let scopes = vec![SCOPE_GLOBAL.into()];
+        let ctx = InstMatchCtx {
+            scopes: &scopes,
+            topic_id: "general",
+            active_topics: &[],
+            text: "buat chat bot \"Test Stock\"",
+            mention_ids: &empty,
+            signals: &empty,
+            staff: None,
+        };
+        let picked = inst_pick(&rows, &ctx);
+        assert!(picked.iter().any(|r| r.id == "inst.bot.draft"));
+        assert!(!picked.iter().any(|r| r.id == INST_SITE_CATALOG_STOCK));
+    }
+
+    #[test]
     fn inst_pick_requires_global_roles() {
         let rows = vec![InstRow {
             id: "inst.staff.root_chat".into(),
@@ -227,6 +318,7 @@ mod tests {
         let ctx_user = InstMatchCtx {
             scopes: &scopes,
             topic_id: "general",
+            active_topics: &[],
             text: "apa chat terakhir chito",
             mention_ids: &empty,
             signals: &empty,
@@ -235,6 +327,7 @@ mod tests {
         let ctx_root = InstMatchCtx {
             scopes: &scopes,
             topic_id: "general",
+            active_topics: &[],
             text: "apa chat terakhir chito",
             mention_ids: &empty,
             signals: &empty,
@@ -252,6 +345,7 @@ mod tests {
         let ctx = InstMatchCtx {
             scopes: &scopes,
             topic_id: "general",
+            active_topics: &[],
             text: "cari info rust",
             mention_ids: &empty,
             signals: &empty,
@@ -282,6 +376,7 @@ mod tests {
         let ctx_global = InstMatchCtx {
             scopes: &global_only,
             topic_id: "general",
+            active_topics: &[],
             text: "track food",
             mention_ids: &empty,
             signals: &empty,
@@ -290,6 +385,7 @@ mod tests {
         let ctx_home = InstMatchCtx {
             scopes: &home,
             topic_id: "general",
+            active_topics: &[],
             text: "track food",
             mention_ids: &empty,
             signals: &empty,
@@ -320,6 +416,7 @@ mod tests {
         let ctx = InstMatchCtx {
             scopes: &scopes,
             topic_id: "general",
+            active_topics: &[],
             text: "can you multitask 2 times",
             mention_ids: &empty,
             signals: &empty,
@@ -330,6 +427,60 @@ mod tests {
         assert_eq!(picked[0].id, "inst.task.multitask_delegate");
         let (inc, _) = inst_tool_directives(&picked);
         assert!(inc.iter().any(|t| t == "delegate.run"));
+    }
+
+    #[test]
+    fn inst_pool_signal_triggers() {
+        let alien = InstRow {
+            id: "inst.pool.alien".into(),
+            scope: SCOPE_ROLE_PERSONAL_ASSISTANT.into(),
+            kind: "trigger".into(),
+            topic_id: "".into(),
+            topics: vec![],
+            inst: "alien pool".into(),
+            phrases: vec![],
+            triggers: vec![INST_SIGNAL_MODEL_ALIEN.into()],
+            include_tools: vec![],
+            exclude_tools: vec![],
+            requires_global_roles: vec![],
+            priority: 180,
+        };
+        let frontier = InstRow {
+            id: "inst.pool.frontier".into(),
+            scope: SCOPE_ROLE_PERSONAL_ASSISTANT.into(),
+            kind: "trigger".into(),
+            topic_id: "".into(),
+            topics: vec![],
+            inst: "frontier pool".into(),
+            phrases: vec![],
+            triggers: vec![INST_SIGNAL_MODEL_FRONTIER.into()],
+            include_tools: vec![],
+            exclude_tools: vec![],
+            requires_global_roles: vec![],
+            priority: 180,
+        };
+        let scopes = inst_scopes_home();
+        let ctx_alien = InstMatchCtx {
+            scopes: &scopes,
+            topic_id: "general",
+            active_topics: &[],
+            text: "hi",
+            mention_ids: &[],
+            signals: &[INST_SIGNAL_MODEL_ALIEN.into()],
+            staff: None,
+        };
+        let ctx_frontier = InstMatchCtx {
+            scopes: &scopes,
+            topic_id: "general",
+            active_topics: &[],
+            text: "hi",
+            mention_ids: &[],
+            signals: &[INST_SIGNAL_MODEL_FRONTIER.into()],
+            staff: None,
+        };
+        assert!(inst_pick(&[alien.clone(), frontier.clone()], &ctx_alien).iter().any(|r| r.id == "inst.pool.alien"));
+        assert!(!inst_pick(&[alien.clone(), frontier.clone()], &ctx_alien).iter().any(|r| r.id == "inst.pool.frontier"));
+        assert!(inst_pick(&[alien.clone(), frontier.clone()], &ctx_frontier).iter().any(|r| r.id == "inst.pool.frontier"));
     }
 
     #[test]
@@ -353,6 +504,7 @@ mod tests {
         let ctx = InstMatchCtx {
             scopes: &scopes,
             topic_id: "general",
+            active_topics: &[],
             text: "hello",
             mention_ids: &empty,
             signals: &empty,
@@ -393,6 +545,7 @@ mod tests {
         let ctx_on = InstMatchCtx {
             scopes: &scopes,
             topic_id: "general",
+            active_topics: &[],
             text: "hello",
             mention_ids: &with_talk,
             signals: &[],
@@ -401,6 +554,7 @@ mod tests {
         let ctx_off = InstMatchCtx {
             scopes: &scopes,
             topic_id: "general",
+            active_topics: &[],
             text: "hello",
             mention_ids: &without,
             signals: &[],
@@ -408,5 +562,55 @@ mod tests {
         };
         assert!(inst_pick(&rows, &ctx_on).iter().any(|r| r.id == "inst.talk.brief"));
         assert!(inst_pick(&rows, &ctx_off).iter().all(|r| r.id != "inst.talk.brief"));
+    }
+
+    #[test]
+    fn inst_multi_topic_and_general_topic_filtering() {
+        let rows = vec![
+            InstRow {
+                id: "inst.site.commerce".into(),
+                scope: SCOPE_GLOBAL.into(),
+                kind: "topic".into(),
+                topic_id: "site.commerce".into(),
+                topics: vec![],
+                inst: "commerce mode".into(),
+                phrases: vec![],
+                triggers: vec![],
+                include_tools: vec![],
+                exclude_tools: vec![],
+                requires_global_roles: vec![],
+                priority: 100,
+            },
+            InstRow {
+                id: "inst.general_only".into(),
+                scope: SCOPE_GLOBAL.into(),
+                kind: "task".into(),
+                topic_id: "".into(),
+                topics: vec!["general".into()],
+                inst: "general prompt".into(),
+                phrases: vec!["say hi".into()],
+                triggers: vec![],
+                include_tools: vec![],
+                exclude_tools: vec![],
+                requires_global_roles: vec![],
+                priority: 90,
+            },
+        ];
+        let scopes = vec![SCOPE_GLOBAL.into()];
+        let active = vec!["web.builder".to_string(), "site.commerce".to_string()];
+        let ctx_multi = InstMatchCtx {
+            scopes: &scopes,
+            topic_id: "web.builder",
+            active_topics: &active,
+            text: "say hi",
+            mention_ids: &[],
+            signals: &[],
+            staff: None,
+        };
+        let picked = inst_pick(&rows, &ctx_multi);
+        // inst.site.commerce matches because site.commerce is in active_topics
+        assert!(picked.iter().any(|r| r.id == "inst.site.commerce"));
+        // inst.general_only does NOT match because neither primary nor active topics is "general"
+        assert!(!picked.iter().any(|r| r.id == "inst.general_only"));
     }
 }

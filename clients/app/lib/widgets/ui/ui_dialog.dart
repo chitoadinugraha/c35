@@ -85,10 +85,12 @@ class UiDialogHeader extends StatelessWidget {
       );
 }
 
-InputDecoration uiDialogSearchDecoration({required String hintText}) => InputDecoration(
+InputDecoration uiDialogSearchDecoration({required String hintText, Widget? suffixIcon}) => InputDecoration(
       hintText: hintText,
       hintStyle: const TextStyle(color: uiDialogMuted),
       prefixIcon: const Icon(Icons.search, size: 18, color: uiDialogMuted),
+      suffixIcon: suffixIcon,
+      suffixIconConstraints: const BoxConstraints(minWidth: 36, minHeight: 36),
       isDense: true,
       filled: true,
       fillColor: const Color(0xFF100F12),
@@ -106,6 +108,8 @@ class UiDialogSearchHeader extends StatelessWidget {
     this.autofocus = true,
     this.onClose,
     this.closeEnabled = true,
+    this.beforeClose = const [],
+    this.searchSuffix,
   });
 
   final TextEditingController controller;
@@ -114,21 +118,27 @@ class UiDialogSearchHeader extends StatelessWidget {
   final bool autofocus;
   final VoidCallback? onClose;
   final bool closeEnabled;
+  final List<Widget> beforeClose;
+  final Widget? searchSuffix;
 
   @override
   Widget build(BuildContext context) => Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Expanded(
             child: TextField(
               controller: controller,
               autofocus: autofocus,
               style: const TextStyle(color: uiDialogTitleColor, fontSize: 13),
-              decoration: uiDialogSearchDecoration(hintText: hintText),
+              decoration: uiDialogSearchDecoration(hintText: hintText, suffixIcon: searchSuffix),
               onChanged: onChanged,
             ),
           ),
-          UiDialogClose(onPressed: onClose, enabled: closeEnabled),
+          ...beforeClose.map((w) => uiDialogHeaderAction(w)),
+          uiDialogHeaderAction(UiDialogClose(onPressed: onClose, enabled: closeEnabled)),
         ],
       );
 }
+
+/// Keeps search-field trailing icons (+, close) vertically aligned with the field.
+Widget uiDialogHeaderAction(Widget child) => SizedBox(height: 40, child: Center(child: child));

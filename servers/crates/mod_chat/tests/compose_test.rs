@@ -4,7 +4,10 @@ use c35_mod_chat::compose::{
     compose_tools_and_inst, tool_mention_eligible, ComposeTurnOpts,
 };
 use c35_mod_chat::BROWSER_DEVICE_TOOL_EXCLUDE;
-use c35_mod_chat::inst_macro::{inst_scopes_channel, inst_scopes_home, InstRow, SCOPE_GLOBAL, SCOPE_ROLE_PERSONAL_ASSISTANT};
+use c35_mod_chat::inst_macro::{
+    inst_scopes_channel, inst_scopes_home, InstRow, INST_SIGNAL_MODEL_ALIEN, INST_SIGNAL_MODEL_FRONTIER, SCOPE_GLOBAL,
+    SCOPE_ROLE_PERSONAL_ASSISTANT,
+};
 use c35_mod_chat::tool_rag::{tool_trim_ranked, ToolCandidate, DEFAULT_TOOL_SIM_GAP, DEFAULT_TOOL_SIM_THRESHOLD, DEFAULT_TOOL_TOP_K};
 use c35_mod_chat::{MentionContext, MentionRow, SiteCapabilityView, SiteContext};
 use c35_mod_chat::tools::{cluster_tools, ToolDef};
@@ -489,6 +492,7 @@ fn compose_bot_web_search_opt_in() {
             extra_tool_exclude: &[],
             bot_web_search: true,
             attachments_json: "[]",
+            ..ComposeTurnOpts::default()
         },
     );
     assert!(out.tools.iter().any(|t| t.name == "web.search"));
@@ -1223,10 +1227,16 @@ fn inst_bot_draft() -> InstRow {
         topic_id: "".into(),
         topics: vec![],
         inst: "[BOT DRAFT] Call bot.draft.".into(),
-        phrases: vec!["buat bot".into(), "bikin bot".into(), "create a bot".into(), "bot untuk".into()],
+        phrases: vec![
+            "buat chat bot".into(),
+            "buat bot".into(),
+            "bikin bot".into(),
+            "create a bot".into(),
+            "bot untuk".into(),
+        ],
         triggers: vec![],
         include_tools: vec!["bot.draft".into()],
-        exclude_tools: vec!["web.search".into(), "web.visit".into()],
+        exclude_tools: vec!["web.search".into(), "web.visit".into(), "site.query.run".into()],
         requires_global_roles: vec![],
         priority: 132,
     }
@@ -1242,7 +1252,7 @@ fn bot_draft_tool() -> ToolDef {
         always: vec![],
         readonly: false,
         requires_kinds: vec![],
-        rag_phrases: vec!["buat bot".into()],
+        rag_phrases: vec!["buat chat bot".into(), "buat bot".into()],
         requires_capability: None,
         requires_global_roles: vec![],
     }
@@ -1285,6 +1295,22 @@ fn site_create_tool() -> ToolDef {
     }
 }
 
+fn site_patch_tool() -> ToolDef {
+    ToolDef {
+        name: "site.patch".into(),
+        description: "Patch site draft".into(),
+        parameters: json!({}),
+        aliases: vec![],
+        topics: vec!["web.builder".into()],
+        always: vec![],
+        readonly: false,
+        requires_kinds: vec!["site".into()],
+        rag_phrases: vec![],
+        requires_capability: None,
+        requires_global_roles: vec![],
+    }
+}
+
 #[test]
 fn compose_site_builder_phrase_includes_site_create_excludes_web_search() {
     let out = compose_default(
@@ -1299,6 +1325,18 @@ fn compose_site_builder_phrase_includes_site_create_excludes_web_search() {
 }
 
 #[test]
+fn compose_site_builder_injects_patch_without_site_mention() {
+    let out = compose_default(
+        &[inst_core_assistant(), inst_site_builder()],
+        "buat website grosirprakarya",
+        vec![site_create_tool(), site_patch_tool(), web_search_tool()],
+        &[],
+    );
+    assert!(out.tools.iter().any(|t| t.name == "site.create"));
+    assert!(out.tools.iter().any(|t| t.name == "site.patch"));
+}
+
+#[test]
 fn compose_bot_draft_phrase_excludes_web_search() {
     let out = compose_default(
         &[inst_core_assistant(), inst_bot_draft(), inst_web_search_fixture()],
@@ -1308,6 +1346,65 @@ fn compose_bot_draft_phrase_excludes_web_search() {
     );
     assert!(out.matched_ids.iter().any(|id| id == "inst.bot.draft"));
     assert!(out.tools.iter().any(|t| t.name == "bot.draft"));
+    assert!(out.tools.iter().all(|t| t.name != "web.search"));
+}
+
+fn inst_site_catalog_stock() -> InstRow {
+    InstRow {
+        id: "inst.site.catalog.stock".into(),
+        scope: SCOPE_GLOBAL.into(),
+        kind: "task".into(),
+        topic_id: "".into(),
+        topics: vec!["general".into()],
+        inst: "[SITE.CATALOG.STOCK] Call site.query.run.".into(),
+        phrases: vec![
+            "stok".into(),
+            "sisa barang".into(),
+            "berapa stock".into(),
+            "cek stock".into(),
+            "stock ".into(),
+        ],
+        triggers: vec![],
+        include_tools: vec!["site.query.run".into()],
+        exclude_tools: vec![],
+        requires_global_roles: vec![],
+        priority: 128,
+    }
+}
+
+fn site_query_run_tool() -> ToolDef {
+    ToolDef {
+        name: "site.query.run".into(),
+        description: "Run site query".into(),
+        parameters: json!({}),
+        aliases: vec![],
+        topics: vec!["general".into()],
+        always: vec![],
+        readonly: false,
+        requires_kinds: vec![],
+        rag_phrases: vec![],
+        requires_capability: None,
+        requires_global_roles: vec![],
+    }
+}
+
+#[test]
+fn compose_bot_draft_chat_bot_name_with_stock_word() {
+    let out = compose_default(
+        &[
+            inst_core_assistant(),
+            inst_bot_draft(),
+            inst_site_catalog_stock(),
+            inst_web_search_fixture(),
+        ],
+        "buat chat bot \"Test Stock\"",
+        vec![bot_draft_tool(), site_query_run_tool(), web_search_tool()],
+        &[],
+    );
+    assert!(out.matched_ids.iter().any(|id| id == "inst.bot.draft"));
+    assert!(!out.matched_ids.iter().any(|id| id == "inst.site.catalog.stock"));
+    assert!(out.tools.iter().any(|t| t.name == "bot.draft"));
+    assert!(out.tools.iter().all(|t| t.name != "site.query.run"));
     assert!(out.tools.iter().all(|t| t.name != "web.search"));
 }
 
@@ -1361,4 +1458,87 @@ fn compose_presentation_phrase_includes_create_excludes_web_search() {
     assert!(out.tools.iter().any(|t| t.name == "presentation.create"));
     assert!(out.tools.iter().all(|t| t.name != "web.search"));
     assert!(out.tools.iter().all(|t| t.name != "web.visit"));
+}
+
+fn inst_pool_alien() -> InstRow {
+    InstRow {
+        id: "inst.pool.alien".into(),
+        scope: SCOPE_ROLE_PERSONAL_ASSISTANT.into(),
+        kind: "trigger".into(),
+        topic_id: "".into(),
+        topics: vec![],
+        inst: "alien pool body".into(),
+        phrases: vec![],
+        triggers: vec![INST_SIGNAL_MODEL_ALIEN.into()],
+        include_tools: vec![],
+        exclude_tools: vec![],
+        requires_global_roles: vec![],
+        priority: 180,
+    }
+}
+
+fn inst_pool_frontier() -> InstRow {
+    InstRow {
+        id: "inst.pool.frontier".into(),
+        scope: SCOPE_ROLE_PERSONAL_ASSISTANT.into(),
+        kind: "trigger".into(),
+        topic_id: "".into(),
+        topics: vec![],
+        inst: "frontier pool body".into(),
+        phrases: vec![],
+        triggers: vec![INST_SIGNAL_MODEL_FRONTIER.into()],
+        include_tools: vec![],
+        exclude_tools: vec![],
+        requires_global_roles: vec![],
+        priority: 180,
+    }
+}
+
+#[test]
+fn compose_model_pool_signal_picks_inst() {
+    let scopes = inst_scopes_home();
+    let mention = MentionContext::empty();
+    let tools: Vec<ToolDef> = vec![];
+    let rows = [inst_core_assistant(), inst_pool_alien(), inst_pool_frontier()];
+    let alien_signal = [INST_SIGNAL_MODEL_ALIEN.to_string()];
+    let alien = compose_tools_and_inst(
+        &rows,
+        "hello",
+        tools.clone(),
+        &[],
+        &[],
+        &["general".into()],
+        "agent",
+        &[],
+        &scopes,
+        &mention,
+        &SiteCapabilityView::empty(),
+        ComposeTurnOpts {
+            extra_signals: &alien_signal,
+            ..ComposeTurnOpts::default()
+        },
+    );
+    assert!(alien.matched_ids.iter().any(|id| id == "inst.pool.alien"));
+    assert!(!alien.matched_ids.iter().any(|id| id == "inst.pool.frontier"));
+
+    let frontier_signal = [INST_SIGNAL_MODEL_FRONTIER.to_string()];
+    let frontier = compose_tools_and_inst(
+        &rows,
+        "hello",
+        tools,
+        &[],
+        &[],
+        &["general".into()],
+        "agent",
+        &[],
+        &scopes,
+        &mention,
+        &SiteCapabilityView::empty(),
+        ComposeTurnOpts {
+            extra_signals: &frontier_signal,
+            ..ComposeTurnOpts::default()
+        },
+    );
+    assert!(frontier.matched_ids.iter().any(|id| id == "inst.pool.frontier"));
+    assert!(!frontier.matched_ids.iter().any(|id| id == "inst.pool.alien"));
 }

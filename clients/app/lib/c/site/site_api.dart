@@ -68,6 +68,18 @@ String siteAlienIdSlug(String name) {
   return s;
 }
 
+const siteHandleMinLen = 3;
+const siteHandleMaxLen = 48;
+const siteUrlPrefix = 'alienai.id/';
+
+String? siteHandleFormatError(String raw) {
+  final slug = siteAlienIdSlug(raw);
+  if (slug.length < siteHandleMinLen) return 'At least $siteHandleMinLen characters';
+  if (slug.length > siteHandleMaxLen) return 'At most $siteHandleMaxLen characters';
+  if (RegExp(r'^\d+$').hasMatch(slug)) return 'Use letters, not only numbers';
+  return null;
+}
+
 String siteTaglineSuggest({required String name, required String locale, int pick = 0}) {
   final n = name.trim();
   if (n.isEmpty) return '';
@@ -129,6 +141,12 @@ class SiteApi {
 
   Future<ResSitePreviewToken> sitePreviewToken(int siteIid, {int ttlSecs = 300}) =>
       conn.sitePreviewToken(siteIid, ttlSecs: ttlSecs);
+
+  Future<ResSiteHandlePut> handlePut(int siteIid, String newAlienId) =>
+      conn.siteHandlePut(siteIid, siteAlienIdSlug(newAlienId));
+
+  Future<ResSiteBootGet> bootGet(int siteIid, {SiteBootMode mode = SiteBootMode.SITE_BOOT_MODE_DRAFT}) =>
+      conn.siteBootGet(siteIid, mode: mode);
 
   Future<SiteConfig> configGet(int siteIid) async {
     final res = await conn.siteDraftGet(siteIid);

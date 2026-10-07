@@ -22,25 +22,35 @@ String liveCallPrimaryLabelKey(AgentModel model) => switch (liveCallFamily(model
 
 String liveCallPrimaryLabel(AgentModel model) {
   final key = liveCallPrimaryLabelKey(model);
-  if (key.startsWith('live.') && key.endsWith('.label')) {
-    final en = catalogLocaleFallback('en')[key];
-    if (en != null && en.isNotEmpty) return en;
-  }
   final t = catalogT(key);
   return t != key ? t : key;
+}
+
+List<LiveOffer> _liveCallFamilyRows(List<LiveOffer> rows, LiveCallFamily family) => switch (family) {
+      LiveCallFamily.gemini => rows.where((o) => o.family == 'gemini'),
+      LiveCallFamily.openai => rows.where((o) => o.family == 'openai'),
+      LiveCallFamily.xai => rows.where((o) => o.family == 'xai'),
+      LiveCallFamily.alienai => rows.where((o) => o.family == 'alienai'),
+      LiveCallFamily.other => rows.where((o) => o.enabled),
+    }.toList();
+
+/// Composer chat model has no usable live row for its family (e.g. ChatGPT-only, Claude, Grok soon).
+bool liveCallChipUsesGenericLabel(AgentModel model, List<LiveOffer> all) {
+  final family = liveCallFamily(model);
+  if (family == LiveCallFamily.other) return true;
+  final rows = all.where((o) => o.id.isNotEmpty).toList();
+  final familyMenu = _liveCallFamilyRows(rows, family);
+  if (familyMenu.isEmpty) return true;
+  return !familyMenu.any((o) => o.enabled);
 }
 
 List<LiveOffer> liveCallMenuOffers(List<LiveOffer> all, AgentModel model) {
   final rows = all.where((o) => o.id.isNotEmpty).toList();
   final enabled = rows.where((o) => o.enabled).toList();
-  final familyRows = switch (liveCallFamily(model)) {
-    LiveCallFamily.gemini => rows.where((o) => o.family == 'gemini'),
-    LiveCallFamily.openai => rows.where((o) => o.family == 'openai'),
-    LiveCallFamily.xai => rows.where((o) => o.family == 'xai'),
-    LiveCallFamily.alienai => rows.where((o) => o.family == 'alienai'),
-    LiveCallFamily.other => rows.where((o) => o.enabled),
-  };
-  final menu = familyRows.toList();
+  if (liveCallChipUsesGenericLabel(model, all)) {
+    return enabled.isNotEmpty ? enabled : rows;
+  }
+  final menu = _liveCallFamilyRows(rows, liveCallFamily(model));
   if (menu.isNotEmpty) return menu;
   return enabled.isNotEmpty ? enabled : rows;
 }

@@ -263,7 +263,9 @@ class _UiChatHistorySidebarState extends State<UiChatHistorySidebar> {
     final deleting = widget.store.chatDeletingFor(c.id);
     final isStreaming = widget.store.promptBusyFor(c.id) || c.lastMsgStatus == 'streaming';
     return _ChatTile(
-      title: c.title.trim().isEmpty || c.title == 'New chat' ? c.title : chatTitleDisplay(c.title),
+      title: c.title.trim().isEmpty || c.title == 'New chat'
+          ? c.title
+          : chatTitleDisplay(c.title, mentions: widget.store.mentionCatalog.mentions),
       subtitle: subtitle,
       boundDevice: c.boundDeviceIid > 0,
       selected: selected,

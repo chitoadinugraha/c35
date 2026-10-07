@@ -155,6 +155,7 @@ CREATE TABLE IF NOT EXISTS site.product (
     rev                 BIGINT NOT NULL DEFAULT 0,
 
     can_sell            BOOLEAN NOT NULL DEFAULT FALSE,
+    -- CSA parity: reservable products use can_reserve (not is_reservable).
     can_reserve         BOOLEAN NOT NULL DEFAULT FALSE,
     can_produce         BOOLEAN NOT NULL DEFAULT FALSE,
     recommended_guest   BOOLEAN NOT NULL DEFAULT FALSE,
@@ -244,6 +245,66 @@ CREATE INDEX IF NOT EXISTS idx_site_contact_site_name
     WHERE deleted_ts IS NULL AND is_archived = FALSE;
 
 -- ------------------------------------------------------------------------------
+-- Hub links (social / outbound URLs — source of truth for guest links hub)
+-- ------------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS site.link (
+    site_iid            BIGINT NOT NULL REFERENCES ai.identity(id),
+    link_id             BIGINT NOT NULL,
+    owner_iid           BIGINT NOT NULL REFERENCES ai.identity(id),
+
+    sort_order          INT NOT NULL DEFAULT 0,
+    label               TEXT NOT NULL DEFAULT '',
+    url                 TEXT NOT NULL DEFAULT '',
+    icon                TEXT NOT NULL DEFAULT '',
+    is_pinned           BOOLEAN NOT NULL DEFAULT FALSE,
+    active              BOOLEAN NOT NULL DEFAULT TRUE,
+
+    created_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_ts          TIMESTAMPTZ,
+
+    PRIMARY KEY (site_iid, link_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_site_link_site_sync
+    ON site.link (site_iid, updated_ts);
+CREATE INDEX IF NOT EXISTS idx_site_link_site_order
+    ON site.link (site_iid, sort_order, link_id)
+    WHERE deleted_ts IS NULL AND active = TRUE;
+
+-- ------------------------------------------------------------------------------
+-- Social / storefront posts (hub feed source of truth)
+-- ------------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS site.post (
+    site_iid            BIGINT NOT NULL REFERENCES ai.identity(id),
+    post_id             BIGINT NOT NULL,
+    owner_iid           BIGINT NOT NULL REFERENCES ai.identity(id),
+
+    sort_order          INT NOT NULL DEFAULT 0,
+    title               TEXT NOT NULL DEFAULT '',
+    caption             TEXT NOT NULL DEFAULT '',
+    body                TEXT NOT NULL DEFAULT '',
+    media_json          JSONB NOT NULL DEFAULT '[]',
+    on_storefront       BOOLEAN NOT NULL DEFAULT TRUE,
+    thumb               TEXT NOT NULL DEFAULT '',
+    feed_kind           TEXT NOT NULL DEFAULT 'post',
+
+    created_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_ts          TIMESTAMPTZ,
+
+    PRIMARY KEY (site_iid, post_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_site_post_site_sync
+    ON site.post (site_iid, updated_ts);
+CREATE INDEX IF NOT EXISTS idx_site_post_site_storefront
+    ON site.post (site_iid, sort_order, post_id)
+    WHERE deleted_ts IS NULL AND on_storefront = TRUE;
+
+-- ------------------------------------------------------------------------------
 -- Object (table, room, unit)
 -- ------------------------------------------------------------------------------
 
@@ -298,4 +359,56 @@ CREATE TABLE IF NOT EXISTS site.parent_link (
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_site_parent_link_child
     ON site.parent_link (child_site_iid)
+    WHERE deleted_ts IS NULL;
+
+-- ------------------------------------------------------------------------------
+-- Queue (guest antrian — CSA parity minimal)
+-- ------------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS site.queue (
+    site_iid            BIGINT NOT NULL REFERENCES ai.identity(id),
+    queue_id            BIGINT NOT NULL,
+    owner_iid           BIGINT NOT NULL REFERENCES ai.identity(id),
+
+    name                TEXT NOT NULL DEFAULT '',
+    mode                VARCHAR(32) NOT NULL DEFAULT 'fifo',
+    prefix              VARCHAR(16) NOT NULL DEFAULT '',
+    last_ticket_no      INT NOT NULL DEFAULT 0,
+    serving_ticket_no   INT NOT NULL DEFAULT 0,
+    is_active           BOOLEAN NOT NULL DEFAULT TRUE,
+    meta_json           JSONB NOT NULL DEFAULT '{}',
+
+    created_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_ts          TIMESTAMPTZ,
+
+    PRIMARY KEY (site_iid, queue_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_site_queue_site_sync
+    ON site.queue (site_iid, updated_ts)
+    WHERE deleted_ts IS NULL;
+
+CREATE TABLE IF NOT EXISTS site.queue_ticket (
+    site_iid            BIGINT NOT NULL,
+    ticket_id           BIGINT NOT NULL,
+    queue_id            BIGINT NOT NULL,
+    owner_iid           BIGINT NOT NULL REFERENCES ai.identity(id),
+
+    ticket_no           INT NOT NULL DEFAULT 0,
+    guest_name          TEXT NOT NULL DEFAULT '',
+    guest_phone         TEXT NOT NULL DEFAULT '',
+    status              VARCHAR(16) NOT NULL DEFAULT 'waiting',
+    meta_json           JSONB NOT NULL DEFAULT '{}',
+
+    created_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_ts          TIMESTAMPTZ,
+
+    PRIMARY KEY (site_iid, ticket_id),
+    FOREIGN KEY (site_iid, queue_id) REFERENCES site.queue (site_iid, queue_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_site_queue_ticket_queue
+    ON site.queue_ticket (site_iid, queue_id, ticket_no DESC)
     WHERE deleted_ts IS NULL;

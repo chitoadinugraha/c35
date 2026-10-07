@@ -22,6 +22,28 @@ pub async fn live_proxy_run(
     ticket: LiveSessionTicket,
     mut client: WebSocket,
 ) {
+    match ticket.offer.provider.as_str() {
+        "google" => live_google_proxy_run(pool, nats, ticket, client).await,
+        "openai" => crate::openai::live_openai_run(pool, nats, ticket, client).await,
+        "xai" => crate::grok::live_grok_run(pool, nats, ticket, client).await,
+        other => {
+            tracing::warn!(provider = other, "unsupported live provider");
+            let _ = client
+                .send(Message::Text(
+                    json!({"liveError":"Live provider not supported yet"}).to_string().into(),
+                ))
+                .await;
+            let _ = live_billing_abort(&pool, &ticket.req_id).await;
+        }
+    }
+}
+
+pub async fn live_google_proxy_run(
+    pool: PgPool,
+    nats: Option<Client>,
+    ticket: LiveSessionTicket,
+    mut client: WebSocket,
+) {
     let started = Instant::now();
     let sid = ticket.req_id.clone();
     let owner_iid = ticket.owner_iid;
@@ -87,6 +109,17 @@ pub async fn live_proxy_run(
 
     let mut active_mention_ids = ticket.mention_ids.clone();
     let mut mention_label = String::new();
+    if !active_mention_ids.is_empty() {
+        let dev_name = device_rows
+            .iter()
+            .find(|(id, ..)| active_mention_ids.contains(&id.to_string()))
+            .map(|(_, name, ..)| name.clone());
+        if let Some(name) = dev_name {
+            mention_label = name;
+        } else if let Some(first) = active_mention_ids.first() {
+            mention_label = first.clone();
+        }
+    }
     let mut mention_ctx = live_mention_context(&pool, owner_iid, &active_mention_ids, &device_iids).await;
     let site_inst_block = c35_mod_chat::mention_context_sites_block(&mention_ctx);
 
@@ -97,21 +130,23 @@ pub async fn live_proxy_run(
 
     let chat_id_opt = ticket.chat_id;
     let history_rows = live_recent_msgs(&pool, chat_id_opt).await;
-    let mut full_system = live_voice_system(
+    let has_mention = !active_mention_ids.is_empty();
+    let full_system = live_voice_system(
         &live_inst_text(&pool, &offer.inst_id).await,
         &time_block,
         &user_ctx.location_city,
         &device_inst_block,
         &site_inst_block,
+        &mention_label,
     );
 
     let staff_view = c35_mod_admin::staff_view_load(&pool, owner_iid).await;
-    let mut caps = c35_mod_chat::site_capability_view_for_mention(&pool, &mention_ctx).await;
+    let caps = c35_mod_chat::site_capability_view_for_mention(&pool, &mention_ctx).await;
     let all_tools = c35_mod_chat::tools::cluster_tools();
-    let mut eligible_tools = crate::live_tool_select(&all_tools, &offer.tool_topics, &mention_ctx, &staff_view, &caps);
+    let mut eligible_tools = crate::live_tool_select(&all_tools, &offer.tool_topics, &mention_ctx, &staff_view, &caps, has_mention);
     tracing::info!(decls = eligible_tools.len(), offer = %offer.id, "live: tool decls");
 
-    let mut tools_val = if !eligible_tools.is_empty() {
+    let tools_val = if !eligible_tools.is_empty() {
         Some(c35_mod_chat::tools::tool_decls(&eligible_tools))
     } else {
         None
@@ -168,19 +203,25 @@ pub async fn live_proxy_run(
         return;
     }
 
+    let mut video_tracker = crate::billing::VideoActivityTracker::new();
+    let mut quota_interval = tokio::time::interval(std::time::Duration::from_secs(30));
+    quota_interval.tick().await;
+
     let mut ready = false;
     let mut turn_user_text = String::new();
     let mut turn_assistant_text = String::new();
     let mut turn_tool_blocks: Vec<Value> = Vec::new();
     let mut swap_job: Option<(Vec<String>, String)> = None;
     let mut pending_mention: Option<(Vec<String>, String)> = None;
+    let mut handover_task: Option<tokio::task::JoinHandle<Result<HandoverSuccess, String>>> = None;
+    let mut off_topic_turns: u32 = 0;
     let mut generation_open = false;
     let mut last_swap: Option<Instant> = None;
     let mut seeded = false;
-    let mut opened_with_handle = false;
-    let mut announce_mention = false;
+    let opened_with_handle = false;
+    let announce_mention = false;
     loop {
-        if swap_job.is_none() {
+        if swap_job.is_none() && handover_task.is_none() {
             if let Some((ids, label)) = pending_mention.clone() {
                 if ids != active_mention_ids
                     && crate::live_swap_should_run(Instant::now(), last_swap, false, generation_open)
@@ -198,60 +239,129 @@ pub async fn live_proxy_run(
                         .into(),
                 ))
                 .await;
-            let _ = g_tx.send(GMsg::Close(None)).await;
-            active_mention_ids = ids;
-            mention_label = label;
-            mention_ctx = live_mention_context(&pool, owner_iid, &active_mention_ids, &device_iids).await;
-            caps = c35_mod_chat::site_capability_view_for_mention(&pool, &mention_ctx).await;
-            let site_inst_block = c35_mod_chat::mention_context_sites_block(&mention_ctx);
-            full_system = live_voice_system(
-                &live_inst_text(&pool, &offer.inst_id).await,
-                &time_block,
-                &user_ctx.location_city,
-                &device_inst_block,
-                &site_inst_block,
-            );
-            eligible_tools = crate::live_tool_select(&all_tools, &offer.tool_topics, &mention_ctx, &staff_view, &caps);
-            tracing::info!(decls = eligible_tools.len(), offer = %offer.id, "live: tool decls");
-            tools_val = if !eligible_tools.is_empty() {
-                Some(c35_mod_chat::tools::tool_decls(&eligible_tools))
-            } else {
-                None
-            };
-            opened_with_handle = resume.handle.is_some();
-            let mut setup = live_setup_message(&model, &voice_name, &full_system, &resume, &tools_val);
-            let google = match connect_async(&url).await {
-                Ok((s, _)) => s,
-                Err(e) => {
-                    warn!(?e, "live: google resume connect failed");
-                    if opened_with_handle {
-                        resume.handle = None;
-                        opened_with_handle = false;
-                        setup = live_setup_message(&model, &voice_name, &full_system, &resume, &tools_val);
-                        match connect_async(&url).await {
-                            Ok((s, _)) => s,
-                            Err(e2) => {
-                                warn!(?e2, "live: google fresh connect failed");
-                                break;
-                            }
-                        }
-                    } else {
-                        break;
-                    }
-                }
-            };
-            let split = google.split();
-            g_tx = split.0;
-            g_rx = split.1;
-            if g_tx.send(GMsg::Text(setup.to_string().into())).await.is_err() {
-                break;
-            }
-            last_swap = Some(Instant::now());
-            seeded = false;
-            announce_mention = true;
-            ready = false;
+
+            let pool_c = pool.clone();
+            let dev_iids_c = device_iids.clone();
+            let offer_c = offer.clone();
+            let time_block_c = time_block.clone();
+            let city_c = user_ctx.location_city.clone();
+            let device_block_c = device_inst_block.clone();
+            let all_tools_c = all_tools.clone();
+            let staff_c = staff_view.clone();
+            let model_c = model.clone();
+            let voice_c = voice_name.clone();
+            let url_c = url.clone();
+            let resume_handle_c = resume.handle.clone();
+
+            handover_task = Some(tokio::spawn(async move {
+                perform_handover(
+                    pool_c,
+                    owner_iid,
+                    ids,
+                    label,
+                    dev_iids_c,
+                    offer_c,
+                    time_block_c,
+                    city_c,
+                    device_block_c,
+                    all_tools_c,
+                    staff_c,
+                    model_c,
+                    voice_c,
+                    url_c,
+                    resume_handle_c,
+                )
+                .await
+            }));
         }
         tokio::select! {
+            _ = quota_interval.tick() => {
+                let elapsed_secs = started.elapsed().as_secs_f64();
+                let video_secs = video_tracker.current_video_secs(Instant::now()).clamp(0.0, elapsed_secs);
+                if crate::billing::live_check_quota_exhausted(
+                    &pool,
+                    owner_iid,
+                    billing_row.id,
+                    &offer,
+                    elapsed_secs,
+                    video_secs,
+                )
+                .await
+                .unwrap_or(false)
+                {
+                    let _ = client
+                        .send(Message::Text(
+                            json!({"liveError": "Billing quota exhausted"}).to_string().into(),
+                        ))
+                        .await;
+                    break;
+                }
+            }
+            handover_res = async {
+                if let Some(task) = handover_task.as_mut() {
+                    task.await
+                } else {
+                    std::future::pending().await
+                }
+            } => {
+                handover_task = None;
+                match handover_res {
+                    Ok(Ok(success)) => {
+                        let mut new_tx = success.tx;
+                        let new_rx = success.rx;
+                        let new_ids = success.ids;
+                        let new_label = success.label;
+                        let new_mention_ctx = success.mention_ctx;
+                        let new_eligible_tools = success.eligible_tools;
+                        let new_opened_with_handle = success.opened_with_handle;
+
+                        // Once the new connection receives setupComplete, seed it
+                        let mut new_seeded = false;
+                        live_seed_after_setup(
+                            &mut new_tx,
+                            &mut client,
+                            &resume,
+                            new_opened_with_handle,
+                            &history_rows,
+                            &new_label,
+                            &new_ids,
+                            &mut new_seeded,
+                            true,
+                        )
+                        .await;
+
+                        // Send GMsg::Close(None) to old socket
+                        let _ = g_tx.send(GMsg::Close(None)).await;
+
+                        // Atomically swap g_tx and g_rx
+                        g_tx = new_tx;
+                        g_rx = new_rx;
+
+                        active_mention_ids = new_ids;
+                        mention_label = new_label;
+                        mention_ctx = new_mention_ctx;
+                        eligible_tools = new_eligible_tools;
+                        last_swap = Some(Instant::now());
+                        off_topic_turns = 0;
+                        generation_open = false;
+                        ready = true;
+                        tracing::info!(ids = ?active_mention_ids, label = %mention_label, "live: make-before-break hot swap completed");
+                    }
+                    Ok(Err(e)) => {
+                        warn!(?e, "live: handover task failed, keeping existing connection");
+                        let _ = client
+                            .send(Message::Text(
+                                json!({"live":"mention","mention_ids": active_mention_ids, "label": mention_label, "switching": false})
+                                    .to_string()
+                                    .into(),
+                            ))
+                            .await;
+                    }
+                    Err(join_err) => {
+                        warn!(?join_err, "live: handover join failed");
+                    }
+                }
+            }
             c_msg = client.recv() => {
                 match c_msg {
                     Some(Ok(Message::Binary(pcm))) if !pcm.is_empty() => {
@@ -275,9 +385,49 @@ pub async fn live_proxy_run(
                         if trimmed == r#"{"type":"hangup"}"# {
                             break;
                         }
+                        if let Some(video_chunk) = live_video_frame(trimmed) {
+                            video_tracker.on_frame(Instant::now());
+                            if ready {
+                                let _ = g_tx.send(GMsg::Text(video_chunk.to_string().into())).await;
+                            }
+                            continue;
+                        }
+                        if let Some(attach) = crate::media::parse_media_attach(trimmed) {
+                            if attach.mime_type.starts_with("image/") || attach.mime_type.starts_with("video/") {
+                                video_tracker.on_frame(Instant::now());
+                            }
+                            if ready {
+                                if attach.mime_type.starts_with("image/") {
+                                    let chunk = json!({
+                                        "realtimeInput": {
+                                            "mediaChunks": [{
+                                                "mimeType": attach.mime_type,
+                                                "data": attach.data,
+                                            }]
+                                        }
+                                    });
+                                    let _ = g_tx.send(GMsg::Text(chunk.to_string().into())).await;
+                                } else {
+                                    let text = crate::media::extract_attachment_text(&attach.name, &attach.data);
+                                    let chunk = json!({
+                                        "clientContent": {
+                                            "turns": [{
+                                                "role": "user",
+                                                "parts": [{ "text": text }]
+                                            }],
+                                            "turnComplete": true
+                                        }
+                                    });
+                                    let _ = g_tx.send(GMsg::Text(chunk.to_string().into())).await;
+                                }
+                            }
+                            continue;
+                        }
                         if let Some((ids, label)) = live_mention_frame(trimmed) {
                             if ids != active_mention_ids {
-                                if crate::live_swap_should_run(Instant::now(), last_swap, false, generation_open) {
+                                if handover_task.is_none()
+                                    && crate::live_swap_should_run(Instant::now(), last_swap, false, generation_open)
+                                {
                                     swap_job = Some((ids, label));
                                 } else {
                                     pending_mention = Some((ids, label));
@@ -299,12 +449,23 @@ pub async fn live_proxy_run(
                         if !ready && t.contains("setupComplete") {
                             ready = true;
                             let _ = client.send(Message::Text(r#"{"live":"ready"}"#.into())).await;
-                            live_seed_after_setup(&mut g_tx, &mut client, &resume, opened_with_handle, &history_rows, &mention_label, &active_mention_ids, &mut seeded, announce_mention).await;
+                            live_seed_after_setup(
+                                &mut g_tx,
+                                &mut client,
+                                &resume,
+                                opened_with_handle,
+                                &history_rows,
+                                &mention_label,
+                                &active_mention_ids,
+                                &mut seeded,
+                                announce_mention,
+                            )
+                            .await;
                         }
                         if let Ok(v) = serde_json::from_str::<Value>(&t) {
                             resume.note_server_msg(&v);
                             live_turn_flags(&v, &mut generation_open);
-                            if !generation_open {
+                            if !generation_open && handover_task.is_none() {
                                 if let Some((ids, label)) = pending_mention.clone() {
                                     if ids != active_mention_ids
                                         && crate::live_swap_should_run(Instant::now(), last_swap, false, false)
@@ -319,95 +480,35 @@ pub async fn live_proxy_run(
                             break;
                         }
 
-                        // Check and handle toolCall
                         if let Ok(v) = serde_json::from_str::<Value>(&t) {
-                            if let Some(tool_call) = v.get("toolCall").or_else(|| v.pointer("/serverContent/toolCall")) {
-                                if let Some(function_calls) = tool_call.get("functionCalls").and_then(|c| c.as_array()) {
-                                    let dispatcher = c35_mod_chat::tools::default_dispatcher();
-                                    let mut function_responses = Vec::with_capacity(function_calls.len());
-
-                                    for fc in function_calls {
-                                        let call_id = fc.get("id").and_then(|i| i.as_str()).unwrap_or("").to_string();
-                                        let call_name = fc.get("name").and_then(|n| n.as_str()).unwrap_or("").to_string();
-                                        let call_args = fc.get("args").cloned().unwrap_or(json!({}));
-
-                                        tracing::info!(tool = %call_name, call_id = %call_id, req_id = %sid, "live: executing tool call");
-
-                                        let tool_ctx = c35_mod_chat::tools::ToolContext::new(
-                                            pool.clone(),
-                                            nats.clone(),
-                                            owner_iid,
-                                            0,
-                                            mention_ctx.default_site_iid,
-                                            mention_ctx.clone(),
-                                            vec![],
-                                            "",
-                                            &user_ctx.locale,
-                                            &user_ctx.location_city,
-                                            &user_ctx.location_region,
-                                            &user_ctx.location_country,
-                                            "",
-                                            &req_id,
-                                            http_client.clone(),
-                                        )
-                                        .with_mcp_agent(true)
-                                        .with_tool_call_id(&call_id);
-
-                                        let (mut result, cost_usd) = dispatcher.execute(&call_name, call_args.clone(), &tool_ctx).await;
-                                        tracing::info!(tool = %call_name, cost_usd, "live: tool executed");
-                                        turn_tool_blocks.push(json!({
-                                            "kind": "tool",
-                                            "collapsed": false,
-                                            "body": {
-                                                "name": call_name,
-                                                "args": call_args,
-                                                "result": result.clone()
-                                            }
-                                        }));
-
-                                        // If screenshot captured, stream as video frame to Gemini Live visual input
-                                        if let Some(b64) = result.get("image_base64").and_then(|v| v.as_str()) {
-                                            let video_chunk = json!({
-                                                "realtimeInput": {
-                                                    "video": {
-                                                        "mimeType": "image/jpeg",
-                                                        "data": b64
-                                                    }
-                                                }
-                                            });
-                                            let _ = g_tx.send(GMsg::Text(video_chunk.to_string().into())).await;
-                                            if let Some(obj) = result.as_object_mut() {
-                                                obj.insert(
-                                                    "image_base64".into(),
-                                                    json!("[Screenshot captured and delivered to visual perception stream]"),
-                                                );
-                                            }
-                                        }
-
-                                        function_responses.push(json!({
-                                            "id": call_id,
-                                            "name": call_name,
-                                            "response": {
-                                                "output": result
-                                            }
-                                        }));
-                                    }
-
-                                    let resp_msg = json!({
-                                        "toolResponse": {
-                                            "functionResponses": function_responses
-                                        }
-                                    });
-                                    if g_tx.send(GMsg::Text(resp_msg.to_string().into())).await.is_err() {
-                                        warn!("live: failed to send toolResponse to Gemini Live");
-                                        break;
-                                    }
-                                }
+                            if live_handle_tool_call(
+                                &v,
+                                &pool,
+                                &nats,
+                                owner_iid,
+                                &sid,
+                                &req_id,
+                                &mention_ctx,
+                                &user_ctx,
+                                &http_client,
+                                &mut g_tx,
+                                &mut client,
+                                &mut turn_tool_blocks,
+                                &mut swap_job,
+                                &mut off_topic_turns,
+                                chat_id_opt.unwrap_or(0),
+                                turn_user_text.trim(),
+                            )
+                            .await
+                            .is_err()
+                            {
+                                break;
                             }
 
                             live_process_server_content(
                                 &v,
                                 &pool,
+                                &nats,
                                 &mut client,
                                 chat_id_opt,
                                 owner_iid,
@@ -415,6 +516,10 @@ pub async fn live_proxy_run(
                                 &mut turn_user_text,
                                 &mut turn_assistant_text,
                                 &mut turn_tool_blocks,
+                                &active_mention_ids,
+                                &eligible_tools,
+                                &mut off_topic_turns,
+                                &mut swap_job,
                             )
                             .await;
                         }
@@ -425,7 +530,18 @@ pub async fn live_proxy_run(
                                 if s.contains("setupComplete") {
                                     ready = true;
                                     let _ = client.send(Message::Text(r#"{"live":"ready"}"#.into())).await;
-                                    live_seed_after_setup(&mut g_tx, &mut client, &resume, opened_with_handle, &history_rows, &mention_label, &active_mention_ids, &mut seeded, announce_mention).await;
+                                    live_seed_after_setup(
+                                        &mut g_tx,
+                                        &mut client,
+                                        &resume,
+                                        opened_with_handle,
+                                        &history_rows,
+                                        &mention_label,
+                                        &active_mention_ids,
+                                        &mut seeded,
+                                        announce_mention,
+                                    )
+                                    .await;
                                 }
                             }
                         }
@@ -438,97 +554,37 @@ pub async fn live_proxy_run(
                             break;
                         }
 
-                        // Check and handle toolCall in binary UTF-8 payloads
                         if let Ok(v) = serde_json::from_slice::<Value>(&b) {
                             resume.note_server_msg(&v);
                             live_turn_flags(&v, &mut generation_open);
-                            if let Some(tool_call) = v.get("toolCall").or_else(|| v.pointer("/serverContent/toolCall")) {
-                                if let Some(function_calls) = tool_call.get("functionCalls").and_then(|c| c.as_array()) {
-                                    let dispatcher = c35_mod_chat::tools::default_dispatcher();
-                                    let mut function_responses = Vec::with_capacity(function_calls.len());
-
-                                    for fc in function_calls {
-                                        let call_id = fc.get("id").and_then(|i| i.as_str()).unwrap_or("").to_string();
-                                        let call_name = fc.get("name").and_then(|n| n.as_str()).unwrap_or("").to_string();
-                                        let call_args = fc.get("args").cloned().unwrap_or(json!({}));
-
-                                        tracing::info!(tool = %call_name, call_id = %call_id, req_id = %sid, "live: executing tool call");
-
-                                        let tool_ctx = c35_mod_chat::tools::ToolContext::new(
-                                            pool.clone(),
-                                            nats.clone(),
-                                            owner_iid,
-                                            0,
-                                            mention_ctx.default_site_iid,
-                                            mention_ctx.clone(),
-                                            vec![],
-                                            "",
-                                            &user_ctx.locale,
-                                            &user_ctx.location_city,
-                                            &user_ctx.location_region,
-                                            &user_ctx.location_country,
-                                            "",
-                                            &req_id,
-                                            http_client.clone(),
-                                        )
-                                        .with_mcp_agent(true)
-                                        .with_tool_call_id(&call_id);
-
-                                        let (mut result, cost_usd) = dispatcher.execute(&call_name, call_args.clone(), &tool_ctx).await;
-                                        tracing::info!(tool = %call_name, cost_usd, "live: tool executed");
-                                        turn_tool_blocks.push(json!({
-                                            "kind": "tool",
-                                            "collapsed": false,
-                                            "body": {
-                                                "name": call_name,
-                                                "args": call_args,
-                                                "result": result.clone()
-                                            }
-                                        }));
-
-                                        // If screenshot captured, stream as video frame to Gemini Live visual input
-                                        if let Some(b64) = result.get("image_base64").and_then(|v| v.as_str()) {
-                                            let video_chunk = json!({
-                                                "realtimeInput": {
-                                                    "video": {
-                                                        "mimeType": "image/jpeg",
-                                                        "data": b64
-                                                    }
-                                                }
-                                            });
-                                            let _ = g_tx.send(GMsg::Text(video_chunk.to_string().into())).await;
-                                            if let Some(obj) = result.as_object_mut() {
-                                                obj.insert(
-                                                    "image_base64".into(),
-                                                    json!("[Screenshot captured and delivered to visual perception stream]"),
-                                                );
-                                            }
-                                        }
-
-                                        function_responses.push(json!({
-                                            "id": call_id,
-                                            "name": call_name,
-                                            "response": {
-                                                "output": result
-                                            }
-                                        }));
-                                    }
-
-                                    let resp_msg = json!({
-                                        "toolResponse": {
-                                            "functionResponses": function_responses
-                                        }
-                                    });
-                                    if g_tx.send(GMsg::Text(resp_msg.to_string().into())).await.is_err() {
-                                        warn!("live: failed to send toolResponse to Gemini Live");
-                                        break;
-                                    }
-                                }
+                            if live_handle_tool_call(
+                                &v,
+                                &pool,
+                                &nats,
+                                owner_iid,
+                                &sid,
+                                &req_id,
+                                &mention_ctx,
+                                &user_ctx,
+                                &http_client,
+                                &mut g_tx,
+                                &mut client,
+                                &mut turn_tool_blocks,
+                                &mut swap_job,
+                                &mut off_topic_turns,
+                                chat_id_opt.unwrap_or(0),
+                                turn_user_text.trim(),
+                            )
+                            .await
+                            .is_err()
+                            {
+                                break;
                             }
 
                             live_process_server_content(
                                 &v,
                                 &pool,
+                                &nats,
                                 &mut client,
                                 chat_id_opt,
                                 owner_iid,
@@ -536,6 +592,10 @@ pub async fn live_proxy_run(
                                 &mut turn_user_text,
                                 &mut turn_assistant_text,
                                 &mut turn_tool_blocks,
+                                &active_mention_ids,
+                                &eligible_tools,
+                                &mut off_topic_turns,
+                                &mut swap_job,
                             )
                             .await;
                         }
@@ -551,8 +611,12 @@ pub async fn live_proxy_run(
         }
     }
 
+    if let Some(task) = handover_task.take() {
+        task.abort();
+    }
     let _ = g_tx.send(GMsg::Close(None)).await;
     let duration = started.elapsed().as_secs_f64();
+    let video_secs = video_tracker.finalize(Instant::now(), duration);
     if let Err(e) = live_billing_settle(
         &pool,
         nats.as_ref(),
@@ -561,6 +625,7 @@ pub async fn live_proxy_run(
         &req_id,
         &offer,
         duration,
+        video_secs,
     )
     .await
     {
@@ -568,7 +633,391 @@ pub async fn live_proxy_run(
     }
 }
 
-fn live_voice_system(inst: &str, time_block: &str, city: &str, device_block: &str, site_block: &str) -> String {
+pub fn live_video_frame(text: &str) -> Option<Value> {
+    let v: Value = serde_json::from_str(text).ok()?;
+    let msg_type = v.get("type").and_then(|t| t.as_str())?;
+    if msg_type != "video" && msg_type != "video_frame" {
+        return None;
+    }
+    let data = v.get("data").and_then(|d| d.as_str())?;
+    if data.is_empty() {
+        return None;
+    }
+    let mime = v
+        .get("mime_type")
+        .or_else(|| v.get("mimeType"))
+        .and_then(|m| m.as_str())
+        .unwrap_or("image/jpeg");
+    Some(json!({
+        "realtimeInput": {
+            "video": {
+                "mimeType": mime,
+                "data": data,
+            }
+        }
+    }))
+}
+
+pub fn is_mention_tool_called(name: &str, eligible_tools: &[c35_mod_chat::ToolDef]) -> bool {
+    let norm = name.replace('.', "_");
+    if norm == "topic_reset" {
+        return false;
+    }
+    if norm.starts_with("device_")
+        || norm.starts_with("shell_")
+        || norm.starts_with("site_")
+        || norm.starts_with("browser_")
+        || norm.starts_with("bot_")
+        || norm.starts_with("computer_use_")
+    {
+        return true;
+    }
+    for t in eligible_tools {
+        let t_norm = t.name.replace('.', "_");
+        if t_norm == norm {
+            if !t.requires_kinds.is_empty() {
+                return true;
+            }
+            if t.topics.iter().any(|top| top != "general") {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+struct HandoverSuccess {
+    tx: futures_util::stream::SplitSink<
+        tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
+        GMsg,
+    >,
+    rx: futures_util::stream::SplitStream<
+        tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
+    >,
+    ids: Vec<String>,
+    label: String,
+    mention_ctx: c35_mod_chat::MentionContext,
+    eligible_tools: Vec<c35_mod_chat::ToolDef>,
+    opened_with_handle: bool,
+}
+
+async fn perform_handover(
+    pool: PgPool,
+    owner_iid: i64,
+    ids: Vec<String>,
+    label: String,
+    device_iids: Vec<i64>,
+    offer: crate::catalog::LiveOfferRow,
+    time_block: String,
+    city: String,
+    device_inst_block: String,
+    all_tools: Vec<c35_mod_chat::ToolDef>,
+    staff_view: c35_mod_admin::StaffView,
+    model: String,
+    voice_name: String,
+    url: String,
+    resume_handle: Option<String>,
+) -> Result<HandoverSuccess, String> {
+    let mention_ctx = live_mention_context(&pool, owner_iid, &ids, &device_iids).await;
+    let caps = c35_mod_chat::site_capability_view_for_mention(&pool, &mention_ctx).await;
+    let site_inst_block = c35_mod_chat::mention_context_sites_block(&mention_ctx);
+    let full_system = live_voice_system(
+        &live_inst_text(&pool, &offer.inst_id).await,
+        &time_block,
+        &city,
+        &device_inst_block,
+        &site_inst_block,
+        &label,
+    );
+    let has_mention = !ids.is_empty();
+    let eligible_tools = crate::live_tool_select(&all_tools, &offer.tool_topics, &mention_ctx, &staff_view, &caps, has_mention);
+    let tools_val = if !eligible_tools.is_empty() {
+        Some(c35_mod_chat::tools::tool_decls(&eligible_tools))
+    } else {
+        None
+    };
+
+    let mut resume = crate::LiveResume::default();
+    resume.handle = resume_handle.clone();
+    let mut opened_with_handle = resume.handle.is_some();
+    let mut setup = live_setup_message(&model, &voice_name, &full_system, &resume, &tools_val);
+
+    let ws = match connect_async(&url).await {
+        Ok((s, _)) => s,
+        Err(e) => {
+            warn!(?e, "live handover: resume connect failed");
+            if opened_with_handle {
+                resume.handle = None;
+                opened_with_handle = false;
+                setup = live_setup_message(&model, &voice_name, &full_system, &resume, &tools_val);
+                match connect_async(&url).await {
+                    Ok((s, _)) => s,
+                    Err(e2) => return Err(format!("live handover fresh connect failed: {e2:?}")),
+                }
+            } else {
+                return Err(format!("live handover connect failed: {e:?}"));
+            }
+        }
+    };
+
+    let (mut tx, mut rx) = ws.split();
+    if let Err(e) = tx.send(GMsg::Text(setup.to_string().into())).await {
+        return Err(format!("live handover send setup failed: {e:?}"));
+    }
+
+    let wait_setup = async {
+        while let Some(msg) = rx.next().await {
+            match msg {
+                Ok(GMsg::Text(t)) if t.contains("setupComplete") => return true,
+                Ok(GMsg::Binary(b)) => {
+                    if let Ok(s) = String::from_utf8(b.to_vec()) {
+                        if s.contains("setupComplete") {
+                            return true;
+                        }
+                    }
+                }
+                Ok(GMsg::Close(_)) | Err(_) => return false,
+                _ => {}
+            }
+        }
+        false
+    };
+
+    let setup_done = match tokio::time::timeout(std::time::Duration::from_secs(10), wait_setup).await {
+        Ok(ok) => ok,
+        Err(_) => false,
+    };
+
+    if !setup_done {
+        if opened_with_handle {
+            resume.handle = None;
+            let setup_fresh = live_setup_message(&model, &voice_name, &full_system, &resume, &tools_val);
+            if let Ok((fresh_ws, _)) = connect_async(&url).await {
+                let (mut fresh_tx, mut fresh_rx) = fresh_ws.split();
+                if fresh_tx.send(GMsg::Text(setup_fresh.to_string().into())).await.is_ok() {
+                    let wait_fresh = async {
+                        while let Some(msg) = fresh_rx.next().await {
+                            match msg {
+                                Ok(GMsg::Text(t)) if t.contains("setupComplete") => return true,
+                                Ok(GMsg::Binary(b)) => {
+                                    if let Ok(s) = String::from_utf8(b.to_vec()) {
+                                        if s.contains("setupComplete") {
+                                            return true;
+                                        }
+                                    }
+                                }
+                                Ok(GMsg::Close(_)) | Err(_) => return false,
+                                _ => {}
+                            }
+                        }
+                        false
+                    };
+                    if let Ok(true) = tokio::time::timeout(std::time::Duration::from_secs(10), wait_fresh).await {
+                        return Ok(HandoverSuccess {
+                            tx: fresh_tx,
+                            rx: fresh_rx,
+                            ids,
+                            label,
+                            mention_ctx,
+                            eligible_tools,
+                            opened_with_handle: false,
+                        });
+                    }
+                }
+            }
+        }
+        return Err("live handover setupComplete timeout or failure".into());
+    }
+
+    Ok(HandoverSuccess {
+        tx,
+        rx,
+        ids,
+        label,
+        mention_ctx,
+        eligible_tools,
+        opened_with_handle,
+    })
+}
+
+async fn live_handle_tool_call(
+    v: &Value,
+    pool: &PgPool,
+    nats: &Option<Client>,
+    owner_iid: i64,
+    sid: &str,
+    req_id: &str,
+    mention_ctx: &c35_mod_chat::MentionContext,
+    user_ctx: &c35_mod_chat::prompt::user_context::UserPromptContext,
+    http_client: &reqwest::Client,
+    g_tx: &mut futures_util::stream::SplitSink<
+        tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
+        GMsg,
+    >,
+    client: &mut WebSocket,
+    turn_tool_blocks: &mut Vec<Value>,
+    swap_job: &mut Option<(Vec<String>, String)>,
+    off_topic_turns: &mut u32,
+    chat_id: i64,
+    user_text: &str,
+) -> Result<(), ()> {
+    let Some(tool_call) = v.get("toolCall").or_else(|| v.pointer("/serverContent/toolCall")) else {
+        return Ok(());
+    };
+    let Some(function_calls) = tool_call.get("functionCalls").and_then(|c| c.as_array()) else {
+        return Ok(());
+    };
+
+    let dispatcher = c35_mod_chat::tools::default_dispatcher();
+    let mut function_responses = Vec::with_capacity(function_calls.len());
+
+    for fc in function_calls {
+        let call_id = fc.get("id").and_then(|i| i.as_str()).unwrap_or("").to_string();
+        let call_name = fc.get("name").and_then(|n| n.as_str()).unwrap_or("").to_string();
+        let call_args = fc.get("args").cloned().unwrap_or(json!({}));
+
+        tracing::info!(tool = %call_name, call_id = %call_id, req_id = %sid, "live: executing tool call");
+
+        if call_name == "topic_reset" {
+            let result = json!({
+                "status": "ok",
+                "message": "Returned to general conversation"
+            });
+            *swap_job = Some((Vec::new(), String::new()));
+            *off_topic_turns = 0;
+            let _ = client
+                .send(Message::Text(
+                    json!({"live":"mention","mention_ids":[],"label":"","switching":false})
+                        .to_string()
+                        .into(),
+                ))
+                .await;
+            turn_tool_blocks.push(json!({
+                "kind": "tool",
+                "collapsed": false,
+                "body": {
+                    "name": call_name,
+                    "args": call_args,
+                    "result": result.clone()
+                }
+            }));
+            let mut tr_entry = json!({
+                "name": call_name,
+                "response": {
+                    "output": result
+                }
+            });
+            if !call_id.is_empty() {
+                tr_entry.as_object_mut().unwrap().insert("id".to_string(), json!(call_id));
+            }
+            function_responses.push(tr_entry);
+            continue;
+        }
+
+        let _ = client
+            .send(Message::Text(
+                json!({"live":"tool_start", "name": call_name, "id": call_id})
+                    .to_string()
+                    .into(),
+            ))
+            .await;
+
+        let tool_ctx = c35_mod_chat::tools::ToolContext::new(
+            pool.clone(),
+            nats.clone(),
+            owner_iid,
+            chat_id,
+            mention_ctx.default_site_iid,
+            mention_ctx.clone(),
+            vec![],
+            user_text,
+            &user_ctx.locale,
+            &user_ctx.location_city,
+            &user_ctx.location_region,
+            &user_ctx.location_country,
+            "",
+            req_id,
+            http_client.clone(),
+        )
+        .with_mcp_agent(true)
+        .with_tool_call_id(&call_id);
+
+        let (mut result, cost_usd) = dispatcher.execute(&call_name, call_args.clone(), &tool_ctx).await;
+        tracing::info!(tool = %call_name, cost_usd, "live: tool executed");
+
+        let _ = client
+            .send(Message::Text(
+                json!({"live":"tool_end", "name": call_name, "id": call_id})
+                    .to_string()
+                    .into(),
+            ))
+            .await;
+
+        turn_tool_blocks.push(json!({
+            "kind": "tool",
+            "collapsed": false,
+            "body": {
+                "name": call_name,
+                "args": call_args,
+                "result": result.clone()
+            }
+        }));
+
+        // If screenshot captured, stream as video frame to Gemini Live visual input
+        if let Some(b64) = result.get("image_base64").and_then(|v| v.as_str()) {
+            let video_chunk = json!({
+                "realtimeInput": {
+                    "video": {
+                        "mimeType": "image/jpeg",
+                        "data": b64
+                    }
+                }
+            });
+            let _ = g_tx.send(GMsg::Text(video_chunk.to_string().into())).await;
+            if let Some(obj) = result.as_object_mut() {
+                obj.insert(
+                    "image_base64".into(),
+                    json!("[Screenshot captured and delivered to visual perception stream]"),
+                );
+            }
+        }
+
+        let mut clean_output = result.clone();
+        if let Some(obj) = clean_output.as_object_mut() {
+            obj.remove("block");
+        }
+        let mut fr_entry = json!({
+            "name": call_name,
+            "response": {
+                "output": clean_output
+            }
+        });
+        if !call_id.is_empty() {
+            fr_entry.as_object_mut().unwrap().insert("id".to_string(), json!(call_id));
+        }
+        function_responses.push(fr_entry);
+    }
+
+    let resp_msg = json!({
+        "toolResponse": {
+            "functionResponses": function_responses
+        }
+    });
+    if g_tx.send(GMsg::Text(resp_msg.to_string().into())).await.is_err() {
+        warn!("live: failed to send toolResponse to Gemini Live");
+        return Err(());
+    }
+    Ok(())
+}
+
+pub(crate) fn live_voice_system(
+    inst: &str,
+    time_block: &str,
+    city: &str,
+    device_block: &str,
+    site_block: &str,
+    mention_label: &str,
+) -> String {
     let mut full = String::new();
     full.push_str(inst);
     full.push_str("\n\n");
@@ -582,6 +1031,12 @@ fn live_voice_system(inst: &str, time_block: &str, city: &str, device_block: &st
     if !site_block.is_empty() {
         full.push_str("\n\n");
         full.push_str(site_block);
+    }
+    let trimmed_label = mention_label.trim();
+    if !trimmed_label.is_empty() {
+        full.push_str(&format!(
+            "\n\n[TOPIC FOCUS]\nYou are currently focused on {trimmed_label}. If the conversation naturally transitions away and the user is no longer discussing {trimmed_label} for multiple turns, autonomously call topic_reset."
+        ));
     }
     full.push_str("\n\n[VOICE INTERACTION & TOOLS]\nYou are in a live voice call with the user. You have tools available to search the web, inspect and control paired remote devices, manage notes, etc. When the user asks you a question that requires real-time information, actions on their computer, or checking anything, call the appropriate tool. Once you receive the tool response, summarize and answer the user clearly and concisely in natural conversational speech. Do not read raw JSON aloud.");
     full
@@ -727,6 +1182,7 @@ async fn live_seed_after_setup(
 async fn live_process_server_content(
     v: &Value,
     pool: &PgPool,
+    nats: &Option<Client>,
     client: &mut WebSocket,
     chat_id_opt: Option<i64>,
     owner_iid: i64,
@@ -734,6 +1190,10 @@ async fn live_process_server_content(
     turn_user_text: &mut String,
     turn_assistant_text: &mut String,
     turn_tool_blocks: &mut Vec<Value>,
+    active_mention_ids: &[String],
+    eligible_tools: &[c35_mod_chat::ToolDef],
+    off_topic_turns: &mut u32,
+    swap_job: &mut Option<(Vec<String>, String)>,
 ) {
     let Some(sc) = v.get("serverContent") else {
         return;
@@ -751,9 +1211,11 @@ async fn live_process_server_content(
     if sc.get("turnComplete").and_then(|b| b.as_bool()).unwrap_or(false)
         || sc.get("generationComplete").and_then(|b| b.as_bool()).unwrap_or(false)
     {
+        let u_text = turn_user_text.trim().to_string();
+        let a_text = turn_assistant_text.trim().to_string();
+        let had_content = !u_text.is_empty() || !a_text.is_empty() || !turn_tool_blocks.is_empty();
+
         if let Some(cid) = chat_id_opt {
-            let u_text = turn_user_text.trim().to_string();
-            let a_text = turn_assistant_text.trim().to_string();
             if !u_text.is_empty() || !a_text.is_empty() {
                 let u_id = c35_store::snowflake_id();
                 let a_id = c35_store::snowflake_id();
@@ -808,15 +1270,45 @@ async fn live_process_server_content(
                         .into(),
                     ))
                     .await;
+
+                let preview = if !a_text.is_empty() { &a_text } else { &u_text };
+                let _ = c35_mod_chat::chat_touch(pool, nats.as_ref(), cid, owner_iid, preview, "done").await;
             }
         }
+
+        // Autonomous Topic Drift Detection: 5 consecutive turns without mention tools triggers reset
+        if had_content && !active_mention_ids.is_empty() {
+            let mention_tool_called = turn_tool_blocks.iter().any(|b| {
+                let name = b.pointer("/body/name").and_then(|n| n.as_str()).unwrap_or("");
+                is_mention_tool_called(name, eligible_tools)
+            });
+            if mention_tool_called {
+                *off_topic_turns = 0;
+            } else {
+                *off_topic_turns += 1;
+                tracing::info!(off_topic_turns = *off_topic_turns, "live: off-topic turn count incremented");
+                if *off_topic_turns >= 5 {
+                    tracing::info!("live: drift threshold reached (5 consecutive turns), resetting to general topic");
+                    *swap_job = Some((Vec::new(), String::new()));
+                    let _ = client
+                        .send(Message::Text(
+                            json!({"live":"mention","mention_ids":[],"label":"","switching":false})
+                                .to_string()
+                                .into(),
+                        ))
+                        .await;
+                    *off_topic_turns = 0;
+                }
+            }
+        }
+
         turn_user_text.clear();
         turn_assistant_text.clear();
         turn_tool_blocks.clear();
     }
 }
 
-async fn live_inst_text(pool: &PgPool, inst_id: &str) -> String {
+pub(crate) async fn live_inst_text(pool: &PgPool, inst_id: &str) -> String {
     let id = inst_id.trim();
     if id.is_empty() {
         return "You are a helpful voice assistant. Respond naturally in the user's language.".into();
@@ -957,5 +1449,59 @@ mod tests {
         // When a single device is paired, device_iid resolves automatically
         let resolved = c35_mod_chat::device_iid_resolve(&mention_ctx, &[], 0);
         assert_eq!(resolved.unwrap(), 987654321i64);
+    }
+
+    #[test]
+    fn test_live_video_frame_relay() {
+        use super::live_video_frame;
+
+        let text_jpeg = r#"{"type":"video","data":"/9j/4AAQSkZJRg==","mime_type":"image/jpeg"}"#;
+        let v = live_video_frame(text_jpeg).expect("must parse video frame");
+        assert_eq!(v["realtimeInput"]["video"]["mimeType"], "image/jpeg");
+        assert_eq!(v["realtimeInput"]["video"]["data"], "/9j/4AAQSkZJRg==");
+
+        let text_frame_type = r#"{"type":"video_frame","data":"abc123xyz","mimeType":"image/png"}"#;
+        let v2 = live_video_frame(text_frame_type).expect("must parse video_frame type");
+        assert_eq!(v2["realtimeInput"]["video"]["mimeType"], "image/png");
+        assert_eq!(v2["realtimeInput"]["video"]["data"], "abc123xyz");
+
+        let text_hangup = r#"{"type":"hangup"}"#;
+        assert!(live_video_frame(text_hangup).is_none());
+
+        let text_empty = r#"{"type":"video","data":""}"#;
+        assert!(live_video_frame(text_empty).is_none());
+    }
+
+    #[test]
+    fn test_is_mention_tool_called() {
+        use super::is_mention_tool_called;
+
+        let tools = vec![
+            c35_mod_chat::ToolDef::new("web.search".into(), "web search".into(), json!({})),
+            c35_mod_chat::ToolDef::new("device.screenshot".into(), "screenshot".into(), json!({})),
+            c35_mod_chat::ToolDef::new("site.create".into(), "site create".into(), json!({})),
+        ];
+
+        assert!(is_mention_tool_called("device_screenshot", &tools));
+        assert!(is_mention_tool_called("shell_run", &tools));
+        assert!(is_mention_tool_called("site_create", &tools));
+        assert!(is_mention_tool_called("browser_page_act", &tools));
+        assert!(!is_mention_tool_called("web_search", &tools));
+        assert!(!is_mention_tool_called("memory_save", &tools));
+        assert!(!is_mention_tool_called("topic_reset", &tools));
+    }
+
+    #[test]
+    fn test_live_voice_system_prompt_steering() {
+        use super::live_voice_system;
+
+        let sys_no_mention = live_voice_system("Inst", "Time", "City", "", "", "");
+        assert!(!sys_no_mention.contains("[TOPIC FOCUS]"));
+        assert!(!sys_no_mention.contains("topic_reset"));
+
+        let sys_with_mention = live_voice_system("Inst", "Time", "City", "", "", "Desktop PC");
+        assert!(sys_with_mention.contains("[TOPIC FOCUS]"));
+        assert!(sys_with_mention.contains("You are currently focused on Desktop PC."));
+        assert!(sys_with_mention.contains("autonomously call topic_reset."));
     }
 }

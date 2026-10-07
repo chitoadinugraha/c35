@@ -127,7 +127,7 @@ async fn memory_extract_llm(
     };
 
     let contents = vec![json!({ "role": "user", "parts": [{ "text": user_prompt }] })];
-    let out = gemini_generate(&contents, &json!([]), &thinking_level("off"), &model, EXTRACT_SYSTEM, "AUTO").await?;
+    let out = gemini_generate(&contents, &json!([]), &thinking_level("off"), &model, MEMORY_EXTRACT_MODEL, EXTRACT_SYSTEM, "AUTO").await?;
     let cost = billing_cost_usd(&model, out.in_tok, out.out_tok);
     let actions = parse_memory_actions(&out.text);
     Ok((actions, out.in_tok, out.out_tok, cost))

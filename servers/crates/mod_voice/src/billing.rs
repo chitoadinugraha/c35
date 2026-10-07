@@ -1,7 +1,7 @@
 use anyhow::Result;
 use async_nats::Client;
 use c35_mod_billing::{
-    billing_account_ensure, billing_deduct_personal_profile, billing_gate_with_hold_custom,
+    billing_account_ensure, billing_deduct_personal_profile,
     billing_reservation_refund, billing_reservation_settle, billing_to_retail_usd, BillingRow,
     RETAIL_MARKUP, VOICE_STT_HOLD_USD, VOICE_STT_USD_PER_MIN, VOICE_TTS_HOLD_USD,
     VOICE_TTS_USD_PER_1K_CHARS,
@@ -81,7 +81,7 @@ pub async fn voice_billing_gate(
     hold_usd: f64,
 ) -> Result<BillingRow> {
     let row = billing_account_ensure(pool, owner_iid).await?;
-    billing_gate_with_hold_custom(pool, owner_iid, &row, req_id, hold_usd).await?;
+    c35_mod_billing::billing_gate_with_hold_model(pool, owner_iid, &row, req_id, hold_usd, Some("frontier")).await?;
     Ok(row)
 }
 

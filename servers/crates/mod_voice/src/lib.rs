@@ -1,6 +1,6 @@
 mod billing;
-mod stt;
-mod tts;
+pub mod stt;
+pub mod tts;
 
 use std::time::Instant;
 

@@ -290,7 +290,7 @@ pub async fn billing_deduct_scoped(pool: &PgPool, bctx: &BillingContext, cost_us
                 let l5 = f(sub.alien_allow_5h_limit);
                 let uw = f(sub.alien_allow_weekly_used);
                 let lw = f(sub.alien_allow_weekly_limit);
-                if u5 + cost_usd <= l5 || uw + cost_usd <= lw {
+                if u5 + cost_usd <= l5 && uw + cost_usd <= lw {
                     sqlx::query(
                         r#"
                         UPDATE ai.billing_subscription SET

@@ -5,6 +5,7 @@ mod bot_welcome;
 mod bot_peer;
 pub mod bot_inbox;
 mod catalog;
+mod catalog_add_followup;
 mod catalog_web;
 mod presentation_theme;
 mod chat_feedback;
@@ -45,6 +46,7 @@ mod mention_registry;
 mod mention_tool_registry;
 mod site_capability;
 mod memory;
+mod memory_rpc;
 mod context_billing;
 pub mod context_compact;
 mod context_idle;
@@ -94,7 +96,7 @@ pub use chat_feedback::{
 pub use chat_history_clear::chat_history_clear;
 pub use data_source_rpc::{data_source_check, data_source_delete, data_source_list, data_source_put, data_source_sync};
 pub use chat_patch::chat_patch;
-pub use chat_sync::chat_title_set;
+pub use chat_sync::{chat_fanout, chat_title_set, chat_touch};
 pub use device_context::{
     bound_device_prompt_prepare, chat_device_context_create, chat_device_context_list,
     chat_mention_context_commit, BROWSER_DEVICE_TOOL_EXCLUDE,
@@ -129,6 +131,7 @@ pub use media_regenerate::media_regenerate;
 pub use context_idle::{context_idle_compact_enabled, ContextIdleFetchTask};
 pub use context_pack::{context_window_options, context_window_resolve, model_context_limit, token_estimate};
 pub use memory::{memory_delete, memory_list_active, memory_prompt_merge, memory_put, memory_retrieve, MemoryRetrieveResult};
+pub use memory_rpc::{memory_delete_rpc, memory_list_rpc};
 pub use memory_extract::memory_extract_turn_gate;
 pub use prompt::audio;
 pub use prompt::gemini::gemini_api_key;
@@ -151,7 +154,10 @@ pub use prompt_run::{
     prompt_run_worker_start, PromptRunRow,
     PromptRunWorker,
 };
-pub use prompt_turn::{chat_ensure, chat_title_from_text, prompt_turn, PromptHopCheckpoint, PromptTurn, PromptTurnHooks};
+pub use prompt_turn::{
+    chat_ensure, chat_title_from_prompt, chat_title_from_text, prompt_turn, PromptHopCheckpoint, PromptTurn,
+    PromptTurnHooks,
+};
 pub use site_resolve::{site_at_tokens, site_context_block, site_context_resolve, SiteContext};
 pub use site_validate::{
     block_props_allowed, validate_block, validate_object_keys, validate_sitedoc, BLOCK_TYPES, META_KEYS,

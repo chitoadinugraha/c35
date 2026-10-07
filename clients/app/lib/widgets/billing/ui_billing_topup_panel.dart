@@ -16,20 +16,10 @@ import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/widgets/billing/billing_topup.dart';
 import 'package:alienai_c35/widgets/billing/ui_billing_purchase_disclaimer.dart';
 import 'package:flutter/material.dart';
+import 'package:alienai_c35/widgets/io/in_money_idr.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
-
-class _WalletIdrInputFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
-    final digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
-    if (digits.isEmpty) return const TextEditingValue(text: '');
-    final n = int.tryParse(digits) ?? 0;
-    final formatted = moneyFmtIdrGrouped(n);
-    return TextEditingValue(text: formatted, selection: TextSelection.collapsed(offset: formatted.length));
-  }
-}
 
 class UiBillingTopupPanel extends StatefulWidget {
   const UiBillingTopupPanel({super.key, required this.conn, this.currency = 'IDR', this.onSubmitted});
@@ -461,7 +451,7 @@ class _UiBillingTopupPanelState extends State<UiBillingTopupPanel> {
         TextField(
           controller: _amountCtrl,
           keyboardType: TextInputType.number,
-          inputFormatters: _usesIdr ? [_WalletIdrInputFormatter()] : [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+          inputFormatters: _usesIdr ? moneyIdrInputFormatters : [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
           style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
           decoration: InputDecoration(
             prefixText: _usesIdr ? 'Rp ' : '\$ ',

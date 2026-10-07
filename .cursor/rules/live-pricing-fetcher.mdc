@@ -1,0 +1,88 @@
+---
+description: Standards for Live Call pricing derivation, catalog fetcher sync, dual Voice/Video rates, and multimodal media attachment.
+globs: servers/**/*.rs,clients/app/**/*.dart,_/schemas/**/*.sql,_/schemas/**/*.proto
+alwaysApply: false
+---
+
+# Live Call Pricing, Catalog Fetcher & Multimodal Standards
+
+This rule governs live voice and video call pricing derivation, dynamic fetcher sync, client display, and mid-call media attachments across all 4 live offerings: **Alien AI**, **Gemini**, **ChatGPT**, and **Grok**.
+
+---
+
+## 1. Supported Live Models & Catalog IDs
+
+| Offer ID | Family | Provider | Provider Model | Upstream Route |
+| :--- | :--- | :--- | :--- | :--- |
+| `live.alienai` | `alienai` | `google` | `gemini-3.8-live` | Direct Gemini Live Bidi WS (`inst.general` + cluster tools) |
+| `live.gemini` | `gemini` | `google` | `gemini-3.8-live` | Direct Gemini Live Bidi WS (bare model) |
+| `live.chatgpt` | `openai` | `openai` | `gpt-4o-realtime-preview` | Cloudflare AI Gateway Realtime WS (`openai`) |
+| `live.grok` | `xai` | `xai` | `grok-voice` / `grok-2-vision` | Cloudflare AI Gateway Streaming Chat + Whisper STT + TTS |
+
+---
+
+## 2. Dynamic Pricing Formulas (Wholesale & Retail)
+
+All live offerings derive their per-minute wholesale rates from upstream provider token pricing, marked up by the standard default retail markup:
+
+```rust
+pub const RETAIL_MARKUP: f64 = 1.50; // 50% retail markup
+```
+
+### A. Voice Pricing (Audio Input + Output)
+```text
+wholesale_voice_per_min = input_usd_per_min + output_usd_per_min
+retail_voice_per_min    = wholesale_voice_per_min * RETAIL_MARKUP
+```
+
+### B. 1 FPS Video Call Pricing
+At 1 frame per second (60 frames/minute), video token consumption is computed per model:
+
+| Provider | Frame Token Weight | Frames / Min | Monthly Video Tokens / Min | Upstream Formula |
+| :--- | :--- | :--- | :--- | :--- |
+| **Google** (`gemini-3.8-live`) | 258 tokens/frame | 60 | 15,480 tokens | `15,480 * gemini_flash_input_rate_per_1M / 1_000_000` |
+| **OpenAI** (`gpt-4o-realtime`) | 85 tokens/frame | 60 | 5,100 tokens | `5,100 * gpt4o_vision_input_rate_per_1M / 1_000_000` |
+| **xAI** (`grok-2-vision`) | ~250 tokens / query | Sampled on utterance (~10/min) | ~2,500 tokens | `2,500 * grok_vision_input_rate_per_1M / 1_000_000` |
+
+```text
+wholesale_video_per_min = wholesale_voice_per_min + video_usd_per_min
+retail_video_per_min    = wholesale_video_per_min * RETAIL_MARKUP
+```
+
+---
+
+## 3. Catalog Fetcher & Database Schema
+
+1. **Database Schema (`ai.live_offer`)**:
+   - `input_usd_per_min`: DOUBLE PRECISION
+   - `output_usd_per_min`: DOUBLE PRECISION
+   - `video_usd_per_min`: DOUBLE PRECISION
+2. **Dynamic Sync**:
+   - The catalog fetcher (`llm_catalog_sync` / `mod_fetch`) updates `video_usd_per_min` whenever upstream model rates are updated.
+   - Pinned/fallback defaults must reflect the 1 FPS video token calculation.
+3. **Protobuf Wire Type (`LiveOffer`)**:
+   - Must transmit both:
+     - `retail_usd_per_min`: Voice rate per minute
+     - `retail_video_usd_per_min`: Video rate per minute
+
+---
+
+## 4. Client Display & Localization Standards
+
+In accordance with `user-currency-pricing.mdc`:
+- **Never display raw USD in the UI**; always convert via `wallet.fxMicroPerUsd` and format into the user's local currency.
+- Display both Voice and Video rates on the pre-call pill before connecting:
+  - **Indonesian (`id`)**: `🎙️ Suara: ~IDR 11.33/dtk · 📷 Video: ~IDR 12.80/dtk`
+  - **English (`en`)**: `🎙️ Voice: ~IDR 11.33/s · 📷 Video: ~IDR 12.80/s`
+- When the call is active:
+  - In-call elapsed billing calculates voice rate when camera is off, and video rate when camera is on.
+
+---
+
+## 5. Mid-Call Media Attachment (📎 Klip)
+
+All models support attaching media during live calls:
+- **Button**: 📎 icon located on the in-call control bar next to Mute and Camera buttons.
+- **Photos / Images**: Ingested as a single image token batch (`inlineData` for Gemini, `input_image` for ChatGPT, `image_url` for Grok).
+- **Documents / Files**: Text is extracted and injected into the conversation context as a user turn.
+- A floating thumbnail preview chip with a remove button `[ 📄 invoice.pdf ✕ ]` appears on the call stage while active.

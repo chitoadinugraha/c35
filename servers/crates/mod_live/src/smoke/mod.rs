@@ -1,4 +1,4 @@
-mod audio;
+pub mod audio;
 mod gemini;
 mod realtime_openai;
 mod report;

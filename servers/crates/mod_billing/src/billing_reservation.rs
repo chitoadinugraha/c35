@@ -3,8 +3,7 @@ use c35_store::snowflake_id;
 use sqlx::PgPool;
 
 use crate::billing_on_demand::{
-    allowance_remaining, gate_can_start, hold_amounts, wallet_charge_native,
-    DEFAULT_HOLD_USD,
+    allowance_remaining, gate_can_start, hold_amounts, DEFAULT_HOLD_USD,
 };
 use crate::billing_turn::BillingRow;
 
@@ -174,12 +173,12 @@ pub async fn billing_reservation_refund(pool: &PgPool, req_id: &str) -> Result<(
 pub async fn billing_reservation_settle(
     pool: &PgPool,
     owner_iid: i64,
-    row: &BillingRow,
+    _row: &BillingRow,
     req_id: &str,
     cost_usd: f64,
-    balance_idr: f64,
-    billing_currency: &str,
-    fx_micro_per_usd: i64,
+    _balance_idr: f64,
+    _billing_currency: &str,
+    _fx_micro_per_usd: i64,
 ) -> Result<()> {
     let req_id = req_id.trim();
     if req_id.is_empty() || cost_usd <= 0.0 {
@@ -199,57 +198,13 @@ pub async fn billing_reservation_settle(
     .fetch_optional(pool)
     .await?;
 
-    let allowance_rem = allowance_remaining(
-        row.alien_allow_5h_used,
-        row.alien_allow_5h_limit,
-        row.alien_allow_weekly_used,
-        row.alien_allow_weekly_limit,
-    );
-    let (charge_usd, charge_idr) = wallet_charge_native(cost_usd, allowance_rem, billing_currency, fx_micro_per_usd);
-
-    if res_row.is_none() {
-        // No hold (allowance-only turn) — direct wallet patch if needed
-        if charge_usd > 0.0 || charge_idr > 0.0 {
-            sqlx::query(
-                r#"
-                UPDATE ai.billing_account SET
-                    balance_usd = GREATEST(balance_usd - $2::numeric, 0),
-                    balance_idr = GREATEST(balance_idr - $3::numeric, 0),
-                    updated_ts = NOW()
-                WHERE owner_iid = $1
-                "#,
-            )
-            .bind(owner_iid)
-            .bind(charge_usd)
-            .bind(charge_idr)
-            .execute(pool)
-            .await?;
-        }
+    let Some((res_id, _held_usd_s, _held_idr_s, status)) = res_row else {
         return Ok(());
-    }
-
-    let (res_id, _held_usd_s, _held_idr_s, status) = res_row.unwrap();
+    };
     if status == "settled" || status == "refunded" {
         return Ok(());
     }
 
-    let mut tx = pool.begin().await?;
-    if charge_usd > 0.0 || charge_idr > 0.0 {
-        sqlx::query(
-            r#"
-            UPDATE ai.billing_account SET
-                balance_usd = GREATEST(balance_usd - $2::numeric, 0),
-                balance_idr = GREATEST(balance_idr - $3::numeric, 0),
-                updated_ts = NOW()
-            WHERE id = $1
-            "#,
-        )
-        .bind(row.id)
-        .bind(charge_usd)
-        .bind(charge_idr)
-        .execute(&mut *tx)
-        .await?;
-    }
     sqlx::query(
         r#"
         UPDATE ai.billing_reservation SET status = 'settled', settled_ts = NOW(), updated_ts = NOW()
@@ -257,10 +212,9 @@ pub async fn billing_reservation_settle(
         "#,
     )
     .bind(res_id)
-    .execute(&mut *tx)
+    .execute(pool)
     .await?;
-    let _ = (balance_idr, billing_currency, fx_micro_per_usd);
-    tx.commit().await?;
+
     Ok(())
 }
 
@@ -270,7 +224,7 @@ pub async fn billing_gate_with_hold(
     row: &BillingRow,
     req_id: &str,
 ) -> Result<()> {
-    billing_gate_with_hold_custom(pool, owner_iid, row, req_id, DEFAULT_HOLD_USD).await
+    billing_gate_with_hold_model(pool, owner_iid, row, req_id, DEFAULT_HOLD_USD, None).await
 }
 
 pub async fn billing_gate_with_hold_custom(
@@ -280,6 +234,21 @@ pub async fn billing_gate_with_hold_custom(
     req_id: &str,
     hold_usd: f64,
 ) -> Result<()> {
+    billing_gate_with_hold_model(pool, owner_iid, row, req_id, hold_usd, None).await
+}
+
+pub async fn billing_gate_with_hold_model(
+    pool: &PgPool,
+    owner_iid: i64,
+    row: &BillingRow,
+    req_id: &str,
+    hold_usd: f64,
+    model: Option<&str>,
+) -> Result<()> {
+    let req_id = req_id.trim();
+    if req_id.is_empty() {
+        anyhow::bail!("req_id required");
+    }
     if crate::billing_freemium::billing_freemium_applies(pool, owner_iid).await? {
         crate::billing_freemium::billing_freemium_reserve_turn(pool, owner_iid).await?;
         return Ok(());
@@ -289,11 +258,15 @@ pub async fn billing_gate_with_hold_custom(
             let profile = crate::billing_profile::billing_profile_windows_roll(pool, profile).await?;
             let (alien_rem, frontier_rem) =
                 crate::billing_profile::profile_ring_remaining_usd(&profile.rings);
-            let ring_rem = alien_rem + frontier_rem;
-            if ring_rem >= hold_usd {
-                return Ok(());
+            if let Some(m) = model {
+                if crate::billing_profile::model_uses_alien_pool(m) {
+                    alien_rem
+                } else {
+                    frontier_rem
+                }
+            } else {
+                alien_rem + frontier_rem
             }
-            ring_rem
         }
         Some(_) => 0.0,
         None => allowance_remaining(
@@ -303,6 +276,17 @@ pub async fn billing_gate_with_hold_custom(
             row.alien_allow_weekly_limit,
         ),
     };
+
+    let in_flight_held_count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*)::bigint FROM ai.billing_reservation WHERE owner_iid = $1 AND status = 'held'",
+    )
+    .bind(owner_iid)
+    .fetch_one(pool)
+    .await
+    .unwrap_or(0);
+    let in_flight_allowance_hold = (in_flight_held_count as f64) * hold_usd;
+    let effective_allowance_rem = (allowance_rem - in_flight_allowance_hold).max(0.0);
+
     let extra = sqlx::query_as::<_, (String, String, i64)>(
         r#"
         SELECT balance_idr::text, billing_currency, fx_micro_per_usd
@@ -318,9 +302,9 @@ pub async fn billing_gate_with_hold_custom(
     let balance_native = if currency.eq_ignore_ascii_case("IDR") { balance_idr } else { row.balance_usd };
     let (held_usd, held_idr) = billing_held_totals(pool, row.id).await?;
     let held_native = if currency.eq_ignore_ascii_case("IDR") { held_idr } else { held_usd };
-    let (hold_usd_amt, hold_idr) = hold_amounts(hold_usd, allowance_rem, &currency, fx);
+    let (hold_usd_amt, hold_idr) = hold_amounts(hold_usd, effective_allowance_rem, &currency, fx);
     let hold_native = if currency.eq_ignore_ascii_case("IDR") { hold_idr } else { hold_usd_amt };
-    if !gate_can_start(allowance_rem, balance_native, held_native, hold_native) {
+    if !gate_can_start(effective_allowance_rem, balance_native, held_native, hold_native) {
         let reason = crate::billing_on_demand::quota_rejection_reason(
             row.alien_allow_5h_used,
             row.alien_allow_5h_limit,
@@ -331,7 +315,39 @@ pub async fn billing_gate_with_hold_custom(
         );
         anyhow::bail!(reason);
     }
-    billing_reservation_hold_custom(pool, owner_iid, row, req_id, hold_usd, balance_idr, &currency, fx).await?;
+
+    let existing = sqlx::query_as::<_, (String,)>(
+        "SELECT status FROM ai.billing_reservation WHERE req_id = $1",
+    )
+    .bind(req_id)
+    .fetch_optional(pool)
+    .await?;
+    if let Some((status,)) = existing {
+        if status == "held" || status == "settled" {
+            return Ok(());
+        }
+    }
+
+    let id = snowflake_id();
+    let mut tx = pool.begin().await?;
+    let _ = sqlx::query(
+        r#"
+        INSERT INTO ai.billing_reservation (
+            id, req_id, owner_iid, billing_account_id, held_usd, held_idr, status
+        ) VALUES ($1, $2, $3, $4, $5, $6, 'held')
+        ON CONFLICT (req_id) DO NOTHING
+        "#,
+    )
+    .bind(id)
+    .bind(req_id)
+    .bind(owner_iid)
+    .bind(row.id)
+    .bind(hold_usd_amt)
+    .bind(hold_idr)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+
     Ok(())
 }
 
@@ -344,12 +360,24 @@ pub async fn billing_can_afford_tool(
         return Ok(true);
     }
     let row = crate::billing_turn::billing_account_ensure(pool, owner_iid).await?;
-    let allowance_rem = allowance_remaining(
-        row.alien_allow_5h_used,
-        row.alien_allow_5h_limit,
-        row.alien_allow_weekly_used,
-        row.alien_allow_weekly_limit,
-    );
+    let profile_row = crate::billing_profile::billing_profile_fetch(pool, owner_iid).await?;
+    let allowance_rem = if let Some(profile) = profile_row {
+        if crate::billing_profile::profile_has_rings(&profile) {
+            let profile = crate::billing_profile::billing_profile_windows_roll(pool, profile).await?;
+            let (alien_rem, frontier_rem) =
+                crate::billing_profile::profile_ring_remaining_usd(&profile.rings);
+            alien_rem + frontier_rem
+        } else {
+            0.0
+        }
+    } else {
+        allowance_remaining(
+            row.alien_allow_5h_used,
+            row.alien_allow_5h_limit,
+            row.alien_allow_weekly_used,
+            row.alien_allow_weekly_limit,
+        )
+    };
     if allowance_rem >= tool_cost_usd {
         return Ok(true);
     }

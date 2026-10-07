@@ -103,31 +103,6 @@ class _UiBotConversationState extends State<UiBotConversation> {
     } catch (_) {}
   }
 
-  void _copyChatSemua(List<MsgRow> messages) {
-    final peer = widget.store.peerById(widget.chatId);
-    final peerName = peer?.peerName.isNotEmpty == true ? peer!.peerName : (peer?.title ?? 'Customer');
-    final bot = widget.store.botById(widget.store.selectedBotId);
-    final botName = bot?.identity.name.isNotEmpty == true ? bot!.identity.name : 'Bot';
-    final staffName = Session.instance.name.trim().isNotEmpty ? Session.instance.name : 'Staff';
-    final text = msgCopyTranscript(
-      messages: messages,
-      plainText: _plainForMsg,
-      userName: peerName,
-      userNameFor: (m) => m.role == 'user' && m.source == 'staff' ? staffName : peerName,
-      assistantName: (m, _) {
-        if (m.role != 'assistant' || m.source == 'staff') return '';
-        return botName;
-      },
-      modelId: (m) => m.model,
-    );
-    if (text.isEmpty) return;
-    Clipboard.setData(ClipboardData(text: text));
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('chat.copySemuaDone'.tr()), behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 1)),
-    );
-  }
-
   String _plainForMsg(MsgRow m) {
     final parts = <String>[];
     final content = msgDisplayContent(m).trim();
@@ -164,7 +139,6 @@ class _UiBotConversationState extends State<UiBotConversation> {
       state,
       plainText: plain,
       selectedText: _selectedPlain,
-      onCopySemua: () => _copyChatSemua(msgs),
       viewerIsRoot: sessionViewerIsRoot(),
       isAssistant: isAssistant,
       reqId: m.reqId,

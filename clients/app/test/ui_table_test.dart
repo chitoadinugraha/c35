@@ -88,6 +88,42 @@ void main() {
     expect(find.textContaining('expanded:'), findsOneWidget);
   });
 
+  testWidgets('UiTable nested shrinkWrap expand does not throw layout errors', (tester) async {
+    final embedDef = TableDef(
+      collection: 'site.product.embed',
+      label: 'Variants',
+      columns: [ColDef(key: 'sku', label: 'SKU', inlineEditable: true)],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: UiTable(
+            def: TableDef(
+              collection: 'site.product',
+              label: 'Products',
+              columns: [ColDef(key: 'name', label: 'Name', inlineEditable: true)],
+            ),
+            rows: [
+              {'name': 'Coffee'},
+            ],
+            onCellCommit: (_, __, ___) async {},
+            expandedBuilder: (_) => UiTable(
+              def: embedDef,
+              rows: [
+                {'sku': 'S1'},
+              ],
+              shrinkWrap: true,
+              onCellCommit: (_, __, ___) async {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byIcon(Icons.expand_more));
+    await tester.pumpAndSettle();
+    expect(find.text('S1'), findsOneWidget);
+  });
+
   testWidgets('UiTable cellBuilder overrides a column', (tester) async {
     await tester.pumpWidget(
       MaterialApp(

@@ -108,7 +108,7 @@ async fn main() -> Result<()> {
     let caps = c35_mod_chat::site_capability_view_for_mention(&pool, &mention_ctx).await;
     let all_tools = c35_mod_chat::tools::cluster_tools();
     let topics = vec!["general".to_string()];
-    let eligible_tools = c35_mod_live::live_tool_select(&all_tools, &topics, &mention_ctx, &staff_view, &caps);
+    let eligible_tools = c35_mod_live::live_tool_select(&all_tools, &topics, &mention_ctx, &staff_view, &caps, false);
 
     println!("\nRegistered tools declared to Gemini Live: {} tools", eligible_tools.len());
     let tool_names: Vec<String> = eligible_tools.iter().map(|t| t.name.clone()).collect();

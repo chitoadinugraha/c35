@@ -1,85 +1,43 @@
 use anyhow::{anyhow, Result};
-use c35_proto::SiteDoc;
+use c35_proto::{SiteDoc, SiteLink, SitePost};
 use serde_json::Value;
-use sqlx::{PgPool, Row};
+use sqlx::PgPool;
 
 use crate::doc::site_doc_from_json;
+use crate::guest_product::{
+    guest_product_get, guest_product_list, guest_product_sell_ids, pic_url, product_grid_page_size,
+};
+use crate::site_link::site_link_boot_rows;
+use crate::site_post::{site_post_boot_summaries, site_post_get_storefront};
 
-pub struct ProductRow {
-    pub product_id: i64,
-    pub name: String,
-    pub desc: String,
-    pub price: i64,
-    pub pic: String,
-    pub category: String,
+pub use crate::guest_product::{product_row_json, ProductRow};
+
+pub struct ProductGridCtx {
+    pub site_iid: i64,
+    pub block_id: String,
+    pub next_cursor: String,
 }
 
-pub async fn product_rows_for_grid(
-    pool: &PgPool,
-    site_iid: i64,
-    filter: &str,
-    category: &str,
-    limit: i32,
-) -> Result<Vec<ProductRow>> {
-    let lim = if limit <= 0 { 24 } else { limit.min(100) };
-    let rows = if filter == "recommended" {
-        sqlx::query(
-            r#"
-            SELECT product_id, name, "desc", price, pic, category
-            FROM site.product
-            WHERE site_iid = $1 AND deleted_ts IS NULL AND is_archived = FALSE
-              AND can_sell = TRUE AND recommended_guest = TRUE
-            ORDER BY sort_order, product_id
-            LIMIT $2
-            "#,
-        )
-        .bind(site_iid)
-        .bind(lim)
-        .fetch_all(pool)
-        .await?
-    } else if !category.is_empty() {
-        sqlx::query(
-            r#"
-            SELECT product_id, name, "desc", price, pic, category
-            FROM site.product
-            WHERE site_iid = $1 AND deleted_ts IS NULL AND is_archived = FALSE
-              AND can_sell = TRUE AND category = $2
-            ORDER BY sort_order, product_id
-            LIMIT $3
-            "#,
-        )
-        .bind(site_iid)
-        .bind(category)
-        .bind(lim)
-        .fetch_all(pool)
-        .await?
+pub fn product_card_html(p: &ProductRow) -> String {
+    let img = if p.pic.is_empty() {
+        String::new()
     } else {
-        sqlx::query(
-            r#"
-            SELECT product_id, name, "desc", price, pic, category
-            FROM site.product
-            WHERE site_iid = $1 AND deleted_ts IS NULL AND is_archived = FALSE
-              AND can_sell = TRUE
-            ORDER BY sort_order, product_id
-            LIMIT $2
-            "#,
+        format!(
+            r#"<img src="{}" alt="" loading="lazy"/>"#,
+            esc(&pic_url(&p.pic))
         )
-        .bind(site_iid)
-        .bind(lim)
-        .fetch_all(pool)
-        .await?
     };
-    Ok(rows
-        .iter()
-        .map(|r| ProductRow {
-            product_id: r.get("product_id"),
-            name: r.get("name"),
-            desc: r.get("desc"),
-            price: r.get("price"),
-            pic: r.get("pic"),
-            category: r.get("category"),
-        })
-        .collect())
+    format!(
+        r#"<article class="product-card" data-pid="{pid}">{img}<div class="product-info"><h3>{name}</h3><p>{desc}</p><div class="product-bottom"><span class="price">{price_str}</span><button type="button" class="guest-add-btn" onclick="c35GuestCart.add({pid}, '{name_esc}', {price}, '{pic_esc}')">+ Pesan</button></div></div></article>"#,
+        pid = p.product_id,
+        img = img,
+        name = esc(&p.name),
+        desc = esc(&p.desc),
+        price_str = esc(&format_currency(p.price)),
+        name_esc = esc_js(&p.name),
+        price = p.price,
+        pic_esc = esc_js(&pic_url(&p.pic)),
+    )
 }
 
 fn esc(s: &str) -> String {
@@ -87,17 +45,6 @@ fn esc(s: &str) -> String {
         .replace('<', "&lt;")
         .replace('>', "&gt;")
         .replace('"', "&quot;")
-}
-
-fn pic_url(pic: &str) -> String {
-    let p = pic.trim();
-    if p.is_empty() {
-        return String::new();
-    }
-    if p.starts_with("http://") || p.starts_with("https://") || p.starts_with("/fs/") {
-        return p.to_string();
-    }
-    format!("/fs/{}?v=thumb", p)
 }
 
 fn format_currency(amount: i64) -> String {
@@ -171,9 +118,52 @@ fn link_item_html(item: &Value) -> String {
         return String::new();
     }
     format!(
-        r#"<li><a href="{}" rel="noopener noreferrer">{}</a></li>"#,
+        r#"<li data-guest="link"><a href="{}" rel="noopener noreferrer">{}</a></li>"#,
         esc(url),
         esc(label)
+    )
+}
+
+fn post_feed_card_html(post: &SitePost) -> String {
+    let title = post.title.trim();
+    if title.is_empty() {
+        return String::new();
+    }
+    let caption = post.caption.trim();
+    let thumb = if post.thumb.is_empty() {
+        String::new()
+    } else {
+        format!(
+            r#"<img class="social-feed-thumb" src="{}" alt="" loading="lazy"/>"#,
+            esc(&pic_url(&post.thumb))
+        )
+    };
+    let caption_html = if caption.is_empty() {
+        String::new()
+    } else {
+        format!(r#"<p class="social-feed-caption">{}</p>"#, esc(caption))
+    };
+    format!(
+        r#"<li class="social-feed-item" data-guest="social_post" data-post-id="{pid}"><a href="posts/{pid}">{thumb}<div class="social-feed-text"><h3>{title}</h3>{caption_html}</div></a></li>"#,
+        pid = post.post_id,
+        thumb = thumb,
+        title = esc(title),
+        caption_html = caption_html
+    )
+}
+
+fn link_hub_html(link: &SiteLink) -> String {
+    let label = link.label.trim();
+    let url = link.url.trim();
+    if label.is_empty() && url.is_empty() {
+        return String::new();
+    }
+    let display = if label.is_empty() { url } else { label };
+    format!(
+        r#"<li data-guest="link" data-link-id="{}"><a href="{}" rel="noopener noreferrer">{}</a></li>"#,
+        link.link_id,
+        esc(if url.is_empty() { "#" } else { url }),
+        esc(display)
     )
 }
 
@@ -228,14 +218,26 @@ pub fn block_html_render(
     props: &Value,
     products: &[ProductRow],
     caps: &Value,
+    grid_ctx: Option<&ProductGridCtx>,
+    site_iid: i64,
+    hub_links: &[SiteLink],
+    hub_posts: &[SitePost],
 ) -> String {
     match block_type {
         "hero" => {
             let title = props.get("title").and_then(|x| x.as_str()).unwrap_or("");
             let subtitle = props.get("subtitle").and_then(|x| x.as_str()).unwrap_or("");
             let pic = props.get("pic").and_then(|x| x.as_str()).unwrap_or("");
-            let cta = props.get("cta").and_then(|x| x.as_str()).unwrap_or("");
-            let cta_url = props.get("cta_url").and_then(|x| x.as_str()).unwrap_or("#");
+            let cta = props
+                .get("cta")
+                .or_else(|| props.get("cta_label"))
+                .and_then(|x| x.as_str())
+                .unwrap_or("");
+            let cta_url = props
+                .get("cta_url")
+                .or_else(|| props.get("cta_href"))
+                .and_then(|x| x.as_str())
+                .unwrap_or("#");
             let bg = if pic.is_empty() {
                 String::new()
             } else {
@@ -292,34 +294,32 @@ pub fn block_html_render(
             format!(r#"<div class="block spacer" style="height:{}px"></div>"#, h)
         }
         "product_grid" => {
+            let filter = props.get("filter").and_then(|x| x.as_str()).unwrap_or("all");
+            let category = props.get("category").and_then(|x| x.as_str()).unwrap_or("");
             let cards = products
                 .iter()
-                .map(|p| {
-                    let img = if p.pic.is_empty() {
-                        String::new()
-                    } else {
-                        format!(
-                            r#"<img src="{}" alt="" loading="lazy"/>"#,
-                            esc(&pic_url(&p.pic))
-                        )
-                    };
-                    format!(
-                        r#"<article class="product-card" data-pid="{pid}">{img}<div class="product-info"><h3>{name}</h3><p>{desc}</p><div class="product-bottom"><span class="price">{price_str}</span><button type="button" class="guest-add-btn" onclick="c35GuestCart.add({pid}, '{name_esc}', {price}, '{pic_esc}')">+ Pesan</button></div></div></article>"#,
-                        pid = p.product_id,
-                        img = img,
-                        name = esc(&p.name),
-                        desc = esc(&p.desc),
-                        price_str = esc(&format_currency(p.price)),
-                        name_esc = esc_js(&p.name),
-                        price = p.price,
-                        pic_esc = esc_js(&pic_url(&p.pic)),
-                    )
-                })
+                .map(product_card_html)
                 .collect::<Vec<_>>()
                 .join("");
+            let (site_iid, block_id, next_cursor) = grid_ctx
+                .map(|g| (g.site_iid, g.block_id.as_str(), g.next_cursor.as_str()))
+                .unwrap_or((0, "", ""));
+            let load_more = if next_cursor.is_empty() {
+                String::new()
+            } else {
+                format!(
+                    r#"<button type="button" class="guest-load-more-btn" onclick="c35GuestCatalog.loadMore(this)">Muat lebih banyak</button>"#
+                )
+            };
             format!(
-                r#"<section class="block product-grid"><div class="grid">{}</div></section>"#,
-                cards
+                r#"<section class="block product-grid" data-block-id="{bid}" data-site-iid="{sid}" data-filter="{filter}" data-category="{category}" data-next-cursor="{cursor}"><div class="grid">{cards}</div>{load_more}</section>"#,
+                bid = esc(block_id),
+                sid = site_iid,
+                filter = esc(filter),
+                category = esc(category),
+                cursor = esc(next_cursor),
+                cards = cards,
+                load_more = load_more,
             )
         }
         "gallery" => {
@@ -358,18 +358,31 @@ pub fn block_html_render(
                 .and_then(|x| x.as_array())
                 .cloned()
                 .unwrap_or_default();
-            let lis = items
-                .iter()
-                .map(link_item_html)
-                .collect::<Vec<_>>()
-                .join("");
+            let lis = if !items.is_empty() {
+                items
+                    .iter()
+                    .map(link_item_html)
+                    .filter(|s| !s.is_empty())
+                    .collect::<Vec<_>>()
+                    .join("")
+            } else {
+                hub_links
+                    .iter()
+                    .map(link_hub_html)
+                    .filter(|s| !s.is_empty())
+                    .collect::<Vec<_>>()
+                    .join("")
+            };
+            if lis.is_empty() {
+                return String::new();
+            }
             let heading = if title.is_empty() {
                 String::new()
             } else {
                 format!(r#"<h2>{}</h2>"#, esc(title))
             };
             format!(
-                r#"<section class="block links">{heading}<ul class="links">{}</ul></section>"#,
+                r#"<section class="block links" data-guest="link">{heading}<ul class="links">{}</ul></section>"#,
                 lis
             )
         }
@@ -447,6 +460,68 @@ pub fn block_html_render(
                 rows
             )
         }
+        "hub_profile" => {
+            let title = props.get("title").and_then(|x| x.as_str()).unwrap_or("");
+            let subtitle = props.get("subtitle").and_then(|x| x.as_str()).unwrap_or("");
+            let pic = props.get("pic").and_then(|x| x.as_str()).unwrap_or("");
+            let avatar = if pic.is_empty() {
+                String::new()
+            } else {
+                format!(
+                    r#"<img class="hub-avatar" src="{}" alt="" loading="lazy"/>"#,
+                    esc(&pic_url(pic))
+                )
+            };
+            format!(
+                r#"<section class="block hub-profile"><div class="hub-profile">{avatar}<h1>{}</h1><p>{}</p></div></section>"#,
+                esc(title),
+                esc(subtitle)
+            )
+        }
+        "social_feed" => {
+            let title = props
+                .get("title")
+                .and_then(|x| x.as_str())
+                .unwrap_or("Update");
+            let limit = props
+                .get("limit")
+                .and_then(|x| x.as_i64())
+                .unwrap_or(20)
+                .clamp(1, 20) as usize;
+            let items = hub_posts
+                .iter()
+                .take(limit)
+                .map(post_feed_card_html)
+                .filter(|s| !s.is_empty())
+                .collect::<Vec<_>>()
+                .join("");
+            if items.is_empty() {
+                return String::new();
+            }
+            format!(
+                r#"<section class="block social-feed" data-guest="social_feed"><h2>{title}</h2><ul class="social-feed-list">{items}</ul></section>"#,
+                title = esc(title),
+                items = items
+            )
+        }
+        "order_track" => {
+            let title = props
+                .get("title")
+                .and_then(|x| x.as_str())
+                .unwrap_or("Lacak pesanan");
+            let hint = props.get("hint").and_then(|x| x.as_str()).unwrap_or("");
+            let hint_html = if hint.is_empty() {
+                String::new()
+            } else {
+                format!(r#"<p class="order-track-hint">{}</p>"#, esc(hint))
+            };
+            format!(
+                r#"<section class="block order-track" data-site-iid="{site_iid}"><h3>{title}</h3>{hint_html}<label><span>No. pesanan</span><input type="text" name="tx_id" class="order-track-tx" inputmode="numeric" /></label><button type="button" class="guest-order-poll-btn" onclick="c35GuestOrder.poll(this)">Cek status</button><div class="order-track-status"></div></section>"#,
+                site_iid = site_iid,
+                title = esc(title),
+                hint_html = hint_html
+            )
+        }
         "queue" => {
             if !capability_enabled(caps, "queue") {
                 return String::new();
@@ -455,17 +530,20 @@ pub fn block_html_render(
                 .get("title")
                 .or_else(|| props.get("label"))
                 .and_then(|x| x.as_str())
-                .unwrap_or("Queue");
+                .unwrap_or("Antrian");
             let mode = props.get("mode").and_then(|x| x.as_str()).unwrap_or("");
+            let queue_id = props.get("queue_id").and_then(|x| x.as_i64()).unwrap_or(0);
             let mode_html = if mode.is_empty() {
                 String::new()
             } else {
                 format!(r#"<p class="queue-mode">{}</p>"#, esc(mode))
             };
             format!(
-                r#"<section class="block queue"><div class="queue"><h3>{}</h3>{}</div></section>"#,
-                esc(title),
-                mode_html
+                r#"<section class="block queue" data-site-iid="{site_iid}" data-queue-id="{queue_id}"><div class="queue"><h3>{title}</h3>{mode_html}<p class="queue-status" id="c35-queue-status"></p><button type="button" class="guest-queue-btn" onclick="c35GuestQueue.take(this)">Ambil nomor</button></div></section>"#,
+                site_iid = site_iid,
+                queue_id = queue_id,
+                title = esc(title),
+                mode_html = mode_html
             )
         }
         "embed" => {
@@ -519,6 +597,8 @@ pub async fn page_html_render(
         .and_then(|x| x.as_str())
         .unwrap_or("#2563eb");
     let caps = site_capabilities(pool, site_iid).await;
+    let hub_links = site_link_boot_rows(pool, site_iid).await?;
+    let hub_posts = site_post_boot_summaries(pool, site_iid).await?;
     let mut body = String::new();
     for block in &page.blocks {
         let props: Value = if block.props_json.is_empty() {
@@ -526,15 +606,31 @@ pub async fn page_html_render(
         } else {
             serde_json::from_str(&block.props_json).unwrap_or(Value::Object(Default::default()))
         };
-        let products = if block.r#type == "product_grid" {
+        let (products, grid_ctx) = if block.r#type == "product_grid" {
             let filter = props.get("filter").and_then(|x| x.as_str()).unwrap_or("all");
             let category = props.get("category").and_then(|x| x.as_str()).unwrap_or("");
-            let limit = props.get("limit").and_then(|x| x.as_i64()).unwrap_or(24) as i32;
-            product_rows_for_grid(pool, site_iid, filter, category, limit).await?
+            let page_size = product_grid_page_size(&props);
+            let listed =
+                guest_product_list(pool, site_iid, filter, category, "", page_size).await?;
+            let ctx = ProductGridCtx {
+                site_iid,
+                block_id: block.id.clone(),
+                next_cursor: listed.next_cursor,
+            };
+            (listed.items, Some(ctx))
         } else {
-            vec![]
+            (vec![], None)
         };
-        body.push_str(&block_html_render(&block.r#type, &props, &products, &caps));
+        body.push_str(&block_html_render(
+            &block.r#type,
+            &props,
+            &products,
+            &caps,
+            grid_ctx.as_ref(),
+            site_iid,
+            &hub_links,
+            &hub_posts,
+        ));
     }
     Ok(format!(
         r#"<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>{} — {}</title><style>
@@ -555,6 +651,8 @@ body{{margin:0;font-family:system-ui,sans-serif;background:#fafafa;color:#111;pa
 .product-bottom .price{{font-weight:700;color:var(--accent);font-size:14px}}
 .guest-add-btn{{background:var(--accent);color:#fff;border:0;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer}}
 .guest-add-btn:hover{{opacity:.88}}
+.guest-load-more-btn{{display:block;margin:16px auto 0;background:var(--card-bg);color:var(--text);border:1px solid var(--card-border);border-radius:8px;padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer}}
+.guest-load-more-btn:hover{{border-color:var(--accent);color:var(--accent)}}
 .gallery{{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}}
 .gallery img{{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px}}
 .links{{list-style:none;padding:0;margin:0}}
@@ -566,31 +664,16 @@ body{{margin:0;font-family:system-ui,sans-serif;background:#fafafa;color:#111;pa
 .hours td{{padding:6px 8px;border-bottom:1px solid #eee}}
 .map a{{color:var(--accent)}}
 .queue{{padding:16px;background:#fff;border-radius:8px}}
+.guest-queue-btn,.guest-order-poll-btn{{background:var(--accent);color:#fff;border:0;border-radius:6px;padding:8px 14px;font-weight:600;cursor:pointer;margin-top:8px}}
+.hub-profile{{text-align:center;padding:24px 16px}}
+.hub-avatar{{width:96px;height:96px;border-radius:50%;object-fit:cover;margin:0 auto 12px;display:block}}
+.order-track label{{display:block;margin:12px 0}}
+.order-track input{{width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;box-sizing:border-box}}
+.product-detail .price{{font-size:20px;font-weight:700;color:var(--accent);margin:12px 0}}
+.product-reserve-placeholder{{margin-top:16px;padding:12px;background:#fff;border-radius:8px;color:#666;font-size:14px}}
 .embed iframe{{display:block;border-radius:8px}}
 .md{{line-height:1.6}}
-.guest-cart-bar{{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#18181b;color:#fff;padding:10px 18px;border-radius:999px;display:flex;align-items:center;gap:16px;box-shadow:0 8px 30px rgba(0,0,0,.25);z-index:100;cursor:pointer}}
-.guest-cart-count{{background:var(--accent);color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}}
-.guest-cart-total{{font-weight:700;font-size:14px}}
-.guest-cart-btn{{background:var(--accent);color:#fff;border:0;padding:6px 14px;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer}}
-.guest-modal-backdrop{{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(2px);z-index:200;display:flex;align-items:flex-end;justify-content:center}}
-@media (min-width:640px){{.guest-modal-backdrop{{align-items:center}}}}
-.guest-modal-sheet{{background:#fff;color:#111;width:100%;max-width:480px;max-height:90vh;border-radius:16px 16px 0 0;overflow-y:auto;padding:20px;box-shadow:0 20px 40px rgba(0,0,0,.3);display:flex;flex-direction:column;gap:16px}}
-@media (min-width:640px){{.guest-modal-sheet{{border-radius:16px}}}}
-.guest-sheet-head{{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #eee;padding-bottom:12px}}
-.guest-sheet-head h3{{margin:0;font-size:17px}}
-.guest-close-btn{{background:transparent;border:0;font-size:20px;cursor:pointer;color:#888}}
-.guest-cart-list{{display:flex;flex-direction:column;gap:10px;max-height:240px;overflow-y:auto}}
-.guest-cart-item{{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:8px;border-bottom:1px dashed #eee}}
-.guest-item-title{{font-weight:600;font-size:13px}}
-.guest-item-price{{font-size:12px;color:#666}}
-.guest-qty-stepper{{display:flex;align-items:center;gap:8px}}
-.guest-qty-btn{{width:28px;height:28px;border-radius:6px;border:1px solid #ddd;background:#fafafa;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center}}
-.guest-field label{{display:block;margin-bottom:4px;font-size:12px;font-weight:600;color:#444}}
-.guest-field input, .guest-field select, .guest-field textarea{{width:100%;padding:9px 12px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-family:inherit;font-size:13px}}
-.guest-submit-btn{{background:var(--accent);color:#fff;border:0;padding:12px;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;width:100%}}
-.guest-submit-btn:hover{{opacity:.9}}
-.guest-toast{{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#18181b;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:300;box-shadow:0 4px 16px rgba(0,0,0,.2)}}
-</style></head><body><main class="wrap">{body}</main>
+</style><link rel="stylesheet" href="/static/site-guest/site-guest.v1.css"/></head><body><main class="wrap">{body}</main>
 <div id="c35-guest-cart-bar" class="guest-cart-bar" style="display:none;" onclick="c35GuestCart.openModal()">
   <div class="guest-cart-count" id="c35-cart-count">0</div>
   <div class="guest-cart-total" id="c35-cart-total">Rp 0</div>
@@ -604,234 +687,112 @@ body{{margin:0;font-family:system-ui,sans-serif;background:#fafafa;color:#111;pa
         esc(&page.title),
         esc(site_name),
         body = body,
-        client_js = guest_client_js(site_iid)
+        client_js = guest_client_assets(site_iid)
     ))
 }
 
-fn guest_client_js(site_iid: i64) -> String {
-    format!(r#"<script>
-(function() {{
-  const SITE_IID = {site_iid};
-  const STORAGE_KEY = 'c35_cart_' + SITE_IID;
+fn guest_client_assets(site_iid: i64) -> String {
+    format!(
+        r#"<script>window.__SITE_GUEST__={{site_iid:{site_iid},api_base:""}};</script><script defer src="/static/site-guest/site-guest.v1.js"></script>"#,
+        site_iid = site_iid
+    )
+}
 
-  function formatIdr(amount) {{
-    const s = Math.round(amount || 0).toString();
-    let out = '';
-    for (let i = 0; i < s.length; i++) {{
-      if (i > 0 && (s.length - i) % 3 === 0) out += '.';
-      out += s[i];
-    }}
-    return 'Rp ' + out;
-  }}
 
-  function showToast(msg) {{
-    const el = document.getElementById('c35-guest-toast');
-    if (!el) return;
-    el.textContent = msg;
-    el.style.display = 'block';
-    setTimeout(() => {{ el.style.display = 'none'; }}, 3000);
-  }}
+pub async fn product_detail_html_render(
+    pool: &PgPool,
+    site_iid: i64,
+    product_id: i64,
+    site_name: &str,
+) -> Result<Option<String>> {
+    let detail = match guest_product_get(pool, site_iid, product_id).await? {
+        Some(d) => d,
+        None => return Ok(None),
+    };
+    let p = &detail.row;
+    let img = if p.pic.is_empty() {
+        String::new()
+    } else {
+        format!(
+            r#"<img src="{}" alt="" loading="lazy" class="product-detail-pic"/>"#,
+            esc(&pic_url(&p.pic))
+        )
+    };
+    let reserve = if detail.can_reserve {
+        r#"<div class="product-reserve-placeholder" data-reserve="1">Reservasi — pilih tanggal di aplikasi (segera).</div>"#
+    } else {
+        ""
+    };
+    let body = format!(
+        r#"<article class="product-detail" data-pid="{pid}">{img}<h1>{name}</h1><p>{desc}</p><p class="price">{price_str}</p>{reserve}<button type="button" class="guest-add-btn" onclick="c35GuestCart.add({pid}, '{name_esc}', {price_num}, '{pic_esc}')">+ Pesan</button></article>"#,
+        pid = p.product_id,
+        img = img,
+        name = esc(&p.name),
+        desc = esc(&p.desc),
+        price_str = esc(&format_currency(p.price)),
+        reserve = reserve,
+        name_esc = esc_js(&p.name),
+        price_num = p.price,
+        pic_esc = esc_js(&pic_url(&p.pic)),
+    );
+    let html = format!(
+        r#"<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>{} — {}</title><link rel="stylesheet" href="/static/site-guest/site-guest.v1.css"/><style>:root{{--accent:#2563eb}}body{{margin:0;font-family:system-ui,sans-serif;background:#fafafa}}.wrap{{max-width:720px;margin:0 auto;padding:24px 16px}}</style></head><body><main class="wrap">{body}</main>{client_js}</body></html>"#,
+        esc(&p.name),
+        esc(site_name),
+        body = body,
+        client_js = guest_client_assets(site_iid)
+    );
+    Ok(Some(html))
+}
 
-  window.c35GuestCart = {{
-    items: [],
-    init() {{
-      try {{
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) this.items = JSON.parse(raw) || [];
-      }} catch (e) {{ this.items = []; }}
-      this.render();
-    }},
-    save() {{
-      try {{ localStorage.setItem(STORAGE_KEY, JSON.stringify(this.items)); }} catch (e) {{}}
-      this.render();
-    }},
-    add(pid, name, price, pic) {{
-      const found = this.items.find(i => i.pid === pid);
-      if (found) {{
-        found.qty += 1;
-      }} else {{
-        this.items.push({{ pid, name, price, pic, qty: 1, note: '' }});
-      }}
-      this.save();
-      showToast('"' + name + '" ditambahkan ke keranjang');
-    }},
-    updateQty(pid, delta) {{
-      const idx = this.items.findIndex(i => i.pid === pid);
-      if (idx >= 0) {{
-        this.items[idx].qty += delta;
-        if (this.items[idx].qty <= 0) {{
-          this.items.splice(idx, 1);
-        }}
-        this.save();
-        this.renderModal();
-      }}
-    }},
-    clear() {{
-      this.items = [];
-      this.save();
-    }},
-    count() {{
-      return this.items.reduce((acc, i) => acc + (i.qty || 0), 0);
-    }},
-    total() {{
-      return this.items.reduce((acc, i) => acc + ((i.price || 0) * (i.qty || 0)), 0);
-    }},
-    render() {{
-      const bar = document.getElementById('c35-guest-cart-bar');
-      const countEl = document.getElementById('c35-cart-count');
-      const totalEl = document.getElementById('c35-cart-total');
-      if (!bar) return;
-      const count = this.count();
-      if (count > 0) {{
-        bar.style.display = 'flex';
-        if (countEl) countEl.textContent = count;
-        if (totalEl) totalEl.textContent = formatIdr(this.total());
-      }} else {{
-        bar.style.display = 'none';
-      }}
-    }},
-    openModal() {{
-      const modal = document.getElementById('c35-guest-modal');
-      if (!modal) return;
-      this.renderModal();
-      modal.style.display = 'flex';
-    }},
-    closeModal() {{
-      const modal = document.getElementById('c35-guest-modal');
-      if (modal) modal.style.display = 'none';
-    }},
-    renderModal() {{
-      const content = document.getElementById('c35-modal-content');
-      if (!content) return;
-      if (this.items.length === 0) {{
-        content.innerHTML = '<div class="guest-sheet-head"><h3>Keranjang Pesanan</h3><button type="button" class="guest-close-btn" onclick="c35GuestCart.closeModal()">&times;</button></div><p style="text-align:center;color:#666;padding:24px 0;">Keranjang belanja Anda masih kosong.</p>';
-        return;
-      }}
-      let listHtml = '';
-      for (const item of this.items) {{
-        listHtml += '<div class="guest-cart-item"><div><div class="guest-item-title">' + item.name + '</div><div class="guest-item-price">' + formatIdr(item.price) + ' &times; ' + item.qty + ' = <strong>' + formatIdr(item.price * item.qty) + '</strong></div></div><div class="guest-qty-stepper"><button type="button" class="guest-qty-btn" onclick="c35GuestCart.updateQty(' + item.pid + ', -1)">−</button><span>' + item.qty + '</span><button type="button" class="guest-qty-btn" onclick="c35GuestCart.updateQty(' + item.pid + ', 1)">+</button></div></div>';
-      }}
-      content.innerHTML = '<div class="guest-sheet-head"><h3>Checkout Pesanan</h3><button type="button" class="guest-close-btn" onclick="c35GuestCart.closeModal()">&times;</button></div><div class="guest-cart-list">' + listHtml + '</div><div style="display:flex;justify-content:space-between;font-weight:700;font-size:15px;padding-top:8px;border-top:1px solid #eee;"><span>Total</span><span style="color:var(--accent);">' + formatIdr(this.total()) + '</span></div><form onsubmit="event.preventDefault(); c35GuestCart.submitOrder(this);" style="display:flex;flex-direction:column;gap:12px;"><div class="guest-field"><label>Nama Pemesan *</label><input type="text" name="customer_name" required placeholder="Nama Anda" /></div><div class="guest-field"><label>No. WhatsApp / HP *</label><input type="tel" name="customer_phone" required placeholder="08..." /></div><div class="guest-field"><label>Meja / Kamar / Alamat (opsional)</label><input type="text" name="fulfillment_info" placeholder="Contoh: Meja 3 / Kamar 12 / Takeaway" /></div><div class="guest-field"><label>Metode Pembayaran</label><select name="payment_method"><option value="cash">Bayar di Tempat / Kasir (Cash)</option><option value="qris">QRIS</option><option value="transfer">Transfer Bank</option></select></div><div class="guest-field"><label>Catatan Pesanan</label><input type="text" name="note" placeholder="Contoh: Jangan terlalu manis, es dipisah" /></div><button type="submit" class="guest-submit-btn" id="c35-btn-submit-order">Kirim Pesanan (' + formatIdr(this.total()) + ')</button></form>';
-    }},
-    async submitOrder(form) {{
-      const btn = document.getElementById('c35-btn-submit-order');
-      if (btn) {{ btn.disabled = true; btn.textContent = 'Memproses Pesanan…'; }}
-      const fd = new FormData(form);
-      const name = fd.get('customer_name') || '';
-      const phone = fd.get('customer_phone') || '';
-      const fulfillment = fd.get('fulfillment_info') || '';
-      const payMethod = fd.get('payment_method') || 'cash';
-      const note = fd.get('note') || '';
-
-      const totalAmount = this.total();
-      const payload = {{
-        site_iid: SITE_IID,
-        customer_name: name,
-        customer_phone: phone,
-        note: (note ? note + ' ' : '') + (fulfillment ? '[' + fulfillment + ']' : ''),
-        tx: {{
-          site_iid: SITE_IID,
-          type: 'sale',
-          state: 'pending',
-          total: totalAmount,
-          customer_name: name,
-          customer_phone: phone,
-          note: note,
-          items: this.items.map(i => ({{
-            product_id: i.pid,
-            name: i.name,
-            price: i.price,
-            qty: i.qty,
-            subtotal: i.price * i.qty,
-            note: i.note || ''
-          }})),
-          payments: [{{
-            method: payMethod,
-            amount: totalAmount
-          }}]
-        }}
-      }};
-
-      const apiBase = (location.hostname === 'alienai.id' || location.hostname.endsWith('.alienai.id'))
-        ? 'https://api.alienai.id'
-        : '';
-      const targetUrl = apiBase + '/v1/site/guest-order/put';
-
-      try {{
-        const resp = await fetch(targetUrl, {{
-          method: 'POST',
-          headers: {{ 'Content-Type': 'application/json' }},
-          body: JSON.stringify(payload)
-        }});
-        if (!resp.ok) {{
-          const errText = await resp.text();
-          throw new Error(errText || 'Gagal memproses pesanan');
-        }}
-        const resData = await resp.json();
-        const txId = resData && resData.tx ? (resData.tx.tx_id || resData.tx.id) : '';
-        this.clear();
-        this.renderReceipt(txId, name, totalAmount, payMethod);
-      }} catch (err) {{
-        alert('Gagal mengirim pesanan: ' + err.message);
-        if (btn) {{ btn.disabled = false; btn.textContent = 'Kirim Pesanan'; }}
-      }}
-    }},
-    renderReceipt(txId, name, total, payMethod) {{
-      const content = document.getElementById('c35-modal-content');
-      if (!content) return;
-      content.innerHTML = '<div class="guest-sheet-head"><h3>Pesanan Berhasil! 🎉</h3><button type="button" class="guest-close-btn" onclick="c35GuestCart.closeModal()">&times;</button></div><div style="text-align:center;padding:16px 0;"><div style="font-size:42px;margin-bottom:8px;">✅</div><h4 style="margin:0 0 6px;font-size:17px;">Terima kasih, ' + name + '!</h4><p style="color:#666;font-size:13px;margin:0 0 16px;">Pesanan Anda telah kami terima dan sedang diproses.</p><div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:14px;text-align:left;font-size:13px;display:flex;flex-direction:column;gap:6px;">' + (txId ? '<div><strong>No. Pesanan:</strong> #' + txId + '</div>' : '') + '<div><strong>Total Pembayaran:</strong> ' + formatIdr(total) + '</div><div><strong>Metode:</strong> ' + payMethod.toUpperCase() + '</div><div><strong>Status:</strong> Menunggu Konfirmasi Toko</div></div></div><button type="button" class="guest-submit-btn" onclick="c35GuestCart.closeModal()">Tutup</button>';
-    }}
-  }};
-
-  window.c35GuestLead = {{
-    async submit(form) {{
-      const btn = form.querySelector('button[type="submit"]');
-      if (btn) {{ btn.disabled = true; btn.textContent = 'Mengirim…'; }}
-      const fd = new FormData(form);
-      const name = fd.get('name') || '';
-      const contact = fd.get('contact') || '';
-      const message = fd.get('message') || '';
-
-      const payload = {{
-        site_iid: SITE_IID,
-        name: name,
-        contact_val: contact,
-        message: message
-      }};
-
-      const apiBase = (location.hostname === 'alienai.id' || location.hostname.endsWith('.alienai.id'))
-        ? 'https://api.alienai.id'
-        : '';
-      const targetUrl = apiBase + '/v1/site/guest-contact/put';
-
-      try {{
-        const resp = await fetch(targetUrl, {{
-          method: 'POST',
-          headers: {{ 'Content-Type': 'application/json' }},
-          body: JSON.stringify(payload)
-        }});
-        if (!resp.ok) {{
-          const errText = await resp.text();
-          throw new Error(errText || 'Gagal mengirim pesan');
-        }}
-        form.reset();
-        showToast('Terima kasih! Pesan Anda telah kami terima.');
-        if (btn) {{ btn.disabled = false; btn.textContent = 'Terkirim ✓'; }}
-      }} catch (err) {{
-        alert('Gagal mengirim pesan: ' + err.message);
-        if (btn) {{ btn.disabled = false; btn.textContent = 'Kirim Pesan'; }}
-      }}
-    }}
-  }};
-
-  document.addEventListener('DOMContentLoaded', () => {{
-    c35GuestCart.init();
-  }});
-  if (document.readyState === 'interactive' || document.readyState === 'complete') {{
-    c35GuestCart.init();
-  }}
-}})();
-</script>"#, site_iid = site_iid)
+pub async fn post_detail_html_render(
+    pool: &PgPool,
+    site_iid: i64,
+    post_id: i64,
+    site_name: &str,
+) -> Result<Option<String>> {
+    let post = site_post_get_storefront(pool, site_iid, post_id).await?;
+    let post = match post {
+        Some(p) => p,
+        None => return Ok(None),
+    };
+    let thumb = if post.thumb.is_empty() {
+        String::new()
+    } else {
+        format!(
+            r#"<img src="{}" alt="" loading="lazy" class="post-thumb"/>"#,
+            esc(&pic_url(&post.thumb))
+        )
+    };
+    let body_text = if post.body.is_empty() {
+        String::new()
+    } else {
+        format!(
+            r#"<div class="post-body">{}</div>"#,
+            esc(&post.body).replace('\n', "<br/>")
+        )
+    };
+    let caption = if post.caption.is_empty() {
+        String::new()
+    } else {
+        format!(r#"<p class="post-caption">{}</p>"#, esc(&post.caption))
+    };
+    let article = format!(
+        r#"<article class="social-post" data-guest="social_post" data-post-id="{pid}">{thumb}<h1>{title}</h1>{caption}{body}</article>"#,
+        pid = post.post_id,
+        thumb = thumb,
+        title = esc(&post.title),
+        caption = caption,
+        body = body_text
+    );
+    let html = format!(
+        r#"<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>{} — {}</title><link rel="stylesheet" href="/static/site-guest/site-guest.v1.css"/><style>:root{{--accent:#2563eb}}body{{margin:0;font-family:system-ui,sans-serif;background:#fafafa}}.wrap{{max-width:720px;margin:0 auto;padding:24px 16px}}</style></head><body><main class="wrap">{body}</main>{client_js}</body></html>"#,
+        esc(&post.title),
+        esc(site_name),
+        body = article,
+        client_js = guest_client_assets(site_iid)
+    );
+    Ok(Some(html))
 }
 
 pub async fn publish_doc_render(
@@ -851,6 +812,18 @@ pub async fn publish_doc_render(
         let html = page_html_render(pool, site_iid, &doc, "/", site_name).await?;
         out.push(("html:/".into(), html));
     }
+    let product_ids = guest_product_sell_ids(pool, site_iid, 200).await?;
+    for product_id in product_ids {
+        if let Some(html) = product_detail_html_render(pool, site_iid, product_id, site_name).await? {
+            out.push((format!("html:/products/{}", product_id), html));
+        }
+    }
+    let post_ids = crate::site_post::site_post_storefront_ids(pool, site_iid).await?;
+    for post_id in post_ids {
+        if let Some(html) = post_detail_html_render(pool, site_iid, post_id, site_name).await? {
+            out.push((format!("html:/posts/{}", post_id), html));
+        }
+    }
     Ok(out)
 }
 
@@ -860,8 +833,7 @@ pub fn render_etag(html: &str) -> String {
 
 pub fn render_offline_html(name: &str) -> String {
     format!(
-        r#"<!DOCTYPE html><html><head><meta charset="utf-8"/><title>{}</title></head><body><main style="font-family:system-ui;text-align:center;padding:48px"><h1>{}</h1><p>This site is not published yet.</p></main></body></html>"#,
-        esc(name),
-        esc(name)
+        r#"<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>{title} — AlienAI</title><style>:root{{--accent:#F97316}}body{{margin:0;font-family:system-ui,sans-serif;background:#fafafa;color:#111}}main{{max-width:480px;margin:0 auto;text-align:center;padding:48px 24px}}h1{{color:var(--accent)}}</style></head><body><main><h1>{title}</h1><p>This site is not published yet.</p><p style="color:#666;font-size:13px">Powered by AlienAI</p></main></body></html>"#,
+        title = esc(name)
     )
 }

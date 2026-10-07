@@ -845,6 +845,82 @@ final $typed_data.Uint8List resChatHistoryClearDescriptor = $convert.base64Decod
     'ChNSZXNDaGF0SGlzdG9yeUNsZWFyEiEKDG1zZ3NfZGVsZXRlZBgBIAEoBVILbXNnc0RlbGV0ZW'
     'QSJQoOY2hhdHNfYWZmZWN0ZWQYAiABKAVSDWNoYXRzQWZmZWN0ZWQ=');
 
+@$core.Deprecated('Use userMemoryDescriptor instead')
+const UserMemory$json = {
+  '1': 'UserMemory',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 3, '10': 'id'},
+    {'1': 'owner_iid', '3': 2, '4': 1, '5': 3, '10': 'ownerIid'},
+    {'1': 'bot_iid', '3': 3, '4': 1, '5': 3, '10': 'botIid'},
+    {'1': 'category', '3': 4, '4': 1, '5': 9, '10': 'category'},
+    {'1': 'key', '3': 5, '4': 1, '5': 9, '10': 'key'},
+    {'1': 'content', '3': 6, '4': 1, '5': 9, '10': 'content'},
+    {'1': 'confidence', '3': 7, '4': 1, '5': 1, '10': 'confidence'},
+  ],
+};
+
+/// Descriptor for `UserMemory`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List userMemoryDescriptor = $convert.base64Decode(
+    'CgpVc2VyTWVtb3J5Eg4KAmlkGAEgASgDUgJpZBIbCglvd25lcl9paWQYAiABKANSCG93bmVySW'
+    'lkEhcKB2JvdF9paWQYAyABKANSBmJvdElpZBIaCghjYXRlZ29yeRgEIAEoCVIIY2F0ZWdvcnkS'
+    'EAoDa2V5GAUgASgJUgNrZXkSGAoHY29udGVudBgGIAEoCVIHY29udGVudBIeCgpjb25maWRlbm'
+    'NlGAcgASgBUgpjb25maWRlbmNl');
+
+@$core.Deprecated('Use reqMemoryListDescriptor instead')
+const ReqMemoryList$json = {
+  '1': 'ReqMemoryList',
+  '2': [
+    {'1': 'limit', '3': 1, '4': 1, '5': 5, '10': 'limit'},
+  ],
+};
+
+/// Descriptor for `ReqMemoryList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqMemoryListDescriptor = $convert
+    .base64Decode('Cg1SZXFNZW1vcnlMaXN0EhQKBWxpbWl0GAEgASgFUgVsaW1pdA==');
+
+@$core.Deprecated('Use resMemoryListDescriptor instead')
+const ResMemoryList$json = {
+  '1': 'ResMemoryList',
+  '2': [
+    {
+      '1': 'items',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.UserMemory',
+      '10': 'items'
+    },
+  ],
+};
+
+/// Descriptor for `ResMemoryList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resMemoryListDescriptor = $convert.base64Decode(
+    'Cg1SZXNNZW1vcnlMaXN0EiUKBWl0ZW1zGAEgAygLMg8uYzM1LlVzZXJNZW1vcnlSBWl0ZW1z');
+
+@$core.Deprecated('Use reqMemoryDeleteDescriptor instead')
+const ReqMemoryDelete$json = {
+  '1': 'ReqMemoryDelete',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 3, '10': 'id'},
+  ],
+};
+
+/// Descriptor for `ReqMemoryDelete`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqMemoryDeleteDescriptor =
+    $convert.base64Decode('Cg9SZXFNZW1vcnlEZWxldGUSDgoCaWQYASABKANSAmlk');
+
+@$core.Deprecated('Use resMemoryDeleteDescriptor instead')
+const ResMemoryDelete$json = {
+  '1': 'ResMemoryDelete',
+  '2': [
+    {'1': 'ok', '3': 1, '4': 1, '5': 8, '10': 'ok'},
+  ],
+};
+
+/// Descriptor for `ResMemoryDelete`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resMemoryDeleteDescriptor =
+    $convert.base64Decode('Cg9SZXNNZW1vcnlEZWxldGUSDgoCb2sYASABKAhSAm9r');
+
 @$core.Deprecated('Use reqChatDeviceContextListDescriptor instead')
 const ReqChatDeviceContextList$json = {
   '1': 'ReqChatDeviceContextList',

@@ -82,6 +82,8 @@ Entries in `triggers[]`:
 | `always` | `kind=trigger` — applies every turn (platform baseline) |
 | `mention:<id>` | Match when mention id present |
 | `topic:<id>` | Match when topic id active |
+| `model:alienai` | Home compose adds signal when wire model is Alien pool (`alienai`, `auto`, …) — see `inst.pool.alien` |
+| `model:frontier` | Home compose adds signal for pinned / Frontier catalog models — see `inst.pool.frontier` |
 
 `mention:talk` is set from `ReqPrompt.talk` for the in-memory inst match only. It is not a user-visible mention and is not stored on the user message.
 
@@ -108,11 +110,12 @@ Applies when Home sends from the Talk surface (`ReqPrompt.talk = true`). `prompt
 | `inst.site.catalog.price` | task | harga, price, berapa harga, how much is | `site.query.run` |
 | `inst.site.price_compare` | task | reasonable, kemahalan, harga pasaran, too expensive, my price, harga saya, compare to the web, bandingkan harga | `site.query.run` |
 | `inst.site.catalog.write` | task | ubah harga, ganti harga, change price, set price, update price, ubah stok, change stock | `site.product.patch` |
+| `inst.site.catalog.add` | task | tambah produk, add product, produk baru, … | `site.product_put`, `site.create` |
 
 Steering detail: [site-ai.md](site-ai.md).
 
 - Compare / report: when `[SITE CONTEXTS]` is present, pass those sites. When it is absent, omit `site_iids` so the server aggregates every granted site.
-- Catalog: `inst.site.catalog.stock` is stock lookup, `inst.site.catalog.price` is price lookup, `inst.site.price_compare` is store-vs-web price compare, and `inst.site.catalog.write` patches price or stock. Inst tells the model to call the tool and to ask when a write returns `ambiguous`. Inst does not pick a site and does not invent an `@site` mention. A price lookup checks `product.stock` before `web.search` and stops when the store has the product. A vs-market question (reasonable, kemahalan, harga pasaran) still runs `web.search` after the store price is known. Stock questions do not fall through to the web. `inst.web_search` still owns `harga` for callers with no site.
+- Catalog: `inst.site.catalog.stock` is stock lookup, `inst.site.catalog.price` is price lookup, `inst.site.price_compare` is store-vs-web price compare, `inst.site.catalog.write` patches price or stock, and `inst.site.catalog.add` adds a new catalog row via `site.product_put` (confirm site when one site; create site when none; ask which site when several). Inst does not pick a site and does not invent an `@site` mention. A price lookup checks `product.stock` before `web.search` and stops when the store has the product. A vs-market question (reasonable, kemahalan, harga pasaran) still runs `web.search` after the store price is known. Stock questions do not fall through to the web. `inst.web_search` still owns `harga` for callers with no site.
 
 ### Bot draft (`inst.bot.draft`)
 

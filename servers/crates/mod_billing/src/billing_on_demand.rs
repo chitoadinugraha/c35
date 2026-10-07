@@ -58,7 +58,7 @@ pub fn gate_can_start(
     hold_native: f64,
 ) -> bool {
     if hold_native <= 0.0 {
-        return allowance_rem > 0.0 || balance_native > 0.0 || held_native > 0.0;
+        return allowance_rem > 0.0 || wallet_available_native(balance_native, held_native) > 0.0;
     }
     wallet_available_native(balance_native, held_native) >= hold_native
 }

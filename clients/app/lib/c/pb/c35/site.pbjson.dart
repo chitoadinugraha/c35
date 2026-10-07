@@ -15,6 +15,21 @@ import 'dart:convert' as $convert;
 import 'dart:core' as $core;
 import 'dart:typed_data' as $typed_data;
 
+@$core.Deprecated('Use siteBootModeDescriptor instead')
+const SiteBootMode$json = {
+  '1': 'SiteBootMode',
+  '2': [
+    {'1': 'SITE_BOOT_MODE_UNSPECIFIED', '2': 0},
+    {'1': 'SITE_BOOT_MODE_DRAFT', '2': 1},
+    {'1': 'SITE_BOOT_MODE_PUBLISHED', '2': 2},
+  ],
+};
+
+/// Descriptor for `SiteBootMode`. Decode as a `google.protobuf.EnumDescriptorProto`.
+final $typed_data.Uint8List siteBootModeDescriptor = $convert.base64Decode(
+    'CgxTaXRlQm9vdE1vZGUSHgoaU0lURV9CT09UX01PREVfVU5TUEVDSUZJRUQQABIYChRTSVRFX0'
+    'JPT1RfTU9ERV9EUkFGVBABEhwKGFNJVEVfQk9PVF9NT0RFX1BVQkxJU0hFRBAC');
+
 @$core.Deprecated('Use siteBlockDescriptor instead')
 const SiteBlock$json = {
   '1': 'SiteBlock',
@@ -307,6 +322,64 @@ final $typed_data.Uint8List siteContactDescriptor = $convert.base64Decode(
     'dmVkGAkgASgIUgppc0FyY2hpdmVkEiIKDWNyZWF0ZWRfdHNfbXMYFCABKANSC2NyZWF0ZWRUc0'
     '1zEiIKDXVwZGF0ZWRfdHNfbXMYFSABKANSC3VwZGF0ZWRUc01zEiIKDWRlbGV0ZWRfdHNfbXMY'
     'FiABKANSC2RlbGV0ZWRUc01z');
+
+@$core.Deprecated('Use siteLinkDescriptor instead')
+const SiteLink$json = {
+  '1': 'SiteLink',
+  '2': [
+    {'1': 'site_iid', '3': 1, '4': 1, '5': 3, '10': 'siteIid'},
+    {'1': 'link_id', '3': 2, '4': 1, '5': 3, '10': 'linkId'},
+    {'1': 'sort_order', '3': 3, '4': 1, '5': 5, '10': 'sortOrder'},
+    {'1': 'label', '3': 4, '4': 1, '5': 9, '10': 'label'},
+    {'1': 'url', '3': 5, '4': 1, '5': 9, '10': 'url'},
+    {'1': 'icon', '3': 6, '4': 1, '5': 9, '10': 'icon'},
+    {'1': 'is_pinned', '3': 7, '4': 1, '5': 8, '10': 'isPinned'},
+    {'1': 'active', '3': 8, '4': 1, '5': 8, '10': 'active'},
+    {'1': 'created_ts_ms', '3': 20, '4': 1, '5': 3, '10': 'createdTsMs'},
+    {'1': 'updated_ts_ms', '3': 21, '4': 1, '5': 3, '10': 'updatedTsMs'},
+    {'1': 'deleted_ts_ms', '3': 22, '4': 1, '5': 3, '10': 'deletedTsMs'},
+  ],
+};
+
+/// Descriptor for `SiteLink`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List siteLinkDescriptor = $convert.base64Decode(
+    'CghTaXRlTGluaxIZCghzaXRlX2lpZBgBIAEoA1IHc2l0ZUlpZBIXCgdsaW5rX2lkGAIgASgDUg'
+    'ZsaW5rSWQSHQoKc29ydF9vcmRlchgDIAEoBVIJc29ydE9yZGVyEhQKBWxhYmVsGAQgASgJUgVs'
+    'YWJlbBIQCgN1cmwYBSABKAlSA3VybBISCgRpY29uGAYgASgJUgRpY29uEhsKCWlzX3Bpbm5lZB'
+    'gHIAEoCFIIaXNQaW5uZWQSFgoGYWN0aXZlGAggASgIUgZhY3RpdmUSIgoNY3JlYXRlZF90c19t'
+    'cxgUIAEoA1ILY3JlYXRlZFRzTXMSIgoNdXBkYXRlZF90c19tcxgVIAEoA1ILdXBkYXRlZFRzTX'
+    'MSIgoNZGVsZXRlZF90c19tcxgWIAEoA1ILZGVsZXRlZFRzTXM=');
+
+@$core.Deprecated('Use sitePostDescriptor instead')
+const SitePost$json = {
+  '1': 'SitePost',
+  '2': [
+    {'1': 'site_iid', '3': 1, '4': 1, '5': 3, '10': 'siteIid'},
+    {'1': 'post_id', '3': 2, '4': 1, '5': 3, '10': 'postId'},
+    {'1': 'sort_order', '3': 3, '4': 1, '5': 5, '10': 'sortOrder'},
+    {'1': 'title', '3': 4, '4': 1, '5': 9, '10': 'title'},
+    {'1': 'caption', '3': 5, '4': 1, '5': 9, '10': 'caption'},
+    {'1': 'body', '3': 6, '4': 1, '5': 9, '10': 'body'},
+    {'1': 'media_json', '3': 7, '4': 1, '5': 9, '10': 'mediaJson'},
+    {'1': 'on_storefront', '3': 8, '4': 1, '5': 8, '10': 'onStorefront'},
+    {'1': 'thumb', '3': 9, '4': 1, '5': 9, '10': 'thumb'},
+    {'1': 'feed_kind', '3': 10, '4': 1, '5': 9, '10': 'feedKind'},
+    {'1': 'created_ts_ms', '3': 20, '4': 1, '5': 3, '10': 'createdTsMs'},
+    {'1': 'updated_ts_ms', '3': 21, '4': 1, '5': 3, '10': 'updatedTsMs'},
+    {'1': 'deleted_ts_ms', '3': 22, '4': 1, '5': 3, '10': 'deletedTsMs'},
+  ],
+};
+
+/// Descriptor for `SitePost`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List sitePostDescriptor = $convert.base64Decode(
+    'CghTaXRlUG9zdBIZCghzaXRlX2lpZBgBIAEoA1IHc2l0ZUlpZBIXCgdwb3N0X2lkGAIgASgDUg'
+    'Zwb3N0SWQSHQoKc29ydF9vcmRlchgDIAEoBVIJc29ydE9yZGVyEhQKBXRpdGxlGAQgASgJUgV0'
+    'aXRsZRIYCgdjYXB0aW9uGAUgASgJUgdjYXB0aW9uEhIKBGJvZHkYBiABKAlSBGJvZHkSHQoKbW'
+    'VkaWFfanNvbhgHIAEoCVIJbWVkaWFKc29uEiMKDW9uX3N0b3JlZnJvbnQYCCABKAhSDG9uU3Rv'
+    'cmVmcm9udBIUCgV0aHVtYhgJIAEoCVIFdGh1bWISGwoJZmVlZF9raW5kGAogASgJUghmZWVkS2'
+    'luZBIiCg1jcmVhdGVkX3RzX21zGBQgASgDUgtjcmVhdGVkVHNNcxIiCg11cGRhdGVkX3RzX21z'
+    'GBUgASgDUgt1cGRhdGVkVHNNcxIiCg1kZWxldGVkX3RzX21zGBYgASgDUgtkZWxldGVkVHNNcw'
+    '==');
 
 @$core.Deprecated('Use siteObjectDescriptor instead')
 const SiteObject$json = {
@@ -678,6 +751,176 @@ const ResSiteContactPut$json = {
 final $typed_data.Uint8List resSiteContactPutDescriptor = $convert.base64Decode(
     'ChFSZXNTaXRlQ29udGFjdFB1dBIdCgpjb250YWN0X2lkGAEgASgDUgljb250YWN0SWQ=');
 
+@$core.Deprecated('Use reqSiteLinkListDescriptor instead')
+const ReqSiteLinkList$json = {
+  '1': 'ReqSiteLinkList',
+  '2': [
+    {'1': 'site_iid', '3': 1, '4': 1, '5': 3, '10': 'siteIid'},
+  ],
+};
+
+/// Descriptor for `ReqSiteLinkList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqSiteLinkListDescriptor = $convert.base64Decode(
+    'Cg9SZXFTaXRlTGlua0xpc3QSGQoIc2l0ZV9paWQYASABKANSB3NpdGVJaWQ=');
+
+@$core.Deprecated('Use resSiteLinkListDescriptor instead')
+const ResSiteLinkList$json = {
+  '1': 'ResSiteLinkList',
+  '2': [
+    {
+      '1': 'links',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.SiteLink',
+      '10': 'links'
+    },
+  ],
+};
+
+/// Descriptor for `ResSiteLinkList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resSiteLinkListDescriptor = $convert.base64Decode(
+    'Cg9SZXNTaXRlTGlua0xpc3QSIwoFbGlua3MYASADKAsyDS5jMzUuU2l0ZUxpbmtSBWxpbmtz');
+
+@$core.Deprecated('Use reqSiteLinkPutDescriptor instead')
+const ReqSiteLinkPut$json = {
+  '1': 'ReqSiteLinkPut',
+  '2': [
+    {'1': 'site_iid', '3': 1, '4': 1, '5': 3, '10': 'siteIid'},
+    {'1': 'link', '3': 2, '4': 1, '5': 11, '6': '.c35.SiteLink', '10': 'link'},
+  ],
+};
+
+/// Descriptor for `ReqSiteLinkPut`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqSiteLinkPutDescriptor = $convert.base64Decode(
+    'Cg5SZXFTaXRlTGlua1B1dBIZCghzaXRlX2lpZBgBIAEoA1IHc2l0ZUlpZBIhCgRsaW5rGAIgAS'
+    'gLMg0uYzM1LlNpdGVMaW5rUgRsaW5r');
+
+@$core.Deprecated('Use resSiteLinkPutDescriptor instead')
+const ResSiteLinkPut$json = {
+  '1': 'ResSiteLinkPut',
+  '2': [
+    {'1': 'link_id', '3': 1, '4': 1, '5': 3, '10': 'linkId'},
+  ],
+};
+
+/// Descriptor for `ResSiteLinkPut`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resSiteLinkPutDescriptor = $convert
+    .base64Decode('Cg5SZXNTaXRlTGlua1B1dBIXCgdsaW5rX2lkGAEgASgDUgZsaW5rSWQ=');
+
+@$core.Deprecated('Use reqSiteLinkDeleteDescriptor instead')
+const ReqSiteLinkDelete$json = {
+  '1': 'ReqSiteLinkDelete',
+  '2': [
+    {'1': 'site_iid', '3': 1, '4': 1, '5': 3, '10': 'siteIid'},
+    {'1': 'link_id', '3': 2, '4': 1, '5': 3, '10': 'linkId'},
+  ],
+};
+
+/// Descriptor for `ReqSiteLinkDelete`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqSiteLinkDeleteDescriptor = $convert.base64Decode(
+    'ChFSZXFTaXRlTGlua0RlbGV0ZRIZCghzaXRlX2lpZBgBIAEoA1IHc2l0ZUlpZBIXCgdsaW5rX2'
+    'lkGAIgASgDUgZsaW5rSWQ=');
+
+@$core.Deprecated('Use resSiteLinkDeleteDescriptor instead')
+const ResSiteLinkDelete$json = {
+  '1': 'ResSiteLinkDelete',
+  '2': [
+    {'1': 'link_id', '3': 1, '4': 1, '5': 3, '10': 'linkId'},
+    {'1': 'ok', '3': 2, '4': 1, '5': 8, '10': 'ok'},
+  ],
+};
+
+/// Descriptor for `ResSiteLinkDelete`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resSiteLinkDeleteDescriptor = $convert.base64Decode(
+    'ChFSZXNTaXRlTGlua0RlbGV0ZRIXCgdsaW5rX2lkGAEgASgDUgZsaW5rSWQSDgoCb2sYAiABKA'
+    'hSAm9r');
+
+@$core.Deprecated('Use reqSitePostListDescriptor instead')
+const ReqSitePostList$json = {
+  '1': 'ReqSitePostList',
+  '2': [
+    {'1': 'site_iid', '3': 1, '4': 1, '5': 3, '10': 'siteIid'},
+  ],
+};
+
+/// Descriptor for `ReqSitePostList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqSitePostListDescriptor = $convert.base64Decode(
+    'Cg9SZXFTaXRlUG9zdExpc3QSGQoIc2l0ZV9paWQYASABKANSB3NpdGVJaWQ=');
+
+@$core.Deprecated('Use resSitePostListDescriptor instead')
+const ResSitePostList$json = {
+  '1': 'ResSitePostList',
+  '2': [
+    {
+      '1': 'posts',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.SitePost',
+      '10': 'posts'
+    },
+  ],
+};
+
+/// Descriptor for `ResSitePostList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resSitePostListDescriptor = $convert.base64Decode(
+    'Cg9SZXNTaXRlUG9zdExpc3QSIwoFcG9zdHMYASADKAsyDS5jMzUuU2l0ZVBvc3RSBXBvc3Rz');
+
+@$core.Deprecated('Use reqSitePostPutDescriptor instead')
+const ReqSitePostPut$json = {
+  '1': 'ReqSitePostPut',
+  '2': [
+    {'1': 'site_iid', '3': 1, '4': 1, '5': 3, '10': 'siteIid'},
+    {'1': 'post', '3': 2, '4': 1, '5': 11, '6': '.c35.SitePost', '10': 'post'},
+  ],
+};
+
+/// Descriptor for `ReqSitePostPut`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqSitePostPutDescriptor = $convert.base64Decode(
+    'Cg5SZXFTaXRlUG9zdFB1dBIZCghzaXRlX2lpZBgBIAEoA1IHc2l0ZUlpZBIhCgRwb3N0GAIgAS'
+    'gLMg0uYzM1LlNpdGVQb3N0UgRwb3N0');
+
+@$core.Deprecated('Use resSitePostPutDescriptor instead')
+const ResSitePostPut$json = {
+  '1': 'ResSitePostPut',
+  '2': [
+    {'1': 'post_id', '3': 1, '4': 1, '5': 3, '10': 'postId'},
+  ],
+};
+
+/// Descriptor for `ResSitePostPut`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resSitePostPutDescriptor = $convert
+    .base64Decode('Cg5SZXNTaXRlUG9zdFB1dBIXCgdwb3N0X2lkGAEgASgDUgZwb3N0SWQ=');
+
+@$core.Deprecated('Use reqSitePostDeleteDescriptor instead')
+const ReqSitePostDelete$json = {
+  '1': 'ReqSitePostDelete',
+  '2': [
+    {'1': 'site_iid', '3': 1, '4': 1, '5': 3, '10': 'siteIid'},
+    {'1': 'post_id', '3': 2, '4': 1, '5': 3, '10': 'postId'},
+  ],
+};
+
+/// Descriptor for `ReqSitePostDelete`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqSitePostDeleteDescriptor = $convert.base64Decode(
+    'ChFSZXFTaXRlUG9zdERlbGV0ZRIZCghzaXRlX2lpZBgBIAEoA1IHc2l0ZUlpZBIXCgdwb3N0X2'
+    'lkGAIgASgDUgZwb3N0SWQ=');
+
+@$core.Deprecated('Use resSitePostDeleteDescriptor instead')
+const ResSitePostDelete$json = {
+  '1': 'ResSitePostDelete',
+  '2': [
+    {'1': 'post_id', '3': 1, '4': 1, '5': 3, '10': 'postId'},
+    {'1': 'ok', '3': 2, '4': 1, '5': 8, '10': 'ok'},
+  ],
+};
+
+/// Descriptor for `ResSitePostDelete`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resSitePostDeleteDescriptor = $convert.base64Decode(
+    'ChFSZXNTaXRlUG9zdERlbGV0ZRIXCgdwb3N0X2lkGAEgASgDUgZwb3N0SWQSDgoCb2sYAiABKA'
+    'hSAm9r');
+
 @$core.Deprecated('Use reqSiteObjectListDescriptor instead')
 const ReqSiteObjectList$json = {
   '1': 'ReqSiteObjectList',
@@ -859,6 +1102,68 @@ final $typed_data.Uint8List resSitePreviewTokenDescriptor = $convert.base64Decod
     'ChNSZXNTaXRlUHJldmlld1Rva2VuEhQKBXRva2VuGAEgASgJUgV0b2tlbhIiCg1leHBpcmVzX3'
     'RzX21zGAIgASgDUgtleHBpcmVzVHNNcw==');
 
+@$core.Deprecated('Use reqSiteHandlePutDescriptor instead')
+const ReqSiteHandlePut$json = {
+  '1': 'ReqSiteHandlePut',
+  '2': [
+    {'1': 'site_iid', '3': 1, '4': 1, '5': 3, '10': 'siteIid'},
+    {'1': 'new_alien_id', '3': 2, '4': 1, '5': 9, '10': 'newAlienId'},
+  ],
+};
+
+/// Descriptor for `ReqSiteHandlePut`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqSiteHandlePutDescriptor = $convert.base64Decode(
+    'ChBSZXFTaXRlSGFuZGxlUHV0EhkKCHNpdGVfaWlkGAEgASgDUgdzaXRlSWlkEiAKDG5ld19hbG'
+    'llbl9pZBgCIAEoCVIKbmV3QWxpZW5JZA==');
+
+@$core.Deprecated('Use resSiteHandlePutDescriptor instead')
+const ResSiteHandlePut$json = {
+  '1': 'ResSiteHandlePut',
+  '2': [
+    {'1': 'site_iid', '3': 1, '4': 1, '5': 3, '10': 'siteIid'},
+    {'1': 'alien_id', '3': 2, '4': 1, '5': 9, '10': 'alienId'},
+    {'1': 'url', '3': 3, '4': 1, '5': 9, '10': 'url'},
+  ],
+};
+
+/// Descriptor for `ResSiteHandlePut`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resSiteHandlePutDescriptor = $convert.base64Decode(
+    'ChBSZXNTaXRlSGFuZGxlUHV0EhkKCHNpdGVfaWlkGAEgASgDUgdzaXRlSWlkEhkKCGFsaWVuX2'
+    'lkGAIgASgJUgdhbGllbklkEhAKA3VybBgDIAEoCVIDdXJs');
+
+@$core.Deprecated('Use reqSiteBootGetDescriptor instead')
+const ReqSiteBootGet$json = {
+  '1': 'ReqSiteBootGet',
+  '2': [
+    {'1': 'site_iid', '3': 1, '4': 1, '5': 3, '10': 'siteIid'},
+    {
+      '1': 'mode',
+      '3': 2,
+      '4': 1,
+      '5': 14,
+      '6': '.c35.SiteBootMode',
+      '10': 'mode'
+    },
+  ],
+};
+
+/// Descriptor for `ReqSiteBootGet`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqSiteBootGetDescriptor = $convert.base64Decode(
+    'Cg5SZXFTaXRlQm9vdEdldBIZCghzaXRlX2lpZBgBIAEoA1IHc2l0ZUlpZBIlCgRtb2RlGAIgAS'
+    'gOMhEuYzM1LlNpdGVCb290TW9kZVIEbW9kZQ==');
+
+@$core.Deprecated('Use resSiteBootGetDescriptor instead')
+const ResSiteBootGet$json = {
+  '1': 'ResSiteBootGet',
+  '2': [
+    {'1': 'boot_json', '3': 1, '4': 1, '5': 9, '10': 'bootJson'},
+  ],
+};
+
+/// Descriptor for `ResSiteBootGet`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resSiteBootGetDescriptor = $convert.base64Decode(
+    'Cg5SZXNTaXRlQm9vdEdldBIbCglib290X2pzb24YASABKAlSCGJvb3RKc29u');
+
 @$core.Deprecated('Use siteQueryRowDescriptor instead')
 const SiteQueryRow$json = {
   '1': 'SiteQueryRow',
@@ -963,3 +1268,61 @@ final $typed_data.Uint8List resSiteGuestContactPutDescriptor =
     $convert.base64Decode(
         'ChZSZXNTaXRlR3Vlc3RDb250YWN0UHV0Eg4KAm9rGAEgASgIUgJvaxIdCgpjb250YWN0X2lkGA'
         'IgASgDUgljb250YWN0SWQSFAoFZXJyb3IYAyABKAlSBWVycm9y');
+
+@$core.Deprecated('Use siteGuestProductItemDescriptor instead')
+const SiteGuestProductItem$json = {
+  '1': 'SiteGuestProductItem',
+  '2': [
+    {'1': 'product_id', '3': 1, '4': 1, '5': 3, '10': 'productId'},
+    {'1': 'name', '3': 2, '4': 1, '5': 9, '10': 'name'},
+    {'1': 'desc', '3': 3, '4': 1, '5': 9, '10': 'desc'},
+    {'1': 'price', '3': 4, '4': 1, '5': 3, '10': 'price'},
+    {'1': 'pic', '3': 5, '4': 1, '5': 9, '10': 'pic'},
+    {'1': 'category', '3': 6, '4': 1, '5': 9, '10': 'category'},
+  ],
+};
+
+/// Descriptor for `SiteGuestProductItem`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List siteGuestProductItemDescriptor = $convert.base64Decode(
+    'ChRTaXRlR3Vlc3RQcm9kdWN0SXRlbRIdCgpwcm9kdWN0X2lkGAEgASgDUglwcm9kdWN0SWQSEg'
+    'oEbmFtZRgCIAEoCVIEbmFtZRISCgRkZXNjGAMgASgJUgRkZXNjEhQKBXByaWNlGAQgASgDUgVw'
+    'cmljZRIQCgNwaWMYBSABKAlSA3BpYxIaCghjYXRlZ29yeRgGIAEoCVIIY2F0ZWdvcnk=');
+
+@$core.Deprecated('Use reqSiteGuestProductListDescriptor instead')
+const ReqSiteGuestProductList$json = {
+  '1': 'ReqSiteGuestProductList',
+  '2': [
+    {'1': 'site_iid', '3': 1, '4': 1, '5': 3, '10': 'siteIid'},
+    {'1': 'filter', '3': 2, '4': 1, '5': 9, '10': 'filter'},
+    {'1': 'category', '3': 3, '4': 1, '5': 9, '10': 'category'},
+    {'1': 'cursor', '3': 4, '4': 1, '5': 9, '10': 'cursor'},
+    {'1': 'limit', '3': 5, '4': 1, '5': 5, '10': 'limit'},
+  ],
+};
+
+/// Descriptor for `ReqSiteGuestProductList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqSiteGuestProductListDescriptor = $convert.base64Decode(
+    'ChdSZXFTaXRlR3Vlc3RQcm9kdWN0TGlzdBIZCghzaXRlX2lpZBgBIAEoA1IHc2l0ZUlpZBIWCg'
+    'ZmaWx0ZXIYAiABKAlSBmZpbHRlchIaCghjYXRlZ29yeRgDIAEoCVIIY2F0ZWdvcnkSFgoGY3Vy'
+    'c29yGAQgASgJUgZjdXJzb3ISFAoFbGltaXQYBSABKAVSBWxpbWl0');
+
+@$core.Deprecated('Use resSiteGuestProductListDescriptor instead')
+const ResSiteGuestProductList$json = {
+  '1': 'ResSiteGuestProductList',
+  '2': [
+    {
+      '1': 'items',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.SiteGuestProductItem',
+      '10': 'items'
+    },
+    {'1': 'next_cursor', '3': 2, '4': 1, '5': 9, '10': 'nextCursor'},
+  ],
+};
+
+/// Descriptor for `ResSiteGuestProductList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resSiteGuestProductListDescriptor = $convert.base64Decode(
+    'ChdSZXNTaXRlR3Vlc3RQcm9kdWN0TGlzdBIvCgVpdGVtcxgBIAMoCzIZLmMzNS5TaXRlR3Vlc3'
+    'RQcm9kdWN0SXRlbVIFaXRlbXMSHwoLbmV4dF9jdXJzb3IYAiABKAlSCm5leHRDdXJzb3I=');

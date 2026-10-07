@@ -3373,6 +3373,357 @@ class ResChatHistoryClear extends $pb.GeneratedMessage {
   void clearChatsAffected() => $_clearField(2);
 }
 
+/// Long-term user memory (ai.memory) — settings UI + user management
+class UserMemory extends $pb.GeneratedMessage {
+  factory UserMemory({
+    $fixnum.Int64? id,
+    $fixnum.Int64? ownerIid,
+    $fixnum.Int64? botIid,
+    $core.String? category,
+    $core.String? key,
+    $core.String? content,
+    $core.double? confidence,
+  }) {
+    final result = UserMemory._();
+    if (id != null) result.id = id;
+    if (ownerIid != null) result.ownerIid = ownerIid;
+    if (botIid != null) result.botIid = botIid;
+    if (category != null) result.category = category;
+    if (key != null) result.key = key;
+    if (content != null) result.content = content;
+    if (confidence != null) result.confidence = confidence;
+    return result;
+  }
+
+  UserMemory._();
+
+  factory UserMemory.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      UserMemory()..mergeFromBuffer(data, registry);
+  factory UserMemory.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      UserMemory()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'UserMemory',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: UserMemory.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'id')
+    ..aInt64(2, _omitFieldNames ? '' : 'ownerIid')
+    ..aInt64(3, _omitFieldNames ? '' : 'botIid')
+    ..aOS(4, _omitFieldNames ? '' : 'category')
+    ..aOS(5, _omitFieldNames ? '' : 'key')
+    ..aOS(6, _omitFieldNames ? '' : 'content')
+    ..aD(7, _omitFieldNames ? '' : 'confidence')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  UserMemory clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  UserMemory copyWith(void Function(UserMemory) updates) =>
+      super.copyWith((message) => updates(message as UserMemory)) as UserMemory;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use UserMemory() / UserMemory.new instead')
+  static UserMemory create() => UserMemory._();
+  static $pb.GeneratedMessage $_createMessage() => UserMemory._();
+  @$core.override
+  UserMemory createEmptyInstance() => UserMemory._();
+  @$core.pragma('dart2js:noInline')
+  static UserMemory getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<UserMemory>(UserMemory.$_createMessage);
+  static UserMemory? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get id => $_getI64(0);
+  @$pb.TagNumber(1)
+  set id($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get ownerIid => $_getI64(1);
+  @$pb.TagNumber(2)
+  set ownerIid($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasOwnerIid() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearOwnerIid() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get botIid => $_getI64(2);
+  @$pb.TagNumber(3)
+  set botIid($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasBotIid() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearBotIid() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get category => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set category($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasCategory() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearCategory() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get key => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set key($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasKey() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearKey() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get content => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set content($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasContent() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearContent() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.double get confidence => $_getN(6);
+  @$pb.TagNumber(7)
+  set confidence($core.double value) => $_setDouble(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasConfidence() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearConfidence() => $_clearField(7);
+}
+
+class ReqMemoryList extends $pb.GeneratedMessage {
+  factory ReqMemoryList({
+    $core.int? limit,
+  }) {
+    final result = ReqMemoryList._();
+    if (limit != null) result.limit = limit;
+    return result;
+  }
+
+  ReqMemoryList._();
+
+  factory ReqMemoryList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqMemoryList()..mergeFromBuffer(data, registry);
+  factory ReqMemoryList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqMemoryList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqMemoryList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqMemoryList.$_createMessage)
+    ..aI(1, _omitFieldNames ? '' : 'limit')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqMemoryList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqMemoryList copyWith(void Function(ReqMemoryList) updates) =>
+      super.copyWith((message) => updates(message as ReqMemoryList))
+          as ReqMemoryList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqMemoryList() / ReqMemoryList.new instead')
+  static ReqMemoryList create() => ReqMemoryList._();
+  static $pb.GeneratedMessage $_createMessage() => ReqMemoryList._();
+  @$core.override
+  ReqMemoryList createEmptyInstance() => ReqMemoryList._();
+  @$core.pragma('dart2js:noInline')
+  static ReqMemoryList getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ReqMemoryList>(
+          ReqMemoryList.$_createMessage);
+  static ReqMemoryList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.int get limit => $_getIZ(0);
+  @$pb.TagNumber(1)
+  set limit($core.int value) => $_setSignedInt32(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasLimit() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearLimit() => $_clearField(1);
+}
+
+class ResMemoryList extends $pb.GeneratedMessage {
+  factory ResMemoryList({
+    $core.Iterable<UserMemory>? items,
+  }) {
+    final result = ResMemoryList._();
+    if (items != null) result.items.addAll(items);
+    return result;
+  }
+
+  ResMemoryList._();
+
+  factory ResMemoryList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResMemoryList()..mergeFromBuffer(data, registry);
+  factory ResMemoryList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResMemoryList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResMemoryList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResMemoryList.$_createMessage)
+    ..pPM<UserMemory>(1, _omitFieldNames ? '' : 'items',
+        subBuilder: UserMemory.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResMemoryList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResMemoryList copyWith(void Function(ResMemoryList) updates) =>
+      super.copyWith((message) => updates(message as ResMemoryList))
+          as ResMemoryList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResMemoryList() / ResMemoryList.new instead')
+  static ResMemoryList create() => ResMemoryList._();
+  static $pb.GeneratedMessage $_createMessage() => ResMemoryList._();
+  @$core.override
+  ResMemoryList createEmptyInstance() => ResMemoryList._();
+  @$core.pragma('dart2js:noInline')
+  static ResMemoryList getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ResMemoryList>(
+          ResMemoryList.$_createMessage);
+  static ResMemoryList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<UserMemory> get items => $_getList(0);
+}
+
+class ReqMemoryDelete extends $pb.GeneratedMessage {
+  factory ReqMemoryDelete({
+    $fixnum.Int64? id,
+  }) {
+    final result = ReqMemoryDelete._();
+    if (id != null) result.id = id;
+    return result;
+  }
+
+  ReqMemoryDelete._();
+
+  factory ReqMemoryDelete.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqMemoryDelete()..mergeFromBuffer(data, registry);
+  factory ReqMemoryDelete.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqMemoryDelete()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqMemoryDelete',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqMemoryDelete.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'id')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqMemoryDelete clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqMemoryDelete copyWith(void Function(ReqMemoryDelete) updates) =>
+      super.copyWith((message) => updates(message as ReqMemoryDelete))
+          as ReqMemoryDelete;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqMemoryDelete() / ReqMemoryDelete.new instead')
+  static ReqMemoryDelete create() => ReqMemoryDelete._();
+  static $pb.GeneratedMessage $_createMessage() => ReqMemoryDelete._();
+  @$core.override
+  ReqMemoryDelete createEmptyInstance() => ReqMemoryDelete._();
+  @$core.pragma('dart2js:noInline')
+  static ReqMemoryDelete getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ReqMemoryDelete>(
+          ReqMemoryDelete.$_createMessage);
+  static ReqMemoryDelete? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get id => $_getI64(0);
+  @$pb.TagNumber(1)
+  set id($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+}
+
+class ResMemoryDelete extends $pb.GeneratedMessage {
+  factory ResMemoryDelete({
+    $core.bool? ok,
+  }) {
+    final result = ResMemoryDelete._();
+    if (ok != null) result.ok = ok;
+    return result;
+  }
+
+  ResMemoryDelete._();
+
+  factory ResMemoryDelete.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResMemoryDelete()..mergeFromBuffer(data, registry);
+  factory ResMemoryDelete.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResMemoryDelete()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResMemoryDelete',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResMemoryDelete.$_createMessage)
+    ..aOB(1, _omitFieldNames ? '' : 'ok')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResMemoryDelete clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResMemoryDelete copyWith(void Function(ResMemoryDelete) updates) =>
+      super.copyWith((message) => updates(message as ResMemoryDelete))
+          as ResMemoryDelete;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResMemoryDelete() / ResMemoryDelete.new instead')
+  static ResMemoryDelete create() => ResMemoryDelete._();
+  static $pb.GeneratedMessage $_createMessage() => ResMemoryDelete._();
+  @$core.override
+  ResMemoryDelete createEmptyInstance() => ResMemoryDelete._();
+  @$core.pragma('dart2js:noInline')
+  static ResMemoryDelete getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ResMemoryDelete>(
+          ResMemoryDelete.$_createMessage);
+  static ResMemoryDelete? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get ok => $_getBF(0);
+  @$pb.TagNumber(1)
+  set ok($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasOk() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOk() => $_clearField(1);
+}
+
 /// Device-bound prompt contexts (Remote / Devices composer)
 class ReqChatDeviceContextList extends $pb.GeneratedMessage {
   factory ReqChatDeviceContextList({

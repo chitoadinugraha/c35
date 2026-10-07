@@ -13,6 +13,8 @@ const TOPIC_FORCE_TOOLS: &[MentionToolRule] = &[MentionToolRule {
         "site.product_put",
         "site.contact_put",
         "site.object_put",
+        "site.grant.put",
+        "site.grant.delete",
     ],
 }];
 

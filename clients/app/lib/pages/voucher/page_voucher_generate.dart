@@ -6,6 +6,7 @@ import 'package:alienai_c35/c/billing/billing_voucher_api.dart';
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
+import 'package:alienai_c35/widgets/io/in_money_idr.dart';
 import 'package:alienai_c35/widgets/ui/ui_input_decoration.dart';
 import 'package:alienai_c35/widgets/ui/ui_page.dart';
 import 'package:fixnum/fixnum.dart';
@@ -105,11 +106,7 @@ class _PageVoucherWizardState extends State<PageVoucherWizard> {
     } catch (_) {}
   }
 
-  double? _parseIdr(String raw) {
-    final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
-    if (digits.isEmpty) return null;
-    return double.tryParse(digits);
-  }
+  double? _parseIdr(String raw) => moneyParseIdr(raw);
 
   double _planListIdr(String slug, String period) {
     final plans = _scopeBot ? _botPlans : _userPlans;
@@ -335,7 +332,7 @@ class _PageVoucherWizardState extends State<PageVoucherWizard> {
             TextField(
               controller: _creditCtrl,
               keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              inputFormatters: moneyIdrInputFormatters,
               style: const TextStyle(color: _text),
               decoration: UiInputDecoration.of(context, hintText: 'Wallet credit IDR'),
             ),
@@ -345,7 +342,7 @@ class _PageVoucherWizardState extends State<PageVoucherWizard> {
             TextField(
               controller: _alienPoolCtrl,
               keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              inputFormatters: moneyIdrInputFormatters,
               style: const TextStyle(color: _text),
               decoration: UiInputDecoration.of(context, hintText: 'Alien pool limit IDR'),
             ),
@@ -353,7 +350,7 @@ class _PageVoucherWizardState extends State<PageVoucherWizard> {
             TextField(
               controller: _frontierPoolCtrl,
               keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              inputFormatters: moneyIdrInputFormatters,
               style: const TextStyle(color: _text),
               decoration: UiInputDecoration.of(context, hintText: 'Frontier pool limit IDR (optional)'),
             ),
@@ -362,7 +359,7 @@ class _PageVoucherWizardState extends State<PageVoucherWizard> {
           TextField(
             controller: _faceCtrl,
             keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            inputFormatters: moneyIdrInputFormatters,
             style: const TextStyle(color: _text),
             decoration: UiInputDecoration.of(context, hintText: 'Face value IDR (customer pays)'),
           ),
@@ -370,7 +367,7 @@ class _PageVoucherWizardState extends State<PageVoucherWizard> {
           TextField(
             controller: _listCtrl,
             keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            inputFormatters: moneyIdrInputFormatters,
             style: const TextStyle(color: _text),
             decoration: UiInputDecoration.of(context, hintText: 'List price IDR (retail)'),
             onChanged: (_) => setState(() {}),

@@ -202,6 +202,7 @@ class ResSync extends $pb.GeneratedMessage {
     $core.Iterable<$5.SiteConfig>? siteConfigs,
     $core.Iterable<$5.SiteDomain>? siteDomains,
     $core.Iterable<$5.SiteProductEmbed>? siteProductEmbeds,
+    $core.Iterable<$5.SiteLink>? siteLinks,
   }) {
     final result = ResSync._();
     if (sinceMs != null) result.sinceMs = sinceMs;
@@ -225,6 +226,7 @@ class ResSync extends $pb.GeneratedMessage {
     if (siteDomains != null) result.siteDomains.addAll(siteDomains);
     if (siteProductEmbeds != null)
       result.siteProductEmbeds.addAll(siteProductEmbeds);
+    if (siteLinks != null) result.siteLinks.addAll(siteLinks);
     return result;
   }
 
@@ -277,6 +279,8 @@ class ResSync extends $pb.GeneratedMessage {
         subBuilder: $5.SiteDomain.$_createMessage)
     ..pPM<$5.SiteProductEmbed>(30, _omitFieldNames ? '' : 'siteProductEmbeds',
         subBuilder: $5.SiteProductEmbed.$_createMessage)
+    ..pPM<$5.SiteLink>(31, _omitFieldNames ? '' : 'siteLinks',
+        subBuilder: $5.SiteLink.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -367,6 +371,9 @@ class ResSync extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(30)
   $pb.PbList<$5.SiteProductEmbed> get siteProductEmbeds => $_getList(18);
+
+  @$pb.TagNumber(31)
+  $pb.PbList<$5.SiteLink> get siteLinks => $_getList(19);
 }
 
 enum SyncPush_Body {
@@ -387,6 +394,7 @@ enum SyncPush_Body {
   siteDomain,
   siteProductEmbed,
   chatTyping,
+  siteLink,
   notSet
 }
 
@@ -410,6 +418,7 @@ class SyncPush extends $pb.GeneratedMessage {
     $5.SiteDomain? siteDomain,
     $5.SiteProductEmbed? siteProductEmbed,
     $0.ChatTyping? chatTyping,
+    $5.SiteLink? siteLink,
   }) {
     final result = SyncPush._();
     if (chat != null) result.chat = chat;
@@ -429,6 +438,7 @@ class SyncPush extends $pb.GeneratedMessage {
     if (siteDomain != null) result.siteDomain = siteDomain;
     if (siteProductEmbed != null) result.siteProductEmbed = siteProductEmbed;
     if (chatTyping != null) result.chatTyping = chatTyping;
+    if (siteLink != null) result.siteLink = siteLink;
     return result;
   }
 
@@ -459,13 +469,14 @@ class SyncPush extends $pb.GeneratedMessage {
     15: SyncPush_Body.siteDomain,
     16: SyncPush_Body.siteProductEmbed,
     17: SyncPush_Body.chatTyping,
+    18: SyncPush_Body.siteLink,
     0: SyncPush_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
       _omitMessageNames ? '' : 'SyncPush',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
       createEmptyInstance: SyncPush.$_createMessage)
-    ..oo(0, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17])
+    ..oo(0, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18])
     ..aOM<$0.Chat>(1, _omitFieldNames ? '' : 'chat',
         subBuilder: $0.Chat.$_createMessage)
     ..aOM<$0.ChatMember>(2, _omitFieldNames ? '' : 'chatMember',
@@ -500,6 +511,8 @@ class SyncPush extends $pb.GeneratedMessage {
         subBuilder: $5.SiteProductEmbed.$_createMessage)
     ..aOM<$0.ChatTyping>(17, _omitFieldNames ? '' : 'chatTyping',
         subBuilder: $0.ChatTyping.$_createMessage)
+    ..aOM<$5.SiteLink>(18, _omitFieldNames ? '' : 'siteLink',
+        subBuilder: $5.SiteLink.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -539,6 +552,7 @@ class SyncPush extends $pb.GeneratedMessage {
   @$pb.TagNumber(15)
   @$pb.TagNumber(16)
   @$pb.TagNumber(17)
+  @$pb.TagNumber(18)
   SyncPush_Body whichBody() => _SyncPush_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(1)
   @$pb.TagNumber(2)
@@ -557,6 +571,7 @@ class SyncPush extends $pb.GeneratedMessage {
   @$pb.TagNumber(15)
   @$pb.TagNumber(16)
   @$pb.TagNumber(17)
+  @$pb.TagNumber(18)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -745,6 +760,17 @@ class SyncPush extends $pb.GeneratedMessage {
   void clearChatTyping() => $_clearField(17);
   @$pb.TagNumber(17)
   $0.ChatTyping ensureChatTyping() => $_ensure(16);
+
+  @$pb.TagNumber(18)
+  $5.SiteLink get siteLink => $_getN(17);
+  @$pb.TagNumber(18)
+  set siteLink($5.SiteLink value) => $_setField(18, value);
+  @$pb.TagNumber(18)
+  $core.bool hasSiteLink() => $_has(17);
+  @$pb.TagNumber(18)
+  void clearSiteLink() => $_clearField(18);
+  @$pb.TagNumber(18)
+  $5.SiteLink ensureSiteLink() => $_ensure(17);
 }
 
 const $core.bool _omitFieldNames =

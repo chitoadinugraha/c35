@@ -1,11 +1,25 @@
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/ui/ui_format.dart';
-
 const billingFreemiumMsgsLimit = 30;
 const billingFreemiumTokensLimit = 30000;
 
-bool billingFreemiumActive(BillingAccount? account) => account?.freemiumActive == true;
+const _billingPaidPlanTiers = {'lite', 'plus', 'pro', 'ultra'};
+
+bool billingPlanTierIsPaid(String tier) => _billingPaidPlanTiers.contains(tier.trim().toLowerCase());
+
+bool billingTrialActive(BillingAccount? account) {
+  if (account == null || !account.hasTrialExpiresTsMs()) return false;
+  return account.trialExpiresTsMs.toInt() > DateTime.now().millisecondsSinceEpoch;
+}
+
+/// Daily free tier UI — not for paid plans, signup trial, or loading placeholders.
+bool billingFreemiumActive(BillingAccount? account) {
+  if (account == null) return false;
+  if (billingPlanTierIsPaid(account.planTier)) return false;
+  if (billingTrialActive(account)) return false;
+  return account.freemiumActive;
+}
 
 String billingFreemiumTokensShort(int tokens) {
   if (tokens >= 1000) return '${(tokens / 1000).round()}k';
@@ -62,6 +76,18 @@ String billingCreditBalanceLabel(BillingAccount? account, String currency) {
   if (cur == 'USD') return moneyFmtUsd(billingCreditBalance(account, cur));
   final fx = account.hasFxMicroPerUsd() ? account.fxMicroPerUsd.toInt() : moneyDefaultFxMicroPerUsd;
   return moneyBalanceLabel(account.balanceUsd, currency: cur, fxMicroPerUsd: fx);
+}
+
+/// Plans checkout: `Credit: 1.234.567 IDR` (amount grouped, currency suffix).
+String billingCreditCheckoutLabel(BillingAccount? account, String currency) {
+  if (account == null) return '';
+  final cur = currency.toUpperCase();
+  final bal = billingCreditBalance(account, cur);
+  if (cur == 'IDR') return 'Credit: ${moneyFmtIdrGrouped(bal.round())} IDR';
+  if (cur == 'USD') return 'Credit: ${bal.toStringAsFixed(2)} USD';
+  final fx = account.hasFxMicroPerUsd() ? account.fxMicroPerUsd.toInt() : moneyDefaultFxMicroPerUsd;
+  final local = moneyUsdToLocal(bal, fx);
+  return 'Credit: ${local.toStringAsFixed(2)} $cur';
 }
 
 String billingWalletBalanceLabel(BillingAccount? account, String currency) =>
@@ -128,17 +154,19 @@ BillingAccount billingAccountMerge(BillingAccount base, {BillingPushBalance? bal
     out.alienAllowWeeklyLimit = quota.alienAllowWeeklyLimit;
     if (quota.hasWindow5hStartMs()) out.window5hStartMs = quota.window5hStartMs;
     if (quota.hasWindowWeeklyStartMs()) out.windowWeeklyStartMs = quota.windowWeeklyStartMs;
-    out.freemiumActive = quota.freemiumActive;
+    final freemiumFromPush = quota.freemiumActive;
     out.freemiumMsgsUsed = quota.freemiumMsgsUsed;
     out.freemiumMsgsLimit = quota.freemiumMsgsLimit;
     out.freemiumTokensUsed = quota.freemiumTokensUsed;
     out.freemiumTokensLimit = quota.freemiumTokensLimit;
+    out.freemiumActive = freemiumFromPush;
     if (quota.hasPlanExpiresTsMs()) out.planExpiresTsMs = quota.planExpiresTsMs;
     if (quota.hasTrialExpiresTsMs()) out.trialExpiresTsMs = quota.trialExpiresTsMs;
     out.frontierAllow5hUsed = quota.frontierAllow5hUsed;
     out.frontierAllow5hLimit = quota.frontierAllow5hLimit;
     out.frontierAllowWeeklyUsed = quota.frontierAllowWeeklyUsed;
     out.frontierAllowWeeklyLimit = quota.frontierAllowWeeklyLimit;
+    if (!billingFreemiumActive(out)) out.freemiumActive = false;
   }
   if (commission != null) {
     out.commissionAvailableUsd = commission.commissionAvailableUsd;

@@ -8570,6 +8570,10 @@ class ResBillingSummary extends $pb.GeneratedMessage {
     $core.String? billingPeriod,
     $core.String? pendingPlanSlug,
     $core.String? pendingBillingPeriod,
+    $core.double? frontierAllow5hUsed,
+    $core.double? frontierAllow5hLimit,
+    $core.double? frontierAllowWeeklyUsed,
+    $core.double? frontierAllowWeeklyLimit,
   }) {
     final result = ResBillingSummary._();
     if (balanceUsd != null) result.balanceUsd = balanceUsd;
@@ -8613,6 +8617,14 @@ class ResBillingSummary extends $pb.GeneratedMessage {
     if (pendingPlanSlug != null) result.pendingPlanSlug = pendingPlanSlug;
     if (pendingBillingPeriod != null)
       result.pendingBillingPeriod = pendingBillingPeriod;
+    if (frontierAllow5hUsed != null)
+      result.frontierAllow5hUsed = frontierAllow5hUsed;
+    if (frontierAllow5hLimit != null)
+      result.frontierAllow5hLimit = frontierAllow5hLimit;
+    if (frontierAllowWeeklyUsed != null)
+      result.frontierAllowWeeklyUsed = frontierAllowWeeklyUsed;
+    if (frontierAllowWeeklyLimit != null)
+      result.frontierAllowWeeklyLimit = frontierAllowWeeklyLimit;
     return result;
   }
 
@@ -8666,6 +8678,12 @@ class ResBillingSummary extends $pb.GeneratedMessage {
     ..aOS(30, _omitFieldNames ? '' : 'billingPeriod')
     ..aOS(31, _omitFieldNames ? '' : 'pendingPlanSlug')
     ..aOS(32, _omitFieldNames ? '' : 'pendingBillingPeriod')
+    ..aD(33, _omitFieldNames ? '' : 'frontierAllow5hUsed',
+        protoName: 'frontier_allow_5h_used')
+    ..aD(34, _omitFieldNames ? '' : 'frontierAllow5hLimit',
+        protoName: 'frontier_allow_5h_limit')
+    ..aD(35, _omitFieldNames ? '' : 'frontierAllowWeeklyUsed')
+    ..aD(36, _omitFieldNames ? '' : 'frontierAllowWeeklyLimit')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -8965,6 +8983,42 @@ class ResBillingSummary extends $pb.GeneratedMessage {
   $core.bool hasPendingBillingPeriod() => $_has(31);
   @$pb.TagNumber(32)
   void clearPendingBillingPeriod() => $_clearField(32);
+
+  @$pb.TagNumber(33)
+  $core.double get frontierAllow5hUsed => $_getN(32);
+  @$pb.TagNumber(33)
+  set frontierAllow5hUsed($core.double value) => $_setDouble(32, value);
+  @$pb.TagNumber(33)
+  $core.bool hasFrontierAllow5hUsed() => $_has(32);
+  @$pb.TagNumber(33)
+  void clearFrontierAllow5hUsed() => $_clearField(33);
+
+  @$pb.TagNumber(34)
+  $core.double get frontierAllow5hLimit => $_getN(33);
+  @$pb.TagNumber(34)
+  set frontierAllow5hLimit($core.double value) => $_setDouble(33, value);
+  @$pb.TagNumber(34)
+  $core.bool hasFrontierAllow5hLimit() => $_has(33);
+  @$pb.TagNumber(34)
+  void clearFrontierAllow5hLimit() => $_clearField(34);
+
+  @$pb.TagNumber(35)
+  $core.double get frontierAllowWeeklyUsed => $_getN(34);
+  @$pb.TagNumber(35)
+  set frontierAllowWeeklyUsed($core.double value) => $_setDouble(34, value);
+  @$pb.TagNumber(35)
+  $core.bool hasFrontierAllowWeeklyUsed() => $_has(34);
+  @$pb.TagNumber(35)
+  void clearFrontierAllowWeeklyUsed() => $_clearField(35);
+
+  @$pb.TagNumber(36)
+  $core.double get frontierAllowWeeklyLimit => $_getN(35);
+  @$pb.TagNumber(36)
+  set frontierAllowWeeklyLimit($core.double value) => $_setDouble(35, value);
+  @$pb.TagNumber(36)
+  $core.bool hasFrontierAllowWeeklyLimit() => $_has(35);
+  @$pb.TagNumber(36)
+  void clearFrontierAllowWeeklyLimit() => $_clearField(36);
 }
 
 /// Active plan / voucher grants (stacking). Sorted by expires_ts asc in list API.

@@ -70,6 +70,26 @@ void main() {
     expect(view.steps.first.branches.first.durationMs, 4600);
   });
 
+  test('buildTraceView marks inst enrich ids as inst candidates', () {
+    final view = buildTraceView([
+      TraceLogDoc(
+        kind: 'system',
+        topic: 'trace_inst_enrich',
+        text: 'Inst enrich',
+        durationMs: 5,
+        metaJson: jsonEncode({
+          'step': 1,
+          'branch': 'inst',
+          'inst_ids': ['inst.core.assistant', 'inst.site.catalog.stock'],
+          'enrich_keys': ['memory.user'],
+        }),
+      ),
+    ]);
+    final branch = view.steps.first.branches.firstWhere((b) => b.label == 'Inst enrich');
+    expect(branch.toolCandidates.where((c) => c.isInst).map((c) => c.toolId), ['inst.core.assistant', 'inst.site.catalog.stock']);
+    expect(branch.toolCandidates.where((c) => !c.isInst).map((c) => c.toolId), ['memory.user']);
+  });
+
   test('buildTraceView parses tool filter candidates', () {
     final view = buildTraceView([
       TraceLogDoc(

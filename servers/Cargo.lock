@@ -826,6 +826,7 @@ dependencies = [
  "c35_proto",
  "c35_store",
  "chrono",
+ "dashmap",
  "futures-util",
  "prost 0.13.5",
  "reqwest",

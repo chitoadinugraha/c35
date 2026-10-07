@@ -1,6 +1,6 @@
 # Conversational Site Builder — Architecture & Token Cache Spec
 
-Status: **Proposed** (Aligned with Slide Deck paradigm, 2026-10-03)
+Status: **Shipped** (Aligned with Slide Deck paradigm, 2026-10-03). Compose injects inst-forced site tools from the full catalog; hop-1 `site.create` when `inst.site.builder` matches and a name is present.
 
 This specification defines the conversational, block-level site creation and editing workflow in Alien AI, mirroring the interactive, lightweight, and token-cache friendly architecture of the presentation slide deck (`inst.presentation`).
 
@@ -11,8 +11,8 @@ This specification defines the conversational, block-level site creation and edi
 | Principle | Slide Deck Pattern (`presentation.*`) | Conversational Site Builder (`site.*`) |
 | :--- | :--- | :--- |
 | **Instruction Steering** | `inst.presentation` steers on keywords (`bikin slide`, `pitch deck`). | `inst.site.builder` steers on keywords (`bikin web`, `landing page`, `buat website`). |
-| **Creation Fast-Path** | Asks title/topic if ambiguous; immediately calls `presentation.create`. | Asks site name if not provided. Once name is given, immediately calls `site.create`. |
-| **Identity & Slug** | Ephemeral card in chat. | Rust auto-generates slug/handle (`alien_id`) with uniqueness collision checks. |
+| **Creation Fast-Path** | Asks title/topic if ambiguous; immediately calls `presentation.create`. | Discovery first (about, reference links, logo); `site.create` only after user says proceed. |
+| **Identity & Slug** | Ephemeral card in chat. | New sites start at numeric path `alienai.id/{site_iid}`; user claims handle via app or `site.handle.update`. |
 | **Turn-by-turn Edits** | `presentation.patch` with `action: replace \| insert \| delete` by slide index. | `site.patch` with `action: update_block \| insert_block \| delete_block \| patch_theme`. |
 | **Interactive Card** | Native `UiSlideDeckCard` rendered in chat bubble for `presentation.deck`. | Native `UiSitePreviewCard` rendered in chat bubble for `site.preview`. |
 | **Finalization** | `presentation.export` ($\to$ `.pptx` CAS download). | `site.publish` ($\to$ snapshots draft to production HTML at `alienai.id/<handle>`). |
@@ -56,17 +56,16 @@ Creates a new site identity, access grant, site config, and initial `SiteDoc` dr
 
 - **Parameters**:
   - `name` (string, required): Brand or site name (e.g. "Kopi Kenangan").
-  - `alien_id` (string, optional): Desired handle/slug. If omitted, generated from `name`.
+  - `alien_id` (string, optional): Custom handle/slug. If omitted, public path stays numeric (`site_iid`) until claimed.
   - `tagline` (string, optional): One-line description.
   - `theme` (string, optional, default: `"dark"`): Visual theme preset (e.g. `dark`, `emerald`, `indigo`, `sunset`).
   - `features` (object, optional): Enabled capabilities (e.g. `commerce: true`, `booking: false`).
 - **Rust Execution**:
-  1. Generate slug: lowercase, replace non-alphanumerics with hyphens, truncate to 48 chars.
-  2. Resolve collisions: Check `ai.identity WHERE kind = 'site' AND LOWER(alien_id) = ...`. If exists, increment `-2`, `-3`.
-  3. Insert `ai.identity(id, kind='site', type='web', name, alien_id, owner_iid)`.
-  4. Insert `ai.identity_grant(resource_iid, grantee_iid, role='owner')`.
-  5. Insert `site.config(site_iid, owner_iid, capabilities_json)`.
-  6. Insert `site.draft(site_iid, owner_iid, doc_json)`.
+  1. Set `alien_id` to `site_iid` string unless `alien_id` param provided (then slugify + uniqueness).
+  2. Insert `ai.identity(id, kind='site', type='web', name, alien_id, owner_iid)`.
+  3. Insert `ai.identity_grant(resource_iid, grantee_iid, role='owner')`.
+  4. Insert `site.config(site_iid, owner_iid, capabilities_json)`.
+  5. Insert `site.draft(site_iid, owner_iid, doc_json)`.
 - **Response Block**:
   ```json
   {

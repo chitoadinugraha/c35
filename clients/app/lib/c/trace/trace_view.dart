@@ -6,10 +6,11 @@ import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/ui/ui_format.dart';
 
 class TraceToolFilterCandidate {
-  const TraceToolFilterCandidate({required this.toolId, this.sim = 0, this.fed = false});
+  const TraceToolFilterCandidate({required this.toolId, this.sim = 0, this.fed = false, this.isInst = false});
   final String toolId;
   final double sim;
   final bool fed;
+  final bool isInst;
 }
 
 class TraceScreenshot {
@@ -423,7 +424,7 @@ TraceView buildTraceView(List<TraceLogDoc> logs) {
               ? _toolCandidatesFromMeta(r.meta['candidates'])
               : r.topic == 'trace_inst_enrich'
                   ? [
-                      ...instIds.map((id) => TraceToolFilterCandidate(toolId: id, sim: 1, fed: true)),
+                      ...instIds.map((id) => TraceToolFilterCandidate(toolId: id, sim: 1, fed: true, isInst: true)),
                       ...enrichKeys.map((k) => TraceToolFilterCandidate(toolId: k, sim: 1, fed: true)),
                     ]
                   : const [],

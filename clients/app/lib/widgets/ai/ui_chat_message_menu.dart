@@ -50,18 +50,30 @@ class ChatMessageContextMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty) return const SizedBox.shrink();
+    final preferAbove = switch (Theme.of(context).platform) {
+      TargetPlatform.android || TargetPlatform.iOS => true,
+      _ => false,
+    };
     return CustomSingleChildLayout(
-      delegate: _ChatMenuLayoutDelegate(anchor: anchors.primaryAnchor, fallbackAnchor: anchors.secondaryAnchor),
-      child: _ChatMessageMenuPanel(items: items),
+      delegate: _ChatMenuLayoutDelegate(
+        anchor: anchors.primaryAnchor,
+        fallbackAnchor: anchors.secondaryAnchor,
+        preferAbove: preferAbove,
+      ),
+      child: TapRegion(
+        onTapOutside: (_) => ContextMenuController.removeAny(),
+        child: _ChatMessageMenuPanel(items: items),
+      ),
     );
   }
 }
 
 class _ChatMenuLayoutDelegate extends SingleChildLayoutDelegate {
-  const _ChatMenuLayoutDelegate({required this.anchor, this.fallbackAnchor});
+  const _ChatMenuLayoutDelegate({required this.anchor, this.fallbackAnchor, this.preferAbove = false});
 
   final Offset anchor;
   final Offset? fallbackAnchor;
+  final bool preferAbove;
 
   @override
   BoxConstraints getConstraintsForChild(BoxConstraints constraints) {
@@ -73,11 +85,17 @@ class _ChatMenuLayoutDelegate extends SingleChildLayoutDelegate {
   Offset getPositionForChild(Size size, Size childSize) {
     const gap = 8.0;
     const pad = 8.0;
-    final below = anchor.dy + gap;
-    final aboveTop = anchor.dy - childSize.height - gap;
-    final useBelow = below + childSize.height <= size.height - pad;
-    final top = (useBelow ? below : aboveTop).clamp(pad, math.max(pad, size.height - childSize.height - pad)).toDouble();
-    var left = anchor.dx - childSize.width / 2;
+    final secondary = fallbackAnchor;
+    final selectionTop = secondary != null ? math.min(anchor.dy, secondary.dy) : anchor.dy;
+    final selectionBottom = secondary != null ? math.max(anchor.dy, secondary.dy) : anchor.dy;
+    final centerX = secondary != null ? (anchor.dx + secondary.dx) / 2 : anchor.dx;
+    final belowTop = selectionBottom + gap;
+    final aboveTop = selectionTop - childSize.height - gap;
+    final fitsBelow = belowTop + childSize.height <= size.height - pad;
+    final fitsAbove = aboveTop >= pad;
+    final useAbove = preferAbove ? fitsAbove || !fitsBelow : !fitsBelow && fitsAbove;
+    final top = (useAbove ? aboveTop : belowTop).clamp(pad, math.max(pad, size.height - childSize.height - pad)).toDouble();
+    var left = centerX - childSize.width / 2;
     if (left + childSize.width > size.width - pad) left = size.width - childSize.width - pad;
     if (left < pad) left = pad;
     return Offset(left, top);
@@ -85,7 +103,7 @@ class _ChatMenuLayoutDelegate extends SingleChildLayoutDelegate {
 
   @override
   bool shouldRelayout(covariant _ChatMenuLayoutDelegate oldDelegate) =>
-      oldDelegate.anchor != anchor || oldDelegate.fallbackAnchor != fallbackAnchor;
+      oldDelegate.anchor != anchor || oldDelegate.fallbackAnchor != fallbackAnchor || oldDelegate.preferAbove != preferAbove;
 }
 
 class _ChatMessageMenuPanel extends StatelessWidget {
@@ -157,10 +175,11 @@ class _ChatMessageMenuHalfButtonState extends State<_ChatMessageMenuHalfButton> 
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(act.icon, size: 16, color: ChatMessageMenuStyle.rowText),
                 const SizedBox(width: 6),
-                Expanded(
+                Flexible(
                   child: Text(
                     act.label,
                     style: const TextStyle(color: ChatMessageMenuStyle.rowText, fontSize: 13, fontWeight: FontWeight.w500, height: 1.2),

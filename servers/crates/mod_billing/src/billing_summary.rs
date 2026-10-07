@@ -4,6 +4,7 @@ use sqlx::{PgPool, Row};
 const MICRO_PER_USD: f64 = 1_000_000.0;
 
 pub async fn billing_summary(pool: &PgPool, caller_iid: i64, billing_account_id: i64) -> ResBillingSummary {
+    let _ = crate::billing_profile::billing_profile_repair_rings_v4(pool, caller_iid).await;
     let plans = billing_plan_list(pool, "user").await.unwrap_or_default();
     let bot_plans = billing_plan_list(pool, "bot").await.unwrap_or_default();
     let account_id = if billing_account_id > 0 {
@@ -28,17 +29,22 @@ pub async fn billing_summary(pool: &PgPool, caller_iid: i64, billing_account_id:
         SELECT b.balance_usd::float8 AS balance_usd,
                COALESCE(b.balance_idr::float8, 0.0) AS balance_idr,
                COALESCE(b.plan_tier, 'free') AS plan_tier,
-               COALESCE(b.alien_allow_5h_used::float8, 0.0) AS alien_5h_used,
-               COALESCE(b.alien_allow_5h_limit::float8, 0.05) AS alien_5h_limit,
-               COALESCE(b.alien_allow_weekly_used::float8, 0.0) AS alien_week_used,
-               COALESCE(b.alien_allow_weekly_limit::float8, 1.0) AS alien_week_limit,
+               COALESCE(pr.alien_allow_5h_used::float8, b.alien_allow_5h_used::float8, 0.0) AS alien_5h_used,
+               COALESCE(pr.alien_allow_5h_limit::float8, b.alien_allow_5h_limit::float8, 0.05) AS alien_5h_limit,
+               COALESCE(pr.alien_allow_weekly_used::float8, b.alien_allow_weekly_used::float8, 0.0) AS alien_week_used,
+               COALESCE(pr.alien_allow_weekly_limit::float8, b.alien_allow_weekly_limit::float8, 1.0) AS alien_week_limit,
+               COALESCE(pr.frontier_allow_5h_used::float8, 0.0) AS frontier_5h_used,
+               COALESCE(pr.frontier_allow_5h_limit::float8, 0.0) AS frontier_5h_limit,
+               COALESCE(pr.frontier_allow_weekly_used::float8, 0.0) AS frontier_week_used,
+               COALESCE(pr.frontier_allow_weekly_limit::float8, 0.0) AS frontier_week_limit,
                COALESCE(b.commission_available_usd::float8, 0.0) AS commission_available_usd,
                COALESCE(b.commission_available_idr::float8, 0.0) AS commission_available_idr,
                COALESCE(p.overage_enabled, FALSE) AS overage_enabled,
-               b.window_5h_start,
-               b.window_weekly_start,
+               COALESCE(pr.window_5h_start, b.window_5h_start) AS window_5h_start,
+               COALESCE(pr.window_weekly_start, b.window_weekly_start) AS window_weekly_start,
                COALESCE(NULLIF(TRIM(b.billing_currency), ''), 'IDR') AS billing_currency
         FROM ai.billing_account b
+        LEFT JOIN ai.billing_profile pr ON pr.owner_iid = b.owner_iid AND pr.deleted_ts IS NULL
         LEFT JOIN ai.billing_plan p ON p.slug = b.plan_tier AND p.scope = 'user'
         WHERE b.id = $1 AND b.owner_iid = $2 AND b.deleted_ts IS NULL
         "#,
@@ -58,6 +64,10 @@ pub async fn billing_summary(pool: &PgPool, caller_iid: i64, billing_account_id:
     let alien_5h_limit: f64 = row.get("alien_5h_limit");
     let alien_week_used: f64 = row.get("alien_week_used");
     let alien_week_limit: f64 = row.get("alien_week_limit");
+    let frontier_5h_used: f64 = row.get("frontier_5h_used");
+    let frontier_5h_limit: f64 = row.get("frontier_5h_limit");
+    let frontier_week_used: f64 = row.get("frontier_week_used");
+    let frontier_week_limit: f64 = row.get("frontier_week_limit");
     let (quota_5h_used, quota_5h_limit) = allow_to_micro(alien_5h_used, alien_5h_limit);
     let (quota_weekly_used, quota_weekly_limit) = allow_to_micro(alien_week_used, alien_week_limit);
     let meter_state = allow_meter_state(alien_5h_used, alien_5h_limit);
@@ -117,6 +127,10 @@ pub async fn billing_summary(pool: &PgPool, caller_iid: i64, billing_account_id:
         alien_allow_5h_limit: alien_5h_limit,
         alien_allow_weekly_used: alien_week_used,
         alien_allow_weekly_limit: alien_week_limit,
+        frontier_allow_5h_used: frontier_5h_used,
+        frontier_allow_5h_limit: frontier_5h_limit,
+        frontier_allow_weekly_used: frontier_week_used,
+        frontier_allow_weekly_limit: frontier_week_limit,
         plans,
         overage_enabled: row.get("overage_enabled"),
         freemium_active: freemium.active,
@@ -262,6 +276,10 @@ fn billing_summary_default(plans: Vec<BillingPlanDoc>, bot_plans: Vec<BillingPla
         alien_allow_5h_limit: 0.05,
         alien_allow_weekly_used: 0.0,
         alien_allow_weekly_limit: 1.0,
+        frontier_allow_5h_used: 0.0,
+        frontier_allow_5h_limit: 0.0,
+        frontier_allow_weekly_used: 0.0,
+        frontier_allow_weekly_limit: 0.0,
         plans,
         overage_enabled: false,
         freemium_active: true,

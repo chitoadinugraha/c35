@@ -39,8 +39,15 @@ struct GuestQuery {
     ptoken: Option<String>,
 }
 
+fn draft_query_truthy(v: &str) -> bool {
+    matches!(
+        v.trim().to_ascii_lowercase().as_str(),
+        "1" | "true" | "yes"
+    )
+}
+
 fn is_draft_request(q: &GuestQuery) -> bool {
-    q.draft.as_deref() == Some("1")
+    q.draft.as_deref().map(draft_query_truthy).unwrap_or(false)
 }
 
 fn preview_forbidden_page() -> Response {
@@ -141,6 +148,10 @@ async fn guest_site_root(
 ) -> Response {
     let host = request_host(&headers);
     if !host_is_primary(&host) {
+        if let Ok(Some(site_id)) = domain_site_id_verified(&state.pool, &host).await {
+            let render_key = format!("html:/{}", alien_id.trim());
+            return serve_render_site(&state.pool, site_id, &render_key, &headers, Some(&query)).await;
+        }
         return not_found_page();
     }
     serve_render_path(&state.pool, &alien_id, "html:/", &headers, Some(&query)).await
@@ -154,6 +165,11 @@ async fn guest_site_path(
 ) -> Response {
     let host = request_host(&headers);
     if !host_is_primary(&host) {
+        if let Ok(Some(site_id)) = domain_site_id_verified(&state.pool, &host).await {
+            let full_path = format!("/{}/{}", alien_id.trim(), path.trim_start_matches('/'));
+            let render_key = format!("html:{}", full_path);
+            return serve_render_site(&state.pool, site_id, &render_key, &headers, Some(&query)).await;
+        }
         return not_found_page();
     }
     let page_path = if path.starts_with('/') {

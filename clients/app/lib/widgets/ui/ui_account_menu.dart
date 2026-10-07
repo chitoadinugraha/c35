@@ -8,6 +8,7 @@ import 'package:alienai_c35/c/session.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:alienai_c35/widgets/ui/ui_account_role_badges.dart';
 import 'package:alienai_c35/c/settings/voice_prefs.dart';
+import 'package:alienai_c35/c/billing/billing_store_sync.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/widgets/billing/ui_quota_ring.dart';
 import 'package:alienai_c35/widgets/ui/ui_speak_toggle.dart';
@@ -132,9 +133,11 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
   }
 
   Future<void> _billingEnsure() async {
-    if (AppStore.instance.billing != null) {
-      if (mounted && _billingLoading) setState(() => _billingLoading = false);
-      return;
+    final conn = widget.action.conn;
+    if (AppStore.instance.billing == null && conn != null) {
+      try {
+        await billingStoreRefresh(conn);
+      } catch (_) {}
     }
     if (mounted && _billingLoading) setState(() => _billingLoading = false);
   }

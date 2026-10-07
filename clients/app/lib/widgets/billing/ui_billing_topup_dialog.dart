@@ -1,10 +1,12 @@
 import 'package:alienai_c35/c/api/referral_conn.dart';
 import 'package:alienai_c35/c/billing/billing_platform.dart';
+import 'package:alienai_c35/widgets/billing/ui_billing_play_topup_panel.dart';
 import 'package:alienai_c35/widgets/billing/ui_billing_topup_panel.dart';
 import 'package:flutter/material.dart';
 
 Future<void> billingTopupDialog(BuildContext context, {required ReferralConn conn, String currency = 'IDR', VoidCallback? onSubmitted}) async {
-  final title = billingShowInAppTopup() ? 'Top up · $currency' : 'Credit · $currency';
+  final usePlay = billingUsePlayCheckout();
+  final title = usePlay ? 'Top up via Google Play' : (billingShowInAppTopup() ? 'Top up · $currency' : 'Credit · $currency');
   await showDialog<void>(
     context: context,
     builder: (ctx) => AlertDialog(
@@ -14,11 +16,13 @@ Future<void> billingTopupDialog(BuildContext context, {required ReferralConn con
       content: SizedBox(
         width: 400,
         child: SingleChildScrollView(
-          child: UiBillingTopupPanel(
-            conn: conn,
-            currency: currency,
-            onSubmitted: onSubmitted,
-          ),
+          child: usePlay
+              ? UiBillingPlayTopupPanel(conn: conn, onSubmitted: onSubmitted)
+              : UiBillingTopupPanel(
+                  conn: conn,
+                  currency: currency,
+                  onSubmitted: onSubmitted,
+                ),
         ),
       ),
     ),

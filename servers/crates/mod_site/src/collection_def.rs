@@ -66,6 +66,27 @@ fn product_table() -> TableDef {
     }
 }
 
+fn link_table() -> TableDef {
+    TableDef {
+        collection: "site.link".into(),
+        label: "Links".into(),
+        columns: vec![
+            col_req("link_id", "ID", ColType::Int),
+            col("sort_order", "Order", ColType::Int, false),
+            col_req("label", "Label", ColType::Text),
+            col_req("url", "URL", ColType::Text),
+            col("icon", "Icon", ColType::Text, false),
+            col("is_pinned", "Pinned", ColType::Bool, false),
+            col("active", "Active", ColType::Bool, false),
+            col("updated_ts_ms", "Updated", ColType::Ts, true),
+        ],
+        subtables: vec![],
+        sync_name: "site_link".into(),
+        site_scoped: true,
+        primary_key: "site_iid,link_id".into(),
+    }
+}
+
 fn contact_table() -> TableDef {
     TableDef {
         collection: "site.contact".into(),
@@ -137,7 +158,7 @@ fn domain_table() -> TableDef {
 }
 
 fn all_tables() -> Vec<TableDef> {
-    vec![product_table(), contact_table(), object_table(), domain_table()]
+    vec![product_table(), contact_table(), link_table(), object_table(), domain_table()]
 }
 
 async fn site_capabilities(pool: &PgPool, site_iid: i64) -> serde_json::Value {
@@ -203,12 +224,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn collection_def_list_has_four_tables() {
+    fn collection_def_list_has_five_tables() {
         let res = collection_def_list_static(ReqCollectionDefList { site_iid: 0 });
-        assert_eq!(res.tables.len(), 4);
+        assert_eq!(res.tables.len(), 5);
         let collections: Vec<&str> = res.tables.iter().map(|t| t.collection.as_str()).collect();
         assert!(collections.contains(&"site.product"));
         assert!(collections.contains(&"site.contact"));
+        assert!(collections.contains(&"site.link"));
         assert!(collections.contains(&"site.object"));
         assert!(collections.contains(&"site.domain"));
     }

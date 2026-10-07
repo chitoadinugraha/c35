@@ -453,7 +453,7 @@ class _UiSiteCollectionTableState extends State<UiSiteCollectionTable> {
   @override
   void initState() {
     super.initState();
-    _load();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
   @override
@@ -629,6 +629,7 @@ class _UiSiteCollectionTableState extends State<UiSiteCollectionTable> {
           loading: _busy,
           searchQuery: widget.searchQuery,
           colCellHost: _colCellHost,
+          shrinkWrap: true,
           onCellCommit: (embedKey, col, value) => _commitEmbed(rowKey, embedKey, col, value),
           onAddRow: () => _addEmbed(rowKey),
         ),

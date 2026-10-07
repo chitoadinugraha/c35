@@ -1,5 +1,6 @@
 import 'package:alienai_c35/c/chat/chat_block.dart';
 import 'package:alienai_c35/c/files/msg_attachment.dart';
+import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/consumption/consumption_api.dart';
 import 'package:alienai_c35/c/consumption/consumption_food.dart';
 import 'package:alienai_c35/c/consumption/consumption_glance.dart';
@@ -37,6 +38,7 @@ class UiMsgBlocks extends StatelessWidget {
     this.onImageUpgradeHd,
     this.onMediaRegenerate,
     this.primary = false,
+    this.chatConn,
   });
 
   final int msgId;
@@ -50,6 +52,7 @@ class UiMsgBlocks extends StatelessWidget {
   final void Function(ChatBlock block)? onImageUpgradeHd;
   final MediaRegenerateHandler? onMediaRegenerate;
   final bool primary;
+  final ChatConn? chatConn;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -175,6 +178,7 @@ class UiMsgBlocks extends StatelessWidget {
           padding: const EdgeInsets.only(top: 8),
           child: UiSitePreviewCard(
             data: data,
+            conn: chatConn,
             initiallyExpanded: !b.collapsed || primary,
           ),
         );

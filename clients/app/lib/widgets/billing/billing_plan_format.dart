@@ -214,7 +214,7 @@ List<BillingPlanQuotaLine> billingPlanQuotaLines(BillingPlanDoc plan, {BillingPl
     BillingPlanQuotaLine(
       label: 'IoT devices',
       value: '$iot device${iot == 1 ? '' : 's'}',
-      showsIncluded: true,
+      showsIncluded: false,
       comparison: billingPlanTierComparison(iot, liteIot),
     ),
     if (plan.overageEnabled)
@@ -225,7 +225,7 @@ List<BillingPlanQuotaLine> billingPlanQuotaLines(BillingPlanDoc plan, {BillingPl
         label: 'Alien AI quota',
         value: yearly ? '${billingFmtRp(alien)}/mo · +20% yearly' : '${billingFmtRp(alien)}/mo',
         comparison: poolCmp ?? billingPlanQuotaAmountComparison(alien, baseAlien),
-        showsIncluded: true,
+        showsIncluded: false,
         valueAccent: yearly,
       ),
     if (frontier > 0)
@@ -234,7 +234,7 @@ List<BillingPlanQuotaLine> billingPlanQuotaLines(BillingPlanDoc plan, {BillingPl
         value: '${billingFmtRp(frontier)}/mo',
         comparison: poolCmp ?? billingPlanQuotaAmountComparison(frontier, baseFrontier),
         info: billingPlanApiQuotaInfo,
-        showsIncluded: true,
+        showsIncluded: false,
       ),
   ];
   final channels = billingPlanChannelsBadge(plan);

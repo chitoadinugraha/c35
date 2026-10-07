@@ -720,6 +720,11 @@ message ResBillingSummary {
   string billing_period = 30;
   string pending_plan_slug = 31;
   string pending_billing_period = 32;
+
+  double frontier_allow_5h_used = 33;
+  double frontier_allow_5h_limit = 34;
+  double frontier_allow_weekly_used = 35;
+  double frontier_allow_weekly_limit = 36;
 }
 
 // Active plan / voucher grants (stacking). Sorted by expires_ts asc in list API.

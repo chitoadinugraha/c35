@@ -103,8 +103,10 @@ SET
             bp.alien_allow_weekly_usd * (bp.frontier_pool_idr_monthly / bp.alien_pool_idr_monthly)
         ELSE 0
     END,
-    alien_pool_limit_idr = bp.alien_pool_idr_monthly,
-    frontier_pool_limit_idr = bp.frontier_pool_idr_monthly,
+    alien_pool_limit_idr = 0,
+    frontier_pool_limit_idr = 0,
+    alien_pool_used_idr = 0,
+    frontier_pool_used_idr = 0,
     plan_expires_ts = COALESCE(p.plan_expires_ts, NOW() + INTERVAL '10 years'),
     updated_ts = NOW()
 FROM ai.billing_plan bp

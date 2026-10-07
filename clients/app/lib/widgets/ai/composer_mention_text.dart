@@ -107,6 +107,35 @@ final RegExp _composerMentionBracketAroundTokenRe = RegExp(r'\[@\s*(\uFFFC[^\uFF
 final RegExp _composerMentionBracketOpenBeforeTokenRe = RegExp(r'\[@\s*(\uFFFC[^\uFFFD]+\uFFFD)');
 final RegExp _composerMentionBracketCloseAfterTokenRe = RegExp(r'(\uFFFC[^\uFFFD]+\uFFFD)\s+\]');
 
+/// Collapse nested `[@` shells before wire / title (mirrors server `mention_bracket_fixup_nesting`).
+String composerMentionBracketFixupNesting(String text) {
+  var s = text;
+  for (var i = 0; i < 8; i++) {
+    final prev = s;
+    s = s.replaceAll('[@@[@[@iid:', '[@iid:');
+    s = s.replaceAll('[@@[@iid:', '[@iid:');
+    s = s.replaceAll('[@[@iid:', '[@iid:');
+    if (s.startsWith('[@') && s.contains('[@iid:') && !s.startsWith('[@iid:')) {
+      final idx = s.indexOf('[@iid:');
+      if (idx > 0) s = s.substring(idx);
+    }
+    final pos = s.indexOf('[@iid:');
+    if (pos >= 0) {
+      final tail = s.substring(pos);
+      final r = tail.indexOf(']');
+      if (r >= 0) {
+        final after = pos + r + 1;
+        if (after < s.length && s[after] == ']') {
+          s = s.substring(0, after) + s.substring(after + 1);
+          continue;
+        }
+      }
+    }
+    if (s == prev) break;
+  }
+  return s;
+}
+
 String composerMentionStripBracketShellAroundTokens(String text) {
   var out = text;
   for (var i = 0; i < 8; i++) {
@@ -229,7 +258,8 @@ String composerMentionTextForPrompt(String text, List<CatalogMention> mentions, 
 
 /// Plain text + bracket mentions for wire / server `chat_msg.content`.
 String composerMentionTextForWire(String text, List<CatalogMention> mentions, {List<String>? mentionIds}) {
-  var out = text.replaceAllMapped(_composerMentionTokenRe, (m) => composerMentionBracketForId(m.group(1)!));
+  var out = composerMentionBracketFixupNesting(text);
+  out = out.replaceAllMapped(_composerMentionTokenRe, (m) => composerMentionBracketForId(m.group(1)!));
   out = out.replaceAllMapped(_composerMentionPlainIidRe, (m) => composerMentionBracketForId(m.group(0)!));
   out = out.replaceAllMapped(composerMentionBracketRe, (m) {
     final id = composerMentionIdFromBracket(m.group(1)!, m.group(2)!);

@@ -2414,6 +2414,34 @@ const ResBillingSummary$json = {
       '5': 9,
       '10': 'pendingBillingPeriod'
     },
+    {
+      '1': 'frontier_allow_5h_used',
+      '3': 33,
+      '4': 1,
+      '5': 1,
+      '10': 'frontierAllow5hUsed'
+    },
+    {
+      '1': 'frontier_allow_5h_limit',
+      '3': 34,
+      '4': 1,
+      '5': 1,
+      '10': 'frontierAllow5hLimit'
+    },
+    {
+      '1': 'frontier_allow_weekly_used',
+      '3': 35,
+      '4': 1,
+      '5': 1,
+      '10': 'frontierAllowWeeklyUsed'
+    },
+    {
+      '1': 'frontier_allow_weekly_limit',
+      '3': 36,
+      '4': 1,
+      '5': 1,
+      '10': 'frontierAllowWeeklyLimit'
+    },
   ],
 };
 
@@ -2445,7 +2473,11 @@ final $typed_data.Uint8List resBillingSummaryDescriptor = $convert.base64Decode(
     '5nQ3VycmVuY3kSJwoQZnhfbWljcm9fcGVyX3VzZBgdIAEoA1INZnhNaWNyb1BlclVzZBIlCg5i'
     'aWxsaW5nX3BlcmlvZBgeIAEoCVINYmlsbGluZ1BlcmlvZBIqChFwZW5kaW5nX3BsYW5fc2x1Zx'
     'gfIAEoCVIPcGVuZGluZ1BsYW5TbHVnEjQKFnBlbmRpbmdfYmlsbGluZ19wZXJpb2QYICABKAlS'
-    'FHBlbmRpbmdCaWxsaW5nUGVyaW9k');
+    'FHBlbmRpbmdCaWxsaW5nUGVyaW9kEjMKFmZyb250aWVyX2FsbG93XzVoX3VzZWQYISABKAFSE2'
+    'Zyb250aWVyQWxsb3c1aFVzZWQSNQoXZnJvbnRpZXJfYWxsb3dfNWhfbGltaXQYIiABKAFSFGZy'
+    'b250aWVyQWxsb3c1aExpbWl0EjsKGmZyb250aWVyX2FsbG93X3dlZWtseV91c2VkGCMgASgBUh'
+    'dmcm9udGllckFsbG93V2Vla2x5VXNlZBI9Chtmcm9udGllcl9hbGxvd193ZWVrbHlfbGltaXQY'
+    'JCABKAFSGGZyb250aWVyQWxsb3dXZWVrbHlMaW1pdA==');
 
 @$core.Deprecated('Use billingEntitlementDocDescriptor instead')
 const BillingEntitlementDoc$json = {

@@ -109,12 +109,13 @@ pub use billing_on_demand::{
 };
 pub use billing_reservation::{
     billing_can_afford_tool, billing_gate_with_hold, billing_gate_with_hold_custom,
-    billing_held_totals, billing_held_totals_exec, billing_reservation_hold,
-    billing_reservation_hold_custom, billing_reservation_refund, billing_reservation_settle,
+    billing_gate_with_hold_model, billing_held_totals, billing_held_totals_exec,
+    billing_reservation_hold, billing_reservation_hold_custom, billing_reservation_refund,
+    billing_reservation_settle,
 };
 pub use billing_turn::{
     billing_account_ensure, billing_deduct, billing_deduct_allowance, billing_deduct_personal_profile,
-    billing_gate, billing_usage_report,
+    billing_gate, billing_gate_model, billing_usage_report,
     BillingRow,
 };
 pub use bot_usage::bot_usage_stats;

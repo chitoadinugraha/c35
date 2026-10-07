@@ -1,9 +1,12 @@
 import 'dart:async';
 
+import 'package:alienai_c35/c/admin/admin_api.dart';
 import 'package:alienai_c35/c/chat/chat_conn.dart';
+import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/trace/trace_view.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/ui/ui_format.dart';
+import 'package:alienai_c35/widgets/admin/ui_inst_info_dialog.dart';
 import 'package:alienai_c35/widgets/ai/msg_trace_view.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_id.dart';
 import 'package:alienai_c35/widgets/ui/ui_loading.dart';
@@ -36,6 +39,7 @@ class _MsgTraceSheetState extends State<_MsgTraceSheet> {
   TraceView _view = const TraceView();
   Timer? _poll;
   var _pollTicks = 0;
+  late final AdminApi _adminApi = AdminApi.chat(widget.conn);
 
   @override
   void initState() {
@@ -92,6 +96,11 @@ class _MsgTraceSheetState extends State<_MsgTraceSheet> {
     }
   }
 
+  Future<void> _onInstTap(String instId) async {
+    if (!Session.instance.isRoot || instId.trim().isEmpty) return;
+    await showInstInfoDialog(context, api: _adminApi, instId: instId.trim());
+  }
+
   @override
   Widget build(BuildContext context) {
     final maxH = MediaQuery.sizeOf(context).height * 0.82;
@@ -136,7 +145,7 @@ class _MsgTraceSheetState extends State<_MsgTraceSheet> {
                           : ListView.builder(
                               padding: const EdgeInsets.all(16),
                               itemCount: _view.steps.length,
-                              itemBuilder: (_, i) => _StepTile(step: _view.steps[i]),
+                              itemBuilder: (_, i) => _StepTile(step: _view.steps[i], onInstTap: _onInstTap),
                             ),
             ),
           ],
@@ -147,8 +156,9 @@ class _MsgTraceSheetState extends State<_MsgTraceSheet> {
 }
 
 class _StepTile extends StatelessWidget {
-  const _StepTile({required this.step});
+  const _StepTile({required this.step, this.onInstTap});
   final TraceStep step;
+  final Future<void> Function(String instId)? onInstTap;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -171,7 +181,7 @@ class _StepTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     for (final b in step.branches)
-                      b.hasToolFilterDetail ? _ToolFilterBranchRow(branch: b) : _BranchRow(branch: b),
+                      b.hasToolFilterDetail ? _ToolFilterBranchRow(branch: b, onInstTap: onInstTap) : _BranchRow(branch: b),
                   ],
                 ),
               ),
@@ -239,8 +249,9 @@ class _BranchRowState extends State<_BranchRow> {
 }
 
 class _ToolFilterBranchRow extends StatefulWidget {
-  const _ToolFilterBranchRow({required this.branch});
+  const _ToolFilterBranchRow({required this.branch, this.onInstTap});
   final TraceBranch branch;
+  final Future<void> Function(String instId)? onInstTap;
 
   @override
   State<_ToolFilterBranchRow> createState() => _ToolFilterBranchRowState();
@@ -300,13 +311,13 @@ class _ToolFilterBranchRowState extends State<_ToolFilterBranchRow> {
           ),
           if (_expanded) ...[
             const SizedBox(height: 4),
-            for (final c in fedTools) _ToolFilterCandidateRow(candidate: c),
+            for (final c in fedTools) _ToolFilterCandidateRow(candidate: c, onInstTap: widget.onInstTap),
             if (dropped.isNotEmpty) ...[
               const Padding(
                 padding: EdgeInsets.only(left: 28, top: 6, bottom: 2),
                 child: Text('Dropped (similarity gap)', style: TextStyle(color: Color(0xFF71717A), fontSize: 11, fontWeight: FontWeight.w600)),
               ),
-              for (final c in dropped) _ToolFilterCandidateRow(candidate: c, dropped: true),
+              for (final c in dropped) _ToolFilterCandidateRow(candidate: c, dropped: true, onInstTap: widget.onInstTap),
             ],
             if (otherEligible.isNotEmpty) ...[
               Padding(
@@ -316,7 +327,7 @@ class _ToolFilterBranchRowState extends State<_ToolFilterBranchRow> {
                   style: const TextStyle(color: Color(0xFF71717A), fontSize: 11, fontWeight: FontWeight.w600),
                 ),
               ),
-              for (final c in otherEligible) _ToolFilterCandidateRow(candidate: c),
+              for (final c in otherEligible) _ToolFilterCandidateRow(candidate: c, onInstTap: widget.onInstTap),
             ],
           ],
         ],
@@ -326,9 +337,10 @@ class _ToolFilterBranchRowState extends State<_ToolFilterBranchRow> {
 }
 
 class _ToolFilterCandidateRow extends StatelessWidget {
-  const _ToolFilterCandidateRow({required this.candidate, this.dropped = false});
+  const _ToolFilterCandidateRow({required this.candidate, this.dropped = false, this.onInstTap});
   final TraceToolFilterCandidate candidate;
   final bool dropped;
+  final Future<void> Function(String instId)? onInstTap;
 
   @override
   Widget build(BuildContext context) {
@@ -345,11 +357,23 @@ class _ToolFilterCandidateRow extends StatelessWidget {
         : fed
             ? const Color(0xFF22C55E)
             : const Color(0xFF71717A);
+    final instTap = candidate.isInst && Session.instance.isRoot ? onInstTap : null;
     return Padding(
       padding: const EdgeInsets.only(left: 28, bottom: 2),
       child: Row(
         children: [
-          Expanded(child: Text(label, style: TextStyle(color: color, fontSize: 11, height: 1.3))),
+          Expanded(
+            child: instTap == null
+                ? Text(label, style: TextStyle(color: color, fontSize: 11, height: 1.3))
+                : InkWell(
+                    onTap: () => unawaited(instTap(label)),
+                    borderRadius: BorderRadius.circular(3),
+                    child: Text(
+                      label,
+                      style: TextStyle(color: color, fontSize: 11, height: 1.3, decoration: TextDecoration.underline, decorationColor: color.withValues(alpha: 0.6)),
+                    ),
+                  ),
+          ),
           Text(sim, style: TextStyle(color: simColor, fontSize: 11, fontFeatures: const [FontFeature.tabularFigures()])),
         ],
       ),

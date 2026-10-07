@@ -13,6 +13,14 @@ String moneyFmtIdr(num n, {int decimals = 0}) {
 
 String moneyFmtUsd(double n, {int decimals = 2}) => 'USD ${n.toStringAsFixed(decimals)}';
 
+int? moneyParseIdrInt(String raw) {
+  final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
+  if (digits.isEmpty) return null;
+  return int.tryParse(digits);
+}
+
+double? moneyParseIdr(String raw) => moneyParseIdrInt(raw)?.toDouble();
+
 String moneyFmtIdrGrouped(int n) {
   if (n == 0) return '0';
   final neg = n < 0;

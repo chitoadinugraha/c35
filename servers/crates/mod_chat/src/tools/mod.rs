@@ -48,10 +48,12 @@ use builtin::{
     AdminTraceGetTool, AdminUserSearchTool, BillingTopupListTool,
     BillingTopupReviewTool, BillingWithdrawListTool, BillingWithdrawReviewTool,
     ReferralCommissionSimulateTool, ReferralUserStatsStaffTool,
-    SiteContactPutTool,
-    SiteCreateTool, SiteDomainPutTool, SiteDomainVerifyTool, SiteDraftGetTool, SiteDraftPutTool,
-    SiteHandleUpdateTool, SiteObjectPutTool, SiteOrderStatusTool, SitePatchTool, SiteProductPatchTool,
-    SiteProductPutTool, SitePublishTool, SiteQueryRunTool,
+    SiteContactDeleteTool, SiteContactPutTool, SiteConfigPutTool, SiteCreateTool, SiteDomainPutTool,
+    SiteLinkDeleteTool, SiteLinkPutTool,
+    SiteDomainVerifyTool, SiteDraftGetTool, SiteGrantDeleteTool, SiteGrantPutTool, SiteDraftPutTool,
+    SiteHandleUpdateTool, SiteObjectDeleteTool, SiteObjectPutTool, SiteOrderStatusTool, SitePatchTool,
+    SiteProductDeleteTool, SiteProductEmbedPutTool, SiteProductPatchTool, SiteProductPutTool,
+    SitePublishTool, SiteQueryRunTool,
     SiteTxDebtPayTool, SiteTxListTool, SiteTxPreviewTool, SiteTxPutTool, TaskRunCancelDeviceTool,
     TaskRunCancelTool, TaskRunStartTool, TaskRunStatusTool, WebResearchTool, WebSearchTool,
     WebVisitTool,
@@ -180,12 +182,21 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(SiteDraftGetTool));
     dispatcher.register(Arc::new(SiteDraftPutTool));
     dispatcher.register(Arc::new(SitePublishTool));
+    dispatcher.register(Arc::new(SiteConfigPutTool));
     dispatcher.register(Arc::new(SiteDomainPutTool));
     dispatcher.register(Arc::new(SiteDomainVerifyTool));
     dispatcher.register(Arc::new(SiteProductPutTool));
     dispatcher.register(Arc::new(SiteProductPatchTool));
+    dispatcher.register(Arc::new(SiteProductDeleteTool));
+    dispatcher.register(Arc::new(SiteProductEmbedPutTool));
     dispatcher.register(Arc::new(SiteContactPutTool));
+    dispatcher.register(Arc::new(SiteContactDeleteTool));
+    dispatcher.register(Arc::new(SiteLinkPutTool));
+    dispatcher.register(Arc::new(SiteLinkDeleteTool));
     dispatcher.register(Arc::new(SiteObjectPutTool));
+    dispatcher.register(Arc::new(SiteObjectDeleteTool));
+    dispatcher.register(Arc::new(SiteGrantPutTool));
+    dispatcher.register(Arc::new(SiteGrantDeleteTool));
     dispatcher.register(Arc::new(SiteQueryRunTool));
     dispatcher.register(Arc::new(SiteTxPutTool));
     dispatcher.register(Arc::new(SiteTxPreviewTool));

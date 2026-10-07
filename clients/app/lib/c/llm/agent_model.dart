@@ -70,6 +70,21 @@ class AgentModel {
     return s == 'auto' || provider == 'alienai' || s.contains('gemini-3') || providerModel.toLowerCase().contains('gemini-3');
   }
 
+  /// Short name for live status rows (`Alien AI is thinking`, `Gemini Flash is thinking`, …).
+  String get thinkingSubjectName {
+    if (provider == 'alienai') return 'Alien AI';
+    final l = label.trim();
+    if (l.isNotEmpty) {
+      final flash = RegExp(r'^(.+?\bFlash(?:\s+Lite)?)', caseSensitive: false).firstMatch(l);
+      if (flash != null) return flash.group(1)!.trim();
+      if (l.length <= 28) return l;
+    }
+    final c = chip.trim();
+    return c.isNotEmpty ? c : (l.isNotEmpty ? l : id);
+  }
+
+  String get thinkingStatusLabel => '$thinkingSubjectName is thinking';
+
   Color get accent => switch (provider) {
         'alienai' => const Color(0xFFF4F4F5),
         'google' => const Color(0xFF38BDF8),

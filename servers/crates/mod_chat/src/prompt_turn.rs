@@ -10,8 +10,9 @@ use sqlx::PgPool;
 use tokio_util::sync::CancellationToken;
 
 use crate::catalog_web::{catalog_skip_web_prefetch, catalog_web_phase};
+use crate::catalog_add_followup::{catalog_add_followup_boost, chat_last_assistant_content};
 use crate::compose::{
-    compose_force_tool_call, compose_force_web_tool_call, compose_tools_and_inst_async, ComposeTurnOpts,
+    compose_force_tool_call_with_text, compose_force_web_tool_call, compose_tools_and_inst_async, ComposeTurnOpts,
 };
 use crate::inst_cache::inst_list_for_turn;
 use crate::prompt_run::prompt_run_get;
@@ -20,12 +21,11 @@ use crate::mention_registry::{
 };
 use crate::mention_tool_registry::mention_force_tools;
 use crate::site_capability::site_capability_view_for_mention;
-use crate::inst_macro::inst_scopes_home;
+use crate::inst_macro::{inst_pool_signal, inst_scopes_home};
 use crate::mention_context::{
     mention_context_build, mention_context_sites_block, MentionContext,
 };
 use crate::site_resolve::site_context_resolve;
-use crate::topic::topic_inst_block;
 use crate::mention::mention_list_enabled;
 use crate::context_billing::ContextBillingExtra;
 use crate::context_compact::{prepare_prompt_history, PreparedPromptHistory};
@@ -35,7 +35,7 @@ use crate::device_context::{
     tool_exclude_browser_devices,
 };
 use crate::mention_content::mention_content_normalize;
-use crate::memory::{memory_prompt_merge, memory_retrieve};
+use crate::memory::{memory_prompt_merge, memory_retrieve, MemoryRetrieveResult};
 use crate::memory_extract::memory_extract_turn_gate;
 use crate::prompt::thought::thinking_level;
 use crate::prompt::time::{
@@ -84,6 +84,34 @@ pub fn chat_title_from_text(text: &str) -> String {
         return "Chat".into();
     };
     format!("{}{}", first.to_uppercase(), chars.as_str())
+}
+
+pub async fn chat_title_from_prompt(pool: &PgPool, text: &str, mention_ids: &[String]) -> String {
+    use crate::mention_content::{mention_bracket_for_id, mention_content_normalize, mention_plain_for_title};
+    let normalized = mention_content_normalize(text, mention_ids);
+    let mut plain = normalized;
+    for id in mention_ids {
+        let iid = id.strip_prefix("iid:").and_then(|s| s.parse::<i64>().ok());
+        if iid.is_none() {
+            continue;
+        }
+        let iid = iid.unwrap();
+        let bracket = mention_bracket_for_id(id);
+        if !plain.contains(&bracket) {
+            continue;
+        }
+        let name: Option<String> = sqlx::query_scalar(
+            "SELECT name FROM ai.identity WHERE id = $1 AND deleted_ts IS NULL",
+        )
+        .bind(iid)
+        .fetch_optional(pool)
+        .await
+        .unwrap_or(None);
+        if let Some(n) = name.filter(|s| !s.trim().is_empty()) {
+            plain = plain.replace(&bracket, n.trim());
+        }
+    }
+    chat_title_from_text(&mention_plain_for_title(&plain))
 }
 
 pub fn chat_attachments_json(s: &str) -> Json<serde_json::Value> {
@@ -179,12 +207,27 @@ where
     )
     .await?;
     let freemium = c35_mod_billing::billing_freemium_applies(pool, owner_iid).await.unwrap_or(false);
+    let requested_model = if freemium {
+        "alienai"
+    } else if req.model.trim().is_empty() {
+        "alienai"
+    } else {
+        req.model.trim()
+    };
     let brow = c35_mod_billing::billing_gate_scoped(pool, &bctx).await?;
     if !hooks.skip_billing_gate {
-        c35_mod_billing::billing_gate_with_hold(pool, owner_iid, &brow, req_id).await?;
+        c35_mod_billing::billing_gate_with_hold_model(
+            pool,
+            owner_iid,
+            &brow,
+            req_id,
+            c35_mod_billing::DEFAULT_HOLD_USD,
+            Some(requested_model),
+        )
+        .await?;
     }
     let prepare_started = Instant::now();
-    let title = chat_title_from_text(&req.text);
+    let title = chat_title_from_prompt(pool, &req.text, &req.mention_ids).await;
     let chat_id = chat_ensure(pool, owner_iid, req.chat_id, &title).await?;
     bound_device_prompt_prepare(pool, owner_iid, chat_id, &mut req).await?;
     chat_mention_context_commit(pool, chat_id, owner_iid, &req.mention_ids).await?;
@@ -261,7 +304,7 @@ where
     .bind(chat_attachments_json(&req.attachments_json))
     .execute(pool)
     .await?;
-    let _ = chat_touch(pool, chat_id, owner_iid, &user_content, "streaming").await;
+    let _ = crate::chat_sync::chat_touch(pool, nats, chat_id, owner_iid, &user_content, "streaming").await;
 
     let model = if freemium {
         c35_mod_billing::FREEMIUM_MODEL.to_string()
@@ -272,6 +315,13 @@ where
     };
     let user = attach_prompt(&user_content, &req.attachments_json);
     let inst_rows = inst_list_for_turn(pool).await;
+    let http = http_client(std::time::Duration::from_secs(30));
+    let memory_task = tokio::spawn({
+        let pool = pool.clone();
+        let http = http.clone();
+        let query = req.text.clone();
+        async move { memory_retrieve(&pool, &http, owner_iid, None, &query, 8).await }
+    });
     let mentions = mention_list_enabled(pool).await;
     let mention_ids: Vec<String> = req.mention_ids.clone();
     let prompt_run = prompt_run_get(pool, req_id).await.ok().flatten();
@@ -310,10 +360,6 @@ where
     let caps = site_capability_view_for_mention(pool, &mention_ctx).await;
     let commerce_site_iids = caps.commerce_site_iids(&mention_ctx.site_iids());
     let active_topics = mention_active_topics(&resolved, &explicit_topic, &commerce_site_iids);
-    let topic_id = active_topics
-        .first()
-        .cloned()
-        .unwrap_or_else(|| explicit_topic.clone());
     let tool_mode = if req.tool_mode.trim().is_empty() { "agent" } else { req.tool_mode.trim() };
     let inst_scopes = inst_scopes_home();
     let user_ctx = user_prompt_context_get(pool, owner_iid).await;
@@ -321,7 +367,15 @@ where
     let bound_device_iid = chat_bound_device_iid_for_owner(pool, owner_iid, chat_id).await;
     let browser_tool_exclude =
         tool_exclude_browser_devices(pool, owner_iid, &mention_ctx.devices, bound_device_iid).await;
-    let http = http_client(std::time::Duration::from_secs(30));
+    let catalog_followup = chat_last_assistant_content(pool, chat_id)
+        .await
+        .and_then(|prev| catalog_add_followup_boost(&prev, &req.text));
+    let catalog_force_tools: Vec<String> = catalog_followup
+        .as_ref()
+        .map(|b| b.force_tools.clone())
+        .unwrap_or_default();
+    let catalog_inst_suffix = catalog_followup.as_ref().map(|b| b.inst_suffix.as_str()).unwrap_or("");
+    let compose_signals = [inst_pool_signal(&model).to_string()];
     let composed = compose_tools_and_inst_async(
         pool,
         &http,
@@ -337,8 +391,11 @@ where
         &mention_ctx,
         &caps,
         ComposeTurnOpts {
+            extra_signals: &compose_signals,
             attachments_json: &req.attachments_json,
+            extra_tool_include: &catalog_force_tools,
             extra_tool_exclude: &browser_tool_exclude,
+            extra_inst_suffix: catalog_inst_suffix,
             ..ComposeTurnOpts::default()
         },
         owner_iid,
@@ -347,8 +404,20 @@ where
     .await;
     let site_iid = mention_ctx.default_site_iid;
     let instructions_base = token_estimate(&composed.inst_block);
-    let topic_block = topic_inst_block(pool, &topic_id).await;
+    let topic_block = crate::topic::topics_inst_block(pool, &active_topics).await;
     let instructions_base = instructions_base + token_estimate(&topic_block);
+
+    let tools = if user_asks_time(&req.text) && mention_ids.is_empty() && !user_wants_search(&req.text) {
+        vec![]
+    } else {
+        composed.tools
+            .into_iter()
+            .filter(|t| !freemium || c35_mod_billing::freemium_tool_allowed(&t.name))
+            .collect()
+    };
+    let force_tool_call = compose_force_tool_call_with_text(&composed.matched_ids, &tools, &req.text);
+    let force_web_tool_call = compose_force_web_tool_call(&composed.matched_ids, &tools);
+
     let tz = time_timezone_resolve(&user_ctx.tz, locale_eff, &req.text);
     let time_block = time_prompt_block(&tz);
     let location_block = location_prompt_block(
@@ -366,6 +435,12 @@ where
         }
         system.push_str(&topic_block);
     }
+    if force_web_tool_call {
+        if !system.is_empty() {
+            system.push_str("\n\n");
+        }
+        system.push_str(crate::prompt::web_grounding::WEB_GROUNDED_REPLY_RULE);
+    }
     let sites_block = mention_context_sites_block(&mention_ctx);
     if !sites_block.is_empty() {
         if !system.is_empty() {
@@ -381,7 +456,10 @@ where
         system.push_str(&mention_block);
     }
     let context_named = token_estimate(&sites_block) + token_estimate(&mention_block) + token_estimate(&time_block) + token_estimate(&location_block);
-    let memory = memory_retrieve(pool, &http, owner_iid, None, &req.text, 8).await;
+    let memory = memory_task.await.unwrap_or_else(|e| {
+        tracing::warn!("[c35:memory] retrieve task failed: {e:#}");
+        MemoryRetrieveResult::default()
+    });
     let memory_tokens = token_estimate(&memory.block);
     system = memory_prompt_merge(&system, &memory.block);
 
@@ -412,19 +490,6 @@ where
     tracer.trace_prepare(&composed.trace, &req.text, prepare_ms, context_tokens_est).await;
     tracer.trace_memory(&memory.trace).await;
 
-    let tools = if user_asks_time(&req.text) && mention_ids.is_empty() && !user_wants_search(&req.text) {
-        vec![]
-    } else {
-        composed.tools
-            .into_iter()
-            .filter(|t| !freemium || c35_mod_billing::freemium_tool_allowed(&t.name))
-            .collect()
-    };
-    let force_tool_call = compose_force_tool_call(&composed.matched_ids, &tools);
-    let force_web_tool_call = compose_force_web_tool_call(&composed.matched_ids, &tools);
-    if force_web_tool_call {
-        system = format!("{system}{}", crate::prompt::web_grounding::WEB_GROUNDED_REPLY_RULE);
-    }
     let system_tokens = token_estimate(&system);
     let named = instructions_base + context_named + memory_tokens + if force_web_tool_call { token_estimate(crate::prompt::web_grounding::WEB_GROUNDED_REPLY_RULE) } else { 0 };
     let slack = system_tokens.saturating_sub(named);
@@ -516,13 +581,24 @@ where
             .execute(pool)
             .await;
             let _ = c35_mod_billing::billing_reservation_refund(pool, req_id).await;
-            let _ = chat_touch(pool, chat_id, owner_iid, &err_text, "error").await;
+            let _ = crate::chat_sync::chat_touch(pool, nats, chat_id, owner_iid, &err_text, "error").await;
             return Err(e);
         }
     };
     let duration_ms = turn_started.elapsed().as_millis() as i32;
     let assistant_msg_id = snowflake_id();
     let blocks_json = if res.blocks_json.is_empty() { "[]" } else { res.blocks_json.as_str() };
+    tracer
+        .llm_turn(
+            &res.model_used,
+            res.tokens_in,
+            res.tokens_out,
+            duration_ms as i64,
+            prepare_ms,
+            0.0,
+            &res.text,
+        )
+        .await;
     match memory_extract_turn_gate(pool, &http, owner_iid, None, req_id, &req.text, &res.text).await {
         Ok((writes, tin, tout, cost)) => {
             context_billing.memory_extract_writes += writes;
@@ -579,10 +655,7 @@ where
     .execute(pool)
     .await?;
     let final_status = if error_text.is_empty() { "done" } else { "error" };
-    chat_touch(pool, chat_id, owner_iid, &res.text, final_status).await?;
-    if error_text.is_empty() {
-        tracer.llm_turn(&res.model_used, res.tokens_in, res.tokens_out, duration_ms as i64, prepare_ms, cost_usd, &res.text).await;
-    }
+    crate::chat_sync::chat_touch(pool, nats, chat_id, owner_iid, &res.text, final_status).await?;
 
     Ok(PromptTurn {
         chat_id,
@@ -601,38 +674,4 @@ where
         context_window,
         usage,
     })
-}
-
-async fn chat_touch(pool: &PgPool, chat_id: i64, owner_iid: i64, preview: &str, status: &str) -> Result<()> {
-    let p: String = preview.chars().take(255).collect();
-    let mut tx = match pool.begin().await {
-        Ok(t) => t,
-        Err(e) => {
-            tracing::warn!("[c35:chat] chat_touch begin tx failed: {e}");
-            return Ok(());
-        }
-    };
-    let _ = sqlx::query(
-        r#"
-        UPDATE ai.chat SET last_msg_ts = NOW(), last_msg_preview = $2, updated_ts = NOW() WHERE id = $1
-        "#,
-    )
-    .bind(chat_id)
-    .bind(&p)
-    .execute(&mut *tx)
-    .await;
-    let _ = sqlx::query(
-        r#"
-        UPDATE ai.chat_member SET last_msg_ts = NOW(), last_msg_preview = $2, last_msg_status = $4, updated_ts = NOW()
-        WHERE chat_id = $1 AND member_iid = $3
-        "#,
-    )
-    .bind(chat_id)
-    .bind(&p)
-    .bind(owner_iid)
-    .bind(status)
-    .execute(&mut *tx)
-    .await;
-    let _ = tx.commit().await;
-    Ok(())
 }

@@ -17,8 +17,10 @@ import 'package:alienai_c35/widgets/billing/ui_billing_purchase_disclaimer.dart'
 import 'package:alienai_c35/widgets/billing/ui_billing_purchase_success_dialog.dart';
 import 'package:alienai_c35/widgets/referral/ui_billing_package_redeem.dart';
 import 'package:alienai_c35/widgets/ui/ui_loading.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/material.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
 
 const _sheetBg = Color(0xFF121215);
 const _cardBg = Color(0xFF18181B);
@@ -29,6 +31,14 @@ const _border = Color(0xFF27272A);
 const _ok = Color(0xFF34D399);
 const _danger = Color(0xFFF87171);
 const _warn = Color(0xFFFBBF24);
+
+const _planCarouselCardWidth = 272.0;
+const _planCarouselGap = 10.0;
+
+bool _billingErrorIsPlayUnavailable(String? message) {
+  final m = message?.toLowerCase() ?? '';
+  return m.contains('google play billing is not available') || m.contains('google play store');
+}
 
 Future<void> billingPackageSheet(BuildContext context, {required ReferralConn conn}) async {
   await showModalBottomSheet<void>(
@@ -63,11 +73,16 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
   ResBillingSummary? _summary;
   ResBillingPlanQuote? _quote;
   String? _selectedSlug;
-  Timer? _quoteDebounce;
+  final Map<String, ResBillingPlanQuote> _quoteCache = {};
+  final _planCarouselScroll = ScrollController();
+  bool? _playBillingAvailable;
+  String? _playBillingHint;
+
+  String _quoteCacheKey(String slug, String period) => '${slug.trim().toLowerCase()}|$period';
 
   @override
   void dispose() {
-    _quoteDebounce?.cancel();
+    _planCarouselScroll.dispose();
     super.dispose();
   }
 
@@ -75,6 +90,46 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
   void initState() {
     super.initState();
     unawaited(_load());
+  }
+
+  int _planCarouselItemCount() =>
+      _plans.length + (billingPlanIsPaidTier(_activePlanSlug) || (_summary?.pendingPlanSlug ?? '').trim().isNotEmpty ? 1 : 0);
+
+  int? _planCarouselIndexForSlug(String? slug) {
+    if (slug == null) return null;
+    final showNoPlan = billingPlanIsPaidTier(_activePlanSlug) || (_summary?.pendingPlanSlug ?? '').trim().isNotEmpty;
+    if (slug == billingPlanNoPlanSlug) return showNoPlan ? _plans.length : null;
+    for (var i = 0; i < _plans.length; i++) {
+      if (_plans[i].slug == slug) return i;
+    }
+    return null;
+  }
+
+  void _scrollPlanCarouselToSelection() {
+    final index = _planCarouselIndexForSlug(_selectedSlug);
+    if (index == null || !_planCarouselScroll.hasClients) return;
+    final viewport = _planCarouselScroll.position.viewportDimension;
+    final target = index * (_planCarouselCardWidth + _planCarouselGap);
+    final maxScroll = _planCarouselScroll.position.maxScrollExtent;
+    final centered = (target - (viewport - _planCarouselCardWidth) / 2).clamp(0.0, maxScroll);
+    _planCarouselScroll.animateTo(centered, duration: const Duration(milliseconds: 320), curve: Curves.easeOutCubic);
+  }
+
+  Future<void> _probePlayBilling() async {
+    if (!billingUsePlayPlans()) {
+      _playBillingAvailable = null;
+      _playBillingHint = null;
+      return;
+    }
+    try {
+      _playBillingAvailable = await InAppPurchase.instance.isAvailable();
+      _playBillingHint = _playBillingAvailable == true
+          ? null
+          : 'Google Play checkout needs an updated Play Store and a signed-in Google account.';
+    } catch (_) {
+      _playBillingAvailable = false;
+      _playBillingHint = 'Could not reach Google Play Billing on this device.';
+    }
   }
 
   Future<void> _load({bool showLoading = true}) async {
@@ -95,7 +150,11 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
         _yearly = yearly;
         _selectedSlug ??= _defaultSelectedSlug(summary);
       });
-      _scheduleQuote();
+      await _probePlayBilling();
+      if (!mounted) return;
+      setState(() {});
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollPlanCarouselToSelection());
+      unawaited(_prefetchAllQuotes());
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -168,23 +227,25 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
             )
           : BillingAccount(billingCurrency: _currency));
 
-  /// Play Billing only supports fixed subscription SKUs (full monthly/yearly list price).
+  /// Play Billing supports fixed subscription SKUs (monthly/yearly plans).
   bool _usePlayForCharge(String kind, double chargeIdr) {
     final k = kind.trim().toLowerCase();
     if (!billingUsePlayPlans() || _selectionIsNoPlan || chargeIdr <= 0) return false;
-    if (k != 'subscribe') return false;
+    if (k != 'subscribe' && k != 'upgrade') return false;
     if (_currency != 'IDR') return false;
-    final list = _quote?.listPriceIdr ?? 0;
-    if (list <= 0 || chargeIdr.round() != list.round()) return false;
     return !billingCreditCoversCharge(_balanceAccount, currency: _currency, chargeIdr: chargeIdr);
   }
 
   String _payButtonSuffix(double chargeIdr, String kind) {
     if (chargeIdr <= 0 || _currency != 'IDR') return '';
-    final k = kind.trim().toLowerCase();
-    if (k == 'upgrade') return ' from credit';
     if (_usePlayForCharge(kind, chargeIdr)) return ' with Google Play';
     return ' from credit';
+  }
+
+  bool get _checkoutUsesPlay {
+    final kind = (_quote?.kind ?? '').trim().toLowerCase();
+    final charge = _quote?.chargeIdr ?? 0;
+    return _usePlayForCharge(kind, charge);
   }
 
   bool get _selectedIsCurrent {
@@ -198,38 +259,55 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
     return plan.slug.trim().toLowerCase() == _activePlanSlug && _selectionPeriod == _activeBillingPeriod;
   }
 
-  void _scheduleQuote() {
-    _quoteDebounce?.cancel();
-    if (_selectedSlug == null) {
-      setState(() {
-        _quote = null;
-        _quoteLoading = false;
-      });
-      return;
-    }
-    setState(() => _quoteLoading = true);
-    _quoteDebounce = Timer(const Duration(milliseconds: 280), () => unawaited(_loadQuote()));
+  List<String> get _quoteSlugs => [
+        ..._plans.map((p) => p.slug),
+        if (billingPlanIsPaidTier(_activePlanSlug) || (_summary?.pendingPlanSlug ?? '').trim().isNotEmpty) billingPlanNoPlanSlug,
+      ];
+
+  void _applySelectedQuote() {
+    final slug = _selectedSlug;
+    _quote = slug == null ? null : _quoteCache[_quoteCacheKey(slug, _selectionPeriod)];
   }
 
-  Future<void> _loadQuote() async {
-    final slug = _selectedSlug;
-    if (slug == null) return;
+  Future<void> _prefetchAllQuotes() async {
+    if (_summary == null) return;
+    final period = _selectionPeriod;
+    setState(() => _quoteLoading = true);
     try {
-      final quote = await billingPlanQuote(
-        widget.conn,
-        planSlug: slug,
-        billingPeriod: _selectionPeriod,
-        currency: _currency,
+      await Future.wait(
+        _quoteSlugs.map((slug) async {
+          final key = _quoteCacheKey(slug, period);
+          if (_quoteCache.containsKey(key)) return;
+          final quote = await billingPlanQuote(
+            widget.conn,
+            planSlug: slug,
+            billingPeriod: period,
+            currency: _currency,
+          );
+          _quoteCache[key] = quote;
+        }),
       );
-      if (!mounted || slug != _selectedSlug || _selectionPeriod != (_yearly ? 'yearly' : 'monthly')) return;
-      setState(() {
-        _quote = quote;
-        _quoteLoading = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _quoteLoading = false);
-    }
+    } catch (_) {}
+    if (!mounted || period != _selectionPeriod) return;
+    setState(() {
+      _quoteLoading = false;
+      _applySelectedQuote();
+    });
+  }
+
+  int? _planPeriodEndMs() {
+    final s = _summary;
+    if (s != null && s.hasPlanExpiresTsMs() && s.planExpiresTsMs.toInt() > 0) return s.planExpiresTsMs.toInt();
+    final b = AppStore.instance.billing;
+    if (b != null && b.hasPlanExpiresTsMs() && b.planExpiresTsMs.toInt() > 0) return b.planExpiresTsMs.toInt();
+    return null;
+  }
+
+  String _planChangeEffectiveLabel() {
+    final quoteMs = _quote?.hasEffectiveTsMs() == true ? _quote!.effectiveTsMs.toInt() : 0;
+    final ms = quoteMs > 0 ? quoteMs : _planPeriodEndMs();
+    if (ms == null || ms <= 0) return '';
+    return DateFormat('d MMM yyyy · HH:mm').format(DateTime.fromMillisecondsSinceEpoch(ms).toLocal());
   }
 
   String get _primaryButtonLabel {
@@ -244,7 +322,11 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
       }
       return 'Upgrade now';
     }
-    if (kind == 'downgrade' || kind == 'cancel') return 'Schedule at period end';
+    if (kind == 'downgrade' || kind == 'cancel') {
+      final when = _planChangeEffectiveLabel();
+      if (when.isNotEmpty) return kind == 'cancel' ? 'Cancel in $when' : 'Downgrade in $when';
+      return kind == 'cancel' ? 'Cancel at period end' : 'Downgrade at period end';
+    }
     final charge = _quote?.chargeIdr ?? 0;
     if (charge > 0 && _currency == 'IDR') {
       return 'Pay ${billingFmtRp(charge)}${_payButtonSuffix(charge, kind)}';
@@ -289,8 +371,9 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
           title: 'Plan updated',
           subtitle: _selectedPlan?.name ?? slug,
         );
-        await _load();
-        _scheduleQuote();
+        await _load(showLoading: false);
+        _quoteCache.clear();
+        unawaited(_prefetchAllQuotes());
         return;
       }
       if (billingUsePlayPlans() &&
@@ -308,20 +391,33 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
       if (!mounted) return;
       final label = _selectionIsNoPlan ? 'No plan scheduled' : (_selectedPlan?.name ?? slug);
       setState(() => _successMessage = 'Updated: $label');
-      await _load();
-      _scheduleQuote();
+      await _load(showLoading: false);
+      _quoteCache.clear();
+      unawaited(_prefetchAllQuotes());
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = uiReferralError(e, fallback: 'Plan change failed'));
+      final msg = uiReferralError(e, fallback: 'Plan change failed');
+      if (_billingErrorIsPlayUnavailable(msg)) {
+        setState(() {
+          _playBillingAvailable = false;
+          _playBillingHint = msg.replaceAll('\n', ' ');
+          _error = null;
+        });
+      } else {
+        setState(() => _error = msg);
+      }
     } finally {
       if (mounted) setState(() => _subscribing = false);
     }
   }
 
-  void _selectSlug(String slug) => setState(() {
-        _selectedSlug = slug;
-        _scheduleQuote();
-      });
+  void _selectSlug(String slug) {
+    setState(() {
+      _selectedSlug = slug;
+      _applySelectedQuote();
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollPlanCarouselToSelection());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -336,7 +432,7 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
                 fxMicroPerUsd: _summary!.hasFxMicroPerUsd() ? _summary!.fxMicroPerUsd : Int64(moneyDefaultFxMicroPerUsd),
               )
             : null);
-    final balanceLabel = balanceAccount != null ? billingCreditBalanceLabel(balanceAccount, _currency) : '';
+    final balanceLabel = balanceAccount != null ? billingCreditCheckoutLabel(balanceAccount, _currency) : '';
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       child: ConstrainedBox(
@@ -359,6 +455,12 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
                         _currency == 'IDR' ? 'Monthly usage quotas · prices in IDR' : 'Monthly usage quotas · $_currency',
                         style: const TextStyle(color: _muted, fontSize: 12, height: 1.3),
                       ),
+                      if (billingPlanIsPaidTier(_activePlanSlug)) ...[
+                        const SizedBox(height: 8),
+                        _BillingCurrentPlanChip(
+                          label: '${billingPlanTierLabel(_activePlanSlug)} · ${_activeBillingPeriod == 'yearly' ? 'Yearly' : 'Monthly'}',
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -403,14 +505,14 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
       children: [
         _BillingPeriodToggle(
           yearly: _yearly,
-          onChanged: (y) => setState(() {
-            _yearly = y;
-            _scheduleQuote();
-          }),
+          onChanged: (y) {
+            setState(() => _yearly = y);
+            unawaited(_prefetchAllQuotes());
+          },
         ),
         const SizedBox(height: 10),
         if (_successMessage != null) _BillingBanner(message: _successMessage!, color: _ok, icon: Icons.check_circle_outline),
-        if (_error != null && _summary != null) ...[
+        if (_error != null && _summary != null && !_billingErrorIsPlayUnavailable(_error)) ...[
           if (_successMessage != null) const SizedBox(height: 6),
           _BillingBanner(message: _error!, color: _danger, icon: Icons.error_outline),
         ],
@@ -423,25 +525,97 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
           child: ListView(
             padding: const EdgeInsets.only(top: 2, bottom: 12),
             children: [
-              ..._plans.map(
-                (plan) => _BillingPlanCard(
-                  plan: plan,
-                  litePlan: _litePlan,
-                  currency: _currency,
-                  yearly: _yearly,
-                  selected: plan.slug == _selectedSlug,
-                  expanded: plan.slug == _selectedSlug,
-                  isCurrent: plan.slug.trim().toLowerCase() == _activePlanSlug && _activeBillingPeriod == _selectionPeriod,
-                  recommended: billingPlanIsRecommended(plan.slug),
-                  onTap: () => _selectSlug(plan.slug),
+              SizedBox(
+                height: 206,
+                child: Stack(
+                  children: [
+                    ListView.separated(
+                      controller: _planCarouselScroll,
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.fromLTRB(2, 2, 28, 2),
+                      itemCount: _planCarouselItemCount(),
+                      separatorBuilder: (_, __) => const SizedBox(width: _planCarouselGap),
+                      itemBuilder: (context, index) {
+                    final showNoPlan = billingPlanIsPaidTier(_activePlanSlug) || (_summary?.pendingPlanSlug ?? '').trim().isNotEmpty;
+                    if (showNoPlan && index == _plans.length) {
+                      return SizedBox(
+                        width: _planCarouselCardWidth,
+                        child: _BillingNoPlanCard(
+                          selected: _selectionIsNoPlan,
+                          expanded: false,
+                          compact: true,
+                          onTap: () => _selectSlug(billingPlanNoPlanSlug),
+                        ),
+                      );
+                    }
+                    final plan = _plans[index];
+                    return SizedBox(
+                      width: _planCarouselCardWidth,
+                      child: _BillingPlanCard(
+                        plan: plan,
+                        litePlan: _litePlan,
+                        currency: _currency,
+                        yearly: _yearly,
+                        selected: plan.slug == _selectedSlug,
+                        expanded: false,
+                        compact: true,
+                        isCurrent: plan.slug.trim().toLowerCase() == _activePlanSlug && _activeBillingPeriod == _selectionPeriod,
+                        recommended: billingPlanIsRecommended(plan.slug),
+                        onTap: () => _selectSlug(plan.slug),
+                      ),
+                    );
+                  },
+                    ),
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      width: 36,
+                      child: IgnorePointer(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [_sheetBg.withValues(alpha: 0), _sheetBg],
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              if (billingPlanIsPaidTier(_activePlanSlug) || (_summary?.pendingPlanSlug ?? '').isNotEmpty)
-                _BillingNoPlanCard(
-                  selected: _selectionIsNoPlan,
-                  expanded: _selectionIsNoPlan,
-                  onTap: () => _selectSlug(billingPlanNoPlanSlug),
+              if (_selectedPlan != null && !_selectionIsNoPlan) ...[
+                const SizedBox(height: 10),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: Text(
+                    '${_selectedPlan!.name} plan details',
+                    style: TextStyle(color: billingPlanAccentColor(_selectedPlan!.slug), fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: -0.1),
+                  ),
                 ),
+                const SizedBox(height: 8),
+                _BillingPlanDetailPanel(
+                  lines: billingPlanQuotaLines(_selectedPlan!, litePlan: _litePlan, yearly: _yearly),
+                  accent: billingPlanAccentColor(_selectedPlan!.slug),
+                ),
+              ],
+              if (_selectionIsNoPlan) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: _panelBg,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _border),
+                  ),
+                  child: const Text(
+                    'Your paid plan stays active until the period ends. After that, daily free limits apply (Alien AI only).',
+                    style: TextStyle(color: _muted, fontSize: 11, height: 1.4),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -449,11 +623,19 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
           quote: _quote,
           quoteLoading: _quoteLoading,
           selectedSlug: _selectedSlug,
+          selectedPlanName: _selectionIsNoPlan ? 'No plan' : (_selectedPlan?.name ?? ''),
+          billingPeriod: _selectionPeriod,
           currency: _currency,
           balanceLabel: balanceLabel,
+          playBillingHint: _playBillingHint,
+          playBlocksCheckout: _playBillingAvailable == false && _checkoutUsesPlay,
           buttonLabel: _primaryButtonLabel,
           subscribing: _subscribing,
-          buttonEnabled: !_subscribing && _selectedSlug != null && !_selectedIsCurrent && (_quote?.kind != 'same'),
+          buttonEnabled: !_subscribing &&
+              _selectedSlug != null &&
+              !_selectedIsCurrent &&
+              (_quote?.kind != 'same') &&
+              !(_playBillingAvailable == false && _checkoutUsesPlay),
           onConfirm: _applyPlanChange,
         ),
       ],
@@ -479,30 +661,41 @@ class _BillingPeriodToggle extends StatelessWidget {
   Widget build(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SegmentedButton<bool>(
-            segments: [
-              const ButtonSegment(value: false, label: Text('Monthly')),
-              ButtonSegment(
-                value: true,
-                label: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('Yearly'),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                      decoration: BoxDecoration(color: _ok.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(4)),
-                      child: const Text('−20%', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: _ok)),
-                    ),
-                  ],
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: _panelBg,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _border),
+            ),
+            child: SegmentedButton<bool>(
+              showSelectedIcon: false,
+              segments: [
+                const ButtonSegment(value: false, label: Text('Monthly')),
+                ButtonSegment(
+                  value: true,
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Yearly'),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(color: _ok.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(4)),
+                        child: const Text('−20%', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: _ok)),
+                      ),
+                    ],
+                  ),
                 ),
+              ],
+              selected: {yearly},
+              onSelectionChanged: (s) => onChanged(s.first),
+              style: ButtonStyle(
+                visualDensity: VisualDensity.compact,
+                backgroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? _cardBg : Colors.transparent),
+                foregroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? _text : _muted),
+                side: WidgetStateProperty.all(BorderSide.none),
+                shape: WidgetStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
               ),
-            ],
-            selected: {yearly},
-            onSelectionChanged: (s) => onChanged(s.first),
-            style: ButtonStyle(
-              visualDensity: VisualDensity.compact,
-              foregroundColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? _text : _muted),
             ),
           ),
           if (yearly)
@@ -542,13 +735,41 @@ class _BillingBanner extends StatelessWidget {
       );
 }
 
+class _BillingCurrentPlanChip extends StatelessWidget {
+  const _BillingCurrentPlanChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: _ok.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: _ok.withValues(alpha: 0.35)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.verified_outlined, size: 13, color: _ok),
+            const SizedBox(width: 5),
+            Text('Active · $label', style: const TextStyle(color: _ok, fontSize: 11, fontWeight: FontWeight.w600)),
+          ],
+        ),
+      );
+}
+
 class _BillingCheckoutBar extends StatelessWidget {
   const _BillingCheckoutBar({
     required this.quote,
     required this.quoteLoading,
     required this.selectedSlug,
+    required this.selectedPlanName,
+    required this.billingPeriod,
     required this.currency,
     required this.balanceLabel,
+    required this.playBillingHint,
+    required this.playBlocksCheckout,
     required this.buttonLabel,
     required this.subscribing,
     required this.buttonEnabled,
@@ -558,8 +779,12 @@ class _BillingCheckoutBar extends StatelessWidget {
   final ResBillingPlanQuote? quote;
   final bool quoteLoading;
   final String? selectedSlug;
+  final String selectedPlanName;
+  final String billingPeriod;
   final String currency;
   final String balanceLabel;
+  final String? playBillingHint;
+  final bool playBlocksCheckout;
   final String buttonLabel;
   final bool subscribing;
   final bool buttonEnabled;
@@ -575,6 +800,32 @@ class _BillingCheckoutBar extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (selectedPlanName.isNotEmpty) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      selectedPlanName,
+                      style: const TextStyle(color: _text, fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: -0.2),
+                    ),
+                  ),
+                  Text(
+                    billingPeriod == 'yearly' ? 'Yearly' : 'Monthly',
+                    style: const TextStyle(color: _muted, fontSize: 11, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+            ],
+            if (playBillingHint != null && playBillingHint!.trim().isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _BillingBanner(
+                  message: playBillingHint!,
+                  color: playBlocksCheckout ? _warn : _muted,
+                  icon: Icons.shop_outlined,
+                ),
+              ),
             if (quote != null && selectedSlug != null)
               _BillingPlanQuotePanel(quote: quote!, currency: currency, loading: quoteLoading)
             else if (quoteLoading)
@@ -591,7 +842,7 @@ class _BillingCheckoutBar extends StatelessWidget {
                 children: [
                   const Icon(Icons.account_balance_wallet_outlined, size: 14, color: _muted),
                   const SizedBox(width: 6),
-                  Text('Credit $balanceLabel', style: const TextStyle(color: _muted, fontSize: 11)),
+                  Text(balanceLabel, style: const TextStyle(color: _muted, fontSize: 11)),
                 ],
               ),
             ],
@@ -617,6 +868,7 @@ class _BillingPlanCard extends StatelessWidget {
     required this.yearly,
     required this.selected,
     required this.expanded,
+    this.compact = false,
     required this.isCurrent,
     required this.recommended,
     required this.onTap,
@@ -628,6 +880,7 @@ class _BillingPlanCard extends StatelessWidget {
   final bool yearly;
   final bool selected;
   final bool expanded;
+  final bool compact;
   final bool isCurrent;
   final bool recommended;
   final VoidCallback onTap;
@@ -640,7 +893,7 @@ class _BillingPlanCard extends StatelessWidget {
     final quotaLines = billingPlanQuotaLines(plan, litePlan: litePlan, yearly: yearly);
     final chips = billingPlanSummaryChips(plan, yearly: yearly);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: EdgeInsets.only(bottom: compact ? 0 : 10),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -649,6 +902,7 @@ class _BillingPlanCard extends StatelessWidget {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOutCubic,
+            height: compact ? double.infinity : null,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: selected ? accent : _border, width: selected ? 2 : 1),
@@ -667,7 +921,7 @@ class _BillingPlanCard extends StatelessWidget {
                     ),
                   ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+                  padding: EdgeInsets.fromLTRB(14, compact ? 10 : 12, 14, compact ? 10 : 14),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -683,13 +937,26 @@ class _BillingPlanCard extends StatelessWidget {
                                   runSpacing: 4,
                                   crossAxisAlignment: WrapCrossAlignment.center,
                                   children: [
-                                    Text(plan.name, style: TextStyle(color: accent, fontWeight: FontWeight.w800, fontSize: 17, letterSpacing: -0.2)),
+                                    Text(
+                                      plan.name,
+                                      style: TextStyle(
+                                        color: selected ? accent : _text,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 17,
+                                        letterSpacing: -0.2,
+                                      ),
+                                    ),
                                     if (recommended) _BillingPlanBadge(label: 'Popular', color: accent),
                                     if (isCurrent) const _BillingPlanBadge(label: 'Current', color: _text, filled: true),
                                   ],
                                 ),
                                 const SizedBox(height: 6),
-                                Text(price, style: const TextStyle(color: _text, fontWeight: FontWeight.w800, fontSize: 20, letterSpacing: -0.4)),
+                                Text(
+                                  price,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(color: _text, fontWeight: FontWeight.w800, fontSize: compact ? 17 : 20, letterSpacing: -0.4),
+                                ),
                                 if (priceSub != null) Text(priceSub, style: const TextStyle(color: _muted, fontSize: 11, height: 1.3)),
                               ],
                             ),
@@ -701,17 +968,18 @@ class _BillingPlanCard extends StatelessWidget {
                         const SizedBox(height: 10),
                         _BillingPlanChipRow(chips: chips, accent: accent),
                       ],
-                      AnimatedCrossFade(
-                        duration: const Duration(milliseconds: 220),
-                        crossFadeState: expanded && quotaLines.isNotEmpty ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-                        sizeCurve: Curves.easeOutCubic,
-                        firstChild: const SizedBox(width: double.infinity),
-                        secondChild: Padding(
-                          padding: const EdgeInsets.only(top: 12),
-                          child: _BillingPlanDetailPanel(lines: quotaLines, accent: accent),
+                      if (!compact)
+                        AnimatedCrossFade(
+                          duration: const Duration(milliseconds: 220),
+                          crossFadeState: expanded && quotaLines.isNotEmpty ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+                          sizeCurve: Curves.easeOutCubic,
+                          firstChild: const SizedBox(width: double.infinity),
+                          secondChild: Padding(
+                            padding: const EdgeInsets.only(top: 12),
+                            child: _BillingPlanDetailPanel(lines: quotaLines, accent: accent),
+                          ),
                         ),
-                      ),
-                      if (!expanded)
+                      if (!compact && !expanded)
                         Padding(
                           padding: const EdgeInsets.only(top: 8),
                           child: Text('Tap to compare features', style: TextStyle(color: _muted.withValues(alpha: 0.85), fontSize: 10, fontWeight: FontWeight.w500)),
@@ -822,17 +1090,18 @@ class _BillingSectionHeader extends StatelessWidget {
 }
 
 class _BillingNoPlanCard extends StatelessWidget {
-  const _BillingNoPlanCard({required this.selected, required this.expanded, required this.onTap});
+  const _BillingNoPlanCard({required this.selected, required this.expanded, this.compact = false, required this.onTap});
 
   final bool selected;
   final bool expanded;
+  final bool compact;
   final VoidCallback onTap;
 
   static const _accent = Color(0xFF71717A);
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 10),
+        padding: EdgeInsets.only(bottom: compact ? 0 : 10),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
@@ -840,13 +1109,14 @@ class _BillingNoPlanCard extends StatelessWidget {
             onTap: onTap,
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
+              height: compact ? double.infinity : null,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: selected ? _accent : _border, width: selected ? 2 : 1),
                 color: selected ? _accent.withValues(alpha: 0.06) : _cardBg,
               ),
               child: Padding(
-                padding: const EdgeInsets.all(14),
+                padding: EdgeInsets.all(compact ? 12 : 14),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -944,7 +1214,6 @@ class _BillingPlanQuotaRow extends StatelessWidget {
     final cmp = billingPlanQuotaLineSkipsComparison(line.label) ? null : line.comparison;
     final value = line.value.trim();
     final isIncludedOnly = value.toLowerCase() == 'included';
-    final showIncludedTag = line.showsIncluded && value.isNotEmpty && !isIncludedOnly;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -966,7 +1235,7 @@ class _BillingPlanQuotaRow extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             if (isIncludedOnly)
-              _BillingIncludedPill(accent: accent)
+              Icon(Icons.check_circle_rounded, size: 20, color: accent.withValues(alpha: 0.95))
             else if (value.isNotEmpty)
               Flexible(
                 child: Column(
@@ -982,7 +1251,6 @@ class _BillingPlanQuotaRow extends StatelessWidget {
                         height: 1.3,
                       ),
                     ),
-                    if (showIncludedTag) Padding(padding: const EdgeInsets.only(top: 4), child: _BillingIncludedPill(accent: accent)),
                   ],
                 ),
               ),
@@ -998,26 +1266,3 @@ class _BillingPlanQuotaRow extends StatelessWidget {
   }
 }
 
-class _BillingIncludedPill extends StatelessWidget {
-  const _BillingIncludedPill({required this.accent});
-
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          color: accent.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: accent.withValues(alpha: 0.35)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.check_rounded, size: 12, color: accent),
-            const SizedBox(width: 3),
-            Text('Included', style: TextStyle(color: accent, fontSize: 10, fontWeight: FontWeight.w700)),
-          ],
-        ),
-      );
-}

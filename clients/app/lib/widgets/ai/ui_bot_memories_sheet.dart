@@ -1,36 +1,15 @@
-import 'dart:convert';
-
-import 'package:alienai_c35/c/api/settings_conn.dart';
+import 'package:alienai_c35/c/chat/chat_conn.dart';
+import 'package:alienai_c35/c/pb/c35/chat.pb.dart';
+import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:flutter/material.dart';
 
-class MemoryRecord {
-  MemoryRecord({required this.id, required this.uid, this.botId, required this.category, required this.key, required this.content, required this.confidence});
-  final int id;
-  final int uid;
-  final int? botId;
-  final String category;
-  final String key;
-  final String content;
-  final double confidence;
-
-  factory MemoryRecord.fromJson(Map<String, dynamic> j) => MemoryRecord(
-        id: j['id'] is int ? j['id'] as int : int.tryParse('${j['id'] ?? 0}') ?? 0,
-        uid: j['uid'] is int ? j['uid'] as int : int.tryParse('${j['uid'] ?? 0}') ?? 0,
-        botId: j['bot_id'] == null ? null : (j['bot_id'] is int ? j['bot_id'] as int : int.tryParse('${j['bot_id']}')),
-        category: '${j['category'] ?? 'fact'}',
-        key: '${j['key'] ?? ''}',
-        content: '${j['content'] ?? ''}',
-        confidence: (j['confidence'] as num?)?.toDouble() ?? 1.0,
-      );
-}
-
 class UiBotMemoriesSheet extends StatefulWidget {
   const UiBotMemoriesSheet({super.key, required this.conn});
-  final SettingsConn conn;
+  final ChatConn conn;
 
-  static Future<void> show(BuildContext context, {required SettingsConn conn}) => showModalBottomSheet(
+  static Future<void> show(BuildContext context, {required ChatConn conn}) => showModalBottomSheet(
         context: context,
         backgroundColor: const Color(0xFF18181B),
         isScrollControlled: true,
@@ -45,8 +24,9 @@ class UiBotMemoriesSheet extends StatefulWidget {
 
 class _UiBotMemoriesSheetState extends State<UiBotMemoriesSheet> {
   var _loading = true;
-  var _memories = <MemoryRecord>[];
+  var _memories = <UserMemory>[];
   var _filter = 'all';
+  String? _loadError;
 
   @override
   void initState() {
@@ -55,27 +35,34 @@ class _UiBotMemoriesSheetState extends State<UiBotMemoriesSheet> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
     try {
-      final res = await widget.conn.authInvokeCall(path: '/v1/memories', method: 'GET');
-      if (res.statusCode == 200) {
-        final decoded = jsonDecode(utf8.decode(res.body));
-        if (decoded is List) _memories = decoded.whereType<Map<String, dynamic>>().map(MemoryRecord.fromJson).toList();
-      }
-    } catch (_) {
+      final res = await widget.conn.memoryList();
+      if (!mounted) return;
+      setState(() => _memories = res.items);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loadError = uiFriendlyError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  Future<void> _delete(MemoryRecord item) async {
+  Future<void> _delete(UserMemory item) async {
     try {
-      await widget.conn.authInvokeCall(path: '/v1/memories/${item.id}', method: 'DELETE');
+      final res = await widget.conn.memoryDelete(id: item.id.toInt());
+      if (!res.ok) return;
       setState(() => _memories.removeWhere((m) => m.id == item.id));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Forgot "${item.key}"'), behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 2)));
       }
-    } catch (_) {}
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating));
+    }
   }
 
   Color _categoryColor(String category) => switch (category.toLowerCase()) {
@@ -108,7 +95,20 @@ class _UiBotMemoriesSheetState extends State<UiBotMemoriesSheet> {
         Expanded(
           child: _loading
               ? const UILoading()
-              : filtered.isEmpty
+              : _loadError != null
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Column(mainAxisSize: MainAxisSize.min, children: [
+                          const Icon(Icons.cloud_off_outlined, size: 40, color: Color(0xFF71717A)),
+                          const SizedBox(height: 12),
+                          Text(_loadError!, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFFF87171), fontSize: 13)),
+                          const SizedBox(height: 12),
+                          TextButton(onPressed: _load, child: const Text('Retry')),
+                        ]),
+                      ),
+                    )
+                  : filtered.isEmpty
                   ? Center(
                       child: Column(mainAxisSize: MainAxisSize.min, children: [
                         Icon(Icons.auto_awesome, size: 40, color: const Color(0xFF71717A).withValues(alpha: 0.5)),

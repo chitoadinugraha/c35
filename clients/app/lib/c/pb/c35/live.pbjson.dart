@@ -40,6 +40,13 @@ const LiveOffer$json = {
       '5': 1,
       '10': 'outputUsdPerMin'
     },
+    {
+      '1': 'retail_video_usd_per_min',
+      '3': 10,
+      '4': 1,
+      '5': 1,
+      '10': 'retailVideoUsdPerMin'
+    },
   ],
 };
 
@@ -50,7 +57,8 @@ final $typed_data.Uint8List liveOfferDescriptor = $convert.base64Decode(
     'ZGVyGAUgASgJUghwcm92aWRlchIYCgdlbmFibGVkGAYgASgIUgdlbmFibGVkEisKEnJldGFpbF'
     '91c2RfcGVyX21pbhgHIAEoAVIPcmV0YWlsVXNkUGVyTWluEikKEWlucHV0X3VzZF9wZXJfbWlu'
     'GAggASgBUg5pbnB1dFVzZFBlck1pbhIrChJvdXRwdXRfdXNkX3Blcl9taW4YCSABKAFSD291dH'
-    'B1dFVzZFBlck1pbg==');
+    'B1dFVzZFBlck1pbhI2ChhyZXRhaWxfdmlkZW9fdXNkX3Blcl9taW4YCiABKAFSFHJldGFpbFZp'
+    'ZGVvVXNkUGVyTWlu');
 
 @$core.Deprecated('Use liveCatalogDescriptor instead')
 const LiveCatalog$json = {
@@ -89,7 +97,7 @@ const ReqLiveStart$json = {
 final $typed_data.Uint8List reqLiveStartDescriptor = $convert.base64Decode(
     'CgxSZXFMaXZlU3RhcnQSGQoIb2ZmZXJfaWQYASABKAlSB29mZmVySWQSFgoGbG9jYWxlGAIgAS'
     'gJUgZsb2NhbGUSFQoGcmVxX2lkGAMgASgJUgVyZXFJZBIXCgdjaGF0X2lkGAQgASgDUgZjaGF0'
-    'SWQ=');
+    'SWQSHwoLbWVudGlvbl9pZHMYBSADKAlSCm1lbnRpb25JZHM=');
 
 @$core.Deprecated('Use resLiveStartDescriptor instead')
 const ResLiveStart$json = {

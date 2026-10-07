@@ -93,7 +93,21 @@ void main() {
     store.msgPut(MsgRow(id: -1, chatId: 1, role: 'assistant', content: '', reqId: 'r2', createdAtMs: 100));
 
     expect(store.msgs.where((m) => m.chatId == 1 && m.role == 'user').length, 1);
-    expect(store.msgs.where((m) => m.chatId == 1 && m.role == 'user').single.reqId, 'r2');
+    final retriedUser = store.msgs.where((m) => m.chatId == 1 && m.role == 'user').single;
+    expect(retriedUser.reqId, 'r2');
+    expect(retriedUser.id, lessThan(0));
+
+    // Server sends old message with old snowflake id 10; msgPut must ignore it via tombstone
+    store.msgPut(MsgRow(
+      id: 10,
+      chatId: 1,
+      role: 'user',
+      content: 'DESKTOP prompt',
+      reqId: 'r1',
+    ));
+    final keptUser = store.msgs.where((m) => m.chatId == 1 && m.role == 'user').single;
+    expect(keptUser.reqId, 'r2');
+    expect(keptUser.content, contains('open chrome'));
   });
 
   test('msgCanReplaceFailedTurn is true when last assistant errored', () {
@@ -881,5 +895,46 @@ void main() {
 
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.containsKey('c35_chat_msgs_-1'), isFalse);
+  });
+
+  test('retry after failed turn does not allow server sync of old turn to revert new message content', () {
+    final store = ChatStore();
+    store.activeChatId = 1;
+    store.msgs = [
+      MsgRow(id: 100, chatId: 1, role: 'user', content: 'sekarang hari apa?', reqId: 'r1'),
+      MsgRow(id: 101, chatId: 1, role: 'assistant', content: '', error: 'timeout', reqId: 'r1'),
+    ];
+
+    // User triggers retry for failed turn
+    final turn = store.retryLastTurnPrep(chatId: 1);
+    expect(turn?.text, 'sekarang hari apa?');
+
+    store.msgUserTurnRetry(
+      chatId: 1,
+      content: 'siapa presiden indonesia?',
+      attachments: const [],
+      reqId: 'r2',
+      createdAtMs: 2000,
+    );
+
+    // Ensure retried user message is detached from old server snowflake ID 100
+    final userMsg = store.msgs.where((m) => m.chatId == 1 && m.role == 'user').single;
+    expect(userMsg.content, 'siapa presiden indonesia?');
+    expect(userMsg.reqId, 'r2');
+    expect(userMsg.id, lessThan(0));
+
+    // Server sends old message (id 100, content "sekarang hari apa?")
+    store.msgPut(MsgRow(
+      id: 100,
+      chatId: 1,
+      role: 'user',
+      content: 'sekarang hari apa?',
+      reqId: 'r1',
+    ));
+
+    // The current user turn must NOT be reverted to the old message
+    final keptMsg = store.msgs.where((m) => m.chatId == 1 && m.role == 'user').single;
+    expect(keptMsg.content, 'siapa presiden indonesia?');
+    expect(keptMsg.reqId, 'r2');
   });
 }

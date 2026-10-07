@@ -18,9 +18,10 @@ void main() {
     expect(menu.length, 2);
     expect(menu.every((o) => o.family == 'gemini'), isTrue);
     expect(liveCallPrimaryLabelKey(model), 'live.gemini.label');
+    expect(liveCallChipUsesGenericLabel(model, offers), isFalse);
   });
 
-  test('claude composer uses Live Call primary and all enabled menu', () {
+  test('claude composer uses generic chip label and all enabled menu', () {
     const model = AgentModel(
       id: 'claude-sonnet-4-5',
       chip: 'Claude',
@@ -28,22 +29,41 @@ void main() {
       provider: 'anthropic',
       providerModel: 'claude-sonnet-4-5',
     );
-    expect(liveCallPrimaryLabelKey(model), 'home.liveCall');
+    expect(liveCallChipUsesGenericLabel(model, offers), isTrue);
+    expect(liveCallGenericChipTitle(), 'Call AI');
     final menu = liveCallMenuOffers(offers, model);
     expect(menu.every((o) => o.enabled), isTrue);
-    expect(menu.length, 3);
+    expect(menu.length, offers.where((o) => o.enabled).length);
   });
 
-  test('openai composer menu is openai family only', () {
+  test('live offer action title uses call verb and brand', () {
+    final alien = offers.firstWhere((o) => o.id == 'live.alienai');
+    expect(liveOfferActionTitle(alien), 'Call Alien AI');
+    expect(liveOfferMenuLabel(offers.firstWhere((o) => o.id == 'live.chatgpt')), contains('Call ChatGPT'));
+  });
+
+  test('live offer brand strips legacy Call prefix from catalog text', () {
+    final alien = offers.firstWhere((o) => o.id == 'live.alienai');
+    expect(liveOfferBrandLabel(alien), 'Alien AI');
+    final legacy = alien.clone()
+      ..labelKey = ''
+      ..label = 'Call Alien AI';
+    expect(liveOfferBrandLabel(legacy), 'Alien AI');
+    expect(liveOfferActionTitle(legacy), 'Call Alien AI');
+  });
+
+  test('openai composer opens generic menu when family offer disabled', () {
+    final disabled = offers.map((o) => o.family == 'openai' ? (o.clone()..enabled = false) : o).toList();
     const model = AgentModel.gpt4o;
-    final menu = liveCallMenuOffers(offers, model);
-    expect(menu.length, 1);
-    expect(menu.first.family, 'openai');
-    expect(menu.first.enabled, isFalse);
-    expect(liveOfferMenuLabel(menu.first), contains('Coming soon'));
+    expect(liveCallChipUsesGenericLabel(model, disabled), isTrue);
+    final menu = liveCallMenuOffers(disabled, model);
+    expect(menu.length, disabled.where((o) => o.enabled).length);
+    expect(menu.every((o) => o.enabled), isTrue);
+    expect(liveCallGenericChipTitle(), 'Call AI');
   });
 
-  test('grok composer shows coming soon on disabled offer', () {
+  test('grok composer opens generic menu when family offer disabled', () {
+    final disabled = offers.map((o) => o.family == 'xai' ? (o.clone()..enabled = false) : o).toList();
     const model = AgentModel(
       id: 'grok-4',
       chip: 'Grok',
@@ -51,9 +71,41 @@ void main() {
       provider: 'xai',
       providerModel: 'grok-4',
     );
-    final menu = liveCallMenuOffers(offers, model);
-    expect(menu.length, 1);
-    expect(menu.first.enabled, isFalse);
-    expect(liveOfferMenuLabel(menu.first), contains('Coming soon'));
+    expect(liveCallChipUsesGenericLabel(model, disabled), isTrue);
+    final menu = liveCallMenuOffers(disabled, model);
+    expect(menu.length, disabled.where((o) => o.enabled).length);
+    expect(menu.every((o) => o.enabled), isTrue);
+  });
+
+  test('offline fallback offers include retailVideoUsdPerMin for all models', () {
+    final alien = offers.firstWhere((o) => o.id == 'live.alienai');
+    expect(alien.retailVideoUsdPerMin, greaterThan(0));
+
+    final gpt = offers.firstWhere((o) => o.id == 'live.chatgpt');
+    expect(gpt.enabled, isTrue);
+    expect(gpt.retailVideoUsdPerMin, greaterThan(0));
+
+    final grok = offers.firstWhere((o) => o.id == 'live.grok');
+    expect(grok.enabled, isTrue);
+    expect(grok.retailVideoUsdPerMin, greaterThan(0));
+  });
+
+  test('liveOfferPricePerSecDualLocal formats dual voice and video price correctly', () {
+    final alien = offers.firstWhere((o) => o.id == 'live.alienai');
+    final formattedEn = liveOfferPricePerSecDualLocal(
+      alien,
+      currency: 'USD',
+      fxMicroPerUsd: 1000000,
+    );
+    expect(formattedEn, contains('Voice:'));
+    expect(formattedEn, contains('Video:'));
+
+    final formattedIdr = liveOfferPricePerSecDualLocal(
+      alien,
+      currency: 'IDR',
+      fxMicroPerUsd: 16000000000,
+    );
+    expect(formattedIdr, contains('~IDR'));
+    expect(formattedIdr, contains('/s'));
   });
 }

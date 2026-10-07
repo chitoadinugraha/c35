@@ -3002,6 +3002,16 @@ enum WsReq_Body {
   chatCompact,
   mediaRegenerate,
   liveStart,
+  memoryList,
+  memoryDelete,
+  siteHandlePut,
+  siteBootGet,
+  siteLinkList,
+  siteLinkPut,
+  siteLinkDelete,
+  sitePostList,
+  sitePostPut,
+  sitePostDelete,
   notSet
 }
 
@@ -3128,6 +3138,16 @@ class WsReq extends $pb.GeneratedMessage {
     $15.ReqChatCompact? chatCompact,
     $15.ReqMediaRegenerate? mediaRegenerate,
     $25.ReqLiveStart? liveStart,
+    $15.ReqMemoryList? memoryList,
+    $15.ReqMemoryDelete? memoryDelete,
+    $17.ReqSiteHandlePut? siteHandlePut,
+    $17.ReqSiteBootGet? siteBootGet,
+    $17.ReqSiteLinkList? siteLinkList,
+    $17.ReqSiteLinkPut? siteLinkPut,
+    $17.ReqSiteLinkDelete? siteLinkDelete,
+    $17.ReqSitePostList? sitePostList,
+    $17.ReqSitePostPut? sitePostPut,
+    $17.ReqSitePostDelete? sitePostDelete,
   }) {
     final result = WsReq._();
     if (reqId != null) result.reqId = reqId;
@@ -3271,6 +3291,16 @@ class WsReq extends $pb.GeneratedMessage {
     if (chatCompact != null) result.chatCompact = chatCompact;
     if (mediaRegenerate != null) result.mediaRegenerate = mediaRegenerate;
     if (liveStart != null) result.liveStart = liveStart;
+    if (memoryList != null) result.memoryList = memoryList;
+    if (memoryDelete != null) result.memoryDelete = memoryDelete;
+    if (siteHandlePut != null) result.siteHandlePut = siteHandlePut;
+    if (siteBootGet != null) result.siteBootGet = siteBootGet;
+    if (siteLinkList != null) result.siteLinkList = siteLinkList;
+    if (siteLinkPut != null) result.siteLinkPut = siteLinkPut;
+    if (siteLinkDelete != null) result.siteLinkDelete = siteLinkDelete;
+    if (sitePostList != null) result.sitePostList = sitePostList;
+    if (sitePostPut != null) result.sitePostPut = sitePostPut;
+    if (sitePostDelete != null) result.sitePostDelete = sitePostDelete;
     return result;
   }
 
@@ -3403,6 +3433,16 @@ class WsReq extends $pb.GeneratedMessage {
     176: WsReq_Body.chatCompact,
     177: WsReq_Body.mediaRegenerate,
     179: WsReq_Body.liveStart,
+    180: WsReq_Body.memoryList,
+    181: WsReq_Body.memoryDelete,
+    182: WsReq_Body.siteHandlePut,
+    183: WsReq_Body.siteBootGet,
+    184: WsReq_Body.siteLinkList,
+    185: WsReq_Body.siteLinkPut,
+    186: WsReq_Body.siteLinkDelete,
+    187: WsReq_Body.sitePostList,
+    188: WsReq_Body.sitePostPut,
+    189: WsReq_Body.sitePostDelete,
     0: WsReq_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -3528,7 +3568,17 @@ class WsReq extends $pb.GeneratedMessage {
       175,
       176,
       177,
-      179
+      179,
+      180,
+      181,
+      182,
+      183,
+      184,
+      185,
+      186,
+      187,
+      188,
+      189
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$13.ReqSessionInit>(2, _omitFieldNames ? '' : 'sessionInit',
@@ -3803,6 +3853,26 @@ class WsReq extends $pb.GeneratedMessage {
         subBuilder: $15.ReqMediaRegenerate.$_createMessage)
     ..aOM<$25.ReqLiveStart>(179, _omitFieldNames ? '' : 'liveStart',
         subBuilder: $25.ReqLiveStart.$_createMessage)
+    ..aOM<$15.ReqMemoryList>(180, _omitFieldNames ? '' : 'memoryList',
+        subBuilder: $15.ReqMemoryList.$_createMessage)
+    ..aOM<$15.ReqMemoryDelete>(181, _omitFieldNames ? '' : 'memoryDelete',
+        subBuilder: $15.ReqMemoryDelete.$_createMessage)
+    ..aOM<$17.ReqSiteHandlePut>(182, _omitFieldNames ? '' : 'siteHandlePut',
+        subBuilder: $17.ReqSiteHandlePut.$_createMessage)
+    ..aOM<$17.ReqSiteBootGet>(183, _omitFieldNames ? '' : 'siteBootGet',
+        subBuilder: $17.ReqSiteBootGet.$_createMessage)
+    ..aOM<$17.ReqSiteLinkList>(184, _omitFieldNames ? '' : 'siteLinkList',
+        subBuilder: $17.ReqSiteLinkList.$_createMessage)
+    ..aOM<$17.ReqSiteLinkPut>(185, _omitFieldNames ? '' : 'siteLinkPut',
+        subBuilder: $17.ReqSiteLinkPut.$_createMessage)
+    ..aOM<$17.ReqSiteLinkDelete>(186, _omitFieldNames ? '' : 'siteLinkDelete',
+        subBuilder: $17.ReqSiteLinkDelete.$_createMessage)
+    ..aOM<$17.ReqSitePostList>(187, _omitFieldNames ? '' : 'sitePostList',
+        subBuilder: $17.ReqSitePostList.$_createMessage)
+    ..aOM<$17.ReqSitePostPut>(188, _omitFieldNames ? '' : 'sitePostPut',
+        subBuilder: $17.ReqSitePostPut.$_createMessage)
+    ..aOM<$17.ReqSitePostDelete>(189, _omitFieldNames ? '' : 'sitePostDelete',
+        subBuilder: $17.ReqSitePostDelete.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -3944,6 +4014,16 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(176)
   @$pb.TagNumber(177)
   @$pb.TagNumber(179)
+  @$pb.TagNumber(180)
+  @$pb.TagNumber(181)
+  @$pb.TagNumber(182)
+  @$pb.TagNumber(183)
+  @$pb.TagNumber(184)
+  @$pb.TagNumber(185)
+  @$pb.TagNumber(186)
+  @$pb.TagNumber(187)
+  @$pb.TagNumber(188)
+  @$pb.TagNumber(189)
   WsReq_Body whichBody() => _WsReq_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(3)
@@ -4064,6 +4144,16 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(176)
   @$pb.TagNumber(177)
   @$pb.TagNumber(179)
+  @$pb.TagNumber(180)
+  @$pb.TagNumber(181)
+  @$pb.TagNumber(182)
+  @$pb.TagNumber(183)
+  @$pb.TagNumber(184)
+  @$pb.TagNumber(185)
+  @$pb.TagNumber(186)
+  @$pb.TagNumber(187)
+  @$pb.TagNumber(188)
+  @$pb.TagNumber(189)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -5414,6 +5504,116 @@ class WsReq extends $pb.GeneratedMessage {
   void clearLiveStart() => $_clearField(179);
   @$pb.TagNumber(179)
   $25.ReqLiveStart ensureLiveStart() => $_ensure(119);
+
+  @$pb.TagNumber(180)
+  $15.ReqMemoryList get memoryList => $_getN(120);
+  @$pb.TagNumber(180)
+  set memoryList($15.ReqMemoryList value) => $_setField(180, value);
+  @$pb.TagNumber(180)
+  $core.bool hasMemoryList() => $_has(120);
+  @$pb.TagNumber(180)
+  void clearMemoryList() => $_clearField(180);
+  @$pb.TagNumber(180)
+  $15.ReqMemoryList ensureMemoryList() => $_ensure(120);
+
+  @$pb.TagNumber(181)
+  $15.ReqMemoryDelete get memoryDelete => $_getN(121);
+  @$pb.TagNumber(181)
+  set memoryDelete($15.ReqMemoryDelete value) => $_setField(181, value);
+  @$pb.TagNumber(181)
+  $core.bool hasMemoryDelete() => $_has(121);
+  @$pb.TagNumber(181)
+  void clearMemoryDelete() => $_clearField(181);
+  @$pb.TagNumber(181)
+  $15.ReqMemoryDelete ensureMemoryDelete() => $_ensure(121);
+
+  @$pb.TagNumber(182)
+  $17.ReqSiteHandlePut get siteHandlePut => $_getN(122);
+  @$pb.TagNumber(182)
+  set siteHandlePut($17.ReqSiteHandlePut value) => $_setField(182, value);
+  @$pb.TagNumber(182)
+  $core.bool hasSiteHandlePut() => $_has(122);
+  @$pb.TagNumber(182)
+  void clearSiteHandlePut() => $_clearField(182);
+  @$pb.TagNumber(182)
+  $17.ReqSiteHandlePut ensureSiteHandlePut() => $_ensure(122);
+
+  @$pb.TagNumber(183)
+  $17.ReqSiteBootGet get siteBootGet => $_getN(123);
+  @$pb.TagNumber(183)
+  set siteBootGet($17.ReqSiteBootGet value) => $_setField(183, value);
+  @$pb.TagNumber(183)
+  $core.bool hasSiteBootGet() => $_has(123);
+  @$pb.TagNumber(183)
+  void clearSiteBootGet() => $_clearField(183);
+  @$pb.TagNumber(183)
+  $17.ReqSiteBootGet ensureSiteBootGet() => $_ensure(123);
+
+  @$pb.TagNumber(184)
+  $17.ReqSiteLinkList get siteLinkList => $_getN(124);
+  @$pb.TagNumber(184)
+  set siteLinkList($17.ReqSiteLinkList value) => $_setField(184, value);
+  @$pb.TagNumber(184)
+  $core.bool hasSiteLinkList() => $_has(124);
+  @$pb.TagNumber(184)
+  void clearSiteLinkList() => $_clearField(184);
+  @$pb.TagNumber(184)
+  $17.ReqSiteLinkList ensureSiteLinkList() => $_ensure(124);
+
+  @$pb.TagNumber(185)
+  $17.ReqSiteLinkPut get siteLinkPut => $_getN(125);
+  @$pb.TagNumber(185)
+  set siteLinkPut($17.ReqSiteLinkPut value) => $_setField(185, value);
+  @$pb.TagNumber(185)
+  $core.bool hasSiteLinkPut() => $_has(125);
+  @$pb.TagNumber(185)
+  void clearSiteLinkPut() => $_clearField(185);
+  @$pb.TagNumber(185)
+  $17.ReqSiteLinkPut ensureSiteLinkPut() => $_ensure(125);
+
+  @$pb.TagNumber(186)
+  $17.ReqSiteLinkDelete get siteLinkDelete => $_getN(126);
+  @$pb.TagNumber(186)
+  set siteLinkDelete($17.ReqSiteLinkDelete value) => $_setField(186, value);
+  @$pb.TagNumber(186)
+  $core.bool hasSiteLinkDelete() => $_has(126);
+  @$pb.TagNumber(186)
+  void clearSiteLinkDelete() => $_clearField(186);
+  @$pb.TagNumber(186)
+  $17.ReqSiteLinkDelete ensureSiteLinkDelete() => $_ensure(126);
+
+  @$pb.TagNumber(187)
+  $17.ReqSitePostList get sitePostList => $_getN(127);
+  @$pb.TagNumber(187)
+  set sitePostList($17.ReqSitePostList value) => $_setField(187, value);
+  @$pb.TagNumber(187)
+  $core.bool hasSitePostList() => $_has(127);
+  @$pb.TagNumber(187)
+  void clearSitePostList() => $_clearField(187);
+  @$pb.TagNumber(187)
+  $17.ReqSitePostList ensureSitePostList() => $_ensure(127);
+
+  @$pb.TagNumber(188)
+  $17.ReqSitePostPut get sitePostPut => $_getN(128);
+  @$pb.TagNumber(188)
+  set sitePostPut($17.ReqSitePostPut value) => $_setField(188, value);
+  @$pb.TagNumber(188)
+  $core.bool hasSitePostPut() => $_has(128);
+  @$pb.TagNumber(188)
+  void clearSitePostPut() => $_clearField(188);
+  @$pb.TagNumber(188)
+  $17.ReqSitePostPut ensureSitePostPut() => $_ensure(128);
+
+  @$pb.TagNumber(189)
+  $17.ReqSitePostDelete get sitePostDelete => $_getN(129);
+  @$pb.TagNumber(189)
+  set sitePostDelete($17.ReqSitePostDelete value) => $_setField(189, value);
+  @$pb.TagNumber(189)
+  $core.bool hasSitePostDelete() => $_has(129);
+  @$pb.TagNumber(189)
+  void clearSitePostDelete() => $_clearField(189);
+  @$pb.TagNumber(189)
+  $17.ReqSitePostDelete ensureSitePostDelete() => $_ensure(129);
 }
 
 enum WsRes_Body {
@@ -5547,6 +5747,16 @@ enum WsRes_Body {
   mediaRegenerate,
   devicePresencePush,
   liveStart,
+  memoryList,
+  memoryDelete,
+  siteHandlePut,
+  siteBootGet,
+  siteLinkList,
+  siteLinkPut,
+  siteLinkDelete,
+  sitePostList,
+  sitePostPut,
+  sitePostDelete,
   notSet
 }
 
@@ -5684,6 +5894,16 @@ class WsRes extends $pb.GeneratedMessage {
     $15.ResMediaRegenerate? mediaRegenerate,
     $5.DevicePresencePush? devicePresencePush,
     $25.ResLiveStart? liveStart,
+    $15.ResMemoryList? memoryList,
+    $15.ResMemoryDelete? memoryDelete,
+    $17.ResSiteHandlePut? siteHandlePut,
+    $17.ResSiteBootGet? siteBootGet,
+    $17.ResSiteLinkList? siteLinkList,
+    $17.ResSiteLinkPut? siteLinkPut,
+    $17.ResSiteLinkDelete? siteLinkDelete,
+    $17.ResSitePostList? sitePostList,
+    $17.ResSitePostPut? sitePostPut,
+    $17.ResSitePostDelete? sitePostDelete,
   }) {
     final result = WsRes._();
     if (reqId != null) result.reqId = reqId;
@@ -5840,6 +6060,16 @@ class WsRes extends $pb.GeneratedMessage {
     if (devicePresencePush != null)
       result.devicePresencePush = devicePresencePush;
     if (liveStart != null) result.liveStart = liveStart;
+    if (memoryList != null) result.memoryList = memoryList;
+    if (memoryDelete != null) result.memoryDelete = memoryDelete;
+    if (siteHandlePut != null) result.siteHandlePut = siteHandlePut;
+    if (siteBootGet != null) result.siteBootGet = siteBootGet;
+    if (siteLinkList != null) result.siteLinkList = siteLinkList;
+    if (siteLinkPut != null) result.siteLinkPut = siteLinkPut;
+    if (siteLinkDelete != null) result.siteLinkDelete = siteLinkDelete;
+    if (sitePostList != null) result.sitePostList = sitePostList;
+    if (sitePostPut != null) result.sitePostPut = sitePostPut;
+    if (sitePostDelete != null) result.sitePostDelete = sitePostDelete;
     return result;
   }
 
@@ -5983,6 +6213,16 @@ class WsRes extends $pb.GeneratedMessage {
     177: WsRes_Body.mediaRegenerate,
     178: WsRes_Body.devicePresencePush,
     179: WsRes_Body.liveStart,
+    180: WsRes_Body.memoryList,
+    181: WsRes_Body.memoryDelete,
+    182: WsRes_Body.siteHandlePut,
+    183: WsRes_Body.siteBootGet,
+    184: WsRes_Body.siteLinkList,
+    185: WsRes_Body.siteLinkPut,
+    186: WsRes_Body.siteLinkDelete,
+    187: WsRes_Body.sitePostList,
+    188: WsRes_Body.sitePostPut,
+    189: WsRes_Body.sitePostDelete,
     0: WsRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -6119,7 +6359,17 @@ class WsRes extends $pb.GeneratedMessage {
       176,
       177,
       178,
-      179
+      179,
+      180,
+      181,
+      182,
+      183,
+      184,
+      185,
+      186,
+      187,
+      188,
+      189
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$26.Err>(2, _omitFieldNames ? '' : 'err',
@@ -6418,6 +6668,26 @@ class WsRes extends $pb.GeneratedMessage {
         subBuilder: $5.DevicePresencePush.$_createMessage)
     ..aOM<$25.ResLiveStart>(179, _omitFieldNames ? '' : 'liveStart',
         subBuilder: $25.ResLiveStart.$_createMessage)
+    ..aOM<$15.ResMemoryList>(180, _omitFieldNames ? '' : 'memoryList',
+        subBuilder: $15.ResMemoryList.$_createMessage)
+    ..aOM<$15.ResMemoryDelete>(181, _omitFieldNames ? '' : 'memoryDelete',
+        subBuilder: $15.ResMemoryDelete.$_createMessage)
+    ..aOM<$17.ResSiteHandlePut>(182, _omitFieldNames ? '' : 'siteHandlePut',
+        subBuilder: $17.ResSiteHandlePut.$_createMessage)
+    ..aOM<$17.ResSiteBootGet>(183, _omitFieldNames ? '' : 'siteBootGet',
+        subBuilder: $17.ResSiteBootGet.$_createMessage)
+    ..aOM<$17.ResSiteLinkList>(184, _omitFieldNames ? '' : 'siteLinkList',
+        subBuilder: $17.ResSiteLinkList.$_createMessage)
+    ..aOM<$17.ResSiteLinkPut>(185, _omitFieldNames ? '' : 'siteLinkPut',
+        subBuilder: $17.ResSiteLinkPut.$_createMessage)
+    ..aOM<$17.ResSiteLinkDelete>(186, _omitFieldNames ? '' : 'siteLinkDelete',
+        subBuilder: $17.ResSiteLinkDelete.$_createMessage)
+    ..aOM<$17.ResSitePostList>(187, _omitFieldNames ? '' : 'sitePostList',
+        subBuilder: $17.ResSitePostList.$_createMessage)
+    ..aOM<$17.ResSitePostPut>(188, _omitFieldNames ? '' : 'sitePostPut',
+        subBuilder: $17.ResSitePostPut.$_createMessage)
+    ..aOM<$17.ResSitePostDelete>(189, _omitFieldNames ? '' : 'sitePostDelete',
+        subBuilder: $17.ResSitePostDelete.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -6570,6 +6840,16 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(177)
   @$pb.TagNumber(178)
   @$pb.TagNumber(179)
+  @$pb.TagNumber(180)
+  @$pb.TagNumber(181)
+  @$pb.TagNumber(182)
+  @$pb.TagNumber(183)
+  @$pb.TagNumber(184)
+  @$pb.TagNumber(185)
+  @$pb.TagNumber(186)
+  @$pb.TagNumber(187)
+  @$pb.TagNumber(188)
+  @$pb.TagNumber(189)
   WsRes_Body whichBody() => _WsRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(10)
@@ -6701,6 +6981,16 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(177)
   @$pb.TagNumber(178)
   @$pb.TagNumber(179)
+  @$pb.TagNumber(180)
+  @$pb.TagNumber(181)
+  @$pb.TagNumber(182)
+  @$pb.TagNumber(183)
+  @$pb.TagNumber(184)
+  @$pb.TagNumber(185)
+  @$pb.TagNumber(186)
+  @$pb.TagNumber(187)
+  @$pb.TagNumber(188)
+  @$pb.TagNumber(189)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -8171,6 +8461,116 @@ class WsRes extends $pb.GeneratedMessage {
   void clearLiveStart() => $_clearField(179);
   @$pb.TagNumber(179)
   $25.ResLiveStart ensureLiveStart() => $_ensure(130);
+
+  @$pb.TagNumber(180)
+  $15.ResMemoryList get memoryList => $_getN(131);
+  @$pb.TagNumber(180)
+  set memoryList($15.ResMemoryList value) => $_setField(180, value);
+  @$pb.TagNumber(180)
+  $core.bool hasMemoryList() => $_has(131);
+  @$pb.TagNumber(180)
+  void clearMemoryList() => $_clearField(180);
+  @$pb.TagNumber(180)
+  $15.ResMemoryList ensureMemoryList() => $_ensure(131);
+
+  @$pb.TagNumber(181)
+  $15.ResMemoryDelete get memoryDelete => $_getN(132);
+  @$pb.TagNumber(181)
+  set memoryDelete($15.ResMemoryDelete value) => $_setField(181, value);
+  @$pb.TagNumber(181)
+  $core.bool hasMemoryDelete() => $_has(132);
+  @$pb.TagNumber(181)
+  void clearMemoryDelete() => $_clearField(181);
+  @$pb.TagNumber(181)
+  $15.ResMemoryDelete ensureMemoryDelete() => $_ensure(132);
+
+  @$pb.TagNumber(182)
+  $17.ResSiteHandlePut get siteHandlePut => $_getN(133);
+  @$pb.TagNumber(182)
+  set siteHandlePut($17.ResSiteHandlePut value) => $_setField(182, value);
+  @$pb.TagNumber(182)
+  $core.bool hasSiteHandlePut() => $_has(133);
+  @$pb.TagNumber(182)
+  void clearSiteHandlePut() => $_clearField(182);
+  @$pb.TagNumber(182)
+  $17.ResSiteHandlePut ensureSiteHandlePut() => $_ensure(133);
+
+  @$pb.TagNumber(183)
+  $17.ResSiteBootGet get siteBootGet => $_getN(134);
+  @$pb.TagNumber(183)
+  set siteBootGet($17.ResSiteBootGet value) => $_setField(183, value);
+  @$pb.TagNumber(183)
+  $core.bool hasSiteBootGet() => $_has(134);
+  @$pb.TagNumber(183)
+  void clearSiteBootGet() => $_clearField(183);
+  @$pb.TagNumber(183)
+  $17.ResSiteBootGet ensureSiteBootGet() => $_ensure(134);
+
+  @$pb.TagNumber(184)
+  $17.ResSiteLinkList get siteLinkList => $_getN(135);
+  @$pb.TagNumber(184)
+  set siteLinkList($17.ResSiteLinkList value) => $_setField(184, value);
+  @$pb.TagNumber(184)
+  $core.bool hasSiteLinkList() => $_has(135);
+  @$pb.TagNumber(184)
+  void clearSiteLinkList() => $_clearField(184);
+  @$pb.TagNumber(184)
+  $17.ResSiteLinkList ensureSiteLinkList() => $_ensure(135);
+
+  @$pb.TagNumber(185)
+  $17.ResSiteLinkPut get siteLinkPut => $_getN(136);
+  @$pb.TagNumber(185)
+  set siteLinkPut($17.ResSiteLinkPut value) => $_setField(185, value);
+  @$pb.TagNumber(185)
+  $core.bool hasSiteLinkPut() => $_has(136);
+  @$pb.TagNumber(185)
+  void clearSiteLinkPut() => $_clearField(185);
+  @$pb.TagNumber(185)
+  $17.ResSiteLinkPut ensureSiteLinkPut() => $_ensure(136);
+
+  @$pb.TagNumber(186)
+  $17.ResSiteLinkDelete get siteLinkDelete => $_getN(137);
+  @$pb.TagNumber(186)
+  set siteLinkDelete($17.ResSiteLinkDelete value) => $_setField(186, value);
+  @$pb.TagNumber(186)
+  $core.bool hasSiteLinkDelete() => $_has(137);
+  @$pb.TagNumber(186)
+  void clearSiteLinkDelete() => $_clearField(186);
+  @$pb.TagNumber(186)
+  $17.ResSiteLinkDelete ensureSiteLinkDelete() => $_ensure(137);
+
+  @$pb.TagNumber(187)
+  $17.ResSitePostList get sitePostList => $_getN(138);
+  @$pb.TagNumber(187)
+  set sitePostList($17.ResSitePostList value) => $_setField(187, value);
+  @$pb.TagNumber(187)
+  $core.bool hasSitePostList() => $_has(138);
+  @$pb.TagNumber(187)
+  void clearSitePostList() => $_clearField(187);
+  @$pb.TagNumber(187)
+  $17.ResSitePostList ensureSitePostList() => $_ensure(138);
+
+  @$pb.TagNumber(188)
+  $17.ResSitePostPut get sitePostPut => $_getN(139);
+  @$pb.TagNumber(188)
+  set sitePostPut($17.ResSitePostPut value) => $_setField(188, value);
+  @$pb.TagNumber(188)
+  $core.bool hasSitePostPut() => $_has(139);
+  @$pb.TagNumber(188)
+  void clearSitePostPut() => $_clearField(188);
+  @$pb.TagNumber(188)
+  $17.ResSitePostPut ensureSitePostPut() => $_ensure(139);
+
+  @$pb.TagNumber(189)
+  $17.ResSitePostDelete get sitePostDelete => $_getN(140);
+  @$pb.TagNumber(189)
+  set sitePostDelete($17.ResSitePostDelete value) => $_setField(189, value);
+  @$pb.TagNumber(189)
+  $core.bool hasSitePostDelete() => $_has(140);
+  @$pb.TagNumber(189)
+  void clearSitePostDelete() => $_clearField(189);
+  @$pb.TagNumber(189)
+  $17.ResSitePostDelete ensureSitePostDelete() => $_ensure(140);
 }
 
 const $core.bool _omitFieldNames =

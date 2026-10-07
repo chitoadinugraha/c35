@@ -7,6 +7,8 @@ mod catalog;
 mod device;
 mod guest_contact;
 mod guest_order;
+mod guest_product;
+mod guest_queue;
 mod invoke;
 mod locale;
 mod mcp_agent;
@@ -84,6 +86,8 @@ pub fn router(state: AppState) -> Router {
         .merge(c35_mod_mail::mail_router())
         .merge(guest_order::guest_order_router())
         .merge(guest_contact::guest_contact_router())
+        .merge(guest_product::guest_product_router())
+        .merge(guest_queue::guest_queue_router())
         .merge(presentation::presentation_router())
         .with_state(state)
 }

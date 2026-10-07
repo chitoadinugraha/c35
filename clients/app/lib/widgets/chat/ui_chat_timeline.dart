@@ -12,6 +12,8 @@ class UiChatTimelineController {
 
   var stickToBottom = true;
   var _scrollOffset = 0.0;
+  var _scrollBottomScheduled = false;
+  var _pendingScrollBottomForce = false;
   StreamSubscription<double>? _offsetSub;
 
   final ValueNotifier<bool> isAtBottom = ValueNotifier<bool>(true);
@@ -61,7 +63,15 @@ class UiChatTimelineController {
       isAtBottom.value = true;
       unreadStreamCount.value = 0;
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom(force: force, animate: animate));
+    _pendingScrollBottomForce = _pendingScrollBottomForce || force;
+    if (_scrollBottomScheduled) return;
+    _scrollBottomScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollBottomScheduled = false;
+      final pendingForce = _pendingScrollBottomForce;
+      _pendingScrollBottomForce = false;
+      _scrollToBottom(force: pendingForce);
+    });
   }
 
   void scrollToChronologicalIndex(int index, {required int itemCount, double alignment = 0.78}) {
@@ -69,36 +79,21 @@ class UiChatTimelineController {
     if (displayIndex < 0 || displayIndex >= itemCount) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!itemScroll.isAttached) return;
-      unawaited(
-        itemScroll.scrollTo(
-          index: displayIndex,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-          alignment: alignment,
-        ),
-      );
+      // jumpTo only — scrollTo can enable ScrollablePositionedList's dual-viewport
+      // transition and crash in RenderViewportBase._paintContents (null geometry).
+      itemScroll.jumpTo(index: displayIndex, alignment: alignment);
     });
   }
 
-  void _scrollToBottom({required bool force, required bool animate}) {
+  void _scrollToBottom({required bool force}) {
     if (!itemScroll.isAttached) return;
     if (!force && !stickToBottom && _scrollOffset > 96) return;
-    if (!animate) {
-      itemScroll.jumpTo(index: 0, alignment: 0);
-      if (!force) return;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (itemScroll.isAttached) itemScroll.jumpTo(index: 0, alignment: 0);
-      });
-      return;
-    }
-    unawaited(
-      itemScroll.scrollTo(
-        index: 0,
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOut,
-        alignment: 0,
-      ),
-    );
+    // Animated scrollTo uses the package's ping-pong viewport; jumpTo is safe.
+    itemScroll.jumpTo(index: 0, alignment: 0);
+    if (!force) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (itemScroll.isAttached) itemScroll.jumpTo(index: 0, alignment: 0);
+    });
   }
 }
 
@@ -120,7 +115,9 @@ class UiChatTimeline extends StatelessWidget {
   final IndexedWidgetBuilder? separatorBuilder;
 
   @override
-  Widget build(BuildContext context) => uiSemanticsGuard(
+  Widget build(BuildContext context) {
+    if (itemCount <= 0) return const SizedBox.shrink();
+    return uiSemanticsGuard(
         ScrollablePositionedList.separated(
           itemScrollController: controller.itemScroll,
           itemPositionsListener: controller.itemPositions,
@@ -133,4 +130,5 @@ class UiChatTimeline extends StatelessWidget {
           itemBuilder: (context, i) => itemBuilder(context, itemCount - 1 - i),
         ),
       );
+  }
 }

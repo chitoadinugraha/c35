@@ -1,8 +1,10 @@
 //! Durable Gemini embed cache — BLAKE3 key, sliding access window eviction.
 
+use std::sync::OnceLock;
 use std::time::Duration;
 
 use chrono::Utc;
+use dashmap::DashMap;
 use reqwest::Client;
 use sqlx::PgPool;
 use tracing::{debug, info};
@@ -14,6 +16,13 @@ pub const EMBED_DIMENSIONS_DEFAULT: i32 = 768;
 pub const EMBED_CACHE_RETENTION_DAYS: i64 = 30;
 pub const EMBED_CACHE_EVICT_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
 
+const L1_CACHE_MAX_ENTRIES: usize = 4096;
+static L1_CACHE: OnceLock<DashMap<String, (Vec<f32>, i32)>> = OnceLock::new();
+
+fn l1_cache() -> &'static DashMap<String, (Vec<f32>, i32)> {
+    L1_CACHE.get_or_init(DashMap::new)
+}
+
 pub struct EmbedCacheResult {
     pub embedding: Vec<f32>,
     pub cached: bool,
@@ -23,10 +32,10 @@ pub struct EmbedCacheResult {
 /// Point read with sliding-window touch — one round trip on hit.
 pub async fn embed_cache_get_touch(pool: &PgPool, model: &str, key: &str) -> Result<Option<(Vec<f32>, i32)>, sqlx::Error> {
     let now_ms = Utc::now().timestamp_millis();
-    let row = sqlx::query_as::<_, (Option<Vec<u8>>, i32)>(
+    let row = sqlx::query_as::<_, (Option<Vec<u8>>, Option<i32>)>(
         r#"
         UPDATE ai.embed_cache
-        SET accessed_ts_ms = $3, ts_ms = $3
+        SET accessed_ts_ms = $3
         WHERE model = $1 AND key = $2
         RETURNING embedding, token_in
         "#,
@@ -37,7 +46,9 @@ pub async fn embed_cache_get_touch(pool: &PgPool, model: &str, key: &str) -> Res
     .fetch_optional(pool)
     .await?;
     Ok(match row {
-        Some((Some(bytes), token_in)) => embed_bytes_to_vec(&bytes).map(|v| (v, token_in)),
+        Some((Some(bytes), token_in)) => {
+            embed_bytes_to_vec(&bytes).map(|v| (v, token_in.unwrap_or(0)))
+        }
         _ => None,
     })
 }
@@ -52,10 +63,10 @@ pub async fn embed_cache_get_many_touch(
         return Ok(out);
     }
     let now_ms = Utc::now().timestamp_millis();
-    let rows = sqlx::query_as::<_, (String, Vec<u8>)>(
+    let rows = sqlx::query_as::<_, (String, Option<Vec<u8>>)>(
         r#"
         UPDATE ai.embed_cache
-        SET accessed_ts_ms = $3, ts_ms = $3
+        SET accessed_ts_ms = $3
         WHERE model = $1 AND key = ANY($2)
         RETURNING key, embedding
         "#,
@@ -70,9 +81,9 @@ pub async fn embed_cache_get_many_touch(
         .enumerate()
         .map(|(i, k)| (k.as_str(), i))
         .collect();
-    for (key, bytes) in rows {
+    for (key, opt_bytes) in rows {
         if let Some(i) = key_to_idx.get(key.as_str()) {
-            out[*i] = embed_bytes_to_vec(&bytes);
+            out[*i] = opt_bytes.and_then(|b| embed_bytes_to_vec(&b));
         }
     }
     Ok(out)
@@ -128,8 +139,18 @@ pub async fn embed_cached(
     }
     let model = embed_model_tag(EMBED_MODEL, dimensions);
     let key = embed_cache_key(trimmed, task, dimensions);
+    let full_key = format!("{model}:{key}");
+
+    if let Some(entry) = l1_cache().get(&full_key) {
+        let (vec, token_in) = entry.value().clone();
+        return Ok(EmbedCacheResult { embedding: vec, cached: true, token_in });
+    }
+
     if let Ok(Some((vec, token_in))) = embed_cache_get_touch(pool, &model, &key).await {
         let tokens = if token_in > 0 { token_in } else { embed_token_est(trimmed) };
+        if l1_cache().len() < L1_CACHE_MAX_ENTRIES {
+            l1_cache().insert(full_key, (vec.clone(), tokens));
+        }
         return Ok(EmbedCacheResult { embedding: vec, cached: true, token_in: tokens });
     }
     let out = embed_text(http, trimmed, task, dimensions)
@@ -138,6 +159,9 @@ pub async fn embed_cached(
     embed_cache_put(pool, &model, &key, trimmed, task, &out.embedding, out.token_in)
         .await
         .map_err(|e| format!("embed_cache_put: {e}"))?;
+    if l1_cache().len() < L1_CACHE_MAX_ENTRIES {
+        l1_cache().insert(full_key, (out.embedding.clone(), out.token_in));
+    }
     Ok(EmbedCacheResult {
         embedding: out.embedding,
         cached: false,

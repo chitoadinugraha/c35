@@ -29,6 +29,24 @@ void main() {
     expect(find.textContaining('SoM'), findsOneWidget);
   });
 
+  testWidgets('tool chip sizes to content width', (tester) async {
+    const chip = MsgTraceToolChip(label: 'shell.run', durationMs: 825);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Wrap(
+            children: [UiMsgTraceToolChip(chip: chip)],
+          ),
+        ),
+      ),
+    );
+
+    final box = tester.renderObject<RenderBox>(find.byType(UiMsgTraceToolChip));
+    expect(box.size.width, lessThan(240));
+    expect(box.size.width, greaterThan(70));
+  });
+
   testWidgets('chip without screenshot has no expand chevron', (tester) async {
     const chip = MsgTraceToolChip(label: 'Searched web', durationMs: 200);
 

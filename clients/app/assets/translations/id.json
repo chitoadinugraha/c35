@@ -257,7 +257,23 @@
                       "assetRemoveMessage":  "Hapus {name} dari bot ini? Anda bisa menambahkannya lagi nanti."
                   },
     "billing":  {
-                    "purchaseNonRefundable":  "Semua pembelian (paket, kredit dompet, dan add-on) bersifat final dan tidak dapat dikembalikan kecuali diwajibkan oleh hukum atau dinyatakan lain pada saat checkout."
+                    "purchaseNonRefundable":  "Semua pembelian (paket, kredit dompet, dan add-on) bersifat final dan tidak dapat dikembalikan kecuali diwajibkan oleh hukum atau dinyatakan lain pada saat checkout.",
+                    "quotaUsageDialogTitle":  "Penggunaan paket",
+                    "quotaPackageSection":  "PAKET",
+                    "quotaAllowanceSection":  "KUOTA",
+                    "quotaCurrentPackage":  "Paket saat ini",
+                    "quotaUpgradeTap":  "Upgrade",
+                    "quotaIncludedIdr":  "Nominal kuota ditampilkan dalam IDR.",
+                    "quotaPeriodWeekly":  "Mingguan",
+                    "quotaPeriod5h":  "5 jam",
+                    "quotaCap":  "Batas {amount}",
+                    "quotaRemaining":  "Sisa {amount}",
+                    "quotaAlienAiDesc":  "Chat Alien AI, alat bawaan, dan API — pencarian web, kontrol perangkat, serta fitur dalam aplikasi lainnya.",
+                    "quotaFrontierDesc":  "Panggilan Live, model pihak ketiga (Gemini, ChatGPT, dan lainnya), serta API berbayar — gambar, musik, video, dan lainnya.",
+                    "planDowngradeOn":  "Turunkan pada {when}",
+                    "planCancelOn":  "Batalkan pada {when}",
+                    "planDowngradeAtPeriodEnd":  "Turunkan di akhir periode",
+                    "planCancelAtPeriodEnd":  "Batalkan di akhir periode"
                 },
     "media":  {
                   "providerAuto":  "Otomatis",
@@ -291,11 +307,11 @@
              },
     "legal":  {
                   "aiDisclaimerTitle":  "Sebelum melanjutkan",
-                  "aiDisclaimerAccuracy":  "Alien AI dapat salah. Periksa kembali fakta penting sebelum Anda mengandalkannya.",
-                  "aiDisclaimerResponsibility":  "Asisten hanya bertindak berdasarkan permintaan dan instruksi Anda. Anda bertanggung jawab penuh untuk meninjau hasilnya serta segala tindakan yang Anda lakukan—atau minta asisten lakukan—melalui Layanan.",
-                  "aiDisclaimerTermsPrefix":  "Pemberitahuan ini merupakan bagian dari ",
+                  "aiDisclaimerIntro":  "Centang setiap item di bawah, lalu lanjutkan.",
+                  "aiDisclaimerCheckTermsPrefix":  "Saya menerima ",
                   "aiDisclaimerTermsLink":  "Ketentuan Layanan",
-                  "aiDisclaimerTermsSuffix":  " kami.",
-                  "aiDisclaimerAccept":  "Saya mengerti"
+                  "aiDisclaimerCheckTermsSuffix":  ". AI bisa salah—saya memverifikasi hal penting dan bertanggung jawab atas cara saya memakai asisten.",
+                  "aiDisclaimerCheckLocation":  "Saya mengizinkan perkiraan lokasi untuk tempat terdekat, cuaca, dan saran lokal. Tidak dipakai untuk pelacakan latar; bisa diubah di Pengaturan.",
+                  "aiDisclaimerContinue":  "Lanjutkan"
               }
 }

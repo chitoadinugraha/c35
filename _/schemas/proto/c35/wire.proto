@@ -304,6 +304,16 @@ message WsReq {
     ReqChatCompact chat_compact = 176;
     ReqMediaRegenerate media_regenerate = 177;
     ReqLiveStart live_start = 179;
+    ReqMemoryList memory_list = 180;
+    ReqMemoryDelete memory_delete = 181;
+    ReqSiteHandlePut site_handle_put = 182;
+    ReqSiteBootGet site_boot_get = 183;
+    ReqSiteLinkList site_link_list = 184;
+    ReqSiteLinkPut site_link_put = 185;
+    ReqSiteLinkDelete site_link_delete = 186;
+    ReqSitePostList site_post_list = 187;
+    ReqSitePostPut site_post_put = 188;
+    ReqSitePostDelete site_post_delete = 189;
   }
 }
 
@@ -460,5 +470,15 @@ message WsRes {
     ResMediaRegenerate media_regenerate = 177;
     DevicePresencePush device_presence_push = 178;
     ResLiveStart live_start = 179;
+    ResMemoryList memory_list = 180;
+    ResMemoryDelete memory_delete = 181;
+    ResSiteHandlePut site_handle_put = 182;
+    ResSiteBootGet site_boot_get = 183;
+    ResSiteLinkList site_link_list = 184;
+    ResSiteLinkPut site_link_put = 185;
+    ResSiteLinkDelete site_link_delete = 186;
+    ResSitePostList site_post_list = 187;
+    ResSitePostPut site_post_put = 188;
+    ResSitePostDelete site_post_delete = 189;
   }
 }

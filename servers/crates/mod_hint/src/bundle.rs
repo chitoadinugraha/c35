@@ -19,14 +19,6 @@ struct HintRow {
     sort: i32,
 }
 
-struct SiteRow {
-    site_iid: i64,
-    alien_id: String,
-    name: String,
-    pic: String,
-    capabilities_json: serde_json::Value,
-}
-
 pub async fn hint_bundle_get(
     pool: &PgPool,
     user_iid: i64,
@@ -82,35 +74,12 @@ pub async fn hint_bundle_compile(pool: &PgPool, user_iid: i64, locale: &str) -> 
     };
 
     let catalog_rows = hint_catalog_rows(pool).await?;
-    let mut items: Vec<HintItem> = catalog_rows
+    // Site chips are not compiled into the welcome hint bundle: sites are reached via
+    // the account Sites picker / PageSites (dual-renderer plan N2), not hero chips.
+    let items: Vec<HintItem> = catalog_rows
         .iter()
         .map(|r| catalog_leaf_item(r, &tr))
         .collect();
-
-    let sites = site_rows(pool, user_iid).await?;
-    let (top, rest) = if sites.len() > 3 {
-        sites.split_at(3)
-    } else {
-        (sites.as_slice(), &[][..])
-    };
-    for (idx, site) in top.iter().enumerate() {
-        items.push(site_hint_item(site, &tr, 30 + idx as i32));
-    }
-    if !rest.is_empty() {
-        items.push(HintItem {
-            id: "hint.sites.more".into(),
-            label: tr("hint.sites.more.label"),
-            icon: "mdi:dots-horizontal".into(),
-            sort: 90,
-            action: None,
-            items: rest
-                .iter()
-                .enumerate()
-                .map(|(idx, site)| site_hint_item(site, &tr, idx as i32))
-                .collect(),
-            theme: String::new(),
-        });
-    }
 
     let updated_ts_ms = Utc::now().timestamp_millis();
     let catalog = HintCatalog {
@@ -248,110 +217,3 @@ fn catalog_leaf_item(r: &HintRow, tr: &dyn Fn(&str) -> String) -> HintItem {
     }
 }
 
-async fn site_rows(pool: &PgPool, user_iid: i64) -> Result<Vec<SiteRow>> {
-    let rows = sqlx::query(
-        r#"
-        SELECT i.id AS site_iid, i.alien_id, i.name, i.pic,
-               COALESCE(c.capabilities_json, '{}'::jsonb) AS capabilities_json
-        FROM ai.identity i
-        LEFT JOIN site.config c ON c.site_iid = i.id AND c.deleted_ts IS NULL
-        LEFT JOIN ai.identity_grant g
-          ON g.resource_iid = i.id AND g.grantee_iid = $1 AND g.deleted_ts IS NULL
-        LEFT JOIN ai.user_asset_touch t
-          ON t.user_iid = $1 AND t.asset_iid = i.id AND t.deleted_ts IS NULL
-        WHERE i.kind = 'site' AND i.deleted_ts IS NULL
-          AND (i.owner_iid = $1 OR g.grantee_iid IS NOT NULL)
-          AND COALESCE((g.meta->>'archived_ts_ms')::bigint, 0) = 0
-        ORDER BY COALESCE(g.is_pinned, false) DESC,
-                 t.last_accessed_ts DESC NULLS LAST,
-                 i.name ASC
-        "#,
-    )
-    .bind(user_iid)
-    .fetch_all(pool)
-    .await?;
-    Ok(rows
-        .iter()
-        .map(|r| SiteRow {
-            site_iid: r.get("site_iid"),
-            alien_id: r
-                .try_get::<Option<String>, _>("alien_id")
-                .ok()
-                .flatten()
-                .unwrap_or_default(),
-            name: r.get("name"),
-            pic: r
-                .try_get::<Option<String>, _>("pic")
-                .ok()
-                .flatten()
-                .unwrap_or_default(),
-            capabilities_json: r.get("capabilities_json"),
-        })
-        .collect())
-}
-
-/// Match `c35_mod_site::site_capability_enabled` — missing keys default to enabled.
-fn capability_enabled(caps: &serde_json::Value, key: &str) -> bool {
-    caps.get(key).and_then(|v| v.as_bool()).unwrap_or(true)
-}
-
-fn site_visit_url(alien_id: &str, site_iid: i64) -> String {
-    if !alien_id.is_empty() {
-        format!("https://alienai.id/{alien_id}")
-    } else {
-        format!("https://alienai.id/{site_iid}")
-    }
-}
-
-fn site_hint_item(site: &SiteRow, tr: &dyn Fn(&str) -> String, sort: i32) -> HintItem {
-    let icon = if site.pic.is_empty() {
-        "mdi:store".into()
-    } else {
-        site.pic.clone()
-    };
-    let mut children = vec![HintItem {
-        id: format!("hint.site.{}.visit", site.site_iid),
-        label: tr("hint.site.visit.label"),
-        icon: String::new(),
-        sort: 1,
-        action: Some(HintAction {
-            kind: "open_url".into(),
-            payload_json: json!({
-                "url": site_visit_url(&site.alien_id, site.site_iid),
-                "site_iid": site.site_iid.to_string(),
-                "asset_kind": "site",
-            })
-            .to_string(),
-        }),
-        items: vec![],
-        theme: String::new(),
-    }];
-    if capability_enabled(&site.capabilities_json, "commerce") {
-        children.push(HintItem {
-            id: format!("hint.site.{}.pos", site.site_iid),
-            label: tr("hint.site.pos.label"),
-            icon: String::new(),
-            sort: 2,
-            action: Some(HintAction {
-                kind: "navigate".into(),
-                payload_json: json!({
-                    "route": "site.pos",
-                    "site_iid": site.site_iid.to_string(),
-                    "asset_kind": "site",
-                })
-                .to_string(),
-            }),
-            items: vec![],
-            theme: String::new(),
-        });
-    }
-    HintItem {
-        id: format!("hint.site:{}", site.site_iid),
-        label: site.name.clone(),
-        icon,
-        sort,
-        action: None,
-        items: children,
-        theme: String::new(),
-    }
-}

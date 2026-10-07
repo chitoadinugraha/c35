@@ -286,6 +286,28 @@ User: [@iid:111]
 Tool: site.product.patch on site 111
 ```
 
+### Catalog add (general topic, `inst.site.catalog.add`)
+
+Use **`site.product_put`** (not `site.product.patch`). One site per call. Dialog before the write when the user has not @mentioned a site:
+
+| Granted sites | Turn 1 (user names product) | Turn 2+ |
+|---------------|----------------------------|---------|
+| **0** | Explain they need a site; offer to create one (ask business name if missing). | After agree → `site.create` → `site.product_put` on returned `site_iid`. |
+| **1** (auto `[SITE CONTEXTS]`) | Confirm: *Tambah **&lt;produk&gt;** di situs **&lt;nama situs&gt;**?* Optional: *Mau sekalian isi harga/stok?* | After *ya/iya/ok/setuju* → `site.product_put { name, site_iid from context, … }`. |
+| **2+** | *Mau ditambahkan di situs mana?* — list site names (no default pick). | User names site → short confirm product + site → `site.product_put` with explicit `site_iid`. |
+
+Example (single site):
+
+```text
+User: tambah produk indomie goreng
+Reply: Tambah Indomie Goreng di situs Warung A?
+User: ya
+Tool: site.product_put { name: "Indomie Goreng", site_iid: … }
+Reply: Sudah ditambahkan di Warung A. Mau set harga atau stok?
+```
+
+**Follow-up “ya” without product phrases:** when the prior assistant message was a catalog-add confirm (contains `?` and `tambah` / `di situs`), a short affirmation (`ya`, `ok`, `setuju`, …) re-injects `site.product_put` and appends `[PENDING CATALOG ADD]` for that turn (`catalog_add_followup` in `prompt_turn`).
+
 Mentioned pair:
 
 ```text
@@ -322,7 +344,7 @@ Shipped (see the implementation map):
 
 - `site.query.run` has no `requires_kinds` site gate. Empty `site_iids` uses `site_scope_pick` (mentions, else `site_granted_iids`). Empty scope returns no rows.
 - `site.product.patch` accepts `q` or `name` without a mention. A unique match writes. Two or more sites, or two or more products, return `{ "ok": false, "ambiguous": true }` and do not `UPDATE`.
-- Inst seeds: `inst.site.catalog.stock`, `inst.site.catalog.price`, `inst.site.price_compare`, `inst.site.catalog.write`.
+- Inst seeds: `inst.site.catalog.stock`, `inst.site.catalog.price`, `inst.site.price_compare`, `inst.site.catalog.write`, `inst.site.catalog.add`.
 - `catalog_web.rs` skips the `web.search` prefetch when those catalog insts match and the caller has a site. Price lookup searches the web only when `product.stock` returns no rows. Price compare searches after the store rows. Stock never searches. Write skips the prefetch.
 
 ---

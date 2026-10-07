@@ -16,6 +16,9 @@ Future<ResBillingSummary> billingSummaryGet(ReferralConn conn, {Int64 billingAcc
   return res.billingSummary;
 }
 
+double _summaryFrontierOrBase(double summaryVal, BillingAccount? base, double baseVal) =>
+    summaryVal > 0 ? summaryVal : (baseVal > 0 ? baseVal : summaryVal);
+
 BillingAccount billingAccountFromSummary(ResBillingSummary summary, {BillingAccount? base}) {
   final currency = billingCurrencyResolve(
     fromAccount: base?.billingCurrency,
@@ -24,6 +27,7 @@ BillingAccount billingAccountFromSummary(ResBillingSummary summary, {BillingAcco
   final fx = summary.hasFxMicroPerUsd()
       ? summary.fxMicroPerUsd
       : (base?.hasFxMicroPerUsd() == true ? base!.fxMicroPerUsd : Int64(moneyDefaultFxMicroPerUsd));
+  final b = base;
   return BillingAccount(
     id: base?.id ?? Int64.ZERO,
     ownerIid: base?.ownerIid ?? Int64.ZERO,
@@ -35,6 +39,10 @@ BillingAccount billingAccountFromSummary(ResBillingSummary summary, {BillingAcco
     alienAllow5hLimit: summary.alienAllow5hLimit,
     alienAllowWeeklyUsed: summary.alienAllowWeeklyUsed,
     alienAllowWeeklyLimit: summary.alienAllowWeeklyLimit,
+    frontierAllow5hUsed: _summaryFrontierOrBase(summary.frontierAllow5hUsed, b, b?.frontierAllow5hUsed ?? 0),
+    frontierAllow5hLimit: _summaryFrontierOrBase(summary.frontierAllow5hLimit, b, b?.frontierAllow5hLimit ?? 0),
+    frontierAllowWeeklyUsed: _summaryFrontierOrBase(summary.frontierAllowWeeklyUsed, b, b?.frontierAllowWeeklyUsed ?? 0),
+    frontierAllowWeeklyLimit: _summaryFrontierOrBase(summary.frontierAllowWeeklyLimit, b, b?.frontierAllowWeeklyLimit ?? 0),
     commissionAvailableUsd: summary.commissionAvailableUsd,
     commissionAvailableIdr: summary.commissionAvailableIdr,
     freemiumActive: summary.freemiumActive,

@@ -1,8 +1,31 @@
 use c35_mod_site::doc::{render_key_for_page, site_doc_validate};
-use c35_mod_site::render::{block_html_render, render_etag};
+use c35_mod_site::render::{
+    block_html_render, render_etag, render_offline_html, ProductGridCtx, ProductRow,
+};
 use c35_mod_site::site_preview_token_verify;
 use c35_proto::{SiteBlock, SiteDoc, SitePage};
-use serde_json::json;
+use serde_json::{json, Value};
+
+fn render_block(
+    block_type: &str,
+    props: &Value,
+    products: &[ProductRow],
+    caps: &Value,
+    grid_ctx: Option<&ProductGridCtx>,
+) -> String {
+    block_html_render(block_type, props, products, caps, grid_ctx, 0, &[], &[])
+}
+
+fn render_block_site(
+    block_type: &str,
+    props: &Value,
+    products: &[ProductRow],
+    caps: &Value,
+    grid_ctx: Option<&ProductGridCtx>,
+    site_iid: i64,
+) -> String {
+    block_html_render(block_type, props, products, caps, grid_ctx, site_iid, &[], &[])
+}
 
 fn sample_doc() -> SiteDoc {
     SiteDoc {
@@ -35,6 +58,30 @@ fn site_doc_validate_accepts_v1_blocks() {
 }
 
 #[test]
+fn site_doc_validate_accepts_contact_form_and_cta_label() {
+    let doc = SiteDoc {
+        pages: vec![SitePage {
+            path: "/".into(),
+            title: "Test".into(),
+            blocks: vec![
+                SiteBlock {
+                    id: "h1".into(),
+                    r#type: "hero".into(),
+                    props_json: r#"{"title":"T","cta_label":"Click","cta_href":"/contact"}"#.into(),
+                },
+                SiteBlock {
+                    id: "c1".into(),
+                    r#type: "contact_form".into(),
+                    props_json: r#"{"title":"Contact","submit_label":"Send"}"#.into(),
+                },
+            ],
+        }],
+        ..Default::default()
+    };
+    assert!(site_doc_validate(&doc).is_ok());
+}
+
+#[test]
 fn site_doc_validate_rejects_unknown_block() {
     let doc = SiteDoc {
         pages: vec![SitePage {
@@ -64,12 +111,139 @@ fn render_etag_is_blake3_hex() {
 }
 
 #[test]
+fn render_offline_html_is_branded_unpublished_page() {
+    let html = render_offline_html("Warung Bu Siti");
+    assert!(html.contains("Warung Bu Siti"));
+    assert!(html.contains("#F97316"));
+    assert!(html.contains("not published yet"));
+    assert!(html.contains("AlienAI"));
+}
+
+#[test]
+fn block_hero_renders_title_cta() {
+    let html = render_block(
+        "hero",
+        &json!({
+            "title": "Welcome",
+            "subtitle": "Tagline here",
+            "cta": "Order now",
+            "cta_url": "/menu"
+        }),
+        &[],
+        &json!({}),
+        None,
+    );
+    assert!(html.contains("class=\"block hero\""));
+    assert!(html.contains("<h1>Welcome</h1>"));
+    assert!(html.contains("Tagline here"));
+    assert!(html.contains("class=\"hero-cta\""));
+    assert!(html.contains("href=\"/menu\""));
+    assert!(html.contains("Order now"));
+}
+
+#[test]
+fn block_hero_renders_cta_label_alias() {
+    let html = render_block(
+        "hero",
+        &json!({
+            "title": "Welcome",
+            "subtitle": "Tagline here",
+            "cta_label": "Kunjungi",
+            "cta_href": "#contact"
+        }),
+        &[],
+        &json!({}),
+        None,
+    );
+    assert!(html.contains("class=\"hero-cta\""));
+    assert!(html.contains("href=\"#contact\""));
+    assert!(html.contains("Kunjungi"));
+}
+
+#[test]
+fn block_image_renders_pic() {
+    let html = render_block(
+        "image",
+        &json!({
+            "pic": "img-abc",
+            "alt": "Hero shot",
+            "caption": "Our storefront"
+        }),
+        &[],
+        &json!({}),
+        None,
+    );
+    assert!(html.contains("class=\"block image\""));
+    assert!(html.contains("src=\"/fs/img-abc?v=thumb\""));
+    assert!(html.contains("alt=\"Hero shot\""));
+    assert!(html.contains("<figcaption>Our storefront</figcaption>"));
+}
+
+#[test]
+fn block_spacer_renders_height() {
+    let html = render_block(
+        "spacer",
+        &json!({"height": 48}),
+        &[],
+        &json!({}),
+        None,
+    );
+    assert!(html.contains("class=\"block spacer\""));
+    assert!(html.contains("style=\"height:48px\""));
+}
+
+#[test]
+fn block_product_grid_renders_products() {
+    let products = vec![
+        ProductRow {
+            product_id: 101,
+            name: "Kopi Susu".into(),
+            desc: "Enak".into(),
+            price: 15000,
+            pic: "pic-kopi".into(),
+            category: "drinks".into(),
+            sort_order: 0,
+        },
+        ProductRow {
+            product_id: 102,
+            name: "Teh".into(),
+            desc: "Hangat".into(),
+            price: 8000,
+            pic: "".into(),
+            category: "drinks".into(),
+            sort_order: 1,
+        },
+    ];
+    let grid_ctx = ProductGridCtx {
+        site_iid: 42,
+        block_id: "g1".into(),
+        next_cursor: "0:102".into(),
+    };
+    let html =
+        render_block_site("product_grid", &json!({}), &products, &json!({}), Some(&grid_ctx), 42);
+    assert!(html.contains("class=\"block product-grid\""));
+    assert!(html.contains("data-pid=\"101\""));
+    assert!(html.contains("Kopi Susu"));
+    assert!(html.contains("Rp 15.000"));
+    assert!(html.contains("/fs/pic-kopi?v=thumb"));
+    assert!(html.contains("data-pid=\"102\""));
+    assert!(html.contains("Teh"));
+    assert!(html.contains("Rp 8.000"));
+    assert!(html.contains("guest-add-btn"));
+    assert!(html.contains("data-site-iid=\"42\""));
+    assert!(html.contains("data-block-id=\"g1\""));
+    assert!(html.contains("data-next-cursor=\"0:102\""));
+    assert!(html.contains("guest-load-more-btn"));
+}
+
+#[test]
 fn block_gallery_renders_pics() {
-    let html = block_html_render(
+    let html = render_block(
         "gallery",
         &json!({"pics": ["/fs/abc", "https://example.com/x.jpg"], "title": "Photos"}),
         &[],
         &json!({}),
+        None,
     );
     assert!(html.contains("class=\"gallery\""));
     assert!(html.contains("Photos"));
@@ -78,20 +252,22 @@ fn block_gallery_renders_pics() {
 
 #[test]
 fn block_links_renders_items() {
-    let html = block_html_render(
+    let html = render_block(
         "links",
         &json!({"links": [{"label": "Home", "url": "https://example.com"}], "title": "Links"}),
         &[],
         &json!({}),
+        None,
     );
     assert!(html.contains("class=\"links\""));
+    assert!(html.contains("data-guest=\"link\""));
     assert!(html.contains("Home"));
     assert!(html.contains("https://example.com"));
 }
 
 #[test]
 fn block_contact_form_renders_fields() {
-    let html = block_html_render(
+    let html = render_block(
         "contact_form",
         &json!({
             "title": "Reach us",
@@ -100,6 +276,7 @@ fn block_contact_form_renders_fields() {
         }),
         &[],
         &json!({}),
+        None,
     );
     assert!(html.contains("class=\"contact-form\""));
     assert!(html.contains("#contact"));
@@ -109,31 +286,32 @@ fn block_contact_form_renders_fields() {
 #[test]
 fn block_map_gated_by_booking() {
     let props = json!({"lat": 1.0, "lng": 2.0, "address": "Main St"});
-    assert!(block_html_render("map", &props, &[], &json!({})).contains("class=\"map\""));
-    assert!(block_html_render("map", &props, &[], &json!({"booking": false})).is_empty());
+    assert!(render_block("map", &props, &[], &json!({}), None).contains("class=\"map\""));
+    assert!(render_block("map", &props, &[], &json!({"booking": false}), None).is_empty());
 }
 
 #[test]
 fn block_hours_gated_by_booking() {
     let props = json!({"hours": [{"day": "Mon", "open": "09:00", "close": "17:00"}]});
-    assert!(block_html_render("hours", &props, &[], &json!({})).contains("class=\"hours\""));
-    assert!(block_html_render("hours", &props, &[], &json!({"booking": false})).is_empty());
+    assert!(render_block("hours", &props, &[], &json!({}), None).contains("class=\"hours\""));
+    assert!(render_block("hours", &props, &[], &json!({"booking": false}), None).is_empty());
 }
 
 #[test]
 fn block_queue_gated_by_queue_capability() {
     let props = json!({"title": "Now serving", "mode": "walk-in"});
-    assert!(block_html_render("queue", &props, &[], &json!({})).contains("class=\"queue\""));
-    assert!(block_html_render("queue", &props, &[], &json!({"queue": false})).is_empty());
+    assert!(render_block("queue", &props, &[], &json!({}), None).contains("class=\"queue\""));
+    assert!(render_block("queue", &props, &[], &json!({"queue": false}), None).is_empty());
 }
 
 #[test]
 fn block_embed_uses_sandboxed_iframe() {
-    let html = block_html_render(
+    let html = render_block(
         "embed",
         &json!({"url": "https://example.com/embed", "height": 300}),
         &[],
         &json!({}),
+        None,
     );
     assert!(html.contains("<iframe sandbox=\"\""));
     assert!(html.contains("https://example.com/embed"));
@@ -141,11 +319,12 @@ fn block_embed_uses_sandboxed_iframe() {
 
 #[test]
 fn block_custom_html_strips_scripts() {
-    let html = block_html_render(
+    let html = render_block(
         "custom_html",
         &json!({"html": "<p>safe</p><script>alert(1)</script><SCRIPT>x()</SCRIPT>"}),
         &[],
         &json!({}),
+        None,
     );
     assert!(html.contains("class=\"custom-html\""));
     assert!(html.contains("safe"));
@@ -155,14 +334,38 @@ fn block_custom_html_strips_scripts() {
 
 #[test]
 fn block_markdown_escapes_content() {
-    let html = block_html_render(
+    let html = render_block(
         "markdown",
         &json!({"content": "<b>bold</b> & \"quoted\""}),
         &[],
         &json!({}),
+        None,
     );
     assert!(html.contains("&lt;b&gt;"));
     assert!(!html.contains("<b>bold</b>"));
+}
+
+#[test]
+fn social_feed_block_renders_hub_posts() {
+    use c35_proto::SitePost;
+    let post = SitePost {
+        post_id: 7,
+        title: "News".into(),
+        caption: "Sub".into(),
+        ..Default::default()
+    };
+    let html = block_html_render(
+        "social_feed",
+        &json!({"title": "Feed", "limit": 5}),
+        &[],
+        &json!({}),
+        None,
+        0,
+        &[],
+        &[post],
+    );
+    assert!(html.contains("posts/7"));
+    assert!(html.contains("News"));
 }
 
 #[test]

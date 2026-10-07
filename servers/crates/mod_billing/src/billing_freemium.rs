@@ -210,6 +210,10 @@ pub async fn billing_plan_lapse_if_expired(pool: &PgPool, owner_iid: i64) -> Res
         r#"
         UPDATE ai.billing_profile
         SET plan_tier = 'free',
+            alien_allow_5h_limit = 0.05,
+            alien_allow_weekly_limit = 1.0,
+            frontier_allow_5h_limit = 0,
+            frontier_allow_weekly_limit = 0,
             alien_pool_limit_idr = 0,
             alien_pool_used_idr = 0,
             frontier_pool_limit_idr = 0,
@@ -227,7 +231,10 @@ pub async fn billing_plan_lapse_if_expired(pool: &PgPool, owner_iid: i64) -> Res
     sqlx::query(
         r#"
         UPDATE ai.billing_account
-        SET plan_tier = 'free', updated_ts = NOW()
+        SET plan_tier = 'free',
+            alien_allow_5h_limit = 0.05,
+            alien_allow_weekly_limit = 1.0,
+            updated_ts = NOW()
         WHERE owner_iid = $1 AND deleted_ts IS NULL
         "#,
     )

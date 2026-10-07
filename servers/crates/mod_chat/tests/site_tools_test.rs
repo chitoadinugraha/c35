@@ -8,7 +8,7 @@ use serde_json::json;
 fn block_types_catalog_non_empty() {
     assert!(BLOCK_TYPES.contains(&"hero"));
     assert!(BLOCK_TYPES.contains(&"product_grid"));
-    assert_eq!(block_props_allowed("hero").len(), 6);
+    assert_eq!(block_props_allowed("hero").len(), 8);
 }
 
 #[test]

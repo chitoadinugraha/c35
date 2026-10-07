@@ -53,9 +53,19 @@ pub async fn billing_account_get(ctx: &Ctx, billing_iid: i64) -> WireResult<Bill
     let freemium = crate::billing_freemium::billing_freemium_snapshot(&ctx.pool, owner_iid)
         .await
         .unwrap_or_default();
-    let profile_ts = sqlx::query_as::<_, (Option<chrono::DateTime<chrono::Utc>>, Option<chrono::DateTime<chrono::Utc>>)>(
+    let _ = crate::billing_profile::billing_profile_repair_rings_v4(&ctx.pool, owner_iid).await;
+    let profile_row = sqlx::query(
         r#"
-        SELECT trial_expires_ts, plan_expires_ts
+        SELECT trial_expires_ts, plan_expires_ts,
+               COALESCE(alien_allow_5h_used::float8, 0.0) AS alien_allow_5h_used,
+               COALESCE(alien_allow_5h_limit::float8, 0.0) AS alien_allow_5h_limit,
+               COALESCE(alien_allow_weekly_used::float8, 0.0) AS alien_allow_weekly_used,
+               COALESCE(alien_allow_weekly_limit::float8, 0.0) AS alien_allow_weekly_limit,
+               COALESCE(frontier_allow_5h_used::float8, 0.0) AS frontier_allow_5h_used,
+               COALESCE(frontier_allow_5h_limit::float8, 0.0) AS frontier_allow_5h_limit,
+               COALESCE(frontier_allow_weekly_used::float8, 0.0) AS frontier_allow_weekly_used,
+               COALESCE(frontier_allow_weekly_limit::float8, 0.0) AS frontier_allow_weekly_limit,
+               window_5h_start, window_weekly_start
         FROM ai.billing_profile
         WHERE owner_iid = $1 AND deleted_ts IS NULL
         LIMIT 1
@@ -65,11 +75,46 @@ pub async fn billing_account_get(ctx: &Ctx, billing_iid: i64) -> WireResult<Bill
     .fetch_optional(&ctx.pool)
     .await
     .ok()
-    .flatten()
-    .unwrap_or((None, None));
+    .flatten();
+    let profile_ts = profile_row
+        .as_ref()
+        .map(|r| (
+            r.try_get::<Option<chrono::DateTime<chrono::Utc>>, _>("trial_expires_ts").ok().flatten(),
+            r.try_get::<Option<chrono::DateTime<chrono::Utc>>, _>("plan_expires_ts").ok().flatten(),
+        ))
+        .unwrap_or((None, None));
 
-    let w5: chrono::DateTime<chrono::Utc> = row.get("window_5h_start");
-    let ww: chrono::DateTime<chrono::Utc> = row.get("window_weekly_start");
+    let w5: chrono::DateTime<chrono::Utc> = profile_row
+        .as_ref()
+        .and_then(|r| r.try_get("window_5h_start").ok())
+        .unwrap_or_else(|| row.get("window_5h_start"));
+    let ww: chrono::DateTime<chrono::Utc> = profile_row
+        .as_ref()
+        .and_then(|r| r.try_get("window_weekly_start").ok())
+        .unwrap_or_else(|| row.get("window_weekly_start"));
+    let (alien_5h_used, alien_5h_limit, alien_week_used, alien_week_limit) = profile_row
+        .as_ref()
+        .map(|r| (
+            r.get::<f64, _>("alien_allow_5h_used"),
+            r.get::<f64, _>("alien_allow_5h_limit"),
+            r.get::<f64, _>("alien_allow_weekly_used"),
+            r.get::<f64, _>("alien_allow_weekly_limit"),
+        ))
+        .unwrap_or_else(|| (
+            row.get("alien_allow_5h_used"),
+            row.get("alien_allow_5h_limit"),
+            row.get("alien_allow_weekly_used"),
+            row.get("alien_allow_weekly_limit"),
+        ));
+    let (frontier_5h_used, frontier_5h_limit, frontier_week_used, frontier_week_limit) = profile_row
+        .as_ref()
+        .map(|r| (
+            r.get::<f64, _>("frontier_allow_5h_used"),
+            r.get::<f64, _>("frontier_allow_5h_limit"),
+            r.get::<f64, _>("frontier_allow_weekly_used"),
+            r.get::<f64, _>("frontier_allow_weekly_limit"),
+        ))
+        .unwrap_or((0.0, 0.0, 0.0, 0.0));
     let created: chrono::DateTime<chrono::Utc> = row.get("created_ts");
     let updated: chrono::DateTime<chrono::Utc> = row.get("updated_ts");
 
@@ -80,10 +125,14 @@ pub async fn billing_account_get(ctx: &Ctx, billing_iid: i64) -> WireResult<Bill
         balance_usd: row.get("balance_usd"),
         balance_idr: row.get("balance_idr"),
         plan_tier: row.get("plan_tier"),
-        alien_allow_5h_used: row.get("alien_allow_5h_used"),
-        alien_allow_5h_limit: row.get("alien_allow_5h_limit"),
-        alien_allow_weekly_used: row.get("alien_allow_weekly_used"),
-        alien_allow_weekly_limit: row.get("alien_allow_weekly_limit"),
+        alien_allow_5h_used: alien_5h_used,
+        alien_allow_5h_limit: alien_5h_limit,
+        alien_allow_weekly_used: alien_week_used,
+        alien_allow_weekly_limit: alien_week_limit,
+        frontier_allow_5h_used: frontier_5h_used,
+        frontier_allow_5h_limit: frontier_5h_limit,
+        frontier_allow_weekly_used: frontier_week_used,
+        frontier_allow_weekly_limit: frontier_week_limit,
         window_5h_start_ms: w5.timestamp_millis(),
         window_weekly_start_ms: ww.timestamp_millis(),
         billing_currency: row.get("billing_currency"),

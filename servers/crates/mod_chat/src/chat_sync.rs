@@ -43,12 +43,12 @@ pub async fn chat_title_set(
         return Ok(());
     }
     if let Some(nats) = nats {
-        chat_title_fanout(pool, nats, owner_iid, chat_id).await?;
+        chat_fanout(pool, nats, owner_iid, chat_id).await?;
     }
     Ok(())
 }
 
-async fn chat_title_fanout(pool: &PgPool, nats: &Client, owner_iid: i64, chat_id: i64) -> Result<()> {
+pub async fn chat_fanout(pool: &PgPool, nats: &Client, owner_iid: i64, chat_id: i64) -> Result<()> {
     let row = sqlx::query(
         r#"
         SELECT c.id, c.kind, c.owner_iid, c.title, c.model, c.last_msg_ts, c.last_msg_preview, c.meta,
@@ -93,5 +93,49 @@ async fn chat_title_fanout(pool: &PgPool, nats: &Client, owner_iid: i64, chat_id
     };
     nats.publish(prompt_chat_subject(owner_iid, chat_id), pb_encode(&res).into())
         .await?;
+    Ok(())
+}
+
+pub async fn chat_touch(
+    pool: &PgPool,
+    nats: Option<&Client>,
+    chat_id: i64,
+    owner_iid: i64,
+    preview: &str,
+    status: &str,
+) -> Result<()> {
+    let p: String = preview.chars().take(255).collect();
+    let mut tx = match pool.begin().await {
+        Ok(t) => t,
+        Err(e) => {
+            tracing::warn!("[c35:chat] chat_touch begin tx failed: {e}");
+            return Ok(());
+        }
+    };
+    let _ = sqlx::query(
+        r#"
+        UPDATE ai.chat SET last_msg_ts = NOW(), last_msg_preview = $2, updated_ts = NOW() WHERE id = $1
+        "#,
+    )
+    .bind(chat_id)
+    .bind(&p)
+    .execute(&mut *tx)
+    .await;
+    let _ = sqlx::query(
+        r#"
+        UPDATE ai.chat_member SET last_msg_ts = NOW(), last_msg_preview = $2, last_msg_status = $4, updated_ts = NOW()
+        WHERE chat_id = $1 AND member_iid = $3
+        "#,
+    )
+    .bind(chat_id)
+    .bind(&p)
+    .bind(owner_iid)
+    .bind(status)
+    .execute(&mut *tx)
+    .await;
+    let _ = tx.commit().await;
+    if let Some(nats) = nats {
+        let _ = chat_fanout(pool, nats, owner_iid, chat_id).await;
+    }
     Ok(())
 }

@@ -1127,7 +1127,7 @@ class ChatStore extends ChangeNotifier {
         return;
       }
     }
-    final i = msgs.indexWhere((m) => m.id == row.id && row.id != 0);
+    final i = msgs.indexWhere((m) => m.id == row.id && row.id > 0);
     if (i >= 0) {
       final merged = _msgMerge(msgs[i], row);
       msgs[i] = merged;
@@ -1451,7 +1451,9 @@ class ChatStore extends ChangeNotifier {
       (m) => m.chatId == chatId && m.role == 'user' && (m.content.trim().isNotEmpty || m.attachments.isNotEmpty),
     );
     if (lastUserIdx < 0) return;
+    final lastUser = msgs[lastUserIdx];
     _tombstoneAssistantsAfterUser(chatId, lastUserIdx);
+    if (lastUser.id > 0) _tombstonedMsgIds.add(lastUser.id);
     _touchMsgs(chatId);
     notifyListeners();
   }
@@ -1516,7 +1518,9 @@ class ChatStore extends ChangeNotifier {
     final idx = msgs.lastIndexWhere((m) => m.chatId == chatId && m.role == 'user');
     if (idx >= 0) {
       final old = msgs[idx];
+      if (old.id > 0) _tombstonedMsgIds.add(old.id);
       msgs[idx] = old.copyWith(
+        id: msgNextLocalId(),
         content: content,
         attachments: attachments,
         attachmentsJson: MsgAttachment.encode(attachments),

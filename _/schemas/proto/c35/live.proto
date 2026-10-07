@@ -12,6 +12,7 @@ message LiveOffer {
   double retail_usd_per_min = 7;
   double input_usd_per_min = 8;
   double output_usd_per_min = 9;
+  double retail_video_usd_per_min = 10;
 }
 
 message LiveCatalog {

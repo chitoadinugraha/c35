@@ -2,7 +2,7 @@ use axum::extract::ws::{Message, WebSocket};
 use axum::http::HeaderMap;
 use c35_ctx::{AppState, Ctx};
 use c35_mod_chat::{
-    chat_ensure, chat_title_from_text, prompt_followup_cancel_all_for_req, prompt_followup_cancel_rpc,
+    chat_ensure, chat_title_from_prompt, prompt_followup_cancel_all_for_req, prompt_followup_cancel_rpc,
     prompt_followup_list, prompt_followup_publish_state, prompt_followup_put,
     prompt_followup_start_next_queued, prompt_run_cancel_children, prompt_run_cancel_request,
     prompt_run_enqueue, prompt_run_finish, prompt_run_insert, prompt_run_row_new,
@@ -184,7 +184,6 @@ fn prompt_req_put(
     prompt_flight: &mut Option<PromptFlight>,
 ) {
     let locale = q.locale.clone().unwrap_or_default();
-    let title = chat_title_from_text(&p.text);
     let pool = state.pool.clone();
     let nats = state.nats.clone();
     let owner_iid = ctx.caller_iid;
@@ -193,6 +192,7 @@ fn prompt_req_put(
     let cancel = CancellationToken::new();
     *prompt_flight = Some(PromptFlight { cancel: cancel.clone() });
     tokio::spawn(async move {
+        let title = chat_title_from_prompt(&pool, &p.text, &p.mention_ids).await;
         let chat_id = match chat_ensure(&pool, owner_iid, p.chat_id, &title).await {
             Ok(id) => id,
             Err(e) => {
@@ -477,6 +477,20 @@ async fn dispatch(
             body: Some(ws_res::Body::LiveStart(
                 c35_mod_live::live_start_rpc(&state.pool, ctx.caller_iid, r).await,
             )),
+        },
+        Some(ws_req::Body::MemoryList(r)) => match c35_mod_chat::memory_list_rpc(&state.pool, ctx.caller_iid, r).await {
+            Ok(body) => WsRes {
+                req_id,
+                body: Some(ws_res::Body::MemoryList(body)),
+            },
+            Err(e) => err_res(req_id, WireErr::client("memory_list_failed", e.to_string())),
+        },
+        Some(ws_req::Body::MemoryDelete(r)) => match c35_mod_chat::memory_delete_rpc(&state.pool, ctx.caller_iid, r).await {
+            Ok(body) => WsRes {
+                req_id,
+                body: Some(ws_res::Body::MemoryDelete(body)),
+            },
+            Err(e) => err_res(req_id, WireErr::client("memory_delete_failed", e.to_string())),
         },
         Some(ws_req::Body::ChatDeviceContextList(r)) => {
             match c35_mod_chat::chat_device_context_list(&state.pool, ctx.caller_iid, r).await {
@@ -897,6 +911,60 @@ async fn dispatch(
                 Err(e) => err_res(req_id, WireErr::client("site_contact_put_failed", e.to_string())),
             }
         }
+        Some(ws_req::Body::SiteLinkList(r)) => {
+            match c35_mod_site::site_link_list(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteLinkList(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_link_list_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteLinkPut(r)) => {
+            match c35_mod_site::site_link_put(&state.pool, ctx.caller_iid, r, Some(out_tx)).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteLinkPut(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_link_put_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteLinkDelete(r)) => {
+            match c35_mod_site::site_link_delete(&state.pool, ctx.caller_iid, r, Some(out_tx)).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteLinkDelete(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_link_delete_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SitePostList(r)) => {
+            match c35_mod_site::site_post_list(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SitePostList(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_post_list_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SitePostPut(r)) => {
+            match c35_mod_site::site_post_put(&state.pool, ctx.caller_iid, r, Some(out_tx)).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SitePostPut(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_post_put_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SitePostDelete(r)) => {
+            match c35_mod_site::site_post_delete(&state.pool, ctx.caller_iid, r, Some(out_tx)).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SitePostDelete(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_post_delete_failed", e.to_string())),
+            }
+        }
         Some(ws_req::Body::SiteObjectList(r)) => {
             match c35_mod_site::site_object_list(&state.pool, ctx.caller_iid, r).await {
                 Ok(body) => WsRes {
@@ -1151,6 +1219,24 @@ async fn dispatch(
                     body: Some(ws_res::Body::SitePreviewToken(body)),
                 },
                 Err(e) => err_res(req_id, WireErr::client("site_preview_token_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteHandlePut(r)) => {
+            match c35_mod_site::site_handle_put(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteHandlePut(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_handle_put_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteBootGet(r)) => {
+            match c35_mod_site::site_boot_get(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteBootGet(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_boot_get_failed", e.to_string())),
             }
         }
         Some(ws_req::Body::TxGet(r)) => match c35_mod_tx::tx_get(&state.pool, ctx.caller_iid, r).await {

@@ -95,6 +95,18 @@ struct SubscriptionPurchase {
     expiry_time_millis_camel: Option<String>,
 }
 
+#[derive(Deserialize)]
+struct SubscriptionPurchaseV2 {
+    #[serde(default)]
+    subscription_state: Option<String>,
+    #[serde(default, rename = "subscriptionState")]
+    subscription_state_camel: Option<String>,
+    #[serde(default)]
+    latest_order_id: Option<String>,
+    #[serde(default, rename = "latestOrderId")]
+    latest_order_id_camel: Option<String>,
+}
+
 static PLAY_API: OnceLock<Option<Arc<PlayApi>>> = OnceLock::new();
 
 pub fn play_price_idr(web_idr: f64) -> f64 {
@@ -141,39 +153,59 @@ fn play_package_name(override_name: &str) -> String {
 }
 
 fn parse_play_product(product_id: &str) -> Result<PlayProduct, String> {
-    let id = product_id.trim();
-    if let Some(rest) = id.strip_prefix(PLAN_PREFIX) {
-        let mut parts = rest.split('.');
-        let slug = parts.next().unwrap_or("").trim().to_lowercase();
-        let period = parts.next().unwrap_or("").trim().to_lowercase();
-        if parts.next().is_some() || slug.is_empty() || period.is_empty() {
-            return Err("invalid plan product id".into());
-        }
-        if !USER_PLAN_SLUGS.contains(&slug.as_str()) {
-            return Err(format!("unknown plan slug: {slug}"));
-        }
-        let months = match period.as_str() {
-            "monthly" => 1,
-            "yearly" => 12,
-            _ => return Err("billing_period must be monthly or yearly".into()),
-        };
-        return Ok(PlayProduct::Plan {
-            slug,
-            period,
-            months,
-        });
+    let mut id = product_id.trim();
+    if let Some(rest) = id.strip_prefix("id.alienai.") {
+        id = rest;
     }
-    if let Some(amount_raw) = id.strip_prefix(CREDIT_PREFIX) {
-        let amount: f64 = amount_raw
-            .trim()
-            .parse()
-            .map_err(|_| "invalid credit amount in product id".to_string())?;
+
+    // Check if it's a credit product (e.g. credit.50000, credit_50000, credit.50k)
+    if id.starts_with("credit.") || id.starts_with("credit_") {
+        let amount_part = id.strip_prefix("credit.").or_else(|| id.strip_prefix("credit_")).unwrap_or("");
+        let amount_lower = amount_part.trim().to_lowercase();
+        let amount: f64 = if let Some(k) = amount_lower.strip_suffix('k') {
+            k.parse::<f64>().map(|v| v * 1_000.0).map_err(|_| "invalid credit amount in product id".to_string())?
+        } else if let Some(m) = amount_lower.strip_suffix('m') {
+            m.parse::<f64>().map(|v| v * 1_000_000.0).map_err(|_| "invalid credit amount in product id".to_string())?
+        } else {
+            amount_lower.parse::<f64>().map_err(|_| "invalid credit amount in product id".to_string())?
+        };
         if amount < 1.0 {
             return Err("credit amount must be positive".into());
         }
         return Ok(PlayProduct::Credit { amount_idr: amount });
     }
-    Err("unsupported product_id".into())
+
+    // Check if it's a plan product
+    let mut plan_part = id;
+    if let Some(rest) = plan_part.strip_prefix("plan.") {
+        plan_part = rest;
+    } else if let Some(rest) = plan_part.strip_prefix("plan_") {
+        plan_part = rest;
+    }
+
+    // Normalize separators: replace '_' with '.'
+    let normalized = plan_part.replace('_', ".");
+    let mut parts = normalized.split('.');
+    let slug = parts.next().unwrap_or("").trim().to_lowercase();
+    let period_raw = parts.next().unwrap_or("monthly").trim().to_lowercase();
+
+    if slug.is_empty() {
+        return Err("invalid plan product id".into());
+    }
+    if !USER_PLAN_SLUGS.contains(&slug.as_str()) {
+        return Err(format!("unknown plan slug: {slug}"));
+    }
+    let (period, months) = match period_raw.as_str() {
+        "yearly" | "annual" | "1y" => ("yearly".to_string(), 12),
+        "monthly" | "1m" | "" => ("monthly".to_string(), 1),
+        _ => return Err("billing_period must be monthly or yearly".into()),
+    };
+
+    Ok(PlayProduct::Plan {
+        slug,
+        period,
+        months,
+    })
 }
 
 fn repo_root() -> Option<PathBuf> {
@@ -289,56 +321,105 @@ async fn verify_with_google(
     product: &PlayProduct,
 ) -> Result<(String, Value)> {
     let access = access_token(api).await?;
-    let url = match product {
-        PlayProduct::Plan { .. } => format!(
-            "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/{package}/purchases/subscriptions/{product_id}/tokens/{token}"
-        ),
-        PlayProduct::Credit { .. } => format!(
-            "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/{package}/purchases/products/{product_id}/tokens/{token}"
-        ),
-    };
-    let res = api
-        .http
-        .get(&url)
-        .bearer_auth(&access)
-        .send()
-        .await
-        .context("play verify http")?
-        .error_for_status()
-        .context("play verify rejected")?;
-    let body: Value = res.json().await.context("parse play verify json")?;
-    let order_id = match product {
+    match product {
         PlayProduct::Plan { .. } => {
-            let sub: SubscriptionPurchase = serde_json::from_value(body.clone())
-                .context("parse subscription purchase")?;
-            let payment = sub.payment_state.or(sub.payment_state_camel).unwrap_or(-1);
-            if payment != 1 && payment != 2 {
-                return Err(anyhow!("subscription payment not received (state={payment})"));
+            // First try subscriptions v1 API
+            let v1_url = format!(
+                "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/{package}/purchases/subscriptions/{product_id}/tokens/{token}"
+            );
+            let res = api
+                .http
+                .get(&v1_url)
+                .bearer_auth(&access)
+                .send()
+                .await
+                .context("play verify http v1")?;
+
+            let status = res.status();
+            if status.is_success() {
+                let body: Value = res.json().await.context("parse play verify v1 json")?;
+                let sub: SubscriptionPurchase = serde_json::from_value(body.clone())
+                    .context("parse subscription purchase")?;
+                let payment = sub.payment_state.or(sub.payment_state_camel).unwrap_or(-1);
+                if payment != 1 && payment != 2 {
+                    return Err(anyhow!("subscription payment not received (state={payment})"));
+                }
+                if let Some(exp_ms) = sub
+                    .expiry_time_millis
+                    .or(sub.expiry_time_millis_camel)
+                    .and_then(|s| s.parse::<i64>().ok())
+                {
+                    if exp_ms <= Utc::now().timestamp_millis() {
+                        return Err(anyhow!("subscription expired"));
+                    }
+                }
+                let order_id = sub.order_id.or(sub.order_id_camel).unwrap_or_default();
+                return Ok((order_id, body));
             }
-            if let Some(exp_ms) = sub
-                .expiry_time_millis
-                .or(sub.expiry_time_millis_camel)
-                .and_then(|s| s.parse::<i64>().ok())
-            {
-                if exp_ms <= Utc::now().timestamp_millis() {
-                    return Err(anyhow!("subscription expired"));
+
+            // If v1 returned 404 (common for modern Play Billing subscriptions), try subscriptions v2 API
+            if status.as_u16() == 404 {
+                let v2_url = format!(
+                    "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/{package}/purchases/subscriptionsv2/tokens/{token}"
+                );
+                let res2 = api
+                    .http
+                    .get(&v2_url)
+                    .bearer_auth(&access)
+                    .send()
+                    .await
+                    .context("play verify http v2")?;
+
+                let status2 = res2.status();
+                if status2.is_success() {
+                    let body2: Value = res2.json().await.context("parse play verify v2 json")?;
+                    let sub2: SubscriptionPurchaseV2 = serde_json::from_value(body2.clone())
+                        .context("parse subscription purchase v2")?;
+                    let state = sub2.subscription_state
+                        .or(sub2.subscription_state_camel)
+                        .unwrap_or_default()
+                        .to_uppercase();
+                    if !state.is_empty() && !state.contains("ACTIVE") && !state.contains("GRACE") {
+                        return Err(anyhow!("subscription not active in Google Play (state={state})"));
+                    }
+                    let order_id = sub2.latest_order_id.or(sub2.latest_order_id_camel).unwrap_or_default();
+                    return Ok((order_id, body2));
+                } else {
+                    let err2 = res2.text().await.unwrap_or_default();
+                    return Err(anyhow!("google play verify v2 rejected ({status2}): {err2}"));
                 }
             }
-            sub.order_id
-                .or(sub.order_id_camel)
-                .unwrap_or_default()
+
+            let err = res.text().await.unwrap_or_default();
+            Err(anyhow!("google play verify v1 rejected ({status}): {err}"))
         }
         PlayProduct::Credit { .. } => {
+            let url = format!(
+                "https://androidpublisher.googleapis.com/androidpublisher/v3/applications/{package}/purchases/products/{product_id}/tokens/{token}"
+            );
+            let res = api
+                .http
+                .get(&url)
+                .bearer_auth(&access)
+                .send()
+                .await
+                .context("play verify product http")?;
+            let status = res.status();
+            if !status.is_success() {
+                let err = res.text().await.unwrap_or_default();
+                return Err(anyhow!("google play product verify rejected ({status}): {err}"));
+            }
+            let body: Value = res.json().await.context("parse product purchase json")?;
             let prod: ProductPurchase =
                 serde_json::from_value(body.clone()).context("parse product purchase")?;
             let state = prod.purchase_state.or(prod.purchase_state_camel).unwrap_or(-1);
             if state != 0 {
                 return Err(anyhow!("product not purchased (state={state})"));
             }
-            prod.order_id.or(prod.order_id_camel).unwrap_or_default()
+            let order_id = prod.order_id.or(prod.order_id_camel).unwrap_or_default();
+            Ok((order_id, body))
         }
-    };
-    Ok((order_id, body))
+    }
 }
 
 async fn play_purchase_existing(
@@ -644,12 +725,55 @@ mod tests {
             }
             _ => panic!("expected plan"),
         }
+
+        // Test unprefixed and underscore formats
+        let p2 = parse_play_product("plan.lite.monthly").unwrap();
+        match p2 {
+            PlayProduct::Plan { slug, period, months } => {
+                assert_eq!(slug, "lite");
+                assert_eq!(period, "monthly");
+                assert_eq!(months, 1);
+            }
+            _ => panic!("expected plan"),
+        }
+
+        let p3 = parse_play_product("ultra_yearly").unwrap();
+        match p3 {
+            PlayProduct::Plan { slug, period, months } => {
+                assert_eq!(slug, "ultra");
+                assert_eq!(period, "yearly");
+                assert_eq!(months, 12);
+            }
+            _ => panic!("expected plan"),
+        }
+
+        let p4 = parse_play_product("lite").unwrap();
+        match p4 {
+            PlayProduct::Plan { slug, period, months } => {
+                assert_eq!(slug, "lite");
+                assert_eq!(period, "monthly");
+                assert_eq!(months, 1);
+            }
+            _ => panic!("expected plan"),
+        }
     }
 
     #[test]
     fn parse_credit_product() {
         let p = parse_play_product("id.alienai.credit.50000").unwrap();
         match p {
+            PlayProduct::Credit { amount_idr } => assert_eq!(amount_idr, 50_000.0),
+            _ => panic!("expected credit"),
+        }
+
+        let p2 = parse_play_product("credit.100k").unwrap();
+        match p2 {
+            PlayProduct::Credit { amount_idr } => assert_eq!(amount_idr, 100_000.0),
+            _ => panic!("expected credit"),
+        }
+
+        let p3 = parse_play_product("credit_50000").unwrap();
+        match p3 {
             PlayProduct::Credit { amount_idr } => assert_eq!(amount_idr, 50_000.0),
             _ => panic!("expected credit"),
         }

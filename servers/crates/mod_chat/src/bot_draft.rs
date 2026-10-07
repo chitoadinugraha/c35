@@ -54,7 +54,11 @@ enum AccessPlan {
 }
 
 pub fn plan_bot_draft(input: &BotDraftInput) -> DraftPlan {
-    let purpose = input.purpose.trim().to_string();
+    let name_given = input.name.trim();
+    let mut purpose = input.purpose.trim().to_string();
+    if !name_given.is_empty() && purpose.eq_ignore_ascii_case(name_given) {
+        purpose.clear();
+    }
     let channel = channel_from_text(&format!("{} {}", purpose, input.channel));
     let pending_urls: Vec<String> = input.sheets.iter().map(|s| s.url.clone()).filter(|u| !u.trim().is_empty()).collect();
     if !purpose_clear(&purpose) && input.bot_iid <= 0 {
@@ -217,12 +221,28 @@ pub fn purpose_clear(purpose: &str) -> bool {
     let filler = [
         "buat", "bikin", "create", "bot", "untuk", "yang", "pakai", "gunakan", "dengan", "ini", "itu", "sheet",
         "spreadsheet", "google", "drive", "link", "url", "the", "a", "an", "for", "using", "this", "my", "new",
-        "baru", "tolong", "please", "saya", "aku", "from", "and", "dan",
+        "baru", "tolong", "please", "saya", "aku", "from", "and", "dan", "chat", "test",
     ];
-    purpose.split_whitespace().any(|raw| {
+    let has_topic_token = purpose.split_whitespace().any(|raw| {
         let w = raw.trim_matches(|c: char| !c.is_alphanumeric()).to_ascii_lowercase();
         w.len() >= 3 && !w.contains("http") && !w.contains("docs") && !filler.contains(&w.as_str())
-    })
+    });
+    has_topic_token && purpose_has_intent(purpose)
+}
+
+/// True when the user described what the bot should do (not only a display name like "Test Stock").
+fn purpose_has_intent(text: &str) -> bool {
+    if write_signal(text) {
+        return true;
+    }
+    let t = format!(" {} ", norm(text));
+    const VERBS: &[&str] = &[
+        "jawab", "answer", "sapa", "greet", "tandai", "booking", "booked", "reservasi", "reservation", "reserve",
+        "kurangi", "reduce", "catat", "record", "kelola", "manage", "bantu", "help", "layani", "serve", "terima",
+        "receive", "handle", "cek", "check", "inform", "beri", "give", "jelaskan", "explain", "tanya", "ask",
+        "faq", "promosi", "promote", "jual", "sell", "order",
+    ];
+    VERBS.iter().any(|w| t.contains(&format!(" {w} ")))
 }
 
 fn wants_sheet(purpose: &str) -> bool {
@@ -581,6 +601,23 @@ mod tests {
         ));
         assert_eq!(plan.sheets[0].source_kind, "google_doc");
         assert_eq!(plan.sheets[0].access_mode, "read_only");
+    }
+
+    #[test]
+    fn quoted_name_only_asks_purpose_does_not_create() {
+        let plan = plan_bot_draft(&BotDraftInput {
+            purpose: "Test Stock".into(),
+            name: "Test Stock".into(),
+            inst_base: String::new(),
+            bot_iid: 0,
+            channel: String::new(),
+            activate: false,
+            web_search: false,
+            sheets: vec![],
+        });
+        assert!(!plan.create);
+        assert_eq!(plan.ask, "purpose");
+        assert_eq!(draft_summary(&plan, "id-ID", &[]), "Bot-nya untuk apa?");
     }
 
     #[test]

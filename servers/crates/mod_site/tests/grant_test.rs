@@ -1,4 +1,5 @@
 use c35_mod_site::grant::{site_role_allows, site_role_rank};
+use c35_mod_site::site_grant_role_staff_manage;
 
 #[test]
 fn site_role_rank_order() {
@@ -13,4 +14,12 @@ fn site_role_allows_read_write() {
     assert!(site_role_allows("manage", true));
     assert!(!site_role_allows("staff", true));
     assert!(!site_role_allows("", false));
+}
+
+#[test]
+fn site_grant_role_staff_manage_only() {
+    assert_eq!(site_grant_role_staff_manage("staff").unwrap(), "staff");
+    assert_eq!(site_grant_role_staff_manage("Manage").unwrap(), "manage");
+    assert!(site_grant_role_staff_manage("owner").is_err());
+    assert!(site_grant_role_staff_manage("guest").is_err());
 }

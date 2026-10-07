@@ -257,7 +257,23 @@
                       "assetRemoveMessage":  "Remove {name} from this bot? You can add it again later."
                   },
     "billing":  {
-                    "purchaseNonRefundable":  "All purchases (plans, wallet credit, and add-ons) are final and non-refundable unless required by law or stated otherwise at checkout."
+                    "purchaseNonRefundable":  "All purchases (plans, wallet credit, and add-ons) are final and non-refundable unless required by law or stated otherwise at checkout.",
+                    "quotaUsageDialogTitle":  "Plan usage",
+                    "quotaPackageSection":  "PACKAGE",
+                    "quotaAllowanceSection":  "ALLOWANCE",
+                    "quotaCurrentPackage":  "Current package",
+                    "quotaUpgradeTap":  "Upgrade",
+                    "quotaIncludedIdr":  "Allowance amounts are shown in IDR.",
+                    "quotaPeriodWeekly":  "Weekly",
+                    "quotaPeriod5h":  "5 hours",
+                    "quotaCap":  "Cap {amount}",
+                    "quotaRemaining":  "{amount} left",
+                    "quotaAlienAiDesc":  "Alien AI chat, built-in tools, and APIs — web search, device control, and other in-app features.",
+                    "quotaFrontierDesc":  "Live calls, third-party models (Gemini, ChatGPT, and others), and paid APIs — image, music, video generation, and more.",
+                    "planDowngradeOn":  "Downgrade on {when}",
+                    "planCancelOn":  "Cancel on {when}",
+                    "planDowngradeAtPeriodEnd":  "Downgrade at period end",
+                    "planCancelAtPeriodEnd":  "Cancel at period end"
                 },
     "media":  {
                   "providerAuto":  "Auto",
@@ -291,11 +307,11 @@
              },
     "legal":  {
                   "aiDisclaimerTitle":  "Before you continue",
-                  "aiDisclaimerAccuracy":  "Alien AI can make mistakes. Double-check important facts before you rely on them.",
-                  "aiDisclaimerResponsibility":  "The assistant only acts on your requests and instructions. You take full responsibility for reviewing its outputs and for any actions you take—or ask it to take—through the Service.",
-                  "aiDisclaimerTermsPrefix":  "This notice is part of our ",
+                  "aiDisclaimerIntro":  "Check each item below, then continue.",
+                  "aiDisclaimerCheckTermsPrefix":  "I accept the ",
                   "aiDisclaimerTermsLink":  "Terms of Service",
-                  "aiDisclaimerTermsSuffix":  ".",
-                  "aiDisclaimerAccept":  "I understand"
+                  "aiDisclaimerCheckTermsSuffix":  ". AI can be wrong—I verify important facts and I'm responsible for how I use the assistant.",
+                  "aiDisclaimerCheckLocation":  "I allow approximate location for nearby places, weather, and local tips. Not used for background tracking; change anytime in Settings.",
+                  "aiDisclaimerContinue":  "Continue"
               }
 }

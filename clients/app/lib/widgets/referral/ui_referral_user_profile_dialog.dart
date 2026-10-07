@@ -22,6 +22,7 @@ import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/referral/ui_referral_admin_adjust_history_sheet.dart';
 import 'package:alienai_c35/widgets/referral/ui_referral_admin_dialogs.dart';
 import 'package:alienai_c35/widgets/referral/ui_referral_wallet_adjust_dialog.dart';
+import 'package:alienai_c35/widgets/io/in_money_idr.dart';
 import 'package:alienai_c35/widgets/ui/ui_input_decoration.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:alienai_c35/widgets/ui/ui_user_avatar.dart';
@@ -1113,12 +1114,14 @@ class _ProfileVoucherIssueLimitSectionState extends State<_ProfileVoucherIssueLi
       builder: (ctx) => _TextPromptDialog(
         title: 'Voucher issue limit',
         label: 'Limit IDR',
-        initial: _limit > 0 ? _limit.round().toString() : '',
-        keyboardType: TextInputType.number,
+        initial: _limit > 0 ? moneyFmtIdrGrouped(_limit.round()) : '',
+        idrAmount: true,
         onSubmit: (v) {
-          final n = double.tryParse(v.replaceAll(RegExp(r'[^0-9]'), ''));
-          if (n == null || n < 0) return 'Enter a valid amount';
-          return null;
+          final digits = v.replaceAll(RegExp(r'[^0-9]'), '');
+          if (digits.isEmpty) return null;
+          final n = double.tryParse(digits);
+          if (n == null || n < 0) return null;
+          return digits;
         },
       ),
     );
@@ -1156,6 +1159,7 @@ class _TextPromptDialog extends StatefulWidget {
     required this.initial,
     this.keyboardType,
     this.textInputAction,
+    this.idrAmount = false,
     required this.onSubmit,
   });
 
@@ -1164,6 +1168,7 @@ class _TextPromptDialog extends StatefulWidget {
   final String initial;
   final TextInputType? keyboardType;
   final TextInputAction? textInputAction;
+  final bool idrAmount;
   final String? Function(String value) onSubmit;
 
   @override
@@ -1197,8 +1202,9 @@ class _TextPromptDialogState extends State<_TextPromptDialog> {
         content: TextField(
           controller: _ctrl,
           autofocus: true,
-          keyboardType: widget.keyboardType,
+          keyboardType: widget.idrAmount ? TextInputType.number : widget.keyboardType,
           textInputAction: widget.textInputAction,
+          inputFormatters: widget.idrAmount ? moneyIdrInputFormatters : null,
           style: const TextStyle(color: _ReferralPalette.text),
           decoration: UiInputDecoration.of(context, labelText: widget.label),
           onSubmitted: (_) => _save(),

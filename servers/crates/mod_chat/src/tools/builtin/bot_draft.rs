@@ -5,7 +5,7 @@ use c35_proto::{DataSourceDoc, ReqDataSourcePut, ReqIdentityPut};
 use serde_json::{json, Value};
 
 use crate::bot_draft::{
-    draft_summary, flag_true, plan_bot_draft, sheet_config, BotDraftInput, PlannedSheet, SheetIn,
+    draft_summary, flag_true, plan_bot_draft, purpose_clear, sheet_config, BotDraftInput, PlannedSheet, SheetIn,
 };
 use crate::data_source_put;
 use crate::tool;
@@ -89,10 +89,23 @@ async fn attach_sheet(ctx: &ToolContext, bot_iid: i64, sheet: &PlannedSheet) -> 
     Ok(res.id)
 }
 
+fn bot_draft_args(args: &Value) -> (String, String) {
+    let mut purpose = arg_str(args, "purpose");
+    let mut name = arg_str(args, "name");
+    if !name.is_empty() && purpose.eq_ignore_ascii_case(&name) {
+        purpose.clear();
+    } else if name.is_empty() && !purpose.is_empty() && !purpose_clear(&purpose) {
+        name = purpose.clone();
+        purpose.clear();
+    }
+    (purpose, name)
+}
+
 pub async fn bot_draft_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
+    let (purpose, name) = bot_draft_args(args);
     let input = BotDraftInput {
-        purpose: arg_str(args, "purpose"),
-        name: arg_str(args, "name"),
+        purpose,
+        name,
         inst_base: arg_str(args, "inst_base"),
         bot_iid: arg_i64(args, "bot_iid"),
         channel: arg_str(args, "channel"),
@@ -204,9 +217,12 @@ tool! {
     description: "Draft a chat bot for the owner. Call when the user wants a new bot, sends a sheet link for that draft, or says to turn it on. Pass purpose in the user's words. Pass bot_iid from an earlier bot.draft result when updating. Pass sheets as {url, name, tab, access_mode} for Google Sheet, Doc, or Slide URLs. Omit access_mode unless the user was explicit. Leave activate empty until they say to turn the bot on. Does not connect WhatsApp or Telegram.",
     topics: ["general"],
     rag_phrases: [
+        "buat chat bot",
+        "bikin chat bot",
         "buat bot",
         "bikin bot",
         "bot baru",
+        "create chat bot",
         "create a bot",
         "new bot",
         "bot untuk",

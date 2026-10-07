@@ -4,17 +4,32 @@ use c35_mod_chat::{MentionContext, SiteCapabilityView, ToolDef};
 
 pub const LIVE_TOOL_DECL_CAP: usize = 32;
 
+/// Standard Live tool to reset active topic back to general.
+pub fn topic_reset_tool() -> ToolDef {
+    ToolDef::new(
+        "topic_reset".into(),
+        "Resets the active topic or mention focus back to general conversation when the discussion naturally transitions away from the focused subject.".into(),
+        serde_json::json!({
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+        }),
+    )
+}
+
 /// Tools declared to Gemini Live for one setup.
 ///
 /// `offer_topics` empty means this offer declares no cluster tools.
 /// Device topics are added when `mention.devices` is non-empty.
 /// Site topics are added only when `mention.default_site_iid` is set.
+/// When `has_active_mention` is true, the `topic_reset` tool is declared so the model can autonomously transition back to general conversation.
 pub fn live_tool_select(
     tools: &[ToolDef],
     offer_topics: &[String],
     mention: &MentionContext,
     staff: &StaffView,
     caps: &SiteCapabilityView,
+    has_active_mention: bool,
 ) -> Vec<ToolDef> {
     if offer_topics.is_empty() {
         return Vec::new();
@@ -48,9 +63,16 @@ pub fn live_tool_select(
         })
         .cloned()
         .collect();
+    if has_active_mention {
+        out.push(topic_reset_tool());
+    }
     out.sort_by(|a, b| a.name.cmp(&b.name));
     if out.len() > LIVE_TOOL_DECL_CAP {
         out.truncate(LIVE_TOOL_DECL_CAP);
+        if has_active_mention && !out.iter().any(|t| t.name == "topic_reset") {
+            out.pop();
+            out.push(topic_reset_tool());
+        }
     }
     out
 }
@@ -75,7 +97,7 @@ mod tests {
     #[test]
     fn live_tool_select_empty_offer_declares_nothing() {
         let tools = vec![tool("web.search", &["general"], &[])];
-        let out = live_tool_select(&tools, &[], &MentionContext::empty(), &staff(), &SiteCapabilityView::empty());
+        let out = live_tool_select(&tools, &[], &MentionContext::empty(), &staff(), &SiteCapabilityView::empty(), false);
         assert!(out.is_empty());
     }
 
@@ -87,7 +109,7 @@ mod tests {
             tool("presentation.create", &["presentation"], &[]),
         ];
         let topics = vec!["general".to_string()];
-        let out = live_tool_select(&tools, &topics, &MentionContext::empty(), &staff(), &SiteCapabilityView::empty());
+        let out = live_tool_select(&tools, &topics, &MentionContext::empty(), &staff(), &SiteCapabilityView::empty(), false);
         let names: Vec<_> = out.iter().map(|t| t.name.as_str()).collect();
         assert_eq!(names, vec!["memory.save", "web.search"]);
     }
@@ -101,7 +123,7 @@ mod tests {
         let mut mention = MentionContext::empty();
         mention.devices.push(7);
         let topics = vec!["general".to_string()];
-        let out = live_tool_select(&tools, &topics, &mention, &staff(), &SiteCapabilityView::empty());
+        let out = live_tool_select(&tools, &topics, &mention, &staff(), &SiteCapabilityView::empty(), false);
         let names: Vec<_> = out.iter().map(|t| t.name.as_str()).collect();
         assert_eq!(names, vec!["device.screenshot", "web.search"]);
     }
@@ -110,7 +132,7 @@ mod tests {
     fn live_tool_select_site_topics_only_when_default_site_set() {
         let tools = vec![tool("site.create", &["web.builder"], &["site"])];
         let topics = vec!["general".to_string()];
-        let bare = live_tool_select(&tools, &topics, &MentionContext::empty(), &staff(), &SiteCapabilityView::empty());
+        let bare = live_tool_select(&tools, &topics, &MentionContext::empty(), &staff(), &SiteCapabilityView::empty(), false);
         assert!(bare.is_empty());
         let mention = MentionContext {
             sites: vec![SiteContext {
@@ -122,7 +144,7 @@ mod tests {
             bots: vec![],
             default_site_iid: Some(9),
         };
-        let out = live_tool_select(&tools, &topics, &mention, &staff(), &SiteCapabilityView::empty());
+        let out = live_tool_select(&tools, &topics, &mention, &staff(), &SiteCapabilityView::empty(), false);
         assert_eq!(out.len(), 1);
         assert_eq!(out[0].name, "site.create");
     }
@@ -131,9 +153,27 @@ mod tests {
     fn live_tool_select_caps_at_32() {
         let tools: Vec<ToolDef> = (0..40).map(|i| tool(&format!("tool.{i:02}"), &["general"], &[])).collect();
         let topics = vec!["general".to_string()];
-        let out = live_tool_select(&tools, &topics, &MentionContext::empty(), &staff(), &SiteCapabilityView::empty());
+        let out = live_tool_select(&tools, &topics, &MentionContext::empty(), &staff(), &SiteCapabilityView::empty(), false);
         assert_eq!(out.len(), LIVE_TOOL_DECL_CAP);
         assert_eq!(out[0].name, "tool.00");
         assert_eq!(out[31].name, "tool.31");
+    }
+
+    #[test]
+    fn live_tool_select_includes_topic_reset_when_mention_active() {
+        let tools = vec![tool("web.search", &["general"], &[])];
+        let topics = vec!["general".to_string()];
+        let out = live_tool_select(&tools, &topics, &MentionContext::empty(), &staff(), &SiteCapabilityView::empty(), true);
+        let names: Vec<_> = out.iter().map(|t| t.name.as_str()).collect();
+        assert_eq!(names, vec!["topic_reset", "web.search"]);
+    }
+
+    #[test]
+    fn live_tool_select_omits_topic_reset_when_no_mention() {
+        let tools = vec![tool("web.search", &["general"], &[])];
+        let topics = vec!["general".to_string()];
+        let out = live_tool_select(&tools, &topics, &MentionContext::empty(), &staff(), &SiteCapabilityView::empty(), false);
+        let names: Vec<_> = out.iter().map(|t| t.name.as_str()).collect();
+        assert_eq!(names, vec!["web.search"]);
     }
 }

@@ -35,8 +35,11 @@ class UiMsgUsage extends StatelessWidget {
     parts.add(child);
   }
 
+  bool _usageMetricsReady(MsgUsageStats stats) => stats.hasMetrics;
+
   bool _show(MsgUsageStats stats) {
-    if (msg.role == 'user' || msg.role == 'system' || streaming) return false;
+    if (msg.role == 'user' || msg.role == 'system') return false;
+    if (streaming && !_usageMetricsReady(stats)) return false;
     if (alwaysShow) {
       return stats.hasData || showTimestamp && msg.createdAtMs > 0 || msg.reqId.isNotEmpty;
     }
@@ -220,13 +223,17 @@ class _UiMsgUsageWithTraceState extends State<UiMsgUsageWithTrace> {
   }
 
   @override
-  Widget build(BuildContext context) => UiMsgUsage(
-        msg: _effective(),
-        streaming: widget.streaming,
-        showTimestamp: widget.showTimestamp,
-        trailing: widget.trailing,
-        alwaysShow: widget.alwaysShow,
-        billingCurrency: widget.billingCurrency,
-        fxMicroPerUsd: widget.fxMicroPerUsd,
-      );
+  Widget build(BuildContext context) {
+    final effective = _effective();
+    final hideWhileStreaming = widget.streaming && !msgUsageStats(effective).hasMetrics;
+    return UiMsgUsage(
+      msg: effective,
+      streaming: hideWhileStreaming,
+      showTimestamp: widget.showTimestamp,
+      trailing: widget.trailing,
+      alwaysShow: widget.alwaysShow,
+      billingCurrency: widget.billingCurrency,
+      fxMicroPerUsd: widget.fxMicroPerUsd,
+    );
+  }
 }

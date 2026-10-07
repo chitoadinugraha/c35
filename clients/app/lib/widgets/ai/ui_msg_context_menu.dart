@@ -6,7 +6,6 @@ import 'package:alienai_c35/c/chat/chat_inbox.dart';
 import 'package:alienai_c35/widgets/ai/ui_chat_message_menu.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_copy_prefix.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_trace_sheet.dart';
-import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -24,7 +23,6 @@ List<ChatMessageMenuItem> msgBubbleMenuItems(
   BuildContext context, {
   required String plainText,
   String? selectedText,
-  VoidCallback? onCopySemua,
   required bool viewerIsRoot,
   required bool isAssistant,
   required String reqId,
@@ -75,11 +73,16 @@ List<ChatMessageMenuItem> msgBubbleMenuItems(
   final bad = onBadAnswer;
   final showFeedback = good != null && bad != null && isAssistant && msgId > 0;
 
+  final showCopyShortcut = switch (Theme.of(context).platform) {
+    TargetPlatform.windows || TargetPlatform.macOS || TargetPlatform.linux => true,
+    _ => false,
+  };
+
   final items = <ChatMessageMenuItem>[
     ChatMessageMenuAction(
       label: loc.copyButtonLabel,
       icon: Icons.content_copy_rounded,
-      shortcut: 'Ctrl+C',
+      shortcut: showCopyShortcut ? 'Ctrl+C' : null,
       onPressed: () {
         ContextMenuController.removeAny();
         if (copyOut.isEmpty) return;
@@ -89,27 +92,6 @@ List<ChatMessageMenuItem> msgBubbleMenuItems(
         );
       },
     ),
-    if (text.isNotEmpty)
-      ChatMessageMenuAction(
-        label: 'Copy text',
-        icon: Icons.text_snippet_outlined,
-        onPressed: () {
-          ContextMenuController.removeAny();
-          Clipboard.setData(ClipboardData(text: text));
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Copied to clipboard'), behavior: SnackBarBehavior.floating, duration: Duration(seconds: 1)),
-          );
-        },
-      ),
-    if (onCopySemua != null)
-      ChatMessageMenuAction(
-        label: 'chat.copySemua'.tr(),
-        icon: Icons.copy_all_rounded,
-        onPressed: () {
-          ContextMenuController.removeAny();
-          onCopySemua();
-        },
-      ),
     if (text.isNotEmpty || (showRetry && onRetryLastTurn != null)) ...[
       const ChatMessageMenuDivider(),
       if (text.isNotEmpty && onSpeak != null)
@@ -181,7 +163,6 @@ Widget msgBubbleContextMenu(
   SelectableRegionState selectableRegionState, {
   required String plainText,
   String? selectedText,
-  VoidCallback? onCopySemua,
   required bool viewerIsRoot,
   required bool isAssistant,
   required String reqId,
@@ -198,7 +179,6 @@ Widget msgBubbleContextMenu(
     context,
     plainText: plainText,
     selectedText: selectedText,
-    onCopySemua: onCopySemua,
     viewerIsRoot: viewerIsRoot,
     isAssistant: isAssistant,
     reqId: reqId,
@@ -212,30 +192,5 @@ Widget msgBubbleContextMenu(
     onBadAnswer: onBadAnswer,
   );
 
-  return _MsgBubbleContextMenuOverlay(
-    anchors: selectableRegionState.contextMenuAnchors,
-    items: items,
-  );
-}
-
-/// Dismisses on any pointer down outside menu rows (message body taps included).
-class _MsgBubbleContextMenuOverlay extends StatelessWidget {
-  const _MsgBubbleContextMenuOverlay({required this.anchors, required this.items});
-
-  final TextSelectionToolbarAnchors anchors;
-  final List<ChatMessageMenuItem> items;
-
-  @override
-  Widget build(BuildContext context) => Stack(
-        fit: StackFit.expand,
-        children: [
-          Positioned.fill(
-            child: Listener(
-              behavior: HitTestBehavior.translucent,
-              onPointerDown: (_) => ContextMenuController.removeAny(),
-            ),
-          ),
-          ChatMessageContextMenu(anchors: anchors, items: items),
-        ],
-      );
+  return ChatMessageContextMenu(anchors: selectableRegionState.contextMenuAnchors, items: items);
 }

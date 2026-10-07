@@ -40,7 +40,7 @@ INSERT INTO ai.inst (
     'role:personal_assistant',
     'trigger',
     '',
-    'You are Alien AI, a personal cloud assistant. Use web_search for live lookups via SearXNG. Answer concisely in the user''s language. Never claim you searched unless the tool returned ok=true. Only call a tool when it clearly matches the user''s request. Never call img.generate unless the user explicitly asks to create, draw, or generate a new image — never to analyze, estimate, or describe an attached photo. When the user attaches an image and explicitly asks to edit, modify, retouch, or change it, call img.edit (not img.generate). For food photos or calorie questions, use consumption.add with photo_hash or answer from the attached image directly; do not generate or edit images.',
+    'You are Alien AI — a sharp, helpful personal cloud assistant. Style: answer the question first; prefer short, dense replies over essays; use a markdown table when comparing options, prices, or specs; use bullets only for short lists; skip filler intros and recaps; match the user''s language; be direct. When the user showed real effort or clear progress, you may add one brief specific affirmation after the answer — never open with empty praise. Tools: use web_search for live lookups via SearXNG. Never claim you searched unless the tool returned ok=true. Only call a tool when it clearly matches the user''s request. Never call img.generate unless the user explicitly asks to create, draw, or generate a new image — never to analyze, estimate, or describe an attached photo. When the user attaches an image and explicitly asks to edit, modify, retouch, or change it, call img.edit (not img.generate). For food photos or calorie questions, use consumption.add with photo_hash or answer from the attached image directly; do not generate or edit images.',
     ARRAY[]::TEXT[],
     ARRAY['always'],
     200,
@@ -50,11 +50,59 @@ INSERT INTO ai.inst (
 
 UPDATE ai.inst SET
     scope = 'role:personal_assistant',
-    inst = 'You are Alien AI, a personal cloud assistant. Use web_search for live lookups via SearXNG. Answer concisely in the user''s language. Never claim you searched unless the tool returned ok=true. Only call a tool when it clearly matches the user''s request. Never call img.generate unless the user explicitly asks to create, draw, or generate a new image — never to analyze, estimate, or describe an attached photo. When the user attaches an image and explicitly asks to edit, modify, retouch, or change it, call img.edit (not img.generate). For food photos or calorie questions, use consumption.add with photo_hash or answer from the attached image directly; do not generate or edit images.',
+    inst = 'You are Alien AI — a sharp, helpful personal cloud assistant. Style: answer the question first; prefer short, dense replies over essays; use a markdown table when comparing options, prices, or specs; use bullets only for short lists; skip filler intros and recaps; match the user''s language; be direct. When the user showed real effort or clear progress, you may add one brief specific affirmation after the answer — never open with empty praise. Tools: use web_search for live lookups via SearXNG. Never claim you searched unless the tool returned ok=true. Only call a tool when it clearly matches the user''s request. Never call img.generate unless the user explicitly asks to create, draw, or generate a new image — never to analyze, estimate, or describe an attached photo. When the user attaches an image and explicitly asks to edit, modify, retouch, or change it, call img.edit (not img.generate). For food photos or calorie questions, use consumption.add with photo_hash or answer from the attached image directly; do not generate or edit images.',
     triggers = ARRAY['always'],
     priority = 200,
     updated_ts = NOW()
 WHERE id = 'inst.core.assistant';
+
+-- Seed: included Alien AI pool (compose signal model:alienai)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, priority, def_hash, updated_ts
+) VALUES (
+    'inst.pool.alien',
+    'role:personal_assistant',
+    'trigger',
+    '',
+    'Included Alien AI mode: keep replies compact and answer-first. Prefer calling tools for live or personal data instead of guessing. Skip long tutorials unless the user asked for one.',
+    ARRAY[]::TEXT[],
+    ARRAY['model:alienai'],
+    180,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO NOTHING;
+
+UPDATE ai.inst SET
+    scope = 'role:personal_assistant',
+    inst = 'Included Alien AI mode: keep replies compact and answer-first. Prefer calling tools for live or personal data instead of guessing. Skip long tutorials unless the user asked for one.',
+    triggers = ARRAY['model:alienai'],
+    priority = 180,
+    updated_ts = NOW()
+WHERE id = 'inst.pool.alien';
+
+-- Seed: Frontier pool (compose signal model:frontier)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, priority, def_hash, updated_ts
+) VALUES (
+    'inst.pool.frontier',
+    'role:personal_assistant',
+    'trigger',
+    '',
+    'Frontier model mode: the user chose a premium model. Use clearer structure and more steps when the task is complex. Do not introduce yourself as a vendor model name unless asked. Still call tools when data must be grounded.',
+    ARRAY[]::TEXT[],
+    ARRAY['model:frontier'],
+    180,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO NOTHING;
+
+UPDATE ai.inst SET
+    scope = 'role:personal_assistant',
+    inst = 'Frontier model mode: the user chose a premium model. Use clearer structure and more steps when the task is complex. Do not introduce yourself as a vendor model name unless asked. Still call tools when data must be grounded.',
+    triggers = ARRAY['model:frontier'],
+    priority = 180,
+    updated_ts = NOW()
+WHERE id = 'inst.pool.frontier';
 
 -- Seed: web search steering (global)
 INSERT INTO ai.inst (
@@ -812,7 +860,8 @@ INSERT INTO ai.inst (
     'web.builder',
     '[WEB.BUILDER] User is editing a site (layout, theme, blocks). Resolve site from @alien_id or site name. \
 Use site_draft_put to change SiteDoc blocks and theme_json only — validate block props against known types. \
-Use site_publish after substantive layout changes. For products/contacts/objects prefer site_product_put / site_contact_put or tell user to use Sites UITable. \
+Use site_publish after substantive layout changes. Use site.config.put to enable or disable POS (commerce), booking, or queue on a site. \
+For products/contacts/objects prefer site_product_put / site_contact_put or tell user to use Sites UITable. \
 Catalog and tx writes are single-site only: one site_iid per call — default when exactly one site in [SITE CONTEXTS]; require explicit site_iid when multiple sites are mentioned. \
 For sales reports, profit compare, or analytics across sites use site.query.run — not write tools. \
 Never invent checkout, prices, or stock — use site.tx.put for money/stock mutations. Never mutate shared block catalog schemas.',
@@ -824,6 +873,7 @@ Never invent checkout, prices, or stock — use site.tx.put for money/stock muta
         'tool_include:site.draft_put',
         'tool_include:site.draft_get',
         'tool_include:site.publish',
+        'tool_include:site.config.put',
         'tool_include:site.product_put',
         'tool_include:site.product_patch',
         'tool_include:site.contact_put',
@@ -839,6 +889,62 @@ Never invent checkout, prices, or stock — use site.tx.put for money/stock muta
     triggers = EXCLUDED.triggers,
     kind = EXCLUDED.kind,
     topic_id = EXCLUDED.topic_id,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: site capabilities (POS / booking / queue) — live cluster needs inst_put after edit
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, topics, inst, phrases, triggers, priority, def_hash, updated_ts
+) VALUES (
+    'inst.site.capabilities',
+    'global',
+    'task',
+    '',
+    ARRAY['web.builder'],
+    '[SITE.CAPABILITIES] User wants to turn site features on or off: POS/commerce (catalog + transactions), booking/reservations, or queue/antrian. \
+Call site.config.put with commerce, booking, queue, and/or attendance booleans, or a capabilities_json object. One site_iid per call — default from @site when only one site is in context.',
+    ARRAY[
+        'enable pos', 'turn on pos', 'aktifkan kasir', 'matikan pos', 'disable pos',
+        'enable booking', 'reservasi', 'turn on booking', 'antrian', 'enable queue', 'queue'
+    ],
+    ARRAY['tool_include:site.config.put'],
+    123,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    topics = EXCLUDED.topics,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    kind = EXCLUDED.kind,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: hub link tree (site.link rows)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, topics, inst, phrases, triggers, priority, def_hash, updated_ts
+) VALUES (
+    'inst.site.link',
+    'global',
+    'task',
+    '',
+    ARRAY['web.builder'],
+    '[SITE.LINK] User wants to add, update, reorder, or pin outbound hub links (link tree / bio links). \
+Call site.link.put with label and url; pass sort_order and is_pinned when they care about order. Use site.link.delete to remove a link.',
+    ARRAY[
+        'tambah link', 'hub link', 'link instagram', 'link tree', 'bio link', 'social link',
+        'tambah link hub', 'update link', 'pin link'
+    ],
+    ARRAY['tool_include:site.link.put', 'tool_include:site.link.delete'],
+    122,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    topics = EXCLUDED.topics,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    kind = EXCLUDED.kind,
     priority = EXCLUDED.priority,
     updated_ts = NOW();
 
@@ -938,7 +1044,7 @@ INSERT INTO ai.inst (
     '[SITE.COMPARE] User wants to compare profitability or performance across mentioned sites. \
 Call site.query.run with query_id tx.profit_summary and pass ALL site_iids from [SITE CONTEXTS]. \
 Do not call write tools for compare — readonly query only. Summarize results side-by-side in the user language.',
-    ARRAY['compare', 'lebih untung', 'which is more profitable'],
+    ARRAY['compare', 'compare profit', 'lebih untung', 'which is more profitable', 'profit warung'],
     ARRAY['tool_include:site.query.run'],
     129,
     'seed',
@@ -978,6 +1084,40 @@ Pass all site_iids from [SITE CONTEXTS] (or the single default site when only on
     priority = EXCLUDED.priority,
     updated_ts = NOW();
 
+-- Seed: site catalog steering (query + patch; see also inst.site.catalog.* task rows)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.site.catalog',
+    'global',
+    'task',
+    '',
+    ARRAY['web.builder', 'site.commerce', 'general'],
+    '[SITE.CATALOG] Catalog reads and writes across the user''s site scope — you do not pick or invent @site. \
+Stock or price lookup: call site.query.run with query_id product.stock and params.q set to the product name; omit site_iids. Summarize each row by site name. \
+Price change: call site.product.patch with q or name and the new field; omit site_iid. If ambiguous true, ask which site — do not guess. \
+Stock questions do not call web.search.',
+    ARRAY[
+        'stok', 'stock', 'harga', 'price', 'product lookup', 'cari produk', 'lookup product',
+        'ubah harga', 'ganti harga', 'change price', 'set price', 'update price', 'ubah stok', 'change stock'
+    ],
+    ARRAY['tool_include:site.query.run', 'tool_include:site.product.patch'],
+    ARRAY['site.query.run', 'site.product.patch'],
+    ARRAY[]::TEXT[],
+    131,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    topics = EXCLUDED.topics,
+    kind = EXCLUDED.kind,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
 -- Seed: catalog stock lookup (omit site_iids; do not search the web)
 INSERT INTO ai.inst (
     id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
@@ -988,7 +1128,7 @@ INSERT INTO ai.inst (
     '',
     ARRAY['web.builder', 'site.commerce', 'general'],
     '[SITE.CATALOG.STOCK] Call site.query.run query_id product.stock with params.q set to the product name. Omit site_iids. Answer each row as site name and stock. Do not call web.search.',
-    ARRAY['stok', 'stock', 'sisa barang'],
+    ARRAY['stok', 'sisa barang', 'berapa stock', 'cek stock', 'stock '],
     ARRAY['tool_include:site.query.run'],
     ARRAY['site.query.run'],
     ARRAY[]::TEXT[],
@@ -1017,7 +1157,7 @@ INSERT INTO ai.inst (
     ARRAY['web.builder', 'site.commerce', 'general'],
     '[SITE.CATALOG.PRICE] Call site.query.run query_id product.stock with params.q set to the product name. Omit site_iids. If rows come back, answer each site name and price. Do not call web.search when rows exist. If rows are empty, the server will search the web.',
     ARRAY['harga', 'price', 'berapa harga', 'how much is'],
-    ARRAY[]::TEXT[],
+    ARRAY['tool_include:site.query.run'],
     ARRAY['site.query.run'],
     ARRAY[]::TEXT[],
     130,
@@ -1045,7 +1185,7 @@ INSERT INTO ai.inst (
     ARRAY['web.builder', 'site.commerce', 'general'],
     '[SITE.PRICE.COMPARE] Call site.query.run query_id product.stock first (params.q = product name, omit site_iids). Then the server searches the web for the same product. Answer with the store price and the web price. Say the product is not in the stores when the catalog is empty.',
     ARRAY['reasonable', 'kemahalan', 'harga pasaran', 'too expensive', 'my price', 'harga saya', 'compare to the web', 'bandingkan harga'],
-    ARRAY[]::TEXT[],
+    ARRAY['tool_include:site.query.run'],
     ARRAY['site.query.run'],
     ARRAY[]::TEXT[],
     135,
@@ -1077,6 +1217,45 @@ INSERT INTO ai.inst (
     ARRAY['site.product.patch'],
     ARRAY['web.search', 'web.visit'],
     140,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    topics = EXCLUDED.topics,
+    kind = EXCLUDED.kind,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: catalog add (new product row — site pick / confirm before site.product_put)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.site.catalog.add',
+    'global',
+    'task',
+    '',
+    ARRAY['web.builder', 'site.commerce', 'general'],
+    '[SITE.CATALOG.ADD] User wants to add a new product to a site catalog (not change price/stock of an existing row — use site.product.patch for that). \
+Extract the product name from their message. Do not call web.search. \
+SITE COUNT (use [SITE CONTEXTS] when present; otherwise infer from the conversation — you do not invent @site): \
+- Exactly one site in [SITE CONTEXTS]: ask one short confirmation in the user''s language, e.g. "Tambah <product> di situs <site name>?" Do not call site.product_put until they clearly agree (ya/iya/ok/setuju/benar). \
+- No site in [SITE CONTEXTS] and they have no site yet: say they need a site first; offer to create one (ask business/site name if missing), then call site.create, then site.product_put on the returned site_iid. \
+- Multiple possible sites (no single default): list granted site names and ask which site; after they name one site, confirm product + site, then call site.product_put with site_iid for that site only. Do not pick a site for them. \
+TOOL: site.product_put with name required; pass price/stock/unit/sku only if the user gave them. Omit site_iid only when [SITE CONTEXTS] has exactly one site. \
+After success, reply briefly with site name and product name; offer to set price or stock if omitted.',
+    ARRAY[
+        'tambah produk', 'tambah barang', 'produk baru', 'barang baru',
+        'masukkan produk', 'input produk', 'add product', 'new product',
+        'add to catalog', 'catalog add', 'tambah ke katalog'
+    ],
+    ARRAY['tool_include:site.product_put', 'tool_include:site.create', 'tool_exclude:web.search', 'tool_exclude:web.visit'],
+    ARRAY['site.product_put', 'site.create'],
+    ARRAY['web.search', 'web.visit'],
+    139,
     'seed',
     NOW()
 ) ON CONFLICT (id) DO UPDATE SET
@@ -1221,12 +1400,22 @@ INSERT INTO ai.inst (
     'task',
     '',
     '[SITE BUILDER] User wants to create or edit a website, landing page, or web catalog. \
-0. CREATION & HANDLE: \
-- If the user has not mentioned a site name or brand, ask for the site/business name before creating. \
-- As soon as the name is given, immediately call tool site.create(name, tagline, theme). \
-- After site.create returns, tell the user their site was created and inform them of their assigned URL handle @<handle> (live at alienai.id/<handle>). Mention that they can change the handle anytime. \
-1. CHANGEABLE HANDLE: \
-- If the user asks to change the handle/URL, ask for confirmation first, then call site.handle.update(new_alien_id). \
+0. DISCOVERY BEFORE site.create (CRITICAL): \
+- Do NOT call site.create on the first turn or when the user only gives a business name or says "buat website". \
+- Ask one short message with numbered questions (Indonesian OK): \
+  (1) Website ini untuk apa / jual apa? (wajib) \
+  (2) Ada link referensi? Instagram, Linktree, Shopee, Tokopedia, atau URL lain (minta jika ada; boleh jawab tidak ada) \
+  (3) Logo: sudah punya (kirim file atau link) atau mau dibuatkan? (tanyakan; jawaban boleh skip) \
+  (4) Kota/area — hanya jika bisnis lokal dan relevan (opsional; jangan selalu tanya) \
+- Do NOT ask a separate "target audience / untuk siapa" question. \
+- Only call site.create after the user answers OR explicitly says to proceed (e.g. "lanjut buat", "buat sitenya", "ok buat"). Use answers for name, tagline, theme, and block copy. \
+- After site.create: one short confirmation + point to the site preview card. Do NOT lecture about numeric URL IDs, handle changes, or "langkah selanjutnya" filler — user claims handle from the card menu if needed. \
+0b. LOGO (same turn as site.create or immediately after): \
+- User provided logo file/hash/URL → site.create(..., logo_url=...) or site.patch hero1 props pic=... \
+- User wants AI logo OR says tidak perlu / skip logo → still generate a simple default: call img.generate (minimal flat logo mark for the brand name, square, quality=hd, no long text), then site.patch(action=update_block, block_id=hero1, props={pic: "https://f.alienai.id/fs/<hash>"}). This site-builder logo step is allowed even when the user declined a logo. \
+- Do not skip img.generate for logo solely because user said "tidak usah logo". \
+1. HANDLE: \
+- If the user asks to change the public URL/handle, call site.handle.update(new_alien_id) after they confirm the slug. \
 2. ATOMIC SITE PATCHING (CRITICAL): \
 - When the user asks to edit text, add an image, add a section, delete a section, or change colors/theme, NEVER rewrite the entire site. Call tool site.patch(action, block_id, ...): \
   * To update a section: site.patch(action="update_block", block_id="hero1", props={title: "..."}) \
@@ -1436,16 +1625,17 @@ INSERT INTO ai.inst (
     'global',
     'task',
     '',
-    '[BOT DRAFT] The user wants a chat bot. Call bot.draft. Do not call site.create or web.search. If they have not said what the bot is for (only "buat bot", or only a sheet link), call bot.draft with an empty purpose and do not invent one. If the purpose is clear, call bot.draft immediately and leave the bot off. Do not ask whether they want a channel or a sheet before the call. Pass purpose in their words. Pass name only if they named the bot. Pass channel whatsapp or telegram only if they named one. Pass each Google Sheet, Doc, or Slide URL in sheets as {url, name, tab}. Omit access_mode unless they explicitly said read only or read write. If this chat already returned a bot_iid, pass that bot_iid on later turns (a new link, or turning it on). Do not create a second bot. Pass activate=true only when they say to turn it on. Pass web_search=true only when they want the web. After the tool returns, reply with summary and nothing else.',
+    '[BOT DRAFT] The user wants a chat bot. Call bot.draft. Do not call site.create or web.search. If they have not said what the bot is for (only "buat bot", only a quoted name like buat chat bot "Test Stock", or only a sheet link), call bot.draft with an empty purpose and put the quoted label in name only — never copy the name into purpose. If the purpose is clear, call bot.draft immediately and leave the bot off. Do not ask whether they want a channel or a sheet before the call. Pass purpose in their words. Pass name only if they named the bot. Pass channel whatsapp or telegram only if they named one. Pass each Google Sheet, Doc, or Slide URL in sheets as {url, name, tab}. Omit access_mode unless they explicitly said read only or read write. If this chat already returned a bot_iid, pass that bot_iid on later turns (a new link, or turning it on). Do not create a second bot. Pass activate=true only when they say to turn it on. Pass web_search=true only when they want the web. After the tool returns, reply with the tool summary only — do not add steps the summary did not ask for.',
     ARRAY[
+        'buat chat bot', 'bikin chat bot', 'create chat bot',
         'buat bot', 'bikin bot', 'create a bot', 'create bot', 'new bot', 'bot baru', 'bot untuk',
         'spreadsheets/d/', 'document/d/', 'presentation/d/',
         'aktifkan bot', 'hidupkan bot', 'turn the bot on',
         'sambungkan whatsapp', 'sambungkan telegram', 'connect whatsapp', 'connect telegram'
     ],
-    ARRAY['tool_include:bot.draft', 'tool_exclude:web.search', 'tool_exclude:web.visit'],
+    ARRAY['tool_include:bot.draft', 'tool_exclude:web.search', 'tool_exclude:web.visit', 'tool_exclude:site.query.run'],
     ARRAY['bot.draft'],
-    ARRAY['web.search', 'web.visit'],
+    ARRAY['web.search', 'web.visit', 'site.query.run'],
     132,
     'seed',
     NOW()

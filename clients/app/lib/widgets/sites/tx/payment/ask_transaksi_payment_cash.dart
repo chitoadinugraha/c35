@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:alienai_c35/c/pb/c35/tx.pb.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:fixnum/fixnum.dart';
+import 'package:alienai_c35/widgets/io/in_money_idr.dart';
 import 'package:flutter/material.dart';
 
 const _border = Color(0xFF27272A);
@@ -47,7 +48,7 @@ class _DialogCashState extends State<_DialogCash> {
         ? widget.initial!.amount.toInt()
         : _total;
     _noteCtrl = TextEditingController(text: widget.initial?.note ?? '');
-    _paidCtrl = TextEditingController(text: _paid > 0 ? _paid.toString() : '');
+    _paidCtrl = TextEditingController(text: _paid > 0 ? moneyFmtIdrGrouped(_paid) : '');
   }
 
   @override
@@ -60,7 +61,7 @@ class _DialogCashState extends State<_DialogCash> {
   void _setPaid(int amount) {
     setState(() {
       _paid = amount;
-      _paidCtrl.text = amount.toString();
+      _paidCtrl.text = moneyFmtIdrGrouped(amount);
     });
   }
 
@@ -116,6 +117,7 @@ class _DialogCashState extends State<_DialogCash> {
               TextField(
                 controller: _paidCtrl,
                 keyboardType: TextInputType.number,
+                inputFormatters: moneyIdrInputFormatters,
                 autofocus: true,
                 style: const TextStyle(color: _text, fontSize: 16, fontWeight: FontWeight.w600),
                 decoration: InputDecoration(
@@ -128,10 +130,7 @@ class _DialogCashState extends State<_DialogCash> {
                   enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _border)),
                   focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _accent)),
                 ),
-                onChanged: (v) {
-                  final parsed = int.tryParse(v.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-                  setState(() => _paid = parsed);
-                },
+                onChanged: (v) => setState(() => _paid = moneyParseIdrInt(v) ?? 0),
               ),
               const SizedBox(height: 10),
               Wrap(

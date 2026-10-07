@@ -266,8 +266,18 @@ async fn llm_catalog_seed(pool: &PgPool) -> Result<()> {
 }
 
 fn provider_fallback_price(model: &str) -> Option<(i64, i64)> {
-    if model.trim().eq_ignore_ascii_case("local") {
+    let m = model.trim().to_ascii_lowercase();
+    if m == "local" {
         return Some((0, 0));
+    }
+    if m.contains("flash-lite") {
+        return Some((75_000, 300_000));
+    }
+    if m.contains("flash") {
+        return Some((150_000, 600_000));
+    }
+    if m.contains("pro") {
+        return Some((1_250_000, 5_000_000));
     }
     None
 }

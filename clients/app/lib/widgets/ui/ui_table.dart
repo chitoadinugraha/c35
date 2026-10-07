@@ -71,6 +71,7 @@ class UiTable extends StatefulWidget {
     this.rowBuilder,
     this.expandedBuilder,
     this.colCellHost,
+    this.shrinkWrap = false,
   });
 
   final TableDef def;
@@ -84,6 +85,8 @@ class UiTable extends StatefulWidget {
   final UiTableRowBuilder? rowBuilder;
   final Widget Function(String rowKey)? expandedBuilder;
   final UiColCellHost? colCellHost;
+  /// When true, sizes to content (for nested tables inside [expandedBuilder]).
+  final bool shrinkWrap;
 
   @override
   State<UiTable> createState() => _UiTableState();
@@ -146,24 +149,35 @@ class _UiTableState extends State<UiTable> {
     final rows = _visible;
     if (rows.isEmpty) {
       return Column(
+        mainAxisSize: widget.shrinkWrap ? MainAxisSize.min : MainAxisSize.max,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (widget.onAddRow != null) _toolbar(),
-          Expanded(child: UiEmptyState.noMatches(widget.def.label.isNotEmpty ? widget.def.label : 'rows')),
+          if (widget.shrinkWrap)
+            UiEmptyState.noMatches(widget.def.label.isNotEmpty ? widget.def.label : 'rows')
+          else
+            Expanded(child: UiEmptyState.noMatches(widget.def.label.isNotEmpty ? widget.def.label : 'rows')),
         ],
       );
     }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (widget.onAddRow != null) _toolbar(),
-        Expanded(
-          child: ColoredBox(
-            color: _panel,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minWidth: MediaQuery.sizeOf(context).width - 32),
-                child: SingleChildScrollView(
+    final table = ColoredBox(
+      color: _panel,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minWidth: widget.shrinkWrap ? 0 : MediaQuery.sizeOf(context).width - 32,
+          ),
+          child: widget.shrinkWrap
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _header(cols),
+                    for (final row in rows) ..._rowTiles(cols, row),
+                  ],
+                )
+              : SingleChildScrollView(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -172,10 +186,15 @@ class _UiTableState extends State<UiTable> {
                     ],
                   ),
                 ),
-              ),
-            ),
-          ),
         ),
+      ),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: widget.shrinkWrap ? MainAxisSize.min : MainAxisSize.max,
+      children: [
+        if (widget.onAddRow != null) _toolbar(),
+        if (widget.shrinkWrap) table else Expanded(child: table),
       ],
     );
   }

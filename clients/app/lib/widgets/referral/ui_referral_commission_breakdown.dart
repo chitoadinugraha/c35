@@ -3,12 +3,12 @@ import 'dart:async';
 import 'package:alienai_c35/c/api/referral_conn.dart';
 import 'package:alienai_c35/c/pb/c35/referral.pb.dart';
 import 'package:alienai_c35/c/referral/referral_commission_api.dart';
+import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/ui/ui_format.dart';
+import 'package:alienai_c35/widgets/io/in_money_idr.dart';
 import 'package:alienai_c35/widgets/ui/ui_input_decoration.dart';
 import 'package:alienai_c35/widgets/ui/ui_user_avatar.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-
 Future<void> referralCommissionSimulateDialog(
   BuildContext context, {
   required ReferralConn conn,
@@ -53,7 +53,7 @@ class _ReferralCommissionSimulateDialogState extends State<_ReferralCommissionSi
   static const _muted = Color(0xFFA1A1AA);
   static const _accent = Color(0xFF22C55E);
 
-  late final _amountCtrl = TextEditingController(text: uiFmtGroupedInt(widget.initialAmount));
+  late final _amountCtrl = TextEditingController(text: moneyFmtIdrGrouped(widget.initialAmount));
   ResReferralCommissionSimulate? _result;
   var _loading = false;
   Timer? _debounce;
@@ -71,7 +71,7 @@ class _ReferralCommissionSimulateDialogState extends State<_ReferralCommissionSi
     super.dispose();
   }
 
-  int? get _amount => int.tryParse(_amountCtrl.text.replaceAll(RegExp(r'[^0-9]'), ''));
+  int? get _amount => moneyParseIdrInt(_amountCtrl.text);
 
   void _onAmountChanged(String _) {
     _debounce?.cancel();
@@ -135,7 +135,7 @@ class _ReferralCommissionSimulateDialogState extends State<_ReferralCommissionSi
                       controller: _amountCtrl,
                       onChanged: _onAmountChanged,
                       keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      inputFormatters: moneyIdrInputFormatters,
                       style: const TextStyle(color: _text, fontSize: 22, fontWeight: FontWeight.w700),
                       textAlign: TextAlign.center,
                       decoration: UiInputDecoration.of(context, labelText: 'Purchase amount (IDR)', hintText: '100000'),

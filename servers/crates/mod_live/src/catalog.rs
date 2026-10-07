@@ -17,6 +17,7 @@ pub struct LiveOfferRow {
     pub inst_id: String,
     pub input_usd_per_min: f64,
     pub output_usd_per_min: f64,
+    pub video_usd_per_min: f64,
     pub enabled: bool,
     pub sort: i32,
     pub tool_topics: Vec<String>,
@@ -29,6 +30,10 @@ fn cache() -> &'static RwLock<Vec<LiveOfferRow>> {
 
 pub fn live_retail_usd_per_min(row: &LiveOfferRow) -> f64 {
     (row.input_usd_per_min + row.output_usd_per_min) * RETAIL_MARKUP
+}
+
+pub fn live_retail_video_usd_per_min(row: &LiveOfferRow) -> f64 {
+    (row.input_usd_per_min + row.output_usd_per_min + row.video_usd_per_min) * RETAIL_MARKUP
 }
 
 pub async fn live_catalog_init(pool: &PgPool) -> Result<()> {
@@ -44,9 +49,9 @@ pub async fn live_catalog_init(pool: &PgPool) -> Result<()> {
 
 pub async fn live_catalog_reload(pool: &PgPool) -> Result<()> {
     let rows = db_retry(pool, || async {
-        sqlx::query_as::<_, (String, String, String, String, String, String, f64, f64, bool, i32, Vec<String>)>(
+        sqlx::query_as::<_, (String, String, String, String, String, String, f64, f64, f64, bool, i32, Vec<String>)>(
             "SELECT id, family, label_key, provider, provider_model, inst_id, \
-             input_usd_per_min, output_usd_per_min, enabled, sort, tool_topics \
+             input_usd_per_min, output_usd_per_min, video_usd_per_min, enabled, sort, tool_topics \
              FROM ai.live_offer WHERE deleted_ts IS NULL ORDER BY sort, id",
         )
         .fetch_all(pool)
@@ -58,7 +63,7 @@ pub async fn live_catalog_reload(pool: &PgPool) -> Result<()> {
     } else {
         rows.into_iter()
             .map(
-                |(id, family, label_key, provider, provider_model, inst_id, input_usd_per_min, output_usd_per_min, enabled, sort, tool_topics)| {
+                |(id, family, label_key, provider, provider_model, inst_id, input_usd_per_min, output_usd_per_min, video_usd_per_min, enabled, sort, tool_topics)| {
                     LiveOfferRow {
                         id,
                         family,
@@ -68,6 +73,7 @@ pub async fn live_catalog_reload(pool: &PgPool) -> Result<()> {
                         inst_id,
                         input_usd_per_min,
                         output_usd_per_min,
+                        video_usd_per_min,
                         enabled,
                         sort,
                         tool_topics,
@@ -84,7 +90,7 @@ pub async fn live_offer_resolve(pool: &PgPool, id: &str) -> Option<LiveOfferRow>
     if let Some(row) = live_offer_get(id) {
         return Some(row);
     }
-    live_catalog_reload(pool).await.ok()?;
+    let _ = live_catalog_reload(pool).await;
     live_offer_get(id)
 }
 
@@ -99,6 +105,7 @@ fn live_catalog_defaults() -> Vec<LiveOfferRow> {
             inst_id: "inst.general".into(),
             input_usd_per_min: 0.005,
             output_usd_per_min: 0.018,
+            video_usd_per_min: 0.00155,
             enabled: true,
             sort: 10,
             tool_topics: vec!["general".into()],
@@ -112,6 +119,7 @@ fn live_catalog_defaults() -> Vec<LiveOfferRow> {
             inst_id: String::new(),
             input_usd_per_min: 0.005,
             output_usd_per_min: 0.018,
+            video_usd_per_min: 0.00155,
             enabled: true,
             sort: 20,
             tool_topics: vec![],
@@ -125,6 +133,7 @@ fn live_catalog_defaults() -> Vec<LiveOfferRow> {
             inst_id: String::new(),
             input_usd_per_min: 0.005,
             output_usd_per_min: 0.018,
+            video_usd_per_min: 0.00155,
             enabled: true,
             sort: 21,
             tool_topics: vec![],
@@ -138,7 +147,8 @@ fn live_catalog_defaults() -> Vec<LiveOfferRow> {
             inst_id: String::new(),
             input_usd_per_min: 0.006,
             output_usd_per_min: 0.024,
-            enabled: false,
+            video_usd_per_min: 0.0255,
+            enabled: true,
             sort: 30,
             tool_topics: vec![],
         },
@@ -151,7 +161,8 @@ fn live_catalog_defaults() -> Vec<LiveOfferRow> {
             inst_id: String::new(),
             input_usd_per_min: 0.006,
             output_usd_per_min: 0.024,
-            enabled: false,
+            video_usd_per_min: 0.0050,
+            enabled: true,
             sort: 40,
             tool_topics: vec![],
         },
@@ -164,7 +175,10 @@ pub fn live_catalog_rows() -> Vec<LiveOfferRow> {
 
 pub fn live_offer_get(id: &str) -> Option<LiveOfferRow> {
     let key = id.trim();
-    cache().read().expect("live cache lock").iter().find(|r| r.id == key).cloned()
+    if let Some(hit) = cache().read().expect("live cache lock").iter().find(|r| r.id == key).cloned() {
+        return Some(hit);
+    }
+    live_catalog_defaults().into_iter().find(|r| r.id == key)
 }
 
 pub fn live_catalog_proto() -> LiveCatalog {
@@ -177,6 +191,7 @@ pub fn live_catalog_proto() -> LiveCatalog {
 
 fn row_to_proto(row: LiveOfferRow) -> LiveOffer {
     let retail = live_retail_usd_per_min(&row);
+    let retail_video = live_retail_video_usd_per_min(&row);
     LiveOffer {
         id: row.id,
         family: row.family,
@@ -187,5 +202,6 @@ fn row_to_proto(row: LiveOfferRow) -> LiveOffer {
         retail_usd_per_min: retail,
         input_usd_per_min: row.input_usd_per_min,
         output_usd_per_min: row.output_usd_per_min,
+        retail_video_usd_per_min: retail_video,
     }
 }

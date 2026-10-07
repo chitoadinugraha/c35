@@ -46,6 +46,7 @@ message ResSync {
   repeated SiteContact site_contacts = 25;
   repeated SiteObject site_objects = 26;
   repeated Tx txs = 27;
+  repeated SiteLink site_links = 31;
 }
 
 // Unsolicited server push over WS after NATS / local mutation
@@ -68,5 +69,6 @@ message SyncPush {
     SiteObject site_object = 12;
     Tx tx = 13;
     ChatTyping chat_typing = 17;
+    SiteLink site_link = 18;
   }
 }

@@ -13,11 +13,7 @@ bool billingUsesIdr({double balanceIdr = 0}) => balanceIdr > 0;
 
 double billingUsdToIdr(double usd, {double fxRate = 17630}) => usd * fxRate;
 
-int? billingTopupParseIdr(String raw) {
-  final digits = raw.replaceAll(RegExp(r'[^0-9]'), '');
-  if (digits.isEmpty) return null;
-  return int.tryParse(digits);
-}
+int? billingTopupParseIdr(String raw) => moneyParseIdrInt(raw);
 
 String billingTopupIdrLabel(double idr) => moneyFmtIdr(idr);
 

@@ -8,12 +8,12 @@ use tokio_util::sync::CancellationToken;
 use crate::bot_meta::{bot_turn_meta_parse, bot_turn_signals, BOT_GSHEET_WRITE_TOOL_EXCLUDE, BOT_TOPIC, BOT_WEB_TOOL_EXCLUDE};
 use crate::catalog_web::{catalog_skip_web_prefetch, catalog_web_phase};
 use crate::compose::{compose_tools_and_inst_async, ComposeTurnOpts};
-use crate::inst_macro::inst_scopes_channel;
+use crate::inst_macro::{inst_pool_signal, inst_scopes_channel};
 use crate::inst_cache::inst_list_for_turn;
 use crate::context_billing::ContextBillingExtra;
 use crate::context_compact::{prepare_prompt_history, PreparedPromptHistory};
 use crate::context_pack::{context_window_resolve, token_estimate};
-use crate::memory::{memory_prompt_merge, memory_retrieve};
+use crate::memory::{memory_prompt_merge, memory_retrieve, MemoryRetrieveResult};
 use crate::memory_extract::memory_extract_turn_gate;
 use crate::prompt::gemini::gemini_api_key;
 use crate::prompt::thought::thinking_level;
@@ -50,12 +50,20 @@ pub async fn channel_prompt_turn(
         TurnBillingCtx { owner_iid, bot_iid: Some(bot_iid), device_iid: None },
     )
     .await?;
+    let model = match identity_model_resolve(pool, bot_iid).await {
+        Some(m) => m,
+        None => identity_model_resolve(pool, owner_iid).await.unwrap_or_else(|| "alienai".into()),
+    };
     let brow = c35_mod_billing::billing_gate_scoped(pool, &bctx).await?;
-    c35_mod_billing::billing_gate_with_hold(pool, owner_iid, &brow, req_id).await?;
-    let model = identity_model_resolve(pool, bot_iid)
-        .await
-        .or(identity_model_resolve(pool, owner_iid).await)
-        .unwrap_or_else(|| "alienai".into());
+    c35_mod_billing::billing_gate_with_hold_model(
+        pool,
+        owner_iid,
+        &brow,
+        req_id,
+        c35_mod_billing::DEFAULT_HOLD_USD,
+        Some(&model),
+    )
+    .await?;
     let mut prompt_text = text.to_string();
     if is_voice && prompt_text.trim().is_empty() {
         prompt_text = "[voice message]".into();
@@ -65,7 +73,8 @@ pub async fn channel_prompt_turn(
 
     let bot_meta = bot_meta_load(pool, bot_iid).await;
     let turn_meta = bot_turn_meta_parse(bot_meta.as_ref());
-    let signals = bot_turn_signals(&turn_meta);
+    let mut compose_signals = bot_turn_signals(&turn_meta);
+    compose_signals.push(inst_pool_signal(&model).to_string());
     let mut extra_exclude: Vec<String> = Vec::new();
     if !turn_meta.web_search {
         extra_exclude.extend(BOT_WEB_TOOL_EXCLUDE.iter().map(|s| s.to_string()));
@@ -77,8 +86,10 @@ pub async fn channel_prompt_turn(
         extra_exclude.extend(BOT_GSHEET_WRITE_TOOL_EXCLUDE.iter().map(|s| s.to_string()));
     }
     let compose_opts = ComposeTurnOpts {
-        extra_signals: &signals,
+        extra_signals: &compose_signals,
+        extra_tool_include: &[],
         extra_tool_exclude: &extra_exclude,
+        extra_inst_suffix: "",
         bot_web_search: turn_meta.web_search,
         attachments_json,
     };
@@ -87,6 +98,12 @@ pub async fn channel_prompt_turn(
     let empty_mentions: [String; 0] = [];
     let inst_scopes = inst_scopes_channel();
     let http = crate::tools::http_client(std::time::Duration::from_secs(30));
+    let memory_task = tokio::spawn({
+        let pool = pool.clone();
+        let http = http.clone();
+        let query = prompt_text.clone();
+        async move { memory_retrieve(&pool, &http, owner_iid, Some(bot_iid), &query, 8).await }
+    });
     let composed = compose_tools_and_inst_async(
         pool,
         &http,
@@ -126,7 +143,10 @@ pub async fn channel_prompt_turn(
     }
     let ds_block = c35_mod_data_source::data_source_prompt_for_bot(pool, &http, bot_iid, &prompt_text).await;
     system = c35_mod_data_source::data_source_prompt_merge(&system, &ds_block);
-    let memory = memory_retrieve(pool, &http, owner_iid, Some(bot_iid), &prompt_text, 8).await;
+    let memory = memory_task.await.unwrap_or_else(|e| {
+        tracing::warn!("[c35:memory] retrieve task failed: {e:#}");
+        MemoryRetrieveResult::default()
+    });
     system = memory_prompt_merge(&system, &memory.block);
 
     // Keep dynamic volatile context (time and location) at the tail of the system prompt
@@ -188,7 +208,11 @@ pub async fn channel_prompt_turn(
         thinking: thinking_level(""),
         tools: composed.tools.clone(),
         history,
-        force_tool_call: crate::compose::compose_force_tool_call(&composed.matched_ids, &composed.tools),
+        force_tool_call: crate::compose::compose_force_tool_call_with_text(
+            &composed.matched_ids,
+            &composed.tools,
+            &prompt_text,
+        ),
         catalog_web,
         skip_web_prefetch,
     };

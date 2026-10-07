@@ -30,6 +30,14 @@ void main() {
     expect(withText, contains('clear recycle bin'));
   });
 
+  test('composerMentionBracketFixupNesting collapses double bracket shell', () {
+    const deviceId = 'iid:98348080882880512';
+    final nested = '[@[${composerMentionBracketForId(deviceId)}] tab list';
+    final fixed = composerMentionBracketFixupNesting(nested);
+    expect(fixed, startsWith('[@iid:98348080882880512]'));
+    expect(fixed, isNot(contains('[@[')));
+  });
+
   test('composerMentionTextForWire emits bracket mention', () {
     const deviceId = 'iid:97279816209936384';
     final draft = 'berapa ping ${composerMentionToken(deviceId)} ke google ?';

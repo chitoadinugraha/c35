@@ -78,8 +78,13 @@ pub async fn context_idle_process(pool: &PgPool, chat_id: i64, owner_iid: i64) -
             billing.compaction_tokens_out = tout;
         }
     }
-    let extra = billing.total_extra_usd();
-    if extra > 0.0 {
+    let priced = c35_mod_billing::billing_cost_usd(
+        crate::context_compact::CONTEXT_COMPACT_MODEL,
+        billing.compaction_tokens_in,
+        billing.compaction_tokens_out,
+    );
+    let extra = (billing.total_extra_usd() - priced).max(0.0);
+    if billing.total_extra_usd() > 0.0 {
         let _ = billing_usage_report(
             pool,
             None,

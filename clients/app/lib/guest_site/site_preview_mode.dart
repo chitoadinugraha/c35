@@ -1,0 +1,1 @@
+enum SitePreviewMode { draft, published }

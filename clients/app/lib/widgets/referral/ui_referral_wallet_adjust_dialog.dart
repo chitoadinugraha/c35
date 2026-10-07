@@ -3,8 +3,10 @@ import 'package:alienai_c35/c/billing/billing_admin_adjust.dart';
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:alienai_c35/c/referral/referral_format.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
+import 'package:alienai_c35/widgets/io/in_money_idr.dart';
 import 'package:alienai_c35/widgets/ui/ui_input_decoration.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 Future<ResBillingAdminAdjust?> referralWalletAdjustDialog(
   BuildContext context, {
@@ -72,7 +74,7 @@ class _ReferralWalletAdjustDialogState extends State<_ReferralWalletAdjustDialog
 
   Future<void> _submit() async {
     if (_busy) return;
-    final amount = referralWithdrawAmountParse(_amountCtrl.text);
+    final amount = referralWithdrawAmountParse(_amountCtrl.text, idr: referralCurrencyIsIdr(widget.currency));
     final amountErr = referralWithdrawAmountValidate(amount);
     if (amountErr != null) {
       setState(() => _errorMsg = amountErr);
@@ -129,7 +131,12 @@ class _ReferralWalletAdjustDialogState extends State<_ReferralWalletAdjustDialog
               TextField(
                 controller: _amountCtrl,
                 autofocus: true,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: referralCurrencyIsIdr(widget.currency)
+                    ? TextInputType.number
+                    : const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: referralCurrencyIsIdr(widget.currency)
+                    ? moneyIdrInputFormatters
+                    : [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
                 style: const TextStyle(color: _text),
                 decoration: UiInputDecoration.of(
                   context,

@@ -20,6 +20,7 @@ pub async fn topic_inst_chain(pool: &PgPool, topic_id: &str) -> Vec<String> {
 }
 
 /// Merge topic `inst` fields along the extend chain (parent → child).
+#[allow(dead_code)]
 pub async fn topic_inst_block(pool: &PgPool, topic_id: &str) -> String {
     let chain = topic_inst_chain(pool, topic_id).await;
     let mut parts = Vec::new();
@@ -35,6 +36,32 @@ pub async fn topic_inst_block(pool: &PgPool, topic_id: &str) -> String {
         .unwrap_or_default();
         if !inst.trim().is_empty() {
             parts.push(inst);
+        }
+    }
+    parts.join("\n\n")
+}
+
+/// Merge topic `inst` fields across all active topic chains, deduplicating shared ancestors.
+pub async fn topics_inst_block(pool: &PgPool, topic_ids: &[String]) -> String {
+    let mut seen = std::collections::HashSet::new();
+    let mut parts = Vec::new();
+    for tid in topic_ids {
+        let chain = topic_inst_chain(pool, tid).await;
+        for id in chain.iter().rev() {
+            if seen.insert(id.clone()) {
+                let inst = sqlx::query_scalar::<_, String>(
+                    "SELECT inst FROM ai.topic WHERE id = $1 AND enabled = true",
+                )
+                .bind(id)
+                .fetch_optional(pool)
+                .await
+                .ok()
+                .flatten()
+                .unwrap_or_default();
+                if !inst.trim().is_empty() {
+                    parts.push(inst);
+                }
+            }
         }
     }
     parts.join("\n\n")

@@ -309,6 +309,33 @@ message ResChatHistoryClear {
   int32 chats_affected = 2;
 }
 
+// Long-term user memory (ai.memory) — settings UI + user management
+message UserMemory {
+  int64 id = 1;
+  int64 owner_iid = 2;
+  int64 bot_iid = 3; // 0 = global (not bot-scoped)
+  string category = 4;
+  string key = 5;
+  string content = 6;
+  double confidence = 7;
+}
+
+message ReqMemoryList {
+  int32 limit = 1; // default 100, max 200
+}
+
+message ResMemoryList {
+  repeated UserMemory items = 1;
+}
+
+message ReqMemoryDelete {
+  int64 id = 1;
+}
+
+message ResMemoryDelete {
+  bool ok = 1;
+}
+
 // Device-bound prompt contexts (Remote / Devices composer)
 message ReqChatDeviceContextList {
   int64 device_iid = 1;

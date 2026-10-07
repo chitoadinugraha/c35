@@ -28,6 +28,7 @@ class LiveOffer extends $pb.GeneratedMessage {
     $core.double? retailUsdPerMin,
     $core.double? inputUsdPerMin,
     $core.double? outputUsdPerMin,
+    $core.double? retailVideoUsdPerMin,
   }) {
     final result = LiveOffer._();
     if (id != null) result.id = id;
@@ -39,6 +40,8 @@ class LiveOffer extends $pb.GeneratedMessage {
     if (retailUsdPerMin != null) result.retailUsdPerMin = retailUsdPerMin;
     if (inputUsdPerMin != null) result.inputUsdPerMin = inputUsdPerMin;
     if (outputUsdPerMin != null) result.outputUsdPerMin = outputUsdPerMin;
+    if (retailVideoUsdPerMin != null)
+      result.retailVideoUsdPerMin = retailVideoUsdPerMin;
     return result;
   }
 
@@ -64,6 +67,7 @@ class LiveOffer extends $pb.GeneratedMessage {
     ..aD(7, _omitFieldNames ? '' : 'retailUsdPerMin')
     ..aD(8, _omitFieldNames ? '' : 'inputUsdPerMin')
     ..aD(9, _omitFieldNames ? '' : 'outputUsdPerMin')
+    ..aD(10, _omitFieldNames ? '' : 'retailVideoUsdPerMin')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -166,6 +170,15 @@ class LiveOffer extends $pb.GeneratedMessage {
   $core.bool hasOutputUsdPerMin() => $_has(8);
   @$pb.TagNumber(9)
   void clearOutputUsdPerMin() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $core.double get retailVideoUsdPerMin => $_getN(9);
+  @$pb.TagNumber(10)
+  set retailVideoUsdPerMin($core.double value) => $_setDouble(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasRetailVideoUsdPerMin() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearRetailVideoUsdPerMin() => $_clearField(10);
 }
 
 class LiveCatalog extends $pb.GeneratedMessage {

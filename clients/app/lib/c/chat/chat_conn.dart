@@ -4,6 +4,7 @@ import 'package:alienai_c35/c/config.dart';
 import 'package:alienai_c35/c/device/device_presence_cache.dart';
 import 'package:alienai_c35/c/parts/csai__version.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:alienai_c35/c/pb/c35/catalog.pb.dart';
@@ -95,6 +96,18 @@ class ChatConn {
   var _appBuild = 0;
   var _appVersionName = '';
   final status = ValueNotifier<ChatConnStatus>(ChatConnStatus.disconnected);
+  void _statusSet(ChatConnStatus next) {
+    if (status.value == next) return;
+    final binding = SchedulerBinding.instance;
+    if (binding.schedulerPhase == SchedulerPhase.idle) {
+      status.value = next;
+      return;
+    }
+    binding.addPostFrameCallback((_) {
+      if (status.value != next) status.value = next;
+    });
+  }
+
   final _reconnectedCtrl = StreamController<void>.broadcast();
   final _socketAttachedCtrl = StreamController<void>.broadcast();
   final _promptPending = <String, StreamController<PromptStreamEvent>>{};
@@ -177,14 +190,14 @@ class ChatConn {
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
     _retryCount = 0;
-    status.value = ChatConnStatus.connecting;
+    _statusSet(ChatConnStatus.connecting);
     await _tearDownSocket(failPending: true);
     try {
       await _attachSocket(locale: locale, tz: tz, appBuild: appBuild, appVersionName: appVersionName);
     } catch (e) {
       lError('chat ws connect: $e');
       if (Session.instance.token.trim().isEmpty) {
-        status.value = ChatConnStatus.disconnected;
+        _statusSet(ChatConnStatus.disconnected);
       } else {
         _scheduleReconnectIfNeeded();
       }
@@ -206,7 +219,7 @@ class ChatConn {
     _reconnectTimer = null;
     _retryCount = 0;
     await _tearDownSocket(failPending: true);
-    status.value = ChatConnStatus.disconnected;
+    _statusSet(ChatConnStatus.disconnected);
   }
 
   Future<void> _tearDownSocket({required bool failPending}) async {
@@ -260,7 +273,7 @@ class ChatConn {
     if (status.value == ChatConnStatus.connected && _retryCount == 0) return;
     final wasReconnecting = _retryCount > 0 || status.value == ChatConnStatus.reconnecting;
     _retryCount = 0;
-    status.value = ChatConnStatus.connected;
+    _statusSet(ChatConnStatus.connected);
     if (wasReconnecting && !_reconnectedCtrl.isClosed) _reconnectedCtrl.add(null);
   }
 
@@ -283,15 +296,15 @@ class ChatConn {
 
   void _scheduleReconnectIfNeeded() {
     if (_manualDisconnect) {
-      status.value = ChatConnStatus.disconnected;
+      _statusSet(ChatConnStatus.disconnected);
       return;
     }
     if (Session.instance.token.trim().isEmpty) {
-      status.value = ChatConnStatus.disconnected;
+      _statusSet(ChatConnStatus.disconnected);
       return;
     }
     if (_reconnectTimer != null) return;
-    status.value = ChatConnStatus.reconnecting;
+    _statusSet(ChatConnStatus.reconnecting);
     _retryCount++;
     // Exponential backoff capped at 30 seconds to prevent socket exhaustion
     final sec = (1 << (_retryCount - 1).clamp(0, 5)).clamp(1, 30);
@@ -301,7 +314,7 @@ class ChatConn {
       _reconnectTimer = null;
       if (_manualDisconnect) return;
       try {
-        status.value = ChatConnStatus.connecting;
+        _statusSet(ChatConnStatus.connecting);
         await _tearDownSocket(failPending: false);
         await _attachSocket(
           locale: _locale,
@@ -389,7 +402,11 @@ class ChatConn {
     if (res.hasBillingCommission() && !_billingCommissionCtrl.isClosed) _billingCommissionCtrl.add(res.billingCommission);
     if (res.hasChannelPairPush() && !_channelPairPushCtrl.isClosed) _channelPairPushCtrl.add(res.channelPairPush);
     if (res.hasStatsPush() && !_statsPushCtrl.isClosed) _statsPushCtrl.add(res.statsPush);
-    if (res.hasLogPush() && !_logPushCtrl.isClosed) _logPushCtrl.add(res.logPush);
+    if (res.hasLogPush()) {
+      final push = res.logPush;
+      if (!_logPushCtrl.isClosed) _logPushCtrl.add(push);
+      if (push.hasRow()) traceCacheMerge(TraceLogDoc.fromLog(push.row));
+    }
     if (res.hasPromptRunPush()) {
       final push = res.promptRunPush;
       PromptRunStore.instance.put(push);
@@ -596,6 +613,16 @@ class ChatConn {
         (res) => res.chatHistoryClear,
       );
 
+  Future<ResMemoryList> memoryList({int limit = 100}) => _rpc<ResMemoryList>(
+        WsReq(memoryList: ReqMemoryList(limit: limit)),
+        (res) => res.memoryList,
+      );
+
+  Future<ResMemoryDelete> memoryDelete({required int id}) => _rpc<ResMemoryDelete>(
+        WsReq(memoryDelete: ReqMemoryDelete(id: Int64(id))),
+        (res) => res.memoryDelete,
+      );
+
   Future<ResChatFeedbackReasonList> chatFeedbackReasonList({
     String locale = '',
     ChatFeedbackVote vote = ChatFeedbackVote.CHAT_FEEDBACK_VOTE_UNSPECIFIED,
@@ -673,6 +700,22 @@ class ChatConn {
     if (!_traceCacheCtrl.isClosed) _traceCacheCtrl.add(reqId);
   }
 
+  void traceCacheMerge(TraceLogDoc doc) {
+    final reqId = doc.reqId.trim();
+    if (reqId.isEmpty) return;
+    final prev = _traceCache[reqId] ?? const <TraceLogDoc>[];
+    final next = List<TraceLogDoc>.from(prev);
+    final idx = doc.id > 0 ? next.indexWhere((e) => e.id == doc.id) : -1;
+    if (idx >= 0) {
+      next[idx] = doc;
+    } else {
+      next.add(doc);
+      next.sort((a, b) => a.tsMs.compareTo(b.tsMs));
+    }
+    _traceCache[reqId] = next;
+    if (!_traceCacheCtrl.isClosed) _traceCacheCtrl.add(reqId);
+  }
+
   Future<void> tracePrefetch(String reqId, {bool force = false}) async {
     final id = reqId.trim();
     if (id.isEmpty) return;
@@ -698,7 +741,7 @@ class ChatConn {
           return;
         }
       } catch (_) {}
-      await Future<void>.delayed(Duration(milliseconds: 200 * (i + 1)));
+      await Future<void>.delayed(Duration(milliseconds: 80 * (i + 1)));
     }
   }
 
@@ -936,6 +979,17 @@ class ChatConn {
   Future<ResSitePreviewToken> sitePreviewToken(int siteIid, {int ttlSecs = 300}) => _rpc<ResSitePreviewToken>(
         WsReq(sitePreviewToken: ReqSitePreviewToken(siteIid: Int64(siteIid), ttlSecs: ttlSecs)),
         (res) => res.sitePreviewToken,
+      );
+
+  Future<ResSiteHandlePut> siteHandlePut(int siteIid, String newAlienId) => _rpc<ResSiteHandlePut>(
+        WsReq(siteHandlePut: ReqSiteHandlePut(siteIid: Int64(siteIid), newAlienId: newAlienId)),
+        (res) => res.siteHandlePut,
+      );
+
+  Future<ResSiteBootGet> siteBootGet(int siteIid, {SiteBootMode mode = SiteBootMode.SITE_BOOT_MODE_DRAFT}) =>
+      _rpc<ResSiteBootGet>(
+        WsReq(siteBootGet: ReqSiteBootGet(siteIid: Int64(siteIid), mode: mode)),
+        (res) => res.siteBootGet,
       );
 
   Future<ResSiteProductList> siteProductList(int siteIid) => _rpc<ResSiteProductList>(

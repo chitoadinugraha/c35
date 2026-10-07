@@ -102,6 +102,13 @@ class AdminApi {
     return res.adminLogReport.widgets;
   }
 
+  Future<InstDoc> instGet(String id) async {
+    final res = await _invoke(InvokeReq(reqId: const Uuid().v4(), instGet: ReqInstGet(id: id)));
+    invokeResThrow(res, fallback: 'Failed to load inst');
+    if (!res.hasInstGet() || !res.instGet.hasItem()) throw 'Inst not found';
+    return res.instGet.item;
+  }
+
   Future<List<InstDoc>> instList({String? scope, String? kind, bool? enabled, bool includeDeleted = false}) async {
     final req = ReqInstList(includeDeleted: includeDeleted);
     if (scope != null) req.scope = scope;

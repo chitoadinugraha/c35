@@ -9,10 +9,9 @@ import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/billing/billing_topup.dart';
 import 'package:alienai_c35/widgets/ui/ui_error.dart';
+import 'package:alienai_c35/widgets/io/in_money_idr.dart';
 import 'package:alienai_c35/widgets/ui/ui_input_decoration.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-
 Future<void> referralCommissionWithdrawSheet(
   BuildContext context, {
   required ReferralConn conn,
@@ -226,7 +225,7 @@ class _ReferralWithdrawSheetState extends State<_ReferralWithdrawSheet> {
                 controller: _amountCtrl,
                 enabled: !_busy,
                 keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                inputFormatters: moneyIdrInputFormatters,
                 style: const TextStyle(color: _text),
                 decoration: UiInputDecoration.of(context, hintText: 'Amount (IDR)'),
                 onChanged: (_) => setState(() {}),

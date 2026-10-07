@@ -13,8 +13,8 @@ Rows in **`ai.live_offer`** (see `_/schemas/live_offer.sql`). Not synced into `a
 | `live.alienai` | Call Alien AI | `gemini-3.8-live` + `inst.general` |
 | `live.gemini` | Call Gemini | `gemini-3.8-live` |
 | `live.gemini.thinker` | Call Gemini Thinker | `gemini-3.8-live-extended-thinking` |
-| `live.chatgpt` | Call ChatGPT | disabled — **Coming soon** (OpenAI Realtime not shipped) |
-| `live.grok` | Call Grok | disabled — **Coming soon** (xAI realtime not shipped) |
+| `live.chatgpt` | Call ChatGPT | `gpt-4o-realtime-preview` via Cloudflare AI Gateway |
+| `live.grok` | Call Grok | `grok-2-latest` / `grok-2-vision-1212` via Cloudflare AI Gateway |
 
 Retail **~$/min** on chip = `(input_usd_per_min + output_usd_per_min) × 1.5`.
 
@@ -133,7 +133,12 @@ sequenceDiagram
   3. Site topics (`web.builder`, `site.commerce`) are added only when the active mention resolves a site (`default_site_iid`).
   4. Staff tools (`requires_global_roles`) are never declared.
 - `ReqLiveStart.mention_ids` sets that mention. If the list is empty, the server reads the chat's sticky mentions and `bound_device_iid`.
-- A mention change sends `{"type":"mention","mention_ids":[...],"label":"..."}` on the app socket. The server resumes Gemini with a new setup (`sessionResumption.handle`). The app socket stays up. Native-audio Live has no input cache. A failed resume seeds the last 6 `ai.chat_msg` rows as text `clientContent`.
+- A mention change sends `{"type":"mention","mention_ids":[...],"label":"..."}` on the app socket.
+- **Make-Before-Break Handover**: The server does NOT tear down the old Gemini connection before setting up the new one. The existing connection remains active and processes user audio with 0ms dead air while a background task pre-warms the new connection, executes DB hydration, sends setup with `sessionResumption.handle`, and awaits `setupComplete`. Once confirmed, sockets are atomically swapped and the old socket closes cleanly.
+- **Autonomous Topic Reset & Drift Detection**:
+  - When an active mention is set, Gemini Live is declared the `topic_reset` tool and given prompt steering (`[TOPIC FOCUS]`) to call `topic_reset` if the user naturally changes the subject to general matters.
+  - As a deterministic safety net, if 5 consecutive conversation turns complete without any mention tools called, the server automatically demotes the session to general topic and broadcasts `{"live":"mention","mention_ids":[],"label":"","switching":false}` to clear the client chip.
+- **Video Perception & Frame Streaming**: Incoming client frames matching `{"type":"video","data":"<base64>","mime_type":"image/jpeg"}` (or `"video_frame"`) are relayed straight into Gemini Live's `realtimeInput.video` endpoint alongside tool-based `device_screenshot` frames.
 - Talk uses the same center chip and the normal prompt pipeline. It does not reconnect.
 
 ### 2. Paired Devices Context & Auto-Resolution

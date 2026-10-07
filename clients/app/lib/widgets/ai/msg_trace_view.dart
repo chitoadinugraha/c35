@@ -289,7 +289,7 @@ class _UiMsgTraceToolChipState extends State<UiMsgTraceToolChip> {
           border: Border.all(color: _border),
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             Row(

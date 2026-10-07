@@ -74,9 +74,29 @@ void main() {
   testWidgets('UiMsgError hides detail when null', (tester) async {
     await tester.pumpWidget(const MaterialApp(
       home: Scaffold(
-        body: UiMsgError(message: 'Something went wrong. Please try again.'),
+        body: UiMsgError(message: 'Connection failed'),
       ),
     ));
     expect(find.byType(SelectableText), findsNothing);
+  });
+
+  testWidgets('UiMsgError shows out of quota and upgrade plan button', (tester) async {
+    var upgradeTapped = false;
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: UiMsgError(
+          message: "You're out of quota. Upgrade your plan or top up your balance to continue.",
+          onUpgrade: () => upgradeTapped = true,
+          onRetry: () {},
+        ),
+      ),
+    ));
+    expect(find.text("You're out of quota. Upgrade your plan or top up your balance to continue."), findsOneWidget);
+    expect(find.text('Upgrade plan'), findsOneWidget);
+    expect(find.text('Retry'), findsOneWidget);
+    expect(find.byIcon(Icons.bolt_rounded), findsNWidgets(2));
+
+    await tester.tap(find.text('Upgrade plan'));
+    expect(upgradeTapped, isTrue);
   });
 }

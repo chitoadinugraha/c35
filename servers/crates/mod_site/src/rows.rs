@@ -1,4 +1,4 @@
-use c35_proto::{SiteContact, SiteDomain, SiteObject, SiteProduct};
+use c35_proto::{SiteContact, SiteDomain, SiteLink, SiteObject, SitePost, SiteProduct};
 use chrono::{DateTime, Utc};
 use sqlx::Row;
 
@@ -25,6 +25,40 @@ pub fn product_from_row(r: &sqlx::postgres::PgRow) -> SiteProduct {
         category: r.get("category"),
         product_json: r.get::<serde_json::Value, _>("product_json").to_string(),
         is_archived: r.get("is_archived"),
+        created_ts_ms: ts_ms(Some(r.get("created_ts"))),
+        updated_ts_ms: ts_ms(Some(r.get("updated_ts"))),
+        deleted_ts_ms: ts_ms(r.get("deleted_ts")),
+    }
+}
+
+pub fn post_from_row(r: &sqlx::postgres::PgRow) -> SitePost {
+    SitePost {
+        site_iid: r.get("site_iid"),
+        post_id: r.get("post_id"),
+        sort_order: r.get("sort_order"),
+        title: r.get("title"),
+        caption: r.get("caption"),
+        body: r.get("body"),
+        media_json: r.get::<serde_json::Value, _>("media_json").to_string(),
+        on_storefront: r.get("on_storefront"),
+        thumb: r.get("thumb"),
+        feed_kind: r.get("feed_kind"),
+        created_ts_ms: ts_ms(Some(r.get("created_ts"))),
+        updated_ts_ms: ts_ms(Some(r.get("updated_ts"))),
+        deleted_ts_ms: ts_ms(r.get("deleted_ts")),
+    }
+}
+
+pub fn link_from_row(r: &sqlx::postgres::PgRow) -> SiteLink {
+    SiteLink {
+        site_iid: r.get("site_iid"),
+        link_id: r.get("link_id"),
+        sort_order: r.get("sort_order"),
+        label: r.get("label"),
+        url: r.get("url"),
+        icon: r.get("icon"),
+        is_pinned: r.get("is_pinned"),
+        active: r.get("active"),
         created_ts_ms: ts_ms(Some(r.get("created_ts"))),
         updated_ts_ms: ts_ms(Some(r.get("updated_ts"))),
         deleted_ts_ms: ts_ms(r.get("deleted_ts")),

@@ -174,6 +174,14 @@ const ResSync$json = {
       '10': 'siteObjects'
     },
     {'1': 'txs', '3': 27, '4': 3, '5': 11, '6': '.c35.Tx', '10': 'txs'},
+    {
+      '1': 'site_links',
+      '3': 31,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.SiteLink',
+      '10': 'siteLinks'
+    },
   ],
 };
 
@@ -195,7 +203,8 @@ final $typed_data.Uint8List resSyncDescriptor = $convert.base64Decode(
     'NpdGVfcHJvZHVjdF9lbWJlZHMYHiADKAsyFS5jMzUuU2l0ZVByb2R1Y3RFbWJlZFIRc2l0ZVBy'
     'b2R1Y3RFbWJlZHMSNQoNc2l0ZV9jb250YWN0cxgZIAMoCzIQLmMzNS5TaXRlQ29udGFjdFIMc2'
     'l0ZUNvbnRhY3RzEjIKDHNpdGVfb2JqZWN0cxgaIAMoCzIPLmMzNS5TaXRlT2JqZWN0UgtzaXRl'
-    'T2JqZWN0cxIZCgN0eHMYGyADKAsyBy5jMzUuVHhSA3R4cw==');
+    'T2JqZWN0cxIZCgN0eHMYGyADKAsyBy5jMzUuVHhSA3R4cxIsCgpzaXRlX2xpbmtzGB8gAygLMg'
+    '0uYzM1LlNpdGVMaW5rUglzaXRlTGlua3M=');
 
 @$core.Deprecated('Use syncPushDescriptor instead')
 const SyncPush$json = {
@@ -338,6 +347,15 @@ const SyncPush$json = {
       '9': 0,
       '10': 'chatTyping'
     },
+    {
+      '1': 'site_link',
+      '3': 18,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.SiteLink',
+      '9': 0,
+      '10': 'siteLink'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -361,4 +379,5 @@ final $typed_data.Uint8List syncPushDescriptor = $convert.base64Decode(
     'RW1iZWQSNQoMc2l0ZV9jb250YWN0GAsgASgLMhAuYzM1LlNpdGVDb250YWN0SABSC3NpdGVDb2'
     '50YWN0EjIKC3NpdGVfb2JqZWN0GAwgASgLMg8uYzM1LlNpdGVPYmplY3RIAFIKc2l0ZU9iamVj'
     'dBIZCgJ0eBgNIAEoCzIHLmMzNS5UeEgAUgJ0eBIyCgtjaGF0X3R5cGluZxgRIAEoCzIPLmMzNS'
-    '5DaGF0VHlwaW5nSABSCmNoYXRUeXBpbmdCBgoEYm9keQ==');
+    '5DaGF0VHlwaW5nSABSCmNoYXRUeXBpbmcSLAoJc2l0ZV9saW5rGBIgASgLMg0uYzM1LlNpdGVM'
+    'aW5rSABSCHNpdGVMaW5rQgYKBGJvZHk=');

@@ -1,9 +1,11 @@
 use anyhow::{anyhow, bail, Result};
 use c35_mod_site::{
-    site_contact_upsert, site_granted_iids, site_object_upsert, site_publish_from_draft,
-    site_slug_ensure_unique, site_slug_generate,
+    site_capabilities_get, site_config_put, site_contact_upsert, site_grant_delete, site_grant_put,
+    site_grantee_resolve, site_granted_iids, site_handle_put, site_link_delete, site_link_upsert,
+    site_object_upsert, site_preview_token_issue, site_publish_from_draft, site_slug_ensure_unique,
+    site_slug_generate,
 };
-use c35_proto::{SiteContact, SiteObject};
+use c35_proto::{ReqSiteConfigPut, ReqSiteHandlePut, ReqSiteLinkDelete, SiteContact, SiteLink, SiteObject};
 use c35_store::snowflake_id;
 use serde_json::{json, Value};
 use sqlx::{Postgres, Row, Transaction};
@@ -57,6 +59,69 @@ pub async fn site_draft_put_exec(ctx: &ToolContext, args: &Value) -> Result<Valu
     .execute(&ctx.pool)
     .await?;
     Ok(json!({ "ok": true, "site_iid": site_iid }))
+}
+
+const SITE_CAPABILITY_KEYS: &[&str] = &["commerce", "booking", "queue", "attendance"];
+
+fn site_capabilities_merge(args: &Value, existing: Value) -> Result<Value> {
+    let mut caps = if existing.as_object().is_some() {
+        existing
+    } else {
+        json!({})
+    };
+    let obj = caps
+        .as_object_mut()
+        .ok_or_else(|| anyhow!("capabilities_json must be an object"))?;
+    let mut touched = false;
+    if let Some(patch) = args.get("capabilities_json") {
+        let patch_obj = patch
+            .as_object()
+            .ok_or_else(|| anyhow!("capabilities_json must be an object"))?;
+        for (k, v) in patch_obj {
+            obj.insert(k.clone(), v.clone());
+        }
+        touched = true;
+    }
+    for key in SITE_CAPABILITY_KEYS {
+        if let Some(v) = args.get(*key).and_then(|v| v.as_bool()) {
+            obj.insert(key.to_string(), json!(v));
+            touched = true;
+        }
+    }
+    if !touched {
+        bail!(
+            "capabilities_json or at least one of commerce, booking, queue, attendance is required"
+        );
+    }
+    Ok(caps)
+}
+
+pub async fn site_config_put_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
+    let site_iid = site_iid_resolve(ctx, args)?;
+    let existing = site_capabilities_get(&ctx.pool, site_iid).await;
+    let caps = site_capabilities_merge(args, existing)?;
+    let caps_str = serde_json::to_string(&caps)?;
+    let res = site_config_put(
+        &ctx.pool,
+        ctx.owner_iid,
+        ReqSiteConfigPut {
+            site_iid,
+            capabilities_json: caps_str,
+        },
+        None,
+    )
+    .await?;
+    let config = res
+        .config
+        .ok_or_else(|| anyhow!("site.config.put returned no config"))?;
+    let saved: Value = serde_json::from_str(&config.capabilities_json)
+        .unwrap_or_else(|_| json!({}));
+    Ok(json!({
+        "ok": true,
+        "site_iid": site_iid,
+        "capabilities_json": saved,
+        "message": "Site capabilities updated"
+    }))
 }
 
 pub async fn site_publish_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
@@ -218,6 +283,51 @@ pub async fn site_contact_put_exec(ctx: &ToolContext, args: &Value) -> Result<Va
     Ok(json!({ "ok": true, "site_iid": site_iid, "contact_id": contact_id }))
 }
 
+pub async fn site_link_put_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
+    let site_iid = site_iid_resolve(ctx, args)?;
+    let owner_iid = site_grant_owner(&ctx.pool, ctx.owner_iid, site_iid).await?;
+    let label = args.get("label").and_then(|v| v.as_str()).unwrap_or("").trim();
+    let url = args.get("url").and_then(|v| v.as_str()).unwrap_or("").trim();
+    if label.is_empty() || url.is_empty() {
+        bail!("label and url are required");
+    }
+    let link = SiteLink {
+        site_iid,
+        link_id: args.get("link_id").and_then(|v| v.as_i64()).unwrap_or(0),
+        sort_order: args.get("sort_order").and_then(|v| v.as_i64()).unwrap_or(0) as i32,
+        label: label.to_string(),
+        url: url.to_string(),
+        icon: args.get("icon").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        is_pinned: args.get("is_pinned").and_then(|v| v.as_bool()).unwrap_or(false),
+        active: args.get("active").and_then(|v| v.as_bool()).unwrap_or(true),
+        ..Default::default()
+    };
+    let link_id = site_link_upsert(&ctx.pool, owner_iid, site_iid, &link, None).await?;
+    Ok(json!({ "ok": true, "site_iid": site_iid, "link_id": link_id }))
+}
+
+pub async fn site_link_delete_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
+    let site_iid = site_iid_resolve(ctx, args)?;
+    let link_id = args
+        .get("link_id")
+        .and_then(|v| v.as_i64())
+        .filter(|i| *i > 0)
+        .ok_or_else(|| anyhow!("link_id is required"))?;
+    let res = site_link_delete(
+        &ctx.pool,
+        ctx.owner_iid,
+        ReqSiteLinkDelete { site_iid, link_id },
+        None,
+    )
+    .await?;
+    Ok(json!({
+        "ok": res.ok,
+        "deleted": res.ok,
+        "site_iid": site_iid,
+        "link_id": res.link_id,
+    }))
+}
+
 pub async fn site_object_put_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
     let site_iid = site_iid_resolve(ctx, args)?;
     let owner_iid = site_grant_owner(&ctx.pool, ctx.owner_iid, site_iid).await?;
@@ -242,6 +352,55 @@ pub async fn site_object_put_exec(ctx: &ToolContext, args: &Value) -> Result<Val
     };
     let id = site_object_upsert(&ctx.pool, owner_iid, site_iid, &obj, None).await?;
     Ok(json!({ "ok": true, "site_iid": site_iid, "id": id }))
+}
+
+fn grantee_iid_from_args(args: &Value) -> i64 {
+    match args.get("grantee_iid") {
+        Some(Value::String(s)) => s.trim().parse().unwrap_or(0),
+        Some(Value::Number(n)) => n.as_i64().unwrap_or(0),
+        _ => 0,
+    }
+}
+
+pub async fn site_grant_put_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
+    let site_iid = site_iid_resolve(ctx, args)?;
+    let grantee_iid = site_grantee_resolve(
+        &ctx.pool,
+        grantee_iid_from_args(args),
+        args.get("grantee_alien_id").and_then(|v| v.as_str()).unwrap_or(""),
+    )
+    .await?;
+    let role = args
+        .get("role")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| anyhow!("role is required (staff or manage)"))?;
+    site_grant_put(&ctx.pool, ctx.owner_iid, site_iid, grantee_iid, role).await?;
+    Ok(json!({
+        "ok": true,
+        "site_iid": site_iid,
+        "grantee_iid": grantee_iid,
+        "role": role,
+        "message": "Site staff grant updated"
+    }))
+}
+
+pub async fn site_grant_delete_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
+    let site_iid = site_iid_resolve(ctx, args)?;
+    let grantee_iid = site_grantee_resolve(
+        &ctx.pool,
+        grantee_iid_from_args(args),
+        args.get("grantee_alien_id").and_then(|v| v.as_str()).unwrap_or(""),
+    )
+    .await?;
+    site_grant_delete(&ctx.pool, ctx.owner_iid, site_iid, grantee_iid).await?;
+    Ok(json!({
+        "ok": true,
+        "site_iid": site_iid,
+        "grantee_iid": grantee_iid,
+        "message": "Site staff grant removed"
+    }))
 }
 
 tool! {
@@ -277,6 +436,28 @@ tool! {
     },
     execute: |args, ctx| {
         site_publish_exec(ctx, &args).await
+    }
+}
+
+tool! {
+    struct: SiteConfigPutTool,
+    name: "site.config.put",
+    aliases: ["site_config_put", "site.config_put"],
+    description: "Update site.config capabilities_json (enable or disable POS/commerce, booking, queue, attendance). Merges into existing flags when individual booleans are passed.",
+    topics: ["web.builder"],
+    requires_kinds: ["site"],
+    ui_calling_key: "tool.site.config.put.calling",
+    ui_done_key: "tool.site.config.put.done",
+    parameters: {
+        site_iid: (integer, "Site identity ID (resolved from active @site when omitted)", optional),
+        capabilities_json: (object, "Partial or full capabilities object e.g. {\"commerce\": true, \"booking\": false}", optional),
+        commerce: (boolean, "Enable POS / product catalog and transactions (commerce capability)", optional),
+        booking: (boolean, "Enable booking / reservations", optional),
+        queue: (boolean, "Enable queue / antrian", optional),
+        attendance: (boolean, "Enable attendance tracking", optional),
+    },
+    execute: |args, ctx| {
+        site_config_put_exec(ctx, &args).await
     }
 }
 
@@ -335,6 +516,48 @@ tool! {
 }
 
 tool! {
+    struct: SiteLinkPutTool,
+    name: "site.link.put",
+    aliases: ["site_link_put"],
+    description: "Upsert a hub link row in site.link (label, url, sort order, pin).",
+    topics: ["web.builder"],
+    requires_kinds: ["site"],
+    ui_calling_key: "tool.site.link.put.calling",
+    ui_done_key: "tool.site.link.put.done",
+    parameters: {
+        site_iid: (integer, "Site identity ID (resolved from @alien_id when omitted)", optional),
+        link_id: (integer, "Existing link ID; omit to create", optional),
+        label: (string, "Link label", required),
+        url: (string, "Target URL", required),
+        icon: (string, "Optional icon (emoji, iconify://, or URL)", optional),
+        sort_order: (integer, "Display order (lower first)", optional),
+        is_pinned: (boolean, "Pin link in hub", optional),
+        active: (boolean, "Show on guest hub when true", optional),
+    },
+    execute: |args, ctx| {
+        site_link_put_exec(ctx, &args).await
+    }
+}
+
+tool! {
+    struct: SiteLinkDeleteTool,
+    name: "site.link.delete",
+    aliases: ["site_link_delete", "site.link_delete"],
+    description: "Soft-delete a hub link row in site.link (sets deleted_ts).",
+    topics: ["web.builder"],
+    requires_kinds: ["site"],
+    ui_calling_key: "tool.site.link.delete.calling",
+    ui_done_key: "tool.site.link.delete.done",
+    parameters: {
+        site_iid: (integer, "Site identity ID (resolved from @alien_id when omitted)", optional),
+        link_id: (integer, "Link ID to delete", required),
+    },
+    execute: |args, ctx| {
+        site_link_delete_exec(ctx, &args).await
+    }
+}
+
+tool! {
     struct: SiteObjectPutTool,
     name: "site.object_put",
     aliases: ["site_object_put"],
@@ -362,8 +585,284 @@ tool! {
     }
 }
 
+tool! {
+    struct: SiteGrantPutTool,
+    name: "site.grant.put",
+    aliases: ["site_grant_put", "site.staff.grant"],
+    description: "Grant or update site staff access (identity_grant on site_iid). Roles: staff (read/edit data) or manage (includes staff management). Caller must be site owner or manage.",
+    topics: ["web.builder"],
+    rag_phrases: ["add staff", "invite staff", "site staff", "grant manage", "tambah staff", "akses staff"],
+    requires_kinds: ["site"],
+    ui_calling_key: "tool.site.grant.put.calling",
+    ui_done_key: "tool.site.grant.put.done",
+    parameters: {
+        site_iid: (integer, "Site identity ID (resolved from @alien_id when omitted)", optional),
+        grantee_iid: (integer, "User identity ID to grant", optional),
+        grantee_alien_id: (string, "User alien_id or numeric id when grantee_iid omitted", optional),
+        role: (string, "staff or manage", required),
+    },
+    execute: |args, ctx| {
+        site_grant_put_exec(ctx, &args).await
+    }
+}
+
+tool! {
+    struct: SiteGrantDeleteTool,
+    name: "site.grant.delete",
+    aliases: ["site_grant_delete"],
+    description: "Revoke site staff access for a user (soft-delete identity_grant). Caller must be site owner or manage. Cannot remove the site owner.",
+    topics: ["web.builder"],
+    rag_phrases: ["remove staff", "revoke access", "hapus staff", "cabut akses"],
+    requires_kinds: ["site"],
+    ui_calling_key: "tool.site.grant.delete.calling",
+    ui_done_key: "tool.site.grant.delete.done",
+    parameters: {
+        site_iid: (integer, "Site identity ID (resolved from @alien_id when omitted)", optional),
+        grantee_iid: (integer, "User identity ID to revoke", optional),
+        grantee_alien_id: (string, "User alien_id or numeric id when grantee_iid omitted", optional),
+    },
+    execute: |args, ctx| {
+        site_grant_delete_exec(ctx, &args).await
+    }
+}
+
+tool! {
+    struct: SiteProductDeleteTool,
+    name: "site.product.delete",
+    aliases: ["site_product_delete", "site.product_delete"],
+    description: "Soft-delete a catalog product (sets deleted_ts and archives). Lookup by product_id or product name.",
+    topics: ["web.builder", "site.commerce"],
+    requires_kinds: ["site"],
+    ui_calling_key: "tool.site.product.delete.calling",
+    ui_done_key: "tool.site.product.delete.done",
+    parameters: {
+        site_iid: (integer, "Site identity ID (resolved from @alien_id when omitted)", optional),
+        product_id: (integer, "Product ID; if omitted, resolved from name", optional),
+        name: (string, "Product name to look up if product_id is not passed", optional),
+        q: (string, "Alias of name", optional),
+    },
+    execute: |args, ctx| {
+        site_product_delete_exec(ctx, &args).await
+    }
+}
+
+tool! {
+    struct: SiteContactDeleteTool,
+    name: "site.contact.delete",
+    aliases: ["site_contact_delete", "site.contact_delete"],
+    description: "Soft-delete a contact row in site.contact (sets deleted_ts).",
+    topics: ["web.builder"],
+    requires_kinds: ["site"],
+    ui_calling_key: "tool.site.contact.delete.calling",
+    ui_done_key: "tool.site.contact.delete.done",
+    parameters: {
+        site_iid: (integer, "Site identity ID (resolved from @alien_id when omitted)", optional),
+        contact_id: (integer, "Contact ID to delete", required),
+    },
+    execute: |args, ctx| {
+        site_contact_delete_exec(ctx, &args).await
+    }
+}
+
+tool! {
+    struct: SiteObjectDeleteTool,
+    name: "site.object.delete",
+    aliases: ["site_object_delete", "site.object_delete"],
+    description: "Soft-delete an object row in site.object (tables, rooms, units).",
+    topics: ["web.builder"],
+    requires_kinds: ["site"],
+    ui_calling_key: "tool.site.object.delete.calling",
+    ui_done_key: "tool.site.object.delete.done",
+    parameters: {
+        site_iid: (integer, "Site identity ID (resolved from @alien_id when omitted)", optional),
+        id: (integer, "Object row ID to delete", required),
+    },
+    execute: |args, ctx| {
+        site_object_delete_exec(ctx, &args).await
+    }
+}
+
+tool! {
+    struct: SiteProductEmbedPutTool,
+    name: "site.product_embed.put",
+    aliases: ["site_product_embed_put", "site.product_embed_put"],
+    description: "Upsert site.product_embed alt-label rows for semantic search on a product.",
+    topics: ["web.builder"],
+    requires_kinds: ["site"],
+    ui_calling_key: "tool.site.product_embed.put.calling",
+    ui_done_key: "tool.site.product_embed.put.done",
+    parameters: {
+        site_iid: (integer, "Site identity ID (resolved from @alien_id when omitted)", optional),
+        product_id: (integer, "Parent product ID", required),
+        embeds: (array, "Product embed rows [{embed_id, label}]", required),
+    },
+    execute: |args, ctx| {
+        site_product_embed_put_exec(ctx, &args).await
+    }
+}
+
 fn arg_text<'a>(args: &'a Value, key: &str) -> Option<&'a str> {
     args.get(key).and_then(|v| v.as_str()).map(str::trim).filter(|s| !s.is_empty())
+}
+
+async fn site_product_id_resolve_on_site(
+    pool: &sqlx::PgPool,
+    site_iid: i64,
+    args: &Value,
+) -> Result<i64> {
+    let product_id_opt = args.get("product_id").and_then(|v| v.as_i64()).filter(|i| *i > 0);
+    let name_opt = arg_text(args, "name").or_else(|| arg_text(args, "q"));
+    match product_id_opt {
+        Some(id) => Ok(id),
+        None => {
+            let name_query = name_opt.ok_or_else(|| {
+                anyhow!("product_id or name is required to identify the product")
+            })?;
+            sqlx::query_scalar::<_, i64>(
+                r#"
+                SELECT product_id
+                FROM site.product
+                WHERE site_iid = $1 AND deleted_ts IS NULL
+                  AND (name ILIKE $2 OR sku ILIKE $2)
+                ORDER BY CASE WHEN name ILIKE $2 THEN 0 ELSE 1 END, sort_order, product_id
+                LIMIT 1
+                "#,
+            )
+            .bind(site_iid)
+            .bind(name_query)
+            .fetch_optional(pool)
+            .await?
+            .ok_or_else(|| anyhow!("product '{name_query}' not found at site {site_iid}"))
+        }
+    }
+}
+
+pub async fn site_product_delete_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
+    let site_iid = site_iid_resolve(ctx, args)?;
+    let _owner_iid = site_grant_owner(&ctx.pool, ctx.owner_iid, site_iid).await?;
+    let product_id = site_product_id_resolve_on_site(&ctx.pool, site_iid, args).await?;
+    let row = sqlx::query(
+        r#"
+        UPDATE site.product
+        SET deleted_ts = NOW(), is_archived = TRUE, updated_ts = NOW()
+        WHERE site_iid = $1 AND product_id = $2 AND deleted_ts IS NULL
+        RETURNING product_id, name
+        "#,
+    )
+    .bind(site_iid)
+    .bind(product_id)
+    .fetch_optional(&ctx.pool)
+    .await?
+    .ok_or_else(|| anyhow!("product {product_id} not found or already deleted"))?;
+    let p_id: i64 = row.get("product_id");
+    let p_name: String = row.get("name");
+    Ok(json!({
+        "ok": true,
+        "deleted": true,
+        "site_iid": site_iid,
+        "product_id": p_id,
+        "name": p_name,
+    }))
+}
+
+pub async fn site_contact_delete_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
+    let site_iid = site_iid_resolve(ctx, args)?;
+    let _owner_iid = site_grant_owner(&ctx.pool, ctx.owner_iid, site_iid).await?;
+    let contact_id = args
+        .get("contact_id")
+        .and_then(|v| v.as_i64())
+        .filter(|i| *i > 0)
+        .ok_or_else(|| anyhow!("contact_id is required"))?;
+    let row = sqlx::query(
+        r#"
+        UPDATE site.contact
+        SET deleted_ts = NOW(), updated_ts = NOW()
+        WHERE site_iid = $1 AND contact_id = $2 AND deleted_ts IS NULL
+        RETURNING contact_id, name
+        "#,
+    )
+    .bind(site_iid)
+    .bind(contact_id)
+    .fetch_optional(&ctx.pool)
+    .await?
+    .ok_or_else(|| anyhow!("contact {contact_id} not found or already deleted"))?;
+    Ok(json!({
+        "ok": true,
+        "deleted": true,
+        "site_iid": site_iid,
+        "contact_id": row.get::<i64, _>("contact_id"),
+        "name": row.get::<String, _>("name"),
+    }))
+}
+
+pub async fn site_object_delete_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
+    let site_iid = site_iid_resolve(ctx, args)?;
+    let _owner_iid = site_grant_owner(&ctx.pool, ctx.owner_iid, site_iid).await?;
+    let id = args
+        .get("id")
+        .and_then(|v| v.as_i64())
+        .filter(|i| *i > 0)
+        .ok_or_else(|| anyhow!("id is required"))?;
+    let row = sqlx::query(
+        r#"
+        UPDATE site.object
+        SET deleted_ts = NOW(), updated_ts = NOW()
+        WHERE site_iid = $1 AND id = $2 AND deleted_ts IS NULL
+        RETURNING id, name
+        "#,
+    )
+    .bind(site_iid)
+    .bind(id)
+    .fetch_optional(&ctx.pool)
+    .await?
+    .ok_or_else(|| anyhow!("object {id} not found or already deleted"))?;
+    Ok(json!({
+        "ok": true,
+        "deleted": true,
+        "site_iid": site_iid,
+        "id": row.get::<i64, _>("id"),
+        "name": row.get::<String, _>("name"),
+    }))
+}
+
+pub async fn site_product_embed_put_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
+    let site_iid = site_iid_resolve(ctx, args)?;
+    let _owner_iid = site_grant_owner(&ctx.pool, ctx.owner_iid, site_iid).await?;
+    let product_id = args
+        .get("product_id")
+        .and_then(|v| v.as_i64())
+        .filter(|i| *i > 0)
+        .ok_or_else(|| anyhow!("product_id is required"))?;
+    let exists: bool = sqlx::query_scalar(
+        r#"
+        SELECT EXISTS(
+            SELECT 1 FROM site.product
+            WHERE site_iid = $1 AND product_id = $2 AND deleted_ts IS NULL
+        )
+        "#,
+    )
+    .bind(site_iid)
+    .bind(product_id)
+    .fetch_one(&ctx.pool)
+    .await?;
+    if !exists {
+        bail!("product {product_id} not found at site {site_iid}");
+    }
+    let embeds = args
+        .get("embeds")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .filter(|a| !a.is_empty())
+        .ok_or_else(|| anyhow!("embeds array is required (at least one {{embed_id, label}})"))?;
+    let mut tx = ctx.pool.begin().await?;
+    product_embed_put_tx(&mut tx, site_iid, product_id, &embeds).await?;
+    tx.commit().await?;
+    Ok(json!({
+        "ok": true,
+        "site_iid": site_iid,
+        "product_id": product_id,
+        "embed_count": embeds.len(),
+    }))
 }
 
 struct ProductPatchRow {
@@ -495,6 +994,7 @@ async fn site_product_patch_write(
     let can_sell = args.get("can_sell").and_then(|v| v.as_bool());
     let can_reserve = args.get("can_reserve").and_then(|v| v.as_bool());
     let is_archived = args.get("is_archived").and_then(|v| v.as_bool());
+    let soft_delete = args.get("deleted").and_then(|v| v.as_bool()).unwrap_or(false);
     let new_name = arg_text(args, "new_name");
 
     let row = sqlx::query(
@@ -511,9 +1011,10 @@ async fn site_product_patch_write(
             track_stock = COALESCE($8, track_stock),
             can_sell = COALESCE($9, can_sell),
             can_reserve = COALESCE($10, can_reserve),
-            is_archived = COALESCE($11, is_archived),
+            is_archived = CASE WHEN $12 THEN TRUE ELSE COALESCE($11, is_archived) END,
+            deleted_ts = CASE WHEN $12 THEN NOW() ELSE deleted_ts END,
             updated_ts = NOW()
-        WHERE site_iid = $1 AND product_id = $2
+        WHERE site_iid = $1 AND product_id = $2 AND ($12 = FALSE OR deleted_ts IS NULL)
         RETURNING product_id, name, price, cost_price, stock_qty, track_stock, can_sell, can_reserve
         "#,
     )
@@ -528,6 +1029,7 @@ async fn site_product_patch_write(
     .bind(can_sell)
     .bind(can_reserve)
     .bind(is_archived)
+    .bind(soft_delete)
     .fetch_one(&ctx.pool)
     .await?;
 
@@ -576,6 +1078,7 @@ tool! {
         can_sell: (boolean, "Available for sale", optional),
         can_reserve: (boolean, "Allow reservation/booking", optional),
         is_archived: (boolean, "Archive/unarchive product", optional),
+        deleted: (boolean, "Soft-delete product (sets deleted_ts and archives)", optional),
     },
     execute: |args, ctx| {
         site_product_patch_exec(ctx, &args).await
@@ -748,8 +1251,28 @@ tool! {
     }
 }
 
+fn resolve_target_page_mut<'a>(
+    pages: &'a mut [Value],
+    target_path: Option<&str>,
+) -> Result<&'a mut Value> {
+    let target_idx = if let Some(tp) = target_path.map(str::trim).filter(|s| !s.is_empty()) {
+        let norm = if tp.starts_with('/') {
+            tp.to_string()
+        } else {
+            format!("/{tp}")
+        };
+        pages.iter().position(|p| p.get("path").and_then(|v| v.as_str()) == Some(&norm))
+    } else {
+        None
+    };
+
+    let idx = target_idx.unwrap_or(0);
+    pages.get_mut(idx).ok_or_else(|| anyhow!("at least one page required"))
+}
+
 fn apply_site_patch(
     doc: &mut Value,
+    page_path: Option<&str>,
     action: &str,
     block_id: &str,
     after_block_id: &str,
@@ -792,7 +1315,7 @@ fn apply_site_patch(
                 bail!("block_id is required for delete_block");
             }
             let pages = doc.get_mut("pages").and_then(|v| v.as_array_mut()).ok_or_else(|| anyhow!("doc.pages required"))?;
-            let page = pages.first_mut().ok_or_else(|| anyhow!("at least one page required"))?;
+            let page = resolve_target_page_mut(pages, page_path)?;
             let blocks = page.get_mut("blocks").and_then(|v| v.as_array_mut()).ok_or_else(|| anyhow!("page.blocks required"))?;
             if blocks.len() <= 1 {
                 bail!("cannot delete the only remaining block on the page");
@@ -811,7 +1334,7 @@ fn apply_site_patch(
         "insert_block" => {
             let new_block = block.ok_or_else(|| anyhow!("block object required for insert_block"))?;
             let pages = doc.get_mut("pages").and_then(|v| v.as_array_mut()).ok_or_else(|| anyhow!("doc.pages required"))?;
-            let page = pages.first_mut().ok_or_else(|| anyhow!("at least one page required"))?;
+            let page = resolve_target_page_mut(pages, page_path)?;
             let blocks = page.get_mut("blocks").and_then(|v| v.as_array_mut()).ok_or_else(|| anyhow!("page.blocks required"))?;
 
             if !after_block_id.trim().is_empty() {
@@ -829,7 +1352,7 @@ fn apply_site_patch(
         _ => {
             // default: "update_block"
             let pages = doc.get_mut("pages").and_then(|v| v.as_array_mut()).ok_or_else(|| anyhow!("doc.pages required"))?;
-            let page = pages.first_mut().ok_or_else(|| anyhow!("at least one page required"))?;
+            let page = resolve_target_page_mut(pages, page_path)?;
             let blocks = page.get_mut("blocks").and_then(|v| v.as_array_mut()).ok_or_else(|| anyhow!("page.blocks required"))?;
 
             let effective_id = if block_id.trim().is_empty() && blocks.len() == 1 {
@@ -879,14 +1402,30 @@ pub async fn site_create_exec(ctx: &ToolContext, args: &Value) -> Result<Value> 
     }
     let tagline = args.get("tagline").and_then(|v| v.as_str()).unwrap_or("").trim();
     let theme_name = args.get("theme").and_then(|v| v.as_str()).unwrap_or("dark").trim();
+    let logo_url = args
+        .get("logo_url")
+        .or_else(|| args.get("pic"))
+        .or_else(|| args.get("logo"))
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or("");
     let requested_alien_id = args.get("alien_id").and_then(|v| v.as_str()).map(str::trim).filter(|s| !s.is_empty());
+    let template = args
+        .get("template")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or("hub");
 
-    let base_slug = match requested_alien_id {
-        Some(req) => site_slug_generate(req),
-        None => site_slug_generate(name),
-    };
-    let alien_id = site_slug_ensure_unique(&ctx.pool, &base_slug, None).await?;
     let site_iid = snowflake_id();
+    let alien_id = match requested_alien_id {
+        Some(req) => {
+            let base_slug = site_slug_generate(req);
+            site_slug_ensure_unique(&ctx.pool, &base_slug, None).await?
+        }
+        None => site_iid.to_string(),
+    };
     let owner_iid = ctx.owner_iid;
 
     let mut tx = ctx.pool.begin().await?;
@@ -895,12 +1434,13 @@ pub async fn site_create_exec(ctx: &ToolContext, args: &Value) -> Result<Value> 
     sqlx::query(
         r#"
         INSERT INTO ai.identity (id, kind, type, alien_id, name, pic, owner_iid, locale, tz, created_ts, updated_ts)
-        VALUES ($1, 'site', 'web', $2, $3, '', $4, 'en_US', 'UTC', NOW(), NOW())
+        VALUES ($1, 'site', 'web', $2, $3, NULLIF($4, ''), $5, 'en_US', 'UTC', NOW(), NOW())
         "#,
     )
     .bind(site_iid)
     .bind(&alien_id)
     .bind(name)
+    .bind(logo_url)
     .bind(owner_iid)
     .execute(&mut *tx)
     .await?;
@@ -951,43 +1491,88 @@ pub async fn site_create_exec(ctx: &ToolContext, args: &Value) -> Result<Value> 
         _ => "#F97316",
     };
 
+    let subtitle = if tagline.is_empty() {
+        format!("Selamat datang di {name}")
+    } else {
+        tagline.to_string()
+    };
+    let blocks = if template.eq_ignore_ascii_case("landing") {
+        json!([
+            {
+                "id": "hero1",
+                "type": "hero",
+                "props": {
+                    "title": name,
+                    "subtitle": subtitle,
+                    "cta_label": "Kunjungi",
+                    "cta_href": "#contact",
+                    "pic": logo_url
+                }
+            },
+            {
+                "id": "features1",
+                "type": "markdown",
+                "props": {
+                    "content": format!("### Tentang {name}\nKualitas dan pelayanan terbaik untuk Anda.")
+                }
+            },
+            {
+                "id": "contact1",
+                "type": "contact_form",
+                "props": {
+                    "title": "Hubungi Kami",
+                    "submit_label": "Kirim Pesan"
+                }
+            }
+        ])
+    } else {
+        json!([
+            {
+                "id": "hub1",
+                "type": "hub_profile",
+                "props": {
+                    "title": name,
+                    "subtitle": subtitle,
+                    "pic": logo_url
+                }
+            },
+            {
+                "id": "links1",
+                "type": "links",
+                "props": {
+                    "title": "Link",
+                    "links": []
+                }
+            },
+            {
+                "id": "social1",
+                "type": "social_feed",
+                "props": {
+                    "title": "Update",
+                    "limit": 10
+                }
+            },
+            {
+                "id": "grid1",
+                "type": "product_grid",
+                "props": {
+                    "filter": "all",
+                    "page_size": 12
+                }
+            }
+        ])
+    };
     let initial_doc = json!({
         "pages": [
             {
                 "path": "/",
                 "title": name,
-                "blocks": [
-                    {
-                        "id": "hero1",
-                        "type": "hero",
-                        "props": {
-                            "title": name,
-                            "subtitle": if tagline.is_empty() { format!("Selamat datang di {name}") } else { tagline.to_string() },
-                            "cta_label": "Kunjungi",
-                            "cta_href": "#contact"
-                        }
-                    },
-                    {
-                        "id": "features1",
-                        "type": "markdown",
-                        "props": {
-                            "content": format!("### Tentang {name}\nKualitas dan pelayanan terbaik untuk Anda.")
-                        }
-                    },
-                    {
-                        "id": "contact1",
-                        "type": "contact_form",
-                        "props": {
-                            "title": "Hubungi Kami",
-                            "submit_label": "Kirim Pesan"
-                        }
-                    }
-                ]
+                "blocks": blocks
             }
         ],
         "theme": {
             "accent": accent_color,
-            "layout": "clean"
+            "layout": if template.eq_ignore_ascii_case("landing") { "clean" } else { "hub" }
         },
         "meta": {
             "seo_title": name,
@@ -1017,12 +1602,23 @@ pub async fn site_create_exec(ctx: &ToolContext, args: &Value) -> Result<Value> 
 
     tx.commit().await?;
 
+    let (preview_token, preview_expires_ts_ms) =
+        site_preview_token_issue(&ctx.pool, owner_iid, site_iid, 3600).await?;
+    let preview_url = format!(
+        "https://alienai.id/{alien_id}?draft=1&ptoken={}",
+        urlencoding::encode(&preview_token)
+    );
+    let url = format!("alienai.id/{alien_id}");
+
     Ok(json!({
         "ok": true,
         "site_iid": site_iid,
         "alien_id": alien_id,
         "name": name,
-        "url": format!("alienai.id/{alien_id}"),
+        "url": url,
+        "preview_token": preview_token,
+        "preview_expires_ts_ms": preview_expires_ts_ms,
+        "preview_url": preview_url,
         "block": {
             "kind": "site.preview",
             "collapsed": false,
@@ -1030,7 +1626,10 @@ pub async fn site_create_exec(ctx: &ToolContext, args: &Value) -> Result<Value> 
                 "site_iid": site_iid,
                 "alien_id": alien_id,
                 "name": name,
-                "url": format!("alienai.id/{alien_id}"),
+                "url": url,
+                "preview_token": preview_token,
+                "preview_expires_ts_ms": preview_expires_ts_ms,
+                "preview_url": preview_url,
                 "theme": theme_name,
                 "doc": initial_doc
             }
@@ -1042,6 +1641,7 @@ pub async fn site_patch_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
     let site_iid = site_iid_resolve(ctx, args)?;
     let owner_iid = site_grant_owner(&ctx.pool, ctx.owner_iid, site_iid).await?;
     let action = args.get("action").and_then(|v| v.as_str()).unwrap_or("update_block").trim().to_lowercase();
+    let page_path = args.get("page_path").or_else(|| args.get("path")).and_then(|v| v.as_str());
     let block_id = args.get("block_id").and_then(|v| v.as_str()).unwrap_or("").trim();
     let after_block_id = args.get("after_block_id").and_then(|v| v.as_str()).unwrap_or("").trim();
     let block = args.get("block");
@@ -1060,6 +1660,7 @@ pub async fn site_patch_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
     let mut doc = draft_row;
     let summary = apply_site_patch(
         &mut doc,
+        page_path,
         &action,
         block_id,
         after_block_id,
@@ -1116,8 +1717,8 @@ pub async fn site_patch_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
 
 pub async fn site_handle_update_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
     let site_iid = site_iid_resolve(ctx, args)?;
-    let _ = site_grant_owner(&ctx.pool, ctx.owner_iid, site_iid).await?;
-    let new_alien_id_raw = args.get("new_alien_id")
+    let new_alien_id_raw = args
+        .get("new_alien_id")
         .or_else(|| args.get("alien_id"))
         .or_else(|| args.get("handle"))
         .and_then(|v| v.as_str())
@@ -1126,32 +1727,23 @@ pub async fn site_handle_update_exec(ctx: &ToolContext, args: &Value) -> Result<
     if new_alien_id_raw.is_empty() {
         bail!("new_alien_id is required");
     }
-    let clean_slug = site_slug_generate(new_alien_id_raw);
-    let unique_slug = site_slug_ensure_unique(&ctx.pool, &clean_slug, Some(site_iid)).await?;
-    if unique_slug != clean_slug {
-        bail!("Handle '@{clean_slug}' is already taken. Suggested available alternative: '@{unique_slug}'");
-    }
-
-    let mut tx = ctx.pool.begin().await?;
-    sqlx::query("UPDATE ai.identity SET alien_id = $1, updated_ts = NOW() WHERE id = $2")
-        .bind(&unique_slug)
-        .bind(site_iid)
-        .execute(&mut *tx)
-        .await?;
-
-    sqlx::query("UPDATE site.config SET alien_id_changed_ts = NOW(), updated_ts = NOW() WHERE site_iid = $1")
-        .bind(site_iid)
-        .execute(&mut *tx)
-        .await?;
-
-    tx.commit().await?;
-
+    let res = site_handle_put(
+        &ctx.pool,
+        ctx.owner_iid,
+        ReqSiteHandlePut {
+            site_iid,
+            new_alien_id: new_alien_id_raw.to_string(),
+        },
+    )
+    .await?;
+    let unique_slug = res.alien_id;
+    let url = res.url;
     Ok(json!({
         "ok": true,
         "site_iid": site_iid,
         "alien_id": unique_slug,
-        "url": format!("alienai.id/{unique_slug}"),
-        "message": format!("Site handle updated to @{unique_slug} (URL: alienai.id/{unique_slug})")
+        "url": url,
+        "message": format!("Site handle updated to @{unique_slug} (URL: {url})")
     }))
 }
 
@@ -1159,7 +1751,7 @@ tool! {
     struct: SiteCreateTool,
     name: "site.create",
     aliases: ["site_create", "site.new"],
-    description: "Create a new website identity, draft, and live preview block. Automatically generates a unique URL handle/slug from the name.",
+    description: "Create a new website identity, draft, and live preview block. Default public path is the site numeric ID (alienai.id/{id}); pass alien_id for a custom handle/slug.",
     topics: ["web.builder"],
     always: ["web.builder"],
     ui_calling_key: "tool.site.create.calling",
@@ -1169,6 +1761,8 @@ tool! {
         alien_id: (string, "Optional custom handle/slug for URL (alienai.id/handle)", optional, default = ""),
         tagline: (string, "Short tagline or business description", optional, default = ""),
         theme: (string, "Visual theme: 'dark' (default), 'emerald', 'indigo', or 'sunset'", optional, default = "dark"),
+        logo_url: (string, "Logo image URL or /fs/{hash} from user upload; sets site pic + hero image", optional, default = ""),
+        template: (string, "Layout template: 'hub' (default) or 'landing' (hero page)", optional, default = "hub"),
     },
     execute: |args, ctx| {
         site_create_exec(ctx, &args).await
@@ -1244,6 +1838,69 @@ mod tests {
     }
 
     #[test]
+    fn test_site_config_put_definition() {
+        let tool = SiteConfigPutTool;
+        let def = tool.definition();
+        assert_eq!(def.name, "site.config.put");
+        assert!(def.aliases.contains(&"site_config_put".to_string()));
+        assert_eq!(def.requires_kinds, vec!["site".to_string()]);
+        assert_eq!(def.topics, vec!["web.builder".to_string()]);
+    }
+
+    #[test]
+    fn test_site_product_delete_definition() {
+        let tool = SiteProductDeleteTool;
+        let def = tool.definition();
+        assert_eq!(def.name, "site.product.delete");
+        assert!(def.aliases.contains(&"site_product_delete".to_string()));
+        assert_eq!(def.requires_kinds, vec!["site".to_string()]);
+        assert!(def.topics.contains(&"web.builder".to_string()));
+    }
+
+    #[test]
+    fn test_site_product_patch_definition() {
+        let tool = SiteProductPatchTool;
+        let def = tool.definition();
+        assert_eq!(def.name, "site.product.patch");
+        assert!(def.parameters["properties"].get("deleted").is_some());
+    }
+
+    #[test]
+    fn test_site_contact_delete_definition() {
+        let tool = SiteContactDeleteTool;
+        let def = tool.definition();
+        assert_eq!(def.name, "site.contact.delete");
+        assert_eq!(def.requires_kinds, vec!["site".to_string()]);
+    }
+
+    #[test]
+    fn test_site_object_delete_definition() {
+        let tool = SiteObjectDeleteTool;
+        let def = tool.definition();
+        assert_eq!(def.name, "site.object.delete");
+        assert_eq!(def.requires_kinds, vec!["site".to_string()]);
+    }
+
+    #[test]
+    fn test_site_product_embed_put_definition() {
+        let tool = SiteProductEmbedPutTool;
+        let def = tool.definition();
+        assert_eq!(def.name, "site.product_embed.put");
+        assert!(def.aliases.contains(&"site_product_embed_put".to_string()));
+        assert_eq!(def.requires_kinds, vec!["site".to_string()]);
+        assert_eq!(def.topics, vec!["web.builder".to_string()]);
+    }
+
+    #[test]
+    fn test_site_capabilities_merge_flags() {
+        let args = json!({ "commerce": true, "queue": false });
+        let merged = site_capabilities_merge(&args, json!({ "booking": true })).unwrap();
+        assert_eq!(merged["commerce"], true);
+        assert_eq!(merged["booking"], true);
+        assert_eq!(merged["queue"], false);
+    }
+
+    #[test]
     fn test_apply_site_patch_update_and_insert() {
         let mut doc = json!({
             "pages": [{
@@ -1268,6 +1925,7 @@ mod tests {
         // 1. Update block props
         let res = apply_site_patch(
             &mut doc,
+            None,
             "update_block",
             "hero1",
             "",
@@ -1288,6 +1946,7 @@ mod tests {
         });
         let res = apply_site_patch(
             &mut doc,
+            None,
             "insert_block",
             "",
             "hero1",
@@ -1303,6 +1962,7 @@ mod tests {
         // 3. Patch theme
         let res = apply_site_patch(
             &mut doc,
+            None,
             "patch_theme",
             "",
             "",
@@ -1317,6 +1977,7 @@ mod tests {
         // 4. Delete block
         let res = apply_site_patch(
             &mut doc,
+            None,
             "delete_block",
             "feat1",
             "",
@@ -1327,6 +1988,43 @@ mod tests {
         );
         assert!(res.is_ok());
         assert_eq!(doc["pages"][0]["blocks"].as_array().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn test_apply_site_patch_multi_page() {
+        let mut doc = json!({
+            "pages": [
+                {
+                    "path": "/",
+                    "title": "Home",
+                    "blocks": [
+                        { "id": "h1", "type": "hero", "props": { "title": "Home Page" } }
+                    ]
+                },
+                {
+                    "path": "/about",
+                    "title": "About",
+                    "blocks": [
+                        { "id": "a1", "type": "markdown", "props": { "content": "About us" } }
+                    ]
+                }
+            ]
+        });
+
+        let res = apply_site_patch(
+            &mut doc,
+            Some("/about"),
+            "update_block",
+            "a1",
+            "",
+            None,
+            Some(&json!({ "content": "Updated about us" })),
+            None,
+            None,
+        );
+        assert!(res.is_ok());
+        assert_eq!(doc["pages"][1]["blocks"][0]["props"]["content"], "Updated about us");
+        assert_eq!(doc["pages"][0]["blocks"][0]["props"]["title"], "Home Page");
     }
 }
 

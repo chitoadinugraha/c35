@@ -67,9 +67,12 @@ pub use staff_debug::{
     AdminLogTailTool, AdminMsgFindTool, AdminMsgGetTool, AdminTraceGetTool,
 };
 pub use site::{
-    SiteContactPutTool, SiteCreateTool, SiteDomainPutTool, SiteDomainVerifyTool, SiteDraftGetTool,
-    SiteDraftPutTool, SiteHandleUpdateTool, SiteObjectPutTool, SitePatchTool, SiteProductPatchTool,
-    SiteProductPutTool, SitePublishTool,
+    SiteConfigPutTool, SiteContactDeleteTool, SiteContactPutTool, SiteCreateTool, SiteDomainPutTool,
+    SiteLinkDeleteTool, SiteLinkPutTool,
+    SiteDomainVerifyTool, SiteDraftGetTool, SiteDraftPutTool, SiteGrantDeleteTool, SiteGrantPutTool,
+    SiteHandleUpdateTool, SiteObjectDeleteTool, SiteObjectPutTool, SitePatchTool,
+    SiteProductDeleteTool, SiteProductEmbedPutTool, SiteProductPatchTool, SiteProductPutTool,
+    SitePublishTool,
 };
 pub use site_query::SiteQueryRunTool;
 pub use site_tx::{

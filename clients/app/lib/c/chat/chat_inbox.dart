@@ -159,7 +159,9 @@ class MsgUsageStats {
   final int durationMs;
   final double costUsd;
   final String model;
-  bool get hasData => tokensIn > 0 || tokensOut > 0 || durationMs > 0 || costUsd > 0 || model.isNotEmpty;
+  bool get hasMetrics => tokensIn > 0 || tokensOut > 0 || durationMs > 0 || costUsd > 0;
+
+  bool get hasData => hasMetrics || model.isNotEmpty;
 }
 
 MsgUsageStats msgUsageStats(MsgRow m) {

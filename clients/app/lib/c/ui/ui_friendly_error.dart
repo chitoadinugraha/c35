@@ -35,6 +35,22 @@ bool uiIsConnectionError(String raw) {
       lower == 'connection failed';
 }
 
+bool uiIsQuotaError(Object error) {
+  final s = error.toString().toLowerCase();
+  if (s.isEmpty) return false;
+  return s.contains('quota') ||
+      s.contains('allowance exhausted') ||
+      s.contains('freemium daily limit') ||
+      s.contains('free daily limit') ||
+      s.contains('daily message limit') ||
+      s.contains('insufficient safe balance') ||
+      s.contains('not enough balance or quota') ||
+      s.contains('not enough balance') ||
+      s.contains('reached your 5-hour') ||
+      s.contains('reached your weekly') ||
+      s.contains('out of quota');
+}
+
 String uiReferralError(Object error, {required String fallback}) {
   var s = error.toString();
   if (s.startsWith('Exception: ')) s = s.substring('Exception: '.length);
@@ -77,17 +93,24 @@ String uiFriendlyError(Object error, {String fallback = 'Something went wrong. P
   if (lower.contains('unauthorized') || lower.contains('invalid session')) {
     return 'Your session expired. Sign out and sign in again.';
   }
+  if (lower.contains('freemium daily limit') || lower.contains('daily message limit')) {
+    return "You've reached your free daily message limit. Upgrade your plan to continue.";
+  }
   if (lower.contains('5-hour allowance exhausted') || lower.contains('5h quota')) {
-    return "You've reached your 5-hour quota allowance. Please top up your wallet balance or wait for the 5-hour window to reset.";
+    return "You've reached your 5-hour quota allowance. Upgrade your plan or wait for the window to reset.";
   }
   if (lower.contains('weekly allowance exhausted') || lower.contains('weekly quota')) {
-    return "You've reached your weekly quota allowance. Please top up your wallet balance or wait for next week's quota reset.";
+    return "You've reached your weekly quota allowance. Upgrade your plan or wait for next week's quota reset.";
   }
-  if (lower.contains('insufficient safe balance') || lower.contains('not enough balance or quota')) {
-    return "Not enough balance or quota. Please top up your wallet balance to continue.";
+  if (lower.contains('insufficient safe balance') || lower.contains('not enough balance or quota') || lower.contains('not enough balance')) {
+    return "You're out of quota. Upgrade your plan or top up your balance to continue.";
   }
-  if (lower.contains('quota exceeded')) {
-    return "Quota limit reached. Please top up your wallet balance or wait for your quota to reset.";
+  if (lower.contains('billing quota exhausted') ||
+      lower.contains('quota exceeded') ||
+      lower.contains('out of quota') ||
+      lower.contains('scoped quota exceeded') ||
+      lower.contains('bot message quota exceeded')) {
+    return "You're out of quota. Upgrade your plan or wait for your quota to reset.";
   }
   if (uiIsRecoverableDeviceContextError(s)) {
     return fallback;

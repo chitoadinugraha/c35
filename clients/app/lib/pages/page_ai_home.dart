@@ -57,7 +57,6 @@ import 'package:alienai_c35/pages/page_settings.dart';
 import 'package:alienai_c35/pages/referral/page_referral_tree.dart';
 import 'package:alienai_c35/widgets/auth/ui_ai_disclaimer_dialog.dart';
 import 'package:alienai_c35/widgets/referral/ui_referral_claim_dialog.dart';
-import 'package:alienai_c35/widgets/settings/ui_location_consent_dialog.dart';
 import 'package:alienai_c35/widgets/referral/ui_referral_commission_sheet.dart';
 import 'package:alienai_c35/widgets/ai/composer_mention_text.dart';
 import 'package:alienai_c35/widgets/ai/ui_assistant_model_chip.dart';
@@ -83,6 +82,7 @@ import 'package:alienai_c35/widgets/ai/ui_user_bubble.dart';
 import 'package:alienai_c35/widgets/billing/ui_billing_history_sheet.dart';
 import 'package:alienai_c35/widgets/billing/ui_billing_plan_sheet.dart';
 import 'package:alienai_c35/widgets/chat/ui_chat_timeline.dart';
+import 'package:alienai_c35/widgets/sites/ui_sites_picker_dialog.dart';
 import 'package:alienai_c35/widgets/ui/ui_account_menu.dart';
 import 'package:alienai_c35/widgets/ui/ui_conn_wifi.dart';
 import 'package:alienai_c35/widgets/ui/ui_safe_area.dart';
@@ -146,7 +146,10 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   String? _selectedPlain;
   String? _uiLang;
   Timer? _promptWatchdog;
+  ChatConnStatus? _connStatusLast;
+  VoidCallback? _connStatusListener;
   var _talkRecording = false;
+  var _onboardingConsentInFlight = false;
   final _talkStaged = <StagedMedia>[];
 
   @override
@@ -157,6 +160,9 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     TtsService.instance.bindVoiceApi(_voiceApi);
     if (Session.instance.modelId.isNotEmpty) _model = AgentModel.of(Session.instance.modelId, _store.models);
     _timeline.attach();
+    _connStatusLast = _conn.status.value;
+    _connStatusListener = _onConnStatusChanged;
+    _conn.status.addListener(_connStatusListener!);
     _reconnectedSub = _conn.onReconnected.listen((_) {
       unawaited(_refreshConnSession());
     });
@@ -187,6 +193,24 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   void _onServerHostChanged() {
     if (!mounted || !Session.instance.signedIn) return;
     unawaited(_connConnect());
+  }
+
+  void _onConnStatusChanged() {
+    final s = _conn.status.value;
+    final prev = _connStatusLast;
+    _connStatusLast = s;
+    if (s == ChatConnStatus.connected) return;
+    if (prev != ChatConnStatus.connected && prev != ChatConnStatus.connecting) return;
+    _promptCutOnDisconnect();
+  }
+
+  void _promptCutOnDisconnect() {
+    final cid = _store.promptChatId ?? _store.activeChatId;
+    if (cid == null || !_store.promptBusyFor(cid)) return;
+    _promptWatchdogCancel();
+    _talkTtsQueue?.cancel();
+    _store.msgStreamFail(uiConnectionFailed, chatId: cid);
+    if (mounted) setState(() {});
   }
 
   Future<void> _connConnect() async {
@@ -338,10 +362,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
 
   Future<void> _checkPostSignInPrompts() async {
     if (!mounted || !Session.instance.signedIn) return;
-    if (!await AiDisclaimerPrefs.instance.acknowledged) {
-      if (!mounted) return;
-      await UiAiDisclaimerDialog.show(context);
-    }
+    await _checkOnboardingConsent();
     if (!mounted) return;
     _checkReferralPrompt();
   }
@@ -422,6 +443,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _promptWatchdogCancel();
+    if (_connStatusListener != null) _conn.status.removeListener(_connStatusListener!);
     SttService.instance.bindVoiceApi(null);
     TtsService.instance.bindVoiceApi(null);
     _syncSub?.cancel();
@@ -481,19 +503,36 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     } finally {
       if (mounted) setState(() => _modelsReady = true);
     }
-    if (mounted) unawaited(_checkLocationConsent());
   }
 
-  Future<void> _checkLocationConsent() async {
-    if (!mounted) return;
-    if (kIsWeb || (defaultTargetPlatform != TargetPlatform.android && defaultTargetPlatform != TargetPlatform.iOS)) return;
+  bool _onboardingNeedsLocationPrompt() {
+    if (kIsWeb || (defaultTargetPlatform != TargetPlatform.android && defaultTargetPlatform != TargetPlatform.iOS)) return false;
+    if (UserLocationPrefs.instance.asked) return false;
+    if (UserLocalePrefs.instance.locationCity.isNotEmpty) return false;
+    return true;
+  }
+
+  Future<void> _checkOnboardingConsent() async {
+    if (!mounted || !Session.instance.signedIn || _onboardingConsentInFlight) return;
     await UserLocationPrefs.instance.load();
     if (!mounted) return;
-    if (UserLocationPrefs.instance.asked) return;
-    if (UserLocalePrefs.instance.locationCity.isNotEmpty) return;
-    final continueFlow = await UiLocationConsentDialog.show(context);
-    await UserLocationPrefs.instance.put(asked: true);
-    if (continueFlow != true) return;
+    final needTerms = !await AiDisclaimerPrefs.instance.acknowledged;
+    final needLocation = _onboardingNeedsLocationPrompt();
+    if (!needTerms && !needLocation) return;
+    if (!mounted) return;
+    _onboardingConsentInFlight = true;
+    try {
+      final result = await UiAiDisclaimerDialog.show(context, needTerms: needTerms, needLocation: needLocation);
+      if (!mounted || result == null) return;
+      if (needTerms) await AiDisclaimerPrefs.instance.acknowledgePut();
+      if (needLocation) await UserLocationPrefs.instance.put(asked: true);
+      if (result.locationOptIn) await _applyDeviceLocationFromConsent();
+    } finally {
+      _onboardingConsentInFlight = false;
+    }
+  }
+
+  Future<void> _applyDeviceLocationFromConsent() async {
     final granted = await locationPermissionEnsure();
     if (!granted) {
       if (!mounted) return;
@@ -782,7 +821,19 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
 
   void _openDevices() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageDevices(chatConn: _conn)));
 
-  void _openSites() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageSites(chatConn: _conn)));
+  void _openSites() => uiSitesPickerOpen(
+        context: context,
+        chatConn: _conn,
+        onEdit: (siteIid) => _openSiteAdmin(siteIid, initialTabRoute: null),
+        onPos: (siteIid) => _openSiteAdmin(siteIid, initialTabRoute: 'site.pos'),
+      );
+
+  void _openSiteAdmin(String siteIid, {String? initialTabRoute}) => Navigator.push(
+        context,
+        MaterialPageRoute<void>(
+          builder: (_) => PageSites(chatConn: _conn, siteIid: siteIid, initialTabRoute: initialTabRoute),
+        ),
+      );
 
   void _openMail() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageMail(chatConn: _conn)));
 
@@ -906,7 +957,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     await Navigator.push(
       context,
       MaterialPageRoute<void>(
-        builder: (_) => PageSites(chatConn: _conn, initialSiteIid: siteIid, initialTabRoute: route),
+        builder: (_) => PageSites(chatConn: _conn, siteIid: siteIid, initialTabRoute: route),
       ),
     );
   }
@@ -1004,18 +1055,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     final now = DateTime.now().millisecondsSinceEpoch;
     final reqId = const Uuid().v4();
     final mentionIdsJson = msgMentionIdsEncode(wireMentionIds);
-    final replaceFailedTurn = !retry && _store.msgCanReplaceFailedTurn(chatId);
-    if (replaceFailedTurn) _store.msgReplaceFailedTurnPrep(chatId);
     if (retry) {
-      _store.msgUserTurnRetry(
-        chatId: chatId,
-        content: uiContent,
-        attachments: attachments,
-        reqId: reqId,
-        createdAtMs: now,
-        mentionIdsJson: mentionIdsJson,
-      );
-    } else if (replaceFailedTurn) {
       _store.msgUserTurnRetry(
         chatId: chatId,
         content: uiContent,
@@ -1286,7 +1326,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   String _activeChatTitle() {
     final chat = _activeChat;
     if (chat == null) return '';
-    return chatTitleDisplay(chat.title);
+    return chatTitleDisplay(chat.title, mentions: _store.mentionCatalog.mentions);
   }
 
   Widget _threadContextMenu(BuildContext ctx, SelectableRegionState state) {
@@ -1306,7 +1346,6 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       state,
       plainText: plain,
       selectedText: _selectedPlain,
-      onCopySemua: () => _copyChatSemua(messages),
       viewerIsRoot: sessionViewerIsRoot(),
       isAssistant: !isUser,
       reqId: m.reqId,
@@ -1357,20 +1396,13 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         padding: const EdgeInsets.symmetric(horizontal: 8),
         child: Row(
           children: [
-            if (!wide) ...[
+            if (!wide)
               uiIconButton(
                 tooltip: 'Chats',
                 color: _muted,
                 icon: const Icon(Icons.menu_rounded),
                 onPressed: () => _scaffoldKey.currentState?.openDrawer(),
               ),
-              uiIconButton(
-                tooltip: 'New chat',
-                color: _muted,
-                icon: const Icon(Icons.add_rounded),
-                onPressed: _newChat,
-              ),
-            ],
             Expanded(
               child: title.isEmpty
                   ? const SizedBox.shrink()
@@ -1412,6 +1444,13 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
                     child: const Text('Summarized', style: TextStyle(color: Color(0xFFA1A1AA), fontSize: 11)),
                   ),
                 ),
+              ),
+            if (!wide)
+              uiIconButton(
+                tooltip: 'New chat',
+                color: _muted,
+                icon: const Icon(Icons.add_rounded),
+                onPressed: _newChat,
               ),
             Builder(builder: _chatHeaderAccountTrailing),
           ],
@@ -1693,6 +1732,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       stagedCount: _talkStaged.length,
       modelProvider: _model.provider,
       modelAccent: _model.accent,
+      model: _model,
     );
   }
 
@@ -1700,7 +1740,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         child: Padding(
           padding: EdgeInsets.fromLTRB(16, 0, 16, uiSafeBottomInset(context, 16)),
           child: InComposer(
-              key: ValueKey(_store.activeChatId ?? 'new'),
+              key: const ValueKey('chat_composer'),
               controller: _composerCtrl,
               focusNode: _composerFocus,
               model: _model,
@@ -1750,22 +1790,6 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
           ),
         ],
       );
-
-  void _copyChatSemua(List<MsgRow> messages) {
-    final text = msgCopyTranscript(
-      messages: messages,
-      plainText: _plainForMsg,
-      userName: Session.instance.name,
-      models: _store.models,
-      modelId: (m) => m.role == 'assistant' ? (m.model.isNotEmpty ? m.model : _model.id) : '',
-    );
-    if (text.isEmpty) return;
-    Clipboard.setData(ClipboardData(text: text));
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('chat.copySemuaDone'.tr()), behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 1)),
-    );
-  }
 
   String _plainForMsg(MsgRow m) {
     final parts = <String>[];
@@ -1823,6 +1847,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
               text: thoughtView.thought!,
               thinking: inThoughtPhase,
               startedAtMs: promptingThis ? _store.promptStartedAtMs : null,
+              liveLabel: inThoughtPhase ? _model.thinkingStatusLabel : null,
             ),
           if (showTraceChips)
             UiMsgTraceLoader(
@@ -1875,6 +1900,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
             UiMsgBlocks(
               msgId: m.id,
               blocks: blocks,
+              chatConn: _conn,
               consumptionApi: _consumptionApi,
               expenseApi: _expenseApi,
               locale: locale,
@@ -1901,7 +1927,8 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  UiMsgUsage(
+                  UiMsgUsageWithTrace(
+                    conn: _conn,
                     msg: usageMsg,
                     streaming: usageStreaming,
                     billingCurrency: AppStore.instance.wallet.billingCurrency,
@@ -1956,29 +1983,36 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     }
   }
 
-  void _liveCallStart(LiveOffer offer) => Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          fullscreenDialog: true,
-          builder: (_) => PageLiveCall(
-            conn: _conn,
-            offer: offer,
-            chatId: _store.activeChatId,
-            chatStore: _store,
-            mentionIds: _mentionIds.toList(),
-            mentionLabel: _primaryMentionLabel(),
-            onMentions: (ids) {
-              if (!mounted) return;
-              setState(() {
-                _mentionIds
-                  ..clear()
-                  ..addAll(ids);
-              });
-              final chatId = _store.activeChatId;
-              if (chatId != null) _store.chatStickyMentionsPut(chatId, ids);
-            },
-          ),
+  void _liveCallStart(LiveOffer offer) {
+    if (_talkRecording) {
+      unawaited(_talkMicCancel());
+    } else if (SttService.instance.isRecording.value) {
+      unawaited(SttService.instance.cancel());
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (_) => PageLiveCall(
+          conn: _conn,
+          offer: offer,
+          chatId: _store.activeChatId,
+          chatStore: _store,
+          mentionIds: _mentionIds.toList(),
+          mentionLabel: _primaryMentionLabel(),
+          onMentions: (ids) {
+            if (!mounted) return;
+            setState(() {
+              _mentionIds
+                ..clear()
+                ..addAll(ids);
+            });
+            final chatId = _store.activeChatId;
+            if (chatId != null) _store.chatStickyMentionsPut(chatId, ids);
+          },
         ),
-      );
+      ),
+    );
+  }
 
   Widget _threadHero() => ListenableBuilder(
         listenable: Listenable.merge([HintStore.instance, _store]),
@@ -2046,7 +2080,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         ),
       );
 
-  Widget _threadThinkingTail() => UiPromptThinkingIndicator(startedAtMs: _store.promptStartedAtMs);
+  Widget _threadThinkingTail() => UiPromptThinkingIndicator(startedAtMs: _store.promptStartedAtMs, model: _model);
 
   Widget _threadBody() => ListenableBuilder(
         listenable: _store,

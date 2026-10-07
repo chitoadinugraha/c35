@@ -42,11 +42,19 @@ pub const MUSIC_MINIMAX_TRACK_WHOLESALE_USD: f64 = 0.15;
 pub fn billing_to_retail_usd(wholesale_usd: f64) -> f64 { wholesale_usd * RETAIL_MARKUP }
 
 pub fn billing_cost_wholesale_usd(model: &str, tokens_in: i32, tokens_out: i32) -> f64 {
-    model_cost_usd(model, tokens_in, tokens_out)
+    if crate::billing_profile::model_uses_alien_pool(model) {
+        (tokens_in as f64 * 0.075 + tokens_out as f64 * 0.30) / 1_000_000.0
+    } else {
+        model_cost_usd(model, tokens_in, tokens_out)
+    }
 }
 
 pub fn billing_cost_usd(model: &str, tokens_in: i32, tokens_out: i32) -> f64 {
-    billing_to_retail_usd(billing_cost_wholesale_usd(model, tokens_in, tokens_out))
+    if crate::billing_profile::model_uses_alien_pool(model) {
+        crate::billing_pool::pool_alien_deduct_usd(tokens_in, tokens_out)
+    } else {
+        billing_to_retail_usd(billing_cost_wholesale_usd(model, tokens_in, tokens_out))
+    }
 }
 
 /// Embed input retail — charged on cache hit too (avoid cost/timing oracles).

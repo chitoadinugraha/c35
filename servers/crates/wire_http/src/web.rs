@@ -376,6 +376,14 @@ mod tests {
         assert!(dir.join("locales").join("en.json").is_file(), "locales/en.json must exist");
         assert!(dir.join("locales").join("id.json").is_file(), "locales/id.json must exist");
         assert!(dir.join("static").join("starry-night.js").is_file(), "static/starry-night.js must exist");
+        assert!(
+            dir.join("static").join("site-guest").join("site-guest.v1.js").is_file(),
+            "static/site-guest/site-guest.v1.js must exist"
+        );
+        assert!(
+            dir.join("static").join("site-guest").join("site-guest.v1.css").is_file(),
+            "static/site-guest/site-guest.v1.css must exist"
+        );
     }
 
     #[test]

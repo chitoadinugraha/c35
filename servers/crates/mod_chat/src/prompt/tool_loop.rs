@@ -46,7 +46,7 @@ fn append_block(blocks_json: &str, block: Value) -> String {
 }
 
 /// Prune previous desktop screenshots from conversation context so only the latest
-/// observation is retained, avoiding token explosion during multi-step Computer Use.
+/// observation is retained, avoiding token optimization during multi-step Computer Use.
 fn prune_previous_screenshots(contents: &mut [Value]) {
     for msg in contents.iter_mut() {
         if let Some(parts) = msg.get_mut("parts").and_then(|p| p.as_array_mut()) {
@@ -60,6 +60,28 @@ fn prune_previous_screenshots(contents: &mut [Value]) {
                 }
             }
         }
+    }
+}
+
+pub fn truncate_large_tool_payload(val: &mut Value, max_chars: usize) {
+    match val {
+        Value::String(s) => {
+            if s.len() > max_chars {
+                let keep: String = s.chars().take(max_chars).collect();
+                *s = format!("{keep}\n\n[...truncated to fit context budget...]");
+            }
+        }
+        Value::Array(arr) => {
+            for item in arr {
+                truncate_large_tool_payload(item, max_chars);
+            }
+        }
+        Value::Object(map) => {
+            for (_k, v) in map.iter_mut() {
+                truncate_large_tool_payload(v, max_chars);
+            }
+        }
+        _ => {}
     }
 }
 
@@ -328,6 +350,8 @@ pub async fn prompt_cluster_turn(
                 if let Some(img_b64) = maybe_img {
                     latest_img_b64 = Some(img_b64);
                 }
+
+                truncate_large_tool_payload(&mut llm_result, 24_000);
 
                 function_parts.push(json!({
                     "functionResponse": {

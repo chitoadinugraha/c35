@@ -135,6 +135,38 @@ message SiteContact {
   int64 deleted_ts_ms = 22;
 }
 
+message SiteLink {
+  int64 site_iid = 1;
+  int64 link_id = 2;
+  int32 sort_order = 3;
+  string label = 4;
+  string url = 5;
+  string icon = 6;
+  bool is_pinned = 7;
+  bool active = 8;
+
+  int64 created_ts_ms = 20;
+  int64 updated_ts_ms = 21;
+  int64 deleted_ts_ms = 22;
+}
+
+message SitePost {
+  int64 site_iid = 1;
+  int64 post_id = 2;
+  int32 sort_order = 3;
+  string title = 4;
+  string caption = 5;
+  string body = 6;
+  string media_json = 7;
+  bool on_storefront = 8;
+  string thumb = 9;
+  string feed_kind = 10;
+
+  int64 created_ts_ms = 20;
+  int64 updated_ts_ms = 21;
+  int64 deleted_ts_ms = 22;
+}
+
 message SiteObject {
   int64 id = 1;
   int64 site_iid = 2;
@@ -248,6 +280,60 @@ message ResSiteContactPut {
   int64 contact_id = 1;
 }
 
+message ReqSiteLinkList {
+  int64 site_iid = 1;
+}
+
+message ResSiteLinkList {
+  repeated SiteLink links = 1;
+}
+
+message ReqSiteLinkPut {
+  int64 site_iid = 1;
+  SiteLink link = 2;
+}
+
+message ResSiteLinkPut {
+  int64 link_id = 1;
+}
+
+message ReqSiteLinkDelete {
+  int64 site_iid = 1;
+  int64 link_id = 2;
+}
+
+message ResSiteLinkDelete {
+  int64 link_id = 1;
+  bool ok = 2;
+}
+
+message ReqSitePostList {
+  int64 site_iid = 1;
+}
+
+message ResSitePostList {
+  repeated SitePost posts = 1;
+}
+
+message ReqSitePostPut {
+  int64 site_iid = 1;
+  SitePost post = 2;
+}
+
+message ResSitePostPut {
+  int64 post_id = 1;
+}
+
+message ReqSitePostDelete {
+  int64 site_iid = 1;
+  int64 post_id = 2;
+}
+
+message ResSitePostDelete {
+  int64 post_id = 1;
+  bool ok = 2;
+}
+
 message ReqSiteObjectList {
   int64 site_iid = 1;
 }
@@ -304,6 +390,34 @@ message ResSitePreviewToken {
   int64 expires_ts_ms = 2;
 }
 
+message ReqSiteHandlePut {
+  int64 site_iid = 1;
+  string new_alien_id = 2;
+}
+
+message ResSiteHandlePut {
+  int64 site_iid = 1;
+  string alien_id = 2;
+  string url = 3;
+}
+
+// ================================= Guest boot (Flutter + preview hydration)
+
+enum SiteBootMode {
+  SITE_BOOT_MODE_UNSPECIFIED = 0;
+  SITE_BOOT_MODE_DRAFT = 1;
+  SITE_BOOT_MODE_PUBLISHED = 2;
+}
+
+message ReqSiteBootGet {
+  int64 site_iid = 1;
+  SiteBootMode mode = 2;
+}
+
+message ResSiteBootGet {
+  string boot_json = 1;
+}
+
 // ================================= Query catalog (site.query.run)
 
 message SiteQueryRow {
@@ -337,5 +451,29 @@ message ResSiteGuestContactPut {
   bool ok = 1;
   int64 contact_id = 2;
   string error = 3;
+}
+
+// ================================= Guest product catalog (pagination)
+
+message SiteGuestProductItem {
+  int64 product_id = 1;
+  string name = 2;
+  string desc = 3;
+  int64 price = 4;
+  string pic = 5;
+  string category = 6;
+}
+
+message ReqSiteGuestProductList {
+  int64 site_iid = 1;
+  string filter = 2;
+  string category = 3;
+  string cursor = 4;
+  int32 limit = 5;
+}
+
+message ResSiteGuestProductList {
+  repeated SiteGuestProductItem items = 1;
+  string next_cursor = 2;
 }
 

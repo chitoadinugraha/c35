@@ -173,19 +173,38 @@ pub async fn billing_entitlement_recompute(pool: &PgPool, owner_iid: i64) -> Res
         max_expires = Some(max_expires.map(|m| m.max(exp)).unwrap_or(exp));
     }
 
+    let (frontier_5h, frontier_week) = if max_rank > 0 && alien_pool > 0.0 {
+        crate::billing_profile::frontier_rings_from_alien(
+            alien_5h,
+            alien_week,
+            alien_pool,
+            frontier_pool,
+        )
+    } else {
+        (0.0, 0.0)
+    };
+
     sqlx::query(
         r#"
         UPDATE ai.billing_profile
         SET plan_tier = $2,
-            alien_pool_limit_idr = $3,
-            frontier_pool_limit_idr = $4,
-            plan_expires_ts = $5,
+            alien_allow_5h_limit = $3,
+            alien_allow_weekly_limit = $4,
+            frontier_allow_5h_limit = $5,
+            frontier_allow_weekly_limit = $6,
+            alien_pool_limit_idr = $7,
+            frontier_pool_limit_idr = $8,
+            plan_expires_ts = $9,
             updated_ts = NOW()
         WHERE owner_iid = $1 AND deleted_ts IS NULL
         "#,
     )
     .bind(owner_iid)
     .bind(if max_rank > 0 { max_tier.clone() } else { "free".into() })
+    .bind(alien_5h)
+    .bind(alien_week)
+    .bind(frontier_5h)
+    .bind(frontier_week)
     .bind(alien_pool)
     .bind(frontier_pool)
     .bind(max_expires)

@@ -7,8 +7,20 @@ use reqwest::Client;
 use serde_json::{json, Value};
 use tokio_util::sync::CancellationToken;
 
-use c35_mod_llm::{alien_default_model, provider_model_resolve};
+use c35_mod_llm::{alien_default_model, model_is_alien, provider_model_resolve};
 use super::thought::{gemini_thinking_config, parse_candidate, part_is_thought, part_thought_text};
+
+/// Sampling for Gemini chat. Frontier (pinned models) keeps legacy 0.2 / 2048; Alien pool only is warmer.
+pub fn gemini_generation_config(requested_slug: &str, provider_model: &str, thinking: &str) -> Value {
+    let alien = model_is_alien(requested_slug);
+    let temperature = if alien { 0.65 } else { 0.2 };
+    let max_output_tokens = 2048;
+    json!({
+        "maxOutputTokens": max_output_tokens,
+        "temperature": temperature,
+        "thinkingConfig": gemini_thinking_config(provider_model, thinking),
+    })
+}
 
 fn gemini_http() -> &'static Client {
     static CLIENT: OnceLock<Client> = OnceLock::new();
@@ -37,7 +49,8 @@ pub async fn gemini_generate(
     contents: &[Value],
     tools: &Value,
     thinking: &str,
-    model: &str,
+    provider_model: &str,
+    requested_slug: &str,
     system: &str,
     tool_call_mode: &str,
 ) -> Result<super::thought::ParseOut> {
@@ -47,7 +60,7 @@ pub async fn gemini_generate(
     }
     let mut body = json!({
         "contents": contents,
-        "generationConfig": { "maxOutputTokens": 2048, "temperature": 0.2, "thinkingConfig": gemini_thinking_config(model, thinking) }
+        "generationConfig": gemini_generation_config(requested_slug, provider_model, thinking),
     });
     if !system.trim().is_empty() {
         body["systemInstruction"] = json!({ "parts": [{ "text": system }] });
@@ -57,7 +70,7 @@ pub async fn gemini_generate(
         let mode = if tool_call_mode.trim().is_empty() { "AUTO" } else { tool_call_mode.trim() };
         body["toolConfig"] = json!({ "functionCallingConfig": { "mode": mode } });
     }
-    let url = format!("https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}");
+    let url = format!("https://generativelanguage.googleapis.com/v1beta/models/{provider_model}:generateContent?key={key}");
     let v: Value = gemini_http().post(&url).json(&body).send().await?.error_for_status()?.json().await?;
     gemini_response_check(&v)?;
     Ok(parse_candidate(&v))
@@ -115,7 +128,8 @@ pub async fn gemini_generate_stream(
     contents: &[Value],
     tools: &Value,
     thinking: &str,
-    model: &str,
+    provider_model: &str,
+    requested_slug: &str,
     system: &str,
     tool_call_mode: &str,
     on_delta: &mut (dyn FnMut(bool, String) + Send),
@@ -127,7 +141,7 @@ pub async fn gemini_generate_stream(
     }
     let mut body = json!({
         "contents": contents,
-        "generationConfig": { "maxOutputTokens": 2048, "temperature": 0.2, "thinkingConfig": gemini_thinking_config(model, thinking) }
+        "generationConfig": gemini_generation_config(requested_slug, provider_model, thinking),
     });
     if !system.trim().is_empty() {
         body["systemInstruction"] = json!({ "parts": [{ "text": system }] });
@@ -137,7 +151,7 @@ pub async fn gemini_generate_stream(
         let mode = if tool_call_mode.trim().is_empty() { "AUTO" } else { tool_call_mode.trim() };
         body["toolConfig"] = json!({ "functionCallingConfig": { "mode": mode } });
     }
-    let url = format!("https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse&key={key}");
+    let url = format!("https://generativelanguage.googleapis.com/v1beta/models/{provider_model}:streamGenerateContent?alt=sse&key={key}");
     let mut stream = gemini_http().post(&url).json(&body).send().await?.error_for_status()?.bytes_stream();
     let mut buf = String::new();
     let mut last = json!({});
@@ -273,5 +287,13 @@ mod tests {
         let first = gemini_sse_take_block(&mut buf).expect("first block");
         assert_eq!(first, "data: {}");
         assert_eq!(buf, "data: {\"ok\":true}");
+    }
+
+    #[test]
+    fn generation_config_alien_warmer_than_frontier() {
+        let alien = gemini_generation_config("alienai", "gemini-3.1-flash-lite", "off");
+        let frontier = gemini_generation_config("gemini-3.1-flash-lite", "gemini-3.1-flash-lite", "off");
+        assert_eq!(alien["temperature"], 0.65);
+        assert_eq!(frontier["temperature"], 0.2);
     }
 }

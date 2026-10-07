@@ -2,6 +2,7 @@ import 'package:alienai_c35/c/pb/c35/tx.pb.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/material.dart';
+import 'package:alienai_c35/widgets/io/in_money_idr.dart';
 import 'package:flutter/services.dart';
 
 const _border = Color(0xFF27272A);
@@ -58,7 +59,7 @@ class _DialogDiscountState extends State<_DialogDiscount> {
     } else if (init != null && init.amount > Int64.ZERO) {
       _discountType = 'fixed';
       _percentCtrl = TextEditingController();
-      _nominalCtrl = TextEditingController(text: init.amount.toString());
+      _nominalCtrl = TextEditingController(text: moneyFmtIdrGrouped(init.amount.toInt()));
     } else {
       _discountType = 'percent';
       _percentCtrl = TextEditingController();
@@ -83,8 +84,7 @@ class _DialogDiscountState extends State<_DialogDiscount> {
       final clampedP = p.clamp(0.0, 100.0);
       return ((orig * clampedP) / 100).round();
     } else {
-      final clean = _nominalCtrl.text.replaceAll('.', '').replaceAll(',', '').trim();
-      final n = int.tryParse(clean) ?? 0;
+      final n = moneyParseIdrInt(_nominalCtrl.text) ?? 0;
       return n.clamp(0, orig);
     }
   }
@@ -99,7 +99,7 @@ class _DialogDiscountState extends State<_DialogDiscount> {
   void _applyNominalPreset(int nominal) {
     setState(() {
       _discountType = 'fixed';
-      _nominalCtrl.text = nominal.toString();
+      _nominalCtrl.text = moneyFmtIdrGrouped(nominal);
     });
   }
 
@@ -250,7 +250,7 @@ class _DialogDiscountState extends State<_DialogDiscount> {
                 TextFormField(
                   controller: _nominalCtrl,
                   keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  inputFormatters: moneyIdrInputFormatters,
                   autofocus: true,
                   style: const TextStyle(color: _text, fontSize: 18, fontWeight: FontWeight.bold),
                   decoration: InputDecoration(
@@ -277,7 +277,7 @@ class _DialogDiscountState extends State<_DialogDiscount> {
                     spacing: 6,
                     runSpacing: 6,
                     children: nominalPresets.map((n) {
-                      final selected = _nominalCtrl.text == n.toString();
+                      final selected = _nominalCtrl.text == moneyFmtIdrGrouped(n);
                       return ActionChip(
                         label: Text(moneyFmtIdr(n)),
                         labelStyle: TextStyle(

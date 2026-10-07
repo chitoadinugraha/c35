@@ -25,7 +25,8 @@ bool referralCurrencyIsIdr(String currency) => currency.toUpperCase() == 'IDR';
 String referralCommissionAmountLabel(String currency, double usd, double idr) =>
     referralCurrencyIsIdr(currency) ? 'Rp ${moneyFmtIdrGrouped(idr.round())}' : referralUsdLabel(usd);
 
-double? referralWithdrawAmountParse(String raw) => double.tryParse(raw.trim().replaceAll(',', ''));
+double? referralWithdrawAmountParse(String raw, {bool idr = true}) =>
+    idr ? moneyParseIdr(raw) : double.tryParse(raw.trim().replaceAll(',', ''));
 
 String? referralWithdrawAmountValidate(double? amount) => amount == null || amount <= 0 ? 'Amount must be positive' : null;
 

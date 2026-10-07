@@ -96,6 +96,10 @@ pub async fn billing_account_ensure(pool: &PgPool, owner_iid: i64) -> Result<Bil
 }
 
 pub async fn billing_gate(pool: &PgPool, owner_iid: i64) -> Result<BillingRow> {
+    billing_gate_model(pool, owner_iid, None).await
+}
+
+pub async fn billing_gate_model(pool: &PgPool, owner_iid: i64, model: Option<&str>) -> Result<BillingRow> {
     let row = billing_account_ensure(pool, owner_iid).await?;
     if crate::billing_freemium::billing_freemium_applies(pool, owner_iid).await? {
         crate::billing_freemium::billing_freemium_check(pool, owner_iid).await?;
@@ -113,7 +117,15 @@ pub async fn billing_gate(pool: &PgPool, owner_iid: i64) -> Result<BillingRow> {
         if profile_has_rings(&profile) {
             let profile = billing_profile_windows_roll(pool, profile).await?;
             let (alien_rem, frontier_rem) = profile_ring_remaining_usd(&profile.rings);
-            let ring_rem = alien_rem + frontier_rem;
+            let ring_rem = if let Some(m) = model {
+                if crate::billing_profile::model_uses_alien_pool(m) {
+                    alien_rem
+                } else {
+                    frontier_rem
+                }
+            } else {
+                alien_rem + frontier_rem
+            };
             if ring_rem >= DEFAULT_HOLD_USD {
                 return Ok(row);
             }
@@ -200,24 +212,38 @@ pub async fn billing_deduct_personal_profile(
         .bind(row.id)
         .fetch_one(pool)
         .await?;
-        if acct_cur.eq_ignore_ascii_case("IDR") {
+        let (charge_native, cur_str) = if acct_cur.eq_ignore_ascii_case("IDR") {
             let overflow_idr = crate::billing_on_demand::usd_to_native(wallet_charge_usd, fx_micro);
             sqlx::query(
-                "UPDATE ai.billing_account SET balance_idr = balance_idr - $2, updated_ts = NOW() WHERE id = $1",
+                "UPDATE ai.billing_account SET balance_idr = GREATEST(balance_idr - $2, 0), updated_ts = NOW() WHERE id = $1",
             )
             .bind(row.id)
             .bind(overflow_idr)
             .execute(pool)
             .await?;
+            (overflow_idr, "IDR")
         } else {
             sqlx::query(
-                "UPDATE ai.billing_account SET balance_usd = balance_usd - $2, updated_ts = NOW() WHERE id = $1",
+                "UPDATE ai.billing_account SET balance_usd = GREATEST(balance_usd - $2, 0), updated_ts = NOW() WHERE id = $1",
             )
             .bind(row.id)
             .bind(wallet_charge_usd)
             .execute(pool)
             .await?;
-        }
+            (wallet_charge_usd, "USD")
+        };
+        let _ = sqlx::query(
+            r#"
+            UPDATE ai.billing_wallet
+            SET balance = GREATEST(balance - $2, 0), updated_ts = NOW()
+            WHERE owner_iid = $1 AND currency = $3 AND deleted_ts IS NULL
+            "#,
+        )
+        .bind(owner_iid)
+        .bind(charge_native)
+        .bind(cur_str)
+        .execute(pool)
+        .await;
     }
     Ok(billing_fetch(pool, owner_iid).await?.unwrap_or(row))
 }
@@ -386,24 +412,38 @@ pub async fn billing_usage_report(
             .bind(row.id)
             .fetch_one(pool)
             .await?;
-            if acct_cur.eq_ignore_ascii_case("IDR") {
+            let (charge_native, cur_str) = if acct_cur.eq_ignore_ascii_case("IDR") {
                 let overflow_idr = crate::billing_on_demand::usd_to_native(overflow_usd, fx_micro);
                 sqlx::query(
-                    "UPDATE ai.billing_account SET balance_idr = balance_idr - $2, updated_ts = NOW() WHERE id = $1",
+                    "UPDATE ai.billing_account SET balance_idr = GREATEST(balance_idr - $2, 0), updated_ts = NOW() WHERE id = $1",
                 )
                 .bind(row.id)
                 .bind(overflow_idr)
                 .execute(pool)
                 .await?;
+                (overflow_idr, "IDR")
             } else {
                 sqlx::query(
-                    "UPDATE ai.billing_account SET balance_usd = balance_usd - $2, updated_ts = NOW() WHERE id = $1",
+                    "UPDATE ai.billing_account SET balance_usd = GREATEST(balance_usd - $2, 0), updated_ts = NOW() WHERE id = $1",
                 )
                 .bind(row.id)
                 .bind(overflow_usd)
                 .execute(pool)
                 .await?;
-            }
+                (overflow_usd, "USD")
+            };
+            let _ = sqlx::query(
+                r#"
+                UPDATE ai.billing_wallet
+                SET balance = GREATEST(balance - $2, 0), updated_ts = NOW()
+                WHERE owner_iid = $1 AND currency = $3 AND deleted_ts IS NULL
+                "#,
+            )
+            .bind(owner_iid)
+            .bind(charge_native)
+            .bind(cur_str)
+            .execute(pool)
+            .await;
         }
         billing_fetch(pool, owner_iid).await?.unwrap_or(row)
     } else if let Some(b) = bctx {
