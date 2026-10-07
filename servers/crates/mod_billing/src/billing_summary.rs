@@ -3,25 +3,61 @@ use sqlx::{PgPool, Row};
 
 const MICRO_PER_USD: f64 = 1_000_000.0;
 
-pub async fn billing_summary(pool: &PgPool, caller_iid: i64, billing_account_id: i64) -> ResBillingSummary {
-    let _ = crate::billing_profile::billing_profile_repair_rings_v4(pool, caller_iid).await;
-    let plans = billing_plan_list(pool, "user").await.unwrap_or_default();
-    let bot_plans = billing_plan_list(pool, "bot").await.unwrap_or_default();
-    let account_id = if billing_account_id > 0 {
-        billing_account_id
-    } else {
-        match sqlx::query_scalar::<_, i64>(
-            r#"SELECT billing_iid FROM ai.identity WHERE id = $1 AND deleted_ts IS NULL"#,
+async fn billing_summary_resolve_account_id(
+    pool: &PgPool,
+    caller_iid: i64,
+    billing_account_id: i64,
+) -> Option<i64> {
+    if billing_account_id > 0 {
+        let ok = sqlx::query_scalar::<_, Option<i64>>(
+            r#"
+            SELECT id FROM ai.billing_account
+            WHERE id = $1 AND owner_iid = $2 AND deleted_ts IS NULL
+            LIMIT 1
+            "#,
         )
+        .bind(billing_account_id)
         .bind(caller_iid)
         .fetch_optional(pool)
         .await
         .ok()
         .flatten()
-        {
-            Some(id) if id > 0 => id,
-            _ => return billing_summary_default(plans, bot_plans),
-        }
+        .flatten();
+        return ok;
+    }
+    let wallet_owner = sqlx::query_scalar::<_, Option<i64>>(
+        r#"SELECT billing_iid FROM ai.identity WHERE id = $1 AND deleted_ts IS NULL"#,
+    )
+    .bind(caller_iid)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten()
+    .flatten()
+    .filter(|id| *id > 0)
+    .unwrap_or(caller_iid);
+
+    sqlx::query_scalar(
+        r#"
+        SELECT id FROM ai.billing_account
+        WHERE owner_iid = $1 AND deleted_ts IS NULL
+        LIMIT 1
+        "#,
+    )
+    .bind(wallet_owner)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten()
+}
+
+pub async fn billing_summary(pool: &PgPool, caller_iid: i64, billing_account_id: i64) -> ResBillingSummary {
+    let _ = crate::billing_profile::billing_profile_repair_rings_v4(pool, caller_iid).await;
+    let plans = billing_plan_list(pool, "user").await.unwrap_or_default();
+    let bot_plans = billing_plan_list(pool, "bot").await.unwrap_or_default();
+    let account_id = match billing_summary_resolve_account_id(pool, caller_iid, billing_account_id).await {
+        Some(id) => id,
+        None => return billing_summary_default(plans, bot_plans),
     };
 
     let row = sqlx::query(

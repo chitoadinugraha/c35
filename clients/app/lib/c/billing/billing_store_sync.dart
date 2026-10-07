@@ -1,5 +1,6 @@
 import 'package:alienai_c35/c/api/referral_conn.dart';
 import 'package:alienai_c35/c/billing/billing_api.dart';
+import 'package:alienai_c35/c/billing/billing_format.dart';
 import 'package:alienai_c35/c/billing/billing_summary_api.dart';
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:alienai_c35/c/referral/referral_commission_api.dart';
@@ -9,9 +10,13 @@ import 'package:fixnum/fixnum.dart';
 @Deprecated('Use NATS push for balance updates; direct store writes for plan changes.')
 Future<BillingAccount> billingStoreRefresh(ReferralConn conn) async {
   final summary = await billingSummaryGet(conn);
-  final account = billingAccountFromSummary(summary, base: AppStore.instance.billing);
+  final cached = AppStore.instance.billing;
+  if (billingSummaryLooksLikeDefault(summary) && cached != null && billingAccountPaidShell(cached)) {
+    return cached;
+  }
+  final account = billingAccountFromSummary(summary, base: cached);
   AppStore.instance.billingPut(account, force: true);
-  return account;
+  return AppStore.instance.billing ?? account;
 }
 
 BillingAccount billingAccountApplyPlanChange(BillingAccount base, ResBillingPlanChange change) {

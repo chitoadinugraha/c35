@@ -40,6 +40,14 @@ String billingPlanTierDisplay(BillingAccount account) {
 bool billingQuotaPushHasFrontierLimits(BillingPushQuota quota) =>
     quota.frontierAllow5hLimit > 0 || quota.frontierAllowWeeklyLimit > 0;
 
+/// Server fallback when billing account row cannot be resolved (see billing_summary_resolve_account_id).
+bool billingSummaryLooksLikeDefault(ResBillingSummary summary) =>
+    summary.planTier == 'free' &&
+    summary.freemiumActive &&
+    summary.balanceIdr == 0 &&
+    summary.balanceUsd == 0 &&
+    summary.alienAllow5hLimit <= 0.05;
+
 /// Backfill missing Frontier 5h/7d caps from Alien rings (matches server `frontier_rings_from_alien`).
 ({double limit5h, double limitWeekly}) billingFrontierRingLimitsDerive({
   required String planTier,

@@ -116,6 +116,7 @@ WHERE p.owner_iid IN (33000, 99000)
   AND bp.is_active = TRUE;
 
 UPDATE ai.identity i SET
+    billing_iid = i.id,
     billing_profile_iid = p.id,
     updated_ts = NOW()
 FROM ai.billing_profile p
