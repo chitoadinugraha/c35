@@ -79,6 +79,14 @@ const CATALOG: &[EventDef] = &[
         txt_en: "$name disconnected",
     },
     EventDef {
+        kind: "user.notified",
+        slug: "notified",
+        scope: EventScope::User,
+        class: EventClass::Event,
+        desc: "User notification delivered",
+        txt_en: "$name notified: $title",
+    },
+    EventDef {
         kind: "consumption.meal_logged",
         slug: "meal-logged",
         scope: EventScope::User,

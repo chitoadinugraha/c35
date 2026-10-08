@@ -53,3 +53,24 @@ const FetchLlmCatalogPush$json = {
 final $typed_data.Uint8List fetchLlmCatalogPushDescriptor = $convert.base64Decode(
     'ChNGZXRjaExsbUNhdGFsb2dQdXNoEhwKCnN5bmNfdHNfbXMYASABKANSCHN5bmNUc01zEh8KC2'
     '1vZGVsX2NvdW50GAIgASgFUgptb2RlbENvdW50');
+
+@$core.Deprecated('Use fetchPlatformStatsPushDescriptor instead')
+const FetchPlatformStatsPush$json = {
+  '1': 'FetchPlatformStatsPush',
+  '2': [
+    {
+      '1': 'platform_user_count',
+      '3': 1,
+      '4': 1,
+      '5': 3,
+      '10': 'platformUserCount'
+    },
+    {'1': 'ts_ms', '3': 2, '4': 1, '5': 3, '10': 'tsMs'},
+  ],
+};
+
+/// Descriptor for `FetchPlatformStatsPush`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List fetchPlatformStatsPushDescriptor =
+    $convert.base64Decode(
+        'ChZGZXRjaFBsYXRmb3JtU3RhdHNQdXNoEi4KE3BsYXRmb3JtX3VzZXJfY291bnQYASABKANSEX'
+        'BsYXRmb3JtVXNlckNvdW50EhMKBXRzX21zGAIgASgDUgR0c01z');

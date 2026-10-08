@@ -15,7 +15,7 @@ use super::web_grounding::{
     web_grounding_append_user_context,
 };
 use super::{ChatReq, ChatRes};
-use crate::catalog_web::{catalog_web_after_stock, CatalogWebPhase};
+use crate::catalog_web::{catalog_query_arms_web, catalog_web_after_stock, CatalogWebPhase};
 use crate::prompt::hooks::PromptHopCheckpoint;
 use crate::prompt_run::{
     chat_tool_rounds_max, checkpoint_record_tool, checkpoint_set_fatal, checkpoint_tool_should_stop,
@@ -317,7 +317,10 @@ pub async fn prompt_cluster_turn(
 
             for (name, args, gemini_call_id, result, tool_cost, tool_ms, tool_call_id) in executions {
                 if name == "site.query.run"
-                    && args.get("query_id").and_then(|v| v.as_str()) == Some("product.stock")
+                    && args
+                        .get("query_id")
+                        .and_then(|v| v.as_str())
+                        .is_some_and(|qid| catalog_query_arms_web(req.catalog_web, qid))
                 {
                     stock_returned = true;
                     catalog_stock_rows = Some(

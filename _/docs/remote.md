@@ -515,17 +515,60 @@ Device detail tabs per [ui.md](ui.md):
 |-----|-------|
 | Remote | WebRTC screen + input (`remote-input`) |
 | Files | WebRTC file browse/upload/copy/preview (`remote-fs`) |
-| Task | `ReqTaskList`, run history, start/cancel |
+| Task | `ReqTaskList`, run history, start/cancel, view execution logs |
 | Skill | Teach on **Remote** (HUD + agent overlay); tab = library — [skill.md](skill.md), [teach plan](plans/2026-09-29-remote-skill-teach-multitask.md) |
 | Settings | Name, instructions, agent version |
+
+### Task Scheduling & Computer Use Multitasking
+
+Users can instruct the AI to perform recurring background automations or one-shot jobs on paired devices (e.g. *"Write desktop time to time.txt every 10 seconds"*).
+
+#### 1. Architecture (Zero DB Polling)
+
+- **Persistence:** Durable state in YugabyteDB tables `ai.task`, `ai.task_trigger`, and `ai.task_run`.
+- **Event-Driven Scheduler:** NATS JetStream stream `C35_TASK_SCHEDULE` holds scheduled triggers using native `Nats-Schedule` headers (`*/{sec} * * * * *`, standard 6-field robfig cron, or `@at` future timestamps).
+- **Execution Wakeup:** NATS JetStream autonomously fires to `c35.task.fire.{trigger_id}`. A durable JetStream consumer (`c35-task-schedule-consumer` in `c35_mod_task::scheduler`) receives the fire event, confirms active status in YB, and dispatches `task_run_start_rpc`.
+- **Zero DB Polling:** No database scanning or interval polling loops exist on the server.
+
+#### 2. Agent Execution & Callback Lifecycle
+
+```text
+c35-server (task_run_start_rpc)
+   │
+   ├─► INSERT ai.task_run (status='running')
+   ├─► c35_mod_device::remote_agent_send_raw (ActDeviceTaskRun)
+   │      │
+   │      ▼
+   │   c_remote_windows (executes prompt / PowerShell script)
+   │      │
+   │      ├─► POST /v1/agent/task/progress (optional intermediate steps)
+   │      └─► POST /v1/agent/task/done (exit_code, summary, errors)
+   │             │
+   ▼             ▼
+c35-server (task_run_finish_rpc)
+   ├─► UPDATE ai.task_run (status='done'|'failed', duration_ms, finished_ts)
+   └─► WS fanout: TaskRunPush to user
+```
+
+#### 3. LLM Tools
+
+| Tool | Action | Parameters |
+|------|--------|------------|
+| `task.create` | Save & arm automation | `name`, `prompt`, `device_iid`, `interval_sec` (or `cron_expr`, `run_at`) |
+| `task.delete` | Delete task & disarm | `task_id` (purges NATS schedule via `STREAM.PURGE.C35_TASK_SCHEDULE`) |
+| `task.list` | List tasks & triggers | `device_iid` (optional filter) |
+| `task.run_start` | Run immediately | `device_iid`, `task_id` (or ad-hoc `prompt`) |
+| `task.run_status` | Query progress & history | `run_id`, `task_id`, or `device_iid` |
+| `task.run_cancel` | Abort a single run | `run_id` |
+| `task.run_cancel_device` | Stop all active runs | `device_iid` |
 
 ## Server crates
 
 | Crate | Role |
 |-------|------|
-| `mod_device` | Pairing, presence, agent session registry |
-| `mod_task` | Task CRUD, `task_run_start`, JetStream publish, WS fanout |
-| `remotes/c_remote_*` | Executor — receives `ActDeviceTaskRun`, reports ev |
+| `mod_device` | Pairing, presence, agent session registry, remote agent raw dispatch |
+| `mod_task` | Task & trigger store, JetStream scheduler consumer (`scheduler.rs`), RPCs (`rpc.rs`) |
+| `remotes/c_remote_*` | Native device executor — runs PowerShell/scripts and posts back to `/v1/agent/task/done` |
 
 ## cs_agent differences (intentional)
 

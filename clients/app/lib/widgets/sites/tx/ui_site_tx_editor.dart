@@ -224,6 +224,9 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStat
     setState(() => _busy = true);
     try {
       final payload = _tx.clone();
+      if (payload.timeTsMs <= Int64.ZERO) {
+        payload.timeTsMs = Int64(DateTime.now().millisecondsSinceEpoch);
+      }
       receiptStampCashier(payload, Session.instance.name);
       final saved = await _txApi.putSale(widget.siteIid, payload);
       widget.onSaved?.call(saved);
@@ -318,7 +321,19 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStat
     }
   }
 
-  void _itemsChanged(List<TxItem> items) => _txChanged(_tx.clone()..items.clear()..items.addAll(items));
+  void _itemsChanged(List<TxItem> items) {
+    final next = _tx.clone();
+    if (_tx.txId <= Int64.ZERO) {
+      if (_tx.items.isEmpty && items.isNotEmpty) {
+        next.timeTsMs = Int64(DateTime.now().millisecondsSinceEpoch);
+      } else if (items.isEmpty) {
+        next.timeTsMs = Int64.ZERO;
+      }
+    }
+    next.items.clear();
+    next.items.addAll(items);
+    _txChanged(next);
+  }
 
   void _contactChanged(SiteContact? contact) {
     final next = _tx.clone();
@@ -429,6 +444,9 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStat
 
   Future<void> _holdOrder() async {
     if (_tx.items.isEmpty) return;
+    if (_tx.timeTsMs <= Int64.ZERO) {
+      _tx.timeTsMs = Int64(DateTime.now().millisecondsSinceEpoch);
+    }
     final parked = TxParkedOrders.instance.add(widget.siteIid, _tx);
     setState(() {
       _tx = _txApi.newSale(widget.siteIid);

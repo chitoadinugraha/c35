@@ -195,6 +195,78 @@ class FetchLlmCatalogPush extends $pb.GeneratedMessage {
   void clearModelCount() => $_clearField(2);
 }
 
+/// Published by c35-fetcher on c35.fetch.platform.stats (~1m); also stored in JetStream KV c35_stats platform/user_count.
+class FetchPlatformStatsPush extends $pb.GeneratedMessage {
+  factory FetchPlatformStatsPush({
+    $fixnum.Int64? platformUserCount,
+    $fixnum.Int64? tsMs,
+  }) {
+    final result = FetchPlatformStatsPush._();
+    if (platformUserCount != null) result.platformUserCount = platformUserCount;
+    if (tsMs != null) result.tsMs = tsMs;
+    return result;
+  }
+
+  FetchPlatformStatsPush._();
+
+  factory FetchPlatformStatsPush.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      FetchPlatformStatsPush()..mergeFromBuffer(data, registry);
+  factory FetchPlatformStatsPush.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      FetchPlatformStatsPush()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'FetchPlatformStatsPush',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: FetchPlatformStatsPush.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'platformUserCount')
+    ..aInt64(2, _omitFieldNames ? '' : 'tsMs')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  FetchPlatformStatsPush clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  FetchPlatformStatsPush copyWith(
+          void Function(FetchPlatformStatsPush) updates) =>
+      super.copyWith((message) => updates(message as FetchPlatformStatsPush))
+          as FetchPlatformStatsPush;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use FetchPlatformStatsPush() / FetchPlatformStatsPush.new instead')
+  static FetchPlatformStatsPush create() => FetchPlatformStatsPush._();
+  static $pb.GeneratedMessage $_createMessage() => FetchPlatformStatsPush._();
+  @$core.override
+  FetchPlatformStatsPush createEmptyInstance() => FetchPlatformStatsPush._();
+  @$core.pragma('dart2js:noInline')
+  static FetchPlatformStatsPush getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<FetchPlatformStatsPush>(
+          FetchPlatformStatsPush.$_createMessage);
+  static FetchPlatformStatsPush? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get platformUserCount => $_getI64(0);
+  @$pb.TagNumber(1)
+  set platformUserCount($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasPlatformUserCount() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearPlatformUserCount() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get tsMs => $_getI64(1);
+  @$pb.TagNumber(2)
+  set tsMs($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasTsMs() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearTsMs() => $_clearField(2);
+}
+
 const $core.bool _omitFieldNames =
     $core.bool.fromEnvironment('protobuf.omit_field_names');
 const $core.bool _omitMessageNames =

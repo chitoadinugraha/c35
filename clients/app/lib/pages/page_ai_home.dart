@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:uuid/uuid.dart';
 
 import 'package:alienai_c35/c/api/settings_conn.dart';
+import 'package:alienai_c35/c/app_id.dart';
 import 'package:alienai_c35/c/api/referral_conn.dart';
 import 'package:alienai_c35/c/auth/auth_service.dart';
 import 'package:alienai_c35/c/cas/cas_client.dart';
@@ -36,6 +38,8 @@ import 'package:alienai_c35/c/location/user_location_prefs.dart';
 import 'package:alienai_c35/c/settings/user_locale_prefs.dart';
 import 'package:alienai_c35/c/settings/voice_prefs.dart';
 import 'package:alienai_c35/c/mention/composer_test_commands.dart';
+import 'package:alienai_c35/core/notify/fcm_service.dart';
+import 'package:alienai_c35/core/notify/notify_router.dart';
 import 'package:alienai_c35/c/store/chat_store.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/c/store/prompt_followup_store.dart';
@@ -54,6 +58,7 @@ import 'package:alienai_c35/pages/page_root_console.dart';
 import 'package:alienai_c35/pages/page_site_pos.dart';
 import 'package:alienai_c35/pages/page_sites.dart';
 import 'package:alienai_c35/pages/mail/page_mail.dart';
+import 'package:alienai_c35/pages/notify/page_notify_history.dart';
 import 'package:alienai_c35/pages/page_settings.dart';
 import 'package:alienai_c35/pages/referral/page_referral_tree.dart';
 import 'package:alienai_c35/widgets/auth/ui_ai_disclaimer_dialog.dart';
@@ -140,6 +145,14 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   StreamSubscription? _socketAttachedSub;
   StreamSubscription? _followupPushSub;
   StreamSubscription? _promptRunPushSub;
+  StreamSubscription? _notifyPushSub;
+  Timer? _presenceTimer;
+  var _appResumed = true;
+  String? _clientId;
+  String? _fcmToken;
+  var _fcmStarted = false;
+  var _fcmTokenSent = false;
+  var _notifyUnread = 0;
   var _menuMsgIndex = 0;
   var _promptTokens = 0;
   TtsStreamQueue? _talkTtsQueue;
@@ -186,6 +199,13 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         unawaited(_attachQueuedPromptRun(push.reqId, cid));
       }
     });
+    NotifyRouter.appResumed = true;
+    NotifyRouter.markRead = _notifyMarkRead;
+    NotifyRouter.openRoute = _openNotifyRoute;
+    _notifyPushSub = _conn.onNotifyPush.listen((push) {
+      unawaited(NotifyRouter.show(push.title, push.body, push.routeJson, resumed: NotifyRouter.appResumed, id: push.id.toInt()));
+    });
+    _presenceHeartbeat(true);
     PromptFollowupStore.instance.addListener(_onFollowupStoreChanged);
     VoicePrefs.instance.addListener(_onTalkPrefs);
     SttService.instance.isTranscribing.addListener(_onTalkSttUi);
@@ -234,6 +254,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       tz: localePrefs.tz.isNotEmpty ? localePrefs.tz : UserLocalePrefs.deviceTimezoneDetect(),
     );
     await _refreshConnSession();
+    unawaited(_notifyAttach());
   }
 
   var _refreshConnInflight = false;
@@ -391,14 +412,96 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.resumed) return;
-    unawaited(_reconcilePromptState());
-    if (_conn.status.value != ChatConnStatus.connected) {
-      unawaited(_connConnect());
-    } else {
-      unawaited(_refreshConnSession());
+    switch (state) {
+      case AppLifecycleState.resumed:
+        _appResumedSet(true);
+        unawaited(_reconcilePromptState());
+        if (_conn.status.value != ChatConnStatus.connected) {
+          unawaited(_connConnect());
+        } else {
+          unawaited(_refreshConnSession());
+        }
+        break;
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.detached:
+        _appResumedSet(false);
+        break;
+      case AppLifecycleState.inactive:
+        break;
     }
   }
+
+  void _appResumedSet(bool resumed) {
+    _appResumed = resumed;
+    NotifyRouter.appResumed = resumed;
+    unawaited(_presenceSend(resumed));
+    _presenceHeartbeat(resumed);
+  }
+
+  void _presenceHeartbeat(bool run) {
+    _presenceTimer?.cancel();
+    _presenceTimer = null;
+    if (!run) return;
+    _presenceTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+      if (!_appResumed || !_conn.connected) return;
+      unawaited(_presenceSend(true));
+    });
+  }
+
+  Future<String> _clientIdGet() async => _clientId ??= await deviceInstallId();
+
+  Future<void> _presenceSend(bool resumed) async {
+    if (!_conn.connected) return;
+    try {
+      await _conn.appPresence(clientId: await _clientIdGet(), resumed: resumed);
+    } catch (e) {
+      lError('app presence: $e');
+    }
+  }
+
+  Future<void> _notifyAttach() async {
+    await _presenceSend(_appResumed);
+    await _fcmTokenPut();
+  }
+
+  Future<void> _fcmTokenPut() async {
+    if (!_fcmStarted) {
+      _fcmStarted = true;
+      _fcmToken = await FcmService.start(NotifyRouter.deliverFcm);
+    }
+    final token = _fcmToken;
+    if (token == null || token.isEmpty || _fcmTokenSent || !_conn.connected) return;
+    final platform = defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android';
+    if (platform != 'ios' && platform != 'android') return;
+    try {
+      await _conn.notifyTokenPut(clientId: await _clientIdGet(), token: token, platform: platform);
+      _fcmTokenSent = true;
+    } catch (e) {
+      lError('notify token: $e');
+    }
+  }
+
+  Future<void> _notifyMarkRead(int id) async {
+    try {
+      await _conn.notifyRead(ids: [id]);
+    } catch (_) {}
+  }
+
+  void _openNotifyRoute(String routeJson) {
+    final raw = routeJson.trim();
+    if (raw.isEmpty || raw == '{}') return;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return;
+      final chat = decoded['chat_id'];
+      final chatId = chat is num ? chat.toInt() : int.tryParse('$chat') ?? 0;
+      final reqId = decoded['req_id']?.toString() ?? '';
+      if (chatId > 0) unawaited(_navigateToChatMessage(chatId, reqId));
+    } catch (_) {}
+  }
+
+  void _openNotifyHistory() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageNotifyHistory(conn: _conn)));
 
   void _promptWatchdogCancel() {
     _promptWatchdog?.cancel();
@@ -473,6 +576,8 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     _socketAttachedSub?.cancel();
     _followupPushSub?.cancel();
     _promptRunPushSub?.cancel();
+    _notifyPushSub?.cancel();
+    _presenceTimer?.cancel();
     PromptFollowupStore.instance.removeListener(_onFollowupStoreChanged);
     VoicePrefs.instance.removeListener(_onTalkPrefs);
     SttService.instance.onAutoStop = null;
@@ -893,7 +998,13 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     }
   }
 
-  void _avatarMenu(BuildContext anchorCtx) => uiAccountMenuShow(
+  Future<void> _avatarMenu(BuildContext anchorCtx) async {
+    try {
+      final res = await _conn.notifyList(unreadOnly: true, limit: 50);
+      _notifyUnread = res.items.length;
+    } catch (_) {}
+    if (!mounted || !anchorCtx.mounted) return;
+    uiAccountMenuShow(
         anchorCtx,
         action: UiAccountMenuAction(
           conn: ReferralConn(uid: Session.instance.uid),
@@ -916,15 +1027,18 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
           onSites: _openSites,
           onRootConsole: Session.instance.isRoot ? _openRootConsole : null,
           onMail: Session.instance.canUseMail || mailInboxBus.menuVisible ? _openMail : null,
+          onNotifications: _openNotifyHistory,
           composerModel: _model,
           liveOffers: _store.liveOffers,
           onLiveCallStart: _liveCallStart,
           mailInboxCount: mailInboxBus.inboxCount,
+          notifyUnreadCount: _notifyUnread,
           botsCount: _store.navCounts.bots,
           devicesCount: _store.navCounts.devices,
           sitesCount: _store.navCounts.sites,
         ),
       );
+  }
 
   String _primaryMentionLabel() {
     if (_mentionIds.isEmpty) return '';

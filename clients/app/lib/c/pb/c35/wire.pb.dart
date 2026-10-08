@@ -3078,6 +3078,10 @@ enum WsReq_Body {
   siteDomainCheck,
   siteDomainBuy,
   imgGenerate,
+  notifyList,
+  notifyRead,
+  notifyTokenPut,
+  appPresence,
   notSet
 }
 
@@ -3234,6 +3238,10 @@ class WsReq extends $pb.GeneratedMessage {
     $17.ReqSiteDomainCheck? siteDomainCheck,
     $17.ReqSiteDomainBuy? siteDomainBuy,
     $15.ReqImgGenerate? imgGenerate,
+    ReqNotifyList? notifyList,
+    ReqNotifyRead? notifyRead,
+    ReqNotifyTokenPut? notifyTokenPut,
+    ReqAppPresence? appPresence,
   }) {
     final result = WsReq._();
     if (reqId != null) result.reqId = reqId;
@@ -3412,6 +3420,10 @@ class WsReq extends $pb.GeneratedMessage {
     if (siteDomainCheck != null) result.siteDomainCheck = siteDomainCheck;
     if (siteDomainBuy != null) result.siteDomainBuy = siteDomainBuy;
     if (imgGenerate != null) result.imgGenerate = imgGenerate;
+    if (notifyList != null) result.notifyList = notifyList;
+    if (notifyRead != null) result.notifyRead = notifyRead;
+    if (notifyTokenPut != null) result.notifyTokenPut = notifyTokenPut;
+    if (appPresence != null) result.appPresence = appPresence;
     return result;
   }
 
@@ -3574,6 +3586,10 @@ class WsReq extends $pb.GeneratedMessage {
     207: WsReq_Body.siteDomainCheck,
     208: WsReq_Body.siteDomainBuy,
     209: WsReq_Body.imgGenerate,
+    210: WsReq_Body.notifyList,
+    211: WsReq_Body.notifyRead,
+    212: WsReq_Body.notifyTokenPut,
+    213: WsReq_Body.appPresence,
     0: WsReq_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -3729,7 +3745,11 @@ class WsReq extends $pb.GeneratedMessage {
       206,
       207,
       208,
-      209
+      209,
+      210,
+      211,
+      212,
+      213
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$13.ReqSessionInit>(2, _omitFieldNames ? '' : 'sessionInit',
@@ -4076,6 +4096,14 @@ class WsReq extends $pb.GeneratedMessage {
         subBuilder: $17.ReqSiteDomainBuy.$_createMessage)
     ..aOM<$15.ReqImgGenerate>(209, _omitFieldNames ? '' : 'imgGenerate',
         subBuilder: $15.ReqImgGenerate.$_createMessage)
+    ..aOM<ReqNotifyList>(210, _omitFieldNames ? '' : 'notifyList',
+        subBuilder: ReqNotifyList.$_createMessage)
+    ..aOM<ReqNotifyRead>(211, _omitFieldNames ? '' : 'notifyRead',
+        subBuilder: ReqNotifyRead.$_createMessage)
+    ..aOM<ReqNotifyTokenPut>(212, _omitFieldNames ? '' : 'notifyTokenPut',
+        subBuilder: ReqNotifyTokenPut.$_createMessage)
+    ..aOM<ReqAppPresence>(213, _omitFieldNames ? '' : 'appPresence',
+        subBuilder: ReqAppPresence.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -4247,6 +4275,10 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(207)
   @$pb.TagNumber(208)
   @$pb.TagNumber(209)
+  @$pb.TagNumber(210)
+  @$pb.TagNumber(211)
+  @$pb.TagNumber(212)
+  @$pb.TagNumber(213)
   WsReq_Body whichBody() => _WsReq_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(3)
@@ -4397,6 +4429,10 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(207)
   @$pb.TagNumber(208)
   @$pb.TagNumber(209)
+  @$pb.TagNumber(210)
+  @$pb.TagNumber(211)
+  @$pb.TagNumber(212)
+  @$pb.TagNumber(213)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -6088,6 +6124,50 @@ class WsReq extends $pb.GeneratedMessage {
   void clearImgGenerate() => $_clearField(209);
   @$pb.TagNumber(209)
   $15.ReqImgGenerate ensureImgGenerate() => $_ensure(149);
+
+  @$pb.TagNumber(210)
+  ReqNotifyList get notifyList => $_getN(150);
+  @$pb.TagNumber(210)
+  set notifyList(ReqNotifyList value) => $_setField(210, value);
+  @$pb.TagNumber(210)
+  $core.bool hasNotifyList() => $_has(150);
+  @$pb.TagNumber(210)
+  void clearNotifyList() => $_clearField(210);
+  @$pb.TagNumber(210)
+  ReqNotifyList ensureNotifyList() => $_ensure(150);
+
+  @$pb.TagNumber(211)
+  ReqNotifyRead get notifyRead => $_getN(151);
+  @$pb.TagNumber(211)
+  set notifyRead(ReqNotifyRead value) => $_setField(211, value);
+  @$pb.TagNumber(211)
+  $core.bool hasNotifyRead() => $_has(151);
+  @$pb.TagNumber(211)
+  void clearNotifyRead() => $_clearField(211);
+  @$pb.TagNumber(211)
+  ReqNotifyRead ensureNotifyRead() => $_ensure(151);
+
+  @$pb.TagNumber(212)
+  ReqNotifyTokenPut get notifyTokenPut => $_getN(152);
+  @$pb.TagNumber(212)
+  set notifyTokenPut(ReqNotifyTokenPut value) => $_setField(212, value);
+  @$pb.TagNumber(212)
+  $core.bool hasNotifyTokenPut() => $_has(152);
+  @$pb.TagNumber(212)
+  void clearNotifyTokenPut() => $_clearField(212);
+  @$pb.TagNumber(212)
+  ReqNotifyTokenPut ensureNotifyTokenPut() => $_ensure(152);
+
+  @$pb.TagNumber(213)
+  ReqAppPresence get appPresence => $_getN(153);
+  @$pb.TagNumber(213)
+  set appPresence(ReqAppPresence value) => $_setField(213, value);
+  @$pb.TagNumber(213)
+  $core.bool hasAppPresence() => $_has(153);
+  @$pb.TagNumber(213)
+  void clearAppPresence() => $_clearField(213);
+  @$pb.TagNumber(213)
+  ReqAppPresence ensureAppPresence() => $_ensure(153);
 }
 
 enum WsRes_Body {
@@ -6251,6 +6331,11 @@ enum WsRes_Body {
   siteDomainCheck,
   siteDomainBuy,
   imgGenerate,
+  notifyList,
+  notifyRead,
+  notifyTokenPut,
+  appPresence,
+  notifyPush,
   notSet
 }
 
@@ -6418,6 +6503,11 @@ class WsRes extends $pb.GeneratedMessage {
     $17.ResSiteDomainCheck? siteDomainCheck,
     $17.ResSiteDomainBuy? siteDomainBuy,
     $15.ResImgGenerate? imgGenerate,
+    ResNotifyList? notifyList,
+    ResNotifyRead? notifyRead,
+    ResNotifyTokenPut? notifyTokenPut,
+    ResAppPresence? appPresence,
+    NotifyPush? notifyPush,
   }) {
     final result = WsRes._();
     if (reqId != null) result.reqId = reqId;
@@ -6609,6 +6699,11 @@ class WsRes extends $pb.GeneratedMessage {
     if (siteDomainCheck != null) result.siteDomainCheck = siteDomainCheck;
     if (siteDomainBuy != null) result.siteDomainBuy = siteDomainBuy;
     if (imgGenerate != null) result.imgGenerate = imgGenerate;
+    if (notifyList != null) result.notifyList = notifyList;
+    if (notifyRead != null) result.notifyRead = notifyRead;
+    if (notifyTokenPut != null) result.notifyTokenPut = notifyTokenPut;
+    if (appPresence != null) result.appPresence = appPresence;
+    if (notifyPush != null) result.notifyPush = notifyPush;
     return result;
   }
 
@@ -6782,6 +6877,11 @@ class WsRes extends $pb.GeneratedMessage {
     207: WsRes_Body.siteDomainCheck,
     208: WsRes_Body.siteDomainBuy,
     209: WsRes_Body.imgGenerate,
+    210: WsRes_Body.notifyList,
+    211: WsRes_Body.notifyRead,
+    212: WsRes_Body.notifyTokenPut,
+    213: WsRes_Body.appPresence,
+    214: WsRes_Body.notifyPush,
     0: WsRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -6948,7 +7048,12 @@ class WsRes extends $pb.GeneratedMessage {
       206,
       207,
       208,
-      209
+      209,
+      210,
+      211,
+      212,
+      213,
+      214
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$26.Err>(2, _omitFieldNames ? '' : 'err',
@@ -7319,6 +7424,16 @@ class WsRes extends $pb.GeneratedMessage {
         subBuilder: $17.ResSiteDomainBuy.$_createMessage)
     ..aOM<$15.ResImgGenerate>(209, _omitFieldNames ? '' : 'imgGenerate',
         subBuilder: $15.ResImgGenerate.$_createMessage)
+    ..aOM<ResNotifyList>(210, _omitFieldNames ? '' : 'notifyList',
+        subBuilder: ResNotifyList.$_createMessage)
+    ..aOM<ResNotifyRead>(211, _omitFieldNames ? '' : 'notifyRead',
+        subBuilder: ResNotifyRead.$_createMessage)
+    ..aOM<ResNotifyTokenPut>(212, _omitFieldNames ? '' : 'notifyTokenPut',
+        subBuilder: ResNotifyTokenPut.$_createMessage)
+    ..aOM<ResAppPresence>(213, _omitFieldNames ? '' : 'appPresence',
+        subBuilder: ResAppPresence.$_createMessage)
+    ..aOM<NotifyPush>(214, _omitFieldNames ? '' : 'notifyPush',
+        subBuilder: NotifyPush.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -7501,6 +7616,11 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(207)
   @$pb.TagNumber(208)
   @$pb.TagNumber(209)
+  @$pb.TagNumber(210)
+  @$pb.TagNumber(211)
+  @$pb.TagNumber(212)
+  @$pb.TagNumber(213)
+  @$pb.TagNumber(214)
   WsRes_Body whichBody() => _WsRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(10)
@@ -7662,6 +7782,11 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(207)
   @$pb.TagNumber(208)
   @$pb.TagNumber(209)
+  @$pb.TagNumber(210)
+  @$pb.TagNumber(211)
+  @$pb.TagNumber(212)
+  @$pb.TagNumber(213)
+  @$pb.TagNumber(214)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -9473,6 +9598,776 @@ class WsRes extends $pb.GeneratedMessage {
   void clearImgGenerate() => $_clearField(209);
   @$pb.TagNumber(209)
   $15.ResImgGenerate ensureImgGenerate() => $_ensure(160);
+
+  @$pb.TagNumber(210)
+  ResNotifyList get notifyList => $_getN(161);
+  @$pb.TagNumber(210)
+  set notifyList(ResNotifyList value) => $_setField(210, value);
+  @$pb.TagNumber(210)
+  $core.bool hasNotifyList() => $_has(161);
+  @$pb.TagNumber(210)
+  void clearNotifyList() => $_clearField(210);
+  @$pb.TagNumber(210)
+  ResNotifyList ensureNotifyList() => $_ensure(161);
+
+  @$pb.TagNumber(211)
+  ResNotifyRead get notifyRead => $_getN(162);
+  @$pb.TagNumber(211)
+  set notifyRead(ResNotifyRead value) => $_setField(211, value);
+  @$pb.TagNumber(211)
+  $core.bool hasNotifyRead() => $_has(162);
+  @$pb.TagNumber(211)
+  void clearNotifyRead() => $_clearField(211);
+  @$pb.TagNumber(211)
+  ResNotifyRead ensureNotifyRead() => $_ensure(162);
+
+  @$pb.TagNumber(212)
+  ResNotifyTokenPut get notifyTokenPut => $_getN(163);
+  @$pb.TagNumber(212)
+  set notifyTokenPut(ResNotifyTokenPut value) => $_setField(212, value);
+  @$pb.TagNumber(212)
+  $core.bool hasNotifyTokenPut() => $_has(163);
+  @$pb.TagNumber(212)
+  void clearNotifyTokenPut() => $_clearField(212);
+  @$pb.TagNumber(212)
+  ResNotifyTokenPut ensureNotifyTokenPut() => $_ensure(163);
+
+  @$pb.TagNumber(213)
+  ResAppPresence get appPresence => $_getN(164);
+  @$pb.TagNumber(213)
+  set appPresence(ResAppPresence value) => $_setField(213, value);
+  @$pb.TagNumber(213)
+  $core.bool hasAppPresence() => $_has(164);
+  @$pb.TagNumber(213)
+  void clearAppPresence() => $_clearField(213);
+  @$pb.TagNumber(213)
+  ResAppPresence ensureAppPresence() => $_ensure(164);
+
+  @$pb.TagNumber(214)
+  NotifyPush get notifyPush => $_getN(165);
+  @$pb.TagNumber(214)
+  set notifyPush(NotifyPush value) => $_setField(214, value);
+  @$pb.TagNumber(214)
+  $core.bool hasNotifyPush() => $_has(165);
+  @$pb.TagNumber(214)
+  void clearNotifyPush() => $_clearField(214);
+  @$pb.TagNumber(214)
+  NotifyPush ensureNotifyPush() => $_ensure(165);
+}
+
+class NotifyItem extends $pb.GeneratedMessage {
+  factory NotifyItem({
+    $fixnum.Int64? id,
+    $core.String? title,
+    $core.String? body,
+    $core.String? status,
+    $core.String? channels,
+    $fixnum.Int64? fireAtMs,
+    $fixnum.Int64? sentTsMs,
+    $fixnum.Int64? readTsMs,
+    $fixnum.Int64? createdTsMs,
+    $core.String? routeJson,
+  }) {
+    final result = NotifyItem._();
+    if (id != null) result.id = id;
+    if (title != null) result.title = title;
+    if (body != null) result.body = body;
+    if (status != null) result.status = status;
+    if (channels != null) result.channels = channels;
+    if (fireAtMs != null) result.fireAtMs = fireAtMs;
+    if (sentTsMs != null) result.sentTsMs = sentTsMs;
+    if (readTsMs != null) result.readTsMs = readTsMs;
+    if (createdTsMs != null) result.createdTsMs = createdTsMs;
+    if (routeJson != null) result.routeJson = routeJson;
+    return result;
+  }
+
+  NotifyItem._();
+
+  factory NotifyItem.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      NotifyItem()..mergeFromBuffer(data, registry);
+  factory NotifyItem.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      NotifyItem()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'NotifyItem',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: NotifyItem.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'id')
+    ..aOS(2, _omitFieldNames ? '' : 'title')
+    ..aOS(3, _omitFieldNames ? '' : 'body')
+    ..aOS(4, _omitFieldNames ? '' : 'status')
+    ..aOS(5, _omitFieldNames ? '' : 'channels')
+    ..aInt64(6, _omitFieldNames ? '' : 'fireAtMs')
+    ..aInt64(7, _omitFieldNames ? '' : 'sentTsMs')
+    ..aInt64(8, _omitFieldNames ? '' : 'readTsMs')
+    ..aInt64(9, _omitFieldNames ? '' : 'createdTsMs')
+    ..aOS(10, _omitFieldNames ? '' : 'routeJson')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  NotifyItem clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  NotifyItem copyWith(void Function(NotifyItem) updates) =>
+      super.copyWith((message) => updates(message as NotifyItem)) as NotifyItem;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use NotifyItem() / NotifyItem.new instead')
+  static NotifyItem create() => NotifyItem._();
+  static $pb.GeneratedMessage $_createMessage() => NotifyItem._();
+  @$core.override
+  NotifyItem createEmptyInstance() => NotifyItem._();
+  @$core.pragma('dart2js:noInline')
+  static NotifyItem getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<NotifyItem>(NotifyItem.$_createMessage);
+  static NotifyItem? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get id => $_getI64(0);
+  @$pb.TagNumber(1)
+  set id($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get title => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set title($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasTitle() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearTitle() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get body => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set body($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasBody() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearBody() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get status => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set status($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasStatus() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearStatus() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get channels => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set channels($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasChannels() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearChannels() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $fixnum.Int64 get fireAtMs => $_getI64(5);
+  @$pb.TagNumber(6)
+  set fireAtMs($fixnum.Int64 value) => $_setInt64(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasFireAtMs() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearFireAtMs() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $fixnum.Int64 get sentTsMs => $_getI64(6);
+  @$pb.TagNumber(7)
+  set sentTsMs($fixnum.Int64 value) => $_setInt64(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasSentTsMs() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearSentTsMs() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $fixnum.Int64 get readTsMs => $_getI64(7);
+  @$pb.TagNumber(8)
+  set readTsMs($fixnum.Int64 value) => $_setInt64(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasReadTsMs() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearReadTsMs() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $fixnum.Int64 get createdTsMs => $_getI64(8);
+  @$pb.TagNumber(9)
+  set createdTsMs($fixnum.Int64 value) => $_setInt64(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasCreatedTsMs() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearCreatedTsMs() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $core.String get routeJson => $_getSZ(9);
+  @$pb.TagNumber(10)
+  set routeJson($core.String value) => $_setString(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasRouteJson() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearRouteJson() => $_clearField(10);
+}
+
+class ReqNotifyList extends $pb.GeneratedMessage {
+  factory ReqNotifyList({
+    $core.int? limit,
+    $core.bool? unreadOnly,
+  }) {
+    final result = ReqNotifyList._();
+    if (limit != null) result.limit = limit;
+    if (unreadOnly != null) result.unreadOnly = unreadOnly;
+    return result;
+  }
+
+  ReqNotifyList._();
+
+  factory ReqNotifyList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqNotifyList()..mergeFromBuffer(data, registry);
+  factory ReqNotifyList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqNotifyList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqNotifyList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqNotifyList.$_createMessage)
+    ..aI(1, _omitFieldNames ? '' : 'limit')
+    ..aOB(2, _omitFieldNames ? '' : 'unreadOnly')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqNotifyList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqNotifyList copyWith(void Function(ReqNotifyList) updates) =>
+      super.copyWith((message) => updates(message as ReqNotifyList))
+          as ReqNotifyList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqNotifyList() / ReqNotifyList.new instead')
+  static ReqNotifyList create() => ReqNotifyList._();
+  static $pb.GeneratedMessage $_createMessage() => ReqNotifyList._();
+  @$core.override
+  ReqNotifyList createEmptyInstance() => ReqNotifyList._();
+  @$core.pragma('dart2js:noInline')
+  static ReqNotifyList getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ReqNotifyList>(
+          ReqNotifyList.$_createMessage);
+  static ReqNotifyList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.int get limit => $_getIZ(0);
+  @$pb.TagNumber(1)
+  set limit($core.int value) => $_setSignedInt32(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasLimit() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearLimit() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.bool get unreadOnly => $_getBF(1);
+  @$pb.TagNumber(2)
+  set unreadOnly($core.bool value) => $_setBool(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasUnreadOnly() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearUnreadOnly() => $_clearField(2);
+}
+
+class ResNotifyList extends $pb.GeneratedMessage {
+  factory ResNotifyList({
+    $core.Iterable<NotifyItem>? items,
+  }) {
+    final result = ResNotifyList._();
+    if (items != null) result.items.addAll(items);
+    return result;
+  }
+
+  ResNotifyList._();
+
+  factory ResNotifyList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResNotifyList()..mergeFromBuffer(data, registry);
+  factory ResNotifyList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResNotifyList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResNotifyList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResNotifyList.$_createMessage)
+    ..pPM<NotifyItem>(1, _omitFieldNames ? '' : 'items',
+        subBuilder: NotifyItem.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResNotifyList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResNotifyList copyWith(void Function(ResNotifyList) updates) =>
+      super.copyWith((message) => updates(message as ResNotifyList))
+          as ResNotifyList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResNotifyList() / ResNotifyList.new instead')
+  static ResNotifyList create() => ResNotifyList._();
+  static $pb.GeneratedMessage $_createMessage() => ResNotifyList._();
+  @$core.override
+  ResNotifyList createEmptyInstance() => ResNotifyList._();
+  @$core.pragma('dart2js:noInline')
+  static ResNotifyList getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ResNotifyList>(
+          ResNotifyList.$_createMessage);
+  static ResNotifyList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<NotifyItem> get items => $_getList(0);
+}
+
+class ReqNotifyRead extends $pb.GeneratedMessage {
+  factory ReqNotifyRead({
+    $core.Iterable<$fixnum.Int64>? ids,
+  }) {
+    final result = ReqNotifyRead._();
+    if (ids != null) result.ids.addAll(ids);
+    return result;
+  }
+
+  ReqNotifyRead._();
+
+  factory ReqNotifyRead.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqNotifyRead()..mergeFromBuffer(data, registry);
+  factory ReqNotifyRead.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqNotifyRead()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqNotifyRead',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqNotifyRead.$_createMessage)
+    ..p<$fixnum.Int64>(1, _omitFieldNames ? '' : 'ids', $pb.PbFieldType.K6)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqNotifyRead clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqNotifyRead copyWith(void Function(ReqNotifyRead) updates) =>
+      super.copyWith((message) => updates(message as ReqNotifyRead))
+          as ReqNotifyRead;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqNotifyRead() / ReqNotifyRead.new instead')
+  static ReqNotifyRead create() => ReqNotifyRead._();
+  static $pb.GeneratedMessage $_createMessage() => ReqNotifyRead._();
+  @$core.override
+  ReqNotifyRead createEmptyInstance() => ReqNotifyRead._();
+  @$core.pragma('dart2js:noInline')
+  static ReqNotifyRead getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ReqNotifyRead>(
+          ReqNotifyRead.$_createMessage);
+  static ReqNotifyRead? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<$fixnum.Int64> get ids => $_getList(0);
+}
+
+class ResNotifyRead extends $pb.GeneratedMessage {
+  factory ResNotifyRead({
+    $core.int? updated,
+  }) {
+    final result = ResNotifyRead._();
+    if (updated != null) result.updated = updated;
+    return result;
+  }
+
+  ResNotifyRead._();
+
+  factory ResNotifyRead.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResNotifyRead()..mergeFromBuffer(data, registry);
+  factory ResNotifyRead.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResNotifyRead()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResNotifyRead',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResNotifyRead.$_createMessage)
+    ..aI(1, _omitFieldNames ? '' : 'updated')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResNotifyRead clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResNotifyRead copyWith(void Function(ResNotifyRead) updates) =>
+      super.copyWith((message) => updates(message as ResNotifyRead))
+          as ResNotifyRead;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResNotifyRead() / ResNotifyRead.new instead')
+  static ResNotifyRead create() => ResNotifyRead._();
+  static $pb.GeneratedMessage $_createMessage() => ResNotifyRead._();
+  @$core.override
+  ResNotifyRead createEmptyInstance() => ResNotifyRead._();
+  @$core.pragma('dart2js:noInline')
+  static ResNotifyRead getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ResNotifyRead>(
+          ResNotifyRead.$_createMessage);
+  static ResNotifyRead? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.int get updated => $_getIZ(0);
+  @$pb.TagNumber(1)
+  set updated($core.int value) => $_setSignedInt32(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasUpdated() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearUpdated() => $_clearField(1);
+}
+
+class ReqNotifyTokenPut extends $pb.GeneratedMessage {
+  factory ReqNotifyTokenPut({
+    $core.String? clientId,
+    $core.String? token,
+    $core.String? platform,
+  }) {
+    final result = ReqNotifyTokenPut._();
+    if (clientId != null) result.clientId = clientId;
+    if (token != null) result.token = token;
+    if (platform != null) result.platform = platform;
+    return result;
+  }
+
+  ReqNotifyTokenPut._();
+
+  factory ReqNotifyTokenPut.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqNotifyTokenPut()..mergeFromBuffer(data, registry);
+  factory ReqNotifyTokenPut.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqNotifyTokenPut()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqNotifyTokenPut',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqNotifyTokenPut.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'clientId')
+    ..aOS(2, _omitFieldNames ? '' : 'token')
+    ..aOS(3, _omitFieldNames ? '' : 'platform')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqNotifyTokenPut clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqNotifyTokenPut copyWith(void Function(ReqNotifyTokenPut) updates) =>
+      super.copyWith((message) => updates(message as ReqNotifyTokenPut))
+          as ReqNotifyTokenPut;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqNotifyTokenPut() / ReqNotifyTokenPut.new instead')
+  static ReqNotifyTokenPut create() => ReqNotifyTokenPut._();
+  static $pb.GeneratedMessage $_createMessage() => ReqNotifyTokenPut._();
+  @$core.override
+  ReqNotifyTokenPut createEmptyInstance() => ReqNotifyTokenPut._();
+  @$core.pragma('dart2js:noInline')
+  static ReqNotifyTokenPut getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ReqNotifyTokenPut>(
+          ReqNotifyTokenPut.$_createMessage);
+  static ReqNotifyTokenPut? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get clientId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set clientId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasClientId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearClientId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get token => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set token($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasToken() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearToken() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get platform => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set platform($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasPlatform() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearPlatform() => $_clearField(3);
+}
+
+class ResNotifyTokenPut extends $pb.GeneratedMessage {
+  factory ResNotifyTokenPut() => ResNotifyTokenPut._();
+
+  ResNotifyTokenPut._();
+
+  factory ResNotifyTokenPut.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResNotifyTokenPut()..mergeFromBuffer(data, registry);
+  factory ResNotifyTokenPut.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResNotifyTokenPut()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResNotifyTokenPut',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResNotifyTokenPut.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResNotifyTokenPut clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResNotifyTokenPut copyWith(void Function(ResNotifyTokenPut) updates) =>
+      super.copyWith((message) => updates(message as ResNotifyTokenPut))
+          as ResNotifyTokenPut;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResNotifyTokenPut() / ResNotifyTokenPut.new instead')
+  static ResNotifyTokenPut create() => ResNotifyTokenPut._();
+  static $pb.GeneratedMessage $_createMessage() => ResNotifyTokenPut._();
+  @$core.override
+  ResNotifyTokenPut createEmptyInstance() => ResNotifyTokenPut._();
+  @$core.pragma('dart2js:noInline')
+  static ResNotifyTokenPut getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ResNotifyTokenPut>(
+          ResNotifyTokenPut.$_createMessage);
+  static ResNotifyTokenPut? _defaultInstance;
+}
+
+class ReqAppPresence extends $pb.GeneratedMessage {
+  factory ReqAppPresence({
+    $core.String? clientId,
+    $core.bool? resumed,
+  }) {
+    final result = ReqAppPresence._();
+    if (clientId != null) result.clientId = clientId;
+    if (resumed != null) result.resumed = resumed;
+    return result;
+  }
+
+  ReqAppPresence._();
+
+  factory ReqAppPresence.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqAppPresence()..mergeFromBuffer(data, registry);
+  factory ReqAppPresence.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqAppPresence()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqAppPresence',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqAppPresence.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'clientId')
+    ..aOB(2, _omitFieldNames ? '' : 'resumed')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqAppPresence clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqAppPresence copyWith(void Function(ReqAppPresence) updates) =>
+      super.copyWith((message) => updates(message as ReqAppPresence))
+          as ReqAppPresence;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqAppPresence() / ReqAppPresence.new instead')
+  static ReqAppPresence create() => ReqAppPresence._();
+  static $pb.GeneratedMessage $_createMessage() => ReqAppPresence._();
+  @$core.override
+  ReqAppPresence createEmptyInstance() => ReqAppPresence._();
+  @$core.pragma('dart2js:noInline')
+  static ReqAppPresence getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ReqAppPresence>(
+          ReqAppPresence.$_createMessage);
+  static ReqAppPresence? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get clientId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set clientId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasClientId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearClientId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.bool get resumed => $_getBF(1);
+  @$pb.TagNumber(2)
+  set resumed($core.bool value) => $_setBool(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasResumed() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearResumed() => $_clearField(2);
+}
+
+class ResAppPresence extends $pb.GeneratedMessage {
+  factory ResAppPresence() => ResAppPresence._();
+
+  ResAppPresence._();
+
+  factory ResAppPresence.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResAppPresence()..mergeFromBuffer(data, registry);
+  factory ResAppPresence.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResAppPresence()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResAppPresence',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResAppPresence.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResAppPresence clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResAppPresence copyWith(void Function(ResAppPresence) updates) =>
+      super.copyWith((message) => updates(message as ResAppPresence))
+          as ResAppPresence;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResAppPresence() / ResAppPresence.new instead')
+  static ResAppPresence create() => ResAppPresence._();
+  static $pb.GeneratedMessage $_createMessage() => ResAppPresence._();
+  @$core.override
+  ResAppPresence createEmptyInstance() => ResAppPresence._();
+  @$core.pragma('dart2js:noInline')
+  static ResAppPresence getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ResAppPresence>(
+          ResAppPresence.$_createMessage);
+  static ResAppPresence? _defaultInstance;
+}
+
+class NotifyPush extends $pb.GeneratedMessage {
+  factory NotifyPush({
+    $fixnum.Int64? id,
+    $core.String? title,
+    $core.String? body,
+    $core.String? routeJson,
+  }) {
+    final result = NotifyPush._();
+    if (id != null) result.id = id;
+    if (title != null) result.title = title;
+    if (body != null) result.body = body;
+    if (routeJson != null) result.routeJson = routeJson;
+    return result;
+  }
+
+  NotifyPush._();
+
+  factory NotifyPush.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      NotifyPush()..mergeFromBuffer(data, registry);
+  factory NotifyPush.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      NotifyPush()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'NotifyPush',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: NotifyPush.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'id')
+    ..aOS(2, _omitFieldNames ? '' : 'title')
+    ..aOS(3, _omitFieldNames ? '' : 'body')
+    ..aOS(4, _omitFieldNames ? '' : 'routeJson')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  NotifyPush clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  NotifyPush copyWith(void Function(NotifyPush) updates) =>
+      super.copyWith((message) => updates(message as NotifyPush)) as NotifyPush;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use NotifyPush() / NotifyPush.new instead')
+  static NotifyPush create() => NotifyPush._();
+  static $pb.GeneratedMessage $_createMessage() => NotifyPush._();
+  @$core.override
+  NotifyPush createEmptyInstance() => NotifyPush._();
+  @$core.pragma('dart2js:noInline')
+  static NotifyPush getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<NotifyPush>(NotifyPush.$_createMessage);
+  static NotifyPush? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get id => $_getI64(0);
+  @$pb.TagNumber(1)
+  set id($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get title => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set title($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasTitle() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearTitle() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get body => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set body($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasBody() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearBody() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get routeJson => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set routeJson($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasRouteJson() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearRouteJson() => $_clearField(4);
 }
 
 const $core.bool _omitFieldNames =

@@ -45,7 +45,7 @@ pub async fn task_run_metrics_persist(
     .bind(tokens_in)
     .bind(tokens_out)
     .bind(cost_usd)
-    .bind(duration_ms)
+    .bind(duration_ms as i32)
     .execute(pool)
     .await;
     (tokens_in, tokens_out, cost_usd)

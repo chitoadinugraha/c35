@@ -2,7 +2,10 @@ use c35_mod_billing::FxRateFetchTask;
 use c35_mod_chat::ContextIdleFetchTask;
 use c35_mod_fetch::{fetcher_run, FetchCtx, FetchTask};
 use c35_mod_llm::LlmCatalogFetchTask;
-use c35_mod_platform::{cf_vendor_from_env, env_enabled, gcp_from_env, oci_from_env, wasabi_from_env};
+use c35_mod_platform::{
+    cf_vendor_from_env, env_enabled, gcp_from_env, oci_from_env, wasabi_from_env,
+    PlatformUserCountFetchTask,
+};
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
@@ -23,6 +26,7 @@ async fn main() -> anyhow::Result<()> {
     let mut tasks: Vec<Box<dyn FetchTask>> = Vec::new();
     tasks.push(Box::new(FxRateFetchTask::from_env()));
     tasks.push(Box::new(LlmCatalogFetchTask));
+    tasks.push(Box::new(PlatformUserCountFetchTask));
     if c35_mod_chat::context_idle_compact_enabled() {
         tracing::info!("context_idle compact enabled");
         tasks.push(Box::new(ContextIdleFetchTask));

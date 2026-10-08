@@ -3,11 +3,16 @@ use c35_store::PgPool;
 use tokio::sync::mpsc::UnboundedReceiver;
 
 pub async fn nats_post_connect(pool: PgPool, client: Client) {
+    c35_mod_chat::prompt_run::prompt_run_notify_install(
+        client.clone(),
+        std::sync::Arc::new(c35_mod_notify::NotifyFcm::from_env()),
+    );
     c35_wire_ws::admin_stats_warm(client.clone()).await;
     if let Err(e) = c35_nats::jetstream_streams_ensure(&client).await {
         tracing::warn!(error = %e, "[c35:nats] stream ensure failed");
         return;
     }
+    crate::notify_fire::notify_fire_spawn(pool.clone(), client.clone());
 
     match c35_nats::HydrateAdvisoryLock::try_acquire(&pool).await {
         Ok(Some(mut lock)) => {
@@ -17,6 +22,14 @@ pub async fn nats_post_connect(pool: PgPool, client: Client) {
                     tracing::warn!(error = %e, "[c35:nats] schedule hydrate failed");
                     0
                 });
+            let fcm = c35_mod_notify::NotifyFcm::from_env();
+            let notify_schedules =
+                c35_mod_notify::hydrate_notify_schedules(&pool, &client, &fcm)
+                    .await
+                    .unwrap_or_else(|e| {
+                        tracing::warn!(error = %e, "[c35:nats] notify schedule hydrate failed");
+                        0
+                    });
             let prompt_replay = c35_mod_chat::prompt_run_hydrate_replay(&client, &pool)
                 .await
                 .unwrap_or_else(|e| {
@@ -26,6 +39,7 @@ pub async fn nats_post_connect(pool: PgPool, client: Client) {
             lock.release().await;
             tracing::info!(
                 schedules,
+                notify_schedules,
                 prompt_replay,
                 task_replay = 0u32,
                 "[c35:nats] hydrate complete"

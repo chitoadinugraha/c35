@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::OnceLock;
 use std::time::Duration;
 
 use serde::Deserialize;
@@ -17,6 +18,30 @@ pub(crate) const WINDOWS_LEGACY_AGENT_EXE: &str = "c_remote_windows.exe";
 pub(crate) const WINDOWS_LEGACY_AGENT_PROCESS: &str = "c_remote_windows";
 
 static DOWNLOAD_LOCK: Mutex<()> = Mutex::const_new(());
+
+/// Agent UI and tray threads are plain Win32 threads. `tokio::spawn` from those
+/// threads panics ("no reactor running") and takes the window procedure with it.
+static RUNTIME: OnceLock<tokio::runtime::Handle> = OnceLock::new();
+
+/// Capture the agent runtime so status-window and tray actions can schedule work.
+pub fn bind_runtime() {
+    if let Ok(handle) = tokio::runtime::Handle::try_current() {
+        let _ = RUNTIME.set(handle);
+    }
+}
+
+fn spawn_bg(fut: impl std::future::Future<Output = ()> + Send + 'static) {
+    if let Some(handle) = RUNTIME.get() {
+        handle.spawn(fut);
+        return;
+    }
+    match tokio::runtime::Handle::try_current() {
+        Ok(handle) => {
+            handle.spawn(fut);
+        }
+        Err(_) => warn!("dropped background update task: tokio runtime not bound"),
+    }
+}
 
 #[cfg(target_os = "android")]
 type AndroidApkInstaller = fn(&Path) -> Result<(), anyhow::Error>;
@@ -418,13 +443,23 @@ if (-not (Test-Path $src)) {{
   $alt = Join-Path $staging '{alt_name}'
   if (Test-Path $alt) {{ $src = $alt }}
 }}
-Copy-Item -Path $src -Destination $destExe -Force
+if (-not (Test-Path $src)) {{
+  if (Test-Path $destExe) {{ Start-Process -FilePath $destExe -WorkingDirectory $install }}
+  exit 1
+}}
+try {{
+  Copy-Item -LiteralPath $src -Destination $destExe -Force -ErrorAction Stop
+}} catch {{
+  Set-Content -LiteralPath (Join-Path $install 'update-error.txt') -Value $_.Exception.Message
+  if (Test-Path $destExe) {{ Start-Process -FilePath $destExe -WorkingDirectory $install }}
+  exit 1
+}}
 $winfsp = Join-Path $staging '{winfsp_dll}'
 if (Test-Path $winfsp) {{
-  Copy-Item -Path $winfsp -Destination (Join-Path $install '{winfsp_dll}') -Force
+  Copy-Item -LiteralPath $winfsp -Destination (Join-Path $install '{winfsp_dll}') -Force
 }}
 if (Test-Path $legacyExe) {{ Remove-Item $legacyExe -Force -ErrorAction SilentlyContinue }}
-Start-Process $destExe
+Start-Process -FilePath $destExe -WorkingDirectory $install
 exit 0
 "#,
         staging = staging.display().to_string().replace('\'', "''"),
@@ -443,7 +478,7 @@ exit 0
     #[cfg(target_os = "windows")]
     {
         info!(version, "==> [AUTO-UPDATE APPLYING] Spawning update apply script and restarting");
-        crate::win_powershell::file_spawn(script.to_str().unwrap())?;
+        spawn_apply_script(&script)?;
         std::process::exit(0);
     }
     #[cfg(any(target_os = "linux", target_os = "macos"))]
@@ -528,7 +563,7 @@ async fn update_poll_download(base_url: &str, apply_if_idle: bool) -> String {
 pub fn update_check_poll() {
     info!("user initiated update check (download only)");
     let base_url = crate::config::server_url();
-    tokio::spawn(async move {
+    spawn_bg(async move {
         let msg = update_poll_download(&base_url, false).await;
         crate::agent_ui::last_update_check_msg_set(msg);
     });
@@ -540,34 +575,65 @@ pub fn update_check_now() {
 }
 
 /// Install a staged build immediately (does not require idle).
+///
+/// Runs on the calling thread. The status window and tray are not on a Tokio
+/// runtime, so scheduling this with `tokio::spawn` panics inside the window
+/// procedure and the install never starts.
 pub fn update_apply_now() {
-    if let Some(v) = update_staged_version() {
-        info!(
-            version = v,
-            active_tasks = active_tasks(),
-            active_sessions = active_sessions(),
-            "user initiated apply update now"
-        );
-        tokio::spawn(async move {
-            if let Err(e) = update_apply(v) {
-                warn!("update apply now failed: {e}");
-                crate::agent_ui::last_update_check_msg_set(format!("Install failed: {e}"));
-            }
-        });
+    let Some(v) = update_staged_version() else {
+        warn!("update apply now: no staged build newer than current");
+        crate::agent_ui::last_update_check_msg_set(format!(
+            "No newer build downloaded (current build {})",
+            agent_build()
+        ));
+        return;
+    };
+    info!(
+        version = v,
+        active_tasks = active_tasks(),
+        active_sessions = active_sessions(),
+        "user initiated apply update now"
+    );
+    if is_dev_mode() {
+        let msg = format!("Dev mode — build {v} stays staged (install skipped)");
+        warn!("{msg}");
+        crate::agent_ui::last_update_check_msg_set(msg);
         return;
     }
-    warn!("update apply now: no staged build newer than current");
-    crate::agent_ui::last_update_check_msg_set(format!(
-        "No newer build downloaded (current build {})",
-        agent_build()
-    ));
+    if let Err(e) = update_apply(v) {
+        warn!("update apply now failed: {e}");
+        crate::agent_ui::last_update_check_msg_set(format!("Install failed: {e}"));
+    }
 }
 
 /// Trigger an immediate background check and download (e.g. from NATS release push).
 pub fn trigger_background_update(base_url: String) {
-    tokio::spawn(async move {
+    spawn_bg(async move {
         let _ = update_poll_download(&base_url, true).await;
     });
+}
+
+#[cfg(target_os = "windows")]
+fn spawn_apply_script(script: &Path) -> Result<(), anyhow::Error> {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
+    let path = script
+        .to_str()
+        .ok_or_else(|| anyhow::anyhow!("apply script path is not utf-8"))?;
+    std::process::Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-WindowStyle",
+            "Hidden",
+            "-File",
+            path,
+        ])
+        .creation_flags(CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP)
+        .spawn()?;
+    Ok(())
 }
 
 pub async fn update_run_loop(base_url: String) {

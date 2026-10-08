@@ -199,8 +199,11 @@ Grant: for each `site_iid`, same check as `site_grant_check` (owner or staff gra
 | `product.stock_status` | Low stock / qty snapshot |
 | `tx.sales_summary` | Revenue by period |
 | `tx.profit_summary` | Profit compare (multi-site) |
+| `tx.top_products` | Best sellers by quantity (readonly) |
 
 Port SQL ideas from id.alienai `tx.acc_profit_loss` / CSA `mod_site_tx` reports — implement as defs, not LLM SQL.
+
+`params.range` is `today`, `this_week`, or `this_month`. When `time_from_ms` is unset, that value is a UTC calendar window.
 
 ### Compare flow
 
@@ -220,26 +223,33 @@ User: `compare @warung-a @warung-b which is more profitable?`
 | `inst.web.builder` | mention | existing layout/catalog tools |
 | `inst.site.commerce` | topic | `site.tx.*` write tools when commerce |
 | `inst.site.compare` | task | `tool_include:site.query.run` — phrases: compare, lebih untung, which is more profitable |
-| `inst.site.report` | task | `tool_include:site.query.run` — laporan, report, sales today |
-| `inst.site.catalog` | task | `tool_include:site.query.run` — stock, stok, harga, price, product lookup. On price-change phrases also `tool_include:site.product.patch` |
+| `inst.site.report` | task | `tool_include:site.query.run`, `tool_exclude:web.search` — phrases: laporan, report, sales today, untung, laba, berapa untung, untung hari ini, keuntungan. Readonly |
+| `inst.site.top_products` | task | `tool_include:site.query.run`, `tool_exclude:web.search`, `tool_exclude:web.visit` — phrases: paling dibeli, paling laku, terlaris, best seller |
+| `inst.site.catalog.suggest` | task | `tool_include:site.query.run`, `tool_exclude:web.search`, `tool_exclude:web.visit` — phrases: nambah produk, enaknya nambah, saran produk. No `site.product_put` |
+| `inst.site.catalog` | task | `tool_include:site.query.run` — stock, stok, product lookup. On price-change phrases also `tool_include:site.product.patch` |
+| `inst.site.catalog.price` | task | `tool_include:site.query.run` — phrases: berapa harga, how much is, price of |
+| `inst.site.price_compare` | task | `tool_include:site.query.run` — phrases: reasonable, kemahalan, harga pasaran, murah, termasuk murah, harga murah, too expensive, my price, compare to the web |
 
 `inst.site.catalog` tells the model how to talk. It does not choose a site.
 
 - Stock: call `site.query.run` with `query_id: product.stock` and `params.q`. Omit `site_iids`. Summarize every returned row by site name. No web search.
-- Price read: catalog first. Web search only when the catalog has no row.
-- Price vs market: catalog and web search both run. See below.
+- Report (`inst.site.report`): readonly `site.query.run`. Profit phrases (`untung`, `laba`, `berapa untung`, `untung hari ini`, `keuntungan`) use `query_id` `tx.profit_summary`. Revenue uses `tx.sales_summary`. Set `params.range` to `today`, `this_week`, or `this_month`. Excludes `web.search`.
+- Top products (`inst.site.top_products`): `site.query.run` with `query_id` `tx.top_products`. Phrases: paling dibeli, paling laku, terlaris, best seller. Excludes web.
+- Suggest (`inst.site.catalog.suggest`): read `product.list` and `tx.top_products`. Suggest products that are not already on the menu. Do not call `site.product_put`. Excludes web.
+- Price read (`inst.site.catalog.price`, including `berapa harga`): catalog first. Web search only when `product.stock` returns zero rows.
+- Price vs market (`inst.site.price_compare`): catalog first (`product.stock`), then the server always runs one `web.search` (`PriceCompare`). Phrases include `murah`, `termasuk murah`, and `harga murah`. The model must not skip that hop. See below.
 - Price change: call `site.product.patch` with the product name and the new price. Omit `site_iid`. If the tool returns `ambiguous: true`, ask which site and wait for an `@site` (or a site name that resolves to one). Do not guess.
 
 ### Price read, market compare, then web search
 
 `harga` / `price` already match `inst.web_search`. That inst force-includes `web.search`, and the tool loop **runs `web.search` before the first model hop** (`prompt/tool_loop.rs`). Catalog still goes first so the store price is known before any search.
 
-Two price intents:
+Two price intents. The matched inst id selects the phase.
 
-| Intent | Phrases (examples) | After `product.stock` |
-|--------|--------------------|------------------------|
-| Lookup | berapa harga, how much is, price of | Rows exist → answer those site prices. Web search stays off. No rows → web search |
-| Vs market | reasonable, kemahalan, harga pasaran, compare to the web, too expensive, my price | Rows exist → then `web.search` for the same product, and answer with both. No rows → web search only, and say it is not in the stores |
+| Intent | Inst | Phrases (examples) | After `product.stock` |
+|--------|------|--------------------|------------------------|
+| Lookup | `inst.site.catalog.price` | berapa harga, how much is, price of | Rows exist → answer those site prices. Web search stays off. Zero rows → web search |
+| Vs market | `inst.site.price_compare` | reasonable, kemahalan, harga pasaran, murah, termasuk murah, harga murah, compare to the web, too expensive, my price | Catalog first. The server always runs one `web.search` (`PriceCompare`) after that hop, including when rows exist. The model must not skip it. Zero rows → that same web hop, and say the product is not in the stores |
 
 ```
 caller has no granted site
@@ -248,12 +258,12 @@ caller has no granted site
 caller has a site (mention set, or all granted sites)
   → do not prefetch web.search
   → first hop: site.query.run { query_id: product.stock, params.q = product name }
-  → lookup + rows: answer per site. Leave web.search out
-  → vs market + rows: run web.search, then compare store price to the web price
-  → no rows: run web.search
+  → inst.site.catalog.price + rows: answer per site. Leave web.search out
+  → inst.site.catalog.price + zero rows: run web.search
+  → inst.site.price_compare: server runs one web.search (PriceCompare) after the catalog hop. The model must not skip it
 ```
 
-The model picks `q` (the product name, not the whole sentence). The server decides the scope, and whether this turn is lookup or vs-market, from the matched inst. Vs-market is a phrase on `inst.site.catalog` (or a sibling inst), not a guess after the catalog hits.
+The model picks `q` (the product name, not the whole sentence). The server decides the scope and the phase from the matched inst. `berapa harga` stays on `inst.site.catalog.price` (web only when the catalog returns zero rows). `murah`, `termasuk murah`, and `harga murah` match `inst.site.price_compare`: `product.stock`, then one server `web.search` (`PriceCompare`).
 
 Stock questions stop at the catalog. An empty stock lookup says the product is not in those stores.
 
@@ -323,7 +333,7 @@ User: stock of product A on [@iid:111] [@iid:222]
 Scope: 111 and 222 only — other stores are out
 ```
 
-Price vs market:
+Price vs market (`inst.site.price_compare`, including `murah`):
 
 ```text
 User: is my Indomie price reasonable?
@@ -332,6 +342,16 @@ Rows: Warung A price=3500
 Tool: web.search { query: "harga Indomie" }
 Reply: Warung A sells it at 3500. Web listings are around …, so that price is …
 ```
+
+```text
+User: harga Indomie termasuk murah?
+Tool: site.query.run { query_id: "product.stock", params: { q: "Indomie" } }
+Rows: Warung A price=3500
+Tool: web.search { query: "harga Indomie" }
+Reply: Warung A sells it at 3500. Web listings are around …, so that price is …
+```
+
+The `web.search` line is the server `PriceCompare` hop. It runs after the catalog rows. The model must not skip it.
 
 ---
 
@@ -353,7 +373,7 @@ Shipped (see the implementation map):
 - `site.query.run` has no `requires_kinds` site gate. Empty `site_iids` uses `site_scope_pick` (mentions, else `site_granted_iids`). Empty scope returns no rows.
 - `site.product.patch` accepts `q` or `name` without a mention. A unique match writes. Two or more sites, or two or more products, return `{ "ok": false, "ambiguous": true }` and do not `UPDATE`.
 - Inst seeds: `inst.site.catalog.stock`, `inst.site.catalog.price`, `inst.site.price_compare`, `inst.site.catalog.write`, `inst.site.catalog.add`.
-- `catalog_web.rs` skips the `web.search` prefetch when those catalog insts match and the caller has a site. Price lookup searches the web only when `product.stock` returns no rows. Price compare searches after the store rows. Stock never searches. Write skips the prefetch.
+- `catalog_web.rs` skips the `web.search` prefetch when those catalog insts match and the caller has a site. `inst.site.catalog.price` searches the web only when `product.stock` returns zero rows. `inst.site.price_compare` (`PriceCompare`, including `murah`) always runs one `web.search` after the catalog hop. The model must not skip it. Stock never searches. Write skips the prefetch.
 
 ---
 

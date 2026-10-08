@@ -10,7 +10,9 @@ Status: **locked** 2026-09-20
 
 Legacy admin tail subject `log.{iid}.{dv}.{topic}` is deprecated; new lifecycle code uses [event.md](event.md).
 
-See also [billing.md](billing.md), [sync.md](sync.md).
+See also [billing.md](billing.md), [sync.md](sync.md), [notify.md](notify.md).
+
+User notification inbox is `ai.notify`. `ai.log` only gets the `user.notified` event (`class=event`; meta `notify_id`, `channels`, `title`). Ops reads that via `log_tail`. The app history screen reads `ai.notify`.
 
 Canonical DDL: [`../schemas/log.sql`](../schemas/log.sql)
 

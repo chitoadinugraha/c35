@@ -51,6 +51,7 @@ pub async fn boot_handlers_background(
         c35_mod_billing::fx_live_subscribe(pool.clone(), nats_client.clone());
         c35_mod_llm::llm_catalog_nats_subscribe(pool.clone(), nats_client.clone());
         c35_mod_chat::inst_cache_nats_subscribe(pool.clone(), nats_client.clone());
+        c35_mod_task::scheduler::task_scheduler_start(pool.clone(), nats_client.clone());
         let cas_dir = cfg.cas_dir.clone();
         let _ = std::fs::create_dir_all(&cas_dir);
         let subscriber_state = Arc::new(AppState {

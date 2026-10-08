@@ -67,14 +67,14 @@ String speechTextCap(String text, {int maxSentences = 2}) {
 }
 
 String speechTextClean(String raw) {
-  var text = raw;
+  var text = raw.replaceAll('\r\n', '\n');
+  text = text.replaceAll(RegExp(r'<thought>[\s\S]*?</thought>', caseSensitive: false), ' ');
   text = text.replaceAll(RegExp(r'```[\s\S]*?```'), ' ');
-  text = text.replaceAll(RegExp(r'`[^`]*`'), ' ');
+  text = text.replaceAll(RegExp(r'`[^`\n]*`'), ' ');
+  text = text.replaceAll(RegExp(r'!\[[^\]]*\]\([^)]*\)'), ' ');
   text = text.replaceAllMapped(RegExp(r'\[([^\]]+)\]\([^)]+\)'), (m) => m[1] ?? '');
-  text = text.replaceAll(RegExp(r'https?://[^\s]+'), ' ');
-  text = text.replaceAll(RegExp(r'^[#*>-]+\s*', multiLine: true), ' ');
-  text = text.replaceAll(RegExp(r'[*_~`]+'), ' ');
-  text = text.replaceAll(RegExp(r'<thought>[\s\S]*?</thought>'), ' ');
+  text = text.replaceAll(RegExp(r'https?://\S+'), ' ');
+  text = text.replaceAll(RegExp(r'<[^>\n]+>'), ' ');
   text = text.replaceAll(
     RegExp(
       r'[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]',
@@ -82,8 +82,118 @@ String speechTextClean(String raw) {
     ),
     ' ',
   );
+
+  final parts = <String>[];
+  final listItems = <String>[];
+  void flushList() {
+    if (listItems.isEmpty) return;
+    final joined = _speechJoinList(listItems);
+    listItems.clear();
+    if (joined.isNotEmpty) parts.add(joined);
+  }
+
+  for (final line in text.split('\n')) {
+    var s = line.trim();
+    if (s.isEmpty) {
+      flushList();
+      continue;
+    }
+    if (RegExp(r'^([-*_])\1{2,}$').hasMatch(s)) continue;
+    if (RegExp(r'^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$').hasMatch(s)) continue;
+    if (s.startsWith('|') && s.contains('|')) {
+      flushList();
+      final cells = s.split('|').map((c) => c.trim()).where((c) => c.isNotEmpty).toList();
+      if (cells.isNotEmpty) parts.add(cells.join(', '));
+      continue;
+    }
+    final list = RegExp(r'^(?:[-*+•·]|\d+[.)])\s+(?:\[[ xX]\]\s+)?(.*)$').firstMatch(s);
+    if (list != null) {
+      listItems.add(list.group(1) ?? '');
+      continue;
+    }
+    flushList();
+    s = s.replaceFirst(RegExp(r'^#{1,6}\s*'), '');
+    s = s.replaceFirst(RegExp(r'^>\s*'), '');
+    if (s.isNotEmpty) parts.add(s);
+  }
+  flushList();
+
+  text = _speechJoinParts(parts);
+  text = text.replaceAll(RegExp(r'[*_~]+'), ' ');
+  text = text.replaceAll(RegExp(r'[ \t]+'), ' ');
+  text = text.replaceAllMapped(RegExp(r'\s+([,.;:!?])'), (m) => m[1] ?? '');
+  text = text.replaceAll(RegExp(r'[…]'), '.');
+  text = text.replaceAll(RegExp(r'\.{2,}'), '.');
   text = text.replaceAll(RegExp(r'\s+'), ' ').trim();
   return text;
+}
+
+/// Short list items are joined with commas so TTS does not pause after each marker.
+String _speechJoinList(List<String> items) {
+  final parts = <String>[];
+  for (final raw in items) {
+    final s = raw.trim();
+    if (s.isNotEmpty) parts.add(s);
+  }
+  if (parts.isEmpty) return '';
+  final allShort = parts.every((s) => s.length <= 120 && !RegExp(r'[.!?]$').hasMatch(s));
+  if (allShort) return parts.join(', ');
+  return parts.map((s) => RegExp(r'[.!?]$').hasMatch(s) ? s : '$s.').join(' ');
+}
+
+String _speechJoinParts(List<String> parts) {
+  final buf = StringBuffer();
+  for (final raw in parts) {
+    final s = raw.trim();
+    if (s.isEmpty) continue;
+    if (buf.isNotEmpty) {
+      final prev = buf.toString().trimRight();
+      if (!RegExp(r'[.!?:,]$').hasMatch(prev)) buf.write('.');
+      buf.write(' ');
+    }
+    buf.write(s);
+  }
+  return buf.toString();
+}
+
+/// Ready clips from a streaming buffer. Single newlines and list markers stay
+/// together so each bullet is not its own TTS request. [maxChars] splits only
+/// long buffers, at a paragraph or sentence boundary.
+({List<String> ready, String rest}) speechPullChunks(String buffer, {bool flush = false, int maxChars = 700}) {
+  final ready = <String>[];
+  var rest = buffer;
+  while (rest.isNotEmpty) {
+    final over = rest.length >= maxChars;
+    if (!over && !flush) break;
+    if (!over) {
+      final spoken = speechTextClean(rest);
+      if (spoken.isNotEmpty) ready.add(spoken);
+      rest = '';
+      break;
+    }
+    final window = rest.substring(0, maxChars);
+    var split = window.lastIndexOf('\n\n');
+    if (split < 80) split = _speechLastSentenceEnd(window);
+    if (split < 80) split = window.length;
+    if (split <= 0) break;
+    final spoken = speechTextClean(rest.substring(0, split));
+    rest = rest.substring(split).replaceFirst(RegExp(r'^\n+'), '');
+    if (spoken.isNotEmpty) ready.add(spoken);
+  }
+  return (ready: ready, rest: rest);
+}
+
+int _speechLastSentenceEnd(String window) {
+  final re = RegExp(r'[.?!](?:\s+|$)');
+  var best = -1;
+  for (final m in re.allMatches(window)) {
+    if (m.start == 0) continue;
+    final prev = window[m.start - 1];
+    final unit = prev.codeUnitAt(0);
+    if (unit >= 48 && unit <= 57) continue;
+    best = m.end;
+  }
+  return best;
 }
 
 String speechLangLabel(String lang) {

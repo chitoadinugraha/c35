@@ -117,6 +117,7 @@ class ChatConn {
   final _promptFollowupPushCtrl = StreamController<PromptFollowupPush>.broadcast();
   final _taskRunPushCtrl = StreamController<TaskRunPush>.broadcast();
   final _devicePresencePushCtrl = StreamController<DevicePresencePush>.broadcast();
+  final _notifyPushCtrl = StreamController<NotifyPush>.broadcast();
   final _traceCache = <String, List<TraceLogDoc>>{};
   final _tracePrefetchInflight = <String, Future<void>>{};
   final _traceCacheCtrl = StreamController<String>.broadcast();
@@ -134,6 +135,7 @@ class ChatConn {
   Stream<PromptFollowupPush> get onPromptFollowupPush => _promptFollowupPushCtrl.stream;
   Stream<TaskRunPush> get onTaskRunPush => _taskRunPushCtrl.stream;
   Stream<DevicePresencePush> get onDevicePresencePush => _devicePresencePushCtrl.stream;
+  Stream<NotifyPush> get onNotifyPush => _notifyPushCtrl.stream;
   Stream<void> get onReconnected => _reconnectedCtrl.stream;
   /// Fires after auto-reconnect attaches a socket (before first frame); run session init.
   Stream<void> get onSocketAttached => _socketAttachedCtrl.stream;
@@ -459,6 +461,7 @@ class ChatConn {
       DevicePresenceCache.instance.apply(push);
       if (!_devicePresencePushCtrl.isClosed) _devicePresencePushCtrl.add(push);
     }
+    if (res.hasNotifyPush() && !_notifyPushCtrl.isClosed) _notifyPushCtrl.add(res.notifyPush);
     if (_isRemoteSignal(res) && !_remoteSignalCtrl.isClosed) _remoteSignalCtrl.add(res);
 
     if (res.hasErr() && reqId.isNotEmpty) {
@@ -1405,6 +1408,30 @@ class ChatConn {
         ),
         (res) => res.promptFollowupList,
       );
+
+  Future<ResNotifyList> notifyList({int limit = 20, bool unreadOnly = false}) => _rpc<ResNotifyList>(
+        WsReq(notifyList: ReqNotifyList(limit: limit, unreadOnly: unreadOnly)),
+        (res) => res.notifyList,
+      );
+
+  Future<ResNotifyRead> notifyRead({List<int> ids = const []}) => _rpc<ResNotifyRead>(
+        WsReq(notifyRead: ReqNotifyRead(ids: [for (final id in ids) Int64(id)])),
+        (res) => res.notifyRead,
+      );
+
+  Future<void> notifyTokenPut({required String clientId, required String token, required String platform}) async {
+    await _rpc<ResNotifyTokenPut>(
+      WsReq(notifyTokenPut: ReqNotifyTokenPut(clientId: clientId, token: token, platform: platform)),
+      (res) => res.notifyTokenPut,
+    );
+  }
+
+  Future<void> appPresence({required String clientId, required bool resumed}) async {
+    await _rpc<ResAppPresence>(
+      WsReq(appPresence: ReqAppPresence(clientId: clientId, resumed: resumed)),
+      (res) => res.appPresence,
+    );
+  }
 
   Future<void> promptAbort({Int64 chatId = Int64.ZERO, String reqId = ''}) async {
     final req = ReqPromptAbort(chatId: chatId);

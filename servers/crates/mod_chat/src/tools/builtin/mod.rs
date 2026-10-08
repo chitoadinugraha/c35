@@ -24,6 +24,7 @@ mod drive;
 mod gsheet;
 mod mail;
 mod memory;
+mod notify;
 mod task;
 mod web_research;
 mod web_search;
@@ -40,6 +41,7 @@ pub use chat_history::{ChatMessagesTool, ChatSearchTool};
 pub use mail::{
     MailArchiveTool, MailGetTool, MailListTool, MailMailboxListTool, MailMarkReadTool, MailSendTool,
 };
+pub use notify::{NotifyCancelTool, NotifyListTool, NotifyScheduleTool};
 pub use memory::{MemoryForgetTool, MemoryListTool, MemorySaveTool};
 pub use browser::{
     BrowserFileUploadTool, BrowserPageActTool, BrowserPageExtractTool, BrowserPageObserveTool,
@@ -94,7 +96,8 @@ pub use site_tx::{
     SiteOrderStatusTool, SiteTxDebtPayTool, SiteTxListTool, SiteTxPreviewTool, SiteTxPutTool,
 };
 pub use task::{
-    TaskRunCancelDeviceTool, TaskRunCancelTool, TaskRunStartTool, TaskRunStatusTool,
+    TaskCreateTool, TaskDeleteTool, TaskListTool, TaskRunCancelDeviceTool, TaskRunCancelTool,
+    TaskRunStartTool, TaskRunStatusTool,
 };
 pub use drive::{DriveListTool, DriveReadTool};
 pub use gsheet::{GsheetAppendTool, GsheetReadTool, GsheetUpdateTool};

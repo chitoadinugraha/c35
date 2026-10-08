@@ -7,6 +7,7 @@ pub const PROMPT_RUN_SQL: &str = include_str!("../../../../_/schemas/prompt_run.
 pub const PROMPT_FOLLOWUP_SQL: &str = include_str!("../../../../_/schemas/prompt_followup.sql");
 pub const ASSET_TAG_SQL: &str = include_str!("../../../../_/schemas/asset_tag.sql");
 pub const LOG_SQL: &str = include_str!("../../../../_/schemas/log.sql");
+pub const NOTIFY_SQL: &str = include_str!("../../../../_/schemas/notify.sql");
 pub const EMBED_SQL: &str = include_str!("../../../../_/schemas/embed.sql");
 pub const DATA_SOURCE_SQL: &str = include_str!("../../../../_/schemas/data_source.sql");
 pub const YOUTUBE_TRANSCRIPT_SQL: &str = include_str!("../../../../_/schemas/youtube_transcript.sql");
@@ -43,6 +44,7 @@ pub const SCHEMA_APPLY_ORDER: &[(&str, &str)] = &[
     ("prompt_followup", PROMPT_FOLLOWUP_SQL),
     ("asset_tag", ASSET_TAG_SQL),
     ("log", LOG_SQL),
+    ("notify", NOTIFY_SQL),
     ("embed", EMBED_SQL),
     ("data_source", DATA_SOURCE_SQL),
     ("youtube_transcript", YOUTUBE_TRANSCRIPT_SQL),

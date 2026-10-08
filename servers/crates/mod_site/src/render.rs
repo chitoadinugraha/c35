@@ -64,8 +64,9 @@ pub fn product_card_html(p: &ProductRow, product_design: Option<&Value>) -> Stri
     };
     let reserve_attr = product_reserve_attrs(p);
     let action = product_purchase_button(p);
+    let stock = product_stock_line(p);
     format!(
-        r#"<article class="product-card" data-pid="{pid}"{reserve_attr}>{img}<div class="product-info"><h3{title_attr}>{name}</h3><p{subtitle_attr}>{desc}</p><div class="product-bottom"><span class="price"{price_attr}>{price_str}</span>{action}</div></div></article>"#,
+        r#"<article class="product-card" data-pid="{pid}"{reserve_attr}>{img}<div class="product-info"><h3{title_attr}>{name}</h3><p{subtitle_attr}>{desc}</p>{stock}<div class="product-bottom"><span class="price"{price_attr}>{price_str}</span>{action}</div></div></article>"#,
         pid = p.product_id,
         reserve_attr = reserve_attr,
         img = img,
@@ -73,10 +74,21 @@ pub fn product_card_html(p: &ProductRow, product_design: Option<&Value>) -> Stri
         name = esc(&p.name),
         subtitle_attr = subtitle_attr,
         desc = esc(&p.desc),
+        stock = stock,
         price_attr = price_attr,
         price_str = esc(&format_currency(p.price)),
         action = action,
     )
+}
+
+fn product_stock_line(p: &ProductRow) -> String {
+    if !p.stock_show_to_customer {
+        return String::new();
+    }
+    let Some(n) = p.stock_qty else {
+        return String::new();
+    };
+    format!(r#"<p class="product-stock">Stock: {n}</p>"#)
 }
 
 fn product_reserve_attrs(p: &ProductRow) -> String {
@@ -653,7 +665,7 @@ pub fn block_html_render(
                 format!(r#"<h2>{}</h2>"#, esc(title))
             };
             format!(
-                r#"<section class="block contact-form">{heading}<form class="contact-form" action='#contact' method='post' onsubmit="event.preventDefault(); c35GuestLead.submit(this);">{inputs}<button type="submit">{}</button></form></section>"#,
+                r#"<section class="block contact-form" data-guest="form">{heading}<form class="contact-form" action='#contact' method='post' onsubmit="event.preventDefault(); c35GuestLead.submit(this);">{inputs}<button type="submit">{}</button></form></section>"#,
                 esc(submit)
             )
         }
@@ -1051,13 +1063,49 @@ async fn guest_client_script_tags(pool: &PgPool, site_iid: i64, effects: &Value)
         "order_progress_steps": order_progress_steps_json(),
     });
     let raw = serde_json::to_string(&guest).unwrap_or_else(|_| "{}".into());
-    let safe = raw.replace("</", "<\\/");
+    guest_client_script_markup(&raw, effects)
+}
+
+/// Page script tags. `site-guest.v1.js` is always included.
+/// `site-guest.effects.v1.js` and `window.__SITE_BOOT__.effects` are included only when
+/// `effects` is an array with at least one object whose `presetId` or `preset_id` is a
+/// non-empty string and whose `active` is not `false`.
+pub fn guest_client_script_markup(guest_json: &str, effects: &Value) -> String {
+    let guest_safe = guest_json.replace("</", "<\\/");
+    let v1 = r#"<script defer src="/static/site-guest/site-guest.v1.js"></script>"#;
+    if !effects_script_enabled(effects) {
+        return format!(
+            r#"<script>window.__SITE_GUEST__={guest_safe};window.__SITE_BOOT__={{}};</script>{v1}"#
+        );
+    }
     let effects_raw = serde_json::to_string(effects).unwrap_or_else(|_| "[]".into());
     let effects_safe = effects_raw.replace("</", "<\\/");
     format!(
-        r#"<script>window.__SITE_GUEST__={};window.__SITE_BOOT__={{"effects":{}}};</script><script defer src="/static/site-guest/site-guest.v1.js"></script><script defer src="/static/site-guest/site-guest.effects.js"></script>"#,
-        safe, effects_safe
+        r#"<script>window.__SITE_GUEST__={guest_safe};window.__SITE_BOOT__={{"effects":{effects_safe}}};</script>{v1}<script defer src="/static/site-guest/site-guest.effects.v1.js"></script>"#
     )
+}
+
+fn effects_script_enabled(effects: &Value) -> bool {
+    let Some(rows) = effects.as_array() else {
+        return false;
+    };
+    rows.iter().any(effect_row_loads_script)
+}
+
+fn effect_row_loads_script(row: &Value) -> bool {
+    let Some(obj) = row.as_object() else {
+        return false;
+    };
+    if obj.get("active").and_then(|v| v.as_bool()) == Some(false) {
+        return false;
+    }
+    let preset = obj
+        .get("presetId")
+        .or_else(|| obj.get("preset_id"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim();
+    !preset.is_empty()
 }
 
 

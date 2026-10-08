@@ -6,15 +6,17 @@ Prompt-built websites and business storefronts.
 
 - **Registry + ACL** → `ai.identity(kind=site)` + `ai.identity_grant`
 - **All site payload** → YSQL schema **`site`** (does not bloat `ai`)
-- **Primary editor** → Home prompt (`@alien_id` / site name); topic **`web.builder`**
-- **Admin UI** → Devices-like page + generic **`UITable`** (Airtable-style grids)
+- **Primary editors** → Sites page (CSA section menu, Info first) and Home prompt (`@alien_id`, topic `web.builder`)
+- **Admin UI** → Sites editor shell (rail + preview). `UITable` remains for power users
 - **Guest URLs** → path only: `https://alienai.id/{alien_id}/…` — **never** `{alien_id}.alienai.id`
+- **Guest effects** → Web runs `overlay_effects` WASM only when the theme has an active preset. Flutter runs Dart painters. Preset ids match `presets.json`
 
 ## Reference
 
 | Project | Borrow |
 |---------|--------|
 | `D:\csa_site_published` | Publish/render pipeline, guest HTTP router, custom domain + CNAME |
+| `D:\csa_site_published` | Also the source for `crates/overlay_effects`, `client/site/src/effects/host.ts`, and `clients/app/lib/widgets/site/ui_site_*_section.dart` (UX only) |
 | `E:\Project Archive\id.alienai` | Product catalog shape, POS / tx model |
 | c35 Devices page | Master/detail + tabs shell |
 

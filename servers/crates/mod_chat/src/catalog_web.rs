@@ -29,6 +29,17 @@ pub fn catalog_web_after_stock(phase: CatalogWebPhase, row_count: usize) -> bool
         || (phase == CatalogWebPhase::PriceLookup && row_count == 0)
 }
 
+/// Which catalog reads arm the post-query web phase.
+/// Price compare must search after a full menu read (`product.list`) as well as `product.stock`.
+/// Lookup and stock only arm on `product.stock`, so a menu list does not trigger a search.
+pub fn catalog_query_arms_web(phase: CatalogWebPhase, query_id: &str) -> bool {
+    match phase {
+        CatalogWebPhase::PriceCompare => matches!(query_id, "product.stock" | "product.list"),
+        CatalogWebPhase::PriceLookup | CatalogWebPhase::Stock => query_id == "product.stock",
+        CatalogWebPhase::Off => false,
+    }
+}
+
 pub fn catalog_skip_web_prefetch(matched_ids: &[String], phase: CatalogWebPhase) -> bool {
     phase != CatalogWebPhase::Off
         || matched_ids.iter().any(|id| {
@@ -64,6 +75,15 @@ mod tests {
         let ids = vec!["inst.site.catalog.price".into(), "inst.site.price_compare".into()];
         assert_eq!(catalog_web_phase(&ids, true), CatalogWebPhase::PriceCompare);
         assert!(catalog_web_after_stock(CatalogWebPhase::PriceCompare, 2));
+    }
+
+    #[test]
+    fn catalog_compare_arms_on_menu_list() {
+        assert!(catalog_query_arms_web(CatalogWebPhase::PriceCompare, "product.list"));
+        assert!(catalog_query_arms_web(CatalogWebPhase::PriceCompare, "product.stock"));
+        assert!(!catalog_query_arms_web(CatalogWebPhase::PriceLookup, "product.list"));
+        assert!(catalog_query_arms_web(CatalogWebPhase::PriceLookup, "product.stock"));
+        assert!(!catalog_query_arms_web(CatalogWebPhase::Off, "product.list"));
     }
 
     #[test]

@@ -12,8 +12,8 @@ use tracing::warn;
 
 use crate::cancel::task_run_cancel_signal;
 use crate::store::{
-    task_list, task_put, task_run_active_for_device, task_run_get, task_run_list_for_task,
-    task_run_mark_cancelled,
+    task_delete, task_list, task_put, task_run_active_for_device, task_run_finish,
+    task_run_get, task_run_list_for_task, task_run_mark_cancelled, task_run_update_progress,
 };
 use crate::worker::{task_worker_spawn, TASK_RUN_HOLD_USD};
 
@@ -37,9 +37,62 @@ pub async fn task_list_rpc(pool: &PgPool, owner_iid: i64, req: ReqTaskList) -> R
     ResTaskList { tasks }
 }
 
-pub async fn task_put_rpc(pool: &PgPool, owner_iid: i64, req: ReqTaskPut) -> Result<ResTaskPut, String> {
+pub async fn task_put_rpc(
+    pool: &PgPool,
+    nats: Option<&Client>,
+    owner_iid: i64,
+    req: ReqTaskPut,
+) -> Result<ResTaskPut, String> {
     let task = task_put(pool, owner_iid, req.task.as_ref().ok_or("task required")?).await?;
+    if let Some(nc) = nats {
+        for tr in &task.triggers {
+            if tr.is_active {
+                let schedule = match tr.kind {
+                    2 if !tr.cron_expr.is_empty() => {
+                        c35_nats::format_schedule_pattern("cron", &tr.cron_expr, None)
+                    }
+                    1 if tr.run_at_ms > 0 => {
+                        let dt = chrono::DateTime::from_timestamp_millis(tr.run_at_ms);
+                        c35_nats::format_schedule_pattern("once", "", dt)
+                    }
+                    _ => None,
+                };
+                if let Some(sched) = schedule {
+                    if let Err(e) = c35_nats::task_schedule_arm(
+                        nc,
+                        tr.id,
+                        task.id,
+                        owner_iid,
+                        task.device_iid,
+                        &sched,
+                        &tr.timezone,
+                    )
+                    .await
+                    {
+                        tracing::warn!(trigger_id = tr.id, error = format!("{:#}", e), "task_schedule_arm failed");
+                    }
+                }
+            } else {
+                let _ = c35_nats::task_schedule_disarm(nc, tr.id).await;
+            }
+        }
+    }
     Ok(ResTaskPut { task: Some(task) })
+}
+
+pub async fn task_delete_rpc(
+    pool: &PgPool,
+    nats: Option<&Client>,
+    owner_iid: i64,
+    task_id: i64,
+) -> Result<bool, String> {
+    let trigger_ids = task_delete(pool, owner_iid, task_id).await?;
+    if let Some(nc) = nats {
+        for tid in trigger_ids {
+            let _ = c35_nats::task_schedule_disarm(nc, tid).await;
+        }
+    }
+    Ok(true)
 }
 
 pub async fn task_run_start_rpc(
@@ -107,7 +160,7 @@ pub async fn task_run_start_rpc(
         owner_iid,
         task_id: req.task_id,
         req_id: req_id.clone(),
-        prompt: serde_json::json!({"delegate":"server","run_id":run_id}).to_string(),
+        prompt: prompt.clone(),
         skill_id: req.skill_id,
         model: req.model.clone(),
         step_index: 0,
@@ -119,15 +172,82 @@ pub async fn task_run_start_rpc(
         }
     }
 
-    let pool_arc = std::sync::Arc::new(pool.clone());
-    let nats_arc = nats.cloned().map(std::sync::Arc::new);
-    task_worker_spawn(pool_arc, nats_arc, owner_iid, device_iid, run_id, req_id, prompt);
+    let recipe: serde_json::Value = serde_json::from_str(&prompt).unwrap_or(serde_json::Value::Null);
+    let recipe_name = recipe.get("recipe").and_then(|v| v.as_str()).unwrap_or("");
+    if recipe_name == "browser.sheet_row_backfill" {
+        let pool_arc = std::sync::Arc::new(pool.clone());
+        let nats_arc = nats.cloned().map(std::sync::Arc::new);
+        task_worker_spawn(pool_arc, nats_arc, owner_iid, device_iid, run_id, req_id, prompt);
+    } else {
+        crate::store::task_run_set_running(pool, run_id).await;
+    }
 
     let run = task_run_get(pool, owner_iid, run_id)
         .await
         .ok_or("run missing after insert")?;
     task_run_push(nats, owner_iid, &run);
     Ok(ResTaskRunStart { run: Some(run) })
+}
+
+pub async fn task_run_finish_rpc(
+    pool: &PgPool,
+    nats: Option<&Client>,
+    owner_iid: i64,
+    run_id: i64,
+    status: c35_proto::TaskRunStatus,
+    summary: &str,
+    error: &str,
+) {
+    let started_ts = sqlx::query_scalar::<_, Option<chrono::DateTime<chrono::Utc>>>(
+        "SELECT started_ts FROM ai.task_run WHERE id = $1",
+    )
+    .bind(run_id)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten()
+    .flatten();
+    let duration_ms = started_ts
+        .map(|t| (chrono::Utc::now() - t).num_milliseconds().max(0))
+        .unwrap_or(0);
+
+    task_run_finish(
+        pool,
+        run_id,
+        status,
+        summary,
+        error,
+        &serde_json::json!({}),
+        duration_ms,
+    )
+    .await;
+
+    let req_id = sqlx::query_scalar::<_, String>(
+        "SELECT req_id FROM ai.task_run WHERE id = $1",
+    )
+    .bind(run_id)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten()
+    .unwrap_or_default();
+    if !req_id.is_empty() {
+        let _ = crate::metrics::task_run_billing_settle(pool, owner_iid, &req_id, 0.0).await;
+    }
+
+    if let Some(run) = task_run_get(pool, owner_iid, run_id).await {
+        task_run_push(nats, owner_iid, &run);
+    }
+}
+
+pub async fn task_run_progress_store(
+    pool: &PgPool,
+    run_id: i64,
+    meta: &serde_json::Value,
+    summary: &str,
+    step_index: i32,
+) {
+    task_run_update_progress(pool, run_id, meta, summary, step_index).await;
 }
 
 pub async fn task_run_cancel_rpc(

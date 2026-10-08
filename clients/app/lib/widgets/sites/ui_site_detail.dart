@@ -1,5 +1,6 @@
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
+import 'package:alienai_c35/widgets/sites/editor/ui_site_editor_menu.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_editor_shell.dart';
 import 'package:flutter/material.dart';
 
@@ -11,7 +12,7 @@ class UiSiteDetail extends StatelessWidget {
     this.onBack,
     this.title,
     this.initialTabRoute,
-    this.initialEditorSection = 'products',
+    this.initialEditorSection = siteEditorMenuDefaultId,
   });
 
   final SiteRow row;

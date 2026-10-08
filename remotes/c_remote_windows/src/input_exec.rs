@@ -176,6 +176,49 @@ pub fn execute_input(evt: &RemoteInputEvent) {
                 send_unicode_char(c);
             }
         }
+        "clipboard_set_text" => {
+            #[cfg(windows)]
+            {
+                if !evt.text.is_empty() {
+                    unsafe {
+                        let _ = set_clipboard_text(&evt.text);
+                    }
+                }
+            }
+        }
+        "clipboard_paste" => {
+            #[cfg(windows)]
+            {
+                if !evt.text.is_empty() {
+                    unsafe {
+                        if set_clipboard_text(&evt.text) {
+                            std::thread::sleep(std::time::Duration::from_millis(30));
+                        }
+                    }
+                }
+                trigger_paste();
+            }
+        }
+        "clipboard_files" => {
+            #[cfg(windows)]
+            {
+                let paths: Vec<std::path::PathBuf> = evt
+                    .text
+                    .lines()
+                    .map(|l| l.trim())
+                    .filter(|l| !l.is_empty())
+                    .filter_map(|l| c_remote_core::webrtc::fs::path_resolve(l).ok())
+                    .collect();
+                if !paths.is_empty() {
+                    unsafe {
+                        if set_clipboard_files(&paths) {
+                            std::thread::sleep(std::time::Duration::from_millis(30));
+                            trigger_paste();
+                        }
+                    }
+                }
+            }
+        }
         other => {
             info!(event_type = other, "unhandled remote input event");
         }
@@ -388,3 +431,104 @@ fn send_unicode_char(ch: u16) {
         SendInput(&[down, up], std::mem::size_of::<INPUT>() as i32);
     }
 }
+
+#[cfg(windows)]
+unsafe fn set_clipboard_text(text: &str) -> bool {
+    use windows::Win32::Foundation::HANDLE;
+    use windows::Win32::System::DataExchange::{
+        CloseClipboard, EmptyClipboard, OpenClipboard, SetClipboardData,
+    };
+    use windows::Win32::System::Memory::{GlobalAlloc, GlobalLock, GlobalUnlock, GMEM_MOVEABLE};
+
+    if OpenClipboard(None).is_err() {
+        return false;
+    }
+    let _ = EmptyClipboard();
+
+    let utf16: Vec<u16> = text.encode_utf16().chain(std::iter::once(0)).collect();
+    let bytes_len = utf16.len() * std::mem::size_of::<u16>();
+    let Ok(hmem) = GlobalAlloc(GMEM_MOVEABLE, bytes_len) else {
+        let _ = CloseClipboard();
+        return false;
+    };
+    let ptr = GlobalLock(hmem) as *mut u16;
+    if ptr.is_null() {
+        let _ = CloseClipboard();
+        return false;
+    }
+    std::ptr::copy_nonoverlapping(utf16.as_ptr(), ptr, utf16.len());
+    let _ = GlobalUnlock(hmem);
+
+    const CF_UNICODETEXT: u32 = 13;
+    let ok = SetClipboardData(CF_UNICODETEXT, HANDLE(hmem.0)).is_ok();
+    let _ = CloseClipboard();
+    ok
+}
+
+#[cfg(windows)]
+unsafe fn set_clipboard_files(paths: &[std::path::PathBuf]) -> bool {
+    use windows::Win32::Foundation::{HANDLE, POINT};
+    use windows::Win32::System::DataExchange::{
+        CloseClipboard, EmptyClipboard, OpenClipboard, SetClipboardData,
+    };
+    use windows::Win32::System::Memory::{GlobalAlloc, GlobalLock, GlobalUnlock, GMEM_MOVEABLE};
+    use windows::Win32::UI::Shell::DROPFILES;
+
+    if paths.is_empty() {
+        return false;
+    }
+    if OpenClipboard(None).is_err() {
+        return false;
+    }
+    let _ = EmptyClipboard();
+
+    let mut utf16_buf: Vec<u16> = Vec::new();
+    for p in paths {
+        let s = p.to_string_lossy();
+        utf16_buf.extend(s.encode_utf16());
+        utf16_buf.push(0);
+    }
+    utf16_buf.push(0);
+
+    let header_size = std::mem::size_of::<DROPFILES>();
+    let total_bytes = header_size + utf16_buf.len() * std::mem::size_of::<u16>();
+
+    let Ok(hmem) = GlobalAlloc(GMEM_MOVEABLE, total_bytes) else {
+        let _ = CloseClipboard();
+        return false;
+    };
+    let ptr = GlobalLock(hmem) as *mut u8;
+    if ptr.is_null() {
+        let _ = CloseClipboard();
+        return false;
+    }
+
+    let dropfiles = DROPFILES {
+        pFiles: header_size as u32,
+        pt: POINT { x: 0, y: 0 },
+        fNC: false.into(),
+        fWide: true.into(),
+    };
+    std::ptr::copy_nonoverlapping(&dropfiles as *const DROPFILES as *const u8, ptr, header_size);
+    std::ptr::copy_nonoverlapping(
+        utf16_buf.as_ptr() as *const u8,
+        ptr.add(header_size),
+        utf16_buf.len() * std::mem::size_of::<u16>(),
+    );
+    let _ = GlobalUnlock(hmem);
+
+    const CF_HDROP: u32 = 15;
+    let ok = SetClipboardData(CF_HDROP, HANDLE(hmem.0)).is_ok();
+    let _ = CloseClipboard();
+    ok
+}
+
+#[cfg(windows)]
+fn trigger_paste() {
+    send_key_event(0x11, false);
+    send_key_event(0x56, false);
+    std::thread::sleep(std::time::Duration::from_millis(30));
+    send_key_event(0x56, true);
+    send_key_event(0x11, true);
+}
+

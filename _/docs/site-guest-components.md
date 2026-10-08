@@ -4,6 +4,18 @@ Maps c35 **SiteDoc** block types ([site.md](site.md)) to CSA **guest_ui** compon
 
 **Scope:** v1 blocks validated in `mod_site::doc` plus catalog types declared in `site.proto`. Flutter guest widgets (track W1) consume **`site.boot_get`** JSON; web guest HTML uses prerender + `data-guest` attributes per CSA.
 
+## Web guest assets
+
+- Web guest UI is vanilla JS. No Alpine.js.
+- Served files: `/static/site-guest/site-guest.v1.js` on every page (cart, reservation, catalog, orders, contact form, queue). `/static/site-guest/site-guest.effects.v1.js` plus `/static/site-guest/effects/overlay_effects.js` and wasm ONLY when at least one effect has `active !== false` and a known preset id.
+- Do not split form or queue into extra script files.
+- Boot effect rows: `presetId`, `params` object, `active`.
+- `commerce_boot.payment_methods` from `doc_json.payment_accounts`.
+- `contact_form` HTML uses `data-guest="form"`.
+- Minified JS, `Cache-Control: public, max-age=86400`, gzip at the Cloudflare edge (origin does not store .gz).
+
+Web effects host is `site-guest.effects.v1.js` (WASM). Flutter effects use `GuestSiteEffectStack` (Dart painters).
+
 ## Block -> component mapping
 
 | c35 `type` | Props (summary) | CSA `data-guest` | Widget / Rust fn (target) | Capability gate | Notes |
@@ -14,7 +26,7 @@ Maps c35 **SiteDoc** block types ([site.md](site.md)) to CSA **guest_ui** compon
 | `gallery` | `pics[]`, `title` | -- | Gallery | -- | Carousel on detail in CSA **Post** pattern |
 | `links` | link rows / social | `link` | Link list | -- | Maps to CSA link rows |
 | `product_grid` | `filter`, `category`, `limit` | `site_product` | Product cards | `commerce` (sell) | Boot JSON preloads products per block id |
-| `contact_form` | fields config | `form` | Form + `ReqSiteFormSubmit` | -- | Alpine/RPC on web; same RPC on Flutter |
+| `contact_form` | fields config | `form` | Form + `ReqSiteFormSubmit` | -- | HTML uses `data-guest="form"`. Vanilla JS in `site-guest.v1.js`; same RPC on Flutter |
 | `map` | geo / label | -- | Map embed | optional | CSA has no dedicated map hub block |
 | `hours` | schedule rows | `profile` (hours toggle) | Hours table | optional | CSA profile optional hours |
 | `queue` | queue config | `queue` | Queue take/track | `queue` | Link to `/queue/...` on web |
@@ -46,6 +58,8 @@ Flutter and preview use the same payload shape (v1 string `boot_json`):
 | `product_preload` | Map block id -> product rows for each `product_grid` |
 | `commerce_boot.products[]` | `can_reserve`, `duration_value` (default 1), `duration_unit` (default `day`), `reservation_unit_selection` (`guest_picks` or `system`) from `site.product.product_json` |
 | `commerce_boot.objects[]` | Reservable `site.object` rows `{id, name, code, pic, kind, product_id}` when `booking` is on; `[]` when booking is off |
+| `commerce_boot.payment_methods` | From `doc_json.payment_accounts` |
+| `effects[]` | Boot rows `{ presetId, params, active }`. `params` is an object. Web loads the effects script only when one row has `active !== false` and a known preset id |
 | `mode` | `draft` \| `published` |
 
 ## Reservation sheet

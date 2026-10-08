@@ -36,7 +36,8 @@ Bootstrapped by `c35_nats::jetstream_streams_ensure` on every `c35-server` NATS 
 |--------|------------|-----------|-------------|---------|
 | `C35_CHAT_PROMPT` | `c35.prompt.run` | WorkQueue | `c35-prompt-dispatch` | Prompt turn jobs (`ai.prompt_run`) |
 | `C35_DEVICE_TASK` | `c35.act.device.*.task.run` | WorkQueue | `c35-task-dispatch` | Device automation (`ai.task_run`) |
-| `C35_TASK_SCHEDULE` | `c35.schedule.task.>`, `c35.task.fire.>` | default + `allow_msg_schedules` | `c35-task-schedule-fire` (planned) | Cron / once triggers |
+| `C35_TASK_SCHEDULE` | `c35.schedule.task.>`, `c35.task.fire.>` | default + `allow_msg_schedules` | `c35-task-schedule-consumer` | Cron / interval / once triggers |
+| `C35_NOTIFY_SCHEDULE` | `c35.schedule.notify.>`, `c35.notify.fire.>` | default + `allow_msg_schedules`, `allow_msg_ttl` | `c35-notify-fire` | User notification `@at` fire. See [notify.md](notify.md) |
 
 ### JetStream KV — `c35_stats`
 
@@ -65,32 +66,41 @@ See [sync.md](sync.md) — app UI: `c35.user.{iid}.app.>`; events: `c35.user.{ii
 
 ## Cron schedules (NATS 2.14+)
 
-**No YB poller** for “what is due now?” — NATS message schedules (ADR-51) fire ticks.
+**No YB poller** for “what is due now?” — NATS JetStream message schedules fire ticks autonomously.
 
 ### Flow
 
 ```text
-1. Client  ReqTaskPut (trigger kind=cron|once)
+1. Client  ReqTaskPut / tool `task.create` (kind=cron|once, interval_sec or cron_expr)
 2. Server  UPSERT ai.task_trigger (YB)
-           publish schedule → c35.schedule.task.{trigger_id}
-             Nats-Schedule: <cron 6-field | @at RFC3339>
-             Nats-Schedule-Time-Zone: Asia/Jakarta
+           publish schedule → c35.schedule.task.{trigger_id} on C35_TASK_SCHEDULE
+             Nats-Schedule: <6-field robfig cron | @hourly | @daily>
+             Nats-Schedule-Time-Zone: UTC
              Nats-Schedule-Target: c35.task.fire.{trigger_id}
-3. NATS   fires on schedule → c35.task.fire.{trigger_id}
-4. Server  worker (queue group): load trigger from YB
-           INSERT ai.task_run (queued)
-           JetStream publish → C35_DEVICE_TASK
-5. Server  TaskRunPush → owner WS (core NATS)
+             Nats-Schedule-TTL: 24h
+3. NATS    fires on schedule → republishes to c35.task.fire.{trigger_id}
+4. Server  durable pull consumer `c35-task-schedule-consumer`:
+           ack msg → verify task/trigger active in YB → dispatch task_run_start_rpc
+           (marks status running, dispatches ActDeviceTaskRun to remote agent)
+5. Agent   executes script/powershell → posts /v1/agent/task/done
+6. Server  task_run_finish_rpc records status done, duration_ms, and rolls up metrics
 ```
 
-| Trigger kind | `Nats-Schedule` |
-|--------------|-----------------|
-| `cron` | 6-field cron (`sec min hr dom mon dow`), e.g. `0 0 9 * * *` |
-| `once` | `@at 2026-09-24T09:00:00Z` |
+| Trigger format | Pattern | Example |
+|----------------|---------|---------|
+| Fixed interval | `*/{sec} * * * * *` | `*/10 * * * * *` (every 10s) |
+| Standard cron | `0 {min} {hr} {dom} {mon} {dow}` | `0 0 9 * * *` (9am daily) |
+| Standard alias | `@hourly`, `@daily`, `@weekly`, `@monthly` | `@hourly` |
+| One-time future | `{sec} {min} {hr} {dom} {mon} *` | `0 0 12 25 12 *` |
 
-On `task_trigger` deactivate or delete → cancel schedule subject (`c35.schedule.task.{id}.stop` or purge).
+On `task_trigger` deactivate or task deletion:
+- Server calls `STREAM.PURGE.C35_TASK_SCHEDULE` with filter `c35.schedule.task.{trigger_id}` to immediately cancel scheduled delivery.
+- Active in-flight runs are canceled.
 
-**Implementation:** `c35_nats::hydrate_task_schedules` + `mod_task` fire handler (see [remote.md](remote.md), plan [`plans/2026-09-23-nats-scheduler-hydrate-multitask.md`](plans/2026-09-23-nats-scheduler-hydrate-multitask.md)).
+**Implementation:**
+- JetStream scheduler: [`servers/crates/mod_task/src/scheduler.rs`](file:///d:/c35/servers/crates/mod_task/src/scheduler.rs)
+- Hydrate & arming: `c35_nats::task_schedule_arm`, `c35_nats::task_schedule_disarm`, `c35_nats::hydrate_task_schedules` in [`servers/crates/system/nats/src/hydrate.rs`](file:///d:/c35/servers/crates/system/nats/src/hydrate.rs)
+- Stream bootstrap: `c35_nats::jetstream_streams_ensure` in [`servers/crates/system/nats/src/streams.rs`](file:///d:/c35/servers/crates/system/nats/src/streams.rs)
 
 ---
 

@@ -3,6 +3,7 @@ mod boot_handlers;
 mod config;
 mod log;
 mod nats_boot;
+mod notify_fire;
 
 use std::sync::Arc;
 use std::time::Instant;

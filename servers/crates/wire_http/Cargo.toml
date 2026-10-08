@@ -29,6 +29,7 @@ c35_mod_device = { path = "../mod_device", package = "c35_mod_device" }
 c35_mod_drive = { path = "../mod_drive", package = "c35_mod_drive" }
 c35_mod_event = { path = "../mod_event", package = "c35_mod_event" }
 c35_mod_site = { path = "../mod_site", package = "c35_mod_site" }
+c35_mod_task = { path = "../mod_task", package = "c35_mod_task" }
 c35_mod_mail = { path = "../mod_mail", package = "c35_mod_mail" }
 c35_mod_tx = { path = "../mod_tx", package = "c35_mod_tx" }
 c35_mod_voice = { path = "../mod_voice", package = "c35_mod_voice" }

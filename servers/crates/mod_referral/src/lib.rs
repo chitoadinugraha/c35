@@ -1,6 +1,7 @@
 mod codes;
 mod commission;
 mod commission_withdraw;
+mod platform_stats_live;
 mod referral_ledger;
 mod stats;
 
@@ -12,25 +13,18 @@ pub use commission::{
     commission_accrue_on_purchase, commission_accrue_on_topup_tx, commission_simulate, MARKETING_POOL_RATE,
 };
 pub use commission_withdraw::commission_withdraw;
+pub use platform_stats_live::{
+    platform_stats_live_apply, platform_stats_live_init, platform_stats_live_subscribe,
+    platform_stats_live_user_count, PLATFORM_STATS_SUBJECT,
+};
 pub use referral_ledger::referral_ledger_list;
 pub use stats::referral_user_stats;
-
-use std::sync::Mutex;
-use std::time::{Duration, Instant};
 
 use c35_mod_admin::require_admin;
 use c35_proto::{
     ReferralCodeDoc, ReferralShareDoc, ReferralTreeNode, ReferralTreeSlice,
 };
 use sqlx::{PgPool, Row};
-
-struct UserCountCache {
-    at: Instant,
-    count: i64,
-}
-
-static PLATFORM_USER_COUNT_CACHE: Mutex<Option<UserCountCache>> = Mutex::new(None);
-const PLATFORM_USER_COUNT_TTL: Duration = Duration::from_secs(120);
 
 const REFERRAL_TREE_SELECT: &str = r#"
         SELECT DISTINCT ON (t.id) t.id, t.name, t.alien_id, t.pic,
@@ -211,29 +205,6 @@ async fn referral_tree_shares(pool: &PgPool, ids: &[i64]) -> Vec<ReferralShareDo
     .collect()
 }
 
-async fn platform_user_count_cached(pool: &PgPool) -> i64 {
-    if let Ok(guard) = PLATFORM_USER_COUNT_CACHE.lock() {
-        if let Some(c) = guard.as_ref() {
-            if c.at.elapsed() < PLATFORM_USER_COUNT_TTL {
-                return c.count;
-            }
-        }
-    }
-    let count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*)::bigint FROM ai.identity WHERE kind = 'user' AND deleted_ts IS NULL",
-    )
-    .fetch_one(pool)
-    .await
-    .unwrap_or(0);
-    if let Ok(mut guard) = PLATFORM_USER_COUNT_CACHE.lock() {
-        *guard = Some(UserCountCache {
-            at: Instant::now(),
-            count,
-        });
-    }
-    count
-}
-
 async fn referral_tree_mailbox_counts(pool: &PgPool, ids: &[i64]) -> std::collections::HashMap<i64, i32> {
     if ids.is_empty() {
         return std::collections::HashMap::new();
@@ -319,7 +290,7 @@ pub async fn referral_tree_get(
         .collect();
     let shares = referral_tree_shares(pool, &ids).await;
     let platform_user_count = if forest {
-        platform_user_count_cached(pool).await
+        platform_stats_live_user_count()
     } else {
         0
     };

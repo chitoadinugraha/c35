@@ -358,6 +358,8 @@ pub fn fs_write(req: RemoteFsWriteReq) -> RemoteFsWriteRes {
             open_opts.write(true).create(true);
             if req.offset > 0 {
                 open_opts.read(true);
+            } else {
+                open_opts.truncate(true);
             }
             match open_opts.open(&p) {
                 Ok(mut f) => {

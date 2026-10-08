@@ -32,7 +32,7 @@ pub use store::{
     prompt_run_cancel_children, prompt_run_cancel_request, prompt_run_checkpoint_save,
     prompt_run_delivery_inc, prompt_run_finish, prompt_run_get, prompt_run_insert,
     prompt_run_is_cancelled, prompt_run_is_terminal, prompt_run_kind_allowed, prompt_run_kind_default,
-    prompt_run_kind_normalize, prompt_run_lease_touch,
+    prompt_run_kind_normalize, prompt_run_lease_touch, prompt_run_notify_install,
     prompt_run_list_active, prompt_run_list_queued, prompt_run_over_max_deliver, prompt_run_row_channel,
     prompt_run_row_new,
     prompt_run_status_set, prompt_run_summary, prompt_run_wait_terminal, PromptRunActiveDiag,

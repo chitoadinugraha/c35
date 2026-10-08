@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:alienai_c35/c/chat/chat_conn.dart';
@@ -95,6 +96,51 @@ void main() {
       speechRate: 1.0,
     );
     expect(played, isFalse);
+  });
+
+  test('stream queue speaks a markdown list as one clip', () async {
+    final spoken = <String>[];
+    final q = TtsStreamQueue(
+      speak: (text) async {
+        spoken.add(text);
+      },
+    );
+    q.feedChunk('Points:\n');
+    q.feedChunk('- Alpha\n- Beta\n');
+    q.feedChunk('- Gamma\n');
+    expect(spoken, isEmpty);
+    q.flush();
+    await Future<void>.delayed(Duration.zero);
+    expect(spoken, ['Points: Alpha, Beta, Gamma']);
+  });
+
+  test('stream queue stop drops clips not yet spoken', () async {
+    final spoken = <String>[];
+    final started = Completer<void>();
+    final release = Completer<void>();
+    final q = TtsStreamQueue(
+      speak: (text) async {
+        spoken.add(text);
+        if (!started.isCompleted) started.complete();
+        await release.future;
+      },
+    );
+    final firstClip = 'Alpha beta gamma. ' * 80;
+    final secondClip = 'Delta epsilon zeta. ' * 80;
+    q.feedChunk('$firstClip\n\n');
+    q.feedChunk(secondClip);
+    await started.future.timeout(const Duration(seconds: 2));
+    q.cancel();
+    release.complete();
+    await Future<void>.delayed(const Duration(milliseconds: 30));
+    expect(spoken, hasLength(1));
+    expect(q.isHalted, isTrue);
+  });
+
+  test('stop halts the active stream queue', () async {
+    final q = TtsStreamQueue();
+    await TtsService.instance.stop();
+    expect(q.isHalted, isTrue);
   });
 
   test('speakRouted returns false for local engine', () async {

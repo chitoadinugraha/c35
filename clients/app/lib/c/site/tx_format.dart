@@ -82,7 +82,6 @@ Tx txNewSale(int siteIid) => Tx(
       state: TxState.TX_STATE_OK,
       inputMode: TxInputMode.TX_INPUT_MODE_SELL,
       inputSource: TxInputSource.TX_INPUT_SOURCE_MANUAL,
-      timeTsMs: Int64(DateTime.now().millisecondsSinceEpoch),
     );
 
 String? txValidateSale(Tx tx) {

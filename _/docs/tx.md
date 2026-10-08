@@ -149,6 +149,51 @@ Sites shell = Devices-like tabs ([`ui.md`](ui.md)) — not CSA 3-pane design edi
 
 Guest checkout UI stays on published SiteDoc blocks; staff POS is Flutter Sites detail only.
 
+## Staff POS System (`posEntry`)
+
+### 1. Register Architecture & UI Modes
+Staff POS operates on two distinct surfaces:
+* **Full-screen Register (`posEntry: true`)**: Accessed via Sites → POS (`PageSitePos`).
+  - Single unified layout (`catalog | cart`) with no `TabBar` distraction.
+  - Inline cart payment drawer (`SectionTxCartPay`) displaying payment lines, "+ Terima pembayaran", "Uang pas", change calculation, and "Bayar".
+  - Product thumbnails with fallback category icons.
+  - Compact customer selector directly in the cart header.
+  - Accounting (`Acc`) and Inventory movement (`Stock`) tabs are hidden at the register.
+* **Orders Backoffice Editor (`posEntry: false`)**: Accessed via Sites → Orders tab (`UITable` / row click).
+  - Staff sees **Items** and **Payments** tabs (2 tabs).
+  - Root admins see all 4 tabs: **Items**, **Payments**, **Acc**, and **Stock**.
+
+### 2. Online & Offline Mechanics
+The POS is fully resilient to offline network conditions:
+* **Catalog Caching**: Products (`siteProductCacheRestore`) and site capabilities (`siteCapabilitiesCacheRestore`) are cached locally in client storage. POS opens seamlessly even when disconnected, displaying an offline indicator banner.
+* **Offline Order Queue (`TxOfflineQueue`)**:
+  - Unsent orders are enqueued in client persistent storage (`SharedPreferences`) serialized as Base64 Protobuf.
+  - **Snowflake ID Pre-generation**: When offline, `txEnsureClientTxId` generates a standard snowflake ID (`snowflakeIdNext()`) on the client. This guarantees that printed receipts and transaction numbers (`#tx_id`) remain 100% stable and identical when synced later.
+* **Auto-Sync on Reconnect**: Connection status (`ChatConnStatus.connected`) triggers `syncOfflineQueue()`. Queued sales are uploaded to `conn.txPut` in FIFO order without changing IDs, and a snackbar notifies the cashier.
+
+### 3. Order Lifecycle & State Reset
+* **Automatic Next Order**: In `posEntry` mode, completing a sale (`_save`) prints the receipt and/or kicks the cash drawer, and immediately resets `_tx = _txApi.newSale(siteIid)`.
+* **State Clearance**:
+  - `items`: Cleared to empty list `[]`.
+  - `customer`: Reset (`subjectContactId = 0`, `subjectName = ''`).
+  - `payments` & `discounts`: Reset to empty lists `[]`.
+  - The POS register remains open and immediately ready for the next customer without navigating away.
+* **Parked Orders (Hold / Recall)**: In-progress carts can be parked (`TxParkedOrders.instance.add`) with a note/table label and recalled anytime. Recalling replaces or swaps the current cart with confirmation.
+
+### 4. Timestamp Semantics (`time_ts_ms` & `ts_ms`)
+To maintain strict audit accuracy:
+* **Transaction Date (`time_ts_ms`)**:
+  - Creating a new sale (`txNewSale`) initializes `time_ts_ms` as unset (`0`).
+  - `time_ts_ms` is stamped with `DateTime.now()` at the exact moment the **first item is added** to the cart (`_itemsChanged`).
+  - It does **not** follow the timestamp of when the POS page was opened or when the register was left idle between customers.
+  - Adding additional items, modifying quantities, or applying discounts preserves the original first-item timestamp.
+  - If all items are removed from the cart (emptied), `time_ts_ms` resets to `0`, and the next item added becomes the new start timestamp.
+  - Historical orders loaded from the database (`txId > 0`) preserve their original recorded `time_ts_ms`.
+  - Fallback guard: If an order reaches `_save` or `_holdOrder` without a timestamp, it falls back to current time.
+* **Payment Date (`ts_ms`)**:
+  - Each payment line (`TxPayment.tsMs`) records the exact date & time the payment method was confirmed from the payment dialog (`askTransaksiPaymentCash` / `askTransaksiPaymentMethod`).
+  - Persisted into `site.tx_payment (ts)` on the server database.
+
 ### AI / reports on transactions
 
 - Staff chat: readonly **`site.query.run`** with catalog ids (`tx.sales_summary`, `tx.profit_summary`, …) — see [site-ai.md](site-ai.md).

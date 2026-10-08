@@ -134,7 +134,7 @@ Wave 4
 
 - [ ] **6.1** `test/pos_shell_mode_test.dart`: pump `UiSiteTxEditor(posEntry: true)` with mocked `SiteApi` / minimal products → expect **no** `Tab(text: 'Acc')`.
 - [ ] **6.2** Test root vs staff tab labels with `Session` test hook or inject `isRoot` parameter (prefer optional `ledgerVisible` on editor for tests over global session if brittle).
-- [ ] **6.3** Update `_/docs/tx.md` § POS UI: staff shell vs Orders ledger editor (1 paragraph + table).
+- [x] **6.3** Update `_/docs/tx.md` § POS UI: staff shell vs Orders ledger editor, offline/online queue, lifecycle reset, and first-item timestamp semantics.
 - [ ] **6.4** Manual QA (Chito **99000**, site **test-site**):
   - POS: thumbs, cart pay, cash change, save, receipt menu.
   - Orders → edit: staff 2 tabs; root 4 tabs.
@@ -146,13 +146,14 @@ Wave 4
 
 | File | Action |
 |------|--------|
-| `clients/app/lib/widgets/sites/tx/ui_site_tx_editor.dart` | Mode matrix, toolbar, wire cart pay + contacts |
+| `clients/app/lib/widgets/sites/tx/ui_site_tx_editor.dart` | Mode matrix, toolbar, wire cart pay + contacts, first-item timestamp |
 | `clients/app/lib/widgets/sites/tx/section_tx_items.dart` | Thumbs, cart header, embed cart pay footer |
 | `clients/app/lib/widgets/sites/tx/section_tx_cart_pay.dart` | **New** — inline payments |
 | `clients/app/lib/widgets/sites/tx/ui_site_product_thumb.dart` | **New** — shared thumb |
 | `clients/app/lib/widgets/sites/tx/ui_tx_pos_toolbar.dart` | **New** (optional) — slim bar |
 | `clients/app/test/pos_shell_mode_test.dart` | **New** |
-| `_/docs/tx.md` | Short POS shell section |
+| `clients/app/test/tx_timestamp_test.dart` | **New** — timestamp semantics |
+| `_/docs/tx.md` | POS shell section, offline sync, timestamp & reset rules |
 
 ---
 
@@ -167,4 +168,4 @@ Wave 4
 
 ## Status
 
-**Planned** 2026-10-08 — not started. Update this section when waves land.
+**Updated** 2026-10-08 — POS staff shell, inline cart payments, offline sync, next-order reset, and first-item transaction timestamp semantics documented in `_/docs/tx.md` with unit tests passing.

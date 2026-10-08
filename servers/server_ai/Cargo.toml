@@ -18,6 +18,8 @@ c35_trace = { path = "../crates/system/trace", package = "c35_trace" }
 c35_wire_http = { path = "../crates/wire_http", package = "c35_wire_http" }
 c35_wire_ws = { path = "../crates/wire_ws", package = "c35_wire_ws" }
 dotenvy = { workspace = true }
+futures-util = { workspace = true }
+serde_json = { workspace = true }
 c35_mod_billing = { path = "../crates/mod_billing", package = "c35_mod_billing" }
 c35_mod_file = { path = "../crates/mod_file", package = "c35_mod_file" }
 reqwest = { workspace = true }
@@ -28,6 +30,9 @@ c35_mod_device = { path = "../crates/mod_device", package = "c35_mod_device" }
 c35_mod_drive = { path = "../crates/mod_drive", package = "c35_mod_drive" }
 c35_mod_site = { path = "../crates/mod_site", package = "c35_mod_site" }
 c35_mod_mail = { path = "../crates/mod_mail", package = "c35_mod_mail" }
+c35_mod_notify = { path = "../crates/mod_notify", package = "c35_mod_notify" }
+c35_mod_task = { path = "../crates/mod_task", package = "c35_mod_task" }
+c35_mod_referral = { path = "../crates/mod_referral", package = "c35_mod_referral" }
 c35_mod_llm = { path = "../crates/mod_llm", package = "c35_mod_llm" }
 c35_mod_live = { path = "../crates/mod_live", package = "c35_mod_live" }
 c35_mod_log = { path = "../crates/mod_log", package = "c35_mod_log" }

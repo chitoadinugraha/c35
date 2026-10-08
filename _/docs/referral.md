@@ -31,7 +31,7 @@ Server normalizes: lowercase, dedupe, sort; strips `"root"` from `global_roles` 
 
 **Tree node badges (Flutter):** each `ReferralTreeNode` includes `global_roles` from meta and `mailbox_count` (member mailboxes, same basis as `mail.mailbox.list`). The forest card shows a **mail** chip first when `mailbox_count > 0`, then **Root** when `is_root` / legacy root heuristics match, plus chips for other roles (`Partner`, `Director`, `Marketing`, `Finance`) via `referralGlobalRoleLabel`.
 
-**Wide forest load:** staff with wide access load `depth = 1` initially (root/director spine + direct children only); **Expand** loads one more horizontal level per tap (`depth = 1` on that parent). `ReferralTreeSlice.platform_user_count` is set on wide forest responses (active `kind=user` rows); server caches the count ~2 minutes — not recomputed on every page open.
+**Wide forest load:** staff with wide access load `depth = 1` initially (root/director spine + direct children only); **Expand** loads one more horizontal level per tap (`depth = 1` on that parent). `ReferralTreeSlice.platform_user_count` on wide forest responses comes from **`platform_stats_live`** on `server_ai` (NATS `c35.fetch.platform.stats` + JetStream KV `c35_stats` / `platform/user_count`), updated by **`c35_fetcher`** task `platform_user_count` (~60s). No per-request `COUNT(*)`.
 
 ---
 

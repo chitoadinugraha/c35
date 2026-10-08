@@ -62,12 +62,19 @@ On avatar tap:
 | Device icon + count | Devices page |
 | Site icon + count | Sites page |
 | Mail (staff / shared mailbox) | `PageMail` — CSA parity inbox + composer; see [mail.md](mail.md) |
+| Notifications | History page. Unread count from `ReqNotifyList`. See [notify.md](notify.md) |
 | Referral tree | Referral page (copy cs_agent) |
 | Talk | Home surface switch. Same thread as Chat. See [Talk](#talk). |
 | Lock | Session lock |
 | Logout | Sign out |
 
 **No space picker.** Personal AI is Home; bots/devices/sites are separate pages.
+
+### Notifications
+
+- **Entry:** avatar menu **Notifications** opens the history page (`ReqNotifyList`; tap sends `ReqNotifyRead`).
+- Unread count comes from `ReqNotifyList` (`unread_only`).
+- Deliver, banner vs local shade, and FCM: [notify.md](notify.md).
 
 ### Mail (platform email)
 

@@ -53,6 +53,7 @@ _/certs/windows-msix-store.pfx
 clients/app/android/key.properties
 clients/app/android/app/upload_keystore.jks
 clients/app/android/app/google-services.json
+_/deployments/chrome_extension/extension.pem
 
 # =============================================================================
 # Docker / deploy artifacts

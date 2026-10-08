@@ -25,6 +25,9 @@ pub fn agent_router() -> Router<AppState> {
         .route("/v1/agent/log", post(agent_log))
         .route("/v1/agent/profile", get(agent_profile))
         .route("/v1/agent/ice", get(agent_ice))
+        .route("/v1/agent/task/progress", post(agent_task_progress))
+        .route("/v1/agent/task/done", post(agent_task_done))
+        .route("/v1/skill/put", post(agent_skill_put))
 }
 
 fn session_key_from_headers(headers: &HeaderMap) -> Option<&str> {
@@ -160,4 +163,81 @@ async fn agent_log(
         Ok(_) => StatusCode::OK.into_response(),
         Err(e) => (StatusCode::BAD_REQUEST, e).into_response(),
     }
+}
+
+async fn agent_task_progress(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let session_key = session_key_from_headers(&headers).unwrap_or("");
+    let session = match agent_session_resolve(&st.pool, session_key).await {
+        Ok(Some(s)) => s,
+        Ok(None) => return (StatusCode::UNAUTHORIZED, "invalid session").into_response(),
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
+    };
+    let ev: c35_proto::EvDeviceTaskProgress = match c35_proto::pb_decode(&body) {
+        Ok(ev) => ev,
+        Err(e) => return (StatusCode::BAD_REQUEST, format!("decode: {e}")).into_response(),
+    };
+    let meta: serde_json::Value = serde_json::from_str(&ev.meta_json).unwrap_or(serde_json::json!({}));
+    c35_mod_task::task_run_progress_store(&st.pool, ev.run_id, &meta, &ev.text, ev.step_index).await;
+    if let Some(run) = c35_mod_task::task_run_get(&st.pool, session.owner_iid, ev.run_id).await {
+        c35_mod_task::task_run_push(st.nats.as_ref(), session.owner_iid, &run);
+    }
+    StatusCode::OK.into_response()
+}
+
+async fn agent_task_done(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let session_key = session_key_from_headers(&headers).unwrap_or("");
+    let session = match agent_session_resolve(&st.pool, session_key).await {
+        Ok(Some(s)) => s,
+        Ok(None) => return (StatusCode::UNAUTHORIZED, "invalid session").into_response(),
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e).into_response(),
+    };
+    let ev: c35_proto::EvDeviceTaskDone = match c35_proto::pb_decode(&body) {
+        Ok(ev) => ev,
+        Err(e) => return (StatusCode::BAD_REQUEST, format!("decode: {e}")).into_response(),
+    };
+    let status = match ev.status {
+        4 => c35_proto::TaskRunStatus::Done,
+        5 => c35_proto::TaskRunStatus::Failed,
+        6 => c35_proto::TaskRunStatus::Cancelled,
+        _ => if ev.error.is_empty() { c35_proto::TaskRunStatus::Done } else { c35_proto::TaskRunStatus::Failed },
+    };
+    c35_mod_task::task_run_finish_rpc(
+        &st.pool,
+        st.nats.as_ref(),
+        session.owner_iid,
+        ev.run_id,
+        status,
+        &ev.summary,
+        &ev.error,
+    ).await;
+    StatusCode::OK.into_response()
+}
+
+async fn agent_skill_put(
+    State(st): State<AppState>,
+    headers: HeaderMap,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let session_key = session_key_from_headers(&headers).unwrap_or("");
+    if agent_session_resolve(&st.pool, session_key).await.ok().flatten().is_none() {
+        return (StatusCode::UNAUTHORIZED, "invalid session").into_response();
+    }
+    let req: c35_proto::ReqSkillPut = match c35_proto::pb_decode(&body) {
+        Ok(r) => r,
+        Err(e) => return (StatusCode::BAD_REQUEST, format!("decode: {e}")).into_response(),
+    };
+    let res = c35_proto::ResSkillPut { skill: req.skill };
+    let bytes = c35_proto::pb_encode(&res);
+    (
+        [(axum::http::header::CONTENT_TYPE, "application/x-protobuf")],
+        bytes,
+    ).into_response()
 }

@@ -1,8 +1,8 @@
 use c35_mod_site::doc::{render_key_for_page, site_doc_validate};
 use c35_mod_site::guest_design::GuestDesign;
 use c35_mod_site::render::{
-    block_html_render, product_detail_article_html, render_etag, render_offline_html, ProductGridCtx,
-    ProductRow,
+    block_html_render, guest_client_script_markup, product_card_html, product_detail_article_html,
+    render_etag, render_offline_html, ProductGridCtx, ProductRow,
 };
 use c35_mod_site::site_preview_token_verify;
 use c35_proto::{SiteBlock, SiteDoc, SitePage};
@@ -225,6 +225,8 @@ fn block_product_grid_renders_products() {
             duration_unit: "day".into(),
             reservation_unit_selection: "system".into(),
             icon: String::new(),
+            stock_show_to_customer: false,
+            stock_qty: None,
         },
         ProductRow {
             product_id: 102,
@@ -239,6 +241,8 @@ fn block_product_grid_renders_products() {
             duration_unit: "day".into(),
             reservation_unit_selection: "system".into(),
             icon: "mdi:tea".into(),
+            stock_show_to_customer: false,
+            stock_qty: None,
         },
     ];
     let grid_ctx = ProductGridCtx {
@@ -295,6 +299,8 @@ fn sample_product(can_reserve: bool) -> ProductRow {
         duration_unit: "day".into(),
         reservation_unit_selection: "guest_picks".into(),
         icon: String::new(),
+        stock_show_to_customer: false,
+        stock_qty: None,
     }
 }
 
@@ -361,8 +367,65 @@ fn block_contact_form_renders_fields() {
         None,
     );
     assert!(html.contains("class=\"contact-form\""));
+    assert!(html.contains("data-guest=\"form\""));
+    assert!(html.contains("c35GuestLead.submit"));
     assert!(html.contains("#contact"));
     assert!(html.contains("Email"));
+}
+
+#[test]
+fn page_without_effects_omits_effects_script() {
+    for effects in [
+        json!([]),
+        Value::Null,
+        json!([{"presetId": "rain-shower", "active": false}]),
+        json!([{"preset_id": "", "active": true}]),
+        json!([{"active": true}]),
+    ] {
+        let html = guest_client_script_markup("{}", &effects);
+        assert!(html.contains("/static/site-guest/site-guest.v1.js"), "{html}");
+        assert!(!html.contains("site-guest.effects"), "{html}");
+        assert!(!html.contains("\"effects\""), "{html}");
+        assert!(!html.contains("form.js"), "{html}");
+        assert!(!html.contains("queue.js"), "{html}");
+    }
+}
+
+#[test]
+fn page_with_active_preset_includes_effects_script() {
+    let html = guest_client_script_markup(
+        "{}",
+        &json!([{"presetId": "rain-shower", "params": {}, "active": true}]),
+    );
+    assert!(html.contains("/static/site-guest/site-guest.v1.js"));
+    assert!(html.contains("/static/site-guest/site-guest.effects.v1.js"));
+    assert!(html.contains("\"effects\""));
+    assert!(html.contains("rain-shower"));
+
+    let snake = guest_client_script_markup("{}", &json!([{"preset_id": "snow-fall"}]));
+    assert!(snake.contains("/static/site-guest/site-guest.effects.v1.js"));
+    assert!(snake.contains("snow-fall"));
+}
+
+#[test]
+fn product_card_stock_line_follows_show_flag() {
+    let mut shown = sample_product(false);
+    shown.stock_show_to_customer = true;
+    shown.stock_qty = Some(4);
+    let html = product_card_html(&shown, None);
+    assert!(html.contains("Stock: 4"));
+
+    let mut hidden = sample_product(false);
+    hidden.stock_show_to_customer = false;
+    hidden.stock_qty = Some(4);
+    let off = product_card_html(&hidden, None);
+    assert!(!off.contains("Stock:"));
+
+    let mut missing = sample_product(false);
+    missing.stock_show_to_customer = true;
+    missing.stock_qty = None;
+    let no_count = product_card_html(&missing, None);
+    assert!(!no_count.contains("Stock:"));
 }
 
 #[test]

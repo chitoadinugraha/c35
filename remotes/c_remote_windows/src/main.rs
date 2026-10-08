@@ -3,7 +3,7 @@
 use c_remote_core::config::{device_iid_load, server_url, session_key_clear, session_key_load};
 use c_remote_core::conn_ws::{conn_ws_run_reconnect, is_invalid_session};
 use c_remote_core::ConnExit;
-use c_remote_core::update::{is_dev_mode, is_idle, update_apply, update_check_on_start, update_run_loop, update_staged_version};
+use c_remote_core::update::{bind_runtime, is_dev_mode, is_idle, update_apply, update_check_on_start, update_run_loop, update_staged_version};
 use c_remote_core::version::agent_version_label;
 use c_remote_windows::pair_loop::pair_until_claimed;
 use c_remote_windows::tray::{start_tray_thread, TrayAction};
@@ -15,6 +15,7 @@ fn init_drive_winfsp() { c_remote_drive::vfs_winfsp::init_winfsp_dll_path(); }
 fn init_drive_winfsp() {}
 
 async fn run() -> anyhow::Result<()> {
+    bind_runtime();
     init_drive_winfsp();
     let cli = std::env::args().any(|a| a == "--cli");
     let dev = is_dev_mode();

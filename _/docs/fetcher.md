@@ -105,10 +105,13 @@ Domain logic stays in `mod_billing` / `mod_llm` — they own API contracts and D
 | `vendor_bill_gcp` | 24h (stagger +15m) | GCP BigQuery billing export | `ai.platform_vendor_cost` | — |
 | `vendor_bill_cf` | 24h (stagger +30m) | Cloudflare GraphQL (+ CSV import for close) | `ai.platform_vendor_cost` | — |
 | `vendor_bill_wasabi` | 24h (stagger +45m) | Wasabi account billing API | `ai.platform_vendor_cost` | — |
+| `platform_user_count` | 60s (`PLATFORM_USER_COUNT_INTERVAL_SECS`) | `COUNT(*)` active `kind=user` | JetStream KV `c35_stats` key `platform/user_count` | `c35.fetch.platform.stats` (`FetchPlatformStatsPush`) |
 
 Vendor bill tasks register only when `*_VENDOR_BILL_ENABLED=1` and required credentials are present (`mod_platform` factories in `fetcher/src/main.rs`). MTD daily + month-close finalize on days `1,3,7,14` — no NATS push (cold admin data). Canonical spec: [`platform.md`](platform.md). See `servers/fetcher/.env.example`.
 
-Future tasks register in `servers/fetcher/src/main.rs` only — no changes to `server_ai` boot per task.
+`platform_user_count` is consumed on **`server_ai`** via `platform_stats_live_init` / `platform_stats_live_subscribe` (`mod_referral`) for referral forest `platform_user_count` — deploy both fetcher and server when changing that pipeline.
+
+Future tasks register in `servers/fetcher/src/main.rs` only — no other `server_ai` changes unless the task publishes data the API reads live.
 
 ---
 

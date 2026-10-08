@@ -2,12 +2,12 @@ use crate::mention_context::{device_iid_resolve, json_device_iid_field};
 use crate::tool;
 use crate::tools::context::ToolContext;
 use c35_mod_task::{
-    task_run_cancel_device_rpc, task_run_cancel_rpc, task_run_get, task_run_list_rpc,
-    task_run_start_rpc,
+    task_delete_rpc, task_list_rpc, task_put_rpc, task_run_cancel_device_rpc, task_run_cancel_rpc,
+    task_run_get, task_run_list_rpc, task_run_start_rpc,
 };
 use c35_proto::{
-    ReqTaskRunCancel, ReqTaskRunCancelDevice, ReqTaskRunList, ReqTaskRunStart, TaskRun,
-    TaskRunStatus,
+    ReqTaskList, ReqTaskPut, ReqTaskRunCancel, ReqTaskRunCancelDevice, ReqTaskRunList,
+    ReqTaskRunStart, Task, TaskRun, TaskRunStatus, TaskTrigger,
 };
 use serde_json::{json, Value};
 
@@ -241,4 +241,199 @@ tool! {
         limit: (integer, "Max runs when listing (default 5, max 20)", optional, default = 5),
     },
     execute: |args, ctx| task_run_status_exec(ctx, &args).await
+}
+
+async fn task_create_exec(ctx: &ToolContext, args: &Value) -> anyhow::Result<Value> {
+    let name = args["name"].as_str().unwrap_or_default().trim();
+    if name.is_empty() {
+        return Ok(task_fail("name is required"));
+    }
+    let prompt = prompt_from_args(args).unwrap_or_default();
+    if prompt.is_empty() {
+        return Ok(task_fail("prompt is required"));
+    }
+    let device_iid = resolve_device_iid(args, ctx).unwrap_or(0);
+    let skill_id = args["skill_id"].as_i64().unwrap_or(0);
+    let model = args["model"].as_str().unwrap_or("cloud").trim().to_string();
+
+    let mut triggers = Vec::new();
+    let cron_expr = args["cron_expr"].as_str().map(str::trim).unwrap_or("");
+    let interval_sec = args["interval_sec"].as_i64().unwrap_or(0);
+    let run_at_str = args["run_at"].as_str().map(str::trim).unwrap_or("");
+
+    if interval_sec > 0 {
+        triggers.push(TaskTrigger {
+            id: 0,
+            task_id: 0,
+            owner_iid: ctx.owner_iid,
+            kind: 2,
+            label: format!("Every {}s", interval_sec),
+            cron_expr: format!("*/{} * * * * *", interval_sec),
+            timezone: "UTC".to_string(),
+            run_at_ms: 0,
+            webhook_secret: String::new(),
+            is_active: true,
+            created_ts_ms: 0,
+            updated_ts_ms: 0,
+            deleted_ts_ms: 0,
+        });
+    } else if !cron_expr.is_empty() {
+        triggers.push(TaskTrigger {
+            id: 0,
+            task_id: 0,
+            owner_iid: ctx.owner_iid,
+            kind: 2,
+            label: "Cron schedule".to_string(),
+            cron_expr: cron_expr.to_string(),
+            timezone: "UTC".to_string(),
+            run_at_ms: 0,
+            webhook_secret: String::new(),
+            is_active: true,
+            created_ts_ms: 0,
+            updated_ts_ms: 0,
+            deleted_ts_ms: 0,
+        });
+    } else if !run_at_str.is_empty() {
+        if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(run_at_str) {
+            triggers.push(TaskTrigger {
+                id: 0,
+                task_id: 0,
+                owner_iid: ctx.owner_iid,
+                kind: 1,
+                label: "Run once".to_string(),
+                cron_expr: String::new(),
+                timezone: "UTC".to_string(),
+                run_at_ms: dt.timestamp_millis(),
+                webhook_secret: String::new(),
+                is_active: true,
+                created_ts_ms: 0,
+                updated_ts_ms: 0,
+                deleted_ts_ms: 0,
+            });
+        }
+    }
+
+    let task = Task {
+        id: 0,
+        owner_iid: ctx.owner_iid,
+        device_iid,
+        name: name.to_string(),
+        skill_id,
+        prompt: prompt.clone(),
+        model,
+        is_active: true,
+        triggers,
+        created_ts_ms: 0,
+        updated_ts_ms: 0,
+        deleted_ts_ms: 0,
+    };
+
+    let req = ReqTaskPut { task: Some(task) };
+    match task_put_rpc(&ctx.pool, ctx.nats.as_ref(), ctx.owner_iid, req).await {
+        Ok(res) => {
+            let saved = res.task.unwrap_or_default();
+            Ok(json!({
+                "ok": true,
+                "task_id": saved.id,
+                "name": saved.name,
+                "device_iid": saved.device_iid,
+                "prompt": saved.prompt,
+                "trigger_count": saved.triggers.len(),
+                "triggers": saved.triggers.iter().map(|tr| json!({
+                    "id": tr.id,
+                    "kind": if tr.kind == 2 { "cron" } else { "once" },
+                    "cron_expr": tr.cron_expr,
+                    "label": tr.label,
+                    "is_active": tr.is_active,
+                })).collect::<Vec<_>>(),
+            }))
+        }
+        Err(e) => Ok(task_fail(format!("failed to create task: {e}"))),
+    }
+}
+
+async fn task_delete_exec(ctx: &ToolContext, args: &Value) -> anyhow::Result<Value> {
+    let task_id = args["task_id"].as_i64().unwrap_or(0);
+    if task_id <= 0 {
+        return Ok(task_fail("task_id is required"));
+    }
+    match task_delete_rpc(&ctx.pool, ctx.nats.as_ref(), ctx.owner_iid, task_id).await {
+        Ok(_) => Ok(json!({ "ok": true, "task_id": task_id, "deleted": true })),
+        Err(e) => Ok(task_fail(format!("failed to delete task: {e}"))),
+    }
+}
+
+async fn task_list_exec(ctx: &ToolContext, args: &Value) -> anyhow::Result<Value> {
+    let device_iid = args["device_iid"].as_i64().unwrap_or(0);
+    let req = ReqTaskList {
+        device_iid,
+        include_inactive: false,
+    };
+    let res = task_list_rpc(&ctx.pool, ctx.owner_iid, req).await;
+    let list: Vec<Value> = res.tasks.iter().map(|t| json!({
+        "id": t.id,
+        "name": t.name,
+        "device_iid": t.device_iid,
+        "prompt": t.prompt,
+        "is_active": t.is_active,
+        "triggers": t.triggers.iter().map(|tr| json!({
+            "id": tr.id,
+            "kind": if tr.kind == 2 { "cron" } else { "once" },
+            "cron_expr": tr.cron_expr,
+            "label": tr.label,
+            "is_active": tr.is_active,
+        })).collect::<Vec<_>>(),
+    })).collect();
+    Ok(json!({ "ok": true, "count": list.len(), "tasks": list }))
+}
+
+tool! {
+    struct: TaskCreateTool,
+    name: "task.create",
+    aliases: ["task_create", "task.schedule", "create_task", "schedule_task"],
+    description: "Create and optionally schedule an automation task. Use when user wants a task added to their task list and/or executed on a schedule (cron_expr or interval_sec). If device_iid is provided, it targets that remote device (e.g. running powershell or automation).",
+    topics: ["device", "general"],
+    rag_phrases: ["create task", "schedule task", "add task", "buat task", "jadwalkan task", "every 10 second", "setiap 10 detik"],
+    ui_calling_key: "tool.task.create.calling",
+    ui_done_key: "tool.task.create.done",
+    parameters: {
+        name: (string, "Descriptive name for the task", required),
+        prompt: (string, "Execution command or prompt (e.g. 'powershell: Get-Date | Out-File ...')", required),
+        device_iid: (integer, "Target remote device identity ID", optional),
+        cron_expr: (string, "Cron expression or '@every 10s' for recurring schedule", optional),
+        interval_sec: (integer, "Interval in seconds (e.g. 10 for every 10 seconds)", optional),
+        run_at: (string, "RFC3339 timestamp for a one-time future execution", optional),
+    },
+    execute: |args, ctx| task_create_exec(ctx, &args).await
+}
+
+tool! {
+    struct: TaskDeleteTool,
+    name: "task.delete",
+    aliases: ["task_delete", "delete_task", "remove_task"],
+    description: "Delete/remove an automation task, disarming any active NATS schedules.",
+    topics: ["device", "general"],
+    rag_phrases: ["delete task", "remove task", "hapus task"],
+    ui_calling_key: "tool.task.delete.calling",
+    ui_done_key: "tool.task.delete.done",
+    parameters: {
+        task_id: (integer, "ID of the task to delete", required),
+    },
+    execute: |args, ctx| task_delete_exec(ctx, &args).await
+}
+
+tool! {
+    struct: TaskListTool,
+    name: "task.list",
+    aliases: ["task_list", "list_tasks"],
+    description: "List tasks and their schedules/triggers for the user or a specific device.",
+    topics: ["device", "general"],
+    rag_phrases: ["list tasks", "my tasks", "daftar task"],
+    ui_calling_key: "tool.task.list.calling",
+    ui_done_key: "tool.task.list.done",
+    readonly: true,
+    parameters: {
+        device_iid: (integer, "Optional filter by device identity ID", optional),
+    },
+    execute: |args, ctx| task_list_exec(ctx, &args).await
 }

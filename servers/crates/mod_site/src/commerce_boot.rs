@@ -59,8 +59,62 @@ pub async fn commerce_boot_build(pool: &PgPool, site_iid: i64, doc_meta: &Value)
         "products": products,
         "objects": objects,
         "taxes": taxes_from_meta(doc_meta),
-        "payment_methods": default_payment_methods(),
+        "payment_methods": payment_methods_from_meta(doc_meta),
     }))
+}
+
+/// Editor rows live on `doc.meta.payment_accounts`. An empty list keeps the
+/// cash / transfer / QRIS defaults so checkout still has a choice.
+pub fn payment_methods_from_meta(meta: &Value) -> Vec<Value> {
+    let Some(items) = meta.get("payment_accounts").and_then(|v| v.as_array()) else {
+        return default_payment_methods();
+    };
+    let mapped: Vec<Value> = items
+        .iter()
+        .filter_map(|row| {
+            let id = row.get("id").and_then(|v| v.as_str()).unwrap_or("").trim();
+            if id.is_empty() {
+                return None;
+            }
+            let bank = row.get("bank").and_then(|v| v.as_str()).unwrap_or("").trim();
+            let account_name = row
+                .get("account_name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .trim();
+            let account_number = row
+                .get("account_number")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .trim();
+            let qris_pic = row.get("qris_pic").and_then(|v| v.as_str()).unwrap_or("").trim();
+            let title = [bank, account_name]
+                .into_iter()
+                .filter(|s| !s.is_empty())
+                .collect::<Vec<_>>()
+                .join(" · ");
+            let title = if title.is_empty() {
+                if account_number.is_empty() { id.to_string() } else { account_number.to_string() }
+            } else {
+                title
+            };
+            let typ = if qris_pic.is_empty() { "transfer" } else { "qris" };
+            Some(json!({
+                "id": id,
+                "type": typ,
+                "title": title,
+                "bank": bank,
+                "account_name": account_name,
+                "account_number": account_number,
+                "qris_pic": qris_pic,
+            }))
+        })
+        .collect();
+    if mapped.is_empty() {
+        default_payment_methods()
+    } else {
+        mapped
+    }
 }
 
 async fn reservable_objects(pool: &PgPool, site_iid: i64) -> Result<Vec<Value>> {
@@ -123,4 +177,33 @@ pub async fn site_published_meta_json(pool: &PgPool, site_iid: i64) -> Value {
 fn meta_from_doc_json(doc: Option<serde_json::Value>) -> Value {
     doc.and_then(|d| d.get("meta").cloned())
         .unwrap_or_else(|| json!({}))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_payment_accounts_keep_defaults() {
+        let methods = payment_methods_from_meta(&json!({}));
+        assert_eq!(methods.len(), 3);
+        assert_eq!(methods[0]["id"], "cash");
+    }
+
+    #[test]
+    fn payment_accounts_replace_defaults() {
+        let methods = payment_methods_from_meta(&json!({
+            "payment_accounts": [{
+                "id": "pa1",
+                "bank": "BCA",
+                "account_name": "Toko",
+                "account_number": "123",
+                "qris_pic": ""
+            }]
+        }));
+        assert_eq!(methods.len(), 1);
+        assert_eq!(methods[0]["id"], "pa1");
+        assert_eq!(methods[0]["title"], "BCA · Toko");
+        assert_eq!(methods[0]["type"], "transfer");
+    }
 }

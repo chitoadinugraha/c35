@@ -2,12 +2,13 @@ import 'package:alienai_c35/c/site/site_table_rows.dart';
 import 'package:flutter/material.dart';
 
 class SiteEditorMenuItem {
-  const SiteEditorMenuItem(this.id, this.icon, this.label, {this.enabled = true});
+  const SiteEditorMenuItem(this.id, this.icon, this.label, {this.enabled = true, this.subtitle});
 
   final String id;
   final IconData icon;
   final String label;
   final bool enabled;
+  final String? subtitle;
 }
 
 class SiteEditorMenuGroup {
@@ -17,14 +18,18 @@ class SiteEditorMenuGroup {
   final List<SiteEditorMenuItem> items;
 }
 
-const siteEditorMenuDefaultId = 'products';
+const siteEditorMenuDefaultId = 'info';
+
+/// SiteApi already exposes work-shift and presence-location RPCs.
+const siteEditorAttendanceEnabled = true;
 
 List<SiteEditorMenuGroup> siteEditorMenuGroups(SiteEditorCaps caps) => [
-      SiteEditorMenuGroup('Site', [
-        const SiteEditorMenuItem('info', Icons.info_outline, 'Info'),
-        const SiteEditorMenuItem('links', Icons.link, 'Links'),
-        const SiteEditorMenuItem('design', Icons.palette_outlined, 'Design'),
-        const SiteEditorMenuItem('effects', Icons.auto_awesome_outlined, 'Effects'),
+      const SiteEditorMenuGroup('Site', [
+        SiteEditorMenuItem('info', Icons.info_outline, 'Info'),
+        SiteEditorMenuItem('links', Icons.link, 'Links'),
+        SiteEditorMenuItem('design', Icons.palette_outlined, 'Design'),
+        SiteEditorMenuItem('effects', Icons.auto_awesome_outlined, 'Effects'),
+        SiteEditorMenuItem('ai', Icons.smart_toy_outlined, 'AI'),
       ]),
       SiteEditorMenuGroup('Catalog', [
         SiteEditorMenuItem('products', Icons.shopping_bag_outlined, 'Products', enabled: caps.commerce),
@@ -32,10 +37,20 @@ List<SiteEditorMenuGroup> siteEditorMenuGroups(SiteEditorCaps caps) => [
         SiteEditorMenuItem('contacts', Icons.people_outline, 'Contacts', enabled: caps.commerce || caps.booking),
         SiteEditorMenuItem('queue', Icons.queue, 'Queue', enabled: caps.queue),
       ]),
-      const SiteEditorMenuGroup('Settings', [
-        SiteEditorMenuItem('capabilities', Icons.tune_outlined, 'Capabilities'),
-        SiteEditorMenuItem('team', Icons.group_outlined, 'Team'),
-        SiteEditorMenuItem('publish', Icons.rocket_launch_outlined, 'Publish'),
+      SiteEditorMenuGroup('Settings', [
+        const SiteEditorMenuItem('capabilities', Icons.tune_outlined, 'Capabilities'),
+        const SiteEditorMenuItem('team', Icons.group_outlined, 'Team'),
+        SiteEditorMenuItem(
+          'attendance',
+          Icons.fingerprint,
+          'Attendance',
+          enabled: siteEditorAttendanceEnabled,
+          subtitle: siteEditorAttendanceEnabled ? null : 'Follows the Team plan',
+        ),
+        const SiteEditorMenuItem('accounts', Icons.account_balance_wallet_outlined, 'Accounts'),
+        const SiteEditorMenuItem('notifications', Icons.notifications_outlined, 'Notifications'),
+        const SiteEditorMenuItem('plan', Icons.workspace_premium_outlined, 'Plan'),
+        const SiteEditorMenuItem('publish', Icons.rocket_launch_outlined, 'Publish'),
       ]),
     ];
 
@@ -160,7 +175,16 @@ class _MenuRow extends StatelessWidget {
               children: [
                 Icon(item.icon, size: 16, color: active && enabled ? cs.primary : fg),
                 const SizedBox(width: 8),
-                Expanded(child: Text(item.label, style: TextStyle(fontSize: 13, fontWeight: active ? FontWeight.w600 : FontWeight.w500, color: fg))),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(item.label, style: TextStyle(fontSize: 13, fontWeight: active ? FontWeight.w600 : FontWeight.w500, color: fg)),
+                      if (item.subtitle != null && item.subtitle!.isNotEmpty)
+                        Text(item.subtitle!, style: TextStyle(fontSize: 11, height: 1.2, color: fg)),
+                    ],
+                  ),
+                ),
                 if (!rail && enabled) Icon(Icons.chevron_right, size: 18, color: cs.onSurfaceVariant.withValues(alpha: 0.4)),
               ],
             ),

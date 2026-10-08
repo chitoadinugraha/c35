@@ -2696,6 +2696,42 @@ const WsReq$json = {
       '9': 0,
       '10': 'imgGenerate'
     },
+    {
+      '1': 'notify_list',
+      '3': 210,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqNotifyList',
+      '9': 0,
+      '10': 'notifyList'
+    },
+    {
+      '1': 'notify_read',
+      '3': 211,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqNotifyRead',
+      '9': 0,
+      '10': 'notifyRead'
+    },
+    {
+      '1': 'notify_token_put',
+      '3': 212,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqNotifyTokenPut',
+      '9': 0,
+      '10': 'notifyTokenPut'
+    },
+    {
+      '1': 'app_presence',
+      '3': 213,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqAppPresence',
+      '9': 0,
+      '10': 'appPresence'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -2885,7 +2921,12 @@ final $typed_data.Uint8List wsReqDescriptor = $convert.base64Decode(
     'U2VhcmNoEkYKEXNpdGVfZG9tYWluX2NoZWNrGM8BIAEoCzIXLmMzNS5SZXFTaXRlRG9tYWluQ2'
     'hlY2tIAFIPc2l0ZURvbWFpbkNoZWNrEkAKD3NpdGVfZG9tYWluX2J1eRjQASABKAsyFS5jMzUu'
     'UmVxU2l0ZURvbWFpbkJ1eUgAUg1zaXRlRG9tYWluQnV5EjkKDGltZ19nZW5lcmF0ZRjRASABKA'
-    'syEy5jMzUuUmVxSW1nR2VuZXJhdGVIAFILaW1nR2VuZXJhdGVCBgoEYm9keQ==');
+    'syEy5jMzUuUmVxSW1nR2VuZXJhdGVIAFILaW1nR2VuZXJhdGUSNgoLbm90aWZ5X2xpc3QY0gEg'
+    'ASgLMhIuYzM1LlJlcU5vdGlmeUxpc3RIAFIKbm90aWZ5TGlzdBI2Cgtub3RpZnlfcmVhZBjTAS'
+    'ABKAsyEi5jMzUuUmVxTm90aWZ5UmVhZEgAUgpub3RpZnlSZWFkEkMKEG5vdGlmeV90b2tlbl9w'
+    'dXQY1AEgASgLMhYuYzM1LlJlcU5vdGlmeVRva2VuUHV0SABSDm5vdGlmeVRva2VuUHV0EjkKDG'
+    'FwcF9wcmVzZW5jZRjVASABKAsyEy5jMzUuUmVxQXBwUHJlc2VuY2VIAFILYXBwUHJlc2VuY2VC'
+    'BgoEYm9keQ==');
 
 @$core.Deprecated('Use wsResDescriptor instead')
 const WsRes$json = {
@@ -4324,6 +4365,51 @@ const WsRes$json = {
       '9': 0,
       '10': 'imgGenerate'
     },
+    {
+      '1': 'notify_list',
+      '3': 210,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResNotifyList',
+      '9': 0,
+      '10': 'notifyList'
+    },
+    {
+      '1': 'notify_read',
+      '3': 211,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResNotifyRead',
+      '9': 0,
+      '10': 'notifyRead'
+    },
+    {
+      '1': 'notify_token_put',
+      '3': 212,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResNotifyTokenPut',
+      '9': 0,
+      '10': 'notifyTokenPut'
+    },
+    {
+      '1': 'app_presence',
+      '3': 213,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResAppPresence',
+      '9': 0,
+      '10': 'appPresence'
+    },
+    {
+      '1': 'notify_push',
+      '3': 214,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.NotifyPush',
+      '9': 0,
+      '10': 'notifyPush'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -4525,4 +4611,155 @@ final $typed_data.Uint8List wsResDescriptor = $convert.base64Decode(
     'c2l0ZV9kb21haW5fY2hlY2sYzwEgASgLMhcuYzM1LlJlc1NpdGVEb21haW5DaGVja0gAUg9zaX'
     'RlRG9tYWluQ2hlY2sSQAoPc2l0ZV9kb21haW5fYnV5GNABIAEoCzIVLmMzNS5SZXNTaXRlRG9t'
     'YWluQnV5SABSDXNpdGVEb21haW5CdXkSOQoMaW1nX2dlbmVyYXRlGNEBIAEoCzITLmMzNS5SZX'
-    'NJbWdHZW5lcmF0ZUgAUgtpbWdHZW5lcmF0ZUIGCgRib2R5');
+    'NJbWdHZW5lcmF0ZUgAUgtpbWdHZW5lcmF0ZRI2Cgtub3RpZnlfbGlzdBjSASABKAsyEi5jMzUu'
+    'UmVzTm90aWZ5TGlzdEgAUgpub3RpZnlMaXN0EjYKC25vdGlmeV9yZWFkGNMBIAEoCzISLmMzNS'
+    '5SZXNOb3RpZnlSZWFkSABSCm5vdGlmeVJlYWQSQwoQbm90aWZ5X3Rva2VuX3B1dBjUASABKAsy'
+    'Fi5jMzUuUmVzTm90aWZ5VG9rZW5QdXRIAFIObm90aWZ5VG9rZW5QdXQSOQoMYXBwX3ByZXNlbm'
+    'NlGNUBIAEoCzITLmMzNS5SZXNBcHBQcmVzZW5jZUgAUgthcHBQcmVzZW5jZRIzCgtub3RpZnlf'
+    'cHVzaBjWASABKAsyDy5jMzUuTm90aWZ5UHVzaEgAUgpub3RpZnlQdXNoQgYKBGJvZHk=');
+
+@$core.Deprecated('Use notifyItemDescriptor instead')
+const NotifyItem$json = {
+  '1': 'NotifyItem',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 3, '10': 'id'},
+    {'1': 'title', '3': 2, '4': 1, '5': 9, '10': 'title'},
+    {'1': 'body', '3': 3, '4': 1, '5': 9, '10': 'body'},
+    {'1': 'status', '3': 4, '4': 1, '5': 9, '10': 'status'},
+    {'1': 'channels', '3': 5, '4': 1, '5': 9, '10': 'channels'},
+    {'1': 'fire_at_ms', '3': 6, '4': 1, '5': 3, '10': 'fireAtMs'},
+    {'1': 'sent_ts_ms', '3': 7, '4': 1, '5': 3, '10': 'sentTsMs'},
+    {'1': 'read_ts_ms', '3': 8, '4': 1, '5': 3, '10': 'readTsMs'},
+    {'1': 'created_ts_ms', '3': 9, '4': 1, '5': 3, '10': 'createdTsMs'},
+    {'1': 'route_json', '3': 10, '4': 1, '5': 9, '10': 'routeJson'},
+  ],
+};
+
+/// Descriptor for `NotifyItem`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List notifyItemDescriptor = $convert.base64Decode(
+    'CgpOb3RpZnlJdGVtEg4KAmlkGAEgASgDUgJpZBIUCgV0aXRsZRgCIAEoCVIFdGl0bGUSEgoEYm'
+    '9keRgDIAEoCVIEYm9keRIWCgZzdGF0dXMYBCABKAlSBnN0YXR1cxIaCghjaGFubmVscxgFIAEo'
+    'CVIIY2hhbm5lbHMSHAoKZmlyZV9hdF9tcxgGIAEoA1IIZmlyZUF0TXMSHAoKc2VudF90c19tcx'
+    'gHIAEoA1IIc2VudFRzTXMSHAoKcmVhZF90c19tcxgIIAEoA1IIcmVhZFRzTXMSIgoNY3JlYXRl'
+    'ZF90c19tcxgJIAEoA1ILY3JlYXRlZFRzTXMSHQoKcm91dGVfanNvbhgKIAEoCVIJcm91dGVKc2'
+    '9u');
+
+@$core.Deprecated('Use reqNotifyListDescriptor instead')
+const ReqNotifyList$json = {
+  '1': 'ReqNotifyList',
+  '2': [
+    {'1': 'limit', '3': 1, '4': 1, '5': 5, '10': 'limit'},
+    {'1': 'unread_only', '3': 2, '4': 1, '5': 8, '10': 'unreadOnly'},
+  ],
+};
+
+/// Descriptor for `ReqNotifyList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqNotifyListDescriptor = $convert.base64Decode(
+    'Cg1SZXFOb3RpZnlMaXN0EhQKBWxpbWl0GAEgASgFUgVsaW1pdBIfCgt1bnJlYWRfb25seRgCIA'
+    'EoCFIKdW5yZWFkT25seQ==');
+
+@$core.Deprecated('Use resNotifyListDescriptor instead')
+const ResNotifyList$json = {
+  '1': 'ResNotifyList',
+  '2': [
+    {
+      '1': 'items',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.NotifyItem',
+      '10': 'items'
+    },
+  ],
+};
+
+/// Descriptor for `ResNotifyList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resNotifyListDescriptor = $convert.base64Decode(
+    'Cg1SZXNOb3RpZnlMaXN0EiUKBWl0ZW1zGAEgAygLMg8uYzM1Lk5vdGlmeUl0ZW1SBWl0ZW1z');
+
+@$core.Deprecated('Use reqNotifyReadDescriptor instead')
+const ReqNotifyRead$json = {
+  '1': 'ReqNotifyRead',
+  '2': [
+    {'1': 'ids', '3': 1, '4': 3, '5': 3, '10': 'ids'},
+  ],
+};
+
+/// Descriptor for `ReqNotifyRead`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqNotifyReadDescriptor =
+    $convert.base64Decode('Cg1SZXFOb3RpZnlSZWFkEhAKA2lkcxgBIAMoA1IDaWRz');
+
+@$core.Deprecated('Use resNotifyReadDescriptor instead')
+const ResNotifyRead$json = {
+  '1': 'ResNotifyRead',
+  '2': [
+    {'1': 'updated', '3': 1, '4': 1, '5': 5, '10': 'updated'},
+  ],
+};
+
+/// Descriptor for `ResNotifyRead`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resNotifyReadDescriptor = $convert
+    .base64Decode('Cg1SZXNOb3RpZnlSZWFkEhgKB3VwZGF0ZWQYASABKAVSB3VwZGF0ZWQ=');
+
+@$core.Deprecated('Use reqNotifyTokenPutDescriptor instead')
+const ReqNotifyTokenPut$json = {
+  '1': 'ReqNotifyTokenPut',
+  '2': [
+    {'1': 'client_id', '3': 1, '4': 1, '5': 9, '10': 'clientId'},
+    {'1': 'token', '3': 2, '4': 1, '5': 9, '10': 'token'},
+    {'1': 'platform', '3': 3, '4': 1, '5': 9, '10': 'platform'},
+  ],
+};
+
+/// Descriptor for `ReqNotifyTokenPut`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqNotifyTokenPutDescriptor = $convert.base64Decode(
+    'ChFSZXFOb3RpZnlUb2tlblB1dBIbCgljbGllbnRfaWQYASABKAlSCGNsaWVudElkEhQKBXRva2'
+    'VuGAIgASgJUgV0b2tlbhIaCghwbGF0Zm9ybRgDIAEoCVIIcGxhdGZvcm0=');
+
+@$core.Deprecated('Use resNotifyTokenPutDescriptor instead')
+const ResNotifyTokenPut$json = {
+  '1': 'ResNotifyTokenPut',
+};
+
+/// Descriptor for `ResNotifyTokenPut`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resNotifyTokenPutDescriptor =
+    $convert.base64Decode('ChFSZXNOb3RpZnlUb2tlblB1dA==');
+
+@$core.Deprecated('Use reqAppPresenceDescriptor instead')
+const ReqAppPresence$json = {
+  '1': 'ReqAppPresence',
+  '2': [
+    {'1': 'client_id', '3': 1, '4': 1, '5': 9, '10': 'clientId'},
+    {'1': 'resumed', '3': 2, '4': 1, '5': 8, '10': 'resumed'},
+  ],
+};
+
+/// Descriptor for `ReqAppPresence`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqAppPresenceDescriptor = $convert.base64Decode(
+    'Cg5SZXFBcHBQcmVzZW5jZRIbCgljbGllbnRfaWQYASABKAlSCGNsaWVudElkEhgKB3Jlc3VtZW'
+    'QYAiABKAhSB3Jlc3VtZWQ=');
+
+@$core.Deprecated('Use resAppPresenceDescriptor instead')
+const ResAppPresence$json = {
+  '1': 'ResAppPresence',
+};
+
+/// Descriptor for `ResAppPresence`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resAppPresenceDescriptor =
+    $convert.base64Decode('Cg5SZXNBcHBQcmVzZW5jZQ==');
+
+@$core.Deprecated('Use notifyPushDescriptor instead')
+const NotifyPush$json = {
+  '1': 'NotifyPush',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 3, '10': 'id'},
+    {'1': 'title', '3': 2, '4': 1, '5': 9, '10': 'title'},
+    {'1': 'body', '3': 3, '4': 1, '5': 9, '10': 'body'},
+    {'1': 'route_json', '3': 4, '4': 1, '5': 9, '10': 'routeJson'},
+  ],
+};
+
+/// Descriptor for `NotifyPush`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List notifyPushDescriptor = $convert.base64Decode(
+    'CgpOb3RpZnlQdXNoEg4KAmlkGAEgASgDUgJpZBIUCgV0aXRsZRgCIAEoCVIFdGl0bGUSEgoEYm'
+    '9keRgDIAEoCVIEYm9keRIdCgpyb3V0ZV9qc29uGAQgASgJUglyb3V0ZUpzb24=');

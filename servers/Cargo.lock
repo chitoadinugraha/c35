@@ -471,6 +471,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "c35_fcm"
+version = "0.1.0"
+dependencies = [
+ "jsonwebtoken",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "c35_mod_admin"
 version = "0.1.0"
 dependencies = [
@@ -561,6 +573,7 @@ dependencies = [
  "base64 0.22.1",
  "blake3",
  "c35_ctx",
+ "c35_fcm",
  "c35_mod_admin",
  "c35_mod_billing",
  "c35_mod_consumption",
@@ -576,6 +589,7 @@ dependencies = [
  "c35_mod_llm",
  "c35_mod_log",
  "c35_mod_mail",
+ "c35_mod_notify",
  "c35_mod_referral",
  "c35_mod_site",
  "c35_mod_task",
@@ -912,6 +926,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "c35_mod_notify"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-nats",
+ "async-trait",
+ "c35_fcm",
+ "c35_mod_event",
+ "c35_nats",
+ "c35_proto",
+ "c35_store",
+ "chrono",
+ "prost 0.13.5",
+ "serde_json",
+ "sqlx",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "c35_mod_platform"
 version = "0.1.0"
 dependencies = [
@@ -921,6 +955,8 @@ dependencies = [
  "base64 0.22.1",
  "blake3",
  "c35_mod_fetch",
+ "c35_nats",
+ "c35_proto",
  "c35_store",
  "chrono",
  "dotenvy",
@@ -933,6 +969,7 @@ dependencies = [
  "sha2",
  "sqlx",
  "tokio",
+ "tracing",
  "urlencoding",
 ]
 
@@ -940,12 +977,19 @@ dependencies = [
 name = "c35_mod_referral"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "async-nats",
  "c35_mod_admin",
+ "c35_nats",
  "c35_proto",
  "c35_store",
  "chrono",
+ "futures-util",
+ "prost 0.13.5",
  "serde_json",
  "sqlx",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -1007,6 +1051,7 @@ dependencies = [
  "c35_store",
  "chrono",
  "dashmap",
+ "futures-util",
  "serde",
  "serde_json",
  "sqlx",
@@ -1143,6 +1188,7 @@ dependencies = [
  "c35_mod_mail",
  "c35_mod_referral",
  "c35_mod_site",
+ "c35_mod_task",
  "c35_mod_tx",
  "c35_mod_voice",
  "c35_nats",
@@ -1180,6 +1226,7 @@ dependencies = [
  "c35_mod_live",
  "c35_mod_llm",
  "c35_mod_mail",
+ "c35_mod_notify",
  "c35_mod_site",
  "c35_mod_skill",
  "c35_mod_task",
@@ -4372,14 +4419,19 @@ dependencies = [
  "c35_mod_llm",
  "c35_mod_log",
  "c35_mod_mail",
+ "c35_mod_notify",
+ "c35_mod_referral",
  "c35_mod_site",
+ "c35_mod_task",
  "c35_nats",
  "c35_store",
  "c35_trace",
  "c35_wire_http",
  "c35_wire_ws",
  "dotenvy",
+ "futures-util",
  "reqwest",
+ "serde_json",
  "tokio",
  "tower-http",
  "tracing",

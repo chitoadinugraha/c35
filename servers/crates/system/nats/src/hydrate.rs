@@ -82,36 +82,73 @@ pub async fn hydrate_task_schedules(client: &Client, pool: &PgPool) -> anyhow::R
         Err(e) => return Err(e.into()),
     };
 
-    let js = jetstream::new(client.clone());
     let mut count = 0u32;
     for row in rows {
         let schedule = match row.schedule_header() {
             Some(s) => s,
             None => continue,
         };
-        let subject = format!("c35.schedule.task.{}", row.id);
-        let target = format!("c35.task.fire.{}", row.id);
-        let payload = serde_json::json!({
-            "trigger_id": row.id,
-            "task_id": row.task_id,
-            "owner_iid": row.owner_iid,
-            "device_iid": row.device_iid,
-        });
-        let mut headers = HeaderMap::new();
-        headers.insert("Nats-Schedule", schedule);
-        if row.kind == "cron" && !row.timezone.is_empty() {
-            headers.insert("Nats-Schedule-Time-Zone", row.timezone.as_str());
+        if let Err(e) = task_schedule_arm(
+            client,
+            row.id,
+            row.task_id,
+            row.owner_iid,
+            row.device_iid,
+            &schedule,
+            &row.timezone,
+        )
+        .await
+        {
+            tracing::warn!(trigger_id = row.id, error = %e, "hydrate schedule publish failed");
+            continue;
         }
-        headers.insert("Nats-Schedule-Target", target.as_str());
-        headers.insert("Nats-Schedule-TTL", "24h");
-        js.publish_with_headers(subject, headers, serde_json::to_vec(&payload)?.into())
-            .await
-            .with_context(|| format!("schedule publish trigger_id={}", row.id))?
-            .await
-            .with_context(|| format!("schedule ack trigger_id={} stream={}", row.id, STREAM_TASK_SCHEDULE))?;
         count += 1;
     }
     Ok(count)
+}
+
+pub async fn task_schedule_arm(
+    client: &Client,
+    trigger_id: i64,
+    task_id: i64,
+    owner_iid: i64,
+    device_iid: i64,
+    schedule: &str,
+    timezone: &str,
+) -> anyhow::Result<()> {
+    let js = jetstream::new(client.clone());
+    let subject = format!("c35.schedule.task.{}", trigger_id);
+    let target = format!("c35.task.fire.{}", trigger_id);
+    let payload = serde_json::json!({
+        "trigger_id": trigger_id,
+        "task_id": task_id,
+        "owner_iid": owner_iid,
+        "device_iid": device_iid,
+    });
+    let mut headers = HeaderMap::new();
+    headers.insert("Nats-Schedule", schedule);
+    if !timezone.is_empty() {
+        headers.insert("Nats-Schedule-Time-Zone", timezone);
+    }
+    headers.insert("Nats-Schedule-Target", target.as_str());
+    headers.insert("Nats-Schedule-TTL", "24h");
+    js.publish_with_headers(subject, headers, serde_json::to_vec(&payload)?.into())
+        .await
+        .with_context(|| format!("schedule publish trigger_id={}", trigger_id))?
+        .await
+        .with_context(|| format!("schedule ack trigger_id={} stream={}", trigger_id, STREAM_TASK_SCHEDULE))?;
+    Ok(())
+}
+
+pub async fn task_schedule_disarm(client: &Client, trigger_id: i64) -> anyhow::Result<()> {
+    let js = jetstream::new(client.clone());
+    let subject = format!("c35.schedule.task.{}", trigger_id);
+    let config = serde_json::json!({
+        "filter": subject,
+    });
+    let purge_subject = format!("STREAM.PURGE.{}", STREAM_TASK_SCHEDULE);
+    let _: Result<serde_json::Value, _> = js.request(purge_subject, &config).await;
+    Ok(())
 }
 
 struct TaskTriggerRow {
@@ -141,14 +178,34 @@ impl sqlx::FromRow<'_, sqlx::postgres::PgRow> for TaskTriggerRow {
     }
 }
 
+pub fn format_schedule_pattern(
+    kind: &str,
+    cron_expr: &str,
+    run_at: Option<DateTime<Utc>>,
+) -> Option<String> {
+    match kind {
+        "cron" => {
+            let expr = cron_expr.trim();
+            if expr.is_empty() {
+                return None;
+            }
+            if expr.starts_with('@') {
+                return Some(expr.to_string());
+            }
+            let parts: Vec<&str> = expr.split_whitespace().collect();
+            if parts.len() == 5 {
+                Some(format!("0 {}", expr))
+            } else {
+                Some(expr.to_string())
+            }
+        }
+        "once" => run_at.map(|t| t.format("%S %M %H %d %m *").to_string()),
+        _ => None,
+    }
+}
+
 impl TaskTriggerRow {
     fn schedule_header(&self) -> Option<String> {
-        match self.kind.as_str() {
-            "cron" if !self.cron_expr.is_empty() => Some(self.cron_expr.clone()),
-            "once" => self
-                .run_at
-                .map(|t| format!("@at {}", t.to_rfc3339())),
-            _ => None,
-        }
+        format_schedule_pattern(&self.kind, &self.cron_expr, self.run_at)
     }
 }

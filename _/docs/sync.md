@@ -142,6 +142,7 @@ c35.user.{owner_iid}.app.>
 | `c35.user.{iid}.app.task_run` | `WsRes` (`TaskRunPush`) | Task run progress (future) |
 | `c35.user.{iid}.app.device_presence` | `WsRes` (`DevicePresencePush`) | Remote/IoT agent online + `meta_json` (connect/disconnect + ~30s heartbeat while agent WS up) |
 | `c35.user.{iid}.app.inbox` | `WsRes` (`SyncPush`) | New chat, `chat_member`, committed `chat_msg` (future) |
+| `c35.user.{iid}.app.notify` | `WsRes` (`NotifyPush`) | User notification deliver (live app socket). See [notify.md](notify.md) |
 | `c35.user.{iid}.app.chat.{chat_id}` | `WsRes` | Prompt stream (`PromptStart` / `Delta` / `End`) + per-chat `SyncPush` |
 
 **Code:** subject helpers + decode — `servers/crates/system/nats/src/user_app.rs` (`c35_nats::user_app_subject_*`, `user_app_subscribe_subject`).

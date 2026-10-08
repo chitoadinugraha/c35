@@ -454,7 +454,56 @@ pub async fn prompt_run_finish(
     .bind(fail_reason)
     .execute(pool)
     .await?;
+    prompt_run_notify_release(pool, req_id).await;
     Ok(())
+}
+
+struct NotifyReleaseHook {
+    nats: c35_nats::Client,
+    fcm: std::sync::Arc<dyn c35_mod_notify::FcmSend>,
+}
+
+static NOTIFY_RELEASE: std::sync::OnceLock<NotifyReleaseHook> = std::sync::OnceLock::new();
+
+/// Installed from `nats_post_connect`. Absent in tests and when NATS is down.
+pub fn prompt_run_notify_install(
+    nats: c35_nats::Client,
+    fcm: std::sync::Arc<dyn c35_mod_notify::FcmSend>,
+) {
+    let _ = NOTIFY_RELEASE.set(NotifyReleaseHook { nats, fcm });
+}
+
+async fn prompt_run_notify_release(pool: &PgPool, req_id: &str) {
+    let Some(hook) = NOTIFY_RELEASE.get() else {
+        return;
+    };
+    let owner = match sqlx::query_scalar::<_, i64>(
+        "SELECT owner_iid FROM ai.prompt_run WHERE req_id = $1",
+    )
+    .bind(req_id)
+    .fetch_optional(pool)
+    .await
+    {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::warn!(req_id, error = %e, "[c35:notify] owner lookup failed");
+            return;
+        }
+    };
+    let Some(owner_iid) = owner else {
+        return;
+    };
+    if let Err(e) = c35_mod_notify::notify_release_waiting(
+        pool,
+        Some(&hook.nats),
+        hook.fcm.as_ref(),
+        owner_iid,
+        req_id,
+    )
+    .await
+    {
+        tracing::warn!(req_id, owner_iid, error = %e, "[c35:notify] release waiting failed");
+    }
 }
 
 pub fn prompt_run_over_max_deliver(count: i32) -> bool {

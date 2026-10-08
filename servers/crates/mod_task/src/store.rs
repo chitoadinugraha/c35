@@ -1,4 +1,4 @@
-use c35_proto::{Task, TaskRun, TaskRunStatus};
+use c35_proto::{Task, TaskRun, TaskRunStatus, TaskTrigger};
 use chrono::{DateTime, Utc};
 use serde_json::Value;
 use sqlx::{PgPool, Row};
@@ -59,7 +59,11 @@ pub fn row_to_task_run(r: &sqlx::postgres::PgRow) -> TaskRun {
         tokens_in: r.get("tokens_in"),
         tokens_out: r.get("tokens_out"),
         cost_usd: r.get::<f64, _>("cost_usd"),
-        duration_ms: r.get("duration_ms"),
+        duration_ms: r
+            .try_get::<i32, _>("duration_ms")
+            .map(|v| v as i64)
+            .or_else(|_| r.try_get::<i64, _>("duration_ms"))
+            .unwrap_or(0),
     }
 }
 
@@ -128,7 +132,7 @@ pub async fn task_run_finish(
     .bind(summary)
     .bind(error)
     .bind(meta)
-    .bind(duration_ms)
+    .bind(duration_ms as i32)
     .execute(pool)
     .await;
 }
@@ -176,6 +180,24 @@ pub async fn task_run_mark_cancelled(pool: &PgPool, run_id: i64) {
     .await;
 }
 
+fn trigger_kind_to_db(kind: i32) -> &'static str {
+    match kind {
+        1 => "once",
+        2 => "cron",
+        3 => "webhook",
+        _ => "once",
+    }
+}
+
+fn trigger_kind_from_db(kind: &str) -> i32 {
+    match kind {
+        "once" => 1,
+        "cron" => 2,
+        "webhook" => 3,
+        _ => 1,
+    }
+}
+
 // Task list/put minimal stubs for device scope
 pub async fn task_list(
     pool: &PgPool,
@@ -198,7 +220,8 @@ pub async fn task_list(
     .fetch_all(pool)
     .await
     .unwrap_or_default();
-    rows.iter()
+
+    let mut tasks: Vec<Task> = rows.iter()
         .map(|r| Task {
             id: r.get("id"),
             owner_iid: r.get("owner_iid"),
@@ -213,7 +236,50 @@ pub async fn task_list(
             updated_ts_ms: ts_ms(r.get("updated_ts")),
             deleted_ts_ms: ts_ms(r.get("deleted_ts")),
         })
-        .collect()
+        .collect();
+
+    let task_ids: Vec<i64> = tasks.iter().map(|t| t.id).collect();
+    if !task_ids.is_empty() {
+        let trigger_rows = sqlx::query(
+            r#"
+            SELECT id, task_id, owner_iid, kind, label, cron_expr, timezone, run_at, is_active,
+                   created_ts, updated_ts, deleted_ts
+            FROM ai.task_trigger
+            WHERE owner_iid = $1 AND deleted_ts IS NULL AND task_id = ANY($2)
+            ORDER BY created_ts ASC
+            "#,
+        )
+        .bind(owner_iid)
+        .bind(&task_ids)
+        .fetch_all(pool)
+        .await
+        .unwrap_or_default();
+
+        for tr in trigger_rows {
+            let tid: i64 = tr.get("task_id");
+            let kind_str: String = tr.get("kind");
+            let trigger = TaskTrigger {
+                id: tr.get("id"),
+                task_id: tid,
+                owner_iid: tr.get("owner_iid"),
+                kind: trigger_kind_from_db(&kind_str),
+                label: tr.get("label"),
+                cron_expr: tr.get("cron_expr"),
+                timezone: tr.get("timezone"),
+                run_at_ms: ts_ms(tr.get("run_at")),
+                webhook_secret: String::new(),
+                is_active: tr.get("is_active"),
+                created_ts_ms: ts_ms(tr.get("created_ts")),
+                updated_ts_ms: ts_ms(tr.get("updated_ts")),
+                deleted_ts_ms: ts_ms(tr.get("deleted_ts")),
+            };
+            if let Some(t) = tasks.iter_mut().find(|t| t.id == tid) {
+                t.triggers.push(trigger);
+            }
+        }
+    }
+
+    tasks
 }
 
 pub async fn task_put(pool: &PgPool, owner_iid: i64, task: &Task) -> Result<Task, String> {
@@ -243,10 +309,87 @@ pub async fn task_put(pool: &PgPool, owner_iid: i64, task: &Task) -> Result<Task
     .execute(pool)
     .await
     .map_err(|e| e.to_string())?;
+
+    let mut saved_triggers = Vec::new();
+    for trigger in &task.triggers {
+        let trigger_id = if trigger.id > 0 {
+            trigger.id
+        } else {
+            c35_store::snowflake_id() as i64
+        };
+        let kind_str = trigger_kind_to_db(trigger.kind);
+        let run_at = if trigger.run_at_ms > 0 {
+            DateTime::from_timestamp_millis(trigger.run_at_ms)
+        } else {
+            None
+        };
+        sqlx::query(
+            r#"
+            INSERT INTO ai.task_trigger (
+                id, task_id, owner_iid, kind, label, cron_expr, timezone, run_at, is_active
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            ON CONFLICT (id) DO UPDATE SET
+                label = EXCLUDED.label, cron_expr = EXCLUDED.cron_expr,
+                timezone = EXCLUDED.timezone, run_at = EXCLUDED.run_at,
+                is_active = EXCLUDED.is_active, updated_ts = NOW()
+            "#,
+        )
+        .bind(trigger_id)
+        .bind(id)
+        .bind(owner_iid)
+        .bind(kind_str)
+        .bind(&trigger.label)
+        .bind(&trigger.cron_expr)
+        .bind(&trigger.timezone)
+        .bind(run_at)
+        .bind(trigger.is_active)
+        .execute(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+        let mut st = trigger.clone();
+        st.id = trigger_id;
+        st.task_id = id;
+        st.owner_iid = owner_iid;
+        saved_triggers.push(st);
+    }
+
     let mut out = task.clone();
     out.id = id;
     out.owner_iid = owner_iid;
+    out.triggers = saved_triggers;
     Ok(out)
+}
+
+pub async fn task_delete(pool: &PgPool, owner_iid: i64, task_id: i64) -> Result<Vec<i64>, String> {
+    sqlx::query(
+        r#"
+        UPDATE ai.task
+        SET deleted_ts = NOW(), updated_ts = NOW()
+        WHERE id = $1 AND owner_iid = $2 AND deleted_ts IS NULL
+        "#,
+    )
+    .bind(task_id)
+    .bind(owner_iid)
+    .execute(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    let trigger_ids = sqlx::query_scalar::<_, i64>(
+        r#"
+        UPDATE ai.task_trigger
+        SET deleted_ts = NOW(), updated_ts = NOW(), is_active = FALSE
+        WHERE task_id = $1 AND owner_iid = $2 AND deleted_ts IS NULL
+        RETURNING id
+        "#,
+    )
+    .bind(task_id)
+    .bind(owner_iid)
+    .fetch_all(pool)
+    .await
+    .unwrap_or_default();
+
+    Ok(trigger_ids)
 }
 
 pub async fn task_run_list_for_task(pool: &PgPool, owner_iid: i64, task_id: i64, limit: i32) -> Vec<TaskRun> {

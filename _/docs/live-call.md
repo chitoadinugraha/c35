@@ -234,9 +234,9 @@ Talk Mode (`UiTalkStage`) implements a dual-engine hybrid architecture with full
    - **Turn Persistence**: On `serverContent.turnComplete`, user spoken transcription (`inputTranscription.text`) and model output (`outputTranscription.text`) along with tool execution blocks are committed to `ai.chat_msg` as `role='user'` and `role='assistant'` rows. The server notifies the client via `liveTurnCommitted` event so `ChatStore` and local message lists update optimistically.
    - **Perceived Latency**: **~500ms – 800ms**.
 
-2. **Sentence-Pipelined Streaming TTS Engine (Claude, GPT-4, DeepSeek, etc.)**:
-   - For models without native audio-to-audio streaming, `TtsStreamQueue` buffers incoming LLM delta tokens by sentence/clause boundaries (`.`, `?`, `!`, `\n`) and streams them to TTS sequentially.
-   - Perceived Time-to-First-Audio (TTFA) drops from **8.0s+ down to ~1.5s**, while all tool blocks, thoughts, and chat turns remain in the exact same `chat_id` database history.
+2. **Paragraph-batched streaming TTS (Claude, GPT-4, DeepSeek, etc.)**:
+   - For models without native audio-to-audio streaming, `TtsStreamQueue` holds LLM deltas until a paragraph is long (about 700 characters) or the reply ends, then speaks that clip. Markdown lists stay in one clip. Stop cancels the queue and the current player.
+   - Tool blocks, thoughts, and chat turns remain in the same `chat_id` history.
 
 ## Ops
 

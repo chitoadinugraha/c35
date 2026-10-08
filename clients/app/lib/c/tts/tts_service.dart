@@ -33,34 +33,71 @@ class TtsService {
   FlutterTts? _flutterTts;
   AudioPlayer? _audioPlayer;
   var _initialized = false;
+  var _speakGen = 0;
+  var _playGen = -1;
+  TtsStreamQueue? _activeQueue;
   final ValueNotifier<bool> isSpeaking = ValueNotifier(false);
   final ValueNotifier<String> speakingLang = ValueNotifier(kSpeechLangFallback);
   String? lastSpeakError;
 
-  Future<void> _init() async {
-    if (_initialized) return;
+  void _attachQueue(TtsStreamQueue queue) {
+    if (!identical(_activeQueue, queue)) _activeQueue?.halt();
+    _activeQueue = queue;
+  }
+
+  void _detachQueue(TtsStreamQueue queue) {
+    if (identical(_activeQueue, queue)) _activeQueue = null;
+  }
+
+  void _bindPlayer(AudioPlayer player) {
+    player.onPlayerStateChanged.listen((state) {
+      if (!identical(player, _audioPlayer)) return;
+      if (_playGen != _speakGen) return;
+      if (state == PlayerState.playing) {
+        isSpeaking.value = true;
+      } else if (state == PlayerState.completed || state == PlayerState.stopped) {
+        isSpeaking.value = false;
+      }
+    });
+    player.onPlayerComplete.listen((_) {
+      if (!identical(player, _audioPlayer)) return;
+      if (_playGen != _speakGen) return;
+      isSpeaking.value = false;
+    });
+  }
+
+  Future<void> _ensurePlayer() async {
+    if (_audioPlayer != null) return;
     try {
-      _audioPlayer = AudioPlayer();
-      _audioPlayer!.onPlayerStateChanged.listen((state) {
-        if (state == PlayerState.playing) {
-          isSpeaking.value = true;
-        } else if (state == PlayerState.completed || state == PlayerState.stopped) {
-          isSpeaking.value = false;
-        }
-      });
-      _audioPlayer!.onPlayerComplete.listen((_) => isSpeaking.value = false);
+      final player = AudioPlayer();
+      _bindPlayer(player);
+      _audioPlayer = player;
     } catch (e) {
       debugPrint('[TtsService] AudioPlayer init failed: $e');
     }
+  }
+
+  Future<void> _init() async {
+    if (_initialized) {
+      await _ensurePlayer();
+      return;
+    }
+    await _ensurePlayer();
 
     try {
       _flutterTts = FlutterTts();
-      _flutterTts!.setStartHandler(() => isSpeaking.value = true);
-      _flutterTts!.setCompletionHandler(() => isSpeaking.value = false);
-      _flutterTts!.setCancelHandler(() => isSpeaking.value = false);
+      _flutterTts!.setStartHandler(() {
+        if (_playGen == _speakGen) isSpeaking.value = true;
+      });
+      _flutterTts!.setCompletionHandler(() {
+        if (_playGen == _speakGen) isSpeaking.value = false;
+      });
+      _flutterTts!.setCancelHandler(() {
+        if (_playGen == _speakGen) isSpeaking.value = false;
+      });
       _flutterTts!.setErrorHandler((msg) {
         debugPrint('[TtsService] FlutterTts error: $msg');
-        isSpeaking.value = false;
+        if (_playGen == _speakGen) isSpeaking.value = false;
       });
       await _flutterTts!.setLanguage(kSpeechLangFallback);
       await _flutterTts!.setSpeechRate(0.5);
@@ -76,10 +113,17 @@ class TtsService {
   @visibleForTesting
   static String speakPreparedText(String text) => speechTextClean(text);
 
-  Future<void> speak(String text, {String? lang}) async {
+  bool _genAlive(int gen) => gen == _speakGen;
+
+  Future<void> speak(String text, {String? lang, bool fromQueue = false}) async {
     final spoken = speakPreparedText(text);
     if (spoken.isEmpty) return;
+    if (!fromQueue) _activeQueue?.halt();
+    final gen = ++_speakGen;
+    await _silence(discardPlayer: true);
+    if (!_genAlive(gen)) return;
     await _init();
+    if (!_genAlive(gen)) return;
     final prefs = VoicePrefs.instance;
     final localePref = (lang != null && lang != kSpeechLangAuto) ? lang : prefs.speechLang;
     final effectiveLang = (lang != null && lang != kSpeechLangAuto)
@@ -87,22 +131,28 @@ class TtsService {
         : speechLangResolve(spoken, last: prefs.lastLang, locale: localePref);
     unawaited(prefs.setLastLang(effectiveLang));
     lastSpeakError = null;
-    await stop();
+    speakingLang.value = effectiveLang;
+    isSpeaking.value = true;
     final engine = ttsEngineRoute(prefs.ttsEngine);
     if (engine == 'cloud') {
-      final played = await _speakCloud(spoken, effectiveLang, prefs.speechRate);
-      if (played) return;
+      final played = await _speakCloud(spoken, effectiveLang, prefs.speechRate, gen);
+      if (played || !_genAlive(gen)) return;
     } else if (engine == 'web') {
-      final played = await _speakWeb(spoken, effectiveLang, prefs.speechRate);
-      if (played) return;
+      final played = await _speakWeb(spoken, effectiveLang, prefs.speechRate, gen);
+      if (played || !_genAlive(gen)) return;
     } else if (engine != 'local') {
       debugPrint('[TtsService] unknown tts engine "$engine", using local');
     }
-    if (_flutterTts == null) return;
+    if (!_genAlive(gen) || _flutterTts == null) {
+      if (_genAlive(gen)) isSpeaking.value = false;
+      return;
+    }
     try {
+      if (!_genAlive(gen)) return;
       speakingLang.value = effectiveLang;
       await _flutterTts!.setLanguage(effectiveLang);
       await _flutterTts!.setSpeechRate((0.5 * prefs.speechRate).clamp(0.1, 1.0));
+      await _flutterTts!.setVolume(1.0);
       await _flutterTts!.setPitch(prefs.speechPitch.clamp(0.5, 2.0));
       final def = speechLangDef(effectiveLang);
       if (def != null && def.voiceNameHints.isNotEmpty) {
@@ -122,11 +172,17 @@ class TtsService {
           }
         } catch (_) {}
       }
+      if (!_genAlive(gen)) return;
+      _playGen = gen;
       isSpeaking.value = true;
       await _flutterTts!.speak(spoken);
+      if (!_genAlive(gen) && _playGen == gen) {
+        await _silence(discardPlayer: true);
+        isSpeaking.value = false;
+      }
     } catch (e) {
       debugPrint('[TtsService] Local Speak error: $e');
-      isSpeaking.value = false;
+      if (_genAlive(gen)) isSpeaking.value = false;
     }
   }
 
@@ -136,9 +192,11 @@ class TtsService {
     required String spoken,
     required String effectiveLang,
     required double speechRate,
+    int? gen,
     Future<({Uint8List bytes, String mime})?> Function({required String text, String? lang})? cloudSynthesize,
     Future<Uint8List?> Function(String spoken, String effectiveLang)? webFetch,
   }) async {
+    bool alive() => gen == null || gen == _speakGen;
     if (engine == 'cloud') {
       if (_voiceApi == null && cloudSynthesize == null) return false;
       try {
@@ -156,11 +214,22 @@ class TtsService {
           await Future<void>.delayed(const Duration(milliseconds: 400));
           audio = await synth();
         }
+        if (!alive()) return false;
         if (audio != null && audio.bytes.isNotEmpty && _audioPlayer != null) {
+          final player = _audioPlayer!;
           speakingLang.value = effectiveLang;
+          _playGen = gen ?? _speakGen;
           isSpeaking.value = true;
-          await _audioPlayer!.setPlaybackRate(speechRate);
-          await _audioPlayer!.play(BytesSource(audio.bytes));
+          await player.setPlaybackRate(speechRate);
+          if (!alive() || !identical(player, _audioPlayer)) return false;
+          await player.play(BytesSource(audio.bytes));
+          if (!alive() || !identical(player, _audioPlayer)) {
+            if (_playGen == (gen ?? _speakGen)) {
+              await _silence(discardPlayer: true);
+              isSpeaking.value = false;
+            }
+            return false;
+          }
           return true;
         }
       } catch (e) {
@@ -173,11 +242,22 @@ class TtsService {
       final bytes = webFetch != null
           ? await webFetch(spoken, effectiveLang)
           : await _fetchWebTtsBytes(spoken, effectiveLang);
+      if (!alive()) return false;
       if (bytes != null && bytes.isNotEmpty && _audioPlayer != null) {
+        final player = _audioPlayer!;
         speakingLang.value = effectiveLang;
+        _playGen = gen ?? _speakGen;
         isSpeaking.value = true;
-        await _audioPlayer!.setPlaybackRate(speechRate);
-        await _audioPlayer!.play(BytesSource(bytes));
+        await player.setPlaybackRate(speechRate);
+        if (!alive() || !identical(player, _audioPlayer)) return false;
+        await player.play(BytesSource(bytes));
+        if (!alive() || !identical(player, _audioPlayer)) {
+          if (_playGen == (gen ?? _speakGen)) {
+            await _silence(discardPlayer: true);
+            isSpeaking.value = false;
+          }
+          return false;
+        }
         return true;
       }
       return false;
@@ -185,11 +265,11 @@ class TtsService {
     return false;
   }
 
-  Future<bool> _speakCloud(String spoken, String effectiveLang, double speechRate) =>
-      speakRouted(engine: 'cloud', spoken: spoken, effectiveLang: effectiveLang, speechRate: speechRate);
+  Future<bool> _speakCloud(String spoken, String effectiveLang, double speechRate, int gen) =>
+      speakRouted(engine: 'cloud', spoken: spoken, effectiveLang: effectiveLang, speechRate: speechRate, gen: gen);
 
-  Future<bool> _speakWeb(String spoken, String effectiveLang, double speechRate) =>
-      speakRouted(engine: 'web', spoken: spoken, effectiveLang: effectiveLang, speechRate: speechRate);
+  Future<bool> _speakWeb(String spoken, String effectiveLang, double speechRate, int gen) =>
+      speakRouted(engine: 'web', spoken: spoken, effectiveLang: effectiveLang, speechRate: speechRate, gen: gen);
 
   Future<Uint8List?> _fetchWebTtsBytes(String spoken, String effectiveLang) async {
     try {
@@ -205,52 +285,79 @@ class TtsService {
     return null;
   }
 
-  Future<void> stop() async {
-    try {
-      await _audioPlayer?.stop();
-    } catch (e) {
-      debugPrint('[TtsService] AudioPlayer stop error: $e');
+  Future<void> _silence({required bool discardPlayer}) async {
+    final player = _audioPlayer;
+    if (discardPlayer) _audioPlayer = null;
+    if (player != null) {
+      try {
+        await player.stop();
+      } catch (e) {
+        debugPrint('[TtsService] AudioPlayer stop error: $e');
+      }
+      if (discardPlayer) {
+        try {
+          await player.dispose();
+        } catch (e) {
+          debugPrint('[TtsService] AudioPlayer dispose error: $e');
+        }
+      }
     }
     try {
+      await _flutterTts?.setVolume(0);
       await _flutterTts?.stop();
     } catch (e) {
       debugPrint('[TtsService] FlutterTts stop error: $e');
     }
+  }
+
+  Future<void> stop() async {
+    _speakGen++;
+    _playGen = -1;
+    _activeQueue?.halt();
+    isSpeaking.value = false;
+    await _silence(discardPlayer: true);
     isSpeaking.value = false;
   }
 }
 
-/// Buffers streaming LLM deltas into sentences and feeds them into TTS sequentially,
-/// reducing perceived Time-To-First-Audio from ~8s to ~1.5s.
+/// Buffers streaming reply text and speaks it in clips.
+/// List lines stay in one clip. [stop] drops anything not yet playing.
 class TtsStreamQueue {
-  TtsStreamQueue();
+  TtsStreamQueue({
+    Future<void> Function(String text)? speak,
+    Future<void> Function()? onStop,
+  }) : _speak = speak,
+       _onStop = onStop,
+       _ownsService = speak == null {
+    if (_ownsService) TtsService.instance._attachQueue(this);
+  }
 
+  final Future<void> Function(String text)? _speak;
+  final Future<void> Function()? _onStop;
+  final bool _ownsService;
   final List<String> _pending = [];
   bool _running = false;
   String _currentBuffer = '';
   var _cancelled = false;
 
+  bool get isHalted => _cancelled;
+
   void feedChunk(String chunk) {
-    if (_cancelled) return;
+    if (_cancelled || chunk.isEmpty) return;
     _currentBuffer += chunk;
-    // Check if buffer contains sentence boundary: '.', '?', '!', '\n'
-    final match = RegExp(r'([.?!]\s+|\n+)').firstMatch(_currentBuffer);
-    if (match != null) {
-      final end = match.end;
-      final sentence = _currentBuffer.substring(0, end).trim();
-      _currentBuffer = _currentBuffer.substring(end);
-      if (sentence.isNotEmpty) {
-        _enqueue(sentence);
-      }
+    final pull = speechPullChunks(_currentBuffer);
+    _currentBuffer = pull.rest;
+    for (final piece in pull.ready) {
+      _enqueue(piece);
     }
   }
 
   void flush() {
     if (_cancelled) return;
-    final remaining = _currentBuffer.trim();
-    _currentBuffer = '';
-    if (remaining.isNotEmpty) {
-      _enqueue(remaining);
+    final pull = speechPullChunks(_currentBuffer, flush: true);
+    _currentBuffer = pull.rest;
+    for (final piece in pull.ready) {
+      _enqueue(piece);
     }
   }
 
@@ -264,19 +371,35 @@ class TtsStreamQueue {
     _running = true;
     while (_pending.isNotEmpty && !_cancelled) {
       final next = _pending.removeAt(0);
-      await TtsService.instance.speak(next);
-      while (TtsService.instance.isSpeaking.value && !_cancelled) {
+      if (_speak != null) {
+        await _speak(next);
+      } else {
+        await TtsService.instance.speak(next, fromQueue: true);
+      }
+      if (_cancelled) break;
+      while (_ownsService && TtsService.instance.isSpeaking.value && !_cancelled) {
         await Future.delayed(const Duration(milliseconds: 50));
       }
     }
     _running = false;
   }
 
-  void cancel() {
+  void halt() {
+    if (_cancelled) return;
     _cancelled = true;
     _pending.clear();
     _currentBuffer = '';
     _running = false;
-    unawaited(TtsService.instance.stop());
+    if (_ownsService) TtsService.instance._detachQueue(this);
+  }
+
+  void cancel() {
+    halt();
+    final stop = _onStop;
+    if (stop != null) {
+      unawaited(stop());
+      return;
+    }
+    if (_ownsService) unawaited(TtsService.instance.stop());
   }
 }

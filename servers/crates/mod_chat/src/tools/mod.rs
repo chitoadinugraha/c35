@@ -47,6 +47,7 @@ use builtin::{
     VidGenerateTool,
     ChatMessagesTool, ChatSearchTool, MailArchiveTool, MailGetTool, MailListTool, MailMailboxListTool,
     MailMarkReadTool, MailSendTool, MemoryForgetTool, MemoryListTool, MemorySaveTool,
+    NotifyCancelTool, NotifyListTool, NotifyScheduleTool,
     PresentationCreateTool, PresentationExportTool, PresentationPatchTool,
     PresentationSourceExtractTool, PresentationSourceStructureTool,
     PresentationVideoExtractTool, PresentationVideoStructureTool,
@@ -63,7 +64,8 @@ use builtin::{
     SiteProductDeleteTool, SiteProductEmbedPutTool, SiteProductPatchTool, SiteProductPutTool,
     SitePicGenerateTool,
     SitePublishTool, SiteQueryRunTool,
-    SiteTxDebtPayTool, SiteTxListTool, SiteTxPreviewTool, SiteTxPutTool, TaskRunCancelDeviceTool,
+    SiteTxDebtPayTool, SiteTxListTool, SiteTxPreviewTool, SiteTxPutTool, TaskCreateTool,
+    TaskDeleteTool, TaskListTool, TaskRunCancelDeviceTool,
     TaskRunCancelTool, TaskRunStartTool, TaskRunStatusTool, WebResearchTool, WebSearchTool,
     WebVisitTool,
 };
@@ -226,6 +228,9 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(ReferralTreeGetTool));
     dispatcher.register(Arc::new(MailMailboxListTool));
     dispatcher.register(Arc::new(MailListTool));
+    dispatcher.register(Arc::new(NotifyScheduleTool));
+    dispatcher.register(Arc::new(NotifyListTool));
+    dispatcher.register(Arc::new(NotifyCancelTool));
     dispatcher.register(Arc::new(MailGetTool));
     dispatcher.register(Arc::new(MailSendTool));
     dispatcher.register(Arc::new(MailMarkReadTool));
@@ -262,6 +267,9 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(TaskRunStartTool));
     dispatcher.register(Arc::new(TaskRunCancelTool));
     dispatcher.register(Arc::new(TaskRunCancelDeviceTool));
+    dispatcher.register(Arc::new(TaskCreateTool));
+    dispatcher.register(Arc::new(TaskDeleteTool));
+    dispatcher.register(Arc::new(TaskListTool));
     dispatcher.register(Arc::new(ChatSearchTool));
     dispatcher.register(Arc::new(ChatMessagesTool));
     dispatcher.register(Arc::new(MemorySaveTool));

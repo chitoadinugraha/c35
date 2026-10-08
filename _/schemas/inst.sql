@@ -1764,6 +1764,40 @@ UPDATE ai.inst SET
     updated_ts = NOW()
 WHERE id = 'inst.task.mail_read';
 
+-- Seed: user notification schedule (Home assistant)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.task.notify',
+    'global',
+    'task',
+    '',
+    '[NOTIFY] User wants a notification to themselves. Call notify.schedule. For "in N seconds/minutes" set delay_sec (minutes * 60). For a clock time set fire_at RFC3339 in the user timezone from context. For "notify me when you are done" / "if finished" set when=turn (delivers when this turn ends). Summarize from tool JSON: id, status, fire_at. Use notify.list when they ask what reminders they have. Use notify.cancel only when they name one to drop.',
+    ARRAY[
+        'notify me', 'remind me', 'ingatkan', 'notification', 'in 5 seconds', 'in 5 sec',
+        'kabari saya', 'kasih tahu saya'
+    ],
+    ARRAY['tool_include:notify.schedule'],
+    ARRAY['notify.schedule', 'notify.list', 'notify.cancel'],
+    ARRAY['web.search'],
+    120,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO NOTHING;
+
+UPDATE ai.inst SET
+    inst = '[NOTIFY] User wants a notification to themselves. Call notify.schedule. For "in N seconds/minutes" set delay_sec (minutes * 60). For a clock time set fire_at RFC3339 in the user timezone from context. For "notify me when you are done" / "if finished" set when=turn (delivers when this turn ends). Summarize from tool JSON: id, status, fire_at. Use notify.list when they ask what reminders they have. Use notify.cancel only when they name one to drop.',
+    phrases = ARRAY[
+        'notify me', 'remind me', 'ingatkan', 'notification', 'in 5 seconds', 'in 5 sec',
+        'kabari saya', 'kasih tahu saya'
+    ],
+    triggers = ARRAY['tool_include:notify.schedule'],
+    include_tools = ARRAY['notify.schedule', 'notify.list', 'notify.cancel'],
+    exclude_tools = ARRAY['web.search'],
+    priority = 120,
+    updated_ts = NOW()
+WHERE id = 'inst.task.notify';
+
 -- Seed: platform mail send (Home assistant)
 INSERT INTO ai.inst (
     id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts

@@ -23,6 +23,7 @@ c35_mod_identity = { path = "../mod_identity", package = "c35_mod_identity" }
 c35_mod_event = { path = "../mod_event", package = "c35_mod_event" }
 c35_mod_hint = { path = "../mod_hint", package = "c35_mod_hint" }
 c35_mod_admin = { path = "../mod_admin", package = "c35_mod_admin" }
+c35_mod_notify = { path = "../mod_notify", package = "c35_mod_notify" }
 c35_nats = { path = "../system/nats", package = "c35_nats" }
 async-nats = { workspace = true }
 c35_mod_llm = { path = "../mod_llm", package = "c35_mod_llm" }

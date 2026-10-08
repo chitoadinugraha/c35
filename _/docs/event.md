@@ -4,7 +4,7 @@ Status: **locked** 2026-09-26 (0-user restructure)
 
 Domain **timeline** + trigger bus. Distinct from **state pushes** (`c35.user.{iid}.balance`, `.chat.*`, …) and from **LLM/tool trace** rows in `ai.log` (no NATS fanout).
 
-See also [log.md](log.md) (storage), [sync.md](sync.md) (NATS), [consumption.md](consumption.md), [nats.md](nats.md).
+See also [log.md](log.md) (storage), [sync.md](sync.md) (NATS), [consumption.md](consumption.md), [nats.md](nats.md), [notify.md](notify.md) (inbox; this catalog is the audit event only).
 
 ---
 
@@ -124,6 +124,18 @@ Meta keys: use `sess_id`, `conn_id` — not `session_token` / keys containing `s
 Emit: `mod_identity` (sign-in/out/OAuth), `wire_ws` (app WS after JWT ok / on close).
 
 Payload (`EventUserSession`): `method`, `platform`, `app_build`, `sess_id`, `conn_id` (snowflakes only).
+
+---
+
+## Catalog — user notify
+
+Emit from `notify_deliver` after a successful claim (one event per delivered row). The app history screen reads `ai.notify`, not this row. Subject: `c35.user.{owner_iid}.ev.notified`. The notification payload is `NotifyPush` on `c35.user.{iid}.app.notify` ([notify.md](notify.md)).
+
+| kind | slug | scope | class | txt (en) |
+|------|------|-------|-------|----------|
+| `user.notified` | `notified` | User | event | `$name notified: $title` |
+
+Meta: `notify_id`, `channels`, `title`.
 
 ---
 

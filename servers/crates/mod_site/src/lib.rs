@@ -109,6 +109,9 @@ pub use guest_reservation::{
     Availability, FreeObject,
 };
 pub use guest_design::{featured_contacts_load, FeaturedContact, GuestDesign};
-pub use render::{block_html_render, guest_shell_html, product_card_html, ProductGridCtx};
+pub use render::{
+    block_html_render, guest_client_script_markup, guest_shell_html, product_card_html,
+    ProductGridCtx,
+};
 pub use sync::sync_pull;
 pub use sync_push::site_sync_push;

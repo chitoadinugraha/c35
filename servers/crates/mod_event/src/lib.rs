@@ -12,6 +12,7 @@ pub mod kinds {
     pub const USER_SIGN_IN_FAILED: &str = "user.sign_in_failed";
     pub const USER_CONNECTED: &str = "user.connected";
     pub const USER_DISCONNECTED: &str = "user.disconnected";
+    pub const USER_NOTIFIED: &str = "user.notified";
     pub const CONSUMPTION_MEAL_LOGGED: &str = "consumption.meal_logged";
     pub const CONSUMPTION_MEAL_UPDATED: &str = "consumption.meal_updated";
     pub const CONSUMPTION_MEAL_DELETED: &str = "consumption.meal_deleted";

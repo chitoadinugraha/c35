@@ -100,6 +100,8 @@ fn guest_design_fixture_renders_tokens_blocks_and_strips() {
             duration_unit: String::new(),
             reservation_unit_selection: String::new(),
             icon: String::new(),
+            stock_show_to_customer: false,
+            stock_qty: None,
         }],
         &caps,
         None,

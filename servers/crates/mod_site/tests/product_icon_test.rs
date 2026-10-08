@@ -55,6 +55,8 @@ fn empty_pic_card_inlines_coffee_svg() {
         duration_unit: "day".into(),
         reservation_unit_selection: "system".into(),
         icon: "mdi:coffee".into(),
+        stock_show_to_customer: false,
+        stock_qty: None,
     };
     let html = product_card_html(&row, None);
     assert!(html.contains("class=\"product-ph\""));

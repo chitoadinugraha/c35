@@ -13,7 +13,12 @@ import 'package:alienai_c35/widgets/sites/editor/design/ui_site_design_section.d
 import 'package:alienai_c35/widgets/sites/editor/ui_site_design_editor.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_effects_editor.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_info_editor.dart';
+import 'package:alienai_c35/widgets/sites/editor/ui_site_accounts_editor.dart';
+import 'package:alienai_c35/widgets/sites/editor/ui_site_ai_editor.dart';
+import 'package:alienai_c35/widgets/sites/editor/ui_site_attendance_editor.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_contacts_editor.dart';
+import 'package:alienai_c35/widgets/sites/editor/ui_site_notifications_editor.dart';
+import 'package:alienai_c35/widgets/sites/editor/ui_site_plan_editor.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_links_editor.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_objects_editor.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_preview_pane.dart';
@@ -166,7 +171,16 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
   bool _catalogMasterDetail(BuildContext context, bool wide, String section) {
     if (!wide) return false;
     if (section == 'products' && _productsPane != SiteProductsPane.list) return false;
-    if (section != 'products' && section != 'contacts' && section != 'objects' && section != 'team' && section != 'design' && section != 'effects') return false;
+    if (section != 'products' &&
+        section != 'contacts' &&
+        section != 'objects' &&
+        section != 'team' &&
+        section != 'design' &&
+        section != 'effects' &&
+        section != 'ai' &&
+        section != 'accounts') {
+      return false;
+    }
     final w = MediaQuery.sizeOf(context).width;
     return w - siteEditorMenuRailW - _previewPaneW(w) >= siteEditorMasterDetailBreakpoint;
   }
@@ -258,6 +272,14 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
     return switch (section) {
       'info' => UiSiteInfoEditor(row: _row, api: widget.api, siteIid: _siteIid, onRowChanged: _onRowChanged, onDraftSaved: _onDraftSaved),
       'links' => UiSiteLinksEditor(api: widget.api, siteIid: _siteIid),
+      'ai' => UiSiteAiEditor(
+          api: widget.api,
+          siteIid: _siteIid,
+          masterDetail: masterDetail,
+          detailId: _catalogDetailId,
+          onDetailIdChanged: _scheduleCatalogDetailId,
+          onDraftSaved: _onDraftSaved,
+        ),
       'design' => UiSiteDesignEditor(
           api: widget.api,
           siteIid: _siteIid,
@@ -316,6 +338,17 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
           onDetailIdChanged: _scheduleCatalogDetailId,
         ),
       'queue' => UiSiteQueueEditor(api: widget.api, siteIid: _siteIid),
+      'attendance' => UiSiteAttendanceEditor(api: widget.api, siteIid: _siteIid),
+      'accounts' => UiSiteAccountsEditor(
+          api: widget.api,
+          siteIid: _siteIid,
+          masterDetail: masterDetail,
+          detailId: _catalogDetailId,
+          onDetailIdChanged: _scheduleCatalogDetailId,
+          onDraftSaved: _onDraftSaved,
+        ),
+      'notifications' => UiSiteNotificationsEditor(api: widget.api, siteIid: _siteIid, onDraftSaved: _onDraftSaved),
+      'plan' => const UiSitePlanEditor(),
       _ => Center(child: Text('Coming soon', style: const TextStyle(color: _muted, fontSize: 13))),
     };
   }
@@ -347,7 +380,8 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
 
   bool _narrowCatalogDrill(String section) =>
       (section == 'products' && (_productsPane != SiteProductsPane.list || _catalogDetailId != null)) ||
-      ((section == 'contacts' || section == 'objects' || section == 'team' || section == 'design' || section == 'effects') && _catalogDetailId != null);
+      ((section == 'contacts' || section == 'objects' || section == 'team' || section == 'design' || section == 'effects' || section == 'ai' || section == 'accounts') &&
+          _catalogDetailId != null);
 
   Widget _chrome({required String? subtitle, Color? subtitleColor, VoidCallback? onBack, required List<Widget> actions}) =>
       ListenableBuilder(

@@ -62,6 +62,8 @@ Single entry points for the app — pages bind `VoiceApi` once per chat session.
 - STT: always **cloud** → `VoiceApi.sttTranscribe`.
 - TTS: `ttsEngine == 'cloud'` → synthesize + `audioplayers`; `web` → fetch MP3 + player; `local` → `flutter_tts` (web TTS falls through to local on failure).
 
+**Read aloud text:** `speechTextClean` turns markdown into plain speech before any engine. Headings, emphasis, links, and code markers are removed. Short bullet and numbered items in one list are joined with commas so the voice does not pause after each marker. Talk auto-speak (`TtsStreamQueue`) keeps those lines in one clip until a paragraph is long (about 700 characters) or the reply ends. **Stop** (composer "Speaking in ...") cancels that queue, drops clips not yet played, and disposes the current player so playback cannot continue.
+
 **Files:**
 
 | Path | Purpose |

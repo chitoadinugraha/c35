@@ -24,6 +24,9 @@ use tokio_util::sync::CancellationToken;
 
 use crate::router::WsQuery;
 
+#[path = "notify_rpc.rs"]
+mod notify_rpc;
+
 struct PromptFlight {
     cancel: CancellationToken,
 }
@@ -73,6 +76,7 @@ pub async fn handle(mut socket: WebSocket, state: AppState, q: WsQuery, headers:
         });
     }
     let mut prompt_flight: Option<PromptFlight> = None;
+    let mut app_client_id = String::new();
     if let Some(nats) = state.nats.clone() {
         let fanout_tx = out_tx.clone();
         tokio::spawn(async move {
@@ -131,7 +135,14 @@ pub async fn handle(mut socket: WebSocket, state: AppState, q: WsQuery, headers:
                                 });
                             }
                             _ => {
+                                let presence_id = match &req.body {
+                                    Some(ws_req::Body::AppPresence(p)) => Some(p.client_id.clone()),
+                                    _ => None,
+                                };
                                 let res = dispatch(&state, &ctx, req, &q, &geo_hint, app_conn_id, admin_session_id, &out_tx).await;
+                                if let Some(id) = presence_id.as_deref() {
+                                    notify_rpc::note_presence(&state.pool, caller_iid, &mut app_client_id, id, &res).await;
+                                }
                                 if socket.send(Message::Binary(pb_encode(&res).into())).await.is_err() {
                                     break;
                                 }
@@ -150,6 +161,7 @@ pub async fn handle(mut socket: WebSocket, state: AppState, q: WsQuery, headers:
         }
     }
 
+    notify_rpc::forget_presence(&state.pool, caller_iid, &app_client_id).await;
     c35_mod_device::remote_signaling_app_conn_unregister(app_conn_id);
     c35_mod_event::event_spawn(
         state.pool.clone(),
@@ -791,7 +803,7 @@ async fn dispatch(
                 c35_mod_task::task_list_rpc(&state.pool, ctx.caller_iid, r).await,
             )),
         },
-        Some(ws_req::Body::TaskPut(r)) => match c35_mod_task::task_put_rpc(&state.pool, ctx.caller_iid, r).await {
+        Some(ws_req::Body::TaskPut(r)) => match c35_mod_task::task_put_rpc(&state.pool, state.nats.as_ref(), ctx.caller_iid, r).await {
             Ok(res) => WsRes {
                 req_id,
                 body: Some(ws_res::Body::TaskPut(res)),
@@ -1656,6 +1668,18 @@ async fn dispatch(
                 Ok(body) => WsRes { req_id, body: Some(ws_res::Body::MailDomainFix(body)) },
                 Err(e) => err_res(req_id, WireErr::client("mail_domain_fix_failed", e.to_string())),
             }
+        }
+        Some(ws_req::Body::NotifyList(r)) => {
+            notify_rpc::notify_list_res(&state.pool, ctx.caller_iid, req_id, r).await
+        }
+        Some(ws_req::Body::NotifyRead(r)) => {
+            notify_rpc::notify_read_res(&state.pool, ctx.caller_iid, req_id, r).await
+        }
+        Some(ws_req::Body::NotifyTokenPut(r)) => {
+            notify_rpc::notify_token_put_res(&state.pool, ctx.caller_iid, req_id, r).await
+        }
+        Some(ws_req::Body::AppPresence(r)) => {
+            notify_rpc::app_presence_res(&state.pool, ctx.caller_iid, req_id, r).await
         }
         _ => err_res(
             req_id,

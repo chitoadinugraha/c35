@@ -29,6 +29,7 @@ import 'package:alienai_c35/widgets/sites/ui_site_platform_icon.dart';
 import 'package:alienai_c35/widgets/ui/ui_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 
 const _guestTextPrimary = Color(0xFFF4F4F5);
 const _guestTextSecondary = Color(0xFFA1A1AA);
@@ -136,6 +137,10 @@ Widget guestSiteBlock({
         muted: sub,
       ),
     'order_track' => GuestSiteOrderTrackBlock(props: props, accent: accent, siteIid: siteIid),
+    'map' => GuestSiteMapBlock(props: props, accent: accent),
+    'queue' => GuestSiteQueueBlock(props: props, accent: accent, siteIid: siteIid),
+    'embed' => GuestSiteEmbedBlock(props: props, accent: accent),
+    'custom_html' => const GuestSiteCustomHtmlBlock(),
     'hours' => suppressHoursBlock
         ? const SizedBox.shrink()
         : openHours.isNotEmpty
@@ -345,12 +350,14 @@ class GuestSiteContactFormBlock extends StatelessWidget {
     final title = props['title']?.toString() ?? 'Hubungi Kami';
     final submitLabel = props['submit_label']?.toString() ?? 'Kirim Pesan';
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0x15FFFFFF))),
-      ),
-      child: Column(
+    return KeyedSubtree(
+      key: const Key('guest-form'),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: Color(0x15FFFFFF))),
+        ),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
@@ -390,6 +397,7 @@ class GuestSiteContactFormBlock extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 }
@@ -559,6 +567,8 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
       cart.addProduct(productId: pid, name: name, price: price);
     }
 
+    final stock = guestProductVisibleStock(p);
+
     final row = Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -585,6 +595,11 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
                         padding: const EdgeInsets.only(top: 2),
                         child: Text(desc, style: subtitleStyle, maxLines: 3, overflow: TextOverflow.ellipsis),
                       ),
+                    if (stock != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text('Stock: $stock', style: subtitleStyle),
+                      ),
                   ],
                 ),
               ),
@@ -593,6 +608,14 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   if (price > 0) Text(moneyFmtIdr(price), style: priceStyle),
+                  IconButton(
+                    tooltip: 'Detail',
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                    onPressed: () => _openProductDetail(p),
+                    icon: Icon(Icons.info_outline, size: 18, color: sub),
+                  ),
                 ],
               ),
             ],
@@ -624,6 +647,18 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
         ),
       ),
     );
+  }
+
+  void _openProductDetail(Map<String, dynamic> product) {
+    final cart = GuestSiteCartScope.maybeOf(context);
+    unawaited(showGuestSiteProductDetailSheet(
+      context: context,
+      siteIid: widget.siteIid,
+      product: product,
+      objects: widget.commerceObjects,
+      accent: widget.accent,
+      cart: cart,
+    ));
   }
 
   Widget _productThumbPlaceholder(Color accent, String icon) {
@@ -1087,43 +1122,46 @@ class GuestSitePostSummary extends StatelessWidget {
     final title = post['title']?.toString() ?? 'Post';
     final caption = post['caption']?.toString() ?? '';
     final thumbUrl = guestSitePicUrl(post['thumb']?.toString() ?? '');
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (thumbUrl.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(right: 10),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: Image.network(thumbUrl, width: 48, height: 48, fit: BoxFit.cover),
+    return InkWell(
+      onTap: () => showGuestSitePostDetailSheet(context: context, post: post),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (thumbUrl.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(right: 10),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: Image.network(thumbUrl, width: 48, height: 48, fit: BoxFit.cover),
+                ),
+              ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: _guestTextPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (caption.isNotEmpty)
+                    Text(
+                      caption,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: _guestTextSecondary, fontSize: 11),
+                    ),
+                ],
               ),
             ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: _guestTextPrimary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                if (caption.isNotEmpty)
-                  Text(
-                    caption,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: _guestTextSecondary, fontSize: 11),
-                  ),
-              ],
-            ),
-          ),
-          Icon(Icons.chevron_right, size: 16, color: accent),
-        ],
+            Icon(Icons.chevron_right, size: 16, color: accent),
+          ],
+        ),
       ),
     );
   }
@@ -1312,4 +1350,404 @@ class GuestSiteFeaturedStripBlock extends StatelessWidget {
     }
     return KeyedSubtree(key: _itemKey, child: body);
   }
+}
+
+String guestSiteOsmCoord(num value) {
+  final d = value.toDouble();
+  if (!d.isFinite) return '0';
+  if (d == d.truncateToDouble()) return d.truncate().toString();
+  return d.toString();
+}
+
+String guestSiteOsmUrl(Map<String, dynamic> props) {
+  final lat = props['lat'] is num ? props['lat'] as num : 0;
+  final lng = props['lng'] is num ? props['lng'] as num : 0;
+  final zoomRaw = props['zoom'];
+  final zoom = zoomRaw is num ? zoomRaw.toInt() : 14;
+  final latText = guestSiteOsmCoord(lat);
+  final lngText = guestSiteOsmCoord(lng);
+  return 'https://www.openstreetmap.org/?mlat=$latText&mlon=$lngText#map=$zoom/$latText/$lngText';
+}
+
+String guestSiteMapLabel(Map<String, dynamic> props) {
+  final address = props['address']?.toString().trim() ?? '';
+  if (address.isNotEmpty) return address;
+  final lat = props['lat'] is num ? props['lat'] as num : 0;
+  final lng = props['lng'] is num ? props['lng'] as num : 0;
+  return '${guestSiteOsmCoord(lat)}, ${guestSiteOsmCoord(lng)}';
+}
+
+Future<void> guestSiteLaunchUrl(String raw) async {
+  final uri = Uri.tryParse(raw.trim());
+  if (uri == null || !uri.hasScheme) return;
+  await launchUrl(uri, mode: LaunchMode.externalApplication);
+}
+
+int? guestProductVisibleStock(Map<String, dynamic> product) {
+  if (!_guestStockShownToCustomer(product)) return null;
+  final direct = _guestStockCount(product['stock'] ?? product['stock_qty']);
+  if (direct != null) return direct;
+  final extras = _guestProductJsonMap(product['product_json']);
+  return _guestStockCount(extras['stock'] ?? extras['stock_qty']);
+}
+
+bool _guestStockShownToCustomer(Map<String, dynamic> product) {
+  if (product['stock_show_to_customer'] == true) return true;
+  final extras = _guestProductJsonMap(product['product_json']);
+  return extras['stock_show_to_customer'] == true;
+}
+
+Map<String, dynamic> _guestProductJsonMap(Object? raw) {
+  if (raw is Map<String, dynamic>) return raw;
+  if (raw is Map) return Map<String, dynamic>.from(raw);
+  if (raw is String && raw.trim().isNotEmpty) {
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) return decoded;
+      if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    } catch (_) {}
+  }
+  return const {};
+}
+
+int? _guestStockCount(Object? raw) {
+  if (raw is num) return raw.toInt();
+  if (raw is String) {
+    final n = num.tryParse(raw.trim());
+    if (n != null) return n.toInt();
+  }
+  return null;
+}
+
+class GuestSiteMapBlock extends StatelessWidget {
+  const GuestSiteMapBlock({super.key, required this.props, required this.accent});
+
+  final Map<String, dynamic> props;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = guestSiteMapLabel(props);
+    final url = guestSiteOsmUrl(props);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: InkWell(
+        onTap: () => guestSiteLaunchUrl(url),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: accent,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            decoration: TextDecoration.underline,
+            decorationColor: accent,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class GuestSiteQueueBlock extends StatefulWidget {
+  const GuestSiteQueueBlock({
+    super.key,
+    required this.props,
+    required this.accent,
+    required this.siteIid,
+  });
+
+  final Map<String, dynamic> props;
+  final Color accent;
+  final int siteIid;
+
+  @override
+  State<GuestSiteQueueBlock> createState() => _GuestSiteQueueBlockState();
+}
+
+class _GuestSiteQueueBlockState extends State<GuestSiteQueueBlock> {
+  String? _status;
+  String? _error;
+  var _busy = false;
+
+  int get _queueId {
+    final raw = widget.props['queue_id'];
+    if (raw is num) return raw.toInt();
+    if (raw is String) return int.tryParse(raw.trim()) ?? 0;
+    return 0;
+  }
+
+  Future<void> _take() async {
+    if (widget.siteIid <= 0 || _busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final resp = await http.post(
+        Uri.parse('$authApiProductionUrl/v1/site/guest-queue/take'),
+        headers: const {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'site_iid': widget.siteIid,
+          'queue_id': _queueId,
+        }),
+      );
+      final decoded = jsonDecode(resp.body);
+      if (decoded is! Map) throw StateError('Gagal ambil nomor');
+      if (decoded['ok'] != true) {
+        final err = decoded['error']?.toString().trim() ?? '';
+        throw StateError(err.isEmpty ? 'Gagal ambil nomor' : err);
+      }
+      final ticket = decoded['ticket_no'];
+      final serving = decoded['serving_ticket_no'];
+      if (mounted) {
+        setState(() => _status = 'Nomor Anda: $ticket (sedang dilayani: $serving)');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _error = e is StateError ? e.message : 'Gagal ambil nomor');
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final title = widget.props['title']?.toString().trim().isNotEmpty == true
+        ? widget.props['title'].toString()
+        : (widget.props['label']?.toString().trim().isNotEmpty == true
+            ? widget.props['label'].toString()
+            : 'Antrian');
+    final mode = widget.props['mode']?.toString() ?? '';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0x15FFFFFF))),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(color: _guestTextPrimary, fontSize: 14, fontWeight: FontWeight.w600),
+          ),
+          if (mode.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(mode, style: const TextStyle(color: _guestTextSecondary, fontSize: 11)),
+          ],
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: widget.siteIid > 0 && !_busy ? _take : null,
+            child: const Text('Ambil nomor'),
+          ),
+          if (_status != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(_status!, style: TextStyle(color: widget.accent, fontSize: 12, fontWeight: FontWeight.w600)),
+            ),
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(_error!, style: const TextStyle(color: Color(0xFFFCA5A5), fontSize: 11)),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class GuestSiteEmbedBlock extends StatelessWidget {
+  const GuestSiteEmbedBlock({super.key, required this.props, required this.accent});
+
+  final Map<String, dynamic> props;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = props['title']?.toString() ?? '';
+    final url = props['url']?.toString() ?? '';
+    if (title.isEmpty && url.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (title.isNotEmpty)
+            Text(
+              title,
+              style: const TextStyle(color: _guestTextPrimary, fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+          if (url.isNotEmpty) ...[
+            if (title.isNotEmpty) const SizedBox(height: 6),
+            InkWell(
+              onTap: () => guestSiteLaunchUrl(url),
+              child: Text(
+                url,
+                style: TextStyle(
+                  color: accent,
+                  fontSize: 12,
+                  decoration: TextDecoration.underline,
+                  decorationColor: accent,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class GuestSiteCustomHtmlBlock extends StatelessWidget {
+  const GuestSiteCustomHtmlBlock({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Text(
+        'Custom HTML is on the published page only.',
+        style: TextStyle(color: _guestTextSecondary, fontSize: 12),
+      ),
+    );
+  }
+}
+
+Future<void> showGuestSiteProductDetailSheet({
+  required BuildContext context,
+  required int siteIid,
+  required Map<String, dynamic> product,
+  required List<Map<String, dynamic>> objects,
+  required Color accent,
+  GuestSiteCartController? cart,
+}) {
+  final name = product['name']?.toString() ?? 'Product';
+  final desc = product['desc']?.toString() ?? product['description']?.toString() ?? '';
+  final price = product['price'] is num ? (product['price'] as num).toInt() : 0;
+  final pid = (product['product_id'] as num?)?.toInt() ?? 0;
+  final canReserve = product['can_reserve'] == true;
+  final picUrl = guestSitePicUrl(product['pic']?.toString() ?? '');
+  final icon = product['icon']?.toString() ?? '';
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: const Color(0xFF18181B),
+    builder: (sheetContext) {
+      return Padding(
+        padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.viewPaddingOf(sheetContext).bottom),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (picUrl.isNotEmpty)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    picUrl,
+                    height: 96,
+                    width: 96,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _guestDetailIcon(accent, icon),
+                  ),
+                )
+              else
+                _guestDetailIcon(accent, icon),
+              const SizedBox(height: 12),
+              Text(
+                name,
+                style: const TextStyle(color: _guestTextPrimary, fontSize: 16, fontWeight: FontWeight.w700),
+              ),
+              if (desc.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(desc, style: const TextStyle(color: _guestTextSecondary, fontSize: 13, height: 1.4)),
+              ],
+              if (price > 0) ...[
+                const SizedBox(height: 8),
+                Text(
+                  moneyFmtIdr(price),
+                  style: const TextStyle(color: _guestTextPrimary, fontSize: 14, fontWeight: FontWeight.w700),
+                ),
+              ],
+              const SizedBox(height: 12),
+              if (canReserve && cart != null && pid > 0)
+                TextButton(
+                  onPressed: () async {
+                    Navigator.of(sheetContext).pop();
+                    await showGuestSiteReservationSheet(
+                      context: context,
+                      siteIid: siteIid,
+                      product: product,
+                      objects: objects,
+                      accent: accent,
+                    );
+                  },
+                  child: const Text('Reservasi'),
+                )
+              else if (!canReserve && cart != null && pid > 0 && price > 0)
+                TextButton(
+                  onPressed: () {
+                    cart.addProduct(productId: pid, name: name, price: price);
+                    Navigator.of(sheetContext).pop();
+                  },
+                  child: const Text('+ Pesan'),
+                ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+Widget _guestDetailIcon(Color accent, String icon) {
+  final id = icon.trim().isEmpty ? 'mdi:shopping' : icon.trim();
+  return Container(
+    height: 96,
+    width: 96,
+    decoration: BoxDecoration(
+      color: accent.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Center(child: UiIcon('iconify://$id', size: 28, color: accent)),
+  );
+}
+
+Future<void> showGuestSitePostDetailSheet({
+  required BuildContext context,
+  required Map<String, dynamic> post,
+}) {
+  final title = post['title']?.toString() ?? 'Post';
+  final caption = post['caption']?.toString() ?? '';
+  final body = post['body']?.toString() ?? '';
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: const Color(0xFF18181B),
+    builder: (sheetContext) {
+      return Padding(
+        padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.viewPaddingOf(sheetContext).bottom),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(color: _guestTextPrimary, fontSize: 16, fontWeight: FontWeight.w700),
+              ),
+              if (caption.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(caption, style: const TextStyle(color: _guestTextSecondary, fontSize: 13)),
+              ],
+              if (body.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Text(body, style: const TextStyle(color: _guestTextPrimary, fontSize: 13, height: 1.45)),
+              ],
+            ],
+          ),
+        ),
+      );
+    },
+  );
 }

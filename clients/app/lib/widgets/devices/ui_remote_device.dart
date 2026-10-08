@@ -1,9 +1,14 @@
 import 'dart:async';
+import 'dart:io'
+    show File, FileMode, Platform, RandomAccessFile;
 import 'dart:math' show min;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:pasteboard/pasteboard.dart';
+
+import 'package:alienai_c35/c/remote/remote_fs_api.dart';
 
 import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
@@ -78,6 +83,8 @@ class UiRemoteBottomSessionControl extends StatelessWidget {
     required this.onPanReset,
     required this.onTeach,
     required this.onFullscreen,
+    this.sharedClipboard = true,
+    this.onSharedClipboardChanged,
     this.immersive = false,
     this.updateReady = false,
     this.updateVersion,
@@ -89,6 +96,8 @@ class UiRemoteBottomSessionControl extends StatelessWidget {
   final VoidCallback onPanReset;
   final VoidCallback onTeach;
   final VoidCallback onFullscreen;
+  final bool sharedClipboard;
+  final ValueChanged<bool?>? onSharedClipboardChanged;
   final bool immersive;
   final bool updateReady;
   final int? updateVersion;
@@ -144,6 +153,25 @@ class UiRemoteBottomSessionControl extends StatelessWidget {
                     fontSize: 13,
                     fontWeight: m == mode ? FontWeight.w600 : FontWeight.w400)),
           ),
+        const Divider(height: 1, color: _border),
+        MenuItemButton(
+          style: MenuItemButton.styleFrom(
+            padding: _menuItemPadding,
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          leadingIcon: const Icon(Icons.assignment_outlined,
+              size: 16, color: _zinc400),
+          trailingIcon: Icon(
+            sharedClipboard ? Icons.check_box_outlined : Icons.check_box_outline_blank,
+            size: 16,
+            color: sharedClipboard ? _amber : _zinc500,
+          ),
+          closeOnActivate: false,
+          onPressed: () => onSharedClipboardChanged?.call(!sharedClipboard),
+          child: const Text('Shared clipboard',
+              style: TextStyle(color: _zinc100, fontSize: 13)),
+        ),
         const Divider(height: 1, color: _border),
         MenuItemButton(
           style: MenuItemButton.styleFrom(
@@ -284,6 +312,8 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
   var _modCtrlLocked = false;
   var _modAltLocked = false;
   var _modWinLocked = false;
+  var _sharedClipboard = true;
+  var _clipboardPasting = false;
   String? _error;
   int _heldButtons = 0;
   int _lastDownButtons = 0;
@@ -971,6 +1001,8 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
       _trackpadCancelPendingClick();
       _trackpadLastTapMs = null;
       _trackpadLastTapPos = null;
+      final sess = widget.session;
+      if (sess != null) _proactiveClipboardSync(sess);
       _sendPointerNorm('right_click', _virtualCursorNorm);
       return;
     }
@@ -1003,6 +1035,19 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
     sess.userActivityPing();
     if (!_keyboardInputEnabled) return KeyEventResult.ignored;
 
+    final isCtrl =
+        HardwareKeyboard.instance.isControlPressed || _modCtrlLocked;
+    final isMeta =
+        HardwareKeyboard.instance.isMetaPressed || _modWinLocked;
+    final isPasteKey = event.logicalKey == LogicalKeyboardKey.keyV;
+
+    if (_sharedClipboard && isPasteKey && (isCtrl || isMeta)) {
+      if (event is KeyDownEvent) {
+        _handleSharedClipboardPaste(sess);
+      }
+      return KeyEventResult.handled;
+    }
+
     final vk = _windowsVkForLogicalKey(event.logicalKey);
     if (vk == 0) return KeyEventResult.ignored;
 
@@ -1013,6 +1058,125 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
     ));
 
     return KeyEventResult.handled;
+  }
+
+  void _proactiveClipboardSync(RemoteSession sess) {
+    if (!_sharedClipboard) return;
+    Clipboard.getData(Clipboard.kTextPlain).then((data) {
+      final text = data?.text;
+      if (text != null && text.isNotEmpty && text.length <= 65536) {
+        sess.sendInput(RemoteInputEvent(
+          eventType: 'clipboard_set_text',
+          text: text,
+        ));
+      }
+    }).catchError((_) {});
+  }
+
+  Future<void> _handleSharedClipboardPaste(RemoteSession sess) async {
+    if (_clipboardPasting) return;
+    _clipboardPasting = true;
+    try {
+      if (!kIsWeb &&
+          (Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
+        List<String> files = [];
+        try {
+          files = await Pasteboard.files();
+        } catch (e) {
+          l('Pasteboard.files error: $e');
+        }
+        if (files.isNotEmpty) {
+          await _pasteFilesToRemote(sess, files);
+          return;
+        }
+      }
+
+      final data = await Clipboard.getData(Clipboard.kTextPlain);
+      final text = data?.text;
+      if (text != null && text.isNotEmpty) {
+        sess.sendInput(RemoteInputEvent(
+          eventType: 'clipboard_paste',
+          text: text,
+        ));
+        return;
+      }
+
+      _sendKeyTap(0x56);
+    } catch (e) {
+      l('shared clipboard paste error: $e');
+      _sendKeyTap(0x56);
+    } finally {
+      _clipboardPasting = false;
+    }
+  }
+
+  Future<void> _pasteFilesToRemote(
+      RemoteSession sess, List<String> localFiles) async {
+    final fs = sess.fs;
+    if (fs == null) {
+      l('shared clipboard: remote fs channel not ready');
+      _sendKeyTap(0x56);
+      return;
+    }
+
+    final stagedPaths = <String>[];
+    const chunkSize = 256 * 1024; // 256 KB chunking
+
+    for (final pathStr in localFiles) {
+      final file = File(pathStr);
+      if (!await file.exists()) continue;
+
+      final filename = pathStr.split(RegExp(r'[\\/]')).last;
+      if (filename.isEmpty) continue;
+
+      final remoteStagedPath = '__staging__/$filename';
+      RandomAccessFile? raf;
+      try {
+        raf = await file.open(mode: FileMode.read);
+        final totalLen = await raf.length();
+        if (totalLen == 0) {
+          await fs.fsWrite(
+            remoteStagedPath,
+            Uint8List(0),
+            offset: 0,
+            finalize: true,
+            priority: RemoteFsPriority.high,
+          );
+          stagedPaths.add(remoteStagedPath);
+          continue;
+        }
+
+        var offset = 0;
+        while (offset < totalLen) {
+          final remaining = totalLen - offset;
+          final toRead = remaining < chunkSize ? remaining : chunkSize;
+          final bytes = await raf.read(toRead);
+          final isFinal = (offset + bytes.length) >= totalLen;
+
+          await fs.fsWrite(
+            remoteStagedPath,
+            bytes,
+            offset: offset,
+            finalize: isFinal,
+            priority: RemoteFsPriority.high,
+          );
+
+          offset += bytes.length;
+        }
+        stagedPaths.add(remoteStagedPath);
+      } catch (e) {
+        l('shared clipboard: failed to stage $pathStr: $e');
+      } finally {
+        await raf?.close();
+      }
+    }
+
+    if (stagedPaths.isNotEmpty) {
+      sess.sendInput(RemoteInputEvent(
+        eventType: 'clipboard_files',
+        text: stagedPaths.join('\n'),
+      ));
+    }
   }
 
   @override
@@ -1093,6 +1257,9 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
       child: UiRemoteBottomSessionControl(
         mode: widget.interactMode,
         immersive: widget.immersive,
+        sharedClipboard: _sharedClipboard,
+        onSharedClipboardChanged: (val) =>
+            setState(() => _sharedClipboard = val ?? true),
         onModeChanged: _applyInteractMode,
         onPanReset: () => setState(() {
           _scale = 1.0;
@@ -1504,6 +1671,10 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                                               ? 1
                                               : 0);
                                   _heldButtons = e.buttons;
+                                  if (btn == 2) {
+                                    final sess = widget.session;
+                                    if (sess != null) _proactiveClipboardSync(sess);
+                                  }
                                   _sendPointer('mouse_down', e.localPosition,
                                       renderSize,
                                       button: btn);

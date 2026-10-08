@@ -18,6 +18,10 @@ pub struct ProductRow {
     pub duration_unit: String,
     pub reservation_unit_selection: String,
     pub icon: String,
+    /// From `product_json.stock_show_to_customer`. Absent or non-true stays false.
+    pub stock_show_to_customer: bool,
+    /// `site.product.stock_qty` when the guest query loaded it. `None` means no count to show.
+    pub stock_qty: Option<i64>,
 }
 
 fn guest_icon_svg(p: &ProductRow) -> &'static str {
@@ -109,10 +113,18 @@ fn reservation_fields_from_json_value(v: &Value) -> (i64, String, String) {
     reservation_fields_from_product_json(&v.to_string())
 }
 
+fn stock_show_to_customer_from_product_json(v: &Value) -> bool {
+    v.as_object()
+        .and_then(|map| map.get("stock_show_to_customer"))
+        .and_then(|flag| flag.as_bool())
+        == Some(true)
+}
+
 fn product_row_from_pg(r: &sqlx::postgres::PgRow) -> ProductRow {
     let product_json: Value = r.get("product_json");
     let (duration_value, duration_unit, reservation_unit_selection) =
         reservation_fields_from_json_value(&product_json);
+    let stock_qty: i32 = r.get("stock_qty");
     ProductRow {
         product_id: r.get("product_id"),
         name: r.get("name"),
@@ -126,6 +138,8 @@ fn product_row_from_pg(r: &sqlx::postgres::PgRow) -> ProductRow {
         duration_unit,
         reservation_unit_selection,
         icon: String::new(),
+        stock_show_to_customer: stock_show_to_customer_from_product_json(&product_json),
+        stock_qty: Some(i64::from(stock_qty)),
     }
 }
 
@@ -270,7 +284,7 @@ async fn fetch_product_rows(
         if let Some((sort_order, product_id)) = keyset {
             sqlx::query(
                 r#"
-                SELECT product_id, name, "desc", price, pic, category, sort_order, can_reserve, product_json
+                SELECT product_id, name, "desc", price, pic, category, sort_order, can_reserve, stock_qty, product_json
                 FROM site.product
                 WHERE site_iid = $1 AND deleted_ts IS NULL AND is_archived = FALSE
                   AND can_sell = TRUE AND recommended_guest = TRUE
@@ -288,7 +302,7 @@ async fn fetch_product_rows(
         } else {
             sqlx::query(
                 r#"
-                SELECT product_id, name, "desc", price, pic, category, sort_order, can_reserve, product_json
+                SELECT product_id, name, "desc", price, pic, category, sort_order, can_reserve, stock_qty, product_json
                 FROM site.product
                 WHERE site_iid = $1 AND deleted_ts IS NULL AND is_archived = FALSE
                   AND can_sell = TRUE AND recommended_guest = TRUE
@@ -305,7 +319,7 @@ async fn fetch_product_rows(
         if let Some((sort_order, product_id)) = keyset {
             sqlx::query(
                 r#"
-                SELECT product_id, name, "desc", price, pic, category, sort_order, can_reserve, product_json
+                SELECT product_id, name, "desc", price, pic, category, sort_order, can_reserve, stock_qty, product_json
                 FROM site.product
                 WHERE site_iid = $1 AND deleted_ts IS NULL AND is_archived = FALSE
                   AND can_sell = TRUE AND category = $2
@@ -324,7 +338,7 @@ async fn fetch_product_rows(
         } else {
             sqlx::query(
                 r#"
-                SELECT product_id, name, "desc", price, pic, category, sort_order, can_reserve, product_json
+                SELECT product_id, name, "desc", price, pic, category, sort_order, can_reserve, stock_qty, product_json
                 FROM site.product
                 WHERE site_iid = $1 AND deleted_ts IS NULL AND is_archived = FALSE
                   AND can_sell = TRUE AND category = $2
@@ -341,7 +355,7 @@ async fn fetch_product_rows(
     } else if let Some((sort_order, product_id)) = keyset {
         sqlx::query(
             r#"
-            SELECT product_id, name, "desc", price, pic, category, sort_order, can_reserve, product_json
+            SELECT product_id, name, "desc", price, pic, category, sort_order, can_reserve, stock_qty, product_json
             FROM site.product
             WHERE site_iid = $1 AND deleted_ts IS NULL AND is_archived = FALSE
               AND can_sell = TRUE
@@ -359,7 +373,7 @@ async fn fetch_product_rows(
     } else {
         sqlx::query(
             r#"
-            SELECT product_id, name, "desc", price, pic, category, sort_order, can_reserve, product_json
+            SELECT product_id, name, "desc", price, pic, category, sort_order, can_reserve, stock_qty, product_json
             FROM site.product
             WHERE site_iid = $1 AND deleted_ts IS NULL AND is_archived = FALSE
               AND can_sell = TRUE
@@ -390,7 +404,7 @@ pub async fn guest_product_get(
     }
     let row = sqlx::query(
         r#"
-        SELECT product_id, name, "desc", price, pic, category, sort_order, can_reserve, product_json
+        SELECT product_id, name, "desc", price, pic, category, sort_order, can_reserve, stock_qty, product_json
         FROM site.product
         WHERE site_iid = $1 AND product_id = $2 AND deleted_ts IS NULL AND is_archived = FALSE
         "#,
@@ -453,5 +467,15 @@ mod tests {
         assert_eq!(duration, 1);
         assert_eq!(unit, "day");
         assert_eq!(selection, "system");
+    }
+
+    #[test]
+    fn product_json_stock_show_flag() {
+        let on = serde_json::json!({"stock_show_to_customer": true});
+        let off = serde_json::json!({"stock_show_to_customer": false, "stock_qty": 9});
+        let absent = serde_json::json!({});
+        assert!(super::stock_show_to_customer_from_product_json(&on));
+        assert!(!super::stock_show_to_customer_from_product_json(&off));
+        assert!(!super::stock_show_to_customer_from_product_json(&absent));
     }
 }

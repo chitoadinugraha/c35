@@ -49,6 +49,7 @@ class UiAccountMenuAction {
     this.onSites,
     this.onRootConsole,
     this.onMail,
+    this.onNotifications,
     this.composerModel,
     this.liveOffers = const [],
     this.onLiveCallStart,
@@ -56,6 +57,7 @@ class UiAccountMenuAction {
     this.devicesCount,
     this.sitesCount,
     this.mailInboxCount,
+    this.notifyUnreadCount,
   });
 
   final ReferralConn? conn;
@@ -74,6 +76,7 @@ class UiAccountMenuAction {
   final VoidCallback? onSites;
   final VoidCallback? onRootConsole;
   final VoidCallback? onMail;
+  final VoidCallback? onNotifications;
   final AgentModel? composerModel;
   final List<LiveOffer> liveOffers;
   final ValueChanged<LiveOffer>? onLiveCallStart;
@@ -81,6 +84,7 @@ class UiAccountMenuAction {
   final int? devicesCount;
   final int? sitesCount;
   final int? mailInboxCount;
+  final int? notifyUnreadCount;
 }
 
 Future<void> uiAccountMenuShow(BuildContext anchorCtx, {UiAccountMenuAction? action}) async {
@@ -340,6 +344,27 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
                         );
                       },
                     ),
+                    if (acts.onNotifications != null)
+                      InkWell(
+                        onTap: () => _popThen(acts.onNotifications),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 10, 12, 10),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.notifications_outlined, size: 18, color: Color(0xFFA1A1AA)),
+                              const SizedBox(width: 10),
+                              const Expanded(
+                                child: Text('Notifications', style: TextStyle(color: _text, fontSize: 13, fontWeight: FontWeight.w500)),
+                              ),
+                              if ((acts.notifyUnreadCount ?? 0) > 0) ...[
+                                Text('${acts.notifyUnreadCount}', style: const TextStyle(color: _text, fontSize: 12, fontWeight: FontWeight.w700)),
+                                const SizedBox(width: 4),
+                              ],
+                              const Icon(Icons.chevron_right_rounded, size: 18, color: _muted),
+                            ],
+                          ),
+                        ),
+                      ),
                     const Divider(height: 1, color: _border),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),

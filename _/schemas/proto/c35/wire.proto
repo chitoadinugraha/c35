@@ -336,6 +336,10 @@ message WsReq {
     ReqSiteDomainCheck site_domain_check = 207;
     ReqSiteDomainBuy site_domain_buy = 208;
     ReqImgGenerate img_generate = 209;
+    ReqNotifyList notify_list = 210;
+    ReqNotifyRead notify_read = 211;
+    ReqNotifyTokenPut notify_token_put = 212;
+    ReqAppPresence app_presence = 213;
   }
 }
 
@@ -522,5 +526,37 @@ message WsRes {
     ResSiteDomainCheck site_domain_check = 207;
     ResSiteDomainBuy site_domain_buy = 208;
     ResImgGenerate img_generate = 209;
+    ResNotifyList notify_list = 210;
+    ResNotifyRead notify_read = 211;
+    ResNotifyTokenPut notify_token_put = 212;
+    ResAppPresence app_presence = 213;
+    NotifyPush notify_push = 214;
   }
+}
+
+message NotifyItem {
+  int64 id = 1;
+  string title = 2;
+  string body = 3;
+  string status = 4;
+  string channels = 5;
+  int64 fire_at_ms = 6;
+  int64 sent_ts_ms = 7;
+  int64 read_ts_ms = 8;
+  int64 created_ts_ms = 9;
+  string route_json = 10;
+}
+message ReqNotifyList { int32 limit = 1; bool unread_only = 2; }
+message ResNotifyList { repeated NotifyItem items = 1; }
+message ReqNotifyRead { repeated int64 ids = 1; } // empty = all status sent -> read
+message ResNotifyRead { int32 updated = 1; }
+message ReqNotifyTokenPut { string client_id = 1; string token = 2; string platform = 3; }
+message ResNotifyTokenPut {}
+message ReqAppPresence { string client_id = 1; bool resumed = 2; }
+message ResAppPresence {}
+message NotifyPush {
+  int64 id = 1;
+  string title = 2;
+  string body = 3;
+  string route_json = 4;
 }

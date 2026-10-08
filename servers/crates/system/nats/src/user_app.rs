@@ -48,6 +48,11 @@ pub fn user_app_subject_inbox(owner_iid: i64) -> String {
     format!("c35.user.{owner_iid}.{APP_SEGMENT}.inbox")
 }
 
+/// User notification push: `WsRes` with `NotifyPush`.
+pub fn user_app_subject_notify(owner_iid: i64) -> String {
+    format!("c35.user.{owner_iid}.{APP_SEGMENT}.notify")
+}
+
 /// Live prompt stream + per-chat `SyncPush` (`c35.user.{owner_iid}.app.chat.{chat_id}`).
 pub fn user_app_subject_chat(owner_iid: i64, chat_id: i64) -> String {
     format!("c35.user.{owner_iid}.{APP_SEGMENT}.chat.{chat_id}")
@@ -104,6 +109,7 @@ pub fn user_app_fanout_decode(subject: &str, payload: &[u8]) -> Option<WsRes> {
     }
     if tail == "site_order"
         || tail == "inbox"
+        || tail == "notify"
         || tail == "profile"
         || tail == "settings"
         || tail == "task_run"
@@ -117,4 +123,46 @@ pub fn user_app_fanout_decode(subject: &str, payload: &[u8]) -> Option<WsRes> {
         });
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use c35_proto::NotifyPush;
+    use prost::Message;
+
+    #[test]
+    fn user_app_subject_notify_round_trip() {
+        assert_eq!(
+            super::user_app_subject_notify(99000),
+            "c35.user.99000.app.notify"
+        );
+        let ws = WsRes {
+            req_id: "req-1".to_string(),
+            body: Some(ws_res::Body::NotifyPush(NotifyPush {
+                id: 42,
+                title: "title".to_string(),
+                body: "body".to_string(),
+                route_json: r#"{"chat_id":1}"#.to_string(),
+            })),
+        };
+        let decoded = user_app_fanout_decode(
+            &super::user_app_subject_notify(99000),
+            &ws.encode_to_vec(),
+        )
+        .expect("notify fanout");
+        assert_eq!(decoded.req_id, ws.req_id);
+        match (decoded.body, ws.body) {
+            (
+                Some(ws_res::Body::NotifyPush(got)),
+                Some(ws_res::Body::NotifyPush(want)),
+            ) => {
+                assert_eq!(got.id, want.id);
+                assert_eq!(got.title, want.title);
+                assert_eq!(got.body, want.body);
+                assert_eq!(got.route_json, want.route_json);
+            }
+            other => panic!("expected NotifyPush round-trip, got {other:?}"),
+        }
+    }
 }
