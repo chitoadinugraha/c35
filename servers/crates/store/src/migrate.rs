@@ -632,6 +632,9 @@ mod tests {
         assert!(tables.contains("ai.hint"));
         assert!(tables.contains("ai.object_normalizer"));
         assert!(tables.contains("site.render"));
+        assert!(tables.contains("ai.notify"));
+        assert!(tables.contains("ai.app_conn"));
+        assert!(tables.contains("ai.fcm_token"));
     }
 
     #[test]
@@ -639,6 +642,16 @@ mod tests {
         let sql = include_str!("../../../../_/schemas/mail.sql");
         let stmts = super::sql_stmts(sql);
         assert!(stmts.len() >= 6, "mail.sql stmt count: {}", stmts.len());
+    }
+
+    #[test]
+    fn sql_stmts_parses_notify_sql() {
+        let sql = include_str!("../../../../_/schemas/notify.sql");
+        let stmts = super::sql_stmts(sql);
+        assert!(stmts.len() >= 8, "notify.sql stmt count: {}", stmts.len());
+        let joined = stmts.join("\n");
+        assert!(joined.contains("idx_notify_due"));
+        assert!(joined.contains("idx_notify_wait_req"));
     }
 
     #[test]

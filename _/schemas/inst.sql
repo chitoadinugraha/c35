@@ -1084,19 +1084,19 @@ Do not call write tools for compare — readonly query only. Summarize results s
 
 -- Seed: site sales / report phrases via query catalog
 INSERT INTO ai.inst (
-    id, scope, kind, topic_id, topics, inst, phrases, triggers, priority, def_hash, updated_ts
+    id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
 ) VALUES (
     'inst.site.report',
     'global',
     'task',
     '',
     ARRAY['web.builder', 'site.commerce'],
-    '[SITE.REPORT] User wants sales or transaction reports. \
-Call site.query.run — use tx.sales_summary for revenue/sales, tx.profit_summary for profit. \
-Pass all site_iids from [SITE CONTEXTS] (or the single default site when only one is mentioned). Readonly — never use write tools for reports.',
-    ARRAY['laporan', 'report', 'sales today'],
-    ARRAY['tool_include:site.query.run'],
-    127,
+    '[SITE.REPORT] User wants sales, profit, or transaction reports. Call site.query.run only. Profit / untung / laba => query_id tx.profit_summary. Revenue / penjualan / omzet => query_id tx.sales_summary. When they say hari ini / today, params.range = "today". this week => "this_week". this month / bulan ini => "this_month". If no period, use "today". Pass site_iids from [SITE CONTEXTS]. Readonly. Do not call web.search or transaction write tools.',
+    ARRAY['laporan', 'report', 'sales today', 'untung', 'laba', 'berapa untung', 'untung hari ini', 'keuntungan', 'profit today'],
+    ARRAY['tool_include:site.query.run', 'tool_exclude:web.search', 'tool_exclude:web.visit'],
+    ARRAY['site.query.run'],
+    ARRAY['web.search', 'web.visit'],
+    140,
     'seed',
     NOW()
 ) ON CONFLICT (id) DO UPDATE SET
@@ -1104,6 +1104,64 @@ Pass all site_iids from [SITE CONTEXTS] (or the single default site when only on
     topics = EXCLUDED.topics,
     phrases = EXCLUDED.phrases,
     triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    kind = EXCLUDED.kind,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: best-selling products via query catalog
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.site.top_products',
+    'global',
+    'task',
+    '',
+    ARRAY['web.builder', 'site.commerce', 'general'],
+    '[SITE.TOP_PRODUCTS] User wants the best-selling products. Call site.query.run query_id tx.top_products. params.range = "today" if they say hari ini, else omit range (all time) unless they name a period (this_week / this_month). Pass site_iids from [SITE CONTEXTS]. Do not call web.search or site.tx.preview.',
+    ARRAY['paling dibeli', 'paling laku', 'best seller', 'terlaris', 'produk terlaris', 'top products'],
+    ARRAY['tool_include:site.query.run', 'tool_exclude:web.search', 'tool_exclude:web.visit'],
+    ARRAY['site.query.run'],
+    ARRAY['web.search', 'web.visit'],
+    141,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    topics = EXCLUDED.topics,
+    kind = EXCLUDED.kind,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: suggest products to add (readonly queries, no product_put)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.site.catalog.suggest',
+    'global',
+    'task',
+    '',
+    ARRAY['web.builder', 'site.commerce', 'general'],
+    '[SITE.CATALOG.SUGGEST] User wants advice on what product to add. Do not call site.product_put. Call site.query.run twice if needed: query_id product.list (current menu) and query_id tx.top_products (what already sells). Suggest 2-3 products that are not already on the menu. Reply in the user language. Do not call web.search.',
+    ARRAY['nambah produk', 'enaknya nambah', 'produk apa', 'saran produk', 'menu apa', 'what should I add'],
+    ARRAY['tool_include:site.query.run', 'tool_exclude:web.search', 'tool_exclude:web.visit'],
+    ARRAY['site.query.run'],
+    ARRAY['web.search', 'web.visit'],
+    138,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    topics = EXCLUDED.topics,
     kind = EXCLUDED.kind,
     priority = EXCLUDED.priority,
     updated_ts = NOW();
@@ -1208,7 +1266,7 @@ INSERT INTO ai.inst (
     '',
     ARRAY['web.builder', 'site.commerce', 'general'],
     '[SITE.PRICE.COMPARE] Call site.query.run query_id product.stock first (params.q = product name, omit site_iids). Then the server searches the web for the same product. Answer with the store price and the web price. Say the product is not in the stores when the catalog is empty.',
-    ARRAY['reasonable', 'kemahalan', 'harga pasaran', 'too expensive', 'my price', 'harga saya', 'compare to the web', 'bandingkan harga'],
+    ARRAY['reasonable', 'kemahalan', 'harga pasaran', 'too expensive', 'my price', 'harga saya', 'compare to the web', 'bandingkan harga', 'murah', 'termasuk murah', 'harga murah', 'terlalu murah', 'kemurahan'],
     ARRAY['tool_include:site.query.run'],
     ARRAY['site.query.run'],
     ARRAY[]::TEXT[],
@@ -1686,6 +1744,7 @@ INSERT INTO ai.inst (
         'kotak masuk', 'pesan masuk', 'list emails', 'apa isi email'
     ],
     ARRAY['tool_include:mail.list', 'tool_include:mail.get'],
+    ARRAY['mail.mailbox.list', 'mail.list', 'mail.get', 'mail.mark_read'],
     ARRAY['mail.send', 'web.search'],
     120,
     'seed',
@@ -1718,6 +1777,7 @@ INSERT INTO ai.inst (
         'kirim email', 'send email', 'email ke', 'compose email', 'balas email', 'kirim surat'
     ],
     ARRAY['tool_include:mail.send'],
+    ARRAY['mail.mailbox.list', 'mail.send'],
     ARRAY['web.search'],
     121,
     'seed',
