@@ -47,6 +47,33 @@ use crate::prompt::ChatReq;
 use crate::tools::{cluster_tools, http_client, tool_decls, TurnCtx};
 use crate::turn_tracer::TurnTracer;
 
+/// Soft-delete the trailing user message and any assistant rows after it (retry / replace turn).
+pub async fn chat_soft_delete_last_turn(pool: &PgPool, chat_id: i64) -> Result<()> {
+    let last_user_id: Option<i64> = sqlx::query_scalar(
+        r#"
+        SELECT id FROM ai.chat_msg
+        WHERE chat_id = $1 AND deleted_ts IS NULL AND role = 'user'
+        ORDER BY id DESC LIMIT 1
+        "#,
+    )
+    .bind(chat_id)
+    .fetch_optional(pool)
+    .await?;
+    if let Some(uid) = last_user_id {
+        let _ = sqlx::query(
+            r#"
+            UPDATE ai.chat_msg SET deleted_ts = NOW()
+            WHERE chat_id = $1 AND deleted_ts IS NULL AND id >= $2
+            "#,
+        )
+        .bind(chat_id)
+        .bind(uid)
+        .execute(pool)
+        .await;
+    }
+    Ok(())
+}
+
 pub struct PromptTurn {
     pub chat_id: i64,
     pub user_msg_id: i64,
@@ -237,6 +264,9 @@ where
     chat_mention_context_commit(pool, chat_id, owner_iid, &req.mention_ids).await?;
 
     if req.chat_id > 0 {
+        if req.replace_last_turn {
+            chat_soft_delete_last_turn(pool, chat_id).await?;
+        }
         let last_msg: Option<(i64, String)> = sqlx::query_as(
             r#"
             SELECT id, status FROM ai.chat_msg
@@ -249,6 +279,7 @@ where
         .await
         .unwrap_or(None);
 
+        if !req.replace_last_turn {
         if let Some((last_id, status)) = last_msg {
             if status == "error" || status == "interrupted" {
                 let last_user_id: Option<i64> = sqlx::query_scalar(

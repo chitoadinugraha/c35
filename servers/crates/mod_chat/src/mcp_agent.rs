@@ -271,6 +271,7 @@ pub async fn mcp_prompt_run(
         return mcp_agent_owner_denied(owner_iid, req_id);
     }
     let req = ReqPrompt {
+        replace_last_turn: false,
         chat_id,
         model: String::new(),
         text: text.to_string(),

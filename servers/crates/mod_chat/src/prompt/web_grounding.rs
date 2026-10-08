@@ -1,7 +1,7 @@
 use serde_json::{json, Value};
 
 pub const WEB_GROUNDED_REPLY_RULE: &str =
-    "\n\n[WEB GROUNDING] Answer only from web.search / web.visit tool results in this conversation. Never invent schedules or use placeholder titles (Film A, Film B, Film C, etc.). If results are empty or unclear, say you could not load live listings and suggest official cinema apps.";
+    "\n\n[WEB GROUNDING] Answer only from web.search / web.visit tool results in this conversation. Summarize what the tools returned (titles, times, venues, links). Never refuse with \"I cannot show\" when tool results are present. Never invent schedules or use placeholder titles (Film A, Film B, Film C, etc.). If results are empty or unclear, say you could not load live listings and suggest official cinema apps.";
 
 pub fn search_payload(result: &Value) -> &Value {
     result.get("llm").filter(|v| v.is_object()).unwrap_or(result)
@@ -21,6 +21,45 @@ pub fn search_result_urls(result: &Value, limit: usize) -> Vec<String> {
                 .collect()
         })
         .unwrap_or_default()
+}
+
+pub fn user_query_wants_showtimes(query: &str) -> bool {
+    let q = query.to_ascii_lowercase();
+    [
+        "jadwal",
+        "jam tayang",
+        "tayang",
+        "showtime",
+        "now playing",
+        "nonton",
+        "bioskop",
+        "cinema",
+        "film",
+    ]
+    .iter()
+    .any(|k| q.contains(k))
+}
+
+pub fn pick_visit_url_for_query(search_result: &Value, user_query: &str) -> Option<String> {
+    let urls = search_result_urls(search_result, 10);
+    if urls.is_empty() {
+        return None;
+    }
+    if user_query_wants_showtimes(user_query) {
+        for u in &urls {
+            let l = u.to_ascii_lowercase();
+            if l.contains("now-playing") || l.contains("nowplaying") {
+                return Some(u.clone());
+            }
+        }
+        for u in &urls {
+            let l = u.to_ascii_lowercase();
+            if l.contains("21cineplex.com/theater/") || l.contains("teater.co/nowplaying") {
+                return Some(u.clone());
+            }
+        }
+    }
+    pick_visit_url(search_result)
 }
 
 pub fn pick_visit_url(search_result: &Value) -> Option<String> {
@@ -92,10 +131,45 @@ pub fn reply_looks_like_web_placeholder(text: &str) -> bool {
         .any(|k| t.contains(k))
 }
 
+/// Model deflection despite web tools (links-only / \"cannot display live data\").
+pub fn reply_looks_like_web_deferral(text: &str) -> bool {
+    let t = text.to_ascii_lowercase();
+    [
+        "tidak dapat menampilkan",
+        "cannot display",
+        "can't display",
+        "cannot show",
+        "can't show",
+        "unable to display",
+        "unable to show",
+        "secara langsung karena data",
+        "bersifat dinamis",
+        "berubah setiap saat",
+        "real-time",
+        "real time",
+    ]
+    .iter()
+    .any(|k| t.contains(k))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn pick_visit_url_for_query_prefers_now_playing() {
+        let search = json!({
+            "results": [
+                { "url": "https://jadwalnonton.com/bioskop/di-malang/" },
+                { "url": "https://jadwalnonton.com/now-playing/?city=23&page=1" }
+            ]
+        });
+        assert_eq!(
+            pick_visit_url_for_query(&search, "jadwal film malang hari ini").as_deref(),
+            Some("https://jadwalnonton.com/now-playing/?city=23&page=1")
+        );
+    }
 
     #[test]
     fn pick_visit_url_prefers_cinema_site() {
@@ -115,6 +189,14 @@ mod tests {
     fn reply_placeholder_detected() {
         assert!(reply_looks_like_web_placeholder("Film A and Film B today"));
         assert!(!reply_looks_like_web_placeholder("Dune: Part Three — 14:30"));
+    }
+
+    #[test]
+    fn reply_deferral_detected() {
+        assert!(reply_looks_like_web_deferral(
+            "Saya tidak dapat menampilkan daftar film dan jam tayang secara langsung"
+        ));
+        assert!(!reply_looks_like_web_deferral("Araya XXI — Dune 14:30, 17:00"));
     }
 
     #[test]

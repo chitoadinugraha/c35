@@ -23,7 +23,7 @@ void main() {
     expect(msgDisplayContent(m), 'Sekarang hari Senin.');
   });
 
-  test('retryLastTurnPrep keeps user row and drops failed assistant', () {
+  test('retryLastTurnPrep captures user text, drops assistant, removes user row for resend', () {
     final store = ChatStore();
     store.chats = [ChatRow(id: 1, title: 'A')];
     store.activeChatId = 1;
@@ -35,9 +35,7 @@ void main() {
     final turn = store.retryLastTurnPrep();
 
     expect(turn?.text, 'hi');
-    expect(store.msgs.length, 1);
-    expect(store.msgs.single.role, 'user');
-    expect(store.msgs.single.content, 'hi');
+    expect(store.msgs, isEmpty);
   });
 
   test('retryLastTurnPrep uses explicit chatId when activeChatId differs', () {
@@ -53,7 +51,7 @@ void main() {
     final turn = store.retryLastTurnPrep(chatId: 1);
 
     expect(turn?.text, 'retry me');
-    expect(store.msgs.where((m) => m.chatId == 1).map((m) => m.role).toList(), ['user']);
+    expect(store.msgs.where((m) => m.chatId == 1), isEmpty);
     expect(store.msgs.where((m) => m.chatId == 2).length, 1);
   });
 
@@ -70,12 +68,12 @@ void main() {
     final turn = store.retryLastTurnPrep();
 
     expect(turn?.text, 'hello chat 1');
-    expect(store.msgs.where((m) => m.chatId == 1).map((m) => m.role).toList(), ['user']);
+    expect(store.msgs.where((m) => m.chatId == 1), isEmpty);
     // Ensure chat 2 was untouched
     expect(store.msgs.where((m) => m.chatId == 2).length, 1);
   });
 
-  test('msgUserTurnRetry on retry path replaces content without duplicating user', () {
+  test('retry resend msgPut does not duplicate user when server echoes old id', () {
     final store = ChatStore();
     store.activeChatId = 1;
     store.msgs = [
@@ -83,13 +81,14 @@ void main() {
       MsgRow(id: 11, chatId: 1, role: 'assistant', content: 'answer', reqId: 'r1'),
     ];
     store.retryLastTurnPrep();
-    store.msgUserTurnRetry(
+    store.msgPut(MsgRow(
+      id: -5,
       chatId: 1,
+      role: 'user',
       content: '${composerMentionToken('iid:42')} open chrome',
-      attachments: const [],
       reqId: 'r2',
       createdAtMs: 99,
-    );
+    ));
     store.msgPut(MsgRow(id: -1, chatId: 1, role: 'assistant', content: '', reqId: 'r2', createdAtMs: 100));
 
     expect(store.msgs.where((m) => m.chatId == 1 && m.role == 'user').length, 1);
@@ -230,15 +229,35 @@ void main() {
     expect(store.promptBusy, isFalse);
   });
 
-  test('msgStreamFail skips transport error when assistant already has body', () {
+  test('msgStreamFail keeps partial answer and sets connection error for retry', () {
     final store = ChatStore();
-    store.msgs = [MsgRow(id: 11, chatId: 1, role: 'assistant', content: 'Chrome is open on your desktop.')];
+    store.msgs = [MsgRow(id: 11, chatId: 1, role: 'assistant', content: 'Chrome is open on your desktop.', reqId: 'req-1')];
     store.promptBusyPut(true, chatId: 1, reqId: 'req-1');
 
-    store.msgStreamFail('WebSocketChannelException: SocketException: Connection refused', chatId: 1);
+    store.msgStreamFail('WebSocketChannelException: SocketException: Connection refused', chatId: 1, reqId: 'req-1');
 
     expect(store.msgs.last.content, 'Chrome is open on your desktop.');
-    expect(store.msgs.last.error, isEmpty);
+    expect(store.msgs.last.error, contains('Connection refused'));
+    expect(store.promptBusy, isFalse);
+  });
+
+  test('msgStreamFail sets connection error when only thought streamed', () {
+    final store = ChatStore();
+    store.msgs = [MsgRow(id: 11, chatId: 1, role: 'assistant', content: '', thought: 'Using web.search…\n', reqId: 'req-2')];
+    store.promptBusyPut(true, chatId: 1, reqId: 'req-2');
+
+    store.msgStreamFail('Connection failed', chatId: 1, reqId: 'req-2');
+
+    expect(store.msgs.last.error, 'Connection failed');
+    expect(store.promptBusy, isFalse);
+  });
+
+  test('msgStreamFail clears busy when assistant row missing', () {
+    final store = ChatStore();
+    store.promptBusyPut(true, chatId: 1, reqId: 'req-missing');
+
+    store.msgStreamFail('disconnected', chatId: 1, reqId: 'req-missing');
+
     expect(store.promptBusy, isFalse);
   });
 
@@ -677,6 +696,26 @@ void main() {
     expect(store.msgs.last.id, 99);
   });
 
+  test('msgStreamContent replaces second-hop assistant opener instead of duplicating', () {
+    final store = ChatStore();
+    store.msgs = [MsgRow(id: 11, chatId: 1, role: 'assistant', content: '', reqId: 'r1')];
+    store.promptBusyPut(true, chatId: 1, reqId: 'r1');
+
+    store.msgStreamContent(
+      'Saya tidak dapat menampilkan daftar film beserta jam tayang spesifik secara langsung karena data tersebut berubah secara real-time.',
+      chatId: 1,
+      reqId: 'r1',
+    );
+    store.msgStreamContent(
+      'Saya tidak dapat menampilkan daftar film dan jam tayang secara langsung karena data tersebut bersifat dinamis.',
+      chatId: 1,
+      reqId: 'r1',
+    );
+
+    expect(store.msgs.single.content, contains('bersifat dinamis'));
+    expect(store.msgs.single.content, isNot(contains('spesifik secara langsung karena data tersebut berubah')));
+  });
+
   test('msgStreamContent preserves repeated tokens such as indentation and punctuation', () {
     final store = ChatStore();
     store.msgs = [MsgRow(id: 11, chatId: 1, role: 'assistant', content: '')];
@@ -897,6 +936,23 @@ void main() {
     expect(prefs.containsKey('c35_chat_msgs_-1'), isFalse);
   });
 
+  test('msgsReloadFromServer dedupes trailing duplicate user rows with same text', () {
+    final store = ChatStore();
+    store.activeChatId = 1;
+    store.msgPut(MsgRow(id: 10, chatId: 1, role: 'user', content: 'same prompt', reqId: 'r1'));
+    store.msgPut(MsgRow(id: 20, chatId: 1, role: 'user', content: 'same prompt', reqId: 'r2'));
+    store.msgPut(MsgRow(id: 30, chatId: 1, role: 'assistant', content: 'answer', reqId: 'r2'));
+
+    store.msgsReloadFromServer(1, [
+      ChatMsg(id: Int64(10), chatId: Int64(1), role: ChatMsgRole.CHAT_MSG_ROLE_USER, content: 'same prompt', reqId: 'r1'),
+      ChatMsg(id: Int64(20), chatId: Int64(1), role: ChatMsgRole.CHAT_MSG_ROLE_USER, content: 'same prompt', reqId: 'r2'),
+      ChatMsg(id: Int64(30), chatId: Int64(1), role: ChatMsgRole.CHAT_MSG_ROLE_ASSISTANT, content: 'answer', reqId: 'r2'),
+    ]);
+
+    expect(store.msgs.where((m) => m.chatId == 1 && m.role == 'user').length, 1);
+    expect(store.msgs.where((m) => m.chatId == 1 && m.role == 'user').single.id, 20);
+  });
+
   test('retry after failed turn does not allow server sync of old turn to revert new message content', () {
     final store = ChatStore();
     store.activeChatId = 1;
@@ -909,13 +965,14 @@ void main() {
     final turn = store.retryLastTurnPrep(chatId: 1);
     expect(turn?.text, 'sekarang hari apa?');
 
-    store.msgUserTurnRetry(
+    store.msgPut(MsgRow(
+      id: -5,
       chatId: 1,
+      role: 'user',
       content: 'siapa presiden indonesia?',
-      attachments: const [],
       reqId: 'r2',
       createdAtMs: 2000,
-    );
+    ));
 
     // Ensure retried user message is detached from old server snowflake ID 100
     final userMsg = store.msgs.where((m) => m.chatId == 1 && m.role == 'user').single;

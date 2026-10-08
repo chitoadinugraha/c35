@@ -133,6 +133,7 @@ message ReqPrompt {
   string tool_mode = 8;          // ask | agent
   repeated int64 device_iids = 9;
   bool talk = 10;                 // Talk surface only. Not stored on the user message.
+  bool replace_last_turn = 11;    // Retry: soft-delete trailing user+assistant before inserting user row.
 }
 
 message ResPromptStart {

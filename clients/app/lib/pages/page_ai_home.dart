@@ -202,11 +202,8 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   }
 
   void _onConnStatusChanged() {
-    final s = _conn.status.value;
-    final prev = _connStatusLast;
-    _connStatusLast = s;
-    if (s == ChatConnStatus.connected) return;
-    if (prev != ChatConnStatus.connected && prev != ChatConnStatus.connecting) return;
+    _connStatusLast = _conn.status.value;
+    if (_conn.status.value == ChatConnStatus.connected) return;
     _promptCutOnDisconnect();
   }
 
@@ -215,7 +212,9 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     if (cid == null || !_store.promptBusyFor(cid)) return;
     _promptWatchdogCancel();
     _talkTtsQueue?.cancel();
-    _store.msgStreamFail(uiConnectionFailed, chatId: cid);
+    final reqId = (_store.pendingPromptReqId ?? _store.promptLiveReqId ?? '').trim();
+    _store.msgStreamFail(uiConnectionFailed, chatId: cid, reqId: reqId);
+    if (_store.promptBusyFor(cid)) _store.promptBusyPut(false, chatId: cid);
     if (mounted) {
       final phase = SchedulerBinding.instance.schedulerPhase;
       if (phase == SchedulerPhase.idle || phase == SchedulerPhase.postFrameCallbacks) {
@@ -362,7 +361,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
           continue;
         }
         if (ev.kind == 'fail') {
-          _store.msgStreamFail(msgErrorNormalize(ev.message), chatId: chatId, startedAtMs: startedAt);
+          _store.msgStreamFail(msgErrorNormalize(ev.message), chatId: chatId, startedAtMs: startedAt, reqId: reqId);
         }
       }
     } catch (e) {
@@ -1078,29 +1077,18 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     final now = DateTime.now().millisecondsSinceEpoch;
     final reqId = const Uuid().v4();
     final mentionIdsJson = msgMentionIdsEncode(wireMentionIds);
-    if (retry) {
-      _store.msgUserTurnRetry(
-        chatId: chatId,
-        content: uiContent,
-        attachments: attachments,
-        reqId: reqId,
-        createdAtMs: now,
-        mentionIdsJson: mentionIdsJson,
-      );
-    } else {
-      final userMsg = MsgRow(
-        id: _store.msgNextLocalId(),
-        chatId: chatId,
-        role: 'user',
-        content: uiContent,
-        attachments: attachments,
-        attachmentsJson: MsgAttachment.encode(attachments),
-        createdAtMs: now,
-        reqId: reqId,
-        mentionIdsJson: mentionIdsJson,
-      );
-      _store.msgPut(userMsg);
-    }
+    final userMsg = MsgRow(
+      id: _store.msgNextLocalId(),
+      chatId: chatId,
+      role: 'user',
+      content: uiContent,
+      attachments: attachments,
+      attachmentsJson: MsgAttachment.encode(attachments),
+      createdAtMs: now,
+      reqId: reqId,
+      mentionIdsJson: mentionIdsJson,
+    );
+    _store.msgPut(userMsg);
     _store.msgPut(MsgRow(
       id: _store.msgNextLocalId(),
       chatId: chatId,
@@ -1126,6 +1114,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         locale: CatalogTranslationCache.instance.lang,
         reqId: reqId,
         talk: talk,
+        replaceLastTurn: retry,
       );
     _store.promptBusyPut(true, chatId: chatId, reqId: reqId);
     _promptWatchdogStart(reqId);
@@ -1213,14 +1202,18 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
           continue;
         }
         if (ev.kind == 'fail') {
-          _store.msgStreamFail(msgErrorNormalize(ev.message), chatId: streamChatId, startedAtMs: promptStartedAtMs);
+          final rid = (_conn.lastPromptReqId ?? reqId).trim();
+          _store.msgStreamFail(msgErrorNormalize(ev.message), chatId: streamChatId, startedAtMs: promptStartedAtMs, reqId: rid);
           continue;
         }
       }
     } catch (e) {
       final rid = _conn.lastPromptReqId?.trim().isNotEmpty == true ? _conn.lastPromptReqId!.trim() : reqId;
       final recovered = await _promptStreamRecoverFromServer(streamChatId, rid);
-      if (!recovered) _store.msgStreamFail(msgErrorNormalize(e), chatId: streamChatId, startedAtMs: promptStartedAtMs);
+      if (!recovered) {
+        final rid = _conn.lastPromptReqId?.trim().isNotEmpty == true ? _conn.lastPromptReqId!.trim() : reqId;
+        _store.msgStreamFail(msgErrorNormalize(e), chatId: streamChatId, startedAtMs: promptStartedAtMs, reqId: rid);
+      }
     } finally {
       _promptWatchdogCancel();
       _store.msgStreamFinalize(chatId: streamChatId, model: _model.id, startedAtMs: promptStartedAtMs);
@@ -1879,8 +1872,12 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       );
       body = UiUserBubble(content: userContent, copyPrefix: copyHeader, leadingNewlines: copyGap, attachments: m.attachments, mentions: catalogMentions);
     } else {
-      final content = msgDisplayContent(m);
-      final err = msgRowError(m).trim();
+      var content = msgDisplayContent(m);
+      var err = msgRowError(m).trim();
+      if (err.isEmpty && uiIsTechnicalError(content.trim())) {
+        err = content.trim();
+        content = '';
+      }
       final hasError = err.isNotEmpty;
       final inThoughtPhase = promptingThis && content.trim().isEmpty && !hasError;
       final thoughtView = msgThoughtView(thought: m.thought, content: content, thinking: inThoughtPhase);

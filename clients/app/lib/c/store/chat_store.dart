@@ -1089,6 +1089,19 @@ class ChatStore extends ChangeNotifier {
   void msgPut(MsgRow row, {bool notify = true, bool touchPreview = true}) {
     if (row.chatId == 0) return;
     if (row.id > 0 && _tombstonedMsgIds.contains(row.id)) return;
+    if (row.role == 'user' && row.reqId.isNotEmpty && promptBusyFor(row.chatId)) {
+      final live = pendingPromptReqId?.trim() ?? '';
+      if (live.isNotEmpty && row.reqId == live) {
+        final idx = msgs.lastIndexWhere((m) => m.chatId == row.chatId && m.role == 'user' && m.reqId == live);
+        if (idx >= 0) {
+          final merged = _msgMerge(msgs[idx], row);
+          msgs[idx] = merged;
+          if (touchPreview) _chatPreviewTouch(merged.chatId, merged.content, atMs: merged.createdAtMs > 0 ? merged.createdAtMs : DateTime.now().millisecondsSinceEpoch);
+          if (notify) _touchMsgs(row.chatId);
+          return;
+        }
+      }
+    }
     if (row.reqId.isNotEmpty) {
       final byReq = msgs.indexWhere((m) => m.reqId == row.reqId && m.role == row.role && m.chatId == row.chatId);
       if (byReq >= 0) {
@@ -1152,7 +1165,34 @@ class ChatStore extends ChangeNotifier {
     if (notify) _touchMsgs(row.chatId);
   }
 
+  void _msgsDedupeTrailingUsers(int chatId) {
+    var end = msgs.length;
+    while (end > 0 && msgs[end - 1].chatId != chatId) end--;
+    if (end == 0) return;
+    var scan = end;
+    if (msgs[scan - 1].role == 'assistant') scan--;
+    final userIdx = <int>[];
+    while (scan > 0 && msgs[scan - 1].chatId == chatId && msgs[scan - 1].role == 'user') {
+      userIdx.add(scan - 1);
+      scan--;
+    }
+    if (userIdx.length < 2) return;
+    final norm = (String s) => s.trim().replaceAll(RegExp(r'\s+'), ' ');
+    final anchor = norm(msgs[userIdx.first].content);
+    if (anchor.isEmpty) return;
+    for (var j = 1; j < userIdx.length; j++) {
+      if (norm(msgs[userIdx[j]].content) != anchor) return;
+    }
+    for (var j = 1; j < userIdx.length; j++) {
+      final drop = msgs[userIdx[j]];
+      if (drop.id > 0) _tombstonedMsgIds.add(drop.id);
+      msgs.removeAt(userIdx[j]);
+    }
+    _touchMsgs(chatId);
+  }
+
   void msgPutFromServer(ChatMsg m) {
+    if (m.id.toInt() > 0 && _tombstonedMsgIds.contains(m.id.toInt())) return;
     final role = switch (m.role) {
       ChatMsgRole.CHAT_MSG_ROLE_USER => 'user',
       ChatMsgRole.CHAT_MSG_ROLE_ASSISTANT => 'assistant',
@@ -1205,6 +1245,19 @@ class ChatStore extends ChangeNotifier {
     _touchMsgs(m.chatId);
   }
 
+  static bool _msgStreamLooksLikeNewReply(String prior, String chunk) {
+    if (prior.trim().isEmpty || chunk.trim().isEmpty) return false;
+    if (chunk.startsWith(prior)) return false;
+    if (prior.endsWith(chunk)) return false;
+    if (prior.length < 48) return false;
+    final t = chunk.trimLeft();
+    return t.startsWith('Saya ') ||
+        t.startsWith('I ') ||
+        t.startsWith('Maaf') ||
+        t.startsWith('Sorry') ||
+        t.startsWith('The ');
+  }
+
   void msgStreamContent(String text, {int? chatId, String reqId = ''}) {
     if (text.isEmpty) return;
     final cid = chatId ?? promptChatId;
@@ -1215,6 +1268,8 @@ class ChatStore extends ChangeNotifier {
       if (rid.isNotEmpty && m.reqId.isNotEmpty && m.reqId != rid) return;
       if (m.error.isNotEmpty) m.error = '';
       if (text.startsWith(m.content) && text.length > m.content.length) {
+        m.content = text;
+      } else if (_msgStreamLooksLikeNewReply(m.content, text)) {
         m.content = text;
       } else {
         m.content = '${m.content}$text';
@@ -1273,23 +1328,23 @@ class ChatStore extends ChangeNotifier {
     return i >= 0 ? i : null;
   }
 
-  void msgStreamFail(String error, {int? chatId, int startedAtMs = 0}) {
+  void msgStreamFail(String error, {int? chatId, int startedAtMs = 0, String reqId = ''}) {
     final text = error.trim();
     if (text.isEmpty) return;
     if (uiIsRecoverableDeviceContextError(text)) return;
     final cid = chatId ?? promptChatId;
     if (cid == null) return;
-    final rid = pendingPromptReqId ?? '';
-    final i = _assistantIdx(cid, reqId: rid);
-    if (i == null) return;
-    final m = msgs[i];
-    if (msgHasBody(m) && uiIsConnectionError(text)) {
-      _chatStatusPut(cid, status: 'done', unread: cid != activeChatId);
+    final rid = reqId.isNotEmpty ? reqId : (promptLiveReqId ?? pendingPromptReqId ?? '');
+    var i = _assistantIdx(cid, reqId: rid);
+    if (i == null && rid.isNotEmpty) i = _assistantIdx(cid);
+    if (i == null) {
+      _chatStatusPut(cid, status: 'error', unread: cid != activeChatId);
       _promptClear();
       _flushDirtyMsgs();
       _touchMsgs(cid);
       return;
     }
+    final m = msgs[i];
     final started = startedAtMs > 0 ? startedAtMs : promptStartedAtMs;
     final duration = m.durationMs > 0 ? m.durationMs : (started > 0 ? DateTime.now().millisecondsSinceEpoch - started : 0);
     msgs[i] = m.copyWith(error: text, durationMs: duration > 0 ? duration : m.durationMs);
@@ -1467,11 +1522,13 @@ class ChatStore extends ChangeNotifier {
     );
     if (lastUserIdx < 0) return null;
     final lastUser = msgs[lastUserIdx];
+    final captured = (text: lastUser.content, attachments: List<MsgAttachment>.from(lastUser.attachments));
     _tombstoneAssistantsAfterUser(cid, lastUserIdx);
     if (lastUser.id > 0) _tombstonedMsgIds.add(lastUser.id);
+    msgs.removeAt(lastUserIdx);
     _touchMsgs(cid);
     notifyListeners();
-    return (text: lastUser.content, attachments: List<MsgAttachment>.from(lastUser.attachments));
+    return captured;
   }
 
   void chatClearMsgs(int id) {
@@ -1559,6 +1616,7 @@ class ChatStore extends ChangeNotifier {
     var newestPreview = '';
     var newestAt = 0;
     for (final m in sorted) {
+      if (_tombstonedMsgIds.contains(m.id.toInt())) continue;
       final at = m.createdTsMs.toInt();
       if (at >= newestAt) {
         newestAt = at;
@@ -1566,6 +1624,7 @@ class ChatStore extends ChangeNotifier {
       }
       msgPutFromServer(m);
     }
+    _msgsDedupeTrailingUsers(chatId);
     for (var i = 0; i < msgs.length; i++) {
       final m = msgs[i];
       if (m.chatId != chatId || m.role != 'user') continue;

@@ -131,6 +131,7 @@ impl PromptRunRow {
             tool_mode: self.tool_mode.clone(),
             device_iids: if self.device_iid > 0 { vec![self.device_iid] } else { vec![] },
             talk: false,
+            replace_last_turn: false,
         }
     }
 }

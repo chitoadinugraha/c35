@@ -1036,6 +1036,7 @@ class ReqPrompt extends $pb.GeneratedMessage {
     $core.String? toolMode,
     $core.Iterable<$fixnum.Int64>? deviceIids,
     $core.bool? talk,
+    $core.bool? replaceLastTurn,
   }) {
     final result = ReqPrompt._();
     if (chatId != null) result.chatId = chatId;
@@ -1048,6 +1049,7 @@ class ReqPrompt extends $pb.GeneratedMessage {
     if (toolMode != null) result.toolMode = toolMode;
     if (deviceIids != null) result.deviceIids.addAll(deviceIids);
     if (talk != null) result.talk = talk;
+    if (replaceLastTurn != null) result.replaceLastTurn = replaceLastTurn;
     return result;
   }
 
@@ -1075,6 +1077,7 @@ class ReqPrompt extends $pb.GeneratedMessage {
     ..p<$fixnum.Int64>(
         9, _omitFieldNames ? '' : 'deviceIids', $pb.PbFieldType.K6)
     ..aOB(10, _omitFieldNames ? '' : 'talk')
+    ..aOB(11, _omitFieldNames ? '' : 'replaceLastTurn')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1174,6 +1177,15 @@ class ReqPrompt extends $pb.GeneratedMessage {
   $core.bool hasTalk() => $_has(9);
   @$pb.TagNumber(10)
   void clearTalk() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $core.bool get replaceLastTurn => $_getBF(10);
+  @$pb.TagNumber(11)
+  set replaceLastTurn($core.bool value) => $_setBool(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasReplaceLastTurn() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearReplaceLastTurn() => $_clearField(11);
 }
 
 class ResPromptStart extends $pb.GeneratedMessage {

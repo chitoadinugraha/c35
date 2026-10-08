@@ -350,6 +350,13 @@ const ReqPrompt$json = {
     {'1': 'tool_mode', '3': 8, '4': 1, '5': 9, '10': 'toolMode'},
     {'1': 'device_iids', '3': 9, '4': 3, '5': 3, '10': 'deviceIids'},
     {'1': 'talk', '3': 10, '4': 1, '5': 8, '10': 'talk'},
+    {
+      '1': 'replace_last_turn',
+      '3': 11,
+      '4': 1,
+      '5': 8,
+      '10': 'replaceLastTurn'
+    },
   ],
 };
 
@@ -360,7 +367,8 @@ final $typed_data.Uint8List reqPromptDescriptor = $convert.base64Decode(
     'aG1lbnRzSnNvbhIaCgh0aGlua2luZxgFIAEoCVIIdGhpbmtpbmcSHwoLbWVudGlvbl9pZHMYBi'
     'ADKAlSCm1lbnRpb25JZHMSGQoIdG9waWNfaWQYByABKAlSB3RvcGljSWQSGwoJdG9vbF9tb2Rl'
     'GAggASgJUgh0b29sTW9kZRIfCgtkZXZpY2VfaWlkcxgJIAMoA1IKZGV2aWNlSWlkcxISCgR0YW'
-    'xrGAogASgIUgR0YWxr');
+    'xrGAogASgIUgR0YWxrEioKEXJlcGxhY2VfbGFzdF90dXJuGAsgASgIUg9yZXBsYWNlTGFzdFR1'
+    'cm4=');
 
 @$core.Deprecated('Use resPromptStartDescriptor instead')
 const ResPromptStart$json = {

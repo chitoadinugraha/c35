@@ -291,7 +291,6 @@ class ChatConn {
     _retryCount = 0;
     _statusSet(ChatConnStatus.connected);
     if (wasOffline) {
-      l('chat ws connected');
       if (!_reconnectedCtrl.isClosed) _reconnectedCtrl.add(null);
     }
   }
@@ -1354,6 +1353,7 @@ class ChatConn {
     String locale = 'en',
     String? reqId,
     bool talk = false,
+    bool replaceLastTurn = false,
   }) async* {
     if (_ch == null || status.value != ChatConnStatus.connected) {
       if (_ch != null && (status.value == ChatConnStatus.connecting || status.value == ChatConnStatus.reconnecting)) {
@@ -1384,6 +1384,7 @@ class ChatConn {
         topicId: topicId,
         toolMode: toolMode,
         talk: talk,
+        replaceLastTurn: replaceLastTurn,
       ),
     );
     if (!_trySend(req)) {

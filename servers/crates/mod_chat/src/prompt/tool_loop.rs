@@ -8,10 +8,12 @@ use futures_util::future::join_all;
 use serde_json::{json, Value};
 use tokio_util::sync::CancellationToken;
 
+use super::gemini::gemini_model_content_for_history;
 use super::llm_route::{bill_model_slug, llm_stream_chain};
 use super::thought::{thought_push, thinking_level};
 use super::web_grounding::{
-    pick_visit_url, reply_looks_like_web_placeholder, search_payload, web_grounding_append_user_context,
+    pick_visit_url_for_query, reply_looks_like_web_deferral, reply_looks_like_web_placeholder, search_payload,
+    web_grounding_append_user_context,
 };
 use super::{ChatReq, ChatRes};
 use crate::catalog_web::{catalog_web_after_stock, CatalogWebPhase};
@@ -21,7 +23,7 @@ use crate::prompt_run::{
 };
 use crate::chat_title_set;
 use crate::mention_context::{json_device_iid_field, mention_context_register_site};
-use crate::tools::{cluster_tool_def, cluster_tool_exec, http_client, tool_decls, TurnCtx};
+use crate::tools::{cluster_tool_def, cluster_tool_exec, http_client, site_builder_seed_catalog, tool_decls, TurnCtx};
 use crate::turn_tracer::TurnTracer;
 
 pub const CHAT_TOOL_ROUNDS_MAX: u8 = 24;
@@ -205,6 +207,16 @@ pub async fn prompt_cluster_turn(
         let hop = round + 1;
         let hop_started = Instant::now();
         let tool_call_mode = if round == 0 && req.force_tool_call && !web_grounded && !wrap { "ANY" } else { "AUTO" };
+        let tools_for_hop = if web_grounded && !wrap { json!([]) } else { tool_json.clone() };
+        let buffer_deltas = req.force_web_tool_call && web_grounded && !wrap;
+        let mut delta_buf: Option<Vec<(bool, String)>> = if buffer_deltas { Some(Vec::new()) } else { None };
+        let mut hop_delta = |thought: bool, s: String| {
+            if let Some(buf) = &mut delta_buf {
+                buf.push((thought, s));
+            } else {
+                on_delta(thought, s);
+            }
+        };
         let (out, _provider_model, _) = if wrap {
             contents.push(json!({ "role": "user", "parts": [{ "text": CHAT_WRAPUP_HINT }] }));
             llm_stream_chain(&requested_model, &contents, &json!([]), &thinking, &system, "AUTO", on_delta, cancel).await?
@@ -212,11 +224,11 @@ pub async fn prompt_cluster_turn(
             llm_stream_chain(
                 &requested_model,
                 &contents,
-                &tool_json,
+                &tools_for_hop,
                 &thinking,
                 &system,
                 tool_call_mode,
-                on_delta,
+                &mut hop_delta,
                 cancel,
             )
             .await?
@@ -234,6 +246,19 @@ pub async fn prompt_cluster_turn(
         }
         if !out.function_calls.is_empty() {
             if wrap || tool_calls_dup(&prev_calls, &out.function_calls) {
+                if !out.text.is_empty() {
+                    if let Some(buf) = delta_buf.as_mut() {
+                        for (thought, s) in buf.iter() {
+                            on_delta(*thought, s.clone());
+                        }
+                        buf.clear();
+                    }
+                    text = out.text.clone();
+                    return Ok(ChatRes { text, thought, blocks_json, tokens_in, tokens_out, model_used, tools_cost_usd });
+                }
+                if let Some(buf) = delta_buf.as_mut() {
+                    buf.clear();
+                }
                 return wrap_up(
                     &requested_model,
                     contents,
@@ -302,13 +327,38 @@ pub async fn prompt_cluster_turn(
                     on_blocks(blocks_json.clone());
                 }
                 if name == "site.create" && ok {
-                    if let Some(ctx) = turn_ctx.as_mut() {
-                        let site_iid = json_device_iid_field(&result, "site_iid");
-                        if site_iid > 0 {
+                    let site_iid = json_device_iid_field(&result, "site_iid");
+                    if site_iid > 0 {
+                        if let Some(ctx) = turn_ctx.as_mut() {
                             let alien_id = result.get("alien_id").and_then(|v| v.as_str()).unwrap_or("");
                             let site_name = result.get("name").and_then(|v| v.as_str()).unwrap_or("");
                             mention_context_register_site(&mut ctx.mention, site_iid, alien_id, site_name);
                             ctx.site_iid = Some(site_iid);
+                        }
+                        if let Some(ctx) = turn_ctx.as_ref() {
+                            match site_builder_seed_catalog(&client, ctx, site_iid).await {
+                                Ok(seeded) if !seeded.is_empty() => {
+                                    if let Some(tr) = tracer {
+                                        for row in seeded {
+                                            tr.tool_result(
+                                                "site.product_put",
+                                                &snowflake_id().to_string(),
+                                                &json!({ "site_iid": site_iid.to_string(), "seed": true }),
+                                                &row,
+                                                true,
+                                                0,
+                                            )
+                                            .await;
+                                        }
+                                    }
+                                }
+                                Ok(_) => {}
+                                Err(e) => {
+                                    tracing::warn!(
+                                        "[c35:site_builder_catalog] seed failed site_iid={site_iid}: {e:#}"
+                                    );
+                                }
+                            }
                         }
                     }
                 }
@@ -385,7 +435,7 @@ pub async fn prompt_cluster_turn(
             }
 
             used_tool = true;
-            contents.push(out.model_content);
+            contents.push(gemini_model_content_for_history(out.model_content.clone()));
             contents.push(json!({
                 "role": "user",
                 "parts": function_parts
@@ -475,12 +525,23 @@ pub async fn prompt_cluster_turn(
         if !out.text.is_empty() {
             let reject_ungrounded = req.force_web_tool_call && !web_grounded && !used_tool;
             let reject_placeholder = req.force_web_tool_call && reply_looks_like_web_placeholder(&out.text);
-            if !reject_ungrounded && !reject_placeholder {
+            let reject_deferral =
+                req.force_web_tool_call && web_grounded && reply_looks_like_web_deferral(&out.text);
+            if !reject_ungrounded && !reject_placeholder && !reject_deferral {
+                if let Some(buf) = delta_buf.as_mut() {
+                    for (thought, s) in buf.iter() {
+                        on_delta(*thought, s.clone());
+                    }
+                    buf.clear();
+                }
                 if !out.thought.is_empty() {
                     thought_push(&mut thought, &out.thought);
                 }
                 text = out.text.clone();
                 return Ok(ChatRes { text, thought, blocks_json, tokens_in, tokens_out, model_used, tools_cost_usd });
+            }
+            if let Some(buf) = delta_buf.as_mut() {
+                buf.clear();
             }
         }
         break;
@@ -644,7 +705,7 @@ async fn tool_loop_run_web_search(
     let search_ok = search_payload(&result).get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
     let mut visit_result: Option<Value> = None;
     if force_visit && search_ok && tools.iter().any(|t| t.name == "web.visit") {
-        if let Some(url) = pick_visit_url(&result) {
+        if let Some(url) = pick_visit_url_for_query(&result, q) {
             emit_thought(on_delta, thought, "Using web.visit…\n");
             let visit_args = json!({ "url": url });
             let visit_started = Instant::now();
