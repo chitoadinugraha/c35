@@ -1,6 +1,6 @@
 //! User notification inbox, presence, and delivery.
 //!
-//! Spec: `_/docs/notify.md`. WebSocket handlers, the NATS fire consumer,
+//! Spec: `_/specs/notify.md`. WebSocket handlers, the NATS fire consumer,
 //! Flutter, and Home tools live in later tracks.
 
 mod bus;

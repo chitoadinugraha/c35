@@ -20,6 +20,6 @@ If changes are already committed and pushed:
 
 **Do not** use `publish_all.ps1` for this flow — prod Android and web are **sequential** so version bump happens once after web.
 
-On failure see `_/docs/app-release.md` (`--finish-cas-only`, `-SkipServer`, etc.).
+On failure see `_/specs/app-release.md` (`--finish-cas-only`, `-SkipServer`, etc.).
 
 When finished, end with a **Publish summary** per `.cursor/rules/publish-perf-report.mdc` (server, `android-promote-prod`, `web-release`).

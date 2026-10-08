@@ -1,6 +1,6 @@
 # Prompt pipeline verification (MCP)
 
-Spec: [`_/docs/inst.md`](../../_/docs/inst.md). Cursor: [`.cursor/rules/prompt-run-test.mdc`](../../.cursor/rules/prompt-run-test.mdc).
+Spec: [`_/specs/inst.md`](../../_/specs/inst.md). Cursor: [`.cursor/rules/prompt-run-test.mdc`](../../.cursor/rules/prompt-run-test.mdc).
 
 ## Verify (hard rule)
 

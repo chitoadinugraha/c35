@@ -6,7 +6,7 @@ alwaysApply: false
 
 # DB schema change (c35)
 
-Read [`_/docs/schema-migrate.md`](../../_/docs/schema-migrate.md) before editing DDL or migrate behavior.
+Read [`_/specs/schema-migrate.md`](../../_/specs/schema-migrate.md) before editing DDL or migrate behavior.
 
 ## Rules
 

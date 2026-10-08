@@ -8,7 +8,7 @@ alwaysApply: false
 
 Mirrored for Cursor: [`.cursor/rules/mcp-config.mdc`](../../.cursor/rules/mcp-config.mdc)
 
-**Security:** [`_/docs/mcp-security.md`](../../_/docs/mcp-security.md) — do not commit `DATABASE_URL` or weak MCP keys.
+**Security:** [`_/specs/mcp-security.md`](../../_/specs/mcp-security.md) — do not commit `DATABASE_URL` or weak MCP keys.
 
 ## Two files — both must stay aligned
 

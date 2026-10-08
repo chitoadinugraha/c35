@@ -4,7 +4,7 @@
 -- Schema: ai
 --
 -- Port: cs_agent task + task_trigger + task_run; device_iid replaces space_id.
--- Dispatch: NATS JetStream (see _/docs/remote.md) — no YB polling for work.
+-- Dispatch: NATS JetStream (see _/specs/remote.md) — no YB polling for work.
 -- Sync: owner-scoped rows with created_ts, updated_ts, deleted_ts.
 -- ==============================================================================
 

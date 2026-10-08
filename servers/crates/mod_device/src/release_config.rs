@@ -3,7 +3,7 @@ use sqlx::PgPool;
 
 const CONFIG_PREFIX: &str = "app.release.c35.";
 
-/// `playwright` when absent — see _/docs/browser-extension.md.
+/// `playwright` when absent — see _/specs/browser-extension.md.
 pub fn meta_browser_engine(meta: &Value) -> &str {
     meta.get("browser_engine")
         .and_then(|v| v.as_str())

@@ -31,6 +31,7 @@ const RESERVED: &[&str] = &[
     ".well-known",
     "v1",
     "api",
+    "alienai",
 ];
 
 #[derive(Debug, Deserialize)]

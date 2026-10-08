@@ -109,4 +109,4 @@ Catalog actions use `payload_json.text` (not `send_text`). Site Visit includes `
 - [ ] `ReqHintTouch` upserts `user_asset_touch`
 - [ ] SessionInit returns hints; client `HintStore` caches pb
 - [ ] Dropdown actions: Visit (`open_url`), POS (`navigate site.pos`)
-- [ ] Canonical doc: [`_/docs/hint.md`](../../_/docs/hint.md)
+- [ ] Canonical doc: [`_/specs/hint.md`](../../_/specs/hint.md)

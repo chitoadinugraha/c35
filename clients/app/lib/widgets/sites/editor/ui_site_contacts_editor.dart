@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
@@ -73,7 +74,7 @@ class _UiSiteContactsEditorState extends State<UiSiteContactsEditor> {
     return items;
   }
 
-  String? get _firstId => _ordered.isEmpty ? null : '';
+  String? get _firstId => _ordered.isEmpty ? null : '${_ordered.first.contactId}';
 
   String? get _activeId => widget.masterDetail ? (_selectedId ?? _firstId) : widget.detailId;
 
@@ -109,7 +110,7 @@ class _UiSiteContactsEditorState extends State<UiSiteContactsEditor> {
       final items = await widget.api.contactList(widget.siteIid);
       _byId
         ..clear()
-        ..addEntries(items.map((c) => MapEntry('', c)));
+        ..addEntries(items.map((c) => MapEntry('${c.contactId}', c)));
       _pickDefault();
     } catch (e) {
       _error = uiFriendlyError(e);
@@ -123,10 +124,11 @@ class _UiSiteContactsEditorState extends State<UiSiteContactsEditor> {
     setState(() => _busy = true);
     try {
       final c = await widget.api.contactPut(widget.siteIid, widget.api.contactNew(widget.siteIid));
-      _byId[''] = c;
+      final id = '${c.contactId}';
+      _byId[id] = c;
       _searchCtrl.clear();
       setState(() => _search = '');
-      _select('');
+      _select(id);
     } catch (e) {
       if (mounted) setState(() => _error = uiFriendlyError(e));
     } finally {
@@ -145,11 +147,16 @@ class _UiSiteContactsEditorState extends State<UiSiteContactsEditor> {
     try {
       final saved = await widget.api.contactPut(widget.siteIid, draft);
       if (!mounted) return;
+      final savedId = '${saved.contactId}';
       setState(() {
         _byId.remove(id);
-        _byId[''] = saved;
+        _byId[savedId] = saved;
+        if (_selectedId == id) _selectedId = savedId;
         _error = null;
       });
+      if (!widget.masterDetail && widget.detailId == id && widget.detailId != savedId) {
+        widget.onDetailIdChanged?.call(savedId);
+      }
     } catch (e) {
       if (mounted) setState(() => _error = uiFriendlyError(e));
     } finally {
@@ -196,7 +203,7 @@ class _UiSiteContactsEditorState extends State<UiSiteContactsEditor> {
                   itemCount: filtered.length,
                   itemBuilder: (ctx, i) {
                     final c = filtered[i];
-                    final id = '';
+                    final id = '${c.contactId}';
                     final active = selectedId == id;
                     return Material(
                       color: active ? const Color(0xFF1F2937) : Colors.transparent,
@@ -309,6 +316,8 @@ class _UiSiteContactDetailFormState extends State<_UiSiteContactDetailForm> {
   late final _emailCtrl = TextEditingController(text: widget.contact.email);
   late final _addressCtrl = TextEditingController(text: widget.contact.address);
   late final _noteCtrl = TextEditingController(text: widget.contact.note);
+  late final _picCtrl = TextEditingController(text: _contactPic(widget.contact));
+  late String _featured = _contactFeatured(widget.contact);
 
   @override
   void didUpdateWidget(covariant _UiSiteContactDetailForm oldWidget) {
@@ -319,6 +328,8 @@ class _UiSiteContactDetailFormState extends State<_UiSiteContactDetailForm> {
       _emailCtrl.text = widget.contact.email;
       _addressCtrl.text = widget.contact.address;
       _noteCtrl.text = widget.contact.note;
+      _picCtrl.text = _contactPic(widget.contact);
+      _featured = _contactFeatured(widget.contact);
     }
   }
 
@@ -329,6 +340,7 @@ class _UiSiteContactDetailFormState extends State<_UiSiteContactDetailForm> {
     _emailCtrl.dispose();
     _addressCtrl.dispose();
     _noteCtrl.dispose();
+    _picCtrl.dispose();
     super.dispose();
   }
 
@@ -370,14 +382,92 @@ class _UiSiteContactDetailFormState extends State<_UiSiteContactDetailForm> {
       children: [
         Text(c.name.isEmpty ? 'Contact' : c.name, style: const TextStyle(color: _text, fontSize: 16, fontWeight: FontWeight.w600)),
         const SizedBox(height: 4),
-        Text('ID ', style: const TextStyle(color: _muted, fontSize: 11)),
+        Text('ID ${c.contactId}', style: const TextStyle(color: _muted, fontSize: 11)),
         const SizedBox(height: 16),
         _field('Name', _nameCtrl, (v) => widget.onPatch(id, (c) => c.name = v)),
         _field('Phone', _phoneCtrl, (v) => widget.onPatch(id, (c) => c.phone = v), keyboard: TextInputType.phone),
         _field('Email', _emailCtrl, (v) => widget.onPatch(id, (c) => c.email = v), keyboard: TextInputType.emailAddress),
         _field('Address', _addressCtrl, (v) => widget.onPatch(id, (c) => c.address = v), maxLines: 2),
         _field('Note', _noteCtrl, (v) => widget.onPatch(id, (c) => c.note = v), maxLines: 3),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text('Featured', style: TextStyle(color: _muted, fontSize: 11, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 4),
+              DropdownButtonFormField<String>(
+                key: ValueKey('featured-$id-$_featured'),
+                initialValue: _featured,
+                decoration: _decoration(),
+                dropdownColor: _fieldFill,
+                style: const TextStyle(fontSize: 13, color: _text),
+                items: const [
+                  DropdownMenuItem(value: 'none', child: Text('None')),
+                  DropdownMenuItem(value: 'partners', child: Text('Partner')),
+                  DropdownMenuItem(value: 'clients', child: Text('Client')),
+                ],
+                onChanged: (v) {
+                  if (v == null) return;
+                  setState(() => _featured = v);
+                  widget.onPatch(id, (c) => _contactSetFeatured(c, v));
+                },
+              ),
+            ],
+          ),
+        ),
+        _field(
+          'Picture URL',
+          _picCtrl,
+          (v) => widget.onPatch(id, (c) => _contactSetPic(c, v)),
+          keyboard: TextInputType.url,
+        ),
       ],
     );
   }
+}
+
+Map<String, dynamic> _contactMeta(SiteContact contact) {
+  final raw = contact.metaJson.trim();
+  if (raw.isEmpty) return {};
+  try {
+    final decoded = jsonDecode(raw);
+    if (decoded is Map) {
+      return decoded.map((k, v) => MapEntry(k.toString(), v));
+    }
+  } catch (_) {}
+  return {};
+}
+
+void _contactWriteMeta(SiteContact contact, Map<String, dynamic> meta) {
+  contact.metaJson = meta.isEmpty ? '' : jsonEncode(meta);
+}
+
+String _contactFeatured(SiteContact contact) {
+  final value = _contactMeta(contact)['featured']?.toString() ?? '';
+  if (value == 'partners' || value == 'clients') return value;
+  return 'none';
+}
+
+void _contactSetFeatured(SiteContact contact, String featured) {
+  final meta = _contactMeta(contact);
+  if (featured == 'partners' || featured == 'clients') {
+    meta['featured'] = featured;
+  } else {
+    meta.remove('featured');
+  }
+  _contactWriteMeta(contact, meta);
+}
+
+String _contactPic(SiteContact contact) => _contactMeta(contact)['pic']?.toString() ?? '';
+
+void _contactSetPic(SiteContact contact, String pic) {
+  final meta = _contactMeta(contact);
+  final trimmed = pic.trim();
+  if (trimmed.isEmpty) {
+    meta.remove('pic');
+  } else {
+    meta['pic'] = trimmed;
+  }
+  _contactWriteMeta(contact, meta);
 }

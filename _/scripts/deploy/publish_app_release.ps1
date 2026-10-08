@@ -16,7 +16,7 @@
 #   .\_\scripts\deploy\publish_app_release.ps1 -MintToken
 #
 # Env: repo-root .env.local (YB_PASSWORD, DEPLOY_AUTH_TOKEN, Play JSON path, S3_*).
-# MSIX / Microsoft Store: not wired yet (see _/docs/app-release.md).
+# MSIX / Microsoft Store: not wired yet (see _/specs/app-release.md).
 
 param(
     [switch]$Tester,

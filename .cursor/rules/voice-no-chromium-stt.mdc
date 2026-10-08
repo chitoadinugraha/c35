@@ -23,13 +23,13 @@ This path has been attempted multiple times; it is **deprecated, blocked, or unr
 | Direction | Allowed |
 |-----------|---------|
 | **STT (composer, Talk, settings test)** | **Cloud only** — `VoiceApi.sttTranscribe` -> `ReqVoiceStt` -> `mod_voice` (Whisper / server fallbacks). Client: `SttService.transcribeRouted` -> cloud; `sttEngineRoute` -> `'cloud'`. |
-| **TTS** | Cloud (default), optional **web** `translate_tts` or **local** `flutter_tts` per `_/docs/voice.md` — **does not apply to STT**. |
+| **TTS** | Cloud (default), optional **web** `translate_tts` or **local** `flutter_tts` per `_/specs/voice.md` — **does not apply to STT**. |
 
 ## Settings and prefs
 
 - Settings -> **Speech to text**: **Cloud only** (no web/local STT picker).
 - `VoicePrefs`: STT engine stays **`cloud`**; rewrite legacy `web`/`local` STT prefs on load.
-- Docs: `_/docs/voice.md` — STT cloud-only; do not document Chromium STT as supported.
+- Docs: `_/specs/voice.md` — STT cloud-only; do not document Chromium STT as supported.
 
 ## Agent checklist (before claiming STT fixed)
 

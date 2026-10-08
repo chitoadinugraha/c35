@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Prompt pipeline verification (MCP)
 
-Mirrored for Antigravity: [`.agents/rules/prompt-run-test.md`](../../.agents/rules/prompt-run-test.md). Spec: [`_/docs/inst.md`](../../_/docs/inst.md).
+Mirrored for Antigravity: [`.agents/rules/prompt-run-test.md`](../../.agents/rules/prompt-run-test.md). Spec: [`_/specs/inst.md`](../../_/specs/inst.md).
 
 ## Hard rule (verify)
 

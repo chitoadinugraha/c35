@@ -8,7 +8,7 @@ alwaysApply: false
 
 Mirrored for Cursor: [`.cursor/rules/tools-inst-seed.mdc`](../../.cursor/rules/tools-inst-seed.mdc)
 
-Read [`_/docs/inst.md`](../../_/docs/inst.md) and [`.agents/rules/prompt-steering.md`](prompt-steering.md) first.
+Read [`_/specs/inst.md`](../../_/specs/inst.md) and [`.agents/rules/prompt-steering.md`](prompt-steering.md) first.
 
 Scoped files when editing: `servers/crates/mod_chat/src/tools/**`, `tool_index.rs`, `_/schemas/inst.sql`.
 

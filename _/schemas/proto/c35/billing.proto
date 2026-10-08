@@ -4,7 +4,7 @@ package c35;
 
 import "c35/referral.proto";
 
-// Mirrors ai.billing_* tables. See _/docs/billing.md
+// Mirrors ai.billing_* tables. See _/specs/billing.md
 // v2 types (BillingProfile, BillingWallet, …) — Phase 2 wire; legacy BillingAccount kept until migration.
 
 // ------------------------------------------------------------------------------
@@ -160,7 +160,7 @@ message BillingTopupRequest {
   int64 updated_ts_ms = 15;
 }
 
-// NATS app lane: c35.user.{iid}.app.balance | .app.quota | .app.commission (see _/docs/sync.md)
+// NATS app lane: c35.user.{iid}.app.balance | .app.quota | .app.commission (see _/specs/sync.md)
 message BillingPushBalance {
   int64 billing_account_id = 1;  // legacy
   double balance_usd = 2;        // legacy

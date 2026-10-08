@@ -12,6 +12,20 @@ fn alien_id_normalize(raw: &str) -> String {
     raw.trim().trim_start_matches('@').to_lowercase()
 }
 
+/// Reserved platform handle. Mirrors `c35_mod_site::platform_site_identity_put_check`
+/// (this crate cannot depend on `c35_mod_site`).
+fn platform_site_identity_put_check(requested_alien_id: &str, existing_alien_id: Option<&str>) -> Result<()> {
+    let requested_platform = requested_alien_id.trim().eq_ignore_ascii_case("alienai");
+    let existing_platform = existing_alien_id.is_some_and(|id| id.trim().eq_ignore_ascii_case("alienai"));
+    if existing_platform && !requested_alien_id.is_empty() && !requested_platform {
+        return Err(anyhow!("platform site handle is locked"));
+    }
+    if requested_platform && !existing_platform {
+        return Err(anyhow!("handle is reserved"));
+    }
+    Ok(())
+}
+
 fn alien_id_valid(alien_id: &str) -> bool {
     !alien_id.is_empty()
         && alien_id
@@ -192,6 +206,7 @@ pub async fn identity_put(
         if typ.is_empty() {
             return Err(anyhow!("type required"));
         }
+        platform_site_identity_put_check(&alien_id, None)?;
         if !alien_id.is_empty() && alien_id_taken(pool, &alien_id, 0).await? {
             return Err(anyhow!("alien_id taken"));
         }
@@ -239,6 +254,18 @@ pub async fn identity_put(
 
     let iid = req.iid;
     let owner_iid = identity_mutate_allowed(pool, caller_iid, iid).await?;
+    if !alien_id.is_empty() {
+        let existing_row = sqlx::query(
+            "SELECT alien_id FROM ai.identity WHERE id = $1 AND deleted_ts IS NULL",
+        )
+        .bind(iid)
+        .fetch_optional(pool)
+        .await?;
+        let existing_alien = existing_row
+            .and_then(|r| r.try_get::<Option<String>, _>("alien_id").ok().flatten())
+            .unwrap_or_default();
+        platform_site_identity_put_check(&alien_id, Some(existing_alien.as_str()))?;
+    }
     if !alien_id.is_empty() && alien_id_taken(pool, &alien_id, iid).await? {
         return Err(anyhow!("alien_id taken"));
     }

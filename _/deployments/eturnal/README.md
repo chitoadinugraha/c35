@@ -13,4 +13,4 @@ kubectl delete daemonset eturnal -n eturnal --ignore-not-found
 kubectl delete namespace eturnal --ignore-not-found
 ```
 
-See [`_/docs/remote.md`](../../_/docs/remote.md) and [`_/deployments/coturn/`](../../_/deployments/coturn/).
+See [`_/specs/remote.md`](../../_/specs/remote.md) and [`_/deployments/coturn/`](../../_/deployments/coturn/).

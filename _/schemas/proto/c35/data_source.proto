@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package c35;
 
-// Bot data sources — see _/docs/data_source.md
+// Bot data sources — see _/specs/data_source.md
 
 message DataSourceDoc {
   int64 id = 1;

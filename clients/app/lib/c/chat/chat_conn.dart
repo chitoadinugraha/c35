@@ -1091,6 +1091,21 @@ class ChatConn {
         (res) => res.siteLinkDelete,
       );
 
+  Future<ResSitePostList> sitePostList(int siteIid) => _rpc<ResSitePostList>(
+        WsReq(sitePostList: ReqSitePostList(siteIid: Int64(siteIid))),
+        (res) => res.sitePostList,
+      );
+
+  Future<ResSitePostPut> sitePostPut(int siteIid, SitePost post) => _rpc<ResSitePostPut>(
+        WsReq(sitePostPut: ReqSitePostPut(siteIid: Int64(siteIid), post: post)),
+        (res) => res.sitePostPut,
+      );
+
+  Future<ResSitePostDelete> sitePostDelete(int siteIid, int postId) => _rpc<ResSitePostDelete>(
+        WsReq(sitePostDelete: ReqSitePostDelete(siteIid: Int64(siteIid), postId: Int64(postId))),
+        (res) => res.sitePostDelete,
+      );
+
   Future<ResSiteGrantList> siteGrantList(int siteIid) => _rpc<ResSiteGrantList>(
         WsReq(siteGrantList: ReqSiteGrantList(siteIid: Int64(siteIid))),
         (res) => res.siteGrantList,

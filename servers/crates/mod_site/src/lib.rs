@@ -29,6 +29,7 @@ mod site_hr;
 mod site_draft;
 mod site_boot;
 mod site_handle;
+mod platform_site;
 mod site_ids;
 mod site_list;
 mod site_object;
@@ -69,6 +70,12 @@ pub use commerce_boot::{commerce_boot_build, order_progress_steps_json, site_pub
 pub use site_boot::{site_boot_get, site_boot_json_assemble};
 pub use site_draft::{site_draft_get, site_draft_put};
 pub use site_handle::{site_handle_normalize, site_handle_put};
+pub use platform_site::{
+    platform_home_assemble, platform_home_empty, platform_home_payload, platform_site_alien_id_is,
+    platform_site_ensure, platform_site_handle_assign_check, platform_site_identity_put_check,
+    PlatformHomeContact, PlatformHomeLink, PlatformHomePost, PLATFORM_HOME_POST_CAP,
+    PLATFORM_SITE_ALIEN_ID, PLATFORM_SITE_OWNER_IID,
+};
 pub use grant::site_granted_iids;
 pub use site_grant::{
     site_grant_delete, site_grant_delete_rpc, site_grant_list, site_grant_list_ensure_owner,

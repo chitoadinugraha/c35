@@ -3,7 +3,7 @@ syntax = "proto3";
 package c35;
 
 // Mirrors ai.consumption / consumption_item / consumption_water.
-// See _/docs/consumption.md
+// See _/specs/consumption.md
 
 enum ConsumeMealType {
   CONSUME_MEAL_TYPE_OTHER = 0;

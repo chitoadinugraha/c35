@@ -1,7 +1,7 @@
 -- ==============================================================================
 -- c35 — Platform vendor cost v1
 -- Run after billing.sql on existing DBs.
--- See _/docs/plans/2026-09-24-platform-vendor-billing-multitask.md Track A
+-- See _/specs/plans/2026-09-24-platform-vendor-billing-multitask.md Track A
 -- ==============================================================================
 
 -- ------------------------------------------------------------------------------

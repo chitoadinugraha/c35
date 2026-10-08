@@ -8,7 +8,7 @@ alwaysApply: false
 
 Always-on model: [`.agents/rules/prompt-steering.md`](prompt-steering.md) (Cursor: `.cursor/rules/prompt-steering.mdc`).
 
-Read [`_/docs/inst.md`](../../_/docs/inst.md) before changing prompt steering.
+Read [`_/specs/inst.md`](../../_/specs/inst.md) before changing prompt steering.
 
 ## Rules
 

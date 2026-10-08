@@ -200,7 +200,7 @@ ALTER TABLE ai.chat_msg ADD COLUMN IF NOT EXISTS cost_usd NUMERIC(12, 6) NOT NUL
 ALTER TABLE ai.chat_msg ADD COLUMN IF NOT EXISTS error_text TEXT NOT NULL DEFAULT '';
 
 -- ------------------------------------------------------------------------------
--- Context compaction (see _/docs/context-compaction.md)
+-- Context compaction (see _/specs/context-compaction.md)
 -- ------------------------------------------------------------------------------
 
 ALTER TABLE ai.chat ADD COLUMN IF NOT EXISTS context_summary TEXT NOT NULL DEFAULT '';

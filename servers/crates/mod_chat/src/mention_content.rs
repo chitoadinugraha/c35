@@ -1,4 +1,4 @@
-// Bracket mentions in chat message text. See _/docs/chat.md (Mention brackets).
+// Bracket mentions in chat message text. See _/specs/chat.md (Mention brackets).
 
 pub fn mention_id_from_bracket(kind: &str, body: &str) -> Option<String> {
     let k = kind.trim().to_ascii_lowercase();

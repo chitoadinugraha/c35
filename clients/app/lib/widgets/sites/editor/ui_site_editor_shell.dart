@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
+import 'package:alienai_c35/c/site/platform_site.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
 import 'package:alienai_c35/c/site/site_editor_save_bus.dart';
 import 'package:alienai_c35/widgets/sites/editor/site_editor_save_scope.dart';
@@ -20,6 +21,7 @@ import 'package:alienai_c35/widgets/sites/editor/ui_site_contacts_editor.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_notifications_editor.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_plan_editor.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_links_editor.dart';
+import 'package:alienai_c35/widgets/sites/editor/ui_site_posts_editor.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_objects_editor.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_preview_pane.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_products_editor.dart';
@@ -72,9 +74,25 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
 
   int get _siteIid => _row.siteIid.toInt();
 
+  bool get _platformSite => isPlatformSiteAlienId(_row.alienId);
+
+  String _coerceSection(String section) {
+    if (_platformSite && (section == 'design' || section == 'effects')) return 'info';
+    return section;
+  }
+
+  void _coerceStoredSection() {
+    final current = _section;
+    if (current == null || current.isEmpty) return;
+    final next = _coerceSection(current);
+    if (next != current) _section = next;
+  }
+
   @override
   void initState() {
     super.initState();
+    final next = _coerceSection(widget.initialSection);
+    if (next != widget.initialSection) _section = next;
     unawaited(_loadCaps());
   }
 
@@ -186,7 +204,7 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
   }
 
   void _openSection(String id) => setState(() {
-        _section = id;
+        _section = _coerceSection(id);
         _catalogDetailId = null;
         _productsPane = SiteProductsPane.list;
       });
@@ -268,10 +286,12 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
       );
 
   Widget _sectionBody(BuildContext context, String section, {required bool wide}) {
-    final masterDetail = _catalogMasterDetail(context, wide, section);
-    return switch (section) {
+    final shown = _coerceSection(section);
+    final masterDetail = _catalogMasterDetail(context, wide, shown);
+    return switch (shown) {
       'info' => UiSiteInfoEditor(row: _row, api: widget.api, siteIid: _siteIid, onRowChanged: _onRowChanged, onDraftSaved: _onDraftSaved),
       'links' => UiSiteLinksEditor(api: widget.api, siteIid: _siteIid),
+      'posts' => UiSitePostsEditor(api: widget.api, siteIid: _siteIid),
       'ai' => UiSiteAiEditor(
           api: widget.api,
           siteIid: _siteIid,
@@ -361,7 +381,13 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
       children: [
         SizedBox(
           width: siteEditorMenuRailW,
-          child: UiSiteEditorMenu(caps: _caps, variant: SiteEditorMenuVariant.rail, selectedId: active, onSelect: _openSection),
+          child: UiSiteEditorMenu(
+            caps: _caps,
+            platformSite: _platformSite,
+            variant: SiteEditorMenuVariant.rail,
+            selectedId: active,
+            onSelect: _openSection,
+          ),
         ),
         Expanded(child: _sectionBody(context, active, wide: true)),
         if (showPreview) ...[
@@ -374,7 +400,9 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
 
   Widget _narrowBody(BuildContext context) {
     final section = _section;
-    if (section == null) return UiSiteEditorMenu(caps: _caps, onSelect: _openSection);
+    if (section == null) {
+      return UiSiteEditorMenu(caps: _caps, platformSite: _platformSite, onSelect: _openSection);
+    }
     return _sectionBody(context, section, wide: false);
   }
 
@@ -397,6 +425,7 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
 
   @override
   Widget build(BuildContext context) {
+    _coerceStoredSection();
     final width = MediaQuery.sizeOf(context).width;
     final wide = width >= siteEditorWideBreakpoint;
     final active = _section ?? (wide ? widget.initialSection : '');
@@ -443,7 +472,7 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
                     actions: chromeActions,
                   ),
                   _saveErrorStrip(),
-                  Expanded(child: UiSiteEditorMenu(caps: _caps, onSelect: _openSection)),
+                  Expanded(child: UiSiteEditorMenu(caps: _caps, platformSite: _platformSite, onSelect: _openSection)),
                 ],
               );
             }

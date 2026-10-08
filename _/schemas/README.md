@@ -1,6 +1,6 @@
 # Schemas
 
-SQL and protobuf sources for c35. Applied when the **schema bundle hash** changes (see [`_/docs/schema-migrate.md`](../docs/schema-migrate.md)).
+SQL and protobuf sources for c35. Applied when the **schema bundle hash** changes (see [`_/specs/schema-migrate.md`](../docs/schema-migrate.md)).
 
 ## Apply order
 

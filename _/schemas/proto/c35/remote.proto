@@ -3,7 +3,7 @@ syntax = "proto3";
 package c35;
 
 // Human remote viewer (WebRTC). Computer use uses task.proto over server session.
-// See _/docs/remote.md
+// See _/specs/remote.md
 
 enum RemoteIceType {
   REMOTE_ICE_TYPE_UNSPECIFIED = 0;

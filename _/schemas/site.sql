@@ -5,7 +5,7 @@
 --
 -- Site registry + ACL stay in ai (identity, identity_grant).
 -- All site payload lives here — doc, catalog, domains, compiled render.
--- Guest layout = block-composed SiteDoc in site.draft.doc_json (see _/docs/site.md).
+-- Guest layout = block-composed SiteDoc in site.draft.doc_json (see _/specs/site.md).
 -- Apply after: identity.sql
 -- ==============================================================================
 

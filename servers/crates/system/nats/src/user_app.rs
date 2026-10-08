@@ -1,6 +1,6 @@
 //! Flutter app realtime lane: `c35.user.{owner_iid}.app.*`
 //!
-//! Spec: `_/docs/sync.md` (App realtime). WS subscribes `user_app_subscribe_subject` only.
+//! Spec: `_/specs/sync.md` (App realtime). WS subscribes `user_app_subscribe_subject` only.
 //! Do not publish client UI state on `c35.user.{iid}.ev.*` or bare `c35.user.{iid}.balance`.
 
 use c35_proto::{

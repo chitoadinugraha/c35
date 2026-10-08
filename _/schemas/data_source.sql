@@ -1,6 +1,6 @@
 -- ==============================================================================
 -- c35 — Bot data sources (synced external knowledge)
--- Status: LOCKED 2026-09-27 — see _/docs/data_source.md
+-- Status: LOCKED 2026-09-27 — see _/specs/data_source.md
 -- Apply after identity.sql, embed.sql
 -- ==============================================================================
 

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package c35;
 
-// Root admin CRUD for ai.object_normalizer + ai.object_alias — see _/docs/tx.md
+// Root admin CRUD for ai.object_normalizer + ai.object_alias — see _/specs/tx.md
 
 message ObjectNormalizerDoc {
   int64 id = 1;

@@ -1,7 +1,7 @@
 -- ==============================================================================
 -- c35 — Billing pools v3 (IDR pools + promotions)
 -- Run after billing.sql on existing DBs.
--- See _/docs/billing-implementation.md Phase 4b, _/docs/billing-plans.md
+-- See _/specs/billing-implementation.md Phase 4b, _/specs/billing-plans.md
 -- ==============================================================================
 
 -- ------------------------------------------------------------------------------

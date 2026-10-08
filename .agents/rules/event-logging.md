@@ -1,6 +1,6 @@
 ---
 description: Event-based logging — catalog, NATS subjects, no LLM trace on bus; triggers
-globs: servers/crates/mod_event/**,servers/crates/mod_consumption/**,_/docs/event.md,_/docs/log.md
+globs: servers/crates/mod_event/**,servers/crates/mod_consumption/**,_/specs/event.md,_/specs/log.md
 alwaysApply: false
 ---
 
@@ -10,8 +10,8 @@ Mirrored for Cursor: [`.cursor/rules/event-logging.mdc`](../../.cursor/rules/eve
 
 Read before adding observability, auth hooks, lifecycle logs, or automation triggers:
 
-- [`_/docs/event.md`](../../_/docs/event.md) — locked catalog, NATS tree, consumption + auth kinds
-- [`_/docs/log.md`](../../_/docs/log.md) — `ai.log` columns (trace + events share table)
+- [`_/specs/event.md`](../../_/specs/event.md) — locked catalog, NATS tree, consumption + auth kinds
+- [`_/specs/log.md`](../../_/specs/log.md) — `ai.log` columns (trace + events share table)
 
 ## When to emit an event
 
@@ -36,7 +36,7 @@ App UI state (balance, chat, task run) publishes on `c35.user.{iid}.app.*`, not 
 
 ## Code rules
 
-1. **Register first** — add a `def_event!` row in the event catalog (`kind`, `slug`, `scope`, `txt`) in [`_/docs/event.md`](../../_/docs/event.md) before implementing emit.
+1. **Register first** — add a `def_event!` row in the event catalog (`kind`, `slug`, `scope`, `txt`) in [`_/specs/event.md`](../../_/specs/event.md) before implementing emit.
 2. **One pipeline** — call `event_emit` / `event_spawn`; do not hand-roll `log_put` for lifecycle unless `mod_event` is not merged yet (then match `event.md` subjects and fields and replace when crate lands).
 3. **Centralize domain writes** — consumption events from `mod_consumption::store` (`food_put`, `food_update`, `food_delete`), not scattered in RPC + tools.
 4. **Copy** — catalog holds `txt: { en, id, … }`. On emit: set `ai.log.text` to **English only** (`txt.en` + vars) for ops/MCP/FTS. User-facing UI: **render at read** from catalog + viewer locale + `meta` — do not store non-English on the row.

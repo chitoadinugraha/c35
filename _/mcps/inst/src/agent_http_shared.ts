@@ -4,7 +4,7 @@ const serverUrl = () => (process.env.C35_SERVER_URL ?? "http://127.0.0.1:8080").
 
 const mcpAgentKey = () => {
   const key = process.env.C35_MCP_AGENT_KEY?.trim();
-  if (!key) throw new Error("C35_MCP_AGENT_KEY required (see _/docs/mcp-security.md)");
+  if (!key) throw new Error("C35_MCP_AGENT_KEY required (see _/specs/mcp-security.md)");
   return key;
 };
 

@@ -1,6 +1,6 @@
 # App realtime NATS lane (`c35.user.{owner_iid}.app.*`)
 
-Canonical doc: [`_/docs/sync.md`](../../_/docs/sync.md) — **App realtime lane**.
+Canonical doc: [`_/specs/sync.md`](../../_/specs/sync.md) — **App realtime lane**.
 
 ## Hard rule
 

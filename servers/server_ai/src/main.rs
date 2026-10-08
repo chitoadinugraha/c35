@@ -65,6 +65,9 @@ async fn main() -> anyhow::Result<()> {
             tracing::warn!("llm_catalog_pinned_ensure: {e:#}");
         }
     }
+    if let Err(e) = c35_mod_site::platform_site_ensure(&pool).await {
+        tracing::error!("platform_site_ensure: {e:#}");
+    }
     if let Err(e) = c35_mod_llm::llm_catalog_warm(&pool).await {
         tracing::warn!("llm_catalog_warm: {e:#}");
     }

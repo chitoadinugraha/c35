@@ -2,7 +2,7 @@
 
 Debug toolkit for c35: `ai.inst` CRUD, log/msg trace queries, and server_ai agent HTTP helpers.
 
-**Security:** [`_/docs/mcp-security.md`](../../docs/mcp-security.md)
+**Security:** [`_/specs/mcp-security.md`](../../docs/mcp-security.md)
 
 ## Env
 

@@ -4,7 +4,7 @@ package c35;
 
 // Generic UITable metadata — drives Airtable-like site admin grids.
 // Server returns static defs per collection; rows come from site.* sync / RPC.
-// See _/docs/site.md § UITable
+// See _/specs/site.md § UITable
 
 enum ColType {
   COL_TYPE_UNSPECIFIED = 0;

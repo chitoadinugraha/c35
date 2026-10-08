@@ -330,6 +330,27 @@ class SiteApi {
     if (!res.ok) throw 'link delete failed';
   }
 
+  Future<List<SitePost>> sitePostList(int siteIid) async {
+    final res = await conn.sitePostList(siteIid);
+    return res.posts;
+  }
+
+  Future<SitePost> sitePostPut(int siteIid, SitePost post) async {
+    final res = await conn.sitePostPut(siteIid, post);
+    final out = post.clone();
+    if (res.hasPostId()) {
+      out.postId = res.postId;
+    } else if (out.postId <= Int64.ZERO) {
+      throw 'post put failed';
+    }
+    return out;
+  }
+
+  Future<void> sitePostDelete(int siteIid, int postId) async {
+    final res = await conn.sitePostDelete(siteIid, postId);
+    if (!res.ok) throw 'post delete failed';
+  }
+
   Future<List<SiteGrant>> grantList(int siteIid) async {
     final res = await conn.siteGrantList(siteIid);
     return res.grants;

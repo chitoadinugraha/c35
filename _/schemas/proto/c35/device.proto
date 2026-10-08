@@ -15,7 +15,7 @@ message ResDevicePair {
 
 // ---------------------------------------------------------------------------
 // Agent bootstrap (HTTP /v1/device/pair/* — unauthenticated, before paired)
-// See _/docs/remote.md § Pairing
+// See _/specs/remote.md § Pairing
 // ---------------------------------------------------------------------------
 
 message ReqDevicePairRegister {

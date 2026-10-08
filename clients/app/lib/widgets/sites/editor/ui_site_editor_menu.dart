@@ -23,18 +23,38 @@ const siteEditorMenuDefaultId = 'info';
 /// SiteApi already exposes work-shift and presence-location RPCs.
 const siteEditorAttendanceEnabled = true;
 
-List<SiteEditorMenuGroup> siteEditorMenuGroups(SiteEditorCaps caps) => [
-      const SiteEditorMenuGroup('Site', [
-        SiteEditorMenuItem('info', Icons.info_outline, 'Info'),
-        SiteEditorMenuItem('links', Icons.link, 'Links'),
-        SiteEditorMenuItem('design', Icons.palette_outlined, 'Design'),
-        SiteEditorMenuItem('effects', Icons.auto_awesome_outlined, 'Effects'),
-        SiteEditorMenuItem('ai', Icons.smart_toy_outlined, 'AI'),
+List<SiteEditorMenuGroup> siteEditorMenuGroups(SiteEditorCaps caps, {bool platformSite = false}) {
+  const managed = 'Managed on the Alien AI home';
+  return [
+      SiteEditorMenuGroup('Site', [
+        const SiteEditorMenuItem('info', Icons.info_outline, 'Info'),
+        const SiteEditorMenuItem('links', Icons.link, 'Links'),
+        const SiteEditorMenuItem('posts', Icons.newspaper_outlined, 'News'),
+        SiteEditorMenuItem(
+          'design',
+          Icons.palette_outlined,
+          'Design',
+          enabled: !platformSite,
+          subtitle: platformSite ? managed : null,
+        ),
+        SiteEditorMenuItem(
+          'effects',
+          Icons.auto_awesome_outlined,
+          'Effects',
+          enabled: !platformSite,
+          subtitle: platformSite ? managed : null,
+        ),
+        const SiteEditorMenuItem('ai', Icons.smart_toy_outlined, 'AI'),
       ]),
       SiteEditorMenuGroup('Catalog', [
         SiteEditorMenuItem('products', Icons.shopping_bag_outlined, 'Products', enabled: caps.commerce),
         SiteEditorMenuItem('objects', Icons.table_restaurant_outlined, 'Objects', enabled: caps.booking),
-        SiteEditorMenuItem('contacts', Icons.people_outline, 'Contacts', enabled: caps.commerce || caps.booking),
+        SiteEditorMenuItem(
+          'contacts',
+          Icons.people_outline,
+          'Contacts',
+          enabled: platformSite || caps.commerce || caps.booking,
+        ),
         SiteEditorMenuItem('queue', Icons.queue, 'Queue', enabled: caps.queue),
       ]),
       SiteEditorMenuGroup('Settings', [
@@ -53,6 +73,7 @@ List<SiteEditorMenuGroup> siteEditorMenuGroups(SiteEditorCaps caps) => [
         const SiteEditorMenuItem('publish', Icons.rocket_launch_outlined, 'Publish'),
       ]),
     ];
+}
 
 String? siteEditorMenuLabel(String id, {SiteEditorCaps caps = const SiteEditorCaps()}) {
   for (final g in siteEditorMenuGroups(caps)) {
@@ -70,12 +91,14 @@ class UiSiteEditorMenu extends StatelessWidget {
     super.key,
     required this.onSelect,
     required this.caps,
+    this.platformSite = false,
     this.selectedId,
     this.variant = SiteEditorMenuVariant.page,
   });
 
   final ValueChanged<String> onSelect;
   final SiteEditorCaps caps;
+  final bool platformSite;
   final String? selectedId;
   final SiteEditorMenuVariant variant;
 
@@ -88,7 +111,7 @@ class UiSiteEditorMenu extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
     final border = isDark ? const Color(0xFF3F3F46) : cs.outlineVariant.withValues(alpha: 0.55);
 
-    final groups = siteEditorMenuGroups(caps);
+    final groups = siteEditorMenuGroups(caps, platformSite: platformSite);
     final list = ListView(
       padding: EdgeInsets.fromLTRB(_rail ? 8 : 16, _rail ? 12 : 8, _rail ? 10 : 16, 24),
       children: [

@@ -1,6 +1,6 @@
 # Alien AI Chrome extension (Remote)
 
-MV3 extension for **daily Chrome profile** remote control. Talks to `alienai_remote_browser.exe` via native messaging host `com.alienai.c35.remote`; WebRTC and pairing live in the Rust agent (see `_/docs/plans/2026-09-29-chrome-extension-remote-multitask.md`).
+MV3 extension for **daily Chrome profile** remote control. Talks to `alienai_remote_browser.exe` via native messaging host `com.alienai.c35.remote`; WebRTC and pairing live in the Rust agent (see `_/specs/plans/2026-09-29-chrome-extension-remote-multitask.md`).
 
 ## One-click install (Windows, Chito profile)
 

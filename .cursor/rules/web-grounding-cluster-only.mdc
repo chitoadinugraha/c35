@@ -32,7 +32,7 @@ This is **final** for Home chat, channels, and Live Call unless the user explici
 | Multi-query dossier | **`web.research`** |
 | When to search / force hop | **`inst.web_search`** + Rust web pipeline (`prompt-run-test.mdc` **Excluded: web pipeline**) |
 
-Docs: [`_/docs/chat.md`](../../_/docs/chat.md) (Web Grounding), [`_/docs/live-call.md`](../../_/docs/live-call.md) section 4.
+Docs: [`_/specs/chat.md`](../../_/specs/chat.md) (Web Grounding), [`_/specs/live-call.md`](../../_/specs/live-call.md) section 4.
 
 ## Agent checklist
 

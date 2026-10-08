@@ -30,4 +30,4 @@ When the user asks to **debug, fix, or test remote / computer use** (streaming, 
 3. `device_screenshot` or `device.command` (read-only) → verify capture path.
 4. Only then `device.input` / delegate for UI automation.
 
-Server allowlist: **33000** and **99000** only — see `_/docs/mcp-security.md`.
+Server allowlist: **33000** and **99000** only — see `_/specs/mcp-security.md`.

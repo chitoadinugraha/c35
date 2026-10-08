@@ -1,6 +1,6 @@
 ---
 description: Topic / tool / inst steering — confine with topic, steer with inst, fix wrong tools in order
-globs: servers/crates/mod_chat/**,_/schemas/inst.sql,_/schemas/topic.sql,_/docs/inst.md
+globs: servers/crates/mod_chat/**,_/schemas/inst.sql,_/schemas/topic.sql,_/specs/inst.md
 alwaysApply: false
 ---
 
@@ -10,9 +10,9 @@ Mirrored for Cursor: [`.cursor/rules/prompt-steering.mdc`](../../.cursor/rules/p
 
 Read before changing prompt behavior:
 
-- [`_/docs/inst.md`](../../_/docs/inst.md) — inst rows, triggers, compose pipeline
-- [`_/docs/mention.md`](../../_/docs/mention.md) — `[@kind:payload]` in message text, `mention_ids[]`, context preservation
-- [`_/docs/site-ai.md`](../../_/docs/site-ai.md) — tool metadata, multi-site context
+- [`_/specs/inst.md`](../../_/specs/inst.md) — inst rows, triggers, compose pipeline
+- [`_/specs/mention.md`](../../_/specs/mention.md) — `[@kind:payload]` in message text, `mention_ids[]`, context preservation
+- [`_/specs/site-ai.md`](../../_/specs/site-ai.md) — tool metadata, multi-site context
 - [`_/schemas/topic.sql`](../../_/schemas/topic.sql) — topic seeds + persona chain
 
 ## Three layers

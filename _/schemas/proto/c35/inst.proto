@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package c35;
 
-// Admin CRUD for ai.inst — see _/docs/inst.md
+// Admin CRUD for ai.inst — see _/specs/inst.md
 
 message InstDoc {
   string id = 1;

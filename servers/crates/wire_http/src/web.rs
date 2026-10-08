@@ -4,7 +4,7 @@ use axum::{
     http::{header, HeaderMap, HeaderValue, StatusCode},
     response::{IntoResponse, Redirect, Response},
     routing::get,
-    Router,
+    Json, Router,
 };
 use c35_ctx::AppState;
 use serde::Deserialize;
@@ -273,8 +273,27 @@ async fn download_agent_update_ps1() -> Response {
         .into_response()
 }
 
+async fn platform_home_get(State(state): State<AppState>) -> Response {
+    match c35_mod_site::platform_home_payload(&state.pool).await {
+        Ok(body) => (
+            StatusCode::OK,
+            [
+                (header::CONTENT_TYPE, "application/json"),
+                (header::CACHE_CONTROL, "public, max-age=30"),
+            ],
+            Json(body),
+        )
+            .into_response(),
+        Err(e) => {
+            tracing::warn!("platform-home: {e:#}");
+            (StatusCode::INTERNAL_SERVER_ERROR, "platform home unavailable").into_response()
+        }
+    }
+}
+
 pub fn web_router() -> Router<AppState> {
     Router::new()
+        .route("/v1/site/platform-home", get(platform_home_get))
         .route("/terms", get(|| page_get("terms.html")))
         .route("/terms.html", get(|| page_get("terms.html")))
         .route("/privacy", get(|| page_get("privacy.html")))

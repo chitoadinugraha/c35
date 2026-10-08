@@ -12,7 +12,7 @@ function Get-PublishTarExcludeArgs {
     return @(
         '--exclude=.git', '--exclude=.cache', '--exclude=**/.cache',
         '--exclude=.cursor', '--exclude=.agents', '--exclude=agent-transcripts',
-        '--exclude=terminals', '--exclude=**/*.md', '--exclude=_/docs',
+        '--exclude=terminals', '--exclude=**/*.md', '--exclude=_/specs',
         '--exclude=_/mcps', '--exclude=_/scripts', '--exclude=spec.md',
         '--exclude=**/.dart_tool', '--exclude=**/.cargo',
         '--exclude=**/target', '--exclude=**/build',

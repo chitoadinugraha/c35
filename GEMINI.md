@@ -1,13 +1,13 @@
 # Project Rules & Guidelines (`c35`)
 
-This workspace adheres to the unified project rules and documentation standards defined in `.cursor/rules/`, `spec.md`, and `_/docs/`.
+This workspace adheres to the unified project rules and documentation standards defined in `.cursor/rules/`, `spec.md`, and `_/specs/`.
 
 ---
 
 ## 1. Documentation & Specs (Read Before Implementing)
 
 - **Source of Truth**: Read [`spec.md`](./spec.md) for locked architectural decisions, phase scope, and the documentation index before implementing features or changing behavior.
-- **Module Specs**: Read the relevant module specifications under `_/docs/` (e.g. `identity.md`, `chat.md`, `ui.md`, `inst.md`, `remote-agent.md`).
+- **Module Specs**: Read the relevant module specifications under `_/specs/` (e.g. `identity.md`, `chat.md`, `ui.md`, `inst.md`, `remote-agent.md`).
 - **Schemas**: Inspect `_/schemas/` for SQL tables and Protobuf contracts when touching database models or wire types.
 - **Spec Precedence**: If code and documentation disagree, follow the documentation — or update the documentation first before implementing. Never invent architecture or scope beyond what the specs define.
 

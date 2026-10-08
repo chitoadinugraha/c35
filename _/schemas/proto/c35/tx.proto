@@ -3,7 +3,7 @@ syntax = "proto3";
 package c35;
 
 // Mirrors site.tx + child tables. Port: id.alienai tx.proto.
-// site_iid replaces aid. Tables in YSQL schema site. See _/docs/tx.md
+// site_iid replaces aid. Tables in YSQL schema site. See _/specs/tx.md
 
 enum TxInputSource {
   TX_INPUT_SOURCE_UNSPECIFIED = 0;

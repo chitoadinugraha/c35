@@ -5,7 +5,7 @@
 --
 -- Normalized infra vendor line items (OCI, GCP, CF, Wasabi) for platform P&L.
 -- Root-only ops — no owner_iid. Idempotent upsert on (vendor, external_ref).
--- See _/docs/plans/2026-09-24-platform-vendor-billing-multitask.md
+-- See _/specs/plans/2026-09-24-platform-vendor-billing-multitask.md
 -- ==============================================================================
 
 CREATE TABLE IF NOT EXISTS ai.platform_vendor_cost (

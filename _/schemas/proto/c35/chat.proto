@@ -4,7 +4,7 @@ package c35;
 
 import "c35/log.proto";
 
-// Mirrors ai.chat / chat_member / chat_msg. See _/docs/chat.md
+// Mirrors ai.chat / chat_member / chat_msg. See _/specs/chat.md
 // Home inbox: kind=prompt only. bot_peer on Bots page. direct deferred.
 
 enum ChatKind {

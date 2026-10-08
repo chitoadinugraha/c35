@@ -8,7 +8,7 @@ alwaysApply: false
 
 Mirrored for Antigravity: [`.agents/rules/user-app-nats.md`](../../.agents/rules/user-app-nats.md)
 
-Read [`_/docs/sync.md`](../../_/docs/sync.md) — **App realtime lane** section.
+Read [`_/specs/sync.md`](../../_/specs/sync.md) — **App realtime lane** section.
 
 ## Hard rule
 
@@ -24,7 +24,7 @@ Use helpers in `servers/crates/system/nats/src/user_app.rs` (`c35_nats::user_app
 
 | Use | Subject |
 |-----|---------|
-| Domain events / triggers | `c35.user.{iid}.ev.{slug}` — [`event.md`](../../_/docs/event.md) |
+| Domain events / triggers | `c35.user.{iid}.ev.{slug}` — [`event.md`](../../_/specs/event.md) |
 | LLM/tool trace | DB `ai.log` only |
 | JetStream work | `c35.prompt.run`, `c35.act.device.*`, … |
 | Server-internal cache | `c35.fetch.*`, `c35.inst.*` |

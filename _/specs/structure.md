@@ -1,0 +1,252 @@
+# Repository structure (LOCKED)
+
+Status: **locked** 2026-09-20
+
+How files are organized before and during implementation. Canonical specs stay in `_/`; runnable code in `servers/`, `remotes/`, `clients/`.
+
+## Top level
+
+```
+c35/
+  _/                         # source of truth
+    specs/                    # engineering specs (architecture, modules)
+    docs/                     # user guides rendered on the site
+    schemas/                  # *.sql + proto/c35/*.proto
+    scripts/                  # protoc, deploy helpers
+  servers/                    # Rust server workspace → .cache/server
+  remotes/                    # Rust agent workspace → .cache/c_remote (Phase 6)
+  clients/app/                # Flutter (Phase 2)
+  .cache/                     # gitignored cargo targets
+  spec.md                     # project spec — entry index → _/specs/
+  README.md                   # points at _/docs (guides) and _/specs
+```
+
+**Rules**
+
+- SQL and proto live only under `_/schemas/`. Crates **include** or **generate** from there — no forks.
+- Server library crates live under `servers/crates/` only (never repo-root `crates/`).
+- Add new `mod_*` crates when that roadmap phase starts — not all upfront.
+
+## Schema apply order
+
+```
+identity → billing → chat → log → embed → skill → task → consumption → site → tx → file (later)
+```
+
+Boot: `store::migrate::apply_all()` when `C35_DB_MIGRATE=1`.
+
+## Server workspace (Phase 1)
+
+```
+servers/
+  Cargo.toml                  # workspace members + shared deps
+  .cargo/config.toml          # target-dir = ../.cache/server
+  server_ai/                  # thin binary — boot, migrate, mount wire
+    Cargo.toml
+    .env.example
+    src/
+      main.rs
+      config.rs
+      boot.rs
+  fetcher/                    # thin binary — periodic external sync (c35-fetcher)
+    Cargo.toml
+    src/main.rs
+  node_stats/                 # thin binary — node metrics DaemonSet (c35-node-stats)
+    Cargo.toml
+    src/main.rs
+  crates/
+    mod_fetch/                # FetchTask trait + runner + NATS publish helper
+    proto/                    # prost codegen from _/schemas/proto
+      build.rs
+      src/lib.rs
+    store/                    # YB pool, migrate, since_list helpers
+      src/
+        lib.rs
+        pool.rs
+        migrate.rs
+        schema.rs
+    wire/                     # WireErr, pb helpers
+      src/lib.rs
+    wire_http/                # GET /health, /livez
+      src/lib.rs
+    wire_ws/                  # GET /v1/ws — WsReq/WsRes router
+      src/
+        lib.rs
+        session.rs
+        router.rs
+    system/
+      ctx/                    # AppState, Ctx { pool, caller_iid }
+        src/lib.rs
+      trace/                  # structured log → ai.log (stub Phase 1)
+        src/lib.rs
+    mod_identity/             # JWT, profile, nav, session_init
+      src/
+        lib.rs
+        auth_jwt.rs
+        identity_profile_get.rs
+        identity_nav_counts.rs
+        session_init.rs
+    mod_billing/              # billing_profile_get, billing_wallet_get (legacy: billing_account_get)
+      src/
+        lib.rs
+        billing_account_get.rs
+```
+
+### Phase 1+ crates (add folder when phase starts)
+
+| Phase | Crate |
+|-------|--------|
+| 3 | `mod_referral` |
+| 4 | `mod_chat` |
+| 5 | `mod_log` |
+| 6 | `mod_device` |
+| 7 | `mod_skill`, `mod_consumption`, `mod_llm` |
+| 8 | `mod_site` |
+| 9 | `mod_tx` |
+
+### Dependency direction
+
+```
+server_ai    → wire_ws, wire_http → mod_identity, mod_billing → store, proto
+             → system/ctx, system/trace
+server_fetcher → mod_fetch → mod_billing, mod_llm → store, proto
+```
+
+`mod_*` must not depend on `wire_ws`, `server_ai`, or `server_fetcher`.
+
+### Inside a `mod_*` crate
+
+One concern per file; names `domain_action`:
+
+```
+mod_identity/src/
+  identity_profile_get.rs
+  identity_put.rs
+  session_init.rs
+```
+
+Use `=================================` / `---------------------------------` section separators in larger files.
+
+## Flutter (Phase 2)
+
+```
+clients/app/
+  pubspec.yaml
+  lib/
+    main.dart
+    c/
+      conn/                   # WS, watermark, session_init
+      pb/                     # generated from _/schemas/proto
+      utils/ext/_log.dart
+    pages/
+      page_home.dart
+      page_bots.dart
+      page_devices.dart
+      page_sites.dart
+    widgets/
+      ui/                     # ui_appbar, ui_master_detail, ui_table, …
+      io/
+      in/
+```
+
+## Remotes (Phase 6)
+
+```
+remotes/
+  Cargo.toml
+  .cargo/config.toml
+  c_remote_core/                # all platforms
+    src/
+      lib.rs
+      config.rs                 # session_key path, server host
+      conn_ws.rs                # control plane to c35-server
+      conn_beacon.rs            # Alien Beacon fallback
+      pair.rs                   # register + poll HTTP client
+      session.rs                # server frame dispatch
+      task_run.rs               # ActDeviceTaskRun handler
+      task_report.rs            # EvDeviceTaskProgress / Done
+      presence.rs
+  c_remote_windows/
+    src/
+      main.rs
+      tray.rs
+      pair_window.rs            # Win32 large code UI (port cs_bots desktop_node)
+      task_exec.rs
+      act.rs
+      shell.rs
+      webrtc_session.rs         # human remote only
+      capture.rs
+      input_dc.rs
+  c_remote_android/
+    src/ …
+  c_remote_browser/             # Remote browser agent (Rust) — pair, WS, WebRTC, encode
+    src/
+      main.rs
+      pair_loop.rs
+      engine/
+        ipc.rs                  # localhost bridge to Node worker
+        process.rs
+      webrtc/
+        browser_input.rs
+        browser_video.rs        # JPEG → NV12 → H.264 (reuse video_stream patterns)
+      task/
+        browser_task.rs
+  browser_engine/               # Node + Playwright only (no server network)
+    package.json
+    src/
+      worker.ts
+      browser.ts
+      tabs.ts
+      slots.ts
+      steps.ts
+      screencast.ts
+```
+
+Agent UI is **Rust-only** on device (no Flutter on device). Desktop pair window: port `cs_bots/agents/desktop_node/src/pair_window.rs`. Remote browser: same pairing flow; v1 pair code in console or shared pair window skin.
+
+Implementation plan: [`plans/2026-09-29-remote-browser-multitask.md`](plans/2026-09-29-remote-browser-multitask.md). Spec: [`browser-remote.md`](browser-remote.md).
+
+Proto: path-dep `../servers/crates/proto` or `_/scripts/protoc.ps1`.
+
+Implementation plan: [`plans/2026-09-21-remote-agent-pairing.md`](plans/2026-09-21-remote-agent-pairing.md).
+
+## Config & env
+
+| Var | Purpose |
+|-----|---------|
+| `LISTEN` | HTTP bind (default `0.0.0.0:8080`) |
+| `C35_DB_MIGRATE` | `1` = apply `_/schemas/*.sql` on boot |
+| `YB_*` / `POSTGRES_*` | Yugabyte connection |
+| `PG_MAX_CONNECTIONS` | SQLx pool size per process (default `48`) |
+| `PG_MIN_CONNECTIONS` | Warm idle connections (default `12`) |
+| `PG_SLOW_STATEMENT_MS` | Log SQL slower than this at `WARN` via `sqlx::query` (default `1000`) |
+| `PG_SLOW_ACQUIRE_MS` | Log pool acquire slower than this (default `3000`) |
+| `PROMPT_RUN_MAX_CONCURRENT` | Max parallel JetStream prompt jobs per `server_ai` pod (default `8`) |
+| `IMAGE_OPTIMIZE_MAX_CONCURRENT` | Max parallel CAS image variant jobs per process (default `3`, clamp `1`–`8`) |
+| `C35_JWT_SECRET` | WS `?jwt=` validation |
+
+**Slow SQL:** app logs via `sqlx::query` when `duration >= PG_SLOW_STATEMENT_MS`. On pool saturation, `server_ai` also dumps `pg_stat_activity` in-flight queries and active `ai.prompt_run` rows (req_id + prompt preview). Yugabyte YSQL (Postgres-compatible) also supports cluster-side `log_min_duration_statement` and the `pg_stat_statements` extension — see [Yugabyte slow queries](https://docs.yugabyte.com/preview/explore/observability/pg-stat-statements/).
+| `NATS_URL` | optional Phase 5+ |
+
+See `servers/server_ai/.env.example`.
+
+## What not to create early
+
+- Empty `mod_site` / `mod_tx` crates until their phase
+- Duplicate proto under `clients/` by hand
+- Root-level `crates/` directory
+- `file.sql` until CAS strategy is locked
+
+## Implementation plans
+
+Ephemeral multitask plans: [`plans/`](plans/) (see also [README.md](README.md)).
+
+- [Mention brackets + chat cache sync](plans/2026-09-27-mention-brackets-chat-sync.md)
+- [Multitask streaming (delegate.run UX)](plans/2026-09-27-multitask-streaming.md) — Track A steering shipped; ops + B–F pending
+
+## Related docs
+
+- [mention.md](mention.md) — `[@kind:payload]` in message text, wire `mention_ids[]`, context preservation
+- [server.md](server.md) — crate roles, deployment
+- [roadmap.md](roadmap.md) — phase map
+- [architecture.md](architecture.md) — system overview

@@ -35,7 +35,7 @@ bool deviceOnlineFromMeta(String metaJson) {
 bool deviceClusterOnline(String metaJson, {bool remoteSessionActive = false}) =>
     deviceOnlineFromMeta(metaJson) || remoteSessionActive;
 
-/// `playwright` when absent — see _/docs/browser-extension.md.
+/// `playwright` when absent — see _/specs/browser-extension.md.
 String deviceBrowserEngineFromMeta(
   String metaJson, {
   String deviceName = '',

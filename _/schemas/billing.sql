@@ -3,7 +3,7 @@
 -- Apply after identity.sql
 -- Multi-wallet balances + profile quota + catalog prices
 -- Audit + cost rows: log.sql (single log table)
--- See _/docs/billing.md and _/docs/billing-implementation.md
+-- See _/specs/billing.md and _/specs/billing-implementation.md
 -- ==============================================================================
 
 -- ------------------------------------------------------------------------------
@@ -390,7 +390,7 @@ CREATE INDEX IF NOT EXISTS idx_billing_package_purchase_owner
 
 -- ------------------------------------------------------------------------------
 -- Plan catalog + scoped subscriptions (bot / device / personal)
--- See _/docs/billing-plans.md
+-- See _/specs/billing-plans.md
 -- ------------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS ai.billing_plan (

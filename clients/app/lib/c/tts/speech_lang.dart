@@ -1,4 +1,4 @@
-/// One supported speech locale. Add a new language by appending to [kSpeechLangs] — see `_/docs/speech_languages.md`.
+/// One supported speech locale. Add a new language by appending to [kSpeechLangs] — see `_/specs/speech_languages.md`.
 class SpeechLangDef {
   const SpeechLangDef({required this.locale, required this.label, required this.ttsTl, required this.flag, required this.hints, this.voiceNameHints = const []});
   final String locale;

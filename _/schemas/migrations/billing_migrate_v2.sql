@@ -2,7 +2,7 @@
 -- c35 — Billing v2 migration (billing_account → billing_profile + billing_wallet)
 -- One-time, idempotent migration script.
 -- Applies after billing.sql v2 schema tables exist.
--- See _/docs/billing.md and _/docs/billing-implementation.md Phase 1
+-- See _/specs/billing.md and _/specs/billing-implementation.md Phase 1
 -- ==============================================================================
 
 -- ------------------------------------------------------------------------------

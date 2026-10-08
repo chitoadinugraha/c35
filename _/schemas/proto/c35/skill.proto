@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package c35;
 
-// Mirrors ai.skill / skill_step. See _/docs/skill.md
+// Mirrors ai.skill / skill_step. See _/specs/skill.md
 
 enum SkillScope {
   SKILL_SCOPE_UNSPECIFIED = 0;

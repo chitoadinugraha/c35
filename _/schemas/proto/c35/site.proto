@@ -3,7 +3,7 @@ syntax = "proto3";
 package c35;
 
 // Site = identity(kind=site) + site.* payload tables (YSQL schema site).
-// Guest layout = block-composed SiteDoc. Admin = UITable + prompt. See _/docs/site.md
+// Guest layout = block-composed SiteDoc. Admin = UITable + prompt. See _/specs/site.md
 
 // ================================= Doc (presentation — not fixed CSA sections)
 

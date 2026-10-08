@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package c35;
 
-// Mirrors ai.log. See _/docs/log.md
+// Mirrors ai.log. See _/specs/log.md
 
 message Log {
   int64 id = 1;

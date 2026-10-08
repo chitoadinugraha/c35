@@ -69,7 +69,7 @@ def mcp_key() -> str:
     if not key:
         key = _mcp_json_env().get("C35_MCP_AGENT_KEY", "").strip()
     if not key:
-        raise RuntimeError("C35_MCP_AGENT_KEY required (see _/docs/mcp-security.md)")
+        raise RuntimeError("C35_MCP_AGENT_KEY required (see _/specs/mcp-security.md)")
     return key
 
 

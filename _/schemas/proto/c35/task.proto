@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package c35;
 
-// Mirrors ai.task / task_trigger / task_run. See _/docs/remote.md
+// Mirrors ai.task / task_trigger / task_run. See _/specs/remote.md
 
 enum TaskTriggerKind {
   TASK_TRIGGER_KIND_UNSPECIFIED = 0;

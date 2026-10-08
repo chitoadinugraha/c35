@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package c35;
 
-// Platform mail — see _/docs/plans/2026-09-26-site-domain-mail-multitask.md (M1 scaffold).
+// Platform mail — see _/specs/plans/2026-09-26-site-domain-mail-multitask.md (M1 scaffold).
 
 enum MailDirection {
   MAIL_DIRECTION_UNSPECIFIED = 0;

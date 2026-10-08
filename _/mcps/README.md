@@ -2,7 +2,7 @@
 
 Single project MCP for Cursor + Antigravity. v0.2.0 — inst, log, msg, prompt/tool via HTTP.
 
-**Security:** read [`_/docs/mcp-security.md`](../docs/mcp-security.md) before enabling agent HTTP or storing credentials in config.
+**Security:** read [`_/specs/mcp-security.md`](../docs/mcp-security.md) before enabling agent HTTP or storing credentials in config.
 
 Global YSQL: **`yb` / `alienai-yb`** in `~/.cursor/mcp.json`.
 

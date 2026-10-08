@@ -1,6 +1,6 @@
 # c35 — Alien AI Platform
 
-> **Status:** Architecture locked (2026-09-20). This file is the **project spec** entry point. Canonical module specs live in [`_/docs/`](_/docs/README.md).
+> **Status:** Architecture locked (2026-09-20). This file is the **project spec** entry point. Canonical module specs live in [`_/specs/`](_/specs/README.md). User guides the site renders live in [`_/docs/`](_/docs/README.md).
 
 ## Goal
 
@@ -13,7 +13,7 @@ c35/
   .cache/
     server/               # server cargo target (gitignored)
     agent/                # remote agent cargo target (gitignored)
-  _/                      # docs, scripts, schemas, mcps
+  _/                      # specs, user docs, scripts, schemas, mcps
   clients/app/            # Flutter (alienai)
   servers/                # server workspace (crates + server_ai binary)
   remotes/                # agent workspace (c_remote_*)
@@ -23,7 +23,7 @@ c35/
 
 | Topic | Decision |
 |-------|----------|
-| Identity | Unified `ai.identity` table; every actor gets snowflake `id` (iid) — see [`_/docs/snowflake.md`](_/docs/snowflake.md) |
+| Identity | Unified `ai.identity` table; every actor gets snowflake `id` (iid) — see [`_/specs/snowflake.md`](_/specs/snowflake.md) |
 | Kinds | `user` · `team` · `bot` · `remote` · `iot` · `site` |
 | Subtypes | `type` column (`windows`, `android`, `chat`, `switch`, `business`, …) |
 | Handle | Renamed to **`alien_id`** (globally unique, `[a-z0-9_-]`) |
@@ -39,12 +39,12 @@ c35/
 | Home inbox | **`prompt` AI chats only** — direct user↔user deferred |
 | Build cache | `.cache/server`, `.cache/c_remote` |
 
-Full detail: [`_/docs/architecture.md`](_/docs/architecture.md)
+Full detail: [`_/specs/architecture.md`](_/specs/architecture.md)
 
 ## Infrastructure
 
 - **YB** — primary store (`ai` platform + `site` payload + file CAS in `ai.file_blob_*`)
-- **NATS** — core pub/sub + JetStream (ephemeral); YB hydrate on recovery — [`_/docs/nats.md`](_/docs/nats.md)
+- **NATS** — core pub/sub + JetStream (ephemeral); YB hydrate on recovery — [`_/specs/nats.md`](_/specs/nats.md)
 - **WS / Alien Beacon** — client + device wire protocol
 - **Protobuf** — all RPC / sync messages
 
@@ -71,13 +71,13 @@ Self-learning skills, IoT firmware + Alien Beacon, MCP tools, skill marketplace,
 
 Avatar menu: profile/settings · partner/root · quota rings · (bots)(devices)(sites) with counts · referral · lock · logout.
 
-- Home = personal AI chat (binds to `user` identity, not a space). **Chat** and **Talk** are two surfaces on that same thread ([`_/docs/ui.md`](_/docs/ui.md#talk))
+- Home = personal AI chat (binds to `user` identity, not a space). **Chat** and **Talk** are two surfaces on that same thread ([`_/specs/ui.md`](_/specs/ui.md#talk))
 - Master/detail on large screens; drawer on small screens
 - Canvas = end drawer on mobile; toggle hidden when no canvas content
 - Chat: pin, archive, `#tag` from title, archive-below
 - Friendly errors only (never red screen); technical detail in server log
 
-Full UI spec: [`_/docs/ui.md`](_/docs/ui.md)
+Full UI spec: [`_/specs/ui.md`](_/specs/ui.md)
 
 ## Pairing
 
@@ -99,37 +99,37 @@ Full UI spec: [`_/docs/ui.md`](_/docs/ui.md)
 
 | Doc | Contents |
 |-----|----------|
-| [`_/docs/architecture.md`](_/docs/architecture.md) | Locked system design |
-| [`_/docs/identity.md`](_/docs/identity.md) | Identity kinds, grants, alien_id |
-| [`_/docs/referral.md`](_/docs/referral.md) | Referral forest, partner/director/root RBAC, admin audit events |
-| [`_/docs/chat.md`](_/docs/chat.md) | Chat; Home inbox = prompt only |
-| [`_/docs/mention.md`](_/docs/mention.md) | Mentions — bracket text `[@iid:…]`, wire `mention_ids[]`, reload context |
-| [`_/docs/inst.md`](_/docs/inst.md) | Instruction macros (`ai.inst`) — LLM prompt steering |
-| [`_/docs/sync.md`](_/docs/sync.md) | `_ts` fields, since-delta, indexes, NATS |
-| [`_/docs/data_source.md`](_/docs/data_source.md) | Bot data sources — cached Google Sheets (generic sync/chunk tables) |
-| [`_/docs/drive.md`](_/docs/drive.md) | Alien AI Drive — owner volume, agent A: mount, CAS + quotas |
-| [`_/docs/server.md`](_/docs/server.md) | Crate workspace layout |
-| [`_/docs/schema-migrate.md`](_/docs/schema-migrate.md) | YSQL schema bundle hash, boot skip, `c35_migrate` |
-| [`_/docs/ui.md`](_/docs/ui.md) | Pages, navigation, components |
-| [`_/docs/presentation.md`](_/docs/presentation.md) | Presentations — native Flutter slide decks, 16:9 preview, Option C patching, PPTX export |
-| [`_/docs/remote.md`](_/docs/remote.md) | Remote: agent control session + WebRTC data plane (screen, files, media), NATS task scheduler & computer use |
-| [`_/docs/browser-remote.md`](_/docs/browser-remote.md) | Remote browser (`type=browser`): Rust agent + Playwright sidecar, same WebRTC UX |
-| [`_/docs/plans/2026-09-29-chrome-extension-remote-multitask.md`](_/docs/plans/2026-09-29-chrome-extension-remote-multitask.md) | Chrome extension remote (daily profile): native host, pair web page, OTA, alienai.id download |
-| [`_/docs/browser-extension.md`](_/docs/browser-extension.md) | Chrome extension remote (locked spec) — created in CE-W1 Track A |
-| [`_/docs/remote-agent.md`](_/docs/remote-agent.md) | Remote agent architecture, multi-platform porting, OTA & watchdog spec |
-| [`_/docs/remote-android.md`](_/docs/remote-android.md) | Android Remote Agent (`id.alienai.remote`): dual-app model, WebRTC, MediaProjection, Accessibility & SoM |
+| [`_/specs/architecture.md`](_/specs/architecture.md) | Locked system design |
+| [`_/specs/identity.md`](_/specs/identity.md) | Identity kinds, grants, alien_id |
+| [`_/specs/referral.md`](_/specs/referral.md) | Referral forest, partner/director/root RBAC, admin audit events |
+| [`_/specs/chat.md`](_/specs/chat.md) | Chat; Home inbox = prompt only |
+| [`_/specs/mention.md`](_/specs/mention.md) | Mentions — bracket text `[@iid:…]`, wire `mention_ids[]`, reload context |
+| [`_/specs/inst.md`](_/specs/inst.md) | Instruction macros (`ai.inst`) — LLM prompt steering |
+| [`_/specs/sync.md`](_/specs/sync.md) | `_ts` fields, since-delta, indexes, NATS |
+| [`_/specs/data_source.md`](_/specs/data_source.md) | Bot data sources — cached Google Sheets (generic sync/chunk tables) |
+| [`_/specs/drive.md`](_/specs/drive.md) | Alien AI Drive — owner volume, agent A: mount, CAS + quotas |
+| [`_/specs/server.md`](_/specs/server.md) | Crate workspace layout |
+| [`_/specs/schema-migrate.md`](_/specs/schema-migrate.md) | YSQL schema bundle hash, boot skip, `c35_migrate` |
+| [`_/specs/ui.md`](_/specs/ui.md) | Pages, navigation, components |
+| [`_/specs/presentation.md`](_/specs/presentation.md) | Presentations — native Flutter slide decks, 16:9 preview, Option C patching, PPTX export |
+| [`_/specs/remote.md`](_/specs/remote.md) | Remote: agent control session + WebRTC data plane (screen, files, media), NATS task scheduler & computer use |
+| [`_/specs/browser-remote.md`](_/specs/browser-remote.md) | Remote browser (`type=browser`): Rust agent + Playwright sidecar, same WebRTC UX |
+| [`_/specs/plans/2026-09-29-chrome-extension-remote-multitask.md`](_/specs/plans/2026-09-29-chrome-extension-remote-multitask.md) | Chrome extension remote (daily profile): native host, pair web page, OTA, alienai.id download |
+| [`_/specs/browser-extension.md`](_/specs/browser-extension.md) | Chrome extension remote (locked spec) — created in CE-W1 Track A |
+| [`_/specs/remote-agent.md`](_/specs/remote-agent.md) | Remote agent architecture, multi-platform porting, OTA & watchdog spec |
+| [`_/specs/remote-android.md`](_/specs/remote-android.md) | Android Remote Agent (`id.alienai.remote`): dual-app model, WebRTC, MediaProjection, Accessibility & SoM |
 | [`_/schemas/identity.sql`](_/schemas/identity.sql) | Identity + grants DDL |
 | [`_/schemas/chat.sql`](_/schemas/chat.sql) | Chat + messages |
-| [`_/docs/billing.md`](_/docs/billing.md) | Multi-wallet billing, quota, commission |
-| [`_/docs/billing-implementation.md`](_/docs/billing-implementation.md) | Billing v2 rollout plan |
-| [`_/docs/log.md`](_/docs/log.md) | Audit log + billing trace |
+| [`_/specs/billing.md`](_/specs/billing.md) | Multi-wallet billing, quota, commission |
+| [`_/specs/billing-implementation.md`](_/specs/billing-implementation.md) | Billing v2 rollout plan |
+| [`_/specs/log.md`](_/specs/log.md) | Audit log + billing trace |
 | [`_/schemas/billing.sql`](_/schemas/billing.sql) | Billing DDL |
 | [`_/schemas/log.sql`](_/schemas/log.sql) | Log DDL |
-| [`_/docs/site.md`](_/docs/site.md) | Sites — `site.*` schema, UITable, guest URLs |
-| [`_/docs/mail.md`](_/docs/mail.md) | Platform mail — `mail.*`, CF onboard, vs `site.domain` HTTP |
-| [`_/docs/site-ai.md`](_/docs/site-ai.md) | Site @mentions, multi-site context, `site.query.run` catalog |
-| [`_/docs/site-builder.md`](_/docs/site-builder.md) | Conversational Site Builder — slide-deck pattern, Rust handle generator, block patching, token cache spec |
-| [`_/docs/tx.md`](_/docs/tx.md) | POS — `site.tx_*`, id.alienai UI + model |
+| [`_/specs/site.md`](_/specs/site.md) | Sites — `site.*` schema, UITable, guest URLs |
+| [`_/specs/mail.md`](_/specs/mail.md) | Platform mail — `mail.*`, CF onboard, vs `site.domain` HTTP |
+| [`_/specs/site-ai.md`](_/specs/site-ai.md) | Site @mentions, multi-site context, `site.query.run` catalog |
+| [`_/specs/site-builder.md`](_/specs/site-builder.md) | Conversational Site Builder — slide-deck pattern, Rust handle generator, block patching, token cache spec |
+| [`_/specs/tx.md`](_/specs/tx.md) | POS — `site.tx_*`, id.alienai UI + model |
 | [`_/schemas/site.sql`](_/schemas/site.sql) | Site DDL (`site` schema) |
 | [`_/schemas/tx.sql`](_/schemas/tx.sql) | POS DDL (`site.tx_*`) |
 | [`_/schemas/proto/`](_/schemas/proto/) | Protobuf wire (`c35/*.proto`) |

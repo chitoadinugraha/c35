@@ -1,6 +1,6 @@
-# SDD Progress — product default icon
+# SDD Progress ï¿½ product default icon
 
-Plan: _/docs/plans/2026-10-08-product-default-icon.md
+Plan: _/specs/plans/2026-10-08-product-default-icon.md
 Base: af9ec59
 Branch: main
 Commits: skipped unless the user asks

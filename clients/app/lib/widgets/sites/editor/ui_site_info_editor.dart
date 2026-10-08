@@ -9,6 +9,7 @@ import 'package:alienai_c35/c/media/image_generate_prompt.dart';
 import 'package:alienai_c35/c/media/media_types.dart';
 import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
+import 'package:alienai_c35/c/site/platform_site.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
 import 'package:alienai_c35/c/site/site_info_sync.dart';
 import 'package:alienai_c35/c/site/site_schedule.dart';
@@ -166,6 +167,7 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
   }
 
   Future<void> _changeHandle() async {
+    if (isPlatformSiteAlienId(widget.row.alienId)) return;
     final hasHandle = widget.row.alienId.trim().isNotEmpty;
     final picked = await ioSiteHandleClaimDialogOpen(
       context,
@@ -297,7 +299,10 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
     }
     final picUrl = _pic.isNotEmpty ? guestSitePicUrl(_pic) : '';
     final handle = widget.row.alienId.trim();
-    final handlePreview = handle.isNotEmpty ? '$siteUrlPrefix$handle' : 'Tap to claim your site link';
+    final platformHome = isPlatformSiteAlienId(handle);
+    final handlePreview = platformHome
+        ? 'alienai.id/alienai is not the public home — the public home is https://alienai.id/.'
+        : (handle.isNotEmpty ? '$siteUrlPrefix$handle' : 'Tap to claim your site link');
     return UiSiteEditorFormScroll(
       children: [
         const Text('Site info', style: TextStyle(color: _text, fontSize: 16, fontWeight: FontWeight.w600)),
@@ -323,29 +328,39 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
                 children: [
                   TextField(controller: _nameCtrl, style: const TextStyle(color: _text, fontSize: 14), decoration: _fieldDecoration('Site name')),
                   const SizedBox(height: 12),
-                  InkWell(
-                    onTap: () => unawaited(_changeHandle()),
-                    borderRadius: BorderRadius.circular(UiInputDecoration.kRadius),
-                    child: InputDecorator(
-                      decoration: UiInputDecoration.of(context, labelText: 'Site link'),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              handlePreview,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: handle.isNotEmpty ? _text : _muted,
-                              ),
+                  platformHome
+                      ? InputDecorator(
+                          decoration: UiInputDecoration.of(context, labelText: 'Site link'),
+                          child: Text(
+                            handlePreview,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 14, color: _text),
+                          ),
+                        )
+                      : InkWell(
+                          onTap: () => unawaited(_changeHandle()),
+                          borderRadius: BorderRadius.circular(UiInputDecoration.kRadius),
+                          child: InputDecorator(
+                            decoration: UiInputDecoration.of(context, labelText: 'Site link'),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    handlePreview,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: handle.isNotEmpty ? _text : _muted,
+                                    ),
+                                  ),
+                                ),
+                                Icon(Icons.chevron_right, size: 20, color: _muted.withValues(alpha: 0.7)),
+                              ],
                             ),
                           ),
-                          Icon(Icons.chevron_right, size: 20, color: _muted.withValues(alpha: 0.7)),
-                        ],
-                      ),
-                    ),
-                  ),
+                        ),
                 ],
               ),
             ),

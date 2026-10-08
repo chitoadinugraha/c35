@@ -2,7 +2,7 @@
 
 Singleton Deployment that periodically fetches external data (FX rates, LLM catalog), persists to YB, and publishes NATS updates for `c35-server` pods.
 
-Spec: [`_/docs/fetcher.md`](../../docs/fetcher.md)
+Spec: [`_/specs/fetcher.md`](../../docs/fetcher.md)
 
 ## Publish
 

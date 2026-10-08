@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package c35;
 
-// Alien AI Drive — see _/docs/drive.md
+// Alien AI Drive — see _/specs/drive.md
 
 message DriveFileEntry {
   string path = 1;

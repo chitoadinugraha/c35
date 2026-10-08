@@ -1,8 +1,9 @@
 use anyhow::{bail, Result};
 use c35_proto::{ReqSiteHandlePut, ResSiteHandlePut};
-use sqlx::PgPool;
+use sqlx::{PgPool, Row};
 
 use crate::grant::site_grant_check;
+use crate::platform_site::platform_site_handle_assign_check;
 use crate::slug::{site_slug_ensure_unique, site_slug_generate};
 
 const HANDLE_MIN_LEN: usize = 3;
@@ -57,6 +58,16 @@ pub async fn site_handle_put(
     }
     let _ = site_grant_check(pool, caller_iid, site_iid, false).await?;
     let clean = site_handle_normalize(&req.new_alien_id)?;
+    let current_row = sqlx::query(
+        "SELECT alien_id FROM ai.identity WHERE id = $1 AND kind = 'site' AND deleted_ts IS NULL",
+    )
+    .bind(site_iid)
+    .fetch_optional(pool)
+    .await?;
+    let current_alien = current_row
+        .and_then(|r| r.try_get::<Option<String>, _>("alien_id").ok().flatten())
+        .unwrap_or_default();
+    platform_site_handle_assign_check(&current_alien, &clean)?;
     handle_conflicts_with_site_id(pool, &clean, site_iid).await?;
     let unique_slug = site_slug_ensure_unique(pool, &clean, Some(site_iid)).await?;
     if unique_slug != clean {

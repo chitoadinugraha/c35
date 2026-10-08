@@ -27,7 +27,7 @@ List<String> composerMentionIdsParse(String text) =>
 final RegExp _composerMentionPlainIidRe = RegExp(r'\biid:\d+\b', caseSensitive: false);
 
 /// Bracket mention in stored / wire message text. `[@iid:<snowflake>]`, `[@catalog:<id>]`.
-/// Future kinds (e.g. `[@file:<hash>]`) extend the same pattern — see `_/docs/chat.md`.
+/// Future kinds (e.g. `[@file:<hash>]`) extend the same pattern — see `_/specs/chat.md`.
 final RegExp composerMentionBracketRe = RegExp(r'\[@(iid|catalog|drive):([^\]]+)\]', caseSensitive: false);
 
 String composerMentionBracketForId(String canonicalId) {
