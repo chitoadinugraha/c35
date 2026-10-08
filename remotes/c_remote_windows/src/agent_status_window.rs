@@ -5,6 +5,10 @@ static WANT_SHOW: AtomicBool = AtomicBool::new(false);
 static ACTION_TX: OnceLock<Option<tokio::sync::mpsc::UnboundedSender<crate::tray::TrayAction>>> =
     OnceLock::new();
 
+pub fn arm_show() {
+    WANT_SHOW.store(true, Ordering::SeqCst);
+}
+
 pub fn show_or_focus(hwnd_slot: &OnceLock<Mutex<isize>>) {
     WANT_SHOW.store(true, Ordering::SeqCst);
     if let Some(slot) = hwnd_slot.get() {
@@ -140,8 +144,8 @@ pub fn run(
     const CLR_DRIVE_BAR_OK: u32 = 0x0099D334;
     const CLR_DRIVE_BAR_HIGH: u32 = 0x004444EF;
 
-    const WIN_W: i32 = 400;
-    const WIN_H: i32 = 360;
+    const WIN_W: i32 = 480;
+    const WIN_H: i32 = 420;
     const WIN_MIN_W: i32 = 320;
     const WIN_MIN_H: i32 = 280;
     const TAB_STATUS: u8 = 0;
@@ -1199,21 +1203,19 @@ pub fn run(
                 if wparam.0 == 0 {
                     return DefWindowProcW(hwnd, msg, wparam, lparam);
                 }
+                // Leave rgrc[0] as the proposed window rect so the client fills
+                // the frame. Copying the previous client (rgrc[2]) left a white
+                // non-client band around a too-small paint area.
                 let params = lparam.0 as *mut NCCALCSIZE_PARAMS;
-                let _ = DefWindowProcW(hwnd, msg, wparam, lparam);
-                if !params.is_null() {
-                    if IsZoomed(hwnd).as_bool() {
-                        let pad = GetSystemMetrics(SM_CXPADDEDBORDER);
-                        let fx = GetSystemMetrics(SM_CXFRAME) + pad;
-                        let fy = GetSystemMetrics(SM_CYFRAME) + pad;
-                        let r = &mut (*params).rgrc[0];
-                        r.left += fx;
-                        r.right -= fx;
-                        r.top += fy;
-                        r.bottom -= fy;
-                    } else {
-                        (*params).rgrc[0] = (*params).rgrc[2];
-                    }
+                if !params.is_null() && IsZoomed(hwnd).as_bool() {
+                    let pad = GetSystemMetrics(SM_CXPADDEDBORDER);
+                    let fx = GetSystemMetrics(SM_CXFRAME) + pad;
+                    let fy = GetSystemMetrics(SM_CYFRAME) + pad;
+                    let r = &mut (*params).rgrc[0];
+                    r.left += fx;
+                    r.right -= fx;
+                    r.top += fy;
+                    r.bottom -= fy;
                 }
                 LRESULT(0)
             }
@@ -1284,6 +1286,13 @@ pub fn run(
         };
         RegisterClassExW(&wnd_class);
 
+        use windows::Win32::UI::HiDpi::GetDpiForSystem;
+        let dpi = {
+            let d = GetDpiForSystem();
+            if d == 0 { 96 } else { d }
+        };
+        let win_w = ((WIN_W as i64 * dpi as i64 + 48) / 96) as i32;
+        let win_h = ((WIN_H as i64 * dpi as i64 + 48) / 96) as i32;
         let cw = GetSystemMetrics(SM_CXSCREEN);
         let ch = GetSystemMetrics(SM_CYSCREEN);
         let hwnd = CreateWindowExW(
@@ -1291,10 +1300,10 @@ pub fn run(
             class_name,
             w!("Alien AI Agent"),
             WS_POPUP | WS_MINIMIZEBOX,
-            (cw - WIN_W) / 2,
-            (ch - WIN_H) / 2,
-            WIN_W,
-            WIN_H,
+            (cw - win_w) / 2,
+            (ch - win_h) / 2,
+            win_w,
+            win_h,
             HWND::default(),
             HMENU::default(),
             hinstance,

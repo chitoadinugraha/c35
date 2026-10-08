@@ -60,7 +60,7 @@ pub fn set_autostart_enabled(enabled: bool) -> Result<()> {
 
         if enabled {
             let exe_path = std::env::current_exe()?;
-            let val_str = format!("\"{}\"", exe_path.display());
+            let val_str = format!("\"{}\" --background", exe_path.display());
             let val_wide: Vec<u16> = val_str.encode_utf16().chain(std::iter::once(0)).collect();
 
             let bytes = std::slice::from_raw_parts(
@@ -144,6 +144,26 @@ pub fn prevent_sleep() {}
 
 #[cfg(not(windows))]
 pub fn ensure_firewall_and_network_ready() {}
+
+/// One agent per user session. `false` means another copy already holds the mutex.
+#[cfg(windows)]
+pub fn claim_single_instance() -> bool {
+    use windows::core::w;
+    use windows::Win32::Foundation::{GetLastError, SetLastError, WIN32_ERROR};
+    use windows::Win32::System::Threading::CreateMutexW;
+    unsafe {
+        SetLastError(WIN32_ERROR(0));
+        if CreateMutexW(None, true, w!("Local\\AlienAI.RemoteAgent.Instance")).is_err() {
+            return true;
+        }
+        GetLastError().0 != 183
+    }
+}
+
+#[cfg(not(windows))]
+pub fn claim_single_instance() -> bool {
+    true
+}
 
 /// Spawn a fresh agent process (same exe + args), then exit the current process.
 pub fn agent_restart_spawn() -> Result<()> {

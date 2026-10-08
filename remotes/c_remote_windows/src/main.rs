@@ -246,6 +246,15 @@ async fn main() {
     c_remote_core::log_local::init();
     c_remote_windows::agent_version::register();
 
+    if !c_remote_windows::startup::claim_single_instance() {
+        c_remote_windows::agent_window::signal_show_existing();
+        std::process::exit(0);
+    }
+    let background = std::env::args().any(|a| a == "--background");
+    if !background {
+        c_remote_windows::agent_window::arm_show();
+    }
+
     if is_dev_mode() {
         tokio::select! {
             r = run() => {
