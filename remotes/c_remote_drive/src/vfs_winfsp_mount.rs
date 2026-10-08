@@ -325,15 +325,21 @@ mod win_impl {
         volume_params.filesystem_name("AlienVFS");
         volume_params.case_preserved_names(true);
         volume_params.unicode_on_disk(true);
-        volume_params.persistent_acls(true);
+        // Empty security descriptors with persistent ACLs make Explorer skip the volume.
+        volume_params.persistent_acls(false);
         volume_params.post_cleanup_when_modified_only(true);
         volume_params.pass_query_directory_pattern(true);
         volume_params.flush_and_purge_on_cleanup(true);
         volume_params.file_info_timeout(1000);
         let mut host: FileSystemHost<AlienVfsContext, FineGuard> = FileSystemHost::new(volume_params, context)?;
         let _ = c_remote_core::win_powershell::program_status("subst", &[clean_drive, "/d"]);
-        info!("Mounting WinFsp virtual volume to {clean_drive} ...");
-        host.mount(clean_drive)?;
+        let mount_at = if clean_drive.ends_with('\\') {
+            clean_drive.to_string()
+        } else {
+            format!("{clean_drive}\\")
+        };
+        info!("Mounting WinFsp virtual volume to {mount_at} ...");
+        host.mount(&mount_at)?;
         host.start()?;
         info!(
             "Alien AI ({clean_drive}) mounted via WinFsp — {} GB total, {} GB free",

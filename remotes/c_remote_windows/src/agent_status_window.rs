@@ -34,8 +34,6 @@ struct StatusCopy {
     cloud_on: bool,
     user_app_connected: usize,
     webrtc_connecting: bool,
-    control_allowed: bool,
-    autostart: bool,
     update_staged: Option<i64>,
     update_check_msg: String,
     personal_package: String,
@@ -68,8 +66,6 @@ fn status_copy() -> StatusCopy {
         cloud_on: snap.ws_connected,
         user_app_connected: snap.user_app_lines.len(),
         webrtc_connecting: snap.webrtc_connecting,
-        control_allowed: snap.control_allowed,
-        autostart: snap.autostart_enabled,
         update_staged: snap.update_staged_version,
         update_check_msg: snap.last_update_check_msg.trim().to_string(),
         personal_package: {
@@ -97,7 +93,7 @@ pub fn run(
         BeginPaint, CreateFontW, CreatePen, CreateSolidBrush, DeleteObject, DrawTextW, Ellipse,
         EndPaint, FillRect, InvalidateRect, RoundRect, SelectObject, SetBkMode,
         SetTextColor, DEFAULT_CHARSET, DRAW_TEXT_FORMAT, DT_CENTER, DT_LEFT, DT_SINGLELINE,
-        DT_RIGHT, DT_VCENTER, FW_NORMAL, FW_SEMIBOLD, HDC, HFONT, HGDIOBJ,
+        DT_VCENTER, FW_NORMAL, FW_SEMIBOLD, HDC, HFONT, HGDIOBJ,
         OUT_DEFAULT_PRECIS, PAINTSTRUCT, PS_SOLID, TRANSPARENT,
         CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, FF_DONTCARE,
     };
@@ -113,7 +109,7 @@ pub fn run(
         WM_CLOSE, WM_CREATE, WM_DESTROY, WM_ERASEBKGND,
         WM_GETMINMAXINFO, WM_NCACTIVATE, WM_NCCALCSIZE,
         WM_LBUTTONDOWN, WM_MOUSEMOVE, WM_NCHITTEST, WM_PAINT, WM_SETICON, WM_SIZE, WM_TIMER,
-        WM_USER, WNDCLASSEXW, WS_EX_APPWINDOW, WS_MINIMIZEBOX, WS_POPUP,
+        WM_USER, WNDCLASSEXW, WS_EX_APPWINDOW, WS_MINIMIZEBOX, WS_POPUP, WS_THICKFRAME,
         HTCAPTION, HTCLIENT, HTLEFT, HTRIGHT, HTTOP, HTBOTTOM, HTTOPLEFT, HTTOPRIGHT,
         HTBOTTOMLEFT, HTBOTTOMRIGHT, IsZoomed, MINMAXINFO, NCCALCSIZE_PARAMS,
         SM_CXPADDEDBORDER, SM_CXFRAME, SM_CYFRAME,
@@ -477,8 +473,21 @@ pub fn run(
         scale.px(40)
     }
 
+    fn package_line(personal: &str, device: &str) -> String {
+        fn blank(s: &str) -> bool {
+            let t = s.trim();
+            t.is_empty() || t == "—" || t.eq_ignore_ascii_case("no device package")
+        }
+        let personal_name = if blank(personal) { "Personal" } else { personal.trim() };
+        if blank(device) {
+            format!("Package: Shared with {personal_name}")
+        } else {
+            format!("Package: {} · {personal_name}", device.trim())
+        }
+    }
+
     fn status_info_line_count(snap: &StatusCopy) -> i32 {
-        let mut n = 6i32;
+        let mut n = 4i32;
         if snap.update_staged.is_some() {
             n += 1;
         }
@@ -499,12 +508,12 @@ pub fn run(
         let margin = scale.px(16);
         let switch_w = scale.px(44);
         let switch_h = scale.px(22);
-        let row_h = scale.px(30);
+        let row_h = scale.px(42);
         let switch = RECT {
             left: rc.right - margin - switch_w,
-            top: top + (row_h - switch_h) / 2,
+            top: top + scale.px(1),
             right: rc.right - margin,
-            bottom: top + (row_h - switch_h) / 2 + switch_h,
+            bottom: top + scale.px(1) + switch_h,
         };
         let row = RECT {
             left: margin,
@@ -814,13 +823,7 @@ pub fn run(
                 format!("Device: {}", snap.device),
                 format!("Account: {}", snap.account),
                 snap.version.clone(),
-                format!("Package (personal): {}", snap.personal_package),
-                format!("Package (device): {}", snap.device_package),
-                format!(
-                    "Control: {} · Boot: {}",
-                    if snap.control_allowed { "allowed" } else { "blocked" },
-                    if snap.autostart { "on" } else { "off" }
-                ),
+                package_line(&snap.personal_package, &snap.device_package),
             ];
             if let Some(v) = snap.update_staged {
                 info_lines.push(format!("Update ready: build {v}"));
@@ -840,11 +843,9 @@ pub fn run(
 
             let drive_top = status_drive_top(scale, &snap);
             let (drive_row, drive_switch) = drive_row(scale, &rc, drive_top);
-            let row_mid_y = (drive_row.top + drive_row.bottom) / 2;
-            let label_w = scale.px(100);
-            let storage_text_w = scale.px(96);
-            let gap = scale.px(6);
-            let mid_right = drive_switch.left - gap;
+            let label_w = scale.px(108);
+            let gap = scale.px(8);
+            let title_bottom = drive_switch.bottom;
             draw_text(
                 hdc,
                 ctx.fonts.small,
@@ -852,21 +853,22 @@ pub fn run(
                 "Alien AI Drive",
                 RECT {
                     left: drive_row.left,
-                    top: drive_row.top,
+                    top: drive_switch.top,
                     right: drive_row.left + label_w,
-                    bottom: drive_row.bottom,
+                    bottom: title_bottom,
                 },
                 DT_LEFT | DT_SINGLELINE | DT_VCENTER,
             );
             let bar_left = drive_row.left + label_w + gap;
-            let bar_right = mid_right - storage_text_w - gap;
+            let bar_right = drive_switch.left - gap;
             if bar_right > bar_left {
-                let bar_h = scale.px(5);
+                let bar_h = scale.px(6);
+                let mid_y = (drive_switch.top + drive_switch.bottom) / 2;
                 let bar_rc = RECT {
                     left: bar_left,
-                    top: row_mid_y - bar_h / 2,
+                    top: mid_y - bar_h / 2,
                     right: bar_right,
-                    bottom: row_mid_y + bar_h / 2,
+                    bottom: mid_y + bar_h / 2,
                 };
                 if let Some(frac) = c_remote_core::agent_ui::drive_storage_usage_fraction() {
                     let used = c_remote_core::agent_ui::drive_storage_used_bytes().unwrap_or(0);
@@ -882,12 +884,12 @@ pub fn run(
                     CLR_MUTED,
                     label,
                     RECT {
-                        left: mid_right - storage_text_w,
-                        top: drive_row.top,
-                        right: mid_right,
+                        left: drive_row.left,
+                        top: title_bottom,
+                        right: drive_row.right,
                         bottom: drive_row.bottom,
                     },
-                    DT_RIGHT | DT_SINGLELINE | DT_VCENTER,
+                    DT_LEFT | DT_SINGLELINE | DT_VCENTER,
                 );
             }
             draw_toggle(hdc, scale, &drive_switch, snap.drive_enabled, ctx.drive_toggle_hover);
@@ -1299,7 +1301,7 @@ pub fn run(
             WS_EX_APPWINDOW,
             class_name,
             w!("Alien AI Agent"),
-            WS_POPUP | WS_MINIMIZEBOX,
+            WS_POPUP | WS_THICKFRAME | WS_MINIMIZEBOX,
             (cw - win_w) / 2,
             (ch - win_h) / 2,
             win_w,

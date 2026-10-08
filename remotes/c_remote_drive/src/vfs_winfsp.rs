@@ -126,9 +126,17 @@ pub fn mount_virtual_drive(vfs: &VfsDriveManager, quota: Option<QuotaSnapshot>) 
                 ) {
                     Ok(host) => {
                         Box::leak(Box::new(host));
-                        info!("WinFsp mount active for {}", vfs.drive_letter);
-                        update_explorer_quota_label(vfs, &quota);
-                        return Ok(());
+                        std::thread::sleep(std::time::Duration::from_millis(250));
+                        if vfs.is_mounted() {
+                            info!("WinFsp mount active for {}", vfs.drive_letter);
+                            update_explorer_quota_label(vfs, &quota);
+                            notify_explorer_drive(&vfs.drive_letter);
+                            return Ok(());
+                        }
+                        warn!(
+                            "WinFsp mount returned ok but {} is not visible; falling back to subst",
+                            vfs.drive_letter
+                        );
                     }
                     Err(e) => warn!("WinFsp mount failed ({e:#}); falling back to subst"),
                 },
@@ -137,8 +145,34 @@ pub fn mount_virtual_drive(vfs: &VfsDriveManager, quota: Option<QuotaSnapshot>) 
         }
     }
     vfs.mount_subst();
+    if !vfs.is_mounted() {
+        anyhow::bail!("Alien AI Drive is not visible after WinFsp and subst");
+    }
     update_explorer_quota_label(vfs, &quota);
+    notify_explorer_drive(&vfs.drive_letter);
     Ok(())
+}
+
+fn notify_explorer_drive(drive_letter: &str) {
+    #[cfg(target_os = "windows")]
+    {
+        let drive = drive_letter.trim_end_matches('\\');
+        let root = if drive.ends_with('\\') {
+            drive.to_string()
+        } else {
+            format!("{drive}\\")
+        };
+        let ps = format!(
+            "Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class AlienDriveNotify {{ [DllImport(\"shell32.dll\", CharSet=CharSet.Unicode)] public static extern void SHChangeNotify(uint ev, uint flags, string item1, System.IntPtr item2); }}' -ErrorAction SilentlyContinue; \
+             [AlienDriveNotify]::SHChangeNotify(0x100, 0x5, '{root}', [IntPtr]::Zero); \
+             [AlienDriveNotify]::SHChangeNotify(0x08000000, 0, $null, [IntPtr]::Zero);"
+        );
+        let _ = c_remote_core::win_powershell::command_status(&ps);
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = drive_letter;
+    }
 }
 
 pub fn update_explorer_quota_label(vfs: &VfsDriveManager, quota: &QuotaSnapshot) {

@@ -241,26 +241,35 @@ pub fn drive_storage_usage_fraction() -> Option<f64> {
     Some((used as f64 / limit as f64).clamp(0.0, 1.0))
 }
 
-/// Agent status row: one decimal for KB+ (e.g. `0.0 GB / 15.0 GB`).
+/// Agent status row: one unit at the end (e.g. `0 / 15 GB`).
 fn format_storage_pair_compact(used: i64, limit: i64) -> String {
     let scale = storage_unit_index(limit.max(0));
+    const UNITS: [&str; 5] = ["B", "KB", "MB", "GB", "TB"];
+    let unit = UNITS[scale.min(4) as usize];
+    if scale == 0 {
+        return format!(
+            "{} / {} {}",
+            format_integer_grouped(used.max(0)),
+            format_integer_grouped(limit.max(0)),
+            unit
+        );
+    }
+    let divisor = 1024u64.pow(scale) as f64;
     format!(
-        "{} / {}",
-        format_bytes_compact(used, scale),
-        format_bytes_compact(limit, scale)
+        "{} / {} {}",
+        format_storage_amount(used.max(0) as f64 / divisor),
+        format_storage_amount(limit.max(0) as f64 / divisor),
+        unit
     )
 }
 
-fn format_bytes_compact(bytes: i64, unit_index: u32) -> String {
-    const UNITS: [&str; 5] = ["B", "KB", "MB", "GB", "TB"];
-    let bytes = bytes.max(0);
-    let unit = UNITS[unit_index.min(4) as usize];
-    if unit_index == 0 {
-        return format!("{} {}", format_integer_grouped(bytes), unit);
+fn format_storage_amount(value: f64) -> String {
+    let rounded = value.round();
+    if (value - rounded).abs() < 0.05 {
+        format!("{}", rounded as i64)
+    } else {
+        format!("{value:.1}")
     }
-    let divisor = 1024u64.pow(unit_index) as f64;
-    let value = bytes as f64 / divisor;
-    format!("{:.1} {}", value, unit)
 }
 
 fn storage_unit_index(limit_bytes: i64) -> u32 {
@@ -304,17 +313,15 @@ mod drive_storage_format_tests {
     }
 
     #[test]
-    fn compact_pair_one_decimal_gb() {
+    fn compact_pair_one_unit_gb() {
         let limit = 15 * 1024 * 1024 * 1024;
         let label = format_storage_pair_compact(26_241, limit);
-        assert!(label.contains("0.0 GB"));
-        assert!(label.contains("15.0 GB"));
-        assert!(!label.contains("0.000"));
+        assert_eq!(label, "0 / 15 GB");
     }
 
     #[test]
     fn grouping_on_bytes() {
-        let s = format_bytes_compact(1_234_567, 0);
-        assert_eq!(s, "1,234,567 B");
+        let s = format_storage_pair_compact(1_234, 900);
+        assert_eq!(s, "1,234 / 900 B");
     }
 }
