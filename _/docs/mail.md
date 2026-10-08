@@ -1,6 +1,6 @@
 # Platform mail (LOCKED draft — Track D1)
 
-Status: **implemented (M2)** 2026-09-26 — `mod_mail` in `c35-server`; admin/group RPCs partial.
+Status: **implemented (M2)** 2026-09-26 (revised 2026-10-08 - domain purchase) — `mod_mail` in `c35-server`; admin/group RPCs partial.
 
 Platform email for c35 users and sites: personal **`{alien_id}@alienai.id`**, optional **site mailboxes**, and **customer mail domains** onboarded in Cloudflare (Email Sending + Email Routing). Implemented in Rust crate **`mod_mail`** (port from CSA `mod_mail` @ git `e34b9bf2` on `D:\csa_site_published`).
 
@@ -112,7 +112,7 @@ Attachments: client uploads to `/fs/{hash}` first; server validates paths exist 
 | DB | `site.domain.hostname`, `verified_ts`, `tls_status` | `mail.domain`, `mail.mailbox`, `mail.message` |
 | Orange `alienai.id` | Guest paths `/{alien_id}/…` only | Inbound `*@alienai.id` via CF routing to webhook |
 
-A customer can verify HTTP without mail onboard, and vice versa. Product UX may link the two later; **no shared verify RPC** in v1.
+Registrar purchase is in scope for domains bought from the site editor (see [site.md](site.md)). HTTP verify stays `site_domain_verify`. There is no shared verify RPC. After a bought hostname gets `verified_ts`, `mod_site` calls `mod_mail` to onboard the zone and create a site mailbox `{alien_id}@{hostname}`. BYO verify onboards mail only when Cloudflare already has the zone. Otherwise `mail_status` stays empty.
 
 ## Access control (c35 mapping)
 
@@ -140,11 +140,25 @@ Port message names from CSA `mail.proto` with c35 field renames:
 ]
 ```
 
+## Home assistant tools (M3)
+
+| Tool | RPC parity |
+|------|------------|
+| `mail.mailbox.list` | `mail_mailbox_list` |
+| `mail.list` | `mail_list` |
+| `mail.get` | `mail_get` |
+| `mail.send` | `mail_send` |
+| `mail.mark_read` | `mail_mark_read` |
+| `mail.archive` | `mail_archive` |
+
+Steering: `inst.task.mail_read`, `inst.task.mail_send`, `inst.task.mail_mailbox` in `inst.sql`. Live cluster: `inst_put` after deploy.
+
+Smoke: `_/scripts/dev/mail_send_e2e.ps1` (RPC + tools examples).
+
 ## Out of scope (this spec)
 
 - `mail_group` mailing lists (CSA table — later wave if needed).
 - Legacy `mail_account` table (replaced by personal `mail.mailbox`).
-- Domain registrar purchase flow.
 - Storing raw MIME in YB (bodies in row text fields + JSON attachments only).
 
 ## Verification (after M1+)

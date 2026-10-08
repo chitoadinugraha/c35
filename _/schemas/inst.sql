@@ -1580,6 +1580,100 @@ UPDATE ai.inst SET
     updated_ts = NOW()
 WHERE id = 'inst.task.bot_inbox';
 
+-- Seed: platform mail read (Home assistant)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.task.mail_read',
+    'global',
+    'task',
+    '',
+    '[MAIL READ] User wants to read, list, or check platform email (@alienai.id inbox). Call mail.mailbox.list when they need their address or have multiple mailboxes. Call mail.list with direction in for inbox or out for sent; then mail.get for full body. Summarize from tool JSON only. Use mail.mark_read after they finished reading a specific message.',
+    ARRAY[
+        'baca email', 'cek inbox', 'email terbaru', 'unread mail', 'read my email',
+        'kotak masuk', 'pesan masuk', 'list emails', 'apa isi email'
+    ],
+    ARRAY['tool_include:mail.list', 'tool_include:mail.get'],
+    ARRAY['mail.send', 'web.search'],
+    120,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO NOTHING;
+
+UPDATE ai.inst SET
+    inst = '[MAIL READ] User wants to read, list, or check platform email (@alienai.id inbox). Call mail.mailbox.list when they need their address or have multiple mailboxes. Call mail.list with direction in for inbox or out for sent; then mail.get for full body. Summarize from tool JSON only. Use mail.mark_read after they finished reading a specific message.',
+    phrases = ARRAY[
+        'baca email', 'cek inbox', 'email terbaru', 'unread mail', 'read my email',
+        'kotak masuk', 'pesan masuk', 'list emails', 'apa isi email'
+    ],
+    triggers = ARRAY['tool_include:mail.list', 'tool_include:mail.get'],
+    include_tools = ARRAY['mail.mailbox.list', 'mail.list', 'mail.get', 'mail.mark_read'],
+    exclude_tools = ARRAY['mail.send', 'web.search'],
+    priority = 120,
+    updated_ts = NOW()
+WHERE id = 'inst.task.mail_read';
+
+-- Seed: platform mail send (Home assistant)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.task.mail_send',
+    'global',
+    'task',
+    '',
+    '[MAIL SEND] User asks to send or compose email. Confirm to_addr, subject, and body_text from their message. Call mail.mailbox.list when from-address is ambiguous. Call mail.send once; report status and error from tool JSON (sent vs failed). Do not claim sent unless status is sent.',
+    ARRAY[
+        'kirim email', 'send email', 'email ke', 'compose email', 'balas email', 'kirim surat'
+    ],
+    ARRAY['tool_include:mail.send'],
+    ARRAY['web.search'],
+    121,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO NOTHING;
+
+UPDATE ai.inst SET
+    inst = '[MAIL SEND] User asks to send or compose email. Confirm to_addr, subject, and body_text from their message. Call mail.mailbox.list when from-address is ambiguous. Call mail.send once; report status and error from tool JSON (sent vs failed). Do not claim sent unless status is sent.',
+    phrases = ARRAY[
+        'kirim email', 'send email', 'email ke', 'compose email', 'balas email', 'kirim surat'
+    ],
+    triggers = ARRAY['tool_include:mail.send'],
+    include_tools = ARRAY['mail.mailbox.list', 'mail.send'],
+    exclude_tools = ARRAY['web.search'],
+    priority = 121,
+    updated_ts = NOW()
+WHERE id = 'inst.task.mail_send';
+
+-- Seed: platform mail address / mailboxes
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.task.mail_mailbox',
+    'global',
+    'task',
+    '',
+    '[MAIL ADDRESS] User asks for their AlienAI email address or which inboxes they have. Call mail.mailbox.list. For profile login email only (not @alienai.id mailbox), use account.get.',
+    ARRAY[
+        'email saya', 'alamat email alienai', 'my email address', 'which mailboxes', 'daftar inbox'
+    ],
+    ARRAY['tool_include:mail.mailbox.list'],
+    ARRAY['mail.mailbox.list'],
+    119,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO NOTHING;
+
+UPDATE ai.inst SET
+    inst = '[MAIL ADDRESS] User asks for their AlienAI email address or which inboxes they have. Call mail.mailbox.list. For profile login email only (not @alienai.id mailbox), use account.get.',
+    phrases = ARRAY[
+        'email saya', 'alamat email alienai', 'my email address', 'which mailboxes', 'daftar inbox'
+    ],
+    triggers = ARRAY['tool_include:mail.mailbox.list'],
+    include_tools = ARRAY['mail.mailbox.list'],
+    priority = 119,
+    updated_ts = NOW()
+WHERE id = 'inst.task.mail_mailbox';
+
 -- Seed: past conversation lookup (summary vs exact lines)
 INSERT INTO ai.inst (
     id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts

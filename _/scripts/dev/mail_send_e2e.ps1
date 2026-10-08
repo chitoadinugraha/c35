@@ -46,6 +46,8 @@ Push-Location (Join-Path $repoRoot 'servers')
 try {
     cargo run --example mail_send_live -p c35_mod_mail
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    cargo run --example mail_tools_live -p c35_mod_chat
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 finally {
     Pop-Location

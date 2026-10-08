@@ -20,6 +20,7 @@ mod site_query;
 mod site_tx;
 mod drive;
 mod gsheet;
+mod mail;
 mod memory;
 mod task;
 mod web_research;
@@ -34,6 +35,9 @@ pub use account::{
 pub use bot_draft::BotDraftTool;
 pub use bot_inbox::BotInboxQueryTool;
 pub use chat_history::{ChatMessagesTool, ChatSearchTool};
+pub use mail::{
+    MailArchiveTool, MailGetTool, MailListTool, MailMailboxListTool, MailMarkReadTool, MailSendTool,
+};
 pub use memory::{MemoryForgetTool, MemoryListTool, MemorySaveTool};
 pub use browser::{
     BrowserFileUploadTool, BrowserPageActTool, BrowserPageExtractTool, BrowserPageObserveTool,

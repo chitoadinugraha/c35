@@ -4,6 +4,7 @@ pub mod definition;
 pub mod dispatcher;
 pub mod egress_http;
 pub mod device_screenshot_artifact;
+pub mod asset_image;
 pub mod img;
 pub mod image_tier;
 pub mod media;
@@ -41,7 +42,8 @@ use builtin::{
     DeviceInputTool, DevicePairTool, DeviceScreenshotTool,
     ExpenseAddTool, ExpenseDeleteTool, ExpenseSummaryTool, ImgEditTool, ImgGenerateTool, MusicGenerateTool,
     VidGenerateTool,
-    ChatMessagesTool, ChatSearchTool, MemoryForgetTool, MemoryListTool, MemorySaveTool,
+    ChatMessagesTool, ChatSearchTool, MailArchiveTool, MailGetTool, MailListTool, MailMailboxListTool,
+    MailMarkReadTool, MailSendTool, MemoryForgetTool, MemoryListTool, MemorySaveTool,
     PresentationCreateTool, PresentationExportTool, PresentationPatchTool,
     PresentationSourceExtractTool, PresentationSourceStructureTool,
     PresentationVideoExtractTool, PresentationVideoStructureTool,
@@ -211,6 +213,12 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(ReferralCodeListTool));
     dispatcher.register(Arc::new(ReferralCodeDeleteTool));
     dispatcher.register(Arc::new(ReferralTreeGetTool));
+    dispatcher.register(Arc::new(MailMailboxListTool));
+    dispatcher.register(Arc::new(MailListTool));
+    dispatcher.register(Arc::new(MailGetTool));
+    dispatcher.register(Arc::new(MailSendTool));
+    dispatcher.register(Arc::new(MailMarkReadTool));
+    dispatcher.register(Arc::new(MailArchiveTool));
     dispatcher.register(Arc::new(AccountGetTool));
     dispatcher.register(Arc::new(AccountBillingGetTool));
     dispatcher.register(Arc::new(AccountBillingHistoryTool));
