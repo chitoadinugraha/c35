@@ -170,6 +170,9 @@ const SiteDomain$json = {
     {'1': 'verify_error', '3': 8, '4': 1, '5': 9, '10': 'verifyError'},
     {'1': 'tls_error', '3': 9, '4': 1, '5': 9, '10': 'tlsError'},
     {'1': 'last_verify_ts_ms', '3': 10, '4': 1, '5': 3, '10': 'lastVerifyTsMs'},
+    {'1': 'source', '3': 11, '4': 1, '5': 9, '10': 'source'},
+    {'1': 'mail_status', '3': 12, '4': 1, '5': 9, '10': 'mailStatus'},
+    {'1': 'mail_error', '3': 13, '4': 1, '5': 9, '10': 'mailError'},
     {'1': 'created_ts_ms', '3': 20, '4': 1, '5': 3, '10': 'createdTsMs'},
     {'1': 'updated_ts_ms', '3': 21, '4': 1, '5': 3, '10': 'updatedTsMs'},
     {'1': 'deleted_ts_ms', '3': 22, '4': 1, '5': 3, '10': 'deletedTsMs'},
@@ -183,9 +186,11 @@ final $typed_data.Uint8List siteDomainDescriptor = $convert.base64Decode(
     'YXJ5Eh0KCnRsc19zdGF0dXMYBSABKAlSCXRsc1N0YXR1cxIkCg52ZXJpZmllZF90c19tcxgGIA'
     'EoA1IMdmVyaWZpZWRUc01zEiEKDHZlcmlmeV90b2tlbhgHIAEoCVILdmVyaWZ5VG9rZW4SIQoM'
     'dmVyaWZ5X2Vycm9yGAggASgJUgt2ZXJpZnlFcnJvchIbCgl0bHNfZXJyb3IYCSABKAlSCHRsc0'
-    'Vycm9yEikKEWxhc3RfdmVyaWZ5X3RzX21zGAogASgDUg5sYXN0VmVyaWZ5VHNNcxIiCg1jcmVh'
-    'dGVkX3RzX21zGBQgASgDUgtjcmVhdGVkVHNNcxIiCg11cGRhdGVkX3RzX21zGBUgASgDUgt1cG'
-    'RhdGVkVHNNcxIiCg1kZWxldGVkX3RzX21zGBYgASgDUgtkZWxldGVkVHNNcw==');
+    'Vycm9yEikKEWxhc3RfdmVyaWZ5X3RzX21zGAogASgDUg5sYXN0VmVyaWZ5VHNNcxIWCgZzb3Vy'
+    'Y2UYCyABKAlSBnNvdXJjZRIfCgttYWlsX3N0YXR1cxgMIAEoCVIKbWFpbFN0YXR1cxIdCgptYW'
+    'lsX2Vycm9yGA0gASgJUgltYWlsRXJyb3ISIgoNY3JlYXRlZF90c19tcxgUIAEoA1ILY3JlYXRl'
+    'ZFRzTXMSIgoNdXBkYXRlZF90c19tcxgVIAEoA1ILdXBkYXRlZFRzTXMSIgoNZGVsZXRlZF90c1'
+    '9tcxgWIAEoA1ILZGVsZXRlZFRzTXM=');
 
 @$core.Deprecated('Use siteDraftDescriptor instead')
 const SiteDraft$json = {
@@ -1151,6 +1156,134 @@ const ResSiteDomainVerify$json = {
 final $typed_data.Uint8List resSiteDomainVerifyDescriptor = $convert.base64Decode(
     'ChNSZXNTaXRlRG9tYWluVmVyaWZ5EiEKDGRuc192ZXJpZmllZBgBIAEoCFILZG5zVmVyaWZpZW'
     'QSFAoFZXJyb3IYAiABKAlSBWVycm9yEh0KCnRsc19zdGF0dXMYAyABKAlSCXRsc1N0YXR1cw==');
+
+@$core.Deprecated('Use siteDomainSearchHitDescriptor instead')
+const SiteDomainSearchHit$json = {
+  '1': 'SiteDomainSearchHit',
+  '2': [
+    {'1': 'name', '3': 1, '4': 1, '5': 9, '10': 'name'},
+    {'1': 'registrable', '3': 2, '4': 1, '5': 8, '10': 'registrable'},
+    {'1': 'reason', '3': 3, '4': 1, '5': 9, '10': 'reason'},
+    {
+      '1': 'registration_cost',
+      '3': 4,
+      '4': 1,
+      '5': 9,
+      '10': 'registrationCost'
+    },
+    {'1': 'currency', '3': 5, '4': 1, '5': 9, '10': 'currency'},
+  ],
+};
+
+/// Descriptor for `SiteDomainSearchHit`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List siteDomainSearchHitDescriptor = $convert.base64Decode(
+    'ChNTaXRlRG9tYWluU2VhcmNoSGl0EhIKBG5hbWUYASABKAlSBG5hbWUSIAoLcmVnaXN0cmFibG'
+    'UYAiABKAhSC3JlZ2lzdHJhYmxlEhYKBnJlYXNvbhgDIAEoCVIGcmVhc29uEisKEXJlZ2lzdHJh'
+    'dGlvbl9jb3N0GAQgASgJUhByZWdpc3RyYXRpb25Db3N0EhoKCGN1cnJlbmN5GAUgASgJUghjdX'
+    'JyZW5jeQ==');
+
+@$core.Deprecated('Use reqSiteDomainSearchDescriptor instead')
+const ReqSiteDomainSearch$json = {
+  '1': 'ReqSiteDomainSearch',
+  '2': [
+    {'1': 'site_iid', '3': 1, '4': 1, '5': 3, '10': 'siteIid'},
+    {'1': 'query', '3': 2, '4': 1, '5': 9, '10': 'query'},
+  ],
+};
+
+/// Descriptor for `ReqSiteDomainSearch`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqSiteDomainSearchDescriptor = $convert.base64Decode(
+    'ChNSZXFTaXRlRG9tYWluU2VhcmNoEhkKCHNpdGVfaWlkGAEgASgDUgdzaXRlSWlkEhQKBXF1ZX'
+    'J5GAIgASgJUgVxdWVyeQ==');
+
+@$core.Deprecated('Use resSiteDomainSearchDescriptor instead')
+const ResSiteDomainSearch$json = {
+  '1': 'ResSiteDomainSearch',
+  '2': [
+    {
+      '1': 'hits',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.SiteDomainSearchHit',
+      '10': 'hits'
+    },
+  ],
+};
+
+/// Descriptor for `ResSiteDomainSearch`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resSiteDomainSearchDescriptor = $convert.base64Decode(
+    'ChNSZXNTaXRlRG9tYWluU2VhcmNoEiwKBGhpdHMYASADKAsyGC5jMzUuU2l0ZURvbWFpblNlYX'
+    'JjaEhpdFIEaGl0cw==');
+
+@$core.Deprecated('Use reqSiteDomainCheckDescriptor instead')
+const ReqSiteDomainCheck$json = {
+  '1': 'ReqSiteDomainCheck',
+  '2': [
+    {'1': 'site_iid', '3': 1, '4': 1, '5': 3, '10': 'siteIid'},
+    {'1': 'hostnames', '3': 2, '4': 3, '5': 9, '10': 'hostnames'},
+  ],
+};
+
+/// Descriptor for `ReqSiteDomainCheck`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqSiteDomainCheckDescriptor = $convert.base64Decode(
+    'ChJSZXFTaXRlRG9tYWluQ2hlY2sSGQoIc2l0ZV9paWQYASABKANSB3NpdGVJaWQSHAoJaG9zdG'
+    '5hbWVzGAIgAygJUglob3N0bmFtZXM=');
+
+@$core.Deprecated('Use resSiteDomainCheckDescriptor instead')
+const ResSiteDomainCheck$json = {
+  '1': 'ResSiteDomainCheck',
+  '2': [
+    {
+      '1': 'hits',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.SiteDomainSearchHit',
+      '10': 'hits'
+    },
+  ],
+};
+
+/// Descriptor for `ResSiteDomainCheck`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resSiteDomainCheckDescriptor = $convert.base64Decode(
+    'ChJSZXNTaXRlRG9tYWluQ2hlY2sSLAoEaGl0cxgBIAMoCzIYLmMzNS5TaXRlRG9tYWluU2Vhcm'
+    'NoSGl0UgRoaXRz');
+
+@$core.Deprecated('Use reqSiteDomainBuyDescriptor instead')
+const ReqSiteDomainBuy$json = {
+  '1': 'ReqSiteDomainBuy',
+  '2': [
+    {'1': 'site_iid', '3': 1, '4': 1, '5': 3, '10': 'siteIid'},
+    {'1': 'hostname', '3': 2, '4': 1, '5': 9, '10': 'hostname'},
+  ],
+};
+
+/// Descriptor for `ReqSiteDomainBuy`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqSiteDomainBuyDescriptor = $convert.base64Decode(
+    'ChBSZXFTaXRlRG9tYWluQnV5EhkKCHNpdGVfaWlkGAEgASgDUgdzaXRlSWlkEhoKCGhvc3RuYW'
+    '1lGAIgASgJUghob3N0bmFtZQ==');
+
+@$core.Deprecated('Use resSiteDomainBuyDescriptor instead')
+const ResSiteDomainBuy$json = {
+  '1': 'ResSiteDomainBuy',
+  '2': [
+    {
+      '1': 'domain',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.SiteDomain',
+      '10': 'domain'
+    },
+    {'1': 'error', '3': 2, '4': 1, '5': 9, '10': 'error'},
+  ],
+};
+
+/// Descriptor for `ResSiteDomainBuy`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resSiteDomainBuyDescriptor = $convert.base64Decode(
+    'ChBSZXNTaXRlRG9tYWluQnV5EicKBmRvbWFpbhgBIAEoCzIPLmMzNS5TaXRlRG9tYWluUgZkb2'
+    '1haW4SFAoFZXJyb3IYAiABKAlSBWVycm9y');
 
 @$core.Deprecated('Use reqSitePreviewTokenDescriptor instead')
 const ReqSitePreviewToken$json = {

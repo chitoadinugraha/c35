@@ -324,6 +324,9 @@ message WsReq {
     ReqSiteQueueList site_queue_list = 195;
     ReqSiteQueuePut site_queue_put = 196;
     ReqSiteQueueAdvance site_queue_advance = 197;
+    ReqSiteDomainSearch site_domain_search = 206;
+    ReqSiteDomainCheck site_domain_check = 207;
+    ReqSiteDomainBuy site_domain_buy = 208;
   }
 }
 
@@ -498,5 +501,8 @@ message WsRes {
     ResSiteQueueList site_queue_list = 195;
     ResSiteQueuePut site_queue_put = 196;
     ResSiteQueueAdvance site_queue_advance = 197;
+    ResSiteDomainSearch site_domain_search = 206;
+    ResSiteDomainCheck site_domain_check = 207;
+    ResSiteDomainBuy site_domain_buy = 208;
   }
 }

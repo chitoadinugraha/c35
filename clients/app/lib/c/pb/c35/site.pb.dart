@@ -451,6 +451,9 @@ class SiteDomain extends $pb.GeneratedMessage {
     $core.String? verifyError,
     $core.String? tlsError,
     $fixnum.Int64? lastVerifyTsMs,
+    $core.String? source,
+    $core.String? mailStatus,
+    $core.String? mailError,
     $fixnum.Int64? createdTsMs,
     $fixnum.Int64? updatedTsMs,
     $fixnum.Int64? deletedTsMs,
@@ -466,6 +469,9 @@ class SiteDomain extends $pb.GeneratedMessage {
     if (verifyError != null) result.verifyError = verifyError;
     if (tlsError != null) result.tlsError = tlsError;
     if (lastVerifyTsMs != null) result.lastVerifyTsMs = lastVerifyTsMs;
+    if (source != null) result.source = source;
+    if (mailStatus != null) result.mailStatus = mailStatus;
+    if (mailError != null) result.mailError = mailError;
     if (createdTsMs != null) result.createdTsMs = createdTsMs;
     if (updatedTsMs != null) result.updatedTsMs = updatedTsMs;
     if (deletedTsMs != null) result.deletedTsMs = deletedTsMs;
@@ -495,6 +501,9 @@ class SiteDomain extends $pb.GeneratedMessage {
     ..aOS(8, _omitFieldNames ? '' : 'verifyError')
     ..aOS(9, _omitFieldNames ? '' : 'tlsError')
     ..aInt64(10, _omitFieldNames ? '' : 'lastVerifyTsMs')
+    ..aOS(11, _omitFieldNames ? '' : 'source')
+    ..aOS(12, _omitFieldNames ? '' : 'mailStatus')
+    ..aOS(13, _omitFieldNames ? '' : 'mailError')
     ..aInt64(20, _omitFieldNames ? '' : 'createdTsMs')
     ..aInt64(21, _omitFieldNames ? '' : 'updatedTsMs')
     ..aInt64(22, _omitFieldNames ? '' : 'deletedTsMs')
@@ -610,30 +619,57 @@ class SiteDomain extends $pb.GeneratedMessage {
   @$pb.TagNumber(10)
   void clearLastVerifyTsMs() => $_clearField(10);
 
+  @$pb.TagNumber(11)
+  $core.String get source => $_getSZ(10);
+  @$pb.TagNumber(11)
+  set source($core.String value) => $_setString(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasSource() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearSource() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  $core.String get mailStatus => $_getSZ(11);
+  @$pb.TagNumber(12)
+  set mailStatus($core.String value) => $_setString(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasMailStatus() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearMailStatus() => $_clearField(12);
+
+  @$pb.TagNumber(13)
+  $core.String get mailError => $_getSZ(12);
+  @$pb.TagNumber(13)
+  set mailError($core.String value) => $_setString(12, value);
+  @$pb.TagNumber(13)
+  $core.bool hasMailError() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearMailError() => $_clearField(13);
+
   @$pb.TagNumber(20)
-  $fixnum.Int64 get createdTsMs => $_getI64(10);
+  $fixnum.Int64 get createdTsMs => $_getI64(13);
   @$pb.TagNumber(20)
-  set createdTsMs($fixnum.Int64 value) => $_setInt64(10, value);
+  set createdTsMs($fixnum.Int64 value) => $_setInt64(13, value);
   @$pb.TagNumber(20)
-  $core.bool hasCreatedTsMs() => $_has(10);
+  $core.bool hasCreatedTsMs() => $_has(13);
   @$pb.TagNumber(20)
   void clearCreatedTsMs() => $_clearField(20);
 
   @$pb.TagNumber(21)
-  $fixnum.Int64 get updatedTsMs => $_getI64(11);
+  $fixnum.Int64 get updatedTsMs => $_getI64(14);
   @$pb.TagNumber(21)
-  set updatedTsMs($fixnum.Int64 value) => $_setInt64(11, value);
+  set updatedTsMs($fixnum.Int64 value) => $_setInt64(14, value);
   @$pb.TagNumber(21)
-  $core.bool hasUpdatedTsMs() => $_has(11);
+  $core.bool hasUpdatedTsMs() => $_has(14);
   @$pb.TagNumber(21)
   void clearUpdatedTsMs() => $_clearField(21);
 
   @$pb.TagNumber(22)
-  $fixnum.Int64 get deletedTsMs => $_getI64(12);
+  $fixnum.Int64 get deletedTsMs => $_getI64(15);
   @$pb.TagNumber(22)
-  set deletedTsMs($fixnum.Int64 value) => $_setInt64(12, value);
+  set deletedTsMs($fixnum.Int64 value) => $_setInt64(15, value);
   @$pb.TagNumber(22)
-  $core.bool hasDeletedTsMs() => $_has(12);
+  $core.bool hasDeletedTsMs() => $_has(15);
   @$pb.TagNumber(22)
   void clearDeletedTsMs() => $_clearField(22);
 }
@@ -5130,6 +5166,491 @@ class ResSiteDomainVerify extends $pb.GeneratedMessage {
   $core.bool hasTlsStatus() => $_has(2);
   @$pb.TagNumber(3)
   void clearTlsStatus() => $_clearField(3);
+}
+
+class SiteDomainSearchHit extends $pb.GeneratedMessage {
+  factory SiteDomainSearchHit({
+    $core.String? name,
+    $core.bool? registrable,
+    $core.String? reason,
+    $core.String? registrationCost,
+    $core.String? currency,
+  }) {
+    final result = SiteDomainSearchHit._();
+    if (name != null) result.name = name;
+    if (registrable != null) result.registrable = registrable;
+    if (reason != null) result.reason = reason;
+    if (registrationCost != null) result.registrationCost = registrationCost;
+    if (currency != null) result.currency = currency;
+    return result;
+  }
+
+  SiteDomainSearchHit._();
+
+  factory SiteDomainSearchHit.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      SiteDomainSearchHit()..mergeFromBuffer(data, registry);
+  factory SiteDomainSearchHit.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      SiteDomainSearchHit()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'SiteDomainSearchHit',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: SiteDomainSearchHit.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'name')
+    ..aOB(2, _omitFieldNames ? '' : 'registrable')
+    ..aOS(3, _omitFieldNames ? '' : 'reason')
+    ..aOS(4, _omitFieldNames ? '' : 'registrationCost')
+    ..aOS(5, _omitFieldNames ? '' : 'currency')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SiteDomainSearchHit clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SiteDomainSearchHit copyWith(void Function(SiteDomainSearchHit) updates) =>
+      super.copyWith((message) => updates(message as SiteDomainSearchHit))
+          as SiteDomainSearchHit;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core
+      .Deprecated('Use SiteDomainSearchHit() / SiteDomainSearchHit.new instead')
+  static SiteDomainSearchHit create() => SiteDomainSearchHit._();
+  static $pb.GeneratedMessage $_createMessage() => SiteDomainSearchHit._();
+  @$core.override
+  SiteDomainSearchHit createEmptyInstance() => SiteDomainSearchHit._();
+  @$core.pragma('dart2js:noInline')
+  static SiteDomainSearchHit getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<SiteDomainSearchHit>(
+          SiteDomainSearchHit.$_createMessage);
+  static SiteDomainSearchHit? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get name => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set name($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasName() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearName() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.bool get registrable => $_getBF(1);
+  @$pb.TagNumber(2)
+  set registrable($core.bool value) => $_setBool(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasRegistrable() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearRegistrable() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get reason => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set reason($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasReason() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearReason() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get registrationCost => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set registrationCost($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasRegistrationCost() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearRegistrationCost() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get currency => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set currency($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasCurrency() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearCurrency() => $_clearField(5);
+}
+
+class ReqSiteDomainSearch extends $pb.GeneratedMessage {
+  factory ReqSiteDomainSearch({
+    $fixnum.Int64? siteIid,
+    $core.String? query,
+  }) {
+    final result = ReqSiteDomainSearch._();
+    if (siteIid != null) result.siteIid = siteIid;
+    if (query != null) result.query = query;
+    return result;
+  }
+
+  ReqSiteDomainSearch._();
+
+  factory ReqSiteDomainSearch.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteDomainSearch()..mergeFromBuffer(data, registry);
+  factory ReqSiteDomainSearch.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteDomainSearch()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqSiteDomainSearch',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqSiteDomainSearch.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'siteIid')
+    ..aOS(2, _omitFieldNames ? '' : 'query')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteDomainSearch clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteDomainSearch copyWith(void Function(ReqSiteDomainSearch) updates) =>
+      super.copyWith((message) => updates(message as ReqSiteDomainSearch))
+          as ReqSiteDomainSearch;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core
+      .Deprecated('Use ReqSiteDomainSearch() / ReqSiteDomainSearch.new instead')
+  static ReqSiteDomainSearch create() => ReqSiteDomainSearch._();
+  static $pb.GeneratedMessage $_createMessage() => ReqSiteDomainSearch._();
+  @$core.override
+  ReqSiteDomainSearch createEmptyInstance() => ReqSiteDomainSearch._();
+  @$core.pragma('dart2js:noInline')
+  static ReqSiteDomainSearch getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqSiteDomainSearch>(
+          ReqSiteDomainSearch.$_createMessage);
+  static ReqSiteDomainSearch? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get siteIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set siteIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSiteIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSiteIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get query => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set query($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasQuery() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearQuery() => $_clearField(2);
+}
+
+class ResSiteDomainSearch extends $pb.GeneratedMessage {
+  factory ResSiteDomainSearch({
+    $core.Iterable<SiteDomainSearchHit>? hits,
+  }) {
+    final result = ResSiteDomainSearch._();
+    if (hits != null) result.hits.addAll(hits);
+    return result;
+  }
+
+  ResSiteDomainSearch._();
+
+  factory ResSiteDomainSearch.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteDomainSearch()..mergeFromBuffer(data, registry);
+  factory ResSiteDomainSearch.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteDomainSearch()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResSiteDomainSearch',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResSiteDomainSearch.$_createMessage)
+    ..pPM<SiteDomainSearchHit>(1, _omitFieldNames ? '' : 'hits',
+        subBuilder: SiteDomainSearchHit.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteDomainSearch clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteDomainSearch copyWith(void Function(ResSiteDomainSearch) updates) =>
+      super.copyWith((message) => updates(message as ResSiteDomainSearch))
+          as ResSiteDomainSearch;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core
+      .Deprecated('Use ResSiteDomainSearch() / ResSiteDomainSearch.new instead')
+  static ResSiteDomainSearch create() => ResSiteDomainSearch._();
+  static $pb.GeneratedMessage $_createMessage() => ResSiteDomainSearch._();
+  @$core.override
+  ResSiteDomainSearch createEmptyInstance() => ResSiteDomainSearch._();
+  @$core.pragma('dart2js:noInline')
+  static ResSiteDomainSearch getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResSiteDomainSearch>(
+          ResSiteDomainSearch.$_createMessage);
+  static ResSiteDomainSearch? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<SiteDomainSearchHit> get hits => $_getList(0);
+}
+
+class ReqSiteDomainCheck extends $pb.GeneratedMessage {
+  factory ReqSiteDomainCheck({
+    $fixnum.Int64? siteIid,
+    $core.Iterable<$core.String>? hostnames,
+  }) {
+    final result = ReqSiteDomainCheck._();
+    if (siteIid != null) result.siteIid = siteIid;
+    if (hostnames != null) result.hostnames.addAll(hostnames);
+    return result;
+  }
+
+  ReqSiteDomainCheck._();
+
+  factory ReqSiteDomainCheck.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteDomainCheck()..mergeFromBuffer(data, registry);
+  factory ReqSiteDomainCheck.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteDomainCheck()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqSiteDomainCheck',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqSiteDomainCheck.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'siteIid')
+    ..pPS(2, _omitFieldNames ? '' : 'hostnames')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteDomainCheck clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteDomainCheck copyWith(void Function(ReqSiteDomainCheck) updates) =>
+      super.copyWith((message) => updates(message as ReqSiteDomainCheck))
+          as ReqSiteDomainCheck;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqSiteDomainCheck() / ReqSiteDomainCheck.new instead')
+  static ReqSiteDomainCheck create() => ReqSiteDomainCheck._();
+  static $pb.GeneratedMessage $_createMessage() => ReqSiteDomainCheck._();
+  @$core.override
+  ReqSiteDomainCheck createEmptyInstance() => ReqSiteDomainCheck._();
+  @$core.pragma('dart2js:noInline')
+  static ReqSiteDomainCheck getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqSiteDomainCheck>(
+          ReqSiteDomainCheck.$_createMessage);
+  static ReqSiteDomainCheck? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get siteIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set siteIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSiteIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSiteIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $pb.PbList<$core.String> get hostnames => $_getList(1);
+}
+
+class ResSiteDomainCheck extends $pb.GeneratedMessage {
+  factory ResSiteDomainCheck({
+    $core.Iterable<SiteDomainSearchHit>? hits,
+  }) {
+    final result = ResSiteDomainCheck._();
+    if (hits != null) result.hits.addAll(hits);
+    return result;
+  }
+
+  ResSiteDomainCheck._();
+
+  factory ResSiteDomainCheck.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteDomainCheck()..mergeFromBuffer(data, registry);
+  factory ResSiteDomainCheck.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteDomainCheck()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResSiteDomainCheck',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResSiteDomainCheck.$_createMessage)
+    ..pPM<SiteDomainSearchHit>(1, _omitFieldNames ? '' : 'hits',
+        subBuilder: SiteDomainSearchHit.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteDomainCheck clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteDomainCheck copyWith(void Function(ResSiteDomainCheck) updates) =>
+      super.copyWith((message) => updates(message as ResSiteDomainCheck))
+          as ResSiteDomainCheck;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResSiteDomainCheck() / ResSiteDomainCheck.new instead')
+  static ResSiteDomainCheck create() => ResSiteDomainCheck._();
+  static $pb.GeneratedMessage $_createMessage() => ResSiteDomainCheck._();
+  @$core.override
+  ResSiteDomainCheck createEmptyInstance() => ResSiteDomainCheck._();
+  @$core.pragma('dart2js:noInline')
+  static ResSiteDomainCheck getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResSiteDomainCheck>(
+          ResSiteDomainCheck.$_createMessage);
+  static ResSiteDomainCheck? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<SiteDomainSearchHit> get hits => $_getList(0);
+}
+
+class ReqSiteDomainBuy extends $pb.GeneratedMessage {
+  factory ReqSiteDomainBuy({
+    $fixnum.Int64? siteIid,
+    $core.String? hostname,
+  }) {
+    final result = ReqSiteDomainBuy._();
+    if (siteIid != null) result.siteIid = siteIid;
+    if (hostname != null) result.hostname = hostname;
+    return result;
+  }
+
+  ReqSiteDomainBuy._();
+
+  factory ReqSiteDomainBuy.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteDomainBuy()..mergeFromBuffer(data, registry);
+  factory ReqSiteDomainBuy.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteDomainBuy()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqSiteDomainBuy',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqSiteDomainBuy.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'siteIid')
+    ..aOS(2, _omitFieldNames ? '' : 'hostname')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteDomainBuy clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteDomainBuy copyWith(void Function(ReqSiteDomainBuy) updates) =>
+      super.copyWith((message) => updates(message as ReqSiteDomainBuy))
+          as ReqSiteDomainBuy;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqSiteDomainBuy() / ReqSiteDomainBuy.new instead')
+  static ReqSiteDomainBuy create() => ReqSiteDomainBuy._();
+  static $pb.GeneratedMessage $_createMessage() => ReqSiteDomainBuy._();
+  @$core.override
+  ReqSiteDomainBuy createEmptyInstance() => ReqSiteDomainBuy._();
+  @$core.pragma('dart2js:noInline')
+  static ReqSiteDomainBuy getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ReqSiteDomainBuy>(
+          ReqSiteDomainBuy.$_createMessage);
+  static ReqSiteDomainBuy? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get siteIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set siteIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSiteIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSiteIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get hostname => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set hostname($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasHostname() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearHostname() => $_clearField(2);
+}
+
+class ResSiteDomainBuy extends $pb.GeneratedMessage {
+  factory ResSiteDomainBuy({
+    SiteDomain? domain,
+    $core.String? error,
+  }) {
+    final result = ResSiteDomainBuy._();
+    if (domain != null) result.domain = domain;
+    if (error != null) result.error = error;
+    return result;
+  }
+
+  ResSiteDomainBuy._();
+
+  factory ResSiteDomainBuy.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteDomainBuy()..mergeFromBuffer(data, registry);
+  factory ResSiteDomainBuy.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteDomainBuy()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResSiteDomainBuy',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResSiteDomainBuy.$_createMessage)
+    ..aOM<SiteDomain>(1, _omitFieldNames ? '' : 'domain',
+        subBuilder: SiteDomain.$_createMessage)
+    ..aOS(2, _omitFieldNames ? '' : 'error')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteDomainBuy clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteDomainBuy copyWith(void Function(ResSiteDomainBuy) updates) =>
+      super.copyWith((message) => updates(message as ResSiteDomainBuy))
+          as ResSiteDomainBuy;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResSiteDomainBuy() / ResSiteDomainBuy.new instead')
+  static ResSiteDomainBuy create() => ResSiteDomainBuy._();
+  static $pb.GeneratedMessage $_createMessage() => ResSiteDomainBuy._();
+  @$core.override
+  ResSiteDomainBuy createEmptyInstance() => ResSiteDomainBuy._();
+  @$core.pragma('dart2js:noInline')
+  static ResSiteDomainBuy getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ResSiteDomainBuy>(
+          ResSiteDomainBuy.$_createMessage);
+  static ResSiteDomainBuy? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  SiteDomain get domain => $_getN(0);
+  @$pb.TagNumber(1)
+  set domain(SiteDomain value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasDomain() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearDomain() => $_clearField(1);
+  @$pb.TagNumber(1)
+  SiteDomain ensureDomain() => $_ensure(0);
+
+  @$pb.TagNumber(2)
+  $core.String get error => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set error($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasError() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearError() => $_clearField(2);
 }
 
 class ReqSitePreviewToken extends $pb.GeneratedMessage {

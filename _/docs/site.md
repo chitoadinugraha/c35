@@ -1,6 +1,6 @@
 # Site (LOCKED)
 
-Status: **locked** 2026-09-21 (revised 2026-09-26 — custom domain DNS/TLS)
+Status: **locked** 2026-09-21 (revised 2026-10-08 - domain purchase)
 
 Prompt-built websites and business storefronts.
 
@@ -28,7 +28,7 @@ site.config                capabilities, tz, costing
 site.draft                 SiteDoc JSON (presentation)
 site.publish               immutable snapshots + render_hash
 site.render                compiled HTML bytes (guest serve)
-site.domain                custom hostname + tls_status
+site.domain                custom hostname + tls_status + source (byo | bought)
 site.product               catalog (+ site.product_embed sub-rows)
 site.contact               CRM / tx subject
 site.object                tables, rooms, units
@@ -61,6 +61,14 @@ Customers attach their own hostname to a published site. **Do not** point DNS at
 Platform DNS: **`site.alienai.id`** → cluster origin (grey, same IP as `api.alienai.id`). It is a **platform host**, not a `site.domain` row — `host_is_primary("site.alienai.id")` is true.
 
 **Verify** (RPC `site_domain_verify`): hostname must CNAME-chain to `C35_DOMAIN_CNAME_TARGET` **or** apex A/AAAA must match that target’s resolved addresses. One verified hostname → one site (`uq_site_domain_hostname`); `www` and apex are separate rows.
+
+**Source:** `site.domain.source` is `byo` (default) or `bought`.
+
+**Bring-your-own:** at most one unverified hostname. `site_domain_list` soft-deletes unverified `byo` rows older than 24 hours (`created_ts`).
+
+**Bought:** Cloudflare Registrar purchase paid from the owner wallet. The platform sets a grey CNAME to `site.alienai.id`. The row is not removed by the 24h sweep. Removing it in the editor does not refund or delete the Cloudflare registration.
+
+After a bought hostname verifies, mail is onboarded (see [mail.md](mail.md)). BYO mail only if the zone is already in our Cloudflare account.
 
 ### TLS (origin, cert-manager)
 
@@ -243,6 +251,7 @@ RPC summary:
 - `ReqSitePublish` — render + activate
 - `ReqSiteProduct*` / `ReqSiteContact*` / `ReqSiteObject*` — data CRUD
 - `ReqSiteDomainPut/Verify` — custom domain attachment and verification
+- `ReqSiteDomainSearch` / `ReqSiteDomainCheck` / `ReqSiteDomainBuy` — registrar search, quote check, and wallet purchase
 - `ReqCollectionDefList` — UITable column metadata
 - `ReqSiteGuestOrderPut/Get` — guest storefront checkout and order status
 - `ReqSiteGuestContactPut` — guest contact form submission

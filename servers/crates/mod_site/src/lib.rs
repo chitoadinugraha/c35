@@ -1,4 +1,10 @@
+mod cloudflare_registrar;
 mod collection_def;
+
+pub use cloudflare_registrar::{
+    cf_dns_cname_grey, cf_domain_check, cf_domain_register, cf_domain_search, registrar_config,
+    CfRegistration, DomainHit,
+};
 pub mod doc;
 pub mod grant;
 mod http;
@@ -14,6 +20,7 @@ mod site_link;
 mod site_post;
 mod dns_verify;
 mod site_domain;
+mod site_domain_buy;
 mod site_grant;
 mod site_draft;
 mod site_boot;
@@ -47,7 +54,12 @@ pub use site_post::{
     post_boot_summary_json, site_post_boot_summaries, site_post_delete, site_post_get_storefront,
     site_post_list, site_post_put, site_post_storefront_ids, site_post_upsert, SITE_POST_BOOT_CAP,
 };
-pub use site_domain::{site_domain_list, site_domain_put, site_domain_verify};
+pub use site_domain::{
+    byo_unverified_expires, site_domain_list, site_domain_put, site_domain_verify,
+};
+pub use site_domain_buy::{
+    buy_quote_ok, domain_mail_after_verify, site_domain_buy, site_domain_check, site_domain_search,
+};
 pub use dns_verify::{cname_destination_matches, domain_cname_target};
 pub use commerce_boot::{commerce_boot_build, order_progress_steps_json, site_published_meta_json};
 pub use site_boot::{site_boot_get, site_boot_json_assemble};

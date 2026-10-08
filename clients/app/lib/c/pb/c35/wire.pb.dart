@@ -3066,6 +3066,9 @@ enum WsReq_Body {
   siteQueueList,
   siteQueuePut,
   siteQueueAdvance,
+  siteDomainSearch,
+  siteDomainCheck,
+  siteDomainBuy,
   notSet
 }
 
@@ -3210,6 +3213,9 @@ class WsReq extends $pb.GeneratedMessage {
     $17.ReqSiteQueueList? siteQueueList,
     $17.ReqSiteQueuePut? siteQueuePut,
     $17.ReqSiteQueueAdvance? siteQueueAdvance,
+    $17.ReqSiteDomainSearch? siteDomainSearch,
+    $17.ReqSiteDomainCheck? siteDomainCheck,
+    $17.ReqSiteDomainBuy? siteDomainBuy,
   }) {
     final result = WsReq._();
     if (reqId != null) result.reqId = reqId;
@@ -3372,6 +3378,9 @@ class WsReq extends $pb.GeneratedMessage {
     if (siteQueueList != null) result.siteQueueList = siteQueueList;
     if (siteQueuePut != null) result.siteQueuePut = siteQueuePut;
     if (siteQueueAdvance != null) result.siteQueueAdvance = siteQueueAdvance;
+    if (siteDomainSearch != null) result.siteDomainSearch = siteDomainSearch;
+    if (siteDomainCheck != null) result.siteDomainCheck = siteDomainCheck;
+    if (siteDomainBuy != null) result.siteDomainBuy = siteDomainBuy;
     return result;
   }
 
@@ -3522,6 +3531,9 @@ class WsReq extends $pb.GeneratedMessage {
     195: WsReq_Body.siteQueueList,
     196: WsReq_Body.siteQueuePut,
     197: WsReq_Body.siteQueueAdvance,
+    206: WsReq_Body.siteDomainSearch,
+    207: WsReq_Body.siteDomainCheck,
+    208: WsReq_Body.siteDomainBuy,
     0: WsReq_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -3665,7 +3677,10 @@ class WsReq extends $pb.GeneratedMessage {
       194,
       195,
       196,
-      197
+      197,
+      206,
+      207,
+      208
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$13.ReqSessionInit>(2, _omitFieldNames ? '' : 'sessionInit',
@@ -3979,6 +3994,13 @@ class WsReq extends $pb.GeneratedMessage {
     ..aOM<$17.ReqSiteQueueAdvance>(
         197, _omitFieldNames ? '' : 'siteQueueAdvance',
         subBuilder: $17.ReqSiteQueueAdvance.$_createMessage)
+    ..aOM<$17.ReqSiteDomainSearch>(
+        206, _omitFieldNames ? '' : 'siteDomainSearch',
+        subBuilder: $17.ReqSiteDomainSearch.$_createMessage)
+    ..aOM<$17.ReqSiteDomainCheck>(207, _omitFieldNames ? '' : 'siteDomainCheck',
+        subBuilder: $17.ReqSiteDomainCheck.$_createMessage)
+    ..aOM<$17.ReqSiteDomainBuy>(208, _omitFieldNames ? '' : 'siteDomainBuy',
+        subBuilder: $17.ReqSiteDomainBuy.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -4138,6 +4160,9 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(195)
   @$pb.TagNumber(196)
   @$pb.TagNumber(197)
+  @$pb.TagNumber(206)
+  @$pb.TagNumber(207)
+  @$pb.TagNumber(208)
   WsReq_Body whichBody() => _WsReq_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(3)
@@ -4276,6 +4301,9 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(195)
   @$pb.TagNumber(196)
   @$pb.TagNumber(197)
+  @$pb.TagNumber(206)
+  @$pb.TagNumber(207)
+  @$pb.TagNumber(208)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -5826,6 +5854,39 @@ class WsReq extends $pb.GeneratedMessage {
   void clearSiteQueueAdvance() => $_clearField(197);
   @$pb.TagNumber(197)
   $17.ReqSiteQueueAdvance ensureSiteQueueAdvance() => $_ensure(137);
+
+  @$pb.TagNumber(206)
+  $17.ReqSiteDomainSearch get siteDomainSearch => $_getN(138);
+  @$pb.TagNumber(206)
+  set siteDomainSearch($17.ReqSiteDomainSearch value) => $_setField(206, value);
+  @$pb.TagNumber(206)
+  $core.bool hasSiteDomainSearch() => $_has(138);
+  @$pb.TagNumber(206)
+  void clearSiteDomainSearch() => $_clearField(206);
+  @$pb.TagNumber(206)
+  $17.ReqSiteDomainSearch ensureSiteDomainSearch() => $_ensure(138);
+
+  @$pb.TagNumber(207)
+  $17.ReqSiteDomainCheck get siteDomainCheck => $_getN(139);
+  @$pb.TagNumber(207)
+  set siteDomainCheck($17.ReqSiteDomainCheck value) => $_setField(207, value);
+  @$pb.TagNumber(207)
+  $core.bool hasSiteDomainCheck() => $_has(139);
+  @$pb.TagNumber(207)
+  void clearSiteDomainCheck() => $_clearField(207);
+  @$pb.TagNumber(207)
+  $17.ReqSiteDomainCheck ensureSiteDomainCheck() => $_ensure(139);
+
+  @$pb.TagNumber(208)
+  $17.ReqSiteDomainBuy get siteDomainBuy => $_getN(140);
+  @$pb.TagNumber(208)
+  set siteDomainBuy($17.ReqSiteDomainBuy value) => $_setField(208, value);
+  @$pb.TagNumber(208)
+  $core.bool hasSiteDomainBuy() => $_has(140);
+  @$pb.TagNumber(208)
+  void clearSiteDomainBuy() => $_clearField(208);
+  @$pb.TagNumber(208)
+  $17.ReqSiteDomainBuy ensureSiteDomainBuy() => $_ensure(140);
 }
 
 enum WsRes_Body {
@@ -5977,6 +6038,9 @@ enum WsRes_Body {
   siteQueueList,
   siteQueuePut,
   siteQueueAdvance,
+  siteDomainSearch,
+  siteDomainCheck,
+  siteDomainBuy,
   notSet
 }
 
@@ -6132,6 +6196,9 @@ class WsRes extends $pb.GeneratedMessage {
     $17.ResSiteQueueList? siteQueueList,
     $17.ResSiteQueuePut? siteQueuePut,
     $17.ResSiteQueueAdvance? siteQueueAdvance,
+    $17.ResSiteDomainSearch? siteDomainSearch,
+    $17.ResSiteDomainCheck? siteDomainCheck,
+    $17.ResSiteDomainBuy? siteDomainBuy,
   }) {
     final result = WsRes._();
     if (reqId != null) result.reqId = reqId;
@@ -6307,6 +6374,9 @@ class WsRes extends $pb.GeneratedMessage {
     if (siteQueueList != null) result.siteQueueList = siteQueueList;
     if (siteQueuePut != null) result.siteQueuePut = siteQueuePut;
     if (siteQueueAdvance != null) result.siteQueueAdvance = siteQueueAdvance;
+    if (siteDomainSearch != null) result.siteDomainSearch = siteDomainSearch;
+    if (siteDomainCheck != null) result.siteDomainCheck = siteDomainCheck;
+    if (siteDomainBuy != null) result.siteDomainBuy = siteDomainBuy;
     return result;
   }
 
@@ -6468,6 +6538,9 @@ class WsRes extends $pb.GeneratedMessage {
     195: WsRes_Body.siteQueueList,
     196: WsRes_Body.siteQueuePut,
     197: WsRes_Body.siteQueueAdvance,
+    206: WsRes_Body.siteDomainSearch,
+    207: WsRes_Body.siteDomainCheck,
+    208: WsRes_Body.siteDomainBuy,
     0: WsRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -6622,7 +6695,10 @@ class WsRes extends $pb.GeneratedMessage {
       194,
       195,
       196,
-      197
+      197,
+      206,
+      207,
+      208
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$26.Err>(2, _omitFieldNames ? '' : 'err',
@@ -6960,6 +7036,13 @@ class WsRes extends $pb.GeneratedMessage {
     ..aOM<$17.ResSiteQueueAdvance>(
         197, _omitFieldNames ? '' : 'siteQueueAdvance',
         subBuilder: $17.ResSiteQueueAdvance.$_createMessage)
+    ..aOM<$17.ResSiteDomainSearch>(
+        206, _omitFieldNames ? '' : 'siteDomainSearch',
+        subBuilder: $17.ResSiteDomainSearch.$_createMessage)
+    ..aOM<$17.ResSiteDomainCheck>(207, _omitFieldNames ? '' : 'siteDomainCheck',
+        subBuilder: $17.ResSiteDomainCheck.$_createMessage)
+    ..aOM<$17.ResSiteDomainBuy>(208, _omitFieldNames ? '' : 'siteDomainBuy',
+        subBuilder: $17.ResSiteDomainBuy.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -7130,6 +7213,9 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(195)
   @$pb.TagNumber(196)
   @$pb.TagNumber(197)
+  @$pb.TagNumber(206)
+  @$pb.TagNumber(207)
+  @$pb.TagNumber(208)
   WsRes_Body whichBody() => _WsRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(10)
@@ -7279,6 +7365,9 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(195)
   @$pb.TagNumber(196)
   @$pb.TagNumber(197)
+  @$pb.TagNumber(206)
+  @$pb.TagNumber(207)
+  @$pb.TagNumber(208)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -8949,6 +9038,39 @@ class WsRes extends $pb.GeneratedMessage {
   void clearSiteQueueAdvance() => $_clearField(197);
   @$pb.TagNumber(197)
   $17.ResSiteQueueAdvance ensureSiteQueueAdvance() => $_ensure(148);
+
+  @$pb.TagNumber(206)
+  $17.ResSiteDomainSearch get siteDomainSearch => $_getN(149);
+  @$pb.TagNumber(206)
+  set siteDomainSearch($17.ResSiteDomainSearch value) => $_setField(206, value);
+  @$pb.TagNumber(206)
+  $core.bool hasSiteDomainSearch() => $_has(149);
+  @$pb.TagNumber(206)
+  void clearSiteDomainSearch() => $_clearField(206);
+  @$pb.TagNumber(206)
+  $17.ResSiteDomainSearch ensureSiteDomainSearch() => $_ensure(149);
+
+  @$pb.TagNumber(207)
+  $17.ResSiteDomainCheck get siteDomainCheck => $_getN(150);
+  @$pb.TagNumber(207)
+  set siteDomainCheck($17.ResSiteDomainCheck value) => $_setField(207, value);
+  @$pb.TagNumber(207)
+  $core.bool hasSiteDomainCheck() => $_has(150);
+  @$pb.TagNumber(207)
+  void clearSiteDomainCheck() => $_clearField(207);
+  @$pb.TagNumber(207)
+  $17.ResSiteDomainCheck ensureSiteDomainCheck() => $_ensure(150);
+
+  @$pb.TagNumber(208)
+  $17.ResSiteDomainBuy get siteDomainBuy => $_getN(151);
+  @$pb.TagNumber(208)
+  set siteDomainBuy($17.ResSiteDomainBuy value) => $_setField(208, value);
+  @$pb.TagNumber(208)
+  $core.bool hasSiteDomainBuy() => $_has(151);
+  @$pb.TagNumber(208)
+  void clearSiteDomainBuy() => $_clearField(208);
+  @$pb.TagNumber(208)
+  $17.ResSiteDomainBuy ensureSiteDomainBuy() => $_ensure(151);
 }
 
 const $core.bool _omitFieldNames =

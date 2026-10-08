@@ -18,6 +18,11 @@ use c35_store::snowflake_id;
 
 pub use crate::dns_verify::normalize_hostname;
 
+/// True only for an unverified bring-your-own hostname at least 24 hours old.
+pub fn byo_unverified_expires(created_age_hours: i64, source: &str, verified: bool) -> bool {
+    source == "byo" && !verified && created_age_hours >= 24
+}
+
 fn verify_token_new() -> String {
     blake3::hash(c35_store::snowflake_id().to_string().as_bytes())
         .to_hex()
@@ -30,10 +35,25 @@ pub async fn site_domain_list(
     req: ReqSiteDomainList,
 ) -> Result<ResSiteDomainList> {
     let _ = site_grant_check(pool, caller_iid, req.site_iid, false).await?;
+    sqlx::query(
+        r#"
+        UPDATE site.domain
+        SET deleted_ts = NOW(), updated_ts = NOW()
+        WHERE site_iid = $1
+          AND deleted_ts IS NULL
+          AND source = 'byo'
+          AND verified_ts IS NULL
+          AND created_ts < NOW() - INTERVAL '24 hours'
+        "#,
+    )
+    .bind(req.site_iid)
+    .execute(pool)
+    .await?;
     let rows = sqlx::query(
         r#"
         SELECT id, site_iid, hostname, is_primary, tls_status, verified_ts,
                verify_token, verify_error, tls_error, last_verify_ts,
+               source, mail_status, mail_error,
                created_ts, updated_ts, deleted_ts
         FROM site.domain
         WHERE site_iid = $1 AND deleted_ts IS NULL
@@ -88,7 +108,63 @@ pub async fn site_domain_put(
     } else {
         None
     };
+    let source = if domain.source == "bought" {
+        "bought"
+    } else {
+        "byo"
+    };
+    if domain.deleted_ts_ms > 0 {
+        let deleted_at = chrono::DateTime::from_timestamp_millis(domain.deleted_ts_ms)
+            .unwrap_or_else(Utc::now);
+        sqlx::query(
+            r#"
+            UPDATE site.domain
+            SET deleted_ts = $3, updated_ts = NOW()
+            WHERE id = $1 AND site_iid = $2 AND deleted_ts IS NULL
+            "#,
+        )
+        .bind(id)
+        .bind(site_iid)
+        .bind(deleted_at)
+        .execute(pool)
+        .await?;
+        if let Some(tx) = out_tx {
+            site_sync_push(
+                tx,
+                sync_push::Body::SiteDomain(SiteDomain {
+                    id,
+                    site_iid,
+                    hostname,
+                    source: source.to_string(),
+                    deleted_ts_ms: domain.deleted_ts_ms,
+                    updated_ts_ms: Utc::now().timestamp_millis(),
+                    ..Default::default()
+                }),
+            );
+        }
+        return Ok(ResSiteDomainPut { id });
+    }
     let mut tx = pool.begin().await?;
+    if source == "byo" && verified_ts.is_none() {
+        let other_pending: i64 = sqlx::query_scalar(
+            r#"
+            SELECT COUNT(*)::bigint
+            FROM site.domain
+            WHERE site_iid = $1
+              AND deleted_ts IS NULL
+              AND source = 'byo'
+              AND verified_ts IS NULL
+              AND id <> $2
+            "#,
+        )
+        .bind(site_iid)
+        .bind(id)
+        .fetch_one(&mut *tx)
+        .await?;
+        if other_pending > 0 {
+            return Err(anyhow!("pending_domain_exists"));
+        }
+    }
     if domain.is_primary {
         sqlx::query(
             r#"
@@ -106,12 +182,17 @@ pub async fn site_domain_put(
         INSERT INTO site.domain (
             id, site_iid, owner_iid, hostname, is_primary, verify_token,
             verified_ts, tls_status, verify_error, tls_error, last_verify_ts,
+            source, mail_status, mail_error,
             created_ts, updated_ts
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW())
         ON CONFLICT (id) DO UPDATE SET
           hostname = EXCLUDED.hostname, is_primary = EXCLUDED.is_primary,
           verify_token = EXCLUDED.verify_token, verified_ts = EXCLUDED.verified_ts,
-          tls_status = EXCLUDED.tls_status, updated_ts = NOW(), deleted_ts = NULL
+          tls_status = EXCLUDED.tls_status,
+          source = EXCLUDED.source,
+          mail_status = EXCLUDED.mail_status,
+          mail_error = EXCLUDED.mail_error,
+          updated_ts = NOW(), deleted_ts = NULL
         "#,
     )
     .bind(id)
@@ -125,6 +206,9 @@ pub async fn site_domain_put(
     .bind(&domain.verify_error)
     .bind(&domain.tls_error)
     .bind(last_verify_ts)
+    .bind(source)
+    .bind(&domain.mail_status)
+    .bind(&domain.mail_error)
     .execute(&mut *tx)
     .await?;
     tx.commit().await?;
@@ -144,6 +228,9 @@ pub async fn site_domain_put(
                 tls_status,
                 verified_ts_ms: domain.verified_ts_ms,
                 verify_token,
+                source: source.to_string(),
+                mail_status: domain.mail_status,
+                mail_error: domain.mail_error,
                 updated_ts_ms: Utc::now().timestamp_millis(),
                 ..Default::default()
             }),
@@ -160,6 +247,15 @@ pub async fn site_domain_verify(
 ) -> Result<ResSiteDomainVerify> {
     let site_iid = req.site_iid;
     let _ = site_grant_check(pool, caller_iid, site_iid, true).await?;
+    site_domain_verify_checked(pool, req, out_tx).await
+}
+
+pub(crate) async fn site_domain_verify_checked(
+    pool: &PgPool,
+    req: ReqSiteDomainVerify,
+    out_tx: Option<&mpsc::UnboundedSender<WsRes>>,
+) -> Result<ResSiteDomainVerify> {
+    let site_iid = req.site_iid;
     let domain_id = req.domain_id;
     if domain_id <= 0 {
         return Ok(ResSiteDomainVerify {
@@ -170,7 +266,8 @@ pub async fn site_domain_verify(
     }
     let row = sqlx::query(
         r#"
-        SELECT id, site_iid, hostname, is_primary, tls_status, verified_ts, verify_token
+        SELECT id, site_iid, hostname, is_primary, tls_status, verified_ts, verify_token,
+               source, mail_status, mail_error
         FROM site.domain
         WHERE id = $1 AND site_iid = $2 AND deleted_ts IS NULL
         "#,
@@ -241,7 +338,26 @@ pub async fn site_domain_verify(
         let info = domain_tls_ensure(&hostname, false).await;
         domain_tls_status_sync(pool, domain_id, &info).await;
         tls_status = info.status.as_str().to_string();
+        if let Err(e) = crate::site_domain_buy::domain_mail_after_verify(pool, site_iid, domain_id).await
+        {
+            tracing::warn!("domain mail after verify: {e}");
+        }
     }
+    let mail_row = sqlx::query(
+        "SELECT mail_status, mail_error FROM site.domain WHERE id = $1 AND site_iid = $2",
+    )
+    .bind(domain_id)
+    .bind(site_iid)
+    .fetch_optional(pool)
+    .await?;
+    let mail_status: String = mail_row
+        .as_ref()
+        .map(|r| r.get("mail_status"))
+        .unwrap_or_else(|| row.get("mail_status"));
+    let mail_error: String = mail_row
+        .as_ref()
+        .map(|r| r.get("mail_error"))
+        .unwrap_or_else(|| row.get("mail_error"));
     let verified_ts_ms = if dns_verified {
         now.timestamp_millis()
     } else {
@@ -258,6 +374,9 @@ pub async fn site_domain_verify(
                 tls_status: tls_status.clone(),
                 verified_ts_ms,
                 verify_token: row.get("verify_token"),
+                source: row.get("source"),
+                mail_status,
+                mail_error,
                 updated_ts_ms: now.timestamp_millis(),
                 ..Default::default()
             }),

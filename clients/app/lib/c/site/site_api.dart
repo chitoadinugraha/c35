@@ -379,6 +379,34 @@ class SiteApi {
   Future<ResSiteDomainVerify> domainVerify(int siteIid, int domainId, {bool forceTls = false}) =>
       conn.siteDomainVerify(siteIid, domainId, forceTls: forceTls);
 
+  /// Soft-delete: stamp `deletedTsMs` and put. There is no separate domain-delete RPC.
+  Future<void> domainDelete(int siteIid, SiteDomain domain) async {
+    final tomb = domain.clone();
+    tomb.deletedTsMs = Int64(DateTime.now().millisecondsSinceEpoch);
+    await domainPut(siteIid, tomb);
+  }
+
+  Future<List<SiteDomainSearchHit>> domainSearch(int siteIid, String query) async {
+    final res = await conn.rpc<ResSiteDomainSearch>(
+      WsReq(siteDomainSearch: ReqSiteDomainSearch(siteIid: Int64(siteIid), query: query)),
+      (r) => r.siteDomainSearch,
+    );
+    return res.hits;
+  }
+
+  Future<List<SiteDomainSearchHit>> domainCheck(int siteIid, List<String> hostnames) async {
+    final res = await conn.rpc<ResSiteDomainCheck>(
+      WsReq(siteDomainCheck: ReqSiteDomainCheck(siteIid: Int64(siteIid), hostnames: hostnames)),
+      (r) => r.siteDomainCheck,
+    );
+    return res.hits;
+  }
+
+  Future<ResSiteDomainBuy> domainBuy(int siteIid, String hostname) => conn.rpc<ResSiteDomainBuy>(
+        WsReq(siteDomainBuy: ReqSiteDomainBuy(siteIid: Int64(siteIid), hostname: hostname)),
+        (r) => r.siteDomainBuy,
+      );
+
   TableDef? tableDefFor(List<TableDef> defs, String collection) =>
       defs.where((d) => d.collection == collection).firstOrNull;
 

@@ -59,9 +59,15 @@ CREATE TABLE IF NOT EXISTS site.domain (
     tls_error           TEXT NOT NULL DEFAULT '',
     last_verify_ts      TIMESTAMPTZ,
 
+    source              VARCHAR(16) NOT NULL DEFAULT 'byo', -- byo | bought
+    mail_status         VARCHAR(16) NOT NULL DEFAULT '', -- empty | pending | ready | failed
+    mail_error          TEXT NOT NULL DEFAULT '',
+
     created_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    deleted_ts          TIMESTAMPTZ
+    deleted_ts          TIMESTAMPTZ,
+
+    CONSTRAINT chk_site_domain_source CHECK (source IN ('byo', 'bought'))
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_site_domain_hostname
@@ -69,6 +75,44 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_site_domain_hostname
     WHERE deleted_ts IS NULL;
 CREATE INDEX IF NOT EXISTS idx_site_domain_site
     ON site.domain (site_iid, updated_ts);
+
+ALTER TABLE site.domain
+    ADD COLUMN IF NOT EXISTS source VARCHAR(16) NOT NULL DEFAULT 'byo',
+    ADD COLUMN IF NOT EXISTS mail_status VARCHAR(16) NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS mail_error TEXT NOT NULL DEFAULT '';
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'chk_site_domain_source'
+          AND conrelid = 'site.domain'::regclass
+    ) THEN
+        ALTER TABLE site.domain
+            ADD CONSTRAINT chk_site_domain_source
+            CHECK (source IN ('byo', 'bought'));
+    END IF;
+END $$;
+
+-- Domain registrar purchase (charged wallet, then CF register).
+CREATE TABLE IF NOT EXISTS site.domain_order (
+    id                  BIGINT PRIMARY KEY,
+    site_iid            BIGINT NOT NULL REFERENCES ai.identity(id),
+    owner_iid           BIGINT NOT NULL REFERENCES ai.identity(id),
+
+    hostname            VARCHAR(253) NOT NULL,
+    currency            CHAR(3) NOT NULL,
+    amount              NUMERIC(18, 4) NOT NULL,
+    status              VARCHAR(16) NOT NULL, -- charged | registered | refunded | failed
+    cf_zone_id          VARCHAR(64) NOT NULL DEFAULT '',
+    error               TEXT NOT NULL DEFAULT '',
+
+    created_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_site_domain_order_site
+    ON site.domain_order (site_iid, created_ts DESC);
 
 -- ------------------------------------------------------------------------------
 -- Draft — block-composed SiteDoc (presentation only; data in site.product, …)

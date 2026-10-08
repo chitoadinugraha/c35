@@ -1,18 +1,16 @@
-import 'package:alienai_c35/c/pb/c35/collection.pb.dart';
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
 import 'package:alienai_c35/c/site/site_domain.dart';
 import 'package:alienai_c35/c/site/site_table_rows.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
+import 'package:alienai_c35/widgets/sites/editor/io_site_domain_buy_dialog.dart';
+import 'package:alienai_c35/widgets/sites/editor/ui_site_domain_section.dart';
 import 'package:alienai_c35/widgets/sites/io_site_domain_dialogs.dart';
-import 'package:alienai_c35/widgets/ui/ui_table.dart';
 import 'package:flutter/material.dart';
 
-const _border = Color(0xFF27272A);
 const _muted = Color(0xFF71717A);
 const _text = Color(0xFFF4F4F5);
 const _accent = Color(0xFF34D399);
-const _error = Color(0xFFF87171);
 
 class UiSiteSettingsEditor extends StatefulWidget {
   const UiSiteSettingsEditor({
@@ -36,11 +34,10 @@ class _UiSiteSettingsEditorState extends State<UiSiteSettingsEditor> {
   var _loading = true;
   var _savingCaps = false;
   var _domainsBusy = false;
+  int? _checkingDomainId;
   int? _fixingDomainId;
-  Map<String, bool> _caps = {for (final k in ['commerce', 'booking', 'queue']) k: true};
-  final _domains = <String, SiteDomain>{};
-  List<Map<String, String>> _domainRows = const [];
-  List<TableDef> _defs = const [];
+  Map<String, bool> _caps = Map<String, bool>.from(siteCapabilityDefaults);
+  List<SiteDomain> _domains = const [];
 
   @override
   void initState() {
@@ -48,27 +45,12 @@ class _UiSiteSettingsEditorState extends State<UiSiteSettingsEditor> {
     _load();
   }
 
-  TableDef _domainDef() =>
-      widget.api.domainTableDef(_defs) ?? TableDef(collection: 'site.domain', primaryKey: 'site_iid,id');
-
-  void _setDomains(List<SiteDomain> items) {
-    final def = _domainDef();
-    _domains
-      ..clear()
-      ..addEntries(items.map((d) {
-        final cells = siteDomainCells(d);
-        return MapEntry(siteRowKey(def, cells), d);
-      }));
-    _domainRows = _domains.values.map(siteDomainCells).toList(growable: false);
-  }
-
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      _defs = await widget.api.collectionDefs(siteIid: widget.siteIid);
       final config = await widget.api.configGet(widget.siteIid);
       _caps = siteCapabilitiesParse(config.capabilitiesJson);
-      _setDomains(await widget.api.domainList(widget.siteIid));
+      _domains = await widget.api.domainList(widget.siteIid);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating));
     } finally {
@@ -93,26 +75,20 @@ class _UiSiteSettingsEditorState extends State<UiSiteSettingsEditor> {
     }
   }
 
-  Future<void> _commitDomain(String rowKey, ColDef col, String value) async {
-    if (_domainsBusy) return;
-    setState(() => _domainsBusy = true);
-    try {
-      final base = _domains[rowKey] ?? widget.api.domainNew(widget.siteIid);
-      await widget.api.domainPut(widget.siteIid, siteDomainApplyCell(base, col, value));
-      _setDomains(await widget.api.domainList(widget.siteIid));
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating));
-    } finally {
-      if (mounted) setState(() => _domainsBusy = false);
-    }
+  Future<void> _refreshDomains() async {
+    _domains = await widget.api.domainList(widget.siteIid);
+    if (mounted) setState(() {});
   }
 
   Future<void> _addDomain() async {
-    if (_domainsBusy) return;
+    if (_domainsBusy || _domains.any(siteDomainPendingByo)) return;
+    final host = await ioSiteDomainAddDialogOpen(context);
+    if (host == null || !mounted || _domainsBusy) return;
     setState(() => _domainsBusy = true);
     try {
-      await widget.api.domainPut(widget.siteIid, widget.api.domainNew(widget.siteIid));
-      _setDomains(await widget.api.domainList(widget.siteIid));
+      final row = widget.api.domainNew(widget.siteIid)..hostname = host;
+      await widget.api.domainPut(widget.siteIid, row);
+      await _refreshDomains();
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating));
     } finally {
@@ -120,35 +96,66 @@ class _UiSiteSettingsEditorState extends State<UiSiteSettingsEditor> {
     }
   }
 
-  Future<void> _refreshDomains() async => _setDomains(await widget.api.domainList(widget.siteIid));
+  Future<void> _buyDomain() async {
+    if (_domainsBusy) return;
+    final bought = await ioSiteDomainBuyDialogOpen(context, api: widget.api, siteIid: widget.siteIid);
+    if (!bought || !mounted) return;
+    setState(() => _domainsBusy = true);
+    try {
+      await _refreshDomains();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating));
+    } finally {
+      if (mounted) setState(() => _domainsBusy = false);
+    }
+  }
+
+  Future<void> _removeDomain(SiteDomain d) async {
+    if (_domainsBusy) return;
+    setState(() => _domainsBusy = true);
+    try {
+      await widget.api.domainDelete(widget.siteIid, d);
+      await _refreshDomains();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating));
+    } finally {
+      if (mounted) setState(() => _domainsBusy = false);
+    }
+  }
 
   Future<void> _verifyDomain(SiteDomain d) async {
-    if (_domainsBusy) return;
+    if (_domainsBusy || _checkingDomainId != null) return;
+    if (siteDomainIsBought(d)) {
+      await _runVerify(d);
+      return;
+    }
     await ioSiteDomainDnsDialogOpen(
       context,
       domain: d.hostname,
       errorMessage: d.verifyError.isNotEmpty ? d.verifyError : null,
-      onCheck: () async {
-        setState(() => _domainsBusy = true);
-        try {
-          final res = await widget.api.domainVerify(widget.siteIid, d.id.toInt());
-          await _refreshDomains();
-          if (!mounted) return false;
-          if (res.dnsVerified) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('DNS verified'), behavior: SnackBarBehavior.floating));
-            return true;
-          }
-          final msg = res.error.isNotEmpty ? res.error : 'DNS verification failed';
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating));
-          return false;
-        } catch (e) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating));
-          return false;
-        } finally {
-          if (mounted) setState(() => _domainsBusy = false);
-        }
-      },
+      onCheck: () => _runVerify(d),
     );
+  }
+
+  Future<bool> _runVerify(SiteDomain d) async {
+    setState(() => _checkingDomainId = d.id.toInt());
+    try {
+      final res = await widget.api.domainVerify(widget.siteIid, d.id.toInt());
+      await _refreshDomains();
+      if (!mounted) return false;
+      if (res.dnsVerified) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('DNS verified'), behavior: SnackBarBehavior.floating));
+        return true;
+      }
+      final msg = res.error.isNotEmpty ? res.error : 'DNS verification failed';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating));
+      return false;
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating));
+      return false;
+    } finally {
+      if (mounted) setState(() => _checkingDomainId = null);
+    }
   }
 
   Future<void> _fixHttps(SiteDomain d) async {
@@ -173,77 +180,10 @@ class _UiSiteSettingsEditorState extends State<UiSiteSettingsEditor> {
     }
   }
 
-  Widget _domainStatusRow(String rowKey, double width) {
-    final d = _domains[rowKey];
-    if (d == null) return const SizedBox.shrink();
-    final domainId = d.id.toInt();
-    final dnsOk = siteDomainDnsVerified(d);
-    final tls = siteDomainTlsChip(d.tlsStatus);
-    return SizedBox(
-      width: width,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFF18181B),
-          border: Border(bottom: BorderSide(color: _border.withValues(alpha: 0.6))),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                if (!dnsOk)
-                  TextButton(
-                    onPressed: _domainsBusy ? null : () => _verifyDomain(d),
-                    child: const Text('Verify DNS'),
-                  )
-                else if (tls == SiteDomainTlsChip.failed)
-                  TextButton(
-                    onPressed: _fixingDomainId != null ? null : () => _fixHttps(d),
-                    child: _fixingDomainId == domainId
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: _muted))
-                        : const Text('Fix HTTPS'),
-                  ),
-                TextButton(
-                  onPressed: _domainsBusy ? null : () => ioSiteDomainDnsDialogOpen(context, domain: d.hostname),
-                  child: const Text('DNS steps'),
-                ),
-              ],
-            ),
-            if (dnsOk) ...[
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  _SiteDomainStatusChip(label: 'DNS verified', tone: _SiteDomainChipTone.ok),
-                  switch (tls) {
-                    SiteDomainTlsChip.ready => _SiteDomainStatusChip(label: 'HTTPS ready', tone: _SiteDomainChipTone.ok),
-                    SiteDomainTlsChip.failed => _SiteDomainStatusChip(label: 'HTTPS failed', tone: _SiteDomainChipTone.bad),
-                    SiteDomainTlsChip.disabled => _SiteDomainStatusChip(label: 'HTTPS cluster only', tone: _SiteDomainChipTone.muted),
-                    SiteDomainTlsChip.pending => _SiteDomainStatusChip(label: 'HTTPS pending', tone: _SiteDomainChipTone.warn),
-                  },
-                ],
-              ),
-              if (d.tlsError.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Text(d.tlsError, style: const TextStyle(color: _error, fontSize: 12)),
-              ],
-            ] else if (d.verifyError.isNotEmpty) ...[
-              Text(d.verifyError, style: const TextStyle(color: _error, fontSize: 12)),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _capToggle(String key, String label) => SwitchListTile(
         contentPadding: EdgeInsets.zero,
         title: Text(label, style: const TextStyle(color: _text, fontSize: 14)),
-        value: _caps[key] ?? true,
+        value: _caps[key] ?? siteCapabilityDefault(key),
         activeThumbColor: _accent,
         onChanged: _savingCaps ? null : (v) => _saveCapability(key, v),
       );
@@ -253,7 +193,6 @@ class _UiSiteSettingsEditorState extends State<UiSiteSettingsEditor> {
     if (_loading) {
       return const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _muted)));
     }
-    final domainDef = widget.api.domainTableDef(_defs);
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
@@ -263,78 +202,24 @@ class _UiSiteSettingsEditorState extends State<UiSiteSettingsEditor> {
         _capToggle('commerce', 'Commerce (Orders & Products)'),
         _capToggle('booking', 'Booking (Objects tab)'),
         _capToggle('queue', 'Queue blocks'),
+        _capToggle('attendance', 'Attendance (face enroll on Team)'),
         const SizedBox(height: 28),
         const Text('Domains', style: TextStyle(color: _text, fontSize: 15, fontWeight: FontWeight.w600)),
         const SizedBox(height: 4),
         Text('CNAME to $siteDomainCnameTarget (grey / DNS only)', style: const TextStyle(color: _muted, fontSize: 12)),
         const SizedBox(height: 12),
-        if (domainDef == null)
-          const Text('No domain table definition', style: TextStyle(color: _muted))
-        else
-          UiTable(
-            def: domainDef,
-            rows: _domainRows,
-            loading: _domainsBusy,
-            onCellCommit: _commitDomain,
-            onAddRow: _addDomain,
-            rowBuilder: (scope) => [...scope.defaultTiles, _domainStatusRow(scope.rowKey, scope.tableWidth)],
-          ),
+        UiSiteDomainSection(
+          domains: _domains,
+          busy: _domainsBusy,
+          checkingDomainId: _checkingDomainId,
+          fixingDomainId: _fixingDomainId,
+          onBuy: () => _buyDomain(),
+          onAdd: () => _addDomain(),
+          onVerify: (d) => _verifyDomain(d),
+          onFixHttps: (d) => _fixHttps(d),
+          onRemove: (d) => _removeDomain(d),
+        ),
       ],
-    );
-  }
-}
-
-enum _SiteDomainChipTone { ok, warn, bad, muted }
-
-class _SiteDomainStatusChip extends StatelessWidget {
-  const _SiteDomainStatusChip({required this.label, required this.tone});
-
-  final String label;
-  final _SiteDomainChipTone tone;
-
-  @override
-  Widget build(BuildContext context) {
-    final (bg, border, fg, icon) = switch (tone) {
-      _SiteDomainChipTone.ok => (
-          const Color(0xFF14532D).withValues(alpha: 0.45),
-          const Color(0xFF22C55E).withValues(alpha: 0.45),
-          const Color(0xFF4ADE80),
-          Icons.verified,
-        ),
-      _SiteDomainChipTone.warn => (
-          const Color(0xFF713F12).withValues(alpha: 0.40),
-          const Color(0xFFF59E0B).withValues(alpha: 0.45),
-          const Color(0xFFFCD34D),
-          Icons.hourglass_top,
-        ),
-      _SiteDomainChipTone.bad => (
-          const Color(0xFF7F1D1D).withValues(alpha: 0.40),
-          const Color(0xFFEF4444).withValues(alpha: 0.45),
-          const Color(0xFFFCA5A5),
-          Icons.error_outline,
-        ),
-      _SiteDomainChipTone.muted => (
-          const Color(0xFF27272A),
-          _border,
-          _muted,
-          Icons.info_outline,
-        ),
-    };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: bg,
-        border: Border.all(color: border),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: fg),
-          const SizedBox(width: 4),
-          Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: fg)),
-        ],
-      ),
     );
   }
 }

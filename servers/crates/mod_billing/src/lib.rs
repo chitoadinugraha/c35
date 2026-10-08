@@ -28,6 +28,7 @@ mod billing_signup_credit;
 mod billing_summary;
 mod billing_topup;
 mod billing_turn;
+mod domain_purchase;
 mod rate_card;
 mod billing_wallet;
 mod billing_webhook;
@@ -121,3 +122,7 @@ pub use billing_turn::{
     BillingRow, BillingUsageReport,
 };
 pub use bot_usage::bot_usage_stats;
+pub use domain_purchase::{
+    domain_purchase_debit, domain_purchase_mark, domain_purchase_refund,
+    domain_purchase_refund_allowed, DomainCharge,
+};

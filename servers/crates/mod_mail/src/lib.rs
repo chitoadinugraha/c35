@@ -16,8 +16,10 @@ pub use http::mail_router;
 pub use inbound::{inbound_webhook, verify_inbound_signature, MailInboundPayload};
 pub use outbound::SmtpConfig;
 pub use access::mail_access;
+pub use domain::{onboard_zone_for_site, zone_in_cloudflare, MailOnboard};
 pub use mailbox::{
-    ensure_personal_on_first_access, inbox_unread_total, list_for_user, nav_mail_snapshot,
+    ensure_personal_on_first_access, ensure_site_mailbox, inbox_unread_total, list_for_user,
+    nav_mail_snapshot,
 };
 pub use attachments::MailCas;
 pub use service::MailService;

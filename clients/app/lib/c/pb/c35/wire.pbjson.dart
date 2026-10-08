@@ -2588,6 +2588,33 @@ const WsReq$json = {
       '9': 0,
       '10': 'siteQueueAdvance'
     },
+    {
+      '1': 'site_domain_search',
+      '3': 206,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqSiteDomainSearch',
+      '9': 0,
+      '10': 'siteDomainSearch'
+    },
+    {
+      '1': 'site_domain_check',
+      '3': 207,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqSiteDomainCheck',
+      '9': 0,
+      '10': 'siteDomainCheck'
+    },
+    {
+      '1': 'site_domain_buy',
+      '3': 208,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqSiteDomainBuy',
+      '9': 0,
+      '10': 'siteDomainBuy'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -2760,7 +2787,11 @@ final $typed_data.Uint8List wsReqDescriptor = $convert.base64Decode(
     'V1ZV9saXN0GMMBIAEoCzIVLmMzNS5SZXFTaXRlUXVldWVMaXN0SABSDXNpdGVRdWV1ZUxpc3QS'
     'PQoOc2l0ZV9xdWV1ZV9wdXQYxAEgASgLMhQuYzM1LlJlcVNpdGVRdWV1ZVB1dEgAUgxzaXRlUX'
     'VldWVQdXQSSQoSc2l0ZV9xdWV1ZV9hZHZhbmNlGMUBIAEoCzIYLmMzNS5SZXFTaXRlUXVldWVB'
-    'ZHZhbmNlSABSEHNpdGVRdWV1ZUFkdmFuY2VCBgoEYm9keQ==');
+    'ZHZhbmNlSABSEHNpdGVRdWV1ZUFkdmFuY2USSQoSc2l0ZV9kb21haW5fc2VhcmNoGM4BIAEoCz'
+    'IYLmMzNS5SZXFTaXRlRG9tYWluU2VhcmNoSABSEHNpdGVEb21haW5TZWFyY2gSRgoRc2l0ZV9k'
+    'b21haW5fY2hlY2sYzwEgASgLMhcuYzM1LlJlcVNpdGVEb21haW5DaGVja0gAUg9zaXRlRG9tYW'
+    'luQ2hlY2sSQAoPc2l0ZV9kb21haW5fYnV5GNABIAEoCzIVLmMzNS5SZXFTaXRlRG9tYWluQnV5'
+    'SABSDXNpdGVEb21haW5CdXlCBgoEYm9keQ==');
 
 @$core.Deprecated('Use wsResDescriptor instead')
 const WsRes$json = {
@@ -4091,6 +4122,33 @@ const WsRes$json = {
       '9': 0,
       '10': 'siteQueueAdvance'
     },
+    {
+      '1': 'site_domain_search',
+      '3': 206,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResSiteDomainSearch',
+      '9': 0,
+      '10': 'siteDomainSearch'
+    },
+    {
+      '1': 'site_domain_check',
+      '3': 207,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResSiteDomainCheck',
+      '9': 0,
+      '10': 'siteDomainCheck'
+    },
+    {
+      '1': 'site_domain_buy',
+      '3': 208,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResSiteDomainBuy',
+      '9': 0,
+      '10': 'siteDomainBuy'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -4275,4 +4333,8 @@ final $typed_data.Uint8List wsResDescriptor = $convert.base64Decode(
     'EgASgLMhUuYzM1LlJlc1NpdGVRdWV1ZUxpc3RIAFINc2l0ZVF1ZXVlTGlzdBI9Cg5zaXRlX3F1'
     'ZXVlX3B1dBjEASABKAsyFC5jMzUuUmVzU2l0ZVF1ZXVlUHV0SABSDHNpdGVRdWV1ZVB1dBJJCh'
     'JzaXRlX3F1ZXVlX2FkdmFuY2UYxQEgASgLMhguYzM1LlJlc1NpdGVRdWV1ZUFkdmFuY2VIAFIQ'
-    'c2l0ZVF1ZXVlQWR2YW5jZUIGCgRib2R5');
+    'c2l0ZVF1ZXVlQWR2YW5jZRJJChJzaXRlX2RvbWFpbl9zZWFyY2gYzgEgASgLMhguYzM1LlJlc1'
+    'NpdGVEb21haW5TZWFyY2hIAFIQc2l0ZURvbWFpblNlYXJjaBJGChFzaXRlX2RvbWFpbl9jaGVj'
+    'axjPASABKAsyFy5jMzUuUmVzU2l0ZURvbWFpbkNoZWNrSABSD3NpdGVEb21haW5DaGVjaxJACg'
+    '9zaXRlX2RvbWFpbl9idXkY0AEgASgLMhUuYzM1LlJlc1NpdGVEb21haW5CdXlIAFINc2l0ZURv'
+    'bWFpbkJ1eUIGCgRib2R5');

@@ -475,3 +475,77 @@ pub async fn ensure_personal_on_first_access(pool: &PgPool, caller_iid: i64) -> 
     ensure_personal_mailbox(pool, caller_iid, &format!("{}@{}", alien_id.trim(), host)).await?;
     Ok(())
 }
+
+/// Site mailbox for `address`. Does not require a mail admin.
+/// The domain part must already exist in `mail.domain`.
+pub async fn ensure_site_mailbox(
+    pool: &PgPool,
+    owner_iid: i64,
+    site_iid: i64,
+    address: &str,
+) -> Result<i64, String> {
+    let address = address.trim();
+    let email_domain = domain::parse_email_domain(address).ok_or_else(|| "invalid mailbox address".to_string())?;
+    if !domain::domain_allowed(pool, &email_domain).await? {
+        return Err("domain_not_onboarded".into());
+    }
+    if let Some(id) = sqlx::query_scalar::<_, i64>(
+        "SELECT id FROM mail.mailbox WHERE lower(address) = lower($1) AND deleted_ts IS NULL LIMIT 1",
+    )
+    .bind(address)
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| e.to_string())?
+    {
+        return Ok(id);
+    }
+    if let Some(id) = sqlx::query_scalar::<_, i64>(
+        "SELECT id FROM mail.mailbox WHERE lower(address) = lower($1) LIMIT 1",
+    )
+    .bind(address)
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| e.to_string())?
+    {
+        sqlx::query(
+            "UPDATE mail.mailbox SET kind = 'site', owner_iid = $2, site_iid = $3, deleted_ts = NULL, updated_ts = NOW() WHERE id = $1",
+        )
+        .bind(id)
+        .bind(owner_iid)
+        .bind(site_iid)
+        .execute(pool)
+        .await
+        .map_err(|e| e.to_string())?;
+        return Ok(id);
+    }
+    let mailbox_id = snowflake_id();
+    let inserted = sqlx::query(
+        "INSERT INTO mail.mailbox (id, address, kind, owner_iid, site_iid, label, subscriber_limit) VALUES ($1,$2,'site',$3,$4,'',$5)",
+    )
+    .bind(mailbox_id)
+    .bind(address)
+    .bind(owner_iid)
+    .bind(site_iid)
+    .bind(DEFAULT_SUBSCRIBER_LIMIT)
+    .execute(pool)
+    .await;
+    match inserted {
+        Ok(_) => Ok(mailbox_id),
+        Err(e) => {
+            let dup = e
+                .as_database_error()
+                .and_then(|d| d.constraint())
+                .is_some_and(|c| c == "uq_mail_mailbox_address");
+            if !dup {
+                return Err(e.to_string());
+            }
+            sqlx::query_scalar(
+                "SELECT id FROM mail.mailbox WHERE lower(address) = lower($1) LIMIT 1",
+            )
+            .bind(address)
+            .fetch_one(pool)
+            .await
+            .map_err(|err| err.to_string())
+        }
+    }
+}

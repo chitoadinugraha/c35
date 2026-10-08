@@ -1,6 +1,6 @@
 # Billing (LOCKED)
 
-Status: **locked** 2026-09-21 (revised — multi-wallet)
+Status: **locked** 2026-09-21 (revised 2026-10-08 - domain purchase) (revised — multi-wallet)
 
 ## Overview
 
@@ -112,6 +112,10 @@ Spendable balance. **Multiple wallets per user** — one per currency in use.
 **Signup:** create wallet for locale currency (e.g. `IDR` for `id_ID`) with `is_default = true`. Additional wallets created on first top-up or explicit user action.
 
 **Multinational use:** user may hold IDR + USD wallets; switch default in settings.
+
+### Domain purchase
+
+Debit `ai.billing_wallet` for `(owner_iid, quote currency)` by the registrar amount. Short balance returns `insufficient_balance` and does not register. Cloudflare registration failure credits the same amount back. `billing_fx_rate` is not used. UI shows one currency.
 
 ---
 

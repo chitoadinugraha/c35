@@ -1030,6 +1030,45 @@ async fn dispatch(
                 Err(e) => err_res(req_id, WireErr::client("site_domain_verify_failed", e.to_string())),
             }
         }
+        Some(ws_req::Body::SiteDomainSearch(r)) => {
+            match c35_mod_site::site_domain_search(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteDomainSearch(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_domain_search_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteDomainCheck(r)) => {
+            match c35_mod_site::site_domain_check(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteDomainCheck(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_domain_check_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteDomainBuy(r)) => {
+            match c35_mod_site::site_domain_buy(&state.pool, ctx.caller_iid, r, Some(out_tx)).await {
+                Ok(body) if body.error == "insufficient_balance" => err_res(
+                    req_id,
+                    WireErr::client("site_domain_buy_failed", "insufficient_balance"),
+                ),
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteDomainBuy(body)),
+                },
+                Err(e) => {
+                    let msg = e.to_string();
+                    let msg = if msg == "insufficient_balance" {
+                        "insufficient_balance".to_string()
+                    } else {
+                        msg
+                    };
+                    err_res(req_id, WireErr::client("site_domain_buy_failed", msg))
+                }
+            }
+        }
         Some(ws_req::Body::CollectionDefList(r)) => WsRes {
             req_id,
             body: Some(ws_res::Body::CollectionDefList(
