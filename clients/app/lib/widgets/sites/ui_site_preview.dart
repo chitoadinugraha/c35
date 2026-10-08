@@ -23,12 +23,14 @@ class UiSitePreview extends StatefulWidget {
     required this.api,
     this.mode = SitePreviewMode.draft,
     this.reloadNonce = 0,
+    this.embedded = false,
   });
 
   final SiteRow row;
   final SiteApi api;
   final SitePreviewMode mode;
   final int reloadNonce;
+  final bool embedded;
 
   @override
   State<UiSitePreview> createState() => _UiSitePreviewState();
@@ -129,31 +131,35 @@ class _UiSitePreviewState extends State<UiSitePreview> {
     if (boot == null) {
       return const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _muted)));
     }
-    return _previewChrome(child: GuestSiteView.bootJson(bootJson: boot));
+    final guest = GuestSiteView.bootJson(bootJson: boot);
+    if (widget.embedded) return _embeddedPreview(child: guest);
+    return _previewChrome(child: guest);
   }
+
+  Widget _embeddedPreview({required Widget child}) => Stack(
+        children: [
+          Positioned.fill(child: SingleChildScrollView(child: child)),
+          Positioned(
+            top: 4,
+            right: 4,
+            child: Material(
+              color: const Color(0xCC18181B),
+              borderRadius: BorderRadius.circular(6),
+              child: uiIconButton(
+                tooltip: 'Open in browser',
+                onPressed: _openExternal,
+                icon: const Icon(Icons.open_in_new, size: 16, color: _muted),
+              ),
+            ),
+          ),
+        ],
+      );
 
   Widget _previewChrome({required Widget child}) => DecoratedBox(
         decoration: BoxDecoration(border: Border.all(color: _border), borderRadius: BorderRadius.circular(8)),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(8),
-          child: Stack(
-            children: [
-              Positioned.fill(child: SingleChildScrollView(child: child)),
-              Positioned(
-                top: 4,
-                right: 4,
-                child: Material(
-                  color: const Color(0xCC18181B),
-                  borderRadius: BorderRadius.circular(6),
-                  child: uiIconButton(
-                    tooltip: 'Open in browser',
-                    onPressed: _openExternal,
-                    icon: const Icon(Icons.open_in_new, size: 16, color: _muted),
-                  ),
-                ),
-              ),
-            ],
-          ),
+          child: _embeddedPreview(child: child),
         ),
       );
 }

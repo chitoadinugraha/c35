@@ -5,6 +5,10 @@ const siteCatalogMasterListW = 280.0;
 const siteEditorWideBreakpoint = 900.0;
 const siteEditorMasterDetailBreakpoint = 640.0;
 const siteEditorFormMaxWidth = 560.0;
+const siteEditorPreviewPaneW = 380.0;
+const siteEditorPreviewBreakpoint = 1180.0;
+
+bool siteEditorShowPreviewPane(double width) => width >= siteEditorPreviewBreakpoint;
 
 const _editorBorder = Color(0xFF3F3F46);
 
