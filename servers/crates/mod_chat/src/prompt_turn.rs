@@ -321,6 +321,7 @@ where
                 }
             }
         }
+        }
     }
 
     let user_content = mention_content_normalize(&req.text, &req.mention_ids);

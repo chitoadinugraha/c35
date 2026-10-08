@@ -8,7 +8,6 @@ use futures_util::future::join_all;
 use serde_json::{json, Value};
 use tokio_util::sync::CancellationToken;
 
-use super::gemini::gemini_model_content_for_history;
 use super::llm_route::{bill_model_slug, llm_stream_chain};
 use super::thought::{thought_push, thinking_level};
 use super::web_grounding::{
@@ -23,7 +22,7 @@ use crate::prompt_run::{
 };
 use crate::chat_title_set;
 use crate::mention_context::{json_device_iid_field, mention_context_register_site};
-use crate::tools::{cluster_tool_def, cluster_tool_exec, http_client, site_builder_seed_catalog, tool_decls, TurnCtx};
+use crate::tools::{cluster_tool_def, cluster_tool_exec, http_client, tool_decls, TurnCtx};
 use crate::turn_tracer::TurnTracer;
 
 pub const CHAT_TOOL_ROUNDS_MAX: u8 = 24;
@@ -327,38 +326,13 @@ pub async fn prompt_cluster_turn(
                     on_blocks(blocks_json.clone());
                 }
                 if name == "site.create" && ok {
-                    let site_iid = json_device_iid_field(&result, "site_iid");
-                    if site_iid > 0 {
-                        if let Some(ctx) = turn_ctx.as_mut() {
+                    if let Some(ctx) = turn_ctx.as_mut() {
+                        let site_iid = json_device_iid_field(&result, "site_iid");
+                        if site_iid > 0 {
                             let alien_id = result.get("alien_id").and_then(|v| v.as_str()).unwrap_or("");
                             let site_name = result.get("name").and_then(|v| v.as_str()).unwrap_or("");
                             mention_context_register_site(&mut ctx.mention, site_iid, alien_id, site_name);
                             ctx.site_iid = Some(site_iid);
-                        }
-                        if let Some(ctx) = turn_ctx.as_ref() {
-                            match site_builder_seed_catalog(&client, ctx, site_iid).await {
-                                Ok(seeded) if !seeded.is_empty() => {
-                                    if let Some(tr) = tracer {
-                                        for row in seeded {
-                                            tr.tool_result(
-                                                "site.product_put",
-                                                &snowflake_id().to_string(),
-                                                &json!({ "site_iid": site_iid.to_string(), "seed": true }),
-                                                &row,
-                                                true,
-                                                0,
-                                            )
-                                            .await;
-                                        }
-                                    }
-                                }
-                                Ok(_) => {}
-                                Err(e) => {
-                                    tracing::warn!(
-                                        "[c35:site_builder_catalog] seed failed site_iid={site_iid}: {e:#}"
-                                    );
-                                }
-                            }
                         }
                     }
                 }
@@ -435,7 +409,7 @@ pub async fn prompt_cluster_turn(
             }
 
             used_tool = true;
-            contents.push(gemini_model_content_for_history(out.model_content.clone()));
+            contents.push(out.model_content);
             contents.push(json!({
                 "role": "user",
                 "parts": function_parts
