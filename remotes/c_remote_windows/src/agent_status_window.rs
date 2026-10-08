@@ -107,11 +107,14 @@ pub fn run(
         RegisterClassExW, SendMessageW, SetForegroundWindow, SetWindowLongPtrW, SetWindowPos,
         ShowWindow, TranslateMessage, CS_HREDRAW, CS_VREDRAW, GWLP_USERDATA, HICON, HMENU,
         HWND_TOP, ICON_BIG, ICON_SMALL, IDC_ARROW, IsWindowVisible, SM_CXSCREEN, SM_CYSCREEN,
-        SW_HIDE, SW_SHOW, SWP_NOSIZE, WM_CLOSE, WM_CREATE, WM_DESTROY, WM_ERASEBKGND,
-        WM_GETMINMAXINFO,
+        SW_HIDE, SW_SHOW, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
+        WM_CLOSE, WM_CREATE, WM_DESTROY, WM_ERASEBKGND,
+        WM_GETMINMAXINFO, WM_NCCALCSIZE,
         WM_LBUTTONDOWN, WM_MOUSEMOVE, WM_NCHITTEST, WM_PAINT, WM_SETICON, WM_SIZE, WM_TIMER,
         WM_USER, WNDCLASSEXW, WS_EX_APPWINDOW, WS_MINIMIZEBOX, WS_POPUP, WS_THICKFRAME,
-        HTCAPTION, HTCLIENT, MINMAXINFO,
+        HTCAPTION, HTCLIENT, HTLEFT, HTRIGHT, HTTOP, HTBOTTOM, HTTOPLEFT, HTTOPRIGHT,
+        HTBOTTOMLEFT, HTBOTTOMRIGHT, IsZoomed, MINMAXINFO, NCCALCSIZE_PARAMS,
+        SM_CXPADDEDBORDER, SM_CXFRAME, SM_CYFRAME,
     };
 
     const WM_AGENT_SHOW: u32 = WM_USER + 302;
@@ -221,6 +224,7 @@ pub fn run(
         active_tab: u8,
         close_hover: bool,
         unpair_hover: bool,
+        update_hover: bool,
         tab_status_hover: bool,
         tab_logs_hover: bool,
         drive_toggle_hover: bool,
@@ -360,6 +364,18 @@ pub fn run(
         }
     }
 
+    fn update_rect(scale: &UiScale, rc: &RECT) -> RECT {
+        let unpair = unpair_rect(scale, rc);
+        let w = scale.px(68);
+        let pad_y = scale.px(7);
+        RECT {
+            left: unpair.left - w - scale.px(4),
+            top: pad_y,
+            right: unpair.left - scale.px(4),
+            bottom: title_h(scale) - pad_y,
+        }
+    }
+
     fn tab_rects(scale: &UiScale, rc: &RECT) -> (RECT, RECT) {
         let top = title_h(scale);
         let h = tab_bar_h(scale);
@@ -382,9 +398,28 @@ pub fn run(
 
     fn footer_labels(tab: u8) -> &'static [&'static str] {
         match tab {
-            TAB_STATUS => &["Check for update", "Update now"],
+            TAB_STATUS => &[],
             _ => &["Open log", "Logs"],
         }
+    }
+
+    fn resize_hit(pt: POINT, rc: &RECT) -> Option<u32> {
+        let b = 8;
+        let left = pt.x >= rc.left && pt.x < rc.left + b;
+        let right = pt.x < rc.right && pt.x >= rc.right - b;
+        let top = pt.y >= rc.top && pt.y < rc.top + b;
+        let bottom = pt.y < rc.bottom && pt.y >= rc.bottom - b;
+        Some(match (left, right, top, bottom) {
+            (true, _, true, _) => HTTOPLEFT,
+            (_, true, true, _) => HTTOPRIGHT,
+            (true, _, _, true) => HTBOTTOMLEFT,
+            (_, true, _, true) => HTBOTTOMRIGHT,
+            (true, _, _, _) => HTLEFT,
+            (_, true, _, _) => HTRIGHT,
+            (_, _, true, _) => HTTOP,
+            (_, _, _, true) => HTBOTTOM,
+            _ => return None,
+        })
     }
 
     fn btn_row(scale: &UiScale, rc: &RECT, labels: &[&str]) -> Vec<RECT> {
@@ -552,15 +587,18 @@ pub fn run(
         let _ = FillRect(hdc, &title_rc, title_bg);
         let _ = DeleteObject(HGDIOBJ(title_bg.0));
 
-        let footer_rc = RECT {
-            left: 0,
-            top: rc.bottom - fh,
-            right: rc.right,
-            bottom: rc.bottom,
-        };
-        let foot_bg = CreateSolidBrush(COLORREF(CLR_FOOTER));
-        let _ = FillRect(hdc, &footer_rc, foot_bg);
-        let _ = DeleteObject(HGDIOBJ(foot_bg.0));
+        let show_footer = !footer_labels(ctx.active_tab).is_empty();
+        if show_footer {
+            let footer_rc = RECT {
+                left: 0,
+                top: rc.bottom - fh,
+                right: rc.right,
+                bottom: rc.bottom,
+            };
+            let foot_bg = CreateSolidBrush(COLORREF(CLR_FOOTER));
+            let _ = FillRect(hdc, &footer_rc, foot_bg);
+            let _ = DeleteObject(HGDIOBJ(foot_bg.0));
+        }
 
         let close = close_rect(scale, &rc);
         if ctx.close_hover {
@@ -608,10 +646,34 @@ pub fn run(
             DT_CENTER | DT_SINGLELINE | DT_VCENTER,
         );
 
+        let update_ready = snap.update_staged.is_some();
+        if update_ready {
+            let upd = update_rect(scale, &rc);
+            let radius = scale.px(6);
+            let fill = if ctx.update_hover { 0x0068D890 } else { CLR_DOT_ON };
+            let pen = CreatePen(PS_SOLID, 1, COLORREF(fill));
+            let brush = CreateSolidBrush(COLORREF(fill));
+            let op = SelectObject(hdc, HGDIOBJ(pen.0));
+            let ob = SelectObject(hdc, HGDIOBJ(brush.0));
+            let _ = RoundRect(hdc, upd.left, upd.top, upd.right, upd.bottom, radius, radius);
+            SelectObject(hdc, ob);
+            SelectObject(hdc, op);
+            let _ = DeleteObject(HGDIOBJ(brush.0));
+            let _ = DeleteObject(HGDIOBJ(pen.0));
+            draw_text(
+                hdc,
+                ctx.fonts.small,
+                CLR_TITLE,
+                "Update",
+                upd,
+                DT_CENTER | DT_SINGLELINE | DT_VCENTER,
+            );
+        }
+
         let title_text_rc = RECT {
             left: scale.px(38),
             top: 0,
-            right: unpair.left,
+            right: if update_ready { update_rect(scale, &rc).left } else { unpair.left },
             bottom: th,
         };
         draw_text(
@@ -776,7 +838,7 @@ pub fn run(
                 ),
             ];
             if let Some(v) = snap.update_staged {
-                info_lines.push(format!("Update ready: build {v} — use Update now"));
+                info_lines.push(format!("Update ready: build {v}"));
             }
             if !snap.update_check_msg.is_empty() {
                 info_lines.push(format!("Last update check: {}", snap.update_check_msg));
@@ -884,19 +946,21 @@ pub fn run(
             }
         }
 
-        let footer_labels = footer_labels(ctx.active_tab);
-        let btns = btn_row(scale, &rc, footer_labels);
-        for (i, btn_rc) in btns.iter().enumerate() {
-            let hover = ctx.btn_footer_hover.get(i).copied().unwrap_or(false);
-            draw_round_btn(hdc, scale, btn_rc, hover);
-            draw_text(
-                hdc,
-                ctx.fonts.small,
-                CLR_TEXT,
-                footer_labels[i],
-                *btn_rc,
-                DT_CENTER | DT_SINGLELINE | DT_VCENTER,
-            );
+        if show_footer {
+            let footer_labels = footer_labels(ctx.active_tab);
+            let btns = btn_row(scale, &rc, footer_labels);
+            for (i, btn_rc) in btns.iter().enumerate() {
+                let hover = ctx.btn_footer_hover.get(i).copied().unwrap_or(false);
+                draw_round_btn(hdc, scale, btn_rc, hover);
+                draw_text(
+                    hdc,
+                    ctx.fonts.small,
+                    CLR_TEXT,
+                    footer_labels[i],
+                    *btn_rc,
+                    DT_CENTER | DT_SINGLELINE | DT_VCENTER,
+                );
+            }
         }
 
         let _ = EndPaint(hwnd, &ps);
@@ -942,6 +1006,7 @@ pub fn run(
                     active_tab: TAB_STATUS,
                     close_hover: false,
                     unpair_hover: false,
+                    update_hover: false,
                     tab_status_hover: false,
                     tab_logs_hover: false,
                     drive_toggle_hover: false,
@@ -1001,6 +1066,7 @@ pub fn run(
                     let snap = status_copy();
                     let close = close_rect(scale, &rc);
                     let unpair = unpair_rect(scale, &rc);
+                    let update = update_rect(scale, &rc);
                     let (tab_status, tab_logs) = tab_rects(scale, &rc);
                     let drive_switch = if ctx.active_tab == TAB_STATUS {
                         Some(status_drive_switch_rect(scale, &rc, &snap))
@@ -1010,6 +1076,7 @@ pub fn run(
                     let footer_btns = btn_row(scale, &rc, footer_labels(ctx.active_tab));
                     let nh_close = in_rect(pt, &close);
                     let nh_unpair = in_rect(pt, &unpair);
+                    let nh_update = snap.update_staged.is_some() && in_rect(pt, &update);
                     let nh_tab_status = in_rect(pt, &tab_status);
                     let nh_tab_logs = in_rect(pt, &tab_logs);
                     let nh_drive = drive_switch.is_some_and(|r| in_rect(pt, &r));
@@ -1019,6 +1086,7 @@ pub fn run(
                     }
                     let changed = nh_close != ctx.close_hover
                         || nh_unpair != ctx.unpair_hover
+                        || nh_update != ctx.update_hover
                         || nh_tab_status != ctx.tab_status_hover
                         || nh_tab_logs != ctx.tab_logs_hover
                         || nh_drive != ctx.drive_toggle_hover
@@ -1026,6 +1094,7 @@ pub fn run(
                     if changed {
                         ctx.close_hover = nh_close;
                         ctx.unpair_hover = nh_unpair;
+                        ctx.update_hover = nh_update;
                         ctx.tab_status_hover = nh_tab_status;
                         ctx.tab_logs_hover = nh_tab_logs;
                         ctx.drive_toggle_hover = nh_drive;
@@ -1054,6 +1123,10 @@ pub fn run(
                         let tx = ctx.action_tx.clone();
                         confirm_unpair(hwnd, &tx);
                     }
+                    return LRESULT(0);
+                }
+                if status_copy().update_staged.is_some() && in_rect(pt, &update_rect(&scale, &rc)) {
+                    c_remote_core::update::update_apply_now();
                     return LRESULT(0);
                 }
                 let (tab_status, tab_logs) = tab_rects(&scale, &rc);
@@ -1096,13 +1169,7 @@ pub fn run(
                 }
                 let active_tab = ctx_get(hwnd).map(|c| c.active_tab).unwrap_or(TAB_STATUS);
                 let btns = btn_row(&scale, &rc, footer_labels(active_tab));
-                if active_tab == TAB_STATUS {
-                    if btns.first().is_some_and(|b| in_rect(pt, b)) {
-                        c_remote_core::update::update_check_poll();
-                    } else if btns.get(1).is_some_and(|b| in_rect(pt, b)) {
-                        c_remote_core::update::update_apply_now();
-                    }
-                } else {
+                if active_tab != TAB_STATUS {
                     if btns.first().is_some_and(|b| in_rect(pt, b)) {
                         let _ = c_remote_core::log_local::log_open();
                     } else if btns.get(1).is_some_and(|b| in_rect(pt, b)) {
@@ -1126,13 +1193,37 @@ pub fn run(
                 let scale = UiScale::from_hwnd(hwnd);
                 let close = close_rect(&scale, &rc);
                 let unpair = unpair_rect(&scale, &rc);
-                if in_rect(pt, &close) || in_rect(pt, &unpair) {
+                let on_update = status_copy().update_staged.is_some()
+                    && in_rect(pt, &update_rect(&scale, &rc));
+                if in_rect(pt, &close) || in_rect(pt, &unpair) || on_update {
                     return LRESULT(HTCLIENT as isize);
+                }
+                if let Some(hit) = resize_hit(pt, &rc) {
+                    return LRESULT(hit as isize);
                 }
                 if pt.y < title_h(&scale) {
                     return LRESULT(HTCAPTION as isize);
                 }
                 LRESULT(DefWindowProcW(hwnd, msg, wparam, lparam).0)
+            }
+            WM_NCCALCSIZE => {
+                // WS_THICKFRAME keeps a non-client caption. On Windows 11 that
+                // strip is painted white above this custom title bar.
+                if wparam.0 == 0 {
+                    return DefWindowProcW(hwnd, msg, wparam, lparam);
+                }
+                let params = lparam.0 as *mut NCCALCSIZE_PARAMS;
+                if !params.is_null() && IsZoomed(hwnd).as_bool() {
+                    let pad = GetSystemMetrics(SM_CXPADDEDBORDER);
+                    let fx = GetSystemMetrics(SM_CXFRAME) + pad;
+                    let fy = GetSystemMetrics(SM_CYFRAME) + pad;
+                    let r = &mut (*params).rgrc[0];
+                    r.left += fx;
+                    r.right -= fx;
+                    r.top += fy;
+                    r.bottom -= fy;
+                }
+                LRESULT(0)
             }
             WM_CLOSE => {
                 refresh_timer_stop(hwnd);
@@ -1156,6 +1247,35 @@ pub fn run(
         }
     }
 
+    unsafe fn apply_dark_chrome(hwnd: HWND) {
+        use windows::Win32::Graphics::Dwm::{
+            DwmSetWindowAttribute, DWMWA_BORDER_COLOR, DWMWA_CAPTION_COLOR,
+            DWMWA_USE_IMMERSIVE_DARK_MODE,
+        };
+        let dark: i32 = 1;
+        let _ = DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_USE_IMMERSIVE_DARK_MODE,
+            &dark as *const i32 as *const std::ffi::c_void,
+            4,
+        );
+        let caption: u32 = CLR_TITLE;
+        let _ = DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_CAPTION_COLOR,
+            &caption as *const u32 as *const std::ffi::c_void,
+            4,
+        );
+        // DWMWA_COLOR_NONE: do not paint the light frame above the client area.
+        let none: u32 = 0xFFFF_FFFE;
+        let _ = DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_BORDER_COLOR,
+            &none as *const u32 as *const std::ffi::c_void,
+            4,
+        );
+    }
+
     unsafe {
         let hinstance = GetModuleHandleW(None)?;
         let class_name = w!("AlienAIAgentStatusV2");
@@ -1167,6 +1287,7 @@ pub fn run(
             hInstance: hinstance.into(),
             hIcon: app_icon,
             hCursor: LoadCursorW(None, IDC_ARROW)?,
+            hbrBackground: CreateSolidBrush(COLORREF(CLR_BG)),
             lpszClassName: class_name,
             ..Default::default()
         };
@@ -1201,7 +1322,16 @@ pub fn run(
             *guard = hwnd.0 as isize;
         }
 
-        let _ = SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE);
+        apply_dark_chrome(hwnd);
+        let _ = SetWindowPos(
+            hwnd,
+            HWND_TOP,
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_FRAMECHANGED,
+        );
 
         let mut msg = windows::Win32::UI::WindowsAndMessaging::MSG::default();
         while GetMessageW(&mut msg, HWND::default(), 0, 0).as_bool() {
